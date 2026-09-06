@@ -153,8 +153,59 @@ Cloned at depth 1 on 2026-09-06 and counted:
 | source LOC to re-behave | 4,180 | 7,673 |
 | upstream tests that must pass | 1,119 | 1,185 |
 
-**259 methods, ~11,850 LOC, 2,304 tests.** Finite and gradeable — a grind with an end,
-not a research project — and roughly 3-6 months on top of the floor.
+**259 methods, ~11,850 LOC, 2,304 tests.** Finite and gradeable. No calendar estimate
+is given here on purpose: see *the oracle* below, which replaces the estimate with a
+number that can be read off CI on any given day.
+
+### The oracle: the competitor wrote our feedback loop
+
+`AI_NATIVE_SDLC.md` rule 2 says give yourself a feedback loop before you start — one
+command that exits non-zero on failure. For compatibility we do not have to write one.
+commander's own suite *is* that command, and it is redirectable at a single line.
+
+commander's 105 test files import the library as `from '../index.js'` and assert with
+`node:test` + `node:assert/strict`. Copy the suite, rewrite that one specifier to a
+shim, and the entire upstream gate points wherever we want:
+
+```js
+// impl.js — swap this single line to grade a different implementation
+export * from 'commander';
+```
+
+Measured 2026-09-06 on this machine:
+
+| | |
+| :--- | ---: |
+| test files redirectable to the shim (public surface) | **96 / 105** |
+| files testing internals via `../lib/command.js` (out of scope) | 9 |
+| tests executed through the shim | **1,215** |
+| passing against real commander | **1,210** |
+
+The 5 failures are fixture subprocesses resolving `commander` from a flat copy's root —
+an artifact of the ten-minute spike, not a real gap. The gate is sound.
+
+**What this changes.** Compatibility stops being a project to estimate and becomes a
+burn-down against a number that only goes up, where every failure is a precise,
+reproducible, independently assignable task with an executable acceptance test already
+written. That is the ideal shape for agent work, and it is why a calendar estimate
+calibrated on human throughput is the wrong instrument.
+
+**What it does not change.** Three costs are not compressed by generating code faster:
+
+1. **Review capacity.** Rule 3 says a human accepts at Design→Build and at Deploy.
+   Twelve thousand lines produced in days becomes a review queue; the binding
+   constraint moves from writing to accepting, and no amount of generation speed moves
+   it back.
+2. **Behaviour the suite does not cover.** 1,215 tests over 4,180 LOC is good coverage,
+   not total coverage. Silent divergence lives in the gaps, and real CLIs depend on
+   emergent behaviour nobody wrote a test for — vitest's jest-compat pain was never the
+   documented API, it was the long tail.
+3. **The treadmill.** Upstream keeps shipping. Re-running the gate on every upstream
+   release is permanent cost, not one-off cost.
+
+So: implementation compresses hard, confidence does not compress the same way. Build the
+oracle first, publish the pass rate from the first commit, and let the ratchet answer
+the schedule question instead of anyone's intuition.
 
 ### The wall, and why it costs us nothing
 
@@ -197,7 +248,47 @@ the reason. So the floor ships first — it is what makes the replacement worth 
 Names reserved for the replacement (verified free 2026-09-06): `selvage`, `treadle`,
 `sley`.
 
-## 6. Rust or Go: no, and the measurement says why
+## 6. Compatibility must not cost weight: pay per import, never per config
+
+Being compatible with both hosts must not make us heavier than either, still less than
+their sum. Measured install sizes to beat:
+
+| | KB |
+| :--- | ---: |
+| cac | 52 |
+| citty | 52 |
+| commander | 232 |
+| yargs | 376 |
+
+**The trap is runtime configuration.** A `compat: 'commander'` flag read at run time
+ships every byte of both front-ends and merely declines to execute one. That is the
+worst outcome: full weight, no benefit.
+
+**Weight is paid per import.** The `preact/compat` model — compatibility lives behind a
+separate specifier, so a user who never imports it never bundles it:
+
+```js
+import { defineCommand } from 'selvage';            // core only, no host quirks
+import { Command }       from 'selvage/commander';  // + commander's 151 methods
+import yargs             from 'selvage/yargs';      // + yargs' 108 methods
+```
+
+Individual quirks that a user *does* want (camelCase conversion, `-abc` bundling,
+`--no-` negation) are opt-in behaviours composed onto the core, each separately
+importable, so the core keeps none of them.
+
+**Enforced, not hoped.** `cli-packaging` already carries a size ratchet; it gains two
+assertions:
+
+- the core entry point's bundled size stays **under cac's 52KB**;
+- a core-only import pulls **zero bytes** of either compat front-end — asserted by
+  bundling a fixture and grepping the output, so a stray import fails CI;
+- core + one compat front-end stays under the host it replaces (232KB / 376KB).
+
+That last one is also the marketing line, and unlike "100% compatible" it is a number
+anyone can check.
+
+## 7. Rust or Go: no, and the measurement says why
 
 | | ms |
 | :--- | ---: |
@@ -224,7 +315,7 @@ Rust remains right for anything that is *its own process doing bulk work*:
 `eslint-plugin-cli-floor` as a native oxlint rule, and build-time generators for
 completions and the manifest. Not the runtime library.
 
-## 7. What leading CLIs actually use
+## 8. What leading CLIs actually use
 
 Dependencies of 30 major CLI tools, resolved 2026-09-06:
 
@@ -245,7 +336,7 @@ be bundler-safe**: ESM, no dynamic `require`, no `__dirname` tricks, zero runtim
 dependencies. A host that bundles will bundle us too. This is a hard requirement on
 `cli-packaging`.
 
-## 8. Reproducing
+## 9. Reproducing
 
 ```bash
 # downloads + repo stats
@@ -263,4 +354,13 @@ git clone --depth 1 https://github.com/tj/commander.js && \
 
 # native vs node startup
 for i in $(seq 20); do s=$(date +%s%N); node -e ''; e=$(date +%s%N); echo $(( (e-s)/1000000 )); done | sort -n | sed -n '11p'
+```
+
+```bash
+# the oracle, end to end
+git clone --depth 1 https://github.com/tj/commander.js
+cp -r commander.js/tests oracle/ && cd oracle
+perl -pi -e "s#from '\.\./index\.js'#from '../impl.js'#g" tests/*.js
+echo "export * from 'commander';" > impl.js      # <- the one line to swap
+node --test $(grep -l "'../impl.js'" tests/*.js)  # 1210/1215
 ```
