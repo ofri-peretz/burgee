@@ -3,3 +3,15 @@
 @import 'fumadocs-ui/css/preset.css';
 
 @source "../../node_modules/fumadocs-ui";
+
+/* Interlace brand mark fills — the same theme-paired values as
+   packages/ui/styles/interlace-theme.css in the interlace repo, so the mark
+   here is pixel- and colour-identical to every other *.interlace.tools site. */
+:root {
+  --brand-mark-bar-o: #a84c17;
+  --brand-mark-bar-g: #0a6b47;
+}
+.dark {
+  --brand-mark-bar-o: #f4794a;
+  --brand-mark-bar-g: #0d9460;
+}

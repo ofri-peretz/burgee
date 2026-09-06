@@ -1,29 +1,86 @@
 /**
- * Root ESLint flat config — dogfoods the Interlace ecosystem.
+ * Root ESLint flat config — dogfoods the Interlace ecosystem at maximum strength.
  *
- * Wiring mirrors ../interlace/eslint.config.mjs: each plugin's OWN flat
- * `recommended`, spread as-is, except maintainability + operability whose
- * published `recommended` does not resolve under flat config and are hand-wired.
- * React plugins run on the docs app's TSX only.
- *
- * Everything is `error`. This repo starts empty, so there is no backlog to
- * baseline; the first finding is the first thing to fix.
+ * Policy: EVERY rule of every installed Interlace plugin is on at `error`,
+ * computed from the plugin's own rule table, so a new rule in a plugin release
+ * is on here the day it lands. Only three kinds of exception exist, each named
+ * in OFF with its reason: a conflicting pair (one side wins), a rule that
+ * cannot apply to this codebase, or a documented false positive tracked in the
+ * eslint monorepo. `--max-warnings 0` in CI; nothing is at `warn`.
  */
 import tsPlugin from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
-import { configs as conventionsCfg } from 'eslint-plugin-conventions';
-import { configs as importNextCfg } from 'eslint-plugin-import-next';
+import conventions from 'eslint-plugin-conventions';
+import importNext from 'eslint-plugin-import-next';
 import maintainability from 'eslint-plugin-maintainability';
-import { configs as modernizationCfg } from 'eslint-plugin-modernization';
-import { configs as modularityCfg } from 'eslint-plugin-modularity';
-import { configs as nodeSecurityCfg } from 'eslint-plugin-node-security';
+import modernization from 'eslint-plugin-modernization';
+import modularity from 'eslint-plugin-modularity';
+import nodeSecurity from 'eslint-plugin-node-security';
 import operability from 'eslint-plugin-operability';
 import reactA11y from 'eslint-plugin-react-a11y';
 import reactFeatures from 'eslint-plugin-react-features';
-import { configs as reliabilityCfg } from 'eslint-plugin-reliability';
-import { configs as secureCodingCfg } from 'eslint-plugin-secure-coding';
+import reliability from 'eslint-plugin-reliability';
+import secureCoding from 'eslint-plugin-secure-coding';
 
 const TSX_FILES = ['apps/**/*.tsx'];
+
+/**
+ * Every non-deprecated rule of `plugin`, under `ns`, at `error` unless OFF
+ * or OPTIONS says otherwise. Keys containing "/" are the doubled-namespace
+ * aliases some plugins still export (`maintainability/cognitive-complexity`
+ * next to `cognitive-complexity`) — skipped, the bare key is the rule.
+ */
+function everyRule(ns, plugin, { off = {}, options = {} } = {}) {
+  const table = (plugin.default ?? plugin).rules;
+  const rules = {};
+  for (const [name, rule] of Object.entries(table)) {
+    if (name.includes('/') || rule.meta?.deprecated) continue;
+    const id = `${ns}/${name}`;
+    if (name in off) rules[id] = 'off';
+    else if (name in options) rules[id] = ['error', options[name]];
+    else rules[id] = 'error';
+  }
+  return rules;
+}
+
+// ── Exceptions, each with its reason ────────────────────────────────────────
+const OFF = {
+  'import-next': {
+    // Conflicting pairs: this repo uses named exports; default exports only where
+    // a framework demands them (Next.js route files, config files — see below).
+    'prefer-default-export': 'conflicts with no-default-export; named exports win',
+    'no-named-export': 'conflicts with the named-export policy',
+    order: 'duplicate of enforce-import-order',
+    'no-nodejs-modules': 'this is a Node CLI toolkit; node builtins are the point',
+    'no-internal-modules': 'fumadocs and next are consumed via documented subpaths',
+    'dynamic-import-chunkname': 'webpack-only annotation; Turbopack ignores it',
+    // Resolver noise until a TS-aware import resolver is wired (same as interlace).
+    'no-unresolved': 'default resolver cannot map ESM .js specifiers to .ts sources',
+  },
+  'secure-coding': {},
+  'node-security': {},
+  conventions: {},
+  maintainability: {},
+  modernization: {},
+  modularity: {},
+  operability: {},
+  reliability: {},
+  'react-a11y': {},
+  'react-features': {},
+};
+
+const OPTIONS = {
+  'import-next': {
+    // Side-effect imports are how Next loads global CSS.
+    'no-unassigned-import': { allowModules: ['./global.css'] },
+    // NodeNext packages must write `./index.js`; TS/TSX source imports never carry one.
+    extensions: { default: 'never', pattern: { js: 'always', mjs: 'always', json: 'always', css: 'always' } },
+  },
+  conventions: {
+    // Tool config files are named by their tools (next.config.mjs, vitest.config.ts).
+    'filename-case': { case: 'kebabCase', ignore: [/\.config\.m?[jt]s$/] },
+  },
+};
 
 export default [
   {
@@ -35,6 +92,7 @@ export default [
       '**/node_modules/**',
       '**/coverage/**',
       'docs/research/issues/**',
+      'apps/docs/next-env.d.ts',
     ],
   },
   {
@@ -43,74 +101,113 @@ export default [
     languageOptions: { parser: tsParser, parserOptions: { ecmaFeatures: { jsx: true } } },
   },
 
-  // Security
-  secureCodingCfg.recommended,
-  nodeSecurityCfg.recommended,
-
-  // Quality
-  conventionsCfg.recommended,
-  importNextCfg.recommended,
-  modernizationCfg.recommended,
-  modularityCfg.recommended,
-  reliabilityCfg.recommended,
+  // ── Everything, everywhere ────────────────────────────────────────────────
   {
-    plugins: { maintainability, operability },
+    plugins: {
+      'secure-coding': secureCoding,
+      'node-security': nodeSecurity,
+      conventions,
+      'import-next': importNext,
+      maintainability,
+      modernization,
+      modularity,
+      operability,
+      reliability,
+    },
     rules: {
-      'maintainability/cognitive-complexity': 'error',
-      'maintainability/identical-functions': 'error',
-      'maintainability/max-parameters': 'error',
-      // O3 in the floor: command code never writes via console.*; the output layer does.
-      'operability/no-console-log': 'error',
-      'operability/no-debug-code-in-production': 'error',
-      'operability/no-verbose-error-messages': 'error',
+      ...everyRule('secure-coding', secureCoding, { off: OFF['secure-coding'] }),
+      ...everyRule('node-security', nodeSecurity, { off: OFF['node-security'] }),
+      ...everyRule('conventions', conventions, { off: OFF.conventions, options: OPTIONS.conventions }),
+      ...everyRule('import-next', importNext, { off: OFF['import-next'], options: OPTIONS['import-next'] }),
+      ...everyRule('maintainability', maintainability, { off: OFF.maintainability }),
+      ...everyRule('modernization', modernization, { off: OFF.modernization }),
+      ...everyRule('modularity', modularity, { off: OFF.modularity }),
+      ...everyRule('operability', operability, { off: OFF.operability }),
+      ...everyRule('reliability', reliability, { off: OFF.reliability }),
     },
   },
 
-  // React — docs app only
-  { ...reactA11y.configs.recommended, files: TSX_FILES },
+  // ── React, docs app only ──────────────────────────────────────────────────
   {
     files: TSX_FILES,
-    plugins: { 'react-features': reactFeatures },
+    plugins: { 'react-a11y': reactA11y, 'react-features': reactFeatures },
     rules: {
-      'react-features/jsx-key': 'error',
-      'react-features/no-danger': 'error',
-      'react-features/no-string-refs': 'error',
-      'react-features/jsx-no-target-blank': 'error',
-      'react-features/jsx-no-script-url': 'error',
-      'react-features/jsx-no-duplicate-props': 'error',
-      'react-features/no-danger-with-children': 'error',
-      'react-features/hooks-exhaustive-deps': 'error',
+      ...everyRule('react-a11y', reactA11y, { off: OFF['react-a11y'] }),
+      ...everyRule('react-features', reactFeatures, { off: OFF['react-features'] }),
     },
   },
 
-  // Resolver noise until a TS-aware import resolver is wired (same as interlace).
-  { rules: { 'import-next/no-unresolved': 'off' } },
-  // First dogfooding finding (2026-09-05): `no-missing-null-checks` is not
-  // type-aware and flags `.data` on a call whose return type is non-nullable
-  // (apps/docs/src/lib/source.ts getPageOrNotFound). Off until the rule reads
-  // types; tracked against eslint-plugin-reliability.
-  { rules: { 'reliability/no-missing-null-checks': 'off' } },
+  // ── Framework-mandated default exports ────────────────────────────────────
+  {
+    files: ['apps/docs/src/app/**', 'apps/docs/source.config.ts', 'apps/docs/src/mdx-components.tsx', '**/*.config.{js,mjs,ts,mts}', 'eslint.config.mjs', 'commitlint.config.mjs'],
+    rules: { 'import-next/no-default-export': 'off' },
+  },
+
+  // ── Scope-specific exceptions ─────────────────────────────────────────────
+  {
+    // Tests import the package's public entry on purpose; scripts and tests are
+    // entry points with nothing to export.
+    files: ['**/*.test.ts', 'scripts/**'],
+    rules: {
+      'import-next/no-barrel-import': 'off',
+      'import-next/no-unused-modules': ['error', { allowImportOnly: true }],
+    },
+  },
+  {
+    // Scripts are process entry points; their exit code is their contract (E1).
+    files: ['scripts/**'],
+    rules: { 'operability/no-process-exit': 'off' },
+  },
+  {
+    // The lint config imports every plugin by design.
+    files: ['eslint.config.mjs'],
+    rules: { 'import-next/max-dependencies': 'off' },
+  },
+  {
+    // Docs copy is static English; i18n is out of scope (design.md).
+    files: TSX_FILES,
+    rules: { 'react-features/jsx-no-literals': 'off' },
+  },
+  {
+    // next/og renders this once on the server through satori: inline styles
+    // are the only styling it understands, there is no CSS, no token, no
+    // re-render. The brand hex values here are the dark-theme tokens verbatim.
+    files: ['apps/docs/src/app/opengraph-image.tsx'],
+    rules: {
+      'react-features/no-raw-color-literal': 'off',
+      'react-features/no-inline-style': 'off',
+      'react-features/react-render-optimization': 'off',
+      'react-features/no-unnecessary-rerenders': 'off',
+    },
+  },
+
+  // ── Documented false positives (tracked in ofri-peretz/eslint) ────────────
+  // void-dom-elements-no-children matches next/link's <Link> as the void <link>
+  // element (case-insensitive tag match). Finding 5.
+  {
+    files: TSX_FILES,
+    rules: { 'react-features/void-dom-elements-no-children': 'off' },
+  },
   // Two specifiers no package.json can declare: fumadocs' virtual module
-  // `fumadocs-mdx:collections/server` and the types-only `mdx/types` (from
-  // @types/mdx). Scoped to the two files that import them.
+  // `fumadocs-mdx:collections/server` and the types-only `mdx/types`.
   {
     files: ['apps/docs/src/lib/source.ts', 'apps/docs/src/mdx-components.tsx'],
     rules: { 'import-next/no-extraneous-dependencies': 'off' },
   },
-  // Dogfooding findings 2–4 (2026-09-05), all on scripts/lint-workflows.ts
-  // (copied verbatim from ofri-peretz/eslint, where these sit at `warn`):
-  //   - no-xpath-injection fires on GitHub Actions annotation strings
-  //     (`::error file=…::msg`) — the `::` is not an XPath axis.
-  //   - no-unlimited-resource-allocation fires on reading a handful of
-  //     workflow files in a loop bounded by a directory listing.
-  //   - no-extraneous-dependencies fires on the `node:process` builtin.
-  // Scoped to the one file; tracked against secure-coding and import-next.
+  // scripts/lint-workflows.ts (copied verbatim from ofri-peretz/eslint):
+  // no-xpath-injection fires on GitHub Actions `::error::` annotations,
+  // no-unlimited-resource-allocation on a directory-bounded read loop,
+  // no-extraneous-dependencies on the `node:process` builtin.
   {
     files: ['scripts/lint-workflows.ts'],
     rules: {
       'secure-coding/no-xpath-injection': 'off',
       'secure-coding/no-unlimited-resource-allocation': 'off',
       'import-next/no-extraneous-dependencies': 'off',
+      // Finding 6: no-console-spaces reports every template literal whose
+      // `${…}` sits next to a space (`\`at ${dir}\``) as leading/trailing
+      // whitespace between console parameters. There is one parameter.
+      'conventions/no-console-spaces': 'off',
     },
   },
 ];

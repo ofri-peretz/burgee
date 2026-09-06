@@ -167,10 +167,10 @@ plugins because the meta-config's published `recommended` was broken at the time
 
 | Plugin | Preset | Why it applies |
 | :-- | :-- | :-- |
-| eslint-plugin-import-next, -conventions, -maintainability, -reliability, -operability, -modularity, -modernization | `quality` | all runtime TypeScript |
-| eslint-plugin-node-security | recommended | child processes, fs, env |
-| eslint-plugin-secure-coding | recommended | injection, PII in logs, regex |
-| eslint-plugin-react-a11y, -react-features | recommended, `apps/docs/**/*.tsx` | the docs site |
+| eslint-plugin-import-next, -conventions, -maintainability, -reliability, -operability, -modularity, -modernization | every rule at `error` | all runtime TypeScript |
+| eslint-plugin-node-security | every rule at `error` | child processes, fs, env |
+| eslint-plugin-secure-coding | every rule at `error` | injection, PII in logs, regex |
+| eslint-plugin-react-a11y, -react-features | every rule at `error`, `apps/docs/**/*.tsx` | the docs site |
 | eslint-plugin-cli | recommended | the floor itself |
 | @interlace/eslint-devkit | builds eslint-plugin-cli | |
 

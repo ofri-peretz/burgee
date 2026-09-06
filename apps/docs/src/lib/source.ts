@@ -1,5 +1,5 @@
-import { docs } from 'fumadocs-mdx:collections/server';
 import { type InferPageType, loader } from 'fumadocs-core/source';
+import { docs } from 'fumadocs-mdx:collections/server';
 import { notFound } from 'next/navigation';
 
 export const source = loader({

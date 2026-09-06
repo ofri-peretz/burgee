@@ -25,7 +25,10 @@ npm test          # every lock and unit test, exits non-zero on failure
 npm run dev       # docs on http://localhost:3100
 ```
 
-This repo dogfoods 11 Interlace ESLint plugins at `error` level with zero warnings
-allowed: `secure-coding`, `node-security`, `conventions`, `import-next`,
+This repo dogfoods 11 Interlace ESLint plugins with **every rule on at `error`** and zero
+warnings allowed: `secure-coding`, `node-security`, `conventions`, `import-next`,
 `maintainability`, `modernization`, `modularity`, `operability`, `reliability`,
-`react-a11y`, `react-features`.
+`react-a11y`, `react-features`. The rule list is computed from each plugin's own table, so
+a rule shipped in a plugin release is on here the day it lands. Every exception is named in
+`eslint.config.mjs` with its reason: a conflicting pair, a rule that cannot apply here, or a
+false positive tracked in the eslint monorepo.

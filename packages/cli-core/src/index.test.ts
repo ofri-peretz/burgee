@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { ExitCode } from './index.js';
 
 // E1 lock: the contract in design.md, pinned. A changed number here is a breaking

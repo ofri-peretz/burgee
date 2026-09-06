@@ -27,8 +27,9 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import url from 'node:url';
 import process from 'node:process';
+import url from 'node:url';
+
 import yaml from 'js-yaml';
 
 interface Step {
@@ -54,8 +55,9 @@ interface Workflow {
   concurrency?: unknown;
 }
 
-const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(__dirname, '..');
+const SCRIPT_DIR = path.dirname(url.fileURLToPath(import.meta.url));
+const REPO_ROOT = path.resolve(SCRIPT_DIR, '..');
+const isNil = (v: unknown): v is null | undefined => v === null || v === undefined;
 const WORKFLOWS_DIR = path.join(REPO_ROOT, '.github', 'workflows');
 
 const args = new Set(process.argv.slice(2));
@@ -110,7 +112,7 @@ function triggers(on: unknown): string[] {
 for (const [file, wf] of parsed) {
   if (!wf || typeof wf !== 'object') continue;
 
-  if (!('permissions' in wf) || wf.permissions == null) {
+  if (isNil(wf.permissions)) {
     errors.push(`[permissions] ${file}: missing top-level \`permissions:\` block (least-privilege).`);
   }
 
@@ -122,7 +124,7 @@ for (const [file, wf] of parsed) {
   for (const [jobName, job] of Object.entries(wf.jobs ?? {})) {
     if (!job || typeof job !== 'object') continue;
 
-    if (job['timeout-minutes'] == null && job.uses == null) {
+    if (isNil(job['timeout-minutes']) && isNil(job.uses)) {
       errors.push(`[timeout] ${file} → ${jobName}: no \`timeout-minutes\` — runaway jobs can drain quota.`);
     }
 
@@ -138,7 +140,7 @@ for (const [file, wf] of parsed) {
           );
         }
         const cache = step.with?.cache;
-        if (cache != null && cache !== 'npm') {
+        if (!isNil(cache) && cache !== 'npm') {
           errors.push(
             `[cache] ${file} → ${jobName} → step ${i + 1}: cache: "${String(cache)}" — should be "npm" (repo is on npm).`,
           );
@@ -190,9 +192,9 @@ if (errors.length === 0 && warnings.length === 0) {
 }
 
 if (warnings.length > 0) {
-  console.warn(`⚠️  ${warnings.length} soft warning(s):`);
-  for (const w of warnings) console.warn(`  - ${w}`);
-  console.warn('');
+  console.warn(`⚠️ ${warnings.length} soft warning(s):`);
+  for (const w of warnings) console.warn(`- ${w}`);
+  process.stderr.write('\n');
 }
 
 if (errors.length === 0) {
@@ -211,9 +213,9 @@ if (errors.length === 0) {
   process.exit(0);
 }
 
-console.error(`❌ ${errors.length} workflow convention violation(s):\n`);
-for (const err of errors) console.error(`  - ${err}`);
-console.error('');
+console.error(`❌ ${errors.length} workflow convention violation(s):`);
+for (const err of errors) console.error(`- ${err}`);
+process.stderr.write('\n');
 appendSummary([
   `# ❌ ${errors.length} workflow convention violation(s)`,
   ``,
