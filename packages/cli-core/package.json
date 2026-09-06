@@ -3,12 +3,20 @@
   "version": "0.0.0",
   "description": "Internal shared contract for the commander-* and yargs-* extensions: exit codes, output envelope, error type, manifest schema. Zero dependencies.",
   "license": "MIT",
+  "private": true,
   "type": "module",
-  "engines": { "node": ">=24" },
-  "exports": {
-    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+  "engines": {
+    "node": ">=24"
   },
-  "files": ["dist"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -20,7 +28,13 @@
     "url": "git+https://github.com/ofri-peretz/cli.git",
     "directory": "packages/cli-core"
   },
-  "keywords": ["cli", "commander", "yargs", "ai-agents", "interlace"],
+  "keywords": [
+    "cli",
+    "commander",
+    "yargs",
+    "ai-agents",
+    "interlace"
+  ],
   "devDependencies": {
     "vitest": "^4.0.0"
   }
