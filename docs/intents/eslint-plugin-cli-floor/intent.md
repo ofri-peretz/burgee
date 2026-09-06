@@ -1,15 +1,15 @@
-# Intent — `eslint-plugin-cli`: the floor held statically
+# Intent — `eslint-plugin-cli-floor`: the floor held statically
 
 > Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md),
 > step 3 of its order of work. The L side of every "R + L" requirement.
 
-**Status:** draft · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
 ---
 
 ## What is wanted
 
-A plugin in this repo, `packages/eslint-plugin-cli`, built on `@interlace/eslint-devkit`,
+A plugin in this repo, `packages/eslint-plugin-cli-floor`, built on `@interlace/eslint-devkit`,
 with ten rules that hold the floor in code that may not even use the runtime layer:
 
 | Rule | Floor | What it reports |
@@ -47,7 +47,7 @@ slip, being the hardest to detect precisely.)
 
 ## Affected users and systems
 
-- New `packages/eslint-plugin-cli`, devDependency on `@interlace/eslint-devkit`,
+- New `packages/eslint-plugin-cli-floor`, devDependency on `@interlace/eslint-devkit`,
   peer `eslint@>=9`.
 - This repo's `eslint.config.mjs` adds the plugin's every rule at `error` (the
   `everyRule` helper makes that one line).
@@ -77,15 +77,17 @@ slip, being the hardest to detect precisely.)
   and zero false positives after review — recorded in the PR.
 - `npx eslint` on `examples/demo-cli-*` with the plugin is clean on the layered demo
   and reports the un-layered one.
-- Published as `eslint-plugin-cli` with provenance; `npm view eslint-plugin-cli` shows
+- Published as `eslint-plugin-cli-floor` with provenance; `npm view eslint-plugin-cli-floor` shows
   the version `release.yml` tagged.
 
 ## Open questions
 
-- Is `eslint-plugin-cli` too generic a name for what is really "agent-native CLI
-  floor"? Alternatives free on npm should be checked before publish (`eslint-plugin-
-  cli-floor`, `eslint-plugin-agent-cli`).
-- `no-prompt-without-flag`: detect by "prompt call whose result is assigned to a name
-  that also appears in `options.*`"? Needs a precision study on real CLIs first.
-- Should the rules also recognise `citty`'s `defineCommand`? Cheap to add, out of the
-  umbrella's scope; decide at design acceptance.
+None open. Decided at finalisation (2026-09-06):
+
+- **Package name is `eslint-plugin-cli-floor`.** `eslint-plugin-cli-floor` is held by npm's
+  security placeholder (`0.0.1-security`) and cannot be published; `eslint-plugin-cli-floor` was free on 2026-09-06 and says what the plugin holds. The rule prefix is
+  `cli-floor/`.
+- **`no-prompt-without-flag` ships in `strict` only** until a precision study on ten
+  real CLIs shows fewer than one false positive per hundred prompt calls; the study is
+  R6 in the design.
+- **citty idioms are out** for v1; the anchors are commander and yargs only.

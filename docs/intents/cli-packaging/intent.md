@@ -3,7 +3,7 @@
 > Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md),
 > constraint 2. Research §11 (runtime and packaging). Proposes K1–K5.
 
-**Status:** draft · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
 ---
 
@@ -35,7 +35,7 @@ A packaging floor every package in this repo meets and a lock that enforces it:
   scheduled its first publish.
 - chalk is the top line on the npm-trends chart; `util.styleText` (Node 20.12+) makes
   it unnecessary in every package here, and `prefer-native-style-text` in
-  `eslint-plugin-cli` makes it unnecessary for consumers.
+  `eslint-plugin-cli-floor` makes it unnecessary for consumers.
 
 ## Affected users and systems
 
@@ -61,8 +61,8 @@ A packaging floor every package in this repo meets and a lock that enforces it:
 
 ## Open questions
 
-- Proposed floor additions: **K1** zero runtime deps in the layer; **K2** ESM only,
-  Node ≥ 24; **K3** natives over packages; **K4** artifact gate before publish; **K5**
-  size budget ratchet.
-- Single-file bundling guidance for consumers (`esbuild --bundle` works with ESM-only,
-  zero-dep packages by construction) — a docs page, or a `examples/bundled/` check?
+None open. Decided at finalisation (2026-09-06):
+
+- **Floor additions K1–K5 are adopted.**
+- **Single-file bundling is a docs page** (`esbuild --bundle --format=esm` on a zero-dep
+  ESM package works by construction); no `examples/bundled/` check.

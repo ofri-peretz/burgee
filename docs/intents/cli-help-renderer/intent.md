@@ -4,7 +4,7 @@
 > Research §2, the largest cluster (roughly a fifth of yargs' tracker). F2 makes help
 > data; this makes the text good. Proposes floor additions H1–H6.
 
-**Status:** draft · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
 ---
 
@@ -67,9 +67,8 @@ through their `configureHelp` / `getHelp` seams. It fixes, by construction:
 
 ## Open questions
 
-- Proposed floor additions: **H1** help is rendered from the manifest only; **H2**
-  examples are single-line and copy-pasteable; **H3** width from the runtime; **H4**
-  command options before global options; **H5** deprecations and env names shown
-  inline; **H6** type hints off by default.
-- Markdown/man output from the same node (yargs #2121, clack #525) — a second renderer
-  in the same package, or the docs site's job?
+None open. Decided at finalisation (2026-09-06):
+
+- **Floor additions H1–H6 are adopted.**
+- **Markdown output ships in the same package** (R6); man-page output does not. The docs
+  site consumes the Markdown renderer to publish the demo's help.

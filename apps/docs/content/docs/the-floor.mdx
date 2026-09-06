@@ -1,10 +1,10 @@
 ---
 title: The floor
-description: The 26 requirements every CLI on the layer meets, and who holds each — runtime, lint, or both.
+description: The 53 requirements every CLI on the layer meets, and who holds each — runtime, lint, or both.
 ---
 
 Each requirement is held by the **runtime** (the `commander-*` / `yargs-*` extensions), by the **lint** plugin
-(`eslint-plugin-cli`), or both. A rule with neither is a suggestion, and suggestions are
+(`eslint-plugin-cli-floor`), or both. A rule with neither is a suggestion, and suggestions are
 not a floor. Evidence for every line is an open issue in a leading CLI library — see
 [Research](/docs/research).
 
@@ -70,3 +70,65 @@ not a floor. Evidence for every line is an open issue in a leading CLI library �
 | D1 | Deprecating anything requires a replacement, shown in help, schema and the warning | both |
 | D2 | Completions for bash, zsh, fish and PowerShell are generated statically from the schema | runtime |
 | T1 | A CLI runs in-process with injected argv, env, stdin, cwd and TTY-ness, returning `{ code, stdout, stderr, json }` | runtime |
+
+## Validation, continued
+
+| ID | Requirement | Holds |
+| :-- | :-- | :-- |
+| S5 | Every option has one declared type and one canonical camelCase key; kebab-case is derived | runtime |
+| S6 | Relations are validated before choices and before the handler | runtime |
+| S7 | A `flag` type never consumes a value | runtime |
+| S8 | `multiple` options accept repetition and a declared separator | runtime |
+
+## Values, continued
+
+| ID | Requirement | Holds |
+| :-- | :-- | :-- |
+| V6 | Config discovery order is fixed, documented, and shown by `--explain` | runtime |
+| V7 | `extends` merges deeply and resolves from the extending file's `node_modules` | runtime |
+
+## Help
+
+| ID | Requirement | Holds |
+| :-- | :-- | :-- |
+| H1 | Help is rendered from the manifest only | runtime |
+| H2 | Examples are single-line and copy-pasteable | both |
+| H3 | Width comes from the runtime, default 100 in non-TTY | runtime |
+| H4 | Command options render before global options | runtime |
+| H5 | Deprecations and env names render inline | runtime |
+| H6 | Type hints are off by default | runtime |
+
+## Completions, continued
+
+| ID | Requirement | Holds |
+| :-- | :-- | :-- |
+| D3 | Completions never execute the CLI unless an option is marked dynamic | runtime |
+| D4 | Every shell script is snapshot-pinned and exercised by that shell in CI | runtime |
+| D5 | A Fig spec is exported from the same node | runtime |
+
+## Prompts, continued
+
+| ID | Requirement | Holds |
+| :-- | :-- | :-- |
+| P3 | Cancellation exits `CANCELLED` (4), never `RUNTIME` | runtime |
+
+## Modularity
+
+| ID | Requirement | Holds |
+| :-- | :-- | :-- |
+| M1 | Every command carries a group | runtime |
+| M2 | The manifest is complete before any handler module loads | runtime |
+| M3 | Every plugin's contributions are attributed in the manifest | runtime |
+| M4 | Shared options are declared once and copied per command | runtime |
+| M5 | A deprecated command names its replacement in help, schema and warning | both |
+| M6 | `resolveCommand` and `runCommand` are public | runtime |
+
+## Packaging
+
+| ID | Requirement | Holds |
+| :-- | :-- | :-- |
+| K1 | Zero runtime dependencies in every layer package; hosts and UI libraries are peers | lock |
+| K2 | ESM only, Node 24 or newer | lock |
+| K3 | Node natives over packages | both |
+| K4 | An artifact gate runs on the built output before publish | release |
+| K5 | Per-package size budget, ratcheted | lock |

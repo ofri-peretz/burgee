@@ -4,7 +4,7 @@
 > requirement T1. First in the order of work because every other requirement is
 > verified through it.
 
-**Status:** draft · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
 ---
 
@@ -70,13 +70,19 @@ Concretely:
 - `process.env` is byte-identical before and after a run that injected `env`, pinned by
   a lock test.
 - No `process.` reference in `packages/*/src/**` outside `processRuntime`, pinned by a
-  grep lock (and later by `eslint-plugin-cli`).
+  grep lock (and later by `eslint-plugin-cli-floor`).
 
 ## Open questions
 
-- Should `RunResult.stdout` be the raw string, or split into `lines` with ANSI already
-  stripped when `tty: true`? Leaning raw plus a `stripAnsi` helper.
-- `stdin` as a string, a `Readable`, or both? Both, string being sugar.
-- Does yargs' `.parseAsync` leave a completed handler promise un-awaited in any path
-  (yargs #1069 says it did for `parse(argv, cb)`)? Needs a probe before the design is
-  accepted.
+None open. Decided at finalisation (2026-09-06):
+
+- **`RunResult.stdout` is raw.** A `stripAnsi(result)` helper is exported; tests that
+  want lines call `result.stdout.split('
+')`. One shape, no hidden transformation.
+- **`stdin` accepts a string or a `Readable`**; the string form is sugar for
+  `Readable.from([text])`.
+- **yargs `parseAsync` completion (yargs #1069, #1797)** is the first verification task of
+  the yargs harness, not an open question: the harness awaits `parseAsync` and, in
+  addition, awaits a `handlerDone` promise the layer resolves in its after-handler
+  middleware. If yargs resolves early, the suite catches it; the design does not depend
+  on the answer.

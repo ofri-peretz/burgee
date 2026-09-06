@@ -4,7 +4,7 @@
 > requirements V1–V5; research §3 (config and environment precedence), the second-
 > largest cluster after help.
 
-**Status:** draft · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
 ---
 
@@ -72,8 +72,9 @@ documented in help and `--schema` (V2), env scoped to the command that declares 
 
 ## Open questions
 
-- Proposed floor additions: **V6** config discovery order is documented and shown by
-  `--explain`; **V7** `extends` merges deeply and resolves from `node_modules` of the
-  extending file (yargs #1363, #1135).
-- Should env→array parsing (yargs #821) use the option's `separator` from
-  `commander-schema` or a fixed `,`? Leaning the schema's separator, default `,`.
+None open. Decided at finalisation (2026-09-06):
+
+- **Floor additions V6–V7 are adopted.**
+- **Env→array parsing uses the option's declared `separator`**, default `,`; an option
+  with `multiple: false` receiving a separator-bearing env value is a `CONFIG` error
+  with a `fix`, not a silent string.

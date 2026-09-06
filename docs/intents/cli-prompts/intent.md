@@ -3,7 +3,7 @@
 > Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md),
 > requirements P1–P2; research §9 (clack). Packages `commander-prompts`, `yargs-prompts`.
 
-**Status:** draft · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
 ---
 
@@ -28,7 +28,7 @@ Every interactive question a CLI asks is declared as an option first, so:
   (hooks), #83 (cancellation API), #39 (go back), #379 (global settings), #345 (style
   representation), #585 (accessible mode: live redraws are re-announced by screen
   readers — and captured verbatim by agents).
-- **P1 is also a lint rule** (`no-prompt-without-flag` in `eslint-plugin-cli`); this
+- **P1 is also a lint rule** (`no-prompt-without-flag` in `eslint-plugin-cli-floor`); this
   package is the runtime that makes the rule satisfiable.
 
 ## Affected users and systems
@@ -59,8 +59,9 @@ Every interactive question a CLI asks is declared as an option first, so:
 
 ## Open questions
 
-- Proposed floor addition: **P3** cancellation exits `CANCELLED` (4) and never
-  `RUNTIME`.
-- "Go back a step" (clack #39) — group prompts with history, or out of scope for v1?
-- Should `--interactive` also prompt for *optional* options with a `prompt` spec, or
-  only required ones? Leaning required only; optional on `--interactive=all`.
+None open. Decided at finalisation (2026-09-06):
+
+- **Floor addition P3 is adopted.**
+- **"Go back a step" is out of scope for v1**; groups are linear.
+- **`--interactive` prompts for missing required options only; `--interactive=all`
+  also prompts optional ones that declare a `prompt`.**

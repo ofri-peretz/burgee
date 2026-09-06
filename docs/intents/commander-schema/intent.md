@@ -4,7 +4,7 @@
 > requirements S1–S4, plus the TypeScript cluster (research §5) and the validation
 > cluster (§4). Proposes floor additions S5–S8.
 
-**Status:** draft · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
 ---
 
@@ -80,9 +80,9 @@ Any Standard Schema implementation (zod, valibot, arktype) is accepted where a
 
 ## Open questions
 
-- Proposed floor additions for review: **S5** every option has exactly one declared
-  type and one canonical camelCase key; **S6** relations validated before choices and
-  before the handler; **S7** `flag` type never consumes a value; **S8** `multiple`
-  options accept repetition and a declared separator.
-- Nested/dotted options (`--bq.project`, yargs #2137, #1858, #2472): support as an
-  `object` type (yargs #890) or reject? Leaning object type with a flat CLI syntax.
+None open. Decided at finalisation (2026-09-06):
+
+- **Floor additions S5–S8 are adopted** into the umbrella (see its design).
+- **Nested and dotted options are an `object` type** declared once, with the flat CLI
+  syntax `--bq.project x` and env `PREFIX_BQ_PROJECT`; the layer reassembles the object
+  and `--schema` shows the nested shape. No new grammar.

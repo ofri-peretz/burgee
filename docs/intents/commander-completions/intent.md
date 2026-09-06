@@ -3,7 +3,7 @@
 > Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md),
 > requirement D2; research §6. Proposes D3–D5.
 
-**Status:** draft · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
 ---
 
@@ -53,8 +53,8 @@ spec export (yargs #2131, #2126, citty #59) comes from the same node.
 
 ## Open questions
 
-- Proposed floor additions: **D3** completions never execute the CLI unless
-  `--dynamic`; **D4** every shell script is snapshot-pinned; **D5** a Fig spec is
-  exported from the same node.
-- Installation UX: print the script (user pipes it) or `completion install` writing to
-  the shell's rc file with a backup? Leaning print-only for v1 (no rc edits by a tool).
+None open. Decided at finalisation (2026-09-06):
+
+- **Floor additions D3–D5 are adopted.**
+- **Print-only installation for v1.** `mytool completion zsh` prints the script and one
+  line of instruction; no tool edits a user's shell rc file.

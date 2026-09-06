@@ -4,7 +4,7 @@
 > constraint 5: "AI-native SDLC from day one — `docs/intents/` with the lock, `evals/`
 > layer 1, control bands with at least one band computing before v1."
 
-**Status:** draft · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
 ---
 
@@ -68,9 +68,10 @@ The three mechanisms `eslint/` has and this repo only promises:
 
 ## Open questions
 
-- Port `scripts/control-bands.ts` verbatim from `eslint/` (with its `benchmark-json`
-  collector) or extract a shared `@interlace/control-bands` package both repos use?
-  Ponytail says copy now, extract when the third repo needs it.
-- Should the "documented false positives" band read the OFF map from
-  `eslint.config.mjs` by importing it, or grep for the `Finding N` markers? Importing
-  is exact; decide in design.
+None open. Decided at finalisation (2026-09-06):
+
+- **Copy `scripts/control-bands.ts` verbatim from `eslint/`** (with its tests); extract a
+  shared package only when a third repo needs it.
+- **The false-positive band imports `eslint.config.mjs`** and counts `'off'` entries
+  inside blocks whose leading comment contains `Finding`; exact, and it fails loudly if
+  the config's shape changes.

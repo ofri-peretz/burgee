@@ -3,7 +3,7 @@
 > Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md).
 > Research §8 (modularity); commander #2505 (plugin API RFC). Proposes floor additions M1–M6.
 
-**Status:** draft · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
 ---
 
@@ -64,9 +64,8 @@ The things a 250-command CLI needs (yargs #1005) and neither host provides as a 
 
 ## Open questions
 
-- Proposed floor additions: **M1** commands carry a group; **M2** manifest is complete
-  before any handler module loads; **M3** every plugin's contributions are attributed;
-  **M4** shared options are declared once; **M5** a deprecated command names its
-  replacement; **M6** `resolveCommand` and `runCommand` are public.
-- Should plugin authors get a lifecycle (`setup`, `teardown`, citty #92) or only the
-  registration function? Leaning registration only for v1.
+None open. Decided at finalisation (2026-09-06):
+
+- **Floor additions M1–M6 are adopted.**
+- **Plugins are registration functions only in v1**; `setup`/`teardown` lifecycles
+  (citty #92) wait for a consumer that needs them.

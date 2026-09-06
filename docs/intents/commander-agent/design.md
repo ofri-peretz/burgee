@@ -1,6 +1,6 @@
 # Design — `commander-agent`
 
-Intent: [`intent.md`](./intent.md). **Status:** draft.
+Intent: [`intent.md`](./intent.md). **Status:** review.
 
 ---
 
@@ -27,7 +27,7 @@ Floor ids from the umbrella design, restated as testable statements on the demo 
   stop, and `ctx.out.progress()` prints only on completion. `FORCE_COLOR` wins over
   `NO_COLOR` as Node does.
 - **R6 (O3/O4)** `ctx.out` is the only writer the layer hands to handlers; it uses
-  `util.styleText`. `eslint-plugin-cli` (intent 4) forbids `console.*` in command files.
+  `util.styleText`. `eslint-plugin-cli-floor` (intent 4) forbids `console.*` in command files.
 - **R7 (O5)** Every exit path awaits a drain of `runtime.stdout` before `runtime.exit`.
 - **R8 (E1)** Exit codes come from `ExitCode` only: commander usage errors → `USAGE`,
   `CliError.exitCode` as thrown, unknown thrown errors → `RUNTIME`, SIGINT → `SIGINT`.

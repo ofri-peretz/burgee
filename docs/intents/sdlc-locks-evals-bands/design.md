@@ -1,6 +1,6 @@
 # Design — Every SDLC stage loaded in this repo
 
-Intent: [`intent.md`](./intent.md). **Status:** draft.
+Intent: [`intent.md`](./intent.md). **Status:** review.
 
 ---
 

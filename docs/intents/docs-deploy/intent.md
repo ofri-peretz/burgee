@@ -3,7 +3,7 @@
 > Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md).
 > Stage 5 for `apps/docs`, which today builds green and is served nowhere.
 
-**Status:** draft · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
 ---
 
@@ -60,7 +60,8 @@ agents the layer is for.
 
 ## Open questions
 
-- Host: `cli.interlace.tools` vs `docs.cli.interlace.tools` vs a path under
-  `interlace.tools`? The other properties use a subdomain each.
-- Reuse `.github/vercel-apps.json` from eslint verbatim (multi-app map) or a single
-  hard-coded app until a second app exists? Ponytail: hard-code, one app.
+None open. Decided at finalisation (2026-09-06):
+
+- **Host is `cli.interlace.tools`**, one subdomain per property like the others.
+- **One app, hard-coded** in the workflows; the `vercel-apps.json` map returns when a
+  second app exists.

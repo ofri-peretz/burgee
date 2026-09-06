@@ -1,6 +1,6 @@
 # Design — Packaging floor
 
-Intent: [`intent.md`](./intent.md). **Status:** draft.
+Intent: [`intent.md`](./intent.md). **Status:** review.
 
 ---
 
@@ -11,7 +11,7 @@ Intent: [`intent.md`](./intent.md). **Status:** draft.
   libraries are `peerDependencies`.
 - **R2 (K2)** Every package: `"type": "module"`, `exports` with `types` + `import`
   only, `engines.node: ">=24"`, no `main`/`require` fields; locked.
-- **R3 (K3)** `eslint-plugin-cli`'s `prefer-native-style-text` and
+- **R3 (K3)** `eslint-plugin-cli-floor`'s `prefer-native-style-text` and
   `import-next/no-nodejs-modules` off (already) — plus a lock that no package imports
   `chalk`, `picocolors`, `glob`, `node-fetch`, `minimist`.
 - **R4 (K4)** `scripts/check-published-artifacts.ts` (ported): after `turbo run build

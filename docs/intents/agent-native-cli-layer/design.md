@@ -7,10 +7,12 @@ Intent: [`intent.md`](./intent.md). **Status:** draft.
 
 ---
 
-## Requirements — the CLI floor (v1)
+## Requirements — the CLI floor
 
-Each requirement names the issue evidence, whether the **runtime** (R) guarantees it
-or the **lint** rule (L) enforces it, and the agent cost it removes.
+53 requirements: the original 26 (F/O/E/V/S/P/D/T) and 27 folded in from the gap-track
+intents on 2026-09-06 (S5–S8, V6–V7, H1–H6, D3–D5, P3, M1–M6, K1–K5). Each names the
+issue evidence, whether the **runtime** (R) guarantees it or the **lint** rule (L)
+enforces it, and where it lands.
 
 ### Discoverability
 
@@ -80,6 +82,68 @@ or the **lint** rule (L) enforces it, and the agent cost it removes.
 | :-- | :-- | :-- | :-- |
 | T1 | A CLI can be run in-process with injected `argv`, `env`, `stdin`, `cwd`, and TTY-ness, returning `{ code, stdout, stderr, json }` | commander #2549; yargs #2450 | R |
 
+### Validation, continued (from `commander-schema`)
+
+| # | Requirement | Evidence | Holds | Lands in |
+| :-- | :-- | :-- | :-- | :-- |
+| S5 | Every option has exactly one declared type and one canonical camelCase key; kebab-case is derived | yargs #1679, #887, citty #244 | R | commander-schema |
+| S6 | Relations are validated before choices and before the handler | yargs #1186 | R | commander-schema |
+| S7 | A `flag` type never consumes a value | yargs #1532, #933 | R | commander-schema |
+| S8 | `multiple` options accept repetition and a declared separator | yargs #846, #1318 | R | commander-schema |
+
+### Values, continued (from `commander-env`)
+
+| # | Requirement | Evidence | Holds | Lands in |
+| :-- | :-- | :-- | :-- | :-- |
+| V6 | Config discovery order is fixed, documented, and shown by `--explain` | yargs #1234, #1676, #2191 | R | commander-env |
+| V7 | `extends` merges deeply and resolves from the extending file's `node_modules` | yargs #1363, #1135 | R | commander-env |
+
+### Help (from `cli-help-renderer`)
+
+| # | Requirement | Evidence | Holds | Lands in |
+| :-- | :-- | :-- | :-- | :-- |
+| H1 | Help is rendered from the manifest only, never from host help classes | yargs cluster 2 | R | cli-core |
+| H2 | Examples are single-line and copy-pasteable | yargs #877, #1640 | R + L (`require-command-example`) | cli-core, eslint-plugin-cli-floor |
+| H3 | Width comes from the runtime, default 100 in non-TTY | yargs #2003, #2204 | R | cli-core |
+| H4 | Command options render before global options | yargs #1181 | R | cli-core |
+| H5 | Deprecations and env names render inline | yargs #2248, #1935 | R | cli-core |
+| H6 | Type hints are off by default | yargs #969, #427 | R | cli-core |
+
+### Deprecation and completions, continued (from `commander-completions`)
+
+| # | Requirement | Evidence | Holds | Lands in |
+| :-- | :-- | :-- | :-- | :-- |
+| D3 | Completions never execute the CLI unless an option is marked `--dynamic` | yargs #1965, #1684 | R | commander-completions |
+| D4 | Every shell script is snapshot-pinned and exercised by that shell in CI | yargs #2254, #1277, #1133 | R | commander-completions |
+| D5 | A Fig spec is exported from the same node | yargs #2131, citty #59 | R | commander-completions |
+
+### Prompts, continued (from `cli-prompts`)
+
+| # | Requirement | Evidence | Holds | Lands in |
+| :-- | :-- | :-- | :-- | :-- |
+| P3 | Cancellation exits `CANCELLED` (4), never `RUNTIME` | clack #83, #573 | R | cli-prompts |
+
+### Modularity (from `cli-modularity`)
+
+| # | Requirement | Evidence | Holds | Lands in |
+| :-- | :-- | :-- | :-- | :-- |
+| M1 | Every command carries a group | yargs #684 | R | commander-agent |
+| M2 | The manifest is complete before any handler module loads | yargs #1067, #2479 | R | commander-agent |
+| M3 | Every plugin's contributions are attributed in the manifest | commander #2505 | R | commander-agent |
+| M4 | Shared options are declared once and copied per command | commander #2583, citty #154 | R | commander-agent |
+| M5 | A deprecated command names its replacement in help, schema and warning | yargs #2115, #2246 | R + L (`deprecated-requires-replacement`) | commander-agent |
+| M6 | `resolveCommand` and `runCommand` are public | yargs #1838, #1605 | R | commander-agent |
+
+### Packaging (from `cli-packaging`)
+
+| # | Requirement | Evidence | Holds | Lands in |
+| :-- | :-- | :-- | :-- | :-- |
+| K1 | Zero runtime dependencies in every layer package; hosts and UI libraries are peers | oclif/core #1627 | lock | all |
+| K2 | ESM only, Node ≥ 24 | oclif/core #1450, #1396 | lock | all |
+| K3 | Node natives over packages (`util.styleText`, `fs.glob`, `fetch`) | oclif/core #1627 | L (`prefer-native-style-text`) + lock | all |
+| K4 | An artifact gate runs on the built `dist/` before publish | eslint SARIF formatter incident | release.yml | all |
+| K5 | Per-package size budget, ratcheted | eslint `artifact-size-baseline.json` | lock | all |
+
 ---
 
 ## Design
@@ -118,7 +182,7 @@ cli/
     commander-json/, yargs-json/        O1 alone, for CLIs that want only the envelope
     commander-prompts/, yargs-prompts/  P1–P2
     commander-harness/, yargs-testing/  T1 (commander-testing is taken on npm)
-    eslint-plugin-cli/        the L rules; depends on @interlace/eslint-devkit
+    eslint-plugin-cli-floor/        the L rules; depends on @interlace/eslint-devkit
   examples/
     demo-cli-commander/, demo-cli-yargs/   the same CLI twice; one test suite runs both
   benchmarks/
@@ -133,7 +197,7 @@ Not every layer needs both hosts: a package exists only where the host lacks the
 feature. The list above is the ceiling, not the plan; see "Order of work".
 
 The only change outside this repo: `eslint-config-interlace` (eslint monorepo) gains a
-`cli` preset that depends on the published `eslint-plugin-cli` and composes it with
+`cli` preset that depends on the published `eslint-plugin-cli-floor` and composes it with
 `quality` + `node-security` + `secure-coding`.
 
 ### The agent efficiency mechanism, precisely
@@ -171,8 +235,8 @@ plugins because the meta-config's published `recommended` was broken at the time
 | eslint-plugin-node-security | every rule at `error` | child processes, fs, env |
 | eslint-plugin-secure-coding | every rule at `error` | injection, PII in logs, regex |
 | eslint-plugin-react-a11y, -react-features | every rule at `error`, `apps/docs/**/*.tsx` | the docs site |
-| eslint-plugin-cli | recommended | the floor itself |
-| @interlace/eslint-devkit | builds eslint-plugin-cli | |
+| eslint-plugin-cli-floor | recommended | the floor itself |
+| @interlace/eslint-devkit | builds eslint-plugin-cli-floor | |
 
 Not applicable and recorded as such: browser-security (no browser code outside
 Next's own), express-security, nestjs-security, mongodb-security, pg, jwt,
@@ -186,22 +250,24 @@ and it has never been on npm. Whether to publish it is an eslint-repo decision; 
 uploads nothing to code scanning until that is made, and would use
 `@microsoft/eslint-formatter-sarif` if plain SARIF were ever enough.
 
-### Order of work
+### Order of work — waves
 
-1. **Stage 0 (this PR):** repo skeleton, this intent + design, research file, the
-   raw snapshots, `scripts/fetch-competitor-issues.sh`, dogfooding lint config,
-   `docs/intents/` lock test, evals layer 1.
-2. **`commander-agent` v0.1:** F1, F2, O1–O5, E1–E5 on `examples/demo-cli-commander`,
-   built only on commander's public hooks. The in-process harness (T1) ships first
-   because every other requirement is tested through it. E1 already landed in
-   `@interlace/cli-core` with the scaffold.
-2b. **`yargs-agent`** as soon as 2 is green: `examples/demo-cli-yargs` must pass the
-   same test suite. That suite is the contract between the two extensions.
-3. **`eslint-plugin-cli` v0.1** in `packages/eslint-plugin-cli`: the 10 L rules on
-   `@interlace/eslint-devkit`, fixtures generated from both demo CLIs. First run against `interlace-ui` and the
-   eslint repo's scripts; findings become the launch article.
-4. **v0.2:** V1–V5, S1–S4. **v0.3:** P1–P2, D1–D2. **v0.4:** `agent.ts` MCP export.
-5. **Benchmark + control bands** as soon as v0.1 runs; the number is the pitch.
+Each wave starts when the previous wave's intents are `shipped`; intents inside a wave
+are independent and can run in parallel sessions (one worktree each, split by package).
+
+| Wave | Intents | Why here |
+| :-- | :-- | :-- |
+| 0 | `sdlc-locks-evals-bands`, `cli-testing-harness` | the lock guards every later status change; the harness is what every later test runs through |
+| 1 | `commander-agent`, `cli-packaging` | the first extension, and the artifact gate before the first publish |
+| 2 | `yargs-agent`, `eslint-plugin-cli-floor`, `docs-deploy`, `cli-help-renderer` | second host proves the core; lint holds the floor; the site publishes it; help is data by now |
+| 3 | `agent-cli-bench`, `commander-schema`, `commander-env` | the number (needs two hosts for four cells); declare-once; precedence and provenance |
+| 4 | `commander-completions`, `cli-prompts`, `cli-modularity` | each depends on the manifest and schema being stable |
+
+Prerequisites that only the owner can supply, needed before the wave that uses them:
+`NPM_TOKEN` or npm Trusted Publishing for each package (wave 1), `CLAUDE_CODE_OAUTH_TOKEN`
+(review now, benchmark in wave 3), `VERCEL_TOKEN` plus the Vercel project and DNS for
+`cli.interlace.tools` (wave 2), a `windows-latest` and `macos-latest` runner budget for
+the conformance matrix (wave 1).
 
 ### Verification
 
@@ -210,7 +276,7 @@ uploads nothing to code scanning until that is made, and would use
   asserts no ANSI, no `\r`, no prompt), the intents lock, evals layer 1.
 - `benchmarks/agent-cli-bench` runs weekly and on `packages/**` changes; a 2σ
   regression in tokens-per-task writes a Stage 1 intent, as in `eslint/`.
-- For the L rules: RuleTester suites in `packages/eslint-plugin-cli` under the same
+- For the L rules: RuleTester suites in `packages/eslint-plugin-cli-floor` under the same
   `npm test`, plus a lock that every rule named in this design exists in the plugin's
   manifest.
 

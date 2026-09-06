@@ -1,6 +1,6 @@
 # Design — Help renderer
 
-Intent: [`intent.md`](./intent.md). **Status:** draft.
+Intent: [`intent.md`](./intent.md). **Status:** review.
 
 ---
 

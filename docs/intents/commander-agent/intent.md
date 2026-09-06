@@ -3,7 +3,7 @@
 > Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md),
 > step 2 of its order of work. Requirements F1, F2, F4, O1–O5, E1–E5.
 
-**Status:** draft · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
 ---
 
@@ -86,10 +86,15 @@ After that, without touching any command:
 
 ## Open questions
 
-- **Envelope `meta`**: `{ command, durationMs, schemaVersion }` only, or also
-  `provenance` now (V3 belongs to `commander-env`)? Leaning minimal; V3 adds it later.
-- **`--json` when a handler returns nothing**: `data: null` or omit `data`? Leaning
-  `data: null` so the key set is stable for agents.
-- **Agent detection beyond `isTTY`**: honour `CLAUDECODE`, `CI`, `--agent`? Decide with
-  intent 5's data: measure whether any agent runs with a TTY at all.
-- **SIGINT on Windows** (oclif/oclif #958, clack #408): does E5 need a platform note?
+None open. Decided at finalisation (2026-09-06):
+
+- **Envelope `meta` is `{ command, durationMs, schemaVersion }`.** `provenance` arrives
+  with `commander-env` as an additive key under the same `schemaVersion` rule (adding
+  keys never bumps the version; renaming or removing does).
+- **`data` is `null` when a handler returns nothing**, so the key set is stable.
+- **Agent detection is `!runtime.isTTY.stdout || env.CI || --json || --schema`.** No
+  sniffing of `CLAUDECODE` or parent processes: honest signals only. `--agent` is not a
+  flag; `--json` already means "no human here" (P2, R6 in `cli-prompts`).
+- **SIGINT on Windows**: `process.on('SIGINT')` fires for console apps on Windows; the
+  conformance suite runs on `windows-latest` as well as Ubuntu and macOS so E5 is
+  measured, not assumed. Batch-file wrappers (oclif/oclif #958) are out of scope.

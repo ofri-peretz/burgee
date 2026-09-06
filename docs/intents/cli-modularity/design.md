@@ -1,6 +1,6 @@
 # Design — Modularity
 
-Intent: [`intent.md`](./intent.md). **Status:** draft.
+Intent: [`intent.md`](./intent.md). **Status:** review.
 
 ---
 

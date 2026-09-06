@@ -4,7 +4,7 @@ The agent-native layer **above** argv parsing, on top of [commander](https://git
 and [yargs](https://github.com/yargs/yargs) — never replacing them. One schema, a JSON
 envelope on every command, an exit-code contract, prompts-as-flags, static completions,
 an in-process test harness, and a manifest an AI agent reads in one call. The same floor
-is enforced statically by `eslint-plugin-cli`.
+is enforced statically by `eslint-plugin-cli-floor`.
 
 A turborepo, like every Interlace repo.
 
@@ -16,8 +16,9 @@ A turborepo, like every Interlace repo.
 | [`docs/intents/`](./docs/intents/) | Stage 1 + 2 artifacts of the [AI-native SDLC](../AI_NATIVE_SDLC.md): `intent.md` + `design.md` per change. |
 | [`docs/research/`](./docs/research/) | 329 open issues across yargs, commander, oclif, citty, clack — clustered and cited, with raw snapshots. |
 
-**Status:** Stage 2 → 3. Design under review; the first requirement (E1, the exit-code
-contract) is in `@interlace/cli-core`.
+**Status:** Stage 2, all fifteen intents in `review` (see [`docs/intents/`](./docs/intents/)
+for the wave plan). The first requirement, E1 the exit-code contract, is in
+`@interlace/cli-core`.
 
 ```bash
 npm install

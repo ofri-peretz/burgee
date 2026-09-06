@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Report a bug in a commander-* / yargs-* extension or eslint-plugin-cli
+about: Report a bug in a commander-* / yargs-* extension or eslint-plugin-cli-floor
 title: '[BUG] '
 labels: 'bug'
 assignees: ''
@@ -26,7 +26,7 @@ assignees: ''
 
 ## Environment
 
-- **Package**: <!-- e.g. commander-agent, yargs-agent, eslint-plugin-cli -->
+- **Package**: <!-- e.g. commander-agent, yargs-agent, eslint-plugin-cli-floor -->
 - **Version**:
 - **Host parser + version**: <!-- commander@x / yargs@y -->
 - **Node.js**: <!-- node --version -->

@@ -26,7 +26,7 @@ Concretely, once this lands:
 2. In a non-TTY or agent session the CLI never prompts, never spins, never redraws,
    never prints help on a runtime failure, and every error carries the exact flag or
    command that fixes it.
-3. The same floor is enforced statically by `eslint-plugin-cli`, so a CLI that does
+3. The same floor is enforced statically by `eslint-plugin-cli-floor`, so a CLI that does
    not use the runtime layer can still be held to it.
 4. The repo itself runs on the Interlace ESLint ecosystem — every plugin that applies
    to a Node runtime — and is the reference consumer for them.
@@ -61,7 +61,7 @@ Concretely, once this lands:
 - **`apps/docs`**, the documentation site (Next.js + fumadocs, as in `eslint/apps/docs`),
   where the floor, the research and every rule are published.
 - **`eslint/` monorepo** gains only a `cli` preset in `eslint-config-interlace`,
-  depending on `eslint-plugin-cli` published from this repo.
+  depending on `eslint-plugin-cli-floor` published from this repo.
 - **Interlace's own CLIs**: `interlace-ui` (interlace repo), the `scripts/*.ts` CLIs
   in the eslint repo, the agents-repo skills' shell entry points. They become the
   first consumers and the first benchmark subjects.
@@ -94,7 +94,7 @@ Concretely, once this lands:
   ≥30% fewer turns** to complete a fixed task set against a layered CLI versus the
   same CLI on plain commander, measured non-interactively with `claude -p`. The
   metric becomes a control band.
-- `eslint-plugin-cli` ships ≥10 rules, each with a positive and negative fixture,
+- `eslint-plugin-cli-floor` ships ≥10 rules, each with a positive and negative fixture,
   and flags ≥1 real finding on each of the three internal CLIs on first run.
 - The repo's own lint runs ≥9 Interlace plugins with zero disabled rules in the
   runtime packages.
@@ -112,11 +112,12 @@ Concretely, once this lands:
   names above were free on npm on 2026-09-05; `yargs-schema` and
   `commander-testing` are taken.
 - ~~**Where the ESLint plugin lives.**~~ Decided 2026-09-05: here, in
-  `packages/eslint-plugin-cli`, on `@interlace/eslint-devkit`. Everything for the CLI
+  `packages/eslint-plugin-cli-floor`, on `@interlace/eslint-devkit`. Everything for the CLI
   space is under this one repo.
-- **Agent-detection contract.** `!process.stdout.isTTY` is the honest signal. Should
-  `CLAUDECODE=1` / `CI=1` / an explicit `--agent` also switch modes, and which wins?
-- **Schema library.** Standard Schema interface only (accept zod, valibot, arktype)
-  versus shipping a tiny built-in for the zero-dependency core.
-- **Relationship to clack.** Wrap `@clack/prompts` (adds a dependency, gets the best
-  prompts) or ship prompts-as-flags only in v1 and defer prompts entirely.
+- ~~**Agent-detection contract.**~~ Decided 2026-09-06: `!isTTY(stdout) || CI || --json
+  || --schema`. No process or `CLAUDECODE` sniffing; `--json` means no human is present.
+- ~~**Schema library.**~~ Decided: Standard Schema is the only external contract; a tiny
+  built-in type set (`flag`, `string`, `number`, `choice`, `file`, `path`, `object`) keeps
+  the core zero-dependency. See `commander-schema`.
+- ~~**Relationship to clack.**~~ Decided: wrapped, never re-exported, and only inside
+  `commander-prompts` / `yargs-prompts`. See `cli-prompts`.

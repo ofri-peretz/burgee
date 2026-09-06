@@ -1,6 +1,6 @@
-# Design — `eslint-plugin-cli`
+# Design — `eslint-plugin-cli-floor`
 
-Intent: [`intent.md`](./intent.md). **Status:** draft.
+Intent: [`intent.md`](./intent.md). **Status:** review.
 
 ---
 

@@ -3,7 +3,7 @@
 > Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md),
 > step 5 of its order of work and its second success criterion. Stage 6's first real band.
 
-**Status:** draft · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
 ---
 
@@ -61,10 +61,12 @@ layer is caught by the loop, not by a reader.
 
 ## Open questions
 
-- Which model for the band: the cheapest capable one (stable cost) or the one agents
-  actually use (representative)? Leaning representative for the article, cheapest
-  for the weekly band.
-- Should tasks also run against a **yargs** demo once intent 6 lands, giving four
-  cells instead of two?
-- How to count "turns" when the harness reports tool calls, not conversational turns —
-  define as tool calls; document.
+None open. Decided at finalisation (2026-09-06):
+
+- **One model for the band and the article**: the model most agents run today, pinned by
+  id in every results file; a model change starts a new band history. Cheaper models may
+  be run ad hoc but never feed the band.
+- **A yargs cell is added when `yargs-agent` lands** (four cells: host × layer). The band
+  reads the commander `layer: on` cell only, so the number stays comparable.
+- **"Turns" means tool calls** as reported by `claude -p --output-format json`;
+  documented in the results schema.

@@ -4,7 +4,7 @@
 > step 2b of its order of work: "the same demo built on yargs must pass the same test
 > suite. That suite is the contract between the two extensions."
 
-**Status:** draft · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
 ---
 
@@ -62,9 +62,13 @@ the manifest from `--schema` validates against the same `schemaVersion: 1` schem
 
 ## Open questions
 
-- yargs' `.fail()` receives `(msg, err, yargs)`; distinguishing a usage error from a
-  handler throw is by `err` presence — is that reliable for async handlers (yargs
-  #1797, #1069)? Probe first.
-- yargs already ships `.env()`, `.completion()` and `.showHidden()`: `yargs-env` and
-  `yargs-completions` may never need to exist. Record which V/D requirements yargs
-  meets natively before planning those packages.
+None open. Decided at finalisation (2026-09-06):
+
+- **Usage vs runtime in `.fail((msg, err))`**: `err` present → runtime; absent → usage.
+  yargs #1797 (sync handler errors bypassing `fail`) is covered because the layer also
+  wraps every handler in the after-validation middleware and converts a throw to a
+  `CliError` itself; `.fail()` is the fallback, not the only path.
+- **`yargs-env` and `yargs-completions` are not planned.** yargs' `.env()`, `.config()`,
+  `.completion()` and `.showHidden()` meet V1/V2 and D2 natively; the layer adds only
+  `--explain`/provenance (through `yargs-agent`) and static completion generation
+  (through the shared renderer, exposed as `yargs-agent`'s `completion` command).

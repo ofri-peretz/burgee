@@ -8,8 +8,8 @@ approved → shipped` (or `dropped`), and `approved` requires a `design.md` besi
 ## The umbrella
 
 [`agent-native-cli-layer/`](./agent-native-cli-layer/) is the parent of everything below.
-Its `design.md` carries the 26-requirement floor (F/O/E/V/S/P/D/T ids) that every child
-cites, and the "Order of work" that fixes the sequence.
+Its `design.md` carries the 53-requirement floor (F/O/E/V/S/P/D/T/H/M/K ids) that every
+child cites, and the wave plan that fixes the sequence.
 
 ## Children
 
@@ -22,13 +22,13 @@ issues in `docs/research/competitor-open-issues.md`.
 
 | # | Intent | Delivers | Floor ids | Status |
 | :-- | :-- | :-- | :-- | :-- |
-| 1 | [`cli-testing-harness/`](./cli-testing-harness/) | `Runtime` seam; `commander-harness`, `yargs-testing`; the conformance suite | T1 | draft |
-| 2 | [`commander-agent/`](./commander-agent/) | first public extension on commander's hooks | F1 F2 F4 O1–O5 E1–E5 | draft |
-| 3 | [`sdlc-locks-evals-bands/`](./sdlc-locks-evals-bands/) | intent lock, evals layer 1, control bands | — | draft |
-| 4 | [`eslint-plugin-cli/`](./eslint-plugin-cli/) | the L rules on `@interlace/eslint-devkit` | F3 O1–O4 E1 E2 V2 V5 P1 D1 | draft |
-| 5 | [`agent-cli-bench/`](./agent-cli-bench/) | tokens and turns per task; the first real band | — | draft |
-| 6 | [`yargs-agent/`](./yargs-agent/) | the same floor as yargs middleware; the shared suite as contract | same as 2 | draft |
-| 7 | [`docs-deploy/`](./docs-deploy/) | `apps/docs` on an interlace.tools host, `llms.txt` | — | draft |
+| 1 | [`cli-testing-harness/`](./cli-testing-harness/) | `Runtime` seam; `commander-harness`, `yargs-testing`; the conformance suite | T1 | review |
+| 2 | [`commander-agent/`](./commander-agent/) | first public extension on commander's hooks | F1 F2 F4 O1–O5 E1–E5 | review |
+| 3 | [`sdlc-locks-evals-bands/`](./sdlc-locks-evals-bands/) | intent lock, evals layer 1, control bands | — | review |
+| 4 | [`eslint-plugin-cli-floor/`](./eslint-plugin-cli-floor/) | the L rules on `@interlace/eslint-devkit` | F3 O1–O4 E1 E2 V2 V5 P1 D1 | review |
+| 5 | [`agent-cli-bench/`](./agent-cli-bench/) | tokens and turns per task; the first real band | — | review |
+| 6 | [`yargs-agent/`](./yargs-agent/) | the same floor as yargs middleware; the shared suite as contract | same as 2 | review |
+| 7 | [`docs-deploy/`](./docs-deploy/) | `apps/docs` on an interlace.tools host, `llms.txt` | — | review |
 
 ### Gap track (research clusters)
 
@@ -46,12 +46,32 @@ Not planned, on purpose: §10 parsing edge cases (commander owns them; the resea
 says why), §12 maintainer signals (an article, not a package), and an update checker
 (citty #10 — a network call at startup is the opposite of what an agent wants).
 
-## Floor additions awaiting review
+## Execution plan
 
-The gap track proposes 27 additions to the umbrella floor (S5–S8, V6–V7, H1–H6, D3–D5,
-P3, M1–M6, K1–K5). They are listed in each intent's open questions and are folded into
-`agent-native-cli-layer/design.md` when the intent moves to `review`, so the umbrella
-stays the single list.
+Finalised 2026-09-06: every open question in every intent has a recorded decision, the
+27 floor additions are folded into the umbrella design (53 requirements), and all
+fifteen intents are `review`. Moving them to `approved` is the human gate; nothing is
+built before that.
+
+Waves, from the umbrella design. A wave starts when the previous one is `shipped`;
+intents inside a wave run in parallel sessions, one worktree each.
+
+| Wave | Intents |
+| :-- | :-- |
+| 0 | `sdlc-locks-evals-bands`, `cli-testing-harness` |
+| 1 | `commander-agent`, `cli-packaging` |
+| 2 | `yargs-agent`, `eslint-plugin-cli-floor`, `docs-deploy`, `cli-help-renderer` |
+| 3 | `agent-cli-bench`, `commander-schema`, `commander-env` |
+| 4 | `commander-completions`, `cli-prompts`, `cli-modularity` |
+
+Prerequisites only the owner can supply (none are set on the repo as of 2026-09-06):
+
+| Item | Needed by |
+| :-- | :-- |
+| `NPM_TOKEN`, or npm Trusted Publishing per package | wave 1, first publish |
+| `CLAUDE_CODE_OAUTH_TOKEN` | Claude review now; `agent-cli-bench` in wave 3 |
+| `VERCEL_TOKEN`, Vercel project, DNS for `cli.interlace.tools` | wave 2, `docs-deploy` |
+| macOS and Windows runners in the conformance matrix | wave 1, E5 on three platforms |
 
 ## Where intents come from
 
