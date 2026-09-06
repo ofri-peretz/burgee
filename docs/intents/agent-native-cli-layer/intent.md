@@ -79,8 +79,7 @@ Concretely, once this lands:
 3. **A CLI using the layer must remain a plain commander or yargs program.** The
    parser instance is reachable; every parser API works. Adoption is additive.
 4. **Dogfood the ecosystem.** The repo runs `eslint-config-interlace` `quality` +
-   `node-security` + `secure-coding` recommended, `@interlace/eslint-formatter-sarif` in CI once it is
-   published (404 on npm as of 2026-09-05), oxlint fast pass, lefthook, changesets, turbo —
+   `node-security` + `secure-coding` recommended, the react plugins on the docs app, oxlint fast pass, lefthook, changesets, turbo —
    the same tooling as `eslint/` and `interlace/`.
 5. **AI-native SDLC from day one.** `docs/intents/` with the lock, `evals/` layer 1,
    control bands with at least one band computing before v1.

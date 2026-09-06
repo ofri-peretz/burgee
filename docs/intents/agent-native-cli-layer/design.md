@@ -172,7 +172,6 @@ plugins because the meta-config's published `recommended` was broken at the time
 | eslint-plugin-secure-coding | recommended | injection, PII in logs, regex |
 | eslint-plugin-react-a11y, -react-features | recommended, `apps/docs/**/*.tsx` | the docs site |
 | eslint-plugin-cli | recommended | the floor itself |
-| @interlace/eslint-formatter-sarif | CI → GitHub code scanning, **once published** — it exists in `eslint/packages/` but returns 404 on npm as of 2026-09-05 | |
 | @interlace/eslint-devkit | builds eslint-plugin-cli | |
 
 Not applicable and recorded as such: browser-security (no browser code outside
@@ -180,6 +179,12 @@ Next's own), express-security, nestjs-security, mongodb-security, pg, jwt,
 lambda-security, vercel-ai-security. Eight of twenty-four packages are excluded
 because their targets are not present, not because of any conflict. That is 12 of 24
 packages consumed at Stage 0, 14 once the plugin and devkit are in play.
+
+Not consumed, deliberately: `@interlace/eslint-formatter-sarif`. In `eslint/` it is
+`private: true` since PR #105, its `main` points at a `dist/` no build script produces,
+and it has never been on npm. Whether to publish it is an eslint-repo decision; this repo
+uploads nothing to code scanning until that is made, and would use
+`@microsoft/eslint-formatter-sarif` if plain SARIF were ever enough.
 
 ### Order of work
 
