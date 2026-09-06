@@ -1,0 +1,36 @@
+{
+  "name": "yargs-testing",
+  "version": "0.0.0",
+  "description": "Run a yargs CLI in-process with injected argv, env, stdin, cwd and TTY-ness; get back { code, stdout, stderr, json }. The T1 half of the Interlace CLI floor for yargs.",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=24" },
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "lint": "eslint src"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ofri-peretz/cli.git",
+    "directory": "packages/yargs-testing"
+  },
+  "keywords": ["yargs", "testing", "cli", "harness", "interlace"],
+  "dependencies": {
+    "@interlace/cli-core": "*"
+  },
+  "peerDependencies": {
+    "yargs": ">=17"
+  },
+  "devDependencies": {
+    "@types/yargs": "^17.0.33",
+    "vitest": "^4.0.0",
+    "yargs": "^18.0.0"
+  }
+}

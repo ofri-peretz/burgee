@@ -22,7 +22,7 @@ issues in `docs/research/competitor-open-issues.md`.
 
 | # | Intent | Delivers | Floor ids | Status |
 | :-- | :-- | :-- | :-- | :-- |
-| 1 | [`cli-testing-harness/`](./cli-testing-harness/) | `Runtime` seam; `commander-harness`, `yargs-testing`; the conformance suite | T1 | review |
+| 1 | [`cli-testing-harness/`](./cli-testing-harness/) | `Runtime` seam; `commander-harness`, `yargs-testing`; the conformance suite | T1 | shipped |
 | 2 | [`commander-agent/`](./commander-agent/) | first public extension on commander's hooks | F1 F2 F4 O1–O5 E1–E5 | review |
 | 3 | [`sdlc-locks-evals-bands/`](./sdlc-locks-evals-bands/) | intent lock, evals layer 1, control bands | — | shipped |
 | 4 | [`eslint-plugin-cli-floor/`](./eslint-plugin-cli-floor/) | the L rules on `@interlace/eslint-devkit` | F3 O1–O4 E1 E2 V2 V5 P1 D1 | review |

@@ -241,4 +241,37 @@ export default [
     files: ['scripts/run-evals.ts'],
     rules: { 'node-security/no-dynamic-command-string': 'off' },
   },
+  // ── Harness and demo packages (intent cli-testing-harness) ────────────────
+  {
+    // Tests that prove console capture must call console.
+    files: ['**/*.test.ts'],
+    rules: {
+      'operability/no-console-log': 'off',
+      'operability/no-debug-code-in-production': 'off',
+    },
+  },
+  {
+    // The two files allowed to touch `process` (process-reference-lock.test.ts):
+    // the real runtime's exit, and the harness's env/console swap by enumerated keys.
+    files: ['packages/cli-core/src/runtime.ts', 'packages/cli-core/src/testing.ts'],
+    rules: {
+      'operability/no-process-exit': 'off',
+      'secure-coding/detect-object-injection': 'off',
+      'maintainability/no-missing-error-context': 'off',
+      'reliability/no-missing-error-context': 'off',
+    },
+  },
+  {
+    // A package entry re-exports its modules; that is what an entry is for.
+    files: ['packages/*/src/index.ts'],
+    rules: { 'import-next/no-barrel-file': 'off' },
+  },
+  {
+    // Executable entry points import their own module and export nothing.
+    files: ['examples/*/src/bin.ts'],
+    rules: {
+      'import-next/no-barrel-import': 'off',
+      'import-next/no-unused-modules': ['error', { allowImportOnly: true }],
+    },
+  },
 ];

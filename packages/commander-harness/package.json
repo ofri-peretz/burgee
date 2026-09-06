@@ -1,0 +1,35 @@
+{
+  "name": "commander-harness",
+  "version": "0.0.0",
+  "description": "Run a commander program in-process with injected argv, env, stdin, cwd and TTY-ness; get back { code, stdout, stderr, json }. The T1 half of the Interlace CLI floor for commander.",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=24" },
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "lint": "eslint src"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ofri-peretz/cli.git",
+    "directory": "packages/commander-harness"
+  },
+  "keywords": ["commander", "testing", "cli", "harness", "interlace"],
+  "dependencies": {
+    "@interlace/cli-core": "*"
+  },
+  "peerDependencies": {
+    "commander": ">=12"
+  },
+  "devDependencies": {
+    "commander": "^15.0.0",
+    "vitest": "^4.0.0"
+  }
+}

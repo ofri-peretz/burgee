@@ -11,14 +11,16 @@ A turborepo, like every Interlace repo.
 | Path | Purpose |
 | :-- | :-- |
 | [`packages/cli-core/`](./packages/cli-core/) | `@interlace/cli-core` — internal shared contract: exit codes, envelope, error type, manifest schema. |
-| `packages/commander-*`, `packages/yargs-*` | Public extensions, one per layer per host, in the host's own idiom. First: `commander-agent`, `yargs-agent`. |
+| [`packages/commander-harness/`](./packages/commander-harness/), [`packages/yargs-testing/`](./packages/yargs-testing/) | Run a CLI in-process with injected argv, env, stdin and TTY-ness; one result shape for both hosts (T1). |
+| `packages/commander-*`, `packages/yargs-*` | Public extensions, one per layer per host, in the host's own idiom. Next: `commander-agent`, `yargs-agent`. |
+| [`examples/`](./examples/) | The reference demo CLI built twice (commander, yargs) and the conformance suite that runs every floor case on both. |
 | [`apps/docs/`](./apps/docs/) | Documentation site (Next.js + fumadocs). |
 | [`docs/intents/`](./docs/intents/) | Stage 1 + 2 artifacts of the AI-native SDLC (`AI_NATIVE_SDLC.md`, one level above this repo on a maintainer's machine): `intent.md` + `design.md` per change. |
 | [`docs/research/`](./docs/research/) | 329 open issues across yargs, commander, oclif, citty, clack — clustered and cited, with raw snapshots. |
 
-**Status:** Stage 2, all fifteen intents in `review` (see [`docs/intents/`](./docs/intents/)
-for the wave plan). The first requirement, E1 the exit-code contract, is in
-`@interlace/cli-core`.
+**Status:** wave 0 shipped — the SDLC loop (locks, evals, control bands) and the
+test harness (T1). See [`docs/intents/`](./docs/intents/) for the wave plan. E1, the
+exit-code contract, and the `Runtime` seam are in `@interlace/cli-core`.
 
 ```bash
 npm install

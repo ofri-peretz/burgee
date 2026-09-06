@@ -1,0 +1,21 @@
+{
+  "name": "demo-cli-commander",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The reference CLI, on commander: one positional, one boolean, a subcommand group, an env-bound option, a runtime failure. Fixture for the conformance suite and the lint plugin.",
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "bin": { "demo-commander": "./dist/bin.js" },
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@interlace/cli-core": "*",
+    "commander": "^15.0.0"
+  }
+}

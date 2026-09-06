@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ExitCode } from './index.js';
+import { ExitCode, isExitCode } from './index.js';
 
 // E1 lock: the contract in design.md, pinned. A changed number here is a breaking
 // change for every agent that branches on it.
@@ -19,5 +19,12 @@ describe('ExitCode (E1)', () => {
   it('has no two names sharing a code', () => {
     const codes = Object.values(ExitCode);
     expect(new Set(codes).size).toBe(codes.length);
+  });
+
+  it('recognises only the six codes', () => {
+    expect(isExitCode(ExitCode.SIGINT)).toBe(true);
+    expect(isExitCode(ExitCode.OK)).toBe(true);
+    expect(isExitCode(ExitCode.CANCELLED + 1)).toBe(false);
+    expect(isExitCode('2')).toBe(false);
   });
 });

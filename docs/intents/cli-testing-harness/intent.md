@@ -4,7 +4,9 @@
 > requirement T1. First in the order of work because every other requirement is
 > verified through it.
 
-**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+
+> Approved 2026-09-06 by @ofri-peretz in session ("Approve. lets move forward.").
 
 ---
 
