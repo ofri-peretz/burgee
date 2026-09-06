@@ -1,0 +1,36 @@
+# Labels used by workflows and triage. Sync with:
+#   scripts/repo-settings.sh   (idempotent; runs `gh label create --force`)
+
+- name: run-full-ci
+  color: "0E8A16"
+  description: "Run the heavy Quality (Full) gate and CodeQL on a draft PR"
+- name: skip-changeset
+  color: "FBCA04"
+  description: "Internal-only change; no release entry"
+- name: dependencies
+  color: "0366D6"
+  description: "Dependency updates"
+- name: npm
+  color: "CB3837"
+  description: "npm dependency"
+- name: ci
+  color: "5319E7"
+  description: "CI / workflows"
+- name: bug
+  color: "D73A4A"
+  description: "Something is broken"
+- name: enhancement
+  color: "A2EEEF"
+  description: "New capability or improvement"
+- name: commander
+  color: "1D76DB"
+  description: "commander-* extensions"
+- name: yargs
+  color: "F9D0C4"
+  description: "yargs-* extensions"
+- name: floor
+  color: "000000"
+  description: "Changes a floor requirement (design.md)"
+- name: agent-efficiency
+  color: "BFD4F2"
+  description: "Affects tokens / turns an AI agent spends"

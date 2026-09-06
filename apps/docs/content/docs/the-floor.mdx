@@ -1,0 +1,72 @@
+---
+title: The floor
+description: The 26 requirements every CLI on the layer meets, and who holds each — runtime, lint, or both.
+---
+
+Each requirement is held by the **runtime** (the `commander-*` / `yargs-*` extensions), by the **lint** plugin
+(`eslint-plugin-cli`), or both. A rule with neither is a suggestion, and suggestions are
+not a floor. Evidence for every line is an open issue in a leading CLI library — see
+[Research](/docs/research).
+
+## Discoverability
+
+| ID | Requirement | Holds |
+| :-- | :-- | :-- |
+| F1 | `--schema` prints the full command tree — commands, options, types, defaults, env bindings, examples, deprecations, exit codes — as JSON | runtime |
+| F2 | `--help --json` prints help as data; text help is rendered from that data | runtime |
+| F3 | Every command declares a description and at least one single-line example | lint |
+| F4 | Commands may be grouped and hidden; groups are stable in the schema | runtime |
+
+## Output
+
+| ID | Requirement | Holds |
+| :-- | :-- | :-- |
+| O1 | `--json` on every command, one envelope `{ ok, data, error?, meta }` | both |
+| O2 | No ANSI, spinners, redraws or prompts when stdout is not a TTY or `NO_COLOR` is set; `FORCE_COLOR` overrides | both |
+| O3 | Command code writes through the output layer, never `console.*` | lint |
+| O4 | Colour via `util.styleText`; no chalk dependency | both |
+| O5 | stdout is flushed before every exit path | runtime |
+
+## Errors and lifecycle
+
+| ID | Requirement | Holds |
+| :-- | :-- | :-- |
+| E1 | Exit codes are a contract: 0 ok, 1 runtime, 2 usage, 3 config, 4 cancelled, 130 SIGINT | both |
+| E2 | A runtime failure never prints help; a usage error never prints a stack | both |
+| E3 | Every error carries `code`, `message`, `hint` and, where possible, `fix` | runtime |
+| E4 | Explicit lifecycle: parse → config → validate → run → render → exit; validation failure stops the handler; async handlers are awaited | runtime |
+| E5 | SIGINT restores the terminal and exits 130 | runtime |
+
+## Values and precedence
+
+| ID | Requirement | Holds |
+| :-- | :-- | :-- |
+| V1 | Flags > env > config file > default, per command, without leaking env into unrelated commands | runtime |
+| V2 | Any option may declare an env name; env-bound options appear in help and schema | both |
+| V3 | `--explain <option>` reports where each value came from | runtime |
+| V4 | `name`, `version`, `description` come from the owning `package.json`, not the monorepo root | runtime |
+| V5 | Reserved option names cannot be redefined | lint |
+
+## Validation
+
+| ID | Requirement | Holds |
+| :-- | :-- | :-- |
+| S1 | Options and positionals are declared once as a schema; types and help are derived | runtime |
+| S2 | Relationships are first-class: exactly-one-of, at-least-one-of, implies, conflicts | runtime |
+| S3 | Invalid numbers fail validation, never `NaN`; invalid types fail at definition time | runtime |
+| S4 | `-` means stdin for file positionals; `--` pass-through reaches child processes intact | runtime |
+
+## Prompts
+
+| ID | Requirement | Holds |
+| :-- | :-- | :-- |
+| P1 | Every prompt is backed by a flag; a flag value skips the prompt | lint |
+| P2 | In a non-TTY the prompt becomes an error naming the flag, exit 2 | runtime |
+
+## Deprecation and testing
+
+| ID | Requirement | Holds |
+| :-- | :-- | :-- |
+| D1 | Deprecating anything requires a replacement, shown in help, schema and the warning | both |
+| D2 | Completions for bash, zsh, fish and PowerShell are generated statically from the schema | runtime |
+| T1 | A CLI runs in-process with injected argv, env, stdin, cwd and TTY-ness, returning `{ code, stdout, stderr, json }` | runtime |

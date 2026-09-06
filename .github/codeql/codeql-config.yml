@@ -1,0 +1,15 @@
+name: "CodeQL Config — Interlace CLI"
+
+paths:
+  - apps
+  - packages
+  - scripts
+
+paths-ignore:
+  - "**/node_modules/**"
+  - "**/dist/**"
+  - "**/.next/**"
+  - "**/.source/**"
+  - "**/.turbo/**"
+  # Raw issue snapshots from other projects' trackers — data, not code.
+  - docs/research/issues/**

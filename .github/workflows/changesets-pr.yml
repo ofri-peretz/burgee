@@ -1,0 +1,132 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Changesets
+
+run-name: >-
+  Changesets · ${{ github.event_name == 'pull_request' && format('PR #{0}', github.event.pull_request.number) || (github.event_name == 'push' && 'open / refresh Version PR' || 'manual') }}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Ported from ofri-peretz/eslint/changesets-pr.yml. Two responsibilities:
+#
+# 1. On PR — soft advisory: a one-time comment if the PR touches
+#    `packages/*/src` or a `package.json` but adds no `.changeset/*.md`.
+#    Silent when the PR carries the `skip-changeset` label.
+#
+# 2. On push to main — open / refresh the "Version Packages" PR and enable
+#    auto-merge on it. Merging it triggers release.yml. No `publish:` here.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  workflow_dispatch:
+
+concurrency:
+  group: changesets-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    name: Open / refresh Version Packages PR
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+        with:
+          turbo-cache: "false"
+
+      - name: Open / refresh Version PR
+        id: changesets
+        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1
+        with:
+          version: npm run changeset:version
+          title: "chore(release): version packages"
+          commit: "chore(release): version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # lefthook's pre-push would otherwise gate the bot's push; the real
+          # gates run on the resulting Version PR.
+          LEFTHOOK: "0"
+
+      - name: Enable auto-merge on the Version PR
+        if: steps.changesets.outputs.hasChangesets == 'true' && steps.changesets.outputs.pullRequestNumber
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_BOT_PAT || secrets.GITHUB_TOKEN }}
+          PR: ${{ steps.changesets.outputs.pullRequestNumber }}
+          HAS_PAT: ${{ secrets.RELEASE_BOT_PAT != '' }}
+        run: |
+          set -euo pipefail
+          if [ "$HAS_PAT" = "true" ]; then
+            gh pr review "$PR" --approve --body "Auto-approved by changesets bot — review via the changesets that produced this PR." || \
+              echo "::warning::Auto-approve failed (PAT may lack permission). Auto-merge still set."
+          fi
+          gh pr merge "$PR" --auto --squash || \
+            echo "::warning::gh pr merge --auto returned non-zero. Is auto-merge enabled in Settings → General?"
+
+  required:
+    name: Changeset present
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Check for changeset
+        id: check
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          set -euo pipefail
+          if echo ",$LABELS," | grep -q ',skip-changeset,'; then
+            echo "status=skipped" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          added=$(git diff --name-only --diff-filter=A "$BASE_SHA"..."$HEAD_SHA" \
+            | grep -E '^\.changeset/[^/]+\.md$' | grep -vE '^\.changeset/(README|config)\.md$' || true)
+          src=$(git diff --name-only "$BASE_SHA"..."$HEAD_SHA" \
+            | grep -E '^packages/[^/]+/(src|package\.json)' || true)
+          if [ -n "$added" ]; then echo "status=present" >> "$GITHUB_OUTPUT"
+          elif [ -z "$src" ]; then echo "status=not-needed" >> "$GITHUB_OUTPUT"
+          else echo "status=missing" >> "$GITHUB_OUTPUT"; echo "::warning::PR changes packages/ source but has no changeset."
+          fi
+
+      - name: Comment on PR (when missing)
+        if: steps.check.outputs.status == 'missing'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        with:
+          script: |
+            const marker = '<!-- changeset-reminder -->';
+            const body = `${marker}
+            ### 📝 Changeset reminder
+
+            This PR touches \`packages/*/src/**\` or a \`package.json\` but includes no
+            changeset. If the change is user-visible, run \`npm run changeset\` and commit
+            the resulting \`.changeset/*.md\`. For internal-only work add the
+            \`skip-changeset\` label.`;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number,
+            });
+            const existing = comments.find((c) => c.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner: context.repo.owner, repo: context.repo.repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, body });
+            }

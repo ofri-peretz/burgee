@@ -1,0 +1,10 @@
+# Code Owners — single-maintainer repo. Wildcards so new packages need no edit.
+* @ofri-peretz
+
+/packages/commander-*/   @ofri-peretz
+/packages/yargs-*/       @ofri-peretz
+/packages/cli-core/      @ofri-peretz
+/packages/eslint-plugin-*/ @ofri-peretz
+/apps/                   @ofri-peretz
+/docs/intents/           @ofri-peretz
+/.github/                @ofri-peretz

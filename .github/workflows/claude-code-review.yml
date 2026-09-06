@@ -1,0 +1,76 @@
+name: Claude Code Review
+
+# AI code review on pull requests. Ported from ofri-peretz/eslint. The `review`
+# job is a required status check; it no-ops green until CLAUDE_CODE_OAUTH_TOKEN
+# exists, so branch protection can require it before the secret is wired.
+#   1. Install the Claude GitHub App: https://github.com/apps/claude
+#   2. `claude setup-token` locally
+#   3. Add the token as the repo secret CLAUDE_CODE_OAUTH_TOKEN
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+jobs:
+  review:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check for Claude token
+        id: token
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Claude review skipped::CLAUDE_CODE_OAUTH_TOKEN is not set."
+          fi
+
+      - name: Checkout repository
+        if: steps.token.outputs.present == 'true'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+        with:
+          fetch-depth: 1
+
+      - name: Claude Code Review
+        if: steps.token.outputs.present == 'true'
+        uses: anthropics/claude-code-action@700e7f8316990de46bed556429765647af760efc # v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          track_progress: true
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            You are reviewing a pull request in the Interlace CLI repo: extensions
+            for commander and yargs that give CLIs a machine-readable, agent-friendly
+            floor. Read README.md and docs/intents/agent-native-cli-layer/design.md
+            for the floor requirements (F/O/E/V/S/P/D/T ids) and honour them.
+
+            Prioritise, in order:
+            1. Correctness & security — real bugs, broken edge cases, regressions,
+               injection through argv/env/config, secrets in output.
+            2. Floor conformance — a change that adds a command, option, error or
+               output path must keep every requirement it touches (cite the id).
+            3. Regression locks — a fix with no test that fails on the unfixed code.
+            4. Host idiom — extensions use commander/yargs public APIs, never fork or
+               re-parse argv.
+
+            Be precise and low-noise: post a finding only with file:line and the
+            reason. Inline comments for issues, one top-level summary.
+          claude_args: |
+            --model claude-sonnet-4-6
+            --max-turns 50
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"

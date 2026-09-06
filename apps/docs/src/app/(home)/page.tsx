@@ -1,0 +1,20 @@
+import Link from 'next/link';
+
+export default function HomePage() {
+  return (
+    <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
+      <h1 className="text-4xl font-bold tracking-tight">Interlace CLI</h1>
+      <p className="max-w-xl text-lg text-fd-muted-foreground">
+        The layer above argv parsing. Built on commander and yargs, never replacing them.
+        One schema, a JSON envelope on every command, an exit-code contract, and a
+        manifest an AI agent reads in a single call.
+      </p>
+      <Link
+        href="/docs"
+        className="rounded-md bg-fd-primary px-4 py-2 font-medium text-fd-primary-foreground"
+      >
+        Read the floor
+      </Link>
+    </main>
+  );
+}

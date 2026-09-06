@@ -1,0 +1,42 @@
+---
+title: Interlace CLI
+description: The agent-native layer above argv parsing, on top of commander and yargs.
+---
+
+Interlace CLI owns every layer **above** parsing: schema, config precedence, structured
+output, error contract, help renderer, prompts-as-flags, completions, a testing harness,
+and a machine-readable manifest. It never parses argv itself. Parsing is delegated to
+[commander](https://github.com/tj/commander.js) or [yargs](https://github.com/yargs/yargs)
+through an adapter, so an existing CLI on either keeps its parser and gains the layer.
+
+## Why a layer, not a parser
+
+Downloads of commander and yargs are transitive: almost every npm CLI depends on one of
+them, and the 2025–2026 spike tracks AI coding tools shipping CLIs on top of them. Both
+are healthy and actively maintained. A new parser has nothing to win; the layer above
+them is unowned.
+
+We read all 329 open issues across yargs, commander, oclif, citty and clack. Almost none
+are about parsing. They are about help rendering, config precedence, validation
+relationships, completions, error lifecycle, prompts, and machine-readability — see
+[Research](/docs/research).
+
+## Why agents
+
+An agent calling a CLI through a shell pays in **calls**, **tokens** and **misreads**.
+The layer attacks each:
+
+| Mechanism | Saves |
+| :-- | :-- |
+| `--schema` — the whole command tree as JSON, once | one `--help` call per subcommand |
+| `--json` — one envelope `{ ok, data, error, meta }` on every command | all stdout parsing, all ANSI |
+| quiet in a non-TTY — no spinners, prompts or `\r` redraws | hundreds of captured lines |
+| a runtime failure never prints help | the most expensive misdiagnosis |
+| every error carries `fix`: the exact next command | one or two retries per failure |
+| `--explain <option>` — where each value came from | the config hunt |
+
+## Status
+
+Stage 2 of the [AI-native SDLC](https://github.com/ofri-peretz/cli/blob/main/docs/intents/agent-native-cli-layer/intent.md).
+The first requirement landed is the exit-code contract, `ExitCode` in `@interlace/cli-core`,
+the internal package every `commander-*` and `yargs-*` extension shares.

@@ -1,0 +1,188 @@
+---
+title: Research
+description: What 329 open issues across yargs, commander, oclif, citty and clack say about the layer nobody owns.
+---
+
+
+Snapshot taken 2026-09-05 with `npm run research:refresh`. Raw JSON in
+[`docs/research/issues/`](https://github.com/ofri-peretz/cli/tree/main/docs/research/issues). Every claim below cites an issue number so it can be re-read.
+
+| Repo | Open | Read |
+| :--- | ---: | :--- |
+| yargs/yargs | 199 | all |
+| tj/commander.js | 6 | all |
+| oclif/core | 14 | all |
+| oclif/oclif | 10 | all |
+| unjs/citty | 40 | all |
+| bombshell-dev/clack | 60 | all |
+
+The one-line finding: **almost nothing in these trackers is about parsing argv.**
+It is about everything that sits on top of parsing — help rendering, config
+precedence, validation relationships, completions, error lifecycle, prompts,
+machine-readability. That is the layer nobody owns, and it is the layer an AI agent
+touches on every call.
+
+---
+
+## 1. Machine-readability and agent environments (the thesis, in their words)
+
+The newest and most-discussed issues across all six repos converge on one need:
+a CLI that a program, not a person, can drive.
+
+- **clack #533** (2026-05, 9 comments) *Resumable prompts for agent environments*:
+  "Interactive CLIs … break down in non-TTY environments like CI, and increasingly,
+  AI coding agents. The CLI usually hangs forever and just fails."
+- **citty #187** *Pluggable Logger*: wants to call a command programmatically and
+  "get the output (to feedback to LLM)".
+- **citty #117** *return usage as data instead of just a string*; **citty #94**
+  `transformCommandToApi`; **yargs #2121** "have yargs introspect the CLI and
+  provide command metadata"; **yargs #1005** "no way to list all the possible
+  commands" (a 250-command CLI); **clack #525** automated help/man generation.
+- **yargs #1605** invoke a command programmatically; **yargs #1838** API to check if
+  a command string is known.
+- **yargs #1334** track which arguments were defaulted; **oclif/core #854** "hard to
+  tell whether a user really typed that flag or is just a default"; **oclif/core
+  #1639** `dependsOn` satisfied by a flag's own default. Three trackers, one missing
+  concept: *value provenance*.
+- **yargs #1519** `--help` exits before stdout is flushed; **yargs #2118** a thrown
+  error truncates stdout/stderr. Output integrity, which a human tolerates and a
+  parser does not.
+- **yargs #2394** help is printed when an async handler *fails*. For an agent this
+  is the worst possible signal: a runtime failure that looks like a usage mistake.
+- **commander #2549** pass a custom `env` instead of `process.env`; **yargs #2450**
+  `getHelp(args)` for tests. Testability of the whole surface, not just the parser.
+- **clack #286** use `isTTY` rather than `isCI` to decide what to render;
+  **clack #585** *accessible mode*: spinners and live-redrawn prompts are
+  re-announced on every repaint by screen readers. An agent reading captured stdout
+  has exactly the screen reader's problem (**clack #510**: `\r` progress output
+  captured as hundreds of lines).
+
+## 2. Help and usage rendering — the largest single cluster (yargs)
+
+The top yargs issue by reactions, and roughly a fifth of its tracker:
+
+- **#684** (34 reactions, since 2016) group commands under headings.
+- **#969** hide `[boolean]` type hints; **#427** customise "extra" help;
+  **#1964** scriptname repeated before every command; **#877 / #1640** examples on
+  one copy-pasteable line, multi-line examples; **#2003** width hard-coded to 80;
+  **#2228** no separation between columns; **#2120 / #2000** `usage()` strips
+  leading spaces; **#1181** command options before global options; **#1408 / #1349**
+  documenting choices and array defaults; **#833** value placeholder in help;
+  **#1699** ANSI colour in a command name breaks matching; **#1500 / #1331 / #1025**
+  subcommand help, examples and options missing; **#1020** `cmd help <sub>`;
+  **#2248** deprecated flag not shown in help; **#2012** positional defaults absent
+  from help; **#1265** short vs long descriptions by context; **#1680** epilogue
+  only on root; **#2094** localised descriptions.
+- **oclif/core #1001 / #1002** show min/max, `dependsOn`, `exclusive` in help.
+- **citty #137** customise each part of `showUsage`; **yargs #1935 / #1681**
+  document environment variables in help.
+
+Reading: help is data being rendered by a renderer nobody can replace. Own the
+renderer, derive help from a schema, and every one of these becomes a template
+change — and `--help --json` falls out for free.
+
+## 3. Config and environment precedence
+
+- **yargs #873** (22 comments) env vars trigger strict-mode errors for unrelated
+  commands; **#821** array from env; **#856** any arg via env; **#1655** explicit env
+  var names per option; **#2501** `--no-` variants via env; **#2005** env names
+  camel-cased unexpectedly; **#858 / #1782 / #2472 / #1858** config files for
+  subcommands, nested keys, strict mode; **#1305 / #1627** dot-notation and deep
+  merge; **#2234** async config loader; **#1363 / #1135** `extends` merge and
+  resolution; **#1676** `--no-config` still loads; **#2191** `pkgConf` only once;
+  **#1234** load a user config if it exists.
+- **yargs #2400 / #1934**, **commander #2346**, **citty #200** — reading
+  `name`/`version` from the right `package.json` (monorepos, global installs).
+- **oclif/core #1075** native `.env` support.
+
+Reading: a precedence layer (flags > env > config > defaults) with provenance is a
+recurring, unowned need. It is the same concept as the "was this defaulted" issue in
+section 1.
+
+## 4. Validation and option relationships
+
+- **yargs #1093 / #439** exactly-one-of, required group; **#1322 / #898 / #1190**
+  `implies` as a function, with `--no-`, with nested keys; **#793** dynamic choices
+  depending on another arg; **#1379** `coerce` fights `choices`; **#1079** invalid
+  number becomes `NaN`; **#1188** a `file` type; **#890** an `object` type;
+  **#1532** a true flag (`nargs: 0`); **#1318 / #2011 / #846 / #1530 / #1336**
+  array semantics; **#1186** validation order (`exclusive` before `choices`);
+  **#1198** invalid `type` accepted silently; **#887** duplicate aliases shadow
+  silently; **#933** `-output` parses as `-o utput`.
+- **Reserved names**: **yargs #1323 / #1864 / #2199 / #2064** an option called
+  `version` fails silently — "I wasted nearly an hour."
+- **citty #84 / #103 / #138** validator, normaliser, `number` type; **clack #597**
+  validators that throw.
+
+Reading: schema-first (Standard Schema) with typed relationships. Reserved-name
+collisions and silent-coercion are lint rules, not runtime features.
+
+## 5. TypeScript
+
+**yargs #1649 / #1679 / #1751 / #2292 / #1392 / #2437 / #2137 / #2360 / #2401 / #2487 / #1940**; **citty #244**; **clack #234 / #131 / #178**. camelCase in code vs
+kebab-case in help, positional typing, variadic typing, defaults typed as functions,
+group inference. All are consequences of types not being *derived* from one schema.
+
+## 6. Completions
+
+**yargs #1904** fish (20 reactions), **#1290 / #1210** PowerShell with metadata,
+**#1684** static completions because dynamic ones are slow, **#2131 / #2126** Fig,
+**#2402** zsh autoload file, **#2390** dynamic values, **#1702** completion as an
+option not a command, **#2254** `--no-x` not completed, **#1965** pressing TAB *runs
+the command*, **#831 / #2298** per-command and pluggable completion, **#2300** hard
+to debug, **#1133 / #1192 / #1277 / #1886** correctness bugs; **citty #217 / #168 / #59**. Reading: generate static completions from the manifest for four shells.
+
+## 7. Error lifecycle and exit behaviour
+
+**yargs #1069** (24 comments) parse callback fires before the handler promise
+settles; **#1399** throw inside `coerce` does not terminate; **#1975** failing
+`check()` does not stop the handler; **#1797** `fail()` misses sync errors;
+**#2133** `fail()` gets no argv; **#2223 / #1828** middleware runs twice, skips
+camel-casing; **#1983** `fail(false)` throws; **citty #112** error bubbling;
+**clack #573 / #408**, **oclif/oclif #958** Ctrl+C handling and raw-mode leaks.
+Reading: an explicit lifecycle (parse → validate → run → render → exit) with a
+single error envelope and a flush-before-exit guarantee.
+
+## 8. Modularity for large CLIs
+
+**yargs #684** groups, **#1005** 250 commands, **#1067 / #2479 / #2267 / #1269**
+`commandDir` and ESM, **#2115 / #2246** deprecate a command, **#2107** alias to
+canonical name, **#1755** share options across commands; **commander #2505** plugin
+API RFC, **#2583** shared command configuration helper; **citty #154 / #151 / #93**
+shared args, user-extendable commands, hidden commands; **oclif/core #984** aliases
+on subcommands. Reading: a command *manifest* — oclif's actual moat — from which
+docs, completions, help and agent tool definitions are all generated.
+
+## 9. Interactive prompts
+
+**clack #533** agent environments, **#22** hooks, **#83** cancellation API, **#39**
+go back a step, **#167** override a prompt with a flag, **#379** global settings,
+**#345** style representation; **oclif/oclif #1492** auto-prompt for missing flags.
+Reading: every prompt must have a flag equivalent, and in a non-TTY the prompt becomes
+an error that names the flag.
+
+## 10. Parsing edge cases (the only cluster we do NOT re-implement)
+
+**yargs #1312** single dash for stdin (17 reactions), **#1076 / #1046 / #1189 / #1158 / #2481 / #2196** strict-mode gaps, **#1324 / #2416** quotes eaten, **#1527**
+`--` handling, **#1821 / #2423** pass-through after a positional (`docker run` style),
+**#1074**; **commander #2530** `--` not preserved for executable subcommands,
+**#2603** Electron argv; **citty #41 / #253** positional equal to a subcommand name,
+**#237** `-foo=bar`, **#201** warn on unknown options. Reading: commander already
+gets most of these right and fixes the rest in weeks. Wrap it; do not fork it.
+
+## 11. Runtime and packaging
+
+**oclif/core #1627** (2026-07): "ships 17 runtime dependencies, several of which now
+have first-class native equivalents (`util.styleText`, `fs.glob`, global `fetch`,
+`process.stdout.isTTY`)"; **#1450 / #1396** CJS-only deps, Node 18; **oclif/oclif #968 / #1624 / #1219 / #2024 / #1985** Deno, bun, pnpm, ESM; **yargs #2004 / #2068 / #2101 / #2186 / #2216** bundling, browser, Deno; **citty #6** build preset;
+**clack #202** Deno. Reading: zero runtime dependencies beyond commander, ESM-only,
+Node 24 natives. `util.styleText` makes a chalk dependency unnecessary.
+
+## 12. Two signals about maintainers
+
+- **oclif/core #1644** (2026-09): "`eslint --fix` corrupts source … because lint rules
+  conflict with the repo's actual TS setup." A CLI framework's own lint setup fighting
+  itself. This is the adoption wedge for Interlace's plugins in CLI repos.
+- **yargs #2488** trusted publishing, **#2070** how to sponsor, **#1465** coverage.
+  yargs is maintained, but by goodwill; its tracker is a backlog of *layer* features
+  it has decided not to own.

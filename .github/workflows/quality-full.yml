@@ -1,0 +1,123 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Quality (Full)
+
+run-name: >-
+  Quality (Full) · ${{ github.event_name == 'pull_request' && format('PR #{0} · {1}', github.event.pull_request.number, github.event.pull_request.title) || (github.event_name == 'schedule' && 'Weekly drift scan' || github.event_name) }}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Heavy half of the gate — Tests, Build, Typecheck. Ported from
+# ofri-peretz/eslint/quality-full.yml.
+#
+# Runs on: push to main (post-merge verification), non-draft PRs, PRs labelled
+# `run-full-ci`, manual dispatch, weekly Sunday 04:00 UTC. Draft PRs without
+# the label skip it. Mirror locally with `npm run ci:local`.
+#
+# `Quality (Full) Gate` is a required status check for branch protection.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, ready_for_review, labeled, synchronize]
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 * * 0"
+
+concurrency:
+  group: quality-full-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: "1"
+
+jobs:
+  gate:
+    name: Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+    steps:
+      - id: decide
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          IS_DRAFT: ${{ github.event.pull_request.draft }}
+          HAS_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'run-full-ci') }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" != "pull_request" ]] || [[ "$IS_DRAFT" == "false" ]] || [[ "$HAS_LABEL" == "true" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Draft PR without \`run-full-ci\` label — skipping heavy quality gates."
+          fi
+
+  test:
+    name: Unit Tests (Turbo)
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: ./.github/actions/setup
+      - run: npx turbo run test
+
+  build:
+    name: Build (Turbo)
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: ./.github/actions/setup
+        with:
+          next-cache: "true"
+      - run: npx turbo run build
+
+  typecheck:
+    name: Typecheck (Turbo)
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: ./.github/actions/setup
+      - run: npx turbo run typecheck
+
+  quality-full-gate:
+    name: Quality (Full) Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    needs: [gate, test, build, typecheck]
+    if: always() && needs.gate.outputs.run == 'true'
+    steps:
+      - name: Render gate report
+        env:
+          R_TEST: ${{ needs.test.result }}
+          R_BUILD: ${{ needs.build.result }}
+          R_TYPECHECK: ${{ needs.typecheck.result }}
+        run: |
+          set -euo pipefail
+          icon() { case "$1" in success) echo "✅";; failure) echo "❌";; cancelled) echo "⏹";; skipped) echo "⏭";; *) echo "⚠️";; esac; }
+          all_pass=true
+          for r in "$R_TEST" "$R_BUILD" "$R_TYPECHECK"; do [ "$r" = "success" ] || all_pass=false; done
+          {
+            if $all_pass; then echo "# ✅ All heavy quality gates passed"; else echo "# ❌ One or more heavy quality gates failed"; fi
+            echo ""
+            echo "| Gate | Result |"
+            echo "|---|---|"
+            echo "| Unit + lock tests | $(icon "$R_TEST") $R_TEST |"
+            echo "| Build | $(icon "$R_BUILD") $R_BUILD |"
+            echo "| Typecheck | $(icon "$R_TYPECHECK") $R_TYPECHECK |"
+            echo ""
+            echo "_Run \`npm run ci:local\` to mirror these gates locally._"
+          } >> "$GITHUB_STEP_SUMMARY"
+          $all_pass || { echo "::error::One or more heavy quality gates failed"; exit 1; }

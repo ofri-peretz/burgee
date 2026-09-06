@@ -1,0 +1,184 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Release Affected Packages
+
+run-name: >-
+  Release${{ inputs.dry-run && ' (dry-run)' || '' }} · ${{ inputs.dist-tag || 'latest' }} · ${{ github.event_name == 'push' && github.event.head_commit.message || github.actor }}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Ported from ofri-peretz/eslint/release.yml, without the ESLint-specific dist
+# integrity matrix. Fires on every push to main (normally the merge of the
+# "Version Packages" PR). Three stages:
+#
+#   1. detect   — diff each public package's version against npm; emit a matrix.
+#   2. build    — `turbo run build --filter='./packages/*'` once; upload dist/.
+#   3. publish  — one job per package in parallel: `npm publish --provenance`,
+#                 git tag `<name>@<version>`, GitHub Release with generated notes.
+#
+# Every step is idempotent, so re-running after a partial failure is safe.
+# Auth: Trusted Publishing (OIDC) once configured on npm; NPM_TOKEN fallback
+# for first releases.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: "Build and show what would publish, without publishing."
+        required: false
+        type: boolean
+        default: false
+      dist-tag:
+        description: "npm dist-tag."
+        required: false
+        type: choice
+        options: [latest, next, beta, rc, alpha]
+        default: latest
+
+concurrency:
+  group: release-workflow
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: "1"
+
+jobs:
+  detect:
+    name: Detect publishable packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.detect.outputs.matrix }}
+      count: ${{ steps.detect.outputs.count }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: ./.github/actions/setup
+        with:
+          turbo-cache: "false"
+      - name: Diff local versions vs npm
+        id: detect
+        run: |
+          set -euo pipefail
+          publish=()
+          for pkg_json in packages/*/package.json; do
+            dir=$(basename "$(dirname "$pkg_json")")
+            [ "$(node -p "require('./$pkg_json').private === true")" = "true" ] && continue
+            name=$(node -p "require('./$pkg_json').name")
+            local_ver=$(node -p "require('./$pkg_json').version")
+            npm_ver=$(npm view "$name" version 2>/dev/null || echo "")
+            if [ -z "$npm_ver" ]; then
+              echo "🆕 $name: first release ($local_ver)"
+              publish+=("{\"dir\":\"$dir\",\"name\":\"$name\",\"version\":\"$local_ver\"}")
+            elif node -e "process.exit(require('semver').gt('$local_ver','$npm_ver') ? 0 : 1)"; then
+              echo "📦 $name: $npm_ver → $local_ver"
+              publish+=("{\"dir\":\"$dir\",\"name\":\"$name\",\"version\":\"$local_ver\"}")
+            else
+              echo "✅ $name: $local_ver (npm has $npm_ver)"
+            fi
+          done
+          count=${#publish[@]}
+          if [ "$count" -eq 0 ]; then
+            echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
+          else
+            json=$(IFS=,; echo "[${publish[*]}]")
+            echo "matrix={\"include\":$json}" >> "$GITHUB_OUTPUT"
+          fi
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build packages
+    needs: detect
+    if: needs.detect.outputs.count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: ./.github/actions/setup
+      - run: npx turbo run build --filter='./packages/*'
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: dist
+          path: packages/*/dist/
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish ${{ matrix.name }}@${{ matrix.version }}
+    needs: [detect, build]
+    if: needs.detect.outputs.count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    permissions:
+      contents: write
+      id-token: write
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix: ${{ fromJSON(needs.detect.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org/
+          cache: npm
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: dist
+          path: packages/
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Publish ${{ matrix.name }}@${{ matrix.version }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"
+          DRY_RUN: ${{ inputs.dry-run || false }}
+          DIST_TAG: ${{ inputs.dist-tag || 'latest' }}
+          PKG_DIR: packages/${{ matrix.dir }}
+          PKG_NAME: ${{ matrix.name }}
+          PKG_VER: ${{ matrix.version }}
+        run: |
+          set -euo pipefail
+          [ -d "$PKG_DIR/dist" ] || { echo "::error::Missing $PKG_DIR/dist — build artifact incomplete."; exit 1; }
+          tag_name="${PKG_NAME##*/}@${PKG_VER}"
+          if [ "$DRY_RUN" = "true" ]; then
+            (cd "$PKG_DIR" && npm publish --dry-run --tag "$DIST_TAG" --access public); exit 0
+          fi
+          if npm view "$PKG_NAME@$PKG_VER" version >/dev/null 2>&1; then
+            echo "✅ $PKG_NAME@$PKG_VER already on npm — skipping publish."
+          else
+            (cd "$PKG_DIR" && npm publish --tag "$DIST_TAG" --access public --provenance)
+          fi
+          git rev-parse -q --verify "refs/tags/$tag_name" >/dev/null || git tag -a "$tag_name" -m "Release $tag_name"
+          git push origin "$tag_name" || echo "(tag already on remote)"
+          echo "TAG_NAME=$tag_name" >> "$GITHUB_ENV"
+      - name: Create GitHub Release
+        if: ${{ !inputs.dry-run }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PKG_NAME: ${{ matrix.name }}
+          PKG_VER: ${{ matrix.version }}
+          PKG_DIR: packages/${{ matrix.dir }}
+          DIST_TAG: ${{ inputs.dist-tag || 'latest' }}
+        run: |
+          set -euo pipefail
+          notes="$PKG_DIR/CHANGELOG.md"
+          extra=()
+          [ "$DIST_TAG" = "latest" ] || extra+=(--prerelease)
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            echo "↻ Release $TAG_NAME exists."
+          elif [ -f "$notes" ]; then
+            gh release create "$TAG_NAME" --title "$PKG_NAME@$PKG_VER" --notes-file "$notes" --latest=false "${extra[@]}"
+          else
+            gh release create "$TAG_NAME" --title "$PKG_NAME@$PKG_VER" --generate-notes --latest=false "${extra[@]}"
+          fi
