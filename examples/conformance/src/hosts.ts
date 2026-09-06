@@ -2,7 +2,7 @@ import { type RunOptions, type RunResult } from '@interlace/cli-core';
 import { runCommander } from 'commander-harness';
 import { createProgram } from 'demo-cli-commander';
 import { buildCli } from 'demo-cli-yargs';
-import { runYargs } from 'yargs-testing';
+import { runYargs } from 'yargs-harness';
 
 export type Run = (opts: RunOptions) => Promise<RunResult>;
 

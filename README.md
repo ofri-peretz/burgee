@@ -11,7 +11,7 @@ A turborepo, like every Interlace repo.
 | Path | Purpose |
 | :-- | :-- |
 | [`packages/cli-core/`](./packages/cli-core/) | `@interlace/cli-core` — internal shared contract: exit codes, envelope, error type, manifest schema. |
-| [`packages/commander-harness/`](./packages/commander-harness/), [`packages/yargs-testing/`](./packages/yargs-testing/) | Run a CLI in-process with injected argv, env, stdin and TTY-ness; one result shape for both hosts (T1). |
+| [`packages/commander-harness/`](./packages/commander-harness/), [`packages/yargs-harness/`](./packages/yargs-harness/) | Run a CLI in-process with injected argv, env, stdin and TTY-ness; one result shape for both hosts (T1). |
 | `packages/commander-*`, `packages/yargs-*` | Public extensions, one per layer per host, in the host's own idiom. Next: `commander-agent`, `yargs-agent`. |
 | [`examples/`](./examples/) | The reference demo CLI built twice (commander, yargs) and the conformance suite that runs every floor case on both. |
 | [`apps/docs/`](./apps/docs/) | Documentation site (Next.js + fumadocs). |

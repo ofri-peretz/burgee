@@ -72,7 +72,7 @@ export async function runCommander(program: Command, opts: RunOptions): Promise<
 and `commander.version` map to `OK`. The agent layer (intent 2) later makes commander emit
 E1 codes itself, at which point this map becomes a lock that they agree.
 
-### yargs-testing
+### yargs-harness
 
 Same shape: `.exitProcess(false)`, `.fail((msg, err) => …)` recording the E1 code,
 `.parseAsync(argv)`; help text is captured through `.showHelpOnFail(false)` plus

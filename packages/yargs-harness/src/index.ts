@@ -1,5 +1,5 @@
 /**
- * yargs-testing — run a yargs CLI in-process (design R4, R5 of
+ * yargs-harness — run a yargs CLI in-process (design R4, R5 of
  * `cli-testing-harness`). Public yargs APIs only: `.exitProcess(false)`,
  * `.showHelpOnFail(false)`, `.fail()`, `.getHelp()`, `.parseAsync()`.
  */

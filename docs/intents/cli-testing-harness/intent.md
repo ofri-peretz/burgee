@@ -24,7 +24,7 @@ Concretely:
    `stdout`, `stderr`, `isTTY`, `exit` — and a `processRuntime` default. Every layer
    above the parser reads the world through it, never through `process.*` directly.
 2. `commander-harness` exports `runCommander(program, { argv, env, stdin, tty })` and
-   `yargs-testing` exports `runYargs(cli, …)`, both returning the same `RunResult`.
+   `yargs-harness` exports `runYargs(cli, …)`, both returning the same `RunResult`.
 3. A failed run is data, not a thrown exception: `code` carries the E1 exit code, and
    `json` is parsed when `--json` was given and stdout parsed cleanly.
 
@@ -44,7 +44,7 @@ Concretely:
 ## Affected users and systems
 
 - `packages/cli-core` (`Runtime`, `RunResult`), new `packages/commander-harness`, new
-  `packages/yargs-testing` (`commander-testing` is taken on npm).
+  `packages/yargs-harness` (`commander-testing` is taken on npm).
 - `examples/demo-cli-commander` and `examples/demo-cli-yargs`, created here as the first
   consumers so the harness has something real to run.
 - The root `npm test`, which gains the shared conformance suite.

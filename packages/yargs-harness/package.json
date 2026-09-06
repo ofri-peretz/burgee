@@ -1,5 +1,5 @@
 {
-  "name": "yargs-testing",
+  "name": "yargs-harness",
   "version": "0.0.0",
   "description": "Run a yargs CLI in-process with injected argv, env, stdin, cwd and TTY-ness; get back { code, stdout, stderr, json }. The T1 half of the Interlace CLI floor for yargs.",
   "license": "MIT",
@@ -19,7 +19,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ofri-peretz/cli.git",
-    "directory": "packages/yargs-testing"
+    "directory": "packages/yargs-harness"
   },
   "keywords": ["yargs", "testing", "cli", "harness", "interlace"],
   "dependencies": {

@@ -181,7 +181,7 @@ cli/
     commander-completions/    D2 (yargs has .completion(); commander does not)
     commander-json/, yargs-json/        O1 alone, for CLIs that want only the envelope
     commander-prompts/, yargs-prompts/  P1–P2
-    commander-harness/, yargs-testing/  T1 (commander-testing is taken on npm)
+    commander-harness/, yargs-harness/  T1 (commander-testing is taken on npm)
     eslint-plugin-cli-floor/        the L rules; depends on @interlace/eslint-devkit
   examples/
     demo-cli-commander/, demo-cli-yargs/   the same CLI twice; one test suite runs both

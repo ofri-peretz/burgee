@@ -15,7 +15,7 @@
     "commander-harness": "*",
     "demo-cli-commander": "*",
     "demo-cli-yargs": "*",
-    "yargs-testing": "*"
+    "yargs-harness": "*"
   },
   "devDependencies": {
     "vitest": "^4.0.0"
