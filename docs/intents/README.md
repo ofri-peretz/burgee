@@ -16,7 +16,10 @@ child cites, and the wave plan that fixes the sequence.
 Fourteen, in two tracks. The **agent track** is the umbrella's order of work; the
 **gap track** turns the remaining research clusters — the things users have asked
 commander and yargs for and neither ships — into packages. Every intent cites its
-issues in `docs/research/competitor-open-issues.md`.
+issues in `docs/research/competitor-open-issues.md`. The strategic case for being a
+layer before a framework — the measured competitor map, the cold-start numbers, and
+the trigger that would start our own parser — is in
+`docs/research/competitor-landscape.md`.
 
 ### Agent track (order of work)
 

@@ -188,7 +188,7 @@ cli/
   benchmarks/
     agent-cli-bench/          task set + runner (claude -p) + results JSON
   docs/intents/               this
-  docs/research/              competitor-open-issues.md + raw snapshots
+  docs/research/              competitor-open-issues.md, competitor-landscape.md
   evals/                      layer 1 (link + pointer checks), as in eslint/
   .agent/control-bands.json   agent-tokens-per-task, agent-turns-per-task
 ```
