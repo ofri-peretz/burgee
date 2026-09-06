@@ -195,19 +195,20 @@ export default [
     rules: { 'import-next/no-extraneous-dependencies': 'off' },
   },
   // scripts/lint-workflows.ts (copied verbatim from ofri-peretz/eslint):
-  // no-xpath-injection fires on GitHub Actions `::error::` annotations,
-  // no-unlimited-resource-allocation on a directory-bounded read loop,
-  // no-extraneous-dependencies on the `node:process` builtin.
+  //   - no-console-spaces reads a template literal whose interpolation sits
+  //     next to a space as whitespace between console parameters. There is
+  //     one parameter.
+  //   - no-improper-type-validation (secure-coding 5.x) reports the typeof
+  //     object check in triggers() although null and arrays have already
+  //     returned on that path; its own message says a known-non-null value
+  //     is not a finding. Tracked against secure-coding.
+  // The xpath / resource-allocation / extraneous-dependencies overrides that
+  // used to sit here were fixed upstream (ofri-peretz/eslint#894) and removed.
   {
     files: ['scripts/lint-workflows.ts'],
     rules: {
-      'secure-coding/no-xpath-injection': 'off',
-      'secure-coding/no-unlimited-resource-allocation': 'off',
-      'import-next/no-extraneous-dependencies': 'off',
-      // Finding 6: no-console-spaces reports every template literal whose
-      // `${…}` sits next to a space (`\`at ${dir}\``) as leading/trailing
-      // whitespace between console parameters. There is one parameter.
       'conventions/no-console-spaces': 'off',
+      'secure-coding/no-improper-type-validation': 'off',
     },
   },
 ];
