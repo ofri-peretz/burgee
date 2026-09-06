@@ -4,7 +4,10 @@
 > constraint 5: "AI-native SDLC from day one — `docs/intents/` with the lock, `evals/`
 > layer 1, control bands with at least one band computing before v1."
 
-**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+
+> Approved 2026-09-06 by @ofri-peretz in session ("You have everything on eslint repo,
+> why can't you copy it") — the copy-from-eslint intent, built the same day.
 
 ---
 

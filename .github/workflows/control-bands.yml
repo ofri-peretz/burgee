@@ -1,0 +1,92 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Control Bands
+
+# Stage 6 — close the loop on metrics. Ported from ofri-peretz/eslint. A
+# deterministic script records observations and evaluates Western Electric rules;
+# no model runs in the detection path. On a 2σ+ breach it opens a PR carrying a
+# Stage 1 intent, not an issue. 1σ breaches are logged only. See
+# scripts/control-bands.ts and docs/intents/sdlc-locks-evals-bands/.
+
+on:
+  schedule:
+    - cron: "10 5 * * 1"
+  workflow_dispatch:
+    inputs:
+      write-intent:
+        description: "Open an intent PR if a band is breached"
+        required: false
+        type: boolean
+        default: true
+
+concurrency:
+  group: control-bands
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  watch:
+    name: Watch control bands
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+
+      - name: Build (the test-duration band times npm test on built packages)
+        run: npx turbo run build --filter='./packages/*'
+
+      - name: Record observations and evaluate bands
+        id: bands
+        continue-on-error: true
+        run: npx tsx scripts/control-bands.ts --backfill-git --write-intent --check 2>&1 | tee bands.log
+
+      - name: Summary
+        if: always()
+        run: |
+          { echo '## Control bands'; echo; echo '```'; cat bands.log || echo '(no output)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open a PR with the new observations, and the intent if a band breached
+        if: github.event_name != 'workflow_dispatch' || inputs.write-intent
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BREACHED: ${{ steps.bands.outcome == 'failure' }}
+        run: |
+          set -euo pipefail
+          if [ -z "$(git status --porcelain docs/intents/ .agent/control-bands.history.json)" ]; then
+            echo "Nothing new to commit."; exit 0
+          fi
+          STAMP=$(date -u +%Y%m%d)
+          if [ "$BREACHED" = "true" ]; then
+            BRANCH="docs/control-band-$STAMP"; TITLE="docs(workspace): control-band breach — draft intent"
+            BODY='A control band was breached. The watcher wrote its diagnosis as a Stage 1 intent so the finding re-enters the pipeline (AI_NATIVE_SDLC.md). Review the intent; do not widen the band to make the breach go away.'
+          else
+            BRANCH="chore/control-band-series-$STAMP"; TITLE="chore(workspace): record control-band observations"
+            BODY='New observations appended by `scripts/control-bands.ts --record`. No band breached. A series that stops updating looks perfectly healthy, so these landing is what keeps Stage 6 honest.'
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add docs/intents/ .agent/control-bands.history.json
+          git commit -m "$TITLE"
+          git push -u origin "$BRANCH"
+          gh pr create --base main --head "$BRANCH" --label skip-changeset --title "$TITLE" --body "$(printf '%s\n\n```\n%s\n```\n' "$BODY" "$(cat bands.log)")"
+          [ "$BREACHED" = "true" ] || gh pr merge --auto --squash "$BRANCH" || true
+
+      - name: Open an issue if the watcher itself broke
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          TITLE="Control-band watcher is failing"
+          EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')
+          BODY=$(printf '%s\n\n[Run](%s)\n' 'The Stage 6 watcher did not complete, so no band was evaluated.' "$RUN_URL")
+          if [ -n "$EXISTING" ]; then gh issue comment "$EXISTING" --body "$BODY"; else gh issue create --title "$TITLE" --body "$BODY"; fi

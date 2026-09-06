@@ -1,6 +1,6 @@
 # `docs/intents/` — Stage 1 (Plan) and Stage 2 (Design)
 
-Every substantive change starts here. See [`AI_NATIVE_SDLC.md`](../../../AI_NATIVE_SDLC.md),
+Every substantive change starts here. See `AI_NATIVE_SDLC.md`,
 one level above this repo, for why. Layout and status values are the same as in `eslint/`:
 one directory per intent, `intent.md` then `design.md`, statuses `draft → review →
 approved → shipped` (or `dropped`), and `approved` requires a `design.md` beside it.
@@ -24,7 +24,7 @@ issues in `docs/research/competitor-open-issues.md`.
 | :-- | :-- | :-- | :-- | :-- |
 | 1 | [`cli-testing-harness/`](./cli-testing-harness/) | `Runtime` seam; `commander-harness`, `yargs-testing`; the conformance suite | T1 | review |
 | 2 | [`commander-agent/`](./commander-agent/) | first public extension on commander's hooks | F1 F2 F4 O1–O5 E1–E5 | review |
-| 3 | [`sdlc-locks-evals-bands/`](./sdlc-locks-evals-bands/) | intent lock, evals layer 1, control bands | — | review |
+| 3 | [`sdlc-locks-evals-bands/`](./sdlc-locks-evals-bands/) | intent lock, evals layer 1, control bands | — | shipped |
 | 4 | [`eslint-plugin-cli-floor/`](./eslint-plugin-cli-floor/) | the L rules on `@interlace/eslint-devkit` | F3 O1–O4 E1 E2 V2 V5 P1 D1 | review |
 | 5 | [`agent-cli-bench/`](./agent-cli-bench/) | tokens and turns per task; the first real band | — | review |
 | 6 | [`yargs-agent/`](./yargs-agent/) | the same floor as yargs middleware; the shared suite as contract | same as 2 | review |

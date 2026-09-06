@@ -211,4 +211,34 @@ export default [
       'secure-coding/no-improper-type-validation': 'off',
     },
   },
+  // ── SDLC scripts (scripts/control-bands.ts, scripts/run-evals.ts, tests) ──
+  {
+    // Test files: numbers in fixtures are the fixture.
+    files: ['**/*.test.ts'],
+    rules: { 'conventions/no-magic-numbers': 'off' },
+  },
+  {
+    files: ['scripts/**'],
+    rules: {
+      // Findings 3 and 6 (see above), which the ported scripts trip in the same
+      // shapes: directory-bounded loops and `${x}` next to a space in console text.
+      'secure-coding/no-unlimited-resource-allocation': 'off',
+      'conventions/no-console-spaces': 'off',
+      // Maps keyed by band id from .agent/control-bands.json, a committed file, not
+      // input; the rule cannot tell the two apart.
+      'secure-coding/detect-object-injection': 'off',
+      // Rethrowing a caught error after an ENOENT check keeps the original error.
+      'maintainability/no-missing-error-context': 'off',
+    },
+  },
+  {
+    // The watcher imports eslint.config.mjs to count rules; the evals runner runs
+    // shell checks written in committed case files. Both are repo-owned inputs.
+    files: ['scripts/control-bands.ts'],
+    rules: { 'node-security/no-dynamic-dependency-loading': 'off' },
+  },
+  {
+    files: ['scripts/run-evals.ts'],
+    rules: { 'node-security/no-dynamic-command-string': 'off' },
+  },
 ];

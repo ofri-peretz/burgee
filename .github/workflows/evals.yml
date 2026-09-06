@@ -1,0 +1,65 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Agent Evals
+
+# Stage 4 — continuous evals over the agent-facing configuration. Ported from
+# ofri-peretz/eslint. Layer 1 is deterministic and always runs; layer 2 needs
+# CLAUDE_CODE_OAUTH_TOKEN (preferred) or ANTHROPIC_API_KEY and reports skipped
+# without one. See evals/README.md.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "README.md"
+      - "CLAUDE.md"
+      - "docs/**"
+      - ".github/**"
+      - ".agent/**"
+      - "apps/docs/content/**"
+      - "eslint.config.mjs"
+      - "evals/**"
+      - "scripts/run-evals.ts"
+  schedule:
+    - cron: "20 5 * * 4"
+  workflow_dispatch:
+
+concurrency:
+  group: evals-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  evals:
+    name: Evaluate agent configuration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: ./.github/actions/setup
+        with:
+          turbo-cache: "false"
+      - name: Run evals
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: npx tsx scripts/run-evals.ts 2>&1 | tee evals.log
+      - name: Summary
+        if: always()
+        run: |
+          { echo '## Agent evals'; echo; echo '```'; cat evals.log || echo '(no output)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Open an issue on a scheduled failure
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          TITLE="Agent evals are failing"
+          EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')
+          BODY=$(printf '%s\n\n[Run](%s)\n' 'The weekly agent-configuration evals failed: a config document drifted, or a task eval stopped passing.' "$RUN_URL")
+          if [ -n "$EXISTING" ]; then gh issue comment "$EXISTING" --body "$BODY"; else gh issue create --title "$TITLE" --body "$BODY"; fi

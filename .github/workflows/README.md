@@ -19,6 +19,13 @@ Node from `.nvmrc`, npm cache).
 | [`changesets-pr.yml`](./changesets-pr.yml) | PR: changeset advisory. Main: opens the "Version Packages" PR with auto-merge |
 | [`release.yml`](./release.yml) | Push to main: detect version diff vs npm → build → publish with provenance, tag, GitHub Release |
 
+## SDLC loop (Stage 4 and Stage 6)
+
+| Workflow | Role |
+| :-- | :-- |
+| [`evals.yml`](./evals.yml) | PRs touching agent-facing docs, weekly: layer 1 link/script/floor-id checks; layer 2 task evals when a credential exists |
+| [`control-bands.yml`](./control-bands.yml) | Weekly: records observations, evaluates Western Electric rules, opens an intent PR on a 2σ+ breach |
+
 ## Security
 
 | Workflow | Role |

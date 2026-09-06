@@ -23,7 +23,7 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "typecheck": "turbo run typecheck",
-    "test": "turbo run test",
+    "test": "vitest run --config vitest.root.config.ts && turbo run test",
     "lint": "eslint . --max-warnings 0 && npm run lint:workflows && npm run lint:md && turbo run lint",
     "ci:local": "lefthook run pre-push --all-files --force",
     "research:refresh": "scripts/fetch-competitor-issues.sh",
@@ -33,7 +33,10 @@
     "lint:workflows": "tsx scripts/lint-workflows.ts",
     "lint:md": "markdownlint-cli2 '**/*.md' '#node_modules' '#**/node_modules' '#**/dist' '#**/.next' '#docs/research/issues'",
     "release": "gh workflow run release.yml --ref main",
-    "release:dry-run": "gh workflow run release.yml --ref main -f dry-run=true"
+    "release:dry-run": "gh workflow run release.yml --ref main -f dry-run=true",
+    "control-bands": "tsx scripts/control-bands.ts",
+    "evals": "tsx scripts/run-evals.ts",
+    "evals:config": "tsx scripts/run-evals.ts --config"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^0.5.1",

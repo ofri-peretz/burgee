@@ -1,0 +1,53 @@
+{
+  "command": "npx tsx scripts/control-bands.ts --record",
+  "$comment": "Stage 6 control bands — see AI_NATIVE_SDLC.md and docs/intents/sdlc-locks-evals-bands/. A band is a metric with a stable baseline, watched by scripts/control-bands.ts. Detection is deterministic; no model decides a breach. Add a band only for a metric whose baseline is genuinely stable.",
+  "bands": [
+    {
+      "id": "test-duration-ms",
+      "description": "Wall-clock of `npm test` (root locks + package suites), in ms",
+      "collector": "command-duration",
+      "command": ["npm", "test"],
+      "window": 20,
+      "minPoints": 8,
+      "worse": "higher"
+    },
+    {
+      "id": "lint-rules-on",
+      "description": "Rules on at error in eslint.config.mjs (every Interlace rule, minus documented exceptions)",
+      "collector": "eslint-config-stats",
+      "stat": "rulesOn",
+      "window": 20,
+      "minPoints": 8,
+      "worse": "lower"
+    },
+    {
+      "id": "lint-documented-false-positives",
+      "description": "Interlace rules switched off here as documented false positives; should only shrink",
+      "collector": "eslint-config-stats",
+      "stat": "documentedFalsePositives",
+      "window": 20,
+      "minPoints": 8,
+      "worse": "higher"
+    },
+    {
+      "id": "agent-tokens-per-task",
+      "description": "Median tokens an agent spends per benchmark task on the layered demo (intent agent-cli-bench)",
+      "collector": "benchmark-json",
+      "suite": "agent-cli-bench",
+      "jsonPath": "median.tokens",
+      "window": 20,
+      "minPoints": 8,
+      "worse": "higher"
+    },
+    {
+      "id": "agent-turns-per-task",
+      "description": "Median tool calls an agent spends per benchmark task on the layered demo (intent agent-cli-bench)",
+      "collector": "benchmark-json",
+      "suite": "agent-cli-bench",
+      "jsonPath": "median.turns",
+      "window": 20,
+      "minPoints": 8,
+      "worse": "higher"
+    }
+  ]
+}

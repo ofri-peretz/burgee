@@ -13,7 +13,7 @@ A turborepo, like every Interlace repo.
 | [`packages/cli-core/`](./packages/cli-core/) | `@interlace/cli-core` — internal shared contract: exit codes, envelope, error type, manifest schema. |
 | `packages/commander-*`, `packages/yargs-*` | Public extensions, one per layer per host, in the host's own idiom. First: `commander-agent`, `yargs-agent`. |
 | [`apps/docs/`](./apps/docs/) | Documentation site (Next.js + fumadocs). |
-| [`docs/intents/`](./docs/intents/) | Stage 1 + 2 artifacts of the [AI-native SDLC](../AI_NATIVE_SDLC.md): `intent.md` + `design.md` per change. |
+| [`docs/intents/`](./docs/intents/) | Stage 1 + 2 artifacts of the AI-native SDLC (`AI_NATIVE_SDLC.md`, one level above this repo on a maintainer's machine): `intent.md` + `design.md` per change. |
 | [`docs/research/`](./docs/research/) | 329 open issues across yargs, commander, oclif, citty, clack — clustered and cited, with raw snapshots. |
 
 **Status:** Stage 2, all fifteen intents in `review` (see [`docs/intents/`](./docs/intents/)
