@@ -4,10 +4,21 @@
  * `configureOutput()`, `parseAsync(argv, { from: 'user' })`.
  */
 import { captureConsole, codeOf, ExitCode, fakeRuntime, finish, type FakeRuntime, type RunOptions, type RunResult, type Runtime, swapEnv } from 'burgee/testing';
-import { type Command } from 'commander';
+
+/**
+ * The slice of commander's `Command` this driver touches, structurally: the program under
+ * test may come from any copy of commander — or from `burgee/commander` — and a nominal
+ * class type would make two identical copies incompatible.
+ */
+export interface CommanderProgram {
+  exitOverride(): unknown;
+  configureOutput(configuration: { writeOut: (s: string) => void; writeErr: (s: string) => void }): unknown;
+  commands: CommanderProgram[];
+  parseAsync(argv?: readonly string[], options?: { from?: 'node' | 'user' }): Promise<unknown>;
+}
 
 /** A program, or a factory that builds one against the runtime the harness fakes. */
-export type ProgramSource = Command | ((runtime: Runtime) => Command);
+export type ProgramSource = CommanderProgram | ((runtime: Runtime) => CommanderProgram);
 
 /** commander's own exits that are not failures. */
 const BENIGN = new Set(['commander.helpDisplayed', 'commander.help', 'commander.version']);
@@ -39,11 +50,11 @@ export function mapCommanderExit(e: CommanderExit): ExitCode {
 }
 
 /** Build or accept the program. A plain function, so the async runner calls no parameter directly (finding 8). */
-function resolveProgram(source: ProgramSource, rt: FakeRuntime): Command {
+function resolveProgram(source: ProgramSource, rt: FakeRuntime): CommanderProgram {
   return typeof source === 'function' ? source(rt) : source;
 }
 
-function wire(program: Command, rt: FakeRuntime): void {
+function wire(program: CommanderProgram, rt: FakeRuntime): void {
   program.exitOverride();
   program.configureOutput({
     writeOut: (s) => rt.stdout.write(s),

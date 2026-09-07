@@ -82,12 +82,15 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - name: Verify package-lock.json is in sync
+        # `npm ci --dry-run` validates the manifests against the lock without rewriting it.
+        # The previous check re-ran `npm install --package-lock-only` and diffed, but npm
+        # records the wasm32 optional's dependencies (@emnapi/*) only on some platforms, so
+        # a lock that installs everywhere never round-trips on Linux and a lock that
+        # round-trips on Linux fails `npm ci` everywhere ("Missing: @emnapi/core").
         run: |
           set -euo pipefail
-          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-          if ! git diff --exit-code --quiet package-lock.json; then
+          if ! npm ci --dry-run --ignore-scripts --no-audit --no-fund; then
             echo "::error::package-lock.json is out of sync with package.json. Run \`npm install\` and commit the lockfile."
-            git --no-pager diff package-lock.json | head -80
             exit 1
           fi
           echo "✅ Lockfile is in sync."
