@@ -11,10 +11,10 @@
   "packageManager": "npm@11.6.2",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ofri-peretz/cli.git"
+    "url": "git+https://github.com/ofri-peretz/burgee.git"
   },
   "bugs": {
-    "url": "https://github.com/ofri-peretz/cli/issues"
+    "url": "https://github.com/ofri-peretz/burgee/issues"
   },
   "engines": {
     "node": "24.x"
@@ -25,7 +25,7 @@
     "dev": "turbo run dev",
     "typecheck": "turbo run typecheck",
     "test": "vitest run --config vitest.root.config.ts && turbo run test",
-    "lint": "eslint . --max-warnings 0 && npm run lint:workflows && npm run lint:md && turbo run lint",
+    "lint": "eslint . --max-warnings 0 && npm run lint:workflows && npm run lint:md && npm run brand:check && turbo run lint",
     "ci:local": "lefthook run pre-push --all-files --force",
     "research:refresh": "scripts/fetch-competitor-issues.sh",
     "changeset": "changeset",
@@ -33,11 +33,14 @@
     "changeset:version": "changeset version && npm install --package-lock-only --ignore-scripts",
     "lint:workflows": "tsx scripts/lint-workflows.ts",
     "lint:md": "markdownlint-cli2 '**/*.md' '#node_modules' '#**/node_modules' '#**/dist' '#**/.next' '#docs/research/issues'",
+    "brand": "node scripts/brand.mts",
+    "brand:check": "node scripts/brand.mts --check",
     "release": "gh workflow run release.yml --ref main",
     "release:dry-run": "gh workflow run release.yml --ref main -f dry-run=true",
     "control-bands": "tsx scripts/control-bands.ts",
     "evals": "tsx scripts/run-evals.ts",
-    "evals:config": "tsx scripts/run-evals.ts --config"
+    "evals:config": "tsx scripts/run-evals.ts --config",
+    "compat": "npm run build -w compat-oracle && node packages/compat-oracle/dist/bin.js"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^0.5.1",
@@ -48,6 +51,7 @@
     "@types/node": "^24.0.0",
     "@typescript-eslint/eslint-plugin": "^8.61.1",
     "@typescript-eslint/parser": "^8.61.1",
+    "burgee": "*",
     "eslint": "^9.39.4",
     "eslint-plugin-conventions": "^4.0.7",
     "eslint-plugin-import-next": "^2.7.5",

@@ -93,6 +93,10 @@ export default [
       '**/coverage/**',
       'docs/research/issues/**',
       'apps/docs/next-env.d.ts',
+      // Vendored upstream test suites (compat-oracle C6). They are the hosts' own
+      // files, unmodified except one import specifier, and are graded, never linted:
+      // "fixing" them would grade our reading of the host instead of the host.
+      'packages/*/vendor/**',
     ],
   },
   {
@@ -282,6 +286,18 @@ export default [
     // is the contract, not an oversight.
     files: ['packages/burgee/src/manifest.ts'],
     rules: { 'performance/no-await-in-loop': 'off', 'reliability/no-await-in-loop': 'off' },
+  },
+  {
+    // FP 8 (also seen in scripts/run-evals.ts): no-unhandled-promise fires on every call
+    // to a function-typed *parameter* inside an async function, assuming it returns a
+    // promise. The writer parameter returns void. Tracked in the eslint monorepo.
+    files: ['packages/compat-oracle/src/report.ts'],
+    rules: { 'maintainability/no-unhandled-promise': 'off', 'reliability/no-unhandled-promise': 'off' },
+  },
+  {
+    // A package's bin entry is executed, never imported, so it exports nothing.
+    files: ['packages/*/src/bin.ts'],
+    rules: { 'import-next/no-unused-modules': 'off' },
   },
   {
     // burgee owns the process: a CLI framework's whole job is to parse, run and

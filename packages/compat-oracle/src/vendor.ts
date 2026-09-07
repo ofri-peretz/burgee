@@ -65,6 +65,8 @@ export function vendor(host: Host, into: string): VendorResult {
       join(into, host.name, '.source.json'),
       `${JSON.stringify({ repo: host.repo, commit, vendored: new Date().toISOString().slice(0, ISO_DATE), files, excluded }, null, 2)}\n`,
     );
+    // A stale shim from a previous target would silently grade the wrong thing.
+    rmSync(join(into, host.name, 'shim.js'), { force: true });
     return { host: host.name, commit, files, excluded };
   } finally {
     rmSync(clone, { recursive: true, force: true });

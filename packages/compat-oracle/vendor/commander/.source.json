@@ -1,0 +1,10 @@
+{
+  "repo": "https://github.com/tj/commander.js",
+  "commit": "ba6d13ddb4243e5913367734f8c159089ffe7834",
+  "vendored": "2026-09-07",
+  "files": 107,
+  "excluded": [
+    "options.dual-options.test.js",
+    "useColor.test.js"
+  ]
+}

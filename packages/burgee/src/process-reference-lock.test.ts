@@ -26,6 +26,13 @@ const ALLOWED = new Set([
   // The one line the whole compatibility gate turns on: it reads COMPAT_TARGET to
   // decide which implementation the vendored suites grade.
   'compat-oracle/src/shim.ts',
+  // The oracle's own CLI entry. Internal tooling, never published; report.ts takes a
+  // writer so this is the only file in that package that names the process.
+  'compat-oracle/src/bin.ts',
+  // Spawns the host's own suite in a child process, which needs execPath and an env
+  // carrying COMPAT_TARGET. A test runner exists to launch processes; internal, never
+  // published.
+  'compat-oracle/src/run.ts',
 ]);
 const PROCESS_READ = /\bprocess\.(env|argv|exit|exitCode|stdout|stderr|stdin|cwd)\b/;
 
