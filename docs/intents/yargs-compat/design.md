@@ -8,11 +8,11 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
 
 | id | Requirement |
 | :-- | :-- |
-| X1 | `banneret/yargs` exposes yargs's public surface (108 methods) over `cli-core` |
+| X1 | `burgee/yargs` exposes yargs's public surface (108 methods) over `cli-core` |
 | X2 | The vendored yargs suite (1185 tests) runs against it through `compat-oracle`'s shim, unedited |
 | X3 | The pass rate is published per release and ratchets (C5) |
 | X4 | Divergences are registered in `excluded.json` with a reason and an asserting test (C4) |
-| X5 | A fixture importing only `banneret` pulls zero bytes of this front-end (B4) |
+| X5 | A fixture importing only `burgee` pulls zero bytes of this front-end (B4) |
 | X6 | `core + this front-end` stays under 376KB bundled |
 | X7 | `examples/demo-cli-yargs` produces byte-identical output against real yargs and this front-end |
 
@@ -22,7 +22,7 @@ yargs's public shape is a factory returning a chainable instance — no class to
 call into `cli-core` primitives; it holds no parsing logic of its own.
 
 Host quirks — camelCase conversion, dot-notation deep objects, array accumulation, the 18 `yargs-parser` configuration switches — are composed from
-`banneret/quirks/*` (see [`replacement-parser`](../replacement-parser/design.md) G3), so
+`burgee/quirks/*` (see [`replacement-parser`](../replacement-parser/design.md) G3), so
 this front-end is a *selection* of behaviours plus a naming shim, not a second
 implementation. That is what keeps X5 and X6 achievable: the quirks are shared with the
 other front-end wherever the two hosts happen to agree.
@@ -35,7 +35,7 @@ remaining work stays visible. Each commit reports the new rate in its message, s
 
 ## Verification
 
-`COMPAT_TARGET=banneret/yargs npm run compat` — the loop, exiting non-zero below baseline.
+`COMPAT_TARGET=burgee/yargs npm run compat` — the loop, exiting non-zero below baseline.
 
 Proven-red, per rule 4: the first commit registers the front-end as a `COMPAT_TARGET`
 with an empty implementation and records the resulting near-zero baseline. Every

@@ -8,7 +8,7 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
 
 | id | Requirement |
 | :-- | :-- |
-| W1 | `banneret dev <entry>` watches the entry's module graph and reloads on change, with a fresh `Runtime` each time |
+| W1 | `burgee dev <entry>` watches the entry's module graph and reloads on change, with a fresh `Runtime` each time |
 | W2 | It serves MCP on stdio concurrently, using `cli-mcp`'s server, and emits `tools/list_changed` on every reload |
 | W3 | Each reload prints the manifest and the rendered help, so one save shows every surface |
 | W4 | It is dev-time only and fully removable (Z2); a project that never runs it is byte-identical |
@@ -25,7 +25,7 @@ sequenceDiagram
   participant MCP as cli-mcp server
   participant Agent as your agent
 
-  Dev->>Watch: banneret dev ./cli.ts
+  Dev->>Watch: burgee dev ./cli.ts
   Watch->>Graph: import(entry) with a cache-busting query
   Graph-->>Watch: command tree
   Watch->>Watch: compute manifest in memory
@@ -81,7 +81,7 @@ shipped artifact.
   no flag, and no dependency.
 - **HTTP transport for the dev MCP server.** Same reasoning as `cli-mcp`: a server
   lifecycle, auth and a network surface a CLI has no business owning.
-- **Making `banneret dev` the documented entry point for new projects.** It is a
+- **Making `burgee dev` the documented entry point for new projects.** It is a
   convenience; the documented entry point is one file and `node cli.js` (Z4).
 
 ## Out of scope

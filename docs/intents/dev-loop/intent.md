@@ -6,7 +6,7 @@
 
 ## What is wanted
 
-`banneret dev` watches a CLI's source, reloads it on change, and serves it as an MCP
+`burgee dev` watches a CLI's source, reloads it on change, and serves it as an MCP
 server on stdio at the same time. An agent connected to that server sees a command the
 moment it is written — no rebuild, no restart, no reconfiguration.
 
@@ -32,15 +32,15 @@ lets a CLI be loaded in-process exists (T1). This intent is the loop around them
 
 ## Affected users and systems
 
-- New `banneret dev` in the developer CLI. **Dev-time only**: nothing it does is required
+- New `burgee dev` in the developer CLI. **Dev-time only**: nothing it does is required
   to build, ship or run a CLI.
 - `cli-mcp` gains `tools/list_changed` emission on reload.
-- `apps/docs` gains a getting-started page whose first instruction is `banneret dev`.
+- `apps/docs` gains a getting-started page whose first instruction is `burgee dev`.
 
 ## Constraints
 
 1. **Z2 holds: this is additive and removable.** A CLI built without ever running
-   `banneret dev` is identical to one built with it. No artifact it produces is an input
+   `burgee dev` is identical to one built with it. No artifact it produces is an input
    to anything else.
 2. **No file-layout convention.** It watches whatever entry file it is pointed at, the way
    `node --watch` does. Requiring `src/commands/**` is how a library becomes a framework
@@ -53,11 +53,11 @@ lets a CLI be loaded in-process exists (T1). This intent is the loop around them
 
 ## Success criteria
 
-1. `banneret dev ./cli.ts` serves MCP on stdio; editing a command's description is
+1. `burgee dev ./cli.ts` serves MCP on stdio; editing a command's description is
    visible to a connected client on its next `tools/list` without any client action.
 2. `tools/list_changed` is emitted on reload, and a conformance case asserts it.
 3. On each save, the manifest and the rendered help are printed — one save, every surface.
-4. Removing every trace of `banneret dev` from a project leaves its CLI byte-identical
+4. Removing every trace of `burgee dev` from a project leaves its CLI byte-identical
    (Z2), asserted by a test.
 5. Time from saving a file to an agent being able to call the changed command is under
    500ms on the 30-command demo.

@@ -14,7 +14,7 @@ conformance suite passes against exactly as it passes against commander and yarg
 that point `cli-core` is a complete CLI framework and the host packages become
 optional, without a single line of a user's code changing shape.
 
-Working package name `banneret` (verified free on npm 2026-09-06, alongside `treadle`
+Working package name `burgee` (verified free on npm 2026-09-06, alongside `treadle`
 and `sley`). Provisional until the first publish.
 
 ## Why now
@@ -65,7 +65,7 @@ equal to a subcommand name.
 3. B4 shows the core entry point under 52KB bundled.
 4. At least six §10 parsing issues that commander or yargs has open are demonstrably
    fixed, each with a test citing the issue number.
-5. A user swapping `commander` for `banneret/commander` changes one import line and their
+5. A user swapping `commander` for `burgee/commander` changes one import line and their
    tests still pass — verified by running `examples/demo-cli-commander` against both.
 
 ## Open questions

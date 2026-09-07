@@ -9,7 +9,7 @@
 
 ## What is wanted
 
-`import { … } from 'banneret/commander'` replaces `import { … } from 'commander'` in an existing
+`import { … } from 'burgee/commander'` replaces `import { … } from 'commander'` in an existing
 project, and that project's tests still pass. The claim is not the word "compatible" —
 it is a published pass rate against commander's own suite, produced by
 [`compat-oracle`](../compat-oracle/intent.md) on every PR.
@@ -26,7 +26,7 @@ The bill for this host, counted rather than estimated: **151 public methods**,
 
 ## Affected users and systems
 
-- `banneret/commander` entry point; no change to `commander-agent`, which keeps working against
+- `burgee/commander` entry point; no change to `commander-agent`, which keeps working against
   real commander.
 - `compat-oracle` gains this front-end as a grading target (`COMPAT_TARGET`).
 - `cli-benchmarks` B3 gains its pass rate; B4 gains `core + commander front-end`.
@@ -34,7 +34,7 @@ The bill for this host, counted rather than estimated: **151 public methods**,
 ## Constraints
 
 1. **Pay per import** (§6). This front-end lives behind its own specifier. A fixture
-   importing only `banneret` must pull zero bytes of it, asserted by B4.
+   importing only `burgee` must pull zero bytes of it, asserted by B4.
 2. **Weight ceiling**: `core + commander front-end` stays under 232KB bundled — the
    installed size of commander itself, measured 2026-09-06.
 3. **Never edit the vendored suite to pass.** Rule 2. A failing upstream test is either
@@ -43,7 +43,7 @@ The bill for this host, counted rather than estimated: **151 public methods**,
 
 ## Success criteria
 
-1. `COMPAT_TARGET=banneret/commander npm run compat` reports a pass rate published in CI, on
+1. `COMPAT_TARGET=burgee/commander npm run compat` reports a pass rate published in CI, on
    the docs site, and in the control bands.
 2. Every divergence is listed in `excluded.json` with a reason and an asserting test;
    an unlisted failure is a bug.
@@ -55,5 +55,5 @@ The bill for this host, counted rather than estimated: **151 public methods**,
 
 None open. Decided at finalisation (2026-09-06): grade against the vendored upstream
 suite rather than tests we write; ship as a subpath export rather than a separate
-package, so `banneret` and its front-ends version together and a user cannot mix
+package, so `burgee` and its front-ends version together and a user cannot mix
 incompatible majors.

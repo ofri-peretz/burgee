@@ -9,7 +9,7 @@ intent, `intent.md` then `design.md`, statuses `draft → review → approved �
 
 **Decided 2026-09-06: we are building a competitor to commander and yargs, not a layer on
 top of them.** One engine owns argv and the lifecycle. It is drop-in compatible with both
-incumbents — `banneret/commander` and `banneret/yargs`, graded by their own 1,215 and
+incumbents — `burgee/commander` and `burgee/yargs`, graded by their own 1,215 and
 1,185 tests, with the pass rate published and ratcheting from the first commit. And it
 serves every command through every format a caller wants — human help, `--json`,
 `--schema`, `--mcp`, completions, Fig, types, docs — all projections of one manifest, so
@@ -87,7 +87,7 @@ converts it from a permanent dependency into a fixable backlog, so it now has an
 | 9 | [`docs-deploy/`](./docs-deploy/) | `apps/docs` on an interlace.tools host, `llms.txt`, the benchmarks page | B7 | review |
 | 10 | [`first-adopter/`](./first-adopter/) | a CLI we did not write, using the layer, reviewed by someone who did not build it | A1–A5 | review |
 | 11 | [`cli-mcp/`](./cli-mcp/) | `--mcp` turns any CLI on the floor into an MCP server, generated from the manifest | N1–N5 | review |
-| 12 | [`dev-loop/`](./dev-loop/) | `banneret dev` — watch, reload, and serve live MCP so your agent sees a command as you write it | W1–W6 | review |
+| 12 | [`dev-loop/`](./dev-loop/) | `burgee dev` — watch, reload, and serve live MCP so your agent sees a command as you write it | W1–W6 | review |
 
 ### The gaps — research clusters neither host ships
 
@@ -105,8 +105,8 @@ converts it from a permanent dependency into a fixable backlog, so it now has an
 | # | Intent | Delivers | Floor ids | Status |
 | :-- | :-- | :-- | :-- | :-- |
 | 19 | [`replacement-parser/`](./replacement-parser/) | our parser over `node:util.parseArgs`, as a third conformance host | G1–G7, §10 fixes | review |
-| 20 | [`commander-compat/`](./commander-compat/) | `banneret/commander` — 151 methods, graded by commander's 1,215 tests | X1–X7 | review |
-| 21 | [`yargs-compat/`](./yargs-compat/) | `banneret/yargs` — 108 methods, graded by yargs' 1,185 tests | X1–X7 | review |
+| 20 | [`commander-compat/`](./commander-compat/) | `burgee/commander` — 151 methods, graded by commander's 1,215 tests | X1–X7 | review |
+| 21 | [`yargs-compat/`](./yargs-compat/) | `burgee/yargs` — 108 methods, graded by yargs' 1,185 tests | X1–X7 | review |
 
 Not planned, on purpose: an update checker (citty #10 — a network call at startup is the
 opposite of what an agent wants), and non-Node runtimes (claiming Deno and Bun means
@@ -121,7 +121,7 @@ installable; every wave after it ends with a higher public compatibility number.
 | :-- | :-- | :-- |
 | 0 ✅ | `sdlc-locks-evals-bands`, `cli-testing-harness` | the loop, and a harness that runs a CLI in-process |
 | **1 · engine** | `replacement-parser`, `compat-oracle`, `cli-packaging` | a one-file CLI that runs, the shape lock green, and the first published commander pass rate |
-| **2 · compatibility** | `commander-compat`, `cli-help-renderer` | `banneret/commander` installable, its rate burning down in public |
+| **2 · compatibility** | `commander-compat`, `cli-help-renderer` | `burgee/commander` installable, its rate burning down in public |
 | **3 · surfaces** | `cli-mcp`, `commander-schema`, `commander-env`, `commander-completions` | `--schema`, `--mcp`, completions — the reason to switch |
 | **4 · reach** | `yargs-compat`, `dev-loop`, `cli-modularity`, `cli-prompts`, `first-adopter`, `eslint-plugin-cli-floor`, `docs-deploy`, `cli-benchmarks` | the second host, the dev loop, and a CLI we did not write using it |
 | **5 · speed** | native front-end spike, `eslint-plugin-cli-floor` as an oxlint rule | `--help` in 13ms, or a recorded decision not to |
@@ -225,42 +225,46 @@ That leaves the two strategies every modern tool used once the words ran out: a
 **compound** (rolldown, esbuild, turbopack) or a **coined word** (vite, deno, zod, hono,
 oclif). Scoped names are ruled out by the owner.
 
-### The name: `banneret`
+### The name: `burgee`
 
-A **banneret** is a knight who leads troops in the field under his own banner — so the
-word is, in one breath, a **military rank** and a **flag**. Both halves are load-bearing:
+A **burgee** is the small flag a boat flies to say which club or fleet it belongs to. It
+is not a signal and not a warning — it is the flag you fly to **declare what you are**.
 
-- **The rank** puts it in commander's register, and specifically a rank earned in the
-  field rather than granted — which is the right posture for a challenger.
-- **The flag** is the subject matter. Flags are what a CLI declares and what it parses;
-  every surface in `architecture.md` §1 is a projection of the flags a command declares.
-- The pirate resonance yargs plays on comes free with the iconography — colours, banners,
-  running them up a mast — without a pun that has to be explained.
+That is the product in one word, and every layer of it is load-bearing:
 
-It reads correctly in all three positions:
+- **It is a flag.** Flags are the literal subject matter of a command-line interface, and
+  every surface in `architecture.md` §1 — help, `--json`, `--schema`, `--mcp`,
+  completions, types — is the same declared set of flags read by a different reader.
+- **It is a flag of identity, not of instruction.** A CLI on burgee declares itself once;
+  callers read that declaration. That is precisely the argument for a well-formed CLI over
+  a bespoke MCP server.
+- **It is nautical**, so it lives in yargs' register without being a pirate pun that has to
+  be explained, and it sits naturally beside commander's.
+- **It is timeless.** A centuries-old maritime term cannot date the way `agentic` would.
+  Whatever replaces the word "agent", boats will still fly burgees and CLIs will still
+  have flags.
+- **It stands alone.** Like Claude to Anthropic, it names the product without describing
+  it — and rewards you once you learn why. `npm i burgee` · `burgee dev` ·
+  `burgee/commander`, six letters, two syllables, one obvious pronunciation.
 
-```bash
-npm i banneret                                    # the package
-banneret dev                                      # the binary
-import { Command } from 'banneret/commander'      # the compat front-end
-```
+**Why not `invocable`**, the other finalist. `invokable` is an equally valid English
+spelling of the same word and is **already taken by an unrelated publisher**. A meaningful
+share of users would type `npm i invokable` and install a stranger's package, and the
+defensive registration that would normally fix this is unavailable because the name is
+gone. That risk is permanent and unfixable. `burgee`'s own near-misses, `burgie` and
+`burgy`, are both free and will be registered as deprecated stubs pointing at the real
+package.
 
-**On not encoding "AI" in the letters.** `commander` does not say "CLI"; `yargs` does not
-say "argument parser" to anyone who has not been told the joke. Neither name explains
-itself — they carry personality in a domain and let the tagline do the positioning. Every
-candidate that tried to fit military, pirate and AI into one coined word (`arrgentic`,
-`admirai`, `commandarr`) read as a mashup rather than a name. The letters carry the
-personality; the line under them carries the era.
+The remaining risk is honest and small: `burgee` sits one letter from `burger` for a
+careless typist. It is not a plausible *misspelling* the way `invokable` is — they are
+different words — and the stubs plus unambiguous documentation cover it.
 
-Runners-up, both free: **`pennon`** — the narrow flag flown at a masthead; shorter and
-softer, but it carries the flag meaning without the rank. **`vexillum`** — the Roman
-legion's standard; the most serious of the three and the hardest to spell.
-
-Rejected: real words with layered meaning that are already held (`ensign`, `marque`,
-`fathom`, `reckon`, `guidon`, `semaphore`, `lodestar` — every one taken); the
-rank-above-commander joke (`admiral`, `commodore` — all twenty taken, being the most
-obvious idea in the space); and coined portmanteaus, which catch every requirement and
-land none.
+Runners-up, recorded and free: **`backus`** — John Backus, of Backus-Naur Form, the
+notation for declaring grammars, which is what a CLI is; the best of the person-names in
+the Claude register. **`mcilroy`** — Doug McIlroy, who invented the Unix pipe and wrote
+*"write programs to handle text streams, because that is a universal interface"*, the
+truest description of why this project exists, rejected only because two people in three
+will misspell it. **`pennon`** and **`vexillum`**, the other flag words.
 
 ### The rest of the family
 
@@ -269,10 +273,10 @@ land none.
 
 | Job | Package |
 | :-- | :-- |
-| the framework | `banneret` |
-| commander compatibility | `banneret/commander` |
-| yargs compatibility | `banneret/yargs` |
-| opt-in host quirks | `banneret/quirks/*` |
+| the framework | `burgee` |
+| commander compatibility | `burgee/commander` |
+| yargs compatibility | `burgee/yargs` |
+| opt-in host quirks | `burgee/quirks/*` |
 | the lint wedge | `eslint-plugin-cli-floor` |
 
 The name is reversible until the first publish, and **wave 1 does not depend on it** —

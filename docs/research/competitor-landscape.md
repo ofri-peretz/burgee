@@ -155,7 +155,7 @@ Build the third adapter when **either** holds:
 
 Until one fires, every hour spent on a parser is an hour not spent on the vacancy.
 
-Names reserved for it (verified free 2026-09-06): `banneret`, `treadle`, `sley`.
+Names reserved for it (verified free 2026-09-06): `burgee`, `treadle`, `sley`.
 Worth publishing a placeholder to hold one; the choice itself can wait for the trigger.
 
 ## 6. Reproducing

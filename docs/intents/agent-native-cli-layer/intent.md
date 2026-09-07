@@ -22,7 +22,7 @@ already exists and lost.
 precedence, help and output. Not an adapter over someone else's parser.
 
 **2. Full compatibility with both incumbents**, so migration is one import line.
-`banneret/commander` exposes commander's 151 public methods; `banneret/yargs` exposes
+`burgee/commander` exposes commander's 151 public methods; `burgee/yargs` exposes
 yargs' 108. The claim is not the word "compatible" — it is a published pass rate against
 their own suites: **1,215 commander tests and 1,185 yargs tests**, run in our CI on every
 PR, ratcheting, never edited to pass. vitest overtook jest this way (99.9M/wk against

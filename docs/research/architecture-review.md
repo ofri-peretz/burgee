@@ -91,7 +91,7 @@ mention a version or a published schema.
 Schema for it is published in the package and on the docs site, and a lock asserts the
 emitted payload validates against it. Breaking the shape requires a major.
 
-### 1.7 `banneret` is a bad name
+### 1.7 `burgee` is a bad name
 
 Obscure, hard to spell, unknown to almost everyone, and it means nothing to a person
 looking for a CLI framework. It was chosen because it was free, which is the wrong
