@@ -1,4 +1,4 @@
-import { ExitCode } from '@interlace/cli-core';
+import { ExitCode } from 'burgee/testing';
 import { describe, expect, it } from 'vitest';
 
 import { HOSTS } from './hosts.js';

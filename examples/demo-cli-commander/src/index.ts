@@ -4,7 +4,7 @@
  * measures the difference. Handlers write through the `Runtime` they are built
  * against, never `console`, so the harness sees everything.
  */
-import { ExitCode, isExitCode, type Runtime } from '@interlace/cli-core';
+import { ExitCode, isExitCode, type Runtime } from 'burgee/testing';
 import { Command, Option } from 'commander';
 
 /** A tiny "config store" so `config get` has something to return. */

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { processRuntime } from '@interlace/cli-core';
+import { processRuntime } from 'burgee/testing';
 
 import { createProgram } from './index.js';
 

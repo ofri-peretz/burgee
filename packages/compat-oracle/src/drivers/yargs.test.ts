@@ -1,7 +1,7 @@
-import { ExitCode } from '@interlace/cli-core';
+import { ExitCode } from 'burgee/testing';
 import { describe, expect, it } from 'vitest';
 
-import { runYargs } from './index.js';
+import { runYargs } from './yargs.js';
 
 describe('runYargs', () => {
   it('never lets yargs reach the real process: output, failures and exit are captured', async () => {

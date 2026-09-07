@@ -257,9 +257,10 @@ export default [
     },
   },
   {
-    // The two files allowed to touch `process` (process-reference-lock.test.ts):
+    // Two of the three files allowed to touch `process` (process-reference-lock.test.ts):
     // the real runtime's exit, and the harness's env/console swap by enumerated keys.
-    files: ['packages/cli-core/src/runtime.ts', 'packages/cli-core/src/testing.ts'],
+    // The third, burgee/src/index.ts, has its own block above.
+    files: ['packages/burgee/src/runtime.ts', 'packages/burgee/src/testing-helpers.ts'],
     rules: {
       'operability/no-process-exit': 'off',
       'secure-coding/detect-object-injection': 'off',

@@ -1,8 +1,8 @@
-import { ExitCode } from '@interlace/cli-core';
+import { ExitCode } from 'burgee/testing';
 import { Command, CommanderError } from 'commander';
 import { describe, expect, it } from 'vitest';
 
-import { isCommanderExit, mapCommanderExit, runCommander } from './index.js';
+import { isCommanderExit, mapCommanderExit, runCommander } from './commander.js';
 
 describe('mapCommanderExit', () => {
   it('recognises a commander error from another copy of commander by shape', () => {

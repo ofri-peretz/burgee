@@ -10,8 +10,8 @@ A turborepo, like every Interlace repo.
 
 | Path | Purpose |
 | :-- | :-- |
-| [`packages/cli-core/`](./packages/cli-core/) | `@interlace/cli-core` — internal shared contract: exit codes, envelope, error type, manifest schema. |
-| [`packages/commander-harness/`](./packages/commander-harness/), [`packages/yargs-harness/`](./packages/yargs-harness/) | Run a CLI in-process with injected argv, env, stdin and TTY-ness; one result shape for both hosts (T1). |
+| [`packages/burgee/`](./packages/burgee/) | `burgee` — the framework. `burgee` is the engine; `burgee/testing` runs a burgee CLI in-process (T1). The only published package. |
+| [`packages/compat-oracle/`](./packages/compat-oracle/) | Internal. Grades compatibility with commander and yargs using their own suites, plus reference drivers that run the real incumbents for byte-for-byte comparison. |
 | `packages/commander-*`, `packages/yargs-*` | Public extensions, one per layer per host, in the host's own idiom. Next: `commander-agent`, `yargs-agent`. |
 | [`examples/`](./examples/) | The reference demo CLI built twice (commander, yargs) and the conformance suite that runs every floor case on both. |
 | [`apps/docs/`](./apps/docs/) | Documentation site (Next.js + fumadocs). |
@@ -20,7 +20,7 @@ A turborepo, like every Interlace repo.
 
 **Status:** wave 0 shipped — the SDLC loop (locks, evals, control bands) and the
 test harness (T1). See [`docs/intents/`](./docs/intents/) for the wave plan. E1, the
-exit-code contract, and the `Runtime` seam are in `@interlace/cli-core`.
+exit-code contract, and the `Runtime` seam are in `burgee`.
 
 ```bash
 npm install

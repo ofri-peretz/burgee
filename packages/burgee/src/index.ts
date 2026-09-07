@@ -8,17 +8,7 @@
  */
 import { parseArgs } from 'node:util';
 
-/** E1 — the exit-code contract. No other literal is ever used. */
-export const ExitCode = {
-  OK: 0,
-  RUNTIME: 1,
-  USAGE: 2,
-  CONFIG: 3,
-  CANCELLED: 4,
-  SIGINT: 130,
-} as const;
-
-export type ExitCodeValue = (typeof ExitCode)[keyof typeof ExitCode];
+import { ExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
 
 export interface OptionSpec {
   type: 'string' | 'boolean';
@@ -158,7 +148,7 @@ function isParseArgsFailure(cause: unknown): boolean {
 }
 
 /** E2/E3 — a usage error never prints a stack, a runtime failure never prints help. */
-function describeFailure(cause: unknown): { code: ExitCodeValue; message: string; hint?: string } {
+function describeFailure(cause: unknown): { code: ExitCodeType; message: string; hint?: string } {
   const message = cause instanceof Error ? cause.message : String(cause);
   if (cause instanceof UsageError) {
     return { code: ExitCode.USAGE, message, ...(cause.hint === undefined ? {} : { hint: cause.hint }) };
@@ -207,3 +197,5 @@ export async function run<O>(command: Command<O>, opts: RunOptions = {}): Promis
     return exit(failure.code);
   }
 }
+
+export { ExitCode, isExitCode, type ExitCode as ExitCodeValue } from './exit-code.js';

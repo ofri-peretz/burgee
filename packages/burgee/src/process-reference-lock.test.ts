@@ -6,8 +6,10 @@ import { describe, expect, it } from 'vitest';
 
 /**
  * Lock for the seam (design R1 of `cli-testing-harness`): the only files in any
- * layer package that may read `process` are `runtime.ts` (the real runtime) and
- * `testing.ts` (the harness's documented env swap). Everything else reads its
+ * package that may read `process` are `runtime.ts` (the real runtime),
+ * `testing-helpers.ts` (the harness's documented env swap) and `index.ts` (the
+ * framework entry, whose job is to own argv, the streams and the exit).
+ * Everything else reads its
  * `Runtime`, which is what lets a test substitute the world.
  */
 const PACKAGES = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -18,8 +20,8 @@ const PACKAGES = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
  * the defaults are the only place the real one is named.
  */
 const ALLOWED = new Set([
-  'cli-core/src/runtime.ts',
-  'cli-core/src/testing.ts',
+  'burgee/src/runtime.ts',
+  'burgee/src/testing-helpers.ts',
   'burgee/src/index.ts',
 ]);
 const PROCESS_READ = /\bprocess\.(env|argv|exit|exitCode|stdout|stderr|stdin|cwd)\b/;

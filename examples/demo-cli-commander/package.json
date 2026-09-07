@@ -15,7 +15,7 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@interlace/cli-core": "*",
+    "burgee": "*",
     "commander": "^15.0.0"
   }
 }

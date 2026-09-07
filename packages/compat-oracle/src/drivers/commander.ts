@@ -3,7 +3,7 @@
  * `cli-testing-harness`). Public commander APIs only: `exitOverride()`,
  * `configureOutput()`, `parseAsync(argv, { from: 'user' })`.
  */
-import { captureConsole, codeOf, ExitCode, fakeRuntime, finish, type FakeRuntime, type RunOptions, type RunResult, type Runtime, swapEnv } from '@interlace/cli-core';
+import { captureConsole, codeOf, ExitCode, fakeRuntime, finish, type FakeRuntime, type RunOptions, type RunResult, type Runtime, swapEnv } from 'burgee/testing';
 import { type Command } from 'commander';
 
 /** A program, or a factory that builds one against the runtime the harness fakes. */
@@ -74,4 +74,4 @@ export async function runCommander(source: ProgramSource, opts: RunOptions): Pro
   }
 }
 
-export type { RunOptions, RunResult, Runtime } from '@interlace/cli-core';
+export type { RunOptions, RunResult, Runtime } from 'burgee/testing';

@@ -1,8 +1,8 @@
-import { type RunOptions, type RunResult } from '@interlace/cli-core';
-import { runCommander } from 'commander-harness';
+import { type RunOptions, type RunResult } from 'burgee/testing';
+import { runCommander } from 'compat-oracle/drivers/commander';
+import { runYargs } from 'compat-oracle/drivers/yargs';
 import { createProgram } from 'demo-cli-commander';
 import { buildCli } from 'demo-cli-yargs';
-import { runYargs } from 'yargs-harness';
 
 export type Run = (opts: RunOptions) => Promise<RunResult>;
 

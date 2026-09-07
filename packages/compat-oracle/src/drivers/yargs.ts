@@ -3,7 +3,7 @@
  * `cli-testing-harness`). Public yargs APIs only: `.exitProcess(false)`,
  * `.showHelpOnFail(false)`, `.fail()`, `.getHelp()`, `.parseAsync()`.
  */
-import { captureConsole, codeOf, ExitCode, fakeRuntime, finish, type RunOptions, type RunResult, type Runtime, swapEnv } from '@interlace/cli-core';
+import { captureConsole, codeOf, ExitCode, fakeRuntime, finish, type RunOptions, type RunResult, type Runtime, swapEnv } from 'burgee/testing';
 import yargs, { type Argv } from 'yargs';
 
 /** Builds the CLI on a fresh yargs instance; a yargs instance holds parse state, so a factory it is. */
@@ -66,4 +66,4 @@ function failed(rt: ReturnType<typeof fakeRuntime>, { msg, err }: Failure): Exit
   return code;
 }
 
-export type { RunOptions, RunResult, Runtime } from '@interlace/cli-core';
+export type { RunOptions, RunResult, Runtime } from 'burgee/testing';
