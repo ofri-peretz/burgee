@@ -16,7 +16,7 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
 | C6 | The vendored suites record their upstream commit; a scheduled job refreshes them and opens a PR when the test count changes |
 | R1 | `npm run compat` runs both hosts and exits non-zero on a regression, in under 60s |
 | R2 | The import rewrite is a scripted transform, re-runnable from a clean upstream checkout, never a hand edit |
-| R3 | Excluded upstream files are listed by name with a reason in `packages/compat-oracle/excluded.json` |
+| R3 | **No upstream file is excluded.** Every file is vendored and run; files that import only the host's internal modules are graded on a separate, informational *internals* line, recorded by name in `.source.json`. Passing them would mean copying the host's file layout, so they never enter the gate — but they are never hidden either |
 
 ## Design
 

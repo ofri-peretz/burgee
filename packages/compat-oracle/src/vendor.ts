@@ -19,7 +19,10 @@ export interface VendorResult {
   host: string;
   commit: string;
   files: number;
-  excluded: string[];
+  /** Test files that import only the host's internals: vendored and graded, informationally. */
+  internalFiles: string[];
+  /** Internal module paths the suite imports, shimmed per run (e.g. `lib/command.js`). */
+  internals: string[];
 }
 
 /** Name of the generated shim for the n-th public import a host's tests use. */
@@ -37,18 +40,24 @@ export function rewrite(source: string, imports: Host['imports']): string {
   return out;
 }
 
-const INTERNAL = /(?:from|require\()\s*['"]\.\.\/(?:lib|build)\//;
+const INTERNAL = /(?:from|require\()\s*['"]\.\.\/((?:build\/)?lib\/[^'"]+)['"]/g;
+
+/** Every internal module path a source imports, relative to the host's root. */
+export function internalImports(source: string): string[] {
+  return [...source.matchAll(INTERNAL)].map((m) => m[1] ?? '').filter((p) => p !== '');
+}
 
 /**
- * A file is out of scope only when it reaches into internals AND never imports a public
- * entry — it is testing a helper module, not the surface we promise. A public-surface
- * test that *also* imports an internal (yargs' 429 tests importing `YError`) is kept,
- * and the internal import is shimmed.
+ * `internal` when a file reaches into the host's internals AND never imports a public
+ * entry: it is testing a helper module, not the surface we promise, and passing it would
+ * mean copying the host's file layout. Such files are still vendored and graded — on a
+ * separate, informational line. A public-surface test that *also* imports an internal
+ * (yargs' 429 tests importing `YError`) is `public`; its internal import is shimmed.
  */
-export function testsInternals(source: string, host: Host): boolean {
-  if (!INTERNAL.test(source)) return false;
-  const publicSpecs = host.imports.filter((i) => i.kind !== 'internal').map((i) => i.upstream);
-  return !publicSpecs.some((spec) => source.includes(`'${spec}'`) || source.includes(`"${spec}"`));
+export function classify(source: string, host: Host): 'public' | 'internal' {
+  if (internalImports(source).length === 0) return 'public';
+  const hasPublic = host.imports.some(({ upstream }) => source.includes(`'${upstream}'`) || source.includes(`"${upstream}"`));
+  return hasPublic ? 'public' : 'internal';
 }
 
 export function vendor(host: Host, into: string): VendorResult {
@@ -64,7 +73,7 @@ export function vendor(host: Host, into: string): VendorResult {
     mkdirSync(dest, { recursive: true });
 
     for (const extra of host.extraDirs ?? []) {
-      cpSync(join(clone, extra), join(into, host.name, extra), { recursive: true });
+      cpSync(join(clone, extra), join(into, host.name, extra), { recursive: true, verbatimSymlinks: true });
     }
 
     // Suites run from vendor/<host>/ as if it were the upstream repo root, and some read
@@ -78,31 +87,34 @@ export function vendor(host: Host, into: string): VendorResult {
       `${JSON.stringify({ name: `@vendored/${host.name}-suite`, private: true, type: upstream.type ?? 'commonjs' }, null, 2)}\n`,
     );
 
-    const excluded: string[] = [];
+    const internalFiles: string[] = [];
+    const internals = new Set<string>();
     let files = 0;
 
     for (const entry of readdirSync(from, { withFileTypes: true })) {
       if (entry.isDirectory()) {
-        cpSync(join(from, entry.name), join(dest, entry.name), { recursive: true });
+        cpSync(join(from, entry.name), join(dest, entry.name), { recursive: true, verbatimSymlinks: true });
         continue;
       }
       if (!/\.(m?js|cjs|ts)$/.test(entry.name)) continue;
       const source = readFileSync(join(from, entry.name), 'utf8');
-      if (testsInternals(source, host)) {
-        excluded.push(entry.name);
-        continue;
-      }
+      if (classify(source, host) === 'internal') internalFiles.push(entry.name);
+      for (const p of internalImports(source)) internals.add(p);
       writeFileSync(join(dest, entry.name), rewrite(source, host.imports));
       files += 1;
     }
 
     writeFileSync(
       join(into, host.name, '.source.json'),
-      `${JSON.stringify({ repo: host.repo, commit, vendored: new Date().toISOString().slice(0, ISO_DATE), files, excluded }, null, 2)}\n`,
+      `${JSON.stringify(
+        { repo: host.repo, commit, vendored: new Date().toISOString().slice(0, ISO_DATE), files, internalFiles, internals: [...internals].sort() },
+        null,
+        2,
+      )}\n`,
     );
     // A stale shim from a previous target would silently grade the wrong thing.
     host.imports.forEach((_, i) => rmSync(join(into, host.name, shimName(i)), { force: true }));
-    return { host: host.name, commit, files, excluded };
+    return { host: host.name, commit, files, internalFiles, internals: [...internals].sort() };
   } finally {
     rmSync(clone, { recursive: true, force: true });
   }

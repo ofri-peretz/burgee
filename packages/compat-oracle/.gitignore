@@ -1,3 +1,5 @@
 vendor/*/shim*.js
+vendor/*/lib/
+vendor/*/build/
 results.json
 results.control.json

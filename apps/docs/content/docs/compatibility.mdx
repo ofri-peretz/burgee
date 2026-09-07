@@ -13,10 +13,16 @@ of ours, and it is the reference total every rate is measured against. A file th
 import registers as one test instead of its twenty, so measuring against registered tests
 would flatter a partial implementation; measuring against the control's total does not.
 
-| Host | Front-end | burgee | rate | control | rate |
-| :--- | :--- | ---: | ---: | ---: | ---: |
-| **commander** | `burgee/commander` | 17 / 1307 | 1.3% | 1283 / 1307 | 98.2% |
-| **yargs** | `burgee/yargs` | 0 / 816 (target not built yet: burgee/yargs) | 0.0% | 785 / 816 | 96.2% |
+| Host | Front-end | burgee | rate | control | rate | internals (burgee) | internals (control) |
+| :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| **commander** | `burgee/commander` | 17 / 1331 | 1.3% | 1296 / 1331 | 97.4% | 0 / 1 | 12 / 12 |
+| **yargs** | `burgee/yargs` | 0 / 816 (target not built yet: burgee/yargs) | 0.0% | 785 / 816 | 96.2% | — | 23 / 23 |
+
+**Every file of every suite is vendored and run — nothing is excluded.** Files that import
+only the host's *internal* modules (its own file layout) are graded on the informational
+*internals* columns and never enter the gate: passing them would mean copying the host, not
+being compatible with it. A public-surface file that also touches an internal module stays in
+the gate, with that import shimmed to our main entry.
 
 A front-end does not reach 1.0 until its rate is **100%** (C7). Below that it ships pre-1.0
 and is never described as compatible. The rate ratchets: a pull request that lowers it fails

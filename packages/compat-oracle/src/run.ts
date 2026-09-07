@@ -7,9 +7,10 @@
  * would be graded by our reading of the host's behaviour, which is the thing under test.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { type Host, type HostImport } from './hosts.js';
 import { shimName } from './vendor.js';
@@ -33,6 +34,11 @@ export interface Grade {
   error?: string;
   /** The suite reached a known outcome that needs a word, e.g. the target is not built yet. */
   note?: string;
+  /**
+   * Files that test only the host's internal file layout: run and counted, never part of
+   * the gate. Passing them would mean copying the host, not being compatible with it.
+   */
+  internals?: { files: number; tests: number; passed: number };
 }
 
 const BYTES_PER_KIB = 1024;
@@ -94,7 +100,6 @@ function missingTarget(host: Host, target: string): string | undefined {
   if (target === host.name) return undefined;
   // The filter is an inferred type predicate (TS 5.5+), so only public entries reach map.
   return host.imports
-    .filter((e) => e.kind !== 'internal')
     .map((e) => `${target}${e.subpath}`)
     .find((spec) => {
       try {
@@ -106,15 +111,9 @@ function missingTarget(host: Host, target: string): string | undefined {
     });
 }
 
-/** The source of one generated shim. */
-function shimSource(entry: HostImport, host: Host, target: string): string {
+/** The source of one generated public shim. */
+function shimSource(entry: HostImport, _host: Host, target: string): string {
   const header = `// generated per run — COMPAT_TARGET=${target}`;
-  if (entry.kind === 'internal') {
-    // The control gets the host's own internal file by absolute path (its exports map
-    // blocks a deep import by name); a target must export the names itself.
-    const from = target === host.name ? join(dirname(require.resolve(`${host.name}/package.json`)), entry.file) : target;
-    return `${header}\nexport { ${entry.names.join(', ')} } from '${from}';\n`;
-  }
   const from = `${target}${entry.subpath}`;
   // `export *` never carries a default; yargs' entry has one and its tests use it.
   const withDefault = entry.reexportDefault ? `export { default } from '${from}';\n` : '';
@@ -129,6 +128,36 @@ function shimSource(entry: HostImport, host: Host, target: string): string {
  */
 function writeShims(host: Host, hostDir: string, target: string): void {
   host.imports.forEach((entry, i) => writeFileSync(join(hostDir, shimName(i)), shimSource(entry, host, target)));
+}
+
+/** The installed package's directory: its main entry, then up to the nearest package.json. */
+function packageRoot(name: string): string {
+  let dir = dirname(fileURLToPath(import.meta.resolve(name)));
+  while (!existsSync(join(dir, 'package.json'))) dir = dirname(dir);
+  return dir;
+}
+
+interface Source {
+  internalFiles?: string[];
+  internals?: string[];
+}
+
+/**
+ * The suite's imports of the host's internal modules are left byte-identical; instead a
+ * shim is written at that very path under the vendored root. The control gets the installed
+ * host's own file by absolute path (its exports map blocks a deep import by name). A target
+ * gets the target's main entry — the test wants the class, not the host's file layout — so
+ * `import { Option } from '../lib/option.js'` resolves to our Option, and a test that then
+ * fails is a real divergence rather than a whole file thrown away.
+ */
+function writeInternalShims(host: Host, hostDir: string, target: string, internals: string[]): void {
+  const installed = target === host.name ? packageRoot(host.name) : undefined;
+  for (const rel of internals) {
+    const at = join(hostDir, rel);
+    mkdirSync(dirname(at), { recursive: true });
+    const from = installed === undefined ? target : join(installed, rel);
+    writeFileSync(at, `// generated per run — COMPAT_TARGET=${target}\nexport * from '${from}';\n`);
+  }
 }
 
 /** The runner invocation. mocha resolves through the module system: workspaces hoist .bin. */
@@ -178,16 +207,30 @@ export function grade(host: Host, vendorDir: string, target: string, reference =
   const base: Grade = { host: host.name, target, files: 0, tests: 0, passed: 0, failed: 0, reference, rate: 0 };
 
   if (!existsSync(dir)) return { ...base, error: 'not vendored: run `npm run compat -- --vendor`' };
-  const files = readdirSync(dir).filter((f) => /\.(m?js|cjs)$/.test(f) && f !== host.preamble);
+  const sourcePath = join(hostDir, '.source.json');
+  const source: Source = existsSync(sourcePath) ? (JSON.parse(readFileSync(sourcePath, 'utf8')) as Source) : {};
+  const internalFiles = new Set(source.internalFiles ?? []);
+  const all = readdirSync(dir).filter((f) => /\.(m?js|cjs)$/.test(f) && f !== host.preamble);
+  const files = all.filter((f) => !internalFiles.has(f));
+  const internal = all.filter((f) => internalFiles.has(f));
   if (files.length === 0) return { ...base, error: 'no test files vendored' };
 
   const missing = missingTarget(host, target);
   if (missing !== undefined) return { ...base, note: `target not built yet: ${missing}` };
 
   writeShims(host, hostDir, target);
+  writeInternalShims(host, hostDir, target, source.internals ?? []);
+
   const run = runSuite(host, hostDir, files, target);
   if ('error' in run) return { ...base, files: files.length, error: run.error };
-  return { ...base, ...summarize(run.output, files.length, reference) };
+  const graded: Grade = { ...base, ...summarize(run.output, files.length, reference) };
+
+  if (internal.length > 0) {
+    const extra = runSuite(host, hostDir, internal, target);
+    const counts = 'error' in extra ? { tests: 0, passed: 0 } : parseNodeTest(extra.output);
+    graded.internals = { files: internal.length, tests: counts.tests, passed: counts.passed };
+  }
+  return graded;
 }
 
 export interface Baseline {

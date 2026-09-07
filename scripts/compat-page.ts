@@ -24,6 +24,7 @@ interface Grade {
   rate: number;
   note?: string;
   error?: string;
+  internals?: { files: number; tests: number; passed: number };
 }
 interface Results {
   measured: string;
@@ -44,10 +45,11 @@ const cell = (g: Grade | undefined): string => {
   return `${g.passed} / ${g.reference > 0 ? g.reference : g.tests}`;
 };
 
+const internals = (g: Grade | undefined): string => (g?.internals === undefined ? '—' : `${g.internals.passed} / ${g.internals.tests}`);
 const rows = HOSTS.filter((h) => h.status === 'active').map((h) => {
   const b = burgee?.grades.find((g) => g.host === h.name);
   const c = control?.grades.find((g) => g.host === h.name);
-  return `| **${h.name}** | \`${h.target}\` | ${cell(b)} | ${pct(b)} | ${cell(c)} | ${pct(c)} |`;
+  return `| **${h.name}** | \`${h.target}\` | ${cell(b)} | ${pct(b)} | ${cell(c)} | ${pct(c)} | ${internals(b)} | ${internals(c)} |`;
 });
 const others = HOSTS.filter((h) => h.status !== 'active').map((h) => `| ${h.name} | ${h.status} | ${h.note ?? ''} |`);
 
@@ -68,9 +70,15 @@ of ours, and it is the reference total every rate is measured against. A file th
 import registers as one test instead of its twenty, so measuring against registered tests
 would flatter a partial implementation; measuring against the control's total does not.
 
-| Host | Front-end | burgee | rate | control | rate |
-| :--- | :--- | ---: | ---: | ---: | ---: |
+| Host | Front-end | burgee | rate | control | rate | internals (burgee) | internals (control) |
+| :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
 ${rows.join('\n')}
+
+**Every file of every suite is vendored and run — nothing is excluded.** Files that import
+only the host's *internal* modules (its own file layout) are graded on the informational
+*internals* columns and never enter the gate: passing them would mean copying the host, not
+being compatible with it. A public-surface file that also touches an internal module stays in
+the gate, with that import shimmed to our main entry.
 
 A front-end does not reach 1.0 until its rate is **100%** (C7). Below that it ships pre-1.0
 and is never described as compatible. The rate ratchets: a pull request that lowers it fails

@@ -9,7 +9,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import {checkOutput} from './helpers/utils.mjs';
 import {hideBin} from '../shim-1.js';
-import {YError} from '../shim-2.js';
+import {YError} from '../build/lib/yerror.js';
 import {readFileSync} from 'fs';
 const english = JSON.parse(readFileSync('./locales/en.json'));
 

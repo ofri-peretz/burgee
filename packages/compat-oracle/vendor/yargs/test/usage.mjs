@@ -6,7 +6,7 @@ import {checkOutput} from './helpers/utils.mjs';
 import chalk from 'chalk';
 import yargs from '../shim.js';
 import {expect, should} from 'chai';
-import {YError} from '../shim-2.js';
+import {YError} from '../build/lib/yerror.js';
 import assert from 'assert';
 
 should();

@@ -2,11 +2,18 @@
   "repo": "https://github.com/yargs/yargs",
   "commit": "fb9c05598a9bda583333c28c4ae85ab66e6bcb01",
   "vendored": "2026-09-07",
-  "files": 10,
-  "excluded": [
+  "files": 14,
+  "internalFiles": [
     "argsert.mjs",
     "is-promise.mjs",
     "obj-filter.mjs",
     "parse-command.mjs"
+  ],
+  "internals": [
+    "build/lib/argsert.js",
+    "build/lib/parse-command.js",
+    "build/lib/utils/is-promise.js",
+    "build/lib/utils/obj-filter.js",
+    "build/lib/yerror.js"
   ]
 }

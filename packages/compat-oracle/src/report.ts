@@ -52,6 +52,16 @@ function line(g: Grade, baseline: Baseline): string {
 
 export type Write = (s: string) => void;
 
+/** A host's public line, plus its informational internals line when it has one. */
+function gradeLines(g: Grade, baseline: Baseline): string {
+  const i = g.internals;
+  const internals =
+    i === undefined
+      ? ''
+      : `  ${''.padEnd(HOST_COL)} internals ${String(i.passed).padStart(COUNT_COL)} / ${String(i.tests).padEnd(COUNT_COL)} — ${i.files} file(s) testing the host's own file layout; informational, never the gate\n`;
+  return `${line(g, baseline)}\n${internals}`;
+}
+
 export async function main(argv: string[], write: Write): Promise<number> {
   const wantsVendor = argv.includes('--vendor');
   // --control grades each host against its own real package: the proof that the gate
@@ -68,7 +78,7 @@ export async function main(argv: string[], write: Write): Promise<number> {
     for (const host of active()) {
       const result = vendor(host, VENDOR_DIR);
       write(
-        `vendored ${result.host} @ ${result.commit.slice(0, SHORT_SHA)} — ${result.files} files, ${result.excluded.length} excluded\n`,
+        `vendored ${result.host} @ ${result.commit.slice(0, SHORT_SHA)} — ${result.files} files (${result.internalFiles.length} internal-only), ${result.internals.length} internal module(s) shimmed\n`,
       );
     }
   }
@@ -77,7 +87,7 @@ export async function main(argv: string[], write: Write): Promise<number> {
   const grades = active().map((host) => grade(host, VENDOR_DIR, targetFor(host), baseline[host.name]?.reference ?? 0));
 
   write(control ? '\ncontrol — each host graded against its real package\n\n' : '\ncompatibility\n\n');
-  for (const g of grades) write(`${line(g, baseline)}\n`);
+  for (const g of grades) write(gradeLines(g, baseline));
 
   const planned = HOSTS.filter((h) => h.status === 'planned').map((h) => h.name);
   if (planned.length > 0) write(`\n  planned: ${planned.join(', ')}\n`);

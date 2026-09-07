@@ -2,8 +2,12 @@
   "repo": "https://github.com/tj/commander.js",
   "commit": "ba6d13ddb4243e5913367734f8c159089ffe7834",
   "vendored": "2026-09-07",
-  "files": 109,
-  "excluded": [
+  "files": 110,
+  "internalFiles": [
     "useColor.test.js"
+  ],
+  "internals": [
+    "lib/command.js",
+    "lib/option.js"
   ]
 }

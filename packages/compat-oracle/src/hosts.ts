@@ -6,15 +6,17 @@
  * numbers because vite, vitest and nitro bundle them, so a façade for either
  * converts almost nobody. See `docs/research/competitor-landscape.md` §8.
  */
-export type HostImport =
-  | { kind?: 'public'; upstream: string; subpath: string; reexportDefault: boolean }
-  /**
-   * A non-public module the suite reaches into incidentally (yargs' tests import
-   * `YError` for `instanceof` assertions). For the control it is re-exported from the
-   * installed host's own file; for a target, from the target itself. A test that then
-   * fails is a real, recordable divergence rather than a whole file thrown away.
-   */
-  | { kind: 'internal'; upstream: string; file: string; names: string[] };
+/**
+ * A public specifier the tests use to reach the library. Imports of the host's *internal*
+ * modules (`../lib/command.js`, `../build/lib/yerror.js`) are not listed here: the vendor
+ * step discovers them and the runner shims them — from the installed host's own file for
+ * the control, from the target's main entry for a target — so no file is ever excluded.
+ */
+export interface HostImport {
+  upstream: string;
+  subpath: string;
+  reexportDefault: boolean;
+}
 
 export interface Host {
   /** npm package we are compatible with. */
@@ -40,8 +42,6 @@ export interface Host {
   extraDirs?: string[];
   /** Per-test timeout the suite was written against, ms. */
   timeoutMs?: number;
-  /** Files excluded, each with the reason. An exclusion that grows silently is a lie. */
-  exclude: { file: string; reason: string }[];
   /** How its suite is executed. */
   runner: 'node:test' | 'mocha';
   /** Our entry point graded against it. */
@@ -58,7 +58,6 @@ export const HOSTS: Host[] = [
     testDir: 'tests',
     testGlob: '*.test.js',
     imports: [{ upstream: '../index.js', subpath: '', reexportDefault: false }],
-    exclude: [{ file: '*.test.js importing ../lib/', reason: 'tests internals, which we never promise' }],
     runner: 'node:test',
     target: 'burgee/commander',
     status: 'active',
@@ -71,13 +70,6 @@ export const HOSTS: Host[] = [
     imports: [
       { upstream: '../index.mjs', subpath: '', reexportDefault: true },
       { upstream: '../helpers/helpers.mjs', subpath: '/helpers', reexportDefault: false },
-      { kind: 'internal', upstream: '../build/lib/yerror.js', file: 'build/lib/yerror.js', names: ['YError'] },
-    ],
-    exclude: [
-      {
-        file: 'argsert, is-promise, obj-filter, parse-command',
-        reason: 'test internal helper modules only and import no public entry; 23 tests',
-      },
     ],
     runner: 'mocha',
     preamble: 'before.mjs',
@@ -93,7 +85,6 @@ export const HOSTS: Host[] = [
     testDir: 'test',
     testGlob: '*.js',
     imports: [{ upstream: '../source/index.js', subpath: '', reexportDefault: false }],
-    exclude: [],
     runner: 'node:test',
     target: 'burgee/meow',
     status: 'planned',
@@ -105,7 +96,6 @@ export const HOSTS: Host[] = [
     testDir: 'test',
     testGlob: '*.test.ts',
     imports: [{ upstream: '../src', subpath: '', reexportDefault: false }],
-    exclude: [],
     runner: 'node:test',
     target: 'burgee/cac',
     status: 'planned',
@@ -117,7 +107,6 @@ export const HOSTS: Host[] = [
     testDir: 'test',
     testGlob: '*.test.ts',
     imports: [{ upstream: '../src', subpath: '', reexportDefault: false }],
-    exclude: [],
     runner: 'node:test',
     target: 'burgee/citty',
     status: 'planned',
@@ -129,7 +118,6 @@ export const HOSTS: Host[] = [
     testDir: 'test',
     testGlob: '*.test.ts',
     imports: [{ upstream: '../src/index.ts', subpath: '', reexportDefault: false }],
-    exclude: [],
     runner: 'mocha',
     target: '—',
     status: 'rejected',

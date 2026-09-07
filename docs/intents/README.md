@@ -123,9 +123,15 @@ a **live scoreboard**; every wave after it ends with that number higher.
 
 ```text
                        burgee                              control (the real host)
-compat-commander    ░░░░░░░░░░░░░░░░░░░░░░░░    17 / 1307    1.3%     ████████████████████████  1283 / 1307   98.2%
+compat-commander    ░░░░░░░░░░░░░░░░░░░░░░░░    17 / 1331    1.3%     ████████████████████████  1296 / 1331   98.3%
+  internals                                          0 /   12                                          12 /   12
 compat-yargs        ░░░░░░░░░░░░░░░░░░░░░░░░     0 /  816    0.0%     ███████████████████████░   785 /  816   96.2%
+  internals                                          0 /   23                                          23 /   23
 ```
+
+Every file of both suites is vendored and run — nothing is excluded. The *internals* lines
+are the files that import only the host's own modules (`../lib/command.js`); they are
+reported, never gated: passing them would mean copying the host's file layout.
 
 `npm run compat` — each host's own suite, vendored (commander `ba6d13dd`, yargs
 `fb9c0559`) and graded through generated shims; `--control` grades each against its real
@@ -150,7 +156,7 @@ three separate times before that rule existed.
 
 | | Done | Left |
 | :-- | :-- | :-- |
-| `compat-oracle` | both suites vendored; both gates proven (1283/1307, 785/816); `burgee/commander` 17/1307, `burgee/yargs` an honest 0/816; ratchet; `--control`; weekly re-vendor PR (C6); ratchet on every PR + Node×OS matrix (C3); generated `compatibility.mdx` (C2) | publish the page (needs `docs-deploy`) |
+| `compat-oracle` | every file of both suites vendored (internals reported separately); both gates proven (1296/1331, 785/816); `burgee/commander` 17/1331, `burgee/yargs` an honest 0/816; ratchet; `--control`; weekly re-vendor PR (C6); ratchet on every PR + Node×OS matrix (C3); generated `compatibility.mdx` (C2) | publish the page (needs `docs-deploy`) |
 | `cli-packaging` | no-deps / ESM / no-`main` / `default`-condition lock (R1–R3); artifact gate in `release.yml` between build and publish (R4); tarball size ratchet with baseline (R5); provenance restored under the trusted publisher | R6, the bun/deno smoke — deferred to wave 2, it needs those runtimes in CI |
 | **ESM + CJS** | every entry has a `default` condition; no top-level await in the library; `require('burgee')` and `require('burgee/commander')` proven against the installed tarball — one artifact, both module systems (K2, revised) | — |
 | `replacement-parser` | engine, lifecycle, exit contract, manifest, four locks; `defineProgram`; `--` pass-through and `-` (G5); seven cited §10 fixes (G6); G7 measured at +5 ms, level with bare `parseArgs`; `demo-cli-burgee` as the third conformance host via `runBurgee` (G2), with the envelope difference declared per host; `ctx.exit`, env binding, root/group help | G3 quirks — they land with the front-ends in wave 2 |
@@ -203,7 +209,7 @@ That is the cost of this decision and it is real.
 
 The mitigations, both live:
 
-- **The burn-down is public from the first commit.** It is `17 / 1307` today. A number
+- **The burn-down is public from the first commit.** It is `17 / 1331` today. A number
   that only goes up is more persuasive than any announcement, and it makes the wait
   visible instead of silent.
 - **`eslint-plugin-cli-floor` needs no runtime adoption at all** — no dependency in
