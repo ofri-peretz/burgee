@@ -142,10 +142,18 @@ flowchart TB
   R1 --> R2 --> R3 --> R4
 ```
 
-**Why the surfaces come free.** `burgee/commander` is a *façade over burgee's engine*, not
-a wrapper around real commander. A command declared through commander's API lands in the
-same manifest as a native `defineCommand`, and every surface in §1 is a projection of that
-manifest — the surfaces never learn which façade filled it.
+**We implement the incumbents; we do not wrap them.** `burgee/commander` does not depend on
+commander. It is commander's public surface — 151 methods — reimplemented over burgee's
+engine, in our source tree; `burgee/yargs` is the same for yargs' 108. A user installs
+burgee and nothing else, which the weight lock asserts on every entry point.
+
+The real packages appear in exactly one place: `compat-oracle`, private and never
+published, where they are reference implementations used to run their own suites against
+our code and to diff the same program's output byte for byte.
+
+**Why the surfaces come free.** Because a command declared through commander's API lands in
+the same manifest as a native `defineCommand`, and every surface in §1 is a projection of
+that manifest — the surfaces never learn which façade filled it.
 
 ```mermaid
 flowchart LR
