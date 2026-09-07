@@ -49,6 +49,7 @@ runs:
           node_modules
           packages/*/node_modules
           apps/*/node_modules
+          examples/*/node_modules
         key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
     - name: Install dependencies

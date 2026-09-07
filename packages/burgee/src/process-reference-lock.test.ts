@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
@@ -68,7 +68,8 @@ describe('process references stay behind the Runtime seam', () => {
         continue;
       }
       for (const f of files) {
-        const rel = relative(PACKAGES, f);
+        // POSIX separators on every OS: the allow-list is written with them.
+        const rel = relative(PACKAGES, f).split(sep).join('/');
         if (ALLOWED.has(rel)) continue;
         const lines = readFileSync(f, 'utf-8').split('\n');
         lines.forEach((line, i) => {
