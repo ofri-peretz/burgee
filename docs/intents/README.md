@@ -107,7 +107,7 @@ converts it from a permanent dependency into a fixable backlog, so it now has an
 | # | Intent | Delivers | Floor ids | Status |
 | :-- | :-- | :-- | :-- | :-- |
 | 19 | [`replacement-parser/`](./replacement-parser/) | our parser over `node:util.parseArgs`, as a third conformance host | G1–G7, §10 fixes | review |
-| 20 | [`commander-compat/`](./commander-compat/) | `burgee/commander` — 151 methods, graded by commander's 1,215 tests | X1–X7 | review |
+| 20 | [`commander-compat/`](./commander-compat/) | `burgee/commander` — commander 15 ported method for method, graded by commander's 1,331 tests; 1,327 pass (parity with the real package) | X1–X8 | review |
 | 21 | [`yargs-compat/`](./yargs-compat/) | `burgee/yargs` — 108 methods, graded by yargs' 1,185 tests | X1–X7 | review |
 
 Not planned, on purpose: an update checker (citty #10 — a network call at startup is the
@@ -123,8 +123,8 @@ a **live scoreboard**; every wave after it ends with that number higher.
 
 ```text
                        burgee                              control (the real host)
-compat-commander    ░░░░░░░░░░░░░░░░░░░░░░░░    17 / 1331    1.3%     ████████████████████████  1296 / 1331   98.3%
-  internals                                          0 /   12                                          12 /   12
+compat-commander    ████████████████████████  1327 / 1331   99.7%     ████████████████████████  1327 / 1331   99.7%
+  internals                                         12 /   12                                          12 /   12
 compat-yargs        ░░░░░░░░░░░░░░░░░░░░░░░░     0 /  816    0.0%     ███████████████████████░   785 /  816   96.2%
   internals                                          0 /   23                                          23 /   23
 ```
@@ -146,7 +146,7 @@ three separate times before that rule existed.
 | :-- | :-- | :-- | :-- |
 | 0 | `sdlc-locks-evals-bands`, `cli-testing-harness` | the loop, and a harness that runs a CLI in-process | ✅ shipped |
 | **1 · engine** | `replacement-parser`, `compat-oracle`, `cli-packaging` | a one-file CLI that runs, the shape lock green, the first published pass rate | 🔨 engine built · oracle grading commander · packaging next |
-| **2 · compatibility** | `commander-compat`, `cli-help-renderer` ↑ | all 151 methods, 1,215/1,215, burn-down public; help from the manifest | queued |
+| **2 · compatibility** | `commander-compat`, `cli-help-renderer` ↑ | every upstream file graded; `burgee/commander` 1,327/1,331 (= real commander in the same run); help from the manifest | in progress |
 | **3 · surfaces** | `cli-mcp`, `commander-schema`, `commander-env`, `commander-completions` | `--schema`, `--mcp`, completions — the reason to switch | queued |
 | **4 · reach** | `yargs-compat`, `dev-loop`, `cli-modularity`, `cli-prompts`, `first-adopter`, `eslint-plugin-cli-floor`, `docs-deploy`, `cli-benchmarks`, `brand-burgee` | the second host, the dev loop, a CLI we did not write, one brand declaration | queued |
 | **5 · speed** | native front-end spike, `eslint-plugin-cli-floor` as an oxlint rule | `--help` in 13 ms, or a recorded decision not to | conditional |
@@ -156,7 +156,7 @@ three separate times before that rule existed.
 
 | | Done | Left |
 | :-- | :-- | :-- |
-| `compat-oracle` | every file of both suites vendored (internals reported separately); both gates proven (1296/1331, 785/816); `burgee/commander` 17/1331, `burgee/yargs` an honest 0/816; ratchet; `--control`; weekly re-vendor PR (C6); ratchet on every PR + Node×OS matrix (C3); generated `compatibility.mdx` (C2) | publish the page (needs `docs-deploy`) |
+| `compat-oracle` | every file of both suites vendored (internals reported separately); both gates proven (1327/1331, 785/816); `burgee/commander` 1327/1331 — parity with real commander in the same run, `burgee/yargs` an honest 0/816; ratchet; `--control`; weekly re-vendor PR (C6); ratchet on every PR + Node×OS matrix (C3); generated `compatibility.mdx` (C2) | publish the page (needs `docs-deploy`) |
 | `cli-packaging` | no-deps / ESM / no-`main` / `default`-condition lock (R1–R3); artifact gate in `release.yml` between build and publish (R4); tarball size ratchet with baseline (R5); provenance restored under the trusted publisher | R6, the bun/deno smoke — deferred to wave 2, it needs those runtimes in CI |
 | **ESM + CJS** | every entry has a `default` condition; no top-level await in the library; `require('burgee')` and `require('burgee/commander')` proven against the installed tarball — one artifact, both module systems (K2, revised) | — |
 | `replacement-parser` | engine, lifecycle, exit contract, manifest, four locks; `defineProgram`; `--` pass-through and `-` (G5); seven cited §10 fixes (G6); G7 measured at +5 ms, level with bare `parseArgs`; `demo-cli-burgee` as the third conformance host via `runBurgee` (G2), with the envelope difference declared per host; `ctx.exit`, env binding, root/group help | G3 quirks — they land with the front-ends in wave 2 |
@@ -209,7 +209,7 @@ That is the cost of this decision and it is real.
 
 The mitigations, both live:
 
-- **The burn-down is public from the first commit.** It is `17 / 1331` today. A number
+- **The burn-down is public from the first commit.** It is `1327 / 1331` today — the same 1,327 real commander scores in the same environment. A number
   that only goes up is more persuasive than any announcement, and it makes the wait
   visible instead of silent.
 - **`eslint-plugin-cli-floor` needs no runtime adoption at all** — no dependency in

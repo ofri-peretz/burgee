@@ -35,9 +35,10 @@ export function shimName(index: number): string {
  * specifier is written relative to the test dir (`../index.js`); a fixture two levels
  * down writes the same module as `../../index.js`. Both must land on the one shim.
  */
+const dotted = (p: string): string => (p.startsWith('.') ? p : `./${p}`);
+
 export function rewriteAt(source: string, host: Host, fileDir: string, hostDir: string): string {
   const testDir = join(hostDir, host.testDir);
-  const dotted = (p: string): string => (p.startsWith('.') ? p : `./${p}`);
   return host.imports.reduce((acc, entry, i) => {
     const upstreamHere = dotted(relative(fileDir, resolve(testDir, entry.upstream)));
     const shimHere = dotted(relative(fileDir, join(hostDir, shimName(i))));

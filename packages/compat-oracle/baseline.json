@@ -1,8 +1,8 @@
 {
   "commander": {
     "reference": 1331,
-    "passed": 17,
-    "rate": 0.013
+    "passed": 1327,
+    "rate": 0.997
   },
   "yargs": {
     "reference": 816,

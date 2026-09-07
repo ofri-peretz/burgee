@@ -1,133 +1,35 @@
 /**
- * `burgee/commander` — commander's public surface, implemented over burgee's
- * engine. It does **not** depend on commander (J9): a user installs burgee and
- * nothing else, which `weight.test.ts` asserts.
- *
- * Every command declared here lands in the same manifest a native
- * `defineCommand` fills, so the surfaces (`--json`, `--schema`, `--mcp`,
- * completions) and the plugin hooks apply identically — J2, J7, J8.
- *
- * This is a proving slice of the surface, not the full 151 methods; the rest
- * lands in wave 2 graded by commander's own 1,215 tests.
+ * `burgee/commander` — commander's public surface, implemented over burgee (J9: no
+ * dependency on commander itself). Graded by commander's own suite; see
+ * `docs/intents/commander-compat/design.md` and `npm run compat`.
  */
-import { execute, type RunOptions } from './execute.js';
-import { Manifest, type OptionSpec, type Plugin } from './manifest.js';
+import { Argument } from './commander-argument.js';
+import { Command } from './commander-command.js';
+import { Option } from './commander-option.js';
 
-type Action = (options: Record<string, unknown>, command: Command) => unknown;
+export { Argument, humanReadableArgName } from './commander-argument.js';
+export {
+  Command,
+  useColor,
+  type AddHelpTextContext,
+  type AddHelpTextPosition,
+  type BurgeeParseOptions,
+  type CommandOptions,
+  type ErrorOptions,
+  type ExecutableCommandOptions,
+  type HookEvent,
+  type HookListener,
+  type OutputConfiguration,
+  type OutputContext,
+  type ParseOptions,
+} from './commander-command.js';
+export { CommanderError, InvalidArgumentError, InvalidArgumentError as InvalidOptionArgumentError } from './commander-error.js';
+export { Help, type HelpContext } from './commander-help.js';
+export { DualOptions, Option } from './commander-option.js';
 
-/** Names that would reach Object.prototype if used as a key. */
-const POLLUTING = new Set(['__proto__', 'constructor', 'prototype']);
+/** The root command, for programs that never construct their own. */
+export const program = new Command();
 
-function parseFlags(flags: string): { name: string; type: 'string' | 'boolean' } {
-  // Leading underscore is legal in a flag name, and `__proto__` is exactly the case
-  // the guard below exists for — so the pattern must match it in order to reject it.
-  const long = /--([a-zA-Z_][\w-]*)/.exec(flags);
-  const name = long?.[1] ?? flags;
-  if (POLLUTING.has(name)) {
-    throw new Error(`burgee: option name "${name}" is not allowed — it would reach Object.prototype`);
-  }
-  return { name, type: flags.includes('<') || flags.includes('[') ? 'string' : 'boolean' };
-}
-
-/** Option maps have a null prototype, so a key can never reach Object.prototype. */
-function setOption(options: Record<string, OptionSpec>, name: string, spec: OptionSpec): void {
-  Object.defineProperty(options, name, { value: spec, enumerable: true, writable: true, configurable: true });
-}
-
-export class Command {
-  readonly manifest: Manifest;
-  #path: string[];
-
-  constructor(name = '', manifest = new Manifest(), path: string[] = []) {
-    this.manifest = manifest;
-    this.#path = name === '' ? path : [...path, name];
-    if (this.#path.length > 0 && this.manifest.find(this.#path) === undefined) {
-      this.manifest.add({ path: this.#path, options: Object.create(null) as Record<string, OptionSpec> });
-    }
-  }
-
-  #node(): {
-    path: string[];
-    options: Record<string, OptionSpec>;
-    description?: string;
-    run?: (ctx: { options: Record<string, unknown> }) => unknown;
-  } {
-    const found = this.manifest.find(this.#path);
-    if (found === undefined) throw new Error(`no manifest node for ${this.#path.join(' ')}`);
-    return found as never;
-  }
-
-  name(value: string): this {
-    this.#path = [value];
-    if (this.manifest.find(this.#path) === undefined) {
-      this.manifest.add({ path: this.#path, options: Object.create(null) as Record<string, OptionSpec> });
-    }
-    return this;
-  }
-
-  description(value: string): this {
-    this.#node().description = value;
-    return this;
-  }
-
-  option(flags: string, description?: string): this {
-    const { name, type } = parseFlags(flags);
-    setOption(this.#node().options, name, { type, ...(description === undefined ? {} : { description }) });
-    return this;
-  }
-
-  requiredOption(flags: string, description?: string): this {
-    const { name, type } = parseFlags(flags);
-    setOption(this.#node().options, name, {
-      type,
-      required: true,
-      ...(description === undefined ? {} : { description }),
-    });
-    return this;
-  }
-
-  command(name: string): Command {
-    return new Command(name, this.manifest, this.#path);
-  }
-
-  action(handler: Action): this {
-    const node = this.#node();
-    node.run = (ctx: { options: Record<string, unknown> }) => handler(ctx.options, this);
-    return this;
-  }
-
-  /**
-   * Additive, and the point of the whole exercise: a commander-syntax program
-   * gains plugins commander itself has never had (#2505, unlanded).
-   */
-  use(plugin: Plugin): this {
-    this.manifest.use(plugin);
-    return this;
-  }
-
-  /** commander's signature: `parseAsync(argv?, { from })`. */
-  async parseAsync(argv?: string[], options?: { from?: 'node' | 'user' } & RunOptions): Promise<this> {
-    await execute(this.manifest, {
-      from: 'node',
-      ...options,
-      ...(argv === undefined ? {} : { argv }),
-      root: this.#path,
-    });
-    return this;
-  }
-
-  /**
-   * commander's `parse` is synchronous and returns `this`; an async action still
-   * runs, its rejection surfacing through the same lifecycle. Matching that shape
-   * matters because 234 of the call sites measured across five real CLIs are
-   * `.parse()` rather than `.parseAsync()`.
-   */
-  parse(argv?: string[], options?: { from?: 'node' | 'user' } & RunOptions): this {
-    void this.parseAsync(argv, options);
-    return this;
-  }
-}
-
-export function createCommand(name?: string): Command {
-  return new Command(name);
-}
+export const createCommand = (name?: string): Command => new Command(name);
+export const createOption = (flags: string, description?: string): Option => new Option(flags, description);
+export const createArgument = (name: string, description?: string): Argument => new Argument(name, description);

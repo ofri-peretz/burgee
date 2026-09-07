@@ -23,6 +23,12 @@ const ALLOWED = new Set([
   'burgee/src/runtime.ts',
   'burgee/src/testing-helpers.ts',
   'burgee/src/execute.ts',
+  // The commander front-end reproduces commander's process contract — process.argv
+  // when parse() is called bare, process.exit when no exitOverride is set, the env for
+  // Option.env(), stdout/stderr as the default output configuration. That contract is
+  // what commander's own suite grades (C1); `parse(argv, { stdout, stderr, exit })`
+  // is the injectable seam for everything else.
+  'burgee/src/commander-command.ts',
   // The one line the whole compatibility gate turns on: it reads COMPAT_TARGET to
   // decide which implementation the vendored suites grade.
   'compat-oracle/src/shim.ts',

@@ -352,4 +352,32 @@ export default [
       'import-next/no-unused-modules': ['error', { allowImportOnly: true }],
     },
   },
+  {
+    // `burgee/commander` is commander 15 ported method for method and graded by
+    // commander's own 1,331 tests (compat-oracle). Its shape — one EventEmitter subclass,
+    // the `_`-prefixed package-level fields the upstream tests reach for, the long parse
+    // loop, process.exit when no exitOverride is set — *is* the specification, so the
+    // structural rules that would reshape it are off here. The oracle is the check.
+    files: ['packages/burgee/src/commander-*.ts', 'packages/burgee/src/commander.ts'],
+    rules: {
+      'maintainability/consistent-function-scoping': 'off',
+      'maintainability/cognitive-complexity': 'off',
+      'maintainability/identical-functions': 'off',
+      'maintainability/nested-complexity-hotspots': 'off',
+      'maintainability/max-parameters': 'off',
+      'maintainability/no-missing-error-context': 'off',
+      'reliability/no-missing-error-context': 'off',
+      'maintainability/no-unhandled-promise': 'off',
+      'reliability/no-unhandled-promise': 'off',
+      'reliability/no-unsafe-type-narrowing': 'off',
+      'secure-coding/detect-object-injection': 'off',
+      'secure-coding/no-improper-type-validation': 'off',
+      'conventions/no-magic-numbers': 'off',
+      'operability/no-process-exit': 'off',
+      'modernization/prefer-event-target': 'off',
+      'import-next/exports-last': 'off',
+      'import-next/consistent-type-specifier-style': 'off',
+      'import-next/no-barrel-file': 'off',
+    },
+  },
 ];

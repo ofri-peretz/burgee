@@ -8,57 +8,90 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
 
 | id | Requirement |
 | :-- | :-- |
-| X1 | `selvage/commander` exposes commander's public surface (151 methods) over `cli-core` |
-| X2 | The vendored commander suite (1215 tests) runs against it through `compat-oracle`'s shim, unedited |
+| X1 | `burgee/commander` exposes commander 15's public surface: `Command`, `Option`, `Argument`, `Help`, `CommanderError`, `InvalidArgumentError` (+ deprecated alias), `program`, `createCommand`, `createOption`, `createArgument` — and what the suite reaches through the host's internals (`useColor`, `DualOptions`, `humanReadableArgName`) |
+| X2 | The vendored commander suite runs against it through `compat-oracle`'s shim, unedited: 1,331 public tests plus 12 internals |
 | X3 | The pass rate is published per release and ratchets (C5) |
-| X4 | Divergences are registered in `excluded.json` with a reason and an asserting test (C4) |
-| X5 | A fixture importing only `selvage` pulls zero bytes of this front-end (B4) |
-| X6 | `core + this front-end` stays under 232KB bundled |
-| X7 | `examples/demo-cli-commander` produces byte-identical output against real commander and this front-end |
+| X4 | Every divergence is a failing upstream test with a recorded reason; none may be excluded (compat-oracle R3) |
+| X5 | `import 'burgee'` pulls zero bytes of this front-end (K6, `weight.test.ts` entry `.`) |
+| X6 | The front-end's reachable bytes stay under commander's own `lib/` (126,365 B): budget **128,000** in `weight.test.ts` entry `./commander` |
+| X7 | `examples/demo-cli-commander` produces byte-identical output on real commander and on this front-end |
+| X8 | A program in commander syntax gains burgee's plugins and surfaces without a line changing (J2, J7, J8), and **nothing about its default behaviour changes** |
 
 ## Design
 
-commander's public shape is a `Command` class with `createCommand()` as the subclass hook, plus `Option`, `Argument` and `Help`. The front-end reproduces that shape and translates each
-call into `cli-core` primitives; it holds no parsing logic of its own.
+```mermaid
+flowchart LR
+  P["program written in commander syntax"] --> C["Command\n(commander 15, ported method for method)"]
+  C -- "parse(): commander's own pipeline" --> R["actions · errors · exit codes\nbyte-identical to commander"]
+  C -- "projects on access" --> M["Manifest"]
+  M --> H["plugins: preRun / postRun\n(use(plugin))"]
+  M --> S["surfaces: --json today;\n--schema · --mcp · completions read the same manifest"]
+  C -- "parse(argv, { stdout, stderr, exit })" --> T["harness seam (T1)\nreports through E1"]
+```
 
-Host quirks — `-abc` bundling, `--no-` negation, variadic arity, `allowUnknownOption`, `passThroughOptions`, `enablePositionalOptions` — are composed from
-`selvage/quirks/*` (see [`replacement-parser`](../replacement-parser/design.md) G3), so
-this front-end is a *selection* of behaviours plus a naming shim, not a second
-implementation. That is what keeps X5 and X6 achievable: the quirks are shared with the
-other front-end wherever the two hosts happen to agree.
+**The parse path is commander's, not the engine's.** The first slice of this front-end
+translated calls into `execute()`; the oracle killed that in one run (17 / 1,331). The
+suite asserts commander's exact error strings (`error: unknown option '--x'`), its
+`EventEmitter` events (`option:foo`, `optionEnv:foo`, `command:*`), thirteen of its
+package-level fields (`_name`, `_exitCallback`, `_getHelpOption` …), and an option
+grammar — `-abc` groups, `--no-` pairs sharing a value, optional values, variadics,
+`passThroughOptions`, negative numbers — that `node:util.parseArgs` cannot express. So
+`Command` is a port of `lib/command.js`, `Option`, `Argument`, `Help`, `suggestSimilar`
+and the errors, in TypeScript, over no dependency. Fidelity is the requirement; the port
+is the design.
 
-**Order of work, driven by the oracle.** Start with every test failing and burn the
-number down; the suite is the backlog and its pass rate is the progress bar. Take the
-files in ascending order of failures so the rate moves early and the shape of the
-remaining work stays visible. Each commit reports the new rate in its message, so
-`git log` is the burn-down chart.
+**burgee sits beside it, never in front of it.** Four additions, each guarded so a
+program that does not ask for them behaves exactly as on commander:
+
+| Addition | Guard |
+| :-- | :-- |
+| `command.manifest` — the tree projected as `CommandNode`s (null-prototype option records; polluting names rejected) | A getter; projecting changes no state the parse reads |
+| `command.use(plugin)` — `preRun`/`postRun` fire around the action, `enforce` order (Vite convention) | Only when a plugin is registered; hooks make the run a promise, so `parseAsync` |
+| `--json` — the action's return value in the `{ ok, data }` envelope | Only when no command in the chain declares `--json` itself; taken at the leaf, never at a level that dispatches, so a subcommand's own `--json` is untouched |
+| `parse(argv, { stdout, stderr, exit })` — inject the streams and the exit | Only when one of the three is passed; then every `CommanderError` is reported through E1 and the run settles to one exit |
+
+E1 mapping in the injected mode: `commander.helpDisplayed`, `commander.version` → OK;
+`commander.help` → OK or USAGE(2) when `{ error: true }`; the usage family (unknown
+option/command, missing/excess arguments, missing mandatory, conflicting, invalid
+argument) → USAGE(2); `commander.error` and executable-subcommand exits keep their code;
+an action throwing → RUNTIME(1). Without injection commander's own codes are emitted,
+because a migrating user's scripts depend on them.
+
+**Order of work, driven by the oracle.** The suite is the backlog and its pass rate the
+progress bar; each commit reports the rate in its message, so `git log` is the burn-down.
 
 ## Verification
 
-`COMPAT_TARGET=selvage/commander npm run compat` — the loop, exiting non-zero below baseline.
+`npm run compat` — the loop, exiting non-zero below baseline. `npm run compat -- --control`
+proves the gate against real commander in the same run.
 
-Proven-red, per rule 4: the first commit registers the front-end as a `COMPAT_TARGET`
-with an empty implementation and records the resulting near-zero baseline. Every
-subsequent commit raises it. A gate whose first recorded state is green proves nothing.
+Proven-red, per rule 4: the first commit registered the front-end and recorded 17 / 1,307.
+Today: **1,327 / 1,331 (99.7%)** — the same 1,327 the real commander scores in this
+environment. The 4 left fail identically for both and only when the whole suite runs in
+one `node --test` process: signal forwarding to a spawned subcommand and the `--inspect`
+port-increment tests. They are graded, not excluded; CI's OS × Node matrix re-checks them.
 
-X7 is a separate check: `examples/conformance` runs the demo against both
-implementations and diffs stdout byte for byte, which catches formatting drift that a
-pass/fail suite tolerates.
+The 12 internals tests (`useColor`) pass because the barrel exports `useColor`; they stay
+informational.
+
+X7 is `examples/conformance` with a third host that runs the demo on this front-end and
+diffs stdout byte for byte against real commander — not yet wired.
 
 ## Rejected alternatives
 
-- **A separate npm package.** Subpath exports version with the core, so a user cannot
-  install a front-end that disagrees with the parser it wraps.
-- **Writing our own compatibility tests.** They would encode our reading of commander, which is
-  the thing under test. See `compat-oracle`'s rejected alternatives.
-- **Runtime compatibility mode.** Ships both front-ends to every user. §6 of the
-  competitor map.
-- **Reimplementing the quirks privately here.** The two hosts agree on more than they
-  disagree on; duplicating the shared parts doubles both the bytes and the bug surface.
+- **Translating calls onto the engine's parser.** Measured: 17 / 1,331. The tests are the
+  spec and they assert commander's pipeline.
+- **A shared "quirks" module for both hosts.** commander's and yargs' grammars differ in
+  exactly the details the suites assert; sharing would couple two specifications. Revisit
+  with measurements once `burgee/yargs` exists.
+- **A separate npm package.** Subpath exports version with the engine, so a user cannot
+  install a front-end that disagrees with the manifest it projects into.
+- **Writing our own compatibility tests.** They would encode our reading of commander,
+  which is the thing under test.
+- **Runtime compatibility mode.** Ships both front-ends to every user (§6 of the map).
 
 ## Out of scope
 
-- commander's internals. The 9 upstream files testing `../lib/` are excluded by
-  `compat-oracle` R3, and nothing here promises them.
-- Deprecating `commander-agent`. It remains the recommended entry for anyone already on real
-  commander, which is most of the addressable market.
+- commander's file layout. Files that import only `../lib/*` are graded on the oracle's
+  informational internals line, never the gate.
+- The `burgee/yargs` front-end: its own intent.
