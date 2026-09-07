@@ -152,8 +152,18 @@ flowchart LR
   A["commander syntax<br/>new Command()"] --> M[["one manifest"]]
   B["yargs syntax<br/>yargs().command()"] --> M
   C["native syntax<br/>defineCommand()"] --> M
+  P["any plugin<br/>definePlugin()"] --> M
   M --> S["help · --json · --schema<br/>--mcp · completions · types"]
 ```
+
+**And plugins ride the same road.** A plugin contributes *to the manifest*, and the
+manifest does not record which façade filled it — so one plugin works identically on a
+commander-syntax program, a yargs-syntax program and a native one. That matters more than
+it first appears: **commander has no plugin system at all** (its RFC, #2505, is still
+unlanded after years) and yargs has none either. So a commander user who changes one
+import does not merely gain `--json`; they gain a plugin ecosystem their own framework
+never had, without touching a line of their code — and any plugin they write is portable
+to every other rung of the ladder.
 
 **Why rung 3 is opt-in and not free.** commander's own 1,215 tests assert its help text and
 its exit behaviour. A front-end that changed those by default would fail the very suite the

@@ -47,7 +47,7 @@ The reference point to keep in view: a commander user's first line is
 79 requirements: the shape lock (Z1–Z5), the original 26 (F/O/E/V/S/P/D/T), 27 folded in from the gap-track
 intents on 2026-09-06 (S5–S8, V6–V7, H1–H6, D3–D5, P3, M1–M6, K1–K5), and 27 added the
 same day with the compatible-replacement strategy and the architecture review
-(K6, C1–C6, B1–B7, N1–N5, J1–J6). Each names the
+(K6, C1–C6, B1–B7, N1–N5, J1–J7). Each names the
 issue evidence, whether the **runtime** (R) guarantees it or the **lint** rule (L)
 enforces it, and where it lands.
 
@@ -202,6 +202,7 @@ manifest — so the surfaces do not care which façade populated it.
 | J4 | If a program already defines a name burgee reserves (`json`, `help`, `schema`), the program wins and burgee's surface is withheld, reported by `--schema` | V5 | R + L | commander-compat |
 | J5 | Native `defineCommand` and façade commands compose in one program, so a user can write the next command in burgee syntax without moving the previous ones | the ladder is only real if the rungs mix | R | commander-compat |
 | J6 | Both paths are graded separately: the strict path against the host's own suite (C2), the enhanced path against burgee's conformance suite | a single suite cannot assert both behaviours | CI | compat-oracle |
+| J7 | A plugin works identically whichever syntax the host program is written in — commander, yargs or native — because it contributes to the manifest and the manifest does not record which façade filled it. One plugin, every rung | commander #2505 (plugin RFC, unlanded); yargs has none | R | cli-modularity |
 
 **Why J3 is not negotiable.** commander's suite asserts help text and exit behaviour. A
 compat front-end that changed them by default would fail the very tests the compatibility
