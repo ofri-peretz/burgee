@@ -125,7 +125,7 @@ a **live scoreboard**; every wave after it ends with that number higher.
                        burgee                              control (the real host)
 compat-commander    ████████████████████████  1327 / 1331   99.7%     ████████████████████████  1327 / 1331   99.7%
   internals                                         12 /   12                                          12 /   12
-compat-yargs        ░░░░░░░░░░░░░░░░░░░░░░░░     0 /  816    0.0%     ███████████████████████░   785 /  816   96.2%
+compat-yargs        ░░░░░░░░░░░░░░░░░░░░░░░░     0 /  804    0.0%     ███████████████████████░   783 /  804   97.4%
   internals                                          0 /   23                                          23 /   23
 ```
 
@@ -156,7 +156,7 @@ three separate times before that rule existed.
 
 | | Done | Left |
 | :-- | :-- | :-- |
-| `compat-oracle` | every file of both suites vendored (internals reported separately); both gates proven (1327/1331, 785/816); `burgee/commander` 1327/1331 — parity with real commander in the same run, `burgee/yargs` an honest 0/816; ratchet; `--control`; weekly re-vendor PR (C6); ratchet on every PR + Node×OS matrix (C3); generated `compatibility.mdx` (C2) | publish the page (needs `docs-deploy`) |
+| `compat-oracle` | every file of both suites vendored (internals reported separately); both gates proven (1327/1331, 783/804); `burgee/commander` 1327/1331 — parity with real commander in the same run, `burgee/yargs` an honest 0/804; ratchet; `--control`; suites pinned to the hosts' npm releases (commander 15.0.0, yargs 18.1.0) with a fingerprinted compatibility record; daily release watch opens an issue with the exact test/surface diff, weekly re-vendor PR carries it (C6, R4); ratchet on every PR + Node×OS matrix (C3); generated `compatibility.mdx` (C2) | publish the page (needs `docs-deploy`) |
 | `cli-packaging` | no-deps / ESM / no-`main` / `default`-condition lock (R1–R3); artifact gate in `release.yml` between build and publish (R4); tarball size ratchet with baseline (R5); provenance restored under the trusted publisher | R6, the bun/deno smoke — deferred to wave 2, it needs those runtimes in CI |
 | **ESM + CJS** | every entry has a `default` condition; no top-level await in the library; `require('burgee')` and `require('burgee/commander')` proven against the installed tarball — one artifact, both module systems (K2, revised) | — |
 | `replacement-parser` | engine, lifecycle, exit contract, manifest, four locks; `defineProgram`; `--` pass-through and `-` (G5); seven cited §10 fixes (G6); G7 measured at +5 ms, level with bare `parseArgs`; `demo-cli-burgee` as the third conformance host via `runBurgee` (G2), with the envelope difference declared per host; `ctx.exit`, env binding, root/group help | G3 quirks — they land with the front-ends in wave 2 |

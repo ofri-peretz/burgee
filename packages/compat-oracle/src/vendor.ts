@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
 
 import { type Host } from './hosts.js';
+import { type CompatRecord, diffRecords, latestVersion, readRecord, type RecordDiff, snapshot } from './upstream.js';
 
 /** Length of an ISO date, `YYYY-MM-DD`. */
 const ISO_DATE = 10;
@@ -18,11 +19,35 @@ const ISO_DATE = 10;
 export interface VendorResult {
   host: string;
   commit: string;
+  /** The npm release vendored, and its tag (null when HEAD had to be used). */
+  version: string;
+  tag: string | null;
   files: number;
   /** Test files that import only the host's internals: vendored and graded, informationally. */
   internalFiles: string[];
   /** Internal module paths the suite imports, shimmed per run (e.g. `lib/command.js`). */
   internals: string[];
+  /** The record written, and how it differs from the one it replaced. */
+  record: CompatRecord;
+  previous?: CompatRecord;
+  diff?: RecordDiff;
+}
+
+/**
+ * Clone the release's tag; fall back to HEAD when the release was not tagged, and say so
+ * in the record (`tag: null`) rather than pretend.
+ */
+function cloneRelease(host: Host, version: string, clone: string): { commit: string; tag: string | null } {
+  const tag = `${host.tagPrefix ?? 'v'}${version}`;
+  try {
+    execFileSync('git', ['clone', '--depth', '1', '--branch', tag, host.repo, clone], { stdio: 'ignore' });
+    return { commit: execFileSync('git', ['-C', clone, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), tag };
+  } catch {
+    rmSync(clone, { recursive: true, force: true });
+    mkdirSync(clone, { recursive: true });
+    execFileSync('git', ['clone', '--depth', '1', host.repo, clone], { stdio: 'ignore' });
+    return { commit: execFileSync('git', ['-C', clone, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), tag: null };
+  }
 }
 
 /** Name of the generated shim for the n-th public import a host's tests use. */
@@ -81,11 +106,12 @@ export function classify(source: string, host: Host): 'public' | 'internal' {
   return hasPublic ? 'public' : 'internal';
 }
 
-export function vendor(host: Host, into: string): VendorResult {
+/** Vendor the host's suite at its latest npm release (or the given version). */
+export function vendor(host: Host, into: string, version = latestVersion(host.name)): VendorResult {
   const clone = mkdtempSync(join(tmpdir(), `vendor-${host.name}-`));
   try {
-    execFileSync('git', ['clone', '--depth', '1', host.repo, clone], { stdio: 'ignore' });
-    const commit = execFileSync('git', ['-C', clone, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+    const { commit, tag } = cloneRelease(host, version, clone);
+    const previous = readRecord(join(into, host.name));
 
     const from = join(clone, host.testDir);
     // Upstream's own directory name, because suites use cwd-relative paths into it.
@@ -126,17 +152,24 @@ export function vendor(host: Host, into: string): VendorResult {
       files += 1;
     }
 
-    writeFileSync(
-      join(into, host.name, '.source.json'),
-      `${JSON.stringify(
-        { repo: host.repo, commit, vendored: new Date().toISOString().slice(0, ISO_DATE), files, internalFiles, internals: [...internals].sort() },
-        null,
-        2,
-      )}\n`,
-    );
+    const record = snapshot(clone, host, {
+      version,
+      tag,
+      commit,
+      vendored: new Date().toISOString().slice(0, ISO_DATE),
+      files,
+      internalFiles,
+      internals: [...internals].sort(),
+    });
+    writeFileSync(join(into, host.name, '.source.json'), `${JSON.stringify(record, null, 2)}\n`);
     // A stale shim from a previous target would silently grade the wrong thing.
     host.imports.forEach((_, i) => rmSync(join(into, host.name, shimName(i)), { force: true }));
-    return { host: host.name, commit, files, internalFiles, internals: [...internals].sort() };
+    const result: VendorResult = { host: host.name, commit, version, tag, files, internalFiles, internals: [...internals].sort(), record };
+    if (previous !== undefined) {
+      result.previous = previous;
+      result.diff = diffRecords(previous, record);
+    }
+    return result;
   } finally {
     rmSync(clone, { recursive: true, force: true });
   }

@@ -42,6 +42,14 @@ export interface Host {
   extraDirs?: string[];
   /** Per-test timeout the suite was written against, ms. */
   timeoutMs?: number;
+  /**
+   * Files that define the host's public API surface, relative to the repo root. Their
+   * names are fingerprinted in the compatibility record, so a new release's diff says
+   * which methods appeared or vanished, not just that a test count moved.
+   */
+  surfaceFiles?: string[];
+  /** Git tag prefix for releases; `v` unless the host does otherwise. */
+  tagPrefix?: string;
   /** How its suite is executed. */
   runner: 'node:test' | 'mocha';
   /** Our entry point graded against it. */
@@ -58,6 +66,7 @@ export const HOSTS: Host[] = [
     testDir: 'tests',
     testGlob: '*.test.js',
     imports: [{ upstream: '../index.js', subpath: '', reexportDefault: false }],
+    surfaceFiles: ['typings/index.d.ts', 'index.js'],
     runner: 'node:test',
     target: 'burgee/commander',
     status: 'active',
@@ -75,6 +84,7 @@ export const HOSTS: Host[] = [
     preamble: 'before.mjs',
     timeoutMs: 24_000,
     extraDirs: ['locales'],
+    surfaceFiles: ['lib/yargs-factory.ts', 'lib/typings/yargs-parser-types.ts', 'helpers/helpers.mjs'],
     target: 'burgee/yargs',
     status: 'active',
     note: 'The front-end does not exist yet, so this grades at 0 honestly until wave 4 builds it. 108 methods.',

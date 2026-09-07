@@ -3,3 +3,5 @@ vendor/*/lib/
 vendor/*/build/
 results.json
 results.control.json
+upstream.json
+vendor-diff.md

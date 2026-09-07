@@ -13,8 +13,9 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
 | C3 | Every package is tested on every Node LTS inside its `engines` range, on Linux, macOS and Windows |
 | C4 | Every intentional divergence from a host has an id, a written reason, and a test asserting the divergence — an unlisted failure is a bug, a listed one is a documented difference |
 | C5 | Pass rates ratchet: a PR that lowers one fails CI unless it also edits the baseline file with a reason |
-| C6 | The vendored suites record their upstream commit; a scheduled job refreshes them and opens a PR when the test count changes |
+| C6 | Each vendored suite is pinned to a host's npm **release** (version, tag, commit) and fingerprinted in a compatibility record — a hash per test file, the test names per file, the names on the API surface. A daily job diffs the latest release against the record and opens one issue per release naming exactly the tests and surface names that appeared, vanished or changed; a weekly job re-vendors at the new tag and opens the PR carrying the same diff |
 | R1 | `npm run compat` runs both hosts and exits non-zero on a regression, in under 60s |
+| R4 | The compatibility record (`vendor/<host>/.source.json`) is written by the vendor step and the diff between two records is computed (`diffRecords`), never described by hand; `npm run compat -- --upstream` produces it without touching `vendor/` |
 | R2 | The import rewrite is a scripted transform, re-runnable from a clean upstream checkout, never a hand edit |
 | R3 | **No upstream file is excluded.** Every file is vendored and run; files that import only the host's internal modules are graded on a separate, informational *internals* line, recorded by name in `.source.json`. Passing them would mean copying the host's file layout, so they never enter the gate — but they are never hidden either |
 

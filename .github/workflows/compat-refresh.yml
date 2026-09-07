@@ -1,7 +1,9 @@
-# C6 — the treadmill, made visible. Weekly, re-vendor each host's own test suite from
-# upstream and re-prove both gates. If a suite changed, open a PR carrying the control
-# numbers. Deliberately NOT auto-merged: a moved test count is the one thing this exists
-# to put in front of a person.
+# C6 — the treadmill, made visible. Weekly, re-vendor each host's own test suite at its
+# latest npm release (pinned to the release tag) and re-prove both gates. If a suite
+# changed, open a PR carrying the control numbers and the exact diff of tests and API
+# surface against the previous record (vendor-diff.md). Deliberately NOT auto-merged: a
+# moved test count is the one thing this exists to put in front of a person. The daily
+# `compat-upstream` workflow opens the issue the day a release ships; this PR is the fix.
 name: Compatibility · vendor refresh
 
 on:
@@ -57,11 +59,12 @@ jobs:
           STAMP=$(date -u +%Y%m%d)
           BRANCH="chore/compat-vendor-$STAMP"
           TITLE="chore(compat-oracle): re-vendor upstream test suites"
-          BODY='A host changed its test suite. The control lines are the re-proven gates against the real hosts; the burgee lines are the refreshed grades. A moved test count is what C6 exists to surface — review it; it is not auto-merged.'
+          BODY='A host published a release whose suite differs from the vendored record. The control lines are the re-proven gates against the real hosts; the burgee lines are the refreshed grades; the diff below is exactly what moved. Review it; it is not auto-merged.'
+          DIFF=$(cat packages/compat-oracle/vendor-diff.md 2>/dev/null || echo '_No test or surface changes recorded._')
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
           git add packages/compat-oracle/vendor
           git commit -m "$TITLE"
           git push -u origin "$BRANCH"
-          gh pr create --base main --head "$BRANCH" --label skip-changeset --title "$TITLE" --body "$(printf '%s\n\n```\n%s\n```\n' "$BODY" "$(cat compat.log)")"
+          gh pr create --base main --head "$BRANCH" --label skip-changeset --title "$TITLE" --body "$(printf '%s\n\n```\n%s\n```\n\n%s\n' "$BODY" "$(cat compat.log)" "$DIFF")"
