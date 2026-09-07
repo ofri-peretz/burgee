@@ -4,9 +4,10 @@ Measured 2026-09-07 against the published tarballs of five large CLIs that depen
 commander: `webpack-cli`, `firebase-tools`, `@vue/cli`, `lerna`, `@angular/cli`. Counts
 are call sites across their shipped JavaScript.
 
-The point: `burgee/commander` has 151 methods to reach, and "follow everything they are
-using" is a claim about the ones people actually call, not the whole surface. This is the
-build order for wave 2.
+**This is a build *order*, not a build *scope*.** The target is all 151 methods and
+1,215/1,215 on commander's own suite — decided 2026-09-07: have it all, and more. What the
+measurement buys is the sequence, so that the first programs run as early as possible and
+the burn-down is useful from its first commit rather than its last.
 
 | Method | Call sites | In burgee today |
 | :--- | ---: | :--- |
@@ -41,8 +42,9 @@ head as a shape: a handful of methods carry almost every program.
 
 **The distribution is extremely head-heavy.** Six methods — `option`, `description`,
 `parse`, `action`, `command`, `name` — cover the overwhelming majority of call sites, and
-burgee already implements five of them. The 151-method surface is real, but the *reachable*
-surface for a typical program is closer to fifteen.
+burgee already implements five of them. That does not shrink the target: a program that
+uses one rare method and cannot migrate is as blocked as one that uses none. It means the
+first real programs run early, long before the surface is complete.
 
 **The highest-value gap is `.parse()` / `.parseAsync()`.** burgee's façade builds the
 manifest correctly but does not yet execute from it, so a real program cannot run. Nothing
@@ -68,8 +70,10 @@ test harnesses and embedders use, so a CLI that uses one cannot migrate without 
    `.allowUnknownOption()`, `.allowExcessArguments()`.
 4. `.exitOverride()`, `.configureOutput()`, `.configureHelp()` — rare, but they gate
    embedders and test harnesses.
-5. Everything else, driven by the compat oracle's failing tests rather than by this list —
-   at that point the burn-down is a better guide than any sample of five programs.
+5. Everything else — all 151 — driven by the compat oracle's failing tests rather than by
+   this list. At that point the burn-down is a better guide than any sample of five
+   programs, and the finish line is 1,215/1,215 rather than a percentage that felt like
+   enough.
 
 Re-measure at the start of wave 2 against a wider sample; five CLIs is enough to order the
 work and not enough to close it.

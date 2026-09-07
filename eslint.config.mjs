@@ -269,6 +269,14 @@ export default [
     },
   },
   {
+    // Measured 2026-09-07: under verbatimModuleSyntax an inline type specifier
+    // (`import { type X } from './m.js'`) emits `import {} from './m.js'` — a real
+    // module load for no value, worth ~5ms of startup here. A type-only import must
+    // be top-level so it erases completely.
+    files: ['packages/burgee/src/index.ts'],
+    rules: { 'import-next/consistent-type-specifier-style': 'off' },
+  },
+  {
     // Plugin hooks run strictly in order — `enforce: 'pre'`, then unordered, then
     // `'post'` — and a hook may depend on what an earlier one did. Sequential await
     // is the contract, not an oversight.

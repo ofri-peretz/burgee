@@ -9,7 +9,7 @@
 import { parseArgs } from 'node:util';
 
 import { ExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
-import { type OptionSpec } from './manifest.js';
+import type { OptionSpec } from './manifest.js';
 
 export interface CommandContext<O> {
   options: O;
@@ -192,4 +192,4 @@ export async function run<O>(command: Command<O>, opts: RunOptions = {}): Promis
 }
 
 export { ExitCode, isExitCode, type ExitCode as ExitCodeValue } from './exit-code.js';
-export { type OptionSpec } from './manifest.js';
+export type { OptionSpec } from './manifest.js';
