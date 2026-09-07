@@ -7,11 +7,47 @@ Intent: [`intent.md`](./intent.md). **Status:** draft.
 
 ---
 
+## The shape lock — why this is a better commander and not another oclif
+
+Everything below (a manifest, plugins, generated surfaces) is also oclif's architecture,
+and oclif lost: **10.9M downloads a week against commander's 508M**, after eight years
+and with Salesforce behind it. The difference is not features. It is that oclif is a
+*framework* — it requires a project structure, a build step, a generator and eighteen
+runtime dependencies — while commander is a *library* you install and use in one file.
+
+The floor's capabilities are worth having. Adopting oclif's shape to get them is the
+single most likely way this project fails. So the shape is locked, first, ahead of every
+other requirement:
+
+| # | Requirement | Holds |
+| :-- | :-- | :-- |
+| Z1 | A working CLI is **one file**: `npm i`, write it, run it. No build step, no config file, no directory convention, no codegen, no scaffold | lock |
+| Z2 | Every capability beyond Z1 is **additive and removable**: precomputed manifests, lazy loading, plugins, the dev loop, scaffolding. Deleting any of them leaves a working CLI | lock |
+| Z3 | Zero runtime dependencies (K1). oclif ships 18 | lock |
+| Z4 | The first example in the README is **15 lines or fewer** and has no build step | lock |
+| Z5 | The manifest is computed **in memory at startup by default**. Precomputing it is an opt-in optimisation for large CLIs, never a prerequisite | R + bench |
+
+**Z1 is a real test, not a principle.** `packages/cli-core/src/shape.test.ts` creates a
+temporary directory, installs the built tarball, writes exactly one file, runs it, and
+asserts the output. If that test ever needs a second file, a config, or a build step to
+pass, the project has become oclif and the test fails.
+
+**Z5 is the design consequence.** The build-time manifest earns its place only for the
+250-command case (yargs #1005), so it is an optimisation with a benchmark attached, not
+the way commands are declared. A five-command CLI computes its manifest in microseconds
+at startup and never knows the build step exists.
+
+The reference point to keep in view: a commander user's first line is
+`new Command()`. Ours must be equally short, in one file, with nothing installed but us.
+
+---
+
 ## Requirements — the CLI floor
 
-69 requirements: the original 26 (F/O/E/V/S/P/D/T), 27 folded in from the gap-track
-intents on 2026-09-06 (S5–S8, V6–V7, H1–H6, D3–D5, P3, M1–M6, K1–K5), and 16 added the
-same day with the compatible-replacement strategy (K6, C1–C6, B1–B7). Each names the
+79 requirements: the shape lock (Z1–Z5), the original 26 (F/O/E/V/S/P/D/T), 27 folded in from the gap-track
+intents on 2026-09-06 (S5–S8, V6–V7, H1–H6, D3–D5, P3, M1–M6, K1–K5), and 27 added the
+same day with the compatible-replacement strategy and the architecture review
+(K6, C1–C8, B1–B7, N1–N10, J1–J9). Each names the
 issue evidence, whether the **runtime** (R) guarantees it or the **lint** rule (L)
 enforces it, and where it lands.
 
@@ -19,7 +55,7 @@ enforces it, and where it lands.
 
 | # | Requirement | Evidence | Holds | Agent cost removed |
 | :-- | :-- | :-- | :-- | :-- |
-| F1 | `--schema` prints the full command tree (commands, options, types, defaults, env bindings, examples, deprecations, exit codes) as JSON | yargs #1005, #2121; citty #117, #94; clack #525 | R | One call replaces a `--help` walk per subcommand |
+| F1 | `--schema` prints the full command tree (commands, options, types, defaults, env bindings, examples, deprecations, exit codes) as JSON, carrying a `schemaVersion` and validating against a JSON Schema published with the package | yargs #1005, #2121; citty #117, #94; clack #525 | R | One call replaces a `--help` walk per subcommand |
 | F2 | `--help --json` prints help as data; text help is rendered *from* that data | yargs cluster 2 (20+ issues) | R | No prose parsing; renderer bugs become template fixes |
 | F3 | Every command declares a description and ≥1 example; examples are single-line copy-pasteable | yargs #877, #1640, #1047 | L | Agent can act on the example directly |
 | F4 | Commands may be grouped and hidden; help groups are stable in the schema | yargs #684 (top issue), citty #93 | R | Agent filters by group instead of reading all |
@@ -43,6 +79,8 @@ enforces it, and where it lands.
 | E3 | Every error carries `code`, `message`, `hint`, and where possible `fix`: the exact command or flag to run next | yargs #2481, #1864 | R | One retry instead of two or three |
 | E4 | Lifecycle is explicit: parse → load config → validate → run → render → exit; validation failure stops the handler; async handlers are awaited | yargs #1069, #1975, #1797, #1399, #2223 | R | |
 | E5 | SIGINT restores the terminal and exits 130 | clack #573, #408; oclif/oclif #958 | R | |
+| E6 | The taxonomy separates **usage** from **environment** from **remote**: you typed it wrong, your environment is wrong, the far side said no. Each implies a different response — fix the script, fix the runner, retry or escalate — and `AUTH` is its own code, the most actionable single code in the survey | aws v2 252/253/254; gh 4 | R + L | commander-agent → engine |
+| E7 | The exit-code taxonomy is **declarative**: an author classifies an error and the framework maps it to a stable code. Reusing a code across two classes is a startup failure, not a runbook footnote | oxlint collapses a 20-variant enum to {0,1} | R + lock | engine |
 
 ### Values and precedence
 
@@ -98,6 +136,7 @@ enforces it, and where it lands.
 | :-- | :-- | :-- | :-- | :-- |
 | V6 | Config discovery order is fixed, documented, and shown by `--explain` | yargs #1234, #1676, #2191 | R | commander-env |
 | V7 | `extends` merges deeply and resolves from the extending file's `node_modules` | yargs #1363, #1135 | R | commander-env |
+| V8 | The precedence table and a `config explain` command are **generated** from the resolver, not hand-written. Ten of ten CLIs surveyed have config and env; **three of ten document the precedence** | the widest doc gap in the survey | R | commander-env |
 
 ### Help (from `cli-help-renderer`)
 
@@ -140,11 +179,40 @@ enforces it, and where it lands.
 | # | Requirement | Evidence | Holds | Lands in |
 | :-- | :-- | :-- | :-- | :-- |
 | K1 | Zero runtime dependencies in every layer package; hosts and UI libraries are peers | oclif/core #1627 | lock | all |
-| K2 | ESM only, Node ≥ 24 | oclif/core #1450, #1396 | lock | all |
+| K2 | ESM source, Node ≥ 24 — and **consumable from CommonJS**: every entry exposes a `default` condition beside `import`, and the library has no top-level await, so `require()` loads the same file via `require(esm)`. One artifact, both module systems, asserted by installing the tarball and requiring it | oclif/core #1450, #1396; a CJS commander user must still be able to change one import | lock | all |
 | K3 | Node natives over packages (`util.styleText`, `fs.glob`, `fetch`) | oclif/core #1627 | L (`prefer-native-style-text`) + lock | all |
-| K4 | An artifact gate runs on the built `dist/` before publish | eslint SARIF formatter incident | release.yml | all |
+| K4 | An artifact gate runs on the built `dist/` before publish; every package publishes with npm provenance via trusted publishing | eslint SARIF formatter incident; @oclif/core's 18 runtime deps | release.yml | all |
 | K5 | Per-package size budget, ratcheted | eslint `artifact-size-baseline.json` | lock | all |
 | K6 | Weight is paid per import: compat and host quirks live behind their own specifiers, never behind a runtime flag | competitor map §6 | lock + B4 | cli-packaging |
+
+### The adoption ladder (from `commander-compat` / `yargs-compat`)
+
+Added 2026-09-07. Someone on commander or yargs must be able to keep writing the syntax
+they already know, gain burgee's capabilities on day one without rewriting anything, and
+adopt native syntax gradually in the same program — three rungs, and a user may stand on
+more than one at once.
+
+The mechanism is that `burgee/commander` is a **façade over burgee's engine**, not a
+wrapper around real commander. A command declared through commander's API lands in the
+same manifest as a native `defineCommand`, and every surface is a projection of that
+manifest — so the surfaces do not care which façade populated it.
+
+| # | Requirement | Evidence | Holds | Lands in |
+| :-- | :-- | :-- | :-- | :-- |
+| J1 | A commander or yargs program keeps its syntax unchanged and its own test suite passing, graded by C2 | vitest→jest migration | R | commander-compat |
+| J2 | Purely **additive** surfaces — `--json`, `--schema`, `--mcp`, completions — are available on day one with no code change, because they are projections of the manifest the façade already fills | competitor map §5 | R | commander-compat |
+| J3 | Anything that changes **existing observable behaviour** — the exit-code contract, no-help-on-runtime-error — is off by default and enabled by one explicit call. The hosts' own suites assert the old behaviour, so silently changing it would fail C2 and break real users | commander's 1,215 tests assert help output | R | commander-compat |
+| J4 | If a program already defines a name burgee reserves (`json`, `help`, `schema`), the program wins and burgee's surface is withheld, reported by `--schema` | V5 | R + L | commander-compat |
+| J5 | Native `defineCommand` and façade commands compose in one program, so a user can write the next command in burgee syntax without moving the previous ones | the ladder is only real if the rungs mix | R | commander-compat |
+| J6 | Both paths are graded separately: the strict path against the host's own suite (C2), the enhanced path against burgee's conformance suite | a single suite cannot assert both behaviours | CI | compat-oracle |
+| J7 | A plugin works identically whichever syntax the host program is written in — commander, yargs or native — because it contributes to the manifest and the manifest does not record which façade filled it. One plugin, every rung | commander #2505 (plugin RFC, unlanded); yargs has none | R | cli-modularity |
+| J8 | Plugin hooks fire on commander- and yargs-syntax programs exactly as on native ones. The façades are ours, so the lifecycle hook points (`preRun`, `postRun`, `onError`) exist on every rung by construction, not by adapter | J7 | R | cli-modularity |
+| J9 | The façades depend on nothing: commander's 151 methods and yargs' 108 are implemented over burgee's engine in our source, never wrapped around the real packages. The real ones exist only inside `compat-oracle`, private and never published | K1, weight lock | lock | commander-compat, yargs-compat |
+
+**Why J3 is not negotiable.** commander's suite asserts help text and exit behaviour. A
+compat front-end that changed them by default would fail the very tests the compatibility
+claim rests on. So the free tier is strictly additive, and the behavioural floor is one
+line away rather than zero — which is still a far shorter migration than a rewrite.
 
 ### Compatibility (from `compat-oracle`)
 
@@ -167,13 +235,36 @@ them had no scheduled measurement.
 
 | # | Requirement | Evidence | Holds | Lands in |
 | :-- | :-- | :-- | :-- | :-- |
-| B1 | Agent cost: tokens, turns and success per task, layer on vs off | the umbrella's own ≥40%/≥30% claim | band | cli-benchmarks |
+| B1 | Agent cost: tokens, turns and success per task, layer on vs off. **A hypothesis to test, not a target to defend** — JetBrains' 425-trial study found output filtering *raised* cost 7.6% because cached re-reads bill at a tenth. The honest justification for O2/O5/F1 is parse reliability, not token economy | JetBrains 2026-07; arXiv 2607.09510 | band | cli-benchmarks |
 | B2 | Performance: cold start p50/p95 over ≥30 spawns, always including a bare-node floor row | competitor map §2 | band | cli-benchmarks |
 | B3 | Compatibility: per-host pass rate, read from `compat-oracle`, never recomputed | C2 | band | cli-benchmarks |
 | B4 | Weight: bundled KB per entry point against a published target; core-only import pulls zero front-end bytes | competitor map §6 | band | cli-benchmarks |
 | B5 | Every axis emits one JSON shape; one collector reads all of them | — | lock | cli-benchmarks |
 | B6 | B2/B3/B4 gate every PR; B1 runs weekly | cost and noise | CI | cli-benchmarks |
 | B7 | Every public number links to the generated `/benchmarks` page | a published target with no measurement decays into a slogan | lock | cli-benchmarks, docs-deploy |
+
+### Agent interface (from `cli-mcp`)
+
+Added 2026-09-06. The manifest already carries everything an MCP tool definition needs;
+these requirements turn that into a served interface rather than a document.
+
+| # | Requirement | Evidence | Holds | Lands in |
+| :-- | :-- | :-- | :-- | :-- |
+| N1 | `--mcp` serves the CLI over MCP stdio; tool definitions are generated from the manifest, never hand-written | citty #187; yargs #1605, #1838, #2121 | R | cli-mcp |
+| N2 | A command appears as a tool only if it opts in; destructive commands default to absent | security posture, not convenience | R + L | cli-mcp |
+| N3 | Zero runtime dependencies: JSON-RPC over stdio against `node:readline` | K1 | lock | cli-mcp |
+| N4 | Tool results are the O1 envelope, so MCP and `--json` callers see identical payloads | O1 | R | cli-mcp |
+| N5 | `--mcp` implies non-TTY: no prompts, no colour, E3 errors | O2, P2, E3 | R | cli-mcp |
+| N6 | Every command declares `effects: read_only \| idempotent \| non_idempotent`, **required not optional**, and it generates MCP's `readOnlyHint`/`idempotentHint`/`destructiveHint`. The spec defaults `destructiveHint` and `openWorldHint` to **true**, so silence is the dangerous reading | MCP `2026-07-28` schema | R + L | cli-mcp |
+| N7 | A no-op announces itself: every idempotent command reports `changed: true \| false`. An agent reads silence as success, and a silent failure stays invisible for a median of ~10 steps against a median recovery window of 1 | arXiv 2607.09510, 1,794 trajectories | R | commander-agent → engine |
+| N8 | `--schema` succeeds with **no authentication, no config file and no network**. It is the one command an agent runs first, before anything is set up | clispec.dev v0.3 | R + lock | cli-mcp |
+| N9 | The manifest carries `enum`, `minimum` and `maximum` as **data**, not as completion callbacks — the four fields a tool definition needs and a flag parser cannot supply | Cobra #2362, the flag/schema gap | R | commander-schema |
+| N10 | The floor is measured against **clispec.dev** and **cli-agent-lint**'s 34 checks, and the results published. A floor that fails someone else's published checklist is not a floor | — | CI | cli-benchmarks |
+| N11 | **The action-required envelope.** When a prompt would block, emit `{ status, reason, message, next[], hint }` where `next[]` carries runnable commands, each with a `when`, rewritten to include the caller's own global flags. The framework synthesises it from the manifest and argv; no author writes it | vercel is the only CLI of ten that does this | R | cli-mcp → engine |
+| N12 | **Agent detection, not just `isTTY`.** Non-interactive is the default under a detected agent (`AI_AGENT` and the 13 vendor variables), with `FORCE_TTY=1` to override. An agent may well have a TTY | `@vercel/detect-agent`; O2/P2 currently key off `isTTY` alone | R | commander-env |
+| N13 | `--schema` is **token-budget aware**: full schema under a declared character budget, progressively summarised above it, with field-path drilling to go deeper | posthog-cli `TOKEN_CHAR_LIMIT = 48,000` | R | cli-mcp |
+| N14 | Omitting `--json`'s argument **lists the valid fields**; an invalid field prints the valid set. Schema discovery with no extra surface and no drift | gh, alone of ten | R | commander-schema |
+| N15 | An `agent` output format that is **not JSON**: one compact line per record, no excerpts, no summary, whitespace collapsed. Agents want low-token and grep-able, which is often neither the human format nor JSON | oxlint and vitest converged independently | R | cli-help-renderer |
 
 ---
 

@@ -4,14 +4,39 @@
 
 @source "../../node_modules/fumadocs-ui";
 
-/* Interlace brand mark fills — the same theme-paired values as
-   packages/ui/styles/interlace-theme.css in the interlace repo, so the mark
-   here is pixel- and colour-identical to every other *.interlace.tools site. */
+/* The grounds the burgee is allowed to fly on.
+ *
+ * The flag's field spans the full value range — juniper #0a6b47 through
+ * near-black #0a0a0a to rock #a84c17 — so its silhouette only survives against a
+ * ground that is lighter than all three. Measured against the flag's three
+ * colours, the weakest contrast on this gradient is 4.93:1, clearing the 3:1
+ * WCAG AA floor for a graphical object with margin. Every dark ground tested
+ * failed: the best managed 1.45:1, because a dark page cannot separate from a
+ * dark flag centre at any hue. That is arithmetic, not taste — if you darken
+ * these values, the flag stops reading and the site stops clearing AA. */
 :root {
-  --brand-mark-bar-o: #a84c17;
-  --brand-mark-bar-g: #0a6b47;
+  --burgee-ground-from: #eaf1ec; /* sage */
+  --burgee-ground-to: #f7efe3; /* sand */
+  --color-fd-background: var(--burgee-ground-from);
+  --color-fd-card: #ffffff;
 }
+
+body {
+  background-image: linear-gradient(
+    135deg,
+    var(--burgee-ground-from) 0%,
+    var(--burgee-ground-to) 100%
+  );
+  background-attachment: fixed;
+}
+
+/* Dark theme is deliberately NOT given a gradient. The flag cannot clear AA on
+ * any dark ground, so dark mode keeps the design system's own background and the
+ * mark needs its own treatment there — see docs/intents/brand-burgee/intent.md. */
 .dark {
-  --brand-mark-bar-o: #f4794a;
-  --brand-mark-bar-g: #0d9460;
+  --color-fd-background: #0a0a0f;
+  --color-fd-card: #14131c;
+}
+.dark body {
+  background-image: none;
 }

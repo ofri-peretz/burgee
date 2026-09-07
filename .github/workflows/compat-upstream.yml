@@ -1,0 +1,63 @@
+# C6 — detect a new release of a host the day it ships. `--upstream` compares npm's latest
+# version with the vendored compatibility record (vendor/<host>/.source.json), fingerprints
+# the release in a scratch clone and diffs it: which tests and which API-surface names were
+# added, removed or changed. One issue per (host, version), never duplicated; nothing under
+# vendor/ is touched here — the weekly refresh PR does that.
+name: Compatibility · upstream releases
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: compat-upstream
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  watch:
+    name: Diff each host's latest release against the vendored record
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: ./.github/actions/setup
+
+      - name: Build
+        run: npx turbo run build --filter='./packages/*'
+
+      - name: Check upstream releases
+        run: node packages/compat-oracle/dist/bin.js --upstream 2>&1 | tee upstream.log
+
+      - name: Summary
+        if: always()
+        run: |
+          { echo '## Upstream releases'; echo; echo '```'; cat upstream.log || echo '(no output)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open one issue per new release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          FILE=packages/compat-oracle/upstream.json
+          COUNT=$(jq '.updates | length' "$FILE")
+          if [ "$COUNT" -eq 0 ]; then echo "Every host is at its latest release."; exit 0; fi
+          gh label create upstream-release --color 5319E7 --description "A host we are compatible with published a new release" --force
+          jq -c '.updates[]' "$FILE" | while read -r update; do
+            HOST=$(jq -r .host <<<"$update"); FROM=$(jq -r .from <<<"$update"); TO=$(jq -r .to <<<"$update")
+            TITLE="compat: $HOST $TO released (vendored $FROM)"
+            EXISTING=$(gh issue list --state open --label upstream-release --search "\"$TITLE\" in:title" --json number --jq '.[0].number // empty')
+            if [ -n "$EXISTING" ]; then echo "#$EXISTING already tracks: $TITLE"; continue; fi
+            jq -r .report <<<"$update" > body.md
+            {
+              echo
+              echo "Opened by the daily upstream check. Re-vendor with \`npm run compat -- --vendor\` (pins to the release tag), re-prove the control, and grade burgee; the ratchet (C5) and the compatibility page follow."
+            } >> body.md
+            gh issue create --title "$TITLE" --label upstream-release --body-file body.md
+          done

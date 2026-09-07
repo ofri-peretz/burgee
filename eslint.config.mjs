@@ -93,6 +93,10 @@ export default [
       '**/coverage/**',
       'docs/research/issues/**',
       'apps/docs/next-env.d.ts',
+      // Vendored upstream test suites (compat-oracle C6). They are the hosts' own
+      // files, unmodified except one import specifier, and are graded, never linted:
+      // "fixing" them would grade our reading of the host instead of the host.
+      'packages/*/vendor/**',
     ],
   },
   {
@@ -182,6 +186,10 @@ export default [
   },
 
   // ── Documented false positives (tracked in ofri-peretz/eslint) ────────────
+  // FP 12 (no exception needed, the code was hoisted): consistent-function-scoping fires on
+  // an arrow that is already at module scope when it is wrapped in a type assertion, and on
+  // trivial callbacks written inline inside an object literal that is passed as an argument,
+  // a shape unicorn's rule exempts. Seen 2026-09-07 in packages/burgee/src/help.test.ts.
   // void-dom-elements-no-children matches next/link's <Link> as the void <link>
   // element (case-insensitive tag match). Finding 5.
   {
@@ -215,7 +223,13 @@ export default [
   {
     // Test files: numbers in fixtures are the fixture.
     files: ['**/*.test.ts'],
-    rules: { 'conventions/no-magic-numbers': 'off' },
+    rules: {
+      'conventions/no-magic-numbers': 'off',
+      // FP 9: a test that writes a package.json fixture has a `version` field that
+      // must be an exact version, not a caret range. The rule reads any object
+      // literal with a `version` key as a dependency map.
+      'conventions/prefer-dependency-version-strategy': 'off',
+    },
   },
   {
     files: ['scripts/**'],
@@ -251,14 +265,89 @@ export default [
     },
   },
   {
-    // The two files allowed to touch `process` (process-reference-lock.test.ts):
+    // Two of the three files allowed to touch `process` (process-reference-lock.test.ts):
     // the real runtime's exit, and the harness's env/console swap by enumerated keys.
-    files: ['packages/cli-core/src/runtime.ts', 'packages/cli-core/src/testing.ts'],
+    // The third, burgee/src/index.ts, has its own block above.
+    files: ['packages/burgee/src/runtime.ts', 'packages/burgee/src/testing-helpers.ts'],
     rules: {
       'operability/no-process-exit': 'off',
       'secure-coding/detect-object-injection': 'off',
       'maintainability/no-missing-error-context': 'off',
       'reliability/no-missing-error-context': 'off',
+    },
+  },
+  {
+    // Measured 2026-09-07: under verbatimModuleSyntax an inline type specifier
+    // (`import { type X } from './m.js'`) emits `import {} from './m.js'` — a real
+    // module load for no value, worth ~5ms of startup here. A type-only import must
+    // be top-level so it erases completely.
+    files: ['packages/burgee/src/execute.ts', 'packages/burgee/src/help.ts'],
+    rules: { 'import-next/consistent-type-specifier-style': 'off' },
+  },
+  {
+    // Plugin hooks run strictly in order — `enforce: 'pre'`, then unordered, then
+    // `'post'` — and a hook may depend on what an earlier one did. Sequential await
+    // is the contract, not an oversight.
+    files: ['packages/burgee/src/manifest.ts'],
+    rules: { 'performance/no-await-in-loop': 'off', 'reliability/no-await-in-loop': 'off' },
+  },
+  {
+    // FP 11: require-data-minimization reads a static host-config literal (test-suite
+    // metadata: repo, glob, exclusions) as "excessive data collection". Nothing here
+    // collects anything. Tracked in the eslint monorepo.
+    files: ['packages/compat-oracle/src/hosts.ts', 'packages/burgee/src/cli.ts'],
+    rules: { 'operability/require-data-minimization': 'off' },
+  },
+  {
+    // FP 13: no-missing-error-context reads `throw new Error(message)` as an error without
+    // a message when the message arrives through a variable built two lines earlier.
+    // The brand CLI composes a multi-line contrast report and throws it. Tracked upstream.
+    files: ['packages/burgee/src/cli.ts'],
+    rules: { 'maintainability/no-missing-error-context': 'off', 'reliability/no-missing-error-context': 'off' },
+  },
+  {
+    // FP 8 (also seen in scripts/run-evals.ts): no-unhandled-promise fires on every call
+    // to a function-typed *parameter* inside an async function, assuming it returns a
+    // promise. The writer parameter returns void. Tracked in the eslint monorepo.
+    files: ['packages/compat-oracle/src/report.ts'],
+    rules: { 'maintainability/no-unhandled-promise': 'off', 'reliability/no-unhandled-promise': 'off' },
+  },
+  {
+    // A package's bin entry is executed, never imported, so it exports nothing.
+    files: ['packages/*/src/bin.ts'],
+    rules: { 'import-next/no-unused-modules': 'off' },
+  },
+  {
+    // burgee owns the process: a CLI framework's whole job is to parse, run and
+    // exit with the E1 contract. `exit` is injectable (RunOptions.exit) so tests
+    // never touch the real one; the default has to call process.exit.
+    files: ['packages/burgee/src/execute.ts'],
+    rules: {
+      'operability/no-process-exit': 'off',
+      'secure-coding/detect-object-injection': 'off',
+      // FP 10: UsageError's first parameter *is* the message and reaches super();
+      // the rule only recognises `new Error(...)`.
+      'maintainability/no-missing-error-context': 'off',
+      'reliability/no-missing-error-context': 'off',
+      // FP 7 (as in scripts/run-evals.ts): checking whether an option declares an environment
+      // variable, and whether that variable was set, is read as a timing-unsafe secret
+      // comparison because the identifiers contain "env". They compare a declared variable
+      // name and presence against undefined, never a secret.
+      'secure-coding/no-insecure-comparison': 'off',
+      // FP 1 recurs: the parseArgs token union is narrowed with an "in" check, which
+      // TypeScript verifies, and the rule still reads the property access afterwards as a
+      // dereference of a possible undefined. Three correct rewrites did not satisfy it;
+      // the code stays correct and the rule stays off here.
+      'reliability/no-missing-null-checks': 'off',
+    },
+  },
+  {
+    // The shim exists to load a target chosen at run time — that dynamic import is
+    // the entire compatibility mechanism, not an oversight.
+    files: ['packages/compat-oracle/src/shim.ts'],
+    rules: {
+      'node-security/no-dynamic-dependency-loading': 'off',
+      'import-next/no-default-export': 'off',
     },
   },
   {
@@ -273,5 +362,40 @@ export default [
       'import-next/no-barrel-import': 'off',
       'import-next/no-unused-modules': ['error', { allowImportOnly: true }],
     },
+  },
+  {
+    // `burgee/commander` is commander 15 ported method for method and graded by
+    // commander's own 1,331 tests (compat-oracle). Its shape — one EventEmitter subclass,
+    // the `_`-prefixed package-level fields the upstream tests reach for, the long parse
+    // loop, process.exit when no exitOverride is set — *is* the specification, so the
+    // structural rules that would reshape it are off here. The oracle is the check.
+    files: ['packages/burgee/src/commander-*.ts', 'packages/burgee/src/commander.ts'],
+    rules: {
+      'maintainability/consistent-function-scoping': 'off',
+      'maintainability/cognitive-complexity': 'off',
+      'maintainability/identical-functions': 'off',
+      'maintainability/nested-complexity-hotspots': 'off',
+      'maintainability/max-parameters': 'off',
+      'maintainability/no-missing-error-context': 'off',
+      'reliability/no-missing-error-context': 'off',
+      'maintainability/no-unhandled-promise': 'off',
+      'reliability/no-unhandled-promise': 'off',
+      'reliability/no-unsafe-type-narrowing': 'off',
+      'secure-coding/detect-object-injection': 'off',
+      'secure-coding/no-improper-type-validation': 'off',
+      'conventions/no-magic-numbers': 'off',
+      'operability/no-process-exit': 'off',
+      'modernization/prefer-event-target': 'off',
+      'import-next/exports-last': 'off',
+      'import-next/consistent-type-specifier-style': 'off',
+      'import-next/no-barrel-file': 'off',
+    },
+  },
+  {
+    // X7 fixture: the commander demo built on burgee/commander through commander's own
+    // types. The one cast *is* the drop-in claim, and commander-parity.test.ts proves it
+    // byte for byte — a structural interface here would restate commander's typings.
+    files: ['examples/demo-cli-commander/src/burgee.ts'],
+    rules: { 'reliability/no-unsafe-type-narrowing': 'off', 'secure-coding/no-unsafe-type-assertion': 'off' },
   },
 ];

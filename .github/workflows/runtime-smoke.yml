@@ -1,0 +1,64 @@
+# cli-packaging R6 — the demos on bun and deno. Informational (continue-on-error): the
+# runtimes are not in `engines`, but a one-file CLI that runs only on node is a shape
+# regression worth seeing the day it happens.
+name: Runtime smoke · bun, deno
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: runtime-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  bun:
+    name: bun runs the demos
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: ./.github/actions/setup
+      - name: Build
+        run: npx turbo run build --filter='./packages/*' --filter='./examples/*'
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: latest
+      - name: Smoke
+        run: |
+          set -euo pipefail
+          bun --version
+          test "$(bun examples/demo-cli-burgee/dist/bin.js greet ada)" = "Hello, ada!"
+          test "$(bun examples/demo-cli-commander/dist/bin.js greet ada)" = "Hello, ada!"
+          bun examples/demo-cli-burgee/dist/bin.js config get user.name --json | grep -q '"ok":true'
+          bun examples/demo-cli-burgee/dist/bin.js --help | grep -q 'Commands:'
+
+  deno:
+    name: deno runs the demos
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: ./.github/actions/setup
+      - name: Build
+        run: npx turbo run build --filter='./packages/*' --filter='./examples/*'
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.x
+      - name: Smoke
+        run: |
+          set -euo pipefail
+          deno --version
+          run() { deno run -A --node-modules-dir=manual "$@"; }
+          test "$(run examples/demo-cli-burgee/dist/bin.js greet ada)" = "Hello, ada!"
+          test "$(run examples/demo-cli-commander/dist/bin.js greet ada)" = "Hello, ada!"
+          run examples/demo-cli-burgee/dist/bin.js config get user.name --json | grep -q '"ok":true'
+          run examples/demo-cli-burgee/dist/bin.js --help | grep -q 'Commands:'

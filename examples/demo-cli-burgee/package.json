@@ -1,0 +1,28 @@
+{
+  "name": "demo-cli-burgee",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The reference CLI, natively on burgee: the same commands as the commander and yargs demos, so the conformance suite runs on all three hosts. Fixture for G2.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "demo-burgee": "./dist/bin.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "burgee": "*"
+  }
+}

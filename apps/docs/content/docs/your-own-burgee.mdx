@@ -1,0 +1,77 @@
+---
+title: Fly your own burgee
+description: "Every CLI built on burgee can have a flag of its own — generated from two colours, with your glyph on it, from the same code that draws ours."
+---
+
+A burgee is the small swallowtail flag a boat flies to say which club or fleet it
+belongs to. Ours is on this page's tab. Yours takes one command.
+
+This is not a template we copied for you. `burgee/brand` is the same module that
+generates every identity surface on this site, and it is published as part of the
+package, so your flag and ours are drawn by one implementation.
+
+## One command
+
+```bash
+npx burgee-brand --lead '#5b21b6' --follow '#0ea5e9' --name acme --out ./brand
+```
+
+Six files land in `./brand`: `flag.svg`, `icon.svg` (a favicon master),
+`og.svg` (1200×630, what every crawler crops to), `cover.svg` (1000×420, the
+dev.to ratio), and a nav lockup in dark and light.
+
+`--tagline` sets the line under your name on the card and cover. `--bordure`
+adds a hairline outline. `--charge` points at an SVG whose contents replace the
+two bars with your own glyph, drawn in a `0 0 100 100` box:
+
+```bash
+npx burgee-brand --lead '#5b21b6' --follow '#0ea5e9' \
+  --charge ./glyph.svg --bordure '#e8dcc8' --out ./brand
+```
+
+It is a burgee command like any other, so `--json` gives you the file list as a
+stable envelope, and a missing flag exits `2` with the flag that fixes it. Drive
+it from a script without parsing prose.
+
+## Or from code
+
+```js
+import { defineBurgee, opposedField } from 'burgee/brand';
+
+const brand = defineBurgee({
+  name: 'acme',
+  mark: { lead: '#5b21b6', follow: '#0ea5e9' },
+  field: opposedField({ lead: '#5b21b6', follow: '#0ea5e9' }),
+});
+
+writeFileSync('icon.svg', brand.favicon());
+```
+
+`defineBurgee` takes the field as explicit gradient stops if you want them.
+`opposedField` is the default worth understanding before you replace it.
+
+## Two decisions the generator makes for you
+
+**The field runs backwards.** Your leading colour goes at the *far* end of the
+gradient, so the leading half of the charge sits against the following colour and
+the reverse. Each half of your mark lands on its opposite. That tension is the
+whole reason the flag reads as one object rather than a logo on a rectangle.
+
+**It passes through a dark midpoint.** This is not styling. The charge sits at
+the flag's centre, and two saturated colours of similar weight cannot be told
+apart — ours measure **1.16:1** against each other, which is invisible. Dropping
+the field to near-black exactly where the charge sits lifts them to **3.50:1**
+and **3.02:1**, clearing the 3:1 floor WCAG sets for a graphical object. Move it
+with `--ground` if your pair needs a different value; remove it and your mark
+will disappear into your own flag.
+
+The same reasoning applies to whatever you put the flag *on*: a card ground at
+or near the field's dark stop dissolves the middle of the flag and leaves two
+floating triangles. Ours are held clear of it deliberately.
+
+## Fly it, then send it back
+
+If you build a CLI on burgee and make a burgee for it, open a pull request
+adding it to the fleet. One flag, its two colours, and a link to the CLI. A
+burgee says which fleet a boat belongs to, and a fleet you cannot see the other
+boats in is not much of one.

@@ -1,0 +1,73 @@
+---
+title: burgee vs the alternatives
+description: Measured against commander, yargs, oclif, cac and citty — with what is built today separated from what is planned.
+---
+
+Every number below was measured on 2026-09-07, Node 24 on darwin/arm64, medians of 25
+process spawns. Nothing is estimated, and features are split into **built today** and
+**planned** so the table cannot flatter us.
+
+## Measured
+
+| | **burgee** | commander | yargs | @oclif/core | cac | citty |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Downloads / week | new | 508.2M | 259.3M | 10.9M | 49.4M | 30.5M |
+| Runtime dependencies | **0** | 0 | 6 | **18** | 0 | 0 |
+| Installed size | 104 KB | 232 KB | 440 KB | **912 KB** | 52 KB | 52 KB |
+| Import cost over bare node | **+9 ms** | +20 ms | — | **+131 ms** | — | — |
+| Full CLI run over bare node | **+6 ms** | +16 ms | +84 ms | — | +5 ms | +6 ms |
+
+`@oclif/core` costs **131 ms just to import**, before parsing anything. That is four times
+Node's own startup, and it is the price of eighteen runtime dependencies.
+
+burgee's speed comes from `node:util.parseArgs` being in the standard library, not from a
+faster language — burgee is TypeScript, exactly like commander and yargs. It lands level
+with cac and citty; the gap is over commander and yargs specifically.
+
+## Capabilities
+
+| | **burgee** | commander | yargs | oclif | cac | citty |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| One file, no build step | ✅ *(enforced by test)* | ✅ | ✅ | ❌ scaffold | ✅ | ✅ |
+| **Plugins** | ✅ **built** | ❌ *(RFC #2505, unlanded)* | ❌ | ✅ | ❌ | ❌ |
+| Plugins on *commander* syntax | ✅ **built** | — | — | — | — | — |
+| `--json` envelope | ✅ **built** | ❌ | ❌ | partial | ❌ | ❌ |
+| Exit-code contract | ✅ **built** | ❌ | ❌ | partial | ❌ | ❌ |
+| No help dumped on a runtime error | ✅ **built** | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Weight budget per entry point | ✅ **built** | ❌ | ❌ | ❌ | ❌ | ❌ |
+| commander compatibility | 🔨 in progress | — | ❌ | ❌ | ❌ | ❌ |
+| yargs compatibility | 📋 planned | ❌ | — | ❌ | ❌ | ❌ |
+| `--schema` (the CLI as data) | 📋 planned | ❌ | ❌ | manifest | ❌ | ❌ |
+| `--mcp` (an MCP server) | 📋 planned | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Shell completions | 📋 planned | ❌ | partial | ✅ | ❌ | partial |
+| Types derived from one schema | 📋 planned | partial | partial | ✅ | partial | ✅ |
+
+✅ built · 🔨 in progress · 📋 planned
+
+## The three that matter
+
+**Plugins.** commander has no plugin system — its RFC has been open for years — and yargs
+has none either. burgee has one, and it works on a program written in *commander's* syntax:
+change one import and you gain a capability commander cannot sell you at any price.
+
+**Nothing you rely on breaks.** Compatibility is graded by commander's own 1,215 tests and
+yargs' 1,185, run in our CI, published as a pass rate that only goes up. Not the word
+"compatible" — a number you can check.
+
+**One declaration, every surface.** Help, `--json`, `--schema`, `--mcp`, completions and
+types are all projections of the same manifest, so they cannot drift, and adding the next
+one is an emitter rather than a feature.
+
+## What we do not have
+
+**Users.** commander and yargs do 767M downloads a week between them; burgee is days old.
+Every number above is real and none of it matters until someone installs it. The
+compatibility burn-down is published from the first commit precisely so that gap is visible
+rather than glossed.
+
+## Reproducing
+
+```bash
+npm i burgee commander @oclif/core
+for i in $(seq 25); do s=$(date +%s%N); node -e "import('burgee')"; e=$(date +%s%N); echo $(( (e-s)/1000000 )); done | sort -n | sed -n '13p'
+```

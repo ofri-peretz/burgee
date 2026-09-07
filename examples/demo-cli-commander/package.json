@@ -2,12 +2,23 @@
   "name": "demo-cli-commander",
   "version": "0.0.0",
   "private": true,
-  "description": "The reference CLI, on commander: one positional, one boolean, a subcommand group, an env-bound option, a runtime failure. Fixture for the conformance suite and the lint plugin.",
+  "description": "The reference CLI, on commander: one positional, one boolean, a subcommand group, an env-bound option, a runtime failure. Fixture for the conformance suite and the lint plugin; `./burgee` is the same program on burgee/commander (X7).",
   "type": "module",
-  "engines": { "node": ">=24" },
-  "bin": { "demo-commander": "./dist/bin.js" },
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "demo-commander": "./dist/bin.js"
+  },
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./burgee": {
+      "types": "./dist/burgee.d.ts",
+      "import": "./dist/burgee.js"
+    }
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -15,7 +26,7 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@interlace/cli-core": "*",
+    "burgee": "*",
     "commander": "^15.0.0"
   }
 }
