@@ -71,7 +71,8 @@ describe('process references stay behind the Runtime seam', () => {
         // POSIX separators on every OS: the allow-list is written with them.
         const rel = relative(PACKAGES, f).split(sep).join('/');
         if (ALLOWED.has(rel)) continue;
-        const lines = readFileSync(f, 'utf-8').split('\n');
+        // CRLF checkouts (Windows) would otherwise leave a \r that stops the comment-stripping regex.
+        const lines = readFileSync(f, 'utf-8').split(/\r?\n/);
         lines.forEach((line, i) => {
           const code = line.replace(/\/\/.*$/, '');
           const isComment = /^\s*(\*|\/\*)/.test(line);

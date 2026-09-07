@@ -50,7 +50,7 @@ runs:
           packages/*/node_modules
           apps/*/node_modules
           examples/*/node_modules
-        key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+        key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json', '.github/actions/setup/action.yml') }}
 
     - name: Install dependencies
       if: inputs.node-modules-cache != 'true' || steps.node-modules-cache.outputs.cache-hit != 'true'
