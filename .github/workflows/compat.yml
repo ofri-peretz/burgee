@@ -1,0 +1,71 @@
+# The compatibility scoreboard, on every change.
+#
+#   ratchet — C5: each host's own suite against burgee; falling below the recorded baseline
+#             fails. Runs where the baselines were recorded (Linux, the .nvmrc Node).
+#   matrix  — C3: every Node LTS in `engines` × Linux, macOS, Windows. Our own suite is a
+#             hard gate everywhere; the controls are informational off Linux, because the
+#             hosts' suites are themselves OS-sensitive and a baseline recorded on one OS
+#             is not a contract for another.
+name: Compatibility
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: compat-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ratchet:
+    name: Ratchet · each host's suite against burgee
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: ./.github/actions/setup
+      - name: Build
+        run: npx turbo run build --filter='./packages/*'
+      - name: Grade burgee (fails below baseline)
+        run: node packages/compat-oracle/dist/bin.js 2>&1 | tee compat.log
+      - name: Summary
+        if: always()
+        run: |
+          { echo '## Compatibility'; echo; echo '```'; cat compat.log || echo '(no output)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: compat-results
+          path: packages/compat-oracle/results.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+  matrix:
+    name: Node ${{ matrix.node }} · ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: [24, 26]
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      # The shared setup action pins Node from .nvmrc; a matrix needs the version varied,
+      # so this job installs Node directly.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - name: Our suite (hard gate on every cell)
+        run: npm test
+      - name: Controls (informational off Linux)
+        continue-on-error: ${{ matrix.os != 'ubuntu-latest' }}
+        run: node packages/compat-oracle/dist/bin.js --control

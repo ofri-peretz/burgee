@@ -1,2 +1,3 @@
 vendor/*/shim*.js
 results.json
+results.control.json

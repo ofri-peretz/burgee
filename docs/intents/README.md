@@ -146,17 +146,14 @@ three separate times before that rule existed.
 | **5 · speed** | native front-end spike, `eslint-plugin-cli-floor` as an oxlint rule | `--help` in 13 ms, or a recorded decision not to | conditional |
 | — | `security-profile` | a scanner-shaped CLI cannot confuse findings with failure | after 3, when an adopter needs it |
 
-### What wave 1 has left
+### Wave 1 — what landed, what is left
 
-- **`compat-oracle`** — commander graded ✅. Outstanding: vendor yargs (1,185 tests, its
-  runner is mocha), the Node × OS matrix (C3), the scheduled vendor refresh that opens a
-  PR when upstream's count moves (C6), and publishing the rate to the docs site.
-- **`cli-packaging`** — provenance via trusted publishing, the artifact gate, the size
-  ratchet. Blocked on the OIDC trusted publisher (`ofri-peretz` / `burgee` /
-  `release.yml` / `production`); everything else is buildable now.
-- **`replacement-parser`** — the engine, lifecycle, exit contract and manifest are built
-  and under four locks; the §10 parsing-edge fixes and the quirk modules are not. The
-  intent's status still says `review`; that drift is called out below.
+| | Done | Left |
+| :-- | :-- | :-- |
+| `compat-oracle` | both suites vendored; both gates proven (1283/1307, 785/816); `burgee/commander` 17/1307, `burgee/yargs` an honest 0/816; ratchet; `--control`; weekly re-vendor PR (C6); ratchet on every PR + Node×OS matrix (C3); generated `compatibility.mdx` (C2) | publish the page (needs `docs-deploy`) |
+| `cli-packaging` | no-deps / ESM / no-`main` / `default`-condition lock (R1–R3); artifact gate in `release.yml` between build and publish (R4); tarball size ratchet with baseline (R5); provenance restored under the trusted publisher | R6, the bun/deno smoke — deferred to wave 2, it needs those runtimes in CI |
+| **ESM + CJS** | every entry has a `default` condition; no top-level await in the library; `require('burgee')` and `require('burgee/commander')` proven against the installed tarball — one artifact, both module systems (K2, revised) | — |
+| `replacement-parser` | engine, lifecycle, exit contract, manifest, four locks | G5 `--`/stdin semantics, G6 six §10 fixes with cited tests, G7 measured, G2 third conformance host — the parser's remainder is the last wave-1 item |
 
 ### What the research changed, and where it landed
 

@@ -10,23 +10,29 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./brand": {
       "types": "./dist/brand.d.ts",
-      "import": "./dist/brand.js"
+      "import": "./dist/brand.js",
+      "default": "./dist/brand.js"
     },
     "./testing": {
       "types": "./dist/testing.d.ts",
-      "import": "./dist/testing.js"
+      "import": "./dist/testing.js",
+      "default": "./dist/testing.js"
     },
     "./commander": {
       "types": "./dist/commander.d.ts",
-      "import": "./dist/commander.js"
+      "import": "./dist/commander.js",
+      "default": "./dist/commander.js"
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "!dist/**/*.map",
+    "!dist/**/*.test.*"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

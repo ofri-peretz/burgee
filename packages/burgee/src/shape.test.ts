@@ -147,6 +147,30 @@ describe('Z1 — one file, npm i, no build step', () => {
     }
   }, 120_000);
 
+  it('is consumable from CommonJS too — the same ESM file, through require(esm) (K2)', () => {
+    // No dual build. Every entry exposes a `default` condition beside `import`, and the
+    // library has no top-level await, so Node >= 22.12 loads the ESM file from require().
+    // A commander user on CommonJS can still change one import; without this they could not.
+    const cjs = join(dir, 'probe.cjs');
+    writeFileSync(
+      cjs,
+      [
+        "const { defineCommand, run } = require('burgee');",
+        "const { Command } = require('burgee/commander');",
+        "if (typeof Command !== 'function') throw new Error('burgee/commander has no Command');",
+        "run(defineCommand({ name: 'g', options: { name: { type: 'string', required: true } },",
+        '  run: ({ options }) => ({ greeting: `hello, ${options.name}` }) }), { argv: ["--name", "ada"] });',
+        '',
+      ].join('\n'),
+    );
+    try {
+      const out = execFileSync(process.execPath, [cjs], { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      expect(out).toContain('hello, ada');
+    } finally {
+      rmSync(cjs, { force: true }); // the one-file assertion above must stay true
+    }
+  });
+
   it('the package it installed has zero runtime dependencies (K1/Z3)', () => {
     const manifest = JSON.parse(
       execFileSync('npm', ['ls', 'burgee', '--json', '--depth', '1'], { cwd: dir, encoding: 'utf8' }),

@@ -40,7 +40,9 @@
     "control-bands": "tsx scripts/control-bands.ts",
     "evals": "tsx scripts/run-evals.ts",
     "evals:config": "tsx scripts/run-evals.ts --config",
-    "compat": "npm run build -w compat-oracle && node packages/compat-oracle/dist/bin.js"
+    "compat": "npm run build -w compat-oracle && node packages/compat-oracle/dist/bin.js",
+    "compat:page": "tsx scripts/compat-page.ts",
+    "check:artifacts": "tsx scripts/check-published-artifacts.ts"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^0.5.1",
@@ -52,6 +54,7 @@
     "@typescript-eslint/eslint-plugin": "^8.61.1",
     "@typescript-eslint/parser": "^8.61.1",
     "burgee": "*",
+    "compat-oracle": "*",
     "eslint": "^9.39.4",
     "eslint-plugin-conventions": "^4.0.7",
     "eslint-plugin-import-next": "^2.7.5",

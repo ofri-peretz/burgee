@@ -39,11 +39,18 @@
   "exports": {
     "./drivers/commander": {
       "types": "./dist/drivers/commander.d.ts",
-      "import": "./dist/drivers/commander.js"
+      "import": "./dist/drivers/commander.js",
+      "default": "./dist/drivers/commander.js"
     },
     "./drivers/yargs": {
       "types": "./dist/drivers/yargs.d.ts",
-      "import": "./dist/drivers/yargs.js"
+      "import": "./dist/drivers/yargs.js",
+      "default": "./dist/drivers/yargs.js"
+    },
+    "./hosts": {
+      "types": "./dist/hosts.d.ts",
+      "import": "./dist/hosts.js",
+      "default": "./dist/hosts.js"
     }
   },
   "files": [

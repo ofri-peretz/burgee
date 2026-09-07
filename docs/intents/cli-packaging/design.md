@@ -6,11 +6,13 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
 
 ## Requirements
 
-- **R1 (K1)** `scripts/__tests__/package-deps.lock.test.ts`: for every non-private
-  package, `dependencies` is empty or limited to `@interlace/cli-core`; hosts and UI
-  libraries are `peerDependencies`.
-- **R2 (K2)** Every package: `"type": "module"`, `exports` with `types` + `import`
-  only, `engines.node: ">=24"`, no `main`/`require` fields; locked.
+- **R1 (K1)** `scripts/package-shape-lock.test.ts`: every non-private package has no
+  `dependencies` at all (there is no internal core any more); hosts and UI libraries, if
+  ever needed, are `peerDependencies`.
+- **R2 (K2)** Every non-private package: `"type": "module"`, every `exports` entry has
+  `types` + `import` + `default` (the `default` is what lets CommonJS `require()` the ESM
+  file), `engines.node: ">=24"`, no `main`; locked. Revised 2026-09-07 from "import only"
+  when the owner required CJS consumers to be supported.
 - **R3 (K3)** `eslint-plugin-cli-floor`'s `prefer-native-style-text` and
   `import-next/no-nodejs-modules` off (already) — plus a lock that no package imports
   `chalk`, `picocolors`, `glob`, `node-fetch`, `minimist`.

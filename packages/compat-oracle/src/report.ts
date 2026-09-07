@@ -16,6 +16,7 @@ const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const VENDOR_DIR = resolve(root, 'vendor');
 const BASELINE = resolve(root, 'baseline.json');
 const RESULTS = resolve(root, 'results.json');
+const CONTROL_RESULTS = resolve(root, 'results.control.json');
 
 const PERCENT = 100;
 const BAR_WIDTH = 24;
@@ -81,7 +82,7 @@ export async function main(argv: string[], write: Write): Promise<number> {
   const planned = HOSTS.filter((h) => h.status === 'planned').map((h) => h.name);
   if (planned.length > 0) write(`\n  planned: ${planned.join(', ')}\n`);
 
-  writeFileSync(RESULTS, `${JSON.stringify({ measured: new Date().toISOString(), grades }, null, 2)}\n`);
+  writeFileSync(control ? CONTROL_RESULTS : RESULTS, `${JSON.stringify({ measured: new Date().toISOString(), grades }, null, 2)}\n`);
 
   const broken = grades.filter((g) => g.error !== undefined);
   const fell = grades.filter((g) => regressed(g, baseline));
