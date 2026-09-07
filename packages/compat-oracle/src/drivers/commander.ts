@@ -14,7 +14,7 @@ export interface CommanderProgram {
   exitOverride(): unknown;
   configureOutput(configuration: { writeOut: (s: string) => void; writeErr: (s: string) => void }): unknown;
   readonly commands: readonly CommanderProgram[];
-  parseAsync(argv?: readonly string[], options?: { from?: 'node' | 'user' }): Promise<unknown>;
+  parseAsync(argv?: readonly string[], options?: { from: 'node' | 'electron' | 'user' }): Promise<unknown>;
 }
 
 /** A program, or a factory that builds one against the runtime the harness fakes. */
