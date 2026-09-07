@@ -3,7 +3,7 @@
 /* eslint-disable no-undef */
 
 const yargs = require('../../');
-const {hideBin} = require('../../helpers/helpers.mjs')
+const {hideBin} = require('../../shim-1.js')
 
 yargs(hideBin(process.argv))
   .option('foo', {

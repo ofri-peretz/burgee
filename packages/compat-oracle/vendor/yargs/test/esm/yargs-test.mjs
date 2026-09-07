@@ -1,7 +1,7 @@
 /* global describe, it */
 
 import * as assert from 'assert';
-import yargs from '../../index.mjs';
+import yargs from '../../shim.js';
 
 // Example of composing hierarchical commands when using ESM:
 import {commands} from './fixtures/commands/index.mjs';

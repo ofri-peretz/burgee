@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { program } from '../../index.js';
+import { program } from '../../shim.js';
 
 program
   .command('try-ts', 'test file extension lookup')

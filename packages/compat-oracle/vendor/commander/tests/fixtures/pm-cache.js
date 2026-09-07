@@ -1,4 +1,4 @@
-import { program } from '../../index.js';
+import { program } from '../../shim.js';
 
 program
   .command('clear', 'clear the cache')

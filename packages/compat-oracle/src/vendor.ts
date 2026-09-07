@@ -8,7 +8,7 @@
 import { execFileSync } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 
 import { type Host } from './hosts.js';
 
@@ -30,14 +30,34 @@ export function shimName(index: number): string {
   return index === 0 ? 'shim.js' : `shim-${index}.js`;
 }
 
-/** Upstream tests import the library by public specifiers; each is pointed at a shim. */
-export function rewrite(source: string, imports: Host['imports']): string {
-  let out = source;
-  imports.forEach(({ upstream }, i) => {
-    const shim = `../${shimName(i)}`;
-    out = out.split(`'${upstream}'`).join(`'${shim}'`).split(`"${upstream}"`).join(`"${shim}"`);
-  });
-  return out;
+/**
+ * Rewrite each public specifier as it reads *from this file's directory*. The upstream
+ * specifier is written relative to the test dir (`../index.js`); a fixture two levels
+ * down writes the same module as `../../index.js`. Both must land on the one shim.
+ */
+export function rewriteAt(source: string, host: Host, fileDir: string, hostDir: string): string {
+  const testDir = join(hostDir, host.testDir);
+  const dotted = (p: string): string => (p.startsWith('.') ? p : `./${p}`);
+  return host.imports.reduce((acc, entry, i) => {
+    const upstreamHere = dotted(relative(fileDir, resolve(testDir, entry.upstream)));
+    const shimHere = dotted(relative(fileDir, join(hostDir, shimName(i))));
+    return acc.replaceAll(`'${upstreamHere}'`, `'${shimHere}'`).replaceAll(`"${upstreamHere}"`, `"${shimHere}"`);
+  }, source);
+}
+
+const TEXT = /\.(m?js|cjs|ts|json)$|^[^.]+$/;
+
+/** Rewrite every text file under a copied fixture tree, in place, keeping modes and symlinks. */
+function rewriteTree(dir: string, host: Host, hostDir: string): void {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const at = join(dir, entry.name);
+    if (entry.isDirectory()) rewriteTree(at, host, hostDir);
+    else if (entry.isFile() && TEXT.test(entry.name)) {
+      const source = readFileSync(at, 'utf8');
+      const out = rewriteAt(source, host, dir, hostDir);
+      if (out !== source) writeFileSync(at, out);
+    }
+  }
 }
 
 const INTERNAL = /(?:from|require\()\s*['"]\.\.\/((?:build\/)?lib\/[^'"]+)['"]/g;
@@ -94,13 +114,14 @@ export function vendor(host: Host, into: string): VendorResult {
     for (const entry of readdirSync(from, { withFileTypes: true })) {
       if (entry.isDirectory()) {
         cpSync(join(from, entry.name), join(dest, entry.name), { recursive: true, verbatimSymlinks: true });
+        rewriteTree(join(dest, entry.name), host, join(into, host.name));
         continue;
       }
       if (!/\.(m?js|cjs|ts)$/.test(entry.name)) continue;
       const source = readFileSync(join(from, entry.name), 'utf8');
       if (classify(source, host) === 'internal') internalFiles.push(entry.name);
       for (const p of internalImports(source)) internals.add(p);
-      writeFileSync(join(dest, entry.name), rewrite(source, host.imports));
+      writeFileSync(join(dest, entry.name), rewriteAt(source, host, dest, join(into, host.name)));
       files += 1;
     }
 
