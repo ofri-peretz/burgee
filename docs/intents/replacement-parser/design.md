@@ -43,8 +43,8 @@ arrives into a finished machine.
 runtime option would ship every quirk to every user. Instead:
 
 ```ts
-import { defineCommand } from 'selvage';
-import { camelCase } from 'selvage/quirks/camel-case';
+import { defineCommand } from 'banneret';
+import { camelCase } from 'banneret/quirks/camel-case';
 
 defineCommand({ /* … */ }, { behaviours: [camelCase] });
 ```

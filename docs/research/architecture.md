@@ -42,8 +42,8 @@ day 1    npm i commander            npm i interlace           npx oclif generate
                                         │
                                         │  opt in, only if you need it
                                         ▼
-                                    interlace manifest   (250-command CLIs)
-                                    interlace dev        (watch + live MCP)
+                                    banneret manifest   (250-command CLIs)
+                                    banneret dev        (watch + live MCP)
                                     plugins              (multi-package CLIs)
                                     interlace init       (scaffold, if you want one)
 ```
@@ -79,8 +79,8 @@ flowchart TB
 
   subgraph fe["front-ends — pay per import"]
     NAT["interlace<br/><i>native API</i>"]
-    CMD["interlace/commander<br/>151 methods · 1,215 tests"]
-    YRG["interlace/yargs<br/>108 methods · 1,185 tests"]
+    CMD["banneret/commander<br/>151 methods · 1,215 tests"]
+    YRG["banneret/yargs<br/>108 methods · 1,185 tests"]
   end
 
   subgraph q["quirks — opt-in, shared"]
@@ -106,7 +106,7 @@ Asserted by benchmark axis B4, not by intention.
 
 ```diff
 - import { Command } from 'commander';
-+ import { Command } from 'interlace/commander';
++ import { Command } from 'banneret/commander';
 ```
 
 ```mermaid
@@ -193,9 +193,9 @@ rung four of the ladder: additive, removable, and it reads the same manifest.
 
 ```mermaid
 flowchart LR
-  W1["<b>1 · engine</b><br/>parseArgs core<br/>lifecycle · exit codes<br/>shape lock<br/>compat-oracle"] --> W2["<b>2 · compatibility</b><br/>interlace/commander<br/>burn 1,215 down<br/>publish the rate"]
+  W1["<b>1 · engine</b><br/>parseArgs core<br/>lifecycle · exit codes<br/>shape lock<br/>compat-oracle"] --> W2["<b>2 · compatibility</b><br/>banneret/commander<br/>burn 1,215 down<br/>publish the rate"]
   W2 --> W3["<b>3 · surfaces</b><br/>--schema · --mcp<br/>help renderer<br/>completions"]
-  W3 --> W4["<b>4 · reach</b><br/>interlace/yargs<br/>interlace dev<br/>plugins · first adopter"]
+  W3 --> W4["<b>4 · reach</b><br/>banneret/yargs<br/>interlace dev<br/>plugins · first adopter"]
   W4 --> W5["<b>5 · speed</b><br/>native front-end spike<br/>lint rule as oxlint rule"]
 ```
 

@@ -9,7 +9,7 @@ intent, `intent.md` then `design.md`, statuses `draft → review → approved �
 
 **Decided 2026-09-06: we are building a competitor to commander and yargs, not a layer on
 top of them.** One engine owns argv and the lifecycle. It is drop-in compatible with both
-incumbents — `interlace/commander` and `interlace/yargs`, graded by their own 1,215 and
+incumbents — `banneret/commander` and `banneret/yargs`, graded by their own 1,215 and
 1,185 tests, with the pass rate published and ratcheting from the first commit. And it
 serves every command through every format a caller wants — human help, `--json`,
 `--schema`, `--mcp`, completions, Fig, types, docs — all projections of one manifest, so
@@ -87,7 +87,7 @@ converts it from a permanent dependency into a fixable backlog, so it now has an
 | 9 | [`docs-deploy/`](./docs-deploy/) | `apps/docs` on an interlace.tools host, `llms.txt`, the benchmarks page | B7 | review |
 | 10 | [`first-adopter/`](./first-adopter/) | a CLI we did not write, using the layer, reviewed by someone who did not build it | A1–A5 | review |
 | 11 | [`cli-mcp/`](./cli-mcp/) | `--mcp` turns any CLI on the floor into an MCP server, generated from the manifest | N1–N5 | review |
-| 12 | [`dev-loop/`](./dev-loop/) | `interlace dev` — watch, reload, and serve live MCP so your agent sees a command as you write it | W1–W6 | review |
+| 12 | [`dev-loop/`](./dev-loop/) | `banneret dev` — watch, reload, and serve live MCP so your agent sees a command as you write it | W1–W6 | review |
 
 ### The gaps — research clusters neither host ships
 
@@ -105,8 +105,8 @@ converts it from a permanent dependency into a fixable backlog, so it now has an
 | # | Intent | Delivers | Floor ids | Status |
 | :-- | :-- | :-- | :-- | :-- |
 | 19 | [`replacement-parser/`](./replacement-parser/) | our parser over `node:util.parseArgs`, as a third conformance host | G1–G7, §10 fixes | review |
-| 20 | [`commander-compat/`](./commander-compat/) | `selvage/commander` — 151 methods, graded by commander's 1,215 tests | X1–X7 | review |
-| 21 | [`yargs-compat/`](./yargs-compat/) | `selvage/yargs` — 108 methods, graded by yargs' 1,185 tests | X1–X7 | review |
+| 20 | [`commander-compat/`](./commander-compat/) | `banneret/commander` — 151 methods, graded by commander's 1,215 tests | X1–X7 | review |
+| 21 | [`yargs-compat/`](./yargs-compat/) | `banneret/yargs` — 108 methods, graded by yargs' 1,185 tests | X1–X7 | review |
 
 Not planned, on purpose: an update checker (citty #10 — a network call at startup is the
 opposite of what an agent wants), and non-Node runtimes (claiming Deno and Bun means
@@ -121,7 +121,7 @@ installable; every wave after it ends with a higher public compatibility number.
 | :-- | :-- | :-- |
 | 0 ✅ | `sdlc-locks-evals-bands`, `cli-testing-harness` | the loop, and a harness that runs a CLI in-process |
 | **1 · engine** | `replacement-parser`, `compat-oracle`, `cli-packaging` | a one-file CLI that runs, the shape lock green, and the first published commander pass rate |
-| **2 · compatibility** | `commander-compat`, `cli-help-renderer` | `interlace/commander` installable, its rate burning down in public |
+| **2 · compatibility** | `commander-compat`, `cli-help-renderer` | `banneret/commander` installable, its rate burning down in public |
 | **3 · surfaces** | `cli-mcp`, `commander-schema`, `commander-env`, `commander-completions` | `--schema`, `--mcp`, completions — the reason to switch |
 | **4 · reach** | `yargs-compat`, `dev-loop`, `cli-modularity`, `cli-prompts`, `first-adopter`, `eslint-plugin-cli-floor`, `docs-deploy`, `cli-benchmarks` | the second host, the dev loop, and a CLI we did not write using it |
 | **5 · speed** | native front-end spike, `eslint-plugin-cli-floor` as an oxlint rule | `--help` in 13ms, or a recorded decision not to |
@@ -206,26 +206,78 @@ yargs +84ms.
 
 ## Package naming
 
-Public packages are host-branded extensions, on the `eslint-plugin-*` model — never
-`@interlace/*`. Verified free on npm 2026-09-06 unless noted.
+Decided 2026-09-06 after checking **155 candidates**. The finding is structural: **npm's
+unscoped single-word namespace is exhausted.** Almost every meaningful English word,
+military rank, Latin or Greek term, CLI term and agent-era word is held, mostly by
+squatters and dead packages — `admiral`, `commodore`, `adjutant`, `shebang`, `synopsis`,
+`stdio`, `argv`, `edict`, `dictum`, `prism`, `herald`, and `interlace` itself.
 
-| Job | commander | yargs |
-| :-- | :-- | :-- |
-| the floor | `commander-agent` | `yargs-agent` |
-| in-process harness | `commander-harness` | `yargs-harness` |
-| schema declaration | `commander-schema` | name decided in wave 3 (`yargs-schema` is taken by an unrelated package) |
-| env and precedence | `commander-env` | `yargs-env` |
-| completions | `commander-completions` | `yargs-completions` |
-| prompts | `commander-prompts` | `yargs-prompts` |
-| modularity | `commander-plugins` | `yargs-plugins` |
-| the lint wedge | `eslint-plugin-cli-floor` | same package |
-| the replacement | `selvage` + `selvage/commander` | `selvage/yargs` |
+| Family checked | Tried | Free |
+| :-- | --: | --: |
+| military rank, one above *commander* | 20 | 0 |
+| command words | 22 | 2 |
+| CLI and agent vocabulary | 22 | 6 |
+| Latin and Greek | 24 | 3 |
+| weaving terms, for a brand tie | 15 | 3 |
+| coined and compound | 52 | 15 |
 
-`@interlace/*` is used only for internal packages that are never published:
-`@interlace/cli-core`, `@interlace/compat-oracle`. Help rendering has no package of its
-own — it is part of `commander-agent`, because "help is data rendered from the manifest"
-is the same contract, not a separate product. `selvage` is provisional; `treadle` and
-`sley` are also held.
+That leaves the two strategies every modern tool used once the words ran out: a
+**compound** (rolldown, esbuild, turbopack) or a **coined word** (vite, deno, zod, hono,
+oclif). Scoped names are ruled out by the owner.
+
+### The name: `banneret`
+
+A **banneret** is a knight who leads troops in the field under his own banner — so the
+word is, in one breath, a **military rank** and a **flag**. Both halves are load-bearing:
+
+- **The rank** puts it in commander's register, and specifically a rank earned in the
+  field rather than granted — which is the right posture for a challenger.
+- **The flag** is the subject matter. Flags are what a CLI declares and what it parses;
+  every surface in `architecture.md` §1 is a projection of the flags a command declares.
+- The pirate resonance yargs plays on comes free with the iconography — colours, banners,
+  running them up a mast — without a pun that has to be explained.
+
+It reads correctly in all three positions:
+
+```bash
+npm i banneret                                    # the package
+banneret dev                                      # the binary
+import { Command } from 'banneret/commander'      # the compat front-end
+```
+
+**On not encoding "AI" in the letters.** `commander` does not say "CLI"; `yargs` does not
+say "argument parser" to anyone who has not been told the joke. Neither name explains
+itself — they carry personality in a domain and let the tagline do the positioning. Every
+candidate that tried to fit military, pirate and AI into one coined word (`arrgentic`,
+`admirai`, `commandarr`) read as a mashup rather than a name. The letters carry the
+personality; the line under them carries the era.
+
+Runners-up, both free: **`pennon`** — the narrow flag flown at a masthead; shorter and
+softer, but it carries the flag meaning without the rank. **`vexillum`** — the Roman
+legion's standard; the most serious of the three and the hardest to spell.
+
+Rejected: real words with layered meaning that are already held (`ensign`, `marque`,
+`fathom`, `reckon`, `guidon`, `semaphore`, `lodestar` — every one taken); the
+rank-above-commander joke (`admiral`, `commodore` — all twenty taken, being the most
+obvious idea in the space); and coined portmanteaus, which catch every requirement and
+land none.
+
+### The rest of the family
+
+`@interlace/*` remains for internal packages that are never published —
+`@interlace/cli-core`, `@interlace/compat-oracle`. Everything public is unscoped.
+
+| Job | Package |
+| :-- | :-- |
+| the framework | `banneret` |
+| commander compatibility | `banneret/commander` |
+| yargs compatibility | `banneret/yargs` |
+| opt-in host quirks | `banneret/quirks/*` |
+| the lint wedge | `eslint-plugin-cli-floor` |
+
+The name is reversible until the first publish, and **wave 1 does not depend on it** —
+the engine, the shape lock and the compatibility oracle are all built before anything
+reaches npm.
 
 ## Execution status
 
