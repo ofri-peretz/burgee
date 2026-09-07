@@ -380,4 +380,11 @@ export default [
       'import-next/no-barrel-file': 'off',
     },
   },
+  {
+    // X7 fixture: the commander demo built on burgee/commander through commander's own
+    // types. The one cast *is* the drop-in claim, and commander-parity.test.ts proves it
+    // byte for byte — a structural interface here would restate commander's typings.
+    files: ['examples/demo-cli-commander/src/burgee.ts'],
+    rules: { 'reliability/no-unsafe-type-narrowing': 'off', 'secure-coding/no-unsafe-type-assertion': 'off' },
+  },
 ];

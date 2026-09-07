@@ -146,7 +146,7 @@ three separate times before that rule existed.
 | :-- | :-- | :-- | :-- |
 | 0 | `sdlc-locks-evals-bands`, `cli-testing-harness` | the loop, and a harness that runs a CLI in-process | ✅ shipped |
 | **1 · engine** | `replacement-parser`, `compat-oracle`, `cli-packaging` | a one-file CLI that runs, the shape lock green, the first published pass rate | 🔨 engine built · oracle grading commander · packaging next |
-| **2 · compatibility** | `commander-compat`, `cli-help-renderer` ↑ | every upstream file graded; `burgee/commander` 1,327/1,331 (= real commander in the same run); help from the manifest | in progress |
+| **2 · compatibility** | `commander-compat`, `cli-help-renderer` ↑ | every upstream file graded; `burgee/commander` 1,327/1,331 (= real commander in the same run) and byte-identical to commander on the demo (X7, 29 cases); help from the manifest | in progress |
 | **3 · surfaces** | `cli-mcp`, `commander-schema`, `commander-env`, `commander-completions` | `--schema`, `--mcp`, completions — the reason to switch | queued |
 | **4 · reach** | `yargs-compat`, `dev-loop`, `cli-modularity`, `cli-prompts`, `first-adopter`, `eslint-plugin-cli-floor`, `docs-deploy`, `cli-benchmarks`, `brand-burgee` | the second host, the dev loop, a CLI we did not write, one brand declaration | queued |
 | **5 · speed** | native front-end spike, `eslint-plugin-cli-floor` as an oxlint rule | `--help` in 13 ms, or a recorded decision not to | conditional |

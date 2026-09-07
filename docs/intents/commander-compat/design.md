@@ -74,8 +74,12 @@ port-increment tests. They are graded, not excluded; CI's OS × Node matrix re-c
 The 12 internals tests (`useColor`) pass because the barrel exports `useColor`; they stay
 informational.
 
-X7 is `examples/conformance` with a third host that runs the demo on this front-end and
-diffs stdout byte for byte against real commander — not yet wired.
+X7 is wired: `demo-cli-commander` builds its program once (`program.ts`) and exposes it on
+real commander (`.`) and on this front-end (`./burgee`); `examples/conformance` runs the
+front-end as a fourth host through the same driver and `commander-parity.test.ts` requires
+identical `{ code, stdout, stderr }` on 29 argv cases — happy paths, every error class,
+help at every level, version, `--`. The demo declares its own `--json`, so it prints the raw
+record on both hosts: the guard on burgee's envelope, proven.
 
 ## Rejected alternatives
 
