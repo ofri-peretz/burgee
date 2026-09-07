@@ -8,10 +8,12 @@
 export { ExitCode, isExitCode, type ExitCode as ExitCodeValue } from './exit-code.js';
 export {
   defineCommand,
+  defineProgram,
   execute,
   run,
   type Command,
   type CommandContext,
+  type Program,
   type RunOptions,
 } from './execute.js';
-export { definePlugin, Manifest, type CommandNode, type Hook, type OptionSpec, type Plugin } from './manifest.js';
+export { definePlugin, Manifest, type CommandNode, type Hook, type OptionSpec, type Plugin, type RunContext } from './manifest.js';

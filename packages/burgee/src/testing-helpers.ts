@@ -7,7 +7,9 @@
  */
 import { Readable } from 'node:stream';
 
+import { beforeTerminator, execute } from './execute.js';
 import { ExitCode, isExitCode } from './exit-code.js';
+import { type Manifest } from './manifest.js';
 import { type Runtime } from './runtime.js';
 
 export interface RunOptions {
@@ -126,7 +128,7 @@ export function finish(rt: FakeRuntime, code: ExitCode, startedAt: number): RunR
   const stdout = rt.out.join('');
   const stderr = rt.err.join('');
   const result: RunResult = { code, stdout, stderr, durationMs: performance.now() - startedAt };
-  if (rt.argv.includes('--json')) {
+  if (beforeTerminator(rt.argv).includes('--json')) {
     try {
       result.json = JSON.parse(stdout);
     } catch (e) {
@@ -141,4 +143,28 @@ export function codeOf(e: unknown): ExitCode {
   if (e instanceof RuntimeExit) return e.code;
   const exitCode = (e as { exitCode?: unknown } | null)?.exitCode;
   return isExitCode(exitCode) ? exitCode : ExitCode.RUNTIME;
+}
+
+/**
+ * Run a burgee program in-process — the T1 harness for burgee itself. Env is injected,
+ * never swapped: the engine reads env-bound options from the runtime it is given, so
+ * `process.env` is untouched by construction. Exit unwinds through `RuntimeExit`.
+ */
+export async function runBurgee(program: Manifest, opts: RunOptions): Promise<RunResult> {
+  const startedAt = performance.now();
+  const rt = fakeRuntime(opts);
+  let code: ExitCode = ExitCode.OK;
+  try {
+    await execute(program, {
+      argv: rt.argv,
+      env: rt.env,
+      stdout: rt.stdout,
+      stderr: rt.stderr,
+      exit: (c: number) => rt.exit(c as ExitCode),
+      root: program.rootPath,
+    });
+  } catch (e) {
+    code = codeOf(e);
+  }
+  return finish(rt, code, startedAt);
 }

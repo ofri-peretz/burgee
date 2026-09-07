@@ -15,6 +15,7 @@
   "dependencies": {
     "burgee": "*",
     "compat-oracle": "*",
+    "demo-cli-burgee": "*",
     "demo-cli-commander": "*",
     "demo-cli-yargs": "*"
   },

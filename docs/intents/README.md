@@ -153,7 +153,7 @@ three separate times before that rule existed.
 | `compat-oracle` | both suites vendored; both gates proven (1283/1307, 785/816); `burgee/commander` 17/1307, `burgee/yargs` an honest 0/816; ratchet; `--control`; weekly re-vendor PR (C6); ratchet on every PR + Node×OS matrix (C3); generated `compatibility.mdx` (C2) | publish the page (needs `docs-deploy`) |
 | `cli-packaging` | no-deps / ESM / no-`main` / `default`-condition lock (R1–R3); artifact gate in `release.yml` between build and publish (R4); tarball size ratchet with baseline (R5); provenance restored under the trusted publisher | R6, the bun/deno smoke — deferred to wave 2, it needs those runtimes in CI |
 | **ESM + CJS** | every entry has a `default` condition; no top-level await in the library; `require('burgee')` and `require('burgee/commander')` proven against the installed tarball — one artifact, both module systems (K2, revised) | — |
-| `replacement-parser` | engine, lifecycle, exit contract, manifest, four locks | G5 `--`/stdin semantics, G6 six §10 fixes with cited tests, G7 measured, G2 third conformance host — the parser's remainder is the last wave-1 item |
+| `replacement-parser` | engine, lifecycle, exit contract, manifest, four locks; `defineProgram`; `--` pass-through and `-` (G5); seven cited §10 fixes (G6); G7 measured at +5 ms, level with bare `parseArgs`; `demo-cli-burgee` as the third conformance host via `runBurgee` (G2), with the envelope difference declared per host; `ctx.exit`, env binding, root/group help | G3 quirks — they land with the front-ends in wave 2 |
 
 ### What the research changed, and where it landed
 

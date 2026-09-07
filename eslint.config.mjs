@@ -318,6 +318,16 @@ export default [
       // the rule only recognises `new Error(...)`.
       'maintainability/no-missing-error-context': 'off',
       'reliability/no-missing-error-context': 'off',
+      // FP 7 (as in scripts/run-evals.ts): checking whether an option declares an environment
+      // variable, and whether that variable was set, is read as a timing-unsafe secret
+      // comparison because the identifiers contain "env". They compare a declared variable
+      // name and presence against undefined, never a secret.
+      'secure-coding/no-insecure-comparison': 'off',
+      // FP 1 recurs: the parseArgs token union is narrowed with an "in" check, which
+      // TypeScript verifies, and the rule still reads the property access afterwards as a
+      // dereference of a possible undefined. Three correct rewrites did not satisfy it;
+      // the code stays correct and the rule stays off here.
+      'reliability/no-missing-null-checks': 'off',
     },
   },
   {

@@ -11,6 +11,7 @@ export {
   codeOf,
   fakeRuntime,
   finish,
+  runBurgee,
   RuntimeExit,
   stripAnsi,
   swapEnv,

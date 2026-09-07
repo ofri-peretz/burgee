@@ -1,10 +1,10 @@
 import { ExitCode } from 'burgee/testing';
 import { describe, expect, it } from 'vitest';
 
-import { HOSTS } from './hosts.js';
+import { ENVELOPE, HOSTS, type HostName } from './hosts.js';
 
 /** T1 conformance: the harness contract, on both hosts. Cases are added per floor id as intents land. */
-describe.each(Object.entries(HOSTS))('%s · T1 harness', (_host, run) => {
+describe.each(Object.entries(HOSTS) as [HostName, (typeof HOSTS)[HostName]][])('%s · T1 harness', (host, run) => {
   it('runs a command and captures stdout with exit OK', async () => {
     const r = await run({ argv: ['greet', 'ada'] });
     expect(r).toMatchObject({ code: ExitCode.OK, stdout: 'Hello, ada!\n', stderr: '' });
@@ -29,7 +29,9 @@ describe.each(Object.entries(HOSTS))('%s · T1 harness', (_host, run) => {
   it('parses stdout under --json', async () => {
     const r = await run({ argv: ['config', 'get', 'user.name', '--json'] });
     expect(r.code).toBe(ExitCode.OK);
-    expect(r.json).toEqual({ key: 'user.name', value: 'ada' });
+    // Same data, two encodings: the incumbents' demos print the raw record, burgee's
+    // handler returns the value and the engine wraps it in the O1 envelope.
+    expect(r.json).toEqual(ENVELOPE.has(host) ? { ok: true, data: 'ada' } : { key: 'user.name', value: 'ada' });
   });
 
   it('a runtime failure is RUNTIME with the message on stderr and no help text', async () => {

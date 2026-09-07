@@ -11,13 +11,25 @@ export interface OptionSpec {
   required?: boolean;
   short?: string;
   default?: string | boolean;
+  /** Environment variable consulted when the flag is absent (V2). Read from the injected env, never process.env directly. */
+  env?: string;
+}
+
+/** What a handler receives. `passthrough` is everything after `--`, verbatim (G5). */
+export interface RunContext {
+  options: Record<string, unknown>;
+  positionals: string[];
+  passthrough: string[];
+  env: Record<string, string | undefined>;
+  /** Exit with an E1 code. Unwinds cleanly: the code is honoured and nothing is printed. */
+  exit: (code: number) => never;
 }
 
 export interface CommandNode {
   path: string[];
   description?: string;
   options: Record<string, OptionSpec>;
-  run?: (ctx: { options: Record<string, unknown>; positionals: string[] }) => unknown;
+  run?: (ctx: RunContext) => unknown;
   /** Which plugin contributed this, if any. Declared, never diffed (M3). */
   plugin?: string;
 }
@@ -54,6 +66,8 @@ const ORDER = { pre: 0, post: 2 } as const;
 export class Manifest {
   readonly commands: CommandNode[] = [];
   readonly plugins: Plugin[] = [];
+  /** The program's own name, which the user never types; `execute` strips it. */
+  rootPath: string[] = [];
 
   add(node: CommandNode): void {
     this.commands.push(node);
