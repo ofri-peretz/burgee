@@ -13,7 +13,7 @@ import { captureConsole, codeOf, ExitCode, fakeRuntime, finish, type FakeRuntime
 export interface CommanderProgram {
   exitOverride(): unknown;
   configureOutput(configuration: { writeOut: (s: string) => void; writeErr: (s: string) => void }): unknown;
-  commands: CommanderProgram[];
+  readonly commands: readonly CommanderProgram[];
   parseAsync(argv?: readonly string[], options?: { from?: 'node' | 'user' }): Promise<unknown>;
 }
 
