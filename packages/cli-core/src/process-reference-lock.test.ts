@@ -11,7 +11,17 @@ import { describe, expect, it } from 'vitest';
  * `Runtime`, which is what lets a test substitute the world.
  */
 const PACKAGES = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const ALLOWED = new Set(['cli-core/src/runtime.ts', 'cli-core/src/testing.ts']);
+/**
+ * burgee/src/index.ts is the third: it is the framework's entry, and a CLI
+ * framework's whole job is to own argv, the streams and the exit. Every one of
+ * those is injectable through RunOptions, so tests never reach the real process;
+ * the defaults are the only place the real one is named.
+ */
+const ALLOWED = new Set([
+  'cli-core/src/runtime.ts',
+  'cli-core/src/testing.ts',
+  'burgee/src/index.ts',
+]);
 const PROCESS_READ = /\bprocess\.(env|argv|exit|exitCode|stdout|stderr|stdin|cwd)\b/;
 
 function sourceFiles(dir: string, out: string[] = []): string[] {
@@ -28,7 +38,7 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
 }
 
 describe('process references stay behind the Runtime seam', () => {
-  it('no layer source reads process.* outside runtime.ts and testing.ts', () => {
+  it('no layer source reads process.* outside the three files that own it', () => {
     const offenders: string[] = [];
     for (const pkg of readdirSync(PACKAGES, { withFileTypes: true })) {
       if (!pkg.isDirectory()) continue;
