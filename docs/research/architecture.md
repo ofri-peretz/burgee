@@ -127,7 +127,45 @@ compat-yargs      ██████████░░░░░░░░░░�
 That burn-down is also the marketing. A number going up in public is more persuasive than
 any announcement, and it is the honest version of "100%".
 
-## 5. The local feedback loop
+## 5. The adoption ladder
+
+Someone on commander or yargs keeps the syntax they know, gains burgee's capabilities on
+day one, and adopts native syntax at their own pace — three rungs, and a program may
+stand on more than one at once.
+
+```mermaid
+flowchart TB
+  R1["<b>rung 1 · keep your syntax</b><br/>import { Command } from 'burgee/commander'<br/><i>your code and your tests unchanged</i>"]
+  R2["<b>rung 2 · capabilities, free</b><br/>--json · --schema · --mcp · completions<br/><i>no code change: they are projections<br/>of the manifest the façade already fills</i>"]
+  R3["<b>rung 3 · one explicit line</b><br/>exit-code contract · no help on runtime error<br/><i>opt-in, because these change behaviour<br/>the host's own tests assert</i>"]
+  R4["<b>rung 4 · native syntax</b><br/>defineCommand, mixed freely<br/><i>command by command, same program</i>"]
+  R1 --> R2 --> R3 --> R4
+```
+
+**Why the surfaces come free.** `burgee/commander` is a *façade over burgee's engine*, not
+a wrapper around real commander. A command declared through commander's API lands in the
+same manifest as a native `defineCommand`, and every surface in §1 is a projection of that
+manifest — the surfaces never learn which façade filled it.
+
+```mermaid
+flowchart LR
+  A["commander syntax<br/>new Command()"] --> M[["one manifest"]]
+  B["yargs syntax<br/>yargs().command()"] --> M
+  C["native syntax<br/>defineCommand()"] --> M
+  M --> S["help · --json · --schema<br/>--mcp · completions · types"]
+```
+
+**Why rung 3 is opt-in and not free.** commander's own 1,215 tests assert its help text and
+its exit behaviour. A front-end that changed those by default would fail the very suite the
+compatibility claim rests on — and would break real users silently. So the free tier is
+strictly *additive*: `--json`, `--schema` and `--mcp` are new flags that collide with
+nothing, while the behavioural floor is one line away rather than zero. Still far shorter
+than a rewrite.
+
+If a program already defines a name burgee reserves, **the program wins** and burgee
+withholds that surface, reporting it in `--schema` rather than silently shadowing it.
+
+## 6. The local feedback loop
 
 ```mermaid
 sequenceDiagram
@@ -150,7 +188,7 @@ Your agent is connected to your CLI **while you are writing it**. Change a flag 
 agent sees it on the next call. This is dev-time only and entirely optional — rung one of
 the ladder never starts a server.
 
-## 6. Where a faster language pays, and where it does not
+## 7. Where a faster language pays, and where it does not
 
 ```mermaid
 flowchart TB
@@ -189,7 +227,7 @@ preserving identical behaviour. Our binding constraint is the same kind — fide
 Gated on a spike, and the engine stays TypeScript either way. The native front-end is
 rung four of the ladder: additive, removable, and it reads the same manifest.
 
-## 7. Build order
+## 8. Build order
 
 ```mermaid
 flowchart LR
@@ -202,7 +240,7 @@ flowchart LR
 Wave 1 ends with something installable. Every wave after it ends with a higher public
 compatibility number.
 
-## 8. What could still kill this
+## 9. What could still kill this
 
 Recorded so it is not discovered late.
 

@@ -45,9 +45,9 @@ The reference point to keep in view: a commander user's first line is
 ## Requirements — the CLI floor
 
 79 requirements: the shape lock (Z1–Z5), the original 26 (F/O/E/V/S/P/D/T), 27 folded in from the gap-track
-intents on 2026-09-06 (S5–S8, V6–V7, H1–H6, D3–D5, P3, M1–M6, K1–K5), and 21 added the
+intents on 2026-09-06 (S5–S8, V6–V7, H1–H6, D3–D5, P3, M1–M6, K1–K5), and 27 added the
 same day with the compatible-replacement strategy and the architecture review
-(K6, C1–C6, B1–B7, N1–N5). Each names the
+(K6, C1–C6, B1–B7, N1–N5, J1–J6). Each names the
 issue evidence, whether the **runtime** (R) guarantees it or the **lint** rule (L)
 enforces it, and where it lands.
 
@@ -181,6 +181,32 @@ enforces it, and where it lands.
 | K4 | An artifact gate runs on the built `dist/` before publish; every package publishes with npm provenance via trusted publishing | eslint SARIF formatter incident; @oclif/core's 18 runtime deps | release.yml | all |
 | K5 | Per-package size budget, ratcheted | eslint `artifact-size-baseline.json` | lock | all |
 | K6 | Weight is paid per import: compat and host quirks live behind their own specifiers, never behind a runtime flag | competitor map §6 | lock + B4 | cli-packaging |
+
+### The adoption ladder (from `commander-compat` / `yargs-compat`)
+
+Added 2026-09-07. Someone on commander or yargs must be able to keep writing the syntax
+they already know, gain burgee's capabilities on day one without rewriting anything, and
+adopt native syntax gradually in the same program — three rungs, and a user may stand on
+more than one at once.
+
+The mechanism is that `burgee/commander` is a **façade over burgee's engine**, not a
+wrapper around real commander. A command declared through commander's API lands in the
+same manifest as a native `defineCommand`, and every surface is a projection of that
+manifest — so the surfaces do not care which façade populated it.
+
+| # | Requirement | Evidence | Holds | Lands in |
+| :-- | :-- | :-- | :-- | :-- |
+| J1 | A commander or yargs program keeps its syntax unchanged and its own test suite passing, graded by C2 | vitest→jest migration | R | commander-compat |
+| J2 | Purely **additive** surfaces — `--json`, `--schema`, `--mcp`, completions — are available on day one with no code change, because they are projections of the manifest the façade already fills | competitor map §5 | R | commander-compat |
+| J3 | Anything that changes **existing observable behaviour** — the exit-code contract, no-help-on-runtime-error — is off by default and enabled by one explicit call. The hosts' own suites assert the old behaviour, so silently changing it would fail C2 and break real users | commander's 1,215 tests assert help output | R | commander-compat |
+| J4 | If a program already defines a name burgee reserves (`json`, `help`, `schema`), the program wins and burgee's surface is withheld, reported by `--schema` | V5 | R + L | commander-compat |
+| J5 | Native `defineCommand` and façade commands compose in one program, so a user can write the next command in burgee syntax without moving the previous ones | the ladder is only real if the rungs mix | R | commander-compat |
+| J6 | Both paths are graded separately: the strict path against the host's own suite (C2), the enhanced path against burgee's conformance suite | a single suite cannot assert both behaviours | CI | compat-oracle |
+
+**Why J3 is not negotiable.** commander's suite asserts help text and exit behaviour. A
+compat front-end that changed them by default would fail the very tests the compatibility
+claim rests on. So the free tier is strictly additive, and the behavioural floor is one
+line away rather than zero — which is still a far shorter migration than a rewrite.
 
 ### Compatibility (from `compat-oracle`)
 
