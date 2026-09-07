@@ -9,8 +9,9 @@ Intent: [`intent.md`](./intent.md). **Status:** draft.
 
 ## Requirements — the CLI floor
 
-53 requirements: the original 26 (F/O/E/V/S/P/D/T) and 27 folded in from the gap-track
-intents on 2026-09-06 (S5–S8, V6–V7, H1–H6, D3–D5, P3, M1–M6, K1–K5). Each names the
+69 requirements: the original 26 (F/O/E/V/S/P/D/T), 27 folded in from the gap-track
+intents on 2026-09-06 (S5–S8, V6–V7, H1–H6, D3–D5, P3, M1–M6, K1–K5), and 16 added the
+same day with the compatible-replacement strategy (K6, C1–C6, B1–B7). Each names the
 issue evidence, whether the **runtime** (R) guarantees it or the **lint** rule (L)
 enforces it, and where it lands.
 
@@ -143,6 +144,36 @@ enforces it, and where it lands.
 | K3 | Node natives over packages (`util.styleText`, `fs.glob`, `fetch`) | oclif/core #1627 | L (`prefer-native-style-text`) + lock | all |
 | K4 | An artifact gate runs on the built `dist/` before publish | eslint SARIF formatter incident | release.yml | all |
 | K5 | Per-package size budget, ratcheted | eslint `artifact-size-baseline.json` | lock | all |
+| K6 | Weight is paid per import: compat and host quirks live behind their own specifiers, never behind a runtime flag | competitor map §6 | lock + B4 | cli-packaging |
+
+### Compatibility (from `compat-oracle`)
+
+Added 2026-09-06 with the compatible-replacement strategy. Every claim about a host is
+graded by that host's own suite, so "compatible" is a number rather than an adjective.
+
+| # | Requirement | Evidence | Holds | Lands in |
+| :-- | :-- | :-- | :-- | :-- |
+| C1 | Every package declares a supported host range; the host's own suite runs against it at every supported major | competitor map §5 | CI | compat-oracle |
+| C2 | A compat front-end is graded by the host's own suite through a one-line shim; the rate is published per release | measured 1,210/1,215 on 2026-09-06 | CI | compat-oracle |
+| C3 | Every package is tested on every Node LTS in its `engines` range, across Linux, macOS and Windows | oclif/core #1450, #1396 | quality-full.yml | compat-oracle |
+| C4 | Every intentional divergence has an id, a written reason and a test asserting it; an unlisted failure is a bug | vitest's jest-differences page | lock | compat-oracle |
+| C5 | Pass rates ratchet; lowering one needs a baseline edit with a reason | eslint baseline pattern | CI | compat-oracle |
+| C6 | Vendored suites record their upstream commit; a scheduled job opens a PR when the count changes | the treadmill is permanent cost | workflow | compat-oracle |
+
+### Benchmarks (from `cli-benchmarks`)
+
+Added 2026-09-06. Four axes, because we make four kinds of public claim and three of
+them had no scheduled measurement.
+
+| # | Requirement | Evidence | Holds | Lands in |
+| :-- | :-- | :-- | :-- | :-- |
+| B1 | Agent cost: tokens, turns and success per task, layer on vs off | the umbrella's own ≥40%/≥30% claim | band | cli-benchmarks |
+| B2 | Performance: cold start p50/p95 over ≥30 spawns, always including a bare-node floor row | competitor map §2 | band | cli-benchmarks |
+| B3 | Compatibility: per-host pass rate, read from `compat-oracle`, never recomputed | C2 | band | cli-benchmarks |
+| B4 | Weight: bundled KB per entry point against a published target; core-only import pulls zero front-end bytes | competitor map §6 | band | cli-benchmarks |
+| B5 | Every axis emits one JSON shape; one collector reads all of them | — | lock | cli-benchmarks |
+| B6 | B2/B3/B4 gate every PR; B1 runs weekly | cost and noise | CI | cli-benchmarks |
+| B7 | Every public number links to the generated `/benchmarks` page | a published target with no measurement decays into a slogan | lock | cli-benchmarks, docs-deploy |
 
 ---
 
