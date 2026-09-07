@@ -43,7 +43,10 @@ interface EntryRule {
 
 const RULES: Record<string, EntryRule> = {
   // The engine. Imports nothing at all, and never drags the harness in.
-  '.': { allow: [], budget: 12_000, denied: ['testing.js', 'testing-helpers.js'] },
+  // Raised from 12,000 on 2026-09-07, deliberately and once: the entry now reaches
+  // the execution core and the manifest, which is the whole engine and is what
+  // `import 'burgee'` should give you. 12 KB against commander's 232 KB installed.
+  '.': { allow: [], budget: 20_000, denied: ['testing.js', 'testing-helpers.js'] },
   // The harness. Test-time only, so a user's shipped CLI never pays for it.
   './testing': { allow: [], budget: 24_000, denied: [] },
   // `allow: []` is the point: the compat front-ends *implement* the incumbents'

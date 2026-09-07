@@ -102,3 +102,83 @@ describe('option names cannot reach Object.prototype', () => {
     expect(Object.getPrototypeOf(program.manifest.find(['app', 'x'])?.options)).toBeNull();
   });
 });
+
+/** Capture what a run wrote and what code it left with, without touching the process. */
+function capture() {
+  const out: string[] = [];
+  const err: string[] = [];
+  let code: number | undefined;
+  return {
+    out,
+    err,
+    get code() {
+      return code;
+    },
+    opts: {
+      stdout: { write: (s: string) => out.push(s) },
+      stderr: { write: (s: string) => err.push(s) },
+      exit: ((c: number) => {
+        code = c;
+      }) as unknown as (c: number) => never,
+    },
+  };
+}
+
+function deployProgram(log: string[]) {
+  {
+    const program = new Command('app').use(
+      definePlugin({
+        name: 'audit',
+        hooks: { preRun: { filter: { command: /^deploy/ }, handler: ({ command }) => void log.push(command) } },
+      }),
+    );
+    program
+      .command('deploy')
+      .description('Ship the current build')
+      .requiredOption('--target <env>', 'where to ship')
+      .option('--dry-run', 'do not write anything')
+      .action((opts: Record<string, unknown>) => ({ shipped: opts['target'], dryRun: opts['dryRun'] === true }));
+    return program;
+  }
+}
+
+describe('a commander program actually runs, and gets the surfaces free', () => {
+  const build = deployProgram;
+
+  it('runs the action and renders its return value', async () => {
+    const log: string[] = [];
+    const c = capture();
+    await build(log).parseAsync(['deploy', '--target', 'prod'], { from: 'user', ...c.opts });
+    expect(c.code).toBe(0);
+    expect(c.out.join('')).toContain('shipped: prod');
+    expect(log).toEqual(['deploy']);
+  });
+
+  it('serves --json on a command written in commander syntax', async () => {
+    const c = capture();
+    await build([]).parseAsync(['deploy', '--target', 'prod', '--json'], { from: 'user', ...c.opts });
+    expect(JSON.parse(c.out.join(''))).toMatchObject({ ok: true, data: { shipped: 'prod', dryRun: false } });
+  });
+
+  it('a missing required option is USAGE with the flag named, not a runtime failure', async () => {
+    const c = capture();
+    await build([]).parseAsync(['deploy'], { from: 'user', ...c.opts });
+    expect(c.code).toBe(2);
+    expect(c.err.join('')).toMatch(/--target/);
+  });
+
+  it('an unknown command is USAGE, and never runs a handler', async () => {
+    const log: string[] = [];
+    const c = capture();
+    await build(log).parseAsync(['nope'], { from: 'user', ...c.opts });
+    expect(c.code).toBe(2);
+    expect(log).toEqual([]);
+  });
+
+  it('renders help for the resolved subcommand from the manifest', async () => {
+    const c = capture();
+    await build([]).parseAsync(['deploy', '--help'], { from: 'user', ...c.opts });
+    expect(c.code).toBe(0);
+    expect(c.out.join('')).toContain('where to ship');
+  });
+});

@@ -47,7 +47,7 @@ The reference point to keep in view: a commander user's first line is
 79 requirements: the shape lock (Z1–Z5), the original 26 (F/O/E/V/S/P/D/T), 27 folded in from the gap-track
 intents on 2026-09-06 (S5–S8, V6–V7, H1–H6, D3–D5, P3, M1–M6, K1–K5), and 27 added the
 same day with the compatible-replacement strategy and the architecture review
-(K6, C1–C6, B1–B7, N1–N5, J1–J9). Each names the
+(K6, C1–C8, B1–B7, N1–N5, J1–J9). Each names the
 issue evidence, whether the **runtime** (R) guarantees it or the **lint** rule (L)
 enforces it, and where it lands.
 

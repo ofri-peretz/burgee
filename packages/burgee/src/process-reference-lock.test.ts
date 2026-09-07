@@ -7,8 +7,8 @@ import { describe, expect, it } from 'vitest';
 /**
  * Lock for the seam (design R1 of `cli-testing-harness`): the only files in any
  * package that may read `process` are `runtime.ts` (the real runtime),
- * `testing-helpers.ts` (the harness's documented env swap) and `index.ts` (the
- * framework entry, whose job is to own argv, the streams and the exit).
+ * `testing-helpers.ts` (the harness's documented env swap) and `execute.ts` (the
+ * execution core, whose job is to own argv, the streams and the exit).
  * Everything else reads its
  * `Runtime`, which is what lets a test substitute the world.
  */
@@ -22,7 +22,10 @@ const PACKAGES = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const ALLOWED = new Set([
   'burgee/src/runtime.ts',
   'burgee/src/testing-helpers.ts',
-  'burgee/src/index.ts',
+  'burgee/src/execute.ts',
+  // The one line the whole compatibility gate turns on: it reads COMPAT_TARGET to
+  // decide which implementation the vendored suites grade.
+  'compat-oracle/src/shim.ts',
 ]);
 const PROCESS_READ = /\bprocess\.(env|argv|exit|exitCode|stdout|stderr|stdin|cwd)\b/;
 

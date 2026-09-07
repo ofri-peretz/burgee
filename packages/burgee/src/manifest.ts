@@ -88,4 +88,22 @@ export class Manifest {
     const key = path.join(' ');
     return this.commands.find((c) => c.path.join(' ') === key);
   }
+
+  /**
+   * Longest-prefix match of argv against declared command paths. The root's own
+   * name is not typed by the user, so it is skipped when matching.
+   */
+  resolve(argv: string[], root: string[] = []): { node: CommandNode | undefined; rest: string[] } {
+    let best: CommandNode | undefined;
+    let depth = 0;
+    for (const node of this.commands) {
+      const typed = node.path.slice(root.length);
+      if (typed.length > argv.length) continue;
+      if (typed.every((seg, i) => argv[i] === seg) && typed.length >= depth) {
+        best = node;
+        depth = typed.length;
+      }
+    }
+    return { node: best, rest: argv.slice(depth) };
+  }
 }

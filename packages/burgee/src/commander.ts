@@ -10,6 +10,7 @@
  * This is a proving slice of the surface, not the full 151 methods; the rest
  * lands in wave 2 graded by commander's own 1,215 tests.
  */
+import { execute, type RunOptions } from './execute.js';
 import { Manifest, type OptionSpec, type Plugin } from './manifest.js';
 
 type Action = (options: Record<string, unknown>, command: Command) => unknown;
@@ -101,6 +102,28 @@ export class Command {
    */
   use(plugin: Plugin): this {
     this.manifest.use(plugin);
+    return this;
+  }
+
+  /** commander's signature: `parseAsync(argv?, { from })`. */
+  async parseAsync(argv?: string[], options?: { from?: 'node' | 'user' } & RunOptions): Promise<this> {
+    await execute(this.manifest, {
+      from: 'node',
+      ...options,
+      ...(argv === undefined ? {} : { argv }),
+      root: this.#path,
+    });
+    return this;
+  }
+
+  /**
+   * commander's `parse` is synchronous and returns `this`; an async action still
+   * runs, its rejection surfacing through the same lifecycle. Matching that shape
+   * matters because 234 of the call sites measured across five real CLIs are
+   * `.parse()` rather than `.parseAsync()`.
+   */
+  parse(argv?: string[], options?: { from?: 'node' | 'user' } & RunOptions): this {
+    void this.parseAsync(argv, options);
     return this;
   }
 }

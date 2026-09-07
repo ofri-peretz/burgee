@@ -273,7 +273,7 @@ export default [
     // (`import { type X } from './m.js'`) emits `import {} from './m.js'` — a real
     // module load for no value, worth ~5ms of startup here. A type-only import must
     // be top-level so it erases completely.
-    files: ['packages/burgee/src/index.ts'],
+    files: ['packages/burgee/src/execute.ts'],
     rules: { 'import-next/consistent-type-specifier-style': 'off' },
   },
   {
@@ -287,10 +287,23 @@ export default [
     // burgee owns the process: a CLI framework's whole job is to parse, run and
     // exit with the E1 contract. `exit` is injectable (RunOptions.exit) so tests
     // never touch the real one; the default has to call process.exit.
-    files: ['packages/burgee/src/index.ts'],
+    files: ['packages/burgee/src/execute.ts'],
     rules: {
       'operability/no-process-exit': 'off',
       'secure-coding/detect-object-injection': 'off',
+      // FP 10: UsageError's first parameter *is* the message and reaches super();
+      // the rule only recognises `new Error(...)`.
+      'maintainability/no-missing-error-context': 'off',
+      'reliability/no-missing-error-context': 'off',
+    },
+  },
+  {
+    // The shim exists to load a target chosen at run time — that dynamic import is
+    // the entire compatibility mechanism, not an oversight.
+    files: ['packages/compat-oracle/src/shim.ts'],
+    rules: {
+      'node-security/no-dynamic-dependency-loading': 'off',
+      'import-next/no-default-export': 'off',
     },
   },
   {
