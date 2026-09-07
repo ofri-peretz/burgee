@@ -215,7 +215,13 @@ export default [
   {
     // Test files: numbers in fixtures are the fixture.
     files: ['**/*.test.ts'],
-    rules: { 'conventions/no-magic-numbers': 'off' },
+    rules: {
+      'conventions/no-magic-numbers': 'off',
+      // FP 9: a test that writes a package.json fixture has a `version` field that
+      // must be an exact version, not a caret range. The rule reads any object
+      // literal with a `version` key as a dependency map.
+      'conventions/prefer-dependency-version-strategy': 'off',
+    },
   },
   {
     files: ['scripts/**'],
@@ -259,6 +265,16 @@ export default [
       'secure-coding/detect-object-injection': 'off',
       'maintainability/no-missing-error-context': 'off',
       'reliability/no-missing-error-context': 'off',
+    },
+  },
+  {
+    // burgee owns the process: a CLI framework's whole job is to parse, run and
+    // exit with the E1 contract. `exit` is injectable (RunOptions.exit) so tests
+    // never touch the real one; the default has to call process.exit.
+    files: ['packages/burgee/src/index.ts'],
+    rules: {
+      'operability/no-process-exit': 'off',
+      'secure-coding/detect-object-injection': 'off',
     },
   },
   {
