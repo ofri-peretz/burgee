@@ -1,0 +1,50 @@
+{
+  "name": "burgee",
+  "version": "0.0.0",
+  "description": "An agent-native CLI framework, drop-in compatible with commander and yargs. One declaration; help, --json, --schema, --mcp and completions all projected from it.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "lint": "eslint src"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ofri-peretz/cli.git",
+    "directory": "packages/burgee"
+  },
+  "homepage": "https://github.com/ofri-peretz/cli#readme",
+  "bugs": {
+    "url": "https://github.com/ofri-peretz/cli/issues"
+  },
+  "keywords": [
+    "cli",
+    "command-line",
+    "argv",
+    "commander",
+    "yargs",
+    "mcp",
+    "agent",
+    "framework"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "vitest": "^4.0.0"
+  }
+}
