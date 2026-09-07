@@ -7,13 +7,18 @@ intent, `intent.md` then `design.md`, statuses `draft → review → approved �
 
 ## The roadmap in one paragraph
 
-Build the layer that commander and yargs have declined to own for fourteen years, on
-both hosts, graded from day one by those hosts' own test suites. Once the layer is
-complete and the compatibility gate is ratcheting, add our own parser as a third host
-and expose it behind `commander`- and `yargs`-shaped front-ends, so an existing user
-migrates by changing one import. Every claim we make in public — agent cost,
-performance, compatibility, weight — is a measured number on a schedule, not an
-adjective.
+**Decided 2026-09-06: we are building a competitor to commander and yargs, not a layer on
+top of them.** One engine owns argv and the lifecycle. It is drop-in compatible with both
+incumbents — `interlace/commander` and `interlace/yargs`, graded by their own 1,215 and
+1,185 tests, with the pass rate published and ratcheting from the first commit. And it
+serves every command through every format a caller wants — human help, `--json`,
+`--schema`, `--mcp`, completions, Fig, types, docs — all projections of one manifest, so
+none of them can drift. Compatibility makes it cheap to try; the surfaces are the reason
+to switch. Throughout, one constraint outranks every feature: **it stays a library you
+import in one file, not a framework you scaffold into.** oclif has all of these
+capabilities and does 10.9M/week against commander's 508M.
+
+Diagrams: [`architecture.md`](../research/architecture.md).
 
 ## The umbrella
 
@@ -29,9 +34,12 @@ Two research documents feed it, and every intent cites one or both:
 - [`competitor-landscape.md`](../research/competitor-landscape.md) — the measured
   competitor map: downloads, cold start, the compatibility bill, the oracle, and why
   the replacement is a third adapter rather than a fork.
-- [`architecture-review.md`](../research/architecture-review.md) — the honest review
-  before wave 1: nine findings with actions, the declarative plugin design, the native
-  front-end option, and where a faster language does and does not pay.
+- [`architecture.md`](../research/architecture.md) — **the architecture, in diagrams**:
+  one declaration to every surface, the shape lock against oclif, engine and front-ends,
+  migration, the dev loop, and where a faster language pays.
+- [`architecture-review.md`](../research/architecture-review.md) — the honest review:
+  nine findings with actions, the declarative plugin design, and the native front-end
+  analysis.
 
 ## Coverage: every issue cluster has an owner
 
@@ -69,35 +77,36 @@ converts it from a permanent dependency into a fixable backlog, so it now has an
 | 4 | [`cli-packaging/`](./cli-packaging/) | zero deps, ESM, artifact gate, size ratchet, pay-per-import | K1–K6 | review |
 | 5 | [`cli-benchmarks/`](./cli-benchmarks/) | four axes — agent cost, performance, compatibility, weight | B1–B7 | review |
 
-### The layer — what commander and yargs decline to own
+### The engine and its compatibility
 
 | # | Intent | Delivers | Floor ids | Status |
 | :-- | :-- | :-- | :-- | :-- |
-| 6 | [`commander-agent/`](./commander-agent/) | first public extension, on commander's hooks | F1 F2 F4 O1–O5 E1–E5 M1–M6 | review |
-| 7 | [`yargs-agent/`](./yargs-agent/) | the same floor as yargs middleware; the shared suite as contract | same as 6 | review |
+| 6 | [`commander-agent/`](./commander-agent/) | ~~layer on commander's hooks~~ | F O E M | **dropped** — superseded, requirements moved to the engine |
+| 7 | [`yargs-agent/`](./yargs-agent/) | ~~layer on yargs middleware~~ | same as 6 | **dropped** — same reason |
 | 8 | [`eslint-plugin-cli-floor/`](./eslint-plugin-cli-floor/) | the L rules; the adoption wedge that needs no runtime change | F3 O1–O4 E1 E2 V2 V5 P1 D1 | review |
 | 9 | [`docs-deploy/`](./docs-deploy/) | `apps/docs` on an interlace.tools host, `llms.txt`, the benchmarks page | B7 | review |
 | 10 | [`first-adopter/`](./first-adopter/) | a CLI we did not write, using the layer, reviewed by someone who did not build it | A1–A5 | review |
 | 11 | [`cli-mcp/`](./cli-mcp/) | `--mcp` turns any CLI on the floor into an MCP server, generated from the manifest | N1–N5 | review |
+| 12 | [`dev-loop/`](./dev-loop/) | `interlace dev` — watch, reload, and serve live MCP so your agent sees a command as you write it | W1–W6 | review |
 
 ### The gaps — research clusters neither host ships
 
 | # | Intent | Research | Delivers | Floor ids |
 | :-- | :-- | :-- | :-- | :-- |
-| 12 | [`cli-help-renderer/`](./cli-help-renderer/) | §2 (largest) | one renderer from the manifest; twenty issues by construction | H1–H6 |
-| 13 | [`commander-schema/`](./commander-schema/) | §4, §5 | declare once: types, relations, derived TS types | S1–S8 |
-| 14 | [`commander-env/`](./commander-env/) | §3 | fixed precedence, `--explain`, provenance, owning package.json | V1–V7 |
-| 15 | [`commander-completions/`](./commander-completions/) | §6 | static scripts for four shells, Fig spec | D2–D5 |
-| 16 | [`cli-prompts/`](./cli-prompts/) | §9 | flags first, errors in non-TTY, `--yes`, `--interactive` | P1–P3 |
-| 17 | [`cli-modularity/`](./cli-modularity/) | §8 | groups, lazy commands, plugins, shared options, deprecation | M1–M6 |
+| 13 | [`cli-help-renderer/`](./cli-help-renderer/) | §2 (largest) | one renderer from the manifest; twenty issues by construction | H1–H6 |
+| 14 | [`commander-schema/`](./commander-schema/) | §4, §5 | declare once: types, relations, derived TS types | S1–S8 |
+| 15 | [`commander-env/`](./commander-env/) | §3 | fixed precedence, `--explain`, provenance, owning package.json | V1–V7 |
+| 16 | [`commander-completions/`](./commander-completions/) | §6 | static scripts for four shells, Fig spec | D2–D5 |
+| 17 | [`cli-prompts/`](./cli-prompts/) | §9 | flags first, errors in non-TTY, `--yes`, `--interactive` | P1–P3 |
+| 18 | [`cli-modularity/`](./cli-modularity/) | §8 | groups, lazy commands, plugins, shared options, deprecation | M1–M6 |
 
-### The replacement — owning the host
+### Reach
 
 | # | Intent | Delivers | Floor ids | Status |
 | :-- | :-- | :-- | :-- | :-- |
-| 18 | [`replacement-parser/`](./replacement-parser/) | our parser over `node:util.parseArgs`, as a third conformance host | G1–G7, §10 fixes | review |
-| 19 | [`commander-compat/`](./commander-compat/) | `selvage/commander` — 151 methods, graded by commander's 1,215 tests | X1–X7 | review |
-| 20 | [`yargs-compat/`](./yargs-compat/) | `selvage/yargs` — 108 methods, graded by yargs' 1,185 tests | X1–X7 | review |
+| 19 | [`replacement-parser/`](./replacement-parser/) | our parser over `node:util.parseArgs`, as a third conformance host | G1–G7, §10 fixes | review |
+| 20 | [`commander-compat/`](./commander-compat/) | `selvage/commander` — 151 methods, graded by commander's 1,215 tests | X1–X7 | review |
+| 21 | [`yargs-compat/`](./yargs-compat/) | `selvage/yargs` — 108 methods, graded by yargs' 1,185 tests | X1–X7 | review |
 
 Not planned, on purpose: an update checker (citty #10 — a network call at startup is the
 opposite of what an agent wants), and non-Node runtimes (claiming Deno and Bun means
@@ -105,49 +114,36 @@ testing them, which is its own intent with its own matrix).
 
 ## Waves
 
-A wave starts when the previous one is `shipped`; intents inside a wave run in parallel
-sessions, one worktree each.
+Restructured 2026-09-06 for the competitor decision. Wave 1 ends with something
+installable; every wave after it ends with a higher public compatibility number.
 
-| Wave | Intents | Why this order |
+| Wave | Intents | Ends with |
 | :-- | :-- | :-- |
-| 0 ✅ | `sdlc-locks-evals-bands`, `cli-testing-harness` | the loop must exist before anything is built through it |
-| 1 | `commander-agent` **published to npm**, `cli-packaging`, `compat-oracle` | one installable package is the deliverable; packaging and the oracle exist to support that publish, not to precede it |
-| 2 | `yargs-agent`, `eslint-plugin-cli-floor`, `cli-benchmarks`, `docs-deploy`, `first-adopter`, `cli-mcp` | the second host proves portability; the lint plugin is the adoption wedge; `first-adopter` closes the loop that every number is currently measured against our own demo; `cli-mcp` is the AI feature the manifest already pays for |
-| 3 | `cli-help-renderer`, `commander-schema`, `commander-env` | the three largest issue clusters, all of which need the manifest that wave 1 lands |
-| 4 | `commander-completions`, `cli-prompts`, `cli-modularity` | the remaining clusters; all derive from the manifest |
-| 5 **conditional** | `replacement-parser`, `commander-compat`, `yargs-compat` | last, because a parser with no floor is stricli. **Starts only when a migration reason is evidenced** — see below |
+| 0 ✅ | `sdlc-locks-evals-bands`, `cli-testing-harness` | the loop, and a harness that runs a CLI in-process |
+| **1 · engine** | `replacement-parser`, `compat-oracle`, `cli-packaging` | a one-file CLI that runs, the shape lock green, and the first published commander pass rate |
+| **2 · compatibility** | `commander-compat`, `cli-help-renderer` | `interlace/commander` installable, its rate burning down in public |
+| **3 · surfaces** | `cli-mcp`, `commander-schema`, `commander-env`, `commander-completions` | `--schema`, `--mcp`, completions — the reason to switch |
+| **4 · reach** | `yargs-compat`, `dev-loop`, `cli-modularity`, `cli-prompts`, `first-adopter`, `eslint-plugin-cli-floor`, `docs-deploy`, `cli-benchmarks` | the second host, the dev loop, and a CLI we did not write using it |
+| **5 · speed** | native front-end spike, `eslint-plugin-cli-floor` as an oxlint rule | `--help` in 13ms, or a recorded decision not to |
 
-### Wave 5 is conditional, and the native front-end is its candidate answer
+`commander-agent` and `yargs-agent` are **superseded**: with the engine as the product,
+a layer over someone else's parser and a compatible front-end over ours are the same
+package, and the front-end is the one that needs no host dependency. Their requirements
+(F, O, E, M) move to the engine and the compat front-ends.
 
-The plan says the layer makes a CLI agent-native on top of real commander. The
-replacement then offers the same capability behind a compatible API. **So why would
-anyone switch?** Without an answer, wave 5 is a rewrite with no user-visible benefit and
-2,304 tests attached.
+### The one risk that matters
 
-The strongest candidate answer, added 2026-09-06, is a **native front-end**: because the
-manifest is static JSON generated at build time, a Go or Rust binary can serve `--help`,
-`--schema`, completions and usage errors **without ever starting Node**. Measured floors:
-a Go binary starts in 13ms, Node in 29ms, Node + commander in 50ms. Discovery paths —
-which are most of what an agent does before it does anything — go from 50ms to ~13ms;
-execution paths hand off to Node and come out roughly even.
+A layer earns users while it is being built. **A replacement earns none until it works.**
+That is the cost of this decision and it is real.
 
-That is a migration reason a layer cannot offer, because a layer is imported *into* a
-Node process that has already started. See
-[`architecture-review.md`](../research/architecture-review.md) §3 for the full analysis,
-including what it costs: platform binaries, no bundling, and the end of "add one package
-to your existing CLI".
+The mitigations, both starting in wave 1:
 
-Wave 5 starts when at least one of these is evidenced by waves 1–4:
-
-| Candidate reason | Status |
-| :-- | :-- |
-| native front-end serves discovery paths without Node | candidate, arithmetic checks out, needs a spike |
-| yargs cannot have its help replaced, so H1–H6 is thinner there | evidenced |
-| a floor requirement is unreachable through both hosts' public APIs | to be discovered in waves 1–4 |
-| §10 parsing fixes will not be taken upstream | plausible, unproven |
-
-If waves 1–4 finish and nothing above holds, the correct decision is to drop wave 5 and
-remain a layer. That is a real possible outcome.
+- **The burn-down is published from the first commit.** `compat-commander 1,050/1,215 ▲+38
+  this week` is more persuasive than any announcement, and it makes the wait visible
+  instead of silent.
+- **`eslint-plugin-cli-floor` needs no runtime adoption at all** — no dependency in
+  anyone's shipped bundle, no migration — so it can earn users during the whole build.
+  It moves as early as wave 4 will allow, and earlier if wave 1 finishes ahead of it.
 
 ### Architecture decisions
 
@@ -233,7 +229,7 @@ is the same contract, not a separate product. `selvage` is provisional; `treadle
 
 ## Execution status
 
-All twenty intents are `review` or `shipped`; every open question in every intent has
+All twenty-one intents are `review` or `shipped`; every open question in every intent has
 a recorded decision. Moving an intent to `approved` is the human gate, per
 `AI_NATIVE_SDLC.md` rule 3 — nothing is built before that.
 

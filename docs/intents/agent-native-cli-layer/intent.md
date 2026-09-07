@@ -1,35 +1,66 @@
-# Intent — An agent-native layer on top of commander and yargs
+# Intent — An agent-native CLI framework, drop-in compatible with commander and yargs
 
 > Stage 1 artifact of the AI-native SDLC. Opened from the 2026-09-05 npm-trends read
 > (commander, yargs, oclif, chalk) and a full read of the 329 open issues across the
 > six leading CLI libraries — see `docs/research/competitor-open-issues.md`.
 
-**Status:** review · **Opened:** 2026-09-05 · **Owner:** @ofri-peretz
+**Status:** review · **Opened:** 2026-09-05 · **Owner:** @ofri-peretz ·
+**Restructured:** 2026-09-06
 
 ---
 
 ## What is wanted
 
-Interlace owns **every layer above argv parsing** for Node CLIs, built on commander
-**and yargs** through parser adapters and never replacing either: schema, config
-precedence, validation relationships, help rendering, structured output, error
-lifecycle, prompts, completions, testing — and a **machine-readable manifest** that
-turns any CLI built on the layer into a toolset an AI agent can drive in one call
-instead of many. Because the layer sits above the parser, an existing CLI on either
-library keeps its parser and gains the floor.
+A **CLI framework that replaces commander and yargs**, is drop-in compatible with both,
+and serves every command it is given through every format a caller might want — human,
+machine and agent — from a single declaration.
+
+Three things at once, and all three are required; any two of them is a project that
+already exists and lost.
+
+**1. A competitor, not a layer.** One engine owns argv, the lifecycle, validation,
+precedence, help and output. Not an adapter over someone else's parser.
+
+**2. Full compatibility with both incumbents**, so migration is one import line.
+`interlace/commander` exposes commander's 151 public methods; `interlace/yargs` exposes
+yargs' 108. The claim is not the word "compatible" — it is a published pass rate against
+their own suites: **1,215 commander tests and 1,185 yargs tests**, run in our CI on every
+PR, ratcheting, never edited to pass. vitest overtook jest this way (99.9M/wk against
+48.0M); stricli invented a new API and earns 16 downloads a week.
+
+**3. Every command served in every format, from one declaration.** This is the reason to
+switch and the part neither incumbent will ever build. One command declaration becomes:
+
+| Surface | What the caller gets |
+| :--- | :--- |
+| human help | rendered from the manifest, not hand-written |
+| `--json` | one stable envelope: `{ ok, data, error?, meta }` |
+| `--schema` | the full typed command tree, versioned, JSON-Schema validated |
+| `--mcp` | an MCP server: every command a typed tool, generated |
+| completions | bash, zsh, fish, PowerShell, generated statically |
+| Fig spec | the same node, a different emitter |
+| docs and `llms.txt` | generated, never drifting from the code |
+| TypeScript types | derived from the schema, not declared twice |
+| lint rules | `eslint-plugin-cli-floor` holds the floor statically |
+
+An author writes the command once. Every one of those surfaces is a projection of the
+same manifest, which is why they cannot drift, and why adding a tenth surface is an
+emitter rather than a feature.
 
 Concretely, once this lands:
 
-1. A CLI built on the layer answers `--schema` with its full command tree, options,
-   types, env bindings and examples as JSON, and `--json` on every command with one
-   stable envelope. An agent learns the whole CLI in one call and never parses prose.
-2. In a non-TTY or agent session the CLI never prompts, never spins, never redraws,
+1. A CLI answers `--schema` with its full command tree as versioned JSON, and `--json`
+   on every command with one stable envelope. An agent learns the whole CLI in one call
+   and never parses prose.
+2. `--mcp` serves that same CLI as an MCP server with no additional author effort.
+3. In a non-TTY or agent session the CLI never prompts, never spins, never redraws,
    never prints help on a runtime failure, and every error carries the exact flag or
    command that fixes it.
-3. The same floor is enforced statically by `eslint-plugin-cli-floor`, so a CLI that does
-   not use the runtime layer can still be held to it.
-4. The repo itself runs on the Interlace ESLint ecosystem — every plugin that applies
-   to a Node runtime — and is the reference consumer for them.
+4. An existing commander or yargs CLI migrates by changing one import, and its own test
+   suite still passes.
+5. The floor is also enforced statically by `eslint-plugin-cli-floor`, so a CLI that has
+   not migrated can still be held to it — the adoption wedge that costs no runtime change.
+6. The repo runs on the Interlace ESLint ecosystem and is the reference consumer for it.
 
 ## Why now
 
@@ -38,6 +69,12 @@ Concretely, once this lands:
   them. A new parser has no entry point: citty with UnJS/Nuxt distribution sits at
   3 releases in 24 months; oclif, the only full framework, is the flat line at the
   bottom of the chart after eight years.
+- **Compatible replacements are the only challengers that have ever won.** vitest copied
+  jest's API and overtook it; pnpm copied npm's surface; rolldown is closing on rollup;
+  preact/compat holds a durable niche. Biome, which asked users to rewrite their config,
+  is the slowest of the six. Every post-2015 framework that invented an API lost:
+  stricli 16/wk, gunshi 72k, cmd-ts 225k, clerc 27k. Copy the API, never invent one.
+  See `docs/research/competitor-landscape.md` §5.
 - **The incumbents are healthy and will not move up-stack.** commander: v15 on
   2026-05-29, 9 releases in 24 months, 8 open items, pushed 2026-09-01. yargs: v18.1
   on 2026-07-26, pushed 2026-09-04, 211 open items. Nothing to displace; a stable

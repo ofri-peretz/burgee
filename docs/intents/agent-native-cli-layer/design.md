@@ -7,9 +7,44 @@ Intent: [`intent.md`](./intent.md). **Status:** draft.
 
 ---
 
+## The shape lock — why this is a better commander and not another oclif
+
+Everything below (a manifest, plugins, generated surfaces) is also oclif's architecture,
+and oclif lost: **10.9M downloads a week against commander's 508M**, after eight years
+and with Salesforce behind it. The difference is not features. It is that oclif is a
+*framework* — it requires a project structure, a build step, a generator and eighteen
+runtime dependencies — while commander is a *library* you install and use in one file.
+
+The floor's capabilities are worth having. Adopting oclif's shape to get them is the
+single most likely way this project fails. So the shape is locked, first, ahead of every
+other requirement:
+
+| # | Requirement | Holds |
+| :-- | :-- | :-- |
+| Z1 | A working CLI is **one file**: `npm i`, write it, run it. No build step, no config file, no directory convention, no codegen, no scaffold | lock |
+| Z2 | Every capability beyond Z1 is **additive and removable**: precomputed manifests, lazy loading, plugins, the dev loop, scaffolding. Deleting any of them leaves a working CLI | lock |
+| Z3 | Zero runtime dependencies (K1). oclif ships 18 | lock |
+| Z4 | The first example in the README is **15 lines or fewer** and has no build step | lock |
+| Z5 | The manifest is computed **in memory at startup by default**. Precomputing it is an opt-in optimisation for large CLIs, never a prerequisite | R + bench |
+
+**Z1 is a real test, not a principle.** `packages/cli-core/src/shape.test.ts` creates a
+temporary directory, installs the built tarball, writes exactly one file, runs it, and
+asserts the output. If that test ever needs a second file, a config, or a build step to
+pass, the project has become oclif and the test fails.
+
+**Z5 is the design consequence.** The build-time manifest earns its place only for the
+250-command case (yargs #1005), so it is an optimisation with a benchmark attached, not
+the way commands are declared. A five-command CLI computes its manifest in microseconds
+at startup and never knows the build step exists.
+
+The reference point to keep in view: a commander user's first line is
+`new Command()`. Ours must be equally short, in one file, with nothing installed but us.
+
+---
+
 ## Requirements — the CLI floor
 
-74 requirements: the original 26 (F/O/E/V/S/P/D/T), 27 folded in from the gap-track
+79 requirements: the shape lock (Z1–Z5), the original 26 (F/O/E/V/S/P/D/T), 27 folded in from the gap-track
 intents on 2026-09-06 (S5–S8, V6–V7, H1–H6, D3–D5, P3, M1–M6, K1–K5), and 21 added the
 same day with the compatible-replacement strategy and the architecture review
 (K6, C1–C6, B1–B7, N1–N5). Each names the
