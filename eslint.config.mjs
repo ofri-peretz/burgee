@@ -186,6 +186,10 @@ export default [
   },
 
   // ── Documented false positives (tracked in ofri-peretz/eslint) ────────────
+  // FP 12 (no exception needed, the code was hoisted): consistent-function-scoping fires on
+  // an arrow that is already at module scope when it is wrapped in a type assertion, and on
+  // trivial callbacks written inline inside an object literal that is passed as an argument,
+  // a shape unicorn's rule exempts. Seen 2026-09-07 in packages/burgee/src/help.test.ts.
   // void-dom-elements-no-children matches next/link's <Link> as the void <link>
   // element (case-insensitive tag match). Finding 5.
   {
@@ -277,7 +281,7 @@ export default [
     // (`import { type X } from './m.js'`) emits `import {} from './m.js'` — a real
     // module load for no value, worth ~5ms of startup here. A type-only import must
     // be top-level so it erases completely.
-    files: ['packages/burgee/src/execute.ts'],
+    files: ['packages/burgee/src/execute.ts', 'packages/burgee/src/help.ts'],
     rules: { 'import-next/consistent-type-specifier-style': 'off' },
   },
   {

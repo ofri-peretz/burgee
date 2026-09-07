@@ -23,8 +23,9 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
 - **R5 (K5)** `.agent/artifact-size-baseline.json` with `npm pack --dry-run` sizes;
   `check-artifact-size` ratchets (a shrink updates the baseline in the PR; a growth
   over 10% fails without an explicit baseline bump).
-- **R6** `runtime-smoke.yml`: `bun run` and `deno run -A` the commander demo via the
-  harness; `continue-on-error: true`.
+- **R6** `runtime-smoke.yml`: `bun` and `deno run -A` the built burgee and commander demos
+  (greet, `--json`, `--help`) on every push and PR; `continue-on-error: true`. **Landed
+  2026-09-07**, pinned to `setup-bun` v2.2.0 and `setup-deno` v2.0.5 by SHA.
 
 ## Design
 

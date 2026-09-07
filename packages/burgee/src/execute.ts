@@ -8,7 +8,8 @@
 import { parseArgs } from 'node:util';
 
 import { ExitCode, isExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
-import { type CommandNode, Manifest, type OptionSpec, type RunContext } from './manifest.js';
+import { renderHelp } from './help.js';
+import { type ArgumentSpec, type CommandNode, type Example, Manifest, type OptionSpec, type RunContext } from './manifest.js';
 
 export interface CommandContext<O> extends Omit<RunContext, 'options'> {
   options: O;
@@ -17,10 +18,33 @@ export interface CommandContext<O> extends Omit<RunContext, 'options'> {
 export interface Command<O = Record<string, string | boolean | undefined>> {
   name: string;
   description?: string;
+  /** Shown in command lists instead of the description. */
+  summary?: string;
   options?: Record<string, OptionSpec>;
+  arguments?: ArgumentSpec[];
+  examples?: Example[];
+  /** Heading this command is listed under in its parent's help. */
+  group?: string;
+  epilogue?: string;
+  hidden?: boolean;
+  deprecated?: boolean | string;
   /** Absent on a group that only holds subcommands. */
   run?: (ctx: CommandContext<O>) => unknown;
   commands?: Command[];
+}
+
+/** Everything help renders, copied as declared; `undefined` never lands on the node. */
+function helpFields(c: Command): Partial<CommandNode> {
+  const node: Partial<CommandNode> = {};
+  if (c.description !== undefined) node.description = c.description;
+  if (c.summary !== undefined) node.summary = c.summary;
+  if (c.arguments !== undefined) node.arguments = c.arguments;
+  if (c.examples !== undefined) node.examples = c.examples;
+  if (c.group !== undefined) node.group = c.group;
+  if (c.epilogue !== undefined) node.epilogue = c.epilogue;
+  if (c.hidden !== undefined) node.hidden = c.hidden;
+  if (c.deprecated !== undefined) node.deprecated = c.deprecated;
+  return node;
 }
 
 export interface Program {
@@ -44,7 +68,7 @@ function addTree(manifest: Manifest, parent: string[], commands: Command[]): voi
     const path = [...parent, c.name];
     manifest.add({
       path,
-      ...(c.description === undefined ? {} : { description: c.description }),
+      ...helpFields(c),
       options: c.options ?? {},
       ...(c.run === undefined ? {} : { run: c.run as (ctx: RunContext) => unknown }),
     });
@@ -65,7 +89,8 @@ export interface RunOptions {
   argv?: string[];
   /** The environment env-bound options read from. Injected by the harness; the process's own otherwise. */
   env?: Record<string, string | undefined>;
-  stdout?: { write: (s: string) => unknown };
+  /** `columns` is read when present, so help wraps to the terminal (H3). */
+  stdout?: { write: (s: string) => unknown; columns?: number };
   stderr?: { write: (s: string) => unknown };
   exit?: (code: number) => never;
 }
@@ -79,13 +104,6 @@ class UsageError extends Error {
     super(message);
   }
 }
-
-/** Spaces between the widest flag and the description column. */
-const HELP_GUTTER = 2;
-const RESERVED_ROWS: [string, string][] = [
-  ['--json', 'machine-readable output'],
-  ['--help', 'show this help'],
-];
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -111,51 +129,6 @@ function render(value: unknown): string {
       .join('\n');
   }
   return String(value);
-}
-
-function table(rows: [string, string][]): string[] {
-  // One column for every row, sized to the widest (H3: width from the runtime later).
-  const width = Math.max(...rows.map(([left]) => left.length)) + HELP_GUTTER;
-  return rows.map(([left, text]) => `  ${left.padEnd(width)}${text}`.trimEnd());
-}
-
-function optionRows(options: Record<string, OptionSpec>): [string, string][] {
-  return Object.entries(options).map(([name, spec]): [string, string] => {
-    const env = spec.env === undefined ? '' : ` [env: ${spec.env}]`;
-    const req = spec.required === true ? ' (required)' : '';
-    return [`--${name}${spec.type === 'string' ? ' <value>' : ''}`, `${spec.description ?? ''}${env}${req}`.trim()];
-  });
-}
-
-/** Help for one runnable command. */
-function commandHelp(node: CommandNode, root: string[]): string {
-  const name = node.path.slice(root.length).join(' ') || node.path.join(' ');
-  const lines = [
-    ...(node.description === undefined ? [] : [node.description, '']),
-    `Usage: ${name} [options]`,
-    '',
-    'Options:',
-    ...table([...optionRows(node.options), ...RESERVED_ROWS]),
-  ];
-  return `${lines.join('\n')}\n`;
-}
-
-/** Help for the program, or for a group: the commands one level below `prefix` (H1). */
-function groupHelp(manifest: Manifest, prefix: string[], root: string[]): string {
-  const description = manifest.find(prefix)?.description;
-  const children = manifest.commands.filter((c) => c.path.length === prefix.length + 1 && prefix.every((seg, i) => c.path[i] === seg));
-  const shown = prefix.slice(root.length).join(' ') || prefix.join(' ');
-  const lines = [
-    ...(description === undefined ? [] : [description, '']),
-    `Usage: ${shown} <command> [options]`,
-    '',
-    'Commands:',
-    ...table(children.map((c): [string, string] => [c.path[c.path.length - 1] ?? '', c.description ?? ''])),
-    '',
-    'Options:',
-    ...table(RESERVED_ROWS),
-  ];
-  return `${lines.join('\n')}\n`;
 }
 
 type ParseConfig = Record<string, { type: 'string' | 'boolean'; short?: string }>;
@@ -262,7 +235,10 @@ function textFailure(failure: Failure): string {
   return `error: ${failure.message}\n${hint}`;
 }
 
-const HELP_FLAGS = new Set(['--help', '-h', 'help']);
+const HELP_FLAGS = new Set(['--help', '-h']);
+
+/** Help width: the terminal's columns when the stream has them, else 100 (H3). */
+const HELP_WIDTH = 100;
 
 /** The real exit, used only when a caller injects none. */
 const processExit = (code: number): never => process.exit(code);
@@ -273,13 +249,30 @@ export function beforeTerminator(argv: readonly string[]): readonly string[] {
   return at === -1 ? argv : argv.slice(0, at);
 }
 
+/** The node help is rendered for when nothing more specific resolves: the root's own. */
+function rootNode(manifest: Manifest, root: string[]): CommandNode {
+  return manifest.find(root) ?? { path: root, options: {} };
+}
+
 /** What to do when argv resolves to no runnable command: help, or a usage error naming it. */
-function unresolved(manifest: Manifest, argv: string[], root: string[], at: CommandNode | undefined): { text: string; code: ExitCodeType } {
-  const prefix = at?.path ?? root;
-  if (argv.length > 0 && HELP_FLAGS.has(argv[0] ?? '')) return { text: groupHelp(manifest, prefix, root), code: ExitCode.OK };
-  const typed = argv.slice(prefix.length - root.length);
-  if (typed.length === 0) return { text: groupHelp(manifest, prefix, root), code: ExitCode.USAGE };
+interface Resolving {
+  manifest: Manifest;
+  root: string[];
+  io: Io;
+}
+
+function unresolved({ manifest, root, io: { width } }: Resolving, argv: string[], at: CommandNode | undefined): { text: string; code: ExitCodeType } {
+  const node = at ?? rootNode(manifest, root);
+  const typed = argv.slice(node.path.length - root.length);
+  if (typed.length > 0 && HELP_FLAGS.has(typed[0] ?? '')) return { text: renderHelp(manifest, node, { width }), code: ExitCode.OK };
+  if (typed.length === 0) return { text: renderHelp(manifest, node, { width }), code: ExitCode.USAGE };
   throw new UsageError(`unknown command "${typed[0] ?? ''}"`, 'run --help to see the available commands');
+}
+
+/** `help [command…]` is synthesised for every program (yargs #1020): the named node's help, or the root's. */
+function helpCommand(manifest: Manifest, argv: string[], root: string[], width: number): string {
+  const { node } = manifest.resolve(argv, root);
+  return renderHelp(manifest, node ?? rootNode(manifest, root), { width });
 }
 
 type Runnable = CommandNode & { run: NonNullable<CommandNode['run']> };
@@ -293,6 +286,7 @@ interface Io {
   err: { write: (s: string) => unknown };
   env: Record<string, string | undefined>;
   exit: (code: number) => never;
+  width: number;
 }
 interface Outcome {
   json: boolean;
@@ -304,7 +298,7 @@ async function dispatch(manifest: Manifest, { node, rest, name }: Resolved, io: 
   const parsed = parseArgs({ args: rest, options: toParseConfig(node.options), allowPositionals: true, strict: true, tokens: true });
   const values = parsed.values as Values;
   const json = values.json === true;
-  if (values.help === true) return { json, help: commandHelp(node, manifest.rootPath) };
+  if (values.help === true) return { json, help: renderHelp(manifest, node, { width: io.width }) };
 
   applyDefaults(values, node.options, io.env);
   const { positionals, passthrough } = splitPositionals(parsed.tokens);
@@ -347,11 +341,13 @@ async function report(cause: unknown, { manifest, io, argv, json, name }: Failur
  * plugin hooks around it, render, exit.
  */
 export async function execute(manifest: Manifest, opts: RunOptions & { root?: string[]; from?: 'node' | 'user' } = {}): Promise<void> {
+  const out = opts.stdout ?? process.stdout;
   const io: Io = {
-    out: opts.stdout ?? process.stdout,
+    out,
     err: opts.stderr ?? process.stderr,
     env: opts.env ?? process.env,
     exit: opts.exit ?? processExit,
+    width: out.columns ?? HELP_WIDTH,
   };
   // `from: 'node'` is commander's default and means argv still carries execPath and the
   // script. Doing the slice here keeps `process` out of every façade.
@@ -363,9 +359,13 @@ export async function execute(manifest: Manifest, opts: RunOptions & { root?: st
   let json = beforeTerminator(argv).includes('--json');
   let name = '';
   try {
+    if (argv[0] === 'help') {
+      io.out.write(helpCommand(manifest, argv.slice(1), root, io.width));
+      return io.exit(ExitCode.OK);
+    }
     const { node, rest } = manifest.resolve(argv, root);
     if (node?.run === undefined) {
-      const { text, code } = unresolved(manifest, argv, root, node);
+      const { text, code } = unresolved({ manifest, root, io }, argv, node);
       (code === ExitCode.OK ? io.out : io.err).write(text);
       return io.exit(code);
     }

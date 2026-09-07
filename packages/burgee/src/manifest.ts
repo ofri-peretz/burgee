@@ -13,6 +13,28 @@ export interface OptionSpec {
   default?: string | boolean;
   /** Environment variable consulted when the flag is absent (V2). Read from the injected env, never process.env directly. */
   env?: string;
+  /** Allowed values; help renders `(one of: a, b)` (yargs #1408). */
+  choices?: string[];
+  /** The value's name in help: `--id <dataset-id>` (yargs #833). */
+  placeholder?: string;
+  /** `true` renders `(deprecated)`; a string names the replacement: `(deprecated: use --force)` (yargs #2248). */
+  deprecated?: boolean | string;
+  hidden?: boolean;
+}
+
+/** A positional, as help documents it (yargs #2012). */
+export interface ArgumentSpec {
+  name: string;
+  description?: string;
+  required?: boolean;
+  variadic?: boolean;
+  default?: string;
+}
+
+/** One example: a single copy-pasteable command line, the description below it (H2). */
+export interface Example {
+  command: string;
+  description?: string;
 }
 
 /** What a handler receives. `passthrough` is everything after `--`, verbatim (G5). */
@@ -28,7 +50,16 @@ export interface RunContext {
 export interface CommandNode {
   path: string[];
   description?: string;
+  /** Shown in command lists instead of the description (yargs #1265). */
+  summary?: string;
   options: Record<string, OptionSpec>;
+  arguments?: ArgumentSpec[];
+  examples?: Example[];
+  /** Heading this command is listed under in its parent's help (yargs #684). */
+  group?: string;
+  epilogue?: string;
+  hidden?: boolean;
+  deprecated?: boolean | string;
   run?: (ctx: RunContext) => unknown;
   /** Which plugin contributed this, if any. Declared, never diffed (M3). */
   plugin?: string;

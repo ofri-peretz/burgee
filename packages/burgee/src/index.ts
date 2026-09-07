@@ -16,4 +16,15 @@ export {
   type Program,
   type RunOptions,
 } from './execute.js';
-export { definePlugin, Manifest, type CommandNode, type Hook, type OptionSpec, type Plugin, type RunContext } from './manifest.js';
+export { renderHelp, type HelpOptions } from './help.js';
+export {
+  definePlugin,
+  Manifest,
+  type ArgumentSpec,
+  type CommandNode,
+  type Example,
+  type Hook,
+  type OptionSpec,
+  type Plugin,
+  type RunContext,
+} from './manifest.js';

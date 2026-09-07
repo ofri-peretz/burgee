@@ -46,9 +46,15 @@ const RULES: Record<string, EntryRule> = {
   // Raised from 12,000 on 2026-09-07, deliberately and once: the entry now reaches
   // the execution core and the manifest, which is the whole engine and is what
   // `import 'burgee'` should give you. 12 KB against commander's 232 KB installed.
-  '.': { allow: [], budget: 20_000, denied: ['testing.js', 'testing-helpers.js'] },
+  // Raised from 20,000 on 2026-09-07, deliberately and once more: help is rendered from
+  // the manifest in core (H1 of cli-help-renderer), which is 6 KB of renderer replacing
+  // 1.5 KB of placeholder. 32 KB for engine + manifest + help, against commander's
+  // lib/help.js alone at 20.8 KB.
+  '.': { allow: [], budget: 32_000, denied: ['testing.js', 'testing-helpers.js'] },
   // The harness. Test-time only, so a user's shipped CLI never pays for it.
-  './testing': { allow: [], budget: 24_000, denied: [] },
+  // Raised from 24,000 with `.` above: the harness reaches the whole engine to run a
+  // program in-process, so it carries the renderer too.
+  './testing': { allow: [], budget: 40_000, denied: [] },
   // `allow: []` is the point: the compat front-ends *implement* the incumbents'
   // surfaces over our engine, they do not wrap the real packages, so they import
   // nothing either (J9). Real commander and yargs live only in compat-oracle, which

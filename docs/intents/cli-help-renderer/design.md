@@ -41,6 +41,25 @@ middleware and printing `renderHelp(node)` instead of calling `showHelp`.
 `help <cmd>` is synthesised by the agent layers as a hidden command that renders the
 target node.
 
+## Status (2026-09-07)
+
+| Req | State | Where |
+| :-- | :-- | :-- |
+| R1 | `renderHelp(manifest, node, { width, verbose })`, pure. No `color`/`locale` yet: colour is R7, locale waits for a first localised adopter | `packages/burgee/src/help.ts` |
+| R2 | fixed order, empty sections omitted | `help.test.ts` "fixed order" |
+| R3 | one term column for the whole help (≤ 40% of width), two-space gutter, wrapped descriptions, terms never wrapped | "fits N columns" at 60/80/100/120 |
+| R4 | `(required) (default: x) (one of: a, b) [env: X] [type]` then `(deprecated: use y)`; type only with `verbose` (H6) | "annotates …", "type hints off" |
+| R5 | `$ command` on one line, description below | "copy-pasteable line" |
+| R6 | Markdown output — **deferred to `docs-deploy` (wave 4)**: its consumer is the docs site, and shipping it in core spends the core byte budget on a dev-time surface; it lands as its own entry when the site needs it | — |
+| R7 | colour — not yet; names are never coloured in the manifest, so it is purely additive | — |
+| H3 | width from the injected stdout's `columns`, else 100 | "takes its width from the injected stdout" |
+| `help <cmd>` | synthesised in the engine for every program (yargs #1020) | "help through the engine" |
+| N15 | agent output format — **deferred to wave 3** with the surfaces, where `--format` is decided once | — |
+
+The commander front-end keeps commander's own help by default (byte-identical is the
+contract, X7); this renderer is available to it as an opt-in through `configureHelp` in a
+later step.
+
 ## Verification
 
 - Snapshot suite per requirement row from the intent, at widths 60, 80, 100, 120.
