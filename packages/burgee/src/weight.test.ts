@@ -46,12 +46,12 @@ const RULES: Record<string, EntryRule> = {
   '.': { allow: [], budget: 12_000, denied: ['testing.js', 'testing-helpers.js'] },
   // The harness. Test-time only, so a user's shipped CLI never pays for it.
   './testing': { allow: [], budget: 24_000, denied: [] },
-  // Entries that land in wave 2 keep the same shape. Note `allow: []`: the compat
-  // front-ends *implement* the incumbents' surfaces over our engine, they do not wrap
-  // the real packages, so they import nothing either. The only place real commander and
-  // yargs appear is compat-oracle, which is private and never reaches a user.
-  // './commander': { allow: [], budget: 60_000, denied: ['testing.js'] },
-  // './yargs':     { allow: [], budget: 60_000, denied: ['testing.js'] },
+  // `allow: []` is the point: the compat front-ends *implement* the incumbents'
+  // surfaces over our engine, they do not wrap the real packages, so they import
+  // nothing either (J9). Real commander and yargs live only in compat-oracle, which
+  // is private and never reaches a user.
+  './commander': { allow: [], budget: 24_000, denied: ['testing.js', 'testing-helpers.js'] },
+  // './yargs': { allow: [], budget: 24_000, denied: ['testing.js', 'testing-helpers.js'] },
 };
 
 const SPECIFIER = /(?:from|import)\s*\(?\s*'([^']+)'/g;

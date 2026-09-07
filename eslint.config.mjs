@@ -269,6 +269,13 @@ export default [
     },
   },
   {
+    // Plugin hooks run strictly in order — `enforce: 'pre'`, then unordered, then
+    // `'post'` — and a hook may depend on what an earlier one did. Sequential await
+    // is the contract, not an oversight.
+    files: ['packages/burgee/src/manifest.ts'],
+    rules: { 'performance/no-await-in-loop': 'off', 'reliability/no-await-in-loop': 'off' },
+  },
+  {
     // burgee owns the process: a CLI framework's whole job is to parse, run and
     // exit with the E1 contract. `exit` is injectable (RunOptions.exit) so tests
     // never touch the real one; the default has to call process.exit.
