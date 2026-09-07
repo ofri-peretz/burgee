@@ -1,4 +1,4 @@
-# yargs-testing
+# yargs-harness
 
 Run a [yargs](https://github.com/yargs/yargs) CLI **in-process**, with `argv`, `env`,
 `stdin`, `cwd` and TTY-ness injected, and get back
@@ -7,7 +7,7 @@ Run a [yargs](https://github.com/yargs/yargs) CLI **in-process**, with `argv`, `
 of the Interlace CLI floor.
 
 ```ts
-import { runYargs } from 'yargs-testing';
+import { runYargs } from 'yargs-harness';
 import { buildCli } from './cli.js'; // (y, runtime) => Argv
 
 const r = await runYargs(buildCli, { argv: ['greet', 'ada', '--shout'] });

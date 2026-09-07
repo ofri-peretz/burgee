@@ -1,5 +1,5 @@
 /**
- * Test-side helpers shared by `commander-harness` and `yargs-testing` (design R2,
+ * Test-side helpers shared by `commander-harness` and `yargs-harness` (design R2,
  * R5, R7 of `cli-testing-harness`). This is the second and last file in the layer
  * that may touch `process`, because swapping `process.env` for the duration of a run
  * is the one thing a harness cannot avoid: commander reads `Option#env()` from
