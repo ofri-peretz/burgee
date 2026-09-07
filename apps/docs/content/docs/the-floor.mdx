@@ -1,6 +1,6 @@
 ---
 title: The floor
-description: The 53 requirements every CLI on the layer meets, and who holds each — runtime, lint, or both.
+description: The 69 requirements every CLI on the layer meets, and who holds each — runtime, lint, or both.
 ---
 
 Each requirement is held by the **runtime** (the `commander-*` / `yargs-*` extensions), by the **lint** plugin
@@ -132,3 +132,33 @@ not a floor. Evidence for every line is an open issue in a leading CLI library �
 | K3 | Node natives over packages | both |
 | K4 | An artifact gate runs on the built output before publish | release |
 | K5 | Per-package size budget, ratcheted | lock |
+| K6 | Weight is paid per import: compatibility and host quirks live behind their own specifiers, never behind a runtime flag | lock |
+
+## Compatibility
+
+Every claim about a host is graded by that host's own test suite, so "compatible" is a
+number rather than an adjective. The rate is published on every release.
+
+| ID | Requirement | Holds |
+| :-- | :-- | :-- |
+| C1 | Every package declares a supported host range; the host's own suite runs against it at every supported major | CI |
+| C2 | A compatibility front-end is graded by the host's own suite through a one-line shim; the rate is published per release | CI |
+| C3 | Every package is tested on every Node LTS in its `engines` range, across Linux, macOS and Windows | CI |
+| C4 | Every intentional divergence has an id, a written reason, and a test asserting it — an unlisted failure is a bug | lock |
+| C5 | Pass rates ratchet; lowering one requires editing the baseline with a reason | CI |
+| C6 | Vendored suites record their upstream commit; a scheduled job opens a pull request when the count changes | workflow |
+
+## Benchmarks
+
+Four axes, because there are four kinds of public claim. Every number the project cites
+anywhere links back to the generated benchmarks page.
+
+| ID | Requirement | Holds |
+| :-- | :-- | :-- |
+| B1 | Agent cost: tokens, turns and success per task, layer on versus off | band |
+| B2 | Performance: cold start p50/p95 over 30 or more spawns, always including a bare-node floor row | band |
+| B3 | Compatibility: per-host pass rate, read from the oracle, never recomputed | band |
+| B4 | Weight: bundled size per entry point against a published target; a core-only import pulls zero front-end bytes | band |
+| B5 | Every axis emits one JSON shape, so one collector reads all of them | lock |
+| B6 | Performance, compatibility and weight gate every pull request; agent cost runs weekly | CI |
+| B7 | Every public number links to the generated benchmarks page | lock |
