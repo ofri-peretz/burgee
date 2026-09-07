@@ -5,9 +5,9 @@ import { type ReactNode } from 'react';
 import './global.css';
 
 export const metadata: Metadata = {
-  title: { default: 'Interlace CLI', template: '%s | Interlace CLI' },
+  title: { default: 'burgee', template: '%s | burgee' },
   description:
-    'The agent-native layer on top of commander and yargs: one schema, a JSON envelope on every command, an exit-code contract, and a manifest an AI agent reads in one call.',
+    "Everything a CLI needs that isn't your CLI: help, structured output, a typed schema, an MCP server, completions, types and docs, every one projected from a single declaration.",
 };
 
 export default function Layout({ children }: { children: ReactNode }) {

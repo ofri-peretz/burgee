@@ -57,6 +57,6 @@ It stays a library you import in one file: no build step, no config, no director
 convention, no scaffold. A test enforces that.
 
 Roadmap, architecture and the 79-requirement floor:
-<https://github.com/ofri-peretz/cli>
+<https://github.com/ofri-peretz/burgee>
 
 MIT © Interlace

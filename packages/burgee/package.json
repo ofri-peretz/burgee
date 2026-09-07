@@ -18,6 +18,16 @@
       "import": "./dist/brand.js",
       "default": "./dist/brand.js"
     },
+    "./contrast": {
+      "types": "./dist/contrast.d.ts",
+      "import": "./dist/contrast.js",
+      "default": "./dist/contrast.js"
+    },
+    "./cli": {
+      "types": "./dist/cli.d.ts",
+      "import": "./dist/cli.js",
+      "default": "./dist/cli.js"
+    },
     "./testing": {
       "types": "./dist/testing.d.ts",
       "import": "./dist/testing.js",
@@ -65,5 +75,8 @@
   },
   "devDependencies": {
     "vitest": "^4.0.0"
+  },
+  "bin": {
+    "burgee": "./dist/cli.js"
   }
 }

@@ -295,8 +295,15 @@ export default [
     // FP 11: require-data-minimization reads a static host-config literal (test-suite
     // metadata: repo, glob, exclusions) as "excessive data collection". Nothing here
     // collects anything. Tracked in the eslint monorepo.
-    files: ['packages/compat-oracle/src/hosts.ts'],
+    files: ['packages/compat-oracle/src/hosts.ts', 'packages/burgee/src/cli.ts'],
     rules: { 'operability/require-data-minimization': 'off' },
+  },
+  {
+    // FP 13: no-missing-error-context reads `throw new Error(message)` as an error without
+    // a message when the message arrives through a variable built two lines earlier.
+    // The brand CLI composes a multi-line contrast report and throws it. Tracked upstream.
+    files: ['packages/burgee/src/cli.ts'],
+    rules: { 'maintainability/no-missing-error-context': 'off', 'reliability/no-missing-error-context': 'off' },
   },
   {
     // FP 8 (also seen in scripts/run-evals.ts): no-unhandled-promise fires on every call

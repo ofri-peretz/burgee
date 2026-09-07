@@ -1,6 +1,6 @@
 ---
 title: Interlace CLI
-description: The agent-native layer above argv parsing, on top of commander and yargs.
+description: "Everything a CLI needs that isn't your CLI: help, structured output, a typed schema, an MCP server, completions, types and docs, every one projected from a single declaration."
 ---
 
 Interlace CLI owns every layer **above** parsing: schema, config precedence, structured
@@ -37,6 +37,6 @@ The layer attacks each:
 
 ## Status
 
-Stage 2 of the [AI-native SDLC](https://github.com/ofri-peretz/cli/blob/main/docs/intents/agent-native-cli-layer/intent.md).
+Stage 2 of the [AI-native SDLC](https://github.com/ofri-peretz/burgee/blob/main/docs/intents/agent-native-cli-layer/intent.md).
 The first requirement landed is the exit-code contract, `ExitCode` in `@interlace/cli-core`,
 the internal package every `commander-*` and `yargs-*` extension shares.

@@ -55,6 +55,21 @@ const RULES: Record<string, EntryRule> = {
   // Raised from 24,000 with `.` above: the harness reaches the whole engine to run a
   // program in-process, so it carries the renderer too.
   './testing': { allow: [], budget: 40_000, denied: [] },
+  // The brand generator. Pure geometry and string building — it must never reach
+  // the engine, and the engine must never reach it: a CLI that ships argv parsing
+  // has no reason to carry an SVG emitter.
+  // The package's own command line. It is allowed to reach the engine — it IS a burgee
+  // command, which is the point of it — but a user importing `burgee` must never
+  // reach it, which the '.' rule's own denied list would catch.
+  './cli': { allow: [], budget: 60_000, denied: ['testing.js', 'testing-helpers.js'] },
+  // Pure arithmetic over hex strings. Reaches nothing, and nothing reaches it —
+  // a CLI that ships argv parsing has no reason to carry a contrast checker.
+  './contrast': { allow: [], budget: 12_000, denied: ['index.js', 'execute.js', 'brand.js'] },
+  './brand': {
+    allow: [],
+    budget: 16_000,
+    denied: ['index.js', 'execute.js', 'manifest.js', 'testing.js', 'testing-helpers.js'],
+  },
   // `allow: []` is the point: the compat front-ends *implement* the incumbents'
   // surfaces over our engine, they do not wrap the real packages, so they import
   // nothing either (J9). Real commander and yargs live only in compat-oracle, which
