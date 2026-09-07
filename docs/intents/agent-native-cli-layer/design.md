@@ -47,7 +47,7 @@ The reference point to keep in view: a commander user's first line is
 79 requirements: the shape lock (Z1–Z5), the original 26 (F/O/E/V/S/P/D/T), 27 folded in from the gap-track
 intents on 2026-09-06 (S5–S8, V6–V7, H1–H6, D3–D5, P3, M1–M6, K1–K5), and 27 added the
 same day with the compatible-replacement strategy and the architecture review
-(K6, C1–C8, B1–B7, N1–N5, J1–J9). Each names the
+(K6, C1–C8, B1–B7, N1–N10, J1–J9). Each names the
 issue evidence, whether the **runtime** (R) guarantees it or the **lint** rule (L)
 enforces it, and where it lands.
 
@@ -232,7 +232,7 @@ them had no scheduled measurement.
 
 | # | Requirement | Evidence | Holds | Lands in |
 | :-- | :-- | :-- | :-- | :-- |
-| B1 | Agent cost: tokens, turns and success per task, layer on vs off | the umbrella's own ≥40%/≥30% claim | band | cli-benchmarks |
+| B1 | Agent cost: tokens, turns and success per task, layer on vs off. **A hypothesis to test, not a target to defend** — JetBrains' 425-trial study found output filtering *raised* cost 7.6% because cached re-reads bill at a tenth. The honest justification for O2/O5/F1 is parse reliability, not token economy | JetBrains 2026-07; arXiv 2607.09510 | band | cli-benchmarks |
 | B2 | Performance: cold start p50/p95 over ≥30 spawns, always including a bare-node floor row | competitor map §2 | band | cli-benchmarks |
 | B3 | Compatibility: per-host pass rate, read from `compat-oracle`, never recomputed | C2 | band | cli-benchmarks |
 | B4 | Weight: bundled KB per entry point against a published target; core-only import pulls zero front-end bytes | competitor map §6 | band | cli-benchmarks |
@@ -252,6 +252,11 @@ these requirements turn that into a served interface rather than a document.
 | N3 | Zero runtime dependencies: JSON-RPC over stdio against `node:readline` | K1 | lock | cli-mcp |
 | N4 | Tool results are the O1 envelope, so MCP and `--json` callers see identical payloads | O1 | R | cli-mcp |
 | N5 | `--mcp` implies non-TTY: no prompts, no colour, E3 errors | O2, P2, E3 | R | cli-mcp |
+| N6 | Every command declares `effects: read_only \| idempotent \| non_idempotent`, **required not optional**, and it generates MCP's `readOnlyHint`/`idempotentHint`/`destructiveHint`. The spec defaults `destructiveHint` and `openWorldHint` to **true**, so silence is the dangerous reading | MCP `2026-07-28` schema | R + L | cli-mcp |
+| N7 | A no-op announces itself: every idempotent command reports `changed: true \| false`. An agent reads silence as success, and a silent failure stays invisible for a median of ~10 steps against a median recovery window of 1 | arXiv 2607.09510, 1,794 trajectories | R | commander-agent → engine |
+| N8 | `--schema` succeeds with **no authentication, no config file and no network**. It is the one command an agent runs first, before anything is set up | clispec.dev v0.3 | R + lock | cli-mcp |
+| N9 | The manifest carries `enum`, `minimum` and `maximum` as **data**, not as completion callbacks — the four fields a tool definition needs and a flag parser cannot supply | Cobra #2362, the flag/schema gap | R | commander-schema |
+| N10 | The floor is measured against **clispec.dev** and **cli-agent-lint**'s 34 checks, and the results published. A floor that fails someone else's published checklist is not a floor | — | CI | cli-benchmarks |
 
 ---
 

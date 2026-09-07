@@ -91,7 +91,7 @@ Concretely, once this lands:
 
 ## Affected users and systems
 
-- **Repo** `ofri-peretz/cli`, sibling of `eslint/` and `interlace/`, a turborepo like
+- **Repo** `ofri-peretz/burgee`, sibling of `eslint/` and `interlace/`, a turborepo like
   every Interlace repo, under the same AI-native SDLC (`../AI_NATIVE_SDLC.md`). It
   replaces a stale fork of Shopify's CLI that previously held the name (wiped
   2026-09-05, zero own commits).
