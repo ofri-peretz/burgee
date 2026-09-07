@@ -9,9 +9,10 @@ Intent: [`intent.md`](./intent.md). **Status:** draft.
 
 ## Requirements — the CLI floor
 
-69 requirements: the original 26 (F/O/E/V/S/P/D/T), 27 folded in from the gap-track
-intents on 2026-09-06 (S5–S8, V6–V7, H1–H6, D3–D5, P3, M1–M6, K1–K5), and 16 added the
-same day with the compatible-replacement strategy (K6, C1–C6, B1–B7). Each names the
+74 requirements: the original 26 (F/O/E/V/S/P/D/T), 27 folded in from the gap-track
+intents on 2026-09-06 (S5–S8, V6–V7, H1–H6, D3–D5, P3, M1–M6, K1–K5), and 21 added the
+same day with the compatible-replacement strategy and the architecture review
+(K6, C1–C6, B1–B7, N1–N5). Each names the
 issue evidence, whether the **runtime** (R) guarantees it or the **lint** rule (L)
 enforces it, and where it lands.
 
@@ -19,7 +20,7 @@ enforces it, and where it lands.
 
 | # | Requirement | Evidence | Holds | Agent cost removed |
 | :-- | :-- | :-- | :-- | :-- |
-| F1 | `--schema` prints the full command tree (commands, options, types, defaults, env bindings, examples, deprecations, exit codes) as JSON | yargs #1005, #2121; citty #117, #94; clack #525 | R | One call replaces a `--help` walk per subcommand |
+| F1 | `--schema` prints the full command tree (commands, options, types, defaults, env bindings, examples, deprecations, exit codes) as JSON, carrying a `schemaVersion` and validating against a JSON Schema published with the package | yargs #1005, #2121; citty #117, #94; clack #525 | R | One call replaces a `--help` walk per subcommand |
 | F2 | `--help --json` prints help as data; text help is rendered *from* that data | yargs cluster 2 (20+ issues) | R | No prose parsing; renderer bugs become template fixes |
 | F3 | Every command declares a description and ≥1 example; examples are single-line copy-pasteable | yargs #877, #1640, #1047 | L | Agent can act on the example directly |
 | F4 | Commands may be grouped and hidden; help groups are stable in the schema | yargs #684 (top issue), citty #93 | R | Agent filters by group instead of reading all |
@@ -142,7 +143,7 @@ enforces it, and where it lands.
 | K1 | Zero runtime dependencies in every layer package; hosts and UI libraries are peers | oclif/core #1627 | lock | all |
 | K2 | ESM only, Node ≥ 24 | oclif/core #1450, #1396 | lock | all |
 | K3 | Node natives over packages (`util.styleText`, `fs.glob`, `fetch`) | oclif/core #1627 | L (`prefer-native-style-text`) + lock | all |
-| K4 | An artifact gate runs on the built `dist/` before publish | eslint SARIF formatter incident | release.yml | all |
+| K4 | An artifact gate runs on the built `dist/` before publish; every package publishes with npm provenance via trusted publishing | eslint SARIF formatter incident; @oclif/core's 18 runtime deps | release.yml | all |
 | K5 | Per-package size budget, ratcheted | eslint `artifact-size-baseline.json` | lock | all |
 | K6 | Weight is paid per import: compat and host quirks live behind their own specifiers, never behind a runtime flag | competitor map §6 | lock + B4 | cli-packaging |
 
@@ -174,6 +175,19 @@ them had no scheduled measurement.
 | B5 | Every axis emits one JSON shape; one collector reads all of them | — | lock | cli-benchmarks |
 | B6 | B2/B3/B4 gate every PR; B1 runs weekly | cost and noise | CI | cli-benchmarks |
 | B7 | Every public number links to the generated `/benchmarks` page | a published target with no measurement decays into a slogan | lock | cli-benchmarks, docs-deploy |
+
+### Agent interface (from `cli-mcp`)
+
+Added 2026-09-06. The manifest already carries everything an MCP tool definition needs;
+these requirements turn that into a served interface rather than a document.
+
+| # | Requirement | Evidence | Holds | Lands in |
+| :-- | :-- | :-- | :-- | :-- |
+| N1 | `--mcp` serves the CLI over MCP stdio; tool definitions are generated from the manifest, never hand-written | citty #187; yargs #1605, #1838, #2121 | R | cli-mcp |
+| N2 | A command appears as a tool only if it opts in; destructive commands default to absent | security posture, not convenience | R + L | cli-mcp |
+| N3 | Zero runtime dependencies: JSON-RPC over stdio against `node:readline` | K1 | lock | cli-mcp |
+| N4 | Tool results are the O1 envelope, so MCP and `--json` callers see identical payloads | O1 | R | cli-mcp |
+| N5 | `--mcp` implies non-TTY: no prompts, no colour, E3 errors | O2, P2, E3 | R | cli-mcp |
 
 ---
 
