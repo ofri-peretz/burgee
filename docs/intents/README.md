@@ -7,18 +7,23 @@ intent, `intent.md` then `design.md`, statuses `draft → review → approved �
 
 ## The roadmap in one paragraph
 
-Build the layer that commander and yargs have declined to own for fourteen years, on
-both hosts, graded from day one by those hosts' own test suites. Once the layer is
-complete and the compatibility gate is ratcheting, add our own parser as a third host
-and expose it behind `commander`- and `yargs`-shaped front-ends, so an existing user
-migrates by changing one import. Every claim we make in public — agent cost,
-performance, compatibility, weight — is a measured number on a schedule, not an
-adjective.
+**Decided 2026-09-06: we are building a competitor to commander and yargs, not a layer on
+top of them.** One engine owns argv and the lifecycle. It is drop-in compatible with both
+incumbents — `burgee/commander` and `burgee/yargs`, graded by their own 1,215 and
+1,185 tests, with the pass rate published and ratcheting from the first commit. And it
+serves every command through every format a caller wants — human help, `--json`,
+`--schema`, `--mcp`, completions, Fig, types, docs — all projections of one manifest, so
+none of them can drift. Compatibility makes it cheap to try; the surfaces are the reason
+to switch. Throughout, one constraint outranks every feature: **it stays a library you
+import in one file, not a framework you scaffold into.** oclif has all of these
+capabilities and does 10.9M/week against commander's 508M.
+
+Diagrams: [`architecture.md`](../research/architecture.md).
 
 ## The umbrella
 
 [`agent-native-cli-layer/`](./agent-native-cli-layer/) is the parent of everything
-below. Its `design.md` carries the **69-requirement floor** (F/O/E/V/S/P/D/T/H/M/K/C/B
+below. Its `design.md` carries the **74-requirement floor** (F/O/E/V/S/P/D/T/H/M/K/C/B/N
 ids) that every child cites.
 
 Two research documents feed it, and every intent cites one or both:
@@ -29,6 +34,12 @@ Two research documents feed it, and every intent cites one or both:
 - [`competitor-landscape.md`](../research/competitor-landscape.md) — the measured
   competitor map: downloads, cold start, the compatibility bill, the oracle, and why
   the replacement is a third adapter rather than a fork.
+- [`architecture.md`](../research/architecture.md) — **the architecture, in diagrams**:
+  one declaration to every surface, the shape lock against oclif, engine and front-ends,
+  migration, the dev loop, and where a faster language pays.
+- [`architecture-review.md`](../research/architecture-review.md) — the honest review:
+  nine findings with actions, the declarative plugin design, and the native front-end
+  analysis.
 
 ## Coverage: every issue cluster has an owner
 
@@ -61,38 +72,41 @@ converts it from a permanent dependency into a fixable backlog, so it now has an
 | # | Intent | Delivers | Floor ids | Status |
 | :-- | :-- | :-- | :-- | :-- |
 | 1 | [`sdlc-locks-evals-bands/`](./sdlc-locks-evals-bands/) | intent lock, evals layer 1, control bands | — | shipped |
-| 2 | [`cli-testing-harness/`](./cli-testing-harness/) | `Runtime` seam; `commander-harness`, `yargs-harness`; the conformance suite | T1 | shipped |
+| 2 | [`cli-testing-harness/`](./cli-testing-harness/) | `Runtime` seam; `burgee/testing`; the compat drivers; the conformance suite | T1 | shipped |
 | 3 | [`compat-oracle/`](./compat-oracle/) | upstream suites vendored and redirectable; pass rate as a ratcheting gate; the Node matrix | C1–C6 | review |
 | 4 | [`cli-packaging/`](./cli-packaging/) | zero deps, ESM, artifact gate, size ratchet, pay-per-import | K1–K6 | review |
 | 5 | [`cli-benchmarks/`](./cli-benchmarks/) | four axes — agent cost, performance, compatibility, weight | B1–B7 | review |
 
-### The layer — what commander and yargs decline to own
+### The engine and its compatibility
 
 | # | Intent | Delivers | Floor ids | Status |
 | :-- | :-- | :-- | :-- | :-- |
-| 6 | [`commander-agent/`](./commander-agent/) | first public extension, on commander's hooks | F1 F2 F4 O1–O5 E1–E5 M1–M6 | review |
-| 7 | [`yargs-agent/`](./yargs-agent/) | the same floor as yargs middleware; the shared suite as contract | same as 6 | review |
+| 6 | [`commander-agent/`](./commander-agent/) | ~~layer on commander's hooks~~ | F O E M | **dropped** — superseded, requirements moved to the engine |
+| 7 | [`yargs-agent/`](./yargs-agent/) | ~~layer on yargs middleware~~ | same as 6 | **dropped** — same reason |
 | 8 | [`eslint-plugin-cli-floor/`](./eslint-plugin-cli-floor/) | the L rules; the adoption wedge that needs no runtime change | F3 O1–O4 E1 E2 V2 V5 P1 D1 | review |
 | 9 | [`docs-deploy/`](./docs-deploy/) | `apps/docs` on an interlace.tools host, `llms.txt`, the benchmarks page | B7 | review |
+| 10 | [`first-adopter/`](./first-adopter/) | a CLI we did not write, using the layer, reviewed by someone who did not build it | A1–A5 | review |
+| 11 | [`cli-mcp/`](./cli-mcp/) | `--mcp` turns any CLI on the floor into an MCP server, generated from the manifest | N1–N5 | review |
+| 12 | [`dev-loop/`](./dev-loop/) | `burgee dev` — watch, reload, and serve live MCP so your agent sees a command as you write it | W1–W6 | review |
 
 ### The gaps — research clusters neither host ships
 
 | # | Intent | Research | Delivers | Floor ids |
 | :-- | :-- | :-- | :-- | :-- |
-| 10 | [`cli-help-renderer/`](./cli-help-renderer/) | §2 (largest) | one renderer from the manifest; twenty issues by construction | H1–H6 |
-| 11 | [`commander-schema/`](./commander-schema/) | §4, §5 | declare once: types, relations, derived TS types | S1–S8 |
-| 12 | [`commander-env/`](./commander-env/) | §3 | fixed precedence, `--explain`, provenance, owning package.json | V1–V7 |
-| 13 | [`commander-completions/`](./commander-completions/) | §6 | static scripts for four shells, Fig spec | D2–D5 |
-| 14 | [`cli-prompts/`](./cli-prompts/) | §9 | flags first, errors in non-TTY, `--yes`, `--interactive` | P1–P3 |
-| 15 | [`cli-modularity/`](./cli-modularity/) | §8 | groups, lazy commands, plugins, shared options, deprecation | M1–M6 |
+| 13 | [`cli-help-renderer/`](./cli-help-renderer/) | §2 (largest) | one renderer from the manifest; twenty issues by construction | H1–H6 |
+| 14 | [`commander-schema/`](./commander-schema/) | §4, §5 | declare once: types, relations, derived TS types | S1–S8 |
+| 15 | [`commander-env/`](./commander-env/) | §3 | fixed precedence, `--explain`, provenance, owning package.json | V1–V7 |
+| 16 | [`commander-completions/`](./commander-completions/) | §6 | static scripts for four shells, Fig spec | D2–D5 |
+| 17 | [`cli-prompts/`](./cli-prompts/) | §9 | flags first, errors in non-TTY, `--yes`, `--interactive` | P1–P3 |
+| 18 | [`cli-modularity/`](./cli-modularity/) | §8 | groups, lazy commands, plugins, shared options, deprecation | M1–M6 |
 
-### The replacement — owning the host
+### Reach
 
 | # | Intent | Delivers | Floor ids | Status |
 | :-- | :-- | :-- | :-- | :-- |
-| 16 | [`replacement-parser/`](./replacement-parser/) | our parser over `node:util.parseArgs`, as a third conformance host | G1–G7, §10 fixes | review |
-| 17 | [`commander-compat/`](./commander-compat/) | `selvage/commander` — 151 methods, graded by commander's 1,215 tests | X1–X7 | review |
-| 18 | [`yargs-compat/`](./yargs-compat/) | `selvage/yargs` — 108 methods, graded by yargs' 1,185 tests | X1–X7 | review |
+| 19 | [`replacement-parser/`](./replacement-parser/) | our parser over `node:util.parseArgs`, as a third conformance host | G1–G7, §10 fixes | review |
+| 20 | [`commander-compat/`](./commander-compat/) | `burgee/commander` — 151 methods, graded by commander's 1,215 tests | X1–X7 | review |
+| 21 | [`yargs-compat/`](./yargs-compat/) | `burgee/yargs` — 108 methods, graded by yargs' 1,185 tests | X1–X7 | review |
 
 Not planned, on purpose: an update checker (citty #10 — a network call at startup is the
 opposite of what an agent wants), and non-Node runtimes (claiming Deno and Bun means
@@ -100,17 +114,57 @@ testing them, which is its own intent with its own matrix).
 
 ## Waves
 
-A wave starts when the previous one is `shipped`; intents inside a wave run in parallel
-sessions, one worktree each.
+Restructured 2026-09-06 for the competitor decision. Wave 1 ends with something
+installable; every wave after it ends with a higher public compatibility number.
 
-| Wave | Intents | Why this order |
+| Wave | Intents | Ends with |
 | :-- | :-- | :-- |
-| 0 ✅ | `sdlc-locks-evals-bands`, `cli-testing-harness` | the loop must exist before anything is built through it |
-| 1 | `compat-oracle`, `commander-agent`, `cli-packaging` | the oracle first, so every later intent is graded from its first commit rather than retrofitted |
-| 2 | `yargs-agent`, `eslint-plugin-cli-floor`, `cli-benchmarks`, `docs-deploy` | the second host proves the core is portable; the lint plugin is the adoption wedge; the benchmarks turn three public claims into measurements |
-| 3 | `cli-help-renderer`, `commander-schema`, `commander-env` | the three largest issue clusters, all of which need the manifest that wave 1 lands |
-| 4 | `commander-completions`, `cli-prompts`, `cli-modularity` | the remaining clusters; all derive from the manifest |
-| 5 | `replacement-parser`, `commander-compat`, `yargs-compat` | last, because a parser with no floor is stricli, and stricli does 16 downloads a week |
+| 0 ✅ | `sdlc-locks-evals-bands`, `cli-testing-harness` | the loop, and a harness that runs a CLI in-process |
+| **1 · engine** | `replacement-parser`, `compat-oracle`, `cli-packaging` | a one-file CLI that runs, the shape lock green, and the first published commander pass rate |
+| **2 · compatibility** | `commander-compat`, `cli-help-renderer` | `burgee/commander` installable, its rate burning down in public |
+| **3 · surfaces** | `cli-mcp`, `commander-schema`, `commander-env`, `commander-completions` | `--schema`, `--mcp`, completions — the reason to switch |
+| **4 · reach** | `yargs-compat`, `dev-loop`, `cli-modularity`, `cli-prompts`, `first-adopter`, `eslint-plugin-cli-floor`, `docs-deploy`, `cli-benchmarks` | the second host, the dev loop, and a CLI we did not write using it |
+| **5 · speed** | native front-end spike, `eslint-plugin-cli-floor` as an oxlint rule | `--help` in 13ms, or a recorded decision not to |
+
+`commander-agent` and `yargs-agent` are **superseded**: with the engine as the product,
+a layer over someone else's parser and a compatible front-end over ours are the same
+package, and the front-end is the one that needs no host dependency. Their requirements
+(F, O, E, M) move to the engine and the compat front-ends.
+
+### The one risk that matters
+
+A layer earns users while it is being built. **A replacement earns none until it works.**
+That is the cost of this decision and it is real.
+
+The mitigations, both starting in wave 1:
+
+- **The burn-down is published from the first commit.** `compat-commander 1,050/1,215 ▲+38
+  this week` is more persuasive than any announcement, and it makes the wait visible
+  instead of silent.
+- **`eslint-plugin-cli-floor` needs no runtime adoption at all** — no dependency in
+  anyone's shipped bundle, no migration — so it can earn users during the whole build.
+  It moves as early as wave 4 will allow, and earlier if wave 1 finishes ahead of it.
+
+### Architecture decisions
+
+Recorded in [`architecture-review.md`](../research/architecture-review.md).
+
+**The layer is TypeScript; the replacement may have a native front-end.** These are
+different products with different profiles, and conflating them is the mistake to avoid.
+A layer is imported into someone's existing Node CLI — it cannot be a binary, and the
+process has already paid Node's 29ms before our code runs, so a faster language buys
+nothing. A replacement owns the process from argv, so it can answer `--help` and
+`--schema` natively and never start Node at all. TS7 chose Go, oxlint and rolldown chose
+Rust; all three own their process and do bulk work, which is the profile that pays.
+
+**Plugins are data plus lazily-loaded behaviour, not a function that mutates the tree.**
+A build-time manifest declares every command a plugin contributes; at run time one JSON
+is read, one command resolved, one handler imported. `--help` and `--schema` are complete
+without loading any plugin, so a 250-command CLI starts as fast as a one-command CLI.
+This is rolldown's filter-before-you-cross applied to module loading, plus oclif's
+build-time manifest — **and it is the same decision that makes a native front-end
+possible at all**, because a native binary can read a static manifest and cannot execute
+a JS plugin registration function.
 
 **Why the oracle moved to wave 1.** It was not in the original plan. Vendoring
 commander's suite and pointing it at a shim took ten minutes to prove and turns
@@ -152,30 +206,92 @@ yargs +84ms.
 
 ## Package naming
 
-Public packages are host-branded extensions, on the `eslint-plugin-*` model — never
-`@interlace/*`. Verified free on npm 2026-09-06 unless noted.
+Decided 2026-09-06 after checking **155 candidates**. The finding is structural: **npm's
+unscoped single-word namespace is exhausted.** Almost every meaningful English word,
+military rank, Latin or Greek term, CLI term and agent-era word is held, mostly by
+squatters and dead packages — `admiral`, `commodore`, `adjutant`, `shebang`, `synopsis`,
+`stdio`, `argv`, `edict`, `dictum`, `prism`, `herald`, and `interlace` itself.
 
-| Job | commander | yargs |
+| Family checked | Tried | Free |
+| :-- | --: | --: |
+| military rank, one above *commander* | 20 | 0 |
+| command words | 22 | 2 |
+| CLI and agent vocabulary | 22 | 6 |
+| Latin and Greek | 24 | 3 |
+| weaving terms, for a brand tie | 15 | 3 |
+| coined and compound | 52 | 15 |
+
+That leaves the two strategies every modern tool used once the words ran out: a
+**compound** (rolldown, esbuild, turbopack) or a **coined word** (vite, deno, zod, hono,
+oclif). Scoped names are ruled out by the owner.
+
+### The name: `burgee`
+
+A **burgee** is the small flag a boat flies to say which club or fleet it belongs to. It
+is not a signal and not a warning — it is the flag you fly to **declare what you are**.
+
+That is the product in one word, and every layer of it is load-bearing:
+
+- **It is a flag.** Flags are the literal subject matter of a command-line interface, and
+  every surface in `architecture.md` §1 — help, `--json`, `--schema`, `--mcp`,
+  completions, types — is the same declared set of flags read by a different reader.
+- **It is a flag of identity, not of instruction.** A CLI on burgee declares itself once;
+  callers read that declaration. That is precisely the argument for a well-formed CLI over
+  a bespoke MCP server.
+- **It is nautical**, so it lives in yargs' register without being a pirate pun that has to
+  be explained, and it sits naturally beside commander's.
+- **It is timeless.** A centuries-old maritime term cannot date the way `agentic` would.
+  Whatever replaces the word "agent", boats will still fly burgees and CLIs will still
+  have flags.
+- **It stands alone.** Like Claude to Anthropic, it names the product without describing
+  it — and rewards you once you learn why. `npm i burgee` · `burgee dev` ·
+  `burgee/commander`, six letters, two syllables, one obvious pronunciation.
+
+**Why not `invocable`**, the other finalist. `invokable` is an equally valid English
+spelling of the same word and is **already taken by an unrelated publisher**. A meaningful
+share of users would type `npm i invokable` and install a stranger's package, and the
+defensive registration that would normally fix this is unavailable because the name is
+gone. That risk is permanent and unfixable. `burgee`'s own near-misses, `burgie` and
+`burgy`, are both free and will be registered as deprecated stubs pointing at the real
+package.
+
+The remaining risk is honest and small: `burgee` sits one letter from `burger` for a
+careless typist. It is not a plausible *misspelling* the way `invokable` is — they are
+different words — and the stubs plus unambiguous documentation cover it.
+
+Runners-up, recorded and free: **`backus`** — John Backus, of Backus-Naur Form, the
+notation for declaring grammars, which is what a CLI is; the best of the person-names in
+the Claude register. **`mcilroy`** — Doug McIlroy, who invented the Unix pipe and wrote
+*"write programs to handle text streams, because that is a universal interface"*, the
+truest description of why this project exists, rejected only because two people in three
+will misspell it. **`pennon`** and **`vexillum`**, the other flag words.
+
+### The rest of the family
+
+`@interlace/*` remains for internal packages that are never published —
+`compat-oracle`, which is private and unscoped. Everything public is unscoped, and
+after the 2026-09-07 fold there is exactly one public package.
+
+| Job | Entry point | Published |
 | :-- | :-- | :-- |
-| the floor | `commander-agent` | `yargs-agent` |
-| in-process harness | `commander-harness` | `yargs-harness` |
-| schema declaration | `commander-schema` | name decided in wave 3 (`yargs-schema` is taken by an unrelated package) |
-| env and precedence | `commander-env` | `yargs-env` |
-| completions | `commander-completions` | `yargs-completions` |
-| prompts | `commander-prompts` | `yargs-prompts` |
-| modularity | `commander-plugins` | `yargs-plugins` |
-| the lint wedge | `eslint-plugin-cli-floor` | same package |
-| the replacement | `selvage` + `selvage/commander` | `selvage/yargs` |
+| the framework | `burgee` | ✅ 0.1.0 |
+| in-process harness (T1) | `burgee/testing` | subpath |
+| commander compatibility | `burgee/commander` | wave 2 |
+| yargs compatibility | `burgee/yargs` | wave 4 |
+| opt-in host quirks | `burgee/quirks/*` | wave 2 |
+| the lint wedge | `eslint-plugin-cli-floor` | wave 4 |
+| grading + reference drivers | `compat-oracle` | private, never |
 
-`@interlace/*` is used only for internal packages that are never published:
-`@interlace/cli-core`, `@interlace/compat-oracle`. Help rendering has no package of its
-own — it is part of `commander-agent`, because "help is data rendered from the manifest"
-is the same contract, not a separate product. `selvage` is provisional; `treadle` and
-`sley` are also held.
+Every entry point above must declare a weight rule in `packages/burgee/src/weight.test.ts`
+before it can ship — the lock refuses to pass otherwise.
+
+The name is reversible until the first publish, and **wave 1 does not depend on it** —
+the engine, the shape lock and the compatibility oracle are all built before anything
+reaches npm.
 
 ## Execution status
 
-All eighteen intents are `review` or `shipped`; every open question in every intent has
+All twenty-one intents are `review` or `shipped`; every open question in every intent has
 a recorded decision. Moving an intent to `approved` is the human gate, per
 `AI_NATIVE_SDLC.md` rule 3 — nothing is built before that.
 

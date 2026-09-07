@@ -1,6 +1,6 @@
 # Design — `commander-agent`
 
-Intent: [`intent.md`](./intent.md). **Status:** review.
+Intent: [`intent.md`](./intent.md). **Status:** dropped (superseded 2026-09-06).
 
 ---
 
