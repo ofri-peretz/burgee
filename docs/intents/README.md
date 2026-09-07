@@ -60,6 +60,7 @@ The roadmap is complete against the research when every cluster in
 | §10 parsing edge cases | `replacement-parser` | 5 |
 | §11 runtime and packaging | `cli-packaging` | 1 |
 | §12 maintainer signals | `eslint-plugin-cli-floor` (the wedge), plus an article | 2 |
+| security market (survey §5) | `security-profile` — both leading scanners get findings-vs-failure wrong | after 3 |
 
 §10 was previously marked *not planned, commander owns it*. Owning a parser (wave 5)
 converts it from a permanent dependency into a fixable backlog, so it now has an owner.
@@ -88,6 +89,7 @@ converts it from a permanent dependency into a fixable backlog, so it now has an
 | 10 | [`first-adopter/`](./first-adopter/) | a CLI we did not write, using the layer, reviewed by someone who did not build it | A1–A5 | review |
 | 11 | [`cli-mcp/`](./cli-mcp/) | `--mcp` turns any CLI on the floor into an MCP server, generated from the manifest | N1–N5 | review |
 | 12 | [`dev-loop/`](./dev-loop/) | `burgee dev` — watch, reload, and serve live MCP so your agent sees a command as you write it | W1–W6 | review |
+| 22 | [`brand-burgee/`](./brand-burgee/) | `defineBurgee({ lead, follow })` — favicon, raster set, OG card and theme variants generated from one declaration; the Interlace −30° geometry stays locked | — | draft |
 
 ### The gaps — research clusters neither host ships
 
@@ -114,36 +116,97 @@ testing them, which is its own intent with its own matrix).
 
 ## Waves
 
-Restructured 2026-09-06 for the competitor decision. Wave 1 ends with something
-installable; every wave after it ends with a higher public compatibility number.
+Re-planned 2026-09-07 after the research pass. Wave 1 ends with something installable and
+a **live scoreboard**; every wave after it ends with that number higher.
 
-| Wave | Intents | Ends with |
-| :-- | :-- | :-- |
-| 0 ✅ | `sdlc-locks-evals-bands`, `cli-testing-harness` | the loop, and a harness that runs a CLI in-process |
-| **1 · engine** | `replacement-parser`, `compat-oracle`, `cli-packaging` | a one-file CLI that runs, the shape lock green, and the first published commander pass rate |
-| **2 · compatibility** | `commander-compat`, `cli-help-renderer` | `burgee/commander` installable, its rate burning down in public |
-| **3 · surfaces** | `cli-mcp`, `commander-schema`, `commander-env`, `commander-completions` | `--schema`, `--mcp`, completions — the reason to switch |
-| **4 · reach** | `yargs-compat`, `dev-loop`, `cli-modularity`, `cli-prompts`, `first-adopter`, `eslint-plugin-cli-floor`, `docs-deploy`, `cli-benchmarks` | the second host, the dev loop, and a CLI we did not write using it |
-| **5 · speed** | native front-end spike, `eslint-plugin-cli-floor` as an oxlint rule | `--help` in 13ms, or a recorded decision not to |
+### Scoreboard
 
-`commander-agent` and `yargs-agent` are **superseded**: with the engine as the product,
+```text
+compat-commander    ░░░░░░░░░░░░░░░░░░░░░░░░    17 / 1307    1.3%     baseline, ratcheted
+control (real cmdr) ███████████████████████░  1272 / 1307   97.3%     the gate, proven
+```
+
+`npm run compat` — commander's own suite, vendored at `ba6d13dd`, graded through a
+one-line shim. The control run proves the gate before it grades anything of ours; the
+denominator is the reference total, not the tests that happened to register, so a partial
+implementation cannot flatter itself. Falling below 17 fails CI (C5).
+
+| Wave | Intents | Ends with | Status |
+| :-- | :-- | :-- | :-- |
+| 0 | `sdlc-locks-evals-bands`, `cli-testing-harness` | the loop, and a harness that runs a CLI in-process | ✅ shipped |
+| **1 · engine** | `replacement-parser`, `compat-oracle`, `cli-packaging` | a one-file CLI that runs, the shape lock green, the first published pass rate | 🔨 engine built · oracle grading commander · packaging next |
+| **2 · compatibility** | `commander-compat`, `cli-help-renderer` ↑ | all 151 methods, 1,215/1,215, burn-down public; help from the manifest | queued |
+| **3 · surfaces** | `cli-mcp`, `commander-schema`, `commander-env`, `commander-completions` | `--schema`, `--mcp`, completions — the reason to switch | queued |
+| **4 · reach** | `yargs-compat`, `dev-loop`, `cli-modularity`, `cli-prompts`, `first-adopter`, `eslint-plugin-cli-floor`, `docs-deploy`, `cli-benchmarks`, `brand-burgee` | the second host, the dev loop, a CLI we did not write, one brand declaration | queued |
+| **5 · speed** | native front-end spike, `eslint-plugin-cli-floor` as an oxlint rule | `--help` in 13 ms, or a recorded decision not to | conditional |
+| — | `security-profile` | a scanner-shaped CLI cannot confuse findings with failure | after 3, when an adopter needs it |
+
+### What wave 1 has left
+
+- **`compat-oracle`** — commander graded ✅. Outstanding: vendor yargs (1,185 tests, its
+  runner is mocha), the Node × OS matrix (C3), the scheduled vendor refresh that opens a
+  PR when upstream's count moves (C6), and publishing the rate to the docs site.
+- **`cli-packaging`** — provenance via trusted publishing, the artifact gate, the size
+  ratchet. Blocked on the OIDC trusted publisher (`ofri-peretz` / `burgee` /
+  `release.yml` / `production`); everything else is buildable now.
+- **`replacement-parser`** — the engine, lifecycle, exit contract and manifest are built
+  and under four locks; the §10 parsing-edge fixes and the quirk modules are not. The
+  intent's status still says `review`; that drift is called out below.
+
+### What the research changed, and where it landed
+
+The three research documents added 13 requirements and moved one intent.
+
+- **`cli-help-renderer` promoted to wave 2.** Help rendering is the largest cluster in the
+  trackers *and* the single most-requested open item in either project — yargs #684,
+  49 engagement, open ten years. It also gains N15, the agent output format oxlint and
+  vitest converged on independently: one compact line per record, deliberately not JSON.
+- **`cli-mcp` carries four new requirements** — N6 required `effects` (the MCP schema
+  defaults `destructiveHint` to true, so silence is the dangerous reading), N8 schema
+  without auth or network, N11 vercel's action-required envelope with runnable `next[]`,
+  N13 token-budget-aware schema.
+- **`commander-env` gains N12** — agent detection beyond `isTTY`, since an agent may well
+  have one — **and V8**, a generated precedence table: ten of ten CLIs surveyed have config
+  and env, three document the order.
+- **`commander-schema` gains N9 and N14** — `enum`/`min`/`max` as data rather than
+  completion callbacks (the flag/schema gap, Cobra #2362), and gh-style field discovery.
+- **E6/E7 go to the engine** — usage vs environment vs remote as distinct codes, and a
+  declarative taxonomy where reusing a code fails at startup, because oxlint collapses a
+  20-variant enum to `{0,1}`.
+- **`cli-benchmarks` B1 is now a hypothesis, not a target.** JetBrains' 425-trial study
+  found output filtering *raised* cost 7.6%. O2/O5/F1 are justified by parse reliability.
+- **Plugins are repositioned from headline to compounding advantage.** commander's own
+  plugin RFC has 1 comment and 0 reactions in five months; there is no tracker demand.
+  `--schema` is the pitch — six issues over nine years and a regex-scraper as the state of
+  the art. `cli-modularity` stays scheduled on architectural merit and says so.
+
+`commander-agent` and `yargs-agent` remain **superseded**: with the engine as the product,
 a layer over someone else's parser and a compatible front-end over ours are the same
-package, and the front-end is the one that needs no host dependency. Their requirements
-(F, O, E, M) move to the engine and the compat front-ends.
+package.
+
+### Status drift, stated
+
+Two things the artifacts say that are not quite true, so nobody reads them as true:
+
+- **Every buildable intent still reads `review`.** Per `AI_NATIVE_SDLC.md` rule 3,
+  `approved` is the human gate — and the engine, the oracle and the façade were built
+  through it. Either wave 1's intents move to `approved` retroactively, or the gate is
+  acknowledged as advisory in practice. The plan does not pretend otherwise.
+- **`replacement-parser` is largely built and says `review`.** Same fix.
 
 ### The one risk that matters
 
 A layer earns users while it is being built. **A replacement earns none until it works.**
 That is the cost of this decision and it is real.
 
-The mitigations, both starting in wave 1:
+The mitigations, both live:
 
-- **The burn-down is published from the first commit.** `compat-commander 1,050/1,215 ▲+38
-  this week` is more persuasive than any announcement, and it makes the wait visible
-  instead of silent.
+- **The burn-down is public from the first commit.** It is `17 / 1307` today. A number
+  that only goes up is more persuasive than any announcement, and it makes the wait
+  visible instead of silent.
 - **`eslint-plugin-cli-floor` needs no runtime adoption at all** — no dependency in
-  anyone's shipped bundle, no migration — so it can earn users during the whole build.
-  It moves as early as wave 4 will allow, and earlier if wave 1 finishes ahead of it.
+  anyone's shipped bundle, no migration — so it can earn users during the whole build. It
+  moves earlier than wave 4 if wave 1 finishes ahead of it.
 
 ### Architecture decisions
 
@@ -291,7 +354,7 @@ reaches npm.
 
 ## Execution status
 
-All twenty-one intents are `review` or `shipped`; every open question in every intent has
+Twenty-four intents: two `shipped`, two `dropped`, one `draft`, nineteen `review`; every open question in every intent has
 a recorded decision. Moving an intent to `approved` is the human gate, per
 `AI_NATIVE_SDLC.md` rule 3 — nothing is built before that.
 
