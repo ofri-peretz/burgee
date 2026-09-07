@@ -1,0 +1,12 @@
+{
+  "repo": "https://github.com/yargs/yargs",
+  "commit": "fb9c05598a9bda583333c28c4ae85ab66e6bcb01",
+  "vendored": "2026-09-07",
+  "files": 10,
+  "excluded": [
+    "argsert.mjs",
+    "is-promise.mjs",
+    "obj-filter.mjs",
+    "parse-command.mjs"
+  ]
+}

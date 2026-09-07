@@ -38,6 +38,11 @@ function bar(rate: number): string {
 
 function line(g: Grade, baseline: Baseline): string {
   if (g.error !== undefined) return `  ${g.host.padEnd(HOST_COL)} ${g.error}`;
+  if (g.note !== undefined) {
+    const total = g.reference > 0 ? g.reference : g.tests;
+    const zero = `${String(0).padStart(COUNT_COL)} / ${String(total).padEnd(COUNT_COL)}`;
+    return `  ${g.host.padEnd(HOST_COL)} ${bar(0)} ${zero}   0.0%  ${g.note}`;
+  }
   const pct = `${(g.rate * PERCENT).toFixed(1)}%`.padStart(PCT_COL);
   const total = g.reference > 0 ? g.reference : g.tests;
   const counts = `${String(g.passed).padStart(COUNT_COL)} / ${String(total).padEnd(COUNT_COL)}`;
@@ -48,7 +53,14 @@ export type Write = (s: string) => void;
 
 export async function main(argv: string[], write: Write): Promise<number> {
   const wantsVendor = argv.includes('--vendor');
+  // --control grades each host against its own real package: the proof that the gate
+  // works before it grades anything of ours (rule 4). --target= overrides all hosts.
+  const control = argv.includes('--control');
   const target = (argv.find((a) => a.startsWith('--target='))?.split('=')[1] ?? '').trim();
+  const targetFor = (host: { name: string; target: string }): string => {
+    if (control) return host.name;
+    return target === '' ? host.target : target;
+  };
 
   if (wantsVendor) {
     mkdirSync(VENDOR_DIR, { recursive: true });
@@ -61,11 +73,9 @@ export async function main(argv: string[], write: Write): Promise<number> {
   }
 
   const baseline = readBaseline(BASELINE);
-  const grades = active().map((host) =>
-    grade(host, VENDOR_DIR, target === '' ? host.target : target, baseline[host.name]?.reference ?? 0),
-  );
+  const grades = active().map((host) => grade(host, VENDOR_DIR, targetFor(host), baseline[host.name]?.reference ?? 0));
 
-  write('\ncompatibility\n\n');
+  write(control ? '\ncontrol — each host graded against its real package\n\n' : '\ncompatibility\n\n');
   for (const g of grades) write(`${line(g, baseline)}\n`);
 
   const planned = HOSTS.filter((h) => h.status === 'planned').map((h) => h.name);

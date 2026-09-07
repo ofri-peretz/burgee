@@ -2,16 +2,17 @@
  * Runs a host's own vendored suite against whatever `COMPAT_TARGET` names, and
  * reports the rate.
  *
- * The suite is the host's, unedited apart from the one import specifier the
- * vendor step rewrites. That is the whole point: a compatibility claim graded by
- * tests we wrote would be graded by our reading of the host's behaviour, which is
- * the thing under test.
+ * The suite is the host's, unedited apart from the import specifiers the vendor step
+ * rewrites. That is the whole point: a compatibility claim graded by tests we wrote
+ * would be graded by our reading of the host's behaviour, which is the thing under test.
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
 
-import { type Host } from './hosts.js';
+import { type Host, type HostImport } from './hosts.js';
+import { shimName } from './vendor.js';
 
 export interface Grade {
   host: string;
@@ -22,20 +23,18 @@ export interface Grade {
   passed: number;
   failed: number;
   /**
-   * The suite's size when graded against the real host — the honest denominator.
-   * A file that throws on import registers as one test instead of its twenty, so
-   * measuring against `tests` would flatter a partial implementation badly.
+   * The suite's size when graded against the real host — the honest denominator. A file
+   * that throws on import registers as one test instead of its twenty, so measuring
+   * against `tests` would flatter a partial implementation badly.
    */
   reference: number;
   rate: number;
+  /** The suite could not be run at all — a broken oracle, and it fails CI. */
   error?: string;
+  /** The suite reached a known outcome that needs a word, e.g. the target is not built yet. */
+  note?: string;
 }
 
-/**
- * Parsed from `--test-reporter=tap`, chosen over the default reporter because it is
- * the stable machine-readable one: the default prefixes counts with an info glyph
- * that is presentation, not contract.
- */
 const BYTES_PER_KIB = 1024;
 const KIB_PER_MIB = 1024;
 /** A fully-failing 1,300-test suite emits a few MB of TAP diagnostic; 64 MiB is ample. */
@@ -43,6 +42,9 @@ const MAX_OUTPUT_MIB = 64;
 const MAX_OUTPUT_BYTES = MAX_OUTPUT_MIB * KIB_PER_MIB * BYTES_PER_KIB;
 /** How much of a spawn failure's message to keep in the grade. */
 const ERROR_EXCERPT = 200;
+/** mocha's own default, used when a host declares none. */
+const DEFAULT_TIMEOUT_MS = 2000;
+const SUITE_TIMEOUT_MS = 300_000;
 
 // Static, because the three labels are ours and a runtime RegExp invites the question
 // of where its pattern came from.
@@ -55,68 +57,137 @@ function count(pattern: RegExp, output: string): number {
   return found === null ? 0 : Number(found[1] ?? 0);
 }
 
+/**
+ * Parsed from `--test-reporter=tap` (node) or `--reporter tap` (mocha); both print the same
+ * three summary lines. Chosen over the default reporters because TAP is the stable
+ * machine-readable one.
+ */
 export function parseNodeTest(output: string): { tests: number; passed: number; failed: number } {
   return { tests: count(TAP_TESTS, output), passed: count(TAP_PASS, output), failed: count(TAP_FAIL, output) };
 }
 
-export function grade(host: Host, vendorDir: string, target: string, reference = 0): Grade {
-  const dir = join(vendorDir, host.name, 'tests');
-  const base: Omit<Grade, 'tests' | 'passed' | 'failed' | 'rate'> = {
-    host: host.name,
-    target,
-    files: 0,
-    reference,
-  };
+type Summary = Pick<Grade, 'files' | 'tests' | 'passed' | 'failed' | 'reference' | 'rate' | 'error'>;
 
-  if (!existsSync(dir)) {
-    return { ...base, tests: 0, passed: 0, failed: 0, rate: 0, error: `not vendored: run \`npm run compat -- --vendor\`` };
-  }
-
-  const files = readdirSync(dir).filter((f) => f.endsWith('.js') || f.endsWith('.cjs'));
-  if (files.length === 0) {
-    return { ...base, tests: 0, passed: 0, failed: 0, rate: 0, error: 'no test files vendored' };
-  }
-
-  // The shim is written per run, statically, beside the tests. It must be static:
-  // the suites do `import * as host from '../shim.js'` and read named exports, and a
-  // dynamic `await import(target)` can only produce a default. Writing it here rather
-  // than at vendor time is what lets one vendored suite grade any implementation.
-  writeFileSync(
-    join(vendorDir, host.name, 'shim.js'),
-    `// generated per run — COMPAT_TARGET=${target}\nexport * from '${target}';\n`,
-  );
-
-  let output = '';
-  try {
-    const args = ['--test', '--test-reporter=tap', ...files.map((f) => join(dir, f))];
-    output = execFileSync(process.execPath, args, {
-        encoding: 'utf8',
-        env: { ...process.env, COMPAT_TARGET: target },
-        stdio: ['ignore', 'pipe', 'pipe'],
-        timeout: 300_000,
-      // A suite that is mostly failing emits more TAP diagnostic than the 1 MB default
-      // holds, and the overflow drops the summary lines the count lives in — which
-      // silently reads as a score of zero. Seen at 1.16 MB grading burgee/commander.
-      maxBuffer: MAX_OUTPUT_BYTES,
-      },
-    );
-  } catch (cause) {
-    // A failing suite exits non-zero and still prints its summary — that is the
-    // normal case while the rate is below 100%, not an error.
-    output = (cause as { stdout?: string }).stdout ?? '';
-    if (output === '') {
-      return { ...base, tests: 0, passed: 0, failed: 0, rate: 0, error: String((cause as Error).message).slice(0, ERROR_EXCERPT) };
-    }
-  }
-
+/**
+ * Turn a runner's stdout into a grade. Pure, so the one case that has silently read as
+ * "0 passing" three separate times — output present but no `# tests` summary, because a
+ * test called process.exit() and killed the runner — is an *error*, and is tested as one.
+ */
+export function summarize(output: string, files: number, reference: number): Summary {
   const counts = parseNodeTest(output);
+  if (!TAP_TESTS.test(output)) {
+    return { files, ...counts, reference, rate: 0, error: 'suite exited before its summary (process.exit() inside a test?)' };
+  }
   const denominator = reference > 0 ? reference : counts.tests;
+  return { files, ...counts, reference, rate: denominator === 0 ? 0 : counts.passed / denominator };
+}
+
+const require = createRequire(import.meta.url);
+
+/**
+ * A target that does not exist yet grades as 0 of the reference, not as a broken oracle:
+ * burgee/yargs is an honest 0 until wave 4 builds it and must not fail CI. Resolved as
+ * ESM on purpose — burgee's exports map declares an `import` condition, so CJS
+ * `require.resolve` reports a package that exists as missing.
+ */
+function missingTarget(host: Host, target: string): string | undefined {
+  if (target === host.name) return undefined;
+  // The filter is an inferred type predicate (TS 5.5+), so only public entries reach map.
+  return host.imports
+    .filter((e) => e.kind !== 'internal')
+    .map((e) => `${target}${e.subpath}`)
+    .find((spec) => {
+      try {
+        import.meta.resolve(spec);
+        return false;
+      } catch {
+        return true;
+      }
+    });
+}
+
+/** The source of one generated shim. */
+function shimSource(entry: HostImport, host: Host, target: string): string {
+  const header = `// generated per run — COMPAT_TARGET=${target}`;
+  if (entry.kind === 'internal') {
+    // The control gets the host's own internal file by absolute path (its exports map
+    // blocks a deep import by name); a target must export the names itself.
+    const from = target === host.name ? join(dirname(require.resolve(`${host.name}/package.json`)), entry.file) : target;
+    return `${header}\nexport { ${entry.names.join(', ')} } from '${from}';\n`;
+  }
+  const from = `${target}${entry.subpath}`;
+  // `export *` never carries a default; yargs' entry has one and its tests use it.
+  const withDefault = entry.reexportDefault ? `export { default } from '${from}';\n` : '';
+  return `${header}\nexport * from '${from}';\n${withDefault}`;
+}
+
+/**
+ * One generated shim per import the suite uses, written statically beside the tests: the
+ * suites do `import * as host from '../shim.js'` and read named exports, which a dynamic
+ * `await import(target)` cannot provide. Writing them per run is what lets one vendored
+ * suite grade any implementation.
+ */
+function writeShims(host: Host, hostDir: string, target: string): void {
+  host.imports.forEach((entry, i) => writeFileSync(join(hostDir, shimName(i)), shimSource(entry, host, target)));
+}
+
+/** The runner invocation. mocha resolves through the module system: workspaces hoist .bin. */
+function command(host: Host, dir: string, paths: string[]): { bin: string; args: string[] } {
+  if (host.runner !== 'mocha') return { bin: process.execPath, args: ['--test', '--test-reporter=tap', ...paths] };
+  const preamble = host.preamble === undefined ? [] : ['--require', join(dir, host.preamble)];
+  const timeout = String(host.timeoutMs ?? DEFAULT_TIMEOUT_MS);
   return {
-    ...base,
-    files: files.length,
-    ...counts,
-    rate: denominator === 0 ? 0 : counts.passed / denominator,
+    bin: process.execPath,
+    args: [require.resolve('mocha/bin/mocha.js'), '--reporter', 'tap', '--timeout', timeout, ...preamble, ...paths],
   };
+}
+
+/** Runs the suite from its vendored root; a failing suite still prints its summary. */
+function runSuite(host: Host, hostDir: string, files: string[], target: string): { output: string } | { error: string } {
+  const dir = join(hostDir, host.testDir);
+  const { bin, args } = command(host, dir, files.map((f) => join(dir, f)));
+  try {
+    // cwd is the vendored root: suites use cwd-relative paths into their own tree.
+    const output = execFileSync(bin, args, {
+      encoding: 'utf8',
+      cwd: hostDir,
+      env: { ...process.env, COMPAT_TARGET: target },
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: SUITE_TIMEOUT_MS,
+      // A mostly-failing suite emits more TAP diagnostic than the 1 MB default holds, and
+      // the overflow drops the summary lines the count lives in. Seen at 1.16 MB.
+      maxBuffer: MAX_OUTPUT_BYTES,
+    });
+    return { output };
+  } catch (cause) {
+    const failure = cause as { stdout?: string; stderr?: string; message: string };
+    if (failure.stdout !== undefined && failure.stdout !== '') return { output: failure.stdout };
+    // The suite never started. The reason is on stderr; the message is only the command.
+    const reason =
+      (failure.stderr ?? '')
+        .split('\n')
+        .map((l) => l.trim())
+        .find((l) => l !== '' && !l.startsWith('at ')) ?? failure.message;
+    return { error: reason.slice(0, ERROR_EXCERPT) };
+  }
+}
+
+export function grade(host: Host, vendorDir: string, target: string, reference = 0): Grade {
+  const hostDir = join(vendorDir, host.name);
+  const dir = join(hostDir, host.testDir);
+  const base: Grade = { host: host.name, target, files: 0, tests: 0, passed: 0, failed: 0, reference, rate: 0 };
+
+  if (!existsSync(dir)) return { ...base, error: 'not vendored: run `npm run compat -- --vendor`' };
+  const files = readdirSync(dir).filter((f) => /\.(m?js|cjs)$/.test(f) && f !== host.preamble);
+  if (files.length === 0) return { ...base, error: 'no test files vendored' };
+
+  const missing = missingTarget(host, target);
+  if (missing !== undefined) return { ...base, note: `target not built yet: ${missing}` };
+
+  writeShims(host, hostDir, target);
+  const run = runSuite(host, hostDir, files, target);
+  if ('error' in run) return { ...base, files: files.length, error: run.error };
+  return { ...base, ...summarize(run.output, files.length, reference) };
 }
 
 export interface Baseline {

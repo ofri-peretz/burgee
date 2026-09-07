@@ -3,5 +3,10 @@
     "reference": 1307,
     "passed": 17,
     "rate": 0.013
+  },
+  "yargs": {
+    "reference": 816,
+    "passed": 0,
+    "rate": 0
   }
 }

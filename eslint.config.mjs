@@ -288,6 +288,13 @@ export default [
     rules: { 'performance/no-await-in-loop': 'off', 'reliability/no-await-in-loop': 'off' },
   },
   {
+    // FP 11: require-data-minimization reads a static host-config literal (test-suite
+    // metadata: repo, glob, exclusions) as "excessive data collection". Nothing here
+    // collects anything. Tracked in the eslint monorepo.
+    files: ['packages/compat-oracle/src/hosts.ts'],
+    rules: { 'operability/require-data-minimization': 'off' },
+  },
+  {
     // FP 8 (also seen in scripts/run-evals.ts): no-unhandled-promise fires on every call
     // to a function-typed *parameter* inside an async function, assuming it returns a
     // promise. The writer parameter returns void. Tracked in the eslint monorepo.

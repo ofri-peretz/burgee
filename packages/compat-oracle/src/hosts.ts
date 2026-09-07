@@ -6,6 +6,16 @@
  * numbers because vite, vitest and nitro bundle them, so a façade for either
  * converts almost nobody. See `docs/research/competitor-landscape.md` §8.
  */
+export type HostImport =
+  | { kind?: 'public'; upstream: string; subpath: string; reexportDefault: boolean }
+  /**
+   * A non-public module the suite reaches into incidentally (yargs' tests import
+   * `YError` for `instanceof` assertions). For the control it is re-exported from the
+   * installed host's own file; for a target, from the target itself. A test that then
+   * fails is a real, recordable divergence rather than a whole file thrown away.
+   */
+  | { kind: 'internal'; upstream: string; file: string; names: string[] };
+
 export interface Host {
   /** npm package we are compatible with. */
   name: string;
@@ -15,8 +25,21 @@ export interface Host {
   testDir: string;
   /** Glob of test files within it. */
   testGlob: string;
-  /** The specifier its tests use to import the library, rewritten to our shim. */
-  importSpecifier: string;
+  /**
+   * Every public specifier the tests use to reach the library, each rewritten to a
+   * generated shim that re-exports `<target><subpath>`. One entry for most hosts;
+   * yargs also imports `yargs/helpers`.
+   */
+  imports: HostImport[];
+  /** Files the runner must load first, relative to the vendored tests dir. */
+  preamble?: string;
+  /**
+   * Upstream directories the suite reads at run time relative to the repo root, vendored
+   * beside the tests. Suites are run from `vendor/<host>/` so those paths resolve.
+   */
+  extraDirs?: string[];
+  /** Per-test timeout the suite was written against, ms. */
+  timeoutMs?: number;
   /** Files excluded, each with the reason. An exclusion that grows silently is a lie. */
   exclude: { file: string; reason: string }[];
   /** How its suite is executed. */
@@ -34,7 +57,7 @@ export const HOSTS: Host[] = [
     repo: 'https://github.com/tj/commander.js',
     testDir: 'tests',
     testGlob: '*.test.js',
-    importSpecifier: '../index.js',
+    imports: [{ upstream: '../index.js', subpath: '', reexportDefault: false }],
     exclude: [{ file: '*.test.js importing ../lib/', reason: 'tests internals, which we never promise' }],
     runner: 'node:test',
     target: 'burgee/commander',
@@ -44,20 +67,32 @@ export const HOSTS: Host[] = [
     name: 'yargs',
     repo: 'https://github.com/yargs/yargs',
     testDir: 'test',
-    testGlob: '*.cjs',
-    importSpecifier: '../index.cjs',
-    exclude: [],
+    testGlob: '*.mjs',
+    imports: [
+      { upstream: '../index.mjs', subpath: '', reexportDefault: true },
+      { upstream: '../helpers/helpers.mjs', subpath: '/helpers', reexportDefault: false },
+      { kind: 'internal', upstream: '../build/lib/yerror.js', file: 'build/lib/yerror.js', names: ['YError'] },
+    ],
+    exclude: [
+      {
+        file: 'argsert, is-promise, obj-filter, parse-command',
+        reason: 'test internal helper modules only and import no public entry; 23 tests',
+      },
+    ],
     runner: 'mocha',
+    preamble: 'before.mjs',
+    timeoutMs: 24_000,
+    extraDirs: ['locales'],
     target: 'burgee/yargs',
-    status: 'planned',
-    note: 'wave 4. 1,185 tests, 108 methods.',
+    status: 'active',
+    note: 'The front-end does not exist yet, so this grades at 0 honestly until wave 4 builds it. 108 methods.',
   },
   {
     name: 'meow',
     repo: 'https://github.com/sindresorhus/meow',
     testDir: 'test',
     testGlob: '*.js',
-    importSpecifier: '../source/index.js',
+    imports: [{ upstream: '../source/index.js', subpath: '', reexportDefault: false }],
     exclude: [],
     runner: 'node:test',
     target: 'burgee/meow',
@@ -69,7 +104,7 @@ export const HOSTS: Host[] = [
     repo: 'https://github.com/cacjs/cac',
     testDir: 'test',
     testGlob: '*.test.ts',
-    importSpecifier: '../src',
+    imports: [{ upstream: '../src', subpath: '', reexportDefault: false }],
     exclude: [],
     runner: 'node:test',
     target: 'burgee/cac',
@@ -81,7 +116,7 @@ export const HOSTS: Host[] = [
     repo: 'https://github.com/unjs/citty',
     testDir: 'test',
     testGlob: '*.test.ts',
-    importSpecifier: '../src',
+    imports: [{ upstream: '../src', subpath: '', reexportDefault: false }],
     exclude: [],
     runner: 'node:test',
     target: 'burgee/citty',
@@ -93,7 +128,7 @@ export const HOSTS: Host[] = [
     repo: 'https://github.com/oclif/core',
     testDir: 'test',
     testGlob: '*.test.ts',
-    importSpecifier: '../src/index.ts',
+    imports: [{ upstream: '../src/index.ts', subpath: '', reexportDefault: false }],
     exclude: [],
     runner: 'mocha',
     target: '—',

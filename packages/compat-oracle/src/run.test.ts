@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { type Baseline, type Grade, parseNodeTest, regressed } from './run.js';
+import { type Baseline, type Grade, parseNodeTest, regressed, summarize } from './run.js';
 
 const grade = (passed: number): Grade => ({
   host: 'commander',
@@ -43,5 +43,28 @@ describe('parsing node:test TAP summaries', () => {
 
   it('reads zero from output with no summary, so a truncated run cannot look like a score', () => {
     expect(parseNodeTest('TAP version 13\nok 1 - something\n')).toEqual({ tests: 0, passed: 0, failed: 0 });
+  });
+});
+
+describe('summarising a run', () => {
+  const withSummary = 'TAP version 13\nok 1 - a\nnot ok 2 - b\n# tests 878\n# pass 17\n# fail 861\n';
+
+  it('output with no summary is an error, never a score of zero', () => {
+    // The yargs control died at test 72 when a test called process.exit(); before this,
+    // that read as "0 / 0" and looked like a grade.
+    const s = summarize('TAP version 13\nok 1 - a\nok 2 - b\n', 10, 816);
+    expect(s.error).toMatch(/before its summary/);
+    expect(s.passed).toBe(0);
+  });
+
+  it('measures against the reference total when one is known', () => {
+    const s = summarize(withSummary, 10, 1307);
+    expect(s.error).toBeUndefined();
+    expect(s.passed).toBe(17);
+    expect(s.rate).toBeCloseTo(17 / 1307);
+  });
+
+  it('falls back to the registered count when there is no reference yet', () => {
+    expect(summarize(withSummary, 10, 0).rate).toBeCloseTo(17 / 878);
   });
 });

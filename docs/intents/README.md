@@ -122,14 +122,19 @@ a **live scoreboard**; every wave after it ends with that number higher.
 ### Scoreboard
 
 ```text
-compat-commander    ░░░░░░░░░░░░░░░░░░░░░░░░    17 / 1307    1.3%     baseline, ratcheted
-control (real cmdr) ███████████████████████░  1272 / 1307   97.3%     the gate, proven
+                       burgee                              control (the real host)
+compat-commander    ░░░░░░░░░░░░░░░░░░░░░░░░    17 / 1307    1.3%     ████████████████████████  1283 / 1307   98.2%
+compat-yargs        ░░░░░░░░░░░░░░░░░░░░░░░░     0 /  816    0.0%     ███████████████████████░   785 /  816   96.2%
 ```
 
-`npm run compat` — commander's own suite, vendored at `ba6d13dd`, graded through a
-one-line shim. The control run proves the gate before it grades anything of ours; the
-denominator is the reference total, not the tests that happened to register, so a partial
-implementation cannot flatter itself. Falling below 17 fails CI (C5).
+`npm run compat` — each host's own suite, vendored (commander `ba6d13dd`, yargs
+`fb9c0559`) and graded through generated shims; `--control` grades each against its real
+package first, which proves the gate before it grades anything of ours. The denominator is
+the reference total, not the tests that happened to register, so a partial implementation
+cannot flatter itself. `burgee/yargs` reads an honest 0 until wave 4 builds it and does not
+fail CI; falling below a recorded baseline does (C5). A suite killed mid-run by a test
+calling `process.exit()` is reported as an error, never as a score — it read as "0 / 0"
+three separate times before that rule existed.
 
 | Wave | Intents | Ends with | Status |
 | :-- | :-- | :-- | :-- |

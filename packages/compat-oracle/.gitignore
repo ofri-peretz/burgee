@@ -1,2 +1,2 @@
-vendor/*/shim.js
+vendor/*/shim*.js
 results.json

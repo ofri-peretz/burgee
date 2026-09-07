@@ -25,7 +25,16 @@
     "@types/yargs": "^17.0.33",
     "commander": "^15.0.0",
     "vitest": "^4.0.0",
-    "yargs": "^18.0.0"
+    "yargs": "^18.0.0",
+    "mocha": "^11.7.6",
+    "chai": "^6.2.2",
+    "which": "^2.0.2",
+    "cross-spawn": "^7.0.6",
+    "cpr": "^3.0.1",
+    "yargs-test-extends": "^1.0.1",
+    "chalk": "^5.6.2",
+    "hashish": "0.0.4",
+    "yargs-parser": "^22.0.0"
   },
   "exports": {
     "./drivers/commander": {
