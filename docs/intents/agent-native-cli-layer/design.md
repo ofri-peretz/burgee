@@ -79,6 +79,8 @@ enforces it, and where it lands.
 | E3 | Every error carries `code`, `message`, `hint`, and where possible `fix`: the exact command or flag to run next | yargs #2481, #1864 | R | One retry instead of two or three |
 | E4 | Lifecycle is explicit: parse → load config → validate → run → render → exit; validation failure stops the handler; async handlers are awaited | yargs #1069, #1975, #1797, #1399, #2223 | R | |
 | E5 | SIGINT restores the terminal and exits 130 | clack #573, #408; oclif/oclif #958 | R | |
+| E6 | The taxonomy separates **usage** from **environment** from **remote**: you typed it wrong, your environment is wrong, the far side said no. Each implies a different response — fix the script, fix the runner, retry or escalate — and `AUTH` is its own code, the most actionable single code in the survey | aws v2 252/253/254; gh 4 | R + L | commander-agent → engine |
+| E7 | The exit-code taxonomy is **declarative**: an author classifies an error and the framework maps it to a stable code. Reusing a code across two classes is a startup failure, not a runbook footnote | oxlint collapses a 20-variant enum to {0,1} | R + lock | engine |
 
 ### Values and precedence
 
@@ -134,6 +136,7 @@ enforces it, and where it lands.
 | :-- | :-- | :-- | :-- | :-- |
 | V6 | Config discovery order is fixed, documented, and shown by `--explain` | yargs #1234, #1676, #2191 | R | commander-env |
 | V7 | `extends` merges deeply and resolves from the extending file's `node_modules` | yargs #1363, #1135 | R | commander-env |
+| V8 | The precedence table and a `config explain` command are **generated** from the resolver, not hand-written. Ten of ten CLIs surveyed have config and env; **three of ten document the precedence** | the widest doc gap in the survey | R | commander-env |
 
 ### Help (from `cli-help-renderer`)
 
@@ -257,6 +260,11 @@ these requirements turn that into a served interface rather than a document.
 | N8 | `--schema` succeeds with **no authentication, no config file and no network**. It is the one command an agent runs first, before anything is set up | clispec.dev v0.3 | R + lock | cli-mcp |
 | N9 | The manifest carries `enum`, `minimum` and `maximum` as **data**, not as completion callbacks — the four fields a tool definition needs and a flag parser cannot supply | Cobra #2362, the flag/schema gap | R | commander-schema |
 | N10 | The floor is measured against **clispec.dev** and **cli-agent-lint**'s 34 checks, and the results published. A floor that fails someone else's published checklist is not a floor | — | CI | cli-benchmarks |
+| N11 | **The action-required envelope.** When a prompt would block, emit `{ status, reason, message, next[], hint }` where `next[]` carries runnable commands, each with a `when`, rewritten to include the caller's own global flags. The framework synthesises it from the manifest and argv; no author writes it | vercel is the only CLI of ten that does this | R | cli-mcp → engine |
+| N12 | **Agent detection, not just `isTTY`.** Non-interactive is the default under a detected agent (`AI_AGENT` and the 13 vendor variables), with `FORCE_TTY=1` to override. An agent may well have a TTY | `@vercel/detect-agent`; O2/P2 currently key off `isTTY` alone | R | commander-env |
+| N13 | `--schema` is **token-budget aware**: full schema under a declared character budget, progressively summarised above it, with field-path drilling to go deeper | posthog-cli `TOKEN_CHAR_LIMIT = 48,000` | R | cli-mcp |
+| N14 | Omitting `--json`'s argument **lists the valid fields**; an invalid field prints the valid set. Schema discovery with no extra surface and no drift | gh, alone of ten | R | commander-schema |
+| N15 | An `agent` output format that is **not JSON**: one compact line per record, no excerpts, no summary, whitespace collapsed. Agents want low-token and grep-able, which is often neither the human format nor JSON | oxlint and vitest converged independently | R | cli-help-renderer |
 
 ---
 
