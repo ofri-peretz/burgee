@@ -491,7 +491,7 @@ whatever a one-line shim points at, and the rate ratchets.
 | `compat-yargs-pass-rate` | yargs' 804 tests | 804 / 804 (2026-09-08) |
 | `compat-ora-pass-rate` | ora's 99 tests | 99 / 99 (2026-09-08) |
 | `compat-log-update-pass-rate` | log-update's 99 tests | 99 / 99 (2026-09-08) |
-| `node-matrix-green` | every Node LTS in `engines` × Linux, macOS, Windows | Node 24 and 26 today |
+| `node-matrix-green` | every Node LTS in `engines` × Linux, macOS, Windows | **Node 24 only** on three OSes (2026-09-08). A deliberate narrowing while the output stack lands, so C3 is *not* met: `engines` says `>=24` and 26 is not exercised. Restored by adding 26 back to the matrix in `compat.yml` — one line, and nothing else changes |
 | documented divergences | `excluded.json`, rendered on the docs site | 9 upstream files testing internals, excluded and named |
 
 An unlisted failure is a bug. A listed one is a documented difference with a reason and

@@ -54,7 +54,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        node: [24, 26]
+        # Node 24 only for now — a deliberate narrowing, not a claim that 26 is unsupported.
+        # `engines` still says `>=24`, so C3 is not met while this stands; the band row says
+        # so. Put 26 back by adding it here, and nothing else changes.
+        node: [24]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # The shared setup action pins Node from .nvmrc; a matrix needs the version varied,
