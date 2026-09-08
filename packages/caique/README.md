@@ -98,6 +98,26 @@ There is one binding, not one per host. What a framework supplies is a record of
 the values so far and a runtime; none of that needs any particular framework's types, so
 `caique` imports none of them.
 
+### On a real terminal
+
+`createIo()` is the reader and writer over actual streams — the only file in the package
+that touches a terminal:
+
+```js
+import { createIo } from 'caique/terminal';
+import { ask } from 'caique/ask';
+
+const io = createIo({ input: process.stdin, output: process.stdout });
+await ask({ kind: 'password', message: 'Token?' }, io);
+io.close();
+```
+
+A `password` prompt is not echoed, and that lives here rather than in the widgets: this is
+the only layer that knows what echo *is*, and no widget can leak a secret by writing it
+back, because no widget writes what it read. The echo is suppressed for the duration of the
+question rather than by turning the terminal's echo off — which would leave it off if the
+process died mid-prompt.
+
 ## What it will be
 
 - **Every prompt is a flag first.** A caller who passes the flag is never asked. An agent
