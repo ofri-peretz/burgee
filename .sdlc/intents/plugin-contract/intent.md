@@ -5,7 +5,7 @@
 > API is the product (Vite) and plugins are data (ESLint flat config). This intent makes
 > that one contract, not four.
 
-**Status:** draft · **Opened:** 2026-09-08 · **Owner:** @ofri-peretz
+**Status:** review · **Opened:** 2026-09-08 · **Design:** [`design.md`](./design.md) (2026-09-08) · **Owner:** @ofri-peretz
 
 ---
 
