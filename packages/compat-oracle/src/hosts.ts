@@ -13,9 +13,16 @@
  * the control, from the target's main entry for a target — so no file is ever excluded.
  */
 export interface HostImport {
+  /** As the tests write it: relative to the test dir (`../index.mjs`) or bare (`yargs-parser`). */
   upstream: string;
   subpath: string;
   reexportDefault: boolean;
+  /**
+   * What the control run re-exports, when it is not `<host><subpath>`: yargs' parser is a
+   * separate package, `yargs-parser`, and a program migrating from it imports the same
+   * object from `burgee/yargs/parser`.
+   */
+  control?: string;
 }
 
 export interface Host {
@@ -79,6 +86,7 @@ export const HOSTS: Host[] = [
     imports: [
       { upstream: '../index.mjs', subpath: '', reexportDefault: true },
       { upstream: '../helpers/helpers.mjs', subpath: '/helpers', reexportDefault: false },
+      { upstream: 'yargs-parser', subpath: '/parser', reexportDefault: true, control: 'yargs-parser' },
     ],
     runner: 'mocha',
     preamble: 'before.mjs',
@@ -87,7 +95,7 @@ export const HOSTS: Host[] = [
     surfaceFiles: ['lib/yargs-factory.ts', 'lib/typings/yargs-parser-types.ts', 'helpers/helpers.mjs'],
     target: 'burgee/yargs',
     status: 'active',
-    note: 'The front-end does not exist yet, so this grades at 0 honestly until wave 4 builds it. 108 methods.',
+    note: '108 methods. Built in wave 4.',
   },
   {
     name: 'meow',

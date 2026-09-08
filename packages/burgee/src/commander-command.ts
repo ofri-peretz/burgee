@@ -25,7 +25,9 @@ import { Help, type HelpContext } from './commander-help.js';
 import { DualOptions, Option } from './commander-option.js';
 import { suggestSimilar } from './commander-suggest.js';
 import { ExitCode } from './exit-code.js';
-import { Manifest, type OptionSpec, type Plugin } from './manifest.js';
+import { type Effects, Manifest, type OptionSpec, type Plugin } from './manifest.js';
+import { serveMcp } from './mcp.js';
+import { schemaOf } from './schema.js';
 
 export interface OutputConfiguration {
   writeOut: (str: string) => void;
@@ -194,6 +196,8 @@ export class Command extends EventEmitter {
 
   /** burgee: the root's projection, created on first use. */
   _manifest: Manifest | undefined = undefined;
+  /** burgee: what this command does to the world (N6); declaring it exposes the command as an MCP tool. */
+  _effects: Effects | undefined = undefined;
   /** burgee: set for the duration of a parse that injected the streams or the exit. */
   _burgee: Burgee | undefined = undefined;
 
@@ -681,7 +685,14 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
     const from = this._prepareBurgee(parseOptions);
     this._prepareForParse();
     const userArgs = this._prepareUserArgs(argv, from);
-    this._runBurgee(() => this._parseCommand([], userArgs));
+    // The surface check is synchronous unless a surface is actually served (completions,
+    // --mcp), so a synchronous action has run by the time parse() returns — commander's
+    // contract, which its suite asserts on after every parse(). commander-sync.test.ts.
+    this._runBurgee(() => {
+      const served = this._burgeeSurface(userArgs);
+      if (isThenable(served)) return served.then((s) => (s ? undefined : this._parseCommand([], userArgs)));
+      return served ? undefined : this._parseCommand([], userArgs);
+    });
     return this;
   }
 
@@ -689,7 +700,13 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
     const from = this._prepareBurgee(parseOptions);
     this._prepareForParse();
     const userArgs = this._prepareUserArgs(argv, from);
-    await this._runBurgee(() => this._parseCommand([], userArgs));
+    // Same synchronous start as parse(): a preAction hook has run before the promise is
+    // handed back, which commander's hook tests assert on.
+    await this._runBurgee(() => {
+      const served = this._burgeeSurface(userArgs);
+      if (isThenable(served)) return served.then((s) => (s ? undefined : this._parseCommand([], userArgs)));
+      return served ? undefined : this._parseCommand([], userArgs);
+    });
     return this;
   }
 
@@ -1613,8 +1630,18 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
     manifest.commands.splice(0, manifest.commands.length, ...contributed);
     const rootName = this._name || 'program';
     manifest.rootPath = [rootName];
+    if (this._version !== undefined) manifest.version = this._version;
     const visit = (cmd: Command, at: string[]): void => {
-      manifest.add({ path: at, ...(cmd._description ? { description: cmd._description } : {}), options: cmd._optionSpecs() });
+      manifest.add({
+        path: at,
+        ...(cmd._description ? { description: cmd._description } : {}),
+        ...(cmd._summary ? { summary: cmd._summary } : {}),
+        ...(cmd._effects === undefined ? {} : { effects: cmd._effects }),
+        ...(cmd._hidden ? { hidden: true } : {}),
+        options: cmd._optionSpecs(),
+        arguments: cmd.registeredArguments.map((a) => ({ name: a.name(), required: a.required, variadic: a.variadic, ...(a.description ? { description: a.description } : {}) })),
+        ...(cmd._actionHandler === null ? {} : { run: () => undefined }),
+      });
       for (const sub of cmd.commands) visit(sub, [...at, sub._name]);
     };
     visit(this, [rootName]);
@@ -1633,6 +1660,63 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
       Object.defineProperty(specs, option.attributeName(), { value: spec, enumerable: true, writable: true, configurable: true });
     }
     return specs;
+  }
+
+  /** burgee: declare what the command does to the world (N6). This is what exposes it as an MCP tool (N2). */
+  effects(value: Effects): this {
+    this._effects = value;
+    return this;
+  }
+
+  /**
+   * burgee: `--schema` and `--mcp` on a commander-syntax program, from its manifest (J2).
+   * Only when the program declares neither option itself; `--mcp` runs commands through
+   * this very program with the streams captured, so tool results are the `--json` envelope.
+   */
+  _burgeeSurface(userArgs: string[]): boolean | Promise<boolean> {
+    const root = this._root();
+    // Any command in the tree that declares the flag keeps it: the surface is additive only.
+    const declared = (flag: string, at: Command = root): boolean =>
+      at._findOption(flag) !== undefined || at.commands.some((sub) => declared(flag, sub));
+    const terminator = userArgs.indexOf('--');
+    const head = terminator === -1 ? userArgs : userArgs.slice(0, terminator);
+    if (head[0] === 'completion' && root._findCommand('completion') === undefined) {
+      // Loaded on this command only (K6), exactly as the engine does.
+      return import('./completions.js').then(({ renderCompletion, renderFigSpec, SHELLS }) => {
+        const shell = head[1] ?? '';
+        if (shell === 'fig') {
+          root._outputConfiguration.writeOut(`${JSON.stringify(renderFigSpec(this.manifest), null, 2)}\n`);
+          return true;
+        }
+        const known = SHELLS.find((s) => s === shell);
+        if (known !== undefined) {
+          root._outputConfiguration.writeOut(renderCompletion(this.manifest, known));
+          return true;
+        }
+        return this._burgeeSurfaceRest(head, declared);
+      });
+    }
+    return this._burgeeSurfaceRest(head, declared);
+  }
+
+  /** The surfaces after `completion`: `--schema` is synchronous, `--mcp` serves until stdin closes. */
+  _burgeeSurfaceRest(head: string[], declared: (flag: string) => boolean): boolean | Promise<boolean> {
+    const root = this._root();
+    if (head.includes('--schema') && !declared('--schema')) {
+      root._outputConfiguration.writeOut(`${JSON.stringify(schemaOf(this.manifest), null, 2)}\n`);
+      return true;
+    }
+    if (head[0] === '--mcp' && !declared('--mcp')) {
+      const invoke = async (args: string[]): Promise<{ stdout: string; stderr: string; code: number }> => {
+        const out: string[] = [];
+        const err: string[] = [];
+        let code = 0;
+        await root.parseAsync(args, { from: 'user', stdout: { write: (s) => out.push(s) }, stderr: { write: (s) => err.push(s) }, exit: (c) => void (code = c) });
+        return { stdout: out.join(''), stderr: err.join(''), code };
+      };
+      return serveMcp(this.manifest, { input: process.stdin, output: { write: (s) => root._outputConfiguration.writeOut(s) }, invoke }).then(() => true);
+    }
+    return false;
   }
 
   /** Additive, and the point of the whole exercise: plugins commander has never had (#2505, unlanded). */
@@ -1731,11 +1815,21 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
       });
   }
 
+  /** burgee: where every option value came from, from commander's own value sources (V3). */
+  _provenance(): Record<string, { source: string }> {
+    const out: Record<string, { source: string }> = {};
+    const names: Record<string, string> = { cli: 'flag', env: 'env', config: 'config', default: 'default', implied: 'implied' };
+    for (const [key, source] of Object.entries(this._optionValueSources)) {
+      if (source !== undefined && this.getOptionValue(key) !== undefined) out[key] = { source: names[source] ?? source };
+    }
+    return out;
+  }
+
   _emitResult(value: unknown): void {
     const burgee = this._root()._burgee;
     if (burgee === undefined) return;
     if (burgee.json) {
-      this._outputConfiguration.writeOut(`${JSON.stringify({ ok: true, data: value ?? null })}\n`);
+      this._outputConfiguration.writeOut(`${JSON.stringify({ ok: true, data: value ?? null, meta: { provenance: this._provenance() } })}\n`);
       return;
     }
     const text = render(value);

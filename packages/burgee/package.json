@@ -1,6 +1,6 @@
 {
   "name": "burgee",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "An agent-native CLI framework, drop-in compatible with commander and yargs. One declaration; help, --json, --schema, --mcp and completions all projected from it.",
   "license": "MIT",
   "type": "module",
@@ -37,15 +37,36 @@
       "types": "./dist/commander.d.ts",
       "import": "./dist/commander.js",
       "default": "./dist/commander.js"
+    },
+    "./completions": {
+      "types": "./dist/completions.d.ts",
+      "import": "./dist/completions.js",
+      "default": "./dist/completions.js"
+    },
+    "./yargs": {
+      "types": "./dist/yargs.d.ts",
+      "import": "./dist/yargs.js",
+      "default": "./dist/yargs.js"
+    },
+    "./yargs/helpers": {
+      "types": "./dist/yargs-helpers.d.ts",
+      "import": "./dist/yargs-helpers.js",
+      "default": "./dist/yargs-helpers.js"
+    },
+    "./yargs/parser": {
+      "types": "./dist/yargs-parser.d.ts",
+      "import": "./dist/yargs-parser.js",
+      "default": "./dist/yargs-parser.js"
     }
   },
   "files": [
     "dist",
     "!dist/**/*.map",
-    "!dist/**/*.test.*"
+    "!dist/**/*.test.*",
+    "locales"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/strip-comments.mjs dist",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
     "lint": "eslint src"

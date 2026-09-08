@@ -76,7 +76,7 @@ the docs site that says it is true; *value* is who is better off and how we woul
 
 | Layer | Edge | Why the incumbent cannot copy it | Proof (published) | Value, for whom |
 | :-- | :-- | :-- | :-- | :-- |
-| **burgee** | one declaration → help, `--json`, `--schema`, `--mcp`, completions, types; plugins | commander has no manifest and refused plugins (#2505); yargs' 108 methods each own a slice of state | commander 1327/1331, yargs ratchet; B2 spawn delta; B1 agent success | CLI authors: no drift between surfaces. Agent builders: a contract instead of scraped `--help` |
+| **burgee** | one declaration → help, `--json`, `--schema`, `--mcp`, completions, types; plugins | commander has no manifest and refused plugins (#2505); yargs' 108 methods each own a slice of state | commander 1,361/1,361 and yargs 804/804 on their own suites; B2 spawn delta; B1 agent success | CLI authors: no drift between surfaces. Agent builders: a contract instead of scraped `--help` |
 | **roundel** | one output policy, semantic tokens, a contrast-checked theme | chalk's model is a global mutable `level`; a policy would break its own tests | B4 rows under picocolors and chalk 6; chalk pass rate; the policy truth table | Authors: one answer to "is this a terminal?". Users: readable errors on every background |
 | **flagstaff** | the static projection is the artifact; plugins are data; an agent can write one in a turn | ora and Ink are imperative; a React tree has no static form to project | `\r`-free piped transcript; U9 eval green weekly; ora pass rate; B4 under ora | Agents and screen readers: the same clean bytes. Authors: a spinner ecosystem without a framework |
 | **caique** | never hangs: flags first, errors with `fix` in non-TTY, accessible by default | clack and inquirer assume a person is present; non-TTY is their bug, not their model | non-TTY benchmark never times out; inquirer and clack pass rates; matrix green | Anyone running a CLI from CI or an agent: the hang, gone. Screen-reader users: prompts that read |
@@ -174,8 +174,8 @@ converts it from a permanent dependency into a fixable backlog, so it now has an
 | # | Intent | Delivers | Floor ids | Status |
 | :-- | :-- | :-- | :-- | :-- |
 | 19 | [`replacement-parser/`](./replacement-parser/) | our parser over `node:util.parseArgs`, as a third conformance host | G1–G7, §10 fixes | review |
-| 20 | [`commander-compat/`](./commander-compat/) | `burgee/commander` — commander 15 ported method for method, graded by commander's 1,331 tests; 1,327 pass (parity with the real package) | X1–X8 | review |
-| 21 | [`yargs-compat/`](./yargs-compat/) | `burgee/yargs` — 108 methods, graded by yargs' 1,185 tests | X1–X7 | review |
+| 20 | [`commander-compat/`](./commander-compat/) | `burgee/commander` — commander 15 ported method for method, graded by commander's 1,362 tests; **1,361 / 1,361 (100%)** of those that run on this OS, as the real package scores | X1–X8 | review |
+| 21 | [`yargs-compat/`](./yargs-compat/) | `burgee/yargs` — yargs 18 and its whole dependency tree ported method for method, graded by yargs' 804 tests; **804 / 804 (100%)** (real yargs: 802 in the same run) | X1–X8 | review |
 
 ### The output stack — what a CLI shows, as a plugin framework
 
@@ -227,10 +227,10 @@ a **live scoreboard**; every wave after it ends with that number higher.
 
 ```text
                        burgee                              control (the real host)
-compat-commander    ████████████████████████  1327 / 1331   99.7%     ████████████████████████  1327 / 1331   99.7%
+compat-commander    ████████████████████████  1361 / 1361  100.0%     ████████████████████████  1361 / 1361  100.0%
   internals                                         12 /   12                                          12 /   12
-compat-yargs        ░░░░░░░░░░░░░░░░░░░░░░░░     0 /  804    0.0%     ███████████████████████░   783 /  804   97.4%
-  internals                                          0 /   23                                          23 /   23
+compat-yargs        ████████████████████████   804 /  804  100.0%     ████████████████████████   802 /  804   99.8%
+  internals                                         23 /   23                                          23 /   23
 ```
 
 Every file of both suites is vendored and run — nothing is excluded. The *internals* lines
@@ -241,8 +241,9 @@ reported, never gated: passing them would mean copying the host's file layout.
 `fb9c0559`) and graded through generated shims; `--control` grades each against its real
 package first, which proves the gate before it grades anything of ours. The denominator is
 the reference total, not the tests that happened to register, so a partial implementation
-cannot flatter itself. `burgee/yargs` reads an honest 0 until wave 4 builds it and does not
-fail CI; falling below a recorded baseline does (C5). A suite killed mid-run by a test
+cannot flatter itself. `burgee/yargs` read an honest 0 until wave 4 built it; falling below
+a recorded baseline fails CI (C5) — and the grader's exit code now reaches the job, which a
+`| tee` had been swallowing (found when `burgee/commander` had quietly fallen to 689). A suite killed mid-run by a test
 calling `process.exit()` is reported as an error, never as a score — it read as "0 / 0"
 three separate times before that rule existed.
 
@@ -250,9 +251,9 @@ three separate times before that rule existed.
 | :-- | :-- | :-- | :-- |
 | 0 | `sdlc-locks-evals-bands`, `cli-testing-harness` | the loop, and a harness that runs a CLI in-process | ✅ shipped |
 | **1 · engine** | `replacement-parser`, `compat-oracle`, `cli-packaging` | a one-file CLI that runs, the shape lock green, the first published pass rate | 🔨 engine built · oracle grading commander · packaging next |
-| **2 · compatibility** | `commander-compat`, `cli-help-renderer` ↑, `first-adopter` ↑, `eslint-plugin-cli-floor` ↑ | every upstream file graded; `burgee/commander` 1,327/1,331 (= real commander in the same run) and byte-identical to commander on the demo (X7, 29 cases); help rendered from the manifest with `help <cmd>`, groups, examples, env, width from the runtime (H1–H6) | in progress |
-| **3 · surfaces** | `cli-mcp`, `commander-schema`, `commander-env`, `commander-completions` | `--schema`, `--mcp`, completions — the reason to switch | queued |
-| **4 · reach** | `yargs-compat`, `dev-loop`, `cli-modularity`, `caique`, `docs-deploy`, `cli-benchmarks`, `brand-burgee` | the second host, the dev loop, a CLI we did not write, one brand declaration | queued |
+| **2 · compatibility** | `commander-compat`, `cli-help-renderer` ↑, `first-adopter` ↑, `eslint-plugin-cli-floor` ↑ | every upstream file graded; `burgee/commander` 1,361/1,361 (= real commander in the same run) and byte-identical to commander on the demo (X7, 29 cases); help rendered from the manifest with `help <cmd>`, groups, examples, env, width from the runtime (H1–H6) | in progress |
+| **3 · surfaces** | `cli-mcp`, `commander-schema`, `commander-env`, `commander-completions` | `--schema`, `--mcp`, completions — the reason to switch | 🔨 `--schema`, `--mcp` and static completions for bash/zsh/fish/pwsh + Fig served from the manifest on every program, commander syntax included (N1–N6, N8, N9, D2–D5); one precedence order with `--explain`, `meta.provenance`, config discovery with `extends`, `--version` from the owning package.json (V1–V7); options declared once — inferred types, numbers, `multiple`, choices enforced, relations, Standard Schema, kebab on the CLI (S1–S8); `changed`, the action-required envelope, agent detection, the schema budget (N7, N11–N13) — ✅ wave 3 complete |
+| **4 · reach** | `yargs-compat`, `dev-loop`, `cli-modularity`, `caique`, `docs-deploy`, `cli-benchmarks`, `brand-burgee` | the second host, the dev loop, a CLI we did not write, one brand declaration | 🔨 `burgee/yargs` **804/804** (real yargs: 802 in the same run), byte-identical on the demo (X7, 26 cases), locales shipped, `burgee/yargs/parser` for programs that imported yargs-parser; next: burgee's additions on yargs syntax, then `dev-loop` |
 | **5 · speed** | single-binary distribution (`burgee build --binary`), `eslint-plugin-cli-floor` as an oxlint **JS** plugin; native spike only if a Z5-scale measurement reopens it | `--help` in 13 ms, or a recorded decision not to | conditional |
 | — | `security-profile` | a scanner-shaped CLI cannot confuse findings with failure | after 3, when an adopter needs it |
 
@@ -387,7 +388,7 @@ the friction — which today they do, and which a 250-command CLI may change.
 
 | | Done | Left |
 | :-- | :-- | :-- |
-| `compat-oracle` | every file of both suites vendored (internals reported separately); both gates proven (1327/1331, 783/804); `burgee/commander` 1327/1331 — parity with real commander in the same run, `burgee/yargs` an honest 0/804; ratchet; `--control`; suites pinned to the hosts' npm releases (commander 15.0.0, yargs 18.1.0) with a fingerprinted compatibility record; daily release watch opens an issue with the exact test/surface diff, weekly re-vendor PR carries it (C6, R4); ratchet on every PR + Node×OS matrix (C3); generated `compatibility.mdx` (C2) | publish the page (needs `docs-deploy`) |
+| `compat-oracle` | every file of both suites vendored (internals reported separately); both gates proven (1361/1361, 802/804); `burgee/commander` 1361/1361 and `burgee/yargs` 804/804 — both façades at 100% of their hosts' own suites (2026-09-08); skipped tests reported and never counted; the vendored root is a package a CJS fixture can `require('../')`; `COMPAT_TAP_DIR` keeps the raw TAP; ratchet; `--control`; suites pinned to the hosts' npm releases (commander 15.0.0, yargs 18.1.0) with a fingerprinted compatibility record; daily release watch opens an issue with the exact test/surface diff, weekly re-vendor PR carries it (C6, R4); ratchet on every PR + Node×OS matrix (C3); generated `compatibility.mdx` (C2) | publish the page (needs `docs-deploy`) |
 | `cli-packaging` | no-deps / ESM / no-`main` / `default`-condition lock (R1–R3); artifact gate in `release.yml` between build and publish (R4); tarball size ratchet with baseline (R5); provenance restored under the trusted publisher | — (R6 bun/deno smoke landed in wave 2: `runtime-smoke.yml`) |
 | **ESM + CJS** | every entry has a `default` condition; no top-level await in the library; `require('burgee')` and `require('burgee/commander')` proven against the installed tarball — one artifact, both module systems (K2, revised) | — |
 | `replacement-parser` | engine, lifecycle, exit contract, manifest, four locks; `defineProgram`; `--` pass-through and `-` (G5); seven cited §10 fixes (G6); G7 measured at +5 ms, level with bare `parseArgs`; `demo-cli-burgee` as the third conformance host via `runBurgee` (G2), with the envelope difference declared per host; `ctx.exit`, env binding, root/group help | G3 quirks — they land with the front-ends in wave 2 |
@@ -440,7 +441,7 @@ That is the cost of this decision and it is real.
 
 The mitigations, both live:
 
-- **The burn-down is public from the first commit.** It is `1327 / 1331` today — the same 1,327 real commander scores in the same environment. A number
+- **The burn-down is public from the first commit.** It is `1361 / 1361` and `804 / 804` today — commander's and yargs' own suites, in full. A number
   that only goes up is more persuasive than any announcement, and it makes the wait
   visible instead of silent.
 - **`eslint-plugin-cli-floor` needs no runtime adoption at all** — no dependency in
@@ -483,7 +484,7 @@ whatever a one-line shim points at, and the rate ratchets.
 | Metric | Source | Baseline |
 | :-- | :-- | :-- |
 | `compat-commander-pass-rate` | commander's 1,215 public-surface tests | 1,210/1,215 against real commander, measured 2026-09-06 |
-| `compat-yargs-pass-rate` | yargs' 1,185 tests | recorded when wave 1 vendors the suite |
+| `compat-yargs-pass-rate` | yargs' 804 tests | 804 / 804 (2026-09-08) |
 | `node-matrix-green` | every Node LTS in `engines` × Linux, macOS, Windows | Node 24 and 26 today |
 | documented divergences | `excluded.json`, rendered on the docs site | 9 upstream files testing internals, excluded and named |
 

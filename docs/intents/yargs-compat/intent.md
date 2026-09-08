@@ -9,7 +9,7 @@
 
 ## What is wanted
 
-`import { … } from 'selvage/yargs'` replaces `import { … } from 'yargs'` in an existing
+`import yargs from 'burgee/yargs'` replaces `import yargs from 'yargs'` in an existing
 project, and that project's tests still pass. The claim is not the word "compatible" —
 it is a published pass rate against yargs's own suite, produced by
 [`compat-oracle`](../compat-oracle/intent.md) on every PR.
@@ -22,31 +22,30 @@ and earns 16 downloads a week. Compatibility is the on-ramp; it is not the produ
 flawless yargs clone with no added capability gives nobody a reason to switch.
 
 The bill for this host, counted rather than estimated: **108 public methods**,
-**1185 tests** in the vendored suite (mocha, .cjs).
+**804 public tests** (plus 23 internals) in the vendored suite (mocha, `.mjs`), pinned to yargs 18.1.0.
 
 ## Affected users and systems
 
-- `selvage/yargs` entry point; no change to `yargs-agent`, which keeps working against
-  real yargs.
+- `burgee/yargs` and `burgee/yargs/helpers` entry points.
 - `compat-oracle` gains this front-end as a grading target (`COMPAT_TARGET`).
 - `cli-benchmarks` B3 gains its pass rate; B4 gains `core + yargs front-end`.
 
 ## Constraints
 
 1. **Pay per import** (§6). This front-end lives behind its own specifier. A fixture
-   importing only `selvage` must pull zero bytes of it, asserted by B4.
-2. **Weight ceiling**: `core + yargs front-end` stays under 376KB bundled — the
-   installed size of yargs itself, measured 2026-09-06.
+   importing only `burgee` must pull zero bytes of it, asserted by B4.
+2. **Weight ceiling**: the front-end's reachable bytes stay under what yargs installs
+   for the same surface (`weight.test.ts` entry `./yargs`, 256,000 B).
 3. **Never edit the vendored suite to pass.** Rule 2. A failing upstream test is either
-   a bug to fix or a C4 divergence with a written reason and its own test.
+   a bug to fix or a divergence with a written reason in `design.md`; nothing is excluded.
 4. The pass rate ratchets (C5): it may not fall between releases.
 
 ## Success criteria
 
-1. `COMPAT_TARGET=selvage/yargs npm run compat` reports a pass rate published in CI, on
-   the docs site, and in the control bands.
-2. Every divergence is listed in `excluded.json` with a reason and an asserting test;
-   an unlisted failure is a bug.
+1. `npm run compat` reports a pass rate published in CI, on the docs site, and in the
+   control bands.
+2. Every divergence is a failing upstream test with a recorded reason in `design.md`;
+   an unrecorded failure is a bug.
 3. `examples/demo-cli-yargs` runs unmodified against both real yargs and this front-end,
    producing byte-identical stdout for every conformance case.
 4. B4 shows the ceiling in constraint 2 met.
@@ -55,5 +54,5 @@ The bill for this host, counted rather than estimated: **108 public methods**,
 
 None open. Decided at finalisation (2026-09-06): grade against the vendored upstream
 suite rather than tests we write; ship as a subpath export rather than a separate
-package, so `selvage` and its front-ends version together and a user cannot mix
+package, so `burgee` and its front-ends version together and a user cannot mix
 incompatible majors.

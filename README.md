@@ -132,8 +132,9 @@ per entry point, and the adoption ladder — each proven to fail before it passe
 does not reach 1.0 until its host's own suite passes **100%** (`C7`); below that it ships
 pre-1.0 with the rate published and is never called "compatible".
 
-**Not yet true:** `--schema`, `--mcp`, completions, the yargs façade. The
-[floor](./apps/docs/content/docs/the-floor.mdx) is 101 requirements and most are unbuilt.
+**Not yet true:** the dev loop, prompts, lazy commands and groups, an adopter we did not
+write. The [floor](./apps/docs/content/docs/the-floor.mdx) is 101 requirements; the
+surfaces, the env/config/schema families and both façades are built, the rest is wave 4.
 
 ```bash
 npm install

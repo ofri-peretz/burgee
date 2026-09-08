@@ -129,8 +129,11 @@ export function finish(rt: FakeRuntime, code: ExitCode, startedAt: number): RunR
   const stderr = rt.err.join('');
   const result: RunResult = { code, stdout, stderr, durationMs: performance.now() - startedAt };
   if (beforeTerminator(rt.argv).includes('--json')) {
+    // Success prints the envelope on stdout; a reported failure prints the E3 envelope on
+    // stderr (E2) with nothing on stdout. Either way the run's own code stands.
+    const source = stdout.trim() === '' && code !== ExitCode.OK ? stderr.split('\n')[0] ?? '' : stdout;
     try {
-      result.json = JSON.parse(stdout);
+      result.json = JSON.parse(source);
     } catch (e) {
       return { ...result, code: ExitCode.RUNTIME, stderr: `${stderr}--json output did not parse: ${(e as Error).message}\n` };
     }

@@ -1,12 +1,12 @@
 {
   "commander": {
-    "reference": 1331,
-    "passed": 1327,
-    "rate": 0.997
+    "reference": 1361,
+    "passed": 1361,
+    "rate": 1
   },
   "yargs": {
     "reference": 804,
-    "passed": 0,
-    "rate": 0
+    "passed": 804,
+    "rate": 1
   }
 }

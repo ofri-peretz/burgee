@@ -186,6 +186,21 @@ export default [
   },
 
   // ── Documented false positives (tracked in ofri-peretz/eslint) ────────────
+  // FP 15: no-missing-null-checks does not follow an early return or throw — `if (!x)
+  //   return;` on the line above still leaves `x.field` reported (yargs-usage.ts unfreeze),
+  //   as does a ternary guarded by its own test (`m ? m[0].length : 0`, yargs-cliui.ts).
+  // FP 16: no-unchecked-loop-condition reports `for (;;)` whose body breaks (yargs-shim.ts
+  //   findUp, escalade's own loop).
+  // FP 17: consistent-existence-index-check offers `in` as an *autofix* for
+  //   `Object.prototype.hasOwnProperty.call(o, k)`; the two differ on inherited keys, which
+  //   is why yargs-parser checks own properties on user-supplied objects. A style rule must
+  //   not rewrite semantics.
+  // FP 18: prefer-at reports `rows[rows.length - 1] += s` — an assignment target — and its
+  //   autofix writes `rows.at(-1) += s`, which does not parse (TS2364). Seen 2026-09-08 in
+  //   yargs-cliui.ts, five times; the rule must skip the left-hand side of an assignment.
+  // FP 14: no-magic-numbers reports the literal inside a named constant's own definition
+  // (`const JSON_RPC_INVALID_REQUEST = -32600`), which is the extraction it asks for. Off
+  // for the JSON-RPC module, where the three spec codes are exactly such constants.
   // FP 12 (no exception needed, the code was hoisted): consistent-function-scoping fires on
   // an arrow that is already at module scope when it is wrapped in a type assertion, and on
   // trivial callbacks written inline inside an object literal that is passed as an argument,
@@ -281,8 +296,31 @@ export default [
     // (`import { type X } from './m.js'`) emits `import {} from './m.js'` — a real
     // module load for no value, worth ~5ms of startup here. A type-only import must
     // be top-level so it erases completely.
-    files: ['packages/burgee/src/execute.ts', 'packages/burgee/src/help.ts'],
+    files: ['packages/burgee/src/execute.ts', 'packages/burgee/src/help.ts', 'packages/burgee/src/schema.ts'],
     rules: { 'import-next/consistent-type-specifier-style': 'off' },
+  },
+  {
+    // Config discovery loads the user's own config file: a JSON read, or a dynamic import
+    // of a JavaScript config — that import is the feature (V6, yargs #2234), not a
+    // dependency loaded by name. `extends` parents are awaited in order because order is the
+    // merge semantics (V7). ConfigError takes its message first, like UsageError (FP 10).
+    files: ['packages/burgee/src/config.ts'],
+    rules: {
+      'node-security/no-dynamic-dependency-loading': 'off',
+      'performance/no-await-in-loop': 'off',
+      'reliability/no-await-in-loop': 'off',
+      'maintainability/no-missing-error-context': 'off',
+      'reliability/no-missing-error-context': 'off',
+      'maintainability/no-unhandled-promise': 'off',
+      'reliability/no-unhandled-promise': 'off',
+    },
+  },
+  {
+    // FP 14, see the list above. The request loop awaits each JSON-RPC message before
+    // reading the next: stdio MCP is ordered, and a tool call runs a command whose output
+    // must not interleave with another's.
+    files: ['packages/burgee/src/mcp.ts'],
+    rules: { 'conventions/no-magic-numbers': 'off', 'performance/no-await-in-loop': 'off', 'reliability/no-await-in-loop': 'off' },
   },
   {
     // Plugin hooks run strictly in order — `enforce: 'pre'`, then unordered, then
@@ -321,7 +359,7 @@ export default [
     // burgee owns the process: a CLI framework's whole job is to parse, run and
     // exit with the E1 contract. `exit` is injectable (RunOptions.exit) so tests
     // never touch the real one; the default has to call process.exit.
-    files: ['packages/burgee/src/execute.ts'],
+    files: ['packages/burgee/src/execute.ts', 'packages/burgee/src/precedence.ts'],
     rules: {
       'operability/no-process-exit': 'off',
       'secure-coding/detect-object-injection': 'off',
@@ -365,11 +403,13 @@ export default [
   },
   {
     // `burgee/commander` is commander 15 ported method for method and graded by
-    // commander's own 1,331 tests (compat-oracle). Its shape — one EventEmitter subclass,
+    // commander's own 1,362 tests (compat-oracle). Its shape — one EventEmitter subclass,
     // the `_`-prefixed package-level fields the upstream tests reach for, the long parse
     // loop, process.exit when no exitOverride is set — *is* the specification, so the
     // structural rules that would reshape it are off here. The oracle is the check.
-    files: ['packages/burgee/src/commander-*.ts', 'packages/burgee/src/commander.ts'],
+    // `burgee/yargs` is yargs 18 (with yargs-parser 22, cliui 9 and y18n 5) ported the same
+    // way and graded by yargs' own 804 tests; the same rules are off for the same reason.
+    files: ['packages/burgee/src/commander-*.ts', 'packages/burgee/src/commander.ts', 'packages/burgee/src/yargs-*.ts', 'packages/burgee/src/yargs.ts'],
     rules: {
       'maintainability/consistent-function-scoping': 'off',
       'maintainability/cognitive-complexity': 'off',
@@ -389,13 +429,38 @@ export default [
       'import-next/exports-last': 'off',
       'import-next/consistent-type-specifier-style': 'off',
       'import-next/no-barrel-file': 'off',
+      // The yargs port adds: its module shape (yargs' own `if/else if` chains, nested
+      // ternaries, empty catches that yargs documents as deliberate, a logger whose whole job
+      // is console.log/console.error, yargs-parser's flag regexes, cliui's RegExp built from
+      // a constant pattern, `new YError(msg)` where the message is the caller's).
+      'maintainability/no-lonely-if': 'off',
+      'maintainability/no-nested-ternary': 'off',
+      'maintainability/no-silent-errors': 'off',
+      'reliability/no-silent-errors': 'off',
+      'operability/no-console-log': 'off',
+      'operability/no-debug-code-in-production': 'off',
+      'secure-coding/no-redos-vulnerable-regex': 'off',
+      'secure-coding/detect-non-literal-regexp': 'off',
+      'maintainability/error-message': 'off',
+      'reliability/error-message': 'off',
+      // FP 15, 16, 17, 18 — see the list above.
+      'modernization/prefer-at': 'off',
+      'reliability/no-missing-null-checks': 'off',
+      'secure-coding/no-unchecked-loop-condition': 'off',
+      'conventions/consistent-existence-index-check': 'off',
     },
+  },
+  {
+    // `import yargs from 'burgee/yargs'` is the drop-in: yargs' entry is a default export
+    // and every program written for it imports it that way.
+    files: ['packages/burgee/src/yargs.ts', 'packages/burgee/src/yargs-parser.ts'],
+    rules: { 'import-next/no-default-export': 'off' },
   },
   {
     // X7 fixture: the commander demo built on burgee/commander through commander's own
     // types. The one cast *is* the drop-in claim, and commander-parity.test.ts proves it
     // byte for byte — a structural interface here would restate commander's typings.
-    files: ['examples/demo-cli-commander/src/burgee.ts'],
+    files: ['examples/demo-cli-commander/src/burgee.ts', 'examples/conformance/src/hosts.ts'],
     rules: { 'reliability/no-unsafe-type-narrowing': 'off', 'secure-coding/no-unsafe-type-assertion': 'off' },
   },
 ];

@@ -33,6 +33,7 @@ jobs:
         run: npx turbo run build --filter='./packages/*'
 
       - name: Check upstream releases
+        shell: bash
         run: node packages/compat-oracle/dist/bin.js --upstream 2>&1 | tee upstream.log
 
       - name: Summary

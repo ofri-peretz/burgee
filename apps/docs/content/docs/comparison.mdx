@@ -35,8 +35,8 @@ with cac and citty; the gap is over commander and yargs specifically.
 | Exit-code contract | ✅ **built** | ❌ | ❌ | partial | ❌ | ❌ |
 | No help dumped on a runtime error | ✅ **built** | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Weight budget per entry point | ✅ **built** | ❌ | ❌ | ❌ | ❌ | ❌ |
-| commander compatibility | 🔨 in progress | — | ❌ | ❌ | ❌ | ❌ |
-| yargs compatibility | 📋 planned | ❌ | — | ❌ | ❌ | ❌ |
+| commander compatibility | ✅ 1,361 / 1,361 of commander's own tests | — | ❌ | ❌ | ❌ | ❌ |
+| yargs compatibility | ✅ 804 / 804 of yargs' own tests | ❌ | — | ❌ | ❌ | ❌ |
 | `--schema` (the CLI as data) | 📋 planned | ❌ | ❌ | manifest | ❌ | ❌ |
 | `--mcp` (an MCP server) | 📋 planned | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Shell completions | 📋 planned | ❌ | partial | ✅ | ❌ | partial |
@@ -51,7 +51,7 @@ has none either. burgee has one, and it works on a program written in *commander
 change one import and you gain a capability commander cannot sell you at any price.
 
 **Nothing you rely on breaks.** Compatibility is graded by commander's own 1,215 tests and
-yargs' 1,185, run in our CI, published as a pass rate that only goes up. Not the word
+yargs' 804, run in our CI, published as a pass rate that only goes up. Not the word
 "compatible" — a number you can check.
 
 **One declaration, every surface.** Help, `--json`, `--schema`, `--mcp`, completions and
