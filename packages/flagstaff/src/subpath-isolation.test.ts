@@ -114,7 +114,7 @@ describe('the package as a whole', () => {
   });
 
   it('every internal rule names a file that exists and is not itself an entry', () => {
-    const published = new Set(Object.values(manifest.exports).map((e) => basename(e.import)));
+    const published = new Set(code.map(([, e]) => basename(e.import)));
     for (const file of Object.keys(INTERNAL_ALLOWED)) {
       expect(published.has(file), `${file} is a published entry — it belongs in ALLOWED`).toBe(false);
       expect(existsSync(resolve(pkgRoot, 'dist', file)), `${file} does not exist`).toBe(true);
