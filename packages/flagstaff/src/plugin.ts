@@ -1,12 +1,24 @@
 /**
- * The plugin host (R2, R3, R4). A plugin is one plain object — `{ name, spinners, glyphs,
- * tokens, components }` — validated against `schema.json`, the same file that ships in the
+ * The plugin host (R2, R3, R4). A plugin is one plain object — `{ name, spinners, borders,
+ * glyphs, tokens, components }` — validated against `schema.json`, the same file that ships in the
  * tarball, and kept in one registry every component reads. A contribution without a static
  * projection is refused here, at the door, which is what makes a third-party plugin safe by
  * construction (U3, U4). Nothing in this file writes to a stream.
  */
 import { builtins } from './builtins.js';
 import schema from './schema.json' with { type: 'json' };
+
+/** A border style, in cli-boxes' shape exactly, so that corpus imports unchanged. */
+export interface BorderStyle {
+  topLeft: string;
+  top: string;
+  topRight: string;
+  left: string;
+  right: string;
+  bottomLeft: string;
+  bottom: string;
+  bottomRight: string;
+}
 
 /** A spinner style, in cli-spinners' shape plus the projection a pipe prints. */
 export interface SpinnerDef {
@@ -33,10 +45,11 @@ export interface Plugin {
   tokens?: Record<string, `#${string}`>;
   glyphs?: Record<string, string>;
   spinners?: Record<string, SpinnerDef>;
+  borders?: Record<string, BorderStyle>;
   components?: Record<string, Omit<Component, 'name'>>;
 }
 
-export type PluginErrorCode = 'E_PLUGIN_SCHEMA' | 'E_NO_STATIC_PROJECTION' | 'E_PLUGIN_CONTRACT' | 'E_UNKNOWN_SPINNER';
+export type PluginErrorCode = 'E_PLUGIN_SCHEMA' | 'E_NO_STATIC_PROJECTION' | 'E_PLUGIN_CONTRACT' | 'E_UNKNOWN_SPINNER' | 'E_UNKNOWN_BORDER';
 
 /** A refused plugin says what is wrong, where, and what to do about it. */
 export class PluginError extends Error {
@@ -168,10 +181,11 @@ interface Registry {
   tokens: Map<string, `#${string}`>;
   glyphs: Map<string, string>;
   spinners: Map<string, SpinnerDef>;
+  borders: Map<string, BorderStyle>;
   components: Map<string, Component>;
 }
 
-const registry: Registry = { plugins: [], tokens: new Map(), glyphs: new Map(), spinners: new Map(), components: new Map() };
+const registry: Registry = { plugins: [], tokens: new Map(), glyphs: new Map(), spinners: new Map(), borders: new Map(), components: new Map() };
 
 /**
  * The only wiring (R4, U9): validate, then keep every key this package understands. A later
@@ -184,6 +198,7 @@ export function register(plugin: unknown): void {
   for (const [name, hex] of Object.entries(plugin.tokens ?? {})) registry.tokens.set(name, hex);
   for (const [name, text] of Object.entries(plugin.glyphs ?? {})) registry.glyphs.set(name, text);
   for (const [name, def] of Object.entries(plugin.spinners ?? {})) registry.spinners.set(name, def);
+  for (const [name, style] of Object.entries(plugin.borders ?? {})) registry.borders.set(name, style);
   for (const [name, component] of Object.entries(plugin.components ?? {})) registry.components.set(name, { ...component, name });
 }
 
@@ -192,13 +207,27 @@ export function registered(): Readonly<Registry> {
   return registry;
 }
 
+/**
+ * One named thing out of the registry, or a refusal that lists what is there. The listing
+ * is the whole point: "no spinner named 'moonn'" with the eighty that do exist beside it
+ * is a typo fixed in one read, and a program that registered nothing learns that too.
+ */
+function lookup<T>(from: Map<string, T>, kind: string, code: PluginErrorCode, name: string): T {
+  const found = from.get(name);
+  if (found === undefined) {
+    throw new PluginError(code, `no ${kind} named ${JSON.stringify(name)}`, `use one of ${[...from.keys()].join(', ')}, or register a plugin that defines it`);
+  }
+  return found;
+}
+
 /** A spinner by name, or a refusal that lists the names that exist. */
 export function lookupSpinner(name: string): SpinnerDef {
-  const def = registry.spinners.get(name);
-  if (def === undefined) {
-    throw new PluginError('E_UNKNOWN_SPINNER', `no spinner named ${JSON.stringify(name)}`, `use one of ${[...registry.spinners.keys()].join(', ')}, or register a plugin that defines it`);
-  }
-  return def;
+  return lookup(registry.spinners, 'spinner', 'E_UNKNOWN_SPINNER', name);
+}
+
+/** A border by name, for `box()`; every style the built-ins ship is registered like any other. */
+export function lookupBorder(name: string): BorderStyle {
+  return lookup(registry.borders, 'border', 'E_UNKNOWN_BORDER', name);
 }
 
 /** A glyph by meaning; the built-ins define every meaning the built-in components use. */

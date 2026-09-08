@@ -66,11 +66,43 @@ register(nyan);
 spinner('nyan');
 ```
 
-Keys: `spinners`, `glyphs` (`ok`, `fail`, `warn`, `info`, `running` — change them and
-every built-in that draws one changes), `tokens` (a roundel theme), `components`. A spinner
+Keys: `spinners`, `borders`, `glyphs` (`ok`, `fail`, `warn`, `info`, `running` — change them
+and every built-in that draws one changes), `tokens` (a roundel theme), `components`. A spinner
 or component without a `static` is refused at `register()` with `E_NO_STATIC_PROJECTION`
 and a fix. The built-in `dots` and `line` styles are a plugin of exactly this shape,
 registered through the same door, so the built-ins cannot grow an API a plugin cannot reach.
+
+### The built-ins
+
+Five components, each on its own subpath, each answering the static projection for itself:
+
+```js
+import { progress } from 'flagstaff/progress';
+import { tasks } from 'flagstaff/tasks';
+import { box, boxComponent } from 'flagstaff/box';
+import { table, tableComponent } from 'flagstaff/table';
+```
+
+| component | on a terminal | everywhere else |
+| :-- | :-- | :-- |
+| `spinner` | `⠹ building` | `… building`, then `✔ built` |
+| `progress` | a bar of blocks | `12/30 files · 40%` |
+| `tasks` | every task, the running one animated | one line per task that has **settled** |
+| `box` | the border, padding and title | `title: text` |
+| `table` | the grid | one line per row of `header: value` pairs |
+
+That table is the package's argument in one place. A bar of `█` in a log file tells an agent
+nothing and tells a screen reader less; the count and the percentage tell both.
+
+`box` and `table` are also plain string functions, because most callers want the string:
+
+```js
+box('Ready on :3000', { title: 'dev', width: 40 });
+table([['ora', '99'], ['log-update', '99']], { head: ['host', 'tests'] });
+```
+
+No layout engine, and there will not be one: these measure with `width()`, wrap with
+`wrap()`, and join strings.
 
 ### The ora path
 
@@ -121,6 +153,46 @@ The static projection is the reason to move on eventually, not the reason to mov
 `hoist()` is what gives a pipe one line per state instead of frames. `flagstaff/ora` is the
 door, and it is deliberately ora's behaviour to the byte.
 
+### The log-update path
+
+`flagstaff/log-update` is log-update 8's API, graded **99 / 99 by log-update's own test
+suite** — which renders every frame through a real terminal emulator and asserts the
+screen, not the bytes.
+
+```diff
+-import logUpdate from 'log-update';
++import logUpdate from 'flagstaff/log-update';
+```
+
+`logUpdate()`, `.clear()`, `.done()`, `.persist()`, `createLogUpdate(stream, options)` and
+`logUpdateStderr`, with the row-level diffing intact: a five-row frame whose last row is a
+counter costs one row of output per tick, not five.
+
+log-update ships 113.4 KB across **sixteen** packages. This is 28.7 KB across **none** —
+the subpath reaches no package at all, not even roundel.
+It carries no port of `slice-ansi` — the wrapper already makes every row self-contained,
+so clipping a frame to the terminal's height is an array slice.
+
+### Bringing a corpus with you
+
+The ecosystem already has ~80 spinner styles and eight border sets, as plain JSON. Neither
+is bundled here — the weight of a corpus nobody asked for is the thing this package exists
+to avoid — so `flagstaff/import` turns the one you have into an ordinary plugin:
+
+```js
+import cliSpinners from 'cli-spinners';
+import { fromCliSpinners } from 'flagstaff/import';
+import { register } from 'flagstaff/plugin';
+
+register(fromCliSpinners(cliSpinners));
+spinner('moon');
+```
+
+`fromCliBoxes(cliBoxes)` does the same for borders, after which `box('…', { border:
+'arrow' })` draws with one. Both go through the same `register()` and the same schema, so
+the gallery opens full and a third-party plugin starts as a copy of one of these. The
+importer is 838 B and reaches nothing.
+
 ### `flagstaff check`
 
 ```bash
@@ -138,18 +210,21 @@ Every subpath is a lock, not a convention, and the numbers below are asserted by
 `weight.test.ts` against `dist/`, not estimated: `flagstaff/loop` reaches 4.4 KB on disk and
 never the plugin registry; `flagstaff/plugin` 8.4 KB, of which 2.4 KB is the schema;
 `flagstaff/spinner` 9.4 KB; `flagstaff/ora` 46.3 KB — 55.6 KB with roundel counted, against
-ora's own 113.6 KB — and it reaches nothing else in the package. `sideEffects: false` lets a
+ora's own 113.6 KB; `flagstaff/log-update` 28.7 KB, reaching **no package at all**, against
+log-update's own 113.4 KB across sixteen. Neither façade reaches the other, and neither
+reaches the core. `sideEffects: false` lets a
 bundler drop what a program does not use. ESM with a `default` condition, so
 `require('flagstaff/spinner')` works from CommonJS on Node ≥ 24.
 
 ## What is next
 
-- **`progress`, `tasks`, `box`, `table`** — the remaining built-ins, each a component in the
-  same shape.
-- **Drop-in paths** for log-update, boxen and cli-table3, graded by their own suites through
-  `compat-oracle` the way ora already is.
-- **`flagstaff/import`** — `fromCliSpinners(json)` and `fromCliBoxes(json)`: the two existing
-  corpora as registered plugins.
+- **Drop-in paths** for boxen and cli-table3, graded by their own suites through
+  `compat-oracle` the way ora and log-update already are.
+
+Every component, every registered plugin and every border is on the
+[gallery](https://github.com/ofri-peretz/burgee/blob/main/apps/docs/content/docs/gallery.mdx),
+which is generated by running them — the static projection beside the animation, in all
+five modes.
 
 Part of the [burgee](https://github.com/ofri-peretz/burgee) family: a CLI on burgee declares
 what it is, roundel carries its colours, flagstaff flies it, caique answers back. Each is

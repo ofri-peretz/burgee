@@ -11,3 +11,6 @@ next-env.d.ts
 .vercel/
 # dev-loop test fixtures, written per run
 .dev-fixtures/
+
+# eval transcripts and whatever a case asked the agent to write
+evals/results/

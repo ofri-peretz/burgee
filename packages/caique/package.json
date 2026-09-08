@@ -12,6 +12,31 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./ask": {
+      "types": "./dist/ask.d.ts",
+      "import": "./dist/ask.js",
+      "default": "./dist/ask.js"
+    },
+    "./binding": {
+      "types": "./dist/binding.d.ts",
+      "import": "./dist/binding.js",
+      "default": "./dist/binding.js"
+    },
+    "./decide": {
+      "types": "./dist/decide.d.ts",
+      "import": "./dist/decide.js",
+      "default": "./dist/decide.js"
+    },
+    "./spec": {
+      "types": "./dist/spec.d.ts",
+      "import": "./dist/spec.js",
+      "default": "./dist/spec.js"
+    },
+    "./terminal": {
+      "types": "./dist/terminal.d.ts",
+      "import": "./dist/terminal.js",
+      "default": "./dist/terminal.js"
     }
   },
   "files": [

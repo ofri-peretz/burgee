@@ -2,6 +2,13 @@
 
 Intent: [`intent.md`](./intent.md). **Status:** approved.
 
+**Amended and re-accepted by the owner on 2026-09-08** (PR #62, merged by the owner, which is
+the acceptance): the façade section — the `roundel/chalk` seam, the process-lock exemption and
+its justification, and the weight comparison — was rewritten by the PR that introduced
+`flagstaff/ora`. Recorded here because a design edited by the build it authorises cannot stand
+as its own approval, and a merge leaves no trace in the design of what was accepted. See the
+matching note on constraint 2 of [`output-stack-compat`](../output-stack-compat/intent.md).
+
 ---
 
 ## Requirements
@@ -56,9 +63,9 @@ with no issue behind it is a hypothesis and is measured before it locks.
 | R5 | clack #510 (`\r` frames in captured output), #585; cli-table3 #357 (ANSI under `NO_COLOR=1`); listr2 #687, #716 — §1, §2 | cited |
 | R6 | picocolors #100, #92 (what an ungraded migration costs); ora #234 (ora 8 breaks the prompt library beneath it), #260 (declined: a type widened in a patch), #238 (behaviour differs by Node version); cli-table3 #357 (README documents an unreleased version) — §8, §18, U11 | cited |
 | R7 | ora #231 (declined: "try Ink"); ink #765, #222, #834, #978, D#555, D#959 (the layout engine's own backlog) — §16, U8. Width: boxen #90; cli-table3 #322, #356; clack #556, #306, #116; listr2 #708; ink D#716 — §5 | cited for the ceiling; the width function is a hypothesis until measured against `string-width` (§5) |
-| R8 | clack #533 (9 comments, agents driving CLIs), #525; Inquirer D#1699 (a binary per prompt for scripts); ink D#776 (an author records asciinema so an agent can see the app) — U9 | hypothesis — the one-turn eval that `check` serves is unmeasured; measure before lock |
+| R8 | clack #533 (9 comments, agents driving CLIs), #525; Inquirer D#1699 (a binary per prompt for scripts); ink D#776 (an author records asciinema so an agent can see the app) — U9 | **measurable as of 2026-09-08**: `evals/cases/flagstaff-plugin-from-schema.json` is the one-turn eval — schema + README in, a plugin `flagstaff check` accepts out. Still unmeasured until it has run with a credential; what is proven is that the case discriminates (green on a correct plugin, red when `static` is removed) |
 | R9 | ora #90 (locked: "I can't write tests for stdout because they're gone"); clack #307 (colours under vitest), #508 (mocking under bun); Inquirer D#1979; ink #773 (a frame renders before layout completes) — §21, §4 | cited |
-| R11 | no issue asks for a spinner or border corpus importer; ora #240 wants different icons, not a corpus | hypothesis — measure before lock |
+| R11 | no issue asks for a spinner or border corpus importer; ora #240 wants different icons, not a corpus | hypothesis, still — built 2026-09-08 at 838 B because it was nearly free, not because it was measured. Whether anyone imports a corpus is unmeasured, and the cost of being wrong is one subpath nobody imports |
 | R10 | ink #976 (a DEV-only dependency installed for everyone); ora #229 (segfault in the dependency tree), #247 (the chalk 5.6.1 compromise reaching ora's users); listr2 #759, #724, #707, #771 (peer range drift against its own adapter); chalk #617 — §14, U5, U1 | cited |
 
 ## Design
@@ -116,8 +123,8 @@ weight (`./loop` 5,000 · `./plugin` 10,000 · `./spinner` 11,000 · `.` 16,000 
 two packed tarballs. The schema validator is sixty lines over the subset the schema uses,
 because a JSON Schema library is a dependency the package will not carry.
 
-Not yet: `progress`, `tasks`, `box`, `table`; the other three façades (R6); the importers
-(R11); the U9 eval; the docs gallery. `tokens` are kept in the registry for whoever flies
+Not yet: the boxen and cli-table3 façades (R6, both blocked on a decision rather than a
+port — see `output-stack-compat`). `tokens` are kept in the registry for whoever flies
 the theme — `register()` does not call roundel's `fly()`, because that needs a runtime and
 would pull the theme into every plugin import.
 
@@ -171,6 +178,143 @@ defines its `_`-prefixed test hooks only under `NODE_ENV=test`. Applying the glo
 removed one file from commander's count: `testHelpers.js` is a helper with no tests, and
 node's runner had been counting the file itself as a passing test. commander's honest
 number is 1360 / 1360, and the baseline says so.
+
+## What shipped (R6, log-update — 2026-09-08)
+
+`flagstaff/log-update`: log-update 8.0.0 ported, **99 / 99 on log-update's own suite**,
+which renders every frame through a real terminal emulator and asserts the screen rather
+than the bytes — the strongest grading of the four render hosts. Six dependencies folded
+in: the wrapping is `src/wrap.ts` (wrap-ansi 10, ported and graded differentially against
+the real package over a seeded sweep in `wrap.test.ts`), the width is `src/width.ts` again,
+strip-ansi is `node:util`, and ansi-escapes and cli-cursor are twenty lines.
+
+**It carries no port of `slice-ansi`, and that is a design decision rather than a gap.**
+log-update clips a frame to the terminal's height by asking `sliceAnsi` to drop a computed
+number of visible columns and then correcting the estimate in a loop, because a slice in
+the middle of a styled run has to reopen the styles that were active at the cut. But
+`wrap()` has already closed every style at a row break and reopened it after — that is what
+makes each row stand on its own — so after wrapping, clipping is `lines.slice(n)`, and
+needs no ANSI state tracking at all. 1,070 lines of tokenizer are not written, and the
+host's own suite cannot tell the two implementations apart.
+
+The weight: 28,660 B for the subpath, against log-update's own 113,368 B across sixteen
+packages — and it reaches **no package at all**, not even roundel. `wrap.ts` carries the
+SGR close codes itself, because bold opening with 1 and closing with 22 is ECMA-48 rather
+than any library's table; that took `roundel/chalk` off the wrapper and off `./box` and
+`./table` with it. Sixteen packages become none, at a quarter of the bytes. `width.js` is
+shared with `./ora`; neither façade reaches the other, and neither reaches the core.
+
+`wrap.ts` is the third piece of shared machinery, after the width function and the spinner
+corpus, and it is the one `box` and `table` need next — which is why it is its own module
+rather than folded into the façade that first wanted it.
+
+## What shipped (R4, the remaining built-ins — 2026-09-08)
+
+`progress`, `tasks`, `box` and `table`, each a `Component` of the same shape a third-party
+plugin writes, each on its own subpath.
+
+**The static projection is not a stripped drawing, and that is the whole design.** Each of
+these draws something on a terminal that is meaningless off one, so each answers the
+question separately:
+
+| component | on a terminal | everywhere else |
+| :-- | :-- | :-- |
+| `progress` | a bar of blocks | `12/30 files · 40%` — the numbers, which is what an agent parses and a person hears |
+| `tasks` | every task, the running one animated | one line per task that has **settled**; a pipe is not told six times that step 3 is still running |
+| `box` | the border, the padding, the title set into the top rule | `title: text` — a border is noise a screen reader reads character by character |
+| `table` | the grid | one line per row of `header: value` pairs, parseable without knowing the drawing |
+
+`box` and `table` are string functions over `width()` and `wrap()` (R7) and are exported as
+such — `box(text, options)` and `table(rows, options)` — because most callers want the
+string, not a component. There is no layout engine and no measure pass; the file list lock
+still holds. `table` shrinks its widest column one cell at a time until the table fits,
+which is deliberately simpler than proportional shrinking: proportional looks cleverer and
+reads worse, because it narrows the columns that were already narrow.
+
+`progress` carries no elapsed-time estimate. A rate computed from two samples is a guess
+presented as a fact, and it is the first thing to go wrong in a pipeline that stalls.
+
+Weight, measured: `./progress` 971 B; `./tasks` 9,773 B, because its glyphs and its spinner
+style come from the registry; `./box` 24,764 B and `./table` 24,612 B, most of which is the
+wrapper and the width function they share, so a program importing both pays for them once.
+Every one of them reaches `roundel/tokens` and nothing else — `wrap.ts` carries its own SGR
+table, so no built-in pulls `roundel/chalk`. The root entry is 44,348 B, which is the
+argument for the subpaths rather than against them.
+
+The width locks are the load-bearing tests: every drawn row of a box is measured to exactly
+the width it was given, wide characters included, and no table overruns its own. That is
+the bug `width()` exists to prevent, so it is checked rather than assumed.
+
+**Where this lands against R4, stated plainly.** R4 says the five built-ins are registered
+through the public `register()` from `builtins.ts`, so that the built-ins cannot grow an
+API a plugin cannot reach. What actually goes through that door is what a plugin may
+*replace* — the glyphs and the spinner styles — and the lock on it still holds. The five
+components do not: they are factories taking options (`progress({ width })`,
+`table(rows, { head, align })`), and the schema's `components` shape is a bare
+`{ static, frame?, interval? }` with no options at all. So a third-party plugin can
+contribute a component, but not a *parameterised* one, and the built-ins have a capability
+plugins do not.
+
+That is a real gap in U4, not a technicality, and it is left open on purpose rather than
+closed by cheapening the built-ins: the alternative is either to widen the schema to carry
+a factory (data that is code, which is what the plugin contract exists to avoid) or to
+drop the options and make every caller re-implement a 24-column bar. `plugin-contract` (28)
+is where this belongs, because it is the same question across all four layers. Recorded
+here so the next reader does not have to rediscover that `register()` and the component
+factories are two doors, not one.
+
+## What shipped (R11, the importers — 2026-09-08)
+
+`flagstaff/import`: `fromCliSpinners(json, opts)` and `fromCliBoxes(json)`, each turning a
+corpus the caller already has into an ordinary plugin — same `register()`, same schema,
+replaceable by another. 838 B, and it reaches **nothing**: its only imports are types,
+which `verbatimModuleSyntax` erases, so the file that turns eighty spinners into a plugin
+costs less than one of them. Neither corpus is bundled (U5), and a test asserts that
+`dependencies` is still exactly `['roundel']`.
+
+Both are graded against the real packages rather than a fixture of our own shape:
+`cli-spinners` and `cli-boxes` are devDependencies here, so the day either changes its JSON
+the test fails, which is the only way this claim stays true.
+
+**Two things changed to make a corpus a first-class plugin, and both are improvements.**
+
+*The schema gained `borders`*, and the five styles `box()` draws with moved out of
+`box.ts` into `builtins.ts` as plugin data, beside the spinners. `box()` now resolves a
+named border through the registry, the way `tasks` already resolves its glyphs. That is
+what lets `register(fromCliBoxes(cliBoxes))` make `box('…', { border: 'arrow' })` work
+without `box.ts` knowing `arrow` exists — and it costs `./box` the plugin host, 24,710 →
+34,223 B. A caller who wants neither passes a style object and a bundler drops the rest.
+Recorded rather than hidden: this is the price of R11, paid on one subpath.
+
+*The design said the derived `static` should be "the first frame", and that was wrong when
+it met the corpus.* A frozen `⠋` or `▰` is an animation stopped mid-stride, not a
+projection — it tells a pipe, an agent and a screen reader nothing that `…` does not tell
+them better. The default is `'…'`, and `staticFor` is there because it is the author's call
+rather than this function's.
+
+## What shipped (U9, the eval — 2026-09-08)
+
+`evals/cases/flagstaff-plugin-from-schema.json`. The prompt gives an agent `schema.json`
+and the README and asks for a plugin at a fixed path; the expectations run
+`flagstaff check` on whatever it wrote and require exit 0, the `pulse: ok` line, and a
+non-empty `pipe` projection.
+
+**The case was proven to discriminate before it was committed**, which is the only thing
+that makes an eval worth its runtime: green against a correct plugin, and red against the
+same plugin with its `static` removed — where `check` exits 1 with
+
+```
+E_NO_STATIC_PROJECTION: pulse has no static projection
+  fix: give it a `static`: the text a pipe, an agent or a screen reader gets instead of the animation
+```
+
+That refusal *is* the hypothesis. R8 claims an agent can go from the schema to a working
+plugin in one turn because `check` tells it what is wrong in terms it can act on; a case
+that only ever passed would measure neither half.
+
+What is still unmeasured is the one-turn claim itself — layer 2 needs a credential, and
+reports `skipped` without one. So R8's evidence row moves from "hypothesis, measure before
+lock" to "measurable", not to "measured". The difference matters and the row says so.
 
 ## Rejected alternatives
 

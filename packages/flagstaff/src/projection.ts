@@ -89,14 +89,35 @@ export function ttyProjection<S>(component: Component<S>, out: Writer, clock: Cl
   return new TtyProjection(component, out, clock);
 }
 
-/** A pipe, CI, or a screen reader: the static projection, once per change, and nothing else. */
+/**
+ * A pipe, CI, or a screen reader: the static projection, once per change, and nothing else.
+ *
+ * "Once per change" is finer than "when the text differs". A component whose projection is
+ * a list — `tasks`, whose static is every task that has settled — grows it a line at a
+ * time, and printing the whole list on every change repeats every line already in the log:
+ *
+ *     ✔ install          ← install settled
+ *     ✔ install          ← build settled, and install is printed again
+ *     ✔ build
+ *
+ * So what is written is the lines *past the common prefix* with what was written last. A
+ * component whose text replaces itself rather than growing shares no prefix and is printed
+ * whole, which is the ordinary case; one that grows is appended to, which is what a log
+ * wants. An empty projection writes nothing at all — a component with nothing to say yet
+ * should not cost a blank line.
+ */
 export function staticProjection<S>(component: Component<S>, out: Writer): Projection<S> {
-  let last: string | undefined;
+  let written: string[] = [];
   const emit = (state: S): void => {
     const text = component.static(state);
-    if (text === last) return;
-    last = text;
-    out.write(`${text}\n`);
+    if (text === '') return;
+    const lines = text.split('\n');
+    let shared = 0;
+    while (shared < written.length && shared < lines.length && written[shared] === lines[shared]) shared += 1;
+    // Every line already written is still on the reader's screen; only the rest is news.
+    const fresh = lines.slice(shared);
+    written = lines;
+    if (fresh.length > 0) out.write(`${fresh.join('\n')}\n`);
   };
   return { open: emit, change: emit, close: emit };
 }

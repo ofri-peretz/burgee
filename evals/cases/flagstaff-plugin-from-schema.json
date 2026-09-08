@@ -1,0 +1,28 @@
+{
+  "id": "flagstaff-plugin-from-schema",
+  "why": "U9 / flagstaff R8. The claim is that `schema.json` plus one worked example is enough for an agent to write a working flagstaff plugin in one turn, and that `flagstaff check` tells it so without a human reading the output. Both halves are the hypothesis: if the agent needs a second turn, or needs someone to explain the refusal, the schema is not self-describing and `check` is not the feedback loop it is meant to be. Measured here rather than asserted in the design.",
+  "prompt": "Read packages/flagstaff/src/schema.json and packages/flagstaff/README.md. Write a flagstaff plugin to the file evals/results/pulse-plugin.mjs. It must be a single ES module with a default export, must be named \"pulse\", and must contribute one spinner style also called \"pulse\" with at least three frames. Then verify it by running: node packages/flagstaff/dist/cli.js check evals/results/pulse-plugin.mjs — and if that command exits non-zero, fix the plugin until it exits zero. Do not modify anything under packages/.",
+  "allowedTools": "Read,Write,Edit,Bash",
+  "expect": [
+    {
+      "check": "shell",
+      "value": "test -f evals/results/pulse-plugin.mjs"
+    },
+    {
+      "check": "shell",
+      "value": "node packages/flagstaff/dist/cli.js check evals/results/pulse-plugin.mjs"
+    },
+    {
+      "check": "shell",
+      "value": "node packages/flagstaff/dist/cli.js check evals/results/pulse-plugin.mjs | grep -q '^pulse: ok'"
+    },
+    {
+      "check": "shell",
+      "value": "node packages/flagstaff/dist/cli.js check evals/results/pulse-plugin.mjs | grep -qE '^  pipe .*[^ ]'"
+    },
+    {
+      "check": "output-omits",
+      "value": "E_PLUGIN_SCHEMA"
+    }
+  ]
+}
