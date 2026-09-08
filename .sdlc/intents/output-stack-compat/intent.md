@@ -4,9 +4,18 @@
 > requirement U11. The commander move, repeated seven times: a façade over our engine,
 > graded by the incumbent's own suite, with a published, ratcheting pass rate.
 
-**Status:** in progress (2 of 8 rows) · **Opened:** 2026-09-08 · **Owner:** @ofri-peretz
+**Status:** draft · **Opened:** 2026-09-08 · **Owner:** @ofri-peretz
 
 ---
+
+## Where it stands (2026-09-08)
+
+Two of eight rows graded, each with its control in the same run — chalk 58 / 58 and ora
+99 / 99 — and a third, log-update, vendored with its control proven at 99 / 99 and its
+façade pending. The status above stays `draft` because this intent has no `design.md`, and
+under the SDLC an intent is not `approved` until a human has accepted a design; the rows
+shipped so far did so under `roundel`'s and `flagstaff`'s own designs, which is where their
+façade requirements (R6) actually live.
 
 ## What is wanted
 
