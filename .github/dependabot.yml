@@ -15,6 +15,14 @@ updates:
     groups:
       all-packages:
         patterns: ["*"]
+    ignore:
+      # The compat oracle vendors the hosts' own test suites, pinned to their npm releases
+      # (commander 15.0.0, yargs 18.1.0). Their test-time dependencies must stay at the
+      # versions those suites were written against: `which` >= 3 dropped the callback API
+      # that yargs' integration.mjs uses, and the 2026-09-08 bump (#5) took the yargs row
+      # from 804/804 to 802/804 with two timeouts. A host bump re-vendors its suite (C6)
+      # and moves these pins deliberately, never by a grouped update.
+      - dependency-name: "which"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
