@@ -96,7 +96,14 @@ const RULES: Record<string, EntryRule> = {
   // program pays for them when it prints a script and never at startup (K6).
   './completions': { allow: [], budget: 16_000, denied: ['index.js', 'execute.js', 'testing.js', 'testing-helpers.js'] },
   './commander': { allow: [], budget: 128_000, denied: ['testing.js', 'testing-helpers.js'] },
-  // './yargs': { allow: [], budget: 24_000, denied: ['testing.js', 'testing-helpers.js'] },
+  // yargs 18 ported method for method, with its whole dependency tree — yargs-parser 22,
+  // cliui 9 (string-width, wrap-ansi), y18n 5, escalade, get-caller-file — because burgee
+  // depends on nothing (J9). 256,000 is what `npm install yargs` puts on disk for the same
+  // surface (yargs lib/ 158 K + yargs-parser 52 K + the rest), so the lock proves the
+  // front-end is no heavier than the package it replaces. `import 'burgee'` reaches none
+  // of it. The 29 locales are JSON read at runtime, not imports, so they are not walked.
+  './yargs': { allow: [], budget: 256_000, denied: ['testing.js', 'testing-helpers.js'] },
+  './yargs/helpers': { allow: [], budget: 64_000, denied: ['testing.js', 'testing-helpers.js', 'yargs-factory.js'] },
 };
 
 /**
