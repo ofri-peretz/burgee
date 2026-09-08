@@ -4,10 +4,17 @@
   "private": true,
   "description": "The reference CLI, on yargs: the same three commands as demo-cli-commander, so one conformance suite runs both.",
   "type": "module",
-  "engines": { "node": ">=24" },
-  "bin": { "demo-yargs": "./dist/bin.js" },
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "demo-yargs": "./dist/bin.js"
+  },
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
