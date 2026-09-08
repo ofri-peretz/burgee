@@ -42,6 +42,11 @@ const ALLOWED = new Set([
   // hands it the Runtime's streams, and `load()` imports the entry as a fresh module graph,
   // which only the real module loader can do. Dev-time only, never reached by the framework.
   'burgee/src/dev.ts',
+  // `roundel/chalk` reproduces chalk's contract, which is "detect the terminal at import"
+  // (roundel design R6 against R9): the one file in roundel that reads the process — once,
+  // through `globalThis.process`, guarded, and only to hand the policy a Runtime. Every
+  // other roundel subpath is forbidden the process; chalk's own suite grades this one.
+  'roundel/src/chalk.ts',
   // The one line the whole compatibility gate turns on: it reads COMPAT_TARGET to
   // decide which implementation the vendored suites grade.
   'compat-oracle/src/shim.ts',

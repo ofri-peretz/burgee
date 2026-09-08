@@ -481,6 +481,21 @@ export default [
     rules: { 'import-next/no-default-export': 'off' },
   },
   {
+    // `roundel/chalk` is chalk 6 (roundel design R6): `import chalk from 'roundel/chalk'` is
+    // the drop-in, so its entry is a default export; the SGR tables are chalk's numbers as
+    // written (naming each would double the file the R8 ceiling measures); the chain is a
+    // Proxy whose keys come from those tables, and a link is a builder that builds the next
+    // link — the recursion *is* the chain. chalk's own suite is the check.
+    files: ['packages/roundel/src/chalk.ts'],
+    rules: {
+      'import-next/no-default-export': 'off',
+      'conventions/no-magic-numbers': 'off',
+      'secure-coding/detect-object-injection': 'off',
+      'secure-coding/no-unchecked-loop-condition': 'off',
+      'maintainability/cognitive-complexity': 'off',
+    },
+  },
+  {
     // X7 fixture: the commander demo built on burgee/commander through commander's own
     // types. The one cast *is* the drop-in claim, and commander-parity.test.ts proves it
     // byte for byte — a structural interface here would restate commander's typings.

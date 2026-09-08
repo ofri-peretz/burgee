@@ -33,6 +33,11 @@
       "types": "./dist/contrast.d.ts",
       "import": "./dist/contrast.js",
       "default": "./dist/contrast.js"
+    },
+    "./chalk": {
+      "types": "./dist/chalk.d.ts",
+      "import": "./dist/chalk.js",
+      "default": "./dist/chalk.js"
     }
   },
   "files": [

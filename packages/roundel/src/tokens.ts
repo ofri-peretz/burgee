@@ -20,6 +20,29 @@ function paint(p: Paint, s: string): string {
   return styleText([...p], s, { validateStream: false });
 }
 
+/** One SGR pair as the chalk façade composes them: the parameters that open and close it, no escape. */
+export interface SgrPair {
+  readonly open: string;
+  readonly close: string;
+}
+
+const LINE_BREAK = /\r?\n/g;
+
+/**
+ * Wrap `s` in a chain of SGR pairs, outermost first, as chalk does: a close already inside
+ * `s` is followed by a re-open so a nested style survives it, and every line break closes
+ * before it and re-opens after (chalk/chalk#92). The façade computes parameters; the
+ * escape itself is emitted here and nowhere else (R3, R6).
+ */
+export function sgr(chain: readonly SgrPair[], s: string): string {
+  const code = (p: string): string => `${CSI}${p}m`;
+  const openAll = chain.map((p) => code(p.open)).join('');
+  const closeAll = chain.map((p) => code(p.close)).reverse().join('');
+  let out = s;
+  if (out.includes(CSI)) for (const p of chain.toReversed()) out = out.replaceAll(code(p.close), code(p.close) + code(p.open));
+  return openAll + out.replace(LINE_BREAK, (lf) => closeAll + lf + openAll) + closeAll;
+}
+
 function token(name: TokenName): Token {
   return (s) => {
     const p = flown.level === 0 ? undefined : flown.paint[name];

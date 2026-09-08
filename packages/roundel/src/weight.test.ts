@@ -48,6 +48,13 @@ const RULES: Record<string, EntryRule> = {
   './theme': { allow: [], budget: 6_000, denied: ['tokens.js', 'index.js'] },
   // Pure arithmetic over hex strings. Reaches nothing.
   './contrast': { allow: [], budget: 1_500, denied: ['policy.js', 'tokens.js', 'theme.js', 'index.js'] },
+  // The ceiling is chalk 6.0.0 itself (R8): `wc -c node_modules/chalk/source/*.js` inside
+  // compat-oracle reads 8,183 (index.js) + 1,187 (utilities.js) = 9,370 bytes on 2026-09-08,
+  // before its vendored ansi-styles and supports-color, which it also ships. The façade plus
+  // the tokens' emitter and the policy it reads must fit under that. The other half of R8
+  // — a spawn delta no larger than picocolors' — is a `cli-benchmarks` B4 row, not a byte
+  // count, and is measured there. Never the theme or the maths: chalk has no theme.
+  './chalk': { allow: [], budget: 9_370, denied: ['theme.js', 'contrast.js', 'index.js'] },
 };
 
 const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;
