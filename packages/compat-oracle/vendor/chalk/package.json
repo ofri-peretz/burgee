@@ -1,0 +1,9 @@
+{
+  "name": "@vendored/chalk-suite",
+  "private": true,
+  "type": "module",
+  "main": "./shim.js",
+  "version": "6.0.0",
+  "license": "MIT",
+  "repository": "chalk/chalk"
+}

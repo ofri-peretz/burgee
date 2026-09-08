@@ -231,6 +231,8 @@ compat-commander    ████████████████████
   internals                                         12 /   12                                          12 /   12
 compat-yargs        ████████████████████████   804 /  804  100.0%     ████████████████████████   802 /  804   99.8%
   internals                                         23 /   23                                          23 /   23
+compat-chalk        ███████████████████░░░░░    47 /   58   81.0%     ████████████████████████    58 /   58  100.0%
+  roundel/chalk; the 11 are FORCE_COLOR on a pipe, which the policy refuses (R2) — 2026-09-08
 ```
 
 Every file of both suites is vendored and run — nothing is excluded. The *internals* lines
