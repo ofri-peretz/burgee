@@ -189,7 +189,7 @@ data, every animation with a static projection, weight paid per subpath. Propose
 | 25 | [`flagstaff/`](./flagstaff/) | **flagstaff** — frame loop, plugin host, built-ins as first-party plugins, `plugin check`; no layout engine | U3 U4 U8 U9 U12 | shipped (0.0.x) — loop, plugin host, spinner, `flagstaff check`, `flagstaff/ora` 99 / 99, `flagstaff/log-update` 99 / 99, and all five built-ins; boxen and cli-table3 each need a decision before their rows can be built |
 
 | 26 | [`output-stack-research/`](./output-stack-research/) | **what we improve** — the ten incumbents' trackers read in full, won't-fix lists included; every U row cited | U1–U12 | shipped |
-| 27 | [`output-stack-compat/`](./output-stack-compat/) | **backwards compatibility** — eight façades graded by eight vendored suites; eight scoreboard rows | U11, C1–C6 | draft — 3 of 8 graded (chalk 58 / 58, ora 99 / 99, log-update 99 / 99); boxen and cli-table3 each blocked on a decision, not a port; needs a `design.md` before it can be approved |
+| 27 | [`output-stack-compat/`](./output-stack-compat/) | **backwards compatibility** — eight façades graded by eight vendored suites; eight scoreboard rows | U11, C1–C6 | draft — 3 of 8 graded (chalk 58 / 58, ora 99 / 99, log-update 99 / 99). **All four remaining hosts are graded by their own drawing** (boxen ~all, cli-table3 94%, clack 65%, inquirer 59%), so eight rows is not reachable as written — one decision covers all four; needs a `design.md` before it can be approved |
 | 28 | [`plugin-contract/`](./plugin-contract/) | **spreading impact** — one plugin object, one schema, one `register()`, one `check`, across all four layers | U4, U9, M4–M5 | draft |
 | 29 | [`caller-matrix/`](./caller-matrix/) | **every caller** — features × callers conformance matrix, generated; humans, agents, CI, screen readers, programs | U2, U3, P1–P3, B1 | draft |
 
@@ -271,7 +271,7 @@ time, and never publishes a working release before the engine's scoreboard is pu
 | **S0 · evidence** | `output-stack-research`, `caller-matrix` (the matrix, empty) | every U row cited; the callers named; the measured stack table |
 | **S1 · roundel** | `roundel`, `output-stack-compat` (chalk) | policy, tokens, theme; `roundel/chalk` graded; two B4 rows under picocolors and chalk |
 | **S2 · flagstaff** | `flagstaff`, `plugin-contract`, `output-stack-compat` (ora, log-update) | the loop, the schema, `check`, the U9 eval green; ora's row |
-| **S3 · caique** | `caique`, `output-stack-compat` (inquirer, clack) | prompts that never hang; two rows; the matrix green for five callers — **started 2026-09-08**: `decide()` and the spec, the rule that never hangs, its 256-row table enumerated; the widgets, the façades and the burgee binding next |
+| **S3 · caique** | `caique`, `output-stack-compat` (inquirer, clack) | prompts that never hang; ~~two rows~~; the matrix green for five callers — **started 2026-09-08**: `decide()` and its 256-row table, then `ask()` — the six widgets in line mode, which is also the accessible rendering. The two rows are **blocked**: clack and inquirer are graded 65% and 59% by snapshots of their own drawing, and a façade that matched them would be the incumbent. Next here: the raw-mode renderer and the burgee binding, neither of which waits on that decision |
 | **S4 · the rest** | `output-stack-compat` (boxen, cli-table3), `first-adopter` for each package | eight rows; a CLI we did not write on all four |
 
 ### Execution graph — what runs in parallel, and where a human signs
