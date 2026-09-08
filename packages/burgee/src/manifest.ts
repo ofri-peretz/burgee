@@ -109,8 +109,12 @@ export class Manifest {
   readonly plugins: Plugin[] = [];
   /** The program's own name, which the user never types; `execute` strips it. */
   rootPath: string[] = [];
-  /** Reported by `--schema` and the MCP handshake. */
+  /** Reported by `--schema`, `--version` and the MCP handshake; the owning package.json otherwise (V4). */
   version?: string;
+  /** With a prefix, every option reads `PREFIX_OPTION_NAME` unless it names its own env (V2). */
+  envPrefix?: string;
+  /** Config discovery is opt-in; the name is the file stem and the package.json field (V6). */
+  config?: { name: string };
 
   add(node: CommandNode): void {
     this.commands.push(node);

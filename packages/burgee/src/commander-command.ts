@@ -1796,11 +1796,21 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
       });
   }
 
+  /** burgee: where every option value came from, from commander's own value sources (V3). */
+  _provenance(): Record<string, { source: string }> {
+    const out: Record<string, { source: string }> = {};
+    const names: Record<string, string> = { cli: 'flag', env: 'env', config: 'config', default: 'default', implied: 'implied' };
+    for (const [key, source] of Object.entries(this._optionValueSources)) {
+      if (source !== undefined && this.getOptionValue(key) !== undefined) out[key] = { source: names[source] ?? source };
+    }
+    return out;
+  }
+
   _emitResult(value: unknown): void {
     const burgee = this._root()._burgee;
     if (burgee === undefined) return;
     if (burgee.json) {
-      this._outputConfiguration.writeOut(`${JSON.stringify({ ok: true, data: value ?? null })}\n`);
+      this._outputConfiguration.writeOut(`${JSON.stringify({ ok: true, data: value ?? null, meta: { provenance: this._provenance() } })}\n`);
       return;
     }
     const text = render(value);

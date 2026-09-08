@@ -18,6 +18,7 @@ export {
 } from './execute.js';
 export { renderHelp, type HelpOptions } from './help.js';
 export { annotationsOf, MCP_PROTOCOL_VERSION, serveMcp, toolsOf, type Invoke, type ServeOptions, type Tool, type ToolAnnotations } from './mcp.js';
+export { ConfigError, envName, explain, resolve, screaming, type Candidate, type Layers, type Provenance, type Resolution, type Source } from './precedence.js';
 export { commandSchemaOf, inputSchemaOf, schemaOf, type CommandSchema, type JsonSchema, type ProgramSchema } from './schema.js';
 export {
   definePlugin,

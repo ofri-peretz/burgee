@@ -31,7 +31,7 @@ describe.each(Object.entries(HOSTS) as [HostName, (typeof HOSTS)[HostName]][])('
     expect(r.code).toBe(ExitCode.OK);
     // Same data, two encodings: the incumbents' demos print the raw record, burgee's
     // handler returns the value and the engine wraps it in the O1 envelope.
-    expect(r.json).toEqual(ENVELOPE.has(host) ? { ok: true, data: 'ada' } : { key: 'user.name', value: 'ada' });
+    expect(r.json).toMatchObject(ENVELOPE.has(host) ? { ok: true, data: 'ada' } : { key: 'user.name', value: 'ada' });
   });
 
   it('a runtime failure is RUNTIME with the message on stderr and no help text', async () => {

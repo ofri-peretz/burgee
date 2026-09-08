@@ -50,11 +50,16 @@ const RULES: Record<string, EntryRule> = {
   // the manifest in core (H1 of cli-help-renderer), which is 6 KB of renderer replacing
   // 1.5 KB of placeholder. 32 KB for engine + manifest + help, against commander's
   // lib/help.js alone at 20.8 KB.
-  '.': { allow: [], budget: 32_000, denied: ['testing.js', 'testing-helpers.js'] },
+  // Raised from 32,000 on 2026-09-08 for the V family (commander-env): precedence, its
+  // provenance and --explain run on every invocation, so they are core, not a lazy entry.
+  // Core is now engine + manifest + help + schema + mcp + precedence: 35 KB against
+  // commander's 126 KB lib/. Config discovery itself stays lazy (burgee loads it only for a
+  // program that opted in), as do the completion templates.
+  '.': { allow: [], budget: 40_000, denied: ['testing.js', 'testing-helpers.js'] },
   // The harness. Test-time only, so a user's shipped CLI never pays for it.
   // Raised from 24,000 with `.` above: the harness reaches the whole engine to run a
   // program in-process, so it carries the renderer too.
-  './testing': { allow: [], budget: 40_000, denied: [] },
+  './testing': { allow: [], budget: 48_000, denied: [] },
   // The brand generator. Pure geometry and string building — it must never reach
   // the engine, and the engine must never reach it: a CLI that ships argv parsing
   // has no reason to carry an SVG emitter.
