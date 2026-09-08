@@ -12,9 +12,13 @@
  *  5. Every job sets `timeout-minutes` (caps runaway jobs).
  *  6. Workflows triggered by `push` or `pull_request` set `concurrency:`
  *     so duplicate-ref runs cancel each other.
+ *  7. No step passes an action input that the action has renamed. A renamed
+ *     input is a hard error at run time, not a warning, so a workflow that
+ *     uses one fails on every run — silently, if nothing watches the branch
+ *     it runs on. See RENAMED_INPUTS.
  *
  * Soft warnings (notice line, not a failure):
- *  7. Third-party actions are pinned to a SHA, not a floating tag.
+ *  8. Third-party actions are pinned to a SHA, not a floating tag.
  *     `actions/*`, `github/*`, and `./.github/actions/*` are exempt.
  *
  * Usage:
@@ -101,6 +105,30 @@ const isShaPinned = (uses: string) => {
   return /^[0-9a-f]{40}$/i.test(uses.slice(at + 1));
 };
 
+/**
+ * Action inputs that were renamed upstream, by action (the part before `@`).
+ *
+ * The action errors on the old name rather than warning, so the workflow fails on every
+ * run. `changesets-pr.yml` ran that way from the v1.5.4 bump until 2026-09-08: three
+ * pushes to main in a row failed, and because nothing watches a push-triggered workflow
+ * the way a PR check is watched, the only visible symptom was a Version Packages PR that
+ * silently stopped refreshing and drifted into conflict.
+ *
+ * Add a row when an action renames an input — cheaper than rediscovering it from a red run.
+ */
+const RENAMED_INPUTS: Record<string, Record<string, string>> = {
+  'changesets/action': { version: 'version-script', commit: 'commit-message', title: 'pr-title' },
+};
+
+/** Every renamed input this step still passes, as a ready-to-print error. */
+function renamedInputs(step: Step, where: string): string[] {
+  const renamed = RENAMED_INPUTS[(step.uses ?? '').split('@')[0] ?? ''];
+  if (!renamed) return [];
+  return Object.entries(renamed)
+    .filter(([was]) => !isNil(step.with?.[was]))
+    .map(([was, now]) => `[renamed-input] ${where}: \`${was}:\` was renamed to \`${now}:\` — the action errors on the old name, so every run of this workflow fails.`);
+}
+
 function triggers(on: unknown): string[] {
   if (!on) return [];
   if (typeof on === 'string') return [on];
@@ -146,6 +174,8 @@ for (const [file, wf] of parsed) {
           );
         }
       }
+
+      errors.push(...renamedInputs(step, `${file} → ${jobName} → step ${i + 1}`));
 
       if (!isLocalAction(step.uses) && !isFirstParty(step.uses) && !isShaPinned(step.uses)) {
         const tag = step.uses.split('@')[1] ?? '(no @ref)';
