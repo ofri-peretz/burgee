@@ -118,6 +118,26 @@ back, because no widget writes what it read. The echo is suppressed for the dura
 question rather than by turning the terminal's echo off — which would leave it off if the
 process died mid-prompt.
 
+### Arrow keys, where there is a terminal to take them
+
+`askList()` draws `select` and `multiselect` with a moving highlight and repaints in place.
+It answers the same question `ask()` does and returns the same value, so it is a swap and
+not a second implementation:
+
+```js
+import { askList, canRender } from 'caique/raw';
+import { createIo } from 'caique/terminal';
+
+const io = { ...createIo({ input: process.stdin, output: process.stdout }), keys: process.stdin };
+const spec = { kind: 'select', message: 'Which host?', choices: [{ value: 'ora' }, { value: 'chalk' }] };
+const answer = canRender(io.keys) ? await askList(spec, io) : await ask(spec, io);
+```
+
+Line mode is the floor, not the fallback: this is decoration on top of it, and the suite
+proves the two agree by running the same spec through both and comparing the answers.
+`Ctrl-C` cancels — in raw mode it arrives as a byte rather than a signal — and the terminal
+is put back the way it was found either way.
+
 ## What it will be
 
 - **Every prompt is a flag first.** A caller who passes the flag is never asked. An agent

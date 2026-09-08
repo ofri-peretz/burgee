@@ -173,6 +173,42 @@ asserts that a *plain* read on them **does** echo — so the hidden cases can fa
 removing the muting turns three of them red, including the one through `ask()`, with
 `Token? t0ken` in the transcript. A test that cannot fail is not evidence.
 
+## What shipped (the raw-mode renderer — 2026-09-08)
+
+`raw.ts`: `askList()` drives `select` and `multiselect` with the arrow keys and a moving
+highlight, repainting in place. `keyOf()` reads a keypress; `canRender()` says whether a
+runtime can take raw mode at all; `renderList()` is one frame, exported so the drawing is
+asserted rather than screenshotted.
+
+**It answers the same questions `ask()` does, and returns the same `Asked`.** That is the
+arrangement, and the suite asserts it rather than describing it: the last block runs the
+same spec through both — typing `2` in line mode and pressing Down-Enter in raw mode — and
+compares the values, including the cancellation. Line mode stays the floor (R5); this is
+decoration on top. Anything raw mode can do that line mode cannot is decoration; anything
+line mode can do that this cannot would be a bug.
+
+**The design said "spinner from flagstaff"; this does not import flagstaff.** A prompt has
+no spinner — it is waiting for a person, not for work — and the repaint it needs is three
+escape sequences, written in the file. Importing flagstaff for them would make the one
+package that talks to a human the only one in the family that requires a sibling, which is
+the rule caique's own README states. A prompt that ever needs to show progress *while* it
+waits is a caller composing `hoist()` around `ask()`, not this file reaching for it.
+
+**Ctrl-C is a byte here, not a signal.** In raw mode the terminal delivers `\u0003` as data,
+so a widget that did not read it would leave a person unable to leave. It cancels, and the
+terminal is put back the way it was found — raw mode off, cursor shown — in a `finally`,
+because a prompt that exits still in raw mode leaves the shell unusable and the person who
+pressed Ctrl-C is exactly the one who will not think to run `reset`.
+
+Seven mutations were run against the file to prove the suite bites: leaving raw mode on
+(2 red), never showing the cursor again (2), returning press order instead of list order
+(1), repainting for a key with no meaning (1), not reading Ctrl-C as cancel (4), clamping
+instead of wrapping at the ends (1), and dropping a choice's hint (1). No PTY: the suite
+drives a fake key stream, which is what made all seven cheap to check.
+
+Not yet: the `caique/clack` and `caique/inquirer` façades, still blocked on the
+render-grading decision in `output-stack-compat`.
+
 ## Rejected alternatives
 
 - ~~**Re-implementing prompts.** clack is good and maintained; the gap is the layer
