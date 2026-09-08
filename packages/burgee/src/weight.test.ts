@@ -65,7 +65,11 @@ const RULES: Record<string, EntryRule> = {
   // Raised from 48,000 on 2026-09-08 by the width of one function: startMcp(), the swappable
   // server the dev loop swaps manifests into, which serveMcp() now wraps (+0.4 KB; 48.1 KB
   // measured). The dev loop itself stays out of core — see the denied list.
-  '.': { allow: [], budget: 50_000, denied: ['testing.js', 'testing-helpers.js', 'dev.js'] },
+  // Raised from 50,000 on 2026-09-08 for cli-modularity (M2 lazy nodes, M4 shared options,
+  // M5 the deprecation warning, M6 resolveCommand/runCommand) and the required-positional
+  // check the M6 test exposed: 50.2 KB measured before the check. Core is now 51 KB
+  // against commander's 126 KB lib/.
+  '.': { allow: [], budget: 52_000, denied: ['testing.js', 'testing-helpers.js', 'dev.js'] },
   // The harness. Test-time only, so a user's shipped CLI never pays for it.
   // Raised from 24,000 with `.` above: the harness reaches the whole engine to run a
   // program in-process, so it carries the renderer too.

@@ -198,6 +198,9 @@ export class Command extends EventEmitter {
   _manifest: Manifest | undefined = undefined;
   /** burgee: what this command does to the world (N6); declaring it exposes the command as an MCP tool. */
   _effects: Effects | undefined = undefined;
+  /** burgee: `true`, or the replacement's name (M5). Shown in help, schema and a one-line warning on use. */
+  _deprecated: boolean | string | undefined = undefined;
+  _deprecationWarned = false;
   /** burgee: set for the duration of a parse that injected the streams or the exit. */
   _burgee: Burgee | undefined = undefined;
 
@@ -1637,6 +1640,8 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
         ...(cmd._description ? { description: cmd._description } : {}),
         ...(cmd._summary ? { summary: cmd._summary } : {}),
         ...(cmd._effects === undefined ? {} : { effects: cmd._effects }),
+        ...(cmd._deprecated === undefined ? {} : { deprecated: cmd._deprecated }),
+        ...(cmd._helpGroupHeading === undefined || cmd._helpGroupHeading === '' ? {} : { group: cmd._helpGroupHeading }),
         ...(cmd._hidden ? { hidden: true } : {}),
         options: cmd._optionSpecs(),
         arguments: cmd.registeredArguments.map((a) => ({ name: a.name(), required: a.required, variadic: a.variadic, ...(a.description ? { description: a.description } : {}) })),
@@ -1665,6 +1670,15 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
   /** burgee: declare what the command does to the world (N6). This is what exposes it as an MCP tool (N2). */
   effects(value: Effects): this {
     this._effects = value;
+    return this;
+  }
+
+  /**
+   * burgee: mark the command deprecated (M5). Help and `--schema` show it; running it prints
+   * `warning: 'old' is deprecated, use 'new'` on stderr once and goes on, exit unchanged.
+   */
+  deprecate(use?: string): this {
+    this._deprecated = use ?? true;
     return this;
   }
 
@@ -1797,6 +1811,7 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
   _runAction(): unknown {
     const handler = this._actionHandler;
     if (handler === null) return undefined;
+    this._warnDeprecated();
     const root = this._root();
     const manifest = root._manifest;
     const settle = (value: unknown): void => this._emitResult(value);
@@ -1813,6 +1828,14 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
         await manifest.fire('postRun', name, options);
         settle(value);
       });
+  }
+
+  /** burgee (M5): once per process, on stderr; only for a command that asked, so commander's own output is untouched. */
+  _warnDeprecated(): void {
+    if (this._deprecated === undefined || this._deprecated === false || this._deprecationWarned) return;
+    this._deprecationWarned = true;
+    const use = typeof this._deprecated === 'string' ? `, use '${this._deprecated}'` : '';
+    this._outputConfiguration.writeErr(`warning: '${this.name()}' is deprecated${use}\n`);
   }
 
   /** burgee: where every option value came from, from commander's own value sources (V3). */

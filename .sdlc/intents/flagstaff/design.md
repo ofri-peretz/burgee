@@ -38,6 +38,26 @@ Intent: [`intent.md`](./intent.md). **Status:** approved.
   `./box` ≤ boxen, `./table` ≤ cli-table3, `./log-update` ≤ log-update — recorded when
   vendored. Depends on `roundel` only.
 
+### Evidence
+
+Issue ids from [what 230 issues say about the output stack](../../research/output-stack-open-issues.md),
+one row per requirement; the section number is the cluster the reading comes from. A row
+with no issue behind it is a hypothesis and is measured before it locks.
+
+| R | Issues that support it | Standing |
+| :-- | :-- | :-- |
+| R1 | ora #120 (21 reactions, output while spinning), #49, #90 (locked: stdout swallowed before `.stop()`); log-update #48 (declined: one live line above a log), #60 (`debug` on another stream); listr2 #698 (pin a line), #716 (UI to stderr, data to stdout), #732 (events for an outside consumer); clack #304 (merge `log` and `stream`), #510 (`\r` frames captured) — §2, §3 | cited |
+| R2 | clack #585 (accessible mode: every repaint re-announced), #510; ink D#734 (Gemini CLI and screen readers); Inquirer #1783 (`select` renders one row under mintty), D#1356 (one line per answer); ora #116 (two spinners overwrite each other); log-update #59 (declined: "a table renderer that returns a string") — §2, U3 | cited |
+| R3 | clack #36 (themes, variants, icons), #345 (expose the style, not the rendering), #379; ora #255 (`logSymbols` optional), #240 (change the default icons); boxen #106, #99, #94; cli-table3 #352, #355; ink D#641 — every one a key in a plugin object — §9, U4 | cited |
+| R4 | no issue distinguishes built-in components from third-party ones | hypothesis — measure before lock |
+| R5 | clack #510 (`\r` frames in captured output), #585; cli-table3 #357 (ANSI under `NO_COLOR=1`); listr2 #687, #716 — §1, §2 | cited |
+| R6 | picocolors #100, #92 (what an ungraded migration costs); ora #234 (ora 8 breaks the prompt library beneath it), #260 (declined: a type widened in a patch), #238 (behaviour differs by Node version); cli-table3 #357 (README documents an unreleased version) — §8, §18, U11 | cited |
+| R7 | ora #231 (declined: "try Ink"); ink #765, #222, #834, #978, D#555, D#959 (the layout engine's own backlog) — §16, U8. Width: boxen #90; cli-table3 #322, #356; clack #556, #306, #116; listr2 #708; ink D#716 — §5 | cited for the ceiling; the width function is a hypothesis until measured against `string-width` (§5) |
+| R8 | clack #533 (9 comments, agents driving CLIs), #525; Inquirer D#1699 (a binary per prompt for scripts); ink D#776 (an author records asciinema so an agent can see the app) — U9 | hypothesis — the one-turn eval that `check` serves is unmeasured; measure before lock |
+| R9 | ora #90 (locked: "I can't write tests for stdout because they're gone"); clack #307 (colours under vitest), #508 (mocking under bun); Inquirer D#1979; ink #773 (a frame renders before layout completes) — §21, §4 | cited |
+| R11 | no issue asks for a spinner or border corpus importer; ora #240 wants different icons, not a corpus | hypothesis — measure before lock |
+| R10 | ink #976 (a DEV-only dependency installed for everyone); ora #229 (segfault in the dependency tree), #247 (the chalk 5.6.1 compromise reaching ora's users); listr2 #759, #724, #707, #771 (peer range drift against its own adapter); chalk #617 — §14, U5, U1 | cited |
+
 ## Design
 
 ```text
