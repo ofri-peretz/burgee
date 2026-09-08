@@ -24,7 +24,11 @@ import in one file, not a framework you scaffold into.** And one more, stated 20
 the scoreboard is a static page, the gallery is generated. That is where the edge is — in
 the product layer the whole ecosystem installs, not in infrastructure we would have no
 advantage running — and it is why the thing can be maintained by two, sponsored rather than
-hosted, and installed by an agent inside any sandbox with no account and no network.
+hosted, and installed by an agent inside any sandbox with no account and no network. The
+economics are the rule's real form: **today the whole family costs time and one model
+subscription, so it can stay open and be patient indefinitely.** The first hosted component
+would carry a bill every month, which makes it a for-profit product by necessity — a
+separate decision with a price on it, never a feature of the family.
 
 ## The minimum that proves the play
 
