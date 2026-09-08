@@ -35,9 +35,10 @@ interface EntryRule {
 }
 
 const RULES: Record<string, EntryRule> = {
-  // Everything: loop + projection + plugin + builtins + schema + spinner. Measured 14,242 B on
-  // 2026-09-08. Depends on roundel's policy and tokens, and on nothing else (R10, U6).
-  '.': { allow: ['roundel/policy', 'roundel/tokens'], budget: 16_000, denied: ['cli.js'] },
+  // Everything: the loop, the registry, and all five built-ins. `box` and `table` bring the
+  // wrapper and the width function with them, which is most of it. Measured 44,294 B on
+  // 2026-09-08 — a program that wants one component should import its subpath (U5, R10).
+  '.': { allow: ['roundel/chalk', 'roundel/policy', 'roundel/tokens'], budget: 48_000, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
   // The loop and its four projections; never the registry — a program that hoists its own
   // component pays nothing for the plugin host. Measured 4,141 B.
   './loop': { allow: ['roundel/policy'], budget: 5_000, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
@@ -66,6 +67,17 @@ const RULES: Record<string, EntryRule> = {
   // `./box` and `./table` with it. Sixteen packages become none, at a quarter of the
   // bytes. It shares `width.js` with `./ora` and reaches neither the corpus nor the core.
   './log-update': { allow: [], budget: 32_000, denied: ['ora.js', 'spinners.json', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
+  // The four remaining built-ins (R4). `progress` is arithmetic and a token — 971 B, and it
+  // reaches nothing, not even the registry. `tasks` reads its glyphs and its spinner style
+  // from the registry, so it carries the plugin host: 9,773 B. `box` and `table` are string
+  // functions over the wrapper and the width function (R7), which is most of each; they
+  // share both modules, so a program that imports the two pays for them once. Neither
+  // reaches a package: `wrap.ts` carries its own SGR table.
+  // None of the four reaches the loop, the façades or the corpus.
+  './progress': { allow: ['roundel/tokens'], budget: 2_000, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'wrap.js', 'width.js', 'cli.js', 'index.js'] },
+  './tasks': { allow: ['roundel/tokens'], budget: 11_000, denied: ['loop.js', 'projection.js', 'wrap.js', 'width.js', 'cli.js', 'index.js'] },
+  './box': { allow: ['roundel/tokens'], budget: 27_000, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'table.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
+  './table': { allow: ['roundel/tokens'], budget: 27_000, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'box.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
 };
 
 const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;

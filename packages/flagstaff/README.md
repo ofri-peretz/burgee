@@ -72,6 +72,38 @@ or component without a `static` is refused at `register()` with `E_NO_STATIC_PRO
 and a fix. The built-in `dots` and `line` styles are a plugin of exactly this shape,
 registered through the same door, so the built-ins cannot grow an API a plugin cannot reach.
 
+### The built-ins
+
+Five components, each on its own subpath, each answering the static projection for itself:
+
+```js
+import { progress } from 'flagstaff/progress';
+import { tasks } from 'flagstaff/tasks';
+import { box, boxComponent } from 'flagstaff/box';
+import { table, tableComponent } from 'flagstaff/table';
+```
+
+| component | on a terminal | everywhere else |
+| :-- | :-- | :-- |
+| `spinner` | `⠹ building` | `… building`, then `✔ built` |
+| `progress` | a bar of blocks | `12/30 files · 40%` |
+| `tasks` | every task, the running one animated | one line per task that has **settled** |
+| `box` | the border, padding and title | `title: text` |
+| `table` | the grid | one line per row of `header: value` pairs |
+
+That table is the package's argument in one place. A bar of `█` in a log file tells an agent
+nothing and tells a screen reader less; the count and the percentage tell both.
+
+`box` and `table` are also plain string functions, because most callers want the string:
+
+```js
+box('Ready on :3000', { title: 'dev', width: 40 });
+table([['ora', '99'], ['log-update', '99']], { head: ['host', 'tests'] });
+```
+
+No layout engine, and there will not be one: these measure with `width()`, wrap with
+`wrap()`, and join strings.
+
 ### The ora path
 
 `flagstaff/ora` is ora 9's whole API, graded **99 / 99 by ora's own test suite** through
@@ -143,8 +175,6 @@ bundler drop what a program does not use. ESM with a `default` condition, so
 
 ## What is next
 
-- **`progress`, `tasks`, `box`, `table`** — the remaining built-ins, each a component in the
-  same shape.
 - **Drop-in paths** for boxen and cli-table3, graded by their own suites through
   `compat-oracle` the way ora and log-update already are.
 - **`flagstaff/import`** — `fromCliSpinners(json)` and `fromCliBoxes(json)`: the two existing
