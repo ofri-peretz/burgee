@@ -19,6 +19,11 @@
       "import": "./dist/ora.js",
       "default": "./dist/ora.js"
     },
+    "./log-update": {
+      "types": "./dist/log-update.d.ts",
+      "import": "./dist/log-update.js",
+      "default": "./dist/log-update.js"
+    },
     "./loop": {
       "types": "./dist/loop.d.ts",
       "import": "./dist/loop.js",
@@ -29,10 +34,35 @@
       "import": "./dist/plugin.js",
       "default": "./dist/plugin.js"
     },
+    "./import": {
+      "types": "./dist/import.d.ts",
+      "import": "./dist/import.js",
+      "default": "./dist/import.js"
+    },
     "./spinner": {
       "types": "./dist/spinner.d.ts",
       "import": "./dist/spinner.js",
       "default": "./dist/spinner.js"
+    },
+    "./progress": {
+      "types": "./dist/progress.d.ts",
+      "import": "./dist/progress.js",
+      "default": "./dist/progress.js"
+    },
+    "./tasks": {
+      "types": "./dist/tasks.d.ts",
+      "import": "./dist/tasks.js",
+      "default": "./dist/tasks.js"
+    },
+    "./box": {
+      "types": "./dist/box.d.ts",
+      "import": "./dist/box.js",
+      "default": "./dist/box.js"
+    },
+    "./table": {
+      "types": "./dist/table.d.ts",
+      "import": "./dist/table.js",
+      "default": "./dist/table.js"
     }
   },
   "bin": {
@@ -76,7 +106,10 @@
     "roundel": "^0.0.1"
   },
   "devDependencies": {
+    "cli-boxes": "^4.0.1",
+    "cli-spinners": "^3.2.0",
     "string-width": "^8.1.0",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.0",
+    "wrap-ansi": "^10.0.1"
   }
 }

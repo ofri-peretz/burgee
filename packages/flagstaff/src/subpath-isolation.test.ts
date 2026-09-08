@@ -25,11 +25,23 @@ const ALLOWED: Record<string, string[]> = {
   'loop.js': ['./projection.js'],
   'plugin.js': ['./builtins.js', './schema.json'],
   'spinner.js': ['./plugin.js'],
-  'index.js': ['./loop.js', './plugin.js', './spinner.js'],
+  'index.js': ['./box.js', './import.js', './loop.js', './plugin.js', './progress.js', './spinner.js', './table.js', './tasks.js'],
   // The façade stands apart on purpose: it reads the corpus and the width function and
   // nothing else in the package, so `flagstaff/ora` and `flagstaff` share no code path and
   // a program on one pays nothing for the other (R6, R10).
   'ora.js': ['./spinners.json', './width.js'],
+  // The two façades share the width function and nothing else; `wrap.js` is the ANSI-aware
+  // wrapper `box` and `table` will need next, which is why it is its own module.
+  'log-update.js': ['./wrap.js'],
+  // The built-ins: `progress` is self-contained, `tasks` reads the registry for its glyphs
+  // and its spinner style, and `box` and `table` are string functions over the same two
+  // modules — never over each other.
+  // Types only, all erased: the importer reshapes JSON and reaches nothing to do it.
+  'import.js': [],
+  'progress.js': [],
+  'tasks.js': ['./plugin.js'],
+  'box.js': ['./plugin.js', './width.js', './wrap.js'],
+  'table.js': ['./width.js', './wrap.js'],
 };
 
 const RELATIVE = /(?:from|import)\s*'(\.[^']+)'/g;

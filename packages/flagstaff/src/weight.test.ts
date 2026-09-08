@@ -35,19 +35,21 @@ interface EntryRule {
 }
 
 const RULES: Record<string, EntryRule> = {
-  // Everything: loop + projection + plugin + builtins + schema + spinner. Measured 13,849 B on
-  // 2026-09-08. Depends on roundel's policy and tokens, and on nothing else (R10, U6).
-  '.': { allow: ['roundel/policy', 'roundel/tokens'], budget: 16_000, denied: ['cli.js'] },
+  // Everything: the loop, the registry, and all five built-ins. `box` and `table` bring the
+  // wrapper and the width function with them, which is most of it. Measured 44,294 B on
+  // 2026-09-08 — a program that wants one component should import its subpath (U5, R10).
+  '.': { allow: ['roundel/policy', 'roundel/tokens'], budget: 50_000, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
   // The loop and its four projections; never the registry — a program that hoists its own
   // component pays nothing for the plugin host. Measured 4,401 B on 2026-09-08.
   './loop': { allow: ['roundel/policy'], budget: 5_000, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
   // The registry, the validator, the built-ins and the schema they are checked against.
-  // Measured 8,434 B, of which the schema is 2,406: the contract ships in the tarball (R3).
-  './plugin': { allow: [], budget: 10_000, denied: ['loop.js', 'projection.js', 'spinner.js', 'cli.js', 'index.js'] },
-  // The ceiling is ora (R10). The spinner plus the registry it reads its style from.
-  // Measured 9,362 B on 2026-09-08; ora 9.4.1's own index.js is 17,891 B before any of its
-  // sixteen dependencies.
-  './spinner': { allow: ['roundel/tokens'], budget: 11_000, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
+  // The registry, the validator, the built-ins and the schema they are checked against —
+  // which now carries `borders` too, so both this and `./spinner` are larger than before.
+  // Measured 10,190 B, of which the schema is 2,978: the contract ships in the tarball (R3).
+  './plugin': { allow: [], budget: 12_000, denied: ['loop.js', 'projection.js', 'spinner.js', 'cli.js', 'index.js'] },
+  // The ceiling is ora (R10). The spinner plus the registry it reads its style from;
+  // ora 9.4.1's own index.js is 17,891 B before any of its sixteen dependencies.
+  './spinner': { allow: ['roundel/tokens'], budget: 12_500, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
   // The ora façade: the port, the width function and the spinner corpus it re-exports.
   // Measured 46,330 B on 2026-09-08 (ora.js 21,867 · spinners.json 20,250 · width.js 4,213),
   // and `roundel/chalk` — the only thing it reaches outside the package — is a further
@@ -68,6 +70,37 @@ const RULES: Record<string, EntryRule> = {
   // It reaches nothing in the core: an ora migration does not drag the frame loop in, and
   // a program that hoists does not pay for the corpus.
   './ora': { allow: ['roundel/chalk'], budget: 50_000, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
+  // The log-update façade: the port, the ANSI-aware wrapper and the width function.
+  // Measured 28,660 B on 2026-09-08, against log-update's own 113,368 B across sixteen
+  // packages (slice-ansi 27,630 · signal-exit 21,983 · wrap-ansi 20,004 · the rest).
+  //
+  // `allow` is empty, and that is the number worth reading: this subpath reaches **no
+  // package at all**, not even roundel. `wrap.ts` carries the SGR close codes itself —
+  // they are ECMA-48, not a library's table — which took `roundel/chalk` off it and off
+  // `./box` and `./table` with it. Sixteen packages become none, at a quarter of the
+  // bytes. It shares `width.js` with `./ora` and reaches neither the corpus nor the core.
+  './log-update': { allow: [], budget: 32_000, denied: ['ora.js', 'spinners.json', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
+  // The four remaining built-ins (R4). `progress` is arithmetic and a token — 971 B, and it
+  // reaches nothing, not even the registry. `tasks` reads its glyphs and its spinner style
+  // from the registry, so it carries the plugin host: 9,773 B. `box` and `table` are string
+  // functions over the wrapper and the width function (R7), which is most of each; they
+  // share both modules, so a program that imports the two pays for them once. Neither
+  // reaches a package: `wrap.ts` carries its own SGR table.
+  // None of the four reaches the loop, the façades or the corpus.
+  // The corpus importers (R11). 838 B and it reaches *nothing* — its only imports are
+  // types, which `verbatimModuleSyntax` erases, so the file that turns ~80 spinners into a
+  // plugin costs less than one of them. The corpora themselves are the caller's (U5), and
+  // the last case in `import.test.ts` asserts neither became a dependency.
+  './import': { allow: [], budget: 2_000, denied: ['plugin.js', 'builtins.js', 'schema.json', 'loop.js', 'projection.js', 'box.js', 'spinner.js', 'cli.js', 'index.js'] },
+  './progress': { allow: ['roundel/tokens'], budget: 2_000, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'wrap.js', 'width.js', 'cli.js', 'index.js'] },
+  './tasks': { allow: ['roundel/tokens'], budget: 13_000, denied: ['loop.js', 'projection.js', 'wrap.js', 'width.js', 'cli.js', 'index.js'] },
+  // `box` reads its named borders from the registry, the way `tasks` reads its glyphs, so
+  // it carries the plugin host: 34,145 B, up from 24,764 when the border table was its own.
+  // That is the price of R11 — a corpus imported with `fromCliBoxes()` is a registered
+  // plugin, and `box('…', { border: 'arrow' })` then draws with it without knowing it
+  // exists. A caller who wants neither passes a style object and a bundler drops the rest.
+  './box': { allow: ['roundel/tokens'], budget: 36_000, denied: ['loop.js', 'projection.js', 'table.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
+  './table': { allow: ['roundel/tokens'], budget: 27_000, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'box.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
 };
 
 const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;

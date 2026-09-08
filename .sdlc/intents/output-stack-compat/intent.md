@@ -10,9 +10,8 @@
 
 ## Where it stands (2026-09-08)
 
-Two of eight rows graded, each with its control in the same run — chalk 58 / 58 and ora
-99 / 99 — and a third, log-update, vendored with its control proven at 99 / 99 and its
-façade pending. The status above stays `draft` because this intent has no `design.md`, and
+Three of eight rows graded, each with its control in the same run: chalk 58 / 58, ora
+99 / 99, log-update 99 / 99. The status above stays `draft` because this intent has no `design.md`, and
 under the SDLC an intent is not `approved` until a human has accepted a design; the rows
 shipped so far did so under `roundel`'s and `flagstaff`'s own designs, which is where their
 façade requirements (R6) actually live.
@@ -26,15 +25,101 @@ A user of any of these changes one import and their tests still pass:
 | chalk 6 | `roundel/chalk` | roundel | ava | **shipped 2026-09-08 — 58 / 58.** mutable `level`, `chalkStderr`, `Chalk` class |
 | picocolors | `roundel/tokens` | roundel | node:test | API is a subset; graded for completeness, not compat |
 | ora 9 | `flagstaff/ora` | flagstaff | node:test | **shipped 2026-09-08 — 99 / 99.** `ora().start()` chain; `isSpinning`, `succeed`, `fail`; the `spinners` corpus; the stream hooks |
-| log-update 8 | `flagstaff/log-update` | flagstaff | node:test | **suite vendored, control 99 / 99 (2026-09-08); façade next.** `logUpdate()`, `.clear()`, `.done()`, `.persist()`, stderr variant. Its cases render every frame through a real terminal emulator and assert the screen |
+| log-update 8 | `flagstaff/log-update` | flagstaff | node:test | **shipped 2026-09-08 — 99 / 99.** `logUpdate()`, `.clear()`, `.done()`, `.persist()`, stderr variant. Its cases render every frame through a real terminal emulator and assert the screen |
 | boxen 8 | `flagstaff/boxen` | flagstaff | ava | border styles, padding, title, `fullscreen`. **Blocked on the oracle:** every case is `t.snapshot(box)` against ava's own `.snap` binary format, which the ava shim does not read. Teach the shim that format, or record the control's output as the expectation — a decision, so it is `planned` rather than active |
-| cli-table3 | `flagstaff/table` | flagstaff | vitest | `new Table({ head })`, `push`, `toString()`. Its suite is **jest**, not mocha as first recorded here; jest's globals are vitest's and vitest is already in the repo, so the runner to add is `vitest` |
+| cli-table3 | `flagstaff/table` | flagstaff | vitest | **Blocked on a decision — see below.** The runner exists as of 2026-09-08; what is unsettled is that 221 of its 234 cases test its own `src/` modules |
 | inquirer 14 | `caique/inquirer` | caique | vitest | `inquirer.prompt([...])`, `@inquirer/*` prompt kinds |
 | clack 1 | `caique/clack` | caique | vitest | `text`, `confirm`, `select`, `group`, `isCancel`, `spinner` |
 
 Each row is a scoreboard line, each suite is vendored and pinned to the npm release the way
 commander's and yargs' are, and `--control` proves the gate against the real package before
 it grades ours (C1–C6).
+
+## All four remaining hosts are graded by their own drawing
+
+Measured 2026-09-08 by reading the four suites. This is the finding that matters most for
+this intent, and it was not visible from the download counts the table above was built on.
+
+The five rows already graded — commander, yargs, chalk, ora, log-update — are graded by
+**behaviour**: what the API returns, what the exit code is, what the stream received. A
+port can satisfy those without copying an implementation, which is why they reached 100%.
+
+The four that remain are graded by **pixels** — the incumbent's exact rendering, captured:
+
+| host | how it is graded | share |
+| :-- | :-- | --: |
+| boxen 8 | every case is `t.snapshot(box)` against ava's `.snap` | ~all |
+| cli-table3 0.6.5 | 221 of 234 cases `require('../src/…')` — its own modules | 94% |
+| clack 1.8.0 | 289 of 444 assertions are `toMatchSnapshot()`, in 17 of 19 files | 65% |
+| inquirer | 604 of 1,028 assertions are `toMatchInlineSnapshot()`, in 25 files | 59% |
+
+What is left when the drawings are removed is small and, for two of them, not about
+prompting at all: clack has `limit-options` (14) and `guide` (3); inquirer has
+`inquirer.test.ts` (57, mostly the legacy façade's plumbing), `prompts` (2) and `type` (3).
+
+### Why this is a decision and not an obstacle
+
+**A façade that matched those snapshots byte for byte would be the incumbent.** It would
+draw what clack draws, frame for frame — and that is exactly what this stack exists not to
+do. `caique`'s own design rejects wrapping clack on the grounds that *"clack has no static
+projection to give (U3)"*; reproducing clack's frames reproduces that absence. The same
+argument holds for boxen's borders and cli-table3's grid.
+
+So "eight façades graded by eight vendored suites" is not reachable as written, and the
+honest choices are:
+
+1. **Grade the behaviour, publish the coverage.** Vendor each suite, run it, gate on the
+   non-snapshot cases and report the snapshot ones as *documented divergence* with the
+   reason — the same shape as the existing `internals` line, which already reports what is
+   run but never gated. A row would read `clack 17 / 17 behaviour, 289 drawings diverge by
+   design`. Honest, small, and says something true.
+2. **Ship the façades ungraded, and say so.** An API-compatible import with no scoreboard
+   row, described as "compatible in API, not in appearance". Weaker, and it abandons U11's
+   rule that a compatibility claim is a number.
+3. **Drop the four rows and publish why.** The scoreboard keeps five hosts, all at 100%,
+   and this document becomes the reason there are not eight.
+
+Option 1 is the one that fits the rest of the repo, but it changes what a row *means* —
+from "the host's suite passes" to "the host's suite passes except where it asserts a
+picture" — and that is the owner's call, not a session's. Nothing further should be built
+on these four until it is made, which is why none of them has been.
+
+### What was built anyway, because it is not part of the decision
+
+The oracle gained a `vitest` runner and a second TAP dialect (2026-09-08). All four of
+these suites need it — cli-table3 is jest, clack and inquirer are vitest — and it is useful
+whichever way the decision goes.
+
+## Two hosts blocked on a decision, not on a port
+
+Read at their current releases on 2026-09-08. Both were recorded above as ordinary rows;
+neither is.
+
+**boxen 8.** Every one of its cases is `t.snapshot(box)` against ava's own `.snap` binary
+format, which the oracle's ava shim does not read. Two ways out, and they claim different
+things: teach the shim ava's snapshot format, and the grade is boxen's recorded
+expectations; or record the *control's* output as the expectation, and the grade is "we
+render what boxen renders today", which is weaker but honest if it says so.
+
+**cli-table3 0.6.5.** Two surprises. Its suite is jest — vitest's `tap-flat` reporter would
+run it, but that reporter emits a plan and one line per test with no `# tests / # pass /
+# fail` summary, so the oracle needs a second TAP dialect to read it. That part is small.
+The real one is the shape of the suite:
+
+| files | reach | cases |
+| :-- | :-- | --: |
+| `table-test.js`, `test/issues/*` | the package root | **13** |
+| `cell-test.js`, `utils-test.js`, `layout-manager-test.js`, `table-layout-test.js`, the two `original-cli-table-*`, `verify-legacy-compatibility-test.js` | `../src/cell`, `../src/utils`, `../src/layout-manager` | **221** |
+
+Under C4 — a file that imports only the host's internals is graded on an informational line
+and never gated, because passing it would mean copying the host's file layout — "cli-table3,
+graded" is 13 tests. The other 221 are only passable by reproducing its `src/` file for
+file, which is exactly what that rule exists to refuse. Three of them also use
+`jest.mock` / `jest.requireActual` on those modules, which is the same statement in code.
+
+So the row is worth having, but what it may claim has to be decided before it is built:
+13 gated cases with the 221 reported beside them, or the row dropped and the reason
+published. Either is defensible; quietly shipping "13 / 13, 100%" is not.
 
 ## Why now
 
@@ -82,9 +167,9 @@ it grades ours (C1–C6).
 
 ## Success criteria
 
-- Eight rows on the scoreboard, each with a `--control` run recorded. Two of eight graded as
-  of 2026-09-08 — chalk 58 / 58 and ora 99 / 99, each with its control in the same run — and a
-  third (log-update) vendored with its control proven at 99 / 99, its façade pending.
+- Eight rows on the scoreboard, each with a `--control` run recorded. Three of eight as of
+  2026-09-08: chalk 58 / 58, ora 99 / 99, log-update 99 / 99, each with its control in the
+  same run.
 - chalk and ora at parity with the real package in the same run before their façades
   publish. **Met.**
 - The release watch opens an issue within a day of any incumbent's release, with the diff.

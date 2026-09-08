@@ -68,8 +68,11 @@ export interface Host {
   surfaceFiles?: string[];
   /** Git tag prefix for releases; `v` unless the host does otherwise. */
   tagPrefix?: string;
-  /** How its suite is executed. */
-  runner: 'node:test' | 'mocha' | 'ava';
+  /**
+   * How its suite is executed. `vitest` is what a jest suite runs under, since jest's
+   * globals are vitest's and vitest is already here.
+   */
+  runner: 'node:test' | 'mocha' | 'ava' | 'vitest';
   /** Our entry point graded against it. */
   target: string;
   status: 'active' | 'planned' | 'rejected';
@@ -175,10 +178,34 @@ export const HOSTS: Host[] = [
     imports: [{ upstream: '../src/table', subpath: '', reexportDefault: true }],
     surfaceFiles: ['index.d.ts', 'src/table.js'],
     tagPrefix: 'v',
-    runner: 'node:test',
+    runner: 'vitest',
     target: 'flagstaff/table',
     status: 'planned',
-    note: 'Its suite is jest, not mocha as first recorded. jest globals are vitest’s too and vitest is already here, so the runner to add is `vitest` — a fourth runner, and one more decision than this slice had room for.',
+    note: 'The runner is no longer the blocker: its suite is jest, not mocha as first recorded, and the `vitest` runner added 2026-09-08 covers that. What remains is a decision. Of its 234 cases, 221 `require(\'../src/...\')` — cell, utils, layout-manager — and only 13 reach the package root (table-test.js has 10, test/issues/ has 3). Under the rule that a file importing only the host’s internals is informational and never gated, "cli-table3, graded" means 13 tests. Passing the other 221 means reproducing its src/ file for file, which is the thing that rule exists to refuse. 13 gated with the 221 reported beside them, or the row dropped and the reason published — either is defensible, and it is not this session’s call.',
+  },
+  {
+    name: 'clack',
+    repo: 'https://github.com/bombshell-dev/clack',
+    testDir: 'packages/prompts/test',
+    testGlob: '*.test.ts',
+    imports: [{ upstream: '../src/index.js', subpath: '', reexportDefault: false }],
+    surfaceFiles: ['packages/prompts/src/index.ts'],
+    runner: 'vitest',
+    target: 'caique/clack',
+    status: 'planned',
+    note: 'Measured 2026-09-08 at 1.8.0: 289 of its 444 assertions are `toMatchSnapshot()`, in 17 of its 19 files — the suite grades clack’s exact drawing. A façade that matched those frame for frame would be clack, and caique’s design rejects wrapping clack precisely because it "has no static projection to give" (U3). What is left when the drawings are removed is limit-options (14) and guide (3). Blocked on the decision in output-stack-compat: gate the behaviour and report the drawings as documented divergence, or drop the row and publish why.',
+  },
+  {
+    name: 'inquirer',
+    repo: 'https://github.com/SBoudrias/Inquirer.js',
+    testDir: 'packages',
+    testGlob: '*.test.ts',
+    imports: [{ upstream: '../src/index.js', subpath: '', reexportDefault: false }],
+    surfaceFiles: ['packages/inquirer/src/index.ts'],
+    runner: 'vitest',
+    target: 'caique/inquirer',
+    status: 'planned',
+    note: 'The same shape as clack, measured the same day: 604 of 1,028 assertions are `toMatchInlineSnapshot()`, across 25 files of 400 tests. Behaviour-only files are inquirer.test.ts (57, mostly the legacy façade’s plumbing), prompts (2) and type (3). Its suites are also spread across a workspace rather than one test dir, which the vendor step assumes; that is work, but it is not the blocker. Blocked on the same decision.',
   },
   {
     name: 'meow',
