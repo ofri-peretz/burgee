@@ -37,10 +37,12 @@ jobs:
 
       - name: Re-vendor and grade the real hosts (the control)
         continue-on-error: true
+        shell: bash
         run: node packages/compat-oracle/dist/bin.js --vendor --control 2>&1 | tee compat.log
 
       - name: Grade burgee against the refreshed suites
         continue-on-error: true
+        shell: bash
         run: node packages/compat-oracle/dist/bin.js 2>&1 | tee -a compat.log
 
       - name: Summary

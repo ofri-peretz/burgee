@@ -32,6 +32,7 @@ jobs:
       - name: Build
         run: npx turbo run build --filter='./packages/*'
       - name: Grade burgee (fails below baseline)
+        shell: bash
         run: node packages/compat-oracle/dist/bin.js 2>&1 | tee compat.log
       - name: Summary
         if: always()
