@@ -68,8 +68,11 @@ export interface Host {
   surfaceFiles?: string[];
   /** Git tag prefix for releases; `v` unless the host does otherwise. */
   tagPrefix?: string;
-  /** How its suite is executed. */
-  runner: 'node:test' | 'mocha' | 'ava';
+  /**
+   * How its suite is executed. `vitest` is what a jest suite runs under, since jest's
+   * globals are vitest's and vitest is already here.
+   */
+  runner: 'node:test' | 'mocha' | 'ava' | 'vitest';
   /** Our entry point graded against it. */
   target: string;
   status: 'active' | 'planned' | 'rejected';
@@ -175,10 +178,10 @@ export const HOSTS: Host[] = [
     imports: [{ upstream: '../src/table', subpath: '', reexportDefault: true }],
     surfaceFiles: ['index.d.ts', 'src/table.js'],
     tagPrefix: 'v',
-    runner: 'node:test',
+    runner: 'vitest',
     target: 'flagstaff/table',
     status: 'planned',
-    note: 'Two surprises, both measured on 2026-09-08 by reading the suite at v0.6.5. (1) It is jest, not mocha as first recorded; vitest’s `tap-flat` reporter would cover it, but it emits a plan and one line per test with no `# tests/# pass/# fail` summary, so the oracle would need a second TAP dialect. (2) The bigger one: of 234 cases, 221 `require(\'../src/...\')` — cell, utils, layout-manager — and only 13 reach the package root (table-test.js has 10, test/issues/ has 3). Under the rule that a file importing only the host’s internals is informational and never gated, "cli-table3, graded" would mean 13 tests. Passing the other 221 means reproducing its src/ file for file, which is the thing that rule exists to refuse. What to claim here is a decision, not a port.',
+    note: 'The runner is no longer the blocker: its suite is jest, not mocha as first recorded, and the `vitest` runner added 2026-09-08 covers that. What remains is a decision. Of its 234 cases, 221 `require(\'../src/...\')` — cell, utils, layout-manager — and only 13 reach the package root (table-test.js has 10, test/issues/ has 3). Under the rule that a file importing only the host’s internals is informational and never gated, "cli-table3, graded" means 13 tests. Passing the other 221 means reproducing its src/ file for file, which is the thing that rule exists to refuse. 13 gated with the 221 reported beside them, or the row dropped and the reason published — either is defensible, and it is not this session’s call.',
   },
   {
     name: 'meow',

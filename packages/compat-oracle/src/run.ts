@@ -9,7 +9,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join, matchesGlob } from 'node:path';
+import { dirname, join, matchesGlob, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { type Host, type HostImport } from './hosts.js';
@@ -57,6 +57,12 @@ const SUITE_TIMEOUT_MS = 300_000;
 // Static, because the three labels are ours and a runtime RegExp invites the question
 // of where its pattern came from.
 const TAP_TESTS = /^# tests (\d+)$/m;
+/** vitest's `tap-flat`: a plan and one line per test, and no summary lines at all. */
+const TAP_PLAN = /^1\.\.(\d+)$/m;
+/** Anchored at column zero: a nested TAP body indents its own `ok` lines. */
+const FLAT_OK = /^ok \d+/;
+const FLAT_NOT_OK = /^not ok \d+/;
+const FLAT_SKIP = /#\s*SKIP/i;
 const TAP_PASS = /^# pass (\d+)$/m;
 const TAP_FAIL = /^# fail (\d+)$/m;
 /**
@@ -83,6 +89,22 @@ export function parseNodeTest(output: string): { tests: number; passed: number; 
   return { tests: count(TAP_TESTS, output) - skipped, passed: count(TAP_PASS, output), failed: count(TAP_FAIL, output), skipped };
 }
 
+/**
+ * The other TAP dialect. node:test and mocha both print `# tests / # pass / # fail`;
+ * vitest's `tap-flat` prints a plan line and one `ok`/`not ok` per test and stops, so the
+ * counts have to be read off the lines themselves. (`--reporter=tap` is nested, which is
+ * worse: the counts are then per file rather than per test.)
+ */
+export function parseFlatTap(output: string): { tests: number; passed: number; failed: number; skipped: number } {
+  const lines = output.split('\n');
+  const ok = lines.filter((l) => FLAT_OK.test(l));
+  const skipped = ok.filter((l) => FLAT_SKIP.test(l)).length;
+  const passed = ok.length - skipped;
+  const failed = lines.filter((l) => FLAT_NOT_OK.test(l)).length;
+  // A test that skipped itself passed for no one and fails no one: reported, never counted.
+  return { tests: passed + failed, passed, failed, skipped };
+}
+
 type Summary = Pick<Grade, 'files' | 'tests' | 'passed' | 'failed' | 'skipped' | 'reference' | 'rate' | 'error'>;
 
 /**
@@ -91,10 +113,17 @@ type Summary = Pick<Grade, 'files' | 'tests' | 'passed' | 'failed' | 'skipped' |
  * test called process.exit() and killed the runner — is an *error*, and is tested as one.
  */
 export function summarize(output: string, files: number, reference: number): Summary {
-  const counts = parseNodeTest(output);
-  if (!TAP_TESTS.test(output)) {
-    return { files, ...counts, reference, rate: 0, error: 'suite exited before its summary (process.exit() inside a test?)' };
-  }
+  // Summary lines win where they exist: node:test prints a plan *and* a summary, and the
+  // summary is the runner's own count rather than one inferred from its lines.
+  if (TAP_TESTS.test(output)) return rate(files, parseNodeTest(output), reference);
+  // A plan and no summary is vitest's dialect. Without either, the runner was killed
+  // mid-run — and its `ok` lines must not be counted, or a suite that died at test 72
+  // reports 72 passing and clears the gate. That has read as a grade once already.
+  if (TAP_PLAN.test(output)) return rate(files, parseFlatTap(output), reference);
+  return { files, tests: 0, passed: 0, failed: 0, skipped: 0, reference, rate: 0, error: 'suite exited before its summary (process.exit() inside a test?)' };
+}
+
+function rate(files: number, counts: { tests: number; passed: number; failed: number; skipped: number }, reference: number): Summary {
   // The reference is the control's total; a run that registers *more* (a file that used to
   // fail to import now loads) proves the reference stale, and the larger count is the
   // honest denominator until the baseline is re-measured. A rate above 1 is never a score.
@@ -176,8 +205,25 @@ function writeInternalShims(host: Host, hostDir: string, target: string, interna
   }
 }
 
+/**
+ * vitest's bin, found through its `package.json` — the only path its exports map admits.
+ * `require.resolve('vitest/vitest.mjs')` is the obvious spelling and throws.
+ */
+function vitestBin(): string {
+  return join(dirname(require.resolve('vitest/package.json')), 'vitest.mjs');
+}
+
 /** The runner invocation. mocha and ava resolve through the module system: workspaces hoist .bin. */
 function command(host: Host, dir: string, paths: string[]): { bin: string; args: string[] } {
+  if (host.runner === 'vitest') {
+    // `--root` so vitest reads the config written beside the suite rather than this repo's
+    // own, and `tap-flat` because the default `tap` reporter nests — which counts files,
+    // not tests. The files come through that config, not as arguments: vitest's positional
+    // arguments are substring *filters* over its `include`, so a file the include misses
+    // cannot be named back in. cli-table3's are `*-test.js`, which the default include
+    // does miss.
+    return { bin: process.execPath, args: [vitestBin(), 'run', '--root', dirname(dir), '--reporter=tap-flat'] };
+  }
   if (host.runner === 'node:test') return { bin: process.execPath, args: ['--test', '--test-reporter=tap', ...paths] };
   // ava takes the paths as a filter over its own `files` globs, under which a `_`-prefixed
   // file is a helper, never a test: chalk's two spawned fixtures are vendored beside the
@@ -192,9 +238,21 @@ function command(host: Host, dir: string, paths: string[]): { bin: string; args:
   };
 }
 
+/**
+ * vitest reads its file list from a config, so the run writes one — the exact files,
+ * relative to the root, and `globals: true` because a jest suite calls `describe`, `it`
+ * and `expect` without importing them. Generated per run beside the shims, and gitignored
+ * for the same reason they are.
+ */
+function writeVitestConfig(host: Host, hostDir: string, files: string[]): void {
+  const include = files.map((f) => JSON.stringify(join(host.testDir, f).split(sep).join('/')));
+  writeFileSync(join(hostDir, 'vitest.config.mjs'), `// generated per run\nexport default { test: { include: [${include.join(', ')}], globals: true } };\n`);
+}
+
 /** Runs the suite from its vendored root; a failing suite still prints its summary. */
 function runSuite(host: Host, hostDir: string, files: string[], target: string): { output: string } | { error: string } {
   const dir = join(hostDir, host.testDir);
+  if (host.runner === 'vitest') writeVitestConfig(host, hostDir, files);
   const { bin, args } = command(host, dir, files.map((f) => join(dir, f)));
   try {
     // cwd is the vendored root: suites use cwd-relative paths into their own tree.
