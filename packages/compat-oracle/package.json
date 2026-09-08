@@ -21,6 +21,7 @@
   },
   "peerDependencies": {
     "commander": ">=12",
+    "log-update": ">=8",
     "ora": ">=9",
     "yargs": ">=17"
   },
@@ -33,9 +34,12 @@
     "cross-spawn": "^7.0.6",
     "get-stream": "^9.0.1",
     "hashish": "0.0.4",
+    "log-update": "8.0.0",
     "mocha": "^11.7.6",
     "ora": "9.4.1",
+    "terminal.js": "^1.0.11",
     "vitest": "^5.0.0",
+    "wcwidth": "^1.0.1",
     "which": "^2.0.2",
     "yargs": "^18.0.0",
     "yargs-parser": "^22.0.0",

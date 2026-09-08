@@ -233,7 +233,11 @@ compat-yargs        ████████████████████
   internals                                         23 /   23                                          23 /   23
 compat-chalk        ████████████████████████    58 /   58  100.0%     ████████████████████████    58 /   58  100.0%
 compat-ora          ████████████████████████    99 /   99  100.0%     ████████████████████████    99 /   99  100.0%
+compat-log-update   ░░░░░░░░░░░░░░░░░░░░░░░░     0 /   99    0.0%     ████████████████████████    99 /   99  100.0%
 ```
+
+log-update's suite is vendored and its control is proven; the façade is not built, so the
+row reads an honest 0 rather than being left off the board.
 
 Every file of both suites is vendored and run — nothing is excluded. The *internals* lines
 are the files that import only the host's own modules (`../lib/command.js`); they are
@@ -489,6 +493,7 @@ whatever a one-line shim points at, and the rate ratchets.
 | `compat-yargs-pass-rate` | yargs' 804 tests | 804 / 804 (2026-09-08) |
 | `compat-chalk-pass-rate` | chalk's 58 tests | 58 / 58 (2026-09-08) |
 | `compat-ora-pass-rate` | ora's 99 tests | 99 / 99 (2026-09-08) |
+| `compat-log-update-pass-rate` | log-update's 99 tests | control 99 / 99 (2026-09-08); façade not built |
 | `node-matrix-green` | every Node LTS in `engines` × Linux, macOS, Windows | Node 24 and 26 today |
 | documented divergences | `excluded.json`, rendered on the docs site | 9 upstream files testing internals, excluded and named |
 
