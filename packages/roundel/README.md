@@ -128,9 +128,9 @@ suite scoring 58 / 58 against real chalk in the same run.
 
 ## Weight
 
-Every subpath is a lock, not a convention. `roundel/tokens` reaches 3,283 bytes on disk
-(its ceiling is picocolors, 3.3 KB); `roundel/policy` 1,997; `roundel/theme` 6,296;
-`roundel/contrast` 1,250; `roundel/chalk` 9,336 (its ceiling is chalk 6.0.0's own 9,370,
+Every subpath is a lock, not a convention. `roundel/tokens` reaches 3,258 bytes on disk
+(its ceiling is picocolors, 3.3 KB); `roundel/policy` 1,972; `roundel/theme` 6,271;
+`roundel/contrast` 1,250; `roundel/chalk` 9,311 (its ceiling is chalk 6.0.0's own 9,370,
 before the ansi-styles and supports-color chalk also ships). Importing one never loads
 another — the tokens never carry the theme, the theme never carries the tokens, chalk
 carries neither — and `sideEffects: false` lets a bundler drop what a program does not use.
