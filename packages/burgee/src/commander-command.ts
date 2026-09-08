@@ -685,8 +685,14 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
     const from = this._prepareBurgee(parseOptions);
     this._prepareForParse();
     const userArgs = this._prepareUserArgs(argv, from);
-    // A surface is served asynchronously; commander's synchronous parse cannot wait for it.
-    this._runBurgee(() => this._burgeeSurface(userArgs).then((served) => (served ? undefined : this._parseCommand([], userArgs))));
+    // The surface check is synchronous unless a surface is actually served (completions,
+    // --mcp), so a synchronous action has run by the time parse() returns — commander's
+    // contract, which its suite asserts on after every parse(). commander-sync.test.ts.
+    this._runBurgee(() => {
+      const served = this._burgeeSurface(userArgs);
+      if (isThenable(served)) return served.then((s) => (s ? undefined : this._parseCommand([], userArgs)));
+      return served ? undefined : this._parseCommand([], userArgs);
+    });
     return this;
   }
 
@@ -694,7 +700,13 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
     const from = this._prepareBurgee(parseOptions);
     this._prepareForParse();
     const userArgs = this._prepareUserArgs(argv, from);
-    await this._runBurgee(async () => ((await this._burgeeSurface(userArgs)) ? undefined : this._parseCommand([], userArgs)));
+    // Same synchronous start as parse(): a preAction hook has run before the promise is
+    // handed back, which commander's hook tests assert on.
+    await this._runBurgee(() => {
+      const served = this._burgeeSurface(userArgs);
+      if (isThenable(served)) return served.then((s) => (s ? undefined : this._parseCommand([], userArgs)));
+      return served ? undefined : this._parseCommand([], userArgs);
+    });
     return this;
   }
 
@@ -1661,7 +1673,7 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
    * Only when the program declares neither option itself; `--mcp` runs commands through
    * this very program with the streams captured, so tool results are the `--json` envelope.
    */
-  async _burgeeSurface(userArgs: string[]): Promise<boolean> {
+  _burgeeSurface(userArgs: string[]): boolean | Promise<boolean> {
     const root = this._root();
     // Any command in the tree that declares the flag keeps it: the surface is additive only.
     const declared = (flag: string, at: Command = root): boolean =>
@@ -1670,18 +1682,26 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
     const head = terminator === -1 ? userArgs : userArgs.slice(0, terminator);
     if (head[0] === 'completion' && root._findCommand('completion') === undefined) {
       // Loaded on this command only (K6), exactly as the engine does.
-      const { renderCompletion, renderFigSpec, SHELLS } = await import('./completions.js');
-      const shell = head[1] ?? '';
-      if (shell === 'fig') {
-        root._outputConfiguration.writeOut(`${JSON.stringify(renderFigSpec(this.manifest), null, 2)}\n`);
-        return true;
-      }
-      const known = SHELLS.find((s) => s === shell);
-      if (known !== undefined) {
-        root._outputConfiguration.writeOut(renderCompletion(this.manifest, known));
-        return true;
-      }
+      return import('./completions.js').then(({ renderCompletion, renderFigSpec, SHELLS }) => {
+        const shell = head[1] ?? '';
+        if (shell === 'fig') {
+          root._outputConfiguration.writeOut(`${JSON.stringify(renderFigSpec(this.manifest), null, 2)}\n`);
+          return true;
+        }
+        const known = SHELLS.find((s) => s === shell);
+        if (known !== undefined) {
+          root._outputConfiguration.writeOut(renderCompletion(this.manifest, known));
+          return true;
+        }
+        return this._burgeeSurfaceRest(head, declared);
+      });
     }
+    return this._burgeeSurfaceRest(head, declared);
+  }
+
+  /** The surfaces after `completion`: `--schema` is synchronous, `--mcp` serves until stdin closes. */
+  _burgeeSurfaceRest(head: string[], declared: (flag: string) => boolean): boolean | Promise<boolean> {
+    const root = this._root();
     if (head.includes('--schema') && !declared('--schema')) {
       root._outputConfiguration.writeOut(`${JSON.stringify(schemaOf(this.manifest), null, 2)}\n`);
       return true;
@@ -1694,8 +1714,7 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
         await root.parseAsync(args, { from: 'user', stdout: { write: (s) => out.push(s) }, stderr: { write: (s) => err.push(s) }, exit: (c) => void (code = c) });
         return { stdout: out.join(''), stderr: err.join(''), code };
       };
-      await serveMcp(this.manifest, { input: process.stdin, output: { write: (s) => root._outputConfiguration.writeOut(s) }, invoke });
-      return true;
+      return serveMcp(this.manifest, { input: process.stdin, output: { write: (s) => root._outputConfiguration.writeOut(s) }, invoke }).then(() => true);
     }
     return false;
   }
