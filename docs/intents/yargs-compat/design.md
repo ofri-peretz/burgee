@@ -78,6 +78,16 @@ excluded; the record above is its reason.
 The 23 internals tests (`argsert`, `is-promise`, `obj-filter`, `parse-command`) pass
 because the barrel exports those names; they stay informational.
 
+**CodeQL.** The port carries twelve of yargs' own patterns that CodeQL warns on: the
+`parse-command` regexes and `applyExtends`' `/\.json|\..*rc$/` (polynomial ReDoS on a
+string that is the developer's own command definition or a config path from disk, never
+end-user argv), the zsh completion escaping `replace(/:/g, '\\:')` (a format `_describe`
+requires, which `completion.mjs` asserts byte for byte — not a sanitiser), and
+`delete config.extends` on a config object loaded from disk (`mergeDeep` skips
+`__proto__`, as upstream does). Rewriting any of them would move parsing in the edge
+cases the suite pins, so each alert is dismissed as *won't fix* with this record as its
+comment; the scanner stays on for the files, so anything new still surfaces.
+
 X7 is wired: `demo-cli-yargs` builds its program through a factory, `runYargs` in the
 oracle's drivers takes the yargs implementation as a parameter, `examples/conformance`
 runs the front-end as a fifth host and `yargs-parity.test.ts` requires identical
