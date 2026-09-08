@@ -6,6 +6,17 @@ export interface Writer {
 }
 
 /**
+ * Time, as the layers above the parser see it (R14 of `cli-output-stack`). `now` is
+ * monotonic milliseconds from an arbitrary origin; `schedule` runs `fn` after `ms` and
+ * hands back the cancel. Typed structurally so the output stack can accept a `Runtime`
+ * without importing one.
+ */
+export interface Clock {
+  now(): number;
+  schedule(fn: () => void, ms: number): () => void;
+}
+
+/**
  * The world, as the layers above the parser see it (design R1 of
  * `cli-testing-harness`). Nothing above the parser reads `process.*` directly; it
  * reads its `Runtime`, so a test can substitute every part of it.
@@ -20,6 +31,8 @@ export interface Runtime {
   isTTY: { stdin: boolean; stdout: boolean; stderr: boolean };
   /** Ends the run with an E1 code. In the real runtime this never returns. */
   exit(code: ExitCode): never;
+  /** `performance.now` and `setTimeout` in the real runtime; a manual tick in the harness. */
+  clock: Clock;
 }
 
 const ARGV_PROGRAM_AND_SCRIPT = 2;
@@ -39,5 +52,12 @@ export const processRuntime: Runtime = {
   },
   exit(code) {
     process.exit(code);
+  },
+  clock: {
+    now: () => performance.now(),
+    schedule(fn, ms) {
+      const handle = setTimeout(fn, ms);
+      return () => clearTimeout(handle);
+    },
   },
 };

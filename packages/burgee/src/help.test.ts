@@ -154,3 +154,60 @@ describe('help through the engine', () => {
     expect(out.join('')).toBe(renderHelp(program, deploy, { width: 60 }));
   });
 });
+
+describe('theme seam (R7; roundel used without being imported)', () => {
+  const ESC = String.fromCharCode(27);
+  const wrapIn =
+    (open: string, close: string) =>
+    (s: string): string =>
+      `${ESC}[${open}m${s}${ESC}[${close}m`;
+  /** A theme shaped like roundel's R3 tokens; nothing here imports roundel. */
+  const theme = { heading: wrapIn('4', '24'), command: wrapIn('35', '39'), flag: wrapIn('32', '39'), value: wrapIn('33', '39'), error: wrapIn('31', '39') };
+  const ANSI = new RegExp(`${ESC}\\[[0-9;]*m`, 'g');
+
+  it('is byte-identical with and without a theme when colour is off, which is the default', () => {
+    for (const node of [root, deploy]) {
+      const plain = renderHelp(program, node, { width: 100 });
+      expect(renderHelp(program, node, { width: 100, theme })).toBe(plain);
+      expect(renderHelp(program, node, { width: 100, color: false, theme })).toBe(plain);
+      expect(plain).not.toMatch(ANSI);
+    }
+  });
+
+  it('with colour on and a theme, differs from plain only in ANSI, and every line still fits the width', () => {
+    for (const width of WIDTHS) {
+      for (const node of [root, deploy]) {
+        const plain = renderHelp(program, node, { width });
+        const themed = renderHelp(program, node, { width, color: true, theme });
+        expect(themed).not.toBe(plain);
+        expect(themed.replace(ANSI, '')).toBe(plain);
+        expect(themed.split('\n').every((l) => l.replace(ANSI, '').length <= width)).toBe(true);
+      }
+    }
+  });
+
+  it('a provided token replaces the default; an omitted one keeps it', () => {
+    const themed = renderHelp(program, root, { width: 100, color: true, theme: { command: wrapIn('35', '39') } });
+    expect(themed).toContain(`${ESC}[35mdeploy${ESC}[39m`);
+    // heading fell back to the default (bold), so the section title is still styled
+    expect(themed).toContain(`${ESC}[1mRelease commands:${ESC}[22m`);
+    const defaults = renderHelp(program, deploy, { width: 100, color: true });
+    expect(defaults.replace(ANSI, '')).toBe(renderHelp(program, deploy, { width: 100 }));
+    expect(defaults).toMatch(ANSI);
+  });
+
+  it('never colours a name in the manifest: colour wraps the rendered cell after it is measured (yargs #1699)', () => {
+    const before = JSON.stringify(program.commands.map((c) => c.path));
+    const themed = renderHelp(program, root, { width: 100, color: true, theme });
+    expect(JSON.stringify(program.commands.map((c) => c.path))).toBe(before);
+    // the coloured term is padded to the same column as the plain one
+    expect(themed).toMatch(new RegExp(`\\n {2}${ESC}\\[35mdeploy${ESC}\\[39m +Ship a build\\n`));
+    expect(themed.replace(ANSI, '')).toMatch(/\n {2}deploy +Ship a build\n/);
+  });
+
+  it('the engine still renders help plain: no colour decision was added to it', async () => {
+    const r = await runBurgee(program, { argv: ['deploy', '--help'], tty: true });
+    expect(r.stdout).toBe(renderHelp(program, deploy, { width: 100 }));
+    expect(r.stdout).not.toMatch(ANSI);
+  });
+});
