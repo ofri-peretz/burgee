@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { hoist, manualClock, type Runtime } from './loop.js';
+import { register } from './plugin.js';
 import { spinner } from './spinner.js';
 
 const ESC = '\u001B';
@@ -14,6 +15,14 @@ describe('spinner()', () => {
     expect(s.frame?.(0, { text: 'building' })).toBe('⠋ building');
     expect(s.frame?.(80, { text: 'building' })).toBe('⠙ building');
     expect(s.frame?.(800, { text: 'building' })).toBe('⠋ building');
+  });
+
+  it("U3 · a style's own static projection is what the static line shows, not the running glyph", () => {
+    // Regression: `symbol()` read the registry glyph first, and the built-in plugin always
+    // registers a `running` one — so no third-party `static` could ever reach the output,
+    // even though `register()` refuses a spinner that omits it.
+    register({ name: 'loud', spinners: { loud: { frames: ['x'], interval: 80, static: '!!!DISTINCTIVE!!!' } } });
+    expect(spinner('loud').static({ text: 'go' })).toBe('!!!DISTINCTIVE!!! go');
   });
 
   it('a finished status is the same line in every mode', () => {

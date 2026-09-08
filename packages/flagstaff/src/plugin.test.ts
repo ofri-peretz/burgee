@@ -23,7 +23,9 @@ function refusal(plugin: unknown): PluginError {
   throw new Error('registered');
 }
 
-const nyan = { frames: ['≋', '≈', '~'], interval: 80, static: '…' };
+// The static is deliberately NOT the built-in `running` glyph: when it was, a spinner style's
+// own projection could be shadowed by the glyph and every lock still passed.
+const nyan = { frames: ['≋', '≈', '~'], interval: 80, static: '~nyan~' };
 
 describe('R3 · the built-ins are a plugin like any other', () => {
   it('registered through register(), visible in the registry', () => {

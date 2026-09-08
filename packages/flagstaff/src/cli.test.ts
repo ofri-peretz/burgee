@@ -21,7 +21,7 @@ function check(...args: string[]): { code: number; stdout: string } {
 
 beforeAll(() => {
   dir = mkdtempSync(join(tmpdir(), 'flagstaff-check-'));
-  writeFileSync(join(dir, 'nyan.mjs'), "export default { name: 'nyan', spinners: { nyan: { frames: ['≋', '≈', '~'], interval: 80, static: '…' } } };\n");
+  writeFileSync(join(dir, 'nyan.mjs'), "export default { name: 'nyan', spinners: { nyan: { frames: ['≋', '≈', '~'], interval: 80, static: '~nyan~' } } };\n");
   writeFileSync(join(dir, 'bad.mjs'), "export default { name: 'bad', spinners: { bad: { frames: ['a'], interval: 80 } } };\n");
   writeFileSync(join(dir, 'box.mjs'), 'export default { name: \'boxy\', components: { box: { static: (s) => `[${s.phase}]` } } };\n');
 });
@@ -33,11 +33,13 @@ describe('flagstaff check', () => {
     const { code, stdout } = check('check', 'nyan.mjs');
     expect(code).toBe(0);
     expect(stdout).toContain('nyan: ok\nspinner nyan\n');
+    // U3: the style's own static projection is what `check` shows the author, not a glyph.
+    expect(stdout).toContain('~nyan~');
     expect(stdout).toContain('  tty         ␛[?25l≋ working␛[1G␛[0J≈ working␛[1G␛[0J~ working␛[1G␛[0J≋ working␛[1G␛[0J✔ done⏎ ␛[?25h');
-    expect(stdout).toContain('  pipe        … working⏎ ✔ done⏎ ');
-    expect(stdout).toContain('  ci          … working⏎ ✔ done⏎ ');
+    expect(stdout).toContain('  pipe        ~nyan~ working⏎ ✔ done⏎ ');
+    expect(stdout).toContain('  ci          ~nyan~ working⏎ ✔ done⏎ ');
     expect(stdout).toContain('  json        {"event":"spinner","state":{"text":"working"}}⏎ {"event":"spinner","state":{"text":"done","status":"ok"}}⏎ ');
-    expect(stdout).toContain('  accessible  … working⏎ ✔ done⏎ ');
+    expect(stdout).toContain('  accessible  ~nyan~ working⏎ ✔ done⏎ ');
   });
 
   it('renders a component through its static projection', () => {

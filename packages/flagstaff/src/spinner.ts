@@ -1,7 +1,8 @@
 /**
  * The spinner, as a component (R2): a style from the registry, a state of `{ text, status }`,
  * a static line for every mode that does not animate, and a frame for the one that does.
- * The glyphs come from the registry too, so a plugin that ships glyphs changes this one.
+ * The style's `static` is its own projection; the finished statuses take the registry's glyphs,
+ * so a plugin that ships glyphs changes those.
  */
 import { error, hint, ok, warn } from 'roundel/tokens';
 
@@ -18,7 +19,12 @@ export interface SpinnerState {
 const PAINT: Record<Exclude<SpinnerStatus, 'running'>, (s: string) => string> = { ok, fail: error, warn, info: hint };
 
 function symbol(status: SpinnerStatus, def: { static: string }): string {
-  if (status === 'running') return glyph('running') || def.static;
+  // The style's own `static` is the projection *of that style*, and U3 makes it mandatory —
+  // `register()` refuses a spinner without one. So it wins here; the `running` glyph is only
+  // the fallback for a style that ships none. The other statuses have no per-style projection,
+  // so they take the glyph. (Reversed on 2026-09-08: the glyph came first, which made every
+  // third-party `static` unreachable, since the built-in plugin always registers a `running`.)
+  if (status === 'running') return def.static || glyph('running');
   return PAINT[status](glyph(status));
 }
 
