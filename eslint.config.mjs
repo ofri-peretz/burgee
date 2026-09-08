@@ -296,7 +296,9 @@ export default [
     // (`import { type X } from './m.js'`) emits `import {} from './m.js'` — a real
     // module load for no value, worth ~5ms of startup here. A type-only import must
     // be top-level so it erases completely.
-    files: ['packages/burgee/src/execute.ts', 'packages/burgee/src/help.ts', 'packages/burgee/src/schema.ts'],
+    // roundel/policy.ts names `typeof styleText` for its Format type and must not load
+    // node:util for it: `roundel/policy` is the floor every subpath pays for.
+    files: ['packages/burgee/src/execute.ts', 'packages/burgee/src/help.ts', 'packages/burgee/src/schema.ts', 'packages/roundel/src/policy.ts'],
     rules: { 'import-next/consistent-type-specifier-style': 'off' },
   },
   {
