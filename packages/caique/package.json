@@ -32,6 +32,11 @@
       "types": "./dist/spec.d.ts",
       "import": "./dist/spec.js",
       "default": "./dist/spec.js"
+    },
+    "./terminal": {
+      "types": "./dist/terminal.d.ts",
+      "import": "./dist/terminal.js",
+      "default": "./dist/terminal.js"
     }
   },
   "files": [
