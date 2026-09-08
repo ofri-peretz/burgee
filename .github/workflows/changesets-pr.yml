@@ -55,7 +55,13 @@ jobs:
           title: "chore(release): version packages"
           commit: "chore(release): version packages"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # A PR opened with GITHUB_TOKEN raises no workflow runs — GitHub's
+          # loop-prevention rule — so the Version PR would sit at 0 checks
+          # against 3 required ones and could never merge (#35). Any other
+          # credential lifts that: RELEASE_BOT_PAT when it exists, and the
+          # default token otherwise, which keeps this workflow working (and
+          # the Version PR blocked) until the secret is added.
+          GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_PAT || secrets.GITHUB_TOKEN }}
           # lefthook's pre-push would otherwise gate the bot's push; the real
           # gates run on the resulting Version PR.
           LEFTHOOK: "0"
