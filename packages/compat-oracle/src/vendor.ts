@@ -8,7 +8,7 @@
 import { execFileSync } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, relative, resolve } from 'node:path';
+import { join, relative, resolve, sep } from 'node:path';
 
 import { type Host } from './hosts.js';
 import { type CompatRecord, diffRecords, latestVersion, readRecord, type RecordDiff, snapshot } from './upstream.js';
@@ -60,12 +60,18 @@ export function shimName(index: number): string {
  * specifier is written relative to the test dir (`../index.js`); a fixture two levels
  * down writes the same module as `../../index.js`. Both must land on the one shim.
  */
-const dotted = (p: string): string => (p.startsWith('.') ? p : `./${p}`);
+// Specifiers are posix whatever the OS: `relative()` answers with backslashes on Windows,
+// and a backslash never matches — or belongs in — an import specifier.
+const dotted = (p: string): string => {
+  const posix = p.split(sep).join('/');
+  return posix.startsWith('.') ? posix : `./${posix}`;
+};
 
 export function rewriteAt(source: string, host: Host, fileDir: string, hostDir: string): string {
   const testDir = join(hostDir, host.testDir);
   return host.imports.reduce((acc, entry, i) => {
-    const upstreamHere = dotted(relative(fileDir, resolve(testDir, entry.upstream)));
+    // A bare specifier reads the same from every file; a relative one moves with the file.
+    const upstreamHere = entry.upstream.startsWith('.') ? dotted(relative(fileDir, resolve(testDir, entry.upstream))) : entry.upstream;
     const shimHere = dotted(relative(fileDir, join(hostDir, shimName(i))));
     return acc.replaceAll(`'${upstreamHere}'`, `'${shimHere}'`).replaceAll(`"${upstreamHere}"`, `"${shimHere}"`);
   }, source);
@@ -106,6 +112,31 @@ export function classify(source: string, host: Host): 'public' | 'internal' {
   return hasPublic ? 'public' : 'internal';
 }
 
+export interface UpstreamPackage {
+  name?: string;
+  type?: string;
+  version?: string;
+  license?: string;
+  repository?: unknown;
+}
+
+/**
+ * The vendored root's package.json. Suites run from there as if it were the upstream repo
+ * root, and they read it: yargs' `.config('foo')` and `.pkgConf('repository')` tests load
+ * `./package.json` and expect the upstream's own `license` and `repository`; commander's
+ * and yargs' CJS fixtures `require('../')` the root itself, which needs a `main`. That
+ * main is the generated shim, so a fixture reaches whatever the run is grading. The name
+ * is *not* the upstream's: with its name and exports map, Node's self-reference rule would
+ * resolve `import 'yargs'` to a file that is not here.
+ */
+export function rootPackage(host: Host, upstream: UpstreamPackage): Record<string, unknown> {
+  const pkg: Record<string, unknown> = { name: `@vendored/${host.name}-suite`, private: true, type: upstream.type ?? 'commonjs', main: './shim.js' };
+  if (upstream.version !== undefined) pkg.version = upstream.version;
+  if (upstream.license !== undefined) pkg.license = upstream.license;
+  if (upstream.repository !== undefined) pkg.repository = upstream.repository;
+  return pkg;
+}
+
 /** Vendor the host's suite at its latest npm release (or the given version). */
 export function vendor(host: Host, into: string, version = latestVersion(host.name)): VendorResult {
   const clone = mkdtempSync(join(tmpdir(), `vendor-${host.name}-`));
@@ -128,11 +159,8 @@ export function vendor(host: Host, into: string, version = latestVersion(host.na
     // prints usage and process.exit()s, killing the runner before its summary). It gets a
     // minimal one with a *different* name: upstream's own name plus its exports map would
     // make Node's self-reference rule resolve `import 'yargs'` to a file that is not here.
-    const upstream = JSON.parse(readFileSync(join(clone, 'package.json'), 'utf8')) as { type?: string };
-    writeFileSync(
-      join(into, host.name, 'package.json'),
-      `${JSON.stringify({ name: `@vendored/${host.name}-suite`, private: true, type: upstream.type ?? 'commonjs' }, null, 2)}\n`,
-    );
+    const upstream = JSON.parse(readFileSync(join(clone, 'package.json'), 'utf8')) as UpstreamPackage;
+    writeFileSync(join(into, host.name, 'package.json'), `${JSON.stringify(rootPackage(host, upstream), null, 2)}\n`);
 
     const internalFiles: string[] = [];
     const internals = new Set<string>();

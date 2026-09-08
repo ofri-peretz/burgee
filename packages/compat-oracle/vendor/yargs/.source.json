@@ -3,7 +3,7 @@
   "version": "18.1.0",
   "tag": "v18.1.0",
   "commit": "8878a894111e3fe7c98d84af546c0f34fa017492",
-  "vendored": "2026-09-07",
+  "vendored": "2026-09-08",
   "files": 14,
   "internalFiles": [
     "argsert.mjs",

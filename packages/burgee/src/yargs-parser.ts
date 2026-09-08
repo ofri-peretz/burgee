@@ -898,3 +898,5 @@ yargsParser.decamelize = decamelize;
 yargsParser.looksLikeNumber = looksLikeNumber;
 
 export { yargsParser as Parser };
+/** `burgee/yargs/parser`: what `import parser from 'yargs-parser'` gives, the same object the front-end parses with. */
+export default yargsParser;

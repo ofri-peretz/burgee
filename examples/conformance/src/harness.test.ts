@@ -69,10 +69,11 @@ describe.each(Object.entries(HOSTS) as [HostName, (typeof HOSTS)[HostName]][])('
   it('is fast: p95 under 20 ms for a warm run', async () => {
     const RUNS = 50;
     const P95 = 0.95;
-    // The smoke is about order of magnitude, not the OS: Windows runners spawn and schedule
-    // slower, and the shared macOS runners measured real yargs at a p95 of 22.2 ms twice in a
-    // row on 2026-09-08 (Node 24, arm64) against 4–15 ms everywhere else. Linux keeps 20.
-    const CEILING_MS = process.platform === 'linux' ? 20 : 40;
+    // The smoke is about order of magnitude, not the OS or the runner: a warm run is 4–15 ms
+    // on an idle machine, and the Quality Full job runs every package's suite at once on a
+    // two-core runner, where both yargs hosts measured 23–25 ms (2026-09-08; macOS alone
+    // measured 22 ms). 40 ms is still a decade under the 300 ms a spawned process costs.
+    const CEILING_MS = 40;
     const times: number[] = [];
     for (let i = 0; i < RUNS; i++) {
       // eslint-disable-next-line reliability/no-await-in-loop -- timing individual runs is the point

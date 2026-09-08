@@ -9,7 +9,7 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
 | id | Requirement |
 | :-- | :-- |
 | X1 | `burgee/commander` exposes commander 15's public surface: `Command`, `Option`, `Argument`, `Help`, `CommanderError`, `InvalidArgumentError` (+ deprecated alias), `program`, `createCommand`, `createOption`, `createArgument` — and what the suite reaches through the host's internals (`useColor`, `DualOptions`, `humanReadableArgName`) |
-| X2 | The vendored commander suite runs against it through `compat-oracle`'s shim, unedited: 1,331 public tests plus 12 internals |
+| X2 | The vendored commander suite runs against it through `compat-oracle`'s shim, unedited: 1,362 public tests (1 skips itself off Windows) plus 12 internals |
 | X3 | The pass rate is published per release and ratchets (C5) |
 | X4 | Every divergence is a failing upstream test with a recorded reason; none may be excluded (compat-oracle R3) |
 | X5 | `import 'burgee'` pulls zero bytes of this front-end (K6, `weight.test.ts` entry `.`) |
@@ -66,10 +66,14 @@ progress bar; each commit reports the rate in its message, so `git log` is the b
 proves the gate against real commander in the same run.
 
 Proven-red, per rule 4: the first commit registered the front-end and recorded 17 / 1,307.
-Today: **1,327 / 1,331 (99.7%)** — the same 1,327 the real commander scores in this
-environment. The 4 left fail identically for both and only when the whole suite runs in
-one `node --test` process: signal forwarding to a spawned subcommand and the `--inspect`
-port-increment tests. They are graded, not excluded; CI's OS × Node matrix re-checks them.
+Today: **1,361 / 1,361 (100%)** — every test that runs on this OS, the same as the real
+commander scores in the same run; the 1,362nd skips itself off Windows and is reported,
+not counted. The "4 left" this record carried for a day were never divergences: three
+`.cjs` test files `require('../')` — the repo root as a package — and the vendored root
+had no `main`, so they failed to import for real commander and for burgee alike and
+registered as one test each. The vendor step now writes a root package whose `main` is
+the generated shim; the suite's true size is 1,362, not 1,331. CI's OS × Node matrix
+re-checks all of it.
 
 The 12 internals tests (`useColor`) pass because the barrel exports `useColor`; they stay
 informational.

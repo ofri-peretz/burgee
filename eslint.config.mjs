@@ -403,7 +403,7 @@ export default [
   },
   {
     // `burgee/commander` is commander 15 ported method for method and graded by
-    // commander's own 1,331 tests (compat-oracle). Its shape — one EventEmitter subclass,
+    // commander's own 1,362 tests (compat-oracle). Its shape — one EventEmitter subclass,
     // the `_`-prefixed package-level fields the upstream tests reach for, the long parse
     // loop, process.exit when no exitOverride is set — *is* the specification, so the
     // structural rules that would reshape it are off here. The oracle is the check.
@@ -453,7 +453,7 @@ export default [
   {
     // `import yargs from 'burgee/yargs'` is the drop-in: yargs' entry is a default export
     // and every program written for it imports it that way.
-    files: ['packages/burgee/src/yargs.ts'],
+    files: ['packages/burgee/src/yargs.ts', 'packages/burgee/src/yargs-parser.ts'],
     rules: { 'import-next/no-default-export': 'off' },
   },
   {

@@ -23,6 +23,8 @@ export interface Grade {
   tests: number;
   passed: number;
   failed: number;
+  /** Tests that skipped themselves in this environment (an OS-only case); reported, never counted. */
+  skipped: number;
   /**
    * The suite's size when graded against the real host — the honest denominator. A file
    * that throws on import registers as one test instead of its twenty, so measuring
@@ -57,6 +59,9 @@ const SUITE_TIMEOUT_MS = 300_000;
 const TAP_TESTS = /^# tests (\d+)$/m;
 const TAP_PASS = /^# pass (\d+)$/m;
 const TAP_FAIL = /^# fail (\d+)$/m;
+/** node:test's summary line; mocha has none and marks each pending test with a directive instead. */
+const TAP_SKIPPED = /^# skipped (\d+)$/m;
+const TAP_OK = /^\s*ok \d+/;
 
 function count(pattern: RegExp, output: string): number {
   const found = pattern.exec(output);
@@ -68,11 +73,14 @@ function count(pattern: RegExp, output: string): number {
  * three summary lines. Chosen over the default reporters because TAP is the stable
  * machine-readable one.
  */
-export function parseNodeTest(output: string): { tests: number; passed: number; failed: number } {
-  return { tests: count(TAP_TESTS, output), passed: count(TAP_PASS, output), failed: count(TAP_FAIL, output) };
+export function parseNodeTest(output: string): { tests: number; passed: number; failed: number; skipped: number } {
+  const skipped = TAP_SKIPPED.test(output) ? count(TAP_SKIPPED, output) : output.split('\n').filter((l) => TAP_OK.test(l) && l.includes('# SKIP')).length;
+  // `tests` is what ran: a test that skipped itself (commander's Windows-only cases off
+  // Windows) passed for no one and fails no one, so it is reported and never counted.
+  return { tests: count(TAP_TESTS, output) - skipped, passed: count(TAP_PASS, output), failed: count(TAP_FAIL, output), skipped };
 }
 
-type Summary = Pick<Grade, 'files' | 'tests' | 'passed' | 'failed' | 'reference' | 'rate' | 'error'>;
+type Summary = Pick<Grade, 'files' | 'tests' | 'passed' | 'failed' | 'skipped' | 'reference' | 'rate' | 'error'>;
 
 /**
  * Turn a runner's stdout into a grade. Pure, so the one case that has silently read as
@@ -84,7 +92,10 @@ export function summarize(output: string, files: number, reference: number): Sum
   if (!TAP_TESTS.test(output)) {
     return { files, ...counts, reference, rate: 0, error: 'suite exited before its summary (process.exit() inside a test?)' };
   }
-  const denominator = reference > 0 ? reference : counts.tests;
+  // The reference is the control's total; a run that registers *more* (a file that used to
+  // fail to import now loads) proves the reference stale, and the larger count is the
+  // honest denominator until the baseline is re-measured. A rate above 1 is never a score.
+  const denominator = Math.max(reference, counts.tests);
   return { files, ...counts, reference, rate: denominator === 0 ? 0 : counts.passed / denominator };
 }
 
@@ -112,11 +123,13 @@ function missingTarget(host: Host, target: string): string | undefined {
 }
 
 /** The source of one generated public shim. */
-function shimSource(entry: HostImport, _host: Host, target: string): string {
+function shimSource(entry: HostImport, host: Host, target: string): string {
   const header = `// generated per run — COMPAT_TARGET=${target}`;
-  const from = `${target}${entry.subpath}`;
-  // `export *` never carries a default; yargs' entry has one and its tests use it.
-  const withDefault = entry.reexportDefault ? `export { default } from '${from}';\n` : '';
+  const from = target === host.name ? (entry.control ?? `${target}${entry.subpath}`) : `${target}${entry.subpath}`;
+  // `export *` never carries a default; yargs' entry has one and its tests use it. The
+  // `module.exports` name is what `require()` of an ES module returns whole, so a CJS
+  // fixture's `require('../../')` gets the callable factory, exactly as it does from yargs.
+  const withDefault = entry.reexportDefault ? `export { default } from '${from}';\nexport { default as 'module.exports' } from '${from}';\n` : '';
   return `${header}\nexport * from '${from}';\n${withDefault}`;
 }
 
@@ -201,10 +214,22 @@ function runSuite(host: Host, hostDir: string, files: string[], target: string):
   }
 }
 
+/**
+ * `COMPAT_TAP_DIR=<dir>` keeps each run's raw TAP as `<dir>/<host>.<target>.<kind>.tap`, so a
+ * count that moved can be read back to the test names that moved it. Off by default: the
+ * grade is the counts, and a 1,300-test TAP is megabytes.
+ */
+function keepTap(host: Host, target: string, kind: 'public' | 'internal', run: { output: string } | { error: string }): void {
+  const dir = process.env['COMPAT_TAP_DIR'];
+  if (dir === undefined || dir === '' || !('output' in run)) return;
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, `${host.name}.${target.replaceAll('/', '_')}.${kind}.tap`), run.output);
+}
+
 export function grade(host: Host, vendorDir: string, target: string, reference = 0): Grade {
   const hostDir = join(vendorDir, host.name);
   const dir = join(hostDir, host.testDir);
-  const base: Grade = { host: host.name, target, files: 0, tests: 0, passed: 0, failed: 0, reference, rate: 0 };
+  const base: Grade = { host: host.name, target, files: 0, tests: 0, passed: 0, failed: 0, skipped: 0, reference, rate: 0 };
 
   if (!existsSync(dir)) return { ...base, error: 'not vendored: run `npm run compat -- --vendor`' };
   const sourcePath = join(hostDir, '.source.json');
@@ -222,11 +247,13 @@ export function grade(host: Host, vendorDir: string, target: string, reference =
   writeInternalShims(host, hostDir, target, source.internals ?? []);
 
   const run = runSuite(host, hostDir, files, target);
+  keepTap(host, target, 'public', run);
   if ('error' in run) return { ...base, files: files.length, error: run.error };
   const graded: Grade = { ...base, ...summarize(run.output, files.length, reference) };
 
   if (internal.length > 0) {
     const extra = runSuite(host, hostDir, internal, target);
+    keepTap(host, target, 'internal', extra);
     const counts = 'error' in extra ? { tests: 0, passed: 0 } : parseNodeTest(extra.output);
     graded.internals = { files: internal.length, tests: counts.tests, passed: counts.passed };
   }

@@ -8,7 +8,7 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
 
 | id | Requirement |
 | :-- | :-- |
-| X1 | `burgee/yargs` exposes yargs 18's public surface: the default-export factory `(processArgs, cwd, parentRequire)` returning the 108-method instance, `YargsInstance`, `getInternalMethods()` in yargs' shape — and what the suite reaches through the host's internals (`YError`, `parseCommand`, `argsert`, `objFilter`, `isPromise`); `burgee/yargs/helpers` exposes `hideBin`, `applyExtends`, `Parser` |
+| X1 | `burgee/yargs` exposes yargs 18's public surface: the default-export factory `(processArgs, cwd, parentRequire)` returning the 108-method instance, `YargsInstance`, `getInternalMethods()` in yargs' shape — and what the suite reaches through the host's internals (`YError`, `parseCommand`, `argsert`, `objFilter`, `isPromise`); `burgee/yargs/helpers` exposes `hideBin`, `applyExtends`, `Parser`; `burgee/yargs/parser` is what `import parser from 'yargs-parser'` gave |
 | X2 | The vendored yargs suite runs against it through `compat-oracle`'s shim, unedited: 804 public tests plus 23 internals, pinned to yargs 18.1.0 |
 | X3 | The pass rate is published per release and ratchets (C5) |
 | X4 | Every divergence is a failing upstream test with a recorded reason; none may be excluded (compat-oracle R3) |
@@ -67,13 +67,19 @@ proves the gate against real yargs in the same run.
 
 Proven-red, per rule 4: the oracle graded `burgee/yargs` at an honest 0 / 804 from the day
 the suite was vendored ("target not built yet") and the baseline recorded it. First
-measured score: **782 / 804 (97.3%)** — one short of the 783 real yargs scores in this
-environment. The 21 that fail for both are the suite's own environment cases (spawned
-fixture binaries, `commandDir` through `require`, locale detection under the test
-process). The one that fails only here, `test/parser.mjs` › *should expose yargs-parser
-as Parser*, asserts `Parser === require('yargs-parser')` — identity with the npm
-package, which a dependency-free port cannot satisfy by construction. It is graded, not
-excluded; the record above is its reason.
+measured score: 782 / 804, one short of real yargs in the same run. Today:
+**804 / 804 (100%)**. The 22 in between were the harness, not the port, and each fix was
+proven red in the oracle's own tests first: the vendored root had no `main`, so the CJS
+fixture binaries' `require('../../')` could not load (the integration file, 16 tests);
+its `package.json` lacked the upstream's `license` and `repository`, which
+`.config('foo')` and `.pkgConf('repository')` read from disk (5 tests); the workspace had
+installed `which@5` — promise-only — beside the oracle against its `^2.0.2`, so the
+suite's callback never fired (2 tests); and `test/parser.mjs` asserts `Parser` is the
+object `yargs-parser` exports, so `yargs-parser` is now a public specifier of the host,
+rewritten to `burgee/yargs/parser` for burgee and left as itself for the control — a
+program that imported the parser directly migrates the same way. The real yargs scores
+802 in the same run: its two `--version` fixture cases look the nearest `package.json`
+up from inside `node_modules`, which is the oracle's, not the fixture's.
 
 The 23 internals tests (`argsert`, `is-promise`, `obj-filter`, `parse-command`) pass
 because the barrel exports those names; they stay informational.
@@ -102,8 +108,9 @@ every level, version, `--`.
   and yargs' grammars differ in exactly the details the suites assert — `-abc` groups,
   `--no-` pairs, negative numbers, dot-notation, greedy arrays — so sharing would couple
   two specifications. Both ports stand alone; each is under its own weight budget.
-- **Depending on `yargs-parser` for the one identity test.** It would buy 1 / 804 at the
-  price of J9, the property every other lock protects.
+- **Depending on `yargs-parser` for the identity test.** It would have bought 1 / 804 at
+  the price of J9, the property every other lock protects; exposing the ported parser as
+  `burgee/yargs/parser` bought it for nothing.
 - **A separate npm package.** Subpath exports version with the engine, so a user cannot
   install a front-end that disagrees with the parser it wraps.
 - **Writing our own compatibility tests.** They would encode our reading of yargs, which is

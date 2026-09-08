@@ -89,7 +89,7 @@ number above always names a release, never a branch.
 | Host | Major graded | Release | Older majors |
 | :-- | :-- | :-- | :-- |
 | commander | **15** (current) | 15.0.0 | Programs written for 12–14 run unchanged wherever 15 kept their API; each earlier major's own suite is vendored at its last tag and graded before it is listed here (C1) |
-| yargs | **18** (current) | 18.1.0 | Same rule, once the front-end exists (wave 4) |
+| yargs | **18** (current) | 18.1.0 | Programs written for 17 run unchanged wherever 18 kept their API; 17's own suite is vendored at its last tag and graded before it is listed here (C1) |
 
 A new major of a host is a new line here, opened by the daily release watch the day it
 ships; the previous major stays listed for as long as its suite is still graded.
