@@ -35,6 +35,61 @@ Each row is a scoreboard line, each suite is vendored and pinned to the npm rele
 commander's and yargs' are, and `--control` proves the gate against the real package before
 it grades ours (C1–C6).
 
+## All four remaining hosts are graded by their own drawing
+
+Measured 2026-09-08 by reading the four suites. This is the finding that matters most for
+this intent, and it was not visible from the download counts the table above was built on.
+
+The five rows already graded — commander, yargs, chalk, ora, log-update — are graded by
+**behaviour**: what the API returns, what the exit code is, what the stream received. A
+port can satisfy those without copying an implementation, which is why they reached 100%.
+
+The four that remain are graded by **pixels** — the incumbent's exact rendering, captured:
+
+| host | how it is graded | share |
+| :-- | :-- | --: |
+| boxen 8 | every case is `t.snapshot(box)` against ava's `.snap` | ~all |
+| cli-table3 0.6.5 | 221 of 234 cases `require('../src/…')` — its own modules | 94% |
+| clack 1.8.0 | 289 of 444 assertions are `toMatchSnapshot()`, in 17 of 19 files | 65% |
+| inquirer | 604 of 1,028 assertions are `toMatchInlineSnapshot()`, in 25 files | 59% |
+
+What is left when the drawings are removed is small and, for two of them, not about
+prompting at all: clack has `limit-options` (14) and `guide` (3); inquirer has
+`inquirer.test.ts` (57, mostly the legacy façade's plumbing), `prompts` (2) and `type` (3).
+
+### Why this is a decision and not an obstacle
+
+**A façade that matched those snapshots byte for byte would be the incumbent.** It would
+draw what clack draws, frame for frame — and that is exactly what this stack exists not to
+do. `caique`'s own design rejects wrapping clack on the grounds that *"clack has no static
+projection to give (U3)"*; reproducing clack's frames reproduces that absence. The same
+argument holds for boxen's borders and cli-table3's grid.
+
+So "eight façades graded by eight vendored suites" is not reachable as written, and the
+honest choices are:
+
+1. **Grade the behaviour, publish the coverage.** Vendor each suite, run it, gate on the
+   non-snapshot cases and report the snapshot ones as *documented divergence* with the
+   reason — the same shape as the existing `internals` line, which already reports what is
+   run but never gated. A row would read `clack 17 / 17 behaviour, 289 drawings diverge by
+   design`. Honest, small, and says something true.
+2. **Ship the façades ungraded, and say so.** An API-compatible import with no scoreboard
+   row, described as "compatible in API, not in appearance". Weaker, and it abandons U11's
+   rule that a compatibility claim is a number.
+3. **Drop the four rows and publish why.** The scoreboard keeps five hosts, all at 100%,
+   and this document becomes the reason there are not eight.
+
+Option 1 is the one that fits the rest of the repo, but it changes what a row *means* —
+from "the host's suite passes" to "the host's suite passes except where it asserts a
+picture" — and that is the owner's call, not a session's. Nothing further should be built
+on these four until it is made, which is why none of them has been.
+
+### What was built anyway, because it is not part of the decision
+
+The oracle gained a `vitest` runner and a second TAP dialect (2026-09-08). All four of
+these suites need it — cli-table3 is jest, clack and inquirer are vitest — and it is useful
+whichever way the decision goes.
+
 ## Two hosts blocked on a decision, not on a port
 
 Read at their current releases on 2026-09-08. Both were recorded above as ordinary rows;
