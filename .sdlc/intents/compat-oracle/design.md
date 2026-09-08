@@ -10,7 +10,7 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
 | :-- | :-- |
 | C1 | Every published package declares its supported host range, and the compatibility page names the **majors graded**: the host's current major first (suite at the latest release tag), earlier majors only once their own suite is vendored at its last tag and graded — a major is never listed on the strength of the next one's suite |
 | C2 | A compat front-end is graded by the host's own suite through a one-line shim; the pass rate is emitted as JSON and published per release |
-| C3 | Every package is tested on every Node LTS inside its `engines` range, on Linux, macOS and Windows |
+| C3 | Every package is tested on every Node LTS inside its `engines` range, on Linux, macOS and Windows. **Narrowed to Node 24 only on 2026-09-08** while the output stack lands — three OSes, one version — so this control is not met until 26 goes back into `compat.yml`'s matrix |
 | C4 | Every intentional divergence from a host has an id, a written reason, and a test asserting the divergence — an unlisted failure is a bug, a listed one is a documented difference |
 | C5 | Pass rates ratchet: a PR that lowers one fails CI unless it also edits the baseline file with a reason |
 | C6 | Each vendored suite is pinned to a host's npm **release** (version, tag, commit) and fingerprinted in a compatibility record — a hash per test file, the test names per file, the names on the API surface. A daily job diffs the latest release against the record and opens one issue per release naming exactly the tests and surface names that appeared, vanished or changed; a weekly job re-vendors at the new tag and opens the PR carrying the same diff |
