@@ -24,6 +24,8 @@ export interface JsonSchemaProperty {
   maximum?: number;
   /** The command-line spelling of the option (S5). */
   flag?: string;
+  /** The shared set this option was copied from (M4). */
+  sharedFrom?: string;
 }
 
 export interface CommandSchema {
@@ -33,6 +35,12 @@ export interface CommandSchema {
   summary?: string;
   effects?: Effects;
   deprecated?: boolean | string;
+  /** The heading it is listed under (M1). */
+  group?: string;
+  /** Its handler loads on dispatch (M2): this schema was complete without it. */
+  lazy?: true;
+  /** Which plugin contributed it (M3). */
+  plugin?: string;
   arguments: ArgumentSpec[];
   options: Record<string, OptionSpec>;
   examples: Example[];
@@ -73,6 +81,7 @@ function optionProperty(name: string, spec: OptionSpec): JsonSchemaProperty {
   if (spec.default !== undefined) p.default = spec.default;
   if (spec.minimum !== undefined) p.minimum = spec.minimum;
   if (spec.maximum !== undefined) p.maximum = spec.maximum;
+  if (spec.sharedFrom !== undefined) p.sharedFrom = spec.sharedFrom;
   return p;
 }
 
@@ -108,6 +117,9 @@ export function commandSchemaOf(node: CommandNode, root: string[]): CommandSchem
   if (node.summary !== undefined) out.summary = node.summary;
   if (node.effects !== undefined) out.effects = node.effects;
   if (node.deprecated !== undefined) out.deprecated = node.deprecated;
+  if (node.group !== undefined) out.group = node.group;
+  if (node.load !== undefined) out.lazy = true;
+  if (node.plugin !== undefined) out.plugin = node.plugin;
   return out;
 }
 
