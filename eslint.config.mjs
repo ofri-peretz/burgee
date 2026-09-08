@@ -91,6 +91,7 @@ export default [
       '**/.turbo/**',
       '**/node_modules/**',
       '**/coverage/**',
+      '**/.dev-fixtures/**',
       '.sdlc/research/issues/**',
       'apps/docs/next-env.d.ts',
       // Vendored upstream test suites (compat-oracle C6). They are the hosts' own

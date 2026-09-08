@@ -1,6 +1,6 @@
 # Design — `dev-loop`
 
-Intent: [`intent.md`](./intent.md). **Status:** review.
+Intent: [`intent.md`](./intent.md). **Status:** review — built, W1–W6 verified.
 
 ---
 
@@ -59,17 +59,27 @@ proves the reload semantics. Then the MCP server alongside it. Then
 
 ## Verification
 
-`packages/dev/src/reload.test.ts` writes a temp CLI, starts the watcher against a fake
-clock and a fake stdio pair, edits the file, and asserts: a new tool appears in
-`tools/list`, `tools/list_changed` was emitted, and a call routed to the *new* handler
-rather than a cached one.
+`packages/burgee/src/dev.test.ts` writes a temp CLI, starts `dev()` against a PassThrough
+stdio pair, edits the file, and asserts: the new tool appears in `tools/list`,
+`tools/list_changed` was emitted, the reload report names what was added and changed, and
+a call is routed to the *new* handler rather than a cached one. A second case lets
+`fs.watch` trigger the reload itself. W6 is measured: thirty commands, save to a call
+answered by the new handler, under 500 ms (measured 20–40 ms).
 
-Proven-red, per rule 4: the stale-handler assertion is written first against an
-implementation that caches the module graph, and observed failing.
+Proven-red, per rule 4 (2026-09-08): the suite was run against `load()` without the
+cache-busting query and all four cases failed — every reload answered from the cached
+graph (`'one 29'` where `'two 29'` was expected). With the query, green.
 
-W4 is a lock: `shape.test.ts` already asserts a one-file CLI works with nothing but the
-framework installed; a second case asserts that removing the dev dependency changes no
-shipped artifact.
+W4 is a lock in `weight.test.ts`: `dev.js` is on the denied list of `.`, `./testing`,
+`./commander` and `./yargs`, so nothing a shipped CLI imports can reach the dev loop; the
+package's own CLI reaches it through a dynamic import, paid only on `burgee dev`.
+
+**Shipped 2026-09-08.** `burgee dev <entry>`: the entry exports `program` (or default) as
+a burgee manifest, a commander `Command` or a yargs instance — all three are served, each
+invoked the way its façade runs. Reloads are serialised (a save during a reload queues
+the next); the report goes to stderr because stdout is the MCP channel; `--no-watch`
+loads once and serves. `startMcp()` in `mcp.ts` is the swappable server `serveMcp()` now
+wraps.
 
 ## Rejected alternatives
 

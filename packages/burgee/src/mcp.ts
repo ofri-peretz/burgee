@@ -138,18 +138,43 @@ export interface ServeOptions {
   invoke: Invoke;
 }
 
+/** A running server: `done` settles when the input closes; `swap` serves a new manifest and says so (W2). */
+export interface McpServer {
+  done: Promise<void>;
+  /**
+   * Serve this manifest (and its invoke) from the next request on, and emit
+   * `notifications/tools/list_changed` so a connected client re-lists. A call already in
+   * flight finishes against the manifest it started on.
+   */
+  swap: (manifest: Manifest, invoke?: Invoke) => void;
+}
+
 /**
- * Serve until the input closes. Notifications (no `id`) get no reply; a malformed line gets
- * a JSON-RPC error with a null id, as the spec asks.
+ * Start serving; `done` settles when the input closes. Notifications (no `id`) get no
+ * reply; a malformed line gets a JSON-RPC error with a null id, as the spec asks.
  */
-export async function serveMcp(manifest: Manifest, opts: ServeOptions): Promise<void> {
+export function startMcp(manifest: Manifest, opts: ServeOptions): McpServer {
   const session: Session = {
     manifest,
     invoke: opts.invoke,
     serverInfo: { name: manifest.rootPath.join(' ') || 'burgee', version: manifest.version ?? '0.0.0' },
   };
   const reply = (body: Record<string, unknown>): void => void opts.output.write(`${JSON.stringify({ jsonrpc: '2.0', ...body })}\n`);
-  for await (const line of createInterface({ input: opts.input, crlfDelay: Infinity })) {
+  const swap = (next: Manifest, invoke?: Invoke): void => {
+    session.manifest = next;
+    if (invoke !== undefined) session.invoke = invoke;
+    reply({ method: 'notifications/tools/list_changed' });
+  };
+  return { done: serve(session, opts.input, reply), swap };
+}
+
+/** Serve until the input closes. */
+export async function serveMcp(manifest: Manifest, opts: ServeOptions): Promise<void> {
+  return await startMcp(manifest, opts).done;
+}
+
+async function serve(session: Session, input: NodeJS.ReadableStream, reply: (body: Record<string, unknown>) => void): Promise<void> {
+  for await (const line of createInterface({ input, crlfDelay: Infinity })) {
     if (line.trim() === '') continue;
     let request: Request;
     try {
