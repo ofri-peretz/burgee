@@ -41,6 +41,37 @@ const FAMILY_ORDER = ['burgee', 'roundel', 'flagstaff', 'caique'];
 /** Node has these natively now (util.styleText, fs.glob, fetch, util.parseArgs). */
 const BANNED = ['chalk', 'picocolors', 'glob', 'node-fetch', 'minimist'];
 
+/**
+ * A subpath that names a data file rather than a module. `./package.json` is Node's own
+ * convention and handled separately; everything else ending `.json` is a payload a caller
+ * reads — flagstaff's plugin schema is the first.
+ */
+const isDataExport = (subpath: string): boolean => subpath.endsWith('.json');
+
+/** Every module entry is a full conditions object, so a `require()` finds the same file. */
+function checkCodeExports(exports: Record<string, unknown>): void {
+  const entries = Object.entries(exports).filter(([k]) => k !== './package.json' && !isDataExport(k));
+  expect(entries.length).toBeGreaterThan(0);
+  for (const [entry, target] of entries) {
+    expect(typeof target, `${entry} must be a conditions object`).toBe('object');
+    const conditions = target as Record<string, string>;
+    expect(Object.keys(conditions).sort(), entry).toEqual(['default', 'import', 'types']);
+    expect(conditions['default'], `${entry}: default must be the same ESM file as import`).toBe(conditions['import']);
+  }
+}
+
+/**
+ * A data export is a plain path, and has to be: there is no `types` for a JSON file and no
+ * `import` condition distinct from `default`. It gets the assertion that does apply — it
+ * points at a `.json` inside `dist/`, so what a caller reads is what was published.
+ */
+function checkDataExports(exports: Record<string, unknown>): void {
+  for (const [entry, target] of Object.entries(exports).filter(([k]) => isDataExport(k))) {
+    expect(typeof target, `${entry} is data; it takes a path, not a conditions object`).toBe('string');
+    expect(String(target), entry).toMatch(/^\.\/dist\/.+\.json$/);
+  }
+}
+
 describe.each(published)('published package $pkg.name', ({ dir, pkg }) => {
   it('has no external runtime dependencies, and same-repo ones only point up the family (K1, U1, U6)', () => {
     const rank = FAMILY_ORDER.indexOf(pkg.name);
@@ -57,15 +88,12 @@ describe.each(published)('published package $pkg.name', ({ dir, pkg }) => {
     expect(pkg.main).toBeUndefined();
   });
 
-  it('exposes types, import and default on every entry, so CommonJS can require() it (K2)', () => {
-    const entries = Object.entries(pkg.exports ?? {}).filter(([k]) => k !== './package.json');
-    expect(entries.length).toBeGreaterThan(0);
-    for (const [entry, target] of entries) {
-      expect(typeof target, `${entry} must be a conditions object`).toBe('object');
-      const conditions = target as Record<string, string>;
-      expect(Object.keys(conditions).sort(), entry).toEqual(['default', 'import', 'types']);
-      expect(conditions['default'], `${entry}: default must be the same ESM file as import`).toBe(conditions['import']);
-    }
+  it('exposes types, import and default on every code entry, so CommonJS can require() it (K2)', () => {
+    checkCodeExports(pkg.exports ?? {});
+  });
+
+  it('publishes any data export as a plain path into dist (K2)', () => {
+    checkDataExports(pkg.exports ?? {});
   });
 
   it('imports none of the packages Node ships natively (K3)', () => {
