@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ExitCode } from './exit-code.js';
-import { captureConsole, codeOf, fakeRuntime, finish, RuntimeExit, stripAnsi, swapEnv } from './testing.js';
+import { captureConsole, codeOf, fakeClock, fakeRuntime, finish, processRuntime, RuntimeExit, stripAnsi, swapEnv } from './testing.js';
 
 describe('fakeRuntime', () => {
   it('captures both streams and reports the TTY-ness the test asked for', () => {
@@ -85,6 +85,76 @@ describe('finish (R2)', () => {
     const rt = fakeRuntime({ argv: [] });
     rt.out.push('{"a":1}');
     expect(finish(rt, ExitCode.OK, performance.now()).json).toBeUndefined();
+  });
+});
+
+describe('clock (R14 of cli-output-stack)', () => {
+  it('the fake clock moves only on tick, and runs what falls due in order', () => {
+    const clock = fakeClock();
+    const ran: string[] = [];
+    clock.schedule(() => ran.push('b'), 20);
+    clock.schedule(() => ran.push('a'), 10);
+    clock.schedule(() => ran.push('a2'), 10);
+    const cancel = clock.schedule(() => ran.push('never'), 15);
+    expect(clock.now()).toBe(0);
+    expect(clock.pending()).toBe(4);
+    clock.tick(5);
+    expect(ran).toEqual([]);
+    expect(clock.now()).toBe(5);
+    cancel();
+    clock.tick(10);
+    expect(ran).toEqual(['a', 'a2']);
+    expect(clock.now()).toBe(15);
+    clock.tick(100);
+    expect(ran).toEqual(['a', 'a2', 'b']);
+    expect(clock.now()).toBe(115);
+    expect(clock.pending()).toBe(0);
+  });
+
+  it('a callback sees the time it was due at, and one it schedules inside the window runs in the same tick', () => {
+    const clock = fakeClock(1000);
+    const seen: number[] = [];
+    clock.schedule(() => {
+      seen.push(clock.now());
+      clock.schedule(() => seen.push(clock.now()), 5);
+    }, 10);
+    clock.tick(30);
+    expect(seen).toEqual([1010, 1015]);
+    expect(clock.now()).toBe(1030);
+  });
+
+  it('cancelling twice, or after the callback ran, is harmless', () => {
+    const clock = fakeClock();
+    let runs = 0;
+    const cancel = clock.schedule(() => {
+      runs += 1;
+    }, 1);
+    clock.tick(1);
+    cancel();
+    cancel();
+    expect(runs).toBe(1);
+  });
+
+  it('fakeRuntime carries a fake clock, its own or the one the test passes', () => {
+    const own = fakeRuntime({ argv: [] });
+    expect(own.clock.now()).toBe(0);
+    own.clock.tick(3);
+    expect(own.clock.now()).toBe(3);
+    const shared = fakeClock(7);
+    expect(fakeRuntime({ argv: [], clock: shared }).clock).toBe(shared);
+  });
+
+  it('the process runtime reads performance.now and setTimeout, and the returned function cancels', async () => {
+    const t0 = processRuntime.clock.now();
+    expect(typeof t0).toBe('number');
+    let fired = false;
+    const cancel = processRuntime.clock.schedule(() => {
+      fired = true;
+    }, 0);
+    cancel();
+    await new Promise((r) => setTimeout(r, 5));
+    expect(fired).toBe(false);
+    expect(processRuntime.clock.now()).toBeGreaterThanOrEqual(t0);
   });
 });
 

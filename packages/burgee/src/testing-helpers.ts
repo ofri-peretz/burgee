@@ -10,7 +10,7 @@ import { Readable } from 'node:stream';
 import { beforeTerminator, execute } from './execute.js';
 import { ExitCode, isExitCode } from './exit-code.js';
 import { type Manifest } from './manifest.js';
-import { type Runtime } from './runtime.js';
+import { type Clock, type Runtime } from './runtime.js';
 
 export interface RunOptions {
   argv: string[];
@@ -19,6 +19,8 @@ export interface RunOptions {
   cwd?: string;
   /** `true` = every stream is a TTY; an object sets each; default: none is. */
   tty?: boolean | Partial<Runtime['isTTY']>;
+  /** The clock the runtime reports; a fresh `fakeClock()` at 0 when not given. */
+  clock?: FakeClock;
 }
 
 export interface RunResult {
@@ -41,6 +43,54 @@ export class RuntimeExit extends Error {
 export interface FakeRuntime extends Runtime {
   out: string[];
   err: string[];
+  clock: FakeClock;
+}
+
+/** A `Clock` that moves only when the test says so (R14): `tick` is the only source of time. */
+export interface FakeClock extends Clock {
+  /** Advance by `ms`, running every callback that falls due, earliest first, then by order scheduled. */
+  tick(ms: number): void;
+  /** Callbacks scheduled and neither run nor cancelled. */
+  pending(): number;
+}
+
+interface Timer {
+  id: number;
+  at: number;
+  fn: () => void;
+}
+
+/** Deterministic time for the harness. Starts at `start` (0 by default) and never moves on its own. */
+export function fakeClock(start = 0): FakeClock {
+  let now = start;
+  let nextId = 0;
+  const timers: Timer[] = [];
+  const remove = (id: number): void => {
+    const at = timers.findIndex((t) => t.id === id);
+    if (at !== -1) timers.splice(at, 1);
+  };
+  return {
+    now: () => now,
+    schedule(fn, ms) {
+      const id = nextId++;
+      timers.push({ id, at: now + Math.max(0, ms), fn });
+      return () => remove(id);
+    },
+    tick(ms) {
+      const until = now + ms;
+      // Earliest due first; ties keep the order they were scheduled in (ids grow with time).
+      // Each pass removes the timer it runs, so the loop ends when nothing is due — a
+      // callback that keeps rescheduling within the window loops here as it would in Node.
+      const nextDue = (): Timer | undefined => timers.filter((t) => t.at <= until).sort((a, b) => a.at - b.at || a.id - b.id)[0];
+      for (let due = nextDue(); due !== undefined; due = nextDue()) {
+        remove(due.id);
+        now = Math.max(now, due.at);
+        due.fn();
+      }
+      now = until;
+    },
+    pending: () => timers.length,
+  };
 }
 
 function ttyOf(tty: RunOptions['tty']): Runtime['isTTY'] {
@@ -65,6 +115,7 @@ export function fakeRuntime(opts: RunOptions): FakeRuntime {
     exit(code) {
       throw new RuntimeExit(code);
     },
+    clock: opts.clock ?? fakeClock(),
     out,
     err,
   };
