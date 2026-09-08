@@ -8,14 +8,15 @@
 import { dirname } from 'node:path';
 import { parseArgs } from 'node:util';
 
+import { detectAgent } from './agent.js';
 import { ExitCode, isExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
 import { renderHelp } from './help.js';
-import { type ArgumentSpec, type CommandNode, type Effects, type Example, Manifest, type OptionSpec, type Relation, type RunContext } from './manifest.js';
+import { type ActionRequiredSpec, type ArgumentSpec, type CommandNode, type Effects, type Example, Manifest, type OptionSpec, type Relation, type RunContext } from './manifest.js';
 import { serveMcp } from './mcp.js';
 import { camel, kebab } from './names.js';
 import { nearestPackage, type Package } from './pkg.js';
 import { ConfigError, explain, type Layers, type Provenance, resolve as resolveLayers } from './precedence.js';
-import { schemaOf } from './schema.js';
+import { commandSchemaOf, schemaOf, summaryOf } from './schema.js';
 import { checkDefinition, checkRelations, coerce, UsageError } from './validate.js';
 
 export interface CommandContext<O> extends Omit<RunContext, 'options'> {
@@ -81,6 +82,8 @@ export interface Program {
   description?: string;
   /** Options read `PREFIX_OPTION_NAME` from the environment unless they name their own variable (V2). */
   envPrefix?: string;
+  /** Characters of `--schema` output above which it is summarised (N13); 48,000 by default. */
+  schemaBudget?: number;
   /**
    * Opt into config discovery (V6): `--config <path>` > `NAME_CONFIG` > `./name.config.{json,mjs,js,cjs}`
    * > `package.json#name` > the user config directory; `true` uses the program's name.
@@ -119,6 +122,7 @@ export function defineProgram(program: Program): Manifest {
   manifest.rootPath = [program.name];
   if (program.version !== undefined) manifest.version = program.version;
   if (program.envPrefix !== undefined) manifest.envPrefix = program.envPrefix;
+  if (program.schemaBudget !== undefined) manifest.schemaBudget = program.schemaBudget;
   if (program.config === true) manifest.config = { name: program.name };
   else if (typeof program.config === 'object' && program.config !== null) manifest.config = program.config;
   manifest.add({ path: [program.name], ...(program.description === undefined ? {} : { description: program.description }), options: {} });
@@ -132,8 +136,8 @@ export interface RunOptions {
   stdin?: NodeJS.ReadableStream;
   /** The environment env-bound options read from. Injected by the harness; the process's own otherwise. */
   env?: Record<string, string | undefined>;
-  /** `columns` is read when present, so help wraps to the terminal (H3). */
-  stdout?: { write: (s: string) => unknown; columns?: number };
+  /** `columns` is read when present, so help wraps to the terminal (H3); `isTTY` feeds agent detection (N12). */
+  stdout?: { write: (s: string) => unknown; columns?: number; isTTY?: boolean };
   stderr?: { write: (s: string) => unknown };
   /** Receives the E1 code. The default calls process.exit; an injected one may simply record it. */
   exit?: (code: number) => void;
@@ -142,6 +146,17 @@ export interface RunOptions {
   /** The entry file, whose nearest package.json owns the program's version (V4); `process.argv[1]` otherwise. */
   entry?: string;
 }
+
+/** `ctx.actionRequired(spec)` unwinds through this: the caller must act before the command can continue (N11). */
+class ActionRequired extends Error {
+  constructor(readonly spec: ActionRequiredSpec) {
+    super(spec.message);
+  }
+}
+
+const actionRequired = (spec: ActionRequiredSpec): never => {
+  throw new ActionRequired(spec);
+};
 
 /** `ctx.exit(code)` unwinds through this when the injected exit returns instead of leaving. */
 class ExitSignal extends Error {
@@ -305,6 +320,8 @@ interface Failure {
   hint?: string;
   /** An exit signal: honour the code, print nothing. */
   silent?: boolean;
+  /** N11: the caller must act; carried into the envelope with the runnable `next[]`. */
+  action?: ActionRequiredSpec;
 }
 
 /** E2/E3 — a usage error never prints a stack, a runtime failure never prints help. */
@@ -312,6 +329,7 @@ function describeFailure(cause: unknown, argv: string[]): Failure {
   const signal = exitSignal(cause);
   if (signal !== undefined) return { code: signal, message: '', silent: true };
   const message = cause instanceof Error ? cause.message : String(cause);
+  if (cause instanceof ActionRequired) return { code: ExitCode.CANCELLED, message, action: cause.spec, ...(cause.spec.hint === undefined ? {} : { hint: cause.spec.hint }) };
   if (cause instanceof UsageError) {
     return { code: ExitCode.USAGE, message, ...(cause.hint === undefined ? {} : { hint: cause.hint }) };
   }
@@ -326,7 +344,17 @@ function describeFailure(cause: unknown, argv: string[]): Failure {
 
 function textFailure(failure: Failure): string {
   const hint = failure.hint === undefined ? '' : `hint: ${failure.hint}\n`;
+  if (failure.action !== undefined) {
+    const next = (failure.action.next ?? []).map((n) => `  ${n.command}    ${n.when}\n`).join('');
+    return `action required (${failure.action.reason}): ${failure.message}\n${next === '' ? '' : `next:\n${next}`}${hint}`;
+  }
   return `error: ${failure.message}\n${hint}`;
+}
+
+/** The `next[]` commands as the caller can run them: the program in front, the caller's own `--json` carried (N11). */
+function runnableNext(manifest: Manifest, spec: ActionRequiredSpec, json: boolean): { command: string; when: string }[] {
+  const program = manifest.rootPath.join(' ');
+  return (spec.next ?? []).map((n) => ({ command: `${program} ${n.command}${json && !n.command.includes('--json') ? ' --json' : ''}`, when: n.when }));
 }
 
 const HELP_FLAGS = new Set(['--help', '-h']);
@@ -394,7 +422,7 @@ async function surface(manifest: Manifest, argv: string[], io: Io): Promise<bool
     return true;
   }
   if (head.includes('--schema')) {
-    io.out.write(`${JSON.stringify(schemaOf(manifest), null, 2)}\n`);
+    io.out.write(`${JSON.stringify(schemaSurface(manifest, argv), null, 2)}\n`);
     return true;
   }
   if (head[0] === '--mcp') {
@@ -419,6 +447,21 @@ async function surface(manifest: Manifest, argv: string[], io: Io): Promise<bool
   return false;
 }
 
+const SCHEMA_BUDGET = 48_000;
+
+/**
+ * `--schema` under a character budget (N13): one command's full schema when a command is
+ * named (the drilling), the whole program when it fits, a summary naming every command
+ * and how to drill when it does not.
+ */
+function schemaSurface(manifest: Manifest, argv: string[]): unknown {
+  const { node } = manifest.resolve(beforeTerminator(argv).filter((a) => a !== '--schema') as string[], manifest.rootPath);
+  if (node?.run !== undefined) return commandSchemaOf(node, manifest.rootPath);
+  const full = schemaOf(manifest);
+  const budget = manifest.schemaBudget ?? SCHEMA_BUDGET;
+  return JSON.stringify(full).length <= budget ? full : summaryOf(manifest, budget);
+}
+
 /** `help [command…]` is synthesised for every program (yargs #1020): the named node's help, or the root's. */
 function helpCommand(manifest: Manifest, argv: string[], root: string[], width: number): string {
   const { node } = manifest.resolve(argv, root);
@@ -441,6 +484,8 @@ interface Io {
   cwd: string;
   /** The package.json owning the entry file, read once (V4). */
   pkg: Package | undefined;
+  /** Whether stdout is a terminal — one input to N12, never the whole answer. */
+  tty: boolean;
 }
 interface Outcome {
   json: boolean;
@@ -448,6 +493,18 @@ interface Outcome {
   /** Text to print and leave OK: help, a version, an explanation. */
   text?: string;
   provenance?: Record<string, Provenance>;
+  /** What an idempotent command reports (N7); read from the data's own `changed`. */
+  changed?: boolean;
+}
+
+/** N7: an idempotent command must say whether it changed anything; silence is what an agent misreads as success. */
+function changedOf(node: CommandNode, data: unknown): boolean | undefined {
+  const value = isPlainObject(data) ? data['changed'] : undefined;
+  if (typeof value === 'boolean') return value;
+  if (node.effects === 'idempotent') {
+    throw new Error(`"${node.path.slice(1).join(' ')}" is idempotent and must report changed: true | false in its result (N7)`);
+  }
+  return undefined;
 }
 
 /** `--version`: the declared version, else the owning package.json's (V4). */
@@ -476,9 +533,11 @@ async function dispatch(manifest: Manifest, { node, rest, name }: Resolved, io: 
     io.exit(code);
     throw new ExitSignal(code);
   };
-  const data = await node.run({ options: values, positionals, passthrough, env: io.env, exit });
+  const detection = detectAgent(io.env, io.tty);
+  const data = await node.run({ options: values, positionals, passthrough, env: io.env, exit, actionRequired, ...detection });
   await manifest.fire('postRun', name, values);
-  return { json, data, provenance };
+  const changed = changedOf(node, data);
+  return { json, data, provenance, ...(changed === undefined ? {} : { changed }) };
 }
 
 /** Success: help, or the data on the requested surface. */
@@ -488,7 +547,8 @@ function emit(io: Io, outcome: Outcome): void {
     return io.exit(ExitCode.OK);
   }
   // `meta.provenance` says where every option value came from (V3) — the difference between one call and five for an agent.
-  const envelope = { ok: true, data: outcome.data, meta: { provenance: outcome.provenance ?? {} } };
+  const meta = { provenance: outcome.provenance ?? {}, ...(outcome.changed === undefined ? {} : { changed: outcome.changed }) };
+  const envelope = { ok: true, data: outcome.data, meta };
   io.out.write(outcome.json ? `${JSON.stringify(envelope)}\n` : `${render(outcome.data)}\n`);
   return io.exit(ExitCode.OK);
 }
@@ -506,6 +566,13 @@ async function report(cause: unknown, { manifest, io, argv, json, name }: Failur
   const failure = describeFailure(cause, argv);
   if (failure.silent === true) return io.exit(failure.code);
   await manifest.fire('onError', name, {});
+  if (failure.action !== undefined) {
+    const next = runnableNext(manifest, failure.action, json);
+    const rendered: Failure = { ...failure, action: { ...failure.action, next } };
+    const body = { ok: false, status: 'action_required', reason: failure.action.reason, message: failure.message, next, hint: failure.hint, error: { code: failure.code, message: failure.message } };
+    io.err.write(json ? `${JSON.stringify(body)}\n` : textFailure(rendered));
+    return io.exit(failure.code);
+  }
   const body = { code: failure.code, message: failure.message, hint: failure.hint };
   io.err.write(json ? `${JSON.stringify({ ok: false, error: body })}\n` : textFailure(failure));
   return io.exit(failure.code);
@@ -527,6 +594,7 @@ function ioOf(opts: RunOptions): Io {
     stdin: opts.stdin ?? process.stdin,
     cwd: opts.cwd ?? process.cwd(),
     pkg: nearestPackage(dirname(opts.entry ?? process.argv[1] ?? process.cwd())),
+    tty: out.isTTY === true,
   };
 }
 

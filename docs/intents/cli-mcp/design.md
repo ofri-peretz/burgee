@@ -69,7 +69,10 @@ benchmark variant.
 | commander syntax | `.effects()` on the façade; `--schema` and `--mcp` from the projected manifest unless the program declares either flag itself | `adoption-ladder.test.ts` |
 | lint rule (destructive verb + `mcp` without `confirm`) | not yet — with `eslint-plugin-cli-floor` | — |
 | benchmark over MCP (B1) | not yet — `cli-benchmarks`, wave 4 | — |
-| N7 `changed`, N11 action-required envelope, N12 agent detection, N13 token budget | not yet — the next slice of this intent | — |
+| N7 | an idempotent command must return `changed: true \| false`; it rides as `meta.changed` in the envelope; silence is a RUNTIME failure naming the command | `agent.test.ts` "a no-op announces itself" |
+| N11 | `ctx.actionRequired({ reason, message, next[], hint })` stops the command with exit CANCELLED (4); the envelope carries `status: action_required` and `next[]` rewritten as runnable commands — the program in front, the caller's `--json` carried | "the action-required envelope" |
+| N12 | `detectAgent(env, tty)`: `AI_AGENT` (generic, or naming the agent) and the vendor variables the research verified (`CLAUDECODE`, `CURSOR_AGENT`, `CODEX_THREAD_ID`, `GEMINI_CLI`; the list is data); non-interactive by default under an agent, `FORCE_TTY=1` overrides; `ctx.interactive` and `ctx.agent` reach the handler | "agent detection, not just isTTY" |
+| N13 | `--schema` prints the whole program when it fits `schemaBudget` (48,000 characters by default), a summary naming every command above it, and one command in full when a command is named — the drilling | "--schema under a budget" |
 
 The `effects` field is optional in the type and required for exposure: a program without it
 keeps working exactly as before and simply has no tools, which is N2's default.

@@ -71,7 +71,9 @@ const RULES: Record<string, EntryRule> = {
   // The package's own command line. It is allowed to reach the engine — it IS a burgee
   // command, which is the point of it — but a user importing `burgee` must never
   // reach it, which the '.' rule's own denied list would catch.
-  './cli': { allow: [], budget: 60_000, denied: ['testing.js', 'testing-helpers.js'] },
+  // Raised from 60,000 on 2026-09-08: it reaches the whole engine (48 K budget) plus the
+  // brand tooling; the engine grew by three floor families this week.
+  './cli': { allow: [], budget: 72_000, denied: ['testing.js', 'testing-helpers.js'] },
   // Pure arithmetic over hex strings. Reaches nothing, and nothing reaches it —
   // a CLI that ships argv parsing has no reason to carry a contrast checker.
   './contrast': { allow: [], budget: 12_000, denied: ['index.js', 'execute.js', 'brand.js'] },
