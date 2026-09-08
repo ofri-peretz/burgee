@@ -28,6 +28,11 @@
       "import": "./dist/decide.js",
       "default": "./dist/decide.js"
     },
+    "./raw": {
+      "types": "./dist/raw.d.ts",
+      "import": "./dist/raw.js",
+      "default": "./dist/raw.js"
+    },
     "./spec": {
       "types": "./dist/spec.d.ts",
       "import": "./dist/spec.js",
