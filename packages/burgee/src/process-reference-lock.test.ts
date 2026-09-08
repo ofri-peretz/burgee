@@ -29,6 +29,15 @@ const ALLOWED = new Set([
   // what commander's own suite grades (C1); `parse(argv, { stdout, stderr, exit })`
   // is the injectable seam for everything else.
   'burgee/src/commander-command.ts',
+  // The yargs front-end reproduces yargs' process contract the same way, through one
+  // platform shim (yargs-shim.ts: argv, cwd, exit, env, columns), its parser's Node
+  // mixin (yargs-parser.ts: cwd, env, require), hideBin/getProcessArgvBin and
+  // setBlocking (yargs-utils.ts), and cliui's terminal width fallback (yargs-cliui.ts).
+  // yargs' own suite swaps process.argv/exit/env per test and grades exactly that.
+  'burgee/src/yargs-shim.ts',
+  'burgee/src/yargs-parser.ts',
+  'burgee/src/yargs-utils.ts',
+  'burgee/src/yargs-cliui.ts',
   // The one line the whole compatibility gate turns on: it reads COMPAT_TARGET to
   // decide which implementation the vendored suites grade.
   'compat-oracle/src/shim.ts',
@@ -40,7 +49,9 @@ const ALLOWED = new Set([
   // published.
   'compat-oracle/src/run.ts',
 ]);
-const PROCESS_READ = /\bprocess\.(env|argv|exit|exitCode|stdout|stderr|stdin|cwd)\b/;
+// The bare global only: `shim.process.exit` is a member of the yargs platform-shim object,
+// which is precisely the seam this lock wants code to go through.
+const PROCESS_READ = /(?<![.\w])process\.(env|argv|exit|exitCode|stdout|stderr|stdin|cwd)\b/;
 
 function sourceFiles(dir: string, out: string[] = []): string[] {
   for (const e of readdirSync(dir, { withFileTypes: true })) {

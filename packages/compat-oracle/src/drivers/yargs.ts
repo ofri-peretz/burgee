@@ -9,6 +9,9 @@ import yargs, { type Argv } from 'yargs';
 /** Builds the CLI on a fresh yargs instance; a yargs instance holds parse state, so a factory it is. */
 export type CliBuilder = (y: Argv, runtime: Runtime) => Argv;
 
+/** What `import yargs from 'yargs'` gives: the factory. `burgee/yargs` has the same shape. */
+export type YargsFactory = (argv: string[]) => Argv;
+
 interface Failure {
   msg: string | undefined;
   err: unknown;
@@ -17,8 +20,8 @@ interface Failure {
 const HELP_FLAGS = new Set(['--help', '-h']);
 
 /** A fresh instance that never exits, never prints help on failure, and reports failures to `onFail`. */
-function prepare(build: CliBuilder, rt: Runtime, onFail: (f: Failure) => void): Argv {
-  const y = yargs(rt.argv)
+function prepare(build: CliBuilder, rt: Runtime, onFail: (f: Failure) => void, factory: YargsFactory): Argv {
+  const y = factory(rt.argv)
     .exitProcess(false)
     .showHelpOnFail(false)
     .fail((msg, err) => {
@@ -27,12 +30,17 @@ function prepare(build: CliBuilder, rt: Runtime, onFail: (f: Failure) => void): 
   return build(y, rt);
 }
 
-export async function runYargs(build: CliBuilder, opts: RunOptions): Promise<RunResult> {
+export async function runYargs(build: CliBuilder, opts: RunOptions, factory: YargsFactory = yargs): Promise<RunResult> {
   const rt = fakeRuntime(opts);
   let failure: Failure | null = null;
-  const y = prepare(build, rt, (f) => {
-    failure = f;
-  });
+  const y = prepare(
+    build,
+    rt,
+    (f) => {
+      failure = f;
+    },
+    factory,
+  );
   // ponytail: yargs reads .env() from process.env at parse time, like commander.
   const restoreEnv = swapEnv(opts.env);
   const restoreConsole = captureConsole(rt);
