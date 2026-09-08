@@ -58,7 +58,7 @@ with no issue behind it is a hypothesis and is measured before it locks.
 | R7 | ora #231 (declined: "try Ink"); ink #765, #222, #834, #978, D#555, D#959 (the layout engine's own backlog) — §16, U8. Width: boxen #90; cli-table3 #322, #356; clack #556, #306, #116; listr2 #708; ink D#716 — §5 | cited for the ceiling; the width function is a hypothesis until measured against `string-width` (§5) |
 | R8 | clack #533 (9 comments, agents driving CLIs), #525; Inquirer D#1699 (a binary per prompt for scripts); ink D#776 (an author records asciinema so an agent can see the app) — U9 | hypothesis — the one-turn eval that `check` serves is unmeasured; measure before lock |
 | R9 | ora #90 (locked: "I can't write tests for stdout because they're gone"); clack #307 (colours under vitest), #508 (mocking under bun); Inquirer D#1979; ink #773 (a frame renders before layout completes) — §21, §4 | cited |
-| R11 | no issue asks for a spinner or border corpus importer; ora #240 wants different icons, not a corpus | hypothesis — measure before lock |
+| R11 | no issue asks for a spinner or border corpus importer; ora #240 wants different icons, not a corpus | hypothesis, still — built 2026-09-08 at 838 B because it was nearly free, not because it was measured. Whether anyone imports a corpus is unmeasured, and the cost of being wrong is one subpath nobody imports |
 | R10 | ink #976 (a DEV-only dependency installed for everyone); ora #229 (segfault in the dependency tree), #247 (the chalk 5.6.1 compromise reaching ora's users); listr2 #759, #724, #707, #771 (peer range drift against its own adapter); chalk #617 — §14, U5, U1 | cited |
 
 ## Design
@@ -117,7 +117,7 @@ two packed tarballs. The schema validator is sixty lines over the subset the sch
 because a JSON Schema library is a dependency the package will not carry.
 
 Not yet: the boxen and cli-table3 façades (R6, both blocked on a decision rather than a
-port — see `output-stack-compat`); the importers (R11); the U9 eval; the docs gallery. `tokens` are kept in the registry for whoever flies
+port — see `output-stack-compat`); the U9 eval; the docs gallery. `tokens` are kept in the registry for whoever flies
 the theme — `register()` does not call roundel's `fly()`, because that needs a runtime and
 would pull the theme into every plugin import.
 
@@ -255,6 +255,35 @@ drop the options and make every caller re-implement a 24-column bar. `plugin-con
 is where this belongs, because it is the same question across all four layers. Recorded
 here so the next reader does not have to rediscover that `register()` and the component
 factories are two doors, not one.
+
+## What shipped (R11, the importers — 2026-09-08)
+
+`flagstaff/import`: `fromCliSpinners(json, opts)` and `fromCliBoxes(json)`, each turning a
+corpus the caller already has into an ordinary plugin — same `register()`, same schema,
+replaceable by another. 838 B, and it reaches **nothing**: its only imports are types,
+which `verbatimModuleSyntax` erases, so the file that turns eighty spinners into a plugin
+costs less than one of them. Neither corpus is bundled (U5), and a test asserts that
+`dependencies` is still exactly `['roundel']`.
+
+Both are graded against the real packages rather than a fixture of our own shape:
+`cli-spinners` and `cli-boxes` are devDependencies here, so the day either changes its JSON
+the test fails, which is the only way this claim stays true.
+
+**Two things changed to make a corpus a first-class plugin, and both are improvements.**
+
+*The schema gained `borders`*, and the five styles `box()` draws with moved out of
+`box.ts` into `builtins.ts` as plugin data, beside the spinners. `box()` now resolves a
+named border through the registry, the way `tasks` already resolves its glyphs. That is
+what lets `register(fromCliBoxes(cliBoxes))` make `box('…', { border: 'arrow' })` work
+without `box.ts` knowing `arrow` exists — and it costs `./box` the plugin host, 24,710 →
+34,223 B. A caller who wants neither passes a style object and a bundler drops the rest.
+Recorded rather than hidden: this is the price of R11, paid on one subpath.
+
+*The design said the derived `static` should be "the first frame", and that was wrong when
+it met the corpus.* A frozen `⠋` or `▰` is an animation stopped mid-stride, not a
+projection — it tells a pipe, an agent and a screen reader nothing that `…` does not tell
+them better. The default is `'…'`, and `staticFor` is there because it is the author's call
+rather than this function's.
 
 ## Rejected alternatives
 

@@ -12,33 +12,12 @@
  */
 import { muted } from 'roundel/tokens';
 
-import { type Component } from './plugin.js';
+import { type BorderStyle, type Component, lookupBorder } from './plugin.js';
 import { width } from './width.js';
 import { wrap } from './wrap.js';
 
-export interface BorderStyle {
-  topLeft: string;
-  top: string;
-  topRight: string;
-  left: string;
-  right: string;
-  bottomLeft: string;
-  bottom: string;
-  bottomRight: string;
-}
-
-/** The border sets boxen ships, by the names it ships them under. */
-export const borders: Record<string, BorderStyle> = {
-  round: { topLeft: '╭', top: '─', topRight: '╮', left: '│', right: '│', bottomLeft: '╰', bottom: '─', bottomRight: '╯' },
-  single: { topLeft: '┌', top: '─', topRight: '┐', left: '│', right: '│', bottomLeft: '└', bottom: '─', bottomRight: '┘' },
-  double: { topLeft: '╔', top: '═', topRight: '╗', left: '║', right: '║', bottomLeft: '╚', bottom: '═', bottomRight: '╝' },
-  bold: { topLeft: '┏', top: '━', topRight: '┓', left: '┃', right: '┃', bottomLeft: '┗', bottom: '━', bottomRight: '┛' },
-  classic: { topLeft: '+', top: '-', topRight: '+', left: '|', right: '|', bottomLeft: '+', bottom: '-', bottomRight: '+' },
-  none: { topLeft: '', top: '', topRight: '', left: '', right: '', bottomLeft: '', bottom: '', bottomRight: '' },
-};
-
 export interface BoxOptions {
-  /** A key of `borders`, or a style of your own. Default `round`. */
+  /** A registered border's name, or a style of your own. Default `round`. */
   border?: string | BorderStyle;
   /** Cells of padding left and right of the text, and rows above and below. Default 1 / 0. */
   padding?: { x?: number; y?: number };
@@ -55,7 +34,9 @@ const DEFAULT_PAD_Y = 0;
 const BORDER_CELLS = 2;
 const ELLIPSIS = '…';
 
-const resolve = (border: string | BorderStyle): BorderStyle => (typeof border === 'string' ? (borders[border] ?? borders['round'] as BorderStyle) : border);
+// A named border comes from the registry, so a plugin — or `fromCliBoxes()` — can add one
+// and `box()` draws with it without knowing it exists.
+const resolve = (border: string | BorderStyle): BorderStyle => (typeof border === 'string' ? lookupBorder(border) : border);
 
 /** Pad a line to `cells` columns — measured, so a wide character counts as two. */
 const padEnd = (line: string, cells: number): string => line + ' '.repeat(Math.max(0, cells - width(line)));
