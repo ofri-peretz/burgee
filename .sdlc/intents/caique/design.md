@@ -29,7 +29,8 @@ packages/caique/src/
   decide.ts      decide(value, runtime, flags) → 'skip' | 'prompt' | 'error'   (pure)
   widgets/       text, confirm, select, multiselect, password, path — over node:readline,
                  tokens from roundel, spinner from flagstaff, static projection per widget (U3)
-  accessible.ts  numbered-list + line-input fallback, no redraw
+  ask.ts         the six widgets in line mode — which *is* the accessible rendering,
+                 so there is no separate accessible.ts (see "What shipped")
   clack.ts       caique/clack  — clack's API over the widgets, graded by clack's suite
   inquirer.ts    caique/inquirer — same for inquirer
   burgee.ts      caique/burgee — the preAction binding for burgee, burgee/commander, burgee/yargs
@@ -82,6 +83,42 @@ host-specific part, exactly as the design says.
 Not yet: the widgets, `accessible.ts`, the two façades (their runner now exists — the
 oracle gained `vitest` on 2026-09-08), and the `burgee.ts` binding. The PTY tests come with
 the widgets, since there is nothing to drive until then.
+
+## What shipped (R5, U3 — the widgets in line mode — 2026-09-08)
+
+`ask.ts`: all six kinds, each written as a question and a line read back. No raw mode, no
+cursor movement, no escape sequence, no redraw.
+
+**Line mode is not the fallback here, it is the floor**, and that inverts what the design
+sketched. `accessible.ts` was to be a second implementation beside the widgets; instead the
+widgets *are* the accessible rendering, and the raw-mode renderer that arrows and
+highlights will sit on top of it and answer the same questions. Two consequences, both
+worth having: a screen reader gets the same bytes a terminal does *by construction* rather
+than by two implementations kept in step by hand, and the whole suite is strings in and
+strings out — no PTY, and no separate accessible file to drift.
+
+`select` is a numbered list because a numbered list is what a person can answer without
+seeing a highlight move (R5). It also takes the value or the label typed out, because a
+person who types `ora` has answered the question.
+
+Three decisions the design did not reach:
+
+- **A stream that ends is a cancellation, not an empty answer.** `Ctrl-D` and a closed pipe
+  both mean nobody is going to type, and reading that as `''` is how a program writes to a
+  path the user never chose. Every kind is asserted for it.
+- **Invalid input is re-asked five times, then gives up.** A loop against a stream that
+  keeps answering wrongly is the hang this package exists to prevent, wearing a hat.
+- **`password` is not special here.** It reads a line like `text`; whether the input is
+  echoed is the reader's business, and this module never sees a terminal — so hiding a
+  password cannot be got wrong in this file.
+
+`projection(spec)` is the static projection every other package in the family has (U3): the
+question without the conversation, for a gallery, a `--help` and a transcript in an issue.
+It reads nothing, and a case asserts that.
+
+Not yet: the raw-mode renderer, the `caique/clack` and `caique/inquirer` façades, and the
+`burgee.ts` binding. The PTY tests belong to the raw-mode renderer — there is nothing that
+needs one until then, which is itself the argument for building this half first.
 
 ## Rejected alternatives
 

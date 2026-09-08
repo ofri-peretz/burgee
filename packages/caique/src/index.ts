@@ -4,5 +4,6 @@
  * on this from hanging when an agent runs it. Widgets and the two façades follow; see
  * `.sdlc/intents/caique/`.
  */
+export * from './ask.js';
 export * from './decide.js';
 export * from './spec.js';
