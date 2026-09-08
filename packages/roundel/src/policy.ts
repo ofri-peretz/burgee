@@ -8,8 +8,6 @@
  * record `fly()` writes and every token reads, because it is the only module every
  * subpath may import (R7).
  */
-import type { styleText } from 'node:util';
-
 /**
  * The slice of a runtime the policy needs. burgee's `processRuntime` satisfies it, so
  * does a two-line literal in a test; nothing here imports a type from anywhere.
@@ -84,7 +82,7 @@ export function colorLevel(rt: Runtime, opts?: ModeOptions): ColorLevel {
 export type TokenName = 'error' | 'warn' | 'ok' | 'hint' | 'muted' | 'command' | 'flag' | 'value' | 'heading';
 
 /** One `util.styleText` format name: `'bold'`, `'red'`, `'redBright'`, `'dim'`… */
-export type Format = Extract<Parameters<typeof styleText>[0], string>;
+export type Format = Extract<Parameters<typeof import('node:util').styleText>[0], string>;
 
 /**
  * A style as a token paints it: `styleText` format names, or the SGR parameters of one
