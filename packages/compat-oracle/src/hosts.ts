@@ -161,12 +161,11 @@ export const HOSTS: Host[] = [
     testDir: 'tests',
     testGlob: '*.js',
     imports: [{ upstream: '../index.js', subpath: '', reexportDefault: true }],
-    shims: { ava: 'compat-oracle/ava' },
     surfaceFiles: ['index.d.ts'],
     runner: 'ava',
     target: 'flagstaff/boxen',
     status: 'planned',
-    note: 'Blocked on the oracle, not on flagstaff: every one of its cases is `t.snapshot(box)` against ava’s own `.snap` binary format, which the ava shim does not read. Either teach the shim ava’s snapshot format or record the control’s output as the expectation — a decision, so it waits.',
+    note: 'Runnable — the oracle drives real ava, which reads its own `.snap` files — but not usefully gradeable yet: every one of its cases is `t.snapshot(box)`, so the suite grades boxen’s exact drawing, and a façade that matched it frame for frame would be boxen. Blocked on the same decision as clack and inquirer, not on machinery.',
   },
   {
     name: 'cli-table3',

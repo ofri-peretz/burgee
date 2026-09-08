@@ -244,9 +244,9 @@ export function grade(host: Host, vendorDir: string, target: string, reference =
   const source: Source = existsSync(sourcePath) ? (JSON.parse(readFileSync(sourcePath, 'utf8')) as Source) : {};
   const internalFiles = new Set(source.internalFiles ?? []);
   // The host's own glob decides what is a test — ora's suite sits at the repo root next to
-  // `index.js`, and running the implementation as a test file is not a grade. ava's
-  // convention on top: a name starting with `_` is a helper or a fixture, never a test.
-  const all = readdirSync(dir).filter((f) => matchesGlob(f, host.testGlob) && f !== host.preamble && !f.startsWith('_'));
+  // `index.js`, and running the implementation as a test file is not a grade. Nothing else
+  // is filtered here: ava is handed the paths and applies its own conventions to them.
+  const all = readdirSync(dir).filter((f) => matchesGlob(f, host.testGlob) && f !== host.preamble);
   const files = all.filter((f) => !internalFiles.has(f));
   const internal = all.filter((f) => internalFiles.has(f));
   if (files.length === 0) return { ...base, error: 'no test files vendored' };
