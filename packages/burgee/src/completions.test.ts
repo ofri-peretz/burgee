@@ -50,8 +50,10 @@ const has = (shell: string): boolean => {
   }
 };
 const dir = mkdtempSync(join(tmpdir(), 'burgee-completions-'));
+// PowerShell dot-sources only a `.ps1` file; any other extension is a file to open.
+const EXT = { bash: 'bash', zsh: 'zsh', fish: 'fish', pwsh: 'ps1' } as const;
 const scriptFor = (shell: 'bash' | 'zsh' | 'fish' | 'pwsh'): string => {
-  const at = join(dir, `demo.${shell}`);
+  const at = join(dir, `demo.${EXT[shell]}`);
   writeFileSync(at, renderCompletion(program, shell));
   return at;
 };
