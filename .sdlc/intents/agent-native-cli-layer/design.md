@@ -276,19 +276,25 @@ and evidence in [`cli-output-stack/intent.md`](../cli-output-stack/intent.md).
 
 | id | Requirement | Evidence | R/L | Lands in |
 | :-- | :-- | :-- | :-- | :-- |
-| U1 | One package per layer; dependency arrows point up only (`burgee` → ∅, `roundel` → ∅, `flagstaff` → `roundel`, `caique` → `roundel`, `flagstaff`) | layers have different buyers and change rates | lock (`package-shape-lock`) | all |
-| U2 | Output policy decided once from `Runtime`: `tty \| pipe \| json \| accessible \| ci`; no component detects the terminal itself | clack #286 | lock + L | roundel |
-| U3 | Every styled or animated output has a static projection; a component or plugin without one is refused at registration | clack #585, #510 | lock | flagstaff, caique |
-| U4 | Plugins are data, inspectable without execution; at most one `frame` function | lineage: ESLint flat config | lock | flagstaff, plugin-contract |
-| U5 | Conditional weight: one subpath per capability, importing only itself and the policy; per-subpath ceiling is the lightest incumbent | chalk +18 ms, picocolors +10 ms | lock + B4 | all |
-| U6 | Zero external runtime dependencies; only same-repo packages allowed | K1, K3; Sept 2025 npm compromise (to cite) | lock | all |
-| U7 | Every package has its own Z1 shape test and K5 size ratchet | Z1, K5 | lock | all |
-| U8 | No layout engine; box, columns and a status line are the ceiling | Ink | lock | flagstaff |
-| U9 | Agent-authorable plugins: schema in the tarball and `llms.txt`, `check` renders every mode, weekly one-turn eval | this stack | lock + eval | flagstaff, plugin-contract |
-| U10 | ESM + `default` condition, `sideEffects: false`, tree-shake fixture: root named import == subpath bytes | K2, B4 | lock + B4 | all |
-| U11 | Every replaced incumbent gets a façade graded by its own suite, pass rate published and ratcheting | C1–C6 | lock + band | output-stack-compat |
-| U12 | Each layer is an independent product: own README leading with its own incumbents, own benchmarks, installs and works alone | decided 2026-09-07 | lock (README lint + install test) | all |
-| U13 | `burgee`'s optional surfaces reach the family by presence-guarded dynamic `import()` and fall back to the static projection; `import 'burgee'` never resolves a family specifier | Z3 and U1 both hold | lock (weight `denied`) | burgee |
+| U1 | One package per layer; dependency arrows point up only (`burgee` → ∅, `roundel` → ∅, `flagstaff` → `roundel`, `caique` → `roundel`, `flagstaff`) | listr2 #771, #708, #676; ora #234 (layers coupled by adapters and peer ranges); layers have different buyers and change rates | lock (`package-shape-lock`) | all |
+| U2 | Output policy decided once from `Runtime`: `tty \| pipe \| json \| accessible \| ci`; no component detects the terminal itself | picocolors #100, #85; chalk #624, #614 (declined); cli-table3 #357, #180; listr2 #687, #716; clack #286; ora #218, #235 (declined); ink D#577 | lock + L | roundel |
+| U3 | Every styled or animated output has a static projection; a component or plugin without one is refused at registration | clack #585, #510, #533; ink D#734; Inquirer D#1356, D#1699, #1783; ora #116; log-update #59 (declined); listr2 #732, #716 | lock | flagstaff, caique |
+| U4 | Plugins are data, inspectable without execution; at most one `frame` function | chalk #666 (declined), #677, #659; clack #36, #345, #379; ora #255, #240; boxen #106, #99, #94; cli-table3 #352, #355; ink D#641; lineage: ESLint flat config | lock | flagstaff, plugin-contract |
+| U5 | Conditional weight: one subpath per capability, importing only itself and the policy; per-subpath ceiling is the lightest incumbent | ink #976; picocolors #70; chalk #617; chalk +18 ms, picocolors +10 ms | lock + B4 | all |
+| U6 | Zero external runtime dependencies; only same-repo packages allowed | ora #229, #247; chalk #656 (the September 2025 compromise, 80 reactions), #685; ink #976, #978; listr2 #759, #724, #707, #726, #771; log-update #65; cli-table3 #356; K1, K3 | lock | all |
+| U7 | Every package has its own Z1 shape test and K5 size ratchet | cli-table3 #357, #356; ora #229; Z1, K5 | lock | all |
+| U8 | No layout engine; box, columns and a status line are the ceiling | ora #231 (declined: "try Ink"); ink #765, #222, #676, #660, #870, #251, #834, #978, D#555, D#959 | lock | flagstaff |
+| U9 | Agent-authorable plugins: schema in the tarball and `llms.txt`, `check` renders every mode, weekly one-turn eval | clack #533, #525; Inquirer D#1699; ink D#776; the one-turn eval is unmeasured | hypothesis → lock once measured | flagstaff, plugin-contract |
+| U10 | ESM + `default` condition, `sideEffects: false`, tree-shake fixture: root named import == subpath bytes | picocolors #70 (35 reactions), #50, #59; chalk #632, #633, #641, #628, #627, #620 (declined, every one), #613, #661, #626; ora #239 (declined); listr2 #755, #745; Inquirer D#1270, D#1206; K2, B4 | lock + B4 | all |
+| U11 | Every replaced incumbent gets a façade graded by its own suite, pass rate published and ratcheting | picocolors #100, #92; listr2 #676; Inquirer D#1782, D#1471; clack #551, #553, #555, #556, #557; C1–C6 | lock + band | output-stack-compat |
+| U12 | Each layer is an independent product: own README leading with its own incumbents, own benchmarks, installs and works alone | no issue; only the download spread in the landscape table (chalk 440M/wk to ink 5.8M/wk, each chosen separately) | hypothesis → lock once measured | all |
+| U13 | `burgee`'s optional surfaces reach the family by presence-guarded dynamic `import()` and fall back to the static projection; `import 'burgee'` never resolves a family specifier | ink #976; ora #229; Z3 and U1 both hold | lock (weight `denied`) | burgee |
+
+Issue ids are from [what 230 issues say about the output stack](../../research/output-stack-open-issues.md).
+**U9** locks when the weekly one-turn authoring eval reaches the pass rate it states
+(proposed: 9 of 10 runs, three consecutive weeks); **U12** locks when the independence
+install test passes for every layer and the first adopter installs a layer alone, without
+burgee.
 
 ## Design
 
