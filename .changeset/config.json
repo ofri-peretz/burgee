@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/@changesets/config@3.1.1/schema.json",
-  "changelog": ["@changesets/changelog-github", { "repo": "ofri-peretz/cli" }],
+  "changelog": ["@changesets/changelog-github", { "repo": "ofri-peretz/burgee" }],
   "commit": false,
   "fixed": [],
   "linked": [],

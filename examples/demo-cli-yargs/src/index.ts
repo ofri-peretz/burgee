@@ -2,7 +2,7 @@
  * The reference CLI on yargs: the same three commands as `demo-cli-commander`, in
  * yargs' idiom, so the conformance suite is the contract between the two hosts.
  */
-import { ExitCode, isExitCode, type Runtime } from '@interlace/cli-core';
+import { ExitCode, isExitCode, type Runtime } from 'burgee/testing';
 import { type Argv } from 'yargs';
 
 export const CONFIG = new Map<string, string>([

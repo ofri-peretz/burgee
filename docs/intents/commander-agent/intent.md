@@ -3,9 +3,18 @@
 > Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md),
 > step 2 of its order of work. Requirements F1, F2, F4, O1–O5, E1–E5.
 
-**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** dropped (superseded 2026-09-06) · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
 ---
+
+> **Superseded 2026-09-06 by the competitor decision.** With the engine as the product,
+> a layer over commander's parser and a compatible front-end over our own engine are the
+> same package — and the front-end is the one that needs no host dependency. This
+> intent's requirements (F, O, E, M) moved to
+> [`replacement-parser`](../replacement-parser/intent.md) and
+> [`commander-compat`](../commander-compat/intent.md). Kept for the record; nothing is built
+> from it. See [`architecture.md`](../../research/architecture.md).
+
 
 ## What is wanted
 

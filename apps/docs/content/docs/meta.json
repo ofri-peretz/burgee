@@ -1,4 +1,11 @@
 {
   "title": "Documentation",
-  "pages": ["index", "the-floor", "research"]
+  "pages": [
+    "index",
+    "the-floor",
+    "comparison",
+    "compatibility",
+    "your-own-burgee",
+    "research"
+  ]
 }

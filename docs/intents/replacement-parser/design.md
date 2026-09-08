@@ -16,6 +16,22 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
 | G6 | Six or more §10 issues open upstream are fixed, each with a test citing the issue |
 | G7 | Cold start within 2ms of bare `node:util.parseArgs` (B2) |
 
+## Status — 2026-09-07
+
+| | |
+| :-- | :-- |
+| G1 | ✅ `defineCommand` / `defineProgram`; `run()` is a thin wrapper over `execute()` — one path from argv to exit |
+| G2 | ✅ `demo-cli-burgee` is the third conformance host, through `runBurgee` (T1 for burgee itself). Env binding is minimal V2 so the env case passes. **One declared difference:** burgee's `--json` is the O1 envelope; the case asserts `{ ok, data }` for burgee and the raw record for the incumbents, because the same data arrives in two encodings |
+| G3 | ⏳ quirks land with the front-ends in wave 2 |
+| G4 | ✅ the weight lock |
+| G5 | ✅ `passthrough` after `--`, verbatim; `-` is a positional |
+| G6 | ✅ seven cited: yargs #1312, commander #2530 / yargs #1527, yargs #1821 / #2423, citty #41 / #253, citty #237, yargs #1324 / #2416, citty #201 — `parsing-edges.test.ts` |
+| G7 | ✅ measured: a full burgee run is **+5 ms** over bare node, the same as `parseArgs` alone (+5 ms); the parser dominates and burgee adds nothing measurable. `cli-benchmarks` B2 owns the recurring measurement |
+
+Found on the way: a handler had no way to exit with an E1 code, and would have been
+reported as a runtime failure if it tried; root and group `--help` did not exist. Both fixed
+and tested.
+
 ## Design
 
 ```

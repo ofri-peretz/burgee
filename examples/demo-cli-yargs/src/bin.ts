@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { processRuntime } from '@interlace/cli-core';
+import { processRuntime } from 'burgee/testing';
 import yargs from 'yargs';
 
 import { buildCli } from './index.js';

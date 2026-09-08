@@ -1,6 +1,6 @@
 ---
 title: The floor
-description: The 69 requirements every CLI on the layer meets, and who holds each — runtime, lint, or both.
+description: The 74 requirements every CLI on the layer meets, and who holds each — runtime, lint, or both.
 ---
 
 Each requirement is held by the **runtime** (the `commander-*` / `yargs-*` extensions), by the **lint** plugin
@@ -162,3 +162,16 @@ anywhere links back to the generated benchmarks page.
 | B5 | Every axis emits one JSON shape, so one collector reads all of them | lock |
 | B6 | Performance, compatibility and weight gate every pull request; agent cost runs weekly | CI |
 | B7 | Every public number links to the generated benchmarks page | lock |
+
+## Agent interface
+
+The manifest already carries everything an MCP tool definition needs. These requirements
+turn it into a served interface rather than a document.
+
+| ID | Requirement | Holds |
+| :-- | :-- | :-- |
+| N1 | `--mcp` serves the CLI over MCP stdio; tool definitions are generated from the manifest, never hand-written | runtime |
+| N2 | A command appears as a tool only if it opts in; destructive commands default to absent | both |
+| N3 | Zero runtime dependencies: JSON-RPC over stdio against `node:readline` | lock |
+| N4 | Tool results are the standard envelope, so MCP and `--json` callers see identical payloads | runtime |
+| N5 | `--mcp` implies non-TTY: no prompts, no colour, structured errors | runtime |

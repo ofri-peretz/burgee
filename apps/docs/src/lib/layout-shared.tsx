@@ -15,7 +15,7 @@ export function baseOptions(): BaseLayoutProps {
       { text: 'Research', url: '/docs/research' },
       {
         type: 'icon',
-        url: 'https://github.com/ofri-peretz/cli',
+        url: 'https://github.com/ofri-peretz/burgee',
         text: 'GitHub',
         label: 'GitHub',
         external: true,

@@ -1,0 +1,5 @@
+{
+  "name": "@vendored/commander-suite",
+  "private": true,
+  "type": "module"
+}

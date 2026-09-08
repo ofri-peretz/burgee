@@ -1,0 +1,70 @@
+# C6 — the treadmill, made visible. Weekly, re-vendor each host's own test suite at its
+# latest npm release (pinned to the release tag) and re-prove both gates. If a suite
+# changed, open a PR carrying the control numbers and the exact diff of tests and API
+# surface against the previous record (vendor-diff.md). Deliberately NOT auto-merged: a
+# moved test count is the one thing this exists to put in front of a person. The daily
+# `compat-upstream` workflow opens the issue the day a release ships; this PR is the fix.
+name: Compatibility · vendor refresh
+
+on:
+  schedule:
+    - cron: "30 5 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: compat-refresh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    name: Re-vendor the hosts' suites and re-prove the gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+
+      - name: Build
+        run: npx turbo run build --filter='./packages/*'
+
+      - name: Re-vendor and grade the real hosts (the control)
+        continue-on-error: true
+        run: node packages/compat-oracle/dist/bin.js --vendor --control 2>&1 | tee compat.log
+
+      - name: Grade burgee against the refreshed suites
+        continue-on-error: true
+        run: node packages/compat-oracle/dist/bin.js 2>&1 | tee -a compat.log
+
+      - name: Summary
+        if: always()
+        run: |
+          { echo '## Compatibility'; echo; echo '```'; cat compat.log || echo '(no output)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open a PR if upstream moved
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ -z "$(git status --porcelain packages/compat-oracle/vendor)" ]; then
+            echo "Upstream suites unchanged."; exit 0
+          fi
+          STAMP=$(date -u +%Y%m%d)
+          BRANCH="chore/compat-vendor-$STAMP"
+          TITLE="chore(compat-oracle): re-vendor upstream test suites"
+          BODY='A host published a release whose suite differs from the vendored record. The control lines are the re-proven gates against the real hosts; the burgee lines are the refreshed grades; the diff below is exactly what moved. Review it; it is not auto-merged.'
+          DIFF=$(cat packages/compat-oracle/vendor-diff.md 2>/dev/null || echo '_No test or surface changes recorded._')
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add packages/compat-oracle/vendor
+          git commit -m "$TITLE"
+          git push -u origin "$BRANCH"
+          gh pr create --base main --head "$BRANCH" --label skip-changeset --title "$TITLE" --body "$(printf '%s\n\n```\n%s\n```\n\n%s\n' "$BODY" "$(cat compat.log)" "$DIFF")"

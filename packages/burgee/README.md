@@ -8,6 +8,33 @@ belongs to — a flag of identity, not of instruction. That is what this framewo
 a command-line program: a command declares itself once, and every surface is that
 declaration read by a different reader.
 
+```js
+// cli.mjs — the whole CLI
+import { defineCommand, run } from 'burgee';
+
+run(defineCommand({
+  name: 'greet',
+  description: 'Greet someone by name',
+  options: { name: { type: 'string', required: true, description: 'who to greet' } },
+  run: ({ options }) => ({ greeting: `hello, ${options.name}` }),
+}));
+```
+
+```console
+$ node cli.mjs --name ada
+greeting: hello, ada
+
+$ node cli.mjs --json --name ada
+{"ok":true,"data":{"greeting":"hello, ada"}}
+
+$ node cli.mjs            # exit 2
+error: missing required option --name
+hint: pass --name <value>
+```
+
+One file. No build step, no config file, no directory convention. A test enforces
+that on every commit.
+
 ```
 defineCommand()  ──▶  manifest  ──┬──▶  human help
                                   ├──▶  --json      one stable envelope
@@ -30,6 +57,6 @@ It stays a library you import in one file: no build step, no config, no director
 convention, no scaffold. A test enforces that.
 
 Roadmap, architecture and the 79-requirement floor:
-<https://github.com/ofri-peretz/cli>
+<https://github.com/ofri-peretz/burgee>
 
 MIT © Interlace

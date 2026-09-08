@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Repo settings for ofri-peretz/cli, copied from ofri-peretz/eslint's live state
+# Repo settings for ofri-peretz/burgee, copied from ofri-peretz/eslint's live state
 # on 2026-09-05. Idempotent: safe to re-run; it re-asserts every setting.
 #
 #   scripts/repo-settings.sh            # apply
 #   scripts/repo-settings.sh --check    # print current state, change nothing
 set -euo pipefail
-REPO="${REPO:-ofri-peretz/cli}"
+REPO="${REPO:-ofri-peretz/burgee}"
 
 if [ "${1:-}" = "--check" ]; then
   gh api "repos/$REPO" --jq '{allow_squash_merge,allow_merge_commit,allow_rebase_merge,allow_auto_merge,delete_branch_on_merge,allow_update_branch,squash_merge_commit_title,squash_merge_commit_message,has_issues,has_wiki,has_projects,security_and_analysis}'

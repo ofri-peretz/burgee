@@ -1,6 +1,6 @@
 {
   "name": "burgee",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "An agent-native CLI framework, drop-in compatible with commander and yargs. One declaration; help, --json, --schema, --mcp and completions all projected from it.",
   "license": "MIT",
   "type": "module",
@@ -10,11 +10,39 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./brand": {
+      "types": "./dist/brand.d.ts",
+      "import": "./dist/brand.js",
+      "default": "./dist/brand.js"
+    },
+    "./contrast": {
+      "types": "./dist/contrast.d.ts",
+      "import": "./dist/contrast.js",
+      "default": "./dist/contrast.js"
+    },
+    "./cli": {
+      "types": "./dist/cli.d.ts",
+      "import": "./dist/cli.js",
+      "default": "./dist/cli.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js",
+      "default": "./dist/testing.js"
+    },
+    "./commander": {
+      "types": "./dist/commander.d.ts",
+      "import": "./dist/commander.js",
+      "default": "./dist/commander.js"
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "!dist/**/*.map",
+    "!dist/**/*.test.*"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -24,12 +52,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ofri-peretz/cli.git",
+    "url": "git+https://github.com/ofri-peretz/burgee.git",
     "directory": "packages/burgee"
   },
-  "homepage": "https://github.com/ofri-peretz/cli#readme",
+  "homepage": "https://github.com/ofri-peretz/burgee#readme",
   "bugs": {
-    "url": "https://github.com/ofri-peretz/cli/issues"
+    "url": "https://github.com/ofri-peretz/burgee/issues"
   },
   "keywords": [
     "cli",
@@ -42,9 +70,13 @@
     "framework"
   ],
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
   },
   "devDependencies": {
     "vitest": "^4.0.0"
+  },
+  "bin": {
+    "burgee": "./dist/cli.js"
   }
 }

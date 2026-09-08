@@ -4,9 +4,18 @@
 > step 2b of its order of work: "the same demo built on yargs must pass the same test
 > suite. That suite is the contract between the two extensions."
 
-**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** dropped (superseded 2026-09-06) · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
 ---
+
+> **Superseded 2026-09-06 by the competitor decision.** With the engine as the product,
+> a layer over yargs's parser and a compatible front-end over our own engine are the
+> same package — and the front-end is the one that needs no host dependency. This
+> intent's requirements (F, O, E, M) moved to
+> [`replacement-parser`](../replacement-parser/intent.md) and
+> [`yargs-compat`](../yargs-compat/intent.md). Kept for the record; nothing is built
+> from it. See [`architecture.md`](../../research/architecture.md).
+
 
 ## What is wanted
 
