@@ -45,6 +45,7 @@ const RULES: Record<string, EntryRule> = {
   // The registry, the validator, the built-ins and the schema they are checked against.
   // The registry, the validator, the built-ins and the schema they are checked against —
   // which now carries `borders` too, so both this and `./spinner` are larger than before.
+  // Measured 10,190 B, of which the schema is 2,978: the contract ships in the tarball (R3).
   './plugin': { allow: [], budget: 12_000, denied: ['loop.js', 'projection.js', 'spinner.js', 'cli.js', 'index.js'] },
   // The ceiling is ora (R10). The spinner plus the registry it reads its style from;
   // ora 9.4.1's own index.js is 17,891 B before any of its sixteen dependencies.
@@ -94,7 +95,7 @@ const RULES: Record<string, EntryRule> = {
   './progress': { allow: ['roundel/tokens'], budget: 2_000, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'wrap.js', 'width.js', 'cli.js', 'index.js'] },
   './tasks': { allow: ['roundel/tokens'], budget: 13_000, denied: ['loop.js', 'projection.js', 'wrap.js', 'width.js', 'cli.js', 'index.js'] },
   // `box` reads its named borders from the registry, the way `tasks` reads its glyphs, so
-  // it carries the plugin host: 34,223 B, up from 24,710 when the border table was its own.
+  // it carries the plugin host: 34,145 B, up from 24,764 when the border table was its own.
   // That is the price of R11 — a corpus imported with `fromCliBoxes()` is a registered
   // plugin, and `box('…', { border: 'arrow' })` then draws with it without knowing it
   // exists. A caller who wants neither passes a style object and a bundler drops the rest.
