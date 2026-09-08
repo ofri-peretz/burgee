@@ -26,6 +26,7 @@ import { auditBurgee, report, type ContrastFinding } from './contrast.js';
 import { defineCommand, defineProgram, run } from './execute.js';
 
 interface Options {
+  'no-watch'?: boolean;
   name?: string;
   on?: string;
   'allow-low-contrast'?: boolean;
@@ -153,10 +154,31 @@ export const brandCommand = defineCommand({
   },
 });
 
+/**
+ * `burgee dev <entry>` — watch the entry, reload it on change, serve it as MCP on stdio
+ * and print every surface on each save (dev-loop). Loaded only when asked for, so the
+ * CLI's own weight and the framework's stay what they were (W4).
+ */
+export const devCommand = defineCommand({
+  name: 'dev',
+  description: 'Watch a CLI entry, reload it on change, and serve it as MCP on stdio while you write it',
+  arguments: [{ name: 'entry', description: 'the module that exports the program, as program or as its default export', required: true }],
+  options: {
+    'no-watch': { type: 'boolean', description: 'load once and serve; do not watch for changes' },
+  },
+  run: async ({ positionals, options }) => {
+    const [entry] = positionals;
+    if (entry === undefined) throw new Error('an entry file is required');
+    const [{ dev }, { processRuntime }] = await Promise.all([import('./dev.js'), import('./runtime.js')]);
+    const handle = dev({ entry, input: processRuntime.stdin, output: processRuntime.stdout, log: processRuntime.stderr, watch: options['no-watch'] !== true });
+    await handle.done;
+  },
+});
+
 export const program = defineProgram({
   name: 'burgee',
   description: 'The agent-native CLI framework, and the tools that come with it',
-  commands: [brandCommand],
+  commands: [brandCommand, devCommand],
 });
 
 run(program);
