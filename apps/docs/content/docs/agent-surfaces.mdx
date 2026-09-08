@@ -92,3 +92,23 @@ The same information rides under `--json` as `meta.provenance`, per option — f
 the difference between one call and five. `envPrefix` and `config: true` on
 `defineProgram` opt a program into env names and config discovery; nothing is read that
 the running command did not declare.
+
+## Stopping instead of prompting
+
+Under a detected agent (`AI_AGENT`, `CLAUDECODE`, `CURSOR_AGENT`, `CODEX_THREAD_ID`,
+`GEMINI_CLI`, …) a program is non-interactive by default, terminal or not; `FORCE_TTY=1`
+overrides. A handler reads `ctx.interactive` and `ctx.agent`, and where it would have
+prompted it stops with what the caller must do:
+
+```ts
+if (!ctx.interactive) ctx.actionRequired({
+  reason: 'confirm',
+  message: 'deploying to prod needs confirmation',
+  next: [{ command: 'deploy --target prod --yes', when: 'once you have reviewed the plan' }],
+});
+```
+
+The envelope carries `status: "action_required"`, the reason, and `next[]` as runnable
+commands with the program in front and the caller's own `--json` carried; the exit code is
+4. An idempotent command reports `changed: true | false`, and `--schema` summarises above
+a character budget with `<command> --schema` to drill into one.

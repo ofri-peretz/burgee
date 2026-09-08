@@ -84,6 +84,16 @@ export interface Example {
 }
 
 /** What a handler receives. `passthrough` is everything after `--`, verbatim (G5). */
+/** What a caller must do before the command can continue (N11): synthesised into the envelope. */
+export interface ActionRequiredSpec {
+  /** A short machine-readable reason: `login`, `confirm`, `missing-config` … */
+  reason: string;
+  message: string;
+  /** Runnable commands, each with when to run it; the engine prefixes the program and carries the caller's flags. */
+  next?: readonly { command: string; when: string }[];
+  hint?: string;
+}
+
 export interface RunContext {
   options: Record<string, unknown>;
   positionals: string[];
@@ -91,6 +101,12 @@ export interface RunContext {
   env: Record<string, string | undefined>;
   /** Exit with an E1 code. Unwinds cleanly: the code is honoured and nothing is printed. */
   exit: (code: number) => never;
+  /** A person may be prompted (N12): a terminal, no detected agent, or `FORCE_TTY=1`. */
+  interactive: boolean;
+  /** The agent the environment names, if any (N12). */
+  agent?: string;
+  /** Stop and tell the caller what to do instead of blocking on a prompt (N11). */
+  actionRequired: (spec: ActionRequiredSpec) => never;
 }
 
 export interface CommandNode {
@@ -154,6 +170,8 @@ export class Manifest {
   envPrefix?: string;
   /** Config discovery is opt-in; the name is the file stem and the package.json field (V6). */
   config?: { name: string };
+  /** Characters of `--schema` output above which it is summarised (N13). */
+  schemaBudget?: number;
 
   add(node: CommandNode): void {
     this.commands.push(node);

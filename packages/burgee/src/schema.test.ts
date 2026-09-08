@@ -63,8 +63,9 @@ describe('--schema', () => {
     const r = await runBurgee(program, { argv: ['--schema'], env: {} });
     expect(r.code).toBe(0);
     expect(JSON.parse(r.stdout)).toEqual(schemaOf(program));
+    // Naming a command drills into it (N13): that command's schema alone.
     const later = await runBurgee(program, { argv: ['deploy', '--schema'], env: {} });
-    expect(JSON.parse(later.stdout)).toEqual(schemaOf(program));
+    expect(JSON.parse(later.stdout)).toEqual(schemaOf(program).commands[0]);
   });
 
   it('reserves --schema and --mcp like --json and --help (V5)', () => {

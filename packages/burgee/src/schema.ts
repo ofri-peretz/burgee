@@ -116,6 +116,40 @@ export function runnable(manifest: Manifest): CommandNode[] {
   return manifest.commands.filter((c) => c.run !== undefined && c.hidden !== true);
 }
 
+export interface SchemaSummary {
+  schemaVersion: 1;
+  name: string;
+  version?: string;
+  description?: string;
+  /** The full schema exceeded the budget; this lists every command and how to get one in full. */
+  summarised: true;
+  budget: number;
+  commands: { name: string; summary?: string; effects?: Effects }[];
+  hint: string;
+}
+
+/** Above the budget (N13): every command by name and summary, and the drilling command for one in full. */
+export function summaryOf(manifest: Manifest, budget: number): SchemaSummary {
+  const root = manifest.rootPath;
+  const program = manifest.find(root);
+  const out: SchemaSummary = {
+    schemaVersion: 1,
+    name: root.join(' '),
+    summarised: true,
+    budget,
+    commands: runnable(manifest).map((c) => ({
+      name: typedName(c, root),
+      ...(c.summary ?? c.description === undefined ? {} : { summary: c.summary ?? c.description ?? '' }),
+      ...(c.effects === undefined ? {} : { effects: c.effects }),
+    })),
+    hint: `run \`${root.join(' ')} <command> --schema\` for one command in full`,
+  };
+  if (manifest.version !== undefined) out.version = manifest.version;
+  const description = program?.description;
+  if (description !== undefined) out.description = description;
+  return out;
+}
+
 export function schemaOf(manifest: Manifest): ProgramSchema {
   const root = manifest.rootPath;
   const program = manifest.find(root);
