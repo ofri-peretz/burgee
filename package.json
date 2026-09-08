@@ -28,6 +28,7 @@
     "lint": "eslint . --max-warnings 0 && npm run lint:workflows && npm run lint:md && npm run brand:check && turbo run lint",
     "ci:local": "lefthook run pre-push --all-files --force",
     "research:refresh": "scripts/fetch-competitor-issues.sh",
+    "rank:dependents": "tsx scripts/rank-dependents.ts",
     "changeset": "changeset",
     "changeset:status": "env -u GIT_DIR changeset status --since=origin/main",
     "changeset:version": "changeset version && npm install --package-lock-only --ignore-scripts",

@@ -48,7 +48,12 @@ export interface FakeRuntime extends Runtime {
 
 /** A `Clock` that moves only when the test says so (R14): `tick` is the only source of time. */
 export interface FakeClock extends Clock {
-  /** Advance by `ms`, running every callback that falls due, earliest first, then by order scheduled. */
+  /**
+   * Advance by `ms`, running every callback that falls due, earliest first, then by order
+   * scheduled. A callback that schedules inside the window runs in the same tick, so one that
+   * reschedules itself at `0` would never leave the loop (real Node yields between turns);
+   * a tick runs at most `TICK_CAP` callbacks and throws, naming the cap, when exceeded.
+   */
   tick(ms: number): void;
   /** Callbacks scheduled and neither run nor cancelled. */
   pending(): number;
@@ -59,6 +64,9 @@ interface Timer {
   at: number;
   fn: () => void;
 }
+
+/** The most callbacks one `tick` runs before it gives up on a self-rescheduling callback. */
+const TICK_CAP = 1000;
 
 /** Deterministic time for the harness. Starts at `start` (0 by default) and never moves on its own. */
 export function fakeClock(start = 0): FakeClock {
@@ -79,10 +87,14 @@ export function fakeClock(start = 0): FakeClock {
     tick(ms) {
       const until = now + ms;
       // Earliest due first; ties keep the order they were scheduled in (ids grow with time).
-      // Each pass removes the timer it runs, so the loop ends when nothing is due — a
-      // callback that keeps rescheduling within the window loops here as it would in Node.
+      // Each pass removes the timer it runs, so the loop ends when nothing is due. A callback
+      // that keeps rescheduling within the window would loop here forever (Node yields between
+      // turns; this loop does not), so the cap turns a hang into a named failure.
       const nextDue = (): Timer | undefined => timers.filter((t) => t.at <= until).sort((a, b) => a.at - b.at || a.id - b.id)[0];
+      let ran = 0;
       for (let due = nextDue(); due !== undefined; due = nextDue()) {
+        if (ran === TICK_CAP) throw new Error(`fakeClock.tick(${ms}) ran ${TICK_CAP} callbacks (TICK_CAP): a callback keeps rescheduling inside the window`);
+        ran += 1;
         remove(due.id);
         now = Math.max(now, due.at);
         due.fn();
