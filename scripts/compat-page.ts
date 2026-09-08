@@ -80,6 +80,20 @@ only the host's *internal* modules (its own file layout) are graded on the infor
 being compatible with it. A public-surface file that also touches an internal module stays in
 the gate, with that import shimmed to our main entry.
 
+## Supported majors
+
+Compatibility is claimed only where it is graded, and it is graded against the host's
+**current major** — the suite is vendored at the tag of the latest npm release, so the
+number above always names a release, never a branch.
+
+| Host | Major graded | Release | Older majors |
+| :-- | :-- | :-- | :-- |
+| commander | **15** (current) | 15.0.0 | Programs written for 12–14 run unchanged wherever 15 kept their API; each earlier major's own suite is vendored at its last tag and graded before it is listed here (C1) |
+| yargs | **18** (current) | 18.1.0 | Same rule, once the front-end exists (wave 4) |
+
+A new major of a host is a new line here, opened by the daily release watch the day it
+ships; the previous major stays listed for as long as its suite is still graded.
+
 A front-end does not reach 1.0 until its rate is **100%** (C7). Below that it ships pre-1.0
 and is never described as compatible. The rate ratchets: a pull request that lowers it fails
 CI unless it edits the baseline with a written reason (C5).
