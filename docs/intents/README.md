@@ -350,6 +350,12 @@ bar for "smooth":
    distribution of a *user's* CLI — `burgee build --binary` via Node's single-executable
    application or an equivalent — removes the 30 ms and the Node install for their users.
 
+6. **Other ecosystems stay reachable, not planned.** An engine behind a thin JS/TS
+   surface can carry a thin Python surface later — the incumbents there are click, typer,
+   argparse and rich, and the same play (compat graded by their suites, agent-native
+   surfaces, zero deps) would apply. Recorded so no design today closes that door; equally
+   recorded that no decision today is made for a Python user at a JS/TS user's expense.
+
 Wave 5 becomes the first port, chosen by the measurement in (2), shipped per (1), graded
 per (3). The recorded alternative, "no port", requires the numbers to say JavaScript is not
 the friction — which today they do, and which a 250-command CLI may change.
