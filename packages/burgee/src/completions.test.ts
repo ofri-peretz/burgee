@@ -120,14 +120,15 @@ describe('each shell exercises its script (D4)', () => {
   });
 
   const fish = (line: string): string[] => lines(execFileSync('fish', [join(repo, 'scripts/complete-fish.fish'), scriptFor('fish'), line], { encoding: 'utf8' })).map((l) => l.split('\t')[0] ?? '');
-  it.runIf(has('fish'))('fish: subcommands and options, with --no execution', () => {
+  it.runIf(has('fish'))('fish: subcommands and options, with --no execution', { timeout: 30_000 }, () => {
     expect(fish('demo con')).toEqual(['config']);
     expect(fish('demo greet --')).toEqual(expect.arrayContaining(['--shout', '--greeting', '--json', '--help']));
     expect(fish('demo greet --greeting ')).toEqual(expect.arrayContaining(['Hello', 'Hi']));
   });
 
   const pwsh = (line: string): string[] => lines(execFileSync('pwsh', ['-NoProfile', '-File', join(repo, 'scripts/complete-pwsh.ps1'), '-Script', scriptFor('pwsh'), '-Line', line], { encoding: 'utf8' }));
-  it.runIf(has('pwsh'))('PowerShell: subcommands, options and choice values with tooltips', () => {
+  // pwsh starts cold in about two seconds on a runner, three times here.
+  it.runIf(has('pwsh'))('PowerShell: subcommands, options and choice values with tooltips', { timeout: 30_000 }, () => {
     expect(pwsh('demo con')).toEqual(['config']);
     expect(pwsh('demo greet --')).toEqual(expect.arrayContaining(['--shout', '--greeting', '--json', '--help']));
     expect(pwsh('demo greet --greeting ')).toEqual(['Hello', 'Hi']);
