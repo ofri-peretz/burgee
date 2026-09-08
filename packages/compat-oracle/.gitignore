@@ -5,3 +5,5 @@ results.json
 results.control.json
 upstream.json
 vendor-diff.md
+# written per run, like the shims: the file list vitest reads its suite from
+vendor/*/vitest.config.mjs

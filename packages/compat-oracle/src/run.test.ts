@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { type Baseline, type Grade, parseNodeTest, regressed, summarize } from './run.js';
+import { type Baseline, type Grade, parseFlatTap, parseNodeTest, regressed, summarize } from './run.js';
 
 const grade = (passed: number): Grade => ({
   host: 'commander',
@@ -44,6 +44,50 @@ describe('parsing node:test TAP summaries', () => {
 
   it('reads zero from output with no summary, so a truncated run cannot look like a score', () => {
     expect(parseNodeTest('TAP version 13\nok 1 - something\n')).toEqual({ tests: 0, passed: 0, failed: 0, skipped: 0 });
+  });
+});
+
+describe("parsing vitest's tap-flat", () => {
+  // The dialect verbatim, from `vitest run --reporter=tap-flat`: a plan, then one line per
+  // test with the file and the describe path in the name. No `# tests / # pass / # fail`.
+  const flat = ['TAP version 13', '1..3', 'ok 1 - a.test.js > g > passes # time=0.67ms', 'not ok 2 - a.test.js > g > fails # time=2.62ms', 'ok 3 - a.test.js > g > later # time=0.30ms'].join('\n');
+
+  it('counts the ok and not ok lines, because there is no summary to read', () => {
+    expect(parseFlatTap(flat)).toEqual({ tests: 3, passed: 2, failed: 1, skipped: 0 });
+  });
+
+  it('reports a skipped test and never counts it, as the other dialect does', () => {
+    expect(parseFlatTap('1..2\nok 1 - a # SKIP\nok 2 - b\n')).toEqual({ tests: 1, passed: 1, failed: 0, skipped: 1 });
+  });
+
+  it('ignores the indented ok lines of a nested body, which is the other reporter', () => {
+    // `--reporter=tap` wraps each test in its file's subtest; counting those would count
+    // files, not tests. The patterns are anchored at column zero for exactly this.
+    const nested = ['TAP version 13', '1..1', 'not ok 1 - a.test.js {', '    1..2', '    ok 1 - passes', '    not ok 2 - fails', '}'].join('\n');
+    expect(parseFlatTap(nested)).toEqual({ tests: 1, passed: 0, failed: 1, skipped: 0 });
+  });
+
+  it('summarises a flat run off its plan, with no summary line present', () => {
+    const s = summarize(flat, 1, 3);
+    expect(s).toMatchObject({ tests: 3, passed: 2, failed: 1, rate: 2 / 3 });
+    expect(s.error).toBeUndefined();
+  });
+
+  it('will not read a killed run as a flat one, however many ok lines it left behind', () => {
+    // A suite that died mid-run has `ok` lines and no plan. Counting them is how "0 / 0"
+    // once looked like a grade — with the flat dialect it would look like 72 passing.
+    const killed = ['TAP version 13', ...Array.from({ length: 72 }, (_, i) => `ok ${i + 1} - a`)].join('\n');
+    const s = summarize(killed, 1, 816);
+    expect(s.error).toContain('exited before its summary');
+    expect(s.passed).toBe(0);
+    expect(s.tests).toBe(0);
+  });
+
+  it('prefers the summary lines where a runner prints both', () => {
+    // node:test prints a plan *and* a summary; the summary is its own count rather than
+    // one inferred from lines, so it wins.
+    const both = ['TAP version 13', '1..2', 'ok 1 - a', 'ok 2 - b', '# tests 2', '# pass 1', '# fail 1'].join('\n');
+    expect(summarize(both, 1, 2)).toMatchObject({ passed: 1, failed: 1 });
   });
 });
 
