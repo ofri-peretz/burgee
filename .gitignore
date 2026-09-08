@@ -9,3 +9,5 @@ next-env.d.ts
 .env
 .env.local
 .vercel/
+# dev-loop test fixtures, written per run
+.dev-fixtures/

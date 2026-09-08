@@ -1,0 +1,63 @@
+---
+title: Getting started
+description: One file, one command, and your agent connected to it while you write it.
+---
+
+## 1. Write the CLI
+
+One file. No build step, no directory layout.
+
+```ts
+// cli.ts
+import { defineCommand, defineProgram, run } from 'burgee';
+
+export const program = defineProgram({
+  name: 'hello',
+  commands: [
+    defineCommand({
+      name: 'greet',
+      description: 'Greet someone',
+      effects: 'read_only',
+      arguments: [{ name: 'name', required: true }],
+      options: { shout: { type: 'boolean', description: 'uppercase it' } },
+      run: ({ positionals, options }) => {
+        const line = `Hello, ${positionals[0]}`;
+        return options.shout ? line.toUpperCase() : line;
+      },
+    }),
+  ],
+});
+
+if (import.meta.main) await run(program);
+```
+
+Already on commander or yargs? Swap the import for `burgee/commander` or `burgee/yargs` and
+export the `Command` or the yargs instance as `program`. Nothing else changes.
+
+## 2. Keep your agent connected while you write it
+
+```bash
+npx burgee dev ./cli.ts
+```
+
+`burgee dev` serves the program as an MCP server on stdio and watches the entry. On every
+save it re-imports the file as a fresh module graph, swaps the served tools, sends
+`notifications/tools/list_changed` so a connected client re-lists, and prints on stderr
+what changed and the rendered help. Point your agent's MCP configuration at that command
+and it sees a command the moment it is written — no rebuild, no restart.
+
+It is a developer tool and nothing more: a CLI built without ever running it is byte for
+byte the same, and nothing a shipped CLI imports can reach it.
+
+## 3. Everything else is already there
+
+```bash
+node cli.ts greet ada --shout          # HELLO, ADA
+node cli.ts greet ada --json           # {"ok":true,"data":"Hello, ada","meta":{...}}
+node cli.ts --schema                   # the program as JSON Schema
+node cli.ts --mcp                      # the same server, without the watcher
+node cli.ts completion zsh             # a static completion script
+```
+
+Every one of those is a projection of the declaration above. See
+[agent surfaces](/docs/agent-surfaces) for what each one carries.

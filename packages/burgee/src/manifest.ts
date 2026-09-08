@@ -47,6 +47,14 @@ export interface OptionSpec {
   /** `true` renders `(deprecated)`; a string names the replacement: `(deprecated: use --force)` (yargs #2248). */
   deprecated?: boolean | string;
   hidden?: boolean;
+  /** The shared set this option was copied from (M4); `--schema` carries it, help lists the option like any other. */
+  sharedFrom?: string;
+}
+
+/** What a lazily loaded command module exports: the handler as `run` or as the default export (M2). */
+export interface LazyModule {
+  default?: (ctx: RunContext) => unknown;
+  run?: (ctx: RunContext) => unknown;
 }
 
 /**
@@ -126,8 +134,26 @@ export interface CommandNode {
   /** Required for a command to be served as an MCP tool (N2, N6). */
   effects?: Effects;
   run?: (ctx: RunContext) => unknown;
+  /**
+   * The handler's module, imported on dispatch only (M2): the manifest — help, schema,
+   * completions, MCP tool list — is complete from this node without loading it. A node
+   * with `load` and no `run` gets a `run` that imports on first call.
+   */
+  load?: () => Promise<LazyModule>;
   /** Which plugin contributed this, if any. Declared, never diffed (M3). */
   plugin?: string;
+}
+
+/** `run` for a lazy node: the module is imported on the first call and never before (M2). */
+export function lazyRun(load: () => Promise<LazyModule>): (ctx: RunContext) => unknown {
+  let loaded: Promise<LazyModule> | undefined;
+  return async (ctx) => {
+    loaded ??= load();
+    const mod = await loaded;
+    const handler = mod.run ?? mod.default;
+    if (handler === undefined) throw new Error('burgee: a lazy command module must export its handler as run or as the default export');
+    return await handler(ctx);
+  };
 }
 
 /** A hook may declare which commands it applies to, as data. */
@@ -174,7 +200,8 @@ export class Manifest {
   schemaBudget?: number;
 
   add(node: CommandNode): void {
-    this.commands.push(node);
+    // A lazy node is runnable from the descriptor alone; its module loads on dispatch (M2).
+    this.commands.push(node.load !== undefined && node.run === undefined ? { ...node, run: lazyRun(node.load) } : node);
   }
 
   use(plugin: Plugin): void {
