@@ -231,11 +231,11 @@ compat-commander    ████████████████████
   internals                                         12 /   12                                          12 /   12
 compat-yargs        ████████████████████████   804 /  804  100.0%     ████████████████████████   802 /  804   99.8%
   internals                                         23 /   23                                          23 /   23
-compat-chalk        ███████████████████░░░░░    47 /   58   81.0%     ████████████████████████    58 /   58  100.0%
-  roundel/chalk; the 11 are FORCE_COLOR on a pipe, which the policy refuses (R2) — 2026-09-08
+compat-chalk        ████████████████████████    58 /   58  100.0%     ████████████████████████    58 /   58  100.0%
+  roundel/chalk; the 11 FORCE_COLOR cases passed once R2 was revised — 2026-09-08
 ```
 
-Every file of both suites is vendored and run — nothing is excluded. The *internals* lines
+Every file of every suite is vendored and run — nothing is excluded. The *internals* lines
 are the files that import only the host's own modules (`../lib/command.js`); they are
 reported, never gated: passing them would mean copying the host's file layout.
 
@@ -390,7 +390,7 @@ the friction — which today they do, and which a 250-command CLI may change.
 
 | | Done | Left |
 | :-- | :-- | :-- |
-| `compat-oracle` | every file of both suites vendored (internals reported separately); both gates proven (1361/1361, 802/804); `burgee/commander` 1361/1361 and `burgee/yargs` 804/804 — both façades at 100% of their hosts' own suites (2026-09-08); skipped tests reported and never counted; the vendored root is a package a CJS fixture can `require('../')`; `COMPAT_TAP_DIR` keeps the raw TAP; ratchet; `--control`; suites pinned to the hosts' npm releases (commander 15.0.0, yargs 18.1.0) with a fingerprinted compatibility record; daily release watch opens an issue with the exact test/surface diff, weekly re-vendor PR carries it (C6, R4); ratchet on every PR + Node×OS matrix (C3); generated `compatibility.mdx` (C2) | publish the page (needs `docs-deploy`) |
+| `compat-oracle` | every file of all three suites vendored (internals reported separately); all three gates proven (1361/1361, 802/804, 58/58); `burgee/commander` 1361/1361, `burgee/yargs` 804/804 and `roundel/chalk` 58/58 — all three façades at 100% of their hosts' own suites (2026-09-08); skipped tests reported and never counted; the vendored root is a package a CJS fixture can `require('../')`; `COMPAT_TAP_DIR` keeps the raw TAP; ratchet; `--control`; suites pinned to the hosts' npm releases (commander 15.0.0, yargs 18.1.0) with a fingerprinted compatibility record; daily release watch opens an issue with the exact test/surface diff, weekly re-vendor PR carries it (C6, R4); ratchet on every PR + Node×OS matrix (C3); generated `compatibility.mdx` (C2) | publish the page (needs `docs-deploy`) |
 | `cli-packaging` | no-deps / ESM / no-`main` / `default`-condition lock (R1–R3); artifact gate in `release.yml` between build and publish (R4); tarball size ratchet with baseline (R5); provenance restored under the trusted publisher | — (R6 bun/deno smoke landed in wave 2: `runtime-smoke.yml`) |
 | **ESM + CJS** | every entry has a `default` condition; no top-level await in the library; `require('burgee')` and `require('burgee/commander')` proven against the installed tarball — one artifact, both module systems (K2, revised) | — |
 | `replacement-parser` | engine, lifecycle, exit contract, manifest, four locks; `defineProgram`; `--` pass-through and `-` (G5); seven cited §10 fixes (G6); G7 measured at +5 ms, level with bare `parseArgs`; `demo-cli-burgee` as the third conformance host via `runBurgee` (G2), with the envelope difference declared per host; `ctx.exit`, env binding, root/group help | G3 quirks — they land with the front-ends in wave 2 |
