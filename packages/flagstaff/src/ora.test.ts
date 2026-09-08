@@ -69,15 +69,38 @@ describe('R5 · a migrated spinner on a pipe writes text and nothing else', () =
   });
 });
 
+/**
+ * ora resolves a *named* style only where the terminal can draw it; without unicode it
+ * substitutes `line` before it ever looks at the name, and so never rejects one either.
+ * Its own suite handles this by picking the expected character off `process.platform`;
+ * these two cases skip instead, because what they assert is the naming, not the fallback —
+ * which is asserted below, on every platform.
+ */
+const namesResolve = ora({ spinner: 'moon' }).spinner === spinners['moon'];
+
 describe('the corpus travels with the façade', () => {
-  it('re-exports every cli-spinners style, and names one by string', () => {
+  it('re-exports every cli-spinners style', () => {
     expect(Object.keys(spinners).length).toBeGreaterThan(80);
     expect(spinners['dots']?.frames).toHaveLength(10);
+  });
+
+  it.skipIf(!namesResolve)('names one by string', () => {
     expect(ora({ spinner: 'moon' }).spinner).toBe(spinners['moon']);
   });
 
-  it('refuses a style it does not have, with the name in the message', () => {
+  it.skipIf(!namesResolve)('refuses a style it does not have, with the name in the message', () => {
     expect(() => ora({ spinner: 'nope' })).toThrow(/no built-in spinner named 'nope'/);
+  });
+
+  it('falls back to a drawable style rather than failing, wherever unicode is missing', () => {
+    const chosen = ora({ spinner: 'moon' }).spinner;
+    expect(chosen).toBe(namesResolve ? spinners['moon'] : spinners['line']);
+  });
+
+  it('takes a spinner object whatever the terminal can draw', () => {
+    const custom = { frames: ['a', 'b'], interval: 100 };
+    expect(ora({ spinner: custom }).spinner).toBe(custom);
+    expect(() => ora({ spinner: { frames: [] } })).toThrow(/non-empty `frames` array/);
   });
 });
 
