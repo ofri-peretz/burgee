@@ -320,6 +320,31 @@ decision it forces.
 | Maintenance is a promise, not a number | no published band for it | two bands, published like the pass rate: **time from an upstream release to its suite re-vendored** (target ≤ 7 days, the watch and the weekly PR already produce it) and **time from an accepted issue to its closed conformance case** (target ≤ 14 days). Both ratchet; breaching either writes an intent |
 | An incumbent ships the same thing | commander gains a manifest, or clack a non-TTY error path | the compat row still holds, the edge row above is re-written honestly, and the family's edge (zero deps, one contract) is what remains — which is why the family row leads |
 
+### Native — when Rust or Go earns its place, per layer
+
+Any friction we can remove is a win, and a faster language is one way to remove it — but
+only when a measurement says the JavaScript is the friction, and never when the port adds a
+friction of its own. Decision rule, from `lineage.md` (oxlint, tsgo) and wave 5:
+
+1. **Measure first.** Today's numbers: bare Node 30 ms, `util.parseArgs` +2, burgee +5,
+   commander +16, yargs +84. The parser is at the floor of its runtime; a native parser would
+   save at most 5 ms and the remaining 30 belong to Node, not to us. Nothing in the stack's
+   layers is compute-bound; width, table and colour maths are microseconds.
+2. **A port is graded by the same suite** — the vendored incumbent tests, the conformance
+   cases, the caller matrix — and by the same B2/B4 rows. Faster and less compatible is a
+   regression.
+3. **A port may not add install friction.** A platform binary in `npm i` (prebuilds per
+   OS/arch, a postinstall, a fallback build) is the oclif complaint in a new form and breaks
+   Z1's one-file promise. If native ships, it ships as WASM inside the package or not at all.
+4. **Where it does pay, and is planned:** the lint rule as an oxlint plugin (wave 5); the
+   compat oracle and the benchmark harness, which are private and can be any language; and
+   **single-binary distribution of a user's CLI** — `burgee build --binary` via Node's
+   single-executable application or an equivalent — which removes the biggest end-user
+   friction of all (having Node installed) without changing the language anyone writes in.
+
+The honest reading: the next friction to remove is not a millisecond, it is a hang, a
+dependency, a build step, or a Node install. Those are on the roadmap already.
+
 ### Wave 1 — what landed, what is left
 
 | | Done | Left |
