@@ -1,5 +1,12 @@
 {
   "name": "@vendored/commander-suite",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "main": "./shim.js",
+  "version": "15.0.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tj/commander.js.git"
+  }
 }

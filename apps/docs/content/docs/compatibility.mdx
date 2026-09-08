@@ -15,8 +15,8 @@ would flatter a partial implementation; measuring against the control's total do
 
 | Host | Front-end | burgee | rate | control | rate | internals (burgee) | internals (control) |
 | :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
-| **commander** | `burgee/commander` | 1327 / 1331 | 99.7% | 1327 / 1331 | 99.7% | 12 / 12 | 12 / 12 |
-| **yargs** | `burgee/yargs` | 782 / 804 | 97.3% | 783 / 804 | 97.4% | 23 / 23 | 23 / 23 |
+| **commander** | `burgee/commander` | 1361 / 1361 | 100.0% | 1361 / 1361 | 100.0% | 12 / 12 | 12 / 12 |
+| **yargs** | `burgee/yargs` | 804 / 804 | 100.0% | 802 / 804 | 99.8% | 23 / 23 | 23 / 23 |
 
 **Every file of every suite is vendored and run — nothing is excluded.** Files that import
 only the host's *internal* modules (its own file layout) are graded on the informational
@@ -33,7 +33,7 @@ number above always names a release, never a branch.
 | Host | Major graded | Release | Older majors |
 | :-- | :-- | :-- | :-- |
 | commander | **15** (current) | 15.0.0 | Programs written for 12–14 run unchanged wherever 15 kept their API; each earlier major's own suite is vendored at its last tag and graded before it is listed here (C1) |
-| yargs | **18** (current) | 18.1.0 | Same rule, once the front-end exists (wave 4) |
+| yargs | **18** (current) | 18.1.0 | Programs written for 17 run unchanged wherever 18 kept their API; 17's own suite is vendored at its last tag and graded before it is listed here (C1) |
 
 A new major of a host is a new line here, opened by the daily release watch the day it
 ships; the previous major stays listed for as long as its suite is still graded.

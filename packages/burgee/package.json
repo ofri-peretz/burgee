@@ -52,6 +52,11 @@
       "types": "./dist/yargs-helpers.d.ts",
       "import": "./dist/yargs-helpers.js",
       "default": "./dist/yargs-helpers.js"
+    },
+    "./yargs/parser": {
+      "types": "./dist/yargs-parser.d.ts",
+      "import": "./dist/yargs-parser.js",
+      "default": "./dist/yargs-parser.js"
     }
   },
   "files": [

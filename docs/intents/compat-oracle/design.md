@@ -81,6 +81,22 @@ run at baseline and asserts zero. A gate that has never been shown to fail is no
 `scripts/intent-artifacts-lock.test.ts` continues to assert this intent has both
 artifacts.
 
+## What the suites taught the harness (2026-09-08)
+
+Three gaps that read as divergences for a day were the harness, and each fix was proven
+red in `vendor.test.ts` / `run.test.ts` first: the vendored root now carries a `main`
+pointing at the generated shim (commander's three `.cjs` files and yargs' fixture binaries
+`require` the root as a package — 31 and 16 tests that had registered as one each) and
+the upstream's `version`, `license` and `repository` (yargs reads its own
+`package.json` as a config fixture); a shim for a default-exporting host also re-exports
+it under the `module.exports` name, so `require()` of the ESM shim returns the callable;
+a bare public specifier (`yargs-parser`) is rewritten literally, with a `control`
+specifier for the real-host run; a test that skips itself on this OS is reported and never
+counted; a run that registers more tests than the recorded reference uses the larger
+count, so a rate can never exceed 1; and `COMPAT_TAP_DIR` keeps the raw TAP so a count
+that moved can be read back to the names that moved it. The control's verdict is that its
+suite ran and passed against its own package; it is not ratcheted against burgee's baseline.
+
 ## Rejected alternatives
 
 - **Write our own compatibility tests.** They would encode our reading of the host's

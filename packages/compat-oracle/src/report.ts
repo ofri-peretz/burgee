@@ -51,7 +51,8 @@ function line(g: Grade, baseline: Baseline): string {
   const pct = `${(g.rate * PERCENT).toFixed(1)}%`.padStart(PCT_COL);
   const total = g.reference > 0 ? g.reference : g.tests;
   const counts = `${String(g.passed).padStart(COUNT_COL)} / ${String(total).padEnd(COUNT_COL)}`;
-  return `  ${g.host.padEnd(HOST_COL)} ${bar(g.rate)} ${counts} ${pct}${arrow(g, baseline[g.host])}`;
+  const skipped = g.skipped > 0 ? `   (${g.skipped} skipped on this OS)` : '';
+  return `  ${g.host.padEnd(HOST_COL)} ${bar(g.rate)} ${counts} ${pct}${arrow(g, baseline[g.host])}${skipped}`;
 }
 
 export type Write = (s: string) => void;
@@ -132,9 +133,12 @@ function vendorAll(write: Write): void {
   else rmSync(VENDOR_DIFF, { force: true });
 }
 
-function verdict(grades: Grade[], baseline: Baseline, write: Write): number {
+function verdict(grades: Grade[], baseline: Baseline, write: Write, control = false): number {
   const broken = grades.filter((g) => g.error !== undefined);
-  const fell = grades.filter((g) => regressed(g, baseline));
+  // The control proves the gate: its suite must run and pass against its own package. It
+  // is not measured against burgee's baseline — real yargs scores 802 where burgee scores
+  // 804 (its own version lookup from inside node_modules), and that is not a regression.
+  const fell = control ? grades.filter((g) => g.passed === 0) : grades.filter((g) => regressed(g, baseline));
   for (const g of fell) write(`\n✖ ${g.host}: ${g.passed} passing, baseline was ${baseline[g.host]?.passed ?? 0}\n`);
   if (broken.length > 0) write(`\n✖ ${broken.length} host(s) could not be graded\n`);
   return fell.length + broken.length > 0 ? 1 : 0;
@@ -165,5 +169,5 @@ export async function main(argv: string[], write: Write): Promise<number> {
   if (planned.length > 0) write(`\n  planned: ${planned.join(', ')}\n`);
 
   writeFileSync(control ? CONTROL_RESULTS : RESULTS, `${JSON.stringify({ measured: new Date().toISOString(), grades }, null, 2)}\n`);
-  return verdict(grades, baseline, write);
+  return verdict(grades, baseline, write, control);
 }

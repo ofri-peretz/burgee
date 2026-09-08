@@ -104,6 +104,8 @@ const RULES: Record<string, EntryRule> = {
   // of it. The 29 locales are JSON read at runtime, not imports, so they are not walked.
   './yargs': { allow: [], budget: 256_000, denied: ['testing.js', 'testing-helpers.js'] },
   './yargs/helpers': { allow: [], budget: 64_000, denied: ['testing.js', 'testing-helpers.js', 'yargs-factory.js'] },
+  // yargs-parser alone, for a program that imported it directly; never the factory.
+  './yargs/parser': { allow: [], budget: 40_000, denied: ['testing.js', 'testing-helpers.js', 'yargs-factory.js', 'yargs-shim.js'] },
 };
 
 /**
