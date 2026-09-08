@@ -35,6 +35,19 @@ else on this page is justified; if they do not, nothing else on it should be bui
 
 Everything below those three is conditional on them, and the kill criteria fire on them.
 
+## Why the three bets can win — precedents and mechanisms
+
+Each bet in the minimum above is a claim about the market, not about the code. A claim
+like that is only worth holding if something like it has already happened, and only worth
+building on if the roadmap contains a mechanism that makes it happen rather than a hope
+that it will. One row per bet: the precedent, the mechanism here, the number that tests it.
+
+| Bet | Precedent — it has happened | Mechanism in this roadmap | The number |
+| :-- | :-- | :-- | :-- |
+| **A maintainer swaps one import when the number is green** | Biome cleared 95% of Prettier's own suite in 2023 and the published number did the persuading. Vitest took Jest's API plus a reason (speed, ESM); pnpm took npm's package.json plus a reason (disk, strictness); picocolors replaced chalk across the PostCSS ecosystem on weight alone with a near-identical API. Compat removes the cost; a reason supplies the motive. Ours: agent surfaces, zero deps, and the September 2025 compromise of exactly the packages we replace (cite in `output-stack-research`) | `eslint-plugin-cli-floor` gains a **`migrate-import` autofix** (commander → `burgee/commander`, safe at parity) so a lint warning is a one-line PR; `first-adopter` gains the **dependents ranking script** (top dependents of commander/yargs by weekly downloads × backlog rows closed) that turns "someone might" into ten named PRs with their suites green | migration PRs sent, merged; adopters named on the README |
+| **Agents do better against a burgee CLI** | The floor is the shape the best agent-native CLI already has: Claude Code's own CLI ships a print mode, `--output-format json`, structured errors and never prompts under a pipe; Anthropic's guidance on writing tools for agents (2025) says what O1–O5 and E1–E5 say — actionable errors, structured output, no hangs. Some wins are binary: a hung prompt in non-TTY is a failed task every time; a usage-vs-runtime exit code tells an agent whether to fix or retry | **B1 as a protocol** in `cli-benchmarks`: tasks × callers, same CLI on commander and on burgee, measuring hangs per 100 non-TTY runs, turns to success, success rate; weekly; the honest fallback (parse reliability, not token economy) already recorded | hangs/100 = 0 by construction; turns and success rate published, hypothesis until they move |
+| **A plugin ecosystem forms around a schema** | It already exists as data and nobody hosts it: `cli-spinners` is a JSON file of ~80 spinners used by every spinner library and is flagstaff's spinner shape; `cli-boxes` is border styles as JSON; the iTerm2 colour-scheme repository and base16 hold hundreds of palettes as data, and a palette is a roundel theme; VS Code themes are JSON by the thousand. Data-first plugin formats get authored at scale by one person — this repo's own ESLint plugin portfolio is the lived case | **Importers, not evangelism**: `roundel` ships base16 and iTerm scheme importers (design R11); `flagstaff` ships `cli-spinners` and `cli-boxes` importers (design R11), so the gallery opens with hundreds of entries and the first third-party plugin is a copy of one, edited; the U9 eval measures whether an agent writes one in a turn | gallery entries at launch; third-party plugins registered; U9 pass rate weekly |
+
 ## Where the edge is, and for whom
 
 A roadmap is executable when every lane can say what it is for. One row per layer, plus the
@@ -117,9 +130,9 @@ converts it from a permanent dependency into a fixable backlog, so it now has an
 | :-- | :-- | :-- | :-- | :-- |
 | 6 | [`commander-agent/`](./commander-agent/) | ~~layer on commander's hooks~~ | F O E M | **dropped** — superseded, requirements moved to the engine |
 | 7 | [`yargs-agent/`](./yargs-agent/) | ~~layer on yargs middleware~~ | same as 6 | **dropped** — same reason |
-| 8 | [`eslint-plugin-cli-floor/`](./eslint-plugin-cli-floor/) | the L rules; the adoption wedge that needs no runtime change | F3 O1–O4 E1 E2 V2 V5 P1 D1 | review |
+| 8 | [`eslint-plugin-cli-floor/`](./eslint-plugin-cli-floor/) | the L rules; the adoption wedge that needs no runtime change; **`migrate-import` autofix** (2026-09-08) | F3 O1–O4 E1 E2 V2 V5 P1 D1 | review |
 | 9 | [`docs-deploy/`](./docs-deploy/) | `apps/docs` on an interlace.tools host, `llms.txt`, the benchmarks page | B7 | review |
-| 10 | [`first-adopter/`](./first-adopter/) | a CLI we did not write, using the layer, reviewed by someone who did not build it | A1–A5 | review |
+| 10 | [`first-adopter/`](./first-adopter/) | a CLI we did not write, using the layer, reviewed by someone who did not build it; **the dependents ranking script** (2026-09-08) | A1–A5 | review |
 | 11 | [`cli-mcp/`](./cli-mcp/) | `--mcp` turns any CLI on the floor into an MCP server, generated from the manifest | N1–N5 | review |
 | 12 | [`dev-loop/`](./dev-loop/) | `burgee dev` — watch, reload, and serve live MCP so your agent sees a command as you write it | W1–W6 | review |
 | 22 | [`brand-burgee/`](./brand-burgee/) | `defineBurgee({ lead, follow })` — favicon, raster set, OG card and theme variants generated from one declaration; the Interlace −30° geometry stays locked | — | draft |

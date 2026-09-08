@@ -31,6 +31,10 @@ Intent: [`intent.md`](./intent.md). **Status:** approved.
   chalk 6.0.0 bytes and ≤ picocolors spawn delta; re-measured when vendored.
 - **R9** Nothing reads `process.*`; `process-reference-lock` extends here.
 - **R10** ESM with `default` condition; `require('roundel/chalk')` works via `require(esm)`.
+- **R11** `roundel/import`: `fromBase16(scheme)` and `fromITerm(plist)` produce a theme (a
+  token map) from the two largest existing corpora of terminal palettes, contrast-checked on
+  import (R5). The docs gallery is generated from them; hundreds of themes on day one, none
+  hand-written. Data in, data out; no network, no bundled corpus — the user supplies the file.
 
 ## Design
 

@@ -30,6 +30,10 @@ Intent: [`intent.md`](./intent.md). **Status:** approved.
   prints its rendering in all five modes side by side; exit 1 on a schema error.
 - **R9** Deterministic: with a fake clock, a spinner's TTY output for N ticks is a fixed
   string; a snapshot test runs 20 times in CI.
+- **R11** `flagstaff/import`: `fromCliSpinners(json)` and `fromCliBoxes(json)` turn the two
+  existing data corpora (≈80 spinners, the border-style set) into registered plugins with a
+  derived `static` (the first frame, or the label). The gallery opens full; a third-party
+  plugin starts as a copy of one. No corpus is bundled — weight (U5) — the user supplies it.
 - **R10** Subpath isolation and weight rules per entry; ceilings: `./spinner` ≤ ora,
   `./box` ≤ boxen, `./table` ≤ cli-table3, `./log-update` ≤ log-update — recorded when
   vendored. Depends on `roundel` only.
