@@ -356,6 +356,17 @@ bar for "smooth":
    surfaces, zero deps) would apply. Recorded so no design today closes that door; equally
    recorded that no decision today is made for a Python user at a JS/TS user's expense.
 
+7. **What the people who did it concluded** — reviewed with sources in
+   [`research/native-when-it-pays.md`](../research/native-when-it-pays.md): native pays for
+   CPU-bound work at volume in a short-lived process (esbuild); the larger win was doing the
+   work once across tools, not the language (VoidZero); the JS–native boundary is the cost,
+   crossed rarely and after a native-side filter (Rolldown, "up to 50% slower" even Rust to
+   Rust across a plugin boundary); the plugin API stays JavaScript (Vite); and native size is
+   paid by every install, which is why Vite refused a 5 MB addon for one framework. Three
+   sharpenings follow: measure the addon's *load* cost against the work saved; native lives
+   behind its own opt-in, size-ratcheted package; never cross the boundary per token or per
+   frame. Today's verdicts per layer are in that document.
+
 Wave 5 becomes the first port, chosen by the measurement in (2), shipped per (1), graded
 per (3). The recorded alternative, "no port", requires the numbers to say JavaScript is not
 the friction — which today they do, and which a 250-command CLI may change.
