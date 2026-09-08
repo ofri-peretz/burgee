@@ -270,7 +270,7 @@ time, and never publishes a working release before the engine's scoreboard is pu
 | **S0 · evidence** | `output-stack-research`, `caller-matrix` (the matrix, empty) | every U row cited; the callers named; the measured stack table |
 | **S1 · roundel** | `roundel`, `output-stack-compat` (chalk) | policy, tokens, theme; `roundel/chalk` graded; two B4 rows under picocolors and chalk |
 | **S2 · flagstaff** | `flagstaff`, `plugin-contract`, `output-stack-compat` (ora, log-update) | the loop, the schema, `check`, the U9 eval green; ora's row |
-| **S3 · caique** | `caique`, `output-stack-compat` (inquirer, clack) | prompts that never hang; two rows; the matrix green for five callers |
+| **S3 · caique** | `caique`, `output-stack-compat` (inquirer, clack) | prompts that never hang; two rows; the matrix green for five callers — **started 2026-09-08**: `decide()` and the spec, the rule that never hangs, its 256-row table enumerated; the widgets, the façades and the burgee binding next |
 | **S4 · the rest** | `output-stack-compat` (boxen, cli-table3), `first-adopter` for each package | eight rows; a CLI we did not write on all four |
 
 ### Execution graph — what runs in parallel, and where a human signs

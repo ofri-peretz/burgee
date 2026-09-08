@@ -12,6 +12,16 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./decide": {
+      "types": "./dist/decide.d.ts",
+      "import": "./dist/decide.js",
+      "default": "./dist/decide.js"
+    },
+    "./spec": {
+      "types": "./dist/spec.d.ts",
+      "import": "./dist/spec.js",
+      "default": "./dist/spec.js"
     }
   },
   "files": [
