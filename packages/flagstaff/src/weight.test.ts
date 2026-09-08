@@ -38,7 +38,7 @@ const RULES: Record<string, EntryRule> = {
   // Everything: the loop, the registry, and all five built-ins. `box` and `table` bring the
   // wrapper and the width function with them, which is most of it. Measured 44,294 B on
   // 2026-09-08 — a program that wants one component should import its subpath (U5, R10).
-  '.': { allow: ['roundel/chalk', 'roundel/policy', 'roundel/tokens'], budget: 48_000, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
+  '.': { allow: ['roundel/policy', 'roundel/tokens'], budget: 48_000, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
   // The loop and its four projections; never the registry — a program that hoists its own
   // component pays nothing for the plugin host. Measured 4,141 B.
   './loop': { allow: ['roundel/policy'], budget: 5_000, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },

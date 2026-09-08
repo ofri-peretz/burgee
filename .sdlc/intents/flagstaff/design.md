@@ -213,11 +213,12 @@ reads worse, because it narrows the columns that were already narrow.
 `progress` carries no elapsed-time estimate. A rate computed from two samples is a guess
 presented as a fact, and it is the first thing to go wrong in a pipeline that stalls.
 
-Weight, measured: `./progress` 971 B and reaches nothing, not even the registry; `./tasks`
-9,773 B, because its glyphs and its spinner style come from the registry; `./box` 24,710 B
-and `./table` 24,558 B, of which ~21 KB is the wrapper and the width function they share,
-so a program importing both pays for them once. The root entry is now 44,294 B — which is
-the argument for the subpaths, not against them.
+Weight, measured: `./progress` 971 B; `./tasks` 9,773 B, because its glyphs and its spinner
+style come from the registry; `./box` 24,764 B and `./table` 24,612 B, most of which is the
+wrapper and the width function they share, so a program importing both pays for them once.
+Every one of them reaches `roundel/tokens` and nothing else — `wrap.ts` carries its own SGR
+table, so no built-in pulls `roundel/chalk`. The root entry is 44,348 B, which is the
+argument for the subpaths rather than against them.
 
 The width locks are the load-bearing tests: every drawn row of a box is measured to exactly
 the width it was given, wide characters included, and no table overruns its own. That is
