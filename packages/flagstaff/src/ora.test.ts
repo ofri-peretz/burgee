@@ -10,6 +10,12 @@
  * suite never asserts this, because every frame test there passes `isEnabled: true` to
  * force the animation on; so it is asserted here, on the default a real program gets.
  */
+import { execFileSync } from 'node:child_process';
+import { closeSync, mkdtempSync, openSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import process from 'node:process';
+
 import { describe, expect, it } from 'vitest';
 
 import ora, { oraPromise, spinners } from './ora.js';
@@ -116,4 +122,105 @@ describe('oraPromise', () => {
     await expect(oraPromise(Promise.reject(new Error('no')), { stream, text: 'work' })).rejects.toThrow('no');
     expect(stream.text()).toMatch(/[✖×] work\n$/);
   });
+});
+
+/**
+ * The cursor restore, which ora's suite cannot see. Every frame test upstream drives a
+ * spinner in-process and lets it stop cleanly; none of them kills the process. So the 99
+ * are silent about the guarantee a migrating program is most likely to notice losing:
+ * Ctrl+C mid-spin, and a terminal left with no cursor.
+ *
+ * This runs the **built** entry (`dist/ora.js`, guaranteed by turbo's `test → build`),
+ * because what is under test is what ships. fd 2 is handed to the child already pointing
+ * at a file — writes to a file descriptor are synchronous in node, so nothing is lost when
+ * the process is killed outright — and the child claims it is a terminal, which is the
+ * only condition the cursor path checks.
+ *
+ * Proven to fail on the unfixed state (`process.once('exit', …)` and nothing else): show
+ * was 0 for all three signals, because node does not run `'exit'` listeners for a process
+ * terminated by a signal that has no listener.
+ *
+ * Skipped on Windows, where `process.kill(process.pid, …)` is an unconditional terminate
+ * rather than a real signal delivery, so the assertion would be grading node's emulation
+ * rather than this file. The listeners are still installed there, `SIGBREAK` included.
+ */
+const HIDE_CURSOR = '\u001B[?25l';
+const SHOW_CURSOR = '\u001B[?25h';
+
+const distOra = new URL('../dist/ora.js', import.meta.url).href;
+
+interface SignalOutcome {
+  hide: number;
+  show: number;
+  killedBy: string | null;
+  status: number | null;
+}
+
+function spinThenSignal(signal: string, ownHandler = false): SignalOutcome {
+  const dir = mkdtempSync(join(tmpdir(), 'flagstaff-ora-signal-'));
+  const log = join(dir, 'fd2');
+  const child = join(dir, 'child.mjs');
+  writeFileSync(
+    child,
+    [
+      'process.stderr.isTTY = true;',
+      'process.stderr.columns = 80;',
+      'process.stderr.cursorTo = () => true;',
+      'process.stderr.clearLine = () => true;',
+      'process.stderr.moveCursor = () => true;',
+      // A program that took SIGINT over itself must survive: a spinner does not get to
+      // terminate a process whose author asked to handle the signal.
+      ownHandler ? "process.on('SIGINT', () => { setTimeout(() => process.exit(7), 300); });" : '',
+      `const { default: ora } = await import(${JSON.stringify(distOra)});`,
+      "ora({ isEnabled: true, hideCursor: true, discardStdin: false, text: 'probe' }).start();",
+      `setTimeout(() => process.kill(process.pid, '${signal}'), 80);`,
+      'setTimeout(() => process.exit(0), 5000);',
+    ].join('\n'),
+  );
+
+  const fd = openSync(log, 'w');
+  // `execFileSync` throws when the child does not exit 0 — which is every case here, since
+  // the point is that the signal still terminates it. The throw carries `.status` and
+  // `.signal`, and that is the whole result.
+  let killedBy: string | null = null;
+  let status: number | null = 0;
+  try {
+    execFileSync(process.execPath, [child], { stdio: ['ignore', 'pipe', fd], timeout: 20_000 });
+  } catch (error) {
+    const failure = error as { status?: number | null; signal?: string | null };
+    killedBy = failure.signal ?? null;
+    status = failure.status ?? null;
+  } finally {
+    closeSync(fd);
+  }
+
+  const written = readFileSync(log, 'utf8');
+  const count = (needle: string): number => written.split(needle).length - 1;
+  return { hide: count(HIDE_CURSOR), show: count(SHOW_CURSOR), killedBy, status };
+}
+
+describe.skipIf(process.platform === 'win32')('a cursor hidden mid-spin comes back when the process is signalled', () => {
+  it.each(['SIGINT', 'SIGTERM', 'SIGHUP'])(
+    '%s puts the cursor back, and still terminates',
+    (signal) => {
+      const observed = spinThenSignal(signal);
+      expect(observed.hide).toBe(1);
+      expect(observed.show).toBe(1);
+      // The re-raise. Suppressing node's default action would be a worse bug than the one
+      // this test was written for.
+      expect(observed.killedBy).toBe(signal);
+    },
+    30_000,
+  );
+
+  it(
+    'does not terminate a program that installed its own SIGINT handler',
+    () => {
+      const observed = spinThenSignal('SIGINT', true);
+      expect(observed.show).toBe(1);
+      expect(observed.killedBy).toBeNull();
+      expect(observed.status).toBe(7);
+    },
+    30_000,
+  );
 });

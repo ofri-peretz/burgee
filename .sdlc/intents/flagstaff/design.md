@@ -139,15 +139,29 @@ reaches `spinners.json` and `width.js` and nothing else, and no core entry reach
 them. So a program migrates its spinner in one import, pays no frame loop for it, and
 adopts `hoist()` later or never.
 
-The weight: 45,549 B for the subpath, 63,627 B with `roundel/chalk` counted, against ora's
-own 112,688 B across seventeen packages — 56%, in two packages instead of seventeen. R10's
-ceiling is met and recorded in `weight.test.ts` with the measurement beside it.
+The weight: 46,330 B for the subpath, 55,641 B with `roundel/chalk`'s 9,311 counted,
+against ora 9.4.1's own 113,577 B across seventeen packages — **49%**, in two packages
+instead of seventeen. Both sides counted the same way, which is what makes it reproduce:
+shipped code and data (`.js`/`.mjs`/`.cjs` plus the `.json` a module imports, never
+`package.json`); ours the import graph walked from `dist/`, ora's every package that graph
+touches in ora's own resolved tree — nested `node_modules` winning, so chalk 5.6.2 and
+string-width 8.2.2 — counted whole. Counting ora the stricter way, only the 27 files its
+graph reaches, gives 101,809 B and ours is 55% of that. R10's ceiling is met and recorded in
+`weight.test.ts` with the method and the per-package breakdown beside it.
 
 `process` is read here, and the process-reference lock lists the file with the reason:
 `process.stderr` is ora's default stream, stdout and stderr are what it hooks so a
-`console.log` lands above the frame, stdin is what the discarder puts in raw mode, and its
-suite swaps all four per test. Every other file in the package takes its world as an
-argument.
+`console.log` lands above the frame, stdin is what the discarder puts in raw mode,
+`process.kill` re-signals a swallowed Ctrl+C and re-raises a termination signal after the
+cursor restore, and the probes read the environment.
+
+How much of that ora's suite actually grades, counted rather than claimed: **one** test
+swaps `process.stdout.write` / `process.stderr.write` ("hooks both stdout and stderr"), and
+**one** swaps `process.kill` to watch the discarder re-signal `SIGINT`. There is no
+`process.env` and no `process.stdin` reference in the suite at all. So those two are ported
+to the real process because ora's *behaviour* depends on them, not because the 99 prove it —
+and the cursor restore, which the 99 are likewise silent about, is graded by `ora.test.ts`
+here instead. Every other file in the package takes its world as an argument.
 
 Two things in the oracle moved to make this possible, and both are improvements on their
 own: a host's `testGlob` is now applied by the vendor step and the runner (ora's suite lives
