@@ -72,7 +72,7 @@ Every subpath is a lock, not a convention. `roundel/tokens` reaches 2,198 bytes 
 `roundel/contrast` 1,250. Importing one never loads another — the tokens never carry the
 theme, the theme never carries the tokens — and `sideEffects: false` lets a bundler drop
 what a program does not use. ESM with a `default` condition, so `require('roundel/tokens')`
-works from CommonJS on Node ≥ 22.12.
+works from CommonJS on Node ≥ 24.
 
 ## What is next
 
