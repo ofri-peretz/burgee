@@ -116,8 +116,8 @@ weight (`./loop` 5,000 · `./plugin` 10,000 · `./spinner` 11,000 · `.` 16,000 
 two packed tarballs. The schema validator is sixty lines over the subset the schema uses,
 because a JSON Schema library is a dependency the package will not carry.
 
-Not yet: `progress`, `tasks`, `box`, `table`; the boxen and cli-table3 façades (R6); the
-importers (R11); the U9 eval; the docs gallery. `tokens` are kept in the registry for whoever flies
+Not yet: the boxen and cli-table3 façades (R6, both blocked on a decision rather than a
+port — see `output-stack-compat`); the importers (R11); the U9 eval; the docs gallery. `tokens` are kept in the registry for whoever flies
 the theme — `register()` does not call roundel's `fly()`, because that needs a runtime and
 would pull the theme into every plugin import.
 
@@ -184,6 +184,60 @@ reaches the other, and neither reaches the core.
 `wrap.ts` is the third piece of shared machinery, after the width function and the spinner
 corpus, and it is the one `box` and `table` need next — which is why it is its own module
 rather than folded into the façade that first wanted it.
+
+## What shipped (R4, the remaining built-ins — 2026-09-08)
+
+`progress`, `tasks`, `box` and `table`, each a `Component` of the same shape a third-party
+plugin writes, each on its own subpath.
+
+**The static projection is not a stripped drawing, and that is the whole design.** Each of
+these draws something on a terminal that is meaningless off one, so each answers the
+question separately:
+
+| component | on a terminal | everywhere else |
+| :-- | :-- | :-- |
+| `progress` | a bar of blocks | `12/30 files · 40%` — the numbers, which is what an agent parses and a person hears |
+| `tasks` | every task, the running one animated | one line per task that has **settled**; a pipe is not told six times that step 3 is still running |
+| `box` | the border, the padding, the title set into the top rule | `title: text` — a border is noise a screen reader reads character by character |
+| `table` | the grid | one line per row of `header: value` pairs, parseable without knowing the drawing |
+
+`box` and `table` are string functions over `width()` and `wrap()` (R7) and are exported as
+such — `box(text, options)` and `table(rows, options)` — because most callers want the
+string, not a component. There is no layout engine and no measure pass; the file list lock
+still holds. `table` shrinks its widest column one cell at a time until the table fits,
+which is deliberately simpler than proportional shrinking: proportional looks cleverer and
+reads worse, because it narrows the columns that were already narrow.
+
+`progress` carries no elapsed-time estimate. A rate computed from two samples is a guess
+presented as a fact, and it is the first thing to go wrong in a pipeline that stalls.
+
+Weight, measured: `./progress` 971 B and reaches nothing, not even the registry; `./tasks`
+9,773 B, because its glyphs and its spinner style come from the registry; `./box` 24,710 B
+and `./table` 24,558 B, of which ~21 KB is the wrapper and the width function they share,
+so a program importing both pays for them once. The root entry is now 44,294 B — which is
+the argument for the subpaths, not against them.
+
+The width locks are the load-bearing tests: every drawn row of a box is measured to exactly
+the width it was given, wide characters included, and no table overruns its own. That is
+the bug `width()` exists to prevent, so it is checked rather than assumed.
+
+**Where this lands against R4, stated plainly.** R4 says the five built-ins are registered
+through the public `register()` from `builtins.ts`, so that the built-ins cannot grow an
+API a plugin cannot reach. What actually goes through that door is what a plugin may
+*replace* — the glyphs and the spinner styles — and the lock on it still holds. The five
+components do not: they are factories taking options (`progress({ width })`,
+`table(rows, { head, align })`), and the schema's `components` shape is a bare
+`{ static, frame?, interval? }` with no options at all. So a third-party plugin can
+contribute a component, but not a *parameterised* one, and the built-ins have a capability
+plugins do not.
+
+That is a real gap in U4, not a technicality, and it is left open on purpose rather than
+closed by cheapening the built-ins: the alternative is either to widen the schema to carry
+a factory (data that is code, which is what the plugin contract exists to avoid) or to
+drop the options and make every caller re-implement a 24-column bar. `plugin-contract` (28)
+is where this belongs, because it is the same question across all four layers. Recorded
+here so the next reader does not have to rediscover that `register()` and the component
+factories are two doors, not one.
 
 ## Rejected alternatives
 

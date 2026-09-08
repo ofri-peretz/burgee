@@ -2,6 +2,12 @@
  * The first-party plugin (R4). Data only — the same shape a third party writes — and it
  * reaches the registry through the public `register()` like any other, so the built-ins
  * cannot grow an API a plugin cannot reach (U4). Type-only import: this file runs nothing.
+ *
+ * What lives here is what a plugin may *replace*: the glyphs every component draws its
+ * statuses with, and the spinner styles. The five components themselves (`spinner`,
+ * `progress`, `tasks`, `box`, `table`) are factories on their own subpaths, because a
+ * component is code and this file is data — and because a program that wants a progress
+ * bar should not pay for a table.
  */
 import { type Plugin } from './plugin.js';
 
