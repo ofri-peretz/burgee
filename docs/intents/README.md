@@ -253,7 +253,7 @@ three separate times before that rule existed.
 | **2 · compatibility** | `commander-compat`, `cli-help-renderer` ↑, `first-adopter` ↑, `eslint-plugin-cli-floor` ↑ | every upstream file graded; `burgee/commander` 1,327/1,331 (= real commander in the same run) and byte-identical to commander on the demo (X7, 29 cases); help rendered from the manifest with `help <cmd>`, groups, examples, env, width from the runtime (H1–H6) | in progress |
 | **3 · surfaces** | `cli-mcp`, `commander-schema`, `commander-env`, `commander-completions` | `--schema`, `--mcp`, completions — the reason to switch | queued |
 | **4 · reach** | `yargs-compat`, `dev-loop`, `cli-modularity`, `caique`, `docs-deploy`, `cli-benchmarks`, `brand-burgee` | the second host, the dev loop, a CLI we did not write, one brand declaration | queued |
-| **5 · speed** | native front-end spike, `eslint-plugin-cli-floor` as an oxlint rule | `--help` in 13 ms, or a recorded decision not to | conditional |
+| **5 · speed** | single-binary distribution (`burgee build --binary`), `eslint-plugin-cli-floor` as an oxlint **JS** plugin; native spike only if a Z5-scale measurement reopens it | `--help` in 13 ms, or a recorded decision not to | conditional |
 | — | `security-profile` | a scanner-shaped CLI cannot confuse findings with failure | after 3, when an adopter needs it |
 
 ### The stack's waves
@@ -323,6 +323,16 @@ decision it forces.
 
 ### Native — the fastest language wins, as long as the user never notices
 
+**Decision 2026-09-08, after the review in
+[`research/native-when-it-pays.md`](../research/native-when-it-pays.md): no package layer
+moves to Rust or Go now.** The parser is at its runtime's floor, the colour and render
+layers would cross the JS–native boundary per string and per frame, and an addon's load
+cost exceeds the work any layer does in one run. Wave 5 becomes single-binary distribution
+of a *user's* CLI (language-free, removes the 30 ms and the Node install) plus the lint
+wedge as an oxlint JavaScript plugin. The rule below stays on the books for the one case
+that can reopen it: a Z5-scale measurement (hundreds of commands) where the manifest or help
+renderer becomes the user's number.
+
 Decided 2026-09-08 (owner): **JS/TS is the gate to the world and stays the surface our
 users touch; behind it, whatever makes a layer faster is promoted, in any language,
 provided a Node user on CJS or ESM works exactly as before.** The user notices latency,
@@ -339,7 +349,9 @@ bar for "smooth":
    `util.parseArgs` +2, burgee +5, commander +16, yargs +84. The parser is at its runtime's
    floor; the render and colour layers are microseconds. The measured candidates are the
    manifest for very large CLIs (Z5), the help renderer at hundreds of commands, the lint
-   rule (oxlint), the private oracle and bench harness, and width/table maths at scale.
+   rule as an oxlint JS plugin (oxlint ships no third-party native rules — the host is native,
+   the rule stays JavaScript), the private oracle and bench harness, and width/table maths at
+   scale.
 3. **Graded by the same suites.** The vendored incumbent tests, the conformance cases, the
    caller matrix and the B rows run against the native build exactly as against the JS one.
    Faster and less compatible is a regression, and CI says so.

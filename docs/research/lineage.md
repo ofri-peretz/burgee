@@ -16,7 +16,7 @@ no longer exists.
 | **Rolldown** | filter before you cross a boundary | hook filters are first-class, evaluated before a plugin loads |
 | **ESLint flat config** | plugins are data; config is an ordered array | a plugin is inspectable without being executed |
 | **Standard Schema** | one declaration, types derived | options accept any Standard Schema validator |
-| **oxlint** | how a native core survives a JS plugin boundary | the lint rule goes native; the framework does not |
+| **oxlint** | how a native core survives a JS plugin boundary | the lint rule runs on oxlint's JS plugin API (it ships no third-party native rules); neither the rule nor the framework goes native — corrected 2026-09-08 |
 | **TypeScript 7 / tsgo** | Go chosen for fidelity, not speed | any native port is graded by the existing suite |
 
 ## Vite — the architecture, and the plugin API as the product

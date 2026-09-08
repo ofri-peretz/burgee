@@ -123,7 +123,7 @@ colour tokens and the frame loop are microseconds per call. So, by the six concl
 | colour tokens, policy (`roundel`) | no | yes — per string | yes | **no**, by (3): every token call would cross the boundary |
 | frame loop, components (`flagstaff`) | no | yes — per frame | yes | **no**, by (3) |
 | width / table maths at scale | at very large tables | no, batch | opt-in | measure; likely not |
-| the lint rule (`eslint-plugin-cli-floor`) | yes — every file, every save | no, it *is* the oxlint host | oxlint users only | **yes**, as an oxlint plugin (wave 5); Oxc's 84× is the reference |
+| the lint rule (`eslint-plugin-cli-floor`) | yes — every file, every save | yes — oxlint's plugin API is JavaScript; a third-party rule runs as a JS plugin on the Rust host, crossing the boundary per file | oxlint users only | **yes, but as a JS plugin on oxlint**, not a native rule: the gain is oxlint's parser and host, the rule's logic stays JavaScript. A native rule exists only by upstreaming it into oxlint's core — a contribution, not a plugin (wave 5, corrected 2026-09-08) |
 | compat oracle, bench harness | yes | no | private, never installed | any language, whenever it helps |
 | single-binary distribution of a *user's* CLI | — | — | opt-in build step | **yes, and first**: removes the 30 ms *and* the Node install; language-independent |
 | JS ↔ native plugin boundary, if any layer goes native | — | design rule | — | hook-filter pattern: native-side predicate before any JS call; never per token or per frame |
