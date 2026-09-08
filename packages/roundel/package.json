@@ -1,6 +1,6 @@
 {
   "name": "roundel",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "The colours a CLI carries. One output policy, semantic tokens, a theme, and a chalk migration path lighter than chalk. Zero dependencies.",
   "license": "MIT",
   "type": "module",
