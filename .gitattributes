@@ -1,0 +1,24 @@
+# Line endings are LF in the repository and LF in every checkout, Windows included.
+#
+# Without this, git converts on checkout for Windows contributors, and every lock that
+# reads a committed file and compares it to something generated fails there and nowhere
+# else. That has happened four times in this repository — the flagstaff R4 source lock, the
+# gallery staleness lock, and twice more — each time fixed by normalising inside the test,
+# which treats the symptom in one place and leaves the next lock to rediscover it.
+#
+# `eol=lf` is the fix at the cause. The workarounds already written stay: they cost a
+# `replaceAll` and they keep those tests honest for anyone whose git predates this file or
+# who checked out before it landed.
+* text=auto eol=lf
+
+# Binary, never converted and never diffed as text.
+*.png binary
+*.gif binary
+*.svg text eol=lf
+*.ico binary
+*.woff binary
+*.woff2 binary
+
+# Vendored suites are the hosts' own bytes. A conversion here would change what we grade,
+# and the compatibility record fingerprints these files.
+packages/compat-oracle/vendor/** -text
