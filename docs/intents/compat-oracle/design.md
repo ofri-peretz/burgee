@@ -8,7 +8,7 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
 
 | id | Requirement |
 | :-- | :-- |
-| C1 | Every published package declares its supported host range; the host's own test suite runs against that package at every supported major in CI |
+| C1 | Every published package declares its supported host range, and the compatibility page names the **majors graded**: the host's current major first (suite at the latest release tag), earlier majors only once their own suite is vendored at its last tag and graded — a major is never listed on the strength of the next one's suite |
 | C2 | A compat front-end is graded by the host's own suite through a one-line shim; the pass rate is emitted as JSON and published per release |
 | C3 | Every package is tested on every Node LTS inside its `engines` range, on Linux, macOS and Windows |
 | C4 | Every intentional divergence from a host has an id, a written reason, and a test asserting the divergence — an unlisted failure is a bug, a listed one is a documented difference |
