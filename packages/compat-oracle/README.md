@@ -17,4 +17,4 @@ The drivers were `commander-harness` and `yargs-harness`, standalone packages fr
 when the plan was a layer on top of both. They are measuring instruments, not
 products, so they live inside the thing that measures with them.
 
-See `docs/intents/compat-oracle/`.
+See `.sdlc/intents/compat-oracle/`.

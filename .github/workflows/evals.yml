@@ -14,7 +14,7 @@ on:
       - "CLAUDE.md"
       - "docs/**"
       - ".github/**"
-      - ".agent/**"
+      - ".sdlc/bands/**"
       - "apps/docs/content/**"
       - "eslint.config.mjs"
       - "evals/**"

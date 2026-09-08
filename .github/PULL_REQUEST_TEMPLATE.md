@@ -1,12 +1,12 @@
 ## Summary
 
 <!-- One bullet per logical change: what and why. Reference the intent slug
-     (docs/intents/<slug>) when this PR implements or amends one. -->
+     (.sdlc/intents/<slug>) when this PR implements or amends one. -->
 
 ## Floor requirements touched
 
 <!-- F1–F4, O1–O5, E1–E5, V1–V5, S1–S4, P1–P2, D1–D2, T1 — see
-     docs/intents/agent-native-cli-layer/design.md. "None" is a valid answer. -->
+     .sdlc/intents/agent-native-cli-layer/design.md. "None" is a valid answer. -->
 
 ## Test plan
 

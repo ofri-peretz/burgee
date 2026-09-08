@@ -2,7 +2,7 @@
 
 Ported from `ofri-peretz/eslint/evals/` (intent `sdlc-locks-evals-bands`). A suite that
 runs whenever the agent-facing configuration changes: `README.md`, `docs/**`,
-`.github/**`, `.agent/**`, `apps/docs/content/**`, `eslint.config.mjs`.
+`.github/**`, `.sdlc/bands/**`, `apps/docs/content/**`, `eslint.config.mjs`.
 
 ## Two layers
 

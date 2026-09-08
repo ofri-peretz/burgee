@@ -12,4 +12,4 @@ paths-ignore:
   - "**/.source/**"
   - "**/.turbo/**"
   # Raw issue snapshots from other projects' trackers — data, not code.
-  - docs/research/issues/**
+  - .sdlc/research/issues/**

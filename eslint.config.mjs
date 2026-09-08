@@ -91,7 +91,7 @@ export default [
       '**/.turbo/**',
       '**/node_modules/**',
       '**/coverage/**',
-      'docs/research/issues/**',
+      '.sdlc/research/issues/**',
       'apps/docs/next-env.d.ts',
       // Vendored upstream test suites (compat-oracle C6). They are the hosts' own
       // files, unmodified except one import specifier, and are graded, never linted:
@@ -253,7 +253,7 @@ export default [
       // shapes: directory-bounded loops and `${x}` next to a space in console text.
       'secure-coding/no-unlimited-resource-allocation': 'off',
       'conventions/no-console-spaces': 'off',
-      // Maps keyed by band id from .agent/control-bands.json, a committed file, not
+      // Maps keyed by band id from .sdlc/bands/control-bands.json, a committed file, not
       // input; the rule cannot tell the two apart.
       'secure-coding/detect-object-injection': 'off',
       // Rethrowing a caught error after an ENOENT check keeps the original error.

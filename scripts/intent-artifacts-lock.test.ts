@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 /**
  * Workspace lock — the Stage 1 / Stage 2 artifacts keep their shape, in one place.
  *
- * `docs/intents/<slug>/intent.md` and its `design.md` are the handoff between the
+ * `.sdlc/intents/<slug>/intent.md` and its `design.md` are the handoff between the
  * stages of AI_NATIVE_SDLC.md, under the convention CLAUDE.md documents. They are
  * only worth anything if they are uniform: a control-band breach writes one
  * automatically, a person writes the next by hand, and both have to be readable by
@@ -25,14 +25,14 @@ import { fileURLToPath } from 'node:url';
  *
  * And an intent written *somewhere else* is worse than no intent, because the index
  * still looks complete. This repo carried two conventions at once — `intent/` and
- * `docs/intents/` — and every check passed the whole time, because each only ever
+ * `.sdlc/intents/` — and every check passed the whole time, because each only ever
  * looked at its own directory. `noStrayArtifacts` is why that cannot recur.
  */
 
 import { describe, it, expect } from 'vitest';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const INTENT_DIR = join(REPO_ROOT, 'docs/intents');
+const INTENT_DIR = join(REPO_ROOT, '.sdlc/intents');
 
 /** Headings every intent in the repo already carries. Uniform or worthless. */
 const INTENT_SECTIONS = ['## What is wanted', '## Why now', '## Constraints'];
@@ -70,7 +70,7 @@ function slugs(): string[] {
     .sort();
 }
 
-/** Every `intent.md` in the repo that is not under `docs/intents/`. */
+/** Every `intent.md` in the repo that is not under `.sdlc/intents/`. */
 function strayIntents(dir: string, found: string[] = []): string[] {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     if (e.isDirectory()) {
@@ -88,7 +88,7 @@ function strayIntents(dir: string, found: string[] = []): string[] {
 describe('intent artifacts', () => {
   it('ships the templates the flow and the control-band watcher both write from', () => {
     for (const f of ['README.md', '_template/intent.md', '_template/design.md']) {
-      expect(existsSync(join(INTENT_DIR, f)), `docs/intents/${f} is missing`).toBe(true);
+      expect(existsSync(join(INTENT_DIR, f)), `.sdlc/intents/${f} is missing`).toBe(true);
     }
   });
 
@@ -107,10 +107,10 @@ describe('intent artifacts', () => {
     expect(REJECTION_HEADINGS.test(tpl), 'template records nothing rejected').toBe(true);
   });
 
-  it('every intent lives under docs/intents — one convention, not two', () => {
+  it('every intent lives under .sdlc/intents — one convention, not two', () => {
     expect(
       strayIntents(REPO_ROOT),
-      'intent artifacts outside docs/intents/ are invisible to this lock and to ' +
+      'intent artifacts outside .sdlc/intents/ are invisible to this lock and to ' +
         'CLAUDE.md — move them, do not start a second convention',
     ).toEqual([]);
   });
@@ -121,10 +121,10 @@ describe('intent artifacts', () => {
     expect(found.length).toBeGreaterThan(0);
   });
 
-  it.each(found)('docs/intents/%s is well-formed', (slug) => {
+  it.each(found)('.sdlc/intents/%s is well-formed', (slug) => {
     const dir = join(INTENT_DIR, slug);
     const intentPath = join(dir, 'intent.md');
-    expect(existsSync(intentPath), `docs/intents/${slug}/intent.md is missing`).toBe(true);
+    expect(existsSync(intentPath), `.sdlc/intents/${slug}/intent.md is missing`).toBe(true);
 
     const intent = readFileSync(intentPath, 'utf-8');
     expect(intent, 'first line must be `# Intent — <title>`').toMatch(/^# Intent — \S/m);
@@ -133,11 +133,11 @@ describe('intent artifacts', () => {
     expect(STATUSES, `unknown or missing status "${status}"`).toContain(status);
 
     for (const s of INTENT_SECTIONS) {
-      expect(intent, `docs/intents/${slug}/intent.md lacks ${s}`).toContain(s);
+      expect(intent, `.sdlc/intents/${slug}/intent.md lacks ${s}`).toContain(s);
     }
     expect(
       SUCCESS_SECTIONS.some((s) => intent.includes(s)),
-      `docs/intents/${slug}/intent.md has no "${SUCCESS_SECTIONS[0]}" — Stage 6 has ` +
+      `.sdlc/intents/${slug}/intent.md has no "${SUCCESS_SECTIONS[0]}" — Stage 6 has ` +
         'nothing to measure the loop closing against',
     ).toBe(true);
 
@@ -145,7 +145,7 @@ describe('intent artifacts', () => {
     if (NEEDS_DESIGN.has(status!)) {
       expect(
         existsSync(designPath),
-        `docs/intents/${slug} is "${status}" but has no design.md — approving an ` +
+        `.sdlc/intents/${slug} is "${status}" but has no design.md — approving an ` +
           'intent means it has been designed, not that somebody liked it',
       ).toBe(true);
     }
@@ -154,7 +154,7 @@ describe('intent artifacts', () => {
       const design = readFileSync(designPath, 'utf-8');
       expect(
         REJECTION_HEADINGS.test(design),
-        `docs/intents/${slug}/design.md records nothing rejected — CLAUDE.md rule 3`,
+        `.sdlc/intents/${slug}/design.md records nothing rejected — CLAUDE.md rule 3`,
       ).toBe(true);
     }
   });

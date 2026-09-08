@@ -45,10 +45,10 @@ describe('layer 1 — scripts', () => {
 describe('layer 1 — floor ids', () => {
   it('reports an id a child cites that the umbrella does not define', () => {
     const root = repo({
-      'docs/intents/agent-native-cli-layer/design.md': '| F1 | x | R |\n| K5 | y | lock |',
-      'docs/intents/child/intent.md': 'needs F1 and K5 and Z9 and F99',
+      '.sdlc/intents/agent-native-cli-layer/design.md': '| F1 | x | R |\n| K5 | y | lock |',
+      '.sdlc/intents/child/intent.md': 'needs F1 and K5 and Z9 and F99',
     });
-    expect(unknownFloorIds(root)).toEqual(['docs/intents/child/intent.md → F99']);
+    expect(unknownFloorIds(root)).toEqual(['.sdlc/intents/child/intent.md → F99']);
   });
 
   it('is clean on this repository', () => {

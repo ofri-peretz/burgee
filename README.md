@@ -92,33 +92,33 @@ language: burgee is TypeScript, like both incumbents. Full table in
 | Path | Purpose |
 | :-- | :-- |
 | [`packages/burgee/`](./packages/burgee/) | The framework. `burgee` is the engine, `burgee/commander` the compat façade, `burgee/testing` the in-process harness (T1). |
-| [`packages/roundel/`](./packages/roundel/) | **roundel** — the colours a CLI carries: one output policy, semantic tokens, a theme, and a chalk migration path. Reserved; see [`docs/intents/roundel/`](./docs/intents/roundel/). |
-| [`packages/flagstaff/`](./packages/flagstaff/) | **flagstaff** — the staff the flag flies from: a frame loop with a static projection for agents, and the plugin host for spinners, progress, boxes and tables. Reserved; see [`docs/intents/flagstaff/`](./docs/intents/flagstaff/). |
-| [`packages/caique/`](./packages/caique/) | **caique** — the parrot that always answers back: prompts that are flags first and never hang. Reserved; see [`docs/intents/caique/`](./docs/intents/caique/). |
+| [`packages/roundel/`](./packages/roundel/) | **roundel** — the colours a CLI carries: one output policy, semantic tokens, a theme, and a chalk migration path. Reserved; see [`.sdlc/intents/roundel/`](./.sdlc/intents/roundel/). |
+| [`packages/flagstaff/`](./packages/flagstaff/) | **flagstaff** — the staff the flag flies from: a frame loop with a static projection for agents, and the plugin host for spinners, progress, boxes and tables. Reserved; see [`.sdlc/intents/flagstaff/`](./.sdlc/intents/flagstaff/). |
+| [`packages/caique/`](./packages/caique/) | **caique** — the parrot that always answers back: prompts that are flags first and never hang. Reserved; see [`.sdlc/intents/caique/`](./.sdlc/intents/caique/). |
 | [`packages/compat-oracle/`](./packages/compat-oracle/) | Internal, never published. Grades compatibility using the hosts' own suites, plus reference drivers that run the real incumbents for byte-for-byte comparison. |
 | [`examples/`](./examples/) | Demo CLIs and the conformance suite that runs every floor case on every host. |
 | [`apps/docs/`](./apps/docs/) | Documentation site (Next.js + fumadocs). |
-| [`docs/intents/`](./docs/intents/) | Stage 1 + 2 artifacts of the AI-native SDLC: `intent.md` + `design.md` per change, and the wave plan. |
-| [`docs/research/`](./docs/research/) | The evidence everything above rests on. |
+| [`.sdlc/intents/`](./.sdlc/intents/) | Stage 1 + 2 artifacts of the AI-native SDLC: `intent.md` + `design.md` per change, and the wave plan. |
+| [`.sdlc/research/`](./.sdlc/research/) | The evidence everything above rests on. |
 
 ### The research
 
 Every claim in the design traces to one of these, and each records what it could **not**
 determine as well as what it found.
 
-- [`competitor-landscape.md`](./docs/research/competitor-landscape.md) — the measured map:
+- [`competitor-landscape.md`](./.sdlc/research/competitor-landscape.md) — the measured map:
   downloads, cold start, the compatibility bill, and why we implement rather than wrap.
-- [`tracker-gap-analysis.md`](./docs/research/tracker-gap-analysis.md) — every open item in
+- [`tracker-gap-analysis.md`](./.sdlc/research/tracker-gap-analysis.md) — every open item in
   both trackers. Commander has 8; yargs has 211, 86% predating 2023. Six issues over nine
   years ask for machine-readable command structure, and the state of the art is
   regex-scraping `--help`.
-- [`agent-requirements.md`](./docs/research/agent-requirements.md) — what agents need, and
+- [`agent-requirements.md`](./.sdlc/research/agent-requirements.md) — what agents need, and
   **three widely-quoted claims that do not survive verification**.
-- [`cli-market-requirements.md`](./docs/research/cli-market-requirements.md) — ten production
+- [`cli-market-requirements.md`](./.sdlc/research/cli-market-requirements.md) — ten production
   CLIs taken apart, including what the security market requires and where both leading
   scanners get it wrong.
-- [`architecture.md`](./docs/research/architecture.md) — the diagrams.
-- [`lineage.md`](./docs/research/lineage.md) — the six projects we follow, each reduced to a
+- [`architecture.md`](./.sdlc/research/architecture.md) — the diagrams.
+- [`lineage.md`](./.sdlc/research/lineage.md) — the six projects we follow, each reduced to a
   commitment.
 
 ## Status
