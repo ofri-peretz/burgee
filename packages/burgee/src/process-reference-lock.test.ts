@@ -42,6 +42,13 @@ const ALLOWED = new Set([
   // hands it the Runtime's streams, and `load()` imports the entry as a fresh module graph,
   // which only the real module loader can do. Dev-time only, never reached by the framework.
   'burgee/src/dev.ts',
+  // roundel/chalk is chalk 6 ported method for method and graded by chalk's own suite. chalk's
+  // contract is a level detected from the process at import (`supportsColor`, `chalk.level`),
+  // which its tests assert through spawned fixtures; roundel's design keeps that model inside
+  // the façade only (R6) — every other roundel module reads the policy.
+  'roundel/src/chalk.ts',
+  // The execa shim the vendored ava suites spawn their fixtures through; internal, never published.
+  'compat-oracle/src/shims/execa.ts',
   // The one line the whole compatibility gate turns on: it reads COMPAT_TARGET to
   // decide which implementation the vendored suites grade.
   'compat-oracle/src/shim.ts',

@@ -31,6 +31,8 @@ const ALLOWED: Record<string, string[]> = {
   'tokens.js': ['./policy.js'],
   'theme.js': ['./policy.js', './contrast.js'],
   'index.js': ['./contrast.js', './policy.js', './theme.js', './tokens.js'],
+  // The chalk façade stands alone: chalk's own model, inside its own file (R6).
+  'chalk.js': [],
 };
 
 const RELATIVE = /(?:from|import)\s*'(\.[^']+)'/g;

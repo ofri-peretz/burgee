@@ -373,6 +373,20 @@ export default [
     rules: { 'maintainability/no-unhandled-promise': 'off', 'reliability/no-unhandled-promise': 'off' },
   },
   {
+    // FP 12 again (2026-09-08): consistent-function-scoping fires on the ava shim's
+    // skip/only/failing arrows assigned as properties of the test function at module scope,
+    // which is as high as they go, and on the callback each passes to node:test.
+    // FP 21: no-unhandled-promise reports `void nodeTest(...)`, a promise the `void`
+    // operator discards on purpose (node:test's `test()` never rejects; the runner reports).
+    // The rule must treat `void <call>` as handled. Tracked in the eslint monorepo.
+    files: ['packages/compat-oracle/src/shims/ava.ts'],
+    rules: {
+      'maintainability/consistent-function-scoping': 'off',
+      'maintainability/no-unhandled-promise': 'off',
+      'reliability/no-unhandled-promise': 'off',
+    },
+  },
+  {
     // A package's bin entry is executed, never imported, so it exports nothing.
     files: ['packages/*/src/bin.ts'],
     rules: { 'import-next/no-unused-modules': 'off' },
@@ -431,7 +445,8 @@ export default [
     // structural rules that would reshape it are off here. The oracle is the check.
     // `burgee/yargs` is yargs 18 (with yargs-parser 22, cliui 9 and y18n 5) ported the same
     // way and graded by yargs' own 804 tests; the same rules are off for the same reason.
-    files: ['packages/burgee/src/commander-*.ts', 'packages/burgee/src/commander.ts', 'packages/burgee/src/yargs-*.ts', 'packages/burgee/src/yargs.ts'],
+    // roundel/chalk is chalk 6 ported the same way and graded by chalk's own suite.
+    files: ['packages/burgee/src/commander-*.ts', 'packages/burgee/src/commander.ts', 'packages/burgee/src/yargs-*.ts', 'packages/burgee/src/yargs.ts', 'packages/roundel/src/chalk.ts'],
     rules: {
       'maintainability/consistent-function-scoping': 'off',
       'maintainability/cognitive-complexity': 'off',
@@ -477,7 +492,7 @@ export default [
   {
     // `import yargs from 'burgee/yargs'` is the drop-in: yargs' entry is a default export
     // and every program written for it imports it that way.
-    files: ['packages/burgee/src/yargs.ts', 'packages/burgee/src/yargs-parser.ts'],
+    files: ['packages/burgee/src/yargs.ts', 'packages/burgee/src/yargs-parser.ts', 'packages/roundel/src/chalk.ts', 'packages/compat-oracle/src/shims/ava.ts'],
     rules: { 'import-next/no-default-export': 'off' },
   },
   {

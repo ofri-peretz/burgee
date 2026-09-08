@@ -104,6 +104,15 @@ own package.json names at the vendored release, and dependabot is told to leave 
 a bump to `which@7` (promise-only) timed out yargs' integration tests twice in one day.
 They move only through the re-vendor flow, which reads the upstream's package.json.
 
+**An ava suite runs without ava (2026-09-08).** chalk's tests are ava; installing ava for
+one host would pull a second runner and its reporter into the oracle. A host may declare
+`shims` — bare tooling specifiers rewritten to oracle modules at vendor time — and chalk
+maps `ava` to `compat-oracle/ava` (its `t.*` assertions over `node:assert`, `test.serial`
+/`skip`/`only`/`before`/`after`, run under `node:test`) and `execa` to
+`compat-oracle/execa` (`execaNode` over `child_process.execFile`). Files starting with
+`_` are ava's helper convention and are not test files. The `ava` runner reports through
+the same TAP path as `node:test`, so the counts are read the same way.
+
 ## Rejected alternatives
 
 - **Write our own compatibility tests.** They would encode our reading of the host's

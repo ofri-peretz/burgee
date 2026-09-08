@@ -88,6 +88,16 @@ does not gets the defaults. Zero bytes of `roundel` in `import 'burgee'`.
   the terminal): the R1 truth table has one answer per input, and every component in the
   family is forbidden by the env grep from computing its own.
 
+## What shipped (R6, 2026-09-08)
+
+`roundel/chalk` is chalk 6.0.0's `source/index.js` with its two dependencies
+(`ansi-styles`, `supports-color`) folded into one 18 KB file, budget 21,000 bytes, isolated
+from every other subpath (it imports nothing). chalk's suite (`test/*.js`, ava) is vendored
+into `compat-oracle` at the 6.0.0 release and runs through the oracle's `ava` shim over
+`node:test`: **58 / 58**, control 58 / 58. The façade reads `process.env`, `argv` and
+`platform` directly, which the process-reference lock allows by name: that is chalk's
+contract, and the rest of the family still reads the policy.
+
 ## Rejected alternatives
 
 - **Depending on `burgee` for `contrast`.** Reverses the arrow (U1). Sixty lines duplicated

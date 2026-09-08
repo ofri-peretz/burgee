@@ -57,8 +57,14 @@ export interface Host {
   surfaceFiles?: string[];
   /** Git tag prefix for releases; `v` unless the host does otherwise. */
   tagPrefix?: string;
-  /** How its suite is executed. */
-  runner: 'node:test' | 'mocha';
+  /**
+   * Bare specifiers the suite imports for its *runner and tooling* (`ava`, `execa`), rewritten to
+   * the oracle's own shims for every target alike — the test framework is not the thing
+   * under test, and the oracle reads one TAP dialect.
+   */
+  shims?: Record<string, string>;
+  /** How its suite is executed. `ava` runs through `node:test` with the `ava` shim. */
+  runner: 'node:test' | 'mocha' | 'ava';
   /** Our entry point graded against it. */
   target: string;
   status: 'active' | 'planned' | 'rejected';
@@ -96,6 +102,19 @@ export const HOSTS: Host[] = [
     target: 'burgee/yargs',
     status: 'active',
     note: '108 methods. Built in wave 4.',
+  },
+  {
+    name: 'chalk',
+    repo: 'https://github.com/chalk/chalk',
+    testDir: 'test',
+    testGlob: '*.js',
+    imports: [{ upstream: '../source/index.js', subpath: '', reexportDefault: true }],
+    shims: { ava: 'compat-oracle/ava', execa: 'compat-oracle/execa' },
+    surfaceFiles: ['source/index.d.ts'],
+    runner: 'ava',
+    target: 'roundel/chalk',
+    status: 'active',
+    note: 'The first output-stack incumbent (output-stack-compat, chalk 6). ava, through the oracle shim.',
   },
   {
     name: 'meow',

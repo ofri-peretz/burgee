@@ -48,6 +48,11 @@ const RULES: Record<string, EntryRule> = {
   './theme': { allow: [], budget: 6_000, denied: ['tokens.js', 'index.js'] },
   // Pure arithmetic over hex strings. Reaches nothing.
   './contrast': { allow: [], budget: 1_500, denied: ['policy.js', 'tokens.js', 'theme.js', 'index.js'] },
+  // chalk 6.0.0 measured 2026-09-08: index 8,183 + ansi-styles 6,996 + supports-color 4,465 +
+  // utilities 1,187 = 20,831 B. The façade is those four ported into one file and must weigh
+  // no more than the package it replaces (R8, U5). It reaches nothing else in roundel: chalk's
+  // process-detected, mutable level is its contract and stays inside the façade (R6).
+  './chalk': { allow: [], budget: 21_000, denied: ['policy.js', 'tokens.js', 'theme.js', 'contrast.js', 'index.js'] },
 };
 
 const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;

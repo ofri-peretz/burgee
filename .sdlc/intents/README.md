@@ -185,7 +185,7 @@ data, every animation with a static projection, weight paid per subpath. Propose
 | # | Intent | Delivers | Floor ids | Status |
 | :-- | :-- | :-- | :-- | :-- |
 | 23 | [`cli-output-stack/`](./cli-output-stack/) | the layer table, the static-projection rule, the data-only plugin contract, the complete-CLI dependency bill | U1–U10 | approved |
-| 24 | [`roundel/`](./roundel/) | **roundel** — `./policy`, `./tokens`, `./theme`, and a chalk path graded by chalk's tests; each subpath at or under the incumbent it replaces | U2 U5 U6 U7 U10 U12 | approved |
+| 24 | [`roundel/`](./roundel/) | **roundel** — `./policy`, `./tokens`, `./theme`, and a chalk path graded by chalk's tests; each subpath at or under the incumbent it replaces | U2 U5 U6 U7 U10 U12 | shipped (0.0.x) — `roundel/chalk` 58 / 58 |
 | 25 | [`flagstaff/`](./flagstaff/) | **flagstaff** — frame loop, plugin host, built-ins as first-party plugins, `plugin check`; no layout engine | U3 U4 U8 U9 U12 | approved |
 
 | 26 | [`output-stack-research/`](./output-stack-research/) | **what we improve** — the ten incumbents' trackers read in full, won't-fix lists included; every U row cited | U1–U12 | shipped |
@@ -231,6 +231,7 @@ compat-commander    ████████████████████
   internals                                         12 /   12                                          12 /   12
 compat-yargs        ████████████████████████   804 /  804  100.0%     ████████████████████████   802 /  804   99.8%
   internals                                         23 /   23                                          23 /   23
+compat-chalk        ████████████████████████    58 /   58  100.0%     ████████████████████████    58 /   58  100.0%
 ```
 
 Every file of both suites is vendored and run — nothing is excluded. The *internals* lines
@@ -485,6 +486,7 @@ whatever a one-line shim points at, and the rate ratchets.
 | :-- | :-- | :-- |
 | `compat-commander-pass-rate` | commander's 1,215 public-surface tests | 1,210/1,215 against real commander, measured 2026-09-06 |
 | `compat-yargs-pass-rate` | yargs' 804 tests | 804 / 804 (2026-09-08) |
+| `compat-chalk-pass-rate` | chalk's 58 tests | 58 / 58 (2026-09-08) |
 | `node-matrix-green` | every Node LTS in `engines` × Linux, macOS, Windows | Node 24 and 26 today |
 | documented divergences | `excluded.json`, rendered on the docs site | 9 upstream files testing internals, excluded and named |
 

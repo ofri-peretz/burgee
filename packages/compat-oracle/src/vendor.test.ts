@@ -36,3 +36,12 @@ describe('the vendored root package', () => {
     expect(pkg.name).toBe('@vendored/yargs-suite');
   });
 });
+
+describe('rewriteAt — tooling shims', () => {
+  it("rewrites a host's bare tooling specifiers to the oracle's shims, both quote styles", () => {
+    const chalk = HOSTS.find((h) => h.name === 'chalk');
+    if (!chalk) throw new Error('chalk host missing');
+    const out = rewriteAt("import test from 'ava';\nimport { execaNode } from \"execa\";", chalk, '/v/chalk/test', '/v/chalk');
+    expect(out).toBe("import test from 'compat-oracle/ava';\nimport { execaNode } from \"compat-oracle/execa\";");
+  });
+});

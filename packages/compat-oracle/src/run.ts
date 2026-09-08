@@ -235,7 +235,8 @@ export function grade(host: Host, vendorDir: string, target: string, reference =
   const sourcePath = join(hostDir, '.source.json');
   const source: Source = existsSync(sourcePath) ? (JSON.parse(readFileSync(sourcePath, 'utf8')) as Source) : {};
   const internalFiles = new Set(source.internalFiles ?? []);
-  const all = readdirSync(dir).filter((f) => /\.(m?js|cjs)$/.test(f) && f !== host.preamble);
+  // ava's convention: a file whose name starts with `_` is a helper or a fixture, never a test.
+  const all = readdirSync(dir).filter((f) => /\.(m?js|cjs)$/.test(f) && f !== host.preamble && !f.startsWith('_'));
   const files = all.filter((f) => !internalFiles.has(f));
   const internal = all.filter((f) => internalFiles.has(f));
   if (files.length === 0) return { ...base, error: 'no test files vendored' };

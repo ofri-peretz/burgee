@@ -15,7 +15,8 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "burgee": "*"
+    "burgee": "*",
+    "roundel": "*"
   },
   "peerDependencies": {
     "commander": ">=12",
@@ -24,7 +25,7 @@
   "devDependencies": {
     "@types/yargs": "^17.0.33",
     "chai": "^6.2.2",
-    "chalk": "^5.6.2",
+    "chalk": "6.0.0",
     "commander": "^15.0.0",
     "cpr": "^3.0.1",
     "cross-spawn": "^7.0.6",
@@ -51,6 +52,16 @@
       "types": "./dist/hosts.d.ts",
       "import": "./dist/hosts.js",
       "default": "./dist/hosts.js"
+    },
+    "./ava": {
+      "types": "./dist/shims/ava.d.ts",
+      "import": "./dist/shims/ava.js",
+      "default": "./dist/shims/ava.js"
+    },
+    "./execa": {
+      "types": "./dist/shims/execa.d.ts",
+      "import": "./dist/shims/execa.js",
+      "default": "./dist/shims/execa.js"
     }
   },
   "files": [

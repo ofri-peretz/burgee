@@ -65,19 +65,33 @@ terminals, so a theme that would not read fails in CI rather than on one laptop.
 and 256-colour fallbacks are the user's terminal palette and are not checked: a number
 there would be invented.
 
+### The chalk path
+
+`roundel/chalk` is chalk 6's public API — the chainable `chalk.red.bold`, `Chalk`,
+`chalkStderr`, `supportsColor`, `ansiStyles`, the name lists — in one file with no
+dependencies, graded by chalk's own test suite vendored into the repo: **58 / 58**, the same
+score chalk 6.0.0 gets against itself. A migration is one import; your tests are unchanged.
+
+```ts
+import chalk from 'roundel/chalk';
+console.log(chalk.red.bold('error'), chalk.hex('#0d9460')('ok'));
+```
+
+It keeps chalk's mutable `level` because chalk's tests demand it; it is the one place in the
+family that has one. New code takes the tokens.
+
 ## Weight
 
 Every subpath is a lock, not a convention. `roundel/tokens` reaches 2,198 bytes on disk
 (its ceiling is picocolors, 3.3 KB); `roundel/policy` 1,405; `roundel/theme` 5,642;
-`roundel/contrast` 1,250. Importing one never loads another — the tokens never carry the
+`roundel/contrast` 1,250; `roundel/chalk` 18,078 (chalk 6 with its two dependencies is
+~25 KB). Importing one never loads another — the tokens never carry the
 theme, the theme never carries the tokens — and `sideEffects: false` lets a bundler drop
 what a program does not use. ESM with a `default` condition, so `require('roundel/tokens')`
 works from CommonJS on Node ≥ 24.
 
 ## What is next
 
-- **`roundel/chalk`** — chalk's chainable API over these tokens, graded by chalk's own test
-  suite, so a migration is one import and your tests are unchanged.
 - **`roundel/import`** — `fromBase16(scheme)` and `fromITerm(plist)`: a theme from the two
   largest corpora of terminal palettes, contrast-checked on the way in.
 

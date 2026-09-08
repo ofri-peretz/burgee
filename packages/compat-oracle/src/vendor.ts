@@ -69,12 +69,14 @@ const dotted = (p: string): string => {
 
 export function rewriteAt(source: string, host: Host, fileDir: string, hostDir: string): string {
   const testDir = join(hostDir, host.testDir);
+  // Runner and tooling shims first: the same target-independent module for every run.
+  const shimmed = Object.entries(host.shims ?? {}).reduce((acc, [bare, shim]) => acc.replaceAll(`'${bare}'`, `'${shim}'`).replaceAll(`"${bare}"`, `"${shim}"`), source);
   return host.imports.reduce((acc, entry, i) => {
     // A bare specifier reads the same from every file; a relative one moves with the file.
     const upstreamHere = entry.upstream.startsWith('.') ? dotted(relative(fileDir, resolve(testDir, entry.upstream))) : entry.upstream;
     const shimHere = dotted(relative(fileDir, join(hostDir, shimName(i))));
     return acc.replaceAll(`'${upstreamHere}'`, `'${shimHere}'`).replaceAll(`"${upstreamHere}"`, `"${shimHere}"`);
-  }, source);
+  }, shimmed);
 }
 
 const TEXT = /\.(m?js|cjs|ts|json)$|^[^.]+$/;
