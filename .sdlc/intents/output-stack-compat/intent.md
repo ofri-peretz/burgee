@@ -27,13 +27,44 @@ A user of any of these changes one import and their tests still pass:
 | ora 9 | `flagstaff/ora` | flagstaff | node:test | **shipped 2026-09-08 — 99 / 99.** `ora().start()` chain; `isSpinning`, `succeed`, `fail`; the `spinners` corpus; the stream hooks |
 | log-update 8 | `flagstaff/log-update` | flagstaff | node:test | **shipped 2026-09-08 — 99 / 99.** `logUpdate()`, `.clear()`, `.done()`, `.persist()`, stderr variant. Its cases render every frame through a real terminal emulator and assert the screen |
 | boxen 8 | `flagstaff/boxen` | flagstaff | ava | border styles, padding, title, `fullscreen`. **Blocked on the oracle:** every case is `t.snapshot(box)` against ava's own `.snap` binary format, which the ava shim does not read. Teach the shim that format, or record the control's output as the expectation — a decision, so it is `planned` rather than active |
-| cli-table3 | `flagstaff/table` | flagstaff | vitest | `new Table({ head })`, `push`, `toString()`. Its suite is **jest**, not mocha as first recorded here; jest's globals are vitest's and vitest is already in the repo, so the runner to add is `vitest` |
+| cli-table3 | `flagstaff/table` | flagstaff | vitest | **Blocked on a decision — see below.** Its suite is jest, not mocha as first recorded here, and 221 of its 234 cases test its own `src/` modules |
 | inquirer 14 | `caique/inquirer` | caique | vitest | `inquirer.prompt([...])`, `@inquirer/*` prompt kinds |
 | clack 1 | `caique/clack` | caique | vitest | `text`, `confirm`, `select`, `group`, `isCancel`, `spinner` |
 
 Each row is a scoreboard line, each suite is vendored and pinned to the npm release the way
 commander's and yargs' are, and `--control` proves the gate against the real package before
 it grades ours (C1–C6).
+
+## Two hosts blocked on a decision, not on a port
+
+Read at their current releases on 2026-09-08. Both were recorded above as ordinary rows;
+neither is.
+
+**boxen 8.** Every one of its cases is `t.snapshot(box)` against ava's own `.snap` binary
+format, which the oracle's ava shim does not read. Two ways out, and they claim different
+things: teach the shim ava's snapshot format, and the grade is boxen's recorded
+expectations; or record the *control's* output as the expectation, and the grade is "we
+render what boxen renders today", which is weaker but honest if it says so.
+
+**cli-table3 0.6.5.** Two surprises. Its suite is jest — vitest's `tap-flat` reporter would
+run it, but that reporter emits a plan and one line per test with no `# tests / # pass /
+# fail` summary, so the oracle needs a second TAP dialect to read it. That part is small.
+The real one is the shape of the suite:
+
+| files | reach | cases |
+| :-- | :-- | --: |
+| `table-test.js`, `test/issues/*` | the package root | **13** |
+| `cell-test.js`, `utils-test.js`, `layout-manager-test.js`, `table-layout-test.js`, the two `original-cli-table-*`, `verify-legacy-compatibility-test.js` | `../src/cell`, `../src/utils`, `../src/layout-manager` | **221** |
+
+Under C4 — a file that imports only the host's internals is graded on an informational line
+and never gated, because passing it would mean copying the host's file layout — "cli-table3,
+graded" is 13 tests. The other 221 are only passable by reproducing its `src/` file for
+file, which is exactly what that rule exists to refuse. Three of them also use
+`jest.mock` / `jest.requireActual` on those modules, which is the same statement in code.
+
+So the row is worth having, but what it may claim has to be decided before it is built:
+13 gated cases with the 221 reported beside them, or the row dropped and the reason
+published. Either is defensible; quietly shipping "13 / 13, 100%" is not.
 
 ## Why now
 
