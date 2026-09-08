@@ -41,6 +41,9 @@ export interface PlatformShim {
     exit: (code: number) => void;
     nextTick: (cb: () => void) => void;
     stdColumns: number | null;
+    /** burgee: the streams --mcp serves on, reached through the shim like everything else. */
+    stdin: () => NodeJS.ReadableStream;
+    stdout: () => { write: (s: string) => unknown };
   };
   readFileSync: typeof readFileSync;
   readdirSync: typeof readdirSync;
@@ -116,6 +119,8 @@ export const shim: PlatformShim = {
     },
     nextTick: process.nextTick,
     stdColumns: typeof process.stdout.columns !== 'undefined' ? process.stdout.columns : null,
+    stdin: () => process.stdin,
+    stdout: () => process.stdout,
   },
   readFileSync,
   readdirSync,

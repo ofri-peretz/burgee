@@ -73,8 +73,26 @@ function check(dir: string, pkg: Pkg, baseline: Baseline, update: boolean): stri
   return [...missingExportTargets(dir, pkg), ...forbiddenInPack(pkg, pack), ...sizeVerdict(pkg, pack, baseline, update)];
 }
 
+/**
+ * Read the baseline, or `undefined` when there is not one yet.
+ *
+ * Opened rather than stat-ed first: a check-then-act on a path this process is about to
+ * write can get two different answers. Only ENOENT means "no baseline" — a corrupt file
+ * throws, because silently treating it as absent would rewrite the ratchet from nothing
+ * and let the next regression through, which is the one thing this script exists to stop.
+ */
+function readBaseline(): Baseline | undefined {
+  try {
+    return JSON.parse(readFileSync(BASELINE, 'utf8')) as Baseline;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    throw error;
+  }
+}
+
 const update = process.argv.includes('--update-baseline');
-const baseline: Baseline = existsSync(BASELINE) ? (JSON.parse(readFileSync(BASELINE, 'utf8')) as Baseline) : {};
+const existing = readBaseline();
+const baseline: Baseline = existing ?? {};
 const problems: string[] = [];
 for (const dir of readdirSync(join(root, 'packages'))) {
   const full = join(root, 'packages', dir);
@@ -84,7 +102,7 @@ for (const dir of readdirSync(join(root, 'packages'))) {
   if (pkg.private === true) continue;
   problems.push(...check(full, pkg, baseline, update));
 }
-if (update || !existsSync(BASELINE)) writeFileSync(BASELINE, `${JSON.stringify(baseline, null, 2)}\n`);
+if (update || existing === undefined) writeFileSync(BASELINE, `${JSON.stringify(baseline, null, 2)}\n`);
 for (const p of problems) process.stdout.write(`✖ ${p}\n`);
 process.stdout.write(problems.length === 0 ? '✓ published artifacts check out\n' : `${problems.length} problem(s)\n`);
 process.exitCode = problems.length === 0 ? 0 : 1;
