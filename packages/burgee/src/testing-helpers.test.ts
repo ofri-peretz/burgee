@@ -123,6 +123,18 @@ describe('clock (R14 of cli-output-stack)', () => {
     expect(clock.now()).toBe(1030);
   });
 
+  it('a callback that reschedules itself at zero delay fails the tick at the cap instead of hanging', () => {
+    const clock = fakeClock();
+    let runs = 0;
+    const again = (): void => {
+      runs += 1;
+      clock.schedule(again, 0);
+    };
+    clock.schedule(again, 0);
+    expect(() => clock.tick(1)).toThrow(/ran 1000 callbacks \(TICK_CAP\)/);
+    expect(runs).toBe(1000);
+  });
+
   it('cancelling twice, or after the callback ran, is harmless', () => {
     const clock = fakeClock();
     let runs = 0;
