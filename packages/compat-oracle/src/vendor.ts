@@ -8,7 +8,7 @@
 import { execFileSync } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, relative, resolve } from 'node:path';
+import { join, relative, resolve, sep } from 'node:path';
 
 import { type Host } from './hosts.js';
 import { type CompatRecord, diffRecords, latestVersion, readRecord, type RecordDiff, snapshot } from './upstream.js';
@@ -60,7 +60,12 @@ export function shimName(index: number): string {
  * specifier is written relative to the test dir (`../index.js`); a fixture two levels
  * down writes the same module as `../../index.js`. Both must land on the one shim.
  */
-const dotted = (p: string): string => (p.startsWith('.') ? p : `./${p}`);
+// Specifiers are posix whatever the OS: `relative()` answers with backslashes on Windows,
+// and a backslash never matches — or belongs in — an import specifier.
+const dotted = (p: string): string => {
+  const posix = p.split(sep).join('/');
+  return posix.startsWith('.') ? posix : `./${posix}`;
+};
 
 export function rewriteAt(source: string, host: Host, fileDir: string, hostDir: string): string {
   const testDir = join(hostDir, host.testDir);
