@@ -11,7 +11,7 @@ import { parseArgs } from 'node:util';
 import { detectAgent } from './agent.js';
 import { ExitCode, isExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
 import { renderHelp } from './help.js';
-import { type ActionRequiredSpec, type ArgumentSpec, type CommandNode, type Effects, type Example, Manifest, type OptionSpec, type Relation, type RunContext } from './manifest.js';
+import { type ActionRequiredSpec, type ArgumentSpec, type CommandNode, type Effects, type Example, type LazyModule, Manifest, type OptionSpec, type Relation, type RunContext } from './manifest.js';
 import { serveMcp } from './mcp.js';
 import { camel, kebab } from './names.js';
 import { nearestPackage, type Package } from './pkg.js';
@@ -57,6 +57,8 @@ export interface Command<S extends OptionSpecs = OptionSpecs> {
   relations?: readonly Relation[];
   /** Absent on a group that only holds subcommands. `NoInfer`: the spec fixes S, the handler only reads it. */
   run?: (ctx: CommandContext<InferOptions<NoInfer<S>>>) => unknown;
+  /** The handler's module, imported on dispatch only (M2); everything else about the command is declared here. */
+  load?: () => Promise<LazyModule>;
   commands?: AnyCommand[];
 }
 
@@ -111,9 +113,20 @@ function addTree(manifest: Manifest, parent: string[], commands: AnyCommand[]): 
       ...helpFields(c),
       options: c.options ?? {},
       ...(c.run === undefined ? {} : { run: c.run as (ctx: RunContext) => unknown }),
+      ...(c.load === undefined ? {} : { load: c.load }),
     });
     if (c.commands !== undefined) addTree(manifest, path, c.commands);
   }
+}
+
+/**
+ * Options declared once and spread into each command that takes them (M4): never global,
+ * so `--schema` stays a tree and each command's help lists them as its own, and the
+ * handler's `options` type carries them like any other. Every copy is tagged
+ * `sharedFrom` with the set's name, so the schema says where it came from.
+ */
+export function sharedOptions<const T extends OptionSpecs>(name: string, specs: T): T {
+  return Object.fromEntries(Object.entries(specs).map(([key, spec]) => [key, { ...spec, sharedFrom: name }])) as T;
 }
 
 /** A native multi-command program. The manifest it builds is the same one the façades fill. */
@@ -528,6 +541,8 @@ async function dispatch(manifest: Manifest, { node, rest, name }: Resolved, io: 
   checkRelations(node.relations, resolved.values, provenance);
   const values = await coerce(node.options, resolved.values);
   const { positionals, passthrough } = splitPositionals(parsed.tokens);
+  requirePositionals(node, positionals);
+  warnDeprecated(node, io);
   await manifest.fire('preRun', name, values);
   const exit = (code: number): never => {
     io.exit(code);
@@ -538,6 +553,28 @@ async function dispatch(manifest: Manifest, { node, rest, name }: Resolved, io: 
   await manifest.fire('postRun', name, values);
   const changed = changedOf(node, data);
   return { json, data, provenance, ...(changed === undefined ? {} : { changed }) };
+}
+
+/** A declared, required positional that argv did not supply is a usage error naming it, as on both hosts. */
+function requirePositionals(node: CommandNode, positionals: string[]): void {
+  const required = (node.arguments ?? []).filter((a) => a.required !== false && a.variadic !== true);
+  const missing = required[positionals.length];
+  if (positionals.length < required.length && missing !== undefined) {
+    throw new UsageError(`missing required argument "${missing.name}"`, `run --help to see what "${node.path.slice(1).join(' ')}" takes`);
+  }
+}
+
+const warned = new Set<string>();
+
+/** M5: a deprecated command says so once per process, on stderr, and still runs — exit OK. */
+function warnDeprecated(node: CommandNode, io: Io): void {
+  if (node.deprecated === undefined || node.deprecated === false) return;
+  const key = node.path.join(' ');
+  if (warned.has(key)) return;
+  warned.add(key);
+  const typed = node.path.slice(1).join(' ') || key;
+  const use = typeof node.deprecated === 'string' ? `, use '${node.deprecated}'` : '';
+  io.err.write(`warning: '${typed}' is deprecated${use}\n`);
 }
 
 /** Success: help, or the data on the requested surface. */
@@ -624,6 +661,30 @@ export async function execute(manifest: Manifest, opts: RunOptions & { root?: st
   } catch (cause) {
     return await report(cause, { manifest, io, argv, json, name });
   }
+}
+
+/** M6: which command argv names, or null — the same longest-prefix match `execute` uses. */
+export function resolveCommand(manifest: Manifest, argv: readonly string[]): CommandNode | null {
+  const { node } = manifest.resolve(beforeTerminator(argv) as string[], manifest.rootPath);
+  return node ?? null;
+}
+
+export interface RunResult {
+  code: number;
+  stdout: string;
+  stderr: string;
+}
+
+/**
+ * M6: run a command programmatically — the harness's own entry, public. The streams are
+ * captured, the exit recorded; env, cwd and the entry can be injected like `execute`'s.
+ */
+export async function runCommand(manifest: Manifest, argv: readonly string[], opts: Pick<RunOptions, 'env' | 'cwd' | 'entry' | 'stdin'> = {}): Promise<RunResult> {
+  const out: string[] = [];
+  const err: string[] = [];
+  let code: number = ExitCode.OK;
+  await execute(manifest, { ...opts, argv: [...argv], from: 'user', stdout: { write: (s) => out.push(s) }, stderr: { write: (s) => err.push(s) }, exit: (c) => void (code = c) });
+  return { code, stdout: out.join(''), stderr: err.join('') };
 }
 
 /**

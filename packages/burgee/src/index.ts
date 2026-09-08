@@ -10,7 +10,10 @@ export {
   defineCommand,
   defineProgram,
   execute,
+  resolveCommand,
   run,
+  runCommand,
+  sharedOptions,
   type AnyCommand,
   type Command,
   type CommandContext,
@@ -18,6 +21,7 @@ export {
   type OptionSpecs,
   type Program,
   type RunOptions,
+  type RunResult,
 } from './execute.js';
 export { camel, checkDefinition, kebab, UsageError } from './validate.js';
 export { AGENT_PROBES, detectAgent, type AgentProbe, type Detection } from './agent.js';
@@ -33,6 +37,7 @@ export {
   type Effects,
   type Example,
   type Hook,
+  type LazyModule,
   type OptionSpec,
   type ActionRequiredSpec,
   type Plugin,
