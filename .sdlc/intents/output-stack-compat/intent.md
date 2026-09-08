@@ -10,9 +10,8 @@
 
 ## Where it stands (2026-09-08)
 
-Two of eight rows graded, each with its control in the same run — chalk 58 / 58 and ora
-99 / 99 — and a third, log-update, vendored with its control proven at 99 / 99 and its
-façade pending. The status above stays `draft` because this intent has no `design.md`, and
+Three of eight rows graded, each with its control in the same run: chalk 58 / 58, ora
+99 / 99, log-update 99 / 99. The status above stays `draft` because this intent has no `design.md`, and
 under the SDLC an intent is not `approved` until a human has accepted a design; the rows
 shipped so far did so under `roundel`'s and `flagstaff`'s own designs, which is where their
 façade requirements (R6) actually live.
@@ -26,7 +25,7 @@ A user of any of these changes one import and their tests still pass:
 | chalk 6 | `roundel/chalk` | roundel | ava | **shipped 2026-09-08 — 58 / 58.** mutable `level`, `chalkStderr`, `Chalk` class |
 | picocolors | `roundel/tokens` | roundel | node:test | API is a subset; graded for completeness, not compat |
 | ora 9 | `flagstaff/ora` | flagstaff | node:test | **shipped 2026-09-08 — 99 / 99.** `ora().start()` chain; `isSpinning`, `succeed`, `fail`; the `spinners` corpus; the stream hooks |
-| log-update 8 | `flagstaff/log-update` | flagstaff | node:test | **suite vendored, control 99 / 99 (2026-09-08); façade next.** `logUpdate()`, `.clear()`, `.done()`, `.persist()`, stderr variant. Its cases render every frame through a real terminal emulator and assert the screen |
+| log-update 8 | `flagstaff/log-update` | flagstaff | node:test | **shipped 2026-09-08 — 99 / 99.** `logUpdate()`, `.clear()`, `.done()`, `.persist()`, stderr variant. Its cases render every frame through a real terminal emulator and assert the screen |
 | boxen 8 | `flagstaff/boxen` | flagstaff | ava | border styles, padding, title, `fullscreen`. **Blocked on the oracle:** every case is `t.snapshot(box)` against ava's own `.snap` binary format, which the ava shim does not read. Teach the shim that format, or record the control's output as the expectation — a decision, so it is `planned` rather than active |
 | cli-table3 | `flagstaff/table` | flagstaff | vitest | `new Table({ head })`, `push`, `toString()`. Its suite is **jest**, not mocha as first recorded here; jest's globals are vitest's and vitest is already in the repo, so the runner to add is `vitest` |
 | inquirer 14 | `caique/inquirer` | caique | vitest | `inquirer.prompt([...])`, `@inquirer/*` prompt kinds |
@@ -73,9 +72,9 @@ it grades ours (C1–C6).
 
 ## Success criteria
 
-- Eight rows on the scoreboard, each with a `--control` run recorded. Two of eight graded as
-  of 2026-09-08 — chalk 58 / 58 and ora 99 / 99, each with its control in the same run — and a
-  third (log-update) vendored with its control proven at 99 / 99, its façade pending.
+- Eight rows on the scoreboard, each with a `--control` run recorded. Three of eight as of
+  2026-09-08: chalk 58 / 58, ora 99 / 99, log-update 99 / 99, each with its control in the
+  same run.
 - chalk and ora at parity with the real package in the same run before their façades
   publish. **Met.**
 - The release watch opens an issue within a day of any incumbent's release, with the diff.
