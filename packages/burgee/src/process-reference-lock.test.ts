@@ -45,6 +45,13 @@ const ALLOWED = new Set([
   // flagstaff's `bin` (`flagstaff check <file>`) is the package's own command line: argv in,
   // stdout out, exit code set. Everything it renders goes through hoist() over buffers.
   'flagstaff/src/cli.ts',
+  // flagstaff/ora is ora 9 ported method for method and graded by ora's own suite. ora's
+  // contract is the process: `process.stderr` is the default stream, `process.stdout` and
+  // `process.stderr` are the streams it hooks so a `console.log` lands above the frame,
+  // `process.stdin` is what the discarder puts into raw mode, and the interactivity and
+  // unicode probes read the environment. Its suite swaps all four per test and grades
+  // exactly that (R6). `hoist()` — the way forward — takes its world as an argument.
+  'flagstaff/src/ora.ts',
   // `roundel/chalk` reproduces chalk's contract, which is "detect the terminal at import"
   // (roundel design R6 against R9): the one file in roundel that reads the process — once,
   // through `globalThis.process`, guarded, and only to hand the policy a Runtime. Every

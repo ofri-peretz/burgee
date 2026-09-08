@@ -16,10 +16,12 @@
   },
   "dependencies": {
     "burgee": "*",
+    "flagstaff": "*",
     "roundel": "*"
   },
   "peerDependencies": {
     "commander": ">=12",
+    "ora": ">=9",
     "yargs": ">=17"
   },
   "devDependencies": {
@@ -31,8 +33,10 @@
     "cpr": "^3.0.1",
     "cross-spawn": "^7.0.6",
     "execa": "^10.0.0",
+    "get-stream": "^9.0.1",
     "hashish": "0.0.4",
     "mocha": "^11.7.6",
+    "ora": "9.4.1",
     "vitest": "^5.0.0",
     "which": "^2.0.2",
     "yargs": "^18.0.0",

@@ -4,7 +4,7 @@
 > requirement U11. The commander move, repeated seven times: a façade over our engine,
 > graded by the incumbent's own suite, with a published, ratcheting pass rate.
 
-**Status:** draft · **Opened:** 2026-09-08 · **Owner:** @ofri-peretz
+**Status:** in progress (2 of 8 rows) · **Opened:** 2026-09-08 · **Owner:** @ofri-peretz
 
 ---
 
@@ -14,9 +14,9 @@ A user of any of these changes one import and their tests still pass:
 
 | Incumbent | Façade | Layer | Suite runner | Notes |
 | :-- | :-- | :-- | :-- | :-- |
-| chalk 6 | `roundel/chalk` | roundel | ava | mutable `level`, `chalkStderr`, `Chalk` class |
+| chalk 6 | `roundel/chalk` | roundel | ava | **shipped 2026-09-08 — 58 / 58.** mutable `level`, `chalkStderr`, `Chalk` class |
 | picocolors | `roundel/tokens` | roundel | node:test | API is a subset; graded for completeness, not compat |
-| ora 9 | `flagstaff/ora` | flagstaff | ava | `ora().start()` chain; `isSpinning`, `succeed`, `fail` |
+| ora 9 | `flagstaff/ora` | flagstaff | node:test | **shipped 2026-09-08 — 99 / 99.** `ora().start()` chain; `isSpinning`, `succeed`, `fail`; the `spinners` corpus; the stream hooks |
 | log-update 8 | `flagstaff/log-update` | flagstaff | ava | `logUpdate()`, `.clear()`, `.done()`, stderr variant |
 | boxen 8 | `flagstaff/boxen` | flagstaff | ava | border styles, padding, title, `fullscreen` |
 | cli-table3 | `flagstaff/table` | flagstaff | mocha | `new Table({ head })`, `push`, `toString()` |
@@ -47,17 +47,27 @@ it grades ours (C1–C6).
 
 1. Façades are implemented over our engine, never wrapped around the real package (J9).
    The real packages exist only inside `compat-oracle`, private.
-2. A façade cannot lower the layer's guarantees: `flagstaff/ora` still has a static
-   projection and still emits nothing under `--json`. Where ora's suite asserts the
-   opposite (a `\r` in a pipe), the case is allow-listed with the reason, as X7 does.
+2. A façade cannot lower the layer's guarantees. Measured on the first render façade
+   (2026-09-08): ora needs no allow-list, because ora's *own default* already honours R5 —
+   `isInteractive()` is false for a pipe and for CI, and a disabled spinner writes one
+   static line per state with no `\r` and no escape. Every frame test in ora's suite passes
+   `isEnabled: true` to force the animation on, so the guarantee and the suite never meet.
+   `packages/flagstaff/src/ora.test.ts` asserts it on the default a real program gets, and
+   goes red if the enablement path is broken. Where a later façade's suite *does* assert
+   the opposite, the case is allow-listed with the reason, as X7 does.
+
+   What a façade does not do is reinterpret its host: `flagstaff/ora` is ora's behaviour to
+   the byte and does not sit on `hoist()`. The static projection is the reason to move on
+   eventually, not the reason to move; the façade is the door.
 3. Order follows downloads × layer readiness: chalk, ora, inquirer, clack, then the rest.
 4. A suite killed mid-run is an error, never a score (the oracle's existing rule).
 
 ## Success criteria
 
-- Eight rows on the scoreboard, each with a `--control` run recorded.
+- Eight rows on the scoreboard, each with a `--control` run recorded. Two of eight as of
+  2026-09-08: chalk 58 / 58 and ora 99 / 99, each with its control in the same run.
 - chalk and ora at parity with the real package in the same run before their façades
-  publish.
+  publish. **Met.**
 - The release watch opens an issue within a day of any incumbent's release, with the diff.
 
 ## Open questions

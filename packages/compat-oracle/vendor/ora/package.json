@@ -1,0 +1,9 @@
+{
+  "name": "@vendored/ora-suite",
+  "private": true,
+  "type": "module",
+  "main": "./shim.js",
+  "version": "9.4.1",
+  "license": "MIT",
+  "repository": "sindresorhus/ora"
+}
