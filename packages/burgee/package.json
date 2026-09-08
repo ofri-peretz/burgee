@@ -37,6 +37,11 @@
       "types": "./dist/commander.d.ts",
       "import": "./dist/commander.js",
       "default": "./dist/commander.js"
+    },
+    "./completions": {
+      "types": "./dist/completions.d.ts",
+      "import": "./dist/completions.js",
+      "default": "./dist/completions.js"
     }
   },
   "files": [

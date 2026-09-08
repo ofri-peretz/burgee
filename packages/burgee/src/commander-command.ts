@@ -1668,6 +1668,20 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
       at._findOption(flag) !== undefined || at.commands.some((sub) => declared(flag, sub));
     const terminator = userArgs.indexOf('--');
     const head = terminator === -1 ? userArgs : userArgs.slice(0, terminator);
+    if (head[0] === 'completion' && root._findCommand('completion') === undefined) {
+      // Loaded on this command only (K6), exactly as the engine does.
+      const { renderCompletion, renderFigSpec, SHELLS } = await import('./completions.js');
+      const shell = head[1] ?? '';
+      if (shell === 'fig') {
+        root._outputConfiguration.writeOut(`${JSON.stringify(renderFigSpec(this.manifest), null, 2)}\n`);
+        return true;
+      }
+      const known = SHELLS.find((s) => s === shell);
+      if (known !== undefined) {
+        root._outputConfiguration.writeOut(renderCompletion(this.manifest, known));
+        return true;
+      }
+    }
     if (head.includes('--schema') && !declared('--schema')) {
       root._outputConfiguration.writeOut(`${JSON.stringify(schemaOf(this.manifest), null, 2)}\n`);
       return true;

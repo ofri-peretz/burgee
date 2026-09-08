@@ -290,8 +290,28 @@ function unresolved({ manifest, root, io: { width } }: Resolving, argv: string[]
  * `--schema` (F1, N8) and `--mcp` (N1) are served for every program from the manifest
  * alone, before any command resolves: no config, no network, no handler runs.
  */
+/**
+ * `completion <shell>` is synthesised unless the program defines its own `completion`
+ * command (D2). The templates are loaded only here, on that command (K6): a program pays
+ * for them when it prints a completion script, never at startup.
+ */
+async function completion(manifest: Manifest, argv: string[], io: Io): Promise<boolean> {
+  if (argv[0] !== 'completion' || manifest.find([...manifest.rootPath, 'completion']) !== undefined) return false;
+  const { renderCompletion, renderFigSpec, SHELLS } = await import('./completions.js');
+  const shell = argv[1] ?? '';
+  if (shell === 'fig') {
+    io.out.write(`${JSON.stringify(renderFigSpec(manifest), null, 2)}\n`);
+    return true;
+  }
+  const known = SHELLS.find((s) => s === shell);
+  if (known === undefined) throw new UsageError(`unknown shell "${shell}"`, `completion ${SHELLS.join('|')}|fig`);
+  io.out.write(renderCompletion(manifest, known));
+  return true;
+}
+
 async function surface(manifest: Manifest, argv: string[], io: Io): Promise<boolean> {
   const head = beforeTerminator(argv);
+  if (await completion(manifest, argv, io)) return true;
   if (argv[0] === 'help') {
     io.out.write(helpCommand(manifest, argv.slice(1), manifest.rootPath, io.width));
     return true;

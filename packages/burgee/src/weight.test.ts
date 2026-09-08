@@ -79,15 +79,34 @@ const RULES: Record<string, EntryRule> = {
   // a placeholder from before it existed. 128,000 is commander's own lib/ (126,365 B), so
   // the lock still proves the front-end is no heavier than the package it replaces.
   // `import 'burgee'` reaches none of it (entry `.` above).
+  // The completion templates for four shells and Fig. Loaded by the engine and the
+  // commander front-end only on `completion <shell>`, through a dynamic import, so a
+  // program pays for them when it prints a script and never at startup (K6).
+  './completions': { allow: [], budget: 16_000, denied: ['index.js', 'execute.js', 'testing.js', 'testing-helpers.js'] },
   './commander': { allow: [], budget: 128_000, denied: ['testing.js', 'testing-helpers.js'] },
   // './yargs': { allow: [], budget: 24_000, denied: ['testing.js', 'testing-helpers.js'] },
 };
 
-const SPECIFIER = /(?:from|import)\s*\(?\s*'([^']+)'/g;
+/**
+ * Static imports are what an entry costs at startup. A dynamic `import('./x.js')` is paid
+ * only on the path that runs it (K6), so it is reported as `lazy` and not counted — an
+ * entry may defer a rarely used surface without carrying it for every run.
+ */
+const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;
+const LAZY = /import\(\s*'([^']+)'\s*\)/g;
 
-function walk(entry: string): { reached: string[]; external: string[]; bytes: number } {
+/** One file's imports: static specifiers to follow or count, dynamic ones only to report. */
+function scan(source: string): { specs: string[]; lazy: string[] } {
+  return {
+    specs: [...source.matchAll(SPECIFIER)].map((m) => m[1] ?? ''),
+    lazy: [...source.matchAll(LAZY)].map((m) => m[1] ?? ''),
+  };
+}
+
+function walk(entry: string): { reached: string[]; external: string[]; bytes: number; lazy: string[] } {
   const files = new Set<string>();
   const external = new Set<string>();
+  const lazy = new Set<string>();
   const queue = [entry];
   let bytes = 0;
 
@@ -96,13 +115,14 @@ function walk(entry: string): { reached: string[]; external: string[]; bytes: nu
     if (file === undefined || files.has(file)) continue;
     files.add(file);
     bytes += statSync(file).size;
-    for (const match of readFileSync(file, 'utf8').matchAll(SPECIFIER)) {
-      const spec = match[1] ?? '';
+    const found = scan(readFileSync(file, 'utf8'));
+    for (const spec of found.lazy) lazy.add(spec);
+    for (const spec of found.specs) {
       if (spec.startsWith('.')) queue.push(resolve(dirname(file), spec));
       else if (spec !== '' && !spec.startsWith('node:')) external.add(spec);
     }
   }
-  return { reached: [...files].map((f) => relative(dist, f)), external: [...external], bytes };
+  return { reached: [...files].map((f) => relative(dist, f)), external: [...external], bytes, lazy: [...lazy] };
 }
 
 function entryFile(subpath: string): string {
