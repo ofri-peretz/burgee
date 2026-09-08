@@ -33,6 +33,11 @@
       "types": "./dist/contrast.d.ts",
       "import": "./dist/contrast.js",
       "default": "./dist/contrast.js"
+    },
+    "./chalk": {
+      "types": "./dist/chalk.d.ts",
+      "import": "./dist/chalk.js",
+      "default": "./dist/chalk.js"
     }
   },
   "files": [
@@ -68,6 +73,6 @@
     "styleText"
   ],
   "devDependencies": {
-    "vitest": "^4.0.0"
+    "vitest": "^5.0.0"
   }
 }

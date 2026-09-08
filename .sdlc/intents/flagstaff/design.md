@@ -98,6 +98,26 @@ the U9 eval (an agent writes a plugin from the schema) → `progress`, `tasks`, 
 - The check that would have caught the original problem (clack #510, `\r` spam captured by
   agents): R5's grep on a piped run, red today against ora, green here by construction.
 
+## What shipped (2026-09-08, the first slice)
+
+`packages/flagstaff/src/`: `loop.ts` (`hoist`, `manualClock`), `projection.ts` (the four
+writers; the only file that emits a cursor sequence, and it writes the three it needs by
+hand — `node:readline`'s helpers want a `Writable` where the loop only has a `Writer`),
+`plugin.ts` (`register`, `validate` against `schema.json`, the registry as Maps so a
+plugin's keys cannot reach a prototype), `builtins.ts` (data only, a type-only import,
+registered by `plugin.ts` through the public `register()`), `spinner.ts`, `cli.ts`
+(`flagstaff check`). Entries: `.`, `./loop`, `./plugin`, `./spinner`; `bin: flagstaff`.
+Locks: R1 per-mode transcripts, R2/R3 refusals with codes and fixes, R4 the built-ins'
+import list, R5 the escape grep, R7 the file list, R9 twenty identical runs, isolation,
+weight (`./loop` 5,000 · `./plugin` 10,000 · `./spinner` 11,000 · `.` 16,000 B), shape from
+two packed tarballs. The schema validator is sixty lines over the subset the schema uses,
+because a JSON Schema library is a dependency the package will not carry.
+
+Not yet: `progress`, `tasks`, `box`, `table` (and so `width.ts`); the façades (R6); the
+importers (R11); the U9 eval; the docs gallery. `tokens` are kept in the registry for
+whoever flies the theme — `register()` does not call roundel's `fly()`, because that needs
+a runtime and would pull the theme into every plugin import.
+
 ## Rejected alternatives
 
 - **A React reconciler (Ink's model).** React plus yoga is the dependency bill this layer

@@ -58,7 +58,7 @@ export interface Host {
   /** Git tag prefix for releases; `v` unless the host does otherwise. */
   tagPrefix?: string;
   /** How its suite is executed. */
-  runner: 'node:test' | 'mocha';
+  runner: 'node:test' | 'mocha' | 'ava';
   /** Our entry point graded against it. */
   target: string;
   status: 'active' | 'planned' | 'rejected';
@@ -96,6 +96,22 @@ export const HOSTS: Host[] = [
     target: 'burgee/yargs',
     status: 'active',
     note: '108 methods. Built in wave 4.',
+  },
+  {
+    // The first host graded against a layer other than the engine: chalk 6's suite against
+    // `roundel/chalk` (roundel design R6, output-stack-compat U11). Its tests import
+    // `../source/index.js` (an ESM default export) and two of its files spawn a fixture
+    // beside them with execa, so the fixtures are vendored and rewritten like any test.
+    name: 'chalk',
+    repo: 'https://github.com/chalk/chalk',
+    testDir: 'test',
+    testGlob: '*.js',
+    imports: [{ upstream: '../source/index.js', subpath: '', reexportDefault: true }],
+    surfaceFiles: ['source/index.d.ts', 'source/index.js'],
+    runner: 'ava',
+    target: 'roundel/chalk',
+    status: 'active',
+    note: 'Graded against roundel, not burgee: the colour layer has its own façade.',
   },
   {
     name: 'meow',

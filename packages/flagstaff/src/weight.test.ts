@@ -1,7 +1,7 @@
 /**
  * R8 / U5 — weight is paid per import, never per config, and the ceiling on each subpath
- * is named after the incumbent it replaces: `roundel/tokens` may not weigh more than
- * picocolors (3.3 KB). Mirrors `burgee/src/weight.test.ts`.
+ * is named after the incumbent it replaces: `flagstaff/spinner` may not weigh more than
+ * ora, once vendored (R10). Mirrors `roundel/src/weight.test.ts`.
  *
  * This walks the import graph of every entry point in `exports` and asserts what each may
  * reach. The last test is the important one: **an entry point cannot be added without
@@ -26,7 +26,7 @@ interface Manifest {
 const manifest = JSON.parse(readFileSync(resolve(pkgRoot, 'package.json'), 'utf8')) as Manifest;
 
 interface EntryRule {
-  /** Bare specifiers this entry may import. Nothing, for every entry: the package depends on nothing. */
+  /** Bare specifiers this entry may import: roundel's subpaths and nothing else (R10). */
   allow: string[];
   /** Bytes reachable from it. A ratchet: lowering is free, raising is a decision with a comment. */
   budget: number;
@@ -35,37 +35,19 @@ interface EntryRule {
 }
 
 const RULES: Record<string, EntryRule> = {
-  // Everything, for a program that wants one import. Measured 6,565 B on 2026-09-08 for
-  // policy + tokens + theme + contrast; the budget leaves room for the chalk façade's entry
-  // in the re-export list, not for the façade itself, which will be its own row.
-  '.': { allow: [], budget: 12_000, denied: [] },
-  // The floor every subpath stands on: two functions and one record. node:util alone.
-  // R2's 2026-09-08 revision added the `--color` flags and the CI vendor table here, which
-  // is why the file's level tables are ternary chains, and why `colorLevel`'s own decision
-  // table is one line (see the eslint override that names this): measured 1,972 B on
-  // 2026-09-08 after the chalk-parity pass — `COLORTERM=24bit` and `--color=24bit` were both
-  // roundel inventions supports-color does not have, and dropping them paid for the
-  // `FORCE_COLOR=0`, `--colors` and accessible rows. No budget in this file moved, and
-  // `./tokens` and `./chalk` below both still fit under the incumbents they are named for.
-  './policy': { allow: [], budget: 2_000, denied: ['tokens.js', 'theme.js', 'contrast.js', 'index.js'] },
-  // The ceiling is picocolors: 3.3 KB. Tokens plus the policy they read, and nothing else —
-  // a program that imports nine functions must never carry the theme or the maths.
-  './tokens': { allow: [], budget: 3_300, denied: ['theme.js', 'contrast.js', 'index.js'] },
-  // The theme carries the contrast check (R5); it never carries the tokens. Raised from
-  // 6,000 on 2026-09-08: R2's revision grew the policy every subpath stands on, and the
-  // theme reaches it. Measured 6,271 B; the ceiling is the next hundred above that. The
-  // theme is the one entry with no incumbent to be measured against, so it is the one that
-  // moves — `./tokens` (picocolors) and `./chalk` (chalk) did not.
-  './theme': { allow: [], budget: 6_300, denied: ['tokens.js', 'index.js'] },
-  // Pure arithmetic over hex strings. Reaches nothing.
-  './contrast': { allow: [], budget: 1_500, denied: ['policy.js', 'tokens.js', 'theme.js', 'index.js'] },
-  // The ceiling is chalk 6.0.0 itself (R8): `wc -c node_modules/chalk/source/*.js` inside
-  // compat-oracle reads 8,183 (index.js) + 1,187 (utilities.js) = 9,370 bytes on 2026-09-08,
-  // before its vendored ansi-styles and supports-color, which it also ships. The façade plus
-  // the tokens' emitter and the policy it reads must fit under that. The other half of R8
-  // — a spawn delta no larger than picocolors' — is a `cli-benchmarks` B4 row, not a byte
-  // count, and is measured there. Never the theme or the maths: chalk has no theme.
-  './chalk': { allow: [], budget: 9_370, denied: ['theme.js', 'contrast.js', 'index.js'] },
+  // Everything: loop + projection + plugin + builtins + schema + spinner. Measured 14,242 B on
+  // 2026-09-08. Depends on roundel's policy and tokens, and on nothing else (R10, U6).
+  '.': { allow: ['roundel/policy', 'roundel/tokens'], budget: 16_000, denied: ['cli.js'] },
+  // The loop and its four projections; never the registry — a program that hoists its own
+  // component pays nothing for the plugin host. Measured 4,141 B.
+  './loop': { allow: ['roundel/policy'], budget: 5_000, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
+  // The registry, the validator, the built-ins and the schema they are checked against.
+  // Measured 9,087 B, of which the schema is 3,059: the contract ships in the tarball (R3).
+  './plugin': { allow: [], budget: 10_000, denied: ['loop.js', 'projection.js', 'spinner.js', 'cli.js', 'index.js'] },
+  // The ceiling is ora (R10): recorded when ora's suite is vendored. Until then, the spinner
+  // plus the registry it reads its style from. Measured 10,015 B; ora 9's own index.js is
+  // 9,656 B before its eleven dependencies.
+  './spinner': { allow: ['roundel/tokens'], budget: 11_000, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
 };
 
 const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;
@@ -114,7 +96,7 @@ describe.each(Object.keys(RULES))('entry %s', (subpath) => {
 
 describe('the lock grows with the package', () => {
   it('every published entry point declares a weight rule', () => {
-    // Adding `roundel/chalk` without a budget here fails, which is the point: a new
+    // Adding `flagstaff/box` without a budget here fails, which is the point: a new
     // surface cannot ship until someone has said what it may weigh.
     expect(Object.keys(manifest.exports).sort()).toEqual(Object.keys(RULES).sort());
   });

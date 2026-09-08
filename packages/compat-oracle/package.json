@@ -1,7 +1,7 @@
 {
   "name": "compat-oracle",
   "version": "0.0.0",
-  "description": "Grades burgee's compatibility against commander and yargs using their own test suites, plus reference drivers that run the real incumbents for byte-for-byte comparison. Internal; never published.",
+  "description": "Grades burgee's compatibility against commander and yargs, and roundel's against chalk, using their own test suites, plus reference drivers that run the real incumbents for byte-for-byte comparison. Internal; never published.",
   "license": "MIT",
   "type": "module",
   "private": true,
@@ -15,7 +15,8 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "burgee": "*"
+    "burgee": "*",
+    "roundel": "*"
   },
   "peerDependencies": {
     "commander": ">=12",
@@ -23,11 +24,13 @@
   },
   "devDependencies": {
     "@types/yargs": "^17.0.33",
+    "ava": "^8.0.1",
     "chai": "^6.2.2",
-    "chalk": "^5.6.2",
+    "chalk": "^6.0.0",
     "commander": "^15.0.0",
     "cpr": "^3.0.1",
     "cross-spawn": "^7.0.6",
+    "execa": "^10.0.0",
     "hashish": "0.0.4",
     "mocha": "^11.7.6",
     "vitest": "^5.0.0",

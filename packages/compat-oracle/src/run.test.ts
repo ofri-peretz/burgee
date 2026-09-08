@@ -77,6 +77,12 @@ describe('summarising a run', () => {
     expect(s).toMatchObject({ tests: 1, skipped: 1, passed: 1, rate: 1 });
   });
 
+  it("reads ava's summary, whose skip line is `# skip` and sits between pass and fail", () => {
+    // ava --tap (supertap): `# tests` counts passed + failed + skipped, `# skip` only when > 0.
+    const s = summarize('ok 1 - a # SKIP\nok 2 - b\nnot ok 3 - c\n1..3\n# tests 3\n# pass 1\n# skip 1\n# fail 1\n', 1, 0);
+    expect(s).toMatchObject({ tests: 2, skipped: 1, passed: 1, failed: 1, rate: 0.5 });
+  });
+
   it('takes the registered count over a smaller reference, so a rate can never exceed 1', () => {
     const s = summarize('# tests 827\n# pass 823\n# fail 4\n', 14, 804);
     expect(s.rate).toBeCloseTo(823 / 827, 5);

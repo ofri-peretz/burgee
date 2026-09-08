@@ -2,6 +2,22 @@
 
 Intent: [`intent.md`](./intent.md). **Status:** approved.
 
+**R2/R3 revision accepted by the owner (Ofri) on 2026-09-08**, at the Design→Build gate.
+The revision: the output mode decides redraws, while the colour *level* obeys the user's
+explicit instruction — `NO_COLOR`, `FORCE_COLOR`, the `--color` flags, and supports-color's
+CI vendor table — in any mode; a pipe with no instruction stays 0, and accessible mode
+defaults to 0 with an explicit `FORCE_COLOR` still able to override it.
+
+It was raised because the original rule, in which the mode alone settled the level, scored
+47 of 58 on chalk's own suite with all eleven failures being force-colour cases — and would
+have surprised every CI user who sets `FORCE_COLOR` to get colour in their logs. The
+accepted cost is that `CLI_ACCESSIBLE=1` together with an explicit `FORCE_COLOR=3` does
+emit colour; the alternative considered and not taken was to make accessible absolute,
+on the same footing as `NO_COLOR`.
+
+Recorded here rather than in a chat log because the revision was drafted in-session by the
+same agent line that wrote the code, which rule 3 does not let stand as its own approval.
+
 ---
 
 ## Requirements
@@ -10,11 +26,48 @@ Intent: [`intent.md`](./intent.md). **Status:** approved.
   `{ isTTY: { stdout }, env, json?: boolean }`. Precedence, first match wins: `json` if
   `rt.json`; `accessible` if `env.CLI_ACCESSIBLE`; `ci` if `env.CI` and not a TTY; `pipe`
   if not a TTY; else `tty`.
-- **R2** `colorLevel(rt): 0 | 1 | 2 | 3` mirrors chalk's levels from `NO_COLOR`,
-  `FORCE_COLOR`, `TERM`, `COLORTERM` and TTY-ness, and is `0` under every mode but `tty`.
+- **R2** `colorLevel(rt, { json }): 0 | 1 | 2 | 3` mirrors chalk's levels, and **obeys the
+  user's explicit colour instruction in any output mode**. Precedence: `NO_COLOR` (non-empty)
+  is `0` outright; then `FORCE_COLOR=0`/`false`, which supports-color settles *before* it
+  reads any flag, so `FORCE_COLOR=0 --color=256` is `0` and not 2 — **an explicit "colour
+  off" is never overridden into colour on**; then the `--color` flags read from an optional
+  `rt.argv` (`--color=256` → 2; `--color=16m|full|truecolor` → 3;
+  `--no-color`/`--no-colors`/`--color=false|never` → 0; `--color`/`--colors`/`=true|always`
+  enables and lets detection pick, never below 1 — both spellings, as has-flag has them),
+  which outrank a numeric `FORCE_COLOR`; then `FORCE_COLOR` itself (a bare decimal an
+  *exact* level clamped to 3, never a floor; `true`/empty enables and detects; anything else
+  unset). With no instruction the order is supports-color's own: **accessible mode is `0`**
+  and a pipe is `0` (Azure Pipelines — `TF_BUILD` *and* `AGENT_NAME` — the one exception,
+  because that check sits above the non-TTY one); once detecting, `TERM=dumb` is the floor,
+  a `CI` run is its vendor's level (gated on `'CI' in env`, as supports-color gates it, so an
+  empty `CI=` still selects the table), and otherwise `TERM`/`COLORTERM` decide — where
+  `truecolor` is the only `COLORTERM` value that means 3, `24bit` falling through to the
+  level-1 catch-all exactly as supports-color has it. `--json` alone is always `0`:
+  structured output carries no escapes. **The output mode decides redraws (U2), never the
+  level.**
+  - **Accessible mode defaults to `0`** (revised 2026-09-08), with the same shape as the
+    pipe default: an explicit ask (`FORCE_COLOR`, `--color=…`) still wins, `NO_COLOR` still
+    beats everything. `CLI_ACCESSIBLE` is itself an explicit instruction from a human, and
+    ANSI colour is noise to a screen reader — which puts accessible mode on the same footing
+    as a pipe, not a terminal. chalk's suite never sets `CLI_ACCESSIBLE`, so this costs
+    nothing against the 58 / 58; `src/policy.test.ts` and `src/tokens.test.ts` lock it.
+  - **The one deliberate divergence from chalk.** When a user gives *both* an explicit flag
+    and an explicit `FORCE_COLOR`, supports-color lets the ambient variable overwrite the
+    flag; roundel takes the flag, because it was typed for this run. A 3,000-case
+    differential sweep against chalk 6.0.0's own vendored supports-color (2026-09-08) finds
+    **0 divergences** when only one channel is used — flags alone, or `FORCE_COLOR` alone —
+    and every divergence in the both-set partition is this question. The reason to take the
+    flag is the direction of the failure: under chalk, `--no-color` on a machine exporting
+    `FORCE_COLOR=1` still emits colour. `FORCE_COLOR=0` remains the exception, because an
+    "off" from either channel is an off. Locked row by row in `src/policy.test.ts`. (The
+    sweep excludes supports-color's emulator allow-list, TEAMCITY_VERSION, TERM_PROGRAM and
+    the platform check — detection R2 refuses outright, per §1 and §17.)
 - **R3** Tokens `error warn ok hint muted command flag value heading` are functions
-  `(s: string) => string`, implemented over `util.styleText`, and return `s` unchanged
-  when `colorLevel === 0`. Nothing else in the package touches ANSI.
+  `(s: string) => string`, implemented over `util.styleText`. They are the **identity at
+  level 0**, and paint identically at any level above it whatever the mode — because the
+  level already obeys `NO_COLOR`, `FORCE_COLOR` and the `--color` flags in any mode, and is
+  `0` on a pipe with no instruction. No third behaviour. Nothing else in the package touches
+  ANSI.
 - **R4** `fly(theme)` sets the process theme once; `theme` maps each token to a
   `styleText` format list or a `#rrggbb` (truecolor only, level 3). Defaults are the
   burgee brand: rock and juniper, lifted variants on dark.
@@ -55,6 +108,11 @@ with no issue behind it is a hypothesis and is measured before it locks.
 | R9 | picocolors #97 (`process` is not defined on Cloudflare); chalk #615 (`navigator`), #655 (Vite); log-update #63 (declined: "this package targets Node.js"); ora #146 (declined: `WT_SESSION` "is not an API") — §15 | cited |
 | R10 | picocolors #70 (35 reactions), #50, #59; chalk #632, #633, #641, #628, #627, #620 (declined, every one), #613, #661, #626; ora #239 (declined); listr2 #755, #745; Inquirer D#1270, D#1206 — §13, U10 | cited |
 | R11 | no issue asks for a palette importer; clack #36 wants themes, not a corpus | hypothesis — measure before lock |
+
+Revised 2026-09-08 while grading chalk's suite: FORCE_COLOR and --color are the user's
+explicit colour instruction and apply in any mode; the mode still decides redraws (U2).
+Before: level 0 under every mode but tty, which failed chalk's 11 force-colour cases and
+would have surprised every CI user who sets FORCE_COLOR to get coloured logs.
 
 ## Design
 
