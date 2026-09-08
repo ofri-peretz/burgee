@@ -17,7 +17,8 @@
     "compat-oracle": "*",
     "demo-cli-burgee": "*",
     "demo-cli-commander": "*",
-    "demo-cli-yargs": "*"
+    "demo-cli-yargs": "*",
+    "demo-cli-large": "*"
   },
   "devDependencies": {
     "vitest": "^5.0.0"

@@ -91,6 +91,7 @@ export default [
       '**/.turbo/**',
       '**/node_modules/**',
       '**/coverage/**',
+      '**/.dev-fixtures/**',
       '.sdlc/research/issues/**',
       'apps/docs/next-env.d.ts',
       // Vendored upstream test suites (compat-oracle C6). They are the hosts' own
@@ -363,7 +364,12 @@ export default [
     // FP 8 (also seen in scripts/run-evals.ts): no-unhandled-promise fires on every call
     // to a function-typed *parameter* inside an async function, assuming it returns a
     // promise. The writer parameter returns void. Tracked in the eslint monorepo.
-    files: ['packages/compat-oracle/src/report.ts'],
+    // dev.ts is the same finding from the other side: it orchestrates promises by design,
+    // and every one it creates is returned to the caller or chained into `chain`, whose
+    // catch reports; the rule flags each assignment as unhandled.
+    // mcp.ts's `reply` is exactly the writer-parameter shape, now called from the async
+    // `serve` loop `startMcp` split out.
+    files: ['packages/compat-oracle/src/report.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/mcp.ts'],
     rules: { 'maintainability/no-unhandled-promise': 'off', 'reliability/no-unhandled-promise': 'off' },
   },
   {

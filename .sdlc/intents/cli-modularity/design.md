@@ -1,6 +1,6 @@
 # Design — Modularity
 
-Intent: [`intent.md`](./intent.md). **Status:** review.
+Intent: [`intent.md`](./intent.md). **Status:** review — built on the engine and projected from the commander façade, 2026-09-08.
 
 ---
 
@@ -52,15 +52,44 @@ paid once: a plugin author runs `cli manifest` and commits the output. The alter
 runtime discovery, is what makes large CLIs slow. See
 `.sdlc/research/architecture-review.md` §2.
 
+## What shipped (2026-09-08)
+
+On the engine, as manifest operations, exactly as the design asked:
+
+| Requirement | Shape |
+| :-- | :-- |
+| M1 groups | `group` on a command; help lists under the heading, `--schema` carries `group` |
+| M2 lazy | `load: () => import('./x.js')` on a command or a plugin's node; the module exports `run` (or default). `Manifest.add` gives such a node a `run` that imports on first dispatch, so help, schema, completions and the MCP tool list are complete from the descriptor; `--schema` marks it `lazy: true` |
+| M3 plugins | `definePlugin({ name, commands, hooks, enforce })` — already declarative; a plugin's commands may carry `load`; the manifest attributes each with `plugin`, which `--schema` carries. `--schema` *is* the build-time manifest the design called `cli manifest` |
+| M4 shared options | `sharedOptions(name, specs)` returns the set tagged `sharedFrom`; spread into each command's `options`, so the handler's type carries them and `--schema` says where each came from. A spread rather than the `(cmd) => cmd` wrapper the draft named: the wrapper broke the handler's inferred `options` type |
+| M5 deprecation | `deprecated: 'new'`; help and schema show it; the first run per process prints `warning: 'old' is deprecated, use 'new'` on stderr and goes on, exit OK |
+| M6 public | `resolveCommand(manifest, argv)` → node or null; `runCommand(manifest, argv, opts?)` → `{ code, stdout, stderr }` |
+
+On the commander façade: `.deprecate(use?)` (help, schema, the same one-line warning) and
+commander 15's own `.helpGroup()` projected as `group`. yargs' native command
+deprecation was already projected; it gets no runtime warning, because yargs itself prints
+none and X8 forbids changing a yargs program's default behaviour. Lazy commands and shared
+options on the façades are the next slice: both hosts have their own registration order.
+
 ## Verification
 
-- 30-command demo under `examples/demo-cli-large/` with module-load spies. The lock:
-  running `--help` and `--schema` on the 30-command demo imports **zero** handler
-  modules, and running one command imports **exactly one**. Proven red first by asserting
-  the counts against the imperative design.
-- Startup time on the 30-command demo is within 2ms of the 1-command demo (B2).
-- Conformance cases per requirement on both hosts.
-- `commander #2505` comment posted with a link to the released `use()` shape.
+- `examples/demo-cli-large`: 30 commands across 5 groups, three handlers loaded lazily,
+  one deprecated command, a plugin contributing two, shared options on all; `loads()`
+  reports which handler modules have been imported. `examples/conformance/src/modularity.test.ts`
+  is the lock: `--help` and `--schema` import **zero** handler modules, one lazy command
+  imports **exactly one** and a second run imports none. Proven red first (rule 4): with
+  `Manifest.add` calling `load()` at registration, the count read three where one was
+  expected.
+- The same suite covers groups in help and schema, `plugin` attribution, `sharedFrom` per
+  command, the warning exactly once, and `resolveCommand` / `runCommand`.
+- What the M6 test found on the way: the engine had never enforced a required positional —
+  `greet` without a name printed `Hello, !`. It is a usage error now, naming the argument.
+- B2 (startup within 2 ms of the one-command demo) is not asserted: the manifest is built
+  from descriptors either way and the lazy modules never load, so there is nothing to
+  measure but the descriptor count; `--help` on the demo runs in the same tens of
+  milliseconds as the reference demo.
+- `commander #2505`: not yet posted; the `use()` shape is released, the comment is the
+  owner's to write.
 
 ## Rejected alternatives
 

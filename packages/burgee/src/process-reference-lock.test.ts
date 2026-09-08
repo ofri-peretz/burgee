@@ -38,6 +38,10 @@ const ALLOWED = new Set([
   'burgee/src/yargs-parser.ts',
   'burgee/src/yargs-utils.ts',
   'burgee/src/yargs-cliui.ts',
+  // `burgee dev` is a developer tool that owns the process's stdio by definition: the CLI
+  // hands it the Runtime's streams, and `load()` imports the entry as a fresh module graph,
+  // which only the real module loader can do. Dev-time only, never reached by the framework.
+  'burgee/src/dev.ts',
   // The one line the whole compatibility gate turns on: it reads COMPAT_TARGET to
   // decide which implementation the vendored suites grade.
   'compat-oracle/src/shim.ts',
