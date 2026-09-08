@@ -17,11 +17,14 @@ export {
   type RunOptions,
 } from './execute.js';
 export { renderHelp, type HelpOptions } from './help.js';
+export { annotationsOf, MCP_PROTOCOL_VERSION, serveMcp, toolsOf, type Invoke, type ServeOptions, type Tool, type ToolAnnotations } from './mcp.js';
+export { commandSchemaOf, inputSchemaOf, schemaOf, type CommandSchema, type JsonSchema, type ProgramSchema } from './schema.js';
 export {
   definePlugin,
   Manifest,
   type ArgumentSpec,
   type CommandNode,
+  type Effects,
   type Example,
   type Hook,
   type OptionSpec,

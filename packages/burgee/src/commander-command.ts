@@ -25,7 +25,9 @@ import { Help, type HelpContext } from './commander-help.js';
 import { DualOptions, Option } from './commander-option.js';
 import { suggestSimilar } from './commander-suggest.js';
 import { ExitCode } from './exit-code.js';
-import { Manifest, type OptionSpec, type Plugin } from './manifest.js';
+import { type Effects, Manifest, type OptionSpec, type Plugin } from './manifest.js';
+import { serveMcp } from './mcp.js';
+import { schemaOf } from './schema.js';
 
 export interface OutputConfiguration {
   writeOut: (str: string) => void;
@@ -194,6 +196,8 @@ export class Command extends EventEmitter {
 
   /** burgee: the root's projection, created on first use. */
   _manifest: Manifest | undefined = undefined;
+  /** burgee: what this command does to the world (N6); declaring it exposes the command as an MCP tool. */
+  _effects: Effects | undefined = undefined;
   /** burgee: set for the duration of a parse that injected the streams or the exit. */
   _burgee: Burgee | undefined = undefined;
 
@@ -681,7 +685,8 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
     const from = this._prepareBurgee(parseOptions);
     this._prepareForParse();
     const userArgs = this._prepareUserArgs(argv, from);
-    this._runBurgee(() => this._parseCommand([], userArgs));
+    // A surface is served asynchronously; commander's synchronous parse cannot wait for it.
+    this._runBurgee(() => this._burgeeSurface(userArgs).then((served) => (served ? undefined : this._parseCommand([], userArgs))));
     return this;
   }
 
@@ -689,7 +694,7 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
     const from = this._prepareBurgee(parseOptions);
     this._prepareForParse();
     const userArgs = this._prepareUserArgs(argv, from);
-    await this._runBurgee(() => this._parseCommand([], userArgs));
+    await this._runBurgee(async () => ((await this._burgeeSurface(userArgs)) ? undefined : this._parseCommand([], userArgs)));
     return this;
   }
 
@@ -1613,8 +1618,18 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
     manifest.commands.splice(0, manifest.commands.length, ...contributed);
     const rootName = this._name || 'program';
     manifest.rootPath = [rootName];
+    if (this._version !== undefined) manifest.version = this._version;
     const visit = (cmd: Command, at: string[]): void => {
-      manifest.add({ path: at, ...(cmd._description ? { description: cmd._description } : {}), options: cmd._optionSpecs() });
+      manifest.add({
+        path: at,
+        ...(cmd._description ? { description: cmd._description } : {}),
+        ...(cmd._summary ? { summary: cmd._summary } : {}),
+        ...(cmd._effects === undefined ? {} : { effects: cmd._effects }),
+        ...(cmd._hidden ? { hidden: true } : {}),
+        options: cmd._optionSpecs(),
+        arguments: cmd.registeredArguments.map((a) => ({ name: a.name(), required: a.required, variadic: a.variadic, ...(a.description ? { description: a.description } : {}) })),
+        ...(cmd._actionHandler === null ? {} : { run: () => undefined }),
+      });
       for (const sub of cmd.commands) visit(sub, [...at, sub._name]);
     };
     visit(this, [rootName]);
@@ -1633,6 +1648,40 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
       Object.defineProperty(specs, option.attributeName(), { value: spec, enumerable: true, writable: true, configurable: true });
     }
     return specs;
+  }
+
+  /** burgee: declare what the command does to the world (N6). This is what exposes it as an MCP tool (N2). */
+  effects(value: Effects): this {
+    this._effects = value;
+    return this;
+  }
+
+  /**
+   * burgee: `--schema` and `--mcp` on a commander-syntax program, from its manifest (J2).
+   * Only when the program declares neither option itself; `--mcp` runs commands through
+   * this very program with the streams captured, so tool results are the `--json` envelope.
+   */
+  async _burgeeSurface(userArgs: string[]): Promise<boolean> {
+    const root = this._root();
+    const declared = (flag: string): boolean => root._findOption(flag) !== undefined;
+    const terminator = userArgs.indexOf('--');
+    const head = terminator === -1 ? userArgs : userArgs.slice(0, terminator);
+    if (head.includes('--schema') && !declared('--schema')) {
+      root._outputConfiguration.writeOut(`${JSON.stringify(schemaOf(this.manifest), null, 2)}\n`);
+      return true;
+    }
+    if (head[0] === '--mcp' && !declared('--mcp')) {
+      const invoke = async (args: string[]): Promise<{ stdout: string; stderr: string; code: number }> => {
+        const out: string[] = [];
+        const err: string[] = [];
+        let code = 0;
+        await root.parseAsync(args, { from: 'user', stdout: { write: (s) => out.push(s) }, stderr: { write: (s) => err.push(s) }, exit: (c) => void (code = c) });
+        return { stdout: out.join(''), stderr: err.join(''), code };
+      };
+      await serveMcp(this.manifest, { input: process.stdin, output: { write: (s) => root._outputConfiguration.writeOut(s) }, invoke });
+      return true;
+    }
+    return false;
   }
 
   /** Additive, and the point of the whole exercise: plugins commander has never had (#2505, unlanded). */

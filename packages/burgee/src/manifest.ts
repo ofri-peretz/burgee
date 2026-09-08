@@ -22,6 +22,14 @@ export interface OptionSpec {
   hidden?: boolean;
 }
 
+/**
+ * What running a command does to the world (N6). Declared, never inferred: it decides
+ * whether the command is exposed as an MCP tool at all (N2) and generates the tool's
+ * `readOnlyHint` / `idempotentHint` / `destructiveHint` — MCP defaults `destructiveHint`
+ * to true, so silence is the dangerous reading.
+ */
+export type Effects = 'read_only' | 'idempotent' | 'non_idempotent';
+
 /** A positional, as help documents it (yargs #2012). */
 export interface ArgumentSpec {
   name: string;
@@ -60,6 +68,8 @@ export interface CommandNode {
   epilogue?: string;
   hidden?: boolean;
   deprecated?: boolean | string;
+  /** Required for a command to be served as an MCP tool (N2, N6). */
+  effects?: Effects;
   run?: (ctx: RunContext) => unknown;
   /** Which plugin contributed this, if any. Declared, never diffed (M3). */
   plugin?: string;
@@ -99,6 +109,8 @@ export class Manifest {
   readonly plugins: Plugin[] = [];
   /** The program's own name, which the user never types; `execute` strips it. */
   rootPath: string[] = [];
+  /** Reported by `--schema` and the MCP handshake. */
+  version?: string;
 
   add(node: CommandNode): void {
     this.commands.push(node);

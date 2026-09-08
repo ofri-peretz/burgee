@@ -9,7 +9,9 @@ import { parseArgs } from 'node:util';
 
 import { ExitCode, isExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
 import { renderHelp } from './help.js';
-import { type ArgumentSpec, type CommandNode, type Example, Manifest, type OptionSpec, type RunContext } from './manifest.js';
+import { type ArgumentSpec, type CommandNode, type Effects, type Example, Manifest, type OptionSpec, type RunContext } from './manifest.js';
+import { serveMcp } from './mcp.js';
+import { schemaOf } from './schema.js';
 
 export interface CommandContext<O> extends Omit<RunContext, 'options'> {
   options: O;
@@ -28,6 +30,8 @@ export interface Command<O = Record<string, string | boolean | undefined>> {
   epilogue?: string;
   hidden?: boolean;
   deprecated?: boolean | string;
+  /** What running it does to the world (N6). Declaring it is what exposes the command as an MCP tool (N2). */
+  effects?: Effects;
   /** Absent on a group that only holds subcommands. */
   run?: (ctx: CommandContext<O>) => unknown;
   commands?: Command[];
@@ -44,17 +48,19 @@ function helpFields(c: Command): Partial<CommandNode> {
   if (c.epilogue !== undefined) node.epilogue = c.epilogue;
   if (c.hidden !== undefined) node.hidden = c.hidden;
   if (c.deprecated !== undefined) node.deprecated = c.deprecated;
+  if (c.effects !== undefined) node.effects = c.effects;
   return node;
 }
 
 export interface Program {
   name: string;
+  version?: string;
   description?: string;
   commands: Command[];
 }
 
-/** Reserved names a command may not redefine (V5). */
-const RESERVED = new Set(['json', 'help']);
+/** Reserved names a command may not redefine (V5): the surfaces every program serves. */
+const RESERVED = new Set(['json', 'help', 'schema', 'mcp']);
 
 export function defineCommand<O = Record<string, string | boolean | undefined>>(command: Command<O>): Command<O> {
   for (const name of Object.keys(command.options ?? {})) {
@@ -80,6 +86,7 @@ function addTree(manifest: Manifest, parent: string[], commands: Command[]): voi
 export function defineProgram(program: Program): Manifest {
   const manifest = new Manifest();
   manifest.rootPath = [program.name];
+  if (program.version !== undefined) manifest.version = program.version;
   manifest.add({ path: [program.name], ...(program.description === undefined ? {} : { description: program.description }), options: {} });
   addTree(manifest, [program.name], program.commands);
   return manifest;
@@ -87,6 +94,8 @@ export function defineProgram(program: Program): Manifest {
 
 export interface RunOptions {
   argv?: string[];
+  /** Read only by `--mcp`, which serves JSON-RPC over it. */
+  stdin?: NodeJS.ReadableStream;
   /** The environment env-bound options read from. Injected by the harness; the process's own otherwise. */
   env?: Record<string, string | undefined>;
   /** `columns` is read when present, so help wraps to the terminal (H3). */
@@ -269,6 +278,38 @@ function unresolved({ manifest, root, io: { width } }: Resolving, argv: string[]
   throw new UsageError(`unknown command "${typed[0] ?? ''}"`, 'run --help to see the available commands');
 }
 
+/**
+ * `--schema` (F1, N8) and `--mcp` (N1) are served for every program from the manifest
+ * alone, before any command resolves: no config, no network, no handler runs.
+ */
+async function surface(manifest: Manifest, argv: string[], io: Io): Promise<boolean> {
+  const head = beforeTerminator(argv);
+  if (head.includes('--schema')) {
+    io.out.write(`${JSON.stringify(schemaOf(manifest), null, 2)}\n`);
+    return true;
+  }
+  if (head[0] === '--mcp') {
+    const invoke = async (args: string[]): Promise<{ stdout: string; stderr: string; code: number }> => {
+      const out: string[] = [];
+      const err: string[] = [];
+      let code = 0;
+      await execute(manifest, {
+        argv: args,
+        env: io.env,
+        stdout: { write: (s: string) => out.push(s) },
+        stderr: { write: (s: string) => err.push(s) },
+        exit: ((c: number) => {
+          code = c;
+        }) as unknown as (c: number) => never,
+      });
+      return { stdout: out.join(''), stderr: err.join(''), code };
+    };
+    await serveMcp(manifest, { input: io.stdin, output: io.out, invoke });
+    return true;
+  }
+  return false;
+}
+
 /** `help [command…]` is synthesised for every program (yargs #1020): the named node's help, or the root's. */
 function helpCommand(manifest: Manifest, argv: string[], root: string[], width: number): string {
   const { node } = manifest.resolve(argv, root);
@@ -287,6 +328,7 @@ interface Io {
   env: Record<string, string | undefined>;
   exit: (code: number) => never;
   width: number;
+  stdin: NodeJS.ReadableStream;
 }
 interface Outcome {
   json: boolean;
@@ -348,6 +390,7 @@ export async function execute(manifest: Manifest, opts: RunOptions & { root?: st
     env: opts.env ?? process.env,
     exit: opts.exit ?? processExit,
     width: out.columns ?? HELP_WIDTH,
+    stdin: opts.stdin ?? process.stdin,
   };
   // `from: 'node'` is commander's default and means argv still carries execPath and the
   // script. Doing the slice here keeps `process` out of every façade.
@@ -359,6 +402,7 @@ export async function execute(manifest: Manifest, opts: RunOptions & { root?: st
   let json = beforeTerminator(argv).includes('--json');
   let name = '';
   try {
+    if (await surface(manifest, argv, io)) return io.exit(ExitCode.OK);
     if (argv[0] === 'help') {
       io.out.write(helpCommand(manifest, argv.slice(1), root, io.width));
       return io.exit(ExitCode.OK);
