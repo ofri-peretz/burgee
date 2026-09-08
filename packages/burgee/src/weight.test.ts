@@ -165,6 +165,16 @@ function walk(entry: string): { reached: string[]; external: string[]; bytes: nu
   return { reached: [...files].map((f) => relative(dist, f)), external: [...external], bytes, lazy: [...lazy] };
 }
 
+/**
+ * A `.js` entry names one dist file exactly. A bare specifier names a package, so it also
+ * covers every subpath of it: `roundel` denies `roundel/tokens` too, which a later `allow`
+ * entry could otherwise admit through the side door.
+ */
+function isDenied(name: string, denied: string): boolean {
+  if (denied.endsWith('.js')) return name === denied;
+  return name === denied || name.startsWith(`${denied}/`);
+}
+
 function entryFile(subpath: string): string {
   const conditions = manifest.exports[subpath];
   if (conditions === undefined) throw new Error(`no exports entry for ${subpath}`);
@@ -182,11 +192,22 @@ describe.each(Object.keys(RULES))('entry %s', (subpath) => {
   it('reaches nothing on its denied list', () => {
     // A denied name may be a dist file (the harness) or a bare specifier (the output stack).
     const everything = [...graph.reached, ...graph.external];
-    for (const denied of rule.denied) expect(everything).not.toContain(denied);
+    for (const denied of rule.denied) expect(everything.filter((name) => isDenied(name, denied))).toEqual([]);
   });
 
   it('stays inside its byte budget', () => {
     expect(graph.bytes).toBeLessThanOrEqual(rule.budget);
+  });
+});
+
+describe('the denied list', () => {
+  it('denies a subpath of a bare specifier for entry `.`, and a dist file only exactly', () => {
+    const rule = RULES['.'] as EntryRule;
+    const roundel = rule.denied.find((d) => d === 'roundel') ?? '';
+    expect(isDenied('roundel/tokens', roundel)).toBe(true);
+    expect(isDenied('roundel', roundel)).toBe(true);
+    expect(isDenied('roundelle', roundel)).toBe(false);
+    expect(isDenied('testing-helpers.js', 'testing.js')).toBe(false);
   });
 });
 

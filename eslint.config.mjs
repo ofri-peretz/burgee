@@ -287,6 +287,13 @@ export default [
     files: ['packages/compat-oracle/src/shim.ts'],
     rules: { 'node-security/no-unsafe-dynamic-require': 'off' },
   },
+  {
+    // The dependents ranker calls three public APIs with no key and no quota to spare:
+    // one request at a time, with a pause between pages, is the politeness the sources ask
+    // for. Sequential await is the contract (ponytail: parallelise past 2k candidates).
+    files: ['scripts/rank-dependents.ts'],
+    rules: { 'reliability/no-await-in-loop': 'off' },
+  },
   // ── Harness and demo packages (intent cli-testing-harness) ────────────────
   {
     // Tests that prove console capture must call console.
