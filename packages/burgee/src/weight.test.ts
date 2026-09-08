@@ -60,7 +60,13 @@ const RULES: Record<string, EntryRule> = {
   // engine + manifest + help + schema + mcp + precedence + validate, 42.7 KB against
   // commander's 126 KB lib/. Each floor family has cost about 5 KB; the lock stays to
   // catch the accidental kind of growth, and each of these was a decision in a PR.
-  '.': { allow: [], budget: 48_000, denied: ['testing.js', 'testing-helpers.js'] },
+  // Raised from 48,000 on 2026-09-08 for the theme seam (help renderer R7, roundel "used
+  // without being imported"): `renderHelp({ color, theme })` and its four styleText defaults
+  // are 1 KB of core, since help is core. 49.0 KB against commander's 126 KB lib/.
+  // The output stack is denied by name (U13 of cli-output-stack): `import 'burgee'` never
+  // resolves a family specifier. `allow: []` already forbids every bare import; naming
+  // these three records the decision, so a future `allow` entry cannot admit them by accident.
+  '.': { allow: [], budget: 50_000, denied: ['testing.js', 'testing-helpers.js', 'roundel', 'flagstaff', 'caique'] },
   // The harness. Test-time only, so a user's shipped CLI never pays for it.
   // Raised from 24,000 with `.` above: the harness reaches the whole engine to run a
   // program in-process, so it carries the renderer too.
@@ -161,7 +167,9 @@ describe.each(Object.keys(RULES))('entry %s', (subpath) => {
   });
 
   it('reaches nothing on its denied list', () => {
-    for (const denied of rule.denied) expect(graph.reached).not.toContain(denied);
+    // A denied name may be a dist file (the harness) or a bare specifier (the output stack).
+    const everything = [...graph.reached, ...graph.external];
+    for (const denied of rule.denied) expect(everything).not.toContain(denied);
   });
 
   it('stays inside its byte budget', () => {
