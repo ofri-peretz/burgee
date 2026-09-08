@@ -22,4 +22,15 @@ export const builtins: Plugin = {
     dots: { frames: ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'], interval: DOTS_INTERVAL, static: '…' },
     line: { frames: ['-', '\\', '|', '/'], interval: LINE_INTERVAL, static: '…' },
   },
+  // The five borders `box()` draws with, in cli-boxes' shape — so `fromCliBoxes()` can add
+  // the rest of that corpus through the same door, and a plugin can replace any of them.
+  // `none` is ours: a box with no border is still a box with padding.
+  borders: {
+    round: { topLeft: '╭', top: '─', topRight: '╮', left: '│', right: '│', bottomLeft: '╰', bottom: '─', bottomRight: '╯' },
+    single: { topLeft: '┌', top: '─', topRight: '┐', left: '│', right: '│', bottomLeft: '└', bottom: '─', bottomRight: '┘' },
+    double: { topLeft: '╔', top: '═', topRight: '╗', left: '║', right: '║', bottomLeft: '╚', bottom: '═', bottomRight: '╝' },
+    bold: { topLeft: '┏', top: '━', topRight: '┓', left: '┃', right: '┃', bottomLeft: '┗', bottom: '━', bottomRight: '┛' },
+    classic: { topLeft: '+', top: '-', topRight: '+', left: '|', right: '|', bottomLeft: '+', bottom: '-', bottomRight: '+' },
+    none: { topLeft: '', top: '', topRight: '', left: '', right: '', bottomLeft: '', bottom: '', bottomRight: '' },
+  },
 };

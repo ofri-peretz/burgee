@@ -3,6 +3,7 @@
  * and costs only itself, so prefer `flagstaff/spinner` when that is all you need.
  */
 export * from './box.js';
+export * from './import.js';
 export * from './loop.js';
 export * from './plugin.js';
 export * from './progress.js';
