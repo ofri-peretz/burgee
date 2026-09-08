@@ -5,7 +5,7 @@ name: Control Bands
 # deterministic script records observations and evaluates Western Electric rules;
 # no model runs in the detection path. On a 2σ+ breach it opens a PR carrying a
 # Stage 1 intent, not an issue. 1σ breaches are logged only. See
-# scripts/control-bands.ts and docs/intents/sdlc-locks-evals-bands/.
+# scripts/control-bands.ts and .sdlc/intents/sdlc-locks-evals-bands/.
 
 on:
   schedule:
@@ -60,7 +60,7 @@ jobs:
           BREACHED: ${{ steps.bands.outcome == 'failure' }}
         run: |
           set -euo pipefail
-          if [ -z "$(git status --porcelain docs/intents/ .agent/control-bands.history.json)" ]; then
+          if [ -z "$(git status --porcelain .sdlc/intents/ .sdlc/bands/control-bands.history.json)" ]; then
             echo "Nothing new to commit."; exit 0
           fi
           STAMP=$(date -u +%Y%m%d)
@@ -74,7 +74,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
-          git add docs/intents/ .agent/control-bands.history.json
+          git add .sdlc/intents/ .sdlc/bands/control-bands.history.json
           git commit -m "$TITLE"
           git push -u origin "$BRANCH"
           gh pr create --base main --head "$BRANCH" --label skip-changeset --title "$TITLE" --body "$(printf '%s\n\n```\n%s\n```\n' "$BODY" "$(cat bands.log)")"

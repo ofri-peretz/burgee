@@ -15,7 +15,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const BASELINE = join(root, '.agent', 'artifact-size-baseline.json');
+const BASELINE = join(root, '.sdlc/bands', 'artifact-size-baseline.json');
 const GROWTH_ALLOWED = 0.1;
 const PERCENT = 100;
 

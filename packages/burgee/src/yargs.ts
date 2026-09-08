@@ -1,7 +1,7 @@
 /**
  * `burgee/yargs` — yargs' public surface, implemented over burgee's own ports of yargs
  * 18, yargs-parser 22, cliui 9 and y18n 5 (J9: no dependency on any of them). Graded
- * by yargs' own suite; see `docs/intents/yargs-compat/design.md` and `npm run compat`.
+ * by yargs' own suite; see `.sdlc/intents/yargs-compat/design.md` and `npm run compat`.
  *
  * The default export is what `import yargs from 'yargs'` gives: a factory taking
  * `(processArgs, cwd, parentRequire)`. The named exports are the internals yargs'

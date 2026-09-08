@@ -1,7 +1,7 @@
 # caique
 
 **Not yet released.** This version reserves the name; the first working release follows
-[`docs/intents/caique/`](https://github.com/ofri-peretz/burgee/tree/main/docs/intents/caique).
+[`.sdlc/intents/caique/`](https://github.com/ofri-peretz/burgee/tree/main/.sdlc/intents/caique).
 
 A **caique** (kah-EEK) is a small, loud, never-silent parrot — and this one always answers
 back. It is also the light wooden boat of the Bosphorus and the Greek islands, the one that

@@ -26,7 +26,7 @@
  * Usage:
  *   tsx scripts/control-bands.ts                 # report
  *   tsx scripts/control-bands.ts --check         # exit 1 on a 2σ+ breach
- *   tsx scripts/control-bands.ts --write-intent  # draft docs/intents/<slug>/intent.md per breach
+ *   tsx scripts/control-bands.ts --write-intent  # draft .sdlc/intents/<slug>/intent.md per breach
  *   tsx scripts/control-bands.ts --record        # append today's observations to the series
  *   tsx scripts/control-bands.ts --backfill-git  # also recover pruned benchmark runs from git
  */
@@ -37,9 +37,9 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const CONFIG = path.join(REPO_ROOT, '.agent/control-bands.json');
-const SERIES = path.join(REPO_ROOT, '.agent/control-bands.history.json');
-const INTENT_DIR = path.join(REPO_ROOT, 'docs/intents');
+const CONFIG = path.join(REPO_ROOT, '.sdlc/bands/control-bands.json');
+const SERIES = path.join(REPO_ROOT, '.sdlc/bands/control-bands.history.json');
+const INTENT_DIR = path.join(REPO_ROOT, '.sdlc/intents');
 
 export type Tier = '1σ' | '2σ' | '3σ';
 
@@ -426,11 +426,11 @@ ${recent}
 
 The metric is back inside its band, and the cause is understood well enough that a
 check would have caught it — or the band is wrong and this file says why, in which
-case \`.agent/control-bands.json\` changes and this intent records the reasoning.
+case \`.sdlc/bands/control-bands.json\` changes and this intent records the reasoning.
 
 ## Affected users and systems
 
-Whatever \`${breach.id}\` measures. Start from its entry in \`.agent/control-bands.json\`
+Whatever \`${breach.id}\` measures. Start from its entry in \`.sdlc/bands/control-bands.json\`
 and the \`sdlc-locks-evals-bands\` design.
 
 ## Constraints

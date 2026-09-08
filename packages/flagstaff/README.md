@@ -1,7 +1,7 @@
 # flagstaff
 
 **Not yet released.** This version reserves the name; the first working release follows
-[`docs/intents/flagstaff/`](https://github.com/ofri-peretz/burgee/tree/main/docs/intents/flagstaff).
+[`.sdlc/intents/flagstaff/`](https://github.com/ofri-peretz/burgee/tree/main/.sdlc/intents/flagstaff).
 
 A **flagstaff** is the staff a flag flies from. It is the simplest part of the whole
 apparatus and the only one that is always in view: a flag is hoisted on it, held there "at the

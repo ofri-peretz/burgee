@@ -4,7 +4,7 @@
  * Adding a competitor is an entry here plus a vendored suite — not new code. The
  * ordering is by *chosen* usage, not by download count: cac and citty are large
  * numbers because vite, vitest and nitro bundle them, so a façade for either
- * converts almost nobody. See `docs/research/competitor-landscape.md` §8.
+ * converts almost nobody. See `.sdlc/research/competitor-landscape.md` §8.
  */
 /**
  * A public specifier the tests use to reach the library. Imports of the host's *internal*

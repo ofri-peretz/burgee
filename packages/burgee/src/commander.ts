@@ -1,7 +1,7 @@
 /**
  * `burgee/commander` — commander's public surface, implemented over burgee (J9: no
  * dependency on commander itself). Graded by commander's own suite; see
- * `docs/intents/commander-compat/design.md` and `npm run compat`.
+ * `.sdlc/intents/commander-compat/design.md` and `npm run compat`.
  */
 import { Argument } from './commander-argument.js';
 import { Command } from './commander-command.js';

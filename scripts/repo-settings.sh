@@ -16,7 +16,7 @@ fi
 echo "▸ repository settings"
 gh api -X PATCH "repos/$REPO" \
   -f description="Interlace CLI — agent-native extensions for commander and yargs: one schema, a JSON envelope on every command, an exit-code contract, and a manifest an AI agent reads in one call." \
-  -f homepage="https://github.com/$REPO/blob/main/docs/intents/agent-native-cli-layer/design.md" \
+  -f homepage="https://github.com/$REPO/blob/main/.sdlc/intents/agent-native-cli-layer/design.md" \
   -F has_issues=true -F has_wiki=false -F has_projects=false \
   -F allow_squash_merge=true -F allow_merge_commit=true -F allow_rebase_merge=true \
   -F allow_auto_merge=true -F delete_branch_on_merge=true -F allow_update_branch=true \

@@ -30,11 +30,11 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CASES_DIR = path.join(REPO_ROOT, 'evals/cases');
 const RESULTS_DIR = path.join(REPO_ROOT, 'evals/results');
-const UMBRELLA_DESIGN = 'docs/intents/agent-native-cli-layer/design.md';
+const UMBRELLA_DESIGN = '.sdlc/intents/agent-native-cli-layer/design.md';
 
 /** Documents an agent is expected to read and obey. */
 const CONFIG_FILES = ['README.md', 'CLAUDE.md', 'AGENTS.md'];
-const CONFIG_DIRS = ['docs', '.github', '.agent', 'apps/docs/content'];
+const CONFIG_DIRS = ['docs', '.github', '.sdlc/bands', 'apps/docs/content'];
 const SKIP_DIRS = new Set(['node_modules', 'issues', 'results', '.next', 'dist']);
 /** Intents describe work that does not exist yet; a script they name is a plan, not a link. */
 const PLANNED_DOCS = /^docs\/intents\//;
@@ -155,11 +155,11 @@ export function unknownFloorIds(root = REPO_ROOT): string[] {
   const umbrella = fs.readFileSync(path.join(root, UMBRELLA_DESIGN), 'utf-8');
   const defined = new Set([...umbrella.matchAll(FLOOR_ROW)].map((m) => m[1]!));
   const out: string[] = [];
-  const children = readDirOrEmpty(root, 'docs/intents').filter((e) => e.isDirectory() && !NOT_A_CHILD.has(e.name));
+  const children = readDirOrEmpty(root, '.sdlc/intents').filter((e) => e.isDirectory() && !NOT_A_CHILD.has(e.name));
   for (const e of children) {
     for (const f of ['intent.md', 'design.md']) {
-      for (const id of citedIds(path.join(root, 'docs/intents', e.name, f))) {
-        if (!defined.has(id)) out.push(`docs/intents/${e.name}/${f} → ${id}`);
+      for (const id of citedIds(path.join(root, '.sdlc/intents', e.name, f))) {
+        if (!defined.has(id)) out.push(`.sdlc/intents/${e.name}/${f} → ${id}`);
       }
     }
   }

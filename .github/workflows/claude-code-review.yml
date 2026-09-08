@@ -56,7 +56,7 @@ jobs:
 
             You are reviewing a pull request in the Interlace CLI repo: extensions
             for commander and yargs that give CLIs a machine-readable, agent-friendly
-            floor. Read README.md and docs/intents/agent-native-cli-layer/design.md
+            floor. Read README.md and .sdlc/intents/agent-native-cli-layer/design.md
             for the floor requirements (F/O/E/V/S/P/D/T ids) and honour them.
 
             Prioritise, in order:

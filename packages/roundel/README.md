@@ -1,7 +1,7 @@
 # roundel
 
 **Not yet released.** This version reserves the name; the first working release follows
-[`docs/intents/roundel/`](https://github.com/ofri-peretz/burgee/tree/main/docs/intents/roundel).
+[`.sdlc/intents/roundel/`](https://github.com/ofri-peretz/burgee/tree/main/.sdlc/intents/roundel).
 
 A **roundel** is a flag's colours carried onto another surface — the rings on an aircraft's
 wing, the London Underground sign. Identity, expressed purely in colour, on something that is
