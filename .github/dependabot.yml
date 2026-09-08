@@ -21,6 +21,12 @@ updates:
     # their suite dependencies move only through the re-vendor flow (compat-refresh.yml),
     # never through a version bump here.
     ignore:
+      # `typescript-eslint` declares `typescript: ">=4.8.4 <6.1.0"` — no release of that
+      # line supports TypeScript 7, so a grouped bump to 7.x fails ERESOLVE on every job
+      # in the matrix before a test runs. Proposed and reverted by hand three times
+      # (#5, #31). Drop this entry when typescript-eslint ships a TS 7 peer range.
+      - dependency-name: "typescript"
+        versions: [">=6"]
       - dependency-name: "commander"
       - dependency-name: "yargs"
       - dependency-name: "yargs-parser"
