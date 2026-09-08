@@ -189,7 +189,7 @@ data, every animation with a static projection, weight paid per subpath. Propose
 | 25 | [`flagstaff/`](./flagstaff/) | **flagstaff** — frame loop, plugin host, built-ins as first-party plugins, `plugin check`; no layout engine | U3 U4 U8 U9 U12 | shipped (0.0.x) — loop, plugin host, spinner, `flagstaff check`, `flagstaff/ora` 99 / 99, `flagstaff/log-update` 99 / 99; boxen, cli-table3 and the other built-ins next |
 
 | 26 | [`output-stack-research/`](./output-stack-research/) | **what we improve** — the ten incumbents' trackers read in full, won't-fix lists included; every U row cited | U1–U12 | shipped |
-| 27 | [`output-stack-compat/`](./output-stack-compat/) | **backwards compatibility** — eight façades graded by eight vendored suites; eight scoreboard rows | U11, C1–C6 | draft — 3 of 8 graded (chalk 58 / 58, ora 99 / 99, log-update 99 / 99); needs a `design.md` before it can be approved |
+| 27 | [`output-stack-compat/`](./output-stack-compat/) | **backwards compatibility** — eight façades graded by eight vendored suites; eight scoreboard rows | U11, C1–C6 | draft — 3 of 8 graded (chalk 58 / 58, ora 99 / 99, log-update 99 / 99); boxen and cli-table3 each blocked on a decision, not a port; needs a `design.md` before it can be approved |
 | 28 | [`plugin-contract/`](./plugin-contract/) | **spreading impact** — one plugin object, one schema, one `register()`, one `check`, across all four layers | U4, U9, M4–M5 | draft |
 | 29 | [`caller-matrix/`](./caller-matrix/) | **every caller** — features × callers conformance matrix, generated; humans, agents, CI, screen readers, programs | U2, U3, P1–P3, B1 | draft |
 

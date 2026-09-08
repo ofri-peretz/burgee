@@ -182,7 +182,7 @@ export const HOSTS: Host[] = [
     runner: 'node:test',
     target: 'flagstaff/table',
     status: 'planned',
-    note: 'Its suite is jest, not mocha as first recorded. jest globals are vitest’s too and vitest is already here, so the runner to add is `vitest` — a fourth runner, and one more decision than this slice had room for.',
+    note: 'Two surprises, both measured on 2026-09-08 by reading the suite at v0.6.5. (1) It is jest, not mocha as first recorded; vitest’s `tap-flat` reporter would cover it, but it emits a plan and one line per test with no `# tests/# pass/# fail` summary, so the oracle would need a second TAP dialect. (2) The bigger one: of 234 cases, 221 `require(\'../src/...\')` — cell, utils, layout-manager — and only 13 reach the package root (table-test.js has 10, test/issues/ has 3). Under the rule that a file importing only the host’s internals is informational and never gated, "cli-table3, graded" would mean 13 tests. Passing the other 221 means reproducing its src/ file for file, which is the thing that rule exists to refuse. What to claim here is a decision, not a port.',
   },
   {
     name: 'meow',
