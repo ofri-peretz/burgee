@@ -24,15 +24,31 @@ interface Pkg {
 }
 
 const published = readdirSync(join(root, 'packages'))
+  // A directory with no package.json is build residue, not a package (a folded-away
+  // workspace leaves its dist/ behind); it is not graded and must not crash the lock.
+  .filter((dir) => existsSync(join(root, 'packages', dir, 'package.json')))
   .map((dir) => ({ dir, pkg: JSON.parse(readFileSync(join(root, 'packages', dir, 'package.json'), 'utf8')) as Pkg }))
   .filter(({ pkg }) => pkg.private !== true);
+
+/**
+ * U1 / U6 (cli-output-stack): zero *external* dependencies. A published package may depend
+ * only on another package published from this repo, and only on one that sits earlier in
+ * this order, so the arrows point one way: burgee → ∅, roundel → ∅, flagstaff → roundel,
+ * caique → roundel, flagstaff.
+ */
+const FAMILY_ORDER = ['burgee', 'roundel', 'flagstaff', 'caique'];
 
 /** Node has these natively now (util.styleText, fs.glob, fetch, util.parseArgs). */
 const BANNED = ['chalk', 'picocolors', 'glob', 'node-fetch', 'minimist'];
 
 describe.each(published)('published package $pkg.name', ({ dir, pkg }) => {
-  it('has no runtime dependencies at all (K1)', () => {
-    expect(Object.keys(pkg.dependencies ?? {})).toEqual([]);
+  it('has no external runtime dependencies, and same-repo ones only point up the family (K1, U1, U6)', () => {
+    const rank = FAMILY_ORDER.indexOf(pkg.name);
+    const offenders = Object.keys(pkg.dependencies ?? {}).filter((dep) => {
+      const depRank = FAMILY_ORDER.indexOf(dep);
+      return depRank === -1 || rank === -1 || depRank >= rank;
+    });
+    expect(offenders, `${pkg.name} may depend only on earlier family packages`).toEqual([]);
   });
 
   it('is ESM, requires Node >= 24, and declares no legacy main (K2)', () => {

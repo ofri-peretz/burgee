@@ -44,10 +44,11 @@ The reference point to keep in view: a commander user's first line is
 
 ## Requirements — the CLI floor
 
-79 requirements: the shape lock (Z1–Z5), the original 26 (F/O/E/V/S/P/D/T), 27 folded in from the gap-track
+92 requirements: the shape lock (Z1–Z5), the original 26 (F/O/E/V/S/P/D/T), 27 folded in from the gap-track
 intents on 2026-09-06 (S5–S8, V6–V7, H1–H6, D3–D5, P3, M1–M6, K1–K5), and 27 added the
 same day with the compatible-replacement strategy and the architecture review
-(K6, C1–C8, B1–B7, N1–N10, J1–J9). Each names the
+(K6, C1–C8, B1–B7, N1–N10, J1–J9), and 13 added 2026-09-08 with the output stack
+(U1–U13, from `cli-output-stack`). Each names the
 issue evidence, whether the **runtime** (R) guarantees it or the **lint** rule (L)
 enforces it, and where it lands.
 
@@ -157,11 +158,11 @@ enforces it, and where it lands.
 | D4 | Every shell script is snapshot-pinned and exercised by that shell in CI | yargs #2254, #1277, #1133 | R | commander-completions |
 | D5 | A Fig spec is exported from the same node | yargs #2131, citty #59 | R | commander-completions |
 
-### Prompts, continued (from `cli-prompts`)
+### Prompts, continued (from `caique`)
 
 | # | Requirement | Evidence | Holds | Lands in |
 | :-- | :-- | :-- | :-- | :-- |
-| P3 | Cancellation exits `CANCELLED` (4), never `RUNTIME` | clack #83, #573 | R | cli-prompts |
+| P3 | Cancellation exits `CANCELLED` (4), never `RUNTIME` | clack #83, #573 | R | caique |
 
 ### Modularity (from `cli-modularity`)
 
@@ -267,6 +268,27 @@ these requirements turn that into a served interface rather than a document.
 | N15 | An `agent` output format that is **not JSON**: one compact line per record, no excerpts, no summary, whitespace collapsed. Agents want low-token and grep-able, which is often neither the human format nor JSON | oxlint and vitest converged independently | R | cli-help-renderer |
 
 ---
+
+### The output stack (from `cli-output-stack`)
+
+The same floor, one layer up: what a CLI *shows*, as four independent packages. Full text
+and evidence in [`cli-output-stack/intent.md`](../cli-output-stack/intent.md).
+
+| id | Requirement | Evidence | R/L | Lands in |
+| :-- | :-- | :-- | :-- | :-- |
+| U1 | One package per layer; dependency arrows point up only (`burgee` → ∅, `roundel` → ∅, `flagstaff` → `roundel`, `caique` → `roundel`, `flagstaff`) | layers have different buyers and change rates | lock (`package-shape-lock`) | all |
+| U2 | Output policy decided once from `Runtime`: `tty \| pipe \| json \| accessible \| ci`; no component detects the terminal itself | clack #286 | lock + L | roundel |
+| U3 | Every styled or animated output has a static projection; a component or plugin without one is refused at registration | clack #585, #510 | lock | flagstaff, caique |
+| U4 | Plugins are data, inspectable without execution; at most one `frame` function | lineage: ESLint flat config | lock | flagstaff, plugin-contract |
+| U5 | Conditional weight: one subpath per capability, importing only itself and the policy; per-subpath ceiling is the lightest incumbent | chalk +18 ms, picocolors +10 ms | lock + B4 | all |
+| U6 | Zero external runtime dependencies; only same-repo packages allowed | K1, K3; Sept 2025 npm compromise (to cite) | lock | all |
+| U7 | Every package has its own Z1 shape test and K5 size ratchet | Z1, K5 | lock | all |
+| U8 | No layout engine; box, columns and a status line are the ceiling | Ink | lock | flagstaff |
+| U9 | Agent-authorable plugins: schema in the tarball and `llms.txt`, `check` renders every mode, weekly one-turn eval | this stack | lock + eval | flagstaff, plugin-contract |
+| U10 | ESM + `default` condition, `sideEffects: false`, tree-shake fixture: root named import == subpath bytes | K2, B4 | lock + B4 | all |
+| U11 | Every replaced incumbent gets a façade graded by its own suite, pass rate published and ratcheting | C1–C6 | lock + band | output-stack-compat |
+| U12 | Each layer is an independent product: own README leading with its own incumbents, own benchmarks, installs and works alone | decided 2026-09-07 | lock (README lint + install test) | all |
+| U13 | `burgee`'s optional surfaces reach the family by presence-guarded dynamic `import()` and fall back to the static projection; `import 'burgee'` never resolves a family specifier | Z3 and U1 both hold | lock (weight `denied`) | burgee |
 
 ## Design
 
@@ -383,7 +405,7 @@ are independent and can run in parallel sessions (one worktree each, split by pa
 | 1 | `commander-agent`, `cli-packaging` | the first extension, and the artifact gate before the first publish |
 | 2 | `yargs-agent`, `eslint-plugin-cli-floor`, `docs-deploy`, `cli-help-renderer` | second host proves the core; lint holds the floor; the site publishes it; help is data by now |
 | 3 | `agent-cli-bench`, `commander-schema`, `commander-env` | the number (needs two hosts for four cells); declare-once; precedence and provenance |
-| 4 | `commander-completions`, `cli-prompts`, `cli-modularity` | each depends on the manifest and schema being stable |
+| 4 | `commander-completions`, `caique`, `cli-modularity` | each depends on the manifest and schema being stable |
 
 Prerequisites that only the owner can supply, needed before the wave that uses them:
 `NPM_TOKEN` or npm Trusted Publishing for each package (wave 1), `CLAUDE_CODE_OAUTH_TOKEN`

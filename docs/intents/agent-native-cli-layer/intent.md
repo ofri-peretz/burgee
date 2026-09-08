@@ -156,5 +156,6 @@ Concretely, once this lands:
 - ~~**Schema library.**~~ Decided: Standard Schema is the only external contract; a tiny
   built-in type set (`flag`, `string`, `number`, `choice`, `file`, `path`, `object`) keeps
   the core zero-dependency. See `commander-schema`.
-- ~~**Relationship to clack.**~~ Decided: wrapped, never re-exported, and only inside
-  `commander-prompts` / `yargs-prompts`. See `cli-prompts`.
+- ~~**Relationship to clack.**~~ Decided 2026-09-06: wrapped. **Re-decided 2026-09-08:** not a
+  dependency at all. `caique` implements prompts over Node natives; `caique/clack` is a
+  migration path graded by clack's suite. See `cli-output-stack` U6, U11.

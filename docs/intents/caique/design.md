@@ -1,4 +1,4 @@
-# Design — Prompts
+# Design — caique
 
 Intent: [`intent.md`](./intent.md). **Status:** review.
 
@@ -15,7 +15,7 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
 - **R3** `--yes` answers every `confirm` true; `--interactive[=all]` prompts for every
   missing required (or every promptable) option in declaration order.
 - **R4** Cancel (`isCancel`) → `CliError` `CANCELLED`; SIGINT during a prompt runs the
-  layer's E5 handler, which calls clack's cleanup first.
+  layer's E5 handler, which restores the terminal (raw mode off, cursor shown) first.
 - **R5** Accessible mode: `kind: 'select'` renders as a numbered list with line input;
   no spinners.
 - **R6** Under `--json`, prompting is impossible by definition: `--json` implies non-
@@ -24,13 +24,15 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
 ## Design
 
 ```
-packages/cli-core/src/prompts/
-  spec.ts        PromptSpec, binding to OptionSpec
+packages/caique/src/
+  spec.ts        PromptSpec, binding to an option
   decide.ts      decide(value, runtime, flags) → 'skip' | 'prompt' | 'error'   (pure)
-packages/commander-prompts/src/
-  index.ts       withPrompts(program) — preAction; clack adapter; accessible fallback
-packages/yargs-prompts/src/
-  index.ts       same via after-validation middleware
+  widgets/       text, confirm, select, multiselect, password, path — over node:readline,
+                 tokens from roundel, spinner from flagstaff, static projection per widget (U3)
+  accessible.ts  numbered-list + line-input fallback, no redraw
+  clack.ts       caique/clack  — clack's API over the widgets, graded by clack's suite
+  inquirer.ts    caique/inquirer — same for inquirer
+  burgee.ts      caique/burgee — the preAction binding for burgee, burgee/commander, burgee/yargs
 ```
 
 `decide` is pure and shared, so the only host-specific code is where the hook sits and
@@ -45,8 +47,12 @@ how the value is written back.
 
 ## Rejected alternatives
 
-- **Re-implementing prompts.** clack is good and maintained; the gap is the layer
-  above it, exactly as with commander.
+- ~~**Re-implementing prompts.** clack is good and maintained; the gap is the layer
+  above it.~~ **Reversed 2026-09-08.** The family owns every layer (U6: zero external
+  dependencies) and grades every incumbent by its own suite (U11). Wrapping clack would have
+  made the one package that talks to a person the only one with a dependency it does not
+  control, and clack has no static projection to give (U3). clack survives as `caique/clack`.
+- **Wrapping clack** — same decision, recorded from the other side.
 - **Prompting under `--json` and printing the answer.** An agent asked to type is an
   agent that hangs; `--json` means "no human here".
 - **Auto-detecting agents by user agent or parent process.** Unreliable; TTY-ness plus
@@ -55,4 +61,4 @@ how the value is written back.
 ## Out of scope
 
 - Multi-step wizards with back navigation (clack #39) — v2 if asked.
-- Theming beyond clack's own settings (clack #36, #345).
+- Theming beyond roundel's tokens (clack #36, #345 are answered by roundel, not here).

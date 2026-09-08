@@ -78,6 +78,8 @@ const baseline: Baseline = existsSync(BASELINE) ? (JSON.parse(readFileSync(BASEL
 const problems: string[] = [];
 for (const dir of readdirSync(join(root, 'packages'))) {
   const full = join(root, 'packages', dir);
+  // Build residue of a folded-away workspace has no package.json; skip it, do not crash.
+  if (!existsSync(join(full, 'package.json'))) continue;
   const pkg = JSON.parse(readFileSync(join(full, 'package.json'), 'utf8')) as Pkg;
   if (pkg.private === true) continue;
   problems.push(...check(full, pkg, baseline, update));

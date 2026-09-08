@@ -1,0 +1,51 @@
+{
+  "name": "caique",
+  "version": "0.0.1",
+  "description": "The parrot that always answers back, and the boat that goes between ship and shore. Prompts that are flags first, so agents answer before they are asked and non-TTY callers get an error naming the flag, never a hang. Drop-in path for inquirer and clack.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "!dist/**/*.test.*"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "lint": "eslint src"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ofri-peretz/burgee.git",
+    "directory": "packages/caique"
+  },
+  "homepage": "https://github.com/ofri-peretz/burgee/tree/main/packages/caique#readme",
+  "bugs": {
+    "url": "https://github.com/ofri-peretz/burgee/issues"
+  },
+  "keywords": [
+    "cli",
+    "terminal",
+    "prompt",
+    "prompts",
+    "interactive",
+    "inquirer",
+    "clack",
+    "agent",
+    "non-tty"
+  ],
+  "devDependencies": {
+    "vitest": "^4.0.0"
+  }
+}

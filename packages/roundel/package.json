@@ -1,0 +1,52 @@
+{
+  "name": "roundel",
+  "version": "0.0.1",
+  "description": "The colours a CLI carries. One output policy, semantic tokens, a theme, and a chalk migration path lighter than chalk. Zero dependencies.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "!dist/**/*.test.*"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "lint": "eslint src"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ofri-peretz/burgee.git",
+    "directory": "packages/roundel"
+  },
+  "homepage": "https://github.com/ofri-peretz/burgee/tree/main/packages/roundel#readme",
+  "bugs": {
+    "url": "https://github.com/ofri-peretz/burgee/issues"
+  },
+  "keywords": [
+    "cli",
+    "terminal",
+    "color",
+    "colour",
+    "ansi",
+    "style",
+    "theme",
+    "chalk",
+    "picocolors",
+    "styleText"
+  ],
+  "devDependencies": {
+    "vitest": "^4.0.0"
+  }
+}

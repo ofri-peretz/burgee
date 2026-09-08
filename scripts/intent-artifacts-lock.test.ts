@@ -58,6 +58,8 @@ const NEEDS_DESIGN = new Set(['approved', 'shipped']);
 const SKIP_DIRS = new Set([
   'node_modules', '.git', 'dist', 'build', 'coverage', '.next', '.turbo',
   '.vercel', '.output', '.cache', 'fixtures', '__fixtures__',
+  // Agent worktrees are whole checkouts of this repo; their intents are not strays.
+  '.claude',
 ]);
 
 function slugs(): string[] {

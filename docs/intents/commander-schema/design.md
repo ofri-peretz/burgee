@@ -76,4 +76,4 @@ for `max` exceeded), so `commander-agent` renders them like every other error.
 ## Out of scope
 
 - Config-file and env precedence (`commander-env`).
-- Interactive prompting for missing required values (`cli-prompts`).
+- Interactive prompting for missing required values (`caique`).
