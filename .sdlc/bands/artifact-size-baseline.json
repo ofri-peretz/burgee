@@ -2,5 +2,9 @@
   "burgee": {
     "size": 17225,
     "unpackedSize": 52944
+  },
+  "roundel": {
+    "size": 7420,
+    "unpackedSize": 18457
   }
 }
