@@ -5,7 +5,8 @@
 > layers have no equivalent yet; this intent produces it, and the floor rows for roundel,
 > flagstaff and caique come from here, not from taste.
 
-**Status:** draft · **Opened:** 2026-09-08 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-09-08 · **Owner:** @ofri-peretz · **Shipped:** 2026-09-08, see
+[`../../research/output-stack-open-issues.md`](../../research/output-stack-open-issues.md)
 
 ---
 
@@ -23,19 +24,21 @@ Measured 2026-09-08 (GitHub search API, npm downloads API):
 
 | Incumbent | Open issues | Weekly downloads | Reading |
 | :-- | --: | --: | :-- |
-| chalk | 0 | 439.8M | closes by policy; the backlog is the won't-fix list |
+| chalk | 0 | 439.8M | 0 open after the v6.0.0 release sweep (2026-07); 32 closed in 3y read, 20 declined |
 | picocolors | 8 | 202.5M | |
-| ora | 0 | 79.8M | closes by policy |
+| ora | 0 | 79.8M | 34 closed in 3y read, 17 declined |
 | inquirer | 8 | 32.9M | |
-| listr2 | 0 | 29.1M | closes by policy |
+| listr2 | 0 | 29.1M | closes fixes, not by policy: 37 of 45 closed were fixes, 8 declined |
 | cli-table3 | 13 | 23.3M | |
-| log-update | 0 | 22.1M | closes by policy |
+| log-update | 0 | 22.1M | 11 closed in 3y read, 3 declined |
 | clack | 60 | 20.4M | already read (research §9) |
 | boxen | 5 | 20.2M | |
 | ink | 14 | 5.8M | |
 
-- **The "abandoned backlog" story does not hold for four of the ten.** Their trackers are
-  empty because issues are closed and locked, not because nothing is wanted. The honest
+- **The "abandoned backlog" story does not hold for four of the ten, and "closes by policy"
+  was itself an over-statement.** The pass (2026-09-08) found chalk's zero is a release sweep and
+  listr2 closes fixes; what is true of all four is that the *declined* issues are the requirement
+  list. The honest
   version: what they *decline* is the requirement list. A won't-fix from a maintainer of a
   440M-a-week package is the clearest possible statement of a gap nobody else will close.
 - Without this pass the U-floor rests on clack's tracker and on our own reasoning. The
