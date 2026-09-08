@@ -17,9 +17,18 @@
  */
 import { type BoundPrompt, type Choice, type PromptSpec } from './spec.js';
 
+export interface ReadOptions {
+  /**
+   * Do not echo what is typed. Set for `password`, and honoured by whatever is reading —
+   * this module never sees a terminal, so it cannot hide anything itself, and a widget
+   * that never writes back what it read cannot leak it either.
+   */
+  hidden?: boolean;
+}
+
 /** A line of input, or `undefined` when the stream ended — which is a cancellation. */
 export interface Reader {
-  line(): Promise<string | undefined>;
+  line(options?: ReadOptions): Promise<string | undefined>;
 }
 
 export interface Writer {
@@ -156,7 +165,7 @@ export async function ask(prompt: BoundPrompt | PromptSpec, io: Io): Promise<Ask
     // A prompt is a conversation: the next question depends on the last answer, which is
     // what sequential means. Promise.all() would ask all five at once and read none.
     // eslint-disable-next-line reliability/no-await-in-loop -- see above
-    const line = await io.reader.line();
+    const line = await io.reader.line({ hidden: prompt.kind === 'password' });
     if (line === undefined) return CANCELLED;
 
     const result = parse(line);

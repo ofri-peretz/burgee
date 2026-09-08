@@ -32,6 +32,8 @@ packages/caique/src/
   ask.ts         the six widgets in line mode — which *is* the accessible rendering,
                  so there is no separate accessible.ts (see "What shipped")
   binding.ts     resolvePrompts() — one host-agnostic pass, not one binding per host
+  terminal.ts    createIo() over node:readline — the only file that touches a terminal,
+                 and the only one that knows what echo is
   clack.ts       caique/clack  — clack's API over the widgets, graded by clack's suite
   inquirer.ts    caique/inquirer — same for inquirer
   burgee.ts      caique/burgee — the preAction binding for burgee, burgee/commander, burgee/yargs
@@ -151,6 +153,25 @@ the option and the flag that would have skipped the question.
 
 Not yet: the raw-mode renderer, and the two façades — which are blocked on the decision in
 `output-stack-compat`, not on this package.
+
+## What shipped (the terminal, and the password — 2026-09-08)
+
+`terminal.ts`: `createIo({ input, output })`, a `Reader` and `Writer` over real streams
+through `node:readline`. It is the one file in the package that touches a terminal, and
+until it existed `ask()` could be driven by a test but not by a program.
+
+**Hiding a password happens here, and only here.** `ask()` says which prompts are hidden;
+nothing above has to remember to mute anything, and no widget can leak a secret by writing
+it back, because no widget writes what it read. The echo is suppressed by intercepting
+readline's own output for the duration of the question rather than by turning the
+terminal's echo off — which would leave it off if the process died mid-prompt.
+
+The test for it was wrong first, and the correction is the point. `readline` only echoes
+when `terminal: true`; on a plain `PassThrough` it echoes nothing, so "the secret was not
+echoed" passed whatever the code did. The streams now claim to be a TTY, a control case
+asserts that a *plain* read on them **does** echo — so the hidden cases can fail — and
+removing the muting turns three of them red, including the one through `ask()`, with
+`Token? t0ken` in the transcript. A test that cannot fail is not evidence.
 
 ## Rejected alternatives
 
