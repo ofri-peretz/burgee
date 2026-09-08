@@ -62,6 +62,14 @@ export function fakeRuntime(opts: RunOptions): FakeRuntime {
     stdout: { write: (s: string) => out.push(s) },
     stderr: { write: (s: string) => err.push(s) },
     isTTY: ttyOf(opts.tty),
+    // A real clock by default; a test that needs to drive time passes its own Runtime.
+    clock: {
+      now: () => performance.now(),
+      schedule: (fn, ms) => {
+        const timer = setTimeout(fn, ms);
+        return () => clearTimeout(timer);
+      },
+    },
     exit(code) {
       throw new RuntimeExit(code);
     },

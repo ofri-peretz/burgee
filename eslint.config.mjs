@@ -196,6 +196,10 @@ export default [
   //   `Object.prototype.hasOwnProperty.call(o, k)`; the two differ on inherited keys, which
   //   is why yargs-parser checks own properties on user-supplied objects. A style rule must
   //   not rewrite semantics.
+  // FP 19: no-magic-numbers reports the numeric literals of a *union type*
+  //   (`type ColorLevel = 0 | 1 | 2 | 3`, roundel/policy.ts) — a set of names, not a number.
+  // FP 20: no-sensitive-data-in-errors reads the word "token" in an error string as a
+  //   credential; roundel's vocabulary is colour tokens. Reworded rather than disabled.
   // FP 18: prefer-at reports `rows[rows.length - 1] += s` — an assignment target — and its
   //   autofix writes `rows.at(-1) += s`, which does not parse (TS2364). Seen 2026-09-08 in
   //   yargs-cliui.ts, five times; the rule must skip the left-hand side of an assignment.

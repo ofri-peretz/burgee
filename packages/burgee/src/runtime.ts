@@ -18,8 +18,18 @@ export interface Runtime {
   stdout: Writer;
   stderr: Writer;
   isTTY: { stdin: boolean; stdout: boolean; stderr: boolean };
+  /**
+   * Time, injectable (cli-output-stack R14): a spinner repaints on `schedule`, a benchmark
+   * reads `now`, and a test drives both without waiting. `schedule` returns the cancel.
+   */
+  clock: Clock;
   /** Ends the run with an E1 code. In the real runtime this never returns. */
   exit(code: ExitCode): never;
+}
+
+export interface Clock {
+  now(): number;
+  schedule(fn: () => void, ms: number): () => void;
 }
 
 const ARGV_PROGRAM_AND_SCRIPT = 2;
@@ -36,6 +46,13 @@ export const processRuntime: Runtime = {
     stdin: Boolean(process.stdin.isTTY),
     stdout: Boolean(process.stdout.isTTY),
     stderr: Boolean(process.stderr.isTTY),
+  },
+  clock: {
+    now: () => performance.now(),
+    schedule: (fn, ms) => {
+      const timer = setTimeout(fn, ms);
+      return () => clearTimeout(timer);
+    },
   },
   exit(code) {
     process.exit(code);

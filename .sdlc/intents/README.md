@@ -185,7 +185,7 @@ data, every animation with a static projection, weight paid per subpath. Propose
 | # | Intent | Delivers | Floor ids | Status |
 | :-- | :-- | :-- | :-- | :-- |
 | 23 | [`cli-output-stack/`](./cli-output-stack/) | the layer table, the static-projection rule, the data-only plugin contract, the complete-CLI dependency bill | U1–U10 | approved |
-| 24 | [`roundel/`](./roundel/) | **roundel** — `./policy`, `./tokens`, `./theme`, and a chalk path graded by chalk's tests; each subpath at or under the incumbent it replaces | U2 U5 U6 U7 U10 U12 | approved |
+| 24 | [`roundel/`](./roundel/) | **roundel** — `./policy`, `./tokens`, `./theme`, and a chalk path graded by chalk's tests; each subpath at or under the incumbent it replaces | U2 U5 U6 U7 U10 U12 | approved · policy, tokens, theme, contrast shipped 2026-09-08 (0.0.x); chalk path next |
 | 25 | [`flagstaff/`](./flagstaff/) | **flagstaff** — frame loop, plugin host, built-ins as first-party plugins, `plugin check`; no layout engine | U3 U4 U8 U9 U12 | approved |
 
 | 26 | [`output-stack-research/`](./output-stack-research/) | **what we improve** — the ten incumbents' trackers read in full, won't-fix lists included; every U row cited | U1–U12 | shipped |

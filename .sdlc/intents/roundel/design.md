@@ -88,6 +88,26 @@ does not gets the defaults. Zero bytes of `roundel` in `import 'burgee'`.
   the terminal): the R1 truth table has one answer per input, and every component in the
   family is forbidden by the env grep from computing its own.
 
+## What shipped (2026-09-08)
+
+R1–R5, R7–R10 on `packages/roundel`: `./policy` (35-row truth table), `./tokens` (identity at level
+0; hex → truecolor / nearest 256-cube entry / nearest basic colour by level), `./theme`
+(`fly()` once, refusing an unreadable truecolor token with its ratio; `BRAND_THEME` is rock and
+juniper lifted 20% toward white, where both clear `#0a0a0a`), `./contrast`. Locks in place:
+subpath isolation, per-subpath weight with `./tokens` under picocolors (2,663 B), the shape
+test from the packed tarball in ESM and `require(esm)`, the process-reference lock. burgee's
+`Runtime` gained `clock` (cli-output-stack R14).
+
+Two things the build decided that the draft did not say. `util.styleText` is called with
+`validateStream: false`: under U2 the policy decides, and styleText's own check against a
+stream it was never given returned plain text wherever stdout was not a terminal (every
+test runner). And the theme's error messages avoid the word "token" — the secrets lint rule
+reads it as a credential (FP 20) — without changing the vocabulary anywhere else.
+
+Not yet: R6, `roundel/chalk` graded by chalk's suite (a new oracle host), R11
+`roundel/import`, and the 0.1.0 release, which `release.yml` refuses until the compatibility
+page is live (cli-output-stack R13). The package ships as 0.0.x until then.
+
 ## Rejected alternatives
 
 - **Depending on `burgee` for `contrast`.** Reverses the arrow (U1). Sixty lines duplicated
