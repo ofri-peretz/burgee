@@ -1,9 +1,10 @@
 /**
  * `flagstaff/log-update` — log-update 8's public API, ported and graded by log-update's
- * own suite through `compat-oracle` (R6, U11). Its six dependencies come with it: the
- * wrapping is `wrap.ts`, the width is `width.ts`, the cursor control and the handful of
- * escape sequences ansi-escapes contributes are the twenty lines below, and strip-ansi is
- * `node:util`.
+ * own suite through `compat-oracle` (R6, U11). Its dependency tree comes with it: the
+ * wrapping (wrap-ansi) is `wrap.ts`, the width (string-width) is `width.ts`, the cursor
+ * control (cli-cursor → restore-cursor → signal-exit → onetime) is `cursor.ts`, shared
+ * with `flagstaff/ora` because both incumbents port the same chain, and the handful of
+ * sequences ansi-escapes contributes are the ten lines below.
  *
  * What it does that a naive re-render does not: it diffs the previous frame against the
  * next and rewrites only the rows that changed. A five-row frame whose last row is a
@@ -19,13 +20,12 @@
  */
 import process from 'node:process';
 
+import { HIDE_CURSOR, restoreCursorOnExit, SHOW_CURSOR } from './cursor.js';
 import { wrap } from './wrap.js';
 
 const CSI = '\u001B[';
 const SYNCHRONIZED_OUTPUT_ENABLE = `${CSI}?2026h`;
 const SYNCHRONIZED_OUTPUT_DISABLE = `${CSI}?2026l`;
-const HIDE_CURSOR = `${CSI}?25l`;
-const SHOW_CURSOR = `${CSI}?25h`;
 const CURSOR_LEFT = `${CSI}G`;
 const ERASE_LINE = `${CSI}2K`;
 const ERASE_END_LINE = `${CSI}K`;
@@ -42,29 +42,20 @@ const eraseLines = (count: number): string => {
   return count > 0 ? sequence + CURSOR_LEFT : sequence;
 };
 
-/** Restore the cursor if the process dies mid-render — restore-cursor, without its two deps. */
-let cursorRestoreInstalled = false;
-function restoreCursorOnExit(): void {
-  if (cursorRestoreInstalled) return;
-  cursorRestoreInstalled = true;
-  const terminal = process.stderr.isTTY ? process.stderr : process.stdout.isTTY ? process.stdout : undefined;
-  if (terminal === undefined) return;
-  process.once('exit', () => {
-    terminal.write(SHOW_CURSOR);
-  });
-}
-
-let cursorIsHidden = false;
+/**
+ * cli-cursor's `hide()`/`show()`, which is what log-update calls: the cursor belongs to the
+ * process's terminal, not to whichever stream the caller passed in, so both go to
+ * `process.stderr` regardless — as they do upstream, and as `flagstaff/ora` does. The
+ * restore-on-death is `cursor.ts`, shared with the ora façade.
+ */
 function hideCursor(): void {
-  if (!process.stderr.isTTY) return;
+  if (process.stderr.isTTY !== true) return;
   restoreCursorOnExit();
-  cursorIsHidden = true;
   process.stderr.write(HIDE_CURSOR);
 }
 
 function showCursor(): void {
-  if (!process.stderr.isTTY) return;
-  cursorIsHidden = false;
+  if (process.stderr.isTTY !== true) return;
   process.stderr.write(SHOW_CURSOR);
 }
 

@@ -8,10 +8,28 @@
  * write down — a style opened across a break, a cluster split by an escape, a word exactly
  * as wide as the row. The generator is seeded, so a failure names the same input twice.
  */
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 import wrapAnsi from 'wrap-ansi';
 
 import { wrap, type WrapOptions } from './wrap.js';
+
+/**
+ * The grader is the specification, so which grader ran is part of the result. Without this
+ * a hoisted wrap-ansi 8 — which is in this repo's tree, pulled in by other packages —
+ * resolves here instead of the 10 the port was written against, and the sweep fails with
+ * fifty ANSI diffs that say nothing about the port. Asserted, so the failure names itself.
+ */
+// Read beside the resolved entry: wrap-ansi 10 does not export `./package.json`.
+const wrapAnsiManifest = join(dirname(createRequire(import.meta.url).resolve('wrap-ansi')), 'package.json');
+const wrapAnsiVersion = (JSON.parse(readFileSync(wrapAnsiManifest, 'utf8')) as { version: string }).version;
+
+it('is grading against the wrap-ansi major this was ported from', () => {
+  expect(wrapAnsiVersion.split('.')[0]).toBe('10');
+});
 
 const ESC = '\u001B';
 const red = (s: string): string => `${ESC}[31m${s}${ESC}[39m`;

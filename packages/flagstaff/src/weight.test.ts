@@ -50,8 +50,11 @@ const RULES: Record<string, EntryRule> = {
   // The ceiling is ora (R10). The spinner plus the registry it reads its style from;
   // ora 9.4.1's own index.js is 17,891 B before any of its sixteen dependencies.
   './spinner': { allow: ['roundel/tokens'], budget: 12_500, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
-  // The ora façade: the port, the width function and the spinner corpus it re-exports.
-  // Measured 46,330 B on 2026-09-08 (ora.js 21,867 · spinners.json 20,250 · width.js 4,213),
+  // The ora façade: the port, the width function, the cursor control and the spinner corpus
+  // it re-exports. Measured 46,543 B on 2026-09-08 (ora.js 20,701 · spinners.json 20,250 ·
+  // width.js 4,229 · cursor.js 1,363 — the cursor control moved out to its own module when
+  // `./log-update` came to need the same one; that cost 213 B of module boilerplate and
+  // removed the second copy that would otherwise have to stay correct),
   // and `roundel/chalk` — the only thing it reaches outside the package — is a further
   // 9,311 B (chalk.js 6,053 · policy.js 1,972 · tokens.js 1,286), which roundel's own
   // weight lock records at the same figure. **55,641 B in two packages, against ora 9.4.1's
@@ -70,15 +73,19 @@ const RULES: Record<string, EntryRule> = {
   // It reaches nothing in the core: an ora migration does not drag the frame loop in, and
   // a program that hoists does not pay for the corpus.
   './ora': { allow: ['roundel/chalk'], budget: 50_000, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
-  // The log-update façade: the port, the ANSI-aware wrapper and the width function.
-  // Measured 28,660 B on 2026-09-08, against log-update's own 113,368 B across sixteen
+  // The log-update façade: the port, the ANSI-aware wrapper, the width function and the
+  // cursor control. Measured 29,573 B on 2026-09-08 (wrap.js 17,071 · log-update.js 6,910 ·
+  // width.js 4,229 · cursor.js 1,363), against log-update's own 113,368 B across sixteen
   // packages (slice-ansi 27,630 · signal-exit 21,983 · wrap-ansi 20,004 · the rest).
+  // `cursor.js` is the 1,363 B that replaces signal-exit's 21,983, and it is shared with
+  // `./ora` rather than ported twice.
   //
   // `allow` is empty, and that is the number worth reading: this subpath reaches **no
   // package at all**, not even roundel. `wrap.ts` carries the SGR close codes itself —
   // they are ECMA-48, not a library's table — which took `roundel/chalk` off it and off
   // `./box` and `./table` with it. Sixteen packages become none, at a quarter of the
-  // bytes. It shares `width.js` with `./ora` and reaches neither the corpus nor the core.
+  // bytes. It shares `cursor.js` and `width.js` with `./ora` and reaches neither the corpus
+  // nor the core.
   './log-update': { allow: [], budget: 32_000, denied: ['ora.js', 'spinners.json', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
   // The four remaining built-ins (R4). `progress` is arithmetic and a token — 971 B, and it
   // reaches nothing, not even the registry. `tasks` reads its glyphs and its spinner style

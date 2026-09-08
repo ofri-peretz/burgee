@@ -186,7 +186,8 @@ which renders every frame through a real terminal emulator and asserts the scree
 than the bytes — the strongest grading of the four render hosts. Six dependencies folded
 in: the wrapping is `src/wrap.ts` (wrap-ansi 10, ported and graded differentially against
 the real package over a seeded sweep in `wrap.test.ts`), the width is `src/width.ts` again,
-strip-ansi is `node:util`, and ansi-escapes and cli-cursor are twenty lines.
+strip-ansi is `node:util`, ansi-escapes is ten lines, and cli-cursor is `src/cursor.ts` —
+shared with `flagstaff/ora`, which ports the same chain.
 
 **It carries no port of `slice-ansi`, and that is a design decision rather than a gap.**
 log-update clips a frame to the terminal's height by asking `sliceAnsi` to drop a computed
@@ -197,16 +198,45 @@ makes each row stand on its own — so after wrapping, clipping is `lines.slice(
 needs no ANSI state tracking at all. 1,070 lines of tokenizer are not written, and the
 host's own suite cannot tell the two implementations apart.
 
-The weight: 28,660 B for the subpath, against log-update's own 113,368 B across sixteen
+The weight: 29,573 B for the subpath, against log-update's own 113,368 B across sixteen
 packages — and it reaches **no package at all**, not even roundel. `wrap.ts` carries the
 SGR close codes itself, because bold opening with 1 and closing with 22 is ECMA-48 rather
 than any library's table; that took `roundel/chalk` off the wrapper and off `./box` and
-`./table` with it. Sixteen packages become none, at a quarter of the bytes. `width.js` is
-shared with `./ora`; neither façade reaches the other, and neither reaches the core.
+`./table` with it. Sixteen packages become none, at a quarter of the bytes. `width.js` and
+`cursor.js` are shared with `./ora`; neither façade reaches the other, and neither reaches
+the core.
 
 `wrap.ts` is the third piece of shared machinery, after the width function and the spinner
 corpus, and it is the one `box` and `table` need next — which is why it is its own module
 rather than folded into the façade that first wanted it.
+
+### `src/cursor.ts` — the fourth, and the one that was a defect first
+
+`cli-cursor` → `restore-cursor` → `signal-exit` is in ora's dependency tree and in
+log-update's, and both façades need the same thing from it: put the cursor back however the
+process dies. The first version of each got it wrong in the same way — `process.once('exit',
+…)` and nothing else, which node does not run when a signal with no listener terminates the
+process, so Ctrl+C mid-frame left the user with no cursor. It was fixed in the ora façade
+before #62 merged and shipped, unfixed, in the log-update façade merged in #66; extracting
+one module is what stops there being a third copy to get wrong.
+
+Two conditions make it more than a one-liner, and both are graded, per façade, against the
+built `dist/` entry in a child process that is really signalled:
+
+- **It re-raises.** Installing a signal listener suppresses node's default termination, so
+  a handler that only restores turns Ctrl+C into a no-op. Asserted by `killedBy`; red on
+  the `'exit'`-only version for SIGINT, SIGTERM and SIGHUP, in both `ora.test.ts` and
+  `log-update.test.ts`.
+- **It re-raises only when `process.listenerCount(signal) === 0`.** A program that
+  installed its own `SIGINT` handler asked not to be killed, and a renderer does not get to
+  overrule it. This one is easy to claim and hard to check: with the guard deleted the child
+  is still not killed and still exits on its own code, because the unconditional re-raise is
+  caught by the program's *own* handler. What changes is that the handler is entered **twice
+  for one Ctrl+C**, so the assertion is a count of entries and not a boolean.
+
+`SIGBREAK` is filtered in by `os.constants.signals` rather than by a platform name, which
+is also why the module needs no `try`/`catch`: `process.on()` accepts a signal the platform
+does not know and simply never fires it, so there was no exception to swallow.
 
 ## What shipped (R4, the remaining built-ins — 2026-09-08)
 

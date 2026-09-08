@@ -60,11 +60,36 @@ const ALLOWED = new Set([
   // and the cursor restore's own signal handling is covered by `ora.test.ts` instead (R6).
   // `hoist()` — the way forward — takes its world as an argument.
   'flagstaff/src/ora.ts',
-  // flagstaff/log-update is log-update 8 ported the same way. Its module-level `logUpdate`
-  // and `logUpdateStderr` are bound to the two process streams because that is the export
-  // every program written for it imports, and its cursor control writes to the real stderr
-  // exactly as cli-cursor does. `createLogUpdate(stream)` — which its own suite uses for
-  // every case — takes the stream as an argument.
+  // The cursor control both render façades port, in one file rather than two: `cli-cursor`
+  // → `restore-cursor` → `signal-exit` is in ora's dependency tree and in log-update's, and
+  // there is one correct way to put a cursor back however the process dies. It reads the
+  // process because the cursor *is* the process's terminal's — global state, not a property
+  // of whichever stream a caller passed in — which is why both incumbents restore
+  // `process.stderr`'s cursor whatever stream they were rendering to.
+  //
+  // What it reads, counted: `process.platform` once (SIGBREAK on win32), `process.stderr`
+  // and `process.stdout` to pick the terminal to write to, and `process.on` /
+  // `process.removeListener` / `process.listenerCount` / `process.kill` for the three
+  // termination signals and the re-raise. The listeners and the re-raise are the whole
+  // reason the file exists; `ora.test.ts` and `log-update.test.ts` each drive their built
+  // `dist/` entry in a real child process and kill it to grade them, which is the only way
+  // there is, since neither host's own suite ever kills a process.
+  'flagstaff/src/cursor.ts',
+  // flagstaff/log-update is log-update 8 ported the same way as ora, and its process reads
+  // are two: the module-level `logUpdate` and `logUpdateStderr` are bound to
+  // `process.stdout` and `process.stderr`, because those two bindings *are* the exports
+  // every program written for log-update imports; and `hideCursor`/`showCursor` write to
+  // `process.stderr`, which is what `cli-cursor` does upstream whatever stream is being
+  // rendered to.
+  //
+  // What the suite grades, counted rather than asserted: **none of it.**
+  // `packages/compat-oracle/vendor/log-update/test.js` imports exactly one name from the
+  // module under grade — `createLogUpdate` — and uses it 39 times to build every renderer
+  // it drives; it contains **0** occurrences of `logUpdateStderr` and **0** of the string
+  // `process`, in 1,824 lines. So both reads are ported because log-update's behaviour
+  // depends on them and neither is proven by the 99; `log-update.test.ts` grades them here
+  // instead, against the built entry with the two descriptors pointed at separate files.
+  // Everything else in the façade takes its stream as an argument.
   'flagstaff/src/log-update.ts',
   // `roundel/chalk` reproduces chalk's contract, which is "detect the terminal at import"
   // (roundel design R6 against R9): the one file in roundel that reads the process — once,
