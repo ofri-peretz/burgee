@@ -1,3 +1,5 @@
+import { spawnSync } from 'node:child_process';
+
 import { ExitCode } from 'burgee/testing';
 import { describe, expect, it } from 'vitest';
 
@@ -66,15 +68,28 @@ describe.each(Object.entries(HOSTS) as [HostName, (typeof HOSTS)[HostName]][])('
     expect(JSON.stringify(process.env)).toBe(before);
   });
 
-  it('is fast: p95 an order of magnitude under a spawned process, for a warm run', async () => {
+  it('is fast: a warm in-process run beats half a bare node spawn, measured in the same run', async () => {
     const RUNS = 50;
     const P95 = 0.95;
-    // The claim is order of magnitude: an in-process run is a decade under the ~300 ms a
-    // spawned process costs. A warm run is 4–15 ms on an idle machine; the shared runners,
-    // with every package's suite at once, have measured the real yargs host at 22, 25 and
-    // 46 ms (macOS, ubuntu, windows; 2026-09-08). 100 ms keeps the decade and stops the
-    // runner's weather from failing the build.
-    const CEILING_MS = 100;
+    const FLOOR_SAMPLES = 5;
+    // The smoke is about order of magnitude, not the OS or the runner. An absolute ceiling
+    // (20 ms, then 40 ms) failed twice in one day on shared runners for PRs that did not
+    // touch this code (#27): the Quality Full job runs every suite at once on two cores,
+    // where a warm run measured 40–52 ms. So the gate is relative, the B2 rule from the
+    // benchmarks floor: sample a bare `node -e ''` spawn in the same run as the floor row,
+    // and require the harness p95 to be under half of it. Contention inflates both sides.
+    // ponytail: half, not a tenth — a tenth is what an idle machine shows (5 ms vs 30 ms);
+    // half is the margin that survives a loaded runner while still failing if T1 ever
+    // spawns a process.
+    const floor: number[] = [];
+    for (let i = 0; i < FLOOR_SAMPLES; i++) {
+      const t0 = performance.now();
+      // eslint-disable-next-line node-security/detect-child-process -- constant args, no shell: this IS the bare-node floor row
+      spawnSync(process.execPath, ['-e', '']);
+      floor.push(performance.now() - t0);
+    }
+    floor.sort((a, b) => a - b);
+    const bareSpawnMs = floor[Math.floor(FLOOR_SAMPLES / 2)] ?? 0;
     const times: number[] = [];
     for (let i = 0; i < RUNS; i++) {
       // eslint-disable-next-line reliability/no-await-in-loop -- timing individual runs is the point
@@ -82,6 +97,7 @@ describe.each(Object.entries(HOSTS) as [HostName, (typeof HOSTS)[HostName]][])('
       times.push(r.durationMs);
     }
     times.sort((a, b) => a - b);
-    expect(times[Math.floor(RUNS * P95)]).toBeLessThan(CEILING_MS);
+    const p95 = times[Math.floor(RUNS * P95)] ?? 0;
+    expect(p95, `harness p95 ${p95.toFixed(1)} ms vs bare spawn ${bareSpawnMs.toFixed(1)} ms`).toBeLessThan(bareSpawnMs / 2);
   });
 });
