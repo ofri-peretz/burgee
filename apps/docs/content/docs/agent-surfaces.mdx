@@ -1,0 +1,65 @@
+---
+title: Your CLI is an agent tool
+description: Every burgee program answers --schema and --mcp from its one declaration — no tool definitions, no second interface.
+---
+
+A burgee program is data first. The same manifest that renders `--help` answers two
+questions an agent asks before anything else.
+
+## `--schema` — the program as data
+
+```bash
+mytool --schema
+```
+
+Prints the commands, their arguments and options (with choices, defaults and which are
+required), each command's `effects`, its examples, and a JSON Schema per command. It reads
+the manifest and nothing else: no config file, no network, no handler runs (N8), so it is
+safe to call first.
+
+## `--mcp` — the program as MCP tools
+
+```bash
+mytool --mcp
+```
+
+Serves the same manifest as [MCP](https://modelcontextprotocol.io) tools over stdio —
+JSON-RPC 2.0, three methods, zero dependencies. A tool call runs the command exactly as a
+`--json` caller would; the result is that envelope, byte for byte, so an agent reading
+your CLI over MCP and one shelling out with `--json` see one payload.
+
+### Only what you publish
+
+A command is a tool **only when it declares what it does**:
+
+```ts
+defineCommand({
+  name: 'deploy',
+  effects: 'non_idempotent', // read_only | idempotent | non_idempotent
+  // …
+});
+```
+
+`effects` generates MCP's `readOnlyHint`, `idempotentHint` and `destructiveHint`. The
+protocol defaults `destructiveHint` to *true*, so a command that says nothing is not
+served at all rather than served with the dangerous reading. On a commander-syntax
+program the same declaration is `.effects('read_only')`.
+
+### Client configuration
+
+For Claude Desktop, Claude Code, Cursor or any stdio client, register the program as a
+server — nothing else to write:
+
+```json
+{
+  "mcpServers": {
+    "mytool": {
+      "command": "npx",
+      "args": ["mytool", "--mcp"]
+    }
+  }
+}
+```
+
+If the program declares its own `--schema` or `--mcp` option, burgee leaves it alone: the
+surfaces are additive, never a change to a program that already exists.

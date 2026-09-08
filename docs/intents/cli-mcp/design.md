@@ -54,6 +54,26 @@ transformation and immediately demonstrable against any CLI on the floor. Then
 `tools/call` through `runCommand`. Then the opt-in gating and its lint rule. Then the
 benchmark variant.
 
+## Status (2026-09-08)
+
+| Req | State | Where |
+| :-- | :-- | :-- |
+| N1 | `--mcp` on every program: `initialize`, `ping`, `tools/list`, `tools/call` over stdio, tool definitions from the manifest | `packages/burgee/src/mcp.ts`, `mcp.test.ts` "handshake", "lists exactly" |
+| N2 | a command is a tool only when it declares `effects`; the test that would list an undeclared command was written first and seen red | "lists exactly the commands that declared effects" |
+| N3 | zero dependencies: `node:readline`, ~150 lines; the K1 lock holds | `weight.test.ts` |
+| N4 | a tool call runs the command through `execute` with `--json`; the result text is that envelope, byte for byte, `isError` from the exit code | "returns the --json envelope … byte for byte" |
+| N5 | a tool call injects its own streams: nothing reaches the terminal, errors are E3 envelopes | "reports a failing command as an error result" |
+| N6 | `effects: read_only \| idempotent \| non_idempotent` on the manifest, generating `readOnlyHint` / `idempotentHint` / `destructiveHint`; `destructiveHint` is true only by declaration | "maps effects to the hints" |
+| N8 | `--schema` reads the manifest and nothing else — no config, no network, no handler | `schema.test.ts` "no config, no network" |
+| N9 | `choices`, defaults and requiredness are data in the JSON Schema per command | "carries choices, defaults and requiredness" |
+| commander syntax | `.effects()` on the façade; `--schema` and `--mcp` from the projected manifest unless the program declares either flag itself | `adoption-ladder.test.ts` |
+| lint rule (destructive verb + `mcp` without `confirm`) | not yet — with `eslint-plugin-cli-floor` | — |
+| benchmark over MCP (B1) | not yet — `cli-benchmarks`, wave 4 | — |
+| N7 `changed`, N11 action-required envelope, N12 agent detection, N13 token budget | not yet — the next slice of this intent | — |
+
+The `effects` field is optional in the type and required for exposure: a program without it
+keeps working exactly as before and simply has no tools, which is N2's default.
+
 ## Verification
 
 `packages/cli-core/src/mcp/serve.test.ts` drives a full handshake over a fake stdio pair
