@@ -34,9 +34,10 @@ describe('R3 · the built-ins are a plugin like any other', () => {
   });
 
   it('R4 · builtins.ts is data with a type-only import, and plugin.ts registers it through the public door', () => {
-    const builtins = readFileSync(resolve(src, 'builtins.ts'), 'utf8');
-    expect(builtins.match(/^import .*$/gm)).toEqual(["import { type Plugin } from './plugin.js';"]);
-    expect(readFileSync(resolve(src, 'plugin.ts'), 'utf8')).toContain('\nregister(builtins);\n');
+    // A Windows checkout may carry CRLF; the lock reads the source, not the line endings.
+    const source = (file: string): string => readFileSync(resolve(src, file), 'utf8').replaceAll('\r\n', '\n');
+    expect(source('builtins.ts').match(/^import .*$/gm)).toEqual(["import { type Plugin } from './plugin.js';"]);
+    expect(source('plugin.ts')).toContain('\nregister(builtins);\n');
   });
 });
 
