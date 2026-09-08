@@ -68,6 +68,13 @@ const RULES: Record<string, EntryRule> = {
   // It reaches nothing in the core: an ora migration does not drag the frame loop in, and
   // a program that hoists does not pay for the corpus.
   './ora': { allow: ['roundel/chalk'], budget: 50_000, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
+  // The log-update façade: the port, the ANSI-aware wrapper and the width function.
+  // Measured 28,606 B on 2026-09-08 (of which `wrap.js` is 17,017), against log-update's
+  // own 113,368 B across sixteen packages (slice-ansi 27,630 · signal-exit 21,983 ·
+  // wrap-ansi 20,004 · the rest). With `roundel/chalk`'s 18,078 counted it is 46,684 B in
+  // two packages, 41% of log-update's. It shares `width.js` with `./ora` and reaches
+  // neither the corpus nor the core.
+  './log-update': { allow: ['roundel/chalk'], budget: 32_000, denied: ['ora.js', 'spinners.json', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
 };
 
 const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;

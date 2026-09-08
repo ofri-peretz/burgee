@@ -30,6 +30,9 @@ const ALLOWED: Record<string, string[]> = {
   // nothing else in the package, so `flagstaff/ora` and `flagstaff` share no code path and
   // a program on one pays nothing for the other (R6, R10).
   'ora.js': ['./spinners.json', './width.js'],
+  // The two façades share the width function and nothing else; `wrap.js` is the ANSI-aware
+  // wrapper `box` and `table` will need next, which is why it is its own module.
+  'log-update.js': ['./wrap.js'],
 };
 
 const RELATIVE = /(?:from|import)\s*'(\.[^']+)'/g;

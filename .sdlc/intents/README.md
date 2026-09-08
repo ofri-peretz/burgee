@@ -186,10 +186,10 @@ data, every animation with a static projection, weight paid per subpath. Propose
 | :-- | :-- | :-- | :-- | :-- |
 | 23 | [`cli-output-stack/`](./cli-output-stack/) | the layer table, the static-projection rule, the data-only plugin contract, the complete-CLI dependency bill | U1–U10 | approved |
 | 24 | [`roundel/`](./roundel/) | **roundel** — `./policy`, `./tokens`, `./theme`, and a chalk path graded by chalk's tests; each subpath at or under the incumbent it replaces | U2 U5 U6 U7 U10 U12 | shipped (0.0.x) — `roundel/chalk` 58 / 58 |
-| 25 | [`flagstaff/`](./flagstaff/) | **flagstaff** — frame loop, plugin host, built-ins as first-party plugins, `plugin check`; no layout engine | U3 U4 U8 U9 U12 | shipped (0.0.x) — loop, plugin host, spinner, `flagstaff check`, `flagstaff/ora` 99 / 99; log-update, boxen, cli-table3 and the other built-ins next |
+| 25 | [`flagstaff/`](./flagstaff/) | **flagstaff** — frame loop, plugin host, built-ins as first-party plugins, `plugin check`; no layout engine | U3 U4 U8 U9 U12 | shipped (0.0.x) — loop, plugin host, spinner, `flagstaff check`, `flagstaff/ora` 99 / 99, `flagstaff/log-update` 99 / 99; boxen, cli-table3 and the other built-ins next |
 
 | 26 | [`output-stack-research/`](./output-stack-research/) | **what we improve** — the ten incumbents' trackers read in full, won't-fix lists included; every U row cited | U1–U12 | shipped |
-| 27 | [`output-stack-compat/`](./output-stack-compat/) | **backwards compatibility** — eight façades graded by eight vendored suites; eight scoreboard rows | U11, C1–C6 | draft — 2 of 8 graded (chalk 58 / 58, ora 99 / 99); log-update vendored, control proven; needs a `design.md` before it can be approved |
+| 27 | [`output-stack-compat/`](./output-stack-compat/) | **backwards compatibility** — eight façades graded by eight vendored suites; eight scoreboard rows | U11, C1–C6 | draft — 3 of 8 graded (chalk 58 / 58, ora 99 / 99, log-update 99 / 99); needs a `design.md` before it can be approved |
 | 28 | [`plugin-contract/`](./plugin-contract/) | **spreading impact** — one plugin object, one schema, one `register()`, one `check`, across all four layers | U4, U9, M4–M5 | draft |
 | 29 | [`caller-matrix/`](./caller-matrix/) | **every caller** — features × callers conformance matrix, generated; humans, agents, CI, screen readers, programs | U2, U3, P1–P3, B1 | draft |
 
@@ -234,11 +234,8 @@ compat-yargs        ████████████████████
 compat-chalk        ████████████████████████    58 /   58  100.0%     ████████████████████████    58 /   58  100.0%
   roundel/chalk; the 11 FORCE_COLOR cases passed once R2 was revised — 2026-09-08
 compat-ora          ████████████████████████    99 /   99  100.0%     ████████████████████████    99 /   99  100.0%
-compat-log-update   ░░░░░░░░░░░░░░░░░░░░░░░░     0 /   99    0.0%     ████████████████████████    99 /   99  100.0%
+compat-log-update   ████████████████████████    99 /   99  100.0%     ████████████████████████    99 /   99  100.0%
 ```
-
-log-update's suite is vendored and its control is proven; the façade is not built, so the
-row reads an honest 0 rather than being left off the board.
 
 Every file of every suite is vendored and run — nothing is excluded. The *internals* lines
 are the files that import only the host's own modules (`../lib/command.js`); they are
@@ -395,7 +392,7 @@ the friction — which today they do, and which a 250-command CLI may change.
 
 | | Done | Left |
 | :-- | :-- | :-- |
-| `compat-oracle` | every file of all four suites vendored (internals reported separately); every gate proven; `burgee/commander` 1360/1360, `burgee/yargs` 804/804, `roundel/chalk` 58/58 and `flagstaff/ora` 99/99 — four façades at 100% of their hosts' own suites (2026-09-08); a host's own `testGlob` decides what is a test and a host may declare the `env` its `npm test` sets, so a suite that lives at its repo root (ora) vendors cleanly; skipped tests reported and never counted; the vendored root is a package a CJS fixture can `require('../')`; `COMPAT_TAP_DIR` keeps the raw TAP; ratchet; `--control`; suites pinned to the hosts' npm releases (commander 15.0.0, yargs 18.1.0, chalk 6.0.0, ora 9.4.1) with a fingerprinted compatibility record; daily release watch opens an issue with the exact test/surface diff, weekly re-vendor PR carries it (C6, R4); ratchet on every PR + Node×OS matrix (C3); generated `compatibility.mdx` (C2) | publish the page (needs `docs-deploy`) |
+| `compat-oracle` | every file of all four suites vendored (internals reported separately); every gate proven; `burgee/commander` 1360/1360, `burgee/yargs` 804/804, `roundel/chalk` 58/58, `flagstaff/ora` 99/99 and `flagstaff/log-update` 99/99 — five façades at 100% of their hosts' own suites (2026-09-08); a host's own `testGlob` decides what is a test and a host may declare the `env` its `npm test` sets, so a suite that lives at its repo root (ora) vendors cleanly; skipped tests reported and never counted; the vendored root is a package a CJS fixture can `require('../')`; `COMPAT_TAP_DIR` keeps the raw TAP; ratchet; `--control`; suites pinned to the hosts' npm releases (commander 15.0.0, yargs 18.1.0, chalk 6.0.0, ora 9.4.1, log-update 8.0.0) with a fingerprinted compatibility record; daily release watch opens an issue with the exact test/surface diff, weekly re-vendor PR carries it (C6, R4); ratchet on every PR + Node×OS matrix (C3); generated `compatibility.mdx` (C2) | publish the page (needs `docs-deploy`) |
 | `cli-packaging` | no-deps / ESM / no-`main` / `default`-condition lock (R1–R3); artifact gate in `release.yml` between build and publish (R4); tarball size ratchet with baseline (R5); provenance restored under the trusted publisher | — (R6 bun/deno smoke landed in wave 2: `runtime-smoke.yml`) |
 | **ESM + CJS** | every entry has a `default` condition; no top-level await in the library; `require('burgee')` and `require('burgee/commander')` proven against the installed tarball — one artifact, both module systems (K2, revised) | — |
 | `replacement-parser` | engine, lifecycle, exit contract, manifest, four locks; `defineProgram`; `--` pass-through and `-` (G5); seven cited §10 fixes (G6); G7 measured at +5 ms, level with bare `parseArgs`; `demo-cli-burgee` as the third conformance host via `runBurgee` (G2), with the envelope difference declared per host; `ctx.exit`, env binding, root/group help | G3 quirks — they land with the front-ends in wave 2 |
@@ -493,7 +490,7 @@ whatever a one-line shim points at, and the rate ratchets.
 | `compat-commander-pass-rate` | commander's 1,360 public-surface tests | 1360 / 1360 (2026-09-08; one fewer than the number carried before, because the runner had been counting `testHelpers.js` — a helper with no tests — as a test) |
 | `compat-yargs-pass-rate` | yargs' 804 tests | 804 / 804 (2026-09-08) |
 | `compat-ora-pass-rate` | ora's 99 tests | 99 / 99 (2026-09-08) |
-| `compat-log-update-pass-rate` | log-update's 99 tests | control 99 / 99 (2026-09-08); façade not built |
+| `compat-log-update-pass-rate` | log-update's 99 tests | 99 / 99 (2026-09-08) |
 | `node-matrix-green` | every Node LTS in `engines` × Linux, macOS, Windows | **Node 24 only** on three OSes (2026-09-08). A deliberate narrowing while the output stack lands, so C3 is *not* met: `engines` says `>=24` and 26 is not exercised. Restored by adding 26 back to the matrix in `compat.yml` — one line, and nothing else changes |
 | documented divergences | `excluded.json`, rendered on the docs site | 9 upstream files testing internals, excluded and named |
 

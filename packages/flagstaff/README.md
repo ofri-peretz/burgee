@@ -121,6 +121,25 @@ The static projection is the reason to move on eventually, not the reason to mov
 `hoist()` is what gives a pipe one line per state instead of frames. `flagstaff/ora` is the
 door, and it is deliberately ora's behaviour to the byte.
 
+### The log-update path
+
+`flagstaff/log-update` is log-update 8's API, graded **99 / 99 by log-update's own test
+suite** — which renders every frame through a real terminal emulator and asserts the
+screen, not the bytes.
+
+```diff
+-import logUpdate from 'log-update';
++import logUpdate from 'flagstaff/log-update';
+```
+
+`logUpdate()`, `.clear()`, `.done()`, `.persist()`, `createLogUpdate(stream, options)` and
+`logUpdateStderr`, with the row-level diffing intact: a five-row frame whose last row is a
+counter costs one row of output per tick, not five.
+
+log-update ships 113.4 KB across **sixteen** packages. This is 46.7 KB across **two**.
+It carries no port of `slice-ansi` — the wrapper already makes every row self-contained,
+so clipping a frame to the terminal's height is an array slice.
+
 ### `flagstaff check`
 
 ```bash
@@ -138,7 +157,9 @@ Every subpath is a lock, not a convention, and the numbers below are asserted by
 `weight.test.ts` against `dist/`, not estimated: `flagstaff/loop` reaches 4.4 KB on disk and
 never the plugin registry; `flagstaff/plugin` 8.4 KB, of which 2.4 KB is the schema;
 `flagstaff/spinner` 9.4 KB; `flagstaff/ora` 46.3 KB — 55.6 KB with roundel counted, against
-ora's own 113.6 KB — and it reaches nothing else in the package. `sideEffects: false` lets a
+ora's own 113.6 KB; `flagstaff/log-update` 28.6 KB — 46.7 KB counted the same way, against
+log-update's own 113.4 KB. Neither façade reaches the other, and neither reaches the core.
+`sideEffects: false` lets a
 bundler drop what a program does not use. ESM with a `default` condition, so
 `require('flagstaff/spinner')` works from CommonJS on Node ≥ 24.
 
@@ -146,8 +167,8 @@ bundler drop what a program does not use. ESM with a `default` condition, so
 
 - **`progress`, `tasks`, `box`, `table`** — the remaining built-ins, each a component in the
   same shape.
-- **Drop-in paths** for log-update, boxen and cli-table3, graded by their own suites through
-  `compat-oracle` the way ora already is.
+- **Drop-in paths** for boxen and cli-table3, graded by their own suites through
+  `compat-oracle` the way ora and log-update already are.
 - **`flagstaff/import`** — `fromCliSpinners(json)` and `fromCliBoxes(json)`: the two existing
   corpora as registered plugins.
 

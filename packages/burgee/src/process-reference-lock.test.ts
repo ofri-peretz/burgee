@@ -60,6 +60,12 @@ const ALLOWED = new Set([
   // and the cursor restore's own signal handling is covered by `ora.test.ts` instead (R6).
   // `hoist()` — the way forward — takes its world as an argument.
   'flagstaff/src/ora.ts',
+  // flagstaff/log-update is log-update 8 ported the same way. Its module-level `logUpdate`
+  // and `logUpdateStderr` are bound to the two process streams because that is the export
+  // every program written for it imports, and its cursor control writes to the real stderr
+  // exactly as cli-cursor does. `createLogUpdate(stream)` — which its own suite uses for
+  // every case — takes the stream as an argument.
+  'flagstaff/src/log-update.ts',
   // `roundel/chalk` reproduces chalk's contract, which is "detect the terminal at import"
   // (roundel design R6 against R9): the one file in roundel that reads the process — once,
   // through `globalThis.process`, guarded, and only to hand the policy a Runtime. Every

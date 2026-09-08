@@ -116,8 +116,8 @@ weight (`./loop` 5,000 · `./plugin` 10,000 · `./spinner` 11,000 · `.` 16,000 
 two packed tarballs. The schema validator is sixty lines over the subset the schema uses,
 because a JSON Schema library is a dependency the package will not carry.
 
-Not yet: `progress`, `tasks`, `box`, `table`; the other three façades (R6); the importers
-(R11); the U9 eval; the docs gallery. `tokens` are kept in the registry for whoever flies
+Not yet: `progress`, `tasks`, `box`, `table`; the boxen and cli-table3 façades (R6); the
+importers (R11); the U9 eval; the docs gallery. `tokens` are kept in the registry for whoever flies
 the theme — `register()` does not call roundel's `fly()`, because that needs a runtime and
 would pull the theme into every plugin import.
 
@@ -171,6 +171,33 @@ defines its `_`-prefixed test hooks only under `NODE_ENV=test`. Applying the glo
 removed one file from commander's count: `testHelpers.js` is a helper with no tests, and
 node's runner had been counting the file itself as a passing test. commander's honest
 number is 1360 / 1360, and the baseline says so.
+
+## What shipped (R6, log-update — 2026-09-08)
+
+`flagstaff/log-update`: log-update 8.0.0 ported, **99 / 99 on log-update's own suite**,
+which renders every frame through a real terminal emulator and asserts the screen rather
+than the bytes — the strongest grading of the four render hosts. Six dependencies folded
+in: the wrapping is `src/wrap.ts` (wrap-ansi 10, ported and graded differentially against
+the real package over a seeded sweep in `wrap.test.ts`), the width is `src/width.ts` again,
+strip-ansi is `node:util`, and ansi-escapes and cli-cursor are twenty lines.
+
+**It carries no port of `slice-ansi`, and that is a design decision rather than a gap.**
+log-update clips a frame to the terminal's height by asking `sliceAnsi` to drop a computed
+number of visible columns and then correcting the estimate in a loop, because a slice in
+the middle of a styled run has to reopen the styles that were active at the cut. But
+`wrap()` has already closed every style at a row break and reopened it after — that is what
+makes each row stand on its own — so after wrapping, clipping is `lines.slice(n)`, and
+needs no ANSI state tracking at all. 1,070 lines of tokenizer are not written, and the
+host's own suite cannot tell the two implementations apart.
+
+The weight: 28,606 B for the subpath (of which `wrap.js` is 17,017), 46,684 B with
+`roundel/chalk` counted, against log-update's own 113,368 B across sixteen packages —
+41%, in two packages instead of sixteen. `width.js` is shared with `./ora`; neither façade
+reaches the other, and neither reaches the core.
+
+`wrap.ts` is the third piece of shared machinery, after the width function and the spinner
+corpus, and it is the one `box` and `table` need next — which is why it is its own module
+rather than folded into the façade that first wanted it.
 
 ## Rejected alternatives
 

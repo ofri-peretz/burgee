@@ -448,13 +448,16 @@ export default [
     // `burgee/yargs` is yargs 18 (with yargs-parser 22, cliui 9 and y18n 5) ported the same
     // way and graded by yargs' own 804 tests; the same rules are off for the same reason.
     // flagstaff/ora is ora 9 — its eight dependencies folded in with it — graded by ora's
-    // own 99 tests, so the same structural rules are off for it.
+    // own 99 tests, and flagstaff/log-update is log-update 8 graded by its own 99, with
+    // the wrap-ansi port beside it — the same structural rules are off for all of them.
     files: [
       'packages/burgee/src/commander-*.ts',
       'packages/burgee/src/commander.ts',
       'packages/burgee/src/yargs-*.ts',
       'packages/burgee/src/yargs.ts',
       'packages/flagstaff/src/ora.ts',
+      'packages/flagstaff/src/log-update.ts',
+      'packages/flagstaff/src/wrap.ts',
     ],
     rules: {
       'maintainability/consistent-function-scoping': 'off',
@@ -496,12 +499,17 @@ export default [
       'reliability/no-missing-null-checks': 'off',
       'secure-coding/no-unchecked-loop-condition': 'off',
       'conventions/consistent-existence-index-check': 'off',
+      // FP 22 (wrap.ts): no-insecure-comparison reads a comparison of an SGR parameter
+      // against a named constant as a secret compared in variable time. The value is the
+      // number 38, off the wire, in a text wrapper; there is no constant-time comparison
+      // of an integer to reach for. The rule keys on the shape, not on the value.
+      'secure-coding/no-insecure-comparison': 'off',
     },
   },
   {
     // `import yargs from 'burgee/yargs'` is the drop-in: yargs' entry is a default export
     // and every program written for it imports it that way.
-    files: ['packages/burgee/src/yargs.ts', 'packages/burgee/src/yargs-parser.ts', 'packages/flagstaff/src/ora.ts'],
+    files: ['packages/burgee/src/yargs.ts', 'packages/burgee/src/yargs-parser.ts', 'packages/flagstaff/src/ora.ts', 'packages/flagstaff/src/log-update.ts'],
     rules: { 'import-next/no-default-export': 'off' },
   },
   {
