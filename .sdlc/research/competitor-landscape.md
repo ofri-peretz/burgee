@@ -168,3 +168,57 @@ gh api repos/tj/commander.js --jq '[.stargazers_count,.open_issues_count]'
 # cold start: 30 spawns per target, median, trivial one-subcommand CLI
 for i in $(seq 30); do s=$(date +%s%N); node b-commander.mjs >/dev/null; e=$(date +%s%N); echo $(( (e-s)/1000000 )); done | sort -n | sed -n '16p'
 ```
+
+## 7. The output stack
+
+Measured 2026-09-08. The ten incumbents for what a CLI *shows*, which
+[`cli-output-stack`](../intents/cli-output-stack/intent.md) replaces layer by layer.
+Companion: [what 230 issues say about the output stack](./output-stack-open-issues.md).
+
+| Package | Latest | DL/wk | Deps | Unpacked | Stars | Open | Declined (3y) | Replaced by |
+| :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: | :--- |
+| chalk | 6.0.0 | 439.8M | 0 | 56.0 KB | 23.3k | 0 | 20 | `roundel/chalk` |
+| picocolors | 1.1.1 | 202.5M | 0 | 6.4 KB | 1.8k | 8 | — | `roundel/tokens` |
+| ora | 9.4.1 | 79.8M | 8 | 40.7 KB | 9.7k | 0 | 17 | `flagstaff/ora` |
+| inquirer | 14.2.2 | 32.9M | 6 | 60.3 KB | 21.6k | 8 | — | `caique/inquirer` |
+| listr2 | 11.1.0 | 29.1M | 3 | 136.9 KB | 686 | 0 | 8 | not planned |
+| cli-table3 | 0.6.5 | 23.3M | 1 | 46.2 KB | 634 | 13 | — | `flagstaff/table` |
+| log-update | 8.0.0 | 22.1M | 6 | 18.0 KB | 1.2k | 0 | 3 | `flagstaff/frame` |
+| @clack/prompts | 1.8.0 | 20.4M | 4 | 93.4 KB | 8.0k | 60 | — | `caique/clack` |
+| boxen | 8.0.1 | 20.2M | 8 | 23.7 KB | 1.7k | 5 | — | `flagstaff/box` |
+| ink | 7.1.1 | 5.8M | 25 | 556.7 KB | 39.8k | 14 | — | not planned |
+
+Columns: *Deps* is the count of keys in `dependencies` of the published manifest, not the
+installed closure (the closure is **not measured**; ora's eight direct dependencies fan out
+further). *Unpacked* is `dist.unpackedSize` of the published tarball, not install size on
+disk. *Declined (3y)* is the judged count from the companion document, and reads "—" where
+the tracker is open and nothing was read as declined. Spawn delta per package is
+**not measured** here; the umbrella intent records chalk +18 ms and picocolors +10 ms from
+2026-09-07 and the rest is recorded when each incumbent is vendored into the bench
+workspace.
+
+Three readings:
+
+1. **The install bill of a finished CLI is the number nobody publishes.** A CLI on
+   commander + chalk + ora + cli-table3 + inquirer declares 0 + 0 + 8 + 1 + 6 = 15 direct
+   dependencies and 203 KB unpacked before its own code. Only two of the ten ship with
+   zero dependencies, and they are the two that do the least.
+2. **Empty trackers are policy, not health.** chalk, ora, log-update and listr2 show 0
+   open issues and 48 declines between them in three years; the declines are the
+   requirement list. The one honest correction: listr2's "closes by policy" in the research
+   intent did not hold — 37 of its 45 closures are fixes with a release attached.
+3. **Ink is the largest and the least chosen.** 39.8k stars, 556 KB, 25 dependencies,
+   5.8M/wk: the most-starred package in the table has the fewest users of the nine that
+   ship a UI. Its backlog is a layout engine's backlog (scrolling, cursor, resize, WASM
+   memory), which is the case for U8.
+
+```bash
+# 2026-09-08, per package (clack is @clack/prompts, Inquirer is inquirer)
+npm view <name> version
+npm view <name> dependencies --json | jq 'if type=="object" then length else 0 end'
+npm view <name> dist.unpackedSize
+curl -s "https://api.npmjs.org/downloads/point/last-week/<name>" | jq .downloads
+gh api graphql -f query='{ repository(owner:"<o>", name:"<n>") { stargazerCount issues(states:OPEN){totalCount} hasDiscussionsEnabled } }'
+# issues + declines
+scripts/fetch-competitor-issues.sh stack
+```
