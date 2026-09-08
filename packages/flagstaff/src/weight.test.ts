@@ -154,10 +154,25 @@ describe.each(Object.keys(RULES))('entry %s', (subpath) => {
   });
 });
 
+/**
+ * Exports that are data rather than code. They have no import graph and no budget — the
+ * file *is* the payload — so a byte rule would measure nothing. They are listed rather than
+ * pattern-matched so that adding one is still a decision somebody made on purpose.
+ */
+const DATA_EXPORTS = ['./schema.json'];
+
 describe('the lock grows with the package', () => {
   it('every published entry point declares a weight rule', () => {
     // Adding `flagstaff/box` without a budget here fails, which is the point: a new
     // surface cannot ship until someone has said what it may weigh.
-    expect(Object.keys(manifest.exports).sort()).toEqual(Object.keys(RULES).sort());
+    const code = Object.keys(manifest.exports).filter((e) => !DATA_EXPORTS.includes(e));
+    expect(code.sort()).toEqual(Object.keys(RULES).sort());
+  });
+
+  it('every data export is named here, so one cannot arrive without a decision', () => {
+    const data = Object.entries(manifest.exports)
+      .filter(([, target]) => typeof target === 'string')
+      .map(([subpath]) => subpath);
+    expect(data.sort()).toEqual([...DATA_EXPORTS].sort());
   });
 });

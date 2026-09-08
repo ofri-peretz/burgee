@@ -29,6 +29,7 @@
       "import": "./dist/loop.js",
       "default": "./dist/loop.js"
     },
+    "./schema.json": "./dist/schema.json",
     "./plugin": {
       "types": "./dist/plugin.d.ts",
       "import": "./dist/plugin.js",
