@@ -5,6 +5,17 @@ repo, for why. Layout and status values are the same as in `eslint/`: one direct
 intent, `intent.md` then `design.md`, statuses `draft → review → approved → shipped`
 (or `dropped`), and `approved` requires a `design.md` beside it.
 
+## The message
+
+**A framework that everyone extends with AI agents, that beats every incumbent it replaces,
+and that moves faster than any of them.** Each clause is a mechanism on this page, not a
+slogan: *extend with agents* is U4, U9 and the plugin contract (plugins are data, one
+schema, one-turn authoring measured weekly); *beats every incumbent* is U5 and U11 (lighter
+per subpath, graded by their own suites, every number published); *moves faster* is the
+cadence and the two maintenance bands (a month per wave, seven days to track an upstream
+release, fourteen to close an accepted issue). Everything below exists to make one of the
+three true and provable.
+
 ## The roadmap in one paragraph
 
 **Decided 2026-09-06: we are building a competitor to commander and yargs, not a layer on
