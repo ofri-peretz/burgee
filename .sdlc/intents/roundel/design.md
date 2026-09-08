@@ -36,6 +36,26 @@ Intent: [`intent.md`](./intent.md). **Status:** approved.
   import (R5). The docs gallery is generated from them; hundreds of themes on day one, none
   hand-written. Data in, data out; no network, no bundled corpus — the user supplies the file.
 
+### Evidence
+
+Issue ids from [what 230 issues say about the output stack](../../research/output-stack-open-issues.md),
+one row per requirement; the section number is the cluster the reading comes from. A row
+with no issue behind it is a hypothesis and is measured before it locks.
+
+| R | Issues that support it | Standing |
+| :-- | :-- | :-- |
+| R1 | clack #286 (`isCI` where `isTTY` was meant); ora #218, #235 (declined); listr2 #716 (piped stdout steps the renderer down; UI to stderr by hand); cli-table3 #180; clack #585 (the `accessible` mode, opt-in by env) — §1, §2 | cited |
+| R2 | picocolors #100 (`FORCE_COLOR=0` enables colour), #85 (use `tty.WriteStream.hasColors()`); chalk #624, #686 (numeric `FORCE_COLOR`, ansi256 downsampling); cli-table3 #357 (ANSI under `NO_COLOR=1`); listr2 #687; ink D#577; chalk v5.5/v5.6 emulator allow-list is the detection R2 refuses — §1, §17 | cited |
+| R3 | chalk #666 (declined: "building abstractions over Chalk … is what we encourage"), #659, #635; picocolors #99; chalk #604 (styles `util.styleText` lacks are not offered); cli-table3 #357 and listr2 #687 (styling that ignores level 0) — §9, §17, §1 | cited |
+| R4 | chalk #666 (declined), #677 (custom presets), #659 (dynamic colour names); clack #36 (themes, variants, icons), #345 (expose the style without the rendering), #379 (global settings) — §9 | cited |
+| R5 | no issue in the ten trackers asks for contrast checking | hypothesis — measure before lock |
+| R6 | picocolors #100, #92 ("regressions when projects migrate from chalk"); chalk #624, #686, #635 (the `level` model the façade must reproduce to pass chalk 6's suite) — §1, §17, U11 | cited |
+| R7 | ink #976 (a DEV-only path installed for everyone); picocolors #70 ("doubling the package size"); chalk #617 (README is 25% of the tarball) — U5 | cited |
+| R8 | picocolors #70; chalk #617; ink #976 (what a subpath costs when it is not isolated); chalk #669, #660 (per-call cost is a B4 row, not a ceiling here) — U5, §20 | cited |
+| R9 | picocolors #97 (`process` is not defined on Cloudflare); chalk #615 (`navigator`), #655 (Vite); log-update #63 (declined: "this package targets Node.js"); ora #146 (declined: `WT_SESSION` "is not an API") — §15 | cited |
+| R10 | picocolors #70 (35 reactions), #50, #59; chalk #632, #633, #641, #628, #627, #620 (declined, every one), #613, #661, #626; ora #239 (declined); listr2 #755, #745; Inquirer D#1270, D#1206 — §13, U10 | cited |
+| R11 | no issue asks for a palette importer; clack #36 wants themes, not a corpus | hypothesis — measure before lock |
+
 ## Design
 
 ```text

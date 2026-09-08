@@ -6,19 +6,68 @@
  * commands (grouped, yargs #684), examples, environment, epilogue. Empty sections are
  * omitted. Width comes from the caller — the runtime, in practice (H3) — default 100.
  */
+import { styleText } from 'node:util';
+
 import type { ArgumentSpec, CommandNode, Example, Manifest, OptionSpec } from './manifest.js';
 import { kebab } from './names.js';
+
+/** The token names of `roundel`'s R3, typed structurally: burgee never imports them (U13). */
+export type HelpToken = 'error' | 'warn' | 'ok' | 'hint' | 'muted' | 'command' | 'flag' | 'value' | 'heading';
+
+/**
+ * Per-token styling for help (R7). A user who has `roundel` passes its tokens; a user
+ * who does not gets the defaults. Help reads `heading`, `command`, `flag` and `value`;
+ * the others are accepted so one theme object serves the whole output stack.
+ */
+export type HelpTheme = Partial<Record<HelpToken, (s: string) => string>>;
 
 export interface HelpOptions {
   /** Columns available; 100 when unknown, never `process.stdout` directly (H3). */
   width?: number;
   /** Show type hints such as `[string]`; off by default (H6). */
   verbose?: boolean;
+  /** Apply colour (R7). Off by default: the renderer is pure, so the TTY and NO_COLOR decision stays with the caller. */
+  color?: boolean;
+  /** Replaces the default styling token by token; read only when `color` is on. */
+  theme?: HelpTheme;
 }
+
+/** What a term is, so the theme can style it; the term itself stays plain text. */
+type Kind = 'command' | 'flag' | 'value';
 
 interface Row {
   term: string;
   text: string;
+  kind: Kind;
+}
+
+/** The four styles help uses, resolved: identity when colour is off, the theme's or the default otherwise. */
+type Paint = Record<'heading' | Kind, (s: string) => string>;
+
+const identity = (s: string): string => s;
+const PLAIN: Paint = { heading: identity, command: identity, flag: identity, value: identity };
+/** The defaults, over `util.styleText`. The stream check is off: `color` is the one gate (R7). */
+const DEFAULTS: Paint = {
+  heading: (s) => styleText('bold', s, { validateStream: false }),
+  command: (s) => styleText('bold', s, { validateStream: false }),
+  flag: (s) => styleText('cyan', s, { validateStream: false }),
+  value: (s) => styleText('dim', s, { validateStream: false }),
+};
+
+function painterFor(paint: Paint, kind: Kind): (s: string) => string {
+  if (kind === 'command') return paint.command;
+  return kind === 'flag' ? paint.flag : paint.value;
+}
+
+function paintOf(opts: HelpOptions): Paint {
+  if (opts.color !== true) return PLAIN;
+  const theme = opts.theme ?? {};
+  return {
+    heading: theme.heading ?? DEFAULTS.heading,
+    command: theme.command ?? DEFAULTS.command,
+    flag: theme.flag ?? DEFAULTS.flag,
+    value: theme.value ?? DEFAULTS.value,
+  };
 }
 
 interface Section {
@@ -34,8 +83,8 @@ const TERM_SHARE = 0.4;
 
 /** Always present, always last among options (H4). */
 const GLOBAL: Row[] = [
-  { term: '--json', text: 'machine-readable output' },
-  { term: '--help', text: 'show this help' },
+  { term: '--json', text: 'machine-readable output', kind: 'flag' },
+  { term: '--help', text: 'show this help', kind: 'flag' },
 ];
 
 function deprecation(d: boolean | string | undefined): string {
@@ -69,7 +118,7 @@ function optionTerm(name: string, spec: OptionSpec): string {
 function optionRows(options: Record<string, OptionSpec>, verbose: boolean): Row[] {
   return Object.entries(options)
     .filter(([, spec]) => spec.hidden !== true)
-    .map(([name, spec]) => ({ term: optionTerm(name, spec), text: annotate(spec.description ?? '', spec, verbose) }));
+    .map(([name, spec]) => ({ term: optionTerm(name, spec), text: annotate(spec.description ?? '', spec, verbose), kind: 'flag' as const }));
 }
 
 const argumentTerm = (a: ArgumentSpec): string => {
@@ -81,6 +130,7 @@ function argumentRows(args: ArgumentSpec[]): Row[] {
   return args.map((a) => ({
     term: argumentTerm(a),
     text: [a.description ?? '', a.default === undefined ? '' : `(default: ${a.default})`].filter((p) => p !== '').join(' '),
+    kind: 'value' as const,
   }));
 }
 
@@ -93,7 +143,7 @@ function commandSections(manifest: Manifest, node: CommandNode): Section[] {
   for (const c of children) {
     const heading = c.group ?? 'Commands:';
     const rows = groups.get(heading) ?? [];
-    rows.push({ term: c.path[c.path.length - 1] ?? '', text: `${c.summary ?? c.description ?? ''}${deprecation(c.deprecated)}`.trim() });
+    rows.push({ term: c.path[c.path.length - 1] ?? '', text: `${c.summary ?? c.description ?? ''}${deprecation(c.deprecated)}`.trim(), kind: 'command' });
     groups.set(heading, rows);
   }
   return [...groups].map(([title, rows]) => ({ title, rows }));
@@ -102,16 +152,16 @@ function commandSections(manifest: Manifest, node: CommandNode): Section[] {
 function environmentRows(options: Record<string, OptionSpec>): Row[] {
   return Object.entries(options)
     .filter(([, spec]) => spec.env !== undefined && spec.hidden !== true)
-    .map(([name, spec]) => ({ term: spec.env ?? '', text: `--${kebab(name)}` }));
+    .map(([name, spec]) => ({ term: spec.env ?? '', text: `--${kebab(name)}`, kind: 'value' as const }));
 }
 
-function usageLine(node: CommandNode, root: string[], hasChildren: boolean): string {
+function usageLine(node: CommandNode, root: string[], hasChildren: boolean, paint: Paint): string {
   const shown = node.path.slice(root.length).join(' ') || node.path.join(' ');
   const parts = [shown];
   if (hasChildren) parts.push('<command>');
   parts.push('[options]');
   for (const a of node.arguments ?? []) parts.push(argumentTerm(a));
-  return `Usage: ${parts.join(' ')}`;
+  return `${paint.heading('Usage:')} ${parts.join(' ')}`;
 }
 
 /** Word-wrap one paragraph; lines the author indented are kept verbatim (yargs #2120). */
@@ -140,22 +190,29 @@ function termColumn(rows: Row[], width: number): number {
   return Math.min(longest, Math.floor(width * TERM_SHARE));
 }
 
-/** Two columns: terms padded to the column, descriptions wrapped to the rest (R3). A term wider than the column gets its text on the next line, never wrapped itself. */
-function layout(rows: Row[], width: number, column: number): string[] {
+/**
+ * Two columns: terms padded to the column, descriptions wrapped to the rest (R3). A term
+ * wider than the column gets its text on the next line, never wrapped itself. Colour wraps
+ * the finished cell: the term is measured and padded plain, and the name in the manifest
+ * is never touched, which is what yargs #1699 got wrong.
+ */
+function layout(rows: Row[], width: number, column: number, paint: Paint): string[] {
   const textWidth = Math.max(1, width - INDENT.length - column - GUTTER);
   const lines: string[] = [];
-  for (const { term, text } of rows) {
+  for (const { term, text, kind } of rows) {
+    const cell = painterFor(paint, kind)(term);
     if (text === '') {
-      lines.push(`${INDENT}${term}`);
+      lines.push(`${INDENT}${cell}`);
       continue;
     }
     const wrapped = wrap(text, textWidth);
     const continuation = INDENT + ' '.repeat(column + GUTTER);
     if (term.length > column) {
-      lines.push(`${INDENT}${term}`, ...wrapped.map((l) => `${continuation}${l}`));
+      lines.push(`${INDENT}${cell}`, ...wrapped.map((l) => `${continuation}${l}`));
       continue;
     }
-    lines.push(`${INDENT}${term.padEnd(column + GUTTER)}${wrapped[0] ?? ''}`, ...wrapped.slice(1).map((l) => `${continuation}${l}`));
+    const pad = ' '.repeat(column + GUTTER - term.length);
+    lines.push(`${INDENT}${cell}${pad}${wrapped[0] ?? ''}`, ...wrapped.slice(1).map((l) => `${continuation}${l}`));
   }
   return lines;
 }
@@ -170,31 +227,33 @@ function exampleLines(examples: Example[], width: number): string[] {
   return lines;
 }
 
-function section(title: string, body: string[]): string[] {
-  return body.length === 0 ? [] : [title, ...body, ''];
+function section(title: string, body: string[], paint: Paint): string[] {
+  return body.length === 0 ? [] : [paint.heading(title), ...body, ''];
 }
 
 /**
  * Render help for one node — a runnable command, a group, or both — as text.
- * Deterministic for a given node and width; a snapshot suite pins it.
+ * Deterministic for a given node and width; a snapshot suite pins it. With `color`
+ * off — the default — a theme changes nothing; with it on, only ANSI is added.
  */
 export function renderHelp(manifest: Manifest, node: CommandNode, opts: HelpOptions = {}): string {
   const width = opts.width ?? DEFAULT_WIDTH;
   const verbose = opts.verbose === true;
+  const paint = paintOf(opts);
   const root = manifest.rootPath;
   const commands = commandSections(manifest, node);
   const args = argumentRows(node.arguments ?? []);
   const options = optionRows(node.options, verbose);
   const env = environmentRows(node.options);
   const column = termColumn([...args, ...options, ...GLOBAL, ...commands.flatMap((s) => s.rows), ...env], width);
-  const lines: string[] = [usageLine(node, root, commands.length > 0), ''];
+  const lines: string[] = [usageLine(node, root, commands.length > 0, paint), ''];
   if (node.description !== undefined) lines.push(...wrap(`${node.description}${deprecation(node.deprecated)}`, width), '');
-  lines.push(...section('Arguments:', layout(args, width, column)));
-  lines.push(...section('Options:', layout(options, width, column)));
-  lines.push(...section('Global options:', layout(GLOBAL, width, column)));
-  for (const s of commands) lines.push(...section(s.title, layout(s.rows, width, column)));
-  lines.push(...section('Examples:', exampleLines(node.examples ?? [], width)));
-  lines.push(...section('Environment:', layout(env, width, column)));
+  lines.push(...section('Arguments:', layout(args, width, column, paint), paint));
+  lines.push(...section('Options:', layout(options, width, column, paint), paint));
+  lines.push(...section('Global options:', layout(GLOBAL, width, column, paint), paint));
+  for (const s of commands) lines.push(...section(s.title, layout(s.rows, width, column, paint), paint));
+  lines.push(...section('Examples:', exampleLines(node.examples ?? [], width), paint));
+  lines.push(...section('Environment:', layout(env, width, column, paint), paint));
   if (node.epilogue !== undefined) lines.push(...wrap(node.epilogue, width), '');
   return `${lines.join('\n').trimEnd()}\n`;
 }

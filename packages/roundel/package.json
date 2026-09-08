@@ -4,6 +4,7 @@
   "description": "The colours a CLI carries. One output policy, semantic tokens, a theme, and a chalk migration path lighter than chalk. Zero dependencies.",
   "license": "MIT",
   "type": "module",
+  "sideEffects": false,
   "engines": {
     "node": ">=24"
   },
@@ -12,6 +13,26 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./policy": {
+      "types": "./dist/policy.d.ts",
+      "import": "./dist/policy.js",
+      "default": "./dist/policy.js"
+    },
+    "./tokens": {
+      "types": "./dist/tokens.d.ts",
+      "import": "./dist/tokens.js",
+      "default": "./dist/tokens.js"
+    },
+    "./theme": {
+      "types": "./dist/theme.d.ts",
+      "import": "./dist/theme.js",
+      "default": "./dist/theme.js"
+    },
+    "./contrast": {
+      "types": "./dist/contrast.d.ts",
+      "import": "./dist/contrast.js",
+      "default": "./dist/contrast.js"
     }
   },
   "files": [
@@ -20,7 +41,7 @@
     "!dist/**/*.test.*"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/strip-comments.mjs dist",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
     "lint": "eslint src"

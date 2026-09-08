@@ -1,9 +1,24 @@
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
 import { ExitCode } from 'burgee/testing';
 import { describe, expect, it } from 'vitest';
 
 import { ENVELOPE, HOSTS, type HostName } from './hosts.js';
 
 /** T1 conformance: the harness contract, on both hosts. Cases are added per floor id as intents land. */
+/** The demo each host family runs; the floor row spawns it. Workspace-relative: no exports map needed. */
+const DEMO_BIN: Record<'burgee' | 'commander' | 'yargs', string> = {
+  burgee: fileURLToPath(new URL('../../demo-cli-burgee/dist/bin.js', import.meta.url)),
+  commander: fileURLToPath(new URL('../../demo-cli-commander/dist/bin.js', import.meta.url)),
+  yargs: fileURLToPath(new URL('../../demo-cli-yargs/dist/bin.js', import.meta.url)),
+};
+function familyOf(host: string): keyof typeof DEMO_BIN {
+  if (host.includes('yargs')) return 'yargs';
+  if (host.includes('commander')) return 'commander';
+  return 'burgee';
+}
+
 describe.each(Object.entries(HOSTS) as [HostName, (typeof HOSTS)[HostName]][])('%s · T1 harness', (host, run) => {
   it('runs a command and captures stdout with exit OK', async () => {
     const r = await run({ argv: ['greet', 'ada'] });
@@ -66,15 +81,27 @@ describe.each(Object.entries(HOSTS) as [HostName, (typeof HOSTS)[HostName]][])('
     expect(JSON.stringify(process.env)).toBe(before);
   });
 
-  it('is fast: p95 an order of magnitude under a spawned process, for a warm run', async () => {
+  it('is fast: a warm in-process run beats half a spawned run of the same CLI, measured in the same run', async () => {
     const RUNS = 50;
     const P95 = 0.95;
-    // The claim is order of magnitude: an in-process run is a decade under the ~300 ms a
-    // spawned process costs. A warm run is 4–15 ms on an idle machine; the shared runners,
-    // with every package's suite at once, have measured the real yargs host at 22, 25 and
-    // 46 ms (macOS, ubuntu, windows; 2026-09-08). 100 ms keeps the decade and stops the
-    // runner's weather from failing the build.
-    const CEILING_MS = 100;
+    const FLOOR_SAMPLES = 3;
+    // T1's claim is that the harness runs a CLI in-process for less than spawning it. So the
+    // floor row is a spawn of the *same demo CLI*, sampled in the same run: contention on a
+    // shared runner inflates both sides together. Two earlier gates failed for PRs that did
+    // not touch this code (#27): an absolute 20/40 ms ceiling, then "half a bare node -e ''"
+    // — wrong floor, since an empty node on a fast macOS runner (36 ms) is faster than a warm
+    // yargs run (23 ms). A spawned CLI run costs hundreds of ms; the harness must beat half.
+    // ponytail: half, not a tenth — the margin that survives a loaded runner while still
+    // failing the day T1 spawns a process itself.
+    const bin = DEMO_BIN[familyOf(host)];
+    const floor: number[] = [];
+    for (let i = 0; i < FLOOR_SAMPLES; i++) {
+      const t0 = performance.now();
+      spawnSync(process.execPath, [bin, 'greet', 'x'], { stdio: 'ignore' });
+      floor.push(performance.now() - t0);
+    }
+    floor.sort((a, b) => a - b);
+    const spawnedCliMs = floor[Math.floor(FLOOR_SAMPLES / 2)] ?? 0;
     const times: number[] = [];
     for (let i = 0; i < RUNS; i++) {
       // eslint-disable-next-line reliability/no-await-in-loop -- timing individual runs is the point
@@ -82,6 +109,7 @@ describe.each(Object.entries(HOSTS) as [HostName, (typeof HOSTS)[HostName]][])('
       times.push(r.durationMs);
     }
     times.sort((a, b) => a - b);
-    expect(times[Math.floor(RUNS * P95)]).toBeLessThan(CEILING_MS);
+    const p95 = times[Math.floor(RUNS * P95)] ?? 0;
+    expect(p95, `harness p95 ${p95.toFixed(1)} ms vs spawned CLI ${spawnedCliMs.toFixed(1)} ms`).toBeLessThan(spawnedCliMs / 2);
   });
 });
