@@ -443,7 +443,9 @@ export default [
       'secure-coding/detect-non-literal-regexp': 'off',
       'maintainability/error-message': 'off',
       'reliability/error-message': 'off',
-      // FP 15, 16, 17, 18 — see the list above.
+      // FP 15, 16, 17, 18 — see the list above. FP 11 recurs on the yargs façade: the
+      // option values handed to a plugin hook *are* the hook's contract.
+      'operability/require-data-minimization': 'off',
       'modernization/prefer-at': 'off',
       'reliability/no-missing-null-checks': 'off',
       'secure-coding/no-unchecked-loop-condition': 'off',
