@@ -268,7 +268,7 @@ export class CommandInstance {
       yargs.getInternalMethods().postProcess(innerArgv, populateDoubleDash, false, false);
       innerArgv = applyMiddleware(innerArgv, yargs, middlewares, false);
       innerArgv = maybeAsyncResult(innerArgv, (result: any) => {
-        const handlerResult = commandHandler.handler(result);
+        const handlerResult = yargs.getInternalMethods().runHandler(commandHandler.handler, result, commandHandler.original);
         return isPromise(handlerResult) ? handlerResult.then(() => result) : result;
       });
       if (!isDefaultCommand) yargs.getInternalMethods().getUsageInstance().cacheHelpMessage();

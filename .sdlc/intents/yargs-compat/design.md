@@ -15,7 +15,7 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
 | X5 | `import 'burgee'` pulls zero bytes of this front-end (K6, `weight.test.ts` entry `.`) |
 | X6 | The front-end's reachable bytes stay under what yargs installs for the same surface (`lib/` 158 K + yargs-parser 52 K + cliui, y18n and the rest): budget **256,000** in `weight.test.ts` entry `./yargs`; `./yargs/helpers` **64,000** and it must never reach the factory |
 | X7 | `examples/demo-cli-yargs` produces byte-identical output on real yargs and on this front-end |
-| X8 | A program in yargs syntax runs unchanged (J2), and **nothing about its default behaviour changes**; the 29 locales ship with burgee so `.locale()` and `LC_ALL` work as on yargs |
+| X8 | A program in yargs syntax runs unchanged and gains burgee's plugins and surfaces without a line changing (J2, J7, J8), and **nothing about its default behaviour changes**; the 29 locales ship with burgee so `.locale()` and `LC_ALL` work as on yargs |
 
 ## Design
 
@@ -52,10 +52,22 @@ the usage tests compare screens), `yargs-y18n.ts` (the string table, reading
 get-caller-file. The 29 locale files ship with the package under `locales/`; they are
 data read at runtime, not imports, so the weight lock does not walk them.
 
-**What is *not* yet on this front-end.** The commander front-end's four additions —
-`manifest`, `use()`, `--json`, `parse(argv, { stdout, stderr, exit })` — are the next
-slice, guarded the same way; this slice is parity only, so the ratchet starts from a
-score that means something.
+**burgee sits beside it, never in front of it.** The same additions as on the commander
+front-end, each guarded so a program that asks for none of them behaves exactly as on
+yargs — the oracle's 804 are that proof:
+
+| Addition | Guard |
+| :-- | :-- |
+| `yargs.manifest` — the tree projected as `CommandNode`s: root options from what `.option()` registered, every command with its positionals from the command string and its options from its builder, run on a scratch instance exactly as yargs' own completion does; the default command (`$0`) is the root's own handler | A getter; projecting changes no state the parse reads; a builder that cannot run outside a parse projects only the command string |
+| `yargs.use(plugin)` / `.effects()` — `preRun`/`postRun` fire around every handler; effects declared inside a builder land on that command | Only when a plugin is registered; hooks make the run a promise, so `parseAsync` |
+| `--json` — the handler's return value in the `{ ok, data, meta: { provenance } }` envelope; a failure is the E3 envelope on stdout | Only when no option or command in the whole tree — builders included — declares `json`; the flag is taken before yargs parses, so `.strict()` never sees it |
+| `--schema`, `--mcp`, `completion <shell>` / `fig` from the manifest | Only when the program declares none of them; a `.completion()` the program registered keeps yargs' own; `--schema` is synchronous, the other two load lazily and return a promise |
+| `.burgee({ stdout, stderr, exit })` — inject the streams and the exit (T1) | Only when called; then output goes to the streams and every run settles to one E1 exit: OK for help, version and a clean run; USAGE for a validation failure; RUNTIME for a handler that threw — the one thing yargs itself lets escape `parse()` |
+
+`--json` and the seam are per parse: what one parse turns on is put back afterwards.
+Provenance is read from yargs-parser's own bookkeeping (`defaulted`), the config objects
+and the env prefix; yargs does not record env separately from flags, so a value that could
+have come from either reads as `flag`.
 
 **Order of work, driven by the oracle.** The suite is the backlog and its pass rate the
 progress bar; each commit reports the rate in its message, so `git log` is the burn-down.
