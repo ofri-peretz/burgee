@@ -31,6 +31,7 @@ packages/caique/src/
                  tokens from roundel, spinner from flagstaff, static projection per widget (U3)
   ask.ts         the six widgets in line mode — which *is* the accessible rendering,
                  so there is no separate accessible.ts (see "What shipped")
+  binding.ts     resolvePrompts() — one host-agnostic pass, not one binding per host
   clack.ts       caique/clack  — clack's API over the widgets, graded by clack's suite
   inquirer.ts    caique/inquirer — same for inquirer
   burgee.ts      caique/burgee — the preAction binding for burgee, burgee/commander, burgee/yargs
@@ -119,6 +120,37 @@ It reads nothing, and a case asserts that.
 Not yet: the raw-mode renderer, the `caique/clack` and `caique/inquirer` façades, and the
 `burgee.ts` binding. The PTY tests belong to the raw-mode renderer — there is nothing that
 needs one until then, which is itself the argument for building this half first.
+
+## What shipped (R2, R3, R4 — the binding — 2026-09-08)
+
+`binding.ts`: `resolvePrompts()`, the pass a framework calls from its `preAction` hook once
+every other source has had its turn. It walks the command's options in declaration order,
+asks only what has to be asked, and returns the values with the answers written in.
+
+**The design sketched this as `caique/burgee`, one binding per host. It is one binding for
+all of them instead.** What a host actually supplies is a record of options, the values so
+far, and a runtime — none of which needs burgee's types. So nothing here imports them,
+which keeps the family's rule that no package requires another, and means `burgee`,
+`burgee/commander` and `burgee/yargs` share one implementation rather than three that
+drift out of step. `PromptableOption` is structural: `{ required?, prompt? }`, which
+burgee's `OptionSpec` already satisfies.
+
+Three decisions the design left open:
+
+- **Declaration order**, because `--interactive` asks several things at once and a person
+  answering them needs the sequence to match the help they just read.
+- **Stop at the first refusal**, rather than collecting them. The caller is about to exit,
+  and someone told about six missing flags — one of which they would have answered
+  interactively — has a worse message than someone told about the first.
+- **A malformed spec is a `USAGE` failure naming the option**, caught before the terminal
+  is consulted at all. A `select` with no choices would otherwise draw an empty list and
+  wait: the same hang, one layer down.
+
+A cancellation returns what was answered before it rather than discarding it, and names
+the option and the flag that would have skipped the question.
+
+Not yet: the raw-mode renderer, and the two façades — which are blocked on the decision in
+`output-stack-compat`, not on this package.
 
 ## Rejected alternatives
 

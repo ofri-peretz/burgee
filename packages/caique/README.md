@@ -72,6 +72,32 @@ against a stream that keeps answering wrongly is the same hang wearing a hat.
 `projection(spec)` gives the question without the conversation, for a gallery, a `--help`
 or a transcript in an issue.
 
+### Wiring it to a CLI
+
+`resolvePrompts()` is the pass a framework calls from its `preAction` hook, once the flags,
+environment and config have had their turn:
+
+```js
+import { resolvePrompts } from 'caique/binding';
+
+const { values, failure } = await resolvePrompts({
+  options,            // { name: { required: true, prompt: { kind: 'text', message: 'Project name?' } } }
+  values,             // what every other source resolved
+  runtime: { env: process.env, isTTY: { stdin: process.stdin.isTTY } },
+  flags: { json, yes, interactive },
+  io: { reader, writer },
+});
+if (failure) throw new CliError(failure.code, failure.message, { fix: failure.fix });
+```
+
+It walks the options in **declaration order** — the order the help listed — asks only what
+has to be asked, and **stops at the first refusal**, because a caller about to exit is
+better served by one actionable message than six.
+
+There is one binding, not one per host. What a framework supplies is a record of options,
+the values so far and a runtime; none of that needs any particular framework's types, so
+`caique` imports none of them.
+
 ## What it will be
 
 - **Every prompt is a flag first.** A caller who passes the flag is never asked. An agent

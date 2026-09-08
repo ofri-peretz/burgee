@@ -5,5 +5,6 @@
  * `.sdlc/intents/caique/`.
  */
 export * from './ask.js';
+export * from './binding.js';
 export * from './decide.js';
 export * from './spec.js';

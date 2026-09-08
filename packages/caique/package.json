@@ -18,6 +18,11 @@
       "import": "./dist/ask.js",
       "default": "./dist/ask.js"
     },
+    "./binding": {
+      "types": "./dist/binding.d.ts",
+      "import": "./dist/binding.js",
+      "default": "./dist/binding.js"
+    },
     "./decide": {
       "types": "./dist/decide.d.ts",
       "import": "./dist/decide.js",
