@@ -41,6 +41,37 @@ called out by name: **no terminal and no value is never a prompt.**
 ask" — and when there is nobody, the refusal says so, rather than looking like the flag was
 ignored.
 
+### Asking, once it is allowed
+
+`ask()` is the six kinds — `text`, `confirm`, `select`, `multiselect`, `password`, `path` —
+each written as a question and a line read back:
+
+```js
+import { ask } from 'caique/ask';
+
+await ask(
+  { kind: 'select', message: 'Which host?', choices: [{ value: 'ora' }, { value: 'log-update' }] },
+  { reader, writer },
+);
+// Which host?
+//   1) ora
+//   2) log-update
+//   enter a number (1-2):
+```
+
+**Line mode is not the fallback, it is the floor.** No raw mode, no cursor movement, no
+escape sequence, no redraw — so this *is* the accessible rendering rather than a second
+implementation of it, and a screen reader gets the same bytes a terminal does. The raw-mode
+renderer that arrows and highlights will sit on top and answer the same questions.
+
+A stream that ends is a **cancellation**, not an empty answer: `Ctrl-D` and a closed pipe
+both mean nobody is going to type, and reading that as `''` is how a program writes to a
+path nobody chose. Invalid input is re-asked five times and then gives up, because a loop
+against a stream that keeps answering wrongly is the same hang wearing a hat.
+
+`projection(spec)` gives the question without the conversation, for a gallery, a `--help`
+or a transcript in an issue.
+
 ## What it will be
 
 - **Every prompt is a flag first.** A caller who passes the flag is never asked. An agent
