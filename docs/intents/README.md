@@ -323,9 +323,10 @@ decision it forces.
 
 ### Native — the fastest language wins, as long as the user never notices
 
-Decided 2026-09-08 (owner): **whatever makes a layer faster is promoted, in any language,
-provided a Node user on CJS or ESM works exactly as before.** JavaScript has no seat
-reserved. The rule is about the user's experience, and the ecosystem has already set the
+Decided 2026-09-08 (owner): **JS/TS is the gate to the world and stays the surface our
+users touch; behind it, whatever makes a layer faster is promoted, in any language,
+provided a Node user on CJS or ESM works exactly as before.** The user notices latency,
+never language. JavaScript has no seat reserved underneath the surface. The rule is about the user's experience, and the ecosystem has already set the
 bar for "smooth":
 
 1. **Ship it the way oxc, rolldown, swc, biome and esbuild ship.** Rust through napi-rs
