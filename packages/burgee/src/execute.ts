@@ -10,22 +10,39 @@ import { parseArgs } from 'node:util';
 
 import { ExitCode, isExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
 import { renderHelp } from './help.js';
-import { type ArgumentSpec, type CommandNode, type Effects, type Example, Manifest, type OptionSpec, type RunContext } from './manifest.js';
+import { type ArgumentSpec, type CommandNode, type Effects, type Example, Manifest, type OptionSpec, type Relation, type RunContext } from './manifest.js';
 import { serveMcp } from './mcp.js';
+import { camel, kebab } from './names.js';
 import { nearestPackage, type Package } from './pkg.js';
 import { ConfigError, explain, type Layers, type Provenance, resolve as resolveLayers } from './precedence.js';
 import { schemaOf } from './schema.js';
+import { checkDefinition, checkRelations, coerce, UsageError } from './validate.js';
 
 export interface CommandContext<O> extends Omit<RunContext, 'options'> {
   options: O;
 }
 
-export interface Command<O = Record<string, string | boolean | undefined>> {
+type Scalar<S extends OptionSpec> = S['type'] extends 'number' ? number : S['type'] extends 'boolean' ? boolean : S extends { choices: readonly (infer C)[] } ? C : string;
+type Many<S extends OptionSpec, V> = S extends { multiple: true } ? V[] : V;
+type Present<S extends OptionSpec> = S extends { required: true } ? true : S extends { default: unknown } ? true : false;
+
+/** The handler's `options`, derived from the declaration (S1): `choices` become a union, `multiple` an array, `number` a number. */
+export type InferOptions<S extends Record<string, OptionSpec>> = {
+  [K in keyof S]: Present<S[K]> extends true ? Many<S[K], Scalar<S[K]>> : Many<S[K], Scalar<S[K]>> | undefined;
+};
+
+export type OptionSpecs = Record<string, OptionSpec>;
+
+// Children are declared with their own specs; a container holds a heterogeneous list of them.
+export type AnyCommand = Command<any>;
+
+export interface Command<S extends OptionSpecs = OptionSpecs> {
   name: string;
   description?: string;
   /** Shown in command lists instead of the description. */
   summary?: string;
-  options?: Record<string, OptionSpec>;
+  /** Declared once (S1); the handler's `options` type is derived from it. */
+  options?: S;
   arguments?: ArgumentSpec[];
   examples?: Example[];
   /** Heading this command is listed under in its parent's help. */
@@ -35,13 +52,15 @@ export interface Command<O = Record<string, string | boolean | undefined>> {
   deprecated?: boolean | string;
   /** What running it does to the world (N6). Declaring it is what exposes the command as an MCP tool (N2). */
   effects?: Effects;
-  /** Absent on a group that only holds subcommands. */
-  run?: (ctx: CommandContext<O>) => unknown;
-  commands?: Command[];
+  /** Relationships between options, validated before choices and the handler (S2, S6). */
+  relations?: readonly Relation[];
+  /** Absent on a group that only holds subcommands. `NoInfer`: the spec fixes S, the handler only reads it. */
+  run?: (ctx: CommandContext<InferOptions<NoInfer<S>>>) => unknown;
+  commands?: AnyCommand[];
 }
 
 /** Everything help renders, copied as declared; `undefined` never lands on the node. */
-function helpFields(c: Command): Partial<CommandNode> {
+function helpFields(c: AnyCommand): Partial<CommandNode> {
   const node: Partial<CommandNode> = {};
   if (c.description !== undefined) node.description = c.description;
   if (c.summary !== undefined) node.summary = c.summary;
@@ -52,6 +71,7 @@ function helpFields(c: Command): Partial<CommandNode> {
   if (c.hidden !== undefined) node.hidden = c.hidden;
   if (c.deprecated !== undefined) node.deprecated = c.deprecated;
   if (c.effects !== undefined) node.effects = c.effects;
+  if (c.relations !== undefined) node.relations = c.relations;
   return node;
 }
 
@@ -66,20 +86,21 @@ export interface Program {
    * > `package.json#name` > the user config directory; `true` uses the program's name.
    */
   config?: boolean | { name: string };
-  commands: Command[];
+  commands: AnyCommand[];
 }
 
 /** Reserved names a command may not redefine (V5): the surfaces every program serves. */
 const RESERVED = new Set(['json', 'help', 'schema', 'mcp', 'version', 'explain']);
 
-export function defineCommand<O = Record<string, string | boolean | undefined>>(command: Command<O>): Command<O> {
+export function defineCommand<const S extends OptionSpecs = OptionSpecs>(command: Command<S>): Command<S> {
   for (const name of Object.keys(command.options ?? {})) {
-    if (RESERVED.has(name)) throw new Error(`burgee: option "${name}" is reserved and cannot be redefined`);
+    if (RESERVED.has(name) || RESERVED.has(kebab(name))) throw new Error(`burgee: option "${name}" is reserved and cannot be redefined`);
   }
+  checkDefinition(command.name, command.options ?? {});
   return command;
 }
 
-function addTree(manifest: Manifest, parent: string[], commands: Command[]): void {
+function addTree(manifest: Manifest, parent: string[], commands: AnyCommand[]): void {
   for (const c of commands) {
     const path = [...parent, c.name];
     manifest.add({
@@ -129,16 +150,6 @@ class ExitSignal extends Error {
   }
 }
 
-/** A usage problem the caller can fix, carrying the flag that fixes it (E3). */
-class UsageError extends Error {
-  constructor(
-    message: string,
-    readonly hint?: string,
-  ) {
-    super(message);
-  }
-}
-
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -165,8 +176,8 @@ function render(value: unknown): string {
   return String(value);
 }
 
-type ParseConfig = Record<string, { type: 'string' | 'boolean'; short?: string }>;
-type Values = Record<string, string | boolean | undefined>;
+type ParseConfig = Record<string, { type: 'string' | 'boolean'; short?: string; multiple?: boolean }>;
+type Values = Record<string, unknown>;
 
 /** The reserved surfaces are always parsed (V5); `--config` and `--no-config` only for a program that opted in. */
 function toParseConfig(specs: Record<string, OptionSpec>, withConfig: boolean): ParseConfig {
@@ -175,10 +186,20 @@ function toParseConfig(specs: Record<string, OptionSpec>, withConfig: boolean): 
     config['config'] = { type: 'string' };
     config['no-config'] = { type: 'boolean' };
   }
+  // The CLI form is kebab-case (S5); numbers arrive as strings and are checked after resolution (S3).
   for (const [name, spec] of Object.entries(specs)) {
-    config[name] = { type: spec.type, ...(spec.short === undefined ? {} : { short: spec.short }) };
+    config[kebab(name)] = {
+      type: spec.type === 'boolean' ? 'boolean' : 'string',
+      ...(spec.short === undefined ? {} : { short: spec.short }),
+      ...(spec.multiple === true ? { multiple: true } : {}),
+    };
   }
   return config;
+}
+
+/** Parsed flags back under their canonical camelCase keys. */
+function canonical(values: Values): Values {
+  return Object.fromEntries(Object.entries(values).map(([k, v]) => [camel(k), v]));
 }
 
 interface Resolved2 {
@@ -202,7 +223,8 @@ function packageLayer(pkg: Package | undefined, name: string | undefined): Layer
 async function configLayers(name: string, values: Values, io: Io): Promise<Pick<Layers, 'config' | 'pkg'>> {
   const { discover } = await import('./config.js');
   const explicit = values['config'];
-  const disabled = values['no-config'] === true;
+  // Flags are canonical (camelCase) by now: `--no-config` reads as `noConfig`.
+  const disabled = values['noConfig'] === true;
   const loaded = await discover({ name, cwd: io.cwd, env: io.env, ...(typeof explicit === 'string' ? { explicit } : {}), disabled });
   const out: Pick<Layers, 'config' | 'pkg'> = {};
   if (loaded !== undefined) out.config = { path: loaded.chain.join(' ← '), data: loaded.data };
@@ -222,7 +244,7 @@ async function resolveValues(manifest: Manifest, specs: Record<string, OptionSpe
   if (typeof asked === 'string') out.explainText = explain(asked, resolution);
   for (const [name, spec] of Object.entries(specs)) {
     if (out.values[name] === undefined && spec.required === true && out.explainText === undefined) {
-      throw new UsageError(`missing required option --${name}`, `pass --${name} <value>`);
+      throw new UsageError(`missing required option --${kebab(name)}`, `pass --${kebab(name)} <value>`);
     }
   }
   return out;
@@ -437,13 +459,17 @@ function versionOf(manifest: Manifest, io: Io): string {
 
 async function dispatch(manifest: Manifest, { node, rest, name }: Resolved, io: Io): Promise<Outcome> {
   const parsed = parseArgs({ args: rest, options: toParseConfig(node.options, manifest.config !== undefined), allowPositionals: true, strict: true, tokens: true });
-  const flags = parsed.values as Values;
+  const flags = canonical(parsed.values as Values);
   const json = flags.json === true;
   if (flags.help === true) return { json, text: renderHelp(manifest, node, { width: io.width }) };
   if (flags.version === true) return { json, text: `${versionOf(manifest, io)}\n` };
 
-  const { values, provenance, explainText } = await resolveValues(manifest, node.options, flags, io);
-  if (explainText !== undefined) return { json, text: explainText };
+  const resolved = await resolveValues(manifest, node.options, flags, io);
+  if (resolved.explainText !== undefined) return { json, text: resolved.explainText };
+  const { provenance } = resolved;
+  // S6: relations, then each value — numbers, choices, its Standard Schema — then the handler.
+  checkRelations(node.relations, resolved.values, provenance);
+  const values = await coerce(node.options, resolved.values);
   const { positionals, passthrough } = splitPositionals(parsed.tokens);
   await manifest.fire('preRun', name, values);
   const exit = (code: number): never => {
@@ -536,7 +562,7 @@ export async function execute(manifest: Manifest, opts: RunOptions & { root?: st
  * The one-file entry: a single command, or a program from `defineProgram`. Both go
  * through `execute`, so there is exactly one code path from argv to exit.
  */
-export async function run<O>(target: Command<O> | Manifest, opts: RunOptions = {}): Promise<void> {
+export async function run<S extends OptionSpecs>(target: Command<S> | Manifest, opts: RunOptions = {}): Promise<void> {
   if (target instanceof Manifest) return await execute(target, opts);
   const manifest = new Manifest();
   manifest.rootPath = [target.name];

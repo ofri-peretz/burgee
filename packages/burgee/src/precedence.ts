@@ -92,7 +92,8 @@ function fromEnv(name: string, spec: OptionSpec, layers: Layers): Candidate | un
   }
   const raw = layers.env[variable];
   if (raw === undefined) return { source: 'env', location: variable, value: undefined };
-  if (spec.type === 'string') return { source: 'env', location: variable, value: raw };
+  // Strings and numbers arrive as text and are checked after resolution (S3); only booleans parse here.
+  if (spec.type !== 'boolean') return { source: 'env', location: variable, value: raw };
   const parsed = envBoolean(raw);
   if (parsed === undefined) throw new ConfigError(`${variable}="${raw}" is not a boolean`, `use ${variable}=true or ${variable}=false`);
   return { source: 'env', location: variable, value: parsed };

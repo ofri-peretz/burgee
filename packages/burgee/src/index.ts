@@ -11,11 +11,15 @@ export {
   defineProgram,
   execute,
   run,
+  type AnyCommand,
   type Command,
   type CommandContext,
+  type InferOptions,
+  type OptionSpecs,
   type Program,
   type RunOptions,
 } from './execute.js';
+export { camel, checkDefinition, kebab, UsageError } from './validate.js';
 export { renderHelp, type HelpOptions } from './help.js';
 export { annotationsOf, MCP_PROTOCOL_VERSION, serveMcp, toolsOf, type Invoke, type ServeOptions, type Tool, type ToolAnnotations } from './mcp.js';
 export { ConfigError, envName, explain, resolve, screaming, type Candidate, type Layers, type Provenance, type Resolution, type Source } from './precedence.js';
@@ -30,5 +34,8 @@ export {
   type Hook,
   type OptionSpec,
   type Plugin,
+  type Relation,
   type RunContext,
+  type StandardResult,
+  type StandardSchemaV1,
 } from './manifest.js';

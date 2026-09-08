@@ -5,6 +5,7 @@
  * an MCP tool's input schema.
  */
 import type { ArgumentSpec, CommandNode, Effects, Example, Manifest, OptionSpec } from './manifest.js';
+import { kebab } from './names.js';
 
 export interface JsonSchema {
   type: 'object';
@@ -14,11 +15,15 @@ export interface JsonSchema {
 }
 
 export interface JsonSchemaProperty {
-  type: 'string' | 'boolean' | 'array';
+  type: 'string' | 'boolean' | 'number' | 'integer' | 'array';
   description?: string;
   enum?: string[];
-  default?: string | boolean;
-  items?: { type: 'string' };
+  default?: string | boolean | number | readonly (string | number)[];
+  items?: { type: 'string' | 'boolean' | 'number' | 'integer'; enum?: string[] };
+  minimum?: number;
+  maximum?: number;
+  /** The command-line spelling of the option (S5). */
+  flag?: string;
 }
 
 export interface CommandSchema {
@@ -51,11 +56,23 @@ function argumentProperty(a: ArgumentSpec): JsonSchemaProperty {
   return p;
 }
 
-function optionProperty(spec: OptionSpec): JsonSchemaProperty {
-  const p: JsonSchemaProperty = { type: spec.type };
+function scalarType(spec: OptionSpec): 'string' | 'boolean' | 'number' | 'integer' {
+  if (spec.type === 'number') return spec.integer === true ? 'integer' : 'number';
+  return spec.type;
+}
+
+function optionProperty(name: string, spec: OptionSpec): JsonSchemaProperty {
+  const scalar = scalarType(spec);
+  const p: JsonSchemaProperty = spec.multiple === true ? { type: 'array', items: { type: scalar } } : { type: scalar };
+  p.flag = `--${kebab(name)}`;
   if (spec.description !== undefined) p.description = spec.description;
-  if (spec.choices !== undefined) p.enum = spec.choices;
+  if (spec.choices !== undefined) {
+    if (p.items !== undefined) p.items.enum = [...spec.choices];
+    else p.enum = [...spec.choices];
+  }
   if (spec.default !== undefined) p.default = spec.default;
+  if (spec.minimum !== undefined) p.minimum = spec.minimum;
+  if (spec.maximum !== undefined) p.maximum = spec.maximum;
   return p;
 }
 
@@ -68,7 +85,7 @@ export function inputSchemaOf(node: CommandNode): JsonSchema {
   }
   for (const [name, spec] of Object.entries(node.options)) {
     if (spec.hidden === true) continue;
-    properties.set(name, optionProperty(spec));
+    properties.set(name, optionProperty(name, spec));
     if (spec.required === true && spec.default === undefined) required.push(name);
   }
   return { type: 'object', properties: Object.fromEntries(properties), required, additionalProperties: false };

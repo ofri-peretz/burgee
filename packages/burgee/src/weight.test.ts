@@ -55,11 +55,16 @@ const RULES: Record<string, EntryRule> = {
   // Core is now engine + manifest + help + schema + mcp + precedence: 35 KB against
   // commander's 126 KB lib/. Config discovery itself stays lazy (burgee loads it only for a
   // program that opted in), as do the completion templates.
-  '.': { allow: [], budget: 40_000, denied: ['testing.js', 'testing-helpers.js'] },
+  // Raised from 40,000 on 2026-09-08 for the S family (commander-schema): validation —
+  // numbers, choices, relations, Standard Schema — runs on every invocation. Core is now
+  // engine + manifest + help + schema + mcp + precedence + validate, 42.7 KB against
+  // commander's 126 KB lib/. Each floor family has cost about 5 KB; the lock stays to
+  // catch the accidental kind of growth, and each of these was a decision in a PR.
+  '.': { allow: [], budget: 48_000, denied: ['testing.js', 'testing-helpers.js'] },
   // The harness. Test-time only, so a user's shipped CLI never pays for it.
   // Raised from 24,000 with `.` above: the harness reaches the whole engine to run a
   // program in-process, so it carries the renderer too.
-  './testing': { allow: [], budget: 48_000, denied: [] },
+  './testing': { allow: [], budget: 56_000, denied: [] },
   // The brand generator. Pure geometry and string building — it must never reach
   // the engine, and the engine must never reach it: a CLI that ships argv parsing
   // has no reason to carry an SVG emitter.
