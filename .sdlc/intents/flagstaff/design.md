@@ -117,7 +117,7 @@ two packed tarballs. The schema validator is sixty lines over the subset the sch
 because a JSON Schema library is a dependency the package will not carry.
 
 Not yet: the boxen and cli-table3 façades (R6, both blocked on a decision rather than a
-port — see `output-stack-compat`); the U9 eval; the docs gallery. `tokens` are kept in the registry for whoever flies
+port — see `output-stack-compat`); the U9 eval. `tokens` are kept in the registry for whoever flies
 the theme — `register()` does not call roundel's `fly()`, because that needs a runtime and
 would pull the theme into every plugin import.
 
