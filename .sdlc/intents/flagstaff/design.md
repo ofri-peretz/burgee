@@ -56,7 +56,7 @@ with no issue behind it is a hypothesis and is measured before it locks.
 | R5 | clack #510 (`\r` frames in captured output), #585; cli-table3 #357 (ANSI under `NO_COLOR=1`); listr2 #687, #716 — §1, §2 | cited |
 | R6 | picocolors #100, #92 (what an ungraded migration costs); ora #234 (ora 8 breaks the prompt library beneath it), #260 (declined: a type widened in a patch), #238 (behaviour differs by Node version); cli-table3 #357 (README documents an unreleased version) — §8, §18, U11 | cited |
 | R7 | ora #231 (declined: "try Ink"); ink #765, #222, #834, #978, D#555, D#959 (the layout engine's own backlog) — §16, U8. Width: boxen #90; cli-table3 #322, #356; clack #556, #306, #116; listr2 #708; ink D#716 — §5 | cited for the ceiling; the width function is a hypothesis until measured against `string-width` (§5) |
-| R8 | clack #533 (9 comments, agents driving CLIs), #525; Inquirer D#1699 (a binary per prompt for scripts); ink D#776 (an author records asciinema so an agent can see the app) — U9 | hypothesis — the one-turn eval that `check` serves is unmeasured; measure before lock |
+| R8 | clack #533 (9 comments, agents driving CLIs), #525; Inquirer D#1699 (a binary per prompt for scripts); ink D#776 (an author records asciinema so an agent can see the app) — U9 | **measurable as of 2026-09-08**: `evals/cases/flagstaff-plugin-from-schema.json` is the one-turn eval — schema + README in, a plugin `flagstaff check` accepts out. Still unmeasured until it has run with a credential; what is proven is that the case discriminates (green on a correct plugin, red when `static` is removed) |
 | R9 | ora #90 (locked: "I can't write tests for stdout because they're gone"); clack #307 (colours under vitest), #508 (mocking under bun); Inquirer D#1979; ink #773 (a frame renders before layout completes) — §21, §4 | cited |
 | R11 | no issue asks for a spinner or border corpus importer; ora #240 wants different icons, not a corpus | hypothesis, still — built 2026-09-08 at 838 B because it was nearly free, not because it was measured. Whether anyone imports a corpus is unmeasured, and the cost of being wrong is one subpath nobody imports |
 | R10 | ink #976 (a DEV-only dependency installed for everyone); ora #229 (segfault in the dependency tree), #247 (the chalk 5.6.1 compromise reaching ora's users); listr2 #759, #724, #707, #771 (peer range drift against its own adapter); chalk #617 — §14, U5, U1 | cited |
@@ -117,7 +117,7 @@ two packed tarballs. The schema validator is sixty lines over the subset the sch
 because a JSON Schema library is a dependency the package will not carry.
 
 Not yet: the boxen and cli-table3 façades (R6, both blocked on a decision rather than a
-port — see `output-stack-compat`); the U9 eval. `tokens` are kept in the registry for whoever flies
+port — see `output-stack-compat`). `tokens` are kept in the registry for whoever flies
 the theme — `register()` does not call roundel's `fly()`, because that needs a runtime and
 would pull the theme into every plugin import.
 
@@ -270,6 +270,30 @@ it met the corpus.* A frozen `⠋` or `▰` is an animation stopped mid-stride, 
 projection — it tells a pipe, an agent and a screen reader nothing that `…` does not tell
 them better. The default is `'…'`, and `staticFor` is there because it is the author's call
 rather than this function's.
+
+## What shipped (U9, the eval — 2026-09-08)
+
+`evals/cases/flagstaff-plugin-from-schema.json`. The prompt gives an agent `schema.json`
+and the README and asks for a plugin at a fixed path; the expectations run
+`flagstaff check` on whatever it wrote and require exit 0, the `pulse: ok` line, and a
+non-empty `pipe` projection.
+
+**The case was proven to discriminate before it was committed**, which is the only thing
+that makes an eval worth its runtime: green against a correct plugin, and red against the
+same plugin with its `static` removed — where `check` exits 1 with
+
+```
+E_NO_STATIC_PROJECTION: pulse has no static projection
+  fix: give it a `static`: the text a pipe, an agent or a screen reader gets instead of the animation
+```
+
+That refusal *is* the hypothesis. R8 claims an agent can go from the schema to a working
+plugin in one turn because `check` tells it what is wrong in terms it can act on; a case
+that only ever passed would measure neither half.
+
+What is still unmeasured is the one-turn claim itself — layer 2 needs a credential, and
+reports `skipped` without one. So R8's evidence row moves from "hypothesis, measure before
+lock" to "measurable", not to "measured". The difference matters and the row says so.
 
 ## Rejected alternatives
 
