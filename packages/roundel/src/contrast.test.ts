@@ -1,7 +1,8 @@
 /**
- * R5 — the WCAG maths, held to the same vectors as `burgee/contrast`. The two copies are
- * deliberate (U1: no arrow from roundel to burgee); `contrast-vectors.json` is what keeps
- * them the same maths. If a number here drifts, one copy has been edited alone.
+ * R5 — the WCAG maths, a deliberate copy of `burgee/contrast` (U1: no arrow from roundel to
+ * burgee). This test holds roundel's copy to `contrast-vectors.json`; burgee's copy is not
+ * yet held to the same file, so a drift there would not fail here. Follow-up: burgee contrast
+ * test to read roundel's contrast-vectors.json.
  */
 import { readFileSync } from 'node:fs';
 
