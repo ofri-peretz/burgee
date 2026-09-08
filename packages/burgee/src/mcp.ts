@@ -165,7 +165,8 @@ export function startMcp(manifest: Manifest, opts: ServeOptions): McpServer {
     if (invoke !== undefined) session.invoke = invoke;
     reply({ method: 'notifications/tools/list_changed' });
   };
-  return { done: serve(session, opts.input, reply), swap };
+  const done = serve(session, opts.input, reply);
+  return { done, swap };
 }
 
 /** Serve until the input closes. */

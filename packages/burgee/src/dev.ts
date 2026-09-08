@@ -73,16 +73,18 @@ interface YargsLike {
   burgee: (seam: Seam) => { parseAsync: (argv: string[]) => Promise<unknown> };
 }
 
+const isObject = (x: unknown): x is Record<string, unknown> => x !== null && x !== undefined && typeof x === 'object' && !Array.isArray(x);
+
 function isManifest(x: unknown): x is Manifest {
-  return x instanceof Manifest || (typeof x === 'object' && x !== null && Array.isArray((x as Manifest).commands) && Array.isArray((x as Manifest).rootPath));
+  return x instanceof Manifest || (isObject(x) && Array.isArray(x['commands']) && Array.isArray(x['rootPath']));
 }
 
 function isYargs(x: unknown): x is YargsLike {
-  return typeof x === 'object' && x !== null && typeof (x as YargsLike).burgee === 'function' && typeof (x as YargsLike).manifest === 'object';
+  return isObject(x) && typeof x['burgee'] === 'function' && isObject(x['manifest']);
 }
 
 function isCommander(x: unknown): x is CommanderLike {
-  return typeof x === 'object' && x !== null && typeof (x as CommanderLike).parseAsync === 'function' && typeof (x as CommanderLike).manifest === 'object';
+  return isObject(x) && typeof x['parseAsync'] === 'function' && isObject(x['manifest']);
 }
 
 /** A tool call is the same run a `--json` caller gets, with the streams captured (N4). */
@@ -107,6 +109,8 @@ export async function load(entry: string, generation: number): Promise<Loaded> {
   const started = performance.now();
   const url = pathToFileURL(resolve(entry));
   url.searchParams.set('burgee-dev', String(generation));
+  // The whole point of the command: the module the user pointed it at, as a fresh graph.
+  // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the entry is the user's own file, named on the command line
   const mod = (await import(url.href)) as Record<string, unknown>;
   const exported = mod['program'] ?? mod['default'];
   if (isManifest(exported)) return { manifest: exported, invoke: invokeOn(exported, 'burgee', entry), kind: 'burgee', ms: performance.now() - started };
@@ -115,11 +119,13 @@ export async function load(entry: string, generation: number): Promise<Loaded> {
   throw new Error(`${entry} exports no program: export a burgee manifest, a commander Command or a yargs instance as \`program\` or default`);
 }
 
+/** Each command's schema by path: the unit the diff compares. */
+const schemasByPath = (m: Manifest): Map<string, string> => new Map(m.commands.map((c) => [c.path.join(' '), JSON.stringify(commandSchemaOf(c, m.rootPath))]));
+
 /** What changed between two manifests, by command path: added, removed, or a different schema. */
 export function diffManifests(before: Manifest | undefined, after: Manifest): { added: string[]; removed: string[]; changed: string[] } {
-  const key = (m: Manifest): Map<string, string> => new Map(m.commands.map((c) => [c.path.join(' '), JSON.stringify(commandSchemaOf(c, m.rootPath))]));
-  const was = before === undefined ? new Map<string, string>() : key(before);
-  const now = key(after);
+  const was = before === undefined ? new Map<string, string>() : schemasByPath(before);
+  const now = schemasByPath(after);
   return {
     added: [...now.keys()].filter((k) => !was.has(k)),
     removed: [...was.keys()].filter((k) => !now.has(k)),
@@ -160,12 +166,14 @@ export function dev(opts: DevOptions): DevHandle {
     return loaded;
   };
   // Reloads are serialised: a save during a reload queues the next one instead of racing it.
-  const reload = (): Promise<Loaded> => {
-    const next = chain.then(reloadNow, reloadNow);
+  const reload = async (): Promise<Loaded> => {
+    // `chain` never rejects: each link carries its own catch, which reports the failure.
+    await chain;
+    const next = reloadNow();
     chain = next.catch((err: unknown) => {
       opts.log.write(`reload failed: ${err instanceof Error ? err.message : String(err)}\n`);
     });
-    return next;
+    return await next;
   };
 
   const ready = reload();
@@ -177,7 +185,15 @@ export function dev(opts: DevOptions): DevHandle {
       timer = setTimeout(() => void reload(), opts.debounceMs ?? DEFAULT_DEBOUNCE_MS);
     });
   }
-  const done = ready.then(() => (server as ReturnType<typeof startMcp>).done).finally(() => watcher?.close());
+  const untilInputCloses = async (): Promise<void> => {
+    try {
+      await ready;
+      await (server as ReturnType<typeof startMcp>).done;
+    } finally {
+      watcher?.close();
+    }
+  };
+  const done = untilInputCloses();
   return {
     ready,
     reload,

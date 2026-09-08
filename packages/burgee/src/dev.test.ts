@@ -158,12 +158,14 @@ describe('burgee dev: reload, serve, notify (W1–W3, W5)', () => {
   });
 });
 
+/** Thirty commands whose handlers all answer `word`, so a reload is visible from any of them. */
+const thirty = (word: string): string =>
+  Array.from({ length: 30 }, (_, i) => `defineCommand({ name: 'c${i}', description: 'command ${i}', effects: 'read_only', options: { a: { type: 'string' }, b: { type: 'boolean' } }, run: () => '${word} ${i}' })`).join(', ');
+
 describe('burgee dev: save-to-callable under 500 ms on a 30-command CLI (W6)', () => {
   it('reloads thirty commands within the budget', async () => {
     const at = scratch('bench');
     const entry = join(at, 'cli.ts');
-    const thirty = (word: string): string =>
-      Array.from({ length: 30 }, (_, i) => `defineCommand({ name: 'c${i}', description: 'command ${i}', effects: 'read_only', options: { a: { type: 'string' }, b: { type: 'boolean' } }, run: () => '${word} ${i}' })`).join(', ');
     writeFileSync(entry, cli(thirty('one')));
     const io = rpc();
     const handle = dev({ entry, input: io.input, output: io.output, log: { write: () => undefined }, watch: false });
