@@ -12,17 +12,40 @@ Intent: [`intent.md`](./intent.md). **Status:** approved.
   if not a TTY; else `tty`.
 - **R2** `colorLevel(rt, { json }): 0 | 1 | 2 | 3` mirrors chalk's levels, and **obeys the
   user's explicit colour instruction in any output mode**. Precedence: `NO_COLOR` (non-empty)
-  is `0` outright; then the `--color` flags read from an optional `rt.argv` (`--color=256`
-  → 2; `--color=16m|full|truecolor|24bit` → 3; `--no-color`/`--color=false|never` → 0;
-  `--color`/`=true|always` enables and lets detection pick, never below 1), which outrank a
-  numeric `FORCE_COLOR`; then `FORCE_COLOR` itself (`0`/`false` off; a bare decimal an
+  is `0` outright; then `FORCE_COLOR=0`/`false`, which supports-color settles *before* it
+  reads any flag, so `FORCE_COLOR=0 --color=256` is `0` and not 2 — **an explicit "colour
+  off" is never overridden into colour on**; then the `--color` flags read from an optional
+  `rt.argv` (`--color=256` → 2; `--color=16m|full|truecolor` → 3;
+  `--no-color`/`--no-colors`/`--color=false|never` → 0; `--color`/`--colors`/`=true|always`
+  enables and lets detection pick, never below 1 — both spellings, as has-flag has them),
+  which outrank a numeric `FORCE_COLOR`; then `FORCE_COLOR` itself (a bare decimal an
   *exact* level clamped to 3, never a floor; `true`/empty enables and detects; anything else
-  unset). With no instruction the order is supports-color's own: a pipe is `0` (Azure
-  Pipelines — `TF_BUILD` *and* `AGENT_NAME` — the one exception, because that check sits
-  above the non-TTY one); once detecting, `TERM=dumb` is the floor, a `CI` run is its
-  vendor's level, and otherwise `TERM`/`COLORTERM` decide. `--json` alone is always `0`:
+  unset). With no instruction the order is supports-color's own: **accessible mode is `0`**
+  and a pipe is `0` (Azure Pipelines — `TF_BUILD` *and* `AGENT_NAME` — the one exception,
+  because that check sits above the non-TTY one); once detecting, `TERM=dumb` is the floor,
+  a `CI` run is its vendor's level (gated on `'CI' in env`, as supports-color gates it, so an
+  empty `CI=` still selects the table), and otherwise `TERM`/`COLORTERM` decide — where
+  `truecolor` is the only `COLORTERM` value that means 3, `24bit` falling through to the
+  level-1 catch-all exactly as supports-color has it. `--json` alone is always `0`:
   structured output carries no escapes. **The output mode decides redraws (U2), never the
   level.**
+  - **Accessible mode defaults to `0`** (revised 2026-09-08), with the same shape as the
+    pipe default: an explicit ask (`FORCE_COLOR`, `--color=…`) still wins, `NO_COLOR` still
+    beats everything. `CLI_ACCESSIBLE` is itself an explicit instruction from a human, and
+    ANSI colour is noise to a screen reader — which puts accessible mode on the same footing
+    as a pipe, not a terminal. chalk's suite never sets `CLI_ACCESSIBLE`, so this costs
+    nothing against the 58 / 58; `src/policy.test.ts` and `src/tokens.test.ts` lock it.
+  - **The one deliberate divergence from chalk.** When a user gives *both* an explicit flag
+    and an explicit `FORCE_COLOR`, supports-color lets the ambient variable overwrite the
+    flag; roundel takes the flag, because it was typed for this run. A 3,000-case
+    differential sweep against chalk 6.0.0's own vendored supports-color (2026-09-08) finds
+    **0 divergences** when only one channel is used — flags alone, or `FORCE_COLOR` alone —
+    and every divergence in the both-set partition is this question. The reason to take the
+    flag is the direction of the failure: under chalk, `--no-color` on a machine exporting
+    `FORCE_COLOR=1` still emits colour. `FORCE_COLOR=0` remains the exception, because an
+    "off" from either channel is an off. Locked row by row in `src/policy.test.ts`. (The
+    sweep excludes supports-color's emulator allow-list, TEAMCITY_VERSION, TERM_PROGRAM and
+    the platform check — detection R2 refuses outright, per §1 and §17.)
 - **R3** Tokens `error warn ok hint muted command flag value heading` are functions
   `(s: string) => string`, implemented over `util.styleText`. They are the **identity at
   level 0**, and paint identically at any level above it whatever the mode — because the

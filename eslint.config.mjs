@@ -491,8 +491,6 @@ export default [
       'import-next/no-default-export': 'off',
       'conventions/no-magic-numbers': 'off',
       'secure-coding/detect-object-injection': 'off',
-      'secure-coding/no-unchecked-loop-condition': 'off',
-      'maintainability/cognitive-complexity': 'off',
       // Added 2026-09-08 with R2's revision. These two files are the whole of what
       // `roundel/chalk` weighs besides the SGR tables, and R8 caps that graph at chalk
       // 6.0.0's own 9,370 bytes while capping `roundel/tokens` at picocolors' 3.3 KB —

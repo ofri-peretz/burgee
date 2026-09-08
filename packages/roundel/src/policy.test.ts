@@ -61,14 +61,16 @@ describe('colorLevel — R2, what a terminal reports, with no instruction', () =
     ['TERM=xterm-256color', { TERM: 'xterm-256color' }, 2],
     ['TERM=screen-256', { TERM: 'screen-256' }, 2],
     ['COLORTERM=truecolor', { COLORTERM: 'truecolor', TERM: 'xterm-256color' }, 3],
-    ['COLORTERM=24bit', { COLORTERM: '24bit' }, 3],
+    ['COLORTERM=24bit is not truecolor to supports-color: it falls through to the COLORTERM catch-all', { COLORTERM: '24bit' }, 1],
+    ['COLORTERM=24bit does not override TERM either', { COLORTERM: '24bit', TERM: 'xterm-256color' }, 2],
     ['COLORTERM set to anything else is 16 colours', { COLORTERM: 'yes' }, 1],
     ['TERM=dumb', { TERM: 'dumb', COLORTERM: 'truecolor' }, 0],
     ['NO_COLOR wins over everything', { NO_COLOR: '1', COLORTERM: 'truecolor', FORCE_COLOR: '3' }, 0],
     ['NO_COLOR empty is not set', { NO_COLOR: '', COLORTERM: 'truecolor' }, 3],
     ['a vendor name without CI is not a CI run, so the terminal decides', { GITHUB_ACTIONS: 'true', TERM: 'xterm' }, 1],
     ['a CI run on a terminal is its vendor’s level, as supports-color has it', { CI: 'true', GITHUB_ACTIONS: 'true', TERM: 'xterm' }, 3],
-    ['accessible on a terminal keeps the terminal level: the mode decides redraws, not colour', { CLI_ACCESSIBLE: '1', COLORTERM: 'truecolor' }, 3],
+    ['accessible on a terminal is 0: CLI_ACCESSIBLE is a human instruction, and ANSI is noise to a screen reader', { CLI_ACCESSIBLE: '1', COLORTERM: 'truecolor' }, 0],
+    ['an empty CLI_ACCESSIBLE is not set', { CLI_ACCESSIBLE: '', COLORTERM: 'truecolor' }, 3],
   ])('%s', (_, env, level) => {
     expect(colorLevel(rt(env, true))).toBe(level);
   });
@@ -121,12 +123,30 @@ describe('colorLevel — the --color flags, when the caller hands over argv', ()
     ['--color=256 beats a numeric FORCE_COLOR', ['--color=256'], { FORCE_COLOR: '1' }, 2],
     ['--color=16m beats a numeric FORCE_COLOR', ['--color=16m'], { FORCE_COLOR: '1' }, 3],
     ['--color=truecolor', ['--color=truecolor'], {}, 3],
-    ['--color=24bit', ['--color=24bit'], {}, 3],
+    // supports-color's truecolor flag values are `16m`, `full` and `truecolor` only:
+    // `--color=24bit` is an unrecognised value, so it is no instruction, exactly as chalk has it.
+    ['--color=24bit is not one of supports-color’s truecolor spellings', ['--color=24bit'], {}, 0],
     ['--color enables and detects: nothing to detect is 1', ['--color'], {}, 1],
     ['--color enables and detects: COLORTERM decides', ['--color'], { COLORTERM: 'truecolor' }, 3],
     ['--color=true', ['--color=true'], { TERM: 'xterm-256color' }, 2],
     ['--color=always', ['--color=always'], {}, 1],
-    ['--no-color beats FORCE_COLOR=3', ['--no-color'], { FORCE_COLOR: '3' }, 0],
+    // DELIBERATE DIVERGENCE from chalk 6. supports-color lets a set `FORCE_COLOR` overwrite
+    // `flagForceColor` outright, so real chalk answers 3 here: the flag that says "no colour"
+    // is discarded by an environment variable the user may not even have set on this run.
+    // roundel refuses colour when asked to refuse — the safe direction, and the only one of
+    // the two that cannot surprise a user who typed `--no-color`. The opposite direction
+    // (`FORCE_COLOR=0` with `--color=256`) is *not* a divergence: it is 0 in both, below.
+    ['--no-color beats FORCE_COLOR=3 — deliberate: chalk gives 3', ['--no-color'], { FORCE_COLOR: '3' }, 0],
+    ['--no-colors is the same instruction, as has-flag has it', ['--no-colors'], {}, 0],
+    ['--no-colors on a colour-capable terminal is still 0', ['--no-colors'], { COLORTERM: 'truecolor' }, 0],
+    ['--colors is the same instruction as --color', ['--colors'], { COLORTERM: 'truecolor' }, 3],
+    ['--colors with nothing to detect is 1', ['--colors'], {}, 1],
+    // supports-color settles `FORCE_COLOR=0` *before* it reads `--color=256`/`--color=16m`.
+    // An explicit "colour off" is never undone by a level flag: chalk answers 0 here too.
+    ['FORCE_COLOR=0 beats --color=256, as supports-color orders it', ['--color=256'], { FORCE_COLOR: '0' }, 0],
+    ['FORCE_COLOR=0 beats --color=16m', ['--color=16m'], { FORCE_COLOR: '0' }, 0],
+    ['FORCE_COLOR=false beats --color=256', ['--color=256'], { FORCE_COLOR: 'false' }, 0],
+    ['FORCE_COLOR=0 beats --color', ['--color'], { FORCE_COLOR: '0' }, 0],
     ['--color=false', ['--color=false'], { FORCE_COLOR: '3' }, 0],
     ['--color=never', ['--color=never'], { FORCE_COLOR: '3' }, 0],
     ['off outranks an exact level, whichever comes first', ['--color=16m', '--no-color'], {}, 0],
@@ -193,5 +213,120 @@ describe('colorLevel — the CI vendor table, once the run has asked for colour'
 
   it('no CI, no table: what the terminal reports', () => {
     expect(colorLevel(rt({ TRAVIS: 'true', FORCE_COLOR: 'true', COLORTERM: 'truecolor' }, false))).toBe(3);
+  });
+});
+
+describe('colorLevel — an explicit “colour off” is never overridden into colour on', () => {
+  // The direction that matters. Colour where the user asked for none is the failure that
+  // got PR #43 closed; every row here is a way a user says "off", on a terminal that would
+  // otherwise colour, and every answer is 0.
+  it.each<[string, string[], Runtime['env']]>([
+    ['--no-color', ['--no-color'], { COLORTERM: 'truecolor' }],
+    ['--no-colors, the plural spelling has-flag also honours', ['--no-colors'], { COLORTERM: 'truecolor' }],
+    ['--color=false', ['--color=false'], { COLORTERM: 'truecolor' }],
+    ['--color=never', ['--color=never'], { COLORTERM: 'truecolor' }],
+    ['NO_COLOR', [], { NO_COLOR: '1', COLORTERM: 'truecolor' }],
+    ['FORCE_COLOR=0', [], { FORCE_COLOR: '0', COLORTERM: 'truecolor' }],
+    ['FORCE_COLOR=0 with an exact --color=256 asking otherwise', ['--color=256'], { FORCE_COLOR: '0' }],
+    ['FORCE_COLOR=0 with an exact --color=16m asking otherwise', ['--color=16m'], { FORCE_COLOR: '0' }],
+    ['--no-colors under Azure Pipelines', ['--no-colors'], { TF_BUILD: '1', AGENT_NAME: 'agent' }],
+    ['--no-color under GitHub Actions', ['--no-color'], { CI: 'true', GITHUB_ACTIONS: 'true' }],
+  ])('on a terminal: %s', (_, argv, env) => {
+    expect(colorLevel(flags(argv, env, true))).toBe(0);
+  });
+
+  it('the plural spellings are the singular ones, on a terminal and on a pipe', () => {
+    expect(colorLevel(flags(['--colors'], { COLORTERM: 'truecolor' }, true))).toBe(3);
+    expect(colorLevel(flags(['--colors'], {}, false))).toBe(1);
+    // …but only the two spellings has-flag knows: `--colors=true` is not a flag chalk reads.
+    expect(colorLevel(flags(['--colors=true'], { COLORTERM: 'truecolor' }, false))).toBe(0);
+  });
+});
+
+describe('colorLevel — accessible mode is a pipe, not a terminal (R2)', () => {
+  // `CLI_ACCESSIBLE` is an explicit instruction from a human, and ANSI colour is noise to a
+  // screen reader — so the default is 0 with the same shape as a pipe's, not the terminal's
+  // level. An explicit ask still wins; NO_COLOR still beats everything.
+  const acc = (env: Runtime['env'] = {}, argv: string[] = []): Runtime => flags(argv, { CLI_ACCESSIBLE: '1', ...env }, true);
+
+  it('defaults to 0 on the most colour-capable terminal there is', () => {
+    expect(colorLevel(acc({ COLORTERM: 'truecolor', TERM: 'xterm-256color' }))).toBe(0);
+    expect(colorLevel(acc({ TERM: 'xterm-256color' }))).toBe(0);
+    expect(colorLevel(acc({ CI: 'true', GITHUB_ACTIONS: 'true' }))).toBe(0);
+    expect(colorLevel(acc({ TF_BUILD: '1', AGENT_NAME: 'agent' }))).toBe(0);
+  });
+
+  it('an explicit ask still wins, exactly as on a pipe', () => {
+    expect(colorLevel(acc({ FORCE_COLOR: '2', COLORTERM: 'truecolor' }))).toBe(2);
+    expect(colorLevel(acc({ FORCE_COLOR: 'true', COLORTERM: 'truecolor' }))).toBe(3);
+    expect(colorLevel(acc({ COLORTERM: 'truecolor' }, ['--color=256']))).toBe(2);
+    expect(colorLevel(acc({ COLORTERM: 'truecolor' }, ['--color']))).toBe(3);
+  });
+
+  it('NO_COLOR still beats everything, and an empty CLI_ACCESSIBLE is not set', () => {
+    expect(colorLevel(acc({ NO_COLOR: '1', FORCE_COLOR: '3' }))).toBe(0);
+    expect(colorLevel(flags([], { CLI_ACCESSIBLE: '', COLORTERM: 'truecolor' }, true))).toBe(3);
+  });
+
+  it('the mode is unchanged: accessible still decides redraws', () => {
+    expect(outputMode(rt({ CLI_ACCESSIBLE: '1' }, true))).toBe('accessible');
+  });
+});
+
+describe('colorLevel — the CI table is gated on `CI` being present, as supports-color gates it', () => {
+  // chalk asks `'CI' in env`, not "CI is non-empty". A GitHub Actions runner that exports
+  // `CI=` (empty) still renders truecolor, and roundel must say so too.
+  it('an empty CI still selects the vendor table', () => {
+    expect(colorLevel(rt({ CI: '', GITHUB_ACTIONS: 'true', FORCE_COLOR: 'true' }, false))).toBe(3);
+    expect(colorLevel(rt({ CI: '', GITHUB_ACTIONS: 'true' }, true))).toBe(3);
+    expect(colorLevel(rt({ CI: '', TRAVIS: 'true' }, true))).toBe(1);
+  });
+
+  it('an empty CI with no vendor is the table’s floor, not the terminal’s level', () => {
+    // `'CI' in env` selects the table; the table knows no vendor, so it is `min` — which is
+    // what supports-color returns from inside its own `if ('CI' in env)` branch.
+    expect(colorLevel(rt({ CI: '', COLORTERM: 'truecolor' }, true))).toBe(0);
+  });
+});
+
+describe('colorLevel — the one place roundel and chalk disagree, on purpose', () => {
+  /**
+   * Differential sweep against chalk 6.0.0's own vendored supports-color, 2026-09-08,
+   * 3,000 random `{ TERM, COLORTERM, FORCE_COLOR, CI, vendor flags, TF_BUILD, AGENT_NAME }
+   * × argv × isTTY` cases per partition:
+   *
+   *   - no `--color` flag, `FORCE_COLOR` free   → 0 divergences
+   *   - `--color` flags free, no `FORCE_COLOR`  → 0 divergences
+   *   - both set                                → 631, all of them this one question
+   *
+   * (The sweep excludes supports-color's emulator allow-list — `xterm-kitty`,
+   * `xterm-ghostty`, `wezterm` — and TEAMCITY_VERSION, TERM_PROGRAM and the platform check,
+   * which R2 refuses to detect at all. That refusal is stated in `colorLevel`'s doc.)
+   *
+   * The question is which of two explicit instructions wins when a user gives both.
+   * supports-color overwrites its flag answer with a set `FORCE_COLOR` outright, so in chalk
+   * the ambient environment variable beats the flag typed on this command line. roundel
+   * inverts that: the flag is for *this* run, the variable is ambient, so the flag wins —
+   * except that `FORCE_COLOR=0` is an "off" and off always wins, which is the row above.
+   *
+   * The reason to diverge is the direction of the failure. Under chalk, `--no-color` on a
+   * machine that exports `FORCE_COLOR=1` still emits colour; a user who types the flag that
+   * means "no colour" and gets colour is the failure mode roundel exists to remove. Taking
+   * the flag costs the mirror case — `--color` under `FORCE_COLOR=1` detects rather than
+   * pinning to 1 — which is colour the user asked for either way.
+   */
+  it.each<[string, string[], Runtime['env'], Level]>([
+    // The flag wins. chalk answers with the FORCE_COLOR level in every row.
+    ['--no-color under FORCE_COLOR=3 (chalk: 3)', ['--no-color'], { FORCE_COLOR: '3', TERM: 'xterm' }, 0],
+    ['--no-colors under FORCE_COLOR=2 (chalk: 2)', ['--no-colors'], { FORCE_COLOR: '2', TERM: 'xterm' }, 0],
+    ['--color=never under FORCE_COLOR=1 (chalk: 1)', ['--color=never'], { FORCE_COLOR: '1', TERM: 'xterm' }, 0],
+    ['--color under FORCE_COLOR=1 detects (chalk: 1)', ['--color'], { FORCE_COLOR: '1', COLORTERM: 'truecolor' }, 3],
+    ['--colors under FORCE_COLOR=1 detects (chalk: 1)', ['--colors'], { FORCE_COLOR: '1', COLORTERM: 'truecolor' }, 3],
+    // …but never in the direction that adds colour to an "off". These agree with chalk.
+    ['FORCE_COLOR=0 still beats --color=256 (chalk: 0)', ['--color=256'], { FORCE_COLOR: '0' }, 0],
+    ['FORCE_COLOR=0 still beats --color (chalk: 0)', ['--color'], { FORCE_COLOR: '0', COLORTERM: 'truecolor' }, 0],
+    ['FORCE_COLOR=false still beats --colors (chalk: 0)', ['--colors'], { FORCE_COLOR: 'false' }, 0],
+  ])('%s', (_, argv, env, level) => {
+    expect(colorLevel(flags(argv, env, true))).toBe(level);
   });
 });

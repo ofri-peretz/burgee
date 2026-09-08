@@ -46,6 +46,11 @@ const ALLOWED = new Set([
   // (roundel design R6 against R9): the one file in roundel that reads the process — once,
   // through `globalThis.process`, guarded, and only to hand the policy a Runtime. Every
   // other roundel subpath is forbidden the process; chalk's own suite grades this one.
+  // Belt and braces: that file reaches the global through a typed cast bound to a local
+  // (`const proc = (globalThis as …).process`), and the reads below are `proc?.env`, which
+  // a textual pattern cannot tell from any other local. The entry stands so the exemption
+  // is recorded where a reader looks for it, and so a rewrite to the plain spelling stays
+  // green — but it is the guarded cast, not this line, that keeps roundel honest.
   'roundel/src/chalk.ts',
   // The one line the whole compatibility gate turns on: it reads COMPAT_TARGET to
   // decide which implementation the vendored suites grade.
@@ -58,9 +63,16 @@ const ALLOWED = new Set([
   // published.
   'compat-oracle/src/run.ts',
 ]);
-// The bare global only: `shim.process.exit` is a member of the yargs platform-shim object,
-// which is precisely the seam this lock wants code to go through.
-const PROCESS_READ = /(?<![.\w])process\.(env|argv|exit|exitCode|stdout|stderr|stdin|cwd)\b/;
+/**
+ * The bare global, or the same global reached through `globalThis` — and nothing else.
+ * `shim.process.exit` is a member of the yargs platform-shim object, which is precisely the
+ * seam this lock wants code to go through, so a `.process` on some other receiver stays
+ * legal. `globalThis.process` is not some other receiver: it is the process, spelled the
+ * long way, and before 2026-09-08 the `(?<![.\w])` lookbehind let it through — which meant
+ * any module in any package could read `globalThis.process.env.X` and stay green. Optional
+ * chaining (`process?.env`, `globalThis.process?.env`) is a read like any other.
+ */
+const PROCESS_READ = /(?:(?<=\bglobalThis\.)|(?<![.\w]))process\??\.(env|argv|exit|exitCode|stdout|stderr|stdin|cwd)\b/;
 
 function sourceFiles(dir: string, out: string[] = []): string[] {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
@@ -103,5 +115,33 @@ describe('process references stay behind the Runtime seam', () => {
       }
     }
     expect(offenders, 'read the Runtime instead').toEqual([]);
+  });
+
+  // The lock is only as good as its pattern, so the pattern gets its own row-by-row test.
+  // Every `caught` line failed to match before 2026-09-08 and would have shipped a process
+  // read past the seam; every `ignored` line is the member access the lookbehind exists for.
+  it.each([
+    'const level = process.env["FORCE_COLOR"];',
+    'const argv = process.argv.slice(2);',
+    'const argv = process?.argv;',
+    'globalThis.process.env.COMPAT_TARGET = "burgee";',
+    'const env = globalThis.process.env;',
+    'const env = globalThis.process?.env ?? {};',
+    'globalThis.process.exit(1);',
+    'if (globalThis.process.stdout.isTTY) redraw();',
+  ])('catches %j', (line) => {
+    expect(PROCESS_READ.test(line)).toBe(true);
+  });
+
+  it.each([
+    'shim.process.exit(code);',
+    'rt.process.env;',
+    'const { env } = options.process;',
+    'this.process.argv;',
+    'const preprocess = { env: {} };',
+    'notglobalThis.process.env;',
+    'const p = globalThis.processes.env;',
+  ])('leaves %j alone', (line) => {
+    expect(PROCESS_READ.test(line)).toBe(false);
   });
 });

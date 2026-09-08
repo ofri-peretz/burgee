@@ -128,7 +128,9 @@ describe('instances and the mutable level', () => {
     expect(chain('x')).toBe('x');
   });
 
-  it('rejects a level outside 0–3, in the option and on assignment', () => {
+  // Same guard as above: the assertion that the rejected assignment left the singleton
+  // alone names the ordinary level, 0, and a run instructed to colour has a different one.
+  it.skipIf(INSTRUCTED)('rejects a level outside 0–3, in the option and on assignment', () => {
     expect(() => new Chalk({ level: 4 as never })).toThrow(/integer from 0 to 3/);
     expect(() => {
       chalk.level = 1.5 as never;

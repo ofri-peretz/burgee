@@ -90,8 +90,13 @@ describe('every other mode: the identity with no instruction, the same paint und
     expect(paint()).toEqual(truecolor);
   });
 
-  it('accessible: the terminal level, as on any terminal — the mode changes redraws, not paint', () => {
+  it('accessible: plain, because ANSI colour is noise to a screen reader — a pipe, not a terminal', () => {
     fly({}, tty({ COLORTERM: 'truecolor', CLI_ACCESSIBLE: '1' }));
+    expect(paint()).toEqual(PLAIN);
+  });
+
+  it('accessible: an explicit ask still colours it, exactly as on a pipe', () => {
+    fly({}, tty({ ...forced, COLORTERM: 'truecolor', CLI_ACCESSIBLE: '1' }));
     expect(paint()).toEqual(truecolor);
   });
 

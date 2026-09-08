@@ -47,15 +47,21 @@ First match wins: `json` if the run asked for it; `accessible` if `CLI_ACCESSIBL
 progress, anything that rewrites a line — and never the colour level.**
 
 The level is chalk's, and it obeys the user's explicit instruction in any mode: `NO_COLOR`
-wins outright; then the `--color` flags (`--color=256`, `--color=16m`, `--no-color`,
-`--color=never`…) when the caller hands the policy its `argv`; then `FORCE_COLOR`, which
-names an exact level (`FORCE_COLOR=2` is 2, not "2 or better") or, as `true` or empty, only
-turns colour on and lets the environment decide it. `--json` is the one output the level
-never enters: structured text carries no escapes.
+wins outright; then `FORCE_COLOR=0`, which supports-color settles before it reads any flag,
+so **an explicit "colour off" is never overridden into colour on** — `FORCE_COLOR=0` with
+`--color=256` is 0, not 2; then the `--color` flags (`--color=256`, `--color=16m`,
+`--no-color`, `--no-colors`, `--color=never`… both spellings, as has-flag has them) when the
+caller hands the policy its `argv`; then `FORCE_COLOR`, which names an exact level
+(`FORCE_COLOR=2` is 2, not "2 or better") or, as `true` or empty, only turns colour on and
+lets the environment decide it. `--json` is the one output the level never enters:
+structured text carries no escapes.
 
 With no instruction at all the order is supports-color's own, deliberately: **a pipe is
-`0`** — a pipe nobody asked to colour is a file or another program's stdin — with Azure
-Pipelines (`TF_BUILD` *and* `AGENT_NAME`) the single exception, exactly where chalk puts it.
+`0`** — a pipe nobody asked to colour is a file or another program's stdin — and
+**accessible mode is `0` too**, because `CLI_ACCESSIBLE` is itself an instruction from a
+human and ANSI colour is noise to a screen reader; an explicit ask still colours either of
+them. Azure Pipelines (`TF_BUILD` *and* `AGENT_NAME`) is the single exception on a pipe,
+exactly where chalk puts it.
 Once colour *is* being detected, on a terminal or because the run asked, `TERM=dumb` is the
 floor, a `CI` run gets its vendor's level (GitHub and Gitea Actions and CircleCI at
 truecolor; Travis, AppVeyor, GitLab, Buildkite, Drone and Codeship at 16), and anything else

@@ -38,7 +38,12 @@ export interface ModeOptions {
   json?: boolean;
 }
 
-/** Present and not empty — the NO_COLOR convention, applied to every switch here. */
+/**
+ * Present and not empty — the NO_COLOR convention, applied to every switch this file owns.
+ * The one exception is the CI vendor table in `colorLevel`, which is chalk's and so is
+ * gated on `'CI' in env` exactly as supports-color gates it; `outputMode` keeps the
+ * convention, because a mode is ours to decide and an empty `CI=` names no runner.
+ */
 const set = (value: string | undefined): boolean => value !== undefined && value !== '';
 
 /**
@@ -69,15 +74,21 @@ const forced = (v: string | undefined): Ask | undefined =>
  * level, which outranks on. Only flags before a `--` terminator count, as has-flag has it;
  * an unrecognised value (`--color=lots`) is no instruction rather than an error, because
  * the policy is not the argument parser.
+ *
+ * Both spellings, as has-flag and supports-color have them: `--colors` and `--no-colors`
+ * are the same instruction as `--color` and `--no-color`. A user who types `--no-colors`
+ * to silence colour must not get colour. The values are supports-color's exactly —
+ * `--color=24bit` is *not* among them (only `16m`, `full`, `truecolor`), so like
+ * `--color=lots` it is no instruction and detection decides.
  */
 function flagged(argv: readonly string[]): Ask | undefined {
   const end = argv.indexOf('--');
   const seen = end < 0 ? argv : argv.slice(0, end);
   const has = (re: RegExp): boolean => seen.some((a) => re.test(a));
-  return has(/^--(no-color|color=(false|never))$/) ? 0
-    : has(/^--color=(16m|full|truecolor|24bit)$/) ? MAX_LEVEL
+  return has(/^--(no-colors?|color=(false|never))$/) ? 0
+    : has(/^--color=(16m|full|truecolor)$/) ? MAX_LEVEL
     : has(/^--color=256$/) ? 2
-    : has(/^--color(=(true|always))?$/) ? 'on'
+    : has(/^--(colors|color(=(true|always))?)$/) ? 'on'
     : undefined;
 }
 
@@ -96,16 +107,29 @@ const ci = (env: Runtime['env']): ColorLevel =>
 const TERM_256 = /-256(color)?$/i;
 const TERM_16 = /^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux/i;
 
-/** What a terminal reports of itself through `TERM` and `COLORTERM`; `dumb` is handled above. */
+/**
+ * What a terminal reports of itself through `TERM` and `COLORTERM`; `dumb` is handled above.
+ *
+ * `truecolor` is the only `COLORTERM` value supports-color reads as level 3 — `24bit` is
+ * *not* one of them, whatever the folklore, and falls through to the `'COLORTERM' in env`
+ * catch-all at level 1. Matched here because chalk 6 is the incumbent this is graded by.
+ */
 const terminal = ({ TERM = '', COLORTERM }: Runtime['env']): ColorLevel =>
-  COLORTERM === 'truecolor' || COLORTERM === '24bit' ? MAX_LEVEL : TERM_256.test(TERM) ? 2 : TERM_16.test(TERM) || COLORTERM !== undefined ? 1 : 0;
+  COLORTERM === 'truecolor' ? MAX_LEVEL : TERM_256.test(TERM) ? 2 : TERM_16.test(TERM) || COLORTERM !== undefined ? 1 : 0;
 
 /**
  * chalk's level, obeying the user's explicit instruction in any mode (R2 revised
- * 2026-09-08): `NO_COLOR` wins outright; then the `--color` flags in `argv`, an exact
- * `--color=256` beating a numeric `FORCE_COLOR` as chalk's own suite says; then
- * `FORCE_COLOR`. `--json` is the one output the level never enters: structured text carries
- * no escapes. The mode decides redraws (U2), never the level.
+ * 2026-09-08): `NO_COLOR` wins outright; then `FORCE_COLOR=0`, which supports-color settles
+ * *before* it looks at any flag, so `FORCE_COLOR=0 --color=256` is off and not 2 — an
+ * explicit "colour off" is never undone by a level flag; then the `--color` flags in
+ * `argv`, an exact `--color=256` beating a numeric `FORCE_COLOR` as chalk's own suite says;
+ * then `FORCE_COLOR`. `--json` is the one output the level never enters: structured text
+ * carries no escapes. The mode decides redraws (U2), never the level.
+ *
+ * Accessible mode defaults to 0, on the same footing as a pipe rather than a terminal:
+ * `CLI_ACCESSIBLE` is itself an explicit instruction from a human, and ANSI colour is noise
+ * to a screen reader. As with a pipe, an explicit colour ask (`FORCE_COLOR`, `--color=…`)
+ * still wins and `NO_COLOR` still beats everything.
  *
  * With no instruction the order is supports-color's own, and deliberately so — chalk's
  * `level.js` asserts it, and a family that disagreed with chalk about a bare pipe would be
@@ -113,8 +137,9 @@ const terminal = ({ TERM = '', COLORTERM }: Runtime['env']): ColorLevel =>
  * another program's stdin; the one exception is Azure Pipelines (`TF_BUILD` *and*
  * `AGENT_NAME` — `TF_BUILD` alone is a build without an agent), which supports-color reads
  * before it gives up on a pipe. Once colour *is* being detected — a terminal, or a run that
- * asked — `TERM=dumb` is the floor, a `CI` run is its vendor's level, and anything else is
- * what `TERM`/`COLORTERM` report. So the CI user who exports `FORCE_COLOR=true` to get
+ * asked — `TERM=dumb` is the floor, a `CI` run is its vendor's level (gated on `'CI' in env`
+ * as supports-color gates it, so an empty `CI=` still selects the table), and anything else
+ * is what `TERM`/`COLORTERM` report. So the CI user who exports `FORCE_COLOR=true` to get
  * coloured logs gets their runner's colours, and nobody else's pipe changes.
  *
  * ponytail: supports-color also consults the platform, TEAMCITY_VERSION, TERM_PROGRAM and
@@ -122,13 +147,25 @@ const terminal = ({ TERM = '', COLORTERM }: Runtime['env']): ColorLevel =>
  */
 export function colorLevel(rt: Runtime, opts?: ModeOptions): ColorLevel {
   const { env } = rt;
-  if (opts?.json === true || set(env['NO_COLOR'])) return 0;
-  const ask = flagged(rt.argv ?? []) ?? forced(env['FORCE_COLOR']);
-  if (typeof ask === 'number') return ask;
-  if ('TF_BUILD' in env && 'AGENT_NAME' in env) return 1;
-  if (ask === undefined && !rt.isTTY.stdout) return 0;
+  // `FORCE_COLOR=0` first, and only then the flags: supports-color overwrites its flag
+  // answer with a set `FORCE_COLOR` before it reads `--color=256`/`--color=16m`.
+  const force = forced(env['FORCE_COLOR']);
+  const ask = force === 0 ? 0 : (flagged(rt.argv ?? []) ?? force);
+  /** 0 when nothing asked for colour and 1 when something did: the floor detection may not go below. */
   const min: ColorLevel = ask === undefined ? 0 : 1;
-  return env['TERM'] === 'dumb' ? min : (Math.max(min, set(env['CI']) ? ci(env) : terminal(env)) as ColorLevel);
+  /*
+   * One line for the same reason `outputMode` above is one line: tsc indents a nested
+   * ternary one step per branch, and `./chalk` cannot spare the indent. Six rows, in order:
+   *
+   *   1. structured output, NO_COLOR, or accessible with nothing asked — all none.
+   *   2. an exact ask, whether from FORCE_COLOR or from a flag, including an off — that level.
+   *   3. Azure Pipelines, the one runner supports-color reads above its non-TTY check.
+   *   4. a pipe nobody asked to colour — none.
+   *   5. a dumb terminal — the floor, and nothing above it.
+   *   6. what the run reports of itself: the CI vendor table, else TERM and COLORTERM.
+   */
+  // prettier-ignore
+  return opts?.json === true || set(env['NO_COLOR']) || (min === 0 && set(env['CLI_ACCESSIBLE'])) ? 0 : typeof ask === 'number' ? ask : 'TF_BUILD' in env && 'AGENT_NAME' in env ? 1 : min === 0 && !rt.isTTY.stdout ? 0 : env['TERM'] === 'dumb' ? min : (Math.max(min, 'CI' in env ? ci(env) : terminal(env)) as ColorLevel);
 }
 
 export type TokenName = 'error' | 'warn' | 'ok' | 'hint' | 'muted' | 'command' | 'flag' | 'value' | 'heading';
