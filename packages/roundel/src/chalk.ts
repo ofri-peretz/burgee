@@ -94,38 +94,27 @@ type Rgb = [number, number, number];
 
 const step = (v: number): number => Math.round((v / 255) * 5);
 
+/** Where an equal-channel grey lands on the 24-step ramp: 16 black, 231 white, 232–255 between. */
+const ramp = (v: number): number => (v < 8 ? 16 : v > 248 ? 231 : Math.round(((v - 8) / 247) * 24) + 232);
+
 /** The 6×6×6 cube and the 24-step grey ramp, as ansi-styles computes them. */
-function rgbToAnsi256(r: number, g: number, b: number): number {
-  if (r === g && g === b) {
-    if (r < 8) return 16;
-    if (r > 248) return 231;
-    return Math.round(((r - 8) / 247) * 24) + 232;
-  }
-  return 16 + 36 * step(r) + 6 * step(g) + step(b);
-}
+const rgbToAnsi256 = (r: number, g: number, b: number): number =>
+  r === g && g === b ? ramp(r) : 16 + 36 * step(r) + 6 * step(g) + step(b);
 
 /** chalk's `ansi256ToAnsi`: the nearest of the 16 colours as an SGR 30–37 / 90–97 code. */
 function ansi256ToAnsi(code: number): number {
-  if (code < 8) return 30 + code;
-  if (code < 16) return 90 + code - 8;
-  let rgb: Rgb;
-  if (code >= 232) {
-    const grey = ((code - 232) * 10 + 8) / 255;
-    rgb = [grey, grey, grey];
-  } else {
-    const c = code - 16;
-    rgb = [Math.floor(c / 36) / 5, Math.floor((c % 36) / 6) / 5, (c % 6) / 5];
-  }
-  const [r, g, b] = rgb;
+  // 0–7 are 30–37 and 8–15 are 90–97, which is 82 + code.
+  if (code < 16) return (code < 8 ? 30 : 82) + code;
+  const c = code - 16;
+  const grey = ((code - 232) * 10 + 8) / 255;
+  const [r, g, b]: Rgb = code >= 232 ? [grey, grey, grey] : [Math.floor(c / 36) / 5, Math.floor((c % 36) / 6) / 5, (c % 6) / 5];
   const value = Math.max(r, g, b) * 2;
-  if (value === 0) return 30;
-  return (value === 2 ? 90 : 30) + ((Math.round(b) << 2) | (Math.round(g) << 1) | Math.round(r));
+  return value === 0 ? 30 : (value === 2 ? 90 : 30) + ((Math.round(b) << 2) | (Math.round(g) << 1) | Math.round(r));
 }
 
 function hexToRgb(hex: string): Rgb {
-  let s = /[\da-f]{6}|[\da-f]{3}/i.exec(hex)?.[0] ?? '0';
-  if (s.length === 3) s = [...s].map((c) => c + c).join('');
-  const n = Number.parseInt(s, 16);
+  const m = /[\da-f]{6}|[\da-f]{3}/i.exec(hex)?.[0] ?? '0';
+  const n = Number.parseInt(m.length === 3 ? [...m].map((c) => c + c).join('') : m, 16);
   return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
 }
 
@@ -149,15 +138,11 @@ for (const [prefix, fam] of Object.entries(FAMILIES)) {
 
 /** The open parameters of one model colour at this level: truecolor, 256, or the nearest 16. */
 function open(fam: Family, level: ColorLevel, model: Model, args: unknown[]): string {
-  let rgb: Rgb | undefined;
-  let code = Number(args[0]);
-  if (model !== 'ansi256') {
-    rgb = model === 'hex' ? hexToRgb(String(args[0])) : (args.map(Number) as Rgb);
-    code = rgbToAnsi256(...rgb);
-  }
-  if (level === 3 && rgb !== undefined) return `${fam.ext};2;${rgb.join(';')}`;
-  if (level >= 2) return `${fam.ext};5;${code}`;
-  return fam.ansi(ansi256ToAnsi(code));
+  const rgb: Rgb | undefined = model === 'ansi256' ? undefined : model === 'hex' ? hexToRgb(String(args[0])) : (args.map(Number) as Rgb);
+  const code = rgb === undefined ? Number(args[0]) : rgbToAnsi256(...rgb);
+  return level === 3 && rgb !== undefined ? `${fam.ext};2;${rgb.join(';')}`
+    : level >= 2 ? `${fam.ext};5;${code}`
+    : fam.ansi(ansi256ToAnsi(code));
 }
 
 // ── The builder ─────────────────────────────────────────────────────────────────────────
@@ -182,9 +167,7 @@ interface Root {
 }
 
 function checkLevel(level: unknown): asserts level is ColorLevel {
-  if (!Number.isSafeInteger(level) || (level as number) < 0 || (level as number) > 3) {
-    throw new Error('The `level` should be an integer from 0 to 3');
-  }
+  if (!Number.isSafeInteger(level) || (level as number) < 0 || (level as number) > 3) throw new Error('The `level` should be an integer from 0 to 3');
 }
 
 /** The next link after `key`, or nothing when chalk has no such property. */
@@ -207,18 +190,15 @@ function builder(root: Root, chain: readonly SgrPair[], visible: boolean): Chalk
   const links = new Map<string, unknown>();
   const fn = (...text: unknown[]): string => {
     const s = text.length === 1 ? String(text[0]) : text.join(' ');
-    if (root.level === 0 || s === '') return visible ? '' : s;
-    return chain.length === 0 ? s : sgr(chain, s);
+    return root.level === 0 || s === '' ? (visible ? '' : s) : chain.length === 0 ? s : sgr(chain, s);
   };
   return new Proxy(fn, {
     get(target, key) {
       if (key === 'level') return root.level;
-      if (typeof key === 'string') {
-        if (!links.has(key)) links.set(key, link(root, chain, visible, key));
-        const found = links.get(key);
-        if (found !== undefined) return found;
-      }
-      return Reflect.get(target, key);
+      if (typeof key !== 'string') return Reflect.get(target, key);
+      if (!links.has(key)) links.set(key, link(root, chain, visible, key));
+      // A key chalk has no link for — `then`, `constructor` — is the function's own.
+      return links.get(key) ?? Reflect.get(target, key);
     },
     set(target, key, value) {
       if (key !== 'level') return Reflect.set(target, key, value);
@@ -233,10 +213,12 @@ function builder(root: Root, chain: readonly SgrPair[], visible: boolean): Chalk
 // R6 against R9: chalk's contract is "detect the terminal at import", so this file — alone
 // in the package — reads the process, once, through the policy. The exception is recorded
 // in burgee's process-reference lock. Guarded: `process` is not a given where a bundle runs.
-const proc = (globalThis as { process?: { env: Runtime['env']; stdout?: { isTTY?: boolean }; stderr?: { isTTY?: boolean } } }).process;
+const proc = (globalThis as { process?: { env: Runtime['env']; argv?: string[]; stdout?: { isTTY?: boolean }; stderr?: { isTTY?: boolean } } })
+  .process;
 
-/** The policy asks where the output is going; for `chalkStderr` the answer is stderr. */
-const detect = (stream: 'stdout' | 'stderr'): ColorLevel => colorLevel({ env: proc?.env ?? {}, isTTY: { stdout: proc?.[stream]?.isTTY === true } });
+/** The policy asks where the output is going — env, argv and the stream; for `chalkStderr` the stream is stderr. */
+const detect = (stream: 'stdout' | 'stderr'): ColorLevel =>
+  colorLevel({ env: proc?.env ?? {}, argv: proc?.argv ?? [], isTTY: { stdout: proc?.[stream]?.isTTY === true } });
 
 const stdoutLevel = detect('stdout');
 const stderrLevel = detect('stderr');

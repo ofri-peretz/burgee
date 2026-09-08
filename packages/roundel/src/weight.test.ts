@@ -40,12 +40,20 @@ const RULES: Record<string, EntryRule> = {
   // in the re-export list, not for the façade itself, which will be its own row.
   '.': { allow: [], budget: 12_000, denied: [] },
   // The floor every subpath stands on: two functions and one record. node:util alone.
+  // R2's 2026-09-08 revision added the `--color` flags and the CI vendor table here, which
+  // is why the file's level tables are ternary chains (see the eslint override that names
+  // this): measured 1,997 B on 2026-09-08, so the budget holds without being raised, and
+  // `./tokens` and `./chalk` below both still fit under the incumbents they are named for.
   './policy': { allow: [], budget: 2_000, denied: ['tokens.js', 'theme.js', 'contrast.js', 'index.js'] },
   // The ceiling is picocolors: 3.3 KB. Tokens plus the policy they read, and nothing else —
   // a program that imports nine functions must never carry the theme or the maths.
   './tokens': { allow: [], budget: 3_300, denied: ['theme.js', 'contrast.js', 'index.js'] },
-  // The theme carries the contrast check (R5); it never carries the tokens.
-  './theme': { allow: [], budget: 6_000, denied: ['tokens.js', 'index.js'] },
+  // The theme carries the contrast check (R5); it never carries the tokens. Raised from
+  // 6,000 on 2026-09-08: R2's revision grew the policy every subpath stands on, and the
+  // theme reaches it. Measured 6,296 B; the ceiling is the next hundred above that. The
+  // theme is the one entry with no incumbent to be measured against, so it is the one that
+  // moves — `./tokens` (picocolors) and `./chalk` (chalk) did not.
+  './theme': { allow: [], budget: 6_300, denied: ['tokens.js', 'index.js'] },
   // Pure arithmetic over hex strings. Reaches nothing.
   './contrast': { allow: [], budget: 1_500, denied: ['policy.js', 'tokens.js', 'theme.js', 'index.js'] },
   // The ceiling is chalk 6.0.0 itself (R8): `wc -c node_modules/chalk/source/*.js` inside

@@ -20,25 +20,47 @@ import chalk, {
   supportsColorStderr,
   underlineColorNames,
 } from './chalk.js';
-import { flown } from './policy.js';
+import { colorLevel, flown, type ColorLevel } from './policy.js';
 import { error } from './tokens.js';
 
 /** Escape sequences spelled out, so a reader can check them against ECMA-48 by eye. */
 const E = '\u001B[';
 
+// The policy's answer for this very process — env, argv and the stream.
+const policy = (stream: 'stdout' | 'stderr'): ColorLevel =>
+  colorLevel({ env: process.env, argv: process.argv, isTTY: { stdout: process[stream].isTTY === true } });
+
+// Since R2's 2026-09-08 revision the level obeys an explicit instruction in any mode, so a
+// developer running `FORCE_COLOR=1 npm test` would legitimately see a level above 0. The
+// concrete assertion below names the ordinary case and steps aside for the instructed one.
+const INSTRUCTED =
+  process.env['FORCE_COLOR'] !== undefined ||
+  process.env['NO_COLOR'] !== undefined ||
+  ('TF_BUILD' in process.env && 'AGENT_NAME' in process.env);
+
 describe('the level is decided once, at import, through the policy', () => {
-  it('is 0 under vitest, whose stdout is a pipe — whatever the env says (R2)', () => {
+  it.skipIf(INSTRUCTED)('is 0 through this suite’s own pipe, because nothing asked for colour (R2)', () => {
     expect(chalk.level).toBe(0);
     expect(chalkStderr.level).toBe(0);
     expect(supportsColor).toBe(false);
     expect(supportsColorStderr).toBe(false);
   });
 
+  it('is the policy’s answer for this process, read per stream — argv, env and that stream’s TTY', () => {
+    expect(chalk.level).toBe(policy('stdout'));
+    expect(chalkStderr.level).toBe(policy('stderr'));
+    expect(supportsColor).toEqual(chalk.level === 0 ? false : expect.objectContaining({ level: chalk.level }));
+    expect(supportsColorStderr).toEqual(chalkStderr.level === 0 ? false : expect.objectContaining({ level: chalkStderr.level }));
+  });
+
   it('at level 0 every chain is the identity and `visible` is empty', () => {
-    expect(chalk.red.bold.underline('x')).toBe('x');
-    expect(chalk.hex('#ff0000')('x')).toBe('x');
-    expect(chalk.visible('x')).toBe('');
-    expect(chalk('a', 'b')).toBe('a b');
+    // A fresh instance, not `chalk.level = 0`: the module singleton is shared with every
+    // other test in this file, and R6 keeps a mutated level inside its own façade.
+    const c = new Chalk({ level: 0 });
+    expect(c.red.bold.underline('x')).toBe('x');
+    expect(c.hex('#ff0000')('x')).toBe('x');
+    expect(c.visible('x')).toBe('');
+    expect(c('a', 'b')).toBe('a b');
   });
 });
 

@@ -493,7 +493,26 @@ export default [
       'secure-coding/detect-object-injection': 'off',
       'secure-coding/no-unchecked-loop-condition': 'off',
       'maintainability/cognitive-complexity': 'off',
+      // Added 2026-09-08 with R2's revision. These two files are the whole of what
+      // `roundel/chalk` weighs besides the SGR tables, and R8 caps that graph at chalk
+      // 6.0.0's own 9,370 bytes while capping `roundel/tokens` at picocolors' 3.3 KB —
+      // both of which reach `policy.ts`. `tsc` indents a nested ternary one step per
+      // branch and splits every `if (…) return …` across two lines, so the statement form
+      // of these level tables costs hundreds of published bytes against ceilings measured
+      // in hundreds. The ternary chains are colour-level decision tables, read top to
+      // bottom; `src/policy.test.ts` covers every branch of them, row by row.
+      'maintainability/no-nested-ternary': 'off',
+      // FP: `rgbToAnsi256(...rgb)` in `open()`, where the ternary above it has already
+      // narrowed `rgb` to a tuple. The rule does not follow the narrowing.
+      'reliability/no-missing-null-checks': 'off',
     },
+  },
+  {
+    // `roundel/policy` is the floor every subpath stands on, so its bytes are multiplied by
+    // every R8 ceiling in the package. See the note on `chalk.ts` above for why its level
+    // tables are ternary chains rather than statements.
+    files: ['packages/roundel/src/policy.ts'],
+    rules: { 'maintainability/no-nested-ternary': 'off' },
   },
   {
     // X7 fixture: the commander demo built on burgee/commander through commander's own

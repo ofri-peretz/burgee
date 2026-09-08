@@ -3,6 +3,11 @@
  * the colour it happens to use. Each is `(s: string) => string` over `util.styleText`, and
  * the identity until `fly()` has decided a level above 0. This is the only file in the
  * package that emits an escape sequence.
+ *
+ * The identity at level 0, and the same paint at any level above it under *any* output
+ * mode: the level itself obeys `NO_COLOR`, `FORCE_COLOR` and the `--color` flags in any
+ * mode, and is 0 on a pipe with no instruction (R2, revised 2026-09-08). The mode decides
+ * redraws, not colour, so there is no third behaviour for a token to have.
  */
 import { styleText } from 'node:util';
 

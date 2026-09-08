@@ -10,11 +10,25 @@ Intent: [`intent.md`](./intent.md). **Status:** approved.
   `{ isTTY: { stdout }, env, json?: boolean }`. Precedence, first match wins: `json` if
   `rt.json`; `accessible` if `env.CLI_ACCESSIBLE`; `ci` if `env.CI` and not a TTY; `pipe`
   if not a TTY; else `tty`.
-- **R2** `colorLevel(rt): 0 | 1 | 2 | 3` mirrors chalk's levels from `NO_COLOR`,
-  `FORCE_COLOR`, `TERM`, `COLORTERM` and TTY-ness, and is `0` under every mode but `tty`.
+- **R2** `colorLevel(rt, { json }): 0 | 1 | 2 | 3` mirrors chalk's levels, and **obeys the
+  user's explicit colour instruction in any output mode**. Precedence: `NO_COLOR` (non-empty)
+  is `0` outright; then the `--color` flags read from an optional `rt.argv` (`--color=256`
+  → 2; `--color=16m|full|truecolor|24bit` → 3; `--no-color`/`--color=false|never` → 0;
+  `--color`/`=true|always` enables and lets detection pick, never below 1), which outrank a
+  numeric `FORCE_COLOR`; then `FORCE_COLOR` itself (`0`/`false` off; a bare decimal an
+  *exact* level clamped to 3, never a floor; `true`/empty enables and detects; anything else
+  unset). With no instruction the order is supports-color's own: a pipe is `0` (Azure
+  Pipelines — `TF_BUILD` *and* `AGENT_NAME` — the one exception, because that check sits
+  above the non-TTY one); once detecting, `TERM=dumb` is the floor, a `CI` run is its
+  vendor's level, and otherwise `TERM`/`COLORTERM` decide. `--json` alone is always `0`:
+  structured output carries no escapes. **The output mode decides redraws (U2), never the
+  level.**
 - **R3** Tokens `error warn ok hint muted command flag value heading` are functions
-  `(s: string) => string`, implemented over `util.styleText`, and return `s` unchanged
-  when `colorLevel === 0`. Nothing else in the package touches ANSI.
+  `(s: string) => string`, implemented over `util.styleText`. They are the **identity at
+  level 0**, and paint identically at any level above it whatever the mode — because the
+  level already obeys `NO_COLOR`, `FORCE_COLOR` and the `--color` flags in any mode, and is
+  `0` on a pipe with no instruction. No third behaviour. Nothing else in the package touches
+  ANSI.
 - **R4** `fly(theme)` sets the process theme once; `theme` maps each token to a
   `styleText` format list or a `#rrggbb` (truecolor only, level 3). Defaults are the
   burgee brand: rock and juniper, lifted variants on dark.
@@ -55,6 +69,11 @@ with no issue behind it is a hypothesis and is measured before it locks.
 | R9 | picocolors #97 (`process` is not defined on Cloudflare); chalk #615 (`navigator`), #655 (Vite); log-update #63 (declined: "this package targets Node.js"); ora #146 (declined: `WT_SESSION` "is not an API") — §15 | cited |
 | R10 | picocolors #70 (35 reactions), #50, #59; chalk #632, #633, #641, #628, #627, #620 (declined, every one), #613, #661, #626; ora #239 (declined); listr2 #755, #745; Inquirer D#1270, D#1206 — §13, U10 | cited |
 | R11 | no issue asks for a palette importer; clack #36 wants themes, not a corpus | hypothesis — measure before lock |
+
+Revised 2026-09-08 while grading chalk's suite: FORCE_COLOR and --color are the user's
+explicit colour instruction and apply in any mode; the mode still decides redraws (U2).
+Before: level 0 under every mode but tty, which failed chalk's 11 force-colour cases and
+would have surprised every CI user who sets FORCE_COLOR to get coloured logs.
 
 ## Design
 
