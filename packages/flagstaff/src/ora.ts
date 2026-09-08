@@ -2,7 +2,8 @@
  * `flagstaff/ora` — ora 9's public API, ported method for method and graded by ora's own
  * suite through `compat-oracle` (R6, U11). Its eight dependencies come with it: the
  * spinner corpus is `spinners.json` beside this file, the display width is `width.ts`,
- * the colours are `roundel/chalk`, and cursor control, the log symbols, the stdin
+ * the colours are `roundel/chalk`, the cursor control is `cursor.ts` (shared with
+ * `flagstaff/log-update`, which ports the same chain), and the log symbols, the stdin
  * discarder, the interactivity and unicode probes are the fifty lines below. A migration
  * is one import, and the tree that came with it — nine packages including the transitive
  * ones — is gone (U5, R10).
@@ -18,6 +19,7 @@ import process from 'node:process';
 
 import chalk from 'roundel/chalk';
 
+import { HIDE_CURSOR, restoreCursorOnExit, SHOW_CURSOR } from './cursor.js';
 import spinnerCorpus from './spinners.json' with { type: 'json' };
 import { lineCount } from './width.js';
 
@@ -64,65 +66,6 @@ const logSymbols = {
   warning: chalk.yellow(UNICODE ? '⚠' : '‼'),
   error: chalk.red(UNICODE ? '✖' : '×'),
 };
-
-// ───── cli-cursor ─────
-
-const HIDE_CURSOR = '\u001B[?25l';
-const SHOW_CURSOR = '\u001B[?25h';
-
-/**
- * restore-cursor, without onetime and signal-exit: installed once, the first time a cursor
- * is hidden, and it puts the cursor back however the process dies.
- *
- * `'exit'` alone is not enough, and that is the whole reason this is more than one line:
- * node does not run `'exit'` listeners for a process terminated by a signal with no
- * listener, and Ctrl+C is the commonest way a spinner dies. So the three termination
- * signals get a listener too — which is what `signal-exit` is for in ora's tree.
- *
- * The trap that makes this subtle: installing a signal listener SUPPRESSES node's default
- * termination, so a naive handler turns Ctrl+C into a no-op. The handler therefore
- * restores, removes its own listeners, and **re-raises** the signal so the default action
- * still happens — but only when no other listener remains, because a program that
- * installed its own `SIGINT` handler asked not to be killed and a spinner does not get to
- * overrule it.
- */
-type TerminationSignal = 'SIGHUP' | 'SIGINT' | 'SIGTERM' | 'SIGBREAK';
-const TERMINATION_SIGNALS: TerminationSignal[] =
-  process.platform === 'win32' ? ['SIGHUP', 'SIGINT', 'SIGTERM', 'SIGBREAK'] : ['SIGHUP', 'SIGINT', 'SIGTERM'];
-
-let cursorRestoreInstalled = false;
-function restoreCursorOnExit(): void {
-  if (cursorRestoreInstalled) return;
-  cursorRestoreInstalled = true;
-  const terminal = process.stderr.isTTY ? process.stderr : process.stdout.isTTY ? process.stdout : undefined;
-  if (terminal === undefined) return;
-
-  // onetime, in three lines: the cursor is put back once, whichever path gets there first.
-  let restored = false;
-  const restore = (): void => {
-    if (restored) return;
-    restored = true;
-    terminal.write(SHOW_CURSOR);
-  };
-
-  const installed = new Map<TerminationSignal, () => void>();
-  for (const signal of TERMINATION_SIGNALS) {
-    const handler = (): void => {
-      restore();
-      for (const [name, fn] of installed) process.removeListener(name, fn);
-      installed.clear();
-      if (process.listenerCount(signal) === 0) process.kill(process.pid, signal);
-    };
-    try {
-      process.on(signal, handler);
-      installed.set(signal, handler);
-    } catch {
-      // A signal this platform does not know. Nothing was installed, so nothing to undo.
-    }
-  }
-
-  process.once('exit', restore);
-}
 
 // ───── stdin-discarder ─────
 

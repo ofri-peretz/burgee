@@ -168,10 +168,23 @@ screen, not the bytes.
 `logUpdateStderr`, with the row-level diffing intact: a five-row frame whose last row is a
 counter costs one row of output per tick, not five.
 
-log-update ships 113.4 KB across **sixteen** packages. This is 28.7 KB across **none** —
+log-update ships 113.4 KB across **sixteen** packages. This is 29.6 KB across **none** —
 the subpath reaches no package at all, not even roundel.
 It carries no port of `slice-ansi` — the wrapper already makes every row self-contained,
-so clipping a frame to the terminal's height is an array slice.
+so clipping a frame to the terminal's height is an array slice. `signal-exit`, 22.0 KB of
+those sixteen, is 1.4 KB here: `cursor.ts`, shared with the ora façade because both
+incumbents port the same `cli-cursor` → `restore-cursor` → `signal-exit` chain. Ctrl+C
+mid-frame puts your cursor back, and still terminates — unless your program installed its
+own `SIGINT` handler, in which case it is delivered once, to you, and this stays out of it.
+
+**This is the one façade that lowers a layer guarantee, and it says so.** R5 — no cursor
+escape off a terminal — cannot survive here: log-update's own suite asserts erase sequences
+on a plain non-TTY stream, so a façade that suppressed them would fail the suite that is
+the whole claim. What survives is the half the complaint behind R5 was actually about:
+nothing this writes is ever a `\r`, **and never an absolute cursor-home** — every move is
+a relative row move — on a terminal or off one, so a captured transcript stays parseable.
+`log-update.test.ts` asserts both halves, and `hoist()` is what gives you the whole
+guarantee.
 
 ### Bringing a corpus with you
 
@@ -209,10 +222,10 @@ and the fix.
 Every subpath is a lock, not a convention, and the numbers below are asserted by
 `weight.test.ts` against `dist/`, not estimated: `flagstaff/loop` reaches 4.4 KB on disk and
 never the plugin registry; `flagstaff/plugin` 8.4 KB, of which 2.4 KB is the schema;
-`flagstaff/spinner` 9.4 KB; `flagstaff/ora` 46.3 KB — 55.6 KB with roundel counted, against
-ora's own 113.6 KB; `flagstaff/log-update` 28.7 KB, reaching **no package at all**, against
-log-update's own 113.4 KB across sixteen. Neither façade reaches the other, and neither
-reaches the core. `sideEffects: false` lets a
+`flagstaff/spinner` 9.4 KB; `flagstaff/ora` 46.5 KB — 55.9 KB with roundel counted, against
+ora's own 113.6 KB; `flagstaff/log-update` 29.6 KB, reaching **no package at all**, against
+log-update's own 113.4 KB across sixteen. The two façades share `cursor.js` and, through
+`wrap.js`, `width.js`; neither reaches the other's port, and neither reaches the core. `sideEffects: false` lets a
 bundler drop what a program does not use. ESM with a `default` condition, so
 `require('flagstaff/spinner')` works from CommonJS on Node ≥ 24.
 

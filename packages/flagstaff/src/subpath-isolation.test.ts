@@ -26,13 +26,16 @@ const ALLOWED: Record<string, string[]> = {
   'plugin.js': ['./builtins.js', './schema.json'],
   'spinner.js': ['./plugin.js'],
   'index.js': ['./box.js', './import.js', './loop.js', './plugin.js', './progress.js', './spinner.js', './table.js', './tasks.js'],
-  // The façade stands apart on purpose: it reads the corpus and the width function and
-  // nothing else in the package, so `flagstaff/ora` and `flagstaff` share no code path and
-  // a program on one pays nothing for the other (R6, R10).
-  'ora.js': ['./spinners.json', './width.js'],
-  // The two façades share the width function and nothing else; `wrap.js` is the ANSI-aware
-  // wrapper `box` and `table` will need next, which is why it is its own module.
-  'log-update.js': ['./wrap.js'],
+  // The façade stands apart on purpose: it reads the corpus, the width function and the
+  // cursor control, and nothing else in the package, so `flagstaff/ora` and `flagstaff`
+  // share no code path and a program on one pays nothing for the other (R6, R10).
+  'ora.js': ['./cursor.js', './spinners.json', './width.js'],
+  // The two façades share `cursor.js` — one implementation of putting the cursor back
+  // however the process dies, because both incumbents port the same `cli-cursor` →
+  // `restore-cursor` → `signal-exit` chain — and, through `wrap.js`, `width.js`. Nothing
+  // else. `wrap.js` is the ANSI-aware wrapper `box` and `table` share, which is why it is
+  // its own module rather than a section of this façade.
+  'log-update.js': ['./cursor.js', './wrap.js'],
   // The built-ins: `progress` is self-contained, `tasks` reads the registry for its glyphs
   // and its spinner style, and `box` and `table` are string functions over the same two
   // modules — never over each other.

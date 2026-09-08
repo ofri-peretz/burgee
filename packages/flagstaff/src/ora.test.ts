@@ -154,6 +154,8 @@ interface SignalOutcome {
   show: number;
   killedBy: string | null;
   status: number | null;
+  /** How many times the child's *own* SIGINT handler ran. Meaningful only when one was installed. */
+  ownHandlerRuns: number;
 }
 
 function spinThenSignal(signal: string, ownHandler = false): SignalOutcome {
@@ -169,8 +171,12 @@ function spinThenSignal(signal: string, ownHandler = false): SignalOutcome {
       'process.stderr.clearLine = () => true;',
       'process.stderr.moveCursor = () => true;',
       // A program that took SIGINT over itself must survive: a spinner does not get to
-      // terminate a process whose author asked to handle the signal.
-      ownHandler ? "process.on('SIGINT', () => { setTimeout(() => process.exit(7), 300); });" : '',
+      // terminate a process whose author asked to handle the signal. It writes a marker on
+      // every entry, because the failure this grades is the handler running **twice** —
+      // see the note on the case below.
+      ownHandler
+        ? "let n = 0; process.on('SIGINT', () => { process.stderr.write('OWN-HANDLER-RAN'); if (++n === 1) setTimeout(() => process.exit(7), 300); });"
+        : '',
       `const { default: ora } = await import(${JSON.stringify(distOra)});`,
       "ora({ isEnabled: true, hideCursor: true, discardStdin: false, text: 'probe' }).start();",
       `setTimeout(() => process.kill(process.pid, '${signal}'), 80);`,
@@ -196,7 +202,7 @@ function spinThenSignal(signal: string, ownHandler = false): SignalOutcome {
 
   const written = readFileSync(log, 'utf8');
   const count = (needle: string): number => written.split(needle).length - 1;
-  return { hide: count(HIDE_CURSOR), show: count(SHOW_CURSOR), killedBy, status };
+  return { hide: count(HIDE_CURSOR), show: count(SHOW_CURSOR), killedBy, status, ownHandlerRuns: count('OWN-HANDLER-RAN') };
 }
 
 describe.skipIf(process.platform === 'win32')('a cursor hidden mid-spin comes back when the process is signalled', () => {
@@ -213,10 +219,21 @@ describe.skipIf(process.platform === 'win32')('a cursor hidden mid-spin comes ba
     30_000,
   );
 
+  /**
+   * `cursor.ts` re-raises **only** when `process.listenerCount(signal) === 0`. Delete that
+   * guard from the built `dist/cursor.js` and this case, as it was first written, still
+   * passed: the child is not killed and still exits 7, because the unconditional re-raise
+   * is caught by the child's *own* handler rather than by node's default action. What
+   * actually changes is that the program's handler is entered **twice for one Ctrl+C**.
+   *
+   * So `ownHandlerRuns` is the assertion that grades the guard, and the other three do not.
+   * It is 1 here and 2 on the unfixed state.
+   */
   it(
-    'does not terminate a program that installed its own SIGINT handler',
+    'does not terminate a program that installed its own SIGINT handler, and delivers it once',
     () => {
       const observed = spinThenSignal('SIGINT', true);
+      expect(observed.ownHandlerRuns).toBe(1);
       expect(observed.show).toBe(1);
       expect(observed.killedBy).toBeNull();
       expect(observed.status).toBe(7);
