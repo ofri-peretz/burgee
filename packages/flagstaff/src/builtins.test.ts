@@ -84,14 +84,35 @@ describe('tasks', () => {
     expect(tasks().frame?.(0, { tasks: [{ title: 'x', status: 'ok', detail: 'hidden' }] })).not.toContain('hidden');
   });
 
-  it('hoisted on a pipe, each settling prints one line and repeats print nothing', () => {
+  it('hoisted on a pipe, each settling prints one line and nothing is printed twice', () => {
     const w = piped();
     const flag = hoist(tasks(), w.rt, { tasks: [{ title: 'a' }, { title: 'b' }] });
     flag.update({ tasks: [{ title: 'a', status: 'running' }, { title: 'b' }] });
     flag.update({ tasks: [{ title: 'a', status: 'ok' }, { title: 'b', status: 'running' }] });
     flag.lower({ tasks: [{ title: 'a', status: 'ok' }, { title: 'b', status: 'ok' }] });
-    expect(w.text()).toBe('\n✔ a\n✔ a\n✔ b\n');
+    expect(w.text()).toBe('✔ a\n✔ b\n');
     expect(w.text()).not.toMatch(ESCAPE);
+  });
+
+  it('a growing list never repeats a line, however many times it changes', () => {
+    const w = piped();
+    const titles = ['a', 'b', 'c', 'd'];
+    const at = (settled: number) => ({ tasks: titles.map((title, i) => ({ title, ...(i < settled ? { status: 'ok' as const } : {}) })) });
+    const flag = hoist(tasks(), w.rt, at(0));
+    for (let settled = 1; settled <= titles.length; settled += 1) flag.update(at(settled));
+    flag.lower(at(titles.length));
+    const lines = w.text().trimEnd().split('\n');
+    expect(lines).toEqual(['✔ a', '✔ b', '✔ c', '✔ d']);
+    expect(new Set(lines).size, 'a line was printed twice').toBe(lines.length);
+  });
+
+  it('a component with nothing to say yet costs no blank line', () => {
+    const w = piped();
+    const flag = hoist(tasks(), w.rt, { tasks: [{ title: 'a' }] });
+    flag.update({ tasks: [{ title: 'a', status: 'running' }] });
+    expect(w.text()).toBe('');
+    flag.lower({ tasks: [{ title: 'a', status: 'ok' }] });
+    expect(w.text()).toBe('✔ a\n');
   });
 });
 
