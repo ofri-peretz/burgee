@@ -454,8 +454,17 @@ export default [
     // structural rules that would reshape it are off here. The oracle is the check.
     // `burgee/yargs` is yargs 18 (with yargs-parser 22, cliui 9 and y18n 5) ported the same
     // way and graded by yargs' own 804 tests; the same rules are off for the same reason.
-    // roundel/chalk is chalk 6 ported the same way and graded by chalk's own suite.
-    files: ['packages/burgee/src/commander-*.ts', 'packages/burgee/src/commander.ts', 'packages/burgee/src/yargs-*.ts', 'packages/burgee/src/yargs.ts', 'packages/roundel/src/chalk.ts'],
+    // roundel/chalk is chalk 6 ported the same way and graded by chalk's own suite, and
+    // flagstaff/ora is ora 9 — its eight dependencies folded in with it — graded by ora's
+    // own 99 tests.
+    files: [
+      'packages/burgee/src/commander-*.ts',
+      'packages/burgee/src/commander.ts',
+      'packages/burgee/src/yargs-*.ts',
+      'packages/burgee/src/yargs.ts',
+      'packages/roundel/src/chalk.ts',
+      'packages/flagstaff/src/ora.ts',
+    ],
     rules: {
       'maintainability/consistent-function-scoping': 'off',
       'maintainability/cognitive-complexity': 'off',
@@ -501,7 +510,7 @@ export default [
   {
     // `import yargs from 'burgee/yargs'` is the drop-in: yargs' entry is a default export
     // and every program written for it imports it that way.
-    files: ['packages/burgee/src/yargs.ts', 'packages/burgee/src/yargs-parser.ts', 'packages/roundel/src/chalk.ts', 'packages/compat-oracle/src/shims/ava.ts'],
+    files: ['packages/burgee/src/yargs.ts', 'packages/burgee/src/yargs-parser.ts', 'packages/roundel/src/chalk.ts', 'packages/flagstaff/src/ora.ts', 'packages/compat-oracle/src/shims/ava.ts'],
     rules: { 'import-next/no-default-export': 'off' },
   },
   {

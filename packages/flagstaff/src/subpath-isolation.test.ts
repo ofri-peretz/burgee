@@ -26,6 +26,10 @@ const ALLOWED: Record<string, string[]> = {
   'plugin.js': ['./builtins.js', './schema.json'],
   'spinner.js': ['./plugin.js'],
   'index.js': ['./loop.js', './plugin.js', './spinner.js'],
+  // The façade stands apart on purpose: it reads the corpus and the width function and
+  // nothing else in the package, so `flagstaff/ora` and `flagstaff` share no code path and
+  // a program on one pays nothing for the other (R6, R10).
+  'ora.js': ['./spinners.json', './width.js'],
 };
 
 const RELATIVE = /(?:from|import)\s*'(\.[^']+)'/g;

@@ -6,9 +6,9 @@
  * tests, and a scheduled job re-runs this to make the treadmill visible.
  */
 import { execFileSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, relative, resolve, sep } from 'node:path';
+import { join, matchesGlob, relative, resolve, sep } from 'node:path';
 
 import { type Host } from './hosts.js';
 import { type CompatRecord, diffRecords, latestVersion, readRecord, type RecordDiff, snapshot } from './upstream.js';
@@ -94,6 +94,14 @@ function rewriteTree(dir: string, host: Host, hostDir: string): void {
   }
 }
 
+/** A sibling module a test imports by relative path — commander's `./testHelpers.js`. */
+const SIBLING = /(?:from|require\()\s*['"]\.\/([^'"/]+)['"]/g;
+
+/** Every same-directory module a source imports: vendored beside the tests, never run. */
+export function siblingImports(source: string): string[] {
+  return [...source.matchAll(SIBLING)].map((m) => m[1] ?? '').filter((p) => p !== '');
+}
+
 const INTERNAL = /(?:from|require\()\s*['"]\.\.\/((?:build\/)?lib\/[^'"]+)['"]/g;
 
 /** Every internal module path a source imports, relative to the host's root. */
@@ -139,6 +147,68 @@ export function rootPackage(host: Host, upstream: UpstreamPackage): Record<strin
   return pkg;
 }
 
+/** Where a vendor run reads from and writes to: the clone's test dir, and ours. */
+interface Paths {
+  from: string;
+  dest: string;
+  hostDir: string;
+}
+
+interface Copied {
+  files: number;
+  internalFiles: string[];
+  internals: Set<string>;
+}
+
+/**
+ * Copy the test dir: every fixture directory whole, every file the host's glob calls a
+ * test with its specifiers rewritten, and then whatever those tests import from beside
+ * themselves.
+ */
+function copyTests(host: Host, { from, dest, hostDir }: Paths): Copied {
+  const internalFiles: string[] = [];
+  const internals = new Set<string>();
+  const siblings = new Set<string>();
+  let files = 0;
+
+  for (const entry of readdirSync(from, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      // A host whose testDir is the repo root (ora) would otherwise vendor `.git`.
+      if (entry.name.startsWith('.')) continue;
+      cpSync(join(from, entry.name), join(dest, entry.name), { recursive: true, verbatimSymlinks: true });
+      rewriteTree(join(dest, entry.name), host, hostDir);
+      continue;
+    }
+    // The host's own glob, so a repo-root suite does not vendor the implementation beside it.
+    if (!matchesGlob(entry.name, host.testGlob)) continue;
+    const source = readFileSync(join(from, entry.name), 'utf8');
+    if (classify(source, host) === 'internal') internalFiles.push(entry.name);
+    for (const p of internalImports(source)) internals.add(p);
+    const rewritten = rewriteAt(source, host, dest, hostDir);
+    // Read off the *rewritten* source: a specifier the rewrite already pointed at a
+    // generated shim (ora's `./index.js`) is the host itself, not a sibling helper.
+    for (const p of siblingImports(rewritten)) siblings.add(p);
+    writeFileSync(join(dest, entry.name), rewritten);
+    files += 1;
+  }
+
+  copySiblings(siblings, host, { from, dest, hostDir });
+  return { files, internalFiles, internals };
+}
+
+/**
+ * Whatever the tests import from beside themselves (commander's `testHelpers.js`).
+ * Vendored so the suite loads, and outside the `files` count because the runner's glob
+ * will never pick it up: it is a helper, not a test.
+ */
+function copySiblings(siblings: Set<string>, host: Host, { from, dest, hostDir }: Paths): void {
+  for (const name of siblings) {
+    const at = join(from, name);
+    if (matchesGlob(name, host.testGlob) || !existsSync(at)) continue;
+    writeFileSync(join(dest, name), rewriteAt(readFileSync(at, 'utf8'), host, dest, hostDir));
+  }
+}
+
 /** Vendor the host's suite at its latest npm release (or the given version). */
 export function vendor(host: Host, into: string, version = latestVersion(host.name)): VendorResult {
   const clone = mkdtempSync(join(tmpdir(), `vendor-${host.name}-`));
@@ -164,23 +234,7 @@ export function vendor(host: Host, into: string, version = latestVersion(host.na
     const upstream = JSON.parse(readFileSync(join(clone, 'package.json'), 'utf8')) as UpstreamPackage;
     writeFileSync(join(into, host.name, 'package.json'), `${JSON.stringify(rootPackage(host, upstream), null, 2)}\n`);
 
-    const internalFiles: string[] = [];
-    const internals = new Set<string>();
-    let files = 0;
-
-    for (const entry of readdirSync(from, { withFileTypes: true })) {
-      if (entry.isDirectory()) {
-        cpSync(join(from, entry.name), join(dest, entry.name), { recursive: true, verbatimSymlinks: true });
-        rewriteTree(join(dest, entry.name), host, join(into, host.name));
-        continue;
-      }
-      if (!/\.(m?js|cjs|ts)$/.test(entry.name)) continue;
-      const source = readFileSync(join(from, entry.name), 'utf8');
-      if (classify(source, host) === 'internal') internalFiles.push(entry.name);
-      for (const p of internalImports(source)) internals.add(p);
-      writeFileSync(join(dest, entry.name), rewriteAt(source, host, dest, join(into, host.name)));
-      files += 1;
-    }
+    const { files, internalFiles, internals } = copyTests(host, { from, dest, hostDir: join(into, host.name) });
 
     const record = snapshot(clone, host, {
       version,

@@ -33,7 +33,10 @@ Intent: [`intent.md`](./intent.md). **Status:** approved.
 - **R11** `flagstaff/import`: `fromCliSpinners(json)` and `fromCliBoxes(json)` turn the two
   existing data corpora (≈80 spinners, the border-style set) into registered plugins with a
   derived `static` (the first frame, or the label). The gallery opens full; a third-party
-  plugin starts as a copy of one. No corpus is bundled — weight (U5) — the user supplies it.
+  plugin starts as a copy of one. No corpus is bundled *into the core* — weight (U5) — the
+  user supplies it. The one exception is `flagstaff/ora`, which re-exports cli-spinners'
+  corpus because ora's `spinners` export is part of the API being graded; it is 20.3 KB
+  behind that subpath and the isolation lock keeps every other entry away from it.
 - **R10** Subpath isolation and weight rules per entry; ceilings: `./spinner` ≤ ora,
   `./box` ≤ boxen, `./table` ≤ cli-table3, `./log-update` ≤ log-update — recorded when
   vendored. Depends on `roundel` only.
@@ -113,10 +116,47 @@ weight (`./loop` 5,000 · `./plugin` 10,000 · `./spinner` 11,000 · `.` 16,000 
 two packed tarballs. The schema validator is sixty lines over the subset the schema uses,
 because a JSON Schema library is a dependency the package will not carry.
 
-Not yet: `progress`, `tasks`, `box`, `table` (and so `width.ts`); the façades (R6); the
-importers (R11); the U9 eval; the docs gallery. `tokens` are kept in the registry for
-whoever flies the theme — `register()` does not call roundel's `fly()`, because that needs
-a runtime and would pull the theme into every plugin import.
+Not yet: `progress`, `tasks`, `box`, `table`; the other three façades (R6); the importers
+(R11); the U9 eval; the docs gallery. `tokens` are kept in the registry for whoever flies
+the theme — `register()` does not call roundel's `fly()`, because that needs a runtime and
+would pull the theme into every plugin import.
+
+## What shipped (R6, ora — 2026-09-08)
+
+`flagstaff/ora`: ora 9.4.1 ported method for method, **99 / 99 on ora's own suite**, and its
+eight dependencies folded in with it — the spinner corpus as `src/spinners.json` (cli-spinners
+3.2.0, unedited, attributed in `THIRD-PARTY.md`), the display width as `src/width.ts` (R7:
+`Intl.Segmenter`, an RGI-emoji rule and a 122-range East Asian Width table, graded case by
+case against `string-width` 8 in `width.test.ts`), the colours through `roundel/chalk`, and
+cursor control, the log symbols, the stdin discarder and the two environment probes written
+out in fifty lines.
+
+**The façade does not sit on `hoist()`, and that is the design.** ora's model is the inverse
+of this package's: the animation is primary and non-TTY is a fallback. A façade that
+reinterpreted its host would fail the host's own suite, and the suite is the only claim
+being made. `subpath-isolation.test.ts` locks the separation in both directions — `ora.js`
+reaches `spinners.json` and `width.js` and nothing else, and no core entry reaches any of
+them. So a program migrates its spinner in one import, pays no frame loop for it, and
+adopts `hoist()` later or never.
+
+The weight: 45,549 B for the subpath, 63,627 B with `roundel/chalk` counted, against ora's
+own 112,688 B across seventeen packages — 56%, in two packages instead of seventeen. R10's
+ceiling is met and recorded in `weight.test.ts` with the measurement beside it.
+
+`process` is read here, and the process-reference lock lists the file with the reason:
+`process.stderr` is ora's default stream, stdout and stderr are what it hooks so a
+`console.log` lands above the frame, stdin is what the discarder puts in raw mode, and its
+suite swaps all four per test. Every other file in the package takes its world as an
+argument.
+
+Two things in the oracle moved to make this possible, and both are improvements on their
+own: a host's `testGlob` is now applied by the vendor step and the runner (ora's suite lives
+at the repo root beside `index.js`, so "every `.js` in the test dir" would have vendored the
+implementation and run it), and a host may declare the `env` its own `npm test` sets — ora
+defines its `_`-prefixed test hooks only under `NODE_ENV=test`. Applying the glob also
+removed one file from commander's count: `testHelpers.js` is a helper with no tests, and
+node's runner had been counting the file itself as a passing test. commander's honest
+number is 1360 / 1360, and the baseline says so.
 
 ## Rejected alternatives
 

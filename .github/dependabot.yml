@@ -18,9 +18,9 @@ updates:
     # compat-oracle runs commander's and yargs' *own* test suites, vendored at a pinned
     # release, against their own devDependencies at that release (yargs' integration tests
     # use which@2's callback API; a bump to which@7 timed them out — #5; chalk is pinned to
-    # the chalk host's own release, 6.0.0, which is the control for roundel/chalk). The hosts and
-    # their suite dependencies move only through the re-vendor flow (compat-refresh.yml),
-    # never through a version bump here.
+    # the chalk host's own release, 6.0.0, and ora to 9.4.1, each the control for our façade
+    # of it). The hosts and their suite dependencies move only through the re-vendor flow
+    # (compat-refresh.yml), never through a version bump here.
     ignore:
       # `typescript-eslint` declares `typescript: ">=4.8.4 <6.1.0"` — no release of that
       # line supports TypeScript 7, so a grouped bump to 7.x fails ERESOLVE on every job
@@ -35,6 +35,8 @@ updates:
       - dependency-name: "mocha"
       - dependency-name: "chai"
       - dependency-name: "chalk"
+      - dependency-name: "ora"
+      - dependency-name: "get-stream"
       - dependency-name: "cross-spawn"
       - dependency-name: "cpr"
       - dependency-name: "hashish"

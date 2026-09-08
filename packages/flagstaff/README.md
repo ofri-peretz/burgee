@@ -72,6 +72,33 @@ or component without a `static` is refused at `register()` with `E_NO_STATIC_PRO
 and a fix. The built-in `dots` and `line` styles are a plugin of exactly this shape,
 registered through the same door, so the built-ins cannot grow an API a plugin cannot reach.
 
+### The ora path
+
+`flagstaff/ora` is ora 9's whole API, graded **99 / 99 by ora's own test suite** through
+[`compat-oracle`](../compat-oracle/README.md). One import changes:
+
+```diff
+-import ora from 'ora';
++import ora from 'flagstaff/ora';
+```
+
+Everything else stays: `ora({ text, spinner, color, indent, prefixText, suffixText })`,
+`.start() .stop() .succeed() .fail() .warn() .info() .stopAndPersist()`, `oraPromise()`,
+the `spinners` corpus, the stream hooks that keep a `console.log` above the frame, the
+synchronized-output sequences, the render deferral, the stdin discarder.
+
+What changes is the bill. ora ships 112.7 KB of JavaScript across **seventeen packages** —
+ora, chalk, cli-spinners, string-width, log-symbols, cli-cursor, restore-cursor, onetime,
+mimic-function, signal-exit, is-interactive, is-unicode-supported, stdin-discarder,
+yoctocolors, strip-ansi, ansi-regex, get-east-asian-width. `flagstaff/ora` is 63.6 KB
+across **two** — itself and roundel — and 20.3 KB of that is the spinner corpus ora's API
+re-exports. Nothing in it reaches the frame loop, so a program that migrates its spinner
+today can adopt `hoist()` a file at a time, or never.
+
+The static projection is the reason to move on eventually, not the reason to move:
+`hoist()` is what gives a pipe one line per state instead of frames. `flagstaff/ora` is the
+door, and it is deliberately ora's behaviour to the byte.
+
 ### `flagstaff check`
 
 ```bash
@@ -85,18 +112,20 @@ and the fix.
 
 ## Weight
 
-Every subpath is a lock, not a convention: `flagstaff/loop` reaches 4.4 KB on disk and never
-the plugin registry; `flagstaff/plugin` 9.1 KB, of which 3.1 KB is the schema; `flagstaff/spinner`
-10.1 KB (its ceiling is ora, recorded when ora's suite is vendored). `sideEffects: false` lets
-a bundler drop what a program does not use. ESM with a `default` condition, so
+Every subpath is a lock, not a convention, and the numbers below are asserted by
+`weight.test.ts` against `dist/`, not estimated: `flagstaff/loop` reaches 4.4 KB on disk and
+never the plugin registry; `flagstaff/plugin` 8.4 KB, of which 2.4 KB is the schema;
+`flagstaff/spinner` 10.1 KB; `flagstaff/ora` 45.5 KB — 63.6 KB with roundel counted, against
+ora's own 112.7 KB — and it reaches nothing else in the package. `sideEffects: false` lets a
+bundler drop what a program does not use. ESM with a `default` condition, so
 `require('flagstaff/spinner')` works from CommonJS on Node ≥ 24.
 
 ## What is next
 
 - **`progress`, `tasks`, `box`, `table`** — the remaining built-ins, each a component in the
   same shape.
-- **Drop-in paths** for ora, log-update, boxen and cli-table3, graded by their own suites
-  through `compat-oracle`, so "ora-compatible" is a scoreboard row.
+- **Drop-in paths** for log-update, boxen and cli-table3, graded by their own suites through
+  `compat-oracle` the way ora already is.
 - **`flagstaff/import`** — `fromCliSpinners(json)` and `fromCliBoxes(json)`: the two existing
   corpora as registered plugins.
 

@@ -42,12 +42,20 @@ const RULES: Record<string, EntryRule> = {
   // component pays nothing for the plugin host. Measured 4,141 B.
   './loop': { allow: ['roundel/policy'], budget: 5_000, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
   // The registry, the validator, the built-ins and the schema they are checked against.
-  // Measured 9,087 B, of which the schema is 3,059: the contract ships in the tarball (R3).
+  // Measured 8,434 B, of which the schema is 2,406: the contract ships in the tarball (R3).
   './plugin': { allow: [], budget: 10_000, denied: ['loop.js', 'projection.js', 'spinner.js', 'cli.js', 'index.js'] },
   // The ceiling is ora (R10): recorded when ora's suite is vendored. Until then, the spinner
   // plus the registry it reads its style from. Measured 10,015 B; ora 9's own index.js is
   // 9,656 B before its eleven dependencies.
   './spinner': { allow: ['roundel/tokens'], budget: 11_000, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
+  // The ora façade: the port, the width function and the spinner corpus it re-exports.
+  // Measured 45,549 B on 2026-09-08, of which the corpus is 20,250 — and the ceiling it is
+  // measured against is ora's own shipped JavaScript, 112,688 B across seventeen packages
+  // (ora 17,891 · chalk 21,417 · cli-spinners 27,841 · signal-exit 21,983 · the rest).
+  // With `roundel/chalk`'s 18,078 counted it is 63,627 B in two packages, 56% of ora's.
+  // It reaches nothing in the core: an ora migration does not drag the frame loop in, and
+  // a program that hoists does not pay for the corpus.
+  './ora': { allow: ['roundel/chalk'], budget: 50_000, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
 };
 
 const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;
