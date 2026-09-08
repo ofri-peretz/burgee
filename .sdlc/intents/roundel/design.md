@@ -2,6 +2,22 @@
 
 Intent: [`intent.md`](./intent.md). **Status:** approved.
 
+**R2/R3 revision accepted by the owner (Ofri) on 2026-09-08**, at the Design→Build gate.
+The revision: the output mode decides redraws, while the colour *level* obeys the user's
+explicit instruction — `NO_COLOR`, `FORCE_COLOR`, the `--color` flags, and supports-color's
+CI vendor table — in any mode; a pipe with no instruction stays 0, and accessible mode
+defaults to 0 with an explicit `FORCE_COLOR` still able to override it.
+
+It was raised because the original rule, in which the mode alone settled the level, scored
+47 of 58 on chalk's own suite with all eleven failures being force-colour cases — and would
+have surprised every CI user who sets `FORCE_COLOR` to get colour in their logs. The
+accepted cost is that `CLI_ACCESSIBLE=1` together with an explicit `FORCE_COLOR=3` does
+emit colour; the alternative considered and not taken was to make accessible absolute,
+on the same footing as `NO_COLOR`.
+
+Recorded here rather than in a chat log because the revision was drafted in-session by the
+same agent line that wrote the code, which rule 3 does not let stand as its own approval.
+
 ---
 
 ## Requirements
