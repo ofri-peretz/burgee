@@ -51,9 +51,12 @@ jobs:
         id: changesets
         uses: changesets/action@8488615a623b1b9c987934bb89eae8af6a946ac1 # v1
         with:
-          version: npm run changeset:version
-          title: "chore(release): version packages"
-          commit: "chore(release): version packages"
+          # Renamed by the action in v1.5.4; the old names are a hard error, not a
+          # warning, so every push to main since has failed and the Version PR has
+          # been frozen at whatever main looked like when it last succeeded.
+          version-script: npm run changeset:version
+          pr-title: "chore(release): version packages"
+          commit-message: "chore(release): version packages"
         env:
           # A PR opened with GITHUB_TOKEN raises no workflow runs — GitHub's
           # loop-prevention rule — so the Version PR would sit at 0 checks
