@@ -320,30 +320,37 @@ decision it forces.
 | Maintenance is a promise, not a number | no published band for it | two bands, published like the pass rate: **time from an upstream release to its suite re-vendored** (target ≤ 7 days, the watch and the weekly PR already produce it) and **time from an accepted issue to its closed conformance case** (target ≤ 14 days). Both ratchet; breaching either writes an intent |
 | An incumbent ships the same thing | commander gains a manifest, or clack a non-TTY error path | the compat row still holds, the edge row above is re-written honestly, and the family's edge (zero deps, one contract) is what remains — which is why the family row leads |
 
-### Native — when Rust or Go earns its place, per layer
+### Native — the fastest language wins, as long as the user never notices
 
-Any friction we can remove is a win, and a faster language is one way to remove it — but
-only when a measurement says the JavaScript is the friction, and never when the port adds a
-friction of its own. Decision rule, from `lineage.md` (oxlint, tsgo) and wave 5:
+Decided 2026-09-08 (owner): **whatever makes a layer faster is promoted, in any language,
+provided a Node user on CJS or ESM works exactly as before.** JavaScript has no seat
+reserved. The rule is about the user's experience, and the ecosystem has already set the
+bar for "smooth":
 
-1. **Measure first.** Today's numbers: bare Node 30 ms, `util.parseArgs` +2, burgee +5,
-   commander +16, yargs +84. The parser is at the floor of its runtime; a native parser would
-   save at most 5 ms and the remaining 30 belong to Node, not to us. Nothing in the stack's
-   layers is compute-bound; width, table and colour maths are microseconds.
-2. **A port is graded by the same suite** — the vendored incumbent tests, the conformance
-   cases, the caller matrix — and by the same B2/B4 rows. Faster and less compatible is a
-   regression.
-3. **A port may not add install friction.** A platform binary in `npm i` (prebuilds per
-   OS/arch, a postinstall, a fallback build) is the oclif complaint in a new form and breaks
-   Z1's one-file promise. If native ships, it ships as WASM inside the package or not at all.
-4. **Where it does pay, and is planned:** the lint rule as an oxlint plugin (wave 5); the
-   compat oracle and the benchmark harness, which are private and can be any language; and
-   **single-binary distribution of a user's CLI** — `burgee build --binary` via Node's
-   single-executable application or an equivalent — which removes the biggest end-user
-   friction of all (having Node installed) without changing the language anyone writes in.
+1. **Ship it the way oxc, rolldown, swc, biome and esbuild ship.** Rust through napi-rs
+   (or Go, as esbuild does) with one prebuilt package per platform published from this repo
+   as `optionalDependencies` — same-repo, so U6 holds — no postinstall compile, a WASM
+   fallback for platforms without a prebuild, and the same `import`/`require` the user
+   already writes. Those five tools prove users accept this without noticing the language.
+2. **Measure first, and measure the user's number.** A port is justified by a B2 or B4 row
+   moving for a user, not by a benchmark of the function alone. Today: bare Node 30 ms,
+   `util.parseArgs` +2, burgee +5, commander +16, yargs +84. The parser is at its runtime's
+   floor; the render and colour layers are microseconds. The measured candidates are the
+   manifest for very large CLIs (Z5), the help renderer at hundreds of commands, the lint
+   rule (oxlint), the private oracle and bench harness, and width/table maths at scale.
+3. **Graded by the same suites.** The vendored incumbent tests, the conformance cases, the
+   caller matrix and the B rows run against the native build exactly as against the JS one.
+   Faster and less compatible is a regression, and CI says so.
+4. **In-process for libraries, a binary for tools.** A colour function or a parser must be
+   in-process (napi-rs), never a spawned child; a bundler-shaped tool may be a binary. The
+   choice between Rust and Go follows from this, not from preference.
+5. **The largest speed win is language-independent and comes first:** single-binary
+   distribution of a *user's* CLI — `burgee build --binary` via Node's single-executable
+   application or an equivalent — removes the 30 ms and the Node install for their users.
 
-The honest reading: the next friction to remove is not a millisecond, it is a hang, a
-dependency, a build step, or a Node install. Those are on the roadmap already.
+Wave 5 becomes the first port, chosen by the measurement in (2), shipped per (1), graded
+per (3). The recorded alternative, "no port", requires the numbers to say JavaScript is not
+the friction — which today they do, and which a 250-command CLI may change.
 
 ### Wave 1 — what landed, what is left
 
