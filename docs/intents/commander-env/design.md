@@ -45,6 +45,21 @@ makes `--explain` trustworthy and the yargs side trivial.
 YAML support is a peer dependency (`yaml`), loaded lazily only if a `.yaml` config is
 discovered, keeping the core zero-dep.
 
+## Status (2026-09-08)
+
+| Req | State | Where |
+| :-- | :-- | :-- |
+| R1 (V1) | `resolve(specs, layers)` in core, pure: flag > env > config > package.json field > default; env only for the running command's declared options | `packages/burgee/src/precedence.ts`, `precedence.test.ts` |
+| R2 (V2) | `envPrefix` on `defineProgram`; `PREFIX_OPTION_NAME` in SCREAMING_SNAKE from the camelCase key, never camel-cased back; an option's own `env:` wins | "names come from the prefix" |
+| R3 (V3) | `--explain <option>` (reserved) prints the winner and every candidate it beat; `meta.provenance` under `--json` on every run; the commander front-end fills it from commander's own value sources | `env.test.ts`, `commander-command.ts` |
+| R4 (V4) | `--version` (reserved): the declared version, else the `package.json` nearest the entry file (`RunOptions.entry`, `process.argv[1]` by default) | `pkg.ts`, "--version reads the package.json that owns the entry file" |
+| R5 (V6) | `config: true \| { name }` opts in; `--config <path>` > `NAME_CONFIG` > `./name.config.{json,mjs,js,cjs}` > `package.json#name` > `$XDG_CONFIG_HOME/name/config.json`; `--no-config` disables all of it; explicit missing → CONFIG (3), discovered missing → silent; loaded lazily (K6) | `config.ts`, `config.test.ts` |
+| R6 (V7) | `extends: string \| string[]`, relative to the extending file or through node_modules, deep-merged left to right, cycles rejected, the chain shown by `--explain` | "extends (V7)" |
+| R7 | env booleans accept `1/0/true/false/yes/no`; anything else is CONFIG (3) with the fix; `PREFIX_NO_X` is rejected naming `PREFIX_X=false` (yargs #2501) | "booleans from env" |
+| YAML | not supported — a parser is a dependency (K1); JSON and JavaScript configs cover the cases | — |
+| async loaders | JavaScript configs may export a function, awaited (yargs #2234) | "loads a JavaScript config" |
+| commander front-end config/`--explain` | not yet — provenance only; `withEnv` for commander syntax is the next slice | — |
+
 ## Verification
 
 - Pure `resolve` unit suite: one test per precedence pair, one per issue number.

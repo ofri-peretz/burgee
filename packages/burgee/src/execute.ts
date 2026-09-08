@@ -5,12 +5,15 @@
  *
  * Kept out of the barrel so a façade can import it without loading the entry.
  */
+import { dirname } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import { ExitCode, isExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
 import { renderHelp } from './help.js';
 import { type ArgumentSpec, type CommandNode, type Effects, type Example, Manifest, type OptionSpec, type RunContext } from './manifest.js';
 import { serveMcp } from './mcp.js';
+import { nearestPackage, type Package } from './pkg.js';
+import { ConfigError, explain, type Layers, type Provenance, resolve as resolveLayers } from './precedence.js';
 import { schemaOf } from './schema.js';
 
 export interface CommandContext<O> extends Omit<RunContext, 'options'> {
@@ -56,11 +59,18 @@ export interface Program {
   name: string;
   version?: string;
   description?: string;
+  /** Options read `PREFIX_OPTION_NAME` from the environment unless they name their own variable (V2). */
+  envPrefix?: string;
+  /**
+   * Opt into config discovery (V6): `--config <path>` > `NAME_CONFIG` > `./name.config.{json,mjs,js,cjs}`
+   * > `package.json#name` > the user config directory; `true` uses the program's name.
+   */
+  config?: boolean | { name: string };
   commands: Command[];
 }
 
 /** Reserved names a command may not redefine (V5): the surfaces every program serves. */
-const RESERVED = new Set(['json', 'help', 'schema', 'mcp']);
+const RESERVED = new Set(['json', 'help', 'schema', 'mcp', 'version', 'explain']);
 
 export function defineCommand<O = Record<string, string | boolean | undefined>>(command: Command<O>): Command<O> {
   for (const name of Object.keys(command.options ?? {})) {
@@ -87,6 +97,9 @@ export function defineProgram(program: Program): Manifest {
   const manifest = new Manifest();
   manifest.rootPath = [program.name];
   if (program.version !== undefined) manifest.version = program.version;
+  if (program.envPrefix !== undefined) manifest.envPrefix = program.envPrefix;
+  if (program.config === true) manifest.config = { name: program.name };
+  else if (typeof program.config === 'object' && program.config !== null) manifest.config = program.config;
   manifest.add({ path: [program.name], ...(program.description === undefined ? {} : { description: program.description }), options: {} });
   addTree(manifest, [program.name], program.commands);
   return manifest;
@@ -103,6 +116,10 @@ export interface RunOptions {
   stderr?: { write: (s: string) => unknown };
   /** Receives the E1 code. The default calls process.exit; an injected one may simply record it. */
   exit?: (code: number) => void;
+  /** Where config discovery starts; the process's own otherwise. */
+  cwd?: string;
+  /** The entry file, whose nearest package.json owns the program's version (V4); `process.argv[1]` otherwise. */
+  entry?: string;
 }
 
 /** `ctx.exit(code)` unwinds through this when the injected exit returns instead of leaving. */
@@ -151,29 +168,64 @@ function render(value: unknown): string {
 type ParseConfig = Record<string, { type: 'string' | 'boolean'; short?: string }>;
 type Values = Record<string, string | boolean | undefined>;
 
-/** `--json` and `--help` are always available and always reserved (V5). */
-function toParseConfig(specs: Record<string, OptionSpec>): ParseConfig {
-  const config: ParseConfig = { json: { type: 'boolean' }, help: { type: 'boolean' } };
+/** The reserved surfaces are always parsed (V5); `--config` and `--no-config` only for a program that opted in. */
+function toParseConfig(specs: Record<string, OptionSpec>, withConfig: boolean): ParseConfig {
+  const config: ParseConfig = { json: { type: 'boolean' }, help: { type: 'boolean' }, version: { type: 'boolean' }, explain: { type: 'string' } };
+  if (withConfig) {
+    config['config'] = { type: 'string' };
+    config['no-config'] = { type: 'boolean' };
+  }
   for (const [name, spec] of Object.entries(specs)) {
     config[name] = { type: spec.type, ...(spec.short === undefined ? {} : { short: spec.short }) };
   }
   return config;
 }
 
-const FALSY_ENV = new Set(['', '0', 'false']);
+interface Resolved2 {
+  values: Values;
+  provenance: Record<string, Provenance>;
+  explainText?: string;
+}
 
-/** Precedence flag > env > default (V1), then fail on anything still missing and required. */
-function applyDefaults(values: Values, specs: Record<string, OptionSpec>, env: Record<string, string | undefined>): void {
+/** The owning package.json's field named after the program, as a layer below config. */
+function packageLayer(pkg: Package | undefined, name: string | undefined): Layers['pkg'] {
+  if (pkg === undefined || name === undefined) return undefined;
+  const field = pkg.data[name];
+  return typeof field === 'object' && field !== null && !Array.isArray(field) ? { path: pkg.path, data: field as Record<string, unknown> } : undefined;
+}
+
+/**
+ * Precedence flag > env > config > package.json > default (V1), then fail on anything still
+ * missing and required. Config is loaded here, lazily, only for a program that opted in.
+ */
+/** The config file and the package.json field, for a program that opted in; loaded lazily (K6). */
+async function configLayers(name: string, values: Values, io: Io): Promise<Pick<Layers, 'config' | 'pkg'>> {
+  const { discover } = await import('./config.js');
+  const explicit = values['config'];
+  const disabled = values['no-config'] === true;
+  const loaded = await discover({ name, cwd: io.cwd, env: io.env, ...(typeof explicit === 'string' ? { explicit } : {}), disabled });
+  const out: Pick<Layers, 'config' | 'pkg'> = {};
+  if (loaded !== undefined) out.config = { path: loaded.chain.join(' ← '), data: loaded.data };
+  // --no-config turns off every discovered source, the package.json field included.
+  const pkg = disabled ? undefined : packageLayer(io.pkg, name);
+  if (pkg !== undefined) out.pkg = pkg;
+  return out;
+}
+
+async function resolveValues(manifest: Manifest, specs: Record<string, OptionSpec>, values: Values, io: Io): Promise<Resolved2> {
+  const layers: Layers = { flags: values, env: io.env };
+  if (manifest.envPrefix !== undefined) layers.envPrefix = manifest.envPrefix;
+  if (manifest.config !== undefined) Object.assign(layers, await configLayers(manifest.config.name, values, io));
+  const resolution = resolveLayers(specs, layers);
+  const out: Resolved2 = { values: resolution.values as Values, provenance: resolution.provenance };
+  const asked = values['explain'];
+  if (typeof asked === 'string') out.explainText = explain(asked, resolution);
   for (const [name, spec] of Object.entries(specs)) {
-    const fromEnv = spec.env === undefined ? undefined : env[spec.env];
-    if (values[name] === undefined && fromEnv !== undefined) {
-      values[name] = spec.type === 'boolean' ? !FALSY_ENV.has(fromEnv) : fromEnv;
-    }
-    if (values[name] === undefined && spec.default !== undefined) values[name] = spec.default;
-    if (values[name] === undefined && spec.required === true) {
+    if (out.values[name] === undefined && spec.required === true && out.explainText === undefined) {
       throw new UsageError(`missing required option --${name}`, `pass --${name} <value>`);
     }
   }
+  return out;
 }
 
 /**
@@ -240,6 +292,9 @@ function describeFailure(cause: unknown, argv: string[]): Failure {
   const message = cause instanceof Error ? cause.message : String(cause);
   if (cause instanceof UsageError) {
     return { code: ExitCode.USAGE, message, ...(cause.hint === undefined ? {} : { hint: cause.hint }) };
+  }
+  if (cause instanceof ConfigError) {
+    return { code: ExitCode.CONFIG, message, ...(cause.hint === undefined ? {} : { hint: cause.hint }) };
   }
   if (isParseArgsFailure(cause)) {
     return { code: ExitCode.USAGE, message, hint: singleDashHint(argv) ?? 'run --help to see the available options' };
@@ -361,20 +416,34 @@ interface Io {
   exit: (code: number) => void;
   width: number;
   stdin: NodeJS.ReadableStream;
+  cwd: string;
+  /** The package.json owning the entry file, read once (V4). */
+  pkg: Package | undefined;
 }
 interface Outcome {
   json: boolean;
   data?: unknown;
-  help?: string;
+  /** Text to print and leave OK: help, a version, an explanation. */
+  text?: string;
+  provenance?: Record<string, Provenance>;
+}
+
+/** `--version`: the declared version, else the owning package.json's (V4). */
+function versionOf(manifest: Manifest, io: Io): string {
+  const declared = manifest.version ?? (typeof io.pkg?.data['version'] === 'string' ? io.pkg.data['version'] : undefined);
+  if (declared === undefined) throw new ConfigError('no version declared', 'pass version to defineProgram, or set "version" in the owning package.json');
+  return declared;
 }
 
 async function dispatch(manifest: Manifest, { node, rest, name }: Resolved, io: Io): Promise<Outcome> {
-  const parsed = parseArgs({ args: rest, options: toParseConfig(node.options), allowPositionals: true, strict: true, tokens: true });
-  const values = parsed.values as Values;
-  const json = values.json === true;
-  if (values.help === true) return { json, help: renderHelp(manifest, node, { width: io.width }) };
+  const parsed = parseArgs({ args: rest, options: toParseConfig(node.options, manifest.config !== undefined), allowPositionals: true, strict: true, tokens: true });
+  const flags = parsed.values as Values;
+  const json = flags.json === true;
+  if (flags.help === true) return { json, text: renderHelp(manifest, node, { width: io.width }) };
+  if (flags.version === true) return { json, text: `${versionOf(manifest, io)}\n` };
 
-  applyDefaults(values, node.options, io.env);
+  const { values, provenance, explainText } = await resolveValues(manifest, node.options, flags, io);
+  if (explainText !== undefined) return { json, text: explainText };
   const { positionals, passthrough } = splitPositionals(parsed.tokens);
   await manifest.fire('preRun', name, values);
   const exit = (code: number): never => {
@@ -383,16 +452,18 @@ async function dispatch(manifest: Manifest, { node, rest, name }: Resolved, io: 
   };
   const data = await node.run({ options: values, positionals, passthrough, env: io.env, exit });
   await manifest.fire('postRun', name, values);
-  return { json, data };
+  return { json, data, provenance };
 }
 
 /** Success: help, or the data on the requested surface. */
 function emit(io: Io, outcome: Outcome): void {
-  if (outcome.help !== undefined) {
-    io.out.write(outcome.help);
+  if (outcome.text !== undefined) {
+    io.out.write(outcome.text);
     return io.exit(ExitCode.OK);
   }
-  io.out.write(outcome.json ? `${JSON.stringify({ ok: true, data: outcome.data })}\n` : `${render(outcome.data)}\n`);
+  // `meta.provenance` says where every option value came from (V3) — the difference between one call and five for an agent.
+  const envelope = { ok: true, data: outcome.data, meta: { provenance: outcome.provenance ?? {} } };
+  io.out.write(outcome.json ? `${JSON.stringify(envelope)}\n` : `${render(outcome.data)}\n`);
   return io.exit(ExitCode.OK);
 }
 
@@ -418,16 +489,23 @@ async function report(cause: unknown, { manifest, io, argv, json, name }: Failur
  * Execute a whole manifest: resolve the command from argv, parse its options, fire the
  * plugin hooks around it, render, exit.
  */
-export async function execute(manifest: Manifest, opts: RunOptions & { root?: string[]; from?: 'node' | 'user' } = {}): Promise<void> {
+/** The injected streams, env, exit and cwd, or the process's own for each one not injected. */
+function ioOf(opts: RunOptions): Io {
   const out = opts.stdout ?? process.stdout;
-  const io: Io = {
+  return {
     out,
     err: opts.stderr ?? process.stderr,
     env: opts.env ?? process.env,
     exit: opts.exit ?? processExit,
     width: out.columns ?? HELP_WIDTH,
     stdin: opts.stdin ?? process.stdin,
+    cwd: opts.cwd ?? process.cwd(),
+    pkg: nearestPackage(dirname(opts.entry ?? process.argv[1] ?? process.cwd())),
   };
+}
+
+export async function execute(manifest: Manifest, opts: RunOptions & { root?: string[]; from?: 'node' | 'user' } = {}): Promise<void> {
+  const io = ioOf(opts);
   // `from: 'node'` is commander's default and means argv still carries execPath and the
   // script. Doing the slice here keeps `process` out of every façade.
   const raw = opts.argv ?? process.argv;

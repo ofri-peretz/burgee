@@ -93,7 +93,7 @@ describe('--mcp', () => {
     const result = replies.get(3)?.['result'] as { content: { type: string; text: string }[]; isError: boolean };
     expect(result.isError).toBe(false);
     expect(result.content[0]?.text).toBe(direct.stdout.trim());
-    expect(JSON.parse(result.content[0]?.text ?? '')).toEqual({ ok: true, data: 'HELLO, ADA!' });
+    expect(JSON.parse(result.content[0]?.text ?? '')).toMatchObject({ ok: true, data: 'HELLO, ADA!' });
   });
 
   it('reports a failing command as an error result carrying the same E3 envelope (N4, N5)', async () => {

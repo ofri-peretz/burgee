@@ -288,6 +288,22 @@ export default [
     rules: { 'import-next/consistent-type-specifier-style': 'off' },
   },
   {
+    // Config discovery loads the user's own config file: a JSON read, or a dynamic import
+    // of a JavaScript config — that import is the feature (V6, yargs #2234), not a
+    // dependency loaded by name. `extends` parents are awaited in order because order is the
+    // merge semantics (V7). ConfigError takes its message first, like UsageError (FP 10).
+    files: ['packages/burgee/src/config.ts'],
+    rules: {
+      'node-security/no-dynamic-dependency-loading': 'off',
+      'performance/no-await-in-loop': 'off',
+      'reliability/no-await-in-loop': 'off',
+      'maintainability/no-missing-error-context': 'off',
+      'reliability/no-missing-error-context': 'off',
+      'maintainability/no-unhandled-promise': 'off',
+      'reliability/no-unhandled-promise': 'off',
+    },
+  },
+  {
     // FP 14, see the list above. The request loop awaits each JSON-RPC message before
     // reading the next: stdio MCP is ordered, and a tool call runs a command whose output
     // must not interleave with another's.
@@ -331,7 +347,7 @@ export default [
     // burgee owns the process: a CLI framework's whole job is to parse, run and
     // exit with the E1 contract. `exit` is injectable (RunOptions.exit) so tests
     // never touch the real one; the default has to call process.exit.
-    files: ['packages/burgee/src/execute.ts'],
+    files: ['packages/burgee/src/execute.ts', 'packages/burgee/src/precedence.ts'],
     rules: {
       'operability/no-process-exit': 'off',
       'secure-coding/detect-object-injection': 'off',

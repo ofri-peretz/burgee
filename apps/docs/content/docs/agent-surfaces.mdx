@@ -75,3 +75,20 @@ them — generated from the same manifest, as plain shell. Pressing TAB never ex
 program. Each script is pinned by a snapshot and exercised by its real shell in CI. The
 templates live in `burgee/completions` and load only on that command, so a program pays
 for them when it prints a script, never at startup.
+
+## `--explain <option>` — where a value came from
+
+Every value a command sees comes from exactly one place, in one fixed order:
+**flag > env > config file > package.json field > default**. `--explain` says which, and
+what it beat:
+
+```text
+$ mytool deploy --explain region
+region = "eu-1"   from config file ./mytool.config.json
+         candidates: flag --region (unset), env MYTOOL_REGION (unset), default "us-1"
+```
+
+The same information rides under `--json` as `meta.provenance`, per option — for an agent,
+the difference between one call and five. `envPrefix` and `config: true` on
+`defineProgram` opt a program into env names and config discovery; nothing is read that
+the running command did not declare.

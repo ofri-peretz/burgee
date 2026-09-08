@@ -46,7 +46,7 @@ describe('demo · MCP', () => {
     const direct = await runBurgee(program, { argv: ['config', 'get', 'user.name', '--json'] });
     const [, call] = await overMcp([init, { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'config_get', arguments: { key: 'user.name' } } }]);
     expect(text(call)).toBe(direct.stdout.trim());
-    expect(JSON.parse(text(call))).toEqual({ ok: true, data: 'ada' });
+    expect(JSON.parse(text(call))).toMatchObject({ ok: true, data: 'ada' });
   });
 
   it('carries a failure as the same E3 envelope with isError (N4, N5)', async () => {
