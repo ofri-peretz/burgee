@@ -92,7 +92,7 @@ language: burgee is TypeScript, like both incumbents. Full table in
 | Path | Purpose |
 | :-- | :-- |
 | [`packages/burgee/`](./packages/burgee/) | The framework. `burgee` is the engine, `burgee/commander` the compat façade, `burgee/testing` the in-process harness (T1). |
-| [`packages/roundel/`](./packages/roundel/) | **roundel** — the colours a CLI carries: one output policy, semantic tokens, a theme, and a chalk migration path. Reserved; see [`.sdlc/intents/roundel/`](./.sdlc/intents/roundel/). |
+| [`packages/roundel/`](./packages/roundel/) | **roundel** — the colours a CLI carries: `roundel/policy` (`outputMode`, `colorLevel`), `roundel/tokens` (nine semantic tokens), `roundel/theme` (`fly()`, contrast-checked) and `roundel/contrast` are in; the chalk path is next. Intent in [`.sdlc/intents/roundel/`](./.sdlc/intents/roundel/). |
 | [`packages/flagstaff/`](./packages/flagstaff/) | **flagstaff** — the staff the flag flies from: a frame loop with a static projection for agents, and the plugin host for spinners, progress, boxes and tables. Reserved; see [`.sdlc/intents/flagstaff/`](./.sdlc/intents/flagstaff/). |
 | [`packages/caique/`](./packages/caique/) | **caique** — the parrot that always answers back: prompts that are flags first and never hang. Reserved; see [`.sdlc/intents/caique/`](./.sdlc/intents/caique/). |
 | [`packages/compat-oracle/`](./packages/compat-oracle/) | Internal, never published. Grades compatibility using the hosts' own suites, plus reference drivers that run the real incumbents for byte-for-byte comparison. |
