@@ -190,10 +190,12 @@ makes each row stand on its own — so after wrapping, clipping is `lines.slice(
 needs no ANSI state tracking at all. 1,070 lines of tokenizer are not written, and the
 host's own suite cannot tell the two implementations apart.
 
-The weight: 28,606 B for the subpath (of which `wrap.js` is 17,017), 46,684 B with
-`roundel/chalk` counted, against log-update's own 113,368 B across sixteen packages —
-41%, in two packages instead of sixteen. `width.js` is shared with `./ora`; neither façade
-reaches the other, and neither reaches the core.
+The weight: 28,660 B for the subpath, against log-update's own 113,368 B across sixteen
+packages — and it reaches **no package at all**, not even roundel. `wrap.ts` carries the
+SGR close codes itself, because bold opening with 1 and closing with 22 is ECMA-48 rather
+than any library's table; that took `roundel/chalk` off the wrapper and off `./box` and
+`./table` with it. Sixteen packages become none, at a quarter of the bytes. `width.js` is
+shared with `./ora`; neither façade reaches the other, and neither reaches the core.
 
 `wrap.ts` is the third piece of shared machinery, after the width function and the spinner
 corpus, and it is the one `box` and `table` need next — which is why it is its own module

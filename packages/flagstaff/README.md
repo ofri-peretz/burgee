@@ -136,7 +136,8 @@ screen, not the bytes.
 `logUpdateStderr`, with the row-level diffing intact: a five-row frame whose last row is a
 counter costs one row of output per tick, not five.
 
-log-update ships 113.4 KB across **sixteen** packages. This is 46.7 KB across **two**.
+log-update ships 113.4 KB across **sixteen** packages. This is 28.7 KB across **none** —
+the subpath reaches no package at all, not even roundel.
 It carries no port of `slice-ansi` — the wrapper already makes every row self-contained,
 so clipping a frame to the terminal's height is an array slice.
 
@@ -157,9 +158,9 @@ Every subpath is a lock, not a convention, and the numbers below are asserted by
 `weight.test.ts` against `dist/`, not estimated: `flagstaff/loop` reaches 4.4 KB on disk and
 never the plugin registry; `flagstaff/plugin` 8.4 KB, of which 2.4 KB is the schema;
 `flagstaff/spinner` 9.4 KB; `flagstaff/ora` 46.3 KB — 55.6 KB with roundel counted, against
-ora's own 113.6 KB; `flagstaff/log-update` 28.6 KB — 46.7 KB counted the same way, against
-log-update's own 113.4 KB. Neither façade reaches the other, and neither reaches the core.
-`sideEffects: false` lets a
+ora's own 113.6 KB; `flagstaff/log-update` 28.7 KB, reaching **no package at all**, against
+log-update's own 113.4 KB across sixteen. Neither façade reaches the other, and neither
+reaches the core. `sideEffects: false` lets a
 bundler drop what a program does not use. ESM with a `default` condition, so
 `require('flagstaff/spinner')` works from CommonJS on Node ≥ 24.
 
