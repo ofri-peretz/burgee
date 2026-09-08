@@ -270,6 +270,22 @@ export default [
     files: ['scripts/run-evals.ts'],
     rules: { 'node-security/no-dynamic-command-string': 'off' },
   },
+  {
+    // yargs' `extends` contract: a config file names another config *module*, and the
+    // parser loads it by that name. The specifier is the user's own config talking about
+    // the user's own filesystem — there is no static import that expresses "whatever
+    // `extends` says", so reproducing yargs here means reproducing the dynamic load.
+    files: ['packages/burgee/src/yargs-parser.ts', 'packages/burgee/src/yargs-utils.ts'],
+    rules: { 'node-security/no-dynamic-dependency-loading': 'off' },
+  },
+  {
+    // The one line the compatibility gate turns on. `COMPAT_TARGET` is not ambient input:
+    // run.ts sets it on the child it spawns (`env: { ...process.env, COMPAT_TARGET: target }`),
+    // so the value is this harness naming its own grading target. compat-oracle is
+    // `private: true` and never published.
+    files: ['packages/compat-oracle/src/shim.ts'],
+    rules: { 'node-security/no-unsafe-dynamic-require': 'off' },
+  },
   // ── Harness and demo packages (intent cli-testing-harness) ────────────────
   {
     // Tests that prove console capture must call console.
