@@ -15,9 +15,11 @@ would flatter a partial implementation; measuring against the control's total do
 
 | Host | Front-end | burgee | rate | control | rate | internals (burgee) | internals (control) |
 | :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
-| **commander** | `burgee/commander` | 1361 / 1361 | 100.0% | 1361 / 1361 | 100.0% | 12 / 12 | 12 / 12 |
+| **commander** | `burgee/commander` | 1360 / 1360 | 100.0% | 1360 / 1360 | 100.0% | 12 / 12 | 12 / 12 |
 | **yargs** | `burgee/yargs` | 804 / 804 | 100.0% | 802 / 804 | 99.8% | 23 / 23 | 23 / 23 |
 | **chalk** | `roundel/chalk` | 58 / 58 | 100.0% | 58 / 58 | 100.0% | — | — |
+| **ora** | `flagstaff/ora` | 99 / 99 | 100.0% | 99 / 99 | 100.0% | — | — |
+| **log-update** | `flagstaff/log-update` | 0 / 99 (target not built yet: flagstaff/log-update) | 0.0% | 99 / 99 | 100.0% | — | — |
 
 **Every file of every suite is vendored and run — nothing is excluded.** Files that import
 only the host's *internal* modules (its own file layout) are graded on the informational
@@ -36,6 +38,8 @@ number above always names a release, never a branch.
 | commander | **15** (current) | 15.0.0 | Programs written for 12–14 run unchanged wherever 15 kept their API; each earlier major's own suite is vendored at its last tag and graded before it is listed here (C1) |
 | yargs | **18** (current) | 18.1.0 | Programs written for 17 run unchanged wherever 18 kept their API; 17's own suite is vendored at its last tag and graded before it is listed here (C1) |
 | chalk | **6** (current) | 6.0.0 | Programs written for 5 run unchanged: 6 added underline styles and colours and made a numeric `FORCE_COLOR` an exact level; 5's own suite is vendored at its last tag and graded before it is listed here (C1) |
+| ora | **9** (current) | 9.4.1 | Programs written for 8 run unchanged wherever 9 kept their API; 8's own suite is vendored at its last tag and graded before it is listed here (C1) |
+| log-update | **8** (current) | 8.0.0 | Vendored and controlled; the façade is not built yet, so the row above reads an honest 0 |
 
 A new major of a host is a new line here, opened by the daily release watch the day it
 ships; the previous major stays listed for as long as its suite is still graded.
@@ -48,6 +52,8 @@ CI unless it edits the baseline with a written reason (C5).
 
 | Host | Status | Why |
 | :--- | :--- | :--- |
+| boxen | planned | Blocked on the oracle, not on flagstaff: every one of its cases is `t.snapshot(box)` against ava’s own `.snap` binary format, which the ava shim does not read. Either teach the shim ava’s snapshot format or record the control’s output as the expectation — a decision, so it waits. |
+| cli-table3 | planned | Its suite is jest, not mocha as first recorded. jest globals are vitest’s too and vitest is already here, so the runner to add is `vitest` — a fourth runner, and one more decision than this slice had room for. |
 | meow | planned | The cheapest third host: a small surface and 42.8M/wk of genuinely chosen usage. |
 | cac | planned | Deferred: 49.4M/wk is almost entirely vite and vitest bundling it, not developers choosing it, so a façade converts few people. |
 | citty | planned | Deferred for the same reason as cac: nitro and unjs bundle it. |

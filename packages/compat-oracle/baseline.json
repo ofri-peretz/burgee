@@ -1,7 +1,7 @@
 {
   "commander": {
-    "reference": 1361,
-    "passed": 1361,
+    "reference": 1360,
+    "passed": 1360,
     "rate": 1
   },
   "yargs": {
@@ -13,5 +13,15 @@
     "reference": 58,
     "passed": 58,
     "rate": 1
+  },
+  "ora": {
+    "reference": 99,
+    "passed": 99,
+    "rate": 1
+  },
+  "log-update": {
+    "reference": 99,
+    "passed": 0,
+    "rate": 0
   }
 }

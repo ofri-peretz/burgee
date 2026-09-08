@@ -32,7 +32,12 @@ export interface Host {
   repo: string;
   /** Directory inside the repo holding the tests. */
   testDir: string;
-  /** Glob of test files within it. */
+  /**
+   * Glob of test files within it, matched against the file name with `path.matchesGlob`.
+   * Both the vendor step and the runner apply it: ora's suite lives at the repo root
+   * beside `index.js`, so "every `.js` in the test dir" would vendor the host's own
+   * implementation and then run it as a test.
+   */
   testGlob: string;
   /**
    * Every public specifier the tests use to reach the library, each rewritten to a
@@ -49,6 +54,12 @@ export interface Host {
   extraDirs?: string[];
   /** Per-test timeout the suite was written against, ms. */
   timeoutMs?: number;
+  /**
+   * Environment the host's own `npm test` sets, and the suite depends on: ora's tests read
+   * private state through the `_`-prefixed properties its constructor only defines under
+   * `NODE_ENV=test`. Merged over the runner's environment for control and target alike.
+   */
+  env?: Record<string, string>;
   /**
    * Files that define the host's public API surface, relative to the repo root. Their
    * names are fingerprinted in the compatibility record, so a new release's diff says
@@ -71,7 +82,9 @@ export const HOSTS: Host[] = [
     name: 'commander',
     repo: 'https://github.com/tj/commander.js',
     testDir: 'tests',
-    testGlob: '*.test.js',
+    // Four of its suites are .cjs or .mjs on purpose — they test what `require()` and
+    // `import` each get — so the glob has to name all three extensions.
+    testGlob: '*.test.{js,cjs,mjs}',
     imports: [{ upstream: '../index.js', subpath: '', reexportDefault: false }],
     surfaceFiles: ['typings/index.d.ts', 'index.js'],
     runner: 'node:test',
@@ -112,6 +125,60 @@ export const HOSTS: Host[] = [
     target: 'roundel/chalk',
     status: 'active',
     note: 'Graded against roundel, not burgee: the colour layer has its own façade.',
+  },
+  {
+    name: 'ora',
+    repo: 'https://github.com/sindresorhus/ora',
+    // Its suite is one file at the repo root, beside the implementation it tests.
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
+    env: { NODE_ENV: 'test' },
+    surfaceFiles: ['index.d.ts'],
+    runner: 'node:test',
+    target: 'flagstaff/ora',
+    status: 'active',
+    note: 'The second output-stack incumbent: 30M/wk, and the loop every other spinner copies.',
+  },
+  {
+    name: 'log-update',
+    repo: 'https://github.com/sindresorhus/log-update',
+    // One file at the repo root, like ora's.
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
+    surfaceFiles: ['index.d.ts'],
+    runner: 'node:test',
+    target: 'flagstaff/log-update',
+    status: 'active',
+    // Its suite renders every frame through a real terminal emulator (`terminal.js`) and
+    // asserts the screen, not the bytes — the strongest grading of the four render hosts.
+    note: 'Vendored and controlled 2026-09-08; the façade is next (it needs wrap-ansi and slice-ansi ported first).',
+  },
+  {
+    name: 'boxen',
+    repo: 'https://github.com/sindresorhus/boxen',
+    testDir: 'tests',
+    testGlob: '*.js',
+    imports: [{ upstream: '../index.js', subpath: '', reexportDefault: true }],
+    surfaceFiles: ['index.d.ts'],
+    runner: 'ava',
+    target: 'flagstaff/boxen',
+    status: 'planned',
+    note: 'Runnable — the oracle drives real ava, which reads its own `.snap` files — but not usefully gradeable yet: every one of its cases is `t.snapshot(box)`, so the suite grades boxen’s exact drawing, and a façade that matched it frame for frame would be boxen. Blocked on the same decision as clack and inquirer, not on machinery.',
+  },
+  {
+    name: 'cli-table3',
+    repo: 'https://github.com/cli-table/cli-table3',
+    testDir: 'test',
+    testGlob: '*-test.js',
+    imports: [{ upstream: '../src/table', subpath: '', reexportDefault: true }],
+    surfaceFiles: ['index.d.ts', 'src/table.js'],
+    tagPrefix: 'v',
+    runner: 'node:test',
+    target: 'flagstaff/table',
+    status: 'planned',
+    note: 'Its suite is jest, not mocha as first recorded. jest globals are vitest’s too and vitest is already here, so the runner to add is `vitest` — a fourth runner, and one more decision than this slice had room for.',
   },
   {
     name: 'meow',

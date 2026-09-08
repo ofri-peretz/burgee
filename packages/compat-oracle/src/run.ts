@@ -9,7 +9,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
+import { dirname, join, matchesGlob } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { type Host, type HostImport } from './hosts.js';
@@ -201,7 +201,7 @@ function runSuite(host: Host, hostDir: string, files: string[], target: string):
     const output = execFileSync(bin, args, {
       encoding: 'utf8',
       cwd: hostDir,
-      env: { ...process.env, COMPAT_TARGET: target },
+      env: { ...process.env, ...host.env, COMPAT_TARGET: target },
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: SUITE_TIMEOUT_MS,
       // A mostly-failing suite emits more TAP diagnostic than the 1 MB default holds, and
@@ -243,7 +243,10 @@ export function grade(host: Host, vendorDir: string, target: string, reference =
   const sourcePath = join(hostDir, '.source.json');
   const source: Source = existsSync(sourcePath) ? (JSON.parse(readFileSync(sourcePath, 'utf8')) as Source) : {};
   const internalFiles = new Set(source.internalFiles ?? []);
-  const all = readdirSync(dir).filter((f) => /\.(m?js|cjs)$/.test(f) && f !== host.preamble);
+  // The host's own glob decides what is a test — ora's suite sits at the repo root next to
+  // `index.js`, and running the implementation as a test file is not a grade. Nothing else
+  // is filtered here: ava is handed the paths and applies its own conventions to them.
+  const all = readdirSync(dir).filter((f) => matchesGlob(f, host.testGlob) && f !== host.preamble);
   const files = all.filter((f) => !internalFiles.has(f));
   const internal = all.filter((f) => internalFiles.has(f));
   if (files.length === 0) return { ...base, error: 'no test files vendored' };

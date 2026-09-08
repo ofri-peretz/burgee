@@ -1,0 +1,9 @@
+{
+  "name": "@vendored/log-update-suite",
+  "private": true,
+  "type": "module",
+  "main": "./shim.js",
+  "version": "8.0.0",
+  "license": "MIT",
+  "repository": "sindresorhus/log-update"
+}

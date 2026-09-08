@@ -447,7 +447,15 @@ export default [
     // structural rules that would reshape it are off here. The oracle is the check.
     // `burgee/yargs` is yargs 18 (with yargs-parser 22, cliui 9 and y18n 5) ported the same
     // way and graded by yargs' own 804 tests; the same rules are off for the same reason.
-    files: ['packages/burgee/src/commander-*.ts', 'packages/burgee/src/commander.ts', 'packages/burgee/src/yargs-*.ts', 'packages/burgee/src/yargs.ts'],
+    // flagstaff/ora is ora 9 — its eight dependencies folded in with it — graded by ora's
+    // own 99 tests, so the same structural rules are off for it.
+    files: [
+      'packages/burgee/src/commander-*.ts',
+      'packages/burgee/src/commander.ts',
+      'packages/burgee/src/yargs-*.ts',
+      'packages/burgee/src/yargs.ts',
+      'packages/flagstaff/src/ora.ts',
+    ],
     rules: {
       'maintainability/consistent-function-scoping': 'off',
       'maintainability/cognitive-complexity': 'off',
@@ -493,7 +501,7 @@ export default [
   {
     // `import yargs from 'burgee/yargs'` is the drop-in: yargs' entry is a default export
     // and every program written for it imports it that way.
-    files: ['packages/burgee/src/yargs.ts', 'packages/burgee/src/yargs-parser.ts'],
+    files: ['packages/burgee/src/yargs.ts', 'packages/burgee/src/yargs-parser.ts', 'packages/flagstaff/src/ora.ts'],
     rules: { 'import-next/no-default-export': 'off' },
   },
   {

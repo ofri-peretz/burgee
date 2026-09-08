@@ -91,6 +91,8 @@ number above always names a release, never a branch.
 | commander | **15** (current) | 15.0.0 | Programs written for 12–14 run unchanged wherever 15 kept their API; each earlier major's own suite is vendored at its last tag and graded before it is listed here (C1) |
 | yargs | **18** (current) | 18.1.0 | Programs written for 17 run unchanged wherever 18 kept their API; 17's own suite is vendored at its last tag and graded before it is listed here (C1) |
 | chalk | **6** (current) | 6.0.0 | Programs written for 5 run unchanged: 6 added underline styles and colours and made a numeric \`FORCE_COLOR\` an exact level; 5's own suite is vendored at its last tag and graded before it is listed here (C1) |
+| ora | **9** (current) | 9.4.1 | Programs written for 8 run unchanged wherever 9 kept their API; 8's own suite is vendored at its last tag and graded before it is listed here (C1) |
+| log-update | **8** (current) | 8.0.0 | Vendored and controlled; the façade is not built yet, so the row above reads an honest 0 |
 
 A new major of a host is a new line here, opened by the daily release watch the day it
 ships; the previous major stays listed for as long as its suite is still graded.

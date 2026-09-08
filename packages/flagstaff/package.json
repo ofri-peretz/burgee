@@ -14,6 +14,11 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./ora": {
+      "types": "./dist/ora.d.ts",
+      "import": "./dist/ora.js",
+      "default": "./dist/ora.js"
+    },
     "./loop": {
       "types": "./dist/loop.d.ts",
       "import": "./dist/loop.js",
@@ -36,7 +41,8 @@
   "files": [
     "dist",
     "!dist/**/*.map",
-    "!dist/**/*.test.*"
+    "!dist/**/*.test.*",
+    "THIRD-PARTY.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json && node ../../scripts/strip-comments.mjs dist",
@@ -70,6 +76,7 @@
     "roundel": "^0.0.1"
   },
   "devDependencies": {
+    "string-width": "^8.1.0",
     "vitest": "^5.0.0"
   }
 }
