@@ -21,6 +21,20 @@ to try; the surfaces are the reason to switch; the plugin contract is how others
 it. Throughout, one constraint outranks every feature: **each package stays a library you
 import in one file, not a framework you scaffold into.**
 
+## The minimum that proves the play
+
+Thirty-three intents is a map, not a bet. The bet is three things. If they land, everything
+else on this page is justified; if they do not, nothing else on it should be built first.
+
+1. **The commander scoreboard is public** — the compatibility page deployed, the number
+   ratcheting on every PR, the release watch opening issues on upstream releases.
+2. **roundel ships at 0.1 under picocolors' weight**, with `roundel/chalk` graded by chalk's
+   suite — the first proof that a layer can be independent, lighter, and compatible at once.
+3. **One external adopter**, a CLI we did not write, migrated by one import and measured on
+   the caller matrix.
+
+Everything below those three is conditional on them, and the kill criteria fire on them.
+
 ## Where the edge is, and for whom
 
 A roadmap is executable when every lane can say what it is for. One row per layer, plus the
@@ -237,6 +251,8 @@ stack   ─ S0 research ──┬── S1 roundel ──── S2 flagstaff ─
           (empty)       │      └── gate         │  ora row          └── gate
                         │                       └── gate
 wedge   ─ eslint-plugin-cli-floor (any time after W2; the adoption funnel) ── first-adopter
+seen    ─ one public artifact per milestone: scoreboard row → post · ratchet → changelog line ·
+          closed upstream issue → comment on that thread with the case · adopter → article
 ```
 
 - **Parallel:** S0 with W2–W3; the lint wedge with everything; façade vendoring inside a
@@ -247,6 +263,11 @@ wedge   ─ eslint-plugin-cli-floor (any time after W2; the adoption funnel) ─
   `eslint-plugin-cli-floor` moved from W4 to run beside W2. They are the only test of whether
   anyone switches, and the wedge is the funnel from the audience the ESLint plugins already
   have. Nothing else moves.
+- **The visibility lane** is not optional and has no separate owner: the milestone is not
+  done until its artifact is public. The article pipeline and the publish skill already
+  exist; this lane is the rule that every green cell produces something a stranger can read.
+- **Cadence:** a wave is one calendar month. Kill criteria are evaluated at wave end, never
+  mid-wave, so a slow week does not read as a failed bet.
 - **Spawning:** one agent per intent per wave, scoped to the intent's `Affected users and
   systems`; a second agent verifies against `Success criteria` before the gate. Neither
   edits the other's tests.
@@ -263,6 +284,7 @@ decision it forces.
 | Nobody switches | no external adopter within one wave of the scoreboard going public | the roadmap pauses at the current wave; the next investment is the wedge and articles, not a package |
 | The plugin contract cannot serve four layers | a key that one layer needs breaks another's validation | the contract splits by layer, recorded as a reversal of `plugin-contract`; the shared `check` command survives |
 | The stack pulls the repo's credibility before the engine has it | any stack package publishes a working release before the commander row is public | it is a lock (`cli-output-stack` design R-order), not a risk; CI refuses the publish |
+| Maintenance is a promise, not a number | no published band for it | two bands, published like the pass rate: **time from an upstream release to its suite re-vendored** (target ≤ 7 days, the watch and the weekly PR already produce it) and **time from an accepted issue to its closed conformance case** (target ≤ 14 days). Both ratchet; breaching either writes an intent |
 | An incumbent ships the same thing | commander gains a manifest, or clack a non-TTY error path | the compat row still holds, the edge row above is re-written honestly, and the family's edge (zero deps, one contract) is what remains — which is why the family row leads |
 
 ### Wave 1 — what landed, what is left
