@@ -7,6 +7,7 @@
  * omitted. Width comes from the caller — the runtime, in practice (H3) — default 100.
  */
 import type { ArgumentSpec, CommandNode, Example, Manifest, OptionSpec } from './manifest.js';
+import { kebab } from './names.js';
 
 export interface HelpOptions {
   /** Columns available; 100 when unknown, never `process.stdout` directly (H3). */
@@ -48,15 +49,21 @@ function annotate(text: string, spec: OptionSpec, verbose: boolean): string {
   if (spec.required === true) parts.push('(required)');
   if (spec.default !== undefined) parts.push(`(default: ${String(spec.default)})`);
   if (spec.choices !== undefined) parts.push(`(one of: ${spec.choices.join(', ')})`);
+  if (spec.multiple === true) parts.push('(repeatable)');
   if (spec.env !== undefined) parts.push(`[env: ${spec.env}]`);
   if (verbose) parts.push(`[${spec.type}]`);
   return `${parts.filter((p) => p !== '').join(' ')}${deprecation(spec.deprecated)}`.trim();
 }
 
+function placeholder(spec: OptionSpec): string {
+  if (spec.placeholder !== undefined) return spec.placeholder;
+  return spec.type === 'number' ? 'n' : 'value';
+}
+
 function optionTerm(name: string, spec: OptionSpec): string {
   const short = spec.short === undefined ? '' : `-${spec.short}, `;
-  const value = spec.type === 'string' ? ` <${spec.placeholder ?? 'value'}>` : '';
-  return `${short}--${name}${value}`;
+  const value = spec.type === 'boolean' ? '' : ` <${placeholder(spec)}>`;
+  return `${short}--${kebab(name)}${value}`;
 }
 
 function optionRows(options: Record<string, OptionSpec>, verbose: boolean): Row[] {
@@ -95,7 +102,7 @@ function commandSections(manifest: Manifest, node: CommandNode): Section[] {
 function environmentRows(options: Record<string, OptionSpec>): Row[] {
   return Object.entries(options)
     .filter(([, spec]) => spec.env !== undefined && spec.hidden !== true)
-    .map(([name, spec]) => ({ term: spec.env ?? '', text: `--${name}` }));
+    .map(([name, spec]) => ({ term: spec.env ?? '', text: `--${kebab(name)}` }));
 }
 
 function usageLine(node: CommandNode, root: string[], hasChildren: boolean): string {

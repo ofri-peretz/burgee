@@ -1,7 +1,7 @@
 /** commander-env V6, V7 — discovery order, --no-config, explicit misses, extends with deep merge and cycles, on real temp files. */
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
@@ -18,8 +18,10 @@ const write = (rel: string, data: unknown): string => {
 
 describe('discovery order (V6)', () => {
   it('lists explicit env, the cwd files by extension, then the user directory', () => {
-    const list = candidates({ name: 'my-tool', cwd: '/w', env: { MY_TOOL_CONFIG: 'x.json', XDG_CONFIG_HOME: '/xdg' } });
-    expect(list.map((c) => c.path)).toEqual(['/w/x.json', '/w/my-tool.config.json', '/w/my-tool.config.mjs', '/w/my-tool.config.js', '/w/my-tool.config.cjs', '/xdg/my-tool/config.json']);
+    const w = resolve('/w');
+    const xdg = resolve('/xdg');
+    const list = candidates({ name: 'my-tool', cwd: w, env: { MY_TOOL_CONFIG: 'x.json', XDG_CONFIG_HOME: xdg } });
+    expect(list.map((c) => c.path)).toEqual([join(w, 'x.json'), join(w, 'my-tool.config.json'), join(w, 'my-tool.config.mjs'), join(w, 'my-tool.config.js'), join(w, 'my-tool.config.cjs'), join(xdg, 'my-tool', 'config.json')]);
     expect(list[0]?.reason).toBe('MY_TOOL_CONFIG');
   });
 
@@ -65,7 +67,7 @@ describe('extends (V7)', () => {
     const top = write('x/app.config.json', { extends: ['./team.json'], region: 'top' });
     const loaded = await loadWithExtends(top);
     expect(loaded.data).toEqual({ region: 'top', log: { level: 'debug', json: false } });
-    expect(loaded.chain.map((p) => p.split('/').pop())).toEqual(['base.json', 'team.json', 'app.config.json']);
+    expect(loaded.chain.map((p) => basename(p))).toEqual(['base.json', 'team.json', 'app.config.json']);
   });
 
   it('rejects a cycle by name (yargs #1363)', async () => {

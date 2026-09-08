@@ -16,12 +16,13 @@ sleep 0.2
 zpty -w -n z "$line"$'\t'
 buf=''
 local quiet=0 i=0
-repeat 100 {
+repeat 120 {
   (( i++ ))
   if zpty -r -t z chunk; then buf+=$chunk; quiet=0; else (( quiet++ )); fi
   # zle echoes the typed line at once; the completion output follows after the function
-  # has been autoloaded, so wait at least 1.5 s and then for the output to stay quiet.
-  [[ -n $buf && $i -ge 15 && $quiet -ge 8 ]] && break
+  # has been autoloaded. Stop only once something beyond the echo has arrived and stayed
+  # quiet; otherwise keep waiting, up to the full budget (a loaded runner can take seconds).
+  [[ ${#buf} -gt $(( ${#line} + 8 )) && $quiet -ge 8 ]] && break
   sleep 0.1
 }
 zpty -d z

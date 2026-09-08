@@ -63,7 +63,7 @@ function surfaces(brand: BurgeeBrand, tagline: string): Array<{ file: string; sv
   ];
 }
 
-export const brandCommand = defineCommand<Options>({
+export const brandCommand = defineCommand({
   name: 'brand',
   description: 'Generate a burgee — flag, favicon, social card, cover and lockup — from two colours',
    

@@ -5,6 +5,7 @@
  * itself exercises it in CI (D4).
  */
 import { type CommandNode, type Manifest, type OptionSpec } from './manifest.js';
+import { kebab } from './names.js';
 
 export type Shell = 'bash' | 'zsh' | 'fish' | 'pwsh';
 export const SHELLS: readonly Shell[] = ['bash', 'zsh', 'fish', 'pwsh'];
@@ -65,8 +66,8 @@ function walk(root: Node): Node[] {
 }
 
 const sq = (s: string): string => `'${s.replaceAll("'", "'\\''")}'`;
-const flags = (name: string, spec: OptionSpec): string[] => (spec.short === undefined ? [`--${name}`] : [`-${spec.short}`, `--${name}`]);
-const takesValue = (spec: OptionSpec): boolean => spec.type === 'string';
+const flags = (name: string, spec: OptionSpec): string[] => (spec.short === undefined ? [`--${kebab(name)}`] : [`-${spec.short}`, `--${kebab(name)}`]);
+const takesValue = (spec: OptionSpec): boolean => spec.type !== 'boolean';
 const fname = (program: string, path: string[]): string => `_${[program, ...path].join('_').replaceAll(/[^A-Za-z0-9_]/g, '_')}`;
 
 // ───── bash ─────────────────────────────────────────────────────────────────────────────
@@ -244,7 +245,7 @@ function figOptions(node: Node): FigOption[] {
   return Object.entries(node.options).map(([n, s]) => {
     const o: FigOption = { name: flags(n, s) };
     if (s.description !== undefined) o.description = s.description;
-    if (takesValue(s)) o.args = { name: s.placeholder ?? 'value', ...(s.choices === undefined ? {} : { suggestions: s.choices }) };
+    if (takesValue(s)) o.args = { name: s.placeholder ?? 'value', ...(s.choices === undefined ? {} : { suggestions: [...s.choices] }) };
     return o;
   });
 }
