@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/schema.json",
+  "title": "flagstaff plugin",
+  "description": "A plugin is one plain object. Everything in it is data that can be read without running it; the only functions allowed are a component's `static` (required) and `frame` (optional). A spinner or component without a static projection is refused at register().",
+  "type": "object",
+  "required": ["name"],
+  "additionalProperties": true,
+  "properties": {
+    "name": { "type": "string", "minLength": 1, "description": "The plugin's name; also the prefix a host may use when two plugins contribute the same key." },
+    "contract": { "type": "integer", "minimum": 1, "description": "The plugin contract this object follows. A host refuses a newer contract than it knows." },
+    "tokens": {
+      "type": "object",
+      "description": "A roundel theme: semantic token name to a hex colour, contrast-checked when flown.",
+      "additionalProperties": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+    },
+    "glyphs": {
+      "type": "object",
+      "description": "Symbols by meaning: `ok`, `fail`, `warn`, `info`, `running`. A plugin that ships glyphs changes every built-in that draws one.",
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    },
+    "spinners": {
+      "type": "object",
+      "description": "Spinner styles by name, in cli-spinners' shape plus the static projection.",
+      "additionalProperties": { "$ref": "#/$defs/spinner" }
+    },
+    "components": {
+      "type": "object",
+      "description": "Components by name: `static(state)` returns the text a pipe, an agent or a screen reader gets; `frame(t, state)` is the optional animated form.",
+      "additionalProperties": { "$ref": "#/$defs/component" }
+    }
+  },
+  "$defs": {
+    "spinner": {
+      "type": "object",
+      "required": ["frames", "interval", "static"],
+      "properties": {
+        "frames": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "interval": { "type": "integer", "minimum": 1, "description": "Milliseconds between frames on a terminal." },
+        "static": { "type": "string", "description": "What a pipe prints instead of the animation." }
+      }
+    },
+    "component": {
+      "type": "object",
+      "required": ["static"],
+      "properties": {
+        "static": { "description": "(state) => string. Required: the projection every non-terminal mode prints." },
+        "frame": { "description": "(t, state) => string. Optional: the frame at t milliseconds since hoisting." },
+        "interval": { "type": "integer", "minimum": 1, "description": "Milliseconds between repaints when `frame` is given; 80 when omitted." }
+      }
+    }
+  }
+}

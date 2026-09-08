@@ -42,6 +42,9 @@ const ALLOWED = new Set([
   // hands it the Runtime's streams, and `load()` imports the entry as a fresh module graph,
   // which only the real module loader can do. Dev-time only, never reached by the framework.
   'burgee/src/dev.ts',
+  // flagstaff's `bin` (`flagstaff check <file>`) is the package's own command line: argv in,
+  // stdout out, exit code set. Everything it renders goes through hoist() over buffers.
+  'flagstaff/src/cli.ts',
   // roundel/chalk is chalk 6 ported method for method and graded by chalk's own suite. chalk's
   // contract is a level detected from the process at import (`supportsColor`, `chalk.level`),
   // which its tests assert through spawned fixtures; roundel's design keeps that model inside

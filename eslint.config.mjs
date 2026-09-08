@@ -357,8 +357,15 @@ export default [
     // FP 13: no-missing-error-context reads `throw new Error(message)` as an error without
     // a message when the message arrives through a variable built two lines earlier.
     // The brand CLI composes a multi-line contrast report and throws it. Tracked upstream.
-    files: ['packages/burgee/src/cli.ts'],
+    // flagstaff's cli.ts rethrows what is not a PluginError untouched (`throw e`), which
+    // the rule reads as an error without a message.
+    files: ['packages/burgee/src/cli.ts', 'packages/flagstaff/src/cli.ts'],
     rules: { 'maintainability/no-missing-error-context': 'off', 'reliability/no-missing-error-context': 'off' },
+  },
+  {
+    // A package's `bin` entry has no exports by design: it is the program, not a module.
+    files: ['packages/flagstaff/src/cli.ts'],
+    rules: { 'import-next/no-unused-modules': 'off' },
   },
   {
     // FP 8 (also seen in scripts/run-evals.ts): no-unhandled-promise fires on every call
@@ -369,7 +376,9 @@ export default [
     // catch reports; the rule flags each assignment as unhandled.
     // mcp.ts's `reply` is exactly the writer-parameter shape, now called from the async
     // `serve` loop `startMcp` split out.
-    files: ['packages/compat-oracle/src/report.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/mcp.ts'],
+    // flagstaff's `check` command has the same writer parameter, plus a top-level
+    // `main().then(ok, fail)` whose second argument is the handler the rule looks for.
+    files: ['packages/compat-oracle/src/report.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/mcp.ts', 'packages/flagstaff/src/cli.ts'],
     rules: { 'maintainability/no-unhandled-promise': 'off', 'reliability/no-unhandled-promise': 'off' },
   },
   {
