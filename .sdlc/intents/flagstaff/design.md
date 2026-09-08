@@ -117,7 +117,7 @@ two packed tarballs. The schema validator is sixty lines over the subset the sch
 because a JSON Schema library is a dependency the package will not carry.
 
 Not yet: the boxen and cli-table3 façades (R6, both blocked on a decision rather than a
-port — see `output-stack-compat`); the docs gallery. `tokens` are kept in the registry for whoever flies
+port — see `output-stack-compat`). `tokens` are kept in the registry for whoever flies
 the theme — `register()` does not call roundel's `fly()`, because that needs a runtime and
 would pull the theme into every plugin import.
 
@@ -291,6 +291,40 @@ that only ever passed would measure neither half.
 What is still unmeasured is the one-turn claim itself — layer 2 needs a credential, and
 reports `skipped` without one. So R8's evidence row moves from "hypothesis, measure before
 lock" to "measurable", not to "measured". The difference matters and the row says so.
+
+## What shipped (the gallery — 2026-09-08)
+
+`apps/docs/content/docs/gallery.mdx`, written by `scripts/gallery-page.ts` the way the
+compatibility page is written by `compat-page.ts`. Every cell is produced by **running** the
+component — the modes table hoists each built-in over a buffer and a manual clock, through
+the same `hoist()` a program uses and the same code path as `flagstaff check`; the border
+gallery calls `box()`; the spinner table reads the registry. Nothing is hand-drawn, which
+matters more here than for most pages: a package whose claim is about what its output looks
+like off a terminal cannot make that claim in prose.
+
+`scripts/gallery-page.test.ts` is what makes "do not edit by hand" true. It re-renders and
+compares on every `npm test`, and separately asserts that no `pipe`, `ci`, `json` or
+`accessible` row contains an escape — the page's whole argument, checked rather than
+written down. A generated page nobody re-generates is a screenshot with extra steps.
+
+**Building it found two bugs in the projection, which is the return on building it.**
+`tasks` on a pipe printed
+
+```text
+✔ install
+✔ install     ← printed again when build settled
+✔ build
+```
+
+— the exact repetition `tasks` exists to prevent. `staticProjection` skipped a write only
+when the text was *identical*, so a component whose projection is a growing list reprinted
+every line already in the log. It now writes the lines past the common prefix with what it
+wrote last: a projection that replaces itself shares no prefix and is printed whole, one
+that grows is appended to. The second bug was next to it — an empty projection wrote a bare
+newline, so a component with nothing to say yet cost a blank line. It now writes nothing.
+
+Both are locked: `builtins.test.ts` asserts a four-task list settles to four lines with no
+line printed twice, and that nothing is written until something has settled.
 
 ## Rejected alternatives
 
