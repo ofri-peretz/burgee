@@ -18,6 +18,10 @@ export type HelpToken = 'error' | 'warn' | 'ok' | 'hint' | 'muted' | 'command' |
  * Per-token styling for help (R7). A user who has `roundel` passes its tokens; a user
  * who does not gets the defaults. Help reads `heading`, `command`, `flag` and `value`;
  * the others are accepted so one theme object serves the whole output stack.
+ *
+ * What the theme does not touch: the command name after `Usage:` and every `$ example`
+ * line are rendered plain, whatever the theme says. Styling wraps a finished cell, so a
+ * name is measured and padded plain and never coloured in the manifest (yargs #1699).
  */
 export type HelpTheme = Partial<Record<HelpToken, (s: string) => string>>;
 
@@ -28,7 +32,10 @@ export interface HelpOptions {
   verbose?: boolean;
   /** Apply colour (R7). Off by default: the renderer is pure, so the TTY and NO_COLOR decision stays with the caller. */
   color?: boolean;
-  /** Replaces the default styling token by token; read only when `color` is on. */
+  /**
+   * Replaces the default styling token by token; read only when `color` is on. See
+   * `HelpTheme` for the lines it leaves plain: the `Usage:` command name and `$ example`.
+   */
   theme?: HelpTheme;
 }
 
