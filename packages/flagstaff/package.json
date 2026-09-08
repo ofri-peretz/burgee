@@ -19,6 +19,11 @@
       "import": "./dist/ora.js",
       "default": "./dist/ora.js"
     },
+    "./log-update": {
+      "types": "./dist/log-update.d.ts",
+      "import": "./dist/log-update.js",
+      "default": "./dist/log-update.js"
+    },
     "./loop": {
       "types": "./dist/loop.d.ts",
       "import": "./dist/loop.js",
@@ -77,6 +82,7 @@
   },
   "devDependencies": {
     "string-width": "^8.1.0",
-    "vitest": "^4.0.0"
+    "vitest": "^4.0.0",
+    "wrap-ansi": "^10.0.1"
   }
 }

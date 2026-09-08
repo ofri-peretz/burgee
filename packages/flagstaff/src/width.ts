@@ -95,10 +95,12 @@ function trailingForms(cluster: string): number {
   return extra;
 }
 
-/** How many terminal columns `input` occupies once its escape sequences are removed. */
-export function width(input: string): number {
-  if (input === '') return 0;
-  const text = stripVTControlCharacters(input);
+/**
+ * Columns a string of *plain* text occupies — no escape scan. The wrapper below has
+ * already split its input into text runs and complete sequences, so rescanning would only
+ * give a malformed sequence a second chance to be mistaken for one.
+ */
+export function measure(text: string): number {
   let columns = 0;
   for (const { segment } of segmenter.segment(text)) {
     if (ZERO_WIDTH_CLUSTER.test(segment)) continue;
@@ -111,6 +113,11 @@ export function width(input: string): number {
     columns += trailingForms(segment);
   }
   return columns;
+}
+
+/** How many terminal columns `input` occupies once its escape sequences are removed. */
+export function width(input: string): number {
+  return input === '' ? 0 : measure(stripVTControlCharacters(input));
 }
 
 /**

@@ -52,6 +52,12 @@ const ALLOWED = new Set([
   // unicode probes read the environment. Its suite swaps all four per test and grades
   // exactly that (R6). `hoist()` — the way forward — takes its world as an argument.
   'flagstaff/src/ora.ts',
+  // flagstaff/log-update is log-update 8 ported the same way. Its module-level `logUpdate`
+  // and `logUpdateStderr` are bound to the two process streams because that is the export
+  // every program written for it imports, and its cursor control writes to the real stderr
+  // exactly as cli-cursor does. `createLogUpdate(stream)` — which its own suite uses for
+  // every case — takes the stream as an argument.
+  'flagstaff/src/log-update.ts',
   // roundel/chalk is chalk 6 ported method for method and graded by chalk's own suite. chalk's
   // contract is a level detected from the process at import (`supportsColor`, `chalk.level`),
   // which its tests assert through spawned fixtures; roundel's design keeps that model inside

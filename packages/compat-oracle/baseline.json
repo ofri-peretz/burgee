@@ -21,7 +21,7 @@
   },
   "log-update": {
     "reference": 99,
-    "passed": 0,
-    "rate": 0
+    "passed": 99,
+    "rate": 1
   }
 }
