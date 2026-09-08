@@ -1,0 +1,28 @@
+{
+  "note": "Fallback for scripts/rank-dependents.ts when ecosyste.ms is unavailable. Each name verified with `npm view <pkg> dependencies` on the date below.",
+  "verified": "2026-09-08",
+  "commander": [
+    "@babel/cli",
+    "webpack-cli",
+    "pm2",
+    "svgo",
+    "html-minifier-terser",
+    "@nestjs/cli",
+    "cypress",
+    "@storybook/cli",
+    "@vue/cli",
+    "madge"
+  ],
+  "yargs": [
+    "jest-cli",
+    "nyc",
+    "concurrently",
+    "karma",
+    "lerna",
+    "postcss-cli",
+    "@angular/cli",
+    "lighthouse",
+    "ava",
+    "nx"
+  ]
+}

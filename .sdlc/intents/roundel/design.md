@@ -116,9 +116,9 @@ packages/roundel/src/
 `compat-oracle` → B4 rows. The first three ship as `0.1.0`; the façade ships when its pass
 rate is on the scoreboard.
 
-**How burgee uses it without importing it.** `burgee`'s help renderer keeps its four
-`styleText` calls and gains `renderHelp(node, { theme })`, typed structurally as
-`Record<token, (s) => s>`. A user who has `roundel` passes `roundel`'s tokens; a user who
+**How burgee uses it without importing it.** `burgee`'s core help renderer had no
+`styleText` calls (colour lived only in the commander façade); #24 added four as the theme
+defaults and `renderHelp(node, { theme })`, typed structurally as `Record<token, (s) => s>`. A user who has `roundel` passes `roundel`'s tokens; a user who
 does not gets the defaults. Zero bytes of `roundel` in `import 'burgee'`.
 
 ## Verification
