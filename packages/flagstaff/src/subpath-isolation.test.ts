@@ -47,6 +47,18 @@ const ALLOWED: Record<string, string[]> = {
   'table.js': ['./width.js', './wrap.js'],
 };
 
+/**
+ * The same rule for the modules an entry pulls in, which `ALLOWED` never reached: it compares
+ * only each *entry's* direct imports, so anything one level down was unlocked. `projection`
+ * is the case that made this matter — it is the only core module that emits a cursor
+ * operation, so it is the one that has to put the cursor back when a signal ends the process,
+ * and it now reaches the same `cursor.js` both façades use rather than a third copy of a
+ * subtle thing. A module listed here is checked exactly as an entry is.
+ */
+const INTERNAL_ALLOWED: Record<string, string[]> = {
+  'projection.js': ['./cursor.js'],
+};
+
 const RELATIVE = /(?:from|import)\s*'(\.[^']+)'/g;
 
 function relativeImports(file: string): string[] {
@@ -77,6 +89,12 @@ describe.each(data)('data export %s', (subpath, target) => {
   });
 });
 
+describe.each(Object.keys(INTERNAL_ALLOWED))('internal module %s', (file) => {
+  it('carries only its allowed relative imports', () => {
+    expect(relativeImports(resolve(pkgRoot, 'dist', file))).toEqual([...(INTERNAL_ALLOWED[file] ?? [])].sort());
+  });
+});
+
 describe('the package as a whole', () => {
   it('declares sideEffects: false, so a bundler may drop what a program does not use (U10)', () => {
     expect(manifest.sideEffects).toBe(false);
@@ -93,5 +111,13 @@ describe('the package as a whole', () => {
   it('every isolation rule names a published entry — the lock cannot outlive a file', () => {
     const published = code.map(([, e]) => basename(e.import));
     expect(Object.keys(ALLOWED).sort()).toEqual(published.sort());
+  });
+
+  it('every internal rule names a file that exists and is not itself an entry', () => {
+    const published = new Set(Object.values(manifest.exports).map((e) => basename(e.import)));
+    for (const file of Object.keys(INTERNAL_ALLOWED)) {
+      expect(published.has(file), `${file} is a published entry — it belongs in ALLOWED`).toBe(false);
+      expect(existsSync(resolve(pkgRoot, 'dist', file)), `${file} does not exist`).toBe(true);
+    }
   });
 });

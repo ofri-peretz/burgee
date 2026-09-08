@@ -59,12 +59,29 @@ function terminalStream(): NodeJS.WriteStream | undefined {
 
 let cursorRestoreInstalled = false;
 
-/** Installed once, the first time a cursor is hidden; puts it back however the process dies. */
-export function restoreCursorOnExit(): void {
-  if (cursorRestoreInstalled) return;
+/**
+ * What a caller gets back when there was nothing to install — no terminal, or a net already
+ * standing. Callers that keep the net for the life of the process (the façades, matching
+ * their incumbents) ignore the return; `hoist()` calls it when its own frame closes, so a
+ * program that spins once and then runs for an hour is not left holding signal handlers.
+ */
+const NOTHING_TO_UNDO = (): void => undefined;
+
+/**
+ * Installed once, the first time a cursor is hidden; puts it back however the process dies.
+ *
+ * `write` is how the caller's own surface reaches the terminal, and passing it is what makes
+ * this usable from the core. `hoist()` already knows its stream — the Runtime gave it one and
+ * the output mode was decided from it once (R1/U2) — so it must not be re-detected here: a
+ * second detector is precisely what the policy exists to prevent. The façades pass nothing
+ * and get the detection below, because that is their incumbents' contract — ora and
+ * log-update restore *the process's* cursor whichever stream the caller handed them.
+ */
+export function restoreCursorOnExit(write?: (s: string) => void): () => void {
+  if (cursorRestoreInstalled) return NOTHING_TO_UNDO;
   cursorRestoreInstalled = true;
-  const terminal = terminalStream();
-  if (terminal === undefined) return;
+  const terminal = write === undefined ? terminalStream() : { write };
+  if (terminal === undefined) return NOTHING_TO_UNDO;
 
   // onetime, in three lines: the cursor is put back once, whichever path gets there first.
   let restored = false;
@@ -75,11 +92,17 @@ export function restoreCursorOnExit(): void {
   };
 
   const installed = new Map<TerminationSignal, () => void>();
+  const uninstall = (): void => {
+    for (const [name, fn] of installed) process.removeListener(name, fn);
+    installed.clear();
+    process.removeListener('exit', restore);
+    cursorRestoreInstalled = false;
+  };
+
   for (const signal of TERMINATION_SIGNALS) {
     const handler = (): void => {
       restore();
-      for (const [name, fn] of installed) process.removeListener(name, fn);
-      installed.clear();
+      uninstall();
       if (process.listenerCount(signal) === 0) process.kill(process.pid, signal);
     };
     process.on(signal, handler);
@@ -87,4 +110,5 @@ export function restoreCursorOnExit(): void {
   }
 
   process.once('exit', restore);
+  return uninstall;
 }
