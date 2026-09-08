@@ -365,8 +365,11 @@ export default [
     // a message when the message arrives through a variable built two lines earlier.
     // The brand CLI composes a multi-line contrast report and throws it. Tracked upstream.
     // flagstaff's cli.ts rethrows what is not a PluginError untouched (`throw e`), which
-    // the rule reads as an error without a message.
-    files: ['packages/burgee/src/cli.ts', 'packages/flagstaff/src/cli.ts'],
+    // the rule reads as an error without a message. Same shape in plugin.ts: `lookup()`
+    // takes the error's code as a parameter, so the first argument to `new PluginError` is
+    // a variable and the rule stops looking — the message and the fix are right there in
+    // arguments two and three.
+    files: ['packages/burgee/src/cli.ts', 'packages/flagstaff/src/cli.ts', 'packages/flagstaff/src/plugin.ts'],
     rules: { 'maintainability/no-missing-error-context': 'off', 'reliability/no-missing-error-context': 'off' },
   },
   {
