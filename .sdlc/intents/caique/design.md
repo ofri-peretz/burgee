@@ -45,6 +45,44 @@ how the value is written back.
 - PTY tests with `node-pty` in CI for prompt, cancel and SIGINT on all three OS runners.
 - Conformance cases on both demos.
 
+## What shipped (R1, R2, R3, R6 — the decision — 2026-09-08)
+
+`spec.ts` and `decide.ts`, the two files that have to be right before anything draws.
+
+`decide()` is pure — a value, a runtime slice and the run's flags in, a verdict out — so
+the whole truth table is a unit test rather than a PTY, which is what the verification
+section asked for. **All 256 combinations** of value × kind × TTY × CI × `--json` ×
+`--yes` × `--interactive` × required are generated as a cartesian product and checked
+against the rule *written a second time, independently*, so a table that agrees with the
+implementation because the same hand wrote both would not pass.
+
+Four cases are then named separately, because a generated table proves consistency and a
+named case proves intent. The one that would be a bug report is called out in the suite by
+that name: **no terminal and no value is never a prompt.** Proven red — making
+`--interactive` able to reach past "nobody is there" turns twelve rows into hangs, and the
+table says which twelve.
+
+Two decisions the design did not settle, settled here:
+
+- **`--interactive` with no terminal is an error that says so**, rather than a silent
+  fall-through to the ordinary refusal. A flag that appears to do nothing is worse than one
+  that refuses, and the message names the reason: `--interactive needs a terminal on stdin`.
+- **`--yes` answers a `confirm` and nothing else.** It is not a licence to invent a path, a
+  token or a selection, and the suite asserts that for all five other kinds.
+
+`problemWith()` catches a spec that cannot be drawn — a `select` with no choices, a
+`confirm` carrying choices, an empty message — when it is written rather than when someone
+reaches that option. An empty `select` renders an empty list and waits, which is the same
+hang one layer down.
+
+Neither file imports roundel, flagstaff, burgee, a stream or `process`. `decide` returns an
+E1 *code* and lets the caller build its own error type, so the binding is the only
+host-specific part, exactly as the design says.
+
+Not yet: the widgets, `accessible.ts`, the two façades (their runner now exists — the
+oracle gained `vitest` on 2026-09-08), and the `burgee.ts` binding. The PTY tests come with
+the widgets, since there is nothing to drive until then.
+
 ## Rejected alternatives
 
 - ~~**Re-implementing prompts.** clack is good and maintained; the gap is the layer
