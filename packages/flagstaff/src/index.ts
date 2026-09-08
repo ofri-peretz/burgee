@@ -1,6 +1,7 @@
 /**
- * flagstaff — reserved. The first working release follows
- * .sdlc/intents/flagstaff/ in the burgee repository. Until then this entry
- * exports only its own name, so that importing it costs nothing and promises nothing.
+ * flagstaff — the staff the flag flies from. Re-exports only; each subpath is its own entry
+ * and costs only itself, so prefer `flagstaff/spinner` when that is all you need.
  */
-export const name = 'flagstaff' as const;
+export * from './loop.js';
+export * from './plugin.js';
+export * from './spinner.js';

@@ -1,6 +1,8 @@
 /**
- * R3 — the nine tokens, one snapshot per mode. Under `tty` they style, at whichever level
- * the policy decided; under every other mode they are the identity. No third behaviour.
+ * R3 — the nine tokens, one snapshot per level. The identity at level 0; at 1, 2 and 3 the
+ * same paint whatever the mode, because the level obeys the user's instruction
+ * (`NO_COLOR`, `FORCE_COLOR`, `--color`) in any mode and the mode decides only redraws
+ * (R2 revised 2026-09-08). No third behaviour.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 
@@ -64,26 +66,42 @@ describe('tty', () => {
   });
 });
 
-describe('every other mode is the identity, whatever the env says', () => {
-  const loud = { COLORTERM: 'truecolor', FORCE_COLOR: '3' };
+describe('every other mode: the identity with no instruction, the same paint under one', () => {
+  const truecolor = { ...sixteen, error: `${E}38;2;244;121;74mx${E}39m`, ok: `${E}38;2;13;148;96mx${E}39m` };
+  const forced = { COLORTERM: 'truecolor', FORCE_COLOR: '3' };
 
-  it('pipe', () => {
-    fly({}, pipe(loud));
+  it('pipe: 0 with nothing asked, whatever the terminal variables say', () => {
+    fly({}, pipe({ COLORTERM: 'truecolor' }));
     expect(paint()).toEqual(PLAIN);
   });
 
-  it('ci', () => {
-    fly({}, pipe({ ...loud, CI: 'true' }));
+  it('pipe: FORCE_COLOR colours it — the CI user who set it to get coloured logs', () => {
+    fly({}, pipe(forced));
+    expect(paint()).toEqual(truecolor);
+  });
+
+  it('ci: 0 with nothing asked and no vendor known to render colour', () => {
+    fly({}, pipe({ CI: 'true', COLORTERM: 'truecolor' }));
     expect(paint()).toEqual(PLAIN);
   });
 
-  it('accessible', () => {
-    fly({}, tty({ ...loud, CLI_ACCESSIBLE: '1' }));
+  it('ci: FORCE_COLOR colours it', () => {
+    fly({}, pipe({ ...forced, CI: 'true' }));
+    expect(paint()).toEqual(truecolor);
+  });
+
+  it('accessible: plain, because ANSI colour is noise to a screen reader — a pipe, not a terminal', () => {
+    fly({}, tty({ COLORTERM: 'truecolor', CLI_ACCESSIBLE: '1' }));
     expect(paint()).toEqual(PLAIN);
   });
 
-  it('json', () => {
-    fly({}, tty(loud), { json: true });
+  it('accessible: an explicit ask still colours it, exactly as on a pipe', () => {
+    fly({}, tty({ ...forced, COLORTERM: 'truecolor', CLI_ACCESSIBLE: '1' }));
+    expect(paint()).toEqual(truecolor);
+  });
+
+  it('json: the identity even when forced — structured output carries no escapes', () => {
+    fly({}, tty(forced), { json: true });
     expect(paint()).toEqual(PLAIN);
   });
 });

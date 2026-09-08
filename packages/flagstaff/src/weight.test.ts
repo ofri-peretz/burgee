@@ -1,0 +1,103 @@
+/**
+ * R8 / U5 — weight is paid per import, never per config, and the ceiling on each subpath
+ * is named after the incumbent it replaces: `flagstaff/spinner` may not weigh more than
+ * ora, once vendored (R10). Mirrors `roundel/src/weight.test.ts`.
+ *
+ * This walks the import graph of every entry point in `exports` and asserts what each may
+ * reach. The last test is the important one: **an entry point cannot be added without
+ * declaring its budget here**, so the lock grows with the package instead of rotting
+ * behind it. It reads `dist/`, so it measures what is published rather than what is written.
+ */
+import { readFileSync, statSync } from 'node:fs';
+import { dirname, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { describe, expect, it } from 'vitest';
+
+const pkgRoot = fileURLToPath(new URL('..', import.meta.url));
+const dist = resolve(pkgRoot, 'dist');
+
+interface Manifest {
+  exports: Record<string, { import: string }>;
+}
+
+// Read rather than import: the published entry list is data here, and a JSON import
+// would reach out of src/ for it.
+const manifest = JSON.parse(readFileSync(resolve(pkgRoot, 'package.json'), 'utf8')) as Manifest;
+
+interface EntryRule {
+  /** Bare specifiers this entry may import: roundel's subpaths and nothing else (R10). */
+  allow: string[];
+  /** Bytes reachable from it. A ratchet: lowering is free, raising is a decision with a comment. */
+  budget: number;
+  /** Modules this entry must never reach, whatever else changes. */
+  denied: string[];
+}
+
+const RULES: Record<string, EntryRule> = {
+  // Everything: loop + projection + plugin + builtins + schema + spinner. Measured 14,242 B on
+  // 2026-09-08. Depends on roundel's policy and tokens, and on nothing else (R10, U6).
+  '.': { allow: ['roundel/policy', 'roundel/tokens'], budget: 16_000, denied: ['cli.js'] },
+  // The loop and its four projections; never the registry — a program that hoists its own
+  // component pays nothing for the plugin host. Measured 4,141 B.
+  './loop': { allow: ['roundel/policy'], budget: 5_000, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
+  // The registry, the validator, the built-ins and the schema they are checked against.
+  // Measured 9,087 B, of which the schema is 3,059: the contract ships in the tarball (R3).
+  './plugin': { allow: [], budget: 10_000, denied: ['loop.js', 'projection.js', 'spinner.js', 'cli.js', 'index.js'] },
+  // The ceiling is ora (R10): recorded when ora's suite is vendored. Until then, the spinner
+  // plus the registry it reads its style from. Measured 10,015 B; ora 9's own index.js is
+  // 9,656 B before its eleven dependencies.
+  './spinner': { allow: ['roundel/tokens'], budget: 11_000, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
+};
+
+const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;
+
+function walk(entry: string): { reached: string[]; external: string[]; bytes: number } {
+  const files = new Set<string>();
+  const external = new Set<string>();
+  const queue = [entry];
+  let bytes = 0;
+
+  while (queue.length > 0) {
+    const file = queue.pop();
+    if (file === undefined || files.has(file)) continue;
+    files.add(file);
+    bytes += statSync(file).size;
+    for (const [, spec = ''] of readFileSync(file, 'utf8').matchAll(SPECIFIER)) {
+      if (spec.startsWith('.')) queue.push(resolve(dirname(file), spec));
+      else if (spec !== '' && !spec.startsWith('node:')) external.add(spec);
+    }
+  }
+  return { reached: [...files].map((f) => relative(dist, f)), external: [...external], bytes };
+}
+
+function entryFile(subpath: string): string {
+  const conditions = manifest.exports[subpath];
+  if (conditions === undefined) throw new Error(`no exports entry for ${subpath}`);
+  return resolve(pkgRoot, conditions.import);
+}
+
+describe.each(Object.keys(RULES))('entry %s', (subpath) => {
+  const rule = RULES[subpath] as EntryRule;
+  const graph = walk(entryFile(subpath));
+
+  it('imports only what its rule allows', () => {
+    expect(graph.external.sort()).toEqual([...rule.allow].sort());
+  });
+
+  it('reaches nothing on its denied list', () => {
+    for (const denied of rule.denied) expect(graph.reached).not.toContain(denied);
+  });
+
+  it('stays inside its byte budget', () => {
+    expect(graph.bytes).toBeLessThanOrEqual(rule.budget);
+  });
+});
+
+describe('the lock grows with the package', () => {
+  it('every published entry point declares a weight rule', () => {
+    // Adding `flagstaff/box` without a budget here fails, which is the point: a new
+    // surface cannot ship until someone has said what it may weigh.
+    expect(Object.keys(manifest.exports).sort()).toEqual(Object.keys(RULES).sort());
+  });
+});

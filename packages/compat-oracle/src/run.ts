@@ -59,8 +59,11 @@ const SUITE_TIMEOUT_MS = 300_000;
 const TAP_TESTS = /^# tests (\d+)$/m;
 const TAP_PASS = /^# pass (\d+)$/m;
 const TAP_FAIL = /^# fail (\d+)$/m;
-/** node:test's summary line; mocha has none and marks each pending test with a directive instead. */
-const TAP_SKIPPED = /^# skipped (\d+)$/m;
+/**
+ * node:test's summary line is `# skipped n`, ava's `# skip n` (and only when n > 0); mocha
+ * has none and marks each pending test with a directive instead.
+ */
+const TAP_SKIPPED = /^# skip(?:ped)? (\d+)$/m;
 const TAP_OK = /^\s*ok \d+/;
 
 function count(pattern: RegExp, output: string): number {
@@ -69,9 +72,9 @@ function count(pattern: RegExp, output: string): number {
 }
 
 /**
- * Parsed from `--test-reporter=tap` (node) or `--reporter tap` (mocha); both print the same
- * three summary lines. Chosen over the default reporters because TAP is the stable
- * machine-readable one.
+ * Parsed from `--test-reporter=tap` (node), `--reporter tap` (mocha) or `--tap` (ava); all
+ * three print the same three summary lines. Chosen over the default reporters because TAP
+ * is the stable machine-readable one.
  */
 export function parseNodeTest(output: string): { tests: number; passed: number; failed: number; skipped: number } {
   const skipped = TAP_SKIPPED.test(output) ? count(TAP_SKIPPED, output) : output.split('\n').filter((l) => TAP_OK.test(l) && l.includes('# SKIP')).length;
@@ -173,9 +176,14 @@ function writeInternalShims(host: Host, hostDir: string, target: string, interna
   }
 }
 
-/** The runner invocation. mocha resolves through the module system: workspaces hoist .bin. */
+/** The runner invocation. mocha and ava resolve through the module system: workspaces hoist .bin. */
 function command(host: Host, dir: string, paths: string[]): { bin: string; args: string[] } {
-  if (host.runner !== 'mocha') return { bin: process.execPath, args: ['--test', '--test-reporter=tap', ...paths] };
+  if (host.runner === 'node:test') return { bin: process.execPath, args: ['--test', '--test-reporter=tap', ...paths] };
+  // ava takes the paths as a filter over its own `files` globs, under which a `_`-prefixed
+  // file is a helper, never a test: chalk's two spawned fixtures are vendored beside the
+  // tests (their import is rewritten like any other) and ava leaves them to the tests
+  // that spawn them. `--tap` is its TAP reporter; the summary lines are node's.
+  if (host.runner === 'ava') return { bin: process.execPath, args: [join(packageRoot('ava'), 'entrypoints', 'cli.js'), '--tap', ...paths] };
   const preamble = host.preamble === undefined ? [] : ['--require', join(dir, host.preamble)];
   const timeout = String(host.timeoutMs ?? DEFAULT_TIMEOUT_MS);
   return {

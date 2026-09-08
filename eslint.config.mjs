@@ -364,8 +364,15 @@ export default [
     // FP 13: no-missing-error-context reads `throw new Error(message)` as an error without
     // a message when the message arrives through a variable built two lines earlier.
     // The brand CLI composes a multi-line contrast report and throws it. Tracked upstream.
-    files: ['packages/burgee/src/cli.ts'],
+    // flagstaff's cli.ts rethrows what is not a PluginError untouched (`throw e`), which
+    // the rule reads as an error without a message.
+    files: ['packages/burgee/src/cli.ts', 'packages/flagstaff/src/cli.ts'],
     rules: { 'maintainability/no-missing-error-context': 'off', 'reliability/no-missing-error-context': 'off' },
+  },
+  {
+    // A package's `bin` entry has no exports by design: it is the program, not a module.
+    files: ['packages/flagstaff/src/cli.ts'],
+    rules: { 'import-next/no-unused-modules': 'off' },
   },
   {
     // FP 8 (also seen in scripts/run-evals.ts): no-unhandled-promise fires on every call
@@ -376,7 +383,9 @@ export default [
     // catch reports; the rule flags each assignment as unhandled.
     // mcp.ts's `reply` is exactly the writer-parameter shape, now called from the async
     // `serve` loop `startMcp` split out.
-    files: ['packages/compat-oracle/src/report.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/mcp.ts'],
+    // flagstaff's `check` command has the same writer parameter, plus a top-level
+    // `main().then(ok, fail)` whose second argument is the handler the rule looks for.
+    files: ['packages/compat-oracle/src/report.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/mcp.ts', 'packages/flagstaff/src/cli.ts'],
     rules: { 'maintainability/no-unhandled-promise': 'off', 'reliability/no-unhandled-promise': 'off' },
   },
   {
@@ -486,6 +495,38 @@ export default [
     // and every program written for it imports it that way.
     files: ['packages/burgee/src/yargs.ts', 'packages/burgee/src/yargs-parser.ts'],
     rules: { 'import-next/no-default-export': 'off' },
+  },
+  {
+    // `roundel/chalk` is chalk 6 (roundel design R6): `import chalk from 'roundel/chalk'` is
+    // the drop-in, so its entry is a default export; the SGR tables are chalk's numbers as
+    // written (naming each would double the file the R8 ceiling measures); the chain is a
+    // Proxy whose keys come from those tables, and a link is a builder that builds the next
+    // link — the recursion *is* the chain. chalk's own suite is the check.
+    files: ['packages/roundel/src/chalk.ts'],
+    rules: {
+      'import-next/no-default-export': 'off',
+      'conventions/no-magic-numbers': 'off',
+      'secure-coding/detect-object-injection': 'off',
+      // Added 2026-09-08 with R2's revision. These two files are the whole of what
+      // `roundel/chalk` weighs besides the SGR tables, and R8 caps that graph at chalk
+      // 6.0.0's own 9,370 bytes while capping `roundel/tokens` at picocolors' 3.3 KB —
+      // both of which reach `policy.ts`. `tsc` indents a nested ternary one step per
+      // branch and splits every `if (…) return …` across two lines, so the statement form
+      // of these level tables costs hundreds of published bytes against ceilings measured
+      // in hundreds. The ternary chains are colour-level decision tables, read top to
+      // bottom; `src/policy.test.ts` covers every branch of them, row by row.
+      'maintainability/no-nested-ternary': 'off',
+      // FP: `rgbToAnsi256(...rgb)` in `open()`, where the ternary above it has already
+      // narrowed `rgb` to a tuple. The rule does not follow the narrowing.
+      'reliability/no-missing-null-checks': 'off',
+    },
+  },
+  {
+    // `roundel/policy` is the floor every subpath stands on, so its bytes are multiplied by
+    // every R8 ceiling in the package. See the note on `chalk.ts` above for why its level
+    // tables are ternary chains rather than statements.
+    files: ['packages/roundel/src/policy.ts'],
+    rules: { 'maintainability/no-nested-ternary': 'off' },
   },
   {
     // X7 fixture: the commander demo built on burgee/commander through commander's own

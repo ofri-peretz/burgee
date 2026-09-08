@@ -4,7 +4,7 @@
  * Exits non-zero when any active host's pass count falls below its recorded
  * baseline (C5), so the number can only go up without a deliberate edit.
  */
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -115,11 +115,11 @@ function upstreamMode(write: Write): number {
   return 0;
 }
 
-/** Re-vendor every active host at its latest release, reporting what moved since the last record. */
-function vendorAll(write: Write): void {
+/** Re-vendor each host at its latest release, reporting what moved since the last record. */
+function vendorAll(hosts: Host[], write: Write): void {
   mkdirSync(VENDOR_DIR, { recursive: true });
   const diffs: string[] = [];
-  for (const host of active()) {
+  for (const host of hosts) {
     const result = vendor(host, VENDOR_DIR);
     write(
       `vendored ${result.host} ${result.version} (${result.tag ?? 'untagged'} @ ${result.commit.slice(0, SHORT_SHA)}) — ${result.files} files (${result.internalFiles.length} internal-only), ${result.internals.length} internal module(s) shimmed\n`,
@@ -144,6 +144,25 @@ function verdict(grades: Grade[], baseline: Baseline, write: Write, control = fa
   return fell.length + broken.length > 0 ? 1 : 0;
 }
 
+interface Results {
+  measured: string;
+  grades: Grade[];
+}
+
+/**
+ * The results file carries one grade per active host. A run over a subset (`compat chalk`)
+ * replaces its hosts' rows and keeps the rest, so the page generated from the file never
+ * loses a host because another was re-measured alone.
+ */
+function writeResults(path: string, graded: Grade[]): void {
+  const previous: Grade[] = existsSync(path) ? (JSON.parse(readFileSync(path, 'utf8')) as Results).grades : [];
+  const names = new Set(graded.map((g) => g.host));
+  const grades = [...previous.filter((g) => !names.has(g.host)), ...graded];
+  const order = new Map(active().map((h, i) => [h.name, i]));
+  grades.sort((a, b) => (order.get(a.host) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.host) ?? Number.MAX_SAFE_INTEGER));
+  writeFileSync(path, `${JSON.stringify({ measured: new Date().toISOString(), grades }, null, 2)}\n`);
+}
+
 export async function main(argv: string[], write: Write): Promise<number> {
   if (argv.includes('--upstream')) return upstreamMode(write);
 
@@ -156,11 +175,20 @@ export async function main(argv: string[], write: Write): Promise<number> {
     if (control) return host.name;
     return target === '' ? host.target : target;
   };
+  // Hosts named bare on the command line (`compat chalk --control`) select a subset;
+  // none named means every active host, which is what CI runs.
+  const named = argv.filter((a) => !a.startsWith('--'));
+  const unknown = named.filter((n) => !active().some((h) => h.name === n));
+  if (unknown.length > 0) {
+    write(`\n✖ not an active host: ${unknown.join(', ')}\n`);
+    return 1;
+  }
+  const hosts = named.length === 0 ? active() : active().filter((h) => named.includes(h.name));
 
-  if (wantsVendor) vendorAll(write);
+  if (wantsVendor) vendorAll(hosts, write);
 
   const baseline = readBaseline(BASELINE);
-  const grades = active().map((host) => grade(host, VENDOR_DIR, targetFor(host), baseline[host.name]?.reference ?? 0));
+  const grades = hosts.map((host) => grade(host, VENDOR_DIR, targetFor(host), baseline[host.name]?.reference ?? 0));
 
   write(control ? '\ncontrol — each host graded against its real package\n\n' : '\ncompatibility\n\n');
   for (const g of grades) write(gradeLines(g, baseline));
@@ -168,6 +196,6 @@ export async function main(argv: string[], write: Write): Promise<number> {
   const planned = HOSTS.filter((h) => h.status === 'planned').map((h) => h.name);
   if (planned.length > 0) write(`\n  planned: ${planned.join(', ')}\n`);
 
-  writeFileSync(control ? CONTROL_RESULTS : RESULTS, `${JSON.stringify({ measured: new Date().toISOString(), grades }, null, 2)}\n`);
+  writeResults(control ? CONTROL_RESULTS : RESULTS, grades);
   return verdict(grades, baseline, write, control);
 }
