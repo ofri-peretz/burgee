@@ -140,6 +140,20 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Scoreboard gate (cli-output-stack R13) — the stack ships no working release before the engine's row is public
+        env:
+          PKG_NAME: ${{ matrix.name }}
+          PKG_VER: ${{ matrix.version }}
+        run: |
+          set -euo pipefail
+          case "$PKG_NAME" in roundel|flagstaff|caique) ;; *) exit 0 ;; esac
+          case "$PKG_VER" in 0.0.*) echo "reservation release, gate not applied"; exit 0 ;; esac
+          url=$(node -p "try{require('./.agent/scoreboard-public.json').commanderCompatibilityPage||''}catch{''}")
+          if [ -z "$url" ]; then
+            echo "::error::$PKG_NAME@$PKG_VER refused: .agent/scoreboard-public.json names no published commander compatibility page (cli-output-stack R13)."
+            exit 1
+          fi
+          echo "scoreboard public at $url — gate open"
       - name: Publish ${{ matrix.name }}@${{ matrix.version }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

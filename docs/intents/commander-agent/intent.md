@@ -103,7 +103,7 @@ None open. Decided at finalisation (2026-09-06):
 - **`data` is `null` when a handler returns nothing**, so the key set is stable.
 - **Agent detection is `!runtime.isTTY.stdout || env.CI || --json || --schema`.** No
   sniffing of `CLAUDECODE` or parent processes: honest signals only. `--agent` is not a
-  flag; `--json` already means "no human here" (P2, R6 in `cli-prompts`).
+  flag; `--json` already means "no human here" (P2, R6 in `caique`).
 - **SIGINT on Windows**: `process.on('SIGINT')` fires for console apps on Windows; the
   conformance suite runs on `windows-latest` as well as Ubuntu and macOS so E5 is
   measured, not assumed. Batch-file wrappers (oclif/oclif #958) are out of scope.

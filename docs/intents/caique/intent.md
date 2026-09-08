@@ -1,7 +1,9 @@
-# Intent — Prompts that are flags first, and errors when no one is there to answer
+# Intent — caique: prompts that are flags first, and errors when no one is there to answer
 
 > Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md),
-> requirements P1–P2; research §9 (clack). Packages `commander-prompts`, `yargs-prompts`.
+> requirements P1–P2; research §9 (clack). Package **`caique`** — the parrot that always answers
+> back. Re-parented 2026-09-08 under [`cli-output-stack`](../cli-output-stack/intent.md) (U6, U11,
+> U12): caique **implements** prompts over Node natives; clack and inquirer are migration paths.
 
 **Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
@@ -11,7 +13,7 @@
 
 Every interactive question a CLI asks is declared as an option first, so:
 
-- a human without the flag gets a prompt (through `@clack/prompts`);
+- a human without the flag gets a prompt, rendered by caique itself over `node:readline`;
 - a human with the flag is never asked (clack #167, `mytool --template this`);
 - a non-TTY caller — CI, a pipe, an AI agent — gets a `USAGE` error naming the flag
   and never a hang (clack #533);
@@ -33,9 +35,9 @@ Every interactive question a CLI asks is declared as an option first, so:
 
 ## Affected users and systems
 
-- New `packages/commander-prompts` and `packages/yargs-prompts`, peer
-  `@clack/prompts` (the one place the layer takes a UI dependency, and only in these
-  two packages).
+- `packages/caique`, zero external dependencies (U6); `flagstaff` for its spinner and
+  `roundel` for its tokens, both same-repo. `caique/clack` and `caique/inquirer` are façades
+  graded by those libraries' own suites (U11), so a migration is one import.
 - `@interlace/cli-core/src/prompts/`: the flag↔prompt binding model, host-neutral.
 - `commander-schema` gains `prompt: { message, kind }` on an option spec.
 
@@ -43,11 +45,13 @@ Every interactive question a CLI asks is declared as an option first, so:
 
 1. A prompt cannot exist without an option; the API takes the option name, never a
    bare question.
-2. In non-TTY the package never calls clack at all; the error is produced by the layer
+2. In non-TTY the package never renders a widget at all; the error is produced by the layer
    with `fix: { flag: '--name <value>' }`.
 3. Accessible mode (clack #585): when `runtime.env.CLI_ACCESSIBLE` or a screen-reader
    hint is set, prompts fall back to line input with no live redraw.
-4. clack's API is wrapped, not re-exported; a clack major bump is absorbed here.
+4. No external UI dependency, ever (U6). clack's and inquirer's APIs exist only as compat
+   subpaths over caique's own widgets; an upstream major bump moves a scoreboard row, not a
+   dependency.
 
 ## Success criteria
 

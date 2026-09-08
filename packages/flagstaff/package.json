@@ -1,0 +1,53 @@
+{
+  "name": "flagstaff",
+  "version": "0.0.1",
+  "description": "The staff the flag flies from. A terminal frame loop with a static projection for agents and screen readers, and a plugin host for spinners, progress, boxes and tables. Drop-in paths for ora, log-update, boxen and cli-table3. Zero dependencies.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "!dist/**/*.test.*"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "lint": "eslint src"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ofri-peretz/burgee.git",
+    "directory": "packages/flagstaff"
+  },
+  "homepage": "https://github.com/ofri-peretz/burgee/tree/main/packages/flagstaff#readme",
+  "bugs": {
+    "url": "https://github.com/ofri-peretz/burgee/issues"
+  },
+  "keywords": [
+    "cli",
+    "terminal",
+    "spinner",
+    "progress",
+    "render",
+    "animation",
+    "ora",
+    "log-update",
+    "boxen",
+    "cli-table3",
+    "plugins"
+  ],
+  "devDependencies": {
+    "vitest": "^4.0.0"
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "commanderCompatibilityPage": null,
+  "note": "Set to the deployed URL of the commander compatibility page. Until then release.yml refuses roundel, flagstaff and caique above 0.0.x (cli-output-stack R13)."
+}

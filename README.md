@@ -91,7 +91,10 @@ language: burgee is TypeScript, like both incumbents. Full table in
 
 | Path | Purpose |
 | :-- | :-- |
-| [`packages/burgee/`](./packages/burgee/) | The framework, and the only published package. `burgee` is the engine, `burgee/commander` the compat façade, `burgee/testing` the in-process harness (T1). |
+| [`packages/burgee/`](./packages/burgee/) | The framework. `burgee` is the engine, `burgee/commander` the compat façade, `burgee/testing` the in-process harness (T1). |
+| [`packages/roundel/`](./packages/roundel/) | **roundel** — the colours a CLI carries: one output policy, semantic tokens, a theme, and a chalk migration path. Reserved; see [`docs/intents/roundel/`](./docs/intents/roundel/). |
+| [`packages/flagstaff/`](./packages/flagstaff/) | **flagstaff** — the staff the flag flies from: a frame loop with a static projection for agents, and the plugin host for spinners, progress, boxes and tables. Reserved; see [`docs/intents/flagstaff/`](./docs/intents/flagstaff/). |
+| [`packages/caique/`](./packages/caique/) | **caique** — the parrot that always answers back: prompts that are flags first and never hang. Reserved; see [`docs/intents/caique/`](./docs/intents/caique/). |
 | [`packages/compat-oracle/`](./packages/compat-oracle/) | Internal, never published. Grades compatibility using the hosts' own suites, plus reference drivers that run the real incumbents for byte-for-byte comparison. |
 | [`examples/`](./examples/) | Demo CLIs and the conformance suite that runs every floor case on every host. |
 | [`apps/docs/`](./apps/docs/) | Documentation site (Next.js + fumadocs). |

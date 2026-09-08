@@ -13,7 +13,8 @@ A packaging floor every package in this repo meets and a lock that enforces it:
 
 1. **Zero runtime dependencies** in `@interlace/cli-core` and the `*-agent`,
    `*-schema`, `*-env`, `*-completions` packages; the host as a peer; `yaml` and
-   `@clack/prompts` as peers only where used.
+   no UI packages as peers either — the family's own `roundel`, `flagstaff` and `caique` are
+   same-repo dependencies where used (re-decided 2026-09-08, `cli-output-stack` U6).
 2. **ESM only**, `exports` map with `types`, no CJS build; Node `>=24` in `engines`.
 3. **Node natives over packages**: `util.styleText`, `util.parseArgs` (not needed),
    `fs.glob`, `process.stdout.isTTY`, `node:test`-free (vitest), global `fetch`.

@@ -8,15 +8,34 @@ intent, `intent.md` then `design.md`, statuses `draft → review → approved �
 ## The roadmap in one paragraph
 
 **Decided 2026-09-06: we are building a competitor to commander and yargs, not a layer on
-top of them.** One engine owns argv and the lifecycle. It is drop-in compatible with both
-incumbents — `burgee/commander` and `burgee/yargs`, graded by their own 1,215 and
-1,185 tests, with the pass rate published and ratcheting from the first commit. And it
-serves every command through every format a caller wants — human help, `--json`,
-`--schema`, `--mcp`, completions, Fig, types, docs — all projections of one manifest, so
-none of them can drift. Compatibility makes it cheap to try; the surfaces are the reason
-to switch. Throughout, one constraint outranks every feature: **it stays a library you
-import in one file, not a framework you scaffold into.** oclif has all of these
-capabilities and does 10.9M/week against commander's 508M.
+top of them.** One engine owns argv and the lifecycle, drop-in compatible with both
+incumbents and graded by their own tests, serving every command through every format a
+caller wants — all projections of one manifest. **Extended 2026-09-08: the same play,
+repeated for every layer of CLI tooling.** Four packages, each an independent product that
+is drop-in for the incumbent it replaces and lighter than it: `burgee` (the engine),
+`roundel` (colour and theme), `flagstaff` (rendering and plugins), `caique` (prompts).
+Together they are **the full toolset for CLI builders** — zero external dependencies,
+one plugin contract across all four, and every caller (human, agent, CI, screen reader,
+another program) served by design rather than by fallback. Compatibility makes it cheap
+to try; the surfaces are the reason to switch; the plugin contract is how others spread
+it. Throughout, one constraint outranks every feature: **each package stays a library you
+import in one file, not a framework you scaffold into.**
+
+## Where the edge is, and for whom
+
+A roadmap is executable when every lane can say what it is for. One row per layer, plus the
+family. *Edge* is what no incumbent can add without changing shape; *proof* is the number on
+the docs site that says it is true; *value* is who is better off and how we would know.
+
+| Layer | Edge | Why the incumbent cannot copy it | Proof (published) | Value, for whom |
+| :-- | :-- | :-- | :-- | :-- |
+| **burgee** | one declaration → help, `--json`, `--schema`, `--mcp`, completions, types; plugins | commander has no manifest and refused plugins (#2505); yargs' 108 methods each own a slice of state | commander 1327/1331, yargs ratchet; B2 spawn delta; B1 agent success | CLI authors: no drift between surfaces. Agent builders: a contract instead of scraped `--help` |
+| **roundel** | one output policy, semantic tokens, a contrast-checked theme | chalk's model is a global mutable `level`; a policy would break its own tests | B4 rows under picocolors and chalk 6; chalk pass rate; the policy truth table | Authors: one answer to "is this a terminal?". Users: readable errors on every background |
+| **flagstaff** | the static projection is the artifact; plugins are data; an agent can write one in a turn | ora and Ink are imperative; a React tree has no static form to project | `\r`-free piped transcript; U9 eval green weekly; ora pass rate; B4 under ora | Agents and screen readers: the same clean bytes. Authors: a spinner ecosystem without a framework |
+| **caique** | never hangs: flags first, errors with `fix` in non-TTY, accessible by default | clack and inquirer assume a person is present; non-TTY is their bug, not their model | non-TTY benchmark never times out; inquirer and clack pass rates; matrix green | Anyone running a CLI from CI or an agent: the hang, gone. Screen-reader users: prompts that read |
+| **the family** | zero external dependencies end to end; one plugin contract; every claim measured | the incumbents are a dozen packages under a handful of accounts — the September 2025 npm compromise of chalk, debug and their siblings hit exactly that cluster (to be cited in `output-stack-research`) | the complete-CLI dependency bill: 0 vs the dozen; one schema byte-identical in four tarballs | The ecosystem: four packages, one repo, one supply chain to audit instead of twelve |
+
+The last row is the one to lead with in public, and the one we have not said out loud yet.
 
 Diagrams: [`architecture.md`](../research/architecture.md).
 
@@ -56,7 +75,7 @@ The roadmap is complete against the research when every cluster in
 | §6 completions | `commander-completions` | 4 |
 | §7 error lifecycle and exit behaviour | `commander-agent` (E1–E5) | 1 |
 | §8 modularity for large CLIs | `cli-modularity` | 4 |
-| §9 interactive prompts | `cli-prompts` | 4 |
+| §9 interactive prompts | `caique` | 4 |
 | §10 parsing edge cases | `replacement-parser` | 5 |
 | §11 runtime and packaging | `cli-packaging` | 1 |
 | §12 maintainer signals | `eslint-plugin-cli-floor` (the wedge), plus an article | 2 |
@@ -99,7 +118,7 @@ converts it from a permanent dependency into a fixable backlog, so it now has an
 | 14 | [`commander-schema/`](./commander-schema/) | §4, §5 | declare once: types, relations, derived TS types | S1–S8 |
 | 15 | [`commander-env/`](./commander-env/) | §3 | fixed precedence, `--explain`, provenance, owning package.json | V1–V7 |
 | 16 | [`commander-completions/`](./commander-completions/) | §6 | static scripts for four shells, Fig spec | D2–D5 |
-| 17 | [`cli-prompts/`](./cli-prompts/) | §9 | flags first, errors in non-TTY, `--yes`, `--interactive` | P1–P3 |
+| 17 | [`caique/`](./caique/) | §9 | flags first, errors in non-TTY, `--yes`, `--interactive` | P1–P3 |
 | 18 | [`cli-modularity/`](./cli-modularity/) | §8 | groups, lazy commands, plugins, shared options, deprecation | M1–M6 |
 
 ### Reach
@@ -110,9 +129,46 @@ converts it from a permanent dependency into a fixable backlog, so it now has an
 | 20 | [`commander-compat/`](./commander-compat/) | `burgee/commander` — commander 15 ported method for method, graded by commander's 1,331 tests; 1,327 pass (parity with the real package) | X1–X8 | review |
 | 21 | [`yargs-compat/`](./yargs-compat/) | `burgee/yargs` — 108 methods, graded by yargs' 1,185 tests | X1–X7 | review |
 
+### The output stack — what a CLI shows, as a plugin framework
+
+Umbrella [`cli-output-stack/`](./cli-output-stack/) — one package per layer, plugins as
+data, every animation with a static projection, weight paid per subpath. Proposes U1–U10.
+
+| # | Intent | Delivers | Floor ids | Status |
+| :-- | :-- | :-- | :-- | :-- |
+| 23 | [`cli-output-stack/`](./cli-output-stack/) | the layer table, the static-projection rule, the data-only plugin contract, the complete-CLI dependency bill | U1–U10 | approved |
+| 24 | [`roundel/`](./roundel/) | **roundel** — `./policy`, `./tokens`, `./theme`, and a chalk path graded by chalk's tests; each subpath at or under the incumbent it replaces | U2 U5 U6 U7 U10 U12 | approved |
+| 25 | [`flagstaff/`](./flagstaff/) | **flagstaff** — frame loop, plugin host, built-ins as first-party plugins, `plugin check`; no layout engine | U3 U4 U8 U9 U12 | approved |
+
+| 26 | [`output-stack-research/`](./output-stack-research/) | **what we improve** — the ten incumbents' trackers read in full, won't-fix lists included; every U row cited | U1–U12 | draft |
+| 27 | [`output-stack-compat/`](./output-stack-compat/) | **backwards compatibility** — eight façades graded by eight vendored suites; eight scoreboard rows | U11, C1–C6 | draft |
+| 28 | [`plugin-contract/`](./plugin-contract/) | **spreading impact** — one plugin object, one schema, one `register()`, one `check`, across all four layers | U4, U9, M4–M5 | draft |
+| 29 | [`caller-matrix/`](./caller-matrix/) | **every caller** — features × callers conformance matrix, generated; humans, agents, CI, screen readers, programs | U2, U3, P1–P3, B1 | draft |
+
+`caique` (17) re-parents under this umbrella and peers on `flagstaff` for its spinner.
+Every incumbent the stack replaces — chalk, ora, boxen, cli-table3, log-update — gets a
+façade graded by its own suite through `compat-oracle` (U11), so "ora-compatible" is a
+scoreboard row, and every subpath must measure lighter than the incumbent it replaces
+before it publishes (U5). The metrics table is in the umbrella.
+Nothing here publishes before `burgee/commander` publishes its pass rate.
+
 Not planned, on purpose: an update checker (citty #10 — a network call at startup is the
 opposite of what an agent wants), and non-Node runtimes (claiming Deno and Bun means
 testing them, which is its own intent with its own matrix).
+
+## Owner tasks — outside an agent's reach
+
+Recorded here so the roadmap is honest about what a spawned agent cannot do. Each needs the
+owner's terminal (npm second factor) or a decision.
+
+| Task | Why the owner | Command / decision |
+| :-- | :-- | :-- |
+| Republish `pennon@0.0.2` and `answering@0.0.2` as honest reserved-name placeholders | npm 2FA | staged in the session scratchpad; `npm publish --access public` in each |
+| Publish the misspelling guards `burgie`, `burgy`, then `npm deprecate` each | npm 2FA | staged in the session scratchpad |
+| Remove `packages/commander-harness` and `packages/yargs-harness` (untracked build residue; the shape lock now skips them, so this is hygiene) | sandbox refused `rm` | `rm -rf packages/commander-harness packages/yargs-harness` |
+| Record artifact baselines for the three new packages | sandbox refused the write | `npx tsx scripts/check-published-artifacts.ts --update-baseline` and commit `.agent/artifact-size-baseline.json` |
+| Decide the fate of the pre-existing brand edits in the working tree (docs icon, flag component, brand assets, `brand.ts`, `cli.ts`, `weight.test.ts`, `scripts/brand.mts`) | not from this roadmap's session | commit under `brand-burgee`, or discard |
+| Set `.agent/scoreboard-public.json` when the commander page deploys | opens the R13 gate | the page URL |
 
 ## Waves
 
@@ -146,11 +202,68 @@ three separate times before that rule existed.
 | :-- | :-- | :-- | :-- |
 | 0 | `sdlc-locks-evals-bands`, `cli-testing-harness` | the loop, and a harness that runs a CLI in-process | ✅ shipped |
 | **1 · engine** | `replacement-parser`, `compat-oracle`, `cli-packaging` | a one-file CLI that runs, the shape lock green, the first published pass rate | 🔨 engine built · oracle grading commander · packaging next |
-| **2 · compatibility** | `commander-compat`, `cli-help-renderer` ↑ | every upstream file graded; `burgee/commander` 1,327/1,331 (= real commander in the same run) and byte-identical to commander on the demo (X7, 29 cases); help rendered from the manifest with `help <cmd>`, groups, examples, env, width from the runtime (H1–H6) | in progress |
+| **2 · compatibility** | `commander-compat`, `cli-help-renderer` ↑, `first-adopter` ↑, `eslint-plugin-cli-floor` ↑ | every upstream file graded; `burgee/commander` 1,327/1,331 (= real commander in the same run) and byte-identical to commander on the demo (X7, 29 cases); help rendered from the manifest with `help <cmd>`, groups, examples, env, width from the runtime (H1–H6) | in progress |
 | **3 · surfaces** | `cli-mcp`, `commander-schema`, `commander-env`, `commander-completions` | `--schema`, `--mcp`, completions — the reason to switch | queued |
-| **4 · reach** | `yargs-compat`, `dev-loop`, `cli-modularity`, `cli-prompts`, `first-adopter`, `eslint-plugin-cli-floor`, `docs-deploy`, `cli-benchmarks`, `brand-burgee` | the second host, the dev loop, a CLI we did not write, one brand declaration | queued |
+| **4 · reach** | `yargs-compat`, `dev-loop`, `cli-modularity`, `caique`, `docs-deploy`, `cli-benchmarks`, `brand-burgee` | the second host, the dev loop, a CLI we did not write, one brand declaration | queued |
 | **5 · speed** | native front-end spike, `eslint-plugin-cli-floor` as an oxlint rule | `--help` in 13 ms, or a recorded decision not to | conditional |
 | — | `security-profile` | a scanner-shaped CLI cannot confuse findings with failure | after 3, when an adopter needs it |
+
+### The stack's waves
+
+The engine's waves above stay as they are. The stack runs behind them, one package at a
+time, and never publishes a working release before the engine's scoreboard is public.
+
+| Wave | Intents | Ends with |
+| :-- | :-- | :-- |
+| **S0 · evidence** | `output-stack-research`, `caller-matrix` (the matrix, empty) | every U row cited; the callers named; the measured stack table |
+| **S1 · roundel** | `roundel`, `output-stack-compat` (chalk) | policy, tokens, theme; `roundel/chalk` graded; two B4 rows under picocolors and chalk |
+| **S2 · flagstaff** | `flagstaff`, `plugin-contract`, `output-stack-compat` (ora, log-update) | the loop, the schema, `check`, the U9 eval green; ora's row |
+| **S3 · caique** | `caique`, `output-stack-compat` (inquirer, clack) | prompts that never hang; two rows; the matrix green for five callers |
+| **S4 · the rest** | `output-stack-compat` (boxen, cli-table3), `first-adopter` for each package | eight rows; a CLI we did not write on all four |
+
+### Execution graph — what runs in parallel, and where a human signs
+
+Lanes are independent until a join. Every join is a human gate (working agreement rule 3):
+the agent that built a lane does not approve it. An agent spawned on a lane reads its
+intent, its design, and nothing outside the files those name.
+
+```text
+engine  ─ W2 commander-compat ── W3 surfaces (mcp · schema · env · completions) ── W4 reach
+             │                                      │
+             └── scoreboard PUBLIC ◄── gate ────────┘   ← nothing below publishes before this
+                    │
+stack   ─ S0 research ──┬── S1 roundel ──── S2 flagstaff ──── S3 caique ──── S4 rest
+          caller-matrix │      │  chalk row     │  plugin-contract  │  inquirer · clack rows
+          (empty)       │      └── gate         │  ora row          └── gate
+                        │                       └── gate
+wedge   ─ eslint-plugin-cli-floor (any time after W2; the adoption funnel) ── first-adopter
+```
+
+- **Parallel:** S0 with W2–W3; the lint wedge with everything; façade vendoring inside a
+  wave with that wave's package build.
+- **Serial, on purpose:** S1 → S2 → S3, because each depends on the one before (U1), and
+  because one scoreboard row at a time is how the numbers stay believable.
+- **Re-sequenced 2026-09-08 (owner):** `first-adopter` and
+  `eslint-plugin-cli-floor` moved from W4 to run beside W2. They are the only test of whether
+  anyone switches, and the wedge is the funnel from the audience the ESLint plugins already
+  have. Nothing else moves.
+- **Spawning:** one agent per intent per wave, scoped to the intent's `Affected users and
+  systems`; a second agent verifies against `Success criteria` before the gate. Neither
+  edits the other's tests.
+
+### Risks, and what kills a lane
+
+A roadmap without kill criteria cannot fail honestly. Each row names the number and the
+decision it forces.
+
+| Risk | Signal | Decision |
+| :-- | :-- | :-- |
+| Agents do not actually do better against a burgee CLI | B1 weekly shows no success-rate gain over the incumbent on the same tasks | the agent pitch demotes to "parse reliability" (already the honest justification); `--mcp` stays, the headline changes |
+| A façade cannot be lighter than what it replaces | B4 row above the ceiling after two ratchet cycles | the façade is dropped, the layer keeps its native API; the row stays on the page as a recorded loss |
+| Nobody switches | no external adopter within one wave of the scoreboard going public | the roadmap pauses at the current wave; the next investment is the wedge and articles, not a package |
+| The plugin contract cannot serve four layers | a key that one layer needs breaks another's validation | the contract splits by layer, recorded as a reversal of `plugin-contract`; the shared `check` command survives |
+| The stack pulls the repo's credibility before the engine has it | any stack package publishes a working release before the commander row is public | it is a lock (`cli-output-stack` design R-order), not a risk; CI refuses the publish |
+| An incumbent ships the same thing | commander gains a manifest, or clack a non-TTY error path | the compat row still holds, the edge row above is re-written honestly, and the family's edge (zero deps, one contract) is what remains — which is why the family row leads |
 
 ### Wave 1 — what landed, what is left
 
@@ -335,13 +448,19 @@ notation for declaring grammars, which is what a CLI is; the best of the person-
 the Claude register. **`mcilroy`** — Doug McIlroy, who invented the Unix pipe and wrote
 *"write programs to handle text streams, because that is a universal interface"*, the
 truest description of why this project exists, rejected only because two people in three
-will misspell it. **`pennon`** and **`vexillum`**, the other flag words.
+will misspell it. **`roundel`** and **`vexillum`**, the other flag words.
 
 ### The rest of the family
 
 `@interlace/*` remains for internal packages that are never published —
-`compat-oracle`, which is private and unscoped. Everything public is unscoped, and
-after the 2026-09-07 fold there is exactly one public package.
+`compat-oracle`, which is private and unscoped. Everything public is unscoped. After the
+2026-09-07 fold there is exactly one public package; the output stack proposes three more,
+each **an independent product with its own name, README, benchmarks and competitors** (U12),
+named from the same flag-and-rigging register as `burgee` — compounds were rejected because a
+prefix says "accessory" — incumbent façades as subpaths never as packages, and **zero external
+dependencies** — a stack package may depend only on
+another package published from this repo (U1, U6). Everything lives in this one repo, so an
+agent working on any layer has the whole stack in context.
 
 | Job | Entry point | Published |
 | :-- | :-- | :-- |
@@ -351,6 +470,9 @@ after the 2026-09-07 fold there is exactly one public package.
 | yargs compatibility | `burgee/yargs` | wave 4 |
 | opt-in host quirks | `burgee/quirks/*` | wave 2 |
 | the lint wedge | `eslint-plugin-cli-floor` | wave 4 |
+| the colours a CLI carries: policy, tokens, theme, chalk path | `roundel` | candidate, `cli-output-stack` |
+| the staff the flag flies from: frame loop, plugin host, ora/boxen/cli-table3/log-update paths | `flagstaff` | candidate, `cli-output-stack` |
+| the parrot that always answers back: prompts, flags first | `caique` | candidate, `caique` |
 | grading + reference drivers | `compat-oracle` | private, never |
 
 Every entry point above must declare a weight rule in `packages/burgee/src/weight.test.ts`
