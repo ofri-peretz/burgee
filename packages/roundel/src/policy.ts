@@ -82,7 +82,9 @@ export function colorLevel(rt: Runtime, opts?: ModeOptions): ColorLevel {
 export type TokenName = 'error' | 'warn' | 'ok' | 'hint' | 'muted' | 'command' | 'flag' | 'value' | 'heading';
 
 /** One `util.styleText` format name: `'bold'`, `'red'`, `'redBright'`, `'dim'`… */
-export type Format = Extract<Parameters<typeof import('node:util').styleText>[0], string>;
+// @types/node 26 types styleText's format as InspectColor | readonly InspectColor[] | `#…`;
+// the named formats are the contract here (hex goes through the theme's own path).
+export type Format = import('node:util').InspectColor;
 
 /**
  * A style as a token paints it: `styleText` format names, or the SGR parameters of one

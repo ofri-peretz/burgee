@@ -92,7 +92,9 @@ function ansi16(r: number, g: number, b: number): Format {
   const index = (on(b) << BLUE_BIT) | (on(g) << GREEN_BIT) | on(r);
   const name = BASIC_NAMES[index] ?? 'white';
   if (index === 0) return name;
-  return Math.round((Math.max(r, g, b) / SRGB_MAX) * CUBE_STEPS) === CUBE_STEPS ? `${name}Bright` : name;
+  if (Math.round((Math.max(r, g, b) / SRGB_MAX) * CUBE_STEPS) !== CUBE_STEPS) return name;
+  // Node spells bright black `gray`; `blackBright` is a runtime alias the types do not carry.
+  return name === 'black' ? 'gray' : `${name}Bright`;
 }
 
 /** A style as the token will paint it at this level: hex becomes truecolor, 256 or 16. */
