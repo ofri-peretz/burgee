@@ -23,13 +23,16 @@ const manifest = JSON.parse(readFileSync(resolve(pkgRoot, 'package.json'), 'utf8
 /**
  * The only edges allowed. `policy` is the floor every subpath may stand on; `theme` also
  * reaches `contrast`, because checking a theme is what the theme does and a third copy of
- * the maths inside one package would be duplication with no arrow to justify it.
+ * the maths inside one package would be duplication with no arrow to justify it. `chalk`
+ * reaches `tokens` for the one emitter every escape goes through (R3) and `policy` for its
+ * level at import (R6) — never the theme: chalk has none, and a chalk user pays for none.
  */
 const ALLOWED: Record<string, string[]> = {
   'policy.js': [],
   'contrast.js': [],
   'tokens.js': ['./policy.js'],
   'theme.js': ['./policy.js', './contrast.js'],
+  'chalk.js': ['./policy.js', './tokens.js'],
   'index.js': ['./contrast.js', './policy.js', './theme.js', './tokens.js'],
 };
 

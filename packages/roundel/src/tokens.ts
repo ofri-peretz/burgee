@@ -3,6 +3,11 @@
  * the colour it happens to use. Each is `(s: string) => string` over `util.styleText`, and
  * the identity until `fly()` has decided a level above 0. This is the only file in the
  * package that emits an escape sequence.
+ *
+ * The identity at level 0, and the same paint at any level above it under *any* output
+ * mode: the level itself obeys `NO_COLOR`, `FORCE_COLOR` and the `--color` flags in any
+ * mode, and is 0 on a pipe with no instruction (R2, revised 2026-09-08). The mode decides
+ * redraws, not colour, so there is no third behaviour for a token to have.
  */
 import { styleText } from 'node:util';
 
@@ -18,6 +23,29 @@ function paint(p: Paint, s: string): string {
   if ('sgr' in p) return `${CSI}${p.sgr.join(';')}m${s}${FG_RESET}`;
   // validateStream off: the policy has already decided; styleText must not re-read the env.
   return styleText([...p], s, { validateStream: false });
+}
+
+/** One SGR pair as the chalk façade composes them: the parameters that open and close it, no escape. */
+export interface SgrPair {
+  readonly open: string;
+  readonly close: string;
+}
+
+const LINE_BREAK = /\r?\n/g;
+
+/**
+ * Wrap `s` in a chain of SGR pairs, outermost first, as chalk does: a close already inside
+ * `s` is followed by a re-open so a nested style survives it, and every line break closes
+ * before it and re-opens after (chalk/chalk#92). The façade computes parameters; the
+ * escape itself is emitted here and nowhere else (R3, R6).
+ */
+export function sgr(chain: readonly SgrPair[], s: string): string {
+  const code = (p: string): string => `${CSI}${p}m`;
+  const openAll = chain.map((p) => code(p.open)).join('');
+  const closeAll = chain.map((p) => code(p.close)).reverse().join('');
+  let out = s;
+  if (out.includes(CSI)) for (const p of chain.toReversed()) out = out.replaceAll(code(p.close), code(p.close) + code(p.open));
+  return openAll + out.replace(LINE_BREAK, (lf) => closeAll + lf + openAll) + closeAll;
 }
 
 function token(name: TokenName): Token {

@@ -8,5 +8,10 @@
     "reference": 804,
     "passed": 804,
     "rate": 1
+  },
+  "chalk": {
+    "reference": 58,
+    "passed": 58,
+    "rate": 1
   }
 }

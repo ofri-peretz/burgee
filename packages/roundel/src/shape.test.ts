@@ -37,10 +37,24 @@ fly({}, rt);
 process.stdout.write(\`\${ok('ok')} \${error('error')}\\n\`);
 `;
 
+/**
+ * The colour-deciding variables, dropped from every child's environment. The policy obeys
+ * `FORCE_COLOR`, `--color` and Azure's `TF_BUILD` in any output mode (R2, revised
+ * 2026-09-08), so a run of this suite on a CI runner that sets them would otherwise assert
+ * against the runner instead of against the package. What is under test is the shape.
+ */
+const DECIDERS = new Set(['NO_COLOR', 'FORCE_COLOR', 'TERM', 'COLORTERM', 'CI', 'CLI_ACCESSIBLE', 'TF_BUILD', 'AGENT_NAME', 'CI_NAME']);
+const CLEAN = Object.fromEntries(Object.entries(process.env).filter(([k]) => !DECIDERS.has(k)));
+
 let dir: string;
 
+/** Runs a file in the installed project, piped, with no ambient instruction about colour. */
+function node(file: string, ...argv: string[]): string {
+  return execFileSync(process.execPath, [file, ...argv], { cwd: dir, env: CLEAN, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+}
+
 function run(...argv: string[]): string {
-  return execFileSync(process.execPath, ['cli.mjs', ...argv], { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  return node('cli.mjs', ...argv);
 }
 
 beforeAll(() => {
@@ -81,10 +95,38 @@ describe('Z1 — one file, npm i, no build step', () => {
       ].join('\n'),
     );
     try {
-      const out = execFileSync(process.execPath, [cjs], { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-      expect(out).toBe('pipe e');
+      expect(node(cjs)).toBe('pipe e');
     } finally {
       rmSync(cjs, { force: true }); // the one-file assertion above must stay true
+    }
+  });
+
+  it('`roundel/chalk` is one import away too — chalk\'s default export, as ESM and through require(esm) (R6, R10)', () => {
+    const esm = join(dir, 'probe-chalk.mjs');
+    const cjs = join(dir, 'probe-chalk.cjs');
+    writeFileSync(
+      esm,
+      [
+        "import chalk, { Chalk, chalkStderr, supportsColor } from 'roundel/chalk';",
+        "if (typeof chalkStderr !== 'function' || supportsColor !== false) throw new Error('roundel/chalk shape');",
+        "process.stdout.write(chalk.red('piped') + ' ' + new Chalk({ level: 1 }).red.bold('tty'));",
+      ].join('\n'),
+    );
+    writeFileSync(
+      cjs,
+      [
+        "const chalk = require('roundel/chalk');",
+        "const red = new chalk.Chalk({ level: 1 }).red;",
+        "process.stdout.write(chalk.default.red('piped') + ' ' + red('tty'));",
+      ].join('\n'),
+    );
+    try {
+      const styled = 'piped \u001B[31m\u001B[1mtty\u001B[22m\u001B[39m';
+      expect(node(esm)).toBe(styled);
+      expect(node(cjs)).toBe('piped \u001B[31mtty\u001B[39m');
+    } finally {
+      rmSync(esm, { force: true }); // the one-file assertion above must stay true
+      rmSync(cjs, { force: true });
     }
   });
 
