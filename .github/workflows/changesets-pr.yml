@@ -57,23 +57,33 @@ jobs:
           version-script: npm run changeset:version
           pr-title: "chore(release): version packages"
           commit-message: "chore(release): version packages"
+          # The token is an INPUT, not an env var. A PR opened with GITHUB_TOKEN raises no
+          # workflow runs — GitHub's loop-prevention rule — so the Version PR would sit at
+          # 0 checks against 3 required ones and could never merge (#35). Any other
+          # credential lifts that: RELEASE_BOT_PAT when it exists, and the default token
+          # otherwise, which keeps this workflow working until the secret is added.
+          #
+          # Passing it as `env: GITHUB_TOKEN` instead does not work and is worse than not
+          # working: the action reads `github-token` and then *throws* if the environment
+          # variable is set to anything different — "Please pass the custom GitHub token to
+          # the github-token input and remove the GITHUB_TOKEN environment variable to
+          # avoid conflicts". The env spelling is therefore silent today (both resolve to
+          # github.token) and a hard failure the moment the PAT exists.
+          github-token: ${{ secrets.RELEASE_BOT_PAT || secrets.GITHUB_TOKEN }}
         env:
-          # A PR opened with GITHUB_TOKEN raises no workflow runs — GitHub's
-          # loop-prevention rule — so the Version PR would sit at 0 checks
-          # against 3 required ones and could never merge (#35). Any other
-          # credential lifts that: RELEASE_BOT_PAT when it exists, and the
-          # default token otherwise, which keeps this workflow working (and
-          # the Version PR blocked) until the secret is added.
-          GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_PAT || secrets.GITHUB_TOKEN }}
           # lefthook's pre-push would otherwise gate the bot's push; the real
           # gates run on the resulting Version PR.
           LEFTHOOK: "0"
 
       - name: Enable auto-merge on the Version PR
-        if: steps.changesets.outputs.hasChangesets == 'true' && steps.changesets.outputs.pullRequestNumber
+        # The action's outputs were renamed alongside its inputs: `hasChangesets` is now
+        # `has-changesets` and `pullRequestNumber` is `pr-number`. An unknown output is the
+        # empty string rather than an error, so the old spelling made this condition
+        # silently false — the auto-merge and auto-approve below have never once run.
+        if: steps.changesets.outputs.has-changesets == 'true' && steps.changesets.outputs.pr-number
         env:
           GH_TOKEN: ${{ secrets.RELEASE_BOT_PAT || secrets.GITHUB_TOKEN }}
-          PR: ${{ steps.changesets.outputs.pullRequestNumber }}
+          PR: ${{ steps.changesets.outputs.pr-number }}
           HAS_PAT: ${{ secrets.RELEASE_BOT_PAT != '' }}
         run: |
           set -euo pipefail

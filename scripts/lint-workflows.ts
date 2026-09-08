@@ -87,10 +87,14 @@ if (files.length === 0) {
 }
 
 const parsed = new Map<string, Workflow>();
+/** The raw text too: a renamed output is read from an `if:`/`env:`/`run:`, not from `with:`. */
+const sources = new Map<string, string>();
 for (const file of files) {
   const full = path.join(WORKFLOWS_DIR, file);
   try {
-    parsed.set(file, yaml.load(fs.readFileSync(full, 'utf8')) as Workflow);
+    const text = fs.readFileSync(full, 'utf8');
+    sources.set(file, text);
+    parsed.set(file, yaml.load(text) as Workflow);
   } catch (e) {
     errors.push(`[yaml] ${file}: ${(e instanceof Error ? e.message : String(e)).split('\n')[0]}`);
   }
@@ -127,6 +131,50 @@ function renamedInputs(step: Step, where: string): string[] {
   return Object.entries(renamed)
     .filter(([was]) => !isNil(step.with?.[was]))
     .map(([was, now]) => `[renamed-input] ${where}: \`${was}:\` was renamed to \`${now}:\` — the action errors on the old name, so every run of this workflow fails.`);
+}
+
+/**
+ * Action *outputs* that were renamed upstream, by action.
+ *
+ * These are worse than the inputs, because they fail the other way. An unknown input is a
+ * hard error and stops the run; an unknown output is the empty string, so `if:` conditions
+ * that read one go quietly false and the step never runs. `changesets-pr.yml`'s auto-merge
+ * step read `hasChangesets` and `pullRequestNumber` and had therefore never executed once.
+ *
+ * A renamed output is found by scanning the whole workflow text rather than one step's
+ * `with:`, because the reader is some *other* step's `if:`, `env:` or `run:`.
+ */
+const RENAMED_OUTPUTS: Record<string, Record<string, string>> = {
+  'changesets/action': { hasChangesets: 'has-changesets', pullRequestNumber: 'pr-number', publishedPackages: 'published-packages' },
+};
+
+/**
+ * Does the text read `outputs.<name>`? A plain scan rather than a built RegExp: the pattern
+ * would be assembled from a table value, which reads as a dynamic-regex finding, and the
+ * only thing a `\b` buys here is not matching a longer name that starts with this one.
+ */
+function reads(text: string, name: string): boolean {
+  const needle = `outputs.${name}`;
+  for (let at = text.indexOf(needle); at !== -1; at = text.indexOf(needle, at + 1)) {
+    const after = text[at + needle.length] ?? '';
+    if (!/[A-Za-z0-9_-]/.test(after)) return true;
+  }
+  return false;
+}
+
+/** Every renamed output still read anywhere in this workflow, as ready-to-print errors. */
+function renamedOutputs(text: string, steps: Step[], file: string): string[] {
+  const actions = new Set(steps.map((s) => (s.uses ?? '').split('@')[0] ?? ''));
+  return Object.entries(RENAMED_OUTPUTS)
+    .filter(([action]) => actions.has(action))
+    .flatMap(([action, renamed]) =>
+      Object.entries(renamed)
+        .filter(([was]) => reads(text, was))
+        .map(
+          ([was, now]) =>
+            `[renamed-output] ${file}: reads \`outputs.${was}\`, which ${action} renamed to \`${now}\` — an unknown output is the empty string, not an error, so whatever depends on it is silently skipped.`,
+        ),
+    );
 }
 
 function triggers(on: unknown): string[] {
@@ -185,6 +233,9 @@ for (const [file, wf] of parsed) {
       }
     });
   }
+
+  const allSteps = Object.values(wf.jobs ?? {}).flatMap((job) => job?.steps ?? []);
+  errors.push(...renamedOutputs(sources.get(file) ?? '', allSteps, file));
 }
 
 if (STRICT) {
