@@ -19,7 +19,12 @@ one plugin contract across all four, and every caller (human, agent, CI, screen 
 another program) served by design rather than by fallback. Compatibility makes it cheap
 to try; the surfaces are the reason to switch; the plugin contract is how others spread
 it. Throughout, one constraint outranks every feature: **each package stays a library you
-import in one file, not a framework you scaffold into.**
+import in one file, not a framework you scaffold into.** And one more, stated 2026-09-08:
+**nothing here runs as a service.** Every product is a package; the MCP server is stdio,
+the scoreboard is a static page, the gallery is generated. That is where the edge is — in
+the product layer the whole ecosystem installs, not in infrastructure we would have no
+advantage running — and it is why the thing can be maintained by two, sponsored rather than
+hosted, and installed by an agent inside any sandbox with no account and no network.
 
 ## The minimum that proves the play
 
