@@ -25,7 +25,7 @@ A user of any of these changes one import and their tests still pass:
 | chalk 6 | `roundel/chalk` | roundel | ava | **shipped 2026-09-08 — 58 / 58.** mutable `level`, `chalkStderr`, `Chalk` class |
 | picocolors | `roundel/tokens` | roundel | node:test | API is a subset; graded for completeness, not compat |
 | ora 9 | `flagstaff/ora` | flagstaff | node:test | **shipped 2026-09-08 — 99 / 99.** `ora().start()` chain; `isSpinning`, `succeed`, `fail`; the `spinners` corpus; the stream hooks |
-| log-update 8 | `flagstaff/log-update` | flagstaff | node:test | **shipped 2026-09-08 — 99 / 99.** `logUpdate()`, `.clear()`, `.done()`, `.persist()`, stderr variant. Its cases render every frame through a real terminal emulator and assert the screen |
+| log-update 8 | `flagstaff/log-update` | flagstaff | node:test | **shipped 2026-09-08 — 99 / 99.** `logUpdate()`, `.clear()`, `.done()`, `.persist()`, `createLogUpdate`, stderr variant. Its cases render every frame through a real terminal emulator and assert the screen. The one façade so far that lowers a layer guarantee (R5), allow-listed with its reason under constraint 2 below |
 | boxen 8 | `flagstaff/boxen` | flagstaff | ava | border styles, padding, title, `fullscreen`. **Blocked on the oracle:** every case is `t.snapshot(box)` against ava's own `.snap` binary format, which the ava shim does not read. Teach the shim that format, or record the control's output as the expectation — a decision, so it is `planned` rather than active |
 | cli-table3 | `flagstaff/table` | flagstaff | vitest | **Blocked on a decision — see below.** The runner exists as of 2026-09-08; what is unsettled is that 221 of its 234 cases test its own `src/` modules |
 | inquirer 14 | `caique/inquirer` | caique | vitest | `inquirer.prompt([...])`, `@inquirer/*` prompt kinds |
@@ -149,6 +149,26 @@ published. Either is defensible; quietly shipping "13 / 13, 100%" is not.
    `packages/flagstaff/src/ora.test.ts` asserts it on the default a real program gets, and
    goes red if the enablement path is broken. Where a later façade's suite *does* assert
    the opposite, the case is allow-listed with the reason, as X7 does.
+
+   **The first such case arrived with the second render façade (2026-09-08).**
+   log-update's suite counts `ESC[2K` on plain non-TTY streams, so `flagstaff/log-update`
+   writes cursor escapes off a terminal and R5 is genuinely lowered — suppressing them
+   would fail the suite that is the whole claim. The allow-list is
+   `packages/flagstaff/src/log-update.test.ts`, which says so in prose and then asserts the
+   half of R5 that does survive: no `\r` and no absolute cursor-home, ever, so a captured
+   transcript stays parseable. That is the difference between a guarantee quietly lost and
+   a guarantee knowingly traded, and it is why the rule is "allow-list with the reason"
+   rather than "never".
+
+   **The owner accepted this trade on 2026-09-08**, at the Design→Build gate, as written
+   above and with the alternative named: suppress the escapes off-TTY, fail the cases that
+   count them, and publish a lower score as a deliberate divergence. The reason for taking
+   the trade is that a façade's contract is its incumbent's — a log-update user already
+   receives these bytes today, so the façade takes nothing away from them — and R5 governs
+   what `hoist()` does, which is the reason to migrate off the façade eventually rather
+   than the reason to adopt it. This is the first time constraint 2's escape hatch has been
+   used; it is meant to stay rare, and a second use is a signal to re-examine the
+   constraint rather than to widen it.
 
    What a façade does not do is reinterpret its host: `flagstaff/ora` is ora's behaviour to
    the byte and does not sit on `hoist()`. The static projection is the reason to move on
