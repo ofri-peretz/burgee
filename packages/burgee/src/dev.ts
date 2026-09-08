@@ -182,7 +182,12 @@ export function dev(opts: DevOptions): DevHandle {
       const name = filename === null ? '' : String(filename);
       if (name !== '' && (!SOURCE.test(name) || name.includes('node_modules'))) return;
       clearTimeout(timer);
-      timer = setTimeout(() => void reload(), opts.debounceMs ?? DEFAULT_DEBOUNCE_MS);
+      // The catch is not swallowing the failure — `reload()` has already reported it
+      // through `chain`, and that catch is on a *derived* promise, so the one returned
+      // here still rejects. Discarding it with `void` alone makes a save that lands while
+      // the entry is being removed an unhandled rejection at the process, which is a
+      // crash in a program and a failed run in a suite that otherwise passed.
+      timer = setTimeout(() => void reload().catch(() => undefined), opts.debounceMs ?? DEFAULT_DEBOUNCE_MS);
     });
   }
   const untilInputCloses = async (): Promise<void> => {
