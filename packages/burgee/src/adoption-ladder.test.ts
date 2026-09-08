@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 
 import { Command } from './commander.js';
 import { definePlugin, hookApplies, Manifest } from './manifest.js';
+import { toolsOf } from './mcp.js';
 
 function marker(order: string[], name: string, enforce?: 'pre' | 'post') {
   return definePlugin({
@@ -180,5 +181,36 @@ describe('a commander program actually runs, and gets the surfaces free', () => 
     await build([]).parseAsync(['deploy', '--help'], { from: 'user', ...c.opts });
     expect(c.code).toBe(0);
     expect(c.out.join('')).toContain('where to ship');
+  });
+});
+
+describe('a commander program gets --schema and MCP tools from its projected manifest (J2, N1)', () => {
+  it('serves --schema with its commands, arguments, options and effects', async () => {
+    const c = capture();
+    const program = new Command('app').version('2.0.0');
+    program.command('deploy').description('Ship it').argument('<target>').option('--dry-run', 'no writes').effects('non_idempotent').action(() => undefined);
+    await program.parseAsync(['--schema'], { from: 'user', ...c.opts });
+    expect(c.code).toBe(0);
+    const schema = JSON.parse(c.out.join('')) as { name: string; version: string; commands: { name: string; effects?: string; inputSchema: { required: string[] } }[] };
+    expect(schema).toMatchObject({ name: 'app', version: '2.0.0' });
+    expect(schema.commands.map((d) => d.name)).toEqual(['deploy']);
+    expect(schema.commands[0]).toMatchObject({ effects: 'non_idempotent', inputSchema: { required: ['target'] } });
+  });
+
+  it('exposes as MCP tools only the commands whose effects were declared (N2)', () => {
+    const program = new Command('app');
+    program.command('status').description('Show status').effects('read_only').action(() => undefined);
+    program.command('wipe').description('Delete everything').action(() => undefined);
+    expect(toolsOf(program.manifest).map((t) => t.name)).toEqual(['status']);
+    expect(toolsOf(program.manifest)[0]?.annotations).toEqual({ readOnlyHint: true, idempotentHint: true, destructiveHint: false });
+  });
+
+  it('leaves a program that declares its own --schema option alone', async () => {
+    const seen: string[] = [];
+    const c = capture();
+    const program = new Command('app');
+    program.command('dump').option('--schema', 'my own flag').action((opts: { schema?: boolean }) => void seen.push(String(opts.schema)));
+    await program.parseAsync(['dump', '--schema'], { from: 'user', ...c.opts });
+    expect(seen).toEqual(['true']);
   });
 });

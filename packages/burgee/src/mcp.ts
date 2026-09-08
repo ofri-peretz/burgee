@@ -10,7 +10,7 @@
  */
 import { createInterface } from 'node:readline';
 
-import type { CommandNode, Effects, Manifest } from './manifest.js';
+import { type CommandNode, type Effects, type Manifest } from './manifest.js';
 import { inputSchemaOf, type JsonSchema, runnable, typedName } from './schema.js';
 
 export const MCP_PROTOCOL_VERSION = '2025-06-18';
@@ -67,24 +67,32 @@ export function toolsOf(manifest: Manifest): Tool[] {
     .map((c) => ({ name: toolName(c, manifest.rootPath), description: describe(c), inputSchema: inputSchemaOf(c), annotations: annotationsOf(c.effects) }));
 }
 
-/** A tool call's arguments back into argv: positionals in declared order, then options. */
-export function argvOf(node: CommandNode, root: string[], args: Record<string, unknown>): string[] {
-  const argv = typedName(node, root).split(' ').filter((s) => s !== '');
+function optionArgs(node: CommandNode, args: Record<string, unknown>): string[] {
+  const out: string[] = [];
   for (const [name, spec] of Object.entries(node.options)) {
     const value = args[name];
     if (value === undefined || value === null) continue;
     if (spec.type === 'boolean') {
-      if (value === true) argv.push(`--${name}`);
-    } else argv.push(`--${name}`, String(value));
+      if (value === true) out.push(`--${name}`);
+    } else out.push(`--${name}`, String(value));
   }
-  argv.push('--json');
+  return out;
+}
+
+function positionalArgs(node: CommandNode, args: Record<string, unknown>): string[] {
+  const out: string[] = [];
   for (const a of node.arguments ?? []) {
     const value = args[a.name];
     if (value === undefined || value === null) continue;
-    if (Array.isArray(value)) argv.push(...value.map(String));
-    else argv.push(String(value));
+    out.push(...(Array.isArray(value) ? value.map(String) : [String(value)]));
   }
-  return argv;
+  return out;
+}
+
+/** A tool call's arguments back into argv: the command, its options, `--json`, then positionals in declared order. */
+export function argvOf(node: CommandNode, root: string[], args: Record<string, unknown>): string[] {
+  const command = typedName(node, root).split(' ').filter((s) => s !== '');
+  return [...command, ...optionArgs(node, args), '--json', ...positionalArgs(node, args)];
 }
 
 interface Session {
@@ -94,19 +102,22 @@ interface Session {
 }
 
 async function callTool(session: Session, params: Record<string, unknown> | undefined): Promise<unknown> {
-  const name = typeof params?.['name'] === 'string' ? params['name'] : '';
-  const node = toolsOf(session.manifest).some((t) => t.name === name)
-    ? runnable(session.manifest).find((c) => toolName(c, session.manifest.rootPath) === name)
-    : undefined;
+  const { manifest, invoke } = session;
+  const root = manifest.rootPath;
+  const given = params ?? {};
+  const raw = given['name'];
+  const name = typeof raw === 'string' ? raw : '';
+  const exposed = new Set(toolsOf(manifest).map((t) => t.name));
+  const node = exposed.has(name) ? runnable(manifest).find((c) => toolName(c, root) === name) : undefined;
   if (node === undefined) return { error: { code: JSON_RPC_INVALID_PARAMS, message: `unknown tool "${name}"` } };
-  const args = (params?.['arguments'] ?? {}) as Record<string, unknown>;
-  const { stdout, stderr, code } = await session.invoke(argvOf(node, session.manifest.rootPath, args));
+  const args = (given['arguments'] ?? {}) as Record<string, unknown>;
+  const { stdout, stderr, code } = await invoke(argvOf(node, root, args));
   // The envelope is the payload (N4): stdout carries it on success and on a reported failure.
   const text = stdout.trim() !== '' ? stdout.trim() : stderr.trim();
   return { result: { content: [{ type: 'text', text }], isError: code !== 0 } };
 }
 
-function handle(session: Session, request: Request): Promise<unknown> | unknown {
+async function handle(session: Session, request: Request): Promise<unknown> {
   switch (request.method) {
     case 'initialize':
       return { result: { protocolVersion: MCP_PROTOCOL_VERSION, capabilities: { tools: {} }, serverInfo: session.serverInfo } };
@@ -115,7 +126,7 @@ function handle(session: Session, request: Request): Promise<unknown> | unknown 
     case 'tools/list':
       return { result: { tools: toolsOf(session.manifest) } };
     case 'tools/call':
-      return callTool(session, request.params);
+      return await callTool(session, request.params);
     default:
       return { error: { code: JSON_RPC_METHOD_NOT_FOUND, message: `method not found: ${request.method}` } };
   }

@@ -101,7 +101,15 @@ export interface RunOptions {
   /** `columns` is read when present, so help wraps to the terminal (H3). */
   stdout?: { write: (s: string) => unknown; columns?: number };
   stderr?: { write: (s: string) => unknown };
-  exit?: (code: number) => never;
+  /** Receives the E1 code. The default calls process.exit; an injected one may simply record it. */
+  exit?: (code: number) => void;
+}
+
+/** `ctx.exit(code)` unwinds through this when the injected exit returns instead of leaving. */
+class ExitSignal extends Error {
+  constructor(readonly code: number) {
+    super(`exit ${code}`);
+  }
 }
 
 /** A usage problem the caller can fix, carrying the flag that fixes it (E3). */
@@ -250,7 +258,7 @@ const HELP_FLAGS = new Set(['--help', '-h']);
 const HELP_WIDTH = 100;
 
 /** The real exit, used only when a caller injects none. */
-const processExit = (code: number): never => process.exit(code);
+const processExit = (code: number): void => process.exit(code);
 
 /** The part of argv the parser will read as options: everything before `--`. */
 export function beforeTerminator(argv: readonly string[]): readonly string[] {
@@ -284,6 +292,10 @@ function unresolved({ manifest, root, io: { width } }: Resolving, argv: string[]
  */
 async function surface(manifest: Manifest, argv: string[], io: Io): Promise<boolean> {
   const head = beforeTerminator(argv);
+  if (argv[0] === 'help') {
+    io.out.write(helpCommand(manifest, argv.slice(1), manifest.rootPath, io.width));
+    return true;
+  }
   if (head.includes('--schema')) {
     io.out.write(`${JSON.stringify(schemaOf(manifest), null, 2)}\n`);
     return true;
@@ -298,9 +310,9 @@ async function surface(manifest: Manifest, argv: string[], io: Io): Promise<bool
         env: io.env,
         stdout: { write: (s: string) => out.push(s) },
         stderr: { write: (s: string) => err.push(s) },
-        exit: ((c: number) => {
+        exit: (c: number) => {
           code = c;
-        }) as unknown as (c: number) => never,
+        },
       });
       return { stdout: out.join(''), stderr: err.join(''), code };
     };
@@ -326,7 +338,7 @@ interface Io {
   out: { write: (s: string) => unknown };
   err: { write: (s: string) => unknown };
   env: Record<string, string | undefined>;
-  exit: (code: number) => never;
+  exit: (code: number) => void;
   width: number;
   stdin: NodeJS.ReadableStream;
 }
@@ -345,13 +357,17 @@ async function dispatch(manifest: Manifest, { node, rest, name }: Resolved, io: 
   applyDefaults(values, node.options, io.env);
   const { positionals, passthrough } = splitPositionals(parsed.tokens);
   await manifest.fire('preRun', name, values);
-  const data = await node.run({ options: values, positionals, passthrough, env: io.env, exit: io.exit });
+  const exit = (code: number): never => {
+    io.exit(code);
+    throw new ExitSignal(code);
+  };
+  const data = await node.run({ options: values, positionals, passthrough, env: io.env, exit });
   await manifest.fire('postRun', name, values);
   return { json, data };
 }
 
 /** Success: help, or the data on the requested surface. */
-function emit(io: Io, outcome: Outcome): never {
+function emit(io: Io, outcome: Outcome): void {
   if (outcome.help !== undefined) {
     io.out.write(outcome.help);
     return io.exit(ExitCode.OK);
@@ -369,7 +385,7 @@ interface FailureContext {
 }
 
 /** Failure: an exit signal is honoured silently; anything else is described on the requested surface. */
-async function report(cause: unknown, { manifest, io, argv, json, name }: FailureContext): Promise<never> {
+async function report(cause: unknown, { manifest, io, argv, json, name }: FailureContext): Promise<void> {
   const failure = describeFailure(cause, argv);
   if (failure.silent === true) return io.exit(failure.code);
   await manifest.fire('onError', name, {});
@@ -403,10 +419,6 @@ export async function execute(manifest: Manifest, opts: RunOptions & { root?: st
   let name = '';
   try {
     if (await surface(manifest, argv, io)) return io.exit(ExitCode.OK);
-    if (argv[0] === 'help') {
-      io.out.write(helpCommand(manifest, argv.slice(1), root, io.width));
-      return io.exit(ExitCode.OK);
-    }
     const { node, rest } = manifest.resolve(argv, root);
     if (node?.run === undefined) {
       const { text, code } = unresolved({ manifest, root, io }, argv, node);

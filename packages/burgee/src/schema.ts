@@ -60,18 +60,18 @@ function optionProperty(spec: OptionSpec): JsonSchemaProperty {
 }
 
 export function inputSchemaOf(node: CommandNode): JsonSchema {
-  const properties: Record<string, JsonSchemaProperty> = {};
+  const properties = new Map<string, JsonSchemaProperty>();
   const required: string[] = [];
   for (const a of node.arguments ?? []) {
-    properties[a.name] = argumentProperty(a);
+    properties.set(a.name, argumentProperty(a));
     if (a.required !== false) required.push(a.name);
   }
   for (const [name, spec] of Object.entries(node.options)) {
     if (spec.hidden === true) continue;
-    properties[name] = optionProperty(spec);
+    properties.set(name, optionProperty(spec));
     if (spec.required === true && spec.default === undefined) required.push(name);
   }
-  return { type: 'object', properties, required, additionalProperties: false };
+  return { type: 'object', properties: Object.fromEntries(properties), required, additionalProperties: false };
 }
 
 /** The typed name of a node: its path without the program's own name. */
@@ -104,6 +104,7 @@ export function schemaOf(manifest: Manifest): ProgramSchema {
   const program = manifest.find(root);
   const out: ProgramSchema = { schemaVersion: 1, name: root.join(' '), commands: runnable(manifest).map((c) => commandSchemaOf(c, root)) };
   if (manifest.version !== undefined) out.version = manifest.version;
-  if (program?.description !== undefined) out.description = program.description;
+  const description = program?.description;
+  if (description !== undefined) out.description = description;
   return out;
 }

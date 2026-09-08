@@ -1663,7 +1663,9 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
    */
   async _burgeeSurface(userArgs: string[]): Promise<boolean> {
     const root = this._root();
-    const declared = (flag: string): boolean => root._findOption(flag) !== undefined;
+    // Any command in the tree that declares the flag keeps it: the surface is additive only.
+    const declared = (flag: string, at: Command = root): boolean =>
+      at._findOption(flag) !== undefined || at.commands.some((sub) => declared(flag, sub));
     const terminator = userArgs.indexOf('--');
     const head = terminator === -1 ? userArgs : userArgs.slice(0, terminator);
     if (head.includes('--schema') && !declared('--schema')) {

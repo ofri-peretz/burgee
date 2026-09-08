@@ -186,6 +186,9 @@ export default [
   },
 
   // ── Documented false positives (tracked in ofri-peretz/eslint) ────────────
+  // FP 14: no-magic-numbers reports the literal inside a named constant's own definition
+  // (`const JSON_RPC_INVALID_REQUEST = -32600`), which is the extraction it asks for. Off
+  // for the JSON-RPC module, where the three spec codes are exactly such constants.
   // FP 12 (no exception needed, the code was hoisted): consistent-function-scoping fires on
   // an arrow that is already at module scope when it is wrapped in a type assertion, and on
   // trivial callbacks written inline inside an object literal that is passed as an argument,
@@ -281,8 +284,15 @@ export default [
     // (`import { type X } from './m.js'`) emits `import {} from './m.js'` — a real
     // module load for no value, worth ~5ms of startup here. A type-only import must
     // be top-level so it erases completely.
-    files: ['packages/burgee/src/execute.ts', 'packages/burgee/src/help.ts'],
+    files: ['packages/burgee/src/execute.ts', 'packages/burgee/src/help.ts', 'packages/burgee/src/schema.ts'],
     rules: { 'import-next/consistent-type-specifier-style': 'off' },
+  },
+  {
+    // FP 14, see the list above. The request loop awaits each JSON-RPC message before
+    // reading the next: stdio MCP is ordered, and a tool call runs a command whose output
+    // must not interleave with another's.
+    files: ['packages/burgee/src/mcp.ts'],
+    rules: { 'conventions/no-magic-numbers': 'off', 'performance/no-await-in-loop': 'off', 'reliability/no-await-in-loop': 'off' },
   },
   {
     // Plugin hooks run strictly in order — `enforce: 'pre'`, then unordered, then

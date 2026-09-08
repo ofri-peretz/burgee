@@ -18,6 +18,8 @@ export const program = defineProgram({
     defineCommand({
       name: 'greet',
       description: 'Greet someone',
+      effects: 'read_only',
+      arguments: [{ name: 'name', description: 'who to greet', required: true }],
       options: {
         shout: { type: 'boolean', description: 'uppercase the greeting' },
         greeting: { type: 'string', description: 'the greeting word', env: 'DEMO_GREETING', default: 'Hello' },
@@ -35,6 +37,8 @@ export const program = defineProgram({
         defineCommand({
           name: 'get',
           description: 'Print one configuration value',
+          effects: 'read_only',
+          arguments: [{ name: 'key', description: 'dotted key', required: true }],
           run: ({ positionals }) => {
             const [key = ''] = positionals;
             const value = CONFIG.get(key);
@@ -47,6 +51,7 @@ export const program = defineProgram({
     defineCommand({
       name: 'fail',
       description: 'Fail on purpose',
+      effects: 'idempotent',
       options: { code: { type: 'string', description: 'exit with this E1 code instead of throwing' } },
       run: ({ options, exit }) => {
         if (options['code'] !== undefined) {

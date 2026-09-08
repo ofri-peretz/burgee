@@ -5,6 +5,7 @@
 // roughly a fifth, which is what the weight lock measures.
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+
 import ts from 'typescript';
 
 const dir = process.argv[2] ?? 'dist';
