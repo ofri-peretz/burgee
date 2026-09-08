@@ -38,17 +38,17 @@ const RULES: Record<string, EntryRule> = {
   // Everything: the loop, the registry, and all five built-ins. `box` and `table` bring the
   // wrapper and the width function with them, which is most of it. Measured 44,294 B on
   // 2026-09-08 — a program that wants one component should import its subpath (U5, R10).
-  '.': { allow: ['roundel/chalk', 'roundel/policy', 'roundel/tokens'], budget: 48_000, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
+  '.': { allow: ['roundel/chalk', 'roundel/policy', 'roundel/tokens'], budget: 50_000, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
   // The loop and its four projections; never the registry — a program that hoists its own
   // component pays nothing for the plugin host. Measured 4,141 B.
   './loop': { allow: ['roundel/policy'], budget: 5_000, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
   // The registry, the validator, the built-ins and the schema they are checked against.
-  // Measured 8,434 B, of which the schema is 2,406: the contract ships in the tarball (R3).
-  './plugin': { allow: [], budget: 10_000, denied: ['loop.js', 'projection.js', 'spinner.js', 'cli.js', 'index.js'] },
+  // Measured 10,322 B, of which the schema is 2,978: the contract ships in the tarball (R3).
+  './plugin': { allow: [], budget: 12_000, denied: ['loop.js', 'projection.js', 'spinner.js', 'cli.js', 'index.js'] },
   // The ceiling is ora (R10): recorded when ora's suite is vendored. Until then, the spinner
   // plus the registry it reads its style from. Measured 10,015 B; ora 9's own index.js is
-  // 9,656 B before its eleven dependencies.
-  './spinner': { allow: ['roundel/tokens'], budget: 11_000, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
+  // 9,656 B before its eleven dependencies. Measured 11,250 B.
+  './spinner': { allow: ['roundel/tokens'], budget: 12_500, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
   // The ora façade: the port, the width function and the spinner corpus it re-exports.
   // Measured 45,549 B on 2026-09-08, of which the corpus is 20,250 — and the ceiling it is
   // measured against is ora's own shipped JavaScript, 112,688 B across seventeen packages
@@ -70,9 +70,19 @@ const RULES: Record<string, EntryRule> = {
   // functions over the wrapper and the width function (R7), which is 21 KB of the ~24.6 KB
   // each; they share both modules, so a program that imports the two pays for them once.
   // None of the four reaches the loop, the façades or the corpus.
+  // The corpus importers (R11). 838 B and it reaches *nothing* — its only imports are
+  // types, which `verbatimModuleSyntax` erases, so the file that turns ~80 spinners into a
+  // plugin costs less than one of them. The corpora themselves are the caller's (U5), and
+  // the last case in `import.test.ts` asserts neither became a dependency.
+  './import': { allow: [], budget: 2_000, denied: ['plugin.js', 'builtins.js', 'schema.json', 'loop.js', 'projection.js', 'box.js', 'spinner.js', 'cli.js', 'index.js'] },
   './progress': { allow: ['roundel/tokens'], budget: 2_000, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'wrap.js', 'width.js', 'cli.js', 'index.js'] },
-  './tasks': { allow: ['roundel/tokens'], budget: 11_000, denied: ['loop.js', 'projection.js', 'wrap.js', 'width.js', 'cli.js', 'index.js'] },
-  './box': { allow: ['roundel/chalk', 'roundel/tokens'], budget: 27_000, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'table.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
+  './tasks': { allow: ['roundel/tokens'], budget: 13_000, denied: ['loop.js', 'projection.js', 'wrap.js', 'width.js', 'cli.js', 'index.js'] },
+  // `box` reads its named borders from the registry, the way `tasks` reads its glyphs, so
+  // it carries the plugin host: 34,223 B, up from 24,710 when the border table was its own.
+  // That is the price of R11 — a corpus imported with `fromCliBoxes()` is a registered
+  // plugin, and `box('…', { border: 'arrow' })` then draws with it without knowing it
+  // exists. A caller who wants neither passes a style object and a bundler drops the rest.
+  './box': { allow: ['roundel/chalk', 'roundel/tokens'], budget: 36_000, denied: ['loop.js', 'projection.js', 'table.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
   './table': { allow: ['roundel/chalk', 'roundel/tokens'], budget: 27_000, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'box.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
 };
 

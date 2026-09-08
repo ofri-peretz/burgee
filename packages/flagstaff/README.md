@@ -66,8 +66,8 @@ register(nyan);
 spinner('nyan');
 ```
 
-Keys: `spinners`, `glyphs` (`ok`, `fail`, `warn`, `info`, `running` — change them and
-every built-in that draws one changes), `tokens` (a roundel theme), `components`. A spinner
+Keys: `spinners`, `borders`, `glyphs` (`ok`, `fail`, `warn`, `info`, `running` — change them
+and every built-in that draws one changes), `tokens` (a roundel theme), `components`. A spinner
 or component without a `static` is refused at `register()` with `E_NO_STATIC_PROJECTION`
 and a fix. The built-in `dots` and `line` styles are a plugin of exactly this shape,
 registered through the same door, so the built-ins cannot grow an API a plugin cannot reach.
@@ -150,6 +150,26 @@ log-update ships 113.4 KB across **sixteen** packages. This is 46.7 KB across **
 It carries no port of `slice-ansi` — the wrapper already makes every row self-contained,
 so clipping a frame to the terminal's height is an array slice.
 
+### Bringing a corpus with you
+
+The ecosystem already has ~80 spinner styles and eight border sets, as plain JSON. Neither
+is bundled here — the weight of a corpus nobody asked for is the thing this package exists
+to avoid — so `flagstaff/import` turns the one you have into an ordinary plugin:
+
+```js
+import cliSpinners from 'cli-spinners';
+import { fromCliSpinners } from 'flagstaff/import';
+import { register } from 'flagstaff/plugin';
+
+register(fromCliSpinners(cliSpinners));
+spinner('moon');
+```
+
+`fromCliBoxes(cliBoxes)` does the same for borders, after which `box('…', { border:
+'arrow' })` draws with one. Both go through the same `register()` and the same schema, so
+the gallery opens full and a third-party plugin starts as a copy of one of these. The
+importer is 838 B and reaches nothing.
+
 ### `flagstaff check`
 
 ```bash
@@ -176,8 +196,6 @@ bundler drop what a program does not use. ESM with a `default` condition, so
 
 - **Drop-in paths** for boxen and cli-table3, graded by their own suites through
   `compat-oracle` the way ora and log-update already are.
-- **`flagstaff/import`** — `fromCliSpinners(json)` and `fromCliBoxes(json)`: the two existing
-  corpora as registered plugins.
 
 Part of the [burgee](https://github.com/ofri-peretz/burgee) family: a CLI on burgee declares
 what it is, roundel carries its colours, flagstaff flies it, caique answers back. Each is
