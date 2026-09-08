@@ -1,0 +1,40 @@
+# commander-completions D4 — every generated script is exercised by its shell, not read
+# by a parser: bash through COMP_WORDS, zsh through a real TAB in a pseudo-terminal, fish
+# through `complete -C`, PowerShell through TabExpansion2. ubuntu-latest ships bash, zsh
+# and pwsh; fish is installed here. The same test file runs locally and skips a shell that
+# is not installed, so this job is where all four are guaranteed to run.
+name: Completions · four shells
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: completions-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  shells:
+    name: bash, zsh, fish, pwsh complete the demo
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+      - uses: ./.github/actions/setup
+      # ubuntu-latest ships bash and pwsh; zsh and fish are installed here.
+      - name: Install zsh and fish
+        run: sudo apt-get update -q && sudo apt-get install -y -q zsh fish
+      - name: Shells present
+        run: |
+          set -euo pipefail
+          for sh in bash zsh fish pwsh; do printf '%s: ' "$sh"; command -v "$sh"; done
+      - name: Build
+        run: npx turbo run build --filter=burgee
+      - name: Every shell exercises its script
+        run: cd packages/burgee && npx vitest run src/completions.test.ts --reporter=verbose

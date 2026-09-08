@@ -63,3 +63,15 @@ server — nothing else to write:
 
 If the program declares its own `--schema` or `--mcp` option, burgee leaves it alone: the
 surfaces are additive, never a change to a program that already exists.
+
+## `completion <shell>` — static, never runs your CLI on TAB
+
+```bash
+mytool completion zsh > "${fpath[1]}/_mytool"   # also: bash, fish, pwsh, fig
+```
+
+Commands, subcommands, options and choice values, with descriptions where the shell shows
+them — generated from the same manifest, as plain shell. Pressing TAB never executes the
+program. Each script is pinned by a snapshot and exercised by its real shell in CI. The
+templates live in `burgee/completions` and load only on that command, so a program pays
+for them when it prints a script, never at startup.
