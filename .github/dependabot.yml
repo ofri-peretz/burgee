@@ -15,6 +15,23 @@ updates:
     groups:
       all-packages:
         patterns: ["*"]
+    # compat-oracle runs commander's and yargs' *own* test suites, vendored at a pinned
+    # release, against their own devDependencies at that release (yargs' integration tests
+    # use which@2's callback API; a bump to which@7 timed them out — #5). The hosts and
+    # their suite dependencies move only through the re-vendor flow (compat-refresh.yml),
+    # never through a version bump here.
+    ignore:
+      - dependency-name: "commander"
+      - dependency-name: "yargs"
+      - dependency-name: "yargs-parser"
+      - dependency-name: "which"
+      - dependency-name: "mocha"
+      - dependency-name: "chai"
+      - dependency-name: "chalk"
+      - dependency-name: "cross-spawn"
+      - dependency-name: "cpr"
+      - dependency-name: "hashish"
+      - dependency-name: "yargs-test-extends"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

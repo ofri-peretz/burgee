@@ -97,6 +97,13 @@ count, so a rate can never exceed 1; and `COMPAT_TAP_DIR` keeps the raw TAP so a
 that moved can be read back to the names that moved it. The control's verdict is that its
 suite ran and passed against its own package; it is not ratcheted against burgee's baseline.
 
+**The suite's dependencies are the host's, at the vendored release.** `compat-oracle`'s
+devDependencies for the suites (`which`, `mocha`, `chai`, `chalk`, `cross-spawn`, `cpr`,
+`hashish`, `yargs-test-extends`) and the hosts themselves are pinned to what the upstream's
+own package.json names at the vendored release, and dependabot is told to leave them alone:
+a bump to `which@7` (promise-only) timed out yargs' integration tests twice in one day.
+They move only through the re-vendor flow, which reads the upstream's package.json.
+
 ## Rejected alternatives
 
 - **Write our own compatibility tests.** They would encode our reading of the host's
