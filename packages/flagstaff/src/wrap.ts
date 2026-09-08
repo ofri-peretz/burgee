@@ -12,8 +12,6 @@
  * Graded differentially against the real `wrap-ansi` in `wrap.test.ts`, the way `width.ts`
  * is graded against `string-width`: the incumbent is the specification.
  */
-import { ansiStyles } from 'roundel/chalk';
-
 import { measure } from './width.js';
 
 const ESC = '\u001B';
@@ -73,8 +71,24 @@ const ROW_BOUNDARY = new RegExp(`[\\n${ESCAPE_CHARACTERS}]`, 'g');
 /** Every printable ASCII character is its own cluster of width one — skip the segmenter. */
 const ASCII_PRINTABLE = /^[ -~]*$/;
 
-const MODIFIER_CLOSE_CODES = new Set(ansiStyles.codes.values());
-MODIFIER_CLOSE_CODES.delete(SGR_RESET);
+/**
+ * Which SGR code closes which modifier. This is ECMA-48, not any library's table — bold
+ * opens with 1 and closes with 22 wherever you read it — so it lives here rather than
+ * being imported, which keeps `wrap()` free of `roundel/chalk` and takes 18 KB off every
+ * subpath that wraps. The colour families close with 39, 49 and 59 and are handled by name
+ * above, before this map is consulted.
+ */
+const MODIFIER_CLOSE = new Map<number, number>([
+  [1, 22],
+  [2, 22],
+  [3, 23],
+  [4, 24],
+  [7, 27],
+  [8, 28],
+  [9, 29],
+  [53, 55],
+]);
+const MODIFIER_CLOSE_CODES = new Set(MODIFIER_CLOSE.values());
 
 const segmenter = new Intl.Segmenter();
 
@@ -325,7 +339,7 @@ function applyToken(token: SgrToken, active: ActiveStyle[]): void {
     return;
   }
 
-  const close = ansiStyles.codes.get(token.code);
+  const close = MODIFIER_CLOSE.get(token.code);
   if (close !== undefined && close !== SGR_RESET) {
     const family = `modifier-${token.code}`;
     removeFamily(active, family);
