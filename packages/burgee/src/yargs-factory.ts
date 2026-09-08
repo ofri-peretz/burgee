@@ -6,9 +6,15 @@
  * existing program run unchanged (J2).
  */
  
-import { command as Command, type CommandInstance, isCommandBuilderCallback } from './yargs-command.js';
+import { ExitCode } from './exit-code.js';
+import { type Effects, Manifest, type Plugin } from './manifest.js';
+import { serveMcp } from './mcp.js';
+import { schemaOf } from './schema.js';
+import { projectManifest, render, type Snapshot } from './yargs-burgee.js';
+import { command as Command, type CommandHandler, type CommandInstance, isCommandBuilderCallback } from './yargs-command.js';
 import { completion as Completion, type Completion as CompletionInstance, type CompletionFunction } from './yargs-completion.js';
 import { applyMiddleware, GlobalMiddleware, type Middleware } from './yargs-middleware.js';
+import { tokenizeArgString } from './yargs-parser.js';
 import type { PlatformShim } from './yargs-shim.js';
 import { usage as Usage, type FailureFunction, type UsageInstance } from './yargs-usage.js';
 import { applyExtends, argsert, isPromise, maybeAsyncResult, objectKeys, objFilter, setBlocking, YError } from './yargs-utils.js';
@@ -70,6 +76,25 @@ interface Frozen {
 
 export type ParseCallback = (err: YError | string | undefined | null, argv: any, output: string) => void;
 
+interface Writer {
+  write: (str: string) => unknown;
+}
+
+/** burgee's seam: inject the streams and the exit, and get E1 exit codes back (T1). */
+export interface BurgeeSeam {
+  stdout?: Writer;
+  stderr?: Writer;
+  exit?: (code: number) => void;
+}
+
+interface BurgeeState extends BurgeeSeam {
+  json: boolean;
+  /** Whether the injected exit has been called for this parse; a run that never exits reports OK. */
+  exited?: boolean;
+  /** The last line yargs printed as an error, kept for the failure envelope under --json. */
+  lastError: string;
+}
+
 const DEFAULT_LOCALE = 'en_US';
 
 export function YargsFactory(shim: PlatformShim): (processArgs?: string | string[], cwd?: string, parentRequire?: NodeJS.Require) => YargsInstance {
@@ -125,6 +150,10 @@ export class YargsInstance {
   #usageConfig: Record<string, any> = {};
   #versionOpt: string | null = null;
   #validation: ValidationInstance;
+  // ───── burgee: the manifest projection, plugins, --json, the surfaces and the seam ─────
+  #burgee: BurgeeState | undefined = undefined;
+  #effects: Effects | undefined = undefined;
+  #manifest: Manifest | undefined = undefined;
 
   constructor(processArgs: string | string[] = [], cwd: string, parentRequire: NodeJS.Require | undefined, shim: PlatformShim) {
     this.#shim = shim;
@@ -428,6 +457,14 @@ export class YargsInstance {
   exit(code: number, err?: YError | string): void {
     this.#hasOutput = true;
     this.#exitError = err;
+    const burgee = this.#burgee;
+    if (burgee !== undefined && code !== 0 && burgee.json) this.#failureEnvelope(err);
+    if (burgee?.exit !== undefined) {
+      if (burgee.exited) return;
+      burgee.exited = true;
+      burgee.exit(code === 0 ? ExitCode.OK : err instanceof YError || err === undefined || typeof err === 'string' ? ExitCode.USAGE : ExitCode.RUNTIME);
+      return;
+    }
     if (this.#exitProcess) this.#shim.process.exit(code);
   }
 
@@ -661,6 +698,54 @@ export class YargsInstance {
 
   parse(args?: string | string[], shortCircuit?: object | ParseCallback | boolean, _parseFn?: ParseCallback): any {
     argsert('[string|array] [function|boolean|object] [function]', [args, shortCircuit, _parseFn], arguments.length);
+    if (shortCircuit === true) return this.#parse(args, shortCircuit, _parseFn);
+    // burgee: --json and the seam are per parse. What this parse turns on (json, an exit
+    // already reported) is put back afterwards, so the next parse starts as the program left it.
+    const before = this.#burgee === undefined ? undefined : { ...this.#burgee };
+    const restore = (): void => {
+      this.#burgee = before;
+    };
+    const seam = this.#burgee?.exit === undefined ? undefined : this.#burgee;
+    if (seam === undefined) {
+      try {
+        const result = this.#parse(args, shortCircuit, _parseFn);
+        if (isPromise(result)) return result.finally(restore);
+        restore();
+        return result;
+      } catch (err) {
+        restore();
+        throw err;
+      }
+    }
+    // The seam: the whole run settles to one E1 exit. yargs reports its own failures
+    // through exit(); a handler that throws synchronously is the one thing that escapes it.
+    seam.exited = false;
+    const finish = (argv: any): any => {
+      if (!this.#burgee?.exited) seam.exit?.(ExitCode.OK);
+      restore();
+      return argv;
+    };
+    const fail = (err: unknown): any => {
+      if (err instanceof YError) {
+        restore();
+        throw err;
+      }
+      const message = err instanceof Error ? err.message : String(err);
+      if (this.#burgee?.json) this.#failureEnvelope(err instanceof Error ? (err as YError) : message);
+      else this.#logger.error(message);
+      if (!this.#burgee?.exited) seam.exit?.(ExitCode.RUNTIME);
+      restore();
+      return undefined;
+    };
+    try {
+      const result = this.#parse(args, shortCircuit, _parseFn);
+      return isPromise(result) ? result.then(finish, fail) : finish(result);
+    } catch (err) {
+      return fail(err);
+    }
+  }
+
+  #parse(args?: string | string[], shortCircuit?: object | ParseCallback | boolean, _parseFn?: ParseCallback): any {
     this.#freeze();
     if (typeof args === 'undefined') args = this.#processArgs;
     if (typeof shortCircuit === 'object') {
@@ -671,8 +756,25 @@ export class YargsInstance {
       this.#parseFn = shortCircuit as ParseCallback;
       shortCircuit = false;
     }
-    if (!shortCircuit) this.#processArgs = args;
+    if (!shortCircuit) {
+      args = this.#takeJson(args);
+      this.#processArgs = args;
+    }
     if (this.#parseFn) this.#exitProcess = false;
+    if (!shortCircuit) {
+      const served = this.#burgeeSurface(args);
+      if (served !== false) {
+        // A surface was (or is being) served: the argv handed back is the short-circuit parse,
+        // as after --help. Completions and --mcp load lazily, so those two return a promise.
+        const settle = (): any => {
+          const argv = this.#runYargsParserAndExecuteCommands(args, true);
+          this.#unfreeze();
+          return argv;
+        };
+        if (isPromise(served)) return served.then(settle);
+        return settle();
+      }
+    }
     const parsed = this.#runYargsParserAndExecuteCommands(args, !!shortCircuit);
     const tmpParsed = this.parsed;
     (this.#completion as CompletionInstance).setParsed(this.parsed);
@@ -926,16 +1028,25 @@ export class YargsInstance {
   #createLogger(): Logger {
     return {
       log: (...args: any[]) => {
-        if (!this.#hasParseCallback()) console.log(...args);
+        const out = this.#burgee?.stdout;
+        if (out !== undefined) out.write(`${args.join(' ')}\n`);
+        else if (!this.#hasParseCallback()) console.log(...args);
         this.#hasOutput = true;
         if (this.#output.length) this.#output += '\n';
         this.#output += args.join(' ');
       },
       error: (...args: any[]) => {
-        if (!this.#hasParseCallback()) console.error(...args);
+        const burgee = this.#burgee;
+        const line = args.join(' ');
+        if (burgee?.json) {
+          // Under --json the failure is one envelope on stdout; the help screen and the
+          // message yargs prints on the way are kept only as the envelope's message.
+          if (line.trim() !== '') burgee.lastError = line;
+        } else if (burgee?.stderr !== undefined) burgee.stderr.write(`${line}\n`);
+        else if (!this.#hasParseCallback()) console.error(...args);
         this.#hasOutput = true;
         if (this.#output.length) this.#output += '\n';
-        this.#output += args.join(' ');
+        this.#output += line;
       },
     };
   }
@@ -1134,6 +1245,7 @@ export class YargsInstance {
     runValidation: (aliases: Record<string, string[]>, positionalMap: Record<string, string[]>, parseErrors: Error | null, isDefaultCommand?: boolean) => (argv: any) => void;
     runYargsParserAndExecuteCommands: (args: string | string[] | null, shortCircuit?: boolean, calledFromCommand?: boolean, commandIndex?: number, helpOnly?: boolean) => any;
     setHasOutput: () => void;
+    runHandler: (handler: (argv: any) => any, argv: any, original: string) => any;
   } {
     return {
       getCommandInstance: this.#getCommandInstance.bind(this),
@@ -1152,7 +1264,253 @@ export class YargsInstance {
       runValidation: this.#runValidation.bind(this),
       runYargsParserAndExecuteCommands: this.#runYargsParserAndExecuteCommands.bind(this),
       setHasOutput: this.#setHasOutput.bind(this),
+      runHandler: this.#runHandler.bind(this),
     };
+  }
+
+  // ───── burgee: additive, and guarded so a program that asks for none of it runs as on yargs ─────
+
+  /**
+   * The manifest every surface reads (J7, J8). Projected on each access from what the
+   * program registered; a command's builder is run on a scratch instance to learn its
+   * options, exactly as yargs' own completion does. Plugin-contributed nodes are kept.
+   */
+  get manifest(): Manifest {
+    this.#manifest ??= new Manifest();
+    projectManifest(this.#manifest, this.#snapshot());
+    return this.#manifest;
+  }
+
+  /** burgee: declare what the command does to the world (N6); what exposes it as an MCP tool (N2). */
+  effects(value: Effects): this {
+    this.#effects = value;
+    return this;
+  }
+
+  /** Additive: plugins yargs never had. `preRun`/`postRun` fire around every handler. */
+  use(plugin: Plugin): this {
+    this.manifest.use(plugin);
+    return this;
+  }
+
+  /**
+   * Inject the streams and the exit for this instance (T1). Output goes to `stdout`/`stderr`
+   * instead of the console, and `exit` receives an E1 code: OK for help and version, USAGE
+   * for a validation failure, RUNTIME for a handler that threw.
+   */
+  burgee(seam: BurgeeSeam): this {
+    this.#burgee = { ...(this.#burgee ?? { json: false, lastError: '' }), ...seam };
+    return this;
+  }
+
+  #snapshot(): Snapshot {
+    const o = this.#options;
+    const skip = [this.#helpOpt, this.#versionOpt, o.showHiddenOpt].filter((k): k is string => typeof k === 'string');
+    const handlers = this.#command.getCommandHandlers();
+    const commands: Snapshot['commands'] = [];
+    let positionals: Snapshot['positionals'] = { demanded: [], optional: [] };
+    let hasHandler = false;
+    let description: string | undefined;
+    // The default command (`$0`, `*`) is the root's own handler, not a child path.
+    const isDefault = (h: CommandHandler): boolean => /^\$0( |$)/.test(h.original);
+    for (const [name, handler] of Object.entries(handlers)) {
+      if (isDefault(handler)) continue;
+      const child = this.#childOf(handler);
+      commands.push({ name, description: handler.description, deprecated: handler.deprecated, child: child.#snapshotOf(handler, name) });
+    }
+    const root = Object.values(handlers).find(isDefault);
+    if (root !== undefined) {
+      hasHandler = true;
+      positionals = { demanded: root.demanded, optional: root.optional };
+      if (typeof root.description === 'string') description = root.description;
+    }
+    const first = this.#usage.getUsage()[0];
+    if (description === undefined && first !== undefined && first[1] !== '') description = first[1];
+    return {
+      name: this.customScriptName ? this.$0 : this.#shim.path.basename(this.$0) || 'program',
+      version: typeof this.#usage.getVersion() === 'string' ? this.#usage.getVersion() : undefined,
+      description,
+      effects: this.#effects,
+      hasHandler,
+      keys: Object.keys(o.key),
+      aliases: o.alias,
+      boolean: o.boolean,
+      number: o.number,
+      string: o.string,
+      count: o.count,
+      array: o.array,
+      hiddenOptions: o.hiddenOptions,
+      demanded: o.demandedOptions,
+      deprecated: o.deprecatedOptions,
+      choices: o.choices,
+      defaults: o.default,
+      descriptions: this.#usage.getDescriptions(),
+      skip,
+      positionals,
+      commands,
+    };
+  }
+
+  /** A command's snapshot: what its builder registered on the scratch, plus the command string's positionals. */
+  #snapshotOf(handler: CommandHandler, name: string): Snapshot {
+    const snap = this.#snapshot();
+    snap.name = name;
+    snap.hasHandler = true;
+    snap.positionals = { demanded: handler.demanded, optional: handler.optional };
+    snap.description = typeof handler.description === 'string' ? handler.description : undefined;
+    snap.version = undefined;
+    return snap;
+  }
+
+  /** Run a command's builder on a fresh instance, as yargs' completion does, and hand that instance back. */
+  #childOf(handler: CommandHandler): YargsInstance {
+    const child = new YargsInstance([], this.#cwd, this.#parentRequire, this.#shim);
+    child.#context.fullCommands.push(handler.original);
+    const builder = handler.builder;
+    try {
+      if (isCommandBuilderCallback(builder)) {
+        const out = builder(child, true);
+        if (!isPromise(out) && out instanceof YargsInstance) return out;
+      } else if (typeof builder === 'object' && builder !== null) {
+        for (const key of Object.keys(builder)) child.option(key, builder[key]);
+      }
+    } catch {
+      // A builder that cannot run outside a parse projects only the command string.
+    }
+    return child;
+  }
+
+  /** `--json` that the program did not declare is burgee's envelope, not an unknown option. */
+  #takeJson(args: string | string[]): string | string[] {
+    const list = typeof args === 'string' ? tokenizeArgString(args) : args;
+    const terminator = list.indexOf('--');
+    const index = list.indexOf('--json');
+    if (index === -1 || (terminator !== -1 && index > terminator)) return args;
+    if (this.#declares('json')) return args;
+    this.#burgee = { ...(this.#burgee ?? { lastError: '' }), json: true };
+    return [...list.slice(0, index), ...list.slice(index + 1)];
+  }
+
+  /**
+   * Whether the program declared an option or command by this name — at the root, or in
+   * any command's builder, which the manifest projection runs to find out. Any command in
+   * the tree that declares the flag keeps it: the surface is additive only.
+   */
+  #declares(key: string): boolean {
+    if (this.#options.key[key] || Object.values(this.#options.alias).some((list) => list.includes(key))) return true;
+    if (this.#command.getCommands().includes(key)) return true;
+    return this.manifest.commands.some((node) => Object.prototype.hasOwnProperty.call(node.options, key));
+  }
+
+  /**
+   * `--schema`, `--mcp` and `completion <shell>` on a yargs-syntax program, from its
+   * manifest (J2). Only when the program declares none of them itself; `--schema` is
+   * synchronous, the other two load lazily and return a promise.
+   */
+  #burgeeSurface(args: string | string[]): boolean | Promise<boolean> {
+    const list = typeof args === 'string' ? tokenizeArgString(args) : args;
+    const terminator = list.indexOf('--');
+    const head = terminator === -1 ? list : list.slice(0, terminator);
+    if (head[0] === 'completion' && this.#completionCommand === null && !this.#declares('completion')) {
+      return import('./completions.js').then(({ renderCompletion, renderFigSpec, SHELLS }) => {
+        const shell = head[1] ?? '';
+        if (shell === 'fig') {
+          this.#logger.log(JSON.stringify(renderFigSpec(this.manifest), null, 2));
+          this.exit(0);
+          return true;
+        }
+        const known = SHELLS.find((s) => s === shell);
+        if (known === undefined) return false;
+        this.#logger.log(renderCompletion(this.manifest, known).replace(/\n$/, ''));
+        this.exit(0);
+        return true;
+      });
+    }
+    if (head.includes('--schema') && !this.#declares('schema')) {
+      this.#logger.log(JSON.stringify(schemaOf(this.manifest), null, 2));
+      this.exit(0);
+      return true;
+    }
+    if (head[0] === '--mcp' && !this.#declares('mcp')) {
+      const invoke = async (argv: string[]): Promise<{ stdout: string; stderr: string; code: number }> => {
+        const out: string[] = [];
+        const err: string[] = [];
+        let code = 0;
+        const before = this.#burgee;
+        this.#burgee = { json: false, lastError: '', stdout: { write: (s) => out.push(s) }, stderr: { write: (s) => err.push(s) }, exit: (c) => void (code = c) };
+        try {
+          await this.parseAsync([...argv, '--json']);
+        } finally {
+          this.#burgee = before;
+        }
+        return { stdout: out.join(''), stderr: err.join(''), code };
+      };
+      const write = this.#burgee?.stdout ?? this.#shim.process.stdout();
+      return serveMcp(this.manifest, { input: this.#shim.process.stdin() as NodeJS.ReadableStream & { setEncoding?: unknown }, output: { write: (s) => void write.write(s) }, invoke }).then(() => {
+        this.exit(0);
+        return true;
+      });
+    }
+    return false;
+  }
+
+  /** The handler, wrapped in the plugin hooks and followed by the envelope or the rendering. */
+  #runHandler(handler: (argv: any) => any, argv: any, original: string): any {
+    const manifest = this.#manifest;
+    const settle = (value: unknown): unknown => {
+      this.#settle(value, argv);
+      return value;
+    };
+    if (manifest === undefined || manifest.plugins.length === 0) {
+      const result = handler(argv);
+      return isPromise(result) ? result.then(settle) : settle(result);
+    }
+    const name = original.replace(/^\$0 ?/, '').split(' ')[0] ?? '';
+    const options: Record<string, unknown> = {};
+    for (const key of Object.keys(this.#options.key)) options[key] = argv[key];
+    return manifest
+      .fire('preRun', name, options)
+      .then(() => handler(argv))
+      .then(async (value: unknown) => {
+        await manifest.fire('postRun', name, options);
+        return settle(value);
+      });
+  }
+
+  #settle(value: unknown, argv: any): void {
+    const burgee = this.#burgee;
+    if (burgee === undefined) return;
+    if (burgee.json) {
+      this.#logger.log(JSON.stringify({ ok: true, data: value ?? null, meta: { provenance: this.#provenance(argv) } }));
+      return;
+    }
+    const text = render(value);
+    if (text !== '') this.#logger.log(text.replace(/\n$/, ''));
+  }
+
+  #failureEnvelope(err: YError | string | undefined): void {
+    const burgee = this.#burgee as BurgeeState;
+    const message = err instanceof Error ? err.message : typeof err === 'string' ? err : burgee.lastError;
+    const code = err instanceof YError || err === undefined || typeof err === 'string' ? 'usage' : 'runtime';
+    this.#logger.log(JSON.stringify({ ok: false, error: { code, message } }));
+  }
+
+  /** burgee: where every option value came from (V3), from yargs-parser's own bookkeeping where it keeps any. */
+  #provenance(argv: any): Record<string, { source: string }> {
+    const out: Record<string, { source: string }> = {};
+    const defaulted: Record<string, boolean> = this.parsed?.defaulted ?? {};
+    const prefix = this.#options.envPrefix;
+    const positional = new Set(this.getGroups()[this.#usage.getPositionalGroupName()] ?? []);
+    for (const key of Object.keys(this.#options.key)) {
+      if (key === this.#helpOpt || key === this.#versionOpt || positional.has(key)) continue;
+      if (!Object.prototype.hasOwnProperty.call(argv, key) || argv[key] === undefined) continue;
+      let source = 'flag';
+      if (defaulted[key]) source = 'default';
+      else if (this.#options.configObjects.some((c) => Object.prototype.hasOwnProperty.call(c, key))) source = 'config';
+      else if (prefix !== undefined && this.#shim.getEnv(`${prefix}${prefix === '' ? '' : '_'}${key.replace(/[A-Z]/g, (c) => `_${c}`).toUpperCase()}`) !== undefined) source = 'env';
+      out[key] = { source };
+    }
+    return out;
   }
 
   #getCommandInstance(): CommandInstance {

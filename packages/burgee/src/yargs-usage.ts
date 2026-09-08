@@ -39,6 +39,8 @@ export interface UsageInstance {
   functionDescription: (fn: { name?: string }) => string;
   stringifiedValues: (values?: any[], separator?: string) => string;
   version: (ver: any) => void;
+  /** burgee: the version string `.version()` recorded, for the manifest. */
+  getVersion: () => any;
   showVersion: (level?: 'error' | 'log' | ((message: string) => void)) => void;
   reset: (localLookup: Record<string, boolean>) => UsageInstance;
   freeze: () => void;
@@ -96,7 +98,9 @@ export function usage(yargs: any, shim: PlatformShim): UsageInstance {
         }
       }
       err = err || new YError(msg);
-      if (yargs.getExitProcess()) return yargs.exit(1);
+      // The error rides along so an injected exit (burgee's seam) can tell a usage failure
+      // from a handler's; without a seam yargs exits the process and it is unobservable.
+      if (yargs.getExitProcess()) return yargs.exit(1, err);
       else if (yargs.getInternalMethods().hasParseCallback()) return yargs.exit(1, err);
       else throw err;
     }
@@ -439,6 +443,7 @@ export function usage(yargs: any, shim: PlatformShim): UsageInstance {
   self.version = (ver) => {
     version = ver;
   };
+  self.getVersion = () => version;
 
   self.showVersion = (level) => {
     const logger = yargs.getInternalMethods().getLoggerInstance();
