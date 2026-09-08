@@ -68,6 +68,15 @@ it grades ours (C1–C6).
    What a façade does not do is reinterpret its host: `flagstaff/ora` is ora's behaviour to
    the byte and does not sit on `hoist()`. The static projection is the reason to move on
    eventually, not the reason to move; the façade is the door.
+
+   **This rewording of constraint 2 was accepted by the owner on 2026-09-08**, at the
+   Design→Build gate, together with the `flagstaff/design.md` edits in the same PR. It is
+   recorded because it was drafted in the PR it governs — and because "a façade cannot lower
+   the layer's guarantees" is precisely the rule that first façade broke: `flagstaff/ora`
+   restored the cursor on a normal exit but not on a signal, which ora itself does. That
+   defect was fixed before the merge rather than argued away, so the reworded constraint
+   rests on the measured case and not on the sentence it replaced. A later façade whose host
+   *does* assert against a guarantee is allow-listed with its reason, never silently exempt.
 3. Order follows downloads × layer readiness: chalk, ora, inquirer, clack, then the rest.
 4. A suite killed mid-run is an error, never a score (the oracle's existing rule).
 

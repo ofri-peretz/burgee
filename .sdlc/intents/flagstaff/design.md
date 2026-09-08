@@ -2,6 +2,12 @@
 
 Intent: [`intent.md`](./intent.md). **Status:** approved.
 
+**Amended and re-accepted by the owner on 2026-09-08**, at the Design→Build gate: the façade
+section — the `roundel/chalk` seam, the process-lock exemption and its justification, and the
+weight comparison — was rewritten by the PR that introduced `flagstaff/ora`. Recorded here
+because a design edited by the build it authorises cannot stand as its own approval. See the
+matching note on constraint 2 of [`output-stack-compat`](../output-stack-compat/intent.md).
+
 ---
 
 ## Requirements
