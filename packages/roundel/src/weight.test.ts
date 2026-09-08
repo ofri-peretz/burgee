@@ -35,7 +35,7 @@ interface EntryRule {
 }
 
 const RULES: Record<string, EntryRule> = {
-  // Everything, for a program that wants one import. Measured 6,552 B on 2026-09-08 for
+  // Everything, for a program that wants one import. Measured 6,565 B on 2026-09-08 for
   // policy + tokens + theme + contrast; the budget leaves room for the chalk façade's entry
   // in the re-export list, not for the façade itself, which will be its own row.
   '.': { allow: [], budget: 12_000, denied: [] },
@@ -47,7 +47,7 @@ const RULES: Record<string, EntryRule> = {
   // The theme carries the contrast check (R5); it never carries the tokens.
   './theme': { allow: [], budget: 6_000, denied: ['tokens.js', 'index.js'] },
   // Pure arithmetic over hex strings. Reaches nothing.
-  './contrast': { allow: [], budget: 3_000, denied: ['policy.js', 'tokens.js', 'theme.js', 'index.js'] },
+  './contrast': { allow: [], budget: 1_500, denied: ['policy.js', 'tokens.js', 'theme.js', 'index.js'] },
 };
 
 const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;
