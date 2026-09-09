@@ -1,0 +1,9 @@
+{
+  "$comment": "upstream-watch R1. See packages/flagstaff/competitors.json for the field meanings. picocolors is the ceiling roundel's whole weight claim rests on, and it is one of the roadmap's three bets — so it is watched even though no suite grades it.",
+  "./tokens": [
+    { "package": "picocolors", "claim": "weight", "seen": { "version": null, "weight": 3300, "measured": "2026-09-08", "cited": ["packages/roundel/src/weight.test.ts", "packages/roundel/README.md"] } }
+  ],
+  "./chalk": [
+    { "package": "chalk", "claim": "compat", "seen": { "version": "6.0.0", "weight": 9370, "measured": "2026-09-08", "cited": ["packages/roundel/src/weight.test.ts", "packages/roundel/README.md"] } }
+  ]
+}

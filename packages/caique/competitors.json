@@ -1,0 +1,7 @@
+{
+  "$comment": "upstream-watch R1. See packages/flagstaff/competitors.json for the field meanings. Both façades are blocked on the render-grading decision recorded in .sdlc/intents/output-stack-compat/design.md, so both claims are `surface` until their suites are vendored.",
+  "./ask": [
+    { "package": "clack", "claim": "surface", "seen": null },
+    { "package": "inquirer", "claim": "surface", "seen": null }
+  ]
+}
