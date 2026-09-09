@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "suite": "cli-benchmarks",
-  "measured": "2026-09-09T17:27:48.035Z",
-  "commit": "5bc506ca11043d58f53b7196eb909eef748d159d-dirty",
+  "measured": "2026-09-09T17:24:09.303Z",
+  "commit": "594943e816fd15e0db6923c95485d254cc56fe8e-dirty",
   "machine": {
     "os": "linux",
     "release": "6.17.0-1022-azure",
@@ -27,8 +27,8 @@
       "method": "Each entry point is bundled with `esbuild --bundle --minify --format=esm --platform=node` over a fixture that imports it and re-exports one symbol; the incumbent is bundled by the same command over the same fixture shape. Installed bytes are the package directory plus every production dependency, transitively — each dependency resolved from the directory of the package that depends on it, and deduplicated by resolved path, so a nested copy is counted where npm actually put it. Every top-level package is resolved from `benchmarks/`, whose package.json pins the versions — the workspace root has an older commander hoisted, and resolving from there would compare against the wrong package."
     },
     "reliability": {
-      "status": "measured",
-      "method": "Ten tasks per variant, one spawn each, non-TTY with stdin closed. The same demo program built on burgee, commander and yargs. Exit codes are judged by class (0 ok, 2 usage, other runtime), not by value; `--json` is judged by whether an addressable envelope parses off whichever stream carried it. This is not B1: it measures what an agent can act on, never what it spends."
+      "status": "not-run",
+      "reason": "not selected by --axis"
     }
   },
   "records": [
@@ -38,8 +38,8 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 42,
-      "median": 26.89,
-      "p95": 27.71,
+      "median": 26.55,
+      "p95": 27.35,
       "note": "the floor: Node starting and writing one line, no parser",
       "detail": {
         "fixture": "node.mjs"
@@ -51,9 +51,9 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 42,
-      "median": 42.14,
-      "p95": 46.66,
-      "note": "spawned `node commander.mjs greet ada`; 15.24 ms of this is above the bare-node floor",
+      "median": 41.2,
+      "p95": 44.2,
+      "note": "spawned `node commander.mjs greet ada`; 14.64 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "commander.mjs",
         "package": "commander",
@@ -67,9 +67,9 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 42,
-      "median": 46.54,
-      "p95": 49.8,
-      "note": "spawned `node burgee-commander.mjs greet ada`; 19.64 ms of this is above the bare-node floor",
+      "median": 44.96,
+      "p95": 47.89,
+      "note": "spawned `node burgee-commander.mjs greet ada`; 18.41 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "burgee-commander.mjs",
         "package": "burgee",
@@ -83,9 +83,9 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 42,
-      "median": 105.39,
-      "p95": 110.56,
-      "note": "spawned `node yargs.mjs greet ada`; 78.5 ms of this is above the bare-node floor",
+      "median": 104.41,
+      "p95": 106.8,
+      "note": "spawned `node yargs.mjs greet ada`; 77.86 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "yargs.mjs",
         "package": "yargs",
@@ -99,9 +99,9 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 42,
-      "median": 86.53,
-      "p95": 90.33,
-      "note": "spawned `node burgee-yargs.mjs greet ada`; 59.64 ms of this is above the bare-node floor",
+      "median": 85.52,
+      "p95": 88.85,
+      "note": "spawned `node burgee-yargs.mjs greet ada`; 58.96 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "burgee-yargs.mjs",
         "package": "burgee",
@@ -115,9 +115,9 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 42,
-      "median": 30.85,
-      "p95": 32.4,
-      "note": "spawned `node cac.mjs greet ada`; 3.96 ms of this is above the bare-node floor",
+      "median": 30.33,
+      "p95": 31.16,
+      "note": "spawned `node cac.mjs greet ada`; 3.78 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "cac.mjs",
         "package": "cac",
@@ -131,9 +131,9 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 42,
-      "median": 40.88,
-      "p95": 44.16,
-      "note": "spawned `node burgee.mjs greet ada`; 13.99 ms of this is above the bare-node floor",
+      "median": 40.56,
+      "p95": 43.91,
+      "note": "spawned `node burgee.mjs greet ada`; 14 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "burgee.mjs",
         "package": "burgee",
@@ -147,8 +147,8 @@
       "metric": "cold-start-ratio",
       "unit": "ratio",
       "samples": 42,
-      "median": 1.078,
-      "p95": 1.181,
+      "median": 1.081,
+      "p95": 1.163,
       "gate": {
         "max": 1.4,
         "why": "the front-end must not cost meaningfully more to start than the package it replaces; a ceiling, not a promise — the measured value is what the band watches"
@@ -165,8 +165,8 @@
       "metric": "cold-start-ratio",
       "unit": "ratio",
       "samples": 42,
-      "median": 0.822,
-      "p95": 0.862,
+      "median": 0.826,
+      "p95": 0.866,
       "gate": {
         "max": 0.95,
         "why": "the front-end must not cost meaningfully more to start than the package it replaces; a ceiling, not a promise — the measured value is what the band watches"
@@ -183,8 +183,8 @@
       "metric": "cold-start-ratio",
       "unit": "ratio",
       "samples": 42,
-      "median": 1.322,
-      "p95": 1.422,
+      "median": 1.344,
+      "p95": 1.441,
       "gate": {
         "max": 1.7,
         "why": "the front-end must not cost meaningfully more to start than the package it replaces; a ceiling, not a promise — the measured value is what the band watches"
@@ -958,135 +958,11 @@
         "ours": "flagstaff/log-update@0.1.0",
         "incumbent": "log-update@8.0.0"
       }
-    },
-    {
-      "axis": "reliability",
-      "variant": "burgee",
-      "samples": 10,
-      "metric": "hangs-per-100",
-      "unit": "runs",
-      "median": 0,
-      "p95": 0,
-      "note": "non-TTY runs, stdin closed, that never exited",
-      "gate": {
-        "max": 0,
-        "why": "a CLI that waits for a human under a pipe fails an agent task every time"
-      }
-    },
-    {
-      "axis": "reliability",
-      "variant": "burgee",
-      "samples": 10,
-      "metric": "exit-code-accuracy",
-      "unit": "ratio",
-      "median": 1,
-      "p95": 1,
-      "note": "0 ok, 2 usage error, any other non-zero runtime — the class an agent acts on"
-    },
-    {
-      "axis": "reliability",
-      "variant": "burgee",
-      "samples": 10,
-      "metric": "structured-output-rate",
-      "unit": "ratio",
-      "median": 1,
-      "p95": 1,
-      "note": "of the tasks that asked for --json, those that produced an addressable envelope"
-    },
-    {
-      "axis": "reliability",
-      "variant": "burgee",
-      "samples": 10,
-      "metric": "recovery-bytes",
-      "unit": "bytes",
-      "median": 83,
-      "p95": 83,
-      "note": "median bytes an agent reads per task; reported, never gated — a hint costs bytes and may save turns"
-    },
-    {
-      "axis": "reliability",
-      "variant": "commander",
-      "samples": 10,
-      "metric": "hangs-per-100",
-      "unit": "runs",
-      "median": 0,
-      "p95": 0,
-      "note": "non-TTY runs, stdin closed, that never exited"
-    },
-    {
-      "axis": "reliability",
-      "variant": "commander",
-      "samples": 10,
-      "metric": "exit-code-accuracy",
-      "unit": "ratio",
-      "median": 0.4,
-      "p95": 0.4,
-      "note": "0 ok, 2 usage error, any other non-zero runtime — the class an agent acts on"
-    },
-    {
-      "axis": "reliability",
-      "variant": "commander",
-      "samples": 10,
-      "metric": "structured-output-rate",
-      "unit": "ratio",
-      "median": 0.25,
-      "p95": 0.25,
-      "note": "of the tasks that asked for --json, those that produced an addressable envelope"
-    },
-    {
-      "axis": "reliability",
-      "variant": "commander",
-      "samples": 10,
-      "metric": "recovery-bytes",
-      "unit": "bytes",
-      "median": 31,
-      "p95": 31,
-      "note": "median bytes an agent reads per task; reported, never gated — a hint costs bytes and may save turns"
-    },
-    {
-      "axis": "reliability",
-      "variant": "yargs",
-      "samples": 10,
-      "metric": "hangs-per-100",
-      "unit": "runs",
-      "median": 0,
-      "p95": 0,
-      "note": "non-TTY runs, stdin closed, that never exited"
-    },
-    {
-      "axis": "reliability",
-      "variant": "yargs",
-      "samples": 10,
-      "metric": "exit-code-accuracy",
-      "unit": "ratio",
-      "median": 0.4,
-      "p95": 0.4,
-      "note": "0 ok, 2 usage error, any other non-zero runtime — the class an agent acts on"
-    },
-    {
-      "axis": "reliability",
-      "variant": "yargs",
-      "samples": 10,
-      "metric": "structured-output-rate",
-      "unit": "ratio",
-      "median": 0.25,
-      "p95": 0.25,
-      "note": "of the tasks that asked for --json, those that produced an addressable envelope"
-    },
-    {
-      "axis": "reliability",
-      "variant": "yargs",
-      "samples": 10,
-      "metric": "recovery-bytes",
-      "unit": "bytes",
-      "median": 458,
-      "p95": 458,
-      "note": "median bytes an agent reads per task; reported, never gated — a hint costs bytes and may save turns"
     }
   ],
   "bands": {
     "cold-start-ratio": {
-      "value": 1.078,
+      "value": 1.081,
       "from": {
         "axis": "perf",
         "variant": "burgee/commander ÷ commander",
@@ -1142,28 +1018,16 @@
       }
     },
     "agent-exit-code-accuracy": {
-      "value": 1,
-      "from": {
-        "axis": "reliability",
-        "variant": "burgee",
-        "metric": "exit-code-accuracy"
-      }
+      "status": "not-run",
+      "reason": "not selected by --axis"
     },
     "agent-structured-output-rate": {
-      "value": 1,
-      "from": {
-        "axis": "reliability",
-        "variant": "burgee",
-        "metric": "structured-output-rate"
-      }
+      "status": "not-run",
+      "reason": "not selected by --axis"
     },
     "agent-hangs-per-100": {
-      "value": 0,
-      "from": {
-        "axis": "reliability",
-        "variant": "burgee",
-        "metric": "hangs-per-100"
-      }
+      "status": "not-run",
+      "reason": "not selected by --axis"
     },
     "core-bundled-bytes": {
       "value": 34841,
@@ -1195,7 +1059,7 @@
       "claim": "the engine starts at or below cac, the lightest framework in the landscape",
       "source": ".sdlc/intents/replacement-parser/intent.md #2, the scoreboard row in .sdlc/intents/README.md, and the speed row of apps/docs/content/docs/comparison.mdx",
       "target": "<= 1",
-      "measured": 1.322,
+      "measured": 1.344,
       "unit": "ratio",
       "met": false,
       "from": {

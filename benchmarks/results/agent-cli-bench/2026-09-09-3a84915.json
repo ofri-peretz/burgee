@@ -1,13 +1,13 @@
 {
   "schema": 1,
   "suite": "agent-cli-bench",
-  "measured": "2026-09-09T17:27:48.049Z",
-  "commit": "5bc506ca11043d58f53b7196eb909eef748d159d-dirty",
+  "measured": "2026-09-09T17:42:53.560Z",
+  "commit": "3a849154b6830e1e5dfa1a8121f0f77da5ed88eb-dirty",
   "machine": {
     "os": "linux",
     "release": "6.17.0-1022-azure",
     "arch": "x64",
-    "cpu": "AMD EPYC 7763 64-Core Processor",
+    "cpu": "AMD EPYC 9V74 80-Core Processor",
     "cores": 4,
     "memoryGb": 16,
     "node": "v24.13.0",

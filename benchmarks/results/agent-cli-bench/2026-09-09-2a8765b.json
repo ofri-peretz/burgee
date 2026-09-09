@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "suite": "agent-cli-bench",
-  "measured": "2026-09-09T17:27:48.049Z",
-  "commit": "5bc506ca11043d58f53b7196eb909eef748d159d-dirty",
+  "measured": "2026-09-09T17:46:29.479Z",
+  "commit": "2a8765b886377f867d3ba7641e2a74f9c0833dbd-dirty",
   "machine": {
     "os": "linux",
     "release": "6.17.0-1022-azure",
