@@ -13,6 +13,7 @@ import { active, type Host, HOSTS } from './hosts.js';
 import { type Baseline, type Grade, grade, readBaseline, regressed } from './run.js';
 import { diffRecords, isEmptyDiff, latestVersion, readRecord, renderDiff } from './upstream.js';
 import { vendor } from './vendor.js';
+import { check as checkCompetitors, fingerprint as writeFingerprints } from './watch.js';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const VENDOR_DIR = resolve(root, 'vendor');
@@ -21,6 +22,9 @@ const RESULTS = resolve(root, 'results.json');
 const CONTROL_RESULTS = resolve(root, 'results.control.json');
 const VENDOR_DIFF = resolve(root, 'vendor-diff.md');
 const UPSTREAM = resolve(root, 'upstream.json');
+const COMPETITORS = resolve(root, 'competitors-upstream.json');
+const PACKAGES_DIR = resolve(root, '..');
+const REPO_ROOT = resolve(root, '..', '..');
 
 const PERCENT = 100;
 const BAR_WIDTH = 24;
@@ -202,8 +206,43 @@ function writeResults(path: string, graded: Grade[]): void {
   writeFileSync(path, `${JSON.stringify({ measured: new Date().toISOString(), grades }, null, 2)}\n`);
 }
 
+
+/**
+ * `--competitors`: the widened watch (upstream-watch R4). Every competitor any package
+ * declares — not only the hosts with a vendored suite — fingerprinted from its published
+ * tarball and diffed against the record held in `competitors.json`. Read-only: the result
+ * is `competitors-upstream.json`, which the daily workflow turns into one issue per
+ * (competitor, version), each carrying the proposed changeset.
+ */
+async function competitorMode(write: Write): Promise<number> {
+  write('\ncompetitor releases\n\n');
+  const result = await checkCompetitors(PACKAGES_DIR, REPO_ROOT, write);
+  writeFileSync(COMPETITORS, `${JSON.stringify({ checked: new Date().toISOString(), updates: result.updates }, null, 2)}\n`);
+  if (result.unfingerprinted.length > 0) {
+    write(`\n  ${result.unfingerprinted.length} competitor(s) hold no fingerprint yet: ${result.unfingerprinted.join(', ')}\n`);
+  }
+  write(result.updates.length === 0 ? '\n  every competitor is at its recorded release\n' : `\n  ${result.updates.length} competitor(s) moved — see competitors-upstream.json\n`);
+  // A competitor we could not fetch is a hole in the watch, not a clean run: exit non-zero
+  // so a rename or an unpublish is a red job rather than a quietly shorter report.
+  if (result.errors.length > 0) {
+    write(`\n\u2716 ${result.errors.length} competitor(s) could not be fingerprinted\n`);
+    return 1;
+  }
+  return 0;
+}
+
+/** `--fingerprint`: record every competitor's current release into `competitors.json`. */
+async function fingerprintMode(write: Write): Promise<number> {
+  write('\nfingerprinting competitors\n\n');
+  const failures = await writeFingerprints(PACKAGES_DIR, write);
+  write(failures === 0 ? '\n  every competitor fingerprinted\n' : `\n\u2716 ${failures} competitor(s) failed\n`);
+  return failures === 0 ? 0 : 1;
+}
+
 export async function main(argv: string[], write: Write): Promise<number> {
   if (argv.includes('--upstream')) return upstreamMode(write);
+  if (argv.includes('--competitors')) return competitorMode(write);
+  if (argv.includes('--fingerprint')) return fingerprintMode(write);
 
   const wantsVendor = argv.includes('--vendor');
   // --control grades each host against its own real package: the proof that the gate
