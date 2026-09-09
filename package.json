@@ -48,7 +48,8 @@
     "compat:page": "tsx scripts/compat-page.ts",
     "gallery:page": "tsx scripts/gallery-page.ts",
     "schema:sync": "node scripts/schema-sync.mjs",
-    "check:artifacts": "tsx scripts/check-published-artifacts.ts"
+    "check:artifacts": "tsx scripts/check-published-artifacts.ts",
+    "mark-lab": "node scripts/mark-lab.mts"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^1.0.1",
