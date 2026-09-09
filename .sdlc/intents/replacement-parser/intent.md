@@ -80,8 +80,13 @@ Checked criterion by criterion on `61bd11b9`. **Three of five met.** The status 
   constraint 4 forbids. It is documented honestly in the file, but it is an edit, and the
   `burgee` host entry arrived in the same commit as the engine — so the suite was never a
   pre-existing fixed target for it.
-- **B2 shows the replacement at or below cac's cold start** — **not met.** No cold-start
-  measurement of any kind exists in the repo.
+- **B2 shows the replacement at or below cac's cold start** — **not met**, and now for the
+  right reason. That verification was written against `61bd11b9`, where the sentence "no
+  cold-start measurement of any kind exists in the repo" was true; on the `cli-benchmarks`
+  branch it is not. B2 measures it, `claims.ts` names this criterion's line as the source
+  file for `cold-start-at-or-below-cac`, and the measured ratio is on the generated
+  benchmarks page. The criterion is unmet because the number says so — `burgee ÷ cac` is
+  above 1 — not because nobody has looked.
 - **B4 shows the core entry point under 52 KB bundled** — met, though by a lock rather than by
   the benchmark axis the criterion names. `packages/burgee/src/weight.test.ts:80` budgets `'.'`
   at 52,000 B; the measured graph is **51,921 B** and the test passes.

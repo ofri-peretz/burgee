@@ -1,9 +1,106 @@
 {
-  "$comment": "upstream-watch R1. See packages/flagstaff/competitors.json for the field meanings. picocolors is the ceiling roundel's whole weight claim rests on, and it is one of the roadmap's three bets — so it is watched even though no suite grades it.",
+  "$comment": "upstream-watch R1. See packages/flagstaff/competitors.json for the field meanings. picocolors is the ceiling roundel's whole weight claim rests on, and it is one of the roadmap's three bets — so it is watched even though no suite grades it. Two `seen.weight` values were corrected by the first fingerprint run (2026-09-09): picocolors held 3300, the rounded \"3.3 KB\" from the prose, and measures 3261; chalk held 9370, which is roundel's own `./chalk` budget rather than chalk's shipped bytes, and measures 21417. Neither is a stale upstream claim — both were baselines recorded by hand before anything fetched a tarball, and `weight.test.ts` keeps 9,370 as roundel's budget, which is what that number is for.",
   "./tokens": [
-    { "package": "picocolors", "claim": "weight", "seen": { "version": null, "weight": 3300, "measured": "2026-09-08", "cited": ["packages/roundel/src/weight.test.ts", "packages/roundel/README.md"] } }
+    {
+      "package": "picocolors",
+      "claim": "weight",
+      "seen": {
+        "version": "1.1.1",
+        "weight": 3261,
+        "measured": "2026-09-09",
+        "cited": [
+          "packages/roundel/src/weight.test.ts",
+          "packages/roundel/README.md"
+        ],
+        "registry": "picocolors",
+        "shasum": "3d321af3eab939b083c8f929a1d12cda81c26b6b",
+        "self": 3261,
+        "packages": 1,
+        "files": {
+          "LICENSE": "6582629e2979466878f6014313dcc2f3756c9616148682227ce3063dde310750",
+          "package.json": "ef2ac226c4811d312e12c64214c453878653e834482125ae475f27cea60de737",
+          "picocolors.browser.js": "a2e045ba16013e35c7045797ae940e3ea1c0e0ada13467bc73f7538690ea091a",
+          "picocolors.d.ts": "8c5f0739f00f89f89b03a1fe6658c6d78000d7ebd7f556f0f8d6908fa679de35",
+          "picocolors.js": "213bb870fcaad4def0215fe34fbb0f529836cc4d2462e02f14f1a49d09781625",
+          "README.md": "5027b2836551ea0f91fa27b97335de905e24e1459d590eacfa45c0156962b70c",
+          "types.d.ts": "590595c1230ebb7c43ebac51b2b2da956a719b213355b4358e2a6b16a8b5936c"
+        },
+        "exports": [
+          "Colors",
+          "Formatter",
+          "default"
+        ]
+      }
+    }
   ],
   "./chalk": [
-    { "package": "chalk", "claim": "compat", "seen": { "version": "6.0.0", "weight": 9370, "measured": "2026-09-08", "cited": ["packages/roundel/src/weight.test.ts", "packages/roundel/README.md"] } }
+    {
+      "package": "chalk",
+      "claim": "compat",
+      "seen": {
+        "version": "6.0.0",
+        "weight": 21417,
+        "measured": "2026-09-09",
+        "cited": [
+          "packages/roundel/src/weight.test.ts",
+          "packages/roundel/README.md"
+        ],
+        "registry": "chalk",
+        "shasum": "a3bae843bc8454f41ef66ef3fd584dcf34dd805d",
+        "self": 21417,
+        "packages": 1,
+        "files": {
+          "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+          "package.json": "5a853fc6dc0c529bc126f97645989e9d60d06a2e9b20f66a6b48b0e8ef9da3ef",
+          "readme.md": "83afc9420595c1f7bb4ad5e13c2d77614676983f3df1e58acbb6985ed6a2ad7b",
+          "source/index.d.ts": "d6ef4d0e2407eef316586745bfac66d5280fc7b2ad7cdde75fcb24c44ff2252c",
+          "source/index.js": "08e92f2330a34d232f8aa987da4d953893094be5b2aa8cc39ddb4313743f206e",
+          "source/utilities.js": "a58d81494366211509ea2c373328cf68a6365a94be8645f33c1ed49f1288650a",
+          "source/vendor/ansi-styles/index.d.ts": "09ec9006e2cea3d5ed9eb1129d3fdcce68a25dcfec953b02cef8c42c00987ee9",
+          "source/vendor/ansi-styles/index.js": "f28f1ede59be327626e4ae5f9f05387ab8072f298ba1ab7f9c9262d39923a25d",
+          "source/vendor/supports-color/browser.d.ts": "09d791bf6471207eb7553c17a6cb03d6e6bd1d789f19bbec67da2b08ec9bb570",
+          "source/vendor/supports-color/browser.js": "9baf3a04474e1d1cca8cb8bd46a4c9ca212f448c2c2f6f1725edf62ccf8a4997",
+          "source/vendor/supports-color/index.d.ts": "f61a4dc92450609c353738f0a2daebf8cae71b24716dbd952456d80b1e1a48b6",
+          "source/vendor/supports-color/index.js": "57f56bb90a586a6c7a65fc831cae47f0773b8f42edf11abb7c4f2273b82fb63e"
+        },
+        "exports": [
+          "//",
+          "BackgroundColor",
+          "BackgroundColorName",
+          "CSPair",
+          "Chalk",
+          "ChalkInstance",
+          "Color",
+          "ColorBase",
+          "ColorInfo",
+          "ColorName",
+          "ColorSupport",
+          "ColorSupportLevel",
+          "ConvertColor",
+          "ForegroundColor",
+          "ForegroundColorName",
+          "Modifier",
+          "ModifierName",
+          "Modifiers",
+          "Options",
+          "UnderlineColor",
+          "UnderlineColorName",
+          "backgroundColorNames",
+          "backgroundColors",
+          "chalkStderr",
+          "colorNames",
+          "colors",
+          "createSupportsColor",
+          "default",
+          "foregroundColorNames",
+          "foregroundColors",
+          "modifierNames",
+          "modifiers",
+          "supportsColor",
+          "supportsColorStderr",
+          "underlineColorNames"
+        ]
+      }
+    }
   ]
 }

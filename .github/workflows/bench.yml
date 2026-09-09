@@ -7,7 +7,10 @@ name: Benchmarks
 #   cheap  — B2 cold start, B3 compatibility, B4 weight. Free, deterministic, and
 #            the ones a refactor regresses silently, so they gate every PR.
 #   agent  — B1 agent cost. Costs money and is noisy over short intervals, so it
-#            runs weekly and on packages/** changes. It needs
+#            never runs on a pull request: weekly on the schedule, on every push
+#            to main, and on demand. (An earlier draft of this comment claimed a
+#            `packages/**` paths filter; there is none, and the `if:` on the job
+#            is the whole of the rule.) It needs
 #            CLAUDE_CODE_OAUTH_TOKEN (preferred; no per-token charge) or
 #            ANTHROPIC_API_KEY, and **reports skipped without one** — it never
 #            reports a number it did not measure. On a scheduled run that skips,
@@ -52,6 +55,12 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Build (the axes measure what is built, never what is written)
         run: npx turbo run build
+      # Before the run, so it compares the committed page against the committed
+      # results rather than against numbers this job is about to produce. The page
+      # has said "Do not edit by hand" since it was written with nothing enforcing
+      # it, which is how a generated file goes stale in silence.
+      - name: The published page is still the one the committed results generate
+        run: npm run bench:page -- --check
       - name: Run the cheap axes and check every gate
         shell: bash
         run: npm run bench -- --axis perf --axis compat --axis weight --check 2>&1 | tee bench.log
@@ -81,8 +90,30 @@ jobs:
           if [ -z "$(git status --porcelain benchmarks/results/)" ]; then
             echo "Nothing new to record."; exit 0
           fi
-          STAMP=$(date -u +%Y%m%d)
-          BRANCH="chore/bench-series-$STAMP"
+          # An observation, not a republication. The run just overwrote the *published*
+          # measurements — the ones `/docs/benchmarks` and `/docs/comparison` are generated
+          # from and pinned against — with this runner's numbers. Its `installed-bytes` rows
+          # are byte-identical wherever it runs, and its `cold-start-ms` rows are a property
+          # of the box: on 2026-09-09 the same commit read +22.6 ms here and +8.0 ms on a
+          # two-core runner. So each file is copied aside under the commit that produced it
+          # and the published one is restored. The bands glob the directory and read both;
+          # the docs read only the dated name. See `benchmarks/published.ts`.
+          # `mv`, not `cp`, and the difference shows up on day two rather than day one. A
+          # run on a date that has never been published writes a *new* `YYYY-MM-DD.json`,
+          # and `git checkout --` does not remove an untracked file: with `cp` that file is
+          # staged too, and a CI runner's numbers become a published measurement under the
+          # exact name this split reserves for a chosen one. Moving it leaves nothing behind
+          # in either case — a modified file is restored by the checkout, a new one is gone.
+          for f in $(git status --porcelain benchmarks/results/ | awk '{print $NF}'); do
+            mv "$f" "${f%.json}-${GITHUB_SHA::7}.json"
+          done
+          git checkout -- benchmarks/results/
+          # The commit, not just the date: two pushes to main on one day both
+          # produce observations worth landing, and a date-only name makes the
+          # second `git checkout -b` collide with the branch the first one pushed
+          # — which under `set -euo pipefail` reds a job on main for doing exactly
+          # what it was asked to do.
+          BRANCH="chore/bench-series-$(date -u +%Y%m%d)-${GITHUB_SHA::7}"
           TITLE="chore(benchmarks): record benchmark observations"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -111,13 +142,23 @@ jobs:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         shell: bash
-        run: npm run bench -- --axis agent 2>&1 | tee agent.log
+        # `--check` so the one gated record on this axis can fire. `success-rate`
+        # is a floor on the harness, not on the model: a run where a third of the
+        # task-runs failed still emits tokens and turns medians, taken over
+        # whichever runs survived, and without a gate that lands in a band with
+        # nothing anywhere saying the measurement changed shape. A skip stays
+        # green — it emits no records, so there is no gate to fail.
+        run: npm run bench -- --axis agent --check 2>&1 | tee agent.log
 
       # The results file is the authority on whether anything was measured, not the
       # exit code: the axis exits 0 when it skips, on purpose, so a missing credential
       # is not confused with a broken harness.
+      # `always()`: the run step now carries `--check`, so it can fail on the
+      # success-rate gate — and a gate failure is precisely a run whose status and
+      # reason someone needs to read in the summary.
       - name: Did it actually measure anything?
         id: status
+        if: always()
         shell: bash
         run: |
           set -euo pipefail

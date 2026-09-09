@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "suite": "cli-benchmarks",
-  "measured": "2026-09-09T12:45:06.918Z",
-  "commit": "7c45e8b98ccd979a76eafd6d713f55c3c5c0b66b-dirty",
+  "measured": "2026-09-09T13:09:41.898Z",
+  "commit": "93af5bdcc86f1f264fb81b2b7755723d72d1e39d",
   "machine": {
     "os": "darwin",
     "release": "25.2.0",
@@ -16,7 +16,7 @@
   "axes": {
     "perf": {
       "status": "measured",
-      "method": "40 interleaved rounds; each round spawns every variant once as `node <fixture> greet ada`, rotating the order, after one discarded warm-up round. Absolute ms are a property of the machine recorded above and are not comparable across machines; the banded number is the paired ratio."
+      "method": "42 interleaved rounds — a whole multiple of the seven variants, so the rotation gives every variant each starting position equally often; each round spawns every variant once as `node <fixture> greet ada`, after one discarded warm-up round. Every parsing variant's package is resolved against the range `benchmarks/package.json` declares before any timing, and its version and resolved path are on every row. Absolute ms are a property of the machine recorded above and are not comparable across machines; the banded number is the paired ratio."
     },
     "compat": {
       "status": "measured",
@@ -24,11 +24,7 @@
     },
     "weight": {
       "status": "measured",
-      "method": "Each entry point is bundled with `esbuild --bundle --minify --format=esm --platform=node` over a fixture that imports it and re-exports one symbol; the incumbent is bundled by the same command over the same fixture shape. Installed bytes are the package directory plus every production dependency, transitively. Every package is resolved from `benchmarks/`, whose package.json pins the versions — the workspace root has an older commander hoisted, and resolving from there would compare against the wrong package."
-    },
-    "reliability": {
-      "status": "measured",
-      "method": "Ten tasks per variant, one spawn each, non-TTY with stdin closed. The same demo program built on burgee, commander and yargs. Exit codes are judged by class (0 ok, 2 usage, other runtime), not by value; `--json` is judged by whether an addressable envelope parses off whichever stream carried it. This is not B1: it measures what an agent can act on, never what it spends."
+      "method": "Each entry point is bundled with `esbuild --bundle --minify --format=esm --platform=node` over a fixture that imports it and re-exports one symbol; the incumbent is bundled by the same command over the same fixture shape. Installed bytes are the package directory plus every production dependency, transitively — each dependency resolved from the directory of the package that depends on it, and deduplicated by resolved path, so a nested copy is counted where npm actually put it. Every top-level package is resolved from `benchmarks/`, whose package.json pins the versions — the workspace root has an older commander hoisted, and resolving from there would compare against the wrong package."
     }
   },
   "records": [
@@ -37,9 +33,9 @@
       "variant": "bare node",
       "metric": "cold-start-ms",
       "unit": "ms",
-      "samples": 40,
-      "median": 34.51,
-      "p95": 52.88,
+      "samples": 42,
+      "median": 29.92,
+      "p95": 43.5,
       "note": "the floor: Node starting and writing one line, no parser",
       "detail": {
         "fixture": "node.mjs"
@@ -50,12 +46,15 @@
       "variant": "commander",
       "metric": "cold-start-ms",
       "unit": "ms",
-      "samples": 40,
-      "median": 49.84,
-      "p95": 76.77,
-      "note": "spawned `node commander.mjs greet ada`; 15.33 ms of this is above the bare-node floor",
+      "samples": 42,
+      "median": 46.21,
+      "p95": 56.97,
+      "note": "spawned `node commander.mjs greet ada`; 16.29 ms of this is above the bare-node floor",
       "detail": {
-        "fixture": "commander.mjs"
+        "fixture": "commander.mjs",
+        "package": "commander",
+        "version": "15.0.0",
+        "resolvedFrom": "<repo>/benchmarks/node_modules/commander"
       }
     },
     {
@@ -63,12 +62,15 @@
       "variant": "burgee/commander",
       "metric": "cold-start-ms",
       "unit": "ms",
-      "samples": 40,
-      "median": 57.82,
-      "p95": 76.29,
-      "note": "spawned `node burgee-commander.mjs greet ada`; 23.31 ms of this is above the bare-node floor",
+      "samples": 42,
+      "median": 54.09,
+      "p95": 69.87,
+      "note": "spawned `node burgee-commander.mjs greet ada`; 24.17 ms of this is above the bare-node floor",
       "detail": {
-        "fixture": "burgee-commander.mjs"
+        "fixture": "burgee-commander.mjs",
+        "package": "burgee",
+        "version": "0.3.0",
+        "resolvedFrom": "<repo>/node_modules/burgee"
       }
     },
     {
@@ -76,12 +78,15 @@
       "variant": "yargs",
       "metric": "cold-start-ms",
       "unit": "ms",
-      "samples": 40,
-      "median": 137.34,
-      "p95": 213.31,
-      "note": "spawned `node yargs.mjs greet ada`; 102.82 ms of this is above the bare-node floor",
+      "samples": 42,
+      "median": 120.46,
+      "p95": 148.4,
+      "note": "spawned `node yargs.mjs greet ada`; 90.54 ms of this is above the bare-node floor",
       "detail": {
-        "fixture": "yargs.mjs"
+        "fixture": "yargs.mjs",
+        "package": "yargs",
+        "version": "18.1.0",
+        "resolvedFrom": "<repo>/node_modules/yargs"
       }
     },
     {
@@ -89,12 +94,15 @@
       "variant": "burgee/yargs",
       "metric": "cold-start-ms",
       "unit": "ms",
-      "samples": 40,
-      "median": 89.56,
-      "p95": 120,
-      "note": "spawned `node burgee-yargs.mjs greet ada`; 55.05 ms of this is above the bare-node floor",
+      "samples": 42,
+      "median": 83.49,
+      "p95": 99.22,
+      "note": "spawned `node burgee-yargs.mjs greet ada`; 53.57 ms of this is above the bare-node floor",
       "detail": {
-        "fixture": "burgee-yargs.mjs"
+        "fixture": "burgee-yargs.mjs",
+        "package": "burgee",
+        "version": "0.3.0",
+        "resolvedFrom": "<repo>/node_modules/burgee"
       }
     },
     {
@@ -102,12 +110,15 @@
       "variant": "cac",
       "metric": "cold-start-ms",
       "unit": "ms",
-      "samples": 40,
-      "median": 41.19,
-      "p95": 64.32,
-      "note": "spawned `node cac.mjs greet ada`; 6.67 ms of this is above the bare-node floor",
+      "samples": 42,
+      "median": 35.1,
+      "p95": 58.14,
+      "note": "spawned `node cac.mjs greet ada`; 5.17 ms of this is above the bare-node floor",
       "detail": {
-        "fixture": "cac.mjs"
+        "fixture": "cac.mjs",
+        "package": "cac",
+        "version": "7.0.0",
+        "resolvedFrom": "<repo>/node_modules/cac"
       }
     },
     {
@@ -115,12 +126,15 @@
       "variant": "burgee",
       "metric": "cold-start-ms",
       "unit": "ms",
-      "samples": 40,
-      "median": 60.54,
-      "p95": 84.7,
-      "note": "spawned `node burgee.mjs greet ada`; 26.02 ms of this is above the bare-node floor",
+      "samples": 42,
+      "median": 52.57,
+      "p95": 68.09,
+      "note": "spawned `node burgee.mjs greet ada`; 22.65 ms of this is above the bare-node floor",
       "detail": {
-        "fixture": "burgee.mjs"
+        "fixture": "burgee.mjs",
+        "package": "burgee",
+        "version": "0.3.0",
+        "resolvedFrom": "<repo>/node_modules/burgee"
       }
     },
     {
@@ -128,42 +142,54 @@
       "variant": "burgee/commander ÷ commander",
       "metric": "cold-start-ratio",
       "unit": "ratio",
-      "samples": 40,
-      "median": 1.091,
-      "p95": 1.514,
+      "samples": 42,
+      "median": 1.161,
+      "p95": 1.533,
       "gate": {
         "max": 1.4,
         "why": "the front-end must not cost meaningfully more to start than the package it replaces; a ceiling, not a promise — the measured value is what the band watches"
       },
-      "note": "median of 40 paired spawns, each round's burgee/commander against the same round's commander"
+      "note": "median of 42 paired spawns, each round's burgee/commander against the same round's commander",
+      "detail": {
+        "ours": "burgee@0.3.0",
+        "host": "commander@15.0.0"
+      }
     },
     {
       "axis": "perf",
       "variant": "burgee/yargs ÷ yargs",
       "metric": "cold-start-ratio",
       "unit": "ratio",
-      "samples": 40,
-      "median": 0.641,
-      "p95": 0.946,
+      "samples": 42,
+      "median": 0.694,
+      "p95": 0.901,
       "gate": {
         "max": 0.95,
         "why": "the front-end must not cost meaningfully more to start than the package it replaces; a ceiling, not a promise — the measured value is what the band watches"
       },
-      "note": "median of 40 paired spawns, each round's burgee/yargs against the same round's yargs"
+      "note": "median of 42 paired spawns, each round's burgee/yargs against the same round's yargs",
+      "detail": {
+        "ours": "burgee@0.3.0",
+        "host": "yargs@18.1.0"
+      }
     },
     {
       "axis": "perf",
       "variant": "burgee ÷ cac",
       "metric": "cold-start-ratio",
       "unit": "ratio",
-      "samples": 40,
-      "median": 1.408,
-      "p95": 1.984,
+      "samples": 42,
+      "median": 1.447,
+      "p95": 1.907,
       "gate": {
         "max": 1.7,
         "why": "the front-end must not cost meaningfully more to start than the package it replaces; a ceiling, not a promise — the measured value is what the band watches"
       },
-      "note": "median of 40 paired spawns, each round's burgee against the same round's cac"
+      "note": "median of 42 paired spawns, each round's burgee against the same round's cac",
+      "detail": {
+        "ours": "burgee@0.3.0",
+        "host": "cac@7.0.0"
+      }
     },
     {
       "axis": "compat",
@@ -607,8 +633,8 @@
       "metric": "installed-bytes",
       "unit": "bytes",
       "samples": 1,
-      "median": 575886,
-      "p95": 575886,
+      "median": 526898,
+      "p95": 526898,
       "note": "bytes on disk for it and every production dependency it drags in",
       "detail": {
         "version": "18.1.0",
@@ -741,8 +767,8 @@
       "metric": "installed-bytes",
       "unit": "bytes",
       "samples": 1,
-      "median": 242099,
-      "p95": 242099,
+      "median": 208590,
+      "p95": 208590,
       "note": "`npm pack` unpacked size of flagstaff plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
       "detail": {
         "version": "0.1.0",
@@ -755,8 +781,8 @@
       "metric": "installed-bytes",
       "unit": "bytes",
       "samples": 1,
-      "median": 373495,
-      "p95": 373495,
+      "median": 284554,
+      "p95": 284554,
       "note": "bytes on disk for it and every production dependency it drags in",
       "detail": {
         "version": "9.4.1",
@@ -815,8 +841,8 @@
       "metric": "installed-bytes",
       "unit": "bytes",
       "samples": 1,
-      "median": 242099,
-      "p95": 242099,
+      "median": 208590,
+      "p95": 208590,
       "note": "`npm pack` unpacked size of flagstaff plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
       "detail": {
         "version": "0.1.0",
@@ -829,8 +855,8 @@
       "metric": "installed-bytes",
       "unit": "bytes",
       "samples": 1,
-      "median": 353976,
-      "p95": 353976,
+      "median": 747463,
+      "p95": 747463,
       "note": "bytes on disk for it and every production dependency it drags in",
       "detail": {
         "version": "8.0.1",
@@ -889,8 +915,8 @@
       "metric": "installed-bytes",
       "unit": "bytes",
       "samples": 1,
-      "median": 242099,
-      "p95": 242099,
+      "median": 208590,
+      "p95": 208590,
       "note": "`npm pack` unpacked size of flagstaff plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
       "detail": {
         "version": "0.1.0",
@@ -903,8 +929,8 @@
       "metric": "installed-bytes",
       "unit": "bytes",
       "samples": 1,
-      "median": 340703,
-      "p95": 340703,
+      "median": 261977,
+      "p95": 261977,
       "note": "bytes on disk for it and every production dependency it drags in",
       "detail": {
         "version": "8.0.0",
@@ -928,135 +954,11 @@
         "ours": "flagstaff/log-update@0.1.0",
         "incumbent": "log-update@8.0.0"
       }
-    },
-    {
-      "axis": "reliability",
-      "variant": "burgee",
-      "samples": 10,
-      "metric": "hangs-per-100",
-      "unit": "runs",
-      "median": 0,
-      "p95": 0,
-      "note": "non-TTY runs, stdin closed, that never exited",
-      "gate": {
-        "max": 0,
-        "why": "a CLI that waits for a human under a pipe fails an agent task every time"
-      }
-    },
-    {
-      "axis": "reliability",
-      "variant": "burgee",
-      "samples": 10,
-      "metric": "exit-code-accuracy",
-      "unit": "ratio",
-      "median": 1,
-      "p95": 1,
-      "note": "0 ok, 2 usage error, any other non-zero runtime — the class an agent acts on"
-    },
-    {
-      "axis": "reliability",
-      "variant": "burgee",
-      "samples": 10,
-      "metric": "structured-output-rate",
-      "unit": "ratio",
-      "median": 1,
-      "p95": 1,
-      "note": "of the tasks that asked for --json, those that produced an addressable envelope"
-    },
-    {
-      "axis": "reliability",
-      "variant": "burgee",
-      "samples": 10,
-      "metric": "recovery-bytes",
-      "unit": "bytes",
-      "median": 83,
-      "p95": 83,
-      "note": "median bytes an agent reads per task; reported, never gated — a hint costs bytes and may save turns"
-    },
-    {
-      "axis": "reliability",
-      "variant": "commander",
-      "samples": 10,
-      "metric": "hangs-per-100",
-      "unit": "runs",
-      "median": 0,
-      "p95": 0,
-      "note": "non-TTY runs, stdin closed, that never exited"
-    },
-    {
-      "axis": "reliability",
-      "variant": "commander",
-      "samples": 10,
-      "metric": "exit-code-accuracy",
-      "unit": "ratio",
-      "median": 0.4,
-      "p95": 0.4,
-      "note": "0 ok, 2 usage error, any other non-zero runtime — the class an agent acts on"
-    },
-    {
-      "axis": "reliability",
-      "variant": "commander",
-      "samples": 10,
-      "metric": "structured-output-rate",
-      "unit": "ratio",
-      "median": 0.25,
-      "p95": 0.25,
-      "note": "of the tasks that asked for --json, those that produced an addressable envelope"
-    },
-    {
-      "axis": "reliability",
-      "variant": "commander",
-      "samples": 10,
-      "metric": "recovery-bytes",
-      "unit": "bytes",
-      "median": 31,
-      "p95": 31,
-      "note": "median bytes an agent reads per task; reported, never gated — a hint costs bytes and may save turns"
-    },
-    {
-      "axis": "reliability",
-      "variant": "yargs",
-      "samples": 10,
-      "metric": "hangs-per-100",
-      "unit": "runs",
-      "median": 0,
-      "p95": 0,
-      "note": "non-TTY runs, stdin closed, that never exited"
-    },
-    {
-      "axis": "reliability",
-      "variant": "yargs",
-      "samples": 10,
-      "metric": "exit-code-accuracy",
-      "unit": "ratio",
-      "median": 0.4,
-      "p95": 0.4,
-      "note": "0 ok, 2 usage error, any other non-zero runtime — the class an agent acts on"
-    },
-    {
-      "axis": "reliability",
-      "variant": "yargs",
-      "samples": 10,
-      "metric": "structured-output-rate",
-      "unit": "ratio",
-      "median": 0.25,
-      "p95": 0.25,
-      "note": "of the tasks that asked for --json, those that produced an addressable envelope"
-    },
-    {
-      "axis": "reliability",
-      "variant": "yargs",
-      "samples": 10,
-      "metric": "recovery-bytes",
-      "unit": "bytes",
-      "median": 458,
-      "p95": 458,
-      "note": "median bytes an agent reads per task; reported, never gated — a hint costs bytes and may save turns"
     }
   ],
   "bands": {
     "cold-start-ratio": {
-      "value": 1.091,
+      "value": 1.161,
       "from": {
         "axis": "perf",
         "variant": "burgee/commander ÷ commander",
@@ -1111,30 +1013,6 @@
         "metric": "pass-rate"
       }
     },
-    "agent-exit-code-accuracy": {
-      "value": 1,
-      "from": {
-        "axis": "reliability",
-        "variant": "burgee",
-        "metric": "exit-code-accuracy"
-      }
-    },
-    "agent-structured-output-rate": {
-      "value": 1,
-      "from": {
-        "axis": "reliability",
-        "variant": "burgee",
-        "metric": "structured-output-rate"
-      }
-    },
-    "agent-hangs-per-100": {
-      "value": 0,
-      "from": {
-        "axis": "reliability",
-        "variant": "burgee",
-        "metric": "hangs-per-100"
-      }
-    },
     "core-bundled-bytes": {
       "value": 34841,
       "from": {
@@ -1163,9 +1041,9 @@
   "claims": {
     "cold-start-at-or-below-cac": {
       "claim": "the engine starts at or below cac, the lightest framework in the landscape",
-      "source": ".sdlc/intents/replacement-parser/intent.md #2, and the scoreboard row in .sdlc/intents/README.md",
+      "source": ".sdlc/intents/replacement-parser/intent.md #2, the scoreboard row in .sdlc/intents/README.md, and the speed row of apps/docs/content/docs/comparison.mdx",
       "target": "<= 1",
-      "measured": 1.408,
+      "measured": 1.447,
       "unit": "ratio",
       "met": false,
       "from": {
@@ -1280,7 +1158,7 @@
     },
     "compat-commander": {
       "claim": "commander's own test suite passes 1360 of 1360 against our entry point",
-      "source": "packages/compat-oracle/baseline.json, published at /docs/compatibility",
+      "source": "packages/compat-oracle/baseline.json, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx",
       "target": ">= 1360",
       "measured": 1360,
       "unit": "tests",
@@ -1293,7 +1171,7 @@
     },
     "compat-yargs": {
       "claim": "yargs's own test suite passes 804 of 804 against our entry point",
-      "source": "packages/compat-oracle/baseline.json, published at /docs/compatibility",
+      "source": "packages/compat-oracle/baseline.json, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx",
       "target": ">= 804",
       "measured": 804,
       "unit": "tests",
@@ -1306,7 +1184,7 @@
     },
     "compat-chalk": {
       "claim": "chalk's own test suite passes 58 of 58 against our entry point",
-      "source": "packages/compat-oracle/baseline.json, published at /docs/compatibility",
+      "source": "packages/compat-oracle/baseline.json, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx",
       "target": ">= 58",
       "measured": 58,
       "unit": "tests",
@@ -1319,7 +1197,7 @@
     },
     "compat-ora": {
       "claim": "ora's own test suite passes 99 of 99 against our entry point",
-      "source": "packages/compat-oracle/baseline.json, published at /docs/compatibility",
+      "source": "packages/compat-oracle/baseline.json, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx",
       "target": ">= 99",
       "measured": 99,
       "unit": "tests",
@@ -1332,7 +1210,7 @@
     },
     "compat-log-update": {
       "claim": "log-update's own test suite passes 99 of 99 against our entry point",
-      "source": "packages/compat-oracle/baseline.json, published at /docs/compatibility",
+      "source": "packages/compat-oracle/baseline.json, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx",
       "target": ">= 99",
       "measured": 99,
       "unit": "tests",
@@ -1345,7 +1223,7 @@
     },
     "compat-boxen": {
       "claim": "boxen's own test suite passes 84 of 84 against our entry point",
-      "source": "packages/compat-oracle/baseline.json, published at /docs/compatibility",
+      "source": "packages/compat-oracle/baseline.json, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx",
       "target": ">= 84",
       "measured": 84,
       "unit": "tests",

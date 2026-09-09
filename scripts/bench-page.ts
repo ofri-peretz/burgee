@@ -2,10 +2,20 @@
  * Writes apps/docs/content/docs/benchmarks.mdx from the last `npm run bench`. Generated,
  * never hand-edited, so every published number is the measured number (B7) — and so the
  * ones that are *not* measured say so on the page rather than in a commit message.
+ *
+ * `--check` writes nothing and exits 1 if the committed page is not what this script
+ * would produce from the committed results. The page said "Do not edit by hand" from the
+ * day it was written and nothing enforced it: `bench.yml` never ran this script and
+ * `check:artifacts` does not look at it, so the page and the results file it is generated
+ * from had already drifted apart — the page carried a cold-start ratio of 1.146 against a
+ * PR body quoting 1.121. A generated file with no drift check is a hand-written file that
+ * claims otherwise.
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { publishedResults } from 'benchmarks/published.js';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const RESULTS = join(root, 'benchmarks', 'results');
@@ -55,14 +65,12 @@ interface Doc {
   claims: Record<string, Claim>;
 }
 
-/** The newest dated file of a suite, or nothing if the suite has never run here. */
+/** The newest *published* file of a suite, or nothing if the suite has never run here. */
 function latest(suite: string): Doc | undefined {
   const dir = join(RESULTS, suite);
   if (!existsSync(dir)) return undefined;
-  const files = readdirSync(dir)
-    .filter((f) => f.endsWith('.json'))
-    .toSorted();
-  const last = files.at(-1);
+  // The published measurement, never a CI observation — see `benchmarks/published.ts`.
+  const last = publishedResults(dir);
   return last === undefined ? undefined : (JSON.parse(readFileSync(join(dir, last), 'utf8')) as Doc);
 }
 
@@ -117,9 +125,7 @@ const agentLine =
     ? ''
     : `\n> **B1 has not run.** The agent-cost axis reports **${agentAxis.status}**: ${agentAxis.reason ?? ''}.\n> Its two rows below read *unmeasured*, and they will keep reading *unmeasured* until it runs.\n> They are not estimates, and there are no estimates on this page.\n`;
 
-writeFileSync(
-  OUT,
-  `---
+const page = `---
 title: Benchmarks
 description: Every number this project claims in public, measured — and the ones that are not measured, saying so.
 ---
@@ -213,6 +219,16 @@ npm run bench -- --check
 Results are written to \`benchmarks/results/<suite>/<date>.json\` and read by the Stage 6
 control bands in \`.sdlc/bands/control-bands.json\`. The suite refuses to emit a band value
 it did not measure; see \`benchmarks/README.md\`.
-`,
-);
-process.stdout.write(`wrote ${OUT}\n`);
+`;
+
+const where = relative(root, OUT);
+
+if (!process.argv.includes('--check')) {
+  writeFileSync(OUT, page);
+  process.stdout.write(`wrote ${where}\n`);
+} else if (!existsSync(OUT) || readFileSync(OUT, 'utf8') !== page) {
+  process.stderr.write(`✖ ${where} is not what \`npm run bench:page\` produces from benchmarks/results/.\n  Run \`npm run bench:page\` and commit the result — the page says "Do not edit by hand" and this is what makes that true.\n`);
+  process.exitCode = 1;
+} else {
+  process.stdout.write(`✓ ${where} matches the committed results\n`);
+}

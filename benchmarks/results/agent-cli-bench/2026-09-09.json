@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "suite": "agent-cli-bench",
-  "measured": "2026-09-09T12:45:07.025Z",
-  "commit": "7c45e8b98ccd979a76eafd6d713f55c3c5c0b66b-dirty",
+  "measured": "2026-09-09T13:09:41.952Z",
+  "commit": "93af5bdcc86f1f264fb81b2b7755723d72d1e39d",
   "machine": {
     "os": "darwin",
     "release": "25.2.0",
@@ -15,20 +15,19 @@
   },
   "axes": {
     "agent": {
-      "status": "skipped",
-      "reason": "no CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY in the environment",
-      "method": "For each of the 5 tasks and each of the two builds, `claude -p <prompt> --allowedTools 'Bash(mytool:*)' --max-turns <n> --output-format json` is spawned in a scratch directory with the build installed as `mytool`, 5 times; the task's own `check` decides success. Tokens are input + cache + output as the CLI reports them; turns is its `num_turns`. The model is pinned per results file and a change starts a new band history."
+      "status": "not-run",
+      "reason": "not selected by --axis"
     }
   },
   "records": [],
   "bands": {
     "agent-tokens-per-task": {
-      "status": "skipped",
-      "reason": "no CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY in the environment"
+      "status": "not-run",
+      "reason": "not selected by --axis"
     },
     "agent-turns-per-task": {
-      "status": "skipped",
-      "reason": "no CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY in the environment"
+      "status": "not-run",
+      "reason": "not selected by --axis"
     }
   },
   "claims": {
@@ -37,14 +36,14 @@
       "source": ".sdlc/intents/agent-native-cli-layer/intent.md — the roadmap headline",
       "target": "<= 0.6",
       "status": "unmeasured",
-      "reason": "no CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY in the environment"
+      "reason": "not selected by --axis"
     },
     "agent-turns-30pct": {
       "claim": "an agent takes at least 30% fewer turns per task against a CLI that meets the floor",
       "source": ".sdlc/intents/agent-native-cli-layer/intent.md — the roadmap headline",
       "target": "<= 0.7",
       "status": "unmeasured",
-      "reason": "no CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY in the environment"
+      "reason": "not selected by --axis"
     }
   }
 }

@@ -3,26 +3,58 @@ title: burgee vs the alternatives
 description: Measured against commander, yargs, oclif, cac and citty — with what is built today separated from what is planned.
 ---
 
-Every number below was measured on 2026-09-07, Node 24 on darwin/arm64, medians of 25
-process spawns. Nothing is estimated, and features are split into **built today** and
-**planned** so the table cannot flatter us.
+**This page is maintained by hand, and that is the reason to distrust it most.** Four of
+its rows disagreed with the suite that now measures them — an installed size 5.4x under,
+an import cost that flattered us by 12 ms, a claim that burgee landed level with cac
+against a measured 1.45x, and a compatibility count of 1,361 that has been
+1,360 since the oracle's baseline was set. [Benchmarks](/docs/benchmarks) is generated from `npm run bench` and is the
+authority; this page exists to put six frameworks in one table, which that one does not
+do, and every cell here now says where it comes from.
+
+- **⚙️ measured** by `npm run bench` on this repo, all four packages in one run on one
+  machine, at the date below.
+- **📖 surveyed** in [`competitor-landscape.md`](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/research/competitor-landscape.md)
+  §2 on a different machine at a different time. Never compare a ⚙️ against a 📖 — that is
+  a comparison between two machines.
 
 ## Measured
+
+⚙️ rows: 2026-09-09, Apple M4 Pro, darwin/arm64, Node 24, 42 interleaved spawns per
+variant. Milliseconds are a property of that machine, so the deltas below are for reading,
+never for gating; the machine-independent figure is the ratio on
+[Benchmarks](/docs/benchmarks).
 
 | | **burgee** | commander | yargs | @oclif/core | cac | citty |
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
 | Downloads / week | new | 508.2M | 259.3M | 10.9M | 49.4M | 30.5M |
 | Runtime dependencies | **0** | 0 | 6 | **18** | 0 | 0 |
-| Installed size | 104 KB | 232 KB | 440 KB | **912 KB** | 52 KB | 52 KB |
-| Import cost over bare node | **+9 ms** | +20 ms | — | **+131 ms** | — | — |
-| Full CLI run over bare node | **+6 ms** | +16 ms | +84 ms | — | +5 ms | +6 ms |
+| Installed size ⚙️ | 561 KB | 203 KB | 515 KB | 912 KB 📖 | 40 KB | 52 KB 📖 |
+| Full CLI run over bare node ⚙️ | **+22.6 ms** | +16.3 ms | +90.5 ms | +131 ms 📖 | +5.2 ms | +6 ms 📖 |
 
-`@oclif/core` costs **131 ms just to import**, before parsing anything. That is four times
-Node's own startup, and it is the price of eighteen runtime dependencies.
+Three things in that table got worse when they were measured rather than asserted, and
+they stay in it.
+
+**Installed size.** burgee installs at **561 KB**, not the 104 KB this page claimed — the
+published figure was a guess at the tarball, and the real one is `npm pack`'s unpacked
+size, which is what lands in a user's `node_modules`. It is our largest number and it is
+larger than commander's. It buys zero runtime dependencies and six drop-in front ends; it
+is still 561 KB, and the bundled column on [Benchmarks](/docs/benchmarks) — what an
+application actually grows by — is the number to judge us on.
+
+**Speed.** This page previously ran two rows, an import cost and a full run, with burgee's
+cells in both unsourced. The suite times one thing, a full CLI run as a process, so there
+is one row. burgee does **not** land level with cac: it starts at **1.45x** cac's cold
+start against a published target of at or below cac, and that target is recorded as not
+met. It is faster than yargs — measurably, 0.69x — and roughly level with commander at
+1.16x.
 
 burgee's speed comes from `node:util.parseArgs` being in the standard library, not from a
-faster language — burgee is TypeScript, exactly like commander and yargs. It lands level
-with cac and citty; the gap is over commander and yargs specifically.
+faster language: burgee is TypeScript, exactly like commander and yargs. That buys parity
+with commander, not a lead over cac.
+
+`@oclif/core`'s **131 ms** is a surveyed number, not one this suite reproduces, and it is
+carried here rather than dropped because eighteen runtime dependencies against zero is the
+comparison this table exists for. Treat it as the survey's, not as ours.
 
 ## Capabilities
 
@@ -35,7 +67,7 @@ with cac and citty; the gap is over commander and yargs specifically.
 | Exit-code contract | ✅ **built** | ❌ | ❌ | partial | ❌ | ❌ |
 | No help dumped on a runtime error | ✅ **built** | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Weight budget per entry point | ✅ **built** | ❌ | ❌ | ❌ | ❌ | ❌ |
-| commander compatibility | ✅ 1,361 / 1,361 of commander's own tests | — | ❌ | ❌ | ❌ | ❌ |
+| commander compatibility | ✅ 1,360 / 1,360 of commander's own tests | — | ❌ | ❌ | ❌ | ❌ |
 | yargs compatibility | ✅ 804 / 804 of yargs' own tests | ❌ | — | ❌ | ❌ | ❌ |
 | `--schema` (the CLI as data) | 📋 planned | ❌ | ❌ | manifest | ❌ | ❌ |
 | `--mcp` (an MCP server) | 📋 planned | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -50,9 +82,11 @@ with cac and citty; the gap is over commander and yargs specifically.
 has none either. burgee has one, and it works on a program written in *commander's* syntax:
 change one import and you gain a capability commander cannot sell you at any price.
 
-**Nothing you rely on breaks.** Compatibility is graded by commander's own 1,215 tests and
+**Nothing you rely on breaks.** Compatibility is graded by commander's own 1,360 tests and
 yargs' 804, run in our CI, published as a pass rate that only goes up. Not the word
-"compatible" — a number you can check.
+"compatible" — a number you can check. (This paragraph said 1,215 and the table said 1,361;
+both were wrong, and the count the oracle's baseline actually holds is 1,360. It is on
+[Benchmarks](/docs/benchmarks), where it is read from the oracle rather than retyped.)
 
 **One declaration, every surface.** Help, `--json`, `--schema`, `--mcp`, completions and
 types are all projections of the same manifest, so they cannot drift, and adding the next
@@ -67,7 +101,17 @@ rather than glossed.
 
 ## Reproducing
 
+The ⚙️ rows come from the suite, not from a shell loop, because a shell loop measures
+whatever else the machine was doing:
+
 ```bash
-npm i burgee commander @oclif/core
-for i in $(seq 25); do s=$(date +%s%N); node -e "import('burgee')"; e=$(date +%s%N); echo $(( (e-s)/1000000 )); done | sort -n | sed -n '13p'
+git clone https://github.com/ofri-peretz/burgee && cd burgee
+npm install && npx turbo run build
+npm run bench -- --check
 ```
+
+That writes `benchmarks/results/cli-benchmarks/<date>.json`, which carries every number on
+[Benchmarks](/docs/benchmarks) along with the resolved version and path of every package it
+measured. The 📖 rows are not reproduced by it; they are
+[`competitor-landscape.md`](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/research/competitor-landscape.md)
+§2's, taken on a different machine.

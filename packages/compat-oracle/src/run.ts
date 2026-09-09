@@ -7,12 +7,13 @@
  * would be graded by our reading of the host's behaviour, which is the thing under test.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join, matchesGlob, sep } from 'node:path';
+import { dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { type Host, type HostImport } from './hosts.js';
+import { testFiles } from './discover.js';
+import { type Exclusion, type Host, type HostImport } from './hosts.js';
 import { shimName } from './vendor.js';
 
 export interface Grade {
@@ -95,14 +96,25 @@ export function parseNodeTest(output: string): { tests: number; passed: number; 
  * counts have to be read off the lines themselves. (`--reporter=tap` is nested, which is
  * worse: the counts are then per file rather than per test.)
  */
-export function parseFlatTap(output: string): { tests: number; passed: number; failed: number; skipped: number } {
-  const lines = output.split('\n');
+export function parseFlatTap(output: string, excludes: Exclusion[] = []): { tests: number; passed: number; failed: number; skipped: number } {
+  const lines = output.split('\n').filter((l) => !excludes.some((e) => l.includes(e.match)));
   const ok = lines.filter((l) => FLAT_OK.test(l));
   const skipped = ok.filter((l) => FLAT_SKIP.test(l)).length;
   const passed = ok.length - skipped;
   const failed = lines.filter((l) => FLAT_NOT_OK.test(l)).length;
   // A test that skipped itself passed for no one and fails no one: reported, never counted.
   return { tests: passed + failed, passed, failed, skipped };
+}
+
+/**
+ * Declared exclusions that matched no case in this run. An exclusion is a *subtraction from
+ * the published number*, so one that quietly stops applying — a title reworded upstream, a
+ * file renamed — must be as loud as one that quietly starts. Reported as an error, never as
+ * a silent zero.
+ */
+export function unmatchedExclusions(output: string, excludes: Exclusion[]): string[] {
+  const cases = output.split('\n').filter((l) => FLAT_OK.test(l) || FLAT_NOT_OK.test(l));
+  return excludes.filter((e) => !cases.some((l) => l.includes(e.match))).map((e) => e.match);
 }
 
 type Summary = Pick<Grade, 'files' | 'tests' | 'passed' | 'failed' | 'skipped' | 'reference' | 'rate' | 'error'>;
@@ -112,15 +124,41 @@ type Summary = Pick<Grade, 'files' | 'tests' | 'passed' | 'failed' | 'skipped' |
  * "0 passing" three separate times — output present but no `# tests` summary, because a
  * test called process.exit() and killed the runner — is an *error*, and is tested as one.
  */
-export function summarize(output: string, files: number, reference: number): Summary {
+/**
+ * How the gate treats declared exclusions on this run. `requireMatch` is the control's
+ * bar: it is the run that fixes the reference, so an exclusion that no longer matches
+ * anything has to be loud there.
+ */
+export interface Gate {
+  excludes?: Exclusion[];
+  requireMatch?: boolean;
+}
+
+export function summarize(output: string, files: number, reference: number, gate: Gate = {}): Summary {
+  const excludes = gate.excludes ?? [];
+  const broken = (error: string): Summary => ({ files, tests: 0, passed: 0, failed: 0, skipped: 0, reference, rate: 0, error });
   // Summary lines win where they exist: node:test prints a plan *and* a summary, and the
   // summary is the runner's own count rather than one inferred from its lines.
-  if (TAP_TESTS.test(output)) return rate(files, parseNodeTest(output), reference);
+  if (TAP_TESTS.test(output)) {
+    // Those three lines are counts, not names: there is nothing here to exclude *by*, and
+    // an exclusion that silently does nothing is worse than one that refuses to run.
+    if (excludes.length > 0) return broken(`${excludes.length} exclusion(s) declared, but this runner's TAP carries no per-case names to exclude by`);
+    return rate(files, parseNodeTest(output), reference);
+  }
   // A plan and no summary is vitest's dialect. Without either, the runner was killed
   // mid-run — and its `ok` lines must not be counted, or a suite that died at test 72
   // reports 72 passing and clears the gate. That has read as a grade once already.
-  if (TAP_PLAN.test(output)) return rate(files, parseFlatTap(output), reference);
-  return { files, tests: 0, passed: 0, failed: 0, skipped: 0, reference, rate: 0, error: 'suite exited before its summary (process.exit() inside a test?)' };
+  if (TAP_PLAN.test(output)) {
+    // Only the control has to *find* every exclusion. It is the run that fixes the
+    // reference, so a title reworded upstream must be loud there. A target run legitimately
+    // registers nothing from a file whose import failed — an implementation that does not
+    // exist yet is not a stale exclusion — but the exclusions still apply to whatever it
+    // did register, or a target would collect the nine cases that pass for everyone.
+    const missed = gate.requireMatch === true ? unmatchedExclusions(output, excludes) : [];
+    if (missed.length > 0) return broken(`exclusion matched no case: ${missed.join(', ')}`);
+    return rate(files, parseFlatTap(output, excludes), reference);
+  }
+  return broken('suite exited before its summary (process.exit() inside a test?)');
 }
 
 function rate(files: number, counts: { tests: number; passed: number; failed: number; skipped: number }, reference: number): Summary {
@@ -171,8 +209,10 @@ function shimSource(entry: HostImport, host: Host, target: string): string {
  * `await import(target)` cannot provide. Writing them per run is what lets one vendored
  * suite grade any implementation.
  */
-function writeShims(host: Host, hostDir: string, target: string): void {
-  host.imports.forEach((entry, i) => writeFileSync(join(hostDir, shimName(i)), shimSource(entry, host, target)));
+function writeShims(host: Host, hostDir: string, target: string, packageType: string): void {
+  // The vendored package's own type decides the extension, and the vendor step wrote the
+  // rewritten specifiers against the same rule — so the two always name one file.
+  host.imports.forEach((entry, i) => writeFileSync(join(hostDir, shimName(i, packageType)), shimSource(entry, host, target)));
 }
 
 /** The installed package's directory: its main entry, then up to the nearest package.json. */
@@ -195,14 +235,28 @@ interface Source {
  * `import { Option } from '../lib/option.js'` resolves to our Option, and a test that then
  * fails is a real divergence rather than a whole file thrown away.
  */
-function writeInternalShims(host: Host, hostDir: string, target: string, internals: string[]): void {
+function writeInternalShims(host: Host, { hostDir, target, internals, packageType }: { hostDir: string; target: string; internals: string[]; packageType: string }): void {
   const installed = target === host.name ? packageRoot(host.name) : undefined;
   for (const rel of internals) {
     const at = join(hostDir, rel);
     mkdirSync(dirname(at), { recursive: true });
     const from = installed === undefined ? target : join(installed, rel);
-    writeFileSync(at, `// generated per run — COMPAT_TARGET=${target}\nexport * from '${from}';\n`);
+    writeFileSync(at, `// generated per run — COMPAT_TARGET=${target}\n${internalShimBody(from, packageType)}`);
   }
+}
+
+/**
+ * The shim's *language* has to match how the test loads it, not just its extension.
+ *
+ * An internal shim is written at the exact path the test reaches for — `../src/cell`, with
+ * no extension — so Node's CommonJS resolver finds it and, having no extension to go on,
+ * loads it as CommonJS. An `export * from` there is a syntax error, which is what
+ * cli-table3's four internal files hit. A CJS host gets a CJS shim; `.default ?? loaded`
+ * unwraps an ES module target while leaving a CommonJS one alone.
+ */
+function internalShimBody(from: string, packageType: string): string {
+  if (packageType === 'module') return `export * from '${from}';\n`;
+  return `const loaded = require('${from}');\nmodule.exports = loaded?.default ?? loaded;\n`;
 }
 
 /**
@@ -244,9 +298,43 @@ function command(host: Host, dir: string, paths: string[]): { bin: string; args:
  * and `expect` without importing them. Generated per run beside the shims, and gitignored
  * for the same reason they are.
  */
+/**
+ * A jest suite run under vitest still expects jest's globals. vitest's `globals: true`
+ * supplies `describe`, `it` and `expect`; it does not supply `jest` itself, and cli-table3's
+ * suite reaches for `jest.fn`, `jest.mock` and `jest.requireActual`.
+ *
+ * This is harness, not leniency: the three are mapped to vitest's own equivalents and no
+ * assertion is touched. Without them a file fails to load, which reads as a compatibility
+ * failure when it is a runner mismatch — the whole class of error the oracle exists to keep
+ * out of the number.
+ */
+const jestGlobals = (): string => `// generated per run
+import { createRequire } from 'node:module';
+import { vi } from 'vitest';
+
+// Anchored here, at the vendored root, which is where a bare id resolves from. A *relative*
+// id in \`requireActual\` is written from the test file and cannot be anchored from a
+// wrapper that does not know its caller — a file using one fails to load, loudly, and is
+// reported on the informational line rather than silently mis-resolved. Anchoring at the
+// test directory instead was tried and is worse: cell-test.js then loads and reports 94
+// failures that are the wrapper's, not cli-table3's, which is the exact class of error this
+// oracle exists to keep out of the number.
+const require = createRequire(import.meta.url);
+
+globalThis.jest = {
+  fn: (...args) => vi.fn(...args),
+  // \`vi.mock\` is hoisted by vitest's transform and refuses to be called from inside a
+  // wrapper; \`vi.doMock\` is its runtime form, which is what a \`jest.mock\` call reached at
+  // run time actually means. These suites call it before the require it affects.
+  mock: (...args) => vi.doMock(...args),
+  requireActual: (id) => require(id),
+};
+`;
+
 function writeVitestConfig(host: Host, hostDir: string, files: string[]): void {
   const include = files.map((f) => JSON.stringify(join(host.testDir, f).split(sep).join('/')));
-  writeFileSync(join(hostDir, 'vitest.config.mjs'), `// generated per run\nexport default { test: { include: [${include.join(', ')}], globals: true } };\n`);
+  writeFileSync(join(hostDir, 'vitest.setup.mjs'), jestGlobals());
+  writeFileSync(join(hostDir, 'vitest.config.mjs'), `// generated per run\nexport default { test: { include: [${include.join(', ')}], globals: true, setupFiles: ['./vitest.setup.mjs'] } };\n`);
 }
 
 /** Runs the suite from its vendored root; a failing suite still prints its summary. */
@@ -301,10 +389,10 @@ export function grade(host: Host, vendorDir: string, target: string, reference =
   const sourcePath = join(hostDir, '.source.json');
   const source: Source = existsSync(sourcePath) ? (JSON.parse(readFileSync(sourcePath, 'utf8')) as Source) : {};
   const internalFiles = new Set(source.internalFiles ?? []);
-  // The host's own glob decides what is a test — ora's suite sits at the repo root next to
-  // `index.js`, and running the implementation as a test file is not a grade. Nothing else
-  // is filtered here: ava is handed the paths and applies its own conventions to them.
-  const all = readdirSync(dir).filter((f) => matchesGlob(f, host.testGlob) && f !== host.preamble);
+  // Recursive, and shared with the vendor step and the fingerprint so the three cannot
+  // disagree about what the suite is. Nothing else is filtered here: ava is handed the
+  // paths and applies its own conventions to them.
+  const all = testFiles(dir, host);
   const files = all.filter((f) => !internalFiles.has(f));
   const internal = all.filter((f) => internalFiles.has(f));
   if (files.length === 0) return { ...base, error: 'no test files vendored' };
@@ -312,18 +400,22 @@ export function grade(host: Host, vendorDir: string, target: string, reference =
   const missing = missingTarget(host, target);
   if (missing !== undefined) return { ...base, note: `target not built yet: ${missing}` };
 
-  writeShims(host, hostDir, target);
-  writeInternalShims(host, hostDir, target, source.internals ?? []);
+  const { type: packageType = 'commonjs' } = JSON.parse(readFileSync(join(hostDir, 'package.json'), 'utf8')) as { type?: string };
+  writeShims(host, hostDir, target, packageType);
+  writeInternalShims(host, { hostDir, target, internals: source.internals ?? [], packageType });
 
   const run = runSuite(host, hostDir, files, target);
   keepTap(host, target, 'public', run);
   if ('error' in run) return { ...base, files: files.length, error: run.error };
-  const graded: Grade = { ...base, ...summarize(run.output, files.length, reference) };
+  const graded: Grade = { ...base, ...summarize(run.output, files.length, reference, { excludes: host.excludes ?? [], requireMatch: target === host.name }) };
 
   if (internal.length > 0) {
     const extra = runSuite(host, hostDir, internal, target);
     keepTap(host, target, 'internal', extra);
-    const counts = 'error' in extra ? { tests: 0, passed: 0 } : parseNodeTest(extra.output);
+    // The same dialect dispatch the gated run uses. `parseNodeTest` alone read vitest's
+    // flat TAP as `tests: -1`, because a plan with no `# tests` summary gives it nothing to
+    // count — the informational line then reported a negative total.
+    const counts = 'error' in extra ? { tests: 0, passed: 0 } : summarize(extra.output, internal.length, 0);
     graded.internals = { files: internal.length, tests: counts.tests, passed: counts.passed };
   }
   return graded;

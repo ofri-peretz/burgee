@@ -59,6 +59,7 @@
     "@types/node": "^26.4.1",
     "@typescript-eslint/eslint-plugin": "^8.61.1",
     "@typescript-eslint/parser": "^8.61.1",
+    "benchmarks": "*",
     "burgee": "*",
     "cli-spinners": "^3.2.0",
     "compat-oracle": "*",

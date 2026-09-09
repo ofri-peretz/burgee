@@ -25,12 +25,20 @@
     "ora": ">=9",
     "yargs": ">=17"
   },
+  "//devDependencies": [
+    "Vendored suites are run unedited, so whatever they require is a dependency of this package — pinned, because the oracle's number has to be the number a stranger gets from `npm ci`.",
+    "cli-table (0.3.11) is a *second* incumbent, and it is here as a test dependency of the first: cli-table3's own `verify-legacy-compatibility-test.js` runs its assertions twice, once against `require('cli-table')` and once against our shim, to show the two agree. Without it that file fails to load and the control reads 15 / 16 on a clean install while the PR asserts 33 / 33. The nine cases that grade cli-table itself are excluded by name in hosts.ts; the file still has to load.",
+    "@colors/colors (1.5.0) is required directly by four of cli-table3's test files and reached us only as a hoisted optional dependency of cli-table3 — the same fragility, one release from breaking."
+  ],
   "devDependencies": {
+    "@colors/colors": "1.5.0",
     "@types/yargs": "^17.0.33",
     "ava": "^8.0.1",
     "boxen": "^8.0.1",
     "chai": "^6.2.2",
     "chalk": "^6.0.0",
+    "cli-table": "0.3.11",
+    "cli-table3": "^0.6.5",
     "commander": "^15.0.0",
     "cpr": "^3.0.1",
     "cross-spawn": "^7.0.6",
