@@ -39,13 +39,22 @@ import {
 } from 'three';
 import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader.js';
 
-const MARKS = ['burgee', 'roundel', 'flagstaff', 'caique'] as const;
+const MARKS = [
+  'burgee',
+  'roundel',
+  'flagstaff',
+  'caique',
+  'linegauge',
+  'seniority',
+  'bellpull',
+  'closeout',
+] as const;
 
 /** Extrusion, in the marks' own 100-unit space. */
 const SOLID = { depth: 10, bevel: 1.6, bevelSegments: 4, curveSegments: 28 } as const;
 
 /** Where the marks stand, and where the camera watches them from. */
-const STAGE = { gap: 122, floorDrop: 80, cameraY: 14, cameraZ: 520, fov: 30 } as const;
+const STAGE = { gap: 112, floorDrop: 80, cameraY: 14, cameraZ: 860, fov: 30 } as const;
 
 /** Coplanar fills z-fight; each successive layer sits this much proud of the last. */
 const LAYER_STEP = 0.6;
