@@ -1,5 +1,19 @@
 # burgee
 
+## 0.3.0
+
+### Minor Changes
+
+- [#24](https://github.com/ofri-peretz/burgee/pull/24) [`cf951de`](https://github.com/ofri-peretz/burgee/commit/cf951de876b23c5f9bc38d734e3028b723983178) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `Runtime` gains a `clock` (`now`, `schedule`) with a deterministic fake in `burgee/testing`, and `renderHelp` accepts `{ color, theme }` — a structural token map the output stack can fill without burgee importing it.
+
+- [#33](https://github.com/ofri-peretz/burgee/pull/33) [`8ad4d4a`](https://github.com/ofri-peretz/burgee/commit/8ad4d4abb5077433dfa875f3f1a95480e95c2a52) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Large CLIs (M1–M6): `load: () => import('./x.js')` on a command loads its handler on dispatch only — help, `--schema` (which marks it `lazy`), completions and the MCP tool list are complete without it; `sharedOptions(name, specs)` declares a set once and each copy is tagged `sharedFrom` in the schema; a command with `deprecated: 'new'` warns once on stderr and runs; `group` and `plugin` ride on the schema; `resolveCommand` and `runCommand` are public. The commander façade gains `.deprecate(use?)` and projects `.helpGroup()`. A required positional that argv did not supply is now a usage error naming it — it had never been enforced.
+
+- [#23](https://github.com/ofri-peretz/burgee/pull/23) [`0770990`](https://github.com/ofri-peretz/burgee/commit/07709908c423411ab97252812dfa5ec8d3cf4e0a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee dev <entry>`: your agent is connected to your CLI while you write it. The entry (exporting `program` as a burgee manifest, a commander `Command` or a yargs instance) is served as MCP on stdio; on every save it is re-imported as a fresh module graph, the served manifest is swapped, `notifications/tools/list_changed` goes out, and the diff plus the rendered help are printed on stderr. Dev-time only and removable: nothing a shipped CLI imports can reach it. `startMcp()` is the swappable server `serveMcp()` now wraps.
+
+- [#19](https://github.com/ofri-peretz/burgee/pull/19) [`9670224`](https://github.com/ofri-peretz/burgee/commit/96702248dfccff5074874ce4a3d0b9d19754a3fc) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - burgee's additions on yargs syntax, guarded so a program that asks for none of them runs exactly as on yargs (804 / 804 still): `yargs.manifest` projected from what the program registered (builders run on a scratch instance, as yargs' completion does), `use(plugin)` with `preRun`/`postRun` around every handler, `.effects()` inside a builder, `--json` as the `{ ok, data, meta }` envelope when the program did not declare it anywhere in its tree, `--schema`, `--mcp` and `completion <shell>` from the manifest, and `.burgee({ stdout, stderr, exit })` injecting the streams and reporting E1 exit codes.
+
+- [#16](https://github.com/ofri-peretz/burgee/pull/16) [`c7d1aa0`](https://github.com/ofri-peretz/burgee/commit/c7d1aa0f271c0733b42213c0351e6aebcc7dd909) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/yargs/parser`: the ported yargs-parser as its own entry — what `import parser from 'yargs-parser'` gave, for a program that imported the parser directly. With it, and with the compatibility harness able to `require()` its vendored root as a package, both façades now pass **100%** of their hosts' own suites: `burgee/commander` 1,361 / 1,361 and `burgee/yargs` 804 / 804.
+
 ## 0.2.0
 
 ### Minor Changes
