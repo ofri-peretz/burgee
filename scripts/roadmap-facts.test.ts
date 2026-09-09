@@ -107,6 +107,60 @@ describe('roadmap facts', () => {
   });
 
   /**
+   * A band is a fact about this repo's own state, and the roadmap keeps a second copy of it.
+   *
+   * On 2026-09-09 the state table said `.sdlc/bands/scoreboard-public.json` was `still null`
+   * while, sixty lines further down, the owner-task table said the same band was set — and
+   * the file agreed with the second one. A reader who stops at the state table is told the
+   * highest-value next action is a deploy that already happened. That is the expensive
+   * direction: a stale "not done" spends somebody's afternoon redoing finished work.
+   *
+   * The other direction is rarer and worse, and the band file's own note names it — a gate
+   * pointing at a URL that does not resolve is worse than a closed gate, because it opens.
+   *
+   * So both are checked: a line that names a band file and calls it empty has to be right,
+   * and so does a line that calls it set.
+   */
+  const BAND_MENTION = /`?\.sdlc\/bands\/([\w.-]+\.json)`?/;
+  const CLAIMED_EMPTY = /\bnull\b|\bnot (yet )?set\b|\bunset\b|\bstill empty\b/i;
+  const CLAIMED_SET = /\bset to\b|\brecords\b|\bcarries\b|\bdeclares\b/i;
+
+  /** A band with nothing recorded in it: absent, `null`, or every value `null`. */
+  function bandIsEmpty(name: string): boolean {
+    const path = join(REPO_ROOT, '.sdlc/bands', name);
+    if (!existsSync(path)) return true;
+    const value: unknown = JSON.parse(readFileSync(path, 'utf-8'));
+    if (value === null) return true;
+    if (typeof value === 'object') return Object.values(value).every((v) => v === null);
+    return false;
+  }
+
+  it.each(DOCS)('%s agrees with the band files it cites', (doc) => {
+    const wrong: string[] = [];
+
+    readFileSync(join(REPO_ROOT, doc), 'utf-8')
+      .split('\n')
+      .forEach((line, i) => {
+        const band = line.match(BAND_MENTION)?.[1];
+        if (!band) return;
+        const empty = bandIsEmpty(band);
+        const where = `${doc}:${i + 1}`;
+
+        if (CLAIMED_EMPTY.test(line) && !empty)
+          wrong.push(`${where} calls ${band} empty; it is set`);
+        if (CLAIMED_SET.test(line) && empty)
+          wrong.push(`${where} calls ${band} set; it is empty`);
+      });
+
+    expect(
+      wrong,
+      'the roadmap and a band file disagree about whether something is done — the band ' +
+        'is the record, the prose is a copy of it, and a stale "not done" sends the next ' +
+        'agent to redo finished work',
+    ).toEqual([]);
+  });
+
+  /**
    * A Y4 verdict is a claim about the platform, and a platform moves.
    *
    * Until 2026-09-09 the roadmap's "layers considered" table said human formatting had
