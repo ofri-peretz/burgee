@@ -10,6 +10,7 @@
  */
 import tsPlugin from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
+import browserSecurity from 'eslint-plugin-browser-security';
 import conventions from 'eslint-plugin-conventions';
 import importNext from 'eslint-plugin-import-next';
 import maintainability from 'eslint-plugin-maintainability';
@@ -23,6 +24,8 @@ import reliability from 'eslint-plugin-reliability';
 import secureCoding from 'eslint-plugin-secure-coding';
 
 const TSX_FILES = ['apps/**/*.tsx'];
+/** Everything that ships to a browser: the docs app's components and routes. */
+const BROWSER_FILES = ['apps/**/*.{ts,tsx}'];
 
 /**
  * Every non-deprecated rule of `plugin`, under `ns`, at `error` unless OFF
@@ -67,6 +70,7 @@ const OFF = {
   reliability: {},
   'react-a11y': {},
   'react-features': {},
+  'browser-security': {},
 };
 
 const OPTIONS = {
@@ -147,6 +151,18 @@ export default [
     rules: {
       ...everyRule('react-a11y', reactA11y, { off: OFF['react-a11y'] }),
       ...everyRule('react-features', reactFeatures, { off: OFF['react-features'] }),
+    },
+  },
+
+  // ── The browser, docs app only ────────────────────────────────────────────
+  // The engine never runs in one, so these rules have nothing to say about it;
+  // the docs app is a real browser app with storage, postMessage and a canvas,
+  // and that is exactly the surface this plugin grades.
+  {
+    files: BROWSER_FILES,
+    plugins: { 'browser-security': browserSecurity },
+    rules: {
+      ...everyRule('browser-security', browserSecurity, { off: OFF['browser-security'] }),
     },
   },
 

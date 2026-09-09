@@ -30,6 +30,14 @@
 </p>
 
 <p align="center">
+  <strong>Built for the CLIs agents drive.</strong> A command declares itself once and an agent
+  can read that declaration directly: a stable envelope, a versioned schema, an MCP server, and
+  an exit code that says <em>rewrite the command</em> rather than <em>something went wrong</em>.
+  Eight packages, one repository, one supply chain to audit — and zero runtime dependencies in
+  every one of them.
+</p>
+
+<p align="center">
   <strong>⭐ <a href="https://github.com/ofri-peretz/burgee">Star the repo</a></strong> &nbsp;·&nbsp;
   <a href="https://github.com/ofri-peretz/burgee/subscription">👀 Watch releases</a> &nbsp;·&nbsp;
   <a href="https://github.com/ofri-peretz/burgee/issues">🐛 Report a bug</a>
@@ -124,6 +132,21 @@ Six issues across nine years of the commander and yargs trackers ask for machine
 command structure, and the state of the art today is a regex over `--help`
 ([tracker-gap-analysis.md](./.sdlc/research/tracker-gap-analysis.md)). A manifest is not a
 feature bolted on for agents — it is the thing help was rendered from in the first place.
+
+What that is worth needs no model to measure. Ten tasks per variant, one spawn each,
+non-TTY with **stdin closed** — the only environment an agent gets — running the same demo
+program on each engine:
+
+| Variant | hangs / 100 | exit code correct | `--json` answered |
+| :--- | ---: | ---: | ---: |
+| **burgee** | 0 | **100.0%** | **100.0%** |
+| commander | 0 | 40.0% | 25.0% |
+| yargs | 0 | 40.0% | 25.0% |
+
+Exit code is the one that decides an agent's next move: `2` means *rewrite the command*, any
+other non-zero means *the command was fine and the world was not*. This measures legibility,
+not tokens — the token and turn halves of B1 are still [unmeasured](#-measured), and are
+labelled as such rather than estimated.
 
 ---
 
@@ -248,6 +271,12 @@ including the ones that go against us, comes from
 stands on. Every one is an independent product with its own README and its own incumbents, and
 every one is zero-dependency.
 
+A complete CLI on the incumbents is a dozen packages under a handful of accounts. This is
+eight packages, one repository, one release pipeline and one supply chain to audit, with a
+single schema byte-identical in every tarball. That is the argument for one codebase here:
+not convenience, but the number of things a user has to trust — and the dependency bill is
+the number, 0 against the dozen.
+
 | | Layer | Package | What the layer owns | Replaces | Status |
 | :-- | :-- | :-- | :-- | :-- | :-- |
 | **Engine** | argv, dispatch, manifest | [`burgee`](./packages/burgee/) | one declaration projected to help, `--json`, `--schema`, MCP, completions, types | commander · yargs | released — `0.3.0` on npm |
@@ -342,12 +371,21 @@ npm run brand:check # …and fail if any of them was hand-edited since
 
 ### Dogfooding
 
-This repo runs 11 Interlace ESLint plugins with **every rule on at `error`** and zero
-warnings allowed: `secure-coding`, `node-security`, `conventions`, `import-next`,
-`maintainability`, `modernization`, `modularity`, `operability`, `reliability`,
-`react-a11y`, `react-features`. The rule list is computed from each plugin's own table, so a
-rule shipped in a plugin release is on here the day it lands. Every exception is named in
+This repo runs 12 Interlace ESLint plugins with **every rule on at `error`** and zero
+warnings allowed:
+
+| Scope | Plugins |
+| :-- | :-- |
+| Everywhere | `secure-coding` · `node-security` · `conventions` · `import-next` · `maintainability` · `modernization` · `modularity` · `operability` · `reliability` |
+| The docs app | `react-a11y` · `react-features` · `browser-security` |
+
+The rule list is computed from each plugin's own table, so a rule shipped in a plugin release
+is on here the day it lands — `browser-security` alone brings 41. Every exception is named in
 `eslint.config.mjs` with its reason.
+
+The three scoped to `apps/` are scoped for a reason: the engine never runs in a browser, so
+storage, `postMessage` and DOM-sink rules have nothing to say about it — but the docs app is
+a real browser application, and that is exactly the surface they grade.
 
 It earns its keep. During this project those rules caught a prototype-pollution vector in
 our own option parsing, a barrel import that cost ~5ms of startup, and a façade reaching for
