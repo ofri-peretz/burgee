@@ -45,6 +45,26 @@ const KB = 1024;
 const MS_PLACES = 1;
 const RATIO_PLACES = 2;
 const kb = (variant: string): number => Math.round(value(variant, 'installed-bytes') / KB);
+
+/**
+ * One cell of the comparison table, found by its row label and its column header.
+ *
+ * Not `page.toContain`, which is what this file did first and which cannot see the table
+ * at all: burgee's installed size is also stated in the prose three lines below it, so
+ * reverting the *cell* to the 104 KB this page exists to correct left every assertion
+ * green. A row's number has to be checked in the row.
+ */
+const cells = (line: string): string[] => line.split('|').slice(1, -1).map((c) => c.trim());
+const rows = page.split('\n').filter((l) => l.startsWith('|'));
+const header = cells(rows[0] as string).map((c) => c.replaceAll('*', ''));
+
+const cell = (label: string, variant: string): string => {
+  const column = header.indexOf(variant);
+  if (column === -1) throw new Error(`comparison.mdx's table has no ${variant} column`);
+  const row = rows.find((r) => cells(r)[0]?.startsWith(label));
+  if (row === undefined) throw new Error(`comparison.mdx has no "${label}" row`);
+  return cells(row)[column] ?? '';
+};
 /** The row the page publishes: a variant's median spawn less the bare-node floor. */
 const overFloor = (variant: string): string => (value(variant, 'cold-start-ms') - value('bare node', 'cold-start-ms')).toFixed(MS_PLACES);
 
@@ -55,11 +75,11 @@ describe('comparison.mdx states the numbers the suite measured', () => {
     ['yargs', 'yargs'],
     ['cac', 'cac'],
   ])('installed size for %s', (_label, variant) => {
-    expect(page, `comparison.mdx should state ${String(kb(variant))} KB for ${variant}`).toContain(`${String(kb(variant))} KB`);
+    expect(cell('Installed size', variant), `the ${variant} cell of the installed-size row`).toContain(`${String(kb(variant))} KB`);
   });
 
   it.each(['burgee', 'commander', 'yargs', 'cac'])('full-run delta over bare node for %s', (variant) => {
-    expect(page, `comparison.mdx should state +${overFloor(variant)} ms for ${variant}`).toContain(`+${overFloor(variant)} ms`);
+    expect(cell('Full CLI run', variant), `the ${variant} cell of the full-run row`).toContain(`+${overFloor(variant)} ms`);
   });
 
   it('states the cold start against cac as the ratio, not as "level with cac"', () => {
