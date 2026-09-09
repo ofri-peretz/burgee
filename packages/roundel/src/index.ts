@@ -3,6 +3,7 @@
  * and costs only itself (R7), so prefer `roundel/tokens` when that is all you need.
  */
 export * from './contrast.js';
+export * from './plugin.js';
 export * from './policy.js';
 export * from './theme.js';
 export * from './tokens.js';
