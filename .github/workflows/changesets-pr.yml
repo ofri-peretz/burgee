@@ -148,9 +148,15 @@ jobs:
       - uses: ./.github/actions/setup
         if: steps.check.outputs.status == 'present'
 
+      # `--since=origin/main`, as package.json's own `changeset:status` does. Bare
+      # `status` asks where HEAD diverged from a local `main`, and a CI checkout is a
+      # detached HEAD with no local branches: "Failed to find where HEAD diverged".
       - name: The changeset is one changesets will accept
         if: steps.check.outputs.status == 'present'
-        run: npx changeset status
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --quiet origin main
+          npx changeset status --since=origin/main
 
       - name: Comment on PR (when missing)
         if: steps.check.outputs.status == 'missing'
