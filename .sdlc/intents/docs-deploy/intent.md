@@ -73,7 +73,7 @@ owner supplies what only they can.
 
 | Piece | Where | State |
 | :-- | :-- | :-- |
-| Git integration off, so no per-branch preview can ever exist | `apps/docs/vercel.json` (`git.deploymentEnabled: false`) | live — locked by a test |
+| Git integration off, so no per-branch preview can ever exist | `vercel.json`, repo root (`git.deploymentEnabled: false`) | live — locked by a test |
 | Manual deploy, `workflow_dispatch` only, `preview` / `production` | `.github/workflows/deploy-docs.yml` | inert — no-ops with a summary that says what happens when `VERCEL_TOKEN` appears |
 | Production deploy on merge to `main`, only when turbo says `docs` is affected | `.github/workflows/auto-deploy.yml` | live as a decision; the deploy it dispatches is inert |
 | Production gate: a hand-fired production deploy is refused without `approval=RELEASE_APPROVAL`; `auto-deploy.yml` supplies it, because the merged PR was the human | `deploy-docs.yml` preflight | inert (same reason) |
@@ -95,8 +95,10 @@ Two things were deliberately **not** built:
 
 None of it is code. Until all three exist, the workflows above stay green and inert.
 
-1. **A Vercel project** for this repo with **Root Directory = `apps/docs`** (that is where
-   `vercel.json` lives) and the Git integration left off.
+1. **A Vercel project** for this repo with **Root Directory unset** — the repo root, which
+   is where `vercel.json` lives — and the Git integration left off. It must be the root:
+   this is an npm-workspaces monorepo, so an `apps/docs` root cannot see the hoisted
+   `node_modules` the build traced. Done: `cli-interlace-tools`.
 2. **Three Actions secrets** — `VERCEL_TOKEN` (a token from
    <https://vercel.com/account/tokens>), plus `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` from
    the project's Settings → General.
