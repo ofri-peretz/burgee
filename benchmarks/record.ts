@@ -8,7 +8,7 @@
  * be edited every time an axis is added (B5, design R5).
  */
 
-export type AxisName = 'agent' | 'perf' | 'compat' | 'weight';
+export type AxisName = 'agent' | 'reliability' | 'perf' | 'compat' | 'weight';
 
 /**
  * `measured` — the axis ran and its numbers are in this document.

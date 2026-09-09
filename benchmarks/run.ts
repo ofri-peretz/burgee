@@ -20,6 +20,7 @@ import { fileURLToPath } from 'node:url';
 import { method as agentMethod, run as runAgent } from './axes/agent.js';
 import { method as compatMethod, run as runCompat } from './axes/compat.js';
 import { method as perfMethod, run as runPerf } from './axes/perf.js';
+import { method as reliabilityMethod, run as runReliability } from './axes/reliability.js';
 import { method as weightMethod, run as runWeight } from './axes/weight.js';
 import { SUITE, type SuiteName, suiteOf } from './bands.js';
 import { type AxisState, type BandEntry, buildDocument, type ClaimEntry, type ResultsDoc } from './emit.js';
@@ -29,7 +30,7 @@ import { type AxisName, type BenchRecord, describeFailure, gateFailures } from '
 const BENCH_ROOT = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(BENCH_ROOT, '..');
 const RESULTS_DIR = join(BENCH_ROOT, 'results');
-const ALL_AXES: AxisName[] = ['perf', 'compat', 'weight', 'agent'];
+const ALL_AXES: AxisName[] = ['perf', 'compat', 'weight', 'reliability', 'agent'];
 const ISO_DATE = 10;
 
 interface Args {
@@ -64,6 +65,8 @@ function runAxis(axis: AxisName, args: Args): AxisOutcome {
       return runCompat(args.oracle);
     case 'weight':
       return { records: runWeight() };
+    case 'reliability':
+      return runReliability();
     default:
       return runAgent();
   }
@@ -73,6 +76,7 @@ const METHOD = new Map<AxisName, string>([
   ['perf', perfMethod],
   ['compat', compatMethod],
   ['weight', weightMethod],
+  ['reliability', reliabilityMethod],
   ['agent', agentMethod],
 ]);
 

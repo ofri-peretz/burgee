@@ -19,6 +19,26 @@ npm run bench -- --no-oracle     # B3 reads results.json or skips; never runs th
 | **B3** compat | how compatible are we, exactly? | every PR |
 | **B4** weight | are we lighter than what we replace? | every PR |
 
+## `reliability` — B1's deterministic half
+
+**Not B1, and not a stand-in for it.** It measures nothing about tokens or turns; those stay
+deferred and keep saying so. What it measures is whether the CLI's answer is *legible* to an
+agent, which needs no model at all:
+
+| Metric | Why an agent cares | Gated |
+| :-- | :-- | :-- |
+| `hangs-per-100` | a CLI that waits for a human under a pipe is a failed task, every time | yes, `max: 0` |
+| `exit-code-accuracy` | `2` means *rewrite the command*, other non-zero means *maybe retry* | reported |
+| `structured-output-rate` | whether `--json` yields an addressable envelope, on whichever stream carries it | reported |
+| `recovery-bytes` | how much output an agent reads to learn what happened | reported, **against us** |
+
+Ten tasks per variant, one spawn each, non-TTY with stdin closed — the only environment an
+agent gets. Same demo program on burgee, commander and yargs; one variable, the engine.
+
+The bytes figure is the one that does not flatter us: commander reads fewer, because our
+errors carry a `hint` naming the fix. That is a trade of bytes per failure against failed
+turns, and only B1 proper can settle it. It is measured and published anyway.
+
 ## B1 does not run here, and says so
 
 It needs `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY`. Without one the axis reports
