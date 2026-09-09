@@ -101,7 +101,12 @@ describe('completions are generated from the manifest (D2) and pinned (D4)', () 
 
 describe('each shell exercises its script (D4)', () => {
   const bash = (line: string): string[] => lines(execFileSync('bash', [join(repo, 'scripts/complete-bash.sh'), scriptFor('bash'), ...line.split(' ')], { encoding: 'utf8' }));
-  it.runIf(has('bash'))('bash: commands, subcommands, options at the right level, and choice values', () => {
+  // The three shells below carry a 30 s allowance and this one did not, which
+  // is the whole difference: it spawns bash six times, and a process spawn on
+  // a Windows runner costs an order of magnitude more than on Linux. It timed
+  // out at 5 s on windows-latest while passing everywhere else. Nothing about
+  // the assertions changed — the allowance is for the runner, not the test.
+  it.runIf(has('bash'))('bash: commands, subcommands, options at the right level, and choice values', { timeout: 30_000 }, () => {
     expect(bash('demo con')).toEqual(['config']);
     expect(bash('demo config ')).toEqual(['get']);
     expect(bash('demo greet --')).toEqual(['--shout', '--greeting', '--json', '--help']);
