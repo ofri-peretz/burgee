@@ -146,12 +146,33 @@ export function judge(task: Task, run: RunOutcome): Judgement {
   };
 }
 
+/**
+ * R7 for `agent-headroom` R1 — the bytes an agent pays to *discover* a CLI, as opposed to
+ * the bytes it pays to recover from one failure.
+ *
+ * Measured off `--schema` rather than asserted, because a serialisation choice is exactly
+ * the kind of thing that gets reverted by a well-meaning "make the output readable" commit
+ * and fails no test. Compact serialisation took the large reference demo from 39,512 to
+ * 22,964 bytes for a byte-identical parse; a band over this number is what keeps it there.
+ *
+ * `undefined` for a variant with no machine-readable schema at all — which is both
+ * incumbents. That is not a zero and must never be rendered as one: an agent that cannot
+ * ask a CLI what commands it has must scrape help text, and the difference between "cheap
+ * to discover" and "not discoverable" is not a quantity.
+ */
+function schemaBytes(bin: string): number | undefined {
+  const run = runOnce(bin, ['--schema']);
+  if (run.hung || run.status !== 0) return undefined;
+  return parses(run.stdout) ? run.stdout.length : undefined;
+}
+
 /** Four places: a rate over ten tasks is exact well inside that, and rounding hides drift. */
 const RATE_PLACES = 4;
 const rate = (hits: number, of: number): number => (of === 0 ? 1 : round(hits / of, RATE_PLACES));
 
 export function measure(variant: Variant, tasks: readonly Task[] = TASKS): BenchRecord[] {
   const verdicts = tasks.map((task) => judge(task, runOnce(variant.bin, task.args)));
+  const schema = schemaBytes(variant.bin);
   const asked = verdicts.filter((v) => v.jsonParsed !== null);
   const shared = { axis: 'reliability', variant: variant.id, samples: tasks.length } as const;
   const one = ({ metric, unit, value, note, gate }: { metric: string; unit: string; value: number; note: string; gate?: BenchRecord['gate'] }): BenchRecord => ({
@@ -179,11 +200,14 @@ export function measure(variant: Variant, tasks: readonly Task[] = TASKS): Bench
     one({ metric: 'exit-code-accuracy', unit: 'ratio', value: rate(verdicts.filter((v) => v.exitCorrect).length, tasks.length), note: '0 ok, 2 usage error, any other non-zero runtime — the class an agent acts on' }),
     one({ metric: 'structured-output-rate', unit: 'ratio', value: rate(asked.filter((v) => v.jsonParsed === true).length, asked.length), note: 'of the tasks that asked for --json, those that produced an addressable envelope' }),
     one({ metric: 'recovery-bytes', unit: 'bytes', value: median(verdicts.map((v) => v.bytes)), note: 'median bytes an agent reads per task; reported, never gated — a hint costs bytes and may save turns' }),
+    // Emitted only where there is a schema to measure. A variant without one contributes no
+    // record rather than a zero: see `schemaBytes`.
+    ...(schema === undefined ? [] : [one({ metric: 'schema-bytes', unit: 'bytes', value: schema, note: 'bytes of `--schema`, the whole surface an agent reads to discover the CLI; compact by default since agent-headroom R1, `--format=json-pretty` for a person' })]),
   ];
 }
 
 export const method =
-  'Ten tasks per variant, one spawn each, non-TTY with stdin closed. The same demo program built on burgee, commander and yargs. Exit codes are judged by class (0 ok, 2 usage, other runtime), not by value; `--json` is judged by whether an addressable envelope parses off whichever stream carried it. This is not B1: it measures what an agent can act on, never what it spends.';
+  'Ten tasks per variant, one spawn each, non-TTY with stdin closed. The same demo program built on burgee, commander and yargs. Exit codes are judged by class (0 ok, 2 usage, other runtime), not by value; `--json` is judged by whether an addressable envelope parses off whichever stream carried it. This is not B1: it measures what an agent can act on, never what it spends. `schema-bytes` is emitted only for a variant that answers `--schema` with a parseable document — neither incumbent has one, and no record is written rather than a zero.';
 
 export function run(): { records: BenchRecord[] } | { reason: string } {
   const missing = VARIANTS.filter((v) => !existsSync(resolve(REPO_ROOT, v.bin)));

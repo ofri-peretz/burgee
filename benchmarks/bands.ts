@@ -91,6 +91,16 @@ export const BANDS: readonly BandSpec[] = [
     jsonPath: at('agent-hangs-per-100'),
     from: { variant: 'burgee', metric: 'hangs-per-100' },
   },
+  // agent-headroom R7. A serialisation choice reverts silently — every test still passes
+  // when `--schema` starts printing 42% more whitespace — so the size of the document an
+  // agent reads to discover the CLI is watched rather than trusted.
+  {
+    id: 'agent-schema-bytes',
+    axis: 'reliability',
+    suite: SUITE.cheap,
+    jsonPath: at('agent-schema-bytes'),
+    from: { variant: 'burgee', metric: 'schema-bytes' },
+  },
   // B4. Bytes, not KB: a 400-byte regression is invisible in a number rounded to KB, and
   // the ratchet exists to catch exactly the accidental kind of growth.
   {
