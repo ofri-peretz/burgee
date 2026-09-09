@@ -28,8 +28,21 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
       # ubuntu-latest ships bash and pwsh; zsh and fish are installed here.
+      #
+      # `update` reads only Ubuntu's own sources. The runner image also carries
+      # third-party lists — Google Chrome's among them — and on 2026-09-09 that
+      # one served an index whose hash did not match, which fails `apt-get
+      # update` with exit 100 and took this job down on every PR. zsh and fish
+      # come from `main`/`universe`; a browser repository has no business
+      # deciding whether they install.
       - name: Install zsh and fish
-        run: sudo apt-get update -q && sudo apt-get install -y -q zsh fish
+        run: |
+          set -euo pipefail
+          sudo apt-get update -q \
+            -o Dir::Etc::sourcelist=/etc/apt/sources.list \
+            -o Dir::Etc::sourceparts=/dev/null \
+            -o APT::Get::List-Cleanup=0
+          sudo apt-get install -y -q zsh fish
       - name: Shells present
         run: |
           set -euo pipefail
