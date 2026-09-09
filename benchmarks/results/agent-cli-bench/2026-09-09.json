@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "suite": "agent-cli-bench",
+  "measured": "2026-09-09T06:21:59.768Z",
+  "commit": "ff5b9f8dd691665d3cb73772329747c3891aea0c",
+  "machine": {
+    "os": "darwin",
+    "release": "25.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M4 Pro",
+    "cores": 14,
+    "memoryGb": 48,
+    "node": "v24.12.0",
+    "ci": false
+  },
+  "axes": {
+    "agent": {
+      "status": "skipped",
+      "reason": "no CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY in the environment",
+      "method": "For each of the 5 tasks and each of the two builds, `claude -p <prompt> --allowedTools 'Bash(mytool:*)' --max-turns <n> --output-format json` is spawned in a scratch directory with the build installed as `mytool`, 5 times; the task's own `check` decides success. Tokens are input + cache + output as the CLI reports them; turns is its `num_turns`. The model is pinned per results file and a change starts a new band history."
+    }
+  },
+  "records": [],
+  "bands": {
+    "agent-tokens-per-task": {
+      "status": "skipped",
+      "reason": "no CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY in the environment"
+    },
+    "agent-turns-per-task": {
+      "status": "skipped",
+      "reason": "no CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY in the environment"
+    }
+  },
+  "claims": {
+    "agent-tokens-40pct": {
+      "claim": "an agent spends at least 40% fewer tokens per task against a CLI that meets the floor",
+      "source": ".sdlc/intents/agent-native-cli-layer/intent.md — the roadmap headline",
+      "target": "<= 0.6",
+      "status": "unmeasured",
+      "reason": "no CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY in the environment"
+    },
+    "agent-turns-30pct": {
+      "claim": "an agent takes at least 30% fewer turns per task against a CLI that meets the floor",
+      "source": ".sdlc/intents/agent-native-cli-layer/intent.md — the roadmap headline",
+      "target": "<= 0.7",
+      "status": "unmeasured",
+      "reason": "no CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY in the environment"
+    }
+  }
+}

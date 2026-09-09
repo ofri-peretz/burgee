@@ -69,6 +69,18 @@ Checked criterion by criterion on `61bd11b9`. **Three of four met.** The status 
 Beating the real package on its own suite — 804 against 802 — is the strongest single number in
 the repo, and it is published. The one thing between this intent and `shipped` is a band.
 
+**That band landed on 2026-09-09** (`cli-benchmarks` B3). `.sdlc/bands/control-bands.json`
+carries `compat-yargs-pass-rate`, fed by `npm run bench`'s compat axis, which reads the oracle's
+`results.json` and re-emits its rate rather than computing a second one — with a deterministic
+gate at `baseline.json`'s 804 passing cases, so a single lost case fails the PR. Criterion 1 is
+met in all three places. The status stays `review` until a human accepts it.
+
+One thing the band made visible and did not smooth over: the oracle reports yargs as
+`tests: 803, passed: 804`, because the host's own TAP summary counts the case it skips on this
+OS as a pass. The rate is computed against `max(reference, tests)`, so the arithmetic holds —
+but the 100% contains one case that could not have failed, and the benchmark record carries
+`passed`, `tests`, `skipped` and `reference` in its `detail` so a reader can see that.
+
 ## Open questions
 
 None open. Decided at finalisation (2026-09-06): grade against the vendored upstream

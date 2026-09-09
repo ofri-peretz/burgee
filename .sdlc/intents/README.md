@@ -650,25 +650,29 @@ serving this commit, every test in the tree green — and almost every criterion
 *artifact outside the code* (a benchmark, a band, a page, a published tarball, an adopter) is
 unmet.
 
-### 1. The benchmark suite does not exist — and six other intents wait on it
+### 1. The benchmark suite: three axes of four, and B1 still unmeasured
 
-There is no `benchmarks/` directory, no `bench` script in any `package.json`, no `bench.yml`, no
-`LAYER=off` build, and `https://burgee.interlace.tools/benchmarks` returns **404**. All nine of
-`cli-benchmarks`' criteria are unmet.
+*Updated 2026-09-09.* **Three of the four axes landed.** `benchmarks/` exists, `npm run bench`
+runs, `bench.yml` gates every PR on B2, B3 and B4, and `/docs/benchmarks` is generated from the
+emitted JSON. **B1 has still never run**, and that is now a stated fact in the output rather
+than a hole in the tree: without `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` the axis
+reports `skipped`, its two bands carry the reason instead of a number, and the roadmap
+headline reads `unmeasured` — never `false`, and never an estimate.
 
-This is the largest single hole, because it is load-bearing for others:
+| Waiting on it | The criterion it blocks | Where it stands |
+| :-- | :-- | :-- |
+| `agent-native-cli-layer` | the ≥40% tokens / ≥30% turns claim | **still unmeasured** — the harness, the five tasks and both builds are in the tree and driven end to end against a stub `claude`; only the credential is missing |
+| `cli-mcp` | B1 over MCP versus over Bash | still blocked, same credential |
+| `commander-env` | the provenance task's median turns against the plain build | still blocked, same credential; the task exists and its check is proven to discriminate |
+| `replacement-parser` | B2 cold start at or below cac | **measured, and not met**: 1.37–1.47× cac across three runs |
+| `roundel`, `flagstaff`, `cli-output-stack` | the B7 rows on `/benchmarks` | **published** — bundled and installed bytes against chalk, ora, boxen and log-update, each gated at 1.0× the incumbent; spawn deltas for the output stack are still not measured |
+| `caique`, `caller-matrix` | the non-TTY task that must never time out | the task is written and locked; it runs when B1 does |
 
-| Waiting on it | The criterion it blocks |
-| :-- | :-- |
-| `agent-native-cli-layer` | the ≥40% tokens / ≥30% turns claim — **the roadmap's headline, never measured once** |
-| `cli-mcp` | B1 over MCP versus over Bash |
-| `commander-env` | the provenance task's median turns against `LAYER=off` |
-| `replacement-parser` | B2 cold start at or below cac |
-| `roundel`, `flagstaff`, `cli-output-stack` | the B7 rows on `/benchmarks` (bytes are locked; spawn deltas are not, and nothing is published) |
-| `caique`, `caller-matrix` | the non-TTY task that must never time out |
-
-`.sdlc/bands/control-bands.json` declares `agent-tokens-per-task` and `agent-turns-per-task`
-against `benchmarks/results/agent-cli-bench/`. Both stand at **0 of 8** observations.
+`.sdlc/bands/control-bands.json` now declares twelve benchmark bands, and
+`benchmarks/bands.test.ts` fails if any of them names a number no axis emits — the failure
+mode the two agent bands were in from the day they were written, reading a directory that did
+not exist and reporting *"band not computed yet"* forever. Both still stand at **0 of 8**,
+deliberately.
 
 ### 2. Nothing publishes, and nobody has adopted
 
@@ -692,12 +696,18 @@ against `benchmarks/results/agent-cli-bench/`. Both stand at **0 of 8** observat
 
 - **`control-bands.yml` has never run.** It is scheduled weekly and `gh run list` for it is empty.
   The two observations in `control-bands.history.json` were recorded by hand.
-- **Three of five bands have no collector that can run.** The two agent bands read a directory
-  that does not exist; the other three have 2 of the 8 points they need. Every band reports
-  *"band not computed yet"*.
-- **The compat pass rate is not a band at all** — which is the single gap between `commander-compat`
-  and `yargs-compat` and `shipped`. One collector reading
-  `packages/compat-oracle/results.json` closes two intents.
+- **Three of five bands have no collector that can run.** *Fixed 2026-09-09 for two of the
+  three.* `npm run bench` now writes `benchmarks/results/<suite>/<date>.json`, `bench.yml`
+  lands the day's file on every push to main so the series can grow, and
+  `benchmarks/bands.test.ts` fails when a band names a metric no axis produces. The two agent
+  bands remain at 0 of 8 — their axis needs a credential — but they now say *why*, in the
+  results file, instead of reporting the same "not computed yet" a healthy young band reports.
+- ~~**The compat pass rate is not a band at all**~~ — **landed 2026-09-09.** Six bands, one per
+  graded host, read from `packages/compat-oracle/results.json` through the compat axis, which
+  re-emits the oracle's own rate and contains no grading logic of its own (constraint 8), plus
+  a deterministic gate at the recorded baseline. This was the single substantive gap between
+  `commander-compat`, `yargs-compat` and `shipped`; both intents' remaining open items are
+  wording that predates the consolidation into one package.
 - **The U9 eval has never evaluated anything.** `evals.yml`'s weekly `schedule` has never fired,
   and every PR run prints `Layer 2 — skipped: no credential`. Adding `CLAUDE_CODE_OAUTH_TOKEN`
   would flip three criteria at once (`cli-output-stack`, `flagstaff`, `plugin-contract`).

@@ -45,11 +45,18 @@ runs:
       id: node-modules-cache
       uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
       with:
+        # Every workspace's node_modules, or `npm ci` is skipped on a cache hit and the
+        # workspace left off this list resolves out of the root instead. `benchmarks/`
+        # was missing here on its first CI run, and B4 measured the commander the *root*
+        # has hoisted — 8.3.0, from 2021 — rather than the 15.0.0 it grades against. It
+        # reported a plausible number and a red gate. A workspace absent from this list
+        # is a silently wrong measurement, not a slow build.
         path: |
           node_modules
           packages/*/node_modules
           apps/*/node_modules
           examples/*/node_modules
+          benchmarks/node_modules
         key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json', '.github/actions/setup/action.yml') }}
 
     - name: Install dependencies

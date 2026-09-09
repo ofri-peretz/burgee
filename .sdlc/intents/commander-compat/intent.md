@@ -76,6 +76,13 @@ Checked criterion by criterion on `61bd11b9`. **Two of four met cleanly.** The s
 into a `compat-commander-pass-rate` band is the only substantive gap; the other two open items
 are wording that predates the consolidation into one package.
 
+**That band landed on 2026-09-09** (`cli-benchmarks` B3). `.sdlc/bands/control-bands.json`
+carries `compat-commander-pass-rate`, fed by `npm run bench`'s compat axis, which reads the
+oracle's `results.json` and re-emits its rate without recomputing it — and gates the count, not
+the rounded rate, at `baseline.json`'s 1,360, so losing one case in 1,360 fails the PR instead
+of rounding to 99.9%. Criterion 1 is met in all three places. The status stays `review` until a
+human accepts it: the two remaining items are the stale wording above.
+
 ## Open questions
 
 None open. Decided at finalisation (2026-09-06): grade against the vendored upstream
