@@ -58,6 +58,20 @@ describe('the control verdict', () => {
     expect(verdict([grade('yargs', { tests: 804, passed: 801, failed: 3 })], empty, collect().write, true)).toBe(1);
   });
 
+  it('fails a control that stopped registering cases, even though it fails none', () => {
+    // The shape of finding 3, from the gate's side: `test/issues/` was vendored, committed
+    // and graded by nobody. Four files' worth of cases simply never ran, nothing failed,
+    // and the row published 33 / 33. A control below its own reference is now red.
+    const out = collect();
+    const code = verdict([grade('cli-table3', { tests: 24, passed: 24, failed: 0, reference: 29, rate: 24 / 29 })], empty, out.write, true);
+    expect(code).toBe(1);
+    expect(out.text()).toContain('24 of its own 29 cases registered');
+  });
+
+  it('leaves a control alone when upstream grew, which is not a shortfall', () => {
+    expect(verdict([grade('cli-table3', { tests: 31, passed: 31, failed: 0, reference: 29, rate: 1 })], empty, collect().write, true)).toBe(0);
+  });
+
   it('gives a host with no declared allowance none', () => {
     expect(verdict([grade('chalk', { tests: 58, passed: 57, failed: 1 })], empty, collect().write, true)).toBe(1);
   });

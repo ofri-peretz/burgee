@@ -148,14 +148,30 @@ const allowedFailures = (host: string): number => HOSTS.find((h) => h.name === h
  * legitimately fails 2 of its own 804 from inside a vendored copy.
  */
 function controlFell(grades: Grade[]): Grade[] {
-  return grades.filter((g) => g.error === undefined && (g.passed === 0 || g.failed > allowedFailures(g.host)));
+  return grades.filter((g) => g.error === undefined && controlShortfall(g) !== undefined);
+}
+
+/**
+ * Why a control run is red, or nothing.
+ *
+ * Failing a case and never running it are the same hole seen from two sides, and it was
+ * the second side that shipped here: four files under `test/issues/` were vendored,
+ * committed, and graded by nobody, because the walk that found them was not recursive.
+ * Every count stayed green — a case that never registers fails nothing. So a control that
+ * registers fewer cases than the reference it set is as red as one that fails them.
+ */
+function controlShortfall(g: Grade): string | undefined {
+  if (g.passed === 0) return 'nothing passed against its own package';
+  if (g.failed > allowedFailures(g.host)) return `${String(g.failed)} failing against its own package (${String(allowedFailures(g.host))} allowed)`;
+  if (g.reference > 0 && g.tests < g.reference) return `${String(g.tests)} of its own ${String(g.reference)} cases registered — the rest stopped running`;
+  return undefined;
 }
 
 export function verdict(grades: Grade[], baseline: Baseline, write: Write, control = false): number {
   const broken = grades.filter((g) => g.error !== undefined);
   const fell = control ? controlFell(grades) : grades.filter((g) => regressed(g, baseline));
   for (const g of fell) {
-    if (control) write(`\n✖ ${g.host}: ${g.failed} failing against its own package (${allowedFailures(g.host)} allowed) — the control proves the gate, so it has to pass\n`);
+    if (control) write(`\n✖ ${g.host}: ${controlShortfall(g) ?? ''} — the control proves the gate, so it has to pass\n`);
     else write(`\n✖ ${g.host}: ${g.passed} passing, baseline was ${baseline[g.host]?.passed ?? 0}\n`);
   }
   if (broken.length > 0) write(`\n✖ ${broken.length} host(s) could not be graded\n`);
