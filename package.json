@@ -5,6 +5,7 @@
   "private": true,
   "workspaces": [
     "apps/*",
+    "benchmarks",
     "packages/*",
     "examples/*"
   ],
@@ -22,6 +23,8 @@
   "scripts": {
     "prepare": "[ -d .git ] && lefthook install || true",
     "build": "turbo run build",
+    "bench": "tsx benchmarks/run.ts",
+    "bench:page": "tsx scripts/bench-page.ts",
     "dev": "turbo run dev",
     "typecheck": "turbo run typecheck",
     "test": "vitest run --config vitest.root.config.ts && turbo run test",

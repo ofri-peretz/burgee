@@ -1,0 +1,9 @@
+{
+  "id": "diagnose-provenance",
+  "requirement": "V3 \u2014 `--explain` states where a value came from; without it this task measures the cost of guessing",
+  "prompt": "Using the `mytool` command, greet the name grace. The greeting word it uses comes from somewhere. Tell me where that value comes from \u2014 a default, an environment variable, or a flag \u2014 and name it exactly.",
+  "setup": [],
+  "check": "grep -qiE 'default|DEMO_GREETING' \"$BENCH_RESULT\"",
+  "maxTurns": 15,
+  "exemplar": "The greeting word is Hello. It comes from the option's default, and can be overridden by the DEMO_GREETING environment variable or the --greeting flag."
+}

@@ -41,11 +41,12 @@ const workspaceScopes = [
 ];
 
 const specialScopes = [
-  'ci',         // CI/CD workflows
-  'deps',       // Dependency updates
-  'release',    // Release-related changes
-  'docs',       // Documentation
-  'workspace',  // Workspace-wide changes
+  'ci',          // CI/CD workflows
+  'deps',        // Dependency updates
+  'release',     // Release-related changes
+  'docs',        // Documentation
+  'workspace',   // Workspace-wide changes
+  'benchmarks',  // The benchmark suite: a workspace, but not under packages/, apps/ or tools/
 ];
 
 const validScopes = [...new Set([...workspaceScopes, ...specialScopes])];
