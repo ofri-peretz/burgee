@@ -188,8 +188,9 @@ reinterpreting its host. Named borders through the registry are `flagstaff/box`'
 
 ### The cli-table3 path
 
-`flagstaff/cli-table3` is cli-table3 0.6.5's API, graded **33 / 33 by cli-table3's own test
-suite** — the 33 that go through its public surface. The other 201 of its cases
+`flagstaff/cli-table3` is cli-table3 0.6.5's API, graded **29 / 29 by cli-table3's own test
+suite** — the 38 of its cases that go through the public surface, less the nine that grade
+`cli-table`, the *legacy* incumbent, and so pass whatever the target is. The other 197
 `require('../src/…')` and test its four internal modules directly; those are reported beside
 the number and never gate it, because passing them would mean copying cli-table3's file
 layout rather than matching its behaviour.

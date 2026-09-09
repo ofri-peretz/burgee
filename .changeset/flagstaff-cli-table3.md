@@ -2,7 +2,7 @@
 'flagstaff': minor
 ---
 
-Add `flagstaff/cli-table3`: cli-table3 0.6.5's API, graded **33 / 33 by cli-table3's own
+Add `flagstaff/cli-table3`: cli-table3 0.6.5's API, graded **29 / 29 by cli-table3's own
 test suite**.
 
 The full option surface — `head`, `chars`, `style`, `colWidths`, `rowHeights`, `colAligns`,

@@ -1,7 +1,7 @@
 /**
  * What cli-table3's own suite does not reach.
  *
- * `flagstaff/cli-table3` is graded **33 / 33** by cli-table3's gated cases, and that is the
+ * `flagstaff/cli-table3` is graded **29 / 29** by cli-table3's gated cases, and that is the
  * gate. This file exists because four mutations of the port left it **green**:
  *
  *   - column widths never negotiated for a spanning cell;

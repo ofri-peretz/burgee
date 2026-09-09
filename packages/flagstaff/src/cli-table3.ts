@@ -1,11 +1,18 @@
 /**
  * `flagstaff/cli-table3` — cli-table3 0.6.5 ported, graded by cli-table3's own suite.
  *
+ * **Two divergences were only ever visible because the oracle learned to walk
+ * `test/issues/` recursively.** Those four files were vendored, committed and graded by
+ * nobody, and they are where upstream keeps the cases it wrote *because* somebody hit the
+ * bug. This port failed both of them, in both cases through a `?? 0` that reads as the
+ * missing default and is a behaviour change — see `wrapLines` (#338) and the `else` branch
+ * of `makeComputeDimensions` (#289). A suite is worth what it actually runs.
+ *
  * **One module, not four.** Upstream is `table.js`, `layout-manager.js`, `cell.js` and
- * `utils.js`, and 221 of its 234 cases `require('../src/…')` to test those files directly.
+ * `utils.js`, and 197 of its 235 cases `require('../src/…')` to test those files directly.
  * C4 says a file that reaches only into a host's internals is informational and never
  * gated, *because passing it would mean copying the host's file layout* — so this ports the
- * behaviour and not the architecture. The 33 gated cases go through the public surface, and
+ * behaviour and not the architecture. The 29 gated cases go through the public surface, and
  * that surface is `module.exports = Table`.
  *
  * **The drawing is the contract.** A user leaving cli-table3 cares whether the table still
@@ -470,10 +477,15 @@ export class Cell implements Drawable {
     return this.wrapLines(this.content.split('\n'));
   }
 
+  /**
+   * The href is deliberately *not* applied here. `drawLine` truncates the line it is given,
+   * and a hyperlink wrapped around the content before that point is cut through the middle
+   * of its own URL — upstream's issue #338, which emits `\x1b]8;;http://e…` and a terminal
+   * escape that never closes. The link goes on after truncation instead, around whatever
+   * text actually survived.
+   */
   wrapLines(computedLines: string[]): string[] {
-    const lines = colorizeLines(computedLines);
-    if (this.href !== undefined) return lines.map((line) => hyperlink(this.href ?? '', line));
-    return lines;
+    return colorizeLines(computedLines);
   }
 
   init(tableOptions: ResolvedOptions): void {
@@ -554,6 +566,7 @@ export class Cell implements Drawable {
     const len = this.width - (this.paddingLeft + this.paddingRight);
     if (forceTruncationSymbol) line += this.truncate;
     let content = truncate(line, len, this.truncate);
+    if (this.href !== undefined) content = hyperlink(this.href, content);
     content = pad(content, len, ' ', this.hAlign);
     content = repeat(' ', this.paddingLeft) + content + repeat(' ', this.paddingRight);
     return this.stylizeLine(left, content, right);
@@ -806,7 +819,29 @@ function makeComputeDimensions(spanKey: 'colSpan' | 'rowSpan', desiredKey: 'desi
           if (typeof vals[col + i] !== 'number') editableCols += 1;
         }
       } else {
-        existingWidth = desiredKey === 'desiredWidth' ? (cell.desiredWidth ?? 0) - 1 : 1;
+        /**
+         * A spanner with no width of its own establishes nothing.
+         *
+         * `addRowSpanCells` gives each `RowSpanCell` placeholder the original cell's
+         * `colSpan`, so it lands in `spanners` — with no `desiredWidth`. Upstream reads
+         * `cell.desiredWidth - 1`, which is **NaN** for it: `auto[col]` is poisoned rather
+         * than set, every later comparison against it is false, and neither the entry nor
+         * the distribution below applies. The *real* spanning cell processed afterwards
+         * still finds `result[col]` empty, takes this same branch, and records its width.
+         *
+         * `(cell.desiredWidth ?? 0) - 1` reads like the missing default and is -1, a number
+         * that compares. The placeholder then claims the column — `auto[col] = -1`, and a
+         * distribution that writes `result[col] = 1` — so the real cell finds a measured
+         * column, takes the branch above, and its width is never recorded at all. The
+         * spanning cell is then truncated to fit a column sized for nothing.
+         *
+         * That is cli-table3's issue #289, and it is why the port read 27 / 29 against a
+         * suite written to catch exactly this. The skip is a rule here rather than an
+         * arithmetic accident.
+         */
+        const own = desiredKey === 'desiredWidth' ? cell.desiredWidth : 1;
+        if (own === undefined) continue;
+        existingWidth = own - 1;
         if (!auto[col] || (auto[col] ?? 0) < existingWidth) auto[col] = existingWidth;
       }
 
