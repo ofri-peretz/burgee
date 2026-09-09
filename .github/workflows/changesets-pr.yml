@@ -127,6 +127,20 @@ jobs:
           else echo "status=missing" >> "$GITHUB_OUTPUT"; echo "::warning::PR changes packages/ source but has no changeset."
           fi
 
+      # Presence was the whole check, and presence is not validity. A changeset naming a
+      # private package alongside a published one is refused by changesets itself — "Found
+      # mixed changeset" — but only at version time, on main, in a different workflow. So
+      # `incumbent-weights-measured` passed its PR green, merged, and left the Version
+      # Packages PR unable to refresh for every push that followed. `status` is the same
+      # question the release asks, asked while it is still one PR's problem.
+      #
+      # Only when a changeset is present: with none, `changeset status` exits 1 by design
+      # ("run changeset add --empty"), which is the right answer for a release and the wrong
+      # one for a `skip-changeset` PR.
+      - name: The changeset is one changesets will accept
+        if: steps.check.outputs.status == 'present'
+        run: npx changeset status
+
       - name: Comment on PR (when missing)
         if: steps.check.outputs.status == 'missing'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
