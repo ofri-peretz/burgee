@@ -2,6 +2,8 @@
 
 **Status:** review · **Opened:** `2026-09-07` · **Owner:** `@ofri-peretz`
 
+**State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why still `review`:** deliberately unscheduled — opens when an adopter needs it.
+
 ---
 
 ## What is wanted

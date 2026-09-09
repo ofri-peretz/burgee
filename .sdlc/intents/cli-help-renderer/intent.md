@@ -4,7 +4,9 @@
 > Research §2, the largest cluster (roughly a fifth of yargs' tracker). F2 makes help
 > data; this makes the text good. Proposes floor additions H1–H6.
 
-**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+
+**State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Evidence:** `help.ts` + `help.test.ts`, rendered from the manifest (H1–H6).
 
 ---
 

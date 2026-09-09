@@ -16,6 +16,26 @@ cadence and the two maintenance bands (a month per wave, seven days to track an 
 release, fourteen to close an accepted issue). Everything below exists to make one of the
 three true and provable.
 
+## Where this stands — 2026-09-09
+
+The one screen an agent picking this up should read before anything else. Everything below is
+the reasoning; this is the state.
+
+| | |
+| :-- | :-- |
+| **Published** | `burgee@0.3.0`. `roundel`, `flagstaff`, `caique`, `linegauge`, `seniority`, `bellpull`, `closeout` all at `0.0.1` — reservations and partials, not releases |
+| **Scoreboard** | commander **1,361 / 1,361**, yargs **804 / 804**, both against the hosts' own suites in full. **Not public** — `.sdlc/bands/scoreboard-public.json` is still `null` |
+| **Waves done** | 0, 3 ✅ · 1, 2, 4 in flight 🔨 · 5 conditional |
+| **Intent states** | 14 `shipped` · 8 `review` · 3 `approved` · 9 `draft` · 2 `dropped`, assigned from evidence 2026-09-09 |
+| **The blocking gate** | `docs-deploy`. Nothing in the output stack or the foundation publishes a working release until that page is live, so **the single highest-value next action is deploying it** |
+| **Bets standing** | scoreboard public ❌ · roundel under picocolors ❌ (0.0.1 is partial) · one external adopter ❌ |
+| **Nothing has been killed yet** | every kill criterion below is still unevaluated, because each fires at a wave end that has not arrived |
+
+**If you are picking up work now**: the three bets in *The minimum that proves the play* are
+all still open, and none of them is a package. The roadmap's own risk table says a layer
+earns no users until it works — so the ordering pressure is on `docs-deploy` and
+`first-adopter`, not on the next package.
+
 ## The roadmap in one paragraph
 
 **Decided 2026-09-06: we are building a competitor to commander and yargs, not a layer on
@@ -35,7 +55,17 @@ import in one file, not a framework you scaffold into.** And one more, stated 20
 the scoreboard is a static page, the gallery is generated. That is where the edge is — in
 the product layer the whole ecosystem installs, not in infrastructure we would have no
 advantage running — and it is why the thing can be maintained by two, sponsored rather than
-hosted, and installed by an agent inside any sandbox with no account and no network. The
+hosted, and installed by an agent inside any sandbox with no account and no network. **Extended 2026-09-09: the
+foundation beneath the toolset.** Four more packages — `linegauge` (text measurement),
+`seniority` (config resolution), `bellpull` (subprocess), `closeout` (process lifecycle) —
+standing in for **49 incumbents carrying 6.94 B weekly downloads** that nothing in this repo
+previously named. The names were published as `0.0.1` stubs that day and planned the same
+day: [`cli-foundation-stack`](./cli-foundation-stack/intent.md) is their umbrella, each has an
+`intent.md` + `design.md` pair, and the tier ships in four waves **F1–F4** behind the engine's
+public scoreboard. All five artifacts are `draft` — the human gate has not run — and `bellpull`
+carries a kill gate rather than a launch date, because a zero-dependency rival already holds
+the weight pitch in its layer. Eight packages in three tiers: burgee **declares**, the output stack is
+what a CLI **shows**, the foundation is what it **stands on**. The
 economics are the rule's real form: **today the whole family costs time and one model
 subscription, so it can stay open and be patient indefinitely.** The first hosted component
 would carry a bill every month, which makes it a for-profit product by necessity — a
@@ -80,12 +110,77 @@ the docs site that says it is true; *value* is who is better off and how we woul
 | **roundel** | one output policy, semantic tokens, a contrast-checked theme | chalk's model is a global mutable `level`; a policy would break its own tests | B4 rows under picocolors and chalk 6; chalk pass rate; the policy truth table | Authors: one answer to "is this a terminal?". Users: readable errors on every background |
 | **flagstaff** | the static projection is the artifact; plugins are data; an agent can write one in a turn | ora and Ink are imperative; a React tree has no static form to project | `\r`-free piped transcript; U9 eval green weekly; ora pass rate; B4 under ora | Agents and screen readers: the same clean bytes. Authors: a spinner ecosystem without a framework |
 | **caique** | never hangs: flags first, errors with `fix` in non-TTY, accessible by default | clack and inquirer assume a person is present; non-TTY is their bug, not their model | non-TTY benchmark never times out; inquirer and clack pass rates; matrix green | Anyone running a CLI from CI or an agent: the hang, gone. Screen-reader users: prompts that read |
+| **linegauge** | one package where the ecosystem has twelve, grapheme-correct over `Intl.Segmenter` | `string-width`, `wrap-ansi`, `slice-ansi` and eight more are separate products under one account; merging them is a shape change, not a release | B4 rows under each incumbent; their four suites vendored; the grapheme table | Anyone rendering a table, box or help text: one dependency and correct emoji widths |
+| **seniority** | precedence as a declared truth table, and **provenance** — which source set this value | `cosmiconfig` has no manifest to validate against and no notion of a flag or an env var; provenance is a data-model change | the precedence truth table; `cosmiconfig`/`dotenv`/`rc` pass rates; B4 against the seven-package discovery chain | Authors: one answer to "where did this setting come from". Agents: a repairable misconfiguration instead of a mystery |
+| **bellpull** | a subprocess **result** with a static projection, plus executable resolution in the same package | `execa` returns strings and throws; `tinyexec` and `nano-spawn` are zero-dep but resolve nothing and project nothing | `execa`/`cross-spawn`/`which` pass rates; B4 against execa's 16 packages | CI and agents: a result they can read without parsing prose |
+| **closeout** | handlers that run exactly once on every exit path, with a **bounded deadline** | `signal-exit` has been unchanged since 2023-07 and has no deadline; a hung handler is invisible to it | non-hanging shutdown under every signal; `signal-exit`/`exit-hook` pass rates | Agents and CI: a process that always ends, and a terminal that is never left broken |
 | **the family** | zero external dependencies end to end; one plugin contract; every claim measured | the incumbents are a dozen packages under a handful of accounts — the September 2025 npm compromise of chalk, debug and their siblings hit exactly that cluster (to be cited in `output-stack-research`) | the complete-CLI dependency bill: 0 vs the dozen; one schema byte-identical in four tarballs | The ecosystem: four packages, one repo, one supply chain to audit instead of twelve |
 | **native, where measured** | any layer ported to the fastest language and shipped the oxc/esbuild way, graded by the incumbents' own suites | no CLI-tooling incumbent has a prebuild pipeline, a WASM fallback, or a suite-gated way to prove a port changed nothing; adding them is a shape change. Native itself is not the edge — oxc and esbuild did it first — the *suite-graded* port in *this* market is | B2/B4 rows for the native build beside the JS build; the same pass rates | authors of large CLIs: manifest and help at hundreds of commands in microseconds; end users: a single binary with no Node install |
 
 The last row is the one to lead with in public, and the one we have not said out loud yet.
 
 Diagrams: [`architecture.md`](../research/architecture.md).
+
+## How we take a layer
+
+The play in the paragraph above is a procedure, not an instinct. It was run four times on
+2026-09-09 and every step below has a scar on it. Run it in order; each step can kill the
+candidate, and killing one early is the point.
+
+1. **Measure the layer before naming it.** Every incumbent: weekly downloads, direct
+   dependency count, last publish date, declared `engines`, and *real* installed weight from
+   `npm i` + `du`, never from memory or from a size badge. A layer counted from four packages
+   instead of twenty-five was wrong by 9× and reordered the whole roadmap when corrected.
+
+2. **Apply the platform-absorption test.** Does a Node or npm builtin **substitute** for the
+   package, or is it a **component** of it? A substitute means the candidate is dead on a
+   timer. This killed two candidates in one afternoon: a `patch-package` replacement, by npm
+   RFC 53 (*Native Dependency Patching*, ratified 2026-06-05), and a standalone glob matcher,
+   by `fs.glob` in Node 22. It also confirms the four we kept: `Intl.Segmenter`,
+   `process.loadEnvFile()`, `process.on(signal)` and `child_process` are each a component of
+   the package that composes them, which is the position rule 2 wants.
+
+3. **Check the position is still open.** A zero-dependency rival with traction changes the
+   pitch, not just the odds. `tinyexec` — 119 M/wk, zero deps, published five days before we
+   looked — already owns "execa without the tree", so `bellpull`'s differentiator has to be
+   executable resolution and a structured result, not weight. Re-check immediately before
+   committing: `config-layers` first appeared on npm the same day this research was written.
+
+4. **Name it against the registry's real rules.** **A 404 means unregistered, not
+   publishable.** npm applies a second name-similarity check that only fires on
+   `npm publish` and compares against every package regardless of popularity. `kerf` died to
+   `keyv`; `snuffer` died to `buffer`. Both were short. **Eight characters minimum, and check
+   edit-distance-one neighbours before committing** — the four that shipped are 8–9 characters
+   and all passed first try.
+
+5. **Reserve honestly.** A four-file stub whose README says what it is not: not released, not
+   on the roadmap, pointing at the research that measured it. Never at an intent directory
+   that does not exist — that asserts an approval nobody gave, and rule 12 requires a human
+   gate for approval. Reserving a name we have measured and intend to build is legitimate;
+   reserving alternates "in case" is squatting, and squatting is what made `fathom`, `tender`,
+   `halyard` and `ballast` unusable to everyone.
+
+6. **Grade before recommending, always.** An override edits packages deep in a stranger's
+   tree; if the drop-in is not exact the breakage is remote and baffling. The pass rate from
+   `compat-oracle` is a **safety interlock**, not marketing. No swap recipe ships before the
+   number that justifies it.
+
+7. **Ship as an override target, not as one more package.** Zero dependencies stops *us*
+   adding to the tree; it does not shrink it. This repo carries six copies of `string-width`
+   while publishing nothing that depends on it. The mechanism that actually collapses a tree
+   is an npm alias override —
+
+   ```json
+   "overrides": { "string-width": "npm:linegauge@^1" }
+   ```
+
+   — which replaces the package everywhere, transitively, and takes its dependencies with it
+   (measured: 10 packages → 8 on a two-dependency fixture). That inverts the pitch from
+   "install one more" to "install one, remove the dozen it stands in for", and it sets a
+   design constraint: the
+   **default export must match the incumbent's exactly**, because `require('string-width')`
+   resolves to our `main`. In this repo the four layers cover **41 replaceable copies and
+   1.58 MB, collapsible to 4 packages** — the B4 row worth publishing.
 
 ## The umbrella
 
@@ -107,6 +202,13 @@ Two research documents feed it, and every intent cites one or both:
 - [`architecture-review.md`](../research/architecture-review.md) — the honest review:
   nine findings with actions, the declarative plugin design, and the native front-end
   analysis.
+- [`candidate-layers.md`](../research/candidate-layers.md) — **the layers underneath**:
+  text, config, subprocess and lifecycle measured package by package, the
+  platform-absorption test that killed two candidates, and the naming rules npm only
+  enforces at publish time. The source for `cli-foundation-stack`.
+- [`replacement-map.md`](../research/replacement-map.md) — **one row per incumbent**: all
+  85 packages the eight replace, with downloads, direct dependency counts and last publish
+  dates. The source for any B4 weight claim and for the override recipes.
 
 ## Coverage: every issue cluster has an owner
 
@@ -189,12 +291,38 @@ data, every animation with a static projection, weight paid per subpath. Propose
 | 24 | [`roundel/`](./roundel/) | **roundel** — `./policy`, `./tokens`, `./theme`, and a chalk path graded by chalk's tests; each subpath at or under the incumbent it replaces | U2 U5 U6 U7 U10 U12 | approved — 3 of 5 criteria met. `roundel/chalk` 58 / 58; the bytes are locked under both ceilings. **Not shipped:** 0.1.0 in the tree, 0.0.1 on npm (`release.yml` fails `ENEEDAUTH`), and `/benchmarks` does not exist |
 | 25 | [`flagstaff/`](./flagstaff/) | **flagstaff** — frame loop, plugin host, built-ins as first-party plugins, `check`; no layout engine | U3 U4 U8 U9 U12 | approved — 1 of 8 criteria fully met. Loop, plugin host, spinner, `flagstaff check`, all five built-ins, `flagstaff/ora` 99 / 99, `flagstaff/log-update` 99 / 99, `flagstaff/boxen` 84 / 84. **Not met:** the five conformance cases and the CR check name a demo that does not use flagstaff; the 20-run snapshot lives in flagstaff, not `burgee/testing`; `/benchmarks` is 404; cli-table3 ungraded; the U9 eval has never run |
 
-| 26 | [`output-stack-research/`](./output-stack-research/) | **what we improve** — the ten incumbents' trackers read in full, won't-fix lists included; every U row cited | U1–U12 | shipped |
+| 26 | [`output-stack-research/`](./output-stack-research/) | **what we improve** — the ten incumbents' trackers read in full, won't-fix lists included; every U row cited | U1–U12 | review |
 | 27 | [`output-stack-compat/`](./output-stack-compat/) | **backwards compatibility** — eight façades graded by eight vendored suites; eight scoreboard rows | U11, C1–C6 | review — **4 of 8** graded (chalk 58 / 58, ora 99 / 99, log-update 99 / 99, boxen 84 / 84). **Decision taken 2026-09-08:** a drawing is a contract, so all four snapshot-graded hosts are built and gated; internal-module cases stay ungated (C4) and every row publishes three numbers — gated, internal, drawing. Eight rows is reachable |
 | 28 | [`plugin-contract/`](./plugin-contract/) | **spreading impact** — one plugin object, one schema, one `register()`, one `check`, across all four layers | U4, U9, M4–M5 | review — 1 of 4. The schema is byte-identical in roundel and flagstaff and locked; burgee and caique host no plugins, so "all four layers" is two |
 | 31 | [`agent-headroom/`](./agent-headroom/) | **every machine-readable byte earns its place** — compact by default, projection at the source, a budget that truncates legibly. Gathers N13, N14 and N15, which sit in three intents with one deferred. `--schema` on the large demo is 39,512 B pretty-printed and 22,964 B minified, for the one command an agent runs first | N13–N15, B1 | draft |
 | 30 | [`upstream-watch/`](./upstream-watch/) | **every package watches its own competitors** — a declared competitor list per subpath, a fingerprint from the published tarball, and a daily issue carrying the API diff, the stale claim, and the changeset we should write | C6, U5, U11 | draft |
 | 29 | [`caller-matrix/`](./caller-matrix/) | **every caller** — features × callers conformance matrix, generated; humans, agents, CI, screen readers, programs | U2, U3, P1–P3, B1 | draft — nothing built. `/callers` is 404 and there is no matrix generator |
+
+### The foundation stack — what a CLI stands on, taken by consolidation
+
+Umbrella [`cli-foundation-stack/`](./cli-foundation-stack/) — the four layers *underneath*
+the output stack: measuring text, resolving configuration, running another program, ending
+cleanly. **49 incumbents, 6.94 B weekly downloads.** Proposes Y1–Y12. All four names are
+published as `0.0.1` reservation stubs; none ships a working release before the commander
+scoreboard is public.
+
+| # | Intent | Delivers | Floor ids | Status |
+| :-- | :-- | :-- | :-- | :-- |
+| 30 | [`cli-foundation-stack/`](./cli-foundation-stack/) | the tier, the F1–F4 order, the **override recipe** that collapses 41 copies to 4 packages, the platform-absorption re-test | Y1–Y12 | draft |
+| 31 | [`linegauge/`](./linegauge/) | **linegauge** — width · wrap · truncate · slice · strip · widest over `Intl.Segmenter`; 12 incumbents, 2.16 B/wk | Y2 Y3 Y7 Y8 Y11 Y12 | draft |
+| 32 | [`closeout/`](./closeout/) | **closeout** — handlers that run exactly once on every exit path, **with a deadline**; terminal restore; 6 incumbents, 685 M/wk | Y3 Y5 Y6 Y7 Y8 Y10 Y12 | draft |
+| 33 | [`seniority/`](./seniority/) | **seniority** — precedence as declared data, discovery, and **provenance**; 16 incumbents, 1.81 B/wk | Y2 Y3 Y5–Y8 Y10 Y12 | draft |
+| 34 | [`bellpull/`](./bellpull/) | **bellpull** — executable resolution and a subprocess *result* with a static projection; 15 incumbents, 2.29 B/wk; **carries a kill gate on `tinyexec`** | Y3 Y5–Y8 Y10 Y12 | draft |
+
+Three things this tier does that the output stack does not. **Distribution is by override,
+not by install** — the default export of each package matches the incumbent's exactly, so
+`"overrides": { "string-width": "npm:linegauge@^1" }` replaces it transitively and takes its
+dependencies with it; the pitch inverts from *install one more* to *install one, remove the
+dozen it stands in for*. **Two of the four are written either way** — `flagstaff` has `src/width.ts`
+scheduled and `caique` already promises what `closeout` is, so publishing is the marginal
+cost of grading, not of invention. And **a layer the platform absorbs is deprecated on
+purpose** (Y4), because the test that killed a `patch-package` replacement and a standalone
+glob matcher has to apply to names we have already published.
 
 `caique` (17) re-parents under this umbrella and peers on `flagstaff` for its spinner.
 Every incumbent the stack replaces — chalk, ora, boxen, cli-table3, log-update — gets a
@@ -206,6 +334,26 @@ Nothing here publishes before `burgee/commander` publishes its pass rate.
 Not planned, on purpose: an update checker (citty #10 — a network call at startup is the
 opposite of what an agent wants), and non-Node runtimes (claiming Deno and Bun means
 testing them, which is its own intent with its own matrix).
+
+**Layers considered on 2026-09-09 and where they went**, recorded so they are not re-proposed
+as packages nine through fourteen:
+
+| Considered | Weekly | Verdict |
+| :-- | --: | :-- |
+| human formatting — `ms`, `bytes`, `pluralize`, `pretty-*` | 714 M | **live, and the only one** — no builtin substitutes (`Intl.NumberFormat` and `Intl.PluralRules` are components; nothing parses `"2 days"` into ms), and `ms` at 482 M/wk is unpublished since **2020-12-08**. A separate intent when the foundation clears, not a ninth package now |
+| environment detection — `ci-info`, `is-wsl`, `is-docker`, `is-interactive` | 526 M | **folds into `roundel`**, whose README already claims *one answer to "is this a terminal?"* |
+| terminal extras — `open`, `terminal-link`, `clipboardy` | 208 M | **`open` folds into `bellpull`** (it spawns `xdg-open`/`start`/`open`); `terminal-link` into `roundel`/`flagstaff` |
+| file watching — `chokidar`, `watchpack`, `@parcel/watcher` | 263 M | **a different family** under rule 10 — and the one layer measured where native genuinely pays, because it is a long-lived process reacting to OS events, the opposite of the short-lived CLI profile |
+| logging — `debug`, `log-symbols`, `consola`, `loglevel` | 803 M | **mostly absorbed**: `util.debuglog` substitutes `debug`, which is 625 M of the 803 M; `log-symbols` is `roundel`'s job |
+| temp and paths — `tmp`, `temp-dir`, `del`, `unique-string` | 118 M | **dead** — `fs.mkdtemp` and recursive `fs.rm` are substitutes, not components |
+
+**Nine packages is the ceiling for this repo**, and the constraint is rule 10's own stated
+purpose — *one repo per family, so an agent's context holds the whole stack*. Measured
+2026-09-09: 28,345 in-context lines (~116 K tokens) across `packages/`, `apps/` and `.sdlc/`,
+**with four of the eight still six-line stubs.** Implementing them roughly doubles it. Adding
+environment detection, `open` and `terminal-link` as separate packages would fragment exactly
+the way the ecosystem being replaced fragmented; twelve packages for one text-measurement job
+is the disease, not the model.
 
 ## Owner tasks — outside an agent's reach
 
@@ -293,6 +441,32 @@ time, and never publishes a working release before the engine's scoreboard is pu
 | **S3 · caique** | `caique`, `output-stack-compat` (inquirer, clack) | prompts that never hang; ~~two rows~~; the matrix green for five callers — **started 2026-09-08**: `decide()` and its 256-row table, then `ask()` — the six widgets in line mode, which is also the accessible rendering. The two rows are **blocked**: clack and inquirer are graded 65% and 59% by snapshots of their own drawing, and a façade that matched them would be the incumbent. Next here: the raw-mode renderer and the burgee binding, neither of which waits on that decision |
 | **S4 · the rest** | `output-stack-compat` (boxen, cli-table3), `first-adopter` for each package, `docs-per-package` | eight rows; a CLI we did not write on all four; and each published package an independent product in the one sense still missing — **its own docs site on its own host**, added by a row in a table rather than by cloning an app (PRINCIPLES.md rule 8) |
 
+### The foundation's waves
+
+Beneath both. Ordered by **what unblocks work already scheduled**, then by risk — size is
+deliberately not the ordering key, which is why the largest layer is third. Nothing here
+publishes a working release before the commander scoreboard is public.
+
+| Wave | Intent | Runs beside | Ends with | Gate to enter |
+| :-- | :-- | :-- | :-- | :-- |
+| **F1** | `linegauge` | S2 `flagstaff` | four suites graded; `flagstaff/src/width.ts` deleted with its suite unchanged; the grapheme table as a passing test | scoreboard public |
+| **F2** | `closeout` | S3 `caique` | `signal-exit` + `exit-hook` graded; `caique`'s signal handling deleted; the shutdown matrix green, including the cells whose handler never returns | F1 on the board |
+| **F3** | `seniority` | engine wave 5 | four suites graded; the 64-row precedence truth table published; `explain` naming file and line | F2 shipped |
+| **F4** | `bellpull` | — | `execa` + `cross-spawn` + `which` graded; one result, three projections | **the `tinyexec` kill gate** |
+
+At one calendar month per wave, F1–F4 is four months running *under* S1–S4 rather than after
+them — the foundation lane is the one place two waves can be in flight at once, because F1 and
+S2 are the same code (`flagstaff` needs width) and F2 and S3 are the same guarantee (`caique`
+needs the terminal restored). F3 and F4 have no such pairing and are serial.
+
+**Why `linegauge` and not `seniority` first**, when config is the bigger layer: `flagstaff`
+needs width *now*, so the code is written in F1's window either way; `linegauge` is the only
+one of the four with no process, no filesystem and no child, so no external API risk; and the
+grapheme table is a screenshot rather than an argument. `seniority` swaps into F1 on one
+recorded criterion — if the visibility lane needs a headline bigger than a width function —
+because it is also the cheapest to start (`packages/burgee/src/precedence.ts` is 153 shipped
+lines of its core) and 1.81 B/wk is the number that reads in a title.
+
 ### Execution graph — what runs in parallel, and where a human signs
 
 Lanes are independent until a join. Every join is a human gate (working agreement rule 3):
@@ -308,6 +482,10 @@ stack   ─ S0 research ──┬── S1 roundel ──── S2 flagstaff ─
           caller-matrix │      │  chalk row     │  plugin-contract  │  inquirer · clack rows
           (empty)       │      └── gate         │  ora row          └── gate
                         │                       └── gate
+found.  ─────────── F1 linegauge ──── F2 closeout ──── F3 seniority ──── F4 bellpull
+                        │                 │                 │                └── kill gate first
+                        │ width.ts        │ caique's        │ truth table        (tinyexec) —
+                        └── deleted       └── signals gone  └── published        may end dropped
 wedge   ─ eslint-plugin-cli-floor (any time after W2; the adoption funnel) ── first-adopter
 seen    ─ one public artifact per milestone: scoreboard row → post · ratchet → changelog line ·
           closed upstream issue → comment on that thread with the case · adopter → article
@@ -343,6 +521,8 @@ decision it forces.
 | The plugin contract cannot serve four layers | a key that one layer needs breaks another's validation | the contract splits by layer, recorded as a reversal of `plugin-contract`; the shared `check` command survives |
 | The stack pulls the repo's credibility before the engine has it | any stack package publishes a working release before the commander row is public | it is a lock (`cli-output-stack` design R-order), not a risk; CI refuses the publish |
 | Maintenance is a promise, not a number | no published band for it | two bands, published like the pass rate: **time from an upstream release to its suite re-vendored** (target ≤ 7 days, the watch and the weekly PR already produce it) and **time from an accepted issue to its closed conformance case** (target ≤ 14 days). Both ratchet; breaching either writes an intent |
+| A zero-dep rival already owns a foundation layer | `tinyexec` (119 M/wk, 0 deps, published 2026-09-03) absorbs executable resolution or a structured result | `bellpull` is **dropped** and its stub deprecated with a README pointing at `tinyexec`. Evaluated before F4 opens, not after — the gate table is in that intent |
+| A foundation layer is absorbed by the platform | a Node builtin becomes a *substitute* rather than a component at any LTS | the package is deprecated on purpose (Y4), with a README that says so. Two candidates already died to this test before publishing; a published name gets the same discipline |
 | An incumbent ships the same thing | commander gains a manifest, or clack a non-TTY error path | the compat row still holds, the edge row above is re-written honestly, and the family's edge (zero deps, one contract) is what remains — which is why the family row leads |
 
 ### Native — the fastest language wins, as long as the user never notices
@@ -407,7 +587,12 @@ Wave 5 becomes the first port, chosen by the measurement in (2), shipped per (1)
 per (3). The recorded alternative, "no port", requires the numbers to say JavaScript is not
 the friction — which today they do, and which a 250-command CLI may change.
 
-### Wave 1 — what landed, what is left
+### What landed, by wave
+
+The changelog half of the waves table, kept separate so the plan above stays a plan. Each
+entry is what a reader can verify in the repo today, not what was intended.
+
+**Wave 1 · engine — in flight.** Per deliverable:
 
 | | Done | Left |
 | :-- | :-- | :-- |
@@ -415,6 +600,30 @@ the friction — which today they do, and which a 250-command CLI may change.
 | `cli-packaging` | no-deps / ESM / no-`main` / `default`-condition lock (R1–R3); artifact gate in `release.yml` between build and publish (R4); tarball size ratchet with baseline (R5); provenance restored under the trusted publisher | — (R6 bun/deno smoke landed in wave 2: `runtime-smoke.yml`) |
 | **ESM + CJS** | every entry has a `default` condition; no top-level await in the library; `require('burgee')` and `require('burgee/commander')` proven against the installed tarball — one artifact, both module systems (K2, revised) | — |
 | `replacement-parser` | engine, lifecycle, exit contract, manifest, four locks; `defineProgram`; `--` pass-through and `-` (G5); seven cited §10 fixes (G6); G7 measured at +5 ms, level with bare `parseArgs`; `demo-cli-burgee` as the third conformance host via `runBurgee` (G2), with the envelope difference declared per host; `ctx.exit`, env binding, root/group help | G3 quirks — they land with the front-ends in wave 2 |
+
+**Wave 3 · surfaces — complete.** `--schema`, `--mcp` and static completions for
+bash/zsh/fish/pwsh + Fig served from the manifest on every program, commander syntax
+included (N1–N6, N8, N9, D2–D5); one precedence order with `--explain`, `meta.provenance`,
+config discovery with `extends`, `--version` from the owning package.json (V1–V7); options
+declared once — inferred types, numbers, `multiple`, choices enforced, relations, Standard
+Schema, kebab on the CLI (S1–S8); `changed`, the action-required envelope, agent detection,
+the schema budget (N7, N11–N13).
+
+**Wave 4 · reach — in flight.** Landed: `burgee/yargs` **804 / 804** (real yargs scores 802
+in the same run), byte-identical on the demo (X7, 26 cases), locales shipped,
+`burgee/yargs/parser` for programs that imported `yargs-parser`; burgee's additions on yargs
+syntax — `manifest`, `use()`/`effects()`, `--json`, `--schema`, `--mcp`,
+`completion <shell>`, `.burgee({ stdout, stderr, exit })` → E1 — guarded so the 804 stay
+green (X8); `burgee dev <entry>` with a fresh module graph per reload, MCP on stdio with
+`tools/list_changed`, the diff and the help on every save, 30 commands in under 40 ms
+(W1–W6); `cli-modularity` on the engine — groups in schema, lazy `load` with the
+zero-modules lock, shared options with `sharedFrom`, the deprecation warning,
+`resolveCommand`/`runCommand` public, required positionals enforced (M1–M6).
+**Open: `caique`, `docs-deploy`, `cli-benchmarks`, `brand-burgee`.**
+
+> An earlier revision of this table had wave 4 listing the yargs additions as both shipped
+> (with X8) and as *"next"* in the same cell. That is what a status column becomes when it
+> doubles as a changelog, and it is why the two are separated here.
 
 ### What the research changed, and where it landed
 
@@ -447,9 +656,12 @@ The three research documents added 13 requirements and moved one intent.
 a layer over someone else's parser and a compatible front-end over ours are the same
 package.
 
-### Status drift, stated
+### Status drift — resolved 2026-09-09
 
-Two things the artifacts say that are not quite true, so nobody reads them as true:
+The artifacts and the waves table used to disagree: nineteen of thirty-six intents read
+`review`, including all four of a wave marked ✅ complete and `commander-compat` at 100% of
+commander's own suite. `review` meant both *"awaiting a decision"* and *"shipped and
+scoring 100%"*, which made every status in the repo unreadable.
 
 - **Almost every buildable intent still reads `review`.** Per `AI_NATIVE_SDLC.md` rule 3,
   `approved` is the human gate — and the engine, the oracle and the façades were built
@@ -610,7 +822,8 @@ will misspell it. **`roundel`** and **`vexillum`**, the other flag words.
 
 `@interlace/*` remains for internal packages that are never published —
 `compat-oracle`, which is private and unscoped. Everything public is unscoped. After the
-2026-09-07 fold there is exactly one public package; the output stack proposes three more,
+2026-09-07 fold there was exactly one public package; there are now eight names on the registry,
+seven of them `0.0.1` reservations or partials. The output stack holds three of those,
 each **an independent product with its own name, README, benchmarks and competitors** (U12),
 named from the same flag-and-rigging register as `burgee` — compounds were rejected because a
 prefix says "accessory" — incumbent façades as subpaths never as packages, and **zero external
@@ -620,15 +833,19 @@ agent working on any layer has the whole stack in context.
 
 | Job | Entry point | Published |
 | :-- | :-- | :-- |
-| the framework | `burgee` | ✅ 0.1.0 |
+| the framework | `burgee` | ✅ `0.3.0` on npm (2026-09-09) |
 | in-process harness (T1) | `burgee/testing` | subpath |
 | commander compatibility | `burgee/commander` | wave 2 |
 | yargs compatibility | `burgee/yargs` | wave 4 |
 | opt-in host quirks | `burgee/quirks/*` | wave 2 |
 | the lint wedge | `eslint-plugin-cli-floor` | wave 4 |
-| the colours a CLI carries: policy, tokens, theme, chalk path | `roundel` | candidate, `cli-output-stack` |
-| the staff the flag flies from: frame loop, plugin host, ora/boxen/cli-table3/log-update paths | `flagstaff` | candidate, `cli-output-stack` |
-| the parrot that always answers back: prompts, flags first | `caique` | candidate, `caique` |
+| the colours a CLI carries: policy, tokens, theme, chalk path | `roundel` | `0.0.1` — policy, tokens, theme, contrast in; chalk path next; S1 |
+| the staff the flag flies from: frame loop, plugin host, ora/boxen/cli-table3/log-update paths | `flagstaff` | `0.0.1` stub; S2 |
+| the parrot that always answers back: prompts, flags first | `caique` | `0.0.1` stub; S3 |
+| measuring and cutting styled text: width, wrap, truncate, slice | `linegauge` | `0.0.1` stub; F1 |
+| ending cleanly: exactly-once handlers, a deadline, terminal restore | `closeout` | `0.0.1` stub; F2 |
+| which source outranks which, and which one set this value | `seniority` | `0.0.1` stub; F3 |
+| running another program and getting a result back | `bellpull` | `0.0.1` stub; F4, conditional on its kill gate |
 | grading + reference drivers | `compat-oracle` | private, never |
 
 Every entry point above must declare a weight rule in `packages/burgee/src/weight.test.ts`
@@ -793,7 +1010,7 @@ build behind them while still reading `review` or `draft`. That is the drift
 [Status drift, stated](#status-drift-stated) already admits: the gate has been advisory in
 practice. Moving them is the owner's call, not this pass's.
 
-Prerequisites only the owner can supply (none are set as of 2026-09-06):
+Prerequisites only the owner can supply. **Re-checked 2026-09-09:**
 
 | Item | Needed by |
 | :-- | :-- |

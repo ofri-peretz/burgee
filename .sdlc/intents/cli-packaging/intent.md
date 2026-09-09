@@ -3,7 +3,9 @@
 > Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md),
 > constraint 2. Research §11 (runtime and packaging). Proposes K1–K5.
 
-**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+
+**State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Evidence:** the no-deps / ESM / no-`main` / `default`-condition locks, the artifact gate in `release.yml`, the tarball ratchet and the bun/deno smoke all in the repo.
 
 ---
 

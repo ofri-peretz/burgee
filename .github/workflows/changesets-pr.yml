@@ -7,9 +7,12 @@ run-name: >-
 # ─────────────────────────────────────────────────────────────────────────────
 # Ported from ofri-peretz/eslint/changesets-pr.yml. Two responsibilities:
 #
-# 1. On PR — soft advisory: a one-time comment if the PR touches
-#    `packages/*/src` or a `package.json` but adds no `.changeset/*.md`.
-#    Silent when the PR carries the `skip-changeset` label.
+# 1. On PR — a gate: a PR that touches `packages/*/src` or a `package.json`
+#    and adds no `.changeset/*.md` FAILS, with a comment saying how to fix it.
+#    It was advisory until 2026-09-09 and warned into a green tick, which is
+#    how a user-visible change reaches a release with no version bump and no
+#    changelog line. The deliberate override is the `skip-changeset` label,
+#    which is a decision someone makes and signs rather than an omission.
 #
 # 2. On push to main — open / refresh the "Version Packages" PR and enable
 #    auto-merge on it. Merging it triggers release.yml. No `publish:` here.
@@ -127,6 +130,20 @@ jobs:
           else echo "status=missing" >> "$GITHUB_OUTPUT"; echo "::warning::PR changes packages/ source but has no changeset."
           fi
 
+      # Presence was the whole check, and presence is not validity. A changeset naming a
+      # private package alongside a published one is refused by changesets itself — "Found
+      # mixed changeset" — but only at version time, on main, in a different workflow. So
+      # `incumbent-weights-measured` passed its PR green, merged, and left the Version
+      # Packages PR unable to refresh for every push that followed. `status` is the same
+      # question the release asks, asked while it is still one PR's problem.
+      #
+      # Only when a changeset is present: with none, `changeset status` exits 1 by design
+      # ("run changeset add --empty"), which is the right answer for a release and the wrong
+      # one for a `skip-changeset` PR.
+      - name: The changeset is one changesets will accept
+        if: steps.check.outputs.status == 'present'
+        run: npx changeset status
+
       - name: Comment on PR (when missing)
         if: steps.check.outputs.status == 'missing'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
@@ -149,3 +166,22 @@ jobs:
             } else {
               await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, body });
             }
+
+      # After the comment, so the PR carries the instructions before it goes red.
+      - name: Fail when the changeset is missing
+        if: steps.check.outputs.status == 'missing'
+        env:
+          STATUS: ${{ steps.check.outputs.status }}
+        run: |
+          set -euo pipefail
+          echo "::error::This PR changes packages/ source or a package.json and adds no changeset."
+          echo "Run 'npm run changeset', commit the .changeset/*.md it writes, and push."
+          echo "If the change is genuinely internal, add the 'skip-changeset' label instead."
+          exit 1
+
+      - name: Report
+        if: always()
+        env:
+          STATUS: ${{ steps.check.outputs.status }}
+        run: |
+          echo "changeset status: $STATUS" >> "$GITHUB_STEP_SUMMARY"

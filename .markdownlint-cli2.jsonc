@@ -47,6 +47,10 @@
     "MD049": false
   },
   "ignores": [
+    // Agent worktrees are copies of this repo; linting them lints everything twice
+    // and fails on whatever a stale copy happens to contain.
+    ".claude",
+    "**/.claude",
     "node_modules",
     "**/node_modules",
     "dist",

@@ -5,6 +5,8 @@
 
 **Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
+**State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why still `review`:** **no package exists** — only this intent directory.
+
 ---
 
 ## What is wanted

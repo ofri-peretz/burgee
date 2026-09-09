@@ -1,4 +1,22 @@
-# caique
+<p align="center">
+  <a href="https://github.com/ofri-peretz/burgee/tree/main/packages/caique" target="blank">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ofri-peretz/burgee/main/brand-assets/caique-lockup.svg" />
+      <img src="https://raw.githubusercontent.com/ofri-peretz/burgee/main/brand-assets/caique-lockup-light.svg" alt="caique" width="360" />
+    </picture>
+  </a>
+</p>
+
+<p align="center">
+  Prompts that are flags first — so an agent answers before it is asked, and nothing ever hangs.
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/caique"><img src="https://img.shields.io/npm/v/caique?style=flat-square&color=0a6b47" alt="npm version" /></a>
+  <img src="https://img.shields.io/badge/status-pre--release-a84c17?style=flat-square" alt="Status: pre-release" />
+  <img src="https://img.shields.io/badge/runtime%20dependencies-0-0a6b47?style=flat-square" alt="Zero runtime dependencies" />
+  <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT" />
+</p>
 
 **Pre-release.** The first working slice is here — `decide()`, below — and the rest follows
 [`.sdlc/intents/caique/`](https://github.com/ofri-peretz/burgee/tree/main/.sdlc/intents/caique).
@@ -174,6 +192,22 @@ counted whole across its own resolved tree.
 - **Accessible mode** falls back to line input with no live redraw.
 - **Drop-in paths** for inquirer and clack, graded by their own suites.
 
-Part of the [burgee](https://github.com/ofri-peretz/burgee) family: a CLI on burgee declares
-what it is, roundel carries its colours, flagstaff flies it, caique answers back. Each is
-an independent package; none requires the others.
+## Following along
+
+The intent and design are committed before the code is, so you can read what it will be —
+and argue with it — before it exists:
+
+- [`.sdlc/intents/caique/`](https://github.com/ofri-peretz/burgee/tree/main/.sdlc/intents/caique)
+  — the intent and the design.
+- [Open an issue](https://github.com/ofri-peretz/burgee/issues) if a prompt in your CLI
+  cannot be expressed as a flag. That case is the interesting one.
+
+---
+
+Part of the [burgee](https://github.com/ofri-peretz/burgee) family: a CLI on
+[burgee](https://www.npmjs.com/package/burgee) declares what it is,
+[roundel](https://www.npmjs.com/package/roundel) carries its colours,
+[flagstaff](https://www.npmjs.com/package/flagstaff) flies it, and caique answers back. Each
+is an independent package; none requires the others.
+
+MIT © Ofri Peretz — see [LICENSE](./LICENSE).
