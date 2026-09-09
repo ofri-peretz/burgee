@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -43,6 +43,19 @@ import { fileURLToPath } from 'node:url';
  * | delete the `Verify the deployed URL serves this build` step | the four post-deploy cases (no such step) |
  * | delete `NEXT_PUBLIC_BUILD_SHA` from the build step | stamps the very commit it later reads back |
  * | `$(curl … \|\| echo 000)` restored | soft-warns instead of failing when the host does not resolve yet |
+ * | drop `--archive=tgz` from either `vercel deploy` line | sends the prebuilt output as one archive |
+ * | restore `defaults.run.working-directory: apps/docs` | runs the Vercel CLI from the repo root |
+ * | re-add `$comment` to `vercel.json` | carries no key Vercel will reject at deploy time |
+ * | drop `--target=preview` from the preview deploy line | deploys a preview to preview, not to production |
+ * | narrow the protection case back to `401\|403` | treats a Deployment Protection redirect as protection |
+ *
+ * The last two are the deploy that #79 shipped and that never once succeeded. Root
+ * Directory on the `cli-interlace-tools` project is unset — the repo root — so
+ * `vercel.json` belongs there and the CLI has to run there. Rooted at `apps/docs`, the
+ * prebuilt upload could not see the hoisted root `node_modules` an npm-workspaces install
+ * produces, and production died on `File does not exist: "node_modules/client-only/
+ * index.js"`. Deploying from the root means the upload is the whole traced closure, which
+ * is exactly the shape `--archive=tgz` exists for.
  */
 
 import { load as loadYaml } from 'js-yaml';
@@ -58,11 +71,13 @@ interface Step {
   id?: string;
   env?: Record<string, string>;
   run?: string;
+  'working-directory'?: string;
 }
 interface Job {
   if?: string;
   env?: Record<string, string>;
   steps?: Step[];
+  defaults?: { run?: { 'working-directory'?: string } };
 }
 interface Workflow {
   on?: Record<string, unknown>;
@@ -281,6 +296,71 @@ describe('deploy-docs.yml', () => {
     expect(r.output).toContain('::warning::');
   });
 
+  it('deploys a preview to preview, not to production', () => {
+    // Git integration is off for this project, so a CLI deploy has no branch to infer a
+    // preview from and the CLI falls back to PRODUCTION. Measured 2026-09-09 against the
+    // real project: `vercel deploy --prebuilt --archive=tgz` came back `"target":
+    // "production"` and took the `cli-interlace-tools.vercel.app` alias; the same command
+    // with `--target=preview` came back `"target": null` and stayed a Preview. So without
+    // the flag, `environment=preview` ships production — the input says one thing and the
+    // deploy does the opposite, and the run is green either way.
+    const lines = script(step(deployDocs.jobs?.deploy, 'Deploy prebuilt artifact'), { 'inputs.environment': 'preview' })
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.includes('vercel deploy'));
+    const prod = lines.filter((l) => l.includes('--prod'));
+    const preview = lines.filter((l) => !l.includes('--prod'));
+    expect(prod.length, 'no --prod deploy line').toBe(1);
+    expect(preview.length, 'no non---prod deploy line').toBe(1);
+    expect(preview[0], `the preview deploy line does not pass --target=preview, so it deploys to PRODUCTION:\n  ${preview[0]}`).toContain('--target=preview');
+    // ...and the production line must not claim to be a preview.
+    expect(prod[0]).not.toContain('--target=preview');
+  });
+
+  executes('treats a Deployment Protection redirect as protection, not as a broken deploy', () => {
+    // A protected PREVIEW does not answer 401 — it answers 302 and redirects to Vercel
+    // SSO. Measured 2026-09-09 on a real preview URL. Matching only 401|403 sent every
+    // protected preview down the `*)` branch and failed the run on a deploy that worked.
+    const body = script(verifyStep, { 'inputs.environment': 'preview' });
+    for (const code of ['302', '307']) {
+      const r = runStep(body, { ...workflowEnv, DEPLOY_URL: 'https://dep.vercel.app', EXPECTED_SHA: SHA, SHIM_CODE: code, SHIM_RC: '0', SHIM_BODY: '' });
+      expect(r.status, `a ${code} from Deployment Protection exited ${r.status}; the deploy succeeded and this must warn\n${r.output}`).toBe(0);
+      expect(r.output).toContain('::warning::');
+    }
+    // The llms.txt step has the same failure mode and the same fix.
+    const llms = runStep(script(llmsStep), { ...workflowEnv, DEPLOY_URL: 'https://dep.vercel.app', SHIM_CODE: '302', SHIM_RC: '0', SHIM_BODY: '' });
+    expect(llms.status, `the /llms.txt step failed on a 302 from Deployment Protection\n${llms.output}`).toBe(0);
+  });
+
+  it('runs the Vercel CLI from the repo root', () => {
+    // The regression that made #79's deploy fail every time it ran. Root Directory on
+    // the `cli-interlace-tools` project is unset, so `vercel.json` is at the repo root
+    // and the CLI has to run there. Pinned at `apps/docs`, `vercel deploy --prebuilt`
+    // uploads a tree that cannot reach the hoisted root `node_modules` an npm-workspaces
+    // install produces, and Vercel refuses it with `File does not exist:
+    // "node_modules/client-only/index.js"` — a failure no local build reproduces,
+    // because locally the root is always right there above you.
+    const deploy = deployDocs.jobs?.deploy;
+    expect(deploy?.defaults?.run?.['working-directory'], 'the deploy job pins a working-directory again; the Vercel CLI must run at the repo root, where vercel.json is').toBeUndefined();
+    const pinned = (deploy?.steps ?? []).filter((st) => st['working-directory'] !== undefined).map((st) => st.name ?? '<unnamed>');
+    expect(pinned, `these steps pin their own working-directory: ${pinned.join(', ')}`).toEqual([]);
+  });
+
+  it('sends the prebuilt output as one archive', () => {
+    // `--archive=tgz` packs the upload into a single tarball. Vercel rejects a prebuilt
+    // deploy of more than 15,000 files, and deploying from the repo root means the
+    // upload is the whole traced closure — root `node_modules` included — not the 397
+    // files in `apps/docs/.next` that the flag was argued away on. Both branches, or the
+    // production path can lose it while preview stays green.
+    const lines = script(step(deployDocs.jobs?.deploy, 'Deploy prebuilt artifact'), { 'inputs.environment': 'production' })
+      .split('\n')
+      .filter((l) => l.includes('vercel deploy'));
+    expect(lines.length, 'no `vercel deploy` line in the deploy step').toBeGreaterThanOrEqual(2);
+    for (const line of lines) {
+      expect(line, `this deploy line does not pass --archive=tgz:\n  ${line.trim()}`).toContain('--archive=tgz');
+    }
+  });
+
   executes('checks that /llms.txt is on the deployed build and has rows in it', () => {
     const body = script(llmsStep);
     const base = { ...workflowEnv, DEPLOY_URL: 'https://dep.vercel.app' };
@@ -295,6 +375,33 @@ describe('deploy-docs.yml', () => {
     // The route did not survive the build.
     const gone = runStep(body, { ...base, SHIM_CODE: '404', SHIM_RC: '0', SHIM_BODY: '' });
     expect(gone.status, gone.output).not.toBe(0);
+  });
+});
+
+describe('the scoreboard band, which gates the stack’s release', () => {
+  /**
+   * `release.yml` refuses roundel, flagstaff and caique above 0.0.x until this band names a
+   * deployed compatibility page (`cli-output-stack` R13). The band is a URL in a JSON file,
+   * so nothing stops somebody typing one — these are the two things that can be checked
+   * without a network, and together they mean the URL names a page this repo actually
+   * builds, on the host this workflow actually deploys to.
+   */
+  const band = JSON.parse(readFileSync(join(REPO_ROOT, '.sdlc/bands/scoreboard-public.json'), 'utf8')) as { commanderCompatibilityPage: string | null };
+
+  it('names a page on the host deploy-docs.yml deploys to, not some other origin', () => {
+    const url = band.commanderCompatibilityPage;
+    if (url === null) return; // not yet public — release.yml refuses the stack, which is the point
+    expect(String(workflowEnv['PRODUCTION_URL'] ?? ''), 'the workflow has no PRODUCTION_URL to check against').not.toBe('');
+    expect(url.startsWith(String(workflowEnv['PRODUCTION_URL'])), `${url} is not under ${String(workflowEnv['PRODUCTION_URL'])}`).toBe(true);
+  });
+
+  it('names a page this repo actually builds', () => {
+    const url = band.commanderCompatibilityPage;
+    if (url === null) return;
+    const route = url.slice(String(workflowEnv['PRODUCTION_URL']).length).replace(/^\/+|\/+$/g, '');
+    // fumadocs serves `content/docs/<route>.mdx` at `/docs/<route>`.
+    const source = join(REPO_ROOT, 'apps/docs/content', `${route}.mdx`);
+    expect(existsSync(source), `${url} would be served from ${source}, which does not exist`).toBe(true);
   });
 });
 
@@ -324,10 +431,42 @@ describe('auto-deploy.yml', () => {
   });
 });
 
-describe('apps/docs/vercel.json', () => {
-  const vercel = JSON.parse(readFileSync(join(REPO_ROOT, 'apps', 'docs', 'vercel.json'), 'utf8')) as {
+describe('vercel.json', () => {
+  // At the REPO ROOT. `apps/docs/vercel.json` is where it used to live, and moving it is
+  // half the fix: the Vercel project's Root Directory is unset, so root is the only place
+  // Vercel reads, and root is the only directory that sees both the app and the hoisted
+  // `node_modules` its build traced.
+  const vercel = JSON.parse(readFileSync(join(REPO_ROOT, 'vercel.json'), 'utf8')) as {
     git?: { deploymentEnabled?: boolean };
+    buildCommand?: string;
+    outputDirectory?: string;
   };
+
+  it('is at the repo root and nowhere else', () => {
+    // Two of them is worse than the wrong one: Vercel would read the root file while
+    // every reviewer reads the app-local one, and they would drift apart in silence.
+    expect(existsSync(join(REPO_ROOT, 'apps', 'docs', 'vercel.json')), 'apps/docs/vercel.json is back. The Vercel project has no Root Directory set, so Vercel reads the ROOT vercel.json and this one is a decoy that no deploy obeys').toBe(false);
+  });
+
+  it('points Vercel at the app the root build actually emits', () => {
+    // The silent half of the move. From the root, `outputDirectory: ".next"` names a
+    // directory `next build` never writes — the deploy uploads nothing and serves a 404,
+    // with every step green.
+    expect(vercel.outputDirectory).toBe('apps/docs/.next');
+    expect(vercel.buildCommand).toContain('--filter=docs');
+  });
+
+  it('carries no key Vercel will reject at deploy time', () => {
+    // `vercel build` validates nothing; `vercel deploy` validates against the real
+    // schema. So a stray key passes every local check, passes CI, builds green — and
+    // then kills the deploy with `Invalid vercel.json - should NOT have additional
+    // property`. This file carried a `$comment` for exactly that reason: it was written
+    // to explain itself, and no deploy had ever run to reject it. JSON has no comments;
+    // the rationale lives in deploy-docs.yml and in this file instead.
+    const keys = Object.keys(JSON.parse(readFileSync(join(REPO_ROOT, 'vercel.json'), 'utf8')) as object);
+    const dollar = keys.filter((k) => k.startsWith('$') && k !== '$schema');
+    expect(dollar, `vercel.json has ${dollar.join(', ')}. Vercel's schema allows $schema and nothing else beginning with $ — this builds fine and fails at 'vercel deploy'`).toEqual([]);
+  });
 
   it('never lets Vercel Git integration deploy on its own', () => {
     // Constraint 1, the half that lives outside GitHub Actions. `true` here means every

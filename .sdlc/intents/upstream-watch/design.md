@@ -210,6 +210,69 @@ change (an added export is `minor`; a removed one is a decision, not a follow).
 because the release notes are how the family records what it can now do, and because a
 capability with no changeset is a capability nobody outside this file learns about.
 
+## What shipped (step 1 — the declaration and its lock — 2026-09-08)
+
+`packages/flagstaff/competitors.json` and `scripts/competitors-lock.test.ts`. The
+declaration is per subpath, with the claim (`compat`, `weight`, `surface`) and the
+last-seen fingerprint, so an upstream release will arrive as a git diff on a committed file.
+
+**It found one immediately, which is why step 1 was ordered first.** flagstaff's README and
+weight lock both publish ora's dependency bill as "113,577 B across seventeen packages", and
+that bill itemises `chalk 16,727`. Nothing watched chalk from flagstaff. A chalk release
+would have moved a number flagstaff publishes, and no test in the repo would have noticed —
+which is the exact failure mode this intent exists for, found on the first package it was
+applied to.
+
+**R2 is file-level rather than per-subpath, on purpose.** Mapping a package name inside a
+comment block back to the weight rule it belongs to means parsing comments, and that breaks
+the first time somebody reflows a paragraph. Asking "is this competitor watched at all"
+needs no parsing and catches the failure that actually happens. The names searched for come
+from a `KNOWN` list, so an incidental mention in prose cannot fail a build — and adding a
+competitor to that list is the moment somebody decides whether it is watched.
+
+One refinement the first run forced: `roundel/chalk` is our own subpath, not a citation of
+chalk, so the matcher requires the name not be preceded by `/`. The chalk finding survives
+it — verified before the entry was added, not after.
+
+A fifth assertion beyond R1 and R2, cheap and worth having: a `compat` claim must name a
+host `compat-oracle` actually grades. A package claiming to be graded by a suite that does
+not exist is a claim with nothing behind it.
+
+Four mutations proved the suite bites: a cited competitor undeclared (1 red), a subpath that
+is not exported (1), a claim the watch cannot make (1), and `compat` against a non-host (2).
+
+**Extended the same day to roundel, caique and burgee**, which turned the file-level R2
+heuristic from defensible into wrong and then into right. Applied to four packages it
+produced six matches, and only two were citations: the others were an issue reference
+(`clack #286`), a sentence about behaviour ("chalk and ora disagree about the same
+terminal"), and two example values in a README code sample (`choices: [{ value: 'ora' }]`).
+
+The rule that separates them: **a competitor is cited when its name sits on a line that also
+carries a measured figure** — a comma-grouped byte count, a number with a byte unit, or a
+version. Prose names a package; a claim puts a number next to it, and only a number goes
+stale. Checked against all six matches, and the two real findings survive it, which was
+verified by mutation rather than by reading.
+
+It also draws a line worth naming. flagstaff itemises ora's bill per package
+(`cli-spinners 27,841 · signal-exit 21,983 · chalk 16,727`), so each of those is an
+independent figure and each needs a watch. burgee gives yargs' tree as one total
+(`256,000 is what npm install yargs puts on disk`) and names `string-width` and `wrap-ansi`
+only as parts of it — so watching **yargs** covers the claim, and those two need no entry of
+their own. Per-package itemisation creates per-package claims; a total does not.
+
+**A second hole, found by a mutation that failed to fail.** Deleting burgee's `yargs` entry
+left the suite green, because `commander` and `yargs` were not on the `KNOWN` list — so
+burgee's citations were checked against nothing and the engine's own numbers, the roadmap's
+first bet, were unwatched while the lock reported green. Both are on the list now, and a
+sixth assertion guards the direction that failure came from: every competitor a package
+*declares* must be on `KNOWN`, so a declaration can never outrun the list that searches for
+it.
+
+Five mutations bite: flagstaff dropping chalk, roundel dropping picocolors, burgee dropping
+yargs, burgee dropping commander, and a declaration `KNOWN` omits.
+
+Not yet: `fromRegistry()` (step 2), the issue renderer (step 3), the workflow (step 4).
+
 ## Verification
 
 The loop: `npm test && npm run lint`.

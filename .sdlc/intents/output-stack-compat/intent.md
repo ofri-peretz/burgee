@@ -4,7 +4,7 @@
 > requirement U11. The commander move, repeated seven times: a façade over our engine,
 > graded by the incumbent's own suite, with a published, ratcheting pass rate.
 
-**Status:** draft · **Opened:** 2026-09-08 · **Owner:** @ofri-peretz
+**Status:** review · **Design:** [`design.md`](./design.md) (2026-09-08) · **Opened:** 2026-09-08 · **Owner:** @ofri-peretz
 
 ---
 
@@ -26,7 +26,7 @@ A user of any of these changes one import and their tests still pass:
 | picocolors | `roundel/tokens` | roundel | node:test | API is a subset; graded for completeness, not compat |
 | ora 9 | `flagstaff/ora` | flagstaff | node:test | **shipped 2026-09-08 — 99 / 99.** `ora().start()` chain; `isSpinning`, `succeed`, `fail`; the `spinners` corpus; the stream hooks |
 | log-update 8 | `flagstaff/log-update` | flagstaff | node:test | **shipped 2026-09-08 — 99 / 99.** `logUpdate()`, `.clear()`, `.done()`, `.persist()`, `createLogUpdate`, stderr variant. Its cases render every frame through a real terminal emulator and assert the screen. The one façade so far that lowers a layer guarantee (R5), allow-listed with its reason under constraint 2 below |
-| boxen 8 | `flagstaff/boxen` | flagstaff | ava | border styles, padding, title, `fullscreen`. **Blocked on the oracle:** every case is `t.snapshot(box)` against ava's own `.snap` binary format, which the ava shim does not read. Teach the shim that format, or record the control's output as the expectation — a decision, so it is `planned` rather than active |
+| boxen 8 | `flagstaff/boxen` | flagstaff | ava | border styles, padding, title, `fullscreen`. **Unblocked 2026-09-08 — see [`design.md`](./design.md).** The oracle drives real ava, which reads its own `.snap` files, so there was never a format to teach; every case is `t.snapshot(box)`, and since `box()` is a pure function that drawing *is* the contract, so every case gates |
 | cli-table3 | `flagstaff/table` | flagstaff | vitest | **Blocked on a decision — see below.** The runner exists as of 2026-09-08; what is unsettled is that 221 of its 234 cases test its own `src/` modules |
 | inquirer 14 | `caique/inquirer` | caique | vitest | `inquirer.prompt([...])`, `@inquirer/*` prompt kinds |
 | clack 1 | `caique/clack` | caique | vitest | `text`, `confirm`, `select`, `group`, `isCancel`, `spinner` |
@@ -120,6 +120,13 @@ file, which is exactly what that rule exists to refuse. Three of them also use
 So the row is worth having, but what it may claim has to be decided before it is built:
 13 gated cases with the 221 reported beside them, or the row dropped and the reason
 published. Either is defensible; quietly shipping "13 / 13, 100%" is not.
+
+**Decided 2026-09-08 ([`design.md`](./design.md)): the first.** 13 gated, 221 reported
+beside them, and every scoreboard row publishes three numbers — gated, internal, drawing —
+so no row can show one figure a reader might take for the whole suite. The same decision
+unblocks boxen, clack and inquirer: a drawing is a contract, and for a pure string function
+it is the *whole* contract, so matching it is the compatibility claim rather than a way of
+avoiding one.
 
 ## Why now
 
