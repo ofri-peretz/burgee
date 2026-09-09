@@ -213,12 +213,25 @@ function pick(obj: unknown, dotted: string): number | null {
   return typeof cur === 'number' ? cur : null;
 }
 
-const DATED_JSON = /^\d{4}-\d{2}-\d{2}\.json$/;
+/**
+ * Both shapes a results file comes in, since #105 split them.
+ *
+ * `2026-09-09.json` is the published measurement — one per day, chosen by a person, and
+ * what `/docs/benchmarks` is generated from. `2026-09-09-5bc506c.json` is an observation
+ * from the CI run at that commit, and there are many.
+ *
+ * This pattern read only the first for a while after the split, so the eleven observations
+ * the recorder landed fed nothing: the series a band computes over had exactly one point,
+ * against a `minPoints` of 8, and looked from the outside like a band that was simply
+ * quiet. The observations are the series. The published measurement is one of its points,
+ * not a substitute for it.
+ */
+export const DATED_JSON = /^\d{4}-\d{2}-\d{2}(-[0-9a-f]{7,40})?\.json$/;
 
 /** Every dated result file in a benchmark suite, and the metric read out of each. */
-function collectBenchmark(cfg: BandConfig): Observation[] {
+export function collectBenchmark(cfg: BandConfig, root = REPO_ROOT): Observation[] {
   if (!cfg.jsonPath) return [];
-  const dir = path.join(REPO_ROOT, 'benchmarks/results', cfg.suite ?? '');
+  const dir = path.join(root, 'benchmarks/results', cfg.suite ?? '');
   let files: string[];
   try {
     files = fs.readdirSync(dir).filter((f) => DATED_JSON.test(f)).sort();
@@ -244,7 +257,9 @@ const GIT_BUFFER = 33554432;
 /** Every dated result file that has EVER existed for a suite, read out of git. */
 function collectFromGit(cfg: BandConfig): Observation[] {
   if (!cfg.suite || !cfg.jsonPath) return [];
-  const glob = `benchmarks/results/${cfg.suite}/????-??-??.json`;
+  // `*` after the date so observations are found too — see DATED_JSON. `git log` takes one
+  // pathspec pattern, and this is the one that covers both shapes.
+  const glob = `benchmarks/results/${cfg.suite}/????-??-??*.json`;
   let paths: string[];
   try {
     paths = execFileSync('git', ['log', '--all', '--diff-filter=A', '--name-only', '--format=', '--', glob], {
