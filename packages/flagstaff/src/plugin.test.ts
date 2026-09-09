@@ -127,6 +127,24 @@ describe('the registry', () => {
  * U3's claim is structural: a contribution without a static projection is *refused*, not
  * discouraged. Every case here is a way a caller could have put one in anyway.
  */
+/**
+ * `registry.plugins` was the one field that accumulated. Every other contribution lands in a
+ * `Map`, so registering the same plugin twice replaces its entries; the name list was a
+ * `push`, so it grew. `flagstaff check` and the docs gallery are projections of this list,
+ * and both would have shown the same plugin twice.
+ */
+describe('registering the same plugin twice', () => {
+  const twice = { name: 'dup-probe', glyphs: { dupProbeGlyph: '*' } };
+
+  it('lists the name once, the way every other field already behaves', () => {
+    register(twice);
+    const after = registered().plugins.filter((n) => n === 'dup-probe').length;
+    register(twice);
+    expect(registered().plugins.filter((n) => n === 'dup-probe')).toHaveLength(after);
+    expect(after).toBe(1);
+  });
+});
+
 describe('U3, U4 · register() is the only way into the registry', () => {
   it('a spinner set through registered() never reaches lookupSpinner', () => {
     const snapshot = registered();
