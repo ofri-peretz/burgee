@@ -1,0 +1,170 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Benchmarks
+
+# ─────────────────────────────────────────────────────────────────────────────
+# The four axes of `cli-benchmarks`, on the two cadences the intent sets.
+#
+#   cheap  — B2 cold start, B3 compatibility, B4 weight. Free, deterministic, and
+#            the ones a refactor regresses silently, so they gate every PR.
+#   agent  — B1 agent cost. Costs money and is noisy over short intervals, so it
+#            never runs on a pull request: weekly on the schedule, on every push
+#            to main, and on demand. (An earlier draft of this comment claimed a
+#            `packages/**` paths filter; there is none, and the `if:` on the job
+#            is the whole of the rule.) It needs
+#            CLAUDE_CODE_OAUTH_TOKEN (preferred; no per-token charge) or
+#            ANTHROPIC_API_KEY, and **reports skipped without one** — it never
+#            reports a number it did not measure. On a scheduled run that skips,
+#            it opens an issue, because a weekly benchmark that has never run is
+#            the kind of thing a green tick hides for a year.
+#
+# The perf axis reports absolute milliseconds that are a property of the runner.
+# Nothing gates on them: the gated number is a ratio between two spawns
+# interleaved in the same run. See benchmarks/README.md, and issue #27 for what
+# an absolute ceiling did to two innocent PRs.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "40 5 * * 2"
+  workflow_dispatch:
+
+concurrency:
+  group: bench-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: "1"
+
+jobs:
+  cheap:
+    name: B2 cold start · B3 compatibility · B4 weight
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - name: Build (the axes measure what is built, never what is written)
+        run: npx turbo run build
+      # Before the run, so it compares the committed page against the committed
+      # results rather than against numbers this job is about to produce. The page
+      # has said "Do not edit by hand" since it was written with nothing enforcing
+      # it, which is how a generated file goes stale in silence.
+      - name: The published page is still the one the committed results generate
+        run: npm run bench:page -- --check
+      - name: Run the cheap axes and check every gate
+        shell: bash
+        run: npm run bench -- --axis perf --axis compat --axis weight --check 2>&1 | tee bench.log
+      - name: Summary
+        if: always()
+        run: |
+          { echo '## Benchmarks'; echo; echo '```'; cat bench.log || echo '(no output)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: bench-results
+          path: benchmarks/results/cli-benchmarks/*.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+      # A band with no committed observations is a band that never computes. The Stage 6
+      # watcher reads dated files out of the checkout, so a run that only uploads an
+      # artifact feeds it nothing — which is how the two agent bands sat at 0 of 8 from
+      # the day they were written. Same shape control-bands.yml already uses.
+      - name: Land the day's observations, so the bands have a series to watch
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BODY: "Observations from `npm run bench`, landed so the Stage 6 bands in `.sdlc/bands/control-bands.json` have a series to read. A series that stops updating looks perfectly healthy, which is why these landing is what keeps the bands honest."
+        run: |
+          set -euo pipefail
+          if [ -z "$(git status --porcelain benchmarks/results/)" ]; then
+            echo "Nothing new to record."; exit 0
+          fi
+          # The commit, not just the date: two pushes to main on one day both
+          # produce observations worth landing, and a date-only name makes the
+          # second `git checkout -b` collide with the branch the first one pushed
+          # — which under `set -euo pipefail` reds a job on main for doing exactly
+          # what it was asked to do.
+          BRANCH="chore/bench-series-$(date -u +%Y%m%d)-${GITHUB_SHA::7}"
+          TITLE="chore(benchmarks): record benchmark observations"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add benchmarks/results/
+          git commit -m "$TITLE"
+          git push -u origin "$BRANCH"
+          gh pr create --base main --head "$BRANCH" --label skip-changeset --title "$TITLE" --body "$BODY"
+          gh pr merge --auto --squash "$BRANCH" || true
+
+  agent:
+    name: B1 agent cost (skips loudly without a credential)
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - name: Build
+        run: npx turbo run build
+      - name: Run B1
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        shell: bash
+        # `--check` so the one gated record on this axis can fire. `success-rate`
+        # is a floor on the harness, not on the model: a run where a third of the
+        # task-runs failed still emits tokens and turns medians, taken over
+        # whichever runs survived, and without a gate that lands in a band with
+        # nothing anywhere saying the measurement changed shape. A skip stays
+        # green — it emits no records, so there is no gate to fail.
+        run: npm run bench -- --axis agent --check 2>&1 | tee agent.log
+
+      # The results file is the authority on whether anything was measured, not the
+      # exit code: the axis exits 0 when it skips, on purpose, so a missing credential
+      # is not confused with a broken harness.
+      # `always()`: the run step now carries `--check`, so it can fail on the
+      # success-rate gate — and a gate failure is precisely a run whose status and
+      # reason someone needs to read in the summary.
+      - name: Did it actually measure anything?
+        id: status
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE=$(ls -1 benchmarks/results/agent-cli-bench/*.json | tail -n 1)
+          STATUS=$(node -p "JSON.parse(require('fs').readFileSync('$FILE','utf8')).axes.agent.status")
+          REASON=$(node -p "JSON.parse(require('fs').readFileSync('$FILE','utf8')).axes.agent.reason || ''")
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          echo "reason=$REASON" >> "$GITHUB_OUTPUT"
+          if [ "$STATUS" = "measured" ]; then
+            echo "::notice title=B1 measured::$FILE"
+          else
+            echo "::warning title=B1 SKIPPED — the roadmap's headline claim is still unmeasured::$REASON"
+          fi
+          { echo "## B1 agent cost — **$STATUS**"; echo; [ -n "$REASON" ] && echo "> $REASON"; echo; echo '```'; cat agent.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Say so, on the schedule, where someone will see it
+        if: github.event_name == 'schedule' && steps.status.outputs.status != 'measured'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REASON: ${{ steps.status.outputs.reason }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          TITLE="B1 agent cost has never been measured"
+          EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')
+          BODY=$(printf '%s\n\n> %s\n\nUntil this runs, the roadmap headline — ≥40%% fewer tokens and ≥30%% fewer turns — is a claim with no number behind it, and `npm run bench` reports it as `unmeasured` rather than guessing.\n\n[Run](%s)\n' 'The weekly B1 run skipped.' "$REASON" "$RUN_URL")
+          if [ -n "$EXISTING" ]; then gh issue comment "$EXISTING" --body "$BODY"; else gh issue create --title "$TITLE" --body "$BODY"; fi

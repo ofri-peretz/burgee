@@ -138,3 +138,58 @@ the pay-per-import rule is enforced rather than merely intended.
   variable under test; host comparison is a different question and a different article.
 - Memory and CPU profiling. Neither is a claim we make, and an unclaimed metric in a
   benchmark suite is a metric nobody maintains.
+
+---
+
+## Built 2026-09-09 — what the design says, and what the tree got
+
+Five deviations, each because the design's wording predates something the repo decided
+later or because building it exposed a way the number would have been wrong.
+
+| Design says | Built as | Why |
+| :--- | :--- | :--- |
+| band `cold-start-p95-ms` | band **`cold-start-ratio`** | An absolute millisecond band is a band over which machine picked up the job: bare node is 32 ms here and 34 ms in the competitor map, and a GitHub runner differs by more than the effect being measured. The banded number is the median of *paired* ratios — round *i* of the front-end against round *i* of its host, interleaved — which cancels the machine out. Issue #27 red-lit two innocent PRs on absolute ceilings; this does not repeat it. |
+| band `core-bundled-kb` | band **`core-bundled-bytes`** | A 400-byte regression is invisible once rounded to KB, and catching the accidental kind of growth is the entire job of a ratchet. |
+| `demo-cli-commander` built twice, `LAYER=off` | the burgee demo against the **commander** demo | "The layer" stopped existing on 2026-09-06, when the repo decided to be the engine rather than a layer over commander. The honest off-state is the same program on commander: no `--schema`, no `{ ok, data }`, no provenance, help text on a runtime failure. Both bins already exist and the conformance suite already proves they behave identically where the floor does not apply. |
+| `fixtures/*.ts`, one per entry point | one table, `fixtures/entry-points.ts`, and generated fixture source | Fourteen hand-written fixtures drift: our side ends up importing something slightly different from the incumbent's, and the two columns stop being comparable while still looking fine. `fixtures.test.ts` pins the generated source. |
+| `results/<date>-<model>-<layer>.json` | `results/<suite>/<YYYY-MM-DD>.json` | That is the only shape `scripts/control-bands.ts` reads (`benchmarks/results/<suite>/` and a `^\d{4}-\d{2}-\d{2}\.json$` filename). The model is pinned inside the document instead, which is where a reader looks for it anyway. |
+
+Two additions the design did not ask for:
+
+- **A `claims` block in every results document.** The intent's success criterion — "the
+  claim is either confirmed or rewritten with the measured number; a claim without a
+  number is not acceptable" — cannot be met by a table of records that a reader has to
+  compare against a research file by hand. Each claim names the file that states it, the
+  record that settles it, and the verdict, and `unmeasured` never renders as `false`.
+- **A deterministic gate per record, separate from the band.** A band needs eight
+  observations before it says anything; B2, B3 and B4 gate every PR from the first one.
+  The gate is a bound on the median with a mandatory `why`; the band watches drift below
+  it.
+
+### What the first run found
+
+Measured on an Apple M4 Pro, 14 cores, Node 24.12, at `006fb1b` — full numbers on
+`/docs/benchmarks`, and the cold-start column reproduces the competitor map's §2 table
+(bare node 30–32 vs its 34, commander 47–48 vs 50, yargs 123–129 vs 118) closely enough
+to trust the harness.
+
+Twelve published claims are met. **Three are not**, and none of the three was known:
+
+1. **The engine does not start at or below cac.** 1.37–1.47× across three runs.
+   `replacement-parser` #2 and the scoreboard row both state it as a target; it is not one
+   yet.
+2. **`burgee/commander` bundles 1.50× commander** (58,458 B against 39,084 B). The
+   published targets are written against the incumbent's *installed* size (232 KB) and are
+   comfortably met — but "lighter than what it replaces" is not true of this entry point
+   on the basis a user's bundler cares about. It is true of the other five façades, and a
+   suite that published only those five would be lying by selection.
+3. **Core bundles 3.33× cac** — which is a different claim from "under 52 KB", and that
+   one is met at 34,841 bytes.
+
+And one thing to hand to whoever owns the oracle: `results.json` reports yargs as
+`tests: 803, passed: 804`, because the host's own TAP summary counts a case it skipped on
+this OS as a pass. The rate is computed against `max(reference, tests)` so the arithmetic
+is sound, but the 100% for commander and for yargs each contain one case that could not
+have failed. This axis re-emits the oracle's own number, per constraint 8, and carries
+`passed`, `tests`, `skipped` and `reference` in `detail` so the wrinkle is visible rather
+than smoothed.

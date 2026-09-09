@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "suite": "agent-cli-bench",
+  "measured": "2026-09-09T13:09:41.952Z",
+  "commit": "93af5bdcc86f1f264fb81b2b7755723d72d1e39d",
+  "machine": {
+    "os": "darwin",
+    "release": "25.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M4 Pro",
+    "cores": 14,
+    "memoryGb": 48,
+    "node": "v24.12.0",
+    "ci": false
+  },
+  "axes": {
+    "agent": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    }
+  },
+  "records": [],
+  "bands": {
+    "agent-tokens-per-task": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "agent-turns-per-task": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    }
+  },
+  "claims": {
+    "agent-tokens-40pct": {
+      "claim": "an agent spends at least 40% fewer tokens per task against a CLI that meets the floor",
+      "source": ".sdlc/intents/agent-native-cli-layer/intent.md — the roadmap headline",
+      "target": "<= 0.6",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "agent-turns-30pct": {
+      "claim": "an agent takes at least 30% fewer turns per task against a CLI that meets the floor",
+      "source": ".sdlc/intents/agent-native-cli-layer/intent.md — the roadmap headline",
+      "target": "<= 0.7",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    }
+  }
+}

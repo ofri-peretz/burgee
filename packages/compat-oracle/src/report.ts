@@ -133,13 +133,52 @@ function vendorAll(hosts: Host[], write: Write): void {
   else rmSync(VENDOR_DIFF, { force: true });
 }
 
-function verdict(grades: Grade[], baseline: Baseline, write: Write, control = false): number {
+/** What a host is allowed to fail against its own package, and nothing more. */
+const allowedFailures = (host: string): number => HOSTS.find((h) => h.name === host)?.controlFailures?.count ?? 0;
+
+/**
+ * The control proves the gate (`compat-oracle/intent.md`, criterion 3), so the bar is that
+ * the host's own suite *passes* against the host's own package — not merely that something
+ * registered. `passed === 0` was the whole test until 2026-09-09, and it let a control at
+ * **15 / 16, 93.8%** exit 0: a vendored suite required a package the oracle does not
+ * install, one file failed to load, and the gate said nothing. A known-good implementation
+ * below its own reference is now red.
+ *
+ * The allowance is per host, declared in `hosts.ts` with its reason, because real yargs
+ * legitimately fails 2 of its own 804 from inside a vendored copy.
+ */
+function controlFell(grades: Grade[]): Grade[] {
+  return grades.filter((g) => g.error === undefined && controlShortfall(g) !== undefined);
+}
+
+/**
+ * Why a control run is red, or nothing.
+ *
+ * Failing a case and never running it are the same hole seen from two sides, and it was
+ * the second side that shipped here: four files under `test/issues/` were vendored,
+ * committed, and graded by nobody, because the walk that found them was not recursive.
+ * Every count stayed green — a case that never registers fails nothing. So a control that
+ * registers fewer cases than the reference it set is as red as one that fails them.
+ */
+function controlShortfall(g: Grade): string | undefined {
+  if (g.passed === 0) return 'nothing passed against its own package';
+  if (g.failed > allowedFailures(g.host)) return `${String(g.failed)} failing against its own package (${String(allowedFailures(g.host))} allowed)`;
+  // `+ skipped`, because a case that registered and skipped itself is accounted for and a
+  // case that never registered is not. Both commander and yargs skip one OS-specific test
+  // on Linux and none on the machine that set the reference; without this the control is
+  // red on ubuntu for doing exactly what it should.
+  const registered = g.tests + g.skipped;
+  if (g.reference > 0 && registered < g.reference) return `${String(registered)} of its own ${String(g.reference)} cases registered — the rest stopped running`;
+  return undefined;
+}
+
+export function verdict(grades: Grade[], baseline: Baseline, write: Write, control = false): number {
   const broken = grades.filter((g) => g.error !== undefined);
-  // The control proves the gate: its suite must run and pass against its own package. It
-  // is not measured against burgee's baseline — real yargs scores 802 where burgee scores
-  // 804 (its own version lookup from inside node_modules), and that is not a regression.
-  const fell = control ? grades.filter((g) => g.passed === 0) : grades.filter((g) => regressed(g, baseline));
-  for (const g of fell) write(`\n✖ ${g.host}: ${g.passed} passing, baseline was ${baseline[g.host]?.passed ?? 0}\n`);
+  const fell = control ? controlFell(grades) : grades.filter((g) => regressed(g, baseline));
+  for (const g of fell) {
+    if (control) write(`\n✖ ${g.host}: ${controlShortfall(g) ?? ''} — the control proves the gate, so it has to pass\n`);
+    else write(`\n✖ ${g.host}: ${g.passed} passing, baseline was ${baseline[g.host]?.passed ?? 0}\n`);
+  }
   if (broken.length > 0) write(`\n✖ ${broken.length} host(s) could not be graded\n`);
   return fell.length + broken.length > 0 ? 1 : 0;
 }

@@ -1,12 +1,15 @@
 {
   "command": "npx tsx scripts/control-bands.ts --record",
-  "$comment": "Stage 6 control bands — see AI_NATIVE_SDLC.md and .sdlc/intents/sdlc-locks-evals-bands/. A band is a metric with a stable baseline, watched by scripts/control-bands.ts. Detection is deterministic; no model decides a breach. Add a band only for a metric whose baseline is genuinely stable.",
+  "$comment": "Stage 6 control bands \u2014 see AI_NATIVE_SDLC.md and .sdlc/intents/sdlc-locks-evals-bands/. A band is a metric with a stable baseline, watched by scripts/control-bands.ts. Detection is deterministic; no model decides a breach. Add a band only for a metric whose baseline is genuinely stable. Bands with the `benchmark-json` collector are produced by `npm run bench` (benchmarks/bands.ts is the registry, and benchmarks/bands.test.ts fails when the two files disagree) \u2014 a band here that nothing emits reports \"band not computed yet\" forever, which reads exactly like a healthy young band.",
   "bands": [
     {
       "id": "test-duration-ms",
       "description": "Wall-clock of `npm test` (root locks + package suites), in ms",
       "collector": "command-duration",
-      "command": ["npm", "test"],
+      "command": [
+        "npm",
+        "test"
+      ],
       "window": 20,
       "minPoints": 8,
       "worse": "higher"
@@ -31,20 +34,120 @@
     },
     {
       "id": "agent-tokens-per-task",
-      "description": "Median tokens an agent spends per benchmark task on the layered demo (intent agent-cli-bench)",
+      "description": "B1 \u2014 median tokens an agent spends per benchmark task on the floor-meeting demo (`npm run bench -- --axis agent`). Needs CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY; without one the axis reports skipped and this band is fed nothing, deliberately.",
       "collector": "benchmark-json",
       "suite": "agent-cli-bench",
-      "jsonPath": "median.tokens",
+      "jsonPath": "bands.agent-tokens-per-task.value",
       "window": 20,
       "minPoints": 8,
       "worse": "higher"
     },
     {
       "id": "agent-turns-per-task",
-      "description": "Median tool calls an agent spends per benchmark task on the layered demo (intent agent-cli-bench)",
+      "description": "B1 \u2014 median turns (`num_turns`) an agent spends per benchmark task on the floor-meeting demo. Skipped without a credential, exactly as the tokens band is.",
       "collector": "benchmark-json",
       "suite": "agent-cli-bench",
-      "jsonPath": "median.turns",
+      "jsonPath": "bands.agent-turns-per-task.value",
+      "window": 20,
+      "minPoints": 8,
+      "worse": "higher"
+    },
+    {
+      "id": "cold-start-ratio",
+      "description": "B2 \u2014 cold start of `burgee/commander` over cold start of commander itself, median of paired spawns interleaved in one run. A ratio rather than a duration: absolute ms is a property of the runner, and a band over it would be a band over which machine picked up the job.",
+      "collector": "benchmark-json",
+      "suite": "cli-benchmarks",
+      "jsonPath": "bands.cold-start-ratio.value",
+      "window": 20,
+      "minPoints": 8,
+      "worse": "higher"
+    },
+    {
+      "id": "compat-commander-pass-rate",
+      "description": "B3 \u2014 commander's own test suite against our entry point, as graded by compat-oracle and never recomputed here. It sits at 1.0, so the statistical rules stay quiet (a flat series has no sigma); the series exists so a drop is visible over time, and the deterministic gate in `npm run bench -- --check` is what fails the PR that causes one.",
+      "collector": "benchmark-json",
+      "suite": "cli-benchmarks",
+      "jsonPath": "bands.compat-commander-pass-rate.value",
+      "window": 20,
+      "minPoints": 8,
+      "worse": "lower"
+    },
+    {
+      "id": "compat-yargs-pass-rate",
+      "description": "B3 \u2014 yargs's own test suite against our entry point, as graded by compat-oracle and never recomputed here. It sits at 1.0, so the statistical rules stay quiet (a flat series has no sigma); the series exists so a drop is visible over time, and the deterministic gate in `npm run bench -- --check` is what fails the PR that causes one.",
+      "collector": "benchmark-json",
+      "suite": "cli-benchmarks",
+      "jsonPath": "bands.compat-yargs-pass-rate.value",
+      "window": 20,
+      "minPoints": 8,
+      "worse": "lower"
+    },
+    {
+      "id": "compat-chalk-pass-rate",
+      "description": "B3 \u2014 chalk's own test suite against our entry point, as graded by compat-oracle and never recomputed here. It sits at 1.0, so the statistical rules stay quiet (a flat series has no sigma); the series exists so a drop is visible over time, and the deterministic gate in `npm run bench -- --check` is what fails the PR that causes one.",
+      "collector": "benchmark-json",
+      "suite": "cli-benchmarks",
+      "jsonPath": "bands.compat-chalk-pass-rate.value",
+      "window": 20,
+      "minPoints": 8,
+      "worse": "lower"
+    },
+    {
+      "id": "compat-ora-pass-rate",
+      "description": "B3 \u2014 ora's own test suite against our entry point, as graded by compat-oracle and never recomputed here. It sits at 1.0, so the statistical rules stay quiet (a flat series has no sigma); the series exists so a drop is visible over time, and the deterministic gate in `npm run bench -- --check` is what fails the PR that causes one.",
+      "collector": "benchmark-json",
+      "suite": "cli-benchmarks",
+      "jsonPath": "bands.compat-ora-pass-rate.value",
+      "window": 20,
+      "minPoints": 8,
+      "worse": "lower"
+    },
+    {
+      "id": "compat-log-update-pass-rate",
+      "description": "B3 \u2014 log-update's own test suite against our entry point, as graded by compat-oracle and never recomputed here. It sits at 1.0, so the statistical rules stay quiet (a flat series has no sigma); the series exists so a drop is visible over time, and the deterministic gate in `npm run bench -- --check` is what fails the PR that causes one.",
+      "collector": "benchmark-json",
+      "suite": "cli-benchmarks",
+      "jsonPath": "bands.compat-log-update-pass-rate.value",
+      "window": 20,
+      "minPoints": 8,
+      "worse": "lower"
+    },
+    {
+      "id": "compat-boxen-pass-rate",
+      "description": "B3 \u2014 boxen's own test suite against our entry point, as graded by compat-oracle and never recomputed here. It sits at 1.0, so the statistical rules stay quiet (a flat series has no sigma); the series exists so a drop is visible over time, and the deterministic gate in `npm run bench -- --check` is what fails the PR that causes one.",
+      "collector": "benchmark-json",
+      "suite": "cli-benchmarks",
+      "jsonPath": "bands.compat-boxen-pass-rate.value",
+      "window": 20,
+      "minPoints": 8,
+      "worse": "lower"
+    },
+    {
+      "id": "core-bundled-bytes",
+      "description": "B4 \u2014 bytes a user's bundle grows by for `import 'burgee'`, esbuild-minified over a one-import fixture. Bytes rather than KB: a 400-byte regression is invisible once rounded, and this ratchet exists to catch exactly the accidental kind of growth.",
+      "collector": "benchmark-json",
+      "suite": "cli-benchmarks",
+      "jsonPath": "bands.core-bundled-bytes.value",
+      "window": 20,
+      "minPoints": 8,
+      "worse": "higher"
+    },
+    {
+      "id": "commander-front-end-bundled-bytes",
+      "description": "B4 \u2014 the same measurement for `burgee/commander`, the front-end that replaces commander.",
+      "collector": "benchmark-json",
+      "suite": "cli-benchmarks",
+      "jsonPath": "bands.commander-front-end-bundled-bytes.value",
+      "window": 20,
+      "minPoints": 8,
+      "worse": "higher"
+    },
+    {
+      "id": "yargs-front-end-bundled-bytes",
+      "description": "B4 \u2014 the same measurement for `burgee/yargs`, the front-end that replaces yargs.",
+      "collector": "benchmark-json",
+      "suite": "cli-benchmarks",
+      "jsonPath": "bands.yargs-front-end-bundled-bytes.value",
       "window": 20,
       "minPoints": 8,
       "worse": "higher"
