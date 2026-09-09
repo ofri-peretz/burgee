@@ -46,6 +46,24 @@ export const PAIRS: readonly EntryPair[] = [
     why: 'the colour façade against chalk',
   },
   {
+    // The roadmap's second bet — "roundel ships at 0.1 under picocolors' weight" — and the
+    // only headline comparison with no measured pair here. Everything else on this list got
+    // one; the bet the plan rests on was carried by a budget of 3,300 in roundel's own
+    // weight lock, described in its comment as "the ceiling is picocolors: 3.3 KB". That is
+    // the rounded prose figure, not a measurement of picocolors, and it is loose enough that
+    // roundel could pass its own lock while being heavier than the package it is named
+    // against.
+    //
+    // Not a drop-in pair: `roundel/tokens` is semantic (`error`, `ok`, `heading`) where
+    // picocolors is `red`, `green`, and they share no symbol. picocolors is the *weight bar*
+    // the bet names, not a package roundel replaces — so each side is entered by its own
+    // entry point and the ratio is what a program pays for colour on each.
+    id: 'roundel/tokens',
+    ours: { specifier: 'roundel/tokens', symbol: 'error' },
+    incumbent: { specifier: 'picocolors', symbol: DEFAULT_EXPORT },
+    why: "the roadmap's second bet: colour under picocolors' weight",
+  },
+  {
     id: 'flagstaff/ora',
     ours: { specifier: 'flagstaff/ora', symbol: DEFAULT_EXPORT },
     incumbent: { specifier: 'ora', symbol: DEFAULT_EXPORT },
