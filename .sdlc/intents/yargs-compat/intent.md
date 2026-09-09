@@ -50,6 +50,25 @@ The bill for this host, counted rather than estimated: **108 public methods**,
    producing byte-identical stdout for every conformance case.
 4. B4 shows the ceiling in constraint 2 met.
 
+## Verified against `main` — 2026-09-09
+
+Checked criterion by criterion on `61bd11b9`. **Three of four met.** The status stays `review`.
+
+- **A pass rate published in CI, on the docs site, and in the control bands** — two of three, the
+  same gap as `commander-compat`. The docs page serves **804 / 804 · 100.0%** for `burgee/yargs`
+  beside the real-yargs control at **802 / 804 · 99.8%**. No compat band exists in
+  `.sdlc/bands/control-bands.json`.
+- **Every divergence is a failing upstream test with a recorded reason** — met, vacuously:
+  `results.json` reads `passed: 804, failed: 0, skipped: 1`, internals 23 / 23. There is nothing
+  to record, and `design.md:14` records X4.
+- **`examples/demo-cli-yargs` byte-identical against both** — **met.** 26 cases in
+  `examples/conformance/src/yargs-parity.test.ts`; `hosts.ts` swaps only the factory.
+- **B4 shows the ceiling met** — met. `./yargs` measures **216,594 B** against the 256,000 B
+  budget the criterion itself names, in `weight.test.ts:124`.
+
+Beating the real package on its own suite — 804 against 802 — is the strongest single number in
+the repo, and it is published. The one thing between this intent and `shipped` is a band.
+
 ## Open questions
 
 None open. Decided at finalisation (2026-09-06): grade against the vendored upstream

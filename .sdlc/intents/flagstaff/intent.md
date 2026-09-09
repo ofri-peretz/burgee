@@ -100,6 +100,45 @@ export default {
 - A plugin registered once appears in help (theme), in a prompt's spinner, and as events
   under `--json` — one conformance case per surface.
 
+## Verified against `main` — 2026-09-09
+
+Checked criterion by criterion on `61bd11b9`. **One of eight fully met.** The status stays
+`approved` — the owner's Design→Build gate of 2026-09-08 — and that is all it claims. Most of
+the behaviour these criteria describe does exist and is tested; what fails is that four of them
+name a home the work does not live in, and three name an artifact that does not exist.
+
+- **Five plugin conformance cases on the demo** — not met where the criterion puts them. No
+  `examples/demo-cli-*` imports flagstaff. All five behaviours are asserted as package unit
+  tests: `src/loop.test.ts` "R1 · one component, five modes" and `src/plugin.test.ts` "R2 · a
+  contribution without a static projection is refused".
+- **A deterministic spinner snapshot in `burgee/testing`, 20 runs** — not met at that address.
+  `packages/burgee/src/testing.ts` carries no spinner surface. The 20-run determinism test is
+  real but lives at `src/loop.test.ts:122` — "the tty transcript is the same bytes twenty runs
+  over" — and runs in `quality-full.yml`, not on every PR.
+- **A piped demo run carries no carriage return** — the same displacement.
+  `src/loop.test.ts:117` asserts no ESC and no CR across pipe, ci, json and accessible, and
+  `src/shape.test.ts:59` asserts it on a real piped run of the installed tarball. Neither is
+  a demo CLI.
+- **The built-in spinner registered through the public `register()` and nothing else** —
+  **met.** `src/plugin.test.ts` "R3 · the built-ins are a plugin like any other" and "U3, U4 ·
+  `register()` is the only way into the registry".
+- **The spinner subpath at or under ora's import cost, on `/benchmarks`** — not met. The bytes
+  hold — `flagstaff/spinner` 12,418 B; `flagstaff/ora` + `roundel/chalk` 56,127 B against ora
+  9.4.1's 113,577 B over 17 packages — but `/benchmarks` is 404, so nothing is published.
+- **ora's, boxen's, cli-table3's and log-update's suites graded; four rates on the scoreboard**
+  — three of four. ora 99 / 99, log-update 99 / 99, boxen 84 / 84, each with its control
+  (2026-09-09). cli-table3 has no vendor directory on `main` and is blocked by a recorded
+  decision. Separately, `apps/docs/content/docs/compatibility.mdx` is stale: it still lists
+  boxen as *planned* and carries no boxen row, though `results.json` records 84 / 84.
+- **The U9 eval, one turn, weekly** — stale in its wording and unmet in fact. The criterion says
+  `burgee plugin check`; the command shipped as `flagstaff check` (`burgee plugin check` returns
+  `error: unknown command "plugin"`), and the eval case already invokes the shipped name. Unmet
+  because layer 2 skips for lack of a credential in every run, and no scheduled run has fired.
+- **One plugin visible in help, in a prompt's spinner, and as `--json` events** — not met, and
+  currently unbuildable: `caique` has no plugin or widget surface (its exports are `.`, `./ask`,
+  `./binding`, `./decide`, `./raw`, `./spec`, `./terminal`), so "a prompt's spinner" has nowhere
+  to land.
+
 ## Open questions
 
 - **Plugin discovery.** Explicit `register()` only, or also a `burgee.plugins` field in

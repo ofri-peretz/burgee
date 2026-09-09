@@ -138,6 +138,45 @@ Concretely, once this lands:
 - Zero prompts, spinners or ANSI in captured output when `stdout` is not a TTY —
   pinned by a test that runs the CLI through a pipe.
 
+## Verified against `main` — 2026-09-09
+
+Checked criterion by criterion on `61bd11b9`. **One of five met, one half met.** The status
+stays `review`: this is the umbrella, its criteria are the family's acceptance bar, and two of
+them have no implementation of any size behind them.
+
+- **`--schema | jq` returns the full command tree, with a lock pinning the JSON shape** —
+  **met.** `node examples/demo-cli-burgee/dist/bin.js --schema | jq` returns `schemaVersion: 1`
+  with the full tree; `packages/burgee/src/schema.test.ts` pins the shape with five assertion
+  cases rather than a snapshot.
+- **An agent benchmark showing ≥40% fewer tokens and ≥30% fewer turns, becoming a control
+  band** — **not met, and nothing exists to make it smaller.** There is no `benchmarks/`
+  directory, no `agent-cli-bench` suite and no `bench` script. The two bands are declared in
+  `.sdlc/bands/control-bands.json` (`agent-tokens-per-task`, `agent-turns-per-task`,
+  `minPoints: 8`) with **zero observations**. This is the headline claim of the whole roadmap
+  and it has never been measured once.
+- **`eslint-plugin-cli-floor` ships ≥10 rules, each with fixtures, flagging ≥1 real finding on
+  three internal CLIs** — **not met.** The only thing named `cli-floor` in this repo is the
+  intent directory. No package, no rules, and a 404 on npm.
+- **≥9 Interlace plugins with zero disabled rules in the runtime packages** — **half met.**
+  Eleven Interlace plugins are wired in `eslint.config.mjs`, so the first half holds. The second
+  does not: roughly thirteen override blocks switch rules `off` for runtime source, including
+  `packages/burgee/src/config.ts` (seven rules), `mcp.ts`, `manifest.ts`, `runtime.ts`, `cli.ts`,
+  `execute.ts`, `help.ts`, `schema.ts`, `yargs-parser.ts`, `yargs-utils.ts`, and
+  `packages/flagstaff/src/cli.ts` and `plugin.ts`.
+- **Zero prompts, spinners or ANSI in non-TTY output, pinned by a pipe test** — the behaviour
+  holds, the pin does not. Measured: a piped `--help` from `demo-cli-burgee` contains **zero**
+  ESC bytes. But no burgee-side test asserts their absence — `packages/burgee/src/shape.test.ts`
+  pipes and would only break on ANSI incidentally, through `JSON.parse`. The explicit pins live
+  a layer down, in `roundel/src/shape.test.ts:70` and `flagstaff/src/log-update.test.ts:74`,
+  neither of which is a CLI on the layer.
+
+**One recorded decision in this file is now contradicted by shipped code.** The open-questions
+section states the agent-detection contract as `!isTTY(stdout) || CI || --json || --schema`,
+with "**No process or `CLAUDECODE` sniffing**". `packages/burgee/src/agent.ts` probes
+`AI_AGENT`, `CLAUDECODE`, `CURSOR_AGENT`, `CODEX_THREAD_ID` and `GEMINI_CLI` — that is N12,
+added later by `commander-env`, and it reverses this decision. The reversal should be recorded
+here rather than left as a contradiction between an intent and the code it governs.
+
 ## Open questions
 
 - ~~**Package names.**~~ Decided 2026-09-05: public packages are **host-branded

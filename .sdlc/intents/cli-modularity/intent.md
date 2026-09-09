@@ -3,7 +3,8 @@
 > Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md).
 > Research §8 (modularity); commander #2505 (plugin API RFC). Proposes floor additions M1–M6.
 
-**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz · **Shipped:** 2026-09-09 on
+[`8ad4d4abb5`](https://github.com/ofri-peretz/burgee/commit/8ad4d4abb5), verified against `main` at `61bd11b9` — all three criteria locked by `examples/conformance/src/modularity.test.ts`
 
 ---
 
@@ -61,6 +62,38 @@ The things a 250-command CLI needs (yargs #1005) and neither host provides as a 
 - A plugin adding two commands appears in `--schema` with `plugin: '<name>'`.
 - `deprecateCommand('old', { use: 'new' })` shows in help, schema and prints one warning
   line to stderr on use, exit `OK`.
+
+## Verified against `main` — 2026-09-09
+
+**Status raised from `review` to `shipped`.** All three criteria are demonstrably met on `main`
+and each is held by a passing lock in `examples/conformance/src/modularity.test.ts`, inside the
+122-test conformance run. Two wordings drifted from the API that shipped; neither changes what
+was verified, and both are recorded below rather than quietly reinterpreted.
+
+- **A demo with 30 commands across 5 groups and 3 lazy modules; `--schema` complete without
+  importing any handler module, proven by a module-load spy; `--help` grouped; dispatch loading
+  exactly one module** — **met.** `node examples/demo-cli-large/dist/bin.js --schema` emits
+  **33** commands — 27 eager across five groups (`Repository:` 6, `Packages:` 6,
+  `Environments:` 5, `Reports:` 8, `Maintenance:` 8), plus 3 lazy modules (`inspect`, `sync`,
+  `purge`), the deprecated `clean`, and 2 contributed by the `audit` plugin. The spy is
+  `examples/demo-cli-large/src/cmds/loads.ts`; the suite asserts `loads()` is `[]` after both
+  `--help` and `--schema`, `['sync']` after one dispatch, still `['sync']` after a second, and
+  `[]` after a usage error. *Drift:* the criterion says 30 and the manifest projects 33 — 30
+  describes the declared program before the plugin, the deprecation alias and the lazy set are
+  counted. The suite itself asserts `toHaveLength(33)`.
+- **A plugin adding two commands appears in `--schema` with `plugin: '<name>'`** — **met.**
+  `audit` and `audit-fix` both carry `"plugin": "audit"` in the emitted schema, asserted directly.
+- **`deprecateCommand('old', { use: 'new' })` shows in help and schema and prints one warning
+  line to stderr on use, exiting `OK`** — **met in behaviour.** stderr is exactly
+  `warning: 'clean' is deprecated, use 'purge'` on the first run and empty on the second, exit
+  code 0, `deprecated: "purge"` in the schema, `(deprecated: use purge)` in help. *Drift:* there
+  is no `deprecateCommand()` function — the shipped API is a `deprecated:` field on
+  `defineCommand`, which was never renamed here.
+
+**Note on the gate.** This intent goes from `review` straight to `shipped` without passing
+through `approved`, because no owner approval was ever recorded for it while the work was built —
+the drift the README's [Status drift, stated](../README.md#status-drift-stated) section already
+admits to. The evidence is the lock, not the gate.
 
 ## Open questions
 

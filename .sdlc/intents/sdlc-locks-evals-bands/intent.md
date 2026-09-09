@@ -4,7 +4,8 @@
 > constraint 5: "AI-native SDLC from day one — `.sdlc/intents/` with the lock, `evals/`
 > layer 1, control bands with at least one band computing before v1."
 
-**Status:** shipped · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz · **Corrected from
+`shipped` 2026-09-09** — the locks shipped, the bands did not; see [Verified against `main`](#verified-against-main--2026-09-09)
 
 > Approved 2026-09-06 by @ofri-peretz in session ("You have everything on eslint repo,
 > why can't you copy it") — the copy-from-eslint intent, built the same day.
@@ -68,6 +69,36 @@ The three mechanisms `eslint/` has and this repo only promises:
   runs the first 2σ evaluation is real, not "insufficient points".
 - A simulated breach in a unit test produces an `intent.md` that itself passes the
   intent lock.
+
+## Verified against `main` — 2026-09-09
+
+**Status corrected from `shipped` to `review`.** Two of four criteria met. The locks are real and
+were mutation-tested for this pass; the *bands* half of this intent has produced nothing.
+
+- **Renaming `## Why now` turns `npm test` red; `approved` with no `design.md` turns it red** —
+  **met**, and proven rather than assumed. On a scratch copy of `.sdlc/` plus the lock test,
+  renaming `## Why now` to `## Rationale` in one intent produced `1 failed | 36 passed` with
+  `AssertionError: … lacks ## Why now`; setting the one design-less intent to `approved` produced
+  `is "approved" but has no design.md`. A stray `intent.md` outside `.sdlc/intents/` fails too.
+- **A broken relative link in `.sdlc/intents/README.md` fails the evals job** — **not met.**
+  `scripts/run-evals.ts` scans `README.md`, `CLAUDE.md`, `AGENTS.md` and the directories `docs`,
+  `.github`, `.sdlc/bands`, `apps/docs/content` — 14 files, **none of them under
+  `.sdlc/intents/`**. `evals.yml`'s `paths:` filter says the same. The roadmap this repo hands
+  work off through is the one document the link checker does not read.
+- **`control-bands.yml` runs weekly recording four observations, and after eight runs the first
+  2σ evaluation is real** — **not met, three ways.** The workflow is scheduled (`10 5 * * 1`) and
+  **has never run** — `gh run list --workflow=control-bands.yml` is empty. The history file holds
+  two hand-recorded dates. Each run collects **three** observations, not four, because the two
+  `benchmark-json` bands (`agent-tokens-per-task`, `agent-turns-per-task`) read a
+  `benchmarks/results/` directory that does not exist and stand at **0 of 8** points. Every band
+  reports "band not computed yet".
+- **A simulated breach produces an `intent.md` that itself passes the intent lock** — **met.**
+  `scripts/control-bands.test.ts`, `describe('the intent a breach writes')`, renders through
+  `renderIntent` and asserts every section the lock enforces. Green inside the 150 root tests.
+
+The honest summary: **the locks shipped, the bands did not.** Stage 6 cannot close a loop on a
+metric that has never been recorded, and three of the five declared bands have never had a
+collector that could run.
 
 ## Open questions
 

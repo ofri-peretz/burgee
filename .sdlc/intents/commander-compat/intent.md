@@ -51,6 +51,31 @@ The bill for this host, counted rather than estimated: **151 public methods**,
    producing byte-identical stdout for every conformance case.
 4. B4 shows the ceiling in constraint 2 met.
 
+## Verified against `main` — 2026-09-09
+
+Checked criterion by criterion on `61bd11b9`. **Two of four met cleanly.** The status stays
+`review` — and this is one of the two intents closest to `shipped` in the whole roadmap.
+
+- **A pass rate published in CI, on the docs site, and in the control bands** — two of three.
+  CI writes the table to `$GITHUB_STEP_SUMMARY` and uploads `results.json`; the docs site serves
+  **1360 / 1360 · 100.0%** at <https://burgee.interlace.tools/docs/compatibility>. **The control
+  bands do not carry it**: `.sdlc/bands/control-bands.json` has five bands and none of them is a
+  pass rate. The command in the criterion, `COMPAT_TARGET=selvage/commander npm run compat`, is
+  stale twice over — the name and the mechanism.
+- **Every divergence in `excluded.json` with a reason and an asserting test** — **stale, and
+  vacuous either way.** No `excluded.json` exists; the mechanism is now the ratchet in
+  `packages/compat-oracle/baseline.json` plus design rule X4, "none may be excluded". Nothing to
+  record: `results.json` reads `passed: 1360, failed: 0, skipped: 1`.
+- **`examples/demo-cli-commander` byte-identical against both** — **met.** 29 cases in
+  `examples/conformance/src/commander-parity.test.ts`, asserting `{code, stdout, stderr}`
+  equality; all pass.
+- **B4 shows the ceiling met** — met as a lock. `./commander` measures **104,593 B** against the
+  232 KB commander ceiling, budgeted at 128,000 B in `weight.test.ts:117`.
+
+**One band would close this intent.** A collector reading `packages/compat-oracle/results.json`
+into a `compat-commander-pass-rate` band is the only substantive gap; the other two open items
+are wording that predates the consolidation into one package.
+
 ## Open questions
 
 None open. Decided at finalisation (2026-09-06): grade against the vendored upstream

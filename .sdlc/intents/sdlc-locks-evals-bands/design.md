@@ -1,6 +1,6 @@
 # Design — Every SDLC stage loaded in this repo
 
-Intent: [`intent.md`](./intent.md). **Status:** shipped.
+Intent: [`intent.md`](./intent.md). **Status:** review — corrected from `shipped` 2026-09-09; the locks shipped, the bands did not.
 
 ---
 
