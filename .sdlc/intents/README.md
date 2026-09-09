@@ -23,18 +23,29 @@ the reasoning; this is the state.
 
 | | |
 | :-- | :-- |
-| **Published** | `burgee@0.3.0`. `roundel`, `flagstaff`, `caique`, `linegauge`, `seniority`, `bellpull`, `closeout` all at `0.0.1` — reservations and partials, not releases |
-| **Scoreboard** | commander **1,361 / 1,361**, yargs **804 / 804**, both against the hosts' own suites in full. **Not public** — `.sdlc/bands/scoreboard-public.json` is still `null` |
+| **Published** | The output stack is public. `burgee@0.3.0`, `roundel@0.1.0`, `flagstaff@0.1.0`, `caique@0.1.0` — all four with SLSA provenance over npm Trusted Publishing, and zero external dependencies (flagstaff's one dependency is roundel). The foundation four — `linegauge`, `seniority`, `bellpull`, `closeout` — are still `0.0.1` reservations |
+| **Scoreboard** | **Public**, at [burgee.interlace.tools/docs/compatibility](https://burgee.interlace.tools/docs/compatibility), generated from the oracle and checked against it on every Ratchet run. Seven hosts at 100%: commander **1,360 / 1,360**, yargs **804 / 804**, chalk 58, ora 99, log-update 99, boxen 84, cli-table3 29 |
 | **Waves done** | 0, 3 ✅ · 1, 2, 4 in flight 🔨 · 5 conditional |
-| **Intent states** | 14 `shipped` · 8 `review` · 3 `approved` · 9 `draft` · 2 `dropped`, assigned from evidence 2026-09-09 |
-| **The blocking gate** | `docs-deploy`. Nothing in the output stack or the foundation publishes a working release until that page is live, so **the single highest-value next action is deploying it** |
-| **Bets standing** | scoreboard public ❌ · roundel under picocolors ❌ (0.0.1 is partial) · one external adopter ❌ |
+| **Intent states** | 11 `shipped` · 13 `review` · 3 `approved` · 10 `draft` · 2 `dropped`, counted 2026-09-09 |
+| **The blocking gate** | `first-adopter`. `docs-deploy` is done and the scoreboard is live, so the gate that remains is the one bet with no mechanism behind it yet |
+| **Bets standing** | scoreboard public ✅ · roundel under picocolors ✅ (**0.162** bundled, measured) · one external adopter ❌ |
 | **Nothing has been killed yet** | every kill criterion below is still unevaluated, because each fires at a wave end that has not arrived |
 
-**If you are picking up work now**: the three bets in *The minimum that proves the play* are
-all still open, and none of them is a package. The roadmap's own risk table says a layer
-earns no users until it works — so the ordering pressure is on `docs-deploy` and
-`first-adopter`, not on the next package.
+**If you are picking up work now**: two of the three bets in *The minimum that proves the
+play* landed on 2026-09-09; the third has not, and it is the only one that needs somebody
+outside this repository. The roadmap's own risk table says a layer earns no users until it
+works — it now works and is published, so the ordering pressure is entirely on
+`first-adopter`.
+
+Two things are true and not yet written into an intent:
+
+- **Only `burgee.interlace.tools` serves a site.** `roundel`, `flagstaff` and `caique`
+  answer `404`. That was tolerable while they were `0.0.1` reservations and is not now that
+  they are released packages somebody might look up. `docs-per-package` is the intent and it
+  is still `draft`.
+- **The competitor watch has never run in its widened form.** It runs daily at 06:17 UTC and
+  succeeded on 09-08 and 09-09, but both of those predate the twenty-one-competitor version
+  landing. Its first real run is 2026-09-10.
 
 ## The roadmap in one paragraph
 
@@ -76,14 +87,24 @@ separate decision with a price on it, never a feature of the family.
 Thirty-two intents is a map, not a bet. The bet is three things. If they land, everything
 else on this page is justified; if they do not, nothing else on it should be built first.
 
-1. **The commander scoreboard is public** — the compatibility page deployed, the number
-   ratcheting on every PR, the release watch opening issues on upstream releases.
-2. **roundel ships at 0.1 under picocolors' weight**, with `roundel/chalk` graded by chalk's
+1. ✅ **The commander scoreboard is public** — the compatibility page deployed, the number
+   ratcheting on every PR, the release watch opening issues on upstream releases. Landed
+   2026-09-09: the page is live and generated from the oracle, `compat-page.ts --check`
+   refuses a page that has drifted from the measurement, and the watch runs daily. Its
+   twenty-one-competitor form first runs 2026-09-10.
+2. ✅ **roundel ships at 0.1 under picocolors' weight**, with `roundel/chalk` graded by chalk's
    suite — the first proof that a layer can be independent, lighter, and compatible at once.
-3. **One external adopter**, a CLI we did not write, migrated by one import and measured on
+   Landed 2026-09-09: `roundel@0.1.0` published with provenance, `roundel/chalk` at 58 / 58,
+   and `roundel/tokens ÷ picocolors` measured at **0.162** bundled — 415 B against 2,557.
+   Until that pair existed the weight half of this bet rested on a `3_300` budget commented
+   *"the ceiling is picocolors: 3.3 KB"*, which is a rounded figure and not a measurement of
+   picocolors; it is now the one thing on this list every other façade already had.
+3. ❌ **One external adopter**, a CLI we did not write, migrated by one import and measured on
    the caller matrix.
 
 Everything below those three is conditional on them, and the kill criteria fire on them.
+Two are met; **the third is the whole of what is left**, and it is the only one that cannot
+be closed from inside this repository.
 
 ## Why the three bets can win — precedents and mechanisms
 
