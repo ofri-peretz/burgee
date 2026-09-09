@@ -44,6 +44,7 @@
     "compat": "npm run build -w compat-oracle && node packages/compat-oracle/dist/bin.js",
     "compat:page": "tsx scripts/compat-page.ts",
     "gallery:page": "tsx scripts/gallery-page.ts",
+    "schema:sync": "node scripts/schema-sync.mjs",
     "check:artifacts": "tsx scripts/check-published-artifacts.ts"
   },
   "devDependencies": {

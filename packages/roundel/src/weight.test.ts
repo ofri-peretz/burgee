@@ -18,7 +18,7 @@ const pkgRoot = fileURLToPath(new URL('..', import.meta.url));
 const dist = resolve(pkgRoot, 'dist');
 
 interface Manifest {
-  exports: Record<string, { import: string }>;
+  exports: Record<string, { import: string } | string>;
 }
 
 // Read rather than import: the published entry list is data here, and a JSON import
@@ -56,6 +56,11 @@ const RULES: Record<string, EntryRule> = {
   // theme reaches it. Measured 6,271 B; the ceiling is the next hundred above that. The
   // theme is the one entry with no incumbent to be measured against, so it is the one that
   // moves — `./tokens` (picocolors) and `./chalk` (chalk) did not.
+  // The plugin host. Its only import is a type, erased, so it reaches *nothing* — the file
+  // that lets a third party ship a theme is a leaf. Measured 2,812 B on 2026-09-08, most of
+  // it the refusal messages: a plugin that cannot contribute is told which token it misspelt
+  // and what the nine are, which is worth more bytes than it costs.
+  './plugin': { allow: [], budget: 3_000, denied: ['policy.js', 'tokens.js', 'theme.js', 'contrast.js', 'index.js'] },
   './theme': { allow: [], budget: 6_300, denied: ['tokens.js', 'index.js'] },
   // Pure arithmetic over hex strings. Reaches nothing.
   './contrast': { allow: [], budget: 1_500, denied: ['policy.js', 'tokens.js', 'theme.js', 'index.js'] },
@@ -91,7 +96,7 @@ function walk(entry: string): { reached: string[]; external: string[]; bytes: nu
 
 function entryFile(subpath: string): string {
   const conditions = manifest.exports[subpath];
-  if (conditions === undefined) throw new Error(`no exports entry for ${subpath}`);
+  if (typeof conditions !== 'object') throw new Error(`no code exports entry for ${subpath}`);
   return resolve(pkgRoot, conditions.import);
 }
 
@@ -112,10 +117,25 @@ describe.each(Object.keys(RULES))('entry %s', (subpath) => {
   });
 });
 
+/**
+ * Exports that are data rather than code: the plugin schema a plugin author reads. No import
+ * graph and no budget — the file *is* the payload — so a byte rule would measure nothing.
+ * Listed rather than pattern-matched so that adding one is still a decision somebody made.
+ */
+const DATA_EXPORTS = ['./schema.json'];
+
 describe('the lock grows with the package', () => {
   it('every published entry point declares a weight rule', () => {
     // Adding `roundel/chalk` without a budget here fails, which is the point: a new
     // surface cannot ship until someone has said what it may weigh.
-    expect(Object.keys(manifest.exports).sort()).toEqual(Object.keys(RULES).sort());
+    const code = Object.keys(manifest.exports).filter((e) => !DATA_EXPORTS.includes(e));
+    expect(code.sort()).toEqual(Object.keys(RULES).sort());
+  });
+
+  it('every data export is named here, so one cannot arrive without a decision', () => {
+    const data = Object.entries(manifest.exports)
+      .filter(([, target]) => typeof target === 'string')
+      .map(([subpath]) => subpath);
+    expect(data.sort()).toEqual([...DATA_EXPORTS].sort());
   });
 });
