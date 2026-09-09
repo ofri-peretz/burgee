@@ -1,0 +1,326 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Deploy Docs
+
+# ─────────────────────────────────────────────────────────────────────────────
+# The only path that ships `apps/docs`. Ported from ofri-peretz/eslint, trimmed
+# to what this repo has. `.sdlc/intents/docs-deploy/intent.md` is the intent.
+#
+# Manual-only by construction. `apps/docs/vercel.json` sets
+# `git.deploymentEnabled: false`, so Vercel never deploys on a push, and this
+# workflow has no `push:` / `pull_request:` trigger — constraint 1 of the
+# intent, and `scripts/deploy-lock.test.ts` fails if either changes.
+#
+# INERT UNTIL THE OWNER ACTS. With no `VERCEL_TOKEN` secret the preflight job
+# says exactly what is missing and every later job is skipped: the run is green
+# and nothing is deployed. Nothing else in CI depends on it. The moment the
+# secret exists the same file deploys, with no second PR — the pattern of #47.
+#
+# Required, owner-created (see the PR body for the one-sitting version):
+#   VERCEL_TOKEN       https://vercel.com/account/tokens
+#   VERCEL_ORG_ID      team id, from the Vercel project's Settings → General
+#   VERCEL_PROJECT_ID  project id, same page
+# ─────────────────────────────────────────────────────────────────────────────
+
+run-name: >-
+  Deploy Docs · ${{ inputs.environment }} · ${{ github.actor }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment."
+        required: true
+        type: choice
+        options: [preview, production]
+        default: preview
+      ref:
+        description: "Git ref to deploy (default: this workflow's checkout — main for production)."
+        required: false
+        default: ""
+      approval:
+        description: "Type RELEASE_APPROVAL to confirm a production deploy. Ignored for preview."
+        required: false
+        default: ""
+
+concurrency:
+  # Two production deploys must not overlap; previews are keyed per ref.
+  group: deploy-docs-${{ inputs.environment }}-${{ inputs.ref || github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: "1"
+  # The canonical host. Hard-coded on purpose: there is one app. The
+  # `.github/vercel-apps.json` map the eslint repo carries returns here when
+  # there is a second one — the intent decided that at finalisation.
+  PRODUCTION_URL: https://cli.interlace.tools
+
+jobs:
+  # ── Is there anything to deploy with, and is anyone allowed to? ────────────
+  preflight:
+    name: Preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - id: check
+        name: Check credentials and approval
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          APPROVAL: ${{ inputs.approval }}
+        run: |
+          set -euo pipefail
+
+          # ─── No credential → no-op, not a failure ───────────────────────
+          # A red X here would be a standing false alarm on a repo that has
+          # simply not been given a token yet.
+          if [ -z "${VERCEL_TOKEN:-}" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::VERCEL_TOKEN is not set — nothing was deployed. This is the expected state until the Vercel project exists."
+            {
+              echo "# ⏸ Deploy Docs · no-op"
+              echo
+              echo "\`VERCEL_TOKEN\` is not set on this repository, so there is nothing to deploy with."
+              echo
+              echo "**What happens when it exists.** This same workflow, unchanged, will:"
+              echo
+              echo "1. \`vercel pull\` the \`${ENVIRONMENT}\` environment for the project;"
+              echo "2. \`vercel build\` it with \`NEXT_PUBLIC_BUILD_SHA\` set to the deployed commit;"
+              echo "3. \`vercel deploy --prebuilt\` it;"
+              echo "4. read \`<meta name=\"x-build-sha\">\` back off the deployed URL and fail if it is not that commit."
+              echo
+              echo "Add \`VERCEL_TOKEN\`, \`VERCEL_ORG_ID\` and \`VERCEL_PROJECT_ID\` under Settings → Secrets and variables → Actions."
+              echo
+              echo "> **They must be _repository_ secrets, not _environment_ secrets.** This job"
+              echo "> declares no \`environment:\`, so a secret scoped to \`docs-production\` or"
+              echo "> \`docs-preview\` is invisible here and every run would stay green and inert"
+              echo "> forever — the failure this summary exists to make impossible."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # ─── Production is gated; the gate is a typed string ─────────────
+          # Constraint 2 of the intent: a production deploy fired by hand
+          # stops for a human. `auto-deploy.yml` passes this, because the PR
+          # that merged was the human. A GitHub Environment with required
+          # reviewers (Settings → Environments → docs-production) turns this
+          # refusal into a real pause; the job below already declares it.
+          if [ "$ENVIRONMENT" = "production" ] && [ "${APPROVAL:-}" != "RELEASE_APPROVAL" ]; then
+            echo "::error::Production deploy refused: type RELEASE_APPROVAL in the 'approval' field to confirm. (auto-deploy.yml passes it for you on a merge to main.)"
+            exit 1
+          fi
+
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: Deploy (${{ inputs.environment }})
+    needs: preflight
+    if: needs.preflight.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      deployments: write # GitHub Deployments API records the deploy URL
+    environment:
+      # Auto-created on first use. Add required reviewers here to make a
+      # production deploy pause rather than merely be gated on the string.
+      name: ${{ inputs.environment == 'production' && 'docs-production' || 'docs-preview' }}
+      url: ${{ steps.deploy.outputs.url }}
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    defaults:
+      run:
+        # Root Directory on the Vercel project is `apps/docs`, so this is where
+        # `vercel.json` lives and where the CLI has to run.
+        working-directory: apps/docs
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 1
+      - uses: ./.github/actions/setup
+        with:
+          next-cache: "true" # constraint 3: the build stays under two minutes
+
+      # `github.sha` is the commit this *workflow file* was read from, which is
+      # not the commit that was checked out above: `auto-deploy.yml` dispatches
+      # `--ref main -f ref=<merge sha>`, so a second merge landing in the gap
+      # leaves `github.sha` ahead of `inputs.ref`. Stamping one while building
+      # the other would make the post-deploy check compare a value against
+      # itself and pass on a build of the wrong commit. Ask git instead.
+      - name: Resolve the commit that was checked out
+        id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Pull Vercel environment metadata
+        run: npx vercel pull --yes --environment=${{ inputs.environment }} --token="$VERCEL_TOKEN"
+
+      - name: Build (${{ inputs.environment }})
+        env:
+          # Stamped into `<meta name="x-build-sha">` by apps/docs/src/app/layout.tsx.
+          # This is what the post-deploy check reads back.
+          NEXT_PUBLIC_BUILD_SHA: ${{ steps.sha.outputs.sha }}
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            npx vercel build --prod --token="$VERCEL_TOKEN"
+          else
+            npx vercel build --token="$VERCEL_TOKEN"
+          fi
+
+      # No `--archive=tgz`, which the eslint repo's port of this file does pass.
+      # It exists to get under Vercel's 15,000-file limit on a prebuilt upload by
+      # sending one tarball instead. This app is nowhere near it: 397 files in
+      # `.next` excluding the cache, measured 2026-09-08. Add the flag to both
+      # `vercel deploy` lines below the first time a deploy is rejected for too
+      # many files — that rejection is the signal, and the only reason for it.
+      - name: Deploy prebuilt artifact
+        id: deploy
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            url=$(npx vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          else
+            url=$(npx vercel deploy --prebuilt --token="$VERCEL_TOKEN")
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Deployed to: $url"
+
+      # ─── Post-deploy check ──────────────────────────────────────────────
+      # A deploy step that exits 0 proves an upload, not a serve. The failure
+      # this catches is the one a green workflow cannot otherwise see: the
+      # alias still pointing at the previous build. `x-build-sha` is stamped
+      # at build time, so if the URL echoes this run's commit back, the bytes
+      # on the CDN are the bytes we just built.
+      - name: Verify the deployed URL serves this build
+        env:
+          DEPLOY_URL: ${{ steps.deploy.outputs.url }}
+          EXPECTED_SHA: ${{ steps.sha.outputs.sha }}
+        run: |
+          set -euo pipefail
+
+          # Production is checked at its public host, because that alias is
+          # what the success criteria are written about; a preview has no
+          # host but its own.
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            TARGET="$PRODUCTION_URL"
+          else
+            TARGET="$DEPLOY_URL"
+          fi
+          echo "Checking $TARGET for x-build-sha=$EXPECTED_SHA"
+
+          # Vercel's CDN needs a moment to point the alias at the new build.
+          #
+          # `-w '%{http_code}'` prints `000` on a transport failure AND curl exits
+          # non-zero, so the obvious `$(curl … || echo 000)` appends a second one
+          # and yields `000000` — a code no branch below matches, which turned the
+          # "DNS is not there yet" case into `returned HTTP 000000 after 5
+          # attempts`. Keep the status and the exit code apart.
+          CODE=000
+          RC=0
+          for attempt in 1 2 3 4 5; do
+            RC=0
+            CODE=$(curl -sS -o /tmp/home.html -w '%{http_code}' --max-time 20 "$TARGET") || RC=$?
+            case "$CODE" in '' | *[!0-9]*) CODE=000 ;; esac
+            [ "$CODE" = "200" ] && break
+            # 6 = could not resolve host. No number of retries creates a DNS
+            # record, so go straight to the soft-warn instead of burning 5×10s.
+            if [ "$RC" -eq 6 ]; then
+              CODE=000
+              break
+            fi
+            echo "attempt $attempt: HTTP $CODE (curl exit $RC) — retrying"
+            [ "$attempt" -eq 5 ] || sleep 10
+          done
+
+          case "$CODE" in
+            200) ;;
+            401|403)
+              # Deployment Protection is on for this deployment. That is a
+              # project setting, not a broken deploy — say so and stop.
+              echo "::warning::$TARGET returned $CODE — Vercel Deployment Protection is enabled, so the build cannot be verified from CI. Disable it for this project, or add a protection bypass secret."
+              exit 0
+              ;;
+            000)
+              # No HTTP response at all — almost always DNS that does not exist
+              # yet, which is the state between adding the token and pointing the
+              # record. The deploy itself already succeeded; do not fail on it.
+              echo "::warning::$TARGET could not be reached (curl exit $RC). Expected until the DNS record for ${PRODUCTION_URL#https://} exists; the deploy itself succeeded ($DEPLOY_URL)."
+              exit 0
+              ;;
+            *)
+              echo "::error::$TARGET returned HTTP $CODE after 5 attempts."
+              exit 1
+              ;;
+          esac
+
+          SERVED=$(grep -o 'name="x-build-sha" content="[^"]*"' /tmp/home.html | head -1 | sed 's/.*content="//;s/"$//')
+          if [ -z "$SERVED" ]; then
+            echo "::error::$TARGET returned 200 but carries no <meta name=\"x-build-sha\"> — it is not serving a build of this app."
+            exit 1
+          fi
+          if [ "$SERVED" != "$EXPECTED_SHA" ]; then
+            echo "::error::$TARGET is serving build $SERVED, not $EXPECTED_SHA. The deploy uploaded but the alias did not move."
+            exit 1
+          fi
+          echo "✅ $TARGET serves $SERVED"
+
+      - name: Verify the agent surfaces are on the deployed build
+        env:
+          DEPLOY_URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          set -euo pipefail
+          # The site is written for agents too (intent, "Success criteria").
+          # A 200 on /llms.txt is the cheapest proof the route survived the
+          # build and the deploy, not only the test suite.
+          # Same `000` normalisation as the step above — see the comment there.
+          # This one stays a hard failure on an unreachable target, because the
+          # target is Vercel's own deployment URL and not a name we have to wait
+          # for: if *that* does not answer, the deploy did not serve anything.
+          TARGET="$DEPLOY_URL"
+          RC=0
+          CODE=$(curl -sS -o /tmp/llms.txt -w '%{http_code}' --max-time 20 "$TARGET/llms.txt") || RC=$?
+          case "$CODE" in '' | *[!0-9]*) CODE=000 ;; esac
+          if [ "$CODE" = "401" ] || [ "$CODE" = "403" ]; then
+            echo "::warning::/llms.txt returned $CODE — Deployment Protection, not a broken route."
+            exit 0
+          fi
+          if [ "$CODE" != "200" ]; then
+            echo "::error::$TARGET/llms.txt returned HTTP $CODE (curl exit $RC)."
+            exit 1
+          fi
+          LINES=$(grep -c '^- \[' /tmp/llms.txt || true)
+          if [ "${LINES:-0}" -lt 1 ]; then
+            echo "::error::/llms.txt is served but lists no pages."
+            exit 1
+          fi
+          echo "✅ /llms.txt lists $LINES page(s)"
+
+      - name: Job summary
+        if: always()
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          set -euo pipefail
+          status="${{ job.status }}"
+          icon="✅"
+          [ "$status" = "failure" ] && icon="❌"
+          [ "$status" = "cancelled" ] && icon="⏹"
+          {
+            echo "# $icon Deploy Docs · ${{ inputs.environment }}"
+            echo
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Environment | \`${{ inputs.environment }}\` |"
+            echo "| Ref | \`${{ inputs.ref || github.ref }}\` |"
+            echo "| Build SHA | \`${{ steps.sha.outputs.sha }}\` |"
+            echo "| Triggered | @${{ github.actor }} |"
+            echo "| Status | $status |"
+            if [ -n "${URL:-}" ]; then echo "| URL | $URL |"; fi
+          } >> "$GITHUB_STEP_SUMMARY"

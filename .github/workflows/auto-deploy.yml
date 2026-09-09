@@ -1,0 +1,125 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Auto Deploy on Main
+
+# ─────────────────────────────────────────────────────────────────────────────
+# One merge to `main` → at most one production docs deploy. Ported from
+# ofri-peretz/eslint; `.sdlc/intents/docs-deploy/intent.md` is the intent.
+#
+# Why turbo-affected and not a path filter: a path filter under-fires the day
+# `apps/docs` gains a workspace dependency, and the miss is silent — the site
+# simply stops matching the code. `turbo run build --filter=...[<sha>]` walks the
+# dependency graph instead, so that day needs no edit here.
+#
+# What that does NOT buy today — measured on this repo, not assumed. A merge
+# touching only `packages/**` still deploys. `docs` has no workspace dependency
+# at all, but the ROOT workspace devDepends on `burgee`, `compat-oracle` and
+# `flagstaff` (and reaches `roundel` through them), so a change to any of those
+# puts the root package in turbo's changed set, and turbo then reports all 11
+# workspaces changed — `docs` among them. One-file commits, `turbo@11.16.0`:
+#
+#   packages/caique/**            → caique          (reachable from no root dep)
+#   packages/roundel/**           → all 11, incl. docs
+#   packages/burgee/**            → all 11, incl. docs
+#   packages/flagstaff/README.md  → all 11, incl. docs
+#   packages/compat-oracle/**     → all 11, incl. docs
+#   apps/docs/**                  → docs
+#   scripts/**, root README.md    → nothing
+#
+# `--filter=docs[<sha>]`, `--filter=...docs[<sha>]` and `--affected` all report
+# the same, so there is no tighter turbo expression to switch to; the only fix
+# is to the root devDependencies, which are there for their own reasons.
+#
+# So the guarantee here is narrower than "deploys only when the docs changed",
+# and `.sdlc/intents/docs-deploy/intent.md` records it as unmet rather than met:
+# most product merges deploy, a change outside the workspace graph does not, and
+# no ref other than `main` can deploy at all. `scripts/deploy-lock.test.ts` pins
+# the `if:` that carries the last of those.
+#
+# Why this is not itself the deploy: `deploy-docs.yml` owns the credential, the
+# build and the post-deploy check. This workflow only decides *whether*. It
+# passes `approval=RELEASE_APPROVAL` because the merged PR was the human gate
+# (constraint 2); a deploy fired by hand still has to type it.
+#
+# Not in scope: per-branch previews stay forbidden — a preview needs an
+# explicit `environment=preview` dispatch. Package publishes are release.yml's.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: auto-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: "1"
+
+jobs:
+  affected:
+    name: Compute turbo-affected apps
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      docs: ${{ steps.compute.outputs.docs }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # turbo needs history reaching the previous main commit to diff.
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+
+      - id: compute
+        name: Compute affected workspaces vs ${{ github.event.before }}
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+
+          # No usable diff base — deploy, rather than silently skip. `before`
+          # is all-zeros on a branch creation, and unreachable after a
+          # force-push that rewrote history past our fetch.
+          if [ -z "$BEFORE_SHA" ] || [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
+            echo "::notice::No usable diff base (BEFORE_SHA=$BEFORE_SHA) — deploying the docs to be safe."
+            echo "docs=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # `--dry-run=json` emits one entry per (workspace × task);
+          # `...[<sha>]` selects each changed workspace AND every dependent.
+          AFFECTED=$(npx --no turbo run build --filter="...[$BEFORE_SHA]" --dry-run=json | jq -r '.tasks[]?.package' | sort -u)
+          echo "Affected workspaces:"
+          echo "$AFFECTED" | sed 's/^/  /'
+
+          docs=false
+          while IFS= read -r ws; do
+            # The workspace is literally named `docs` (apps/docs/package.json).
+            case "$ws" in docs) docs=true ;; esac
+          done <<< "$AFFECTED"
+
+          echo "docs=$docs" >> "$GITHUB_OUTPUT"
+          echo "Dispatch decision: docs=$docs"
+
+  deploy-docs:
+    name: Dispatch deploy-docs.yml (production)
+    needs: affected
+    if: needs.affected.outputs.docs == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write # dispatch deploy-docs.yml via `gh workflow run`
+    steps:
+      - name: Fire deploy-docs.yml (production)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run deploy-docs.yml \
+            --repo ofri-peretz/burgee \
+            --ref main \
+            -f environment=production \
+            -f ref=${{ github.sha }} \
+            -f approval=RELEASE_APPROVAL

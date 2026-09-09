@@ -3,7 +3,14 @@
 > Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md).
 > Stage 5 for `apps/docs`, which today builds green and is served nowhere.
 
-**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** review · **Opened:** 2026-09-06 · **Built:** 2026-09-08 · **Owner:** @ofri-peretz
+
+> Everything that does not need a credential is built and merged; see
+> [What is built](#what-is-built-2026-09-08). The status stays `review` on purpose:
+> `shipped` would claim the site is live, and it is not until the three owner steps below
+> are done. (`design.md` is not the reason — it has been beside this file since
+> [`b68ae937c6`](https://github.com/ofri-peretz/burgee/commit/b68ae937c6), which is why it
+> is not in the build-stage diff.)
 
 ---
 
@@ -57,6 +64,90 @@ agents the layer is for.
   `target=production` and no `RELEASE_APPROVAL`, it pauses.
 - `curl -s https://cli.interlace.tools/ | grep -c <meta name="x-build-sha"` matches the
   merged SHA after `auto-deploy.yml` completes.
+
+## What is built (2026-09-08)
+
+The build stage landed everything that does not require a credential. Each row is either
+**live** — running in CI today — or **inert**: merged, green, and doing nothing until the
+owner supplies what only they can.
+
+| Piece | Where | State |
+| :-- | :-- | :-- |
+| Git integration off, so no per-branch preview can ever exist | `apps/docs/vercel.json` (`git.deploymentEnabled: false`) | live — locked by a test |
+| Manual deploy, `workflow_dispatch` only, `preview` / `production` | `.github/workflows/deploy-docs.yml` | inert — no-ops with a summary that says what happens when `VERCEL_TOKEN` appears |
+| Production deploy on merge to `main`, only when turbo says `docs` is affected | `.github/workflows/auto-deploy.yml` | live as a decision; the deploy it dispatches is inert |
+| Production gate: a hand-fired production deploy is refused without `approval=RELEASE_APPROVAL`; `auto-deploy.yml` supplies it, because the merged PR was the human | `deploy-docs.yml` preflight | inert (same reason) |
+| Post-deploy check: the deployed URL must echo back `<meta name="x-build-sha">` for the commit that was built, and `/llms.txt` must return 200 with rows | `deploy-docs.yml` | inert |
+| `x-build-sha` stamped into every page | `apps/docs/src/app/layout.tsx` | live — in the build output today |
+| `/llms.txt` and `/llms-full.txt`, both generated from `source.getPages()` — the same loader `/docs/[[...slug]]` renders from | `apps/docs/src/app/llms.txt/`, `llms-full.txt/`, `src/lib/llms.ts` | live — prerendered by `next build` |
+| The docs are the map: a page under `content/docs/` that never reaches `llms.txt` fails the build | `apps/docs/tests/llms-txt.test.ts` | live |
+| The deploy discipline itself: manual-only triggers, the turbo-affected `if:`, the approval, `deploymentEnabled: false` | `scripts/deploy-lock.test.ts` | live |
+
+Two things were deliberately **not** built:
+
+- **`.github/vercel-apps.json`.** This intent decided at finalisation that there is one
+  app and it is hard-coded; the map returns when a second app exists. The production host
+  therefore lives as `PRODUCTION_URL` at the top of `deploy-docs.yml`.
+- **A changeset.** `apps/docs/package.json` is `"private": true`, so nothing publishable
+  changed and the release flow has nothing to record.
+
+## What still needs the owner
+
+None of it is code. Until all three exist, the workflows above stay green and inert.
+
+1. **A Vercel project** for this repo with **Root Directory = `apps/docs`** (that is where
+   `vercel.json` lives) and the Git integration left off.
+2. **Three Actions secrets** — `VERCEL_TOKEN` (a token from
+   <https://vercel.com/account/tokens>), plus `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` from
+   the project's Settings → General.
+3. **DNS for `cli.interlace.tools`**, pointed at that project.
+
+Optional, and only if a refusal should become a real pause: add required reviewers to the
+`docs-production` GitHub Environment, which `deploy-docs.yml` already declares.
+
+Also worth knowing: if Vercel **Deployment Protection** is left on, the post-deploy check
+cannot read the page and will emit a warning rather than a pass. Turn it off for this
+project, or give CI a protection-bypass secret.
+
+## Which success criteria are checkable today
+
+| Criterion | Today |
+| :-- | :-- |
+| `/`, `/docs/the-floor`, `/llms.txt` return 200 on the host | not yet — needs the project and DNS |
+| A merge touching only `packages/**` does not deploy the docs | **not met** — see [Criterion 2](#criterion-2-turbo-affected-is-not-precise-here) below. What is met and locked is the weaker `if:`: the dispatch is unreachable unless the `affected` job says so, and unreachable from any ref but `main`. |
+| Manual `preview` produces a URL; `production` without approval stops | logic **met** and locked; observable once the token exists |
+| The production URL echoes the merged SHA back | check **written** and executed by `scripts/deploy-lock.test.ts` against a stubbed `curl` — a stale alias, a missing tag and a 5xx each fail it; the real host runs it on the first deploy |
+
+### Criterion 2: turbo-affected is not precise here
+
+Recorded as unmet rather than met, because it was measured and it is not.
+
+`apps/docs` has **no** workspace dependency — nothing in `packages/**` reaches it through
+the dependency graph. But the **root** workspace devDepends on `burgee`, `compat-oracle`
+and `flagstaff` (and `roundel` through those two), so a change to any of them puts the root
+package in turbo's changed set, and turbo then reports all 11 workspaces changed, `docs`
+included. One-file commits against `turbo@11.16.0`:
+
+| change | `--filter=...[<sha>]` reports |
+| :-- | :-- |
+| `packages/caique/**` — reachable from no root devDependency | `caique` only |
+| `packages/burgee/**`, `packages/roundel/**`, `packages/compat-oracle/**` | all 11, `docs` included |
+| `packages/flagstaff/README.md` | all 11, `docs` included |
+| `apps/docs/content/docs/index.mdx` | `docs` |
+| `scripts/lint-workflows.ts`, root `README.md` | nothing |
+
+`--filter=docs[<sha>]`, `--filter=...docs[<sha>]` and `--affected` were each measured and
+report the same, so this is not a filter that can be written more tightly. The only fix is
+to the root devDependencies, and those exist so that the root can run the workspace CLIs —
+restructuring them to buy a deploy filter would be paying the wrong price.
+
+**What the workflow does guarantee**, and what `scripts/deploy-lock.test.ts` locks: no ref
+other than `main` can deploy, the dispatch job is unreachable unless the `affected` job
+computed `docs=true` from turbo's own graph, and a change outside the workspace graph
+entirely (`scripts/`, root docs) deploys nothing. The practical cost of the imprecision is
+a redundant deploy of an unchanged site on most product merges — wasted minutes, not a
+wrong page. Tightening it is its own intent, not a thing to do quietly here.
+
 
 ## Open questions
 
