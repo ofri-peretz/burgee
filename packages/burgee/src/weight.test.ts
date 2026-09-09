@@ -75,9 +75,20 @@ const RULES: Record<string, EntryRule> = {
   // The output stack is denied by name (U13 of cli-output-stack): `import 'burgee'` never
   // resolves a family specifier. `allow: []` already forbids every bare import; naming
   // these three records the decision, so a future `allow` entry cannot admit them by accident.
-  // 52,000 is main's ceiling after the large-CLI work (#33); the theme seam measures 51,921
-  // inside it. The next byte of core is a decision, not a drift: the ratchet has 79 bytes left.
-  '.': { allow: [], budget: 52_000, denied: ['testing.js', 'testing-helpers.js', 'dev.js', 'roundel', 'flagstaff', 'caique'] },
+  // 52,000 was main's ceiling after the large-CLI work (#33), with the theme seam measuring
+  // 51,921 inside it. Raised to 52,100 on 2026-09-09, and this is the decision that ratchet
+  // exists to force rather than a drift: `--version` on a program that is a pure command
+  // group answered `unknown command "--version"` and **exit 2**, where real commander and
+  // real yargs both print the version and exit 0. Under E1 exit 2 means *rewrite the
+  // command*, so an agent asked for a version rewrote it until it gave up — on the flag
+  // people type first. The fix costs **114 bytes** (51,921 → 52,035), written as two string
+  // comparisons rather than a `Set`, which was 57 bytes more for the same behaviour. The
+  // ceiling is the next hundred above the measurement, leaving 65 bytes.
+  //
+  // The published claim is untouched: "the core entry point is under 52 KB **bundled**" is
+  // a different measurement — 34,841 bytes against a 53,248 target — and this budget is
+  // bytes on disk of the `dist/` files an import reaches.
+  '.': { allow: [], budget: 52_100, denied: ['testing.js', 'testing-helpers.js', 'dev.js', 'roundel', 'flagstaff', 'caique'] },
   // The harness. Test-time only, so a user's shipped CLI never pays for it.
   // Raised from 24,000 with `.` above: the harness reaches the whole engine to run a
   // program in-process, so it carries the renderer too.

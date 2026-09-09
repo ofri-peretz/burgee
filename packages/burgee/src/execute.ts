@@ -364,6 +364,20 @@ function runnableNext(manifest: Manifest, spec: ActionRequiredSpec, json: boolea
 }
 
 const HELP_FLAGS = new Set(['--help', '-h']);
+/**
+ * The same courtesy `--help` gets, for the flag people type first.
+ *
+ * `dispatch` has always answered `--version`, but only once a command resolved. A program
+ * that is a pure command group resolves nothing for `burgee --version`, so it fell through
+ * to `unknown command "--version"` and **exit 2** — which under E1 means *rewrite the
+ * command*, so an agent asked for the version would rewrite it until it gave up. Real
+ * commander and real yargs both print the version and exit 0 for the identical program.
+ *
+ * `-V` is commander's spelling, and `commander-command.ts` already defaults to
+ * `-V, --version`. Like `HELP_FLAGS` above, this does not check whether the root declares
+ * an option of the same name: a root that is not runnable has no path that would answer it.
+ */
+
 
 /** Help width: the terminal's columns when the stream has them, else 100 (H3). */
 const HELP_WIDTH = 100;
@@ -389,11 +403,13 @@ interface Resolving {
   io: Io;
 }
 
-function unresolved({ manifest, root, io: { width } }: Resolving, argv: string[], at: CommandNode | undefined): { text: string; code: ExitCodeType } {
+function unresolved({ manifest, root, io }: Resolving, argv: string[], at: CommandNode | undefined): { text: string; code: ExitCodeType } {
   const node = at ?? rootNode(manifest, root);
   const typed = argv.slice(node.path.length - root.length);
-  if (typed.length > 0 && HELP_FLAGS.has(typed[0] ?? '')) return { text: renderHelp(manifest, node, { width }), code: ExitCode.OK };
-  if (typed.length === 0) return { text: renderHelp(manifest, node, { width }), code: ExitCode.USAGE };
+  const first = typed[0] ?? '';
+  if (typed.length > 0 && HELP_FLAGS.has(first)) return { text: renderHelp(manifest, node, { width: io.width }), code: ExitCode.OK };
+  if (first === '--version' || first === '-V') return { text: `${versionOf(manifest, io)}\n`, code: ExitCode.OK };
+  if (typed.length === 0) return { text: renderHelp(manifest, node, { width: io.width }), code: ExitCode.USAGE };
   throw new UsageError(`unknown command "${typed[0] ?? ''}"`, 'run --help to see the available commands');
 }
 
