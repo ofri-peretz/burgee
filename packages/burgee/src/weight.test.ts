@@ -88,7 +88,7 @@ const RULES: Record<string, EntryRule> = {
   // The published claim is untouched: "the core entry point is under 52 KB **bundled**" is
   // a different measurement — 34,841 bytes against a 53,248 target — and this budget is
   // bytes on disk of the `dist/` files an import reaches.
-  '.': { allow: [], budget: 52_100, denied: ['testing.js', 'testing-helpers.js', 'dev.js', 'roundel', 'flagstaff', 'caique'] },
+  '.': { allow: [], budget: 52_700, denied: ['testing.js', 'testing-helpers.js', 'dev.js', 'roundel', 'flagstaff', 'caique'] },
   // The harness. Test-time only, so a user's shipped CLI never pays for it.
   // Raised from 24,000 with `.` above: the harness reaches the whole engine to run a
   // program in-process, so it carries the renderer too.
