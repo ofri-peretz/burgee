@@ -31,36 +31,53 @@ interface SignalOutcome {
   ownHandlerRuns: number;
 }
 
+/**
+ * The child, as a constant. Nothing is interpolated into it: every value it needs arrives on
+ * `argv`, so the source it runs is a fixed string rather than one this file assembles.
+ *
+ * That is not only CodeQL's preference (it flagged the interpolated version as code
+ * construction from an unsanitised value, and it was right about the shape even though every
+ * value here is a local constant). A child assembled by template is a child nobody can read
+ * without mentally running the template, and this one exists to be read: it is the only place
+ * in the suite where a real signal meets a real frame.
+ */
+const CHILD = `
+import process from 'node:process';
+
+const [, , distLoop, mode, signal, hide, show] = process.argv;
+
+// Installed before the loop, because the guard under test is \`listenerCount('SIGINT')\`:
+// a program that took the signal over itself must survive, and must see it exactly once.
+if (mode === 'own') {
+  let n = 0;
+  process.on('SIGINT', () => {
+    process.stderr.write('OWN-HANDLER-RAN');
+    if (++n === 1) setTimeout(() => process.exit(7), 300);
+  });
+}
+
+const { hoist } = await import(distLoop);
+
+// Only the cursor operations reach fd 2; the frames go nowhere, so the log collects the two
+// sequences under test and nothing else.
+const CURSOR = new Set([hide, show]);
+const out = { write: (s) => { if (CURSOR.has(s)) process.stderr.write(s); } };
+// A real clock, not \`manualClock()\`: the frame has to still be open when the signal
+// arrives, which is the whole scenario.
+const clock = { now: () => Date.now(), schedule: (fn, ms) => { const t = setTimeout(fn, ms); return () => clearTimeout(t); } };
+const rt = { env: {}, isTTY: { stdout: true }, stdout: out, stderr: { write() {} }, clock };
+const spin = { name: 'x', interval: 80, static: () => 'done', frame: () => 'working' };
+
+hoist(spin, rt, { text: 'go' });
+setTimeout(() => process.kill(process.pid, signal), 80);
+setTimeout(() => process.exit(0), 5000);
+`;
+
 function hoistThenSignal(signal: string, ownHandler = false): SignalOutcome {
   const dir = mkdtempSync(join(tmpdir(), 'flagstaff-loop-signal-'));
   const log = join(dir, 'fd2');
   const child = join(dir, 'child.mjs');
-  writeFileSync(
-    child,
-    [
-      // A program that took SIGINT over itself must survive: a renderer does not get to
-      // terminate a process whose author asked to handle the signal. The marker is written on
-      // every entry, because the failure this grades is the handler running *twice* for one
-      // Ctrl+C — an unconditional re-raise is caught by the program's own handler, so the
-      // child is neither killed nor exits differently and only the count shows it.
-      ownHandler
-        ? "let n = 0; process.on('SIGINT', () => { process.stderr.write('OWN-HANDLER-RAN'); if (++n === 1) setTimeout(() => process.exit(7), 300); });"
-        : '',
-      `const { hoist } = await import(${JSON.stringify(distLoop)});`,
-      // Only the cursor operations reach fd 2; the frames go nowhere, so the file collects
-      // the two sequences under test and nothing else.
-      `const CURSOR = new Set([${JSON.stringify(HIDE_CURSOR)}, ${JSON.stringify(SHOW_CURSOR)}]);`,
-      'const out = { write: (s) => { if (CURSOR.has(s)) process.stderr.write(s); } };',
-      // A real clock, not `manualClock()`: the frame has to still be open when the signal
-      // arrives, which is the whole scenario.
-      'const clock = { now: () => Date.now(), schedule: (fn, ms) => { const t = setTimeout(fn, ms); return () => clearTimeout(t); } };',
-      'const rt = { env: {}, isTTY: { stdout: true }, stdout: out, stderr: { write() {} }, clock };',
-      "const spin = { name: 'x', interval: 80, static: () => 'done', frame: () => 'working' };",
-      "hoist(spin, rt, { text: 'go' });",
-      `setTimeout(() => process.kill(process.pid, ${JSON.stringify(signal)}), 80);`,
-      'setTimeout(() => process.exit(0), 5000);',
-    ].join('\n'),
-  );
+  writeFileSync(child, CHILD);
 
   const fd = openSync(log, 'w');
   // `execFileSync` throws when the child does not exit 0 — which is the point, since the
@@ -68,7 +85,7 @@ function hoistThenSignal(signal: string, ownHandler = false): SignalOutcome {
   let killedBy: string | null = null;
   let status: number | null = 0;
   try {
-    execFileSync(process.execPath, [child], { stdio: ['ignore', 'pipe', fd], timeout: 20_000 });
+    execFileSync(process.execPath, [child, distLoop, ownHandler ? 'own' : 'none', signal, HIDE_CURSOR, SHOW_CURSOR], { stdio: ['ignore', 'pipe', fd], timeout: 20_000 });
   } catch (error) {
     const failure = error as { status?: number | null; signal?: string | null };
     killedBy = failure.signal ?? null;
