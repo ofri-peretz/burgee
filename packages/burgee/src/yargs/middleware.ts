@@ -3,7 +3,7 @@
  * registers — ported for `burgee/yargs`.
  */
  
-import { argsert, isPromise } from './yargs-utils.js';
+import { argsert, isPromise } from './utils.js';
 
 export interface MiddlewareCallback {
   (argv: any, yargs: any): any;

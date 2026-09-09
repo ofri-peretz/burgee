@@ -1,4 +1,4 @@
-import { InvalidArgumentError } from './commander-error.js';
+import { InvalidArgumentError } from './error.js';
 
 export type ParseArg = (value: string, previous: unknown) => unknown;
 

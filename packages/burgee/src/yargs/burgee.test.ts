@@ -6,8 +6,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { ExitCode } from './exit-code.js';
-import yargs, { type YargsInstance } from './yargs.js';
+import { ExitCode } from '../exit-code.js';
+import yargs, { type YargsInstance } from '../yargs.js';
 
 type Argv = Record<string, unknown>;
 

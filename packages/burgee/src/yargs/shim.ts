@@ -11,10 +11,11 @@ import { basename, dirname, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inspect } from 'node:util';
 
-import { cliui, stringWidth } from './yargs-cliui.js';
-import { Parser } from './yargs-parser.js';
-import { getProcessArgvBin } from './yargs-utils.js';
-import { y18n, type Y18N } from './yargs-y18n.js';
+import { Parser } from '../yargs-parser.js';
+
+import { cliui, stringWidth } from './cliui.js';
+import { getProcessArgvBin } from './utils.js';
+import { y18n, type Y18N } from './y18n.js';
 
 export interface PlatformShim {
   assert: { notStrictEqual: (a: any, b: any, m?: string) => void; strictEqual: (a: any, b: any, m?: string) => void };

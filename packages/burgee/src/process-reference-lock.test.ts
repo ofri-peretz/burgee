@@ -28,16 +28,16 @@ const ALLOWED = new Set([
   // Option.env(), stdout/stderr as the default output configuration. That contract is
   // what commander's own suite grades (C1); `parse(argv, { stdout, stderr, exit })`
   // is the injectable seam for everything else.
-  'burgee/src/commander-command.ts',
+  'burgee/src/commander/command.ts',
   // The yargs front-end reproduces yargs' process contract the same way, through one
-  // platform shim (yargs-shim.ts: argv, cwd, exit, env, columns), its parser's Node
+  // platform shim (yargs/shim.ts: argv, cwd, exit, env, columns), its parser's Node
   // mixin (yargs-parser.ts: cwd, env, require), hideBin/getProcessArgvBin and
-  // setBlocking (yargs-utils.ts), and cliui's terminal width fallback (yargs-cliui.ts).
+  // setBlocking (yargs/utils.ts), and cliui's terminal width fallback (yargs/cliui.ts).
   // yargs' own suite swaps process.argv/exit/env per test and grades exactly that.
-  'burgee/src/yargs-shim.ts',
+  'burgee/src/yargs/shim.ts',
   'burgee/src/yargs-parser.ts',
-  'burgee/src/yargs-utils.ts',
-  'burgee/src/yargs-cliui.ts',
+  'burgee/src/yargs/utils.ts',
+  'burgee/src/yargs/cliui.ts',
   // `burgee dev` is a developer tool that owns the process's stdio by definition: the CLI
   // hands it the Runtime's streams, and `load()` imports the entry as a fresh module graph,
   // which only the real module loader can do. Dev-time only, never reached by the framework.

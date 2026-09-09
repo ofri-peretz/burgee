@@ -3,11 +3,11 @@
  * dependency on commander itself). Graded by commander's own suite; see
  * `.sdlc/intents/commander-compat/design.md` and `npm run compat`.
  */
-import { Argument } from './commander-argument.js';
-import { Command } from './commander-command.js';
-import { Option } from './commander-option.js';
+import { Argument } from './commander/argument.js';
+import { Command } from './commander/command.js';
+import { Option } from './commander/option.js';
 
-export { Argument, humanReadableArgName } from './commander-argument.js';
+export { Argument, humanReadableArgName } from './commander/argument.js';
 export {
   Command,
   useColor,
@@ -22,10 +22,10 @@ export {
   type OutputConfiguration,
   type OutputContext,
   type ParseOptions,
-} from './commander-command.js';
-export { CommanderError, InvalidArgumentError, InvalidArgumentError as InvalidOptionArgumentError } from './commander-error.js';
-export { Help, type HelpContext } from './commander-help.js';
-export { DualOptions, Option } from './commander-option.js';
+} from './commander/command.js';
+export { CommanderError, InvalidArgumentError, InvalidArgumentError as InvalidOptionArgumentError } from './commander/error.js';
+export { Help, type HelpContext } from './commander/help.js';
+export { DualOptions, Option } from './commander/option.js';
 
 /** The root command, for programs that never construct their own. */
 export const program = new Command();

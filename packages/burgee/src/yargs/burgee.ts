@@ -4,9 +4,10 @@
  * this module projects that snapshot into the manifest every surface reads (J7, J8).
  * Nothing here runs at parse time unless a burgee surface was asked for.
  */
-import { type Effects, type Manifest, type OptionSpec } from './manifest.js';
-import { camelCase } from './yargs-parser.js';
-import type { Positional } from './yargs-utils.js';
+import { type Effects, type Manifest, type OptionSpec } from '../manifest.js';
+import { camelCase } from '../yargs-parser.js';
+
+import type { Positional } from './utils.js';
 
 /** What one yargs instance (the root, or a command's builder run on a scratch) registered. */
 export interface Snapshot {
