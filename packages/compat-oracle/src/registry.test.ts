@@ -159,6 +159,13 @@ describe('resolving a version', () => {
 
   it('encodes a scope, because a scoped name is one registry path segment', () => {
     expect(packumentUrl('@clack/prompts')).toBe('https://registry.npmjs.org/@clack%2fprompts');
+    expect(packumentUrl('ora')).toBe('https://registry.npmjs.org/ora');
+  });
+
+  it('refuses a name that is not an npm package name, rather than building a URL blind', () => {
+    for (const bad of ['a/b/c', '../etc/passwd', 'has space', '']) {
+      expect(() => packumentUrl(bad), bad).toThrow(/not an npm package name/u);
+    }
   });
 });
 

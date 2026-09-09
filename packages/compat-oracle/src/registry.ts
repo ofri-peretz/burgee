@@ -56,8 +56,25 @@ const REQUEST_TIMEOUT_MS = 30_000;
  */
 const MAX_UNPACKED_BYTES = 256 * 1024 * 1024;
 
-/** A scoped name is one path segment on the registry, so the slash is encoded. */
-export const packumentUrl = (name: string): string => `${REGISTRY}/${name.replace('/', '%2f')}`;
+/**
+ * npm package names are `name` or `@scope/name` — nothing else, and nothing with a path
+ * segment of its own. Checked rather than assumed: this string becomes a URL, and a name
+ * that is not one of those two shapes is a request we would be building blind.
+ */
+const NPM_NAME_SHAPE = /^(?:@[^/@\s]+\/)?[^/@\s]+$/;
+
+/**
+ * A scoped name is *one* path segment on the registry, so its slash is encoded.
+ *
+ * `replaceAll` rather than `replace`: the latter encodes only the first slash, which is
+ * correct for every name that passes the shape check above and silently wrong for anything
+ * that does not. Depending on a guard two lines up to keep an encoder correct is how an
+ * encoder stops being correct.
+ */
+export function packumentUrl(name: string): string {
+  if (!NPM_NAME_SHAPE.test(name)) throw new Error(`not an npm package name: "${name}"`);
+  return `${REGISTRY}/${name.replaceAll('/', '%2f')}`;
+}
 
 export const liveRegistry: RegistryClient = {
   packument: async (name) => {
