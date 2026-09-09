@@ -60,9 +60,7 @@ const others = HOSTS.filter((h) => h.status !== 'active').map((h) => `| ${h.name
  */
 const excluded = HOSTS.filter((h) => (h.excludes ?? []).length > 0).flatMap((h) => (h.excludes ?? []).map((e) => `| **${h.name}** | \`${e.match.trim()}\` | ${e.why} |`));
 
-writeFileSync(
-  OUT,
-  `---
+const page = `---
 title: Compatibility
 description: Each host's own test suite, run against burgee in CI. A published pass rate that only goes up — never the word "compatible".
 ---
@@ -134,6 +132,25 @@ ${others.join('\n')}
 npm run compat -- --vendor --control   # vendor both suites, grade the real hosts
 npm run compat                          # grade burgee
 \`\`\`
-`,
-);
-process.stdout.write(`wrote ${OUT}\n`);
+`;
+
+/**
+ * `--check` for the same reason `bench:page` has one: this page is generated and it went
+ * stale in silence. `flagstaff/cli-table3` was graded 29 / 29 and the published table went
+ * on saying `flagstaff/table` 0 / 29 — the number was measured, merged, and never reached
+ * the page, because nothing compared the two.
+ *
+ * It runs in the Ratchet job rather than on every check, because a full page needs both
+ * halves: `results.json` from the target grade and `results.control.json` from the control,
+ * and the control's numbers are the Linux ones (yargs scores 802 / 804 there and 804 / 804
+ * elsewhere). One job that produces both is the only place the comparison means anything.
+ */
+if (!process.argv.includes('--check')) {
+  writeFileSync(OUT, page);
+  process.stdout.write(`wrote ${OUT}\n`);
+} else if (!existsSync(OUT) || readFileSync(OUT, 'utf8') !== page) {
+  process.stderr.write(`✖ ${OUT} is not what \`npm run compat:page\` produces from the oracle's results.\n  Run the oracle and \`npm run compat:page\`, and commit the result — the page says it is generated, and this is what makes that true.\n`);
+  process.exitCode = 1;
+} else {
+  process.stdout.write(`✓ ${OUT} matches the measured results\n`);
+}
