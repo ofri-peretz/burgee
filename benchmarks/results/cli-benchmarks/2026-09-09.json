@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "suite": "cli-benchmarks",
-  "measured": "2026-09-09T06:01:50.128Z",
-  "commit": "652d5e3bcdf5429711ec025f7b6428d69e7823f7-dirty",
+  "measured": "2026-09-09T06:21:59.690Z",
+  "commit": "ff5b9f8dd691665d3cb73772329747c3891aea0c",
   "machine": {
     "os": "darwin",
     "release": "25.2.0",
@@ -34,8 +34,8 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 40,
-      "median": 31.31,
-      "p95": 57.13,
+      "median": 30.87,
+      "p95": 34.73,
       "note": "the floor: Node starting and writing one line, no parser",
       "detail": {
         "fixture": "node.mjs"
@@ -47,9 +47,9 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 40,
-      "median": 46.74,
-      "p95": 57.72,
-      "note": "spawned `node commander.mjs greet ada`; 15.43 ms of this is above the bare-node floor",
+      "median": 45.63,
+      "p95": 66.41,
+      "note": "spawned `node commander.mjs greet ada`; 14.76 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "commander.mjs"
       }
@@ -60,9 +60,9 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 40,
-      "median": 54.03,
-      "p95": 77.54,
-      "note": "spawned `node burgee-commander.mjs greet ada`; 22.72 ms of this is above the bare-node floor",
+      "median": 53.18,
+      "p95": 80.59,
+      "note": "spawned `node burgee-commander.mjs greet ada`; 22.31 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "burgee-commander.mjs"
       }
@@ -73,9 +73,9 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 40,
-      "median": 126.73,
-      "p95": 158.78,
-      "note": "spawned `node yargs.mjs greet ada`; 95.42 ms of this is above the bare-node floor",
+      "median": 122.65,
+      "p95": 146.26,
+      "note": "spawned `node yargs.mjs greet ada`; 91.79 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "yargs.mjs"
       }
@@ -86,9 +86,9 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 40,
-      "median": 86.5,
-      "p95": 109.4,
-      "note": "spawned `node burgee-yargs.mjs greet ada`; 55.19 ms of this is above the bare-node floor",
+      "median": 84.8,
+      "p95": 107.37,
+      "note": "spawned `node burgee-yargs.mjs greet ada`; 53.93 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "burgee-yargs.mjs"
       }
@@ -99,9 +99,9 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 40,
-      "median": 37.53,
-      "p95": 48.85,
-      "note": "spawned `node cac.mjs greet ada`; 6.21 ms of this is above the bare-node floor",
+      "median": 37.04,
+      "p95": 51.74,
+      "note": "spawned `node cac.mjs greet ada`; 6.17 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "cac.mjs"
       }
@@ -112,9 +112,9 @@
       "metric": "cold-start-ms",
       "unit": "ms",
       "samples": 40,
-      "median": 54.05,
-      "p95": 77.55,
-      "note": "spawned `node burgee.mjs greet ada`; 22.74 ms of this is above the bare-node floor",
+      "median": 51.6,
+      "p95": 81.69,
+      "note": "spawned `node burgee.mjs greet ada`; 20.74 ms of this is above the bare-node floor",
       "detail": {
         "fixture": "burgee.mjs"
       }
@@ -125,8 +125,8 @@
       "metric": "cold-start-ratio",
       "unit": "ratio",
       "samples": 40,
-      "median": 1.121,
-      "p95": 1.59,
+      "median": 1.146,
+      "p95": 1.705,
       "gate": {
         "max": 1.4,
         "why": "the front-end must not cost meaningfully more to start than the package it replaces; a ceiling, not a promise — the measured value is what the band watches"
@@ -139,8 +139,8 @@
       "metric": "cold-start-ratio",
       "unit": "ratio",
       "samples": 40,
-      "median": 0.672,
-      "p95": 0.857,
+      "median": 0.689,
+      "p95": 0.934,
       "gate": {
         "max": 0.95,
         "why": "the front-end must not cost meaningfully more to start than the package it replaces; a ceiling, not a promise — the measured value is what the band watches"
@@ -153,8 +153,8 @@
       "metric": "cold-start-ratio",
       "unit": "ratio",
       "samples": 40,
-      "median": 1.388,
-      "p95": 2.105,
+      "median": 1.394,
+      "p95": 2.16,
       "gate": {
         "max": 1.7,
         "why": "the front-end must not cost meaningfully more to start than the package it replaces; a ceiling, not a promise — the measured value is what the band watches"
@@ -928,7 +928,7 @@
   ],
   "bands": {
     "cold-start-ratio": {
-      "value": 1.121,
+      "value": 1.146,
       "from": {
         "axis": "perf",
         "variant": "burgee/commander ÷ commander",
@@ -1013,7 +1013,7 @@
       "claim": "the engine starts at or below cac, the lightest framework in the landscape",
       "source": ".sdlc/intents/replacement-parser/intent.md #2, and the scoreboard row in .sdlc/intents/README.md",
       "target": "<= 1",
-      "measured": 1.388,
+      "measured": 1.394,
       "unit": "ratio",
       "met": false,
       "from": {
