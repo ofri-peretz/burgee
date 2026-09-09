@@ -67,7 +67,17 @@ npx turbo run build
 npm run bench -- --check
 ```
 
-B3 runs `compat-oracle` when the checkout has no `results.json` (about 25 seconds); B4
-resolves every incumbent from `benchmarks/`, whose `package.json` pins the versions —
-the workspace root has an older commander hoisted, and resolving from there would compare
-the front-end against a commander from 2021.
+B3 runs `compat-oracle` when the checkout has no `results.json` (about 25 seconds).
+
+**B2 and B4 both resolve every package through [`resolve.ts`](./resolve.ts)**, against the
+ranges `benchmarks/package.json` declares, and a mismatch stops the run. The workspace root
+has an older commander hoisted; resolving from there compares the front-end against a
+commander from 2021. B4 was given that guard after CI caught it — B2 was not, and B2 is the
+axis that feeds `cold-start-ratio`. With `benchmarks/node_modules/commander` moved aside it
+reported the ratio 14% higher, inside its gate, with nothing on the record saying which
+commander it had raced. Both axes now write the resolved version and path into every row.
+
+B4's **installed** column counts each dependency where npm actually put it: resolved from
+the directory of the package that depends on it, deduplicated by resolved path. Resolving
+everything from `benchmarks/` — and deduplicating by name — put `boxen` at 353,976 bytes
+against 747,463 on disk.

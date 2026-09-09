@@ -102,7 +102,7 @@ describe('the records say which package they timed', () => {
   });
 
   it('puts both versions on the banded ratio row, where "against which version?" matters most', () => {
-    const record = ratioRecord(front, ms, ms, 1.4, { ours: '0.3.0', host: '15.0.0' });
+    const record = ratioRecord({ v: front, ours: ms, host: ms, gateMax: 1.4, versions: { ours: '0.3.0', host: '15.0.0' } });
     expect(record.detail).toEqual({ ours: 'burgee@0.3.0', host: 'commander@15.0.0' });
   });
 });

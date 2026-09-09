@@ -281,36 +281,53 @@ export interface AgentOptions {
  * already pinned that way. This is the wiring above it: tasks in, attempts out, medians
  * over the attempts that actually came back.
  */
+interface Sweep {
+  variant: Variant;
+  tasks: readonly Task[];
+  runs: number;
+  claudeBin: string;
+  model: string;
+  timeoutMs: number;
+}
+
+/** Every task, `runs` times, on one build. */
+function sweep({ variant, tasks, runs, claudeBin, model, timeoutMs }: Sweep): Attempt[] {
+  const toolDir = installTool(resolve(REPO_ROOT, variant.bin));
+  const attempts: Attempt[] = [];
+  for (const task of tasks) {
+    for (let i = 0; i < runs; i++) {
+      const workdir = mkdtempSync(join(tmpdir(), `bench-${task.id}-`));
+      mkdirSync(workdir, { recursive: true });
+      attempts.push(runOne({ claudeBin, task, toolDir, workdir, model, timeoutMs }));
+    }
+  }
+  return attempts;
+}
+
+/**
+ * A `claude` that authenticates and then fails every single run is the one shape this axis
+ * could not tell apart from a measurement. `runOne` returns zeros on a dead run, so the
+ * axis reported `measured` with a tokens median of 0, a turns median of 0 and a ratio of
+ * 0/0 — and only the accidental NaN stopped the document, as a crash rather than a skip.
+ * `record.ts` requires a reader to be able to tell "we measured nothing" from "we measured
+ * and it was zero"; nothing came back, so nothing was measured, and the axis says so the
+ * same way a missing credential does.
+ */
+const nothingCameBack = (variant: Variant, attempts: readonly Attempt[]): string =>
+  `every one of the ${String(attempts.length)} ${variant.id} task-runs failed; \`claude\` answered but nothing it produced passed a task's own check, so this axis measured nothing`;
+
 export function run(options: AgentOptions = {}): { records: BenchRecord[] } | { reason: string } {
   const variants = options.variants ?? VARIANTS;
   const claudeBin = options.claudeBin ?? 'claude';
   const stopped = blockers(options.env ?? process.env, claudeBin, variants);
   if (stopped.length > 0) return { reason: stopped.join('; ') };
   const model = options.model ?? DEFAULT_MODEL;
-  const runs = options.runs ?? RUNS_PER_TASK;
-  const tasks = options.tasks ?? readTasks();
+  const common = { tasks: options.tasks ?? readTasks(), runs: options.runs ?? RUNS_PER_TASK, claudeBin, model, timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS };
   const records: BenchRecord[] = [];
   const byVariant = new Map<VariantId, Attempt[]>();
   for (const variant of variants) {
-    const toolDir = installTool(resolve(REPO_ROOT, variant.bin));
-    const attempts: Attempt[] = [];
-    for (const task of tasks) {
-      for (let i = 0; i < runs; i++) {
-        const workdir = mkdtempSync(join(tmpdir(), `bench-${task.id}-`));
-        mkdirSync(workdir, { recursive: true });
-        attempts.push(runOne({ claudeBin, task, toolDir, workdir, model, timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS }));
-      }
-    }
-    // A `claude` that authenticates and then fails every single run is the one shape this
-    // axis could not previously tell apart from a measurement: `runOne` returns zeros on a
-    // dead run, so the axis reported `measured` with a tokens median of 0, a turns median
-    // of 0, and a ratio of 0/0. `record.ts` requires a reader to be able to tell "we
-    // measured nothing" from "we measured and it was zero", and only the accidental NaN
-    // stopped the document — as a crash, not as a skip. Nothing came back, so nothing was
-    // measured, and the axis says so the same way a missing credential does.
-    if (!attempts.some((a) => a.success)) {
-      return { reason: `every one of the ${String(attempts.length)} ${variant.id} task-runs failed; \`claude\` answered but nothing it produced passed a task's own check, so this axis measured nothing` };
-    }
+    const attempts = sweep({ variant, ...common });
+    if (!attempts.some((a) => a.success)) return { reason: nothingCameBack(variant, attempts) };
     byVariant.set(variant.id, attempts);
     records.push(...variantRecords(variant.id, attempts, model));
   }

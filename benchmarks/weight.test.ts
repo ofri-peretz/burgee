@@ -77,35 +77,35 @@ describe('the entry-point table', () => {
  * again — the exact failure being fixed, in the other direction. So this walks the real
  * trees and fails if anything is unreachable, rather than trusting the argument.
  */
+/** The closure `installedBytes` visits: same walk, same dedup key, no byte counting. */
+function closure(name: string, from = BENCH_ROOT, seen = new Set<string>()): Set<string> {
+  const { dir } = packageDir(name, from);
+  const key = realpathSync(dir);
+  if (seen.has(key)) return seen;
+  seen.add(key);
+  const deps = (JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as { dependencies?: Record<string, string> }).dependencies ?? {};
+  for (const dep of Object.keys(deps)) closure(dep, dir, seen);
+  return seen;
+}
+
+/** The package directories directly inside one `node_modules`, scoped names included. */
+function entriesIn(nested: string): string[] {
+  return readdirSync(nested)
+    .filter((entry) => !entry.startsWith('.'))
+    .flatMap((entry) => (entry.startsWith('@') ? readdirSync(join(nested, entry)).map((k) => join(nested, entry, k)) : [join(nested, entry)]));
+}
+
+/** Every nested install inside the closure that the closure did not itself reach. */
+function unreached(name: string): string[] {
+  const seen = closure(name);
+  return [...seen]
+    .map((dir) => join(dir, 'node_modules'))
+    .filter((nested) => existsSync(nested))
+    .flatMap((nested) => entriesIn(nested).filter((candidate) => !seen.has(realpathSync(candidate))));
+}
+
 describe('installed bytes count every copy on disk, once', () => {
   const measured = [...new Set(PAIRS.map((p) => p.incumbent.specifier))];
-
-  /** The closure `installedBytes` visits: same walk, same dedup key, no byte counting. */
-  function closure(name: string, from = BENCH_ROOT, seen = new Set<string>()): Set<string> {
-    const { dir } = packageDir(name, from);
-    const key = realpathSync(dir);
-    if (seen.has(key)) return seen;
-    seen.add(key);
-    const manifest_ = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as { dependencies?: Record<string, string> };
-    for (const dep of Object.keys(manifest_.dependencies ?? {})) closure(dep, dir, seen);
-    return seen;
-  }
-
-  /** Every `node_modules` entry inside the closure that the closure did not itself reach. */
-  function unreached(name: string): string[] {
-    const seen = closure(name);
-    const missed: string[] = [];
-    for (const dir of seen) {
-      const nested = join(dir, 'node_modules');
-      if (!existsSync(nested)) continue;
-      for (const entry of readdirSync(nested)) {
-        if (entry.startsWith('.')) continue;
-        const paths = entry.startsWith('@') ? readdirSync(join(nested, entry)).map((k) => join(nested, entry, k)) : [join(nested, entry)];
-        for (const candidate of paths) if (!seen.has(realpathSync(candidate))) missed.push(candidate);
-      }
-    }
-    return missed;
-  }
 
   it.each(measured)('%s: every nested install is reached through the dependency graph', (name) => {
     expect(unreached(name), `nested under ${name} but not reachable from its dependencies — its bytes would go uncounted`).toEqual([]);

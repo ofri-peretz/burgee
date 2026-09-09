@@ -1,6 +1,13 @@
 /**
  * Every number this repository states in public, and the record that settles it.
  *
+ * `source` is not decoration: it is the list of files a reader has to go and correct when
+ * a claim turns out to be false, and a claim written somewhere this list does not name is
+ * a claim nothing keeps honest. `apps/docs/content/docs/comparison.mdx` was exactly that
+ * — the repository's most prominent public table, absent from this file, and disagreeing
+ * with the measurements on four rows. It is named here now, and `docs.test.ts` pins the
+ * figures it shares with the suite.
+ *
  * The intent asks for one outcome above all others: "the umbrella's ≥40% / ≥30% claim is
  * either confirmed or rewritten with the measured number. Both are acceptable outcomes; a
  * claim without a number is not." That cannot live in a footnote, so it lives here — each
@@ -58,7 +65,7 @@ export const CLAIMS: readonly ClaimSpec[] = [
   {
     id: 'cold-start-at-or-below-cac',
     claim: 'the engine starts at or below cac, the lightest framework in the landscape',
-    source: '.sdlc/intents/replacement-parser/intent.md #2, and the scoreboard row in .sdlc/intents/README.md',
+    source: '.sdlc/intents/replacement-parser/intent.md #2, the scoreboard row in .sdlc/intents/README.md, and the speed row of apps/docs/content/docs/comparison.mdx',
     from: { axis: 'perf', variant: 'burgee ÷ cac', metric: 'cold-start-ratio' },
     test: { max: 1 },
   },
@@ -79,7 +86,7 @@ export const CLAIMS: readonly ClaimSpec[] = [
   ...COMPAT_TARGETS.map(([host, passing]) => ({
     id: `compat-${host}`,
     claim: `${host}'s own test suite passes ${String(passing)} of ${String(passing)} against our entry point`,
-    source: 'packages/compat-oracle/baseline.json, published at /docs/compatibility',
+    source: 'packages/compat-oracle/baseline.json, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx',
     from: { axis: 'compat' as const, variant: host, metric: 'passing-tests' },
     test: { min: passing },
   })),

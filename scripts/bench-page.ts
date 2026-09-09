@@ -12,8 +12,7 @@
  * claims otherwise.
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { relative } from 'node:path';
-import { join, resolve } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));

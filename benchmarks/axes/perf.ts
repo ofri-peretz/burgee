@@ -172,7 +172,17 @@ export function msRecord(v: Variant, xs: number[], floor: number, resolved?: Res
  * rather than between two summary statistics that may have been measured under different
  * load. Machine-independent by construction, which is what makes it bandable at all.
  */
-export function ratioRecord(v: Variant, ours: number[], host: number[], gateMax: number, versions?: { ours: string; host: string }): BenchRecord {
+export interface RatioInput {
+  v: Variant;
+  /** Round *i* of the layer, and round *i* of its host. */
+  ours: number[];
+  host: number[];
+  gateMax: number;
+  /** The two resolved versions, so the banded row records what it raced. */
+  versions?: { ours: string; host: string };
+}
+
+export function ratioRecord({ v, ours, host, gateMax, versions }: RatioInput): BenchRecord {
   const paired = ours.map((ms, i) => ms / (host[i] as number));
   return {
     axis: 'perf',
@@ -231,13 +241,13 @@ export function run(rounds = ROUNDS): BenchRecord[] {
     const ours = resolved.get(v.id);
     const host = resolved.get(v.host);
     records.push(
-      ratioRecord(
+      ratioRecord({
         v,
-        samples.get(v.id) as number[],
-        samples.get(v.host) as number[],
-        RATIO_CEILING[v.id] ?? 1,
-        ours === undefined || host === undefined ? undefined : { ours: ours.version, host: host.version },
-      ),
+        ours: samples.get(v.id) as number[],
+        host: samples.get(v.host) as number[],
+        gateMax: RATIO_CEILING[v.id] ?? 1,
+        ...(ours === undefined || host === undefined ? {} : { versions: { ours: ours.version, host: host.version } }),
+      }),
     );
   }
   return records;

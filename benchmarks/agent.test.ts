@@ -111,15 +111,15 @@ describe('blockers', () => {
  * the assertion is that the numbers it emits are the stub's numbers — a hard-coded table
  * fails, whatever it contains.
  */
-describe.skipIf(!isPosix())('run(), end to end, against a stub claude', () => {
-  /** A "built CLI": `run()` only needs the file to exist, since claude is the stub. */
-  function stubBin(): string {
-    const dir = mkdtempSync(join(tmpdir(), 'stub-bin-'));
-    const bin = join(dir, 'bin.js');
-    writeFileSync(bin, 'process.stdout.write("ada\\n");\n');
-    return bin;
-  }
+/** A "built CLI": `run()` only needs the file to exist, since claude is the stub. */
+function stubBin(): string {
+  const dir = mkdtempSync(join(tmpdir(), 'stub-bin-'));
+  const bin = join(dir, 'bin.js');
+  writeFileSync(bin, 'process.stdout.write("ada\\n");\n');
+  return bin;
+}
 
+describe.skipIf(!isPosix())('run(), end to end, against a stub claude', () => {
   const variants: Variant[] = [
     { id: 'burgee', bin: stubBin(), floor: true },
     { id: 'commander', bin: stubBin(), floor: false },
