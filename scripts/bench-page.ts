@@ -15,6 +15,8 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { publishedResults } from 'benchmarks/published.js';
+
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const RESULTS = join(root, 'benchmarks', 'results');
 const OUT = join(root, 'apps', 'docs', 'content', 'docs', 'benchmarks.mdx');
@@ -63,14 +65,12 @@ interface Doc {
   claims: Record<string, Claim>;
 }
 
-/** The newest dated file of a suite, or nothing if the suite has never run here. */
+/** The newest *published* file of a suite, or nothing if the suite has never run here. */
 function latest(suite: string): Doc | undefined {
   const dir = join(RESULTS, suite);
   if (!existsSync(dir)) return undefined;
-  const files = readdirSync(dir)
-    .filter((f) => f.endsWith('.json'))
-    .toSorted();
-  const last = files.at(-1);
+  // The published measurement, never a CI observation — see `benchmarks/published.ts`.
+  const last = publishedResults(dir);
   return last === undefined ? undefined : (JSON.parse(readFileSync(join(dir, last), 'utf8')) as Doc);
 }
 

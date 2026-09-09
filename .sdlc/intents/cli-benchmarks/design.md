@@ -193,3 +193,39 @@ is sound, but the 100% for commander and for yargs each contain one case that co
 have failed. This axis re-emits the oracle's own number, per constraint 8, and carries
 `passed`, `tests`, `skipped` and `reference` in `detail` so the wrinkle is visible rather
 than smoothed.
+
+## Amended 2026-09-09 — a published measurement is not an observation
+
+`benchmarks/results/<suite>/` was designed as one thing and read as two. The Stage 6 bands
+want *every* observation, from every machine, because a series that stops updating looks
+perfectly healthy. `/docs/benchmarks` and `/docs/comparison` want *one* measurement,
+because a published figure is a claim somebody stands behind.
+
+They collided the day the suite landed. The recorder ran on a two-core CI runner, wrote
+`2026-09-09.json` over the committed one, and opened [#102]. Merging it would have demanded
+`+8.0 ms` of `comparison.mdx` where the page states `+22.6 ms` — five assertions red — and,
+had the page been updated to match, moved the project's public speed figures to whichever
+box picked up the job. Nothing got faster. The `installed-bytes` rows were byte-identical
+across the two runs, which is the point of them; the `cold-start-ms` rows were not, which
+is also the point of them, and `perf.ts` says so in its own method line.
+
+**The filename carries the distinction.** `YYYY-MM-DD.json` is a published measurement,
+committed by a person. `YYYY-MM-DD-<sha>.json` is an observation from the run at that
+commit. The bands glob the directory and read both; `bench-page.ts` and `docs.test.ts` go
+through `publishedResults()` and read only the first. The recorder `mv`s its output aside
+and restores the published file, so a CI run cannot change a public number without somebody
+choosing to.
+
+Two things about that were got wrong first and are worth keeping written down, because both
+were green before they were right:
+
+- **The first lock was vacuous.** It fixtured an observation from the *same* day, which
+  sorts before its measurement by an accident of ASCII (`-` is 0x2D, `.` is 0x2E) and so
+  passes under the old "whichever landed last" rule too. The case that happens is the next
+  morning's run.
+- **The first recorder used `cp`.** On a date that has never been published the run writes
+  a *new* `YYYY-MM-DD.json`, and `git checkout --` does not remove an untracked file — so
+  the CI file was staged under the exact name reserved for a chosen measurement. Correct on
+  day one, wrong on day two.
+
+[#102]: https://github.com/ofri-peretz/burgee/pull/102
