@@ -156,6 +156,18 @@ export default [
     rules: { 'import-next/no-default-export': 'off' },
   },
 
+  {
+    // A package's vitest config reaches the root's coverage policy. It is a *config* reading
+    // a config, not source reading source, and the alternative is the same exclusion list
+    // copied into four files — which is how it drifts and how a façade quietly starts being
+    // counted again. The packages themselves still depend on nothing.
+    files: ['packages/*/vitest.config.ts'],
+    rules: {
+      'import-next/no-relative-parent-imports': 'off',
+      'import-next/no-relative-packages': 'off',
+    },
+  },
+
   // ── Scope-specific exceptions ─────────────────────────────────────────────
   {
     // Tests import the package's public entry on purpose; scripts and tests are

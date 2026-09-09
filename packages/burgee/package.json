@@ -69,6 +69,7 @@
     "build": "tsc -p tsconfig.build.json && node ../../scripts/strip-comments.mjs dist",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
+    "coverage": "vitest run --coverage.enabled",
     "lint": "eslint src"
   },
   "repository": {
