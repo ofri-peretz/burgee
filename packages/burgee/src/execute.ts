@@ -204,6 +204,9 @@ function render(value: unknown): string {
   return String(value);
 }
 
+/** The negation prefix, in one place: `toParseConfig` writes it and `canonical` reads it. */
+const NO = 'no-';
+
 type ParseConfig = Record<string, { type: 'string' | 'boolean'; short?: string; multiple?: boolean }>;
 type Values = Record<string, unknown>;
 
@@ -221,13 +224,49 @@ function toParseConfig(specs: Record<string, OptionSpec>, withConfig: boolean): 
       ...(spec.short === undefined ? {} : { short: spec.short }),
       ...(spec.multiple === true ? { multiple: true } : {}),
     };
+    // Every boolean is negatable, and it is the precedence order that requires it rather
+    // than a convention borrowed from yargs. `flag > env > config > package.json > default`
+    // lets any boolean arrive `true` without the user typing anything — config and the
+    // package.json field set options *by name*, not only ones with an `env` binding — and a
+    // boolean flag cannot carry a value, so `--x=false` is refused. Without `--no-x` the
+    // top layer of that chain can only ever say `true`, and a boolean turned on in a config
+    // file could not be turned off from the command line at all.
+    if (spec.type === 'boolean') config[`${NO}${kebab(name)}`] = { type: 'boolean' };
   }
   return config;
 }
 
-/** Parsed flags back under their canonical camelCase keys. */
-function canonical(values: Values): Values {
-  return Object.fromEntries(Object.entries(values).map(([k, v]) => [camel(k), v]));
+/**
+ * Parsed flags back under their canonical camelCase keys, with `--no-x` folded onto `x`.
+ *
+ * `--x` and `--no-x` in the same command line: **the later one wins**, the semantic a
+ * wrapper depends on — a script appending `--no-color` to whatever the user typed expects
+ * to be the one heard, and both incumbents behave this way.
+ *
+ * It reads the tokens, and an earlier draft did not. `values` looks ordered enough: it
+ * carries `x` and `no-x` as separate keys and parseArgs inserts each as it meets it, so
+ * folding while iterating appears to give last-wins for free. It gives *last distinct
+ * spelling* wins. `--quiet --no-quiet --quiet` re-writes the value at the existing `quiet`
+ * key without moving its position, so `no-quiet` is still second and still wins — the
+ * wrong answer, from a version that passed every two-flag test.
+ *
+ * `no-config` is deliberately not folded: `config` is a *string* option and `--no-config`
+ * means "load none", not `config: false`. Only a declared boolean gets the treatment, which
+ * is why this needs the specs.
+ */
+function canonical(values: Values, specs: Record<string, OptionSpec>, tokens: readonly Token[]): Values {
+  const out: Values = {};
+  const negatable = (key: string): string => {
+    const bare = camel(key.startsWith(NO) ? key.slice(NO.length) : key);
+    return specs[bare]?.type === 'boolean' ? bare : '';
+  };
+  for (const [k, v] of Object.entries(values)) if (!k.startsWith(NO) || negatable(k) === '') out[camel(k)] = v;
+  for (const token of tokens) {
+    if (token.kind !== 'option') continue;
+    const bare = negatable(token.name);
+    if (bare !== '') out[bare] = !token.name.startsWith(NO);
+  }
+  return out;
 }
 
 interface Resolved2 {
@@ -538,7 +577,7 @@ function versionOf(manifest: Manifest, io: Io): string {
 
 async function dispatch(manifest: Manifest, { node, rest, name }: Resolved, io: Io): Promise<Outcome> {
   const parsed = parseArgs({ args: rest, options: toParseConfig(node.options, manifest.config !== undefined), allowPositionals: true, strict: true, tokens: true });
-  const flags = canonical(parsed.values as Values);
+  const flags = canonical(parsed.values as Values, node.options, parsed.tokens);
   const json = flags.json === true;
   if (flags.help === true) return { json, text: renderHelp(manifest, node, { width: io.width }) };
   if (flags.version === true) return { json, text: `${versionOf(manifest, io)}\n` };

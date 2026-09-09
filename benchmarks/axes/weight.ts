@@ -196,7 +196,12 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // core is a decision again rather than the twentieth quiet withdrawal from a balance
   // nobody was reading. **The drift from 3.33 to 3.49 is the finding here**, and it is not
   // this ceiling's to explain.
-  burgee: 3.51,
+  //
+  // 3.51 → 3.54 the same day, for boolean negation (3.502 → 3.531). Two ceilings raised in
+  // one session for two fixes is worth seeing rather than smoothing: both are corrections
+  // to the flag layer, both were priced before being taken, and core now bundles 3.53x cac
+  // against the 3.33x this ceiling was originally written for.
+  burgee: 3.54,
   'burgee/commander': 1.6,
   'burgee/yargs': 1,
   'roundel/chalk': 1,
