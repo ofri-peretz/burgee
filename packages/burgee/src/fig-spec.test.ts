@@ -54,9 +54,22 @@ interface Fig {
 
 const spec = renderFigSpec(program) as Fig;
 
-/** Every node of the spec, with the command path that reaches it. */
-function nodes(at: Fig, path: string[] = []): { node: Fig; path: string[] }[] {
-  return [{ node: at, path }, ...(at.subcommands ?? []).flatMap((c) => nodes(c, [...path, c.name]))];
+/**
+ * Every node of the spec, with the command path that reaches it.
+ *
+ * Iterative, not recursive: a spec is a tree we generate, but this walks whatever it is
+ * handed, and an unbounded recursion over externally-shaped data is what
+ * `secure-coding/no-unchecked-loop-condition` exists to refuse.
+ */
+function nodes(root: Fig): { node: Fig; path: string[] }[] {
+  const out: { node: Fig; path: string[] }[] = [];
+  const stack: { node: Fig; path: string[] }[] = [{ node: root, path: [] }];
+  while (stack.length > 0) {
+    const at = stack.pop() as { node: Fig; path: string[] };
+    out.push(at);
+    for (const child of at.node.subcommands ?? []) stack.push({ node: child, path: [...at.path, child.name] });
+  }
+  return out;
 }
 
 const all = nodes(spec);
