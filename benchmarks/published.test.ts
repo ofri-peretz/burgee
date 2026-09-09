@@ -97,7 +97,10 @@ describe('the generated page', () => {
     writeFileSync(observation, JSON.stringify(doc, null, 2));
     try {
       // Exits non-zero when the committed page is not what the results generate.
-      execFileSync('npm', ['run', 'bench:page', '--', '--check'], { cwd: REPO_ROOT, stdio: 'pipe' });
+      // `npm.cmd` on Windows — `execFileSync` does not consult PATHEXT, and spawning
+      // through a shell instead would be a shell for the sake of one filename.
+      const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+      execFileSync(npm, ['run', 'bench:page', '--', '--check'], { cwd: REPO_ROOT, stdio: 'pipe' });
     } finally {
       rmSync(observation, { force: true });
     }
