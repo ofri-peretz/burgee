@@ -14,3 +14,7 @@ next-env.d.ts
 
 # eval transcripts and whatever a case asked the agent to write
 evals/results/
+
+# The competitor watch writes its report here on every run (upstream-watch R4);
+# it is a build artifact, like packages/compat-oracle/upstream.json.
+packages/compat-oracle/competitors-upstream.json
