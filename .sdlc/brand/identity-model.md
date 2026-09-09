@@ -16,6 +16,16 @@ competitors, and the family is a claim about *layers of a CLI*, not about a bund
 | **Motion** | `flagstaff` | The repaint loop, and plugins as data — every animation carrying a static projection for pipes, `--json` and screen readers | ora, log-update, boxen, cli-table3, Ink |
 | **Dialogue** | `caique` | Prompts that are flags first: a caller who passed the flag is never asked, and a non-TTY caller gets an error naming the flag rather than a hang | inquirer, clack |
 
+Under those four sits the **foundation tier** — the loop's own plumbing, each planned rather
+than released:
+
+| Layer | Package | What it owns | Named for |
+| :-- | :-- | :-- | :-- |
+| **Text** | `linegauge` | Measure, wrap, truncate and slice styled text without the edge fraying | The printer's steel rule, marked in picas and points |
+| **Config** | `seniority` | Precedence across flag, env, project file, home file and default, with provenance | Ranking higher through longer service, and therefore winning a conflict |
+| **Process** | `bellpull` | Run a subprocess; resolve the executable; return a result every caller can read | The cord in one room, wired to a bell in another |
+| **Lifecycle** | `closeout` | Exit handlers that run once on every path, terminal restore, a bounded deadline | To settle and finish — nothing left open |
+
 `compat-oracle` is a measuring instrument, never published, and has no public identity.
 
 ## What each mark has to say
@@ -68,6 +78,25 @@ than design is already close to the Interlace palette. The cap is the body showi
 every other patch is a marking clipped to the silhouette, so each is drawn generously and the
 outline decides where it ends. The Interlace mark rides on the wing, in paper and ink,
 because the lifted pair on a green wing is 1.42:1 and disappears.
+
+### The foundation four
+
+They are plumbing, and their marks say so: no creature, no scene, nothing that asks to be
+looked at twice. Each is the instrument its name means, drawn flat.
+
+**`linegauge`** is a rule with its ticks **cut through it** — a counter under `evenodd`, so
+the markings are the one part of the mark that is not ink, which is what a rule's markings
+are: absence, machined into steel.
+
+**`seniority`** is three rank chevrons. One is a mark and two is a coincidence; three is the
+insignia, and the Interlace mark rides above them where a badge carries its device.
+
+**`bellpull`** is the cord and its pull, drawn as one outline — a cord ending inside its own
+handle would cut a hole where the two overlap. The mark sits on the pull, the part a hand
+actually takes.
+
+**`closeout`** is the double rule an accountant draws under a settled total, with the mark
+above it as the total it closes.
 
 ## The system every mark obeys
 
