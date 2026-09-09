@@ -385,6 +385,14 @@ export default [
     rules: { 'import-next/consistent-type-specifier-style': 'off' },
   },
   {
+    // FP 23 (unknown-option.ts): no-insecure-comparison reads a comparison of an argv
+    // token against the terminator literal as a secret compared in variable time. The
+    // token is an argument the user typed and the literal is two dashes — both public by
+    // construction, and the same shape the rule already misreads in FP 7 and FP 22.
+    files: ['packages/burgee/src/unknown-option.ts'],
+    rules: { 'secure-coding/no-insecure-comparison': 'off' },
+  },
+  {
     // Config discovery loads the user's own config file: a JSON read, or a dynamic import
     // of a JavaScript config — that import is the feature (V6, yargs #2234), not a
     // dependency loaded by name. `extends` parents are awaited in order because order is the
