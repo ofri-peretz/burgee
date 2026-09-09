@@ -17,7 +17,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { type BandConfig, collectBenchmark, DATED_JSON } from './control-bands';
+import { type BandConfig, collectBenchmark, DATED_JSON, mergeObservations } from './control-bands';
 
 describe('which files are a suite’s series', () => {
   it.each(['2026-09-09.json', '2026-09-09-5bc506c.json', '2026-09-10-abc1234.json'])('%s is one', (f) => {
@@ -47,5 +47,48 @@ describe('collectBenchmark', () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+});
+
+describe('mergeObservations', () => {
+  /**
+   * `--backfill-git` runs both collectors, and since the series learned to read
+   * `<date>-<sha>.json` they both find every observation — so a run hands `record()` two
+   * copies of each. The old set of known dates was built once, before the loop, so both
+   * copies passed it: the first recorded run after that change appended sixteen duplicate
+   * pairs and grew the series file by 1,454 lines in a day.
+   */
+  it('takes one of two identical copies from the same run', () => {
+    const twice = [
+      { date: '2026-09-09-aaaaaaa', value: 1.065 },
+      { date: '2026-09-09-aaaaaaa', value: 1.065 },
+      { date: '2026-09-09-bbbbbbb', value: 1.07 },
+      { date: '2026-09-09-bbbbbbb', value: 1.07 },
+    ];
+    const got = mergeObservations([], twice);
+    expect(got.series.map((o) => o.date)).toEqual(['2026-09-09-aaaaaaa', '2026-09-09-bbbbbbb']);
+    expect(got.added).toBe(2);
+    expect(got.conflicts).toEqual([]);
+  });
+
+  it('is still idempotent against what is already recorded', () => {
+    const had = [{ date: '2026-09-09', value: 1.161 }];
+    const got = mergeObservations(had, [{ date: '2026-09-09', value: 1.161 }, { date: '2026-09-10-ccccccc', value: 1.08 }]);
+    expect(got.added).toBe(1);
+    expect(got.series).toHaveLength(2);
+  });
+
+  it('reports a date arriving with two different values rather than picking one', () => {
+    // Not a duplicate: the working tree and git history disagreeing about one commit's
+    // results is a fact about the data, and silently keeping whichever arrived first is how
+    // it would never be noticed.
+    const got = mergeObservations([], [{ date: '2026-09-09-aaaaaaa', value: 1.06 }, { date: '2026-09-09-aaaaaaa', value: 1.31 }]);
+    expect(got.conflicts).toEqual(['2026-09-09-aaaaaaa: 1.06 then 1.31']);
+    expect(got.series).toHaveLength(1);
+  });
+
+  it('keeps the series in date order', () => {
+    const got = mergeObservations([{ date: '2026-09-10', value: 2 }], [{ date: '2026-09-08', value: 1 }]);
+    expect(got.series.map((o) => o.date)).toEqual(['2026-09-08', '2026-09-10']);
   });
 });

@@ -366,6 +366,40 @@ async function collect(cfg: BandConfig, fromGit: boolean): Promise<Observation[]
   }
 }
 
+/**
+ * Fold newly collected observations into a band's existing series.
+ *
+ * Deduplication is by date **within this call as well as against what is already there**,
+ * which is what `record()` did not do: it built the set of known dates once, before the
+ * loop, so two collected observations sharing a date both passed it. That was invisible
+ * while each collector matched one file per date and became sixteen duplicate pairs the
+ * moment they matched more — `--backfill-git` runs `collectBenchmark` *and*
+ * `collectFromGit`, and since the series learned to read `<date>-<sha>.json` both of them
+ * find every observation.
+ *
+ * A date arriving twice with two *different* values is not a duplicate, it is a
+ * disagreement between the working tree and git history about one commit's results, and it
+ * is returned rather than silently resolved to whichever came first.
+ */
+export function mergeObservations(existing: readonly Observation[], collected: readonly Observation[]): { series: Observation[]; added: number; conflicts: string[] } {
+  const series = [...existing];
+  const known = new Map(existing.map((o) => [o.date, o.value]));
+  const conflicts: string[] = [];
+  let added = 0;
+  for (const obs of collected) {
+    const seen = known.get(obs.date);
+    if (seen === undefined) {
+      series.push(obs);
+      known.set(obs.date, obs.value);
+      added++;
+    } else if (seen !== obs.value) {
+      conflicts.push(`${obs.date}: ${String(seen)} then ${String(obs.value)}`);
+    }
+  }
+  series.sort((a, b) => a.date.localeCompare(b.date));
+  return { series, added, conflicts };
+}
+
 /** Append observations per band, de-duplicated by date. Idempotent. */
 async function record(fromGit: boolean): Promise<void> {
   const series = loadSeries();
@@ -377,17 +411,10 @@ async function record(fromGit: boolean): Promise<void> {
       console.warn(`  ⚠️ ${cfg.id}: collector produced nothing`);
       continue;
     }
-    const existing = series[cfg.id] ?? [];
-    series[cfg.id] = existing;
-    const known = new Set(existing.map((o) => o.date));
-    let added = 0;
-    for (const obs of collected) {
-      if (known.has(obs.date)) continue;
-      existing.push(obs);
-      added++;
-    }
-    existing.sort((a, b) => a.date.localeCompare(b.date));
-    console.warn(`  + ${cfg.id}: ${added} new, ${existing.length} total`);
+    const merged = mergeObservations(series[cfg.id] ?? [], collected);
+    series[cfg.id] = merged.series;
+    for (const clash of merged.conflicts) console.warn(`  ⚠️ ${cfg.id}: two values for ${clash} — the working tree and git history disagree`);
+    console.warn(`  + ${cfg.id}: ${String(merged.added)} new, ${String(merged.series.length)} total`);
   }
   fs.mkdirSync(path.dirname(SERIES), { recursive: true });
   fs.writeFileSync(SERIES, `${JSON.stringify(series, null, 2)}\n`);
