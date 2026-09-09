@@ -13,7 +13,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { readTasks, type Task } from './axes/agent.js';
+import { isPosix, POSIX_ONLY, readTasks, type Task } from './axes/agent.js';
 
 interface TaskWithExemplar extends Task {
   exemplar: string;
@@ -29,7 +29,15 @@ function check(task: Task, result: string): number {
   return spawnSync('/bin/sh', ['-c', task.check], { cwd: dir, env: { ...process.env, BENCH_RESULT: file, BENCH_EXIT: '0' }, stdio: 'ignore' }).status ?? 1;
 }
 
-describe('the B1 task set', () => {
+describe('the B1 harness is honest about where it runs', () => {
+  it('names the platform it needs, instead of half-running and blaming the CLI', () => {
+    expect(POSIX_ONLY).toContain('/bin/sh');
+  });
+});
+
+// The checks are POSIX shell. Running them under Windows would grade the harness, not the
+// CLI — so the axis reports `skipped` there (see `blockers`) and these skip with it.
+describe.skipIf(!isPosix())('the B1 task set', () => {
   it('has the five tasks the design names', () => {
     expect(tasks.map((t) => t.id).toSorted()).toEqual(['diagnose-provenance', 'discover-subcommand', 'non-tty-required', 'recover-failure', 'structured-output']);
   });

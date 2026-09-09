@@ -32,6 +32,71 @@ const SCRATCH = join(BENCH_ROOT, '.fixtures');
 const RATIO_PLACES = 3;
 
 /**
+ * The ranges `benchmarks/package.json` declares, which is what every incumbent here is
+ * supposed to be. Read once, so the check below compares against the file rather than
+ * against a second copy of the versions written out in this module.
+ */
+const DECLARED = ((): ReadonlyMap<string, string> => {
+  const manifest = JSON.parse(readFileSync(join(BENCH_ROOT, 'package.json'), 'utf8')) as {
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
+  };
+  return new Map(Object.entries({ ...manifest.dependencies, ...manifest.devDependencies }));
+})();
+
+const CARET = /^\^\d+\.\d+\.\d+$/;
+const EXACT = /^\d+\.\d+\.\d+$/;
+const SEMVER_PARTS = 3;
+
+/**
+ * The three range shapes `benchmarks/package.json` uses, and nothing else — an
+ * unrecognised range throws rather than passing, because a version check that quietly
+ * returns `true` for anything it does not understand is not a check.
+ */
+/** major.minor.patch, or nothing if it is not that shape. */
+function triple(text: string): [number, number, number] | undefined {
+  const parts = text.split('.').map(Number);
+  const [major, minor, patch] = parts;
+  if (parts.length !== SEMVER_PARTS || major === undefined || minor === undefined || patch === undefined) return undefined;
+  return parts.some((n) => Number.isNaN(n)) ? undefined : [major, minor, patch];
+}
+
+export function satisfies(version: string, range: string): boolean {
+  if (range === '*') return true;
+  if (EXACT.test(range)) return version === range;
+  if (!CARET.test(range)) {
+    throw new Error(`benchmarks/package.json declares "${range}", a range shape satisfies() does not know; teach it rather than skipping the check`);
+  }
+  const want = triple(range.slice(1));
+  const got = triple(version);
+  if (want === undefined || got === undefined) return false;
+  if (got[0] !== want[0]) return false;
+  return got[1] > want[1] || (got[1] === want[1] && got[2] >= want[2]);
+}
+
+/**
+ * The package we are supposed to be measuring, or a loud failure.
+ *
+ * This exists because the walk below found the wrong package on the first CI run of this
+ * suite. The workspace root has **commander 8.3.0** hoisted as somebody's transitive
+ * dependency; the version we grade against is **15.0.0**, in `benchmarks/node_modules`.
+ * When CI's node_modules cache did not carry that directory, the walk fell through to the
+ * root and measured commander 8 — and reported a perfectly plausible 29,275 bytes and a
+ * 2.0x ratio, with nothing but the `detail.version` field to say anything was wrong.
+ * Comparing against the declared range turns that class of mistake into a stopped run.
+ */
+function resolvePackage(name: string): { dir: string; version: string } {
+  const declared = DECLARED.get(name);
+  if (declared === undefined) {
+    throw new Error(`${name} is measured by B4 but benchmarks/package.json does not declare it, so the version measured would be whatever npm happened to hoist`);
+  }
+  const found = packageDir(name);
+  if (satisfies(found.version, declared)) return found;
+  const shadowed = `resolved ${name}@${found.version} from ${found.dir}, but benchmarks/package.json declares "${declared}"`;
+  throw new Error(`${shadowed} — something above benchmarks/ is shadowing it; run \`npm ci\` so benchmarks/node_modules is populated. Measuring the wrong package is worse than measuring nothing.`);
+}
+
+/**
  * The package's own directory, found by walking `node_modules` upward from `benchmarks/`
  * — never `require.resolve`, which several of these packages refuse for `package.json`
  * through their `exports` map, and which would silently fall back to the wrong tree.
@@ -95,7 +160,7 @@ export function packageOf(specifier: string): string {
 
 /** esbuild's own binary, wherever npm hoisted it — never a `.bin` shim that may not exist. */
 function esbuildBin(): string {
-  return join(packageDir('esbuild').dir, 'bin', 'esbuild');
+  return join(resolvePackage('esbuild').dir, 'bin', 'esbuild');
 }
 
 function bundle(side: { specifier: string; symbol: string }, id: string): number {
@@ -122,7 +187,7 @@ export interface Measured {
 
 function measure(side: { specifier: string; symbol: string }, id: string): Measured {
   const pkg = packageOf(side.specifier);
-  const { dir, version } = packageDir(pkg);
+  const { dir, version } = resolvePackage(pkg);
   return { bundled: bundle(side, id), installed: installedBytes(pkg), version, dir: resolve(dir).replace(REPO_ROOT, '<repo>') };
 }
 

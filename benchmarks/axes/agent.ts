@@ -121,6 +121,14 @@ export interface Attempt extends ClaudeUsage {
 const SHELL = '/bin/sh';
 
 /**
+ * A task's `check` and its `setup` are POSIX shell one-liners, and the tool is installed
+ * as a `#!/bin/sh` shim on `PATH` — so the B1 harness runs on POSIX and says so, rather
+ * than half-running on Windows and reporting failures that are the harness's own.
+ */
+export const POSIX_ONLY = 'the B1 harness runs task checks through /bin/sh; this platform is win32';
+export const isPosix = (platform: string = process.platform): boolean => platform !== 'win32';
+
+/**
  * One task, once. The agent sees Bash on `mytool` and nothing else (intent constraint 2):
  * no file reads, so the CLI's own output is the only channel through which it can learn
  * anything — which is the whole hypothesis under test.
@@ -155,6 +163,7 @@ export function runOne(opts: RunOne): Attempt {
 /** Every reason this axis cannot run, checked before anything is spawned or spent. */
 export function blockers(env: NodeJS.ProcessEnv = process.env): string[] {
   const reasons: string[] = [];
+  if (!isPosix()) reasons.push(POSIX_ONLY);
   if (env['ANTHROPIC_API_KEY'] === undefined && env['CLAUDE_CODE_OAUTH_TOKEN'] === undefined) {
     reasons.push('no CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY in the environment');
   }

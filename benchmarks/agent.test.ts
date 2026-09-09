@@ -15,7 +15,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { blockers, installTool, parseClaudeJson, runOne, type Task } from './axes/agent.js';
+import { blockers, installTool, isPosix, parseClaudeJson, POSIX_ONLY, runOne, type Task } from './axes/agent.js';
 
 const EXECUTABLE = 0o755;
 
@@ -52,7 +52,9 @@ describe('parseClaudeJson', () => {
   });
 });
 
-describe('runOne against a stub binary', () => {
+// The stub is a `#!/bin/sh` script and the tool is installed as one: POSIX only, the same
+// constraint the axis itself declares.
+describe.skipIf(!isPosix())('runOne against a stub binary', () => {
   it('succeeds when the answer passes the task check, and reports the usage', () => {
     const r = attempt(stubClaude('the value is ada'));
     expect(r).toMatchObject({ success: true, tokensIn: 1200, tokensOut: 120, turns: 3 });
@@ -84,6 +86,11 @@ describe('blockers', () => {
   it('names the missing credential rather than letting the axis run and produce nothing', () => {
     const reasons = blockers({ PATH: process.env['PATH'] as string });
     expect(reasons.join('; ')).toContain('no CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY');
+  });
+
+  it('names the platform when it is one the harness cannot run on', () => {
+    expect(isPosix('win32')).toBe(false);
+    expect(POSIX_ONLY).toContain('win32');
   });
 
   it('is satisfied on the credential when one is present', () => {
