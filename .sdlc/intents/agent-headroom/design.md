@@ -1,6 +1,17 @@
 # Design — Agent headroom
 
-Intent: [`intent.md`](./intent.md). **Status:** draft — awaiting the Design→Build gate.
+Intent: [`intent.md`](./intent.md).
+
+**Accepted by the owner (Ofri) on 2026-09-09, at the Design→Build gate**, scoped to **R1 plus
+R7's metric** — the compact serialisation and the `schema-bytes` measurement that publishes it.
+Everything from R2 down stays at the gate and needs its own acceptance; the ordering in
+"Sequence" below is unchanged, and R1 was chosen first for the reason stated there: it is
+nearly all of the win and nearly none of the work.
+
+One thing this design predates, recorded here rather than silently absorbed: the owner's
+"we should support **any** format that will provide value". `formats` as an open key on the
+plugin object is written up under "Registered formats" below, but it is not yet a numbered
+requirement, and it should become one before R5 or `--format=tsv` is built.
 
 > Written 2026-09-09 against measured output, not against a guess: every figure below came
 > from running the two reference demos. The order is chosen so the largest saving lands
