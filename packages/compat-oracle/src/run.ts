@@ -171,8 +171,10 @@ function shimSource(entry: HostImport, host: Host, target: string): string {
  * `await import(target)` cannot provide. Writing them per run is what lets one vendored
  * suite grade any implementation.
  */
-function writeShims(host: Host, hostDir: string, target: string): void {
-  host.imports.forEach((entry, i) => writeFileSync(join(hostDir, shimName(i)), shimSource(entry, host, target)));
+function writeShims(host: Host, hostDir: string, target: string, packageType: string): void {
+  // The vendored package's own type decides the extension, and the vendor step wrote the
+  // rewritten specifiers against the same rule — so the two always name one file.
+  host.imports.forEach((entry, i) => writeFileSync(join(hostDir, shimName(i, packageType)), shimSource(entry, host, target)));
 }
 
 /** The installed package's directory: its main entry, then up to the nearest package.json. */
@@ -195,14 +197,28 @@ interface Source {
  * `import { Option } from '../lib/option.js'` resolves to our Option, and a test that then
  * fails is a real divergence rather than a whole file thrown away.
  */
-function writeInternalShims(host: Host, hostDir: string, target: string, internals: string[]): void {
+function writeInternalShims(host: Host, { hostDir, target, internals, packageType }: { hostDir: string; target: string; internals: string[]; packageType: string }): void {
   const installed = target === host.name ? packageRoot(host.name) : undefined;
   for (const rel of internals) {
     const at = join(hostDir, rel);
     mkdirSync(dirname(at), { recursive: true });
     const from = installed === undefined ? target : join(installed, rel);
-    writeFileSync(at, `// generated per run — COMPAT_TARGET=${target}\nexport * from '${from}';\n`);
+    writeFileSync(at, `// generated per run — COMPAT_TARGET=${target}\n${internalShimBody(from, packageType)}`);
   }
+}
+
+/**
+ * The shim's *language* has to match how the test loads it, not just its extension.
+ *
+ * An internal shim is written at the exact path the test reaches for — `../src/cell`, with
+ * no extension — so Node's CommonJS resolver finds it and, having no extension to go on,
+ * loads it as CommonJS. An `export * from` there is a syntax error, which is what
+ * cli-table3's four internal files hit. A CJS host gets a CJS shim; `.default ?? loaded`
+ * unwraps an ES module target while leaving a CommonJS one alone.
+ */
+function internalShimBody(from: string, packageType: string): string {
+  if (packageType === 'module') return `export * from '${from}';\n`;
+  return `const loaded = require('${from}');\nmodule.exports = loaded?.default ?? loaded;\n`;
 }
 
 /**
@@ -244,9 +260,43 @@ function command(host: Host, dir: string, paths: string[]): { bin: string; args:
  * and `expect` without importing them. Generated per run beside the shims, and gitignored
  * for the same reason they are.
  */
+/**
+ * A jest suite run under vitest still expects jest's globals. vitest's `globals: true`
+ * supplies `describe`, `it` and `expect`; it does not supply `jest` itself, and cli-table3's
+ * suite reaches for `jest.fn`, `jest.mock` and `jest.requireActual`.
+ *
+ * This is harness, not leniency: the three are mapped to vitest's own equivalents and no
+ * assertion is touched. Without them a file fails to load, which reads as a compatibility
+ * failure when it is a runner mismatch — the whole class of error the oracle exists to keep
+ * out of the number.
+ */
+const jestGlobals = (): string => `// generated per run
+import { createRequire } from 'node:module';
+import { vi } from 'vitest';
+
+// Anchored here, at the vendored root, which is where a bare id resolves from. A *relative*
+// id in \`requireActual\` is written from the test file and cannot be anchored from a
+// wrapper that does not know its caller — a file using one fails to load, loudly, and is
+// reported on the informational line rather than silently mis-resolved. Anchoring at the
+// test directory instead was tried and is worse: cell-test.js then loads and reports 94
+// failures that are the wrapper's, not cli-table3's, which is the exact class of error this
+// oracle exists to keep out of the number.
+const require = createRequire(import.meta.url);
+
+globalThis.jest = {
+  fn: (...args) => vi.fn(...args),
+  // \`vi.mock\` is hoisted by vitest's transform and refuses to be called from inside a
+  // wrapper; \`vi.doMock\` is its runtime form, which is what a \`jest.mock\` call reached at
+  // run time actually means. These suites call it before the require it affects.
+  mock: (...args) => vi.doMock(...args),
+  requireActual: (id) => require(id),
+};
+`;
+
 function writeVitestConfig(host: Host, hostDir: string, files: string[]): void {
   const include = files.map((f) => JSON.stringify(join(host.testDir, f).split(sep).join('/')));
-  writeFileSync(join(hostDir, 'vitest.config.mjs'), `// generated per run\nexport default { test: { include: [${include.join(', ')}], globals: true } };\n`);
+  writeFileSync(join(hostDir, 'vitest.setup.mjs'), jestGlobals());
+  writeFileSync(join(hostDir, 'vitest.config.mjs'), `// generated per run\nexport default { test: { include: [${include.join(', ')}], globals: true, setupFiles: ['./vitest.setup.mjs'] } };\n`);
 }
 
 /** Runs the suite from its vendored root; a failing suite still prints its summary. */
@@ -312,8 +362,9 @@ export function grade(host: Host, vendorDir: string, target: string, reference =
   const missing = missingTarget(host, target);
   if (missing !== undefined) return { ...base, note: `target not built yet: ${missing}` };
 
-  writeShims(host, hostDir, target);
-  writeInternalShims(host, hostDir, target, source.internals ?? []);
+  const { type: packageType = 'commonjs' } = JSON.parse(readFileSync(join(hostDir, 'package.json'), 'utf8')) as { type?: string };
+  writeShims(host, hostDir, target, packageType);
+  writeInternalShims(host, { hostDir, target, internals: source.internals ?? [], packageType });
 
   const run = runSuite(host, hostDir, files, target);
   keepTap(host, target, 'public', run);
@@ -323,7 +374,10 @@ export function grade(host: Host, vendorDir: string, target: string, reference =
   if (internal.length > 0) {
     const extra = runSuite(host, hostDir, internal, target);
     keepTap(host, target, 'internal', extra);
-    const counts = 'error' in extra ? { tests: 0, passed: 0 } : parseNodeTest(extra.output);
+    // The same dialect dispatch the gated run uses. `parseNodeTest` alone read vitest's
+    // flat TAP as `tests: -1`, because a plan with no `# tests` summary gives it nothing to
+    // count — the informational line then reported a negative total.
+    const counts = 'error' in extra ? { tests: 0, passed: 0 } : summarize(extra.output, internal.length, 0);
     graded.internals = { files: internal.length, tests: counts.tests, passed: counts.passed };
   }
   return graded;

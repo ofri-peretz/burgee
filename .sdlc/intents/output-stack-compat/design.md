@@ -129,6 +129,54 @@ does not ship until the trade is written down and accepted, as log-update's was.
 4. **clack**, then **inquirer** — in that order, smaller suite first, each with the R2
    determination written into its own test file.
 
+## What shipped (cli-table3 activated — 2026-09-09)
+
+Step 2 of the order above. The row is `active`, the control is **33 / 33**, and the
+informational line reads **103 / 104** across the four internal files — so C4's split is a
+number on the page rather than a paragraph in an intent.
+
+Getting there needed four fixes in the oracle, and all four are about running a **CommonJS
+jest** suite, which no previous host was:
+
+1. **The shim's extension has to say what it is.** Every generated shim is ESM. Under a
+   vendored `type: module` a `.js` file already is; under `type: commonjs` it is parsed as
+   CommonJS and the shim is a syntax error — cli-table3 scored **0 / 7** on that alone.
+   `shimName()` now answers `.mjs` unless the package says `module`, and `main` and the
+   rewritten specifiers are built from that one function so they cannot disagree.
+2. **The internal shim's *language* has to match too.** An internal shim is written at the
+   exact path the test reaches for — `../src/cell`, no extension — so Node's CJS resolver
+   loads it as CommonJS. A CJS host now gets `module.exports = require(...).default ?? …`.
+3. **Where a host keeps its internals is host knowledge.** The detector was hard-coded to
+   `../lib/`, which is commander's and yargs' layout; cli-table3 uses `src/`. `internalDir`
+   joins `testDir` and `testGlob` as something a host declares. Without it the four internal
+   files were graded *in the gate* — 136 / 137, with the host's own file layout deciding our
+   number, which is precisely what C4 exists to prevent.
+4. **A jest suite needs jest's globals.** vitest's `globals: true` supplies `describe`, `it`
+   and `expect`, not `jest`. Three names are mapped to vitest's equivalents in a generated
+   setup file — harness, not leniency: no assertion is touched, and without them a file
+   fails to *load*, which reads as a compatibility failure when it is a runner mismatch.
+   `jest.mock` maps to `vi.doMock` rather than `vi.mock`, because vitest hoists the latter
+   and refuses it from inside a wrapper.
+
+And one reporting bug the work exposed: the informational line ran its output through
+`parseNodeTest` whatever the runner, so vitest's flat TAP — a plan with no `# tests` summary
+— came back as `tests: -1`. It uses the same dialect dispatch the gated run does now.
+
+**One limitation, named rather than hidden.** `jest.requireActual` with a *relative* id is
+written from the test file and cannot be anchored from a wrapper that does not know its
+caller, so `cell-test.js` does not load — the 104th case. Anchoring at the test directory
+instead was tried and is worse: the file then loads and reports 94 failures that belong to
+the wrapper rather than to cli-table3, which is the exact class of error this oracle exists
+to keep out of the number.
+
+The target is renamed `flagstaff/cli-table3`. It was `flagstaff/table`, which is our own
+table API and not a façade of anything; every other façade is named after the host it
+replaces, and the row now reads `target not built yet` rather than 0%.
+
+Two mutations prove the machinery: a shim kept at `.js` under `commonjs` drops the control to
+**0 / 3**, and ignoring `internalDir` pulls all 104 internal cases into the gate at
+**136 / 137**.
+
 ## Verification
 
 The loop: `npm run compat` and the ratchet in `compat.yml`.

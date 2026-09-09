@@ -1,0 +1,3 @@
+// generated per run — COMPAT_TARGET=cli-table3
+const loaded = require('/Users/ofri/repos/ofriperetz.dev/burgee-wave3/node_modules/cli-table3/src/cell');
+module.exports = loaded?.default ?? loaded;
