@@ -84,10 +84,21 @@ function count(pattern: RegExp, output: string): number {
  * is the stable machine-readable one.
  */
 export function parseNodeTest(output: string): { tests: number; passed: number; failed: number; skipped: number } {
-  const skipped = TAP_SKIPPED.test(output) ? count(TAP_SKIPPED, output) : output.split('\n').filter((l) => TAP_OK.test(l) && l.includes('# SKIP')).length;
-  // `tests` is what ran: a test that skipped itself (commander's Windows-only cases off
-  // Windows) passed for no one and fails no one, so it is reported and never counted.
-  return { tests: count(TAP_TESTS, output) - skipped, passed: count(TAP_PASS, output), failed: count(TAP_FAIL, output), skipped };
+  // Two ways a skip shows up, and they mean different things about the totals.
+  //
+  // A runner that PRINTS a skip summary counted the skip in `# tests` and left it out of
+  // `# pass` — measured on node:test 24.18.0 (`# tests 3 / # pass 2 / # skipped 1`) and
+  // stated by supertap for ava. There the subtraction belongs on `tests` alone.
+  //
+  // mocha prints no such line: the skip is visible only as an inline `# SKIP`, and its
+  // summary has already left it out of BOTH totals — measured (`ok 3 … # SKIP -` with
+  // `# tests 2 / # pass 2`). Subtracting there took it off a count that never held it,
+  // which is how yargs came to report 804 passing out of 803 run: an impossible number,
+  // and wrong in the direction that flatters.
+  const summarySkips = TAP_SKIPPED.test(output) ? count(TAP_SKIPPED, output) : 0;
+  const inlineSkips = output.split('\n').filter((l) => TAP_OK.test(l) && l.includes('# SKIP')).length;
+  const skipped = summarySkips || inlineSkips;
+  return { tests: count(TAP_TESTS, output) - summarySkips, passed: count(TAP_PASS, output), failed: count(TAP_FAIL, output), skipped };
 }
 
 /**
