@@ -12,6 +12,8 @@
 > [`b68ae937c6`](https://github.com/ofri-peretz/burgee/commit/b68ae937c6), which is why it
 > is not in the build-stage diff.)
 
+**State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why still `review`:** `apps/docs` exists and builds; **nothing is deployed** and `.sdlc/bands/scoreboard-public.json` is still `null`.
+
 ---
 
 ## What is wanted

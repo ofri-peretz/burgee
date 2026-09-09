@@ -7,6 +7,9 @@
 - name: skip-changeset
   color: "FBCA04"
   description: "Internal-only change; no release entry"
+- name: "bench:agent"
+  color: "5319E7"
+  description: "Run B1 agent cost on this PR — it spends money, so it is asked for by name"
 - name: dependencies
   color: "0366D6"
   description: "Dependency updates"

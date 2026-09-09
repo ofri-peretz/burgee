@@ -3,7 +3,9 @@
 > Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md),
 > and the reason [`replacement-parser`](../replacement-parser/intent.md) is worth building.
 
-**Status:** review · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
+**Status:** shipped · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
+
+**State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Evidence:** `packages/burgee/src/commander-*.ts`; **1,361 / 1,361** on commander’s own suite, level with real commander in the same run.
 
 ---
 

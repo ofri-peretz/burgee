@@ -1,0 +1,53 @@
+{
+  "name": "seniority",
+  "version": "0.0.1",
+  "description": "Which source outranks the others. One resolution for flags, environment, project and home config files and defaults \u2014 with provenance, so every value can say where it came from. Drop-in paths for cosmiconfig, dotenv and rc. Zero dependencies.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "!dist/**/*.test.*"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "lint": "eslint src"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ofri-peretz/burgee.git",
+    "directory": "packages/seniority"
+  },
+  "homepage": "https://github.com/ofri-peretz/burgee/tree/main/packages/seniority#readme",
+  "bugs": {
+    "url": "https://github.com/ofri-peretz/burgee/issues"
+  },
+  "keywords": [
+    "cli",
+    "config",
+    "configuration",
+    "cosmiconfig",
+    "dotenv",
+    "rc",
+    "lilconfig",
+    "precedence",
+    "env",
+    "settings",
+    "provenance"
+  ],
+  "devDependencies": {
+    "vitest": "^4.0.0"
+  }
+}

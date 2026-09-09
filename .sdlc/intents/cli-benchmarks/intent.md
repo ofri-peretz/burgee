@@ -8,6 +8,8 @@
 
 **Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
+**State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why still `review`:** **no bench script exists** — no `npm run bench`, no B1–B4 rows, so no published number.
+
 ---
 
 ## What is wanted
