@@ -1,0 +1,69 @@
+# Codecov configuration — https://docs.codecov.com/docs/codecov-yaml
+#
+# One upload, split nine ways.
+#
+# `.github/workflows/codecov.yml` runs every suite in a single vitest process, so
+# `coverage/lcov.info` arrives with repo-root-relative paths and Codecov's component
+# globs match it directly.
+#
+# What is *not* in the report is decided in `vitest-coverage.config.ts`, and deliberately
+# not restated here. Its `TESTED_IN_ANOTHER_PROCESS` list drops every façade graded by an
+# incumbent's own suite in a separate process — `flagstaff/ora.ts` reads 56% here and is
+# graded 99/99 by ora — so an excluded file never reaches this file's `ignore` in the first
+# place. A second copy of that list could only drift from the first. Components — not flags — are what give a per-package
+# reading here: flags cost one upload each and buy a per-package badge URL, and this
+# repo's README carries no per-package badges.
+
+# Nothing here posts a commit status or a PR comment: the only upload is a Monday
+# cron on main, so a patch status would have no patch to grade and a comment would
+# have no pull request to land on. Coverage is read on Codecov and in the run's job
+# summary — it is a trend to look at, not a gate to pass.
+coverage:
+  precision: 1
+  round: down
+  range: "60...100"
+  status: false
+
+comment: false
+
+# Every publishable package, plus the private compat-oracle, which is where the
+# conformance grading lives and is worth watching. Held by
+# `scripts/codecov-components.test.ts`: a new package with no component here reads as
+# covered by the repo total and is invisible on its own.
+component_management:
+  individual_components:
+    - component_id: burgee
+      name: burgee
+      paths: [packages/burgee/**]
+    - component_id: roundel
+      name: roundel
+      paths: [packages/roundel/**]
+    - component_id: flagstaff
+      name: flagstaff
+      paths: [packages/flagstaff/**]
+    - component_id: caique
+      name: caique
+      paths: [packages/caique/**]
+    - component_id: bellpull
+      name: bellpull
+      paths: [packages/bellpull/**]
+    - component_id: closeout
+      name: closeout
+      paths: [packages/closeout/**]
+    - component_id: linegauge
+      name: linegauge
+      paths: [packages/linegauge/**]
+    - component_id: seniority
+      name: seniority
+      paths: [packages/seniority/**]
+    - component_id: compat-oracle
+      name: compat-oracle
+      paths: [packages/compat-oracle/**]
+
+ignore:
+  - "**/*.test.ts"
+  - "**/*.d.ts"
+  - "**/dist/**"
+  - "**/node_modules/**"
+  - "**/__fixtures__/**"
+  - "packages/compat-oracle/vendor/**"

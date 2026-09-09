@@ -16,6 +16,8 @@
   <a href="https://www.npmjs.com/package/burgee"><img src="https://img.shields.io/npm/dm/burgee?style=flat-square" alt="npm downloads" /></a>
   <a href="https://github.com/ofri-peretz/burgee/actions/workflows/quality.yml"><img src="https://github.com/ofri-peretz/burgee/actions/workflows/quality.yml/badge.svg?branch=main" alt="Quality Gate" /></a>
   <a href="https://github.com/ofri-peretz/burgee/actions/workflows/codeql.yml"><img src="https://github.com/ofri-peretz/burgee/actions/workflows/codeql.yml/badge.svg?branch=main" alt="CodeQL" /></a>
+  <a href="https://app.codecov.io/gh/ofri-peretz/burgee"><img src="https://codecov.io/gh/ofri-peretz/burgee/branch/main/graph/badge.svg" alt="Coverage" /></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/ofri-peretz/burgee"><img src="https://api.scorecard.dev/projects/github.com/ofri-peretz/burgee/badge" alt="OpenSSF Scorecard" /></a>
   <a href="./packages/burgee/package.json"><img src="https://img.shields.io/badge/runtime%20dependencies-0-0a6b47?style=flat-square" alt="Zero runtime dependencies" /></a>
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-24+-green.svg?style=flat-square" alt="Node.js 24+" /></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.7+-blue.svg?style=flat-square" alt="TypeScript" /></a>

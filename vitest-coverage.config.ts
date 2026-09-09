@@ -54,7 +54,9 @@ export const TESTED_IN_ANOTHER_PROCESS = [
 
 export const coverage: NonNullable<NonNullable<ViteUserConfig['test']>['coverage']> = {
   provider: 'v8',
-  reporter: ['text-summary', 'json-summary'],
+  // `lcov` joins them for the Codecov upload; `.github/workflows/codecov.yml` prefixes
+  // each package's `SF:` paths before merging, since these runs are per package.
+  reporter: ['text-summary', 'json-summary', 'lcov'],
   include: ['src/**/*.ts'],
   exclude: ['src/**/*.test.ts', ...TESTED_IN_ANOTHER_PROCESS],
   // Reported, not gated, until there are enough observations to ratchet from. A threshold
