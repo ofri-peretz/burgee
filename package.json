@@ -67,6 +67,7 @@
     "cli-spinners": "^3.2.0",
     "compat-oracle": "*",
     "eslint": "^10.10.0",
+    "eslint-plugin-browser-security": "^2.1.5",
     "eslint-plugin-conventions": "^5.3.2",
     "eslint-plugin-import-next": "^2.7.5",
     "eslint-plugin-maintainability": "^3.0.3",

@@ -86,3 +86,37 @@ describe('the lifecycle around parsing', () => {
     expect(none.code).toBe(ExitCode.USAGE);
   });
 });
+
+/**
+ * A mistyped option is the most common thing a caller does wrong, and exit 2 already tells
+ * an agent to rewrite the command. These say which rewrite.
+ */
+describe('an unknown option says what was meant (G7)', () => {
+  it('names the nearest declared option', async () => {
+    const r = await runBurgee(program, { argv: ['greet', '--nmae', 'ada'] });
+    expect(r.code).toBe(ExitCode.USAGE);
+    expect(r.stderr).toContain('error: unknown option --nmae');
+    expect(r.stderr).toContain('hint: did you mean --name?');
+    // parseArgs' own message is three lines about `--` and positional arguments, which is
+    // the rarer reading and never mentions the option the caller almost typed.
+    expect(r.stderr).not.toContain('place it at the end of the command');
+  });
+
+  it('offers no guess when nothing is close', async () => {
+    const r = await runBurgee(program, { argv: ['greet', '--wobble'] });
+    expect(r.code).toBe(ExitCode.USAGE);
+    expect(r.stderr).toContain('error: unknown option --wobble');
+    expect(r.stderr).toContain('hint: run --help to see the available options');
+  });
+
+  it('leaves the single-dash reading alone, which is the more specific one', async () => {
+    const r = await runBurgee(program, { argv: ['greet', '-name', 'ada'] });
+    expect(r.code).toBe(ExitCode.USAGE);
+    expect(r.stderr).toContain('a single dash introduces one-letter options');
+  });
+
+  it('suggests against the options of the command that was reached, not the root', async () => {
+    const r = await runBurgee(program, { argv: ['run', '--detac'] });
+    expect(r.stderr).toContain('hint: did you mean --detach?');
+  });
+});

@@ -109,9 +109,13 @@ describe('each shell exercises its script (D4)', () => {
   it.runIf(has('bash'))('bash: commands, subcommands, options at the right level, and choice values', { timeout: 30_000 }, () => {
     expect(bash('demo con')).toEqual(['config']);
     expect(bash('demo config ')).toEqual(['get']);
-    expect(bash('demo greet --')).toEqual(['--shout', '--greeting', '--json', '--help']);
+    // `--no-shout` and `--no-raw` and no others: every declared boolean is negatable, and
+    // the reserved surfaces are not — `toParseConfig` registers `no-<name>` for a command's
+    // own options only, so completing `--no-json` would offer a flag the parser refuses.
+    // A real bash TAB is the strongest place that boundary is asserted.
+    expect(bash('demo greet --')).toEqual(['--shout', '--no-shout', '--greeting', '--json', '--help']);
     expect(bash('demo greet --greeting ')).toEqual(['Hello', 'Hi']);
-    expect(bash('demo config get --')).toEqual(['--raw', '--json', '--help']);
+    expect(bash('demo config get --')).toEqual(['--raw', '--no-raw', '--json', '--help']);
     expect(bash('demo greet ada --')).not.toContain(SENTINEL);
   });
 

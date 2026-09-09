@@ -16,7 +16,7 @@ import { serveMcp } from './mcp.js';
 import { camel, kebab } from './names.js';
 import { nearestPackage, type Package } from './pkg.js';
 import { ConfigError, explain, type Layers, type Provenance, resolve as resolveLayers } from './precedence.js';
-import { commandSchemaOf, schemaOf, summaryOf } from './schema.js';
+import { commandSchemaOf, machineJson, schemaOf, summaryOf } from './schema.js';
 import { checkDefinition, checkRelations, coerce, UsageError } from './validate.js';
 
 export interface CommandContext<O> extends Omit<RunContext, 'options'> {
@@ -204,6 +204,9 @@ function render(value: unknown): string {
   return String(value);
 }
 
+/** The negation prefix, in one place: `toParseConfig` writes it and `canonical` reads it. */
+const NO = 'no-';
+
 type ParseConfig = Record<string, { type: 'string' | 'boolean'; short?: string; multiple?: boolean }>;
 type Values = Record<string, unknown>;
 
@@ -221,13 +224,49 @@ function toParseConfig(specs: Record<string, OptionSpec>, withConfig: boolean): 
       ...(spec.short === undefined ? {} : { short: spec.short }),
       ...(spec.multiple === true ? { multiple: true } : {}),
     };
+    // Every boolean is negatable, and it is the precedence order that requires it rather
+    // than a convention borrowed from yargs. `flag > env > config > package.json > default`
+    // lets any boolean arrive `true` without the user typing anything — config and the
+    // package.json field set options *by name*, not only ones with an `env` binding — and a
+    // boolean flag cannot carry a value, so `--x=false` is refused. Without `--no-x` the
+    // top layer of that chain can only ever say `true`, and a boolean turned on in a config
+    // file could not be turned off from the command line at all.
+    if (spec.type === 'boolean') config[`${NO}${kebab(name)}`] = { type: 'boolean' };
   }
   return config;
 }
 
-/** Parsed flags back under their canonical camelCase keys. */
-function canonical(values: Values): Values {
-  return Object.fromEntries(Object.entries(values).map(([k, v]) => [camel(k), v]));
+/**
+ * Parsed flags back under their canonical camelCase keys, with `--no-x` folded onto `x`.
+ *
+ * `--x` and `--no-x` in the same command line: **the later one wins**, the semantic a
+ * wrapper depends on — a script appending `--no-color` to whatever the user typed expects
+ * to be the one heard, and both incumbents behave this way.
+ *
+ * It reads the tokens, and an earlier draft did not. `values` looks ordered enough: it
+ * carries `x` and `no-x` as separate keys and parseArgs inserts each as it meets it, so
+ * folding while iterating appears to give last-wins for free. It gives *last distinct
+ * spelling* wins. `--quiet --no-quiet --quiet` re-writes the value at the existing `quiet`
+ * key without moving its position, so `no-quiet` is still second and still wins — the
+ * wrong answer, from a version that passed every two-flag test.
+ *
+ * `no-config` is deliberately not folded: `config` is a *string* option and `--no-config`
+ * means "load none", not `config: false`. Only a declared boolean gets the treatment, which
+ * is why this needs the specs.
+ */
+function canonical(values: Values, specs: Record<string, OptionSpec>, tokens: readonly Token[]): Values {
+  const out: Values = {};
+  const negatable = (key: string): string => {
+    const bare = camel(key.startsWith(NO) ? key.slice(NO.length) : key);
+    return specs[bare]?.type === 'boolean' ? bare : '';
+  };
+  for (const [k, v] of Object.entries(values)) if (!k.startsWith(NO) || negatable(k) === '') out[camel(k)] = v;
+  for (const token of tokens) {
+    if (token.kind !== 'option') continue;
+    const bare = negatable(token.name);
+    if (bare !== '') out[bare] = !token.name.startsWith(NO);
+  }
+  return out;
 }
 
 interface Resolved2 {
@@ -315,18 +354,6 @@ function exitSignal(cause: unknown): ExitCodeType | undefined {
   return typeof code === 'number' && isExitCode(code) ? code : undefined;
 }
 
-const SINGLE_DASH_WORD = /^-([a-zA-Z][\w-]+)(?:=.*)?$/;
-
-/** `-foo=bar` means three short flags to a parser and one long flag to a person (citty #237). */
-function singleDashHint(argv: string[]): string | undefined {
-  for (const token of argv) {
-    if (token === '--') return undefined;
-    const found = SINGLE_DASH_WORD.exec(token);
-    if (found?.[1] !== undefined) return `did you mean --${found[1]}? a single dash introduces one-letter options`;
-  }
-  return undefined;
-}
-
 interface Failure {
   code: ExitCodeType;
   message: string;
@@ -338,7 +365,7 @@ interface Failure {
 }
 
 /** E2/E3 — a usage error never prints a stack, a runtime failure never prints help. */
-function describeFailure(cause: unknown, argv: string[]): Failure {
+async function describeFailure(cause: unknown, argv: string[], node?: CommandNode): Promise<Failure> {
   const signal = exitSignal(cause);
   if (signal !== undefined) return { code: signal, message: '', silent: true };
   const message = cause instanceof Error ? cause.message : String(cause);
@@ -350,7 +377,12 @@ function describeFailure(cause: unknown, argv: string[]): Failure {
     return { code: ExitCode.CONFIG, message, ...(cause.hint === undefined ? {} : { hint: cause.hint }) };
   }
   if (isParseArgsFailure(cause)) {
-    return { code: ExitCode.USAGE, message, hint: singleDashHint(argv) ?? 'run --help to see the available options' };
+    // Loaded only here: see unknown-option.ts for why none of this is imported.
+    const explain = await import('./unknown-option.js');
+    const dash = explain.singleDashHint(argv);
+    if (dash !== undefined) return { code: ExitCode.USAGE, message, hint: dash };
+    const better = explain.unknownOption(cause, Object.keys(node?.options ?? {}));
+    return { code: ExitCode.USAGE, message, hint: 'run --help to see the available options', ...better };
   }
   return { code: ExitCode.RUNTIME, message };
 }
@@ -371,6 +403,20 @@ function runnableNext(manifest: Manifest, spec: ActionRequiredSpec, json: boolea
 }
 
 const HELP_FLAGS = new Set(['--help', '-h']);
+/**
+ * The same courtesy `--help` gets, for the flag people type first.
+ *
+ * `dispatch` has always answered `--version`, but only once a command resolved. A program
+ * that is a pure command group resolves nothing for `burgee --version`, so it fell through
+ * to `unknown command "--version"` and **exit 2** — which under E1 means *rewrite the
+ * command*, so an agent asked for the version would rewrite it until it gave up. Real
+ * commander and real yargs both print the version and exit 0 for the identical program.
+ *
+ * `-V` is commander's spelling, and `commander-command.ts` already defaults to
+ * `-V, --version`. Like `HELP_FLAGS` above, this does not check whether the root declares
+ * an option of the same name: a root that is not runnable has no path that would answer it.
+ */
+
 
 /** Help width: the terminal's columns when the stream has them, else 100 (H3). */
 const HELP_WIDTH = 100;
@@ -396,11 +442,13 @@ interface Resolving {
   io: Io;
 }
 
-function unresolved({ manifest, root, io: { width } }: Resolving, argv: string[], at: CommandNode | undefined): { text: string; code: ExitCodeType } {
+function unresolved({ manifest, root, io }: Resolving, argv: string[], at: CommandNode | undefined): { text: string; code: ExitCodeType } {
   const node = at ?? rootNode(manifest, root);
   const typed = argv.slice(node.path.length - root.length);
-  if (typed.length > 0 && HELP_FLAGS.has(typed[0] ?? '')) return { text: renderHelp(manifest, node, { width }), code: ExitCode.OK };
-  if (typed.length === 0) return { text: renderHelp(manifest, node, { width }), code: ExitCode.USAGE };
+  const first = typed[0] ?? '';
+  if (typed.length > 0 && HELP_FLAGS.has(first)) return { text: renderHelp(manifest, node, { width: io.width }), code: ExitCode.OK };
+  if (first === '--version' || first === '-V') return { text: `${versionOf(manifest, io)}\n`, code: ExitCode.OK };
+  if (typed.length === 0) return { text: renderHelp(manifest, node, { width: io.width }), code: ExitCode.USAGE };
   throw new UsageError(`unknown command "${typed[0] ?? ''}"`, 'run --help to see the available commands');
 }
 
@@ -435,7 +483,7 @@ async function surface(manifest: Manifest, argv: string[], io: Io): Promise<bool
     return true;
   }
   if (head.includes('--schema')) {
-    io.out.write(`${JSON.stringify(schemaSurface(manifest, argv), null, 2)}\n`);
+    io.out.write(`${machineJson(schemaSurface(manifest, argv), head)}\n`);
     return true;
   }
   if (head[0] === '--mcp') {
@@ -468,7 +516,8 @@ const SCHEMA_BUDGET = 48_000;
  * and how to drill when it does not.
  */
 function schemaSurface(manifest: Manifest, argv: string[]): unknown {
-  const { node } = manifest.resolve(beforeTerminator(argv).filter((a) => a !== '--schema') as string[], manifest.rootPath);
+  // `--format=…` is a flag, never a step in the command path being drilled into.
+  const { node } = manifest.resolve(beforeTerminator(argv).filter((a) => a !== '--schema' && !a.startsWith('--format=')) as string[], manifest.rootPath);
   if (node?.run !== undefined) return commandSchemaOf(node, manifest.rootPath);
   const full = schemaOf(manifest);
   const budget = manifest.schemaBudget ?? SCHEMA_BUDGET;
@@ -529,7 +578,7 @@ function versionOf(manifest: Manifest, io: Io): string {
 
 async function dispatch(manifest: Manifest, { node, rest, name }: Resolved, io: Io): Promise<Outcome> {
   const parsed = parseArgs({ args: rest, options: toParseConfig(node.options, manifest.config !== undefined), allowPositionals: true, strict: true, tokens: true });
-  const flags = canonical(parsed.values as Values);
+  const flags = canonical(parsed.values as Values, node.options, parsed.tokens);
   const json = flags.json === true;
   if (flags.help === true) return { json, text: renderHelp(manifest, node, { width: io.width }) };
   if (flags.version === true) return { json, text: `${versionOf(manifest, io)}\n` };
@@ -600,7 +649,7 @@ interface FailureContext {
 
 /** Failure: an exit signal is honoured silently; anything else is described on the requested surface. */
 async function report(cause: unknown, { manifest, io, argv, json, name }: FailureContext): Promise<void> {
-  const failure = describeFailure(cause, argv);
+  const failure = await describeFailure(cause, argv, resolveCommand(manifest, argv) ?? undefined);
   if (failure.silent === true) return io.exit(failure.code);
   await manifest.fire('onError', name, {});
   if (failure.action !== undefined) {
