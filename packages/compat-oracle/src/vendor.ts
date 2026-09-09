@@ -10,6 +10,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, 
 import { tmpdir } from 'node:os';
 import { join, matchesGlob, relative, resolve, sep } from 'node:path';
 
+import { testFiles } from './discover.js';
 import { type Host } from './hosts.js';
 import { type CompatRecord, diffRecords, latestVersion, readRecord, type RecordDiff, snapshot } from './upstream.js';
 
@@ -121,8 +122,11 @@ export function siblingImports(source: string): string[] {
  * wrote on purpose. `matchAll` clones the regex's state, so sharing these is safe.
  */
 const INTERNAL_PATTERNS: Record<string, RegExp> = {
-  lib: /(?:from|require\()\s*['"]\.\.\/((?:build\/)?lib\/[^'"]+)['"]/g,
-  src: /(?:from|require\()\s*['"]\.\.\/((?:build\/)?src\/[^'"]+)['"]/g,
+  // One or more `../`: a test in a subdirectory writes the same module one level deeper,
+  // and reading it as "not an internal import" is how a nested internal-only file would
+  // slip into the gate.
+  lib: /(?:from|require\()\s*['"](?:\.\.\/)+((?:build\/)?lib\/[^'"]+)['"]/g,
+  src: /(?:from|require\()\s*['"](?:\.\.\/)+((?:build\/)?src\/[^'"]+)['"]/g,
 };
 
 /** Every internal module path a source imports, relative to the host's root. */
@@ -217,7 +221,28 @@ function copyTests(host: Host, { from, dest, hostDir }: Paths, packageType: stri
   }
 
   copySiblings(siblings, host, { from, dest, hostDir }, packageType);
-  return { files, internalFiles, internals };
+
+  const nested = countNested(host, from, dest, { internalFiles, internals });
+  return { files: files + nested, internalFiles, internals };
+}
+
+/**
+ * The tests inside the directories copied whole above. `cpSync` brought them and
+ * `rewriteTree` rewrote them, but nothing *read* them: `test/issues/` was vendored,
+ * committed and counted by no one, so five gated cases sat outside both the record and the
+ * denominator. The runner's own discovery decides what a test is, so the count, the
+ * classification and the grade are one answer rather than three.
+ */
+function countNested(host: Host, from: string, dest: string, into: { internalFiles: string[]; internals: Set<string> }): number {
+  let files = 0;
+  for (const rel of testFiles(dest, host)) {
+    if (!rel.includes('/')) continue;
+    const source = readFileSync(join(from, rel), 'utf8');
+    if (classify(source, host) === 'internal') into.internalFiles.push(rel);
+    for (const p of internalImports(source, host.internalDir)) into.internals.add(p);
+    files += 1;
+  }
+  return files;
 }
 
 /**

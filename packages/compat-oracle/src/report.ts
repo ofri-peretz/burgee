@@ -133,13 +133,31 @@ function vendorAll(hosts: Host[], write: Write): void {
   else rmSync(VENDOR_DIFF, { force: true });
 }
 
-function verdict(grades: Grade[], baseline: Baseline, write: Write, control = false): number {
+/** What a host is allowed to fail against its own package, and nothing more. */
+const allowedFailures = (host: string): number => HOSTS.find((h) => h.name === host)?.controlFailures?.count ?? 0;
+
+/**
+ * The control proves the gate (`compat-oracle/intent.md`, criterion 3), so the bar is that
+ * the host's own suite *passes* against the host's own package — not merely that something
+ * registered. `passed === 0` was the whole test until 2026-09-09, and it let a control at
+ * **15 / 16, 93.8%** exit 0: a vendored suite required a package the oracle does not
+ * install, one file failed to load, and the gate said nothing. A known-good implementation
+ * below its own reference is now red.
+ *
+ * The allowance is per host, declared in `hosts.ts` with its reason, because real yargs
+ * legitimately fails 2 of its own 804 from inside a vendored copy.
+ */
+function controlFell(grades: Grade[]): Grade[] {
+  return grades.filter((g) => g.error === undefined && (g.passed === 0 || g.failed > allowedFailures(g.host)));
+}
+
+export function verdict(grades: Grade[], baseline: Baseline, write: Write, control = false): number {
   const broken = grades.filter((g) => g.error !== undefined);
-  // The control proves the gate: its suite must run and pass against its own package. It
-  // is not measured against burgee's baseline — real yargs scores 802 where burgee scores
-  // 804 (its own version lookup from inside node_modules), and that is not a regression.
-  const fell = control ? grades.filter((g) => g.passed === 0) : grades.filter((g) => regressed(g, baseline));
-  for (const g of fell) write(`\n✖ ${g.host}: ${g.passed} passing, baseline was ${baseline[g.host]?.passed ?? 0}\n`);
+  const fell = control ? controlFell(grades) : grades.filter((g) => regressed(g, baseline));
+  for (const g of fell) {
+    if (control) write(`\n✖ ${g.host}: ${g.failed} failing against its own package (${allowedFailures(g.host)} allowed) — the control proves the gate, so it has to pass\n`);
+    else write(`\n✖ ${g.host}: ${g.passed} passing, baseline was ${baseline[g.host]?.passed ?? 0}\n`);
+  }
   if (broken.length > 0) write(`\n✖ ${broken.length} host(s) could not be graded\n`);
   return fell.length + broken.length > 0 ? 1 : 0;
 }

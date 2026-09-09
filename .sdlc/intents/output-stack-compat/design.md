@@ -96,7 +96,7 @@ still a test of a file layout we refuse to copy.
 | Host | Runner | gated | internal | drawing | Notes |
 | :-- | :-- | --: | --: | --: | :-- |
 | boxen 8 | ava | all | 0 | all | Every case is `t.snapshot(box)`; `box()` is a pure function, so every one is gated. The row is "we render what boxen renders." |
-| cli-table3 | vitest | 13 | 221 | — | C4 already decided the 221. The 13 are the public suite and they gate. |
+| cli-table3 | vitest | 38 | 197 | — | C4 already decided the internals. Of the 38 that reach the package root, 9 grade `cli-table` rather than the target and are excluded by name, so 29 gate. (Corrected 2026-09-09: written as 13 / 221 from a count taken before `test/issues/` was discovered.) |
 | clack | vitest | 155 | 0 | 289 | Drawing cases gated or allow-listed per R2, decided when the suite is vendored, not now. |
 | inquirer 14 | vitest | 424 | 0 | 604 | The inline snapshots make this the cheapest to *run*; R2 still applies to what it may claim. |
 
@@ -131,9 +131,13 @@ does not ship until the trade is written down and accepted, as log-update's was.
 
 ## What shipped (cli-table3 activated — 2026-09-09)
 
-Step 2 of the order above. The row is `active`, the control is **33 / 33**, and the
-informational line reads **103 / 104** across the four internal files — so C4's split is a
-number on the page rather than a paragraph in an intent.
+Step 2 of the order above. The row is `active`, the control is **29 / 29**, the target is a
+measured **0 / 29**, and the informational line reads **103 / 104** across the four internal
+files — so C4's split is a number on the page rather than a paragraph in an intent.
+
+The first number written here was **33 / 33**, and adversarial verification found four
+independent reasons it was wrong. They are recorded below rather than edited away, because
+each is a way a compatibility claim inflates without anything turning red.
 
 Getting there needed four fixes in the oracle, and all four are about running a **CommonJS
 jest** suite, which no previous host was:
@@ -169,13 +173,57 @@ instead was tried and is worse: the file then loads and reports 94 failures that
 the wrapper rather than to cli-table3, which is the exact class of error this oracle exists
 to keep out of the number.
 
-The target is renamed `flagstaff/cli-table3`. It was `flagstaff/table`, which is our own
-table API and not a façade of anything; every other façade is named after the host it
-replaces, and the row now reads `target not built yet` rather than 0%.
-
 Two mutations prove the machinery: a shim kept at `.js` under `commonjs` drops the control to
 **0 / 3**, and ignoring `internalDir` pulls all 104 internal cases into the gate at
 **136 / 137**.
+
+### What the first number got wrong (2026-09-09)
+
+1. **`33 / 33` did not reproduce on a clean install.** `verify-legacy-compatibility-test.js`
+   requires `cli-table` — the *legacy* incumbent — which was not a devDependency, not in the
+   lockfile, and not installed by `npm ci`. It resolved from a stray `~/node_modules` on the
+   author's machine. A clean `npm ci` measured **15 / 16**, which is what CI would have
+   printed against a PR asserting 100%. `cli-table` and `@colors/colors` are pinned
+   devDependencies now, and `vendored-suite.test.ts` fails when a vendored suite reaches for
+   a package the oracle does not *declare* — declaration, not resolution, because resolution
+   is exactly what lied.
+2. **Nine of the 33 could not fail for any target.** The file calls `commonTests` twice, once
+   with `require('cli-table')` and once with the shim, so 27% of the row graded a third-party
+   package: breaking the target completely still scored **10 / 33**. The nine are excluded by
+   `match` in `hosts.ts` with the reason written beside them — visible in the raw TAP,
+   subtracted from the count. The oracle refuses an exclusion that matches nothing in the
+   control run, and refuses one on a runner whose TAP has no per-case names. The same
+   mutation now scores **1 / 29** and exits 1.
+3. **`test/issues/` was vendored, committed and never executed.** The runner's `readdirSync`
+   was flat while the copy step recursed — five gated cases in four files, outside both the
+   record and the denominator. Discovery is one recursive function shared by the runner, the
+   copy step and the fingerprint, and a directory that is deliberately not graded has to be
+   named in `ungradedDirs` with a reason. The honest gated total is 38, not 33.
+4. **No baseline entry, so the ratchet was inert** and `rate()`'s `Math.max(reference, tests)`
+   collapsed the denominator to whatever registered. cli-table3 has a baseline now, and a
+   lock fails any active host without one.
+
+And the reason none of them announced themselves: **the control verdict only asked
+`passed === 0`**, so a known-good implementation at 93.8% exited 0. It now fails a control
+that falls short of its own suite, with the allowance declared per host — yargs' 802 / 804 is
+its own version lookup from inside a vendored copy, and that is written down in `hosts.ts`
+rather than assumed in the verdict.
+
+**On the target name.** The rename to `flagstaff/cli-table3` turned a row that measured
+`0 / 3` into one that read `target not built yet`, because nothing exports that name. The
+target is `flagstaff/table` again — the table API that exists — and the row is a measured
+**0 / 29**. It is deliberately not a cli-table3 façade, which is exactly why it measures zero,
+and that zero is a true statement a reader can reproduce. When the façade is built it is
+named `flagstaff/cli-table3` and the target moves to it; until then the oracle publishes a
+number it measured rather than a name it hoped for.
+
+**A second instance of finding 3, found and named rather than fixed here.** yargs'
+`test/esm/` holds three more `*.mjs` files that the copy step brings along and nothing
+grades. Grading them today adds three files that fail to *load* — `platform-shim-test.mjs`
+imports `lib/platform-shims/esm.mjs`, an internal the vendor step's detector does not reach
+from a subdirectory — so it is declared in `ungradedDirs` with that reason and a date, and it
+is its own piece of work. `test/fixtures/` and `test/helpers/` are declared there too, and
+are not tests at all.
 
 ## Verification
 

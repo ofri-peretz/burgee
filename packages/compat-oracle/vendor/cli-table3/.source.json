@@ -4,7 +4,7 @@
   "tag": "v0.6.5",
   "commit": "9577efd51114e61fb035b7cc493adf0c0dc7921b",
   "vendored": "2026-09-09",
-  "files": 7,
+  "files": 11,
   "internalFiles": [
     "cell-test.js",
     "layout-manager-test.js",
@@ -20,6 +20,10 @@
   "hashes": {
     "test/cell-test.js": "b6dcfc08d7b0f4a65ddd8769c2d4863259e89b014058299c08ef0979cc8fc7c0",
     "test/example-tests.js": "6c1e41b61182fa2d4ecbcbb9df1b84c7dbeed6cb46d297915e6d626df55e92e4",
+    "test/issues/124-test.js": "26a3a7a939a3c82c4cd6a1e7a8eec7d8888963f21962619538ccfc1eab02133b",
+    "test/issues/269-test.js": "0df5d9652cd62a7f00733f3d0d2aff3cc062a8151e677ccc444ae9e2c15a813d",
+    "test/issues/289-test.js": "b6a44dabcf95ce8d0dff41efebda03c6dad4d4b291ef022f3bea901047efcfcc",
+    "test/issues/338-test.js": "9bf9eef6d0a7297b5ecf31e320b79828f0f184785ed43f64c079f3325eacd7a7",
     "test/layout-manager-test.js": "660ed67bf013db9b24dbafd76299a433ac661b0b394c359e27902c4a05130f82",
     "test/original-cli-table-index-tests.js": "6e1212b0ff04dbee65964247897d44fa6ae1bb230bdcf48ab72ca18a36fda718",
     "test/original-cli-table-newlines-test.js": "4b306abe6ea28c014df3b8a9dba99ff36b3d783c79529310c292940e864196a6",
@@ -154,6 +158,20 @@
       "drawing bottom"
     ],
     "test/example-tests.js": [],
+    "test/issues/124-test.js": [
+      "cell padding of zero overrides table options"
+    ],
+    "test/issues/269-test.js": [
+      "it renders rowSpan correctly"
+    ],
+    "test/issues/289-test.js": [
+      "erroneous colSpan does not get truncated",
+      "before row with column width",
+      "after row with column width"
+    ],
+    "test/issues/338-test.js": [
+      "closes href tag on truncated content"
+    ],
     "test/layout-manager-test.js": [
       "layout-manager",
       "layoutTable",
