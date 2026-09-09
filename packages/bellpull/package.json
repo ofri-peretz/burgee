@@ -1,0 +1,52 @@
+{
+  "name": "bellpull",
+  "version": "0.0.1",
+  "description": "The cord you pull to ring a bell in another room. Subprocesses with executable resolution and a structured result every caller can read \u2014 human, JSON envelope or agent event. Drop-in paths for execa, cross-spawn and which. Zero dependencies.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "!dist/**/*.test.*"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "lint": "eslint src"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ofri-peretz/burgee.git",
+    "directory": "packages/bellpull"
+  },
+  "homepage": "https://github.com/ofri-peretz/burgee/tree/main/packages/bellpull#readme",
+  "bugs": {
+    "url": "https://github.com/ofri-peretz/burgee/issues"
+  },
+  "keywords": [
+    "cli",
+    "subprocess",
+    "child-process",
+    "spawn",
+    "exec",
+    "execa",
+    "cross-spawn",
+    "which",
+    "npm-run-path",
+    "agent"
+  ],
+  "devDependencies": {
+    "vitest": "^4.0.0"
+  }
+}

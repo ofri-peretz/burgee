@@ -1,0 +1,54 @@
+{
+  "name": "linegauge",
+  "version": "0.0.1",
+  "description": "The width of material a saw removes in a cut. Measuring, wrapping, truncating and slicing styled terminal text without the edge fraying \u2014 grapheme-correct over Intl.Segmenter. Drop-in paths for string-width, wrap-ansi, strip-ansi and slice-ansi. Zero dependencies.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "!dist/**/*.test.*"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "lint": "eslint src"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ofri-peretz/burgee.git",
+    "directory": "packages/linegauge"
+  },
+  "homepage": "https://github.com/ofri-peretz/burgee/tree/main/packages/linegauge#readme",
+  "bugs": {
+    "url": "https://github.com/ofri-peretz/burgee/issues"
+  },
+  "keywords": [
+    "cli",
+    "terminal",
+    "string-width",
+    "wrap-ansi",
+    "strip-ansi",
+    "slice-ansi",
+    "truncate",
+    "wrap",
+    "width",
+    "grapheme",
+    "ansi",
+    "unicode"
+  ],
+  "devDependencies": {
+    "vitest": "^4.0.0"
+  }
+}

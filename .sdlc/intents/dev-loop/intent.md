@@ -1,6 +1,8 @@
 # Intent — `dev-loop`: your agent is connected to your CLI while you write it
 
-**Status:** review · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
+**Status:** shipped · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
+
+**State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Evidence:** `dev.ts` + `dev.test.ts`; fresh module graph per reload, MCP on stdio (W1–W6).
 
 ---
 

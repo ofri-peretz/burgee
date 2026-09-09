@@ -85,6 +85,29 @@ function strayIntents(dir: string, found: string[] = []): string[] {
   return found;
 }
 
+/** The status an intent's own header declares, or `undefined` if it declares none. */
+function declaredStatus(slug: string): string | undefined {
+  const intent = readFileSync(join(INTENT_DIR, slug, 'intent.md'), 'utf-8');
+  return intent.match(/^\*\*Status:\*\*\s*([a-z]+)/m)?.[1];
+}
+
+/** Index rows that link this intent's directory and end in a status cell. */
+function indexRows(slug: string, readme: string): string[] {
+  return readme.match(new RegExp(String.raw`^\|[^\n]*\[\`${slug}/\`\][^\n]*$`, 'gm')) ?? [];
+}
+
+/** One message per index row whose status cell disagrees with the intent itself. */
+function statusDrift(slug: string, readme: string): string[] {
+  const real = declaredStatus(slug);
+  const drift: string[] = [];
+  for (const row of indexRows(slug, readme)) {
+    const shown = row.split('|').at(-2)?.trim();
+    if (!shown || !(STATUSES as readonly string[]).includes(shown)) continue;
+    if (shown !== real) drift.push(`${slug}: index says "${shown}", intent says "${real}"`);
+  }
+  return drift;
+}
+
 describe('intent artifacts', () => {
   it('ships the templates the flow and the control-band watcher both write from', () => {
     for (const f of ['README.md', '_template/intent.md', '_template/design.md']) {
@@ -157,5 +180,24 @@ describe('intent artifacts', () => {
         `.sdlc/intents/${slug}/design.md records nothing rejected — CLAUDE.md rule 3`,
       ).toBe(true);
     }
+  });
+
+  /**
+   * The index and the artifacts have to agree about state.
+   *
+   * On 2026-09-09 six rows of `.sdlc/intents/README.md` said `review` for intents whose own
+   * header said `shipped` — because a status lives in two places and is remembered in one.
+   * A roadmap with a stale status column is worse than one with no status column, because a
+   * reader trusts it. This is the check that would have caught it.
+   */
+  it('every status the index prints matches the intent that owns it', () => {
+    const readme = readFileSync(join(INTENT_DIR, 'README.md'), 'utf-8');
+    const drift = found.flatMap((slug) => statusDrift(slug, readme));
+
+    expect(
+      drift,
+      'the roadmap index and the intent headers disagree about state — edit both, or the ' +
+        'status column becomes something readers trust and should not',
+    ).toEqual([]);
   });
 });

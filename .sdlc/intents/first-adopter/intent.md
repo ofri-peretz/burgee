@@ -2,6 +2,8 @@
 
 **Status:** review · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
 
+**State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why still `review`:** no external CLI has been migrated; A1–A5 are all open.
+
 ---
 
 ## What is wanted
