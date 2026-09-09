@@ -9,7 +9,18 @@
  *
  * The rule is structural rather than advisory: a band value must name a record in the
  * same document, produced by an axis whose status is `measured`, and equal that record's
- * median. There is no code path that writes a band value from anything else.
+ * median. There is no code path in this file that writes a band value from anything else.
+ *
+ * What it does **not** prove, and cannot: that the axis reached that record by measuring
+ * something. Replace an axis's `run()` with a table of plausible numbers and every check
+ * here still passes — the records are internally consistent, the band equals its record,
+ * the claims read `met`. That gap is closed one level down, where it has to be: each
+ * axis's real record builder is driven by `ratchet.test.ts`, and B1 — the axis with the
+ * motive, since it is the one that cannot run — has both `runOne` and `run()` itself
+ * driven end to end against a stub `claude` in `agent.test.ts`, asserting the emitted
+ * medians are the stub's numbers. Between them the honesty of a results document is
+ * checked from both ends. Neither end alone would be enough, and saying otherwise here
+ * would be the same kind of overclaim this file exists to stop.
  */
 import { BANDS, type BandSpec, type SuiteName, suiteOf } from './bands.js';
 import { CLAIMS, type ClaimSpec } from './claims.js';
