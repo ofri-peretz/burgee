@@ -60,19 +60,19 @@ describe('llms.txt is a projection of the docs, not a list somebody maintains', 
 
   it('lists every page under content/docs', () => {
     const text = body('llms.txt');
-    const missing = urls.filter((url) => !text.includes(`(https://cli.interlace.tools${url})`));
+    const missing = urls.filter((url) => !text.includes(`(https://burgee.interlace.tools${url})`));
     expect(missing, `llms.txt is missing ${missing.length} page(s) that exist under content/docs: ${missing.join(', ')}`).toEqual([]);
   });
 
   it('lists nothing that is not a page', () => {
     // The other direction: a stale hard-coded row survives the file being deleted.
-    const listed = [...body('llms.txt').matchAll(/\(https:\/\/cli\.interlace\.tools(\/docs[^)]*)\)/g)].map((m) => m[1]);
+    const listed = [...body('llms.txt').matchAll(/\(https:\/\/burgee\.interlace\.tools(\/docs[^)]*)\)/g)].map((m) => m[1]);
     expect(listed.toSorted()).toEqual(urls);
   });
 
   it('carries the whole corpus in llms-full.txt, one section per page', () => {
     const text = body('llms-full.txt');
-    const missing = urls.filter((url) => !text.includes(`Source: https://cli.interlace.tools${url}`));
+    const missing = urls.filter((url) => !text.includes(`Source: https://burgee.interlace.tools${url}`));
     expect(missing, `llms-full.txt is missing ${missing.length} page(s): ${missing.join(', ')}`).toEqual([]);
     // Frontmatter is the site's metadata, not the page's content — it must not be shipped
     // to a reader that cannot see the site.
