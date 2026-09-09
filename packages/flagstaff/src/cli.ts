@@ -19,7 +19,7 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { hoist, manualClock, type Runtime } from './loop.js';
-import { type Component, PluginError, register, registered, type Plugin } from './plugin.js';
+import { type Component, PluginError, type PluginErrorCode, register, registered, type Plugin } from './plugin.js';
 import { spinner, type SpinnerState } from './spinner.js';
 
 const MODES = ['tty', 'pipe', 'ci', 'json', 'accessible'] as const;
@@ -102,7 +102,12 @@ function census(plugin: Record<string, unknown>): { line: string; total: number 
   return { line: parts.join(', '), total };
 }
 
-function refuse(code: string, message: string, fix: string, write: (s: string) => void): number {
+/**
+ * Every way this command says no. `code` is `PluginErrorCode`, not `string`, so a refusal
+ * invented here rather than declared in `plugin.ts` fails `typecheck` (plugin-contract R8) —
+ * the type is erased at build time, so the seam costs nothing on any subpath.
+ */
+function refuse(code: PluginErrorCode, message: string, fix: string, write: (s: string) => void): number {
   write(`${code}: ${message}\n  fix: ${fix}\n`);
   return 1;
 }

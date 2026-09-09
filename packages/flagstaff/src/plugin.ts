@@ -55,7 +55,31 @@ export interface Plugin {
   components?: Record<string, Omit<Component, 'name'>>;
 }
 
-export type PluginErrorCode = 'E_PLUGIN_SCHEMA' | 'E_NO_STATIC_PROJECTION' | 'E_PLUGIN_CONTRACT' | 'E_UNKNOWN_SPINNER' | 'E_UNKNOWN_BORDER';
+/**
+ * The family's whole refusal vocabulary (plugin-contract R8). One union, and every refusal
+ * any surface of this package prints is a member of it — the registry's five, and the two
+ * `flagstaff check` adds for what only a renderer can discover: a plugin that validates but
+ * contributes nothing renderable, and a component whose `static` throws on the state it is
+ * shown with.
+ *
+ * The last two lived as bare string literals in `cli.ts` until 2026-09-09, which is exactly
+ * the hole R8 exists to close: a second host could spell `E_COMPONENT_THREW` its own way and
+ * nothing would notice. `scripts/plugin-error-vocabulary-lock.test.ts` now reads this
+ * declaration out of the source and refuses any `'E_…'` literal in a host that is not in it.
+ *
+ * It stays a *type* rather than a `const` array on purpose. R3 forbids one layer importing
+ * another, so a runtime list could not be shared with roundel or caique even if it existed —
+ * the lock has to read the source to work across the family, and it does. A `const` array
+ * would therefore buy nothing and cost ~195 B on `./spinner`, which has 82 B of headroom.
+ */
+export type PluginErrorCode =
+  | 'E_PLUGIN_SCHEMA'
+  | 'E_NO_STATIC_PROJECTION'
+  | 'E_PLUGIN_CONTRACT'
+  | 'E_UNKNOWN_SPINNER'
+  | 'E_UNKNOWN_BORDER'
+  | 'E_NO_CONTRIBUTION'
+  | 'E_COMPONENT_THREW';
 
 /** A refused plugin says what is wrong, where, and what to do about it. */
 export class PluginError extends Error {

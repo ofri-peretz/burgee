@@ -29,3 +29,11 @@ release the copies would agree in git and disagree in the registry — the contr
 "byte-identical in every tarball" rule holding in the repository and breaking where anyone
 would actually read it. This is the first contract change since roundel became a plugin
 host, so the pairing is worth establishing now rather than after the second one.
+
+Both of those codes are now members of the exported `PluginErrorCode`, which is the union
+every refusal in the family comes from. They were bare string literals inside `cli.ts`, so a
+second host could have spelled either one its own way and nothing would have noticed — the
+plugin contract's "one error vocabulary" held only as long as nobody tested it. `refuse()`
+takes `PluginErrorCode` rather than `string`, and a repo lock reads each host's declaration
+out of its source and refuses any `E_…` literal that is not in it. The union is a type, so
+this costs no bytes on any subpath.
