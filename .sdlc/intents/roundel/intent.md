@@ -81,6 +81,34 @@ exposes a theme seam this package can fill (U1).
 - `cli-help-renderer` renders byte-identical help with and without a theme installed in
   non-TTY mode.
 
+## Verified against `main` — 2026-09-09
+
+Checked criterion by criterion on `61bd11b9`. **Three of five met.** The status stays
+`approved` — the owner's Design→Build gate, passed 2026-09-08 — because the two open criteria
+are both external artifacts, not code.
+
+- **Four subpaths installing from the tarball in one file (U7)** — met, with drift.
+  `src/shape.test.ts` packs and installs into a temp dir and exercises `./theme`, `./tokens`,
+  `./policy` (CJS) and `./chalk`. The package now publishes **eight** subpaths; `./contrast`,
+  `./plugin` and `./schema.json` are not exercised from the tarball.
+- **chalk's suite vendored and graded, the rate published and ratcheting** — met.
+  `packages/compat-oracle/vendor/chalk/` is pinned to chalk 6.0.0; **58 / 58** with a 58 / 58
+  control in the same run (`npm run compat`, 2026-09-09); baselined; serving at
+  <https://burgee.interlace.tools/docs/compatibility>.
+- **Per-subpath rows on `/benchmarks` with the picocolors and chalk ceilings drawn** —
+  **not met.** `/benchmarks` returns 404. The ceilings exist only as budget comments inside
+  `src/weight.test.ts`; nothing is published.
+- **The subpath-isolation test fails when a cross-import is added, proven by adding one** —
+  met. `src/subpath-isolation.test.ts` walks `dist/` per entry against an `ALLOWED` edge table
+  and records the proof in its own header. 249 tests pass across 9 files.
+- **`cli-help-renderer` renders byte-identical help with and without a theme in non-TTY** —
+  met, at `packages/burgee/src/help.test.ts:167`.
+
+**Bet 2 of "the minimum that proves the play" is not closed.** It reads *roundel ships at 0.1
+under picocolors' weight*; roundel is finished at 0.1.0 in the tree and stuck at **0.0.1 on
+npm**, because every `release.yml` run since fails `npm publish` with `ENEEDAUTH` (most
+recently run `34309347964`). The weight is measured; the ship is not.
+
 ## Open questions
 
 - **Does `./policy` stay here or become its own package?** Deferred to `design.md`. The

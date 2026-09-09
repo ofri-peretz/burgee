@@ -51,6 +51,30 @@ spec export (yargs #2131, #2126, citty #59) comes from the same node.
   sentinel is not written during completion.
 - `mytool completion fig` validates against Fig's spec schema.
 
+## Verified against `main` — 2026-09-09
+
+Checked criterion by criterion on `61bd11b9`. **One of three met.** The status stays `review`.
+Completions ship for five shells and the workflow drives real shells; each of the two open
+criteria fails on one specific clause rather than wholesale.
+
+- **Four shells, each with a CI test for `con<TAB>` → `config`, `--<TAB>` listing options with
+  descriptions, and `--no-<TAB>` offering negations** — partly met; the negation clause is
+  **not met at all**. `.github/workflows/completions.yml` installs zsh and fish and runs all four
+  on ubuntu; locally 10 pass and 1 skips (no pwsh on macOS). zsh is driven through a real
+  pseudo-terminal and asserts the description text appears. But **negations do not exist**:
+  `packages/burgee/src/completions.ts` has no `no-` handling, `OptionSpec` has no negation
+  concept, and `completion fish` emits no `--no-*` lines.
+- **TAB never executes a command (yargs #1965), asserted by a handler sentinel** — **met.**
+  `completions.test.ts:73` asserts, for every shell, that the emitted script matches no
+  command-invoking pattern and that the `HANDLER-RAN` sentinel never appears; the bash and zsh
+  live-shell tests assert the sentinel is absent from real TAB output too.
+- **`completion fig` validates against Fig's spec schema** — **not met as written.**
+  `completion fig` emits 2,525 bytes of valid JSON and is covered by a `toMatchObject` plus a
+  snapshot, but there is no Fig schema validation: no `@withfig/*` dependency and no schema file,
+  so a spec-invalid field would pass.
+
+Also unbuilt, though not a criterion: the `--dynamic` escape hatch named under "What is wanted".
+
 ## Open questions
 
 None open. Decided at finalisation (2026-09-06):

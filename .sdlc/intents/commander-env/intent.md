@@ -70,6 +70,30 @@ documented in help and `--schema` (V2), env scoped to the command that declares 
 - `mytool --version` inside `examples/` (a monorepo) prints the demo's version, not the
   root's (V4).
 
+## Verified against `main` — 2026-09-09
+
+Checked criterion by criterion on `61bd11b9`. **One of four met.** The status stays `review`.
+The shipped behaviour is strong; the criteria as written are not satisfied.
+
+- **A conformance case per issue listed, each failing on plain commander** — not met. Eight
+  issues are cited across `precedence.test.ts`, `config.test.ts` and `env.test.ts` (#873, #1305,
+  #1363, #1627, #1655, #1676, #2005, #2501) out of roughly twenty-four named here; all 35 tests
+  pass. And no "fails on plain commander" assertion exists anywhere, so the differential half is
+  unbuilt.
+- **`--explain <option>` prints the source and every overridden candidate** — **met.**
+  `demo-cli-burgee greet Ada --explain greeting` prints
+  `greeting = "Hello"   from default` above `candidates: flag --greeting (unset), env
+  DEMO_GREETING (unset)` and exits 0, backed by two tests.
+- **`meta.provenance` under `--json`; the provenance task's median turns drop against
+  `LAYER=off`** — half. Provenance is live and correct. The benchmark half is not measurable:
+  there is no benchmark, and `LAYER` appears nowhere in the repo.
+- **`mytool --version` inside `examples/` prints the demo's version, not the root's (V4)** —
+  **not met, and not demonstrable here.** `demo-cli-burgee --version` returns
+  `error: unknown command "--version"` with exit 2 — the engine only handles `--version` once a
+  command resolves. And the discrimination cannot be shown in this monorepo anyway: the root and
+  all three demos are `version: "0.0.0"`. The V4 mechanism is real and tested (`pkg.ts`
+  `nearestPackage`), but against a synthetic tmpdir, not the `examples/` tree the criterion names.
+
 ## Open questions
 
 None open. Decided at finalisation (2026-09-06):

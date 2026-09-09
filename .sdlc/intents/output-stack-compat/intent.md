@@ -10,11 +10,11 @@
 
 ## Where it stands (2026-09-08)
 
-Three of eight rows graded, each with its control in the same run: chalk 58 / 58, ora
-99 / 99, log-update 99 / 99. The status above stays `draft` because this intent has no `design.md`, and
-under the SDLC an intent is not `approved` until a human has accepted a design; the rows
-shipped so far did so under `roundel`'s and `flagstaff`'s own designs, which is where their
-façade requirements (R6) actually live.
+**Corrected 2026-09-09.** Four of eight rows graded, each with its control in the same run:
+chalk 58 / 58, ora 99 / 99, log-update 99 / 99, boxen 84 / 84. The status above is `review`,
+not `draft` — this intent does have a `design.md`, and under the SDLC it is not `approved`
+until a human has accepted that design; the rows shipped so far did so under `roundel`'s and
+`flagstaff`'s own designs, which is where their façade requirements (R6) actually live.
 
 ## What is wanted
 
@@ -194,12 +194,40 @@ avoiding one.
 
 ## Success criteria
 
-- Eight rows on the scoreboard, each with a `--control` run recorded. Three of eight as of
-  2026-09-08: chalk 58 / 58, ora 99 / 99, log-update 99 / 99, each with its control in the
-  same run.
+- Eight rows on the scoreboard, each with a `--control` run recorded. Four of eight as of
+  2026-09-09: chalk 58 / 58, ora 99 / 99, log-update 99 / 99, boxen 84 / 84, each with its
+  control in the same run.
 - chalk and ora at parity with the real package in the same run before their façades
-  publish. **Met.**
+  publish. **Half met** — parity holds; neither façade has published (see below).
 - The release watch opens an issue within a day of any incumbent's release, with the diff.
+
+## Verified against `main` — 2026-09-09
+
+Checked criterion by criterion on `61bd11b9`. **Zero of three met.** The status stays `review`.
+
+Two corrections to this file's own record first. The "Where it stands" section above says
+*"The status above stays `draft`"* while the header reads `review` — the header is the one the
+lock parses, and `review` is the honest value. And "Three of eight" is itself now stale: boxen
+landed on `main` in [`e927678f45`](https://github.com/ofri-peretz/burgee/commit/e927678f45),
+making it **four**.
+
+- **Eight rows, each with a `--control` run recorded** — not met: **four of eight**. Measured
+  by `npm run compat` and `npm run compat -- --control` on 2026-09-09: chalk 58 / 58, ora
+  99 / 99, log-update 99 / 99, boxen 84 / 84, each identical against the real package. Missing:
+  picocolors, cli-table3, inquirer, clack. Of those four, **two are stale as written** — the
+  2026-09-08 decision in `design.md` records that clack and inquirer are graded 65% and 59% by
+  snapshots of their own drawing, so a façade that matched them would *be* the incumbent. Eight
+  rows is no longer the target the design holds; the criterion has not been rewritten to say so.
+- **chalk and ora at parity with the real package before their façades publish** — the parity
+  half is true and recorded. The publishing half is false, and the line above marking this
+  criterion "**Met.**" is premature: `roundel` and `flagstaff` are 0.1.0 in the tree and
+  **0.0.1 on npm**, because every `release.yml` run fails `npm publish` with `ENEEDAUTH` (most
+  recently run `34309347964`). Nothing graded here has shipped to a consumer.
+- **The release watch opens an issue within a day of any incumbent's release, with the diff** —
+  not met, and untested rather than failing. `.github/workflows/compat-upstream.yml` runs daily
+  (`17 6 * * *`) and has one successful scheduled run; no incumbent has released since the repo
+  was created, so `gh issue list --label upstream-release --state all` is empty. The mechanism
+  has never had to work.
 
 ## Open questions
 

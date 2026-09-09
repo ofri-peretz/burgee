@@ -10,6 +10,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, 
 import { tmpdir } from 'node:os';
 import { join, matchesGlob, relative, resolve, sep } from 'node:path';
 
+import { testFiles } from './discover.js';
 import { type Host } from './hosts.js';
 import { type CompatRecord, diffRecords, latestVersion, readRecord, type RecordDiff, snapshot } from './upstream.js';
 
@@ -50,9 +51,19 @@ function cloneRelease(host: Host, version: string, clone: string): { commit: str
   }
 }
 
-/** Name of the generated shim for the n-th public import a host's tests use. */
-export function shimName(index: number): string {
-  return index === 0 ? 'shim.js' : `shim-${index}.js`;
+/**
+ * Name of the generated shim for the n-th public import a host's tests use.
+ *
+ * **The extension has to say what the file is.** Every shim is ESM — it re-exports the
+ * target and carries the `'module.exports'` binding that lets a `require()` reach a
+ * callable. Under a vendored `package.json` that is `type: module` a `.js` file is already
+ * ESM; under `type: commonjs` — cli-table3, whose own suite is CJS and must stay so — a
+ * `.js` file is parsed as CommonJS and the shim is a syntax error. `.mjs` is ESM whatever
+ * the package says, which is the only property that matters here.
+ */
+export function shimName(index: number, packageType?: string): string {
+  const ext = packageType === 'module' ? 'js' : 'mjs';
+  return index === 0 ? `shim.${ext}` : `shim-${index}.${ext}`;
 }
 
 /**
@@ -67,12 +78,12 @@ const dotted = (p: string): string => {
   return posix.startsWith('.') ? posix : `./${posix}`;
 };
 
-export function rewriteAt(source: string, host: Host, fileDir: string, hostDir: string): string {
+export function rewriteAt(source: string, host: Host, { fileDir, hostDir, packageType = 'module' }: { fileDir: string; hostDir: string; packageType?: string }): string {
   const testDir = join(hostDir, host.testDir);
   return host.imports.reduce((acc, entry, i) => {
     // A bare specifier reads the same from every file; a relative one moves with the file.
     const upstreamHere = entry.upstream.startsWith('.') ? dotted(relative(fileDir, resolve(testDir, entry.upstream))) : entry.upstream;
-    const shimHere = dotted(relative(fileDir, join(hostDir, shimName(i))));
+    const shimHere = dotted(relative(fileDir, join(hostDir, shimName(i, packageType))));
     return acc.replaceAll(`'${upstreamHere}'`, `'${shimHere}'`).replaceAll(`"${upstreamHere}"`, `"${shimHere}"`);
   }, source);
 }
@@ -80,13 +91,13 @@ export function rewriteAt(source: string, host: Host, fileDir: string, hostDir: 
 const TEXT = /\.(m?js|cjs|ts|json)$|^[^.]+$/;
 
 /** Rewrite every text file under a copied fixture tree, in place, keeping modes and symlinks. */
-function rewriteTree(dir: string, host: Host, hostDir: string): void {
+function rewriteTree(dir: string, host: Host, hostDir: string, packageType: string): void {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const at = join(dir, entry.name);
-    if (entry.isDirectory()) rewriteTree(at, host, hostDir);
+    if (entry.isDirectory()) rewriteTree(at, host, hostDir, packageType);
     else if (entry.isFile() && TEXT.test(entry.name)) {
       const source = readFileSync(at, 'utf8');
-      const out = rewriteAt(source, host, dir, hostDir);
+      const out = rewriteAt(source, host, { fileDir: dir, hostDir, packageType });
       if (out !== source) writeFileSync(at, out);
     }
   }
@@ -100,11 +111,29 @@ export function siblingImports(source: string): string[] {
   return [...source.matchAll(SIBLING)].map((m) => m[1] ?? '').filter((p) => p !== '');
 }
 
-const INTERNAL = /(?:from|require\()\s*['"]\.\.\/((?:build\/)?lib\/[^'"]+)['"]/g;
+/**
+ * Where a host keeps the modules it does not promise. `lib/` for commander and yargs,
+ * `src/` for cli-table3 — which is host knowledge exactly as `testDir` and `testGlob` are,
+ * and was a constant here until a host that files its internals elsewhere arrived.
+ */
+/**
+ * The pattern per internal directory, written out rather than built — a closed set, because
+ * a host declares its `internalDir` in `hosts.ts` and adding one should be a line somebody
+ * wrote on purpose. `matchAll` clones the regex's state, so sharing these is safe.
+ */
+const INTERNAL_PATTERNS: Record<string, RegExp> = {
+  // One or more `../`: a test in a subdirectory writes the same module one level deeper,
+  // and reading it as "not an internal import" is how a nested internal-only file would
+  // slip into the gate.
+  lib: /(?:from|require\()\s*['"](?:\.\.\/)+((?:build\/)?lib\/[^'"]+)['"]/g,
+  src: /(?:from|require\()\s*['"](?:\.\.\/)+((?:build\/)?src\/[^'"]+)['"]/g,
+};
 
 /** Every internal module path a source imports, relative to the host's root. */
-export function internalImports(source: string): string[] {
-  return [...source.matchAll(INTERNAL)].map((m) => m[1] ?? '').filter((p) => p !== '');
+export function internalImports(source: string, internalDir = 'lib'): string[] {
+  const pattern = INTERNAL_PATTERNS[internalDir];
+  if (pattern === undefined) throw new Error(`no internal-import pattern for "${internalDir}" — add one to INTERNAL_PATTERNS`);
+  return [...source.matchAll(pattern)].map((m) => m[1] ?? '').filter((p) => p !== '');
 }
 
 /**
@@ -115,7 +144,7 @@ export function internalImports(source: string): string[] {
  * (yargs' 429 tests importing `YError`) is `public`; its internal import is shimmed.
  */
 export function classify(source: string, host: Host): 'public' | 'internal' {
-  if (internalImports(source).length === 0) return 'public';
+  if (internalImports(source, host.internalDir).length === 0) return 'public';
   const hasPublic = host.imports.some(({ upstream }) => source.includes(`'${upstream}'`) || source.includes(`"${upstream}"`));
   return hasPublic ? 'public' : 'internal';
 }
@@ -138,7 +167,8 @@ export interface UpstreamPackage {
  * resolve `import 'yargs'` to a file that is not here.
  */
 export function rootPackage(host: Host, upstream: UpstreamPackage): Record<string, unknown> {
-  const pkg: Record<string, unknown> = { name: `@vendored/${host.name}-suite`, private: true, type: upstream.type ?? 'commonjs', main: './shim.js' };
+  const type = upstream.type ?? 'commonjs';
+  const pkg: Record<string, unknown> = { name: `@vendored/${host.name}-suite`, private: true, type, main: `./${shimName(0, type)}` };
   if (upstream.version !== undefined) pkg.version = upstream.version;
   if (upstream.license !== undefined) pkg.license = upstream.license;
   if (upstream.repository !== undefined) pkg.repository = upstream.repository;
@@ -163,7 +193,7 @@ interface Copied {
  * test with its specifiers rewritten, and then whatever those tests import from beside
  * themselves.
  */
-function copyTests(host: Host, { from, dest, hostDir }: Paths): Copied {
+function copyTests(host: Host, { from, dest, hostDir }: Paths, packageType: string): Copied {
   const internalFiles: string[] = [];
   const internals = new Set<string>();
   const siblings = new Set<string>();
@@ -174,15 +204,15 @@ function copyTests(host: Host, { from, dest, hostDir }: Paths): Copied {
       // A host whose testDir is the repo root (ora) would otherwise vendor `.git`.
       if (entry.name.startsWith('.')) continue;
       cpSync(join(from, entry.name), join(dest, entry.name), { recursive: true, verbatimSymlinks: true });
-      rewriteTree(join(dest, entry.name), host, hostDir);
+      rewriteTree(join(dest, entry.name), host, hostDir, packageType);
       continue;
     }
     // The host's own glob, so a repo-root suite does not vendor the implementation beside it.
     if (!matchesGlob(entry.name, host.testGlob)) continue;
     const source = readFileSync(join(from, entry.name), 'utf8');
     if (classify(source, host) === 'internal') internalFiles.push(entry.name);
-    for (const p of internalImports(source)) internals.add(p);
-    const rewritten = rewriteAt(source, host, dest, hostDir);
+    for (const p of internalImports(source, host.internalDir)) internals.add(p);
+    const rewritten = rewriteAt(source, host, { fileDir: dest, hostDir, packageType });
     // Read off the *rewritten* source: a specifier the rewrite already pointed at a
     // generated shim (ora's `./index.js`) is the host itself, not a sibling helper.
     for (const p of siblingImports(rewritten)) siblings.add(p);
@@ -190,8 +220,29 @@ function copyTests(host: Host, { from, dest, hostDir }: Paths): Copied {
     files += 1;
   }
 
-  copySiblings(siblings, host, { from, dest, hostDir });
-  return { files, internalFiles, internals };
+  copySiblings(siblings, host, { from, dest, hostDir }, packageType);
+
+  const nested = countNested(host, from, dest, { internalFiles, internals });
+  return { files: files + nested, internalFiles, internals };
+}
+
+/**
+ * The tests inside the directories copied whole above. `cpSync` brought them and
+ * `rewriteTree` rewrote them, but nothing *read* them: `test/issues/` was vendored,
+ * committed and counted by no one, so five gated cases sat outside both the record and the
+ * denominator. The runner's own discovery decides what a test is, so the count, the
+ * classification and the grade are one answer rather than three.
+ */
+function countNested(host: Host, from: string, dest: string, into: { internalFiles: string[]; internals: Set<string> }): number {
+  let files = 0;
+  for (const rel of testFiles(dest, host)) {
+    if (!rel.includes('/')) continue;
+    const source = readFileSync(join(from, rel), 'utf8');
+    if (classify(source, host) === 'internal') into.internalFiles.push(rel);
+    for (const p of internalImports(source, host.internalDir)) into.internals.add(p);
+    files += 1;
+  }
+  return files;
 }
 
 /**
@@ -199,11 +250,11 @@ function copyTests(host: Host, { from, dest, hostDir }: Paths): Copied {
  * Vendored so the suite loads, and outside the `files` count because the runner's glob
  * will never pick it up: it is a helper, not a test.
  */
-function copySiblings(siblings: Set<string>, host: Host, { from, dest, hostDir }: Paths): void {
+function copySiblings(siblings: Set<string>, host: Host, { from, dest, hostDir }: Paths, packageType: string): void {
   for (const name of siblings) {
     const at = join(from, name);
     if (matchesGlob(name, host.testGlob) || !existsSync(at)) continue;
-    writeFileSync(join(dest, name), rewriteAt(readFileSync(at, 'utf8'), host, dest, hostDir));
+    writeFileSync(join(dest, name), rewriteAt(readFileSync(at, 'utf8'), host, { fileDir: dest, hostDir, packageType }));
   }
 }
 
@@ -232,7 +283,8 @@ export function vendor(host: Host, into: string, version = latestVersion(host.na
     const upstream = JSON.parse(readFileSync(join(clone, 'package.json'), 'utf8')) as UpstreamPackage;
     writeFileSync(join(into, host.name, 'package.json'), `${JSON.stringify(rootPackage(host, upstream), null, 2)}\n`);
 
-    const { files, internalFiles, internals } = copyTests(host, { from, dest, hostDir: join(into, host.name) });
+    const packageType = upstream.type ?? 'commonjs';
+    const { files, internalFiles, internals } = copyTests(host, { from, dest, hostDir: join(into, host.name) }, packageType);
 
     const record = snapshot(clone, host, {
       version,
@@ -245,7 +297,10 @@ export function vendor(host: Host, into: string, version = latestVersion(host.na
     });
     writeFileSync(join(into, host.name, '.source.json'), `${JSON.stringify(record, null, 2)}\n`);
     // A stale shim from a previous target would silently grade the wrong thing.
-    host.imports.forEach((_, i) => rmSync(join(into, host.name, shimName(i)), { force: true }));
+    // Both names: a re-vendor that changes the package's type must not leave the old one.
+    host.imports.forEach((_, i) => {
+      for (const type of ['module', 'commonjs']) rmSync(join(into, host.name, shimName(i, type)), { force: true });
+    });
     const result: VendorResult = { host: host.name, commit, version, tag, files, internalFiles, internals: [...internals].sort(), record };
     if (previous !== undefined) {
       result.previous = previous;

@@ -4,7 +4,8 @@
 > requirement T1. First in the order of work because every other requirement is
 > verified through it.
 
-**Status:** shipped · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz · **Corrected from
+`shipped` 2026-09-09** — two of four criteria met, one superseded, one unbuilt; see [Verified against `main`](#verified-against-main--2026-09-09)
 
 > Approved 2026-09-06 by @ofri-peretz in session ("Approve. lets move forward.").
 
@@ -73,6 +74,38 @@ Concretely:
   a lock test.
 - No `process.` reference in `packages/*/src/**` outside `processRuntime`, pinned by a
   grep lock (and later by `eslint-plugin-cli-floor`).
+
+## Verified against `main` — 2026-09-09
+
+**Status corrected from `shipped` to `review`.** Two of four criteria met, one deliberately
+superseded, one half-built. The harness itself is genuinely good and in daily use — five hosts,
+122 conformance tests green — but two of the four checks this intent promised do not exist in the
+form it promised them, and one cannot fail.
+
+- **The same conformance suite passes on both demos, and a deliberate regression — wrong exit
+  code, ANSI in non-TTY — turns it red** — half. The suite runs over **five** hosts and asserts
+  an exit code nearly everywhere, so the exit-code half would catch a regression. The ANSI half
+  cannot: `examples/conformance/src/*.test.ts` contains no `isTTY`, `NO_COLOR` or escape-byte
+  assertion at all, and the demos emit no colour, so there is nothing for that check to catch.
+  By this repo's own rule 4 — a check is not done until it is proven to fail on the unfixed
+  state — that half is unbuilt.
+- **`runCommander` resolves in under 20 ms, pinned as a lock** — **stale, and deliberately
+  superseded.** `examples/conformance/src/harness.test.ts:91` records that the absolute 20 / 40 ms
+  ceiling was removed after it failed two PRs that touched no relevant code (#27), and replaced
+  with "warm in-process p95 beats half a spawned run of the same CLI". That is a better check;
+  the criterion was never rewritten to say so.
+- **`process.env` byte-identical before and after an injected-env run, pinned by a lock** —
+  **met.** Asserted on all five hosts after a failing run.
+- **No `process.` reference in `packages/*/src/**` outside `processRuntime`, pinned by a grep
+  lock** — met as a lock, stale as written. `packages/burgee/src/process-reference-lock.test.ts`
+  exists, passes, and unit-tests its own regex — but its `ALLOWED` set has grown to **18 paths**
+  (`runtime.ts`, `execute.ts`, four `yargs-*` files, `dev.ts`, five flagstaff files,
+  `roundel/src/chalk.ts`, three compat-oracle files, and more), each with a written
+  justification. The lock survives; the criterion's shape does not.
+
+**Stale vocabulary:** `@interlace/cli-core` is now `burgee`, and `commander-harness` /
+`yargs-harness` were never built as packages — the drivers are
+`packages/compat-oracle/src/drivers/{commander,yargs}.ts` plus `burgee/testing`.
 
 ## Open questions
 

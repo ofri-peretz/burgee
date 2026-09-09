@@ -1,0 +1,9 @@
+{
+  "id": "discover-subcommand",
+  "requirement": "F1 \u2014 a machine-readable command list (`--schema`) instead of a `--help` walk",
+  "prompt": "Using the `mytool` command, find the configuration value stored under the key user.name and tell me what it is. Answer with the value.",
+  "setup": [],
+  "check": "grep -qi 'ada' \"$BENCH_RESULT\"",
+  "maxTurns": 12,
+  "exemplar": "I ran `mytool config get user.name` and it printed: ada"
+}

@@ -1,0 +1,9 @@
+{
+  "id": "recover-failure",
+  "requirement": "E2/E3 \u2014 a runtime failure that names its own remedy and prints no help text",
+  "prompt": "Run `mytool fail`. It will fail. Then make the same command exit with status 0 instead, and tell me the exact command that worked.",
+  "setup": [],
+  "check": "grep -q 'fail' \"$BENCH_RESULT\" && grep -qE '\\-\\-code' \"$BENCH_RESULT\"",
+  "maxTurns": 15,
+  "exemplar": "`mytool fail` exited 1 with 'boom'. `mytool fail --code 0` exits 0."
+}

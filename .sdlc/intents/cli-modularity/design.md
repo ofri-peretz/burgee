@@ -1,6 +1,7 @@
 # Design — Modularity
 
-Intent: [`intent.md`](./intent.md). **Status:** review — built on the engine and projected from the commander façade, 2026-09-08.
+Intent: [`intent.md`](./intent.md). **Status:** shipped — built on the engine and projected from the commander façade, 2026-09-08;
+all three success criteria verified against `main` on 2026-09-09.
 
 ---
 

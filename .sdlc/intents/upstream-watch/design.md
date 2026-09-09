@@ -273,6 +273,62 @@ yargs, burgee dropping commander, and a declaration `KNOWN` omits.
 
 Not yet: `fromRegistry()` (step 2), the issue renderer (step 3), the workflow (step 4).
 
+## What shipped (steps 2, 3 and 4 — 2026-09-09)
+
+`fromRegistry()`, the issue renderer, and the competitor pass in the daily workflow. All
+twenty-one watched competitors now hold a fingerprint; nineteen distinct npm packages are
+fetched, covering all fourteen the success criteria name.
+
+**The weight method reproduces the published figures exactly, which is the result that
+matters.** Measuring from the registry rather than an install gives ora 9.4.1 at 113,577 B
+across seventeen packages and log-update 8.0.0 at 113,368 across sixteen — both to the byte,
+including every line of flagstaff's itemised bill (`cli-spinners 27,841 · signal-exit 21,983 ·
+chalk 16,727 · get-east-asian-width 8,785 · string-width 6,194 · yoctocolors 4,466 ·
+mimic-function 3,038`, and `wrap-ansi 20,004 · slice-ansi 27,630` under log-update). Eleven
+published figures, eleven exact matches. The watch and the claim agree by construction rather
+than by assertion.
+
+**`via` — an itemised figure is read from its parent's tree, not from the package's latest.**
+The first design measured every competitor against `dist-tags.latest`, and it silently
+overwrote flagstaff's correct `chalk 16,727` with 21,417. flagstaff does not claim anything
+about chalk's latest release: 16,727 is chalk **5.6.2**, which is what ora resolves. An entry
+with `via: "ora"` reads its bytes out of ora's resolved tree, so the number reproduces and it
+moves exactly when ora's resolution moves — the event that would actually make the bill wrong.
+
+**One competitor's declared name is not its npm package, and finding that was the point.** We
+call the prompts library `clack`; npm's `clack` is an unrelated placeholder at 0.1.0.
+`NPM_NAME` maps it to `@clack/prompts`, and a lock asserts a declaration cannot outrun that
+map. This was not theoretical: during the mutation run the map was removed and not restored,
+and the next fingerprint pass reported **`clack 0.1.0 — 8,333,966 B across 69 packages`**
+without complaint. A plausible number for the wrong library, exactly the shape of the
+hoisted-package benchmark defect, reproduced live.
+
+**A dropped file is a diff, not a hash change.** commander 15.0.0's headline change is that it
+stopped shipping `esm.mjs` and `typings/esm.d.mts` while its 141 exported names stayed
+identical. A diff comparing only files present on both sides called that major "eleven files
+changed" and proposed a bump for it. `filesAdded` / `filesRemoved` are separate rows, and a
+dropped entry point now proposes no changeset for the same reason a removed export does not.
+
+**The citation matcher needed tightening, and the issue is what showed it.** The file-level
+rule the declaration lock uses — a figure somewhere on a line that names the competitor — is
+right for "is this competitor watched at all" and too loose for a checklist: applied to
+commander it produced twelve items from `burgee/src/weight.test.ts`, three of them claims
+about commander and the rest our own budgets that happened to name it (`commander-env` among
+them). Requiring the figure within 32 characters of the name, and collapsing the checklist to
+one line per file, took it to three items that are all real.
+
+**One published figure did not reproduce.** `flagstaff/src/weight.test.ts` and its README
+publish "boxen 8.0.1's 151,351 B in fourteen"; boxen 8.0.1 measures **132,414 B across
+nineteen** by the method that reproduces ora and log-update exactly, and a walk of the
+installed tree agrees with the registry walk to the byte. It is recorded as measured in
+`competitors.json` and the published claim is left alone — a stale weight claim is an issue,
+not a build failure (intent open question 3), and it belongs to whoever measured it.
+
+Six mutations bite, each firing exactly one lock: roundel dropping picocolors; one of the
+fourteen going undeclared; `clack` unmapped; an itemised figure naming a parent nobody
+watches beside it; a fingerprint with no tarball sha1; a declaration for a subpath the
+package does not export.
+
 ## Verification
 
 The loop: `npm test && npm run lint`.
