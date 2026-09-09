@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
@@ -144,7 +144,7 @@ function runStep(body: string, env: Record<string, string>): Result {
 
   const r = spawnSync('bash', [scriptFile], {
     encoding: 'utf8',
-    env: { PATH: `${bin}:${process.env.PATH ?? ''}`, GITHUB_OUTPUT: outFile, GITHUB_STEP_SUMMARY: summaryFile, ...env },
+    env: { PATH: `${bin}${delimiter}${process.env.PATH ?? ''}`, GITHUB_OUTPUT: outFile, GITHUB_STEP_SUMMARY: summaryFile, ...env },
   });
   return {
     status: r.status ?? -1,
@@ -160,6 +160,16 @@ const llmsStep = step(deployDocs.jobs?.deploy, 'Verify the agent surfaces are on
 /** The workflow-level `env:`, which the verify step reads `PRODUCTION_URL` out of. */
 const workflowEnv = deployDocs.env ?? {};
 
+/**
+ * These `run:` blocks are POSIX shell and the runner they execute on is
+ * `ubuntu-latest`, always. On Windows the stubs are not reliably resolved ahead of the
+ * real binaries — the first version of this file reached out to the network and asked
+ * DNS about `cli.interlace.tools` — so the cases that *execute* a step are skipped
+ * there. The structural cases, including "this step still exists", run everywhere, and
+ * the Linux and macOS cells are hard gates, so every mutation below still turns CI red.
+ */
+const executes = it.skipIf(process.platform === 'win32');
+
 const SHA = '0123456789abcdef0123456789abcdef01234567';
 const page = (sha: string): string => `<html><head><meta name="x-build-sha" content="${sha}"/></head><body>hi</body></html>`;
 
@@ -169,12 +179,13 @@ describe('deploy-docs.yml', () => {
     expect(triggers(deployDocs)).toEqual(['workflow_dispatch']);
   });
 
-  it('does nothing at all when there is no credential', () => {
-    // The deploy job must be gated on the preflight verdict, not on `always()` and not
-    // on nothing: a repo without VERCEL_TOKEN has to stay green, or the red X is a
-    // standing false alarm nobody reads.
+  it('gates every later job on the preflight verdict', () => {
+    // Not `always()` and not nothing: a repo without VERCEL_TOKEN has to stay green, or
+    // the red X is a standing false alarm nobody reads.
     expect(deployDocs.jobs?.deploy?.if).toBe("needs.preflight.outputs.ready == 'true'");
+  });
 
+  executes('does nothing at all when there is no credential', () => {
     const r = runStep(preflight, { VERCEL_TOKEN: '', ENVIRONMENT: 'production', APPROVAL: '' });
     expect(r.status, r.output).toBe(0);
     expect(r.githubOutput).toContain('ready=false');
@@ -183,7 +194,7 @@ describe('deploy-docs.yml', () => {
     expect(r.summary).toContain('VERCEL_TOKEN');
   });
 
-  it('tells the owner the token has to be a repository secret', () => {
+  executes('tells the owner the token has to be a repository secret', () => {
     // `preflight` declares no `environment:`, so a secret scoped to `docs-production`
     // reads as empty here and every run stays green and inert forever — the one failure
     // mode of the no-op design that no test can catch after the fact.
@@ -191,7 +202,7 @@ describe('deploy-docs.yml', () => {
     expect(r.summary.toLowerCase()).toContain('repository');
   });
 
-  it('refuses a hand-fired production deploy that nobody confirmed', () => {
+  executes('refuses a hand-fired production deploy that nobody confirmed', () => {
     // Constraint 2, the manual half — executed, because the string "RELEASE_APPROVAL"
     // appearing in a comment is not a gate. The refusal has to be a non-zero exit, and
     // it must not have already written `ready=true`.
@@ -204,7 +215,7 @@ describe('deploy-docs.yml', () => {
     expect(wrong.status).not.toBe(0);
   });
 
-  it('lets through the two deploys that are allowed', () => {
+  executes('lets through the two deploys that are allowed', () => {
     // The other half of the gate: it must not refuse everything, or the workflow is
     // just broken rather than careful.
     const approved = runStep(preflight, { VERCEL_TOKEN: 'tok', ENVIRONMENT: 'production', APPROVAL: 'RELEASE_APPROVAL' });
@@ -230,7 +241,7 @@ describe('deploy-docs.yml', () => {
     expect(build?.env?.NEXT_PUBLIC_BUILD_SHA).not.toContain('github.sha');
   });
 
-  it('passes only when the deployed URL serves the build it just made', () => {
+  executes('passes only when the deployed URL serves the build it just made', () => {
     const body = script(verifyStep, { 'inputs.environment': 'production' });
     const base = { ...workflowEnv, DEPLOY_URL: 'https://dep.vercel.app', EXPECTED_SHA: SHA };
 
@@ -251,7 +262,7 @@ describe('deploy-docs.yml', () => {
     expect(broken.status, broken.output).not.toBe(0);
   });
 
-  it('soft-warns instead of failing when the host does not resolve yet', () => {
+  executes('soft-warns instead of failing when the host does not resolve yet', () => {
     // The owner steps produce exactly this sequence: token added, DNS not pointed, a
     // merge dispatches the deploy, the deploy succeeds. `curl -w '%{http_code}'` prints
     // 000 *and* exits 6, so `$(curl … || echo 000)` used to yield the un-matchable code
@@ -263,14 +274,14 @@ describe('deploy-docs.yml', () => {
     expect(r.output).not.toContain('000000');
   });
 
-  it('says so, rather than failing, when Deployment Protection hides the page', () => {
+  executes('says so, rather than failing, when Deployment Protection hides the page', () => {
     const body = script(verifyStep, { 'inputs.environment': 'preview' });
     const r = runStep(body, { ...workflowEnv, DEPLOY_URL: 'https://dep.vercel.app', EXPECTED_SHA: SHA, SHIM_CODE: '401', SHIM_RC: '0', SHIM_BODY: '' });
     expect(r.status, r.output).toBe(0);
     expect(r.output).toContain('::warning::');
   });
 
-  it('checks that /llms.txt is on the deployed build and has rows in it', () => {
+  executes('checks that /llms.txt is on the deployed build and has rows in it', () => {
     const body = script(llmsStep);
     const base = { ...workflowEnv, DEPLOY_URL: 'https://dep.vercel.app' };
 
