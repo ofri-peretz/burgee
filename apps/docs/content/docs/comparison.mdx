@@ -6,7 +6,7 @@ description: Measured against commander, yargs, oclif, cac and citty — with wh
 **This page is maintained by hand, and that is the reason to distrust it most.** Four of
 its rows disagreed with the suite that now measures them — an installed size 5.4x under,
 an import cost that flattered us by 12 ms, a claim that burgee landed level with cac
-against a measured 1.39x, and a compatibility count of 1,361 that has been
+against a measured 1.45x, and a compatibility count of 1,361 that has been
 1,360 since the oracle's baseline was set. [Benchmarks](/docs/benchmarks) is generated from `npm run bench` and is the
 authority; this page exists to put six frameworks in one table, which that one does not
 do, and every cell here now says where it comes from.
@@ -28,8 +28,8 @@ never for gating; the machine-independent figure is the ratio on
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
 | Downloads / week | new | 508.2M | 259.3M | 10.9M | 49.4M | 30.5M |
 | Runtime dependencies | **0** | 0 | 6 | **18** | 0 | 0 |
-| Installed size ⚙️ | 561 KB | 203 KB | 562 KB | 912 KB 📖 | 40 KB | 52 KB 📖 |
-| Full CLI run over bare node ⚙️ | **+20.7 ms** | +14.8 ms | +91.8 ms | +131 ms 📖 | +6.2 ms | +6 ms 📖 |
+| Installed size ⚙️ | 561 KB | 203 KB | 515 KB | 912 KB 📖 | 40 KB | 52 KB 📖 |
+| Full CLI run over bare node ⚙️ | **+22.6 ms** | +16.3 ms | +90.5 ms | +131 ms 📖 | +5.2 ms | +6 ms 📖 |
 
 Three things in that table got worse when they were measured rather than asserted, and
 they stay in it.
@@ -43,10 +43,10 @@ application actually grows by — is the number to judge us on.
 
 **Speed.** This page previously ran two rows, an import cost and a full run, with burgee's
 cells in both unsourced. The suite times one thing, a full CLI run as a process, so there
-is one row. burgee does **not** land level with cac: it starts at **1.39x** cac's cold
+is one row. burgee does **not** land level with cac: it starts at **1.45x** cac's cold
 start against a published target of at or below cac, and that target is recorded as not
 met. It is faster than yargs — measurably, 0.69x — and roughly level with commander at
-1.15x.
+1.16x.
 
 burgee's speed comes from `node:util.parseArgs` being in the standard library, not from a
 faster language: burgee is TypeScript, exactly like commander and yargs. That buys parity
