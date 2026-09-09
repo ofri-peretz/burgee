@@ -13,111 +13,31 @@
  * **8.3.0** hoisted (a transitive dependency of something else) while the version we grade
  * against is **15.0.0**, which lives in a nested tree. A measurement that resolved from the
  * root would quietly compare burgee's front-end against a commander from 2021. Every
- * package here is resolved from `benchmarks/`, which declares the versions, and the
- * resolved path and version are written into every record so the reader can check.
+ * package here goes through `resolvePackage` in `../resolve.ts` — the same guard B2 uses —
+ * and the resolved path and version are written into every record so the reader can check.
+ *
+ * The second trap, and the one that made a published number 2.1x wrong: **whose directory
+ * a transitive dependency is resolved from**. See `installedBytes`.
  */
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join, resolve } from 'node:path';
 
 import { DEFAULT_EXPORT, fixtureSource, PAIRS, type EntryPair } from '../fixtures/entry-points.js';
 import { type BenchRecord } from '../record.js';
+import { BENCH_ROOT, packageDir, relativeToRepo, resolvePackage } from '../resolve.js';
 import { round } from '../stats.js';
 
-const BENCH_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const REPO_ROOT = resolve(BENCH_ROOT, '..');
 /** Generated, gitignored: the fixtures are a projection of `entry-points.ts`. */
 const SCRATCH = join(BENCH_ROOT, '.fixtures');
 const RATIO_PLACES = 3;
 
 /**
- * The ranges `benchmarks/package.json` declares, which is what every incumbent here is
- * supposed to be. Read once, so the check below compares against the file rather than
- * against a second copy of the versions written out in this module.
+ * Bytes on disk under `dir`, excluding nested `node_modules` — those are counted
+ * separately, by `installedBytes` reaching each nested package through the dependency
+ * graph. Counting them here as well would double every nested copy.
  */
-const DECLARED = ((): ReadonlyMap<string, string> => {
-  const manifest = JSON.parse(readFileSync(join(BENCH_ROOT, 'package.json'), 'utf8')) as {
-    dependencies?: Record<string, string>;
-    devDependencies?: Record<string, string>;
-  };
-  return new Map(Object.entries({ ...manifest.dependencies, ...manifest.devDependencies }));
-})();
-
-const CARET = /^\^\d+\.\d+\.\d+$/;
-const EXACT = /^\d+\.\d+\.\d+$/;
-const SEMVER_PARTS = 3;
-
-/**
- * The three range shapes `benchmarks/package.json` uses, and nothing else — an
- * unrecognised range throws rather than passing, because a version check that quietly
- * returns `true` for anything it does not understand is not a check.
- */
-/** major.minor.patch, or nothing if it is not that shape. */
-function triple(text: string): [number, number, number] | undefined {
-  const parts = text.split('.').map(Number);
-  const [major, minor, patch] = parts;
-  if (parts.length !== SEMVER_PARTS || major === undefined || minor === undefined || patch === undefined) return undefined;
-  return parts.some((n) => Number.isNaN(n)) ? undefined : [major, minor, patch];
-}
-
-export function satisfies(version: string, range: string): boolean {
-  if (range === '*') return true;
-  if (EXACT.test(range)) return version === range;
-  if (!CARET.test(range)) {
-    throw new Error(`benchmarks/package.json declares "${range}", a range shape satisfies() does not know; teach it rather than skipping the check`);
-  }
-  const want = triple(range.slice(1));
-  const got = triple(version);
-  if (want === undefined || got === undefined) return false;
-  if (got[0] !== want[0]) return false;
-  return got[1] > want[1] || (got[1] === want[1] && got[2] >= want[2]);
-}
-
-/**
- * The package we are supposed to be measuring, or a loud failure.
- *
- * This exists because the walk below found the wrong package on the first CI run of this
- * suite. The workspace root has **commander 8.3.0** hoisted as somebody's transitive
- * dependency; the version we grade against is **15.0.0**, in `benchmarks/node_modules`.
- * When CI's node_modules cache did not carry that directory, the walk fell through to the
- * root and measured commander 8 — and reported a perfectly plausible 29,275 bytes and a
- * 2.0x ratio, with nothing but the `detail.version` field to say anything was wrong.
- * Comparing against the declared range turns that class of mistake into a stopped run.
- */
-function resolvePackage(name: string): { dir: string; version: string } {
-  const declared = DECLARED.get(name);
-  if (declared === undefined) {
-    throw new Error(`${name} is measured by B4 but benchmarks/package.json does not declare it, so the version measured would be whatever npm happened to hoist`);
-  }
-  const found = packageDir(name);
-  if (satisfies(found.version, declared)) return found;
-  const shadowed = `resolved ${name}@${found.version} from ${found.dir}, but benchmarks/package.json declares "${declared}"`;
-  throw new Error(`${shadowed} — something above benchmarks/ is shadowing it; run \`npm ci\` so benchmarks/node_modules is populated. Measuring the wrong package is worse than measuring nothing.`);
-}
-
-/**
- * The package's own directory, found by walking `node_modules` upward from `benchmarks/`
- * — never `require.resolve`, which several of these packages refuse for `package.json`
- * through their `exports` map, and which would silently fall back to the wrong tree.
- */
-export function packageDir(name: string, from = BENCH_ROOT): { dir: string; version: string } {
-  // Bounded by the path itself: one iteration per ancestor directory, so the walk cannot
-  // outlive the filesystem even if `dirname` ever stopped converging.
-  let cursor = from;
-  for (const _ of from.split(sep)) {
-    const candidate = join(cursor, 'node_modules', name);
-    try {
-      const manifest = JSON.parse(readFileSync(join(candidate, 'package.json'), 'utf8')) as { version?: string };
-      return { dir: candidate, version: manifest.version ?? 'unknown' };
-    } catch {
-      cursor = dirname(cursor);
-    }
-  }
-  throw new Error(`${name} is not installed anywhere above ${from}`);
-}
-
-/** Bytes on disk under `dir`, excluding nested `node_modules` (counted separately). */
 function dirBytes(dir: string): number {
   let total = 0;
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -141,14 +61,38 @@ function ownInstalledBytes(dir: string): number {
   return (JSON.parse(out) as { unpackedSize: number }[])[0]?.unpackedSize ?? 0;
 }
 
-/** A package's own bytes plus every production dependency it drags in, transitively. */
-export function installedBytes(name: string, seen = new Set<string>()): number {
-  if (seen.has(name)) return 0;
-  seen.add(name);
-  const { dir } = packageDir(name);
+/**
+ * A package's own bytes plus every production dependency it drags in, transitively.
+ *
+ * Two things here were wrong, and between them they published `boxen`'s installed size as
+ * 353,976 bytes where the tree on disk holds **747,463** — a number 2.1x out, in the PR
+ * table and on the docs site.
+ *
+ * 1. **Every dependency was resolved from `benchmarks/`** rather than from the directory
+ *    of the package that depends on it. npm nests a package under its depender exactly
+ *    when the hoisted copy is the wrong version, so resolving from the top finds the
+ *    hoisted copy and never sees the nested one. `boxen` is the extreme case: three
+ *    separate installed copies of `string-width` — under `ansi-align`, under `boxen`,
+ *    under `widest-line` — all collapsed onto whichever npm happened to hoist. `from` is
+ *    now the depender's own directory, so the walk is the one Node itself does at runtime.
+ * 2. **Deduplication was by package name**, which is the same mistake stated as a set:
+ *    two legitimately distinct installed copies are two directories on disk, and a user
+ *    pays for both. The key is the resolved real path.
+ *
+ * `dirBytes` still skips nested `node_modules`, and with (1) fixed that is exactly right
+ * rather than lossy: every nested directory is reached through the dependency graph
+ * instead, so each installed copy is counted once and only once. That invariant is not
+ * an assumption — `weight.test.ts` walks all seven trees and fails if any nested package
+ * is unreachable from the graph, which would mean bytes silently going missing again.
+ */
+export function installedBytes(name: string, from: string = BENCH_ROOT, seen = new Set<string>()): number {
+  const { dir } = packageDir(name, from);
+  const key = realpathSync(dir);
+  if (seen.has(key)) return 0;
+  seen.add(key);
   const manifest = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as { dependencies?: Record<string, string> };
   let total = ownInstalledBytes(dir);
-  for (const dep of Object.keys(manifest.dependencies ?? {})) total += installedBytes(dep, seen);
+  for (const dep of Object.keys(manifest.dependencies ?? {})) total += installedBytes(dep, dir, seen);
   return total;
 }
 
@@ -188,7 +132,7 @@ export interface Measured {
 function measure(side: { specifier: string; symbol: string }, id: string): Measured {
   const pkg = packageOf(side.specifier);
   const { dir, version } = resolvePackage(pkg);
-  return { bundled: bundle(side, id), installed: installedBytes(pkg), version, dir: resolve(dir).replace(REPO_ROOT, '<repo>') };
+  return { bundled: bundle(side, id), installed: installedBytes(pkg), version, dir: relativeToRepo(dir) };
 }
 
 interface BytesRow {
@@ -324,4 +268,4 @@ export function run(): BenchRecord[] {
 }
 
 export const method =
-  'Each entry point is bundled with `esbuild --bundle --minify --format=esm --platform=node` over a fixture that imports it and re-exports one symbol; the incumbent is bundled by the same command over the same fixture shape. Installed bytes are the package directory plus every production dependency, transitively. Every package is resolved from `benchmarks/`, whose package.json pins the versions — the workspace root has an older commander hoisted, and resolving from there would compare against the wrong package.';
+  'Each entry point is bundled with `esbuild --bundle --minify --format=esm --platform=node` over a fixture that imports it and re-exports one symbol; the incumbent is bundled by the same command over the same fixture shape. Installed bytes are the package directory plus every production dependency, transitively — each dependency resolved from the directory of the package that depends on it, and deduplicated by resolved path, so a nested copy is counted where npm actually put it. Every top-level package is resolved from `benchmarks/`, whose package.json pins the versions — the workspace root has an older commander hoisted, and resolving from there would compare against the wrong package.';

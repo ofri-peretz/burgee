@@ -63,17 +63,17 @@ describe('B2 cold start — the paired-ratio gate', () => {
 
   it('exits non-zero when the front-end drifts past its ceiling over its host', () => {
     const ours = host.map((ms) => ms * (ceiling + 0.1));
-    expect(verdict([ratioRecord(variant, ours, host, ceiling)])).toBe(1);
+    expect(verdict([ratioRecord({ v: variant, ours, host, gateMax: ceiling })])).toBe(1);
   });
 
   it('exits zero exactly at the ceiling', () => {
     const ours = host.map((ms) => ms * ceiling);
-    expect(verdict([ratioRecord(variant, ours, host, ceiling)])).toBe(0);
+    expect(verdict([ratioRecord({ v: variant, ours, host, gateMax: ceiling })])).toBe(0);
   });
 
   it('gates the median, not the p95 — an absolute or tail-driven gate is what red-lit two innocent PRs in #27', () => {
     const ours = host.map((ms, i) => (i > 36 ? ms * 10 : ms));
-    const record = ratioRecord(variant, ours, host, ceiling);
+    const record = ratioRecord({ v: variant, ours, host, gateMax: ceiling });
     expect(record.p95).toBeGreaterThan(ceiling);
     expect(verdict([record])).toBe(0);
   });
