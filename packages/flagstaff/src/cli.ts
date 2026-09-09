@@ -27,6 +27,15 @@ type Mode = (typeof MODES)[number];
 const ENV: Record<Mode, Record<string, string>> = { tty: {}, pipe: {}, ci: { CI: 'true' }, json: {}, accessible: { CLI_ACCESSIBLE: '1' } };
 const LABEL_WIDTH = 12;
 const FRAMES_SHOWN = 3;
+/**
+ * E1, declared here rather than imported: flagstaff is an independent product and does not
+ * depend on burgee, so the family's exit contract is restated by each package that has a
+ * command line. `scripts/exit-code-lock.test.ts` is what keeps the three restatements from
+ * drifting — it refuses a value that is not one of the six, and refuses a bare literal at
+ * an exit site, which is what line 186 used to be.
+ */
+const EXIT_OK = 0;
+const EXIT_RUNTIME = 1;
 const EXIT_USAGE = 2;
 
 /** The keys flagstaff itself reads. Everything else is another package's, or a typo. */
@@ -109,7 +118,7 @@ function census(plugin: Record<string, unknown>): { line: string; total: number 
  */
 function refuse(code: PluginErrorCode, message: string, fix: string, write: (s: string) => void): number {
   write(`${code}: ${message}\n  fix: ${fix}\n`);
-  return 1;
+  return EXIT_RUNTIME;
 }
 
 /** The sample a component is shown with, and the line that says where it came from. */
@@ -172,7 +181,7 @@ async function main(argv: string[], write: (s: string) => void): Promise<number>
   }
   if (broke.length > 0) return refuse('E_COMPONENT_THREW', broke.join('; '), FIX_THREW, write);
   write(`${name}: ok${before.has(name) ? ' (replaces an earlier registration)' : ''}\n`);
-  return 0;
+  return EXIT_OK;
 }
 
 const [, , command, ...rest] = process.argv;
@@ -183,6 +192,6 @@ main(args, (s) => process.stdout.write(s)).then(
   },
   (e: unknown) => {
     process.stderr.write(`${e instanceof Error ? e.message : String(e)}\n`);
-    process.exitCode = 1;
+    process.exitCode = EXIT_RUNTIME;
   },
 );
