@@ -93,6 +93,15 @@ const RULES: Record<string, EntryRule> = {
   // bytes. It shares `cursor.js` and `width.js` with `./ora` and reaches neither the corpus
   // nor the core.
   './log-update': { allow: [], budget: 32_000, denied: ['ora.js', 'spinners.json', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
+  // The boxen façade (R10). boxen 8.0.1 is 8 dependencies; this reaches `width.js`,
+  // `wrap.js` and `roundel/chalk` — the first two already shipped for `./ora` and
+  // `./log-update`, and `ansi-align`, `widest-line`, `camelcase` and `cli-boxes` are a few
+  // lines each, written where they are used. Measured 33,664 B on 2026-09-09, and
+  // `roundel/chalk` — the only thing it reaches outside the package — is a further 9,311 B,
+  // which roundel's own weight lock records at the same figure. **42,975 B in two packages,
+  // against boxen 8.0.1's 151,351 B in fourteen — 28%.** It shares `wrap.js` and `width.js`
+  // with the other two façades, so a program on two of them pays for both once.
+  './boxen': { allow: ['roundel/chalk'], budget: 35_000, denied: ['ora.js', 'spinners.json', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js', 'log-update.js'] },
   // The four remaining built-ins (R4). `progress` is arithmetic and a token — 971 B, and it
   // reaches nothing, not even the registry. `tasks` reads its glyphs and its spinner style
   // from the registry, so it carries the plugin host: 9,773 B. `box` and `table` are string

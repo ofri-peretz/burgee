@@ -1,0 +1,9 @@
+{
+  "name": "@vendored/boxen-suite",
+  "private": true,
+  "type": "module",
+  "main": "./shim.js",
+  "version": "8.0.1",
+  "license": "MIT",
+  "repository": "sindresorhus/boxen"
+}
