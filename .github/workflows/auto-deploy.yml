@@ -7,11 +7,33 @@ name: Auto Deploy on Main
 #
 # Why turbo-affected and not a path filter: a path filter under-fires the day
 # `apps/docs` gains a workspace dependency, and the miss is silent — the site
-# just stops matching the code. `turbo run build --filter=...[<sha>]` walks the
-# dependency graph and names every transitive dependent, so a change to
-# `packages/**` that the docs do not import does NOT deploy them, and one that
-# they do, does. That is success criterion 2 of the intent, and
-# `scripts/deploy-lock.test.ts` pins the `if:` that carries it.
+# simply stops matching the code. `turbo run build --filter=...[<sha>]` walks the
+# dependency graph instead, so that day needs no edit here.
+#
+# What that does NOT buy today — measured on this repo, not assumed. A merge
+# touching only `packages/**` still deploys. `docs` has no workspace dependency
+# at all, but the ROOT workspace devDepends on `burgee`, `compat-oracle` and
+# `flagstaff` (and reaches `roundel` through them), so a change to any of those
+# puts the root package in turbo's changed set, and turbo then reports all 11
+# workspaces changed — `docs` among them. One-file commits, `turbo@11.16.0`:
+#
+#   packages/caique/**            → caique          (reachable from no root dep)
+#   packages/roundel/**           → all 11, incl. docs
+#   packages/burgee/**            → all 11, incl. docs
+#   packages/flagstaff/README.md  → all 11, incl. docs
+#   packages/compat-oracle/**     → all 11, incl. docs
+#   apps/docs/**                  → docs
+#   scripts/**, root README.md    → nothing
+#
+# `--filter=docs[<sha>]`, `--filter=...docs[<sha>]` and `--affected` all report
+# the same, so there is no tighter turbo expression to switch to; the only fix
+# is to the root devDependencies, which are there for their own reasons.
+#
+# So the guarantee here is narrower than "deploys only when the docs changed",
+# and `.sdlc/intents/docs-deploy/intent.md` records it as unmet rather than met:
+# most product merges deploy, a change outside the workspace graph does not, and
+# no ref other than `main` can deploy at all. `scripts/deploy-lock.test.ts` pins
+# the `if:` that carries the last of those.
 #
 # Why this is not itself the deploy: `deploy-docs.yml` owns the credential, the
 # build and the post-deploy check. This workflow only decides *whether*. It

@@ -94,6 +94,11 @@ jobs:
               echo "4. read \`<meta name=\"x-build-sha\">\` back off the deployed URL and fail if it is not that commit."
               echo
               echo "Add \`VERCEL_TOKEN\`, \`VERCEL_ORG_ID\` and \`VERCEL_PROJECT_ID\` under Settings → Secrets and variables → Actions."
+              echo
+              echo "> **They must be _repository_ secrets, not _environment_ secrets.** This job"
+              echo "> declares no \`environment:\`, so a secret scoped to \`docs-production\` or"
+              echo "> \`docs-preview\` is invisible here and every run would stay green and inert"
+              echo "> forever — the failure this summary exists to make impossible."
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
@@ -143,6 +148,16 @@ jobs:
         with:
           next-cache: "true" # constraint 3: the build stays under two minutes
 
+      # `github.sha` is the commit this *workflow file* was read from, which is
+      # not the commit that was checked out above: `auto-deploy.yml` dispatches
+      # `--ref main -f ref=<merge sha>`, so a second merge landing in the gap
+      # leaves `github.sha` ahead of `inputs.ref`. Stamping one while building
+      # the other would make the post-deploy check compare a value against
+      # itself and pass on a build of the wrong commit. Ask git instead.
+      - name: Resolve the commit that was checked out
+        id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Pull Vercel environment metadata
         run: npx vercel pull --yes --environment=${{ inputs.environment }} --token="$VERCEL_TOKEN"
 
@@ -150,7 +165,7 @@ jobs:
         env:
           # Stamped into `<meta name="x-build-sha">` by apps/docs/src/app/layout.tsx.
           # This is what the post-deploy check reads back.
-          NEXT_PUBLIC_BUILD_SHA: ${{ github.sha }}
+          NEXT_PUBLIC_BUILD_SHA: ${{ steps.sha.outputs.sha }}
         run: |
           set -euo pipefail
           if [ "${{ inputs.environment }}" = "production" ]; then
@@ -159,6 +174,12 @@ jobs:
             npx vercel build --token="$VERCEL_TOKEN"
           fi
 
+      # No `--archive=tgz`, which the eslint repo's port of this file does pass.
+      # It exists to get under Vercel's 15,000-file limit on a prebuilt upload by
+      # sending one tarball instead. This app is nowhere near it: 397 files in
+      # `.next` excluding the cache, measured 2026-09-08. Add the flag to both
+      # `vercel deploy` lines below the first time a deploy is rejected for too
+      # many files — that rejection is the signal, and the only reason for it.
       - name: Deploy prebuilt artifact
         id: deploy
         run: |
@@ -180,7 +201,7 @@ jobs:
       - name: Verify the deployed URL serves this build
         env:
           DEPLOY_URL: ${{ steps.deploy.outputs.url }}
-          EXPECTED_SHA: ${{ github.sha }}
+          EXPECTED_SHA: ${{ steps.sha.outputs.sha }}
         run: |
           set -euo pipefail
 
@@ -195,11 +216,27 @@ jobs:
           echo "Checking $TARGET for x-build-sha=$EXPECTED_SHA"
 
           # Vercel's CDN needs a moment to point the alias at the new build.
+          #
+          # `-w '%{http_code}'` prints `000` on a transport failure AND curl exits
+          # non-zero, so the obvious `$(curl … || echo 000)` appends a second one
+          # and yields `000000` — a code no branch below matches, which turned the
+          # "DNS is not there yet" case into `returned HTTP 000000 after 5
+          # attempts`. Keep the status and the exit code apart.
+          CODE=000
+          RC=0
           for attempt in 1 2 3 4 5; do
-            CODE=$(curl -sS -o /tmp/home.html -w '%{http_code}' --max-time 20 "$TARGET" || echo 000)
+            RC=0
+            CODE=$(curl -sS -o /tmp/home.html -w '%{http_code}' --max-time 20 "$TARGET") || RC=$?
+            case "$CODE" in '' | *[!0-9]*) CODE=000 ;; esac
             [ "$CODE" = "200" ] && break
-            echo "attempt $attempt: HTTP $CODE — retrying"
-            sleep 10
+            # 6 = could not resolve host. No number of retries creates a DNS
+            # record, so go straight to the soft-warn instead of burning 5×10s.
+            if [ "$RC" -eq 6 ]; then
+              CODE=000
+              break
+            fi
+            echo "attempt $attempt: HTTP $CODE (curl exit $RC) — retrying"
+            [ "$attempt" -eq 5 ] || sleep 10
           done
 
           case "$CODE" in
@@ -211,7 +248,10 @@ jobs:
               exit 0
               ;;
             000)
-              echo "::warning::$TARGET did not resolve. Expected until the DNS record for ${PRODUCTION_URL#https://} exists; the deploy itself succeeded ($DEPLOY_URL)."
+              # No HTTP response at all — almost always DNS that does not exist
+              # yet, which is the state between adding the token and pointing the
+              # record. The deploy itself already succeeded; do not fail on it.
+              echo "::warning::$TARGET could not be reached (curl exit $RC). Expected until the DNS record for ${PRODUCTION_URL#https://} exists; the deploy itself succeeded ($DEPLOY_URL)."
               exit 0
               ;;
             *)
@@ -239,14 +279,20 @@ jobs:
           # The site is written for agents too (intent, "Success criteria").
           # A 200 on /llms.txt is the cheapest proof the route survived the
           # build and the deploy, not only the test suite.
+          # Same `000` normalisation as the step above — see the comment there.
+          # This one stays a hard failure on an unreachable target, because the
+          # target is Vercel's own deployment URL and not a name we have to wait
+          # for: if *that* does not answer, the deploy did not serve anything.
           TARGET="$DEPLOY_URL"
-          CODE=$(curl -sS -o /tmp/llms.txt -w '%{http_code}' --max-time 20 "$TARGET/llms.txt" || echo 000)
+          RC=0
+          CODE=$(curl -sS -o /tmp/llms.txt -w '%{http_code}' --max-time 20 "$TARGET/llms.txt") || RC=$?
+          case "$CODE" in '' | *[!0-9]*) CODE=000 ;; esac
           if [ "$CODE" = "401" ] || [ "$CODE" = "403" ]; then
             echo "::warning::/llms.txt returned $CODE — Deployment Protection, not a broken route."
             exit 0
           fi
           if [ "$CODE" != "200" ]; then
-            echo "::error::$TARGET/llms.txt returned HTTP $CODE."
+            echo "::error::$TARGET/llms.txt returned HTTP $CODE (curl exit $RC)."
             exit 1
           fi
           LINES=$(grep -c '^- \[' /tmp/llms.txt || true)
@@ -273,7 +319,7 @@ jobs:
             echo "|---|---|"
             echo "| Environment | \`${{ inputs.environment }}\` |"
             echo "| Ref | \`${{ inputs.ref || github.ref }}\` |"
-            echo "| Build SHA | \`${{ github.sha }}\` |"
+            echo "| Build SHA | \`${{ steps.sha.outputs.sha }}\` |"
             echo "| Triggered | @${{ github.actor }} |"
             echo "| Status | $status |"
             if [ -n "${URL:-}" ]; then echo "| URL | $URL |"; fi
