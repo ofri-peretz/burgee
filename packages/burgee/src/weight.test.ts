@@ -88,7 +88,14 @@ const RULES: Record<string, EntryRule> = {
   // The published claim is untouched: "the core entry point is under 52 KB **bundled**" is
   // a different measurement — 34,841 bytes against a 53,248 target — and this budget is
   // bytes on disk of the `dist/` files an import reaches.
-  '.': { allow: [], budget: 52_700, denied: ['testing.js', 'testing-helpers.js', 'dev.js', 'roundel', 'flagstaff', 'caique'] },
+  //
+  // Raised again to 52,900 on 2026-09-09, for `agent-headroom` R1, and stated the same way.
+  // The `--version` fix above left **20 bytes** of headroom — 52,680 measured against 52,700 —
+  // so R1 is the first change of any size to arrive after it. R1 costs **213 bytes**
+  // (52,680 → 52,893) and takes 16,548 off *every* `--schema` an agent reads: 39,512 → 22,964
+  // on the large reference demo, for a byte-identical parse. Paid once per install against a
+  // saving per invocation, which is the whole trade.
+  '.': { allow: [], budget: 52_900, denied: ['testing.js', 'testing-helpers.js', 'dev.js', 'roundel', 'flagstaff', 'caique'] },
   //
   // `agent-headroom` R1 adds **134 bytes** on top of that (52,035 -> 52,169), inside the same
   // ceiling, and it is the same kind of decision: 134 bytes of core, paid once per install,
