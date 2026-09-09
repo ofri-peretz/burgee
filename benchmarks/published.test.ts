@@ -14,6 +14,7 @@
  */
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,6 +24,7 @@ import { describe, expect, it } from 'vitest';
 import { observations, publishedResults } from './published.js';
 
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
+const tsxCli = createRequire(import.meta.url).resolve('tsx/cli');
 const RESULTS_DIR = join(REPO_ROOT, 'benchmarks', 'results', 'cli-benchmarks');
 const ISO_DATE = 10;
 
@@ -97,10 +99,12 @@ describe('the generated page', () => {
     writeFileSync(observation, JSON.stringify(doc, null, 2));
     try {
       // Exits non-zero when the committed page is not what the results generate.
-      // `npm.cmd` on Windows — `execFileSync` does not consult PATHEXT, and spawning
-      // through a shell instead would be a shell for the sake of one filename.
-      const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-      execFileSync(npm, ['run', 'bench:page', '--', '--check'], { cwd: REPO_ROOT, stdio: 'pipe' });
+      // Node, tsx's own entry, and the script — not `npm run bench:page`. On Windows the
+      // npm launcher is `npm.cmd`, which `execFileSync` will not find without PATHEXT and
+      // then refuses to spawn at all (EINVAL, since the `.cmd` argument-injection fix).
+      // Spawning through a shell to get around that would be a shell for the sake of one
+      // filename; resolving tsx is the same command with no launcher in it.
+      execFileSync(process.execPath, [tsxCli, join(REPO_ROOT, 'scripts', 'bench-page.ts'), '--check'], { cwd: REPO_ROOT, stdio: 'pipe' });
     } finally {
       rmSync(observation, { force: true });
     }
