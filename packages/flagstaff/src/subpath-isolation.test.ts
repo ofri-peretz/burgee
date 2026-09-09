@@ -41,6 +41,11 @@ const ALLOWED: Record<string, string[]> = {
   // `_borderStyles` is boxen's public surface, and a façade whose drawing changed when
   // somebody registered a plugin would be reinterpreting its host.
   'boxen.js': ['./width.js', './wrap.js'],
+  // The cli-table3 façade: the width function and nothing else in the package. It carries
+  // its own wrapping — cli-table3's `wordWrap` splits on `/(\s+)/` and counts with its own
+  // `strlen`, which `wrap.js` (a wrap-ansi port) does not reproduce — so a shared wrapper
+  // would be a divergence dressed up as reuse.
+  'cli-table3.js': ['./width.js'],
   // The built-ins: `progress` is self-contained, `tasks` reads the registry for its glyphs
   // and its spinner style, and `box` and `table` are string functions over the same two
   // modules — never over each other.

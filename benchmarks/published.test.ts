@@ -73,6 +73,8 @@ describe('publishedResults', () => {
   });
 });
 
+const SPAWN = 30_000;
+
 describe('the generated page', () => {
   /**
    * End to end, against the real results directory and the real generator: an observation
@@ -80,7 +82,12 @@ describe('the generated page', () => {
    * This is the assertion the workflow's `bench:page --check` step makes on every run, and
    * the one that goes red if a future reader reaches for "the newest file" again.
    */
-  it('ignores an observation landing beside the published measurement', () => {
+  /**
+   * 30 s, which is the clock the repo's other spawning suites declare (#99). This one
+   * starts Node, then tsx, then the generator, and vitest's 5 s default is calibrated for
+   * in-process assertions — it timed out on windows-latest and nowhere else.
+   */
+  it('ignores an observation landing beside the published measurement', { timeout: SPAWN }, () => {
     const published = publishedResults(RESULTS_DIR) as string;
     // Tomorrow's date, so the observation sorts *after* the measurement — see the ASCII
     // note above; a same-day name would leave this green under the rule it exists to refuse.

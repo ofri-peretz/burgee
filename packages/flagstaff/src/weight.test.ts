@@ -109,6 +109,16 @@ const RULES: Record<string, EntryRule> = {
   // against boxen 8.0.1's 151,351 B in fourteen — 28%.** It shares `wrap.js` and `width.js`
   // with the other two façades, so a program on two of them pays for both once.
   './boxen': { allow: ['roundel/chalk'], budget: 35_000, measured: 33_793, denied: ['ora.js', 'spinners.json', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js', 'log-update.js'] },
+  // The cli-table3 façade (R10). cli-table3 0.6.5 reaches `string-width` and
+  // `@colors/colors`; this reaches `width.js` — already here for the other three façades —
+  // and `roundel/chalk` for the two default styles. Measured 32,989 B on 2026-09-09 — 45 B
+  // more than the port first weighed, which is the two `test/issues/` fixes — and
+  // `roundel/chalk` is a further 9,311 B, which roundel's own weight lock records at the
+  // same figure. **42,300 B in two packages, against cli-table3 0.6.5's 161,690 B in seven
+  // — 26%.** It carries its own wrapping rather than sharing `wrap.js`: cli-table3 splits
+  // on `/(\s+)/` and counts with its own `strlen`, which a wrap-ansi port does not
+  // reproduce, so sharing would be a divergence dressed up as reuse.
+  './cli-table3': { allow: ['roundel/chalk'], budget: 35_000, measured: 32_989, denied: ['ora.js', 'spinners.json', 'boxen.js', 'log-update.js', 'wrap.js', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
   // The four remaining built-ins (R4). `progress` is arithmetic and a token — 971 B, and it
   // reaches nothing, not even the registry. `tasks` reads its glyphs and its spinner style
   // from the registry, so it carries the plugin host: 9,773 B. `box` and `table` are string
