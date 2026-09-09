@@ -54,7 +54,7 @@ target node.
 | R7 | colour — not yet; names are never coloured in the manifest, so it is purely additive | — |
 | H3 | width from the injected stdout's `columns`, else 100 | "takes its width from the injected stdout" |
 | `help <cmd>` | synthesised in the engine for every program (yargs #1020) | "help through the engine" |
-| N15 | agent output format — **deferred to wave 3** with the surfaces, where `--format` is decided once | — |
+| N15 | agent output format — deferred to wave 3, and **owned by [`agent-headroom`](../agent-headroom/intent.md) from 2026-09-09**, which is where `--format` is decided once. It stays an open question there rather than a commitment: compact JSON is measured first, and a second format has to earn its place against that number | — |
 
 The commander front-end keeps commander's own help by default (byte-identical is the
 contract, X7); this renderer is available to it as an opt-in through `configureHelp` in a
