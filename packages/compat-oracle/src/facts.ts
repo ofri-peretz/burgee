@@ -8,10 +8,20 @@
  * invented** — an issue naming a file that does not exist teaches people to skim issues.
  */
 import { existsSync, readFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, sep } from 'node:path';
 
 import { type Declaration, type Entry } from './competitors.js';
 import { type Citation, type ClaimSite } from './issue.js';
+
+/**
+ * A repo-relative path in the shape the issue must carry it.
+ *
+ * `relative()` returns the platform's separator, so on a Windows runner every checklist item
+ * and every citation would read `packages\\burgee\\src\\weight.test.ts` — which is not a path
+ * GitHub links, not what the repo calls the file, and not what somebody can paste. The watch
+ * runs on ubuntu today; that is a fact about the schedule, not a property of the code.
+ */
+const repoPath = (root: string, absolute: string): string => relative(root, absolute).split(sep).join('/');
 
 interface Manifest {
   exports?: Record<string, { import?: string } | string>;
@@ -81,7 +91,7 @@ export function citationsFor(dir: string, root: string, competitor: string): Cit
     const lines = readFileSync(path, 'utf8').split('\n');
     for (const [index, line] of lines.entries()) {
       if (!citesNear(line, competitor)) continue;
-      found.push({ file: relative(root, path), line: index + 1, text: line.replace(/^\s*(?:\/\/|\*)?\s*/, '') });
+      found.push({ file: repoPath(root, path), line: index + 1, text: line.replace(/^\s*(?:\/\/|\*)?\s*/, '') });
     }
   }
   return found;
@@ -97,7 +107,7 @@ function sourceOf(dir: string, root: string, subpath: string): string[] {
   if (dist === undefined) return [];
   const src = dist.replace(/^\.\/dist\//, 'src/').replace(/\.js$/, '.ts');
   const candidates = [src, src.replace(/\.ts$/, '.test.ts')];
-  return candidates.filter((rel) => existsSync(join(dir, rel))).map((rel) => relative(root, join(dir, rel)));
+  return candidates.filter((rel) => existsSync(join(dir, rel))).map((rel) => repoPath(root, join(dir, rel)));
 }
 
 /** Everything the issue can say about one declared claim, with nothing guessed. */

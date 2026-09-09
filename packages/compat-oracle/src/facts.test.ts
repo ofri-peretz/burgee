@@ -63,6 +63,16 @@ describe('a figure elsewhere on the line is not', () => {
 });
 
 describe('what it reports', () => {
+  it('gives a POSIX path whatever the platform separator is', () => {
+    // These paths are rendered into a GitHub issue as checklist items and citations. On a
+    // Windows runner `relative()` returns `packages\\burgee\\src\\weight.test.ts`, which is
+    // not a path GitHub links and not what the repo calls the file.
+    const { dir, root } = packageWith('  // ora 9.4.1 is 113,577 B\n');
+    const [citation] = citationsFor(dir, root, 'ora');
+    expect(citation?.file).not.toContain('\\');
+    expect(citation?.file).toBe('packages/burgee/src/weight.test.ts');
+  });
+
   it('gives a repo-relative path, the line number, and the text as written', () => {
     const { dir, root } = packageWith("  // ora 9.4.1 is 113,577 B across seventeen packages\n");
     expect(citationsFor(dir, root, 'ora')).toEqual([
