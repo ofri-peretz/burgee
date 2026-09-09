@@ -115,6 +115,58 @@ export interface BurgeeBrand {
    */
   charge?: string;
   /**
+   * Your own silhouette instead of the swallowtail: SVG path data in the same
+   * `0 0 100 100` box, filled with the field and carrying the charge exactly as
+   * the flag does. For a sibling brand whose name is not a flag — a roundel is
+   * rings, a parrot is a parrot — the shape is the whole point, and drawing it
+   * here keeps every other projection (favicon, lockup, OG, cover) intact.
+   *
+   * Filled `evenodd`, so a subpath drawn inside another cuts a hole through it:
+   * that is how a ring gets its centre and an eye gets its white. Subpaths that
+   * are meant to read as one solid body must not overlap.
+   *
+   * Emitted verbatim, like {@link BurgeeBrand.charge}: a build-time value you
+   * wrote, never anything a user supplies at runtime.
+   */
+  shape?: string;
+  /**
+   * A sheen: a soft highlight laid across the field, `0` to `1`, where the
+   * number is how bright its brightest point is. Depth, not decoration — a flat
+   * gradient reads as printed ink, and one light source makes the same shape
+   * read as an object with a front.
+   *
+   * It is drawn INSIDE the silhouette (clipped to it), so it never softens the
+   * outline the mark is recognised by, and it sits under the charge, so it never
+   * touches the contrast the charge was measured at.
+   *
+   * The same layer is what moves in {@link Burgee.alive}.
+   */
+  sheen?: number;
+  /**
+   * A bevel: how strongly the mark's own edge catches the light, `0` to `1`.
+   *
+   * The whole of the third dimension a logo can afford. Two copies of the
+   * silhouette stroked and clipped to itself — light offset up toward the light
+   * source, dark offset away — so the edge lifts and the face stays flat. No
+   * extrusion, no renderer, and nothing that stops it being a 16px favicon: the
+   * bevel is sub-pixel there and simply disappears, which is the correct
+   * behaviour rather than a compromise.
+   */
+  bevel?: number;
+  /**
+   * Markings: SVG markup in the same `0 0 100 100` box as {@link BurgeeBrand.shape},
+   * drawn over the field and under the charge.
+   *
+   * One path can hold one fill, and some marks are not one colour — a roundel is
+   * concentric rings, a caique has a black cap over an orange throat over a white
+   * belly. Those are markings ON the body, not the body, and they are declared
+   * here rather than by stacking whole brands on top of each other.
+   *
+   * Emitted verbatim, like {@link BurgeeBrand.charge}: a build-time value you
+   * wrote, never anything a user supplies at runtime.
+   */
+  markings?: string;
+  /**
    * The field, as gradient stops along {@link FIELD_AXIS}. One stop is a flat
    * field. Keep a dark stop under the charge or the mark will not read.
    */
@@ -197,7 +249,14 @@ const HASH_RADIX = 36;
  * and a React caller can pass its own `useId()` value instead.
  */
 export function fieldId(brand: BurgeeBrand): string {
-  const source = JSON.stringify([brand.field, brand.mark, brand.bordure, brand.charge]);
+  // A shape is appended only when there is one, so adding the option did not
+  // renumber every brand that does not use it — an id change is a diff in every
+  // asset that carries it.
+  const base = [brand.field, brand.mark, brand.bordure, brand.charge];
+  const extra = [brand.shape, brand.sheen, brand.bevel, brand.markings].filter(
+    (v) => v !== undefined,
+  );
+  const source = JSON.stringify(extra.length === 0 ? base : [...base, ...extra]);
   let h = HASH_SEED;
   for (let i = 0; i < source.length; i++) {
     h = ((h << HASH_SHIFT) + h + (source.codePointAt(i) ?? 0)) >>> 0;
@@ -264,7 +323,7 @@ function bordureBands(brand: BurgeeBrand): string {
   if (bands.length === 0) return '';
   // Outermost band's stroke has to span every band inside it as well.
   let total = bands.reduce((sum, band) => sum + band.width, 0);
-  const path = burgeeFlagPath();
+  const path = silhouette(brand);
   const drawn: string[] = [];
   for (const band of bands) {
     drawn.push(
@@ -276,13 +335,142 @@ function bordureBands(brand: BurgeeBrand): string {
   return drawn.join('');
 }
 
+/**
+ * The sheen's geometry: a band of this width, and where it travels when it is
+ * alive. `still` is where the band rests — upper-left, because that is where the
+ * light comes from in every other Interlace surface.
+ */
+const SHEEN_START = -50;
+/** Degrees the band leans off vertical. Same sign as the charge's rotation. */
+const SHEEN_LEAN = -14;
+const SHEEN = {
+  width: 34,
+  still: 8,
+  from: SHEEN_START,
+  to: 140,
+  seconds: 7,
+  /** The band leans, the way light falls across a solid rather than down it. */
+  lean: SHEEN_LEAN,
+} as const;
+
+/** The sheen's only colour: light. Its opacity is the whole of its declaration. */
+const SHEEN_LIGHT = '#ffffff';
+
+/** The middle of the band is the bright part; both edges fall to nothing. */
+const SHEEN_PEAK = 0.5;
+
+/** Whatever the field fills — the flag unless a shape was declared. */
+function silhouette(brand: BurgeeBrand): string {
+  return brand.shape ?? burgeeFlagPath();
+}
+
+/**
+ * The sheen, as a gradient band clipped to the silhouette.
+ *
+ * A clip rather than a second copy of the shape: the band has to be able to sit
+ * partly outside the mark (that is what makes it read as light crossing it), and
+ * only the clip keeps the outline exactly as sharp as it was.
+ */
+function sheenStop(offset: number, opacity: number): string {
+  return (
+    `<stop offset="${round(offset)}" stop-color="${SHEEN_LIGHT}"` +
+    ` stop-opacity="${round(opacity)}"/>`
+  );
+}
+
+/** The silhouette as a clip, shared by everything that has to stay inside it. */
+function clip(brand: BurgeeBrand, id: string): string {
+  if (brand.sheen === undefined && brand.bevel === undefined && brand.markings === undefined) {
+    return '';
+  }
+  return `<clipPath id="${id}-c"><path d="${silhouette(brand)}"/></clipPath>`;
+}
+
+function sheenBand(brand: BurgeeBrand, id: string, moving: boolean): string {
+  if (brand.sheen === undefined) return '';
+  return (
+    // Across the band, not down it: a vertical axis would leave the band's own
+    // left and right edges at full strength, which reads as a painted stripe.
+    `<linearGradient id="${id}-s" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0">` +
+    `${sheenStop(0, 0)}${sheenStop(SHEEN_PEAK, brand.sheen)}${sheenStop(1, 0)}</linearGradient>` +
+    `<g clip-path="url(#${id}-c)"><g transform="skewX(${SHEEN.lean})">` +
+    `<rect x="${moving ? SHEEN.from : SHEEN.still}" y="-20" width="${SHEEN.width}" height="140"` +
+    `${moving ? ` class="${id}-sweep"` : ''} fill="url(#${id}-s)"/></g></g>`
+  );
+}
+
+/**
+ * The keyframes that move the band, and the media query that stops it.
+ *
+ * Motion in a logo is a nice-to-have and vestibular discomfort is not, so the
+ * reduced-motion branch is not an afterthought here: it parks the band exactly
+ * where the still projections rest it, which is why both come from `SHEEN`.
+ */
+function sheenStyle(id: string): string {
+  return (
+    `<style>` +
+    `@keyframes ${id}-sweep{from{transform:translateX(0)}` +
+    `to{transform:translateX(${SHEEN.to - SHEEN.from}px)}}` +
+    `.${id}-sweep{animation:${id}-sweep ${SHEEN.seconds}s ease-in-out infinite}` +
+    `@media (prefers-reduced-motion:reduce){.${id}-sweep{animation:none;` +
+    `transform:translateX(${SHEEN.still - SHEEN.from}px)}}` +
+    `</style>`
+  );
+}
+
+/**
+ * The bevel: how far the two edge passes are offset, and how thick they are.
+ * The light one goes up and left because that is where the sheen's band rests
+ * and where every other Interlace surface puts its light source.
+ */
+const BEVEL = { offset: 0.55, width: 1.5, dark: 0.45 } as const;
+
+const BEVEL_DARK = '#000000';
+
+/**
+ * Two stroked copies of the silhouette, clipped to it.
+ *
+ * Clipped, so only the inner half of each stroke survives: that inner half IS
+ * the bevel, and the outer half would just fatten the mark. The dark pass is
+ * weaker than the light one — an edge in shadow loses less contrast against a
+ * dark face than a lit edge gains.
+ */
+function bevelEdges(brand: BurgeeBrand, id: string): string {
+  if (brand.bevel === undefined) return '';
+  const shape = silhouette(brand);
+  const edge = (dx: number, dy: number, color: string, opacity: number): string =>
+    `<path d="${shape}" fill="none" stroke="${color}" stroke-opacity="${round(opacity)}"` +
+    ` stroke-width="${BEVEL.width}" stroke-linejoin="round"` +
+    ` transform="translate(${round(dx)} ${round(dy)})"/>`;
+  const lit = edge(-BEVEL.offset, -BEVEL.offset, SHEEN_LIGHT, brand.bevel);
+  const shaded = edge(BEVEL.offset, BEVEL.offset, BEVEL_DARK, brand.bevel * BEVEL.dark);
+  return `<g clip-path="url(#${id}-c)">${lit}${shaded}</g>`;
+}
+
 /** Field, charge and optional bordure — everything inside the viewBox. */
-export function burgeeBody(brand: BurgeeBrand, id: string = fieldId(brand)): string {
+export function burgeeBody(
+  brand: BurgeeBrand,
+  id: string = fieldId(brand),
+  moving = false,
+): string {
   const charge =
     brand.charge === undefined ? chargeGroup(brand.mark) : placeCharge(brand.charge);
+  // The swallowtail is one closed subpath, so a fill rule would be noise on it;
+  // a custom shape is where counters and holes become possible, and where the
+  // rule has to be stated.
+  const field =
+    brand.shape === undefined
+      ? `<path d="${burgeeFlagPath()}" fill="url(#${id})"/>`
+      : `<path d="${brand.shape}" fill="url(#${id})" fill-rule="evenodd"/>`;
+  // Sheen over the field, under the charge: the mark keeps the contrast it was
+  // measured at, whatever the light is doing behind it.
+  // Markings sit inside the silhouette by construction, so they are clipped to
+  // it too: a marking that spills is a drawing mistake, not a design decision.
+  const markings =
+    brand.markings === undefined ? '' : `<g clip-path="url(#${id}-c)">${brand.markings}</g>`;
   return (
-    `${gradient(brand, id)}${bordureBands(brand)}` +
-    `<path d="${burgeeFlagPath()}" fill="url(#${id})"/>${charge}`
+    `${gradient(brand, id)}${bordureBands(brand)}${field}${clip(brand, id)}` +
+    `${markings}${sheenBand(brand, id, moving)}${bevelEdges(brand, id)}${charge}`
   );
 }
 
@@ -354,6 +542,15 @@ interface CardSize {
 export interface Burgee {
   /** The flag alone, square, at any size. */
   flag(size?: number): string;
+  /**
+   * The same mark with its sheen sweeping across it, for a page that can afford
+   * motion — a site header, a docs hero. Identical to {@link Burgee.flag} when
+   * no `sheen` is declared, and parked still under `prefers-reduced-motion`.
+   *
+   * Not the favicon and not the README: a tab icon that shimmers is a tab icon
+   * that distracts.
+   */
+  alive(size?: number): string;
   /** Favicon master. One file serves both themes — the flag carries its own field. */
   favicon(size?: number): string;
   /** Social card, 1200×630. */
@@ -488,12 +685,15 @@ function renderCard(brand: BurgeeBrand, options: CardOptions, size: CardSize): s
   return parts.join('\n');
 }
 
-function renderFlag(brand: BurgeeBrand, size: number): string {
+function renderFlag(brand: BurgeeBrand, size: number, moving = false): string {
   const label = brand.name ? ` role="img" aria-label="${escape(brand.name)}"` : ' aria-hidden="true"';
+  const id = fieldId(brand);
+  const alive = moving && brand.sheen !== undefined;
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${MARK.SPAN} ${MARK.SPAN}"` +
       ` width="${size}" height="${size}"${label}>`,
-    `  ${burgeeBody(brand)}`,
+    ...(alive ? [`  ${sheenStyle(id)}`] : []),
+    `  ${burgeeBody(brand, id, alive)}`,
     '</svg>',
   ].join('\n');
 }
@@ -517,6 +717,7 @@ function renderFlag(brand: BurgeeBrand, size: number): string {
 export function defineBurgee(brand: BurgeeBrand): Burgee {
   return {
     flag: (size = MARK.SPAN) => renderFlag(brand, size),
+    alive: (size = MARK.SPAN) => renderFlag(brand, size, true),
     favicon: (size = SIZES.FAVICON) => renderFlag(brand, size),
     og: (options = {}) => renderCard(brand, options, SIZES.OG),
     cover: (options = {}) => renderCard(brand, options, SIZES.COVER),

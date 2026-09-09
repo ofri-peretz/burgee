@@ -7,6 +7,8 @@
 
 **Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
+**State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why still `review`:** `packages/caique/src/` is one file exporting a name; nothing of P1–P3 is built.
+
 ---
 
 ## What is wanted

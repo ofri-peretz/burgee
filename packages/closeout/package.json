@@ -1,0 +1,52 @@
+{
+  "name": "closeout",
+  "version": "0.0.1",
+  "description": "Close everything out. Exit handlers that run exactly once on every path, terminal restore, and a bounded deadline so shutdown cannot hang. Drop-in paths for signal-exit, exit-hook and restore-cursor. Zero dependencies.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "!dist/**/*.test.*"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "lint": "eslint src"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ofri-peretz/burgee.git",
+    "directory": "packages/closeout"
+  },
+  "homepage": "https://github.com/ofri-peretz/burgee/tree/main/packages/closeout#readme",
+  "bugs": {
+    "url": "https://github.com/ofri-peretz/burgee/issues"
+  },
+  "keywords": [
+    "cli",
+    "terminal",
+    "exit",
+    "signal",
+    "signal-exit",
+    "exit-hook",
+    "cleanup",
+    "shutdown",
+    "restore-cursor",
+    "teardown"
+  ],
+  "devDependencies": {
+    "vitest": "^4.0.0"
+  }
+}

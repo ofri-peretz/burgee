@@ -23,7 +23,17 @@
  */
 
 /** The deep pair, plus the near-black that carries the charge. */
-export const BURGEE_COLORS = { rock: '#a84c17', juniper: '#0a6b47', ink: '#0a0a0a' } as const;
+export const BURGEE_COLORS = {
+  rock: '#f4794a',
+  juniper: '#0d9460',
+  ink: '#0a0a0a',
+  /** The outline, in the light ground's own colour. */
+  paper: '#efe9dd',
+  /** The sheen's light, and the shadow on the far edge. Not brand colours —
+   * the light falling on one, and its absence. */
+  light: '#ffffff',
+  shadow: '#000000',
+} as const;
 
 /** The swallowtail. The notch at 66 50 is what makes it a burgee, not a pennant. */
 export const BURGEE_FLAG_PATH = 'M10 20 L94 32 L66 50 L94 68 L10 80 Z';
@@ -39,18 +49,42 @@ const AXIS = { x1: 25, y1: 6.7, x2: 75, y2: 93.3 } as const;
  * come from the one declaration, and `npm run brand:check` holds them together.
  */
 export const BURGEE_FLAG_DATA_URI =
-  'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIiB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJidXJnZWUiPgogIDxsaW5lYXJHcmFkaWVudCBpZD0iYnVyZ2VlLTcwMDlsMCIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiIHgxPSIyNSIgeTE9IjYuNyIgeDI9Ijc1IiB5Mj0iOTMuMyI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMGE2YjQ3Ii8+PHN0b3Agb2Zmc2V0PSIwLjUwIiBzdG9wLWNvbG9yPSIjMGEwYTBhIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjYTg0YzE3Ii8+PC9saW5lYXJHcmFkaWVudD48cGF0aCBkPSJNMTAgMjAgTDk0IDMyIEw2NiA1MCBMOTQgNjggTDEwIDgwIFoiIGZpbGw9InVybCgjYnVyZ2VlLTcwMDlsMCkiLz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyMiAzMCkgc2NhbGUoMC40MCkiPjxnIHRyYW5zZm9ybT0icm90YXRlKC0zMCA1MCA1MCkiPjxyZWN0IHg9IjE1IiB5PSIyNCIgd2lkdGg9IjUyIiBoZWlnaHQ9IjI0IiByeD0iMTIiIGZpbGw9IiNhODRjMTciLz48cmVjdCB4PSIzMyIgeT0iNTIiIHdpZHRoPSI1MiIgaGVpZ2h0PSIyNCIgcng9IjEyIiBmaWxsPSIjMGE2YjQ3Ii8+PC9nPjwvZz4KPC9zdmc+';
+  'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIiB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJidXJnZWUiPgogIDxsaW5lYXJHcmFkaWVudCBpZD0iYnVyZ2VlLTEzMDYyZmIiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIiB4MT0iMjUiIHkxPSI2LjciIHgyPSI3NSIgeTI9IjkzLjMiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzBhMGEwYSIvPjwvbGluZWFyR3JhZGllbnQ+PHBhdGggZD0iTTEwIDIwIEw5NCAzMiBMNjYgNTAgTDk0IDY4IEwxMCA4MCBaIiBmaWxsPSJub25lIiBzdHJva2U9IiNlZmU5ZGQiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjxwYXRoIGQ9Ik0xMCAyMCBMOTQgMzIgTDY2IDUwIEw5NCA2OCBMMTAgODAgWiIgZmlsbD0idXJsKCNidXJnZWUtMTMwNjJmYikiLz48Y2xpcFBhdGggaWQ9ImJ1cmdlZS0xMzA2MmZiLWMiPjxwYXRoIGQ9Ik0xMCAyMCBMOTQgMzIgTDY2IDUwIEw5NCA2OCBMMTAgODAgWiIvPjwvY2xpcFBhdGg+PGxpbmVhckdyYWRpZW50IGlkPSJidXJnZWUtMTMwNjJmYi1zIiBncmFkaWVudFVuaXRzPSJvYmplY3RCb3VuZGluZ0JveCIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjAiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2ZmZmZmZiIgc3RvcC1vcGFjaXR5PSIwIi8+PHN0b3Agb2Zmc2V0PSIwLjUwIiBzdG9wLWNvbG9yPSIjZmZmZmZmIiBzdG9wLW9wYWNpdHk9IjAuMTYiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiNmZmZmZmYiIHN0b3Atb3BhY2l0eT0iMCIvPjwvbGluZWFyR3JhZGllbnQ+PGcgY2xpcC1wYXRoPSJ1cmwoI2J1cmdlZS0xMzA2MmZiLWMpIj48ZyB0cmFuc2Zvcm09InNrZXdYKC0xNCkiPjxyZWN0IHg9IjgiIHk9Ii0yMCIgd2lkdGg9IjM0IiBoZWlnaHQ9IjE0MCIgZmlsbD0idXJsKCNidXJnZWUtMTMwNjJmYi1zKSIvPjwvZz48L2c+PGcgY2xpcC1wYXRoPSJ1cmwoI2J1cmdlZS0xMzA2MmZiLWMpIj48cGF0aCBkPSJNMTAgMjAgTDk0IDMyIEw2NiA1MCBMOTQgNjggTDEwIDgwIFoiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZmZmZiIgc3Ryb2tlLW9wYWNpdHk9IjAuMjgiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWpvaW49InJvdW5kIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtMC41NSAtMC41NSkiLz48cGF0aCBkPSJNMTAgMjAgTDk0IDMyIEw2NiA1MCBMOTQgNjggTDEwIDgwIFoiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwMDAwMCIgc3Ryb2tlLW9wYWNpdHk9IjAuMTMiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWpvaW49InJvdW5kIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgwLjU1IDAuNTUpIi8+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDIyIDMwKSBzY2FsZSgwLjQwKSI+PGcgdHJhbnNmb3JtPSJyb3RhdGUoLTMwIDUwIDUwKSI+PHJlY3QgeD0iMTUiIHk9IjI0IiB3aWR0aD0iNTIiIGhlaWdodD0iMjQiIHJ4PSIxMiIgZmlsbD0iI2Y0Nzk0YSIvPjxyZWN0IHg9IjMzIiB5PSI1MiIgd2lkdGg9IjUyIiBoZWlnaHQ9IjI0IiByeD0iMTIiIGZpbGw9IiMwZDk0NjAiLz48L2c+PC9nPgo8L3N2Zz4=';
 
-/** Field, then charge. `id` scopes the gradient so two flags can share a page. */
+/**
+ * The bevel's two passes: light offset toward the light source, shadow away.
+ * Values are the generator's — `npm run brand -- --check` fails if they drift.
+ */
+const BEVEL = [{ stroke: BURGEE_COLORS.light }, { stroke: BURGEE_COLORS.shadow }] as const;
+
+/** Outline, field, relief, charge. `id` scopes the defs so two flags can share a page. */
 export function BurgeeFlag({ id }: { id: string }) {
   return (
     <>
       <linearGradient id={id} gradientUnits="userSpaceOnUse" {...AXIS}>
-        <stop offset="0" stopColor={BURGEE_COLORS.juniper} />
-        <stop offset="0.50" stopColor={BURGEE_COLORS.ink} />
-        <stop offset="1" stopColor={BURGEE_COLORS.rock} />
+        <stop offset="0" stopColor={BURGEE_COLORS.ink} />
       </linearGradient>
+      {/* The outline: what holds the silhouette on a ground as dark as the field. */}
+      <path d={BURGEE_FLAG_PATH} fill="none" stroke={BURGEE_COLORS.paper} strokeWidth="4" strokeLinejoin="round" />
       <path d={BURGEE_FLAG_PATH} fill={`url(#${id})`} />
+      <linearGradient id={`${id}-s`} gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stopColor={BURGEE_COLORS.light} stopOpacity="0" />
+        <stop offset="0.50" stopColor={BURGEE_COLORS.light} stopOpacity="0.16" />
+        <stop offset="1" stopColor={BURGEE_COLORS.light} stopOpacity="0" />
+      </linearGradient>
+      <clipPath id={`${id}-c`}>
+        <path d={BURGEE_FLAG_PATH} />
+      </clipPath>
+      {/* Light across the field, then the edge that catches it. */}
+      <g clipPath={`url(#${id}-c)`}>
+        <g transform="skewX(-14)">
+          <rect x="8" y="-20" width="34" height="140" fill={`url(#${id}-s)`} />
+        </g>
+        <g fill="none" strokeWidth="1.5" strokeLinejoin="round">
+          <path d={BURGEE_FLAG_PATH} stroke={BEVEL[0].stroke} strokeOpacity="0.28" transform="translate(-0.55 -0.55)" />
+          <path d={BURGEE_FLAG_PATH} stroke={BEVEL[1].stroke} strokeOpacity="0.13" transform="translate(0.55 0.55)" />
+        </g>
+      </g>
       <g transform="translate(22 30) scale(0.40)">
         <g transform="rotate(-30 50 50)">
           <rect x="15" y="24" width="52" height="24" rx="12" fill={BURGEE_COLORS.rock} />

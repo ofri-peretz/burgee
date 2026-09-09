@@ -5,6 +5,8 @@
 > six leading CLI libraries — see `.sdlc/research/competitor-open-issues.md`.
 
 **Status:** review · **Opened:** 2026-09-05 · **Owner:** @ofri-peretz ·
+
+**State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why still `review`:** a living umbrella that keeps gaining floor requirements (U1–U12, then Y1–Y12); it closes when its children do, not before.
 **Restructured:** 2026-09-06
 
 ---
