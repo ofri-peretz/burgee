@@ -33,7 +33,7 @@
     "changeset:status": "env -u GIT_DIR changeset status --since=origin/main",
     "changeset:version": "changeset version && npm install --package-lock-only --ignore-scripts",
     "lint:workflows": "tsx scripts/lint-workflows.ts",
-    "lint:md": "markdownlint-cli2 '**/*.md' '.sdlc/**/*.md' '#node_modules' '#**/node_modules' '#**/dist' '#**/.next' '#.sdlc/research/issues' '#packages/compat-oracle/vendor-diff.md'",
+    "lint:md": "markdownlint-cli2 '**/*.md' '.sdlc/**/*.md' '#node_modules' '#**/node_modules' '#**/dist' '#**/.next' '#.sdlc/research/issues' '#packages/compat-oracle/vendor-diff.md' '#packages/compat-oracle/vendor'",
     "brand": "node scripts/brand.mts",
     "brand:check": "node scripts/brand.mts --check",
     "release": "gh workflow run release.yml --ref main",
