@@ -34,6 +34,12 @@ export interface Component<S = unknown> {
   frame?(t: number, state: S): string;
   /** Milliseconds between repaints when `frame` is given; `DEFAULT_INTERVAL` otherwise. */
   interval?: number;
+  /**
+   * The two states this component is *shown* with by `flagstaff check` and the docs gallery.
+   * The loop never reads it: a component's real state comes from the program. Declared here
+   * because a grader that invents a state renders the wrong thing and says `ok` (#59).
+   */
+  sample?: { running: S; done: S };
 }
 
 export const CONTRACT = 1;
@@ -188,6 +194,17 @@ interface Registry {
 const registry: Registry = { plugins: [], tokens: new Map(), glyphs: new Map(), spinners: new Map(), borders: new Map(), components: new Map() };
 
 /**
+ * Stored contributions are frozen copies: what the registry holds cannot be edited by a
+ * caller who kept a reference — including the plugin author, whose object stays their own.
+ * `Object.freeze` returns `Readonly<T>`, which a `SpinnerDef` field will not accept; the
+ * value is the same object, so the type it went in as is the type it comes back as.
+ */
+function frozen<T>(value: T): T {
+  Object.freeze(value);
+  return value;
+}
+
+/**
  * The only wiring (R4, U9): validate, then keep every key this package understands. A later
  * plugin's entry replaces an earlier one of the same name, so a user overrides a built-in
  * by registering their own — the built-ins go through this same door first.
@@ -197,14 +214,30 @@ export function register(plugin: unknown): void {
   registry.plugins.push(plugin.name);
   for (const [name, hex] of Object.entries(plugin.tokens ?? {})) registry.tokens.set(name, hex);
   for (const [name, text] of Object.entries(plugin.glyphs ?? {})) registry.glyphs.set(name, text);
-  for (const [name, def] of Object.entries(plugin.spinners ?? {})) registry.spinners.set(name, def);
-  for (const [name, style] of Object.entries(plugin.borders ?? {})) registry.borders.set(name, style);
-  for (const [name, component] of Object.entries(plugin.components ?? {})) registry.components.set(name, { ...component, name });
+  for (const [name, def] of Object.entries(plugin.spinners ?? {})) registry.spinners.set(name, frozen({ ...def, frames: frozen([...def.frames]) }));
+  for (const [name, style] of Object.entries(plugin.borders ?? {})) registry.borders.set(name, frozen({ ...style }));
+  for (const [name, component] of Object.entries(plugin.components ?? {})) registry.components.set(name, frozen({ ...component, name }));
 }
 
-/** What has been registered, read-only: the docs gallery and `flagstaff check` are projections of this. */
+/**
+ * A copy of what has been registered — the docs gallery and `flagstaff check` are
+ * projections of this. A copy rather than the registry itself, because `Readonly<T>` freezes
+ * the property bindings and not the `Map`s behind them: handing the live registry out made
+ * `set`, `delete` and `clear` a second door beside `register()`, through which a spinner
+ * with no `static` — or a component with no projection at all — could be put in without
+ * ever meeting `validate()` (#58). U3's refusal has to be structural to mean anything, so
+ * there is one way in. The values are the frozen objects `register()` stored, so nothing
+ * reached through here writes back.
+ */
 export function registered(): Readonly<Registry> {
-  return registry;
+  return {
+    plugins: [...registry.plugins],
+    tokens: new Map(registry.tokens),
+    glyphs: new Map(registry.glyphs),
+    spinners: new Map(registry.spinners),
+    borders: new Map(registry.borders),
+    components: new Map(registry.components),
+  };
 }
 
 /**
