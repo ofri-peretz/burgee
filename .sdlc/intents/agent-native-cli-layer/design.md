@@ -75,7 +75,7 @@ enforces it, and where it lands.
 
 | # | Requirement | Evidence | Holds | Agent cost removed |
 | :-- | :-- | :-- | :-- | :-- |
-| E1 | Exit codes are a contract: 0 ok, 1 runtime failure, 2 usage error, 3 config/env error, 4 cancelled, 130 SIGINT; no other literal | yargs #2394 confusion between 1 and 2 | R + L (`exit-code-constant`, `no-process-exit-in-handler`) | Agent branches on code, not on text |
+| E1 | Exit codes are a contract: 0 ok, 1 runtime failure, 2 usage error, 3 config/env error, 4 cancelled, 130 SIGINT; no other literal | yargs #2394 confusion between 1 and 2 | R + L (`exit-code-constant`, `no-process-exit-in-handler`) + **lock** (`scripts/exit-code-lock.test.ts`: no bare literal at an exit site outside the two front-ends, and every exit constant any package declares is one of the six) | Agent branches on code, not on text |
 | E2 | A runtime failure never prints help; a usage error never prints a stack | yargs #2394 | R + L (`no-help-on-runtime-error`) | Kills the most expensive misdiagnosis |
 | E3 | Every error carries `code`, `message`, `hint`, and where possible `fix`: the exact command or flag to run next | yargs #2481, #1864 | R | One retry instead of two or three |
 | E4 | Lifecycle is explicit: parse → load config → validate → run → render → exit; validation failure stops the handler; async handlers are awaited | yargs #1069, #1975, #1797, #1399, #2223 | R | |

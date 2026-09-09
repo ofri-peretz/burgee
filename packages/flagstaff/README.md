@@ -334,8 +334,8 @@ never the plugin registry; `flagstaff/plugin` 8.4 KB, of which 2.4 KB is the sch
 `flagstaff/spinner` 9.4 KB; `flagstaff/ora` 46.5 KB — 55.9 KB with roundel counted, against
 ora's own 113.6 KB; `flagstaff/log-update` 29.6 KB, reaching **no package at all**, against
 log-update's own 113.4 KB across sixteen; `flagstaff/boxen` 33.7 KB — 43.0 KB with roundel
-counted, against boxen's own 151.4 KB across fourteen; `flagstaff/cli-table3` 32.9 KB —
-42.3 KB with roundel, against cli-table3's own 161.7 KB across seven. The three façades share `wrap.js` and
+counted, against boxen's own 132.4 KB across nineteen; `flagstaff/cli-table3` 32.9 KB —
+42.3 KB with roundel, against cli-table3's own 106.0 KB across seven. The three façades share `wrap.js` and
 `width.js`, and the first two share `cursor.js`; none reaches another's port, and none
 reaches the core. `sideEffects: false` lets a
 bundler drop what a program does not use. ESM with a `default` condition, so
