@@ -89,6 +89,12 @@ const RULES: Record<string, EntryRule> = {
   // a different measurement — 34,841 bytes against a 53,248 target — and this budget is
   // bytes on disk of the `dist/` files an import reaches.
   '.': { allow: [], budget: 52_700, denied: ['testing.js', 'testing-helpers.js', 'dev.js', 'roundel', 'flagstaff', 'caique'] },
+  //
+  // `agent-headroom` R1 adds **134 bytes** on top of that (52,035 -> 52,169), inside the same
+  // ceiling, and it is the same kind of decision: 134 bytes of core, paid once per install,
+  // remove 16,548 bytes from *every* `--schema` an agent reads (39,512 -> 22,964 on the large
+  // reference demo). `machineJson` lives in `schema.ts` rather than a module of its own
+  // precisely to keep that 134 from being 215.
   // The harness. Test-time only, so a user's shipped CLI never pays for it.
   // Raised from 24,000 with `.` above: the harness reaches the whole engine to run a
   // program in-process, so it carries the renderer too.

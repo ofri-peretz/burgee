@@ -171,3 +171,23 @@ export function schemaOf(manifest: Manifest): ProgramSchema {
   if (description !== undefined) out.description = description;
   return out;
 }
+
+/**
+ * R1 — a machine format is compact. `--schema`'s reader is a program, and indentation was
+ * 42% of what it was being sent: 39,512 B for the large reference demo, 22,964 B once the
+ * whitespace goes, for a byte-identical parse. `--format=json-pretty` is the escape hatch,
+ * because the person debugging a schema is real even though the schema's reader is not.
+ *
+ * It also makes `execute.ts`'s `SCHEMA_BUDGET` honest: that budget has always been measured
+ * against `JSON.stringify(full).length` — the *compact* length — while the stream got the
+ * pretty one, so a document that passed a 48,000-character budget could arrive at 68,000.
+ *
+ * Here rather than in a module of its own because both `execute.ts` and the commander
+ * front-end need it and both already reach this file; a new module cost 215 dist bytes
+ * against a `.` entry budget with 79 to spare, which is a lot of ratchet for two lines.
+ */
+const JSON_PRETTY = '--format=json-pretty';
+const INDENT = 2;
+
+/** The machine document, compact unless a person asked for the readable one. */
+export const machineJson = (value: unknown, head: readonly string[]): string => JSON.stringify(value, null, head.includes(JSON_PRETTY) ? INDENT : 0);
