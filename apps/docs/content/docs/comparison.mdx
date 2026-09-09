@@ -29,7 +29,7 @@ never for gating; the machine-independent figure is the ratio on
 | Downloads / week | new | 508.2M | 259.3M | 10.9M | 49.4M | 30.5M |
 | Runtime dependencies | **0** | 0 | 6 | **18** | 0 | 0 |
 | Installed size ⚙️ | 561 KB | 203 KB | 515 KB | 912 KB 📖 | 40 KB | 52 KB 📖 |
-| Full CLI run over bare node ⚙️ | **+22.6 ms** | +16.3 ms | +90.5 ms | +131 ms 📖 | +5.2 ms | +6 ms 📖 |
+| Full CLI run over bare node ⚙️ | **+14.0 ms** | +15.3 ms | +78.5 ms | +131 ms 📖 | +4.0 ms | +6 ms 📖 |
 
 Three things in that table got worse when they were measured rather than asserted, and
 they stay in it.
@@ -43,10 +43,21 @@ application actually grows by — is the number to judge us on.
 
 **Speed.** This page previously ran two rows, an import cost and a full run, with burgee's
 cells in both unsourced. The suite times one thing, a full CLI run as a process, so there
-is one row. burgee does **not** land level with cac: it starts at **1.45x** cac's cold
+is one row. burgee does **not** land level with cac: it starts at **1.32x** cac's cold
 start against a published target of at or below cac, and that target is recorded as not
-met. It is faster than yargs — measurably, 0.69x — and roughly level with commander at
-1.16x.
+met. It is faster than yargs — measurably, 0.82x — and level with commander at 1.08x.
+
+These are the figures from the CI runner, which is where the suite now publishes from: the
+same commit measured eleven times there put `burgee ÷ cac` inside 2.3%, where a developer
+laptop under load spread the same ratio from 1.351 to 1.957 in a single day. The absolute
+milliseconds are a property of that machine and are not comparable with the two 📖 columns,
+which come from a survey on somebody else's. **The ratios are what the gates and bands
+watch**, because a ratio taken between two spawns in the same run cancels the machine out.
+
+Moving to that machine did not uniformly flatter us. `burgee ÷ cac` improved from 1.45x to
+1.32x and commander went from a small loss to a level result; `burgee/yargs ÷ yargs` moved
+against us, from 0.69x to 0.82x. The machine was chosen for its variance, before these
+numbers were read.
 
 burgee's speed comes from `node:util.parseArgs` being in the standard library, not from a
 faster language: burgee is TypeScript, exactly like commander and yargs. That buys parity
