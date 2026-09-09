@@ -221,9 +221,11 @@ step 2 for exactly that reason.
 
 ## Out of scope
 
-- **The exit-code lock.** `exit-code.ts` says "no other literal may reach `process.exitCode`"
-  and nothing enforces it; that is a real gap, it is one lock, and it belongs to
-  `agent-native-cli-layer`'s E1 rather than here.
+- **The exit-code lock.** ~~`exit-code.ts` says "no other literal may reach
+  `process.exitCode`" and nothing enforces it~~ — **done**, as
+  `scripts/exit-code-lock.test.ts`. It went to `agent-native-cli-layer`'s E1 rather than
+  here, and found one offender on its first run: `flagstaff/src/cli.ts` wrote `1` straight
+  to the process.
 - A documented exit code for network failure. The family opens no sockets — verified, nothing
   in `packages/*/src` reaches `fetch`, `node:http`, `node:https` or `undici` — so this is
   guidance for a CLI *built* on us, and it belongs with the E-floor.
