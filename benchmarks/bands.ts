@@ -66,6 +66,31 @@ export const BANDS: readonly BandSpec[] = [
   // (intent constraint 8). This is the band whose absence was the last gap between
   // `commander-compat`, `yargs-compat` and `shipped`.
   ...COMPAT_HOSTS.map(compatBand),
+  // B1's deterministic half. These are the numbers an agent acts on, and they are banded
+  // because they can move without any test failing: a refactor that started answering `1`
+  // to a usage error would pass every suite in the repo and quietly cost an agent every
+  // retry it has. Only burgee's are banded — a band watches our number, not the field's.
+  {
+    id: 'agent-exit-code-accuracy',
+    axis: 'reliability',
+    suite: SUITE.cheap,
+    jsonPath: at('agent-exit-code-accuracy'),
+    from: { variant: 'burgee', metric: 'exit-code-accuracy' },
+  },
+  {
+    id: 'agent-structured-output-rate',
+    axis: 'reliability',
+    suite: SUITE.cheap,
+    jsonPath: at('agent-structured-output-rate'),
+    from: { variant: 'burgee', metric: 'structured-output-rate' },
+  },
+  {
+    id: 'agent-hangs-per-100',
+    axis: 'reliability',
+    suite: SUITE.cheap,
+    jsonPath: at('agent-hangs-per-100'),
+    from: { variant: 'burgee', metric: 'hangs-per-100' },
+  },
   // B4. Bytes, not KB: a 400-byte regression is invisible in a number rounded to KB, and
   // the ratchet exists to catch exactly the accidental kind of growth.
   {

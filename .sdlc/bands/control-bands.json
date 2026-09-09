@@ -151,6 +151,36 @@
       "window": 20,
       "minPoints": 8,
       "worse": "higher"
+    },
+    {
+      "id": "agent-exit-code-accuracy",
+      "description": "Share of tasks where our demo's exit code told an agent the right class of thing: 0 ok, 2 rewrite the command, any other non-zero retryable (benchmarks axis `reliability`)",
+      "collector": "benchmark-json",
+      "suite": "cli-benchmarks",
+      "jsonPath": "bands.agent-exit-code-accuracy.value",
+      "window": 20,
+      "minPoints": 8,
+      "worse": "lower"
+    },
+    {
+      "id": "agent-structured-output-rate",
+      "description": "Share of `--json` tasks where our demo emitted an addressable envelope on the stream that carried it (benchmarks axis `reliability`)",
+      "collector": "benchmark-json",
+      "suite": "cli-benchmarks",
+      "jsonPath": "bands.agent-structured-output-rate.value",
+      "window": 20,
+      "minPoints": 8,
+      "worse": "lower"
+    },
+    {
+      "id": "agent-hangs-per-100",
+      "description": "Non-TTY runs per 100 where our demo waited for a human instead of exiting. A hang is a failed agent task every time (benchmarks axis `reliability`)",
+      "collector": "benchmark-json",
+      "suite": "cli-benchmarks",
+      "jsonPath": "bands.agent-hangs-per-100.value",
+      "window": 20,
+      "minPoints": 8,
+      "worse": "higher"
     }
   ]
 }
