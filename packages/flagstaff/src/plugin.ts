@@ -205,6 +205,28 @@ function frozen<T>(value: T): T {
 }
 
 /**
+ * A component's `sample` is the one nested object the contract lets a plugin hold, and it is
+ * plain data — the schema admits objects, arrays, strings, numbers and booleans, nothing that
+ * can carry behaviour. A shallow freeze would leave the author's own object shared by
+ * reference, so editing it after `register()` would write back through the registry. This
+ * copies it to whatever depth it has, and freezes each level on the way out.
+ */
+function deepFrozen<T>(value: T, seen = new WeakMap<object, unknown>()): T {
+  if (value === null || typeof value !== 'object') return value;
+  // A sample may be circular — nothing forbids it, and a plugin that builds one by accident
+  // should get a refusal from `check`, not a stack overflow from the registry. The map both
+  // terminates the walk and preserves the shape: the copy points at its own copy.
+  const already = seen.get(value);
+  if (already !== undefined) return already as T;
+  // `Object.entries` reads an array's indices as string keys, and assigning them back onto an
+  // array literal rebuilds it — so one loop covers both shapes.
+  const copy = (Array.isArray(value) ? [] : {}) as Record<string, unknown>;
+  seen.set(value, copy);
+  for (const [k, v] of Object.entries(value)) copy[k] = deepFrozen(v, seen);
+  return frozen(copy) as T;
+}
+
+/**
  * The only wiring (R4, U9): validate, then keep every key this package understands. A later
  * plugin's entry replaces an earlier one of the same name, so a user overrides a built-in
  * by registering their own — the built-ins go through this same door first.
@@ -216,7 +238,7 @@ export function register(plugin: unknown): void {
   for (const [name, text] of Object.entries(plugin.glyphs ?? {})) registry.glyphs.set(name, text);
   for (const [name, def] of Object.entries(plugin.spinners ?? {})) registry.spinners.set(name, frozen({ ...def, frames: frozen([...def.frames]) }));
   for (const [name, style] of Object.entries(plugin.borders ?? {})) registry.borders.set(name, frozen({ ...style }));
-  for (const [name, component] of Object.entries(plugin.components ?? {})) registry.components.set(name, frozen({ ...component, name }));
+  for (const [name, component] of Object.entries(plugin.components ?? {})) registry.components.set(name, frozen({ ...deepFrozen(component), name }));
 }
 
 /**

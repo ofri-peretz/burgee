@@ -30,7 +30,10 @@ const FRAMES_SHOWN = 3;
 const EXIT_USAGE = 2;
 
 /** The keys flagstaff itself reads. Everything else is another package's, or a typo. */
-const KNOWN = ['name', 'contract', 'tokens', 'glyphs', 'spinners', 'borders', 'components'];
+// `$schema` is not read either, but it is the pointer an author adds when they write the
+// plugin against `flagstaff/schema.json` — which the package's own eval tells them to do —
+// so reporting it as unknown would flag the recommended practice.
+const KNOWN = ['$schema', 'name', 'contract', 'tokens', 'glyphs', 'spinners', 'borders', 'components'];
 /** The five that carry contributions, in the order the census reports them. */
 const KINDS = ['spinners', 'borders', 'components', 'glyphs', 'tokens'] as const;
 
@@ -108,7 +111,20 @@ function refuse(code: string, message: string, fix: string, write: (s: string) =
 function sampleFor(def: Omit<Component, 'name'>): Shown {
   const own = def.sample;
   if (own === undefined) return { sample: ASSUMED, note: `assumed ${JSON.stringify(ASSUMED)} — give the component a \`sample\` to choose its own` };
-  return { sample: own, note: `from the component: ${JSON.stringify(own)}` };
+  // The sample is the author's own data, and `JSON.stringify` throws on a circular object or
+  // a BigInt. Printing the note is not worth killing the run over: `check` refuses in its own
+  // vocabulary or it says nothing, and a bare "Converting circular structure to JSON" is the
+  // shape of failure this command exists to remove.
+  return { sample: own, note: `from the component: ${describe(own)}` };
+}
+
+/** `JSON.stringify`, or a plain word when the value will not serialize. */
+function describe(value: unknown): string {
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    return '(not serializable — shown as given)';
+  }
 }
 
 async function main(argv: string[], write: (s: string) => void): Promise<number> {
@@ -136,8 +152,15 @@ async function main(argv: string[], write: (s: string) => void): Promise<number>
   if (unknown.length > 0) write(row('unknown', `${unknown.join(', ')} — flagstaff reads none of these; a key another package in the family reads is allowed here`));
   if (total === 0) return refuse('E_NO_CONTRIBUTION', `${name} registers, but contributes nothing flagstaff can render`, FIX_NO_CONTRIBUTION, write);
 
-  for (const style of Object.keys(spinners)) show(`spinner ${style}`, spinner(style) as Component, { sample: SPIN, note: '' }, write);
   const broke: string[] = [];
+  // `show()` returns the modes that threw. Dropping it for spinners would let a spinner block
+  // print `threw:` rows and still reach `name: ok` with exit 0 — the very defect #59 was filed
+  // for, one surface over. Unreachable today (a spinner's `static` is a string in the schema),
+  // which is exactly when it is cheap to close.
+  for (const style of Object.keys(spinners)) {
+    const modes = show(`spinner ${style}`, spinner(style) as Component, { sample: SPIN, note: '' }, write);
+    if (modes.length > 0) broke.push(`spinner ${style} threw in ${modes.join(', ')}`);
+  }
   for (const [cname, def] of Object.entries(components)) {
     const modes = show(`component ${cname}`, { ...def, name: cname }, sampleFor(def), write);
     if (modes.length > 0) broke.push(`${cname} threw in ${modes.join(', ')}`);

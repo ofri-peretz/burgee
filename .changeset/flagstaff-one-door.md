@@ -1,5 +1,6 @@
 ---
 'flagstaff': patch
+'roundel': patch
 ---
 
 One door into the registry, and a `check` that grades what it actually found.
@@ -20,3 +21,11 @@ is now `E_NO_CONTRIBUTION` and exit 1 with the unknown keys named, rather than `
 `sample: { running, done }`, and without one the assumed `{ phase }` shape is said out loud
 instead of silently invented. A `static` that throws is `E_COMPONENT_THREW` with a fix and
 the modes it broke in, rather than an uncaught crash after an `ok`.
+
+roundel is bumped with it because the plugin schema is hosted in both packages and both
+publish it: `packages/roundel/src/schema.json` gained the same `sample` key, and
+`plugin-schema-lock.test.ts` requires the two to be byte-identical. Without a roundel
+release the copies would agree in git and disagree in the registry — the contract's own
+"byte-identical in every tarball" rule holding in the repository and breaking where anyone
+would actually read it. This is the first contract change since roundel became a plugin
+host, so the pairing is worth establishing now rather than after the second one.
