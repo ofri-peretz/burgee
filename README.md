@@ -1,7 +1,57 @@
-# burgee
+<p align="center">
+  <a href="https://www.npmjs.com/package/burgee" target="blank">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="./brand-assets/burgee-lockup.svg" />
+      <img src="./brand-assets/burgee-lockup-light.svg" alt="burgee" width="360" />
+    </picture>
+  </a>
+</p>
 
-A **CLI framework that replaces commander and yargs**, is drop-in compatible with both, and
-serves every command through every format a caller wants — from one declaration.
+<p align="center">
+  Everything a CLI needs that isn't your CLI. Written once, served to humans and agents alike.
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/burgee"><img src="https://img.shields.io/npm/v/burgee?style=flat-square&color=0a6b47" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/burgee"><img src="https://img.shields.io/npm/dm/burgee?style=flat-square" alt="npm downloads" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/actions/workflows/quality.yml"><img src="https://github.com/ofri-peretz/burgee/actions/workflows/quality.yml/badge.svg?branch=main" alt="Quality Gate" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/actions/workflows/codeql.yml"><img src="https://github.com/ofri-peretz/burgee/actions/workflows/codeql.yml/badge.svg?branch=main" alt="CodeQL" /></a>
+  <a href="./packages/burgee/package.json"><img src="https://img.shields.io/badge/runtime%20dependencies-0-0a6b47?style=flat-square" alt="Zero runtime dependencies" /></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-24+-green.svg?style=flat-square" alt="Node.js 24+" /></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.7+-blue.svg?style=flat-square" alt="TypeScript" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT" /></a>
+  <a href="https://github.com/ofri-peretz/burgee"><img src="https://img.shields.io/github/stars/ofri-peretz/burgee?style=flat&logo=github&label=Star" alt="GitHub stars" /></a>
+</p>
+
+<p align="center">
+  A <strong>CLI framework that replaces commander and yargs</strong>, is drop-in compatible with both, and
+  serves every command through every format a caller wants — help, JSON, schema, MCP, completions —
+  from one declaration.
+</p>
+
+<p align="center">
+  <strong>⭐ <a href="https://github.com/ofri-peretz/burgee">Star the repo</a></strong> &nbsp;·&nbsp;
+  <a href="https://github.com/ofri-peretz/burgee/subscription">👀 Watch releases</a> &nbsp;·&nbsp;
+  <a href="https://github.com/ofri-peretz/burgee/issues">🐛 Report a bug</a>
+</p>
+
+<p align="center">
+  <a href="#-start-here">Start here</a> &nbsp;·&nbsp;
+  <a href="#-already-on-commander-change-one-import">Migrate</a> &nbsp;·&nbsp;
+  <a href="#-measured">Measured</a> &nbsp;·&nbsp;
+  <a href="#-the-family">The family</a> &nbsp;·&nbsp;
+  <a href="#-status">Status</a> &nbsp;·&nbsp;
+  <a href="#-repo-map">Repo map</a> &nbsp;·&nbsp;
+  <a href="./.sdlc/research/">Research</a>
+</p>
+
+---
+
+## 👋 Start here
+
+```bash
+npm install burgee
+```
 
 ```js
 // cli.mjs — the whole CLI. No build step, no config, no scaffold.
@@ -27,11 +77,16 @@ error: missing required option --name
 hint: pass --name <value>
 ```
 
-A **burgee** is the small swallowtail flag a boat flies to say which club it belongs to — a
-flag of identity, not of instruction. That is what a command does here: declares itself
-once, and every surface is that declaration read by a different reader.
+That is the whole thing: one file, one declaration, and a CLI that already speaks to a person,
+to a script and to an agent.
 
-## One declaration, every surface
+> A **burgee** is the small swallowtail flag a boat flies to say which club it belongs to — a
+> flag of identity, not of instruction. That is what a command does here: declares itself
+> once, and every surface is that declaration read by a different reader.
+
+---
+
+## 🎏 One declaration, every surface
 
 ```text
 defineCommand()  ──▶  manifest  ──┬──▶  human help
@@ -46,7 +101,33 @@ defineCommand()  ──▶  manifest  ──┬──▶  human help
 Surfaces cannot drift, because there is nothing to keep in sync. Adding the next one is an
 emitter, not a feature.
 
-## Already on commander? Change one import
+---
+
+## 🤖 What an agent sees
+
+The same command, asked for its own definition. No wrapper, no sidecar file, no scraping
+`--help`:
+
+```console
+$ node cli.mjs --schema     # trimmed; arguments and examples also come back
+{
+  "options": {
+    "name": { "type": "string", "required": true, "description": "who to greet" }
+  },
+  "inputSchema": { "type": "object", "properties": { "name": { "type": "string" } } }
+}
+
+$ node cli.mjs --mcp        # the same command, served as an MCP server over stdio
+```
+
+Six issues across nine years of the commander and yargs trackers ask for machine-readable
+command structure, and the state of the art today is a regex over `--help`
+([tracker-gap-analysis.md](./.sdlc/research/tracker-gap-analysis.md)). A manifest is not a
+feature bolted on for agents — it is the thing help was rendered from in the first place.
+
+---
+
+## 🔁 Already on commander? Change one import
 
 ```diff
 - import { Command } from 'commander';
@@ -62,7 +143,9 @@ for years; yargs has none at all.
 A plugin contributes to the manifest, and the manifest never records which façade filled
 it — so one plugin works on commander syntax, yargs syntax and native alike.
 
-## A better commander, not another oclif
+---
+
+## 🧭 A better commander, not another oclif
 
 oclif has every capability on this page and does **10.9M downloads a week against
 commander's 508M**. The difference is not features, it is shape. So the shape is locked
@@ -73,7 +156,9 @@ second file, a config or a build step, CI goes red.
 Everything beyond that first rung — precomputed manifests, plugins, the dev loop, scaffolding
 — is additive and removable.
 
-## Measured
+---
+
+## 📏 Measured
 
 Node 24, darwin/arm64, medians of 25 spawns, 2026-09-07:
 
@@ -87,19 +172,82 @@ The speed comes from `node:util.parseArgs` being in the standard library, not fr
 language: burgee is TypeScript, like both incumbents. Full table in
 [`apps/docs/content/docs/comparison.mdx`](./apps/docs/content/docs/comparison.mdx).
 
-## Layout
+---
+
+## 👥 Who is this for?
+
+| You are… | What burgee gives you |
+| :--- | :--- |
+| **Shipping your first CLI** | One file, zero dependencies, help and `--json` for free |
+| **Maintaining a commander CLI** | A one-line import swap, graded against commander's own suite |
+| **Building for agents** | `--schema`, `--mcp` and a stable envelope, projected — never hand-written |
+| **On a platform team** | Plugins that work across commander, yargs and native syntax alike |
+
+---
+
+## 🧩 The family
+
+<p align="center">
+  <img src="./brand-assets/burgee-flag-alive.svg" alt="burgee" width="76" />
+  <img src="./brand-assets/roundel-flag-alive.svg" alt="roundel" width="76" />
+  <img src="./brand-assets/flagstaff-flag-alive.svg" alt="flagstaff" width="76" />
+  <img src="./brand-assets/caique-flag-alive.svg" alt="caique" width="76" />
+</p>
+
+<p align="center">
+  <sub>One family, cut from one ink with the Interlace mark on every one of them, and one
+  light crossing all four. Only burgee flies the swallowtail — a roundel is rings, a
+  flagstaff is a flag hoisted on a pole, a caique is a parrot. The light sweeps where a page
+  can afford motion and parks itself under prefers-reduced-motion; the favicon and the npm
+  READMEs take the still one. Every mark is burgee/brand output, regenerated by npm run
+  brand and drift-checked in CI.</sub>
+</p>
+
+**burgee** declares; the **output stack** is what a CLI shows; the **foundation** is what it
+stands on. Every one is an independent product with its own README and its own incumbents, and
+every one is zero-dependency.
+
+| | Layer | Package | What the layer owns | Replaces | Status |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| **Engine** | argv, dispatch, manifest | [`burgee`](./packages/burgee/) | one declaration projected to help, `--json`, `--schema`, MCP, completions, types | commander · yargs | released — `0.3.0` on npm |
+| **Output stack** | colour | [`roundel`](./packages/roundel/) | one output policy, nine semantic tokens, a contrast-checked theme, and chalk's API over them | chalk · picocolors | released `0.1.0` |
+| | render | [`flagstaff`](./packages/flagstaff/) | frame loop with a static projection; plugin host for spinners, progress, boxes, tables | ora · log-update · boxen · cli-table3 | released `0.1.0` |
+| | prompt | [`caique`](./packages/caique/) | prompts that are flags first, and never hang | inquirer · clack · prompts | pre-release `0.1.0` |
+| **Foundation** | text | [`linegauge`](./packages/linegauge/) | measure, wrap, truncate and slice styled text without the edge fraying | string-width · wrap-ansi · strip-ansi · slice-ansi | planned · F1 |
+| | config | [`seniority`](./packages/seniority/) | precedence across flag, env, project file, home file and default — with provenance | cosmiconfig · dotenv · rc | planned · F3 |
+| | process | [`bellpull`](./packages/bellpull/) | run a subprocess; resolve the executable; return a result every caller can read | execa · cross-spawn · which | planned · F4 |
+| | lifecycle | [`closeout`](./packages/closeout/) | exit handlers that run once on every path, terminal restore, bounded deadline | signal-exit · exit-hook · restore-cursor | planned · F2 |
+
+The four foundation packages are published as `0.0.1` reservation stubs and are **planned, not
+released**: each has an intent and a design under
+[`.sdlc/intents/cli-foundation-stack/`](./.sdlc/intents/cli-foundation-stack/), all at `draft` —
+the human gate has not run — and none ships a working release before the commander scoreboard is
+public. Waves F1–F4 are ordered by what unblocks work already scheduled, not by layer size; the
+`bellpull` intent carries a kill gate, because a zero-dependency rival already holds the weight
+pitch in that layer. The measurements are in
+[`candidate-layers.md`](./.sdlc/research/candidate-layers.md) and
+[`replacement-map.md`](./.sdlc/research/replacement-map.md).
+
+---
+
+## 📚 Repo map
 
 | Path | Purpose |
 | :-- | :-- |
 | [`packages/burgee/`](./packages/burgee/) | The framework. `burgee` is the engine, `burgee/commander` the compat façade, `burgee/testing` the in-process harness (T1). |
 | [`packages/roundel/`](./packages/roundel/) | **roundel** — the colours a CLI carries: `roundel/policy` (`outputMode`, `colorLevel`), `roundel/tokens` (nine semantic tokens), `roundel/theme` (`fly()`, contrast-checked), `roundel/contrast`, and `roundel/chalk` — chalk 6's API over the tokens, graded by chalk's own suite (58 / 58, against a 58 / 58 control). Intent in [`.sdlc/intents/roundel/`](./.sdlc/intents/roundel/). |
-| [`packages/flagstaff/`](./packages/flagstaff/) | **flagstaff** — the staff the flag flies from: a frame loop with a static projection for agents, and the plugin host for spinners, progress, boxes and tables. Reserved; see [`.sdlc/intents/flagstaff/`](./.sdlc/intents/flagstaff/). |
-| [`packages/caique/`](./packages/caique/) | **caique** — the parrot that always answers back: prompts that are flags first and never hang. Reserved; see [`.sdlc/intents/caique/`](./.sdlc/intents/caique/). |
+| [`packages/flagstaff/`](./packages/flagstaff/) | **flagstaff** — the staff the flag flies from: a frame loop with a static projection for agents, and the plugin host for spinners, progress, boxes and tables. Released `0.1.0`; its one dependency is roundel. Intent in [`.sdlc/intents/flagstaff/`](./.sdlc/intents/flagstaff/). |
+| [`packages/caique/`](./packages/caique/) | **caique** — the parrot that always answers back: prompts that are flags first and never hang. Pre-release `0.1.0`: `decide()` is in, the rest follows [`.sdlc/intents/caique/`](./.sdlc/intents/caique/). |
+| [`packages/linegauge/`](./packages/linegauge/) | **linegauge** — a printer's rule for text: width, wrap, truncate and slice, grapheme-correct over `Intl.Segmenter`. Planned, not released; intent in [`.sdlc/intents/linegauge/`](./.sdlc/intents/linegauge/). |
+| [`packages/seniority/`](./packages/seniority/) | **seniority** — which source outranks which, with provenance for every resolved value. Planned, not released; intent in [`.sdlc/intents/seniority/`](./.sdlc/intents/seniority/). |
+| [`packages/bellpull/`](./packages/bellpull/) | **bellpull** — pull here, work happens there: subprocesses with a structured result and a static projection. Planned, not released; intent in [`.sdlc/intents/bellpull/`](./.sdlc/intents/bellpull/). |
+| [`packages/closeout/`](./packages/closeout/) | **closeout** — settle and finish: exit handlers that run once, terminal restore, and a deadline so shutdown cannot hang. Planned, not released; intent in [`.sdlc/intents/closeout/`](./.sdlc/intents/closeout/). |
 | [`packages/compat-oracle/`](./packages/compat-oracle/) | Internal, never published. Grades compatibility using the hosts' own suites, plus reference drivers that run the real incumbents for byte-for-byte comparison. |
 | [`examples/`](./examples/) | Demo CLIs and the conformance suite that runs every floor case on every host. |
 | [`apps/docs/`](./apps/docs/) | Documentation site (Next.js + fumadocs). |
 | [`.sdlc/intents/`](./.sdlc/intents/) | Stage 1 + 2 artifacts of the AI-native SDLC: `intent.md` + `design.md` per change, and the wave plan. |
 | [`.sdlc/research/`](./.sdlc/research/) | The evidence everything above rests on. |
+| [`.sdlc/brand/`](./.sdlc/brand/) | What each package is and what its mark has to say ([identity model](./.sdlc/brand/identity-model.md)), and the [brief](./.sdlc/brand/commission.md) a designer would work from. |
 
 ### The research
 
@@ -121,28 +269,37 @@ determine as well as what it found.
 - [`lineage.md`](./.sdlc/research/lineage.md) — the six projects we follow, each reduced to a
   commitment.
 
-## Status
+---
 
-**Published:** `burgee` on npm. **Working today:** the engine, the exit-code contract, the
-JSON envelope, help from the manifest, plugins with hook filters, and a `burgee/commander`
-façade that runs a real commander program. Four locks — shape, process-reference, weight
-per entry point, and the adoption ladder — each proven to fail before it passed.
+## 🚦 Status
 
-**Next:** the compatibility oracle, and the remaining commander surface. A compat façade
-does not reach 1.0 until its host's own suite passes **100%** (`C7`); below that it ships
-pre-1.0 with the rate published and is never called "compatible".
+| | What |
+| :-- | :-- |
+| ✅ **Working today** | The engine, the exit-code contract, the JSON envelope, help from the manifest, plugins with hook filters, and a `burgee/commander` façade that runs a real commander program |
+| 🔨 **Next** | The compatibility oracle, and the remaining commander surface |
+| ⛔ **Not yet true** | The dev loop, prompts, lazy commands and groups, and an adopter we did not write ourselves |
 
-**Not yet true:** the dev loop, prompts, lazy commands and groups, an adopter we did not
-write. The [floor](./apps/docs/content/docs/the-floor.mdx) is 101 requirements; the
-surfaces, the env/config/schema families and both façades are built, the rest is wave 4.
+Four locks — shape, process-reference, weight per entry point, and the adoption ladder — are
+each proven to fail before they passed. A compat façade does not reach 1.0 until its host's
+own suite passes **100%** (`C7`); below that it ships pre-1.0 with the rate published, and is
+never called "compatible". The [floor](./apps/docs/content/docs/the-floor.mdx) is 101
+requirements: the surfaces, the env/config/schema families and both façades are built, and
+the rest is wave 4.
+
+---
+
+## 🛠️ Working on burgee
 
 ```bash
 npm install
-npm test          # every lock and unit test, exits non-zero on failure
-npm run dev       # docs on http://localhost:3100
+npm test           # every lock and unit test, exits non-zero on failure
+npm run dev        # docs on http://localhost:3100
+npm run compat     # grade burgee against commander's and yargs' own suites
+npm run brand      # regenerate every brand surface from one declaration
+npm run brand:check # …and fail if any of them was hand-edited since
 ```
 
-## Dogfooding
+### Dogfooding
 
 This repo runs 11 Interlace ESLint plugins with **every rule on at `error`** and zero
 warnings allowed: `secure-coding`, `node-security`, `conventions`, `import-next`,
@@ -155,4 +312,29 @@ It earns its keep. During this project those rules caught a prototype-pollution 
 our own option parsing, a barrel import that cost ~5ms of startup, and a façade reaching for
 `process` behind the runtime seam.
 
-MIT © Interlace
+---
+
+## 🤝 Contributing
+
+The most useful thing anyone can send is **an adopter we did not write**: a real CLI ported
+over, and a report of what broke. That is the only compatibility evidence that counts, and
+every failure becomes a case in the conformance suite.
+
+[CONTRIBUTING.md](./CONTRIBUTING.md) has the loop, how a change is shaped before it is
+written, and what the checks will hold you to. [SECURITY.md](./SECURITY.md) is the private
+reporting path — please do not open a public issue for a vulnerability.
+
+- **Ported a CLI?** [Tell us what broke](https://github.com/ofri-peretz/burgee/issues) — the highest-value report we get
+- **Found a bug?** [Open an issue](https://github.com/ofri-peretz/burgee/issues) with the Node version and the exact argv
+- **Have an idea?** [Open an issue](https://github.com/ofri-peretz/burgee/issues/new)
+
+---
+
+## 📄 License
+
+MIT © [Ofri Peretz](https://github.com/ofri-peretz) — see [LICENSE](./LICENSE). Every
+published package ships the licence text in its tarball.
+
+<p align="center">
+  <sub>Flying the flag for CLIs that humans and agents can both read.</sub>
+</p>
