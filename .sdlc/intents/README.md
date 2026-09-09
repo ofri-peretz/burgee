@@ -620,7 +620,7 @@ Prerequisites only the owner can supply (none are set as of 2026-09-06):
 | :-- | :-- |
 | `NPM_TOKEN`, or npm Trusted Publishing per package | wave 1, first publish |
 | `CLAUDE_CODE_OAUTH_TOKEN` | Claude review now; `cli-benchmarks` B1 in wave 2 |
-| `VERCEL_TOKEN`, Vercel project, DNS for `cli.interlace.tools` | wave 2, `docs-deploy` |
+| `VERCEL_TOKEN`, Vercel project, DNS for `burgee.interlace.tools` | wave 2, `docs-deploy` |
 | macOS and Windows runners in the matrix | wave 1, C3 and E5 on three platforms |
 
 ## Where intents come from

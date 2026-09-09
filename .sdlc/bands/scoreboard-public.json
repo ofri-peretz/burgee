@@ -1,6 +1,6 @@
 {
-  "commanderCompatibilityPage": "https://cli.interlace.tools/docs/compatibility",
-  "note": "The deployed commander compatibility page. release.yml refuses roundel, flagstaff and caique above 0.0.x until this is set (cli-output-stack R13). Set 2026-09-09 from deploy-docs.yml run 34303544463, whose own `Verify the deployed URL serves this build` step fetched the production alias and matched the build SHA before the run went green.",
+  "commanderCompatibilityPage": "https://burgee.interlace.tools/docs/compatibility",
+  "note": "The deployed commander compatibility page. release.yml refuses roundel, flagstaff and caique above 0.0.x until this is set (cli-output-stack R13). Set 2026-09-09 from deploy-docs.yml run 34303544463, whose own `Verify the deployed URL serves this build` step fetched the production alias and matched the build SHA before the run went green. Corrected the same day from cli.interlace.tools, which never had a DNS record and now never will — the owner renamed the host to burgee.interlace.tools, one subdomain per package. A gate pointing at a URL that does not resolve is worse than a closed gate, because it opens. Verified serving before this edit: HTTP 200, 74,759 bytes, and the page's own x-build-sha matches the deployed commit.",
   "deployedBy": {
     "workflow": "deploy-docs.yml",
     "run": 34303544463,

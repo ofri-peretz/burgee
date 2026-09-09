@@ -15,7 +15,7 @@
 import { type DocsPage } from '#/lib/source';
 
 /** The canonical origin, so an agent that pulled the file elsewhere can still resolve a link. */
-export const SITE = 'https://cli.interlace.tools';
+export const SITE = 'https://burgee.interlace.tools';
 
 /** A YAML frontmatter block at the head of a file, which the projection re-states itself. */
 const FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/;

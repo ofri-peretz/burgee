@@ -166,6 +166,26 @@ The static projection is the reason to move on eventually, not the reason to mov
 `hoist()` is what gives a pipe one line per state instead of frames. `flagstaff/ora` is the
 door, and it is deliberately ora's behaviour to the byte.
 
+### The boxen path
+
+`flagstaff/boxen` is boxen 8's API, graded **84 / 84 by boxen's own test suite** — every one
+of whose cases is a snapshot of the exact characters the box comes out as.
+
+```diff
+-import boxen from 'boxen';
++import boxen from 'flagstaff/boxen';
+```
+
+`borderStyle` (all eight of cli-boxes', a style object, or `none`), `borderColor`,
+`backgroundColor`, `dimBorder`, `title` and `titleAlignment`, `textAlignment`, `padding`,
+`margin`, `width`, `height`, `float`, `fullscreen`, and `_borderStyles`.
+
+The drawing **is** the contract here, and matching it byte for byte is the compatibility
+claim rather than a way of avoiding one: a user leaving boxen cares about one thing, whether
+the box still looks the same. It carries cli-boxes' table itself rather than reading the
+plugin registry — a façade whose drawing changed when somebody registered a plugin would be
+reinterpreting its host. Named borders through the registry are `flagstaff/box`'s job.
+
 ### The log-update path
 
 `flagstaff/log-update` is log-update 8's API, graded **99 / 99 by log-update's own test
@@ -271,8 +291,10 @@ Every subpath is a lock, not a convention, and the numbers below are asserted by
 never the plugin registry; `flagstaff/plugin` 8.4 KB, of which 2.4 KB is the schema;
 `flagstaff/spinner` 9.4 KB; `flagstaff/ora` 46.5 KB — 55.9 KB with roundel counted, against
 ora's own 113.6 KB; `flagstaff/log-update` 29.6 KB, reaching **no package at all**, against
-log-update's own 113.4 KB across sixteen. The two façades share `cursor.js` and, through
-`wrap.js`, `width.js`; neither reaches the other's port, and neither reaches the core. `sideEffects: false` lets a
+log-update's own 113.4 KB across sixteen; `flagstaff/boxen` 33.7 KB — 43.0 KB with roundel
+counted, against boxen's own 151.4 KB across fourteen. The three façades share `wrap.js` and
+`width.js`, and the first two share `cursor.js`; none reaches another's port, and none
+reaches the core. `sideEffects: false` lets a
 bundler drop what a program does not use. ESM with a `default` condition, so
 `require('flagstaff/spinner')` works from CommonJS on Node ≥ 24.
 

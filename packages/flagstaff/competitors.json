@@ -1,32 +1,184 @@
 {
-  "$comment": "upstream-watch R1. Per subpath, the npm packages that subpath replaces or is measured against. `claim` is what we assert: `compat` — graded by the package's own suite through compat-oracle; `weight` — we cite a byte figure against it in a published comparison; `surface` — parity intended, nothing graded yet. `seen` is the last fingerprint we recorded; the watch diffs against it, so an upstream release arrives as a git diff on this file. Figures are the same measurement the weight lock and the README use: shipped code and data over the graph an import pulls, a competitor counted across its own resolved tree.",
+  "$comment": "upstream-watch R1. Per subpath, the npm packages that subpath replaces or is measured against. `claim` is what we assert: `compat` \u2014 graded by the package's own suite through compat-oracle; `weight` \u2014 we cite a byte figure against it in a published comparison; `surface` \u2014 parity intended, nothing graded yet. `seen` is the last fingerprint we recorded; the watch diffs against it, so an upstream release arrives as a git diff on this file. Figures are the same measurement the weight lock and the README use: shipped code and data over the graph an import pulls, a competitor counted across its own resolved tree.",
   "./ora": [
     {
       "package": "ora",
       "claim": "compat",
-      "seen": { "version": "9.4.1", "weight": 113577, "measured": "2026-09-08", "cited": ["packages/flagstaff/src/weight.test.ts", "packages/flagstaff/README.md"] }
+      "seen": {
+        "version": "9.4.1",
+        "weight": 113577,
+        "measured": "2026-09-08",
+        "cited": [
+          "packages/flagstaff/src/weight.test.ts",
+          "packages/flagstaff/README.md"
+        ]
+      }
     },
-    { "package": "cli-spinners", "claim": "weight", "seen": { "version": null, "weight": 27841, "measured": "2026-09-08", "cited": ["packages/flagstaff/src/weight.test.ts"] } },
-    { "package": "chalk", "claim": "weight", "seen": { "version": "5.6.2", "weight": 16727, "measured": "2026-09-08", "cited": ["packages/flagstaff/src/weight.test.ts", "packages/flagstaff/README.md"] } },
-    { "package": "signal-exit", "claim": "weight", "seen": { "version": null, "weight": 21983, "measured": "2026-09-08", "cited": ["packages/flagstaff/src/weight.test.ts"] } },
-    { "package": "string-width", "claim": "surface", "seen": { "version": "8.2.2", "weight": 6194, "measured": "2026-09-08", "cited": ["packages/flagstaff/src/weight.test.ts", "packages/flagstaff/src/width.test.ts"] } },
-    { "package": "get-east-asian-width", "claim": "weight", "seen": { "version": null, "weight": 8785, "measured": "2026-09-08", "cited": ["packages/flagstaff/src/weight.test.ts"] } },
-    { "package": "yoctocolors", "claim": "weight", "seen": { "version": null, "weight": 4466, "measured": "2026-09-08", "cited": ["packages/flagstaff/src/weight.test.ts"] } },
-    { "package": "mimic-function", "claim": "weight", "seen": { "version": null, "weight": 3038, "measured": "2026-09-08", "cited": ["packages/flagstaff/src/weight.test.ts"] } }
+    {
+      "package": "cli-spinners",
+      "claim": "weight",
+      "seen": {
+        "version": null,
+        "weight": 27841,
+        "measured": "2026-09-08",
+        "cited": [
+          "packages/flagstaff/src/weight.test.ts"
+        ]
+      }
+    },
+    {
+      "package": "chalk",
+      "claim": "weight",
+      "seen": {
+        "version": "5.6.2",
+        "weight": 16727,
+        "measured": "2026-09-08",
+        "cited": [
+          "packages/flagstaff/src/weight.test.ts",
+          "packages/flagstaff/README.md"
+        ]
+      }
+    },
+    {
+      "package": "signal-exit",
+      "claim": "weight",
+      "seen": {
+        "version": null,
+        "weight": 21983,
+        "measured": "2026-09-08",
+        "cited": [
+          "packages/flagstaff/src/weight.test.ts"
+        ]
+      }
+    },
+    {
+      "package": "string-width",
+      "claim": "surface",
+      "seen": {
+        "version": "8.2.2",
+        "weight": 6194,
+        "measured": "2026-09-08",
+        "cited": [
+          "packages/flagstaff/src/weight.test.ts",
+          "packages/flagstaff/src/width.test.ts"
+        ]
+      }
+    },
+    {
+      "package": "get-east-asian-width",
+      "claim": "weight",
+      "seen": {
+        "version": null,
+        "weight": 8785,
+        "measured": "2026-09-08",
+        "cited": [
+          "packages/flagstaff/src/weight.test.ts"
+        ]
+      }
+    },
+    {
+      "package": "yoctocolors",
+      "claim": "weight",
+      "seen": {
+        "version": null,
+        "weight": 4466,
+        "measured": "2026-09-08",
+        "cited": [
+          "packages/flagstaff/src/weight.test.ts"
+        ]
+      }
+    },
+    {
+      "package": "mimic-function",
+      "claim": "weight",
+      "seen": {
+        "version": null,
+        "weight": 3038,
+        "measured": "2026-09-08",
+        "cited": [
+          "packages/flagstaff/src/weight.test.ts"
+        ]
+      }
+    }
   ],
   "./log-update": [
     {
       "package": "log-update",
       "claim": "compat",
-      "seen": { "version": "8.0.0", "weight": 113368, "measured": "2026-09-08", "cited": ["packages/flagstaff/src/weight.test.ts", "packages/flagstaff/README.md"] }
+      "seen": {
+        "version": "8.0.0",
+        "weight": 113368,
+        "measured": "2026-09-08",
+        "cited": [
+          "packages/flagstaff/src/weight.test.ts",
+          "packages/flagstaff/README.md"
+        ]
+      }
     },
-    { "package": "wrap-ansi", "claim": "weight", "seen": { "version": null, "weight": 20004, "measured": "2026-09-08", "cited": ["packages/flagstaff/src/weight.test.ts"] } },
-    { "package": "slice-ansi", "claim": "weight", "seen": { "version": null, "weight": 27630, "measured": "2026-09-08", "cited": ["packages/flagstaff/src/weight.test.ts"] } }
+    {
+      "package": "wrap-ansi",
+      "claim": "weight",
+      "seen": {
+        "version": null,
+        "weight": 20004,
+        "measured": "2026-09-08",
+        "cited": [
+          "packages/flagstaff/src/weight.test.ts"
+        ]
+      }
+    },
+    {
+      "package": "slice-ansi",
+      "claim": "weight",
+      "seen": {
+        "version": null,
+        "weight": 27630,
+        "measured": "2026-09-08",
+        "cited": [
+          "packages/flagstaff/src/weight.test.ts"
+        ]
+      }
+    }
   ],
-  "./box": [{ "package": "boxen", "claim": "surface", "seen": null }],
-  "./table": [{ "package": "cli-table3", "claim": "surface", "seen": null }],
+  "./box": [
+    {
+      "package": "boxen",
+      "claim": "surface",
+      "seen": null
+    }
+  ],
+  "./table": [
+    {
+      "package": "cli-table3",
+      "claim": "surface",
+      "seen": null
+    }
+  ],
   "./import": [
-    { "package": "cli-spinners", "claim": "surface", "seen": null },
-    { "package": "cli-boxes", "claim": "surface", "seen": null }
+    {
+      "package": "cli-spinners",
+      "claim": "surface",
+      "seen": null
+    },
+    {
+      "package": "cli-boxes",
+      "claim": "surface",
+      "seen": null
+    }
+  ],
+  "./boxen": [
+    {
+      "package": "boxen",
+      "claim": "compat",
+      "seen": {
+        "version": "8.0.1",
+        "weight": 151351,
+        "measured": "2026-09-09",
+        "cited": [
+          "packages/flagstaff/src/weight.test.ts",
+          "packages/flagstaff/README.md"
+        ]
+      }
+    }
   ]
 }
