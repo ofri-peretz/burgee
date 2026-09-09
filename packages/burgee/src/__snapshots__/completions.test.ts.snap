@@ -18,7 +18,7 @@ _demo_main() {
       --greeting) COMPREPLY=($(compgen -W 'Hello Hi' -- "$cur")); return ;;
       *) ;;
     esac
-    if [[ "$cur" == -* ]]; then COMPREPLY=($(compgen -W '-s --shout --greeting --json --help' -- "$cur")); return; fi
+    if [[ "$cur" == -* ]]; then COMPREPLY=($(compgen -W '-s --shout --no-shout --greeting --json --help' -- "$cur")); return; fi
     COMPREPLY=($(compgen -W '' -- "$cur"))
   }
   _demo_config() {
@@ -32,7 +32,7 @@ _demo_main() {
     case "$prev" in
       *) ;;
     esac
-    if [[ "$cur" == -* ]]; then COMPREPLY=($(compgen -W '--raw --json --help' -- "$cur")); return; fi
+    if [[ "$cur" == -* ]]; then COMPREPLY=($(compgen -W '--raw --no-raw --json --help' -- "$cur")); return; fi
     COMPREPLY=($(compgen -W '' -- "$cur"))
   }
   # The deepest command named by the words before the cursor decides what to offer.
@@ -96,6 +96,7 @@ exports[`completions are generated from the manifest (D2) and pinned (D4) > expo
           "name": [
             "-s",
             "--shout",
+            "--no-shout",
           ],
         },
         {
@@ -150,6 +151,7 @@ exports[`completions are generated from the manifest (D2) and pinned (D4) > expo
             {
               "name": [
                 "--raw",
+                "--no-raw",
               ],
             },
             {
@@ -182,6 +184,7 @@ complete -c demo -n '__fish_use_subcommand' -l help -d 'show this help'
 complete -c demo -n '__fish_use_subcommand' -l schema -d 'the program as data'
 complete -c demo -n '__fish_use_subcommand' -l mcp -d 'serve the program as MCP tools'
 complete -c demo -n '__fish_seen_subcommand_from greet' -s s -l shout -d 'uppercase'
+complete -c demo -n '__fish_seen_subcommand_from greet' -l no-shout -d 'uppercase'
 complete -c demo -n '__fish_seen_subcommand_from greet' -l greeting -r -f -a 'Hello Hi' -d 'the greeting word'
 complete -c demo -n '__fish_seen_subcommand_from greet' -l json -d 'machine-readable output'
 complete -c demo -n '__fish_seen_subcommand_from greet' -l help -d 'show this help'
@@ -189,6 +192,7 @@ complete -c demo -n '__fish_seen_subcommand_from config' -f -a get -d 'Print one
 complete -c demo -n '__fish_seen_subcommand_from config' -l json -d 'machine-readable output'
 complete -c demo -n '__fish_seen_subcommand_from config' -l help -d 'show this help'
 complete -c demo -n '__fish_seen_subcommand_from config; and __fish_seen_subcommand_from get' -l raw -d ''
+complete -c demo -n '__fish_seen_subcommand_from config; and __fish_seen_subcommand_from get' -l no-raw -d ''
 complete -c demo -n '__fish_seen_subcommand_from config; and __fish_seen_subcommand_from get' -l json -d 'machine-readable output'
 complete -c demo -n '__fish_seen_subcommand_from config; and __fish_seen_subcommand_from get' -l help -d 'show this help'
 "
@@ -201,9 +205,9 @@ Register-ArgumentCompleter -Native -CommandName 'demo' -ScriptBlock {
   param($wordToComplete, $commandAst, $cursorPosition)
   $table = @{
     '' = @{ Items = @(@('greet', 'Command', 'Greet someone'), @('config', 'Command', 'Read configuration'), @('--json', 'ParameterName', 'machine-readable output'), @('--help', 'ParameterName', 'show this help'), @('--schema', 'ParameterName', 'the program as data'), @('--mcp', 'ParameterName', 'serve the program as MCP tools')); Values = @{  } }
-    'greet' = @{ Items = @(@('-s', 'ParameterName', 'uppercase'), @('--shout', 'ParameterName', 'uppercase'), @('--greeting', 'ParameterName', 'the greeting word'), @('--json', 'ParameterName', 'machine-readable output'), @('--help', 'ParameterName', 'show this help')); Values = @{ '--greeting' = @('Hello', 'Hi') } }
+    'greet' = @{ Items = @(@('-s', 'ParameterName', 'uppercase'), @('--shout', 'ParameterName', 'uppercase'), @('--no-shout', 'ParameterName', 'uppercase'), @('--greeting', 'ParameterName', 'the greeting word'), @('--json', 'ParameterName', 'machine-readable output'), @('--help', 'ParameterName', 'show this help')); Values = @{ '--greeting' = @('Hello', 'Hi') } }
     'config' = @{ Items = @(@('get', 'Command', 'Print one value'), @('--json', 'ParameterName', 'machine-readable output'), @('--help', 'ParameterName', 'show this help')); Values = @{  } }
-    'config get' = @{ Items = @(@('--raw', 'ParameterName', ''), @('--json', 'ParameterName', 'machine-readable output'), @('--help', 'ParameterName', 'show this help')); Values = @{  } }
+    'config get' = @{ Items = @(@('--raw', 'ParameterName', ''), @('--no-raw', 'ParameterName', ''), @('--json', 'ParameterName', 'machine-readable output'), @('--help', 'ParameterName', 'show this help')); Values = @{  } }
   }
   $words = @($commandAst.CommandElements | ForEach-Object { $_.Extent.Text } | Select-Object -Skip 1)
   if ($wordToComplete -ne '' -and $words.Count -gt 0) { $words = $words[0..($words.Count - 2)] }
@@ -241,7 +245,7 @@ _demo() {
   esac
 }
 _demo_greet() {
-  _arguments -s '-s[uppercase]' '--shout[uppercase]' '--greeting[the greeting word]:greeting:(Hello Hi)' '--json[machine-readable output]' '--help[show this help]' '*: :_files'
+  _arguments -s '-s[uppercase]' '--shout[uppercase]' '--no-shout[uppercase]' '--greeting[the greeting word]:greeting:(Hello Hi)' '--json[machine-readable output]' '--help[show this help]' '*: :_files'
 }
 _demo_config() {
   local context state state_descr line
@@ -255,7 +259,7 @@ _demo_config() {
   esac
 }
 _demo_config_get() {
-  _arguments -s '--raw[]' '--json[machine-readable output]' '--help[show this help]' '*: :_files'
+  _arguments -s '--raw[]' '--no-raw[]' '--json[machine-readable output]' '--help[show this help]' '*: :_files'
 }
 if [[ $zsh_eval_context[-1] == loadautofunc ]]; then _demo "$@"; else compdef _demo demo; fi
 "

@@ -197,11 +197,22 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // nobody was reading. **The drift from 3.33 to 3.49 is the finding here**, and it is not
   // this ceiling's to explain.
   //
-  // 3.51 → 3.54 the same day, for boolean negation (3.502 → 3.531). Two ceilings raised in
-  // one session for two fixes is worth seeing rather than smoothing: both are corrections
-  // to the flag layer, both were priced before being taken, and core now bundles 3.53x cac
-  // against the 3.33x this ceiling was originally written for.
-  burgee: 3.54,
+  // 3.51 → 3.54 the same day, for boolean negation (3.502 → 3.531), then → 3.55 for the
+  // negation completions (3.531 → 3.549).
+  //
+  // **Three raises in one session means this stopped being a ratchet.** A ceiling moved per
+  // PR is a record of what happened, not a limit on it, and core now bundles 3.55x cac
+  // against the 3.33x it was written for. The three changes were each correct and each
+  // priced; the sum was nobody's decision, which is precisely the failure a ratchet exists
+  // to prevent. It wants a budget somebody sets for a release rather than a number that
+  // follows the last commit.
+  //
+  // The last of the three also shows the two weight rules disagreeing again: `execute.ts`
+  // reaches completions through `await import('./completions.js')`, so burgee's own weight
+  // lock — which walks *static* imports on disk — does not count it and stayed green, while
+  // esbuild inlines it into a single-file bundle and this ratio moved. A dynamic import
+  // defers the load; it does not shrink the bundle.
+  burgee: 3.55,
   'burgee/commander': 1.6,
   'burgee/yargs': 1,
   'roundel/chalk': 1,
