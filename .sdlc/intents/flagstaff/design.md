@@ -36,8 +36,11 @@ each case, is recorded under "Accepted at the Design→Build gate (2026-09-09)" 
   `{ frames: string[], interval: number, static: string }`.
 - **R4** Built-ins `spinner`, `progress`, `tasks`, `box`, `table` are registered through
   the public `register()` from `src/builtins.ts`; a test asserts no private path exists.
-- **R5** Under any mode but `tty`, the output contains no `\r` and no ESC sequence; a
-  conformance case greps a piped run.
+- **R5** Under any mode but `tty`, the loop writes no `\r` and no *cursor* escape; a
+  conformance case greps a piped run. Colour is not a cursor: under roundel's revised R2 an
+  explicit ask (`FORCE_COLOR`, `--color`) wins in any mode, so an SGR sequence may appear
+  off a terminal and that is correct. The earlier wording here said "no ESC sequence", which
+  was false as written and untestable as intended — the intent has always said cursor.
 - **R6** Façades, each its own subpath and graded by the incumbent's suite in
   `compat-oracle`: `flagstaff/ora`, `flagstaff/log-update`, `flagstaff/boxen`,
   `flagstaff/table` (cli-table3).
