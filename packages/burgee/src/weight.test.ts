@@ -92,7 +92,10 @@ const RULES: Record<string, EntryRule> = {
   // reach it, which the '.' rule's own denied list would catch.
   // Raised from 60,000 on 2026-09-08: it reaches the whole engine (48 K budget) plus the
   // brand tooling; the engine grew by three floor families this week.
-  './cli': { allow: [], budget: 72_000, denied: ['testing.js', 'testing-helpers.js', 'dev.js'] },
+  // Raised from 72,000 on 2026-09-09 for the sibling marks: `shape` (a silhouette other
+  // than the swallowtail), `markings` (a second colour on it), `sheen` and `bevel` (the
+  // light on it, still and swept). Four options, one clip path and two renderers.
+  './cli': { allow: [], budget: 74_000, denied: ['testing.js', 'testing-helpers.js', 'dev.js'] },
   // Pure arithmetic over hex strings. Reaches nothing, and nothing reaches it —
   // a CLI that ships argv parsing has no reason to carry a contrast checker.
   './contrast': { allow: [], budget: 12_000, denied: ['index.js', 'execute.js', 'brand.js'] },

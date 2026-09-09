@@ -189,6 +189,58 @@ describe('someone else\u2019s burgee', () => {
     expect(mine.flag()).not.toContain('rx="12"');
   });
 
+  it('takes a custom silhouette instead of the swallowtail', () => {
+    // A ring: an outer circle with an inner one cut out of it. The hole is the
+    // reason the fill rule is stated — nonzero would fill it solid.
+    const ring =
+      'M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z M16 50 A26 26 0 1 0 68 50 A26 26 0 1 0 16 50 Z';
+    const mine = defineBurgee({ name: 'ring', mark: OTHER, shape: ring, field: opposedField(OTHER) });
+    expect(mine.flag()).toContain(ring);
+    expect(mine.flag()).toContain('fill-rule="evenodd"');
+    // The swallowtail is gone: a sibling whose name is not a flag must not fly one.
+    expect(mine.flag()).not.toContain(burgeeFlagPath());
+    // And it is still the same brand everywhere else.
+    expect(mine.lockup()).toContain(ring);
+  });
+
+  it('lays a sheen inside the silhouette, under the charge', () => {
+    const lit = defineBurgee({ name: 'lit', mark: OTHER, sheen: 0.2, field: opposedField(OTHER) });
+    const svg = lit.flag();
+    // Clipped, so the outline the mark is recognised by stays exactly as sharp.
+    expect(svg).toContain('clipPath');
+    expect(svg).toContain('stop-opacity="0.20"');
+    // Under the charge: the bars are emitted after the sheen, so nothing dims them.
+    expect(svg.indexOf('clip-path')).toBeLessThan(svg.indexOf('rotate(-30 50 50)'));
+    // And a brand that declares none carries none.
+    expect(defineBurgee({ mark: OTHER, field: opposedField(OTHER) }).flag()).not.toContain('clipPath');
+  });
+
+  it('moves the sheen only in alive(), and never for reduced motion', () => {
+    const lit = defineBurgee({ name: 'lit', mark: OTHER, sheen: 0.2, field: opposedField(OTHER) });
+    expect(lit.flag()).not.toContain('@keyframes');
+    const moving = lit.alive();
+    expect(moving).toContain('@keyframes');
+    // The guard is the point: a logo that shimmers is a nice-to-have, and
+    // vestibular discomfort is not.
+    expect(moving).toContain('prefers-reduced-motion:reduce');
+    expect(moving).toContain('animation:none');
+  });
+
+  it('bevels the edge without moving it', () => {
+    const cut = defineBurgee({ name: 'cut', mark: OTHER, bevel: 0.3, field: opposedField(OTHER) });
+    const svg = cut.flag();
+    // Two passes, light and dark, clipped so only the inner half of each shows —
+    // an unclipped stroke would fatten the silhouette instead of lighting it.
+    expect(svg).toContain('stroke-opacity="0.30"');
+    expect(svg).toContain('clip-path');
+    expect(svg.match(/stroke-opacity/gu)).toHaveLength(2);
+    // The field path itself is untouched: the bevel is drawn over it, never as it.
+    expect(svg).toContain(`d="${burgeeFlagPath()}" fill="url(`);
+    expect(defineBurgee({ mark: OTHER, field: opposedField(OTHER) }).flag()).not.toContain(
+      'stroke-opacity',
+    );
+  });
+
   it('gives a different brand a different gradient id', () => {
     const a = defineBurgee({ mark: OTHER, field: opposedField(OTHER) });
     const b = defineBurgee({ mark: OTHER, field: opposedField(OTHER), charge: '<rect/>' });
