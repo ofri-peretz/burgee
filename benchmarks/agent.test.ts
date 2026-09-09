@@ -15,7 +15,8 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { blockers, installTool, isPosix, parseClaudeJson, POSIX_ONLY, runOne, type Task } from './axes/agent.js';
+import { blockers, installTool, isPosix, parseClaudeJson, POSIX_ONLY, run, runOne, type Task, type Variant } from './axes/agent.js';
+import { type BenchRecord } from './record.js';
 
 const EXECUTABLE = 0o755;
 
@@ -96,5 +97,55 @@ describe('blockers', () => {
   it('is satisfied on the credential when one is present', () => {
     const reasons = blockers({ ...process.env, CLAUDE_CODE_OAUTH_TOKEN: 'not-a-real-token' });
     expect(reasons.join('; ')).not.toContain('ANTHROPIC_API_KEY');
+  });
+});
+
+/**
+ * The wiring above `runOne`, pinned the same way.
+ *
+ * `emit.ts` proves that a band value names a record in the same document produced by an
+ * axis whose status is `measured`. It cannot prove that the axis reached that record by
+ * measuring something: replacing `run()`'s body with a table of plausible numbers passes
+ * every other check in this repository, and both roadmap claims would read `met` with all
+ * the locks green. So `run()` is driven here with a stub `claude` and two stub bins, and
+ * the assertion is that the numbers it emits are the stub's numbers — a hard-coded table
+ * fails, whatever it contains.
+ */
+/** A "built CLI": `run()` only needs the file to exist, since claude is the stub. */
+function stubBin(): string {
+  const dir = mkdtempSync(join(tmpdir(), 'stub-bin-'));
+  const bin = join(dir, 'bin.js');
+  writeFileSync(bin, 'process.stdout.write("ada\\n");\n');
+  return bin;
+}
+
+describe.skipIf(!isPosix())('run(), end to end, against a stub claude', () => {
+  const variants: Variant[] = [
+    { id: 'burgee', bin: stubBin(), floor: true },
+    { id: 'commander', bin: stubBin(), floor: false },
+  ];
+  const env = { ...process.env, CLAUDE_CODE_OAUTH_TOKEN: 'stub' };
+  const options = { variants, env, runs: 1, model: 'test-model', timeoutMs: 30_000, tasks: [task] };
+
+  it('emits medians that are the stub\'s reported usage, not a table someone wrote down', () => {
+    const out = run({ ...options, claudeBin: stubClaude('the value is ada') });
+    if (!('records' in out)) throw new Error(`expected records, got: ${out.reason}`);
+    const records: BenchRecord[] = out.records;
+    const find = (variant: string, metric: string): number | undefined => records.find((r) => r.variant === variant && r.metric === metric)?.median;
+    // 900 input + 300 cache read + 120 output, and num_turns 3, from stubClaude.
+    expect(find('burgee', 'tokens-per-task')).toBe(1320);
+    expect(find('burgee', 'turns-per-task')).toBe(3);
+    expect(find('burgee', 'success-rate')).toBe(1);
+    // Both variants ran the same stub, so the ratio the roadmap claim is settled against
+    // is exactly 1 — and it is 1 because it was divided, not because it was written.
+    expect(find('burgee ÷ commander', 'tokens-per-task-ratio')).toBe(1);
+    expect(find('burgee ÷ commander', 'turns-per-task-ratio')).toBe(1);
+  });
+
+  it('skips rather than reporting zeros when the CLI answers but every run fails its check', () => {
+    // The shape a broken-but-authenticated `claude` takes: usage comes back, no answer
+    // passes. Reporting `measured` with a median of 0 would put a zero into a band.
+    const out = run({ ...options, claudeBin: stubClaude('the value is bob') });
+    expect(out).toMatchObject({ reason: expect.stringContaining('measured nothing') as unknown as string });
   });
 });
