@@ -65,7 +65,7 @@ interface Entry {
   registry?: string;
   /** The competitor whose resolved tree this figure is itemised from. */
   via?: string;
-  seen: { version?: string | null; registry?: string; shasum?: string } | null;
+  seen: { version?: string | null; registry?: string; shasum?: string; weight?: number; self?: number; packages?: number; files?: Record<string, string> } | null;
 }
 
 interface Declared {
@@ -246,6 +246,30 @@ describe('competitor declarations', () => {
    */
   it.each(found)('$name: every recorded fingerprint names the package and tarball it came from', (pkg) => {
     expect(withoutProvenance(pkg), `${pkg.name} holds a fingerprint that cannot be traced to a tarball`).toEqual([]);
+  });
+
+  /**
+   * A recorded weight has to be one somebody measured.
+   *
+   * `./cli-table3` held `weight: 161690` with no `self`, no `packages` and no file hashes —
+   * the figure from the README, written into the `seen` block as though the watch had
+   * produced it. The same file recorded a real measurement of the same shasum at 78,148, so
+   * one competitors.json carried two weights for one release and the published comparison
+   * cited the one nothing had measured. (Both are now 105,983: the walk was also skipping
+   * `optionalDependencies`, which npm installs.)
+   *
+   * The fingerprint is what separates the two. A weight beside a `self`, a package count and
+   * a per-file hash map came from a tarball; a weight alone came from a person.
+   */
+  it.each(found)('$name: every recorded weight was measured, not transcribed', (pkg) => {
+    const unproven = declaredEntries(pkg)
+      .filter((entry) => entry.seen !== null && entry.seen?.weight !== undefined)
+      .filter((entry) => {
+        const seen = entry.seen as { self?: number; packages?: number; files?: Record<string, string> };
+        return typeof seen.self !== 'number' || typeof seen.packages !== 'number' || Object.keys(seen.files ?? {}).length === 0;
+      })
+      .map((entry) => entry.package);
+    expect(unproven, `${pkg.name} records a weight with no fingerprint behind it — a number from a README, not from a tarball`).toEqual([]);
   });
 
   it.each(found)('$name: a `compat` claim names a host the oracle actually grades', (pkg) => {
