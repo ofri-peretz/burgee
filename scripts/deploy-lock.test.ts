@@ -378,6 +378,33 @@ describe('deploy-docs.yml', () => {
   });
 });
 
+describe('the scoreboard band, which gates the stack’s release', () => {
+  /**
+   * `release.yml` refuses roundel, flagstaff and caique above 0.0.x until this band names a
+   * deployed compatibility page (`cli-output-stack` R13). The band is a URL in a JSON file,
+   * so nothing stops somebody typing one — these are the two things that can be checked
+   * without a network, and together they mean the URL names a page this repo actually
+   * builds, on the host this workflow actually deploys to.
+   */
+  const band = JSON.parse(readFileSync(join(REPO_ROOT, '.sdlc/bands/scoreboard-public.json'), 'utf8')) as { commanderCompatibilityPage: string | null };
+
+  it('names a page on the host deploy-docs.yml deploys to, not some other origin', () => {
+    const url = band.commanderCompatibilityPage;
+    if (url === null) return; // not yet public — release.yml refuses the stack, which is the point
+    expect(String(workflowEnv['PRODUCTION_URL'] ?? ''), 'the workflow has no PRODUCTION_URL to check against').not.toBe('');
+    expect(url.startsWith(String(workflowEnv['PRODUCTION_URL'])), `${url} is not under ${String(workflowEnv['PRODUCTION_URL'])}`).toBe(true);
+  });
+
+  it('names a page this repo actually builds', () => {
+    const url = band.commanderCompatibilityPage;
+    if (url === null) return;
+    const route = url.slice(String(workflowEnv['PRODUCTION_URL']).length).replace(/^\/+|\/+$/g, '');
+    // fumadocs serves `content/docs/<route>.mdx` at `/docs/<route>`.
+    const source = join(REPO_ROOT, 'apps/docs/content', `${route}.mdx`);
+    expect(existsSync(source), `${url} would be served from ${source}, which does not exist`).toBe(true);
+  });
+});
+
 describe('auto-deploy.yml', () => {
   it('fires on main and on nothing else', () => {
     expect(triggers(autoDeploy)).toEqual(['push']);
