@@ -228,6 +228,19 @@ function makeContentText(text: string, { padding, width, textAlignment, height }
   return fitHeight(padRows(lines, padding, width), height, width).join(NEWLINE);
 }
 
+/**
+ * boxen's own hex test, character for character (`boxen/index.js:337`).
+ *
+ * `[0-f]` is not hex. It is the 55-character range from `0` to `f`, which takes in
+ * `:;<=>?@`, `A-Z`, `` [\]^_` `` — and with the `i` flag, `a-z` as well. So boxen draws a
+ * box for `borderColor: '#GGG'` and so do we, which `boxen.test.ts` pins.
+ *
+ * Kept deliberately. A stricter regex would be correct in isolation and a **divergence**
+ * here: a façade is its incumbent's behaviour, and rejecting a colour boxen accepts breaks
+ * exactly the migration this file exists to serve. CodeQL flags the range, rightly, and the
+ * answer is that the surprise belongs to the host.
+ */
+// codeql[js/overly-large-range]
 const isHex = (color: string): boolean => /^#(?:[0-f]{3}){1,2}$/i.test(color);
 type ChalkFn = (s: string) => string;
 

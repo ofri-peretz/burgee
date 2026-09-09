@@ -33,6 +33,17 @@ describe('a colour that is not a colour is refused', () => {
   it('accepts a three-digit hex too', () => {
     expect(() => boxen('x', { borderColor: '#f00' })).not.toThrow();
   });
+
+  /**
+   * boxen's hex test is `/^#(?:[0-f]{3}){1,2}$/i`, and `[0-f]` is not hex — it is the range
+   * from `0` to `f`, which takes in `:;<=>?@`, `A-Z` and, with the `i` flag, `a-z`. So boxen
+   * draws a box for these, and a façade that refused them would diverge on the one thing it
+   * exists to preserve. Pinned so nobody "fixes" it into a divergence: verified against real
+   * boxen 8.0.1, which accepts all three.
+   */
+  it.each(['#:::', '#ZZZ', '#GGG'])('accepts %s, because boxen does — its range is not hex', (color) => {
+    expect(() => boxen('x', { borderColor: color })).not.toThrow();
+  });
 });
 
 describe('a centred title', () => {
