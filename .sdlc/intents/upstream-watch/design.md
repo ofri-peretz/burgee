@@ -241,8 +241,37 @@ not exist is a claim with nothing behind it.
 Four mutations proved the suite bites: a cited competitor undeclared (1 red), a subpath that
 is not exported (1), a claim the watch cannot make (1), and `compat` against a non-host (2).
 
-Not yet: `fromRegistry()` (step 2), the issue renderer (step 3), the workflow (step 4), and
-`competitors.json` for roundel, caique and burgee.
+**Extended the same day to roundel, caique and burgee**, which turned the file-level R2
+heuristic from defensible into wrong and then into right. Applied to four packages it
+produced six matches, and only two were citations: the others were an issue reference
+(`clack #286`), a sentence about behaviour ("chalk and ora disagree about the same
+terminal"), and two example values in a README code sample (`choices: [{ value: 'ora' }]`).
+
+The rule that separates them: **a competitor is cited when its name sits on a line that also
+carries a measured figure** — a comma-grouped byte count, a number with a byte unit, or a
+version. Prose names a package; a claim puts a number next to it, and only a number goes
+stale. Checked against all six matches, and the two real findings survive it, which was
+verified by mutation rather than by reading.
+
+It also draws a line worth naming. flagstaff itemises ora's bill per package
+(`cli-spinners 27,841 · signal-exit 21,983 · chalk 16,727`), so each of those is an
+independent figure and each needs a watch. burgee gives yargs' tree as one total
+(`256,000 is what npm install yargs puts on disk`) and names `string-width` and `wrap-ansi`
+only as parts of it — so watching **yargs** covers the claim, and those two need no entry of
+their own. Per-package itemisation creates per-package claims; a total does not.
+
+**A second hole, found by a mutation that failed to fail.** Deleting burgee's `yargs` entry
+left the suite green, because `commander` and `yargs` were not on the `KNOWN` list — so
+burgee's citations were checked against nothing and the engine's own numbers, the roadmap's
+first bet, were unwatched while the lock reported green. Both are on the list now, and a
+sixth assertion guards the direction that failure came from: every competitor a package
+*declares* must be on `KNOWN`, so a declaration can never outrun the list that searches for
+it.
+
+Five mutations bite: flagstaff dropping chalk, roundel dropping picocolors, burgee dropping
+yargs, burgee dropping commander, and a declaration `KNOWN` omits.
+
+Not yet: `fromRegistry()` (step 2), the issue renderer (step 3), the workflow (step 4).
 
 ## Verification
 

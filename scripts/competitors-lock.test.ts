@@ -43,6 +43,7 @@ const KNOWN = [
   'cli-spinners',
   'cli-table3',
   'clack',
+  'commander',
   'get-east-asian-width',
   'inquirer',
   'log-update',
@@ -53,6 +54,7 @@ const KNOWN = [
   'slice-ansi',
   'string-width',
   'wrap-ansi',
+  'yargs',
   'yoctocolors',
 ];
 
@@ -94,11 +96,23 @@ function declared(): Declared[] {
 
 const found = declared();
 
+/**
+ * A measured figure: a comma-grouped byte count, a number with a byte unit, or a version.
+ *
+ * This is what separates a *citation* from a mention. A README that says "chalk and ora
+ * disagree about the same terminal" is prose; one that says "chalk 16,727" is a claim with
+ * a number in it, and only the second goes stale when upstream ships. Requiring the figure
+ * on the same line is crude and it is right about every case in this repo — checked against
+ * all six matches the first version produced, four of which were an issue reference, a
+ * sentence about behaviour, and two example values in a code sample.
+ */
+const FIGURE = /\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?\s*(?:B|KB|MB|bytes)\b|\d+\.\d+(?:\.\d+)?/;
+
 /** Every competitor name this package writes into a published comparison. */
 function cited(pkg: Declared): string[] {
-  const text = pkg.citations.map((p) => readFileSync(p, 'utf8')).join('\n');
+  const lines = pkg.citations.flatMap((path) => readFileSync(path, 'utf8').split('\n')).filter((line) => FIGURE.test(line));
   // Not preceded by `/`: `roundel/chalk` is our own subpath, not a citation of chalk.
-  return KNOWN.filter((name) => new RegExp(`(^|[^\\w/-])${name}\\b`).test(text));
+  return KNOWN.filter((name) => lines.some((line) => new RegExp(`(^|[^\\w/-])${name}\\b`).test(line)));
 }
 
 /** Every competitor this package declares, across all its subpaths. */
@@ -128,6 +142,18 @@ describe('competitor declarations', () => {
   it.each(found)('$name: every competitor it cites in a published comparison is declared', (pkg) => {
     const missing = cited(pkg).filter((name) => !declaredNames(pkg).includes(name));
     expect(missing, `${pkg.name} publishes a figure against ${missing.join(', ')} and watches ${missing.length === 1 ? 'it' : 'them'} nowhere — the number will go stale silently`).toEqual([]);
+  });
+
+  /**
+   * The reverse direction, and the reason it is here: `commander` and `yargs` were missing
+   * from KNOWN when this lock was written, so burgee's citations were checked against
+   * nothing and the engine's own numbers — the roadmap's first bet — were unwatched while
+   * the lock reported green. A list that can silently omit a competitor needs a guard that
+   * a declaration cannot outrun it.
+   */
+  it.each(found)('$name: every competitor it declares is on the KNOWN list', (pkg) => {
+    const unknown = declaredNames(pkg).filter((name) => !KNOWN.includes(name));
+    expect(unknown, `${pkg.name} declares ${unknown.join(', ')}, which KNOWN does not list — nothing would search for ${unknown.length === 1 ? 'it' : 'them'}`).toEqual([]);
   });
 
   it.each(found)('$name: a `compat` claim names a host the oracle actually grades', (pkg) => {
