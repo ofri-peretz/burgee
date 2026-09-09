@@ -163,7 +163,12 @@ function controlFell(grades: Grade[]): Grade[] {
 function controlShortfall(g: Grade): string | undefined {
   if (g.passed === 0) return 'nothing passed against its own package';
   if (g.failed > allowedFailures(g.host)) return `${String(g.failed)} failing against its own package (${String(allowedFailures(g.host))} allowed)`;
-  if (g.reference > 0 && g.tests < g.reference) return `${String(g.tests)} of its own ${String(g.reference)} cases registered — the rest stopped running`;
+  // `+ skipped`, because a case that registered and skipped itself is accounted for and a
+  // case that never registered is not. Both commander and yargs skip one OS-specific test
+  // on Linux and none on the machine that set the reference; without this the control is
+  // red on ubuntu for doing exactly what it should.
+  const registered = g.tests + g.skipped;
+  if (g.reference > 0 && registered < g.reference) return `${String(registered)} of its own ${String(g.reference)} cases registered — the rest stopped running`;
   return undefined;
 }
 

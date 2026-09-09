@@ -68,6 +68,13 @@ describe('the control verdict', () => {
     expect(out.text()).toContain('24 of its own 29 cases registered');
   });
 
+  it('counts a case that skipped itself as one that registered', () => {
+    // Live on ubuntu the first time this check ran: yargs registers 804, one of which is
+    // an OS-specific test that skips on Linux and did not on the machine that set the
+    // reference. A skip is reported, never counted as passing, and never a shortfall.
+    expect(verdict([grade('yargs', { tests: 803, passed: 802, failed: 1, skipped: 1, reference: 804, rate: 802 / 804 })], empty, collect().write, true)).toBe(0);
+  });
+
   it('leaves a control alone when upstream grew, which is not a shortfall', () => {
     expect(verdict([grade('cli-table3', { tests: 31, passed: 31, failed: 0, reference: 29, rate: 1 })], empty, collect().write, true)).toBe(0);
   });
