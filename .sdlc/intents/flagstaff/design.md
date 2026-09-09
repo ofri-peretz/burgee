@@ -9,6 +9,11 @@ its justification, and the weight comparison — was rewritten by the PR that in
 as its own approval, and a merge leaves no trace in the design of what was accepted. See the
 matching note on constraint 2 of [`output-stack-compat`](../output-stack-compat/intent.md).
 
+**Amended again, and accepted by the owner at the Design→Build gate on 2026-09-09** (PR #82):
+R2 gains a component's optional `sample`, and R8 is widened from "exit 1 on a schema error" to
+the seven refusals `check` actually emits. What was accepted, and the alternative not taken in
+each case, is recorded under "Accepted at the Design→Build gate (2026-09-09)" below.
+
 ---
 
 ## Requirements
@@ -19,8 +24,13 @@ matching note on constraint 2 of [`output-stack-compat`](../output-stack-compat/
   once per *state change*; on `json` it writes one NDJSON event
   `{ "event": "<name>", "state": … }` per change to `rt.stderr`; on `accessible` it writes
   the static text with no cursor ops. Mode comes from `roundel/policy`, never computed here.
-- **R2** A component is `{ name, static(state): string, frame?(t, state): string }`;
-  `register()` throws `E_NO_STATIC_PROJECTION` with `fix` when `static` is missing.
+- **R2** A component is `{ name, static(state): string, frame?(t, state): string,
+  sample?: { running, done } }`; `register()` throws `E_NO_STATIC_PROJECTION` with `fix`
+  when `static` is missing. `sample` is the two states the component is *shown* with by
+  `flagstaff check` and the docs gallery; the loop never reads it, because a component's
+  real state comes from the program. It is inert data (plugin-contract R7), and the
+  registry deep-copies and freezes it, so declaring one does not hand the registry a
+  reference into the plugin author's own object.
 - **R3** A plugin is `{ name, spinners?, glyphs?, tokens?, components? }`, validated at
   `register()` against `schema.json` shipped in the tarball. A spinner is
   `{ frames: string[], interval: number, static: string }`.
@@ -34,7 +44,18 @@ matching note on constraint 2 of [`output-stack-compat`](../output-stack-compat/
 - **R7** No layout engine: `src/` has no `layout*` file and no measure pass; `box` and
   `columns` are string functions over `string-width`-equivalent logic in `src/width.ts`.
 - **R8** `flagstaff check <file>` (the package `bin`) loads a plugin file, validates it, and
-  prints its rendering in all five modes side by side; exit 1 on a schema error.
+  prints its rendering in all five modes side by side; exit 2 on a usage error, and **exit 1
+  on any refusal**, each carrying a code from `PluginErrorCode` and a `fix`.
+
+  **Widened 2026-09-09.** This said "exit 1 on a schema error", which was narrower than what
+  the command actually refuses and left the extra refusals looking unspecified. `check` can
+  emit any of seven codes: the five `register()` raises — `E_PLUGIN_SCHEMA`,
+  `E_NO_STATIC_PROJECTION`, `E_PLUGIN_CONTRACT`, `E_UNKNOWN_SPINNER`, `E_UNKNOWN_BORDER` —
+  and two only a renderer can discover, `E_NO_CONTRIBUTION` (the plugin validates and
+  contributes nothing flagstaff can render, which is how a misspelled top-level key tells on
+  itself, since the schema allows unknown keys on purpose) and `E_COMPONENT_THREW` (a
+  component's `static` threw on the state it was shown with, naming the modes it broke in).
+  All seven are members of one union in `plugin.ts`; none is spelled at a call site.
 - **R9** Deterministic: with a fake clock, a spinner's TTY output for N ticks is a fixed
   string; a snapshot test runs 20 times in CI.
 - **R11** `flagstaff/import`: `fromCliSpinners(json)` and `fromCliBoxes(json)` turn the two
@@ -105,6 +126,9 @@ the U9 eval (an agent writes a plugin from the schema) → `progress`, `tasks`, 
   json events, accessible text, missing `static` refused).
 - `npm run compat -- ora` (then log-update, boxen, cli-table3).
 - `npm run evals` — U9: schema + one example → a passing plugin in one turn.
+- `npx vitest run --config vitest.root.config.ts scripts/plugin-error-vocabulary-lock.test.ts`
+  — R8's vocabulary: every `'E_…'` a host ships is a member of its `PluginErrorCode`, and
+  no host declares a code the vocabulary home does not know.
 - The check that would have caught the original problem (clack #510, `\r` spam captured by
   agents): R5's grep on a piped run, red today against ora, green here by construction.
 
@@ -345,6 +369,117 @@ that only ever passed would measure neither half.
 What is still unmeasured is the one-turn claim itself — layer 2 needs a credential, and
 reports `skipped` without one. So R8's evidence row moves from "hypothesis, measure before
 lock" to "measurable", not to "measured". The difference matters and the row says so.
+
+## What shipped (#58, #59 — one door into the registry, a check that grades — 2026-09-09)
+
+Two defects, and the two design decisions that closing them needed. `registered()` handed the
+live registry out, so `set`/`delete`/`clear` were a second door past `validate()` (#58); and
+`check` invented a state for every component, rendered the wrong thing, and said `ok` (#59).
+The code for both is in `plugin.ts` and `cli.ts`; what follows is what the design now owes.
+
+### `sample` on a component (R2, plugin-contract R5/R7)
+
+`sample?: { running, done }` — the two states `flagstaff check` and the docs gallery render a
+component with. Without one, `check` prints the shape it assumed rather than assuming it in
+silence:
+
+```
+  sample      assumed {"running":{"phase":"running"},"done":{"phase":"done"}} — give the component a `sample` to choose its own
+```
+
+That line is the whole of #59. A grader that invents a state renders the wrong thing and then
+grades its own invention; a grader that says which state it used is wrong out loud, which an
+author can act on. When a component *does* declare one, `check` says where it came from.
+
+It is inert data, so plugin-contract R7 — "a plugin is data" — still holds: an object with
+two required keys, admitting objects, arrays, strings, numbers and booleans and nothing that
+can carry behaviour. The registry deep-copies it and freezes each level on the way out, so an
+author who edits their object after `register()` does not write back through the registry.
+
+**caique's widget shape takes the key too.** plugin-contract R5 says a widget is "the same
+shape a flagstaff component has"; that requirement is *sameness*, so it is now recorded there
+as part of the widget shape. Not implemented here — caique's widget host is its own PR, and
+this design records the obligation rather than reaching across a package boundary to meet it.
+
+### The two new exit codes, into the typed union (R8, plugin-contract R8)
+
+`E_NO_CONTRIBUTION` and `E_COMPONENT_THREW` were bare string literals in `cli.ts`, outside
+`PluginErrorCode`. Both are now members of it — the union stays the single source, there is no
+second list — and `refuse()` in `cli.ts` takes `PluginErrorCode` rather than `string`, so an
+invented code on that path fails `typecheck`:
+
+```
+packages/flagstaff/src/cli.ts(158,34): error TS2345: Argument of type '"E_MADE_UP"' is not assignable to parameter of type 'PluginErrorCode'.
+```
+
+**It costs nothing.** The union is a type, erased at build time, and the comments are
+stripped: `./plugin` 11,490 B, `./spinner` 12,418 B, `./box` 35,445 B, `./tasks` 12,829 B and
+`.` 49,633 B, byte-identical before and after. No budget moved.
+
+### The lock, and the proof it can fail
+
+The type seam only guards `refuse()`. `scripts/plugin-error-vocabulary-lock.test.ts` guards
+the vocabulary itself: it derives the host list from the tree (`src/plugin.ts` exists, the
+marker `plugin-schema-lock.test.ts` already uses), reads each host's `PluginErrorCode`
+declaration out of its source, and asserts every `'E_…'` literal that host ships is a member —
+and that no host declares a code the vocabulary home does not know.
+
+It reads source text rather than importing a `const` array deliberately. plugin-contract R3
+forbids one layer importing another, so a runtime list could never be shared with roundel or
+caique — the only place R8's claim bites — and it would cost ~195 B on `./spinner`, which has
+82 B of headroom against its ora ceiling. The type is the single source; the lock reads it.
+
+**Four mutations, each red before the fix went in.** The first is the one that matters: it is
+invisible to the typechecker, because it never goes through `refuse()`.
+
+1. A code emitted straight through `write()`, bypassing the typed seam — `tsc` exits **0**:
+
+   ```
+   AssertionError: not in flagstaff's PluginErrorCode; declare it there rather than inline, or this is a code the family never agreed to: expected [ Array(1) ] to deeply equal []
+
+   - Expected
+   + Received
+
+   - []
+   + [
+   +   "packages/flagstaff/src/cli.ts:158 → E_BROKE_LATE",
+   + ]
+   ```
+
+2. The union reverted to the five it had on main — the exact state this PR found, reproduced:
+
+   ```
+   - []
+   + [
+   +   "packages/flagstaff/src/cli.ts:158 → E_NO_CONTRIBUTION",
+   +   "packages/flagstaff/src/cli.ts:173 → E_COMPONENT_THREW",
+   + ]
+   ```
+
+3. roundel declaring an `E_BAD_TOKEN` flagstaff does not know — a downstream layer forking
+   the vocabulary, which is R8's actual failure mode:
+
+   ```
+   AssertionError: declared in roundel but not in flagstaff — add it there too, so one author's fix reads the same in every layer (R8): expected [ 'E_BAD_TOKEN' ] to deeply equal []
+   ```
+
+4. An invented code through `refuse()` — caught by `typecheck`, quoted above.
+
+## Accepted at the Design→Build gate (2026-09-09)
+
+Recorded next to what it governs, not in a commit message: repo rule 1 is that a decision
+living only in a chat log cannot be reviewed, diffed or replayed, and rule 3 is that a human
+accepts at Design→Build — not the agent that wrote the code.
+
+**The optional `sample`, and caique taking the key too.** Accepted. R7 holds because the key
+is inert data. *The alternative not taken:* scope `sample` to flagstaff and let caique's
+widget shape diverge — cheaper now, and it spends plugin-contract R5, because two shapes that
+differ by a key are two shapes to document and no lock can call them one.
+
+**The two exit codes into the typed union.** Accepted, with the lock. *The alternative not
+taken:* take the behaviour and leave the vocabulary untyped as a follow-up — which is how the
+codes came to be literals in the first place. The refusals work either way, so nothing would
+have forced the follow-up, and R8 would have stayed a claim no check could test.
 
 ## Rejected alternatives
 

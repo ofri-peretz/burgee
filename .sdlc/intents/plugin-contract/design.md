@@ -21,6 +21,7 @@ Intent: [`intent.md`](./intent.md). **Status:** draft — awaiting the Design→
 | `E_NO_STATIC_PROJECTION` at `register()` | `flagstaff/src/plugin.ts` | shipped |
 | `additionalProperties: true`, so another layer's keys pass validation untouched | `flagstaff/src/schema.json` | shipped |
 | Importers that make the corpus real — `fromCliSpinners`, `fromCliBoxes` | `flagstaff/src/import.ts` | shipped |
+| `sample?: { running, done }` on a component — the two states a grader renders it with | `flagstaff/src/plugin.ts` | shipped 2026-09-09 |
 
 Two things are *not* true yet, and they are what this design is:
 
@@ -54,16 +55,37 @@ Two things are *not* true yet, and they are what this design is:
   nothing, it decides colour. Hosting them in two packages would create exactly the drift
   this contract exists to prevent, and it would give a plugin author two answers to "where
   does my `✔` go". One key, one host.
-- **R5 — caique hosts `widgets`.** A widget is `{ static(spec), frame?(t, spec) }`, the same
-  shape a flagstaff component has, and a widget without `static` is refused with
+- **R5 — caique hosts `widgets`.** A widget is `{ static(spec), frame?(t, spec), sample? }`,
+  the same shape a flagstaff component has, and a widget without `static` is refused with
   `E_NO_STATIC_PROJECTION` — the same code, the same message.
+
+  **`sample` added 2026-09-09**, accepted at the Design→Build gate (see below). This
+  requirement's whole content is *sameness*: a key the flagstaff component shape gains, the
+  caique widget shape gains with it, or "the same shape a flagstaff component has" quietly
+  becomes "the same shape except for one key" and the author who learned one has not learned
+  the other. **Not built here.** caique's widget host is step 3 and its own PR; this records
+  the obligation so that PR cannot land a widget shape without `sample` and call it R5.
 - **R6 — One contract version.** `CONTRACT` is one number for the family. A host refuses a
   plugin declaring a higher contract with a `fix` naming the package to upgrade.
 - **R7 — Data first.** No key may require a function except a component's or widget's
   `frame`, and burgee's `hooks`. Every other contribution is inspectable without running it.
+
+  A `sample` (R5) is one of those contributions and does not weaken this. It is two named
+  states of plain data — the schema admits objects, arrays, strings, numbers and booleans,
+  and nothing that can carry behaviour — so a grader reads a component's declared states
+  without executing anything its author wrote. The registry copies it to whatever depth it
+  has and freezes each level, so the author's own object is not shared by reference either.
 - **R8 — One error vocabulary.** `E_PLUGIN_SCHEMA`, `E_PLUGIN_CONTRACT`,
   `E_NO_STATIC_PROJECTION` mean the same thing and carry the same `fix` shape in every
   layer, so a plugin author debugging against one package has learned all four.
+
+  **Locked 2026-09-09.** This was a sentence and nothing else, and it was already false:
+  `flagstaff check` printed `E_NO_CONTRIBUTION` and `E_COMPONENT_THREW` as bare string
+  literals in `cli.ts`, outside `PluginErrorCode` in `plugin.ts`. Both are now members of
+  that union, and `scripts/plugin-error-vocabulary-lock.test.ts` reads the declaration out
+  of each host's source and refuses any `'E_…'` literal the host ships that is not in it —
+  plus any code a host declares that the vocabulary home does not know, so a downstream
+  layer cannot fork the vocabulary. A vocabulary anything can add to inline is not one.
 
 ## Design
 
@@ -186,6 +208,34 @@ failed validation (1).
 
 Not yet: `caique/plugin` (step 3), and burgee (step 4, blocked on `cli-modularity`).
 
+## Accepted at the Design→Build gate (2026-09-09)
+
+Recorded here rather than in a commit message or a review thread: repo rule 1 is that a
+decision living only in a chat log cannot be reviewed, diffed or replayed, and rule 3 is that
+a human — not the agent that wrote the code — accepts at Design→Build.
+
+**The optional `sample` on a component, and caique taking the key too (R5, R7).** A component
+may declare `sample: { running, done }`; `flagstaff check` renders it with that, and states
+the assumed `{ phase }` shape out loud when there is none. R7 holds because the key is inert
+data with two required keys and nothing that can carry behaviour, so it does not turn a
+plugin into a program. Because R5's claim is that a widget is *the same shape* a component
+is, the key is part of the widget shape as well, and caique's host owes it.
+
+*The alternative not taken:* scope `sample` to flagstaff only and let caique's widget shape
+diverge. Cheaper today, and it spends R5 — the moment the two shapes differ by a key, "the
+same shape" stops being a fact a lock can hold and becomes prose, and the family has two
+component shapes to document instead of one.
+
+**`E_NO_CONTRIBUTION` and `E_COMPONENT_THREW` into the typed union (R8).** Both are refusals
+only a renderer can discover, so `check` is the right place to raise them; being raised there
+is not a reason to spell them there. They join `PluginErrorCode`, which stays the single
+source — no second list — and the lock above makes the membership checkable.
+
+*The alternative not taken:* take the behaviour now and leave the vocabulary untyped as a
+follow-up. That is how the codes got there in the first place. The two refusals are useful
+whether or not they are typed, so the follow-up has no forcing function, and R8 stays a claim
+no check can test — which is the state this repo has shipped nine defects out of.
+
 ## Verification
 
 The loop: `npm test && npm run lint && npx tsx scripts/check-published-artifacts.ts`.
@@ -198,6 +248,7 @@ The loop: `npm test && npm run lint && npx tsx scripts/check-published-artifacts
 | caique hosts widgets (R5) | `packages/caique/src/plugin.test.ts` | a widget without `static` accepted |
 | Same object, four hosts (R1) | `packages/*/src/plugin.test.ts`, one shared fixture | a host that errors on another layer's key rather than ignoring it |
 | Error vocabulary (R8) | the same fixture | a code or `fix` shape that drifted between layers |
+| One vocabulary, locked (R8) | `scripts/plugin-error-vocabulary-lock.test.ts` | a refusal code spelled inline instead of declared, or a host forking the vocabulary — proven by emitting a bare `E_BROKE_LATE` from `cli.ts` and by reverting the union to its pre-fix five |
 
 **The check that would have caught the problem this intent names:** the R1 fixture. The
 present state — `tokens` in the schema, no reader — passes every test in the repo today,
