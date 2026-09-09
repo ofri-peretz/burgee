@@ -65,6 +65,41 @@ agents the layer is for.
 - `curl -s https://burgee.interlace.tools/ | grep -c <meta name="x-build-sha"` matches the
   merged SHA after `auto-deploy.yml` completes.
 
+## Verified against `main` — 2026-09-09
+
+**The table below is now stale in the optimistic direction, and this intent's own reason for
+staying `review` is wrong.** It says the deploy is "inert — no `VERCEL_TOKEN`". All three secrets
+are wired (`VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` all appear as `***` in run
+`34309369070`'s environment) and **nine production deploys have executed**. The site is live and
+serving this commit. The status stays `review` for a different and better reason: the deploy is
+live and **failing its own verification gate**.
+
+Checked criterion by criterion. **One met, three not.**
+
+- **`/` serves the home page with the Interlace mark; `/docs/the-floor`, `/.sdlc/research`,
+  `/llms.txt` return 200** — met but for one stale path. Measured: `/` 200 (and it carries
+  "Interlace"), `/docs/the-floor` 200, `/llms.txt` 200, `/llms-full.txt` 200,
+  `/docs/compatibility` 200, `/docs/gallery` 200. **`/.sdlc/research` is 404** — the research
+  page is served at `/docs/research` (200). The criterion's URL predates the docs IA; it is the
+  URL that is stale, not the page.
+- **A merge touching only `packages/**` does not trigger a docs deploy, pinned by a workflow-lock
+  on the `if:`** — **not met**, and this intent already records why: root devDependencies on
+  burgee, compat-oracle and flagstaff put all eleven workspaces in turbo's changed set, so
+  `docs` is affected by almost everything. What `scripts/deploy-lock.test.ts` actually locks is
+  the weaker pair — main-only, and unreachable unless the `affected` job says `docs=true`.
+- **`target=preview` produces a preview URL; `target=production` without `RELEASE_APPROVAL`
+  pauses** — **not demonstrated.** All nine `deploy-docs.yml` runs in existence are `production`;
+  **no preview dispatch has ever been fired.** The logic is locked by tests; the behaviour has
+  never been observed.
+- **`x-build-sha` matches the merged SHA after `auto-deploy.yml` completes** — **not met at the
+  gate.** The check ran for real against this commit and went red: run `34309369070` errored
+  `https://burgee.interlace.tools is serving build e927678f…, not 61bd11b9…. The deploy uploaded
+  but the alias did not move.` The alias did move afterwards — the live page now carries
+  `x-build-sha content="61bd11b9a1bf1fe73dd5a6e76e0898614e988ec7"` — so the site is correct and
+  the mechanism that is supposed to prove it is not. **Four of the nine production runs failed,
+  including the two most recent.** A post-deploy check that goes red on a good deploy is the one
+  failure mode that trains people to ignore it.
+
 ## What is built (2026-09-08)
 
 The build stage landed everything that does not require a credential. Each row is either

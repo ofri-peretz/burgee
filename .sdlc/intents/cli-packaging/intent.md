@@ -60,6 +60,35 @@ A packaging floor every package in this repo meets and a lock that enforces it:
   a deliberate `.map` file in a test fixture is caught.
 - Bun and Deno smoke jobs green (advisory) on the demo.
 
+## Verified against `main` — 2026-09-09
+
+Checked criterion by criterion on `61bd11b9`. **Two of four met, two half.** The status stays
+`review`.
+
+- **`npm ls --prod --depth=0` shows only peers** — met in substance. burgee, roundel and caique
+  each have zero production dependencies; flagstaff depends on `roundel` alone; the private
+  `compat-oracle` peers on the incumbents. There is no external runtime dependency anywhere. The
+  criterion's word "peers" predates the 2026-09-08 U6 decision that made the family links real
+  dependencies rather than peers.
+- **A lock fails when `exports` names a file the build does not produce or `files` does not
+  match** — half. `missingExportTargets()` catches an exports target that is absent from disk;
+  **nothing checks membership in `files`**, so an entry excluded by the pack list would ship
+  broken and pass.
+- **`release.yml` runs the artifact gate on the built `dist/` and blocks; a deliberate `.map` in
+  a fixture is caught** — half, and the untested half is the interesting one. The wiring is real
+  (`release.yml:103`, publish `needs: [detect, build]`, `npm publish --provenance`), and the gate
+  passes locally. But **`scripts/check-published-artifacts.ts` has no test** — it is not among the
+  ten root test files — so the `.map` catch is an unproven regex. The deliberate-fixture half of
+  the criterion has never been run.
+- **Bun and Deno smoke jobs green (advisory)** — **met.** `runtime-smoke.yml`, both jobs
+  `continue-on-error: true`, latest run on `main` successful.
+
+**The publish path is broken, and it is not a packaging bug.** The most recent `release.yml` run
+(`34309347964`) failed: the roundel, flagstaff and caique publish jobs each died with
+`npm error code ENEEDAUTH … need auth`. That is why npm still shows those three at 0.0.1 against
+0.1.0 in the tree. `burgee` publishes because it alone has a trusted publisher configured. Until
+that is fixed, K6 provenance is proven for exactly one of four packages.
+
 ## Open questions
 
 None open. Decided at finalisation (2026-09-06):

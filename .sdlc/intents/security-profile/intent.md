@@ -69,6 +69,34 @@ transmitting config hashes, rule hashes, and the hashes of rules that produced f
 5. A single documented flag produces a run with **zero** outbound network calls, asserted by
    a test that fails if any socket opens.
 
+## Verified against `main` — 2026-09-09
+
+Checked criterion by criterion on `61bd11b9`. **Zero of five met. There is no implementation of
+any kind.** The status stays `review`: the intent and design are complete and reviewed, and
+nothing has been built.
+
+`grep -rin "sarif"` across every `.ts`, `.tsx`, `.json`, `.md` and `.mdx` outside `.sdlc/`
+returns **zero hits**. So do `fail-on|failOn` and `security-severity|securitySeverity`. There is
+no `packages/burgee/src/security*`, no `./security` in burgee's exports, and none of the
+`codes.ts` / `sarif.ts` / `report.ts` files the design names.
+
+- **Q1–Q7 hold, each with a test** — not met; none of the seven is implemented. (Worth fixing
+  while here: the criterion says "Q1–Q7 below", but Q1–Q7 are defined in `design.md:11-17`, not
+  in this file, so the criterion points at a section that is not there.)
+- **Emitted SARIF validates against the OASIS 2.1.0 schema in CI** — not met; no SARIF is
+  emitted and no job validates one.
+- **A scanner cannot compile a config where the findings code and an error code are equal** —
+  not met; there is no reserved taxonomy beyond the general `ExitCode` in
+  `packages/burgee/src/exit-code.ts`.
+- **`--severity` and `--fail-on` independent, one scan answering both** — not met; neither flag
+  exists.
+- **One documented flag producing zero outbound network calls, asserted by a socket test** — not
+  met; no flag, no test.
+
+The wave table schedules this "after 3, when an adopter needs it". There is no adopter, so
+nothing about that sequencing has been violated — but the roadmap should not read as though this
+lane has started.
+
 ## Open questions
 
 None open. Decided at finalisation (2026-09-07): synthesise `security-severity` always,

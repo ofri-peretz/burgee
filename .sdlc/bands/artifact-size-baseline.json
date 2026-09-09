@@ -1,6 +1,6 @@
 {
   "burgee": {
-    "size": 136441,
+    "size": 136446,
     "unpackedSize": 574318
   },
   "caique": {
@@ -8,11 +8,11 @@
     "unpackedSize": 49527
   },
   "flagstaff": {
-    "size": 50999,
-    "unpackedSize": 186433
+    "size": 54466,
+    "unpackedSize": 196335
   },
   "roundel": {
-    "size": 16881,
-    "unpackedSize": 46649
+    "size": 17047,
+    "unpackedSize": 47122
   }
 }

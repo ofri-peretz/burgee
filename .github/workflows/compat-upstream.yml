@@ -3,6 +3,16 @@
 # the release in a scratch clone and diffs it: which tests and which API-surface names were
 # added, removed or changed. One issue per (host, version), never duplicated; nothing under
 # vendor/ is touched here — the weekly refresh PR does that.
+#
+# `upstream-watch` R4 adds a second pass in the same job. `--competitors` covers **every**
+# competitor a package declares in its `competitors.json`, not only the hosts with a vendored
+# suite — including the weight-only ones (picocolors, string-width, wrap-ansi, cli-spinners,
+# cli-boxes) where a published number rots without a single test of ours going red. Those are
+# fingerprinted from the published tarball, read-only: no `npm install`, so no upstream
+# lifecycle script runs in a job that holds `issues: write`.
+#
+# One job, two passes, one issue stream — deliberately. A second workflow would double the
+# scheduled minutes and split the dedupe state, which is the one piece that must not be split.
 name: Compatibility · upstream releases
 
 on:
@@ -36,10 +46,17 @@ jobs:
         shell: bash
         run: node packages/compat-oracle/dist/bin.js --upstream 2>&1 | tee upstream.log
 
+      # Read-only against the registry. A competitor that cannot be fetched exits non-zero:
+      # a rename or an unpublish is a hole in the watch, not a quietly shorter report.
+      - name: Check competitor releases
+        shell: bash
+        run: node packages/compat-oracle/dist/bin.js --competitors 2>&1 | tee competitors.log
+
       - name: Summary
         if: always()
         run: |
           { echo '## Upstream releases'; echo; echo '```'; cat upstream.log || echo '(no output)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          { echo '## Competitor releases'; echo; echo '```'; cat competitors.log || echo '(no output)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Open one issue per new release
         env:
@@ -61,4 +78,36 @@ jobs:
               echo "Opened by the daily upstream check. Re-vendor with \`npm run compat -- --vendor\` (pins to the release tag), re-prove the control, and grade burgee; the ratchet (C5) and the compatibility page follow."
             } >> body.md
             gh issue create --title "$TITLE" --label upstream-release --body-file body.md
+          done
+
+      # R5 — one issue per (competitor, version). The same dedupe as above and deliberately
+      # the same shape: search open issues for the exact title, `continue` on a hit. Re-running
+      # the job on the same day opens nothing new.
+      #
+      # R7 — the body carries a proposed `.changeset/*.md` as a fenced block and this never
+      # writes it to `.changeset/`. A changeset for work nobody has done breaks
+      # `changeset:status` for everybody until somebody deletes it.
+      - name: Open one issue per competitor release
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          FILE=packages/compat-oracle/competitors-upstream.json
+          if [ ! -f "$FILE" ]; then echo "No competitor report was produced."; exit 0; fi
+          COUNT=$(jq '.updates | length' "$FILE")
+          if [ "$COUNT" -eq 0 ]; then echo "Every competitor is at its recorded release."; exit 0; fi
+          gh label create upstream-competitor --color 1D76DB --description "A package we are measured against published a new release" --force
+          jq -c '.updates[]' "$FILE" | while read -r update; do
+            TITLE=$(jq -r .title <<<"$update")
+            EXISTING=$(gh issue list --state open --label upstream-competitor --search "\"$TITLE\" in:title" --json number --jq '.[0].number // empty')
+            if [ -n "$EXISTING" ]; then echo "#$EXISTING already tracks: $TITLE"; continue; fi
+            jq -r .report <<<"$update" > competitor-body.md
+            {
+              echo
+              echo "Opened by the daily competitor watch (\`upstream-watch\` R4). The changeset above is a **proposal**: nothing was written to \`.changeset/\`, and no PR was opened — a version bump is not a change made unattended."
+              echo
+              echo "Record the new fingerprint with \`npm run compat -- --fingerprint\` and commit the \`competitors.json\` diff."
+            } >> competitor-body.md
+            gh issue create --title "$TITLE" --label upstream-competitor --body-file competitor-body.md
           done

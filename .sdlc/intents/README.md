@@ -43,7 +43,7 @@ separate decision with a price on it, never a feature of the family.
 
 ## The minimum that proves the play
 
-Thirty-three intents is a map, not a bet. The bet is three things. If they land, everything
+Thirty-two intents is a map, not a bet. The bet is three things. If they land, everything
 else on this page is justified; if they do not, nothing else on it should be built first.
 
 1. **The commander scoreboard is public** — the compatibility page deployed, the number
@@ -76,7 +76,7 @@ the docs site that says it is true; *value* is who is better off and how we woul
 
 | Layer | Edge | Why the incumbent cannot copy it | Proof (published) | Value, for whom |
 | :-- | :-- | :-- | :-- | :-- |
-| **burgee** | one declaration → help, `--json`, `--schema`, `--mcp`, completions, types; plugins | commander has no manifest and refused plugins (#2505); yargs' 108 methods each own a slice of state | commander 1,361/1,361 and yargs 804/804 on their own suites; B2 spawn delta; B1 agent success | CLI authors: no drift between surfaces. Agent builders: a contract instead of scraped `--help` |
+| **burgee** | one declaration → help, `--json`, `--schema`, `--mcp`, completions, types; plugins | commander has no manifest and refused plugins (#2505); yargs' 108 methods each own a slice of state | commander 1,360/1,360 and yargs 804/804 on their own suites; B2 spawn delta; B1 agent success | CLI authors: no drift between surfaces. Agent builders: a contract instead of scraped `--help` |
 | **roundel** | one output policy, semantic tokens, a contrast-checked theme | chalk's model is a global mutable `level`; a policy would break its own tests | B4 rows under picocolors and chalk 6; chalk pass rate; the policy truth table | Authors: one answer to "is this a terminal?". Users: readable errors on every background |
 | **flagstaff** | the static projection is the artifact; plugins are data; an agent can write one in a turn | ora and Ink are imperative; a React tree has no static form to project | `\r`-free piped transcript; U9 eval green weekly; ora pass rate; B4 under ora | Agents and screen readers: the same clean bytes. Authors: a spinner ecosystem without a framework |
 | **caique** | never hangs: flags first, errors with `fix` in non-TTY, accessible by default | clack and inquirer assume a person is present; non-TTY is their bug, not their model | non-TTY benchmark never times out; inquirer and clack pass rates; matrix green | Anyone running a CLI from CI or an agent: the hang, gone. Screen-reader users: prompts that read |
@@ -139,11 +139,11 @@ converts it from a permanent dependency into a fixable backlog, so it now has an
 
 | # | Intent | Delivers | Floor ids | Status |
 | :-- | :-- | :-- | :-- | :-- |
-| 1 | [`sdlc-locks-evals-bands/`](./sdlc-locks-evals-bands/) | intent lock, evals layer 1, control bands | — | shipped |
-| 2 | [`cli-testing-harness/`](./cli-testing-harness/) | `Runtime` seam; `burgee/testing`; the compat drivers; the conformance suite | T1 | shipped |
-| 3 | [`compat-oracle/`](./compat-oracle/) | upstream suites vendored and redirectable; pass rate as a ratcheting gate; the Node matrix | C1–C6 | review |
-| 4 | [`cli-packaging/`](./cli-packaging/) | zero deps, ESM, artifact gate, size ratchet, pay-per-import | K1–K6 | review |
-| 5 | [`cli-benchmarks/`](./cli-benchmarks/) | four axes — agent cost, performance, compatibility, weight | B1–B7 | review |
+| 1 | [`sdlc-locks-evals-bands/`](./sdlc-locks-evals-bands/) | intent lock, evals layer 1, control bands | — | **review** (was `shipped`) — the locks shipped and are mutation-proven; the bands did not. `control-bands.yml` has never run, three of five bands have no collector, and the evals link checker does not read `.sdlc/intents/` |
+| 2 | [`cli-testing-harness/`](./cli-testing-harness/) | `Runtime` seam; `burgee/testing`; the compat drivers; the conformance suite | T1 | **review** (was `shipped`) — 122 conformance tests green over five hosts, but the ANSI-in-non-TTY regression check does not exist, the 20 ms lock was deliberately superseded, and the `process.` allow-list has grown to 18 paths |
+| 3 | [`compat-oracle/`](./compat-oracle/) | upstream suites vendored and redirectable; pass rate as a ratcheting gate; the Node matrix | C1–C6 | review — 3 of 6. Six hosts graded with controls; **not met:** no compat control band, C3 (Node 24 only against `engines: >=24`), and the root `README.md` still publishes no rate |
+| 4 | [`cli-packaging/`](./cli-packaging/) | zero deps, ESM, artifact gate, size ratchet, pay-per-import | K1–K6 | review — 2 of 4. Zero deps and the bun/deno smoke hold. **Not met:** nothing checks `files` membership, `check-published-artifacts.ts` has no test, and the publish job fails `ENEEDAUTH` for three of four packages |
+| 5 | [`cli-benchmarks/`](./cli-benchmarks/) | four axes — agent cost, performance, compatibility, weight | B1–B7 | review — **0 of 9; nothing is built.** No `benchmarks/`, no `bench` script, `/benchmarks` 404. Six criteria in five other intents wait on this one |
 
 ### The engine and its compatibility
 
@@ -151,31 +151,31 @@ converts it from a permanent dependency into a fixable backlog, so it now has an
 | :-- | :-- | :-- | :-- | :-- |
 | 6 | [`commander-agent/`](./commander-agent/) | ~~layer on commander's hooks~~ | F O E M | **dropped** — superseded, requirements moved to the engine |
 | 7 | [`yargs-agent/`](./yargs-agent/) | ~~layer on yargs middleware~~ | same as 6 | **dropped** — same reason |
-| 8 | [`eslint-plugin-cli-floor/`](./eslint-plugin-cli-floor/) | the L rules; the adoption wedge that needs no runtime change; **`migrate-import` autofix** (2026-09-08) | F3 O1–O4 E1 E2 V2 V5 P1 D1 | review |
-| 9 | [`docs-deploy/`](./docs-deploy/) | `apps/docs` on an interlace.tools host, `llms.txt`, the benchmarks page | B7 | review |
-| 10 | [`first-adopter/`](./first-adopter/) | a CLI we did not write, using the layer, reviewed by someone who did not build it; **the dependents ranking script** (2026-09-08) | A1–A5 | review |
-| 11 | [`cli-mcp/`](./cli-mcp/) | `--mcp` turns any CLI on the floor into an MCP server, generated from the manifest | N1–N5 | review |
-| 12 | [`dev-loop/`](./dev-loop/) | `burgee dev` — watch, reload, and serve live MCP so your agent sees a command as you write it | W1–W6 | review |
-| 22 | [`brand-burgee/`](./brand-burgee/) | `defineBurgee({ lead, follow })` — favicon, raster set, OG card and theme variants generated from one declaration; the Interlace −30° geometry stays locked | — | draft |
+| 8 | [`eslint-plugin-cli-floor/`](./eslint-plugin-cli-floor/) | the L rules; the adoption wedge that needs no runtime change; **`migrate-import` autofix** (2026-09-08) | F3 O1–O4 E1 E2 V2 V5 P1 D1 | review — **0 of 4; the package does not exist.** No `packages/` directory, no rules, 404 on npm. The wedge bet 1 leans on has not started |
+| 9 | [`docs-deploy/`](./docs-deploy/) | `apps/docs` on an interlace.tools host, `llms.txt`, the benchmarks page | B7 | review — 1 of 4. **The site is live** and serving `61bd11b9`; the intent's "inert, no `VERCEL_TOKEN`" table is stale. **Not met:** the post-deploy SHA gate went red on this commit (4 of 9 production runs failed), no preview dispatch has ever fired, and turbo marks `docs` affected by almost everything |
+| 10 | [`first-adopter/`](./first-adopter/) | a CLI we did not write, using the layer, reviewed by someone who did not build it; **the dependents ranking script** (2026-09-08) | A1–A5 | review — **0 of 5. There is no adopter, external or internal.** `depends:burgee` on npm returns zero. The ranked prospect list is the whole of this lane so far |
+| 11 | [`cli-mcp/`](./cli-mcp/) | `--mcp` turns any CLI on the floor into an MCP server, generated from the manifest | N1–N5 | review — 3 of 5. Handshake, typed tools and destructive opt-in all verified live. **Not met:** B1 over MCP vs Bash, and the docs config is a `mytool` template |
+| 12 | [`dev-loop/`](./dev-loop/) | `burgee dev` — watch, reload, and serve live MCP so your agent sees a command as you write it | W1–W6 | review — 2 of 5. Save-to-callable measured at **66–89 ms** end to end on 30 commands, against a 500 ms bar. **Not met:** the Z2 byte-identity test does not exist, `list_changed` has no conformance case, and the manifest is summarised rather than printed |
+| 22 | [`brand-burgee/`](./brand-burgee/) | `defineBurgee({ lead, follow })` — favicon, raster set, OG card and theme variants generated from one declaration; the Interlace −30° geometry stays locked | — | draft — 1 of 4, and built ahead of its gate: `burgee brand` ships with no `design.md`. The OG card is hand-written, no workflow runs `brand:check`, and an unrelated two-colour pair currently cannot render |
 
 ### The gaps — research clusters neither host ships
 
-| # | Intent | Research | Delivers | Floor ids |
-| :-- | :-- | :-- | :-- | :-- |
-| 13 | [`cli-help-renderer/`](./cli-help-renderer/) | §2 (largest) | one renderer from the manifest; twenty issues by construction | H1–H6 |
-| 14 | [`commander-schema/`](./commander-schema/) | §4, §5 | declare once: types, relations, derived TS types | S1–S8 |
-| 15 | [`commander-env/`](./commander-env/) | §3 | fixed precedence, `--explain`, provenance, owning package.json | V1–V7 |
-| 16 | [`commander-completions/`](./commander-completions/) | §6 | static scripts for four shells, Fig spec | D2–D5 |
-| 17 | [`caique/`](./caique/) | §9 | flags first, errors in non-TTY, `--yes`, `--interactive` | P1–P3 |
-| 18 | [`cli-modularity/`](./cli-modularity/) | §8 | groups, lazy commands, plugins, shared options, deprecation | M1–M6 |
+| # | Intent | Research | Delivers | Floor ids | Status |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| 13 | [`cli-help-renderer/`](./cli-help-renderer/) | §2 (largest) | one renderer from the manifest; twenty issues by construction | H1–H6 | review — 1 of 3. Help fits in 33 columns; **not met:** no help snapshots exist at all, three rows have no test, and `dependsOn`/`exclusive` are unimplemented. Its third criterion is **stale and inverted** — it names two dropped intents and asks for the opposite of the parity contract that shipped |
+| 14 | [`commander-schema/`](./commander-schema/) | §4, §5 | declare once: types, relations, derived TS types | S1–S8 | review — **0 fully met**, the weakest of the surfaces. `--schema` still emits `schemaVersion: 1` and **drops `relations` entirely**; 11 of ~23 issues covered; no "fails on plain commander" assertion exists; positionals are still untyped |
+| 15 | [`commander-env/`](./commander-env/) | §3 | fixed precedence, `--explain`, provenance, owning package.json | V1–V7 | review — 1 of 4. `--explain` and `meta.provenance` are live. **Not met:** 8 of ~24 issues covered, and `--version` before a command resolves exits 2 with `unknown command` |
+| 16 | [`commander-completions/`](./commander-completions/) | §6 | static scripts for four shells, Fig spec | D2–D5 | review — 1 of 3. Five shells ship and zsh is driven through a real PTY. **Not met:** `--no-` negations do not exist at all, and nothing validates the Fig spec against Fig's schema |
+| 17 | [`caique/`](./caique/) | §9 | flags first, errors in non-TTY, `--yes`, `--interactive` | P1–P3 | review — 1 of 3. The decision table is exhaustive and green. **Not met:** the Ctrl+C raw-mode test uses a synthetic key stream, not a PTY, and runs on one OS, not three |
+| 18 | [`cli-modularity/`](./cli-modularity/) | §8 | groups, lazy commands, plugins, shared options, deprecation | M1–M6 | **shipped** — all three criteria verified on `main` and locked by `examples/conformance/src/modularity.test.ts`: 33 commands over 5 groups, 3 lazy modules, the load spy empty after `--schema`, `plugin: 'audit'` in the schema, one deprecation line to stderr and exit 0 |
 
 ### Reach
 
 | # | Intent | Delivers | Floor ids | Status |
 | :-- | :-- | :-- | :-- | :-- |
-| 19 | [`replacement-parser/`](./replacement-parser/) | our parser over `node:util.parseArgs`, as a third conformance host | G1–G7, §10 fixes | review |
-| 20 | [`commander-compat/`](./commander-compat/) | `burgee/commander` — commander 15 ported method for method, graded by commander's 1,362 tests; **1,361 / 1,361 (100%)** of those that run on this OS, as the real package scores | X1–X8 | review |
-| 21 | [`yargs-compat/`](./yargs-compat/) | `burgee/yargs` — yargs 18 and its whole dependency tree ported method for method, graded by yargs' 804 tests; **804 / 804 (100%)** (real yargs: 802 in the same run) | X1–X8 | review |
+| 19 | [`replacement-parser/`](./replacement-parser/) | our parser over `node:util.parseArgs`, as a third conformance host | G1–G7, §10 fixes | review — 3 of 5. Core measures 51,921 B under the 52 KB bar; seven cited §10 fixes. **Not met:** B2 cold start is unmeasurable, and the conformance suite carries an `ENVELOPE` carve-out for the native host |
+| 20 | [`commander-compat/`](./commander-compat/) | `burgee/commander` — commander 15 ported method for method, graded by commander's own suite; **1,360 / 1,360 (100%)** of those that run on this OS, level with the real package in the same run | X1–X8 | review — 2 of 4, and one of the two closest intents to `shipped`. The only substantive gap is that the pass rate is **not a control band** |
+| 21 | [`yargs-compat/`](./yargs-compat/) | `burgee/yargs` — yargs 18 and its whole dependency tree ported method for method, graded by yargs' 804 tests; **804 / 804 (100%)** (real yargs: 802 in the same run) | X1–X8 | review — 3 of 4. Same single gap: no control band for the rate |
 
 ### The output stack — what a CLI shows, as a plugin framework
 
@@ -184,15 +184,15 @@ data, every animation with a static projection, weight paid per subpath. Propose
 
 | # | Intent | Delivers | Floor ids | Status |
 | :-- | :-- | :-- | :-- | :-- |
-| 23 | [`cli-output-stack/`](./cli-output-stack/) | the layer table, the static-projection rule, the data-only plugin contract, the complete-CLI dependency bill | U1–U10 | approved |
-| 24 | [`roundel/`](./roundel/) | **roundel** — `./policy`, `./tokens`, `./theme`, and a chalk path graded by chalk's tests; each subpath at or under the incumbent it replaces | U2 U5 U6 U7 U10 U12 | shipped (0.0.x) — `roundel/chalk` 58 / 58 |
-| 25 | [`flagstaff/`](./flagstaff/) | **flagstaff** — frame loop, plugin host, built-ins as first-party plugins, `plugin check`; no layout engine | U3 U4 U8 U9 U12 | shipped (0.0.x) — loop, plugin host, spinner, `flagstaff check`, `flagstaff/ora` 99 / 99, `flagstaff/log-update` 99 / 99, and all five built-ins; boxen and cli-table3 each need a decision before their rows can be built |
+| 23 | [`cli-output-stack/`](./cli-output-stack/) | the layer table, the static-projection rule, the data-only plugin contract, the complete-CLI dependency bill | U1–U10 | approved — 0 of 8 criteria met. The gate was passed 2026-09-08; the acceptance bar is untouched |
+| 24 | [`roundel/`](./roundel/) | **roundel** — `./policy`, `./tokens`, `./theme`, and a chalk path graded by chalk's tests; each subpath at or under the incumbent it replaces | U2 U5 U6 U7 U10 U12 | approved — 3 of 5 criteria met. `roundel/chalk` 58 / 58; the bytes are locked under both ceilings. **Not shipped:** 0.1.0 in the tree, 0.0.1 on npm (`release.yml` fails `ENEEDAUTH`), and `/benchmarks` does not exist |
+| 25 | [`flagstaff/`](./flagstaff/) | **flagstaff** — frame loop, plugin host, built-ins as first-party plugins, `check`; no layout engine | U3 U4 U8 U9 U12 | approved — 1 of 8 criteria fully met. Loop, plugin host, spinner, `flagstaff check`, all five built-ins, `flagstaff/ora` 99 / 99, `flagstaff/log-update` 99 / 99, `flagstaff/boxen` 84 / 84. **Not met:** the five conformance cases and the CR check name a demo that does not use flagstaff; the 20-run snapshot lives in flagstaff, not `burgee/testing`; `/benchmarks` is 404; cli-table3 ungraded; the U9 eval has never run |
 
 | 26 | [`output-stack-research/`](./output-stack-research/) | **what we improve** — the ten incumbents' trackers read in full, won't-fix lists included; every U row cited | U1–U12 | shipped |
-| 27 | [`output-stack-compat/`](./output-stack-compat/) | **backwards compatibility** — eight façades graded by eight vendored suites; eight scoreboard rows | U11, C1–C6 | review — 3 of 8 graded (chalk 58 / 58, ora 99 / 99, log-update 99 / 99). **Decision taken 2026-09-08:** a drawing is a contract, so all four snapshot-graded hosts are built and gated; internal-module cases stay ungated (C4) and every row publishes three numbers — gated, internal, drawing. Eight rows is reachable |
-| 28 | [`plugin-contract/`](./plugin-contract/) | **spreading impact** — one plugin object, one schema, one `register()`, one `check`, across all four layers | U4, U9, M4–M5 | draft |
+| 27 | [`output-stack-compat/`](./output-stack-compat/) | **backwards compatibility** — eight façades graded by eight vendored suites; eight scoreboard rows | U11, C1–C6 | review — **4 of 8** graded (chalk 58 / 58, ora 99 / 99, log-update 99 / 99, boxen 84 / 84). **Decision taken 2026-09-08:** a drawing is a contract, so all four snapshot-graded hosts are built and gated; internal-module cases stay ungated (C4) and every row publishes three numbers — gated, internal, drawing. Eight rows is reachable |
+| 28 | [`plugin-contract/`](./plugin-contract/) | **spreading impact** — one plugin object, one schema, one `register()`, one `check`, across all four layers | U4, U9, M4–M5 | review — 1 of 4. The schema is byte-identical in roundel and flagstaff and locked; burgee and caique host no plugins, so "all four layers" is two |
 | 30 | [`upstream-watch/`](./upstream-watch/) | **every package watches its own competitors** — a declared competitor list per subpath, a fingerprint from the published tarball, and a daily issue carrying the API diff, the stale claim, and the changeset we should write | C6, U5, U11 | draft |
-| 29 | [`caller-matrix/`](./caller-matrix/) | **every caller** — features × callers conformance matrix, generated; humans, agents, CI, screen readers, programs | U2, U3, P1–P3, B1 | draft |
+| 29 | [`caller-matrix/`](./caller-matrix/) | **every caller** — features × callers conformance matrix, generated; humans, agents, CI, screen readers, programs | U2, U3, P1–P3, B1 | draft — nothing built. `/callers` is 404 and there is no matrix generator |
 
 `caique` (17) re-parents under this umbrella and peers on `flagstaff` for its spinner.
 Every incumbent the stack replaces — chalk, ora, boxen, cli-table3, log-update — gets a
@@ -210,14 +210,19 @@ testing them, which is its own intent with its own matrix).
 Recorded here so the roadmap is honest about what a spawned agent cannot do. Each needs the
 owner's terminal (npm second factor) or a decision.
 
-| Task | Why the owner | Command / decision |
-| :-- | :-- | :-- |
-| Republish `pennon@0.0.2` and `answering@0.0.2` as honest reserved-name placeholders | npm 2FA | staged in the session scratchpad; `npm publish --access public` in each |
-| Publish the misspelling guards `burgie`, `burgy`, then `npm deprecate` each | npm 2FA | staged in the session scratchpad |
-| Remove `packages/commander-harness` and `packages/yargs-harness` (untracked build residue; the shape lock now skips them, so this is hygiene) | sandbox refused `rm` | `rm -rf packages/commander-harness packages/yargs-harness` |
-| Record artifact baselines for the three new packages | sandbox refused the write | `npx tsx scripts/check-published-artifacts.ts --update-baseline` and commit `.sdlc/bands/artifact-size-baseline.json` |
-| Decide the fate of the pre-existing brand edits in the working tree (docs icon, flag component, brand assets, `brand.ts`, `cli.ts`, `weight.test.ts`, `scripts/brand.mts`) | not from this roadmap's session | commit under `brand-burgee`, or discard |
-| Set `.sdlc/bands/scoreboard-public.json` when the commander page deploys | opens the R13 gate | the page URL |
+Re-checked 2026-09-09 against npm, the workflow history and the working tree. Two rows are
+done and struck; the rest are still open, and one is new and blocking.
+
+| Task | Why the owner | Command / decision | State (2026-09-09) |
+| :-- | :-- | :-- | :-- |
+| **Give `roundel`, `flagstaff` and `caique` a publish credential.** All three are finished at `0.1.0` and sitting at `0.0.1` on npm because every `release.yml` run since fails `npm publish` with `ENEEDAUTH` — most recently run `34309347964`. `burgee` publishes because it alone has a trusted publisher | npm trusted publisher, or `NPM_TOKEN` | add each package to npm's trusted-publisher config for `release.yml`, then re-run | **open — blocks bet 2** |
+| Republish `pennon@0.0.2` and `answering@0.0.2` as honest reserved-name placeholders | npm 2FA | staged in the session scratchpad; `npm publish --access public` in each | open — both still `0.0.1` |
+| Publish the misspelling guards `burgie`, `burgy`, then `npm deprecate` each | npm 2FA | staged in the session scratchpad | open — both still 404 |
+| Remove `packages/commander-harness` and `packages/yargs-harness` (untracked build residue; the shape lock now skips them, so this is hygiene) | sandbox refused `rm` | `rm -rf packages/commander-harness packages/yargs-harness` | open — both still present |
+| ~~Record artifact baselines for the three new packages~~ | — | — | **done** — `.sdlc/bands/artifact-size-baseline.json` carries all four |
+| Decide the fate of the pre-existing brand edits in the working tree (docs icon, flag component, brand assets, `brand.ts`, `cli.ts`, `weight.test.ts`, `scripts/brand.mts`) | not from this roadmap's session | commit under `brand-burgee`, or discard | open — still uncommitted |
+| ~~Set `.sdlc/bands/scoreboard-public.json` when the commander page deploys~~ | — | — | **done** — set to `/docs/compatibility`, verified serving |
+| Supply `CLAUDE_CODE_OAUTH_TOKEN` | layer-2 evals need a credential | repo secret | open — `evals.yml` has never run on its weekly `schedule`, so the U9 eval has produced no result |
 
 ## Waves
 
@@ -236,7 +241,18 @@ compat-chalk        ████████████████████
   roundel/chalk; the 11 FORCE_COLOR cases passed once R2 was revised — 2026-09-08
 compat-ora          ████████████████████████    99 /   99  100.0%     ████████████████████████    99 /   99  100.0%
 compat-log-update   ████████████████████████    99 /   99  100.0%     ████████████████████████    99 /   99  100.0%
+compat-boxen        ████████████████████████    84 /   84  100.0%     ████████████████████████    84 /   84  100.0%
+  flagstaff/boxen; every case is `t.snapshot(box)` and `box()` is pure, so the drawing gates — 2026-09-08
+
+  planned, not yet graded: cli-table3, clack, inquirer, meow, cac, citty
 ```
+
+**Six hosts graded, six controls, read from `npm run compat` and `npm run compat -- --control`
+on `61bd11b9` (2026-09-09).** commander and yargs each report one test skipped on this OS.
+`1360` is the honest commander figure: the count carried elsewhere on this page as `1361`
+dates from before the runner stopped counting `testHelpers.js`, a file with no tests, as a
+test. Two rows of the eight `output-stack-compat` promises are still missing entirely
+(inquirer, clack — both blocked by a recorded decision) and cli-table3 is in flight.
 
 Every file of every suite is vendored and run — nothing is excluded. The *internals* lines
 are the files that import only the host's own modules (`../lib/command.js`); they are
@@ -254,13 +270,13 @@ three separate times before that rule existed.
 
 | Wave | Intents | Ends with | Status |
 | :-- | :-- | :-- | :-- |
-| 0 | `sdlc-locks-evals-bands`, `cli-testing-harness` | the loop, and a harness that runs a CLI in-process | ✅ shipped |
-| **1 · engine** | `replacement-parser`, `compat-oracle`, `cli-packaging` | a one-file CLI that runs, the shape lock green, the first published pass rate | 🔨 engine built · oracle grading commander · packaging next |
-| **2 · compatibility** | `commander-compat`, `cli-help-renderer` ↑, `first-adopter` ↑, `eslint-plugin-cli-floor` ↑ | every upstream file graded; `burgee/commander` 1,361/1,361 (= real commander in the same run) and byte-identical to commander on the demo (X7, 29 cases); help rendered from the manifest with `help <cmd>`, groups, examples, env, width from the runtime (H1–H6) | in progress |
-| **3 · surfaces** | `cli-mcp`, `commander-schema`, `commander-env`, `commander-completions` | `--schema`, `--mcp`, completions — the reason to switch | 🔨 `--schema`, `--mcp` and static completions for bash/zsh/fish/pwsh + Fig served from the manifest on every program, commander syntax included (N1–N6, N8, N9, D2–D5); one precedence order with `--explain`, `meta.provenance`, config discovery with `extends`, `--version` from the owning package.json (V1–V7); options declared once — inferred types, numbers, `multiple`, choices enforced, relations, Standard Schema, kebab on the CLI (S1–S8); `changed`, the action-required envelope, agent detection, the schema budget (N7, N11–N13) — ✅ wave 3 complete |
+| 0 | `sdlc-locks-evals-bands`, `cli-testing-harness` | the loop, and a harness that runs a CLI in-process | 🔨 **not shipped, corrected 2026-09-09** — the locks and the harness are real and green; the *bands* half never ran (`control-bands.yml` has zero runs; 3 of 5 bands have no collector), and the harness's ANSI-regression check does not exist. Both intents moved back to `review` |
+| **1 · engine** | `replacement-parser`, `compat-oracle`, `cli-packaging` | a one-file CLI that runs, the shape lock green, the first published pass rate | 🔨 engine built · oracle grading six hosts with controls · pass rate published on the docs site. **Left:** no compat control band, C3 is Node 24 only, and three of four packages cannot publish (`ENEEDAUTH`) |
+| **2 · compatibility** | `commander-compat`, `cli-help-renderer` ↑, `first-adopter` ↑, `eslint-plugin-cli-floor` ↑ | every upstream file graded; `burgee/commander` 1,360/1,360 (= real commander in the same run) and byte-identical to commander on the demo (X7, 29 cases); help rendered from the manifest with `help <cmd>`, groups, examples, env, width from the runtime (H1–H6) | in progress |
+| **3 · surfaces** | `cli-mcp`, `commander-schema`, `commander-env`, `commander-completions` | `--schema`, `--mcp`, completions — the reason to switch | 🔨 `--schema`, `--mcp` and static completions for bash/zsh/fish/pwsh + Fig served from the manifest on every program, commander syntax included (N1–N6, N8, N9, D2–D5); one precedence order with `--explain`, `meta.provenance`, config discovery with `extends`, `--version` from the owning package.json (V1–V7); options declared once — inferred types, numbers, `multiple`, choices enforced, relations, Standard Schema, kebab on the CLI (S1–S8); `changed`, the action-required envelope, agent detection, the schema budget (N7, N11–N13) — 🔨 **not complete, corrected 2026-09-09.** The surfaces are built and demonstrable; their intents are not met. `--schema` still emits `schemaVersion: 1` and drops `relations`; `--no-` completions do not exist; nothing validates the Fig spec; `--version` before a command exits 2; issue coverage is 11 of ~23 (S) and 8 of ~24 (V), with no "fails on plain commander" assertion anywhere |
 | **4 · reach** | `yargs-compat`, `dev-loop`, `cli-modularity`, `caique`, `docs-deploy`, `cli-benchmarks`, `brand-burgee` | the second host, the dev loop, a CLI we did not write, one brand declaration | 🔨 `burgee/yargs` **804/804** (real yargs: 802 in the same run), byte-identical on the demo (X7, 26 cases), locales shipped, `burgee/yargs/parser` for programs that imported yargs-parser; burgee's additions on yargs syntax — `manifest`, `use()`/`effects()`, `--json`, `--schema`, `--mcp`, `completion <shell>`, `.burgee({ stdout, stderr, exit })` → E1 — guarded so the 804 stay green (X8); `burgee dev <entry>` — fresh module graph per reload, MCP on stdio with `tools/list_changed`, the diff and the help on every save, 30 commands in under 40 ms (W1–W6); `cli-modularity` on the engine — groups in schema, lazy `load` with the zero-modules lock, shared options with `sharedFrom`, the deprecation warning, `resolveCommand`/`runCommand` public, required positionals enforced (M1–M6); next: burgee's additions on yargs syntax, then `dev-loop` |
-| **5 · speed** | single-binary distribution (`burgee build --binary`), `eslint-plugin-cli-floor` as an oxlint **JS** plugin; native spike only if a Z5-scale measurement reopens it | `--help` in 13 ms, or a recorded decision not to | conditional |
-| — | `security-profile` | a scanner-shaped CLI cannot confuse findings with failure | after 3, when an adopter needs it |
+| **5 · speed** | single-binary distribution (`burgee build --binary`), `eslint-plugin-cli-floor` as an oxlint **JS** plugin; native spike only if a Z5-scale measurement reopens it | `--help` in 13 ms, or a recorded decision not to | conditional — and note the wave-5 form of the lint wedge presumes a wave-2 plugin that does not exist yet |
+| — | `security-profile` | a scanner-shaped CLI cannot confuse findings with failure | after 3, when an adopter needs it — **not started**: zero SARIF, `--severity` or `--fail-on` code anywhere in the repo |
 
 ### The stack's waves
 
@@ -393,7 +409,7 @@ the friction — which today they do, and which a 250-command CLI may change.
 
 | | Done | Left |
 | :-- | :-- | :-- |
-| `compat-oracle` | every file of all four suites vendored (internals reported separately); every gate proven; `burgee/commander` 1360/1360, `burgee/yargs` 804/804, `roundel/chalk` 58/58, `flagstaff/ora` 99/99 and `flagstaff/log-update` 99/99 — five façades at 100% of their hosts' own suites (2026-09-08); a host's own `testGlob` decides what is a test and a host may declare the `env` its `npm test` sets, so a suite that lives at its repo root (ora) vendors cleanly; four runners — node:test, mocha, ava and vitest — the last reading a second TAP dialect, since vitest prints a plan and one line per test and no summary at all; skipped tests reported and never counted; the vendored root is a package a CJS fixture can `require('../')`; `COMPAT_TAP_DIR` keeps the raw TAP; ratchet; `--control`; suites pinned to the hosts' npm releases (commander 15.0.0, yargs 18.1.0, chalk 6.0.0, ora 9.4.1, log-update 8.0.0) with a fingerprinted compatibility record; daily release watch opens an issue with the exact test/surface diff, weekly re-vendor PR carries it (C6, R4); ratchet on every PR + Node×OS matrix (C3); generated `compatibility.mdx` (C2) | publish the page (needs `docs-deploy`) |
+| `compat-oracle` | every file of all four suites vendored (internals reported separately); every gate proven; `burgee/commander` 1360/1360, `burgee/yargs` 804/804, `roundel/chalk` 58/58, `flagstaff/ora` 99/99, `flagstaff/log-update` 99/99 and `flagstaff/boxen` 84/84 — six façades at 100% of their hosts' own suites, re-measured 2026-09-09 on `61bd11b9`; a host's own `testGlob` decides what is a test and a host may declare the `env` its `npm test` sets, so a suite that lives at its repo root (ora) vendors cleanly; four runners — node:test, mocha, ava and vitest — the last reading a second TAP dialect, since vitest prints a plan and one line per test and no summary at all; skipped tests reported and never counted; the vendored root is a package a CJS fixture can `require('../')`; `COMPAT_TAP_DIR` keeps the raw TAP; ratchet; `--control`; suites pinned to the hosts' npm releases (commander 15.0.0, yargs 18.1.0, chalk 6.0.0, ora 9.4.1, log-update 8.0.0) with a fingerprinted compatibility record; daily release watch opens an issue with the exact test/surface diff, weekly re-vendor PR carries it (C6, R4); ratchet on every PR + Node×OS matrix (C3); generated `compatibility.mdx` (C2), now serving at <https://burgee.interlace.tools/docs/compatibility> with all six numbers | **C3** — `engines` on every published package says `>=24`, the matrix runs Node 24 only; the weekly re-vendor PR (`compat-refresh.yml`) has never run |
 | `cli-packaging` | no-deps / ESM / no-`main` / `default`-condition lock (R1–R3); artifact gate in `release.yml` between build and publish (R4); tarball size ratchet with baseline (R5); provenance restored under the trusted publisher | — (R6 bun/deno smoke landed in wave 2: `runtime-smoke.yml`) |
 | **ESM + CJS** | every entry has a `default` condition; no top-level await in the library; `require('burgee')` and `require('burgee/commander')` proven against the installed tarball — one artifact, both module systems (K2, revised) | — |
 | `replacement-parser` | engine, lifecycle, exit contract, manifest, four locks; `defineProgram`; `--` pass-through and `-` (G5); seven cited §10 fixes (G6); G7 measured at +5 ms, level with bare `parseArgs`; `demo-cli-burgee` as the third conformance host via `runBurgee` (G2), with the envelope difference declared per host; `ctx.exit`, env binding, root/group help | G3 quirks — they land with the front-ends in wave 2 |
@@ -433,11 +449,21 @@ package.
 
 Two things the artifacts say that are not quite true, so nobody reads them as true:
 
-- **Every buildable intent still reads `review`.** Per `AI_NATIVE_SDLC.md` rule 3,
-  `approved` is the human gate — and the engine, the oracle and the façade were built
+- **Almost every buildable intent still reads `review`.** Per `AI_NATIVE_SDLC.md` rule 3,
+  `approved` is the human gate — and the engine, the oracle and the façades were built
   through it. Either wave 1's intents move to `approved` retroactively, or the gate is
   acknowledged as advisory in practice. The plan does not pretend otherwise.
-- **`replacement-parser` is largely built and says `review`.** Same fix.
+- **`replacement-parser` is largely built and says `review`.** Same fix. So are `caique`,
+  `dev-loop`, `cli-mcp` and the two compat intents.
+- **`brand-burgee` is built and has no `design.md` at all.** `burgee brand`, six generated
+  surfaces and a `brand:check` script all shipped ahead of a design. It cannot move to
+  `approved` until one exists — which is the lock doing its job, not an obstacle to route
+  around.
+- **Corrected 2026-09-09, in the other direction.** Drift runs both ways, and two intents were
+  claiming more than they had: `sdlc-locks-evals-bands` and `cli-testing-harness` both read
+  `shipped` and both had unmet criteria. They are back at `review`, with the specifics recorded
+  in each file. One intent moved the other way — `cli-modularity` to `shipped`, all three
+  criteria locked.
 
 ### The one risk that matters
 
@@ -446,7 +472,7 @@ That is the cost of this decision and it is real.
 
 The mitigations, both live:
 
-- **The burn-down is public from the first commit.** It is `1361 / 1361` and `804 / 804` today — commander's and yargs' own suites, in full. A number
+- **The burn-down is public from the first commit.** It is `1360 / 1360` and `804 / 804` today — commander's and yargs' own suites, in full. A number
   that only goes up is more persuasive than any announcement, and it makes the wait
   visible instead of silent.
 - **`eslint-plugin-cli-floor` needs no runtime adoption at all** — no dependency in
@@ -492,6 +518,8 @@ whatever a one-line shim points at, and the rate ratchets.
 | `compat-yargs-pass-rate` | yargs' 804 tests | 804 / 804 (2026-09-08) |
 | `compat-ora-pass-rate` | ora's 99 tests | 99 / 99 (2026-09-08) |
 | `compat-log-update-pass-rate` | log-update's 99 tests | 99 / 99 (2026-09-08) |
+| `compat-chalk-pass-rate` | chalk's 58 tests | 58 / 58 (2026-09-08) |
+| `compat-boxen-pass-rate` | boxen's 84 tests | 84 / 84 (2026-09-08) |
 | `node-matrix-green` | every Node LTS in `engines` × Linux, macOS, Windows | **Node 24 only** on three OSes (2026-09-08). A deliberate narrowing while the output stack lands, so C3 is *not* met: `engines` says `>=24` and 26 is not exercised. Restored by adding 26 back to the matrix in `compat.yml` — one line, and nothing else changes |
 | documented divergences | `excluded.json`, rendered on the docs site | 9 upstream files testing internals, excluded and named |
 
@@ -608,11 +636,160 @@ The name is reversible until the first publish, and **wave 1 does not depend on 
 the engine, the shape lock and the compatibility oracle are all built before anything
 reaches npm.
 
+## What is genuinely not done
+
+Every intent under `.sdlc/intents/` was read against `main` at `61bd11b9` on 2026-09-09 —
+success criterion by success criterion, verified by running the thing, reading the test, and
+fetching the URL, not by reading a README. **30 graded intents (two are `dropped`), 137 success
+criteria, 39 met.** This section is the other 98, grouped so the remaining surface is one read
+rather than thirty-two.
+
+The headline is not that the roadmap understates itself. It is that **the repo is far stronger at
+building than at closing**: six compatibility hosts at 100% with controls, a docs site live and
+serving this commit, every test in the tree green — and almost every criterion that requires an
+*artifact outside the code* (a benchmark, a band, a page, a published tarball, an adopter) is
+unmet.
+
+### 1. The benchmark suite: three axes of four, and B1 still unmeasured
+
+*Updated 2026-09-09.* **Three of the four axes landed.** `benchmarks/` exists, `npm run bench`
+runs, `bench.yml` gates every PR on B2, B3 and B4, and `/docs/benchmarks` is generated from the
+emitted JSON. **B1 has still never run**, and that is now a stated fact in the output rather
+than a hole in the tree: without `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` the axis
+reports `skipped`, its two bands carry the reason instead of a number, and the roadmap
+headline reads `unmeasured` — never `false`, and never an estimate.
+
+| Waiting on it | The criterion it blocks | Where it stands |
+| :-- | :-- | :-- |
+| `agent-native-cli-layer` | the ≥40% tokens / ≥30% turns claim | **still unmeasured** — the harness, the five tasks and both builds are in the tree and driven end to end against a stub `claude`; only the credential is missing |
+| `cli-mcp` | B1 over MCP versus over Bash | still blocked, same credential |
+| `commander-env` | the provenance task's median turns against the plain build | still blocked, same credential; the task exists and its check is proven to discriminate |
+| `replacement-parser` | B2 cold start at or below cac | **measured, and not met**: 1.37–1.47× cac across three runs |
+| `roundel`, `flagstaff`, `cli-output-stack` | the B7 rows on `/benchmarks` | **published** — bundled and installed bytes against chalk, ora, boxen and log-update, each gated at 1.0× the incumbent; spawn deltas for the output stack are still not measured |
+| `caique`, `caller-matrix` | the non-TTY task that must never time out | the task is written and locked; it runs when B1 does |
+
+`.sdlc/bands/control-bands.json` now declares twelve benchmark bands, and
+`benchmarks/bands.test.ts` fails if any of them names a number no axis emits — the failure
+mode the two agent bands were in from the day they were written, reading a directory that did
+not exist and reporting *"band not computed yet"* forever. Both still stand at **0 of 8**,
+deliberately.
+
+### 2. Nothing publishes, and nobody has adopted
+
+- **Three of four packages cannot publish.** `roundel`, `flagstaff` and `caique` are finished at
+  0.1.0 in the tree and stuck at **0.0.1 on npm**. Every `release.yml` run fails their publish
+  jobs with `npm error code ENEEDAUTH` — most recently run `34309347964`. Only `burgee` has a
+  trusted publisher. This makes every criterion phrased *"in every published tarball"*, *"installs
+  from its tarball"* or *"before their façades publish"* unmeetable, and it is what stands between
+  bet 2 and done.
+- **There is no adopter — external or internal.** `registry.npmjs.org/-/v1/search?text=depends:burgee`
+  returns `{"objects":[],"total":0}`. All five `first-adopter` criteria are unmet: no adopting CLI,
+  no adoption report, no friction log, no revert branch, no B1 for a real CLI. The one artifact
+  produced is a ranked **prospect** list. Bet 3 has not started.
+- **`eslint-plugin-cli-floor` does not exist** — not a package, not a rule, a 404 on npm. This is
+  the adoption wedge the roadmap says can earn users during the whole build, re-sequenced on
+  2026-09-08 to run beside wave 2, and the source of the `migrate-import` autofix bet 1 leans on.
+  All four of its criteria are unmet, and its recorded naming decision is corrupted into
+  meaninglessness (the same name in all three slots).
+
+### 3. Stage 6 has never closed a loop
+
+- **`control-bands.yml` has never run.** It is scheduled weekly and `gh run list` for it is empty.
+  The two observations in `control-bands.history.json` were recorded by hand.
+- **Three of five bands have no collector that can run.** *Fixed 2026-09-09 for two of the
+  three.* `npm run bench` now writes `benchmarks/results/<suite>/<date>.json`, `bench.yml`
+  lands the day's file on every push to main so the series can grow, and
+  `benchmarks/bands.test.ts` fails when a band names a metric no axis produces. The two agent
+  bands remain at 0 of 8 — their axis needs a credential — but they now say *why*, in the
+  results file, instead of reporting the same "not computed yet" a healthy young band reports.
+- ~~**The compat pass rate is not a band at all**~~ — **landed 2026-09-09.** Six bands, one per
+  graded host, read from `packages/compat-oracle/results.json` through the compat axis, which
+  re-emits the oracle's own rate and contains no grading logic of its own (constraint 8), plus
+  a deterministic gate at the recorded baseline. This was the single substantive gap between
+  `commander-compat`, `yargs-compat` and `shipped`; both intents' remaining open items are
+  wording that predates the consolidation into one package.
+- **The U9 eval has never evaluated anything.** `evals.yml`'s weekly `schedule` has never fired,
+  and every PR run prints `Layer 2 — skipped: no credential`. Adding `CLAUDE_CODE_OAUTH_TOKEN`
+  would flip three criteria at once (`cli-output-stack`, `flagstaff`, `plugin-contract`).
+- **The evals link checker does not read `.sdlc/intents/`.** `scripts/run-evals.ts` scans 14
+  agent docs and none of them is under this directory — so a broken link in *this file*, the
+  artifact the whole repo hands work off through, fails nothing.
+
+### 4. Checks that cannot fail, and checks that fail on good deploys
+
+Rule 4 of the working agreement is that a fix is not done until a check would have caught it, and
+the check is proven to fail on the unfixed state. Six checks do not meet their own rule:
+
+- **ANSI in non-TTY** (`cli-testing-harness`) — `examples/conformance` contains no escape-byte
+  assertion at all, and the demos emit no colour, so the half of that criterion cannot go red.
+- **A deliberate `.map` in the artifact gate** (`cli-packaging`) —
+  `scripts/check-published-artifacts.ts` has no test; the catch is an unproven regex.
+- **`files` membership** (`cli-packaging`) — the exports lock checks disk, not the pack list, so
+  an entry excluded by `files` ships broken and passes.
+- **`brand:check` drift** (`brand-burgee`) — no workflow runs it, and nothing proves it fails on
+  drifted content.
+- **The Z2 byte-identity test** (`dev-loop`) — does not exist; a weight allow-list stands in for it.
+- **The post-deploy SHA gate** (`docs-deploy`) — it *does* fail, on good deploys: run
+  `34309369070` went red against this very commit because the alias had not moved yet, and **4 of
+  9 production runs have failed**. A check that reds on success is training people to ignore it.
+
+### 5. Criteria that are stale, not unmet — rewrite them, do not reinterpret them
+
+Nine criteria name something the repo decided against later. They cannot be graded as written and
+should be rewritten at their next edit:
+
+| Where | What it names | What actually shipped |
+| :-- | :-- | :-- |
+| `first-adopter` #1, `cli-help-renderer` #3 | `commander-agent` / `yargs-agent` | both **dropped** 2026-09-06; the front-ends are `burgee/commander` and `burgee/yargs` subpaths |
+| `cli-help-renderer` #3 | the two front-ends render byte-identical help to each other | the shipped contract is the **opposite**: each is byte-identical to *its own incumbent*, and the two incumbents differ |
+| `replacement-parser`, `commander-compat` | `selvage`, `COMPAT_TARGET=…`, `excluded.json` | one package `burgee`; targets declared in `hosts.ts`; a ratchet in `baseline.json` |
+| `cli-testing-harness` | `@interlace/cli-core`, `commander-harness`, a 20 ms lock | `burgee`; drivers under `compat-oracle`; the 20 ms ceiling was deliberately superseded after it failed two unrelated PRs |
+| `plugin-contract` #3, `flagstaff` #7 | `burgee plugin check` | shipped as `flagstaff check`, scoped to one layer |
+| `output-stack-compat` #1 | eight rows including clack and inquirer | a 2026-09-08 decision records both as blocked — a façade matching their drawing snapshots would *be* the incumbent |
+| `compat-oracle` #3 | 1,210 / 1,215 | the vendored suite is 1,360 tests |
+| `docs-deploy` #1 | `/.sdlc/research` returns 200 | the page is at `/docs/research` (200); `/.sdlc/research` is 404 |
+| `agent-native-cli-layer` (decision) | "no process or `CLAUDECODE` sniffing" | `packages/burgee/src/agent.ts` probes five agent env vars — N12 reversed this and the reversal was never recorded |
+
+### 6. Not started at all
+
+- **`security-profile`** — zero of five. `grep -rin "sarif"` outside `.sdlc/` returns nothing, and
+  so do `fail-on` and `security-severity`. Correctly scheduled after wave 3; it should not read as
+  though it has begun.
+- **`caller-matrix`** — zero of four. `/callers` is 404 and there is no matrix generator.
+- **`upstream-watch`** — one of six. The declaration and its lock landed; the watch did not.
+  `competitors.json` is read by exactly one file, the lock test. The daily job covers **6 of the
+  14** declared competitors, fingerprints a git clone rather than the published tarball, compares
+  no weights, and writes no changeset — which this intent calls the reason to build it. Every
+  `seen.version` and `seen.weight` is still `null`.
+- **`plugin-contract`** — one of four, and that one only at the two packages that already comply:
+  the lock derives its host list from the tree, so `caique` and `burgee`, which ship no schema,
+  are found *not applicable* rather than failing.
+
+### 7. Owner-only, and blocking
+
+Four of the six [owner tasks](#owner-tasks--outside-an-agents-reach) above are still open, and one
+of them — the publish credential for roundel, flagstaff and caique — blocks bet 2 outright.
+`pennon` and `answering` are still `0.0.1` rather than honest `0.0.2` placeholders; `burgie` and
+`burgy` are unpublished; `packages/commander-harness` and `packages/yargs-harness` are still on
+disk. Two rows are done and now struck.
+
 ## Execution status
 
-Twenty-four intents: two `shipped`, two `dropped`, one `draft`, nineteen `review`; every open question in every intent has
-a recorded decision. Moving an intent to `approved` is the human gate, per
-`AI_NATIVE_SDLC.md` rule 3 — nothing is built before that.
+**Recounted 2026-09-09 against `main`.** Thirty-two intents: one `shipped`
+(`cli-modularity`), three `approved` (`cli-output-stack`, `roundel`, `flagstaff` — the owner's
+Design→Build gate of 2026-09-08), two `dropped`, four `draft`, twenty-two `review`.
+
+Three statuses moved in this pass, and two of them moved **down**: `sdlc-locks-evals-bands` and
+`cli-testing-harness` were reading `shipped` and are not — see
+[What is genuinely not done](#what-is-genuinely-not-done). `cli-modularity` moved up, from
+`review` to `shipped`, because all three of its criteria are demonstrably met and locked.
+
+Nothing else moved up, and that is deliberate: `approved` is a human gate per
+`AI_NATIVE_SDLC.md` rule 3, and an agent cannot grant it. Several intents — `caique`,
+`dev-loop`, `cli-mcp`, `commander-compat`, `yargs-compat`, `brand-burgee` — have substantial
+build behind them while still reading `review` or `draft`. That is the drift
+[Status drift, stated](#status-drift-stated) already admits: the gate has been advisory in
+practice. Moving them is the owner's call, not this pass's.
 
 Prerequisites only the owner can supply (none are set as of 2026-09-06):
 

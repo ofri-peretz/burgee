@@ -34,6 +34,12 @@ export interface Component<S = unknown> {
   frame?(t: number, state: S): string;
   /** Milliseconds between repaints when `frame` is given; `DEFAULT_INTERVAL` otherwise. */
   interval?: number;
+  /**
+   * The two states this component is *shown* with by `flagstaff check` and the docs gallery.
+   * The loop never reads it: a component's real state comes from the program. Declared here
+   * because a grader that invents a state renders the wrong thing and says `ok` (#59).
+   */
+  sample?: { running: S; done: S };
 }
 
 export const CONTRACT = 1;
@@ -49,7 +55,31 @@ export interface Plugin {
   components?: Record<string, Omit<Component, 'name'>>;
 }
 
-export type PluginErrorCode = 'E_PLUGIN_SCHEMA' | 'E_NO_STATIC_PROJECTION' | 'E_PLUGIN_CONTRACT' | 'E_UNKNOWN_SPINNER' | 'E_UNKNOWN_BORDER';
+/**
+ * The family's whole refusal vocabulary (plugin-contract R8). One union, and every refusal
+ * any surface of this package prints is a member of it — the registry's five, and the two
+ * `flagstaff check` adds for what only a renderer can discover: a plugin that validates but
+ * contributes nothing renderable, and a component whose `static` throws on the state it is
+ * shown with.
+ *
+ * The last two lived as bare string literals in `cli.ts` until 2026-09-09, which is exactly
+ * the hole R8 exists to close: a second host could spell `E_COMPONENT_THREW` its own way and
+ * nothing would notice. `scripts/plugin-error-vocabulary-lock.test.ts` now reads this
+ * declaration out of the source and refuses any `'E_…'` literal in a host that is not in it.
+ *
+ * It stays a *type* rather than a `const` array on purpose. R3 forbids one layer importing
+ * another, so a runtime list could not be shared with roundel or caique even if it existed —
+ * the lock has to read the source to work across the family, and it does. A `const` array
+ * would therefore buy nothing and cost ~195 B on `./spinner`, which has 82 B of headroom.
+ */
+export type PluginErrorCode =
+  | 'E_PLUGIN_SCHEMA'
+  | 'E_NO_STATIC_PROJECTION'
+  | 'E_PLUGIN_CONTRACT'
+  | 'E_UNKNOWN_SPINNER'
+  | 'E_UNKNOWN_BORDER'
+  | 'E_NO_CONTRIBUTION'
+  | 'E_COMPONENT_THREW';
 
 /** A refused plugin says what is wrong, where, and what to do about it. */
 export class PluginError extends Error {
@@ -188,6 +218,39 @@ interface Registry {
 const registry: Registry = { plugins: [], tokens: new Map(), glyphs: new Map(), spinners: new Map(), borders: new Map(), components: new Map() };
 
 /**
+ * Stored contributions are frozen copies: what the registry holds cannot be edited by a
+ * caller who kept a reference — including the plugin author, whose object stays their own.
+ * `Object.freeze` returns `Readonly<T>`, which a `SpinnerDef` field will not accept; the
+ * value is the same object, so the type it went in as is the type it comes back as.
+ */
+function frozen<T>(value: T): T {
+  Object.freeze(value);
+  return value;
+}
+
+/**
+ * A component's `sample` is the one nested object the contract lets a plugin hold, and it is
+ * plain data — the schema admits objects, arrays, strings, numbers and booleans, nothing that
+ * can carry behaviour. A shallow freeze would leave the author's own object shared by
+ * reference, so editing it after `register()` would write back through the registry. This
+ * copies it to whatever depth it has, and freezes each level on the way out.
+ */
+function deepFrozen<T>(value: T, seen = new WeakMap<object, unknown>()): T {
+  if (value === null || typeof value !== 'object') return value;
+  // A sample may be circular — nothing forbids it, and a plugin that builds one by accident
+  // should get a refusal from `check`, not a stack overflow from the registry. The map both
+  // terminates the walk and preserves the shape: the copy points at its own copy.
+  const already = seen.get(value);
+  if (already !== undefined) return already as T;
+  // `Object.entries` reads an array's indices as string keys, and assigning them back onto an
+  // array literal rebuilds it — so one loop covers both shapes.
+  const copy = (Array.isArray(value) ? [] : {}) as Record<string, unknown>;
+  seen.set(value, copy);
+  for (const [k, v] of Object.entries(value)) copy[k] = deepFrozen(v, seen);
+  return frozen(copy) as T;
+}
+
+/**
  * The only wiring (R4, U9): validate, then keep every key this package understands. A later
  * plugin's entry replaces an earlier one of the same name, so a user overrides a built-in
  * by registering their own — the built-ins go through this same door first.
@@ -197,14 +260,30 @@ export function register(plugin: unknown): void {
   registry.plugins.push(plugin.name);
   for (const [name, hex] of Object.entries(plugin.tokens ?? {})) registry.tokens.set(name, hex);
   for (const [name, text] of Object.entries(plugin.glyphs ?? {})) registry.glyphs.set(name, text);
-  for (const [name, def] of Object.entries(plugin.spinners ?? {})) registry.spinners.set(name, def);
-  for (const [name, style] of Object.entries(plugin.borders ?? {})) registry.borders.set(name, style);
-  for (const [name, component] of Object.entries(plugin.components ?? {})) registry.components.set(name, { ...component, name });
+  for (const [name, def] of Object.entries(plugin.spinners ?? {})) registry.spinners.set(name, frozen({ ...def, frames: frozen([...def.frames]) }));
+  for (const [name, style] of Object.entries(plugin.borders ?? {})) registry.borders.set(name, frozen({ ...style }));
+  for (const [name, component] of Object.entries(plugin.components ?? {})) registry.components.set(name, frozen({ ...deepFrozen(component), name }));
 }
 
-/** What has been registered, read-only: the docs gallery and `flagstaff check` are projections of this. */
+/**
+ * A copy of what has been registered — the docs gallery and `flagstaff check` are
+ * projections of this. A copy rather than the registry itself, because `Readonly<T>` freezes
+ * the property bindings and not the `Map`s behind them: handing the live registry out made
+ * `set`, `delete` and `clear` a second door beside `register()`, through which a spinner
+ * with no `static` — or a component with no projection at all — could be put in without
+ * ever meeting `validate()` (#58). U3's refusal has to be structural to mean anything, so
+ * there is one way in. The values are the frozen objects `register()` stored, so nothing
+ * reached through here writes back.
+ */
 export function registered(): Readonly<Registry> {
-  return registry;
+  return {
+    plugins: [...registry.plugins],
+    tokens: new Map(registry.tokens),
+    glyphs: new Map(registry.glyphs),
+    spinners: new Map(registry.spinners),
+    borders: new Map(registry.borders),
+    components: new Map(registry.components),
+  };
 }
 
 /**

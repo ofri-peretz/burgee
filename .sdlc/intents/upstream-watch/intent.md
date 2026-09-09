@@ -116,6 +116,43 @@ files are affected, what bump that implies, or what the changeset should read.
 - Proven by a fixture, not by waiting: a recorded "old" fingerprint and a recorded "new" one
   produce a known issue body, asserted byte-for-byte.
 
+## Verified against `main` — 2026-09-09
+
+Checked criterion by criterion on `61bd11b9`. **One of six met, one partly.** `draft` is the
+honest status and it is already what this file says. The declaration landed; the watch did not.
+
+- **Every published package declares at least one competitor, with a lock that fails when a
+  subpath naming an incumbent has no entry** — **met**, and ahead of this file's own "What is
+  missing" table, which still says these files do not exist. All four of
+  `packages/{burgee,roundel,flagstaff,caique}/competitors.json` are present, and
+  `scripts/competitors-lock.test.ts` passes 21 cases enforcing exactly that, including that a
+  `compat` claim names a host the oracle actually grades.
+- **The watch covers every declared competitor, including those with no vendored suite — at least
+  the fourteen named** — **not met.** All fourteen are declared; **nothing watches them**.
+  `competitors.json` is read by exactly one file in the repo, the lock test.
+  `compat-upstream.yml` runs `compat-oracle --upstream`, which filters `hosts.ts` to
+  `status: 'active'` — **six** hosts: commander, yargs, chalk, ora, log-update, boxen.
+  cli-table3, clack and inquirer are `planned`; picocolors, string-width, wrap-ansi,
+  cli-spinners, cli-boxes, signal-exit and slice-ansi are not hosts at all. The weight-only
+  competitors — the ones this intent says "rot quietly" — get nothing, which is the gap it was
+  opened to close.
+- **An added export produces an issue naming the export, the subpath claiming parity, and a
+  changeset block with the right bump** — **not met.** The workflow's issue body is
+  `jq -r .report` plus a fixed re-vendor footer. There is no changeset generation anywhere in
+  `.github/workflows/`, `packages/compat-oracle/src/` or `scripts/`. This is the part this intent
+  calls the reason to build it.
+- **A weight change produces an issue naming the stale README line and weight-lock comment** —
+  **not met.** `packages/compat-oracle/src/upstream.ts` fingerprints a **git clone**, not the
+  published tarball, and compares no weights. The `cited: [...]` arrays in every
+  `competitors.json` are recorded and consumed by nothing, and every `seen.version` and
+  `seen.weight` is still `null` — no fingerprint has ever been taken.
+- **The dedupe holds across two runs on the same day** — met for the six vendored hosts:
+  `compat-upstream.yml` searches issue titles and `continue`s on a hit. Not applicable to
+  competitors, because no competitor job exists.
+- **Proven by a fixture: a recorded old and new fingerprint produce a known issue body, asserted
+  byte-for-byte** — **not met.** `packages/compat-oracle/src/upstream.test.ts` has four unit
+  cases (title parsing, `.d.ts` name extraction, `diffRecords`); there is no issue-body fixture.
+
 ## Open questions
 
 - **Where the fingerprint lives.** Proposed: `packages/<pkg>/competitors.json`, one file per

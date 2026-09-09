@@ -64,9 +64,24 @@ beforeAll(() => {
   writeFileSync(join(dir, 'cli.mjs'), ONE_FILE);
 }, 120_000);
 
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+/**
+ * Every assertion below shells out — a Node process per test, `npm ls` for the last one —
+ * and `afterAll` deletes an installed `node_modules` tree. Vitest's 5 s test and 10 s hook
+ * defaults are calibrated for in-process assertions, and `beforeAll` was the only thing
+ * here that declared its own. So the file was green run alone (a spawn costs ~90 ms) and
+ * red three runs in five under `npx turbo run test --force`, where five other package
+ * suites and a Next.js build are competing for the box and the same spawn costs 6–12 s.
+ * The failure was always `Test timed out in 5000ms`, never an assertion.
+ *
+ * 30 s is what the other spawning suites in this repo already declare — `burgee`'s shell
+ * completions, `flagstaff`'s ora and log-update signal tests. It is a clock, not a retry:
+ * every assertion below is unchanged, and each still fails outright when it is wrong.
+ */
+const SPAWN = 30_000;
 
-describe('Z1 — one file, npm i, no build step', () => {
+afterAll(() => rmSync(dir, { recursive: true, force: true }), SPAWN);
+
+describe('Z1 — one file, npm i, no build step', { timeout: SPAWN }, () => {
   it('prints plain text through a pipe, whatever the env says', () => {
     expect(run()).toBe('ok error\n');
   });

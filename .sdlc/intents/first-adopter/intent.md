@@ -50,6 +50,32 @@ wave 5 after four more waves are built on the assumption.
 4. The revert branch exists and is green, proving constraint 2.
 5. `cli-benchmarks` reports B1 for the real CLI, not only the demo.
 
+## Verified against `main` — 2026-09-09
+
+Checked criterion by criterion on `61bd11b9`. **Zero of five met.** The status stays `review`.
+
+Stated plainly: **there is no external adopter, and no internal one either.**
+`registry.npmjs.org/-/v1/search?text=depends:burgee` returns `{"objects":[],"total":0}`. The only
+things in the world that import `burgee` are `examples/demo-cli-*` and the private
+`compat-oracle`, all in this repo.
+
+- **One non-demo CLI ships a release depending on the layer** — not met, and **stale twice**: it
+  names `commander-agent`, which is a `dropped` intent, and the package that shipped is `burgee`.
+- **A written adoption report — time taken, lines changed, what broke, what was missing** — not
+  met. The one artifact this intent has produced is `.sdlc/research/dependents.md`, generated
+  2026-09-08 by `scripts/rank-dependents.ts`: the top 50 commander and top 50 yargs dependents by
+  weekly downloads (terser, sucrase, svgo, katex, webpack-cli…). That is a **prospect list**, not
+  adoption, and the README should not read as though the lane has moved past it.
+- **Every friction point is a new intent or a recorded decision not to fix it** — not met; no
+  friction has been encountered, because nothing has been adopted.
+- **The revert branch exists and is green** — not met; no such branch in the 27 heads on `origin`.
+- **`cli-benchmarks` reports B1 for the real CLI** — not met; `cli-benchmarks` does not exist.
+
+This intent's own "Why now" says that if no real CLI will take it, *that is the project's most
+important result*. **That result has not been produced either way.** The work has not been
+attempted past ranking the candidates, and this is bet 3 of the three the roadmap says everything
+else is conditional on.
+
 ## Open questions
 
 None open. Decided at finalisation (2026-09-06): wave 2, not later, because four more

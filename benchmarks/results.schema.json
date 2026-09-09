@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://burgee.interlace.tools/schemas/benchmark-results.json",
+  "title": "burgee benchmark results",
+  "description": "One run of `npm run bench`, for one suite. Written to benchmarks/results/<suite>/<YYYY-MM-DD>.json, which is where scripts/control-bands.ts reads its observations from.",
+  "type": "object",
+  "required": ["schema", "suite", "measured", "commit", "machine", "axes", "records", "bands", "claims"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "const": 1 },
+    "suite": { "enum": ["cli-benchmarks", "agent-cli-bench"] },
+    "measured": { "type": "string", "format": "date-time" },
+    "commit": { "type": "string", "description": "The commit the numbers describe, or `unknown` outside a checkout — never a guess." },
+    "machine": {
+      "type": "object",
+      "description": "B2's milliseconds are a property of this machine as much as of the code, which is why the banded perf number is a ratio and not a duration.",
+      "required": ["os", "arch", "cpu", "cores", "node", "ci"]
+    },
+    "axes": {
+      "type": "object",
+      "description": "Per axis: measured, skipped (asked for, could not run) or not-run (not selected). Anything but `measured` carries a reason, and contributes no band value and no claim verdict.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "status": { "enum": ["measured", "skipped", "not-run"] },
+          "reason": { "type": "string" },
+          "method": { "type": "string", "description": "How the numbers were produced, in prose, so the table can be read without the source." }
+        }
+      }
+    },
+    "records": {
+      "type": "array",
+      "description": "Every measurement, in the one shape all four axes emit (B5).",
+      "items": {
+        "type": "object",
+        "required": ["axis", "variant", "metric", "unit", "samples", "median", "p95"],
+        "properties": {
+          "axis": { "enum": ["agent", "perf", "compat", "weight"] },
+          "variant": { "type": "string", "description": "What was measured: a CLI variant, a host, an entry point, or a ratio of two of those, written `a ÷ b`." },
+          "metric": { "type": "string" },
+          "unit": { "type": "string" },
+          "samples": { "type": "integer", "minimum": 1, "description": "For a deterministic measurement (a byte count, a pass rate) this is 1 and median equals p95: a p95 over one sample is that sample, stated rather than hidden." },
+          "median": { "type": "number", "description": "The gated and banded statistic. Never the p95: a tail-driven gate is what red-lit two unrelated PRs in issue #27." },
+          "p95": { "type": "number" },
+          "gate": {
+            "type": "object",
+            "required": ["why"],
+            "description": "A deterministic per-PR bound. `why` is mandatory: a bound nobody can argue with is a bound nobody will maintain.",
+            "properties": { "max": { "type": "number" }, "min": { "type": "number" }, "why": { "type": "string" } }
+          },
+          "note": { "type": "string" },
+          "detail": { "type": "object", "description": "Whatever reproducing the number needs: resolved paths, versions, raw counts." }
+        }
+      }
+    },
+    "bands": {
+      "type": "object",
+      "description": "What Stage 6 reads. `scripts/control-bands.ts` picks `bands.<id>.value`. An entry with no value carries the status and reason instead — it is never zero, and never absent.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "value": { "type": "number" },
+          "from": { "type": "object", "description": "The record the value was read out of. A value with no `from` is refused by benchmarks/emit.ts." },
+          "status": { "enum": ["skipped", "not-run"] },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "claims": {
+      "type": "object",
+      "description": "Every number the repository states in public, settled against a record. `met: false` and `status: \"unmeasured\"` are different outcomes and never collapse into each other.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["claim", "source", "target"],
+        "properties": {
+          "claim": { "type": "string" },
+          "source": { "type": "string", "description": "The file that states it, so a reader can go and correct it." },
+          "target": { "type": "string" },
+          "measured": { "type": "number" },
+          "unit": { "type": "string" },
+          "met": { "type": "boolean" },
+          "status": { "const": "unmeasured" },
+          "reason": { "type": "string" },
+          "from": { "type": "object" }
+        }
+      }
+    }
+  },
+  "$comment": "\"Turns\" means `num_turns` as `claude -p --output-format json` reports it. Tokens are input + cache-creation + cache-read + output, as the same JSON reports them: leaving cache reads out would make a cached run look free, and a benchmark that rewards caching measures the cache."
+}

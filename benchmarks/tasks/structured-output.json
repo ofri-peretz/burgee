@@ -1,0 +1,9 @@
+{
+  "id": "structured-output",
+  "requirement": "O1 \u2014 the `{ ok, data }` envelope under --json instead of prose a model has to parse",
+  "prompt": "Using the `mytool` command, get the configuration value for user.name as JSON. Tell me the value you found and the exact JSON you saw.",
+  "setup": [],
+  "check": "grep -qi 'ada' \"$BENCH_RESULT\" && grep -q '{' \"$BENCH_RESULT\"",
+  "maxTurns": 12,
+  "exemplar": "I ran `mytool config get user.name --json`, which printed {\"ok\":true,\"data\":\"ada\"}, so the value is ada."
+}

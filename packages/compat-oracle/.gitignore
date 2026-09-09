@@ -1,16 +1,17 @@
-# Written per run, never committed: the public shims, the internal ones, and the setup
-# file. `.mjs` as well as `.js` since a CommonJS host's shim needs the ESM extension, and
-# `src/` as well as `lib/` and `build/` since `internalDir` is host knowledge — cli-table3
-# files its internals under `src/`.
+# Written per run by `grade()` in src/run.ts, and never committed: their contents name the
+# target of that run, and the internal shims carry an absolute path from whichever machine
+# produced them. `vendored-suite.test.ts` asserts every path listed here is really ignored —
+# four of them were committed once, with `/Users/…/burgee-wave3/…` inside.
 vendor/*/shim*.js
 vendor/*/shim*.mjs
+vendor/*/vitest.config.mjs
 vendor/*/vitest.setup.mjs
+# The generated internal shims, at whatever path a host files its own modules: `lib/` for
+# commander and yargs, `src/` for cli-table3, `build/` where a host compiles first.
 vendor/*/lib/
-vendor/*/build/
 vendor/*/src/
+vendor/*/build/
 results.json
 results.control.json
 upstream.json
 vendor-diff.md
-# written per run, like the shims: the file list vitest reads its suite from
-vendor/*/vitest.config.mjs

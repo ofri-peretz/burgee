@@ -25,6 +25,43 @@ export interface HostImport {
   control?: string;
 }
 
+/**
+ * A directory under `testDir` whose files match the host's `testGlob` and are nonetheless
+ * **not** graded. Declaring one is the only way a copied directory stays out of the walk,
+ * and it costs a written reason: `test/issues/` sat vendored, committed and ungraded for a
+ * release because nothing had to say so out loud.
+ */
+export interface UngradedDir {
+  /** Path under `testDir`, posix, as the walk sees it. */
+  dir: string;
+  /** Why it is copied and not graded. A lock refuses an empty one. */
+  why: string;
+}
+
+/**
+ * A case the gate must not count, named. `match` is a substring of the runner's own case
+ * name — file, suite and title, as the flat TAP prints it — so an exclusion says exactly
+ * which cases it removes and a reader can grep for them in the raw TAP.
+ *
+ * The oracle refuses an exclusion that matches nothing, and refuses one on a runner whose
+ * TAP has no per-case names: an exclusion that quietly stops applying, or quietly never
+ * applied, is how a compat claim becomes a lie (`compat-oracle/intent.md`).
+ */
+export interface Exclusion {
+  match: string;
+  why: string;
+}
+
+/**
+ * Failures the control run is allowed against the host's own package, with the reason. The
+ * control exists to prove the gate (criterion 3), so anything above this number is red —
+ * a known-good implementation scoring 93.8% must not pass silently.
+ */
+export interface ControlAllowance {
+  count: number;
+  why: string;
+}
+
 export interface Host {
   /** npm package we are compatible with. */
   name: string;
@@ -50,6 +87,15 @@ export interface Host {
    * yargs also imports `yargs/helpers`.
    */
   imports: HostImport[];
+  /**
+   * Directories under `testDir` that the copy step brings along and the runner must not
+   * grade. Everything else under `testDir` is discovered recursively.
+   */
+  ungradedDirs?: UngradedDir[];
+  /** Cases excluded from the gate, each named and justified. */
+  excludes?: Exclusion[];
+  /** What the control may fail against the host's own package, and why. */
+  controlFailures?: ControlAllowance;
   /** Files the runner must load first, relative to the vendored tests dir. */
   preamble?: string;
   /**
@@ -110,6 +156,24 @@ export const HOSTS: Host[] = [
       { upstream: 'yargs-parser', subpath: '/parser', reexportDefault: true, control: 'yargs-parser' },
     ],
     runner: 'mocha',
+    ungradedDirs: [
+      {
+        dir: 'fixtures',
+        why: "Fixture programs the tests spawn as subprocesses. They match `*.mjs` only because that is how yargs writes an ESM fixture; running one as a test grades nothing.",
+      },
+      {
+        dir: 'helpers',
+        why: "`utils.mjs`, the output-capture helper the top-level tests import. A helper, never a test — mocha would load it and register no cases.",
+      },
+      {
+        dir: 'esm',
+        why: "yargs' separate ESM suite, which upstream runs under its own command. Found by this walk on 2026-09-09 and deliberately not graded yet: `platform-shim-test.mjs` imports `lib/platform-shims/esm.mjs`, an internal the vendor step's `../lib/` detector does not reach from a subdirectory, so grading the directory today adds three files that fail to load rather than three that measure anything. Named here so it is a decision with a date rather than a silence; grading it is its own piece of work.",
+      },
+    ],
+    controlFailures: {
+      count: 2,
+      why: "Real yargs reports its own version by reading the nearest package.json, and from inside a vendored copy that lookup finds ours. Two usage tests assert the version string; burgee scores 804 where yargs itself scores 802. Documented since the host was activated.",
+    },
     preamble: 'before.mjs',
     timeoutMs: 24_000,
     extraDirs: ['locales'],
@@ -185,9 +249,15 @@ export const HOSTS: Host[] = [
     surfaceFiles: ['index.d.ts', 'src/table.js'],
     tagPrefix: 'v',
     runner: 'vitest',
+    excludes: [
+      {
+        match: 'test/verify-legacy-compatibility-test.js > verify original cli-table behavior > ',
+        why: "Nine cases that call `commonTests(require('cli-table'))` — the *legacy* incumbent, not the target. They pass whatever `COMPAT_TARGET` names: breaking the target completely still scored 10 / 33, because 27% of the row was a self-test of a third-party package. The other nine, `@api cli-table2 matches verified behavior`, run the same assertions through the shim and are gated. `cli-table` stays a devDependency so the file still loads and the excluded cases still run; they are subtracted from the number, not hidden from the TAP.",
+      },
+    ],
     target: 'flagstaff/cli-table3',
     status: 'active',
-    note: 'Decided 2026-09-08 in `.sdlc/intents/output-stack-compat/design.md`: 13 gated with the 221 reported beside them. Of its 234 cases, 221 `require(\'../src/...\')` — cell, utils, layout-manager — and only 13 reach the package root (table-test.js has 10, test/issues/ has 3). Under C4 a file importing only the host\'s internals is informational and never gated, because passing it means reproducing the host\'s file layout, which is the thing that rule exists to refuse. Every scoreboard row publishes gated / internal / drawing so 13 can never be read as the whole suite.',
+    note: "Decided 2026-09-08 in `.sdlc/intents/output-stack-compat/design.md`; every count corrected 2026-09-09 after measurement, because the ones written here were wrong. The suite runs **235** cases: 197 reach the host's internals (`../src/cell`, `../src/utils`, `../src/layout-manager` — 94 + 63 + 11 + 29 across four files) and **38** reach the package root — table-test.js 10, original-cli-table-newlines-test.js 5, verify-legacy-compatibility-test.js 18 (it runs its nine assertions twice) and test/issues/ 5, in four files that were vendored, committed and graded by nobody until the walk became recursive. Of those 38, the nine excluded above grade cli-table rather than the target, so **29 gate**. Under C4 a file importing only the host's internals is informational and never gated, because passing it means reproducing the host's file layout, which is the thing that rule exists to refuse. The target moved to `flagstaff/cli-table3` when that façade landed — the condition this note set for the move. Until then the target was `flagstaff/table`, the table API that is deliberately *not* a cli-table3 façade, and it measured 0 / 29; that zero was measured, not assumed. The rule the move respects: never name the target after a façade that does not exist, because that publishes `target not built yet` where there had been a real number.",
   },
   {
     name: 'clack',

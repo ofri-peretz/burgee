@@ -76,6 +76,37 @@ it from its first commit instead of retrofitting compatibility at the end.
    Linux, macOS and Windows.
 6. The published rate appears on the docs site and in `README.md`.
 
+## Verified against `main` — 2026-09-09
+
+Checked criterion by criterion on `61bd11b9`. **Three of six met, one half.** The status stays
+`review`. This is the machine the whole roadmap's credibility rests on, and it works — six hosts
+graded, six controls, everything vendored.
+
+- **A table of host, tests, passed, rate, baseline, exiting non-zero below baseline** — **met.**
+  `packages/compat-oracle/src/report.ts` renders host, bar, `passed / total`, rate and a
+  Δ-against-baseline arrow, and exits non-zero below `baseline.json`.
+- **Baselines recorded in `.sdlc/bands/`, lowerable only by a PR with a written reason** —
+  **not met as written.** The baseline lives at `packages/compat-oracle/baseline.json`, not under
+  `.sdlc/bands/`, and there is no `compat-*-pass-rate` band in `control-bands.json`. The
+  "written reason in the PR body" convention is documented in `scripts/compat-page.ts:102` and
+  enforced by nothing.
+- **`compat-commander` reports ≥ 1,210 / 1,215 against real commander** — met in substance; the
+  number in the criterion is stale. `--control` reports **1360 / 1360**. The vendored suite is
+  1,360 tests, not 1,215, and yargs is 804, not 1,185.
+- **A scheduled workflow refreshes the vendored suites and opens a PR when the count changes** —
+  met as wiring. `compat-refresh.yml` is weekly (`30 5 * * 1`) and carries `vendor-diff.md`;
+  `compat-upstream.yml` is daily and opens one issue per host release. Neither has yet had cause
+  to fire — `compat-refresh.yml` has no runs at all, and no incumbent has released since the repo
+  was created — so the treadmill is wired but unexercised.
+- **The Node matrix green on every Node LTS in `engines` across Linux, macOS and Windows** —
+  **not met, and the workflow says so itself.** `compat.yml` runs all three OSes but `node: [24]`
+  only, above a comment reading *"`engines` still says `>=24`, so C3 is not met while this
+  stands"*. Every published package declares `>=24`, so Node 26 is claimed and untested.
+- **The published rate appears on the docs site and in `README.md`** — half. The docs page serves
+  every number. The **root `README.md` publishes no rate at all** — line 56 still says "graded by
+  commander's own 1,215 tests and yargs' 1,185", both of which are stale counts, and no pass rate
+  follows them.
+
 ## Open questions
 
 None open. Decided at finalisation (2026-09-06): vendor rather than submodule, because

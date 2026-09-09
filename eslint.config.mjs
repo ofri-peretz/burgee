@@ -276,6 +276,43 @@ export default [
     files: ['scripts/run-evals.ts'],
     rules: { 'node-security/no-dynamic-command-string': 'off' },
   },
+  // ── The benchmark suite (intent cli-benchmarks) ───────────────────────────
+  {
+    // `benchmarks/run.ts` and the axes are process entry points with nothing to export
+    // to the rest of the tree, and the design's layout (design.md) puts each axis in
+    // `axes/` beside the modules it shares with the others — `record.ts`, `stats.ts`,
+    // `bands.ts` — so every axis reaches one directory up by construction.
+    files: ['benchmarks/**'],
+    rules: {
+      'import-next/no-relative-parent-imports': 'off',
+      'import-next/no-barrel-import': 'off',
+      'import-next/no-unused-modules': ['error', { allowImportOnly: true }],
+    },
+  },
+  {
+    // A B1 task's `check` is a shell one-liner in a committed `tasks/*.json`, run to
+    // decide whether the agent did what was asked. It is repo-owned input, the same
+    // shape `scripts/run-evals.ts` runs its case checks in, and there is no way to
+    // express "whatever this task says success means" as an argument array.
+    files: ['benchmarks/axes/agent.ts', 'benchmarks/tasks.test.ts'],
+    rules: { 'node-security/no-dynamic-command-string': 'off' },
+  },
+  {
+    // The published numbers *are* the content of this file: 52 KB, 1,360 commander
+    // cases, 804 yargs. Naming each one a constant would put the number one line
+    // further from the claim it settles, which is the opposite of the point.
+    files: ['benchmarks/claims.ts'],
+    rules: { 'conventions/no-magic-numbers': 'off' },
+  },
+  {
+    // Spawned as programs, never imported: each is one variant of the same trivial CLI,
+    // and the floor row (`node.mjs`) deliberately has no parser and so no import at all.
+    files: ['benchmarks/fixtures/cold-start/**'],
+    rules: {
+      'import-next/no-unused-modules': 'off',
+      'import-next/unambiguous': 'off',
+    },
+  },
   {
     // yargs' `extends` contract: a config file names another config *module*, and the
     // parser loads it by that name. The specifier is the user's own config talking about

@@ -80,6 +80,34 @@ slip, being the hardest to detect precisely.)
 - Published as `eslint-plugin-cli-floor` with provenance; `npm view eslint-plugin-cli-floor` shows
   the version `release.yml` tagged.
 
+## Verified against `main` — 2026-09-09
+
+Checked criterion by criterion on `61bd11b9`. **Zero of four met. The package does not exist.**
+The status stays `review`: the intent and its design are complete and reviewed; not one line of
+the plugin has been written.
+
+`find` for `*cli-floor*` across the worktree returns exactly one path — this intent directory.
+There is no `packages/eslint-plugin-cli-floor`, `eslint.config.mjs` references no `cli-floor`
+rule, and `npm view eslint-plugin-cli-floor` is a 404.
+
+- **10+ rules, each with a valid and an invalid case per host, at 100% branch coverage** — not
+  met; zero rules.
+- **A first run on `interlace-ui` and `eslint/scripts/*.ts` reporting ≥1 true finding each with
+  zero false positives, recorded in the PR** — not met.
+- **`npx eslint` clean on the layered demo and reporting on the un-layered one** — not met.
+- **Published as `eslint-plugin-cli-floor` with provenance** — not met.
+
+**This is the adoption wedge**, the one lane the roadmap says can earn users during the whole
+build because it needs no runtime adoption, and it was re-sequenced on 2026-09-08 to run beside
+wave 2. It has not started. It is also the mechanism behind the `migrate-import` autofix that
+the "why the three bets can win" table leans on for bet 1.
+
+**The recorded naming decision is corrupted** and no longer says anything: it reads *"Package
+name is `eslint-plugin-cli-floor`. `eslint-plugin-cli-floor` is held by npm's security
+placeholder (`0.0.1-security`) and cannot be published; `eslint-plugin-cli-floor` was free"* —
+the same name in all three slots, evidently a rename that overwrote the two other names. The
+real constraint it encoded is lost and must be re-established before the package is published.
+
 ## Open questions
 
 None open. Decided at finalisation (2026-09-06):

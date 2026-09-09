@@ -72,6 +72,19 @@ or component without a `static` is refused at `register()` with `E_NO_STATIC_PRO
 and a fix. The built-in `dots` and `line` styles are a plugin of exactly this shape,
 registered through the same door, so the built-ins cannot grow an API a plugin cannot reach.
 
+`register()` is the **only** way in, and that is a property rather than a convention:
+`registered()` hands back a copy — new maps over the frozen objects `register()` stored — so
+`registered().spinners.set(…)` puts nothing in the registry and `.clear()` empties nothing.
+A contribution that never met `validate()` cannot be reached by `spinner()`, `box()` or the
+gallery, which is what makes "refused at the door" (U3) a fact about the code rather than
+advice. Freezing also means the object you registered stays yours: edit it afterwards and
+the registry does not change.
+
+A component may declare `sample: { running, done }` — the two states `flagstaff check` and
+the docs gallery *show* it with. The loop never reads it; a running program's state comes
+from the program. Without one, both assume `{ phase: 'running' }` / `{ phase: 'done' }` and
+say so in the output, rather than rendering an invented state as if it were yours.
+
 ### The built-ins
 
 Five components, each on its own subpath, each answering the static projection for itself:
@@ -259,6 +272,40 @@ Loads the file, validates it, and prints every contribution in all five modes si
 escapes made visible — so an author, or an agent that just wrote one, sees the static
 projection next to the animation before anything ships. Exit 1 on a refusal, with the code
 and the fix.
+
+It opens with a census of what it found and closes with the verdict, so `ok` is never
+printed before the rendering that would justify it:
+
+```text
+nyan — 1 spinner, 0 borders, 0 components, 0 glyphs, 0 tokens
+spinner nyan
+  tty         ␛[?25l≋ working␛[1G␛[0J…
+  pipe        ~nyan~ working⏎ ✔ done⏎
+  …
+nyan: ok
+```
+
+`0 spinners, 0 components` is how a misspelled key tells on itself. The schema is
+`additionalProperties: true` on purpose — a key another package in the family reads belongs
+in the same object — so a typo cannot be refused by the schema, and `check` is the surface
+that has to notice:
+
+```text
+typo — 0 spinners, 0 borders, 0 components, 0 glyphs, 0 tokens
+  unknown     componets, spinner — flagstaff reads none of these; a key another package in the family reads is allowed here
+E_NO_CONTRIBUTION: typo registers, but contributes nothing flagstaff can render
+  fix: flagstaff reads spinners, borders, components, glyphs and tokens; check those spellings. …
+```
+
+Each component block names the state it was rendered with — the component's own `sample`
+when it declares one, and otherwise the assumed `{ phase }` shape, said out loud. A `static`
+that throws on the state it is handed is a refusal like any other, naming the modes it broke
+in (`json` emits the state and never calls `static`, so it is usually the one that survives):
+
+```text
+E_COMPONENT_THREW: g threw in tty, pipe, ci, accessible
+  fix: `static(state)` must return a string for the state it is rendered with; …
+```
 
 ## Weight
 
