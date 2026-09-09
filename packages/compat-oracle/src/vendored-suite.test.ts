@@ -130,29 +130,54 @@ describe('an active host is a measured host', () => {
   });
 });
 
+/**
+ * One `.gitignore` pattern, as a glob `matchesGlob` understands. The file uses three shapes
+ * and no others; anything else is refused rather than quietly treated as "no match", because
+ * a rule this lock cannot read is a rule it cannot enforce.
+ */
+function ignoreGlobs(line: string): string[] {
+  if (line.startsWith('!') || line.includes('**')) throw new Error(`vendored-suite.test.ts cannot read the .gitignore rule "${line}" — teach it the shape or the lock is not enforcing it`);
+  const body = line.endsWith('/') ? line.slice(0, -1) : line;
+  const anchored = body.includes('/') ? body : `**/${body}`;
+  return line.endsWith('/') ? [`${anchored}/**`] : [anchored];
+}
+
 describe('the generated files really are gitignored', () => {
-  /** Every path a run writes into `vendor/`, as `run.ts` writes them. */
+  /** Every path a run writes into `vendor/`, as `run.ts` writes them, posix. */
   const generated = onDisk.flatMap((host) => [
-    ...host.imports.map((_, i) => join('vendor', host.name, shimName(i, 'module'))),
-    ...host.imports.map((_, i) => join('vendor', host.name, shimName(i, 'commonjs'))),
-    join('vendor', host.name, 'vitest.setup.mjs'),
-    join('vendor', host.name, 'vitest.config.mjs'),
-    ...(readInternals(host) ?? []).map((rel) => join('vendor', host.name, rel)),
+    ...host.imports.map((_, i) => `vendor/${host.name}/${shimName(i, 'module')}`),
+    ...host.imports.map((_, i) => `vendor/${host.name}/${shimName(i, 'commonjs')}`),
+    `vendor/${host.name}/vitest.setup.mjs`,
+    `vendor/${host.name}/vitest.config.mjs`,
+    ...(readInternals(host) ?? []).map((rel) => `vendor/${host.name}/${rel.split(sep).join('/')}`),
   ]);
 
+  const rules = readFileSync(join(root, '.gitignore'), 'utf8')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l !== '' && !l.startsWith('#'))
+    .flatMap(ignoreGlobs);
+
   it('ignores every path a run writes, so `npm run compat` cannot dirty the worktree', () => {
-    // One invocation, not one per path: `git check-ignore` prints back the paths its rules
-    // ignore, and exits 1 when that is none. No `--no-index`, because a path that is
-    // *tracked* is not ignored whatever the rules say — and four generated files carrying
-    // `/Users/…/burgee-wave3/…` inside them were tracked.
-    let ignored: string[] = [];
+    // Read off the rules rather than out of `git check-ignore`: the shipped defect was a
+    // *missing rule* — `shim.mjs` and `vendor/*/src/` matched nothing — and a spawned git is
+    // one more thing to behave differently on another OS than the rule it is checking.
+    expect(generated.filter((p) => !rules.some((g) => matchesGlob(p, g)))).toEqual([]);
+  });
+
+  it('has none of them in the index, where an ignore rule no longer reaches', () => {
+    // A path already committed stays tracked however well it is ignored, and four of these
+    // were — carrying an absolute path from the author's machine inside them.
+    let tracked: string[];
     try {
-      ignored = execFileSync('git', ['check-ignore', ...generated], { cwd: root, encoding: 'utf8' }).split('\n').filter((l) => l !== '');
-    } catch {
-      ignored = [];
+      tracked = execFileSync('git', ['ls-files', '--', 'vendor'], { cwd: root, encoding: 'utf8' }).split('\n').filter((l) => l !== '');
+    } catch (cause) {
+      // No usable git (a source tarball, a sandbox): the rule check above still holds, and
+      // saying so beats a lock that looks green because it never ran.
+      expect.soft(String(cause)).toBe('git unavailable — the index check did not run');
+      return;
     }
-    const seen = new Set(ignored.map((p) => p.split(sep).join('/')));
-    expect(generated.map((p) => p.split(sep).join('/')).filter((p) => !seen.has(p))).toEqual([]);
+    expect(tracked.filter((p) => generated.includes(p))).toEqual([]);
   });
 });
 
