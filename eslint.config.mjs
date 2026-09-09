@@ -85,6 +85,9 @@ const OPTIONS = {
 export default [
   {
     ignores: [
+      // Agent worktrees are whole copies of this repo. Linting them lints every
+      // file twice and fails on whatever a stale copy still contains.
+      '.claude/**',
       '**/dist/**',
       '**/.next/**',
       '**/.source/**',
