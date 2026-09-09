@@ -30,6 +30,8 @@ export interface RegistryManifest {
   types?: string;
   typings?: string;
   dependencies?: Record<string, string>;
+  /** npm installs these unless a build fails, so a user gets them and they count. */
+  optionalDependencies?: Record<string, string>;
   exports?: unknown;
   repository?: string | { url?: string };
   dist: { tarball: string; shasum?: string; integrity?: string };
@@ -204,6 +206,14 @@ export interface TreeWeight {
  * fresh `npm install` of that package alone would pick. A range we cannot parse — a git
  * URL, an alias — is skipped and named in `packages` with a `?` version, so it shows up as
  * a gap rather than silently lowering the number.
+ *
+ * **`optionalDependencies` count, because npm installs them.** They are optional in the
+ * sense that a failure to build one does not fail the install, not in the sense that a
+ * user does not get them. Walking `dependencies` alone understated exactly one package we
+ * watch and it is one we publish a comparison against: cli-table3 0.6.5 declares
+ * `@colors/colors` optional, and leaving it out reported 78,148 B across six packages
+ * where a user's `node_modules` holds **105,983 across seven**. An error of 26% in the
+ * direction that flatters the façade measured against it.
  */
 export async function treeWeight(name: string, version: string, client: RegistryClient = liveRegistry): Promise<TreeWeight> {
   const packages = new Map<string, number>();
@@ -228,7 +238,7 @@ export async function treeWeight(name: string, version: string, client: Registry
     const bytes = shippedBytes(resolved.files);
     packages.set(key, bytes);
     if (depth === 0) self = bytes;
-    for (const [dep, depRange] of Object.entries(resolved.manifest.dependencies ?? {})) {
+    for (const [dep, depRange] of Object.entries({ ...resolved.manifest.dependencies, ...resolved.manifest.optionalDependencies })) {
       // Sequential on purpose: this walks a public registry on a daily schedule, and a
       // fan-out over a deep tree is a burst of requests nobody asked us to make.
       // eslint-disable-next-line reliability/no-await-in-loop -- deliberate: one request at a time
