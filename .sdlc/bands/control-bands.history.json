@@ -7,6 +7,10 @@
     {
       "date": "2026-09-07",
       "value": 3430
+    },
+    {
+      "date": "2026-09-09",
+      "value": 21609
     }
   ],
   "lint-rules-on": [
@@ -17,6 +21,10 @@
     {
       "date": "2026-09-07",
       "value": 276
+    },
+    {
+      "date": "2026-09-09",
+      "value": 277
     }
   ],
   "lint-documented-false-positives": [
@@ -27,6 +35,70 @@
     {
       "date": "2026-09-07",
       "value": 19
+    },
+    {
+      "date": "2026-09-09",
+      "value": 100
+    }
+  ],
+  "cold-start-ratio": [
+    {
+      "date": "2026-09-09",
+      "value": 1.121
+    }
+  ],
+  "compat-commander-pass-rate": [
+    {
+      "date": "2026-09-09",
+      "value": 1
+    }
+  ],
+  "compat-yargs-pass-rate": [
+    {
+      "date": "2026-09-09",
+      "value": 1
+    }
+  ],
+  "compat-chalk-pass-rate": [
+    {
+      "date": "2026-09-09",
+      "value": 1
+    }
+  ],
+  "compat-ora-pass-rate": [
+    {
+      "date": "2026-09-09",
+      "value": 1
+    }
+  ],
+  "compat-log-update-pass-rate": [
+    {
+      "date": "2026-09-09",
+      "value": 1
+    }
+  ],
+  "compat-boxen-pass-rate": [
+    {
+      "date": "2026-09-09",
+      "value": 1
+    }
+  ],
+  "core-bundled-bytes": [
+    {
+      "date": "2026-09-09",
+      "value": 34841
+    }
+  ],
+  "commander-front-end-bundled-bytes": [
+    {
+      "date": "2026-09-09",
+      "value": 58458
+    }
+  ],
+  "yargs-front-end-bundled-bytes": [
+    {
+      "date": "2026-09-09",
+      "value": 100731
     }
   ]
 }
