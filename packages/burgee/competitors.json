@@ -1,0 +1,9 @@
+{
+  "$comment": "upstream-watch R1. See packages/flagstaff/competitors.json for the field meanings. The two engine hosts are the ones whose numbers the scoreboard publishes, so an upstream release moves a figure on the docs site as well as a pass rate.",
+  "./commander": [
+    { "package": "commander", "claim": "compat", "seen": { "version": null, "weight": null, "measured": "2026-09-08", "cited": ["packages/burgee/README.md"] } }
+  ],
+  "./yargs": [
+    { "package": "yargs", "claim": "compat", "seen": { "version": null, "weight": null, "measured": "2026-09-08", "cited": ["packages/burgee/README.md"] } }
+  ]
+}
