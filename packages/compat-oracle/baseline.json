@@ -28,5 +28,10 @@
     "reference": 84,
     "passed": 84,
     "rate": 1
+  },
+  "cli-table3": {
+    "reference": 33,
+    "passed": 33,
+    "rate": 1
   }
 }

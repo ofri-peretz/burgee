@@ -180,5 +180,20 @@
         ]
       }
     }
+  ],
+  "./cli-table3": [
+    {
+      "package": "cli-table3",
+      "claim": "compat",
+      "seen": {
+        "version": "0.6.5",
+        "weight": 161690,
+        "measured": "2026-09-09",
+        "cited": [
+          "packages/flagstaff/src/weight.test.ts",
+          "packages/flagstaff/README.md"
+        ]
+      }
+    }
   ]
 }

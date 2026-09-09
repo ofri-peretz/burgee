@@ -24,6 +24,11 @@
       "import": "./dist/boxen.js",
       "default": "./dist/boxen.js"
     },
+    "./cli-table3": {
+      "types": "./dist/cli-table3.d.ts",
+      "import": "./dist/cli-table3.js",
+      "default": "./dist/cli-table3.js"
+    },
     "./log-update": {
       "types": "./dist/log-update.d.ts",
       "import": "./dist/log-update.js",

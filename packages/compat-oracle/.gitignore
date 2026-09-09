@@ -1,6 +1,13 @@
+# Written per run, never committed: the public shims, the internal ones, and the setup
+# file. `.mjs` as well as `.js` since a CommonJS host's shim needs the ESM extension, and
+# `src/` as well as `lib/` and `build/` since `internalDir` is host knowledge — cli-table3
+# files its internals under `src/`.
 vendor/*/shim*.js
+vendor/*/shim*.mjs
+vendor/*/vitest.setup.mjs
 vendor/*/lib/
 vendor/*/build/
+vendor/*/src/
 results.json
 results.control.json
 upstream.json

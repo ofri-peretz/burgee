@@ -386,7 +386,6 @@ export { BOXES as _borderStyles };
  * `import boxen from 'boxen'` is the incumbent's surface. A named export here would break
  * every migration this file exists to serve, so the house rule yields to the host.
  */
-// eslint-disable-next-line import-next/no-default-export -- see above
 export default function boxen(text: string, options: BoxenOptions = {}): string {
   const merged: BoxenOptions = { borderStyle: 'single', dimBorder: false, textAlignment: 'left', float: 'left', titleAlignment: 'left', padding: 0, ...options };
   // `align` is boxen's deprecated name for `textAlignment`, and its suite still passes it.

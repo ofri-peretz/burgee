@@ -173,6 +173,29 @@ the box still looks the same. It carries cli-boxes' table itself rather than rea
 plugin registry — a façade whose drawing changed when somebody registered a plugin would be
 reinterpreting its host. Named borders through the registry are `flagstaff/box`'s job.
 
+### The cli-table3 path
+
+`flagstaff/cli-table3` is cli-table3 0.6.5's API, graded **33 / 33 by cli-table3's own test
+suite** — the 33 that go through its public surface. The other 201 of its cases
+`require('../src/…')` and test its four internal modules directly; those are reported beside
+the number and never gate it, because passing them would mean copying cli-table3's file
+layout rather than matching its behaviour.
+
+```diff
+-const Table = require('cli-table3');
++import Table from 'flagstaff/cli-table3';
+```
+
+`head`, `chars`, `style` (padding, `head`, `border`, `compact`), `colWidths`, `rowHeights`,
+`colAligns`, `rowAligns`, `truncate`, `wordWrap`, `wrapOnWordBoundary`, per-cell `colSpan`,
+`rowSpan`, `hAlign`, `vAlign`, `href`, and the `debug` channel with `table.messages` and
+`Table.reset()`. It extends `Array`, because cli-table3 does and its callers push rows onto
+it.
+
+Four dependencies folded into one module rather than four: cli-table3's `table.js`,
+`layout-manager.js`, `cell.js` and `utils.js` become one file, because the architecture is
+not the contract — the drawing is.
+
 ### The log-update path
 
 `flagstaff/log-update` is log-update 8's API, graded **99 / 99 by log-update's own test
@@ -245,7 +268,8 @@ never the plugin registry; `flagstaff/plugin` 8.4 KB, of which 2.4 KB is the sch
 `flagstaff/spinner` 9.4 KB; `flagstaff/ora` 46.5 KB — 55.9 KB with roundel counted, against
 ora's own 113.6 KB; `flagstaff/log-update` 29.6 KB, reaching **no package at all**, against
 log-update's own 113.4 KB across sixteen; `flagstaff/boxen` 33.7 KB — 43.0 KB with roundel
-counted, against boxen's own 151.4 KB across fourteen. The three façades share `wrap.js` and
+counted, against boxen's own 151.4 KB across fourteen; `flagstaff/cli-table3` 32.9 KB —
+42.3 KB with roundel, against cli-table3's own 161.7 KB across seven. The three façades share `wrap.js` and
 `width.js`, and the first two share `cursor.js`; none reaches another's port, and none
 reaches the core. `sideEffects: false` lets a
 bundler drop what a program does not use. ESM with a `default` condition, so

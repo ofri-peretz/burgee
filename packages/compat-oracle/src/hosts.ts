@@ -40,6 +40,11 @@ export interface Host {
    */
   testGlob: string;
   /**
+   * The directory holding the host's own modules — the ones a test may reach into but we
+   * never promise. `lib` unless a host files them elsewhere; cli-table3 uses `src`.
+   */
+  internalDir?: string;
+  /**
    * Every public specifier the tests use to reach the library, each rewritten to a
    * generated shim that re-exports `<target><subpath>`. One entry for most hosts;
    * yargs also imports `yargs/helpers`.
@@ -175,13 +180,14 @@ export const HOSTS: Host[] = [
     repo: 'https://github.com/cli-table/cli-table3',
     testDir: 'test',
     testGlob: '*-test.js',
+    internalDir: 'src',
     imports: [{ upstream: '../src/table', subpath: '', reexportDefault: true }],
     surfaceFiles: ['index.d.ts', 'src/table.js'],
     tagPrefix: 'v',
     runner: 'vitest',
-    target: 'flagstaff/table',
-    status: 'planned',
-    note: 'The runner is no longer the blocker: its suite is jest, not mocha as first recorded, and the `vitest` runner added 2026-09-08 covers that. What remains is a decision. Of its 234 cases, 221 `require(\'../src/...\')` — cell, utils, layout-manager — and only 13 reach the package root (table-test.js has 10, test/issues/ has 3). Under the rule that a file importing only the host’s internals is informational and never gated, "cli-table3, graded" means 13 tests. Passing the other 221 means reproducing its src/ file for file, which is the thing that rule exists to refuse. 13 gated with the 221 reported beside them, or the row dropped and the reason published — either is defensible, and it is not this session’s call.',
+    target: 'flagstaff/cli-table3',
+    status: 'active',
+    note: 'Decided 2026-09-08 in `.sdlc/intents/output-stack-compat/design.md`: 13 gated with the 221 reported beside them. Of its 234 cases, 221 `require(\'../src/...\')` — cell, utils, layout-manager — and only 13 reach the package root (table-test.js has 10, test/issues/ has 3). Under C4 a file importing only the host\'s internals is informational and never gated, because passing it means reproducing the host\'s file layout, which is the thing that rule exists to refuse. Every scoreboard row publishes gated / internal / drawing so 13 can never be read as the whole suite.',
   },
   {
     name: 'clack',
