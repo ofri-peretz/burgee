@@ -89,6 +89,11 @@ export default [
       '**/.next/**',
       '**/.source/**',
       '**/.turbo/**',
+      // `vercel pull`/`vercel build` write here, at the REPO ROOT now that the Vercel
+      // project deploys from the root. It is Vercel's generated Build Output API tree
+      // (bundled launchers, vendored CommonJS), it is gitignored, and linting it buries
+      // real findings under hundreds of errors from code nobody here wrote.
+      '**/.vercel/**',
       '**/node_modules/**',
       '**/coverage/**',
       '**/.dev-fixtures/**',
