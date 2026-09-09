@@ -15,6 +15,8 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { publishedResults } from 'benchmarks/published.js';
+
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const RESULTS = join(root, 'benchmarks', 'results');
 const OUT = join(root, 'apps', 'docs', 'content', 'docs', 'benchmarks.mdx');
@@ -63,14 +65,12 @@ interface Doc {
   claims: Record<string, Claim>;
 }
 
-/** The newest dated file of a suite, or nothing if the suite has never run here. */
+/** The newest *published* file of a suite, or nothing if the suite has never run here. */
 function latest(suite: string): Doc | undefined {
   const dir = join(RESULTS, suite);
   if (!existsSync(dir)) return undefined;
-  const files = readdirSync(dir)
-    .filter((f) => f.endsWith('.json'))
-    .toSorted();
-  const last = files.at(-1);
+  // The published measurement, never a CI observation — see `benchmarks/published.ts`.
+  const last = publishedResults(dir);
   return last === undefined ? undefined : (JSON.parse(readFileSync(join(dir, last), 'utf8')) as Doc);
 }
 
@@ -83,6 +83,51 @@ const num = (n: number): string => n.toLocaleString('en-US');
 
 const coldStart = pick(cheap, 'cold-start-ms').map((r) => `| \`${r.variant}\` | ${r.median.toFixed(MS_PLACES)} | ${r.p95.toFixed(MS_PLACES)} | ${String(r.samples)} |`);
 const ratios = pick(cheap, 'cold-start-ratio').map((r) => `| ${r.variant} | **${r.median.toFixed(RATIO_PLACES)}×** | ${r.p95.toFixed(RATIO_PLACES)}× | ${r.gate === undefined ? '—' : `≤ ${String(r.gate.max)}`} |`);
+
+const RELIABILITY = ['hangs-per-100', 'exit-code-accuracy', 'structured-output-rate', 'recovery-bytes'] as const;
+const reliabilityRows = ['burgee', 'commander', 'yargs'].map((variant) => {
+  const at = (metric: string): number => cheap.records.find((r) => r.axis === 'reliability' && r.variant === variant && r.metric === metric)?.median ?? 0;
+  const pct = (v: number): string => `${(v * PERCENT).toFixed(1)}%`;
+  return `| \`${variant}\` | ${String(at('hangs-per-100'))} | ${pct(at('exit-code-accuracy'))} | ${pct(at('structured-output-rate'))} | ${num(at('recovery-bytes'))} |`;
+});
+
+/**
+ * The table, or a statement that there is nothing to put in it.
+ *
+ * `?? 0` above is fine as long as something upstream refuses to render a row built out of
+ * absent records — and for one commit nothing did. The reliability axis landed after the
+ * measurement that is published here was taken, so every cell fell through to its default
+ * and `/docs/benchmarks` stated `0.0%` exit-code accuracy for all three engines, directly
+ * above a paragraph asserting the opposite. Zero is the trap: it is a *plausible* value for
+ * every metric in this table, the good answer for `hangs-per-100` and a devastating one for
+ * the other two, so nothing looked broken.
+ *
+ * The document already knows — `axes.reliability.status` is `not-run` — and B1 has said so
+ * in a callout since this page was written. This is the same discipline applied to the axis
+ * that was added without it.
+ */
+const reliabilityAxis = cheap.axes['reliability'];
+const reliabilityReason = reliabilityAxis?.reason === undefined ? '' : `: ${reliabilityAxis.reason}`;
+const reliabilitySection =
+  reliabilityAxis?.status === 'measured'
+    ? `| Variant | hangs/100 | exit code | \`--json\` | bytes |
+| :--- | ---: | ---: | ---: | ---: |
+${reliabilityRows.join('\n')}
+
+**Exit code** is the one that decides an agent's next move: \`2\` means *rewrite the command*,
+any other non-zero means *the command was fine and the world was not*. Both incumbents
+answer \`1\` to a usage error, which tells an agent nothing — so it retries a malformed
+command until it gives up.
+
+**Bytes is reported against us and is not gated.** commander reads fewer than we do, because
+our errors carry a \`hint\` naming the fix. That is a trade — bytes per failure against failed
+turns — and only B1 proper can settle it. It is on this page precisely so the trade is
+visible rather than quietly omitted.`
+    : `> **This axis has not run against the published measurement.** It reports
+> **${reliabilityAxis?.status ?? 'absent'}**${reliabilityReason}.
+> No table is drawn, because every cell of it would be a zero nobody measured — and zero is
+> a *plausible* answer to each of these questions. It will read this way until the axis runs
+> and the result is published.`;
 
 const compatRows = pick(cheap, 'pass-rate').map((r) => {
   const passing = pick(cheap, 'passing-tests').find((p) => p.variant === r.variant);
@@ -154,6 +199,15 @@ ${coldStart.join('\n')}
 | Ratio | p50 | p95 | gate |
 | :--- | ---: | ---: | ---: |
 ${ratios.join('\n')}
+
+## B1, the half that needs no model — what an agent can act on
+
+Not B1, and not a stand-in for it: this measures nothing about tokens or turns. It measures
+whether the CLI's answer is *legible* to an agent, which needs no model at all. Ten tasks
+per variant, one spawn each, non-TTY with **stdin closed** — the only environment an agent
+gets. The same demo program, built on each engine.
+
+${reliabilitySection}
 
 ## B3 — compatibility
 

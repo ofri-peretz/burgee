@@ -138,6 +138,31 @@ proves the two agree by running the same spec through both and comparing the ans
 `Ctrl-C` cancels — in raw mode it arrives as a byte rather than a signal — and the terminal
 is put back the way it was found either way.
 
+## Weight
+
+Every subpath is a lock, not a convention, and the numbers below are asserted by
+`weight.test.ts` against `dist/`, not estimated. **The ceiling is clack**: `@clack/prompts`
+1.8.0 is **101,684 B across six packages** — itself, `@clack/core`, `fast-string-width`,
+`fast-string-truncated-width`, `fast-wrap-ansi` and `sisteransi`.
+
+| Subpath | Bytes | Reaches |
+| :-- | --: | :-- |
+| `caique` (everything) | 25,627 | no package at all |
+| `caique/spec` | 1,571 | a leaf — declare prompts without loading a widget |
+| `caique/decide` | 4,986 | the spec only |
+| `caique/ask` | 8,564 | the six widgets, no terminal, no raw mode |
+| `caique/raw` | 14,796 | line mode, which it sits on top of |
+| `caique/binding` | 15,475 | the decision and the widgets |
+| `caique/terminal` | 11,975 | the one file that touches a stream |
+
+The whole package is **a quarter of the lightest incumbent**, and it reaches nothing:
+`allow` is empty for every entry, asserted rather than claimed. Deciding *not* to ask costs
+4,986 B and never loads the machinery of asking — which is the case an agent hits.
+
+Measured 2026-09-09, the same way every bill in this family is: shipped code and data
+(`.js`/`.mjs`/`.cjs` plus imported `.json`, `package.json` never counted), each competitor
+counted whole across its own resolved tree.
+
 ## What it will be
 
 - **Every prompt is a flag first.** A caller who passes the flag is never asked. An agent

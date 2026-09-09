@@ -90,6 +90,24 @@ jobs:
           if [ -z "$(git status --porcelain benchmarks/results/)" ]; then
             echo "Nothing new to record."; exit 0
           fi
+          # An observation, not a republication. The run just overwrote the *published*
+          # measurements — the ones `/docs/benchmarks` and `/docs/comparison` are generated
+          # from and pinned against — with this runner's numbers. Its `installed-bytes` rows
+          # are byte-identical wherever it runs, and its `cold-start-ms` rows are a property
+          # of the box: on 2026-09-09 the same commit read +22.6 ms here and +8.0 ms on a
+          # two-core runner. So each file is copied aside under the commit that produced it
+          # and the published one is restored. The bands glob the directory and read both;
+          # the docs read only the dated name. See `benchmarks/published.ts`.
+          # `mv`, not `cp`, and the difference shows up on day two rather than day one. A
+          # run on a date that has never been published writes a *new* `YYYY-MM-DD.json`,
+          # and `git checkout --` does not remove an untracked file: with `cp` that file is
+          # staged too, and a CI runner's numbers become a published measurement under the
+          # exact name this split reserves for a chosen one. Moving it leaves nothing behind
+          # in either case — a modified file is restored by the checkout, a new one is gone.
+          for f in $(git status --porcelain benchmarks/results/ | awk '{print $NF}'); do
+            mv "$f" "${f%.json}-${GITHUB_SHA::7}.json"
+          done
+          git checkout -- benchmarks/results/
           # The commit, not just the date: two pushes to main on one day both
           # produce observations worth landing, and a date-only name makes the
           # second `git checkout -b` collide with the branch the first one pushed

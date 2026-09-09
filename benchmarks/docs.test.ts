@@ -16,12 +16,13 @@
  * Deliberately read from the **committed results file**, not from a live run: this is a
  * check on a document, not a benchmark, and it must give the same answer on every machine.
  */
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+import { publishedResults } from './published.js';
 import { type BenchRecord } from './record.js';
 
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -29,10 +30,10 @@ const RESULTS_DIR = join(REPO_ROOT, 'benchmarks', 'results', 'cli-benchmarks');
 const PAGE = join(REPO_ROOT, 'apps', 'docs', 'content', 'docs', 'comparison.mdx');
 
 const page = readFileSync(PAGE, 'utf8');
-const latest = readdirSync(RESULTS_DIR)
-  .filter((f) => f.endsWith('.json'))
-  .toSorted()
-  .at(-1) as string;
+// The published measurement, not whichever observation landed last: a CI runner's
+// cold-start times are a property of its box, and this page states ours. See
+// `benchmarks/published.ts`.
+const latest = publishedResults(RESULTS_DIR) as string;
 const records = (JSON.parse(readFileSync(join(RESULTS_DIR, latest), 'utf8')) as { records: BenchRecord[] }).records;
 
 const value = (variant: string, metric: string): number => {

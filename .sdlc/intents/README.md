@@ -157,6 +157,7 @@ converts it from a permanent dependency into a fixable backlog, so it now has an
 | 11 | [`cli-mcp/`](./cli-mcp/) | `--mcp` turns any CLI on the floor into an MCP server, generated from the manifest | N1–N5 | review — 3 of 5. Handshake, typed tools and destructive opt-in all verified live. **Not met:** B1 over MCP vs Bash, and the docs config is a `mytool` template |
 | 12 | [`dev-loop/`](./dev-loop/) | `burgee dev` — watch, reload, and serve live MCP so your agent sees a command as you write it | W1–W6 | review — 2 of 5. Save-to-callable measured at **66–89 ms** end to end on 30 commands, against a 500 ms bar. **Not met:** the Z2 byte-identity test does not exist, `list_changed` has no conformance case, and the manifest is summarised rather than printed |
 | 22 | [`brand-burgee/`](./brand-burgee/) | `defineBurgee({ lead, follow })` — favicon, raster set, OG card and theme variants generated from one declaration; the Interlace −30° geometry stays locked | — | draft — 1 of 4, and built ahead of its gate: `burgee brand` ships with no `design.md`. The OG card is hand-written, no workflow runs `brand:check`, and an unrelated two-colour pair currently cannot render |
+| 31 | [`docs-per-package/`](./docs-per-package/) | **one docs app per published package**, each on its own `interlace.tools` host — `.github/vercel-apps.json` as the one table both workflows read, a shared `docs-kit` chassis instead of four copies, the family-wide pages (`compatibility`, `comparison`, `gallery`) kept on burgee alone, and a written bar a package has to clear before it earns a site. Extends [`docs-deploy`](./docs-deploy/), which deferred the map "until a second app exists" | B7 | draft |
 
 ### The gaps — research clusters neither host ships
 
@@ -290,7 +291,7 @@ time, and never publishes a working release before the engine's scoreboard is pu
 | **S1 · roundel** | `roundel`, `output-stack-compat` (chalk) | policy, tokens, theme; `roundel/chalk` graded; two B4 rows under picocolors and chalk |
 | **S2 · flagstaff** | `flagstaff`, `plugin-contract`, `output-stack-compat` (ora, log-update) | the loop, the schema, `check`, the U9 eval green; ora's row |
 | **S3 · caique** | `caique`, `output-stack-compat` (inquirer, clack) | prompts that never hang; ~~two rows~~; the matrix green for five callers — **started 2026-09-08**: `decide()` and its 256-row table, then `ask()` — the six widgets in line mode, which is also the accessible rendering. The two rows are **blocked**: clack and inquirer are graded 65% and 59% by snapshots of their own drawing, and a façade that matched them would be the incumbent. Next here: the raw-mode renderer and the burgee binding, neither of which waits on that decision |
-| **S4 · the rest** | `output-stack-compat` (boxen, cli-table3), `first-adopter` for each package | eight rows; a CLI we did not write on all four |
+| **S4 · the rest** | `output-stack-compat` (boxen, cli-table3), `first-adopter` for each package, `docs-per-package` | eight rows; a CLI we did not write on all four; and each published package an independent product in the one sense still missing — **its own docs site on its own host**, added by a row in a table rather than by cloning an app (PRINCIPLES.md rule 8) |
 
 ### Execution graph — what runs in parallel, and where a human signs
 
@@ -799,6 +800,7 @@ Prerequisites only the owner can supply (none are set as of 2026-09-06):
 | `NPM_TOKEN`, or npm Trusted Publishing per package | wave 1, first publish |
 | `CLAUDE_CODE_OAUTH_TOKEN` | Claude review now; `cli-benchmarks` B1 in wave 2 |
 | `VERCEL_TOKEN`, Vercel project, DNS for `burgee.interlace.tools` | wave 2, `docs-deploy` |
+| One Vercel project, one DNS record and one GitHub Environment **per further docs app** | `docs-per-package` |
 | macOS and Windows runners in the matrix | wave 1, C3 and E5 on three platforms |
 
 ## Where intents come from

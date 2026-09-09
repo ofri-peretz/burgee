@@ -63,6 +63,19 @@ agent actually pay, and excluding Node's own startup would flatter every row.
 | burgee/yargs ÷ yargs | **0.694×** | 0.901× | ≤ 0.95 |
 | burgee ÷ cac | **1.447×** | 1.907× | ≤ 1.7 |
 
+## B1, the half that needs no model — what an agent can act on
+
+Not B1, and not a stand-in for it: this measures nothing about tokens or turns. It measures
+whether the CLI's answer is *legible* to an agent, which needs no model at all. Ten tasks
+per variant, one spawn each, non-TTY with **stdin closed** — the only environment an agent
+gets. The same demo program, built on each engine.
+
+> **This axis has not run against the published measurement.** It reports
+> **absent**.
+> No table is drawn, because every cell of it would be a zero nobody measured — and zero is
+> a *plausible* answer to each of these questions. It will read this way until the axis runs
+> and the result is published.
+
 ## B3 — compatibility
 
 Read from `compat-oracle` and never recomputed here: two implementations of a

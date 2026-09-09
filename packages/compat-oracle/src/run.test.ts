@@ -45,6 +45,30 @@ describe('parsing node:test TAP summaries', () => {
   it('reads zero from output with no summary, so a truncated run cannot look like a score', () => {
     expect(parseNodeTest('TAP version 13\nok 1 - something\n')).toEqual({ tests: 0, passed: 0, failed: 0, skipped: 0 });
   });
+
+  /**
+   * Captured from mocha 11 (`--reporter tap`) on a suite of two passing tests and one
+   * `it.skip`. It prints the skip as an `ok` line but leaves it out of BOTH totals, so
+   * subtracting it again took it off a count that never held it — yargs then reported 804
+   * passing out of 803 run, which cannot happen and flatters the score.
+   */
+  it('does not subtract a skip the runner already left out — mocha, which prints no skip summary', () => {
+    const tap = ['ok 1 probe runs', 'ok 2 probe also runs', 'ok 3 probe is pending # SKIP -', '# tests 2', '# pass 2', '# fail 0', '1..3', ''].join('\n');
+    const r = parseNodeTest(tap);
+    expect(r).toEqual({ tests: 2, passed: 2, failed: 0, skipped: 1 });
+    expect(r.passed).toBeLessThanOrEqual(r.tests);
+  });
+
+  /**
+   * Captured from node:test 24.18.0 on the same shape. Here the skip IS in `# tests` and is
+   * not in `# pass`, so it is subtracted from the denominator only.
+   */
+  it('does subtract a skip the runner counted — node:test, which prints `# skipped`', () => {
+    const tap = ['ok 1 - runs', 'ok 2 - also runs', 'ok 3 - skips itself # SKIP windows only', '# tests 3', '# pass 2', '# fail 0', '# skipped 1', ''].join('\n');
+    const r = parseNodeTest(tap);
+    expect(r).toEqual({ tests: 2, passed: 2, failed: 0, skipped: 1 });
+    expect(r.passed).toBeLessThanOrEqual(r.tests);
+  });
 });
 
 describe("parsing vitest's tap-flat", () => {
@@ -117,7 +141,9 @@ describe('summarising a run', () => {
   });
 
   it('reads a mocha pending test the same way, from its # SKIP directive', () => {
-    const s = summarize('ok 1 - a # SKIP\nok 2 - b\n# tests 2\n# pass 1\n# fail 0\n', 1, 0);
+    // mocha's own totals already exclude the pending case — measured, `ok … # SKIP` with
+    // `# tests 1 / # pass 1` for one passing test and one `it.skip`.
+    const s = summarize('ok 1 - a # SKIP\nok 2 - b\n# tests 1\n# pass 1\n# fail 0\n', 1, 0);
     expect(s).toMatchObject({ tests: 1, skipped: 1, passed: 1, rate: 1 });
   });
 

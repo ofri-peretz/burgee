@@ -24,6 +24,16 @@ const counter: Component<Count> = {
   frame: (t, s) => `count ${s.n} @${t}`,
 };
 
+/** A static that carries colour, the way an explicit `FORCE_COLOR` / `--color` ask does. */
+const GREEN = `${ESC}[32m`;
+const RESET = `${ESC}[39m`;
+const painted: Component<Count> = {
+  name: 'painted',
+  interval: INTERVAL,
+  static: (s) => `${GREEN}count ${s.n}${RESET}`,
+  frame: (t, s) => `${GREEN}count ${s.n} @${t}${RESET}`,
+};
+
 type Mode = 'tty' | 'pipe' | 'ci' | 'json' | 'accessible';
 const ENV: Record<Mode, Record<string, string>> = { tty: {}, pipe: {}, ci: { CI: 'true' }, json: {}, accessible: { CLI_ACCESSIBLE: '1' } };
 
@@ -111,10 +121,36 @@ describe('R1 · one component, five modes', () => {
   });
 });
 
-describe('R5 · off a terminal, nothing but text', () => {
+describe('R5 · off a terminal, no carriage return and no cursor escape', () => {
   it.each<Mode>(['pipe', 'ci', 'json', 'accessible'])('%s output carries no carriage return and no escape', (mode) => {
     const { stdout, stderr } = transcript(mode);
     expect(stdout + stderr).not.toMatch(/[\r\u001B]/);
+  });
+
+  /**
+   * The case above uses `counter`, whose `static` is plain text — it cannot contain an
+   * escape whatever the loop does, so it tested neither reading of R5. This one paints the
+   * static, which is what an explicit `FORCE_COLOR` / `--color` ask produces under
+   * roundel's revised R2, and separates the two things the old wording ran together:
+   * a colour escape is allowed off a terminal, a cursor escape is not.
+   */
+  it.each<Mode>(['pipe', 'ci', 'accessible'])('%s keeps colour and still moves no cursor', (mode) => {
+    const w = world(mode);
+    const flag = hoist(painted, w.rt, { n: 0 }, { json: w.json });
+    w.clock.tick(INTERVAL * 2);
+    flag.lower({ n: 1 });
+    const out = w.stdout() + w.stderr();
+
+    expect(out).not.toContain('\r');
+    // By shape, not by the constants this file already builds: comparing against
+    // `ERASE_ONE` alone lets a lone `ESC[1G` through, since that constant is two sequences
+    // joined. Every CSI final byte is a cursor or erase command except `m`, which is SGR.
+    expect(out.match(/\u001B\[[0-9;?]*[A-Za-z]/g) ?? []).toEqual(
+      (out.match(/\u001B\[[0-9;]*m/g) ?? []),
+    );
+    // Without this the case would pass just as well if the loop stripped every escape,
+    // which is the failure the plain-text component was already hiding.
+    expect(out).toContain(GREEN);
   });
 });
 

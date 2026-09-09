@@ -257,7 +257,11 @@ function deepFrozen<T>(value: T, seen = new WeakMap<object, unknown>()): T {
  */
 export function register(plugin: unknown): void {
   validate(plugin);
-  registry.plugins.push(plugin.name);
+  // Once per name. Every other contribution lands in a `Map`, so re-registering a plugin
+  // replaces its entries rather than doubling them; this list was the one field that grew.
+  // `flagstaff check` and the docs gallery are projections of it, and both would have shown
+  // the same plugin twice.
+  if (!registry.plugins.includes(plugin.name)) registry.plugins.push(plugin.name);
   for (const [name, hex] of Object.entries(plugin.tokens ?? {})) registry.tokens.set(name, hex);
   for (const [name, text] of Object.entries(plugin.glyphs ?? {})) registry.glyphs.set(name, text);
   for (const [name, def] of Object.entries(plugin.spinners ?? {})) registry.spinners.set(name, frozen({ ...def, frames: frozen([...def.frames]) }));

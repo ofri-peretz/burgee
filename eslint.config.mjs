@@ -495,6 +495,13 @@ export default [
     // flagstaff/ora is ora 9 — its eight dependencies folded in with it — graded by ora's
     // own 99 tests, and flagstaff/log-update is log-update 8 graded by its own 99, with
     // the wrap-ansi port beside it — the same structural rules are off for all of them.
+    // flagstaff/boxen is boxen 8 graded by its own 84, and flagstaff/cli-table3 is
+    // cli-table3 0.6.5 graded by its own 33. The table port is the strongest case for this
+    // block: it is a layout algorithm indexed by x/y coordinates and loop counters
+    // throughout, so `detect-object-injection` fires on every one of them — a rule whose
+    // own guidance exempts "a numeric index" but which cannot see that it is looking at
+    // one. Reshaping the port to satisfy it would change the drawing, and the drawing is
+    // the contract the 33 measure.
     files: [
       'packages/burgee/src/commander-*.ts',
       'packages/burgee/src/commander.ts',
@@ -503,6 +510,8 @@ export default [
       'packages/flagstaff/src/ora.ts',
       'packages/flagstaff/src/log-update.ts',
       'packages/flagstaff/src/wrap.ts',
+      'packages/flagstaff/src/boxen.ts',
+      'packages/flagstaff/src/cli-table3.ts',
     ],
     rules: {
       'maintainability/consistent-function-scoping': 'off',
@@ -554,7 +563,7 @@ export default [
   {
     // `import yargs from 'burgee/yargs'` is the drop-in: yargs' entry is a default export
     // and every program written for it imports it that way.
-    files: ['packages/burgee/src/yargs.ts', 'packages/burgee/src/yargs-parser.ts', 'packages/flagstaff/src/ora.ts', 'packages/flagstaff/src/log-update.ts'],
+    files: ['packages/burgee/src/yargs.ts', 'packages/burgee/src/yargs-parser.ts', 'packages/flagstaff/src/ora.ts', 'packages/flagstaff/src/log-update.ts', 'packages/flagstaff/src/boxen.ts', 'packages/flagstaff/src/cli-table3.ts'],
     rules: { 'import-next/no-default-export': 'off' },
   },
   {
