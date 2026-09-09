@@ -181,6 +181,16 @@
       "window": 20,
       "minPoints": 8,
       "worse": "higher"
+    },
+    {
+      "id": "agent-schema-bytes",
+      "description": "agent-headroom R7 \u2014 bytes of `--schema` on the burgee demo, the whole document an agent reads to discover the CLI. Compact by default since R1 (39,512 -> 22,964 B on the large demo, byte-identical parse); this band is what keeps a well-meaning \"make the output readable\" commit from giving the 42% back, because no test fails when it does.",
+      "collector": "benchmark-json",
+      "suite": "cli-benchmarks",
+      "jsonPath": "bands.agent-schema-bytes.value",
+      "window": 20,
+      "minPoints": 8,
+      "worse": "higher"
     }
   ]
 }
