@@ -9,7 +9,8 @@
     "start": "next start",
     "typecheck": "fumadocs-mdx && next typegen && tsc --noEmit",
     "postinstall": "fumadocs-mdx",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "test": "vitest run"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.3",
@@ -25,7 +26,8 @@
     "@types/mdx": "^2.0.14",
     "@types/node": "^26.4.1",
     "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0"
+    "@types/react-dom": "^19.2.0",
+    "vitest": "^5.0.0"
   },
   "imports": {
     "#/*": "./src/*"
