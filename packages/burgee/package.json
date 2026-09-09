@@ -95,6 +95,9 @@
     "access": "public",
     "provenance": true
   },
+  "dependencies": {
+    "roundel": "^0.1.0"
+  },
   "devDependencies": {
     "vitest": "^5.0.0"
   },

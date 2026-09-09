@@ -178,10 +178,29 @@ describe('Z1 — one file, npm i, no build step', () => {
     }
   });
 
-  it('the package it installed has zero runtime dependencies (K1/Z3)', () => {
+  /**
+   * Zero *external* runtime dependencies (K1/Z3).
+   *
+   * Not zero dependencies. burgee sits on top of its own family and consumes the layers
+   * below it — `roundel` for colour, and the rest as they land — which is the arrangement
+   * `scripts/package-shape-lock.test.ts` declares and the reason the same WCAG code no
+   * longer exists twice. What the claim was ever about survives intact: everything a
+   * caller installs comes from this repo, so there is one supply chain to audit.
+   *
+   * `--depth 1` reads burgee's own dependants only; each family package is held to this
+   * same rule by the shape lock, so the whole tree is covered by induction rather than by
+   * walking it here.
+   */
+  it('the package it installed depends on nothing outside this repo (K1/Z3)', () => {
+    const family = readdirSync(join(pkgRoot, '..'));
     const manifest = JSON.parse(
       npm(['ls', 'burgee', '--json', '--depth', '1'], { cwd: dir, encoding: 'utf8' }),
     ) as { dependencies?: Record<string, { dependencies?: Record<string, unknown> }> };
-    expect(Object.keys(manifest.dependencies?.burgee?.dependencies ?? {})).toEqual([]);
+    const installed = Object.keys(manifest.dependencies?.burgee?.dependencies ?? {});
+
+    expect(
+      installed.filter((d) => !family.includes(d)),
+      'a dependency from outside this repo is a second supply chain to audit',
+    ).toEqual([]);
   });
 });

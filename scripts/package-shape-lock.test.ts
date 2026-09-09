@@ -33,10 +33,32 @@ const published = readdirSync(join(root, 'packages'))
 /**
  * U1 / U6 (cli-output-stack): zero *external* dependencies. A published package may depend
  * only on another package published from this repo, and only on one that sits earlier in
- * this order, so the arrows point one way: burgee → ∅, roundel → ∅, flagstaff → roundel,
- * caique → roundel, flagstaff.
+ * this order, so the arrows point one way.
+ *
+ * The order is the tier stack read bottom-up: foundation, then the output stack, then the
+ * engine. Each layer consumes the layers below it and nothing above — `burgee` is last
+ * because it is the top of the stack, the package that declares a command and then asks
+ * every layer beneath it to render, colour and prompt.
+ *
+ * It used to run the other way, with `burgee` first and permitted no dependencies at all.
+ * That is what let `contrast.ts` exist twice — the same WCAG luminance and ratio code, in
+ * `burgee` and in `roundel`, differing only in which package name the error message says.
+ * A rule that forbids the arrow does not remove the need; it converts it into a copy, which
+ * is the one outcome principle 2 exists to prevent.
+ *
+ * Zero external dependencies is unchanged and is the claim that was ever worth making: what
+ * a caller installs still comes from one repo and one supply chain to audit.
  */
-const FAMILY_ORDER = ['burgee', 'roundel', 'flagstaff', 'caique'];
+const FAMILY_ORDER = [
+  'linegauge',
+  'seniority',
+  'bellpull',
+  'closeout',
+  'roundel',
+  'flagstaff',
+  'caique',
+  'burgee',
+];
 
 /** Node has these natively now (util.styleText, fs.glob, fetch, util.parseArgs). */
 const BANNED = ['chalk', 'picocolors', 'glob', 'node-fetch', 'minimist'];
