@@ -45,6 +45,10 @@ that bind every session are worth reading before opening a pull request:
   edit an asset by hand.
 - **A compat façade is never called "compatible"** below 100% on its host's own suite. Pass
   rates are published, not rounded.
+- **A changeset, whenever a PR touches `packages/*/src` or a `package.json`.** Run
+  `npm run changeset` and commit what it writes; CI fails without one. If the change really
+  is internal, the `skip-changeset` label is the override — a decision someone signs, rather
+  than an omission that reaches a release with no version bump and no changelog line.
 
 ## Reporting
 
