@@ -5,6 +5,7 @@
  * `process` exists. The three sequences are written by hand rather than through
  * `node:readline`, whose helpers want a `Writable` where the loop only has a `Writer`.
  */
+import { HIDE_CURSOR, restoreCursorOnExit, SHOW_CURSOR } from './cursor.js';
 import { type Component } from './plugin.js';
 
 export interface Writer {
@@ -26,8 +27,9 @@ export interface Projection<S> {
 
 export const DEFAULT_INTERVAL = 80;
 const CSI = '\u001B[';
-export const HIDE_CURSOR = `${CSI}?25l`;
-export const SHOW_CURSOR = `${CSI}?25h`;
+
+/** No cursor safety net standing: before `open()`, and again once `close()` has taken it down. */
+const NO_NET = (): void => undefined;
 
 /** Column 1, up to the first of `lines`, and clear from there to the end of the screen. */
 function erase(lines: number): string {
@@ -45,6 +47,7 @@ class TtyProjection<S> implements Projection<S> {
   #current!: S;
   #lines = 0;
   #cancel: () => void = () => undefined;
+  #dropCursorNet: () => void = NO_NET;
 
   constructor(component: Component<S>, out: Writer, clock: Clock) {
     this.#component = component;
@@ -57,6 +60,11 @@ class TtyProjection<S> implements Projection<S> {
   open(state: S): void {
     this.#current = state;
     this.#out.write(HIDE_CURSOR);
+    // `close()` puts the cursor back, and `close()` does not run when a signal ends the
+    // process — Ctrl+C during a spin used to leave the user's terminal with no cursor at
+    // all. The writer goes in so the restore lands on the Runtime's own stream: this module
+    // does not know `process` exists, and must not learn (R1).
+    this.#dropCursorNet = restoreCursorOnExit((s) => void this.#out.write(s));
     this.#paint();
     if (this.#component.frame !== undefined) this.#cancel = this.#clock.schedule(() => this.#repaint(), this.#interval);
   }
@@ -69,6 +77,10 @@ class TtyProjection<S> implements Projection<S> {
   close(state: S): void {
     this.#cancel();
     this.#out.write(`${erase(this.#lines)}${this.#component.static(state)}\n${SHOW_CURSOR}`);
+    // The frame put the cursor back itself, so the net comes down with it — otherwise it
+    // would fire again at exit and write a second, pointless show.
+    this.#dropCursorNet();
+    this.#dropCursorNet = NO_NET;
     this.#lines = 0;
   }
 
@@ -129,3 +141,6 @@ export function jsonProjection<S>(component: Component<S>, err: Writer): Project
   };
   return { open: emit, change: emit, close: emit };
 }
+
+// Re-exported from where the restore lives, so the hide and the putting-back cannot drift.
+export { HIDE_CURSOR, SHOW_CURSOR };

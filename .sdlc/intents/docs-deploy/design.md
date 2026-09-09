@@ -6,8 +6,10 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
 
 ## Requirements
 
-- **R1** `apps/docs/vercel.json`: `{ "git": { "deploymentEnabled": false } }`; framework
-  detection left to Vercel; `outputDirectory` default.
+- **R1** `vercel.json` **at the repo root**: `{ "git": { "deploymentEnabled": false } }`,
+  `framework: nextjs`, `buildCommand: npx turbo run build --filter=docs`,
+  `outputDirectory: apps/docs/.next`. It shipped in `apps/docs/` and moved after the
+  first production deploy failed — see "Corrections" below.
 - **R2** `.github/workflows/deploy-docs.yml` (`workflow_dispatch`, inputs `target:
   preview|production`): setup action → `vercel pull` → `vercel build` → `vercel deploy
   --prebuilt`, production behind a GitHub Environment `docs-production` with a required

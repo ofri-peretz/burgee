@@ -5,7 +5,7 @@ name: Deploy Docs
 # The only path that ships `apps/docs`. Ported from ofri-peretz/eslint, trimmed
 # to what this repo has. `.sdlc/intents/docs-deploy/intent.md` is the intent.
 #
-# Manual-only by construction. `apps/docs/vercel.json` sets
+# Manual-only by construction. `vercel.json` (repo root — see the deploy job) sets
 # `git.deploymentEnabled: false`, so Vercel never deploys on a push, and this
 # workflow has no `push:` / `pull_request:` trigger — constraint 1 of the
 # intent, and `scripts/deploy-lock.test.ts` fails if either changes.
@@ -134,11 +134,16 @@ jobs:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-    defaults:
-      run:
-        # Root Directory on the Vercel project is `apps/docs`, so this is where
-        # `vercel.json` lives and where the CLI has to run.
-        working-directory: apps/docs
+    # No `defaults.run.working-directory`: the Vercel CLI runs at the REPO ROOT.
+    # Root Directory on the `cli-interlace-tools` project is unset (the repo
+    # root), so `vercel.json` lives there and that is where the CLI has to run.
+    #
+    # This was `working-directory: apps/docs`, and the first real production
+    # deploy died on it: `File does not exist: "node_modules/client-only/
+    # index.js"`. This is an npm-workspaces monorepo, so the runtime files Next
+    # traces are hoisted to the ROOT `node_modules` — outside `apps/docs` — and a
+    # prebuilt upload rooted at the app cannot contain them. The root is the only
+    # directory that sees both the app and the dependencies it traced.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -174,20 +179,32 @@ jobs:
             npx vercel build --token="$VERCEL_TOKEN"
           fi
 
-      # No `--archive=tgz`, which the eslint repo's port of this file does pass.
-      # It exists to get under Vercel's 15,000-file limit on a prebuilt upload by
-      # sending one tarball instead. This app is nowhere near it: 397 files in
-      # `.next` excluding the cache, measured 2026-09-08. Add the flag to both
-      # `vercel deploy` lines below the first time a deploy is rejected for too
-      # many files — that rejection is the signal, and the only reason for it.
+      # `--target=preview` on the preview line is NOT redundant. Git integration is off
+      # for this project, so a CLI deploy has no branch to infer a preview from and the
+      # CLI falls back to **production** — measured 2026-09-09: the same command without
+      # the flag returned `"target": "production"` and took the
+      # `cli-interlace-tools.vercel.app` alias, while with it the deployment came back
+      # `"target": null` and stayed a Preview. Without the flag, `environment=preview`
+      # silently ships production, which is the opposite of what the input says.
+      #
+      # `--archive=tgz` packs the prebuilt output into ONE tarball instead of
+      # uploading it file by file. Vercel rejects a prebuilt deploy carrying more
+      # than 15,000 files, and the count that matters is not the app's — deploying
+      # from the repo root means the upload is the whole traced closure, root
+      # `node_modules` included. An earlier revision of this file argued the flag
+      # away on "397 files in `.next`", which measured the wrong tree and was
+      # written while the deploy had never once succeeded. The corpus only grows;
+      # a limit you cross silently at some future merge is not a limit worth
+      # discovering in production. `scripts/deploy-lock.test.ts` pins the flag on
+      # both lines.
       - name: Deploy prebuilt artifact
         id: deploy
         run: |
           set -euo pipefail
           if [ "${{ inputs.environment }}" = "production" ]; then
-            url=$(npx vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+            url=$(npx vercel deploy --prebuilt --prod --archive=tgz --token="$VERCEL_TOKEN")
           else
-            url=$(npx vercel deploy --prebuilt --token="$VERCEL_TOKEN")
+            url=$(npx vercel deploy --prebuilt --archive=tgz --target=preview --token="$VERCEL_TOKEN")
           fi
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Deployed to: $url"
@@ -241,9 +258,13 @@ jobs:
 
           case "$CODE" in
             200) ;;
-            401|403)
+            302|307|401|403)
               # Deployment Protection is on for this deployment. That is a
               # project setting, not a broken deploy — say so and stop.
+              # 302/307 is the shape it actually takes on a *preview* URL: the
+              # protection layer redirects to Vercel SSO rather than refusing
+              # outright. Measured 2026-09-09 against a real preview deploy;
+              # matching only 401|403 made every protected preview a hard red.
               echo "::warning::$TARGET returned $CODE — Vercel Deployment Protection is enabled, so the build cannot be verified from CI. Disable it for this project, or add a protection bypass secret."
               exit 0
               ;;
@@ -287,10 +308,13 @@ jobs:
           RC=0
           CODE=$(curl -sS -o /tmp/llms.txt -w '%{http_code}' --max-time 20 "$TARGET/llms.txt") || RC=$?
           case "$CODE" in '' | *[!0-9]*) CODE=000 ;; esac
-          if [ "$CODE" = "401" ] || [ "$CODE" = "403" ]; then
-            echo "::warning::/llms.txt returned $CODE — Deployment Protection, not a broken route."
-            exit 0
-          fi
+          # Same set as the step above: a protected preview answers 302 to SSO.
+          case "$CODE" in
+            302 | 307 | 401 | 403)
+              echo "::warning::/llms.txt returned $CODE — Deployment Protection, not a broken route."
+              exit 0
+              ;;
+          esac
           if [ "$CODE" != "200" ]; then
             echo "::error::$TARGET/llms.txt returned HTTP $CODE (curl exit $RC)."
             exit 1

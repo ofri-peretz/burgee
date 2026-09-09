@@ -40,8 +40,14 @@ const RULES: Record<string, EntryRule> = {
   // 2026-09-08 — a program that wants one component should import its subpath (U5, R10).
   '.': { allow: ['roundel/policy', 'roundel/tokens'], budget: 50_000, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
   // The loop and its four projections; never the registry — a program that hoists its own
-  // component pays nothing for the plugin host. Measured 4,401 B on 2026-09-08.
-  './loop': { allow: ['roundel/policy'], budget: 5_000, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
+  // component pays nothing for the plugin host. Measured 6,558 B on 2026-09-08.
+  //
+  // Raised from 5,000 the same day, deliberately: `projection` now reaches `cursor.js`, so a
+  // Ctrl+C during a frame puts the cursor back instead of leaving the user's terminal without
+  // one. That is ~2.1 KB against a defect neither incumbent has — ora and log-update both
+  // reach cli-cursor → restore-cursor → signal-exit — on the one entry whose whole job is
+  // drawing on a terminal. The alternative was a third copy of a subtle implementation.
+  './loop': { allow: ['roundel/policy'], budget: 7_000, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
   // The registry, the validator, the built-ins and the schema they are checked against.
   // The registry, the validator, the built-ins and the schema they are checked against —
   // which now carries `borders` too, so both this and `./spinner` are larger than before.
