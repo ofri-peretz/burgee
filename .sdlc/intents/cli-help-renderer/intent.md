@@ -65,6 +65,35 @@ through their `configureHelp` / `getHelp` seams. It fixes, by construction:
 - `commander-agent` and `yargs-agent` render byte-identical help for the two demos
   (allow-listed differences as in `yargs-agent/design.md`).
 
+## Verified against `main` — 2026-09-09
+
+Checked criterion by criterion on `61bd11b9`. **One of three met; one is stale and inverted.**
+The status stays `review`.
+
+- **Every row of the table has a snapshot case on the demo** — not met. There are no help
+  snapshots at all (`packages/burgee/src/__snapshots__/` holds only `completions.test.ts.snap`);
+  the sixteen cases in `help.test.ts` are assertions against a fixture program, not the demo.
+  Three rows have no test of any kind: the two-space gutter (yargs #2228, `GUTTER = 2` at
+  `help.ts:87`), array defaults rendering `(repeatable)` (yargs #1349, `help.ts:108`), and
+  `min`/`max`/`dependsOn`/`exclusive` in help (oclif #1001, #1002) — the last of which is not
+  implemented at all: `dependsOn`, `exclusive` and `conflicts` appear nowhere in `help.ts`,
+  `validate.ts` or `manifest.ts`.
+- **Rendered help fits 100 columns with no line wrapped mid-command** — **met.** Widest line
+  measured: 33 characters on `demo-cli-burgee`, 56 on `demo-cli-large` (33 commands).
+- **`commander-agent` and `yargs-agent` render byte-identical help for the two demos** —
+  **stale, and reversed by a later decision.** Both packages it names are dropped intents, and
+  the contract that shipped is the opposite one: `examples/conformance/src/commander-parity.
+  test.ts:41` and `yargs-parity.test.ts:38` assert that `burgee/commander` is byte-identical to
+  **real commander** and `burgee/yargs` to **real yargs**. Since the two incumbents' help
+  formats differ from each other, the two front-ends necessarily differ too — verified by
+  diffing the demos (commander prints `Usage: demo [options] [command]`, yargs prints
+  `demo <command>` with `[boolean]` type hints). This criterion should be rewritten to the
+  parity contract that replaced it, not reinterpreted.
+
+Also unbuilt, though not a success criterion: the finalisation decision that "Markdown output
+ships in the same package (R6)" and that the docs site consumes the Markdown renderer —
+`help.ts` has no Markdown path.
+
 ## Open questions
 
 None open. Decided at finalisation (2026-09-06):

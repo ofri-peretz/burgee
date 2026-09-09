@@ -65,6 +65,26 @@ conformance case per caller, and a cell that is "n/a" says why. Today's conforma
   line per state change, asserted in CI.
 - A first adopter's CLI passes the matrix without changes beyond the one-import migration.
 
+## Verified against `main` — 2026-09-09
+
+Checked criterion by criterion on `61bd11b9`. **Zero of four met.** `draft` is the honest
+status and it is already what this file says — the only intent in the output-stack group whose
+recorded status needed no correction.
+
+- **The matrix page, generated, every cell green or n/a-with-reason** — not met.
+  `https://burgee.interlace.tools/callers` returns 404; `apps/docs/content/docs/` holds nine
+  pages and none is a caller matrix; `scripts/` has `compat-page.ts` and `gallery-page.ts` and
+  no matrix generator; `examples/conformance/` has no caller dimension.
+- **The non-TTY benchmark task never times out for any package** — not met; no benchmark suite
+  exists anywhere in the repo.
+- **An accessible transcript with zero cursor escapes and one line per state change, in CI** —
+  not met as written, because no demo carries the output stack. The assertion exists per
+  package: `packages/flagstaff/src/loop.test.ts:115` over pipe/ci/json/accessible, and
+  `packages/caique/src/ask.test.ts:109` for the numbered-list select. Both run in
+  `quality-full.yml`, which skips draft PRs without `run-full-ci`.
+- **A first adopter's CLI passes the matrix on the one-import migration** — not met twice over:
+  there is no matrix, and `first-adopter` has no adopter.
+
 ## Open questions
 
 - The sixth caller. Candidates: a web terminal (xterm.js in a browser, where TTY is true

@@ -69,6 +69,22 @@ the manifest from `--schema` validates against the same `schemaVersion: 1` schem
 - The upstream yargs PR/issue for public command enumeration is opened and linked.
 - No `getInternalMethods` reference outside `src/internals.ts`, pinned by a lock.
 
+## Confirmed still dropped — 2026-09-09
+
+Re-read against `main` at `61bd11b9`; **the recorded reason for dropping is still true**, and it
+is the same reason as `commander-agent`'s: with the engine as the product, a layer over yargs'
+middleware and a compatible front-end over our own parser are the same package.
+
+`packages/burgee` has zero dependencies, so yargs is not installed; `./yargs`, `./yargs/helpers`
+and `./yargs/parser` are subpath front-ends over an own implementation (`yargs-parser.ts`,
+`yargs-factory.ts`, `yargs-usage.ts`, `yargs-validation.ts`, `yargs-cliui.ts`, `yargs-y18n.ts`),
+graded at **804 / 804** against yargs' own suite — two above the real package's 802 in the same
+run. Nothing named `yargs-agent` exists in `packages/`.
+
+Not re-graded. As with `commander-agent`, the live intents that still cite `yargs-agent` in a
+success criterion — `cli-help-renderer` most directly — need those criteria rewritten to the
+parity contract that replaced them.
+
 ## Open questions
 
 None open. Decided at finalisation (2026-09-06):

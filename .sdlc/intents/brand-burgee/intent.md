@@ -74,6 +74,40 @@ Measured on this repo today, not felt:
 - Two runs of the generator produce identical bytes.
 - The core `burgee` entry point's install size and cold start are unchanged.
 
+## Verified against `main` — 2026-09-09
+
+Checked criterion by criterion on `61bd11b9`. **One of four met, one half.** `draft` is the
+honest status and it is already what this file says — but note that a `burgee brand` command,
+six generated surfaces and a `brand:check` script all shipped *before* this intent has a
+`design.md`, so the Design→Build gate was skipped here. It cannot move to `approved` until that
+design exists; that is the lock working, not an obstacle to route around.
+
+`npm run brand:check` exits 0: `brand: 6 surfaces and the mark component match the declaration`.
+
+- **`icon.svg` and the OG card are generated, a CI check fails on drift, and the check is proven
+  to fail on the unfixed state** — **not met, on all three clauses.** `apps/docs/src/app/icon.svg`
+  *is* generated (`scripts/brand.mts:67`), as are five files under `brand-assets/`. The **OG card
+  is not**: `apps/docs/src/app/opengraph-image.tsx` is hand-written JSX and is not in the
+  `surfaces` array — only `brand-assets/burgee-og.svg` is. There is **no CI check**:
+  `brand:check` appears only inside the `lint` npm script, and no workflow runs `npm run lint`
+  (`quality.yml` runs `npx eslint` directly; lefthook pre-push runs typecheck, test and build).
+  Drift is caught only if a human types the command. And **nothing proves the check fails on the
+  unfixed state** — no test exercises `brand.mts --check` against drifted content.
+- **A two-colour declaration from an unrelated brand renders legibly at 16, 32 and 512 px in both
+  themes** — **not met, and it currently cannot be run.** The exact unrelated pair this repo's own
+  tests use (`#5b21b6` / `#0ea5e9`, `brand.test.ts:163`) fails the CLI's contrast gate and emits
+  nothing: `error: contrast below WCAG AA … 2.20:1 (needs 3:1)`. The documented escape hatch does
+  not work either — `--allow-low-contrast` is declared at `packages/burgee/src/cli.ts:100` and
+  gated at line 141, but a **kebab-case boolean option is never populated by the parser**, so the
+  error message names a flag that cannot be set. No test asserts legibility at any size, in
+  either theme, for any brand; `brand.test.ts` covers burgee's own pair's contrast only.
+- **Two runs of the generator produce identical bytes** — **met.** Two `burgee brand` runs a
+  second apart diff clean across all six files, backed by `brand.test.ts:109` ("is deterministic
+  — same declaration, same bytes") and `:126` ("emits no timestamps and no randomness").
+- **The core `burgee` entry point's install size and cold start are unchanged** — half. Install
+  size is locked: `weight.test.ts:80` pins `'.'` at 52,000 B and `'./contrast'` explicitly denies
+  `brand.js`. **Cold start is not measured anywhere** — there is no spawn benchmark in the repo.
+
 ## Open questions
 
 - **Does this belong in this repo at all?** It shares the "one declaration, many

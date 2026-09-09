@@ -80,6 +80,31 @@ plugins (a projection, not a registry), and the keyword convention indexes the g
 - `burgee plugin check` on a plugin missing `static` fails with `E_NO_STATIC_PROJECTION`.
 - The U9 eval passes weekly against the shared schema.
 
+## Verified against `main` — 2026-09-09
+
+Checked criterion by criterion on `61bd11b9`. **One of four met, and that one only at the two
+hosts that exist.** The status stays `review`.
+
+- **One schema file, byte-identical in every published tarball, asserted by a lock** — met for
+  two of four packages, which is what the lock can see. `packages/roundel/src/schema.json` and
+  `packages/flagstaff/src/schema.json` are byte-identical (4,863 B, md5 `c7c9798b…`), and
+  `scripts/plugin-schema-lock.test.ts` derives its host list from the tree — a package earns a
+  check by having `src/plugin.ts` — so it asserts existence, the `./schema.json` export and
+  byte-identity. `caique` and `burgee` ship no schema at all, so the lock finds them *not
+  applicable* rather than failing them. A lock that only checks the packages that already
+  comply is not yet the lock this criterion describes.
+- **The sample plugin registers in all four packages and renders in all five modes** — not met.
+  Two of four host plugins. `caique` has no widget surface; `burgee` has no `register()`, no
+  plugin `commands` and no plugin `hooks`. No test registers one object across packages.
+- **`burgee plugin check` fails with `E_NO_STATIC_PROJECTION`** — **stale, and met under the
+  name that shipped.** `node packages/flagstaff/dist/cli.js check <a spinner with no static>`
+  prints `E_NO_STATIC_PROJECTION` with its `fix` line and exits 1. Under the name the criterion
+  uses, `burgee plugin check` returns `error: unknown command "plugin"`. The command shipped
+  scoped to one layer; the criterion's "runs every installed layer's validation" is unbuilt, and
+  the wording should be rewritten to `flagstaff check` or the cross-layer command should be.
+- **The U9 eval passes weekly against the shared schema** — not met. `evals.yml` has never run
+  on its `schedule`, and every PR run prints `Layer 2 — skipped: no credential`.
+
 ## Open questions
 
 - Whether `tokens` accepts only hex (truecolor) or also styleText names. Proposed: both,

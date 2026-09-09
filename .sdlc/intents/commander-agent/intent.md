@@ -93,6 +93,27 @@ After that, without touching any command:
   most: unknown command (yargs #2481), reserved option collision (yargs #1864), missing
   required option in non-TTY (clack #533).
 
+## Confirmed still dropped — 2026-09-09
+
+Re-read against `main` at `61bd11b9`; **the recorded reason for dropping is still true.** It is
+not re-graded, per the roadmap's rule that a dropped intent is closed rather than measured.
+
+The reason recorded on 2026-09-06 was that a layer over commander's parser and a compatible
+front-end over our own engine are the same package, and the front-end is the one that needs no
+host dependency. `packages/burgee/package.json` declares `"dependencies": {}` and
+`"peerDependencies": {}` — commander is not installed at all, which is only possible because the
+parser is ours. The exports map ships `./commander` as a subpath front-end, backed by a full
+reimplementation (`commander-command.ts`, `commander-help.ts`, `commander-option.ts`,
+`commander-suggest.ts`), graded byte-for-byte against real commander rather than wrapping it.
+Nothing named `commander-agent` exists in `packages/`, and neither `withAgentLayer` nor
+`withAgentMiddleware` appears anywhere in the repo.
+
+**One consequence to fix elsewhere:** four still-open intents cite `commander-agent` in a success
+criterion — `first-adopter` ("ships a release depending on `commander-agent`"),
+`cli-help-renderer`, `agent-native-cli-layer` and the README's coverage table. Those criteria
+cannot be met as written, because the thing they name was dropped. They need rewriting to the
+subpath front-end, not reinterpreting.
+
 ## Open questions
 
 None open. Decided at finalisation (2026-09-06):

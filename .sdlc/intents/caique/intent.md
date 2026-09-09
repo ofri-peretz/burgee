@@ -61,6 +61,34 @@ Every interactive question a CLI asks is declared as an option first, so:
 - `Ctrl+C` during a prompt leaves `stdin` out of raw mode on macOS, Linux and Windows
   (clack #408), tested with a PTY in CI.
 
+## Verified against `main` — 2026-09-09
+
+Checked criterion by criterion on `61bd11b9`. **One of three met.** The status stays `review`:
+build is well under way — 129 tests pass across `ask`, `binding`, `decide`, `raw`, `spec` and
+`terminal` — but no owner approval is recorded for this intent, so `approved` would invent a
+gate that was never passed. That build-ahead-of-gate drift is the one the README's
+[Status drift, stated](../README.md#status-drift-stated) section already admits to.
+
+- **The six decision cases — flag given, TTY, non-TTY `USAGE` with `fix`, `--yes`,
+  `--interactive`, cancel → `CANCELLED`** — **met.** `src/decide.test.ts` walks the full
+  decision table ("every row matches the stated rule", "never prompts without a terminal",
+  "never prompts under --json, and never under CI"); `src/binding.ts:105` emits the
+  `CANCELLED` envelope with its `fix`, asserted at `src/binding.test.ts:97`.
+- **The benchmark's non-TTY task never times out on the layered demo** — not met, and not
+  startable: there is no benchmark suite, and no demo CLI is layered on caique.
+- **`Ctrl+C` leaves `stdin` out of raw mode on macOS, Linux and Windows, tested with a PTY in
+  CI** — **not met.** The assertion exists (`src/raw.test.ts:145`, `rawCalls` reads
+  `[true, false]`) but it is driven by a synthetic `KeyStream` fake. There is no PTY and no
+  `node-pty` anywhere in the repo, and no OS matrix runs it — `quality-full.yml` and
+  `runtime-smoke.yml` are both ubuntu-only. The criterion names three platforms and a PTY; it
+  has neither.
+
+caique is the thin leg of the stack. Alone among the four packages it has no Z1 tarball test
+(`shape.test.ts`), no weight ratchet (`weight.test.ts`), no subpath-isolation lock, no plugin
+host and no `schema.json` — and `cli-output-stack` criteria 1 and 6 and `plugin-contract`
+criterion 2 all count it. It is also unpublished: 0.1.0 in the tree, **0.0.1 on npm**, because
+`release.yml` fails `npm publish` with `ENEEDAUTH`.
+
 ## Open questions
 
 None open. Decided at finalisation (2026-09-06):

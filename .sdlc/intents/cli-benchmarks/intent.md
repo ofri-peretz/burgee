@@ -108,6 +108,34 @@ with no scheduled measurement between them.
 - The docs site has a `/benchmarks` page that is generated, never hand-edited, and every
   public number we cite elsewhere links to it.
 
+## Verified against `main` — 2026-09-09
+
+Checked criterion by criterion on `61bd11b9`. **Zero of nine met. Nothing is built.** The status
+stays `review` — this intent is a complete, reviewed plan, and that is all it is.
+
+This is the single largest hole in the roadmap, because six criteria in five *other* intents wait
+on it. There is no `benchmarks/` directory, no `bench` script in any `package.json`, no
+`bench.yml` workflow, no `LAYER=off` build, and `https://burgee.interlace.tools/benchmarks`
+returns **404**.
+
+- **Five tasks with machine-checkable outcomes** — not met.
+- **A results JSON of the declared shape, rendered as a table on the docs site** — not met.
+- **The band computing after eight weekly runs, a 2σ regression auto-writing an intent** — not
+  met. `agent-tokens-per-task` and `agent-turns-per-task` stand at **0 of 8** observations and no
+  workflow feeds them.
+- **The umbrella's ≥40% / ≥30% claim confirmed or rewritten with the measured number** — not met.
+  The intent itself says both outcomes are acceptable and *"a claim without a number is not"*.
+  The claim is still on the README with no number behind it.
+- **B2 cold start, p50 and p95 over ≥30 spawns, with the bare-node floor row** — not met.
+- **B3 per-host pass rate shown as a ratchet** — partly, and elsewhere: the compatibility page
+  publishes the rates, but there is no benchmark axis reading them.
+- **B4 bundled KB per entry against the published targets** — partly, and elsewhere:
+  `packages/burgee/src/weight.test.ts` enforces per-entry byte budgets (`'.'` 52,000;
+  `'./commander'` 128,000; `'./yargs'` 256,000) as a lock. That is a real, passing guard — but it
+  is not a benchmark and nothing it measures is published.
+- **One `npm run bench` producing all four; `--axis perf` producing one** — not met.
+- **A generated `/benchmarks` page every public number links to** — not met; 404.
+
 ## Open questions
 
 None open. Decided at finalisation (2026-09-06):

@@ -78,6 +78,34 @@ Any Standard Schema implementation (zod, valibot, arktype) is accepted where a
 - `--schema` output for the demo gains `min`, `max`, `relations` and validates against
   `schemaVersion: 2` (additive).
 
+## Verified against `main` — 2026-09-09
+
+Checked criterion by criterion on `61bd11b9`. **Zero met in full; one partly.** The status stays
+`review`. This is the weakest of the surfaces intents against its own criteria, and it says so
+here rather than on the wave table, where wave 3 is marked complete.
+
+- **Every issue named has a conformance case that fails on plain commander and passes with the
+  schema** — not met, on both halves. `schema-dsl.test.ts` cites eleven issues (#439, #846, #887,
+  #933, #1079, #1093, #1186, #1318, #1322, #1532, #1679) and all fifteen tests pass; this intent
+  names roughly twenty-three. Uncovered: yargs #1188, #1649, #1392, #2437, #2137, #2401, #898,
+  #1198, #1323, #1864, #2199, #2064, citty #244. And **no test anywhere asserts "fails on plain
+  commander"** — the differential half of the criterion has no implementation.
+- **`options.replicas` infers `number`, `args.env` infers `'dev' | 'prod'`, a variadic positional
+  `string[]`, pinned with `expectTypeOf`** — partly met. `schema-dsl.test.ts:54-60` pins those
+  types statically (and `tsc --noEmit` covers the test files, so the assertions are enforced) —
+  but `env` there is an **option**, not a positional. Positionals still arrive as untyped
+  `ctx.positionals: string[]`; there is no per-argument type inference.
+- **`--schema` output gains `min`, `max`, `relations`, and validates against `schemaVersion: 2`**
+  — **not met.** The demo emits `"schemaVersion": 1`; `schemaVersion: 2` exists nowhere in the
+  repo (`schema.ts` hard-codes `1` in four places). On a synthetic program, `schemaOf()` does
+  emit `minimum` and `maximum`, but **drops `relations` entirely** — `schema.ts` never reads
+  `node.relations`. The relations engine itself is real and tested in `validate.ts`; it simply
+  does not reach the schema.
+
+**Stale:** this intent's own code block does not typecheck against the shipped API.
+`OptionSpec.type` is `'string' | 'boolean' | 'number'` — there is no `'choice'`, `'flag'`, or
+`'file'` with `mustExist`, and positionals are `arguments: ArgumentSpec[]` with no `type`.
+
 ## Open questions
 
 None open. Decided at finalisation (2026-09-06):

@@ -68,6 +68,35 @@ equal to a subcommand name.
 5. A user swapping `commander` for `selvage/commander` changes one import line and their
    tests still pass — verified by running `examples/demo-cli-commander` against both.
 
+## Verified against `main` — 2026-09-09
+
+Checked criterion by criterion on `61bd11b9`. **Three of five met.** The status stays `review`.
+
+- **Every conformance case passes on all three hosts, unchanged** — met, with one caveat worth
+  recording. `examples/conformance` is **122 / 122** across five host entries (`commander`,
+  `burgee-commander`, `yargs`, `burgee-yargs`, `burgee`). The caveat: `src/hosts.ts:21` declares
+  `ENVELOPE = new Set(['burgee'])`, used at `harness.test.ts:49` to expect a different `--json`
+  shape for the native host. That is an accommodation in the suite for the third host, which
+  constraint 4 forbids. It is documented honestly in the file, but it is an edit, and the
+  `burgee` host entry arrived in the same commit as the engine — so the suite was never a
+  pre-existing fixed target for it.
+- **B2 shows the replacement at or below cac's cold start** — **not met.** No cold-start
+  measurement of any kind exists in the repo.
+- **B4 shows the core entry point under 52 KB bundled** — met, though by a lock rather than by
+  the benchmark axis the criterion names. `packages/burgee/src/weight.test.ts:80` budgets `'.'`
+  at 52,000 B; the measured graph is **51,921 B** and the test passes.
+- **At least six §10 parsing issues fixed, each with a test citing the issue** — **met.**
+  `packages/burgee/src/parsing-edges.test.ts` carries seven passing tests citing yargs #1312,
+  #1527, #1821, #2423, #1324, #2416 and commander #2530, all of which appear in §10 of
+  `competitor-open-issues.md`.
+- **Swapping commander for the front-end changes one import line** — met.
+  `examples/demo-cli-commander/src/burgee.ts` swaps only the import and feeds the unchanged
+  `program.ts`; `commander-parity.test.ts` runs 29 cases byte-for-byte against real commander.
+
+**Stale vocabulary.** This file still says `selvage/commander`. There is no `selvage`; the
+package is `burgee`, the front-end is the `./commander` subpath, and the target is declared per
+host in `packages/compat-oracle/src/hosts.ts` rather than by a `COMPAT_TARGET` env var.
+
 ## Open questions
 
 None open. Decided at finalisation (2026-09-06): build it last, not first, for the three
