@@ -1,32 +1,636 @@
 {
-  "$comment": "upstream-watch R1. Per subpath, the npm packages that subpath replaces or is measured against. `claim` is what we assert: `compat` — graded by the package's own suite through compat-oracle; `weight` — we cite a byte figure against it in a published comparison; `surface` — parity intended, nothing graded yet. `seen` is the last fingerprint we recorded; the watch diffs against it, so an upstream release arrives as a git diff on this file. Figures are the same measurement the weight lock and the README use: shipped code and data over the graph an import pulls, a competitor counted across its own resolved tree.",
+  "$comment": "upstream-watch R1. Per subpath, the npm packages that subpath replaces or is measured against. `claim` is what we assert: `compat` — graded by the package's own suite through compat-oracle; `weight` — we cite a byte figure against it in a published comparison; `surface` — parity intended, nothing graded yet. `seen` is the last fingerprint we recorded; the watch diffs against it, so an upstream release arrives as a git diff on this file. Figures are the same measurement the weight lock and the README use: shipped code and data over the graph an import pulls, a competitor counted across its own resolved tree. `via` says the figure is that package's contribution inside another's resolved tree rather than a claim about its own latest release: flagstaff itemises ora's bill, where chalk resolves to 5.6.2, not to the 6.0.0 on dist-tags.latest. boxen is the one figure that did not reproduce: `weight.test.ts` and the README publish \"boxen 8.0.1's 151,351 B in fourteen\", and boxen 8.0.1 measures 132,414 B across nineteen packages by the same method that reproduces ora's 113,577 and log-update's 113,368 to the byte. The declaration records the measured figure; the published claim is unchanged here and needs a decision from whoever measured it.",
   "./ora": [
     {
       "package": "ora",
       "claim": "compat",
-      "seen": { "version": "9.4.1", "weight": 113577, "measured": "2026-09-08", "cited": ["packages/flagstaff/src/weight.test.ts", "packages/flagstaff/README.md"] }
+      "seen": {
+        "version": "9.4.1",
+        "weight": 113577,
+        "measured": "2026-09-09",
+        "cited": [
+          "packages/flagstaff/src/weight.test.ts",
+          "packages/flagstaff/README.md"
+        ],
+        "registry": "ora",
+        "shasum": "ba7644f3c7c92a8f830fbc48ca770b9eaf4bc55c",
+        "self": 17891,
+        "packages": 17,
+        "files": {
+          "index.d.ts": "211ee257bf1d3d742ffe8295dd04697d648fdd4d045236c0bc82d1608d2dc2f6",
+          "index.js": "8ce1d2e2f12ab45970269ed8e0563494fdfebf502933963733d083c301908168",
+          "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+          "package.json": "5f47508dcf8f31ccb8b2c30ed42cde830ccbf1642bf1df1a9b9ad06c6fdf55da",
+          "readme.md": "d85f97f0103806f6e72c1018cb309d7710c6fe5761a4132cad0536bc214c608e"
+        },
+        "exports": [
+          "Color",
+          "Options",
+          "Ora",
+          "PersistOptions",
+          "PrefixTextGenerator",
+          "PromiseOptions",
+          "Spinner",
+          "SuffixTextGenerator",
+          "default",
+          "oraPromise",
+          "spinners"
+        ]
+      }
     },
-    { "package": "cli-spinners", "claim": "weight", "seen": { "version": null, "weight": 27841, "measured": "2026-09-08", "cited": ["packages/flagstaff/src/weight.test.ts"] } },
-    { "package": "chalk", "claim": "weight", "seen": { "version": "5.6.2", "weight": 16727, "measured": "2026-09-08", "cited": ["packages/flagstaff/src/weight.test.ts", "packages/flagstaff/README.md"] } },
-    { "package": "signal-exit", "claim": "weight", "seen": { "version": null, "weight": 21983, "measured": "2026-09-08", "cited": ["packages/flagstaff/src/weight.test.ts"] } },
-    { "package": "string-width", "claim": "surface", "seen": { "version": "8.2.2", "weight": 6194, "measured": "2026-09-08", "cited": ["packages/flagstaff/src/weight.test.ts", "packages/flagstaff/src/width.test.ts"] } },
-    { "package": "get-east-asian-width", "claim": "weight", "seen": { "version": null, "weight": 8785, "measured": "2026-09-08", "cited": ["packages/flagstaff/src/weight.test.ts"] } },
-    { "package": "yoctocolors", "claim": "weight", "seen": { "version": null, "weight": 4466, "measured": "2026-09-08", "cited": ["packages/flagstaff/src/weight.test.ts"] } },
-    { "package": "mimic-function", "claim": "weight", "seen": { "version": null, "weight": 3038, "measured": "2026-09-08", "cited": ["packages/flagstaff/src/weight.test.ts"] } }
+    {
+      "package": "cli-spinners",
+      "claim": "weight",
+      "via": "ora",
+      "seen": {
+        "version": "3.4.0",
+        "weight": 27841,
+        "measured": "2026-09-09",
+        "cited": [
+          "packages/flagstaff/src/weight.test.ts"
+        ],
+        "registry": "cli-spinners",
+        "shasum": "1f11f6d48c4e5bc6849fcb4efa0dc98f9e7299ea",
+        "self": 27841,
+        "packages": 1,
+        "files": {
+          "index.d.ts": "6bbb2e249520ec6ddd60e970972603d415f0a0ef44c7329e4b8f56dc2442da09",
+          "index.js": "b4d9f3dfc213ac484b4c76ebbf2bae7b3a822a462913d4f5b2bd65c25dd9a279",
+          "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+          "package.json": "3ce614f6488c9b8b1c2f8a3edf66a61f15cb69dcf6d2777dff094d02e64748ec",
+          "readme.md": "c6acef69607594f7af5e27395bab5e6aee10ad4d27ec4f177fad0be2cf281ed5",
+          "spinners.json": "91b0d44a709e836adc24de83f8b999dfd670a0e25037931d8c5186bb9e923a2b"
+        },
+        "exports": [
+          "Spinner",
+          "SpinnerName",
+          "default",
+          "randomSpinner"
+        ]
+      }
+    },
+    {
+      "package": "chalk",
+      "claim": "weight",
+      "via": "ora",
+      "seen": {
+        "version": "5.6.2",
+        "weight": 16727,
+        "measured": "2026-09-09",
+        "cited": [
+          "packages/flagstaff/src/weight.test.ts",
+          "packages/flagstaff/README.md"
+        ],
+        "registry": "chalk",
+        "shasum": "b1238b6e23ea337af71c7f8a295db5af0c158aea",
+        "self": 16727,
+        "packages": 1,
+        "files": {
+          "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+          "package.json": "ef029c254479723c952a24c0d8d758378bd8ddf031f5bd6f027f65e1a3d030f3",
+          "readme.md": "03d260b86ecf3becaee6ae05d891ff32b291ba613661b5707d6d0121b8c2bec9",
+          "source/index.d.ts": "f3f76db6e76bc76d13cc4bfa10e1f74390b8ebe279535f62243e8d8acd919314",
+          "source/index.js": "64b22b1c442e6d460069807b521bf0a84e112c00c2b4163bc59deab20a9292db",
+          "source/utilities.js": "698ce3cb21b00b570631742d3a9e168de31df74b3a88220c4bcf18ac30fd00cd",
+          "source/vendor/ansi-styles/index.d.ts": "acfed6cc001e7f7f26d2ba42222a180ba669bb966d4dd9cb4ad5596516061b13",
+          "source/vendor/ansi-styles/index.js": "92efdc3e5203d02d1710ff60dea3965066f97a77c0feaaa919b2693c989b7ec1",
+          "source/vendor/supports-color/browser.d.ts": "09d791bf6471207eb7553c17a6cb03d6e6bd1d789f19bbec67da2b08ec9bb570",
+          "source/vendor/supports-color/browser.js": "af136d242c06422a0004775bdf11d9e25a05b1ec54a6932315dc016d22d8b440",
+          "source/vendor/supports-color/index.d.ts": "f61a4dc92450609c353738f0a2daebf8cae71b24716dbd952456d80b1e1a48b6",
+          "source/vendor/supports-color/index.js": "e82368a5f05d145e33de6ae3464056511664b620735ef58d1800a7bcda6691e5"
+        },
+        "exports": [
+          "//",
+          "BackgroundColor",
+          "BackgroundColorName",
+          "CSPair",
+          "Chalk",
+          "ChalkInstance",
+          "Color",
+          "ColorBase",
+          "ColorInfo",
+          "ColorName",
+          "ColorSupport",
+          "ColorSupportLevel",
+          "ConvertColor",
+          "ForegroundColor",
+          "ForegroundColorName",
+          "Modifier",
+          "ModifierName",
+          "Modifiers",
+          "Options",
+          "backgroundColorNames",
+          "backgroundColors",
+          "chalkStderr",
+          "colorNames",
+          "colors",
+          "createSupportsColor",
+          "default",
+          "foregroundColorNames",
+          "foregroundColors",
+          "modifierNames",
+          "modifiers",
+          "supportsColor",
+          "supportsColorStderr"
+        ]
+      }
+    },
+    {
+      "package": "signal-exit",
+      "claim": "weight",
+      "via": "ora",
+      "seen": {
+        "version": "4.1.0",
+        "weight": 21983,
+        "measured": "2026-09-09",
+        "cited": [
+          "packages/flagstaff/src/weight.test.ts"
+        ],
+        "registry": "signal-exit",
+        "shasum": "952188c1cbd546070e2dd20d0f41c0ae0530cb04",
+        "self": 21983,
+        "packages": 1,
+        "files": {
+          "dist/cjs/browser.d.ts": "7b023021bc8e493240cc8117d490d55b4f6b62e08854ddbe1f53a35dfd40e355",
+          "dist/cjs/browser.d.ts.map": "f46fc1cf3cae357be4e69317ae3c132f2597dc8ed31d208701053782fa03a09d",
+          "dist/cjs/browser.js": "aa5f9f7f969e92b30d2d3288e8927b47faf38663f626c8e9afc7f5a3b901c816",
+          "dist/cjs/browser.js.map": "cc48aa8c7132663b411f2bb14199e3e5ca7270399917f2640e1983614919d0ab",
+          "dist/cjs/index.d.ts": "1d63579e68cf6fc4b8a5ae13748efe38584f8eea7dddc320c276b30b1856d0b0",
+          "dist/cjs/index.d.ts.map": "1dde4dce41849712db4203f346ca85435af909777b0653baf3339440bb487e42",
+          "dist/cjs/index.js": "7dba9354040ed0ddea0e3029e6f4690b1ea5b0275491a217d9704737a9cebe35",
+          "dist/cjs/index.js.map": "5d1a773080f60ad15c0f442fa5d59070910e87c109f7939800b2a4fe6b866f77",
+          "dist/cjs/package.json": "8005a3491db7d92f36ac66369861589f9c47123d3a7c71e643fc2c06168cd45a",
+          "dist/cjs/signals.d.ts": "ed5b63eecb5ba65247f8c0a85602540a96fad19719005d59610c190c0ad59a9c",
+          "dist/cjs/signals.d.ts.map": "ac18b4636c5aa4f7bb383d3ca971cce3c659d68198a7c477411a8ee23a0944d8",
+          "dist/cjs/signals.js": "84f6f2218e3a5dd61e38c9498bcb5465fb90f3900afde73956b1855b1e46af09",
+          "dist/cjs/signals.js.map": "f4b1aad11f5b1da3469353c19ce29c9f159efc878cc2b885aa4977dd8b7e31bb",
+          "dist/mjs/browser.d.ts": "7b023021bc8e493240cc8117d490d55b4f6b62e08854ddbe1f53a35dfd40e355",
+          "dist/mjs/browser.d.ts.map": "f46fc1cf3cae357be4e69317ae3c132f2597dc8ed31d208701053782fa03a09d",
+          "dist/mjs/browser.js": "57498e3448998c32a94f884f500ac7a2c8b54872f648bebf1be1704303a5522c",
+          "dist/mjs/browser.js.map": "24ff3c6a566cf59691d542f15d7aa3ba4511909acd307db7e8a09a768b83e2b5",
+          "dist/mjs/index.d.ts": "1d63579e68cf6fc4b8a5ae13748efe38584f8eea7dddc320c276b30b1856d0b0",
+          "dist/mjs/index.d.ts.map": "1dde4dce41849712db4203f346ca85435af909777b0653baf3339440bb487e42",
+          "dist/mjs/index.js": "a2f8e19d69ab443b496c203c46c47853f885f3e852aca6daa248191bf3f1ccbb",
+          "dist/mjs/index.js.map": "fbaadc2cb63860ea1aa06746caa01490e4fa2d0458a94416503e77001c5f164b",
+          "dist/mjs/package.json": "3ca9d4afd21425087cf31893b8f9f63c81b0b8408db5e343ca76e5f8aa26ab9a",
+          "dist/mjs/signals.d.ts": "ed5b63eecb5ba65247f8c0a85602540a96fad19719005d59610c190c0ad59a9c",
+          "dist/mjs/signals.d.ts.map": "ac18b4636c5aa4f7bb383d3ca971cce3c659d68198a7c477411a8ee23a0944d8",
+          "dist/mjs/signals.js": "12044052d2037fbb19637c6fb216b1c80c28664134453b9a0fc32fa2fe352c27",
+          "dist/mjs/signals.js.map": "9ac7cde2118302bfce1fb14e0f0c04112a7f0ad6fa8a18d5d950ec530aa2654f",
+          "LICENSE.txt": "b173e19b9a78df305577ace0e52ef45a4bcc915ea28b47b256dc3b68dcb1f7e7",
+          "package.json": "cd1c6cfa95782e432dd2affaa88c3a6dda7f46c8088d91f3acc0fba79dce5075",
+          "README.md": "253e9122e9e5eaf8dc9b0fccb36d2011fc8e844d11c7249991edfec2be7fde71"
+        },
+        "exports": [
+          "Emitter",
+          "Handler",
+          "SignalExit",
+          "SignalExitBase",
+          "SignalExitFallback",
+          "load",
+          "onExit",
+          "signals",
+          "unload"
+        ]
+      }
+    },
+    {
+      "package": "string-width",
+      "claim": "surface",
+      "via": "ora",
+      "seen": {
+        "version": "8.2.2",
+        "weight": 6194,
+        "measured": "2026-09-09",
+        "cited": [
+          "packages/flagstaff/src/weight.test.ts",
+          "packages/flagstaff/src/width.test.ts"
+        ],
+        "registry": "string-width",
+        "shasum": "7310516493df575742fe98af6fae87d85d5ed0ac",
+        "self": 6194,
+        "packages": 1,
+        "files": {
+          "index.d.ts": "2386b50ac5929c1a1374725e6b4b9dcbf06a5843c107713fbc54c652bcf59290",
+          "index.js": "60c197f20cc966a2ede2dfec1ad4b764aa4095a43d225792b2652bca6afeb21b",
+          "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+          "package.json": "26e7e6a32cdca3ae61b6cf02eadfcf6cf6f6133ba7779de57f9e99c261393da2",
+          "readme.md": "f634d81182a56e7732165e16c49215688911d560d5b738ff6741c51d964b19c6"
+        },
+        "exports": [
+          "Options",
+          "default"
+        ]
+      }
+    },
+    {
+      "package": "get-east-asian-width",
+      "claim": "weight",
+      "via": "ora",
+      "seen": {
+        "version": "1.6.0",
+        "weight": 8785,
+        "measured": "2026-09-09",
+        "cited": [
+          "packages/flagstaff/src/weight.test.ts"
+        ],
+        "registry": "get-east-asian-width",
+        "shasum": "216900f91df11a8b2c198c3e1d93d6c035a776b9",
+        "self": 8785,
+        "packages": 1,
+        "files": {
+          "index.d.ts": "228354b26813689534d5ecf1e2d1948795fe31bb7fa274b28fbc4056c1ea6ac3",
+          "index.js": "d7b1ba05914c0fc311c20e5618bf8d0893c9c74078a07975e2df981445e64887",
+          "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+          "lookup-data.js": "f6b40f86c9a2a6808ec808fa8ddcb8da261254cc6121d37ffaeb2bf35dad1d5b",
+          "lookup.js": "c80ecc22b120b27ef5ea9facb7000b8fd4ec037a84d9231d215f1c44bc9c21d0",
+          "package.json": "d263e50dd1a43aee9acda4d7f066e66b0d0bde1f2852ea6e7153750a5e3a3e52",
+          "readme.md": "19ad661125fa483affa9165ea77924f1dcbc6b4da821cb028abe695d628124a5",
+          "utilities.js": "4b08a7e9e3ffacbcf198a6abceb2338d52ac671899e52ccc2851c898bfccac42"
+        },
+        "exports": [
+          "Options",
+          "WidthType",
+          "_isFullWidth",
+          "_isWide",
+          "ambiguousMaximumCodePoint",
+          "ambiguousMinimalCodePoint",
+          "ambiguousRanges",
+          "eastAsianWidth",
+          "eastAsianWidthType",
+          "fullwidthMaximumCodePoint",
+          "fullwidthMinimalCodePoint",
+          "fullwidthRanges",
+          "getCategory",
+          "halfwidthMaximumCodePoint",
+          "halfwidthMinimalCodePoint",
+          "halfwidthRanges",
+          "isAmbiguous",
+          "isFullWidth",
+          "isInRange",
+          "isWide",
+          "narrowMaximumCodePoint",
+          "narrowMinimalCodePoint",
+          "narrowRanges",
+          "wideMaximumCodePoint",
+          "wideMinimalCodePoint",
+          "wideRanges"
+        ]
+      }
+    },
+    {
+      "package": "yoctocolors",
+      "claim": "weight",
+      "via": "ora",
+      "seen": {
+        "version": "2.2.0",
+        "weight": 4466,
+        "measured": "2026-09-09",
+        "cited": [
+          "packages/flagstaff/src/weight.test.ts"
+        ],
+        "registry": "yoctocolors",
+        "shasum": "c4b68ee477f3982c33e4de24a5aa4a354be506d3",
+        "self": 4466,
+        "packages": 1,
+        "files": {
+          "base.d.ts": "c87b38fc9478d60cb5d5641a676ea696501603acf308ff19fe5abc70e3c3641e",
+          "base.js": "29f91f909f7c83a1d3020045647b7fccdb0d1b647692f43f4c86c5b3fc28f187",
+          "index.d.ts": "d1cc9289766f3874cb06fbc04c8292262e608db3b2ea3d78d8b797bf5965446a",
+          "index.js": "d1cc9289766f3874cb06fbc04c8292262e608db3b2ea3d78d8b797bf5965446a",
+          "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+          "package.json": "ea6854f768a173d117089cbddc6e8df97c9f82dca599852231cafa6dc2dbabc4",
+          "readme.md": "bc66cefefac4692c68f0df86c814c7af6be743ba1ed4208b25f7485368a0e199"
+        },
+        "exports": [
+          "Format",
+          "bgBlack",
+          "bgBlue",
+          "bgBlueBright",
+          "bgCyan",
+          "bgCyanBright",
+          "bgGray",
+          "bgGreen",
+          "bgGreenBright",
+          "bgMagenta",
+          "bgMagentaBright",
+          "bgRed",
+          "bgRedBright",
+          "bgWhite",
+          "bgWhiteBright",
+          "bgYellow",
+          "bgYellowBright",
+          "black",
+          "blue",
+          "blueBright",
+          "bold",
+          "cyan",
+          "cyanBright",
+          "dim",
+          "gray",
+          "green",
+          "greenBright",
+          "hidden",
+          "inverse",
+          "italic",
+          "magenta",
+          "magentaBright",
+          "overline",
+          "red",
+          "redBright",
+          "reset",
+          "strikethrough",
+          "underline",
+          "underlineBlack",
+          "underlineBlue",
+          "underlineBlueBright",
+          "underlineCurly",
+          "underlineCyan",
+          "underlineCyanBright",
+          "underlineDashed",
+          "underlineDotted",
+          "underlineDouble",
+          "underlineGray",
+          "underlineGreen",
+          "underlineGreenBright",
+          "underlineMagenta",
+          "underlineMagentaBright",
+          "underlineRed",
+          "underlineRedBright",
+          "underlineWhite",
+          "underlineWhiteBright",
+          "underlineYellow",
+          "underlineYellowBright",
+          "white",
+          "whiteBright",
+          "yellow",
+          "yellowBright"
+        ]
+      }
+    },
+    {
+      "package": "mimic-function",
+      "claim": "weight",
+      "via": "ora",
+      "seen": {
+        "version": "5.0.1",
+        "weight": 3038,
+        "measured": "2026-09-09",
+        "cited": [
+          "packages/flagstaff/src/weight.test.ts"
+        ],
+        "registry": "mimic-function",
+        "shasum": "acbe2b3349f99b9deaca7fb70e48b83e94e67076",
+        "self": 3038,
+        "packages": 1,
+        "files": {
+          "index.d.ts": "2b5e2ab2b7568478dd2aa896cd6bdae15fb72b0a4190de7518bac99411d10fe1",
+          "index.js": "4f92a36c1ba7305bf71571137695132022f5b9ebb499770610280f8e901f2c94",
+          "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+          "package.json": "d49919b51c727d702ce72bbd44dd328b2d537abce907fc9fa529ec724cfe6467",
+          "readme.md": "a8a76b02b6d414cb95a8f1b13b437ca2c0ebb27f9d097405924d0a07e2af833c"
+        },
+        "exports": [
+          "Options",
+          "default"
+        ]
+      }
+    }
   ],
   "./log-update": [
     {
       "package": "log-update",
       "claim": "compat",
-      "seen": { "version": "8.0.0", "weight": 113368, "measured": "2026-09-08", "cited": ["packages/flagstaff/src/weight.test.ts", "packages/flagstaff/README.md"] }
+      "seen": {
+        "version": "8.0.0",
+        "weight": 113368,
+        "measured": "2026-09-09",
+        "cited": [
+          "packages/flagstaff/src/weight.test.ts",
+          "packages/flagstaff/README.md"
+        ],
+        "registry": "log-update",
+        "shasum": "07d7bde6320dda8cf6fb12619e9d30695525b141",
+        "self": 8846,
+        "packages": 16,
+        "files": {
+          "index.d.ts": "f06e5dd9de47d56231582b9cbc966c716f2753e6bebb3d8b2dfacc211dc61463",
+          "index.js": "0ba396639943fec0d01b2bb394bff3bd4cdd6447499fcb67f2f3adb47536b390",
+          "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+          "package.json": "54f804c87efdc438cc6f84f39b00ec51c21869061fd72c76c6e6e3b226f88b1a",
+          "readme.md": "f79c960efe07fcb7fab4cf2deb62f292953c612981fb125176d8510e70385162"
+        },
+        "exports": [
+          "Options",
+          "createLogUpdate",
+          "default",
+          "logUpdateStderr"
+        ]
+      }
     },
-    { "package": "wrap-ansi", "claim": "weight", "seen": { "version": null, "weight": 20004, "measured": "2026-09-08", "cited": ["packages/flagstaff/src/weight.test.ts"] } },
-    { "package": "slice-ansi", "claim": "weight", "seen": { "version": null, "weight": 27630, "measured": "2026-09-08", "cited": ["packages/flagstaff/src/weight.test.ts"] } }
+    {
+      "package": "wrap-ansi",
+      "claim": "weight",
+      "via": "log-update",
+      "seen": {
+        "version": "10.0.1",
+        "weight": 20004,
+        "measured": "2026-09-09",
+        "cited": [
+          "packages/flagstaff/src/weight.test.ts"
+        ],
+        "registry": "wrap-ansi",
+        "shasum": "59b821b7987d36a87a367bc9517284ff974086ea",
+        "self": 20004,
+        "packages": 1,
+        "files": {
+          "index.d.ts": "06f92be4ba4f9cf7a447ecabb0f37f0520861b837ca7a2a4455a64c0831bd0d9",
+          "index.js": "f65241b568824dcbfee59df47a24f9a891029899af101066d08c7a28013a0dca",
+          "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+          "package.json": "71491d7eba713c7874d18ea55a27d9b8dcd0e20b086274c95aa26decf6f6f650",
+          "readme.md": "064cb1b710679d984818f6b8af174cb39031a8a7725bdf6f8e603d6719aabbab"
+        },
+        "exports": [
+          "Options",
+          "default"
+        ]
+      }
+    },
+    {
+      "package": "slice-ansi",
+      "claim": "weight",
+      "via": "log-update",
+      "seen": {
+        "version": "9.0.0",
+        "weight": 27630,
+        "measured": "2026-09-09",
+        "cited": [
+          "packages/flagstaff/src/weight.test.ts"
+        ],
+        "registry": "slice-ansi",
+        "shasum": "8ed38fdc31f16b607a56cf86c3160d2684f1b61b",
+        "self": 27630,
+        "packages": 1,
+        "files": {
+          "index.d.ts": "36597477aaaaf277248ec9114f5070da204abe2487b24e3cf188a999f1665a06",
+          "index.js": "72c695e77aded33d0199e556a4a22ee2de923b8ae1ae9ab6da4a2cc655d28500",
+          "license": "c91d87c3bca16ab6d96d82da08edc54377d14b679547a331eecc4adef3c353c8",
+          "package.json": "3ff73e2fe19cef246e8493e7f29e30f87816aaf86e9cf897754ba11f911fd31e",
+          "readme.md": "b64554b0f3c005daf16bccb67abd711d37d5dac043b2f1c5a303765647b12395",
+          "tokenize-ansi.js": "bf7cb711bf987b5f23f858671c97dbaeaf38e4e4ba01a29a924cf5d9c410a34c"
+        },
+        "exports": [
+          "default"
+        ]
+      }
+    }
   ],
-  "./box": [{ "package": "boxen", "claim": "surface", "seen": null }],
-  "./table": [{ "package": "cli-table3", "claim": "surface", "seen": null }],
+  "./box": [
+    {
+      "package": "boxen",
+      "claim": "surface",
+      "seen": {
+        "registry": "boxen",
+        "version": "8.0.1",
+        "shasum": "7e9fcbb45e11a2d7e6daa8fdcebfc3242fc19fe3",
+        "weight": 132414,
+        "self": 10923,
+        "packages": 19,
+        "files": {
+          "index.d.ts": "5728fd6e79e51c877314783a38af0316f6da7ddc662f090ca816b9aa0199720d",
+          "index.js": "77873b83c528c92c69d7352635312a908affa43ea5c5b0e9e7989c63b31945e1",
+          "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+          "package.json": "e0b1939dd53428414a94848b36b6b4f8d1d0b1139484b821a9f16417b7b5fb58",
+          "readme.md": "50d7ec856d5f668d3c66a21b3623c266f81ec5284889dcace84038abe311dc46"
+        },
+        "exports": [
+          "CustomBorderStyle",
+          "Options",
+          "Spacing",
+          "_borderStyles",
+          "default"
+        ],
+        "measured": "2026-09-09"
+      }
+    }
+  ],
+  "./table": [
+    {
+      "package": "cli-table3",
+      "claim": "surface",
+      "seen": {
+        "registry": "cli-table3",
+        "version": "0.6.5",
+        "shasum": "013b91351762739c16a9567c21a04632e449bf2f",
+        "weight": 78148,
+        "self": 32183,
+        "packages": 6,
+        "files": {
+          "index.d.ts": "a1fc8b27b9375f1edc7ace1193f7a838ac1bc7cba03cc595a2d6d5196b7005d8",
+          "index.js": "0fe175d9abebf8107d8010ca639651be92305caf276e9f4e92089d8f30d6e74c",
+          "LICENSE": "beb6b55bc79e0660b9fd8424c2f65c966991e1a866c23356c1427e146c6cddea",
+          "package.json": "01b02a357f85512f725bdb668b08567a2217695c2ef0e43cc6ee9678db3b979e",
+          "README.md": "d0f04c1444d6486399ebdc292cc4533bb7b3c6362a1527d0980b753e306d4a48",
+          "src/cell.js": "4c17b4c57d3b39dd52929745f16c7df95da6fa99fceda0b25f1344ac2eeeb1ba",
+          "src/debug.js": "c6a9ea3794f3bb5f30c99559ca566944fae3e4883abc0000c420f24c7198925d",
+          "src/layout-manager.js": "c9a63baef65a6ff9668698f5df169d960e9977c6290951942e2d79f0561998e5",
+          "src/table.js": "b2b149140c9bc9982e6894ea36ad54fd595de3459af98b064c26c7c78f57a36b",
+          "src/utils.js": "52844f9840e373e22a050e11fc491c8a409bf75f41e475c401c80cfbf5e6e7a7"
+        },
+        "exports": [
+          "CliTable3",
+          "default"
+        ],
+        "measured": "2026-09-09"
+      }
+    }
+  ],
   "./import": [
-    { "package": "cli-spinners", "claim": "surface", "seen": null },
-    { "package": "cli-boxes", "claim": "surface", "seen": null }
+    {
+      "package": "cli-spinners",
+      "claim": "surface",
+      "seen": {
+        "registry": "cli-spinners",
+        "version": "3.4.0",
+        "shasum": "1f11f6d48c4e5bc6849fcb4efa0dc98f9e7299ea",
+        "weight": 27841,
+        "self": 27841,
+        "packages": 1,
+        "files": {
+          "index.d.ts": "6bbb2e249520ec6ddd60e970972603d415f0a0ef44c7329e4b8f56dc2442da09",
+          "index.js": "b4d9f3dfc213ac484b4c76ebbf2bae7b3a822a462913d4f5b2bd65c25dd9a279",
+          "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+          "package.json": "3ce614f6488c9b8b1c2f8a3edf66a61f15cb69dcf6d2777dff094d02e64748ec",
+          "readme.md": "c6acef69607594f7af5e27395bab5e6aee10ad4d27ec4f177fad0be2cf281ed5",
+          "spinners.json": "91b0d44a709e836adc24de83f8b999dfd670a0e25037931d8c5186bb9e923a2b"
+        },
+        "exports": [
+          "Spinner",
+          "SpinnerName",
+          "default",
+          "randomSpinner"
+        ],
+        "measured": "2026-09-09"
+      }
+    },
+    {
+      "package": "cli-boxes",
+      "claim": "surface",
+      "seen": {
+        "registry": "cli-boxes",
+        "version": "4.0.1",
+        "shasum": "7267f4ae32ecbb52b5af77fef48be219f666c57c",
+        "weight": 1471,
+        "self": 1471,
+        "packages": 1,
+        "files": {
+          "boxes.json": "506331849736795807ef217fa3cb7e9cfd9437e5500e605f946b19b899ecf8b1",
+          "index.d.ts": "5556c27f9dbe69e6630122e2381a2b4207ba0f2c7d6cd70208714146ec953a43",
+          "index.js": "f34bfc2b997515fe300ee1b615eb6c07f4b75caa44f6223534ee13c6ae9515d3",
+          "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+          "package.json": "e828a190ada82d3c813b82fed435db4161d57661d99548fb645d7272e5d5f16b",
+          "readme.md": "947c179cb6ae0f76be815083deea64e819aa1c0235833c0cadf92d1936f7ec14"
+        },
+        "exports": [
+          "BoxStyle",
+          "Boxes",
+          "default"
+        ],
+        "measured": "2026-09-09"
+      }
+    }
+  ],
+  "./boxen": [
+    {
+      "package": "boxen",
+      "claim": "compat",
+      "seen": {
+        "version": "8.0.1",
+        "weight": 132414,
+        "measured": "2026-09-09",
+        "cited": [
+          "packages/flagstaff/src/weight.test.ts",
+          "packages/flagstaff/README.md"
+        ],
+        "registry": "boxen",
+        "shasum": "7e9fcbb45e11a2d7e6daa8fdcebfc3242fc19fe3",
+        "self": 10923,
+        "packages": 19,
+        "files": {
+          "index.d.ts": "5728fd6e79e51c877314783a38af0316f6da7ddc662f090ca816b9aa0199720d",
+          "index.js": "77873b83c528c92c69d7352635312a908affa43ea5c5b0e9e7989c63b31945e1",
+          "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+          "package.json": "e0b1939dd53428414a94848b36b6b4f8d1d0b1139484b821a9f16417b7b5fb58",
+          "readme.md": "50d7ec856d5f668d3c66a21b3623c266f81ec5284889dcace84038abe311dc46"
+        },
+        "exports": [
+          "CustomBorderStyle",
+          "Options",
+          "Spacing",
+          "_borderStyles",
+          "default"
+        ]
+      }
+    }
   ]
 }

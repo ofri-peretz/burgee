@@ -61,6 +61,30 @@ protocol in front.
    difference is a measured number rather than a claim.
 5. The docs page contains a copy-pasteable client configuration that works unmodified.
 
+## Verified against `main` — 2026-09-09
+
+Checked criterion by criterion on `61bd11b9`. **Three of five met.** The status stays `review`.
+
+- **`--mcp` passes a client handshake and lists every opted-in command as a typed tool** —
+  **met, and driven live.** Piping `initialize` then `tools/list` into
+  `node examples/demo-cli-burgee/dist/bin.js --mcp` returns `protocolVersion 2025-06-18`,
+  `serverInfo {name: "demo"}` and three tools, each with a full `inputSchema` and `annotations`.
+  It works on commander-syntax programs too (`adoption-ladder.test.ts`). Note the incumbent
+  demos, which run real commander and yargs, do not get `--mcp` — only burgee-hosted programs do.
+- **Zero runtime dependencies added, asserted by K1** — **met.** `packages/burgee/package.json`
+  declares `"dependencies": {}`, and `shape.test.ts` proves it against an installed tarball. The
+  server is hand-rolled JSON-RPC over `node:readline`.
+- **A destructive command absent from the tool list until it opts in** — **met.**
+  `src/mcp.test.ts:33` declares a `wipe` command with no `effects` and asserts its absence. The
+  opt-in spelling is `effects:` rather than the `mcp: true` this intent's constraints name — a
+  wording drift, same semantics.
+- **B1 reports the same task set over MCP and over Bash** — **not met.** No benchmark exists;
+  the two bands that would hold this sit at 0 of 8 points.
+- **A copy-pasteable client configuration on the docs page that works unmodified** — **not met as
+  written.** `/docs/agent-surfaces` is live and carries an `mcpServers` block, but it is a
+  template naming `mytool`, so it does not work unmodified, and no test in `apps/docs/tests/`
+  checks it.
+
 ## Open questions
 
 None open. Decided at finalisation (2026-09-06): stdio transport only, because HTTP

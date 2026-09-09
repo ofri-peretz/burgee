@@ -1,0 +1,9 @@
+{
+  "id": "non-tty-required",
+  "requirement": "P2/E3 \u2014 a missing required argument names the argument in a pipe instead of prompting for it and hanging",
+  "prompt": "Run `mytool greet` with no name at all and tell me exactly what happened: the exit status, and whether it told you what was missing.",
+  "setup": [],
+  "check": "grep -qiE 'name' \"$BENCH_RESULT\" && grep -qiE 'requir|missing|usage|error' \"$BENCH_RESULT\"",
+  "maxTurns": 12,
+  "exemplar": "`mytool greet` exited 2 with a usage error naming the missing required argument: name."
+}

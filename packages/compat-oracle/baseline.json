@@ -23,5 +23,15 @@
     "reference": 99,
     "passed": 99,
     "rate": 1
+  },
+  "boxen": {
+    "reference": 84,
+    "passed": 84,
+    "rate": 1
+  },
+  "cli-table3": {
+    "reference": 29,
+    "passed": 0,
+    "rate": 0
   }
 }

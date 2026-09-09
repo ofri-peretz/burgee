@@ -145,6 +145,41 @@ case and a listr2 façade is its own intent if an adopter asks).
   the `./spinner` subpath, and `require()` of every entry loads in a CJS smoke (U10).
 - The U9 eval runs weekly in `evals/`: one turn, schema plus one example, a passing plugin.
 
+## Verified against `main` — 2026-09-09
+
+Checked criterion by criterion on `61bd11b9`. **Zero of eight met.** The status stays
+`approved`, which is the Design→Build gate the owner passed on 2026-09-08 and nothing more;
+these criteria are the acceptance bar for `shipped`, and the umbrella is a long way from it.
+
+- **Three packages install from their tarballs into a temp dir, one file each (U7)** — two of
+  three. `roundel/src/shape.test.ts` and `flagstaff/src/shape.test.ts` do it; `caique` has no
+  `shape.test.ts` at all.
+- **The complete-CLI dependency bill, burgee's column reading 0** — not met, and not startable:
+  there is no `benchmarks/` directory and no `bench` script. `scripts/control-bands.ts` already
+  reads `benchmarks/results/<suite>/`, a path that has never existed.
+- **Every façade vendored, `--control`-proven and ratcheting (U11)** — four of eight. chalk,
+  ora, log-update and boxen are vendored, each with a control in the same run and a
+  `packages/compat-oracle/baseline.json` entry. picocolors, cli-table3, inquirer and clack have
+  no vendored suite.
+- **The chalk subpath at or under picocolors' bytes, the spinner at or under ora's, both rows on
+  `/benchmarks` (B7)** — half met. The bytes are measured and locked (`roundel/tokens` 3,258 B
+  against a 3,300 B ceiling; `roundel/chalk` 9,311 B against 9,370 B; `flagstaff/spinner`
+  12,418 B against 12,500 B). The spawn delta is unmeasured and
+  `https://burgee.interlace.tools/benchmarks` returns **404** — there is no page to put a row on.
+- **Five conformance cases in `examples/`** — not met where the criterion puts them.
+  `examples/conformance/` imports none of the three packages; the five modes are asserted as
+  package unit tests (`flagstaff/src/loop.test.ts` "R1 · one component, five modes",
+  `plugin.test.ts` "R2 · a contribution without a static projection is refused").
+- **Every package's Z1 test and size ratchet on every PR** — not met twice over. `caique` has
+  neither a `shape.test.ts` nor a `weight.test.ts`; and the every-PR gate (`quality.yml`) runs
+  lint only — tests are in `quality-full.yml`, which skips draft PRs without `run-full-ci`.
+- **The tree-shake fixture within 5% of the subpath, and a CJS `require()` smoke (U10)** — half.
+  No bundler fixture and no 5% assertion exists anywhere; only `sideEffects: false`. The CJS
+  smoke exists for `burgee`, `roundel` and `flagstaff`, not for `caique`.
+- **The U9 eval weekly in `evals/`** — not met. The cron (`20 5 * * 4`), the case and the
+  discriminating red/green proof are all real, but `evals.yml` has **never run on `schedule`**,
+  and every PR run prints `Layer 2 — skipped: no credential`. No result has ever been recorded.
+
 ## Open questions
 
 - **Published names — candidates 2026-09-07, pending owner sign-off.** Compounds

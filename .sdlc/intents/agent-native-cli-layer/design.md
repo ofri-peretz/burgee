@@ -416,7 +416,7 @@ are independent and can run in parallel sessions (one worktree each, split by pa
 Prerequisites that only the owner can supply, needed before the wave that uses them:
 `NPM_TOKEN` or npm Trusted Publishing for each package (wave 1), `CLAUDE_CODE_OAUTH_TOKEN`
 (review now, benchmark in wave 3), `VERCEL_TOKEN` plus the Vercel project and DNS for
-`cli.interlace.tools` (wave 2), a `windows-latest` and `macos-latest` runner budget for
+`burgee.interlace.tools` (wave 2), a `windows-latest` and `macos-latest` runner budget for
 the conformance matrix (wave 1).
 
 ### Verification

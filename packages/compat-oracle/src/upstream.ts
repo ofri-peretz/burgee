@@ -12,6 +12,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { posix, testFiles } from './discover.js';
 import { type Host } from './hosts.js';
 
 export interface CompatRecord {
@@ -124,7 +125,13 @@ export function snapshot(clone: string, host: Host, meta: SnapshotMeta): CompatR
   const tests = new Map<string, string[]>();
   const surface = new Map<string, string[]>();
   const testDir = join(clone, host.testDir);
-  for (const name of readdirSync(testDir).filter((f) => TEST_FILE.test(f)).sort()) {
+  // Two sets, unioned. The flat read of the test dir is deliberately wider than the host's
+  // glob — it fingerprints files the runner never executes, which is how a release that
+  // renames a helper shows up as a diff. On top of it go the files the runner actually
+  // grades, which since 2026-09-09 reach into subdirectories: `test/issues/` was vendored,
+  // committed and hashed by neither, so five cases could move upstream unnoticed.
+  const named = new Set([...readdirSync(testDir).filter((f) => TEST_FILE.test(f)).map((f) => posix(f)), ...testFiles(testDir, host)]);
+  for (const name of [...named].sort()) {
     const source = readFileSync(join(testDir, name), 'utf8');
     const rel = `${host.testDir}/${name}`;
     hashes.set(rel, sha256(source));

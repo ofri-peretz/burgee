@@ -96,6 +96,22 @@
         "frame": {
           "description": "(t, state) => string. Optional: the frame at t milliseconds since hoisting."
         },
+        "sample": {
+          "type": "object",
+          "required": [
+            "running",
+            "done"
+          ],
+          "description": "Two states to *show* this component with: `flagstaff check` and the docs gallery render `running` then `done`. Omitted, they assume `{ phase: 'running' }` and `{ phase: 'done' }` and say so in the output. The loop never reads it \u2014 a running program's state comes from the program.",
+          "properties": {
+            "running": {
+              "description": "The state to open with."
+            },
+            "done": {
+              "description": "The state to close with."
+            }
+          }
+        },
         "interval": {
           "type": "integer",
           "minimum": 1,

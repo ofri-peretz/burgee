@@ -74,6 +74,23 @@ const ALLOWED = new Set([
   // reason the file exists; `ora.test.ts` and `log-update.test.ts` each drive their built
   // `dist/` entry in a real child process and kill it to grade them, which is the only way
   // there is, since neither host's own suite ever kills a process.
+  // flagstaff/boxen is boxen 8 ported method for method and graded by boxen's own suite.
+  // boxen's contract *is* the process for one number: how wide the terminal is. It reads
+  // `process.stdout.columns`, then `process.stderr.columns`, then `process.env.COLUMNS`,
+  // then falls back to 80 — and `fullscreen` reads `process.stdout.columns` and `.rows` to
+  // max out whichever of width/height was not given.
+  //
+  // What the suite actually grades, counted rather than asserted: **`process.env.COLUMNS`,
+  // ten times**, across `main.js` (6), `margin-option.js` (4) and `float-option.js` (3) —
+  // used to build strings long enough to wrap, which only works because boxen reads the
+  // same variable. The `stdout`/`stderr` column reads and the two `fullscreen` dimensions
+  // are ported because boxen's behaviour depends on them, not because the suite proves it:
+  // `fullscreen-option.js` snapshots eight boxes and touches `process` **zero** times, so
+  // its expectations were recorded against whatever the recording terminal was.
+  //
+  // The read happens at call time rather than at import, so a box drawn after a resize uses
+  // the new width. `box()` — the way forward — takes its width as an option.
+  'flagstaff/src/boxen.ts',
   'flagstaff/src/cursor.ts',
   // flagstaff/log-update is log-update 8 ported the same way as ora, and its process reads
   // are two: the module-level `logUpdate` and `logUpdateStderr` are bound to

@@ -1,0 +1,12 @@
+{
+  "name": "@vendored/cli-table3-suite",
+  "private": true,
+  "type": "commonjs",
+  "main": "./shim.mjs",
+  "version": "0.6.5",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cli-table/cli-table3.git"
+  }
+}

@@ -36,6 +36,11 @@ const ALLOWED: Record<string, string[]> = {
   // else. `wrap.js` is the ANSI-aware wrapper `box` and `table` share, which is why it is
   // its own module rather than a section of this façade.
   'log-update.js': ['./cursor.js', './wrap.js'],
+  // The boxen façade: the width function and the ANSI-aware wrapper, and nothing else in
+  // the package. It carries cli-boxes' table itself rather than reading the registry —
+  // `_borderStyles` is boxen's public surface, and a façade whose drawing changed when
+  // somebody registered a plugin would be reinterpreting its host.
+  'boxen.js': ['./width.js', './wrap.js'],
   // The built-ins: `progress` is self-contained, `tasks` reads the registry for its glyphs
   // and its spinner style, and `box` and `table` are string functions over the same two
   // modules — never over each other.

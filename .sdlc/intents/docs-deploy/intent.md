@@ -17,7 +17,7 @@
 ## What is wanted
 
 `apps/docs` deployed to Vercel from `main` only, on a host under `interlace.tools`
-(proposal: `cli.interlace.tools`), with the same deploy discipline as the eslint docs
+(proposal: `burgee.interlace.tools`), with the same deploy discipline as the eslint docs
 site: no preview per branch, a manual `deploy-docs.yml` for ad-hoc and emergency
 deploys, production fired by `auto-deploy.yml` on merge when the app is turbo-affected,
 and a post-deploy check that the production URL returns the new build. Plus `llms.txt`
@@ -41,7 +41,7 @@ agents the layer is for.
   as in `eslint/`), `VERCEL_TOKEN` secret, org/project ids.
 - `.github/workflows/deploy-docs.yml`, `auto-deploy.yml`; `.github/vercel-apps.json`
   if the eslint pattern is kept.
-- DNS for `cli.interlace.tools` (owner: @ofri-peretz).
+- DNS for `burgee.interlace.tools` (owner: @ofri-peretz).
 - `apps/docs/src/app/llms.txt/route.ts`, `llms-full.txt/route.ts`, `robots`, `sitemap`.
 
 ## Constraints
@@ -56,14 +56,49 @@ agents the layer is for.
 
 ## Success criteria
 
-- `https://cli.interlace.tools/` serves the home page with the Interlace mark;
+- `https://burgee.interlace.tools/` serves the home page with the Interlace mark;
   `/docs/the-floor`, `/.sdlc/research`, `/llms.txt` return 200.
 - A merge that touches only `packages/**` does **not** trigger a docs deploy
   (turbo-affected check), pinned by a workflow-lock test on the `if:` expression.
 - The manual workflow with `target=preview` produces a preview URL; with
   `target=production` and no `RELEASE_APPROVAL`, it pauses.
-- `curl -s https://cli.interlace.tools/ | grep -c <meta name="x-build-sha"` matches the
+- `curl -s https://burgee.interlace.tools/ | grep -c <meta name="x-build-sha"` matches the
   merged SHA after `auto-deploy.yml` completes.
+
+## Verified against `main` — 2026-09-09
+
+**The table below is now stale in the optimistic direction, and this intent's own reason for
+staying `review` is wrong.** It says the deploy is "inert — no `VERCEL_TOKEN`". All three secrets
+are wired (`VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` all appear as `***` in run
+`34309369070`'s environment) and **nine production deploys have executed**. The site is live and
+serving this commit. The status stays `review` for a different and better reason: the deploy is
+live and **failing its own verification gate**.
+
+Checked criterion by criterion. **One met, three not.**
+
+- **`/` serves the home page with the Interlace mark; `/docs/the-floor`, `/.sdlc/research`,
+  `/llms.txt` return 200** — met but for one stale path. Measured: `/` 200 (and it carries
+  "Interlace"), `/docs/the-floor` 200, `/llms.txt` 200, `/llms-full.txt` 200,
+  `/docs/compatibility` 200, `/docs/gallery` 200. **`/.sdlc/research` is 404** — the research
+  page is served at `/docs/research` (200). The criterion's URL predates the docs IA; it is the
+  URL that is stale, not the page.
+- **A merge touching only `packages/**` does not trigger a docs deploy, pinned by a workflow-lock
+  on the `if:`** — **not met**, and this intent already records why: root devDependencies on
+  burgee, compat-oracle and flagstaff put all eleven workspaces in turbo's changed set, so
+  `docs` is affected by almost everything. What `scripts/deploy-lock.test.ts` actually locks is
+  the weaker pair — main-only, and unreachable unless the `affected` job says `docs=true`.
+- **`target=preview` produces a preview URL; `target=production` without `RELEASE_APPROVAL`
+  pauses** — **not demonstrated.** All nine `deploy-docs.yml` runs in existence are `production`;
+  **no preview dispatch has ever been fired.** The logic is locked by tests; the behaviour has
+  never been observed.
+- **`x-build-sha` matches the merged SHA after `auto-deploy.yml` completes** — **not met at the
+  gate.** The check ran for real against this commit and went red: run `34309369070` errored
+  `https://burgee.interlace.tools is serving build e927678f…, not 61bd11b9…. The deploy uploaded
+  but the alias did not move.` The alias did move afterwards — the live page now carries
+  `x-build-sha content="61bd11b9a1bf1fe73dd5a6e76e0898614e988ec7"` — so the site is correct and
+  the mechanism that is supposed to prove it is not. **Four of the nine production runs failed,
+  including the two most recent.** A post-deploy check that goes red on a good deploy is the one
+  failure mode that trains people to ignore it.
 
 ## What is built (2026-09-08)
 
@@ -102,7 +137,7 @@ None of it is code. Until all three exist, the workflows above stay green and in
 2. **Three Actions secrets** — `VERCEL_TOKEN` (a token from
    <https://vercel.com/account/tokens>), plus `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` from
    the project's Settings → General.
-3. **DNS for `cli.interlace.tools`**, pointed at that project.
+3. **DNS for `burgee.interlace.tools`**, pointed at that project.
 
 Optional, and only if a refusal should become a real pause: add required reviewers to the
 `docs-production` GitHub Environment, which `deploy-docs.yml` already declares.
@@ -155,6 +190,18 @@ wrong page. Tightening it is its own intent, not a thing to do quietly here.
 
 None open. Decided at finalisation (2026-09-06):
 
-- **Host is `cli.interlace.tools`**, one subdomain per property like the others.
+- **Host is `burgee.interlace.tools`**, one subdomain per property like the others.
+  Changed from the proposed `cli.interlace.tools` by the owner on 2026-09-08: the
+  subdomain is named for the package, not for the category.
 - **One app, hard-coded** in the workflows; the `vercel-apps.json` map returns when a
   second app exists.
+- **A package may earn its own docs app** (owner, 2026-09-08), at `roundel.`,
+  `flagstaff.` or `caique.interlace.tools` — one subdomain per package, on the same
+  pattern. The map is what turns that from a copied workflow into a table, so the second
+  app is the trigger for building it and nothing before that.
+
+  Worth deciding when it happens rather than now: `apps/docs` today is **not**
+  burgee-only. `compatibility`, `comparison` and `gallery` all describe the whole stack,
+  so they would either stay on burgee's host as the family's front door, or move to
+  whichever package they document. Splitting per package without settling that would
+  duplicate the pages that matter most.

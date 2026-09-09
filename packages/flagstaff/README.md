@@ -72,6 +72,19 @@ or component without a `static` is refused at `register()` with `E_NO_STATIC_PRO
 and a fix. The built-in `dots` and `line` styles are a plugin of exactly this shape,
 registered through the same door, so the built-ins cannot grow an API a plugin cannot reach.
 
+`register()` is the **only** way in, and that is a property rather than a convention:
+`registered()` hands back a copy — new maps over the frozen objects `register()` stored — so
+`registered().spinners.set(…)` puts nothing in the registry and `.clear()` empties nothing.
+A contribution that never met `validate()` cannot be reached by `spinner()`, `box()` or the
+gallery, which is what makes "refused at the door" (U3) a fact about the code rather than
+advice. Freezing also means the object you registered stays yours: edit it afterwards and
+the registry does not change.
+
+A component may declare `sample: { running, done }` — the two states `flagstaff check` and
+the docs gallery *show* it with. The loop never reads it; a running program's state comes
+from the program. Without one, both assume `{ phase: 'running' }` / `{ phase: 'done' }` and
+say so in the output, rather than rendering an invented state as if it were yours.
+
 ### The built-ins
 
 Five components, each on its own subpath, each answering the static projection for itself:
@@ -153,6 +166,26 @@ The static projection is the reason to move on eventually, not the reason to mov
 `hoist()` is what gives a pipe one line per state instead of frames. `flagstaff/ora` is the
 door, and it is deliberately ora's behaviour to the byte.
 
+### The boxen path
+
+`flagstaff/boxen` is boxen 8's API, graded **84 / 84 by boxen's own test suite** — every one
+of whose cases is a snapshot of the exact characters the box comes out as.
+
+```diff
+-import boxen from 'boxen';
++import boxen from 'flagstaff/boxen';
+```
+
+`borderStyle` (all eight of cli-boxes', a style object, or `none`), `borderColor`,
+`backgroundColor`, `dimBorder`, `title` and `titleAlignment`, `textAlignment`, `padding`,
+`margin`, `width`, `height`, `float`, `fullscreen`, and `_borderStyles`.
+
+The drawing **is** the contract here, and matching it byte for byte is the compatibility
+claim rather than a way of avoiding one: a user leaving boxen cares about one thing, whether
+the box still looks the same. It carries cli-boxes' table itself rather than reading the
+plugin registry — a façade whose drawing changed when somebody registered a plugin would be
+reinterpreting its host. Named borders through the registry are `flagstaff/box`'s job.
+
 ### The log-update path
 
 `flagstaff/log-update` is log-update 8's API, graded **99 / 99 by log-update's own test
@@ -217,6 +250,40 @@ escapes made visible — so an author, or an agent that just wrote one, sees the
 projection next to the animation before anything ships. Exit 1 on a refusal, with the code
 and the fix.
 
+It opens with a census of what it found and closes with the verdict, so `ok` is never
+printed before the rendering that would justify it:
+
+```text
+nyan — 1 spinner, 0 borders, 0 components, 0 glyphs, 0 tokens
+spinner nyan
+  tty         ␛[?25l≋ working␛[1G␛[0J…
+  pipe        ~nyan~ working⏎ ✔ done⏎
+  …
+nyan: ok
+```
+
+`0 spinners, 0 components` is how a misspelled key tells on itself. The schema is
+`additionalProperties: true` on purpose — a key another package in the family reads belongs
+in the same object — so a typo cannot be refused by the schema, and `check` is the surface
+that has to notice:
+
+```text
+typo — 0 spinners, 0 borders, 0 components, 0 glyphs, 0 tokens
+  unknown     componets, spinner — flagstaff reads none of these; a key another package in the family reads is allowed here
+E_NO_CONTRIBUTION: typo registers, but contributes nothing flagstaff can render
+  fix: flagstaff reads spinners, borders, components, glyphs and tokens; check those spellings. …
+```
+
+Each component block names the state it was rendered with — the component's own `sample`
+when it declares one, and otherwise the assumed `{ phase }` shape, said out loud. A `static`
+that throws on the state it is handed is a refusal like any other, naming the modes it broke
+in (`json` emits the state and never calls `static`, so it is usually the one that survives):
+
+```text
+E_COMPONENT_THREW: g threw in tty, pipe, ci, accessible
+  fix: `static(state)` must return a string for the state it is rendered with; …
+```
+
 ## Weight
 
 Every subpath is a lock, not a convention, and the numbers below are asserted by
@@ -224,8 +291,10 @@ Every subpath is a lock, not a convention, and the numbers below are asserted by
 never the plugin registry; `flagstaff/plugin` 8.4 KB, of which 2.4 KB is the schema;
 `flagstaff/spinner` 9.4 KB; `flagstaff/ora` 46.5 KB — 55.9 KB with roundel counted, against
 ora's own 113.6 KB; `flagstaff/log-update` 29.6 KB, reaching **no package at all**, against
-log-update's own 113.4 KB across sixteen. The two façades share `cursor.js` and, through
-`wrap.js`, `width.js`; neither reaches the other's port, and neither reaches the core. `sideEffects: false` lets a
+log-update's own 113.4 KB across sixteen; `flagstaff/boxen` 33.7 KB — 43.0 KB with roundel
+counted, against boxen's own 151.4 KB across fourteen. The three façades share `wrap.js` and
+`width.js`, and the first two share `cursor.js`; none reaches another's port, and none
+reaches the core. `sideEffects: false` lets a
 bundler drop what a program does not use. ESM with a `default` condition, so
 `require('flagstaff/spinner')` works from CommonJS on Node ≥ 24.
 

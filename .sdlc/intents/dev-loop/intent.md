@@ -62,6 +62,39 @@ lets a CLI be loaded in-process exists (T1). This intent is the loop around them
 5. Time from saving a file to an agent being able to call the changed command is under
    500ms on the 30-command demo.
 
+## Verified against `main` — 2026-09-09
+
+Checked criterion by criterion on `61bd11b9`. **Two of five met, two half.** The status stays
+`review`. `burgee dev` is real, listed in `burgee --help`, and fast — the gap is that two of the
+checks this intent names do not exist.
+
+- **`burgee dev ./cli.ts` serves MCP on stdio; an edited description is visible to a connected
+  client on its next `tools/list` with no client action** — **met.** `dev.test.ts:93` drives the
+  full sequence and additionally proves the stale-handler case, that a call routes to the
+  reloaded handler. Caveat worth recording: the test drives `dev()` against a `PassThrough` pair
+  in-process rather than a spawned stdio child.
+- **`tools/list_changed` emitted on reload, and a conformance case asserts it** — half. The
+  emission is real and asserted twice in `dev.test.ts` (lines 118, 139). **There is no
+  conformance case**: `examples/conformance/src/mcp.test.ts` has three cases and no
+  `list_changed` reference, and the criterion names the conformance suite specifically.
+- **On each save, the manifest and the rendered help are printed** — half. `report()`
+  (`dev.ts:136-148`) prints, on every reload, a one-line summary, a `+` / `-` / `~` diff by
+  command path, and the full `renderHelp(...)`. Help: yes. **Manifest: a count and a diff of it,
+  not the manifest.**
+- **Removing every trace of `burgee dev` leaves the CLI byte-identical (Z2), asserted by a test**
+  — **not met.** No such test exists. What exists is a weight proxy: `weight.test.ts` lists
+  `dev.js` in the `denied` array for `'.'`, `'./testing'`, `'./cli'`, `'./commander'` and
+  `'./yargs'`, proving the framework never imports it. That is a good guard, but it proves
+  non-inclusion, not byte-identity of the user's built CLI.
+- **Time from saving a file to an agent being able to call the changed command is under 500 ms on
+  the 30-command demo** — **met, and measured end to end for this pass.** The shipped test
+  (`dev.test.ts:166`) times only from an explicit `handle.reload()`, skipping `fs.watch`
+  detection and the debounce, so it does not measure what the criterion says. Driving the full
+  watcher path on a generated 30-command CLI — write the file, wait for
+  `notifications/tools/list_changed`, call the changed command, check the new answer — took
+  **89.4 ms and 66.4 ms** on two runs, against the explicit-reload path's 26.9 ms. Comfortably
+  inside 500 ms either way; the shipped test should be widened to measure the path it claims.
+
 ## Open questions
 
 None open. Decided at finalisation (2026-09-06): stdio only, matching `cli-mcp`; watch an

@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { CONTRACT, glyph, lookupSpinner, PluginError, register, registered } from './plugin.js';
+import { type Component, CONTRACT, glyph, lookupSpinner, PluginError, register, registered, type SpinnerDef } from './plugin.js';
 
 const src = fileURLToPath(new URL('.', import.meta.url));
 
@@ -119,6 +119,64 @@ describe('the registry', () => {
     expect(glyph('__proto__')).toBe('x');
     expect(({} as Record<string, unknown>)['x']).toBeUndefined();
     expect(Object.prototype.toString.call({})).toBe('[object Object]');
+  });
+});
+
+/**
+ * #58 — `register()` is the door, and `registered()` must not be a second one beside it.
+ * U3's claim is structural: a contribution without a static projection is *refused*, not
+ * discouraged. Every case here is a way a caller could have put one in anyway.
+ */
+describe('U3, U4 · register() is the only way into the registry', () => {
+  it('a spinner set through registered() never reaches lookupSpinner', () => {
+    const snapshot = registered();
+    snapshot.spinners.set('sneaky', { frames: ['a', 'b'], interval: 10 } as SpinnerDef);
+    expect(snapshot.spinners.has('sneaky')).toBe(true);
+    let e: unknown;
+    try {
+      lookupSpinner('sneaky');
+    } catch (err) {
+      e = err;
+    }
+    expect((e as PluginError).code).toBe('E_UNKNOWN_SPINNER');
+    expect(registered().spinners.has('sneaky')).toBe(false);
+  });
+
+  it('clearing what registered() hands back does not empty the registry', () => {
+    registered().spinners.clear();
+    registered().borders.clear();
+    registered().glyphs.clear();
+    expect(registered().spinners.has('dots')).toBe(true);
+    expect(glyph('ok')).not.toBe('');
+    expect(lookupSpinner('line').static).toBe('…');
+  });
+
+  it('a component with no static at all cannot be added through it', () => {
+    registered().components.set('rogue', { name: 'rogue' } as Component);
+    expect(registered().components.has('rogue')).toBe(false);
+  });
+
+  it('pushing onto the plugin list does not register a plugin', () => {
+    registered().plugins.push('ghost');
+    expect(registered().plugins).not.toContain('ghost');
+  });
+
+  it('a registered contribution is frozen: its static cannot be taken off it afterwards', () => {
+    const def = registered().spinners.get('line') as SpinnerDef;
+    expect(() => {
+      (def as { static: string }).static = 'gone';
+    }).toThrow(TypeError);
+    expect(() => def.frames.push('x')).toThrow(TypeError);
+    expect(lookupSpinner('line').static).toBe('…');
+  });
+
+  it('mutating the object you registered does not change what was registered', () => {
+    const mine = { frames: ['a'], interval: 40, static: 'a' };
+    register({ name: 'later', spinners: { later: mine } });
+    mine.static = 'changed';
+    mine.frames.push('b');
+    expect(lookupSpinner('later').static).toBe('a');
+    expect(lookupSpinner('later').frames).toEqual(['a']);
   });
 });
 
