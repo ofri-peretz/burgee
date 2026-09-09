@@ -55,7 +55,7 @@ env:
   # The canonical host. Hard-coded on purpose: there is one app. The
   # `.github/vercel-apps.json` map the eslint repo carries returns here when
   # there is a second one — the intent decided that at finalisation.
-  PRODUCTION_URL: https://cli.interlace.tools
+  PRODUCTION_URL: https://burgee.interlace.tools
 
 jobs:
   # ── Is there anything to deploy with, and is anyone allowed to? ────────────

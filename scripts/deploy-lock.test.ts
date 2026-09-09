@@ -179,7 +179,7 @@ const workflowEnv = deployDocs.env ?? {};
  * These `run:` blocks are POSIX shell and the runner they execute on is
  * `ubuntu-latest`, always. On Windows the stubs are not reliably resolved ahead of the
  * real binaries — the first version of this file reached out to the network and asked
- * DNS about `cli.interlace.tools` — so the cases that *execute* a step are skipped
+ * DNS about `burgee.interlace.tools` — so the cases that *execute* a step are skipped
  * there. The structural cases, including "this step still exists", run everywhere, and
  * the Linux and macOS cells are hard gates, so every mutation below still turns CI red.
  */
@@ -365,7 +365,7 @@ describe('deploy-docs.yml', () => {
     const body = script(llmsStep);
     const base = { ...workflowEnv, DEPLOY_URL: 'https://dep.vercel.app' };
 
-    const ok = runStep(body, { ...base, SHIM_CODE: '200', SHIM_RC: '0', SHIM_BODY: '# burgee\n\n- [The floor](https://cli.interlace.tools/docs/the-floor)\n' });
+    const ok = runStep(body, { ...base, SHIM_CODE: '200', SHIM_RC: '0', SHIM_BODY: '# burgee\n\n- [The floor](https://burgee.interlace.tools/docs/the-floor)\n' });
     expect(ok.status, ok.output).toBe(0);
 
     // Served, but empty — a map that lost every road still returns 200.
