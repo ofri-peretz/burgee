@@ -11,12 +11,25 @@ import { describe, expect, it } from 'vitest';
 import { proveFixtures, VARIANTS } from './axes/perf.js';
 import { DEFAULT_EXPORT, fixtureSource, PAIRS } from './fixtures/entry-points.js';
 
+/**
+ * Spawning fourteen processes takes 1 second here and 5.8 on a Windows runner, which is
+ * past vitest's 5 s default. The generous timeout is deliberate and carries no meaning:
+ * this asserts that the fixtures are *correct*, never that they are fast. The only place
+ * a duration is allowed to decide anything in this suite is a ratio between two spawns
+ * taken in the same run.
+ */
+const SPAWN_TIMEOUT_MS = 120_000;
+
 describe('cold-start fixtures', () => {
-  it('all print the same line, and every one that claims a parser proves it honours --shout', () => {
-    expect(() => {
-      proveFixtures();
-    }).not.toThrow();
-  });
+  it(
+    'all print the same line, and every one that claims a parser proves it honours --shout',
+    () => {
+      expect(() => {
+        proveFixtures();
+      }).not.toThrow();
+    },
+    SPAWN_TIMEOUT_MS,
+  );
 
   it('includes the bare-node floor row, which intent constraint 5 makes mandatory', () => {
     expect(VARIANTS.some((v) => v.id === 'bare node' && !v.parses)).toBe(true);
