@@ -16,7 +16,7 @@ import { serveMcp } from './mcp.js';
 import { camel, kebab } from './names.js';
 import { nearestPackage, type Package } from './pkg.js';
 import { ConfigError, explain, type Layers, type Provenance, resolve as resolveLayers } from './precedence.js';
-import { commandSchemaOf, schemaOf, summaryOf } from './schema.js';
+import { commandSchemaOf, machineJson, schemaOf, summaryOf } from './schema.js';
 import { checkDefinition, checkRelations, coerce, UsageError } from './validate.js';
 
 export interface CommandContext<O> extends Omit<RunContext, 'options'> {
@@ -483,7 +483,7 @@ async function surface(manifest: Manifest, argv: string[], io: Io): Promise<bool
     return true;
   }
   if (head.includes('--schema')) {
-    io.out.write(`${JSON.stringify(schemaSurface(manifest, argv), null, 2)}\n`);
+    io.out.write(`${machineJson(schemaSurface(manifest, argv), head)}\n`);
     return true;
   }
   if (head[0] === '--mcp') {
@@ -516,7 +516,8 @@ const SCHEMA_BUDGET = 48_000;
  * and how to drill when it does not.
  */
 function schemaSurface(manifest: Manifest, argv: string[]): unknown {
-  const { node } = manifest.resolve(beforeTerminator(argv).filter((a) => a !== '--schema') as string[], manifest.rootPath);
+  // `--format=…` is a flag, never a step in the command path being drilled into.
+  const { node } = manifest.resolve(beforeTerminator(argv).filter((a) => a !== '--schema' && !a.startsWith('--format=')) as string[], manifest.rootPath);
   if (node?.run !== undefined) return commandSchemaOf(node, manifest.rootPath);
   const full = schemaOf(manifest);
   const budget = manifest.schemaBudget ?? SCHEMA_BUDGET;

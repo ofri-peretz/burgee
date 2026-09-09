@@ -5,7 +5,7 @@
 > B1, which is where the claim is measured. Gathers three findings that are currently routed
 > to three different intents — one of them deferred — under the one decision they share.
 
-**Status:** draft · **Opened:** 2026-09-09 · **Owner:** @ofri-peretz
+**Status:** review · **Opened:** 2026-09-09 · **Owner:** @ofri-peretz
 
 ---
 
