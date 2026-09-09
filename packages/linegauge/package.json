@@ -1,7 +1,7 @@
 {
   "name": "linegauge",
   "version": "0.0.1",
-  "description": "The width of material a saw removes in a cut. Measuring, wrapping, truncating and slicing styled terminal text without the edge fraying \u2014 grapheme-correct over Intl.Segmenter. Drop-in paths for string-width, wrap-ansi, strip-ansi and slice-ansi. Zero dependencies.",
+  "description": "A printer's line gauge \u2014 the steel rule marked in picas and points. Measuring, wrapping, truncating and slicing styled terminal text without the edge fraying \u2014 grapheme-correct over Intl.Segmenter. Drop-in paths for string-width, wrap-ansi, strip-ansi and slice-ansi. Zero dependencies.",
   "license": "MIT",
   "type": "module",
   "engines": {

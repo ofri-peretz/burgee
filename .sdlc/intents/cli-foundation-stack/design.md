@@ -182,16 +182,19 @@ packages/<name>/src/
   is four times the surface for the first bug report, and the scoreboard's persuasive power
   comes from a number that moves, not from a launch.
 - **Defending a layer the platform absorbs.** Y4 makes deprecation the planned response.
-  Two candidates already died to this test — a `patch-package` replacement to npm RFC 53,
-  and a standalone glob matcher to `fs.glob` — and the discipline that killed them cheaply
-  is the same one that must apply to a package we have already published.
+  Three candidates have died to this test — a `patch-package` replacement to npm RFC 53, a
+  standalone glob matcher to `fs.glob`, and human formatting to `Intl.NumberFormat` and
+  `Intl.DurationFormat` on 2026-09-09 — and the discipline that killed them cheaply is the
+  same one that must apply to a package we have already published.
 
 ## Out of scope
 
-- **Any new layer beyond these four.** Human formatting (`ms`, `bytes`, `pluralize` —
-  714 M/wk) is measured and live but is a separate intent; environment detection folds into
-  `roundel`, `open` folds into `bellpull`, and file watching is a different family under
-  rule 10. The ceiling for this repo is nine packages, set by the context budget
+- **Any new layer beyond these four.** Human formatting (`ms`, `bytes`, `pluralize`,
+  `pretty-*` — 698 M/wk) died to Y4 on 2026-09-09: Node 24 substitutes outright for the
+  format direction, and what survives is three functions across five packages that carry
+  one dependency between them, so there is no tree for an override to collapse. Environment
+  detection folds into `roundel`, `open` folds into `bellpull`, and file watching is a
+  different family under rule 10. The ceiling for this repo is nine packages, set by the context budget
   (28,345 lines / ~116 K tokens today, before four of the eight are implemented).
 - **A native port of any of these layers.** The 2026-09-08 decision stands: an addon's load
   cost exceeds the work any of these does in one CLI run. The one measured exception —

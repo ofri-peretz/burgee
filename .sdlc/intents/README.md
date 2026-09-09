@@ -23,7 +23,7 @@ the reasoning; this is the state.
 
 | | |
 | :-- | :-- |
-| **Published** | The output stack is public. `burgee@0.3.0`, `roundel@0.1.0`, `flagstaff@0.1.0`, `caique@0.1.0` — all four with SLSA provenance over npm Trusted Publishing, and zero external dependencies (flagstaff's one dependency is roundel). The foundation four — `linegauge`, `seniority`, `bellpull`, `closeout` — are still `0.0.1` reservations |
+| **Published** | The output stack is public. `burgee@0.3.0`, `roundel@0.1.0`, `flagstaff@0.1.0`, `caique@0.1.0` — all four with SLSA provenance over npm Trusted Publishing, and zero external dependencies (flagstaff's one dependency is roundel). The foundation four — `linegauge@0.0.1`, `seniority@0.0.1`, `bellpull@0.0.1`, `closeout@0.0.1` — are still reservations |
 | **Scoreboard** | **Public**, at [burgee.interlace.tools/docs/compatibility](https://burgee.interlace.tools/docs/compatibility), generated from the oracle and checked against it on every Ratchet run. Seven hosts at 100%: commander **1,360 / 1,360**, yargs **804 / 804**, chalk 58, ora 99, log-update 99, boxen 84, cli-table3 29 |
 | **Waves done** | 0, 3 ✅ · 1, 2, 4 in flight 🔨 · 5 conditional |
 | **Intent states** | 11 `shipped` · 13 `review` · 3 `approved` · 10 `draft` · 2 `dropped`, counted 2026-09-09 |
@@ -309,7 +309,7 @@ data, every animation with a static projection, weight paid per subpath. Propose
 | # | Intent | Delivers | Floor ids | Status |
 | :-- | :-- | :-- | :-- | :-- |
 | 23 | [`cli-output-stack/`](./cli-output-stack/) | the layer table, the static-projection rule, the data-only plugin contract, the complete-CLI dependency bill | U1–U10 | approved — 0 of 8 criteria met. The gate was passed 2026-09-08; the acceptance bar is untouched |
-| 24 | [`roundel/`](./roundel/) | **roundel** — `./policy`, `./tokens`, `./theme`, and a chalk path graded by chalk's tests; each subpath at or under the incumbent it replaces | U2 U5 U6 U7 U10 U12 | approved — 3 of 5 criteria met. `roundel/chalk` 58 / 58; the bytes are locked under both ceilings. **Not shipped:** 0.1.0 in the tree, 0.0.1 on npm (`release.yml` fails `ENEEDAUTH`), and `/benchmarks` does not exist |
+| 24 | [`roundel/`](./roundel/) | **roundel** — `./policy`, `./tokens`, `./theme`, and a chalk path graded by chalk's tests; each subpath at or under the incumbent it replaces | U2 U5 U6 U7 U10 U12 | approved — 4 of 5 criteria met. `roundel/chalk` 58 / 58; bytes locked under both ceilings; `roundel@0.1.0` shipped. **Not met:** `/docs/benchmarks` is live but draws no picocolors ceiling |
 | 25 | [`flagstaff/`](./flagstaff/) | **flagstaff** — frame loop, plugin host, built-ins as first-party plugins, `check`; no layout engine | U3 U4 U8 U9 U12 | approved — 1 of 8 criteria fully met. Loop, plugin host, spinner, `flagstaff check`, all five built-ins, `flagstaff/ora` 99 / 99, `flagstaff/log-update` 99 / 99, `flagstaff/boxen` 84 / 84. **Not met:** the five conformance cases and the CR check name a demo that does not use flagstaff; the 20-run snapshot lives in flagstaff, not `burgee/testing`; `/benchmarks` is 404; cli-table3 ungraded; the U9 eval has never run |
 
 | 26 | [`output-stack-research/`](./output-stack-research/) | **what we improve** — the ten incumbents' trackers read in full, won't-fix lists included; every U row cited | U1–U12 | review |
@@ -361,7 +361,7 @@ as packages nine through fourteen:
 
 | Considered | Weekly | Verdict |
 | :-- | --: | :-- |
-| human formatting — `ms`, `bytes`, `pluralize`, `pretty-*` | 714 M | **live, and the only one** — no builtin substitutes (`Intl.NumberFormat` and `Intl.PluralRules` are components; nothing parses `"2 days"` into ms), and `ms` at 482 M/wk is unpublished since **2020-12-08**. A separate intent when the foundation clears, not a ninth package now |
+| human formatting — `ms`, `bytes`, `pluralize`, `pretty-*` | 698 M | **mostly dead; the remainder is not a package.** Node 24 alone prints `1.5 MB` and `2h 5m` from `Intl.NumberFormat` and `Intl.DurationFormat` — a *substitute* for `pretty-ms` and `pretty-bytes` (64.9 M/wk), not a component, which reverses what this row claimed until 2026-09-09. What the platform leaves is three functions: parsing `"2 days"` into ms, 1024-vs-1000 unit selection, and irregular English plurals. It fails Y1 (nothing in the stack sits above it) and Y2/Y3 (five packages with **one** dependency between them — an override has no tree to collapse). `ms` frozen since **2020-12-08** is not a reason on its own: zero-dep and frozen only costs something when the platform breaks it, and nothing does. `bellpull`'s `Result` projection takes its duration string from `Intl`. Held by `scripts/roadmap-facts.test.ts` |
 | environment detection — `ci-info`, `is-wsl`, `is-docker`, `is-interactive` | 526 M | **folds into `roundel`**, whose README already claims *one answer to "is this a terminal?"* |
 | terminal extras — `open`, `terminal-link`, `clipboardy` | 208 M | **`open` folds into `bellpull`** (it spawns `xdg-open`/`start`/`open`); `terminal-link` into `roundel`/`flagstaff` |
 | file watching — `chokidar`, `watchpack`, `@parcel/watcher` | 263 M | **a different family** under rule 10 — and the one layer measured where native genuinely pays, because it is a long-lived process reacting to OS events, the opposite of the short-lived CLI profile |
@@ -386,7 +386,7 @@ done and struck; the rest are still open, and one is new and blocking.
 
 | Task | Why the owner | Command / decision | State (2026-09-09) |
 | :-- | :-- | :-- | :-- |
-| **Give `roundel`, `flagstaff` and `caique` a publish credential.** All three are finished at `0.1.0` and sitting at `0.0.1` on npm because every `release.yml` run since fails `npm publish` with `ENEEDAUTH` — most recently run `34309347964`. `burgee` publishes because it alone has a trusted publisher | npm trusted publisher, or `NPM_TOKEN` | add each package to npm's trusted-publisher config for `release.yml`, then re-run | **open — blocks bet 2** |
+| ~~Give `roundel`, `flagstaff` and `caique` a publish credential~~ | npm trusted publisher | **resolved 2026-09-09** — `roundel@0.1.0`, `flagstaff@0.1.0` and `caique@0.1.0` published from CI at 18:14:05–18:14:09, four seconds apart. `ENEEDAUTH` no longer reproduces | ✅ closed |
 | Republish `pennon@0.0.2` and `answering@0.0.2` as honest reserved-name placeholders | npm 2FA | staged in the session scratchpad; `npm publish --access public` in each | open — both still `0.0.1` |
 | Publish the misspelling guards `burgie`, `burgy`, then `npm deprecate` each | npm 2FA | staged in the session scratchpad | open — both still 404 |
 | Remove `packages/commander-harness` and `packages/yargs-harness` (untracked build residue; the shape lock now skips them, so this is hygiene) | sandbox refused `rm` | `rm -rf packages/commander-harness packages/yargs-harness` | open — both still present |
@@ -854,19 +854,19 @@ agent working on any layer has the whole stack in context.
 
 | Job | Entry point | Published |
 | :-- | :-- | :-- |
-| the framework | `burgee` | ✅ `0.3.0` on npm (2026-09-09) |
+| the framework | `burgee` | ✅ `burgee@0.3.0` |
 | in-process harness (T1) | `burgee/testing` | subpath |
 | commander compatibility | `burgee/commander` | wave 2 |
 | yargs compatibility | `burgee/yargs` | wave 4 |
 | opt-in host quirks | `burgee/quirks/*` | wave 2 |
 | the lint wedge | `eslint-plugin-cli-floor` | wave 4 |
-| the colours a CLI carries: policy, tokens, theme, chalk path | `roundel` | `0.0.1` — policy, tokens, theme, contrast in; chalk path next; S1 |
-| the staff the flag flies from: frame loop, plugin host, ora/boxen/cli-table3/log-update paths | `flagstaff` | `0.0.1` stub; S2 |
-| the parrot that always answers back: prompts, flags first | `caique` | `0.0.1` stub; S3 |
-| measuring and cutting styled text: width, wrap, truncate, slice | `linegauge` | `0.0.1` stub; F1 |
-| ending cleanly: exactly-once handlers, a deadline, terminal restore | `closeout` | `0.0.1` stub; F2 |
-| which source outranks which, and which one set this value | `seniority` | `0.0.1` stub; F3 |
-| running another program and getting a result back | `bellpull` | `0.0.1` stub; F4, conditional on its kill gate |
+| the colours a CLI carries: policy, tokens, theme, chalk path | `roundel` | ✅ `roundel@0.1.0` — chalk path graded 58 / 58 |
+| the staff the flag flies from: frame loop, plugin host, ora/boxen/cli-table3/log-update paths | `flagstaff` | ✅ `flagstaff@0.1.0` |
+| the parrot that always answers back: prompts, flags first | `caique` | ✅ `caique@0.1.0` |
+| measuring and cutting styled text: width, wrap, truncate, slice | `linegauge` | `linegauge@0.0.1` stub; F1 |
+| ending cleanly: exactly-once handlers, a deadline, terminal restore | `closeout` | `closeout@0.0.1` stub; F2 |
+| which source outranks which, and which one set this value | `seniority` | `seniority@0.0.1` stub; F3 |
+| running another program and getting a result back | `bellpull` | `bellpull@0.0.1` stub; F4, conditional on its kill gate |
 | grading + reference drivers | `compat-oracle` | private, never |
 
 Every entry point above must declare a weight rule in `packages/burgee/src/weight.test.ts`
@@ -917,20 +917,10 @@ deliberately.
 ### 2. Nothing publishes, and nobody has adopted
 
 - **Three of four packages cannot publish.** `roundel`, `flagstaff` and `caique` are finished at
-  0.1.0 in the tree and stuck at **0.0.1 on npm**. Every `release.yml` run fails their publish
-  jobs with `npm error code ENEEDAUTH` — most recently run `34309347964`. Only `burgee` has a
-  trusted publisher. This makes every criterion phrased *"in every published tarball"*, *"installs
-  from its tarball"* or *"before their façades publish"* unmeetable, and it is what stands between
-  bet 2 and done.
-- **There is no adopter — external or internal.** `registry.npmjs.org/-/v1/search?text=depends:burgee`
-  returns `{"objects":[],"total":0}`. All five `first-adopter` criteria are unmet: no adopting CLI,
-  no adoption report, no friction log, no revert branch, no B1 for a real CLI. The one artifact
-  produced is a ranked **prospect** list. Bet 3 has not started.
-- **`eslint-plugin-cli-floor` does not exist** — not a package, not a rule, a 404 on npm. This is
-  the adoption wedge the roadmap says can earn users during the whole build, re-sequenced on
-  2026-09-08 to run beside wave 2, and the source of the `migrate-import` autofix bet 1 leans on.
-  All four of its criteria are unmet, and its recorded naming decision is corrupted into
-  meaninglessness (the same name in all three slots).
+  shipped: `roundel@0.1.0` published from CI on 2026-09-09. The weight is measured and locked
+  under both ceilings. **What is left of the bet is the publication, not the package:**
+  `/docs/benchmarks` serves, but the live page draws no picocolors ceiling — 0 mentions,
+  scraped 2026-09-09 — so the number that proves "under picocolors' weight" is not public.
 
 ### 3. Stage 6 has never closed a loop
 
