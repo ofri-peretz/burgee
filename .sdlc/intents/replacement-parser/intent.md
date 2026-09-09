@@ -5,6 +5,8 @@
 
 **Status:** review · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
 
+**State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why still `review`:** the engine, lifecycle, exit contract, manifest and four locks are in the repo — but **`burgee/quirks/*` (G3) has no export**, so the intent is not complete.
+
 ---
 
 ## What is wanted

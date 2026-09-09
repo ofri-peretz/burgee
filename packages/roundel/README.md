@@ -1,4 +1,23 @@
-# roundel
+<p align="center">
+  <a href="https://github.com/ofri-peretz/burgee/tree/main/packages/roundel" target="blank">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ofri-peretz/burgee/main/brand-assets/roundel-lockup.svg" />
+      <img src="https://raw.githubusercontent.com/ofri-peretz/burgee/main/brand-assets/roundel-lockup-light.svg" alt="roundel" width="360" />
+    </picture>
+  </a>
+</p>
+
+<p align="center">
+  The colours a CLI carries — error and hint, not red and blue.
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/roundel"><img src="https://img.shields.io/npm/v/roundel?style=flat-square&color=0a6b47" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/roundel"><img src="https://img.shields.io/npm/dm/roundel?style=flat-square" alt="npm downloads" /></a>
+  <img src="https://img.shields.io/badge/runtime%20dependencies-0-0a6b47?style=flat-square" alt="Zero runtime dependencies" />
+  <img src="https://img.shields.io/badge/Node.js-24+-green.svg?style=flat-square" alt="Node.js 24+" />
+  <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT" />
+</p>
 
 chalk gives you `red`; picocolors gives you `red` for fewer bytes. Neither gives you
 `error`, and each decides on its own whether the terminal has colour — which is why a
@@ -14,7 +33,11 @@ not a flag. That is what this package is for a command-line program: not `red` a
 but `error`, `hint`, `command` and `flag`, the colours that mean *you*, carried onto the
 terminal as a theme.
 
-## Use
+## Start here
+
+```bash
+npm install roundel
+```
 
 ```js
 import { fly } from 'roundel/theme';
@@ -144,6 +167,12 @@ Node ≥ 24.
 - **`roundel/import`** — `fromBase16(scheme)` and `fromITerm(plist)`: a theme from the two
   largest corpora of terminal palettes, contrast-checked on the way in.
 
-Part of the [burgee](https://github.com/ofri-peretz/burgee) family: a CLI on burgee declares
-what it is, roundel carries its colours, flagstaff flies it, caique answers back. Each is
-an independent package; none requires the others.
+---
+
+Part of the [burgee](https://github.com/ofri-peretz/burgee) family: a CLI on
+[burgee](https://www.npmjs.com/package/burgee) declares what it is, roundel carries its
+colours, [flagstaff](https://www.npmjs.com/package/flagstaff) flies it, and
+[caique](https://www.npmjs.com/package/caique) answers back. Each is an independent package;
+none requires the others.
+
+MIT © Ofri Peretz — see [LICENSE](./LICENSE).

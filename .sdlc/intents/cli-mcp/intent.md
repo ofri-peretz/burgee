@@ -1,6 +1,8 @@
 # Intent — `cli-mcp`: every CLI on the floor is already an MCP server
 
-**Status:** review · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
+**Status:** shipped · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
+
+**State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Evidence:** `mcp.ts` + `mcp.test.ts`; `--mcp` served from the manifest (N1–N6, N8, N9).
 
 ---
 

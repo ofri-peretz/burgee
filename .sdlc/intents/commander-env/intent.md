@@ -4,7 +4,9 @@
 > requirements V1–V5; research §3 (config and environment precedence), the second-
 > largest cluster after help.
 
-**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+
+**State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Evidence:** `precedence.ts`, `config.ts`, `env.test.ts` — one order, `--explain`, `meta.provenance`, `extends` (V1–V7).
 
 ---
 

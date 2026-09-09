@@ -18,3 +18,10 @@ evals/results/
 # The competitor watch writes its report here on every run (upstream-watch R4);
 # it is a build artifact, like packages/compat-oracle/upstream.json.
 packages/compat-oracle/competitors-upstream.json
+
+# Agent worktrees: whole copies of this repo, several gigabytes of them, and one
+# `git add -A` from being committed. Every tool that walks the tree has to be
+# told to skip them — eslint and markdownlint are, and this stops git and
+# ripgrep having to be told twice. `launch.json` beside them is local dev-server
+# config, not something another machine wants.
+.claude/

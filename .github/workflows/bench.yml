@@ -8,10 +8,11 @@ name: Benchmarks
 #            axis (B1's deterministic half). Free, deterministic, and the ones a
 #            refactor regresses silently, so they gate every PR.
 #   agent  — B1 agent cost. Costs money and is noisy over short intervals, so it
-#            never runs on a pull request: weekly on the schedule, on every push
-#            to main, and on demand. (An earlier draft of this comment claimed a
-#            `packages/**` paths filter; there is none, and the `if:` on the job
-#            is the whole of the rule.) It needs
+#            does not run on a pull request unless one asks by name with the
+#            `bench:agent` label: weekly on the schedule, on every push to main,
+#            on demand, and on a labelled PR. (An earlier draft of this comment
+#            claimed a `packages/**` paths filter; there is none, and the `if:`
+#            on the job is the whole of the rule.) It needs
 #            CLAUDE_CODE_OAUTH_TOKEN (preferred; no per-token charge) or
 #            ANTHROPIC_API_KEY, and **reports skipped without one** — it never
 #            reports a number it did not measure. On a scheduled run that skips,
@@ -27,6 +28,9 @@ name: Benchmarks
 on:
   pull_request:
     branches: [main]
+    # `labeled` so applying `bench:agent` starts a run rather than waiting for
+    # the next push: the label IS the request to spend the money.
+    types: [opened, synchronize, reopened, labeled]
   push:
     branches: [main]
   schedule:
@@ -132,7 +136,13 @@ jobs:
 
   agent:
     name: B1 agent cost (skips loudly without a credential)
-    if: github.event_name != 'pull_request'
+    # Never on a PR by default: it spends money per run, it is noisy over short
+    # intervals, and a fork PR cannot read the credential anyway. A PR that
+    # moves the manifest, the help renderer or the MCP surface is exactly where
+    # agent cost changes, so `bench:agent` asks for it explicitly.
+    if: >-
+      github.event_name != 'pull_request' ||
+      contains(github.event.pull_request.labels.*.name, 'bench:agent')
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -180,15 +190,31 @@ jobs:
           fi
           { echo "## B1 agent cost — **$STATUS**"; echo; [ -n "$REASON" ] && echo "> $REASON"; echo; echo '```'; cat agent.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Say so, on the schedule, where someone will see it
-        if: github.event_name == 'schedule' && steps.status.outputs.status != 'measured'
+      # Scheduled AND push-to-main: between Tuesdays, every push reported this
+      # job green while it measured nothing, which is the exact shape of thing
+      # a green tick hides for a year. A PR run stays quiet — the summary and
+      # the ::warning:: are enough there, and one issue per labelled PR is noise.
+      - name: Say so, where someone will see it
+        if: >-
+          (github.event_name == 'schedule' || github.event_name == 'push') &&
+          steps.status.outputs.status != 'measured'
         env:
           GH_TOKEN: ${{ github.token }}
           REASON: ${{ steps.status.outputs.reason }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
           TITLE="B1 agent cost has never been measured"
           EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')
-          BODY=$(printf '%s\n\n> %s\n\nUntil this runs, the roadmap headline — ≥40%% fewer tokens and ≥30%% fewer turns — is a claim with no number behind it, and `npm run bench` reports it as `unmeasured` rather than guessing.\n\n[Run](%s)\n' 'The weekly B1 run skipped.' "$REASON" "$RUN_URL")
-          if [ -n "$EXISTING" ]; then gh issue comment "$EXISTING" --body "$BODY"; else gh issue create --title "$TITLE" --body "$BODY"; fi
+          BODY=$(printf '%s\n\n> %s\n\nUntil this runs, the roadmap headline — ≥40%% fewer tokens and ≥30%% fewer turns — is a claim with no number behind it, and `npm run bench` reports it as `unmeasured` rather than guessing.\n\n[Run](%s)\n' "The B1 run on $GITHUB_EVENT_NAME skipped." "$REASON" "$RUN_URL")
+          # An open issue is already the signal. Commenting again on every merge
+          # would turn it into a thread nobody reads, so a push only opens one;
+          # the weekly run is what keeps saying it, once a week.
+          if [ -z "$EXISTING" ]; then
+            gh issue create --title "$TITLE" --body "$BODY"
+          elif [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            gh issue comment "$EXISTING" --body "$BODY"
+          else
+            echo "already open as #$EXISTING — not commenting on a push"
+          fi
