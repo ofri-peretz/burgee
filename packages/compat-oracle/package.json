@@ -28,6 +28,7 @@
   "devDependencies": {
     "@types/yargs": "^17.0.33",
     "ava": "^8.0.1",
+    "boxen": "^8.0.1",
     "chai": "^6.2.2",
     "chalk": "^6.0.0",
     "commander": "^15.0.0",

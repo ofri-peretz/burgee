@@ -167,8 +167,8 @@ export const HOSTS: Host[] = [
     surfaceFiles: ['index.d.ts'],
     runner: 'ava',
     target: 'flagstaff/boxen',
-    status: 'planned',
-    note: 'Runnable — the oracle drives real ava, which reads its own `.snap` files — but not usefully gradeable yet: every one of its cases is `t.snapshot(box)`, so the suite grades boxen’s exact drawing, and a façade that matched it frame for frame would be boxen. Blocked on the same decision as clack and inquirer, not on machinery.',
+    status: 'active',
+    note: 'Unblocked 2026-09-08 by the decision in `.sdlc/intents/output-stack-compat/design.md`: a drawing is a contract, and for a pure string function it is the *whole* contract, so every `t.snapshot(box)` case gates. `box()` takes a state and returns a string — that is `static(state)` — so there was never a U3 tension here to resolve.',
   },
   {
     name: 'cli-table3',
