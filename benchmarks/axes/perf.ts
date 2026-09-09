@@ -148,10 +148,12 @@ export function ratioRecord(v: Variant, ours: number[], host: number[], gateMax:
  */
 export const RATIO_CEILING: Readonly<Record<string, number>> = {
   'burgee/commander': 1.4,
-  // Measured 0.66-0.72 across three runs: the yargs front-end starts *faster* than yargs,
-  // because burgee depends on nothing while yargs loads five packages. The gate protects
-  // that, and goes red the day it stops being true.
-  'burgee/yargs': 0.9,
+  // The yargs front-end starts *faster* than yargs, because burgee depends on nothing
+  // while yargs loads five packages: 0.66-0.72 on an M4 Pro, 0.835 on a two-core CI
+  // runner. The gate keeps the claim — under 1.0 is "faster than what it replaces" — with
+  // enough headroom that a busy runner does not red-light a PR that touched nothing,
+  // which is the mistake #27 made twice with tighter bounds.
+  'burgee/yargs': 0.95,
   // The published target is at or below cac (`replacement-parser` #2), and it is not met:
   // 1.37, 1.43 and 1.47 across three runs on 2026-09-09. The gate is a ratchet above the
   // measured spread, not the claim — gating at the claim would leave the build red for a

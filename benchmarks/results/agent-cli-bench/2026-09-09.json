@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "suite": "agent-cli-bench",
-  "measured": "2026-09-09T05:40:42.025Z",
-  "commit": "94f83a5de0b51c59f009e09533f3272b2b3182bf",
+  "measured": "2026-09-09T06:01:50.207Z",
+  "commit": "652d5e3bcdf5429711ec025f7b6428d69e7823f7-dirty",
   "machine": {
     "os": "darwin",
     "release": "25.2.0",
