@@ -1,7 +1,30 @@
 {
-  "$comment": "upstream-watch R1. See packages/flagstaff/competitors.json for the field meanings. Both façades are blocked on the render-grading decision recorded in .sdlc/intents/output-stack-compat/design.md, so both claims are `surface` until their suites are vendored.",
+  "$comment": "upstream-watch R1. See packages/flagstaff/competitors.json for the field meanings. Both fa\u00e7ades are blocked on the render-grading decision recorded in .sdlc/intents/output-stack-compat/design.md, so both claims are `surface` until their suites are vendored.",
   "./ask": [
-    { "package": "clack", "claim": "surface", "seen": null },
-    { "package": "inquirer", "claim": "surface", "seen": null }
+    {
+      "package": "clack",
+      "claim": "surface",
+      "seen": null
+    },
+    {
+      "package": "inquirer",
+      "claim": "surface",
+      "seen": null
+    }
+  ],
+  ".": [
+    {
+      "package": "clack",
+      "claim": "weight",
+      "seen": {
+        "version": "1.8.0",
+        "weight": 101684,
+        "measured": "2026-09-09",
+        "cited": [
+          "packages/caique/src/weight.test.ts",
+          "packages/caique/README.md"
+        ]
+      }
+    }
   ]
 }
