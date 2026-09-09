@@ -70,21 +70,11 @@ whether the CLI's answer is *legible* to an agent, which needs no model at all. 
 per variant, one spawn each, non-TTY with **stdin closed** — the only environment an agent
 gets. The same demo program, built on each engine.
 
-| Variant | hangs/100 | exit code | `--json` | bytes |
-| :--- | ---: | ---: | ---: | ---: |
-| `burgee` | 0 | 0.0% | 0.0% | 0 |
-| `commander` | 0 | 0.0% | 0.0% | 0 |
-| `yargs` | 0 | 0.0% | 0.0% | 0 |
-
-**Exit code** is the one that decides an agent's next move: `2` means *rewrite the command*,
-any other non-zero means *the command was fine and the world was not*. Both incumbents
-answer `1` to a usage error, which tells an agent nothing — so it retries a malformed
-command until it gives up.
-
-**Bytes is reported against us and is not gated.** commander reads fewer than we do, because
-our errors carry a `hint` naming the fix. That is a trade — bytes per failure against failed
-turns — and only B1 proper can settle it. It is on this page precisely so the trade is
-visible rather than quietly omitted.
+> **This axis has not run against the published measurement.** It reports
+> **absent**.
+> No table is drawn, because every cell of it would be a zero nobody measured — and zero is
+> a *plausible* answer to each of these questions. It will read this way until the axis runs
+> and the result is published.
 
 ## B3 — compatibility
 
