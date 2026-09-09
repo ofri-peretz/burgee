@@ -157,15 +157,17 @@ export default [
   {
     // Tests import the package's public entry on purpose; scripts and tests are
     // entry points with nothing to export.
-    files: ['**/*.test.ts', 'scripts/**'],
+    files: ['**/*.test.ts', 'scripts/**', 'benchmarks/**'],
     rules: {
       'import-next/no-barrel-import': 'off',
       'import-next/no-unused-modules': ['error', { allowImportOnly: true }],
     },
   },
   {
-    // Scripts are process entry points; their exit code is their contract (E1).
-    files: ['scripts/**'],
+    // Scripts are process entry points; their exit code is their contract (E1). The
+    // benchmark runner is one too — and its own exit code is the thing an unknown axis
+    // has to be reported through.
+    files: ['scripts/**', 'benchmarks/**'],
     rules: { 'operability/no-process-exit': 'off' },
   },
   {
@@ -250,6 +252,16 @@ export default [
       // must be an exact version, not a caret range. The rule reads any object
       // literal with a `version` key as a dependency map.
       'conventions/prefer-dependency-version-strategy': 'off',
+    },
+  },
+  {
+    // The benchmark runner's numbers are column widths in a printed table — the layout is
+    // the number, exactly as a fixture's numbers are the fixture — and its axis code reads
+    // a class of outcome off an exit code, which is a chain of comparisons by nature.
+    files: ['benchmarks/**'],
+    rules: {
+      'conventions/no-magic-numbers': 'off',
+      'maintainability/no-nested-ternary': 'off',
     },
   },
   {

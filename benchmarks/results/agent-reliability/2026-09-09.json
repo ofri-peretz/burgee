@@ -1,0 +1,255 @@
+{
+  "axis": "agent-reliability",
+  "measured": "2026-09-09",
+  "variants": [
+    {
+      "variant": "demo-burgee",
+      "layer": "burgee",
+      "runs": 10,
+      "hangsPer100": 0,
+      "exitCodeAccuracy": 1,
+      "structuredOutputRate": 1,
+      "medianBytes": 83,
+      "perTask": [
+        {
+          "task": "greet-ok",
+          "hung": false,
+          "exitCorrect": true,
+          "jsonParsed": null,
+          "bytes": 12
+        },
+        {
+          "task": "greet-ok-json",
+          "hung": false,
+          "exitCorrect": true,
+          "jsonParsed": true,
+          "bytes": 89
+        },
+        {
+          "task": "greet-missing-arg",
+          "hung": false,
+          "exitCorrect": true,
+          "jsonParsed": null,
+          "bytes": 83
+        },
+        {
+          "task": "greet-missing-arg-json",
+          "hung": false,
+          "exitCorrect": true,
+          "jsonParsed": true,
+          "bytes": 127
+        },
+        {
+          "task": "unknown-command",
+          "hung": false,
+          "exitCorrect": true,
+          "jsonParsed": null,
+          "bytes": 83
+        },
+        {
+          "task": "unknown-flag",
+          "hung": false,
+          "exitCorrect": true,
+          "jsonParsed": null,
+          "bytes": 198
+        },
+        {
+          "task": "config-get-ok-json",
+          "hung": false,
+          "exitCorrect": true,
+          "jsonParsed": true,
+          "bytes": 52
+        },
+        {
+          "task": "config-get-missing-key",
+          "hung": false,
+          "exitCorrect": true,
+          "jsonParsed": null,
+          "bytes": 87
+        },
+        {
+          "task": "runtime-failure",
+          "hung": false,
+          "exitCorrect": true,
+          "jsonParsed": null,
+          "bytes": 12
+        },
+        {
+          "task": "runtime-failure-json",
+          "hung": false,
+          "exitCorrect": true,
+          "jsonParsed": true,
+          "bytes": 49
+        }
+      ]
+    },
+    {
+      "variant": "demo-commander",
+      "layer": "commander",
+      "runs": 10,
+      "hangsPer100": 0,
+      "exitCodeAccuracy": 0.4,
+      "structuredOutputRate": 0.25,
+      "medianBytes": 33,
+      "perTask": [
+        {
+          "task": "greet-ok",
+          "hung": false,
+          "exitCorrect": true,
+          "jsonParsed": null,
+          "bytes": 12
+        },
+        {
+          "task": "greet-ok-json",
+          "hung": false,
+          "exitCorrect": false,
+          "jsonParsed": false,
+          "bytes": 31
+        },
+        {
+          "task": "greet-missing-arg",
+          "hung": false,
+          "exitCorrect": false,
+          "jsonParsed": null,
+          "bytes": 40
+        },
+        {
+          "task": "greet-missing-arg-json",
+          "hung": false,
+          "exitCorrect": false,
+          "jsonParsed": false,
+          "bytes": 31
+        },
+        {
+          "task": "unknown-command",
+          "hung": false,
+          "exitCorrect": false,
+          "jsonParsed": null,
+          "bytes": 36
+        },
+        {
+          "task": "unknown-flag",
+          "hung": false,
+          "exitCorrect": false,
+          "jsonParsed": null,
+          "bytes": 31
+        },
+        {
+          "task": "config-get-ok-json",
+          "hung": false,
+          "exitCorrect": true,
+          "jsonParsed": true,
+          "bytes": 35
+        },
+        {
+          "task": "config-get-missing-key",
+          "hung": false,
+          "exitCorrect": false,
+          "jsonParsed": null,
+          "bytes": 39
+        },
+        {
+          "task": "runtime-failure",
+          "hung": false,
+          "exitCorrect": true,
+          "jsonParsed": null,
+          "bytes": 1701
+        },
+        {
+          "task": "runtime-failure-json",
+          "hung": false,
+          "exitCorrect": true,
+          "jsonParsed": false,
+          "bytes": 31
+        }
+      ]
+    },
+    {
+      "variant": "demo-yargs",
+      "layer": "yargs",
+      "runs": 10,
+      "hangsPer100": 0,
+      "exitCodeAccuracy": 0.4,
+      "structuredOutputRate": 0.25,
+      "medianBytes": 472,
+      "perTask": [
+        {
+          "task": "greet-ok",
+          "hung": false,
+          "exitCorrect": true,
+          "jsonParsed": null,
+          "bytes": 12
+        },
+        {
+          "task": "greet-ok-json",
+          "hung": false,
+          "exitCorrect": false,
+          "jsonParsed": false,
+          "bytes": 486
+        },
+        {
+          "task": "greet-missing-arg",
+          "hung": false,
+          "exitCorrect": false,
+          "jsonParsed": null,
+          "bytes": 519
+        },
+        {
+          "task": "greet-missing-arg-json",
+          "hung": false,
+          "exitCorrect": false,
+          "jsonParsed": false,
+          "bytes": 519
+        },
+        {
+          "task": "unknown-command",
+          "hung": false,
+          "exitCorrect": false,
+          "jsonParsed": null,
+          "bytes": 340
+        },
+        {
+          "task": "unknown-flag",
+          "hung": false,
+          "exitCorrect": false,
+          "jsonParsed": null,
+          "bytes": 486
+        },
+        {
+          "task": "config-get-ok-json",
+          "hung": false,
+          "exitCorrect": true,
+          "jsonParsed": true,
+          "bytes": 35
+        },
+        {
+          "task": "config-get-missing-key",
+          "hung": false,
+          "exitCorrect": false,
+          "jsonParsed": null,
+          "bytes": 458
+        },
+        {
+          "task": "runtime-failure",
+          "hung": false,
+          "exitCorrect": true,
+          "jsonParsed": null,
+          "bytes": 1514
+        },
+        {
+          "task": "runtime-failure-json",
+          "hung": false,
+          "exitCorrect": true,
+          "jsonParsed": false,
+          "bytes": 304
+        }
+      ]
+    }
+  ],
+  "median": {
+    "hangsPer100": 0,
+    "exitCodeAccuracy": 1,
+    "structuredOutputRate": 1,
+    "bytes": 83
+  }
+}

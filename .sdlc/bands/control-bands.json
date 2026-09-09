@@ -1,12 +1,15 @@
 {
   "command": "npx tsx scripts/control-bands.ts --record",
-  "$comment": "Stage 6 control bands — see AI_NATIVE_SDLC.md and .sdlc/intents/sdlc-locks-evals-bands/. A band is a metric with a stable baseline, watched by scripts/control-bands.ts. Detection is deterministic; no model decides a breach. Add a band only for a metric whose baseline is genuinely stable.",
+  "$comment": "Stage 6 control bands \u2014 see AI_NATIVE_SDLC.md and .sdlc/intents/sdlc-locks-evals-bands/. A band is a metric with a stable baseline, watched by scripts/control-bands.ts. Detection is deterministic; no model decides a breach. Add a band only for a metric whose baseline is genuinely stable.",
   "bands": [
     {
       "id": "test-duration-ms",
       "description": "Wall-clock of `npm test` (root locks + package suites), in ms",
       "collector": "command-duration",
-      "command": ["npm", "test"],
+      "command": [
+        "npm",
+        "test"
+      ],
       "window": 20,
       "minPoints": 8,
       "worse": "higher"
@@ -45,6 +48,46 @@
       "collector": "benchmark-json",
       "suite": "agent-cli-bench",
       "jsonPath": "median.turns",
+      "window": 20,
+      "minPoints": 8,
+      "worse": "higher"
+    },
+    {
+      "id": "agent-exit-code-accuracy",
+      "description": "Share of tasks where our demo's exit code told an agent the right kind of thing (0 ok, 2 fix your command, else retryable)",
+      "collector": "benchmark-json",
+      "suite": "agent-reliability",
+      "jsonPath": "median.exitCodeAccuracy",
+      "window": 20,
+      "minPoints": 8,
+      "worse": "lower"
+    },
+    {
+      "id": "agent-structured-output-rate",
+      "description": "Share of `--json` tasks where our demo emitted an addressable envelope on the stream that carried it",
+      "collector": "benchmark-json",
+      "suite": "agent-reliability",
+      "jsonPath": "median.structuredOutputRate",
+      "window": 20,
+      "minPoints": 8,
+      "worse": "lower"
+    },
+    {
+      "id": "agent-hangs-per-100",
+      "description": "Non-TTY runs per 100 where our demo waited for a human instead of exiting. A hang is a failed agent task, every time",
+      "collector": "benchmark-json",
+      "suite": "agent-reliability",
+      "jsonPath": "median.hangsPer100",
+      "window": 20,
+      "minPoints": 8,
+      "worse": "higher"
+    },
+    {
+      "id": "agent-recovery-bytes",
+      "description": "Median bytes an agent must read per task to learn what happened \u2014 the token proxy, measured rather than modelled",
+      "collector": "benchmark-json",
+      "suite": "agent-reliability",
+      "jsonPath": "median.bytes",
       "window": 20,
       "minPoints": 8,
       "worse": "higher"

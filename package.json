@@ -38,6 +38,8 @@
     "brand:check": "node scripts/brand.mts --check",
     "release": "gh workflow run release.yml --ref main",
     "release:dry-run": "gh workflow run release.yml --ref main -f dry-run=true",
+    "bench": "tsx benchmarks/bench.ts",
+    "bench:record": "npm run build -w demo-cli-burgee -w demo-cli-commander -w demo-cli-yargs && tsx benchmarks/bench.ts --record",
     "control-bands": "tsx scripts/control-bands.ts",
     "evals": "tsx scripts/run-evals.ts",
     "evals:config": "tsx scripts/run-evals.ts --config",

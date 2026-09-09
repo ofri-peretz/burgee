@@ -7,6 +7,10 @@
     {
       "date": "2026-09-07",
       "value": 3430
+    },
+    {
+      "date": "2026-09-09",
+      "value": 5758
     }
   ],
   "lint-rules-on": [
@@ -16,6 +20,10 @@
     },
     {
       "date": "2026-09-07",
+      "value": 276
+    },
+    {
+      "date": "2026-09-09",
       "value": 276
     }
   ],
@@ -27,6 +35,34 @@
     {
       "date": "2026-09-07",
       "value": 19
+    },
+    {
+      "date": "2026-09-09",
+      "value": 94
+    }
+  ],
+  "agent-exit-code-accuracy": [
+    {
+      "date": "2026-09-09",
+      "value": 1
+    }
+  ],
+  "agent-structured-output-rate": [
+    {
+      "date": "2026-09-09",
+      "value": 1
+    }
+  ],
+  "agent-hangs-per-100": [
+    {
+      "date": "2026-09-09",
+      "value": 0
+    }
+  ],
+  "agent-recovery-bytes": [
+    {
+      "date": "2026-09-09",
+      "value": 83
     }
   ]
 }
