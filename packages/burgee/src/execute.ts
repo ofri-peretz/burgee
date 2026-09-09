@@ -315,18 +315,6 @@ function exitSignal(cause: unknown): ExitCodeType | undefined {
   return typeof code === 'number' && isExitCode(code) ? code : undefined;
 }
 
-const SINGLE_DASH_WORD = /^-([a-zA-Z][\w-]+)(?:=.*)?$/;
-
-/** `-foo=bar` means three short flags to a parser and one long flag to a person (citty #237). */
-function singleDashHint(argv: string[]): string | undefined {
-  for (const token of argv) {
-    if (token === '--') return undefined;
-    const found = SINGLE_DASH_WORD.exec(token);
-    if (found?.[1] !== undefined) return `did you mean --${found[1]}? a single dash introduces one-letter options`;
-  }
-  return undefined;
-}
-
 interface Failure {
   code: ExitCodeType;
   message: string;
@@ -338,7 +326,7 @@ interface Failure {
 }
 
 /** E2/E3 — a usage error never prints a stack, a runtime failure never prints help. */
-function describeFailure(cause: unknown, argv: string[]): Failure {
+async function describeFailure(cause: unknown, argv: string[], node?: CommandNode): Promise<Failure> {
   const signal = exitSignal(cause);
   if (signal !== undefined) return { code: signal, message: '', silent: true };
   const message = cause instanceof Error ? cause.message : String(cause);
@@ -350,7 +338,12 @@ function describeFailure(cause: unknown, argv: string[]): Failure {
     return { code: ExitCode.CONFIG, message, ...(cause.hint === undefined ? {} : { hint: cause.hint }) };
   }
   if (isParseArgsFailure(cause)) {
-    return { code: ExitCode.USAGE, message, hint: singleDashHint(argv) ?? 'run --help to see the available options' };
+    // Loaded only here: see unknown-option.ts for why none of this is imported.
+    const explain = await import('./unknown-option.js');
+    const dash = explain.singleDashHint(argv);
+    if (dash !== undefined) return { code: ExitCode.USAGE, message, hint: dash };
+    const better = explain.unknownOption(cause, Object.keys(node?.options ?? {}));
+    return { code: ExitCode.USAGE, message, hint: 'run --help to see the available options', ...better };
   }
   return { code: ExitCode.RUNTIME, message };
 }
@@ -600,7 +593,7 @@ interface FailureContext {
 
 /** Failure: an exit signal is honoured silently; anything else is described on the requested surface. */
 async function report(cause: unknown, { manifest, io, argv, json, name }: FailureContext): Promise<void> {
-  const failure = describeFailure(cause, argv);
+  const failure = await describeFailure(cause, argv, resolveCommand(manifest, argv) ?? undefined);
   if (failure.silent === true) return io.exit(failure.code);
   await manifest.fire('onError', name, {});
   if (failure.action !== undefined) {

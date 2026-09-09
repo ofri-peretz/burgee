@@ -101,7 +101,7 @@ jobs:
     name: Changeset present
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 8
     permissions:
       contents: read
       pull-requests: write
@@ -140,9 +140,23 @@ jobs:
       # Only when a changeset is present: with none, `changeset status` exits 1 by design
       # ("run changeset add --empty"), which is the right answer for a release and the wrong
       # one for a `skip-changeset` PR.
+      # The job checked out and installed nothing, so `npx changeset status` had no
+      # changesets binary to run and exited "could not determine executable to run" —
+      # a failure for every PR that HAS a changeset, which is every PR the step exists
+      # for. Installing also pins the check to the repo's own changesets version rather
+      # than whatever npx would fetch.
+      - uses: ./.github/actions/setup
+        if: steps.check.outputs.status == 'present'
+
+      # `--since=origin/main`, as package.json's own `changeset:status` does. Bare
+      # `status` asks where HEAD diverged from a local `main`, and a CI checkout is a
+      # detached HEAD with no local branches: "Failed to find where HEAD diverged".
       - name: The changeset is one changesets will accept
         if: steps.check.outputs.status == 'present'
-        run: npx changeset status
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --quiet origin main
+          npx changeset status --since=origin/main
 
       - name: Comment on PR (when missing)
         if: steps.check.outputs.status == 'missing'

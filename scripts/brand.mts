@@ -116,7 +116,15 @@ const LIT = { field: FAMILY_FIELD, mark: LIFTED, sheen: SHEEN, bevel: BEVEL, bor
  * burgee's own flag. Not one number: the mark sits in a ring's centre, on a flag
  * and on a bird's body, and each has a different amount of room.
  */
-const MARK_SHARE = { roundel: 1.15, flagstaff: 0.66, caique: 0.78 } as const;
+const MARK_SHARE = {
+  roundel: 1.15,
+  flagstaff: 0.66,
+  caique: 0.78,
+  linegauge: 0.62,
+  seniority: 0.68,
+  bellpull: 0.8,
+  closeout: 0.9,
+} as const;
 
 /**
  * The Interlace mark, in the lifted pair, at a share of its usual size.
@@ -216,6 +224,78 @@ const PARROT = [
 /** The wing's centre, where the mark rides. */
 const WING = { x: 52, y: 52 } as const;
 
+/**
+ * A line gauge: the printer's steel rule, marked in picas and points.
+ *
+ * The ticks are cut THROUGH the rule rather than drawn on it — a counter under
+ * `evenodd` — so they are the one thing on the mark that is not ink, which is
+ * what a rule's markings are: absence, machined into steel.
+ */
+const RULE = { left: 2, right: 98, top: 30, bottom: 70 } as const;
+const TICK = { width: 1.8, step: 5.5, long: 14, short: 8, from: 8 } as const;
+
+const ticks = (): string => {
+  const out: string[] = [];
+  for (let x = TICK.from, i = 0; x <= RULE.right - TICK.from; x += TICK.step, i++) {
+    const depth = i % 2 === 0 ? TICK.long : TICK.short;
+    out.push(
+      `M${x} ${RULE.top} h${TICK.width} v${depth} h${-TICK.width} Z`,
+    );
+  }
+  return out.join(' ');
+};
+
+const LINEGAUGE = `M${RULE.left} ${RULE.top} H${RULE.right} V${RULE.bottom} H${RULE.left} Z ${ticks()}`;
+/** Below the ticks, on the rule's plain half. */
+const RULE_FACE = { x: 50, y: 58 } as const;
+
+/**
+ * Seniority: rank chevrons. Longer service, higher position, and therefore the
+ * one that wins when two sources want the same value. Three of them, because
+ * one is a mark and two is a coincidence.
+ */
+const CHEVRON = { left: 12, right: 88, rise: 18, thickness: 10, bases: [52, 70, 88] } as const;
+
+const chevrons = (): string =>
+  CHEVRON.bases.map((y) =>
+    [
+      `M${CHEVRON.left} ${y}`,
+      `L50 ${y - CHEVRON.rise}`,
+      `L${CHEVRON.right} ${y}`,
+      `V${y + CHEVRON.thickness}`,
+      `L50 ${y - CHEVRON.rise + CHEVRON.thickness}`,
+      `L${CHEVRON.left} ${y + CHEVRON.thickness}`,
+      'Z',
+    ].join(' '),
+  ).join(' ');
+
+const SENIORITY = chevrons();
+/** Above the stripes, where a rank badge carries its device. */
+const RANK = { x: 50, y: 20 } as const;
+
+/**
+ * A bellpull: the cord in one room, wired to a bell in another. Cord and pull
+ * are one outline — a cord ending inside its own handle would cut a hole where
+ * the two overlap.
+ */
+const CORD = { left: 46, right: 54, top: 6, waist: 56, pull: 22 } as const;
+const BELLPULL =
+  `M${CORD.left} ${CORD.top} a4 4 0 0 1 8 0 V${CORD.waist}` +
+  ` A${CORD.pull} ${CORD.pull} 0 1 1 ${CORD.left} ${CORD.waist} Z`;
+/** On the pull, which is the part a hand actually takes. */
+const PULL = { x: 50, y: 74 } as const;
+
+/**
+ * Closeout: the double rule an accountant draws under a settled total. Two
+ * lines mean the column is finished and nothing below it is still open.
+ */
+const RULED = { left: 12, right: 88, thickness: 9, at: [66, 84] } as const;
+const CLOSEOUT = RULED.at
+  .map((y) => `M${RULED.left} ${y} H${RULED.right} V${y + RULED.thickness} H${RULED.left} Z`)
+  .join(' ');
+/** Above the rule: the total it is drawn under. */
+const TOTAL = { x: 50, y: 38 } as const;
+
 const siblings: ReadonlyArray<{ name: string; tagline: string; brand: BurgeeBrand }> = [
   {
     name: 'roundel',
@@ -246,6 +326,46 @@ const siblings: ReadonlyArray<{ name: string; tagline: string; brand: BurgeeBran
       name: 'caique',
       shape: PARROT,
       charge: interlace(MARK_SHARE.caique, WING),
+    },
+  },
+  {
+    name: 'linegauge',
+    tagline: "The printer's rule, for text.",
+    brand: {
+      ...LIT,
+      name: 'linegauge',
+      shape: LINEGAUGE,
+      charge: interlace(MARK_SHARE.linegauge, RULE_FACE),
+    },
+  },
+  {
+    name: 'seniority',
+    tagline: 'Which source outranks which.',
+    brand: {
+      ...LIT,
+      name: 'seniority',
+      shape: SENIORITY,
+      charge: interlace(MARK_SHARE.seniority, RANK),
+    },
+  },
+  {
+    name: 'bellpull',
+    tagline: 'Pull here, work happens there.',
+    brand: {
+      ...LIT,
+      name: 'bellpull',
+      shape: BELLPULL,
+      charge: interlace(MARK_SHARE.bellpull, PULL),
+    },
+  },
+  {
+    name: 'closeout',
+    tagline: 'Settle, and finish.',
+    brand: {
+      ...LIT,
+      name: 'closeout',
+      shape: CLOSEOUT,
+      charge: interlace(MARK_SHARE.closeout, TOTAL),
     },
   },
 ];
