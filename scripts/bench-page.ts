@@ -153,7 +153,7 @@ ${ratios.join('\n')}
 
 Read from \`compat-oracle\` and never recomputed here: two implementations of a
 compatibility rate produce two rates. The full method, and the control column that proves
-the gate works, are on [Compatibility](./compatibility).
+the gate works, are on [Compatibility](/docs/compatibility).
 
 | Host | Passing | Rate |
 | :--- | ---: | ---: |
