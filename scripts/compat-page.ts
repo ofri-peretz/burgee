@@ -53,6 +53,13 @@ const rows = HOSTS.filter((h) => h.status === 'active').map((h) => {
 });
 const others = HOSTS.filter((h) => h.status !== 'active').map((h) => `| ${h.name} | ${h.status} | ${h.note ?? ''} |`);
 
+/**
+ * Every excluded case, published by name. `compat-oracle/intent.md`: "the exclusion list is
+ * explicit, named and justified in the repo — an exclusion that grows silently is how a
+ * compat claim becomes a lie." Generated from `hosts.ts`, so it cannot drift from the gate.
+ */
+const excluded = HOSTS.filter((h) => (h.excludes ?? []).length > 0).flatMap((h) => (h.excludes ?? []).map((e) => `| **${h.name}** | \`${e.match.trim()}\` | ${e.why} |`));
+
 writeFileSync(
   OUT,
   `---
@@ -74,12 +81,25 @@ would flatter a partial implementation; measuring against the control's total do
 | :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
 ${rows.join('\n')}
 
-**Every file of every suite is vendored and run — nothing is excluded.** Files that import
-only the host's *internal* modules (its own file layout) are graded on the informational
-*internals* columns and never enter the gate: passing them would mean copying the host, not
-being compatible with it. A public-surface file that also touches an internal module stays in
-the gate, with that import shimmed to our main entry.
+**Every file of every suite is vendored and run**, and every case that leaves the gate is
+named below. Files that import only the host's *internal* modules (its own file layout) are
+graded on the informational *internals* columns and never enter the gate: passing them would
+mean copying the host, not being compatible with it. A public-surface file that also touches
+an internal module stays in the gate, with that import shimmed to our main entry.
+${
+  excluded.length === 0
+    ? ''
+    : `
+### Cases excluded from the gate
 
+A case that cannot fail for any implementation measures nothing, and counting it inflates the
+rate. These are excluded by name — they still run, and they still appear in the raw TAP.
+
+| Host | Cases | Why |
+| :--- | :--- | :--- |
+${excluded.join('\n')}
+`
+}
 ## Supported majors
 
 Compatibility is claimed only where it is graded, and it is graded against the host's
@@ -93,6 +113,7 @@ number above always names a release, never a branch.
 | chalk | **6** (current) | 6.0.0 | Programs written for 5 run unchanged: 6 added underline styles and colours and made a numeric \`FORCE_COLOR\` an exact level; 5's own suite is vendored at its last tag and graded before it is listed here (C1) |
 | ora | **9** (current) | 9.4.1 | Programs written for 8 run unchanged wherever 9 kept their API; 8's own suite is vendored at its last tag and graded before it is listed here (C1) |
 | log-update | **8** (current) | 8.0.0 | Programs written for 7 run unchanged wherever 8 kept their API; 7's own suite is vendored at its last tag and graded before it is listed here (C1) |
+| cli-table3 | **0.6** (current) | 0.6.5 | Its only major; 0.6's suite is what is graded here |
 
 A new major of a host is a new line here, opened by the daily release watch the day it
 ships; the previous major stays listed for as long as its suite is still graded.
