@@ -46,9 +46,7 @@
         "version": "3.4.0",
         "weight": 27841,
         "measured": "2026-09-09",
-        "cited": [
-          "packages/flagstaff/src/weight.test.ts"
-        ],
+        "cited": ["packages/flagstaff/src/weight.test.ts"],
         "registry": "cli-spinners",
         "shasum": "1f11f6d48c4e5bc6849fcb4efa0dc98f9e7299ea",
         "self": 27841,
@@ -61,12 +59,7 @@
           "readme.md": "c6acef69607594f7af5e27395bab5e6aee10ad4d27ec4f177fad0be2cf281ed5",
           "spinners.json": "91b0d44a709e836adc24de83f8b999dfd670a0e25037931d8c5186bb9e923a2b"
         },
-        "exports": [
-          "Spinner",
-          "SpinnerName",
-          "default",
-          "randomSpinner"
-        ]
+        "exports": ["Spinner", "SpinnerName", "default", "randomSpinner"]
       }
     },
     {
@@ -143,9 +136,7 @@
         "version": "4.1.0",
         "weight": 21983,
         "measured": "2026-09-09",
-        "cited": [
-          "packages/flagstaff/src/weight.test.ts"
-        ],
+        "cited": ["packages/flagstaff/src/weight.test.ts"],
         "registry": "signal-exit",
         "shasum": "952188c1cbd546070e2dd20d0f41c0ae0530cb04",
         "self": 21983,
@@ -217,10 +208,7 @@
           "package.json": "26e7e6a32cdca3ae61b6cf02eadfcf6cf6f6133ba7779de57f9e99c261393da2",
           "readme.md": "f634d81182a56e7732165e16c49215688911d560d5b738ff6741c51d964b19c6"
         },
-        "exports": [
-          "Options",
-          "default"
-        ]
+        "exports": ["Options", "default"]
       }
     },
     {
@@ -231,9 +219,7 @@
         "version": "1.6.0",
         "weight": 8785,
         "measured": "2026-09-09",
-        "cited": [
-          "packages/flagstaff/src/weight.test.ts"
-        ],
+        "cited": ["packages/flagstaff/src/weight.test.ts"],
         "registry": "get-east-asian-width",
         "shasum": "216900f91df11a8b2c198c3e1d93d6c035a776b9",
         "self": 8785,
@@ -286,9 +272,7 @@
         "version": "2.2.0",
         "weight": 4466,
         "measured": "2026-09-09",
-        "cited": [
-          "packages/flagstaff/src/weight.test.ts"
-        ],
+        "cited": ["packages/flagstaff/src/weight.test.ts"],
         "registry": "yoctocolors",
         "shasum": "c4b68ee477f3982c33e4de24a5aa4a354be506d3",
         "self": 4466,
@@ -376,9 +360,7 @@
         "version": "5.0.1",
         "weight": 3038,
         "measured": "2026-09-09",
-        "cited": [
-          "packages/flagstaff/src/weight.test.ts"
-        ],
+        "cited": ["packages/flagstaff/src/weight.test.ts"],
         "registry": "mimic-function",
         "shasum": "acbe2b3349f99b9deaca7fb70e48b83e94e67076",
         "self": 3038,
@@ -390,10 +372,7 @@
           "package.json": "d49919b51c727d702ce72bbd44dd328b2d537abce907fc9fa529ec724cfe6467",
           "readme.md": "a8a76b02b6d414cb95a8f1b13b437ca2c0ebb27f9d097405924d0a07e2af833c"
         },
-        "exports": [
-          "Options",
-          "default"
-        ]
+        "exports": ["Options", "default"]
       }
     }
   ],
@@ -420,12 +399,7 @@
           "package.json": "54f804c87efdc438cc6f84f39b00ec51c21869061fd72c76c6e6e3b226f88b1a",
           "readme.md": "f79c960efe07fcb7fab4cf2deb62f292953c612981fb125176d8510e70385162"
         },
-        "exports": [
-          "Options",
-          "createLogUpdate",
-          "default",
-          "logUpdateStderr"
-        ]
+        "exports": ["Options", "createLogUpdate", "default", "logUpdateStderr"]
       }
     },
     {
@@ -436,9 +410,7 @@
         "version": "10.0.1",
         "weight": 20004,
         "measured": "2026-09-09",
-        "cited": [
-          "packages/flagstaff/src/weight.test.ts"
-        ],
+        "cited": ["packages/flagstaff/src/weight.test.ts"],
         "registry": "wrap-ansi",
         "shasum": "59b821b7987d36a87a367bc9517284ff974086ea",
         "self": 20004,
@@ -450,10 +422,7 @@
           "package.json": "71491d7eba713c7874d18ea55a27d9b8dcd0e20b086274c95aa26decf6f6f650",
           "readme.md": "064cb1b710679d984818f6b8af174cb39031a8a7725bdf6f8e603d6719aabbab"
         },
-        "exports": [
-          "Options",
-          "default"
-        ]
+        "exports": ["Options", "default"]
       }
     },
     {
@@ -464,9 +433,7 @@
         "version": "9.0.0",
         "weight": 27630,
         "measured": "2026-09-09",
-        "cited": [
-          "packages/flagstaff/src/weight.test.ts"
-        ],
+        "cited": ["packages/flagstaff/src/weight.test.ts"],
         "registry": "slice-ansi",
         "shasum": "8ed38fdc31f16b607a56cf86c3160d2684f1b61b",
         "self": 27630,
@@ -479,9 +446,7 @@
           "readme.md": "b64554b0f3c005daf16bccb67abd711d37d5dac043b2f1c5a303765647b12395",
           "tokenize-ansi.js": "bf7cb711bf987b5f23f858671c97dbaeaf38e4e4ba01a29a924cf5d9c410a34c"
         },
-        "exports": [
-          "default"
-        ]
+        "exports": ["default"]
       }
     }
   ],
@@ -537,10 +502,7 @@
           "src/table.js": "b2b149140c9bc9982e6894ea36ad54fd595de3459af98b064c26c7c78f57a36b",
           "src/utils.js": "52844f9840e373e22a050e11fc491c8a409bf75f41e475c401c80cfbf5e6e7a7"
         },
-        "exports": [
-          "CliTable3",
-          "default"
-        ],
+        "exports": ["CliTable3", "default"],
         "measured": "2026-09-09"
       }
     }
@@ -564,12 +526,7 @@
           "readme.md": "c6acef69607594f7af5e27395bab5e6aee10ad4d27ec4f177fad0be2cf281ed5",
           "spinners.json": "91b0d44a709e836adc24de83f8b999dfd670a0e25037931d8c5186bb9e923a2b"
         },
-        "exports": [
-          "Spinner",
-          "SpinnerName",
-          "default",
-          "randomSpinner"
-        ],
+        "exports": ["Spinner", "SpinnerName", "default", "randomSpinner"],
         "measured": "2026-09-09"
       }
     },
@@ -591,11 +548,7 @@
           "package.json": "e828a190ada82d3c813b82fed435db4161d57661d99548fb645d7272e5d5f16b",
           "readme.md": "947c179cb6ae0f76be815083deea64e819aa1c0235833c0cadf92d1936f7ec14"
         },
-        "exports": [
-          "BoxStyle",
-          "Boxes",
-          "default"
-        ],
+        "exports": ["BoxStyle", "Boxes", "default"],
         "measured": "2026-09-09"
       }
     }
@@ -638,7 +591,9 @@
       "package": "cli-table3",
       "claim": "compat",
       "seen": {
+        "registry": "cli-table3",
         "version": "0.6.5",
+        "shasum": "013b91351762739c16a9567c21a04632e449bf2f",
         "weight": 161690,
         "measured": "2026-09-09",
         "cited": [
