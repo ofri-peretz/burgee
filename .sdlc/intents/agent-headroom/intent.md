@@ -94,14 +94,29 @@ a better product than one that tolerates one.
 - N14's field listing works: `--json` with no argument lists valid fields; an invalid one
   prints the valid set.
 
+## The limitation of our own metric, stated up front
+
+**Bytes are not tokens, and we measure bytes.** A BPE tokenizer encodes a repeated JSON key
+efficiently — the second `"status":` costs far less than the first — so a 63% byte saving is
+not a 63% token saving. The direction is right; the magnitude is unknown.
+
+Bytes are what can be measured without depending on a particular tokenizer, and a metric that
+varies by model cannot ratchet. So: **no token-percentage claim ships until a token count is
+measured**, and the benchmarks page says "bytes" wherever it means bytes. Anyone quoting a
+token figure from this intent is quoting something nobody measured.
+
 ## Open questions
 
 - **Is compact the default for `--schema`, or opt-in?** Proposed: default. Its reader is a
   machine by construction (N8), and `--format=json-pretty` covers the human debugging it.
-- **Does the `agent` format (N15) earn its place beside compact JSON?** One compact line per
-  record is smaller than JSON and grep-able, but it is a second format to keep correct.
-  Proposed: decide it on a measurement, not on taste — build compact JSON first, measure, and
-  only add `agent` if the delta justifies a second surface.
+- **Which formats, and who decides?** **Answered 2026-09-09 by measuring.** On fifty rows of
+  four fields: minified JSON 2,749 B, NDJSON 2,747 (0% — its win is streaming), logfmt 2,047
+  (26%), Markdown table 1,554 (43%), **TSV with a header 1,018 (63%)**. The whole effect is
+  key repetition, so the saving grows with row count and is nil for a single object. And the
+  set is not ours to close: a format is data plus one `(value) => string`, which is exactly
+  what [`plugin-contract`](../plugin-contract/intent.md) admits, so `formats` becomes a key on
+  the shared plugin object and **the CLI's author decides what their agents read**. N15's
+  `agent` format is then one registered format among several rather than a built-in.
 - **Where does the budget live?** N13 puts it on `--schema`. Proposed: on any machine format,
   because a large result set has the same problem a large schema does.
 - **Does `meta.provenance` stay in the default envelope?** It is the whole point of the

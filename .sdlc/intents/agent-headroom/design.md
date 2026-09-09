@@ -92,6 +92,73 @@ schema is a *different document* from the full one, and an agent that cached the
 believe it has the whole thing. So a summarised schema carries `summarised: true` and the
 path to drill, by the same rule as R3: the document says what it is.
 
+### Formats: what is actually smaller, measured
+
+The question "is there something more compact than JSON" has a measurable answer, and it is
+not subtle. Fifty rows of four fields, the shape a `list` command returns:
+
+| Format | Bytes | Smaller | Why |
+| :-- | --: | --: | :-- |
+| JSON, minified | 2,749 | — | 200 key occurrences |
+| NDJSON | 2,747 | 0% | same keys; the win is *streaming*, not size |
+| logfmt (`k=v` per line) | 2,047 | 26% | drops braces, quotes, commas; keeps keys |
+| Markdown table | 1,554 | 43% | keys once; padding and pipes cost |
+| **TSV with a header** | **1,018** | **63%** | keys once, one delimiter, nothing else |
+
+The whole effect is **key repetition**. JSON writes `K` keys `N` times; a header writes them
+once. That is why the saving grows with row count and is nil for a single object — and why
+`--format=tsv` belongs on a *result set* and nowhere else.
+
+NDJSON earning 0% is the useful result here: it is worth having for a different reason, which
+is that an agent can stop reading at the row that answers its question, and R5 stays where
+it is on that basis rather than on size.
+
+### Bytes are not tokens, and we measure bytes
+
+**This is the limitation of our own metric and it is stated rather than buried.** A BPE
+tokenizer encodes a repeated JSON key efficiently — the second `"status":` costs far less
+than the first — so a 63% *byte* saving is not a 63% *token* saving, and nobody should quote
+it as one. The direction is right and the magnitude is unknown.
+
+`recovery-bytes` and `schema-bytes` are byte counts because bytes are what we can measure
+without depending on a particular tokenizer, and a metric that varies by model is a metric
+that cannot ratchet. **No token-percentage claim ships until a token count is measured**, and
+until then the benchmarks page says "bytes" everywhere it means bytes.
+
+### Who chooses the format — the author, not this design
+
+The formats above are a starting set, not a closed enum, and the mechanism already exists:
+[`plugin-contract`](../plugin-contract/intent.md). A format is data plus one function —
+`(value) => string` — which is exactly the shape a flagstaff component's `static(state)` has
+and exactly what the contract admits.
+
+So `formats` becomes a key on the shared plugin object, hosted by burgee:
+
+```js
+export default {
+  name: 'acme',
+  formats: {
+    // A caller then runs `mytool list --format=acme-rows`.
+    'acme-rows': { render: (value) => /* … */, description: 'one line per row, acme style' },
+  },
+};
+```
+
+Three consequences worth stating:
+
+- **A CLI author decides what their agents read.** Someone whose output is deeply nested gets
+  no help from TSV and may want their own shape; someone with a wide table wants TSV as the
+  default. Neither is a decision this design can make for them.
+- **`--format` lists what is registered**, so an agent discovers the choice the same way it
+  discovers everything else — no second mechanism, and N14's listing behaviour covers it.
+- **A format cannot break the envelope contract.** `ok`, `error`, `hint` and `truncated` mean
+  the same thing in every format or they mean nothing; a registered format renders the
+  envelope, it does not get to redefine it. That is the same rule U3 puts on a component,
+  and the reason a format is a projection rather than a plugin that writes to a stream.
+
+R6 applies here with force: a format that drops the `hint` to win bytes is refused at
+registration, not left to a reviewer.
+
 ### R5 — NDJSON, only where there is a stream
 
 A result set with 400 rows is the case; a single result is not. This lands last and only if a
@@ -108,6 +175,9 @@ format with no caller is a format that rots.
 4. **R3** — the budget and the truncation envelope.
 5. **R4** — progressive summarisation, which needs (3)'s budget to mean anything.
 6. **R5** — NDJSON, when a command exists that streams.
+7. **Registered formats** (`formats` on the plugin object), and `--format=tsv` as the first
+   one shipped that way rather than as a built-in — which proves the extension point with
+   the format that has the largest measured saving.
 
 Steps 1 and 2 together are the smallest thing that produces a published number, which is
 where this should stop if it stops.
