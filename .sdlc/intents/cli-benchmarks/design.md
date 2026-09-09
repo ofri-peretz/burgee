@@ -211,7 +211,7 @@ is also the point of them, and `perf.ts` says so in its own method line.
 
 **The filename carries the distinction.** `YYYY-MM-DD.json` is a published measurement,
 committed by a person. `YYYY-MM-DD-<sha>.json` is an observation from the run at that
-commit. The bands glob the directory and read both; `bench-page.ts` and `docs.test.ts` go
+commit. The bands read both; `bench-page.ts` and `docs.test.ts` go
 through `publishedResults()` and read only the first. The recorder `mv`s its output aside
 and restores the published file, so a CI run cannot change a public number without somebody
 choosing to.
@@ -223,6 +223,13 @@ were green before they were right:
   sorts before its measurement by an accident of ASCII (`-` is 0x2D, `.` is 0x2E) and so
   passes under the old "whichever landed last" rule too. The case that happens is the next
   morning's run.
+- **"The bands glob the directory and read both" was not true when it was written.**
+  `collectBenchmark` and `collectFromGit` in `scripts/control-bands.ts` both matched
+  `????-??-??.json` only, so the split created observations that nothing read: eleven of
+  them landed while every band sat at one point against a `minPoints` of 8. Corrected
+  2026-09-09. It is the worst shape a monitoring failure can take, because a band with too
+  few points reports exactly what a healthy quiet band reports — the watcher looked like it
+  was working the entire time.
 - **The first recorder used `cp`.** On a date that has never been published the run writes
   a *new* `YYYY-MM-DD.json`, and `git checkout --` does not remove an untracked file — so
   the CI file was staged under the exact name reserved for a chosen measurement. Correct on
