@@ -27,7 +27,7 @@ import { suggestSimilar } from './commander-suggest.js';
 import { ExitCode } from './exit-code.js';
 import { type Effects, Manifest, type OptionSpec, type Plugin } from './manifest.js';
 import { serveMcp } from './mcp.js';
-import { schemaOf } from './schema.js';
+import { machineJson, schemaOf } from './schema.js';
 
 export interface OutputConfiguration {
   writeOut: (str: string) => void;
@@ -1717,7 +1717,9 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
   _burgeeSurfaceRest(head: string[], declared: (flag: string) => boolean): boolean | Promise<boolean> {
     const root = this._root();
     if (head.includes('--schema') && !declared('--schema')) {
-      root._outputConfiguration.writeOut(`${JSON.stringify(schemaOf(this.manifest), null, 2)}\n`);
+      // R1, and the same escape hatch the engine has: `--schema` is burgee's surface, not
+      // commander's, so it answers to E-floor byte discipline rather than to the host.
+      root._outputConfiguration.writeOut(`${machineJson(schemaOf(this.manifest), head)}\n`);
       return true;
     }
     if (head[0] === '--mcp' && !declared('--mcp')) {
