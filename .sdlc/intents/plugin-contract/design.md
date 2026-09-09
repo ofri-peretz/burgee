@@ -24,10 +24,11 @@ Intent: [`intent.md`](./intent.md). **Status:** draft — awaiting the Design→
 
 Two things are *not* true yet, and they are what this design is:
 
-1. **`tokens` and `glyphs` are in the schema but nothing reads them.** They are described as
-   "a roundel theme", and roundel does not know the plugin object exists. A plugin that
-   ships a theme today is validated and then ignored — the worst of both, because it looks
-   supported.
+1. **`tokens` is in the schema and nothing reads it.** It is described as "a roundel theme",
+   and roundel does not know the plugin object exists. A plugin that ships a theme today is
+   validated and then ignored — the worst of both, because it looks supported. (`glyphs`
+   reads the same way at first glance and does not have this problem: flagstaff hosts it.
+   See R4.)
 2. **The schema is one file in one package.** The intent's first success criterion is one
    schema, byte-identical in every tarball, asserted by a lock. Today it is flagstaff's.
 
@@ -42,10 +43,17 @@ Two things are *not* true yet, and they are what this design is:
 - **R3 — No layer imports another.** `roundel` reading `tokens` must not make `roundel`
   depend on `flagstaff`, in `package.json`, in `dist/`, or in the weight lock's `allow`
   list. The keys are read structurally; the type is declared, not imported.
-- **R4 — roundel hosts `tokens` and `glyphs`.** `register(plugin)` collects `tokens` into a
-  `Theme` and `glyphs` into the symbol map, and `fly()` contrast-checks a plugin's hex
-  tokens exactly as it checks a hand-written theme — a plugin cannot smuggle an unreadable
-  colour past R5 of the roundel design.
+- **R4 — roundel hosts `tokens`.** `register(plugin)` collects them into a `Theme`, and
+  `fly()` contrast-checks a plugin's hex tokens exactly as it checks a hand-written theme —
+  a plugin cannot smuggle an unreadable colour past R5 of the roundel design.
+
+  **Narrowed 2026-09-08, while building it.** This requirement said "`tokens` and `glyphs`",
+  and glyphs are not roundel's. `flagstaff/plugin` already hosts them and already exports
+  `glyph(meaning)`; the schema describes them as symbols "by meaning: `ok`, `fail`, `warn`,
+  `info`, `running`" that change "every built-in that draws one" — and roundel draws
+  nothing, it decides colour. Hosting them in two packages would create exactly the drift
+  this contract exists to prevent, and it would give a plugin author two answers to "where
+  does my `✔` go". One key, one host.
 - **R5 — caique hosts `widgets`.** A widget is `{ static(spec), frame?(t, spec) }`, the same
   shape a flagstaff component has, and a widget without `static` is refused with
   `E_NO_STATIC_PROJECTION` — the same code, the same message.
@@ -89,13 +97,13 @@ One new file, `packages/roundel/src/plugin.ts`, and one new subpath:
 import { register } from 'roundel/plugin';
 import { fly } from 'roundel/theme';
 
-register(acme);          // keeps acme.tokens and acme.glyphs, ignores the rest
+register(acme);          // keeps acme.tokens; ignores glyphs, spinners, components
 fly(theme(), runtime);   // the plugin's tokens are in it, contrast-checked like any other
 ```
 
 It declares the `Plugin` shape structurally rather than importing flagstaff's type (R3):
-roundel needs `{ name, contract?, tokens?, glyphs? }` and nothing else, and a structural
-declaration is what makes "any subset of the family" true instead of aspirational.
+roundel needs `{ name, contract?, tokens? }` and nothing else, and a structural declaration
+is what makes "any subset of the family" true instead of aspirational.
 
 Order of registration is registration order, like ESLint flat config: the last plugin to
 contribute a token wins, and `registered()` reports the winner and the plugin it came from
@@ -125,14 +133,58 @@ third-party prompt cannot break the non-TTY guarantee that is caique's whole poi
 
 1. **The lock first** (`schema-identity.test.ts` + `schema:sync`), while there is exactly
    one copy. A lock written after the second copy exists is a lock written against a bug.
-2. **roundel/plugin** — `tokens` and `glyphs` have a schema entry and no host, so this is
-   the shortest path from "documented" to "true".
+2. **roundel/plugin** — `tokens` has a schema entry and no host, so this is the shortest
+   path from "documented" to "true". (`glyphs` turned out to have one already: see R4.)
 3. **caique/plugin** — `widgets`, plus the schema entry it needs, propagated by `schema:sync`.
 4. **burgee** — `plugin.schema.json` in the tarball, `burgee plugin check <file>` running
    every installed layer's validation. `commands` and `hooks` stay specified by
    `cli-modularity`; this intent adds no burgee key of its own.
 
 Steps 1–3 are independent of `cli-modularity` and can land without it. Step 4 cannot.
+
+## What shipped (step 1 — the schema lock — 2026-09-08)
+
+`scripts/plugin-schema-lock.test.ts`, written while there was still exactly one copy of the
+schema, as the order above says. It derives the host list from the tree — a package hosts
+plugins when `src/plugin.ts` exists — so a new host is covered the moment it is created.
+
+It found one: `PluginError`'s fix for `E_PLUGIN_SCHEMA` told a plugin author to "compare the
+object against flagstaff/schema.json", and that specifier did not resolve. The file shipped
+in the tarball; the `exports` entry was missing. An error whose fix is a dead end is worse
+than an error with no fix.
+
+No `schema:sync` script. With one copy there is nothing to sync, and a script whose fix
+never fires is a script to write when the second host arrives.
+
+## What shipped (step 2 — roundel hosts `tokens` — 2026-09-08)
+
+`roundel/plugin`: `register()`, `theme()`, `contributions()`, `reset()`, and the family's
+error vocabulary — `E_PLUGIN_SCHEMA`, `E_PLUGIN_CONTRACT` — with the same `fix` shape
+flagstaff uses (R8).
+
+**The claim R1 makes is asserted against a flagstaff plugin object**, not a roundel-shaped
+one: the fixture carries `glyphs`, `spinners` and `components`, and registering it here
+keeps the theme and ignores the rest without complaining. That is what makes "works on any
+subset of the family that is installed" true rather than hoped.
+
+**A misspelt token is refused, not dropped.** A plugin whose `errror` key is silently
+ignored looks like it worked, and its author debugs the wrong thing. The refusal names the
+ten valid names.
+
+**Registering does not fly.** A plugin contributing colour must not decide *when* colour is
+decided; `theme()` hands a `Theme` to the program, and the program calls `fly()` once. The
+contrast gate is therefore not re-implemented here — one gate, in the place that had it, and
+a plugin token below 4.5:1 throws exactly as a hand-written one does.
+
+It reaches nothing: its only import is a type, erased by `verbatimModuleSyntax`. 2,812 B,
+most of it the refusal messages.
+
+Six mutations proved the suite bites: an unknown token dropped instead of refused (2 red),
+earlier plugin winning instead of later (1), a bad colour accepted (1), a newer contract
+accepted (1), an unnamed plugin registering (1), and `register()` keeping a plugin that
+failed validation (1).
+
+Not yet: `caique/plugin` (step 3), and burgee (step 4, blocked on `cli-modularity`).
 
 ## Verification
 
