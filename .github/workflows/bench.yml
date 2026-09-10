@@ -60,12 +60,13 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Build (the axes measure what is built, never what is written)
         run: npx turbo run build
-      # Before the run, so it compares the committed page against the committed
-      # results rather than against numbers this job is about to produce. The page
-      # has said "Do not edit by hand" since it was written with nothing enforcing
-      # it, which is how a generated file goes stale in silence.
-      - name: The published page is still the one the committed results generate
-        run: npm run bench:page -- --check
+      # `bench:page --check` moved to quality.yml's `generated-pages` job. It was
+      # correct here and it ran here — but this job reports
+      # `B2 cold start · B3 compatibility · B4 weight`, which is not a required
+      # context, so a red page check did not stop a merge. Its sibling proved the
+      # cost: `compat:page --check` failed on PR #197 and the PR merged 29 seconds
+      # later. The check compares the committed page against the COMMITTED results,
+      # so it never needed this job's measurements — only a gate that blocks.
       - name: Run the cheap axes and check every gate
         shell: bash
         # `reliability` belongs here and was left out when it landed: it spawns a demo CLI

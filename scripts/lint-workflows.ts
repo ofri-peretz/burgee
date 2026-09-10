@@ -199,7 +199,20 @@ function triggers(on: unknown): string[] {
  * reports, and the entry sits in the queue until someone notices. That is the failure this
  * table exists to make impossible.
  */
-const REQUIRED_CHECKS = new Set(['Quality Gate', 'Quality (Full) Gate', 'review']);
+const REQUIRED_CHECKS = new Set([
+  'Quality Gate',
+  'Quality (Full) Gate',
+  'review',
+  // Added 2026-09-10. It gates `apps/docs/content/docs/compatibility.mdx` against a fresh
+  // measurement, and it worked: it went RED on PR #197 at 14:44:16. The PR merged at
+  // 14:44:45 — 29 seconds later — because the context was not required, and main stayed
+  // red until #199. A drift gate that does not block is a drift gate that reports.
+  //
+  // It cannot fold into `Quality Gate` the way the benchmarks page did: its inputs
+  // (`results.json`, `results.control.json`) are produced by grading and are not
+  // committed, so there is nothing to check without running the oracle.
+  "Ratchet · each host's suite against burgee",
+]);
 
 /** The context names a workflow reports, which is `name:` where there is one and the key where there is not. */
 function checkNames(wf: Workflow): string[] {
