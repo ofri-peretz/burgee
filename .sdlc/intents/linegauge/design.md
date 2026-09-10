@@ -70,9 +70,42 @@ packages/linegauge/src/
   weight.test.ts        R9 · shape.test.ts  R8, R11, R12
 ```
 
-**Order.** `width` → `strip` → `slice` → `wrap` + `truncate` + `widest` → vendor the four
-suites → `flagstaff` switches over and deletes `src/width.ts` → B4 rows → the override
-recipe, behind its pass rate.
+## What is already written, measured 2026-09-09
+
+This design reads as "build a package". Read against the tree, it is mostly "move 746 lines
+and add four functions" — and that changes both the order and the risk, so it is recorded
+here before the gate rather than discovered during the build.
+
+| R | | Where it is today |
+| :-- | :-- | :-- |
+| **R1** width | **written** | `flagstaff/src/width.ts`, 131 lines: Unicode 17 W/F table (122 ranges, binary search) over `Intl.Segmenter`, RGI emoji as 2, marks as 0. Graded differentially against `string-width`. |
+| **R2** fast path | new | Nothing ASCII-shortcuts today, and there is no differential lock between two paths because there is only one path. |
+| **R3** strip | **partly** | `width.ts` calls `stripVTControlCharacters` and stops there. R3's "measured, and the divergence recorded" is unwritten, and there is no exported `strip`. |
+| **R4** slice | new | Deliberately absent. `wrap.ts` says so: rows are self-contained after wrapping, "which is why it carries no port of `slice-ansi`". |
+| **R5** wrap | **written** | `flagstaff/src/wrap.ts`, 615 lines: a wrap-ansi 10 port including the style stack, graded differentially against the real `wrap-ansi` in `wrap.test.ts`. |
+| **R6** truncate | new | `flagstaff/src/cli-table3.ts` has a `truncate`, but it is cli-table3's own and belongs to that port. |
+| **R7** widest | new | `width.ts` exports `lineCount`, not `widest`. |
+
+Three consequences.
+
+**The style stack is not "the whole package" any more — it is written and graded.** The
+design's central claim is that `slice`, `wrap` and `truncate` are one algorithm worth
+writing once. That algorithm exists in `wrap.ts`, against wrap-ansi's own behaviour. What
+remains is to expose it as `slice` and to build `truncate` on it, which is a smaller and
+much better-evidenced piece of work than the design implies.
+
+**`wrap.ts` moves too, and the design did not say so.** "Order" below deleted only
+`src/width.ts`. Moving 615 lines of graded port is the larger half of the extraction and
+carries the larger risk: `log-update` depends on wrap's self-contained rows, by name.
+
+**The differential graders come with it.** `width.test.ts` grades against `string-width`
+and `wrap.test.ts` against `wrap-ansi`, both already in this repo's tree. R10's vendoring
+is then a promotion of two existing graders plus two new ones, not four new ones.
+
+**Order.** `width` + `wrap` **move out of flagstaff with their differential tests** →
+`strip` → `slice` (exposing wrap's style stack) → `truncate` + `widest` → vendor the four
+suites → `flagstaff` imports and deletes `src/width.ts` **and `src/wrap.ts`** → B4 rows →
+the override recipe, behind its pass rate.
 
 **The style stack, which is the whole package.** `slice`, `wrap` and `truncate` are one
 algorithm: walk the string, maintain a stack of open SGR parameters, emit graphemes while
@@ -81,9 +114,12 @@ is open and re-emit the openers on resume. Writing it once is the consolidation;
 incumbents write it three times between them and disagree at the edges.
 
 **How `flagstaff` uses it.** As a same-repo dependency (Y1 permits downward edges from above
-the line). `flagstaff/src/width.ts` is deleted in the same PR that adds the import, and its
-box, columns and status-line tests must pass unchanged — a green suite across that deletion
-is the internal proof that the consolidation is real rather than nominal.
+the line). `flagstaff/src/width.ts` **and `src/wrap.ts`** are deleted in the same PR that
+adds the import, and its box, columns, table, log-update and status-line tests must pass
+unchanged — a green suite across that deletion is the internal proof that the consolidation
+is real rather than nominal. `log-update` is the one to watch: it carries no `slice-ansi`
+port precisely because wrap leaves each row self-contained, so it depends on a property of
+`wrap.ts` that no signature expresses.
 
 ## Verification
 
