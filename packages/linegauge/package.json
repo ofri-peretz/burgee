@@ -17,6 +17,21 @@
       "types": "./dist/wrap.d.ts",
       "import": "./dist/wrap.js",
       "default": "./dist/wrap.js"
+    },
+    "./slice": {
+      "types": "./dist/slice.d.ts",
+      "import": "./dist/slice.js",
+      "default": "./dist/slice.js"
+    },
+    "./truncate": {
+      "types": "./dist/truncate.d.ts",
+      "import": "./dist/truncate.js",
+      "default": "./dist/truncate.js"
+    },
+    "./widest": {
+      "types": "./dist/widest.d.ts",
+      "import": "./dist/widest.js",
+      "default": "./dist/widest.js"
     }
   },
   "files": [
@@ -54,6 +69,8 @@
     "unicode"
   ],
   "devDependencies": {
+    "cli-truncate": "^5.0.0",
+    "slice-ansi": "^7.1.0",
     "string-width": "^8.1.0",
     "vitest": "^4.0.0",
     "wrap-ansi": "^10.0.1"
