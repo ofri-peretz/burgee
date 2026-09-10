@@ -1,3 +1,5 @@
+import { width } from 'linegauge';
+import { wrap } from 'linegauge/wrap';
 /**
  * A box around text (R7) — boxen's job, as a string function.
  *
@@ -13,8 +15,6 @@
 import { muted } from 'roundel/tokens';
 
 import { type BorderStyle, type Component, lookupBorder } from './plugin.js';
-import { width } from './width.js';
-import { wrap } from './wrap.js';
 
 export interface BoxOptions {
   /** A registered border's name, or a style of your own. Default `round`. */

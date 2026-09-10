@@ -20,8 +20,9 @@
  */
 import process from 'node:process';
 
+import { wrap } from 'linegauge/wrap';
+
 import { HIDE_CURSOR, restoreCursorOnExit, SHOW_CURSOR } from './cursor.js';
-import { wrap } from './wrap.js';
 
 const CSI = '\u001B[';
 const SYNCHRONIZED_OUTPUT_ENABLE = `${CSI}?2026h`;

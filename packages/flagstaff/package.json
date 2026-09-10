@@ -115,13 +115,12 @@
     "plugins"
   ],
   "dependencies": {
+    "linegauge": "^0.0.1",
     "roundel": "^0.1.0"
   },
   "devDependencies": {
     "cli-boxes": "^4.0.1",
     "cli-spinners": "^3.2.0",
-    "string-width": "^8.1.0",
-    "vitest": "^5.0.0",
-    "wrap-ansi": "^10.0.1"
+    "vitest": "^5.0.0"
   }
 }
