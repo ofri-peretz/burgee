@@ -55,13 +55,29 @@ const RUNTIME_DATA: Record<string, string[]> = {
   burgee: ['locales/en.json', 'locales/de.json'],
 };
 
+/**
+ * How to run npm without assuming a POSIX shell.
+ *
+ * `npm` on Windows is `npm.cmd`, and Node refuses to execute a `.cmd` without a shell:
+ * `execFileSync('npm', …)` fails with `spawnSync npm ENOENT`, which is how nine of these
+ * tests went red on `windows-latest` in #179 while passing everywhere else.
+ *
+ * `npm_execpath` is set by npm itself for any script it runs — and CI reaches these tests
+ * that way, `npm run test` → turbo → vitest. It names `npm-cli.js`, a plain JavaScript file
+ * that this process's own Node runs identically on every platform. The fallback is for a
+ * bare `npx vitest`, where npm set nothing.
+ */
+const NPM_CLI = process.env['npm_execpath'];
+const NPM_IS_JS = NPM_CLI !== undefined && NPM_CLI.endsWith('.js');
+const PACK_ARGS = ['pack', '--dry-run', '--json'];
+
 /** Every package-relative path npm would put in the tarball. */
 function packedPaths(dir: string): Set<string> {
-  const out = execFileSync('npm', ['pack', '--dry-run', '--json'], {
-    cwd: join(root, 'packages', dir),
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'ignore'],
-  });
+  const cwd = join(root, 'packages', dir);
+  const io = { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] } as const;
+  const out = NPM_IS_JS
+    ? execFileSync(process.execPath, [NPM_CLI, ...PACK_ARGS], io)
+    : execFileSync('npm', PACK_ARGS, { ...io, shell: process.platform === 'win32' });
   const parsed = JSON.parse(out) as { files: { path: string }[] }[];
   return new Set((parsed[0]?.files ?? []).map((f) => f.path));
 }
