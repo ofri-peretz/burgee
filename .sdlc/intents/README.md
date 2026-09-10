@@ -958,14 +958,20 @@ deliberately.
 ### 4. Checks that cannot fail, and checks that fail on good deploys
 
 Rule 4 of the working agreement is that a fix is not done until a check would have caught it, and
-the check is proven to fail on the unfixed state. Six checks do not meet their own rule:
+the check is proven to fail on the unfixed state. Six checks did not meet their own rule; **five still
+do not**:
 
 - **ANSI in non-TTY** (`cli-testing-harness`) — `examples/conformance` contains no escape-byte
   assertion at all, and the demos emit no colour, so the half of that criterion cannot go red.
 - **A deliberate `.map` in the artifact gate** (`cli-packaging`) —
   `scripts/check-published-artifacts.ts` has no test; the catch is an unproven regex.
-- **`files` membership** (`cli-packaging`) — the exports lock checks disk, not the pack list, so
-  an entry excluded by `files` ships broken and passes.
+- ~~**`files` membership** (`cli-packaging`)~~ — **landed 2026-09-10.** `scripts/pack-list-lock.test.ts` asks `npm pack --dry-run --json` for the tarball npm would
+  actually upload and asserts every path an `exports` entry promises is in it — `types` as well
+  as `import` and `default`, since a missing `.d.ts` breaks a TypeScript caller as completely as
+  a missing `.js`. Proven on the unfixed state: excluding `dist/commander.js` and
+  `locales/de.json` from burgee's `files` turns both halves red and names the two files. It also
+  covers the one run-time directory no `exports` subpath names — burgee's `locales/`, whose
+  absence is the published form of the regression in #170.
 - **`brand:check` drift** (`brand-burgee`) — no workflow runs it, and nothing proves it fails on
   drifted content.
 - **The Z2 byte-identity test** (`dev-loop`) — does not exist; a weight allow-list stands in for it.
