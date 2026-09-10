@@ -2,7 +2,7 @@
 name: Quality Gate
 
 run-name: >-
-  Quality · ${{ github.event_name == 'pull_request' && format('PR #{0} · {1}', github.event.pull_request.number, github.event.pull_request.title) || github.event.head_commit.message }}
+  Quality · ${{ github.event_name == 'pull_request' && format('PR #{0} · {1}', github.event.pull_request.number, github.event.pull_request.title) || github.event.head_commit.message || format('merge queue · {0}', github.ref_name) }}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Fast-loop quality gate — every PR push and every push to main. Same split as
@@ -22,6 +22,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # `Quality Gate` is a required status check, and a required check with no `merge_group:`
+  # trigger never reports inside the queue — the entry neither merges nor fails. Enforced by
+  # REQUIRED_CHECKS in scripts/lint-workflows.ts.
+  merge_group:
 
 concurrency:
   group: quality-${{ github.ref }}
