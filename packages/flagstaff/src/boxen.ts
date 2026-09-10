@@ -1,3 +1,5 @@
+import { width as stringWidth } from 'linegauge';
+import { wrap as wrapAnsi } from 'linegauge/wrap';
 /**
  * `flagstaff/boxen` — boxen 8.0.1 ported method for method, graded by boxen's own suite.
  *
@@ -23,9 +25,6 @@
  * registry stays `./box`'s business; this subpath is a leaf.
  */
 import chalk from 'roundel/chalk';
-
-import { width as stringWidth } from './width.js';
-import { wrap as wrapAnsi } from './wrap.js';
 
 const NEWLINE = '\n';
 const PAD = ' ';
