@@ -137,6 +137,54 @@ package where a caller installs many. That is the column to compete on, and it i
 | combining | 1 | 1 | 1 | **3** ✗ |
 | CJK | 6 | 6 | 6 | 6 |
 
+## What the community already asks them for
+
+`scripts/fetch-competitor-issues.sh foundation` snapshots every open issue of all twenty
+incumbents into `.sdlc/research/issues/foundation/` — the one source of "what is missing"
+that is not our own opinion. It is a third set beside the `engine` and `stack` sets that
+have existed since #22; the four lower layers simply had no set of their own.
+
+### The pain is not where the tier's order puts it
+
+| layer | open issues across its incumbents | of them, "support X too" |
+| :-- | --: | --: |
+| linegauge | **4** | 0 |
+| closeout | 7 | 0 |
+| **seniority** | **55** | **3** |
+| bellpull | 18 | 0 |
+
+Five of `linegauge`'s seven incumbents have **zero** open issues; `string-width` has one, and
+it is a note about adopting a Node builtin. That layer is finished, maintained and quiet.
+With the two findings above — `string-width` right on all six rows, `wrap-ansi` fixed in v10
+— **`linegauge` has no community gap to close.** Its only honest claim is consolidation, and
+F1 leads the tier because `flagstaff` needs width today, not because users are stuck.
+
+`seniority`'s incumbents carry **fifty-five**. `rc` alone has 22, including a 29-comment
+thread about shipping malicious code, and nobody has rescued it.
+
+### Where an extension surface is earned, and where it would be speculation
+
+Three of `seniority`'s requests are one shape — *support this format too*: `cosmiconfig`
+**"add support for TOML?"** (10 comments, the most-discussed issue in the tier), `c12` **"Add
+rc format support"**, `c12` **"Support vite(6) as config loader"**. Each is a caller waiting
+on a maintainer to hand-add a loader. A published loader interface answers the class at once,
+and those threads are its seed corpus rather than an audience to evangelise — which is
+exactly the second half of PRINCIPLES rule 7.
+
+**No other layer has one request of that shape.** Putting a plugin surface in `linegauge`,
+whose seven incumbents share four issues and none of them extensible, would be building for a
+need nobody has expressed.
+
+### Gaps worth taking without a plugin surface
+
+- `signal-exit` — *"Cannot cleanup exit handler inside the handler itself"*. `closeout`'s
+  `onExit` returning its own unsubscribe is that, by construction.
+- `tinyexec` — *"expose signal that killed the process"* (3c) and *"throwOnError should
+  default to true"* (5c). `bellpull`'s `{ ok, code, signal, … }` answers both in one shape,
+  and it is the case that intent has left now that the weight pitch is gone.
+- `npm/node-which` — six issues, mostly Windows `PATH` resolution. `bellpull`'s `which`
+  reporting *which `PATH` entry matched* aims at exactly that.
+
 ## Holes in this baseline
 
 Seven named competitors are not in this tree and so are unmeasured: `lilconfig`, `rc`,

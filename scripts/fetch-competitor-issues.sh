@@ -2,9 +2,10 @@
 # Snapshot every open issue of the CLI libraries we build on or compete with.
 # Needs an authenticated `gh`.
 #
-#   fetch-competitor-issues.sh engine   # parser/framework trackers -> .sdlc/research/issues/<owner>_<repo>.json
-#   fetch-competitor-issues.sh stack    # output-stack trackers     -> .sdlc/research/issues/output-stack/<owner>_<repo>.json
-#   fetch-competitor-issues.sh          # both
+#   fetch-competitor-issues.sh engine      # parser/framework trackers -> .sdlc/research/issues/<owner>_<repo>.json
+#   fetch-competitor-issues.sh stack       # output-stack trackers     -> .sdlc/research/issues/output-stack/<owner>_<repo>.json
+#   fetch-competitor-issues.sh foundation  # the four lower layers     -> .sdlc/research/issues/foundation/<owner>_<repo>.json
+#   fetch-competitor-issues.sh             # all three
 #
 # The engine set is what competitor-open-issues.md reads (snapshot 2026-09-05). The stack set
 # is what output-stack-open-issues.md reads. They live in separate directories so refreshing
@@ -38,6 +39,33 @@ if [[ $set == engine || $set == all ]]; then
     gh issue list -R "$r" --state open --limit 500 \
       --json number,title,body,labels,createdAt,comments,reactionGroups > "${r//\//_}.json"
     echo "$r: $(jq length "${r//\//_}.json")"
+  done
+fi
+
+# The four foundation layers (cli-foundation-stack). Kept in its own directory for the same
+# reason as the stack set: refreshing one layer's numbers must never move another's. The
+# grouping is by layer rather than by owner because that is the unit a decision is made in —
+# `seniority` carries 55 open issues across its five incumbents and `linegauge` carries 4
+# across its seven, and that ratio is the tier's ordering argument.
+if [[ $set == foundation || $set == all ]]; then
+  mkdir -p "$here/../.sdlc/research/issues/foundation"
+  cd "$here/../.sdlc/research/issues/foundation"
+  # linegauge
+  for r in sindresorhus/string-width chalk/wrap-ansi chalk/slice-ansi chalk/strip-ansi \
+           sindresorhus/cli-truncate sindresorhus/widest-line timoxley/wcwidth; do
+    fetch_open "$r"
+  done
+  # closeout
+  for r in tapjs/signal-exit sindresorhus/exit-hook sindresorhus/cli-cursor sindresorhus/onetime; do
+    fetch_open "$r"
+  done
+  # seniority
+  for r in cosmiconfig/cosmiconfig antonk52/lilconfig motdotla/dotenv unjs/c12 dominictarr/rc; do
+    fetch_open "$r"
+  done
+  # bellpull
+  for r in sindresorhus/execa tinylibs/tinyexec npm/node-which sindresorhus/npm-run-path; do
+    fetch_open "$r"
   done
 fi
 
