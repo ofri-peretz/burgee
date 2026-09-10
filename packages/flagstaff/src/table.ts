@@ -1,3 +1,5 @@
+import { width } from 'linegauge';
+import { wrap } from 'linegauge/wrap';
 /**
  * A table (R7) — cli-table3's job, as a string function, and again with no layout engine.
  *
@@ -13,8 +15,6 @@
 import { heading, muted } from 'roundel/tokens';
 
 import { type Component } from './plugin.js';
-import { width } from './width.js';
-import { wrap } from './wrap.js';
 
 export type Row = string[];
 

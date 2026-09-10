@@ -12,6 +12,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./wrap": {
+      "types": "./dist/wrap.d.ts",
+      "import": "./dist/wrap.js",
+      "default": "./dist/wrap.js"
     }
   },
   "files": [
@@ -49,6 +54,8 @@
     "unicode"
   ],
   "devDependencies": {
-    "vitest": "^4.0.0"
+    "string-width": "^8.1.0",
+    "vitest": "^4.0.0",
+    "wrap-ansi": "^10.0.1"
   }
 }

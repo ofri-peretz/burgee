@@ -33,5 +33,10 @@
     "reference": 29,
     "passed": 29,
     "rate": 1
+  },
+  "string-width": {
+    "reference": 229,
+    "passed": 194,
+    "rate": 0.8471615720524017
   }
 }
