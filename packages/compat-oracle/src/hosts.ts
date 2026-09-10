@@ -260,6 +260,46 @@ export const HOSTS: Host[] = [
     note: "Decided 2026-09-08 in `.sdlc/intents/output-stack-compat/design.md`; every count corrected 2026-09-09 after measurement, because the ones written here were wrong. The suite runs **235** cases: 197 reach the host's internals (`../src/cell`, `../src/utils`, `../src/layout-manager` — 94 + 63 + 11 + 29 across four files) and **38** reach the package root — table-test.js 10, original-cli-table-newlines-test.js 5, verify-legacy-compatibility-test.js 18 (it runs its nine assertions twice) and test/issues/ 5, in four files that were vendored, committed and graded by nobody until the walk became recursive. Of those 38, the nine excluded above grade cli-table rather than the target, so **29 gate**. Under C4 a file importing only the host's internals is informational and never gated, because passing it means reproducing the host's file layout, which is the thing that rule exists to refuse. The target moved to `flagstaff/cli-table3` when that façade landed — the condition this note set for the move. Until then the target was `flagstaff/table`, the table API that is deliberately *not* a cli-table3 façade, and it measured 0 / 29; that zero was measured, not assumed. The rule the move respects: never name the target after a façade that does not exist, because that publishes `target not built yet` where there had been a real number.",
   },
   {
+    // The first host graded against the foundation tier. `string-width` is the package
+    // `linegauge`'s `width` replaces head-on, and — measured 2026-09-10 — it is *right*: all
+    // six grapheme rows in `linegauge/intent.md` that break a naive implementation, it gets
+    // correct. So this row is not evidence that the incumbent is broken. It is the only thing
+    // that can hold `linegauge` to the incumbent's own definition of correct while the claim
+    // it actually makes — one package where a caller installs fourteen — is argued on weight.
+    //
+    // Its suite is one file at the repo root beside the implementation, so `testGlob` names
+    // that file rather than a directory: "every `.js` here" would vendor the host's own
+    // `index.js` and grade it as a test. Same shape as ora's.
+    name: 'string-width',
+    repo: 'https://github.com/sindresorhus/string-width',
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'ava',
+    target: 'linegauge',
+    status: 'active',
+    note: 'linegauge exports `width` as its default, which is the shape string-width\'s own tests import.',
+  },
+  {
+    // `wrap-ansi` is the one incumbent in this layer with a measured correctness gap, and it
+    // is already closed upstream: two family-ZWJ emoji hard-wrapped at three columns come back
+    // as **eight** fragments under 8.1.0 and 9.0.2 and as two correct lines under 10.0.1
+    // (`cli-foundation-stack/baseline.md`, 2026-09-10). `linegauge/src/wrap.ts` is a port of
+    // 10, so this row grades the port against the major it was ported from — which is exactly
+    // what `wrap.test.ts` asserts in-package, and what this makes public.
+    name: 'wrap-ansi',
+    repo: 'https://github.com/chalk/wrap-ansi',
+    testDir: 'test',
+    testGlob: '*.js',
+    imports: [{ upstream: '../index.js', subpath: '', reexportDefault: true }],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'ava',
+    target: 'linegauge',
+    status: 'planned',
+    note: 'Graded once string-width\'s row is green: two new hosts against one target in one change would make a failure ambiguous.',
+  },
+  {
     name: 'clack',
     repo: 'https://github.com/bombshell-dev/clack',
     testDir: 'packages/prompts/test',

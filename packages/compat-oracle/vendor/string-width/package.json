@@ -1,0 +1,9 @@
+{
+  "name": "@vendored/string-width-suite",
+  "private": true,
+  "type": "module",
+  "main": "./shim.js",
+  "version": "8.2.2",
+  "license": "MIT",
+  "repository": "sindresorhus/string-width"
+}
