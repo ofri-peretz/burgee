@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { Command } from './commander.js';
+import { Command } from '../commander.js';
 
 describe('commander façade: parse() stays synchronous', () => {
   it('runs a root action before parse() returns', () => {

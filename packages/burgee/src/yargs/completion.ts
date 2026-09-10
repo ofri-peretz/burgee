@@ -3,10 +3,10 @@
  * three arities, and the bash/zsh script templates — ported for `burgee/yargs`.
  */
  
-import { type CommandInstance, isCommandBuilderCallback } from './yargs-command.js';
-import type { PlatformShim } from './yargs-shim.js';
-import type { UsageInstance } from './yargs-usage.js';
-import { isPromise, parseCommand } from './yargs-utils.js';
+import { type CommandInstance, isCommandBuilderCallback } from './command.js';
+import type { PlatformShim } from './shim.js';
+import type { UsageInstance } from './usage.js';
+import { isPromise, parseCommand } from './utils.js';
 
 export const completionShTemplate = `###-begin-{{app_name}}-completions-###
 #

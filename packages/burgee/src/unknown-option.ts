@@ -8,7 +8,7 @@
  * takes it — and the entry got smaller, not larger, because the single-dash hint moved
  * here too.
  */
-import { suggestSimilar } from './commander-suggest.js';
+import { suggestSimilar } from './suggest.js';
 
 const UNKNOWN_OPTION = /^Unknown option '(?<flag>[^']+)'/u;
 const NEAREST = /--[\w-]+/u;

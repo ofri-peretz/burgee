@@ -4,8 +4,8 @@
  * so yargs' usage tests compare whole screens byte for byte.
  */
  
-import type { PlatformShim } from './yargs-shim.js';
-import { objFilter, setBlocking, YError } from './yargs-utils.js';
+import type { PlatformShim } from './shim.js';
+import { objFilter, setBlocking, YError } from './utils.js';
 
 export type FailureFunction = (msg: string | undefined | null, err: Error | undefined, usage: UsageInstance) => void;
 

@@ -4,11 +4,11 @@
  * `burgee/yargs`.
  */
  
-import { applyMiddleware, commandMiddlewareFactory, type Middleware } from './yargs-middleware.js';
-import type { PlatformShim } from './yargs-shim.js';
-import type { UsageInstance } from './yargs-usage.js';
-import { isPromise, maybeAsyncResult, parseCommand, type Positional } from './yargs-utils.js';
-import type { ValidationInstance } from './yargs-validation.js';
+import { applyMiddleware, commandMiddlewareFactory, type Middleware } from './middleware.js';
+import type { PlatformShim } from './shim.js';
+import type { UsageInstance } from './usage.js';
+import { isPromise, maybeAsyncResult, parseCommand, type Positional } from './utils.js';
+import type { ValidationInstance } from './validation.js';
 
 const DEFAULT_MARKER = /(^\*)|(^\$0)/;
 
