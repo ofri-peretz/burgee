@@ -23,6 +23,7 @@
   "scripts": {
     "prepare": "[ -d .git ] && lefthook install || true",
     "build": "turbo run build",
+    "coverage": "turbo run coverage",
     "bench": "tsx benchmarks/run.ts",
     "bench:page": "tsx scripts/bench-page.ts",
     "dev": "turbo run dev",
@@ -60,6 +61,7 @@
     "@types/node": "^26.4.1",
     "@typescript-eslint/eslint-plugin": "^8.61.1",
     "@typescript-eslint/parser": "^8.61.1",
+    "@vitest/coverage-v8": "^5.0.0",
     "benchmarks": "*",
     "burgee": "*",
     "cli-spinners": "^3.2.0",
