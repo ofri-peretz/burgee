@@ -42,10 +42,33 @@ interface EntryRule {
   denied: string[];
 }
 
+/**
+ * **The 2026-09-09 drop is a boundary artifact, not a saving. Read this before quoting it.**
+ *
+ * `width` and `wrap` moved to `linegauge` (F1), and the numbers below fell hard: `./table`
+ * 24,612 -> 3,316, `./boxen` 33,793 -> 12,497, `./log-update` 29,846 -> 8,551, `.` 49,633
+ * -> 28,394. **Nothing got lighter.** `walk()` follows relative imports and stops at a bare
+ * specifier, so it measures "flagstaff's own dist reached from this entry" — and code that
+ * crosses a package boundary leaves that measurement while staying in the program.
+ *
+ * The number that would show a real change did not move at all. B4 bundles the entry with
+ * esbuild, which inlines `linegauge` (`Segmenter` is in the output): `flagstaff/boxen` is
+ * 19,531 bytes and 0.301x boxen before the move and after it, to the byte, and the same
+ * holds for `ora` and `log-update`. That is the correct answer — the code went to a
+ * different file, not away — and it is why B4 is the published claim and this is a lock.
+ *
+ * The move does cost something, and it is the other direction: `flagstaff` now drags
+ * `linegauge` at install, so `installed-bytes` rises. That is Y2's number to state, not
+ * this one's to hide.
+ *
+ * So the budgets came down with the measurements. A ratchet may fall for free and must not
+ * rise for free, and leaving them at the old headroom would have handed the next 20 KB of
+ * flagstaff a budget that a package boundary paid for.
+ */
 const RULES: Record<string, EntryRule> = {
   // Everything: the loop, the registry, and all five built-ins. `box` and `table` bring the
   // wrapper and the width function with them, which is most of it. A program that wants one component should import its subpath (U5, R10).
-  '.': { allow: ['roundel/policy', 'roundel/tokens'], budget: 50_000, measured: 49_633, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
+  '.': { allow: ['linegauge', 'linegauge/wrap', 'roundel/policy', 'roundel/tokens'], budget: 29_000, measured: 28_394, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
   // The loop and its four projections; never the registry — a program that hoists its own
   // component pays nothing for the plugin host.
   //
@@ -59,10 +82,10 @@ const RULES: Record<string, EntryRule> = {
   // The registry, the validator, the built-ins and the schema they are checked against —
   // which now carries `borders` too, so both this and `./spinner` are larger than before.
   // Measured 10,190 B, of which the schema is 2,978: the contract ships in the tarball (R3).
-  './plugin': { allow: [], budget: 12_000, measured: 11_490, denied: ['loop.js', 'projection.js', 'spinner.js', 'cli.js', 'index.js'] },
+  './plugin': { allow: [], budget: 12_000, measured: 11_543, denied: ['loop.js', 'projection.js', 'spinner.js', 'cli.js', 'index.js'] },
   // The ceiling is ora (R10). The spinner plus the registry it reads its style from;
   // ora 9.4.1's own index.js is 17,891 B before any of its sixteen dependencies.
-  './spinner': { allow: ['roundel/tokens'], budget: 12_500, measured: 12_418, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
+  './spinner': { allow: ['roundel/tokens'], budget: 12_500, measured: 12_471, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
   // The ora façade: the port, the width function, the cursor control and the spinner corpus
   // it re-exports. Measured 46,543 B on 2026-09-08 (ora.js 20,701 · spinners.json 20,250 ·
   // width.js 4,229 · cursor.js 1,363 — the cursor control moved out to its own module when
@@ -85,7 +108,7 @@ const RULES: Record<string, EntryRule> = {
   //
   // It reaches nothing in the core: an ora migration does not drag the frame loop in, and
   // a program that hoists does not pay for the corpus.
-  './ora': { allow: ['roundel/chalk'], budget: 50_000, measured: 46_816, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
+  './ora': { allow: ['linegauge', 'roundel/chalk'], budget: 43_000, measured: 42_586, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
   // The log-update façade: the port, the ANSI-aware wrapper, the width function and the
   // cursor control. Measured 29,573 B on 2026-09-08 (wrap.js 17,071 · log-update.js 6,910 ·
   // width.js 4,229 · cursor.js 1,363), against log-update's own 113,368 B across sixteen
@@ -99,7 +122,7 @@ const RULES: Record<string, EntryRule> = {
   // `./box` and `./table` with it. Sixteen packages become none, at a quarter of the
   // bytes. It shares `cursor.js` and `width.js` with `./ora` and reaches neither the corpus
   // nor the core.
-  './log-update': { allow: [], budget: 32_000, measured: 29_846, denied: ['ora.js', 'spinners.json', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
+  './log-update': { allow: ['linegauge/wrap'], budget: 9_000, measured: 8_551, denied: ['ora.js', 'spinners.json', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
   // The boxen façade (R10). boxen 8.0.1 is 8 dependencies; this reaches `width.js`,
   // `wrap.js` and `roundel/chalk` — the first two already shipped for `./ora` and
   // `./log-update`, and `ansi-align`, `widest-line`, `camelcase` and `cli-boxes` are a few
@@ -108,7 +131,7 @@ const RULES: Record<string, EntryRule> = {
   // which roundel's own weight lock records at the same figure. **43,104 B in two packages,
   // against boxen 8.0.1's 132,414 B in nineteen — 33%.** It shares `wrap.js` and `width.js`
   // with the other two façades, so a program on two of them pays for both once.
-  './boxen': { allow: ['roundel/chalk'], budget: 35_000, measured: 33_793, denied: ['ora.js', 'spinners.json', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js', 'log-update.js'] },
+  './boxen': { allow: ['linegauge', 'linegauge/wrap', 'roundel/chalk'], budget: 13_000, measured: 12_497, denied: ['ora.js', 'spinners.json', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js', 'log-update.js'] },
   // The cli-table3 façade (R10). cli-table3 0.6.5 reaches `string-width` and
   // `@colors/colors`; this reaches `width.js` — already here for the other three façades —
   // and `roundel/chalk` for the two default styles. Measured 32,989 B on 2026-09-09 — 45 B
@@ -118,7 +141,7 @@ const RULES: Record<string, EntryRule> = {
   // — 40%.** It carries its own wrapping rather than sharing `wrap.js`: cli-table3 splits
   // on `/(\s+)/` and counts with its own `strlen`, which a wrap-ansi port does not
   // reproduce, so sharing would be a divergence dressed up as reuse.
-  './cli-table3': { allow: ['roundel/chalk'], budget: 35_000, measured: 32_989, denied: ['ora.js', 'spinners.json', 'boxen.js', 'log-update.js', 'wrap.js', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
+  './cli-table3': { allow: ['linegauge', 'roundel/chalk'], budget: 29_000, measured: 28_759, denied: ['ora.js', 'spinners.json', 'boxen.js', 'log-update.js', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
   // The four remaining built-ins (R4). `progress` is arithmetic and a token — 971 B, and it
   // reaches nothing, not even the registry. `tasks` reads its glyphs and its spinner style
   // from the registry, so it carries the plugin host: 9,773 B. `box` and `table` are string
@@ -131,15 +154,15 @@ const RULES: Record<string, EntryRule> = {
   // plugin costs less than one of them. The corpora themselves are the caller's (U5), and
   // the last case in `import.test.ts` asserts neither became a dependency.
   './import': { allow: [], budget: 2_000, measured: 838, denied: ['plugin.js', 'builtins.js', 'schema.json', 'loop.js', 'projection.js', 'box.js', 'spinner.js', 'cli.js', 'index.js'] },
-  './progress': { allow: ['roundel/tokens'], budget: 2_000, measured: 971, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'wrap.js', 'width.js', 'cli.js', 'index.js'] },
-  './tasks': { allow: ['roundel/tokens'], budget: 13_000, measured: 12_829, denied: ['loop.js', 'projection.js', 'wrap.js', 'width.js', 'cli.js', 'index.js'] },
+  './progress': { allow: ['roundel/tokens'], budget: 2_000, measured: 971, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'cli.js', 'index.js'] },
+  './tasks': { allow: ['roundel/tokens'], budget: 13_000, measured: 12_882, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
   // `box` reads its named borders from the registry, the way `tasks` reads its glyphs, so
   // it carries the plugin host: 34,145 B, up from 24,764 when the border table was its own.
   // That is the price of R11 — a corpus imported with `fromCliBoxes()` is a registered
   // plugin, and `box('…', { border: 'arrow' })` then draws with it without knowing it
   // exists. A caller who wants neither passes a style object and a bundler drops the rest.
-  './box': { allow: ['roundel/tokens'], budget: 36_000, measured: 35_445, denied: ['loop.js', 'projection.js', 'table.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
-  './table': { allow: ['roundel/tokens'], budget: 27_000, measured: 24_612, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'box.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
+  './box': { allow: ['linegauge', 'linegauge/wrap', 'roundel/tokens'], budget: 15_000, measured: 14_202, denied: ['loop.js', 'projection.js', 'table.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
+  './table': { allow: ['linegauge', 'linegauge/wrap', 'roundel/tokens'], budget: 4_000, measured: 3_316, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'box.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
 };
 
 const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;

@@ -1,3 +1,4 @@
+import { measure } from 'linegauge';
 /**
  * `flagstaff/cli-table3` — cli-table3 0.6.5 ported, graded by cli-table3's own suite.
  *
@@ -27,8 +28,6 @@
  * does, so an OSC-8 hyperlink counts toward width in the same places it does there.
  */
 import chalk from 'roundel/chalk';
-
-import { measure } from './width.js';
 
 const ESC = '\u001B';
 /** SGR only — upstream's regex. An OSC sequence is *not* stripped, and that is deliberate. */

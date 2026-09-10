@@ -1,7 +1,18 @@
 # Design — linegauge
 
 Intent: [`intent.md`](./intent.md). Umbrella:
-[`cli-foundation-stack`](../cli-foundation-stack/design.md). **Status:** draft.
+[`cli-foundation-stack`](../cli-foundation-stack/design.md).
+
+**Accepted by the owner (Ofri) on 2026-09-09, at the Design→Build gate**, scoped to **the
+move only**: `width` and `wrap` leave `flagstaff` for `linegauge`, carrying the differential
+tests that already grade them against `string-width` and `wrap-ansi`; `flagstaff` imports
+them and deletes both files; its own suites must pass unchanged. **No new behaviour.**
+
+`slice`, `truncate`, `widest`, the R2 fast path, R3's exported `strip`, R9's ceilings and
+R10's vendoring all stay at the gate and need their own acceptance. The reason for taking
+the move first is the one the measured section below gives: it is the half that already has
+graders, so if `flagstaff` goes red across the deletion we learn the consolidation was
+nominal for the price of a move rather than the price of a package.
 
 ---
 
