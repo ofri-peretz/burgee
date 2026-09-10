@@ -185,6 +185,27 @@ function triggers(on: unknown): string[] {
   return [];
 }
 
+/**
+ * The status checks `main` requires, named the way a check reports: a job's `name:` when it
+ * has one, otherwise its key.
+ *
+ * Branch protection holds the real list and this is a copy of it, which is the trade being
+ * made: a copy can drift, and the alternative is a rule that cannot be checked without a
+ * network call and a token. Read it back with:
+ *
+ *   gh api repos/ofri-peretz/burgee/branches/main/protection/required_status_checks --jq '.contexts[]'
+ *
+ * A required check that cannot run inside a merge queue does not fail the merge — it never
+ * reports, and the entry sits in the queue until someone notices. That is the failure this
+ * table exists to make impossible.
+ */
+const REQUIRED_CHECKS = new Set(['Quality Gate', 'Quality (Full) Gate', 'review']);
+
+/** The context names a workflow reports, which is `name:` where there is one and the key where there is not. */
+function checkNames(wf: Workflow): string[] {
+  return Object.entries(wf.jobs ?? {}).map(([key, job]) => job?.name ?? key);
+}
+
 for (const [file, wf] of parsed) {
   if (!wf || typeof wf !== 'object') continue;
 
@@ -195,6 +216,22 @@ for (const [file, wf] of parsed) {
   const t = triggers(wf.on);
   if ((t.includes('push') || t.includes('pull_request')) && !wf.concurrency) {
     errors.push(`[concurrency] ${file}: triggered by push/pull_request but has no \`concurrency:\` block — duplicate runs of the same ref will not cancel.`);
+  }
+
+  const required = checkNames(wf).filter((n) => REQUIRED_CHECKS.has(n));
+  if (required.length > 0 && !t.includes('merge_group')) {
+    errors.push(
+      `[merge-queue] ${file}: reports the required check${required.length > 1 ? 's' : ''} ${required.map((n) => `\`${n}\``).join(', ')} but has no \`merge_group:\` trigger — inside a merge queue the check never reports at all, so the entry never merges and never fails.`,
+    );
+  }
+
+  // A queue entry's ref is unique; a pull request's number is empty on a `merge_group`
+  // event. A group keyed on the number alone therefore collapses every entry into one
+  // group, and with `cancel-in-progress` they cancel each other.
+  if (t.includes('merge_group') && !JSON.stringify(wf.concurrency ?? '').includes('github.ref')) {
+    errors.push(
+      `[merge-queue] ${file}: triggers on \`merge_group\` but its \`concurrency.group\` does not mention \`github.ref\` — queue entries share a group and cancel one another.`,
+    );
   }
 
   for (const [jobName, job] of Object.entries(wf.jobs ?? {})) {
