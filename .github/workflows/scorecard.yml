@@ -1,0 +1,71 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: OpenSSF Scorecard
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Scores this repo's supply-chain posture — branch protection, signed releases,
+# pinned dependencies, dangerous workflow patterns, token permissions — and
+# uploads SARIF to Security → Code scanning. `publish_results: true` also posts
+# to the public API, which is what makes the README badge resolve.
+#
+# Two of the checks answer questions this repo already takes positions on:
+# Pinned-Dependencies grades the SHA pins that `npm run lint:workflows` warns
+# about, and Token-Permissions grades the top-level `permissions:` block it
+# requires. The score is the outside reading of a convention we enforce inside.
+#
+# `branch_protection` needs a token with admin:read; SCORECARD_REPO_TOKEN (a PAT)
+# supplies it when present. Without it every other check still runs and that one
+# scores 0 — the difference is a few points, not a failed run.
+#
+# Badge, once the first run lands:
+#   https://api.scorecard.dev/projects/github.com/ofri-peretz/burgee/badge
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Tuesday 04:23 UTC — off the hour, and clear of codeql's Monday 03:17.
+    - cron: "23 4 * * 2"
+  workflow_dispatch:
+
+concurrency:
+  group: scorecard-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: read-all
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      security-events: write # upload SARIF
+      id-token: write # publish to the public Scorecard API
+      contents: read
+      actions: read
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+        with:
+          persist-credentials: false
+
+      - name: Run analysis
+        uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc # v2.4.4
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+          repo_token: ${{ secrets.SCORECARD_REPO_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: scorecard-sarif
+          path: results.sarif
+          retention-days: 14
+
+      - name: Upload SARIF to Code Scanning
+        uses: github/codeql-action/upload-sarif@7188fc363630916deb702c7fdcf4e481b751f97a # v4
+        with:
+          sarif_file: results.sarif
