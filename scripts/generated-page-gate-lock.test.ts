@@ -79,49 +79,63 @@ type Job = {
   needs?: string | string[];
 };
 
-const needsOf = (j: Job): string[] =>
-  Array.isArray(j.needs) ? j.needs : typeof j.needs === 'string' ? [j.needs] : [];
+function needsOf(j: Job): string[] {
+  if (Array.isArray(j.needs)) return j.needs;
+  if (typeof j.needs === 'string') return [j.needs];
+  return [];
+}
+
+/** A check reports under the job's `name:` where it has one, its key otherwise. */
+function contextOf(job: Job, key: string): string {
+  return typeof job.name === 'string' ? job.name : key;
+}
+
+/** Every job reachable from `from` through `needs`, transitively. */
+function needsClosure(from: Job, jobs: Record<string, Job>): Set<string> {
+  const seen = new Set<string>();
+  const queue = needsOf(from);
+  while (queue.length > 0) {
+    const n = queue.pop()!;
+    if (seen.has(n)) continue;
+    seen.add(n);
+    queue.push(...needsOf(jobs[n] ?? {}));
+  }
+  return seen;
+}
 
 /**
- * Does a red `job` stop a merge in `jobs`?
+ * Does `agg` READ `jobKey`'s result, rather than merely ordering itself after it?
+ *
+ * `needs` alone only orders the jobs. `if: always()` is on every aggregate here, so a
+ * feeder that nothing reads is a feeder that cannot fail the gate — it runs, goes red,
+ * and the aggregate still reports success. Forgetting the `R_*` line when adding a job to
+ * an aggregate is a one-line omission that looks exactly like coverage.
+ */
+function readsResult(agg: Job, jobKey: string): boolean {
+  const body = JSON.stringify(agg.steps ?? []);
+  return (
+    body.includes(`needs['${jobKey}'].result`) ||
+    body.includes(`needs["${jobKey}"].result`) ||
+    body.includes(`needs.${jobKey}.result`)
+  );
+}
+
+/**
+ * Does a red `jobKey` stop a merge in `jobs`?
  *
  * Directly, when its own context is required. Indirectly, when a required AGGREGATE job
- * needs it — the shape `Quality Gate` and `Quality (Full) Gate` both use, and the reason
- * this repo has only three required contexts for twenty-odd jobs.
- *
- * An aggregate must be shown to READ the result, not merely to list the job in `needs`.
- * `needs` alone only orders the jobs: `if: always()` is on every one of these aggregates,
- * so a feeder that nothing reads is a feeder that cannot fail the gate. That is a
- * one-line omission when adding a job to an aggregate, it looks exactly like coverage,
- * and it is the failure this whole file exists to refuse.
+ * needs it AND reads its result — the shape `Quality Gate` and `Quality (Full) Gate` both
+ * use, and the reason this repo has only three required contexts for twenty-odd jobs.
  */
 function blocks(jobKey: string, jobs: Record<string, Job>, required: Set<string>): boolean {
-  const context = (j: Job, key: string) => (typeof j.name === 'string' ? j.name : key);
-  if (required.has(context(jobs[jobKey] ?? {}, jobKey))) return true;
+  if (required.has(contextOf(jobs[jobKey] ?? {}, jobKey))) return true;
 
-  for (const [aggKey, agg] of Object.entries(jobs)) {
-    if (!required.has(context(agg, aggKey))) continue;
-    // Transitive: an aggregate may sit behind another gate job.
-    const seen = new Set<string>();
-    const queue = needsOf(agg);
-    while (queue.length > 0) {
-      const n = queue.pop()!;
-      if (seen.has(n)) continue;
-      seen.add(n);
-      queue.push(...needsOf(jobs[n] ?? {}));
-    }
-    if (!seen.has(jobKey)) continue;
-
-    const body = JSON.stringify(agg.steps ?? []);
-    if (
-      body.includes(`needs['${jobKey}'].result`) ||
-      body.includes(`needs["${jobKey}"].result`) ||
-      body.includes(`needs.${jobKey}.result`)
-    ) {
-      return true;
-    }
-  }
-  return false;
+  return Object.entries(jobs).some(
+    ([aggKey, agg]) =>
+      required.has(contextOf(agg, aggKey)) &&
+      needsClosure(agg, jobs).has(jobKey) &&
+      readsResult(agg, jobKey),
+  );
 }
 
 interface Finding {
@@ -134,28 +148,39 @@ interface Finding {
   blocking: boolean;
 }
 
+/** The page-gate steps of one job, if it has any. */
+function gatesInJob(
+  file: string,
+  key: string,
+  job: Job,
+  jobs: Record<string, Job>,
+): Finding[] {
+  return (job?.steps ?? [])
+    .filter((step): step is Step & { run: string } =>
+      typeof step.run === 'string' && PAGE_CHECK.test(step.run),
+    )
+    .map((step) => ({
+      file,
+      job: key,
+      context: contextOf(job, key),
+      step: typeof step.name === 'string' ? step.name : step.run.trim(),
+      script: /\b(\w[\w-]*:page)\b/.exec(step.run)![1],
+      blocking: blocks(key, jobs, REQUIRED),
+    }));
+}
+
 function findPageGates(): Finding[] {
-  const out: Finding[] = [];
-  for (const file of readdirSync(WORKFLOWS).filter((f) => f.endsWith('.yml'))) {
-    const doc = loadYaml(readFileSync(join(WORKFLOWS, file), 'utf8')) as {
-      jobs?: Record<string, Job>;
-    };
-    for (const [key, job] of Object.entries(doc?.jobs ?? {})) {
-      for (const step of job?.steps ?? []) {
-        if (typeof step.run !== 'string' || !PAGE_CHECK.test(step.run)) continue;
-        out.push({
-          file,
-          job: key,
-          // A check reports under the job's `name:` where it has one, its key otherwise.
-          context: typeof job.name === 'string' ? job.name : key,
-          step: typeof step.name === 'string' ? step.name : step.run.trim(),
-          script: /\b(\w[\w-]*:page)\b/.exec(step.run)![1],
-          blocking: blocks(key, doc?.jobs ?? {}, REQUIRED),
-        });
-      }
-    }
-  }
-  return out;
+  return readdirSync(WORKFLOWS)
+    .filter((f) => f.endsWith('.yml'))
+    .flatMap((file) => {
+      const doc = loadYaml(readFileSync(join(WORKFLOWS, file), 'utf8')) as {
+        jobs?: Record<string, Job>;
+      };
+      const jobs = doc?.jobs ?? {};
+      return Object.entries(jobs).flatMap(([key, job]) =>
+        gatesInJob(file, key, job, jobs),
+      );
+    });
 }
 
 describe('a generated page is gated by a check that can block a merge', () => {
