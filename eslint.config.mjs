@@ -223,21 +223,28 @@ export default [
   },
 
   // ── Documented false positives (tracked in ofri-peretz/eslint) ────────────
-  // FP 15: no-missing-null-checks does not follow an early return or throw — `if (!x)
-  //   return;` on the line above still leaves `x.field` reported (yargs-usage.ts unfreeze),
-  //   as does a ternary guarded by its own test (`m ? m[0].length : 0`, yargs-cliui.ts).
-  // FP 16: no-unchecked-loop-condition reports `for (;;)` whose body breaks (yargs-shim.ts
-  //   findUp, escalade's own loop).
-  // FP 17: consistent-existence-index-check offers `in` as an *autofix* for
-  //   `Object.prototype.hasOwnProperty.call(o, k)`; the two differ on inherited keys, which
-  //   is why yargs-parser checks own properties on user-supplied objects. A style rule must
-  //   not rewrite semantics.
-  // FP 18: prefer-at reports `rows[rows.length - 1] += s` — an assignment target — and its
-  //   autofix writes `rows.at(-1) += s`, which does not parse (TS2364). Seen 2026-09-08 in
-  //   yargs-cliui.ts, five times; the rule must skip the left-hand side of an assignment.
-  // FP 14: no-magic-numbers reports the literal inside a named constant's own definition
-  // (`const JSON_RPC_INVALID_REQUEST = -32600`), which is the extraction it asks for. Off
-  // for the JSON-RPC module, where the three spec codes are exactly such constants.
+  // FIXED UPSTREAM and removed from this file on 2026-09-10, in the releases named:
+  //   FP 1, 15  no-missing-null-checks    reliability 4.1.6 — a guard now covers the chain
+  //             it starts, a ternary guards whichever arm its test proves, `&&` covers its
+  //             whole right operand, and a try/catch that cannot fall through ends a branch.
+  //   FP 7, 22, 23  no-insecure-comparison  secure-coding 5.3.5 — a destructured sibling no
+  //             longer inherits its container's name, and a source literal is not an operand
+  //             an attacker can vary.
+  //   FP 11     require-data-minimization  operability — a static config literal collects
+  //             nothing.
+  //   FP 14     no-magic-numbers           conventions — a negative literal in its own
+  //             const definition is the extraction the rule asks for.
+  //   FP 16     no-unchecked-loop-condition  secure-coding 5.3.5 — `for (;;)` whose body
+  //             breaks gets the exemption `while (true)` already had.
+  //   FP 18     prefer-at                  modernization — the autofix no longer rewrites
+  //             an assignment target into `rows.at(-1) += s`, which does not parse.
+  // Each was re-measured at zero on this source before its exception was deleted.
+  //
+  // FP 17: consistent-existence-index-check prefers `in`, and this codebase checks own
+  //   properties on user-supplied objects on purpose — the two differ on inherited keys.
+  //   The rule no longer AUTOFIXES across that boundary (conventions 5.3.5), so the danger
+  //   is gone; what remains is a style preference this repo does not share, and the rule
+  //   stays off for the ports rather than being argued with per site.
   // FP 12 (no exception needed, the code was hoisted): consistent-function-scoping fires on
   // an arrow that is already at module scope when it is wrapped in a type assertion, and on
   // trivial callbacks written inline inside an object literal that is passed as an argument,
@@ -412,14 +419,6 @@ export default [
     rules: { 'import-next/consistent-type-specifier-style': 'off' },
   },
   {
-    // FP 23 (unknown-option.ts): no-insecure-comparison reads a comparison of an argv
-    // token against the terminator literal as a secret compared in variable time. The
-    // token is an argument the user typed and the literal is two dashes — both public by
-    // construction, and the same shape the rule already misreads in FP 7 and FP 22.
-    files: ['packages/burgee/src/unknown-option.ts'],
-    rules: { 'secure-coding/no-insecure-comparison': 'off' },
-  },
-  {
     // Config discovery loads the user's own config file: a JSON read, or a dynamic import
     // of a JavaScript config — that import is the feature (V6, yargs #2234), not a
     // dependency loaded by name. `extends` parents are awaited in order because order is the
@@ -436,11 +435,11 @@ export default [
     },
   },
   {
-    // FP 14, see the list above. The request loop awaits each JSON-RPC message before
-    // reading the next: stdio MCP is ordered, and a tool call runs a command whose output
-    // must not interleave with another's.
+    // The request loop awaits each JSON-RPC message before reading the next: stdio MCP
+    // is ordered, and a tool call runs a command whose output must not interleave with
+    // another's.
     files: ['packages/burgee/src/mcp.ts'],
-    rules: { 'conventions/no-magic-numbers': 'off', 'performance/no-await-in-loop': 'off', 'reliability/no-await-in-loop': 'off' },
+    rules: { 'performance/no-await-in-loop': 'off', 'reliability/no-await-in-loop': 'off' },
   },
   {
     // Plugin hooks run strictly in order — `enforce: 'pre'`, then unordered, then
@@ -448,13 +447,6 @@ export default [
     // is the contract, not an oversight.
     files: ['packages/burgee/src/manifest.ts'],
     rules: { 'performance/no-await-in-loop': 'off', 'reliability/no-await-in-loop': 'off' },
-  },
-  {
-    // FP 11: require-data-minimization reads a static host-config literal (test-suite
-    // metadata: repo, glob, exclusions) as "excessive data collection". Nothing here
-    // collects anything. Tracked in the eslint monorepo.
-    files: ['packages/compat-oracle/src/hosts.ts', 'packages/burgee/src/cli.ts'],
-    rules: { 'operability/require-data-minimization': 'off' },
   },
   {
     // FP 13: no-missing-error-context reads `throw new Error(message)` as an error without
@@ -504,16 +496,6 @@ export default [
       // the rule only recognises `new Error(...)`.
       'maintainability/no-missing-error-context': 'off',
       'reliability/no-missing-error-context': 'off',
-      // FP 7 (as in scripts/run-evals.ts): checking whether an option declares an environment
-      // variable, and whether that variable was set, is read as a timing-unsafe secret
-      // comparison because the identifiers contain "env". They compare a declared variable
-      // name and presence against undefined, never a secret.
-      'secure-coding/no-insecure-comparison': 'off',
-      // FP 1 recurs: the parseArgs token union is narrowed with an "in" check, which
-      // TypeScript verifies, and the rule still reads the property access afterwards as a
-      // dereference of a possible undefined. Three correct rewrites did not satisfy it;
-      // the code stays correct and the rule stays off here.
-      'reliability/no-missing-null-checks': 'off',
     },
   },
   {
@@ -607,18 +589,8 @@ export default [
       'secure-coding/detect-non-literal-regexp': 'off',
       'maintainability/error-message': 'off',
       'reliability/error-message': 'off',
-      // FP 15, 16, 17, 18 — see the list above. FP 11 recurs on the yargs façade: the
-      // option values handed to a plugin hook *are* the hook's contract.
-      'operability/require-data-minimization': 'off',
-      'modernization/prefer-at': 'off',
-      'reliability/no-missing-null-checks': 'off',
-      'secure-coding/no-unchecked-loop-condition': 'off',
+      // FP 17 — see the list above.
       'conventions/consistent-existence-index-check': 'off',
-      // FP 22 (wrap.ts): no-insecure-comparison reads a comparison of an SGR parameter
-      // against a named constant as a secret compared in variable time. The value is the
-      // number 38, off the wire, in a text wrapper; there is no constant-time comparison
-      // of an integer to reach for. The rule keys on the shape, not on the value.
-      'secure-coding/no-insecure-comparison': 'off',
     },
   },
   {
