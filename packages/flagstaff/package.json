@@ -1,6 +1,6 @@
 {
   "name": "flagstaff",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The staff the flag flies from. A terminal frame loop with a static projection for agents and screen readers, and a plugin host for spinners, progress, boxes and tables. Drop-in paths for ora, log-update, boxen and cli-table3. Zero dependencies.",
   "license": "MIT",
   "type": "module",
@@ -115,8 +115,8 @@
     "plugins"
   ],
   "dependencies": {
-    "linegauge": "^0.0.1",
-    "roundel": "^0.1.0"
+    "linegauge": "^0.1.0",
+    "roundel": "^0.2.0"
   },
   "devDependencies": {
     "cli-boxes": "^4.0.1",
