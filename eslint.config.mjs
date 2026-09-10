@@ -565,6 +565,9 @@ export default [
       // satisfy a rule would change what that grader sees.
       'packages/linegauge/src/wrap.ts',
       'packages/linegauge/src/width.ts',
+      // The style stack, extracted from `wrap.ts` when `slice` needed it. Same code, same
+      // port, same grader — the exemption follows the lines, not the filename.
+      'packages/linegauge/src/style.ts',
       'packages/flagstaff/src/boxen.ts',
       'packages/flagstaff/src/cli-table3.ts',
     ],
