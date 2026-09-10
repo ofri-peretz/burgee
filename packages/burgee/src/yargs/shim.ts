@@ -100,6 +100,20 @@ function strictEqual(actual: any, expected: any, message?: string): void {
   if (actual !== expected) throw new Error(message ?? `Expected values to be strictly equal:\n\n${inspect(actual)} !== ${inspect(expected)}\n`);
 }
 
+/**
+ * Where the 29 locale files live: the package root, not beside this file.
+ *
+ * This was `resolve(dirname(here), '../locales')`, which was right only while this file sat
+ * directly in `dist/`. The first directory added under `src/` made it `dist/locales`, y18n
+ * returned the key for every string, and 14 of yargs' own 804 tests failed. Walking up to
+ * `package.json` resolves the same from `src/`, from `dist/`, and from
+ * `node_modules/burgee/dist/` once published — so a later move cannot repeat it.
+ */
+const locales = resolve(
+  dirname(findUp(here, (_dir, names) => (names.includes('package.json') ? 'package.json' : undefined)) ?? here),
+  'locales',
+);
+
 export const shim: PlatformShim = {
   assert: { notStrictEqual, strictEqual },
   cliui,
@@ -131,5 +145,5 @@ export const shim: PlatformShim = {
     return /^file:\/\//.exec(callerFile) ? fileURLToPath(callerFile) : callerFile;
   },
   stringWidth,
-  y18n: y18n({ directory: resolve(dirname(here), '../locales'), updateFiles: false }),
+  y18n: y18n({ directory: locales, updateFiles: false }),
 };
