@@ -19,15 +19,16 @@ import path from 'node:path';
 import process from 'node:process';
 import { stripVTControlCharacters } from 'node:util';
 
-import { Argument, humanReadableArgName, type ParseArg } from './commander-argument.js';
-import { CommanderError } from './commander-error.js';
-import { Help, type HelpContext } from './commander-help.js';
-import { DualOptions, Option } from './commander-option.js';
-import { suggestSimilar } from './commander-suggest.js';
-import { ExitCode } from './exit-code.js';
-import { type Effects, Manifest, type OptionSpec, type Plugin } from './manifest.js';
-import { serveMcp } from './mcp.js';
-import { machineJson, schemaOf } from './schema.js';
+import { ExitCode } from '../exit-code.js';
+import { type Effects, Manifest, type OptionSpec, type Plugin } from '../manifest.js';
+import { serveMcp } from '../mcp.js';
+import { machineJson, schemaOf } from '../schema.js';
+import { suggestSimilar } from '../suggest.js';
+
+import { Argument, humanReadableArgName, type ParseArg } from './argument.js';
+import { CommanderError } from './error.js';
+import { Help, type HelpContext } from './help.js';
+import { DualOptions, Option } from './option.js';
 
 export interface OutputConfiguration {
   writeOut: (str: string) => void;
@@ -1696,7 +1697,7 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
     const head = terminator === -1 ? userArgs : userArgs.slice(0, terminator);
     if (head[0] === 'completion' && root._findCommand('completion') === undefined) {
       // Loaded on this command only (K6), exactly as the engine does.
-      return import('./completions.js').then(({ renderCompletion, renderFigSpec, SHELLS }) => {
+      return import('../completions.js').then(({ renderCompletion, renderFigSpec, SHELLS }) => {
         const shell = head[1] ?? '';
         if (shell === 'fig') {
           root._outputConfiguration.writeOut(`${JSON.stringify(renderFigSpec(this.manifest), null, 2)}\n`);

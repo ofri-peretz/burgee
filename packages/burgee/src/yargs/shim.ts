@@ -11,10 +11,11 @@ import { basename, dirname, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inspect } from 'node:util';
 
-import { cliui, stringWidth } from './yargs-cliui.js';
-import { Parser } from './yargs-parser.js';
-import { getProcessArgvBin } from './yargs-utils.js';
-import { y18n, type Y18N } from './yargs-y18n.js';
+import { Parser } from '../yargs-parser.js';
+
+import { cliui, stringWidth } from './cliui.js';
+import { getProcessArgvBin } from './utils.js';
+import { y18n, type Y18N } from './y18n.js';
 
 export interface PlatformShim {
   assert: { notStrictEqual: (a: any, b: any, m?: string) => void; strictEqual: (a: any, b: any, m?: string) => void };
@@ -99,6 +100,20 @@ function strictEqual(actual: any, expected: any, message?: string): void {
   if (actual !== expected) throw new Error(message ?? `Expected values to be strictly equal:\n\n${inspect(actual)} !== ${inspect(expected)}\n`);
 }
 
+/**
+ * Where the 29 locale files live: the package root, not beside this file.
+ *
+ * This was `resolve(dirname(here), '../locales')`, which was right only while this file sat
+ * directly in `dist/`. The first directory added under `src/` made it `dist/locales`, y18n
+ * returned the key for every string, and 14 of yargs' own 804 tests failed. Walking up to
+ * `package.json` resolves the same from `src/`, from `dist/`, and from
+ * `node_modules/burgee/dist/` once published — so a later move cannot repeat it.
+ */
+const locales = resolve(
+  dirname(findUp(here, (_dir, names) => (names.includes('package.json') ? 'package.json' : undefined)) ?? here),
+  'locales',
+);
+
 export const shim: PlatformShim = {
   assert: { notStrictEqual, strictEqual },
   cliui,
@@ -130,5 +145,5 @@ export const shim: PlatformShim = {
     return /^file:\/\//.exec(callerFile) ? fileURLToPath(callerFile) : callerFile;
   },
   stringWidth,
-  y18n: y18n({ directory: resolve(dirname(here), '../locales'), updateFiles: false }),
+  y18n: y18n({ directory: locales, updateFiles: false }),
 };

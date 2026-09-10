@@ -10,9 +10,15 @@ name: Claude Code Review
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  # Required check — see the note in quality.yml. It reports green without reviewing
+  # anything here; the reviewing happened on the pull request this entry came from.
+  merge_group:
 
 concurrency:
-  group: claude-review-${{ github.event.pull_request.number }}
+  # `github.event.pull_request.number` is empty on a `merge_group` event, so on its own it
+  # collapses every queue entry into one group and `cancel-in-progress` has them cancel each
+  # other. The ref is unique per entry.
+  group: claude-review-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -22,16 +28,20 @@ permissions:
 
 jobs:
   review:
-    if: github.event.pull_request.draft == false
+    if: github.event_name == 'merge_group' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Check for Claude token
+      - name: Is there anything to review, and a token to review it with?
         id: token
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+          if [ "$EVENT_NAME" = "merge_group" ]; then
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Claude review skipped::A queue entry is code that was already reviewed on its pull request. The job reports green so the queue can drain."
+          elif [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
             echo "present=true" >> "$GITHUB_OUTPUT"
           else
             echo "present=false" >> "$GITHUB_OUTPUT"

@@ -4,8 +4,8 @@
  * `burgee/yargs`. Every message is the upstream's through y18n.
  */
  
-import type { PlatformShim } from './yargs-shim.js';
-import { argsert, levenshtein as distance, objFilter } from './yargs-utils.js';
+import type { PlatformShim } from './shim.js';
+import { argsert, levenshtein as distance, objFilter } from './utils.js';
 
 const specialKeys = ['$0', '--', '_'];
 

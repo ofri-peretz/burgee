@@ -6,19 +6,20 @@
  * existing program run unchanged (J2).
  */
  
-import { ExitCode } from './exit-code.js';
-import { type Effects, Manifest, type Plugin } from './manifest.js';
-import { serveMcp } from './mcp.js';
-import { schemaOf } from './schema.js';
-import { projectManifest, render, type Snapshot } from './yargs-burgee.js';
-import { command as Command, type CommandHandler, type CommandInstance, isCommandBuilderCallback } from './yargs-command.js';
-import { completion as Completion, type Completion as CompletionInstance, type CompletionFunction } from './yargs-completion.js';
-import { applyMiddleware, GlobalMiddleware, type Middleware } from './yargs-middleware.js';
-import { tokenizeArgString } from './yargs-parser.js';
-import type { PlatformShim } from './yargs-shim.js';
-import { usage as Usage, type FailureFunction, type UsageInstance } from './yargs-usage.js';
-import { applyExtends, argsert, isPromise, maybeAsyncResult, objectKeys, objFilter, setBlocking, YError } from './yargs-utils.js';
-import { validation as Validation, type ValidationInstance } from './yargs-validation.js';
+import { ExitCode } from '../exit-code.js';
+import { type Effects, Manifest, type Plugin } from '../manifest.js';
+import { serveMcp } from '../mcp.js';
+import { schemaOf } from '../schema.js';
+import { tokenizeArgString } from '../yargs-parser.js';
+
+import { projectManifest, render, type Snapshot } from './burgee.js';
+import { command as Command, type CommandHandler, type CommandInstance, isCommandBuilderCallback } from './command.js';
+import { completion as Completion, type Completion as CompletionInstance, type CompletionFunction } from './completion.js';
+import { applyMiddleware, GlobalMiddleware, type Middleware } from './middleware.js';
+import type { PlatformShim } from './shim.js';
+import { usage as Usage, type FailureFunction, type UsageInstance } from './usage.js';
+import { applyExtends, argsert, isPromise, maybeAsyncResult, objectKeys, objFilter, setBlocking, YError } from './utils.js';
+import { validation as Validation, type ValidationInstance } from './validation.js';
 
 export interface Options {
   array: string[];
@@ -1412,7 +1413,7 @@ export class YargsInstance {
     const terminator = list.indexOf('--');
     const head = terminator === -1 ? list : list.slice(0, terminator);
     if (head[0] === 'completion' && this.#completionCommand === null && !this.#declares('completion')) {
-      return import('./completions.js').then(({ renderCompletion, renderFigSpec, SHELLS }) => {
+      return import('../completions.js').then(({ renderCompletion, renderFigSpec, SHELLS }) => {
         const shell = head[1] ?? '';
         if (shell === 'fig') {
           this.#logger.log(JSON.stringify(renderFigSpec(this.manifest), null, 2));

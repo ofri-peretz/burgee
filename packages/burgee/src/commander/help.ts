@@ -1,8 +1,8 @@
 import { stripVTControlCharacters } from 'node:util';
 
-import { type Argument, humanReadableArgName } from './commander-argument.js';
-import type { Command } from './commander-command.js';
-import type { Option } from './commander-option.js';
+import { type Argument, humanReadableArgName } from './argument.js';
+import type { Command } from './command.js';
+import type { Option } from './option.js';
 
 export interface HelpContext {
   error?: boolean;

@@ -7,13 +7,13 @@
  * `(processArgs, cwd, parentRequire)`. The named exports are the internals yargs'
  * own tests import by file path; the oracle shims those paths to this entry.
  */
-import { YargsFactory } from './yargs-factory.js';
-import { shim } from './yargs-shim.js';
+import { YargsFactory } from './yargs/factory.js';
+import { shim } from './yargs/shim.js';
 
-export { YargsInstance, isYargsInstance, type Options, type ParseCallback } from './yargs-factory.js';
+export { YargsInstance, isYargsInstance, type Options, type ParseCallback } from './yargs/factory.js';
 export { Parser, camelCase, decamelize, looksLikeNumber, type DetailedArguments } from './yargs-parser.js';
-export { applyExtends, argsert, hideBin, isPromise, objFilter, parseCommand, YError, type ParsedCommand } from './yargs-utils.js';
-export { shim as platformShim, type PlatformShim } from './yargs-shim.js';
+export { applyExtends, argsert, hideBin, isPromise, objFilter, parseCommand, YError, type ParsedCommand } from './yargs/utils.js';
+export { shim as platformShim, type PlatformShim } from './yargs/shim.js';
 
 const Yargs = YargsFactory(shim);
 

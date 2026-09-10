@@ -172,6 +172,18 @@ export default [
     rules: { 'import-next/no-default-export': 'off' },
   },
 
+  {
+    // A package's vitest config reaches the root's coverage policy. It is a *config* reading
+    // a config, not source reading source, and the alternative is the same exclusion list
+    // copied into four files — which is how it drifts and how a façade quietly starts being
+    // counted again. The packages themselves still depend on nothing.
+    files: ['packages/*/vitest.config.ts'],
+    rules: {
+      'import-next/no-relative-parent-imports': 'off',
+      'import-next/no-relative-packages': 'off',
+    },
+  },
+
   // ── Scope-specific exceptions ─────────────────────────────────────────────
   {
     // Tests import the package's public entry on purpose; scripts and tests are
@@ -295,6 +307,21 @@ export default [
     files: ['scripts/run-evals.ts'],
     rules: { 'node-security/no-dynamic-command-string': 'off' },
   },
+  // ── The two host front-ends, now that each is a directory ─────────────────
+  {
+    // `commander.ts` and `yargs.ts` stay at `src/` because the `exports` map publishes
+    // them from `dist/`; their internals moved into `src/commander/` and `src/yargs/`,
+    // which is what makes a 43-file flat directory readable. The engine those front-ends
+    // are front-ends *for* — `manifest.ts`, `execute.ts`, `exit-code.ts`, `schema.ts` —
+    // stays one level up, so every file in either directory reaches `../` by construction.
+    //
+    // That is the dependency arrow the package is built on and the one the weight lock
+    // already asserts, not an unclear one. The rule stays on everywhere else in the
+    // package, including on the engine, which must never reach *down* into a front-end.
+    files: ['packages/burgee/src/commander/**/*.ts', 'packages/burgee/src/yargs/**/*.ts'],
+    rules: { 'import-next/no-relative-parent-imports': 'off' },
+  },
+
   // ── The benchmark suite (intent cli-benchmarks) ───────────────────────────
   {
     // `benchmarks/run.ts` and the axes are process entry points with nothing to export
@@ -337,7 +364,7 @@ export default [
     // parser loads it by that name. The specifier is the user's own config talking about
     // the user's own filesystem — there is no static import that expresses "whatever
     // `extends` says", so reproducing yargs here means reproducing the dynamic load.
-    files: ['packages/burgee/src/yargs-parser.ts', 'packages/burgee/src/yargs-utils.ts'],
+    files: ['packages/burgee/src/yargs-parser.ts', 'packages/burgee/src/yargs/utils.ts'],
     rules: { 'node-security/no-dynamic-dependency-loading': 'off' },
   },
   {
@@ -530,10 +557,17 @@ export default [
     // one. Reshaping the port to satisfy it would change the drawing, and the drawing is
     // the contract the 33 measure.
     files: [
-      'packages/burgee/src/commander-*.ts',
       'packages/burgee/src/commander.ts',
-      'packages/burgee/src/yargs-*.ts',
+      'packages/burgee/src/commander/**/*.ts',
+      // Hoisted out of `commander/` when the front-ends became directories, because a
+      // Damerau-Levenshtein distance is neither host's and the engine's `unknown-option.ts`
+      // uses it too. It is still commander's port, still graded by commander's own suite,
+      // and reshaping it to satisfy a complexity budget would change what those tests see.
+      'packages/burgee/src/suggest.ts',
       'packages/burgee/src/yargs.ts',
+      'packages/burgee/src/yargs-helpers.ts',
+      'packages/burgee/src/yargs-parser.ts',
+      'packages/burgee/src/yargs/**/*.ts',
       'packages/flagstaff/src/ora.ts',
       'packages/flagstaff/src/log-update.ts',
       'packages/flagstaff/src/wrap.ts',

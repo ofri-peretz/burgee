@@ -71,9 +71,9 @@ const LITERAL_EXIT_ASSIGN = /\bprocess\.exitCode\s*=\s*(-?\d+)\b/;
  * the next one from being written as `1`.
  */
 const LITERAL_EXITS_ALLOWED = new Set([
-  'burgee/src/commander-command.ts',
-  'burgee/src/yargs-factory.ts',
-  'burgee/src/yargs-usage.ts',
+  'burgee/src/commander/command.ts',
+  'burgee/src/yargs/factory.ts',
+  'burgee/src/yargs/usage.ts',
 ]);
 
 /** `const EXIT_USAGE = 2` — a named exit code, wherever a package chose to declare one. */

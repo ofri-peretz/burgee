@@ -1,5 +1,5 @@
-import { type ParseArg } from './commander-argument.js';
-import { InvalidArgumentError } from './commander-error.js';
+import { type ParseArg } from './argument.js';
+import { InvalidArgumentError } from './error.js';
 
 export class Option {
   flags: string;
