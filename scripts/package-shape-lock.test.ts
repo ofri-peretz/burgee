@@ -38,6 +38,25 @@ const published = readdirSync(join(root, 'packages'))
  */
 const FAMILY_ORDER = ['burgee', 'roundel', 'flagstaff', 'caique'];
 
+/**
+ * The foundation tier (`cli-foundation-stack`), which sits *below* the whole family and
+ * depends on nothing but Node builtins.
+ *
+ * Y1 is not "earlier in the order" and cannot be expressed by prepending these to
+ * `FAMILY_ORDER`: that would admit a `burgee` → foundation edge, which Y1 forbids by name.
+ * The rule has two halves and needs both — **`flagstaff` and `caique` may depend on a
+ * foundation package; `burgee` and `roundel` may not.** burgee keeps its own copy of any
+ * shared logic on purpose, because it has to install alone.
+ *
+ * Written when `linegauge` took `width` and `wrap` out of `flagstaff` (F1) and this lock
+ * refused the edge — correctly, since until then it had no idea the tier existed. Y1 asked
+ * for exactly this ("extended to refuse a `burgee` → foundation edge by name") and nothing
+ * had built it.
+ */
+const FOUNDATION = ['bellpull', 'closeout', 'linegauge', 'seniority'];
+/** The two that sit above the line, and so may reach down to it (Y1). */
+const MAY_USE_FOUNDATION = new Set(['flagstaff', 'caique']);
+
 /** Node has these natively now (util.styleText, fs.glob, fetch, util.parseArgs). */
 const BANNED = ['chalk', 'picocolors', 'glob', 'node-fetch', 'minimist'];
 
@@ -76,10 +95,11 @@ describe.each(published)('published package $pkg.name', ({ dir, pkg }) => {
   it('has no external runtime dependencies, and same-repo ones only point up the family (K1, U1, U6)', () => {
     const rank = FAMILY_ORDER.indexOf(pkg.name);
     const offenders = Object.keys(pkg.dependencies ?? {}).filter((dep) => {
+      if (FOUNDATION.includes(dep)) return !MAY_USE_FOUNDATION.has(pkg.name);
       const depRank = FAMILY_ORDER.indexOf(dep);
       return depRank === -1 || rank === -1 || depRank >= rank;
     });
-    expect(offenders, `${pkg.name} may depend only on earlier family packages`).toEqual([]);
+    expect(offenders, `${pkg.name} may depend only on earlier family packages, or — if it is flagstaff or caique — on the foundation tier`).toEqual([]);
   });
 
   it('is ESM, requires Node >= 24, and declares no legacy main (K2)', () => {
@@ -107,5 +127,35 @@ describe.each(published)('published package $pkg.name', ({ dir, pkg }) => {
       }
     }
     expect(offenders).toEqual([]);
+  });
+});
+
+/**
+ * Y1's other half, which the per-package check above cannot state: a foundation package
+ * depends on nothing at all, and `burgee` never depends on one. Asserted over the manifests
+ * directly rather than through `published`, so it holds for a foundation package whose
+ * `private` flag or publish state changes.
+ */
+describe('the foundation tier (Y1)', () => {
+  const manifestOf = (name: string): { dependencies?: Record<string, string> } | undefined => {
+    const file = join(root, 'packages', name, 'package.json');
+    return existsSync(file) ? (JSON.parse(readFileSync(file, 'utf-8')) as { dependencies?: Record<string, string> }) : undefined;
+  };
+
+  it('is not empty — otherwise every assertion below passes by having nothing to check', () => {
+    expect(FOUNDATION.filter((n) => manifestOf(n) !== undefined).length).toBeGreaterThan(0);
+  });
+
+  it.each(FOUNDATION)('%s depends on nothing: it is the floor', (name) => {
+    const manifest = manifestOf(name);
+    if (manifest === undefined) return; // a reserved name with no package yet is not a finding
+    expect(Object.keys(manifest.dependencies ?? {})).toEqual([]);
+  });
+
+  it.each(['burgee', 'roundel'])('%s never depends on a foundation package — it keeps its own copy (Y1)', (name) => {
+    const manifest = manifestOf(name);
+    expect(manifest, `${name} should exist`).toBeDefined();
+    const reached = Object.keys(manifest?.dependencies ?? {}).filter((d) => FOUNDATION.includes(d));
+    expect(reached, `${name} has to install alone; the shared logic is copied, and Y1 says the copies share a test-vector file instead`).toEqual([]);
   });
 });
