@@ -17,11 +17,11 @@
 import { Buffer } from 'node:buffer';
 import process from 'node:process';
 
+import { lineCount } from 'linegauge';
 import chalk from 'roundel/chalk';
 
 import { HIDE_CURSOR, restoreCursorOnExit, SHOW_CURSOR } from './cursor.js';
 import spinnerCorpus from './spinners.json' with { type: 'json' };
-import { lineCount } from './width.js';
 
 // ───── the spinner corpus (cli-spinners) ─────
 

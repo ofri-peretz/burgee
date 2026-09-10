@@ -1,3 +1,4 @@
+import { width } from 'linegauge';
 /**
  * R2/R4 — the four remaining built-ins, each the same shape a third-party plugin writes.
  *
@@ -19,7 +20,6 @@ import { type Component } from './plugin.js';
 import { progress } from './progress.js';
 import { table, tableComponent } from './table.js';
 import { tasks } from './tasks.js';
-import { width } from './width.js';
 
 const ESCAPE = /[\r\u001B]/;
 

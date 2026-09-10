@@ -86,9 +86,26 @@ describe('fromCliBoxes', () => {
   });
 });
 
+/**
+ * The rule is "no external dependency, and neither corpus", not "the dependency list is
+ * exactly `['roundel']`". Written the second way it went red on 2026-09-09 for `linegauge`
+ * — a same-repo foundation package, which U6 permits — and a lock that has to be edited
+ * every time an allowed thing happens is teaching whoever edits it to stop reading it.
+ */
 describe('the corpora are not bundled (U5)', () => {
-  it('neither is a dependency: they are the caller’s, and this module only reshapes them', async () => {
+  /** The packages this repo publishes. A dependency on one is a same-repo edge (U6). */
+  const SAME_REPO = new Set(['roundel', 'linegauge', 'flagstaff', 'caique', 'burgee', 'bellpull', 'closeout', 'seniority']);
+
+  it('neither corpus is a dependency: they are the caller’s, and this module only reshapes them', async () => {
     const manifest = (await import('../package.json', { with: { type: 'json' } })) as { default: { dependencies: Record<string, string> } };
-    expect(Object.keys(manifest.default.dependencies)).toEqual(['roundel']);
+    const deps = Object.keys(manifest.default.dependencies);
+    expect(deps).not.toContain('cli-spinners');
+    expect(deps).not.toContain('cli-boxes');
+  });
+
+  it('every dependency is a package this repo publishes (U6: 0 external)', async () => {
+    const manifest = (await import('../package.json', { with: { type: 'json' } })) as { default: { dependencies: Record<string, string> } };
+    const external = Object.keys(manifest.default.dependencies).filter((d) => !SAME_REPO.has(d));
+    expect(external, 'flagstaff ships zero external dependencies').toEqual([]);
   });
 });
