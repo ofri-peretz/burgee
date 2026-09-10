@@ -5,6 +5,12 @@
  * and never the loop. Add a cross-import and this goes red. Mirrors roundel's lock.
  *
  * It reads `dist/`, so it measures what is published rather than what is written.
+ *
+ * **What it stopped seeing on 2026-09-09.** `width` and `wrap` left for `linegauge` (F1), so
+ * six of these lists lost entries and two became empty. That is not six subpaths getting
+ * cleaner — a bare specifier is invisible to `RELATIVE`, and the same modules are still in
+ * the graph one package over. `weight.test.ts` carries the same warning against the same
+ * move, and its `allow` lists are where a bare specifier is actually checked.
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
@@ -29,23 +35,23 @@ const ALLOWED: Record<string, string[]> = {
   // The façade stands apart on purpose: it reads the corpus, the width function and the
   // cursor control, and nothing else in the package, so `flagstaff/ora` and `flagstaff`
   // share no code path and a program on one pays nothing for the other (R6, R10).
-  'ora.js': ['./cursor.js', './spinners.json', './width.js'],
+  'ora.js': ['./cursor.js', './spinners.json'],
   // The two façades share `cursor.js` — one implementation of putting the cursor back
   // however the process dies, because both incumbents port the same `cli-cursor` →
   // `restore-cursor` → `signal-exit` chain — and, through `wrap.js`, `width.js`. Nothing
   // else. `wrap.js` is the ANSI-aware wrapper `box` and `table` share, which is why it is
   // its own module rather than a section of this façade.
-  'log-update.js': ['./cursor.js', './wrap.js'],
+  'log-update.js': ['./cursor.js'],
   // The boxen façade: the width function and the ANSI-aware wrapper, and nothing else in
   // the package. It carries cli-boxes' table itself rather than reading the registry —
   // `_borderStyles` is boxen's public surface, and a façade whose drawing changed when
   // somebody registered a plugin would be reinterpreting its host.
-  'boxen.js': ['./width.js', './wrap.js'],
+  'boxen.js': [],
   // The cli-table3 façade: the width function and nothing else in the package. It carries
   // its own wrapping — cli-table3's `wordWrap` splits on `/(\s+)/` and counts with its own
   // `strlen`, which `wrap.js` (a wrap-ansi port) does not reproduce — so a shared wrapper
   // would be a divergence dressed up as reuse.
-  'cli-table3.js': ['./width.js'],
+  'cli-table3.js': [],
   // The built-ins: `progress` is self-contained, `tasks` reads the registry for its glyphs
   // and its spinner style, and `box` and `table` are string functions over the same two
   // modules — never over each other.
@@ -53,8 +59,8 @@ const ALLOWED: Record<string, string[]> = {
   'import.js': [],
   'progress.js': [],
   'tasks.js': ['./plugin.js'],
-  'box.js': ['./plugin.js', './width.js', './wrap.js'],
-  'table.js': ['./width.js', './wrap.js'],
+  'box.js': ['./plugin.js'],
+  'table.js': [],
 };
 
 /**

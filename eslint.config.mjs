@@ -513,6 +513,14 @@ export default [
     rules: { 'import-next/no-barrel-file': 'off' },
   },
   {
+    // linegauge's default export *is* its compatibility contract (design R8, floor Y3):
+    // `string-width`'s default is a default, so `overrides: { "string-width":
+    // "npm:linegauge@^1" }` only resolves if ours is one too. Named exports are also
+    // published beside it; this is the one that has to exist under that name.
+    files: ['packages/linegauge/src/index.ts'],
+    rules: { 'import-next/no-default-export': 'off' },
+  },
+  {
     // Executable entry points import their own module and export nothing.
     files: ['examples/*/src/bin.ts'],
     rules: {
@@ -552,7 +560,11 @@ export default [
       'packages/burgee/src/yargs/**/*.ts',
       'packages/flagstaff/src/ora.ts',
       'packages/flagstaff/src/log-update.ts',
-      'packages/flagstaff/src/wrap.ts',
+      // Moved to `linegauge` with the port itself (F1). It is still wrap-ansi 10 line for
+      // line, still graded differentially against the real `wrap-ansi`, and reshaping it to
+      // satisfy a rule would change what that grader sees.
+      'packages/linegauge/src/wrap.ts',
+      'packages/linegauge/src/width.ts',
       'packages/flagstaff/src/boxen.ts',
       'packages/flagstaff/src/cli-table3.ts',
     ],
