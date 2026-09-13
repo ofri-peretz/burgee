@@ -1,34 +1,38 @@
 {
   "burgee": {
-    "size": 152911,
-    "unpackedSize": 608232
+    "size": 153164,
+    "unpackedSize": 609172
   },
   "caique": {
     "size": 18331,
     "unpackedSize": 53668
   },
   "flagstaff": {
-    "size": 49894,
-    "unpackedSize": 177310
+    "size": 49892,
+    "unpackedSize": 177253
   },
   "roundel": {
-    "size": 18186,
-    "unpackedSize": 49646
+    "size": 21882,
+    "unpackedSize": 60446
   },
   "bellpull": {
     "size": 2376,
     "unpackedSize": 4761
   },
   "closeout": {
-    "size": 7357,
-    "unpackedSize": 22645
+    "size": 7921,
+    "unpackedSize": 24637
   },
   "linegauge": {
-    "size": 12776,
-    "unpackedSize": 37401
+    "size": 22726,
+    "unpackedSize": 68048
   },
   "seniority": {
-    "size": 8423,
-    "unpackedSize": 25186
+    "size": 8431,
+    "unpackedSize": 25220
+  },
+  "paratext": {
+    "size": 9221,
+    "unpackedSize": 30484
   }
 }
