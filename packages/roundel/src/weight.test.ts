@@ -38,7 +38,10 @@ const RULES: Record<string, EntryRule> = {
   // Everything, for a program that wants one import. Measured 6,565 B on 2026-09-08 for
   // policy + tokens + theme + contrast; the budget leaves room for the chalk façade's entry
   // in the re-export list, not for the façade itself, which will be its own row.
-  '.': { allow: [], budget: 12_000, denied: [] },
+  // 13,700 on 2026-09-13: the root reaches the theme, so it carries all 1,924 B of the
+  // colour work above. Measured 13,639. Unlike `./theme` this entry was inside its budget on
+  // `main`, so the whole of this raise is this branch's.
+  '.': { allow: [], budget: 13_700, denied: [] },
   // The floor every subpath stands on: two functions and one record. node:util alone.
   // R2's 2026-09-08 revision added the `--color` flags and the CI vendor table here, which
   // is why the file's level tables are ternary chains, and why `colorLevel`'s own decision
@@ -61,7 +64,21 @@ const RULES: Record<string, EntryRule> = {
   // it the refusal messages: a plugin that cannot contribute is told which token it misspelt
   // and what the nine are, which is worth more bytes than it costs.
   './plugin': { allow: [], budget: 3_000, denied: ['policy.js', 'tokens.js', 'theme.js', 'contrast.js', 'index.js'] },
-  './theme': { allow: [], budget: 6_300, denied: ['tokens.js', 'index.js'] },
+  //
+  // 9,300 on 2026-09-13, and the raise has **two** components that must not be conflated:
+  //
+  //   6,271 -> 7,320   not this branch. Something grew the theme graph by 1,049 B after
+  //                    2026-09-08 without touching the note above or this number, so `main`
+  //                    sits 1,020 B over a 6,300 budget **with a green Quality Gate** —
+  //                    reproduced on a clean `rm -rf dist` build. A breached budget that CI
+  //                    does not fail is not a budget, and that is the larger finding here.
+  //   7,320 -> 9,244   this branch: `rgb256` (the palette inverse), `toOklab`, the
+  //                    constrained `degrade` search, and the AA/AAA floor. 1,924 B.
+  //
+  // What the 1,924 buys, measured: a hex that reads at truecolor now also reads at 256 —
+  // 167 hexes in the sRGB sweep did not — and `#0d9460` degrades at dE 0.0627 rather than
+  // 0.0842. The ceiling is the next hundred above 9,244.
+  './theme': { allow: [], budget: 9_300, denied: ['tokens.js', 'index.js'] },
   // Pure arithmetic over hex strings. Reaches nothing.
   './contrast': { allow: [], budget: 1_500, denied: ['policy.js', 'tokens.js', 'theme.js', 'index.js'] },
   // The ceiling is chalk 6.0.0 itself (R8): `wc -c node_modules/chalk/source/*.js` inside
