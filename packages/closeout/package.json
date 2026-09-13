@@ -23,8 +23,8 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
-    "lint": "eslint src",
-    "coverage": "vitest run --coverage.enabled"
+    "coverage": "vitest run --coverage.enabled",
+    "lint": "eslint src"
   },
   "repository": {
     "type": "git",
