@@ -41,7 +41,9 @@ const RULES: Record<string, EntryRule> = {
   // 13,700 on 2026-09-13: the root reaches the theme, so it carries all 1,924 B of the
   // colour work above. Measured 13,639. Unlike `./theme` this entry was inside its budget on
   // `main`, so the whole of this raise is this branch's.
-  '.': { allow: [], budget: 13_700, denied: [] },
+  // 14,600 on 2026-09-13: the root reaches the theme, so it carries `audit()` too.
+  // Measured 14,578.
+  '.': { allow: [], budget: 14_600, denied: [] },
   // The floor every subpath stands on: two functions and one record. node:util alone.
   // R2's 2026-09-08 revision added the `--color` flags and the CI vendor table here, which
   // is why the file's level tables are ternary chains, and why `colorLevel`'s own decision
@@ -78,9 +80,16 @@ const RULES: Record<string, EntryRule> = {
   // What the 1,924 buys, measured: a hex that reads at truecolor now also reads at 256 —
   // 167 hexes in the sRGB sweep did not — and `#0d9460` degrades at dE 0.0627 rather than
   // 0.0842. The ceiling is the next hundred above 9,244.
-  './theme': { allow: [], budget: 9_300, denied: ['tokens.js', 'index.js'] },
+  // 10,200 on 2026-09-13: `audit()`. It is not new arithmetic — `fly()` is now a filter over
+  // it rather than a second copy of the same judgement — but it returns rows where `fly()`
+  // returned strings, and the rows are the surface a caller reads. Measured 10,183.
+  './theme': { allow: [], budget: 10_200, denied: ['tokens.js', 'index.js'] },
   // Pure arithmetic over hex strings. Reaches nothing.
-  './contrast': { allow: [], budget: 1_500, denied: ['policy.js', 'tokens.js', 'theme.js', 'index.js'] },
+  // 2,100 on 2026-09-13: `reportTheme` and the `ThemeFinding` shape. A report is strings —
+  // padding, labels, the line that says "nothing to check" rather than printing an empty
+  // report — and strings are most of the 511 B. The alternative was a package that can refuse
+  // a theme and cannot tell you why, which is the half that was missing. Measured 2,011.
+  './contrast': { allow: [], budget: 2_100, denied: ['policy.js', 'tokens.js', 'theme.js', 'index.js'] },
   // The ceiling is chalk 6.0.0 itself (R8): `wc -c node_modules/chalk/source/*.js` inside
   // compat-oracle reads 8,183 (index.js) + 1,187 (utilities.js) = 9,370 bytes on 2026-09-08,
   // before its vendored ansi-styles and supports-color, which it also ships. The façade plus
