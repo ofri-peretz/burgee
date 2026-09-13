@@ -21,8 +21,15 @@
 const noop = (): void => undefined;
 
 const ESC = '\u001B';
-const HIDE = `${ESC}[?25l`;
-const SHOW = `${ESC}[?25h`;
+/**
+ * The two sequences this layer exists to undo, published because they are its vocabulary:
+ * anything that hides a cursor owes a show on every exit path, and a caller writing them by
+ * hand should be writing the same bytes we restore.
+ */
+export const HIDE_CURSOR = `${ESC}[?25l`;
+export const SHOW_CURSOR = `${ESC}[?25h`;
+const HIDE = HIDE_CURSOR;
+const SHOW = SHOW_CURSOR;
 
 /** The half of `NodeJS.WriteStream` this needs, so a test can pass a recorder. */
 export interface OutputStream {
