@@ -31,7 +31,16 @@ Node from `.nvmrc`, npm cache).
 | Workflow | Role |
 | :-- | :-- |
 | [`codeql.yml`](./codeql.yml) | CodeQL on the promote gate and weekly |
+| [`scorecard.yml`](./scorecard.yml) | OpenSSF Scorecard on push to main and weekly; SARIF to Code scanning, results published so the README badge resolves |
+
+## Coverage
+
+| Workflow | Role |
+| :-- | :-- |
+| [`codecov.yml`](./codecov.yml) | Monday 06:00 UTC and on demand — never in CI: one workspace-wide `vitest --coverage` run, uploaded once and split per package by root `codecov.yml`'s components. Reports; does not gate |
 
 Secrets: `NPM_TOKEN` (until Trusted Publishing is configured per package),
 `CLAUDE_CODE_OAUTH_TOKEN` (optional), `RELEASE_BOT_PAT` (optional, lets the Version PR
-self-approve). Repo settings and branch protection: `scripts/repo-settings.sh`.
+self-approve), `CODECOV_TOKEN` (required by the weekly coverage run — without it that
+run fails, which is the point: a silent no-op is a green tick reporting nothing), `SCORECARD_REPO_TOKEN` (optional PAT with `admin:read` — only the
+branch-protection check needs it). Repo settings and branch protection: `scripts/repo-settings.sh`.
