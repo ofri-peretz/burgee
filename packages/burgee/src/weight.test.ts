@@ -95,7 +95,14 @@ const RULES: Record<string, EntryRule> = {
   // (52,680 → 52,893) and takes 16,548 off *every* `--schema` an agent reads: 39,512 → 22,964
   // on the large reference demo, for a byte-identical parse. Paid once per install against a
   // saving per invocation, which is the whole trade.
-  '.': { allow: [], budget: 52_900, denied: ['testing.js', 'testing-helpers.js', 'dev.js', 'roundel', 'flagstaff', 'caique'] },
+  //
+  // 53,300 on 2026-09-13: `--schema` publishes `relations` (S2/S6). 395 B for the type, the
+  // predicate marker and the pass-through. `validate.ts` has enforced these constraints all
+  // along and the schema never said so, which left an agent discovering that `--csv`
+  // conflicts with `--table` by sending both and reading exit 2 — one round trip per
+  // constraint, and E1 reads exit 2 as *rewrite the command*, which invites the same pair
+  // again. Measured 53,295.
+  '.': { allow: [], budget: 53_300, denied: ['testing.js', 'testing-helpers.js', 'dev.js', 'roundel', 'flagstaff', 'caique'] },
   //
   // `agent-headroom` R1 adds **134 bytes** on top of that (52,035 -> 52,169), inside the same
   // ceiling, and it is the same kind of decision: 134 bytes of core, paid once per install,
@@ -107,7 +114,9 @@ const RULES: Record<string, EntryRule> = {
   // program in-process, so it carries the renderer too.
   // Raised from 56,000 on 2026-09-08, once: the harness reaches the whole engine, so it
   // carries the theme seam and the fake clock (56,626 measured).
-  './testing': { allow: [], budget: 58_000, denied: ['dev.js'] },
+  // 58,300 on 2026-09-13: the harness reaches the schema, so it carries the 395 B above.
+  // Measured 58,260.
+  './testing': { allow: [], budget: 58_300, denied: ['dev.js'] },
   // The brand generator. Pure geometry and string building — it must never reach
   // the engine, and the engine must never reach it: a CLI that ships argv parsing
   // has no reason to carry an SVG emitter.
