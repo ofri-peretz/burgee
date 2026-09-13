@@ -44,6 +44,10 @@ const ALLOWED = new Set([
   'burgee/src/dev.ts',
   // flagstaff's `bin` (`flagstaff check <file>`) is the package's own command line: argv in,
   // stdout out, exit code set. Everything it renders goes through hoist() over buffers.
+  // paratext's seam, the same shape as burgee's and for the same reason: `processRuntime()`
+  // is the one place the real process is named, and every capability reads the `Runtime` it
+  // returns — which is what lets a test declare a terminal in two lines.
+  'paratext/src/runtime.ts',
   'flagstaff/src/cli.ts',
   // flagstaff/ora is ora 9 ported method for method and graded by ora's own suite. ora's
   // contract *is* the process: `process.stderr` is the default stream, `process.stdout` and
