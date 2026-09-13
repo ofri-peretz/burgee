@@ -14,20 +14,16 @@ import { describe, expect, it } from 'vitest';
 import { AA, auditBurgee, contrast, fieldColorAt, luminance, mix, report } from './contrast.js';
 
 /**
- * **The other half of Y1's mitigation.** The floor permits `burgee` to keep its own copy of
- * shared logic rather than depend on a foundation package — "it keeps its own copy of any
- * shared logic, **and the two copies share a test-vector file**". The copy was made; the
- * shared file was read by roundel only, and roundel's own header said so: *"burgee's test
- * does not read that file yet, so the drift lock is one-sided until the follow-up lands."*
+ * The reference values, read from where they live.
  *
- * One-sided is the worst case. roundel could not drift without being caught and burgee could
- * drift freely, which is the arrangement most likely to produce two functions that disagree
- * while one of them has a green test. Both sides read the same thirteen vectors now.
+ * These were written as Y1's mitigation for a duplicated implementation — "the two copies
+ * share a test-vector file" — and for five days only roundel's test read them. **#194 removed
+ * the duplication**: `contrast` here is roundel's, imported. So this is no longer a drift lock
+ * between copies; it is what it should have been from the start, a check that the numbers this
+ * package hands its callers match values computed outside the code that produces them.
  *
- * Reading a sibling's JSON fixture is not the dependency U1 forbids: nothing is imported,
- * `files` does not ship it, and the weight and shape locks see no edge. The file lives in
- * `roundel` because roundel is the lower layer — the copy that exists to serve other
- * packages is the one that should own the reference.
+ * Reading a sibling's JSON fixture is not an import: `files` does not ship it and the weight
+ * and shape locks see no edge.
  */
 const VECTORS = JSON.parse(
    
@@ -111,8 +107,8 @@ describe("burgee's own flag", () => {
   });
 });
 
-describe('the shared vectors (Y1)', () => {
-  it('reads the same file roundel does — otherwise the drift lock is one-sided', () => {
+describe('the reference vectors', () => {
+  it('actually found the vectors — an empty `it.each` passes in silence', () => {
     // Non-empty, because `it.each([])` passes silently and that is exactly how a drift lock
     // goes quiet: the file moves, the read returns nothing, and both suites stay green.
     expect(VECTORS.length).toBeGreaterThanOrEqual(13);
