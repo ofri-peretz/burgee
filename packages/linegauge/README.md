@@ -1,28 +1,104 @@
 # linegauge
 
-**Not yet released.** This version reserves the name. The layer is planned as wave **F1** of the
-foundation tier: its intent and design are at
-[`.sdlc/intents/linegauge/`](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/linegauge/),
-under the umbrella
-[`cli-foundation-stack`](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/cli-foundation-stack/),
-and the measurements behind it are in
-[`candidate-layers.md`](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/research/candidate-layers.md)
-and
-[`replacement-map.md`](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/research/replacement-map.md).
-Both artifacts are `draft`; the human gate has not run, and no working release ships before
-burgee's compatibility scoreboard is public.
+**Measuring, wrapping, truncating and slicing styled terminal text — without the edge
+fraying.**
 
-A **line gauge** is the printer's ruler — the steel rule marked in picas and points that a compositor uses to measure a line of type and check it fits the measure it was set to.
+A printer's line gauge is the steel rule marked in picas and points: a compositor holds it
+against a line of type and checks it fits the measure it was set to.
 
-That is this package's whole job. Width, wrap, truncate and slice are one problem wearing four names: **cutting styled text without letting the edge come apart** — no dangling escape sequence, no half a grapheme, no severed emoji cluster.
+Zero dependencies. Grapheme-correct over the platform's own `Intl.Segmenter`.
 
-## What it will be
+```bash
+npm i linegauge
+```
 
-- **One package, not twelve.** `width` · `wrap` · `truncate` · `slice` · `strip` · `widest`. The incumbents split this across `strip-ansi`, `string-width`, `ansi-regex`, `wrap-ansi`, `emoji-regex`, `slice-ansi`, `get-east-asian-width`, `eastasianwidth`, `string-length`, `wcwidth`, `cli-truncate` and `widest-line` — **2.16 B weekly downloads** between them.
-- **Grapheme-correct by construction.** ZWJ families, regional-indicator flags, skin-tone modifiers, keycaps, combining marks and East Asian wide characters, over the platform's own `Intl.Segmenter`.
-- **Fast path for ASCII.** A byte scan when the string has no non-ASCII code unit; the segmenter only when it earns its cost.
-- **Drop-in paths** for `string-width`, `wrap-ansi`, `strip-ansi` and `slice-ansi`, graded by their own suites.
-- **Zero external dependencies.**
+## One problem wearing five names
+
+`width` · `wrap` · `truncate` · `slice` · `widest`
+
+They look like five utilities. They are one: **cutting styled text without letting the edge
+come apart** — no dangling escape sequence, no half a grapheme, no severed emoji cluster.
+Each has to know where the ANSI is and where the cluster boundaries are, and once you know
+that, you may as well answer all five.
+
+The ecosystem splits it across twelve packages — `strip-ansi`, `string-width`,
+`ansi-regex`, `wrap-ansi`, `emoji-regex`, `slice-ansi`, `get-east-asian-width`,
+`eastasianwidth`, `string-length`, `wcwidth`, `cli-truncate` and `widest-line` — which
+between them sit under most of the terminal ecosystem.
+
+## Use
+
+```js
+import { width, wrap, truncate, slice, widest } from 'linegauge';
+
+width('古代'); // 4 — East Asian wide, two columns each
+width('👨‍👩‍👧‍👦'); // 2 — one cluster, not four people
+
+wrap('a long sentence that needs folding', 12);
+truncate('the quick brown fox', 10); // 'the quick…'
+slice(styled, 2, 4); // columns 2 and 3, styles intact
+widest(['a', 'bbb', 'cc']); // 3
+```
+
+### The default export is `string-width`
+
+Byte-for-byte call-compatible, so this resolves without a code change:
+
+```json
+{ "overrides": { "string-width": "npm:linegauge@^0.2" } }
+```
+
+## What "without the edge fraying" means
+
+**A cluster is atomic.** A cut that would land inside a grapheme drops the whole cluster
+rather than half of it. Half an emoji is not a narrower emoji, it is mojibake, and a flag
+cut down the middle is two unrelated regional-indicator letters.
+
+**A style that was open stays open — and gets closed.** A cut re-emits the styles active at
+its start and closes them at its end, so the result is self-contained: paste it anywhere and
+it neither loses its colour nor leaks it into what follows.
+
+**The ellipsis is inside the budget, not on top of it.** `truncate(text, 10)` occupies ten
+columns or fewer, never eleven. That is the property a table column depends on, and getting
+it wrong is how a layout gains a phantom column under one input.
+
+**`widest` takes lines, not a blob.** It accepts any iterable of strings, so the caller says
+where the boundaries are rather than having a newline convention assumed for them.
+
+## Graded by the packages it replaces
+
+The incumbent is the specification. `width` runs against `string-width`, `wrap` against
+`wrap-ansi`, `slice` against `slice-ansi` and `truncate` against `cli-truncate`.
+
+## API
+
+| | |
+| :-- | :-- |
+| `width(text, { countAnsiEscapeCodes })` | terminal columns the text occupies |
+| `wrap(text, columns, options)` | fold to a width, styles preserved across rows |
+| `truncate(text, columns, { position, ellipsis })` | cut to a budget, ellipsis counted inside it |
+| `slice(text, start, end)` | the columns `[start, end)`, self-contained |
+| `widest(lines)` | the width of the widest line of any iterable |
+| `lineCount(text, columns)` | rows the text occupies at that width |
+| `measure(text)` | columns of plain text, no escape scan |
+
+Non-strings answer `0` rather than throwing, because a width function is usually reached
+with whatever a template produced.
+
+## Design notes
+
+**Ambiguous-width characters count narrow**, which is what a terminal does unless told it is
+rendering an East Asian locale. `string-width` makes that an option; nothing above this has
+ever needed the other answer, so it is not one here.
+
+**Not a terminal emulator.** Semicolon-delimited SGR, colon-delimited extended colour and
+OSC 8 hyperlinks are understood. Every other complete CSI or OSC command is carried through
+as an opaque zero-width unit, and anything that only looks like an introducer stays plain
+text.
+
+**Still at the Design→Build gate:** an exported `strip`, and the ASCII fast path — a byte
+scan when the string has no non-ASCII code unit, so the segmenter is reached only when it
+earns its cost.
 
 ## Licence
 
