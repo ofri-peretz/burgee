@@ -95,22 +95,42 @@ function bandIsEmpty(name: string): boolean {
   return false;
 }
 
-/** Every version a doc claims that its package manifest contradicts. */
+/**
+ * A line carrying a DATE is a record of what happened, not a claim about now.
+ *
+ * `roundel@0.1.0 published at 18:14Z on 2026-09-09` is true forever. The next
+ * release does not falsify it, and "updating" it to the new version would assert
+ * that 0.2.0 shipped on a day it did not — the check would be demanding a lie to
+ * go green. A version written WITHOUT a date is a statement about the current
+ * release, and that one has to track the manifest.
+ *
+ * Found by the first release after this lock existed: bumping five packages made
+ * nineteen claims stale at once, and five of them were dated release notes.
+ */
+const DATED_LINE = /\d{4}-\d{2}-\d{2}/;
+
+/** Every version a doc claims about NOW that its package manifest contradicts. */
 function staleVersionClaims(
   doc: string,
   versions: Map<string, string>,
 ): string[] {
-  const text = readFileSync(join(REPO_ROOT, doc), "utf-8");
   const wrong: string[] = [];
-  for (const [name, version] of versions) {
-    const claims = text.matchAll(
-      new RegExp(String.raw`${name}@(${SEMVER})`, "g"),
-    );
-    for (const [, claimed] of claims) {
-      if (claimed !== version)
-        wrong.push(`${doc}: says ${name}@${claimed}, manifest says ${version}`);
-    }
-  }
+  readFileSync(join(REPO_ROOT, doc), "utf-8")
+    .split("\n")
+    .forEach((line, i) => {
+      if (DATED_LINE.test(line)) return;
+      for (const [name, version] of versions) {
+        const claims = line.matchAll(
+          new RegExp(String.raw`${name}@(${SEMVER})`, "g"),
+        );
+        for (const [, claimed] of claims) {
+          if (claimed !== version)
+            wrong.push(
+              `${doc}:${i + 1} says ${name}@${claimed}, manifest says ${version}`,
+            );
+        }
+      }
+    });
   return wrong;
 }
 
@@ -167,23 +187,8 @@ describe("roadmap facts", () => {
   it.each(DOCS)(
     "%s prints no version that disagrees with its package",
     (doc) => {
-      const text = readFileSync(join(REPO_ROOT, doc), "utf-8");
-      const wrong: string[] = [];
-
-      for (const [name, version] of versions) {
-        const claims = text.matchAll(
-          new RegExp(String.raw`${name}@(${SEMVER})`, "g"),
-        );
-        for (const [, claimed] of claims) {
-          if (claimed !== version)
-            wrong.push(
-              `${doc}: says ${name}@${claimed}, manifest says ${version}`,
-            );
-        }
-      }
-
       expect(
-        wrong,
+        staleVersionClaims(doc, versions),
         "a version in prose is a fact about the outside world; update the doc or the package",
       ).toEqual([]);
     },
@@ -192,29 +197,8 @@ describe("roadmap facts", () => {
   it.each(DOCS)(
     "%s writes every version claim as `pkg@X.Y.Z`, so it can be checked",
     (doc) => {
-      const text = readFileSync(join(REPO_ROOT, doc), "utf-8");
-      const names = [...versions.keys()];
-      const loose: string[] = [];
-
-      text.split("\n").forEach((line, i) => {
-        const named = names.filter(
-          (n) => line.includes(`\`${n}\``) || line.includes(`\`${n}@`),
-        );
-        if (named.length === 0) return;
-        // Strip the checkable form, then see whether a bare version survives.
-        const rest = line.replace(
-          new RegExp(String.raw`[a-z-]+@${SEMVER}`, "g"),
-          "",
-        );
-        const bare = rest.match(new RegExp(SEMVER, "g"));
-        if (bare)
-          loose.push(
-            `${doc}:${i + 1} names ${named.join(", ")} beside a bare ${bare[0]}`,
-          );
-      });
-
       expect(
-        loose,
+        looseVersionClaims(doc, [...versions.keys()]),
         "write it as `pkg@X.Y.Z` — a bare version next to a package name reads as a claim " +
           "and cannot be checked, which is how five stale ones survived on 2026-09-09",
       ).toEqual([]);
