@@ -1,5 +1,34 @@
 # burgee
 
+## 0.5.0
+
+### Minor Changes
+
+- [#194](https://github.com/ofri-peretz/burgee/pull/194) [`8693415`](https://github.com/ofri-peretz/burgee/commit/86934153a9389d7e2380c07424cd414748e696a1) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - burgee consumes `roundel` instead of carrying a copy of it.
+
+  `contrast.ts` existed twice — the same WCAG luminance and ratio code in both packages,
+  identical constants and identical maths, differing only in which package name the hex error
+  message says. That is what a rule forbidding the dependency arrow produces: it does not
+  remove the need, it converts it into a copy, which is the one outcome zero-external-deps
+  exists to prevent.
+
+  The family order now runs bottom-up — foundation, output stack, engine — so each layer
+  consumes the layers below it. burgee is last, because a command declares itself and then
+  asks the layers beneath it to render, colour and prompt.
+
+  What a caller installs still comes from one repo: **zero external dependencies** is
+  unchanged, and is the claim that was ever worth making.
+
+- [#246](https://github.com/ofri-peretz/burgee/pull/246) [`14b4cb2`](https://github.com/ofri-peretz/burgee/commit/14b4cb2be80deb78079aea2d748ad44aac9a96ff) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--schema` publishes `relations` (S2/S6). `validate.ts` has enforced `exactlyOneOf`,
+  `conflicts`, `implies` and the rest since the surface shipped, and the schema never said so —
+  an agent could only discover a constraint by violating it. A predicate `implies` publishes as
+  `"(predicate)"` rather than the `null` `JSON.stringify` would leave.
+
+### Patch Changes
+
+- Updated dependencies [[`214f6f8`](https://github.com/ofri-peretz/burgee/commit/214f6f83b16068d7dc53d79799fba03c26a3cbe2), [`214f6f8`](https://github.com/ofri-peretz/burgee/commit/214f6f83b16068d7dc53d79799fba03c26a3cbe2)]:
+  - roundel@0.3.0
+
 ## 0.4.0
 
 ### Minor Changes
