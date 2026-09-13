@@ -70,3 +70,15 @@ describe('the contract string-width has always kept', () => {
     expect(width(`${ESC}[31m`)).toBe(0);
   });
 });
+
+describe('ambiguousIsNarrow', () => {
+  it('is narrow by default and wide when the caller says the terminal is CJK', () => {
+    expect(width('±')).toBe(1);
+    expect(width('±', { ambiguousIsNarrow: false })).toBe(2);
+    expect(width('±×÷')).toBe(3);
+    expect(width('±×÷', { ambiguousIsNarrow: false })).toBe(6);
+    // A genuinely wide character is wide either way; only the ambiguous one moves.
+    expect(width('±你')).toBe(3);
+    expect(width('±你', { ambiguousIsNarrow: false })).toBe(4);
+  });
+});
