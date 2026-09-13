@@ -24,7 +24,8 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "coverage": "vitest run --coverage.enabled"
   },
   "repository": {
     "type": "git",
