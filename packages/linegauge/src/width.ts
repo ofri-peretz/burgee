@@ -8,7 +8,10 @@
  * worth a dependency tree (U5).
  *
  * The rules, in the order a cluster meets them:
- *   1. ANSI and other control sequences are not printed — `stripVTControlCharacters`.
+ *   1. ANSI and other control sequences are not printed — `strip()`, which is a local scan
+ *      rather than `util.stripVTControlCharacters`: that one leaves the colon form of an
+ *      extended colour behind, and this function answered 15 for a three-column string
+ *      because of it. See `strip.ts` for the measurement.
  *   2. A grapheme cluster made only of ignorable, control, mark or surrogate code points
  *      occupies no column.
  *   3. An RGI emoji sequence is two columns, however many code points it is made of.
@@ -19,7 +22,7 @@
  * has been told it is rendering an East Asian locale. `string-width` makes that an option;
  * nothing above this function has ever needed the other answer, so it is not one here.
  */
-import { stripVTControlCharacters } from 'node:util';
+import { strip } from './strip.js';
 
 /**
  * East Asian Wide and Fullwidth, as sorted `[low, high]` pairs flattened into one array —
@@ -165,7 +168,11 @@ export function width(input: string, options: WidthOptions = {}): number {
   if (typeof input !== 'string' || input === '') return 0;
   const ascii = asciiColumns(input);
   if (ascii !== undefined) return ascii;
-  return measure(options.countAnsiEscapeCodes === true ? input : stripVTControlCharacters(input));
+  // `strip`, not `node:util`'s: Node's scanner stops at the first colon in the ITU T.416
+  // sub-parameter form (`ESC[38:2::255:0:0m`), which chalk and wrap-ansi both emit — it
+  // measured 15 where string-width says 3. The fast path above never reaches here with an
+  // escape in it, so the two fixes are disjoint: 0x1B is below its 0x20 floor.
+  return measure(options.countAnsiEscapeCodes === true ? input : strip(input));
 }
 
 /**
@@ -174,6 +181,6 @@ export function width(input: string, options: WidthOptions = {}): number {
  */
 export function lineCount(text: string, columns: number): number {
   let count = 0;
-  for (const line of stripVTControlCharacters(text).split('\n')) count += Math.max(1, Math.ceil(width(line) / columns));
+  for (const line of strip(text).split('\n')) count += Math.max(1, Math.ceil(width(line) / columns));
   return count;
 }
