@@ -12,6 +12,7 @@
  *   node scripts/generate-ambiguous.mjs --check # exits 1 if src/width.ts is stale
  */
 import { readFileSync } from 'node:fs';
+
 import { eastAsianWidthType } from 'get-east-asian-width';
 
 const MAX_CODE_POINT = 0x10_ff_ff;
@@ -29,7 +30,10 @@ for (let cp = 0; cp <= MAX_CODE_POINT + 1; cp++) {
 
 // Same shape as WIDE beside it: `[low, high]` pairs flattened into one array, so one binary
 // search serves both tables. Five pairs a line, which is how WIDE is laid out.
-const hex = (n) => `0x${n.toString(16).toUpperCase().padStart(4, '0')}`;
+// The table is written as fixed-width uppercase hex so a diff lines up column-wise.
+const HEX_RADIX = 16;
+const HEX_DIGITS = 4;
+const hex = (n) => `0x${n.toString(HEX_RADIX).toUpperCase().padStart(HEX_DIGITS, '0')}`;
 const PAIRS_PER_LINE = 5;
 const lines = [];
 for (let i = 0; i < ranges.length; i += PAIRS_PER_LINE) {
