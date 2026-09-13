@@ -158,7 +158,7 @@ function trailingForms(cluster: string): number {
  * already split its input into text runs and complete sequences, so rescanning would only
  * give a malformed sequence a second chance to be mistaken for one.
  */
-export function measure(text: string): number {
+export function measure(text: string, ambiguousIsWide = false): number {
   let columns = 0;
   for (const { segment } of segmenter.segment(text)) {
     if (ZERO_WIDTH_CLUSTER.test(segment)) continue;
@@ -167,7 +167,8 @@ export function measure(text: string): number {
       continue;
     }
     const codePoint = segment.replace(LEADING_NON_PRINTING, '').codePointAt(0) ?? 0;
-    columns += isWide(codePoint) ? WIDE_COLUMNS : NARROW;
+    const wide = isWide(codePoint) || (ambiguousIsWide && isAmbiguous(codePoint));
+    columns += wide ? WIDE_COLUMNS : NARROW;
     columns += trailingForms(segment);
   }
   return columns;
@@ -178,6 +179,17 @@ export function measure(text: string): number {
  * names and the defaults are its names and its defaults, not ours.
  */
 export interface WidthOptions {
+  /**
+   * Treat East Asian Ambiguous characters as one column. **Default `true`** — the incumbent's
+   * default, and right for a Latin terminal: `±`, `×`, `÷`, the box-drawing set, Greek and
+   * Cyrillic all occupy one column there.
+   *
+   * `false` for a CJK context, where a terminal using a CJK font renders the same characters
+   * two columns wide. Nothing can detect which a terminal is doing, which is exactly why this
+   * is the caller's decision and not ours.
+   */
+  ambiguousIsNarrow?: boolean;
+
   /**
    * Count escape sequences as the characters they are made of instead of removing them.
    *
@@ -199,7 +211,8 @@ export interface WidthOptions {
  */
 export function width(input: string, options: WidthOptions = {}): number {
   if (typeof input !== 'string' || input === '') return 0;
-  return measure(options.countAnsiEscapeCodes === true ? input : stripVTControlCharacters(input));
+  const text = options.countAnsiEscapeCodes === true ? input : stripVTControlCharacters(input);
+  return measure(text, options.ambiguousIsNarrow === false);
 }
 
 /**
