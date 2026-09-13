@@ -34,12 +34,16 @@ const manifest = JSON.parse(readFileSync(resolve(pkgRoot, 'package.json'), 'utf8
  * is the whole rule, and `index.js` is the one door that opens onto all of them.
  */
 const ALLOWED: Record<string, string[]> = {
-  'index.js': ['./slice.js', './truncate.js', './widest.js', './width.js', './wrap.js'],
+  'index.js': ['./slice.js', './strip.js', './truncate.js', './widest.js', './width.js', './wrap.js'],
   'wrap.js': ['./style.js', './width.js'],
   'slice.js': ['./style.js', './width.js'],
   // Over `slice`, never over `wrap` — the ellipsis-fits arithmetic needs a cut, not a fold.
   'truncate.js': ['./slice.js', './width.js'],
   'widest.js': ['./width.js'],
+  // The lowest entry there is: it reaches the shared scanner and nothing else, and `width`
+  // reaches *it* — which is why `style.js` no longer reaches `width.js`. A strip that needed
+  // a measurement would be a cycle, and there is nothing to measure in removing bytes.
+  'strip.js': ['./style.js'],
 };
 
 /**
@@ -50,8 +54,8 @@ const ALLOWED: Record<string, string[]> = {
  * which makes it the one module every entry reaches and none of them publishes.
  */
 const INTERNAL_ALLOWED: Record<string, string[]> = {
-  'style.js': ['./width.js'],
-  'width.js': [],
+  'style.js': [],
+  'width.js': ['./strip.js'],
 };
 
 const RELATIVE = /(?:from|import)\s*'(\.[^']+)'/g;

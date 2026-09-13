@@ -21,7 +21,6 @@
  * It is not a published subpath. `linegauge/wrap` and `linegauge/slice` each reach it, and
  * R8 keeps them from reaching each other.
  */
-import { measure } from './width.js';
 
 export const ESC = '\u001B';
 export const BELL = '\u0007';
@@ -139,14 +138,6 @@ export function forEachSegment(string: string, onPlainText: (text: string) => vo
   if (plainStart < string.length) onPlainText(string.slice(plainStart));
 }
 
-/** The visible width of a string, escape sequences ignored. */
-export function visibleWidth(string: string): number {
-  let plainText = '';
-  forEachSegment(string, (part) => {
-    plainText += part;
-  });
-  return measure(plainText);
-}
 
 export interface SgrToken {
   code: number;
