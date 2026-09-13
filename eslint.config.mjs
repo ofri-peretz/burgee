@@ -288,6 +288,17 @@ export default [
     files: TSX_FILES,
     rules: { "react-features/void-dom-elements-no-children": "off" },
   },
+  // The root `scripts/**` glob above predates per-package scripts, and this is the first
+  // one: a generator spawned as a program (`node scripts/generate-ambiguous.mjs`), so it
+  // exports nothing and is never imported, and it reads the incumbent it grades against
+  // from the root's pins rather than declaring one of its own (R7/#217).
+  {
+    files: ["packages/*/scripts/**"],
+    rules: {
+      "import-next/no-unused-modules": "off",
+      "import-next/no-extraneous-dependencies": "off",
+    },
+  },
   // Two specifiers no package.json can declare: fumadocs' virtual module
   // `fumadocs-mdx:collections/server` and the types-only `mdx/types`.
   {
@@ -312,6 +323,20 @@ export default [
     },
   },
   // ── SDLC scripts (scripts/control-bands.ts, scripts/run-evals.ts, tests) ──
+  {
+    // Shared test fixtures. `codecov.yml` ignores `__fixtures__` and
+    // `vitest-coverage.config.ts` excludes it, because a fixture is test code that happens
+    // not to be named `.test.ts` — it is scaffolding two suites share so neither grows its
+    // own drifting copy. The rules below are the same ones test files are exempt from, plus
+    // the parent import a fixture in a subdirectory cannot avoid: the module it fakes lives
+    // one level up, and that is the dependency, stated.
+    files: ["**/__fixtures__/**"],
+    rules: {
+      "conventions/no-magic-numbers": "off",
+      "import-next/no-relative-parent-imports": "off",
+      "import-next/no-unused-modules": ["error", { allowImportOnly: true }],
+    },
+  },
   {
     // Test files: numbers in fixtures are the fixture.
     files: ["**/*.test.ts"],
@@ -363,6 +388,25 @@ export default [
       "packages/burgee/src/yargs/**/*.ts",
     ],
     rules: { "import-next/no-relative-parent-imports": "off" },
+  },
+
+  // ── roundel's colour-space maths ───────────────────────────────────────────
+  {
+    // `toOklab` is Björn Ottosson's two 3x3 matrices, eighteen published coefficients. Naming
+    // each one would mean eighteen constants whose names could only restate their position in
+    // a matrix (`OKLAB_M1_ROW0_COL1`), which is less readable than the arithmetic and costs
+    // real bytes in `dist/` — the first draft held them in arrays and `./theme` grew 2,766 B
+    // against a budget the package's whole claim rests on.
+    //
+    // They are a reproduction of a specification, like boxen's border table: the test pins
+    // them to five reference values computed outside this file, which is a stronger guarantee
+    // than a name. `max-parameters` for `degrade`/`resolve` is the same trade — the colour,
+    // the ground and the floor all have to arrive somewhere.
+    files: ['packages/roundel/src/theme.ts'],
+    rules: {
+      'conventions/no-magic-numbers': 'off',
+      'maintainability/max-parameters': 'off',
+    },
   },
 
   // ── The benchmark suite (intent cli-benchmarks) ───────────────────────────
