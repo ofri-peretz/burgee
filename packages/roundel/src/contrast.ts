@@ -1,9 +1,11 @@
 /**
  * The WCAG 2.2 contrast maths (R5), copied from `burgee/contrast` on purpose: sixty lines
- * duplicated beats a dependency arrow pointing the wrong way (U1). This copy is held to
- * `contrast-vectors.json` by its test; burgee's test does not read that file yet, so the
- * drift lock is one-sided until the follow-up lands (burgee contrast test to read roundel's
- * contrast-vectors.json).
+ * duplicated beats a dependency arrow pointing the wrong way (U1). Y1 permits the copy on a
+ * condition — "the two copies share a test-vector file" — and as of 2026-09-13 **both sides
+ * read `contrast-vectors.json`**, so the drift lock is two-sided. It was one-sided for five
+ * days, which is the worse arrangement: this copy could not drift without being caught and
+ * burgee's could, so the likely outcome was two functions that disagree with one green test.
+ * `scripts/shared-vectors-lock.test.ts` is what keeps both readers honest.
  *
  * `fly()` uses it to refuse a truecolor token that would not read against the declared
  * ground. Nothing here is asked about the 16- and 256-colour palettes: those are the
