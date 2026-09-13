@@ -115,9 +115,33 @@ export function measure(text: string): number {
   return columns;
 }
 
-/** How many terminal columns `input` occupies once its escape sequences are removed. */
-export function width(input: string): number {
-  return input === '' ? 0 : measure(stripVTControlCharacters(input));
+/**
+ * What `width` accepts beyond the string. Graded against `string-width`'s own suite, so the
+ * names and the defaults are its names and its defaults, not ours.
+ */
+export interface WidthOptions {
+  /**
+   * Count escape sequences as the characters they are made of instead of removing them.
+   *
+   * Off by default, which is what every caller measuring styled output wants. On, the escape
+   * byte itself is still non-printing — `\u001B[31m` measures 4, the `[31m` a terminal would
+   * have swallowed.
+   */
+  countAnsiEscapeCodes?: boolean;
+}
+
+/**
+ * How many terminal columns `input` occupies once its escape sequences are removed.
+ *
+ * **Non-strings measure 0.** `string-width` has always answered `0` for a number, `null` or
+ * `undefined` rather than throwing, and callers rely on it — a width function is usually
+ * reached with whatever a template produced. Three cases of its suite grade exactly this, and
+ * the check is `typeof` rather than a truthiness test so that `0` and `false` are not quietly
+ * treated as strings that happen to be empty.
+ */
+export function width(input: string, options: WidthOptions = {}): number {
+  if (typeof input !== 'string' || input === '') return 0;
+  return measure(options.countAnsiEscapeCodes === true ? input : stripVTControlCharacters(input));
 }
 
 /**
