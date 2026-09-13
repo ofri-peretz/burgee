@@ -136,7 +136,12 @@ describe('widest', () => {
     expect(widest(threeLines())).toBe(6);
   });
 
-  it('handles more lines than Math.max(...) can take arguments for', () => {
+  /*
+   * 200,000 lines is 200,000 width() calls, which is a quarter of a second on a laptop and
+   * past the default 5s budget on a CI runner. The size is the point — it is what makes this
+   * lock bite if anyone puts the spread back — so the budget moves, not the input.
+   */
+  it('handles more lines than Math.max(...) can take arguments for', { timeout: 30_000 }, () => {
     /*
      * The failure this replaces: `Math.max(...xs)` throws RangeError once the spread runs
      * past the engine's argument limit, somewhere around 125k on the author's machine.
