@@ -34,8 +34,11 @@ that bind every session are worth reading before opening a pull request:
 
 ## What the checks will hold you to
 
-- **Zero runtime dependencies** in every published package. This is not negotiable; it is the
-  reason the numbers in the README are what they are.
+- **Zero *external* runtime dependencies** in every published package. A package may depend
+  on another package from this repo, and only on one lower in the tier stack — foundation,
+  then the output stack, then the engine — so the arrows point one way and burgee consumes
+  the layers beneath it rather than reimplementing them. Nothing from outside gets in. That
+  is not negotiable; it is the reason the numbers in the README are what they are.
 - **Every ESLint rule at `error`**, across 11 Interlace plugins, with no warnings allowed.
   Exceptions are named in `eslint.config.mjs` with a reason.
 - **The shape lock (`Z1`)**: the published tarball must still work from one file, with no
