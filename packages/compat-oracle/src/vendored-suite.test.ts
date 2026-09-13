@@ -109,8 +109,18 @@ function requiredPackages(dir: string): Map<string, string> {
 
 describe('the oracle installs what its vendored suites require', () => {
   it('declares every package a vendored suite reaches for by name', () => {
-    const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as Record<string, Record<string, string>>;
-    const declared = new Set([...Object.keys(pkg['dependencies'] ?? {}), ...Object.keys(pkg['devDependencies'] ?? {}), ...Object.keys(pkg['peerDependencies'] ?? {})]);
+    // Two manifests, because either one makes `npm ci` install the package: this one, and
+    // the workspace root. The incumbents we grade against live at the root on purpose — one
+    // pin each, so `string-width` cannot be ^8.1.0 here and ^8.2.2 there while the hoist
+    // quietly decides which the suites actually load. That drift is not hypothetical: the
+    // control graded v8's tests against a hoisted v5 and read 140 / 229 (#197).
+    const manifests = [join(root, 'package.json'), join(root, '../..', 'package.json')];
+    const declared = new Set(
+      manifests.flatMap((path) => {
+        const pkg = JSON.parse(readFileSync(path, 'utf8')) as Record<string, Record<string, string>>;
+        return [...Object.keys(pkg['dependencies'] ?? {}), ...Object.keys(pkg['devDependencies'] ?? {}), ...Object.keys(pkg['peerDependencies'] ?? {})];
+      }),
+    );
     // Resolution is not the test: `cli-table` resolved on the author's machine from a
     // stray `~/node_modules` and the suite scored 33/33, while `npm ci` gave 15/16. What
     // has to hold is that the package is *declared*, so a clean install has it.
