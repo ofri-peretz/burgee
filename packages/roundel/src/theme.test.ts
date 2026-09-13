@@ -5,9 +5,10 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { AA, AAA, contrast } from './contrast.js';
+import { AA, AAA, contrast, reportTheme } from './contrast.js';
+
 import { flown, type Runtime } from './policy.js';
-import { fly, rgb256, toOklab } from './theme.js';
+import { audit, fly, rgb256, type Theme, toOklab } from './theme.js';
 
 const truecolor: Runtime = { env: { COLORTERM: 'truecolor' }, isTTY: { stdout: true } };
 const colors256: Runtime = { env: { TERM: 'xterm-256color' }, isTTY: { stdout: true } };
@@ -290,5 +291,72 @@ describe('conformance: AA by default, AAA on request', () => {
     // On near-black: AAA costs 49 of the 179 entries AA can use, a 27% narrower palette.
     expect(usable(AA.TEXT)).toBe(179);
     expect(usable(AAA.TEXT)).toBe(130);
+  });
+});
+
+/**
+ * `audit()` — the answer to "is my colouring WCAG AA?", asked without an exception.
+ *
+ * `fly()` refuses at startup, which is right there and useless while somebody is choosing
+ * colours: knowing should not require catching. And because `fly()` is now a filter over
+ * `audit()`, the two cannot disagree — which is the property worth testing, not the formatting.
+ */
+describe('audit: the verdict as data', () => {
+  it('reports two rows per hex token, truecolor and 256, and none for sixteen', () => {
+    const rows = audit();
+    expect(rows.length).toBeGreaterThan(0);
+    expect(new Set(rows.map((r) => r.at))).toEqual(new Set(['truecolor', '256']));
+    // One row per level per hex token, so the count is even and the levels are balanced.
+    expect(rows.filter((r) => r.at === 'truecolor')).toHaveLength(rows.filter((r) => r.at === '256').length);
+  });
+
+  it('does not throw on a theme fly() would refuse — that is the whole point', () => {
+    expect(() => fly({ ok: '#0a6b47' }, truecolor)).toThrow();
+    const rows = audit({ ok: '#0a6b47' });
+    expect(rows.some((r) => !r.passes)).toBe(true);
+    expect(rows.find((r) => r.token === 'ok' && r.at === 'truecolor')?.ratio).toBe(3.02);
+  });
+
+  /**
+   * The invariant, and the reason `fly()` was rewritten rather than left alongside: a theme
+   * refused by one and reported clean by the other is the bug that makes an audit worthless.
+   */
+  it.each<Theme>([{}, { ok: '#0a6b47' }, { error: '#2f7d52' }, { ok: '#7e7e7e' }, { ok: '#0d9460', conformance: 'AAA' }])(
+    'fly() refuses exactly when audit() finds a failure: %j',
+    (theme) => {
+      const clean = audit(theme).every((r) => r.passes);
+      let threw = false;
+      try {
+        fly(theme, truecolor);
+      } catch {
+        threw = true;
+      }
+      expect(threw).toBe(!clean);
+    },
+  );
+
+  it('follows the conformance level it was given', () => {
+    // 5.11:1 — clean at AA, a failure at AAA, from the same colour and the same ground.
+    expect(audit({ ok: '#0d9460' }).every((r) => r.passes)).toBe(true);
+    expect(audit({ ok: '#0d9460', conformance: 'AAA' }).some((r) => !r.passes)).toBe(true);
+    expect(audit({ conformance: 'AAA' }).every((r) => r.required === AAA.TEXT)).toBe(true);
+  });
+
+  it('says nothing about a token given format names, because there is nothing to measure', () => {
+    expect(audit({ ok: ['bold', 'green'] }).some((r) => r.token === 'ok')).toBe(false);
+  });
+});
+
+describe('reportTheme', () => {
+  it('prints the passing rows too, so silence is not mistaken for a clean bill', () => {
+    const text = reportTheme(audit({ ok: '#0a6b47' }));
+    expect(text).toContain('pass');
+    expect(text).toContain('FAIL');
+    expect(text).toMatch(/FAIL\s+ok\s+truecolor\s+#0a6b47 on #0a0a0a\s+3\.02:1 \(needs 4\.5:1\)/);
+  });
+
+  it('says so when there is nothing to check rather than printing an empty report', () => {
+    // An all-format-name theme has no ratios. An empty string would read as "all clear".
+    expect(reportTheme([])).toContain('no hex tokens to check');
   });
 });
