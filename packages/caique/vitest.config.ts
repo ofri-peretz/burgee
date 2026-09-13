@@ -5,5 +5,7 @@ import { defineConfig } from 'vitest/config';
 import { coverage } from '../../vitest-coverage.config.js';
 
 export default defineConfig({
-  test: { include: ['src/**/*.test.ts'], coverage },
+  // The colour environment is pinned before anything imports: `roundel/chalk` detects the
+  // terminal at import, so a developer's `FORCE_COLOR` would otherwise decide ten assertions.
+  test: { include: ['src/**/*.test.ts'], setupFiles: ['../../vitest-colour-setup.ts'], coverage },
 });
