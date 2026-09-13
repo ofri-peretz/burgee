@@ -7,9 +7,13 @@
 /**
  * Lock — a branch may add to the lockfile and may not quietly drop from it.
  *
- * `npm install` on darwin-arm64 prunes optional dependencies that only resolve elsewhere:
- * `@emnapi/core` and `@emnapi/runtime` today, whatever the tree grows tomorrow. Every
- * regeneration from a Mac removes them, and then **every CI runner refuses the result**:
+ * Some npm versions prune optional dependencies that only resolve elsewhere: `@emnapi/core`
+ * and `@emnapi/runtime` today, whatever the tree grows tomorrow. It is the npm version that
+ * decides, not the platform — measured on one macOS machine, from this repo's own lockfile:
+ * `npm@11.6.2` drops both, `npm@11.16.0` leaves the file byte-identical. The release branch
+ * that proved it was written by the changesets job on `ubuntu-latest`, so "regenerated on a
+ * Mac" is the wrong thing to look for. Whoever regenerates it, **every CI runner then
+ * refuses the result**:
  *
  *   npm error `npm ci` can only install packages when your package.json and
  *   package-lock.json are in sync. Missing: @emnapi/core@1.11.3 from lock file
@@ -67,7 +71,7 @@ describe('the lockfile keeps what main has', () => {
     const missing = Object.keys(base.packages).filter((name) => !(name in head.packages));
     expect(
       missing,
-      'these are in main and gone here. An `npm install` on macOS prunes optional dependencies that only resolve on other platforms; restore them from main as the last edit to the file, and check with `git show origin/main:package-lock.json` rather than `npm ci --dry-run`',
+      'these are in main and gone here. An npm old enough to have the bug (11.6.2 does, 11.16.0 does not) prunes optional dependencies that only resolve on other platforms; regenerate with a newer npm, or restore them from main as the last edit to the file, and check with `git show origin/main:package-lock.json` rather than `npm ci --dry-run`',
     ).toEqual([]);
   });
 });
