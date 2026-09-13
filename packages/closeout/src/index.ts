@@ -147,8 +147,6 @@ export function onExit(handler: ExitHandler): () => void {
 }
 
 /** Hide the cursor and register its restore; the returned function shows it again. */
-export { HIDE_CURSOR, SHOW_CURSOR } from './cursor.js';
-
 export function hideCursor(stream: OutputStream): () => void {
   return sharedCloseout().hideCursor(stream);
 }
@@ -160,3 +158,5 @@ export function showCursor(stream: OutputStream): void {
 
 export { createRegistry, DEFAULT_DEADLINE } from './registry.js';
 export type { ExitHandler, ExitInfo, OutputStream, Registry, RegistryOptions };
+
+export { HIDE_CURSOR, SHOW_CURSOR } from './cursor.js';

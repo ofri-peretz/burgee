@@ -55,6 +55,9 @@ function fakeProcess(): ProcessLike & {
   return self;
 }
 
+/** A listener that does nothing but exist, which is the whole point of it. */
+const ignore: Listener = () => undefined;
+
 /** The handlers run on a promise, so a signal's consequences land a tick later. */
 const settle = async (): Promise<void> => {
   await Promise.resolve();
@@ -106,7 +109,7 @@ describe('a signal the program installed its own handler for', () => {
   it('leaves the program’s handler installed, having removed only its own', async () => {
     const proc = fakeProcess();
     install({ process: proc });
-    proc.on('SIGINT', (() => undefined) as Listener);
+    proc.on('SIGINT', ignore);
 
     expect(proc.listenerCount('SIGINT')).toBe(2);
     proc.raise('SIGINT');
