@@ -64,20 +64,19 @@ const FAMILY_ORDER = [
  * The foundation tier (`cli-foundation-stack`), which sits *below* the whole family and
  * depends on nothing but Node builtins.
  *
- * Y1 is not "earlier in the order" and cannot be expressed by prepending these to
- * `FAMILY_ORDER`: that would admit a `burgee` → foundation edge, which Y1 forbids by name.
- * The rule has two halves and needs both — **`flagstaff` and `caique` may depend on a
- * foundation package; `burgee` and `roundel` may not.** burgee keeps its own copy of any
- * shared logic on purpose, because it has to install alone.
+ * **Any family package may depend on it.** Y1 used to exempt `burgee` and `roundel` by
+ * name — they "keep their own copy, because burgee has to install alone" — and the copy is
+ * what that bought: `precedence.ts` and `config.ts`, 281 lines implementing the whole of
+ * seniority's stated job, inside burgee, where the rule guaranteed they could never move.
+ * A layer nobody above may use is not a layer; it is a suggestion.
  *
- * Written when `linegauge` took `width` and `wrap` out of `flagstaff` (F1) and this lock
- * refused the edge — correctly, since until then it had no idea the tier existed. Y1 asked
- * for exactly this ("extended to refuse a `burgee` → foundation edge by name") and nothing
- * had built it.
+ * Reversing the FAMILY order was the other half of the same argument and landed first.
+ * This is the half that frees the tier below it.
+ *
+ * The arrow still points one way, and that is the part worth enforcing: the foundation
+ * depends on nothing, so no edge can come back up.
  */
 const FOUNDATION = ['bellpull', 'closeout', 'linegauge', 'seniority'];
-/** The two that sit above the line, and so may reach down to it (Y1). */
-const MAY_USE_FOUNDATION = new Set(['flagstaff', 'caique']);
 
 /** Node has these natively now (util.styleText, fs.glob, fetch, util.parseArgs). */
 const BANNED = ['chalk', 'picocolors', 'glob', 'node-fetch', 'minimist'];
@@ -117,11 +116,12 @@ describe.each(published)('published package $pkg.name', ({ dir, pkg }) => {
   it('has no external runtime dependencies, and same-repo ones only point up the family (K1, U1, U6)', () => {
     const rank = FAMILY_ORDER.indexOf(pkg.name);
     const offenders = Object.keys(pkg.dependencies ?? {}).filter((dep) => {
-      if (FOUNDATION.includes(dep)) return !MAY_USE_FOUNDATION.has(pkg.name);
+      // The foundation sits below everything, so an edge into it is always downward.
+      if (FOUNDATION.includes(dep)) return false;
       const depRank = FAMILY_ORDER.indexOf(dep);
       return depRank === -1 || rank === -1 || depRank >= rank;
     });
-    expect(offenders, `${pkg.name} may depend only on earlier family packages, or — if it is flagstaff or caique — on the foundation tier`).toEqual([]);
+    expect(offenders, `${pkg.name} may depend only on earlier family packages, or on the foundation tier`).toEqual([]);
   });
 
   it('is ESM, requires Node >= 24, and declares no legacy main (K2)', () => {
@@ -174,10 +174,15 @@ describe('the foundation tier (Y1)', () => {
     expect(Object.keys(manifest.dependencies ?? {})).toEqual([]);
   });
 
-  it.each(['burgee', 'roundel'])('%s never depends on a foundation package — it keeps its own copy (Y1)', (name) => {
+  /*
+   * The half of Y1 that survives its reversal, and the only half that was ever
+   * load-bearing: the tier is a floor. A foundation package reaching back up to the family
+   * would make the two mutually dependent and the "install it on its own" claim false.
+   */
+  it.each(FOUNDATION)('%s reaches nothing in the family: the arrow points one way', (name) => {
     const manifest = manifestOf(name);
-    expect(manifest, `${name} should exist`).toBeDefined();
-    const reached = Object.keys(manifest?.dependencies ?? {}).filter((d) => FOUNDATION.includes(d));
-    expect(reached, `${name} has to install alone; the shared logic is copied, and Y1 says the copies share a test-vector file instead`).toEqual([]);
+    if (manifest === undefined) return; // a reserved name with no package yet is not a finding
+    const upward = Object.keys(manifest.dependencies ?? {}).filter((d) => FAMILY_ORDER.includes(d));
+    expect(upward, `${name} is the floor; nothing it depends on may sit above it`).toEqual([]);
   });
 });

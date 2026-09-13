@@ -16,10 +16,19 @@
  * The default export is `width`, byte-for-byte call-compatible with `string-width`'s
  * default (R8), so `overrides: { "string-width": "npm:linegauge@^1" }` resolves.
  *
- * Not here yet, and each still at the Design→Build gate: `slice`, `truncate`, `widest`,
- * the R2 ASCII fast path, and an exported `strip`. This release is the move, so that a
- * green `flagstaff` across the deletion proves the consolidation is real before anything
- * new is written on top of it.
+ * `slice`, `truncate` and `widest` came next, built on the style stack `wrap` already
+ * carried — which is the consolidation the design is named for: `slice-ansi`, `wrap-ansi`
+ * and `cli-truncate` each keep their own copy of it, and they disagree at the edges.
+ *
+ * `strip` (R3) followed, and it is where the measured divergence from Node's own
+ * `stripVTControlCharacters` is recorded — one shape in sixteen, and it was a live bug in
+ * `width()`.
+ *
+ * Still at the Design→Build gate: the R2 ASCII fast path.
  */
+export { slice } from './slice.js';
+export { strip } from './strip.js';
+export { truncate, type TruncateOptions } from './truncate.js';
 export { lineCount, measure, width, width as default, type WidthOptions } from './width.js';
+export { widest } from './widest.js';
 export { wrap, type WrapOptions } from './wrap.js';
