@@ -17,6 +17,7 @@ import { gzipSync } from 'node:zlib';
 
 import { describe, expect, it } from 'vitest';
 
+import { BLOCK, type FakePackage, fakeRegistry, sha1, tarEntry, tarball } from './__fixtures__/fake-registry.js';
 import {
   type Packument,
   type RegistryClient,
@@ -31,82 +32,6 @@ import {
   treeWeight,
 } from './registry.js';
 import { unpack, untar } from './tar.js';
-
-const BLOCK = 512;
-
-/** A ustar header + body for one file, padded to the block size — the reader's inverse. */
-function tarEntry(path: string, body: string): Buffer {
-  const header = Buffer.alloc(BLOCK);
-  header.write(path, 0, 100, 'utf8');
-  header.write('000644 \0', 100, 8, 'utf8');
-  header.write(`${Buffer.byteLength(body).toString(8).padStart(11, '0')} `, 124, 12, 'utf8');
-  header.write('0', 156, 1, 'utf8');
-  header.write('ustar\0', 257, 6, 'utf8');
-  // The checksum field is spaces while the checksum is computed over it, then written back.
-  header.write('        ', 148, 8, 'utf8');
-  const sum = header.reduce((a, b) => a + b, 0);
-  header.write(`${sum.toString(8).padStart(6, '0')}\0 `, 148, 8, 'utf8');
-  const content = Buffer.alloc(Math.ceil(body.length / BLOCK) * BLOCK);
-  content.write(body, 0, 'utf8');
-  return Buffer.concat([header, content]);
-}
-
-function tarball(files: Record<string, string>): Buffer {
-  const entries = Object.entries(files).map(([path, body]) => tarEntry(`package/${path}`, body));
-  return Buffer.concat([...entries, Buffer.alloc(BLOCK * 2)]);
-}
-
-const sha1 = (buf: Buffer): string => createHash('sha1').update(buf).digest('hex');
-
-interface FakePackage {
-  files: Record<string, string>;
-  dependencies?: Record<string, string>;
-  types?: string;
-}
-
-/** The fields a published manifest carries beyond name and version. */
-const extras = (spec: FakePackage): Partial<RegistryManifest> => ({
-  ...(spec.types === undefined ? {} : { types: spec.types }),
-  ...(spec.dependencies === undefined ? {} : { dependencies: spec.dependencies }),
-});
-
-/** One release: its tarball (with the `package.json` a fetch will verify) and its manifest. */
-function release(name: string, version: string, spec: FakePackage): { url: string; archive: Buffer; manifest: RegistryManifest } {
-  const manifestJson = JSON.stringify({ name, version, ...extras(spec) });
-  const archive = gzipSync(tarball({ ...spec.files, 'package.json': manifestJson }));
-  const url = `https://fake/${name}/${version}.tgz`;
-  return { url, archive, manifest: { name, version, ...extras(spec), dist: { tarball: url, shasum: sha1(archive) } } };
-}
-
-/** A registry of make-believe packages, answering the same two calls the live one does. */
-function fakeRegistry(packages: Record<string, Record<string, FakePackage>>): RegistryClient & { archives: Map<string, Buffer> } {
-  const archives = new Map<string, Buffer>();
-  const packuments = new Map<string, Packument>();
-  for (const [name, versions] of Object.entries(packages)) {
-    const entries: Packument['versions'] = {};
-    let latest = '0.0.0';
-    for (const [version, spec] of Object.entries(versions)) {
-      const built = release(name, version, spec);
-      archives.set(built.url, built.archive);
-      entries[version] = built.manifest;
-      latest = version;
-    }
-    packuments.set(name, { name, 'dist-tags': { latest }, versions: entries });
-  }
-  return {
-    archives,
-    packument: async (name) => {
-      const found = packuments.get(name);
-      if (found === undefined) throw new Error(`no such package ${name}`);
-      return found;
-    },
-    download: async (url) => {
-      const found = archives.get(url);
-      if (found === undefined) throw new Error(`no such tarball ${url}`);
-      return found;
-    },
-  };
-}
 
 const ORA_DTS = 'export declare function oraPromise(): void;\nexport declare const spinners: string[];\n';
 

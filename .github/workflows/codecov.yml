@@ -73,6 +73,13 @@ jobs:
         with:
           use_oidc: true
           files: coverage/lcov.info
+          # `files` adds a path, it does not restrict to one. Without this the CLI also walks
+          # the tree, finds each package's own `coverage/lcov.info`, and uploads those too —
+          # their `SF:` paths are relative to the package, which is the exact rewrite the
+          # merge step above exists to perform. The 2026-09-13 run uploaded five reports for
+          # four packages: the merged one, plus four originals at paths that do not resolve
+          # from the repo root.
+          disable_search: true
           # A weekly run whose upload silently no-ops is a green tick reporting nothing,
           # which is the exact failure the schedule exists to catch. Nothing here runs on
           # a fork PR, so there is no contributor to redden over an upload they cannot authenticate.
