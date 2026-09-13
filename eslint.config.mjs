@@ -288,6 +288,14 @@ export default [
     files: TSX_FILES,
     rules: { "react-features/void-dom-elements-no-children": "off" },
   },
+  // A graded incumbent is pinned once, at the root, so the whole workspace grades against
+  // the same version — that is this branch's point. The differential tests that import it
+  // therefore sit in a package whose own package.json deliberately does not declare it, and
+  // the rule is reading the wrong manifest rather than finding a real undeclared dependency.
+  {
+    files: ["packages/*/src/**/*.test.ts"],
+    rules: { "import-next/no-extraneous-dependencies": "off" },
+  },
   // Two specifiers no package.json can declare: fumadocs' virtual module
   // `fumadocs-mdx:collections/server` and the types-only `mdx/types`.
   {
