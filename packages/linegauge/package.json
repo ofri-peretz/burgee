@@ -48,6 +48,7 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
+    "coverage": "vitest run --coverage.enabled",
     "lint": "eslint src"
   },
   "repository": {
@@ -78,7 +79,7 @@
     "slice-ansi": "^7.1.0",
     "string-width": "^8.1.0",
     "strip-ansi": "^7.1.2",
-    "vitest": "^4.0.0",
+    "vitest": "^5.0.0",
     "wrap-ansi": "^10.0.1"
   }
 }
