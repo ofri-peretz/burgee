@@ -288,6 +288,17 @@ export default [
     files: TSX_FILES,
     rules: { "react-features/void-dom-elements-no-children": "off" },
   },
+  // The root `scripts/**` glob above predates per-package scripts, and this is the first
+  // one: a generator spawned as a program (`node scripts/generate-ambiguous.mjs`), so it
+  // exports nothing and is never imported, and it reads the incumbent it grades against
+  // from the root's pins rather than declaring one of its own (R7/#217).
+  {
+    files: ["packages/*/scripts/**"],
+    rules: {
+      "import-next/no-unused-modules": "off",
+      "import-next/no-extraneous-dependencies": "off",
+    },
+  },
   // Two specifiers no package.json can declare: fumadocs' virtual module
   // `fumadocs-mdx:collections/server` and the types-only `mdx/types`.
   {
