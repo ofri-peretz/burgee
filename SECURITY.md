@@ -19,8 +19,10 @@ promises.
 
 ## What reduces the attack surface here
 
-- **Zero runtime dependencies** in every published package: the supply chain a caller
-  inherits from burgee is burgee.
+- **Zero external runtime dependencies** in every published package: the supply chain a
+  caller inherits from burgee is this repo. burgee depends on `roundel` and will depend on
+  more of the family as the layers land, each of them built, reviewed and published here —
+  one chain to audit, and no transitive install from anywhere else.
 - **`node:util.parseArgs`** does the parsing, rather than a hand-rolled tokeniser.
 - **CodeQL** runs on every push, and `secure-coding` and `node-security` lint rules run at
   `error` on every file — those rules caught a prototype-pollution vector in our own option
