@@ -1,5 +1,21 @@
 # roundel
 
+## 0.3.0
+
+### Minor Changes
+
+- [#218](https://github.com/ofri-peretz/burgee/pull/218) [`214f6f8`](https://github.com/ofri-peretz/burgee/commit/214f6f83b16068d7dc53d79799fba03c26a3cbe2) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `audit()` and `reportTheme()` — ask whether your colouring meets WCAG AA and get rows back
+  instead of an exception. Two rows per hex token, `truecolor` and `256`, because those are the
+  two colours a terminal can be sent; none for 16, whose values are the user's own theme.
+  `fly()` is now a filter over `audit()`, so the refusal and the report cannot disagree.
+
+- [#218](https://github.com/ofri-peretz/burgee/pull/218) [`214f6f8`](https://github.com/ofri-peretz/burgee/commit/214f6f83b16068d7dc53d79799fba03c26a3cbe2) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Colour correctness, in three parts. The contrast check now covers the 256-colour entry the
+  terminal actually receives, not just the hex an author wrote — 167 hexes in an sRGB sweep read
+  at truecolor and failed at 256. That substitution is chosen by nearest-in-OKLab **among
+  entries that clear the floor**, which is perceptually closer than per-channel rounding and
+  readable by construction rather than by luck. And `Theme.conformance` takes `'AA'` (default) or
+  `'AAA'`, raising the floor for the check and the search together.
+
 ## 0.2.0
 
 ### Minor Changes
