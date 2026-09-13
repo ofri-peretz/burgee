@@ -35,6 +35,23 @@ interface CodecovConfig {
   };
 }
 
+/** Test files a package owns — what makes a `coverage` script able to produce anything. */
+function testFileCount(name: string): number {
+  const src = join(REPO_ROOT, 'packages', name, 'src');
+  if (!existsSync(src)) return 0;
+  return readdirSync(src, { recursive: true, withFileTypes: true }).filter(
+    (e) => e.isFile() && e.name.endsWith('.test.ts'),
+  ).length;
+}
+
+/** Whether the package's manifest declares the script `turbo run coverage` looks for. */
+function hasCoverageScript(name: string): boolean {
+  const manifest = JSON.parse(
+    readFileSync(join(REPO_ROOT, 'packages', name, 'package.json'), 'utf-8'),
+  ) as { scripts?: Record<string, string> };
+  return typeof manifest.scripts?.coverage === 'string';
+}
+
 /** Directories under `packages/` that are real workspaces — a manifest and sources. */
 function packageDirs(): string[] {
   const dir = join(REPO_ROOT, 'packages');
@@ -82,5 +99,34 @@ describe('codecov components', () => {
       .map((c) => `${c.component_id}: ${c.paths.join(', ')}`);
 
     expect(wrong, 'a component id and its path have to name the same package').toEqual([]);
+  });
+});
+
+/**
+ * The other half of the component lock — a component is only a reading if the package can
+ * actually produce one.
+ *
+ * `turbo run coverage` skips a package with no `coverage` script silently and exits 0, so a
+ * package with a full suite and no script reports nothing while every job stays green. That
+ * is what happened between #193 and 2026-09-13: five of nine packages had no script, four
+ * uploaded, and the component page showed four rows at 100% while `linegauge` and
+ * `compat-oracle` — twelve and two test files respectively — were simply absent. Nothing was
+ * red, and the number on the badge was measured over less than half the tree.
+ *
+ * The criterion is owning tests, not being publishable: `bellpull`, `closeout` and
+ * `seniority` are seven-line name reservations with no suite yet, and a script there would
+ * only add an empty report.
+ */
+describe('codecov reporting reaches every package that has tests', () => {
+  it('a package with test files declares a coverage script', () => {
+    const silent = packageDirs()
+      .filter((name) => testFileCount(name) > 0 && !hasCoverageScript(name))
+      .map((name) => `${name} (${String(testFileCount(name))} test files, no coverage script)`);
+
+    expect(
+      silent,
+      'turbo skips a package with no `coverage` script without failing, so its suite runs ' +
+        'and its lines never reach Codecov — add `"coverage": "vitest run --coverage.enabled"`',
+    ).toEqual([]);
   });
 });

@@ -111,6 +111,26 @@ describe('the ellipsis is not the caller\u2019s text', () => {
   });
 });
 
+/**
+ * Comfortably past any spread limit, and not a million: the number only has to exceed what
+ * `Math.max(...xs)` could accept, which is around 125,000 on V8 today.
+ */
+const BEYOND_SPREAD = 200_000;
+
+/**
+ * The failure `widest` exists to avoid, as a generator.
+ *
+ * This was written as `expect(() => Math.max(...many.map(...))).toThrow(RangeError)`. It does
+ * throw here. On a CI runner it took 6.9 seconds and did not, so the assertion failed — **a
+ * test of the host engine dressed as a test of this function**, and the argument limit is a
+ * property of the stack rather than of the language. Now it asserts what is ours: a generator
+ * is measured in one pass with nothing spread and nothing held, and if `widest` ever grows a
+ * spread this stops finishing.
+ */
+function* manyLines(): Generator<string> {
+  for (let i = 0; i < BEYOND_SPREAD; i++) yield i === BEYOND_SPREAD - 1 ? 'wide enough' : 'x';
+}
+
 /** A generator rather than an array: the point of `Iterable` is that nothing is held. */
 function* threeLines(): Generator<string> {
   yield 'a';
@@ -137,23 +157,11 @@ describe('widest', () => {
   });
 
   /*
-   * 200,000 lines is 200,000 width() calls, which is a quarter of a second on a laptop and
-   * past the default 5s budget on a CI runner. The size is the point — it is what makes this
-   * lock bite if anyone puts the spread back — so the budget moves, not the input.
+   * BEYOND_SPREAD lines is that many width() calls: a quarter of a second on a laptop and
+   * past vitest's default 5s budget on a CI runner. The size is the point — it is what makes
+   * this lock bite if anyone puts the spread back — so the budget moves, not the input.
    */
-  it('handles more lines than Math.max(...) can take arguments for', { timeout: 30_000 }, () => {
-    /*
-     * The failure this replaces: `Math.max(...xs)` throws RangeError once the spread runs
-     * past the engine's argument limit, somewhere around 125k on the author's machine.
-     *
-     * That limit is NOT asserted here, though an earlier version of this test did assert
-     * it. It is a property of the engine's stack, not of this package — V8 on a CI runner
-     * with a different stack size swallowed 200,000 arguments without complaint, and the
-     * test failed on `main` for a reason that had nothing to do with `widest`. What is
-     * portable, and what this package actually promises, is the line below: the answer is
-     * right at a size where the spread is not an option.
-     */
-    const many = Array.from({ length: 200_000 }, (_, i) => (i === 199_999 ? 'wide enough' : 'x'));
-    expect(widest(many)).toBe(11);
+  it('measures far more lines than a spread could pass, in one pass', { timeout: 30_000 }, () => {
+    expect(widest(manyLines())).toBe(11);
   });
 });
