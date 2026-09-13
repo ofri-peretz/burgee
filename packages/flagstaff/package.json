@@ -119,8 +119,6 @@
     "roundel": "^0.2.0"
   },
   "devDependencies": {
-    "cli-boxes": "^4.0.1",
-    "cli-spinners": "^3.2.0",
     "vitest": "^5.0.0"
   }
 }

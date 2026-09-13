@@ -99,11 +99,39 @@ jobs:
           fi
           echo "✅ Lockfile is in sync."
 
+  # A page whose gate is not REQUIRED is a page with no gate.
+  #
+  # `bench:page --check` already existed and already worked — it sat in bench.yml's
+  # `cheap` job, which reports `B2 cold start · B3 compatibility · B4 weight` and is not a
+  # required context. Its sibling on the other generated page proved what that is worth:
+  # `compat:page --check` went RED on PR #197 at 14:44:16 and the PR merged at 14:44:45,
+  # 29 seconds later, because nothing was stopping it. main was red until #199.
+  #
+  # It lives here, in the fast lane the required `Quality Gate` aggregates, rather than
+  # beside the benchmark run, for two reasons: it belongs to a required check, and it is
+  # 0.4s of `tsx` over committed JSON — it has no business waiting behind a 30-minute
+  # benchmark job whose perf gates are the flaky part (issue #27). Comparing the committed
+  # page against the COMMITTED results is the whole point, so nothing needs measuring
+  # first.
+  #
+  # `compat:page --check` cannot move here: its inputs (`results.json`,
+  # `results.control.json`) are produced by grading and are not committed. It stays in
+  # compat.yml's `ratchet` job, which this change makes a required context instead.
+  generated-pages:
+    name: Generated Pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - name: The published benchmarks page is the one the committed results generate
+        run: npm run bench:page -- --check
+
   quality-gate:
     name: Quality Gate
     runs-on: ubuntu-latest
     timeout-minutes: 2
-    needs: [lint, markdown, workflows, lockfile]
+    needs: [lint, markdown, workflows, lockfile, generated-pages]
     if: always()
     steps:
       - name: Render gate report
@@ -112,11 +140,12 @@ jobs:
           R_MARKDOWN: ${{ needs.markdown.result }}
           R_WORKFLOWS: ${{ needs.workflows.result }}
           R_LOCKFILE: ${{ needs.lockfile.result }}
+          R_PAGES: ${{ needs['generated-pages'].result }}
         run: |
           set -euo pipefail
           icon() { case "$1" in success) echo "✅";; failure) echo "❌";; cancelled) echo "⏹";; skipped) echo "⏭";; *) echo "⚠️";; esac; }
           all_pass=true
-          for r in "$R_LINT" "$R_MARKDOWN" "$R_WORKFLOWS" "$R_LOCKFILE"; do [ "$r" = "success" ] || all_pass=false; done
+          for r in "$R_LINT" "$R_MARKDOWN" "$R_WORKFLOWS" "$R_LOCKFILE" "$R_PAGES"; do [ "$r" = "success" ] || all_pass=false; done
           {
             if $all_pass; then echo "# ✅ Fast quality gates passed"; else echo "# ❌ One or more fast quality gates failed"; fi
             echo ""
@@ -126,6 +155,7 @@ jobs:
             echo "| Markdown lint | $(icon "$R_MARKDOWN") $R_MARKDOWN |"
             echo "| Workflow conventions | $(icon "$R_WORKFLOWS") $R_WORKFLOWS |"
             echo "| Lockfile sync | $(icon "$R_LOCKFILE") $R_LOCKFILE |"
+            echo "| Generated pages match their sources | $(icon "$R_PAGES") $R_PAGES |"
             echo ""
             echo "_Heavy gates (test / build / typecheck) run in \`quality-full.yml\` once the PR is ready for review or labelled \`run-full-ci\`._"
           } >> "$GITHUB_STEP_SUMMARY"
