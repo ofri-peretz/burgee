@@ -36,6 +36,8 @@ export interface ProcessLike {
    * module included — through a cast, which is a worse trade than one permissive signature.
    */
   on(event: string, listener: (...args: never[]) => void): unknown;
+  removeListener(event: string, listener: (...args: never[]) => void): unknown;
+  listenerCount(event: string): number;
   exit(code?: number): never;
   stderr: OutputStream;
 }
@@ -94,22 +96,32 @@ export function install(options: InstallOptions = {}): Closeout {
   }) as (...args: never[]) => void);
 
   for (const signal of SIGNALS) {
-    proc.on(signal, (() => {
+    const handler = ((): void => {
       /*
-       * Await the handlers, then exit with the signal's own code. Re-raising the signal
-       * would be more faithful to POSIX, but it re-enters this listener; exiting explicitly
-       * is what every caller actually wants, and `runSync` on `'exit'` is already
-       * idempotent against the second pass.
+       * Await the handlers, then leave — unless the program said it wanted this signal.
+       *
+       * Re-raising would be more faithful to POSIX, but it re-enters this listener; exiting
+       * explicitly is what a caller who owns `main` actually wants, and `runSync` on
+       * `'exit'` is already idempotent against the second pass.
+       *
+       * **Stand down first, then count.** A program that installed its own handler for this
+       * signal asked to own it, and a library that ran some cleanup does not get to overrule
+       * that: it may want to finish a request and exit 7, or ignore Ctrl-C entirely. Our own
+       * listener has to come off before the count, or it would always see one and we would
+       * always exit. This is the contract `flagstaff`'s spinner suite pins — a hidden cursor
+       * comes back on SIGINT *and* the program's handler still decides what happens next.
        *
        * Both arms leave. `run` is written not to reject, and if that ever stops being true
        * the process must still exit — a shutdown that hangs because its own error handling
        * threw is the failure this package exists to prevent.
        */
       const leave = (): void => {
-        proc.exit(SIGNAL_EXIT_CODE[signal] ?? UNKNOWN_SIGNAL_EXIT);
+        proc.removeListener(signal, handler);
+        if (proc.listenerCount(signal) === 0) proc.exit(SIGNAL_EXIT_CODE[signal] ?? UNKNOWN_SIGNAL_EXIT);
       };
       registry.run({ code: null, signal }).then(leave, leave);
-    }) as (...args: never[]) => void);
+    }) as (...args: never[]) => void;
+    proc.on(signal, handler);
   }
 
   return {
@@ -146,3 +158,5 @@ export function showCursor(stream: OutputStream): void {
 
 export { createRegistry, DEFAULT_DEADLINE } from './registry.js';
 export type { ExitHandler, ExitInfo, OutputStream, Registry, RegistryOptions };
+
+export { HIDE_CURSOR, SHOW_CURSOR } from './cursor.js';
