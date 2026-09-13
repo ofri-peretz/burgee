@@ -1,0 +1,115 @@
+---
+title: Contrast
+description: Why your CLI's colours are checked, what AA and AAA actually require, and how to find out which one you meet.
+---
+
+A terminal is a display like any other, and a colour that does not read on it excludes the
+same people a web page would. `roundel` refuses to fly a theme whose text will not meet
+**WCAG AA** against its own declared background — and tells you which token, at which colour
+level, by how much.
+
+## Find out where you stand
+
+```ts
+import { audit, reportTheme } from 'roundel/theme';
+
+console.log(reportTheme(audit({ ok: '#0a6b47' })));
+```
+
+```text
+pass  error  truecolor  #f4794a on #0a0a0a  7.24:1 (needs 4.5:1)
+pass  error  256        #ff875f on #0a0a0a  8.37:1 (needs 4.5:1)
+FAIL  ok     truecolor  #0a6b47 on #0a0a0a  3.02:1 (needs 4.5:1)
+pass  ok     256        #008787 on #0a0a0a  4.54:1 (needs 4.5:1)
+```
+
+Look at the last two rows: **`ok` fails as truecolor and passes at 256.** Not a glitch — the
+cube has no entry as dark as `#0a6b47`, and the substitute it degrades to happens to read. The
+colour you wrote is the one to fix; the one the terminal receives is a separate fact, and
+collapsing them into a single verdict would hide one of them.
+
+`audit()` returns data and never throws, because knowing should not require catching an
+exception. `fly()` is a filter over the same function, so **the refusal and the report cannot
+disagree** — a theme is never rejected at startup and reported clean by the audit.
+
+**Passing rows are printed too.** A report that lists only failures cannot tell *"nothing is
+wrong"* from *"nothing was checked"*, and the second is the state this package was in for the
+256-colour level until 2026-09-13.
+
+## Two colours, not one
+
+The hex you write is not always what the terminal receives. At 256 colours it gets the nearest
+entry of the xterm cube, which is a different colour with a different ratio — so both are
+checked, at every level, and an `at` column says which is which.
+
+Sweeping the sRGB cube found **167 hexes** that clear 4.5:1 as truecolor and fail once
+substituted. `#7e7e7e` is 4.88:1 and becomes `#767676` at 4.36:1.
+
+**There is no row for 16 colours, and there never will be.** At that level a terminal is sent a
+*name* — `red`, `greenBright` — and the actual colour is the user's own theme. We do not know
+it, so there is no ratio to report, and a number there would be invented.
+
+## AA or AAA
+
+```ts
+fly({ conformance: 'AAA' }, runtime);   // 'AA' is the default
+```
+
+| | normal text | large text (≥18pt, or ≥14pt bold) |
+| :--- | --: | --: |
+| **AA** — [SC 1.4.3](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum) | **4.5:1** | 3:1 |
+| **AAA** — [SC 1.4.6](https://www.w3.org/WAI/WCAG22/Understanding/contrast-enhanced) | **7:1** | 4.5:1 |
+
+The ratios are not arbitrary. W3C explains 4.5:1 as compensating for vision loss equivalent to
+roughly 20/40 acuity, and 7:1 for roughly 20/80 — which is where the two levels differ in
+intent rather than in strictness: AA targets the common case, AAA targets low vision directly.
+
+`conformance` raises the floor for **both** jobs at once: the check that refuses a theme, and
+the search that picks the 256-colour substitute. A caller asking for AAA must not get a verdict
+at one standard and a colour chosen at another.
+
+### Why AA is the default
+
+**Because AA is what the standards and the law actually reference.**
+
+- **EN 301 549**, the harmonised European standard used in public procurement, references
+  WCAG 2.1 **Level AA**. It is the basis for conformance under the EU Web Accessibility
+  Directive and the European Accessibility Act.
+- **Section 508** of the US Rehabilitation Act references WCAG 2.0 **Level AA** as its binding
+  baseline, following the 2017 refresh.
+
+And because W3C says so itself, about AAA:
+
+> It is not recommended that Level AAA conformance be required as a general policy for entire
+> sites because it is not possible to satisfy all Level AAA success criteria for some content.
+>
+> — [Understanding Conformance, WCAG 2.2](https://www.w3.org/WAI/WCAG22/Understanding/conformance)
+
+### Why AAA is worth having anyway
+
+A CLI is not a whole site, and the quoted caution is about wholesale policy — not about a
+single contrast criterion you can genuinely meet. Turn it on when you know your audience or
+your conditions:
+
+- users with low vision, for whom 4.5:1 is the compromise and 7:1 is the target;
+- a terminal on a projector, or outdoors, or behind a screen-share re-encode;
+- an organisation whose own accessibility policy sets AAA and does not care that this is a
+  terminal.
+
+**The cost is measured, not hypothetical.** On a near-black ground, AAA leaves **130 of the 240
+addressable palette entries** usable against AA's **179** — a 27% narrower palette. That is why
+it is opt-in: defaulting to it would refuse themes that read perfectly well for almost everyone
+on almost every terminal.
+
+## What this does not claim
+
+- **Not APCA.** The [APCA](https://github.com/Myndex/SAPC-APCA) critique of WCAG 2.x relative
+  luminance is real, and it is sharpest exactly where a terminal lives — dark backgrounds. But
+  `4.5` is a WCAG number in a published claim, and swapping the formula would change which
+  themes are refused while quietly changing what the claim means. OKLab decides *which* colour
+  a hex degrades to; WCAG decides *whether* it is allowed. A perceptual metric may narrow that
+  choice and may never widen what `fly()` accepts.
+- **Not a full audit of your CLI.** Contrast is one success criterion. Nothing here checks that
+  you do not rely on colour alone to convey meaning ([SC 1.4.1](https://www.w3.org/WAI/WCAG22/Understanding/use-of-color)),
+  which in a terminal usually means pairing a colour with a glyph or a word — `flagstaff`'s
+  accessible mode exists for that, and it is a separate decision from this one.

@@ -9,7 +9,7 @@
  * terminal fails in CI on a truecolor one. Level 1 is not checked and cannot be: the basic
  * sixteen are the user's own theme, and a ratio over them would be invented.
  */
-import { channels, type Conformance, contrast, floors } from './contrast.js';
+import { channels, type Conformance, contrast, floors, round2, type ThemeFinding } from './contrast.js';
 import {
   colorLevel,
   flown,
@@ -231,6 +231,39 @@ function resolve(style: Style, level: ColorLevel, ground: Hex, floor: number): P
 }
 
 /**
+ * Every token's verdict, as data — **without throwing.**
+ *
+ * `fly()` refuses a theme that does not read, which is right at startup and useless while you
+ * are choosing colours: a caller who wants to *know* should not have to catch an exception and
+ * parse its message. So the judgement lives here and `fly()` is a filter over it, which also
+ * means the refusal and the report can never disagree about what passes.
+ *
+ * Two rows per hex token — `truecolor` and `256` — because those are the two colours a
+ * terminal can actually be sent, and they are not the same colour. **No row for 16**: those
+ * values are the user's own terminal theme, so there is no ratio to report and a number there
+ * would be invented. A token given format names rather than a hex gets no row either, for the
+ * same reason: `['bold', 'red']` is the terminal's red.
+ */
+export function audit(theme: Theme = {}): ThemeFinding[] {
+  const ground = theme.ground ?? INK;
+  const required = floors(theme.conformance).TEXT;
+  return TOKENS.flatMap((name) => {
+    const style = theme[name] ?? DEFAULTS[name](ground);
+    if (typeof style !== 'string') return [];
+    const [r, g, b] = channels(style).map((v) => Math.round(v * SRGB_MAX)) as [number, number, number];
+    const at: [ThemeFinding['at'], Hex][] = [
+      ['truecolor', style],
+      ['256', rgb256(degrade(r, g, b, ground, required))],
+    ];
+    return at.map(([where, colour]) => {
+      const ratio = round2(contrast(colour, ground));
+      return { token: name, at: where, colour, ground, ratio, required, passes: ratio >= required };
+    });
+  });
+}
+
+
+/**
  * Fly the theme: decide the colour level from the runtime once, check every hex token
  * against the ground, and set what the tokens paint from now on. Call it at startup, with
  * `{ json }` when the run was asked for `--json`; a later call replaces the theme.
@@ -241,30 +274,18 @@ export function fly(theme: Theme, rt: Runtime, opts?: ModeOptions): void {
   // One floor, read once, used by the check and by the search. See `Theme.conformance`.
   const floor = floors(theme.conformance).TEXT;
   const styles = TOKENS.map((name) => [name, theme[name] ?? DEFAULTS[name](ground)] as const);
-  const failures = styles.flatMap(([name, style]) => {
-    if (typeof style !== 'string') return [];
-    const [r, g, b] = channels(style).map((v) => Math.round(v * SRGB_MAX)) as [number, number, number];
-    // Both colours the terminal can actually be sent, not just the one that was written.
-    // Checked at every level rather than only at the level this run happens to be, so a
-    // theme that fails on somebody's 256-colour terminal fails in CI on a truecolor one —
-    // which is what the promise above this function has always said and did not do.
-    //
-    // Level 1 is absent on purpose and will stay absent: the basic sixteen are the user's
-    // theme, so there is no number to check. That is a real limit of the medium, not a gap.
-    const under = (value: Hex): number | undefined => {
-      const ratio = contrast(value, ground);
-      return ratio < floor ? ratio : undefined;
-    };
-    // The truecolor wording is unchanged on purpose: `theme.test.ts` pins it, and a lock that
-    // has to be edited to add a check is a lock that teaches you to edit locks.
-    const truecolor = under(style);
-    const substitute = rgb256(degrade(r, g, b, ground, floor));
-    const degraded = under(substitute);
-    return [
-      ...(truecolor === undefined ? [] : [`${name} ${style} on ${ground} is ${truecolor.toFixed(2)}:1`]),
-      ...(degraded === undefined ? [] : [`${name} ${style} at 256 colours is ${substitute} on ${ground}, ${degraded.toFixed(2)}:1`]),
-    ];
-  });
+  // One judgement, two callers: `audit()` decides what passes and this decides what to do
+  // about it, so a theme can never be refused by `fly()` and reported clean by `audit()`.
+  // The wording is unchanged because `theme.test.ts` and `plugin.test.ts` pin it, and a lock
+  // you have to edit in order to add a check is a lock that teaches you to edit locks.
+  const written = new Map(styles);
+  const failures = audit(theme)
+    .filter((f) => !f.passes)
+    .map((f) =>
+      f.at === 'truecolor'
+        ? `${f.token} ${f.colour} on ${f.ground} is ${f.ratio.toFixed(2)}:1`
+        : `${f.token} ${String(written.get(f.token as TokenName))} at 256 colours is ${f.colour} on ${f.ground}, ${f.ratio.toFixed(2)}:1`,
+    );
   if (failures.length > 0) throw new Error(`roundel: below ${floor}:1 (WCAG ${theme.conformance ?? 'AA'}) — ${failures.join('; ')}`);
   flown.level = level;
   flown.paint = Object.fromEntries(styles.map(([name, style]) => [name, resolve(style, level, ground, floor)]));

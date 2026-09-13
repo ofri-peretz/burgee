@@ -89,3 +89,46 @@ export function contrast(a: string, b: string): number {
   const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
   return (hi + CONTRAST_OFFSET) / (lo + CONTRAST_OFFSET);
 }
+
+/** One token's verdict at one colour level, in the words somebody fixing it would use. */
+export interface ThemeFinding {
+  /** The token name — `error`, `ok`, `command`. */
+  token: string;
+  /** `truecolor` or `256`. Never `16`: those values are the user's terminal theme. */
+  at: 'truecolor' | '256';
+  /** What the terminal is actually sent at this level, which is not always the hex written. */
+  colour: string;
+  ground: string;
+  ratio: number;
+  required: number;
+  passes: boolean;
+}
+
+/**
+ * Round to 2dp for reporting. Enough to act on, and not a claim to more precision than a
+ * contrast ratio over eight-bit channels has.
+ */
+const CENTS = 100;
+export const round2 = (value: number): number => Math.round(value * CENTS) / CENTS;
+
+/**
+ * One line per finding, aligned, for a terminal or a failing test. Mirrors
+ * `burgee/contrast`'s `report` — the same shape in both packages, because somebody reading a
+ * theme audit and a brand audit on the same day should not have to learn two layouts.
+ *
+ * Passing rows are printed too. A report that lists only failures cannot tell "nothing is
+ * wrong" from "nothing was checked", and the second is the state this package was in for the
+ * 256-colour level until 2026-09-13.
+ */
+export function reportTheme(findings: readonly ThemeFinding[]): string {
+  if (findings.length === 0) return "no hex tokens to check — every token is a format name, and those are the terminal's own colours";
+  const token = Math.max(...findings.map((f) => f.token.length));
+  const at = Math.max(...findings.map((f) => f.at.length));
+  return findings
+    .map(
+      (f) =>
+        `${f.passes ? 'pass' : 'FAIL'}  ${f.token.padEnd(token)}  ${f.at.padEnd(at)}  ` +
+        `${f.colour} on ${f.ground}  ${f.ratio.toFixed(2)}:1 (needs ${f.required}:1)`,
+    )
+    .join('\n');
+}
