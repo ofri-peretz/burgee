@@ -48,6 +48,6 @@
     "provenance"
   ],
   "devDependencies": {
-    "vitest": "^4.0.0"
+    "vitest": "^5.0.0"
   }
 }
