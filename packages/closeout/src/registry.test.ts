@@ -56,7 +56,9 @@ describe('every path', () => {
   it('tells a handler which door the program left by', async () => {
     const seen: unknown[] = [];
     const registry = createRegistry();
-    registry.add((info) => seen.push(info));
+    registry.add((info) => {
+      seen.push(info);
+    });
 
     await registry.run(INTERRUPTED);
     expect(seen).toEqual([{ code: null, signal: 'SIGINT' }]);
@@ -65,7 +67,9 @@ describe('every path', () => {
   it('passes the exit code on the synchronous path', () => {
     const seen: unknown[] = [];
     const registry = createRegistry();
-    registry.add((info) => seen.push(info));
+    registry.add((info) => {
+      seen.push(info);
+    });
 
     registry.runSync({ code: 3, signal: null });
     expect(seen).toEqual([{ code: 3, signal: null }]);
