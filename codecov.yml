@@ -53,6 +53,9 @@ component_management:
     - component_id: linegauge
       name: linegauge
       paths: [packages/linegauge/**]
+    - component_id: paratext
+      name: paratext
+      paths: [packages/paratext/**]
     - component_id: seniority
       name: seniority
       paths: [packages/seniority/**]

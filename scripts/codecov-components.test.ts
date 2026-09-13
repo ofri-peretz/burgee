@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, matchesGlob, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
@@ -26,6 +26,8 @@ import { fileURLToPath } from 'node:url';
 
 import { load } from 'js-yaml';
 import { describe, it, expect } from 'vitest';
+
+import { TESTED_IN_ANOTHER_PROCESS } from '../vitest-coverage.config.js';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -128,5 +130,38 @@ describe('codecov reporting reaches every package that has tests', () => {
       'turbo skips a package with no `coverage` script without failing, so its suite runs ' +
         'and its lines never reach Codecov — add `"coverage": "vitest run --coverage.enabled"`',
     ).toEqual([]);
+  });
+});
+
+/**
+ * The exclusion list has to keep pointing at files that exist.
+ *
+ * Every entry is a file graded by an incumbent's own suite in another process, so excluding
+ * it is what keeps the number honest. A pattern that matches nothing is the opposite: the
+ * file it used to name is still measured, still reads as untested, and drags a package's
+ * number down for work that is already done — while the list still *looks* complete.
+ *
+ * That is not hypothetical. `src/commander*.ts`, `src/yargs*.ts`, `src/cliui*.ts` and
+ * `src/y18n*.ts` were written when those façades were single files at the top of `src/`.
+ * They were later split into `src/commander/` and `src/yargs/`, the globs stopped reaching
+ * them, and burgee reported 70.6% over 4,818 lines — 3,532 of them façade code graded 1,360
+ * by commander and 804 by yargs. Two of the four patterns had by then matched nothing at
+ * all for months, silently.
+ */
+describe('the tested-in-another-process list still points at real files', () => {
+  const packages = packageDirs();
+
+  it.each(TESTED_IN_ANOTHER_PROCESS)('%s matches a file in some package', (pattern) => {
+    const hits = packages.filter((name) =>
+      readdirSync(join(REPO_ROOT, 'packages', name, 'src'), { recursive: true, withFileTypes: true })
+        .filter((e) => e.isFile())
+        .some((e) => matchesGlob(relative(join(REPO_ROOT, 'packages', name), join(e.parentPath, e.name)), pattern)),
+    );
+
+    expect(
+      hits,
+      `no file matches — the façade it named has moved or gone, so its lines are back in ` +
+        `the denominator reading as untested while this list still looks complete`,
+    ).not.toEqual([]);
   });
 });
