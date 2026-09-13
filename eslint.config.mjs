@@ -379,6 +379,25 @@ export default [
     rules: { "import-next/no-relative-parent-imports": "off" },
   },
 
+  // ── roundel's colour-space maths ───────────────────────────────────────────
+  {
+    // `toOklab` is Björn Ottosson's two 3x3 matrices, eighteen published coefficients. Naming
+    // each one would mean eighteen constants whose names could only restate their position in
+    // a matrix (`OKLAB_M1_ROW0_COL1`), which is less readable than the arithmetic and costs
+    // real bytes in `dist/` — the first draft held them in arrays and `./theme` grew 2,766 B
+    // against a budget the package's whole claim rests on.
+    //
+    // They are a reproduction of a specification, like boxen's border table: the test pins
+    // them to five reference values computed outside this file, which is a stronger guarantee
+    // than a name. `max-parameters` for `degrade`/`resolve` is the same trade — the colour,
+    // the ground and the floor all have to arrive somewhere.
+    files: ['packages/roundel/src/theme.ts'],
+    rules: {
+      'conventions/no-magic-numbers': 'off',
+      'maintainability/max-parameters': 'off',
+    },
+  },
+
   // ── The benchmark suite (intent cli-benchmarks) ───────────────────────────
   {
     // `benchmarks/run.ts` and the axes are process entry points with nothing to export
