@@ -154,7 +154,13 @@ function absorb(into: Map<string, Watched>, declaration: Declaration, subpath: s
   if (RANK[entry.claim] > RANK[watched.strongest]) watched.strongest = entry.claim;
   // The first recorded fingerprint wins; a second declaration of the same package is the
   // same upstream release, so a second copy would only be a chance to disagree.
-  watched.seen ??= entry.seen;
+  // The trailing coalesce is load-bearing. An entry's fingerprint is optional, so a
+  // competitor that is declared but not yet fingerprinted carries none, and the nullish
+  // assignment alone would store that absence as undefined in a field typed to hold null.
+  // Both readers in `watch.ts` test for null identity, which an undefined slips past, into
+  // a property read that throws — turning the day-one "record, do not report" case into a
+  // competitor the watch reports as a failed fetch.
+  watched.seen ??= entry.seen ?? null;
   into.set(key, watched);
 }
 
