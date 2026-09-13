@@ -26,9 +26,9 @@
  *
  * Still at the Design→Build gate: the R2 ASCII fast path.
  */
+export { lineCount, measure, width, width as default, type WidthOptions } from './width.js';
 export { slice } from './slice.js';
 export { strip } from './strip.js';
 export { truncate, type TruncateOptions } from './truncate.js';
-export { lineCount, measure, width, width as default, type WidthOptions } from './width.js';
 export { widest } from './widest.js';
 export { wrap, type WrapOptions } from './wrap.js';

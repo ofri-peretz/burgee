@@ -7,9 +7,29 @@
  * middle stop, this goes red with the measured ratio attached, which is the only
  * form of the argument that survives a year.
  */
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
 import { AA, auditBurgee, contrast, fieldColorAt, luminance, mix, report } from './contrast.js';
+
+/**
+ * The reference values, read from where they live.
+ *
+ * These were written as Y1's mitigation for a duplicated implementation — "the two copies
+ * share a test-vector file" — and for five days only roundel's test read them. **#194 removed
+ * the duplication**: `contrast` here is roundel's, imported. So this is no longer a drift lock
+ * between copies; it is what it should have been from the start, a check that the numbers this
+ * package hands its callers match values computed outside the code that produces them.
+ *
+ * Reading a sibling's JSON fixture is not an import: `files` does not ship it and the weight
+ * and shape locks see no edge.
+ */
+const VECTORS = JSON.parse(
+   
+  readFileSync(new URL('../../roundel/src/contrast-vectors.json', import.meta.url), 'utf8'),
+) as ReadonlyArray<{ a: string; b: string; ratio: number }>;
+
 
 const ROCK = '#a84c17';
 const JUNIPER = '#0a6b47';
@@ -84,5 +104,19 @@ describe("burgee's own flag", () => {
     });
     expect(broken.every((f) => !f.passes)).toBe(true);
     expect(report(broken)).toContain('FAIL');
+  });
+});
+
+describe('the reference vectors', () => {
+  it('actually found the vectors — an empty `it.each` passes in silence', () => {
+    // Non-empty, because `it.each([])` passes silently and that is exactly how a drift lock
+    // goes quiet: the file moves, the read returns nothing, and both suites stay green.
+    expect(VECTORS.length).toBeGreaterThanOrEqual(13);
+  });
+
+  it.each(VECTORS)('$a on $b is $ratio:1', ({ a, b, ratio }) => {
+    expect(contrast(a, b)).toBeCloseTo(ratio, 2);
+    // Symmetric by definition: a ratio that depends on argument order is not a ratio.
+    expect(contrast(b, a)).toBeCloseTo(ratio, 2);
   });
 });
