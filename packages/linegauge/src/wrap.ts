@@ -1,4 +1,4 @@
-import { ASCII_PRINTABLE, ROW_BOUNDARY, TAB_SIZE, applyLeadingResets, applyParameters, closingSequence, forEachSegment, hyperlink, matchEscape, openingSequence, segmenter, sgr, visibleWidth, type ActiveStyle } from './style.js';
+import { ASCII_PRINTABLE, ROW_BOUNDARY, TAB_SIZE, applyLeadingResets, applyParameters, closingSequence, forEachSegment, hyperlink, matchEscape, openingSequence, segmenter, sgr, type ActiveStyle } from './style.js';
 /**
  * Wrapping text that carries ANSI, ported from wrap-ansi 10 — the third dependency the
  * render façades share, after the spinner corpus and the width function (R7, R10).
@@ -14,6 +14,15 @@ import { ASCII_PRINTABLE, ROW_BOUNDARY, TAB_SIZE, applyLeadingResets, applyParam
  * is graded against `string-width`: the incumbent is the specification.
  */
 import { measure } from './width.js';
+
+/** The visible width of a string, escape sequences ignored. */
+export function visibleWidth(string: string): number {
+  let plainText = '';
+  forEachSegment(string, (part) => {
+    plainText += part;
+  });
+  return measure(plainText);
+}
 
 
 interface Token {
