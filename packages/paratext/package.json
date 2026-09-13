@@ -1,0 +1,56 @@
+{
+  "name": "paratext",
+  "version": "0.1.0",
+  "description": "Everything around your terminal output that is not the output: hyperlinks, images, window title, clipboard, notifications and the bell — each with a static fallback for terminals that cannot do it. Drop-in paths for ansi-escapes, terminal-link and term-img. Zero dependencies.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./schema.json": "./dist/schema.json"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "!dist/**/*.test.*"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "lint": "eslint src",
+    "coverage": "vitest run --coverage.enabled"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ofri-peretz/burgee.git",
+    "directory": "packages/paratext"
+  },
+  "homepage": "https://github.com/ofri-peretz/burgee/tree/main/packages/paratext#readme",
+  "bugs": {
+    "url": "https://github.com/ofri-peretz/burgee/issues"
+  },
+  "keywords": [
+    "cli",
+    "terminal",
+    "ansi",
+    "osc",
+    "hyperlink",
+    "terminal-link",
+    "ansi-escapes",
+    "clipboard",
+    "notification",
+    "image",
+    "title",
+    "bell"
+  ],
+  "devDependencies": {
+    "vitest": "^4.0.0"
+  }
+}
