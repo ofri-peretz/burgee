@@ -8,24 +8,24 @@
  * cannot apply to this codebase, or a documented false positive tracked in the
  * eslint monorepo. `--max-warnings 0` in CI; nothing is at `warn`.
  */
-import tsPlugin from '@typescript-eslint/eslint-plugin';
-import tsParser from '@typescript-eslint/parser';
-import browserSecurity from 'eslint-plugin-browser-security';
-import conventions from 'eslint-plugin-conventions';
-import importNext from 'eslint-plugin-import-next';
-import maintainability from 'eslint-plugin-maintainability';
-import modernization from 'eslint-plugin-modernization';
-import modularity from 'eslint-plugin-modularity';
-import nodeSecurity from 'eslint-plugin-node-security';
-import operability from 'eslint-plugin-operability';
-import reactA11y from 'eslint-plugin-react-a11y';
-import reactFeatures from 'eslint-plugin-react-features';
-import reliability from 'eslint-plugin-reliability';
-import secureCoding from 'eslint-plugin-secure-coding';
+import tsPlugin from "@typescript-eslint/eslint-plugin";
+import tsParser from "@typescript-eslint/parser";
+import browserSecurity from "eslint-plugin-browser-security";
+import conventions from "eslint-plugin-conventions";
+import importNext from "eslint-plugin-import-next";
+import maintainability from "eslint-plugin-maintainability";
+import modernization from "eslint-plugin-modernization";
+import modularity from "eslint-plugin-modularity";
+import nodeSecurity from "eslint-plugin-node-security";
+import operability from "eslint-plugin-operability";
+import reactA11y from "eslint-plugin-react-a11y";
+import reactFeatures from "eslint-plugin-react-features";
+import reliability from "eslint-plugin-reliability";
+import secureCoding from "eslint-plugin-secure-coding";
 
-const TSX_FILES = ['apps/**/*.tsx'];
+const TSX_FILES = ["apps/**/*.tsx"];
 /** Everything that ships to a browser: the docs app's components and routes. */
-const BROWSER_FILES = ['apps/**/*.{ts,tsx}'];
+const BROWSER_FILES = ["apps/**/*.{ts,tsx}"];
 
 /**
  * Every non-deprecated rule of `plugin`, under `ns`, at `error` unless OFF
@@ -37,52 +37,59 @@ function everyRule(ns, plugin, { off = {}, options = {} } = {}) {
   const table = (plugin.default ?? plugin).rules;
   const rules = {};
   for (const [name, rule] of Object.entries(table)) {
-    if (name.includes('/') || rule.meta?.deprecated) continue;
+    if (name.includes("/") || rule.meta?.deprecated) continue;
     const id = `${ns}/${name}`;
-    if (name in off) rules[id] = 'off';
-    else if (name in options) rules[id] = ['error', options[name]];
-    else rules[id] = 'error';
+    if (name in off) rules[id] = "off";
+    else if (name in options) rules[id] = ["error", options[name]];
+    else rules[id] = "error";
   }
   return rules;
 }
 
 // ── Exceptions, each with its reason ────────────────────────────────────────
 const OFF = {
-  'import-next': {
+  "import-next": {
     // Conflicting pairs: this repo uses named exports; default exports only where
     // a framework demands them (Next.js route files, config files — see below).
-    'prefer-default-export': 'conflicts with no-default-export; named exports win',
-    'no-named-export': 'conflicts with the named-export policy',
-    order: 'duplicate of enforce-import-order',
-    'no-nodejs-modules': 'this is a Node CLI toolkit; node builtins are the point',
-    'no-internal-modules': 'fumadocs and next are consumed via documented subpaths',
-    'dynamic-import-chunkname': 'webpack-only annotation; Turbopack ignores it',
+    "prefer-default-export":
+      "conflicts with no-default-export; named exports win",
+    "no-named-export": "conflicts with the named-export policy",
+    order: "duplicate of enforce-import-order",
+    "no-nodejs-modules":
+      "this is a Node CLI toolkit; node builtins are the point",
+    "no-internal-modules":
+      "fumadocs and next are consumed via documented subpaths",
+    "dynamic-import-chunkname": "webpack-only annotation; Turbopack ignores it",
     // Resolver noise until a TS-aware import resolver is wired (same as interlace).
-    'no-unresolved': 'default resolver cannot map ESM .js specifiers to .ts sources',
+    "no-unresolved":
+      "default resolver cannot map ESM .js specifiers to .ts sources",
   },
-  'secure-coding': {},
-  'node-security': {},
+  "secure-coding": {},
+  "node-security": {},
   conventions: {},
   maintainability: {},
   modernization: {},
   modularity: {},
   operability: {},
   reliability: {},
-  'react-a11y': {},
-  'react-features': {},
-  'browser-security': {},
+  "react-a11y": {},
+  "react-features": {},
+  "browser-security": {},
 };
 
 const OPTIONS = {
-  'import-next': {
+  "import-next": {
     // Side-effect imports are how Next loads global CSS.
-    'no-unassigned-import': { allowModules: ['./global.css'] },
+    "no-unassigned-import": { allowModules: ["./global.css"] },
     // NodeNext packages must write `./index.js`; TS/TSX source imports never carry one.
-    extensions: { default: 'never', pattern: { js: 'always', mjs: 'always', json: 'always', css: 'always' } },
+    extensions: {
+      default: "never",
+      pattern: { js: "always", mjs: "always", json: "always", css: "always" },
+    },
   },
   conventions: {
     // Tool config files are named by their tools (next.config.mjs, vitest.config.ts).
-    'filename-case': { case: 'kebabCase', ignore: [/\.config\.m?[jt]s$/] },
+    "filename-case": { case: "kebabCase", ignore: [/\.config\.m?[jt]s$/] },
   },
 };
 
@@ -91,40 +98,43 @@ export default [
     ignores: [
       // Agent worktrees are whole copies of this repo. Linting them lints every
       // file twice and fails on whatever a stale copy still contains.
-      '.claude/**',
-      '**/dist/**',
-      '**/.next/**',
-      '**/.source/**',
-      '**/.turbo/**',
+      ".claude/**",
+      "**/dist/**",
+      "**/.next/**",
+      "**/.source/**",
+      "**/.turbo/**",
       // `vercel pull`/`vercel build` write here, at the REPO ROOT now that the Vercel
       // project deploys from the root. It is Vercel's generated Build Output API tree
       // (bundled launchers, vendored CommonJS), it is gitignored, and linting it buries
       // real findings under hundreds of errors from code nobody here wrote.
-      '**/.vercel/**',
-      '**/node_modules/**',
-      '**/coverage/**',
-      '**/.dev-fixtures/**',
-      '.sdlc/research/issues/**',
-      'apps/docs/next-env.d.ts',
+      "**/.vercel/**",
+      "**/node_modules/**",
+      "**/coverage/**",
+      "**/.dev-fixtures/**",
+      ".sdlc/research/issues/**",
+      "apps/docs/next-env.d.ts",
       // Vendored upstream test suites (compat-oracle C6). They are the hosts' own
       // files, unmodified except one import specifier, and are graded, never linted:
       // "fixing" them would grade our reading of the host instead of the host.
-      'packages/*/vendor/**',
+      "packages/*/vendor/**",
     ],
   },
   {
-    files: ['**/*.ts', '**/*.tsx', '**/*.mts', '**/*.cts'],
-    plugins: { '@typescript-eslint': tsPlugin },
-    languageOptions: { parser: tsParser, parserOptions: { ecmaFeatures: { jsx: true } } },
+    files: ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
+    plugins: { "@typescript-eslint": tsPlugin },
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: { ecmaFeatures: { jsx: true } },
+    },
   },
 
   // ── Everything, everywhere ────────────────────────────────────────────────
   {
     plugins: {
-      'secure-coding': secureCoding,
-      'node-security': nodeSecurity,
+      "secure-coding": secureCoding,
+      "node-security": nodeSecurity,
       conventions,
-      'import-next': importNext,
+      "import-next": importNext,
       maintainability,
       modernization,
       modularity,
@@ -132,25 +142,39 @@ export default [
       reliability,
     },
     rules: {
-      ...everyRule('secure-coding', secureCoding, { off: OFF['secure-coding'] }),
-      ...everyRule('node-security', nodeSecurity, { off: OFF['node-security'] }),
-      ...everyRule('conventions', conventions, { off: OFF.conventions, options: OPTIONS.conventions }),
-      ...everyRule('import-next', importNext, { off: OFF['import-next'], options: OPTIONS['import-next'] }),
-      ...everyRule('maintainability', maintainability, { off: OFF.maintainability }),
-      ...everyRule('modernization', modernization, { off: OFF.modernization }),
-      ...everyRule('modularity', modularity, { off: OFF.modularity }),
-      ...everyRule('operability', operability, { off: OFF.operability }),
-      ...everyRule('reliability', reliability, { off: OFF.reliability }),
+      ...everyRule("secure-coding", secureCoding, {
+        off: OFF["secure-coding"],
+      }),
+      ...everyRule("node-security", nodeSecurity, {
+        off: OFF["node-security"],
+      }),
+      ...everyRule("conventions", conventions, {
+        off: OFF.conventions,
+        options: OPTIONS.conventions,
+      }),
+      ...everyRule("import-next", importNext, {
+        off: OFF["import-next"],
+        options: OPTIONS["import-next"],
+      }),
+      ...everyRule("maintainability", maintainability, {
+        off: OFF.maintainability,
+      }),
+      ...everyRule("modernization", modernization, { off: OFF.modernization }),
+      ...everyRule("modularity", modularity, { off: OFF.modularity }),
+      ...everyRule("operability", operability, { off: OFF.operability }),
+      ...everyRule("reliability", reliability, { off: OFF.reliability }),
     },
   },
 
   // ── React, docs app only ──────────────────────────────────────────────────
   {
     files: TSX_FILES,
-    plugins: { 'react-a11y': reactA11y, 'react-features': reactFeatures },
+    plugins: { "react-a11y": reactA11y, "react-features": reactFeatures },
     rules: {
-      ...everyRule('react-a11y', reactA11y, { off: OFF['react-a11y'] }),
-      ...everyRule('react-features', reactFeatures, { off: OFF['react-features'] }),
+      ...everyRule("react-a11y", reactA11y, { off: OFF["react-a11y"] }),
+      ...everyRule("react-features", reactFeatures, {
+        off: OFF["react-features"],
+      }),
     },
   },
 
@@ -160,16 +184,25 @@ export default [
   // and that is exactly the surface this plugin grades.
   {
     files: BROWSER_FILES,
-    plugins: { 'browser-security': browserSecurity },
+    plugins: { "browser-security": browserSecurity },
     rules: {
-      ...everyRule('browser-security', browserSecurity, { off: OFF['browser-security'] }),
+      ...everyRule("browser-security", browserSecurity, {
+        off: OFF["browser-security"],
+      }),
     },
   },
 
   // ── Framework-mandated default exports ────────────────────────────────────
   {
-    files: ['apps/docs/src/app/**', 'apps/docs/source.config.ts', 'apps/docs/src/mdx-components.tsx', '**/*.config.{js,mjs,ts,mts}', 'eslint.config.mjs', 'commitlint.config.mjs'],
-    rules: { 'import-next/no-default-export': 'off' },
+    files: [
+      "apps/docs/src/app/**",
+      "apps/docs/source.config.ts",
+      "apps/docs/src/mdx-components.tsx",
+      "**/*.config.{js,mjs,ts,mts}",
+      "eslint.config.mjs",
+      "commitlint.config.mjs",
+    ],
+    rules: { "import-next/no-default-export": "off" },
   },
 
   {
@@ -177,10 +210,10 @@ export default [
     // a config, not source reading source, and the alternative is the same exclusion list
     // copied into four files — which is how it drifts and how a façade quietly starts being
     // counted again. The packages themselves still depend on nothing.
-    files: ['packages/*/vitest.config.ts'],
+    files: ["packages/*/vitest.config.ts"],
     rules: {
-      'import-next/no-relative-parent-imports': 'off',
-      'import-next/no-relative-packages': 'off',
+      "import-next/no-relative-parent-imports": "off",
+      "import-next/no-relative-packages": "off",
     },
   },
 
@@ -188,37 +221,37 @@ export default [
   {
     // Tests import the package's public entry on purpose; scripts and tests are
     // entry points with nothing to export.
-    files: ['**/*.test.ts', 'scripts/**'],
+    files: ["**/*.test.ts", "scripts/**"],
     rules: {
-      'import-next/no-barrel-import': 'off',
-      'import-next/no-unused-modules': ['error', { allowImportOnly: true }],
+      "import-next/no-barrel-import": "off",
+      "import-next/no-unused-modules": ["error", { allowImportOnly: true }],
     },
   },
   {
     // Scripts are process entry points; their exit code is their contract (E1).
-    files: ['scripts/**'],
-    rules: { 'operability/no-process-exit': 'off' },
+    files: ["scripts/**"],
+    rules: { "operability/no-process-exit": "off" },
   },
   {
     // The lint config imports every plugin by design.
-    files: ['eslint.config.mjs'],
-    rules: { 'import-next/max-dependencies': 'off' },
+    files: ["eslint.config.mjs"],
+    rules: { "import-next/max-dependencies": "off" },
   },
   {
     // Docs copy is static English; i18n is out of scope (design.md).
     files: TSX_FILES,
-    rules: { 'react-features/jsx-no-literals': 'off' },
+    rules: { "react-features/jsx-no-literals": "off" },
   },
   {
     // next/og renders this once on the server through satori: inline styles
     // are the only styling it understands, there is no CSS, no token, no
     // re-render. The brand hex values here are the dark-theme tokens verbatim.
-    files: ['apps/docs/src/app/opengraph-image.tsx'],
+    files: ["apps/docs/src/app/opengraph-image.tsx"],
     rules: {
-      'react-features/no-raw-color-literal': 'off',
-      'react-features/no-inline-style': 'off',
-      'react-features/react-render-optimization': 'off',
-      'react-features/no-unnecessary-rerenders': 'off',
+      "react-features/no-raw-color-literal": "off",
+      "react-features/no-inline-style": "off",
+      "react-features/react-render-optimization": "off",
+      "react-features/no-unnecessary-rerenders": "off",
     },
   },
 
@@ -253,13 +286,13 @@ export default [
   // element (case-insensitive tag match). Finding 5.
   {
     files: TSX_FILES,
-    rules: { 'react-features/void-dom-elements-no-children': 'off' },
+    rules: { "react-features/void-dom-elements-no-children": "off" },
   },
   // Two specifiers no package.json can declare: fumadocs' virtual module
   // `fumadocs-mdx:collections/server` and the types-only `mdx/types`.
   {
-    files: ['apps/docs/src/lib/source.ts', 'apps/docs/src/mdx-components.tsx'],
-    rules: { 'import-next/no-extraneous-dependencies': 'off' },
+    files: ["apps/docs/src/lib/source.ts", "apps/docs/src/mdx-components.tsx"],
+    rules: { "import-next/no-extraneous-dependencies": "off" },
   },
   // scripts/lint-workflows.ts (copied verbatim from ofri-peretz/eslint):
   //   - no-console-spaces reads a template literal whose interpolation sits
@@ -272,47 +305,47 @@ export default [
   // The xpath / resource-allocation / extraneous-dependencies overrides that
   // used to sit here were fixed upstream (ofri-peretz/eslint#894) and removed.
   {
-    files: ['scripts/lint-workflows.ts'],
+    files: ["scripts/lint-workflows.ts"],
     rules: {
-      'conventions/no-console-spaces': 'off',
-      'secure-coding/no-improper-type-validation': 'off',
+      "conventions/no-console-spaces": "off",
+      "secure-coding/no-improper-type-validation": "off",
     },
   },
   // ── SDLC scripts (scripts/control-bands.ts, scripts/run-evals.ts, tests) ──
   {
     // Test files: numbers in fixtures are the fixture.
-    files: ['**/*.test.ts'],
+    files: ["**/*.test.ts"],
     rules: {
-      'conventions/no-magic-numbers': 'off',
+      "conventions/no-magic-numbers": "off",
       // FP 9: a test that writes a package.json fixture has a `version` field that
       // must be an exact version, not a caret range. The rule reads any object
       // literal with a `version` key as a dependency map.
-      'conventions/prefer-dependency-version-strategy': 'off',
+      "conventions/prefer-dependency-version-strategy": "off",
     },
   },
   {
-    files: ['scripts/**'],
+    files: ["scripts/**"],
     rules: {
       // Findings 3 and 6 (see above), which the ported scripts trip in the same
       // shapes: directory-bounded loops and `${x}` next to a space in console text.
-      'secure-coding/no-unlimited-resource-allocation': 'off',
-      'conventions/no-console-spaces': 'off',
+      "secure-coding/no-unlimited-resource-allocation": "off",
+      "conventions/no-console-spaces": "off",
       // Maps keyed by band id from .sdlc/bands/control-bands.json, a committed file, not
       // input; the rule cannot tell the two apart.
-      'secure-coding/detect-object-injection': 'off',
+      "secure-coding/detect-object-injection": "off",
       // Rethrowing a caught error after an ENOENT check keeps the original error.
-      'maintainability/no-missing-error-context': 'off',
+      "maintainability/no-missing-error-context": "off",
     },
   },
   {
     // The watcher imports eslint.config.mjs to count rules; the evals runner runs
     // shell checks written in committed case files. Both are repo-owned inputs.
-    files: ['scripts/control-bands.ts'],
-    rules: { 'node-security/no-dynamic-dependency-loading': 'off' },
+    files: ["scripts/control-bands.ts"],
+    rules: { "node-security/no-dynamic-dependency-loading": "off" },
   },
   {
-    files: ['scripts/run-evals.ts'],
-    rules: { 'node-security/no-dynamic-command-string': 'off' },
+    files: ["scripts/run-evals.ts"],
+    rules: { "node-security/no-dynamic-command-string": "off" },
   },
   // ── The two host front-ends, now that each is a directory ─────────────────
   {
@@ -325,8 +358,11 @@ export default [
     // That is the dependency arrow the package is built on and the one the weight lock
     // already asserts, not an unclear one. The rule stays on everywhere else in the
     // package, including on the engine, which must never reach *down* into a front-end.
-    files: ['packages/burgee/src/commander/**/*.ts', 'packages/burgee/src/yargs/**/*.ts'],
-    rules: { 'import-next/no-relative-parent-imports': 'off' },
+    files: [
+      "packages/burgee/src/commander/**/*.ts",
+      "packages/burgee/src/yargs/**/*.ts",
+    ],
+    rules: { "import-next/no-relative-parent-imports": "off" },
   },
 
   // ── The benchmark suite (intent cli-benchmarks) ───────────────────────────
@@ -335,11 +371,11 @@ export default [
     // to the rest of the tree, and the design's layout (design.md) puts each axis in
     // `axes/` beside the modules it shares with the others — `record.ts`, `stats.ts`,
     // `bands.ts` — so every axis reaches one directory up by construction.
-    files: ['benchmarks/**'],
+    files: ["benchmarks/**"],
     rules: {
-      'import-next/no-relative-parent-imports': 'off',
-      'import-next/no-barrel-import': 'off',
-      'import-next/no-unused-modules': ['error', { allowImportOnly: true }],
+      "import-next/no-relative-parent-imports": "off",
+      "import-next/no-barrel-import": "off",
+      "import-next/no-unused-modules": ["error", { allowImportOnly: true }],
     },
   },
   {
@@ -347,23 +383,23 @@ export default [
     // decide whether the agent did what was asked. It is repo-owned input, the same
     // shape `scripts/run-evals.ts` runs its case checks in, and there is no way to
     // express "whatever this task says success means" as an argument array.
-    files: ['benchmarks/axes/agent.ts', 'benchmarks/tasks.test.ts'],
-    rules: { 'node-security/no-dynamic-command-string': 'off' },
+    files: ["benchmarks/axes/agent.ts", "benchmarks/tasks.test.ts"],
+    rules: { "node-security/no-dynamic-command-string": "off" },
   },
   {
     // The published numbers *are* the content of this file: 52 KB, 1,360 commander
     // cases, 804 yargs. Naming each one a constant would put the number one line
     // further from the claim it settles, which is the opposite of the point.
-    files: ['benchmarks/claims.ts'],
-    rules: { 'conventions/no-magic-numbers': 'off' },
+    files: ["benchmarks/claims.ts"],
+    rules: { "conventions/no-magic-numbers": "off" },
   },
   {
     // Spawned as programs, never imported: each is one variant of the same trivial CLI,
     // and the floor row (`node.mjs`) deliberately has no parser and so no import at all.
-    files: ['benchmarks/fixtures/cold-start/**'],
+    files: ["benchmarks/fixtures/cold-start/**"],
     rules: {
-      'import-next/no-unused-modules': 'off',
-      'import-next/unambiguous': 'off',
+      "import-next/no-unused-modules": "off",
+      "import-next/unambiguous": "off",
     },
   },
   {
@@ -371,43 +407,49 @@ export default [
     // parser loads it by that name. The specifier is the user's own config talking about
     // the user's own filesystem — there is no static import that expresses "whatever
     // `extends` says", so reproducing yargs here means reproducing the dynamic load.
-    files: ['packages/burgee/src/yargs-parser.ts', 'packages/burgee/src/yargs/utils.ts'],
-    rules: { 'node-security/no-dynamic-dependency-loading': 'off' },
+    files: [
+      "packages/burgee/src/yargs-parser.ts",
+      "packages/burgee/src/yargs/utils.ts",
+    ],
+    rules: { "node-security/no-dynamic-dependency-loading": "off" },
   },
   {
     // The one line the compatibility gate turns on. `COMPAT_TARGET` is not ambient input:
     // run.ts sets it on the child it spawns (`env: { ...process.env, COMPAT_TARGET: target }`),
     // so the value is this harness naming its own grading target. compat-oracle is
     // `private: true` and never published.
-    files: ['packages/compat-oracle/src/shim.ts'],
-    rules: { 'node-security/no-unsafe-dynamic-require': 'off' },
+    files: ["packages/compat-oracle/src/shim.ts"],
+    rules: { "node-security/no-unsafe-dynamic-require": "off" },
   },
   {
     // The dependents ranker calls three public APIs with no key and no quota to spare:
     // one request at a time, with a pause between pages, is the politeness the sources ask
     // for. Sequential await is the contract (ponytail: parallelise past 2k candidates).
-    files: ['scripts/rank-dependents.ts'],
-    rules: { 'reliability/no-await-in-loop': 'off' },
+    files: ["scripts/rank-dependents.ts"],
+    rules: { "reliability/no-await-in-loop": "off" },
   },
   // ── Harness and demo packages (intent cli-testing-harness) ────────────────
   {
     // Tests that prove console capture must call console.
-    files: ['**/*.test.ts'],
+    files: ["**/*.test.ts"],
     rules: {
-      'operability/no-console-log': 'off',
-      'operability/no-debug-code-in-production': 'off',
+      "operability/no-console-log": "off",
+      "operability/no-debug-code-in-production": "off",
     },
   },
   {
     // Two of the three files allowed to touch `process` (process-reference-lock.test.ts):
     // the real runtime's exit, and the harness's env/console swap by enumerated keys.
     // The third, burgee/src/index.ts, has its own block above.
-    files: ['packages/burgee/src/runtime.ts', 'packages/burgee/src/testing-helpers.ts'],
+    files: [
+      "packages/burgee/src/runtime.ts",
+      "packages/burgee/src/testing-helpers.ts",
+    ],
     rules: {
-      'operability/no-process-exit': 'off',
-      'secure-coding/detect-object-injection': 'off',
-      'maintainability/no-missing-error-context': 'off',
-      'reliability/no-missing-error-context': 'off',
+      "operability/no-process-exit": "off",
+      "secure-coding/detect-object-injection": "off",
+      "maintainability/no-missing-error-context": "off",
+      "reliability/no-missing-error-context": "off",
     },
   },
   {
@@ -415,38 +457,51 @@ export default [
     // (`import { type X } from './m.js'`) emits `import {} from './m.js'` — a real
     // module load for no value, worth ~5ms of startup here. A type-only import must
     // be top-level so it erases completely.
-    files: ['packages/burgee/src/execute.ts', 'packages/burgee/src/help.ts', 'packages/burgee/src/schema.ts'],
-    rules: { 'import-next/consistent-type-specifier-style': 'off' },
+    files: [
+      "packages/burgee/src/execute.ts",
+      "packages/burgee/src/help.ts",
+      "packages/burgee/src/schema.ts",
+    ],
+    rules: { "import-next/consistent-type-specifier-style": "off" },
   },
   {
     // Config discovery loads the user's own config file: a JSON read, or a dynamic import
     // of a JavaScript config — that import is the feature (V6, yargs #2234), not a
     // dependency loaded by name. `extends` parents are awaited in order because order is the
     // merge semantics (V7). ConfigError takes its message first, like UsageError (FP 10).
-    files: ['packages/burgee/src/config.ts'],
+    files: [
+      "packages/burgee/src/config.ts",
+      "packages/seniority/src/config.ts",
+    ],
     rules: {
-      'node-security/no-dynamic-dependency-loading': 'off',
-      'performance/no-await-in-loop': 'off',
-      'reliability/no-await-in-loop': 'off',
-      'maintainability/no-missing-error-context': 'off',
-      'reliability/no-missing-error-context': 'off',
-      'maintainability/no-unhandled-promise': 'off',
-      'reliability/no-unhandled-promise': 'off',
+      "node-security/no-dynamic-dependency-loading": "off",
+      "performance/no-await-in-loop": "off",
+      "reliability/no-await-in-loop": "off",
+      "maintainability/no-missing-error-context": "off",
+      "reliability/no-missing-error-context": "off",
+      "maintainability/no-unhandled-promise": "off",
+      "reliability/no-unhandled-promise": "off",
     },
   },
   {
     // The request loop awaits each JSON-RPC message before reading the next: stdio MCP
     // is ordered, and a tool call runs a command whose output must not interleave with
     // another's.
-    files: ['packages/burgee/src/mcp.ts'],
-    rules: { 'performance/no-await-in-loop': 'off', 'reliability/no-await-in-loop': 'off' },
+    files: ["packages/burgee/src/mcp.ts"],
+    rules: {
+      "performance/no-await-in-loop": "off",
+      "reliability/no-await-in-loop": "off",
+    },
   },
   {
     // Plugin hooks run strictly in order — `enforce: 'pre'`, then unordered, then
     // `'post'` — and a hook may depend on what an earlier one did. Sequential await
     // is the contract, not an oversight.
-    files: ['packages/burgee/src/manifest.ts'],
-    rules: { 'performance/no-await-in-loop': 'off', 'reliability/no-await-in-loop': 'off' },
+    files: ["packages/burgee/src/manifest.ts"],
+    rules: {
+      "performance/no-await-in-loop": "off",
+      "reliability/no-await-in-loop": "off",
+    },
   },
   {
     // FP 13: no-missing-error-context reads `throw new Error(message)` as an error without
@@ -457,13 +512,20 @@ export default [
     // takes the error's code as a parameter, so the first argument to `new PluginError` is
     // a variable and the rule stops looking — the message and the fix are right there in
     // arguments two and three.
-    files: ['packages/burgee/src/cli.ts', 'packages/flagstaff/src/cli.ts', 'packages/flagstaff/src/plugin.ts'],
-    rules: { 'maintainability/no-missing-error-context': 'off', 'reliability/no-missing-error-context': 'off' },
+    files: [
+      "packages/burgee/src/cli.ts",
+      "packages/flagstaff/src/cli.ts",
+      "packages/flagstaff/src/plugin.ts",
+    ],
+    rules: {
+      "maintainability/no-missing-error-context": "off",
+      "reliability/no-missing-error-context": "off",
+    },
   },
   {
     // A package's `bin` entry has no exports by design: it is the program, not a module.
-    files: ['packages/flagstaff/src/cli.ts'],
-    rules: { 'import-next/no-unused-modules': 'off' },
+    files: ["packages/flagstaff/src/cli.ts"],
+    rules: { "import-next/no-unused-modules": "off" },
   },
   {
     // FP 8 (also seen in scripts/run-evals.ts): no-unhandled-promise fires on every call
@@ -476,56 +538,67 @@ export default [
     // `serve` loop `startMcp` split out.
     // flagstaff's `check` command has the same writer parameter, plus a top-level
     // `main().then(ok, fail)` whose second argument is the handler the rule looks for.
-    files: ['packages/compat-oracle/src/report.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/mcp.ts', 'packages/flagstaff/src/cli.ts'],
-    rules: { 'maintainability/no-unhandled-promise': 'off', 'reliability/no-unhandled-promise': 'off' },
+    files: [
+      "packages/compat-oracle/src/report.ts",
+      "packages/burgee/src/dev.ts",
+      "packages/burgee/src/mcp.ts",
+      "packages/flagstaff/src/cli.ts",
+    ],
+    rules: {
+      "maintainability/no-unhandled-promise": "off",
+      "reliability/no-unhandled-promise": "off",
+    },
   },
   {
     // A package's bin entry is executed, never imported, so it exports nothing.
-    files: ['packages/*/src/bin.ts'],
-    rules: { 'import-next/no-unused-modules': 'off' },
+    files: ["packages/*/src/bin.ts"],
+    rules: { "import-next/no-unused-modules": "off" },
   },
   {
     // burgee owns the process: a CLI framework's whole job is to parse, run and
     // exit with the E1 contract. `exit` is injectable (RunOptions.exit) so tests
     // never touch the real one; the default has to call process.exit.
-    files: ['packages/burgee/src/execute.ts', 'packages/burgee/src/precedence.ts'],
+    files: [
+      "packages/burgee/src/execute.ts",
+      "packages/burgee/src/precedence.ts",
+    ],
     rules: {
-      'operability/no-process-exit': 'off',
-      'secure-coding/detect-object-injection': 'off',
+      "operability/no-process-exit": "off",
+      "secure-coding/detect-object-injection": "off",
       // FP 10: UsageError's first parameter *is* the message and reaches super();
       // the rule only recognises `new Error(...)`.
-      'maintainability/no-missing-error-context': 'off',
-      'reliability/no-missing-error-context': 'off',
+      "maintainability/no-missing-error-context": "off",
+      "reliability/no-missing-error-context": "off",
     },
   },
   {
     // The shim exists to load a target chosen at run time — that dynamic import is
     // the entire compatibility mechanism, not an oversight.
-    files: ['packages/compat-oracle/src/shim.ts'],
+    files: ["packages/compat-oracle/src/shim.ts"],
     rules: {
-      'node-security/no-dynamic-dependency-loading': 'off',
-      'import-next/no-default-export': 'off',
+      "node-security/no-dynamic-dependency-loading": "off",
+      "import-next/no-default-export": "off",
     },
   },
   {
     // A package entry re-exports its modules; that is what an entry is for.
-    files: ['packages/*/src/index.ts'],
-    rules: { 'import-next/no-barrel-file': 'off' },
+    files: ["packages/*/src/index.ts"],
+    rules: { "import-next/no-barrel-file": "off" },
   },
   {
     // linegauge's default export *is* its compatibility contract (design R8, floor Y3):
     // `string-width`'s default is a default, so `overrides: { "string-width":
     // "npm:linegauge@^1" }` only resolves if ours is one too. Named exports are also
     // published beside it; this is the one that has to exist under that name.
-    files: ['packages/linegauge/src/index.ts'],
-    rules: { 'import-next/no-default-export': 'off' },
+    files: ["packages/linegauge/src/index.ts"],
+    rules: { "import-next/no-default-export": "off" },
   },
   {
     // Executable entry points import their own module and export nothing.
-    files: ['examples/*/src/bin.ts'],
+    files: ["examples/*/src/bin.ts"],
     rules: {
-      'import-next/no-barrel-import': 'off',
-      'import-next/no-unused-modules': ['error', { allowImportOnly: true }],
+      "import-next/no-barrel-import": "off",
+      "import-next/no-unused-modules": ["error", { allowImportOnly: true }],
     },
   },
   {
@@ -547,69 +620,76 @@ export default [
     // one. Reshaping the port to satisfy it would change the drawing, and the drawing is
     // the contract the 33 measure.
     files: [
-      'packages/burgee/src/commander.ts',
-      'packages/burgee/src/commander/**/*.ts',
+      "packages/burgee/src/commander.ts",
+      "packages/burgee/src/commander/**/*.ts",
       // Hoisted out of `commander/` when the front-ends became directories, because a
       // Damerau-Levenshtein distance is neither host's and the engine's `unknown-option.ts`
       // uses it too. It is still commander's port, still graded by commander's own suite,
       // and reshaping it to satisfy a complexity budget would change what those tests see.
-      'packages/burgee/src/suggest.ts',
-      'packages/burgee/src/yargs.ts',
-      'packages/burgee/src/yargs-helpers.ts',
-      'packages/burgee/src/yargs-parser.ts',
-      'packages/burgee/src/yargs/**/*.ts',
-      'packages/flagstaff/src/ora.ts',
-      'packages/flagstaff/src/log-update.ts',
+      "packages/burgee/src/suggest.ts",
+      "packages/burgee/src/yargs.ts",
+      "packages/burgee/src/yargs-helpers.ts",
+      "packages/burgee/src/yargs-parser.ts",
+      "packages/burgee/src/yargs/**/*.ts",
+      "packages/flagstaff/src/ora.ts",
+      "packages/flagstaff/src/log-update.ts",
       // Moved to `linegauge` with the port itself (F1). It is still wrap-ansi 10 line for
       // line, still graded differentially against the real `wrap-ansi`, and reshaping it to
       // satisfy a rule would change what that grader sees.
-      'packages/linegauge/src/wrap.ts',
-      'packages/linegauge/src/width.ts',
-      'packages/flagstaff/src/boxen.ts',
-      'packages/flagstaff/src/cli-table3.ts',
+      "packages/linegauge/src/wrap.ts",
+      "packages/linegauge/src/width.ts",
+      "packages/flagstaff/src/boxen.ts",
+      "packages/flagstaff/src/cli-table3.ts",
     ],
     rules: {
-      'maintainability/consistent-function-scoping': 'off',
-      'maintainability/cognitive-complexity': 'off',
-      'maintainability/identical-functions': 'off',
-      'maintainability/nested-complexity-hotspots': 'off',
-      'maintainability/max-parameters': 'off',
-      'maintainability/no-missing-error-context': 'off',
-      'reliability/no-missing-error-context': 'off',
-      'maintainability/no-unhandled-promise': 'off',
-      'reliability/no-unhandled-promise': 'off',
-      'reliability/no-unsafe-type-narrowing': 'off',
-      'secure-coding/detect-object-injection': 'off',
-      'secure-coding/no-improper-type-validation': 'off',
-      'conventions/no-magic-numbers': 'off',
-      'operability/no-process-exit': 'off',
-      'modernization/prefer-event-target': 'off',
-      'import-next/exports-last': 'off',
-      'import-next/consistent-type-specifier-style': 'off',
-      'import-next/no-barrel-file': 'off',
+      "maintainability/consistent-function-scoping": "off",
+      "maintainability/cognitive-complexity": "off",
+      "maintainability/identical-functions": "off",
+      "maintainability/nested-complexity-hotspots": "off",
+      "maintainability/max-parameters": "off",
+      "maintainability/no-missing-error-context": "off",
+      "reliability/no-missing-error-context": "off",
+      "maintainability/no-unhandled-promise": "off",
+      "reliability/no-unhandled-promise": "off",
+      "reliability/no-unsafe-type-narrowing": "off",
+      "secure-coding/detect-object-injection": "off",
+      "secure-coding/no-improper-type-validation": "off",
+      "conventions/no-magic-numbers": "off",
+      "operability/no-process-exit": "off",
+      "modernization/prefer-event-target": "off",
+      "import-next/exports-last": "off",
+      "import-next/consistent-type-specifier-style": "off",
+      "import-next/no-barrel-file": "off",
       // The yargs port adds: its module shape (yargs' own `if/else if` chains, nested
       // ternaries, empty catches that yargs documents as deliberate, a logger whose whole job
       // is console.log/console.error, yargs-parser's flag regexes, cliui's RegExp built from
       // a constant pattern, `new YError(msg)` where the message is the caller's).
-      'maintainability/no-lonely-if': 'off',
-      'maintainability/no-nested-ternary': 'off',
-      'maintainability/no-silent-errors': 'off',
-      'reliability/no-silent-errors': 'off',
-      'operability/no-console-log': 'off',
-      'operability/no-debug-code-in-production': 'off',
-      'secure-coding/no-redos-vulnerable-regex': 'off',
-      'secure-coding/detect-non-literal-regexp': 'off',
-      'maintainability/error-message': 'off',
-      'reliability/error-message': 'off',
+      "maintainability/no-lonely-if": "off",
+      "maintainability/no-nested-ternary": "off",
+      "maintainability/no-silent-errors": "off",
+      "reliability/no-silent-errors": "off",
+      "operability/no-console-log": "off",
+      "operability/no-debug-code-in-production": "off",
+      "secure-coding/no-redos-vulnerable-regex": "off",
+      "secure-coding/detect-non-literal-regexp": "off",
+      "maintainability/error-message": "off",
+      "reliability/error-message": "off",
       // FP 17 — see the list above.
-      'conventions/consistent-existence-index-check': 'off',
+      "conventions/consistent-existence-index-check": "off",
     },
   },
   {
     // `import yargs from 'burgee/yargs'` is the drop-in: yargs' entry is a default export
     // and every program written for it imports it that way.
-    files: ['packages/burgee/src/yargs.ts', 'packages/burgee/src/yargs-parser.ts', 'packages/flagstaff/src/ora.ts', 'packages/flagstaff/src/log-update.ts', 'packages/flagstaff/src/boxen.ts', 'packages/flagstaff/src/cli-table3.ts'],
-    rules: { 'import-next/no-default-export': 'off' },
+    files: [
+      "packages/burgee/src/yargs.ts",
+      "packages/burgee/src/yargs-parser.ts",
+      "packages/flagstaff/src/ora.ts",
+      "packages/flagstaff/src/log-update.ts",
+      "packages/flagstaff/src/boxen.ts",
+      "packages/flagstaff/src/cli-table3.ts",
+    ],
+    rules: { "import-next/no-default-export": "off" },
   },
   {
     // `roundel/chalk` is chalk 6 (roundel design R6): `import chalk from 'roundel/chalk'` is
@@ -617,11 +697,11 @@ export default [
     // written (naming each would double the file the R8 ceiling measures); the chain is a
     // Proxy whose keys come from those tables, and a link is a builder that builds the next
     // link — the recursion *is* the chain. chalk's own suite is the check.
-    files: ['packages/roundel/src/chalk.ts'],
+    files: ["packages/roundel/src/chalk.ts"],
     rules: {
-      'import-next/no-default-export': 'off',
-      'conventions/no-magic-numbers': 'off',
-      'secure-coding/detect-object-injection': 'off',
+      "import-next/no-default-export": "off",
+      "conventions/no-magic-numbers": "off",
+      "secure-coding/detect-object-injection": "off",
       // Added 2026-09-08 with R2's revision. These two files are the whole of what
       // `roundel/chalk` weighs besides the SGR tables, and R8 caps that graph at chalk
       // 6.0.0's own 9,370 bytes while capping `roundel/tokens` at picocolors' 3.3 KB —
@@ -630,24 +710,30 @@ export default [
       // of these level tables costs hundreds of published bytes against ceilings measured
       // in hundreds. The ternary chains are colour-level decision tables, read top to
       // bottom; `src/policy.test.ts` covers every branch of them, row by row.
-      'maintainability/no-nested-ternary': 'off',
+      "maintainability/no-nested-ternary": "off",
       // FP: `rgbToAnsi256(...rgb)` in `open()`, where the ternary above it has already
       // narrowed `rgb` to a tuple. The rule does not follow the narrowing.
-      'reliability/no-missing-null-checks': 'off',
+      "reliability/no-missing-null-checks": "off",
     },
   },
   {
     // `roundel/policy` is the floor every subpath stands on, so its bytes are multiplied by
     // every R8 ceiling in the package. See the note on `chalk.ts` above for why its level
     // tables are ternary chains rather than statements.
-    files: ['packages/roundel/src/policy.ts'],
-    rules: { 'maintainability/no-nested-ternary': 'off' },
+    files: ["packages/roundel/src/policy.ts"],
+    rules: { "maintainability/no-nested-ternary": "off" },
   },
   {
     // X7 fixture: the commander demo built on burgee/commander through commander's own
     // types. The one cast *is* the drop-in claim, and commander-parity.test.ts proves it
     // byte for byte — a structural interface here would restate commander's typings.
-    files: ['examples/demo-cli-commander/src/burgee.ts', 'examples/conformance/src/hosts.ts'],
-    rules: { 'reliability/no-unsafe-type-narrowing': 'off', 'secure-coding/no-unsafe-type-assertion': 'off' },
+    files: [
+      "examples/demo-cli-commander/src/burgee.ts",
+      "examples/conformance/src/hosts.ts",
+    ],
+    rules: {
+      "reliability/no-unsafe-type-narrowing": "off",
+      "secure-coding/no-unsafe-type-assertion": "off",
+    },
   },
 ];
