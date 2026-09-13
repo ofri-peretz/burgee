@@ -53,9 +53,14 @@ export interface Registry {
 /** Two seconds: long enough to flush a file, short enough that nobody reaches for the keyboard. */
 export const DEFAULT_DEADLINE = 2000;
 
+/*
+ * `console.error`, not `process.stderr`: process belongs to the Runtime seam, and a
+ * registry built by hand — the layer is usable on its own — still has to report a failed
+ * handler somewhere. Callers that own a stream pass `onError`.
+ */
 const reportToStderr = (error: unknown): void => {
   const message = error instanceof Error ? (error.stack ?? error.message) : String(error);
-  process.stderr.write(`closeout: a handler failed during shutdown\n${message}\n`);
+  console.error(`closeout: a handler failed during shutdown\n${message}`);
 };
 
 /*
