@@ -116,6 +116,28 @@ export function measure(text: string): number {
 }
 
 /**
+ * Printable ASCII is one column per code unit, and nothing that makes `measure` correct can
+ * change that answer: there are no escape sequences, no combining marks and no emoji between
+ * 0x20 and 0x7E. `countAnsiEscapeCodes` cannot change it either — `ESC` is 0x1B, below the
+ * range, so a string this accepts has no escapes to count.
+ *
+ * It is not a micro-optimisation. `widest` over many lines is one `Intl.Segmenter` walk per
+ * line, and `truncate.test.ts`'s 200,000-line case — the one proving `widest` survives where
+ * `Math.max(...)` throws — timed out at five seconds without this. ASCII is the common line.
+ */
+function asciiColumns(text: string): number | undefined {
+  for (let i = 0; i < text.length; i += 1) {
+    // `codePointAt` over `charCodeAt` (Interlace unicode-safety rule, and it is the right
+    // call): on a surrogate pair this returns the whole code point, which is above 0x7E and
+    // bails to the full path. `charCodeAt` would have seen a lone high surrogate instead.
+    // `?? 0` cannot mislead — 0 is below 0x20, so an out-of-range index also bails.
+    const code = text.codePointAt(i) ?? 0;
+    if (code < 0x20 || code > 0x7e) return undefined;
+  }
+  return text.length;
+}
+
+/**
  * What `width` accepts beyond the string. Graded against `string-width`'s own suite, so the
  * names and the defaults are its names and its defaults, not ours.
  */
@@ -141,6 +163,8 @@ export interface WidthOptions {
  */
 export function width(input: string, options: WidthOptions = {}): number {
   if (typeof input !== 'string' || input === '') return 0;
+  const ascii = asciiColumns(input);
+  if (ascii !== undefined) return ascii;
   return measure(options.countAnsiEscapeCodes === true ? input : stripVTControlCharacters(input));
 }
 
