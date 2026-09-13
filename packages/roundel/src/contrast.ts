@@ -20,6 +20,30 @@ export const AA = {
   GRAPHIC: 3,
 } as const;
 
+/**
+ * The stricter conformance level, for a caller who needs it: low-vision users, a CLI run on a
+ * projector, a terminal in daylight, or an organisation whose accessibility policy says AAA
+ * and does not care that this is a terminal.
+ *
+ * Not the default, and not because AA is good enough. At 7:1 the 256-colour palette runs out
+ * of room fast — a great many perfectly reasonable brand colours have no readable substitute
+ * in the cube at that floor — so defaulting to AAA would refuse themes that work for almost
+ * everyone on almost every terminal. It is the caller's call, which is the only place that
+ * judgement can honestly sit.
+ */
+export const AAA = {
+  /** Body text against its background. */
+  TEXT: 7,
+  /** Large text, UI components, and meaningful parts of a graphic. */
+  GRAPHIC: 4.5,
+} as const;
+
+/** Which WCAG conformance level a theme is held to. `AA` unless a caller asks for more. */
+export type Conformance = 'AA' | 'AAA';
+
+/** The floors for a conformance level, so a caller names a standard rather than a number. */
+export const floors = (level: Conformance = 'AA'): typeof AA | typeof AAA => (level === 'AAA' ? AAA : AA);
+
 const SRGB_MAX = 255;
 const LINEAR_THRESHOLD = 0.03928;
 const LINEAR_DIVISOR = 12.92;
