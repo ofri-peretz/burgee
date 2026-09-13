@@ -103,6 +103,7 @@
     "mocha": "^11.7.6",
     "ora": "9.4.1",
     "prettier": "^3.4.0",
+    "roundel": "workspace:*",
     "semver": "^7.7.0",
     "slice-ansi": "^7.1.0",
     "string-width": "^8.2.2",
