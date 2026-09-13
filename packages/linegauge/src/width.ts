@@ -213,6 +213,7 @@ export function width(input: string, options: WidthOptions = {}): number {
   if (typeof input !== 'string' || input === '') return 0;
   const text = options.countAnsiEscapeCodes === true ? input : stripVTControlCharacters(input);
   return measure(text, options.ambiguousIsNarrow === false);
+  return measure(options.countAnsiEscapeCodes === true ? input : stripVTControlCharacters(input));
 }
 
 /**
