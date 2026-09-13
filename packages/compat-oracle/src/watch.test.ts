@@ -18,11 +18,15 @@
  * that `registry.test.ts` uses, so a drift in the tar writer fails both suites at once rather
  * than letting each agree with its own copy.
  */
-import { describe, expect, it } from 'vitest';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { fakeRegistry } from './__fixtures__/fake-registry.js';
 import { type Seen } from './competitors.js';
-import { type Fingerprint, compare, moved, takeFingerprint } from './watch.js';
+import { type Fingerprint, check, compare, fingerprint, moved, takeFingerprint } from './watch.js';
 
 /** A held fingerprint, with only the fields a case cares about overridden. */
 function held(over: Partial<Seen> = {}): Seen {
@@ -145,5 +149,155 @@ describe('takeFingerprint', () => {
     await expect(takeFingerprint({ npm: 'picocolors', via: 'ora' }, REGISTRY)).rejects.toThrow(
       /is not in .*resolved tree/,
     );
+  });
+});
+
+/** A `Write` that keeps what it was given, so a case can assert on the report text. */
+function lines(): { out: string; write: (text: string) => void } {
+  const sink = { out: '', write: (text: string) => void (sink.out += text) };
+  return sink;
+}
+
+/**
+ * `check` and `fingerprint` against a workspace on disk.
+ *
+ * `readDeclarations` walks a directory, so the fixture is a real directory: three lines of
+ * `competitors.json` under a temp root, which is cheaper to read than a mocked `fs` and
+ * exercises the JSON round-trip `fingerprint` actually performs.
+ */
+describe('check and fingerprint, over a workspace', () => {
+  const REGISTRY = fakeRegistry({
+    chalk: { '6.0.0': { files: { 'index.js': 'export const a = 1;\n' } } },
+    ora: { '9.0.0': { files: { 'index.js': 'export default 1;\n' } } },
+  });
+
+  const roots: string[] = [];
+
+  /** A packages dir holding one `competitors.json` per owner. */
+  function workspace(owners: Record<string, unknown>): { root: string; packagesDir: string } {
+    const root = mkdtempSync(join(tmpdir(), 'watch-'));
+    roots.push(root);
+    const packagesDir = join(root, 'packages');
+    for (const [owner, declaration] of Object.entries(owners)) {
+      mkdirSync(join(packagesDir, owner), { recursive: true });
+      writeFileSync(join(packagesDir, owner, 'competitors.json'), `${JSON.stringify(declaration, null, 2)}\n`);
+    }
+    return { root, packagesDir };
+  }
+
+  afterEach(() => {
+    for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+  });
+
+  it('reports a competitor with no held fingerprint as unfingerprinted, and opens nothing', async () => {
+    // The day-one case at the level the workflow sees it: `check` names what needs
+    // recording, and `updates` stays empty so no issue is opened for a first sighting.
+    const { root, packagesDir } = workspace({
+      roundel: { './index': [{ package: 'chalk', claim: 'surface' }] },
+    });
+    const sink = lines();
+
+    const result = await check(packagesDir, root, sink.write, REGISTRY);
+
+    expect(result.unfingerprinted).toEqual(['chalk']);
+    expect(result.updates).toEqual([]);
+    expect(result.errors).toEqual([]);
+    expect(sink.out).toContain('no fingerprint held');
+  });
+
+  it('says up to date, and opens nothing, when the held fingerprint still matches', async () => {
+    const { root, packagesDir } = workspace({
+      roundel: { './index': [{ package: 'chalk', claim: 'surface' }] },
+    });
+    // Take the real fingerprint first, so "unchanged" means byte-identical to what the
+    // registry serves rather than to a number typed into the fixture.
+    await fingerprint(packagesDir, () => {}, REGISTRY);
+
+    const sink = lines();
+    const result = await check(packagesDir, root, sink.write, REGISTRY);
+
+    expect(result.updates).toEqual([]);
+    expect(result.unfingerprinted).toEqual([]);
+    expect(sink.out).toContain('up to date');
+  });
+
+  it('reports one update when the held version is behind what the registry serves', async () => {
+    const { root, packagesDir } = workspace({
+      roundel: {
+        './index': [
+          { package: 'chalk', claim: 'surface', seen: { version: '5.0.0', weight: 1, packages: 1, shasum: 'old', files: {}, exports: [] } },
+        ],
+      },
+    });
+    const sink = lines();
+
+    const result = await check(packagesDir, root, sink.write, REGISTRY);
+
+    expect(result.updates).toHaveLength(1);
+    expect(result.updates[0]).toMatchObject({ npm: 'chalk', from: '5.0.0', to: '6.0.0' });
+    expect(result.updates[0]?.title).toBeTruthy();
+  });
+
+  it('records a failed competitor and keeps going, rather than losing the whole run to one', async () => {
+    // The scheduled job watches every competitor the family declares. One package that
+    // 404s must not cost the report on all the others.
+    const { root, packagesDir } = workspace({
+      roundel: {
+        './index': [
+          { package: 'nonexistent-package', claim: 'surface' },
+          { package: 'chalk', claim: 'surface' },
+        ],
+      },
+    });
+    const sink = lines();
+
+    const result = await check(packagesDir, root, sink.write, REGISTRY);
+
+    expect(result.errors.map((e) => e.npm)).toEqual(['nonexistent-package']);
+    expect(result.unfingerprinted).toEqual(['chalk']);
+  });
+
+  it('leaves competitors.json untouched: check reports, the workflow writes', async () => {
+    const { root, packagesDir } = workspace({
+      roundel: { './index': [{ package: 'chalk', claim: 'surface' }] },
+    });
+    const file = join(packagesDir, 'roundel', 'competitors.json');
+    const before = readFileSync(file, 'utf8');
+
+    await check(packagesDir, root, () => {}, REGISTRY);
+
+    expect(readFileSync(file, 'utf8')).toBe(before);
+  });
+
+  it('fingerprint writes the seen block back, which is what makes it a reviewable diff', async () => {
+    const { packagesDir } = workspace({
+      roundel: { './index': [{ package: 'chalk', claim: 'surface' }] },
+    });
+    const file = join(packagesDir, 'roundel', 'competitors.json');
+
+    const failures = await fingerprint(packagesDir, () => {}, REGISTRY);
+
+    expect(failures).toBe(0);
+    const written = JSON.parse(readFileSync(file, 'utf8')) as { './index': { seen?: { version: string } }[] };
+    expect(written['./index'][0]?.seen?.version).toBe('6.0.0');
+  });
+
+  it('counts a competitor it could not fetch as a failure, and still writes the rest', async () => {
+    const { packagesDir } = workspace({
+      roundel: {
+        './index': [
+          { package: 'nonexistent-package', claim: 'surface' },
+          { package: 'ora', claim: 'surface' },
+        ],
+      },
+    });
+    const file = join(packagesDir, 'roundel', 'competitors.json');
+
+    const failures = await fingerprint(packagesDir, () => {}, REGISTRY);
+
+    expect(failures).toBe(1);
+    const written = JSON.parse(readFileSync(file, 'utf8')) as { './index': { package: string; seen?: { version: string } }[] };
+    const ora = written['./index'].find((e) => e.package === 'ora');
+    expect(ora?.seen?.version).toBe('9.0.0');
   });
 });
