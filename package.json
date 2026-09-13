@@ -35,7 +35,7 @@
     "rank:dependents": "tsx scripts/rank-dependents.ts",
     "changeset": "changeset",
     "changeset:status": "env -u GIT_DIR changeset status --since=origin/main",
-    "changeset:version": "changeset version && npx -y npm@11.16.0 install --package-lock-only --ignore-scripts",
+    "changeset:version": "changeset version && npx tsx scripts/sync-doc-versions.ts && npx -y npm@11.16.0 install --package-lock-only --ignore-scripts",
     "lint:workflows": "tsx scripts/lint-workflows.ts",
     "lint:md": "markdownlint-cli2 '**/*.md' '.sdlc/**/*.md' '#node_modules' '#**/node_modules' '#**/dist' '#**/.next' '#.sdlc/research/issues' '#packages/compat-oracle/vendor-diff.md' '#packages/compat-oracle/vendor'",
     "brand": "node scripts/brand.mts",
