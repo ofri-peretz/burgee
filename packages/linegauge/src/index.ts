@@ -21,5 +21,5 @@
  * green `flagstaff` across the deletion proves the consolidation is real before anything
  * new is written on top of it.
  */
-export { lineCount, measure, width, width as default } from './width.js';
+export { lineCount, measure, width, width as default, type WidthOptions } from './width.js';
 export { wrap, type WrapOptions } from './wrap.js';
