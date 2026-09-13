@@ -58,7 +58,7 @@ describe('one object, four readers', () => {
 describe('a plugin cannot smuggle an unreadable colour past the contrast gate', () => {
   it('fly() refuses a plugin token below 4.5:1, the same way it refuses a hand-written one', () => {
     register({ name: 'washed', tokens: { error: '#222222' } });
-    expect(() => fly(theme(), tty)).toThrow(/below 4.5:1 — error #222222/);
+    expect(() => fly(theme(), tty)).toThrow(/below 4.5:1 \(WCAG AA\) — error #222222/);
   });
 
   it('and accepts one that reads', () => {

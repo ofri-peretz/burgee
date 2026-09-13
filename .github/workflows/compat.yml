@@ -12,6 +12,11 @@ on:
   pull_request:
   push:
     branches: [main]
+  # `ratchet` is a REQUIRED context as of this change. A merge queue builds
+  # `refs/heads/gh-readonly-queue/...` and waits for the required checks to report on
+  # THAT event; without this trigger the check never reports and the entry sits in the
+  # queue forever with no error. `scripts/lint-workflows.ts` enforces the pairing.
+  merge_group:
   workflow_dispatch:
 
 concurrency:
@@ -26,6 +31,9 @@ jobs:
     name: Ratchet · each host's suite against burgee
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: write # the broken-main reporter below
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
@@ -58,6 +66,32 @@ jobs:
           path: packages/compat-oracle/results.json
           if-no-files-found: ignore
           retention-days: 30
+
+      # This job going red on main used to notify nobody. On 2026-09-10 it failed on the
+      # #197 merge at 14:44 and main stayed red until #199 — noticed only because #191,
+      # #195 and #198 all went red on a job none of them had touched, which reads as
+      # three broken PRs rather than one broken main.
+      #
+      # Making the check REQUIRED is the fix for the merge; this is the fix for
+      # everything that gets in another way — an admin merge, a re-run that flips, an
+      # upstream host suite changing under a green PR. A red main is an outage, so it is
+      # an issue and not a finding. Dedup by title, so a run of red merges opens one.
+      - name: Say so — a red main is an outage
+        if: failure() && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          TITLE="main is red — the compatibility ratchet failed after a merge"
+          EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')
+          BODY=$(printf 'The ratchet failed on a push to main, so main is broken now and every branch cut from it inherits it. The merge that did it is `%s`.\n\nMost likely the published `compatibility.mdx` no longer matches what the oracle measures — rebuild, run `packages/compat-oracle/dist/bin.js --control` then without flags, then `npm run compat:page`, and commit the page.\n\n[Run](%s)\n' "$SHA" "$RUN_URL")
+          if [ -z "$EXISTING" ]; then
+            gh issue create --title "$TITLE" --body "$BODY"
+          else
+            echo "already open as #$EXISTING"
+          fi
 
   matrix:
     name: Node ${{ matrix.node }} · ${{ matrix.os }}
