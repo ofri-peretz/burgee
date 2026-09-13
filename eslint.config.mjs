@@ -228,9 +228,15 @@ export default [
     },
   },
   {
-    // Scripts are process entry points; their exit code is their contract (E1).
+    // Scripts are process entry points; their exit code is their contract (E1). They also
+    // sit one level below the repo root, so the workspace-wide configs they lock — the
+    // coverage policy, the codecov components — are reached with `../`. That is the
+    // dependency, stated: a script asserting about a root config has to read the root config.
     files: ["scripts/**"],
-    rules: { "operability/no-process-exit": "off" },
+    rules: {
+      "operability/no-process-exit": "off",
+      "import-next/no-relative-parent-imports": "off",
+    },
   },
   {
     // The lint config imports every plugin by design.

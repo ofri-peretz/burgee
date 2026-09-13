@@ -32,10 +32,31 @@ import { type ViteUserConfig } from 'vitest/config';
  */
 export const TESTED_IN_ANOTHER_PROCESS = [
   // burgee — commander 1,360 and yargs 804, through `compat-oracle`.
-  'src/commander*.ts',
-  'src/yargs*.ts',
-  'src/cliui*.ts',
-  'src/y18n*.ts',
+  //
+  // Named file by file, and not as `src/commander/**`, for the same reason the rest of this
+  // list is: a directory glob silently adopts whatever is added to the directory later,
+  // including code no incumbent grades. `src/yargs/burgee.ts` is exactly that case — it is
+  // burgee's own surface on the yargs shim, it has `burgee.test.ts` beside it, and it stays
+  // in the denominator.
+  'src/commander.ts',
+  'src/commander/argument.ts',
+  'src/commander/command.ts',
+  'src/commander/error.ts',
+  'src/commander/help.ts',
+  'src/commander/option.ts',
+  'src/yargs.ts',
+  'src/yargs-helpers.ts',
+  'src/yargs-parser.ts',
+  'src/yargs/cliui.ts',
+  'src/yargs/command.ts',
+  'src/yargs/completion.ts',
+  'src/yargs/factory.ts',
+  'src/yargs/middleware.ts',
+  'src/yargs/shim.ts',
+  'src/yargs/usage.ts',
+  'src/yargs/utils.ts',
+  'src/yargs/validation.ts',
+  'src/yargs/y18n.ts',
   // flagstaff — ora 99, log-update 99, boxen 84, cli-table3 33.
   'src/ora.ts',
   'src/log-update.ts',
