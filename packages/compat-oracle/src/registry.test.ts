@@ -17,6 +17,7 @@ import { gzipSync } from 'node:zlib';
 
 import { describe, expect, it } from 'vitest';
 
+import { BLOCK, type FakePackage, fakeRegistry, sha1, tarEntry, tarball } from './__fixtures__/fake-registry.js';
 import {
   type Packument,
   type RegistryClient,
@@ -31,7 +32,6 @@ import {
   treeWeight,
 } from './registry.js';
 import { unpack, untar } from './tar.js';
-import { BLOCK, type FakePackage, fakeRegistry, sha1, tarEntry, tarball } from './__fixtures__/fake-registry.js';
 
 const ORA_DTS = 'export declare function oraPromise(): void;\nexport declare const spinners: string[];\n';
 

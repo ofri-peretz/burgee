@@ -20,9 +20,9 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { fakeRegistry } from './__fixtures__/fake-registry.js';
 import { type Seen } from './competitors.js';
 import { type Fingerprint, compare, moved, takeFingerprint } from './watch.js';
-import { fakeRegistry } from './__fixtures__/fake-registry.js';
 
 /** A held fingerprint, with only the fields a case cares about overridden. */
 function held(over: Partial<Seen> = {}): Seen {
