@@ -5,17 +5,23 @@
  */
 
 /**
- * Lock — a shared test-vector file is read by every copy it governs.
+ * Lock — a reference vector file has readers, and they are tests.
  *
- * Floor rule Y1 lets `burgee` keep its own copy of logic a foundation package would
- * otherwise own, on one condition: *"the two copies share a test-vector file."* The copy of
- * the WCAG contrast maths was made in 2026-09-08 and the condition was met **half way** —
- * roundel's test read the vectors, burgee's did not, and roundel's header said so in prose
- * for five days while nothing acted on it.
+ * **This began as something else, and the change is worth recording.** Floor rule Y1 let
+ * `burgee` keep its own copy of the WCAG contrast maths on one condition — *"the two copies
+ * share a test-vector file"* — and the condition was met half way: roundel's test read the
+ * vectors, burgee's did not, so the pinned copy could not drift and the unpinned one could.
  *
- * Half is the worst version. The copy that is pinned cannot drift; the copy that is not can,
- * and it keeps a green suite while doing it. So the condition is a check now: if a vector
- * file exists, every package that holds a copy of the thing it describes reads it.
+ * Then #194 removed the copy. `burgee/contrast` now imports `roundel/contrast`, so there is
+ * one implementation and nothing to drift *between*. The original reason for this file is
+ * gone, and a lock kept alive by a reason that has expired is exactly the stale blocker the
+ * roadmap audit was about.
+ *
+ * What survives is smaller and still true: `contrast-vectors.json` is a set of reference
+ * values computed outside the implementation, and **a reference nobody reads is a file, not a
+ * reference.** Both tests do read it — burgee's grades the re-exported functions, roundel's
+ * grades the source — and this keeps that true, and keeps a future `*-vectors.json` from
+ * landing with no reader at all.
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -37,7 +43,7 @@ const SHARED: { vectors: string; readers: string[]; what: string }[] = [
   {
     vectors: 'roundel/src/contrast-vectors.json',
     readers: ['roundel/src/contrast.test.ts', 'burgee/src/contrast.test.ts'],
-    what: 'the WCAG 2.2 relative-luminance contrast maths (Y1, roundel R5)',
+    what: 'the WCAG 2.2 relative-luminance contrast values (roundel R5; one implementation since #194)',
   },
 ];
 
@@ -57,7 +63,7 @@ describe.each(SHARED)('$what', ({ vectors, readers }) => {
     const basename = vectors.slice(vectors.lastIndexOf('/') + 1);
     expect(
       readFileSync(path, 'utf-8').includes(basename),
-      `${reader} holds a copy of this logic but does not read ${basename} — that is the one-sided drift lock Y1 exists to prevent`,
+      `${reader} exercises this logic but does not read ${basename} — a reference nobody reads is a file, not a reference`,
     ).toBe(true);
   });
 
