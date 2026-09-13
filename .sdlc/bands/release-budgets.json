@@ -1,0 +1,21 @@
+{
+  "$comment": "Release budgets (cli-benchmarks / Y8). A ratchet that moves per PR is a record of what happened, not a limit on it — `benchmarks/axes/weight.ts` says so above RATIO_CEILING after four raises in one session. A budget lives here instead: set once for a release, from the measured distribution rather than from the last commit, and `scripts/release-budget-lock.test.ts` refuses to let a number here move unless `release` moves with it in the same commit.",
+  "release": "0.4.0",
+  "setOn": "2026-09-10",
+  "budgets": {
+    "bundled-bytes-ratio:burgee÷cac": {
+      "value": 3.7,
+      "unit": "ratio",
+      "why": "burgee's core bundle over cac's, the lightest zero-dependency incumbent in the field. cac has no --schema, no MCP surface and no manifest, so the denominator is a smaller package rather than a lighter one doing the same work; the ratio is published because a suite that only showed the five entry points we win is lying by selection.",
+      "derivedFrom": {
+        "band": "core-bundled-bytes",
+        "observations": 41,
+        "mean": 35740.4,
+        "sd": 1082.1,
+        "latest": 37196,
+        "rule": "mean + 3 sd = 38,987 bytes, which is 3.73x cac's 10,452. Rounded down to 3.7: three sigma is where the band itself calls a single point an act-now breach, so a budget above it would admit growth the watcher already refuses.",
+        "note": "This band breached at 1 sigma on 2026-09-10 — Rule 4, eight consecutive above the mean. The budget is set from the distribution anyway, and deliberately: a budget derived from a drifting series still bounds the drift, and lowering it is the next release's decision to take with the trend in hand."
+      }
+    }
+  }
+}

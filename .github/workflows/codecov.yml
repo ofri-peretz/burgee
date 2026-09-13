@@ -1,0 +1,110 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Coverage
+
+# ─────────────────────────────────────────────────────────────────────────────
+# One coverage run for the whole workspace, uploaded to Codecov, where
+# `codecov.yml`'s component_management splits it per package.
+#
+# Not per-package runs: `vitest.coverage.config.ts` runs every suite in a single
+# process, so the lcov arrives with repo-root-relative paths and nothing has to be
+# rewritten before the component globs match it.
+#
+# Scheduled only — deliberately not part of CI.
+#
+# Coverage is a trend, not a gate. On every push it costs a full build plus a
+# full suite re-run on the critical path of every merge, to move a number by a
+# tenth of a point; as a Monday job it costs nothing anybody is waiting on, and
+# still catches the thing worth catching — a suite that quietly stopped covering
+# what it used to. `ci.yml` remains the gate.
+#
+# Triggers: Monday 06:00 UTC, and `workflow_dispatch` for when you want it now.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: "1"
+
+jobs:
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      # The package suites pack tarballs and read `dist/`, so the build is not optional.
+      - name: Run every suite with coverage
+        run: npm run coverage
+
+      - name: Merge the per-package reports into one
+        run: |
+          set -euo pipefail
+          mkdir -p coverage
+          : > coverage/lcov.info
+          # Each package writes `SF:src/…`, relative to itself. Codecov's component globs
+          # and the summary below both read repo-root paths, so the prefix goes on here —
+          # once, in the one place that consumes them — rather than in nine vitest configs.
+          for report in packages/*/coverage/lcov.info; do
+            pkg=$(basename "$(dirname "$(dirname "$report")")")
+            sed "s|^SF:|SF:packages/${pkg}/|" "$report" >> coverage/lcov.info
+          done
+          grep -c '^SF:' coverage/lcov.info
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage/lcov.info
+          # A weekly run whose upload silently no-ops is a green tick reporting nothing,
+          # which is the exact failure the schedule exists to catch. Nothing here runs on
+          # a fork PR, so there is no contributor to redden over a secret they cannot have.
+          fail_ci_if_error: true
+
+      - name: Per-package summary
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "## Coverage"
+            echo ""
+            echo "| Package | Lines | Covered |"
+            echo "| :-- | --: | --: |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -f coverage/lcov.info ]; then
+            awk -F'[:,]' '
+              /^SF:/ { split($2, a, "/"); p = a[2] }
+              /^DA:/ { total[p]++; if ($3 > 0) hit[p]++ }
+              END {
+                for (k in total)
+                  printf "| %s | %d%% | %d/%d |\n", k, hit[k] * 100 / total[k], hit[k], total[k]
+              }
+            ' coverage/lcov.info | sort >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| _no lcov produced_ | | |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "[Components on Codecov](https://app.codecov.io/gh/${{ github.repository }}/components)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload lcov artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: coverage-${{ github.run_id }}
+          path: coverage/
+          retention-days: 7
+          if-no-files-found: ignore

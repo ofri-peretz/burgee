@@ -175,6 +175,19 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
 };
 
 /**
+ * One budget, by id, from the release-budget file. Throws rather than defaulting: a missing
+ * budget must fail loudly here, because the alternative is a gate quietly running at
+ * `Infinity` and passing everything.
+ */
+function releaseBudget(id: string): number {
+  const file = join(REPO_ROOT, '.sdlc/bands/release-budgets.json');
+  const doc = JSON.parse(readFileSync(file, 'utf8')) as { budgets: Record<string, { value: number }> };
+  const budget = doc.budgets[id];
+  if (budget === undefined) throw new Error(`no release budget "${id}" in .sdlc/bands/release-budgets.json — a gate with no ceiling is not a gate`);
+  return budget.value;
+}
+
+/**
  * The like-for-like ratio ceiling per pair, from the first measured run.
  *
  * Five of the seven are below 1.0 — the entry point is genuinely lighter in a user's
@@ -225,7 +238,12 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // fits or is refused, instead of a ceiling that follows the last commit. That is an
   // owner's decision and it is not this PR's to make; what this PR owes is to say so at the
   // point where the drift is visible rather than to leave the fifth raise to find it.
-  burgee: 3.56,
+  // Read from `.sdlc/bands/release-budgets.json` rather than written here, which is the
+  // whole point: this entry is what four raises in one session turned into a number that
+  // followed the last commit. It is now 3.7, derived from `core-bundled-bytes` at mean + 3
+  // sigma over 41 observations, and `scripts/release-budget-lock.test.ts` refuses to let it
+  // move unless the release moves with it in the same commit.
+  burgee: releaseBudget('bundled-bytes-ratio:burgee\u00F7cac'),
   'burgee/commander': 1.6,
   'burgee/yargs': 1,
   'roundel/chalk': 1,
