@@ -58,7 +58,11 @@ export const coverage: NonNullable<NonNullable<ViteUserConfig['test']>['coverage
   // each package's `SF:` paths before merging, since these runs are per package.
   reporter: ['text-summary', 'json-summary', 'lcov'],
   include: ['src/**/*.ts'],
-  exclude: ['src/**/*.test.ts', ...TESTED_IN_ANOTHER_PROCESS],
+  // `__fixtures__` is test scaffolding — a tar writer and a fake registry that exist only so
+  // the suites can run offline. `codecov.yml` already ignores the directory; without the same
+  // line here a fixture's own lines land in the package's denominator, and a well-exercised
+  // fixture flatters the number it is supposed to help measure.
+  exclude: ['src/**/*.test.ts', '**/__fixtures__/**', ...TESTED_IN_ANOTHER_PROCESS],
   // Reported, not gated, until there are enough observations to ratchet from. A threshold
   // picked today would be a number somebody guessed; the band is the number the repo earns.
   thresholds: undefined,
