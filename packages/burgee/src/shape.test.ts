@@ -15,7 +15,7 @@
  */
 import { execFileSync } from 'node:child_process';
 
-import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -66,13 +66,33 @@ function cli(...argv: string[]): { code: number; stdout: string; stderr: string 
   }
 }
 
+/** `npm pack` in `cwd`, into `into`; returns the tarball's absolute path. */
+function pack(cwd: string, into: string): string {
+  return join(into, npm(['pack', '--silent', '--pack-destination', into], { cwd, encoding: 'utf8' }).trim());
+}
+
+/*
+ * Every family package burgee depends on is packed and installed beside it, rather than
+ * resolved from the registry. burgee@0.4.0 had no dependencies, so `npm install <tgz>`
+ * had nothing to fetch and this went unnoticed; burgee@0.5.0 depends on `roundel`, and a
+ * release bumps both at once — so on the Version Packages branch the version burgee asks
+ * for is the one this very release is about to publish, and Z1 failed with a registry
+ * 404 on every release that bumps a sibling.
+ *
+ * Installing the sibling's tarball is also the stricter test: it proves the artifacts
+ * being released work together, rather than that burgee works against whatever copy of
+ * roundel npm already happens to serve.
+ */
 beforeAll(() => {
   dir = mkdtempSync(join(tmpdir(), 'burgee-shape-'));
-  const tarball = npm(['pack', '--silent', '--pack-destination', dir], {
-    cwd: pkgRoot,
-    encoding: 'utf8',
-  }).trim();
-  npm(['install', '--no-audit', '--no-fund', '--silent', join(dir, tarball)], {
+  const manifest = JSON.parse(readFileSync(join(pkgRoot, 'package.json'), 'utf8')) as {
+    dependencies?: Record<string, string>;
+  };
+  const siblings = Object.keys(manifest.dependencies ?? {})
+    .map((name) => join(pkgRoot, '..', name))
+    .filter((at) => existsSync(join(at, 'package.json')))
+    .map((at) => pack(at, dir));
+  npm(['install', '--no-audit', '--no-fund', '--silent', pack(pkgRoot, dir), ...siblings], {
     cwd: dir,
     stdio: 'ignore',
   });
