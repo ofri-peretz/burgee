@@ -48,3 +48,25 @@ describe('lineCount()', () => {
     expect(lineCount(`${ESC}[31m${'0'.repeat(90)}${ESC}[39m`, 80)).toBe(2);
   });
 });
+
+/**
+ * The four cases that took the `string-width` row from 194 / 229 to 198. The vendored suite
+ * is the gate; these are here so the loop is a second rather than a full grading run, and so
+ * a reader sees the contract without going to `vendor/`.
+ */
+describe('the contract string-width has always kept', () => {
+  it('measures a non-string as 0 rather than throwing', () => {
+    // A width function is usually reached with whatever a template produced, so the
+    // incumbent answers 0 instead of making every caller guard. `typeof`, not truthiness:
+    // `0` and `false` are not empty strings.
+    expect(width(123 as unknown as string)).toBe(0);
+    expect(width(null as unknown as string)).toBe(0);
+    expect(width(undefined as unknown as string)).toBe(0);
+  });
+
+  it('counts escape sequences as characters when asked, minus the escape byte itself', () => {
+    // `[31m` is what a terminal would have swallowed; ESC stays non-printing either way.
+    expect(width(`${ESC}[31m`, { countAnsiEscapeCodes: true })).toBe(4);
+    expect(width(`${ESC}[31m`)).toBe(0);
+  });
+});
