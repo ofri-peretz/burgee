@@ -12,6 +12,7 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
+    "coverage": "vitest run --coverage.enabled",
     "lint": "eslint src"
   },
   "dependencies": {
@@ -31,31 +32,7 @@
     "@colors/colors (1.5.0) is required directly by four of cli-table3's test files and reached us only as a hoisted optional dependency of cli-table3 — the same fragility, one release from breaking."
   ],
   "devDependencies": {
-    "@colors/colors": "1.5.0",
-    "@types/yargs": "^17.0.33",
-    "ava": "^8.0.1",
-    "boxen": "^8.0.1",
-    "chai": "^6.2.2",
-    "chalk": "^6.0.0",
-    "cli-table": "0.3.11",
-    "cli-table3": "^0.6.5",
-    "commander": "^15.0.0",
-    "cpr": "^3.0.1",
-    "cross-spawn": "^7.0.6",
-    "execa": "^10.0.0",
-    "get-stream": "^9.0.1",
-    "hashish": "0.0.4",
-    "log-update": "8.0.0",
-    "mocha": "^11.7.6",
-    "ora": "9.4.1",
-    "string-width": "^8.2.2",
-    "terminal.js": "^1.0.11",
-    "vitest": "^5.0.0",
-    "wcwidth": "^1.0.1",
-    "which": "^2.0.2",
-    "yargs": "^18.0.0",
-    "yargs-parser": "^22.0.0",
-    "yargs-test-extends": "^1.0.1"
+    "vitest": "^5.0.0"
   },
   "exports": {
     "./drivers/commander": {

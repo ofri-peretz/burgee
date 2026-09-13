@@ -50,9 +50,14 @@ describe('tty', () => {
     expect(paint()).toEqual({ ...sixteen, error: `${E}38;2;244;121;74mx${E}39m`, ok: `${E}38;2;13;148;96mx${E}39m` });
   });
 
-  it('level 2: the same hex, nearest of 256', () => {
+  /**
+   * `ok` moved 36 -> 65 on 2026-09-13: `degrade` searches OKLab among the entries that clear
+   * the contrast floor, where the old per-channel rounding did not look at the ground at all.
+   * Half the perceptual error (dE 0.0842 -> 0.0627) and still above 4.5:1, by construction.
+   */
+  it('level 2: the same hex, nearest readable of 256', () => {
     fly({}, tty({ TERM: 'xterm-256color' }));
-    expect(paint()).toEqual({ ...sixteen, error: `${E}38;5;209mx${E}39m`, ok: `${E}38;5;36mx${E}39m` });
+    expect(paint()).toEqual({ ...sixteen, error: `${E}38;5;209mx${E}39m`, ok: `${E}38;5;65mx${E}39m` });
   });
 
   it('level 1: the same hex, nearest of 16', () => {

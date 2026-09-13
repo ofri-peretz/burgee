@@ -1,9 +1,16 @@
 /**
- * The WCAG 2.2 contrast maths (R5), copied from `burgee/contrast` on purpose: sixty lines
- * duplicated beats a dependency arrow pointing the wrong way (U1). This copy is held to
- * `contrast-vectors.json` by its test; burgee's test does not read that file yet, so the
- * drift lock is one-sided until the follow-up lands (burgee contrast test to read roundel's
- * contrast-vectors.json).
+ * The WCAG 2.2 contrast maths (R5).
+ *
+ * It was copied from `burgee/contrast` under Y1 — "sixty lines duplicated beats a dependency
+ * arrow pointing the wrong way" — on the condition that the two copies share a test-vector
+ * file. That condition was met half way for five days: this copy was pinned to
+ * `contrast-vectors.json` and burgee's was not, which is the worse arrangement, because the
+ * pinned copy cannot drift and the unpinned one can while keeping a green suite.
+ *
+ * **#194 settled it differently and better:** the arrow was reversed, so there is one
+ * implementation and `burgee/contrast` imports this one. The vectors remain as a reference —
+ * values computed outside this file, which is the only kind that can catch a wrong constant —
+ * and `scripts/shared-vectors-lock.test.ts` keeps them read rather than kept.
  *
  * `fly()` uses it to refuse a truecolor token that would not read against the declared
  * ground. Nothing here is asked about the 16- and 256-colour palettes: those are the
@@ -17,6 +24,30 @@ export const AA = {
   /** Large text, UI components, and meaningful parts of a graphic. */
   GRAPHIC: 3,
 } as const;
+
+/**
+ * The stricter conformance level, for a caller who needs it: low-vision users, a CLI run on a
+ * projector, a terminal in daylight, or an organisation whose accessibility policy says AAA
+ * and does not care that this is a terminal.
+ *
+ * Not the default, and not because AA is good enough. At 7:1 the 256-colour palette runs out
+ * of room fast — a great many perfectly reasonable brand colours have no readable substitute
+ * in the cube at that floor — so defaulting to AAA would refuse themes that work for almost
+ * everyone on almost every terminal. It is the caller's call, which is the only place that
+ * judgement can honestly sit.
+ */
+export const AAA = {
+  /** Body text against its background. */
+  TEXT: 7,
+  /** Large text, UI components, and meaningful parts of a graphic. */
+  GRAPHIC: 4.5,
+} as const;
+
+/** Which WCAG conformance level a theme is held to. `AA` unless a caller asks for more. */
+export type Conformance = 'AA' | 'AAA';
+
+/** The floors for a conformance level, so a caller names a standard rather than a number. */
+export const floors = (level: Conformance = 'AA'): typeof AA | typeof AAA => (level === 'AAA' ? AAA : AA);
 
 const SRGB_MAX = 255;
 const LINEAR_THRESHOLD = 0.03928;
@@ -57,4 +88,47 @@ export function luminance(hex: string): number {
 export function contrast(a: string, b: string): number {
   const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
   return (hi + CONTRAST_OFFSET) / (lo + CONTRAST_OFFSET);
+}
+
+/** One token's verdict at one colour level, in the words somebody fixing it would use. */
+export interface ThemeFinding {
+  /** The token name — `error`, `ok`, `command`. */
+  token: string;
+  /** `truecolor` or `256`. Never `16`: those values are the user's terminal theme. */
+  at: 'truecolor' | '256';
+  /** What the terminal is actually sent at this level, which is not always the hex written. */
+  colour: string;
+  ground: string;
+  ratio: number;
+  required: number;
+  passes: boolean;
+}
+
+/**
+ * Round to 2dp for reporting. Enough to act on, and not a claim to more precision than a
+ * contrast ratio over eight-bit channels has.
+ */
+const CENTS = 100;
+export const round2 = (value: number): number => Math.round(value * CENTS) / CENTS;
+
+/**
+ * One line per finding, aligned, for a terminal or a failing test. Mirrors
+ * `burgee/contrast`'s `report` — the same shape in both packages, because somebody reading a
+ * theme audit and a brand audit on the same day should not have to learn two layouts.
+ *
+ * Passing rows are printed too. A report that lists only failures cannot tell "nothing is
+ * wrong" from "nothing was checked", and the second is the state this package was in for the
+ * 256-colour level until 2026-09-13.
+ */
+export function reportTheme(findings: readonly ThemeFinding[]): string {
+  if (findings.length === 0) return "no hex tokens to check — every token is a format name, and those are the terminal's own colours";
+  const token = Math.max(...findings.map((f) => f.token.length));
+  const at = Math.max(...findings.map((f) => f.at.length));
+  return findings
+    .map(
+      (f) =>
+        `${f.passes ? 'pass' : 'FAIL'}  ${f.token.padEnd(token)}  ${f.at.padEnd(at)}  ` +
+        `${f.colour} on ${f.ground}  ${f.ratio.toFixed(2)}:1 (needs ${f.required}:1)`,
+    )
+    .join('\n');
 }
