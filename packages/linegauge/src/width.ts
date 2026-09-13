@@ -139,8 +139,32 @@ export interface WidthOptions {
  * the check is `typeof` rather than a truthiness test so that `0` and `false` are not quietly
  * treated as strings that happen to be empty.
  */
+/**
+ * Printable ASCII is one column per code unit, and nothing that makes `measure` correct can
+ * change that answer: there are no escape sequences, no combining marks and no emoji between
+ * 0x20 and 0x7E. `countAnsiEscapeCodes` cannot change it either — `ESC` is 0x1B, below the
+ * range, so a string this accepts has no escapes to count.
+ *
+ * It is not a micro-optimisation. `widest` walks one `Intl.Segmenter` per line, and
+ * `truncate.test.ts`'s 200,000-line case — the one proving `widest` survives where
+ * `Math.max(...)` throws RangeError — times out at five seconds without it. ASCII is the
+ * common line a CLI measures.
+ */
+function asciiColumns(text: string): number | undefined {
+  for (let i = 0; i < text.length; i += 1) {
+    // `codePointAt`, not `charCodeAt`: on a surrogate pair this returns the whole code
+    // point, which is above 0x7E and bails to the full path. `?? 0` is below 0x20, so an
+    // out-of-range index bails too.
+    const code = text.codePointAt(i) ?? 0;
+    if (code < 0x20 || code > 0x7e) return undefined;
+  }
+  return text.length;
+}
+
 export function width(input: string, options: WidthOptions = {}): number {
   if (typeof input !== 'string' || input === '') return 0;
+  const ascii = asciiColumns(input);
+  if (ascii !== undefined) return ascii;
   return measure(options.countAnsiEscapeCodes === true ? input : stripVTControlCharacters(input));
 }
 
