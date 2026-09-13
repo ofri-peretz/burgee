@@ -313,6 +313,20 @@ export default [
   },
   // ── SDLC scripts (scripts/control-bands.ts, scripts/run-evals.ts, tests) ──
   {
+    // Shared test fixtures. `codecov.yml` ignores `__fixtures__` and
+    // `vitest-coverage.config.ts` excludes it, because a fixture is test code that happens
+    // not to be named `.test.ts` — it is scaffolding two suites share so neither grows its
+    // own drifting copy. The rules below are the same ones test files are exempt from, plus
+    // the parent import a fixture in a subdirectory cannot avoid: the module it fakes lives
+    // one level up, and that is the dependency, stated.
+    files: ["**/__fixtures__/**"],
+    rules: {
+      "conventions/no-magic-numbers": "off",
+      "import-next/no-relative-parent-imports": "off",
+      "import-next/no-unused-modules": ["error", { allowImportOnly: true }],
+    },
+  },
+  {
     // Test files: numbers in fixtures are the fixture.
     files: ["**/*.test.ts"],
     rules: {
