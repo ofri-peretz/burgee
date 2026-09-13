@@ -1,18 +1,13 @@
 /**
- * The capabilities this package ships, registered through the public `register` — the same
- * call a third party makes. Nothing here reaches past `capability.ts`, so a built-in cannot
- * grow a power a stranger's plugin lacks (flagstaff U4).
+ * The capabilities this package ships — seven plain objects, registered through the public
+ * `register`, which is the same call a third party makes. Nothing here reaches past
+ * `capability.ts`, so a built-in cannot grow a power a stranger's plugin lacks (flagstaff U4).
  *
- * Every `supports` here is a guess dressed honestly. No terminal answers "do you do OSC
- * 1337", so these read `TERM_PROGRAM` and friends the way `roundel/policy.ts` reads colour
- * support — and every one is overridable by registering the same name again.
- */
-import { type Capability, type Fields, register } from './capability.js';
-import { type Runtime } from './runtime.js';
-
-/**
- * The fields each built-in reads, as documentation rather than as types: the registry takes
- * one flat record so a capability can be written down, validated and shipped as data.
+ * Read them as the documentation of the format: each is a name, an OSC code, when a terminal
+ * is believed to understand it, the bytes, and what to print when it does not. No functions,
+ * so every one of these could equally have arrived from a JSON file.
+ *
+ * The fields each reads:
  *
  *   link       text, url
  *   image      base64, caption, width?, height?
@@ -22,53 +17,45 @@ import { type Runtime } from './runtime.js';
  *   cwd        path
  *   bell       —
  */
+import { type Capability, register } from './capability.js';
 
-/** The string terminator OSC sequences end with. An escape, never a literal byte: an
- * invisible control character in source is un-greppable and lint refuses it. */
 const BEL = '\u0007';
-/** Operating System Command — the escape class that addresses the terminal, not the grid. */
 const OSC = '\u001B]';
 
-/** OSC needs a terminal, not a pipe: a file that receives these gets control bytes in it. */
-const interactive = (runtime: Runtime): boolean => runtime.isTTY.stdout && runtime.env['TERM'] !== 'dumb';
-
-const program = (runtime: Runtime): string => runtime.env['TERM_PROGRAM'] ?? '';
+/** Terminals that announce themselves and are known to do the richer sequences. */
+const RICH = ['iTerm.app', 'WezTerm', 'ghostty'] as const;
 
 /**
- * OSC 8 — a hyperlink. Widely supported and, unusually for this layer, partly detectable:
- * VTE ships its version and the well-known terminals announce themselves.
+ * OSC 8 — a hyperlink. The widest support in this layer, and unusually semi-detectable: VTE
+ * publishes its version and Windows Terminal sets a session variable.
  */
 export const link: Capability = {
   name: 'link',
-  supports: (runtime) =>
-    interactive(runtime) &&
-    (runtime.env['VTE_VERSION'] !== undefined ||
-      runtime.env['WT_SESSION'] !== undefined ||
-      ['iTerm.app', 'WezTerm', 'ghostty', 'vscode', 'Hyper', 'Apple_Terminal'].includes(program(runtime))),
-  encode: ({ text = '', url = '' }) => `${OSC}8;;${url}${BEL}${text}${OSC}8;;${BEL}`,
+  osc: 8,
+  when: { tty: true, termProgram: [...RICH, 'vscode', 'Hyper', 'Apple_Terminal'], envAny: ['VTE_VERSION', 'WT_SESSION'] },
+  encode: `${OSC}8;;{url}${BEL}{text}${OSC}8;;${BEL}`,
   // `text (url)` rather than bare text: a link whose destination vanishes in a pipe has lost
-  // the half that mattered.
-  fallback: ({ text = '', url = '' }) => (text === url || url === '' ? text : `${text} (${url})`),
+  // the half that mattered. The optional group means a link with no url is just its text.
+  fallback: '{text}[ ({url})]',
 };
 
 /** OSC 1337 — iTerm2's inline image. Kitty and Sixel are their own capabilities. */
 export const image: Capability = {
   name: 'image',
-  supports: (runtime) => interactive(runtime) && program(runtime) === 'iTerm.app',
-  encode: ({ base64 = '', width, height }) => {
-    const parts = ['inline=1', width === undefined ? '' : `width=${width}`, height === undefined ? '' : `height=${height}`].filter(Boolean);
-    return `${OSC}1337;File=${parts.join(';')}:${base64}${BEL}`;
-  },
-  fallback: ({ caption = '' }) => caption,
+  osc: 1337,
+  when: { tty: true, termProgram: ['iTerm.app'] },
+  encode: `${OSC}1337;File=inline=1[;width={width}][;height={height}]:{base64}${BEL}`,
+  fallback: '{caption}',
 };
 
 /** OSC 0 — the window and tab title. */
 export const title: Capability = {
   name: 'title',
-  supports: interactive,
-  encode: ({ text = '' }) => `${OSC}0;${text}${BEL}`,
+  osc: 0,
+  when: { tty: true },
+  encode: `${OSC}0;{text}${BEL}`,
   // A title is chrome, not content: printing it into a log would be noise, not a fallback.
-  fallback: () => '',
+  fallback: '',
 };
 
 /**
@@ -77,42 +64,43 @@ export const title: Capability = {
  */
 export const clipboard: Capability = {
   name: 'clipboard',
-  supports: interactive,
-  encode: ({ text = '' }) => `${OSC}52;c;${Buffer.from(text, 'utf8').toString('base64')}${BEL}`,
-  fallback: () => '',
+  osc: 52,
+  when: { tty: true },
+  encode: `${OSC}52;c;{text|base64}${BEL}`,
+  fallback: '',
 };
 
 /** OSC 9 — a desktop notification, without `node-notifier`'s native binaries. */
 export const notify: Capability = {
   name: 'notify',
-  supports: (runtime) => interactive(runtime) && ['iTerm.app', 'WezTerm', 'ghostty'].includes(program(runtime)),
-  encode: ({ title: heading = '', body }) => `${OSC}9;${body === undefined ? heading : `${heading}: ${body}`}${BEL}`,
-  fallback: ({ title: heading = '', body }) => (body === undefined ? heading : `${heading}: ${body}`),
+  osc: 9,
+  when: { tty: true, termProgram: [...RICH] },
+  encode: `${OSC}9;{title}[: {body}]${BEL}`,
+  fallback: '{title}[: {body}]',
 };
 
 /** OSC 50 and 9;9 — tell the emulator where we are, so a new tab opens here. */
 export const cwd: Capability = {
   name: 'cwd',
-  supports: interactive,
-  encode: ({ path = '' }) => `${OSC}50;CurrentDir=${path}${BEL}${OSC}9;9;${path}${BEL}`,
-  fallback: () => '',
+  osc: 50,
+  when: { tty: true },
+  encode: `${OSC}50;CurrentDir={path}${BEL}${OSC}9;9;{path}${BEL}`,
+  fallback: '',
 };
 
 /** BEL — the oldest one, and the only member of this layer that is not an OSC sequence. */
 export const bell: Capability = {
   name: 'bell',
-  supports: interactive,
-  encode: () => BEL,
-  fallback: () => '',
+  osc: 'BEL',
+  when: { tty: true },
+  encode: BEL,
+  fallback: '',
 };
 
-/** Registered in one place, so `capabilities()` returns the list a reader sees here. */
+/** Every capability this package ships, in one list a reader can check against the registry. */
+export const builtins: readonly Capability[] = [bell, clipboard, cwd, image, link, notify, title];
+
+/** Registered through the public call, so the built-ins prove the extension surface works. */
 export function registerBuiltins(): void {
-  register(link);
-  register(image);
-  register(title);
-  register(clipboard);
-  register(notify);
-  register(cwd);
-  register(bell);
+  for (const capability of builtins) register(capability);
 }

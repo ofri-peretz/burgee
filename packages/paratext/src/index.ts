@@ -31,6 +31,7 @@ import { registerBuiltins } from './builtins.js';
 // `reset()`; a caller that wants ours plus theirs just registers theirs on top.
 registerBuiltins();
 
-export { bell, clipboard, cwd, image, link, notify, registerBuiltins, title } from './builtins.js';
-export { type Capability, CapabilityError, type Fields, capabilities, capability, emit, register, reset } from './capability.js';
+export { bell, builtins, clipboard, cwd, image, link, notify, registerBuiltins, title } from './builtins.js';
+export { type Capability, CapabilityError, type Fields, type Support, capabilities, capability, check, emit, register, reset, supports } from './capability.js';
 export { processRuntime, type Runtime } from './runtime.js';
+export { fieldsUsed, render } from './template.js';
