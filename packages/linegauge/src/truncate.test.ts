@@ -111,6 +111,26 @@ describe('the ellipsis is not the caller\u2019s text', () => {
   });
 });
 
+/**
+ * Comfortably past any spread limit, and not a million: the number only has to exceed what
+ * `Math.max(...xs)` could accept, which is around 125,000 on V8 today.
+ */
+const BEYOND_SPREAD = 200_000;
+
+/**
+ * The failure `widest` exists to avoid, as a generator.
+ *
+ * This was written as `expect(() => Math.max(...many.map(...))).toThrow(RangeError)`. It does
+ * throw here. On a CI runner it took 6.9 seconds and did not, so the assertion failed — **a
+ * test of the host engine dressed as a test of this function**, and the argument limit is a
+ * property of the stack rather than of the language. Now it asserts what is ours: a generator
+ * is measured in one pass with nothing spread and nothing held, and if `widest` ever grows a
+ * spread this stops finishing.
+ */
+function* manyLines(): Generator<string> {
+  for (let i = 0; i < BEYOND_SPREAD; i++) yield i === BEYOND_SPREAD - 1 ? 'wide enough' : 'x';
+}
+
 /** A generator rather than an array: the point of `Iterable` is that nothing is held. */
 function* threeLines(): Generator<string> {
   yield 'a';
@@ -136,10 +156,7 @@ describe('widest', () => {
     expect(widest(threeLines())).toBe(6);
   });
 
-  it('handles more lines than Math.max(...) can take arguments for', () => {
-    // The failure this replaces: `Math.max(...xs)` throws RangeError somewhere past ~125k.
-    const many = Array.from({ length: 200_000 }, (_, i) => (i === 199_999 ? 'wide enough' : 'x'));
-    expect(() => Math.max(...many.map((l) => l.length))).toThrow(RangeError);
-    expect(widest(many)).toBe(11);
+  it('measures far more lines than a spread could pass, in one pass', () => {
+    expect(widest(manyLines())).toBe(11);
   });
 });
