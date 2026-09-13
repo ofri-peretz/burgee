@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ofri-peretz/burgee/blob/main/packages/paratext/src/schema.json",
+  "title": "paratext capability",
+  "description": "A capability is one plain object with no functions in it, so it can be written in a config file, generated, diffed and checked without running anybody's code. `encode` and `fallback` are templates with three rules: `{field}` is the field's value, `{field|base64}` is it base64-encoded, and `[ … ]` is emitted only when every field named inside it has a value. A capability without a `fallback` is refused at register(), because a sequence a terminal cannot read is not a feature.",
+  "type": "object",
+  "required": ["name", "osc", "when", "encode", "fallback"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "How callers name it. Registering an existing name replaces it, which is how a caller corrects a detection guess we got wrong."
+    },
+    "osc": {
+      "description": "The OSC code this speaks, or 'BEL' for the bell and for protocols that are not OSC at all, such as Kitty's.",
+      "oneOf": [{ "type": "integer", "minimum": 0 }, { "const": "BEL" }]
+    },
+    "when": {
+      "type": "object",
+      "description": "When the terminal is believed to understand it. Every clause must hold; within `termProgram` and `envAny` any one match is enough. These are guesses — no terminal answers 'do you do OSC 1337' — which is why they are data a caller can replace.",
+      "additionalProperties": false,
+      "properties": {
+        "tty": {
+          "type": "boolean",
+          "description": "Refuse a pipe. Almost always true: a file that receives OSC gets control bytes in it."
+        },
+        "termProgram": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Any one of these TERM_PROGRAM values."
+        },
+        "envAny": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Any one of these environment variables merely being set, as VTE announces itself through VTE_VERSION."
+        },
+        "term": {
+          "type": "string",
+          "description": "An exact TERM, for terminals that identify that way — Kitty is xterm-kitty."
+        }
+      }
+    },
+    "encode": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The bytes, as a template, for a terminal that does understand."
+    },
+    "fallback": {
+      "type": "string",
+      "description": "What to print when it does not — PRINCIPLES rule 6. An empty string is a legitimate answer: a window title has nothing to say in a log. Absence is not, which is why this is required and may be ''."
+    }
+  },
+  "examples": [
+    {
+      "name": "kitty-image",
+      "osc": "BEL",
+      "when": { "tty": true, "term": "xterm-kitty" },
+      "encode": "\u001b_Ga=T,f=100;{base64}\u001b\\",
+      "fallback": "{caption}"
+    }
+  ]
+}
