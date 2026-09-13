@@ -8,7 +8,10 @@
  * worth a dependency tree (U5).
  *
  * The rules, in the order a cluster meets them:
- *   1. ANSI and other control sequences are not printed — `stripVTControlCharacters`.
+ *   1. ANSI and other control sequences are not printed — `strip()`, which is a local scan
+ *      rather than `util.stripVTControlCharacters`: that one leaves the colon form of an
+ *      extended colour behind, and this function answered 15 for a three-column string
+ *      because of it. See `strip.ts` for the measurement.
  *   2. A grapheme cluster made only of ignorable, control, mark or surrogate code points
  *      occupies no column.
  *   3. An RGI emoji sequence is two columns, however many code points it is made of.
@@ -19,7 +22,7 @@
  * has been told it is rendering an East Asian locale. `string-width` makes that an option;
  * nothing above this function has ever needed the other answer, so it is not one here.
  */
-import { stripVTControlCharacters } from 'node:util';
+import { strip } from './strip.js';
 
 /**
  * East Asian Wide and Fullwidth, as sorted `[low, high]` pairs flattened into one array —
@@ -116,6 +119,28 @@ export function measure(text: string): number {
 }
 
 /**
+ * Printable ASCII is one column per code unit, and nothing that makes `measure` correct can
+ * change that answer: there are no escape sequences, no combining marks and no emoji between
+ * 0x20 and 0x7E. `countAnsiEscapeCodes` cannot change it either — `ESC` is 0x1B, below the
+ * range, so a string this accepts has no escapes to count.
+ *
+ * It is not a micro-optimisation. `widest` over many lines is one `Intl.Segmenter` walk per
+ * line, and `truncate.test.ts`'s 200,000-line case — the one proving `widest` survives where
+ * `Math.max(...)` throws — timed out at five seconds without this. ASCII is the common line.
+ */
+function asciiColumns(text: string): number | undefined {
+  for (let i = 0; i < text.length; i += 1) {
+    // `codePointAt` over `charCodeAt` (Interlace unicode-safety rule, and it is the right
+    // call): on a surrogate pair this returns the whole code point, which is above 0x7E and
+    // bails to the full path. `charCodeAt` would have seen a lone high surrogate instead.
+    // `?? 0` cannot mislead — 0 is below 0x20, so an out-of-range index also bails.
+    const code = text.codePointAt(i) ?? 0;
+    if (code < 0x20 || code > 0x7e) return undefined;
+  }
+  return text.length;
+}
+
+/**
  * What `width` accepts beyond the string. Graded against `string-width`'s own suite, so the
  * names and the defaults are its names and its defaults, not ours.
  */
@@ -141,7 +166,13 @@ export interface WidthOptions {
  */
 export function width(input: string, options: WidthOptions = {}): number {
   if (typeof input !== 'string' || input === '') return 0;
-  return measure(options.countAnsiEscapeCodes === true ? input : stripVTControlCharacters(input));
+  const ascii = asciiColumns(input);
+  if (ascii !== undefined) return ascii;
+  // `strip`, not `node:util`'s: Node's scanner stops at the first colon in the ITU T.416
+  // sub-parameter form (`ESC[38:2::255:0:0m`), which chalk and wrap-ansi both emit — it
+  // measured 15 where string-width says 3. The fast path above never reaches here with an
+  // escape in it, so the two fixes are disjoint: 0x1B is below its 0x20 floor.
+  return measure(options.countAnsiEscapeCodes === true ? input : strip(input));
 }
 
 /**
@@ -150,6 +181,6 @@ export function width(input: string, options: WidthOptions = {}): number {
  */
 export function lineCount(text: string, columns: number): number {
   let count = 0;
-  for (const line of stripVTControlCharacters(text).split('\n')) count += Math.max(1, Math.ceil(width(line) / columns));
+  for (const line of strip(text).split('\n')) count += Math.max(1, Math.ceil(width(line) / columns));
   return count;
 }

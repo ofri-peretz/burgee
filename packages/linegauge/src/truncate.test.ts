@@ -136,10 +136,24 @@ describe('widest', () => {
     expect(widest(threeLines())).toBe(6);
   });
 
-  it('handles more lines than Math.max(...) can take arguments for', () => {
-    // The failure this replaces: `Math.max(...xs)` throws RangeError somewhere past ~125k.
+  /*
+   * 200,000 lines is 200,000 width() calls, which is a quarter of a second on a laptop and
+   * past the default 5s budget on a CI runner. The size is the point — it is what makes this
+   * lock bite if anyone puts the spread back — so the budget moves, not the input.
+   */
+  it('handles more lines than Math.max(...) can take arguments for', { timeout: 30_000 }, () => {
+    /*
+     * The failure this replaces: `Math.max(...xs)` throws RangeError once the spread runs
+     * past the engine's argument limit, somewhere around 125k on the author's machine.
+     *
+     * That limit is NOT asserted here, though an earlier version of this test did assert
+     * it. It is a property of the engine's stack, not of this package — V8 on a CI runner
+     * with a different stack size swallowed 200,000 arguments without complaint, and the
+     * test failed on `main` for a reason that had nothing to do with `widest`. What is
+     * portable, and what this package actually promises, is the line below: the answer is
+     * right at a size where the spread is not an option.
+     */
     const many = Array.from({ length: 200_000 }, (_, i) => (i === 199_999 ? 'wide enough' : 'x'));
-    expect(() => Math.max(...many.map((l) => l.length))).toThrow(RangeError);
     expect(widest(many)).toBe(11);
   });
 });
