@@ -156,7 +156,12 @@ describe('widest', () => {
     expect(widest(threeLines())).toBe(6);
   });
 
-  it('measures far more lines than a spread could pass, in one pass', () => {
+  /*
+   * BEYOND_SPREAD lines is that many width() calls: a quarter of a second on a laptop and
+   * past vitest's default 5s budget on a CI runner. The size is the point — it is what makes
+   * this lock bite if anyone puts the spread back — so the budget moves, not the input.
+   */
+  it('measures far more lines than a spread could pass, in one pass', { timeout: 30_000 }, () => {
     expect(widest(manyLines())).toBe(11);
   });
 });
