@@ -10,56 +10,19 @@
  * WCAG 2.2 sets 4.5:1 for body text and 3:1 for large text and for the parts of
  * a graphic you need in order to understand it. A logo's bars are the latter, so
  * 3:1 is the floor used here — see `AA`.
+ *
+ * The measuring is `roundel`'s, not ours. Colour is the layer below this one, and until
+ * 2026-09-09 both packages carried the same forty lines of WCAG luminance — identical
+ * constants, identical maths, differing only in which package name the hex error says.
+ * What is left here is the part that is actually about a burgee: which pairs of a flag's
+ * own colours have to clear the floor, and how to say so to a person running `burgee brand`.
  */
 
-/** The floors WCAG 2.2 sets, as ratios. */
-export const AA = {
-  /** Body text against its background. */
-  TEXT: 4.5,
-  /** Large text, UI components, and meaningful parts of a graphic. */
-  GRAPHIC: 3,
-} as const;
+import { AA, channels, contrast, luminance } from 'roundel/contrast';
 
+/** `mix` writes a hex string back out, which is the one direction `roundel/contrast` does not. */
 const SRGB_MAX = 255;
-const LINEAR_THRESHOLD = 0.03928;
-const LINEAR_DIVISOR = 12.92;
-const GAMMA_OFFSET = 0.055;
-const GAMMA_SCALE = 1.055;
-const GAMMA_EXPONENT = 2.4;
-const LUMA = { r: 0.2126, g: 0.7152, b: 0.0722 } as const;
-const CONTRAST_OFFSET = 0.05;
-/** Byte offsets of the r, g and b pairs in `#rrggbb`. */
-const RED_AT = 1;
-const GREEN_AT = 3;
-const BLUE_AT = 5;
-const HEX_PAIRS = [RED_AT, GREEN_AT, BLUE_AT] as const;
 const HEX_RADIX = 16;
-const SHORT_HEX_LENGTH = 4;
-
-/** `#abc` and `#aabbcc` both parse. Anything else is a mistake worth throwing on. */
-function channels(hex: string): [number, number, number] {
-  const full =
-    hex.length === SHORT_HEX_LENGTH
-      ? `#${hex[1]!}${hex[1]!}${hex[2]!}${hex[2]!}${hex[3]!}${hex[3]!}`
-      : hex;
-  if (!/^#[0-9a-fA-F]{6}$/.test(full)) throw new Error(`burgee: "${hex}" is not a hex colour`);
-  const parsed = HEX_PAIRS.map((i) => Number.parseInt(full.slice(i, i + 2), HEX_RADIX) / SRGB_MAX);
-  return parsed as [number, number, number];
-}
-
-/** WCAG relative luminance. */
-export function luminance(hex: string): number {
-  const [r, g, b] = channels(hex).map((v) =>
-    v <= LINEAR_THRESHOLD ? v / LINEAR_DIVISOR : ((v + GAMMA_OFFSET) / GAMMA_SCALE) ** GAMMA_EXPONENT,
-  ) as [number, number, number];
-  return LUMA.r * r + LUMA.g * g + LUMA.b * b;
-}
-
-/** The WCAG contrast ratio between two colours. Order does not matter. */
-export function contrast(a: string, b: string): number {
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
-  return (hi + CONTRAST_OFFSET) / (lo + CONTRAST_OFFSET);
-}
 
 /** Mix two colours in sRGB. Enough for reading a gradient stop, not for colour science. */
 export function mix(a: string, b: string, t: number): string {
@@ -155,3 +118,6 @@ export function auditBurgee(brand: AuditInput, grounds: readonly string[] = []):
   }
   return findings;
 }
+
+/** Re-exported so a caller reading a burgee's contrast needs one import, not two. */
+export { AA, contrast, luminance };
