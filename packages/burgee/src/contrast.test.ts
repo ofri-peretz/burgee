@@ -7,9 +7,33 @@
  * middle stop, this goes red with the measured ratio attached, which is the only
  * form of the argument that survives a year.
  */
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
 import { AA, auditBurgee, contrast, fieldColorAt, luminance, mix, report } from './contrast.js';
+
+/**
+ * **The other half of Y1's mitigation.** The floor permits `burgee` to keep its own copy of
+ * shared logic rather than depend on a foundation package — "it keeps its own copy of any
+ * shared logic, **and the two copies share a test-vector file**". The copy was made; the
+ * shared file was read by roundel only, and roundel's own header said so: *"burgee's test
+ * does not read that file yet, so the drift lock is one-sided until the follow-up lands."*
+ *
+ * One-sided is the worst case. roundel could not drift without being caught and burgee could
+ * drift freely, which is the arrangement most likely to produce two functions that disagree
+ * while one of them has a green test. Both sides read the same thirteen vectors now.
+ *
+ * Reading a sibling's JSON fixture is not the dependency U1 forbids: nothing is imported,
+ * `files` does not ship it, and the weight and shape locks see no edge. The file lives in
+ * `roundel` because roundel is the lower layer — the copy that exists to serve other
+ * packages is the one that should own the reference.
+ */
+const VECTORS = JSON.parse(
+   
+  readFileSync(new URL('../../roundel/src/contrast-vectors.json', import.meta.url), 'utf8'),
+) as ReadonlyArray<{ a: string; b: string; ratio: number }>;
+
 
 const ROCK = '#a84c17';
 const JUNIPER = '#0a6b47';
@@ -84,5 +108,19 @@ describe("burgee's own flag", () => {
     });
     expect(broken.every((f) => !f.passes)).toBe(true);
     expect(report(broken)).toContain('FAIL');
+  });
+});
+
+describe('the shared vectors (Y1)', () => {
+  it('reads the same file roundel does — otherwise the drift lock is one-sided', () => {
+    // Non-empty, because `it.each([])` passes silently and that is exactly how a drift lock
+    // goes quiet: the file moves, the read returns nothing, and both suites stay green.
+    expect(VECTORS.length).toBeGreaterThanOrEqual(13);
+  });
+
+  it.each(VECTORS)('$a on $b is $ratio:1', ({ a, b, ratio }) => {
+    expect(contrast(a, b)).toBeCloseTo(ratio, 2);
+    // Symmetric by definition: a ratio that depends on argument order is not a ratio.
+    expect(contrast(b, a)).toBeCloseTo(ratio, 2);
   });
 });

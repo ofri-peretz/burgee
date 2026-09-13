@@ -119,3 +119,71 @@ describe('fly — json', () => {
     expect(flown.level).toBe(0);
   });
 });
+
+/**
+ * The contrast promise used to be made about the hex and kept about nothing else. `fly()`
+ * checked `contrast(style, ground)` while `resolve()` sent the terminal a *different* colour
+ * at level 2 — so the guarantee covered a colour the terminal never received, and the header
+ * said "whatever the level" while meaning "at truecolor".
+ *
+ * Both colours that can reach a terminal are checked now, at every level, so a theme that
+ * would fail on somebody's 256-colour terminal fails in CI on a truecolor one.
+ */
+describe('the 256-colour substitution is checked too', () => {
+  const ground = '#0a0a0a';
+  /**
+   * `#7e7e7e` reads at 4.88:1 against near-black and the grey ramp rounds it to index 243,
+   * `#767676`, which is 4.36:1 — under the floor. One of 167 such hexes found by sweeping the
+   * sRGB cube, so this is a class of input and not a curiosity; `#e418b1` -> `#d700af`
+   * (4.77 -> 4.25) is the same failure through the colour cube rather than the grey ramp.
+   */
+  it('refuses a hex that reads at truecolor and not at 256', () => {
+    let message = '';
+    try {
+      fly({ ok: '#7e7e7e' }, truecolor);
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toContain('ok #7e7e7e at 256 colours is #767676 on #0a0a0a, 4.36:1');
+    // And not for the truecolor value, which is above the floor: the two checks are separate
+    // verdicts on two different colours, not one verdict reported twice.
+    expect(message).not.toContain('ok #7e7e7e on #0a0a0a');
+  });
+
+  it('accepts the defaults, which clear both', () => {
+    // `brand()` picks the lighter of each pair against near-black, and both survive the cube.
+    expect(() => fly({}, truecolor)).not.toThrow();
+    expect(() => fly({}, { ...truecolor, env: { FORCE_COLOR: '2' } })).not.toThrow();
+  });
+
+  /**
+   * Level 1 is absent and stays absent. The basic sixteen are the user's own terminal theme,
+   * so there is no RGB to measure — `contrast.ts` says so, and inventing a number there would
+   * be worse than declining to.
+   */
+  it('says nothing about the sixteen, because there is nothing to say', () => {
+    let message = '';
+    try {
+      fly({ ok: '#7e7e7e' }, { ...truecolor, env: { FORCE_COLOR: '1' } });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toContain('at 256 colours');
+    expect(message).not.toContain('16 colours');
+  });
+
+  /** The check is the same on every run, so a developer on truecolor sees what CI sees. */
+  it('gives the same verdict at every level', () => {
+    const verdict = (env: Record<string, string>): string => {
+      try {
+        fly({ ok: '#7e7e7e' }, { ...truecolor, env });
+        return 'accepted';
+      } catch (error) {
+        return (error as Error).message;
+      }
+    };
+    const atTruecolor = verdict({ COLORTERM: 'truecolor' });
+    expect(verdict({ FORCE_COLOR: '2' })).toBe(atTruecolor);
+    expect(verdict({ FORCE_COLOR: '1' })).toBe(atTruecolor);
+  });
+});

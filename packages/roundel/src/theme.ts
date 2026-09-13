@@ -3,9 +3,11 @@
  *
  * A style is either a list of `util.styleText` format names — the user's own terminal
  * palette, never checked or claimed — or a `#rrggbb`, which is truecolor at level 3 and
- * falls back to the nearest of 256 or 16 colours below it. Every hex token is checked
- * against the declared ground at 4.5:1 before it is flown, whatever the level, so a theme
- * that would not read on a truecolor terminal fails in CI rather than on a laptop.
+ * falls back to the nearest of 256 or 16 colours below it. Every hex token is checked against
+ * the declared ground at 4.5:1 before it is flown — **and so is the 256-colour entry it
+ * degrades to**, at every level, so a theme that would not read on somebody's 256-colour
+ * terminal fails in CI on a truecolor one. Level 1 is not checked and cannot be: the basic
+ * sixteen are the user's own theme, and a ratio over them would be invented.
  */
 import { AA, channels, contrast } from './contrast.js';
 import {
@@ -57,6 +59,11 @@ const CUBE_START = 16;
 const CUBE_ROW = 36;
 const CUBE_COL = 6;
 const GREY_START = 232;
+const GREY_STEP = 10;
+const HEX_BASE = 16;
+const RGB_PARTS = 3;
+/** The six sRGB values the xterm cube steps through. */
+const CUBE_LEVELS = [0, 95, 135, 175, 215, 255] as const;
 const GREY_STEPS = 24;
 const GREY_LOW = 8;
 const GREY_HIGH = 248;
@@ -97,6 +104,22 @@ function ansi16(r: number, g: number, b: number): Format {
   return name === 'black' ? 'gray' : `${name}Bright`;
 }
 
+/**
+ * The sRGB of a 256-palette index, which is `ansi256` run backwards. Defined for 16–255 only,
+ * and that is the whole reason this check is possible: **entries 0–15 are the user's terminal
+ * theme and entries 16–255 are not.** The 6×6×6 cube and the 24-step grey ramp are the xterm
+ * values every terminal ships and none of them themes, so a contrast number over them is
+ * measured rather than invented — which is exactly what `contrast.ts` says cannot be done for
+ * the basic sixteen. `ansi256` never returns below 16, so every paint it produces is knowable.
+ */
+function rgb256(index: number): Hex {
+  const hex = (r: number, g: number, b: number): Hex => `#${[r, g, b].map((v) => v.toString(HEX_BASE).padStart(2, '0')).join('')}`;
+  if (index >= GREY_START) return hex(...(Array(RGB_PARTS).fill(GREY_LOW + (index - GREY_START) * GREY_STEP) as [number, number, number]));
+  const n = index - CUBE_START;
+  const at = (i: number): number => CUBE_LEVELS[i] as number;
+  return hex(at(Math.floor(n / CUBE_ROW)), at(Math.floor((n % CUBE_ROW) / CUBE_COL)), at(n % CUBE_COL));
+}
+
 /** A style as the token will paint it at this level: hex becomes truecolor, 256 or 16. */
 function resolve(style: Style, level: ColorLevel): Paint {
   if (typeof style !== 'string') return style;
@@ -116,8 +139,27 @@ export function fly(theme: Theme, rt: Runtime, opts?: ModeOptions): void {
   const styles = TOKENS.map((name) => [name, theme[name] ?? DEFAULTS[name](ground)] as const);
   const failures = styles.flatMap(([name, style]) => {
     if (typeof style !== 'string') return [];
-    const ratio = contrast(style, ground);
-    return ratio < AA.TEXT ? [`${name} ${style} on ${ground} is ${ratio.toFixed(2)}:1`] : [];
+    const [r, g, b] = channels(style).map((v) => Math.round(v * SRGB_MAX)) as [number, number, number];
+    // Both colours the terminal can actually be sent, not just the one that was written.
+    // Checked at every level rather than only at the level this run happens to be, so a
+    // theme that fails on somebody's 256-colour terminal fails in CI on a truecolor one —
+    // which is what the promise above this function has always said and did not do.
+    //
+    // Level 1 is absent on purpose and will stay absent: the basic sixteen are the user's
+    // theme, so there is no number to check. That is a real limit of the medium, not a gap.
+    const under = (value: Hex): number | undefined => {
+      const ratio = contrast(value, ground);
+      return ratio < AA.TEXT ? ratio : undefined;
+    };
+    // The truecolor wording is unchanged on purpose: `theme.test.ts` pins it, and a lock that
+    // has to be edited to add a check is a lock that teaches you to edit locks.
+    const truecolor = under(style);
+    const substitute = rgb256(ansi256(r, g, b));
+    const degraded = under(substitute);
+    return [
+      ...(truecolor === undefined ? [] : [`${name} ${style} on ${ground} is ${truecolor.toFixed(2)}:1`]),
+      ...(degraded === undefined ? [] : [`${name} ${style} at 256 colours is ${substitute} on ${ground}, ${degraded.toFixed(2)}:1`]),
+    ];
   });
   if (failures.length > 0) throw new Error(`roundel: below ${AA.TEXT}:1 — ${failures.join('; ')}`);
   flown.level = level;
