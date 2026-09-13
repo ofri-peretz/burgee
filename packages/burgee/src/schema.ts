@@ -4,7 +4,7 @@
  * manifest and nothing else. Choices are carried as data (N9), the same data that becomes
  * an MCP tool's input schema.
  */
-import type { ArgumentSpec, CommandNode, Effects, Example, Manifest, OptionSpec } from './manifest.js';
+import type { ArgumentSpec, CommandNode, Effects, Example, Manifest, OptionSpec, Relation } from './manifest.js';
 import { kebab } from './names.js';
 
 export interface JsonSchema {
@@ -43,9 +43,44 @@ export interface CommandSchema {
   plugin?: string;
   arguments: ArgumentSpec[];
   options: Record<string, OptionSpec>;
+  /**
+   * The constraints between options (S2/S6), which `validate.ts` already enforces and the
+   * schema did not publish. Without them an agent can only discover that `--a` conflicts
+   * with `--b` by sending both and reading exit 2 — a round trip per constraint, and under
+   * E1 an exit 2 means *rewrite the command*, so it may well send the same pair again.
+   *
+   * Omitted entirely when a command declares none, so a reader can tell "no constraints"
+   * from "constraints not published".
+   */
+  relations?: PublishedRelation[];
   examples: Example[];
   /** The arguments and options as one JSON Schema object — what an MCP tool call takes. */
   inputSchema: JsonSchema;
+}
+
+/**
+ * A relation as JSON can carry it.
+ *
+ * `implies` takes either another option's name or a **predicate over the values**, and a
+ * function cannot be published. `JSON.stringify` turns it into `null` without a word, which
+ * would hand an agent `["force", null]` and let it conclude the constraint is malformed
+ * rather than unevaluable. So a predicate becomes the string `"(predicate)"`: the pair is
+ * still visible, and what is missing says so.
+ */
+export type PublishedRelation =
+  | { exactlyOneOf: readonly string[] }
+  | { atLeastOneOf: readonly string[] }
+  | { atMostOneOf: readonly string[] }
+  | { conflicts: readonly string[] }
+  | { implies: readonly [string, string] };
+
+/** The marker a predicate leaves behind. Not a name any option can have — it has parentheses. */
+export const PREDICATE = '(predicate)';
+
+function publishable(relation: Relation): PublishedRelation {
+  if (!('implies' in relation)) return relation;
+  const [option, consequent] = relation.implies;
+  return { implies: [option, typeof consequent === 'function' ? PREDICATE : consequent] };
 }
 
 export interface ProgramSchema {
@@ -120,6 +155,7 @@ export function commandSchemaOf(node: CommandNode, root: string[]): CommandSchem
   if (node.group !== undefined) out.group = node.group;
   if (node.load !== undefined) out.lazy = true;
   if (node.plugin !== undefined) out.plugin = node.plugin;
+  if (node.relations !== undefined && node.relations.length > 0) out.relations = node.relations.map(publishable);
   return out;
 }
 
