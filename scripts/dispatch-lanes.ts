@@ -44,14 +44,17 @@ function steps(lane: Lane): { id: string; what: string; fan: boolean }[] {
  * the largest step in the plan, from every package lane's prompt.
  */
 function detail(id: string): string {
-  const start = [id, id.split(/[–-]/)[0] as string].map((k) => PLAN_MD.indexOf(`- **${k}**`)).find((i) => i !== -1) ?? -1;
+  // Some bullets bold the title with the id (`- **2.14 \`cross-spawn\` (jest).**`), so match
+  // the id followed by anything that is not another digit — `2.1` must not find `2.14`.
+  const find = (k: string): number => PLAN_MD.search(new RegExp(`^- \\*\\*${k.replaceAll('.', '\\.')}(?![\\d.])`, 'm'));
+  const start = [id, id.split(/[–-]/)[0] as string].map(find).find((i) => i !== -1) ?? -1;
   if (start === -1) return '';
   const rest = PLAN_MD.slice(start);
   const end = rest.slice(1).search(/\n- \*\*|\n## /);
   return rest.slice(0, end === -1 ? rest.length : end + 1).trim();
 }
 
-function prompt(lane: Lane): string {
+export function prompt(lane: Lane): string {
   const mine = steps(lane);
   return [
     `## lane ${lane.name}`,
@@ -88,11 +91,14 @@ function prompt(lane: Lane): string {
   ].join('\n');
 }
 
-const argv = process.argv.slice(2);
-const only = argv.includes('--lane') ? argv[argv.indexOf('--lane') + 1] : undefined;
-const chosen = lanes().filter((l) => only === undefined || l.name === only);
-if (chosen.length === 0) {
-  console.error(`no lane named ${String(only)} — see .sdlc/LANES.md`);
-  process.exit(1);
+/** Importers (the lock test) get `prompt` without the CLI printing ten lane briefs. */
+if (process.argv[1]?.endsWith('dispatch-lanes.ts') === true) {
+  const argv = process.argv.slice(2);
+  const only = argv.includes('--lane') ? argv[argv.indexOf('--lane') + 1] : undefined;
+  const chosen = lanes().filter((l) => only === undefined || l.name === only);
+  if (chosen.length === 0) {
+    console.error(`no lane named ${String(only)} — see .sdlc/LANES.md`);
+    process.exit(1);
+  }
+  console.log(chosen.map(prompt).join('\n\n---\n\n'));
 }
-console.log(chosen.map(prompt).join('\n\n---\n\n'));

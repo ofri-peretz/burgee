@@ -20,6 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+import { prompt } from './dispatch-lanes.js';
 import { forbidden, lanes, owns } from './lanes.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -91,6 +92,16 @@ describe('lane boundaries', () => {
       .filter((l) => l.name !== 'integrator')
       .flatMap((l) => forbidden().filter((f) => owns(l, f.replace(/\*\*$/, 'x'))).map((f) => `${l.name} owns forbidden ${f}`));
     expect(bad).toEqual([]);
+  });
+
+  it('every lane prompt renders every one of its steps', () => {
+    // The lock was green while `2.2-2.13` — twelve vendored suites, the largest step in the
+    // plan — rendered as "no PLAN.md paragraph" in all six package lanes. A consistent
+    // mapping is not a usable prompt; this reads what a sub-agent would actually be given.
+    const broken = lanes()
+      .filter((l) => prompt(l).includes('no PLAN.md paragraph'))
+      .map((l) => l.name);
+    expect(broken, 'a step with no paragraph is a step with no "Done when"').toEqual([]);
   });
 
   it('the working tree obeys the lane the branch names', () => {
