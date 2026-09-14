@@ -172,6 +172,11 @@ export function rootPackage(host: Host, upstream: UpstreamPackage): Record<strin
   if (upstream.version !== undefined) pkg.version = upstream.version;
   if (upstream.license !== undefined) pkg.license = upstream.license;
   if (upstream.repository !== undefined) pkg.repository = upstream.repository;
+  // Written from `hosts.ts` rather than left to a human, so a re-vendor cannot drop it: the
+  // whole file is regenerated on every run, and a hand-added dependency would survive
+  // exactly until the next upstream release. A host declaring none gets no key at all, so
+  // the eight directories vendored before this existed still reproduce byte for byte.
+  if (host.vendorDeps !== undefined) pkg.devDependencies = host.vendorDeps;
   return pkg;
 }
 

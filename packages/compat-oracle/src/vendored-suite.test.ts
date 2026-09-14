@@ -9,7 +9,7 @@
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { builtinModules } from 'node:module';
+import { builtinModules, createRequire } from 'node:module';
 import { join, matchesGlob, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -107,6 +107,18 @@ function requiredPackages(dir: string): Map<string, string> {
   return found;
 }
 
+/** Packages a host declares in `vendorDeps`, written into its vendored root's manifest. */
+function vendorDeclared(): Map<string, string> {
+  const found = new Map<string, string>();
+  for (const host of onDisk) {
+    const at = join(VENDOR, host.name, 'package.json');
+    if (!existsSync(at)) continue;
+    const pkg = JSON.parse(readFileSync(at, 'utf8')) as { devDependencies?: Record<string, string> };
+    for (const name of Object.keys(pkg.devDependencies ?? {})) found.set(name, host.name);
+  }
+  return found;
+}
+
 describe('the oracle installs what its vendored suites require', () => {
   it('declares every package a vendored suite reaches for by name', () => {
     // Two manifests, because either one makes `npm ci` install the package: this one, and
@@ -124,8 +136,37 @@ describe('the oracle installs what its vendored suites require', () => {
     // Resolution is not the test: `cli-table` resolved on the author's machine from a
     // stray `~/node_modules` and the suite scored 33/33, while `npm ci` gave 15/16. What
     // has to hold is that the package is *declared*, so a clean install has it.
-    const undeclared = [...requiredPackages(VENDOR)].filter(([name]) => !declared.has(name)).map(([name, at]) => `${name} (${at})`);
+    //
+    // A third place counts, and only for what it declares: `vendor/<host>/package.json`,
+    // written from the host's `vendorDeps`. The workspace manifests are the better home and
+    // are where yargs' `cpr` and `hashish` live — but adding one is a `package-lock.json`
+    // change, and the lockfile is one lane's to touch. A vendored declaration says what the
+    // suite needs without it, and pays for the weaker guarantee in the test below.
+    const vendorLocal = vendorDeclared();
+    const undeclared = [...requiredPackages(VENDOR)]
+      .filter(([name]) => !declared.has(name) && !vendorLocal.has(name))
+      .map(([name, at]) => `${name} (${at})`);
     expect(undeclared).toEqual([]);
+  });
+
+  it('resolves every package declared vendor-locally, because nothing installs a vendored manifest', () => {
+    // The weaker half of the bargain above, made loud. A root devDependency is installed by
+    // `npm ci`; a name in `vendor/<host>/package.json` is not installed by anything, so it
+    // is reaching us through the hoist — exactly how `@colors/colors` reached four of
+    // cli-table3's test files, as an optional dependency of cli-table3 itself, one release
+    // from vanishing. There the day it vanished would have arrived as a file that failed to
+    // load and a rate that quietly dropped. Here it arrives as this.
+    const unresolvable = [...vendorDeclared()]
+      .filter(([name, host]) => {
+        try {
+          createRequire(join(VENDOR, host, 'package.json')).resolve(name);
+          return false;
+        } catch {
+          return true;
+        }
+      })
+      .map(([name, host]) => `${name}, required by ${host}'s suite and declared in vendor/${host}/package.json, does not resolve — declare it at the workspace root`);
+    expect(unresolvable).toEqual([]);
   });
 });
 

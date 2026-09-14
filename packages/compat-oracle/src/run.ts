@@ -42,6 +42,17 @@ export interface Grade {
    * the gate. Passing them would mean copying the host, not being compatible with it.
    */
   internals?: { files: number; tests: number; passed: number };
+  /**
+   * How the row was graded, when it was not graded case by case.
+   *
+   * Absent is the normal thing: a TAP dialect with one line per case, so `passed` is a count
+   * of assertions somebody wrote. `'exit-code'` means the suite prints nothing a parser can
+   * read (rc's three scripts are bare `assert` calls and `console.log`), so the whole suite
+   * is one bit — it ran and exited 0, or it did not. That is a **weaker** measurement than
+   * every other row's, and it is recorded rather than inferred so the row says so on its
+   * face and `report.ts` can refuse a row that quietly becomes one.
+   */
+  mode?: 'exit-code';
 }
 
 const BYTES_PER_KIB = 1024;
@@ -172,6 +183,22 @@ export function summarize(output: string, files: number, reference: number, gate
   return broken('suite exited before its summary (process.exit() inside a test?)');
 }
 
+/**
+ * The grade for a suite that has no reporter to ask: one bit for the whole run.
+ *
+ * rc's `npm test` is `node test/test.js`, a file of bare `assert` calls that prints its
+ * config objects and nothing else. There is no case name to count, so counting is not
+ * available and pretending otherwise would put a fabricated denominator on a published
+ * page. `tests: 1` is the honest size of what was measured: the suite ran against this
+ * target and exited 0, or it did not.
+ *
+ * `failures` names the files that exited non-zero, so a red row still says which script.
+ */
+export function summarizeExitCodes(failures: string[], files: number, reference: number): Summary & { mode: 'exit-code' } {
+  const passed = failures.length === 0 ? 1 : 0;
+  return { mode: 'exit-code', ...rate(files, { tests: 1, passed, failed: 1 - passed, skipped: 0 }, reference) };
+}
+
 function rate(files: number, counts: { tests: number; passed: number; failed: number; skipped: number }, reference: number): Summary {
   // The reference is the control's total; a run that registers *more* (a file that used to
   // fail to import now loads) proves the reference stale, and the larger count is the
@@ -247,6 +274,11 @@ interface Source {
  * fails is a real divergence rather than a whole file thrown away.
  */
 function writeInternalShims(host: Host, { hostDir, target, internals, packageType }: { hostDir: string; target: string; internals: string[]; packageType: string }): void {
+  if (internals.length === 0) return;
+  // Resolved only once there is a shim to point at the host's own file. It used to be
+  // resolved before that check, so a host whose suite imports no internals still had to
+  // have the incumbent installed — and when it was not, the oracle threw a
+  // MODULE_NOT_FOUND out of the middle of `grade()` instead of reporting a graded error.
   const installed = target === host.name ? packageRoot(host.name) : undefined;
   for (const rel of internals) {
     const at = join(hostDir, rel);
@@ -339,6 +371,13 @@ globalThis.jest = {
   // run time actually means. These suites call it before the require it affects.
   mock: (...args) => vi.doMock(...args),
   requireActual: (id) => require(id),
+  // The three cross-spawn's suite reaches for. \`setTimeout\` is jest's *per-file* timeout
+  // knob, which is \`vi.setConfig({ testTimeout })\` here — a suite that calls it at module
+  // scope and then awaits four subprocesses per case needs it, and without the mapping the
+  // file dies on \`jest is not defined\` before a single case registers.
+  setTimeout: (ms) => vi.setConfig({ testTimeout: ms, hookTimeout: ms }),
+  spyOn: (...args) => vi.spyOn(...args),
+  restoreAllMocks: () => vi.restoreAllMocks(),
 };
 `;
 
@@ -369,6 +408,37 @@ function neutralEnv(): NodeJS.ProcessEnv {
   const env = { ...process.env };
   for (const key of AMBIENT_COLOUR) delete env[key];
   return env;
+}
+
+/**
+ * Runs each graded file with node and reports which exited non-zero. No reporter, no
+ * parser: the file's own `assert` calls throw, node exits 1, and that is the measurement.
+ *
+ * A file that could not be *started* — node missing, the path gone — is an error rather
+ * than a failure, the same distinction `runSuite` draws, because "the oracle is broken"
+ * and "the target is wrong" must never share a number.
+ */
+function runExitCodes(host: Host, hostDir: string, files: string[], target: string): { failures: string[] } | { error: string } {
+  const dir = join(hostDir, host.testDir);
+  const failures: string[] = [];
+  for (const file of files) {
+    try {
+      execFileSync(process.execPath, [join(dir, file)], {
+        encoding: 'utf8',
+        cwd: hostDir,
+        env: { ...neutralEnv(), ...host.env, COMPAT_TARGET: target },
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: SUITE_TIMEOUT_MS,
+        maxBuffer: MAX_OUTPUT_BYTES,
+      });
+    } catch (cause) {
+      const failure = cause as { status?: number | null; stderr?: string; message: string };
+      // `status` is a number exactly when the process ran and chose its exit code.
+      if (typeof failure.status !== 'number') return { error: `${file}: ${failure.message.slice(0, ERROR_EXCERPT)}` };
+      failures.push(file);
+    }
+  }
+  return { failures };
 }
 
 /** Runs the suite from its vendored root; a failing suite still prints its summary. */
@@ -438,6 +508,12 @@ export function grade(host: Host, vendorDir: string, target: string, reference =
   writeShims(host, hostDir, target, packageType);
   writeInternalShims(host, { hostDir, target, internals: source.internals ?? [], packageType });
 
+  if (host.runner === 'exit-code') {
+    const outcome = runExitCodes(host, hostDir, files, target);
+    if ('error' in outcome) return { ...base, files: files.length, error: outcome.error };
+    return { ...base, ...summarizeExitCodes(outcome.failures, files.length, reference) };
+  }
+
   const run = runSuite(host, hostDir, files, target);
   keepTap(host, target, 'public', run);
   if ('error' in run) return { ...base, files: files.length, error: run.error };
@@ -456,7 +532,19 @@ export function grade(host: Host, vendorDir: string, target: string, reference =
 }
 
 export interface Baseline {
-  [host: string]: { reference: number; passed: number; rate: number };
+  [host: string]: {
+    reference: number;
+    passed: number;
+    rate: number;
+    /**
+     * Declared for a row graded as one pass/fail bit rather than case by case — see
+     * `Grade.mode`. It is the *declaration* that makes the coarse row honest, so
+     * `report.ts` refuses any run that grades a row this way without one: a row that
+     * quietly stops counting cases has quietly stopped measuring anything, and its rate
+     * would still read 100%.
+     */
+    mode?: 'exit-code';
+  };
 }
 
 /**

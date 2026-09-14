@@ -120,10 +120,27 @@ export interface Host {
   /** Git tag prefix for releases; `v` unless the host does otherwise. */
   tagPrefix?: string;
   /**
-   * How its suite is executed. `vitest` is what a jest suite runs under, since jest's
-   * globals are vitest's and vitest is already here.
+   * Packages this host's *suite* reaches for by name, written into the vendored root's
+   * `package.json` rather than into the workspace.
+   *
+   * The workspace manifests are where a suite's dependencies have lived until now (yargs'
+   * `cpr` and `hashish` are root devDependencies for exactly this reason), and that is
+   * still the better home — but it is one lane's to change, because a Mac-regenerated
+   * `package-lock.json` fails Lockfile Sync. Declaring them here instead says out loud what
+   * the suite needs, and `vendored-suite.test.ts` holds it to something stronger than the
+   * root list gets: every name declared here must actually **resolve** from the vendored
+   * directory, so the day the hoist stops supplying one the oracle goes red instead of
+   * quietly losing a file. That hole is not hypothetical — `@colors/colors` reached four of
+   * cli-table3's test files as a hoisted optional dependency of cli-table3 itself.
    */
-  runner: 'node:test' | 'mocha' | 'ava' | 'vitest';
+  vendorDeps?: Record<string, string>;
+  /**
+   * How its suite is executed. `vitest` is what a jest suite runs under, since jest's
+   * globals are vitest's and vitest is already here. `exit-code` is not a TAP dialect at
+   * all: it runs each file with node and grades the whole suite as one pass/fail bit, for
+   * a host whose suite prints nothing a parser can read.
+   */
+  runner: 'node:test' | 'mocha' | 'ava' | 'vitest' | 'exit-code';
   /** Our entry point graded against it. */
   target: string;
   status: 'active' | 'planned' | 'rejected';
@@ -280,6 +297,69 @@ export const HOSTS: Host[] = [
     target: 'linegauge',
     status: 'active',
     note: 'linegauge exports `width` as its default, which is the shape string-width\'s own tests import.',
+  },
+  {
+    // The jest host, and the one the plan expected to need a fifth TAP dialect. It does not.
+    //
+    // `npm view cross-spawn scripts.test` is `jest --env node --coverage`, and jest emits no
+    // TAP — which is why `.sdlc/PLAN.md` §2.14 planned a vendored `jest-tap-reporter`. But
+    // the dialect that grades a jest suite was already here: cli-table3's suite is jest's
+    // too, and it runs under **vitest**, whose `tap-flat` reporter this file's runner has
+    // parsed since that host was activated. jest's globals are vitest's; the three this
+    // suite reaches for that `globals: true` does not supply (`setTimeout`, `spyOn`,
+    // `restoreAllMocks`) are mapped in `run.ts`'s generated setup file beside the existing
+    // `fn`, `mock` and `requireActual`. So this row costs no new package in the workspace,
+    // no new package under `vendor/`, and no fifth parser — measured 2026-09-14.
+    //
+    // What it *does* cost is three test dependencies: the suite requires `rimraf`, `mkdirp`
+    // and `path-key` by name. They are declared in `vendorDeps` rather than at the root for
+    // the reason written there.
+    name: 'cross-spawn',
+    repo: 'https://github.com/moxystudio/node-cross-spawn',
+    testDir: 'test',
+    testGlob: '*.test.js',
+    // The suite never imports the host directly: `test/util/run.js` does, as `../../index`,
+    // and the rewrite resolves it from that file's own directory onto the one shim.
+    imports: [{ upstream: '../index', subpath: '', reexportDefault: true }],
+    vendorDeps: { mkdirp: '^0.5.1', 'path-key': '^3.1.0', rimraf: '^3.0.0' },
+    surfaceFiles: ['index.js'],
+    runner: 'vitest',
+    target: 'bellpull/cross-spawn',
+    status: 'active',
+    note: "The suite runs each of its cases four times — `spawn`, `spawn-force-shell`, `sync`, `sync-force-shell` — so a divergence in one path cannot hide behind the other three. It is also the most load-sensitive row here: every case spawns a real subprocess under the suite's own `jest.setTimeout(10000)`, and `sync-force-shell > should support shebang…` spawns three. Measured 2026-09-14 on a 14-core machine at load 16–21 (five agents at once), one `spawn.sync` of the shebang fixture took 0.6–3.5 s and that case timed out in 3 runs of 6; at load ~1 the same call takes 32 ms and the control is 68 / 68 every time. A control of 67 / 68 on this case means the machine, not the target — which is a reason to read the TAP before re-recording anything, not a reason to widen a timeout the suite chose.",
+  },
+  {
+    // The host with no parseable output, and the reason `mode: "exit-code"` exists.
+    //
+    // `npm view rc scripts.test` is `set -e; node test/test.js; node test/ini.js; node
+    // test/nested-env-vars.js`: three scripts of bare `assert` calls that print their config
+    // objects with `console.log` and say nothing about cases. There is no reporter to ask for
+    // TAP, so the honest grade is one bit — the suite ran against this target and exited 0 —
+    // and `baseline/rc.json` has to carry `mode: "exit-code"` so the row says on its face
+    // that it is coarser than the others.
+    //
+    // **Planned, not active, and the blocker is not the mode.** Every other host's control
+    // run re-exports the incumbent by name, so the incumbent has to be installed: `commander`,
+    // `yargs`, `cli-table`, `cpr` and the rest are root devDependencies for exactly that.
+    // `rc` is not in the workspace and is not reachable transitively, so on a clean `npm ci`
+    // the control cannot run — and CI runs the control (`compat.yml`, "Grade the real
+    // packages"). Activating this row before `rc` is declared would put a red control on
+    // main. Declaring it is a `package-lock.json` change, which belongs to the integrator
+    // lane; `vendorDeps` cannot substitute, because nothing installs a vendored manifest.
+    //
+    // Also deliberate: `testGlob` names one of the three files. `ini.js` tests `lib/utils`,
+    // an internal, and pulls the `ini` package; `nested-env-vars.js` is public and is the
+    // obvious second file to grade once the first row exists.
+    name: 'rc',
+    repo: 'https://github.com/dominictarr/rc',
+    testDir: 'test',
+    testGlob: 'test.js',
+    imports: [{ upstream: '../', subpath: '', reexportDefault: true }],
+    surfaceFiles: ['index.js', 'lib/utils.js'],
+    runner: 'exit-code',
+    target: 'seniority/rc',
+    status: 'planned',
+    note: 'Blocked on one line the integrator lane owns: `rc` as a root devDependency, without which the control cannot run on a clean install. The grading mode it needs (`exit-code`) and the gate that refuses a silent downgrade to it are in place and proven.',
   },
   {
     // `wrap-ansi` is the one incumbent in this layer with a measured correctness gap, and it
