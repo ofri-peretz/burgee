@@ -60,15 +60,29 @@ import { describe, expect, it } from "vitest";
 import { cliui } from "./cliui.js";
 
 /**
- * Cost of 4n over cost of n, taking the best of several runs at each size.
+ * Median ratio of the cost at 4n to the cost at n. Linear work lands at 4; the quadratic
+ * backtracking this guards lands near 16. The ceiling is 8 — the midpoint in log space, so
+ * neither side is close to it.
  *
- * The best-of is deliberate: a slow run can only come from noise (GC, a scheduler slice, a
- * cold JIT), never from the code being faster than it is, so the minimum is the least noisy
- * estimate of the real cost. Both sizes are measured in the same process, so whatever the
- * machine is, it is the same machine for both — which is the whole point of measuring a ratio.
+ * Why a ratio and not milliseconds: catastrophic backtracking is a statement about how cost
+ * GROWS, while a millisecond budget is a statement about the runner. This file used to assert
+ * `elapsed < 400` and CI returned 440. This repo already knew better — the B2 ratchet says
+ * "gates the median, not the p95 — an absolute or tail-driven gate is what red-lit two innocent
+ * PRs in #27" — and these assertions were the same mistake one file over.
+ *
+ * Why n = 12,000 and a median of samples, both measured: at 3,000 a single best-of-3 ratio on
+ * genuinely linear code was observed as high as 6.35, because fixed overhead dominates and
+ * noise rides on top. By 12,000 the spread is 3.75–4.40. And why not larger: the first version
+ * used 25,000/100,000 and ran past CI's 5s default timeout — a perf test that times out is a
+ * slower way to be flaky.
+ *
+ * Best-of within each size, median across ratios: a slow run can only come from noise (GC, a
+ * scheduler slice, a cold JIT), never from the code being faster than it is, so the minimum is
+ * the least noisy estimate; the median across samples then discards a pathological pairing.
+ * Both sizes run in the same process, so whatever the machine is, it cancels.
  */
-function growth(work: (n: number) => unknown, n = 25_000, runs = 5): number {
-  const best = (size: number) => {
+function growth(work: (n: number) => unknown, n = 12_000, samples = 5): number {
+  const best = (size: number, runs = 3) => {
     let min = Infinity;
     for (let i = 0; i < runs; i++) {
       const started = performance.now();
@@ -77,9 +91,12 @@ function growth(work: (n: number) => unknown, n = 25_000, runs = 5): number {
     }
     return Math.max(min, 0.05); // a floor, so a sub-tick measurement cannot divide by zero
   };
-  const small = best(n);
-  const large = best(n * 4);
-  return large / small;
+  const ratios: number[] = [];
+  for (let i = 0; i < samples; i++) ratios.push(best(n * 4) / best(n));
+  ratios.sort((a, b) => a - b);
+  // `?? Infinity` rather than a non-null assertion: with no samples the gate should fail
+  // loudly, not pass on an undefined that got asserted away.
+  return ratios[Math.floor(ratios.length / 2)] ?? Infinity;
 }
 
 describe("padding measurement", () => {
@@ -89,20 +106,24 @@ describe("padding measurement", () => {
     expect(ui.toString()).toBe("  indented and trailing");
   });
 
-  it("does not backtrack on a cell that is mostly whitespace", () => {
-    // Shape, not wall clock. The bug is catastrophic backtracking, which is a statement about
-    // how the cost GROWS, and an absolute millisecond budget is a statement about the runner:
-    // this file asserted `< 400` and a CI box came back with 440. This repo already learned
-    // that lesson for the ratchet gates, which say in as many words that "an absolute or
-    // tail-driven gate is what red-lit two innocent PRs in #27".
-    //
-    // Quadrupling the input must not multiply the cost by ~16. The ceiling is generous on
-    // purpose: it has to clear linear overhead and scheduler noise on a shared runner, while
-    // staying far enough below quadratic that the regression this guards cannot hide under it.
-    expect(
-      growth((n) => cliui({ width: 80 }).div(`${" ".repeat(n)}x`)),
-    ).toBeLessThan(6);
-  });
+  it(
+    "does not backtrack on a cell that is mostly whitespace",
+    { timeout: 20_000 },
+    () => {
+      // Shape, not wall clock. The bug is catastrophic backtracking, which is a statement about
+      // how the cost GROWS, and an absolute millisecond budget is a statement about the runner:
+      // this file asserted `< 400` and a CI box came back with 440. This repo already learned
+      // that lesson for the ratchet gates, which say in as many words that "an absolute or
+      // tail-driven gate is what red-lit two innocent PRs in #27".
+      //
+      // Quadrupling the input must not multiply the cost by ~16. The ceiling is generous on
+      // purpose: it has to clear linear overhead and scheduler noise on a shared runner, while
+      // staying far enough below quadratic that the regression this guards cannot hide under it.
+      expect(
+        growth((n) => cliui({ width: 80 }).div(`${" ".repeat(n)}x`)),
+      ).toBeLessThan(8);
+    },
+  );
 });
 
 describe("row rendering", () => {
@@ -113,13 +134,17 @@ describe("row rendering", () => {
     expect(ui.toString()).toBe("ends with a tab\t");
   });
 
-  it("does not backtrack when trimming a wide row's trailing spaces", () => {
-    const render = (n: number) => {
-      const ui = cliui({ width: 80 });
-      ui.div(`${" ".repeat(n)}x`);
-      return ui.toString();
-    };
-    expect(render(50_000).endsWith("x")).toBe(true);
-    expect(growth(render)).toBeLessThan(6);
-  });
+  it(
+    "does not backtrack when trimming a wide row's trailing spaces",
+    { timeout: 20_000 },
+    () => {
+      const render = (n: number) => {
+        const ui = cliui({ width: 80 });
+        ui.div(`${" ".repeat(n)}x`);
+        return ui.toString();
+      };
+      expect(render(24_000).endsWith("x")).toBe(true);
+      expect(growth(render)).toBeLessThan(8);
+    },
+  );
 });
