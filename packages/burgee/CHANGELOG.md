@@ -1,5 +1,19 @@
 # burgee
 
+## 0.6.1
+
+### Patch Changes
+
+- [#280](https://github.com/ofri-peretz/burgee/pull/280) [`50cc1a3`](https://github.com/ofri-peretz/burgee/commit/50cc1a325bc99b144b4e1dba701de624bbd76de6) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The B1 agent-cost axis now recognises an empty credential as no credential. A workflow that maps an unset repository secret into the environment leaves the variable **present and empty**, not absent, so a guard testing against `undefined` never fired: the axis ran, `claude` failed to authenticate on all 25 task-runs, and the skip reported that `claude` "answered but nothing it produced passed a task's own check" — pointing a reader at a prompt-quality problem that did not exist.
+
+- [#278](https://github.com/ofri-peretz/burgee/pull/278) [`862e837`](https://github.com/ofri-peretz/burgee/commit/862e83716b66e9aa363a0fa3b703cc9cd38b8929) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - **🐛 Fix** — help screens wrap against the real width: `width`, `strip` and `wrap` come from `linegauge`
+
+  `burgee/yargs`' cliui port carried its own `stringWidth`, `stripAnsi` and a wrap-ansi
+  implementation. The strip was wrong: the ITU T.416 sub-parameter form
+  `ESC[38:2::255:0:0m` — what chalk emits for truecolor — left `:2::255:0:0m` in the string,
+  so a 13-column string measured as 25 and every help screen wrapped against a width that was
+  not the width. linegauge owns measuring and wrapping text and had already fixed it.
+
 ## 0.6.0
 
 ### Minor Changes
