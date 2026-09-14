@@ -156,9 +156,21 @@ under a `manual` heading.
   Done when: `grep -rl burgee .sdlc | wc -l` → 0 and the lock is green with no alias.
 - **0.2** `scripts/roadmap-index.ts --check`: regenerate each README row's status column from its `intent.md` and fail on drift. The index rotted 9 rows on 09-10 and 2 more by 09-13.
   Done when: editing a status in `intent.md` without the README fails `npm test`.
-- **0.4** `chalk` is 57/58 against a 58 baseline (measured 2026-09-13). Fix or
-  re-baseline with the reason; a red ratchet grades nothing. Done when:
-  `npm run compat -- chalk` prints 58.
+- **0.4** `chalk` is 57/58 against a 58 baseline — **and the baseline was right.**
+  Measured 2026-09-14: the failing case is `level › disable colors if they are not
+  supported`, which spawns a child with `execaNode`; the child inherits the operator's
+  `FORCE_COLOR=1` and `COLORTERM=truecolor`, emits colour, and fails. With
+  `env -u FORCE_COLOR -u COLORTERM -u TERM`, the same suite is **58/58**.
+
+  So there is no regression to fix. The defect is in the instrument: **the oracle grades a
+  vendored suite in whatever environment it is run in**, which makes a number this repo
+  ratchets on, and publishes in its README, dependent on whose shell ran it. The repo
+  already solved this shape for its own tests — `vitest-colour-setup.ts` sets `NO_COLOR=1`,
+  `FORCE_COLOR=0` and deletes `COLORTERM`/`TERM` before any import — and the oracle needs
+  the same discipline for the suites it spawns. This is the third time a colour variable in
+  a shell has been mistaken for a repository defect.
+  Done when: `FORCE_COLOR=1 COLORTERM=truecolor npm run compat -- chalk` prints 58, and
+  reverting the scrub makes that command print 57.
 - **0.3** Merge queue — **owner action, one setting** (Settings → Rules → New ruleset → merge queue on `main`). Twenty observation PRs deadlocked this week without it.
   Done when: `gh api repos/ofri-peretz/burgee/rulesets --jq length` → ≥1.
 
