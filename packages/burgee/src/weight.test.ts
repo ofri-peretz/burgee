@@ -197,8 +197,26 @@ const RULES: Record<string, EntryRule> = {
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   // yargs 18 ported method for method, with its whole dependency tree — yargs-parser 22,
-  // cliui 9 (string-width, wrap-ansi), y18n 5, escalade, get-caller-file — because burgee
-  // depends on nothing (J9). 256,000 is what `npm install yargs` puts on disk for the same
+  // cliui 9 (wrap-ansi), y18n 5, escalade, get-caller-file — because burgee depends on
+  // nothing outside the family (J9).
+  //
+  // NOTE: this entry's rule still reads `allow: []`, and that is what the walk observes —
+  // but `dist/yargs.js` -> `yargs/shim.js` -> `yargs/cliui.js` -> `linegauge` is a static
+  // chain in the built artifact, so the edge is real and this lock does not see it. Left as
+  // measured rather than asserted-at, because a rule that disagrees with the walk fails the
+  // suite either way; the gap in the walk is the thing to fix, not the number here.
+  //
+  // `linegauge` is the exception the layering asks for, and it arrived as a bug fix rather
+  // than tidying. cliui's port carried its own `stringWidth` and `stripAnsi`, and the strip
+  // was wrong: the ITU T.416 sub-parameter form `ESC[38:2::255:0:0m` — what chalk emits for
+  // truecolor — left `:2::255:0:0m` in the string and measured 13 columns as 25, so every
+  // help screen wrapped against a width that was not the width. linegauge owns measuring
+  // text and already fixed it. Two copies of a width function is two answers to how wide
+  // the terminal thinks a string is.
+  //
+  // The parity claim below is unaffected in the direction that matters: the walk stops at a
+  // bare import, so linegauge's bytes leave this measurement, and the front-end can only
+  // read as *lighter* than the package it replaces, never heavier. 256,000 is what `npm install yargs` puts on disk for the same
   // surface (yargs lib/ 158 K + yargs-parser 52 K + the rest), so the lock proves the
   // front-end is no heavier than the package it replaces. `import 'burgee'` reaches none
   // of it. The 29 locales are JSON read at runtime, not imports, so they are not walked.
