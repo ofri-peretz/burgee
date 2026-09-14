@@ -30,7 +30,9 @@ it('grades chalk the same under a shell that forces colour', () => {
   // with the fix reverted, which is to say it tested nothing. Build the polluted shell, do
   // not merely add to this one.
   const { NO_COLOR: _drop, ...clean } = process.env;
-  const out = execFileSync('npm', ['run', 'compat', '--silent', '--', 'chalk'], {
+  // `npm` is `npm.cmd` on Windows and `execFileSync` does not search PATHEXT, so spawning
+  // it by name is ENOENT there. The built bin is the same entry point without the shim.
+  const out = execFileSync(process.execPath, [resolve(REPO_ROOT, 'packages/compat-oracle/dist/bin.js'), 'chalk'], {
     cwd: REPO_ROOT,
     encoding: 'utf8',
     env: { ...clean, FORCE_COLOR: '1', COLORTERM: 'truecolor', TERM: 'xterm-256color' },
