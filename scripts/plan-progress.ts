@@ -56,6 +56,19 @@ const PUBLISHED_PACKAGES = 9;
 const GATED_DESIGNS = 6;
 const ID_WIDTH = 10;
 
+/** The chalk gate's output, run once per process. See 0.4 for why once matters. */
+let chalkOutput: string | undefined;
+const chalkGrade = (): string => {
+  if (chalkOutput === undefined) {
+    try {
+      chalkOutput = execFileSync('npm', ['run', 'compat', '--silent', '--', 'chalk'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    } catch {
+      chalkOutput = '';
+    }
+  }
+  return chalkOutput;
+};
+
 /** True when `done()` throws — an unreadable tree is "not landed", never a pass. */
 const landed = (step: Step): boolean => {
   try {
@@ -120,7 +133,21 @@ const STEPS: Step[] = [
   {
     id: '0.1',
     what: 'no file still names the pre-0.1 slug',
-    done: () => execFileSync('git', ['grep', '-l', ['agent', 'native', 'cli', 'layer'].join('-')], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() === '',
+    // `git grep` exits **1 when it finds nothing**, so the success case threw and `landed()`
+    // read the throw as "not done" — the step was finished and the gate said otherwise for a
+    // day. Status 1 is the answer here, not an error; only a real failure (status ≥ 2) is.
+    done: () => {
+      try {
+        // Two exclusions, both deliberate. `benchmarks/results/` holds recorded measurements —
+        // renaming a slug inside a result someone already took would be rewriting an
+        // observation, and the rename was never meant to reach them. This file is excluded
+        // because it has to name the old slug to look for it.
+        const args = ['grep', '-l', ['agent', 'native', 'cli', 'layer'].join('-'), '--', ':!benchmarks/results', ':!scripts/plan-progress.ts'];
+        return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() === '';
+      } catch (cause) {
+        return (cause as { status?: number }).status === 1;
+      }
+    },
   },
   // `existsSync` was the first version, and a file that exists proves nothing about drift.
   { id: '0.2', what: 'every roadmap row agrees with its intent (runs the check)', done: () => { execFileSync('npx', ['tsx', 'scripts/roadmap-index.ts', '--check'], { cwd: ROOT, stdio: 'ignore' }); return true; } },
@@ -132,14 +159,16 @@ const STEPS: Step[] = [
     // reason the thing is broken — the same mistake as trusting `npm ci --dry-run` on the
     // machine that pruned the lockfile. It runs the gate.
     done: () => {
-      try {
-        // `58 passing` is what the ava suite prints; the oracle prints `58 / 58`. Matching
-        // the wrong tool's wording made this unfailable in the pass direction too.
-        const out = execFileSync('npm', ['run', 'compat', '--silent', '--', 'chalk'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
-        return out.includes('58 / 58') && !out.includes('\u2716');
-      } catch {
-        return false;
-      }
+      // `58 passing` is what the ava suite prints; the oracle prints `58 / 58`. Matching the
+      // wrong tool's wording made this unfailable in the pass direction too.
+      //
+      // Memoized, and that is not a speed optimisation: this file also spawns the control-band
+      // watcher, which itself runs measurements, and the two racing inside one process made
+      // the chalk grade flake — red here while `npm run compat -- chalk` printed 58 / 58 in
+      // the very next shell. A number that depends on what else this process is doing is not
+      // a reading of the tree.
+      const out = chalkGrade();
+      return out.includes('58 / 58') && !out.includes('\u2716');
     },
   },
   { id: '1.1', what: 'one plugin schema across the family', done: () => schemaHashes().size === 1 },
