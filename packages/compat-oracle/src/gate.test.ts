@@ -10,8 +10,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { HOSTS } from './hosts.js';
-import { verdict } from './report.js';
-import { type Baseline, type Grade, parseFlatTap, summarize, unmatchedExclusions } from './run.js';
+import { silentDowngrades, verdict } from './report.js';
+import { type Baseline, type Grade, parseFlatTap, summarize, summarizeExitCodes, unmatchedExclusions } from './run.js';
 
 const grade = (host: string, over: Partial<Grade> = {}): Grade => ({
   host,
@@ -88,6 +88,61 @@ describe('the control verdict', () => {
     // passed is not, and the control's bar must not be applied to it.
     const baseline: Baseline = { 'cli-table3': { reference: 29, passed: 0, rate: 0 } };
     expect(verdict([grade('cli-table3', { target: 'flagstaff/table', tests: 7, passed: 0, failed: 7, reference: 29, rate: 0 })], baseline, collect().write)).toBe(0);
+  });
+});
+
+/**
+ * `mode: "exit-code"` — the coarse grade, and the gate that keeps it from spreading.
+ *
+ * A suite with no reporter can only be graded as one bit: rc's `node test/test.js` is bare
+ * `assert` calls and `console.log`, so `1 / 1, 100.0%` is the honest answer and the row has
+ * to say on its face that its 100% means something weaker than commander's 1360 / 1360.
+ *
+ * The danger is not that row. It is every *other* row quietly becoming that row. Each of
+ * this oracle's other collapses is loud — a file that fails to import registers one test
+ * instead of twenty, and the reference catches the shortfall — but a row that switches to
+ * exit-code grading keeps reporting 100% while measuring one bit, and nothing about the
+ * number looks wrong. So the baseline fragment is where the declaration lives, and grading
+ * a row this way without one is red.
+ */
+describe('a row graded as one pass/fail bit', () => {
+  const declared: Baseline = { rc: { reference: 1, passed: 1, rate: 1, mode: 'exit-code' } };
+  const coarse = (host: string): Grade => grade(host, { files: 1, tests: 1, passed: 1, failed: 0, reference: 1, rate: 1, mode: 'exit-code' });
+
+  it('is allowed when its own baseline declares the mode', () => {
+    expect(silentDowngrades([coarse('rc')], declared)).toEqual([]);
+    expect(verdict([coarse('rc')], declared, collect().write, true)).toBe(0);
+  });
+
+  it('goes red when a row that counted cases is quietly graded this way instead', () => {
+    // The deliberate downgrade: commander's 1,360 cases become one bit, and the rate it
+    // publishes is still 100%.
+    const baseline: Baseline = { ...declared, commander: { reference: 1360, passed: 1360, rate: 1 } };
+    const out = collect();
+    expect(verdict([coarse('rc'), coarse('commander')], baseline, out.write, true)).toBe(1);
+    expect(out.text()).toContain('commander: graded by exit code');
+    expect(out.text()).toContain('stops measuring anything');
+  });
+
+  it('names only the row that was downgraded, not the one that declared it', () => {
+    const baseline: Baseline = { ...declared, chalk: { reference: 58, passed: 58, rate: 1 } };
+    expect(silentDowngrades([coarse('rc'), coarse('chalk')], baseline)).toEqual([
+      'chalk: graded by exit code (1 case for the whole suite), but baseline/chalk.json does not declare `"mode": "exit-code"`',
+    ]);
+  });
+
+  it('leaves a row alone that is still graded case by case, whatever its baseline says', () => {
+    expect(silentDowngrades([grade('rc', { tests: 1, passed: 1, reference: 1 })], declared)).toEqual([]);
+  });
+
+  it('checks the ratchet run too, not only the control', () => {
+    const baseline: Baseline = { chalk: { reference: 58, passed: 58, rate: 1 } };
+    expect(verdict([coarse('chalk')], baseline, collect().write)).toBe(1);
+  });
+
+  it('grades the suite as one case that passed, or one that failed', () => {
+    expect(summarizeExitCodes([], 1, 1)).toMatchObject({ mode: 'exit-code', tests: 1, passed: 1, failed: 0, rate: 1 });
+    expect(summarizeExitCodes(['test/test.js'], 1, 1)).toMatchObject({ mode: 'exit-code', tests: 1, passed: 0, failed: 1, rate: 0 });
   });
 });
 
