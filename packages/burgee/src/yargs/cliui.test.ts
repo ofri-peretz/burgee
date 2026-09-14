@@ -23,13 +23,37 @@
  * writing down, because the next reader checks the reported input, sees 11 ms, and closes
  * it.
  *
- * Only `div()` is timed. `toString()` on such a cell costs ~1,900 ms either way — that is
- * the wrapping path, it predates this change, and folding it in would make the budget
- * measure something the fix does not control.
- *
  * 250 ms is deliberately loose: 5x under the unfixed cost and a thousand times over the
  * fixed one, so a slow runner does not turn this red while a reintroduced backtracking
  * regex still does.
+ *
+ * ---
+ *
+ * Lock — rendering a row is linear in the cell.
+ *
+ * `toString()` on the same cell cost ~1,200 ms with `div()` already fixed, and the cause is
+ * a second copy of the same mistake one function over: `rowToString` ended each line with
+ * `str.replace(/ +$/, "")`. That start is unanchored too. The line it runs on is the cell
+ * plus its left padding — 100,001 characters for a 50,000-space cell, the first 50,000 of
+ * them spaces — so the engine retries at every one of those positions and walks to the end
+ * each time.
+ *
+ * Measured here on `' '.repeat(50_000) + 'x'`, node v24.18.0, macOS, `toString()` only:
+ * **1,223 ms before, 69 ms after**, of which the trailing-space trim alone was 1,049 ms.
+ * The shape, not just the number: doubling the cell used to quadruple the time
+ * (12.5k / 25k / 50k / 100k = 64 / 250 / 988 / 3,947 ms for the trim); it now doubles it
+ * (14 / 32 / 69 / 135 ms for the whole call). What is left is `linegauge`'s `wrap`, which
+ * is linear.
+ *
+ * `trimEnd()` is not the fix — it removes `\t` as well, and a trailing tab does reach this
+ * line. With `wrap: false`, `rasterize` splits the cell on newlines and nothing else: no
+ * `wrap` to expand the tab into spaces, and no `applyLayoutDSL` to split on it, since that
+ * route is behind `this.wrap`. The first test below is what would catch the swap.
+ *
+ * 400 ms on the same 50,000-space cell: 3x under the unfixed cost, 6x over the fixed one.
+ * Tighter than the `div()` budget above because the linear floor here is 69 ms rather than
+ * 0.2 ms — and it still holds, because the quadratic it guards against overshoots it by
+ * 800 ms. Measured reverted: 1,058 ms.
  */
 import { describe, expect, it } from "vitest";
 
@@ -52,5 +76,27 @@ describe("padding measurement", () => {
     const elapsed = performance.now() - started;
 
     expect(elapsed).toBeLessThan(250);
+  });
+});
+
+describe("row rendering", () => {
+  it("trims trailing spaces and only trailing spaces", () => {
+    const ui = cliui({ width: 40, wrap: false });
+    ui.div("ends with a tab\t   ");
+    // The spaces go, the tab stays. `trimEnd()` would take both.
+    expect(ui.toString()).toBe("ends with a tab\t");
+  });
+
+  it("does not backtrack when trimming a wide row's trailing spaces", () => {
+    const ui = cliui({ width: 80 });
+    const pathological = `${" ".repeat(50_000)}x`;
+    ui.div(pathological);
+
+    const started = performance.now();
+    const rendered = ui.toString();
+    const elapsed = performance.now() - started;
+
+    expect(rendered.endsWith("x")).toBe(true);
+    expect(elapsed).toBeLessThan(400);
   });
 });

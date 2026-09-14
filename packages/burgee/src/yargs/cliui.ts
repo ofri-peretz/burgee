@@ -194,7 +194,7 @@ export class UI {
         if (r === 0 && lines.length > 0)
           str = this.renderInline(str, lines.at(-1) as Line);
       });
-      lines.push({ text: str.replace(/ +$/, ""), span: row.span });
+      lines.push({ text: trimTrailingSpaces(str), span: row.span });
     });
     return lines;
   }
@@ -274,6 +274,27 @@ export class UI {
       w === undefined ? Math.max(unsetWidth, minWidth(row[i] as Column)) : w,
     );
   }
+}
+
+/*
+ * `str.replace(/ +$/, "")` was the upstream spelling, and it is the same quadratic shape
+ * `measurePadding` had: the start is unanchored, so the engine retries the match at every
+ * position in the run of spaces and each attempt walks to the end before failing on the
+ * character that is not the end. A row built from a cell of 50,000 spaces then an `x` is
+ * 100,001 characters of which the first 50,000 are the left padding, and trimming it cost
+ * 1,049 ms of `toString()`'s 1,223 ms. Doubling the cell quadrupled it.
+ *
+ * `trimEnd()` is linear but not the same function — it also removes tabs, newlines and the
+ * rest of `\s`. A trailing tab does reach here: with `wrap: false`, `rasterize` only splits
+ * the cell on newlines, so nothing expands the tab and nothing routes the string through
+ * `applyLayoutDSL` (that check is behind `this.wrap`). `cliui({ wrap: false }).div('a\t')`
+ * renders `'a\t'` today and would render `'a'` under `trimEnd`, and the yargs usage tests
+ * compare whole help screens. This removes exactly U+0020, exactly as the regex did.
+ */
+function trimTrailingSpaces(str: string): string {
+  let end = str.length;
+  while (end > 0 && str[end - 1] === " ") end--;
+  return end === str.length ? str : str.slice(0, end);
 }
 
 function addBorder(col: Column, ts: string, style: string): string {
