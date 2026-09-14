@@ -39,8 +39,8 @@ export function declared(slug: string): State | undefined {
   } catch {
     return undefined;
   }
-  const m = /\*\*Status:\*\*\s*`?(\w+)`?/.exec(text);
-  return m !== null && (STATES as readonly string[]).includes(m[1] as string) ? (m[1] as State) : undefined;
+  const word = /\*\*Status:\*\*\s*`?(\w+)`?/.exec(text)?.[1];
+  return word !== undefined && (STATES as readonly string[]).includes(word) ? (word as State) : undefined;
 }
 
 interface Row {
@@ -98,26 +98,27 @@ export function unlisted(): string[] {
     .filter((slug) => !text.includes(slug));
 }
 
-if (process.argv[1]?.endsWith('roadmap-index.ts') === true) {
-  const argv = process.argv.slice(2);
-  const bad = drift();
-  const missing = unlisted();
-  if (argv.includes('--fix')) {
-    // **The index wins, and the intent is rewritten** — not the other way round. Every drift
-    // found on the first run was an `intent.md` claiming `shipped` while the row said
-    // `review — 3 of 6` and named the unmet criteria. The index was audited against the tree
-    // on 2026-09-10; the statuses were assigned on 09-09. The direction that flatters is the
-    // stale one, which is the direction a careless fixer would have taken.
-    for (const d of bad) {
-      const file = join(INTENTS, d.slug, 'intent.md');
-      const text = readFileSync(file, 'utf-8');
-      writeFileSync(file, text.replace(/(\*\*Status:\*\*\s*`?)\w+(`?)/, `$1${d.says}$2`));
-      console.log(`${d.slug}: intent.md ${d.declares} -> ${d.says}, from the index`);
-    }
-  } else {
-    for (const d of bad) console.error(`${INDEX}:${String(d.line)}  ${d.slug}: the row says ${d.says}, intent.md says ${d.declares}`);
-    for (const slug of missing) console.error(`${slug} has an intent.md and no row in the index`);
-    if (bad.length === 0 && missing.length === 0) console.log(`${String(rows().length)} rows agree with their intents`);
-    process.exitCode = bad.length + missing.length === 0 ? 0 : 1;
+/** `--fix` rewrites each stale `intent.md`; see the direction note above. */
+function fix(bad: Drift[]): void {
+  for (const d of bad) {
+    const file = join(INTENTS, d.slug, 'intent.md');
+    const text = readFileSync(file, 'utf-8');
+    writeFileSync(file, text.replace(/(\*\*Status:\*\*\s*`?)\w+(`?)/, `$1${d.says}$2`));
+    console.log(`${d.slug}: intent.md ${d.declares} -> ${d.says}, from the index`);
   }
+}
+
+/** `--check` names every disagreement and exits non-zero if there is one. */
+function check(bad: Drift[], missing: string[]): void {
+  for (const d of bad) console.error(`${INDEX}:${String(d.line)}  ${d.slug}: the row says ${d.says}, intent.md says ${d.declares}`);
+  for (const slug of missing) console.error(`${slug} has an intent.md and no row in the index`);
+  const problems = bad.length + missing.length;
+  if (problems === 0) console.log(`${String(rows().length)} rows agree with their intents`);
+  process.exitCode = problems === 0 ? 0 : 1;
+}
+
+if (process.argv[1]?.endsWith('roadmap-index.ts') === true) {
+  const bad = drift();
+  if (process.argv.slice(2).includes('--fix')) fix(bad);
+  else check(bad, unlisted());
 }

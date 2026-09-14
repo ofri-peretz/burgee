@@ -55,7 +55,12 @@ export interface ProcessLike {
  * `undefined` here is a real state — a runtime with no `process` at all — and `install()`
  * says so instead of failing with a name nobody wrote.
  */
-const globalProcess = (globalThis as unknown as { process?: ProcessLike }).process;
+function ambientProcess(): ProcessLike | undefined {
+  const candidate: unknown = Reflect.get(globalThis, 'process');
+  return typeof candidate === 'object' && candidate !== null && 'on' in candidate ? (candidate as ProcessLike) : undefined;
+}
+
+const globalProcess = ambientProcess();
 
 /**
  * The signals a CLI is expected to survive politely.

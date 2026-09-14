@@ -45,6 +45,26 @@ const planSteps = (): string[] => [...PLAN_MD.matchAll(/^- \*\*(\d[\w.]*)/gm)].m
 const ownedSteps = (): string[] =>
   [...LANES_MD.matchAll(/^\| (\d[\w.]*)(?:[–-]([\d.]+))? /gm)].flatMap((m) => (m[2] === undefined ? [m[1] as string] : [m[1] as string, m[2]]));
 
+/** Step ids a row claims more than once. */
+function ownedTwice(): string[] {
+  const counts = new Map<string, number>();
+  for (const id of ownedSteps()) counts.set(id, (counts.get(id) ?? 0) + 1);
+  return [...counts].filter(([, n]) => n > 1).map(([id]) => id);
+}
+
+/**
+ * Whether some row covers this step — named, or inside a range it declares.
+ *
+ * A row covering `2.2-2.13` owns `2.2`; one covering `2.5.0-2.5.5` owns `2.5.1` through
+ * `2.5.4` too. Compared segment by segment rather than by string prefix, or `2.5` would
+ * silently own `2.50`.
+ */
+function owned(id: string): boolean {
+  const named = ownedSteps();
+  if (named.some((o) => id === o || id.startsWith(`${o}.`) || o.startsWith(`${id}.`))) return true;
+  return [...LANES_MD.matchAll(/^\| (\d[\w.]*)[–-]([\d.]+) /gm)].some(([, lo, hi]) => compare(id, lo as string) >= 0 && compare(id, hi as string) <= 0);
+}
+
 describe('lane boundaries', () => {
   it('no path is owned by two lanes', () => {
     const seen = new Map<string, string>();
@@ -65,17 +85,8 @@ describe('lane boundaries', () => {
   });
 
   it('every plan step is owned exactly once', () => {
-    const owned = ownedSteps();
-    const counts = new Map<string, number>();
-    for (const id of owned) counts.set(id, (counts.get(id) ?? 0) + 1);
-    expect([...counts].filter(([, n]) => n > 1).map(([id]) => id), 'a step owned twice is work merged against itself').toEqual([]);
-    // A row covering 2.2-2.13 owns 2.2; a row covering 2.5.0-2.5.5 owns 2.5.1 through 2.5.4
-    // too. Numeric containment, not string prefixes, or `2.5` would silently own `2.50`.
-    const within = (id: string): boolean =>
-      owned.some((o) => id === o || id.startsWith(`${o}.`) || o.startsWith(`${id}.`)) ||
-      [...LANES_MD.matchAll(/^\| (\d[\w.]*)[–-]([\d.]+) /gm)].some(([, lo, hi]) => compare(id, lo as string) >= 0 && compare(id, hi as string) <= 0);
-    const missing = planSteps().filter((id) => !within(id));
-    expect(missing, 'a step nobody owns is a step nobody starts').toEqual([]);
+    expect(ownedTwice(), 'a step owned twice is work merged against itself').toEqual([]);
+    expect(planSteps().filter((id) => !owned(id)), 'a step nobody owns is a step nobody starts').toEqual([]);
   });
 
   it('names a lane for every row, and only lanes that exist', () => {

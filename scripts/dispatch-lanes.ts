@@ -44,9 +44,17 @@ function steps(lane: Lane): { id: string; what: string; fan: boolean }[] {
  * the largest step in the plan, from every package lane's prompt.
  */
 function detail(id: string): string {
-  // Some bullets bold the title with the id (`- **2.14 \`cross-spawn\` (jest).**`), so match
-  // the id followed by anything that is not another digit — `2.1` must not find `2.14`.
-  const find = (k: string): number => PLAN_MD.search(new RegExp(`^- \\*\\*${k.replaceAll('.', '\\.')}(?![\\d.])`, 'm'));
+  // Some bullets bold the title with the id (`- **2.14 \`cross-spawn\` (jest).**`), so the id
+  // must be followed by something that is not another digit — `2.1` must not find `2.14`.
+  // Scanned rather than built into a RegExp: a pattern assembled from a string at runtime is
+  // a pattern nobody can read here, and this one is a prefix test.
+  const find = (k: string): number => {
+    const needle = `- **${k}`;
+    for (const line of PLAN_MD.split('\n')) {
+      if (line.startsWith(needle) && !/[\d.]/.test(line.charAt(needle.length))) return PLAN_MD.indexOf(line);
+    }
+    return -1;
+  };
   const start = [id, id.split(/[–-]/)[0] as string].map(find).find((i) => i !== -1) ?? -1;
   if (start === -1) return '';
   const rest = PLAN_MD.slice(start);

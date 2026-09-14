@@ -66,18 +66,28 @@ export function forbidden(): string[] {
 /** A path is inside an `owns` entry when the entry's prefix (before `**`) starts it. */
 export const owns = (lane: Lane, path: string): boolean => lane.owns.some((g) => path.startsWith(g.replace(/\*\*$/, '')));
 
-const argv = process.argv.slice(2);
-if (argv[0] === '--print') {
-  for (const l of lanes()) console.log(`${l.name.padEnd(12)} ${l.branch.padEnd(18)} ${l.owns.join(' ')}`);
-} else if (argv[0] === '--check') {
-  const branch = argv[1];
-  const lane = lanes().find((l) => l.branch === branch || l.name === branch);
-  if (lane === undefined) {
-    console.error(`no lane named ${String(branch)} — see .sdlc/LANES.md`);
-    process.exit(1);
-  }
+/** Column widths for `--print`; wide enough for the longest lane name and branch. */
+const NAME_COL = 12;
+const BRANCH_COL = 18;
+
+/** Exits non-zero naming every changed path this lane does not own. Reads stdin. */
+function checkChangedPaths(lane: Lane): never {
   const changed = readFileSync(0, 'utf-8').split('\n').filter(Boolean);
-  const strays = changed.filter((p) => !owns(lane, p));
-  for (const p of strays) console.error(`${p} is not owned by lane ${lane.name}`);
+  const strays = changed.filter((path) => !owns(lane, path));
+  for (const stray of strays) console.error(`${stray} is not owned by lane ${lane.name}`);
   process.exit(strays.length === 0 ? 0 : 1);
 }
+
+function checkBranch(branch: string): never {
+  const lane = lanes().find((l) => l.branch === branch || l.name === branch);
+  if (lane === undefined) {
+    console.error(`no lane named ${branch} — see .sdlc/LANES.md`);
+    process.exit(1);
+  }
+  return checkChangedPaths(lane);
+}
+
+const argv = process.argv.slice(2);
+if (argv[0] === '--print') {
+  for (const l of lanes()) console.log(`${l.name.padEnd(NAME_COL)} ${l.branch.padEnd(BRANCH_COL)} ${l.owns.join(' ')}`);
+} else if (argv[0] === '--check') checkBranch(argv[1] ?? '');

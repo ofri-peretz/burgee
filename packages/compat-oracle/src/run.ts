@@ -471,11 +471,15 @@ export interface Baseline {
 export function readBaseline(path: string): Baseline {
   if (!existsSync(path)) return {};
   if (!statSync(path).isDirectory()) return JSON.parse(readFileSync(path, 'utf8')) as Baseline;
-  const out: Baseline = {};
-  for (const file of readdirSync(path).filter((f) => f.endsWith('.json')).sort()) {
-    out[file.slice(0, -'.json'.length)] = JSON.parse(readFileSync(join(path, file), 'utf8')) as Baseline[string];
-  }
-  return out;
+  // Built through `fromEntries` rather than assigned key by key: the key is a filename, and
+  // assigning a filename into an object literal is how `__proto__.json` would become a
+  // prototype write. `fromEntries` has no such path.
+  return Object.fromEntries(
+    readdirSync(path)
+      .filter((f) => f.endsWith('.json'))
+      .sort()
+      .map((file) => [file.slice(0, -'.json'.length), JSON.parse(readFileSync(join(path, file), 'utf8')) as Baseline[string]]),
+  );
 }
 
 /** C5 — the rate ratchets. Falling below the recorded baseline fails. */
