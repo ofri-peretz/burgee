@@ -24,7 +24,55 @@ export interface OptionSpec {
   default?: unknown;
 }
 
-export type Source = 'flag' | 'env' | 'config' | 'package' | 'default';
+/**
+ * The precedence, highest first — **the one declaration** (R1, R14).
+ *
+ * The design's R1 wrote this array as `['flag','env','project','home','pkg','default']` and
+ * the shipped union said `'flag'|'env'|'config'|'package'|'default'`. Those are two
+ * spellings of one fact, and a plugin cannot register against two. The shipped five win:
+ * they are what `provenance.source` already prints for every user of 0.1.0, and the
+ * project/home split the design wanted is carried more precisely by `location` — which
+ * names the actual file — than a second source kind ever could.
+ *
+ * `Source` is generated from this array rather than written beside it, so the drift cannot
+ * come back: adding a kind means adding it here.
+ */
+export const ORDER = ['flag', 'env', 'config', 'package', 'default'] as const;
+
+/** The five seniority resolves itself. */
+export type BuiltinSource = (typeof ORDER)[number];
+
+/**
+ * An **open** union (R13, PLAN D5). A plugin's source is a `Source` seniority has never
+ * heard of; `(string & {})` keeps the five as completions while admitting the rest, so the
+ * `sources` host of PLAN 1.3 is the additive change it reads as rather than a type break.
+ */
+export type Source = BuiltinSource | (string & {});
+
+/**
+ * Where each built-in sits, spaced by ten so a plugin source has somewhere to go between
+ * two of them. Lower wins. The gaps are the whole point: a plugin picks a rank, and that is
+ * the only lever it gets — it cannot renumber these, so the built-in order stays the fixed
+ * thing this package's first paragraph promises.
+ */
+const RANK_STEP = 10;
+export const RANK: Readonly<Record<BuiltinSource, number>> = Object.freeze(
+  Object.fromEntries(ORDER.map((source, i) => [source, i * RANK_STEP])) as Record<BuiltinSource, number>,
+);
+
+/**
+ * A layer contributed by something other than the five — the `sources` plugin host, already
+ * read, so `resolve` stays pure over what it is handed (R2, R11).
+ */
+export interface SourceLayer {
+  /** The kind `--explain` prints and `provenance.source` carries: the plugin's own name for it. */
+  source: string;
+  /** Where a person would look — a path, a URL, a variable set. */
+  location: string;
+  /** Against `RANK`; strictly between `RANK.flag` and `RANK.default`. */
+  rank: number;
+  data: Record<string, unknown>;
+}
 
 export interface Provenance {
   source: Source;
@@ -53,6 +101,8 @@ export interface Layers {
   config?: Layer;
   /** The `package.json` field named after the program, when present. */
   pkg?: Layer;
+  /** Plugin-contributed sources, already read — see `seniority/plugin`'s `sources()`. */
+  sources?: readonly SourceLayer[];
 }
 
 export interface Resolution {
@@ -115,13 +165,19 @@ function fromEnv(name: string, spec: OptionSpec, layers: Layers): Candidate | un
 }
 
 function candidatesFor(name: string, spec: OptionSpec, layers: Layers): Candidate[] {
-  const out: Candidate[] = [{ source: 'flag', location: `--${name}`, value: layers.flags[name] }];
+  const out: { rank: number; candidate: Candidate }[] = [
+    { rank: RANK.flag, candidate: { source: 'flag', location: `--${name}`, value: layers.flags[name] } },
+  ];
   const env = fromEnv(name, spec, layers);
-  if (env !== undefined) out.push(env);
-  if (layers.config !== undefined) out.push({ source: 'config', location: layers.config.path, value: layers.config.data[name] });
-  if (layers.pkg !== undefined) out.push({ source: 'package', location: layers.pkg.path, value: layers.pkg.data[name] });
-  out.push({ source: 'default', location: 'default', value: spec.default });
-  return out;
+  if (env !== undefined) out.push({ rank: RANK.env, candidate: env });
+  if (layers.config !== undefined) out.push({ rank: RANK.config, candidate: { source: 'config', location: layers.config.path, value: layers.config.data[name] } });
+  if (layers.pkg !== undefined) out.push({ rank: RANK.package, candidate: { source: 'package', location: layers.pkg.path, value: layers.pkg.data[name] } });
+  out.push({ rank: RANK.default, candidate: { source: 'default', location: 'default', value: spec.default } });
+  for (const s of layers.sources ?? []) out.push({ rank: s.rank, candidate: { source: s.source, location: s.location, value: s.data[name] } });
+  // Stable (ES2019), and every built-in was pushed before any plugin source, in `ORDER`: a
+  // plugin that ties with one of them loses, so a rank a host failed to refuse still cannot
+  // displace a built-in.
+  return out.sort((a, b) => a.rank - b.rank).map((r) => r.candidate);
 }
 
 /** Every declared option, resolved through the layers; a missing required one is left undefined for the caller to report. */
@@ -152,6 +208,11 @@ const describe = (c: Candidate): string => {
       return `package.json field in ${c.location}`;
     case 'default':
       return 'default';
+    // A source seniority has never heard of, rendered from what it declared about itself
+    // (R13). This is what lets `--explain` name a plugin's provenance without this package
+    // knowing the plugin exists — and it is the one code change the open union costs.
+    default:
+      return `${c.source} ${c.location}`.trim();
   }
 };
 

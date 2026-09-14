@@ -1,6 +1,6 @@
 # Intent — Serving every caller: humans, agents, CI, screen readers, and the next one
 
-> Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md)
+> Stage 1 artifact. Child of [`burgee`](../burgee/intent.md)
 > and [`cli-output-stack`](../cli-output-stack/intent.md). The engine was designed for agents
 > as the primary caller; the stack added modes (U2). This intent makes the set of callers
 > explicit and tests every feature against every caller, so no layer can serve one well and

@@ -10,8 +10,30 @@
  * Nothing here imports a runtime, a stream or a terminal. This file is data.
  */
 
-/** The six kinds a prompt can be. Anything more is a wizard, which is out of scope. */
-export type PromptKind = 'text' | 'confirm' | 'select' | 'multiselect' | 'password' | 'path';
+/**
+ * The six kinds a prompt can be — plus whatever a plugin adds.
+ *
+ * **Why `(string & {})` rather than a closed union** (`plugin-contract` R5, D5). A closed
+ * union makes a plugin's seventh kind a type error, so hosting `widgets` at all would be a
+ * breaking change written as an additive one: every caller of `caique/plugin` would need
+ * this file edited before it could name its own kind. The intersection keeps all six
+ * literals in an editor's completion list — which a bare `string` would throw away — while
+ * admitting the kinds `caique/plugin` renders.
+ *
+ * Anything more than a *kind* is still a wizard, which is out of scope. Widening the type
+ * does not widen the model: a prompt is one question with one answer, whoever draws it.
+ */
+export type PromptKind = 'text' | 'confirm' | 'select' | 'multiselect' | 'password' | 'path' | (string & {});
+
+/**
+ * The six caique draws itself, as data rather than as a `switch` nobody can read back.
+ *
+ * `caique/plugin` needs this set to answer two questions a plugin makes askable for the
+ * first time: whether a kind is already spoken for, and which kinds a refusal should name.
+ * Deriving it from the widget dispatch in `ask.ts` would mean two lists that agree only by
+ * inspection, which is the drift the family's locks exist to prevent.
+ */
+export const BUILT_IN_KINDS: ReadonlySet<string> = new Set(['text', 'confirm', 'select', 'multiselect', 'password', 'path']);
 
 /** One choice in a `select` or `multiselect`. `value` is what the option receives. */
 export interface Choice {

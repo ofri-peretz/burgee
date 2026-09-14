@@ -3,7 +3,7 @@
 > Stage 1 artifact. Umbrella for [`linegauge`](../linegauge/intent.md),
 > [`seniority`](../seniority/intent.md), [`bellpull`](../bellpull/intent.md) and
 > [`closeout`](../closeout/intent.md). Child of
-> [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md); peer of
+> [`burgee`](../burgee/intent.md); peer of
 > [`cli-output-stack`](../cli-output-stack/intent.md). Proposes floor additions Y1–Y12.
 > Opened from [`candidate-layers.md`](../../research/candidate-layers.md), the 2026-09-08
 > measurement pass, and the four names published 2026-09-09.
@@ -84,7 +84,7 @@ on their own `node_modules` with one command.
   and the scoreboard grows thirteen rows.
 - `cli-benchmarks` B4 gains a per-package row **and a new axis**: the override collapse,
   measured on a real tree.
-- `agent-native-cli-layer/design.md` gains Y1–Y12.
+- `burgee/design.md` gains Y1–Y12.
 - `.sdlc/research/replacement-map.md` becomes the generated source of the mapping table
   rather than a hand-written one.
 

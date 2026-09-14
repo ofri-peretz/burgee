@@ -7,7 +7,7 @@
  * would be graded by our reading of the host's behaviour, which is the thing under test.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -348,6 +348,29 @@ function writeVitestConfig(host: Host, hostDir: string, files: string[]): void {
   writeFileSync(join(hostDir, 'vitest.config.mjs'), `// generated per run\nexport default { test: { include: [${include.join(', ')}], globals: true, setupFiles: ['./vitest.setup.mjs'] } };\n`);
 }
 
+/**
+ * The ambient colour signals, removed before a suite runs.
+ *
+ * On 2026-09-14 `chalk` graded 57/58 on one machine and 58/58 on another. The difference was
+ * the operator's shell: `level › disable colors if they are not supported` spawns a child
+ * with `execaNode`, the child inherited `FORCE_COLOR=1` and `COLORTERM=truecolor`, and the
+ * fixture emitted colour. A published pass rate that this repository ratchets on was reading
+ * whoever ran it.
+ *
+ * Deleted, not overridden — `NO_COLOR=1` would be the same mistake pointing the other way.
+ * These suites *test* colour detection and set what they need per case (`force-color.js` sets
+ * `FORCE_COLOR` itself); forcing a value would break the cases that assert the opposite. A
+ * host may still declare one through `host.env`, which is applied after this and is a
+ * decision written down in `hosts.ts` rather than a property of a laptop.
+ */
+const AMBIENT_COLOUR = ['FORCE_COLOR', 'NO_COLOR', 'COLORTERM', 'TERM'] as const;
+
+function neutralEnv(): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  for (const key of AMBIENT_COLOUR) delete env[key];
+  return env;
+}
+
 /** Runs the suite from its vendored root; a failing suite still prints its summary. */
 function runSuite(host: Host, hostDir: string, files: string[], target: string): { output: string } | { error: string } {
   const dir = join(hostDir, host.testDir);
@@ -358,7 +381,7 @@ function runSuite(host: Host, hostDir: string, files: string[], target: string):
     const output = execFileSync(bin, args, {
       encoding: 'utf8',
       cwd: hostDir,
-      env: { ...process.env, ...host.env, COMPAT_TARGET: target },
+      env: { ...neutralEnv(), ...host.env, COMPAT_TARGET: target },
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: SUITE_TIMEOUT_MS,
       // A mostly-failing suite emits more TAP diagnostic than the 1 MB default holds, and
@@ -436,8 +459,27 @@ export interface Baseline {
   [host: string]: { reference: number; passed: number; rate: number };
 }
 
+/**
+ * The baseline, from a directory of one file per host — or from a single file, which is
+ * what it used to be.
+ *
+ * One file per host is not tidiness. Wave 2 adds twelve suites from six package lanes
+ * working at once, and one shared dict means six branches editing one object: a merge
+ * conflict on every landing, for entries that have nothing to do with each other. A
+ * directory gives each lane its own file and the merge is textual.
+ */
 export function readBaseline(path: string): Baseline {
-  return existsSync(path) ? (JSON.parse(readFileSync(path, 'utf8')) as Baseline) : {};
+  if (!existsSync(path)) return {};
+  if (!statSync(path).isDirectory()) return JSON.parse(readFileSync(path, 'utf8')) as Baseline;
+  // Built through `fromEntries` rather than assigned key by key: the key is a filename, and
+  // assigning a filename into an object literal is how `__proto__.json` would become a
+  // prototype write. `fromEntries` has no such path.
+  return Object.fromEntries(
+    readdirSync(path)
+      .filter((f) => f.endsWith('.json'))
+      .sort()
+      .map((file) => [file.slice(0, -'.json'.length), JSON.parse(readFileSync(join(path, file), 'utf8')) as Baseline[string]]),
+  );
 }
 
 /** C5 — the rate ratchets. Falling below the recorded baseline fails. */

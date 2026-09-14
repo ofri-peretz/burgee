@@ -7,7 +7,7 @@
  * which is indistinguishable from a young band that is simply still collecting points —
  * and that is exactly what `agent-tokens-per-task` did from the day it was written.
  */
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -18,7 +18,20 @@ import { BANDS, type ConfiguredBand, producerProblems, SUITE } from './bands.js'
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const CONFIG = join(REPO_ROOT, '.sdlc/bands/control-bands.json');
 
-const configured = (JSON.parse(readFileSync(CONFIG, 'utf8')) as { bands: ConfiguredBand[] }).bands;
+/**
+ * The configured bands, plus the compat bands `scripts/control-bands.ts` derives from
+ * `compat-oracle/baseline/`. Reading only the JSON would compare this wire against half of
+ * itself — the half a package lane never edits.
+ */
+const derivedCompat = (): ConfiguredBand[] =>
+  readdirSync(join(REPO_ROOT, 'packages/compat-oracle/baseline'))
+    .filter((f) => f.endsWith('.json'))
+    .map((f) => f.slice(0, -'.json'.length))
+    .sort()
+    .map((host) => ({ id: `compat-${host}-pass-rate`, collector: 'benchmark-json' as const, suite: SUITE.cheap, jsonPath: `bands.compat-${host}-pass-rate.value` }));
+
+const fromFile = (JSON.parse(readFileSync(CONFIG, 'utf8')) as { bands: ConfiguredBand[] }).bands;
+const configured = [...fromFile, ...derivedCompat().filter((d) => !fromFile.some((b) => b.id === d.id))];
 
 describe('every band that reads benchmark results has a producer', () => {
   it('agrees with .sdlc/bands/control-bands.json, band for band', () => {
