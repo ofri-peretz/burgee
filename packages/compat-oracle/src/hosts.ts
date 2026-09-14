@@ -122,8 +122,18 @@ export interface Host {
   /**
    * How its suite is executed. `vitest` is what a jest suite runs under, since jest's
    * globals are vitest's and vitest is already here.
+   *
+   * **`tap` is declared but not yet executable.** node-tap files emit flat TAP that
+   * `summarize()` already reads correctly — measured 2026-09-14, `node tests/test-parse.js`
+   * in a dotenv 17.4.2 checkout prints `ok 1 … 1..47` at column zero, which is exactly the
+   * dialect `parseFlatTap` counts. What is missing is the *invocation*: `run.ts`'s
+   * `command()` has no `tap` arm, and its final `return` is mocha's, so a host declaring
+   * `tap` would be handed to mocha and silently graded as zero. A `tap` host must therefore
+   * stay `planned` until `run.ts` grows the arm — one spawn per file, outputs concatenated,
+   * which is all node-tap needs (`node --test` is not that arm: measured, it collapses a
+   * 47-case file to one `ok`).
    */
-  runner: 'node:test' | 'mocha' | 'ava' | 'vitest';
+  runner: 'node:test' | 'mocha' | 'ava' | 'vitest' | 'tap';
   /** Our entry point graded against it. */
   target: string;
   status: 'active' | 'planned' | 'rejected';
@@ -298,6 +308,68 @@ export const HOSTS: Host[] = [
     target: 'linegauge',
     status: 'planned',
     note: 'Graded once string-width\'s row is green: two new hosts against one target in one change would make a failure ambiguous.',
+  },
+  {
+    // seniority's two incumbents (PLAN 2.2–2.13, `seniority/design.md` R10).
+    //
+    // `cosmiconfig` is the one the root export is graded against: R8 says the default export
+    // matches cosmiconfig's exactly, so its own suite is the only thing that can hold that
+    // claim to cosmiconfig's definition of it rather than ours.
+    //
+    // `test/util.ts` is a helper, not a test — `TempDir`, which ten of the eleven files
+    // import as `'./util'`. `copySiblings` looks for a file at that exact name and TypeScript
+    // writes it with an extension, so the sibling is never found and every file that imports
+    // it fails to load. `extraDirs: ['test']` is the way to bring it: the copy runs before
+    // `copyTests`, which then overwrites each `*.test.ts` with its rewritten form and leaves
+    // the helper alone. It is not the field's original purpose (yargs uses it for `locales`),
+    // and it is the only mechanism here that moves a non-test file into the suite.
+    name: 'cosmiconfig',
+    repo: 'https://github.com/cosmiconfig/cosmiconfig',
+    testDir: 'test',
+    testGlob: '*.test.ts',
+    internalDir: 'src',
+    imports: [{ upstream: '../src', subpath: '', reexportDefault: false }],
+    // One *file*, not a directory: `cpSync(…, { recursive: true })` copies either, and this
+    // is the narrowest thing that works. Copying the whole `test/` directory also brings
+    // `test/tsconfig.json`, which vite's oxc transform reads and then dies on —
+    // `[TSCONFIG_ERROR] Failed to load tsconfig ''`, all nine files, measured — because it
+    // `extends` a base outside the copy and declares a project `reference` to a directory
+    // that is not vendored. Vendoring the base alongside does not help; not vendoring the
+    // tsconfig at all does.
+    extraDirs: ['test/util.ts'],
+    surfaceFiles: ['src/index.ts', 'src/types.ts'],
+    runner: 'vitest',
+    target: 'seniority',
+    status: 'planned',
+    note: "Vendored 2026-09-14 at 10.0.1 and NOT activated, because the control cannot reach 100% here and a control below its own reference is a finding, not a number to record. Two reasons, both measured: (1) its suite reaches for `env-paths` and `parent-module`, which neither `compat-oracle/package.json` nor the root manifest declares — `vendored-suite.test.ts`'s install lock is red until one of them does, and both files belong to the harness/integrator lanes; (2) `index.test.ts` imports and `vi.mock`s `../src/Explorer`, `../src/ExplorerSync` and `../src/types`, and cosmiconfig's published tarball is `files: [\"dist\"]` — so the control's internal shims, which resolve against the *installed* package, point at paths npm does not ship. That is a new shape for C4: an internal-reaching file that is also a public-surface file, which the classifier calls `public` and therefore gates.",
+  },
+  {
+    // The load-bearing one. `.sdlc/intents/seniority/issues.md` records 20 closed issues at
+    // ten reactions or more against dotenv, topped by #89 "Importing dotenv in ES6" at 165 —
+    // the largest closed-issue demand signal of any incumbent in this layer.
+    name: 'dotenv',
+    repo: 'https://github.com/motdotla/dotenv',
+    testDir: 'tests',
+    // `test-*.js` and not `*.js`: the directory also holds `.env` fixtures and a `types/`
+    // subdirectory whose `test.ts` is a `tsc` type-check, not a runnable case.
+    testGlob: 'test-*.js',
+    imports: [{ upstream: '../lib/main', subpath: '/dotenv', reexportDefault: false }],
+    // Seven files, all of them named individually because `copyTests` copies a *directory*
+    // whole and otherwise takes only files the glob matches — and every fixture dotenv reads
+    // is a dotfile beside the tests, which no glob of runnable tests can name.
+    //
+    //   `config.js`  the preload entry `test-config-cli.js` spawns as `node -r ./config`.
+    //                It is at the repo root, not under `tests/`, and it reaches the library
+    //                through `./lib/main`, which is already a shimmed internal — so
+    //                vendoring the file is enough to point it at whatever is being graded.
+    //                Measured: without it that file scores 0 / 3, with it 3 / 3.
+    //   `tests/.env…` the five fixtures the suite parses.
+    extraDirs: ['config.js', 'tests/.env', 'tests/.env-multiline', 'tests/.env.local', 'tests/.env.multiline', 'tests/.env.vault'],
+    surfaceFiles: ['lib/main.d.ts', 'lib/main.js'],
+    runner: 'tap',
+    target: 'seniority/dotenv',
+    status: 'planned',
+    note: "Vendored 2026-09-14 at 17.4.2 and NOT activated: its suite is node-tap, and `run.ts`'s `command()` has no `tap` arm — see the `runner` field's own comment for what the arm is and for the measurement that rules `node --test` out. Its suite also reaches for `tap`, `sinon` and `decache`, which the oracle does not declare; like cosmiconfig's, that declaration is the harness lane's file. Target `seniority/dotenv` is R8's compatibility subpath and is not built yet, so the target run is an honest 0 the moment the control can run at all.",
   },
   {
     name: 'clack',

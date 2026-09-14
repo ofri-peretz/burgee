@@ -1,0 +1,12 @@
+{
+  "name": "@vendored/cosmiconfig-suite",
+  "private": true,
+  "type": "commonjs",
+  "main": "./shim.mjs",
+  "version": "10.0.1",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cosmiconfig/cosmiconfig.git"
+  }
+}
