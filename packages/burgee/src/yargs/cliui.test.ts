@@ -59,6 +59,29 @@ import { describe, expect, it } from "vitest";
 
 import { cliui } from "./cliui.js";
 
+/**
+ * Cost of 4n over cost of n, taking the best of several runs at each size.
+ *
+ * The best-of is deliberate: a slow run can only come from noise (GC, a scheduler slice, a
+ * cold JIT), never from the code being faster than it is, so the minimum is the least noisy
+ * estimate of the real cost. Both sizes are measured in the same process, so whatever the
+ * machine is, it is the same machine for both — which is the whole point of measuring a ratio.
+ */
+function growth(work: (n: number) => unknown, n = 25_000, runs = 5): number {
+  const best = (size: number) => {
+    let min = Infinity;
+    for (let i = 0; i < runs; i++) {
+      const started = performance.now();
+      work(size);
+      min = Math.min(min, performance.now() - started);
+    }
+    return Math.max(min, 0.05); // a floor, so a sub-tick measurement cannot divide by zero
+  };
+  const small = best(n);
+  const large = best(n * 4);
+  return large / small;
+}
+
 describe("padding measurement", () => {
   it("counts leading and trailing whitespace", () => {
     const ui = cliui({ width: 40 });
@@ -67,15 +90,18 @@ describe("padding measurement", () => {
   });
 
   it("does not backtrack on a cell that is mostly whitespace", () => {
-    const ui = cliui({ width: 80 });
-    // Spaces, not tabs — see above. A tab would be split into columns before it got here.
-    const pathological = `${" ".repeat(50_000)}x`;
-
-    const started = performance.now();
-    ui.div(pathological);
-    const elapsed = performance.now() - started;
-
-    expect(elapsed).toBeLessThan(250);
+    // Shape, not wall clock. The bug is catastrophic backtracking, which is a statement about
+    // how the cost GROWS, and an absolute millisecond budget is a statement about the runner:
+    // this file asserted `< 400` and a CI box came back with 440. This repo already learned
+    // that lesson for the ratchet gates, which say in as many words that "an absolute or
+    // tail-driven gate is what red-lit two innocent PRs in #27".
+    //
+    // Quadrupling the input must not multiply the cost by ~16. The ceiling is generous on
+    // purpose: it has to clear linear overhead and scheduler noise on a shared runner, while
+    // staying far enough below quadratic that the regression this guards cannot hide under it.
+    expect(
+      growth((n) => cliui({ width: 80 }).div(`${" ".repeat(n)}x`)),
+    ).toBeLessThan(6);
   });
 });
 
@@ -88,15 +114,12 @@ describe("row rendering", () => {
   });
 
   it("does not backtrack when trimming a wide row's trailing spaces", () => {
-    const ui = cliui({ width: 80 });
-    const pathological = `${" ".repeat(50_000)}x`;
-    ui.div(pathological);
-
-    const started = performance.now();
-    const rendered = ui.toString();
-    const elapsed = performance.now() - started;
-
-    expect(rendered.endsWith("x")).toBe(true);
-    expect(elapsed).toBeLessThan(400);
+    const render = (n: number) => {
+      const ui = cliui({ width: 80 });
+      ui.div(`${" ".repeat(n)}x`);
+      return ui.toString();
+    };
+    expect(render(50_000).endsWith("x")).toBe(true);
+    expect(growth(render)).toBeLessThan(6);
   });
 });
