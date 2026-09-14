@@ -219,6 +219,61 @@ drives a fake key stream, which is what made all seven cheap to check.
 Not yet: the `caique/clack` and `caique/inquirer` façades, still blocked on the
 render-grading decision in `output-stack-compat`.
 
+## What shipped (`plugin-contract` R5 — caique hosts `widgets` — 2026-09-13)
+
+`caique/plugin`: `register()`, `widgets()`, `widgetFor()`, `kinds()`, `projectionOf()`,
+`registered()`, `reset()`, and the family's error vocabulary with the same `fix` shape
+roundel and flagstaff use (R8). It is step 3 of `plugin-contract`'s order of execution.
+
+**`PromptKind` was widened first, and that ordering is the decision.** The union was closed,
+so a plugin's seventh kind did not type-check — which means hosting `widgets` on top of a
+closed union would have been a breaking change written as an additive one: every caller
+would have needed this repo to edit `spec.ts` before it could name its own kind. It is now
+`… | (string & {})`, which keeps the six literals in an editor's completion list where a
+bare `string` would have discarded them. Measured against the unwidened file: a seventh kind
+is `TS2322: Type '"acme-rating"' is not assignable to type 'PromptKind'` before, and 0 type
+errors with 152 tests passing after, with no call site changed.
+
+**The refusal is the other half of the widening, and it is not optional.** An open union
+means `{ kind: 'acme-rating' }` type-checks whether or not anything can draw it, and
+`attemptFor()` in `ask.ts` falls through to a line prompt for any kind it does not know. So
+widening alone would have bought a plugin author a *silent* wrong answer: a text prompt
+where their rating widget should have been. `projectionOf()` refuses an unregistered kind
+with `E_UNKNOWN_KIND`, and the message names the kinds that are registered, so the reader
+sees the typo instead of the fallback.
+
+**A plugin may not replace one of the six.** The family's rule elsewhere is "later wins", and
+it is deliberately not the rule here. The built-ins are the accessible floor and the drop-in
+surface, and `password` in particular guarantees that nothing writes back what it read — a
+third party able to override it could defeat that from a config file. Extension is the space
+*outside* the six, which is exactly what widening the type opened up. A widget whose kind
+collides with a built-in is refused, naming the six.
+
+**`projectionOf()` is one surface over all kinds**, which is why this entry carries `ask.js`
+where roundel's plugin host is a leaf. Splitting the built-in path from the plugin path
+would make every caller re-implement the six-kind test, and the built-in list is precisely
+what `E_UNKNOWN_KIND` has to be right about. 17,817 B, budgeted at 20,000 in
+`weight.test.ts`; it reaches no package, like everything else here. The list itself is
+`BUILT_IN_KINDS` in `spec.ts` — one home, rather than two lists that agree by inspection.
+
+Seven mutations were run against `plugin.ts` to prove the suite bites: an unknown kind drawn
+as a text prompt (3 red), a plugin shadowing a built-in kind (1), a widget without `static`
+accepted (1), the earlier plugin winning instead of the later (1), `register()` keeping a
+plugin that failed validation (1), a newer contract accepted (2), and the refusal message
+dropping the registered kinds (2).
+
+**Open, and not caique's to close: `E_UNKNOWN_KIND` is not in flagstaff's `PluginErrorCode`.**
+`scripts/plugin-error-vocabulary-lock.test.ts` asserts every host's union is a subset of the
+vocabulary home's, and it is red on exactly that one assertion — which is the lock working
+as designed; its own comment predicts this case. The fix is one line in
+`packages/flagstaff/src/plugin.ts`, outside this change's scope.
+
+Also not done here: the schema's `widgets` entry. R2 requires every host's `schema.json` to
+be byte-identical, so caique ships flagstaff's file verbatim; `widgets` validates today only
+because the schema sets `additionalProperties: true`. Describing the key properly means
+editing the source copy in flagstaff and propagating it, which is the same cross-package
+edit as the vocabulary line.
+
 ## Rejected alternatives
 
 - ~~**Re-implementing prompts.** clack is good and maintained; the gap is the layer
