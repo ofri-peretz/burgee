@@ -29,7 +29,7 @@
     "dev": "turbo run dev",
     "typecheck": "turbo run typecheck",
     "test": "vitest run --config vitest.root.config.ts && turbo run test",
-    "lint": "eslint . --max-warnings 0 && npm run lint:workflows && npm run lint:md && npm run brand:check && turbo run lint",
+    "lint": "eslint . --max-warnings 0 && npm run lint:workflows && npm run lint:md && npm run brand:check && npm run check:artifacts && turbo run lint",
     "ci:local": "lefthook run pre-push --all-files --force",
     "research:refresh": "scripts/fetch-competitor-issues.sh",
     "rank:dependents": "tsx scripts/rank-dependents.ts",
