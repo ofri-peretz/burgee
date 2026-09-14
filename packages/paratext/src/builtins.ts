@@ -39,12 +39,20 @@ export const link: Capability = {
   fallback: '{text}[ ({url})]',
 };
 
-/** OSC 1337 — iTerm2's inline image. Kitty and Sixel are their own capabilities. */
+/**
+ * OSC 1337 — iTerm2's inline image. Kitty and Sixel are their own capabilities.
+ *
+ * The four optional groups are `ansi-escapes`' four options, in its order, so that R8's
+ * `image()` is byte-identical to the incumbent's for the same input rather than merely
+ * call-compatible. `size` is the one worth a sentence: the protocol makes it optional and
+ * xterm.js requires it, which is why upstream always writes it and why a caller that can
+ * count the bytes should pass it.
+ */
 export const image: Capability = {
   name: 'image',
   osc: 1337,
   when: { tty: true, termProgram: ['iTerm.app'] },
-  encode: `${OSC}1337;File=inline=1[;width={width}][;height={height}]:{base64}${BEL}`,
+  encode: `${OSC}1337;File=inline=1[;width={width}][;height={height}][;preserveAspectRatio={preserveAspectRatio}][;size={size}]:{base64}${BEL}`,
   fallback: '{caption}',
 };
 

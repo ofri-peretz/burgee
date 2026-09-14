@@ -128,7 +128,7 @@ describe('the template language', () => {
 
   it('reports the fields a capability needs, so a check can say what is missing', () => {
     expect(fieldsUsed(link.encode)).toEqual(['text', 'url']);
-    expect(fieldsUsed(capability('image')?.encode ?? '')).toEqual(['base64', 'height', 'width']);
+    expect(fieldsUsed(capability('image')?.encode ?? '')).toEqual(['base64', 'height', 'preserveAspectRatio', 'size', 'width']);
   });
 });
 
