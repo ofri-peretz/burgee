@@ -47,7 +47,7 @@ export interface Layer {
  * still filed under its legacy slug — PLAN step 0.1 renames it, and this follows the tree.
  */
 export const LAYERS: Layer[] = [
-  { pkg: 'burgee', intent: 'agent-native-cli-layer', incumbents: ['commander', 'yargs'] },
+  { pkg: 'burgee', intent: 'burgee', incumbents: ['commander', 'yargs'] },
   { pkg: 'roundel', intent: 'roundel', incumbents: ['chalk'] },
   { pkg: 'flagstaff', intent: 'flagstaff', incumbents: ['ora', 'log-update', 'boxen', 'cli-table3'] },
   { pkg: 'caique', intent: 'caique', incumbents: ['inquirer', 'clack'] },

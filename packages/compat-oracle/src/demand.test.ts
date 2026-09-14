@@ -2,7 +2,7 @@
  * The issue miner's four rules, and the lock that every layer has a measured file.
  *
  * Proven red first (rule 4): before `scripts/mine-issues.ts` ran, the lock failed with
- * `9 layer(s) with no issues.md: agent-native-cli-layer, bellpull, caique, closeout,
+ * `9 layer(s) with no issues.md: burgee, bellpull, caique, closeout,
  * flagstaff, linegauge, paratext, roundel, seniority`.
  *
  * The rules the unit tests hold are the ones the measurement of 2026-09-13 changed, and

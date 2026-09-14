@@ -441,7 +441,9 @@ tree: **0.3** (a repository setting), **2.1** (the claim lives in the npm regist
 **2.5.5** (a reading of 4.1's output), **4.4** (needs a workflow *run*), **5.3** (a
 person), and **D3** (a grep proves the wording, not the human).
 
-Today it prints **0/36**.
+Today it prints **13/36**, up from 0/36 before the lanes ran: waves 0.1, 0.2, 0.4, 1.1–1.4,
+1.6, 2.0, 4.1 and the lane machinery. The six `manual:` steps are listed separately, as they
+always were.
 
 It printed 5/36 an hour before that, and **all five were false positives** — which is the
 more useful number:
