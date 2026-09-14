@@ -77,6 +77,51 @@ nobody releases — turns Ctrl-C into a process the user has to kill **twice**, 
 one is SIGKILL, which runs no handlers at all. Abandoning a slow handler is the better
 trade. Default is two seconds.
 
+## Phases, so the order is not an accident
+
+```js
+onExit(flushTheLog, 'flush');    // get the data out
+onExit(releaseTheLock);          // let go — the default, `release`
+// `restore` is closeout's own: cursor shown, raw mode off, last, always
+```
+
+Registration order is the wrong order for a shutdown, and it is the order every incumbent
+gives you. The handler that hands the terminal back is registered by whichever renderer hid
+the cursor, at whatever moment it first drew — so anything registered a line later runs
+*after* the cursor is back, which is to say it cleans up nothing it was registered to clean
+up. An order that depends on import order is not an order.
+
+Three phases, and the names are the sequence: **`flush`** (write the file, drain the log),
+**`release`** (locks, sockets, children — the default), **`restore`** (the terminal). Phases
+run *in sequence*: an async handler in `flush` settles before `release` starts. Handlers
+inside one phase run together, in registration order.
+
+Past the deadline the later phases are still **run** — they are only no longer waited for. A
+handler that hung in `flush` does not get to decide that the cursor stays hidden.
+
+## Plugins
+
+```js
+import { register, attach } from 'closeout/plugin';
+
+register({
+  name: 'acme',
+  handlers: [{ name: 'unlock', phase: 'release', run: async () => { await release(); } }],
+});
+
+attach(closeout.registry);
+```
+
+A plugin is one plain object shared by the whole family; closeout keeps `handlers` and
+ignores every other layer's keys without complaining, so the same object works on whatever
+subset of the family you have installed. `contributions()` projects the whole shutdown
+sequence as data — readable without running any of it.
+
+A plugin handler may declare `flush` or `release`, and **not** `restore`. Terminal restore is
+closeout's own last phase; a handler admitted to it could land after the terminal was handed
+back depending on nothing but which registered first, which is the coincidence phases exist
+to replace.
+
 ## Three guarantees, and what each one costs to get wrong
 
 **Exactly once.** Two signals, or a signal and the `'exit'` behind it, are one shutdown.
@@ -108,13 +153,25 @@ a test or for a runner hosting other programs.
 
 | | |
 | :-- | :-- |
-| `onExit(handler)` | register; returns the unregister function |
-| `hideCursor(stream)` | hide and register the restore; returns the show function |
+| `onExit(handler, phase?)` | register; returns the unregister function |
+| `hideCursor(stream)` | hide and register the restore (in `restore`); returns the show function |
 | `showCursor(stream)` | show now — idempotent, no-op on a non-TTY |
 | `install(options)` | wire a registry to a process; `{ deadline, onError, process }` |
 | `createRegistry(options)` | the registry alone, with no process |
 | `SIGNALS` | `['SIGINT', 'SIGTERM', 'SIGHUP']` |
 | `DEFAULT_DEADLINE` | `2000` |
+| `PHASES` | `['flush', 'release', 'restore']` |
+| `DEFAULT_PHASE` | `'release'` |
+
+And from `closeout/plugin`:
+
+| | |
+| :-- | :-- |
+| `register(plugin)` | validate and keep a plugin's `handlers`; other layers' keys are ignored |
+| `attach(registry)` | wire every contributed handler into its phase; returns the undo |
+| `contributions()` | the shutdown sequence as data, in the order it will run |
+| `registered()` / `reset()` | the plugins, and forgetting them |
+| `CONTRACT` / `PLUGIN_PHASES` | `1` · `['flush', 'release']` |
 
 Importing this package attaches nothing. The process-wide instance installs on first use,
 so a library that imports `closeout` for its types pays nothing.
