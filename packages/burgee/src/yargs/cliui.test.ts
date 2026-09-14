@@ -70,6 +70,11 @@ import { cliui } from "./cliui.js";
  * "gates the median, not the p95 — an absolute or tail-driven gate is what red-lit two innocent
  * PRs in #27" — and these assertions were the same mistake one file over.
  *
+ * Why four samples and not more: seven took 20s on a CI runner and blew the test's own
+ * timeout — the second time this gate was flaky for being slow rather than for being wrong.
+ * The minimum over four is already the noise floor; more samples buy precision this does not
+ * need. The per-test ceiling is gone too, so the package config's 60s governs in one place.
+ *
  * Why n = 12,000: at 3,000 a single ratio on genuinely linear code was observed as high as
  * 6.35, because fixed overhead dominates and noise rides on top. By 12,000 the spread settles.
  * And why not larger: the first version used 25,000/100,000 and ran past CI's 5s default
@@ -87,7 +92,7 @@ import { cliui } from "./cliui.js";
  * difference between measuring the algorithm and measuring the neighbours. Both sizes run in
  * the same process, so the machine itself cancels.
  */
-function growth(work: (n: number) => unknown, n = 12_000, samples = 7): number {
+function growth(work: (n: number) => unknown, n = 12_000, samples = 4): number {
   const best = (size: number, runs = 3) => {
     let min = Infinity;
     for (let i = 0; i < runs; i++) {
@@ -110,24 +115,20 @@ describe("padding measurement", () => {
     expect(ui.toString()).toBe("  indented and trailing");
   });
 
-  it(
-    "does not backtrack on a cell that is mostly whitespace",
-    { timeout: 20_000 },
-    () => {
-      // Shape, not wall clock. The bug is catastrophic backtracking, which is a statement about
-      // how the cost GROWS, and an absolute millisecond budget is a statement about the runner:
-      // this file asserted `< 400` and a CI box came back with 440. This repo already learned
-      // that lesson for the ratchet gates, which say in as many words that "an absolute or
-      // tail-driven gate is what red-lit two innocent PRs in #27".
-      //
-      // Quadrupling the input must not multiply the cost by ~16. The ceiling is generous on
-      // purpose: it has to clear linear overhead and scheduler noise on a shared runner, while
-      // staying far enough below quadratic that the regression this guards cannot hide under it.
-      expect(
-        growth((n) => cliui({ width: 80 }).div(`${" ".repeat(n)}x`)),
-      ).toBeLessThan(8);
-    },
-  );
+  it("does not backtrack on a cell that is mostly whitespace", () => {
+    // Shape, not wall clock. The bug is catastrophic backtracking, which is a statement about
+    // how the cost GROWS, and an absolute millisecond budget is a statement about the runner:
+    // this file asserted `< 400` and a CI box came back with 440. This repo already learned
+    // that lesson for the ratchet gates, which say in as many words that "an absolute or
+    // tail-driven gate is what red-lit two innocent PRs in #27".
+    //
+    // Quadrupling the input must not multiply the cost by ~16. The ceiling is generous on
+    // purpose: it has to clear linear overhead and scheduler noise on a shared runner, while
+    // staying far enough below quadratic that the regression this guards cannot hide under it.
+    expect(
+      growth((n) => cliui({ width: 80 }).div(`${" ".repeat(n)}x`)),
+    ).toBeLessThan(8);
+  });
 });
 
 describe("row rendering", () => {
@@ -138,17 +139,13 @@ describe("row rendering", () => {
     expect(ui.toString()).toBe("ends with a tab\t");
   });
 
-  it(
-    "does not backtrack when trimming a wide row's trailing spaces",
-    { timeout: 20_000 },
-    () => {
-      const render = (n: number) => {
-        const ui = cliui({ width: 80 });
-        ui.div(`${" ".repeat(n)}x`);
-        return ui.toString();
-      };
-      expect(render(24_000).endsWith("x")).toBe(true);
-      expect(growth(render)).toBeLessThan(8);
-    },
-  );
+  it("does not backtrack when trimming a wide row's trailing spaces", () => {
+    const render = (n: number) => {
+      const ui = cliui({ width: 80 });
+      ui.div(`${" ".repeat(n)}x`);
+      return ui.toString();
+    };
+    expect(render(24_000).endsWith("x")).toBe(true);
+    expect(growth(render)).toBeLessThan(8);
+  });
 });
