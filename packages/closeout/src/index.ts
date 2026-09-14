@@ -55,7 +55,7 @@ export interface ProcessLike {
  * `undefined` here is a real state — a runtime with no `process` at all — and `install()`
  * says so instead of failing with a name nobody wrote.
  */
-const globalProcess = (globalThis as { process?: ProcessLike }).process;
+const globalProcess = (globalThis as unknown as { process?: ProcessLike }).process;
 
 /**
  * The signals a CLI is expected to survive politely.

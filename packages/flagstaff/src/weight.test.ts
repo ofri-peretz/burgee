@@ -68,7 +68,7 @@ interface EntryRule {
 const RULES: Record<string, EntryRule> = {
   // Everything: the loop, the registry, and all five built-ins. `box` and `table` bring the
   // wrapper and the width function with them, which is most of it. A program that wants one component should import its subpath (U5, R10).
-  '.': { allow: ['linegauge', 'linegauge/wrap', 'roundel/policy', 'roundel/tokens'], budget: 29_000, measured: 28_394, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
+  '.': { allow: ['linegauge', 'linegauge/wrap', 'roundel/policy', 'roundel/tokens'], budget: 33_000, measured: 31_474, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
   // The loop and its four projections; never the registry — a program that hoists its own
   // component pays nothing for the plugin host.
   //
@@ -82,10 +82,10 @@ const RULES: Record<string, EntryRule> = {
   // The registry, the validator, the built-ins and the schema they are checked against —
   // which now carries `borders` too, so both this and `./spinner` are larger than before.
   // Measured 10,190 B, of which the schema is 2,978: the contract ships in the tarball (R3).
-  './plugin': { allow: [], budget: 12_000, measured: 11_543, denied: ['loop.js', 'projection.js', 'spinner.js', 'cli.js', 'index.js'] },
+  './plugin': { allow: [], budget: 16_000, measured: 14_623, denied: ['loop.js', 'projection.js', 'spinner.js', 'cli.js', 'index.js'] },
   // The ceiling is ora (R10). The spinner plus the registry it reads its style from;
   // ora 9.4.1's own index.js is 17,891 B before any of its sixteen dependencies.
-  './spinner': { allow: ['roundel/tokens'], budget: 12_500, measured: 12_471, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
+  './spinner': { allow: ['roundel/tokens'], budget: 17_000, measured: 15_551, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
   // The ora façade: the port, the width function, the cursor control and the spinner corpus
   // it re-exports. Measured 46,543 B on 2026-09-08 (ora.js 20,701 · spinners.json 20,250 ·
   // width.js 4,229 · cursor.js 1,363 — the cursor control moved out to its own module when
@@ -155,13 +155,13 @@ const RULES: Record<string, EntryRule> = {
   // the last case in `import.test.ts` asserts neither became a dependency.
   './import': { allow: [], budget: 2_000, measured: 838, denied: ['plugin.js', 'builtins.js', 'schema.json', 'loop.js', 'projection.js', 'box.js', 'spinner.js', 'cli.js', 'index.js'] },
   './progress': { allow: ['roundel/tokens'], budget: 2_000, measured: 971, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'cli.js', 'index.js'] },
-  './tasks': { allow: ['roundel/tokens'], budget: 13_000, measured: 12_882, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
+  './tasks': { allow: ['roundel/tokens'], budget: 17_000, measured: 15_962, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
   // `box` reads its named borders from the registry, the way `tasks` reads its glyphs, so
   // it carries the plugin host: 34,145 B, up from 24,764 when the border table was its own.
   // That is the price of R11 — a corpus imported with `fromCliBoxes()` is a registered
   // plugin, and `box('…', { border: 'arrow' })` then draws with it without knowing it
   // exists. A caller who wants neither passes a style object and a bundler drops the rest.
-  './box': { allow: ['linegauge', 'linegauge/wrap', 'roundel/tokens'], budget: 15_000, measured: 14_202, denied: ['loop.js', 'projection.js', 'table.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
+  './box': { allow: ['linegauge', 'linegauge/wrap', 'roundel/tokens'], budget: 18_500, measured: 17_282, denied: ['loop.js', 'projection.js', 'table.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
   './table': { allow: ['linegauge', 'linegauge/wrap', 'roundel/tokens'], budget: 4_000, measured: 3_316, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'box.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
 };
 
@@ -228,6 +228,21 @@ it('every entry records a measurement — otherwise the check above asserts noth
  * Exports that are data rather than code. They have no import graph and no budget — the
  * file *is* the payload — so a byte rule would measure nothing. They are listed rather than
  * pattern-matched so that adding one is still a decision somebody made on purpose.
+ */
+/*
+ * Five budgets rose on 2026-09-14, and the whole rise is one number: the family plugin
+ * schema went 3,451 B -> 6,531 B when paratext's capability shape was folded into it
+ * (PLAN 1.1 / D2), and every export reaching the plugin registry inlines it. `./plugin` had
+ * 457 B of headroom, so *no* capability schema fits under the old ceiling — the breach is
+ * structural, not drift, and each of the five moved by roughly the same 3,080 B.
+ *
+ * The claims survive it: `./spinner` at 15,551 B is still under ora's 17,891 B.
+ *
+ * A bigger ceiling is not the better fix. One byte-identical `src/schema.json` is the
+ * contract each package *publishes* (plugin-contract R2), but a host only ever validates its
+ * own section, so `schema-to-dist.mjs` should project the published file down to the section
+ * that host bundles. That is a change in `scripts/`, written down as PLAN 1.8 rather than
+ * made here — it is not paratext's to make and not this PR's shape.
  */
 const DATA_EXPORTS = ['./schema.json'];
 

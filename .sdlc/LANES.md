@@ -21,7 +21,7 @@ and `chalk` (wave 0.4, the red ratchet) is roundel's incumbent, not anyone else'
 | `bellpull` | `lane/bellpull` | `packages/bellpull/**`, `.sdlc/intents/bellpull/**` | harness 2.0 |
 | `output` | `lane/output` | `packages/roundel/**`, `packages/flagstaff/**`, `.sdlc/intents/roundel/**`, `.sdlc/intents/flagstaff/**` | — (0.4 is urgent) |
 | `engine` | `lane/engine` | `packages/burgee/**`, `packages/commander-harness/**`, `packages/yargs-harness/**`, `.sdlc/intents/commander-*/**`, `.sdlc/intents/yargs-*/**` | — |
-| `integrator` | `lane/integrator` | everything else: `.sdlc/PLAN.md`, `.sdlc/intents/README.md`, `.github/**`, root `README.md`, `scripts/*-lock.test.ts`, `.changeset/**` | all lanes |
+| `integrator` | `lane/integrator` | everything else: `.sdlc/PLAN.md`, `.sdlc/intents/README.md`, `.github/**`, root `README.md`, `scripts/*-lock.test.ts` | all lanes |
 
 **Forbidden to every lane but `integrator`:** `package-lock.json`, `.sdlc/intents/README.md`,
 `.sdlc/bands/**`, root `README.md`, `.github/**`, `turbo.json`, `PRINCIPLES.md`, `CLAUDE.md`.
@@ -50,6 +50,7 @@ Three kinds, because three kinds exist:
 | 1.5 bellpull hosts `resolvers` | own | bellpull |
 | 1.6 linegauge "no plugins, by design" | own | linegauge |
 | 1.7 plugin-contract lock | serial | integrator |
+| 1.8 schema projection in `schema-to-dist.mjs` | serial | integrator |
 | 2.0 `vendor-suite.ts` + PROVENANCE | own | harness |
 | 2.1 remove "drop-in" from five descriptions | serial | integrator (**published claim — stops and asks**) |
 | 2.2–2.13 the twelve suites | fan | each package lane |
@@ -88,8 +89,13 @@ lanes" means ten merge conflicts:
 | `scripts/plan-progress.ts` | one condition array | `scripts/plan-progress/<wave>.ts` |
 | `packages/*/src/schema.json` | one family schema | 1.1 then 1.7, serialized on purpose |
 
-`.changeset/*.md` needs no sharding — a changeset is already one new file with a random
-name, which is why no lane may hand-edit a `version` field.
+`.changeset/*.md` needs no sharding — a changeset is already one new file with a unique
+name, which is why no lane may hand-edit a `version` field. **Every lane may add one**, and
+that is the single exception to the globs above: the integrator does not own `.changeset/**`,
+because a lane that changes a published package is the only one that knows what to write in
+it. The first run of these lanes caught the contradiction — the table said integrator, the
+briefs said write one, and `lanes.ts --check` would have called every lane's changeset a
+stray.
 
 ## Running
 

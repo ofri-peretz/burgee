@@ -185,6 +185,16 @@ under a `manual` heading.
   registers a resolver that is not built in, `which`-style lookup returns that resolver's
   answer, and removing the host key from `plugin.test.ts`'s registration makes it red.
 - **1.6** linegauge README: "no plugins, by design, here is why". Done when: `grep -c "## Plugins" packages/linegauge/README.md` → 1.
+- **1.8** `schema-to-dist.mjs` projects the published schema down to the section a host
+  validates. Folding paratext's capability shape into the family schema (1.1) took it from
+  3,451 B to 6,531 B, and every export reaching the plugin registry inlines the whole thing:
+  five flagstaff budgets breached at once, and `./plugin` had 457 B of headroom, so no
+  capability schema of any size would have fitted. The budgets were raised on 2026-09-14
+  with that split stated, which buys time and does not fix it — a host that validates
+  `spinners` has no use for `capabilities`. R2's byte-identity is about what each package
+  **publishes**; what it **bundles** can be its own section.
+  Done when: no `dist` export inlines a schema section its host does not validate, and the
+  five raised flagstaff budgets come back down.
 - **1.7** `scripts/plugin-contract-lock.test.ts`: every `./plugin` export validates against the one schema; one plugin object registers into every host; every README has a generated `## Plugins` section. Done when: the lock is green and a mutation removing any host's key goes red.
 
 ## Wave 2 — grade every incumbent you name (Y7), or stop naming it
