@@ -15,14 +15,14 @@
  *
  * It reads `dist/`, so it measures what is published rather than what is written.
  */
-import { readFileSync, statSync } from 'node:fs';
-import { dirname, relative, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { readFileSync, statSync } from "node:fs";
+import { dirname, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 
-const pkgRoot = fileURLToPath(new URL('..', import.meta.url));
-const dist = resolve(pkgRoot, 'dist');
+const pkgRoot = fileURLToPath(new URL("..", import.meta.url));
+const dist = resolve(pkgRoot, "dist");
 
 interface Manifest {
   exports: Record<string, { import: string }>;
@@ -30,7 +30,9 @@ interface Manifest {
 
 // Read rather than import: the published entry list is data here, and a JSON
 // import would reach out of src/ for it.
-const manifest = JSON.parse(readFileSync(resolve(pkgRoot, 'package.json'), 'utf8')) as Manifest;
+const manifest = JSON.parse(
+  readFileSync(resolve(pkgRoot, "package.json"), "utf8"),
+) as Manifest;
 
 interface EntryRule {
   /** Bare specifiers this entry may import. The host front-ends will name their peer. */
@@ -102,7 +104,26 @@ const RULES: Record<string, EntryRule> = {
   // conflicts with `--table` by sending both and reading exit 2 — one round trip per
   // constraint, and E1 reads exit 2 as *rewrite the command*, which invites the same pair
   // again. Measured 53,295.
-  '.': { allow: [], budget: 53_300, denied: ['testing.js', 'testing-helpers.js', 'dev.js', 'roundel', 'flagstaff', 'caique'] },
+  //
+  // `seniority` is the one bare import `.` admits, and it is admitted rather than denied
+  // because the alternative was worse: burgee shipped its own `precedence.ts` and
+  // `config.ts`, 281 lines of which `config.ts` was byte-identical to seniority's. Two
+  // copies of a precedence order is two answers to "where did this value come from", and
+  // `--explain` is only worth anything if the thing that picked the value is the thing that
+  // reports it. The output stack stays denied by name above: colour and progress are things
+  // a parser has no reason to carry, where precedence is the parser's own job.
+  ".": {
+    allow: ["seniority"],
+    budget: 53_300,
+    denied: [
+      "testing.js",
+      "testing-helpers.js",
+      "dev.js",
+      "roundel",
+      "flagstaff",
+      "caique",
+    ],
+  },
   //
   // `agent-headroom` R1 adds **134 bytes** on top of that (52,035 -> 52,169), inside the same
   // ceiling, and it is the same kind of decision: 134 bytes of core, paid once per install,
@@ -116,7 +137,7 @@ const RULES: Record<string, EntryRule> = {
   // carries the theme seam and the fake clock (56,626 measured).
   // 58,300 on 2026-09-13: the harness reaches the schema, so it carries the 395 B above.
   // Measured 58,260.
-  './testing': { allow: [], budget: 58_300, denied: ['dev.js'] },
+  "./testing": { allow: ["seniority"], budget: 58_300, denied: ["dev.js"] },
   // The brand generator. Pure geometry and string building — it must never reach
   // the engine, and the engine must never reach it: a CLI that ships argv parsing
   // has no reason to carry an SVG emitter.
@@ -128,24 +149,30 @@ const RULES: Record<string, EntryRule> = {
   // Raised from 72,000 on 2026-09-09 for the sibling marks: `shape` (a silhouette other
   // than the swallowtail), `markings` (a second colour on it), `sheen` and `bevel` (the
   // light on it, still and swept). Four options, one clip path and two renderers.
-  './cli': {
-    allow: ['roundel/contrast'],
+  "./cli": {
+    allow: ["roundel/contrast", "seniority"],
     budget: 74_000,
-    denied: ['testing.js', 'testing-helpers.js', 'dev.js'],
+    denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   // Arithmetic over hex strings, and the arithmetic itself is roundel's — colour is the
   // layer below this one, and the WCAG maths lived in both packages until 2026-09-09.
   // Nothing in the engine reaches this: a CLI that ships argv parsing has no reason to
   // carry a contrast checker, which is why `.` still denies `roundel` outright.
-  './contrast': {
-    allow: ['roundel/contrast'],
+  "./contrast": {
+    allow: ["roundel/contrast"],
     budget: 12_000,
-    denied: ['index.js', 'execute.js', 'brand.js'],
+    denied: ["index.js", "execute.js", "brand.js"],
   },
-  './brand': {
+  "./brand": {
     allow: [],
     budget: 16_000,
-    denied: ['index.js', 'execute.js', 'manifest.js', 'testing.js', 'testing-helpers.js'],
+    denied: [
+      "index.js",
+      "execute.js",
+      "manifest.js",
+      "testing.js",
+      "testing-helpers.js",
+    ],
   },
   // `allow: []` is the point: the compat front-ends *implement* the incumbents'
   // surfaces over our engine, they do not wrap the real packages, so they import
@@ -159,18 +186,43 @@ const RULES: Record<string, EntryRule> = {
   // The completion templates for four shells and Fig. Loaded by the engine and the
   // commander front-end only on `completion <shell>`, through a dynamic import, so a
   // program pays for them when it prints a script and never at startup (K6).
-  './completions': { allow: [], budget: 16_000, denied: ['index.js', 'execute.js', 'testing.js', 'testing-helpers.js'] },
-  './commander': { allow: [], budget: 128_000, denied: ['testing.js', 'testing-helpers.js', 'dev.js'] },
+  "./completions": {
+    allow: [],
+    budget: 16_000,
+    denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js"],
+  },
+  "./commander": {
+    allow: [],
+    budget: 128_000,
+    denied: ["testing.js", "testing-helpers.js", "dev.js"],
+  },
   // yargs 18 ported method for method, with its whole dependency tree — yargs-parser 22,
   // cliui 9 (string-width, wrap-ansi), y18n 5, escalade, get-caller-file — because burgee
   // depends on nothing (J9). 256,000 is what `npm install yargs` puts on disk for the same
   // surface (yargs lib/ 158 K + yargs-parser 52 K + the rest), so the lock proves the
   // front-end is no heavier than the package it replaces. `import 'burgee'` reaches none
   // of it. The 29 locales are JSON read at runtime, not imports, so they are not walked.
-  './yargs': { allow: [], budget: 256_000, denied: ['testing.js', 'testing-helpers.js', 'dev.js'] },
-  './yargs/helpers': { allow: [], budget: 64_000, denied: ['testing.js', 'testing-helpers.js', 'yargs-factory.js'] },
+  "./yargs": {
+    allow: [],
+    budget: 256_000,
+    denied: ["testing.js", "testing-helpers.js", "dev.js"],
+  },
+  "./yargs/helpers": {
+    allow: [],
+    budget: 64_000,
+    denied: ["testing.js", "testing-helpers.js", "yargs-factory.js"],
+  },
   // yargs-parser alone, for a program that imported it directly; never the factory.
-  './yargs/parser': { allow: [], budget: 40_000, denied: ['testing.js', 'testing-helpers.js', 'yargs-factory.js', 'yargs-shim.js'] },
+  "./yargs/parser": {
+    allow: [],
+    budget: 40_000,
+    denied: [
+      "testing.js",
+      "testing-helpers.js",
+      "yargs-factory.js",
+      "yargs-shim.js",
+    ],
+  },
 };
 
 /**
@@ -184,12 +236,17 @@ const LAZY = /import\(\s*'([^']+)'\s*\)/g;
 /** One file's imports: static specifiers to follow or count, dynamic ones only to report. */
 function scan(source: string): { specs: string[]; lazy: string[] } {
   return {
-    specs: [...source.matchAll(SPECIFIER)].map((m) => m[1] ?? ''),
-    lazy: [...source.matchAll(LAZY)].map((m) => m[1] ?? ''),
+    specs: [...source.matchAll(SPECIFIER)].map((m) => m[1] ?? ""),
+    lazy: [...source.matchAll(LAZY)].map((m) => m[1] ?? ""),
   };
 }
 
-function walk(entry: string): { reached: string[]; external: string[]; bytes: number; lazy: string[] } {
+function walk(entry: string): {
+  reached: string[];
+  external: string[];
+  bytes: number;
+  lazy: string[];
+} {
   const files = new Set<string>();
   const external = new Set<string>();
   const lazy = new Set<string>();
@@ -201,14 +258,19 @@ function walk(entry: string): { reached: string[]; external: string[]; bytes: nu
     if (file === undefined || files.has(file)) continue;
     files.add(file);
     bytes += statSync(file).size;
-    const found = scan(readFileSync(file, 'utf8'));
+    const found = scan(readFileSync(file, "utf8"));
     for (const spec of found.lazy) lazy.add(spec);
     for (const spec of found.specs) {
-      if (spec.startsWith('.')) queue.push(resolve(dirname(file), spec));
-      else if (spec !== '' && !spec.startsWith('node:')) external.add(spec);
+      if (spec.startsWith(".")) queue.push(resolve(dirname(file), spec));
+      else if (spec !== "" && !spec.startsWith("node:")) external.add(spec);
     }
   }
-  return { reached: [...files].map((f) => relative(dist, f)), external: [...external], bytes, lazy: [...lazy] };
+  return {
+    reached: [...files].map((f) => relative(dist, f)),
+    external: [...external],
+    bytes,
+    lazy: [...lazy],
+  };
 }
 
 /**
@@ -217,50 +279,54 @@ function walk(entry: string): { reached: string[]; external: string[]; bytes: nu
  * entry could otherwise admit through the side door.
  */
 function isDenied(name: string, denied: string): boolean {
-  if (denied.endsWith('.js')) return name === denied;
+  if (denied.endsWith(".js")) return name === denied;
   return name === denied || name.startsWith(`${denied}/`);
 }
 
 function entryFile(subpath: string): string {
   const conditions = manifest.exports[subpath];
-  if (conditions === undefined) throw new Error(`no exports entry for ${subpath}`);
+  if (conditions === undefined)
+    throw new Error(`no exports entry for ${subpath}`);
   return resolve(pkgRoot, conditions.import);
 }
 
-describe.each(Object.keys(RULES))('entry %s', (subpath) => {
+describe.each(Object.keys(RULES))("entry %s", (subpath) => {
   const rule = RULES[subpath] as EntryRule;
   const graph = walk(entryFile(subpath));
 
-  it('imports only what its rule allows', () => {
+  it("imports only what its rule allows", () => {
     expect(graph.external.sort()).toEqual([...rule.allow].sort());
   });
 
-  it('reaches nothing on its denied list', () => {
+  it("reaches nothing on its denied list", () => {
     // A denied name may be a dist file (the harness) or a bare specifier (the output stack).
     const everything = [...graph.reached, ...graph.external];
-    for (const denied of rule.denied) expect(everything.filter((name) => isDenied(name, denied))).toEqual([]);
+    for (const denied of rule.denied)
+      expect(everything.filter((name) => isDenied(name, denied))).toEqual([]);
   });
 
-  it('stays inside its byte budget', () => {
+  it("stays inside its byte budget", () => {
     expect(graph.bytes).toBeLessThanOrEqual(rule.budget);
   });
 });
 
-describe('the denied list', () => {
-  it('denies a subpath of a bare specifier for entry `.`, and a dist file only exactly', () => {
-    const rule = RULES['.'] as EntryRule;
-    const roundel = rule.denied.find((d) => d === 'roundel') ?? '';
-    expect(isDenied('roundel/tokens', roundel)).toBe(true);
-    expect(isDenied('roundel', roundel)).toBe(true);
-    expect(isDenied('roundelle', roundel)).toBe(false);
-    expect(isDenied('testing-helpers.js', 'testing.js')).toBe(false);
+describe("the denied list", () => {
+  it("denies a subpath of a bare specifier for entry `.`, and a dist file only exactly", () => {
+    const rule = RULES["."] as EntryRule;
+    const roundel = rule.denied.find((d) => d === "roundel") ?? "";
+    expect(isDenied("roundel/tokens", roundel)).toBe(true);
+    expect(isDenied("roundel", roundel)).toBe(true);
+    expect(isDenied("roundelle", roundel)).toBe(false);
+    expect(isDenied("testing-helpers.js", "testing.js")).toBe(false);
   });
 });
 
-describe('the lock grows with the package', () => {
-  it('every published entry point declares a weight rule', () => {
+describe("the lock grows with the package", () => {
+  it("every published entry point declares a weight rule", () => {
     // Adding `burgee/commander` without a budget here fails, which is the point:
     // a new surface cannot ship until someone has said what it may weigh.
-    expect(Object.keys(manifest.exports).sort()).toEqual(Object.keys(RULES).sort());
+    expect(Object.keys(manifest.exports).sort()).toEqual(
+      Object.keys(RULES).sort(),
+    );
   });
 });

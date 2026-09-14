@@ -96,7 +96,8 @@
     "provenance": true
   },
   "dependencies": {
-    "roundel": "^0.3.0"
+    "roundel": "^0.3.0",
+    "seniority": "^0.1.0"
   },
   "devDependencies": {
     "vitest": "^5.0.0"
