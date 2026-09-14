@@ -29,16 +29,22 @@ const PLAN_MD = readFileSync(resolve(ROOT, '.sdlc/PLAN.md'), 'utf-8');
  * every package lane does in its own paths. Dropping the fan rows would silently lose the
  * twelve vendored suites and the whole of 4.2 and 4.3.
  */
-function steps(lane: Lane): { id: string; what: string }[] {
+function steps(lane: Lane): { id: string; what: string; fan: boolean }[] {
   const packageLane = lane.owns.some((o) => o.startsWith('packages/')) && lane.name !== 'harness' && lane.name !== 'integrator';
   return [...LANES_MD.matchAll(/^\| (\d[\w.–-]*) ([^|]+)\|\s*(\w+)\s*\| ([\w*]+)/gm)]
     .filter((m) => (m[4] as string).replaceAll('*', '') === lane.name || (packageLane && m[3] === 'fan'))
-    .map((m) => ({ id: m[1] as string, what: (m[2] as string).trim() }));
+    .map((m) => ({ id: m[1] as string, what: (m[2] as string).trim(), fan: m[3] === 'fan' }));
 }
 
-/** A step's full paragraph from PLAN.md, which is where its "Done when" lives. */
+/**
+ * A step's full paragraph from PLAN.md, which is where its "Done when" lives.
+ *
+ * A range is spelled whole on both sides (`2.2–2.13`), so look for the whole id first and
+ * fall back to its first number — the fallback alone silently dropped the twelve suites,
+ * the largest step in the plan, from every package lane's prompt.
+ */
 function detail(id: string): string {
-  const start = PLAN_MD.indexOf(`- **${id.split(/[–-]/)[0] as string}**`);
+  const start = [id, id.split(/[–-]/)[0] as string].map((k) => PLAN_MD.indexOf(`- **${k}**`)).find((i) => i !== -1) ?? -1;
   if (start === -1) return '';
   const rest = PLAN_MD.slice(start);
   const end = rest.slice(1).search(/\n- \*\*|\n## /);
@@ -62,7 +68,21 @@ function prompt(lane: Lane): string {
     ``,
     `Your steps, in order:`,
     ``,
-    ...mine.flatMap((s) => [`### ${s.id} — ${s.what}`, ``, detail(s.id) || '_(no PLAN.md paragraph; see .sdlc/LANES.md)_', ``]),
+    ...mine.flatMap((s) => [
+      `### ${s.id} — ${s.what}${s.fan ? ' (fan step)' : ''}`,
+      ``,
+      detail(s.id) || '_(no PLAN.md paragraph; see .sdlc/LANES.md)_',
+      ...(s.fan
+        ? [
+            ``,
+            `**This step fans across every package lane, so its "Done when" command counts the whole`,
+            `repository and cannot pass from your branch alone.** Do your package's share only, and prove`,
+            `it over your own paths — the entries, tests or files your lane added, not the repo-wide total.`,
+            `The integrator lane runs the repo-wide form once every lane has landed.`,
+          ]
+        : []),
+      ``,
+    ]),
     `When every step's "Done when" command passes, push \`${lane.branch}\` and stop. The integrator`,
     `lane opens the PR. Do not merge, and do not rebase another lane's branch.`,
   ].join('\n');
