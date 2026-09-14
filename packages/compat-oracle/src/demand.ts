@@ -129,14 +129,20 @@ export const noSignal = (section: Section): string =>
   `no demand signal (${section.open.length} open, ${section.closed.length} >=${REACTION_FLOOR} closed)`;
 
 /**
- * `<incumbent>#<number>`. The name run is bounded because an unbounded one backtracks
- * quadratically over a long run with no `#` in it — CodeQL's `js/polynomial-redos`, and it
- * is right: our own sources are the input, but a lock that walks the tree should not have a
- * pathological case waiting in a minified fixture. The bound is npm's maximum
- * package-name length, written into the literal because a pattern assembled at runtime is a
- * pattern nobody can read at the call site.
+ * `<incumbent>#<number>`, with two things in it that are not decoration.
+ *
+ * The name run is **bounded** (npm's maximum package-name length) because an unbounded one
+ * backtracks quadratically over a long run with no `#` — CodeQL's `js/polynomial-redos`,
+ * and it is right: our own sources are the input, but a lock that walks the tree should not
+ * carry a pathological case waiting for a minified fixture.
+ *
+ * The bound alone was not enough, and CI said so: 200,000 characters still took **2,954 ms**
+ * on a runner, because the engine restarted the bounded run at every one of those positions.
+ * The **lookbehind** is what makes it linear — a match may not begin in the middle of a name
+ * — and the same input is then under a millisecond. Measured, not reasoned: 99 ms bounded,
+ * 0 ms with the lookbehind, on the same string.
  */
-const CITATION = /([A-Za-z0-9@/._-]{1,214})#(\d+)/g;
+const CITATION = /(?<![A-Za-z0-9@/._-])([A-Za-z0-9@/._-]{1,214})#(\d+)/g;
 
 /**
  * Every `<incumbent>#<number>` written anywhere in our own sources. That is the form PLAN
