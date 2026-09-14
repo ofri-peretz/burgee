@@ -94,6 +94,33 @@ describe('blockers', () => {
     expect(POSIX_ONLY).toContain('win32');
   });
 
+  /**
+   * The shape CI actually produces, and the reason B1 has never been measured (#276).
+   *
+   * `CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}` with the secret
+   * unset does not leave the variable absent — GitHub interpolates the empty string, so
+   * the variable IS set and `=== undefined` is false. The guard did not fire, the axis
+   * ran, `claude` failed to authenticate on all 25 runs, and the skip said "`claude`
+   * answered but nothing it produced passed a task's own check" — sending a reader after
+   * a prompt-quality problem that does not exist.
+   */
+  it('treats an empty credential as no credential — the shape an unset GitHub secret has', () => {
+    const reasons = blockers({
+      PATH: process.env['PATH'] as string,
+      CLAUDE_CODE_OAUTH_TOKEN: '',
+      ANTHROPIC_API_KEY: '',
+    });
+    expect(reasons.join('; ')).toContain('no CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY');
+  });
+
+  it('treats a whitespace-only credential the same way', () => {
+    const reasons = blockers({
+      PATH: process.env['PATH'] as string,
+      ANTHROPIC_API_KEY: '   ',
+    });
+    expect(reasons.join('; ')).toContain('no CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY');
+  });
+
   it('is satisfied on the credential when one is present', () => {
     const reasons = blockers({ ...process.env, CLAUDE_CODE_OAUTH_TOKEN: 'not-a-real-token' });
     expect(reasons.join('; ')).not.toContain('ANTHROPIC_API_KEY');
