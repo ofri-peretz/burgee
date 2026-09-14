@@ -84,12 +84,14 @@ https://cli.interlace.tools`. That constant, hard-coded on the grounds that ther
   Deployment Protection. `scripts/deploy-lock.test.ts` records twelve mutations, each
   proven red. Copying a proven path three times is a different act from writing four
   untested pipelines, and this is the window in which the first is still possible.
-- **Eight packages are published and none but burgee has a site.** Corrected 2026-09-14 —
+- **Nine packages are published and none but burgee has a site.** Corrected 2026-09-14 —
   the original said "three of the four" and named 0.1.0s. `npm view <pkg> version`, today:
   `burgee` 0.6.0, `roundel` 0.3.0, `flagstaff` 0.2.1, `linegauge` 0.2.0, `seniority` 0.1.0,
-  `closeout` 0.1.0, `caique` 0.1.1, `bellpull` 0.0.1. `paratext` is `private: false` at
-  0.2.0 in the tree and **not on npm** — its publish fails `ENEEDAUTH` because npm Trusted
-  Publishing is configured per package and paratext has no trusted publisher.
+  `closeout` 0.1.0, `caique` 0.1.1, `bellpull` 0.0.1, `paratext` 0.0.1. paratext's published
+  0.0.1 is a name reservation — the tree is at 0.2.0, the first version with an exported
+  API, and its publish had been failing `ENEEDAUTH` because npm Trusted Publishing is
+  configured per package. The owner added paratext's trusted publisher on 2026-09-14, so
+  0.2.0 ships on the next release run.
   Nine `private: false` packages, one site, and that site is titled "Interlace CLI"
   (`apps/docs/content/docs/index.mdx`). `roundel` shipped `roundel/chalk` at 58/58 and
   `flagstaff` shipped `flagstaff/ora` at 99/99 and `flagstaff/log-update` at 99/99; a
@@ -211,11 +213,11 @@ package's site."_ See the open question below.
    whose incumbent nobody searches for is a section; one replacing something with chalk's
    traffic is a host. The map is a judgement per package, and criterion 1 only enforces that
    every published package is _somewhere_, not that the somewhere is right.
-4. **`paratext` cannot publish.** It is in the map as a section on flagstaff's site, but it
-   is not on npm at all — `ENEEDAUTH`, because it has no npm trusted publisher. A section
-   documenting an unpublishable package is a page about something a reader cannot install.
-   Owner action, outside an agent's reach: add the trusted publisher, or drop paratext from
-   the map until it can ship.
+4. **`paratext` could not publish.** ~~It is in the map as a section on flagstaff's site,
+   but only the 0.0.1 name reservation is on npm; 0.2.0, the first version with an API,
+   fails `ENEEDAUTH` because it has no npm trusted publisher.~~ **Resolved 2026-09-14:** the
+   owner configured the trusted publisher. The section is a page about a package a reader
+   can install as soon as the next release run lands 0.2.0; nothing in the map changes.
 5. **The affected gate gets worse before it gets better.** `auto-deploy.yml` records the
    measurement: the root workspace devDepends on `burgee`, `compat-oracle` and
    `flagstaff`, so a one-file commit under `packages/roundel/` marks _all eleven_
