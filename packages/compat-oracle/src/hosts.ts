@@ -367,6 +367,60 @@ export const HOSTS: Host[] = [
     status: 'rejected',
     note: 'Its API is inseparable from its shape: a project layout, a build step and a generator. A façade could not be adopted without adopting the shape that Z1 exists to prevent, and oclif does 10.9M/wk against commander’s 508M, so the shape is also what lost.',
   },
+  // ---------------------------------------------------------------------------------------
+  // paratext's three incumbents (PLAN 2.2–2.13, `paratext/design.md` R9). This is the layer
+  // with **no demand signal**: `.sdlc/intents/paratext/issues.md` records 2 open issues and 0
+  // closed above ten reactions across all three trackers, so nothing here can be justified by
+  // "users asked". The compatibility claim rests entirely on these suites, which is why the
+  // rows below say what they do *not* measure as loudly as what they do.
+  // ---------------------------------------------------------------------------------------
+  {
+    name: 'ansi-escapes',
+    repo: 'https://github.com/sindresorhus/ansi-escapes',
+    // One file at the repo root beside the implementation — ora's shape, and the reason the
+    // glob names the file: "every `.js` here" would vendor `index.js` and grade it as a test.
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
+    surfaceFiles: ['index.d.ts', 'index.js', 'base.d.ts', 'base.js'],
+    runner: 'ava',
+    // The entry point that replaces it is the package root: `paratext/design.md` R8 puts the
+    // ansi-escapes-compatible default export in `index.ts`, not behind a subpath. Naming a
+    // `paratext/ansi-escapes` façade instead would publish the oracle's `target not built
+    // yet` note in place of a number, which is the mistake cli-table3's row is written to
+    // stop. Today it is a *measured* zero, and the raw TAP says why in one line.
+    target: 'paratext',
+    status: 'active',
+    note: "Vendored 2026-09-14 at 7.3.0 from the tag, never the tarball: `npm pack ansi-escapes && tar tzf ansi-escapes-7.3.0.tgz | grep -c test` is **0**, because its `files` array ships four files and no suite. Control **4 / 4, 100.0%**; target `paratext` **0 / 4**, and the reason is one line of TAP — `SyntaxError: The requested module 'paratext' does not provide an export named 'default'`. That is R8 unbuilt, stated by the host's own suite, which is exactly what design R9 said this row was for (\"it grades R7 and tells us where R8 must match\"). **Its own suite is four tests, and three of them are CSI.** `default export` and `clearTerminal` assert `cursorTo(2, 2)` and the clear sequence, `synchronized output` asserts `ESC [ ? 2026 h/l`; only `named export(s)`, which checks that `setCwd` is the same function object as the default export's member, touches OSC at all. paratext owns OSC and states CSI out of scope, so this row can never legitimately reach 4 / 4 — the ceiling is 1, and a reader who sees 25% must read it as \"the one OSC case\", not as \"a quarter compatible\". The out-of-scope three cannot be recorded as an `excludes` subtraction: ava's TAP prints counts and no per-case names, and `summarize()` refuses an exclusion it cannot name (run.ts). So the ceiling is written here, in prose, and the rate is read with this paragraph or not at all.",
+  },
+  {
+    name: 'terminal-link',
+    repo: 'https://github.com/sindresorhus/terminal-link',
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'ava',
+    target: 'paratext',
+    status: 'planned',
+    note: "**Not vendored, and that is the lock's decision rather than mine.** The suite was vendored at 5.0.0 on 2026-09-14 (`v5.0.0` -> commit 975358c3, tarball ships no test like the other two) and then deleted again, because committing it turns `vendored-suite.test.ts` > \"declares every package a vendored suite reaches for by name\" red: its ten cases `import supportsHyperlinks from 'supports-hyperlinks'` and reassign `supportsHyperlinks.stdout` per case, and that package is declared in neither manifest — measured, `undeclared` comes back as `['supports-hyperlinks (vendor/terminal-link/test.js)']`. It is needed for the *target* run too, not only the control, because the bare import is in the test rather than in the implementation. The control additionally needs `terminal-link` itself: without it `packageRoot()` throws `ERR_MODULE_NOT_FOUND` out of `writeInternalShims` and takes the whole oracle process down rather than reporting one red row. Both are root-manifest edits, which is the integrator lane's file and not a package lane's. One more thing to settle before grading: upstream declares `ava: { serial: true }` and every case mutates that one shared module object, while `rootPackage()` in vendor.ts writes a fresh manifest carrying name, type, main, version, license and repository and *not* the `ava` block — so the vendored copy would run ten state-mutating cases concurrently. Activate when the root manifest declares `terminal-link` and `supports-hyperlinks` and vendor.ts carries the host's ava config.",
+  },
+  {
+    name: 'term-img',
+    repo: 'https://github.com/sindresorhus/term-img',
+    testDir: '.',
+    testGlob: 'test.js',
+    // `fixture.jpg` is not a test and not a directory, and eleven of the sixteen cases call
+    // `terminalImage('fixture.jpg')`, which `fs.readFileSync`s it relative to cwd — and cwd
+    // is the vendored root. Without this the suite fails on the file system, not on us.
+    extraDirs: ['fixture.jpg'],
+    imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'ava',
+    target: 'paratext',
+    status: 'planned',
+    note: "Vendored 2026-09-14 at 7.1.0 (`v7.1.0` -> commit c495c815). **Its suite runs headless**, which was the open question: term-img draws through the iTerm2 inline-image protocol, so \"can it run without a terminal\" had to be answered before a rate meant anything. Read off the vendored file, the answer is yes — every case sets `TERM_PROGRAM` / `TERM_PROGRAM_VERSION` / `KONSOLE_VERSION` and `process.platform` by hand and asserts the returned string or the thrown `UnsupportedTerminalError`. No tty, no protocol round-trip, nothing rendered. The suite is 13 `test()` calls, one of them a loop over a five-terminal table, so **18 cases**. It is not graded for one reason only: `term-img` is in neither manifest and so not in node_modules (measured 2026-09-14 on a clean `npm ci`), and without it the control does not fail — it throws `ERR_MODULE_NOT_FOUND` out of `packageRoot()` and kills the oracle process. That is a root-manifest edit, the integrator lane's file. Two notes for whoever activates it. Its cases read `fixture.jpg` from cwd, which is why `extraDirs` names that file — it is not a directory, and `cpSync` copies it because the copy is recursive. And `iTerm2 support` is the one case that reaches a real machine: it calls `iterm2-version()`, which reads the installed iTerm2's Info.plist, so on a Linux runner it returns undefined and the case throws. That is a `controlFailures` allowance to declare with this sentence, not a compatibility defect — and it must be declared *before* the row goes active, or the control is red on CI and green on a Mac.",
+  },
 ];
 
 export const active = (): Host[] => HOSTS.filter((h) => h.status === 'active');

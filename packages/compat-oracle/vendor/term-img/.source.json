@@ -1,0 +1,50 @@
+{
+  "repo": "https://github.com/sindresorhus/term-img",
+  "version": "7.1.0",
+  "tag": "v7.1.0",
+  "commit": "c495c81578c1391fa0f753644a0d1e631f23a177",
+  "vendored": "2026-09-14",
+  "files": 1,
+  "internalFiles": [],
+  "internals": [],
+  "hashes": {
+    "./example.js": "b26c7f5e7c2826198ede82d968bb60a73e33688d6f4f8f0eebc60353242ef6ce",
+    "./index.d.ts": "0616860f88feb5c99ae32009e36537adba717d86ebba22c3c049f98a9f4097a7",
+    "./index.js": "5c8d9e66071bbbcb97ea14650e541f9f1adf3637aa0cd4f253e2dc560af62343",
+    "./index.test-d.ts": "671828d629b201abf056bdbe9c625cf2d75434bfde1c298c2e54a29b4ba4f5bd",
+    "./test.js": "490ea600843d890b8830822d699ae9c7098c49fae324d90c63babb367324aa2f",
+    "index.d.ts": "0616860f88feb5c99ae32009e36537adba717d86ebba22c3c049f98a9f4097a7",
+    "index.js": "5c8d9e66071bbbcb97ea14650e541f9f1adf3637aa0cd4f253e2dc560af62343"
+  },
+  "tests": {
+    "./example.js": [],
+    "./index.d.ts": [],
+    "./index.js": [],
+    "./index.test-d.ts": [],
+    "./test.js": [
+      "${terminal.name} support",
+      "throws UnsupportedTerminalError for unsupported terminal",
+      "calls custom fallback function when terminal is unsupported",
+      "throws UnsupportedTerminalError when fallback is not a function",
+      "throws TypeError for undefined image",
+      "throws TypeError for null image",
+      "throws TypeError for empty string image",
+      "throws TypeError for empty Uint8Array image",
+      "accepts valid Uint8Array image",
+      "handles options parameter correctly",
+      "WezTerm with old version should be unsupported",
+      "Rio with old version should be unsupported",
+      "VSCode with old version should be unsupported",
+      "Konsole with old version should be unsupported"
+    ]
+  },
+  "surface": {
+    "index.d.ts": [
+      "Options",
+      "UnsupportedTerminalError"
+    ],
+    "index.js": [
+      "UnsupportedTerminalError"
+    ]
+  }
+}
