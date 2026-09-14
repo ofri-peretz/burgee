@@ -9,7 +9,7 @@
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { builtinModules } from 'node:module';
+import { builtinModules, createRequire } from 'node:module';
 import { join, matchesGlob, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -185,6 +185,18 @@ function incompleteBeside(beside: Set<string>): string[] {
   );
 }
 
+/** Packages a host declares in `vendorDeps`, written into its vendored root's manifest. */
+function vendorDeclared(): Map<string, string> {
+  const found = new Map<string, string>();
+  for (const host of onDisk) {
+    const at = join(VENDOR, host.name, 'package.json');
+    if (!existsSync(at)) continue;
+    const pkg = JSON.parse(readFileSync(at, 'utf8')) as { devDependencies?: Record<string, string> };
+    for (const name of Object.keys(pkg.devDependencies ?? {})) found.set(name, host.name);
+  }
+  return found;
+}
+
 describe('the oracle installs what its vendored suites require', () => {
   it('declares every package a vendored suite reaches for by name, or commits it beside the suite', () => {
     // The second way, added 2026-09-14 for wrap-ansi's `has-ansi` and slice-ansi's
@@ -201,35 +213,58 @@ describe('the oracle installs what its vendored suites require', () => {
     // disk. Proven 2026-09-14 by un-staging both directories: the row goes red naming them.
     // See the `.gitignore` in each of those two vendor directories.
     const declared = declaredPackages();
-    const beside = committedBeside();
     // Resolution is not the test: `cli-table` resolved on the author's machine from a
     // stray `~/node_modules` and the suite scored 33/33, while `npm ci` gave 15/16. What
-    // has to hold is that a clean checkout has the package, by one route or the other.
-    const undeclared = [...requiredPackages(VENDOR)].filter(([name]) => !declared.has(name) && !beside.has(name)).map(([name, at]) => `${name} (${at})`);
-    // Scoped to hosts that are **active**, and the reason is a measurement. `dotenv`'s suite
-    // wants `tap`, and installing `tap` pulls **203 packages and 140 MB** — which this
-    // repository will not commit beside a suite and will not put in its lockfile. So that
-    // host stays `planned`, its rate unpublished, and the blocker written into `hosts.ts`
-    // where the next person reads it. Requiring the dependencies of a suite nobody grades
-    // would turn an honest "not measured yet" into a red build, and the pressure that puts
-    // on the next agent is to fabricate a number.
+    // Three routes now, and each is a different strength of the same promise.
     //
-    // An **active** host has none of that latitude: it publishes a rate, so everything it
-    // reaches for must arrive with a clean checkout.
+    // `declared` — a workspace manifest. Strongest, and the right home, but adding one is a
+    // `package-lock.json` change and the lockfile is the integrator's alone to touch.
+    //
+    // `beside` — committed under `vendor/<host>/node_modules/`, read out of the **git
+    // index** and never off the disk. That is the whole point: a directory that merely
+    // exists is the `cli-table` defect again wearing a hat, someone's local `npm install`
+    // inside `vendor/`. A tracked one arrives with the clone, before any install runs.
+    //
+    // `vendorLocal` — declared in `vendor/<host>/package.json` from the host's `vendorDeps`.
+    // Weakest: it says what the suite needs without putting it in the lockfile, and the
+    // resolution test below is what pays for the weaker guarantee.
+    const beside = committedBeside();
+    const vendorLocal = vendorDeclared();
+    const undeclared = [...requiredPackages(VENDOR)]
+      .filter(([name]) => !declared.has(name) && !beside.has(name) && !vendorLocal.has(name))
+      .map(([name, at]) => `${name} (${at})`);
+    // Scoped to hosts that are **active**, and the reason is a measurement. `dotenv`'s suite
+    // wants `tap`, and installing `tap` pulls 203 packages and 140 MB — which this
+    // repository will not commit beside a suite and will not put in its lockfile. So that
+    // host stays `planned`, its rate unpublished, and the blocker written into `hosts.ts`.
+    // Requiring the dependencies of a suite nobody grades turns an honest "not measured yet"
+    // into a red build, and the pressure that puts on the next agent is to fabricate a number.
+    //
+    // An **active** host has no such latitude: it publishes a rate, so everything it reaches
+    // for must arrive with a clean checkout.
     const planned = new Set(HOSTS.filter((h) => !active().includes(h)).map((h) => h.name));
     const blocking = undeclared.filter((line) => !planned.has(line.slice(line.indexOf('(') + 1).split('/')[1] ?? ''));
     expect(blocking, 'an active host publishes a rate, so a clean checkout must have everything its suite reaches for').toEqual([]);
-    if (undeclared.length > blocking.length) console.log(`planned hosts still missing dependencies: ${undeclared.filter((l) => !blocking.includes(l)).join(', ')}`);
   });
 
-  /**
-   * The other half of that door, and the reason opening it is safe: whatever is committed
-   * beside a suite has to be *complete*. `has-ansi` needs `ansi-regex`, and leaving that one
-   * to the hoisted copy would make the row depend on an unrelated package staying in the
-   * root tree — the silent-coupling failure again, one level down.
-   */
-  it('every package committed beside a suite brings its own dependencies', () => {
-    expect(incompleteBeside(committedBeside())).toEqual([]);
+  it('resolves every package declared vendor-locally, because nothing installs a vendored manifest', () => {
+    // The weaker half of the bargain above, made loud. A root devDependency is installed by
+    // `npm ci`; a name in `vendor/<host>/package.json` is not installed by anything, so it
+    // is reaching us through the hoist — exactly how `@colors/colors` reached four of
+    // cli-table3's test files, as an optional dependency of cli-table3 itself, one release
+    // from vanishing. There the day it vanished would have arrived as a file that failed to
+    // load and a rate that quietly dropped. Here it arrives as this.
+    const unresolvable = [...vendorDeclared()]
+      .filter(([name, host]) => {
+        try {
+          createRequire(join(VENDOR, host, 'package.json')).resolve(name);
+          return false;
+        } catch {
+          return true;
+        }
+      })
+      .map(([name, host]) => `${name}, required by ${host}'s suite and declared in vendor/${host}/package.json, does not resolve — declare it at the workspace root`);
+    expect(unresolvable).toEqual([]);
   });
 });
 

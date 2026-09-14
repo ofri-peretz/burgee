@@ -176,6 +176,27 @@ function controlShortfall(g: Grade): string | undefined {
   return undefined;
 }
 
+/**
+ * Rows that were graded as one pass/fail bit without saying so in their baseline.
+ *
+ * `mode: "exit-code"` is the honest grade for a suite with no reporter — rc prints its
+ * config objects with `console.log` and nothing else — and it is also the most flattering
+ * failure this oracle has: a row that stops counting cases and starts counting *the run*
+ * reports `1 / 1, 100.0%` while measuring almost nothing. Every other collapse here is
+ * loud (a file that fails to import registers one test instead of twenty and the reference
+ * catches it); this one would be silent, because the coarse row is *correct* for the host
+ * that declared it.
+ *
+ * So the declaration is the control. A host's baseline fragment says `mode: "exit-code"`
+ * or its row may not be graded that way, and switching a row over is then a visible edit
+ * to a committed file rather than a line in `hosts.ts` nobody re-reads.
+ */
+export function silentDowngrades(grades: Grade[], baseline: Baseline): string[] {
+  return grades
+    .filter((g) => g.mode === 'exit-code' && baseline[g.host] !== undefined && baseline[g.host]?.mode !== 'exit-code')
+    .map((g) => `${g.host}: graded by exit code (1 case for the whole suite), but baseline/${g.host}.json does not declare \`"mode": "exit-code"\``);
+}
+
 export function verdict(grades: Grade[], baseline: Baseline, write: Write, control = false): number {
   const broken = grades.filter((g) => g.error !== undefined);
   const fell = control ? controlFell(grades) : grades.filter((g) => regressed(g, baseline));
@@ -183,8 +204,12 @@ export function verdict(grades: Grade[], baseline: Baseline, write: Write, contr
     if (control) write(`\n✖ ${g.host}: ${controlShortfall(g) ?? ''} — the control proves the gate, so it has to pass\n`);
     else write(`\n✖ ${g.host}: ${g.passed} passing, baseline was ${baseline[g.host]?.passed ?? 0}\n`);
   }
+  // Checked on the control run as well as the ratchet: the control is where a reference is
+  // set, and a reference of 1 is exactly what a silent downgrade would leave behind.
+  const downgraded = silentDowngrades(grades, baseline);
+  for (const why of downgraded) write(`\n✖ ${why} — a row that stops counting cases stops measuring anything\n`);
   if (broken.length > 0) write(`\n✖ ${broken.length} host(s) could not be graded\n`);
-  return fell.length + broken.length > 0 ? 1 : 0;
+  return fell.length + broken.length + downgraded.length > 0 ? 1 : 0;
 }
 
 interface Results {

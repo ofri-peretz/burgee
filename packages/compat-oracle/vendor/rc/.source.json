@@ -1,0 +1,26 @@
+{
+  "repo": "https://github.com/dominictarr/rc",
+  "version": "1.2.8",
+  "tag": null,
+  "commit": "a97f6adcc37ee1cad06ab7dc9b0bd842bbc5c664",
+  "vendored": "2026-09-14",
+  "files": 1,
+  "internalFiles": [],
+  "internals": [],
+  "hashes": {
+    "test/ini.js": "de40b4f5d4f8d7dfeeaae96d767c512e3cc3a4bfeee8780e608306ac36284a6d",
+    "test/nested-env-vars.js": "5b00a5b450b52b4c5d4432093665c20e62ad39126aed8da24cddc3e6c7871919",
+    "test/test.js": "1e277a1cdda596747a7d3d7d7995b43eb104901ce9f0ecf234dc6e625e2ebe6b",
+    "index.js": "7a4c19d1025d2669723dd2a939ced7d556d815eedfff62bf288970365b8b26dc",
+    "lib/utils.js": "3eba35eafd078a2c4843a11000c06443b5d8b2fea3b682aae20daeea5be66cd2"
+  },
+  "tests": {
+    "test/ini.js": [],
+    "test/nested-env-vars.js": [],
+    "test/test.js": []
+  },
+  "surface": {
+    "index.js": [],
+    "lib/utils.js": []
+  }
+}
