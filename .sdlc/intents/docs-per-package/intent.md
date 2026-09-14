@@ -2,10 +2,10 @@
 
 > Stage 1 artifact. Child of [`docs-deploy`](../docs-deploy/intent.md), which shipped the
 > deploy path this one repeats (PR #85, `d478ef9b51`). Its own finalisation note is the
-> seed: *"One app, hard-coded in the workflows; the `vercel-apps.json` map returns when a
-> second app exists."* A second app now exists to build, so the map returns.
+> seed: _"One app, hard-coded in the workflows; the `vercel-apps.json` map returns when a
+> second app exists."_ A second app now exists to build, so the map returns.
 
-**Status:** draft · **Opened:** 2026-09-08 · **Owner:** @ofri-peretz
+**Status:** draft · **Opened:** 2026-09-08 · **Revised:** 2026-09-14 · **Owner:** @ofri-peretz
 
 ---
 
@@ -14,12 +14,37 @@
 Every **published** package in this repo has its own documentation site, on its own
 `interlace.tools` subdomain, deployed by the same workflow from the same table:
 
-| Package | Host | App |
-| :-- | :-- | :-- |
-| `burgee` | `burgee.interlace.tools` | `apps/docs` — live today as `cli.interlace.tools` |
-| `roundel` | `roundel.interlace.tools` | new |
-| `flagstaff` | `flagstaff.interlace.tools` | new |
-| `caique` | `caique.interlace.tools` | new, **when it earns one** — see below |
+> **Revised 2026-09-14.** This table said four packages when four were published. Nine are
+> now `private: false` and eight are on npm, so the map below is the whole family, and the
+> question the original could not ask — _which packages share a site_ — is answered here.
+
+| Package     | Host                        | App                                                      | Arrives from                                                                                                   |
+| :---------- | :-------------------------- | :------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------- |
+| `burgee`    | `burgee.interlace.tools`    | `apps/docs` — live today as `cli.interlace.tools`        | commander, yargs                                                                                               |
+| `roundel`   | `roundel.interlace.tools`   | new                                                      | chalk                                                                                                          |
+| `linegauge` | `linegauge.interlace.tools` | new                                                      | string-width, wrap-ansi, strip-ansi, slice-ansi                                                                |
+| `flagstaff` | `flagstaff.interlace.tools` | new — hosts `paratext` as a section                      | ora, log-update, boxen, cli-table3 · ansi-escapes, terminal-link, term-img                                     |
+| `seniority` | `seniority.interlace.tools` | new — hosts `closeout`, `bellpull`, `caique` as sections | cosmiconfig, dotenv, rc · signal-exit, exit-hook, restore-cursor · execa, cross-spawn, which · inquirer, clack |
+
+Five sites, nine packages. **The unit that earns a site is not the package — it is the
+incumbent a reader is arriving from**, because that is the search they typed and the first
+question they ask on landing ("does it do what chalk does?"). Two packages replacing
+unrelated incumbents cannot share a front page without burying both; four replacing stages
+of one lifecycle can.
+
+The four that share rather than own, and why:
+
+- **`paratext` with `flagstaff`.** Both write to the terminal _around_ the content — one
+  draws frames, spinners and tables, the other sets the title, the hyperlink, the bell.
+  Same reader, same mental model, one navigation.
+- **`closeout`, `bellpull`, `caique` with `seniority`.** The process lifecycle in order:
+  config resolved on the way in, prompts during, subprocesses out, shutdown at the end.
+  One reader is holding all four questions at once.
+
+And the split that looks wrong and is not: **`linegauge` and `roundel` both handle text and
+still get separate sites.** They answer unrelated questions — _how wide is this_ versus
+_what colour is this_ — and between them they replace the two highest-traffic incumbents in
+the set. Merging them would bury the two pages most likely to be found.
 
 And the thing that actually has to be true when this lands, which is not the four sites:
 
@@ -51,7 +76,7 @@ Three things follow from that and are part of what is wanted, not decoration:
   closed with the `vercel-apps.json` map postponed "until a second app exists"; the same
   sentence is a comment in the shipped workflow, at
   `.github/workflows/deploy-docs.yml:55-58`, above `PRODUCTION_URL:
-  https://cli.interlace.tools`. That constant, hard-coded on the grounds that there is one
+https://cli.interlace.tools`. That constant, hard-coded on the grounds that there is one
   app, is what a second app breaks.
 - **The deploy path is proven, once.** PR #85 (`d478ef9b51`) is the fix that made a
   production deploy actually serve: the Vercel CLI runs at the repo root, `--archive=tgz`
@@ -59,19 +84,30 @@ Three things follow from that and are part of what is wanted, not decoration:
   Deployment Protection. `scripts/deploy-lock.test.ts` records twelve mutations, each
   proven red. Copying a proven path three times is a different act from writing four
   untested pipelines, and this is the window in which the first is still possible.
-- **Three of the four packages are published and none has a site.** `packages/burgee`
-  0.3.0, `packages/roundel` 0.1.0, `packages/flagstaff` 0.1.0, `packages/caique` 0.1.0 —
-  four `private: false` packages, one site, and that site is titled "Interlace CLI"
+- **Eight packages are published and none but burgee has a site.** Corrected 2026-09-14 —
+  the original said "three of the four" and named 0.1.0s. `npm view <pkg> version`, today:
+  `burgee` 0.6.0, `roundel` 0.3.0, `flagstaff` 0.2.1, `linegauge` 0.2.0, `seniority` 0.1.0,
+  `closeout` 0.1.0, `caique` 0.1.1, `bellpull` 0.0.1. `paratext` is `private: false` at
+  0.2.0 in the tree and **not on npm** — its publish fails `ENEEDAUTH` because npm Trusted
+  Publishing is configured per package and paratext has no trusted publisher.
+  Nine `private: false` packages, one site, and that site is titled "Interlace CLI"
   (`apps/docs/content/docs/index.mdx`). `roundel` shipped `roundel/chalk` at 58/58 and
   `flagstaff` shipped `flagstaff/ora` at 99/99 and `flagstaff/log-update` at 99/99; a
   reader who arrives from chalk has nowhere to be sent that is about roundel.
+- **The foundation stopped being reservations while this intent sat at draft.** When it was
+  opened, `linegauge`, `seniority`, `closeout` and `bellpull` were name reservations with a
+  README that said so. `linegauge` now ships `width`, `strip`, `slice`, `truncate`, `widest`
+  and `wrap` and replaces four separate incumbents; `seniority` ships the precedence
+  resolution with provenance; `closeout` ships `onExit`, `hideCursor` and a bounded
+  deadline. Three of the four packages this intent did not plan a site for are now the ones
+  with the most-searched incumbents behind them.
 - **PRINCIPLES.md rule 8 already requires this** — "Each package is an independent
   product. Its own name, README that leads with its own incumbents and never with a
   sibling, **its own docs**, benchmarks and scoreboard rows." The READMEs comply. The docs
   do not.
 - **The sibling repo shows both the pattern and its failure mode.**
   `eslint/.github/vercel-apps.json` maps three apps to project ids and production URLs and
-  its `deploy.yml` reads them with `jq`. Its `auto-deploy.yml` does *not*: it carries a
+  its `deploy.yml` reads them with `jq`. Its `auto-deploy.yml` does _not_: it carries a
   hand-written job per app and a second copy of the mapping under the comment "Keep this
   table in lockstep with `.github/vercel-apps.json`." Three apps is where that is still
   survivable. This intent is the chance to take the pattern without the duplication.
@@ -96,7 +132,7 @@ Three things follow from that and are part of what is wanted, not decoration:
   GitHub Environments with reviewers, and the rename of the live host from
   `cli.interlace.tools` to `burgee.interlace.tools`.
 - **Published numbers that move:** none. No pass rate, size or benchmark changes. The
-  scoreboard's *address* changes, which `.sdlc/bands/scoreboard-public.json` records.
+  scoreboard's _address_ changes, which `.sdlc/bands/scoreboard-public.json` records.
 
 ## Constraints
 
@@ -154,8 +190,8 @@ Each line is checkable by a person or by a command.
    new apps in the graph.
 
 Explicitly **not** a success criterion, because it is measurably false today and this
-change does not fix it: *"a merge that touches only one package deploys only that
-package's site."* See the open question below.
+change does not fix it: _"a merge that touches only one package deploys only that
+package's site."_ See the open question below.
 
 ## Open questions
 
@@ -165,17 +201,29 @@ package's site."* See the open question below.
    `cli-interlace-tools`. Does `cli.interlace.tools` 301 to the new host, stay as a family
    alias, or get retired? Owner's call; it is DNS and a Vercel project, not code.
 2. **`caique`'s app.** Its intent is at `review`, `decide()` is started and `ask()` is not,
-   and the compatibility rows for clack and inquirer are recorded as *blocked*. On the bar
-   this design proposes it does not qualify today. Does the owner accept the bar and let
-   caique's row wait, or accept a thin fourth site now?
-3. **The affected gate gets worse before it gets better.** `auto-deploy.yml` records the
+   and the compatibility rows for clack and inquirer are recorded as _blocked_. On the bar
+   this design proposes it does not qualify today. **Resolved 2026-09-14 by the map above:**
+   caique does not get its own host, it gets a section on `seniority.interlace.tools`. The
+   bar stands and nothing thin ships; the question that remains is whether the owner agrees
+   with the grouping, not whether caique waits.
+3. **Does the five-site map hold at fifteen packages?** The grouping is by incumbent, and
+   incumbents are not evenly distributed — `linegauge` alone replaces four. A tenth package
+   whose incumbent nobody searches for is a section; one replacing something with chalk's
+   traffic is a host. The map is a judgement per package, and criterion 1 only enforces that
+   every published package is _somewhere_, not that the somewhere is right.
+4. **`paratext` cannot publish.** It is in the map as a section on flagstaff's site, but it
+   is not on npm at all — `ENEEDAUTH`, because it has no npm trusted publisher. A section
+   documenting an unpublishable package is a page about something a reader cannot install.
+   Owner action, outside an agent's reach: add the trusted publisher, or drop paratext from
+   the map until it can ship.
+5. **The affected gate gets worse before it gets better.** `auto-deploy.yml` records the
    measurement: the root workspace devDepends on `burgee`, `compat-oracle` and
-   `flagstaff`, so a one-file commit under `packages/roundel/` marks *all eleven*
+   `flagstaff`, so a one-file commit under `packages/roundel/` marks _all eleven_
    workspaces changed. At one app that is one redundant deploy per product merge; at four
    it is four. The design proposes a mitigation for the opposite error (a `packages/caique`
-   change reaching *no* app) but does not fix this one, whose only fix is the root
+   change reaching _no_ app) but does not fix this one, whose only fix is the root
    `devDependencies` — which are there for their own reasons. Does the owner want that
    opened as its own intent, or accept the redundant deploys?
-4. **Four GitHub Environments, or one.** Per-app environments let a reviewer see which
+6. **Four GitHub Environments, or one.** Per-app environments let a reviewer see which
    site they are approving; one shared environment is one place to add reviewers. This is
    a preference, and the design picks per-app pending the owner's word.
