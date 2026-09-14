@@ -10,7 +10,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { builtins, link, registerBuiltins } from './builtins.js';
-import { type Capability, capabilities, capability, check, emit, register, reset, schemaFields } from './capability.js';
+import { type Capability, capabilities, capability, check, emit, isDeprecation, refusals, register, reset, schemaFields } from './capability.js';
 import { type Runtime } from './runtime.js';
 import schema from './schema.json' with { type: 'json' };
 import { fieldsUsed, render } from './template.js';
@@ -77,7 +77,9 @@ describe('the projection, which is the point', () => {
     expect(() => register(broken as Capability)).toThrow(/fallback must be a template/);
     // An empty projection is a real answer — a window title has nothing to say in a log — so
     // the check accepts '' while refusing absence. Those two are the same rule, not two.
-    expect(check({ ...link, fallback: '' })).toEqual([]);
+    // `refusals` and not `check`: a bare capability is also a deprecated *document*, and that
+    // line is a warning about where it is written, not a complaint about the projection.
+    expect(refusals(check({ ...link, fallback: '' }))).toEqual([]);
   });
 });
 
@@ -138,21 +140,98 @@ describe('the built-ins are not special', () => {
   });
 
   it('passes its own check, which is the one a third party’s plugin faces', () => {
-    for (const shipped of builtins) expect(check(shipped), shipped.name).toEqual([]);
+    for (const shipped of builtins) expect(refusals(check(shipped)), shipped.name).toEqual([]);
   });
 });
 
 describe('the schema is the contract, not a copy of it', () => {
   it('declares exactly the fields a capability has — a drift either way is a lie', () => {
-    // `check` reads `schema.required`, so a field added to the schema is enforced without
-    // touching the code. This holds the other direction: a field added to the type must be
-    // described in the schema, or a plugin author reading it would never know.
+    // `check` reads `$defs.capability.required`, so a field added to the schema is enforced
+    // without touching the code. This holds the other direction: a field added to the type
+    // must be described in the schema, or a plugin author reading it would never know.
     expect(schemaFields()).toEqual(['encode', 'fallback', 'name', 'osc', 'when']);
   });
 
   it('ships its example, and the example passes its own check', () => {
     // Rule 7's bar is an agent given the schema and one example producing a passing plugin in
     // one turn. That is only true if the example is itself valid.
-    for (const example of schema.examples) expect(check(example as Capability)).toEqual([]);
+    for (const example of schema.$defs.capability.examples) expect(refusals(check(example as Capability))).toEqual([]);
+  });
+});
+
+/**
+ * The fold (PLAN 1.1, design R10). paratext had its own schema whose root *was* one
+ * capability; the family schema nests that under `capabilities`, beside `spinners`, `tokens`
+ * and `components`, and all three packages now ship the same bytes.
+ *
+ * PLAN D2 takes the break now and pays for it for one minor release: the bare shape still
+ * validates and says that it is going.
+ */
+describe('the fold into the family schema', () => {
+  /** The kitty capability of the schema's own example, as a third party would file it. */
+  const plugin = {
+    name: 'terminal-extras',
+    capabilities: {
+      'kitty-image': {
+        name: 'kitty-image',
+        osc: 'BEL',
+        when: { tty: true, term: 'xterm-kitty' },
+        encode: '_Ga=T,f=100;{base64}\\',
+        fallback: '{caption}',
+      },
+    },
+  };
+
+  it('is the family schema: the capability shape is a $defs entry under a `capabilities` key', () => {
+    expect(schema.properties.capabilities.$ref).toBe('#/$defs/capabilities');
+    expect(schema.$defs.capabilities.additionalProperties.$ref).toBe('#/$defs/capability');
+    expect(schema.$defs.capability.required).toEqual(['name', 'osc', 'when', 'encode', 'fallback']);
+    // The keys that make it the *family* schema rather than paratext's old one. If these ever
+    // vanish, paratext is shipping a fourth shape again and the sha256 check in PLAN 1.1 lies.
+    expect(Object.keys(schema.properties)).toContain('spinners');
+    expect(Object.keys(schema.$defs)).toContain('border');
+  });
+
+  it('validates a plugin that carries its capabilities under `capabilities`', () => {
+    expect(check(plugin)).toEqual([]);
+  });
+
+  it('says which capability is wrong and where it sits, not merely that something is', () => {
+    const { fallback: _dropped, ...broken } = link;
+    expect(check({ name: 'terminal-extras', capabilities: { link: broken } })).toEqual([
+      'capabilities.link: fallback must be a template, even if it is empty — rule 6 has no opt-out',
+    ]);
+    // A capability with no name of its own is named by the key it is filed under.
+    const { name: _unnamed, ...anonymous } = broken;
+    expect(check({ name: 'terminal-extras', capabilities: { link: anonymous } })).toContain('capabilities.link: a capability needs a name');
+  });
+
+  it('refuses a `capabilities` that is not a map, and an entry that is not an object', () => {
+    expect(check({ name: 'x', capabilities: [] })).toEqual(['capabilities: must be an object of capabilities by name']);
+    expect(check({ name: 'x', capabilities: { link: 'nope' } })).toEqual(['capabilities.link: must be an object']);
+  });
+
+  it('wants the plugin named, the way every other host does', () => {
+    const { name: _dropped, ...unnamed } = plugin;
+    expect(check(unnamed)).toEqual(['a plugin needs a name']);
+  });
+
+  it('still validates the pre-0.3 bare shape, and says that it is deprecated', () => {
+    const lines = check(link);
+    // Validates: nothing here refuses the document, so a 0.2 capability file keeps working…
+    expect(refusals(lines)).toEqual([]);
+    // …and it is told, once, where it is going and when.
+    expect(lines.filter(isDeprecation)).toHaveLength(1);
+    expect(lines[0]).toContain('link');
+    expect(lines[0]).toContain('capabilities');
+    expect(lines[0]).toContain('1.0');
+  });
+
+  it('registers a bare capability without a word of deprecation — that is the API, not a file', () => {
+    // `register` takes one capability by argument. The deprecation is about documents, so it
+    // must not fire here, or every built-in would be reporting itself obsolete.
+    expect(() => register(link)).not.toThrow();
+    const { fallback: _dropped, ...broken } = link;
+    expect(() => register(broken as Capability)).toThrow(/fallback must be a template/);
   });
 });

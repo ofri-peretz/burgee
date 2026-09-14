@@ -87,34 +87,62 @@ export function supports(runtime: Runtime, capability: Capability): boolean {
  * terminal we mis-detect can correct the guess without patching the package.
  */
 export function register(capability: Capability): void {
-  for (const problem of check(capability)) throw new CapabilityError(problem);
+  // Against the capability shape rather than against `check`: this argument *is* one
+  // capability, so the document-level deprecation has nothing to say about it, and a
+  // built-in registering through the same call must not be told it is writing 0.2 JSON.
+  for (const problem of capabilityProblems(capability)) throw new CapabilityError(problem);
   registry.set(capability.name, capability);
 }
 
 /**
- * Everything wrong with a capability, in the order a reader would fix it — the `check` rule 7
- * asks for, usable before registering and by a command that validates a file.
+ * The capability shape, which since 0.3 is one `$defs` entry of the family plugin schema —
+ * the same file roundel and flagstaff ship, byte for byte. `schema.required` used to be a
+ * capability's required fields; the root's are a *plugin's*, so everything that reads the
+ * shape reads it from here and there is still exactly one copy of the list.
  */
-export function check(candidate: object): string[] {
+const CAPABILITY = schema.$defs.capability;
+
+/**
+ * The prefix on a line `check` returns that does **not** refuse the document.
+ *
+ * A capability written as the whole document is the shape paratext had before the family
+ * schema absorbed it. It still validates for one minor release (PLAN D2) and 1.0 removes it,
+ * so the two kinds of line travel back together and this is how a caller tells them apart:
+ * `refusals()` is what blocks, everything else is what to fix before 1.0.
+ */
+export const DEPRECATED = 'deprecated: ';
+
+/** Whether a line `check` produced is a warning rather than a refusal. */
+export const isDeprecation = (line: string): boolean => line.startsWith(DEPRECATED);
+
+/** The lines that refuse the document — what `register` throws on, and what a CLI exits on. */
+export const refusals = (lines: readonly string[]): string[] => lines.filter((line) => !isDeprecation(line));
+
+/**
+ * Everything wrong with one capability, in the order a reader would fix it. `at` is where it
+ * sits in the document — `capabilities.link` — and replaces its own name in the message,
+ * because the key is what the reader has to go and edit.
+ */
+function capabilityProblems(candidate: object, at?: string): string[] {
   const problems: string[] = [];
   // `object` on purpose: `check` exists to be pointed at a parsed JSON file whose shape
   // nobody has verified yet, which is the whole reason a plugin is data. Re-building it from
   // its own entries indexes it by name without asserting anything about it.
   const record: Record<string, unknown> = Object.fromEntries(Object.entries(candidate));
   const named = typeof record?.['name'] === 'string' && record['name'] !== '';
-  const label = named ? String(record['name']) : '<unnamed>';
+  const label = at ?? (named ? String(record['name']) : '<unnamed>');
 
   // The required list comes from the published schema rather than from a second copy of it
   // here, so a field added there cannot be forgotten here. `schemaFields` locks the reverse.
   // A missing field says why it matters where the reason is not obvious: `fallback` is the
   // one people leave out, and "is required" would not tell them what they are giving up.
   const WHY: Record<string, string> = {
-    name: 'a capability needs a name',
+    name: at === undefined ? 'a capability needs a name' : `${at}: a capability needs a name`,
     fallback: `${label}: fallback must be a template, even if it is empty — rule 6 has no opt-out`,
     when: `${label}: when must say when the terminal understands this`,
     osc: `${label}: osc must name the code, or 'BEL'`,
   };
-  for (const field of schema.required) {
+  for (const field of CAPABILITY.required) {
     if (record?.[field] === undefined) problems.push(WHY[field] ?? `${label}: ${field} is required`);
   }
   if (typeof record?.['encode'] === 'string' && record['encode'] === '') problems.push(`${label}: encode must be a non-empty template`);
@@ -126,8 +154,49 @@ export function check(candidate: object): string[] {
   return problems;
 }
 
-/** The fields the published schema declares, so a lock can hold the type to it. */
-export const schemaFields = (): string[] => Object.keys(schema.properties).toSorted();
+/**
+ * Everything wrong with a plugin document — the `check` rule 7 asks for, usable before
+ * registering and by a command that validates a file.
+ *
+ * Two shapes are accepted, which is `$defs/capabilityDocument`'s `oneOf` in the schema:
+ *
+ *   1. the family shape, capabilities by name under `capabilities`, the key every other host
+ *      reads its own section from;
+ *   2. one capability written as the whole document — what paratext's own schema was before
+ *      the family schema absorbed it.
+ *
+ * (2) still validates, because a document that was correct yesterday is not made wrong by our
+ * housekeeping, and it comes back with a `deprecated:` line saying it goes at 1.0. A caller
+ * that wants only the blocking lines filters with `refusals()`.
+ */
+export function check(candidate: object): string[] {
+  const record: Record<string, unknown> = Object.fromEntries(Object.entries(candidate));
+  const section = record['capabilities'];
+  if (section === undefined) {
+    const named = typeof record['name'] === 'string' && record['name'] !== '' ? String(record['name']) : '<unnamed>';
+    return [
+      `${DEPRECATED}${named}: a capability written as the whole document is the shape paratext had before the family schema absorbed it — move it under \`capabilities\`, keyed by its name; 1.0 stops accepting this`,
+      ...capabilityProblems(record),
+    ];
+  }
+  if (typeof section !== 'object' || section === null || Array.isArray(section)) {
+    return ['capabilities: must be an object of capabilities by name'];
+  }
+  // The family branch requires a name of the *plugin*, not of a capability: it is what a host
+  // prefixes with when two plugins contribute the same key.
+  const problems = typeof record['name'] === 'string' && record['name'] !== '' ? [] : ['a plugin needs a name'];
+  return [
+    ...problems,
+    ...Object.entries(section).flatMap(([key, value]) =>
+      typeof value === 'object' && value !== null && !Array.isArray(value)
+        ? capabilityProblems(value as object, `capabilities.${key}`)
+        : [`capabilities.${key}: must be an object`],
+    ),
+  ];
+}
+
+/** The fields the published schema declares for a capability, so a lock can hold the type to it. */
+export const schemaFields = (): string[] => Object.keys(CAPABILITY.properties).toSorted();
 
 /** Every registered name, sorted — so `--json` and a check command can enumerate them. */
 export const capabilities = (): string[] => [...registry.keys()].toSorted();
