@@ -44,8 +44,11 @@ each case, is recorded under "Accepted at the Design→Build gate (2026-09-09)" 
 - **R6** Façades, each its own subpath and graded by the incumbent's suite in
   `compat-oracle`: `flagstaff/ora`, `flagstaff/log-update`, `flagstaff/boxen`,
   `flagstaff/table` (cli-table3).
-- **R7** No layout engine: `src/` has no `layout*` file and no measure pass; `box` and
-  `columns` are string functions over `string-width`-equivalent logic in `src/width.ts`.
+- **R7** No layout engine: `src/` has no `layout*` file and declares no measure pass of its
+  own; `box` and `columns` are string functions over `width`/`wrap`, which live in
+  `linegauge` since F1 and arrive here as imports. (`src/width.ts` was where they lived when
+  this line was written.) The lock is on the declaration, not the filename — #61 noted that a
+  `readdir` filter for `layout*` waves through a layout engine called `measure.ts`.
 - **R8** `flagstaff check <file>` (the package `bin`) loads a plugin file, validates it, and
   prints its rendering in all five modes side by side; exit 2 on a usage error, and **exit 1
   on any refusal**, each carrying a code from `PluginErrorCode` and a `fix`.
