@@ -52,6 +52,9 @@
     "check:artifacts": "tsx scripts/check-published-artifacts.ts",
     "mark-lab": "node scripts/mark-lab.mts"
   },
+  "overrides": {
+    "smol-toml": "^1.7.1"
+  },
   "devDependencies": {
     "@changesets/changelog-github": "^1.0.1",
     "@changesets/cli": "^3.0.2",
@@ -93,6 +96,7 @@
     "eslint-plugin-reliability": "^4.1.6",
     "eslint-plugin-secure-coding": "^5.3.5",
     "execa": "^10.0.0",
+    "fast-check": "^4.10.0",
     "flagstaff": "*",
     "get-stream": "^9.0.1",
     "hashish": "0.0.4",
@@ -100,7 +104,7 @@
     "lefthook": "^2.1.12",
     "log-update": "8.0.0",
     "markdownlint-cli2": "^0.23.2",
-    "mocha": "^11.7.6",
+    "mocha": "^12.0.1",
     "ora": "9.4.1",
     "prettier": "^3.4.0",
     "roundel": "workspace:*",
