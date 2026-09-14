@@ -63,12 +63,38 @@ export interface ControlAllowance {
 }
 
 export interface Host {
-  /** npm package we are compatible with. */
+  /**
+   * The host's key here: its vendor directory, its baseline fragment, and the word a
+   * reader types on the command line. Usually the npm package's own name — but a scoped
+   * package cannot be either of the first two, because `@clack/prompts` names a directory
+   * two deep and a baseline file with a slash in it. Those hosts carry a flat key and
+   * declare `npmName`.
+   */
   name: string;
+  /**
+   * The package on npm, when it is not `name`: `@clack/prompts`, `@inquirer/core`. It is
+   * what the release lookup asks about and what the control resolves, so a host whose key
+   * is flattened still grades against the real thing rather than against whatever
+   * unrelated package happens to own the flat name.
+   */
+  npmName?: string;
   /** Where its suite comes from, recorded so the vendor step is reproducible. */
   repo: string;
   /** Directory inside the repo holding the tests. */
   testDir: string;
+  /**
+   * The sub-package's own directory inside a monorepo, relative to the repo root — the
+   * directory the suite's relative paths are written against. Empty for a host whose repo
+   * *is* the package, which is every host here until clack and inquirer.
+   *
+   * It exists because a monorepo breaks one specific thing: the generated internal shims.
+   * They are written at the exact path the test reaches for, and a test in
+   * `packages/prompts/test/` writing `../src/common.js` means
+   * `packages/prompts/src/common.js`, not `src/common.js` at the vendored root. Anchoring
+   * them at the root writes a file nothing imports and leaves the real specifier
+   * unresolved, which reads as a compatibility failure and is a path bug.
+   */
+  packageDir?: string;
   /**
    * Glob of test files within it, matched against the file name with `path.matchesGlob`.
    * Both the vendor step and the runner apply it: ora's suite lives at the repo root
@@ -120,10 +146,62 @@ export interface Host {
   /** Git tag prefix for releases; `v` unless the host does otherwise. */
   tagPrefix?: string;
   /**
-   * How its suite is executed. `vitest` is what a jest suite runs under, since jest's
-   * globals are vitest's and vitest is already here.
+   * Packages this host's *suite* reaches for by name, written into the vendored root's
+   * `package.json` rather than into the workspace.
+   *
+   * The workspace manifests are where a suite's dependencies have lived until now (yargs'
+   * `cpr` and `hashish` are root devDependencies for exactly this reason), and that is
+   * still the better home — but it is one lane's to change, because a Mac-regenerated
+   * `package-lock.json` fails Lockfile Sync. Declaring them here instead says out loud what
+   * the suite needs, and `vendored-suite.test.ts` holds it to something stronger than the
+   * root list gets: every name declared here must actually **resolve** from the vendored
+   * directory, so the day the hoist stops supplying one the oracle goes red instead of
+   * quietly losing a file. That hole is not hypothetical — `@colors/colors` reached four of
+   * cli-table3's test files as a hoisted optional dependency of cli-table3 itself.
    */
-  runner: 'node:test' | 'mocha' | 'ava' | 'vitest';
+  vendorDeps?: Record<string, string>;
+  /**
+   * What the vendored suite needs installed to run, pinned — and installed **into
+   * `vendor/<name>/node_modules`**, never into this workspace's manifest or lockfile.
+   *
+   * The incumbents graded before this one were single-package repos whose suites needed
+   * nothing the workspace did not already have, so their test dependencies went to the
+   * root manifest. A monorepo's suite reaches for its own siblings by name
+   * (`@clack/core`, `@inquirer/testing`) and for the incumbent itself in the control run,
+   * and putting those at the root would mean a workspace dependency per incumbent — the
+   * thing PRINCIPLES.md forbids — plus a lockfile edit on every lane that adds a suite.
+   * A manifest beside the tests keeps the suite's needs where the suite is.
+   *
+   * Written as `name@version` specs, exactly pinned. Exactly, because the suite is graded
+   * against one release and a caret silently regrades it: `vitest-ansi-serializer` at
+   * `^0.1.2` resolves to 0.3.1, whose rendering differs from the committed snapshots, and
+   * clack's control read 40 / 606 on 0.3.1 against 576 / 606 on 0.1.2 — same suite, same
+   * afternoon, one caret.
+   */
+  suiteDeps?: string[];
+  /**
+   * Settings from the host's own vitest config that its suite depends on, merged into the
+   * generated one. Upstream's config is not vendored — it sits beside the package, not
+   * beside the tests, and the runner writes its own so the file list is the graded one —
+   * so anything in it the assertions rely on has to be named here.
+   */
+  vitestConfig?: Record<string, unknown>;
+  /**
+   * How its suite is executed. `vitest` is what a jest suite runs under, since jest's
+   * globals are vitest's and vitest is already here. `exit-code` is not a TAP dialect at
+   * all: it runs each file with node and grades the whole suite as one pass/fail bit, for
+   * a host whose suite prints nothing a parser can read.
+   *
+   * **`tap` is declared and not yet executable.** node-tap files emit flat TAP that
+   * `summarize()` already reads correctly — measured 2026-09-14: `node tests/test-parse.js`
+   * in a dotenv 17.4.2 checkout prints `ok 1 … 1..47` at column zero, exactly the dialect
+   * `parseFlatTap` counts. What is missing is the *invocation*: `run.ts`'s `command()` has
+   * no `tap` arm and its final `return` is mocha's, so a host declaring `tap` would be
+   * handed to mocha and silently graded as zero. A `tap` host stays `planned` until that arm
+   * exists — one spawn per file, outputs concatenated. `node --test` is **not** that arm:
+   * measured, it collapses a 47-case file to one `ok`.
+   */
+  runner: 'node:test' | 'mocha' | 'ava' | 'vitest' | 'tap' | 'exit-code';
   /** Our entry point graded against it. */
   target: string;
   status: 'active' | 'planned' | 'rejected';
@@ -282,46 +360,270 @@ export const HOSTS: Host[] = [
     note: 'linegauge exports `width` as its default, which is the shape string-width\'s own tests import.',
   },
   {
+    // R3's grader. `strip-ansi` is 464 M/wk and ships one dependency (`ansi-regex`, 345 M/wk)
+    // for a single scan — the clearest instance of the fragmentation `linegauge` exists to
+    // collapse. Its suite is eight cases and every one of them is a shape `strip` has to get
+    // right: OSC 8 hyperlinks, the 8-bit CSI introducer ``, and a bare BEL terminator.
+    //
+    // Its suite is one file at the repo root beside the implementation, so `testGlob` names
+    // that file rather than a directory — the ora / string-width shape.
+    name: 'strip-ansi',
+    repo: 'https://github.com/chalk/strip-ansi',
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'ava',
+    target: 'linegauge/strip',
+    status: 'active',
+    note: 'Graded against the `linegauge/strip` subpath, not the root: the root default is `width` (R8), so a strip-ansi façade can only be a subpath.',
+  },
+  {
+    // The jest host, and the one the plan expected to need a fifth TAP dialect. It does not.
+    //
+    // `npm view cross-spawn scripts.test` is `jest --env node --coverage`, and jest emits no
+    // TAP — which is why `.sdlc/PLAN.md` §2.14 planned a vendored `jest-tap-reporter`. But
+    // the dialect that grades a jest suite was already here: cli-table3's suite is jest's
+    // too, and it runs under **vitest**, whose `tap-flat` reporter this file's runner has
+    // parsed since that host was activated. jest's globals are vitest's; the three this
+    // suite reaches for that `globals: true` does not supply (`setTimeout`, `spyOn`,
+    // `restoreAllMocks`) are mapped in `run.ts`'s generated setup file beside the existing
+    // `fn`, `mock` and `requireActual`. So this row costs no new package in the workspace,
+    // no new package under `vendor/`, and no fifth parser — measured 2026-09-14.
+    //
+    // What it *does* cost is three test dependencies: the suite requires `rimraf`, `mkdirp`
+    // and `path-key` by name. They are declared in `vendorDeps` rather than at the root for
+    // the reason written there.
+    name: 'cross-spawn',
+    repo: 'https://github.com/moxystudio/node-cross-spawn',
+    testDir: 'test',
+    testGlob: '*.test.js',
+    // The suite never imports the host directly: `test/util/run.js` does, as `../../index`,
+    // and the rewrite resolves it from that file's own directory onto the one shim.
+    imports: [{ upstream: '../index', subpath: '', reexportDefault: true }],
+    vendorDeps: { mkdirp: '^0.5.1', 'path-key': '^3.1.0', rimraf: '^3.0.0' },
+    surfaceFiles: ['index.js'],
+    runner: 'vitest',
+    target: 'bellpull/cross-spawn',
+    status: 'active',
+    note: "The suite runs each of its cases four times — `spawn`, `spawn-force-shell`, `sync`, `sync-force-shell` — so a divergence in one path cannot hide behind the other three. It is also the most load-sensitive row here: every case spawns a real subprocess under the suite's own `jest.setTimeout(10000)`, and `sync-force-shell > should support shebang…` spawns three. Measured 2026-09-14 on a 14-core machine at load 16–21 (five agents at once), one `spawn.sync` of the shebang fixture took 0.6–3.5 s and that case timed out in 3 runs of 6; at load ~1 the same call takes 32 ms and the control is 68 / 68 every time. A control of 67 / 68 on this case means the machine, not the target — which is a reason to read the TAP before re-recording anything, not a reason to widen a timeout the suite chose.",
+  },
+  {
+    // The host with no parseable output, and the reason `mode: "exit-code"` exists.
+    //
+    // `npm view rc scripts.test` is `set -e; node test/test.js; node test/ini.js; node
+    // test/nested-env-vars.js`: three scripts of bare `assert` calls that print their config
+    // objects with `console.log` and say nothing about cases. There is no reporter to ask for
+    // TAP, so the honest grade is one bit — the suite ran against this target and exited 0 —
+    // and `baseline/rc.json` has to carry `mode: "exit-code"` so the row says on its face
+    // that it is coarser than the others.
+    //
+    // **Planned, not active, and the blocker is not the mode.** Every other host's control
+    // run re-exports the incumbent by name, so the incumbent has to be installed: `commander`,
+    // `yargs`, `cli-table`, `cpr` and the rest are root devDependencies for exactly that.
+    // `rc` is not in the workspace and is not reachable transitively, so on a clean `npm ci`
+    // the control cannot run — and CI runs the control (`compat.yml`, "Grade the real
+    // packages"). Activating this row before `rc` is declared would put a red control on
+    // main. Declaring it is a `package-lock.json` change, which belongs to the integrator
+    // lane; `vendorDeps` cannot substitute, because nothing installs a vendored manifest.
+    //
+    // Also deliberate: `testGlob` names one of the three files. `ini.js` tests `lib/utils`,
+    // an internal, and pulls the `ini` package; `nested-env-vars.js` is public and is the
+    // obvious second file to grade once the first row exists.
+    name: 'rc',
+    repo: 'https://github.com/dominictarr/rc',
+    testDir: 'test',
+    testGlob: 'test.js',
+    imports: [{ upstream: '../', subpath: '', reexportDefault: true }],
+    surfaceFiles: ['index.js', 'lib/utils.js'],
+    runner: 'exit-code',
+    target: 'seniority/rc',
+    status: 'planned',
+    note: 'Blocked on one line the integrator lane owns: `rc` as a root devDependency, without which the control cannot run on a clean install. The grading mode it needs (`exit-code`) and the gate that refuses a silent downgrade to it are in place and proven.',
+  },
+  {
     // `wrap-ansi` is the one incumbent in this layer with a measured correctness gap, and it
     // is already closed upstream: two family-ZWJ emoji hard-wrapped at three columns come back
     // as **eight** fragments under 8.1.0 and 9.0.2 and as two correct lines under 10.0.1
     // (`cli-foundation-stack/baseline.md`, 2026-09-10). `linegauge/src/wrap.ts` is a port of
     // 10, so this row grades the port against the major it was ported from — which is exactly
     // what `wrap.test.ts` asserts in-package, and what this makes public.
+    //
+    // `testDir`/`testGlob`/`runner` were wrong here while the row was `planned`, and measuring
+    // is what corrected them: 10.0.1 keeps one `test.js` at the repo root and runs it under
+    // `node:test`, not a `test/` directory under ava. A planned row's shape is a guess until
+    // a vendor run touches it.
     name: 'wrap-ansi',
     repo: 'https://github.com/chalk/wrap-ansi',
-    testDir: 'test',
-    testGlob: '*.js',
-    imports: [{ upstream: '../index.js', subpath: '', reexportDefault: true }],
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'node:test',
+    target: 'linegauge/wrap',
+    status: 'active',
+    note: "80 / 80 control and 80 / 80 target, measured 2026-09-14 — the port reproduces wrap-ansi 10 exactly, which is what `wrap.test.ts` already asserted in-package and this makes public. Its suite imports `has-ansi`, which is committed under `vendor/wrap-ansi/node_modules/` rather than added to the root manifest; `vendor/wrap-ansi/.gitignore` carries the reason and the one hazard (a `--vendor` re-run deletes it).",
+  },
+  {
+    // R4's grader, and the reason the style stack was extracted from `wrap.ts` at all:
+    // `slice-ansi` and `wrap-ansi` each carry their own copy of open/close/reopen and
+    // disagree at the edges.
+    //
+    // **Vendored at 7.1.2, not at the 9.0.0 on npm, and that is a deliberate pin.** The
+    // control run grades the suite against the *installed* `slice-ansi`, and this workspace
+    // resolves `^7.1.0` from the root manifest. Vendoring 9.0.0's suite against a 7.1.2
+    // control would measure the gap between two of the incumbent's own majors and publish it
+    // as ours. Moving this row to 9 is a root-manifest bump, which belongs to the integrator
+    // lane; `--upstream` reports the gap every day until it happens.
+    name: 'slice-ansi',
+    repo: 'https://github.com/chalk/slice-ansi',
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
     surfaceFiles: ['index.d.ts', 'index.js'],
     runner: 'ava',
-    target: 'linegauge',
-    status: 'planned',
-    note: 'Graded once string-width\'s row is green: two new hosts against one target in one change would make a failure ambiguous.',
+    target: 'linegauge/slice',
+    status: 'active',
+    note: "15 / 15 control, 13 / 15 target, measured 2026-09-14. The two are named rather than excluded, because an ava host's TAP reaches `summarize` through the summary-line dialect and the oracle refuses an exclusion it cannot match by name. (1) `can slice a string with unknown ANSI color` is a real gap: slice-ansi re-emits *any* SGR parameter it saw and closes with a reset, so `ESC[1001m` survives a cut; `linegauge`'s style stack tracks the codes it knows and drops that one, returning bare `TES`. Ours is the wrong answer — the sequence is the caller's, not the library's to vet. (2) `slice links` is `test.failing()` in slice-ansi's *own* suite: the incumbent cannot round-trip an `OSC 8` hyperlink and says so. `linegauge` can, and ava reports a passing `test.failing` as `not ok`. So one of the two failures on this row is the target being **more** correct than the host, which is exactly the sort of number a compat rate must not quietly launder — 13 / 15 stands, with the reason beside it. Its suite imports `random-item`, committed under `vendor/slice-ansi/node_modules/`.",
   },
   {
-    name: 'clack',
-    repo: 'https://github.com/bombshell-dev/clack',
-    testDir: 'packages/prompts/test',
+    // seniority's two incumbents (PLAN 2.2–2.13, `seniority/design.md` R10).
+    //
+    // `cosmiconfig` is the one the root export is graded against: R8 says the default export
+    // matches cosmiconfig's exactly, so its own suite is the only thing that can hold that
+    // claim to cosmiconfig's definition of it rather than ours.
+    //
+    // `test/util.ts` is a helper, not a test — `TempDir`, which ten of the eleven files
+    // import as `'./util'`. `copySiblings` looks for a file at that exact name and TypeScript
+    // writes it with an extension, so the sibling is never found and every file that imports
+    // it fails to load. `extraDirs: ['test']` is the way to bring it: the copy runs before
+    // `copyTests`, which then overwrites each `*.test.ts` with its rewritten form and leaves
+    // the helper alone. It is not the field's original purpose (yargs uses it for `locales`),
+    // and it is the only mechanism here that moves a non-test file into the suite.
+    name: 'cosmiconfig',
+    repo: 'https://github.com/cosmiconfig/cosmiconfig',
+    testDir: 'test',
     testGlob: '*.test.ts',
+    internalDir: 'src',
+    imports: [{ upstream: '../src', subpath: '', reexportDefault: false }],
+    // One *file*, not a directory: `cpSync(…, { recursive: true })` copies either, and this
+    // is the narrowest thing that works. Copying the whole `test/` directory also brings
+    // `test/tsconfig.json`, which vite's oxc transform reads and then dies on —
+    // `[TSCONFIG_ERROR] Failed to load tsconfig ''`, all nine files, measured — because it
+    // `extends` a base outside the copy and declares a project `reference` to a directory
+    // that is not vendored. Vendoring the base alongside does not help; not vendoring the
+    // tsconfig at all does.
+    extraDirs: ['test/util.ts'],
+    surfaceFiles: ['src/index.ts', 'src/types.ts'],
+    runner: 'vitest',
+    target: 'seniority',
+    status: 'planned',
+    note: "Vendored 2026-09-14 at 10.0.1 and NOT activated, because the control cannot reach 100% here and a control below its own reference is a finding, not a number to record. Two reasons, both measured: (1) its suite reaches for `env-paths` and `parent-module`, which neither `compat-oracle/package.json` nor the root manifest declares — `vendored-suite.test.ts`'s install lock is red until one of them does, and both files belong to the harness/integrator lanes; (2) `index.test.ts` imports and `vi.mock`s `../src/Explorer`, `../src/ExplorerSync` and `../src/types`, and cosmiconfig's published tarball is `files: [\"dist\"]` — so the control's internal shims, which resolve against the *installed* package, point at paths npm does not ship. That is a new shape for C4: an internal-reaching file that is also a public-surface file, which the classifier calls `public` and therefore gates.",
+  },
+  {
+    // The load-bearing one. `.sdlc/intents/seniority/issues.md` records 20 closed issues at
+    // ten reactions or more against dotenv, topped by #89 "Importing dotenv in ES6" at 165 —
+    // the largest closed-issue demand signal of any incumbent in this layer.
+    name: 'dotenv',
+    repo: 'https://github.com/motdotla/dotenv',
+    testDir: 'tests',
+    // `test-*.js` and not `*.js`: the directory also holds `.env` fixtures and a `types/`
+    // subdirectory whose `test.ts` is a `tsc` type-check, not a runnable case.
+    testGlob: 'test-*.js',
+    imports: [{ upstream: '../lib/main', subpath: '/dotenv', reexportDefault: false }],
+    // Seven files, all of them named individually because `copyTests` copies a *directory*
+    // whole and otherwise takes only files the glob matches — and every fixture dotenv reads
+    // is a dotfile beside the tests, which no glob of runnable tests can name.
+    //
+    //   `config.js`  the preload entry `test-config-cli.js` spawns as `node -r ./config`.
+    //                It is at the repo root, not under `tests/`, and it reaches the library
+    //                through `./lib/main`, which is already a shimmed internal — so
+    //                vendoring the file is enough to point it at whatever is being graded.
+    //                Measured: without it that file scores 0 / 3, with it 3 / 3.
+    //   `tests/.env…` the five fixtures the suite parses.
+    extraDirs: ['config.js', 'tests/.env', 'tests/.env-multiline', 'tests/.env.local', 'tests/.env.multiline', 'tests/.env.vault'],
+    surfaceFiles: ['lib/main.d.ts', 'lib/main.js'],
+    runner: 'tap',
+    target: 'seniority/dotenv',
+    status: 'planned',
+    note: "Vendored 2026-09-14 at 17.4.2 and NOT activated: its suite is node-tap, and `run.ts`'s `command()` has no `tap` arm — see the `runner` field's own comment for what the arm is and for the measurement that rules `node --test` out. Its suite also reaches for `tap`, `sinon` and `decache`, which the oracle does not declare; like cosmiconfig's, that declaration is the harness lane's file. Target `seniority/dotenv` is R8's compatibility subpath and is not built yet, so the target run is an honest 0 the moment the control can run at all.",
+  },
+  {
+    // The first monorepo host. Its key is flat because `@clack/prompts` cannot be a
+    // directory name or a baseline filename; `npmName` carries the real one.
+    name: 'clack',
+    npmName: '@clack/prompts',
+    repo: 'https://github.com/bombshell-dev/clack',
+    tagPrefix: '@clack/prompts@',
+    testDir: 'packages/prompts/test',
+    packageDir: 'packages/prompts',
+    testGlob: '*.test.ts',
+    internalDir: 'src',
     imports: [{ upstream: '../src/index.js', subpath: '', reexportDefault: false }],
     surfaceFiles: ['packages/prompts/src/index.ts'],
+    suiteDeps: [
+      // The incumbent itself, for the control, at the release the suite comes from.
+      '@clack/prompts@1.8.1',
+      // Its sibling in the same repo, imported by name from the test files.
+      '@clack/core@1.5.1',
+      // `memfs` backs the `__mocks__/fs.cjs` the path prompt's tests install, and
+      // `vitest-ansi-serializer` is the snapshot serializer upstream's own vitest config
+      // declares: without it every `toMatchSnapshot` compares raw escapes against a
+      // committed rendering and the whole suite is red for a reason that is not clack's.
+      'memfs@4.78.0',
+      'vitest-ansi-serializer@0.1.2',
+    ],
+    // Upstream's own vitest config sets it, and the drawings are the suite: without colour
+    // every snapshot differs from the committed one.
+    env: { FORCE_COLOR: '1' },
+    vitestConfig: { snapshotSerializers: ['vitest-ansi-serializer'] },
+    // `path.test.ts` calls `vi.mock('node:fs')` with no factory, which vitest answers from
+    // a `__mocks__` directory beside the project root — upstream's `packages/prompts`, not
+    // its test dir, so the copy step never saw it. Without it those 30 cases run against
+    // the real filesystem and every one of them fails against clack itself.
+    extraDirs: ['packages/prompts/__mocks__'],
+    controlFailures: {
+      count: 30,
+      why: "`path.test.ts`'s 30 cases, which fail against clack's own published package here and pass upstream. The suite mocks `node:fs` with `vi.mock('node:fs')` and no factory, answered by upstream's `__mocks__/fs.cjs` — vendored beside the root by `extraDirs`, and still never loaded: measured 2026-09-14 by putting a `console.error` in that file and watching it not print under vitest 5.0.0, which upstream's vitest 3.2.4 does load. A `test.alias` for `node:fs` was tried and is no better. So those 30 read the real filesystem, list the real `/tmp`, and diff against a memfs snapshot. It is a runner-version divergence in the harness, not a fact about clack or about caique, and it is named here rather than hidden so the other 576 are a number and not a rounding.",
+    },
     runner: 'vitest',
-    target: 'caique/clack',
-    status: 'planned',
-    note: 'Measured 2026-09-08 at 1.8.0: 289 of its 444 assertions are `toMatchSnapshot()`, in 17 of its 19 files — the suite grades clack’s exact drawing. A façade that matched those frame for frame would be clack, and caique’s design rejects wrapping clack precisely because it "has no static projection to give" (U3). What is left when the drawings are removed is limit-options (14) and guide (3). Blocked on the decision in output-stack-compat: gate the behaviour and report the drawings as documented divergence, or drop the row and publish why.',
+    target: 'caique',
+    status: 'active',
+    note: "Measured 2026-09-08 at 1.8.0: 289 of its 444 assertions are `toMatchSnapshot()`, in 17 of its 19 files — the suite grades clack's exact drawing. A façade that matched those frame for frame would be clack, and caique's design rejects wrapping clack precisely because it \"has no static projection to give\" (U3). What is left when the drawings are removed is limit-options (14) and guide (3). Still `planned` after the 2026-09-14 vendoring run: see the control number recorded in `.sdlc/intents/caique/design.md`. The row names `caique` — the package root that exists — and not a `caique/clack` façade that does not, because naming an unbuilt façade publishes \"target not built yet\" where a measured number belongs (the lesson cli-table3's note records).",
   },
   {
-    name: 'inquirer',
+    // 2.16: the testable unit of the inquirer monorepo, and the decision that came with it.
+    //
+    // `inquirer` the package is 34.3M/wk of the *legacy* API and its tarball ships no
+    // tests at all, so there is nothing there to grade. The repo's testable units are
+    // `@inquirer/core` — one file, `packages/core/core.test.ts`, 41 cases, and the only
+    // one that grades the prompt *loop* rather than a drawing — and `@inquirer/prompts`,
+    // 28.8M/wk, which is the API a new CLI writes against and the one caique's design
+    // mirrors. So: grade core, and name `@inquirer/prompts` as the compatibility target in
+    // caique's README. `inquirer@8` legacy is out of scope, and caique's design says so.
+    name: 'inquirer-core',
+    npmName: '@inquirer/core',
     repo: 'https://github.com/SBoudrias/Inquirer.js',
-    testDir: 'packages',
-    testGlob: '*.test.ts',
-    imports: [{ upstream: '../src/index.js', subpath: '', reexportDefault: false }],
-    surfaceFiles: ['packages/inquirer/src/index.ts'],
+    tagPrefix: '@inquirer/core@',
+    testDir: 'packages/core',
+    packageDir: 'packages/core',
+    // The suite is one file beside the implementation, like ora's and string-width's, so
+    // the glob names the file rather than a directory.
+    testGlob: 'core.test.ts',
+    internalDir: 'src',
+    imports: [{ upstream: './src/index.ts', subpath: '', reexportDefault: false }],
+    surfaceFiles: ['packages/core/src/index.ts'],
+    suiteDeps: [
+      '@inquirer/core@12.0.3',
+      '@inquirer/ansi@2.0.8',
+      // The harness the suite renders through: a headless xterm that asserts the screen,
+      // not the bytes. Same shape as log-update's `terminal.js`.
+      '@inquirer/testing@3.3.13',
+    ],
     runner: 'vitest',
-    target: 'caique/inquirer',
-    status: 'planned',
-    note: 'The same shape as clack, measured the same day: 604 of 1,028 assertions are `toMatchInlineSnapshot()`, across 25 files of 400 tests. Behaviour-only files are inquirer.test.ts (57, mostly the legacy façade’s plumbing), prompts (2) and type (3). Its suites are also spread across a workspace rather than one test dir, which the vendor step assumes; that is work, but it is not the blocker. Blocked on the same decision.',
+    target: 'caique',
+    status: 'active',
+    note: 'Vendored and controlled 2026-09-14. The row names `caique`, the package root that exists today, so the number is measured rather than "target not built yet".',
   },
   {
     name: 'meow',
@@ -366,6 +668,200 @@ export const HOSTS: Host[] = [
     target: '—',
     status: 'rejected',
     note: 'Its API is inseparable from its shape: a project layout, a build step and a generator. A façade could not be adopted without adopting the shape that Z1 exists to prevent, and oclif does 10.9M/wk against commander’s 508M, so the shape is also what lost.',
+  },
+  // ---------------------------------------------------------------------------------------
+  // paratext's three incumbents (PLAN 2.2–2.13, `paratext/design.md` R9). This is the layer
+  // with **no demand signal**: `.sdlc/intents/paratext/issues.md` records 2 open issues and 0
+  // closed above ten reactions across all three trackers, so nothing here can be justified by
+  // "users asked". The compatibility claim rests entirely on these suites, which is why the
+  // rows below say what they do *not* measure as loudly as what they do.
+  // ---------------------------------------------------------------------------------------
+  {
+    name: 'ansi-escapes',
+    repo: 'https://github.com/sindresorhus/ansi-escapes',
+    // One file at the repo root beside the implementation — ora's shape, and the reason the
+    // glob names the file: "every `.js` here" would vendor `index.js` and grade it as a test.
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
+    surfaceFiles: ['index.d.ts', 'index.js', 'base.d.ts', 'base.js'],
+    runner: 'ava',
+    // The entry point that replaces it is the package root: `paratext/design.md` R8 puts the
+    // ansi-escapes-compatible default export in `index.ts`, not behind a subpath. Naming a
+    // `paratext/ansi-escapes` façade instead would publish the oracle's `target not built
+    // yet` note in place of a number, which is the mistake cli-table3's row is written to
+    // stop. Today it is a *measured* zero, and the raw TAP says why in one line.
+    target: 'paratext',
+    status: 'active',
+    note: "Vendored 2026-09-14 at 7.3.0 from the tag, never the tarball: `npm pack ansi-escapes && tar tzf ansi-escapes-7.3.0.tgz | grep -c test` is **0**, because its `files` array ships four files and no suite. Control **4 / 4, 100.0%**; target `paratext` **0 / 4**, and the reason is one line of TAP — `SyntaxError: The requested module 'paratext' does not provide an export named 'default'`. That is R8 unbuilt, stated by the host's own suite, which is exactly what design R9 said this row was for (\"it grades R7 and tells us where R8 must match\"). **Its own suite is four tests, and three of them are CSI.** `default export` and `clearTerminal` assert `cursorTo(2, 2)` and the clear sequence, `synchronized output` asserts `ESC [ ? 2026 h/l`; only `named export(s)`, which checks that `setCwd` is the same function object as the default export's member, touches OSC at all. paratext owns OSC and states CSI out of scope, so this row can never legitimately reach 4 / 4 — the ceiling is 1, and a reader who sees 25% must read it as \"the one OSC case\", not as \"a quarter compatible\". The out-of-scope three cannot be recorded as an `excludes` subtraction: ava's TAP prints counts and no per-case names, and `summarize()` refuses an exclusion it cannot name (run.ts). So the ceiling is written here, in prose, and the rate is read with this paragraph or not at all.",
+  },
+  {
+    name: 'terminal-link',
+    repo: 'https://github.com/sindresorhus/terminal-link',
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'ava',
+    target: 'paratext',
+    status: 'planned',
+    note: "**Not vendored, and that is the lock's decision rather than mine.** The suite was vendored at 5.0.0 on 2026-09-14 (`v5.0.0` -> commit 975358c3, tarball ships no test like the other two) and then deleted again, because committing it turns `vendored-suite.test.ts` > \"declares every package a vendored suite reaches for by name\" red: its ten cases `import supportsHyperlinks from 'supports-hyperlinks'` and reassign `supportsHyperlinks.stdout` per case, and that package is declared in neither manifest — measured, `undeclared` comes back as `['supports-hyperlinks (vendor/terminal-link/test.js)']`. It is needed for the *target* run too, not only the control, because the bare import is in the test rather than in the implementation. The control additionally needs `terminal-link` itself: without it `packageRoot()` throws `ERR_MODULE_NOT_FOUND` out of `writeInternalShims` and takes the whole oracle process down rather than reporting one red row. Both are root-manifest edits, which is the integrator lane's file and not a package lane's. One more thing to settle before grading: upstream declares `ava: { serial: true }` and every case mutates that one shared module object, while `rootPackage()` in vendor.ts writes a fresh manifest carrying name, type, main, version, license and repository and *not* the `ava` block — so the vendored copy would run ten state-mutating cases concurrently. Activate when the root manifest declares `terminal-link` and `supports-hyperlinks` and vendor.ts carries the host's ava config.",
+  },
+  {
+    name: 'term-img',
+    repo: 'https://github.com/sindresorhus/term-img',
+    testDir: '.',
+    testGlob: 'test.js',
+    // `fixture.jpg` is not a test and not a directory, and eleven of the sixteen cases call
+    // `terminalImage('fixture.jpg')`, which `fs.readFileSync`s it relative to cwd — and cwd
+    // is the vendored root. Without this the suite fails on the file system, not on us.
+    extraDirs: ['fixture.jpg'],
+    imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'ava',
+    target: 'paratext',
+    status: 'planned',
+    note: "Vendored 2026-09-14 at 7.1.0 (`v7.1.0` -> commit c495c815). **Its suite runs headless**, which was the open question: term-img draws through the iTerm2 inline-image protocol, so \"can it run without a terminal\" had to be answered before a rate meant anything. Read off the vendored file, the answer is yes — every case sets `TERM_PROGRAM` / `TERM_PROGRAM_VERSION` / `KONSOLE_VERSION` and `process.platform` by hand and asserts the returned string or the thrown `UnsupportedTerminalError`. No tty, no protocol round-trip, nothing rendered. The suite is 13 `test()` calls, one of them a loop over a five-terminal table, so **18 cases**. It is not graded for one reason only: `term-img` is in neither manifest and so not in node_modules (measured 2026-09-14 on a clean `npm ci`), and without it the control does not fail — it throws `ERR_MODULE_NOT_FOUND` out of `packageRoot()` and kills the oracle process. That is a root-manifest edit, the integrator lane's file. Two notes for whoever activates it. Its cases read `fixture.jpg` from cwd, which is why `extraDirs` names that file — it is not a directory, and `cpSync` copies it because the copy is recursive. And `iTerm2 support` is the one case that reaches a real machine: it calls `iterm2-version()`, which reads the installed iTerm2's Info.plist, so on a Linux runner it returns undefined and the case throws. That is a `controlFailures` allowance to declare with this sentence, not a compatibility defect — and it must be declared *before* the row goes active, or the control is red on CI and green on a Mac.",
+  },
+  {
+    // The closeout layer's first graded host. `restore-cursor` is the smallest package in
+    // the shutdown layer and the one with the deepest dependency chain for its size —
+    // `cli-cursor` (107.6 M/wk) → `restore-cursor` (107.5 M/wk) → `onetime` → `mimic-fn`,
+    // four packages to show a cursor again — which is the whole argument in
+    // `closeout/intent.md` for the layer existing.
+    //
+    // Its suite is one file at the repo root beside the implementation, so `testGlob` names
+    // that file rather than a directory: the same shape as ora's and string-width's, and for
+    // the same reason — "every `.js` here" would vendor `index.js` and grade the host's own
+    // implementation as a test.
+    //
+    // **Where the control's copy of the incumbent comes from, and why that is fragile.**
+    // `restore-cursor@5.1.0` is in the committed `package-lock.json` already, as a transitive
+    // dependency of `ora` (`ora` → `cli-cursor` → `restore-cursor`), so `npm ci` installs the
+    // exact version this row was measured against and the control reproduces on a clean
+    // checkout. Nothing *declares* it, though: it is the `@colors/colors` shape recorded in
+    // `compat-oracle/package.json`, one `ora` release away from vanishing, and if it does the
+    // control goes red rather than quiet, because `controlShortfall` refuses a run that
+    // registers nothing.
+    name: 'restore-cursor',
+    repo: 'https://github.com/sindresorhus/restore-cursor',
+    testDir: '.',
+    testGlob: 'index.test.js',
+    imports: [{ upstream: './index.js', subpath: '/restore-cursor', reexportDefault: true, control: 'restore-cursor' }],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'node:test',
+    target: 'closeout',
+    status: 'active',
+    note: "Graded against `closeout/restore-cursor`, the façade, not against `closeout` itself: the root export is the phase registry, and R6 reserves the root default for `signal-exit`'s. The suite spawns a child per case with `process.stdout.isTTY` / `process.stderr.isTTY` forced, so it grades the *stream choice* (stderr first, then stdout, then neither) as much as the escape sequence — which is exactly the part `closeout.showCursor()` gets wrong for this contract, since it re-reads `isTTY` at exit and the fixture deletes it before exiting.",
+  },
+  {
+    // The second incumbent of the shutdown layer, and the one whose suite grades the part
+    // that is actually hard: 21 ava cases, 18 of which spawn a fixture and assert the
+    // *observed exit code* and the *bytes that made it out* — `SIGINT` → 130, `SIGTERM` →
+    // 143, `process.exitCode` preserved on a graceful exit and ignored on a signal, 20,000
+    // lines of stdout flushed under backpressure before the process is allowed to leave.
+    // That is `closeout/intent.md`'s R10 and R3 graded by somebody else's assertions.
+    //
+    // ## Where the control's copy of the incumbent comes from
+    //
+    // `exit-hook` is not in the root manifest and not in `package-lock.json`, and PLAN 2.14
+    // states the rule for this whole wave: a vendored grader's dependency goes *inside*
+    // `vendor/<pkg>/`, never into the workspace. So the published 5.1.0 tarball is unpacked
+    // at `vendor/exit-hook/node_modules/exit-hook/` and committed, which is where the
+    // generated `shim.js` resolves it from — five files, MIT, byte-identical to the tarball
+    // (sha256 `644e471d…`), and reproduced by the command in this directory's `PROVENANCE`.
+    //
+    // **That is necessary and, today, not sufficient.** `run.ts`'s `writeInternalShims()`
+    // calls `packageRoot(host.name)` *eagerly* whenever the target is the host itself —
+    // before the loop over `internals`, so it runs even for a suite like this one that has
+    // none. `packageRoot` resolves by bare name from `packages/compat-oracle/dist/`, which a
+    // vendor-local install cannot satisfy, and the control run dies with
+    // `ERR_MODULE_NOT_FOUND` instead of grading. Moving that call inside the loop is one
+    // line, and it is the line that makes PLAN 2.14's stated arrangement actually work; until
+    // it lands, `--control` also needs `exit-hook` resolvable from the oracle's own package
+    // (the measurements below were taken with the same tarball unpacked at
+    // `packages/compat-oracle/node_modules/exit-hook/`, which `npm ci` does not create).
+    // The target run is unaffected: it resolves `closeout/exit-hook` and never calls
+    // `packageRoot`.
+    //
+    // ## The four cases that are a race, measured rather than suspected
+    //
+    // `SIGINT`, `SIGTERM` and their two `…causes process.exitCode to be ignored` siblings
+    // spawn a fixture and kill it after a **fixed 1000 ms**. If the child has not finished
+    // evaluating its module graph by then, the signal takes its default action and the child
+    // dies *without* its handler — `isTerminated: true`, `exitCode: undefined`, empty stdout,
+    // which is exactly the assertion failure observed. Measured 2026-09-14 on a machine at
+    // load average 22 on 14 cores, against **real `exit-hook`**: 4 of 10 fixture runs lost
+    // that race at 1000 ms, and **0 of 10 lost it when the same fixture was killed on a
+    // readiness signal instead of on a clock**. The control's whole-suite rate over nine runs
+    // was 21 / 21 six times, 17 / 21 twice and one ava crash, with the same four cases
+    // failing together every time; the target's distribution over five runs was identical.
+    //
+    // So the ceiling for both is 21 / 21, that is what is recorded, and **a 17 / 21 on this
+    // row is this race, not a regression** — check the four names before believing anything
+    // else. No `controlFailures` allowance is declared on purpose: an allowance of 4 on a
+    // 21-case suite would be a 19% blind spot that a genuinely broken implementation could
+    // hide in, and this dialect cannot take an `Exclusion` either (`summarize()` refuses one
+    // on a runner whose TAP carries only summary counts, which is ava's). A red run here is
+    // loud and occasionally wrong, which is the right way round.
+    name: 'exit-hook',
+    repo: 'https://github.com/sindresorhus/exit-hook',
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '/exit-hook', reexportDefault: true, control: 'exit-hook' }],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'ava',
+    target: 'closeout',
+    status: 'active',
+    note: "Graded against `closeout/exit-hook`. The suite's fixtures live in `fixtures/` and `import … from '../index.js'`, which the vendor step rewrites to the same generated shim the test file gets, so one unedited suite grades either implementation. `ava` and `execa` are declared at the workspace root already, which is what `vendored-suite.test.ts` checks; the incumbent itself is the vendor-local copy described above.",
+  },
+  {
+    // **Not graded, and the reason is the harness rather than the suite.**
+    //
+    // `signal-exit` is the headline incumbent of this layer — 198.9 M/wk, last published
+    // 2023-07-29, inside npm's own dependency tree — and `closeout/intent.md` R4 makes its
+    // pass rate the gate on the whole `overrides` recipe. It is deliberately *not* vendored:
+    // a directory of tests that cannot be run is worse than no directory, because
+    // `vendored-suite.test.ts` would then have to be told to ignore it, and an exclusion
+    // that large reads as a decision when it is a blockage.
+    //
+    // Measured 2026-09-14 against the repo at `v4.1.0`, four separate blockers, each in a
+    // file this lane may not write:
+    //
+    //  1. **Its runner is `tap`, and `Host['runner']` has no such member.** PLAN's wave-2
+    //     table says "tap ✅ TAP native"; `src/run.ts`'s `command()` has four branches —
+    //     `vitest`, `node:test`, `ava`, `mocha` — and tap is not one of them. The row in the
+    //     plan was written from `npm view signal-exit scripts.test` and not from this file.
+    //  2. **Half the suite is TypeScript run through a loader.** `test/*.ts` (four files) are
+    //     executed by tap with `--loader ts-node/esm`, declared in the host's own
+    //     `package.json` `tap.node-arg`. Neither `tap` nor `ts-node` is declared in this
+    //     workspace, and `vendored-suite.test.ts` fails any vendored file that names a
+    //     package no manifest declares — so vendoring the suite turns that lock red.
+    //  3. **Its tests reach into `dist/`, which the vendor step cannot shim.**
+    //     `test/all-integration-test.ts`, `test/fallback.ts`, `test/signals.js` and two
+    //     fixtures import `../dist/cjs/index.js` and `../dist/cjs/signals.js`.
+    //     `INTERNAL_PATTERNS` in `src/vendor.ts` knows `lib` and `src` and *throws* on
+    //     anything else, so `internalDir: 'dist'` is a change to that file, not a field here.
+    //  4. **`test/signals.js` asserts through `t.matchSnapshot()` against `tap-snapshots/`**,
+    //     which is tap's own snapshot format and has no reader outside tap.
+    //
+    // What unblocks it, in order: a `tap` branch in `command()` plus `'tap'` in the union
+    // above; a `dist` entry in `INTERNAL_PATTERNS`; and `tap` + `ts-node` as vendor-local
+    // devDependencies under `vendor/signal-exit/` (PLAN 2.14's rule, the same arrangement
+    // `exit-hook` uses here). That is the `run.ts`/`vendor.ts` owner's work — one dialect,
+    // the same size as PLAN 2.14's `cross-spawn` decision — and it is worth doing, because
+    // this is the one row `closeout`'s distribution claim rests on.
+    name: 'signal-exit',
+    repo: 'https://github.com/tapjs/signal-exit',
+    testDir: 'test',
+    testGlob: '*.{js,ts}',
+    imports: [{ upstream: '../dist/cjs/index.js', subpath: '/signal-exit', reexportDefault: false }],
+    surfaceFiles: ['src/index.ts', 'src/signals.ts'],
+    // Declared for the day the dialect lands; nothing reads it while the status is `planned`.
+    runner: 'node:test',
+    target: 'closeout',
+    status: 'planned',
+    note: '198.9 M/wk and stale since 2023-07-29 — the layer\'s headline incumbent. Blocked on the harness, not on closeout: its suite runs under `tap` with a `ts-node/esm` loader and reaches into `dist/`, and all three are edits to `run.ts` and `vendor.ts`. `runner` reads `node:test` as a placeholder so this entry type-checks; it is wrong on purpose and unread while the status is `planned`, and the dialect that lands must correct it. **No baseline fragment exists for this host, and that is the honest state** — a row here with a number in it would be a number nothing measured.',
   },
 ];
 

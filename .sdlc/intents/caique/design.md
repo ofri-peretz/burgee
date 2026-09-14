@@ -44,8 +44,8 @@ packages/caique/src/
   binding.ts     resolvePrompts() — one host-agnostic pass, not one binding per host
   terminal.ts    createIo() over node:readline — the only file that touches a terminal,
                  and the only one that knows what echo is
-  clack.ts       caique/clack  — clack's API over the widgets, graded by clack's suite
-  inquirer.ts    caique/inquirer — same for inquirer
+  clack.ts       caique/clack  — @clack/prompts' API over the widgets, graded by its suite
+  inquirer.ts    caique/inquirer — @inquirer/prompts' API, same (never inquirer@8's)
   burgee.ts      caique/burgee — the preAction binding for burgee, burgee/commander, burgee/yargs
 ```
 
@@ -287,7 +287,72 @@ edit as the vocabulary line.
 - **Auto-detecting agents by user agent or parent process.** Unreliable; TTY-ness plus
   `CI` is the honest signal, and `--interactive` is the explicit override.
 
+## The compatibility target, named and graded (2026-09-14)
+
+Until today this design said "inquirer" and "clack" and named no package, and caique's row
+in `.sdlc/PLAN.md` read **0 / 2** — a replacement claimed twice and graded never. Both
+suites are now vendored and both numbers are measured.
+
+**The target is `@inquirer/prompts` and `@clack/prompts`. `inquirer@8`'s legacy
+`inquirer.prompt([...])` API is out of scope.**
+
+The reasoning, and it is a download-count argument that goes the other way:
+
+- `inquirer` does 34.3 M/wk against `@inquirer/prompts`' 28.8 M/wk, and the larger number
+  is the *legacy* façade — an API its own maintainer has moved off, and one a CLI written
+  today does not reach for. `@inquirer/prompts` is the API caique's widgets already mirror
+  (a function per prompt kind, an options object, an awaited answer), so it is both the
+  right target and the cheap one.
+- `inquirer@14.2.2`'s npm tarball ships **no tests**, and its repository is a monorepo, so
+  "grade it by its own suite" has no referent at that name. The repository's testable unit
+  for the prompt loop is **`@inquirer/core`** — `packages/core/core.test.ts`, 41 cases,
+  the keypress state machine both façades sit on. That is what the oracle grades, and a
+  façade that passes it has the loop right whatever spelling sits on top.
+
+Measured 2026-09-14, `npm run compat`, one host key per vendored suite:
+
+| Suite | Control (its own package) | `caique` |
+| :-- | --: | --: |
+| `@inquirer/core` 12.0.3 | **41 / 41, 100.0%** | 0 / 41, 0.0% |
+| `@clack/prompts` 1.8.1 | **576 / 606, 95.0%** | 0 / 606, 0.0% |
+
+Both target columns are zero and the zero is real: `caique` exports `ask`, `decide` and
+`spec`, and neither suite can reach a `createPrompt` or a `text` under those names. Naming
+`caique/clack` or `caique/inquirer` as the target instead would have published "target not
+built yet" — a phrase, not a number — so each row names `caique`, the entry point that
+exists. The rule is the one cli-table3's row already records: never name the target after a
+façade that does not exist.
+
+Three things this run had to establish, and none of them were about caique:
+
+1. **A monorepo host needs its sub-package, not the repo root.** `packageDir` in
+   `hosts.ts` is what the generated internal shims and vitest's root are anchored at;
+   without it a test in `packages/prompts/test/` writing `../src/common.js` gets a shim at
+   the vendored root, which it never imports.
+2. **A scoped package cannot be a directory name.** `@clack/prompts` names a directory two
+   deep and a baseline file with a slash in it, so the host key is flat (`clack`,
+   `inquirer-core`) and `npmName` carries the real one — which is what the release lookup
+   asks about and what the control re-exports.
+3. **A monorepo suite's dependencies belong beside the suite.** `@clack/core`,
+   `@inquirer/testing` and the incumbents themselves are declared in `suiteDeps` and
+   installed into `vendor/<host>/node_modules`, never into this workspace's manifest or
+   lockfile — PRINCIPLES.md's zero-dependency rule, and one fewer lockfile edit per lane.
+
+The 30 cases `@clack/prompts` fails against itself are all of `path.test.ts`, which mocks
+`node:fs` through upstream's `__mocks__/fs.cjs`; vitest 5.0.0 never loads that file where
+upstream's vitest 3.2.4 does (measured by putting a `console.error` in it and watching it
+not print). It is a runner-version divergence in the harness, declared as a
+`controlFailures` allowance with its reason rather than rounded away.
+
+Still open, and named so it is a decision rather than a silence:
+`packages/caique/competitors.json` still fingerprints `inquirer` at the `./ask` subpath.
+Re-pointing it at `@inquirer/prompts` needs a `npm run compat -- --fingerprint` run, which
+rewrites that file wholesale; it is its own change.
+
 ## Out of scope
 
+- **`inquirer@8`'s legacy `inquirer.prompt([...])` API.** See above: 34.3 M/wk of it, and
+  none of that weight is a CLI being written now. A façade for it would be a shape to
+  maintain forever in exchange for migrations nobody is asking for.
 - Multi-step wizards with back navigation (clack #39) — v2 if asked.
 - Theming beyond roundel's tokens (clack #36, #345 are answered by roundel, not here).

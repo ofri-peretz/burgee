@@ -173,16 +173,52 @@ And from `closeout/plugin`:
 | `registered()` / `reset()` | the plugins, and forgetting them |
 | `CONTRACT` / `PLUGIN_PHASES` | `1` · `['flush', 'release']` |
 
+And the drop-in subpaths, which reproduce their incumbent's API rather than this one:
+
+| | |
+| :-- | :-- |
+| `closeout/exit-hook` | `exitHook(fn)` (default), `asyncExitHook(fn, { wait })`, `gracefulExit(code?)` |
+| `closeout/restore-cursor` | `restoreCursor()` (default) |
+
 Importing this package attaches nothing. The process-wide instance installs on first use,
 so a library that imports `closeout` for its types pays nothing.
 
 ## Replaces
 
-Drop-in paths are planned for `signal-exit`, `exit-hook` and `restore-cursor`. What they do
-between them is one problem — leaving cleanly — and this is one package with no
-dependencies rather than three with a tree.
+What `signal-exit`, `exit-hook`, `restore-cursor`, `cli-cursor`, `onetime` and `mimic-fn` do
+between them is one problem — leaving cleanly — and this is one package with no dependencies
+rather than six with a tree.
 
-**Still to come:** raw mode and alternate-screen restore, and the graded drop-in paths.
+Two of those paths are built and **graded by the incumbent's own test suite**, unedited apart
+from the import specifier, through `compat-oracle`. The control column is that suite run
+against the incumbent itself, which is what says the gate works before it grades us:
+
+| subpath | replaces | control | closeout |
+| :-- | :-- | --: | --: |
+| `closeout/exit-hook` | `exit-hook@5.1.0` (8.8 M/wk) | 21 / 21 | 21 / 21 |
+| `closeout/restore-cursor` | `restore-cursor@5.1.0` (107.5 M/wk) | 6 / 6 | 6 / 6 |
+
+```js
+import exitHook, {asyncExitHook, gracefulExit} from 'closeout/exit-hook';
+import restoreCursor from 'closeout/restore-cursor';
+```
+
+or, without touching the source at all:
+
+```json
+{ "overrides": { "exit-hook": "npm:closeout@^0.1", "restore-cursor": "npm:closeout@^0.1" } }
+```
+
+One thing to know before you swap `exit-hook`: its bound is per hook (`{ wait }`) and the
+façade keeps that bound rather than imposing closeout's own 2 000 ms deadline, because a
+drop-in that silently tightens your timeout is not a drop-in. `onExit()` — closeout's own
+API — is where the bounded shutdown lives.
+
+**Still to come:** raw mode and alternate-screen restore, and the `signal-exit` path. That
+last one is not written because it cannot yet be *graded*: `signal-exit`'s suite runs under
+`tap` with a `ts-node/esm` loader and reaches into its own `dist/`, none of which the
+compatibility harness supports today. Shipping an ungraded drop-in for the package with
+198.9 M weekly downloads is exactly the claim this project refuses to make.
 
 ## Licence
 

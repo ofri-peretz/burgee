@@ -1,0 +1,35 @@
+{
+  "repo": "https://github.com/sindresorhus/restore-cursor",
+  "version": "5.1.0",
+  "tag": "v5.1.0",
+  "commit": "58261091deb9769fe6a4b02feb4e857de9cb924c",
+  "vendored": "2026-09-14",
+  "files": 1,
+  "internalFiles": [],
+  "internals": [],
+  "hashes": {
+    "./index.d.ts": "5a12bc3c31251515e02b5a7847019b20f89cb99b475d46e7f53a8103e42265e0",
+    "./index.js": "cceefe6cfcd233a212713accb9d8548ddd4c1c61495dee56d75e56fbdd66b0b8",
+    "./index.test-d.ts": "d08442d72c5ba76bdfbc6cdb353132804a44c5e2b160317ba1ced54d03eb91ef",
+    "./index.test.js": "75ed31e05a7732519758ee129ee8aa17c7545a32fc93f6d35b5cef4a59f32170",
+    "index.d.ts": "5a12bc3c31251515e02b5a7847019b20f89cb99b475d46e7f53a8103e42265e0",
+    "index.js": "cceefe6cfcd233a212713accb9d8548ddd4c1c61495dee56d75e56fbdd66b0b8"
+  },
+  "tests": {
+    "./index.d.ts": [],
+    "./index.js": [],
+    "./index.test-d.ts": [],
+    "./index.test.js": [
+      "write test script",
+      "stdout tty, stderr not, write to stdout",
+      "stderr tty, stdout not, write to stderr",
+      "both tty, write to stderr",
+      "neither tty, write nowhere",
+      "remove test script"
+    ]
+  },
+  "surface": {
+    "index.d.ts": [],
+    "index.js": []
+  }
+}

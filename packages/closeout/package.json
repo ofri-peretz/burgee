@@ -18,6 +18,16 @@
       "types": "./dist/plugin.d.ts",
       "import": "./dist/plugin.js",
       "default": "./dist/plugin.js"
+    },
+    "./restore-cursor": {
+      "types": "./dist/restore-cursor.d.ts",
+      "import": "./dist/restore-cursor.js",
+      "default": "./dist/restore-cursor.js"
+    },
+    "./exit-hook": {
+      "types": "./dist/exit-hook.d.ts",
+      "import": "./dist/exit-hook.js",
+      "default": "./dist/exit-hook.js"
     }
   },
   "files": [

@@ -1,0 +1,46 @@
+{
+  "repo": "https://github.com/moxystudio/node-cross-spawn",
+  "version": "7.0.6",
+  "tag": "v7.0.6",
+  "commit": "77cd97f3ca7b62c904a63a698fc4a79bf41977d0",
+  "vendored": "2026-09-14",
+  "files": 1,
+  "internalFiles": [],
+  "internals": [],
+  "hashes": {
+    "test/index.test.js": "d147e109dbaa1fc0eba0e0a6970c43b120b53a2ba648a8d15c5bcd862cd2360b",
+    "index.js": "b8e01cb18ba87ee1b0e5eb2eb1ce6cbb25a2bdd229f9e08671f8a10ed7e3ad35"
+  },
+  "tests": {
+    "test/index.test.js": [
+      "should expand using PATHEXT properly",
+      "should support shebang in executables with `/usr/bin/env`",
+      "should handle commands with special shell chars",
+      "should handle empty arguments and arguments with spaces",
+      "should handle non-string arguments",
+      "should handle arguments with shell special chars",
+      "should double escape when executing `node_modules/.bin/<file>.cmd`",
+      "should handle commands with names of environment variables",
+      "should handle optional spawn optional arguments correctly",
+      "should not mutate args nor options",
+      "should give correct exit code",
+      "should work with a relative posix path to a command",
+      "should work with a relative posix path to a command with a custom `cwd`",
+      "should fail with ENOENT if the command does not exist",
+      "should emit `error` and `close` if command does not exist",
+      "should NOT fail with ENOENT if the command actual exists but exited with 1",
+      "should NOT emit `error` if the command actual exists but exited with 1",
+      "should NOT fail with ENOENT if shebang command does not exist",
+      "should NOT emit `error` if shebang command does not exist",
+      "should fail with ENOENT a non-existing `cwd` was specified",
+      "should emit `error` and `close` if a non-existing `cwd` was specified",
+      "should use nodejs\\' spawn when options.shell is specified (windows)",
+      "should use nodejs\\' spawn when options.shell is specified (linux)",
+      "should NOT spawn a shell for a .exe",
+      "should work if the path key is different in options.env"
+    ]
+  },
+  "surface": {
+    "index.js": []
+  }
+}

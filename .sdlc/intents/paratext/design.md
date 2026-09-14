@@ -33,8 +33,57 @@ be measured against. R8–R12 are the unbuilt half.
   (`link`, `image`, `setCwd`, `beep`, `clearTerminal` is CSI and out of scope). Not built.
 - **R9 (Y7)** `ansi-escapes`, `terminal-link`, `term-img` vendored into `compat-oracle`,
   graded `--control` first; CSI cases of `ansi-escapes` recorded as out-of-scope in the
-  baseline rather than as failures. Not built. **Until it lands, the npm description's
-  "drop-in" claim is removed** (decision 3 of the ecosystem plan).
+  baseline rather than as failures. **One of three built, and the two that are not name an
+  installed package rather than a judgement.** Measured 2026-09-14, and none of it is a
+  tarball: `npm pack ansi-escapes && tar tzf … | grep -c test` is `0`, so all three suites
+  come from a shallow clone at the annotated release tag (`ansi-escapes` v7.3.0 →
+  `73e652ef`, `terminal-link` v5.0.0 → `975358c3`, `term-img` v7.1.0 → `c495c815`).
+
+  | suite | control | target `paratext` | state |
+  | :-- | --: | --: | :-- |
+  | `ansi-escapes` 7.3.0 | **4 / 4, 100.0%** | **0 / 4, 0.0%** | active, baselined |
+  | `terminal-link` 5.0.0 | did not run | — | planned, suite not committed |
+  | `term-img` 7.1.0 | did not run | — | planned, suite committed |
+
+  Three things this measurement settled, all of which were open before it:
+
+  - **The zero is R8, stated by the host's own suite.** The target run's TAP is one line —
+    `SyntaxError: The requested module 'paratext' does not provide an export named
+    'default'`. The row is graded against the package root because that is where R8 puts
+    the compatible default; naming a `paratext/ansi-escapes` façade would have published
+    the oracle's `target not built yet` note instead of a number, which is the mistake
+    `cli-table3`'s row in `hosts.ts` exists to stop.
+  - **The ceiling on this row is 1 / 4, not 4 / 4.** `default export`, `clearTerminal` and
+    `synchronized output` assert CSI — `cursorTo(2, 2)`, the clear sequence, `ESC [ ? 2026
+    h/l` — which this design puts out of scope. Only `named export(s)` touches OSC. The
+    three cannot be subtracted as `excludes`: ava's TAP prints counts and no per-case
+    names, and `summarize()` refuses an exclusion it cannot name. So the ceiling is prose
+    in the host entry, and 25% on this row means *complete*, not *a quarter*.
+  - **`term-img`'s suite runs headless**, which was the real question about it. Every one
+    of its 18 cases sets `TERM_PROGRAM` / `KONSOLE_VERSION` / `process.platform` by hand
+    and asserts a returned string or a thrown `UnsupportedTerminalError`; nothing is
+    rendered and no tty is touched. It is ungraded only because `term-img` is in neither
+    manifest.
+
+  What each blocked row needs, exactly — all of it in files a package lane may not write:
+
+  - `terminal-link`: `terminal-link` **and** `supports-hyperlinks` declared in the root
+    manifest. The second is not optional for the control alone — its ten cases `import
+    supportsHyperlinks from 'supports-hyperlinks'` in the *test*, so the target run needs
+    it too. Committing the vendored suite without it turns `vendored-suite.test.ts` red,
+    which is why the suite is not in `vendor/`. It also needs `rootPackage()` in
+    `compat-oracle/src/vendor.ts` to carry the host's `ava: { serial: true }`, or ten
+    cases that mutate one shared module object run concurrently.
+  - `term-img`: `term-img` declared in the root manifest, and a `controlFailures` allowance
+    for `iTerm2 support`, which calls `iterm2-version()` and reads the installed iTerm2's
+    Info.plist — green on a Mac, red on a Linux runner.
+  - Both: a missing incumbent does not produce a red row, it produces
+    `ERR_MODULE_NOT_FOUND` out of `packageRoot()` inside `writeInternalShims` and takes the
+    whole `npm run compat` process down. Worth a guard in `run.ts` so one absent package
+    costs one row rather than every row.
+
+  **Until all three land, the npm description's "drop-in" claim is removed** (decision 3 of
+  the ecosystem plan) — one row of three, at zero, is not a drop-in claim.
 - **R10 (plugin-contract)** `schema.json` becomes the family schema with paratext's shape
   under `capabilities`. **Half built (PLAN 1.1).** The schema half is done: the capability
   shape is `$defs/capability`, reached through a `capabilities` key, and all three
@@ -88,7 +137,12 @@ roundel/flagstaff schemas, one PR) → R11 → R12.
 
 - `npx vitest run --root packages/paratext` — 23 tests today across seven groups.
 - `sha256sum packages/*/src/schema.json | awk '{print $1}' | sort -u | wc -l` — 1 (R10).
-- `npm run compat -- ansi-escapes terminal-link term-img` after R9.
+- `npm run compat -- ansi-escapes --control` — 4 / 4, and red below that; then
+  `npm run compat -- ansi-escapes`, which ratchets against
+  `packages/compat-oracle/baseline/ansi-escapes.json`. Both gates were proven live rather
+  than assumed: raising that file's `passed` to 1 exits 1 with "0 passing, baseline was 1",
+  and raising `reference` to 5 exits 1 with "4 of its own 5 cases registered". Add
+  `terminal-link term-img` to the command when their rows go active.
 - **The check that would have caught the original problem** — the original problem is a
   package on npm with no intent. `scripts/intent-artifacts-lock.test.ts` gains the rule:
   every `packages/<name>` with a published version has `.sdlc/intents/<name>/intent.md` and

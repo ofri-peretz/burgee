@@ -110,3 +110,13 @@ export function slice(string: string, start = 0, end = Number.POSITIVE_INFINITY)
   if (!cut.started) return '';
   return cut.body + (cut.link === undefined ? '' : hyperlink('')) + closingSequence(cut.active);
 }
+
+/**
+ * The default export, for the reason `strip.ts` gives at length: `slice-ansi`'s suite
+ * imports its entry point's **default**, and that suite now grades this file.
+ *
+ * The specifier is described rather than quoted on purpose — see the note on `wrap`'s
+ * default: `subpath-isolation.test.ts` reads the emitted text, comments and all.
+ */
+// eslint-disable-next-line import-next/no-default-export -- the incumbent's own suite imports a default; see above. This is the drop-in surface, not a style choice.
+export { slice as default };

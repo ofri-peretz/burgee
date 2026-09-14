@@ -62,3 +62,23 @@ export function strip(string: string): string {
   });
   return nodeStrip(out);
 }
+
+/**
+ * The same function again, as the default export, because `strip-ansi`'s own suite imports
+ * a default — and that suite is now this module's grader
+ * (`compat-oracle/vendor/strip-ansi`, `baseline/strip-ansi.json`).
+ *
+ * It is a *subpath* default rather than the package's, and it has to be: R8 spends the root
+ * default on `width`, so `overrides: { "string-width": "npm:linegauge@^1" }` resolves. A
+ * `strip-ansi` façade can therefore only ever be `linegauge/strip`, and this is the line
+ * that makes `import stripAnsi from 'linegauge/strip'` read exactly like the import it
+ * replaces. `truncate` and `widest` deliberately do not have one yet: an export is a
+ * contract forever, and neither has a vendored suite holding it to the incumbent's shape.
+ *
+ * Spelled `strip as default` rather than `export default strip` to match how `index.ts`
+ * publishes `width as default`: the alias is a live binding to the same declaration, so
+ * there is exactly one `strip` in the module however it is imported — which is the property
+ * `facade-defaults.test.ts` asserts with `toBe`, not `toEqual`.
+ */
+// eslint-disable-next-line import-next/no-default-export -- the incumbent's own suite imports a default; see above. This is the drop-in surface, not a style choice.
+export { strip as default };

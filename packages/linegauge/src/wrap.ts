@@ -329,3 +329,15 @@ export function wrap(string: string, columns: number, options: WrapOptions = {})
     .map((line) => wrapLine(expandTabs(line), columns, options))
     .join('\n');
 }
+
+/**
+ * The default export, for the reason `strip.ts` gives at length: `wrap-ansi` 10's suite
+ * imports its entry point's **default**, and that suite now grades this file.
+ *
+ * Written without quoting the specifier, deliberately. `subpath-isolation.test.ts` scans the
+ * *emitted text* of `dist/wrap.js` for relative imports, comments included, so a doc comment
+ * that spells one out makes the entry look as though it reaches a sibling. Caught by that
+ * lock on 2026-09-14, which is the lock doing exactly its job on the wrong input.
+ */
+// eslint-disable-next-line import-next/no-default-export -- the incumbent's own suite imports a default; see above. This is the drop-in surface, not a style choice.
+export { wrap as default };

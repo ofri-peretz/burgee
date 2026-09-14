@@ -3,9 +3,14 @@
  * baseline must count as a regression; at or above it must not. A gate that has never
  * been shown to fail is not a gate.
  */
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
-import { type Baseline, type Grade, parseFlatTap, parseNodeTest, regressed, summarize } from './run.js';
+import { type Host, HOSTS } from './hosts.js';
+import { type Baseline, type Grade, internalShimFrom, parseFlatTap, parseNodeTest, regressed, summarize } from './run.js';
 
 const grade = (passed: number): Grade => ({
   host: 'commander',
@@ -160,5 +165,41 @@ describe('summarising a run', () => {
 
   it('falls back to the registered count when there is no reference yet', () => {
     expect(summarize(withSummary, 10, 0).rate).toBeCloseTo(17 / 878);
+  });
+});
+
+/**
+ * Where a control run's internal shim points, proven red first.
+ *
+ * A control gets the installed host's own file where the package ships it, and the package
+ * by name where it does not — `@clack/prompts` publishes only `dist`, and re-exporting
+ * `<installed>/src/common.js` failed two whole files to load.
+ *
+ * The catch is that "does it ship it" cannot be `existsSync`: the suite writes these
+ * specifiers the CommonJS way, so cli-table3 imports `../src/cell` and the file is
+ * `src/cell.js`. An existence check on the literal path answered "no" for four files that
+ * are shipped, sent every one of cli-table3's 104 internal cases to the package root, and
+ * took that informational line from 103 / 104 to 0 / 104 — a published number, moved by a
+ * missing extension.
+ */
+describe('a control run’s internal shim', () => {
+  const cliTable3 = HOSTS.find((h) => h.name === 'cli-table3') as Host;
+  const clack = HOSTS.find((h) => h.name === 'clack') as Host;
+
+  const installed = mkdtempSync(join(tmpdir(), 'internal-shim-'));
+  mkdirSync(join(installed, 'src'), { recursive: true });
+  writeFileSync(join(installed, 'package.json'), '{"name":"fake","version":"0.0.0"}\n');
+  writeFileSync(join(installed, 'src', 'cell.js'), 'module.exports = {};\n');
+
+  it('points at the host’s own file when the package ships it, extension or not', () => {
+    expect(internalShimFrom(cliTable3, { target: 'cli-table3', installed, rel: 'src/cell' })).toBe(join(installed, 'src', 'cell'));
+  });
+
+  it('falls back to the package by name when the package does not ship it', () => {
+    expect(internalShimFrom(clack, { target: '@clack/prompts', installed, rel: 'src/common.js' })).toBe('@clack/prompts');
+  });
+
+  it('points a target run at the target, never at an installed path', () => {
+    expect(internalShimFrom(clack, { target: 'caique', installed: undefined, rel: 'src/common.js' })).toBe('caique');
   });
 });
