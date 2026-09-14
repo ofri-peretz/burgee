@@ -15,20 +15,20 @@
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.3",
     "@types/three": "^0.185.4",
-    "fumadocs-core": "^16.11.5",
+    "fumadocs-core": "^16.15.9",
     "fumadocs-mdx": "^15.2.0",
-    "fumadocs-ui": "^16.11.5",
+    "fumadocs-ui": "^16.15.9",
     "next": "^16.3.0",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "tailwindcss": "^4.3.3",
     "three": "^0.186.0"
   },
   "devDependencies": {
     "@types/mdx": "^2.0.14",
-    "@types/node": "^26.4.1",
-    "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0",
+    "@types/node": "^26.5.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "vitest": "^5.0.0"
   },
   "imports": {
