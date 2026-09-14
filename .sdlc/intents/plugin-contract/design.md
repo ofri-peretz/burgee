@@ -35,6 +35,9 @@ Two things are *not* true yet, and they are what this design is:
 
 ## Requirements
 
+The standing rule behind every requirement here is PRINCIPLES.md rule 14 — extension is the
+product. A layer that cannot be extended without a fork has failed it.
+
 - **R1 — One object, four readers.** A plugin is one plain object. `register(plugin)` in any
   layer keeps the keys that layer understands and ignores the rest without error, so the
   same object works on any subset of the family that is installed.
@@ -65,6 +68,24 @@ Two things are *not* true yet, and they are what this design is:
   becomes "the same shape except for one key" and the author who learned one has not learned
   the other. **Not built here.** caique's widget host is step 3 and its own PR; this records
   the obligation so that PR cannot land a widget shape without `sample` and call it R5.
+- **R5a — Every layer hosts, or says why not.** (Added 2026-09-13; PRINCIPLES rule 14.)
+  The four foundation packages and paratext were absent from R4–R5 because they postdate this
+  design. Each now has a key or a stated refusal:
+  - `paratext` hosts **`capabilities`** — its `{ name, osc, when, encode, fallback }` records
+    move under this key and its `schema.json` is retired for the family's. Today it is a
+    third schema shape (`409dbeb2…` against the family's `2f1bd1c6…`), which is exactly the
+    divergence R2 exists to forbid.
+  - `seniority` hosts **`sources`** — a resolution source `{ name, rank, read(runtime) }`; a
+    plugin adds a vault, a remote config, a CI variable set, in rank order.
+  - `closeout` hosts **`handlers`** — exit handlers with a declared phase, so a plugin's
+    cleanup runs before terminal restore and never after it.
+  - `bellpull` hosts **`resolvers`** — how an executable is found (`PATH`, a version manager,
+    a container), since `which` is the part every environment does differently.
+  - `linegauge` **hosts nothing, by design.** Six pure functions over Unicode tables; the
+    only extension is a table update, which is a release. Its README says so.
+  - `burgee` hosts `commands` and `hooks` (M4, M5) — declared in the intent, `definePlugin`
+    exists, the hosting is partial and is tracked under `cli-modularity`.
+
 - **R6 — One contract version.** `CONTRACT` is one number for the family. A host refuses a
   plugin declaring a higher contract with a `fix` naming the package to upgrade.
 - **R7 — Data first.** No key may require a function except a component's or widget's

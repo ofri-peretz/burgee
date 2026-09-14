@@ -1,7 +1,7 @@
 /**
  * R2, R3 — a plugin is data, validated at the door, and a contribution without a static
  * projection is refused with a fix; R4 — the built-ins come through the same door; R7 —
- * no layout engine, locked on the file list.
+ * no layout engine, locked on the file list and on what the modules here declare.
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -40,6 +40,31 @@ describe('R3 · the built-ins are a plugin like any other', () => {
     const source = (file: string): string => readFileSync(resolve(src, file), 'utf8').replaceAll('\r\n', '\n');
     expect(source('builtins.ts').match(/^import .*$/gm)).toEqual(["import { type Plugin } from './plugin.js';"]);
     expect(source('plugin.ts')).toContain('\nregister(builtins);\n');
+  });
+
+  /**
+   * #61 — the case above is a source-text assertion. It proves `register(builtins)` is
+   * *written*; it does not prove nothing else puts an entry in the registry, which is the
+   * half of R4 that says "no private path". This one reads the registry instead: the door
+   * `register()` opens is exactly as wide as `builtins`, in both directions. A private
+   * injection adds a key here; a built-in that never made it through drops one.
+   *
+   * It runs before any other `register()` in this file, which is what keeps "nothing else"
+   * meaning the built-ins rather than the built-ins plus whatever the R2 cases left behind.
+   */
+  it('R4 · the registry holds exactly what builtins declares — no key arrived by another route', async () => {
+    // Imported here, not at the top: `plugin.ts` calls `register(builtins)` on load, so a
+    // module graph that reaches `builtins.ts` first gets `undefined` back at that call. The
+    // static import order that avoids it is the one an import sorter would rewrite.
+    const { builtins } = await import('./builtins.js');
+    const r = registered();
+    const keys = (o: object | undefined): string[] => Object.keys(o ?? {}).sort();
+    expect(r.plugins).toEqual(['flagstaff']);
+    expect([...r.glyphs.keys()].sort()).toEqual(keys(builtins.glyphs));
+    expect([...r.spinners.keys()].sort()).toEqual(keys(builtins.spinners));
+    expect([...r.borders.keys()].sort()).toEqual(keys(builtins.borders));
+    expect([...r.components.keys()].sort()).toEqual(keys(builtins.components));
+    expect([...r.tokens.keys()].sort()).toEqual(keys(builtins.tokens));
   });
 });
 
@@ -201,5 +226,20 @@ describe('U3, U4 · register() is the only way into the registry', () => {
 describe('R7 · no layout engine', () => {
   it('src/ has no layout module', () => {
     expect(readdirSync(src).filter((f) => /^layout/i.test(f))).toEqual([]);
+  });
+
+  /**
+   * #61 — the case above is a filename filter, and a layout engine called `measure.ts` or
+   * `flex.ts` walks straight past it. What R7 actually forbids is flagstaff *owning* a
+   * measure pass: `width`, `wrap`, `measure` and `lineCount` live in `linegauge` (F1) and
+   * arrive here as imports. So the lock is on the declaration, not on the filename — a
+   * second implementation of any of them, under any name, fails this.
+   */
+  it('no module here declares a width or measure pass of its own — every one comes from linegauge', () => {
+    const own = readdirSync(src).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'));
+    const declares = own.filter((f) =>
+      /^\s*(?:export\s+)?(?:function|const|class)\s+(?:width|measure|lineCount|stringWidth|charWidth)\b/m.test(readFileSync(resolve(src, f), 'utf8')),
+    );
+    expect(declares).toEqual([]);
   });
 });

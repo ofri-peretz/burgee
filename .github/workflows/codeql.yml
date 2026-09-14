@@ -2,13 +2,21 @@
 name: CodeQL
 
 # Static security analysis, ported from ofri-peretz/eslint. Runs on the
-# "promote" gate (non-draft PR or `run-full-ci` label) and weekly, not on every
-# push. Findings land under Security → Code scanning.
+# "promote" gate (non-draft PR or `run-full-ci` label), on every commit that
+# lands on main, and weekly. Findings land under Security → Code scanning.
+#
+# `push: main` is not redundant with the PR gate. Scorecard's SAST check reads
+# *commits*, not pull requests, and scored this 9/10 on "26 of 30 commits are
+# checked" — the four it could not see are the ones that reached main without a
+# PR run it could attribute (alert #28). The `gate` job below already lets a
+# non-`pull_request` event through, so this trigger needs nothing else.
 
 on:
   pull_request:
     branches: [main]
     types: [ready_for_review, labeled, synchronize]
+  push:
+    branches: [main]
   workflow_dispatch:
   schedule:
     - cron: "17 3 * * 1"
