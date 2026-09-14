@@ -292,22 +292,68 @@ export const HOSTS: Host[] = [
     note: 'linegauge exports `width` as its default, which is the shape string-width\'s own tests import.',
   },
   {
+    // R3's grader. `strip-ansi` is 464 M/wk and ships one dependency (`ansi-regex`, 345 M/wk)
+    // for a single scan — the clearest instance of the fragmentation `linegauge` exists to
+    // collapse. Its suite is eight cases and every one of them is a shape `strip` has to get
+    // right: OSC 8 hyperlinks, the 8-bit CSI introducer ``, and a bare BEL terminator.
+    //
+    // Its suite is one file at the repo root beside the implementation, so `testGlob` names
+    // that file rather than a directory — the ora / string-width shape.
+    name: 'strip-ansi',
+    repo: 'https://github.com/chalk/strip-ansi',
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'ava',
+    target: 'linegauge/strip',
+    status: 'active',
+    note: 'Graded against the `linegauge/strip` subpath, not the root: the root default is `width` (R8), so a strip-ansi façade can only be a subpath.',
+  },
+  {
     // `wrap-ansi` is the one incumbent in this layer with a measured correctness gap, and it
     // is already closed upstream: two family-ZWJ emoji hard-wrapped at three columns come back
     // as **eight** fragments under 8.1.0 and 9.0.2 and as two correct lines under 10.0.1
     // (`cli-foundation-stack/baseline.md`, 2026-09-10). `linegauge/src/wrap.ts` is a port of
     // 10, so this row grades the port against the major it was ported from — which is exactly
     // what `wrap.test.ts` asserts in-package, and what this makes public.
+    //
+    // `testDir`/`testGlob`/`runner` were wrong here while the row was `planned`, and measuring
+    // is what corrected them: 10.0.1 keeps one `test.js` at the repo root and runs it under
+    // `node:test`, not a `test/` directory under ava. A planned row's shape is a guess until
+    // a vendor run touches it.
     name: 'wrap-ansi',
     repo: 'https://github.com/chalk/wrap-ansi',
-    testDir: 'test',
-    testGlob: '*.js',
-    imports: [{ upstream: '../index.js', subpath: '', reexportDefault: true }],
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'node:test',
+    target: 'linegauge/wrap',
+    status: 'active',
+    note: "80 / 80 control and 80 / 80 target, measured 2026-09-14 — the port reproduces wrap-ansi 10 exactly, which is what `wrap.test.ts` already asserted in-package and this makes public. Its suite imports `has-ansi`, which is committed under `vendor/wrap-ansi/node_modules/` rather than added to the root manifest; `vendor/wrap-ansi/.gitignore` carries the reason and the one hazard (a `--vendor` re-run deletes it).",
+  },
+  {
+    // R4's grader, and the reason the style stack was extracted from `wrap.ts` at all:
+    // `slice-ansi` and `wrap-ansi` each carry their own copy of open/close/reopen and
+    // disagree at the edges.
+    //
+    // **Vendored at 7.1.2, not at the 9.0.0 on npm, and that is a deliberate pin.** The
+    // control run grades the suite against the *installed* `slice-ansi`, and this workspace
+    // resolves `^7.1.0` from the root manifest. Vendoring 9.0.0's suite against a 7.1.2
+    // control would measure the gap between two of the incumbent's own majors and publish it
+    // as ours. Moving this row to 9 is a root-manifest bump, which belongs to the integrator
+    // lane; `--upstream` reports the gap every day until it happens.
+    name: 'slice-ansi',
+    repo: 'https://github.com/chalk/slice-ansi',
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
     surfaceFiles: ['index.d.ts', 'index.js'],
     runner: 'ava',
-    target: 'linegauge',
-    status: 'planned',
-    note: 'Graded once string-width\'s row is green: two new hosts against one target in one change would make a failure ambiguous.',
+    target: 'linegauge/slice',
+    status: 'active',
+    note: "15 / 15 control, 13 / 15 target, measured 2026-09-14. The two are named rather than excluded, because an ava host's TAP reaches `summarize` through the summary-line dialect and the oracle refuses an exclusion it cannot match by name. (1) `can slice a string with unknown ANSI color` is a real gap: slice-ansi re-emits *any* SGR parameter it saw and closes with a reset, so `ESC[1001m` survives a cut; `linegauge`'s style stack tracks the codes it knows and drops that one, returning bare `TES`. Ours is the wrong answer — the sequence is the caller's, not the library's to vet. (2) `slice links` is `test.failing()` in slice-ansi's *own* suite: the incumbent cannot round-trip an `OSC 8` hyperlink and says so. `linegauge` can, and ava reports a passing `test.failing` as `not ok`. So one of the two failures on this row is the target being **more** correct than the host, which is exactly the sort of number a compat rate must not quietly launder — 13 / 15 stands, with the reason beside it. Its suite imports `random-item`, committed under `vendor/slice-ansi/node_modules/`.",
   },
   {
     // seniority's two incumbents (PLAN 2.2–2.13, `seniority/design.md` R10).

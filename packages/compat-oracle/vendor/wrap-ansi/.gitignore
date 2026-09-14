@@ -1,0 +1,25 @@
+# `has-ansi` is committed here on purpose, and the repository root ignores every directory
+# called `node_modules`, so this file un-ignores exactly this one.
+#
+# Why it exists at all: wrap-ansi 10's own suite opens with `import hasAnsi from 'has-ansi'`,
+# and a vendored suite is run unedited — that is the whole contract. Without it the control
+# run does not fail a case, it fails to *resolve*, and the host reads 0 / 1 with the reason
+# buried in TAP diagnostics. Measured 2026-09-14, before this directory existed:
+#
+#     Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'has-ansi' imported from
+#     packages/compat-oracle/vendor/wrap-ansi/test.js
+#
+# Why *here* rather than in the root manifest: a suite's own devDependency is not a
+# dependency of this workspace, and putting it in the root manifest would put it in the
+# lockfile, where it would read as one. `ansi-regex` is nested under `has-ansi` rather than
+# left to the hoisted copy so this directory resolves on its own.
+#
+# The hazard, written down because it is not obvious: `npm run compat -- --vendor` deletes
+# `vendor/wrap-ansi/` whole before re-copying, so a re-vendor removes this tree. Restore it
+# with `git checkout -- packages/compat-oracle/vendor/wrap-ansi/node_modules` and the row
+# comes back; the control run is what catches it if you forget, at 0 / 80.
+!node_modules/
+
+# ava's per-run scratch file. A record of which cases failed on this machine last time —
+# never part of the suite, and it changes on every run.
+node_modules/.cache/

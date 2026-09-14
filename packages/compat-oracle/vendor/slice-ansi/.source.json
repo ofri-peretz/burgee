@@ -1,0 +1,41 @@
+{
+  "repo": "https://github.com/chalk/slice-ansi",
+  "version": "7.1.2",
+  "tag": "v7.1.2",
+  "commit": "70f0071c9fe137a62505e3290226f904073aed6e",
+  "vendored": "2026-09-14",
+  "files": 1,
+  "internalFiles": [],
+  "internals": [],
+  "hashes": {
+    "./index.d.ts": "e808a6dd4033ed3eb390fa339ed701c8fa74233a056304564a42884f8bf88aaf",
+    "./index.js": "6b200a6cfe5f2bdf51df5ec2144c54482047e508b9f0b6ec865ad14a04c8ffe5",
+    "./test.js": "a77d7db828e4980e19fab815e51911782dcb2f6bbb36b930bf54f1e481d3a9ab",
+    "index.d.ts": "e808a6dd4033ed3eb390fa339ed701c8fa74233a056304564a42884f8bf88aaf",
+    "index.js": "6b200a6cfe5f2bdf51df5ec2144c54482047e508b9f0b6ec865ad14a04c8ffe5"
+  },
+  "tests": {
+    "./index.d.ts": [],
+    "./index.js": [],
+    "./test.js": [
+      "main",
+      "supports fullwidth characters",
+      "supports unicode surrogate pairs",
+      "doesn\\'t add unnecessary escape codes",
+      "can slice a normal character before a colored character",
+      "can slice a normal character after a colored character",
+      "can slice a string styled with both background and foreground",
+      "can slice a string styled with modifier",
+      "can slice a string with unknown ANSI color",
+      "weird null issue",
+      "support true color escape sequences",
+      "doesn\\'t add extra escapes",
+      "does not lose fullwidth characters",
+      "can create empty slices"
+    ]
+  },
+  "surface": {
+    "index.d.ts": [],
+    "index.js": []
+  }
+}
