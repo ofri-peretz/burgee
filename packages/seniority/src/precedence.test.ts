@@ -1,7 +1,7 @@
 /** commander-env V1–V3, V5, R2, R7 — one case per precedence pair and per upstream issue, on the pure resolver. */
 import { describe, expect, it } from 'vitest';
 
-import { ConfigError, envName, explain, resolve, screaming, type Layers } from './precedence.js';
+import { ConfigError, envName, explain, ORDER, RANK, resolve, screaming, type Layers } from './precedence.js';
 
 const specs = {
   region: { type: 'string' as const, default: 'us-1', description: 'the region' },
@@ -98,5 +98,28 @@ describe('--explain (V3)', () => {
   });
   it('says so for an option that is not declared', () => {
     expect(explain('nope', resolve(specs, base))).toMatch(/not an option/);
+  });
+});
+
+/**
+ * R14: the design's `ORDER` and the shipped `Source` union disagreed, and a plugin must not
+ * register against two spellings. `ORDER` is now the one declaration and `Source` is
+ * `typeof ORDER[number]` widened — so the only way to add a kind is to add it here, and
+ * these assertions are what a reader checks the design's R1 against.
+ */
+describe('ORDER is the declaration, and the union is generated from it (R14)', () => {
+  it('is the shipped five, highest first', () => {
+    expect([...ORDER]).toEqual(['flag', 'env', 'config', 'package', 'default']);
+  });
+  it('ranks them by position, with room between for a plugin source (R13)', () => {
+    expect(ORDER.map((s) => RANK[s])).toEqual([0, 10, 20, 30, 40]);
+  });
+  it('resolves the built-in candidates in exactly that order', () => {
+    const r = resolve(specs, { ...base, env: { APP_REGION: 'env' }, config, pkg });
+    expect((r.candidates['region'] ?? []).map((c) => c.source)).toEqual([...ORDER]);
+  });
+  it('renders a source it has never heard of, so a plugin explains itself (R13)', () => {
+    const r = resolve(specs, { ...base, sources: [{ source: 'vault', location: 'acme://vault/ci', rank: 5, data: { region: 'v' } }] });
+    expect(explain('region', r)).toContain('from vault acme://vault/ci');
   });
 });

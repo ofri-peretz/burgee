@@ -8,7 +8,9 @@ Intent: [`intent.md`](./intent.md). Umbrella:
 ## Requirements
 
 - **R1** `ORDER` is an exported array of source kinds, highest first:
-  `['flag', 'env', 'project', 'home', 'pkg', 'default']`. It is **data**: the resolver
+  `['flag', 'env', 'config', 'package', 'default']` (**reconciled 2026-09-14 — see R14**;
+  this requirement said `['flag','env','project','home','pkg','default']` when it was
+  written, against no code). It is **data**: the resolver
   iterates it, the truth-table page is generated from it, and the conformance test
   enumerates every subset of sources against it. Changing precedence is editing one array.
 - **R2** `resolve(spec, layers) → { values, provenance, explain }` is **pure** over
@@ -54,11 +56,74 @@ Intent: [`intent.md`](./intent.md). Umbrella:
   therefore explains itself in `--explain` without seniority knowing its name. With that
   branch: 0 errors, 28 tests pass. Diff kept at `.sdlc/probes/open-union-widening.patch`.
   Ships at 0.2.0 with the host.
+
+  **Built 2026-09-14.** The measurement held: one `default` branch, no other code change.
+  49 tests pass.
 - **R14** R1's `ORDER` and the shipped `Source` union disagree today — the design says
   `['flag','env','project','home','pkg','default']`, `precedence.ts` says
   `'flag'|'env'|'config'|'package'|'default'`. R13 does not resolve that; whichever wins,
   it is one array and one union that must be generated from the other. Reconciled in
   wave 1.3, before the host lands, so a plugin is not registering against two spellings.
+
+  **Decided 2026-09-14: the shipped five win, and `ORDER` is now the declaration they are
+  generated from.**
+
+  `precedence.ts` exports `ORDER = ['flag','env','config','package','default'] as const`,
+  and the union is `(typeof ORDER)[number]` widened per R13. There is no second place to
+  write a source kind, so the drift cannot recur — which was R14's actual requirement, not
+  "pick the nicer array".
+
+  Three reasons the shipped spelling wins over the design's:
+
+  1. **It is the one users have.** `provenance.source` is a *value*, not an internal name:
+     0.1.0 already prints `package` and `config`, and `--explain` renders them. Renaming
+     them to match a design nobody shipped would break every reader of a provenance record
+     to buy nothing a reader can see.
+  2. **`project` and `home` were never two kinds — they are one kind with two
+     locations.** `config.ts` already discovers in that order (`candidates()` returns
+     `current directory` then `user config directory`) and hands the winner to `resolve`
+     as one `config` layer whose `location` is the **actual file path**. A source kind can
+     only say "home"; `location` says `~/.config/mytool/config.json`. R3 asks for the
+     precise answer, so splitting the kind would make `--explain` less specific, not more.
+  3. **Six kinds would have been an unearned 64-row truth table.** The "2⁶ = 64
+     combinations" line in this design counted a distinction the resolver does not make.
+     Five kinds is the honest arity, and the conformance assertions enumerate what actually
+     exists.
+
+  What the design gives up by deciding this way: nothing in behaviour. What it gains: R1's
+  "changing precedence is editing one array" becomes literally true — `ORDER` is iterated
+  by `candidatesFor`, `RANK` is derived from its positions, and
+  `precedence.test.ts` asserts the resolved candidate order *equals* `ORDER`, so an edit to
+  the array that the resolver does not follow fails the suite.
+
+- **R15 (`plugin-contract` R5a, PLAN 1.3)** `seniority/plugin` hosts **`sources`**: a record
+  of `name → { rank, values | read(runtime), location? }`. **Built 2026-09-14.**
+
+  Three decisions this design records, because each one is a place the host could have been
+  built differently and been wrong:
+
+  - **`rank` slots; it never reorders.** `RANK` gives the five built-ins `0, 10, 20, 30, 40`
+    and a plugin's rank must be an integer *strictly* between `RANK.flag` and
+    `RANK.default` — refused at `register()`, not clamped. A plugin may therefore insert a
+    vault above the config file and below the environment, and may never beat the flag the
+    user typed nor sink under the declared default. That is exactly how far *"the order is
+    not configurable. A precedence a program can rearrange is a precedence nobody can
+    reason about from the outside"* survives being extended. The sort is stable and every
+    built-in is pushed before any plugin source, so a tie a host failed to refuse still
+    loses to the built-in.
+  - **A source may be data (`values`) or a reader (`read`), and exactly one.** R5a names
+    `read(runtime)`; the contract's R7 says every contribution but a `frame` and burgee's
+    hooks is inspectable without being run. Both are honoured by admitting the static form
+    — a constant source is then readable by a `plugin check` — and requiring exactly one,
+    because a source that declares both gives two answers to one question.
+  - **Reading happens in `plugin.ts`, not in `resolve`.** `sources(runtime)` calls each
+    `read` with the caller's own `{ env, cwd }` and returns plain `SourceLayer[]`, which is
+    what `resolve` receives. `resolve` stays pure (R2) and nothing in the package touches
+    `process.*` (R11) — the two properties that make `--explain` worth trusting.
+
+  A `read` returning `undefined` contributes no candidate at all, rather than an empty one:
+  `--explain` must not list a vault that was never reachable as a source that was consulted
+  and lost.
 
 ### Evidence
 
@@ -85,6 +150,8 @@ packages/seniority/src/
   extends.ts      chain resolution, deep merge, cycle rejection               (R7)
   validate.ts     manifest-shaped validation, structurally typed              (R12)
   runtime.ts      the structural Runtime shape, nine lines, no import         (Y9)
+  plugin.ts       the `sources` host — ORDER-ranked, read here not in resolve (R13–R15)
+  schema.json     the family plugin schema, byte-identical       (plugin-contract R2)
   index.ts        default = cosmiconfig's default; named re-exports
   truth-table.test.ts   every subset of sources × ORDER                       (R1)
   weight.test.ts  R9 · shape.test.ts  R8, R11
@@ -113,8 +180,11 @@ why its absence across sixteen packages is a pace finding rather than a capabili
 
 ## Verification
 
-- `npm test -w seniority` — the 64-row truth table, `explain` on the four-source fixture,
-  the bounded walk against a symlink cycle, R9's ceiling, R11's shape lock.
+- `npm test -w seniority` — the truth table over `ORDER` (five kinds, not six: R14),
+  `explain` on the four-source fixture, the bounded walk against a symlink cycle, R9's
+  ceiling, R11's shape lock, and `src/plugin.test.ts` for R13–R15: a registered source wins
+  a value and `--explain` names it, a rank outside `(flag, default)` is refused, and the
+  built-in candidate order still equals `ORDER`.
 - `npm test -w burgee` — the shared vectors, unchanged.
 - `npm run compat -- cosmiconfig lilconfig dotenv rc` — four rows, `--control` first,
   ratcheting.
