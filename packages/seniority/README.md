@@ -266,10 +266,10 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
-| `cosmiconfig` | 3 / 241 |
+| `cosmiconfig` | 186 / 241 |
 | `dotenv` | 0 / 141 |
 
-Weight, installed and tree-inclusive: **53,475 bytes** against **1,555,288** for the incumbents it replaces — a ratio of **0.0344**.
+Weight, installed and tree-inclusive: **151,688 bytes** against **1,555,288** for the incumbents it replaces — a ratio of **0.0975**.
 ## Licence
 
 MIT
