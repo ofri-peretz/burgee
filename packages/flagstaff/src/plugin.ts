@@ -79,7 +79,10 @@ export type PluginErrorCode =
   | 'E_UNKNOWN_SPINNER'
   | 'E_UNKNOWN_BORDER'
   | 'E_NO_CONTRIBUTION'
-  | 'E_COMPONENT_THREW';
+  | 'E_COMPONENT_THREW'
+  // caique's, and it lives here because this union is the vocabulary every host shares (R8).
+  // A caller who learns what `E_UNKNOWN_SPINNER` means has learned `E_UNKNOWN_KIND` too.
+  | 'E_UNKNOWN_KIND';
 
 /** A refused plugin says what is wrong, where, and what to do about it. */
 export class PluginError extends Error {
