@@ -61,7 +61,9 @@ describe('every path', () => {
     });
 
     await registry.run(INTERRUPTED);
-    expect(seen).toEqual([{ code: null, signal: 'SIGINT' }]);
+    // The whole record, not a subset: a handler that has to guess whether it was a signal
+    // or a throw cannot decide whether to keep the temp directory for a bug report.
+    expect(seen).toEqual([{ path: 'signal', code: null, signal: 'SIGINT', error: null }]);
   });
 
   it('passes the exit code on the synchronous path', () => {
@@ -72,7 +74,7 @@ describe('every path', () => {
     });
 
     registry.runSync({ code: 3, signal: null });
-    expect(seen).toEqual([{ code: 3, signal: null }]);
+    expect(seen).toEqual([{ path: 'exit', code: 3, signal: null, error: null }]);
   });
 });
 
@@ -105,7 +107,9 @@ describe("one handler's failure is its own", () => {
     });
     registry.add(after);
 
-    await expect(registry.run(EXITED)).resolves.toBeUndefined();
+    // Resolves rather than rejects, and the report says the shutdown was clean: a handler
+    // that rejected was reported, not escalated into a failed shutdown.
+    await expect(registry.run(EXITED)).resolves.toMatchObject({ timedOut: false, unfinished: [] });
     expect(after).toHaveBeenCalledTimes(1);
     expect(onError).toHaveBeenCalledTimes(1);
   });
@@ -133,7 +137,7 @@ describe('bounded', () => {
     // which runs no handlers at all.
     registry.add(() => new Promise<void>(() => undefined));
 
-    await expect(registry.run(INTERRUPTED)).resolves.toBeUndefined();
+    await expect(registry.run(INTERRUPTED)).resolves.toMatchObject({ timedOut: true });
   });
 
   it('does not wait out the deadline when every handler has settled', async () => {

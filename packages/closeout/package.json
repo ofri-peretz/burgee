@@ -14,6 +14,16 @@
       "default": "./dist/index.js"
     },
     "./schema.json": "./dist/schema.json",
+    "./once": {
+      "types": "./dist/once.d.ts",
+      "import": "./dist/once.js",
+      "default": "./dist/once.js"
+    },
+    "./cursor": {
+      "types": "./dist/cursor.d.ts",
+      "import": "./dist/cursor.js",
+      "default": "./dist/cursor.js"
+    },
     "./plugin": {
       "types": "./dist/plugin.d.ts",
       "import": "./dist/plugin.js",
@@ -36,7 +46,7 @@
     "!dist/**/*.test.*"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && node ../../scripts/schema-to-dist.mjs",
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/schema-to-dist.mjs && node ../../scripts/strip-comments.mjs dist",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
     "coverage": "vitest run --coverage.enabled",

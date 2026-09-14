@@ -18,8 +18,8 @@ npm i closeout
 ## The problem
 
 A program leaves by several doors: returning from `main`, `process.exit`, Ctrl-C, SIGTERM
-from an orchestrator, SIGHUP when the terminal closes. A handler registered on `'exit'`
-alone catches one of them.
+from an orchestrator, SIGHUP when the terminal closes, an uncaught throw, a rejected
+promise nobody awaited. A handler registered on `'exit'` alone catches one of them.
 
 That is why Ctrl-C so often leaves a hidden cursor in your shell, a half-written file, or a
 lock nobody released. Registering on all the doors is easy. Registering on all of them and
@@ -31,14 +31,25 @@ are, and that is what this package is.
 ```js
 import { onExit } from 'closeout';
 
-const off = onExit(({ code, signal }) => {
-  // Runs once. On a normal exit, on Ctrl-C, on SIGTERM, on SIGHUP.
+const off = onExit(({ path, code, signal, error }) => {
+  // Runs once, whichever door the program left by: a normal exit, an emptied event loop,
+  // Ctrl-C, SIGTERM, SIGHUP, SIGQUIT, an uncaught throw, an unhandled rejection.
   releaseTheLock();
 });
 
 // Cleaned up early? Take the handler back out.
 off();
 ```
+
+Your handler is handed one record — `{ path, signal, code, error }` — and the same record is
+what `reportToJson()` and `reportToEvent()` project, so a `--json` line and an agent event
+cannot disagree with what the handler was told.
+
+`path` is `'exit' | 'beforeExit' | 'signal' | 'uncaught' | 'rejection'`. `error` is what was
+thrown or rejected on the two paths that have one, and `null` on the others.
+
+**SIGKILL is not in that list and cannot be.** It is not deliverable to a listener by design.
+Any package that claims it is claiming something no program can do.
 
 ### The cursor, which is the common case
 
@@ -74,8 +85,34 @@ const { onExit } = install({ deadline: 5000 });
 
 A handler that awaits something which never resolves — a socket that will not close, a lock
 nobody releases — turns Ctrl-C into a process the user has to kill **twice**, and the second
-one is SIGKILL, which runs no handlers at all. Abandoning a slow handler is the better
-trade. Default is two seconds.
+one is SIGKILL, which runs no handlers at all. Abandoning a slow handler is the better trade.
+
+**On a breach the process leaves with the code it was already leaving with, and says which
+handler did not come back:**
+
+```text
+closeout: shutdown deadline of 2000ms expired; exiting anyway.
+Handlers that had not returned: acme:unlock, closeTheDatabase
+```
+
+Names come from the function's own `name`, or from a label you give it —
+`onExit(fn, { label: 'flush-the-audit-log' })` — which is worth doing for the arrow
+functions, since an anonymous arrow is exactly the shape that hangs. A plugin's handlers are
+named `"<plugin>:<handler>"` for free.
+
+`Infinity` and `0` are both **refused at registration**, with a `USAGE`-class error that says
+what to pass instead. Both reintroduce the failure the package exists to remove: one waits
+forever, the other gives no asynchronous handler a turn. A caller who genuinely wants either
+wants a different package.
+
+**The default is 2 000 ms, and it is provisional.** Measured 2026-09-14 on darwin arm64 /
+node 24.13, 100 runs of each of the five cleanup shapes this layer sees: flushing a write
+stream p99 67.1 ms, closing a server 1.5 ms, killing a child 1.3 ms, restoring the terminal
+0.2 ms — and removing a temp directory of 100 files p99 17 818 ms, on a machine at load
+average 19–22 across 14 cores (p50 161 ms / p99 2 166 ms when re-run alone). Four shapes
+inside 70 ms, one that is entirely the disk it is queued behind. The number stays 2 000 ms
+and stays labelled provisional rather than being rounded off a p99 with somebody else's I/O
+inside it.
 
 ## Phases, so the order is not an accident
 
@@ -134,6 +171,10 @@ the handler that restores the terminal is usually registered last.
 **Bounded.** Shutdown returns on the handlers or on the clock, whichever comes first — and
 on the handlers when they are all synchronous, not on the clock.
 
+**The exit code is yours.** A handler running after `process.exit(3)` cannot turn it into a 0:
+the code is captured at the trigger, before a single handler runs, and a breached deadline
+exits with that same code rather than one invented by the fact that something hung.
+
 ## Testing it
 
 Everything interesting is in a registry with no process attached:
@@ -153,15 +194,28 @@ a test or for a runner hosting other programs.
 
 | | |
 | :-- | :-- |
-| `onExit(handler, phase?)` | register; returns the unregister function |
+| `onExit(handler, phase \| { phase, label }?)` | register; returns the unregister function |
+| `once(fn)` | run at most once, first result thereafter — `name`, `length` and `this` kept |
 | `hideCursor(stream)` | hide and register the restore (in `restore`); returns the show function |
 | `showCursor(stream)` | show now — idempotent, no-op on a non-TTY |
-| `install(options)` | wire a registry to a process; `{ deadline, onError, process }` |
+| `install(options)` | wire a registry to a process; `{ deadline, onError, onTimeout, process }` |
 | `createRegistry(options)` | the registry alone, with no process |
-| `SIGNALS` | `['SIGINT', 'SIGTERM', 'SIGHUP']` |
+| `reportToJson(report)` / `reportToEvent(report)` | the two projections of the one record |
+| `SIGNALS` | `['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGQUIT', 'SIGBREAK']` |
 | `DEFAULT_DEADLINE` | `2000` |
 | `PHASES` | `['flush', 'release', 'restore']` |
 | `DEFAULT_PHASE` | `'release'` |
+| `EXIT_PATHS` | `['exit', 'beforeExit', 'signal', 'uncaught', 'rejection']` |
+
+`run()` resolves with the shutdown's own record: the four fields above plus `timedOut` and
+`unfinished`, the handlers that had not returned.
+
+And the two leaves, for a program that wants one of them and none of the rest:
+
+| | |
+| :-- | :-- |
+| `closeout/once` | `once(fn)` — 441 B, reaching nothing |
+| `closeout/cursor` | `showCursor`, `hideCursor`, `HIDE_CURSOR`, `SHOW_CURSOR` — 666 B, no registry |
 
 And from `closeout/plugin`:
 
@@ -213,6 +267,14 @@ One thing to know before you swap `exit-hook`: its bound is per hook (`{ wait }`
 façade keeps that bound rather than imposing closeout's own 2 000 ms deadline, because a
 drop-in that silently tightens your timeout is not a drop-in. `onExit()` — closeout's own
 API — is where the bounded shutdown lives.
+
+**Weight, measured rather than claimed.** The whole package is 20,417 B of published
+JavaScript and reaches no other package. `closeout/exit-hook` is 11,841 B of that, against
+`exit-hook@5.1.0`'s 4,458 B in one file — *over*, because the drop-in shares the phase
+ordering, the bounded runner and the report with the rest of the package, and those are the
+product. Startup cost is the half that matches: p50 over 21 spawns, importing
+`closeout/exit-hook` costs **4.5 ms** over a bare `node`, and importing `exit-hook` itself
+costs **4.6 ms**.
 
 **Still to come:** raw mode and alternate-screen restore, and the `signal-exit` path. That
 last one is not written because it cannot yet be *graded*: `signal-exit`'s suite runs under

@@ -119,7 +119,9 @@ describe("a plugin's handler and terminal restore", () => {
     });
     attach(closeout.registry);
 
-    await expect(closeout.registry.run(EXITED)).resolves.toBeUndefined();
+    // The deadline breaches, and the report names the plugin's handler by its contributed
+    // id — the one thing `PluginHandler.name` is required for (design R3, R12).
+    await expect(closeout.registry.run(EXITED)).resolves.toMatchObject({ timedOut: true, unfinished: ['acme:never'] });
 
     // The deadline stops the *waiting*, not the remaining phases. A hung plugin that could
     // strand a hidden cursor would be this package failing at its own stated job.

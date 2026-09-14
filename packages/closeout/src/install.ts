@@ -17,7 +17,7 @@
  */
 import { ambientProcess, type ProcessLike } from './ambient.js';
 import { hideCursor as hide, showCursor as show, type OutputStream } from './cursor.js';
-import { createRegistry, type ExitHandler, type Phase, type Registry, type RegistryOptions } from './registry.js';
+import { createRegistry, type ExitHandler, type HandlerSpec, type Registry, type RegistryOptions } from './registry.js';
 
 /**
  * Resolved once, at import: the process a caller gets when it passes none.
@@ -29,17 +29,28 @@ import { createRegistry, type ExitHandler, type Phase, type Registry, type Regis
 const globalProcess = ambientProcess();
 
 /**
- * The signals a CLI is expected to survive politely.
+ * The signals a CLI is expected to survive politely (design R1).
  *
  * SIGINT is Ctrl-C. SIGTERM is what an orchestrator sends before it loses patience. SIGHUP
  * is the terminal closing out from under you, which is the one people forget and the one
- * that most often strands a lock file.
+ * that most often strands a lock file. SIGQUIT is Ctrl-\\, which a shell sends expecting a
+ * core dump and which otherwise leaves every lock this package exists to release.
+ *
+ * SIGBREAK is Windows' Ctrl-Break and exists nowhere else; listening for it on POSIX costs
+ * one listener that can never fire, which is a better trade than a `platform` read inside
+ * the one package whose whole design is that it does not read the process.
+ *
+ * **SIGKILL is deliberately absent, and cannot be added.** It is not deliverable to a
+ * listener by design; a package that claimed it would be claiming something no program can
+ * do. The README says so in those words rather than leaving a reader to infer a guarantee.
  */
-export const SIGNALS = ['SIGINT', 'SIGTERM', 'SIGHUP'] as const;
+export const SIGNALS = ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGQUIT', 'SIGBREAK'] as const;
 
 /** POSIX: a signal's exit code is 128 plus its number. SIGINT is 2, so 130. */
-const SIGNAL_EXIT_CODE: Record<string, number> = { SIGINT: 130, SIGTERM: 143, SIGHUP: 129 };
+const SIGNAL_EXIT_CODE: Record<string, number> = { SIGINT: 130, SIGTERM: 143, SIGHUP: 129, SIGQUIT: 131, SIGBREAK: 149 };
 const UNKNOWN_SIGNAL_EXIT = 1;
+/** What a program leaves with when it dies of something it threw. Node's own answer. */
+const THROWN_EXIT_CODE = 1;
 
 export interface InstallOptions extends RegistryOptions {
   /** Defaults to the real `process`. */
@@ -47,8 +58,13 @@ export interface InstallOptions extends RegistryOptions {
 }
 
 export interface Closeout {
-  /** Register a handler in a phase (default `release`). Returns the function that unregisters it. */
-  onExit(handler: ExitHandler, phase?: Phase): () => void;
+  /**
+   * Register a handler. Returns the function that unregisters it.
+   *
+   * The second argument is a phase (default `release`), or `{ phase, label }` when the
+   * handler wants a name in the deadline's report that is better than an arrow's empty one.
+   */
+  onExit(handler: ExitHandler, spec?: HandlerSpec): () => void;
   /** Hide the cursor and register its restore; the returned function shows it again. */
   hideCursor(stream: OutputStream): () => void;
   /** Show the cursor now. Idempotent, and a no-op on a non-TTY. */
@@ -56,6 +72,32 @@ export interface Closeout {
   /** The registry, for a caller that wants to drive shutdown itself. */
   readonly registry: Registry;
 }
+
+/**
+ * Run the handlers, then leave — unless the program said it wanted this trigger.
+ *
+ * **Stand down first, then count.** A program that installed its own listener for this
+ * event asked to own it, and a library that ran some cleanup does not get to overrule
+ * that: it may want to finish a request and exit 7, or ignore Ctrl-C entirely. Our own
+ * listener has to come off before the count, or it would always see one and we would
+ * always exit. This is the contract `flagstaff`'s spinner suite pins — a hidden cursor
+ * comes back on SIGINT *and* the program's handler still decides what happens next.
+ *
+ * Re-raising the signal would be more faithful to POSIX, but it re-enters this listener;
+ * exiting explicitly is what a caller who owns `main` actually wants, and `runSync` on
+ * `'exit'` is already idempotent against the second pass.
+ *
+ * **The code is decided before the handlers run, and nothing they do can change it**
+ * (design R10). `code` is captured here, at the trigger, so a handler that takes 200 ms
+ * and sets `process.exitCode = 0` on its way past cannot turn a `process.exit(3)` into a
+ * success. The deadline path leaves by the same line for the same reason: a breach exits
+ * with the code the program was already leaving with, never with a code invented by the
+ * fact that something hung.
+ */
+const leaveAfter = (proc: ProcessLike, event: string, listener: (...args: never[]) => void, code: number): void => {
+  proc.removeListener(event, listener);
+  if (proc.listenerCount(event) === 0) proc.exit(code);
+};
 
 /**
  * Wire a registry to a process.
@@ -84,34 +126,53 @@ export function install(options: InstallOptions = {}): Closeout {
   for (const signal of SIGNALS) {
     const handler = ((): void => {
       /*
-       * Await the handlers, then leave — unless the program said it wanted this signal.
-       *
-       * Re-raising would be more faithful to POSIX, but it re-enters this listener; exiting
-       * explicitly is what a caller who owns `main` actually wants, and `runSync` on
-       * `'exit'` is already idempotent against the second pass.
-       *
-       * **Stand down first, then count.** A program that installed its own handler for this
-       * signal asked to own it, and a library that ran some cleanup does not get to overrule
-       * that: it may want to finish a request and exit 7, or ignore Ctrl-C entirely. Our own
-       * listener has to come off before the count, or it would always see one and we would
-       * always exit. This is the contract `flagstaff`'s spinner suite pins — a hidden cursor
-       * comes back on SIGINT *and* the program's handler still decides what happens next.
-       *
        * Both arms leave. `run` is written not to reject, and if that ever stops being true
        * the process must still exit — a shutdown that hangs because its own error handling
        * threw is the failure this package exists to prevent.
        */
-      const leave = (): void => {
-        proc.removeListener(signal, handler);
-        if (proc.listenerCount(signal) === 0) proc.exit(SIGNAL_EXIT_CODE[signal] ?? UNKNOWN_SIGNAL_EXIT);
-      };
-      registry.run({ code: null, signal }).then(leave, leave);
+      const leave = (): void => leaveAfter(proc, signal, handler, SIGNAL_EXIT_CODE[signal] ?? UNKNOWN_SIGNAL_EXIT);
+      registry.run({ code: null, signal, path: 'signal' }).then(leave, leave);
     }) as (...args: never[]) => void;
     proc.on(signal, handler);
   }
 
+  /*
+   * `'beforeExit'` is the one trigger with time to spare: the loop has emptied but the
+   * process is still alive, so an asynchronous handler genuinely gets to finish. Nothing is
+   * exited here — the program was leaving on its own, and forcing a code would overwrite
+   * whatever it had set (R10). Node re-fires `'beforeExit'` if work was queued; the
+   * run-once state machine makes the second one a no-op without a flag of its own.
+   */
+  proc.on('beforeExit', ((code: number) => {
+    void registry.run({ code, signal: null, path: 'beforeExit' });
+  }) as (...args: never[]) => void);
+
+  /*
+   * A throw and a rejected promise are the two paths where cleanup matters most and where
+   * every incumbent in this layer has nothing: `signal-exit` does not listen for either, so
+   * a CLI that crashes mid-render leaves the cursor hidden.
+   *
+   * The error goes into the report rather than being swallowed — `{ path: 'uncaught', error }`
+   * is what a handler reads to decide whether to keep the temp directory for a bug report —
+   * and then the program leaves the way Node would have: the error on stderr, exit 1. The
+   * listener-count guard is what keeps that from being a hijack: a program with its own
+   * `uncaughtException` handler keeps deciding, and only gets the cleanup for free.
+   */
+  const crash = (event: 'uncaughtException' | 'unhandledRejection', path: 'uncaught' | 'rejection'): void => {
+    const listener = ((error: unknown): void => {
+      const leave = (): void => {
+        if (proc.listenerCount(event) === 1) console.error(error);
+        leaveAfter(proc, event, listener, THROWN_EXIT_CODE);
+      };
+      registry.run({ code: THROWN_EXIT_CODE, signal: null, path, error }).then(leave, leave);
+    }) as (...args: never[]) => void;
+    proc.on(event, listener);
+  };
+  crash('uncaughtException', 'uncaught');
+  crash('unhandledRejection', 'rejection');
+
   return {
-    onExit: (handler, phase) => registry.add(handler, phase),
+    onExit: (handler, spec) => registry.add(handler, spec),
     /*
      * The restore goes in the `restore` phase, not wherever the caller happened to draw.
      *
@@ -120,7 +181,7 @@ export function install(options: InstallOptions = {}): Closeout {
      * early, because a renderer hides the cursor the moment it starts drawing — and every
      * handler registered afterwards ran *after* the terminal had already been handed back.
      */
-    hideCursor: (stream) => hide(stream, (handler) => registry.add(handler, 'restore')),
+    hideCursor: (stream) => hide(stream, (handler) => registry.add(handler, { phase: 'restore', label: 'closeout:restore-cursor' })),
     showCursor: show,
     registry,
   };
@@ -136,8 +197,8 @@ let shared: Closeout | undefined;
 const sharedCloseout = (): Closeout => (shared ??= install());
 
 /** Register a handler that runs exactly once, on every path out of the program. */
-export function onExit(handler: ExitHandler, phase?: Phase): () => void {
-  return sharedCloseout().onExit(handler, phase);
+export function onExit(handler: ExitHandler, spec?: HandlerSpec): () => void {
+  return sharedCloseout().onExit(handler, spec);
 }
 
 /** Hide the cursor and register its restore; the returned function shows it again. */

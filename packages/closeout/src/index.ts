@@ -22,7 +22,9 @@
 
 import { type ProcessLike } from './ambient.js';
 import { HIDE_CURSOR, SHOW_CURSOR, type OutputStream } from './cursor.js';
+import { assertDeadline, DEADLINE_ERROR_CODE, DeadlineError } from './deadline.js';
 import { hideCursor, install, onExit, showCursor, SIGNALS, type Closeout, type InstallOptions } from './install.js';
+import { once } from './once.js';
 import {
   createRegistry,
   DEFAULT_DEADLINE,
@@ -30,10 +32,22 @@ import {
   PHASES,
   type ExitHandler,
   type ExitInfo,
+  type HandlerOptions,
+  type HandlerSpec,
   type Phase,
   type Registry,
   type RegistryOptions,
 } from './registry.js';
+import {
+  EXIT_PATHS,
+  reportToEvent,
+  reportToJson,
+  timeoutMessage,
+  type ExitEvent,
+  type ExitPath,
+  type ExitReport,
+  type ShutdownReport,
+} from './report.js';
 
 /*
  * Imported and re-exported in one statement rather than four `export … from` lines: the
@@ -41,24 +55,38 @@ import {
  * statements are four places for one to be forgotten when a module moves.
  */
 export {
+  assertDeadline,
   createRegistry,
+  DEADLINE_ERROR_CODE,
+  DeadlineError,
   DEFAULT_DEADLINE,
   DEFAULT_PHASE,
+  EXIT_PATHS,
   hideCursor,
   HIDE_CURSOR,
   install,
   onExit,
+  once,
   PHASES,
+  reportToEvent,
+  reportToJson,
   SHOW_CURSOR,
   showCursor,
   SIGNALS,
+  timeoutMessage,
   type Closeout,
+  type ExitEvent,
   type ExitHandler,
   type ExitInfo,
+  type ExitPath,
+  type ExitReport,
+  type HandlerOptions,
+  type HandlerSpec,
   type InstallOptions,
   type OutputStream,
   type Phase,
   type ProcessLike,
   type Registry,
   type RegistryOptions,
+  type ShutdownReport,
 };
