@@ -107,25 +107,116 @@ function requiredPackages(dir: string): Map<string, string> {
   return found;
 }
 
+/**
+ * Packages a vendored suite requires that are **committed beside it**, under
+ * `vendor/<host>/node_modules/`, rather than declared in a manifest.
+ *
+ * Read out of the git index, never off the filesystem, and that is the whole point. The
+ * defect this whole lock exists for is `cli-table` resolving from a stray `~/node_modules`
+ * and scoring 33 / 33 on the author's machine against 15 / 16 on `npm ci`. A directory that
+ * merely *exists* here is that defect again wearing a different hat — someone's local
+ * `npm install` inside `vendor/`. A directory that is **tracked** is not: it arrives with
+ * the clone, before any install runs, on every machine.
+ */
+function committedBeside(): Set<string> {
+  let tracked: string[];
+  try {
+    // Listed whole and filtered here rather than with a `vendor/*/node_modules` pathspec:
+    // git wildmatches a pathspec containing `*` against the *full* path, so that spelling
+    // matches the directory and none of the files under it, and the set comes back empty —
+    // which would read as "nothing is committed beside a suite" rather than as a typo.
+    tracked = execFileSync('git', ['ls-files', '--', 'vendor'], { cwd: root, encoding: 'utf8' })
+      .split('\n')
+      .filter((path) => path.includes('/node_modules/'));
+  } catch {
+    // No usable git: claim nothing. The manifest half of the check still runs, and a host
+    // relying on a committed copy goes red here rather than silently green.
+    return new Set();
+  }
+  // `vendor/<host>/node_modules/<name>/…` and the scoped form one segment deeper. Nested
+  // copies (`…/node_modules/has-ansi/node_modules/ansi-regex`) land here too, on the last
+  // `node_modules` in the path, which is what resolution from that file would find.
+  return new Set(
+    tracked.flatMap((path) => {
+      const after = path.split('/node_modules/').at(-1) ?? '';
+      const parts = after.split('/');
+      const name = after.startsWith('@') ? parts.slice(0, 2).join('/') : (parts[0] ?? '');
+      return name === '' ? [] : [name];
+    }),
+  );
+}
+
+/**
+ * Every package name either manifest declares.
+ *
+ * Two manifests, because either one makes `npm ci` install the package: this package's own,
+ * and the workspace root. The incumbents we grade against live at the root on purpose — one
+ * pin each, so `string-width` cannot be ^8.1.0 here and ^8.2.2 there while the hoist quietly
+ * decides which the suites actually load. That drift is not hypothetical: the control graded
+ * v8's tests against a hoisted v5 and read 140 / 229 (#197).
+ */
+function declaredPackages(): Set<string> {
+  const manifests = [join(root, 'package.json'), join(root, '../..', 'package.json')];
+  return new Set(
+    manifests.flatMap((path) => {
+      const pkg = JSON.parse(readFileSync(path, 'utf8')) as Record<string, Record<string, string>>;
+      return [...Object.keys(pkg['dependencies'] ?? {}), ...Object.keys(pkg['devDependencies'] ?? {}), ...Object.keys(pkg['peerDependencies'] ?? {})];
+    }),
+  );
+}
+
+/** Every `package.json` under a host's committed `node_modules`, nested copies included. */
+function manifestsBeside(host: Host): { name?: string; dependencies?: Record<string, string> }[] {
+  const modules = join(VENDOR, host.name, 'node_modules');
+  if (!existsSync(modules)) return [];
+  return readdirSync(modules, { recursive: true, withFileTypes: true })
+    .filter((at) => at.isFile() && at.name === 'package.json')
+    .map((at) => JSON.parse(readFileSync(join(at.parentPath, at.name), 'utf8')) as { name?: string; dependencies?: Record<string, string> });
+}
+
+/** Dependencies of a committed-beside package that are not themselves committed beside it. */
+function incompleteBeside(beside: Set<string>): string[] {
+  return onDisk.flatMap((host) =>
+    manifestsBeside(host).flatMap((pkg) =>
+      Object.keys(pkg.dependencies ?? {})
+        .filter((dep) => !beside.has(dep))
+        .map((dep) => `${pkg.name ?? '?'} needs ${dep}, which is not committed beside it`),
+    ),
+  );
+}
+
 describe('the oracle installs what its vendored suites require', () => {
-  it('declares every package a vendored suite reaches for by name', () => {
-    // Two manifests, because either one makes `npm ci` install the package: this one, and
-    // the workspace root. The incumbents we grade against live at the root on purpose — one
-    // pin each, so `string-width` cannot be ^8.1.0 here and ^8.2.2 there while the hoist
-    // quietly decides which the suites actually load. That drift is not hypothetical: the
-    // control graded v8's tests against a hoisted v5 and read 140 / 229 (#197).
-    const manifests = [join(root, 'package.json'), join(root, '../..', 'package.json')];
-    const declared = new Set(
-      manifests.flatMap((path) => {
-        const pkg = JSON.parse(readFileSync(path, 'utf8')) as Record<string, Record<string, string>>;
-        return [...Object.keys(pkg['dependencies'] ?? {}), ...Object.keys(pkg['devDependencies'] ?? {}), ...Object.keys(pkg['peerDependencies'] ?? {})];
-      }),
-    );
+  it('declares every package a vendored suite reaches for by name, or commits it beside the suite', () => {
+    // The second way, added 2026-09-14 for wrap-ansi's `has-ansi` and slice-ansi's
+    // `random-item`. Neither is a dependency of this workspace — they are *test* utilities
+    // belonging to somebody else's suite — and declaring them in a manifest would put them
+    // in the lockfile, where they read as ours. Committed under the suite that needs them
+    // they are pinned harder than a range ever pins anything, and they cannot be confused
+    // for a thing this repo depends on.
+    //
+    // This is a wider door than the original and not a weaker one: "declared" only promises
+    // an install *would* fetch it, while "tracked" means the bytes are already here. What
+    // stays refused is the case the lock was written for — a package that resolves on one
+    // machine and nowhere else, which is why `committedBeside` reads the index and not the
+    // disk. Proven 2026-09-14 by un-staging both directories: the row goes red naming them.
+    // See the `.gitignore` in each of those two vendor directories.
+    const declared = declaredPackages();
+    const beside = committedBeside();
     // Resolution is not the test: `cli-table` resolved on the author's machine from a
     // stray `~/node_modules` and the suite scored 33/33, while `npm ci` gave 15/16. What
-    // has to hold is that the package is *declared*, so a clean install has it.
-    const undeclared = [...requiredPackages(VENDOR)].filter(([name]) => !declared.has(name)).map(([name, at]) => `${name} (${at})`);
+    // has to hold is that a clean checkout has the package, by one route or the other.
+    const undeclared = [...requiredPackages(VENDOR)].filter(([name]) => !declared.has(name) && !beside.has(name)).map(([name, at]) => `${name} (${at})`);
     expect(undeclared).toEqual([]);
+  });
+
+  /**
+   * The other half of that door, and the reason opening it is safe: whatever is committed
+   * beside a suite has to be *complete*. `has-ansi` needs `ansi-regex`, and leaving that one
+   * to the hoisted copy would make the row depend on an unrelated package staying in the
+   * root tree — the silent-coupling failure again, one level down.
+   */
+  it('every package committed beside a suite brings its own dependencies', () => {
+    expect(incompleteBeside(committedBeside())).toEqual([]);
   });
 });
 
