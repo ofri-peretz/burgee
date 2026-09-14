@@ -8,6 +8,8 @@
 import { dirname } from 'node:path';
 import { parseArgs } from 'node:util';
 
+import { ConfigError, explain, type Layers, type Provenance, resolve as resolveLayers } from 'seniority';
+
 import { detectAgent } from './agent.js';
 import { ExitCode, isExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
 import { renderHelp } from './help.js';
@@ -15,7 +17,6 @@ import { type ActionRequiredSpec, type ArgumentSpec, type CommandNode, type Effe
 import { serveMcp } from './mcp.js';
 import { camel, kebab } from './names.js';
 import { nearestPackage, type Package } from './pkg.js';
-import { ConfigError, explain, type Layers, type Provenance, resolve as resolveLayers } from './precedence.js';
 import { commandSchemaOf, machineJson, schemaOf, summaryOf } from './schema.js';
 import { checkDefinition, checkRelations, coerce, UsageError } from './validate.js';
 
@@ -288,7 +289,7 @@ function packageLayer(pkg: Package | undefined, name: string | undefined): Layer
  */
 /** The config file and the package.json field, for a program that opted in; loaded lazily (K6). */
 async function configLayers(name: string, values: Values, io: Io): Promise<Pick<Layers, 'config' | 'pkg'>> {
-  const { discover } = await import('./config.js');
+  const { discover } = await import('seniority');
   const explicit = values['config'];
   // Flags are canonical (camelCase) by now: `--no-config` reads as `noConfig`.
   const disabled = values['noConfig'] === true;
