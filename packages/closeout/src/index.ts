@@ -43,8 +43,19 @@ export interface ProcessLike {
   stderr: OutputStream;
 }
 
-/** Node's `process`, seen through the narrow shape above. */
-declare const globalProcess: ProcessLike;
+/**
+ * Node's `process`, seen through the narrow shape above.
+ *
+ * Read off `globalThis` rather than declared, which is what `roundel/chalk.ts` does for the
+ * same reason: `declare const` is a type-level promise with no runtime binding, so it
+ * compiled, type-checked, shipped at 0.1.0, and threw
+ * `ReferenceError: globalProcess is not defined` for anyone calling `onExit()` the way the
+ * README does. Every test injected a process, so none of them could see it.
+ *
+ * `undefined` here is a real state — a runtime with no `process` at all — and `install()`
+ * says so instead of failing with a name nobody wrote.
+ */
+const globalProcess = (globalThis as { process?: ProcessLike }).process;
 
 /**
  * The signals a CLI is expected to survive politely.
@@ -84,6 +95,9 @@ export interface Closeout {
  */
 export function install(options: InstallOptions = {}): Closeout {
   const { process: proc = globalProcess, ...registryOptions } = options;
+  if (proc === undefined) {
+    throw new TypeError('closeout needs a process to listen on, and this runtime has no global `process`. Pass one: install({ process })');
+  }
   const registry = createRegistry(registryOptions);
 
   /*
