@@ -10,6 +10,10 @@
  * and reported "band not computed yet" forever. A band watching nothing looks exactly
  * like a band watching something healthy.
  */
+import { readdirSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { type AxisName } from './record.js';
 
 /**
@@ -47,8 +51,18 @@ const compatBand = (host: string): BandSpec => ({
   from: { variant: host, metric: 'pass-rate' },
 });
 
-/** The six hosts `compat-oracle` grades today. Adding a seventh is an entry here. */
-export const COMPAT_HOSTS = ['commander', 'yargs', 'chalk', 'ora', 'log-update', 'boxen'] as const;
+/**
+ * The hosts `compat-oracle` grades, read from `baseline/` rather than listed.
+ *
+ * It was a hand-written six while the baseline held eight — `cli-table3` and `string-width`
+ * were graded with no band reading them, and nobody noticed, because both sides of the wire
+ * were hand-kept and agreed with each other. Wave 2 adds twelve more from six package lanes
+ * at once. Deriving it means a lane adds a host by adding its baseline fragment.
+ */
+export const COMPAT_HOSTS: readonly string[] = readdirSync(resolve(dirname(fileURLToPath(import.meta.url)), '../packages/compat-oracle/baseline'))
+  .filter((f) => f.endsWith('.json'))
+  .map((f) => f.slice(0, -'.json'.length))
+  .sort();
 
 export const BANDS: readonly BandSpec[] = [
   // B2. The banded number is a ratio, not a millisecond count: absolute cold start is a

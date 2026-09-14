@@ -130,7 +130,7 @@ describe('the oracle installs what its vendored suites require', () => {
 });
 
 describe('an active host is a measured host', () => {
-  const baseline = readBaseline(join(root, 'baseline.json'));
+  const baseline = readBaseline(join(root, 'baseline'));
 
   it.each(active().map((h) => [h.name] as const))('%s has a recorded baseline, so the ratchet is live', (name) => {
     // Without an entry `regressed()` returns false for anything, and `rate()`'s denominator

@@ -31,7 +31,7 @@ interface Step {
   done: () => boolean;
 }
 
-const baselineSize = (): number => Object.keys(json<Record<string, unknown>>('packages/compat-oracle/baseline.json')).length;
+const baselineSize = (): number => readdirSync(join(ROOT, 'packages/compat-oracle/baseline')).filter((f) => f.endsWith('.json')).length;
 
 const schemaHashes = (): Set<string> => {
   const out = new Set<string>();
@@ -87,7 +87,8 @@ const designComplete = (slug: string): boolean => {
   return [...wanted].every((r) => shipped.has(r));
 };
 const pkgJson = (pkg: string): { version: string; description?: string } => json(`packages/${pkg}/package.json`);
-const bands = (): string[] => Object.keys(json<{ bands: Record<string, unknown> }>('.sdlc/bands/control-bands.json').bands);
+/** Band ids, from the runner rather than the config file — the compat ones are derived. */
+const bands = (): string[] => execFileSync('npx', ['tsx', 'scripts/control-bands.ts'], { cwd: ROOT, encoding: 'utf8' }).split('\n').flatMap((l) => [...l.matchAll(/\bcompat-[a-z0-9-]+-pass-rate\b/g)].map((m) => m[0]));
 const citations = (): number => {
   const out = new Set<string>();
   for (const pkg of readdirSync(join(ROOT, 'packages'))) {
@@ -165,7 +166,9 @@ const STEPS: Step[] = [
   { id: 'D5', what: 'both closed unions widened', done: () => has('packages/caique/src/spec.ts', '(string & {})') && has('packages/seniority/src/precedence.ts', '(string & {})') },
   { id: 'D8', what: 'paratext shipped its break alone, at 0.3.0', done: () => pkgJson('paratext').version.startsWith('0.3') || pkgJson('paratext').version >= '0.3.0' },
   { id: 'LANES', what: 'the lane contract exists and is enforced', done: () => existsSync(join(ROOT, '.sdlc/LANES.md')) && existsSync(join(ROOT, 'scripts/lane-boundaries-lock.test.ts')) },
-  { id: 'SHARD', what: 'the shared state is sharded, so lanes do not collide', done: () => existsSync(join(ROOT, 'packages/compat-oracle/baseline')) },
+  // Byte budgets needed no sharding: they already live in each package's own `weight.test.ts`.
+  // `release-budgets.json` holds one cross-package ratio and is integrator-owned by design.
+  { id: 'SHARD', what: 'the shared state is sharded, so lanes do not collide', done: () => existsSync(join(ROOT, 'packages/compat-oracle/baseline')) && !existsSync(join(ROOT, 'packages/compat-oracle/baseline.json')) && !read('.sdlc/bands/control-bands.json').includes('compat-chalk-pass-rate') },
 ];
 
 

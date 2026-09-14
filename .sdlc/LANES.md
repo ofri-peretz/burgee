@@ -19,8 +19,8 @@ and `chalk` (wave 0.4, the red ratchet) is roundel's incumbent, not anyone else'
 | `seniority` | `lane/seniority` | `packages/seniority/**`, `.sdlc/intents/seniority/**` | harness 2.0 |
 | `closeout` | `lane/closeout` | `packages/closeout/**`, `.sdlc/intents/closeout/**` | harness 2.0 |
 | `bellpull` | `lane/bellpull` | `packages/bellpull/**`, `.sdlc/intents/bellpull/**` | harness 2.0 |
-| `output` | `lane/output` | `packages/roundel/**`, `packages/flagstaff/**`, their intents | — (0.4 is urgent) |
-| `engine` | `lane/engine` | `packages/burgee/**`, `.sdlc/intents/commander-*/**`, `.sdlc/intents/yargs-*/**` | — |
+| `output` | `lane/output` | `packages/roundel/**`, `packages/flagstaff/**`, `.sdlc/intents/roundel/**`, `.sdlc/intents/flagstaff/**` | — (0.4 is urgent) |
+| `engine` | `lane/engine` | `packages/burgee/**`, `packages/commander-harness/**`, `packages/yargs-harness/**`, `.sdlc/intents/commander-*/**`, `.sdlc/intents/yargs-*/**` | — |
 | `integrator` | `lane/integrator` | everything else: `.sdlc/PLAN.md`, `.sdlc/intents/README.md`, `.github/**`, root `README.md`, `scripts/*-lock.test.ts`, `.changeset/**` | all lanes |
 
 **Forbidden to every lane but `integrator`:** `package-lock.json`, `.sdlc/intents/README.md`,
@@ -57,7 +57,7 @@ Three kinds, because three kinds exist:
 | 2.15 rc (exit-code mode) | own | harness |
 | 2.16 grade `@inquirer/core`, retarget caique | own | caique |
 | 2.17 one control band per baseline entry | serial | integrator |
-| 2.5.0–2.5.5 burgee's six surfaces | own | engine |
+| 2.5.0-2.5.5 burgee's six surfaces | own | engine |
 | 3.1 paratext R8–R12 | own | paratext |
 | 3.2 seniority to 1.0 | own | seniority |
 | 3.3 closeout to 1.0 | own | closeout |

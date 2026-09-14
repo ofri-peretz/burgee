@@ -86,7 +86,7 @@ export const CLAIMS: readonly ClaimSpec[] = [
   ...COMPAT_TARGETS.map(([host, passing]) => ({
     id: `compat-${host}`,
     claim: `${host}'s own test suite passes ${String(passing)} of ${String(passing)} against our entry point`,
-    source: 'packages/compat-oracle/baseline.json, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx',
+    source: 'packages/compat-oracle/baseline/, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx',
     from: { axis: 'compat' as const, variant: host, metric: 'passing-tests' },
     test: { min: passing },
   })),

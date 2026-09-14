@@ -7,7 +7,7 @@
  * would be graded by our reading of the host's behaviour, which is the thing under test.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -436,8 +436,23 @@ export interface Baseline {
   [host: string]: { reference: number; passed: number; rate: number };
 }
 
+/**
+ * The baseline, from a directory of one file per host — or from a single file, which is
+ * what it used to be.
+ *
+ * One file per host is not tidiness. Wave 2 adds twelve suites from six package lanes
+ * working at once, and one shared dict means six branches editing one object: a merge
+ * conflict on every landing, for entries that have nothing to do with each other. A
+ * directory gives each lane its own file and the merge is textual.
+ */
 export function readBaseline(path: string): Baseline {
-  return existsSync(path) ? (JSON.parse(readFileSync(path, 'utf8')) as Baseline) : {};
+  if (!existsSync(path)) return {};
+  if (!statSync(path).isDirectory()) return JSON.parse(readFileSync(path, 'utf8')) as Baseline;
+  const out: Baseline = {};
+  for (const file of readdirSync(path).filter((f) => f.endsWith('.json')).sort()) {
+    out[file.slice(0, -'.json'.length)] = JSON.parse(readFileSync(join(path, file), 'utf8')) as Baseline[string];
+  }
+  return out;
 }
 
 /** C5 — the rate ratchets. Falling below the recorded baseline fails. */
