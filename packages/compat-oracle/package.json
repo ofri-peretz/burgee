@@ -64,6 +64,11 @@
       "types": "./dist/provenance.d.ts",
       "import": "./dist/provenance.js",
       "default": "./dist/provenance.js"
+    },
+    "./demand": {
+      "types": "./dist/demand.d.ts",
+      "import": "./dist/demand.js",
+      "default": "./dist/demand.js"
     }
   },
   "files": [
