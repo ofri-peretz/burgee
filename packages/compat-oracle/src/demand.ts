@@ -128,7 +128,15 @@ export interface Section {
 export const noSignal = (section: Section): string =>
   `no demand signal (${section.open.length} open, ${section.closed.length} >=${REACTION_FLOOR} closed)`;
 
-const CITATION = /([A-Za-z0-9@/._-]+)#(\d+)/g;
+/**
+ * `<incumbent>#<number>`. The name run is bounded because an unbounded one backtracks
+ * quadratically over a long run with no `#` in it — CodeQL's `js/polynomial-redos`, and it
+ * is right: our own sources are the input, but a lock that walks the tree should not have a
+ * pathological case waiting in a minified fixture. The bound is npm's maximum
+ * package-name length, written into the literal because a pattern assembled at runtime is a
+ * pattern nobody can read at the call site.
+ */
+const CITATION = /([A-Za-z0-9@/._-]{1,214})#(\d+)/g;
 
 /**
  * Every `<incumbent>#<number>` written anywhere in our own sources. That is the form PLAN

@@ -148,3 +148,12 @@ describe('every layer has a measured demand file', () => {
     expect(readFileSync(at, 'utf8')).toContain('no demand signal');
   });
 });
+
+it('finds no citation in a long run of name characters, and finds one quickly after it', () => {
+  // The unbounded form backtracked from every start position in a run like this.
+  const haystack = `${'a'.repeat(200_000)} chalk#656`;
+  const started = Date.now();
+  const found = citations([haystack]);
+  expect(found.has('chalk#656')).toBe(true);
+  expect(Date.now() - started, 'a quadratic scan of 200,000 characters is not milliseconds').toBeLessThan(2_000);
+});
