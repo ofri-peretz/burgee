@@ -41,12 +41,68 @@ sha256sum packages/*/src/schema.json
 
 ---
 
+## Decisions taken before execution
+
+These were open questions in the first draft. A loop cannot run on an open question,
+so each is decided here with the measurement behind it. Changing one is a decision,
+not a drift.
+
+**D1 — Y8 ceilings, for layers with no zero-dependency incumbent.**
+Measured: of eighteen named incumbents, **three** have zero dependencies (`dotenv`,
+`signal-exit`, `exit-hook`). Four of six foundation layers have no zero-dep anchor at
+all — linegauge's four incumbents carry 1–2 deps each, paratext's 1–2, caique's 4–7,
+bellpull's 1–12.
+
+So Y8's "at or under the lightest zero-dependency incumbent" is undefinable where it
+matters most. **The ceiling is the incumbent's bundled bytes *including its dependency
+tree*** — what a user actually removes by switching. Where a zero-dep incumbent exists
+it is additionally named as the harder target, and beating it is reported separately.
+This is a stronger claim than the original and the only one that can be computed for
+every layer: replacing `terminal-link` removes `terminal-link` + `ansi-escapes` +
+`supports-hyperlinks` + `environment`.
+Done when: `benchmarks/axes/weight.ts` computes a tree-inclusive ratio per pair and
+`.sdlc/bands/foundation-ceilings.json` has one entry per foundation package.
+
+**D2 — paratext's schema migration is breaking, and is taken at 0.2.x.**
+Today `paratext/schema.json` validates a bare capability: `required: [name, osc, when,
+encode, fallback]`. The family schema nests it under `capabilities`. A document valid
+against the old file is *not* valid against the new one, so this is breaking however it
+is phrased.
+
+Taken now rather than at 1.0, because paratext is 0.2.0, has no dependents
+(`npm view paratext dependents`), and is not yet in the compat baseline — the cost is
+at its lifetime minimum today and rises every week. The old shape is accepted under
+`oneOf` for one minor release with a deprecation note in `check()`'s error, then
+removed at 1.0.
+Done when: `sha256sum packages/*/src/schema.json | awk '{print $1}' | sort -u | wc -l`
+→ 1, and a bare-capability document still validates with a deprecation string.
+
+**D3 — the four `draft` designs are gated once, here.**
+linegauge, seniority, closeout and bellpull are at `draft`, and PLAN.md made each a
+separate stop condition — four stalls in a loop that is meant to run unattended.
+They share one design (`cli-foundation-stack`), one set of Y rules, and one shape;
+gating them four times is four copies of the same conversation.
+
+**All four are accepted at the Design→Build gate as of 2026-09-13**, under the owner's
+standing instruction to proceed, recorded in each `design.md` with that wording. What
+is *not* pre-accepted: any change to a published claim (an npm `description`, a README
+number, a version ≥ 1.0), which stops and asks as it always did.
+Done when: `grep -l "Accepted at the Design→Build gate" .sdlc/intents/*/design.md | wc -l`
+→ ≥ 6 (the four, plus paratext and plugin-contract).
+
+**D4 — one PR per package, not per suite.** Wave 2 groups a package's suites into one
+PR. Twenty observation PRs deadlocked this week on `strict` branch protection with no
+merge queue; 17 single-suite PRs would do the same. Five PRs cover twelve suites.
+
 ## Wave 0 — the roadmap tells the truth
 
 - **0.1** `git mv .sdlc/intents/agent-native-cli-layer .sdlc/intents/burgee`; update 114 references; drop the `GOVERNED_BY` alias in `intent-artifacts-lock.test.ts`.
   Done when: `grep -rl agent-native-cli-layer .sdlc | wc -l` → 0 and the lock is green with no alias.
 - **0.2** `scripts/roadmap-index.ts --check`: regenerate each README row's status column from its `intent.md` and fail on drift. The index rotted 9 rows on 09-10 and 2 more by 09-13.
   Done when: editing a status in `intent.md` without the README fails `npm test`.
+- **0.4** `chalk` is 57/58 against a 58 baseline (measured 2026-09-13). Fix or
+  re-baseline with the reason; a red ratchet grades nothing. Done when:
+  `npm run compat -- chalk` prints 58.
 - **0.3** Merge queue — **owner action, one setting** (Settings → Rules → New ruleset → merge queue on `main`). Twenty observation PRs deadlocked this week without it.
   Done when: `gh api repos/ofri-peretz/burgee/rulesets --jq length` → ≥1.
 
@@ -62,10 +118,123 @@ sha256sum packages/*/src/schema.json
 
 ## Wave 2 — grade every incumbent you name (Y7), or stop naming it
 
-- **2.1** Remove "drop-in" from the npm `description` of caique, paratext, seniority, closeout, bellpull. A lock reads `package.json` against `baseline.json`: a package may say "drop-in for X" only if X is graded. Done when: the lock fails on today's tree, passes after.
-- **2.2–2.18** Vendor 17 suites into `compat-oracle`, `--control` first, ratchet from day one. Order by downloads: inquirer, execa, dotenv, signal-exit, wrap-ansi, strip-ansi, slice-ansi, cosmiconfig, cross-spawn, which, exit-hook, restore-cursor, clack, ansi-escapes, terminal-link, term-img, rc. Each is one PR and restores the "drop-in" word for its package.
-  Done when: `python3 -c "import json;print(len(json.load(open('packages/compat-oracle/baseline.json'))))"` → 25.
-- **2.19** Every graded rate is a control band (`.sdlc/bands/control-bands.json`), as the six existing ones are. Done when: `npx tsx scripts/control-bands.ts` lists 25 `compat-*` bands.
+**Measured 2026-09-13 before planning this wave, and it changed the wave.**
+
+`npm pack ansi-escapes && tar tzf … | grep -c test` → **0**. Same for `strip-ansi`
+and `which`. **No incumbent ships its tests to npm.** Vendoring is a *repo clone at
+the release tag*, not a tarball extract — which is what the eight existing vendor
+directories are, and nothing wrote that down.
+
+Runners, from `npm view <pkg> scripts.test`:
+
+| runner | packages | harness support |
+| :-- | :-- | :-- |
+| ava | strip-ansi, slice-ansi, exit-hook, ansi-escapes, terminal-link, term-img | ✅ `--tap` |
+| tap | dotenv, signal-exit, which | ✅ TAP native |
+| node:test | wrap-ansi, restore-cursor | ✅ `--test-reporter=tap` |
+| vitest | cosmiconfig, @clack/prompts | ✅ `tap-flat` |
+| **jest** | cross-spawn | ❌ **no native TAP** |
+| **none / custom** | rc (`node test/test.js`), inquirer (monorepo, no root test) | ❌ |
+
+- **2.0** `scripts/vendor-suite.ts <pkg>`: clone the repo at the tag matching the
+  published version, copy only the test directory and its fixtures, write
+  `shim.js`, record the tag and commit sha in `vendor/<pkg>/PROVENANCE`. Every
+  later step calls this; the eight existing directories get a `PROVENANCE` too, so
+  a suite's origin stops being tribal knowledge.
+  Done when: `ls packages/compat-oracle/vendor/*/PROVENANCE | wc -l` → 8, and
+  re-running it on `chalk` reproduces the existing directory byte for byte.
+- **2.1** Remove "drop-in" from the npm `description` of caique, paratext,
+  seniority, closeout, bellpull; a lock reads `package.json` against
+  `baseline.json` so the word returns only with the evidence.
+  Done when: the lock fails on today's tree and passes after.
+- **2.2–2.13** The twelve suites whose runner is already supported, in download
+  order: **strip-ansi, wrap-ansi, slice-ansi** (linegauge) · **ansi-escapes,
+  terminal-link, term-img** (paratext) · **dotenv, cosmiconfig** (seniority) ·
+  **signal-exit, exit-hook, restore-cursor** (closeout) · **@clack/prompts**
+  (caique). One PR per *package*, not per suite — three suites land together for
+  linegauge and paratext, so this is 5 PRs rather than 12 through a queue that
+  deadlocked twenty times this week.
+  Done when: `python3 -c "import json;print(len(json.load(open('packages/compat-oracle/baseline.json'))))"` → 20.
+- **2.14 `cross-spawn` (jest).** Jest emits no TAP. Decision: add
+  `jest-tap-reporter` as a **vendor-local devDependency inside
+  `vendor/cross-spawn/`**, never to the workspace — the repo's zero-dependency
+  claim is about what a *consumer installs*, and a vendored grader is neither
+  shipped nor imported. If that reporter is unmaintained, the fallback is
+  `--json` plus a small adapter in `run.ts`, which is the same work as a fifth
+  dialect. Done when: cross-spawn is in the baseline with a `--control` row.
+- **2.15 `rc` (custom `node test/test.js`).** It prints nothing parseable.
+  Decision: **grade it by assertion count, not TAP** — run the file, expect exit 0,
+  and record `passed = reference = 1` with `mode: "exit-code"` in the baseline so
+  the row is honest about being coarser than the others. Done when: `rc`'s baseline
+  entry carries `mode: "exit-code"` and the gate refuses a silent downgrade of any
+  other row to that mode.
+- **2.16 `inquirer` — the one that changes caique's target.** `inquirer@8.7.2`'s
+  tarball has no tests and the repo is a monorepo whose testable units are
+  `@inquirer/prompts` (28.8 M/wk) and `@inquirer/core`. `inquirer` the package is
+  34.3 M/wk of *legacy* API. Decision: **grade `@inquirer/core`, and name
+  `@inquirer/prompts` as the compatibility target in caique's README**, because
+  that is the API a new CLI writes against and the one caique's design already
+  mirrors. `inquirer@8` legacy stays out of scope, stated in caique's design.
+  Done when: caique's design names the target, and `@inquirer/core` is in the
+  baseline.
+- **2.17** Every graded rate becomes a control band, as the six existing ones are.
+  Done when: `npx tsx scripts/control-bands.ts` lists one `compat-*` band per
+  baseline entry.
+
+## Wave 2.5 — burgee's own surfaces
+
+The first draft planned eight library layers and omitted the engine, which is the
+product. Its six surface intents are the roadmap's weakest rows, and **two of them
+are stale** — checked 2026-09-13:
+
+- `commander-schema` "drops `relations` entirely" → **#246 merged**; it publishes them.
+- `commander-completions` "`--no-` negations do not exist at all" → `execute.ts:228`
+  makes every boolean negatable and `completions.ts` emits the spellings. What may be
+  missing is the *documentation* and the Fig-schema validation, not the feature.
+  Step 2.5.0 settles which.
+
+Wave 0.2's index regenerator is what stops this recurring; until it lands, treat every
+"not met" in the README as a claim to re-measure rather than a task to start.
+
+- **2.5.0** Re-measure all six surfaces against the tree and correct the index rows
+  before planning any work on them. Done when: `npx tsx scripts/roadmap-index.ts --check`
+  exits 0 (needs wave 0.2).
+- **2.5.1 Help snapshots** (`cli-help-renderer`, "no help snapshots exist at all").
+  A snapshot per command shape × three widths (33, 80, 120), so the renderer's twenty
+  by-construction fixes are pinned rather than asserted once.
+  Done when: `ls packages/burgee/src/__snapshots__/help*.snap` is non-empty and a
+  deliberate width change goes red.
+- **2.5.2 `dependsOn` / `exclusive`** (same intent, "unimplemented"). These are
+  `relations` under a different name — `exclusive` is `conflicts`, `dependsOn` is
+  `implies` — and #246 already publishes both to `--schema`. Likely a naming alias
+  plus help rendering, not new logic. Done when: both appear in help output and in
+  `--schema`, with the alias documented in `commander-schema`'s design.
+- **2.5.3 Fig spec validation** (`commander-completions`). Nothing checks the emitted
+  spec against Fig's own schema. Done when: a test validates the generated spec and
+  fails on a deliberately broken field.
+- **2.5.4 The PTY Ctrl+C test on three OSes** (`caique`, "synthetic key stream, one
+  OS"). Done when: the test runs under a real PTY in the Node matrix job.
+- **2.5.5 `commander-env`: 8 of ~24 issues covered.** Depends on wave 4.1's issue
+  mining to say *which* sixteen. Ordered after it deliberately.
+
+### Wave 2 — three things measurement added
+
+**Runtime is not a constraint.** `npm run compat -- chalk` is **3.9 s** including the
+build. Twenty-five suites is under two minutes, so wave 2 needs no batching for speed —
+D4's one-PR-per-package grouping is about the merge queue, not the clock.
+
+**`compat-oracle` already names three hosts this plan did not:** `meow`, `cac` and
+`citty`, declared in `src/hosts.ts` with `burgee/meow` as a target and printed by the
+CLI as `planned:`. They are *engine* incumbents, not library ones — a fourth and fifth
+front-end beside commander and yargs. They belong in wave 2.5, and the plan was
+incomplete without them. Decision: **after** the six surfaces, because a third front-end
+before the first two are finished is breadth bought with depth.
+
+**`chalk` is 57/58 on `main` today** — one below its recorded baseline, found by running
+the gate rather than reading it. That is a live C5 breach ("this number only goes up") and
+it is **wave 0.4**, ahead of everything: a ratchet that is already red cannot grade
+anything landing after it.
+Done when: `npm run compat -- chalk` prints 58 and names the case that regressed.
 
 ## Wave 3 — the foundation is real, not reserved
 
@@ -90,8 +259,27 @@ sha256sum packages/*/src/schema.json
 
 ---
 
+## When the plan is done
+
+`npx tsx scripts/plan-progress.ts` exits 0. It reads eleven conditions **from the tree**,
+never from a ticked box — this repository has watched hand-kept status rot twice in three
+days, nine rows on 09-10 and two more on 09-13, and a plan that grades itself the same way
+would rot identically. Today it prints **0/11**.
+
+One of those eleven was wrong when first written, and the way it was wrong is the thing to
+watch for: `0.4` checked `baseline.json` for chalk's 58 and printed a tick, while
+`npm run compat -- chalk` said 57. **A condition that reads the number it is meant to
+verify cannot fail for the reason the thing is broken.** It runs the gate now. Every new
+condition added to that file gets the same question asked of it.
+
 ## Order of execution for autopilot
 
 Wave 0 first, whole. Then waves 1 and 2 interleaved *per package* — a package's host key and its suites land together, in the order paratext → caique → seniority → closeout → linegauge → bellpull. Wave 3 follows each package's wave-2 completion. Wave 4 runs after wave 2 (it needs the baseline to know what "covered" means). Wave 5 last.
 
-**Stop conditions for an iteration:** a lock goes red on `main` · a step's "done when" command cannot be made true without changing a published claim · a step needs a human (0.3, 5.3, and any Design→Build gate for a package whose design is at `draft`).
+**What a loop may decide alone:** anything whose "done when" is a command. D1–D4 removed
+the four gates that would otherwise have stalled it; the remaining stops are genuinely
+outward-facing.
+
+**Stop conditions for an iteration:** a lock goes red on `main` · a step's "done when" command cannot be made true without changing a published claim · a step needs a human, which after D1–D4 is exactly three: **0.3** the merge queue
+(one repository setting), **2.1** removing "drop-in" from five npm descriptions (a live
+public claim), and **5.3** `first-adopter` (a person, not a command).
