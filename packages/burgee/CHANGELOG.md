@@ -1,5 +1,20 @@
 # burgee
 
+## 0.6.0
+
+### Minor Changes
+
+- [#265](https://github.com/ofri-peretz/burgee/pull/265) [`0750ebc`](https://github.com/ofri-peretz/burgee/commit/0750ebcf2a66c0254a8f9ae52c83d3d50a37b67a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - **♻️ Refactor** — precedence and config discovery come from `seniority` rather than a second copy
+
+  burgee carried its own `precedence.ts` and `config.ts`; `config.ts` was byte-identical to
+  seniority's and `precedence.ts` differed by nineteen lines. Two copies of a precedence order
+  is two answers to "where did this value come from", and `--explain` is only worth anything
+  if the thing that picked the value is the thing that reports it.
+
+  The public surface is unchanged — `resolve`, `explain`, `envName`, `screaming`,
+  `ConfigError` and their types are still exported from `burgee`, now re-exported from
+  `seniority@^0.1.0`, which is a new runtime dependency.
+
 ## 0.5.0
 
 ### Minor Changes
