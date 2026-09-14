@@ -108,6 +108,33 @@ function statusDrift(slug: string, readme: string): string[] {
   return drift;
 }
 
+/**
+ * A package whose intent predates the one-directory-per-package convention names where it
+ * lives. `burgee` is governed by `agent-native-cli-layer` and the six surface intents it
+ * spawned; forcing a `burgee/` directory would be a redirect, not a record. (`.sdlc/PLAN.md`
+ * step 0.1 renames that slug to `burgee` and this entry goes with it.)
+ */
+const GOVERNED_BY: Record<string, string> = { burgee: 'agent-native-cli-layer' };
+
+/** Published packages with no `intent.md` or no `design.md`, as `<pkg>/<file>` strings. */
+function missingArtifacts(): string[] {
+  const packages = join(REPO_ROOT, 'packages');
+  const missing: string[] = [];
+  for (const dir of readdirSync(packages, { withFileTypes: true })) {
+    if (!dir.isDirectory()) continue;
+    const manifestPath = join(packages, dir.name, 'package.json');
+    if (!existsSync(manifestPath)) continue;
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as { private?: boolean; version?: string };
+    // A reserved name is a public promise too, so `bellpull` at 0.0.1 counts.
+    if (manifest.private === true || manifest.version === undefined) continue;
+    const slug = GOVERNED_BY[dir.name] ?? dir.name;
+    for (const artifact of ['intent.md', 'design.md']) {
+      if (!existsSync(join(INTENT_DIR, slug, artifact))) missing.push(`${dir.name}/${artifact}`);
+    }
+  }
+  return missing;
+}
+
 describe('intent artifacts', () => {
   it('ships the templates the flow and the control-band watcher both write from', () => {
     for (const f of ['README.md', '_template/intent.md', '_template/design.md']) {
@@ -139,6 +166,21 @@ describe('intent artifacts', () => {
   });
 
   const found = slugs();
+
+  /**
+   * The rule the others could not express: every published package has an intent AND a
+   * design. The checks below all start from `.sdlc/intents/` and ask whether what is there
+   * is well-formed, so a package with no intent at all passed every one of them — which is
+   * how `paratext` reached npm at 0.2.0 with 40 tests and no Stage 1 or Stage 2 artifact,
+   * exactly as `brand-burgee` had before it. "Built ahead of its gate" is not a state this
+   * lock should be able to describe twice.
+   *
+   * Published means it has a version and is not `private`; the name reservations
+   * (`bellpull` at 0.0.1) count, because a reserved name is a public promise too.
+   */
+  it('every published package has an intent and a design', () => {
+    expect(missingArtifacts(), 'a package on npm with no intent is a promise nobody wrote down — see paratext, 2026-09-13').toEqual([]);
+  });
 
   it('the repo has at least one intent to check', () => {
     expect(found.length).toBeGreaterThan(0);
