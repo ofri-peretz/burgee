@@ -1065,3 +1065,17 @@ Prerequisites only the owner can supply. **Re-checked 2026-09-09:**
 
 A person, or a control-band breach (intent 1 wires the watcher). Every intent here was
 opened from the umbrella design and the 329-issue research in `.sdlc/research/`.
+
+### Opened by the watcher, awaiting a human
+
+These are Stage 1 artifacts `scripts/control-bands.ts` wrote by itself when a band breached.
+Stage 6 detected the drift; what it means is a person's call, which is why they sit at
+`draft` with the watcher as owner rather than being folded into a layer's intent.
+
+They are listed here because the watcher does not list them, and for two days nothing
+noticed — `roadmap-index-lock.test.ts` is what now refuses an intent the index never names.
+
+| # | intent | band | opened |
+| :-- | :-- | :-- | :-- |
+| — | [`control-band-core-bundled-bytes/`](./control-band-core-bundled-bytes/) | B4 — bytes a user's bundle grows by for `import 'burgee'` | 2026-09-14 · draft |
+| — | [`control-band-commander-front-end-bundled-bytes/`](./control-band-commander-front-end-bundled-bytes/) | B4 — the same, for the commander front end | 2026-09-14 · draft |
