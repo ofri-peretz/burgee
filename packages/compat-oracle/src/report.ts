@@ -10,7 +10,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { active, type Host, HOSTS } from './hosts.js';
-import { type Baseline, type Grade, grade, readBaseline, regressed } from './run.js';
+import { type Baseline, controlName, type Grade, grade, readBaseline, regressed } from './run.js';
 import { diffRecords, isEmptyDiff, latestVersion, readRecord, renderDiff } from './upstream.js';
 import { vendor } from './vendor.js';
 import { check as checkCompetitors, fingerprint as writeFingerprints } from './watch.js';
@@ -90,7 +90,7 @@ function checkUpstream(host: Host, write: Write): Update | undefined {
     write(`  ${host.name.padEnd(HOST_COL)} not vendored\n`);
     return undefined;
   }
-  const latest = latestVersion(host.name);
+  const latest = latestVersion(host.npmName ?? host.name);
   if (latest === record.version) {
     write(`  ${host.name.padEnd(HOST_COL)} ${record.version} — up to date\n`);
     return undefined;
@@ -274,8 +274,10 @@ export async function main(argv: string[], write: Write): Promise<number> {
   // works before it grades anything of ours (rule 4). --target= overrides all hosts.
   const control = argv.includes('--control');
   const target = (argv.find((a) => a.startsWith('--target='))?.split('=')[1] ?? '').trim();
-  const targetFor = (host: { name: string; target: string }): string => {
-    if (control) return host.name;
+  const targetFor = (host: Host): string => {
+    // The incumbent's *npm* name, which is the host's key for all but the scoped ones —
+    // `clack` names no package and `@clack/prompts` names no directory.
+    if (control) return controlName(host);
     return target === '' ? host.target : target;
   };
   // Hosts named bare on the command line (`compat chalk --control`) select a subset;

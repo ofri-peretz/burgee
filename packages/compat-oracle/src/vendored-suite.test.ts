@@ -73,10 +73,19 @@ describe('every vendored test file is graded or named', () => {
   );
 });
 
+/**
+ * A path a run writes under a host's *sub-package* directory: the vendored root for every
+ * single-package host, `packages/prompts` for clack. Reading these off `host.name` alone
+ * would check paths no run writes and leave the ones it does write unchecked.
+ */
+const at = (host: Host, rel: string): string => [`vendor/${host.name}`, host.packageDir ?? '', rel].filter((p) => p !== '').join('/');
+
 /** `require('x')`, `import … from 'x'`, `import 'x'` — never the word "from" inside a test title. */
 const SPECIFIERS = [/\brequire\(\s*['"]([^'"]+)['"]\s*\)/g, /^\s*(?:import|export)\b[^;\n]*?\bfrom\s*['"]([^'"]+)['"]/gm, /^\s*import\s*['"]([^'"]+)['"]/gm];
 const SOURCE = /\.(m?js|cjs|ts)$/;
 const BUILTIN = new Set(builtinModules);
+/** First line of every file `run.ts` writes into `vendor/`, shim and config alike. */
+const GENERATED_HEADER = '// generated per run';
 const GENERATED = new Set([...HOSTS.flatMap((h) => h.imports.map((_, i) => [shimName(i, 'module'), shimName(i, 'commonjs')]).flat()), 'vitest.setup.mjs', 'vitest.config.mjs']);
 
 /** The package a specifier belongs to: `@colors/colors/safe` → `@colors/colors`. */
@@ -100,7 +109,13 @@ function requiredPackages(dir: string): Map<string, string> {
     .map((e) => join(e.parentPath, e.name))
     .filter((at) => !at.includes('node_modules'));
   for (const at of files) {
-    for (const name of packagesIn(readFileSync(at, 'utf8'))) {
+    const source = readFileSync(at, 'utf8');
+    // An internal shim is written at whatever path the host files its own modules, so it
+    // cannot be recognised by name the way `shim.js` and `vitest.config.mjs` are. Its body
+    // names the *target* of the run — `caique`, `roundel/chalk` — and reading that as a
+    // package the suite requires would ask this workspace to declare its own packages.
+    if (source.startsWith(GENERATED_HEADER)) continue;
+    for (const name of packagesIn(source)) {
       if (!found.has(name)) found.set(name, at.slice(root.length + 1));
     }
   }
@@ -254,7 +269,14 @@ describe('the oracle installs what its vendored suites require', () => {
     // cli-table3's test files, as an optional dependency of cli-table3 itself, one release
     // from vanishing. There the day it vanished would have arrived as a file that failed to
     // load and a rate that quietly dropped. Here it arrives as this.
+    // Scoped to `vendorDeps`, which is the half that relies on the hoist. `suiteDeps` is a
+    // different bargain: the vendor step *installs* those into `vendor/<host>/node_modules`
+    // at exact pins, so they are absent from a fresh checkout by design and requiring them to
+    // resolve here would fail on the one case the field exists for — a monorepo suite
+    // importing its own siblings.
+    const hoisted = new Set(HOSTS.flatMap((h) => Object.keys(h.vendorDeps ?? {})));
     const unresolvable = [...vendorDeclared()]
+      .filter(([name]) => hoisted.has(name))
       .filter(([name, host]) => {
         try {
           createRequire(join(VENDOR, host, 'package.json')).resolve(name);
@@ -293,12 +315,16 @@ function ignoreGlobs(line: string): string[] {
 
 describe('the generated files really are gitignored', () => {
   /** Every path a run writes into `vendor/`, as `run.ts` writes them, posix. */
+  // The vitest config, its setup file and the internal shims are written at the
+  // *sub-package's* directory, which is the vendored root for every single-package host
+  // and `packages/prompts` for clack. Reading them off `host.name` alone would check paths
+  // no run writes, and leave the ones it does write unchecked.
   const generated = onDisk.flatMap((host) => [
     ...host.imports.map((_, i) => `vendor/${host.name}/${shimName(i, 'module')}`),
     ...host.imports.map((_, i) => `vendor/${host.name}/${shimName(i, 'commonjs')}`),
-    `vendor/${host.name}/vitest.setup.mjs`,
-    `vendor/${host.name}/vitest.config.mjs`,
-    ...(readInternals(host) ?? []).map((rel) => `vendor/${host.name}/${rel.split(sep).join('/')}`),
+    at(host, 'vitest.setup.mjs'),
+    at(host, 'vitest.config.mjs'),
+    ...(readInternals(host) ?? []).map((rel) => at(host, rel.split(sep).join('/'))),
   ]);
 
   const rules = readFileSync(join(root, '.gitignore'), 'utf8')

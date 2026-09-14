@@ -23,3 +23,15 @@ results.json
 results.control.json
 upstream.json
 vendor-diff.md
+# A monorepo suite's own dependencies — `suiteDeps` in hosts.ts, installed into the
+# vendored directory on the first grade and never into this workspace's manifest or
+# lockfile. `@inquirer/testing`, `@clack/core`, and the incumbent itself for the control.
+vendor/*/node_modules/
+vendor/*/package-lock.json
+# clack's internal shims: its tests sit in `packages/prompts/test/`, so `../src/common.js`
+# is written under the sub-package, not at the vendored root like every host before it.
+vendor/*/packages/prompts/src/
+# The same two generated files for a monorepo host, where vitest's root is the
+# sub-package's own directory rather than the vendored root.
+vendor/*/packages/*/vitest.config.mjs
+vendor/*/packages/*/vitest.setup.mjs

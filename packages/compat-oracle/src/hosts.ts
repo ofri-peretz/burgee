@@ -63,12 +63,38 @@ export interface ControlAllowance {
 }
 
 export interface Host {
-  /** npm package we are compatible with. */
+  /**
+   * The host's key here: its vendor directory, its baseline fragment, and the word a
+   * reader types on the command line. Usually the npm package's own name — but a scoped
+   * package cannot be either of the first two, because `@clack/prompts` names a directory
+   * two deep and a baseline file with a slash in it. Those hosts carry a flat key and
+   * declare `npmName`.
+   */
   name: string;
+  /**
+   * The package on npm, when it is not `name`: `@clack/prompts`, `@inquirer/core`. It is
+   * what the release lookup asks about and what the control resolves, so a host whose key
+   * is flattened still grades against the real thing rather than against whatever
+   * unrelated package happens to own the flat name.
+   */
+  npmName?: string;
   /** Where its suite comes from, recorded so the vendor step is reproducible. */
   repo: string;
   /** Directory inside the repo holding the tests. */
   testDir: string;
+  /**
+   * The sub-package's own directory inside a monorepo, relative to the repo root — the
+   * directory the suite's relative paths are written against. Empty for a host whose repo
+   * *is* the package, which is every host here until clack and inquirer.
+   *
+   * It exists because a monorepo breaks one specific thing: the generated internal shims.
+   * They are written at the exact path the test reaches for, and a test in
+   * `packages/prompts/test/` writing `../src/common.js` means
+   * `packages/prompts/src/common.js`, not `src/common.js` at the vendored root. Anchoring
+   * them at the root writes a file nothing imports and leaves the real specifier
+   * unresolved, which reads as a compatibility failure and is a path bug.
+   */
+  packageDir?: string;
   /**
    * Glob of test files within it, matched against the file name with `path.matchesGlob`.
    * Both the vendor step and the runner apply it: ora's suite lives at the repo root
@@ -134,6 +160,32 @@ export interface Host {
    * cli-table3's test files as a hoisted optional dependency of cli-table3 itself.
    */
   vendorDeps?: Record<string, string>;
+  /**
+   * What the vendored suite needs installed to run, pinned — and installed **into
+   * `vendor/<name>/node_modules`**, never into this workspace's manifest or lockfile.
+   *
+   * The incumbents graded before this one were single-package repos whose suites needed
+   * nothing the workspace did not already have, so their test dependencies went to the
+   * root manifest. A monorepo's suite reaches for its own siblings by name
+   * (`@clack/core`, `@inquirer/testing`) and for the incumbent itself in the control run,
+   * and putting those at the root would mean a workspace dependency per incumbent — the
+   * thing PRINCIPLES.md forbids — plus a lockfile edit on every lane that adds a suite.
+   * A manifest beside the tests keeps the suite's needs where the suite is.
+   *
+   * Written as `name@version` specs, exactly pinned. Exactly, because the suite is graded
+   * against one release and a caret silently regrades it: `vitest-ansi-serializer` at
+   * `^0.1.2` resolves to 0.3.1, whose rendering differs from the committed snapshots, and
+   * clack's control read 40 / 606 on 0.3.1 against 576 / 606 on 0.1.2 — same suite, same
+   * afternoon, one caret.
+   */
+  suiteDeps?: string[];
+  /**
+   * Settings from the host's own vitest config that its suite depends on, merged into the
+   * generated one. Upstream's config is not vendored — it sits beside the package, not
+   * beside the tests, and the runner writes its own so the file list is the graded one —
+   * so anything in it the assertions rely on has to be named here.
+   */
+  vitestConfig?: Record<string, unknown>;
   /**
    * How its suite is executed. `vitest` is what a jest suite runs under, since jest's
    * globals are vitest's and vitest is already here. `exit-code` is not a TAP dialect at
@@ -497,28 +549,81 @@ export const HOSTS: Host[] = [
     note: "Vendored 2026-09-14 at 17.4.2 and NOT activated: its suite is node-tap, and `run.ts`'s `command()` has no `tap` arm — see the `runner` field's own comment for what the arm is and for the measurement that rules `node --test` out. Its suite also reaches for `tap`, `sinon` and `decache`, which the oracle does not declare; like cosmiconfig's, that declaration is the harness lane's file. Target `seniority/dotenv` is R8's compatibility subpath and is not built yet, so the target run is an honest 0 the moment the control can run at all.",
   },
   {
+    // The first monorepo host. Its key is flat because `@clack/prompts` cannot be a
+    // directory name or a baseline filename; `npmName` carries the real one.
     name: 'clack',
+    npmName: '@clack/prompts',
     repo: 'https://github.com/bombshell-dev/clack',
+    tagPrefix: '@clack/prompts@',
     testDir: 'packages/prompts/test',
+    packageDir: 'packages/prompts',
     testGlob: '*.test.ts',
+    internalDir: 'src',
     imports: [{ upstream: '../src/index.js', subpath: '', reexportDefault: false }],
     surfaceFiles: ['packages/prompts/src/index.ts'],
+    suiteDeps: [
+      // The incumbent itself, for the control, at the release the suite comes from.
+      '@clack/prompts@1.8.1',
+      // Its sibling in the same repo, imported by name from the test files.
+      '@clack/core@1.5.1',
+      // `memfs` backs the `__mocks__/fs.cjs` the path prompt's tests install, and
+      // `vitest-ansi-serializer` is the snapshot serializer upstream's own vitest config
+      // declares: without it every `toMatchSnapshot` compares raw escapes against a
+      // committed rendering and the whole suite is red for a reason that is not clack's.
+      'memfs@4.78.0',
+      'vitest-ansi-serializer@0.1.2',
+    ],
+    // Upstream's own vitest config sets it, and the drawings are the suite: without colour
+    // every snapshot differs from the committed one.
+    env: { FORCE_COLOR: '1' },
+    vitestConfig: { snapshotSerializers: ['vitest-ansi-serializer'] },
+    // `path.test.ts` calls `vi.mock('node:fs')` with no factory, which vitest answers from
+    // a `__mocks__` directory beside the project root — upstream's `packages/prompts`, not
+    // its test dir, so the copy step never saw it. Without it those 30 cases run against
+    // the real filesystem and every one of them fails against clack itself.
+    extraDirs: ['packages/prompts/__mocks__'],
+    controlFailures: {
+      count: 30,
+      why: "`path.test.ts`'s 30 cases, which fail against clack's own published package here and pass upstream. The suite mocks `node:fs` with `vi.mock('node:fs')` and no factory, answered by upstream's `__mocks__/fs.cjs` — vendored beside the root by `extraDirs`, and still never loaded: measured 2026-09-14 by putting a `console.error` in that file and watching it not print under vitest 5.0.0, which upstream's vitest 3.2.4 does load. A `test.alias` for `node:fs` was tried and is no better. So those 30 read the real filesystem, list the real `/tmp`, and diff against a memfs snapshot. It is a runner-version divergence in the harness, not a fact about clack or about caique, and it is named here rather than hidden so the other 576 are a number and not a rounding.",
+    },
     runner: 'vitest',
-    target: 'caique/clack',
-    status: 'planned',
-    note: 'Measured 2026-09-08 at 1.8.0: 289 of its 444 assertions are `toMatchSnapshot()`, in 17 of its 19 files — the suite grades clack’s exact drawing. A façade that matched those frame for frame would be clack, and caique’s design rejects wrapping clack precisely because it "has no static projection to give" (U3). What is left when the drawings are removed is limit-options (14) and guide (3). Blocked on the decision in output-stack-compat: gate the behaviour and report the drawings as documented divergence, or drop the row and publish why.',
+    target: 'caique',
+    status: 'active',
+    note: "Measured 2026-09-08 at 1.8.0: 289 of its 444 assertions are `toMatchSnapshot()`, in 17 of its 19 files — the suite grades clack's exact drawing. A façade that matched those frame for frame would be clack, and caique's design rejects wrapping clack precisely because it \"has no static projection to give\" (U3). What is left when the drawings are removed is limit-options (14) and guide (3). Still `planned` after the 2026-09-14 vendoring run: see the control number recorded in `.sdlc/intents/caique/design.md`. The row names `caique` — the package root that exists — and not a `caique/clack` façade that does not, because naming an unbuilt façade publishes \"target not built yet\" where a measured number belongs (the lesson cli-table3's note records).",
   },
   {
-    name: 'inquirer',
+    // 2.16: the testable unit of the inquirer monorepo, and the decision that came with it.
+    //
+    // `inquirer` the package is 34.3M/wk of the *legacy* API and its tarball ships no
+    // tests at all, so there is nothing there to grade. The repo's testable units are
+    // `@inquirer/core` — one file, `packages/core/core.test.ts`, 41 cases, and the only
+    // one that grades the prompt *loop* rather than a drawing — and `@inquirer/prompts`,
+    // 28.8M/wk, which is the API a new CLI writes against and the one caique's design
+    // mirrors. So: grade core, and name `@inquirer/prompts` as the compatibility target in
+    // caique's README. `inquirer@8` legacy is out of scope, and caique's design says so.
+    name: 'inquirer-core',
+    npmName: '@inquirer/core',
     repo: 'https://github.com/SBoudrias/Inquirer.js',
-    testDir: 'packages',
-    testGlob: '*.test.ts',
-    imports: [{ upstream: '../src/index.js', subpath: '', reexportDefault: false }],
-    surfaceFiles: ['packages/inquirer/src/index.ts'],
+    tagPrefix: '@inquirer/core@',
+    testDir: 'packages/core',
+    packageDir: 'packages/core',
+    // The suite is one file beside the implementation, like ora's and string-width's, so
+    // the glob names the file rather than a directory.
+    testGlob: 'core.test.ts',
+    internalDir: 'src',
+    imports: [{ upstream: './src/index.ts', subpath: '', reexportDefault: false }],
+    surfaceFiles: ['packages/core/src/index.ts'],
+    suiteDeps: [
+      '@inquirer/core@12.0.3',
+      '@inquirer/ansi@2.0.8',
+      // The harness the suite renders through: a headless xterm that asserts the screen,
+      // not the bytes. Same shape as log-update's `terminal.js`.
+      '@inquirer/testing@3.3.13',
+    ],
     runner: 'vitest',
-    target: 'caique/inquirer',
-    status: 'planned',
-    note: 'The same shape as clack, measured the same day: 604 of 1,028 assertions are `toMatchInlineSnapshot()`, across 25 files of 400 tests. Behaviour-only files are inquirer.test.ts (57, mostly the legacy façade’s plumbing), prompts (2) and type (3). Its suites are also spread across a workspace rather than one test dir, which the vendor step assumes; that is work, but it is not the blocker. Blocked on the same decision.',
+    target: 'caique',
+    status: 'active',
+    note: 'Vendored and controlled 2026-09-14. The row names `caique`, the package root that exists today, so the number is measured rather than "target not built yet".',
   },
   {
     name: 'meow',
