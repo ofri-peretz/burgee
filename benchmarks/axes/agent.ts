@@ -179,10 +179,19 @@ export function runOne(opts: RunOne): Attempt {
  * `run()`. Defaults are the real environment, so nothing about production behaviour
  * changes.
  */
+/** Present and non-blank. An unset GitHub secret arrives as `''`, not as absent. */
+const hasCredential = (value: string | undefined): boolean => (value ?? '').trim() !== '';
+
 export function blockers(env: NodeJS.ProcessEnv = process.env, claudeBin = 'claude', variants: readonly Variant[] = VARIANTS): string[] {
   const reasons: string[] = [];
   if (!isPosix()) reasons.push(POSIX_ONLY);
-  if (env['ANTHROPIC_API_KEY'] === undefined && env['CLAUDE_CODE_OAUTH_TOKEN'] === undefined) {
+  // Empty counts as absent, which is the only reading that matches how this runs.
+  // A workflow that maps an unset repository secret into the environment does not leave
+  // the variable missing — GitHub interpolates it to the empty string, so the variable is
+  // present and a test against undefined was false. The guard never fired, the axis ran,
+  // `claude` failed to authenticate on all 25 runs, and the skip blamed the prompts
+  // (#276). A credential that is the empty string is not a credential.
+  if (!hasCredential(env['ANTHROPIC_API_KEY']) && !hasCredential(env['CLAUDE_CODE_OAUTH_TOKEN'])) {
     reasons.push('no CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY in the environment');
   }
   if (spawnSync(claudeBin, ['--version'], { stdio: 'ignore' }).status !== 0) reasons.push(`the \`${claudeBin}\` binary is not on PATH`);
