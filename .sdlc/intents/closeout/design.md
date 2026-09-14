@@ -38,6 +38,19 @@ Intent: [`intent.md`](./intent.md). Umbrella:
 - **R10** `exitCode` is preserved on every path: a handler running after `process.exit(3)`
   cannot change the observed code. Asserted per path in the matrix, whether or not
   `signal-exit`'s suite covers it.
+- **R11 — the order is data, not arrival time.** (Added 2026-09-14.) A handler declares a
+  **phase**; `PHASES = ['flush', 'release', 'restore']` declares the sequence; the runner
+  reads the sequence. Phases run in order and are *awaited* in order — an async handler in
+  `flush` settles before `release` begins — and handlers inside one phase run together in
+  registration order. `restore` is last, always, and it is where R4's terminal restore goes.
+  Unphased handlers default to `release`, so a caller that never heard of phases keeps the
+  behaviour it had and gains the one guarantee it was missing.
+- **R12 (`plugin-contract` R5a) — `closeout/plugin` hosts `handlers`.** `register(plugin)`
+  keeps `handlers`, ignores every other layer's keys without complaining (R1 of the contract),
+  and `attach(registry)` wires each contributed handler into its phase. A plugin may use
+  `flush` or `release` and **not** `restore`: R5a's words are "never after it", and admitting a
+  plugin to closeout's own last phase would put "never" back at the mercy of which of the two
+  registered first. The refusal is `E_PLUGIN_SCHEMA` and names the two phases it may use.
 
 ### Evidence
 
@@ -102,6 +115,57 @@ sentence is the product.
   deadline **and** that the report names that handler. Those cells are proven to fail
   against real `signal-exit`, checked in as the control, so the check is known to work.
 
+## What shipped (R11, R12 — phases and the plugin host — 2026-09-14)
+
+`closeout/plugin`: `register()`, `validate()`, `contributions()`, `attach()`, `reset()`,
+`registered()`, and the family's error vocabulary — `E_PLUGIN_SCHEMA`, `E_PLUGIN_CONTRACT` —
+with the `fix` shape flagstaff and roundel use (contract R8). `src/schema.json` is the
+family's file, byte-identical, exported at `closeout/schema.json` because that is the
+specifier this package's own `E_PLUGIN_SCHEMA` fix names.
+
+**The assertion that carries the whole step**, in `src/plugin.test.ts`:
+
+```ts
+closeout.hideCursor(recordingTty(log));                   // registered FIRST
+register({ name: 'acme', handlers: [{ name: 'unlock', run: () => { log.push('acme:unlock'); } }] });
+attach(closeout.registry);                                // registered SECOND
+await closeout.registry.run({ code: 0, signal: null });
+
+expect(log).toEqual(['acme:unlock', 'restore']);
+```
+
+The cursor is hidden **first**, deliberately. A plugin handler registered before the restore
+would run first under the flat-set implementation this package shipped yesterday, so a test
+written that way passes on the bug and proves nothing.
+
+**Proven red three ways, each a different wrong implementation:**
+
+| Mutation | Result |
+| :-- | :-- |
+| `PHASES` reversed to `['restore', 'release', 'flush']` | 5 red; the headline case read `['restore', 'acme:unlock']` |
+| `hideCursor` registering at the default phase — literally the pre-fix line | 4 red; `['restore', 'acme:unlock']` again, from the real bug rather than a scrambled constant |
+| phases invoked in order but never awaited (`Promise.all` semantics) | 1 red, and it is the async case: `['restore']` alone, the drain landing after the terminal was back |
+
+The third is the one worth keeping in mind: sorting the *calls* without sequencing the
+*phases* looks correct in every synchronous test and is the same bug with tidier bookkeeping.
+
+**The deadline does not skip a phase, it stops waiting for one.** A handler that hangs in
+`flush` must not get to decide that the cursor stays hidden — that would be this package
+producing its own headline failure through the machinery meant to prevent it. Past the
+deadline every later phase is still invoked; it is simply not awaited. Asserted directly:
+a plugin handler of `() => new Promise(() => {})` in `flush`, and the restore still runs.
+
+**A debt this created, recorded rather than left in a commit message.** `plugin-contract` R7
+says no key may require a function except a component's `frame` and burgee's `hooks`.
+`handlers` requires one — an exit handler *is* behaviour, and there is no data encoding of
+"close this socket". What R5a asks for and what shipped is that the **ordering** is data:
+`contributions()` projects the whole shutdown sequence without running any of it. R7's
+exemption list owes `handlers.run` an entry, and that edit belongs to the lane that owns
+`plugin-contract`.
+
+Not yet: the `signal-exit` and `exit-hook` suites (step 2.2–2.13), and the deadline report
+naming the handler that hung (R3) — `PluginHandler.name` exists for it and nothing reads it.
+
 ## Rejected alternatives
 
 - **`process.on('exit')` and trusting it.** It does not fire on signals, cannot await
@@ -118,6 +182,23 @@ sentence is the product.
   layer's 685 M/wk is that chain.
 - **A `SIGKILL` claim.** It cannot be caught. The README says so plainly rather than leaving
   a reader to infer a guarantee we cannot make.
+- **Ordering plugin handlers by registration order, as every incumbent does.** It reads as
+  the simpler option and it is not an ordering at all: a plugin's registration moment is
+  decided by whoever imported it, and the restore's by whichever renderer hid the cursor
+  first. Both are import order wearing a lanyard, and the failure they produce — cleanup that
+  runs after the terminal is already back — is silent, intermittent, and reproduces only on
+  the machine where the imports happen to be arranged badly.
+- **A numeric `order` on each handler instead of named phases.** More expressive, and it
+  makes every plugin author invent a number relative to numbers they cannot see. Three names
+  with stated meanings is a vocabulary two plugin authors can agree on without talking; `-100`
+  is a bid in an auction nobody is running.
+- **Letting a plugin use the `restore` phase.** The generous reading of R5a, and it spends
+  the requirement: within one phase, order is registration order, so a plugin admitted to
+  `restore` lands before or after the cursor depending on which registered first — exactly the
+  coincidence phases replace. A plugin with terminal state of its own puts its undo in
+  `release`, which is where the guarantee holds.
+- **One deadline per phase.** Tidier to describe, and three phases then add up to three
+  deadlines — which gives back the unbounded shutdown the number exists to bound.
 
 ## Out of scope
 

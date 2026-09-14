@@ -24,6 +24,7 @@ import {
   createRegistry,
   type ExitHandler,
   type ExitInfo,
+  type Phase,
   type Registry,
   type RegistryOptions,
 } from './registry.js';
@@ -64,8 +65,8 @@ export interface InstallOptions extends RegistryOptions {
 }
 
 export interface Closeout {
-  /** Register a handler. Returns the function that unregisters it. */
-  onExit(handler: ExitHandler): () => void;
+  /** Register a handler in a phase (default `release`). Returns the function that unregisters it. */
+  onExit(handler: ExitHandler, phase?: Phase): () => void;
   /** Hide the cursor and register its restore; the returned function shows it again. */
   hideCursor(stream: OutputStream): () => void;
   /** Show the cursor now. Idempotent, and a no-op on a non-TTY. */
@@ -125,8 +126,16 @@ export function install(options: InstallOptions = {}): Closeout {
   }
 
   return {
-    onExit: (handler) => registry.add(handler),
-    hideCursor: (stream) => hide(stream, (handler) => registry.add(handler)),
+    onExit: (handler, phase) => registry.add(handler, phase),
+    /*
+     * The restore goes in the `restore` phase, not wherever the caller happened to draw.
+     *
+     * This is the line that makes the guarantee real. Before it, the cursor's restore sat
+     * at whatever position in one flat set the first `hideCursor()` call gave it — usually
+     * early, because a renderer hides the cursor the moment it starts drawing — and every
+     * handler registered afterwards ran *after* the terminal had already been handed back.
+     */
+    hideCursor: (stream) => hide(stream, (handler) => registry.add(handler, 'restore')),
     showCursor: show,
     registry,
   };
@@ -142,8 +151,8 @@ let shared: Closeout | undefined;
 const sharedCloseout = (): Closeout => (shared ??= install());
 
 /** Register a handler that runs exactly once, on every path out of the program. */
-export function onExit(handler: ExitHandler): () => void {
-  return sharedCloseout().onExit(handler);
+export function onExit(handler: ExitHandler, phase?: Phase): () => void {
+  return sharedCloseout().onExit(handler, phase);
 }
 
 /** Hide the cursor and register its restore; the returned function shows it again. */
@@ -156,7 +165,7 @@ export function showCursor(stream: OutputStream): void {
   show(stream);
 }
 
-export { createRegistry, DEFAULT_DEADLINE } from './registry.js';
-export type { ExitHandler, ExitInfo, OutputStream, Registry, RegistryOptions };
+export { createRegistry, DEFAULT_DEADLINE, DEFAULT_PHASE, PHASES } from './registry.js';
+export type { ExitHandler, ExitInfo, OutputStream, Phase, Registry, RegistryOptions };
 
 export { HIDE_CURSOR, SHOW_CURSOR } from './cursor.js';
