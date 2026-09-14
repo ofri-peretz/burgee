@@ -71,6 +71,44 @@ Deliberately. A precedence a program can rearrange is a precedence nobody can re
 from the outside — including the person reading your `--help`, and the agent reading your
 `--schema`. One order, documented once, true everywhere.
 
+It is one exported array, `ORDER`, and `RANK` gives each entry a number spaced by ten:
+
+```js
+import { ORDER, RANK } from 'seniority';
+//  ['flag', 'env', 'config', 'package', 'default']
+//     0       10       20        30         40
+```
+
+## Plugins
+
+A plugin can **add** a source — a vault, a CI variable set, a remote config — under the
+family's one plugin key, `sources`. It cannot reorder the five above it.
+
+```js
+import { register, sources } from 'seniority/plugin';
+import { explain, RANK, resolve } from 'seniority';
+
+register({
+  name: 'acme-vault',
+  sources: {
+    vault: {
+      rank: RANK.env + 1, // between the environment and the config file
+      read: (rt) => ({ location: 'acme://vault/ci', values: { region: rt.env.CI_REGION } }),
+    },
+  },
+});
+
+const r = resolve(specs, { flags, env, sources: sources({ env, cwd }) });
+explain('region', r); // region = "eu-1"   from vault acme://vault/ci
+```
+
+- **`rank`** must be an integer strictly between `RANK.flag` and `RANK.default`. A plugin
+  may never beat the flag the user typed, nor sink below the declared default.
+- **A source is data or a reader, and exactly one.** `values: { … }` for a constant source,
+  which a tool can read without running it; `read(runtime)` for one that has to go and look.
+  `read` gets the `{ env, cwd }` you pass it — this package still touches no globals.
+- **Every other key is ignored**, so one plugin object works across the whole family.
+
 ## `resolve` is pure
 
 Layers in, values and provenance out. No filesystem, no `process.env`, no globals — pass
@@ -143,6 +181,17 @@ to exist for it to be useful to you.
 | `envBoolean(raw)`             | the boolean spellings, or `undefined`                                        |
 | `screaming(name)`             | `dryRun` → `DRY_RUN`                                                         |
 | `ConfigError`                 | a value that cannot be used as configured; carries an optional `hint`        |
+| `ORDER`, `RANK`               | the precedence as data, and each built-in's rank                             |
+
+From `seniority/plugin`:
+
+|                      |                                                                   |
+| :------------------- | :---------------------------------------------------------------- |
+| `register(plugin)`   | keep a plugin's `sources`; refuse a bad rank or shape at the door |
+| `sources(runtime)`   | every registered source, read and ranked — pass to `resolve`      |
+| `reset()`            | forget every registered plugin                                    |
+| `registered()`       | the plugins registered, in order                                  |
+| `PluginError`        | `E_PLUGIN_SCHEMA` or `E_PLUGIN_CONTRACT`, with a `fix`            |
 
 ## Replaces
 
