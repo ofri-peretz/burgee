@@ -60,6 +60,14 @@ const RULES: Record<string, EntryRule> = {
   // The six widgets in line mode (R5), which is the floor and the accessible rendering.
   // Measured 8,564 B — the whole prompt surface, with no terminal and no raw mode.
   './ask': { allow: [], budget: 10_000, denied: ['decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
+  // The plugin host for `widgets`. Unlike roundel's, which is a leaf, this one carries
+  // `ask.js` **by design**: `projectionOf()` is one surface over all kinds, drawing the six
+  // built-ins itself and a registered widget's `static` for anything else. Splitting that in
+  // two would make every caller re-implement the six-kind test, and the built-in list is
+  // exactly what `E_UNKNOWN_KIND` has to be right about. Measured 17,817 B on 2026-09-13 —
+  // 8,705 B of host over the 9,112 B of spec-plus-widgets it projects. It reaches no
+  // package, like everything else here.
+  './plugin': { allow: [], budget: 20_000, denied: ['decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
   // The raw-mode renderer sits *on top of* line mode and answers the same questions, so it
   // carries `ask.js` by design — that shared answer is the arrangement, not an accident.
   // It never reaches the terminal: a caller supplies its own streams. Measured 14,796 B.

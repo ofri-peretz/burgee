@@ -1,0 +1,40 @@
+package:  cli-table3
+repo:     https://github.com/cli-table/cli-table3
+version:  0.6.5
+tag:      v0.6.5
+commit:   9577efd51114e61fb035b7cc493adf0c0dc7921b
+vendored: 2026-09-09
+files:    11
+tool:     scripts/vendor-suite.ts
+verified: 2026-09-14 — v0.6.5 resolves to this commit at the host
+
+How this directory was made
+---------------------------
+A shallow clone of https://github.com/cli-table/cli-table3 at v0.6.5, then that repository's own test directory and
+its fixtures copied here. The only edit is to the import specifiers that reach the library:
+each is rewritten to a generated shim, so one unedited suite can grade any implementation.
+Everything else — assertions, fixtures, helpers — is upstream's, byte for byte.
+
+Why a clone and not the npm tarball
+-----------------------------------
+No incumbent ships its tests to npm. Measured 2026-09-13:
+
+    npm pack ansi-escapes && tar tzf ansi-escapes-*.tgz | grep -c test   ->  0
+
+and the same for strip-ansi and for which. A tarball extract could not produce this
+directory, so "vendoring" here means a repo clone at the release tag and nothing else.
+
+The shim is not in here
+-----------------------
+There is deliberately no shim committed beside these tests. `shim.js` — or `shim.mjs`
+under a `type: commonjs` package, because the extension has to say the file is ESM — is
+written per run by packages/compat-oracle/src/run.ts, since its body names COMPAT_TARGET:
+the control run re-exports cli-table3 itself, a target run re-exports ours. The
+vendor step deletes any shim it finds, so a stale one can never grade the wrong thing.
+
+Reproduce
+---------
+    npx tsx scripts/vendor-suite.ts cli-table3 --version 0.6.5
+
+Every field above is reproduced exactly, with one exception that is a date and not a
+defect: `vendored` is the day the copy was taken, so a fresh run writes today's.

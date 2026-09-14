@@ -1,6 +1,6 @@
 # Intent — `cli-benchmarks`: one suite, four axes, all published
 
-> Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md).
+> Stage 1 artifact. Child of [`burgee`](../burgee/intent.md).
 > Stage 6's real bands. Formerly `agent-cli-bench`: widened on 2026-09-06 from one axis
 > (agent cost) to four (agent cost, performance, compatibility, weight), because three of
 > the four are claims we already make in public and none of them was measured on a

@@ -1,6 +1,6 @@
 # Intent — Agent headroom: every machine-readable byte earns its place
 
-> Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md),
+> Stage 1 artifact. Child of [`burgee`](../burgee/intent.md),
 > findings **N13**, **N14** and **N15**; and of [`cli-benchmarks`](../cli-benchmarks/intent.md)
 > B1, which is where the claim is measured. Gathers three findings that are currently routed
 > to three different intents — one of them deferred — under the one decision they share.

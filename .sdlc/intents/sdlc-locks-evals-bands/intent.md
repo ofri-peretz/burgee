@@ -1,6 +1,6 @@
 # Intent — Every SDLC stage loaded in this repo, not just described
 
-> Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md),
+> Stage 1 artifact. Child of [`burgee`](../burgee/intent.md),
 > constraint 5: "AI-native SDLC from day one — `.sdlc/intents/` with the lock, `evals/`
 > layer 1, control bands with at least one band computing before v1."
 

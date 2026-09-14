@@ -59,7 +59,7 @@ describe('a skipped axis produces no numbers', () => {
 
   it('still names the claim and its source, so the unmeasured thing is visible rather than absent', () => {
     expect(doc.claims['agent-turns-30pct']?.target).toBe('<= 0.7');
-    expect(doc.claims['agent-turns-30pct']?.source).toContain('agent-native-cli-layer');
+    expect(doc.claims['agent-turns-30pct']?.source).toContain('burgee');
   });
 });
 

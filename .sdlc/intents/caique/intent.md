@@ -1,6 +1,6 @@
 # Intent — caique: prompts that are flags first, and errors when no one is there to answer
 
-> Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md),
+> Stage 1 artifact. Child of [`burgee`](../burgee/intent.md),
 > requirements P1–P2; research §9 (clack). Package **`caique`** — the parrot that always answers
 > back. Re-parented 2026-09-08 under [`cli-output-stack`](../cli-output-stack/intent.md) (U6, U11,
 > U12): caique **implements** prompts over Node natives; clack and inquirer are migration paths.

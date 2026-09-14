@@ -349,8 +349,42 @@ function loadSeries(): SeriesFile {
   }
 }
 
+/**
+ * One compat band per graded suite, derived from `compat-oracle/baseline/`.
+ *
+ * These were six hand-written entries whose descriptions differed by one word — the host's
+ * name. Wave 2 brings twelve more from six package lanes working at once, which is twelve
+ * more copies of the same paragraph appended to one array by six branches: a merge conflict
+ * per landing, over text nobody reads. Deriving them means a lane adds a band by adding its
+ * baseline fragment, and never edits this file at all.
+ *
+ * A band configured by hand wins, so a host that needs different treatment can still have it.
+ */
+function derivedCompatBands(configured: BandConfig[]): BandConfig[] {
+  const dir = path.join(REPO_ROOT, 'packages/compat-oracle/baseline');
+  if (!fs.existsSync(dir)) return [];
+  const taken = new Set(configured.map((b) => b.id));
+  return fs
+    .readdirSync(dir)
+    .filter((f) => f.endsWith('.json'))
+    .sort()
+    .map((f) => f.slice(0, -'.json'.length))
+    .map((host) => ({
+      id: `compat-${host}-pass-rate`,
+      description: `B3 — ${host}'s own test suite against our entry point, as graded by compat-oracle and never recomputed here. The deterministic gate in \`npm run bench -- --check\` is what fails the PR that drops it; this series is what makes a slow drift visible.`,
+      collector: 'benchmark-json' as const,
+      suite: 'cli-benchmarks',
+      jsonPath: `bands.compat-${host}-pass-rate.value`,
+      window: 20,
+      minPoints: 8,
+      worse: 'lower' as const,
+    }))
+    .filter((b) => !taken.has(b.id)) as BandConfig[];
+}
+
 function loadConfig(): BandConfig[] {
-  return (JSON.parse(fs.readFileSync(CONFIG, 'utf-8')) as { bands: BandConfig[] }).bands;
+  const configured = (JSON.parse(fs.readFileSync(CONFIG, 'utf-8')) as { bands: BandConfig[] }).bands;
+  return [...configured, ...derivedCompatBands(configured)];
 }
 
 async function collect(cfg: BandConfig, fromGit: boolean): Promise<Observation[]> {

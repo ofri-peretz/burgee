@@ -1,6 +1,6 @@
 # Intent — Run any CLI in-process, with everything injected
 
-> Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md),
+> Stage 1 artifact. Child of [`burgee`](../burgee/intent.md),
 > requirement T1. First in the order of work because every other requirement is
 > verified through it.
 

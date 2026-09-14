@@ -1,0 +1,35 @@
+diff --git a/packages/caique/src/spec.ts b/packages/caique/src/spec.ts
+index 35e21b0e64..f4804b2699 100644
+--- a/packages/caique/src/spec.ts
++++ b/packages/caique/src/spec.ts
+@@ -11,7 +11,7 @@
+  */
+ 
+ /** The six kinds a prompt can be. Anything more is a wizard, which is out of scope. */
+-export type PromptKind = 'text' | 'confirm' | 'select' | 'multiselect' | 'password' | 'path';
++export type PromptKind = 'text' | 'confirm' | 'select' | 'multiselect' | 'password' | 'path' | (string & {});
+ 
+ /** One choice in a `select` or `multiselect`. `value` is what the option receives. */
+ export interface Choice {
+diff --git a/packages/seniority/src/precedence.ts b/packages/seniority/src/precedence.ts
+index 94897b329c..12f784bb1f 100644
+--- a/packages/seniority/src/precedence.ts
++++ b/packages/seniority/src/precedence.ts
+@@ -24,7 +24,7 @@ export interface OptionSpec {
+   default?: unknown;
+ }
+ 
+-export type Source = 'flag' | 'env' | 'config' | 'package' | 'default';
++export type Source = 'flag' | 'env' | 'config' | 'package' | 'default' | (string & {});
+ 
+ export interface Provenance {
+   source: Source;
+@@ -152,6 +152,8 @@ const describe = (c: Candidate): string => {
+       return `package.json field in ${c.location}`;
+     case 'default':
+       return 'default';
++    default:
++      return `${c.source} ${c.location}`.trim();
+   }
+ };
+ 

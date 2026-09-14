@@ -28,11 +28,17 @@
       "import": "./dist/decide.js",
       "default": "./dist/decide.js"
     },
+    "./plugin": {
+      "types": "./dist/plugin.d.ts",
+      "import": "./dist/plugin.js",
+      "default": "./dist/plugin.js"
+    },
     "./raw": {
       "types": "./dist/raw.d.ts",
       "import": "./dist/raw.js",
       "default": "./dist/raw.js"
     },
+    "./schema.json": "./dist/schema.json",
     "./spec": {
       "types": "./dist/spec.d.ts",
       "import": "./dist/spec.js",
@@ -50,7 +56,7 @@
     "!dist/**/*.test.*"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/schema-to-dist.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
     "coverage": "vitest run --coverage.enabled",
