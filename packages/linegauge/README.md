@@ -100,6 +100,42 @@ text.
 scan when the string has no non-ASCII code unit, so the segmenter is reached only when it
 earns its cost.
 
+## Plugins
+
+**linegauge hosts no plugin key, and that is a decision rather than an omission.** Every
+other package in the family hosts one — `tokens` in roundel, `spinners` and `borders` and
+`glyphs` and `components` in flagstaff, `capabilities` in paratext, `sources` in seniority,
+`handlers` in closeout, `resolvers` in bellpull, `widgets` in caique. Each of those keys sits
+over a question with more than one right answer: which colour, which glyph, which terminal,
+where configuration lives, how an executable is found. A plugin settles it for one program
+without making anybody else wrong.
+
+These six functions are not that kind of question. `width('古代')` is 4 because Unicode
+classes those code points East Asian Wide and a terminal gives each of them two columns;
+`slice` returns the columns it was asked for or it returns the wrong string. A plugin key
+here would not extend what linegauge does — it would let a caller redefine what the terminal
+does, silently, for everything above it. The failure would not even surface as an error: a
+box comes out a column short, a table gains a phantom column, and nothing throws.
+
+There is a second reason, and it is the one that decides it. This package's correctness is
+differential — `width` is graded against `string-width`, `wrap` against `wrap-ansi`, `slice`
+against `slice-ansi`, `truncate` against `cli-truncate`. A registered contribution would put
+answers under the published pass rate that no grader ever saw, so the number would stop
+meaning what it says.
+
+The two things that genuinely vary are already handled without a registry:
+
+- **The Unicode data.** The Wide and Fullwidth table is Unicode's, and cluster boundaries
+  come from the platform's `Intl.Segmenter`. When Unicode ships a version the table changes —
+  that is a release of this package, re-graded, not a registration a caller can make.
+- **The environment.** How wide the terminal is, and whether there is one, are the caller's
+  to pass; nothing here reads `process`. That is a parameter, not a plugin.
+
+The family's plugin contract records this refusal next to the other layers' keys (R5a), so
+"no key" is one of the contract's answers rather than a hole in it. If a real second answer
+ever arrives — an ambiguous-width policy some terminal actually needs — it lands as an option
+with a differential test behind it, because the graders have to see it.
+
 ## Licence
 
 MIT

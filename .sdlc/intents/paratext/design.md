@@ -36,7 +36,24 @@ be measured against. R8–R12 are the unbuilt half.
   baseline rather than as failures. Not built. **Until it lands, the npm description's
   "drop-in" claim is removed** (decision 3 of the ecosystem plan).
 - **R10 (plugin-contract)** `schema.json` becomes the family schema with paratext's shape
-  under `capabilities`. One object registers into roundel, flagstaff and paratext. Not built.
+  under `capabilities`. **Half built (PLAN 1.1).** The schema half is done: the capability
+  shape is `$defs/capability`, reached through a `capabilities` key, and all three
+  `packages/*/src/schema.json` hash to one value. `check()` reads
+  `$defs/capabilityDocument` and takes either shape, the bare one with a `deprecated:` line
+  (PLAN D2 — accepted for one minor release, removed at 1.0). *One object registering into
+  all three hosts* is not built: paratext still has no `src/plugin.ts` and no `register()`
+  that takes a plugin document, which is PLAN 1.7's work.
+  **It cost flagstaff five byte budgets and they are not raised.** `dist/schema.json` goes
+  3,451 B -> 6,531 B, and every flagstaff entry that reaches the plugin registry carries it:
+  `.` 31,474/29,000, `./plugin` 14,623/12,000, `./spinner` 15,551/12,500, `./tasks`
+  15,962/13,000, `./box` 17,282/15,000 — ten red assertions in
+  `packages/flagstaff/src/weight.test.ts`, none of them touched here. The budget is per
+  *entry point*, the schema is one *file*, and folding a section in makes every host pay for
+  every other host's contract. Two ways out, and the second is the one to take: raise the
+  five budgets (the product claims survive — `./spinner` at 15,551 B is still under ora's
+  17,891 B), or split publication from bundling — keep one byte-identical `src/schema.json`
+  as the contract each package exports, and have `schema-to-dist.mjs` project it to the
+  sections that host actually validates.
 - **R11 (Y8)** Ceilings in `.sdlc/bands/foundation-ceilings.json`; a B4 row. Not built.
 - **R12** First same-repo consumer: `flagstaff/table` and `flagstaff/box` link paths via
   `paratext`. Proves Y1's arrow down and gives the consolidation a number. Not built.
@@ -69,7 +86,8 @@ roundel/flagstaff schemas, one PR) → R11 → R12.
 
 ## Verification
 
-- `npx vitest run --root packages/paratext` — 40 tests today across six groups.
+- `npx vitest run --root packages/paratext` — 23 tests today across seven groups.
+- `sha256sum packages/*/src/schema.json | awk '{print $1}' | sort -u | wc -l` — 1 (R10).
 - `npm run compat -- ansi-escapes terminal-link term-img` after R9.
 - **The check that would have caught the original problem** — the original problem is a
   package on npm with no intent. `scripts/intent-artifacts-lock.test.ts` gains the rule:

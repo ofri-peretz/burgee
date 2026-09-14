@@ -22,8 +22,11 @@ export {
   envBoolean,
   envName,
   explain,
+  ORDER,
+  RANK,
   resolve,
   screaming,
+  type BuiltinSource,
   type Candidate,
   type Layer,
   type Layers,
@@ -31,6 +34,13 @@ export {
   type Provenance,
   type Resolution,
   type Source,
+  type SourceLayer,
 } from './precedence.js';
 
 export { candidates, deepMerge, discover, loadWithExtends, type Discovery, type Loaded } from './config.js';
+
+/**
+ * The `sources` plugin host is `seniority/plugin`, not here (`plugin-contract` R5a). It
+ * keeps a registry, which the root export deliberately does not: a program that only
+ * resolves should not carry one, and a program that hosts plugins imports the subpath.
+ */

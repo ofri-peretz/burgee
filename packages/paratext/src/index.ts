@@ -32,6 +32,6 @@ import { registerBuiltins } from './builtins.js';
 registerBuiltins();
 
 export { bell, builtins, clipboard, cwd, image, link, notify, registerBuiltins, title } from './builtins.js';
-export { type Capability, CapabilityError, type Fields, type Support, capabilities, capability, check, emit, register, reset, supports } from './capability.js';
+export { type Capability, CapabilityError, DEPRECATED, type Fields, type Support, capabilities, capability, check, emit, isDeprecation, refusals, register, reset, supports } from './capability.js';
 export { processRuntime, type Runtime } from './runtime.js';
 export { fieldsUsed, render } from './template.js';

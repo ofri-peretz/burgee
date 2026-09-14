@@ -234,7 +234,7 @@ step 2 for exactly that reason.
 
 - **The exit-code lock.** ~~`exit-code.ts` says "no other literal may reach
   `process.exitCode`" and nothing enforces it~~ — **done**, as
-  `scripts/exit-code-lock.test.ts`. It went to `agent-native-cli-layer`'s E1 rather than
+  `scripts/exit-code-lock.test.ts`. It went to `burgee`'s E1 rather than
   here, and found one offender on its first run: `flagstaff/src/cli.ts` wrote `1` straight
   to the process.
 - A documented exit code for network failure. The family opens no sockets — verified, nothing

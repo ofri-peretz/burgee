@@ -17,7 +17,7 @@ import { check as checkCompetitors, fingerprint as writeFingerprints } from './w
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const VENDOR_DIR = resolve(root, 'vendor');
-const BASELINE = resolve(root, 'baseline.json');
+const BASELINE = resolve(root, 'baseline');
 const RESULTS = resolve(root, 'results.json');
 const CONTROL_RESULTS = resolve(root, 'results.control.json');
 const VENDOR_DIFF = resolve(root, 'vendor-diff.md');

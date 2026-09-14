@@ -1,6 +1,6 @@
 # Intent — `yargs-agent`: the same floor as yargs middleware
 
-> Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md),
+> Stage 1 artifact. Child of [`burgee`](../burgee/intent.md),
 > step 2b of its order of work: "the same demo built on yargs must pass the same test
 > suite. That suite is the contract between the two extensions."
 

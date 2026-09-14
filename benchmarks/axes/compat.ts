@@ -10,7 +10,7 @@
  * between `commander-compat`, `yargs-compat` and `shipped`.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -20,7 +20,7 @@ import { type BenchRecord } from '../record.js';
 const REPO_ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const ORACLE = join(REPO_ROOT, 'packages', 'compat-oracle');
 const RESULTS = join(ORACLE, 'results.json');
-const BASELINE = join(ORACLE, 'baseline.json');
+const BASELINE = join(ORACLE, 'baseline');
 const ORACLE_BIN = join(ORACLE, 'dist', 'bin.js');
 
 export interface Grade {
@@ -43,7 +43,14 @@ interface Results {
 
 export type Baseline = Record<string, { reference: number; passed: number; rate: number }>;
 
-export const readBaseline = (): Baseline => JSON.parse(readFileSync(BASELINE, 'utf8')) as Baseline;
+/** One file per host — see `compat-oracle/src/run.ts` for why it is a directory. */
+export const readBaseline = (): Baseline =>
+  Object.fromEntries(
+    readdirSync(BASELINE)
+      .filter((f) => f.endsWith('.json'))
+      .sort()
+      .map((f) => [f.slice(0, -'.json'.length), JSON.parse(readFileSync(join(BASELINE, f), 'utf8')) as Baseline[string]]),
+  );
 
 /**
  * `results.json` is gitignored — it is the oracle's output, not a checked-in claim — so a
@@ -75,7 +82,7 @@ export function hostRecords(grade: Grade, baseline: Baseline): BenchRecord[] {
       samples: 1,
       median: grade.rate,
       p95: grade.rate,
-      ...(was === undefined ? {} : { gate: { min: was.rate, why: `the recorded baseline in compat-oracle/baseline.json; C5 says this number only goes up` } }),
+      ...(was === undefined ? {} : { gate: { min: was.rate, why: `the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up` } }),
       note: `${grade.host}'s own suite against \`${grade.target}\`, as graded by compat-oracle.${skipNote}`,
       detail: { target: grade.target, passed: grade.passed, tests: grade.tests, skipped: grade.skipped, reference: grade.reference, denominator },
     },

@@ -53,6 +53,22 @@ nominal for the price of a move rather than the price of a package.
 - **R11 (Y9)** Nothing reads `process.*`. `stdout.columns` is the caller's to pass.
 - **R12** ESM with a `default` condition per entry, no top-level await, so
   `require('linegauge')` works via `require(esm)` (K2).
+- **R13** **No plugin key, by design** (`plugin-contract` R5a; PRINCIPLES rule 14). Every
+  other layer hosts one because it answers a question with more than one right answer —
+  which colour, which glyph, which terminal, where configuration lives, how an executable is
+  found. These six functions answer questions with one right answer: `width('古代')` is 4
+  because Unicode classes those code points Wide and a terminal gives each two columns. A
+  contribution that changed it would not extend linegauge, it would redefine what the
+  terminal does for every caller above, and it would do it without an error — a box a column
+  short, a table with a phantom column, nothing thrown. It would also land under a published
+  pass rate no grader produced, because R10's four suites are the whole correctness argument.
+  The two things that do vary are handled without a registry: the Unicode table and the
+  segmenter are the platform's and move on a release (R1, graded), and the terminal's width
+  is the caller's to pass (R11). If a second correct answer ever appears — an
+  ambiguous-width policy some terminal actually needs — it arrives as an option with a
+  differential test, not as a key. `packages/linegauge/README.md` carries this in the
+  package's own voice, under `## Plugins`, so a reader who never opens this file still finds
+  the decision rather than the silence.
 
 ### Evidence
 

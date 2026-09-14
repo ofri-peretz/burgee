@@ -51,14 +51,14 @@ export const CLAIMS: readonly ClaimSpec[] = [
   {
     id: 'agent-tokens-40pct',
     claim: 'an agent spends at least 40% fewer tokens per task against a CLI that meets the floor',
-    source: '.sdlc/intents/agent-native-cli-layer/intent.md — the roadmap headline',
+    source: '.sdlc/intents/burgee/intent.md — the roadmap headline',
     from: { axis: 'agent', variant: 'burgee ÷ commander', metric: 'tokens-per-task-ratio' },
     test: { max: 0.6 },
   },
   {
     id: 'agent-turns-30pct',
     claim: 'an agent takes at least 30% fewer turns per task against a CLI that meets the floor',
-    source: '.sdlc/intents/agent-native-cli-layer/intent.md — the roadmap headline',
+    source: '.sdlc/intents/burgee/intent.md — the roadmap headline',
     from: { axis: 'agent', variant: 'burgee ÷ commander', metric: 'turns-per-task-ratio' },
     test: { max: 0.7 },
   },
@@ -86,7 +86,7 @@ export const CLAIMS: readonly ClaimSpec[] = [
   ...COMPAT_TARGETS.map(([host, passing]) => ({
     id: `compat-${host}`,
     claim: `${host}'s own test suite passes ${String(passing)} of ${String(passing)} against our entry point`,
-    source: 'packages/compat-oracle/baseline.json, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx',
+    source: 'packages/compat-oracle/baseline/, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx',
     from: { axis: 'compat' as const, variant: host, metric: 'passing-tests' },
     test: { min: passing },
   })),
