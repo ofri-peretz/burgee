@@ -3,7 +3,7 @@
 > Stage 1 artifact. Child of [`burgee`](../burgee/intent.md),
 > and the reason [`replacement-parser`](../replacement-parser/intent.md) is worth building.
 
-**Status:** shipped · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
+**Status:** review · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Evidence:** `packages/burgee/src/yargs-*.ts` and the `./yargs`, `./yargs/helpers`, `./yargs/parser` exports; **804 / 804**, where real yargs scores 802.
 

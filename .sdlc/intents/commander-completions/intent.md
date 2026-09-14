@@ -3,7 +3,7 @@
 > Stage 1 artifact. Child of [`burgee`](../burgee/intent.md),
 > requirement D2; research §6. Proposes D3–D5.
 
-**Status:** shipped · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Evidence:** `completions.ts` + the `./completions` export + `completions.yml`; four shells and a Fig spec (D2–D5).
 

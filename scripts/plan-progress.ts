@@ -114,7 +114,8 @@ const MANUAL: { id: string; why: string }[] = [
 
 const STEPS: Step[] = [
   { id: '0.1', what: 'burgee renamed to burgee', done: () => !existsSync(join(ROOT, '.sdlc/intents/burgee')) },
-  { id: '0.2', what: 'roadmap index regenerated, not hand-edited', done: () => existsSync(join(ROOT, 'scripts/roadmap-index.ts')) },
+  // `existsSync` was the first version, and a file that exists proves nothing about drift.
+  { id: '0.2', what: 'every roadmap row agrees with its intent (runs the check)', done: () => { execFileSync('npx', ['tsx', 'scripts/roadmap-index.ts', '--check'], { cwd: ROOT, stdio: 'ignore' }); return true; } },
   {
     id: '0.4',
     what: 'chalk back to its 58 baseline (runs the gate, does not read it)',
@@ -144,7 +145,7 @@ const STEPS: Step[] = [
   { id: '1.5', what: 'bellpull hosts resolvers', done: () => existsSync(join(ROOT, 'packages/bellpull/src/plugin.ts')) },
   { id: '1.6', what: 'linegauge says why it has no plugins', done: () => has('packages/linegauge/README.md', '## Plugins') },
   { id: '2.17', what: 'one control band per graded suite', done: () => bands().filter((b) => b.startsWith('compat-')).length >= baselineSize() },
-  { id: '2.5.0', what: 'the six engine surfaces re-measured against the tree', done: () => existsSync(join(ROOT, 'scripts/roadmap-index.ts')) && execFileSync('npx', ['tsx', 'scripts/roadmap-index.ts', '--check'], { cwd: ROOT, stdio: 'ignore' }) === null },
+  { id: '2.5.0', what: 'the six engine surfaces re-measured against the tree', done: () => { execFileSync('npx', ['tsx', 'scripts/roadmap-index.ts', '--check'], { cwd: ROOT, stdio: 'ignore' }); return readdirSync(join(ROOT, '.sdlc/intents')).filter((s) => s.startsWith('commander-') || s.startsWith('yargs-')).every((s) => existsSync(join(ROOT, '.sdlc/intents', s, 'issues.md'))); } },
   { id: '2.5.1', what: 'help snapshots exist at three widths', done: () => existsSync(join(ROOT, 'packages/burgee/src/__snapshots__')) && readdirSync(join(ROOT, 'packages/burgee/src/__snapshots__')).some((f) => f.startsWith('help')) },
   { id: '2.5.2', what: 'dependsOn/exclusive are spelled in the schema', done: () => has('packages/burgee/src/schema.ts', 'dependsOn') && has('packages/burgee/src/schema.ts', 'exclusive') },
   { id: '2.5.3', what: 'the Fig spec is validated, not just emitted', done: () => existsSync(join(ROOT, 'packages/burgee/src/fig-schema.test.ts')) },

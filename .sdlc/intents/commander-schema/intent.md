@@ -4,7 +4,7 @@
 > requirements S1–S4, plus the TypeScript cluster (research §5) and the validation
 > cluster (§4). Proposes floor additions S5–S8.
 
-**Status:** shipped · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Evidence:** `schema.ts`, `schema-dsl.test.ts`, `validate.ts` (S1–S8).
 
