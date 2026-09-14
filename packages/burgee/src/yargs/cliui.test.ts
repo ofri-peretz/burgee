@@ -70,18 +70,24 @@ import { cliui } from "./cliui.js";
  * "gates the median, not the p95 — an absolute or tail-driven gate is what red-lit two innocent
  * PRs in #27" — and these assertions were the same mistake one file over.
  *
- * Why n = 12,000 and a median of samples, both measured: at 3,000 a single best-of-3 ratio on
- * genuinely linear code was observed as high as 6.35, because fixed overhead dominates and
- * noise rides on top. By 12,000 the spread is 3.75–4.40. And why not larger: the first version
- * used 25,000/100,000 and ran past CI's 5s default timeout — a perf test that times out is a
- * slower way to be flaky.
+ * Why n = 12,000: at 3,000 a single ratio on genuinely linear code was observed as high as
+ * 6.35, because fixed overhead dominates and noise rides on top. By 12,000 the spread settles.
+ * And why not larger: the first version used 25,000/100,000 and ran past CI's 5s default
+ * timeout — a perf test that times out is a slower way to be flaky.
  *
- * Best-of within each size, median across ratios: a slow run can only come from noise (GC, a
- * scheduler slice, a cold JIT), never from the code being faster than it is, so the minimum is
- * the least noisy estimate; the median across samples then discards a pathological pairing.
- * Both sizes run in the same process, so whatever the machine is, it cancels.
+ * Why the MINIMUM everywhere, and not a median: the first version took the median of five
+ * ratios, tuned against measurements from one machine, and a macOS CI runner then reported
+ * **9.08 for the linear implementation** — above the ceiling, on correct code. Picking a
+ * threshold from one box is the same mistake as picking a millisecond budget, one level up.
+ *
+ * A slow reading can only come from interference — GC, a scheduler slice, a cold JIT — never
+ * from the code being faster than it is. So noise is one-sided, and the minimum is the only
+ * estimator it cannot inflate: minimum within each size, and then the minimum across the
+ * sampled ratios. On a quiet box that changes almost nothing; on a loaded runner it is the
+ * difference between measuring the algorithm and measuring the neighbours. Both sizes run in
+ * the same process, so the machine itself cancels.
  */
-function growth(work: (n: number) => unknown, n = 12_000, samples = 5): number {
+function growth(work: (n: number) => unknown, n = 12_000, samples = 7): number {
   const best = (size: number, runs = 3) => {
     let min = Infinity;
     for (let i = 0; i < runs; i++) {
@@ -91,12 +97,10 @@ function growth(work: (n: number) => unknown, n = 12_000, samples = 5): number {
     }
     return Math.max(min, 0.05); // a floor, so a sub-tick measurement cannot divide by zero
   };
-  const ratios: number[] = [];
-  for (let i = 0; i < samples; i++) ratios.push(best(n * 4) / best(n));
-  ratios.sort((a, b) => a - b);
-  // `?? Infinity` rather than a non-null assertion: with no samples the gate should fail
-  // loudly, not pass on an undefined that got asserted away.
-  return ratios[Math.floor(ratios.length / 2)] ?? Infinity;
+  let lowest = Infinity; // Infinity if samples is 0: the gate fails loudly rather than passes
+  for (let i = 0; i < samples; i++)
+    lowest = Math.min(lowest, best(n * 4) / best(n));
+  return lowest;
 }
 
 describe("padding measurement", () => {
