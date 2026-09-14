@@ -220,6 +220,18 @@ last one is not written because it cannot yet be *graded*: `signal-exit`'s suite
 compatibility harness supports today. Shipping an ungraded drop-in for the package with
 198.9 M weekly downloads is exactly the claim this project refuses to make.
 
+## Benchmarks
+
+Every number here is produced by `npm run bench` and published at [/docs/benchmarks](/docs/benchmarks).
+
+Graded by the incumbent's own test suite:
+
+| suite | passing |
+| :-- | --: |
+| `exit-hook` | 21 / 21 |
+| `restore-cursor` | 6 / 6 |
+
+Weight, installed and tree-inclusive: **90,239 bytes** against **170,604** for the incumbents it replaces — a ratio of **0.5289** (exit-hook not installed here, so the ceiling is understated).
 ## Licence
 
 MIT

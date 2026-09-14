@@ -37,3 +37,9 @@ when the plan was a layer on top of both. They are measuring instruments, not
 products, so they live inside the thing that measures with them.
 
 See `.sdlc/intents/compat-oracle/`.
+
+## Benchmarks
+
+Every number here is produced by `npm run bench` and published at [/docs/benchmarks](/docs/benchmarks).
+
+No suite is graded against this package yet, so there is no compatibility number to quote.

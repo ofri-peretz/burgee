@@ -24,6 +24,19 @@ That is a subprocess. Request work at a distance, work happens elsewhere, a resu
 - **Drop-in paths** for `execa`, `cross-spawn` and `which`, graded by their own suites.
 - **Zero external dependencies.**
 
+## Benchmarks
+
+Every number here is produced by `npm run bench` and published at [/docs/benchmarks](/docs/benchmarks).
+
+Graded by the incumbent's own test suite:
+
+| suite | passing |
+| :-- | --: |
+| `cross-spawn` | 0 / 68 |
+
+Weight, installed and tree-inclusive: **4,761 bytes** against **714,984** for the incumbents it replaces — a ratio of **0.0067**.
+
+That ratio is not yet a claim: nothing here passes an incumbent suite, so it is the weight of a package that does not do the job.
 ## Licence
 
 MIT

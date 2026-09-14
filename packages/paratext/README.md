@@ -16,3 +16,17 @@ line, a hyperlink `text (url)`. Emitting the bytes and hoping is what puts
 `]1337;File=inline=1;…` across a user's screen today.
 
 MIT © Ofri Peretz
+
+## Benchmarks
+
+Every number here is produced by `npm run bench` and published at [/docs/benchmarks](/docs/benchmarks).
+
+Graded by the incumbent's own test suite:
+
+| suite | passing |
+| :-- | --: |
+| `ansi-escapes` | 0 / 4 |
+
+Weight, installed and tree-inclusive: **44,113 bytes** against **30,912** for the incumbents it replaces — a ratio of **1.4271** (terminal-link, term-img not installed here, so the ceiling is understated).
+
+That ratio is not yet a claim: nothing here passes an incumbent suite, so it is the weight of a package that does not do the job.

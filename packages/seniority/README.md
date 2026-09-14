@@ -199,6 +199,18 @@ Drop-in paths are planned for `cosmiconfig`, `dotenv` and `rc`. What they do bet
 — discovery, `extends`, env loading, precedence — is one problem, and this is one package
 with no dependencies rather than three with a tree.
 
+## Benchmarks
+
+Every number here is produced by `npm run bench` and published at [/docs/benchmarks](/docs/benchmarks).
+
+Graded by the incumbent's own test suite:
+
+| suite | passing |
+| :-- | --: |
+| `cosmiconfig` | 3 / 241 |
+| `dotenv` | 0 / 141 |
+
+Weight, installed and tree-inclusive: **53,475 bytes** against **1,555,288** for the incumbents it replaces — a ratio of **0.0344**.
 ## Licence
 
 MIT

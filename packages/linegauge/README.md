@@ -136,6 +136,20 @@ The family's plugin contract records this refusal next to the other layers' keys
 ever arrives — an ambiguous-width policy some terminal actually needs — it lands as an option
 with a differential test behind it, because the graders have to see it.
 
+## Benchmarks
+
+Every number here is produced by `npm run bench` and published at [/docs/benchmarks](/docs/benchmarks).
+
+Graded by the incumbent's own test suite:
+
+| suite | passing |
+| :-- | --: |
+| `slice-ansi` | 13 / 15 |
+| `string-width` | 201 / 229 |
+| `strip-ansi` | 8 / 8 |
+| `wrap-ansi` | 80 / 80 |
+
+Weight, installed and tree-inclusive: **75,115 bytes** against **170,342** for the incumbents it replaces — a ratio of **0.441**.
 ## Licence
 
 MIT

@@ -241,3 +241,18 @@ Part of the [burgee](https://github.com/ofri-peretz/burgee) family: a CLI on
 is an independent package; none requires the others.
 
 MIT © Ofri Peretz — see [LICENSE](./LICENSE).
+
+## Benchmarks
+
+Every number here is produced by `npm run bench` and published at [/docs/benchmarks](/docs/benchmarks).
+
+Graded by the incumbent's own test suite:
+
+| suite | passing |
+| :-- | --: |
+| `clack` | 0 / 606 |
+| `inquirer-core` | 0 / 41 |
+
+Weight, installed and tree-inclusive: **79,256 bytes** against **182,219** for the incumbents it replaces — a ratio of **0.4349** (@inquirer/core not installed here, so the ceiling is understated).
+
+That ratio is not yet a claim: nothing here passes an incumbent suite, so it is the weight of a package that does not do the job.
