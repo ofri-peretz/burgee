@@ -60,8 +60,34 @@ it is additionally named as the harder target, and beating it is reported separa
 This is a stronger claim than the original and the only one that can be computed for
 every layer: replacing `terminal-link` removes `terminal-link` + `ansi-escapes` +
 `supports-hyperlinks` + `environment`.
-Done when: `benchmarks/axes/weight.ts` computes a tree-inclusive ratio per pair and
-`.sdlc/bands/foundation-ceilings.json` has one entry per foundation package.
+**Measured 2026-09-14** and written to `.sdlc/bands/foundation-ceilings.json`, via
+`installedBytes` in `benchmarks/axes/weight.ts` — which already walks each dependency tree
+and counts every installed copy exactly once, so the measurement D1 asks for existed and
+only the file did not.
+
+| layer | ours | ceiling (incumbents + their trees) | ratio |
+| :-- | --: | --: | --: |
+| bellpull | 4,761 | 714,984 | **0.007** |
+| seniority | 53,475 | 1,555,288 | **0.034** |
+| caique | 79,256 | 182,219 | **0.435** |
+| linegauge | 75,115 | 170,342 | **0.441** |
+| closeout | 90,239 | 170,604 | **0.529** |
+| paratext | 44,113 | 30,912 | **1.427** |
+
+**paratext is heavier than the incumbent it replaces**, and that is the number, not a
+rounding. Two things soften it and neither is an excuse: its ceiling counts only
+`ansi-escapes`, because `terminal-link` and `term-img` are not installed here — so the real
+ceiling is higher and the real ratio lower — and it is the layer whose own row reads 0 / 4,
+so it is being weighed before it does the job. The file records the absent incumbents rather
+than omitting them, since an absent one understates the ceiling in our favour.
+
+`bellpull` at 0.007 is the opposite kind of unreal: it is a stub with one export. Both
+numbers are honest and neither is a claim yet.
+
+Done when: `.sdlc/bands/foundation-ceilings.json` has one entry per foundation package and
+`scripts/foundation-ceilings-lock.test.ts` is green — it refuses a layer with no entry, an
+entry with no incumbents, a ratio that disagrees with the bytes beside it, and an absent
+incumbent that is not declared.
 
 **D2 — paratext's schema migration is breaking, and is taken at 0.2.x.**
 Today `paratext/schema.json` validates a bare capability: `required: [name, osc, when,

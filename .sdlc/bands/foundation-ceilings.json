@@ -1,0 +1,108 @@
+{
+  "$comment": "Y8 ceilings for the foundation tier, as PLAN.md decision D1 defines them: the ceiling is the incumbent's installed bytes **including its dependency tree** — what a user actually removes by switching — because four of six foundation layers have no zero-dependency incumbent to anchor against at all. Where a zero-dep incumbent exists it is named separately as the harder target. Measured by `installedBytes` in benchmarks/axes/weight.ts, which walks each tree once and counts every installed copy exactly once.",
+  "measuredOn": "2026-09-14",
+  "method": "benchmarks/axes/weight.ts installedBytes(name), tree-inclusive, one count per realpath",
+  "layers": {
+    "linegauge": {
+      "ours": 75115,
+      "incumbents": {
+        "string-width": 36669,
+        "wrap-ansi": 79687,
+        "strip-ansi": 10344,
+        "slice-ansi": 43642
+      },
+      "ceiling": 170342,
+      "ratio": 0.441,
+      "lightestIncumbent": {
+        "name": "strip-ansi",
+        "bytes": 10344
+      }
+    },
+    "paratext": {
+      "ours": 44113,
+      "incumbents": {
+        "ansi-escapes": 30912
+      },
+      "ceiling": 30912,
+      "ratio": 1.4271,
+      "lightestIncumbent": {
+        "name": "ansi-escapes",
+        "bytes": 30912
+      },
+      "unmeasured": [
+        "terminal-link",
+        "term-img"
+      ],
+      "$unmeasured": "Not installed in this workspace, so its bytes are absent from `ceiling` — the ceiling is therefore a floor on the real one, never an overstatement."
+    },
+    "seniority": {
+      "ours": 53475,
+      "incumbents": {
+        "cosmiconfig": 1377599,
+        "dotenv": 82402,
+        "rc": 95287
+      },
+      "ceiling": 1555288,
+      "ratio": 0.0344,
+      "lightestIncumbent": {
+        "name": "dotenv",
+        "bytes": 82402
+      },
+      "zeroDependencyAnchor": {
+        "dotenv": 82402
+      },
+      "$note": "A zero-dependency incumbent exists here, so Y8's original wording applies too and beating it is reported separately."
+    },
+    "closeout": {
+      "ours": 90239,
+      "incumbents": {
+        "signal-exit": 76966,
+        "restore-cursor": 93638
+      },
+      "ceiling": 170604,
+      "ratio": 0.5289,
+      "lightestIncumbent": {
+        "name": "signal-exit",
+        "bytes": 76966
+      },
+      "zeroDependencyAnchor": {
+        "signal-exit": 76966
+      },
+      "$note": "A zero-dependency incumbent exists here, so Y8's original wording applies too and beating it is reported separately.",
+      "unmeasured": [
+        "exit-hook"
+      ],
+      "$unmeasured": "Not installed in this workspace, so its bytes are absent from `ceiling` — the ceiling is therefore a floor on the real one, never an overstatement."
+    },
+    "caique": {
+      "ours": 79256,
+      "incumbents": {
+        "@clack/prompts": 182219
+      },
+      "ceiling": 182219,
+      "ratio": 0.4349,
+      "lightestIncumbent": {
+        "name": "@clack/prompts",
+        "bytes": 182219
+      },
+      "unmeasured": [
+        "@inquirer/core"
+      ],
+      "$unmeasured": "Not installed in this workspace, so its bytes are absent from `ceiling` — the ceiling is therefore a floor on the real one, never an overstatement."
+    },
+    "bellpull": {
+      "ours": 4761,
+      "incumbents": {
+        "execa": 647091,
+        "cross-spawn": 46962,
+        "which": 20931
+      },
+      "ceiling": 714984,
+      "ratio": 0.0067,
+      "lightestIncumbent": {
+        "name": "which",
+        "bytes": 20931
+      }
+    }
+  }
+}
