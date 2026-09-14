@@ -1,0 +1,17 @@
+{
+  "name": "@vendored/cross-spawn-suite",
+  "private": true,
+  "type": "commonjs",
+  "main": "./shim.mjs",
+  "version": "7.0.6",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:moxystudio/node-cross-spawn.git"
+  },
+  "devDependencies": {
+    "mkdirp": "^0.5.1",
+    "path-key": "^3.1.0",
+    "rimraf": "^3.0.0"
+  }
+}

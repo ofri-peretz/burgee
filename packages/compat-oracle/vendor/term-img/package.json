@@ -1,0 +1,9 @@
+{
+  "name": "@vendored/term-img-suite",
+  "private": true,
+  "type": "module",
+  "main": "./shim.js",
+  "version": "7.1.0",
+  "license": "MIT",
+  "repository": "sindresorhus/term-img"
+}

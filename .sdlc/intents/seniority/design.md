@@ -41,6 +41,15 @@ Intent: [`intent.md`](./intent.md). Umbrella:
   lightest in the layer) — not under `cosmiconfig`, which would be a free pass.
 - **R10 (Y7)** `cosmiconfig`, `lilconfig`, `dotenv` and `rc` suites vendored into
   `compat-oracle`, `--control` first, ratcheting.
+
+  **Two of the four vendored and measured 2026-09-14 (PLAN 2.2–2.13). Neither is `active`,
+  and the reason is the control, not the target** — see
+  [§ The two suites, measured](#the-two-suites-measured) below for every number and every
+  blocker. In one line each: `dotenv` 17.4.2 controls at **141 / 141, 100%**, and cannot be
+  run by `npm run compat` at all because the oracle has no `tap` runner; `cosmiconfig`
+  10.0.1 controls at **210 / 241, 87.1%** through the oracle as it stands and at
+  **240 / 241, 99.6%** once the host's own two vitest options are applied, so the 28-case
+  gap is harness rather than incompatibility.
 - **R11 (Y9)** Nothing reads `process.*`; `env`, `cwd` and `argv` arrive as arguments.
 - **R12** Where the resolved shape is described by a burgee manifest, values are validated
   against it and a violation is reported with its provenance — *"`out` must be a string;
@@ -178,6 +187,118 @@ case where one side is *changed on purpose* and the other is forgotten.
 winner; recording which one won is a write, not a second pass. That it is free is exactly
 why its absence across sixteen packages is a pace finding rather than a capability one.
 
+## The two suites, measured
+
+Both vendored 2026-09-14 by `npx tsx scripts/vendor-suite.ts <pkg> --verify`, each at the
+annotated tag matching its published release, each `PROVENANCE` stamped `verified` against
+the host. Both host rows are **`planned`**, not `active`, and both baseline fragments are
+therefore inert until someone activates them. That is the honest state: a host whose control
+cannot be run, or runs below its own reference, must not publish a rate.
+
+| incumbent | release / tag / commit | files | control | target | target rate |
+| :-- | :-- | --: | :-- | :-- | :-- |
+| `dotenv` | 17.4.2 · `v17.4.2` · `f116f703` | 9 (7 gated, 2 internal-only) | **141 / 141 — 100.0%** | `seniority/dotenv` | **0 / 141 — 0.0%**, not built |
+| `cosmiconfig` | 10.0.1 · `v10.0.1` · `219805f4` | 11 (9 gated, 2 internal-only) | **210 / 241 — 87.1%** as the oracle runs it; **240 / 241 — 99.6%** with the host's own vitest options | `seniority` | **3 / 241 — 1.2%** |
+
+`cosmiconfig`'s target row is a real measurement, not a placeholder: the root export exists,
+so the suite runs and three of its cases pass — `throws when trying to supply loaders`,
+`throws when trying to supply searchStrategy`, and one TS-syntax-error case. R8's claim that
+the default export matches cosmiconfig's is, at 1.2%, not yet true; 3.2 is where it becomes
+true. `dotenv`'s 0 is the other kind of honest zero: `seniority/dotenv` does not exist, so
+`missingTarget` reports it rather than running anything.
+
+### Reproducing these numbers
+
+Neither row can be reproduced by `npm run compat` today — that is finding 1 and finding 2
+below, and it is why neither host is `active`. What each number *was* produced by:
+
+- **cosmiconfig, both control rates and the target rate.** Install the suite's three
+  packages into `packages/compat-oracle/vendor/cosmiconfig/node_modules`
+  (`cosmiconfig@10.0.1`, `env-paths`, `parent-module` — out of tree, so the root lockfile is
+  untouched), flip the host to `active` in `hosts.ts`, `npm run build -w compat-oracle`, then
+  `node packages/compat-oracle/dist/bin.js cosmiconfig --control` for **210 / 241** and the
+  same without `--control` for **3**. For **240 / 241**, add `restoreMocks: true,
+  mockReset: true` to the `test` block of the generated `vendor/cosmiconfig/vitest.config.mjs`
+  and run vitest over the nine public files directly — the config is rewritten on every
+  oracle run, which is why this one is a hand step until finding 3 is fixed.
+- **dotenv's 141 / 141.** One `node tests/<file>.js` per gated file from the vendored root
+  with the outputs concatenated, then `summarize()` over the result — the loop finding 1
+  describes, with `tap`, `sinon`, `decache` and `dotenv@17.4.2` installed beside the suite.
+  The two counts that matter are countable by hand from the raw TAP: 141 lines matching
+  `^ok`, none matching `^not ok`.
+
+### What is blocking each row, and whose file it is
+
+Five findings, every one of them outside `packages/seniority/**` and
+`packages/compat-oracle/vendor/**`. They are recorded here rather than fixed because the
+`harness` and `integrator` lanes own those files (`.sdlc/LANES.md`), and two lanes editing
+one shared file is the thing lanes exist to prevent.
+
+1. **No `tap` runner arm** (`compat-oracle/src/run.ts`, harness). dotenv's suite is
+   node-tap. Its files emit flat TAP that `summarize()` already reads correctly — measured:
+   `node tests/test-parse.js` prints `ok 1 …` through `1..47` at column zero, exactly the
+   dialect `parseFlatTap` counts. What is missing is the *invocation*. `node --test
+   --test-reporter=tap` is not it: measured, it collapses that 47-case file to a single
+   `ok 1 - tests/test-parse.js`, which would grade 141 cases as 7. The arm is one spawn per
+   file with the outputs concatenated — per-file plan lines restart at `ok 1` and
+   `parseFlatTap` counts lines, not numbers, so concatenation needs nothing else. The
+   141 / 141 above was produced by exactly that loop.
+2. **Six undeclared packages** (`compat-oracle/package.json`, harness; `package-lock.json`,
+   integrator). `vendored-suite.test.ts`'s install lock reads two manifests and neither
+   declares `env-paths` or `parent-module` (cosmiconfig's suite), `tap`, `sinon` or
+   `decache` (dotenv's), or the two incumbents themselves. **That lock is red on this branch,
+   by design** — it names all six in its own failure message, which is a better handoff than
+   a suite quietly left unvendored. It cannot be fixed from a package lane: declaring them
+   without regenerating the lockfile breaks `npm ci` outright, and the lockfile is forbidden
+   to every lane but `integrator`.
+3. **The generated vitest config drops the host's own options** (`writeVitestConfig` in
+   `run.ts`, harness). It writes `{ include, globals, setupFiles }` and nothing else.
+   cosmiconfig's `vite.config.ts` sets `restoreMocks: true` and `mockReset: true`, and its
+   suite depends on them: without them 28 cases in `successful-directories.test.ts` fail on
+   a `readFileSync` spy that still holds the previous case's calls (`expected [ …(28) ] to
+   deeply equal [ …(19) ]`). Adding just those two takes the control from 210 to 240. Those
+   28 are harness noise in a published compatibility rate, which is the exact class of error
+   the oracle exists to keep out of the number — the same shape as the ambient-colour
+   finding already recorded in `run.ts`.
+4. **An internal shim cannot resolve into a tarball that ships no source**
+   (`writeInternalShims` in `run.ts`, harness). For a control it resolves
+   `join(packageRoot(host), rel)`; cosmiconfig publishes `files: ["dist"]`, so
+   `src/Explorer`, `src/ExplorerSync` and `src/types` are not there. `index.test.ts` imports
+   and `vi.mock`s all three *and* imports the public entry, so `classify` calls it `public`
+   and it gates — it is the one remaining control failure at 240 / 241. This is a new shape
+   for C4: a file that is both internal-reaching and public-surface. Deciding it is 3.2's
+   work, not a bug to patch quietly.
+5. **The repository's own `.gitignore` swallows two of dotenv's fixtures** (root
+   `.gitignore`, integrator). `git check-ignore -v` says `.gitignore:9:.env` matches
+   `vendor/dotenv/tests/.env` and `.gitignore:10:.env.local` matches
+   `vendor/dotenv/tests/.env.local`. Both are parsed by the suite — `tests/.env` alone feeds
+   `test-parse.js`'s 47 cases — so a plain `git add` commits a suite that cannot run and
+   says nothing. They are tracked here by `git add -f`, which is a workaround and not the
+   fix: a rule written to stop secrets leaking should not be the reason a compatibility
+   number is wrong, and the next incumbent with a dotfile fixture hits it again.
+
+### Two things the host rows fixed rather than reported
+
+Both are `hosts.ts` data, which is this lane's to write, and both were measured before and
+after.
+
+- **cosmiconfig's `test/util.ts`.** Ten of its eleven files import `TempDir` from
+  `'./util'`, and `copySiblings` looks for a file at that literal name — TypeScript writes
+  it with an extension, so the sibling is never found and every file fails to load.
+  `extraDirs: ['test/util.ts']` brings it. Copying the whole `test/` directory instead also
+  brings `test/tsconfig.json`, which vite's oxc transform reads and dies on
+  (`[TSCONFIG_ERROR] Failed to load tsconfig ''` — 0 / 9, measured, and still 0 / 9 with the
+  base it extends vendored alongside). Naming the one file is what works.
+- **dotenv's `config.js` and its five dotfile fixtures.** `copyTests` copies directories
+  whole and otherwise takes only files the glob matches, so no fixture beside the tests is
+  ever copied, and `config.js` sits at the repo root rather than under `tests/`.
+  `test-config-cli.js` spawns `node -r ./config` and scored 0 / 3 without it and 3 / 3 with
+  it; `config.js` reaches the library through `./lib/main`, which is already a shimmed
+  internal, so vendoring the file is enough to point it at whatever is being graded. Its
+  fourth case is worth knowing about: dotenv's own `spawn` helper uses `timeout: 5000`, and
+  on a cold first spawn the child exceeded it and returned empty stdout. Warm, 3 / 3. A
+  control that flakes on the first run of the day is a real risk for this host.
+
 ## Verification
 
 - `npm test -w seniority` — the truth table over `ORDER` (five kinds, not six: R14),
@@ -187,7 +308,11 @@ why its absence across sixteen packages is a pace finding rather than a capabili
   built-in candidate order still equals `ORDER`.
 - `npm test -w burgee` — the shared vectors, unchanged.
 - `npm run compat -- cosmiconfig lilconfig dotenv rc` — four rows, `--control` first,
-  ratcheting.
+  ratcheting. **Two of the four are vendored; none is active yet, and the command refuses a
+  planned host by name** (`✖ not an active host: cosmiconfig, dotenv`). Reproduce today's
+  numbers with the recipes in [§ The two suites, measured](#the-two-suites-measured):
+  `lilconfig` and `rc` are still unvendored (`rc` is PLAN 2.15, the harness lane's, because
+  it grades through exit codes rather than a suite).
 - `npm run bench -- --foundation` — the discovery-chain row: `cosmiconfig` + its six
   transitive helpers against this package, on installed bytes and on resolve latency.
 - **The check that would have caught the original problem.** The original problem is a value

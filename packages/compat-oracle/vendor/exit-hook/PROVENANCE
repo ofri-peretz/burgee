@@ -1,0 +1,77 @@
+package:  exit-hook
+repo:     https://github.com/sindresorhus/exit-hook
+version:  5.1.0
+tag:      v5.1.0
+commit:   a46feec5bc3acca87f204a2dae287208ca20cac3
+vendored: 2026-09-14
+files:    1
+tool:     scripts/vendor-suite.ts
+verified: 2026-09-14 — v5.1.0 resolves to this commit at the host
+
+How this directory was made
+---------------------------
+A shallow clone of https://github.com/sindresorhus/exit-hook at v5.1.0, then that repository's own test directory and
+its fixtures copied here. The only edit is to the import specifiers that reach the library:
+each is rewritten to a generated shim, so one unedited suite can grade any implementation.
+Everything else — assertions, fixtures, helpers — is upstream's, byte for byte.
+
+Why a clone and not the npm tarball
+-----------------------------------
+No incumbent ships its tests to npm. Measured 2026-09-13:
+
+    npm pack ansi-escapes && tar tzf ansi-escapes-*.tgz | grep -c test   ->  0
+
+and the same for strip-ansi and for which. A tarball extract could not produce this
+directory, so "vendoring" here means a repo clone at the release tag and nothing else.
+
+The shim is not in here
+-----------------------
+There is deliberately no shim committed beside these tests. `shim.js` — or `shim.mjs`
+under a `type: commonjs` package, because the extension has to say the file is ESM — is
+written per run by packages/compat-oracle/src/run.ts, since its body names COMPAT_TARGET:
+the control run re-exports exit-hook itself, a target run re-exports ours. The
+vendor step deletes any shim it finds, so a stale one can never grade the wrong thing.
+
+Reproduce
+---------
+    npx tsx scripts/vendor-suite.ts exit-hook --version 5.1.0
+
+Every field above is reproduced exactly, with one exception that is a date and not a
+defect: `vendored` is the day the copy was taken, so a fresh run writes today's.
+
+The incumbent itself is in here, and that is deliberate
+-------------------------------------------------------
+`node_modules/exit-hook/` holds the published 5.1.0 tarball, unpacked and committed. It is
+five files, MIT, and it exists so that `--control` — the run that grades this suite against
+the package that wrote it, and therefore the run that proves the gate before the gate grades
+anything of ours — has something to grade. `exit-hook` is in neither the root manifest nor
+`package-lock.json`, and PLAN 2.14 settles where a vendored grader's dependency goes: inside
+`vendor/<pkg>/`, never into the workspace, because this repository's zero-dependency claim is
+about what a *consumer* installs and a vendored grader is neither shipped nor imported.
+
+    npm pack exit-hook@5.1.0
+    # sha256  644e471d78302df4c3016bc83103ae2c3c082f9cae0bd2248f97d143b1a5f730
+    mkdir -p node_modules/exit-hook
+    tar xzf exit-hook-5.1.0.tgz --strip-components=1 -C node_modules/exit-hook
+
+Two things to know about it:
+
+  * It is tracked despite the repository-wide `node_modules` ignore rule, so it was added
+    with `git add -f` and a later `git add -A` will not notice changes to it. It is a frozen
+    copy of a published release; there is nothing in it to change.
+  * `src/vendor.ts` deletes this whole directory before re-vendoring, so a re-vendor of this
+    host must put it back. The two commands above are the whole of that.
+
+And one thing it does not yet fix: `run.ts`'s `writeInternalShims()` resolves the host by
+bare name from `packages/compat-oracle/dist/` *before* it looks at whether the suite has any
+internal imports, so a control run still needs `exit-hook` resolvable from the oracle's own
+package as well. See the note on this host in `src/hosts.ts`.
+
+The four signal cases are a race, and it is upstream's clock
+-------------------------------------------------------------
+`test.js` kills its fixture after a fixed 1000 ms. Measured 2026-09-14 on a machine at load
+average 22 across 14 cores, against real `exit-hook`: 4 of 10 fixture runs were killed before
+the child had finished evaluating its module graph, so the signal took its default action and
+the case failed with `exitCode: undefined`; 0 of 10 failed when the same fixture was killed on
+a readiness signal instead. Both the control and the target show it, identically. A 17 / 21 on
+this row is that race. The four names are in `src/hosts.ts`.

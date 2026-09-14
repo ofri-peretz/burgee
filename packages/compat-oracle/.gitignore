@@ -11,7 +11,27 @@ vendor/*/vitest.setup.mjs
 vendor/*/lib/
 vendor/*/src/
 vendor/*/build/
+# Written by a *suite* rather than by the oracle, and upstream ignores both in its own
+# repository (`node-cross-spawn/.gitignore`: `test/fixtures/(*` and `test/tmp/`). Its
+# "special shell chars" case copies a fixture to a name made of them and never removes it,
+# and its `beforeAll` makes `test/tmp`. Without these, running the suite dirties the
+# worktree with two files whose names are `()%!^&;, ` and `()%!^&;, .bat` — which reads,
+# to the next person, like something the vendor step produced.
+vendor/cross-spawn/test/fixtures/(*
+vendor/*/test/tmp/
 results.json
 results.control.json
 upstream.json
 vendor-diff.md
+# A monorepo suite's own dependencies — `suiteDeps` in hosts.ts, installed into the
+# vendored directory on the first grade and never into this workspace's manifest or
+# lockfile. `@inquirer/testing`, `@clack/core`, and the incumbent itself for the control.
+vendor/*/node_modules/
+vendor/*/package-lock.json
+# clack's internal shims: its tests sit in `packages/prompts/test/`, so `../src/common.js`
+# is written under the sub-package, not at the vendored root like every host before it.
+vendor/*/packages/prompts/src/
+# The same two generated files for a monorepo host, where vitest's root is the
+# sub-package's own directory rather than the vendored root.
+vendor/*/packages/*/vitest.config.mjs
+vendor/*/packages/*/vitest.setup.mjs

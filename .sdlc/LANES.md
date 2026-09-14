@@ -12,7 +12,7 @@ and `chalk` (wave 0.4, the red ratchet) is roundel's incumbent, not anyone else'
 
 | lane | branch | owns | blocked by |
 | :-- | :-- | :-- | :-- |
-| `harness` | `lane/harness` | `packages/compat-oracle/**`, `scripts/vendor-suite.ts`, `scripts/mine-issues.ts` | — (runs first) |
+| `harness` | `lane/harness` | `packages/compat-oracle/src/**`, `packages/compat-oracle/vendor/{cross-spawn,rc}/**`, `scripts/vendor-suite.ts`, `scripts/mine-issues.ts` | — (runs first) |
 | `linegauge` | `lane/linegauge` | `packages/linegauge/**`, `.sdlc/intents/linegauge/**` | harness 2.0 |
 | `paratext` | `lane/paratext` | `packages/paratext/**`, `.sdlc/intents/paratext/**` | harness 2.0 |
 | `caique` | `lane/caique` | `packages/caique/**`, `.sdlc/intents/caique/**` | harness 2.0 |
@@ -22,6 +22,15 @@ and `chalk` (wave 0.4, the red ratchet) is roundel's incumbent, not anyone else'
 | `output` | `lane/output` | `packages/roundel/**`, `packages/flagstaff/**`, `.sdlc/intents/roundel/**`, `.sdlc/intents/flagstaff/**` | — (0.4 is urgent) |
 | `engine` | `lane/engine` | `packages/burgee/**`, `packages/commander-harness/**`, `packages/yargs-harness/**`, `.sdlc/intents/commander-*/**`, `.sdlc/intents/yargs-*/**` | — |
 | `integrator` | `lane/integrator` | everything else: `.sdlc/PLAN.md`, `.sdlc/intents/README.md`, `.github/**`, root `README.md`, `scripts/*-lock.test.ts` | all lanes |
+
+**A package lane owns the grading artefacts of its own incumbents**, and that is the second
+exception to the table above: `packages/compat-oracle/vendor/<its incumbents>/**`,
+`packages/compat-oracle/baseline/<its incumbents>.json`, and its own entries in
+`packages/compat-oracle/src/hosts.ts`. The first run of wave 2 found the contradiction the
+hard way — the table gave `packages/compat-oracle/**` wholly to `harness`, so
+`lanes.ts --check` rejected every path two lanes had been told to write, including the
+baseline fragment this file's own sharding rationale assigns to the lane. `hosts.ts` is the
+one file several lanes append to at once; keep the diff to your own lines and expect a merge.
 
 **Forbidden to every lane but `integrator`:** `package-lock.json`, `.sdlc/intents/README.md`,
 `.sdlc/bands/**`, root `README.md`, `.github/**`, `turbo.json`, `PRINCIPLES.md`, `CLAUDE.md`.

@@ -1,0 +1,9 @@
+{
+  "name": "@vendored/ansi-escapes-suite",
+  "private": true,
+  "type": "module",
+  "main": "./shim.js",
+  "version": "7.3.0",
+  "license": "MIT",
+  "repository": "sindresorhus/ansi-escapes"
+}

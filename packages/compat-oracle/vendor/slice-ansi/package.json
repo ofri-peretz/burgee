@@ -1,0 +1,9 @@
+{
+  "name": "@vendored/slice-ansi-suite",
+  "private": true,
+  "type": "module",
+  "main": "./shim.js",
+  "version": "7.1.2",
+  "license": "MIT",
+  "repository": "chalk/slice-ansi"
+}

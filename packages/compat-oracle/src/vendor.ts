@@ -38,16 +38,34 @@ export interface VendorResult {
  * Clone the release's tag; fall back to HEAD when the release was not tagged, and say so
  * in the record (`tag: null`) rather than pretend.
  */
+/**
+ * A ref this may hand to `git`. Two properties, and the second is the one that matters.
+ *
+ * The version reaching this function came from `npm view <pkg> version` — a remote answer,
+ * which makes the tag built from it second-order input to a command line (CodeQL's
+ * `js/second-order-command-line-injection`). `execFileSync` already rules out a shell, so
+ * the live hazard is not a metacharacter but a **leading dash**: a ref named `--upload-pack=…`
+ * is read by git as an option, not a ref. So: no leading dash, and nothing outside the
+ * characters a git ref may legally contain.
+ */
+const SAFE_REF = /^[A-Za-z0-9][\w./@+-]*$/;
+
 function cloneRelease(host: Host, version: string, clone: string): { commit: string; tag: string | null } {
   const tag = `${host.tagPrefix ?? 'v'}${version}`;
+  const head = (): string => execFileSync('git', ['-C', clone, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  // `--` before the positionals, so a repo URL cannot be read as an option either.
+  const shallow = (ref?: string): void => {
+    execFileSync('git', ['clone', '--depth', '1', ...(ref === undefined ? [] : ['--branch', ref]), '--', host.repo, clone], { stdio: 'ignore' });
+  };
   try {
-    execFileSync('git', ['clone', '--depth', '1', '--branch', tag, host.repo, clone], { stdio: 'ignore' });
-    return { commit: execFileSync('git', ['-C', clone, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), tag };
+    if (!SAFE_REF.test(tag)) throw new Error(`refusing to pass ${JSON.stringify(tag)} to git as a ref`);
+    shallow(tag);
+    return { commit: head(), tag };
   } catch {
     rmSync(clone, { recursive: true, force: true });
     mkdirSync(clone, { recursive: true });
-    execFileSync('git', ['clone', '--depth', '1', host.repo, clone], { stdio: 'ignore' });
-    return { commit: execFileSync('git', ['-C', clone, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), tag: null };
+    shallow();
+    return { commit: head(), tag: null };
   }
 }
 
@@ -137,6 +155,20 @@ export function internalImports(source: string, internalDir = 'lib'): string[] {
 }
 
 /**
+ * The same list, minus the host's own public entry.
+ *
+ * `../src/index.js` is clack's *public* import and also matches the `src/` internal
+ * pattern, so without this every one of its nineteen files would add `src/index.js` to
+ * the internal list and the runner would write a shim at a path the rewrite has already
+ * pointed elsewhere — a file nothing imports, and for the control a re-export of
+ * `<installed>/src/index.js`, which a published package does not ship.
+ */
+function internalsOnly(source: string, host: Host): string[] {
+  const publicPaths = new Set(host.imports.map(({ upstream }) => upstream.replace(/^(?:\.\.?\/)+/, '')));
+  return internalImports(source, host.internalDir).filter((p) => !publicPaths.has(p));
+}
+
+/**
  * `internal` when a file reaches into the host's internals AND never imports a public
  * entry: it is testing a helper module, not the surface we promise, and passing it would
  * mean copying the host's file layout. Such files are still vendored and graded — on a
@@ -172,7 +204,35 @@ export function rootPackage(host: Host, upstream: UpstreamPackage): Record<strin
   if (upstream.version !== undefined) pkg.version = upstream.version;
   if (upstream.license !== undefined) pkg.license = upstream.license;
   if (upstream.repository !== undefined) pkg.repository = upstream.repository;
+  // Written from `hosts.ts` rather than left to a human, so a re-vendor cannot drop it: the
+  // whole file is regenerated on every run, and a hand-added dependency would survive exactly
+  // until the next upstream release. A host declaring neither gets no key at all, so the
+  // eight directories vendored before this existed still reproduce byte for byte.
+  //
+  // Two fields, because they answer different questions. `vendorDeps` names what the suite
+  // reaches for and expects the hoist to supply; `suiteDeps` pins `name@version` and is
+  // installed into `vendor/<host>/node_modules`, which is what a monorepo's suite needs when
+  // it imports its own siblings. A host may declare either.
+  const declared = { ...(host.vendorDeps ?? {}), ...(host.suiteDeps === undefined ? {} : Object.fromEntries(host.suiteDeps.map(splitSpec))) };
+  if (Object.keys(declared).length > 0) pkg.devDependencies = declared;
   return pkg;
+}
+
+/**
+ * `@clack/core@1.5.1` -> `['@clack/core', '1.5.1']`. The last `@` is the separator, because
+ * the first one belongs to the scope.
+ */
+export function splitSpec(spec: string): [string, string] {
+  const at = spec.lastIndexOf('@');
+  if (at <= 0) throw new Error(`suite dependency "${spec}" has no pinned version`);
+  return [spec.slice(0, at), spec.slice(at + 1)];
+}
+
+/** The suite-local dependencies a vendored directory declares, if it declares any. */
+export function readSuiteDeps(hostDir: string): Record<string, string> {
+  const at = join(hostDir, 'package.json');
+  if (!existsSync(at)) return {};
+  return (JSON.parse(readFileSync(at, 'utf8')) as { devDependencies?: Record<string, string> }).devDependencies ?? {};
 }
 
 /** Where a vendor run reads from and writes to: the clone's test dir, and ours. */
@@ -189,6 +249,17 @@ interface Copied {
 }
 
 /**
+ * Whether a directory inside the test dir is brought along.
+ *
+ * Two are not. A dot-directory, because a host whose `testDir` is the repo root (ora)
+ * would otherwise vendor `.git`. And the host's own `internalDir`, because
+ * `@inquirer/core`'s suite is one file sitting beside `src/` — copying that would vendor
+ * the incumbent's implementation into this repository, and the specifier rewrite has
+ * already made it unreachable by pointing every import of it at the generated shim.
+ */
+const copiesDir = (host: Host, name: string): boolean => !name.startsWith('.') && name !== (host.internalDir ?? 'lib');
+
+/**
  * Copy the test dir: every fixture directory whole, every file the host's glob calls a
  * test with its specifiers rewritten, and then whatever those tests import from beside
  * themselves.
@@ -201,17 +272,17 @@ function copyTests(host: Host, { from, dest, hostDir }: Paths, packageType: stri
 
   for (const entry of readdirSync(from, { withFileTypes: true })) {
     if (entry.isDirectory()) {
-      // A host whose testDir is the repo root (ora) would otherwise vendor `.git`.
-      if (entry.name.startsWith('.')) continue;
-      cpSync(join(from, entry.name), join(dest, entry.name), { recursive: true, verbatimSymlinks: true });
-      rewriteTree(join(dest, entry.name), host, hostDir, packageType);
+      if (copiesDir(host, entry.name)) {
+        cpSync(join(from, entry.name), join(dest, entry.name), { recursive: true, verbatimSymlinks: true });
+        rewriteTree(join(dest, entry.name), host, hostDir, packageType);
+      }
       continue;
     }
     // The host's own glob, so a repo-root suite does not vendor the implementation beside it.
     if (!matchesGlob(entry.name, host.testGlob)) continue;
     const source = readFileSync(join(from, entry.name), 'utf8');
     if (classify(source, host) === 'internal') internalFiles.push(entry.name);
-    for (const p of internalImports(source, host.internalDir)) internals.add(p);
+    for (const p of internalsOnly(source, host)) internals.add(p);
     const rewritten = rewriteAt(source, host, { fileDir: dest, hostDir, packageType });
     // Read off the *rewritten* source: a specifier the rewrite already pointed at a
     // generated shim (ora's `./index.js`) is the host itself, not a sibling helper.
@@ -239,7 +310,7 @@ function countNested(host: Host, from: string, dest: string, into: { internalFil
     if (!rel.includes('/')) continue;
     const source = readFileSync(join(from, rel), 'utf8');
     if (classify(source, host) === 'internal') into.internalFiles.push(rel);
-    for (const p of internalImports(source, host.internalDir)) into.internals.add(p);
+    for (const p of internalsOnly(source, host)) into.internals.add(p);
     files += 1;
   }
   return files;
@@ -252,14 +323,29 @@ function countNested(host: Host, from: string, dest: string, into: { internalFil
  */
 function copySiblings(siblings: Set<string>, host: Host, { from, dest, hostDir }: Paths, packageType: string): void {
   for (const name of siblings) {
-    const at = join(from, name);
-    if (matchesGlob(name, host.testGlob) || !existsSync(at)) continue;
-    writeFileSync(join(dest, name), rewriteAt(readFileSync(at, 'utf8'), host, { fileDir: dest, hostDir, packageType }));
+    const at = siblingFile(from, name);
+    if (matchesGlob(name, host.testGlob) || at === undefined) continue;
+    writeFileSync(join(dest, at.name), rewriteAt(readFileSync(at.path, 'utf8'), host, { fileDir: dest, hostDir, packageType }));
   }
 }
 
+/**
+ * The file a sibling specifier names, which is not always the file it spells.
+ *
+ * A TypeScript suite written for `"moduleResolution": "nodenext"` imports its helper as
+ * `./test-utils.js` and the file on disk is `test-utils.ts` — the extension the *emitted*
+ * module would have, not the one the source has. clack's nineteen files all reach one such
+ * helper, and taking the specifier literally left every one of them unable to load: a
+ * missing helper reads as nineteen failing files, which reads as a compatibility number.
+ */
+function siblingFile(from: string, name: string): { name: string; path: string } | undefined {
+  const candidates = [name, ...(name.endsWith('.js') ? [`${name.slice(0, -'.js'.length)}.ts`] : [])];
+  const found = candidates.find((c) => existsSync(join(from, c)));
+  return found === undefined ? undefined : { name: found, path: join(from, found) };
+}
+
 /** Vendor the host's suite at its latest npm release (or the given version). */
-export function vendor(host: Host, into: string, version = latestVersion(host.name)): VendorResult {
+export function vendor(host: Host, into: string, version = latestVersion(host.npmName ?? host.name)): VendorResult {
   const clone = mkdtempSync(join(tmpdir(), `vendor-${host.name}-`));
   try {
     const { commit, tag } = cloneRelease(host, version, clone);

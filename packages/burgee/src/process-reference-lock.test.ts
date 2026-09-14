@@ -176,7 +176,17 @@ describe('process references stay behind the Runtime seam', () => {
         // CRLF checkouts (Windows) would otherwise leave a \r that stops the comment-stripping regex.
         const lines = readFileSync(f, 'utf-8').split(/\r?\n/);
         lines.forEach((line, i) => {
-          const code = line.replace(/\/\/.*$/, '');
+          // Comments, then string literals. The second was added 2026-09-14: closeout's
+          // `exit-hook` façade carries the incumbent's own warning text verbatim — "use
+          // gracefulExit() instead of process.exit()" — and three lines of a *message*
+          // tripped a lock about *calls*. A checker that reads printed source and not the
+          // shape is the defect this repository has caught in itself before; quoted spans are
+          // not code, so they are removed before the pattern ever sees them.
+          const code = line
+            .replace(/\/\/.*$/, '')
+            .replace(/'(?:[^'\\]|\\.)*'/g, "''")
+            .replace(/"(?:[^"\\]|\\.)*"/g, '""')
+            .replace(/`(?:[^`\\$]|\\.)*`/g, '``');
           const isComment = /^\s*(\*|\/\*)/.test(line);
           if (PROCESS_READ.test(code) && !isComment) {
             offenders.push(`${rel}:${i + 1}`);

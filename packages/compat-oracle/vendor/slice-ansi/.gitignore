@@ -1,0 +1,17 @@
+# `random-item` is committed here on purpose, and the repository root ignores every
+# directory called `node_modules`, so this file un-ignores exactly this one. The long form
+# of the reasoning is in `../wrap-ansi/.gitignore`; the short form is that slice-ansi's own
+# suite opens with `import randomItem from 'random-item'`, a vendored suite is run unedited,
+# and without it the control run fails to *resolve* rather than failing a case:
+#
+#     Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'random-item' imported from
+#     packages/compat-oracle/vendor/slice-ansi/test.js
+#
+# `random-item` has no dependencies of its own, so this is one directory and five files.
+#
+# The same hazard applies: `npm run compat -- --vendor` deletes `vendor/slice-ansi/` whole
+# before re-copying. Restore with `git checkout -- packages/compat-oracle/vendor/slice-ansi/node_modules`.
+!node_modules/
+
+# ava's per-run scratch file — a record of which cases failed on this machine last time.
+node_modules/.cache/

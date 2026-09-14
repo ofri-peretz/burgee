@@ -1,0 +1,54 @@
+{
+  "repo": "https://github.com/sindresorhus/exit-hook",
+  "version": "5.1.0",
+  "tag": "v5.1.0",
+  "commit": "a46feec5bc3acca87f204a2dae287208ca20cac3",
+  "vendored": "2026-09-14",
+  "files": 1,
+  "internalFiles": [],
+  "internals": [],
+  "hashes": {
+    "./index.d.ts": "3fb6d38c888f30d53cb516a65629f57dba530a0bcfaaee97f64fef102575fd82",
+    "./index.js": "ef0fce27b08d73e54fab71c62b2679362acaa7ab5bdb0850964f617fa868297a",
+    "./index.test-d.ts": "0551323fc03020425b9f41bc04347696c04ef845c979f281664124a704e38b33",
+    "./test.js": "044244a56de93eae31a99bd5faa655481bbecfa2c6f4c19c02b00ff9a6af6eda",
+    "index.d.ts": "3fb6d38c888f30d53cb516a65629f57dba530a0bcfaaee97f64fef102575fd82",
+    "index.js": "ef0fce27b08d73e54fab71c62b2679362acaa7ab5bdb0850964f617fa868297a"
+  },
+  "tests": {
+    "./index.d.ts": [],
+    "./index.js": [],
+    "./index.test-d.ts": [],
+    "./test.js": [
+      "main",
+      "main with exitCode",
+      "main-empty",
+      "main-empty with exitCode",
+      "main-async",
+      "main-async with exitCode",
+      "main-async-notice",
+      "main-async-notice with exitCode",
+      "gracefulExit with explicit exit code",
+      "listener count",
+      "type enforcing",
+      "flushes stdout before exit with async hook",
+      "flushes stdout before exit with short wait and backpressure",
+      "flushes stdout and stderr before exit with short wait and backpressure",
+      "flush timeout prevents hanging when stdout is blocked",
+      "flushes stdout before exit with sync hook",
+      "does not throw when stdio is closed before flush",
+      "${signal} causes process.exitCode to be ignored"
+    ]
+  },
+  "surface": {
+    "index.d.ts": [
+      "Options",
+      "asyncExitHook",
+      "gracefulExit"
+    ],
+    "index.js": [
+      "asyncExitHook",
+      "gracefulExit"
+    ]
+  }
+}

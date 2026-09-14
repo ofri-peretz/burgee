@@ -1,0 +1,37 @@
+{
+  "repo": "https://github.com/chalk/strip-ansi",
+  "version": "7.2.0",
+  "tag": "v7.2.0",
+  "commit": "38ff9f2282540422031ed523f0060c7bb575e20f",
+  "vendored": "2026-09-14",
+  "files": 1,
+  "internalFiles": [],
+  "internals": [],
+  "hashes": {
+    "./index.d.ts": "d690ec58f57c5fa69cfe088959335c9f12482db67eb1bc1bbba93e3062f69276",
+    "./index.js": "9ff7e1abf2727fbf9854a9dfcc1e69d1f9a0b23ccc0649269fc1c4fa8e44bd79",
+    "./index.test-d.ts": "5937f2680ca56a040871f317bf2584b24b1816c412d886624c78d6b3fbec9ea1",
+    "./test.js": "ed290af3f99a213a1b71fb5e3d90f312d674b050faff60359e04396c4ad96085",
+    "index.d.ts": "d690ec58f57c5fa69cfe088959335c9f12482db67eb1bc1bbba93e3062f69276",
+    "index.js": "9ff7e1abf2727fbf9854a9dfcc1e69d1f9a0b23ccc0649269fc1c4fa8e44bd79"
+  },
+  "tests": {
+    "./index.d.ts": [],
+    "./index.js": [],
+    "./index.test-d.ts": [],
+    "./test.js": [
+      "strip color from string",
+      "strip color from ls command",
+      "strip reset;setfg;setbg;italics;strike;underline sequence from string",
+      "strip link from terminal link",
+      "strip OSC sequence with BEL terminator",
+      "strip color from string using 8-bit CSI introducer",
+      "return string as-is if no ANSI codes",
+      "return empty string as-is"
+    ]
+  },
+  "surface": {
+    "index.d.ts": [],
+    "index.js": []
+  }
+}

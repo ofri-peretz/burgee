@@ -163,8 +163,67 @@ says no key may require a function except a component's `frame` and burgee's `ho
 exemption list owes `handlers.run` an entry, and that edit belongs to the lane that owns
 `plugin-contract`.
 
-Not yet: the `signal-exit` and `exit-hook` suites (step 2.2–2.13), and the deadline report
-naming the handler that hung (R3) — `PluginHandler.name` exists for it and nothing reads it.
+Not yet: the deadline report naming the handler that hung (R3) — `PluginHandler.name` exists
+for it and nothing reads it.
+
+## What shipped (R6, R9 — two graded drop-in paths — 2026-09-14)
+
+Step 2.2–2.13's closeout share. `closeout/exit-hook` and `closeout/restore-cursor` are built
+and graded by their incumbents' own suites through `compat-oracle`, `--control` first:
+
+| host | release | runner | control | closeout |
+| :-- | :-- | :-- | --: | --: |
+| `exit-hook` | 5.1.0 | ava | 21 / 21 | 21 / 21 |
+| `restore-cursor` | 5.1.0 | node:test | 6 / 6 | 6 / 6 |
+
+**`signal-exit` is not among them, and the reason is the harness rather than the package.**
+Measured against the repo at `v4.1.0`: its suite runs under `tap`, which is not one of
+`run.ts`'s four runner dialects; four of its files are TypeScript executed through a
+`ts-node/esm` loader the workspace does not install; five files and two fixtures import
+`../dist/cjs/…`, and `vendor.ts`'s `INTERNAL_PATTERNS` knows `lib` and `src` and *throws* on
+anything else; and `test/signals.js` asserts through `t.matchSnapshot()` against tap's own
+snapshot format. All four are edits to `run.ts` and `vendor.ts`. The suite is therefore not
+vendored at all — a directory of tests that cannot run would have to be excluded from
+`vendored-suite.test.ts`, and an exclusion that large reads as a decision when it is a
+blockage. `hosts.ts` carries the host as `planned` with the four blockers written out, and
+**no baseline fragment exists for it**, which is the honest state: R4 makes `signal-exit`'s
+pass rate the gate on the whole `overrides` recipe, and there is no rate yet.
+
+**Two mutations proved `restore-cursor`'s row bites**, each a plausible wrong implementation
+rather than a scrambled constant:
+
+| Mutation | Result |
+| :-- | :-- |
+| restore through `closeout.showCursor()`, which re-reads `isTTY` at write time | 3 / 6 |
+| stdout preferred over stderr when both are terminals | 5 / 6 |
+
+The first is the one worth keeping: the fixture *deletes* `isTTY` before exiting, so the
+obvious implementation — reuse the package's own `showCursor` — writes nothing at all, and
+scores 3 / 6 rather than 0, which reads like a near miss and is a wrong contract. Dropping
+`exit-hook`'s stdio drain scores 18 / 21 and 15 / 21 on consecutive runs for the same reason:
+`process.exit()` truncates 20,000 queued lines that the suite counts.
+
+**What the deadline had to give up, stated rather than hidden.** `closeout/exit-hook` does
+*not* impose closeout's 2 000 ms `DEFAULT_DEADLINE`: the incumbent's own case registers a hook
+with `{ wait: 2000 }`, and a 2 s hook under a 2 s budget is a coin toss. The façade builds its
+registry at shutdown with `max(wait)` — the incumbent's effective bound, still finite, still
+never `Infinity` — because a drop-in that silently tightens a caller's timeout is not a
+drop-in. R3's bounded shutdown lives in `onExit()`, and the README says so in the same breath
+as the override recipe. What the façade does keep from this package is the ordering: sync
+hooks are the `flush` phase and async hooks are `release`, so "every synchronous hook has run
+before the first asynchronous one starts" comes out of `PHASES` rather than out of two sets
+and a comment, and `restore` still runs last for anything registered through `hideCursor()`.
+
+**A harness defect the control run found, and it is in the instrument.** `exit-hook`'s four
+signal cases kill their fixture after a **fixed 1000 ms**. If the child has not finished
+evaluating its module graph by then the signal takes its default action and the case fails
+with `exitCode: undefined`. Measured on a machine at load average 22 across 14 cores, against
+**real `exit-hook`**: 4 of 10 fixture runs lost that race, and 0 of 10 lost it when the same
+fixture was killed on a readiness signal instead. Control and target show it identically, and
+always all four cases together. So 21 / 21 is the ceiling and the recorded number, and a
+17 / 21 on that row is this race — check the four names before believing anything else. No
+`controlFailures` allowance was declared: an allowance of 4 on a 21-case suite is a 19% blind
+spot a genuinely broken implementation could hide in.
 
 ## Rejected alternatives
 

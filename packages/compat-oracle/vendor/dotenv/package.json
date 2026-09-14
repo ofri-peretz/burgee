@@ -1,0 +1,12 @@
+{
+  "name": "@vendored/dotenv-suite",
+  "private": true,
+  "type": "commonjs",
+  "main": "./shim.mjs",
+  "version": "17.4.2",
+  "license": "BSD-2-Clause",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/motdotla/dotenv.git"
+  }
+}
