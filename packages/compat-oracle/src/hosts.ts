@@ -367,6 +367,146 @@ export const HOSTS: Host[] = [
     status: 'rejected',
     note: 'Its API is inseparable from its shape: a project layout, a build step and a generator. A façade could not be adopted without adopting the shape that Z1 exists to prevent, and oclif does 10.9M/wk against commander’s 508M, so the shape is also what lost.',
   },
+  {
+    // The closeout layer's first graded host. `restore-cursor` is the smallest package in
+    // the shutdown layer and the one with the deepest dependency chain for its size —
+    // `cli-cursor` (107.6 M/wk) → `restore-cursor` (107.5 M/wk) → `onetime` → `mimic-fn`,
+    // four packages to show a cursor again — which is the whole argument in
+    // `closeout/intent.md` for the layer existing.
+    //
+    // Its suite is one file at the repo root beside the implementation, so `testGlob` names
+    // that file rather than a directory: the same shape as ora's and string-width's, and for
+    // the same reason — "every `.js` here" would vendor `index.js` and grade the host's own
+    // implementation as a test.
+    //
+    // **Where the control's copy of the incumbent comes from, and why that is fragile.**
+    // `restore-cursor@5.1.0` is in the committed `package-lock.json` already, as a transitive
+    // dependency of `ora` (`ora` → `cli-cursor` → `restore-cursor`), so `npm ci` installs the
+    // exact version this row was measured against and the control reproduces on a clean
+    // checkout. Nothing *declares* it, though: it is the `@colors/colors` shape recorded in
+    // `compat-oracle/package.json`, one `ora` release away from vanishing, and if it does the
+    // control goes red rather than quiet, because `controlShortfall` refuses a run that
+    // registers nothing.
+    name: 'restore-cursor',
+    repo: 'https://github.com/sindresorhus/restore-cursor',
+    testDir: '.',
+    testGlob: 'index.test.js',
+    imports: [{ upstream: './index.js', subpath: '/restore-cursor', reexportDefault: true, control: 'restore-cursor' }],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'node:test',
+    target: 'closeout',
+    status: 'active',
+    note: "Graded against `closeout/restore-cursor`, the façade, not against `closeout` itself: the root export is the phase registry, and R6 reserves the root default for `signal-exit`'s. The suite spawns a child per case with `process.stdout.isTTY` / `process.stderr.isTTY` forced, so it grades the *stream choice* (stderr first, then stdout, then neither) as much as the escape sequence — which is exactly the part `closeout.showCursor()` gets wrong for this contract, since it re-reads `isTTY` at exit and the fixture deletes it before exiting.",
+  },
+  {
+    // The second incumbent of the shutdown layer, and the one whose suite grades the part
+    // that is actually hard: 21 ava cases, 18 of which spawn a fixture and assert the
+    // *observed exit code* and the *bytes that made it out* — `SIGINT` → 130, `SIGTERM` →
+    // 143, `process.exitCode` preserved on a graceful exit and ignored on a signal, 20,000
+    // lines of stdout flushed under backpressure before the process is allowed to leave.
+    // That is `closeout/intent.md`'s R10 and R3 graded by somebody else's assertions.
+    //
+    // ## Where the control's copy of the incumbent comes from
+    //
+    // `exit-hook` is not in the root manifest and not in `package-lock.json`, and PLAN 2.14
+    // states the rule for this whole wave: a vendored grader's dependency goes *inside*
+    // `vendor/<pkg>/`, never into the workspace. So the published 5.1.0 tarball is unpacked
+    // at `vendor/exit-hook/node_modules/exit-hook/` and committed, which is where the
+    // generated `shim.js` resolves it from — five files, MIT, byte-identical to the tarball
+    // (sha256 `644e471d…`), and reproduced by the command in this directory's `PROVENANCE`.
+    //
+    // **That is necessary and, today, not sufficient.** `run.ts`'s `writeInternalShims()`
+    // calls `packageRoot(host.name)` *eagerly* whenever the target is the host itself —
+    // before the loop over `internals`, so it runs even for a suite like this one that has
+    // none. `packageRoot` resolves by bare name from `packages/compat-oracle/dist/`, which a
+    // vendor-local install cannot satisfy, and the control run dies with
+    // `ERR_MODULE_NOT_FOUND` instead of grading. Moving that call inside the loop is one
+    // line, and it is the line that makes PLAN 2.14's stated arrangement actually work; until
+    // it lands, `--control` also needs `exit-hook` resolvable from the oracle's own package
+    // (the measurements below were taken with the same tarball unpacked at
+    // `packages/compat-oracle/node_modules/exit-hook/`, which `npm ci` does not create).
+    // The target run is unaffected: it resolves `closeout/exit-hook` and never calls
+    // `packageRoot`.
+    //
+    // ## The four cases that are a race, measured rather than suspected
+    //
+    // `SIGINT`, `SIGTERM` and their two `…causes process.exitCode to be ignored` siblings
+    // spawn a fixture and kill it after a **fixed 1000 ms**. If the child has not finished
+    // evaluating its module graph by then, the signal takes its default action and the child
+    // dies *without* its handler — `isTerminated: true`, `exitCode: undefined`, empty stdout,
+    // which is exactly the assertion failure observed. Measured 2026-09-14 on a machine at
+    // load average 22 on 14 cores, against **real `exit-hook`**: 4 of 10 fixture runs lost
+    // that race at 1000 ms, and **0 of 10 lost it when the same fixture was killed on a
+    // readiness signal instead of on a clock**. The control's whole-suite rate over nine runs
+    // was 21 / 21 six times, 17 / 21 twice and one ava crash, with the same four cases
+    // failing together every time; the target's distribution over five runs was identical.
+    //
+    // So the ceiling for both is 21 / 21, that is what is recorded, and **a 17 / 21 on this
+    // row is this race, not a regression** — check the four names before believing anything
+    // else. No `controlFailures` allowance is declared on purpose: an allowance of 4 on a
+    // 21-case suite would be a 19% blind spot that a genuinely broken implementation could
+    // hide in, and this dialect cannot take an `Exclusion` either (`summarize()` refuses one
+    // on a runner whose TAP carries only summary counts, which is ava's). A red run here is
+    // loud and occasionally wrong, which is the right way round.
+    name: 'exit-hook',
+    repo: 'https://github.com/sindresorhus/exit-hook',
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '/exit-hook', reexportDefault: true, control: 'exit-hook' }],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'ava',
+    target: 'closeout',
+    status: 'active',
+    note: "Graded against `closeout/exit-hook`. The suite's fixtures live in `fixtures/` and `import … from '../index.js'`, which the vendor step rewrites to the same generated shim the test file gets, so one unedited suite grades either implementation. `ava` and `execa` are declared at the workspace root already, which is what `vendored-suite.test.ts` checks; the incumbent itself is the vendor-local copy described above.",
+  },
+  {
+    // **Not graded, and the reason is the harness rather than the suite.**
+    //
+    // `signal-exit` is the headline incumbent of this layer — 198.9 M/wk, last published
+    // 2023-07-29, inside npm's own dependency tree — and `closeout/intent.md` R4 makes its
+    // pass rate the gate on the whole `overrides` recipe. It is deliberately *not* vendored:
+    // a directory of tests that cannot be run is worse than no directory, because
+    // `vendored-suite.test.ts` would then have to be told to ignore it, and an exclusion
+    // that large reads as a decision when it is a blockage.
+    //
+    // Measured 2026-09-14 against the repo at `v4.1.0`, four separate blockers, each in a
+    // file this lane may not write:
+    //
+    //  1. **Its runner is `tap`, and `Host['runner']` has no such member.** PLAN's wave-2
+    //     table says "tap ✅ TAP native"; `src/run.ts`'s `command()` has four branches —
+    //     `vitest`, `node:test`, `ava`, `mocha` — and tap is not one of them. The row in the
+    //     plan was written from `npm view signal-exit scripts.test` and not from this file.
+    //  2. **Half the suite is TypeScript run through a loader.** `test/*.ts` (four files) are
+    //     executed by tap with `--loader ts-node/esm`, declared in the host's own
+    //     `package.json` `tap.node-arg`. Neither `tap` nor `ts-node` is declared in this
+    //     workspace, and `vendored-suite.test.ts` fails any vendored file that names a
+    //     package no manifest declares — so vendoring the suite turns that lock red.
+    //  3. **Its tests reach into `dist/`, which the vendor step cannot shim.**
+    //     `test/all-integration-test.ts`, `test/fallback.ts`, `test/signals.js` and two
+    //     fixtures import `../dist/cjs/index.js` and `../dist/cjs/signals.js`.
+    //     `INTERNAL_PATTERNS` in `src/vendor.ts` knows `lib` and `src` and *throws* on
+    //     anything else, so `internalDir: 'dist'` is a change to that file, not a field here.
+    //  4. **`test/signals.js` asserts through `t.matchSnapshot()` against `tap-snapshots/`**,
+    //     which is tap's own snapshot format and has no reader outside tap.
+    //
+    // What unblocks it, in order: a `tap` branch in `command()` plus `'tap'` in the union
+    // above; a `dist` entry in `INTERNAL_PATTERNS`; and `tap` + `ts-node` as vendor-local
+    // devDependencies under `vendor/signal-exit/` (PLAN 2.14's rule, the same arrangement
+    // `exit-hook` uses here). That is the `run.ts`/`vendor.ts` owner's work — one dialect,
+    // the same size as PLAN 2.14's `cross-spawn` decision — and it is worth doing, because
+    // this is the one row `closeout`'s distribution claim rests on.
+    name: 'signal-exit',
+    repo: 'https://github.com/tapjs/signal-exit',
+    testDir: 'test',
+    testGlob: '*.{js,ts}',
+    imports: [{ upstream: '../dist/cjs/index.js', subpath: '/signal-exit', reexportDefault: false }],
+    surfaceFiles: ['src/index.ts', 'src/signals.ts'],
+    // Declared for the day the dialect lands; nothing reads it while the status is `planned`.
+    runner: 'node:test',
+    target: 'closeout',
+    status: 'planned',
+    note: '198.9 M/wk and stale since 2023-07-29 — the layer\'s headline incumbent. Blocked on the harness, not on closeout: its suite runs under `tap` with a `ts-node/esm` loader and reaches into `dist/`, and all three are edits to `run.ts` and `vendor.ts`. `runner` reads `node:test` as a placeholder so this entry type-checks; it is wrong on purpose and unread while the status is `planned`, and the dialect that lands must correct it. **No baseline fragment exists for this host, and that is the honest state** — a row here with a number in it would be a number nothing measured.',
+  },
 ];
 
 export const active = (): Host[] => HOSTS.filter((h) => h.status === 'active');
