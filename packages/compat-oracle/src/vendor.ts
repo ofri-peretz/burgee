@@ -38,16 +38,34 @@ export interface VendorResult {
  * Clone the release's tag; fall back to HEAD when the release was not tagged, and say so
  * in the record (`tag: null`) rather than pretend.
  */
+/**
+ * A ref this may hand to `git`. Two properties, and the second is the one that matters.
+ *
+ * The version reaching this function came from `npm view <pkg> version` — a remote answer,
+ * which makes the tag built from it second-order input to a command line (CodeQL's
+ * `js/second-order-command-line-injection`). `execFileSync` already rules out a shell, so
+ * the live hazard is not a metacharacter but a **leading dash**: a ref named `--upload-pack=…`
+ * is read by git as an option, not a ref. So: no leading dash, and nothing outside the
+ * characters a git ref may legally contain.
+ */
+const SAFE_REF = /^[A-Za-z0-9][\w./@+-]*$/;
+
 function cloneRelease(host: Host, version: string, clone: string): { commit: string; tag: string | null } {
   const tag = `${host.tagPrefix ?? 'v'}${version}`;
+  const head = (): string => execFileSync('git', ['-C', clone, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  // `--` before the positionals, so a repo URL cannot be read as an option either.
+  const shallow = (ref?: string): void => {
+    execFileSync('git', ['clone', '--depth', '1', ...(ref === undefined ? [] : ['--branch', ref]), '--', host.repo, clone], { stdio: 'ignore' });
+  };
   try {
-    execFileSync('git', ['clone', '--depth', '1', '--branch', tag, host.repo, clone], { stdio: 'ignore' });
-    return { commit: execFileSync('git', ['-C', clone, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), tag };
+    if (!SAFE_REF.test(tag)) throw new Error(`refusing to pass ${JSON.stringify(tag)} to git as a ref`);
+    shallow(tag);
+    return { commit: head(), tag };
   } catch {
     rmSync(clone, { recursive: true, force: true });
     mkdirSync(clone, { recursive: true });
-    execFileSync('git', ['clone', '--depth', '1', host.repo, clone], { stdio: 'ignore' });
-    return { commit: execFileSync('git', ['-C', clone, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), tag: null };
+    shallow();
+    return { commit: head(), tag: null };
   }
 }
 

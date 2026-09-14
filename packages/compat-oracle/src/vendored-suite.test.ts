@@ -116,7 +116,11 @@ function requiredPackages(dir: string): Map<string, string> {
     // package the suite requires would ask this workspace to declare its own packages.
     if (source.startsWith(GENERATED_HEADER)) continue;
     for (const name of packagesIn(source)) {
-      if (!found.has(name)) found.set(name, at.slice(root.length + 1));
+      // POSIX separators whatever the OS wrote: this string is both a message and the thing
+      // the host name is read back out of, and on Windows a `\` made every undeclared entry
+      // look like it belonged to no host — so the active-host scoping matched nothing and the
+      // row went red there while passing everywhere else.
+      if (!found.has(name)) found.set(name, at.slice(root.length + 1).split(sep).join('/'));
     }
   }
   return found;
