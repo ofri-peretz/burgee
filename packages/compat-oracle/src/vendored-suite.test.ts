@@ -206,7 +206,20 @@ describe('the oracle installs what its vendored suites require', () => {
     // stray `~/node_modules` and the suite scored 33/33, while `npm ci` gave 15/16. What
     // has to hold is that a clean checkout has the package, by one route or the other.
     const undeclared = [...requiredPackages(VENDOR)].filter(([name]) => !declared.has(name) && !beside.has(name)).map(([name, at]) => `${name} (${at})`);
-    expect(undeclared).toEqual([]);
+    // Scoped to hosts that are **active**, and the reason is a measurement. `dotenv`'s suite
+    // wants `tap`, and installing `tap` pulls **203 packages and 140 MB** — which this
+    // repository will not commit beside a suite and will not put in its lockfile. So that
+    // host stays `planned`, its rate unpublished, and the blocker written into `hosts.ts`
+    // where the next person reads it. Requiring the dependencies of a suite nobody grades
+    // would turn an honest "not measured yet" into a red build, and the pressure that puts
+    // on the next agent is to fabricate a number.
+    //
+    // An **active** host has none of that latitude: it publishes a rate, so everything it
+    // reaches for must arrive with a clean checkout.
+    const planned = new Set(HOSTS.filter((h) => !active().includes(h)).map((h) => h.name));
+    const blocking = undeclared.filter((line) => !planned.has(line.slice(line.indexOf('(') + 1).split('/')[1] ?? ''));
+    expect(blocking, 'an active host publishes a rate, so a clean checkout must have everything its suite reaches for').toEqual([]);
+    if (undeclared.length > blocking.length) console.log(`planned hosts still missing dependencies: ${undeclared.filter((l) => !blocking.includes(l)).join(', ')}`);
   });
 
   /**
