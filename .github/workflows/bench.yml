@@ -33,6 +33,15 @@ on:
     types: [opened, synchronize, reopened, labeled]
   push:
     branches: [main]
+    # The record step below opens a PR whose merge is itself a push to main, and the
+    # run it triggers measures the same code and finds a diff every time — `cold-start-ms`
+    # is a property of the runner, so the guard "is there anything new to record" is
+    # always true. One merge therefore produced the next PR forever: #275, #277, #282,
+    # #284, #286, #288, #289 are one commit's observations, seven times over. Ignoring
+    # the directory the step writes is what ends it — a push carrying code *and* results
+    # still runs, because paths-ignore only skips a push whose every file matches.
+    paths-ignore:
+      - 'benchmarks/results/**'
   schedule:
     - cron: "40 5 * * 2"
   workflow_dispatch:
