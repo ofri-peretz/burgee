@@ -154,6 +154,11 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Build
         run: npx turbo run build
+      # The axis spawns `claude` and skips if it cannot. Nothing installed it, so every run
+      # since this job landed skipped for "the `claude` binary is not on PATH" and opened
+      # issue #146 saying so — the credential was there the whole time.
+      - name: Install the agent the axis measures
+        run: npm install --global @anthropic-ai/claude-code
       - name: Run B1
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
