@@ -1,6 +1,6 @@
 # Intent — Large CLIs: groups, lazy commands, plugins, shared options, deprecation
 
-> Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md).
+> Stage 1 artifact. Child of [`burgee`](../burgee/intent.md).
 > Research §8 (modularity); commander #2505 (plugin API RFC). Proposes floor additions M1–M6.
 
 **Status:** shipped · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz · **Shipped:** 2026-09-09 on

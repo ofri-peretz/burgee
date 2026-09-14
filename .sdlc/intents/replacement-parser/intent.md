@@ -1,6 +1,6 @@
 # Intent — `replacement-parser`: our own parser, as a third adapter
 
-> Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md).
+> Stage 1 artifact. Child of [`burgee`](../burgee/intent.md).
 > The point at which the layer stops renting distribution and owns its own host.
 
 **Status:** review · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`

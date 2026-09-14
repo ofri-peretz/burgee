@@ -1,6 +1,6 @@
 # Intent — `commander-completions`: static completions for four shells, generated from the manifest
 
-> Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md),
+> Stage 1 artifact. Child of [`burgee`](../burgee/intent.md),
 > requirement D2; research §6. Proposes D3–D5.
 
 **Status:** shipped · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz

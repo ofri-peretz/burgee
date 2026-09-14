@@ -108,14 +108,6 @@ function statusDrift(slug: string, readme: string): string[] {
   return drift;
 }
 
-/**
- * A package whose intent predates the one-directory-per-package convention names where it
- * lives. `burgee` is governed by `agent-native-cli-layer` and the six surface intents it
- * spawned; forcing a `burgee/` directory would be a redirect, not a record. (`.sdlc/PLAN.md`
- * step 0.1 renames that slug to `burgee` and this entry goes with it.)
- */
-const GOVERNED_BY: Record<string, string> = { burgee: 'agent-native-cli-layer' };
-
 /** Published packages with no `intent.md` or no `design.md`, as `<pkg>/<file>` strings. */
 function missingArtifacts(): string[] {
   const packages = join(REPO_ROOT, 'packages');
@@ -127,7 +119,7 @@ function missingArtifacts(): string[] {
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as { private?: boolean; version?: string };
     // A reserved name is a public promise too, so `bellpull` at 0.0.1 counts.
     if (manifest.private === true || manifest.version === undefined) continue;
-    const slug = GOVERNED_BY[dir.name] ?? dir.name;
+    const slug = dir.name;
     for (const artifact of ['intent.md', 'design.md']) {
       if (!existsSync(join(INTENT_DIR, slug, artifact))) missing.push(`${dir.name}/${artifact}`);
     }

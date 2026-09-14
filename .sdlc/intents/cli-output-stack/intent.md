@@ -2,7 +2,7 @@
 
 > Stage 1 artifact. Umbrella for [`roundel`](../roundel/intent.md) and
 > [`flagstaff`](../flagstaff/intent.md); [`caique`](../caique/intent.md) becomes
-> its third child. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md).
+> its third child. Child of [`burgee`](../burgee/intent.md).
 > Proposes floor additions U1–U8. Opened from the 2026-09-07 discussion on whether to ship
 > a chalk alternative.
 
@@ -74,7 +74,7 @@ tests, not a reason to switch.
 - `cli-benchmarks` B4 grows a per-subpath row and a new published number: **total
   runtime dependencies of a complete CLI**, burgee stack against commander + chalk + ora +
   cli-table3 + inquirer.
-- `agent-native-cli-layer/design.md` gains U1–U8.
+- `burgee/design.md` gains U1–U8.
 
 ## Constraints
 

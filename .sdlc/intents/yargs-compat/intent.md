@@ -1,6 +1,6 @@
 # Intent — `yargs-compat`: a drop-in yargs, graded by yargs's own tests
 
-> Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md),
+> Stage 1 artifact. Child of [`burgee`](../burgee/intent.md),
 > and the reason [`replacement-parser`](../replacement-parser/intent.md) is worth building.
 
 **Status:** shipped · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`

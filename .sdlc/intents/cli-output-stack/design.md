@@ -59,7 +59,7 @@ principle, and principles drift.
 
 ## At approval — the edits the human gate triggers
 
-1. Fold U1–U13 into `agent-native-cli-layer/design.md`'s floor table and change its header
+1. Fold U1–U13 into `burgee/design.md`'s floor table and change its header
    from 79 to 92 requirements; every stack intent already cites the ids.
 2. Change `scripts/package-shape-lock.test.ts` per R1 (same-repo dependencies, ordered).
 3. Add the R13 step to `release.yml` and commit an empty `.sdlc/bands/scoreboard-public.json`

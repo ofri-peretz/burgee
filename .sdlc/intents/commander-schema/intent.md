@@ -1,6 +1,6 @@
 # Intent — `commander-schema`: declare once, derive everything
 
-> Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md),
+> Stage 1 artifact. Child of [`burgee`](../burgee/intent.md),
 > requirements S1–S4, plus the TypeScript cluster (research §5) and the validation
 > cluster (§4). Proposes floor additions S5–S8.
 

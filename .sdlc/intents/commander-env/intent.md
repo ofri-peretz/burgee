@@ -1,6 +1,6 @@
 # Intent — `commander-env`: one precedence order, and `--explain` says where a value came from
 
-> Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md),
+> Stage 1 artifact. Child of [`burgee`](../burgee/intent.md),
 > requirements V1–V5; research §3 (config and environment precedence), the second-
 > largest cluster after help.
 

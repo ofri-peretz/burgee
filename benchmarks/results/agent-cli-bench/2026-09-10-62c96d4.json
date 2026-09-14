@@ -33,14 +33,14 @@
   "claims": {
     "agent-tokens-40pct": {
       "claim": "an agent spends at least 40% fewer tokens per task against a CLI that meets the floor",
-      "source": ".sdlc/intents/agent-native-cli-layer/intent.md — the roadmap headline",
+      "source": ".sdlc/intents/burgee/intent.md — the roadmap headline",
       "target": "<= 0.6",
       "status": "unmeasured",
       "reason": "not selected by --axis"
     },
     "agent-turns-30pct": {
       "claim": "an agent takes at least 30% fewer turns per task against a CLI that meets the floor",
-      "source": ".sdlc/intents/agent-native-cli-layer/intent.md — the roadmap headline",
+      "source": ".sdlc/intents/burgee/intent.md — the roadmap headline",
       "target": "<= 0.7",
       "status": "unmeasured",
       "reason": "not selected by --axis"

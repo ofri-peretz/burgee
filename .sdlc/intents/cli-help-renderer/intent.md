@@ -1,6 +1,6 @@
 # Intent — One help renderer, from data, that answers the twenty open help issues
 
-> Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md).
+> Stage 1 artifact. Child of [`burgee`](../burgee/intent.md).
 > Research §2, the largest cluster (roughly a fifth of yargs' tracker). F2 makes help
 > data; this makes the text good. Proposes floor additions H1–H6.
 

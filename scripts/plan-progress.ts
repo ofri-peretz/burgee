@@ -113,7 +113,7 @@ const MANUAL: { id: string; why: string }[] = [
 ];
 
 const STEPS: Step[] = [
-  { id: '0.1', what: 'agent-native-cli-layer renamed to burgee', done: () => !existsSync(join(ROOT, '.sdlc/intents/agent-native-cli-layer')) },
+  { id: '0.1', what: 'burgee renamed to burgee', done: () => !existsSync(join(ROOT, '.sdlc/intents/burgee')) },
   { id: '0.2', what: 'roadmap index regenerated, not hand-edited', done: () => existsSync(join(ROOT, 'scripts/roadmap-index.ts')) },
   {
     id: '0.4',

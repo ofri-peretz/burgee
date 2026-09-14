@@ -1,6 +1,6 @@
 # Intent — `commander-agent`: the floor on commander's public hooks
 
-> Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md),
+> Stage 1 artifact. Child of [`burgee`](../burgee/intent.md),
 > step 2 of its order of work. Requirements F1, F2, F4, O1–O5, E1–E5.
 
 **Status:** dropped (superseded 2026-09-06) · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
@@ -110,7 +110,7 @@ Nothing named `commander-agent` exists in `packages/`, and neither `withAgentLay
 
 **One consequence to fix elsewhere:** four still-open intents cite `commander-agent` in a success
 criterion — `first-adopter` ("ships a release depending on `commander-agent`"),
-`cli-help-renderer`, `agent-native-cli-layer` and the README's coverage table. Those criteria
+`cli-help-renderer`, `burgee` and the README's coverage table. Those criteria
 cannot be met as written, because the thing they name was dropped. They need rewriting to the
 subpath front-end, not reinterpreting.
 

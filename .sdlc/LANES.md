@@ -39,7 +39,7 @@ Three kinds, because three kinds exist:
 
 | step | kind | lane |
 | :-- | :-- | :-- |
-| 0.1 rename `agent-native-cli-layer` → `burgee` | serial | integrator |
+| 0.1 rename `burgee` → `burgee` | serial | integrator |
 | 0.2 roadmap index regenerator | serial | integrator |
 | 0.3 merge queue ruleset | serial | **owner**, not an agent |
 | 0.4 chalk 57 → 58 | own | output |

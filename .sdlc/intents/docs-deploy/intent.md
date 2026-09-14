@@ -1,6 +1,6 @@
 # Intent — The docs site deployed, on an interlace.tools host, readable by agents
 
-> Stage 1 artifact. Child of [`agent-native-cli-layer`](../agent-native-cli-layer/intent.md).
+> Stage 1 artifact. Child of [`burgee`](../burgee/intent.md).
 > Stage 5 for `apps/docs`, which today builds green and is served nowhere.
 
 **Status:** review · **Opened:** 2026-09-06 · **Built:** 2026-09-08 · **Owner:** @ofri-peretz

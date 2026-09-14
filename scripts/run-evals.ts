@@ -30,7 +30,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CASES_DIR = path.join(REPO_ROOT, 'evals/cases');
 const RESULTS_DIR = path.join(REPO_ROOT, 'evals/results');
-const UMBRELLA_DESIGN = '.sdlc/intents/agent-native-cli-layer/design.md';
+const UMBRELLA_DESIGN = '.sdlc/intents/burgee/design.md';
 
 /** Documents an agent is expected to read and obey. */
 const CONFIG_FILES = ['README.md', 'CLAUDE.md', 'AGENTS.md'];
@@ -148,7 +148,7 @@ function citedIds(file: string): Set<string> {
   return new Set([...stripCode(fs.readFileSync(file, 'utf-8')).matchAll(FLOOR_ID)].map((m) => m[1]!));
 }
 
-const NOT_A_CHILD = new Set(['agent-native-cli-layer', '_template']);
+const NOT_A_CHILD = new Set(['burgee', '_template']);
 
 /** Floor ids cited by child intents that the umbrella design does not define. */
 export function unknownFloorIds(root = REPO_ROOT): string[] {

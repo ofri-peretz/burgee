@@ -222,7 +222,7 @@ candidate, and killing one early is the point.
 
 ## The umbrella
 
-[`agent-native-cli-layer/`](./agent-native-cli-layer/) is the parent of everything
+[`burgee/`](./burgee/) is the parent of everything
 below. Its `design.md` carries the **74-requirement floor** (F/O/E/V/S/P/D/T/H/M/K/C/B/N
 ids) that every child cites.
 
@@ -919,7 +919,7 @@ headline reads `unmeasured` — never `false`, and never an estimate.
 
 | Waiting on it | The criterion it blocks | Where it stands |
 | :-- | :-- | :-- |
-| `agent-native-cli-layer` | the ≥40% tokens / ≥30% turns claim | **still unmeasured** — the harness, the five tasks and both builds are in the tree and driven end to end against a stub `claude`; only the credential is missing |
+| `burgee` | the ≥40% tokens / ≥30% turns claim | **still unmeasured** — the harness, the five tasks and both builds are in the tree and driven end to end against a stub `claude`; only the credential is missing |
 | `cli-mcp` | B1 over MCP versus over Bash | still blocked, same credential |
 | `commander-env` | the provenance task's median turns against the plain build | still blocked, same credential; the task exists and its check is proven to discriminate |
 | `replacement-parser` | B2 cold start at or below cac | **measured, and not met**: 1.37–1.47× cac across three runs |
@@ -1002,7 +1002,7 @@ should be rewritten at their next edit:
 | `output-stack-compat` #1 | eight rows including clack and inquirer | a 2026-09-08 decision records both as blocked — a façade matching their drawing snapshots would *be* the incumbent |
 | `compat-oracle` #3 | 1,210 / 1,215 | the vendored suite is 1,360 tests |
 | `docs-deploy` #1 | `/.sdlc/research` returns 200 | the page is at `/docs/research` (200); `/.sdlc/research` is 404 |
-| `agent-native-cli-layer` (decision) | "no process or `CLAUDECODE` sniffing" | `packages/burgee/src/agent.ts` probes five agent env vars — N12 reversed this and the reversal was never recorded |
+| `burgee` (decision) | "no process or `CLAUDECODE` sniffing" | `packages/burgee/src/agent.ts` probes five agent env vars — N12 reversed this and the reversal was never recorded |
 
 ### 6. Not started at all
 
