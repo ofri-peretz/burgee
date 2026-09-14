@@ -8,5 +8,10 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/cosmiconfig/cosmiconfig.git"
+  },
+  "devDependencies": {
+    "cosmiconfig": "10.0.1",
+    "env-paths": "2.2.1",
+    "parent-module": "3.2.0"
   }
 }

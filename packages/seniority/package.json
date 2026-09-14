@@ -18,6 +18,21 @@
       "import": "./dist/plugin.js",
       "default": "./dist/plugin.js"
     },
+    "./cosmiconfig": {
+      "types": "./dist/cosmiconfig.d.ts",
+      "import": "./dist/cosmiconfig.js",
+      "default": "./dist/cosmiconfig.js"
+    },
+    "./dotenv": {
+      "types": "./dist/dotenv.d.ts",
+      "import": "./dist/dotenv.js",
+      "default": "./dist/dotenv.js"
+    },
+    "./find-up": {
+      "types": "./dist/find-up.d.ts",
+      "import": "./dist/find-up.js",
+      "default": "./dist/find-up.js"
+    },
     "./schema.json": "./dist/schema.json"
   },
   "files": [

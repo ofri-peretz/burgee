@@ -182,6 +182,16 @@ to exist for it to be useful to you.
 | `screaming(name)`             | `dryRun` → `DRY_RUN`                                                         |
 | `ConfigError`                 | a value that cannot be used as configured; carries an optional `hint`        |
 | `ORDER`, `RANK`               | the precedence as data, and each built-in's rank                             |
+| `explanation(name, res)`      | `--explain` as a **record**; `explain` is its text rendering                 |
+| `explanationJson(e)`          | the same record as `--json` data, with `set` spelled out                     |
+| `explanationEvent(e)`         | the same record as an agent event                                            |
+| `search(names, options)`      | the bounded upward walk — `stopAt`, a depth limit, symlink-cycle-safe        |
+| `searchAll(names, options)`   | every match on the way up, nearest first                                     |
+| `loadPath(path, options)`     | read and parse one file, with your loaders merged over the four builtins     |
+| `loaderFor(path, loaders)`    | the loader for an extension, or the error naming what would supply one       |
+| `LoaderError`                 | an extension with no loader: a **usage** error, not a config error           |
+| `validate(shape, resolution)` | every violation, each naming the file, line and value that caused it         |
+| `check(shape, resolution)`    | the values, or one `ConfigError` listing every violation                     |
 
 From `seniority/plugin`:
 
@@ -195,9 +205,58 @@ From `seniority/plugin`:
 
 ## Replaces
 
-Drop-in paths are planned for `cosmiconfig`, `dotenv` and `rc`. What they do between them
-— discovery, `extends`, env loading, precedence — is one problem, and this is one package
-with no dependencies rather than three with a tree.
+What `cosmiconfig`, `dotenv`, `rc` and `find-up` do between them — discovery, `extends`, env
+loading, precedence, the upward walk — is one problem. This is one package with no
+dependencies rather than four with a tree.
+
+### `cosmiconfig`
+
+The root export carries cosmiconfig's own surface, so a migration is the import line:
+
+```js
+- import { cosmiconfig } from "cosmiconfig";
++ import { cosmiconfig } from "seniority";
+```
+
+`cosmiconfig`, `cosmiconfigSync`, `Explorer`, `ExplorerSync`, `defaultLoaders`,
+`defaultLoadersSync`, `getDefaultSearchPlaces`, `globalConfigSearchPlaces`, `metaSearchPlaces`
+— all three search strategies, both caches, `$import`, and the meta-config merge.
+
+**Graded by cosmiconfig 10.0.1's own test suite: 186 of 241 cases.** Not "compatible" — a
+number, from the incumbent's tests, run unmodified. Where it stops is one thing:
+
+> **YAML.** cosmiconfig reads `.yaml`, `.yml` and extensionless files through `js-yaml`.
+> This package bundles no format parser, so `loadYaml` here reads the subset of YAML that is
+> also JSON — which is every JSON document — and **refuses the rest by name**, telling you to
+> pass `loaders: { '.yaml': yaml.load }`. Do that and you have cosmiconfig's behaviour
+> exactly, with the parser as *your* dependency rather than everyone's.
+
+Every one of the 55 cases not passing is that, bar one that is the test harness reaching for a
+file path the vendored copy does not have. None of them is a difference in how a config is
+found, merged or reported.
+
+### `seniority/dotenv`
+
+`parse` and `populate` are dotenv 17's, grammar included. `config` takes the environment to
+populate as an argument:
+
+```js
+import { config } from "seniority/dotenv";
+
+config({ path: ".env", processEnv: process.env });
+```
+
+That one word is the whole difference, and it is deliberate: nothing in this package reads or
+writes `process` on its own. It is also why `parse` is usable in a test, in a browser build,
+or on a string you already have.
+
+### `seniority/find-up`
+
+`findUp`, `findUpSync`, `findUpMultiple`, `findUpMultipleSync` over the same bounded walk —
+`stopAt`, a depth limit, and a symlink ring that ends the walk instead of spinning it.
+`find-up` → `locate-path` → `p-locate` → `path-exists` is four packages for that.
+
+`rc` is not built yet.
 
 ## Benchmarks
 

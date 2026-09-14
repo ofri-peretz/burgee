@@ -514,11 +514,46 @@ export const HOSTS: Host[] = [
     // that is not vendored. Vendoring the base alongside does not help; not vendoring the
     // tsconfig at all does.
     extraDirs: ['test/util.ts'],
+    // Installed into `vendor/cosmiconfig/node_modules` by the oracle itself on a clean
+    // checkout, never into this workspace's manifest or lockfile. All three are what the
+    // *suite* reaches for by name: `cosmiconfig` for the control, `env-paths` and
+    // `parent-module` because two of its files import them directly. Pinned exactly, because
+    // the hoisted copies are a different answer — measured 2026-09-15, the workspace resolves
+    // `cosmiconfig` at 9.0.2 (through @commitlint/load) and `parent-module` at 1.0.1 against
+    // the 3.x this suite was written for, so a control without these grades the 10.0.1 suite
+    // against 9.0.2 and calls the difference incompatibility.
+    suiteDeps: ['cosmiconfig@10.0.1', 'env-paths@2.2.1', 'parent-module@3.2.0'],
     surfaceFiles: ['src/index.ts', 'src/types.ts'],
+    controlFailures: {
+      count: 1,
+      why: "`index.test.ts` imports `'../src/index.js'` — cosmiconfig's own entry module, by path — in addition to the public entry, and `vi.mock`s `../src/Explorer` and `../src/ExplorerSync` to assert the CONSTRUCTOR ARGUMENTS the entry passes them. The vendor step generates a shim for every internal specifier the suite names, but `../src/index.js` is the host's public entry reached by an internal path, so no shim is written and the file fails to load. That is one graded case, and it fails identically for the control and for the target: it is the harness's file-layout assumption, not a property of either implementation. This is the C4 shape `seniority/design.md` finding 4 left open, decided here — the fix is in `vendor.ts`'s internal-shim discovery, which is the harness lane's file, and until it lands the honest form is a named allowance of exactly one rather than an unexplained 240.",
+    },
+    // Upstream's own `vite.config.ts` sets both, and its suite depends on them. Measured
+    // 2026-09-14 and again 2026-09-15: without them 28 cases in
+    // `successful-directories.test.ts` fail on a `readFileSync` spy that still holds the
+    // previous case's calls (`expected [ …(28) ] to deeply equal [ …(19) ]`), and the
+    // control reads 210 / 241 instead of 240 / 241. Those 28 were harness noise inside a
+    // published compatibility rate — the exact class of error the oracle exists to keep
+    // out of the number.
+    vitestConfig: {
+      restoreMocks: true,
+      mockReset: true,
+      // A published rate must not read the machine it ran on. Measured 2026-09-15: three
+      // oracle runs of the *unchanged control* — real cosmiconfig against its own suite —
+      // read 240, 238 and 231 while other work was running on the same laptop, and a direct
+      // `vitest run` over the same nine files read 240 / 240 every time. The difference is
+      // vitest's 5 s default per test against cases that walk and stat a temp tree: under
+      // load some of them cross it. Thirty seconds is far past anything this suite needs
+      // when the machine is idle, and it touches no assertion — the same shape as the
+      // ambient-colour finding already recorded in `run.ts`, and the reason `timeoutMs`
+      // exists for the mocha arm.
+      testTimeout: 30_000,
+      hookTimeout: 30_000,
+    },
     runner: 'vitest',
     target: 'seniority',
     status: 'planned',
-    note: "Vendored 2026-09-14 at 10.0.1 and NOT activated, because the control cannot reach 100% here and a control below its own reference is a finding, not a number to record. Two reasons, both measured: (1) its suite reaches for `env-paths` and `parent-module`, which neither `compat-oracle/package.json` nor the root manifest declares — `vendored-suite.test.ts`'s install lock is red until one of them does, and both files belong to the harness/integrator lanes; (2) `index.test.ts` imports and `vi.mock`s `../src/Explorer`, `../src/ExplorerSync` and `../src/types`, and cosmiconfig's published tarball is `files: [\"dist\"]` — so the control's internal shims, which resolve against the *installed* package, point at paths npm does not ship. That is a new shape for C4: an internal-reaching file that is also a public-surface file, which the classifier calls `public` and therefore gates.",
+    note: "Measured 2026-09-15 (PLAN 3.2) and STILL NOT activated — for one reason, down from the two the vendoring recorded, and it is a line in `run.ts` rather than anything about either implementation. Target `seniority` grades **186 / 241, 77.2%**, reproducible on a clean checkout with nothing installed beside the suite (verified by removing `vendor/cosmiconfig/node_modules` and re-running). Control grades **240 / 241, 99.6%** — up from 210 / 241 once `vitestConfig` carried upstream's own `restoreMocks`/`mockReset`, measured before and after — but only when the `suiteDeps` pins are actually installed. They are not, on a clean checkout: `installSuiteDeps` skips a package that `resolvesFrom` the vendored directory **by name**, and this workspace hoists `cosmiconfig` at 9.0.2 (through @commitlint/load) and `parent-module` at 1.0.1. So the install never runs, the 10.0.1 suite is graded against 9.0.2, and the control reads **234 / 241** — seven failures against an allowance of one. A control below its own reference must not publish a rate. The fix is to compare the installed version against the pin, not merely to resolve the name; `run.ts` is the harness lane's file."
   },
   {
     // The load-bearing one. `.sdlc/intents/seniority/issues.md` records 20 closed issues at

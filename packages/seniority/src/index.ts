@@ -37,7 +37,62 @@ export {
   type SourceLayer,
 } from './precedence.js';
 
-export { candidates, deepMerge, discover, loadWithExtends, type Discovery, type Loaded } from './config.js';
+export { candidates, deepMerge, discover, lineOf, loadWithExtends, type Discovery, type Loaded, type LoadConfigOptions } from './config.js';
+
+export {
+  explanation,
+  explanationEvent,
+  explanationJson,
+  renderExplanation,
+  type Explanation,
+  type ExplanationEvent,
+  type ExplanationJson,
+} from './explain.js';
+
+export { defaultLoaders as builtinLoaders, loaderFor, LoaderError, loadPath, NOT_BUNDLED, type Loader, type LoadOptions } from './load.js';
+
+export { search, searchAll, WALK_LIMIT, type Found, type SearchOptions } from './search.js';
+
+export { check, validate, type Shape, type Violation } from './validate.js';
+
+/**
+ * **`cosmiconfig`'s surface (R8, Y3).** The root export is what `cosmiconfig`'s own suite is
+ * pointed at, so these names are the compatibility claim rather than a convenience: a program
+ * changes `from 'cosmiconfig'` to `from 'seniority'` and nothing else.
+ *
+ * `defaultLoaders` is cosmiconfig's table, not seniority's own four — those are exported above
+ * as `builtinLoaders`, because one of the two names has to give way and the one the suite
+ * grades is the one that keeps it.
+ */
+export {
+  cosmiconfig,
+  cosmiconfigSync,
+  Explorer,
+  ExplorerSync,
+  type CommonOptions,
+  type Config,
+  type CosmiconfigResult,
+  type Loaders,
+  type Options,
+  type OptionsSync,
+  type PublicExplorer,
+  type PublicExplorerSync,
+  type SearchStrategy,
+  type Transform,
+} from './cosmiconfig.js';
+
+export {
+  defaultLoaders,
+  defaultLoadersSync,
+  getDefaultSearchPlaces,
+  getDefaultSearchPlacesSync,
+  globalConfigSearchPlaces,
+  globalConfigSearchPlacesSync,
+  metaSearchPlaces,
+} from './cosmiconfig-defaults.js';
+
+/** `cosmiconfig/src/util`'s two exported helpers: its own suite imports them by name. */
+export { decodeFileContent, getPropertyByPath } from './cosmiconfig-util.js';
 
 /**
  * The `sources` plugin host is `seniority/plugin`, not here (`plugin-contract` R5a). It
