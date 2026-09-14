@@ -40,7 +40,7 @@ the reasoning; this is the state.
 
 | | |
 | :-- | :-- |
-| **Published** | The output stack is public. `burgee@0.6.0`, `roundel@0.3.0`, `flagstaff@0.2.1`, `caique@0.1.1` — all four with SLSA provenance over npm Trusted Publishing, and zero *external* dependencies — the family consumes itself now, bottom-up: `flagstaff` and `burgee` both depend on `roundel`, and nothing depends on anything outside this repo. The foundation four — `linegauge@0.2.0`, `seniority@0.1.0`, `bellpull@0.0.1`, `closeout@0.1.0` — are still reservations |
+| **Published** | The output stack is public. `burgee@0.6.1`, `roundel@0.3.0`, `flagstaff@0.2.1`, `caique@0.1.1` — all four with SLSA provenance over npm Trusted Publishing, and zero *external* dependencies — the family consumes itself now, bottom-up: `flagstaff` and `burgee` both depend on `roundel`, and nothing depends on anything outside this repo. The foundation four — `linegauge@0.2.0`, `seniority@0.1.0`, `bellpull@0.0.1`, `closeout@0.1.0` — are still reservations |
 | **Scoreboard** | **Public**, at [burgee.interlace.tools/docs/compatibility](https://burgee.interlace.tools/docs/compatibility), generated from the oracle and checked against it on every Ratchet run. Seven hosts at 100%: commander **1,360 / 1,360**, yargs **804 / 804**, chalk 58, ora 99, log-update 99, boxen 84, cli-table3 29 |
 | **Waves done** | 0, 3 ✅ · 1, 2, 4 in flight 🔨 · 5 conditional |
 | **Intent states** | 11 `shipped` · 13 `review` · 3 `approved` · 10 `draft` · 2 `dropped`, counted 2026-09-09 |
@@ -872,7 +872,7 @@ agent working on any layer has the whole stack in context.
 
 | Job | Entry point | Published |
 | :-- | :-- | :-- |
-| the framework | `burgee` | ✅ `burgee@0.6.0` |
+| the framework | `burgee` | ✅ `burgee@0.6.1` |
 | in-process harness (T1) | `burgee/testing` | subpath |
 | commander compatibility | `burgee/commander` | wave 2 |
 | yargs compatibility | `burgee/yargs` | wave 4 |
