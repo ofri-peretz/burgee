@@ -44,6 +44,22 @@ Intent: [`intent.md`](./intent.md). Umbrella:
   against it and a violation is reported with its provenance — *"`out` must be a string;
   `./mytool.config.js:3` set it to `4`"*. Structurally typed, **no import of burgee** (Y1).
 
+- **R13 (PRINCIPLES 14, PLAN D5)** `Source` is an **open** union —
+  `'flag' | 'env' | 'config' | 'package' | 'default' | (string & {})`. The closed union
+  makes the `sources` host of wave 1.3 a breaking change written as an additive one.
+  Widening costs exactly one code change, measured on the real file 2026-09-13:
+  `describe()` in `precedence.ts` is an exhaustive `switch` with no `default`, so the
+  wider type trips `TS2366: Function lacks ending return statement`. Its `default` branch
+  renders an unknown source as `` `${c.source} ${c.location}`.trim() `` — a plugin source
+  therefore explains itself in `--explain` without seniority knowing its name. With that
+  branch: 0 errors, 28 tests pass. Diff kept at `.sdlc/probes/open-union-widening.patch`.
+  Ships at 0.2.0 with the host.
+- **R14** R1's `ORDER` and the shipped `Source` union disagree today — the design says
+  `['flag','env','project','home','pkg','default']`, `precedence.ts` says
+  `'flag'|'env'|'config'|'package'|'default'`. R13 does not resolve that; whichever wins,
+  it is one array and one union that must be generated from the other. Reconciled in
+  wave 1.3, before the host lands, so a plugin is not registering against two spellings.
+
 ### Evidence
 
 | R | What supports it | Standing |

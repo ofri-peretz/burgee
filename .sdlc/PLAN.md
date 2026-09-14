@@ -94,6 +94,62 @@ Done when: `grep -l "Accepted at the Design→Build gate" .sdlc/intents/*/design
 PR. Twenty observation PRs deadlocked this week on `strict` branch protection with no
 merge queue; 17 single-suite PRs would do the same. Five PRs cover twelve suites.
 
+**D5 — the two closed unions are widened to open unions, not replaced.**
+caique's `PromptKind` (`'text' | 'confirm' | 'select' | 'multiselect' | 'password' |
+'path'`) and seniority's `Source` (`'flag' | 'env' | 'config' | 'package' | 'default'`)
+are **closed**. So waves 1.2 and 1.3 — "caique hosts widgets", "seniority hosts
+sources" — are breaking changes written as additive ones: a plugin's seventh kind does
+not type-check today. That is PRINCIPLES rule 14 failing on two of the packages it was
+written for.
+
+Both widen to the open-union idiom `X | (string & {})`, which keeps autocomplete on the
+known members and accepts any other string. Measured on the real files (2026-09-13, diff
+kept at `.sdlc/probes/open-union-widening.patch`):
+
+| package | type | result |
+| --- | --- | --- |
+| caique | `PromptKind` | widens clean — 0 type errors, 152 tests pass, no call site changes |
+| seniority | `Source` | needs **one** code change: `describe()` in `precedence.ts` is an exhaustive `switch` with no `default`, so widening trips `TS2366`. A `default` branch rendering `` `${c.source} ${c.location}`.trim() `` fixes it — 0 errors, 28 tests pass |
+
+Byte budgets hold with both edits in (`scripts/release-budget-lock.test.ts`, 5/5). An
+unknown value that reaches a renderer is a runtime error, not a type error: caique
+throws `E_UNKNOWN_KIND` naming the registered kinds. Both ship at 0.2.0 with waves
+1.2/1.3 — the widening is not a release of its own.
+Done when: `grep -c "(string & {})" packages/caique/src/spec.ts
+packages/seniority/src/precedence.ts` → 1 each, and a test registers a kind and a
+source that are not in either list.
+
+**D6 — the widening is a requirement inside the existing designs, not a new intent.**
+It is one line per package in service of a step those designs already have (caique R5,
+seniority's sources). A third intent for a type change would put the reason in a file
+nobody reading `spec.ts` opens. Recorded in `.sdlc/intents/caique/design.md` and
+`.sdlc/intents/seniority/design.md`.
+Done when: both design files name the open-union idiom.
+
+**D7 — the issue miner uses `gh api` with the session's existing token.**
+No new PAT, no new secret, no unauthenticated `api.github.com` (60 req/hr). `gh` is
+already required by the release path and is already authenticated on the machine that
+runs this plan. If the miner ever runs in CI it uses `GITHUB_TOKEN`, which the workflows
+already carry.
+Done when: `scripts/competitor-issues.ts` shells `gh api` and the script runs with no
+environment variable that is not already set.
+
+**D8 — paratext's schema break rides alone, as 0.3.0.**
+D2 takes the break; this fixes how it ships. It is the only breaking change in wave 1,
+so it is released by itself, before 1.2–1.7 — a minor bump whose changelog has one
+entry is a migration note people can read. Bundling it with the plugin hosts would hide
+a break inside a feature release.
+Done when: paratext's release commit touches only paratext, and its version is 0.3.0.
+
+**D9 — `plan-progress.ts` covers 30 of the 36 steps; 6 stay manual.**
+The six are the ones whose truth is not in the tree: the merge-queue ruleset (0.3, an
+owner setting), the Design→Build acceptances (D3), and the four claims that are only
+true once published. A condition that guesses at those would report progress that has
+not happened — the exact failure mode of the `0.4` condition that read `baseline.json`
+while the gate said 57.
+Done when: `npx tsx scripts/plan-progress.ts` prints `n/30` and lists the 6 manual steps
+under a `manual` heading.
+
 ## Wave 0 — the roadmap tells the truth
 
 - **0.1** `git mv .sdlc/intents/agent-native-cli-layer .sdlc/intents/burgee`; update 114 references; drop the `GOVERNED_BY` alias in `intent-artifacts-lock.test.ts`.
@@ -109,10 +165,13 @@ merge queue; 17 single-suite PRs would do the same. Five PRs cover twelve suites
 ## Wave 1 — one plugin contract, nine hosts (PRINCIPLES 14, plugin-contract R5a)
 
 - **1.1** Fold paratext's `schema.json` into the family schema under `capabilities`; paratext validates with the shared file. Done when: `sha256sum packages/*/src/schema.json | awk '{print $1}' | sort -u | wc -l` → 1.
-- **1.2** caique hosts `widgets` (design R5, step 3). Done when: `node -e "import('caique/plugin')"` resolves and `register({widgets:{…}})` renders.
-- **1.3** seniority hosts `sources`. Done when: a plugin adds a source and `--explain` names it as provenance.
+- **1.2** caique hosts `widgets` (design R5, step 3). Widen `PromptKind` first (D5) — the host is a type break without it. Done when: `node -e "import('caique/plugin')"` resolves and `register({widgets:{…}})` renders a kind that is not in the built-in list.
+- **1.3** seniority hosts `sources`. Widen `Source` and give `describe()` its `default` branch first (D5). Done when: a plugin adds a source and `--explain` names it as provenance.
 - **1.4** closeout hosts `handlers` with a phase. Done when: a plugin handler is observed running before terminal restore in `closeout.test.ts`.
-- **1.5** bellpull hosts `resolvers` — lands with bellpull itself (wave 3.4).
+- **1.5** bellpull hosts `resolvers` — lands with bellpull itself (wave 3.4), so its
+  proof is bellpull's, not wave 1's. Done when: `packages/bellpull/src/plugin.test.ts`
+  registers a resolver that is not built in, `which`-style lookup returns that resolver's
+  answer, and removing the host key from `plugin.test.ts`'s registration makes it red.
 - **1.6** linegauge README: "no plugins, by design, here is why". Done when: `grep -c "## Plugins" packages/linegauge/README.md` → 1.
 - **1.7** `scripts/plugin-contract-lock.test.ts`: every `./plugin` export validates against the one schema; one plugin object registers into every host; every README has a generated `## Plugins` section. Done when: the lock is green and a mutation removing any host's key goes red.
 
@@ -246,8 +305,51 @@ Done when: `npm run compat -- chalk` prints 58 and names the case that regressed
 
 ## Wave 4 — the systematic edge
 
-- **4.1** `upstream-watch` half one: `scripts/mine-issues.ts` pulls each incumbent's top-20 issues by reactions into `.sdlc/intents/<pkg>/issues.md` with a `covered:` column. Done when: `ls .sdlc/intents/*/issues.md | wc -l` → 9.
-- **4.2** Every uncovered issue with ≥50 reactions becomes an acceptance criterion in its intent, a test that cites it, and a README competitor row. Done when: `grep -rhoE "#[0-9]+" packages/*/src/*.test.ts | sort -u | wc -l` exceeds today's count (record it in 4.1).
+**Measured 2026-09-13, and it rewrote both steps.** The first draft said "top 20 open
+issues by reactions". Run against the real trackers, that query is nearly empty for the
+packages we most want to replace:
+
+| repo | open issues | issues ≥5 👍 | ≥10 | ≥50 |
+| :-- | --: | --: | --: | --: |
+| tj/commander.js | 6 | 50 | 17 | 0 |
+| yargs/yargs | 201 | 75 | 23 | 0 |
+| chalk/chalk | **0** | 9 | 4 | 1 |
+| sindresorhus/ora | 1 | 10 | 3 | 0 |
+| motdotla/dotenv | 1 | 46 | 24 | 4 |
+| cosmiconfig/cosmiconfig | 8 | 13 | 5 | 0 |
+| sindresorhus/ansi-escapes | 1 | **0** | 0 | 0 |
+| sindresorhus/terminal-link | 0 | **0** | 0 | 0 |
+| SBoudrias/Inquirer.js | — | 45 | 10 | 0 |
+
+Three consequences, none of which the draft anticipated:
+
+1. **The signal is in *closed* issues, not open ones.** These maintainers close
+   aggressively — chalk has zero open issues and nine closed ones above five reactions.
+   A feature closed as "wontfix" with 165 reactions (`dotenv#89`, "Importing dotenv in
+   ES6") is a *stronger* demand signal than an open one, because the incumbent has
+   already refused it. That is the whole thesis: we ship what they declined.
+2. **The ≥50 threshold was unusable** — five issues across nine repos, four of them
+   dotenv's and the fifth chalk's supply-chain incident, which is not a feature gap at
+   all. The floor is **≥10 reactions**, which yields 86 across the nine.
+3. **paratext has no tracker signal at any threshold.** Its two incumbents have zero
+   issues above five reactions between them. Its gaps must be mined from *downstream*
+   repos (`ansi-escapes` dependents' issues mentioning it), or the step honestly records
+   "no demand signal found" — which is itself a finding about a 91.8 M/wk package.
+
+- **4.1** `upstream-watch` half one: `scripts/mine-issues.ts` runs, per incumbent, two
+  `gh api search/issues` queries — `is:issue is:open` and `is:issue is:closed
+  reactions:>=10`, both `sort=reactions` — into `.sdlc/intents/<pkg>/issues.md` with
+  `state`, `reactions`, and a `covered:` column. Two calls per incumbent against a
+  30/min search limit, so a full sweep of eighteen is one minute with `sleep 1`.
+  An incumbent that returns nothing writes `no demand signal (n open, n≥10 closed)` —
+  an empty file is a measurement, not a failure.
+  Done when: `ls .sdlc/intents/*/issues.md | wc -l` → 9, and paratext's file exists and
+  says zero.
+- **4.2** Every uncovered issue at **≥10 reactions** becomes an acceptance criterion in
+  its intent, a test that cites its number, and a README competitor row. Closed ones
+  carry their close reason, because "they said no" is the sentence the README wants.
+  Done when: `grep -rhoE "#[0-9]+" packages/*/src/*.test.ts | sort -u | wc -l` exceeds
+  the count recorded by 4.1 on the day it ran.
 - **4.3** Cross-cutting features the incumbents lack, shipped as one wave so every README can say them: static projection of every structured result (Y5, missing in the foundation four), `Runtime` on every package (Y9), deadline on everything that can hang (Y10). Done when: `process-reference-lock`'s allow-list has one entry per package, all named `runtime.ts` or `install.ts`.
 - **4.4** `upstream-watch` half two: fingerprint each incumbent's release and open one issue per (competitor, version) naming what moved and which claim went stale. Done when: the workflow has one run with one issue opened.
 
@@ -255,22 +357,86 @@ Done when: `npm run compat -- chalk` prints 58 and names the case that regressed
 
 - **5.1** `/docs/benchmarks` gets one row per package; every README links it. Done when: `grep -L "/benchmarks" packages/*/README.md` prints nothing.
 - **5.2** Each README carries: what it replaces (with the graded number), the plugin key, the layer above and below it. Generated from `package.json` + `baseline.json` + the schema, locked. Done when: a README edited by hand fails the lock.
-- **5.3** `first-adopter`: one CLI not written here uses three layers. This is the only step with no command — it is a person. Default target: a burgee-built CLI inside `agents/` (the control room), reviewed by someone who did not build it.
+- **5.3** `first-adopter`: one CLI not written here uses three layers. This is the only
+  step whose proof is an artifact rather than a command — it is a person. Default target:
+  a burgee-built CLI inside `agents/` (the control room), reviewed by someone who did not
+  build it. Done when: a merged PR in `agents/` whose CLI entry point imports three
+  burgee packages (`node -e "…"` over its lockfile lists three), and its author is not
+  the author of those packages. Until that PR exists this step is `manual` in
+  `plan-progress.ts`, never ticked by inference.
 
 ---
 
+## Releasing
+
+Releases go through **changesets** (`.changeset/`, `changesets-pr.yml`, `release.yml`).
+That matters more for parallelism than for releasing: a changeset is *one new file with
+a random name*, so nine lanes writing nine changesets produce zero merge conflicts. No
+lane edits a `version` field by hand — the changeset PR does it, and a lane that bumps a
+version directly is a lane that will conflict with every other lane.
+
+**The real dependency graph** (`dependencies`, not devDependencies, measured 2026-09-13):
+
+```
+linegauge 0.2.0 ──┐
+roundel   0.3.0 ──┴─→ flagstaff 0.2.1
+roundel   0.3.0 ──┐
+seniority 0.1.0 ──┴─→ burgee    0.6.0
+paratext  0.2.0      caique 0.1.1   closeout 0.1.0   bellpull 0.0.1   (no dependents)
+compat-oracle 0.0.0  private — never published
+```
+
+**Bump order is therefore two deep, not nine.** Four of the nine packages have no
+dependents at all and can release in any order, on any day, from any lane. Only two
+edges exist: `linegauge`/`roundel` before `flagstaff`, and `roundel`/`seniority` before
+`burgee`. Changesets computes this itself — the order is written here so a lane can see
+that its release blocks nobody.
+
+**What rides alone.** paratext's schema change (D2) is the only breaking change in
+wave 1, so it ships as **0.3.0 by itself**, before 1.2–1.7, with a changeset whose body
+is the migration note (D8). Nothing else in the plan is breaking: D5's widening is
+additive, and every wave-2 step changes only `baseline.json` fragments and READMEs.
+
+**Queue interaction.** With no merge queue (wave 0.3), the changeset PR is one more PR
+competing for `main`, and it rebases every time a lane lands — which is how twenty
+observation PRs deadlocked this week. So while the queue is off, **the integrator lane
+holds releases to one batch per wave**: lanes land, the wave closes, one changeset PR
+goes out. With the queue on, releases stop being scheduled at all — each lane's
+changeset rides with its own PR.
+Done when: `ls .changeset/*.md` is non-empty on every lane branch that changed a
+published package, and `git log --oneline -- packages/*/package.json` shows no
+hand-edited version bump.
+
 ## When the plan is done
 
-`npx tsx scripts/plan-progress.ts` exits 0. It reads eleven conditions **from the tree**,
+`npx tsx scripts/plan-progress.ts` exits 0. It reads **36 conditions from the tree**,
 never from a ticked box — this repository has watched hand-kept status rot twice in three
-days, nine rows on 09-10 and two more on 09-13, and a plan that grades itself the same way
-would rot identically. Today it prints **0/11**.
+days, nine rows on 09-10 and two more on 09-13, every one of them a box somebody forgot.
+Six further steps are listed under `manual:` with the reason each cannot be read from the
+tree: **0.3** (a repository setting), **2.1** (the claim lives in the npm registry),
+**2.5.5** (a reading of 4.1's output), **4.4** (needs a workflow *run*), **5.3** (a
+person), and **D3** (a grep proves the wording, not the human).
 
-One of those eleven was wrong when first written, and the way it was wrong is the thing to
-watch for: `0.4` checked `baseline.json` for chalk's 58 and printed a tick, while
-`npm run compat -- chalk` said 57. **A condition that reads the number it is meant to
-verify cannot fail for the reason the thing is broken.** It runs the gate now. Every new
-condition added to that file gets the same question asked of it.
+Today it prints **0/36**.
+
+It printed 5/36 an hour before that, and **all five were false positives** — which is the
+more useful number:
+
+- `3.2`, `3.3`, `3.5` were green because they asked whether the design says `Not built`,
+  and only paratext's design uses that phrase. A condition that can only fail on the one
+  file that happens to use a wording is not a condition. They now require every `R<n>` in
+  the design to appear in a `## What shipped (R…)` heading.
+- `3.4` was green because it counted the string `export` in bellpull's `index.ts`, and the
+  file's own doc comment says "exports only its own name". It now counts declarations.
+- `D2` was green because `oneOf` appears somewhere in paratext's schema, while `required`
+  is still `[name, osc, when, encode, fallback]` — the bare shape the migration replaces.
+  It now reads `properties.capabilities`.
+
+That is the same defect four more times: **a condition that reads something adjacent to
+the thing it verifies cannot fail for the reason the thing is broken** — first seen when
+`0.4` read `baseline.json` while the gate said 57. Every condition added to that file gets
+the question asked of it, and the way to ask it is to make the tree false and watch the
+tick disappear.
 
 ## Order of execution for autopilot
 

@@ -21,6 +21,16 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
 - **R6** Under `--json`, prompting is impossible by definition: `--json` implies non-
   interactive, and a missing value is a `USAGE` error.
 
+- **R7 (PRINCIPLES 14, PLAN D5)** `PromptKind` is an **open** union —
+  `'text' | 'confirm' | 'select' | 'multiselect' | 'password' | 'path' | (string & {})`.
+  R1's closed union makes the `widgets` host of wave 1.2 a breaking change written as an
+  additive one: a plugin's seventh kind does not type-check. The `(string & {})` member
+  keeps autocomplete on the six built-ins and accepts any other string. Verified against
+  the real file on 2026-09-13 — 0 type errors, 152 tests pass, no call site changes; the
+  diff is kept at `.sdlc/probes/open-union-widening.patch`. A kind with no registered
+  widget is a **runtime** error, `E_UNKNOWN_KIND`, naming the kinds that are registered.
+  Ships at 0.2.0 with the host, not as a release of its own.
+
 ## Design
 
 ```
