@@ -9,12 +9,12 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join, sep } from 'node:path';
+import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { testFiles } from './discover.js';
 import { type Exclusion, type Host, type HostImport } from './hosts.js';
-import { shimName } from './vendor.js';
+import { readSuiteDeps, shimName } from './vendor.js';
 
 export interface Grade {
   host: string;
@@ -54,6 +54,8 @@ const ERROR_EXCERPT = 200;
 /** mocha's own default, used when a host declares none. */
 const DEFAULT_TIMEOUT_MS = 2000;
 const SUITE_TIMEOUT_MS = 300_000;
+/** A suite-local `npm install` of a handful of small packages; generous, and bounded. */
+const INSTALL_TIMEOUT_MS = 300_000;
 
 // Static, because the three labels are ours and a runtime RegExp invites the question
 // of where its pattern came from.
@@ -182,6 +184,46 @@ function rate(files: number, counts: { tests: number; passed: number; failed: nu
 
 const require = createRequire(import.meta.url);
 
+/** Where a run says what it is doing, when anyone is listening. */
+export type Write = (s: string) => void;
+const silent: Write = () => undefined;
+
+/** A CommonJS resolver anchored at a directory, for packages installed beside a suite. */
+const resolverAt = (dir: string): NodeJS.Require => createRequire(join(dir, 'resolve.cjs'));
+
+/** Whether a path resolves as a CommonJS module — extensionless specifiers included. */
+function resolvesFileFrom(path: string, from: string): boolean {
+  try {
+    resolverAt(from).resolve(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Whether a package is installed where a vendored suite would find it. */
+function resolvesFrom(name: string, dir: string): boolean {
+  try {
+    resolverAt(dir).resolve(`${name}/package.json`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * What `--control` grades against: the incumbent's real package. Equal to the host's key
+ * for every host whose key *is* its npm name, and to `npmName` for the scoped ones whose
+ * key had to be flattened to be a directory name and a baseline filename.
+ */
+export const controlName = (host: Host): string => host.npmName ?? host.name;
+
+/**
+ * The directory the suite's relative paths are written against — the sub-package's own
+ * root in a monorepo, the vendored root everywhere else.
+ */
+const packageDirOf = (host: Host, hostDir: string): string => join(hostDir, host.packageDir ?? '');
+
 /**
  * A target that does not exist yet grades as 0 of the reference, not as a broken oracle:
  * burgee/yargs is an honest 0 until wave 4 builds it and must not fail CI. Resolved as
@@ -189,7 +231,7 @@ const require = createRequire(import.meta.url);
  * `require.resolve` reports a package that exists as missing.
  */
 function missingTarget(host: Host, target: string): string | undefined {
-  if (target === host.name) return undefined;
+  if (target === controlName(host)) return undefined;
   // The filter is an inferred type predicate (TS 5.5+), so only public entries reach map.
   return host.imports
     .map((e) => `${target}${e.subpath}`)
@@ -206,7 +248,7 @@ function missingTarget(host: Host, target: string): string | undefined {
 /** The source of one generated public shim. */
 function shimSource(entry: HostImport, host: Host, target: string): string {
   const header = `// generated per run — COMPAT_TARGET=${target}`;
-  const from = target === host.name ? (entry.control ?? `${target}${entry.subpath}`) : `${target}${entry.subpath}`;
+  const from = target === controlName(host) ? (entry.control ?? `${target}${entry.subpath}`) : `${target}${entry.subpath}`;
   // `export *` never carries a default; yargs' entry has one and its tests use it. The
   // `module.exports` name is what `require()` of an ES module returns whole, so a CJS
   // fixture's `require('../../')` gets the callable factory, exactly as it does from yargs.
@@ -226,9 +268,16 @@ function writeShims(host: Host, hostDir: string, target: string, packageType: st
   host.imports.forEach((entry, i) => writeFileSync(join(hostDir, shimName(i, packageType)), shimSource(entry, host, target)));
 }
 
-/** The installed package's directory: its main entry, then up to the nearest package.json. */
-function packageRoot(name: string): string {
-  let dir = dirname(fileURLToPath(import.meta.resolve(name)));
+/**
+ * The installed package's directory: its main entry, then up to the nearest package.json.
+ *
+ * `from` says where to resolve it: the workspace by default, and the vendored root for a
+ * suite whose dependencies are installed beside it. A monorepo incumbent is installed
+ * under `vendor/<host>/node_modules`, which the workspace's own resolver never reaches.
+ */
+function packageRoot(name: string, from?: string): string {
+  const entry = from === undefined ? fileURLToPath(import.meta.resolve(name)) : resolverAt(from).resolve(name);
+  let dir = dirname(entry);
   while (!existsSync(join(dir, 'package.json'))) dir = dirname(dir);
   return dir;
 }
@@ -246,12 +295,38 @@ interface Source {
  * `import { Option } from '../lib/option.js'` resolves to our Option, and a test that then
  * fails is a real divergence rather than a whole file thrown away.
  */
+/**
+ * What one internal shim re-exports.
+ *
+ * A target run gets the target's main entry. A control run gets the installed host's own
+ * file by absolute path — *when the package ships it*. A package that publishes only
+ * `dist` does not, and re-exporting a path that does not exist fails the whole file to
+ * load: clack's control read 124 / 578 with two of its files never registering. There the
+ * control falls back to the package by name, which is the same thing the target run gets —
+ * `@clack/prompts` re-exports both `autocomplete` and `S_BAR`.
+ */
+export function internalShimFrom(host: Host, { target, installed, rel }: { target: string; installed: string | undefined; rel: string }): string {
+  if (installed === undefined) return target;
+  const shipped = join(installed, rel);
+  // Resolved, not `existsSync`d. The suite writes these specifiers the way CommonJS reads
+  // them — cli-table3's tests import `../src/cell`, and the file is `src/cell.js` — so a
+  // plain existence check says "not shipped" for four files that are shipped, and sent all
+  // 104 of its internal cases to the wrong module.
+  return resolvesFileFrom(shipped, installed) ? shipped : controlName(host);
+}
+
 function writeInternalShims(host: Host, { hostDir, target, internals, packageType }: { hostDir: string; target: string; internals: string[]; packageType: string }): void {
-  const installed = target === host.name ? packageRoot(host.name) : undefined;
+  // A suite with its own dependencies has the incumbent under `vendor/<host>/node_modules`,
+  // which the workspace's own resolver never reaches; everything else is a workspace package.
+  const resolveFrom = host.suiteDeps === undefined ? undefined : hostDir;
+  const installed = target === controlName(host) ? packageRoot(controlName(host), resolveFrom) : undefined;
+  // Anchored at the sub-package, not the vendored root: `../src/common.js` from
+  // `packages/prompts/test/` names `packages/prompts/src/common.js`.
+  const anchor = packageDirOf(host, hostDir);
   for (const rel of internals) {
-    const at = join(hostDir, rel);
+    const at = join(anchor, rel);
     mkdirSync(dirname(at), { recursive: true });
-    const from = installed === undefined ? target : join(installed, rel);
+    const from = internalShimFrom(host, { target, installed, rel });
     writeFileSync(at, `// generated per run — COMPAT_TARGET=${target}\n${internalShimBody(from, packageType)}`);
   }
 }
@@ -279,7 +354,7 @@ function vitestBin(): string {
 }
 
 /** The runner invocation. mocha and ava resolve through the module system: workspaces hoist .bin. */
-function command(host: Host, dir: string, paths: string[]): { bin: string; args: string[] } {
+function command(host: Host, hostDir: string, dir: string, paths: string[]): { bin: string; args: string[] } {
   if (host.runner === 'vitest') {
     // `--root` so vitest reads the config written beside the suite rather than this repo's
     // own, and `tap-flat` because the default `tap` reporter nests — which counts files,
@@ -287,7 +362,12 @@ function command(host: Host, dir: string, paths: string[]): { bin: string; args:
     // arguments are substring *filters* over its `include`, so a file the include misses
     // cannot be named back in. cli-table3's are `*-test.js`, which the default include
     // does miss.
-    return { bin: process.execPath, args: [vitestBin(), 'run', '--root', dirname(dir), '--reporter=tap-flat'] };
+    // `--root` is the sub-package's own directory, which is the root upstream's suite was
+    // written against — the vendored root for every single-package host, so unchanged for
+    // the eight that came before. It was `dirname(dir)`, which is that same directory for a
+    // one-level `testDir` and `vendor/<host>/packages` for a monorepo: a root above nothing,
+    // with no config in it, and not where vitest looks for a `__mocks__` directory.
+    return { bin: process.execPath, args: [vitestBin(), 'run', '--root', packageDirOf(host, hostDir), '--reporter=tap-flat'] };
   }
   if (host.runner === 'node:test') return { bin: process.execPath, args: ['--test', '--test-reporter=tap', ...paths] };
   // ava takes the paths as a filter over its own `files` globs, under which a `_`-prefixed
@@ -343,9 +423,19 @@ globalThis.jest = {
 `;
 
 function writeVitestConfig(host: Host, hostDir: string, files: string[]): void {
-  const include = files.map((f) => JSON.stringify(join(host.testDir, f).split(sep).join('/')));
-  writeFileSync(join(hostDir, 'vitest.setup.mjs'), jestGlobals());
-  writeFileSync(join(hostDir, 'vitest.config.mjs'), `// generated per run\nexport default { test: { include: [${include.join(', ')}], globals: true, setupFiles: ['./vitest.setup.mjs'] } };\n`);
+  const root = packageDirOf(host, hostDir);
+  const include = files.map((f) => JSON.stringify(relative(root, join(hostDir, host.testDir, f)).split(sep).join('/')));
+  writeFileSync(join(root, 'vitest.setup.mjs'), jestGlobals());
+  // Whatever the host's own vitest config declares that the suite depends on, carried
+  // across verbatim. clack's declares `snapshotSerializers: ['vitest-ansi-serializer']`,
+  // and without it every `toMatchSnapshot` compares raw escape sequences against a
+  // committed *rendering* — 450 of clack's own 578 cases failed against clack itself for
+  // that one missing line. This is harness, not leniency: it is upstream's own setting,
+  // named in `hosts.ts`, and it touches no assertion.
+  const extra = Object.entries(host.vitestConfig ?? {})
+    .map(([key, value]) => `, ${key}: ${JSON.stringify(value)}`)
+    .join('');
+  writeFileSync(join(root, 'vitest.config.mjs'), `// generated per run\nexport default { test: { include: [${include.join(', ')}], globals: true, setupFiles: ['./vitest.setup.mjs']${extra} } };\n`);
 }
 
 /**
@@ -375,7 +465,7 @@ function neutralEnv(): NodeJS.ProcessEnv {
 function runSuite(host: Host, hostDir: string, files: string[], target: string): { output: string } | { error: string } {
   const dir = join(hostDir, host.testDir);
   if (host.runner === 'vitest') writeVitestConfig(host, hostDir, files);
-  const { bin, args } = command(host, dir, files.map((f) => join(dir, f)));
+  const { bin, args } = command(host, hostDir, dir, files.map((f) => join(dir, f)));
   try {
     // cwd is the vendored root: suites use cwd-relative paths into their own tree.
     const output = execFileSync(bin, args, {
@@ -414,6 +504,23 @@ function keepTap(host: Host, target: string, kind: 'public' | 'internal', run: {
   writeFileSync(join(dir, `${host.name}.${target.replaceAll('/', '_')}.${kind}.tap`), run.output);
 }
 
+/**
+ * Install what a monorepo suite declares, into the vendored directory and nowhere else.
+ *
+ * Skipped the moment the first declared package resolves from there, so a normal run does
+ * no network at all; the install happens once per clean checkout. `--no-package-lock`
+ * because the lockfile that matters is the workspace's and this is not part of it, and the
+ * versions are already pinned exactly in `hosts.ts`.
+ */
+export function installSuiteDeps(host: Host, hostDir: string, write: Write = silent): void {
+  const names = Object.keys(readSuiteDeps(hostDir));
+  if (names.length === 0) return;
+  const missing = names.filter((name) => !resolvesFrom(name, hostDir));
+  if (missing.length === 0) return;
+  write(`  installing ${host.name}'s suite dependencies into vendor/${host.name}/node_modules: ${missing.join(', ')}\n`);
+  execFileSync('npm', ['install', '--no-audit', '--no-fund', '--no-package-lock', '--prefix', hostDir], { stdio: ['ignore', 'ignore', 'inherit'], timeout: INSTALL_TIMEOUT_MS });
+}
+
 export function grade(host: Host, vendorDir: string, target: string, reference = 0): Grade {
   const hostDir = join(vendorDir, host.name);
   const dir = join(hostDir, host.testDir);
@@ -435,13 +542,14 @@ export function grade(host: Host, vendorDir: string, target: string, reference =
   if (missing !== undefined) return { ...base, note: `target not built yet: ${missing}` };
 
   const { type: packageType = 'commonjs' } = JSON.parse(readFileSync(join(hostDir, 'package.json'), 'utf8')) as { type?: string };
+  installSuiteDeps(host, hostDir);
   writeShims(host, hostDir, target, packageType);
   writeInternalShims(host, { hostDir, target, internals: source.internals ?? [], packageType });
 
   const run = runSuite(host, hostDir, files, target);
   keepTap(host, target, 'public', run);
   if ('error' in run) return { ...base, files: files.length, error: run.error };
-  const graded: Grade = { ...base, ...summarize(run.output, files.length, reference, { excludes: host.excludes ?? [], requireMatch: target === host.name }) };
+  const graded: Grade = { ...base, ...summarize(run.output, files.length, reference, { excludes: host.excludes ?? [], requireMatch: target === controlName(host) }) };
 
   if (internal.length > 0) {
     const extra = runSuite(host, hostDir, internal, target);

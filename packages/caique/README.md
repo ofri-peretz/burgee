@@ -190,7 +190,37 @@ counted whole across its own resolved tree.
 - **`--interactive`** asks for every missing required option in one pass; **`--yes`** accepts
   every confirmation; cancellation exits `CANCELLED` and restores the terminal.
 - **Accessible mode** falls back to line input with no live redraw.
-- **Drop-in paths** for inquirer and clack, graded by their own suites.
+- **A migration path from `@inquirer/prompts` and `@clack/prompts`**, graded by their own
+  suites. See below for what that is graded at today, which is zero.
+
+## Which incumbents this is measured against
+
+**`@inquirer/prompts`** (28.8 M/wk) and **`@clack/prompts`**. Those two, and not the
+package whose download count is larger:
+
+- **`inquirer` (34.3 M/wk) is out of scope, deliberately.** Its 34 million are the *legacy*
+  `inquirer.prompt([...])` façade, an API its own maintainer moved off; a new CLI written
+  today writes `@inquirer/prompts`. Reproducing the legacy object API would be work spent
+  on a shape nobody new adopts, and it is not on this package's roadmap.
+- **`@inquirer/core`** is what the compatibility oracle grades, because it is where the
+  prompt *loop* — the keypress state machine both façades sit on — is actually tested.
+  `inquirer`'s own npm tarball ships **no tests at all**, so there is nothing there to grade.
+
+| Incumbent's suite | Cases | Their own package | `caique` |
+| :-- | --: | --: | --: |
+| [`@inquirer/core` 12.0.3](https://github.com/SBoudrias/Inquirer.js) | 41 | 41 (100%) | **0 (0.0%)** |
+| [`@clack/prompts` 1.8.1](https://github.com/bombshell-dev/clack) | 606 | 576 (95.0%) | **0 (0.0%)** |
+
+Measured 2026-09-14 by `npm run compat`, which runs each incumbent's own unedited suite
+twice: once against the incumbent (the control — the column that proves the gate works)
+and once against caique. **Both caique columns are zero, and they are zero because no
+façade exists yet** — `caique` exports `ask`, `decide` and `spec`, not `createPrompt` or
+`text` in their spelling. The row is here because a claimed replacement with no number
+beside it is a claim; this is the number, and it can only go up from here.
+
+The 30 cases `@clack/prompts` fails against itself are `path.test.ts`, which mocks
+`node:fs` in a way this repository's vitest does not reproduce — a harness divergence,
+recorded with its reason in `packages/compat-oracle/src/hosts.ts` rather than rounded away.
 
 ## Following along
 

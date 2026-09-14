@@ -73,10 +73,19 @@ describe('every vendored test file is graded or named', () => {
   );
 });
 
+/**
+ * A path a run writes under a host's *sub-package* directory: the vendored root for every
+ * single-package host, `packages/prompts` for clack. Reading these off `host.name` alone
+ * would check paths no run writes and leave the ones it does write unchecked.
+ */
+const at = (host: Host, rel: string): string => [`vendor/${host.name}`, host.packageDir ?? '', rel].filter((p) => p !== '').join('/');
+
 /** `require('x')`, `import … from 'x'`, `import 'x'` — never the word "from" inside a test title. */
 const SPECIFIERS = [/\brequire\(\s*['"]([^'"]+)['"]\s*\)/g, /^\s*(?:import|export)\b[^;\n]*?\bfrom\s*['"]([^'"]+)['"]/gm, /^\s*import\s*['"]([^'"]+)['"]/gm];
 const SOURCE = /\.(m?js|cjs|ts)$/;
 const BUILTIN = new Set(builtinModules);
+/** First line of every file `run.ts` writes into `vendor/`, shim and config alike. */
+const GENERATED_HEADER = '// generated per run';
 const GENERATED = new Set([...HOSTS.flatMap((h) => h.imports.map((_, i) => [shimName(i, 'module'), shimName(i, 'commonjs')]).flat()), 'vitest.setup.mjs', 'vitest.config.mjs']);
 
 /** The package a specifier belongs to: `@colors/colors/safe` → `@colors/colors`. */
@@ -100,7 +109,13 @@ function requiredPackages(dir: string): Map<string, string> {
     .map((e) => join(e.parentPath, e.name))
     .filter((at) => !at.includes('node_modules'));
   for (const at of files) {
-    for (const name of packagesIn(readFileSync(at, 'utf8'))) {
+    const source = readFileSync(at, 'utf8');
+    // An internal shim is written at whatever path the host files its own modules, so it
+    // cannot be recognised by name the way `shim.js` and `vitest.config.mjs` are. Its body
+    // names the *target* of the run — `caique`, `roundel/chalk` — and reading that as a
+    // package the suite requires would ask this workspace to declare its own packages.
+    if (source.startsWith(GENERATED_HEADER)) continue;
+    for (const name of packagesIn(source)) {
       if (!found.has(name)) found.set(name, at.slice(root.length + 1));
     }
   }
@@ -114,9 +129,15 @@ describe('the oracle installs what its vendored suites require', () => {
     // pin each, so `string-width` cannot be ^8.1.0 here and ^8.2.2 there while the hoist
     // quietly decides which the suites actually load. That drift is not hypothetical: the
     // control graded v8's tests against a hoisted v5 and read 140 / 229 (#197).
-    const manifests = [join(root, 'package.json'), join(root, '../..', 'package.json')];
+    // Three places now, because each one makes the package present for a clean checkout:
+    // this manifest, the workspace root, and — for a monorepo suite — the manifest the
+    // vendor step writes beside the tests, whose `devDependencies` the oracle installs into
+    // `vendor/<host>/node_modules` and nowhere else. `@clack/core` and `@inquirer/testing`
+    // are a *suite's* dependencies, not this workspace's, and PRINCIPLES.md is the reason
+    // they must not become one.
+    const manifests = [join(root, 'package.json'), join(root, '../..', 'package.json'), ...onDisk.map((h) => join(VENDOR, h.name, 'package.json'))];
     const declared = new Set(
-      manifests.flatMap((path) => {
+      manifests.filter((path) => existsSync(path)).flatMap((path) => {
         const pkg = JSON.parse(readFileSync(path, 'utf8')) as Record<string, Record<string, string>>;
         return [...Object.keys(pkg['dependencies'] ?? {}), ...Object.keys(pkg['devDependencies'] ?? {}), ...Object.keys(pkg['peerDependencies'] ?? {})];
       }),
@@ -154,12 +175,16 @@ function ignoreGlobs(line: string): string[] {
 
 describe('the generated files really are gitignored', () => {
   /** Every path a run writes into `vendor/`, as `run.ts` writes them, posix. */
+  // The vitest config, its setup file and the internal shims are written at the
+  // *sub-package's* directory, which is the vendored root for every single-package host
+  // and `packages/prompts` for clack. Reading them off `host.name` alone would check paths
+  // no run writes, and leave the ones it does write unchecked.
   const generated = onDisk.flatMap((host) => [
     ...host.imports.map((_, i) => `vendor/${host.name}/${shimName(i, 'module')}`),
     ...host.imports.map((_, i) => `vendor/${host.name}/${shimName(i, 'commonjs')}`),
-    `vendor/${host.name}/vitest.setup.mjs`,
-    `vendor/${host.name}/vitest.config.mjs`,
-    ...(readInternals(host) ?? []).map((rel) => `vendor/${host.name}/${rel.split(sep).join('/')}`),
+    at(host, 'vitest.setup.mjs'),
+    at(host, 'vitest.config.mjs'),
+    ...(readInternals(host) ?? []).map((rel) => at(host, rel.split(sep).join('/'))),
   ]);
 
   const rules = readFileSync(join(root, '.gitignore'), 'utf8')

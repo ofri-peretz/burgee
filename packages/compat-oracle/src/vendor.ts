@@ -137,6 +137,20 @@ export function internalImports(source: string, internalDir = 'lib'): string[] {
 }
 
 /**
+ * The same list, minus the host's own public entry.
+ *
+ * `../src/index.js` is clack's *public* import and also matches the `src/` internal
+ * pattern, so without this every one of its nineteen files would add `src/index.js` to
+ * the internal list and the runner would write a shim at a path the rewrite has already
+ * pointed elsewhere — a file nothing imports, and for the control a re-export of
+ * `<installed>/src/index.js`, which a published package does not ship.
+ */
+function internalsOnly(source: string, host: Host): string[] {
+  const publicPaths = new Set(host.imports.map(({ upstream }) => upstream.replace(/^(?:\.\.?\/)+/, '')));
+  return internalImports(source, host.internalDir).filter((p) => !publicPaths.has(p));
+}
+
+/**
  * `internal` when a file reaches into the host's internals AND never imports a public
  * entry: it is testing a helper module, not the surface we promise, and passing it would
  * mean copying the host's file layout. Such files are still vendored and graded — on a
@@ -172,7 +186,27 @@ export function rootPackage(host: Host, upstream: UpstreamPackage): Record<strin
   if (upstream.version !== undefined) pkg.version = upstream.version;
   if (upstream.license !== undefined) pkg.license = upstream.license;
   if (upstream.repository !== undefined) pkg.repository = upstream.repository;
+  // Declared here and installed here, so a suite that needs the incumbent's siblings does
+  // not put them in the workspace. `readSuiteDeps` is what reads them back.
+  if (host.suiteDeps !== undefined) pkg.devDependencies = Object.fromEntries(host.suiteDeps.map(splitSpec));
   return pkg;
+}
+
+/**
+ * `@clack/core@1.5.1` -> `['@clack/core', '1.5.1']`. The last `@` is the separator, because
+ * the first one belongs to the scope.
+ */
+export function splitSpec(spec: string): [string, string] {
+  const at = spec.lastIndexOf('@');
+  if (at <= 0) throw new Error(`suite dependency "${spec}" has no pinned version`);
+  return [spec.slice(0, at), spec.slice(at + 1)];
+}
+
+/** The suite-local dependencies a vendored directory declares, if it declares any. */
+export function readSuiteDeps(hostDir: string): Record<string, string> {
+  const at = join(hostDir, 'package.json');
+  if (!existsSync(at)) return {};
+  return (JSON.parse(readFileSync(at, 'utf8')) as { devDependencies?: Record<string, string> }).devDependencies ?? {};
 }
 
 /** Where a vendor run reads from and writes to: the clone's test dir, and ours. */
@@ -189,6 +223,17 @@ interface Copied {
 }
 
 /**
+ * Whether a directory inside the test dir is brought along.
+ *
+ * Two are not. A dot-directory, because a host whose `testDir` is the repo root (ora)
+ * would otherwise vendor `.git`. And the host's own `internalDir`, because
+ * `@inquirer/core`'s suite is one file sitting beside `src/` — copying that would vendor
+ * the incumbent's implementation into this repository, and the specifier rewrite has
+ * already made it unreachable by pointing every import of it at the generated shim.
+ */
+const copiesDir = (host: Host, name: string): boolean => !name.startsWith('.') && name !== (host.internalDir ?? 'lib');
+
+/**
  * Copy the test dir: every fixture directory whole, every file the host's glob calls a
  * test with its specifiers rewritten, and then whatever those tests import from beside
  * themselves.
@@ -201,17 +246,17 @@ function copyTests(host: Host, { from, dest, hostDir }: Paths, packageType: stri
 
   for (const entry of readdirSync(from, { withFileTypes: true })) {
     if (entry.isDirectory()) {
-      // A host whose testDir is the repo root (ora) would otherwise vendor `.git`.
-      if (entry.name.startsWith('.')) continue;
-      cpSync(join(from, entry.name), join(dest, entry.name), { recursive: true, verbatimSymlinks: true });
-      rewriteTree(join(dest, entry.name), host, hostDir, packageType);
+      if (copiesDir(host, entry.name)) {
+        cpSync(join(from, entry.name), join(dest, entry.name), { recursive: true, verbatimSymlinks: true });
+        rewriteTree(join(dest, entry.name), host, hostDir, packageType);
+      }
       continue;
     }
     // The host's own glob, so a repo-root suite does not vendor the implementation beside it.
     if (!matchesGlob(entry.name, host.testGlob)) continue;
     const source = readFileSync(join(from, entry.name), 'utf8');
     if (classify(source, host) === 'internal') internalFiles.push(entry.name);
-    for (const p of internalImports(source, host.internalDir)) internals.add(p);
+    for (const p of internalsOnly(source, host)) internals.add(p);
     const rewritten = rewriteAt(source, host, { fileDir: dest, hostDir, packageType });
     // Read off the *rewritten* source: a specifier the rewrite already pointed at a
     // generated shim (ora's `./index.js`) is the host itself, not a sibling helper.
@@ -239,7 +284,7 @@ function countNested(host: Host, from: string, dest: string, into: { internalFil
     if (!rel.includes('/')) continue;
     const source = readFileSync(join(from, rel), 'utf8');
     if (classify(source, host) === 'internal') into.internalFiles.push(rel);
-    for (const p of internalImports(source, host.internalDir)) into.internals.add(p);
+    for (const p of internalsOnly(source, host)) into.internals.add(p);
     files += 1;
   }
   return files;
@@ -252,14 +297,29 @@ function countNested(host: Host, from: string, dest: string, into: { internalFil
  */
 function copySiblings(siblings: Set<string>, host: Host, { from, dest, hostDir }: Paths, packageType: string): void {
   for (const name of siblings) {
-    const at = join(from, name);
-    if (matchesGlob(name, host.testGlob) || !existsSync(at)) continue;
-    writeFileSync(join(dest, name), rewriteAt(readFileSync(at, 'utf8'), host, { fileDir: dest, hostDir, packageType }));
+    const at = siblingFile(from, name);
+    if (matchesGlob(name, host.testGlob) || at === undefined) continue;
+    writeFileSync(join(dest, at.name), rewriteAt(readFileSync(at.path, 'utf8'), host, { fileDir: dest, hostDir, packageType }));
   }
 }
 
+/**
+ * The file a sibling specifier names, which is not always the file it spells.
+ *
+ * A TypeScript suite written for `"moduleResolution": "nodenext"` imports its helper as
+ * `./test-utils.js` and the file on disk is `test-utils.ts` — the extension the *emitted*
+ * module would have, not the one the source has. clack's nineteen files all reach one such
+ * helper, and taking the specifier literally left every one of them unable to load: a
+ * missing helper reads as nineteen failing files, which reads as a compatibility number.
+ */
+function siblingFile(from: string, name: string): { name: string; path: string } | undefined {
+  const candidates = [name, ...(name.endsWith('.js') ? [`${name.slice(0, -'.js'.length)}.ts`] : [])];
+  const found = candidates.find((c) => existsSync(join(from, c)));
+  return found === undefined ? undefined : { name: found, path: join(from, found) };
+}
+
 /** Vendor the host's suite at its latest npm release (or the given version). */
-export function vendor(host: Host, into: string, version = latestVersion(host.name)): VendorResult {
+export function vendor(host: Host, into: string, version = latestVersion(host.npmName ?? host.name)): VendorResult {
   const clone = mkdtempSync(join(tmpdir(), `vendor-${host.name}-`));
   try {
     const { commit, tag } = cloneRelease(host, version, clone);
