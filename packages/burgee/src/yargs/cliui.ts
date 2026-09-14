@@ -142,12 +142,19 @@ export class UI {
   }
 
   private measurePadding(str: string): number[] {
+    // An unanchored `\s*$` was the upstream spelling, and it is quadratic: the engine
+    // retries at every position, so a cell of 50,000 spaces then an `x` costs 1,346 ms
+    // here — CodeQL alert 35, "polynomial regular expression used on uncontrolled data",
+    // raised once `stripAnsi` became library input. Spaces, not the tabs the alert names:
+    // a tab routes into `applyLayoutDSL`, which splits on it long before this runs.
+    // `trim{Start,End}` remove exactly the set `\s` matches (WhiteSpace + LineTerminator)
+    // and are linear, so this is the same measurement without the backtracking.
     const noAnsi = stripAnsi(str);
     return [
       0,
-      (/\s*$/.exec(noAnsi) as RegExpExecArray)[0].length,
+      noAnsi.length - noAnsi.trimEnd().length,
       0,
-      (/^\s*/.exec(noAnsi) as RegExpExecArray)[0].length,
+      noAnsi.length - noAnsi.trimStart().length,
     ];
   }
 
