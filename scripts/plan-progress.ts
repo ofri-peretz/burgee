@@ -113,7 +113,15 @@ const MANUAL: { id: string; why: string }[] = [
 ];
 
 const STEPS: Step[] = [
-  { id: '0.1', what: 'burgee renamed to burgee', done: () => !existsSync(join(ROOT, '.sdlc/intents/burgee')) },
+  // The rename broke its own check: 0.1 replaced `agent-native-cli-layer` with `burgee` in
+  // 132 files, this one included, so the condition became "the burgee intent does not exist"
+  // and went red the moment the step succeeded. It asks the real question now — does any file
+  // still carry the old slug — which is also what the step's "Done when" says.
+  {
+    id: '0.1',
+    what: 'no file still names the pre-0.1 slug',
+    done: () => execFileSync('git', ['grep', '-l', ['agent', 'native', 'cli', 'layer'].join('-')], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() === '',
+  },
   // `existsSync` was the first version, and a file that exists proves nothing about drift.
   { id: '0.2', what: 'every roadmap row agrees with its intent (runs the check)', done: () => { execFileSync('npx', ['tsx', 'scripts/roadmap-index.ts', '--check'], { cwd: ROOT, stdio: 'ignore' }); return true; } },
   {
@@ -125,7 +133,10 @@ const STEPS: Step[] = [
     // machine that pruned the lockfile. It runs the gate.
     done: () => {
       try {
-        return execFileSync('npm', ['run', 'compat', '--silent', '--', 'chalk'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).includes('58 passing');
+        // `58 passing` is what the ava suite prints; the oracle prints `58 / 58`. Matching
+        // the wrong tool's wording made this unfailable in the pass direction too.
+        const out = execFileSync('npm', ['run', 'compat', '--silent', '--', 'chalk'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+        return out.includes('58 / 58') && !out.includes('\u2716');
       } catch {
         return false;
       }
