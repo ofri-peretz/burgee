@@ -20,7 +20,16 @@ import { pathToFileURL } from 'node:url';
 
 import { hoist, manualClock, type Runtime } from './loop.js';
 import { type Component, PluginError, type PluginErrorCode, register, registered, type Plugin } from './plugin.js';
+import { processRuntime } from './runtime.js';
 import { spinner, type SpinnerState } from './spinner.js';
+
+/**
+ * The process, through the seam (Y9). This command owns the process by definition — argv
+ * in, stdout out, exit code set — and `./runtime.js` is where the package names it. The
+ * `Runtime` imported from `./loop.js` above is a different thing: the world `hoist()` is
+ * handed, which this file builds out of buffers and a manual clock.
+ */
+const rt = processRuntime();
 
 const MODES = ['tty', 'pipe', 'ci', 'json', 'accessible'] as const;
 type Mode = (typeof MODES)[number];
@@ -184,14 +193,14 @@ async function main(argv: string[], write: (s: string) => void): Promise<number>
   return EXIT_OK;
 }
 
-const [, , command, ...rest] = process.argv;
+const [, , command, ...rest] = rt.argv;
 const args = command === 'check' ? rest : [command, ...rest].filter((a): a is string => a !== undefined);
-main(args, (s) => process.stdout.write(s)).then(
+main(args, (s) => rt.stdout.write(s)).then(
   (code) => {
-    process.exitCode = code;
+    rt.exitCode = code;
   },
   (e: unknown) => {
-    process.stderr.write(`${e instanceof Error ? e.message : String(e)}\n`);
-    process.exitCode = EXIT_RUNTIME;
+    rt.stderr.write(`${e instanceof Error ? e.message : String(e)}\n`);
+    rt.exitCode = EXIT_RUNTIME;
   },
 );

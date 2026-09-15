@@ -99,7 +99,7 @@ const designComplete = (slug: string): boolean => {
   const shipped = new Set([...text.matchAll(/^## What shipped \(([^)]*)\)/gm)].flatMap((m) => [...(m[1] as string).matchAll(/R\d+/g)].map((r) => r[0])));
   return [...wanted].every((r) => shipped.has(r));
 };
-const pkgJson = (pkg: string): { version: string; description?: string } => json(`packages/${pkg}/package.json`);
+const pkgJson = (pkg: string): { version: string; description?: string; private?: boolean } => json(`packages/${pkg}/package.json`);
 /**
  * Band ids, from the runner rather than the config file — the compat ones are derived, so
  * `control-bands.json` deliberately does not list them.
@@ -231,7 +231,16 @@ const STEPS: Step[] = [
         const pkg = entry.split('/')[0] as string;
         byPackage.set(pkg, [...(byPackage.get(pkg) ?? []), entry]);
       }
-      return [...byPackage.values()].every((entries) => entries.length === 1 && /\/(runtime|install)\.ts$/.test(entries[0] as string));
+      // The step is about the published family. `compat-oracle` is `private: true` tooling and
+      // its three entries are each the job of owning a process rather than a lapse into one —
+      // `shim.ts` in particular is copied into the vendored package's own module graph, where
+      // an import of anything in this repository would not resolve, so it cannot go behind a
+      // seam at all. Read from the manifest rather than keyed on the name, so a package that
+      // becomes published stops being exempt on the day it does.
+      const published = (pkg: string): boolean => existsSync(join(ROOT, 'packages', pkg, 'package.json')) && pkgJson(pkg).private !== true;
+      return [...byPackage.entries()]
+        .filter(([pkg]) => published(pkg))
+        .every(([, entries]) => entries.length === 1 && /\/(runtime|install)\.ts$/.test(entries[0] as string));
     },
   },
   { id: '5.2', what: 'READMEs are generated and locked', done: () => existsSync(join(ROOT, 'scripts/readme-lock.test.ts')) },

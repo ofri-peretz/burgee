@@ -11,6 +11,7 @@ import { basename, dirname, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inspect } from 'node:util';
 
+import { host } from '../runtime.js';
 import { Parser } from '../yargs-parser.js';
 
 import { cliui, stringWidth } from './cliui.js';
@@ -118,24 +119,30 @@ export const shim: PlatformShim = {
   assert: { notStrictEqual, strictEqual },
   cliui,
   findUp,
-  getEnv: (key) => process.env[key],
+  getEnv: (key) => host.env[key],
   inspect,
   getProcessArgvBin,
-  mainFilename: mainFilename || process.cwd(),
+  mainFilename: mainFilename || host.cwd(),
   Parser,
   path: { basename, dirname, extname, relative, resolve, join },
   process: {
-    argv: () => process.argv,
-    cwd: process.cwd,
-    emitWarning: (warning, type) => process.emitWarning(warning, type),
-    execPath: () => process.execPath,
-    exit: (code) => {
-      process.exit(code);
+    argv: () => host.argv,
+    cwd: () => host.cwd(),
+    emitWarning: (warning, type) => {
+      host.emitWarning(warning, type);
     },
-    nextTick: process.nextTick,
-    stdColumns: typeof process.stdout.columns !== 'undefined' ? process.stdout.columns : null,
-    stdin: () => process.stdin,
-    stdout: () => process.stdout,
+    execPath: () => host.execPath,
+    exit: (code) => {
+      host.exit(code);
+    },
+    nextTick: (fn, ...args) => {
+      host.nextTick(fn, ...args);
+    },
+    // Captured, as it was before the seam: `stdColumns` is a value in `PlatformShim`, not
+    // a thunk, so yargs reads whatever this object was built with. Unchanged on purpose.
+    stdColumns: typeof host.stdout.columns !== 'undefined' ? host.stdout.columns : null,
+    stdin: () => host.stdin,
+    stdout: () => host.stdout,
   },
   readFileSync,
   readdirSync,

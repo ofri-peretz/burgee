@@ -5,132 +5,51 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 /**
- * Lock for the seam (design R1 of `cli-testing-harness`): the only files in any
- * package that may read `process` are `runtime.ts` (the real runtime),
- * `testing-helpers.ts` (the harness's documented env swap) and `execute.ts` (the
- * execution core, whose job is to own argv, the streams and the exit).
- * Everything else reads its
- * `Runtime`, which is what lets a test substitute the world.
+ * Lock for the seam (design R1 of `cli-testing-harness`): in each package exactly one
+ * file may name `process`, and everything else reads the `Runtime` or the live `host`
+ * that file exports — which is what lets a test substitute the world.
  */
 const PACKAGES = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 /**
- * burgee/src/index.ts is the third: it is the framework's entry, and a CLI
- * framework's whole job is to own argv, the streams and the exit. Every one of
- * those is injectable through RunOptions, so tests never reach the real process;
- * the defaults are the only place the real one is named.
+ * burgee is down to one entry (PLAN 4.3, Y9). It used to carry nine, and the eight that
+ * went are worth naming, because most of them looked load-bearing:
+ *
+ * - `execute.ts`, the execution core that owns argv, the streams and the exit — all of it
+ *   already injectable through `RunOptions`, so only the *defaults* named the process.
+ * - `commander/command.ts` and the four yargs files (`yargs/shim.ts`, `yargs-parser.ts`,
+ *   `yargs/utils.ts`, `yargs/cliui.ts`). These reproduce their incumbents' process
+ *   contracts and the incumbents' own suites grade exactly that, so the seam they went
+ *   behind had to stay *live*: `host` is getters, not a captured object literal. Measured
+ *   before and after the move, commander 1360/1360 and yargs 804/804, unchanged.
+ * - `testing-helpers.ts`, the harness's documented env swap. It still mutates the real env
+ *   in place — that is the whole point of it — but it reaches that env through `host`.
+ * - `dev.ts`, which was simply stale: it contains no `process` read at all. Its entry had
+ *   outlived the code that earned it, which is the failure mode an allow-list invites.
  */
 const ALLOWED = new Set([
+  // One entry per package, each named `runtime.ts` — PLAN 4.3 (Y9). The long notes that used
+  // to sit here, recording what each façade read from the process and which of those reads its
+  // incumbent's suite actually graded, moved into the seams themselves: the reasoning belongs
+  // beside the code it constrains, not in the list of exceptions it is no longer an exception
+  // to. `git log -- packages/burgee/src/process-reference-lock.test.ts` has them.
+  //
+  // `seniority`, `linegauge`, `closeout`, `bellpull` and `caique`'s other files are absent
+  // because they name the process nowhere. That is the stronger claim, and it is the one
+  // seniority's own `shape.test.ts` makes (R11): a package that takes `env`, `cwd` and `argv`
+  // as arguments has already done what a seam is for.
   'burgee/src/runtime.ts',
-  'burgee/src/testing-helpers.ts',
-  'burgee/src/execute.ts',
-  // The commander front-end reproduces commander's process contract — process.argv
-  // when parse() is called bare, process.exit when no exitOverride is set, the env for
-  // Option.env(), stdout/stderr as the default output configuration. That contract is
-  // what commander's own suite grades (C1); `parse(argv, { stdout, stderr, exit })`
-  // is the injectable seam for everything else.
-  'burgee/src/commander/command.ts',
-  // The yargs front-end reproduces yargs' process contract the same way, through one
-  // platform shim (yargs/shim.ts: argv, cwd, exit, env, columns), its parser's Node
-  // mixin (yargs-parser.ts: cwd, env, require), hideBin/getProcessArgvBin and
-  // setBlocking (yargs/utils.ts), and cliui's terminal width fallback (yargs/cliui.ts).
-  // yargs' own suite swaps process.argv/exit/env per test and grades exactly that.
-  'burgee/src/yargs/shim.ts',
-  'burgee/src/yargs-parser.ts',
-  'burgee/src/yargs/utils.ts',
-  'burgee/src/yargs/cliui.ts',
-  // `burgee dev` is a developer tool that owns the process's stdio by definition: the CLI
-  // hands it the Runtime's streams, and `load()` imports the entry as a fresh module graph,
-  // which only the real module loader can do. Dev-time only, never reached by the framework.
-  'burgee/src/dev.ts',
-  // flagstaff's `bin` (`flagstaff check <file>`) is the package's own command line: argv in,
-  // stdout out, exit code set. Everything it renders goes through hoist() over buffers.
-  // paratext's seam, the same shape as burgee's and for the same reason: `processRuntime()`
-  // is the one place the real process is named, and every capability reads the `Runtime` it
-  // returns — which is what lets a test declare a terminal in two lines.
   'paratext/src/runtime.ts',
-  'flagstaff/src/cli.ts',
-  // flagstaff/ora is ora 9 ported method for method and graded by ora's own suite. ora's
-  // contract *is* the process: `process.stderr` is the default stream, `process.stdout` and
-  // `process.stderr` are the streams it hooks so a `console.log` lands above the frame,
-  // `process.stdin` is what the discarder puts into raw mode, `process.kill` is how a
-  // swallowed Ctrl+C is re-signalled and how the cursor restore re-raises a termination
-  // signal, and the interactivity and unicode probes read the environment.
-  //
-  // What the suite actually grades, counted rather than asserted: one test ("hooks both
-  // stdout and stderr") swaps `process.stdout.write` and `process.stderr.write`, and one
-  // swaps `process.kill` to watch the discarder re-signal `SIGINT`. It contains no
-  // `process.env` and no `process.stdin` reference at all — those two are ported to the
-  // real process because ora's behaviour depends on them, not because the suite proves it,
-  // and the cursor restore's own signal handling is covered by `ora.test.ts` instead (R6).
-  // `hoist()` — the way forward — takes its world as an argument.
-  'flagstaff/src/ora.ts',
-  // The cursor control both render façades port, in one file rather than two: `cli-cursor`
-  // → `restore-cursor` → `signal-exit` is in ora's dependency tree and in log-update's, and
-  // there is one correct way to put a cursor back however the process dies. It reads the
-  // process because the cursor *is* the process's terminal's — global state, not a property
-  // of whichever stream a caller passed in — which is why both incumbents restore
-  // `process.stderr`'s cursor whatever stream they were rendering to.
-  //
-  // What it reads, counted: `process.platform` once (SIGBREAK on win32), `process.stderr`
-  // and `process.stdout` to pick the terminal to write to, and `process.on` /
-  // `process.removeListener` / `process.listenerCount` / `process.kill` for the three
-  // termination signals and the re-raise. The listeners and the re-raise are the whole
-  // reason the file exists; `ora.test.ts` and `log-update.test.ts` each drive their built
-  // `dist/` entry in a real child process and kill it to grade them, which is the only way
-  // there is, since neither host's own suite ever kills a process.
-  // flagstaff/boxen is boxen 8 ported method for method and graded by boxen's own suite.
-  // boxen's contract *is* the process for one number: how wide the terminal is. It reads
-  // `process.stdout.columns`, then `process.stderr.columns`, then `process.env.COLUMNS`,
-  // then falls back to 80 — and `fullscreen` reads `process.stdout.columns` and `.rows` to
-  // max out whichever of width/height was not given.
-  //
-  // What the suite actually grades, counted rather than asserted: **`process.env.COLUMNS`,
-  // ten times**, across `main.js` (6), `margin-option.js` (4) and `float-option.js` (3) —
-  // used to build strings long enough to wrap, which only works because boxen reads the
-  // same variable. The `stdout`/`stderr` column reads and the two `fullscreen` dimensions
-  // are ported because boxen's behaviour depends on them, not because the suite proves it:
-  // `fullscreen-option.js` snapshots eight boxes and touches `process` **zero** times, so
-  // its expectations were recorded against whatever the recording terminal was.
-  //
-  // The read happens at call time rather than at import, so a box drawn after a resize uses
-  // the new width. `box()` — the way forward — takes its width as an option.
-  'flagstaff/src/boxen.ts',
-  'flagstaff/src/cursor.ts',
-  // flagstaff/log-update is log-update 8 ported the same way as ora, and its process reads
-  // are two: the module-level `logUpdate` and `logUpdateStderr` are bound to
-  // `process.stdout` and `process.stderr`, because those two bindings *are* the exports
-  // every program written for log-update imports; and `hideCursor`/`showCursor` write to
-  // `process.stderr`, which is what `cli-cursor` does upstream whatever stream is being
-  // rendered to.
-  //
-  // What the suite grades, counted rather than asserted: **none of it.**
-  // `packages/compat-oracle/vendor/log-update/test.js` imports exactly one name from the
-  // module under grade — `createLogUpdate` — and uses it 39 times to build every renderer
-  // it drives; it contains **0** occurrences of `logUpdateStderr` and **0** of the string
-  // `process`, in 1,824 lines. So both reads are ported because log-update's behaviour
-  // depends on them and neither is proven by the 99; `log-update.test.ts` grades them here
-  // instead, against the built entry with the two descriptors pointed at separate files.
-  // Everything else in the façade takes its stream as an argument.
-  'flagstaff/src/log-update.ts',
-  // `roundel/chalk` reproduces chalk's contract, which is "detect the terminal at import"
-  // (roundel design R6 against R9): the one file in roundel that reads the process — once,
-  // through `globalThis.process`, guarded, and only to hand the policy a Runtime. Every
-  // other roundel subpath is forbidden the process; chalk's own suite grades this one.
-  // Belt and braces: that file reaches the global through a typed cast bound to a local
-  // (`const proc = (globalThis as …).process`), and the reads below are `proc?.env`, which
-  // a textual pattern cannot tell from any other local. The entry stands so the exemption
-  // is recorded where a reader looks for it, and so a rewrite to the plain spelling stays
-  // green — but it is the guarded cast, not this line, that keeps roundel honest.
-  'roundel/src/chalk.ts',
-  // The one line the whole compatibility gate turns on: it reads COMPAT_TARGET to
-  // decide which implementation the vendored suites grade.
+  'flagstaff/src/runtime.ts',
+  'roundel/src/runtime.ts',
+  'caique/src/runtime.ts',
+  // compat-oracle is internal tooling — `private: true`, never published, not one of the nine
+  // layers. Its three entries are each the job of owning a process rather than a lapse into
+  // one: `bin.ts` is a CLI entry, `run.ts` spawns the host suites and needs `execPath`, and
+  // `shim.ts` is *copied into the vendored package's own module graph*, where an import of
+  // anything in this repository would not resolve. The last of those cannot go behind a seam
+  // at all, which is why the step counts published packages.
   'compat-oracle/src/shim.ts',
-  // The oracle's own CLI entry. Internal tooling, never published; report.ts takes a
-  // writer so this is the only file in that package that names the process.
   'compat-oracle/src/bin.ts',
-  // Spawns the host's own suite in a child process, which needs execPath and an env
-  // carrying COMPAT_TARGET. A test runner exists to launch processes; internal, never
-  // published.
   'compat-oracle/src/run.ts',
 ]);
 /**
@@ -143,6 +62,25 @@ const ALLOWED = new Set([
  * chaining (`process?.env`, `globalThis.process?.env`) is a read like any other.
  */
 const PROCESS_READ = /(?:(?<=\bglobalThis\.)|(?<![.\w]))process\??\.(env|argv|exit|exitCode|stdout|stderr|stdin|cwd)\b/;
+
+/**
+ * The other two ways to reach the process, neither of which `PROCESS_READ` can see.
+ *
+ * The seams themselves showed this up. `flagstaff/src/runtime.ts` reads the world through
+ * `import process from 'node:process'` and `roundel/src/runtime.ts` through a guarded
+ * `(globalThis as { process?: … }).process` bound to a local — and **both files pass the
+ * pattern above untouched**. Their being on the allow-list is a statement of intent, not
+ * something the lock was enforcing.
+ *
+ * Which means any file in any package could have done the same and stayed green: bind the
+ * global once, then read `proc.env` forever, because the member read is now on a local whose
+ * name a textual pattern cannot distinguish from any other. That is the same hole the
+ * `globalThis.` lookbehind closed in 2026-09-08, reopened through a different door.
+ *
+ * So the *binding* is what is caught here, wherever the process is bound from. The allow-list
+ * governs both patterns, so the five seams stay legal and nothing else can copy them.
+ */
+const PROCESS_BIND = /(?:from\s*['"]node:process['"]|require\(\s*['"]node:process['"]\s*\)|\bglobalThis\s*(?:as[^)]*)?\)?\s*\.\s*process\b)/;
 
 function sourceFiles(dir: string, out: string[] = []): string[] {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
@@ -188,7 +126,14 @@ describe('process references stay behind the Runtime seam', () => {
             .replace(/"(?:[^"\\]|\\.)*"/g, '""')
             .replace(/`(?:[^`\\$]|\\.)*`/g, '``');
           const isComment = /^\s*(\*|\/\*)/.test(line);
-          if (PROCESS_READ.test(code) && !isComment) {
+          // `PROCESS_BIND` needs the string literals `code` has just blanked — an import
+          // specifier *is* one — so it gets its own stripping: trailing `//` comments go, quoted
+          // spans stay. It caught `chalk.ts:216` on the first run, which is a **comment** saying
+          // where the cast it used to hold has moved to. A checker that reads printed source and
+          // not shape is the defect this file already carries a paragraph about; catching it in
+          // the check itself, on the day the check was written, is the argument for the paragraph.
+          const uncommented = line.replace(/\/\/.*$/, '');
+          if (!isComment && (PROCESS_READ.test(code) || PROCESS_BIND.test(uncommented))) {
             offenders.push(`${rel}:${i + 1}`);
           }
         });
@@ -211,6 +156,30 @@ describe('process references stay behind the Runtime seam', () => {
     'if (globalThis.process.stdout.isTTY) redraw();',
   ])('catches %j', (line) => {
     expect(PROCESS_READ.test(line)).toBe(true);
+  });
+
+  // The binding pattern gets the same treatment, for the same reason: both of these were
+  // proven against a real file in `linegauge/src`, a package with no allow-list entry, and both
+  // were green before `PROCESS_BIND` existed.
+  it.each([
+    "import process from 'node:process';",
+    'import process from "node:process";',
+    "import { env } from 'node:process';",
+    "const { env } = require('node:process');",
+    'const proc = (globalThis as { process?: Proc }).process;',
+    'const proc = globalThis.process;',
+  ])('catches the binding %j', (line) => {
+    expect(PROCESS_BIND.test(line)).toBe(true);
+  });
+
+  it.each([
+    "import { readFileSync } from 'node:fs';",
+    'const preprocess = { env: {} };',
+    "// the guarded `globalThis.process` cast that used to sit here moved to `./runtime.js`",
+  ])('leaves the non-binding %j alone', (line) => {
+    // The comment case is the one that matters: it was the first thing the new pattern caught,
+    // and it was a line of prose. Comments are stripped before the pattern sees them.
+    expect(PROCESS_BIND.test(line.replace(/\/\/.*$/, ''))).toBe(false);
   });
 
   it.each([
