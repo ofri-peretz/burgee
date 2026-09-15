@@ -1,0 +1,120 @@
+{
+  "//": [
+    "R9 (Y8) — what each published subpath weighs, and what it is supposed to weigh.",
+    "",
+    "`distBytes` is the gate `src/weight.test.ts` enforces: the summed bytes of the `dist/`",
+    "files an entry transitively reaches. It needs no bundler and no network, so it is the",
+    "same number on every machine, and it moves the moment a subpath starts reaching for a",
+    "module it did not need. A ratchet: a change may not grow one past the value here",
+    "without editing this file, which is the review.",
+    "",
+    "`bundledBytes` is R9's own unit — esbuild --bundle --minify --format=esm, one fixture",
+    "importing one symbol — recorded rather than gated, because esbuild is not a dependency",
+    "of this package and a test that shells out to a binary it does not declare is a check",
+    "that passes for the wrong reason on the day it goes missing. `benchmarks/axes/weight.ts`",
+    "is where that measurement belongs and where the B4 row must be added; that file is the",
+    "integrator lane's, so `y8` below is recorded, not enforced. Reproduce it with the",
+    "command in `provenance.command`.",
+    "",
+    "Read `y8.holds` before quoting any of this: three of the four claims do not."
+  ],
+  "provenance": {
+    "measured": "2026-09-15",
+    "node": "24.18.0",
+    "command": "esbuild --bundle --minify --format=esm --platform=node <fixture importing one symbol>",
+    "incumbents": {
+      "string-width": "8.2.2",
+      "wrap-ansi": "10.0.1",
+      "strip-ansi": "7.2.0",
+      "slice-ansi": "7.1.2",
+      "get-east-asian-width": "1.6.0"
+    }
+  },
+  "entries": {
+    "index.js": {
+      "distBytes": 59487,
+      "bundledBytes": 6180,
+      "replaces": "string-width"
+    },
+    "wrap.js": {
+      "distBytes": 49861,
+      "bundledBytes": 11116,
+      "replaces": "wrap-ansi"
+    },
+    "slice.js": {
+      "distBytes": 42893,
+      "bundledBytes": 8778,
+      "replaces": "slice-ansi"
+    },
+    "truncate.js": {
+      "distBytes": 44772,
+      "bundledBytes": 9698,
+      "replaces": "cli-truncate"
+    },
+    "widest.js": {
+      "distBytes": 38694,
+      "bundledBytes": 6251,
+      "replaces": null
+    },
+    "strip.js": {
+      "distBytes": 17908,
+      "bundledBytes": 966,
+      "replaces": "strip-ansi"
+    }
+  },
+  "y8": {
+    "holds": false,
+    "why": [
+      "R9 asks for bundled bytes at or under `get-east-asian-width` (3977 bundled, 0 deps,",
+      "the lightest thing in this layer). Measured against that bar, one of six entries",
+      "clears it: `strip.js` at 966. `index.js` is 6180, which is 1.55x.",
+      "",
+      "Against the weaker and more useful bar `.sdlc/PLAN.md` D1 substitutes — the bundled",
+      "bytes of the package each entry actually replaces — one of four holds: `wrap.js` at",
+      "11116 against `wrap-ansi` at 14367. `index.js` is 6180 against `string-width` at",
+      "6057 (2% over), `slice.js` is 8778 against `slice-ansi` at 5964 (47% over) and",
+      "`strip.js` is 966 against `strip-ansi` at 429 (2.3x, on a bundle small enough that",
+      "the ratio is not the interesting number).",
+      "",
+      "The measurement is not the whole claim and must not be quoted as if it were: the",
+      "incumbent figures above are the bundled bytes of ONE package, and `string-width`",
+      "does not ship alone — it carries `strip-ansi`, `ansi-regex` and",
+      "`get-east-asian-width`. What a user removes by switching is the tree; what the",
+      "bundler keeps after tree-shaking is this. The two answer different questions and",
+      "D1 chose the first. Computing it belongs in `benchmarks/axes/weight.ts`, which has",
+      "no `linegauge` pair yet — see `notBuilt` below."
+    ],
+    "notBuilt": [
+      ".sdlc/bands/foundation-ceilings.json — R9 names it and it does not exist. Outside",
+      "this lane's write paths (`.sdlc/bands/**` belongs to the integrator lane), so the",
+      "entry cannot be added from here.",
+      "benchmarks/fixtures/entry-points.ts has no `linegauge` pair, so B4 computes no",
+      "tree-inclusive ratio for this package. Also the integrator lane's path.",
+      "The spawn-delta half of R9 is unmeasured: it needs the B4 harness above."
+    ]
+  },
+  "growth": {
+    "//": [
+      "What the 2026-09-15 correctness work cost, stated rather than absorbed. Closing the",
+      "28 `string-width` failures added a Hangul jamo walk, an unqualified-emoji test and",
+      "three narrowed Unicode property classes to `width.ts`; closing the `slice-ansi`",
+      "unknown-SGR failure added six lines to `style.ts`."
+    ],
+    "beforeBundledBytes": {
+      "index.js": 5241,
+      "wrap.js": 10076,
+      "slice.js": 7738,
+      "truncate.js": 8658,
+      "widest.js": 5312,
+      "strip.js": 966
+    },
+    "deltaBundledBytes": {
+      "index.js": 939,
+      "wrap.js": 1040,
+      "slice.js": 1040,
+      "truncate.js": 1040,
+      "widest.js": 939,
+      "strip.js": 0
+    }
+  }
+}

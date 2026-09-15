@@ -71,6 +71,120 @@ describe('the contract string-width has always kept', () => {
   });
 });
 
+/**
+ * The twenty-eight cases that took the `string-width` row from 201 / 229 to 229, in the four
+ * categories `design.md` § R10 names. They are reproduced here rather than left to the
+ * vendored suite for the reason the block above gives — the loop is a second, not a full
+ * grading run — and each is asserted against a literal *and* against the installed
+ * incumbent, so a wrong answer cannot pass by agreeing with a moved dependency.
+ *
+ * Every one of the four was `linegauge` being wrong and `string-width` right. None of them
+ * is a judgement call, which is why they are closed rather than argued with.
+ */
+describe('the twenty-eight string-width cases (design.md R10, categories A–D)', () => {
+  /**
+   * A — `Intl.Segmenter` joins a run of conjoining jamo into one cluster (GB6/GB7/GB8), and
+   * measuring the cluster by its first code point answered 2 where a terminal draws 12.
+   * Modern Hangul composes L + V (+ T) into one two-column syllable; jamo that do not
+   * compose stay additive at their own East Asian Width — L is Wide, V and T are not.
+   */
+  it.each([
+    // The literals are spelled in escapes on purpose. Hand-writing `가` is the trap here:
+    // the suite's `가` is the *decomposed* U+1100 U+1161, and a reduction written with the
+    // precomposed U+AC00 measures a different string from the one being graded — which is
+    // how a fix gets verified against a case the gate never runs.
+    ['\u1100\u1100', 4],
+    ['\u1100\u1100\u1100\u1100\u1100\u1100', 12],
+    ['\u1100\u1100\u1161', 4],
+    ['\u1100\u1161\u1161', 3],
+    ['\u1100\u1161\u11A8\u11A8', 3],
+    ['\u1100\u1100\uFE0F', 4],
+    ['\u1100\u1100\u200D', 4],
+    ['\u1161\u1161\u1161', 3],
+    ['\u11A8\u11A8', 2],
+    ['\u1100\uAC00', 4],
+    // The shapes that must not move: a lone jamo, the compositions that do collapse, the
+    // orders that do not, and the compatibility jamo that are plain wide characters.
+    ['\u1100', 2],
+    ['\u1161', 1],
+    ['\u11A8', 1],
+    ['\uAC00', 2],
+    ['\u1100\u1161', 2],
+    ['\u1100\u1161\u11A8', 2],
+    ['\uA960\u1161', 2],
+    ['\u1100\uD7B0', 2],
+    ['\u1161\u1100', 3],
+    ['\u1100\u11A8', 3],
+    ['\u3131', 2],
+    ['\u3131\u3131', 4],
+  ])('A — Hangul jamo %j is %i columns', (input, columns) => {
+    expect(width(input)).toBe(columns);
+    expect(width(input)).toBe(stringWidth(input));
+  });
+
+  /**
+   * B — the zero-width class matched `\p{Mark}`, which is `Mn` and `Mc` and `Me`. Only `Mn`
+   * and `Me` are non-spacing; a spacing combining mark is drawn in its own column.
+   */
+  it.each([
+    ['\u093E', 1],
+    ['\u0915\u093E', 2],
+    ['\u0915\u093F', 2],
+    // The non-spacing neighbours, which must stay at zero.
+    ['\u0301\u0302', 0],
+    ['e\u0301\u0302', 1],
+    ['a\u20DD', 1],
+    ['\u0F5F\u0FB3', 1],
+  ])('B — mark %j is %i columns', (input, columns) => {
+    expect(width(input)).toBe(columns);
+    expect(width(input)).toBe(stringWidth(input));
+  });
+
+  /**
+   * C — prepended concatenation marks are `Format` but not `Default_Ignorable`, so the
+   * zero-width class missed them; `measure` then stripped them as leading non-printing,
+   * found an empty remainder, read code point 0 and charged a column for it. A character a
+   * terminal does not advance the cursor for must not cost one.
+   */
+  it.each([
+    ['\u0600', 0],
+    ['\u06DD', 0],
+    ['\u070F', 0],
+  ])('C — format character %j is %i columns', (input, columns) => {
+    expect(width(input)).toBe(columns);
+    expect(width(input)).toBe(stringWidth(input));
+  });
+
+  /**
+   * D — `\p{RGI_Emoji}` matches only the fully-qualified form, the one carrying `U+FE0F`.
+   * Drop the variation selector and the same sequence is still a two-column emoji in every
+   * terminal, but the regex stops matching. The rule that covers both shapes without
+   * widening anything else: a cluster holding `U+200D` and two or more
+   * `\p{Extended_Pictographic}` scalars, or a keycap over an ASCII digit, `#` or `*`.
+   */
+  it.each([
+    ['\u2764\u200D\u{1F525}', 2],
+    ['\u{1F3F3}\u200D\u{1F308}', 2],
+    ['\u{1F3F3}\u200D\u26A7', 2],
+    ['\u26D3\u200D\u{1F4A5}', 2],
+    ['\u{1F441}\u200D\u{1F5E8}', 2],
+    ['\u26F9\u200D\u2642', 2],
+    ['\u26F9\u200D\u2640', 2],
+    ['\u{1F575}\u200D\u2642', 2],
+    ['\u{1F575}\u200D\u2640', 2],
+    ['#\u20E3', 2],
+    ['0\u20E3', 2],
+    ['*\u20E3', 2],
+    // The two the rule must not catch: an Indic conjunct joined by the same ZWJ, and a
+    // keycap over a base that is not one. Both pass today and must keep passing.
+    ['\u0915\u094D\u200D\u0937', 1],
+    ['\u260E\uFE0F\u20E3', 1],
+  ])('D — unqualified emoji %j is %i columns', (input, columns) => {
+    expect(width(input)).toBe(columns);
+    expect(width(input)).toBe(stringWidth(input));
+  });
+});
+
 describe('ambiguousIsNarrow', () => {
   it('is narrow by default and wide when the caller says the terminal is CJK', () => {
     expect(width('±')).toBe(1);
