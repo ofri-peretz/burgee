@@ -400,7 +400,17 @@ Three consequences, none of which the draft anticipated:
   carry their close reason, because "they said no" is the sentence the README wants.
   Done when: `grep -rhoE "#[0-9]+" packages/*/src/*.test.ts | sort -u | wc -l` exceeds
   the count recorded by 4.1 on the day it ran.
-- **4.3** Cross-cutting features the incumbents lack, shipped as one wave so every README can say them: static projection of every structured result (Y5, missing in the foundation four), `Runtime` on every package (Y9), deadline on everything that can hang (Y10). Done when: `process-reference-lock`'s allow-list has one entry per package, all named `runtime.ts` or `install.ts`.
+- **4.3** Cross-cutting features the incumbents lack, shipped as one wave so every README can say them: static projection of every structured result (Y5, missing in the foundation four), `Runtime` on every package (Y9), deadline on everything that can hang (Y10). Done when: `process-reference-lock`'s allow-list has **at most** one entry per package, and every entry it does have is named `runtime.ts` or `install.ts`.
+
+  *"At most", corrected 2026-09-15.* The original said "one entry per package", and the
+  `caique`/`seniority` lane stopped rather than satisfy it: seniority's R11, locked by its own
+  `shape.test.ts` and published in its README, is that **no source in the package names
+  `process` at all** — so it has no allow-list entry, and the step as written demanded it
+  acquire one. That is the wrong direction. A package that takes `env`, `cwd` and `argv` as
+  arguments has already done what the seam is for, better than a seam does it; adding an empty
+  `runtime.ts` to satisfy a count would be ceremony, and reversing R11 to satisfy a plan step
+  would be editing the test to make it pass. The lane was right to refuse. What the step is
+  actually about is that no package **scatters** its process reads — one place or none.
 - **4.4** `upstream-watch` half two: fingerprint each incumbent's release and open one issue per (competitor, version) naming what moved and which claim went stale. Done when: the workflow has one run with one issue opened.
 
 ## Wave 5 — the claims are public (Y2, Y12, docs-per-package)

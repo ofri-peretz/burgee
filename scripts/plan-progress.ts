@@ -210,7 +210,30 @@ const STEPS: Step[] = [
   { id: '3.4', what: 'bellpull exists as more than a name', done: () => existsSync(join(ROOT, 'packages/bellpull/src/index.ts')) && [...read('packages/bellpull/src/index.ts').matchAll(/^export (?:const|function|class|type|interface) /gm)].length > 1 },
   { id: '3.5', what: 'linegauge R9-R10 built', done: () => designComplete('linegauge') },
   { id: '4.2', what: 'no uncovered issue above the reaction floor is left', done: () => readdirSync(join(ROOT, '.sdlc/intents')).filter((s) => existsSync(join(ROOT, '.sdlc/intents', s, 'issues.md'))).length >= PUBLISHED_PACKAGES && citations() > 0 && !readdirSync(join(ROOT, '.sdlc/intents')).some((s) => existsSync(join(ROOT, '.sdlc/intents', s, 'issues.md')) && read(`.sdlc/intents/${s}/issues.md`).includes('covered: no')) },
-  { id: '4.3', what: 'every package owns its Runtime seam', done: () => readdirSync(join(ROOT, 'packages')).filter((p) => existsSync(join(ROOT, 'packages', p, 'src'))).every((p) => readdirSync(join(ROOT, 'packages', p, 'src')).some((f) => f === 'runtime.ts' || f === 'install.ts')) },
+  /**
+   * One place or none — not "every package has a `runtime.ts`".
+   *
+   * A package that names `process` nowhere has already done what the seam is for, and better:
+   * seniority takes `env`, `cwd` and `argv` as arguments and locks that in its own
+   * `shape.test.ts` (R11). Demanding it grow an empty `runtime.ts` to satisfy a count is the
+   * ceremony this repository exists not to ship. So the condition reads the allow-list — the
+   * thing 4.3 is actually about — and asks that no package hold more than one entry, and that
+   * any entry it holds be the seam file.
+   */
+  {
+    id: '4.3',
+    what: 'no package scatters its process reads — one seam or none',
+    done: () => {
+      const lock = read('packages/burgee/src/process-reference-lock.test.ts');
+      const listed = [...(/const ALLOWED = new Set\(\[([\s\S]*?)^\]\);$/m.exec(lock)?.[1] ?? '').matchAll(/^\s*'([^']+)',$/gm)].map((m) => m[1] as string);
+      const byPackage = new Map<string, string[]>();
+      for (const entry of listed) {
+        const pkg = entry.split('/')[0] as string;
+        byPackage.set(pkg, [...(byPackage.get(pkg) ?? []), entry]);
+      }
+      return [...byPackage.values()].every((entries) => entries.length === 1 && /\/(runtime|install)\.ts$/.test(entries[0] as string));
+    },
+  },
   { id: '5.2', what: 'READMEs are generated and locked', done: () => existsSync(join(ROOT, 'scripts/readme-lock.test.ts')) },
   { id: 'D1', what: 'a tree-inclusive ceiling per foundation package', done: () => existsSync(join(ROOT, '.sdlc/bands/foundation-ceilings.json')) },
   // `has('oneOf')` was green while `required` was still `[name, osc, when, encode, fallback]`
