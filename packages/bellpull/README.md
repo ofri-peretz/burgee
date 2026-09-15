@@ -37,6 +37,11 @@ Graded by the incumbent's own test suite:
 Weight, installed and tree-inclusive: **4,761 bytes** against **714,984** for the incumbents it replaces — a ratio of **0.0067**.
 
 That ratio is not yet a claim: nothing here passes an incumbent suite, so it is the weight of a package that does not do the job.
+## Where it sits
+
+It hosts no plugin key of its own.
+
+Nothing in this family builds on it yet, and it builds on nothing in this family.
 ## Licence
 
 MIT

@@ -30,6 +30,9 @@ const BASELINE = join(PACKAGES, 'compat-oracle/baseline');
 const CEILINGS = join(ROOT, '.sdlc/bands/foundation-ceilings.json');
 const PAGE = '/docs/benchmarks';
 const HEADING = '## Benchmarks';
+const PLACE_HEADING = '## Where it sits';
+/** The nine published layers. `compat-oracle` is internal tooling and is not one of them. */
+const FAMILY = ['burgee', 'roundel', 'flagstaff', 'caique', 'linegauge', 'paratext', 'seniority', 'closeout', 'bellpull'];
 
 interface Ceiling {
   ours: number;
@@ -96,17 +99,81 @@ export function section(pkg: string): string {
   return lines.join('\n');
 }
 
+/**
+ * The plugin keys this package hosts, read off its own `export interface Plugin` — every host
+ * declares one, and its members besides `name` and `contract` *are* the keys.
+ *
+ * Not a list kept here: a second copy of the host table is a second thing to keep in step, and
+ * the drift would be invisible. The first version of this function matched a fixed alternation
+ * of key names and reported flagstaff as hosting none, because it hosts four the alternation
+ * had never heard of — which is the whole argument against writing the list down twice.
+ */
+function pluginKeys(pkg: string): string[] {
+  const at = join(PACKAGES, pkg, 'src/plugin.ts');
+  if (!existsSync(at)) return [];
+  const body = /^export interface Plugin \{$([\s\S]*?)^\}$/m.exec(readFileSync(at, 'utf8'))?.[1] ?? '';
+  return [...body.matchAll(/^ {2}([a-zA-Z]+)\??:/gm)].map((m) => m[1] as string).filter((k) => k !== 'name' && k !== 'contract');
+}
+
+/** Which packages of the family this one depends on, and which depend on it — from the manifests. */
+function edges(pkg: string): { below: string[]; above: string[] } {
+  const deps = (p: string): string[] => {
+    const at = join(PACKAGES, p, 'package.json');
+    if (!existsSync(at)) return [];
+    const m = JSON.parse(readFileSync(at, 'utf8')) as { dependencies?: Record<string, string>; peerDependencies?: Record<string, string> };
+    return Object.keys({ ...m.dependencies, ...m.peerDependencies }).filter((d) => FAMILY.includes(d));
+  };
+  return { below: deps(pkg).sort(), above: FAMILY.filter((other) => other !== pkg && deps(other).includes(pkg)).sort() };
+}
+
+const list = (names: string[]): string => names.map((n) => `\`${n}\``).join(names.length === 2 ? ' and ' : ', ');
+
+/**
+ * PLAN 5.2 — where this package sits in the family, generated from the manifests and from
+ * each package's own `plugin.ts`. Two facts, both of which a hand-written paragraph gets
+ * wrong the first time a dependency moves: which key plugins register under, and what is
+ * above and below it.
+ */
+export function place(pkg: string): string {
+  if (!FAMILY.includes(pkg)) return '';
+  const keys = pluginKeys(pkg);
+  const { below, above } = edges(pkg);
+  const lines = [PLACE_HEADING, ''];
+  // burgee is the framework rather than a host: it declares the plugin *shape* every layer
+  // registers against, and hosts no key of its own. Saying "hosts no plugins" of the package
+  // that defines what a plugin is would be true and useless.
+  const defines = existsSync(join(PACKAGES, pkg, 'src/manifest.ts')) && readFileSync(join(PACKAGES, pkg, 'src/manifest.ts'), 'utf8').includes('export function definePlugin');
+  const hosts = (): string => {
+    if (keys.length > 0) return `Plugins register under the ${list(keys)} key${keys.length === 1 ? '' : 's'}, against the one schema the whole family shares.`;
+    if (defines) return 'It declares the plugin shape the rest of the family registers against, and hosts no key of its own.';
+    return 'It hosts no plugin key of its own.';
+  };
+  lines.push(hosts(), '');
+  // "Nothing" is the interesting answer here, not a gap: a package the rest of the family can
+  // adopt one at a time is the point of splitting them up, and a layer with no edges in either
+  // direction is one a program can take on its own.
+  const verb = above.length === 1 ? 'builds' : 'build';
+  const up = above.length === 0 ? 'Nothing in this family builds on it yet' : `${list(above)} ${verb} on it`;
+  const down = below.length === 0 ? 'it builds on nothing in this family' : `it builds on ${list(below)}`;
+  lines.push(`${up}, and ${down}.`, '');
+  return lines.join('\n');
+}
+
 /** The README with its benchmark section replaced, or added before the licence. */
-export function rewrite(text: string, pkg: string): string {
-  const body = section(pkg);
-  const at = text.indexOf(`${HEADING}\n`);
+function replaceSection(text: string, heading: string, body: string): string {
+  if (body === '') return text;
+  const at = text.indexOf(`${heading}\n`);
   if (at !== -1) {
-    const rest = text.slice(at + HEADING.length);
+    const rest = text.slice(at + heading.length);
     const next = rest.indexOf('\n## ');
     return text.slice(0, at) + body + (next === -1 ? '' : rest.slice(next + 1));
   }
   const licence = text.search(/^## Licence/m);
   return licence === -1 ? `${text.trimEnd()}\n\n${body}` : `${text.slice(0, licence)}${body}\n${text.slice(licence)}`;
+}
+
+export function rewrite(text: string, pkg: string): string {
+  return replaceSection(replaceSection(text, HEADING, section(pkg)), PLACE_HEADING, place(pkg));
 }
 
 if (process.argv[1]?.endsWith('readme-benchmarks.ts') === true) {
