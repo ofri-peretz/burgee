@@ -144,8 +144,8 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
-| `slice-ansi` | 13 / 15 |
-| `string-width` | 201 / 229 |
+| `slice-ansi` | 14 / 15 |
+| `string-width` | 229 / 229 |
 | `strip-ansi` | 8 / 8 |
 | `wrap-ansi` | 80 / 80 |
 
