@@ -31,6 +31,8 @@ interface FakeProcess extends ProcessLike {
   raise(event: string, ...args: unknown[]): void;
   /** The code passed to `exit()`, or `undefined` if the process was never told to leave. */
   readonly exited: number | undefined;
+  /** Every signal re-raised at this process, in order. Empty when none was. */
+  readonly raised: string[];
   exitCode: number | undefined;
 }
 
@@ -38,6 +40,7 @@ function fakeProcess(): FakeProcess {
   const listeners = new Map<string, Listener[]>();
   const self: FakeProcess = {
     exited: undefined,
+    raised: [],
     exitCode: undefined,
     on(event: string, listener: Listener) {
       listeners.set(event, [...(listeners.get(event) ?? []), listener]);
@@ -59,6 +62,17 @@ function fakeProcess(): FakeProcess {
       (self as { exited: number | undefined }).exited = code;
       return undefined as never;
     },
+    /*
+     * Recorded, not acted on — a fake cannot die. Which is exactly why `exited` is still
+     * set on every signal case below: a raise that does nothing falls through to the exit
+     * code, and this fake is the runtime that cannot deliver a signal to itself. The real
+     * article is graded in `signal.test.ts`, on a child that really is killed.
+     */
+    kill(pid: number, signal: string): boolean {
+      self.raised.push(signal);
+      return true;
+    },
+    pid: 4242,
     stderr: { write: () => true, isTTY: false },
     raise(event: string, ...args: unknown[]): void {
       for (const listener of [...(listeners.get(event) ?? [])]) (listener as (...a: unknown[]) => void)(...args);
@@ -94,7 +108,7 @@ function closeTheDatabase(): Promise<void> {
  */
 const SIGNAL_CODES: Record<string, number> = { SIGINT: 130, SIGTERM: 143, SIGHUP: 129, SIGQUIT: 131, SIGBREAK: 149 };
 
-describe('every signal runs the handlers exactly once and leaves with the signal’s own code', () => {
+describe('every signal runs the handlers exactly once and is re-raised at the process', () => {
   it.each([...SIGNALS])('%s', async (signal) => {
     const proc = fakeProcess();
     const closeout = install({ process: proc });
@@ -108,7 +122,10 @@ describe('every signal runs the handlers exactly once and leaves with the signal
     await pastTheDeadline();
 
     expect(ran, 'two arrivals of the same signal are one shutdown').toBe(1);
-    expect(proc.exited).toBe(SIGNAL_CODES[signal]);
+    // The whole matrix, in one line: every signal in `SIGNALS` is re-raised once, at this
+    // process, under its own name — never substituted and never converted to a code first.
+    expect(proc.raised, 'the signal is re-raised, not reported').toEqual([signal]);
+    expect(proc.exited, 'and a runtime that cannot deliver it still leaves').toBe(SIGNAL_CODES[signal]);
   });
 });
 
