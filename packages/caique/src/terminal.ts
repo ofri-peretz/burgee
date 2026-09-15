@@ -14,12 +14,16 @@
 import { createInterface, type Interface } from 'node:readline';
 
 import { type Io, type Reader, type ReadOptions, type Writer } from './ask.js';
+import { processRuntime, type Runtime } from './runtime.js';
 
-/** The stream pair a terminal Io is built over: `process.stdin` and `process.stdout`. */
+/** The stream pair a terminal Io is built over: a `Runtime`'s `stdin` and its `stdout`. */
 export interface Streams {
   input: NodeJS.ReadableStream & { isTTY?: boolean };
   output: NodeJS.WritableStream & { isTTY?: boolean };
 }
+
+/** A runtime's two streams as the pair `createIo` takes — the mapping, written down once. */
+export const streamsOf = (runtime: Runtime): Streams => ({ input: runtime.stdin, output: runtime.stdout });
 
 /** Accepts a chunk and writes nothing: what a muted stream's `write` does. */
 const swallow = (): boolean => true;
@@ -46,8 +50,11 @@ function mute(rl: Interface & { output?: NodeJS.WritableStream }, streams: Strea
  * The reader resolves `undefined` when the stream ends, which `ask()` reads as a
  * cancellation — `Ctrl-D` and a closed pipe both arrive that way, and both mean nobody is
  * going to type.
+ *
+ * With no argument it builds over the real process, read when it is called and not at
+ * import: a program that wants the terminal it was started in writes `createIo()`.
  */
-export function createIo(streams: Streams): Io & { close: () => void } {
+export function createIo(streams: Streams = streamsOf(processRuntime())): Io & { close: () => void } {
   const rl = createInterface({ input: streams.input, output: streams.output, terminal: streams.output.isTTY === true });
   let ended = false;
   rl.once('close', () => {
