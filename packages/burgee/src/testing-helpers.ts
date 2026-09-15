@@ -10,7 +10,7 @@ import { Readable } from 'node:stream';
 import { beforeTerminator, execute } from './execute.js';
 import { ExitCode, isExitCode } from './exit-code.js';
 import { type Manifest } from './manifest.js';
-import { type Clock, type Runtime } from './runtime.js';
+import { host, type Clock, type Runtime } from './runtime.js';
 
 export interface RunOptions {
   argv: string[];
@@ -142,12 +142,15 @@ const noop = (): void => undefined;
 
 export function swapEnv(env: Record<string, string> | undefined): () => void {
   if (!env) return noop;
-  const saved = { ...process.env };
-  for (const key of Object.keys(process.env)) delete process.env[key];
-  Object.assign(process.env, env);
+  // The harness's documented env swap. It mutates the real env in place rather than
+  // replacing the object, so a module that captured `host.env` earlier still sees the swap —
+  // and it goes through the seam, so this file no longer has to be an exception to the lock.
+  const saved = { ...host.env };
+  for (const key of Object.keys(host.env)) delete host.env[key];
+  Object.assign(host.env, env);
   return () => {
-    for (const key of Object.keys(process.env)) delete process.env[key];
-    Object.assign(process.env, saved);
+    for (const key of Object.keys(host.env)) delete host.env[key];
+    Object.assign(host.env, saved);
   };
 }
 

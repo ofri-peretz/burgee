@@ -9,6 +9,8 @@ import { createRequire } from 'node:module';
 import { normalize, resolve } from 'node:path';
 import { format } from 'node:util';
 
+import { host } from './runtime.js';
+
 export interface ParserMixin {
   cwd: () => string;
   format: (...args: any[]) => string;
@@ -866,11 +868,13 @@ function stripQuotes(val: any): any {
   return typeof val === 'string' && (val[0] === "'" || val[0] === '"') && val.at(-1) === val[0] ? val.substring(1, val.length - 1) : val;
 }
 
-const env = process.env;
 const nodeRequire = createRequire(import.meta.url);
 const parser = new YargsParser({
-  cwd: process.cwd,
-  env: () => env,
+  cwd: () => host.cwd(),
+  // Live, where this used to close over a `process.env` captured at import. yargs' suite
+  // replaces the whole env object per test, and a captured reference would be the one from
+  // before the swap.
+  env: () => host.env,
   format,
   normalize,
   resolve,

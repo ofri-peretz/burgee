@@ -5,43 +5,29 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 /**
- * Lock for the seam (design R1 of `cli-testing-harness`): the only files in any
- * package that may read `process` are `runtime.ts` (the real runtime),
- * `testing-helpers.ts` (the harness's documented env swap) and `execute.ts` (the
- * execution core, whose job is to own argv, the streams and the exit).
- * Everything else reads its
- * `Runtime`, which is what lets a test substitute the world.
+ * Lock for the seam (design R1 of `cli-testing-harness`): in each package exactly one
+ * file may name `process`, and everything else reads the `Runtime` or the live `host`
+ * that file exports — which is what lets a test substitute the world.
  */
 const PACKAGES = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 /**
- * burgee/src/index.ts is the third: it is the framework's entry, and a CLI
- * framework's whole job is to own argv, the streams and the exit. Every one of
- * those is injectable through RunOptions, so tests never reach the real process;
- * the defaults are the only place the real one is named.
+ * burgee is down to one entry (PLAN 4.3, Y9). It used to carry nine, and the eight that
+ * went are worth naming, because most of them looked load-bearing:
+ *
+ * - `execute.ts`, the execution core that owns argv, the streams and the exit — all of it
+ *   already injectable through `RunOptions`, so only the *defaults* named the process.
+ * - `commander/command.ts` and the four yargs files (`yargs/shim.ts`, `yargs-parser.ts`,
+ *   `yargs/utils.ts`, `yargs/cliui.ts`). These reproduce their incumbents' process
+ *   contracts and the incumbents' own suites grade exactly that, so the seam they went
+ *   behind had to stay *live*: `host` is getters, not a captured object literal. Measured
+ *   before and after the move, commander 1360/1360 and yargs 804/804, unchanged.
+ * - `testing-helpers.ts`, the harness's documented env swap. It still mutates the real env
+ *   in place — that is the whole point of it — but it reaches that env through `host`.
+ * - `dev.ts`, which was simply stale: it contains no `process` read at all. Its entry had
+ *   outlived the code that earned it, which is the failure mode an allow-list invites.
  */
 const ALLOWED = new Set([
   'burgee/src/runtime.ts',
-  'burgee/src/testing-helpers.ts',
-  'burgee/src/execute.ts',
-  // The commander front-end reproduces commander's process contract — process.argv
-  // when parse() is called bare, process.exit when no exitOverride is set, the env for
-  // Option.env(), stdout/stderr as the default output configuration. That contract is
-  // what commander's own suite grades (C1); `parse(argv, { stdout, stderr, exit })`
-  // is the injectable seam for everything else.
-  'burgee/src/commander/command.ts',
-  // The yargs front-end reproduces yargs' process contract the same way, through one
-  // platform shim (yargs/shim.ts: argv, cwd, exit, env, columns), its parser's Node
-  // mixin (yargs-parser.ts: cwd, env, require), hideBin/getProcessArgvBin and
-  // setBlocking (yargs/utils.ts), and cliui's terminal width fallback (yargs/cliui.ts).
-  // yargs' own suite swaps process.argv/exit/env per test and grades exactly that.
-  'burgee/src/yargs/shim.ts',
-  'burgee/src/yargs-parser.ts',
-  'burgee/src/yargs/utils.ts',
-  'burgee/src/yargs/cliui.ts',
-  // `burgee dev` is a developer tool that owns the process's stdio by definition: the CLI
-  // hands it the Runtime's streams, and `load()` imports the entry as a fresh module graph,
-  // which only the real module loader can do. Dev-time only, never reached by the framework.
-  'burgee/src/dev.ts',
   // flagstaff's `bin` (`flagstaff check <file>`) is the package's own command line: argv in,
   // stdout out, exit code set. Everything it renders goes through hoist() over buffers.
   // paratext's seam, the same shape as burgee's and for the same reason: `processRuntime()`

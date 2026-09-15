@@ -9,6 +9,8 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 
+import { host } from '../runtime.js';
+
 export class YError extends Error {
   constructor(msg?: string | null) {
     super(msg || 'yargs error');
@@ -144,7 +146,7 @@ export function maybeAsyncResult<T>(
 
 export function setBlocking(blocking: boolean): void {
   if (typeof process === 'undefined') return;
-  [process.stdout, process.stderr].forEach((_stream) => {
+  [host.stdout, host.stderr].forEach((_stream) => {
     const stream = _stream as any;
     if (stream._handle && stream.isTTY && typeof stream._handle.setBlocking === 'function') stream._handle.setBlocking(blocking);
   });
@@ -156,11 +158,11 @@ function getProcessArgvBinIndex(): number {
 }
 
 function isBundledElectronApp(): boolean {
-  return isElectronApp() && !(process as any).defaultApp;
+  return isElectronApp() && !host.defaultApp;
 }
 
 function isElectronApp(): boolean {
-  return !!process.versions.electron;
+  return !!host.versions['electron'];
 }
 
 export function hideBin(argv: string[]): string[] {
@@ -168,7 +170,7 @@ export function hideBin(argv: string[]): string[] {
 }
 
 export function getProcessArgvBin(): string {
-  return process.argv[getProcessArgvBinIndex()] as string;
+  return host.argv[getProcessArgvBinIndex()] as string;
 }
 
 const nodeRequire = createRequire(import.meta.url);
