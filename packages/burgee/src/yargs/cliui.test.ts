@@ -157,13 +157,26 @@ import { cliui } from "./cliui.js";
 const MIN_WINDOW_MS = 5;
 const MAX_REPEATS = 4096;
 
-function growth(work: (n: number) => unknown, n = 12_000, samples = 4): number {
-  /** Best-of-`runs` wall time for `repeats` back-to-back calls at `size`. */
-  const best = (size: number, repeats: number, runs = 3) => {
+function growth<T>(prepare: (n: number) => T, run: (input: T) => unknown, n = 12_000, samples = 4): { ratio: number; numerator: number; denominator: number; repeats: number } {
+  // Build both inputs ONCE, outside every timed region.
+  //
+  // They used to be built inside it — `growth((n) => cliui({width:80}).div(' '.repeat(n)+'x'))`
+  // timed a fresh 12 KB or 48 KB string and a fresh `cliui` on every one of `repeats`
+  // iterations. That makes the reading a measurement of the allocator under whatever heap
+  // pressure the machine happens to be under, not of how the algorithm grows: the 4n batch
+  // produces four times the garbage, so a runner that collects during it and not during the
+  // n batch reports superlinear growth for perfectly linear code. It read **23.9** against a
+  // ceiling of 8 on all three CI platforms while reading 3.5-4.5 on the machine that wrote it.
+  //
+  // What the assertion claims to measure is shape. So only the call under test is timed.
+  const small = prepare(n);
+  const large = prepare(n * 4);
+  /** Best-of-`runs` wall time for `repeats` back-to-back calls on a prepared input. */
+  const best = (input: T, repeats: number, runs = 3) => {
     let min = Infinity;
     for (let i = 0; i < runs; i++) {
       const started = performance.now();
-      for (let r = 0; r < repeats; r++) work(size);
+      for (let r = 0; r < repeats; r++) run(input);
       min = Math.min(min, performance.now() - started);
     }
     return min;
@@ -171,10 +184,10 @@ function growth(work: (n: number) => unknown, n = 12_000, samples = 4): number {
 
   // Calibrate on the denominator, which is the reading the clock can swallow.
   let repeats = 1;
-  let window = best(n, repeats);
+  let window = best(small, repeats);
   while (window < MIN_WINDOW_MS && repeats < MAX_REPEATS) {
     repeats *= 2;
-    window = best(n, repeats);
+    window = best(small, repeats);
   }
   if (window < MIN_WINDOW_MS)
     throw new Error(
@@ -186,11 +199,23 @@ function growth(work: (n: number) => unknown, n = 12_000, samples = 4): number {
   let numerator = Infinity;
   let denominator = Infinity;
   for (let i = 0; i < samples; i++) {
-    numerator = Math.min(numerator, best(n * 4, repeats));
-    denominator = Math.min(denominator, best(n, repeats));
+    numerator = Math.min(numerator, best(large, repeats));
+    denominator = Math.min(denominator, best(small, repeats));
   }
-  return numerator / denominator;
+  return { ratio: numerator / denominator, numerator, denominator, repeats };
 }
+
+/**
+ * The reading, with its working, because this gate has twice failed on a machine nobody could
+ * reproduce — 10.1 then 23.9 on CI while the same commit read 3.5-4.5 everywhere else. A bare
+ * `expected 23.9 to be less than 8` says the code is quadratic, which it demonstrably is not,
+ * and gives nothing to diagnose from. The batch size is the interesting number: it is how much
+ * averaging the calibration decided the machine needed, and a reading taken at `repeats: 1` is
+ * a single call's luck rather than a measurement.
+ */
+const reading = (r: ReturnType<typeof growth>): string =>
+  `ratio ${r.ratio.toFixed(2)} — ${r.numerator.toFixed(2)} ms at 4n against ${r.denominator.toFixed(2)} ms at n, ` +
+  `batched ${String(r.repeats)}x. A linear implementation reads about 4.`;
 
 describe("padding measurement", () => {
   it("counts leading and trailing whitespace", () => {
@@ -209,9 +234,11 @@ describe("padding measurement", () => {
     // Quadrupling the input must not multiply the cost by ~16. The ceiling is generous on
     // purpose: it has to clear linear overhead and scheduler noise on a shared runner, while
     // staying far enough below quadratic that the regression this guards cannot hide under it.
-    expect(
-      growth((n) => cliui({ width: 80 }).div(`${" ".repeat(n)}x`)),
-    ).toBeLessThan(8);
+    const measured = growth(
+      (n) => `${" ".repeat(n)}x`,
+      (cell) => cliui({ width: 80 }).div(cell),
+    );
+    expect(measured.ratio, reading(measured)).toBeLessThan(8);
   });
 });
 
@@ -224,12 +251,13 @@ describe("row rendering", () => {
   });
 
   it("does not backtrack when trimming a wide row's trailing spaces", () => {
-    const render = (n: number) => {
+    const render = (cell: string) => {
       const ui = cliui({ width: 80 });
-      ui.div(`${" ".repeat(n)}x`);
+      ui.div(cell);
       return ui.toString();
     };
-    expect(render(24_000).endsWith("x")).toBe(true);
-    expect(growth(render)).toBeLessThan(8);
+    expect(render(`${" ".repeat(24_000)}x`).endsWith("x")).toBe(true);
+    const measured = growth((n) => `${" ".repeat(n)}x`, render);
+    expect(measured.ratio, reading(measured)).toBeLessThan(8);
   });
 });
