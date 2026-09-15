@@ -1,5 +1,36 @@
 # caique
 
+## 0.2.0
+
+### Minor Changes
+
+- [#294](https://github.com/ofri-peretz/burgee/pull/294) [`3f92a60`](https://github.com/ofri-peretz/burgee/commit/3f92a6099b1b8d5d476c64405ca963d40bf9af45) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `caique/plugin` — a plugin may now ship a prompt kind caique does not have. `register({ widgets })` keeps the `widgets` key and ignores every other layer's, so the same plugin object works on any subset of the family that is installed (`plugin-contract` R1, R5). A widget is the same shape a flagstaff component is — `{ static, frame?, sample? }` — and one without `static` is refused with `E_NO_STATIC_PROJECTION`, the same code and the same fix shape.
+
+  `PromptKind` is an open union (`… | (string & {})`). It was closed, which made a plugin's seventh kind a type error and would have turned hosting `widgets` into a breaking change written as an additive one; the six literals stay in an editor's completion list, which a bare `string` would have thrown away.
+
+  Because the union is open, a kind nobody registered no longer falls through to a text prompt — `projectionOf()` refuses it with `E_UNKNOWN_KIND`, and the message names the kinds that _are_ registered so the reader sees the typo rather than a text prompt where their widget should have been. The six built-ins are still drawn by caique and a plugin may not replace them: `password` guarantees that nothing writes back what it read, and a third party able to override it could defeat that from a config file.
+
+  Also ships `caique/schema.json`, byte-identical to flagstaff's and roundel's (R2) — the specifier caique's own `E_PLUGIN_SCHEMA` fix names, so following the advice resolves.
+
+### Patch Changes
+
+- [#326](https://github.com/ofri-peretz/burgee/pull/326) [`88f7ba6`](https://github.com/ofri-peretz/burgee/commit/88f7ba65e3a79ed20bf7c5bc4feae8b87684122b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A `Runtime` seam on caique (PLAN 4.3, Y9).
+
+  `src/runtime.ts` declares the slice of the world caique reads — `env`, `stdin`, `stdout` and
+  the two `isTTY` flags — and `processRuntime()`, the one function in the package that names
+  `process`. It is a function and not a constant, for the reason paratext's is: a runtime built
+  at import freezes the environment as it was when the module graph loaded, which is before a
+  test can say what it wants the world to look like.
+
+  `createIo()` now takes no argument and builds over the real process, so a program gets the
+  terminal it was started in without naming `process` itself; `streamsOf(runtime)` is the
+  mapping for callers that already hold one. `decide()` is unchanged and still takes the
+  narrower pair it reads, which is what the root export's `Runtime` continues to name.
+
+  `runtime.test.ts` asserts the seam rather than documenting it: `runtime.ts` is the only
+  non-test source in the package that reads the process, and `processRuntime()` returns two
+  different answers across a change to the environment made after the import.
+
 ## 0.1.1
 
 ### Patch Changes
