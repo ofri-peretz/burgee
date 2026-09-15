@@ -1,5 +1,86 @@
 # burgee
 
+## 0.6.2
+
+### Patch Changes
+
+- [#298](https://github.com/ofri-peretz/burgee/pull/298) [`ead5f01`](https://github.com/ofri-peretz/burgee/commit/ead5f016ee7fd20492a041c1e6159aea27b2ed5f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `cliui`'s `toString()` is now linear in the cell it renders. `rowToString` ended each line
+  with `str.replace(/ +$/, "")`, whose unanchored start makes the engine retry at every
+  position in a run of trailing spaces; a row built from a 50,000-space cell cost 1,223 ms,
+  and doubling the cell quadrupled it. The trim now scans, and the same call takes 69 ms —
+  the second half of the fix that `measurePadding` got in [#278](https://github.com/ofri-peretz/burgee/issues/278). Output is unchanged: only
+  U+0020 is removed, so a trailing tab still survives under `wrap: false` as it did before.
+
+- [#324](https://github.com/ofri-peretz/burgee/pull/324) [`4a7b4ca`](https://github.com/ofri-peretz/burgee/commit/4a7b4ca59981ec00728fa17c49c3da9618f37868) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `scripts/lanes.ts --check` now grants every lane its own changeset, which `.sdlc/LANES.md` has
+  granted since the first run of these lanes.
+
+  The document said it; the script did not implement it. So `--check` called each lane's own
+  changeset a stray, and every lane brief had to tell its agent to ignore the result of its own
+  boundary check — which makes the check worth nothing. A rule stated in the document and absent
+  from the enforcement is the exact drift this file exists to prevent, committed by the file that
+  prevents it.
+
+  The exemption is read from the paragraph that grants it rather than written down a second time,
+  and it is narrow on both axes: `.changeset/config.json` is still a stray, `*` does not cross a
+  slash, and another lane's source file is still another lane's. `lane-boundaries-lock.test.ts`
+  holds all three, and goes red when the exemption is reverted.
+
+- [#326](https://github.com/ofri-peretz/burgee/pull/326) [`88f7ba6`](https://github.com/ofri-peretz/burgee/commit/88f7ba65e3a79ed20bf7c5bc4feae8b87684122b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Read the process through one live seam, and fix the cliui growth gate's instrument.
+
+  `src/runtime.ts` is now the only file in the package that names `process` (PLAN 4.3, Y9); the
+  allow-list in `process-reference-lock.test.ts` is down from nine burgee entries to one. Every
+  member of the new `host` export is a getter, because the commander and yargs front-ends
+  reproduce their incumbents' process contracts and those suites swap `process.argv`, `exit` and
+  `env` per test — a captured object literal would hand a test the value from before its own
+  swap. Graded before and after: commander 1360/1360, yargs 804/804, unchanged. Two reads that
+  had been captured at import are now live, `yargs-parser`'s default env among them.
+
+  `growth()` in `yargs/cliui.test.ts` was measuring the clock on one of its two assertions: at
+  n = 12,000 both the cost at n and the cost at 4n fell under the helper's 0.05 ms floor, so the
+  padding gate computed `0.05 / 0.05` and reported 1.0000 in 17 of 20 runs. It now calibrates a
+  batch until the window at n is a real measurement, and takes the minimum of each side across
+  samples rather than the minimum of the per-sample ratios — the second is what let a
+  GC-perturbed numerator produce the 10.145 that failed CI. The ceiling stays at 8.
+
+- [#326](https://github.com/ofri-peretz/burgee/pull/326) [`88f7ba6`](https://github.com/ofri-peretz/burgee/commit/88f7ba65e3a79ed20bf7c5bc4feae8b87684122b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The process-reference lock now catches the **binding**, not only the member read.
+
+  The seams built for PLAN 4.3 showed the hole up. `flagstaff/src/runtime.ts` reads the world
+  through `import process from 'node:process'`, and `roundel/src/runtime.ts` through a guarded
+  `(globalThis as { process?: … }).process` bound to a local — and both files passed the existing
+  pattern **untouched**. Their being on the allow-list was a statement of intent rather than
+  something the lock enforced.
+
+  Which means any file in any package could have done the same and stayed green: bind the global
+  once, then read `proc.env` forever, because the member read is now on a local whose name a
+  textual pattern cannot tell from any other. The same hole the `globalThis.` lookbehind closed
+  in September, reopened through a different door.
+
+  Proven against a real file in `linegauge/src` — a package with no allow-list entry — in both
+  spellings, each green before the change and caught after. And the new pattern's own first catch
+  was a **comment** in `chalk.ts` saying where a cast had moved to, which is the defect this file
+  already carries a paragraph about: a checker that reads printed source and not shape. Comments
+  are stripped before it sees them, and that case is now one of its row-by-row tests.
+
+- [#321](https://github.com/ofri-peretz/burgee/pull/321) [`48aec0a`](https://github.com/ofri-peretz/burgee/commit/48aec0a500b474be8f4c477f1d18433e4b3467bf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Every package README now carries a generated `## Where it sits`: which key plugins register
+  under, and what is above and below the package in the family (PLAN 5.2).
+
+  Both facts are derived rather than written down a second time. The keys come off each
+  package's own `export interface Plugin` — its members besides `name` and `contract` _are_ the
+  keys — and the edges come from the manifests' own dependency lists. The first version matched
+  a fixed alternation of key names instead and reported flagstaff as hosting none, when it hosts
+  four the alternation had never heard of: the whole argument against a second copy, made by the
+  function that was the second copy.
+
+  `scripts/readme-lock.test.ts` holds it. The assertion that matters is 5.2's own
+  done-condition — a hand edit fails — and it is proven rather than asserted: the test edits a
+  README and requires the check to notice. Tampering `caique`'s real file with a `gadgets` key
+  turns it red, which is the check that makes the other five mean something.
+
+- Updated dependencies [[`fc640dd`](https://github.com/ofri-peretz/burgee/commit/fc640ddec11255c12d1e0948c5b8e99cc3f3263b), [`c8acb28`](https://github.com/ofri-peretz/burgee/commit/c8acb2848714a1cbe3e26a2f9895d7498fb4f096), [`c8acb28`](https://github.com/ofri-peretz/burgee/commit/c8acb2848714a1cbe3e26a2f9895d7498fb4f096), [`88f7ba6`](https://github.com/ofri-peretz/burgee/commit/88f7ba65e3a79ed20bf7c5bc4feae8b87684122b), [`3f92a60`](https://github.com/ofri-peretz/burgee/commit/3f92a6099b1b8d5d476c64405ca963d40bf9af45), [`c8acb28`](https://github.com/ofri-peretz/burgee/commit/c8acb2848714a1cbe3e26a2f9895d7498fb4f096), [`3f92a60`](https://github.com/ofri-peretz/burgee/commit/3f92a6099b1b8d5d476c64405ca963d40bf9af45)]:
+  - linegauge@0.3.0
+  - seniority@0.2.0
+  - roundel@0.3.1
+
 ## 0.6.1
 
 ### Patch Changes

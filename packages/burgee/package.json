@@ -1,6 +1,6 @@
 {
   "name": "burgee",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "An agent-native CLI framework, drop-in compatible with commander and yargs. One declaration; help, --json, --schema, --mcp and completions all projected from it.",
   "license": "MIT",
   "type": "module",
@@ -96,9 +96,9 @@
     "provenance": true
   },
   "dependencies": {
-    "linegauge": "^0.2.0",
-    "roundel": "^0.3.0",
-    "seniority": "^0.1.0"
+    "linegauge": "^0.3.0",
+    "roundel": "^0.3.1",
+    "seniority": "^0.2.0"
   },
   "devDependencies": {
     "vitest": "^5.0.0"
