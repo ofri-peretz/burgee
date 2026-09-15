@@ -142,6 +142,23 @@ jobs:
           git commit -m "$TITLE"
           git push -u origin "$BRANCH"
           gh pr create --base main --head "$BRANCH" --label skip-changeset --title "$TITLE" --body "$BODY"
+          # This `--auto` has never once merged anything, and it cannot.
+          #
+          # `GH_TOKEN` above is `github.token`, and GitHub deliberately does not trigger
+          # workflows from events created by the default token — the rule exists to stop a
+          # workflow from recursively triggering itself. So the pull request this line opens
+          # never receives `Quality Gate`, `Quality (Full) Gate` or `review`, which are the three
+          # required checks; it sits at BLOCKED with **zero failures** forever, which reads
+          # exactly like a check still running.
+          #
+          # Measured cost: five of these have now been landed by hand, by cherry-picking the
+          # results onto a human branch and opening a second pull request (#315, #323, and the
+          # ones before them). The nightly has never landed its own data.
+          #
+          # The fix needs a credential and is therefore the owner's: either push with a PAT so
+          # the pull request is attributed to a real actor and the workflows fire, or add this
+          # workflow to branch protection's bypass list and commit the results straight to main.
+          # These are observations, not code — there is nothing in them for a review to catch.
           gh pr merge --auto --squash "$BRANCH" || true
 
   agent:
