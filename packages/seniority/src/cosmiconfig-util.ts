@@ -63,12 +63,26 @@ export function removeUndefinedValuesFromObject<T extends object>(options: T): P
 
 const isPlainObject = (v: unknown): v is Record<string, unknown> => Object.prototype.toString.call(v) === '[object Object]';
 
-/** The two keys a merged config file must never be able to set. */
-const FORBIDDEN: ReadonlySet<string> = new Set(['__proto__', 'constructor']);
+/**
+ * The three keys a merged config file must never be able to set.
+ *
+ * `__proto__` is the one that arrives: `JSON.parse` is the load path for a `.json` config and
+ * is the one parser that puts a *real own property* of that name on the object, where an
+ * object literal in source would have set the prototype instead. Assigning it back out
+ * through `target[key] = …` goes through the setter and swaps the merged config's prototype,
+ * so a file can make `config.isAdmin` answer for a key no file set. `constructor` is the
+ * second route to the same place, and `prototype` matters the moment a merge target is a
+ * function rather than a plain object.
+ *
+ * Spelled as three comparisons rather than a `Set.has`, because this is a guard a reader —
+ * and a static analyser — should be able to see without following a binding. CodeQL's
+ * `js/prototype-polluting-function` did not, and blocked a merge on it.
+ */
+const forbidden = (key: string): boolean => key === '__proto__' || key === 'constructor' || key === 'prototype';
 
 function merge(target: Record<string, unknown>, source: Record<string, unknown>, mergeArrays: boolean): Record<string, unknown> {
   for (const key of Object.keys(source)) {
-    if (FORBIDDEN.has(key)) continue;
+    if (forbidden(key)) continue;
     const incoming = source[key];
     const existing = target[key];
     // eslint-disable-next-line conventions/consistent-existence-index-check -- Own properties only, deliberately: `in` would report `toString` and `valueOf` as present on every target and merge a config's key into a prototype method. This is the function `__proto__` and `constructor` are already excluded from.
