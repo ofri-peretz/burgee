@@ -383,3 +383,8 @@ Graded by the incumbent's own test suite:
 | `cli-table3` | 29 / 29 |
 | `log-update` | 99 / 99 |
 | `ora` | 99 / 99 |
+## Where it sits
+
+Plugins register under the `tokens`, `glyphs`, `spinners`, `borders`, `components` keys, against the one schema the whole family shares.
+
+Nothing in this family builds on it yet, and it builds on `linegauge` and `roundel`.

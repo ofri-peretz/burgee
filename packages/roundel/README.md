@@ -186,3 +186,8 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `chalk` | 58 / 58 |
+## Where it sits
+
+Plugins register under the `tokens` key, against the one schema the whole family shares.
+
+`burgee` and `flagstaff` build on it, and it builds on nothing in this family.
