@@ -54,6 +54,27 @@ export function lanes(): Lane[] {
   return out;
 }
 
+/**
+ * Paths **every** lane may write, from the paragraph that grants them.
+ *
+ * `.changeset/*.md` is the one: a changeset is already a new file with a unique name, and the
+ * lane that changed a published package is the only one that knows what to write in it. The
+ * document has said so since the first run of these lanes — and the script did not implement
+ * it, so `--check` called every lane's own changeset a stray and every lane had to be told to
+ * ignore its own boundary check. A rule stated in the doc and absent from the enforcement is
+ * the drift this file exists to prevent, committed by this file.
+ *
+ * Read from the paragraph rather than written down here, for the same reason the table is.
+ */
+export function shared(): string[] {
+  const text = readFileSync(LANES_MD, 'utf-8');
+  const start = text.indexOf('**Every lane may add one**');
+  if (start === -1) return [];
+  // Back up to the start of the paragraph: the glob is named before the sentence that grants it.
+  const para = text.slice(0, start).split('\n\n').pop() ?? '';
+  return backticked(para);
+}
+
 /** Paths every lane is forbidden, from the paragraph that states them (it wraps). */
 export function forbidden(): string[] {
   const text = readFileSync(LANES_MD, 'utf-8');
@@ -64,7 +85,15 @@ export function forbidden(): string[] {
 }
 
 /** A path is inside an `owns` entry when the entry's prefix (before `**`) starts it. */
-export const owns = (lane: Lane, path: string): boolean => lane.owns.some((g) => path.startsWith(g.replace(/\*\*$/, '')));
+const matches = (glob: string, path: string): boolean => {
+  // `**` is a prefix; `*` inside a segment, as in `.changeset/*.md`, is not.
+  if (glob.endsWith('**')) return path.startsWith(glob.slice(0, -2));
+  if (!glob.includes('*')) return path === glob || path.startsWith(`${glob}/`);
+  const [head = '', tail = ''] = glob.split('*');
+  return path.startsWith(head) && path.endsWith(tail) && !path.slice(head.length).includes('/');
+};
+
+export const owns = (lane: Lane, path: string): boolean => lane.owns.some((g) => matches(g, path)) || shared().some((g) => matches(g, path));
 
 /** Column widths for `--print`; wide enough for the longest lane name and branch. */
 const NAME_COL = 12;

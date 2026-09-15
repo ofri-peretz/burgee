@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { prompt } from './dispatch-lanes.js';
-import { forbidden, lanes, owns } from './lanes.js';
+import { forbidden, type Lane, lanes, owns, shared } from './lanes.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const LANES_MD = readFileSync(resolve(ROOT, '.sdlc/LANES.md'), 'utf-8');
@@ -64,6 +64,31 @@ function owned(id: string): boolean {
   if (named.some((o) => id === o || id.startsWith(`${o}.`) || o.startsWith(`${id}.`))) return true;
   return [...LANES_MD.matchAll(/^\| (\d[\w.]*)[–-]([\d.]+) /gm)].some(([, lo, hi]) => compare(id, lo as string) >= 0 && compare(id, hi as string) <= 0);
 }
+
+describe('the one path every lane may write', () => {
+  /**
+   * `.sdlc/LANES.md` grants every lane its own changeset, and for a year the script did not
+   * implement it: `--check` called each lane's changeset a stray, so every lane was told to
+   * ignore the result of its own boundary check — which makes the check worth nothing. A rule
+   * stated in the document and absent from the enforcement is exactly the drift this file is
+   * about, committed by the file that enforces it.
+   */
+  it('grants the changeset the document says it grants, read from the document', () => {
+    expect(shared(), 'LANES.md stopped granting `.changeset/*.md`, or stopped saying so where the parser looks').toContain('.changeset/*.md');
+  });
+
+  it('lets any lane write its own changeset', () => {
+    for (const lane of lanes()) expect(owns(lane, '.changeset/whatever-this-lane-did.md'), `${lane.name} cannot write a changeset`).toBe(true);
+  });
+
+  it('does not turn the exemption into a hole', () => {
+    const output = lanes().find((l) => l.name === 'output') as Lane;
+    // Narrow on both axes: the directory alone is not enough, and neither is the extension.
+    expect(owns(output, '.changeset/config.json'), 'the changeset directory is not open season').toBe(false);
+    expect(owns(output, '.changeset/nested/thing.md'), '`*` does not cross a slash').toBe(false);
+    expect(owns(output, 'packages/burgee/src/execute.ts'), 'another lane’s file').toBe(false);
+  });
+});
 
 describe('lane boundaries', () => {
   it('no path is owned by two lanes', () => {
