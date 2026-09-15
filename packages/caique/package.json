@@ -82,6 +82,9 @@
     "agent",
     "non-tty"
   ],
+  "dependencies": {
+    "closeout": "^0.1.0"
+  },
   "devDependencies": {
     "vitest": "^5.0.0"
   }

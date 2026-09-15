@@ -14,7 +14,7 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/caique"><img src="https://img.shields.io/npm/v/caique?style=flat-square&color=0a6b47" alt="npm version" /></a>
   <img src="https://img.shields.io/badge/status-pre--release-a84c17?style=flat-square" alt="Status: pre-release" />
-  <img src="https://img.shields.io/badge/runtime%20dependencies-0-0a6b47?style=flat-square" alt="Zero runtime dependencies" />
+  <img src="https://img.shields.io/badge/dependencies-closeout-0a6b47?style=flat-square" alt="One dependency: closeout" />
   <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT" />
 </p>
 
@@ -240,8 +240,10 @@ and argue with it — before it exists:
 Part of the [burgee](https://github.com/ofri-peretz/burgee) family: a CLI on
 [burgee](https://www.npmjs.com/package/burgee) declares what it is,
 [roundel](https://www.npmjs.com/package/roundel) carries its colours,
-[flagstaff](https://www.npmjs.com/package/flagstaff) flies it, and caique answers back. Each
-is an independent package; none requires the others.
+[flagstaff](https://www.npmjs.com/package/flagstaff) flies it, and caique answers back.
+caique installs one of them: [closeout](https://www.npmjs.com/package/closeout), because a
+prompt hides the cursor and owes it back however the process dies, and there is exactly one
+correct implementation of that. Nothing outside this repository is installed.
 
 MIT © Ofri Peretz — see [LICENSE](./LICENSE).
 
