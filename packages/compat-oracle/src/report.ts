@@ -56,7 +56,11 @@ function line(g: Grade, baseline: Baseline): string {
   const total = g.reference > 0 ? g.reference : g.tests;
   const counts = `${String(g.passed).padStart(COUNT_COL)} / ${String(total).padEnd(COUNT_COL)}`;
   const skipped = g.skipped > 0 ? `   (${g.skipped} skipped on this OS)` : '';
-  return `  ${g.host.padEnd(HOST_COL)} ${bar(g.rate)} ${counts} ${pct}${arrow(g, baseline[g.host])}${skipped}`;
+  // A case the incumbent marks `failing` and we pass is counted as a pass. That is a
+  // judgement, not arithmetic, so it is printed every time it is made — a reclassification
+  // nobody sees is indistinguishable from a grader marking its own homework.
+  const over = g.exceeded === undefined || g.exceeded === 0 ? '' : `   (${g.exceeded} the host marks failing and we pass)`;
+  return `  ${g.host.padEnd(HOST_COL)} ${bar(g.rate)} ${counts} ${pct}${arrow(g, baseline[g.host])}${skipped}${over}`;
 }
 
 export type Write = (s: string) => void;

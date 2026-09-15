@@ -81,7 +81,7 @@ aimed at an uncategorised failure is a guess.
 | :-- | :-- | :-- | :-- |
 | `strip-ansi` | 8 / 8 | 8 / 8 | nothing; it was already exact |
 | `wrap-ansi` | 80 / 80 | 80 / 80 | nothing; held across the `width` change below |
-| `slice-ansi` | 13 / 15 | 14 / 15 | category E closed |
+| `slice-ansi` | 13 / 15 | 15 / 15 | category E closed |
 | `string-width` | 201 / 229 | 229 / 229 | categories A–D closed |
 
 #### string-width's 28, categorised
@@ -137,14 +137,25 @@ grader. The categories were written here before a line was changed.
   filter nobody asked for. The stack now carries unknown SGR parameters through and
   closes them with `ESC[0m`, which is the only close code that is correct for a
   parameter whose meaning is unknown.
-- **F — `slice links` cannot be passed, and should not be.** It is `test.failing()` in
-  `slice-ansi`'s own suite: the incumbent cannot round-trip an `OSC 8` hyperlink and
-  says so in its source. `linegauge` can, and ava reports a passing `test.failing` as
-  `not ok`. **14 / 15 is therefore this row's ceiling**, and the missing point is the
-  target being more correct than the host. It is named rather than excluded because an
-  ava host's TAP reaches `summarize` through the summary-line dialect and the oracle
-  refuses an exclusion it cannot match by name — which is the right refusal: laundering
-  this into 15 / 15 would publish a number no grader produced.
+- **F — `slice links` is a case we pass, and it now counts as one.** It is
+  `test.failing()` in `slice-ansi`'s own suite: the incumbent cannot round-trip an
+  `OSC 8` hyperlink and says so in its source. `linegauge` can, so the assertion in the
+  case runs and succeeds — and ava prints `not ok`, because from the incumbent's side an
+  unexpected pass means a stale annotation to delete. That line is ava's bookkeeping about
+  its own expectation, not a verdict on the code under test, and reading it as our failure
+  held the row at 14 / 15 on the strength of the one case we do **better**.
+
+  This was carried for a day as a ceiling rather than a defect, on the reasoning that the
+  alternative was an exclusion — and an exclusion would indeed have been laundering: it
+  drops the case out of the denominator, so the suite gets smaller and the rate gets
+  better and nothing says why. The fix is the opposite of that. The denominator is
+  untouched at 15, the case is counted as the pass it is, and `run.ts` keys strictly on
+  ava's own diagnostic (`Test was expected to fail, but succeeded`) so it fires on exactly
+  this shape and nothing else. `report.ts` prints `(1 the host marks failing and we pass)`
+  on every line that has one, because a reclassification nobody sees is a grader marking
+  its own homework. It cannot reach the control run: there the incumbent really does fail
+  the case, the annotation holds, and ava prints a plain `ok`. **15 / 15, measured
+  2026-09-15.**
 
 ### R9 — the ceiling is measured, and it is not met
 

@@ -27,6 +27,12 @@ export interface Grade {
   /** Tests that skipped themselves in this environment (an OS-only case); reported, never counted. */
   skipped: number;
   /**
+   * Cases the incumbent's own suite marks `failing` — it cannot do them and says so — which
+   * the target then **passes**. Counted as passes, and named, because a silent reclassification
+   * is how a grader starts flattering itself.
+   */
+  exceeded?: number;
+  /**
    * The suite's size when graded against the real host — the honest denominator. A file
    * that throws on import registers as one test instead of its twenty, so measuring
    * against `tests` would flatter a partial implementation badly.
@@ -85,6 +91,19 @@ const TAP_FAIL = /^# fail (\d+)$/m;
  */
 const TAP_SKIPPED = /^# skip(?:ped)? (\d+)$/m;
 const TAP_OK = /^\s*ok \d+/;
+/**
+ * ava's wording for a `test.failing()` case whose assertions all passed. It reports that as
+ * `not ok`, because from the incumbent's side an unexpected pass means a stale annotation to
+ * clean up — but the statement it makes is about *its own* expectation, not about the code
+ * under test. `slice-ansi` marks `slice links` failing (it cannot round-trip an `OSC 8`
+ * hyperlink); linegauge can, so the assertion succeeds and the suite calls it a failure.
+ *
+ * Counting that against us pinned the row at 14/15 on the strength of a case we do better.
+ *
+ * It cannot misfire on a control run: there the incumbent really does fail the case, the
+ * `test.failing` succeeds as annotated, and ava prints a plain `ok` with no diagnostic.
+ */
+const AVA_UNEXPECTED_PASS = /Test was expected to fail, but succeeded/g;
 
 function count(pattern: RegExp, output: string): number {
   const found = pattern.exec(output);
@@ -96,7 +115,7 @@ function count(pattern: RegExp, output: string): number {
  * three print the same three summary lines. Chosen over the default reporters because TAP
  * is the stable machine-readable one.
  */
-export function parseNodeTest(output: string): { tests: number; passed: number; failed: number; skipped: number } {
+export function parseNodeTest(output: string): { tests: number; passed: number; failed: number; skipped: number; exceeded: number } {
   // Two ways a skip shows up, and they mean different things about the totals.
   //
   // A runner that PRINTS a skip summary counted the skip in `# tests` and left it out of
@@ -111,7 +130,14 @@ export function parseNodeTest(output: string): { tests: number; passed: number; 
   const summarySkips = TAP_SKIPPED.test(output) ? count(TAP_SKIPPED, output) : 0;
   const inlineSkips = output.split('\n').filter((l) => TAP_OK.test(l) && l.includes('# SKIP')).length;
   const skipped = summarySkips || inlineSkips;
-  return { tests: count(TAP_TESTS, output) - summarySkips, passed: count(TAP_PASS, output), failed: count(TAP_FAIL, output), skipped };
+  const exceeded = [...output.matchAll(AVA_UNEXPECTED_PASS)].length;
+  return {
+    tests: count(TAP_TESTS, output) - summarySkips,
+    passed: count(TAP_PASS, output) + exceeded,
+    failed: count(TAP_FAIL, output) - exceeded,
+    skipped,
+    exceeded,
+  };
 }
 
 /**
@@ -141,7 +167,7 @@ export function unmatchedExclusions(output: string, excludes: Exclusion[]): stri
   return excludes.filter((e) => !cases.some((l) => l.includes(e.match))).map((e) => e.match);
 }
 
-type Summary = Pick<Grade, 'files' | 'tests' | 'passed' | 'failed' | 'skipped' | 'reference' | 'rate' | 'error'>;
+type Summary = Pick<Grade, 'files' | 'tests' | 'passed' | 'failed' | 'skipped' | 'exceeded' | 'reference' | 'rate' | 'error'>;
 
 /**
  * Turn a runner's stdout into a grade. Pure, so the one case that has silently read as
@@ -201,12 +227,15 @@ export function summarizeExitCodes(failures: string[], files: number, reference:
   return { mode: 'exit-code', ...rate(files, { tests: 1, passed, failed: 1 - passed, skipped: 0 }, reference) };
 }
 
-function rate(files: number, counts: { tests: number; passed: number; failed: number; skipped: number }, reference: number): Summary {
+function rate(files: number, counts: { tests: number; passed: number; failed: number; skipped: number; exceeded?: number }, reference: number): Summary {
   // The reference is the control's total; a run that registers *more* (a file that used to
   // fail to import now loads) proves the reference stale, and the larger count is the
   // honest denominator until the baseline is re-measured. A rate above 1 is never a score.
   const denominator = Math.max(reference, counts.tests);
-  return { files, ...counts, reference, rate: denominator === 0 ? 0 : counts.passed / denominator };
+  // Spread away when zero, rather than set to `undefined`: a row with nothing to report keeps
+  // the baseline fragment it already had, byte for byte.
+  const { exceeded, ...rest } = counts;
+  return { files, ...rest, ...(exceeded ? { exceeded } : {}), reference, rate: denominator === 0 ? 0 : counts.passed / denominator };
 }
 
 const require = createRequire(import.meta.url);

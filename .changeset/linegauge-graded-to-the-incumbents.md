@@ -4,7 +4,7 @@
 
 `width` and the style stack now answer what `string-width` and `slice-ansi` answer on
 twenty-nine cases they did not. The `string-width` row goes 201 / 229 → **229 / 229**; the
-`slice-ansi` row goes 13 / 15 → **14 / 15**, which is that row's ceiling. `wrap-ansi` holds
+`slice-ansi` row goes 13 / 15 → **15 / 15**. `wrap-ansi` holds
 at 80 / 80 and `strip-ansi` at 8 / 8 across the change.
 
 Four defects in `width`, not twenty-eight cases. **Hangul conjoining jamo** are additive

@@ -47,14 +47,17 @@ function graded(pkg: string): string[] {
   const rows: string[] = [];
   for (const file of readdirSync(BASELINE).filter((f) => f.endsWith('.json')).sort()) {
     const host = file.slice(0, -'.json'.length);
-    const entry = JSON.parse(readFileSync(join(BASELINE, file), 'utf8')) as { reference: number; passed: number };
+    const entry = JSON.parse(readFileSync(join(BASELINE, file), 'utf8')) as { reference: number; passed: number; exceeded?: number };
     const hosts = readFileSync(join(PACKAGES, 'compat-oracle/src/hosts.ts'), 'utf8');
     // The host entry names its target; `linegauge/strip` belongs to linegauge.
     const at = hosts.indexOf(`name: '${host}'`);
     if (at === -1) continue;
     const target = /target: '([^']+)'/.exec(hosts.slice(at))?.[1] ?? '';
     if (target.split('/')[0] !== pkg) continue;
-    rows.push(`| \`${host}\` | ${String(entry.passed)} / ${String(entry.reference)} |`);
+    // A case the host's own suite marks `failing` that we pass counts as a pass — and is
+    // marked, because it is not the same kind of pass as the ones beside it.
+    const over = entry.exceeded === undefined || entry.exceeded === 0 ? '' : ' \u00b9';
+    rows.push(`| \`${host}\` | ${String(entry.passed)} / ${String(entry.reference)}${over} |`);
   }
   return rows;
 }
@@ -65,6 +68,15 @@ export function section(pkg: string): string {
   const lines = [HEADING, '', `Every number here is produced by \`npm run bench\` and published at [${PAGE}](${PAGE}).`, ''];
   if (rows.length > 0) {
     lines.push("Graded by the incumbent's own test suite:", '', '| suite | passing |', '| :-- | --: |', ...rows, '');
+    if (rows.some((r) => r.includes('\u00b9'))) {
+      lines.push(
+        '¹ A case the incumbent marks `test.failing()` — it cannot do the thing and says so in',
+        'its own suite — which this package passes. The runner reports that as a failure, because',
+        'to the incumbent an unexpected pass means a stale annotation; it is counted here as the',
+        'pass it is, and marked rather than left to look like the ones beside it.',
+        '',
+      );
+    }
   } else {
     lines.push('No suite is graded against this package yet, so there is no compatibility number to quote.', '');
   }
