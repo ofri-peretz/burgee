@@ -1,5 +1,7 @@
 import { strip, width, wrap, type WrapOptions } from "linegauge";
 
+import { host } from "../runtime.js";
+
 /**
  * cliui 9 — the column layout yargs' usage renders through — with the wrap-ansi it depends
  * on, ported for `burgee/yargs`. Width and escape-stripping come from linegauge. The wrapping
@@ -314,9 +316,9 @@ function minWidth(col: Column): number {
 }
 
 function getWindowWidth(): number {
-  if (typeof process === "object" && process.stdout && process.stdout.columns)
-    return process.stdout.columns;
-  return 80;
+  // `host.columns` carries the upstream's guard on the process global itself, so a bundle
+  // that has no process at all still falls back to 80 rather than throwing.
+  return host.columns || 80;
 }
 
 function alignRight(str: string, width: number): string {

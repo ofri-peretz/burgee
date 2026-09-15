@@ -16,12 +16,12 @@ import childProcess from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import path from 'node:path';
-import process from 'node:process';
 import { stripVTControlCharacters } from 'node:util';
 
 import { ExitCode } from '../exit-code.js';
 import { type Effects, Manifest, type OptionSpec, type Plugin } from '../manifest.js';
 import { serveMcp } from '../mcp.js';
+import { host } from '../runtime.js';
 import { machineJson, schemaOf } from '../schema.js';
 import { suggestSimilar } from '../suggest.js';
 
@@ -210,13 +210,13 @@ export class Command extends EventEmitter {
     this._args = this.registeredArguments;
     this._name = name || '';
     this._outputConfiguration = {
-      writeOut: (str) => process.stdout.write(str),
-      writeErr: (str) => process.stderr.write(str),
+      writeOut: (str) => host.stdout.write(str),
+      writeErr: (str) => host.stderr.write(str),
       outputError: (str, write) => write(str),
-      getOutHelpWidth: () => (process.stdout.isTTY ? process.stdout.columns : undefined),
-      getErrHelpWidth: () => (process.stderr.isTTY ? process.stderr.columns : undefined),
-      getOutHasColors: () => useColor() ?? (process.stdout.isTTY && process.stdout.hasColors?.()),
-      getErrHasColors: () => useColor() ?? (process.stderr.isTTY && process.stderr.hasColors?.()),
+      getOutHelpWidth: () => (host.stdout.isTTY ? host.stdout.columns : undefined),
+      getErrHelpWidth: () => (host.stderr.isTTY ? host.stderr.columns : undefined),
+      getOutHasColors: () => useColor() ?? (host.stdout.isTTY && host.stdout.hasColors?.()),
+      getErrHasColors: () => useColor() ?? (host.stderr.isTTY && host.stderr.hasColors?.()),
       stripColor: (str) => stripVTControlCharacters(str),
     };
   }
@@ -432,7 +432,7 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
       this._exitCallback(new CommanderError(exitCode, code, message));
       // Expecting this line is not reached.
     }
-    process.exit(exitCode);
+    return host.exit(exitCode);
   }
 
   // commander's contract: the positional args, then the options, then the command itself.
@@ -641,14 +641,14 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
     parseOptions = parseOptions ?? {};
 
     if (argv === undefined && parseOptions.from === undefined) {
-      if ((process.versions as Record<string, string | undefined>)['electron']) parseOptions.from = 'electron';
-      const execArgv = process.execArgv ?? [];
+      if (host.versions['electron']) parseOptions.from = 'electron';
+      const execArgv = host.execArgv ?? [];
       if (execArgv.includes('-e') || execArgv.includes('--eval') || execArgv.includes('-p') || execArgv.includes('--print')) {
         parseOptions.from = 'eval'; // internal usage, not documented
       }
     }
 
-    if (argv === undefined) argv = process.argv;
+    if (argv === undefined) argv = host.argv;
     this.rawArgs = argv.slice();
 
     let userArgs: string[];
@@ -805,25 +805,25 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
     const launchWithNode = SOURCE_EXT.includes(path.extname(executableFile));
 
     let proc: childProcess.ChildProcess;
-    if (process.platform !== 'win32') {
+    if (host.platform !== 'win32') {
       if (launchWithNode) {
         args.unshift(executableFile);
-        args = incrementNodeInspectorPort(process.execArgv).concat(args);
-        proc = childProcess.spawn(process.argv[0] ?? process.execPath, args, { stdio: 'inherit' });
+        args = incrementNodeInspectorPort(host.execArgv).concat(args);
+        proc = childProcess.spawn(host.argv[0] ?? host.execPath, args, { stdio: 'inherit' });
       } else {
         proc = childProcess.spawn(executableFile, args, { stdio: 'inherit' });
       }
     } else {
       this._checkForMissingExecutable(executableFile, executableDir, subcommand._name);
       args.unshift(executableFile);
-      args = incrementNodeInspectorPort(process.execArgv).concat(args);
-      proc = childProcess.spawn(process.execPath, args, { stdio: 'inherit' });
+      args = incrementNodeInspectorPort(host.execArgv).concat(args);
+      proc = childProcess.spawn(host.execPath, args, { stdio: 'inherit' });
     }
 
     if (!proc.killed) {
       // Testing mainly to avoid leak warnings during unit tests with mocked spawn.
       for (const signal of FORWARDED_SIGNALS) {
-        process.on(signal, () => {
+        host.on(signal, () => {
           if (proc.killed === false && proc.exitCode === null) proc.kill(signal);
         });
       }
@@ -832,7 +832,7 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
     const exitCallback = this._exitCallback;
     proc.on('close', (code) => {
       code = code ?? 1; // null when the spawned process terminated due to a signal
-      if (!exitCallback) process.exit(code);
+      if (!exitCallback) host.exit(code);
       else exitCallback(new CommanderError(code, 'commander.executeSubCommandAsync', '(close)'));
     });
     proc.on('error', (err: NodeJS.ErrnoException) => {
@@ -842,7 +842,7 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
         throw new Error(`'${executableFile}' not executable`);
       }
       if (!exitCallback) {
-        process.exit(1);
+        host.exit(1);
       } else {
         const wrappedError = new CommanderError(1, 'commander.executeSubCommandAsync', '(error)');
         wrappedError.nestedError = err;
@@ -1229,11 +1229,11 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
   /** Apply environment variables to options that have no value from the cli or client code. */
   _parseOptionsEnv(): void {
     for (const option of this.options) {
-      if (option.envVar && option.envVar in process.env) {
+      if (option.envVar && option.envVar in host.env) {
         const optionKey = option.attributeName();
         // Do not overwrite cli values or values from an unknown (client-code) source.
         if (this.getOptionValue(optionKey) === undefined || ENV_SOURCES.includes(this.getOptionValueSource(optionKey) ?? '')) {
-          if (option.required || option.optional) this.emit(`optionEnv:${option.name()}`, process.env[option.envVar]);
+          if (option.required || option.optional) this.emit(`optionEnv:${option.name()}`, host.env[option.envVar]);
           else this.emit(`optionEnv:${option.name()}`);
         }
       }
@@ -1583,7 +1583,7 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
   /** Output help and exit. */
   help(contextOptions?: OutputContext | ((text: string) => string | Buffer)): never {
     this.outputHelp(contextOptions);
-    let exitCode = Number(process.exitCode ?? 0);
+    let exitCode = Number(host.exitCode ?? 0);
     if (exitCode === 0 && contextOptions && typeof contextOptions !== 'function' && contextOptions.error) exitCode = 1;
     // message: not all displayed text is available, so only a placeholder is passed.
     this._exit(exitCode, 'commander.help', '(outputHelp)');
@@ -1731,7 +1731,7 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
         await root.parseAsync(args, { from: 'user', stdout: { write: (s) => out.push(s) }, stderr: { write: (s) => err.push(s) }, exit: (c) => void (code = c) });
         return { stdout: out.join(''), stderr: err.join(''), code };
       };
-      return serveMcp(this.manifest, { input: process.stdin, output: { write: (s) => root._outputConfiguration.writeOut(s) }, invoke }).then(() => true);
+      return serveMcp(this.manifest, { input: host.stdin, output: { write: (s) => root._outputConfiguration.writeOut(s) }, invoke }).then(() => true);
     }
     return false;
   }
@@ -1893,7 +1893,7 @@ function incrementNodeInspectorPort(args: string[]): string[] {
  * and CLICOLOR_FORCE enable, otherwise undecided (the stream's TTY-ness decides).
  */
 export function useColor(): boolean | undefined {
-  if (process.env['NO_COLOR'] || process.env['FORCE_COLOR'] === '0' || process.env['FORCE_COLOR'] === 'false') return false;
-  if (process.env['FORCE_COLOR'] || process.env['CLICOLOR_FORCE'] !== undefined) return true;
+  if (host.env['NO_COLOR'] || host.env['FORCE_COLOR'] === '0' || host.env['FORCE_COLOR'] === 'false') return false;
+  if (host.env['FORCE_COLOR'] || host.env['CLICOLOR_FORCE'] !== undefined) return true;
   return undefined;
 }

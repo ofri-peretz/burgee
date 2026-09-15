@@ -231,9 +231,19 @@ const RULES: Record<string, EntryRule> = {
     denied: ["testing.js", "testing-helpers.js", "yargs-factory.js"],
   },
   // yargs-parser alone, for a program that imported it directly; never the factory.
+  //
+  // 41,900 on 2026-09-15 for the runtime seam (PLAN 4.3, Y9). This is the only entry the
+  // seam pushed over, and the arithmetic is the whole story: `yargs-parser.js` is 39,801 and
+  // `runtime.js` is 2,020, so the walk reads 41,821 against a 40,000 that had **221 bytes**
+  // spare before anything moved. What the 1,972 bought is that this file no longer names
+  // `process`: it built its default mixin from `process.env` captured at import and
+  // `process.cwd` passed by reference, and yargs' suite replaces the env object per test, so
+  // the captured one was a stale read waiting for a test to expose it. The parser entry pays
+  // for a seam it uses two members of, which is the honest cost of one file per package
+  // rather than one per caller. Ceiling is the next hundred above the measurement, as above.
   "./yargs/parser": {
     allow: [],
-    budget: 40_000,
+    budget: 41_900,
     denied: [
       "testing.js",
       "testing-helpers.js",

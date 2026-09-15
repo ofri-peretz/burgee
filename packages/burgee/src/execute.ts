@@ -17,6 +17,7 @@ import { type ActionRequiredSpec, type ArgumentSpec, type CommandNode, type Effe
 import { serveMcp } from './mcp.js';
 import { camel, kebab } from './names.js';
 import { nearestPackage, type Package } from './pkg.js';
+import { host } from './runtime.js';
 import { commandSchemaOf, machineJson, schemaOf, summaryOf } from './schema.js';
 import { checkDefinition, checkRelations, coerce, UsageError } from './validate.js';
 
@@ -423,7 +424,7 @@ const HELP_FLAGS = new Set(['--help', '-h']);
 const HELP_WIDTH = 100;
 
 /** The real exit, used only when a caller injects none. */
-const processExit = (code: number): void => process.exit(code);
+const processExit = (code: number): void => host.exit(code);
 
 /** The part of argv the parser will read as options: everything before `--`. */
 export function beforeTerminator(argv: readonly string[]): readonly string[] {
@@ -671,16 +672,16 @@ async function report(cause: unknown, { manifest, io, argv, json, name }: Failur
  */
 /** The injected streams, env, exit and cwd, or the process's own for each one not injected. */
 function ioOf(opts: RunOptions): Io {
-  const out = opts.stdout ?? process.stdout;
+  const out = opts.stdout ?? host.stdout;
   return {
     out,
-    err: opts.stderr ?? process.stderr,
-    env: opts.env ?? process.env,
+    err: opts.stderr ?? host.stderr,
+    env: opts.env ?? host.env,
     exit: opts.exit ?? processExit,
     width: out.columns ?? HELP_WIDTH,
-    stdin: opts.stdin ?? process.stdin,
-    cwd: opts.cwd ?? process.cwd(),
-    pkg: nearestPackage(dirname(opts.entry ?? process.argv[1] ?? process.cwd())),
+    stdin: opts.stdin ?? host.stdin,
+    cwd: opts.cwd ?? host.cwd(),
+    pkg: nearestPackage(dirname(opts.entry ?? host.argv[1] ?? host.cwd())),
     tty: out.isTTY === true,
   };
 }
@@ -689,7 +690,7 @@ export async function execute(manifest: Manifest, opts: RunOptions & { root?: st
   const io = ioOf(opts);
   // `from: 'node'` is commander's default and means argv still carries execPath and the
   // script. Doing the slice here keeps `process` out of every façade.
-  const raw = opts.argv ?? process.argv;
+  const raw = opts.argv ?? host.argv;
   const argv = opts.argv === undefined || opts.from === 'node' ? raw.slice(2) : raw;
   const root = opts.root ?? manifest.rootPath;
 
