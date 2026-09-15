@@ -35,12 +35,13 @@ flags in, a verdict out.
 
 ```js
 import { decide } from 'caique/decide';
+import { processRuntime } from 'caique';
 
 decide({
   value: undefined,                                  // nothing was passed
   spec: { kind: 'text', message: 'Where should it go?' },
   option: 'output-dir',
-  runtime: { env: process.env, isTTY: { stdin: process.stdin.isTTY } },
+  runtime: processRuntime(),                         // or your own { env, isTTY: { stdin } }
   required: true,
 });
 // no terminal -> { action: 'error', code: 'USAGE',
@@ -101,7 +102,7 @@ import { resolvePrompts } from 'caique/binding';
 const { values, failure } = await resolvePrompts({
   options,            // { name: { required: true, prompt: { kind: 'text', message: 'Project name?' } } }
   values,             // what every other source resolved
-  runtime: { env: process.env, isTTY: { stdin: process.stdin.isTTY } },
+  runtime: processRuntime(),
   flags: { json, yes, interactive },
   io: { reader, writer },
 });
@@ -125,7 +126,7 @@ that touches a terminal:
 import { createIo } from 'caique/terminal';
 import { ask } from 'caique/ask';
 
-const io = createIo({ input: process.stdin, output: process.stdout });
+const io = createIo();   // the terminal the program was started in
 await ask({ kind: 'password', message: 'Token?' }, io);
 io.close();
 ```
@@ -144,9 +145,11 @@ not a second implementation:
 
 ```js
 import { askList, canRender } from 'caique/raw';
-import { createIo } from 'caique/terminal';
+import { createIo, streamsOf } from 'caique/terminal';
+import { processRuntime } from 'caique';
 
-const io = { ...createIo({ input: process.stdin, output: process.stdout }), keys: process.stdin };
+const rt = processRuntime();
+const io = { ...createIo(streamsOf(rt)), keys: rt.stdin };
 const spec = { kind: 'select', message: 'Which host?', choices: [{ value: 'ora' }, { value: 'chalk' }] };
 const answer = canRender(io.keys) ? await askList(spec, io) : await ask(spec, io);
 ```

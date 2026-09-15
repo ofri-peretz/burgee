@@ -44,6 +44,8 @@ packages/caique/src/
   binding.ts     resolvePrompts() — one host-agnostic pass, not one binding per host
   terminal.ts    createIo() over node:readline — the only file that touches a terminal,
                  and the only one that knows what echo is
+  runtime.ts     Runtime + processRuntime() — the only file that names `process` (Y9);
+                 a function, so the world is read when asked for, not frozen at import
   clack.ts       caique/clack  — @clack/prompts' API over the widgets, graded by its suite
   inquirer.ts    caique/inquirer — @inquirer/prompts' API, same (never inquirer@8's)
   burgee.ts      caique/burgee — the preAction binding for burgee, burgee/commander, burgee/yargs
