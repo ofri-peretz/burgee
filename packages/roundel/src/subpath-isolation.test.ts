@@ -32,11 +32,26 @@ const ALLOWED: Record<string, string[]> = {
   'contrast.js': [],
   'tokens.js': ['./policy.js'],
   'theme.js': ['./policy.js', './contrast.js'],
-  'chalk.js': ['./policy.js', './tokens.js'],
+  // `./runtime.js` is the process seam (Y9): the guarded `globalThis.process` cast used to
+  // sit in this file, and chalk is still the only entry that reaches it, because chalk is
+  // the only subpath whose contract is "detect the terminal at import".
+  'chalk.js': ['./policy.js', './runtime.js', './tokens.js'],
   'index.js': ['./contrast.js', './plugin.js', './policy.js', './theme.js', './tokens.js'],
   // The plugin host reaches nothing at run time: its only import is `Theme`, a type, which
   // `verbatimModuleSyntax` erases. Collecting a theme costs no module.
   'plugin.js': [],
+};
+
+/**
+ * The same rule for the modules an entry pulls in, which `ALLOWED` never reached: it compares
+ * only each *entry's* direct imports, so anything one level down was unlocked. Until Y9 every
+ * module in this package was a published entry, so the hole was empty; `runtime.ts` is the
+ * first that is not, and it is the one file that names the process — precisely the module
+ * whose edges a reader would want locked. It reaches nothing, and this is what says so.
+ * Mirrors flagstaff's `INTERNAL_ALLOWED`.
+ */
+const INTERNAL_ALLOWED: Record<string, string[]> = {
+  'runtime.js': [],
 };
 
 const RELATIVE = /(?:from|import)\s*'(\.[^']+)'/g;
@@ -69,6 +84,12 @@ describe.each(code)('entry %s', (_, { import: entry }) => {
   });
 });
 
+describe.each(Object.keys(INTERNAL_ALLOWED))('internal module %s', (file) => {
+  it('carries only its allowed relative imports', () => {
+    expect(relativeImports(resolve(pkgRoot, 'dist', file))).toEqual([...(INTERNAL_ALLOWED[file] ?? [])].sort());
+  });
+});
+
 describe('the package as a whole', () => {
   it('declares sideEffects: false, so a bundler may drop what a program does not use (U10)', () => {
     expect(manifest.sideEffects).toBe(false);
@@ -85,5 +106,13 @@ describe('the package as a whole', () => {
   it('every isolation rule names a published entry — the lock cannot outlive a file', () => {
     const published = code.map(([, e]) => basename(e.import));
     expect(Object.keys(ALLOWED).sort()).toEqual(published.sort());
+  });
+
+  it('every internal rule names a file that exists and is not itself an entry', () => {
+    const published = new Set(code.map(([, e]) => basename(e.import)));
+    for (const file of Object.keys(INTERNAL_ALLOWED)) {
+      expect(published.has(file), `${file} is a published entry — it belongs in ALLOWED`).toBe(false);
+      expect(existsSync(resolve(pkgRoot, 'dist', file)), `${file} does not exist`).toBe(true);
+    }
   });
 });

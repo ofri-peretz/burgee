@@ -65,10 +65,21 @@ interface EntryRule {
  * rise for free, and leaving them at the old headroom would have handed the next 20 KB of
  * flagstaff a budget that a package boundary paid for.
  */
+/**
+ * **2026-09-15, Y9.** Five of the measurements below moved, and all five moved for the same
+ * reason: `runtime.ts` (81 B) is now the one file in the package that names the process, and
+ * the four files that used to name it — `ora`, `boxen`, `log-update` and the `cursor.js` that
+ * `./loop` reaches through `projection` — each import it and bind it once. `.` +66,
+ * `./loop` +66, `./ora` +41, `./log-update` +76, `./boxen` +137. No budget moved: every one
+ * of them was already inside its ratchet and still is. The bytes bought a seam — nothing in
+ * this package reads a global any more, so a test substitutes the world by passing an object
+ * — and they did not buy a behaviour change: the compatibility rows are 58/99/99/84/6, the
+ * same five figures as before.
+ */
 const RULES: Record<string, EntryRule> = {
   // Everything: the loop, the registry, and all five built-ins. `box` and `table` bring the
   // wrapper and the width function with them, which is most of it. A program that wants one component should import its subpath (U5, R10).
-  '.': { allow: ['linegauge', 'linegauge/wrap', 'roundel/policy', 'roundel/tokens'], budget: 33_000, measured: 31_474, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
+  '.': { allow: ['linegauge', 'linegauge/wrap', 'roundel/policy', 'roundel/tokens'], budget: 33_000, measured: 31_540, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
   // The loop and its four projections; never the registry — a program that hoists its own
   // component pays nothing for the plugin host.
   //
@@ -77,7 +88,7 @@ const RULES: Record<string, EntryRule> = {
   // one. That is ~2.1 KB against a defect neither incumbent has — ora and log-update both
   // reach cli-cursor → restore-cursor → signal-exit — on the one entry whose whole job is
   // drawing on a terminal. The alternative was a third copy of a subtle implementation.
-  './loop': { allow: ['roundel/policy'], budget: 7_000, measured: 6_572, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
+  './loop': { allow: ['roundel/policy'], budget: 7_000, measured: 6_638, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
   // The registry, the validator, the built-ins and the schema they are checked against.
   // The registry, the validator, the built-ins and the schema they are checked against —
   // which now carries `borders` too, so both this and `./spinner` are larger than before.
@@ -108,7 +119,7 @@ const RULES: Record<string, EntryRule> = {
   //
   // It reaches nothing in the core: an ora migration does not drag the frame loop in, and
   // a program that hoists does not pay for the corpus.
-  './ora': { allow: ['linegauge', 'roundel/chalk'], budget: 43_000, measured: 42_586, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
+  './ora': { allow: ['linegauge', 'roundel/chalk'], budget: 43_000, measured: 42_627, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
   // The log-update façade: the port, the ANSI-aware wrapper, the width function and the
   // cursor control. Measured 29,573 B on 2026-09-08 (wrap.js 17,071 · log-update.js 6,910 ·
   // width.js 4,229 · cursor.js 1,363), against log-update's own 113,368 B across sixteen
@@ -122,7 +133,7 @@ const RULES: Record<string, EntryRule> = {
   // `./box` and `./table` with it. Sixteen packages become none, at a quarter of the
   // bytes. It shares `cursor.js` and `width.js` with `./ora` and reaches neither the corpus
   // nor the core.
-  './log-update': { allow: ['linegauge/wrap'], budget: 9_000, measured: 8_551, denied: ['ora.js', 'spinners.json', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
+  './log-update': { allow: ['linegauge/wrap'], budget: 9_000, measured: 8_627, denied: ['ora.js', 'spinners.json', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
   // The boxen façade (R10). boxen 8.0.1 is 8 dependencies; this reaches `width.js`,
   // `wrap.js` and `roundel/chalk` — the first two already shipped for `./ora` and
   // `./log-update`, and `ansi-align`, `widest-line`, `camelcase` and `cli-boxes` are a few
@@ -131,7 +142,7 @@ const RULES: Record<string, EntryRule> = {
   // which roundel's own weight lock records at the same figure. **43,104 B in two packages,
   // against boxen 8.0.1's 132,414 B in nineteen — 33%.** It shares `wrap.js` and `width.js`
   // with the other two façades, so a program on two of them pays for both once.
-  './boxen': { allow: ['linegauge', 'linegauge/wrap', 'roundel/chalk'], budget: 13_000, measured: 12_497, denied: ['ora.js', 'spinners.json', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js', 'log-update.js'] },
+  './boxen': { allow: ['linegauge', 'linegauge/wrap', 'roundel/chalk'], budget: 13_000, measured: 12_634, denied: ['ora.js', 'spinners.json', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js', 'log-update.js'] },
   // The cli-table3 façade (R10). cli-table3 0.6.5 reaches `string-width` and
   // `@colors/colors`; this reaches `width.js` — already here for the other three façades —
   // and `roundel/chalk` for the two default styles. Measured 32,989 B on 2026-09-09 — 45 B

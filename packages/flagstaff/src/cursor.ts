@@ -10,13 +10,23 @@
  * lives here and both façades import it. It is the only module either façade shares that
  * is not the width function.
  *
- * It reads `process` because the thing being restored *is* the process's terminal: cursor
- * state is global to the terminal, not to whichever stream a caller passed in, and both
- * incumbents restore the process's cursor for exactly that reason. The process-reference
- * lock names this file with that justification.
+ * It reaches the process because the thing being restored *is* the process's terminal:
+ * cursor state is global to the terminal, not to whichever stream a caller passed in, and
+ * both incumbents restore the process's cursor for exactly that reason. It reaches it
+ * through `./runtime.js` (Y9), which is the one file in the package that names the global;
+ * burgee's process-reference lock names that file, and this one takes a `Runtime`.
  */
 import { constants } from 'node:os';
-import process from 'node:process';
+
+import { processRuntime } from './runtime.js';
+
+/**
+ * The process, through the seam (Y9). Nothing is read at import: `processRuntime()` hands
+ * back the live process narrowed to `Runtime`, so `rt.stderr.isTTY` below is still answered
+ * the moment `restoreCursorOnExit()` asks, and `rt.kill` is still looked up when the handler
+ * fires — which is what lets a suite swap it.
+ */
+const rt = processRuntime();
 
 export const HIDE_CURSOR = '\u001B[?25l';
 export const SHOW_CURSOR = '\u001B[?25h';
@@ -52,8 +62,8 @@ const TERMINATION_SIGNALS: TerminationSignal[] = (['SIGHUP', 'SIGINT', 'SIGTERM'
 
 /** stderr if it is a terminal, else stdout if it is, else there is no cursor to restore. */
 function terminalStream(): NodeJS.WriteStream | undefined {
-  if (process.stderr.isTTY) return process.stderr;
-  if (process.stdout.isTTY) return process.stdout;
+  if (rt.stderr.isTTY) return rt.stderr;
+  if (rt.stdout.isTTY) return rt.stdout;
   return undefined;
 }
 
@@ -93,9 +103,9 @@ export function restoreCursorOnExit(write?: (s: string) => void): () => void {
 
   const installed = new Map<TerminationSignal, () => void>();
   const uninstall = (): void => {
-    for (const [name, fn] of installed) process.removeListener(name, fn);
+    for (const [name, fn] of installed) rt.removeListener(name, fn);
     installed.clear();
-    process.removeListener('exit', restore);
+    rt.removeListener('exit', restore);
     cursorRestoreInstalled = false;
   };
 
@@ -103,12 +113,12 @@ export function restoreCursorOnExit(write?: (s: string) => void): () => void {
     const handler = (): void => {
       restore();
       uninstall();
-      if (process.listenerCount(signal) === 0) process.kill(process.pid, signal);
+      if (rt.listenerCount(signal) === 0) rt.kill(rt.pid, signal);
     };
-    process.on(signal, handler);
+    rt.on(signal, handler);
     installed.set(signal, handler);
   }
 
-  process.once('exit', restore);
+  rt.once('exit', restore);
   return uninstall;
 }

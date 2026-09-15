@@ -26,6 +26,15 @@ import { wrap as wrapAnsi } from 'linegauge/wrap';
  */
 import chalk from 'roundel/chalk';
 
+import { processRuntime } from './runtime.js';
+
+/**
+ * The process, through the seam (Y9). `processRuntime()` hands back the live process
+ * narrowed to `Runtime`, so `rt.stdout.columns` below is read when a box is drawn and not
+ * a moment earlier — a box drawn after a resize still uses the new width.
+ */
+const rt = processRuntime();
+
 const NEWLINE = '\n';
 const PAD = ' ';
 const NONE = 'none';
@@ -98,7 +107,7 @@ const BOXES: Record<string, BoxenBorderStyle> = {
  * resize should use the new width.
  */
 function terminalColumns(): number {
-  const { env, stdout, stderr } = process;
+  const { env, stdout, stderr } = rt;
   if (stdout?.columns) return stdout.columns;
   if (stderr?.columns) return stderr.columns;
   if (env['COLUMNS'] !== undefined) return Number.parseInt(env['COLUMNS'], DECIMAL);
@@ -306,8 +315,8 @@ function boxContent(content: string, contentWidth: number, options: Resolved): s
 
 /** `fullscreen` maxes out whichever of width/height was not given. */
 function sanitizeOptions(options: Resolved & { fullscreen?: BoxenOptions['fullscreen'] }): Resolved {
-  if (options.fullscreen !== undefined && options.fullscreen !== false && process.stdout) {
-    let dimensions: [number, number] = [process.stdout.columns, process.stdout.rows];
+  if (options.fullscreen !== undefined && options.fullscreen !== false && rt.stdout) {
+    let dimensions: [number, number] = [rt.stdout.columns, rt.stdout.rows];
     if (typeof options.fullscreen === 'function') dimensions = options.fullscreen(...dimensions);
     options.width ||= dimensions[0];
     options.height ||= dimensions[1];
