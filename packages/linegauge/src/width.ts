@@ -135,25 +135,159 @@ function isAmbiguous(codePoint: number): boolean {
   return inTable(AMBIGUOUS, codePoint);
 }
 
-// `v`-mode properties: the whole point of using them is that Node ships the tables.
-const ZERO_WIDTH_CLUSTER = /^(?:\p{Default_Ignorable_Code_Point}|\p{Control}|\p{Mark}|\p{Surrogate})+$/v;
-const LEADING_NON_PRINTING = /^[\p{Default_Ignorable_Code_Point}\p{Control}\p{Format}\p{Mark}\p{Surrogate}]+/v;
+/**
+ * `v`-mode properties: the whole point of using them is that Node ships the tables.
+ *
+ * The mark classes are spelled out as `Nonspacing_Mark` and `Enclosing_Mark` rather than
+ * the `\p{Mark}` that stood here, because `\p{Mark}` is those two **and** `Spacing_Mark` —
+ * and a spacing mark is exactly the kind that does occupy a column. `ा`, Devanagari
+ * vowel sign AA, answered 0 under the wider class and a terminal draws it one column wide.
+ *
+ * `\p{Format}` joins the zero-width class for the mirror-image reason. A prepended
+ * concatenation mark — `U+0600`, `U+06DD`, `U+070F` — is `Format` but *not*
+ * `Default_Ignorable`, so it fell through to the base-scalar path below, which stripped it
+ * as leading non-printing, found an empty remainder, read code point 0 and charged a column
+ * for it. Charging a column for a character the cursor never advances past is the shape of
+ * bug that stays invisible until a box comes out a column short.
+ */
+const ZERO_WIDTH_CLUSTER =
+  /^(?:\p{Default_Ignorable_Code_Point}|\p{Control}|\p{Format}|\p{Nonspacing_Mark}|\p{Enclosing_Mark}|\p{Surrogate})+$/v;
+const LEADING_NON_PRINTING =
+  /^[\p{Default_Ignorable_Code_Point}\p{Control}\p{Format}\p{Nonspacing_Mark}\p{Enclosing_Mark}\p{Surrogate}]+/v;
 const RGI_EMOJI = /^\p{RGI_Emoji}$/v;
+const SPACING_MARK = /^\p{Spacing_Mark}$/v;
+const EXTENDED_PICTOGRAPHIC = /^\p{Extended_Pictographic}$/u;
+
+/**
+ * An **unqualified keycap**: the base, then `U+20E3`, with the `U+FE0F` that would have made
+ * it fully qualified missing. The base class is explicit — a digit, `#` or `*` — because
+ * `U+260E U+FE0F U+20E3` is *not* a keycap, and `string-width`'s suite grades that too.
+ */
+const UNQUALIFIED_KEYCAP = /^[\d#*]\u20E3$/u;
+
+const ZWJ = '\u200D';
+
+/** Two pictographs is what separates an emoji ZWJ sequence from an Indic conjunct. */
+const EMOJI_ZWJ_PICTOGRAPHS = 2;
+
+/**
+ * Longest cluster worth testing for an emoji sequence. Real ones run well under thirty code
+ * units; the cap is here so a pathological cluster cannot turn a width call into a scan.
+ */
+const EMOJI_SCAN_LIMIT = 50;
 
 /** The Halfwidth and Fullwidth Forms block, which a cluster can carry after its base. */
 const FORMS_FIRST = 0xff00;
 const FORMS_LAST = 0xffef;
 
+/**
+ * Conjoining jamo, in the three classes modern Hangul composes from: leading (L), vowel (V)
+ * and trailing (T). Each has an archaic extension block beside the main one.
+ */
+const JAMO_LEADING: readonly number[] = [0x1100, 0x115f, 0xa960, 0xa97c];
+const JAMO_VOWEL: readonly number[] = [0x1160, 0x11a7, 0xd7b0, 0xd7c6];
+const JAMO_TRAILING: readonly number[] = [0x11a8, 0x11ff, 0xd7cb, 0xd7fb];
+
 const segmenter = new Intl.Segmenter();
 
-/** Columns a cluster's trailing fullwidth forms add — `ｶﾞ` is a base plus a wide mark. */
-function trailingForms(cluster: string): number {
+/** East Asian Width of one code point, in columns, under the caller's ambiguous policy. */
+function columnsOf(codePoint: number, ambiguousIsWide: boolean): number {
+  return isWide(codePoint) || (ambiguousIsWide && isAmbiguous(codePoint)) ? WIDE_COLUMNS : NARROW;
+}
+
+/**
+ * Columns a cluster's trailing **spacing marks and fullwidth forms** add. `ｶﾞ` is a base
+ * plus a wide mark; `क` + `ा` is a base plus a spacing mark. Both advance the cursor past
+ * the base, and neither is a separate cluster, so neither can be counted anywhere else.
+ *
+ * The walk is over the *visible* cluster — what is left after the leading non-printing run
+ * has been removed — so that the character being skipped as "the base" is the base, not a
+ * format character standing in front of it.
+ */
+function trailingColumns(visible: string, ambiguousIsWide: boolean): number {
   let extra = 0;
-  for (const character of [...cluster].slice(1)) {
+  for (const character of [...visible].slice(1)) {
     const codePoint = character.codePointAt(0) ?? 0;
-    if (codePoint >= FORMS_FIRST && codePoint <= FORMS_LAST) extra += isWide(codePoint) ? WIDE_COLUMNS : NARROW;
+    const isForm = codePoint >= FORMS_FIRST && codePoint <= FORMS_LAST;
+    if (isForm || SPACING_MARK.test(character)) extra += columnsOf(codePoint, ambiguousIsWide);
   }
   return extra;
+}
+
+/**
+ * Whether a cluster is an emoji sequence that `\p{RGI_Emoji}` refuses because it is
+ * **minimally qualified or unqualified** — the same sequence with its `U+FE0F` left off.
+ * A terminal renders `U+2764 ZWJ U+1F525` as one two-column emoji whether or not the
+ * variation selector is there; the regex only matches the fully-qualified spelling.
+ *
+ * Two shapes, and both need their guard. A ZWJ sequence counts only when **two or more**
+ * pictographs are joined, which is what keeps `क् ZWJ ष` — an Indic conjunct using the same
+ * joiner — one column. A keycap counts only over a digit, `#` or `*`, which is what keeps
+ * the invalid `U+260E U+FE0F U+20E3` one column. Both of those are cases in the suite that
+ * grades this file, and both passed before this function existed.
+ */
+function isUnqualifiedEmojiSequence(cluster: string): boolean {
+  if (cluster.length > EMOJI_SCAN_LIMIT) return false;
+  if (UNQUALIFIED_KEYCAP.test(cluster)) return true;
+  if (!cluster.includes(ZWJ)) return false;
+  let pictographs = 0;
+  for (const character of cluster) {
+    if (EXTENDED_PICTOGRAPHIC.test(character)) pictographs += 1;
+    if (pictographs >= EMOJI_ZWJ_PICTOGRAPHS) return true;
+  }
+  return false;
+}
+
+/** Whether `codePoint` falls in one of a flat `[low, high]` pair list. */
+function inPairs(pairs: readonly number[], codePoint: number): boolean {
+  for (let i = 0; i < pairs.length; i += PAIR) {
+    if (codePoint >= (pairs[i] ?? 0) && codePoint <= (pairs[i + 1] ?? 0)) return true;
+  }
+  return false;
+}
+
+function isJamo(codePoint: number): boolean {
+  return inPairs(JAMO_LEADING, codePoint) || inPairs(JAMO_VOWEL, codePoint) || inPairs(JAMO_TRAILING, codePoint);
+}
+
+/**
+ * Columns a cluster of **conjoining Hangul jamo** occupies, or `undefined` when the cluster
+ * does not start with one — in which case the caller's ordinary base-scalar path is right.
+ *
+ * This is the one category that needs a walk rather than a table lookup. `Intl.Segmenter`
+ * joins a whole run of jamo into a single grapheme cluster (GB6, GB7, GB8), so measuring the
+ * cluster by its first code point answered **2** for a six-jamo run a terminal draws **12**
+ * columns wide. Modern Hangul composes L + V, or L + V + T, into one syllable block two
+ * columns wide; jamo that find no partner stay additive at their own East Asian Width, which
+ * makes a leading jamo 2 and a vowel or trailing jamo 1.
+ *
+ * A cluster that begins with jamo and then turns into something else — a leading jamo
+ * followed by a precomposed syllable — measures the jamo by this rule and the remainder by
+ * East Asian Width, which is how `U+1100 U+AC00` comes to 4 rather than 2.
+ */
+function hangulColumns(visible: string, ambiguousIsWide: boolean): number | undefined {
+  const codePoints: number[] = [];
+  for (const character of visible) {
+    if (ZERO_WIDTH_CLUSTER.test(character)) continue;
+    codePoints.push(character.codePointAt(0) ?? 0);
+  }
+  if (codePoints.length === 0 || !isJamo(codePoints[0] ?? 0)) return undefined;
+
+  let columns = 0;
+  for (let index = 0; index < codePoints.length; index += 1) {
+    const codePoint = codePoints[index] ?? 0;
+    if (!isJamo(codePoint)) {
+      for (let rest = index; rest < codePoints.length; rest += 1) columns += columnsOf(codePoints[rest] ?? 0, ambiguousIsWide);
+      return columns;
+    }
+    if (inPairs(JAMO_LEADING, codePoint) && inPairs(JAMO_VOWEL, codePoints[index + 1] ?? -1)) {
+      columns += WIDE_COLUMNS;
+      index += inPairs(JAMO_TRAILING, codePoints[index + PAIR] ?? -1) ? PAIR : 1;
+      continue;
+    }
+    columns += columnsOf(codePoint, ambiguousIsWide);
+  }
+  return columns;
 }
 
 /**
@@ -165,14 +299,18 @@ export function measure(text: string, ambiguousIsWide = false): number {
   let columns = 0;
   for (const { segment } of segmenter.segment(text)) {
     if (ZERO_WIDTH_CLUSTER.test(segment)) continue;
-    if (RGI_EMOJI.test(segment)) {
+    if (RGI_EMOJI.test(segment) || isUnqualifiedEmojiSequence(segment)) {
       columns += WIDE_COLUMNS;
       continue;
     }
-    const codePoint = segment.replace(LEADING_NON_PRINTING, '').codePointAt(0) ?? 0;
-    const wide = isWide(codePoint) || (ambiguousIsWide && isAmbiguous(codePoint));
-    columns += wide ? WIDE_COLUMNS : NARROW;
-    columns += trailingForms(segment);
+    const visible = segment.replace(LEADING_NON_PRINTING, '');
+    const hangul = hangulColumns(visible, ambiguousIsWide);
+    if (hangul !== undefined) {
+      columns += hangul;
+      continue;
+    }
+    columns += columnsOf(visible.codePointAt(0) ?? 0, ambiguousIsWide);
+    columns += trailingColumns(visible, ambiguousIsWide);
   }
   return columns;
 }

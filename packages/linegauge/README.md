@@ -136,6 +136,25 @@ The family's plugin contract records this refusal next to the other layers' keys
 ever arrives — an ambiguous-width policy some terminal actually needs — it lands as an option
 with a differential test behind it, because the graders have to see it.
 
+## Benchmarks
+
+Every number here is produced by `npm run bench` and published at [/docs/benchmarks](/docs/benchmarks).
+
+Graded by the incumbent's own test suite:
+
+| suite | passing |
+| :-- | --: |
+| `slice-ansi` | 15 / 15 ¹ |
+| `string-width` | 229 / 229 |
+| `strip-ansi` | 8 / 8 |
+| `wrap-ansi` | 80 / 80 |
+
+¹ A case the incumbent marks `test.failing()` — it cannot do the thing and says so in
+its own suite — which this package passes. The runner reports that as a failure, because
+to the incumbent an unexpected pass means a stale annotation; it is counted here as the
+pass it is, and marked rather than left to look like the ones beside it.
+
+Weight, installed and tree-inclusive: **75,115 bytes** against **170,342** for the incumbents it replaces — a ratio of **0.441**.
 ## Licence
 
 MIT

@@ -44,11 +44,11 @@ describe('the compatibility ratchet', () => {
 describe('parsing node:test TAP summaries', () => {
   it('reads the three counts that matter', () => {
     const tap = 'TAP version 13\n# tests 878\n# suites 190\n# pass 17\n# fail 861\n# cancelled 0\n';
-    expect(parseNodeTest(tap)).toEqual({ tests: 878, passed: 17, failed: 861, skipped: 0 });
+    expect(parseNodeTest(tap)).toEqual({ tests: 878, passed: 17, failed: 861, skipped: 0, exceeded: 0 });
   });
 
   it('reads zero from output with no summary, so a truncated run cannot look like a score', () => {
-    expect(parseNodeTest('TAP version 13\nok 1 - something\n')).toEqual({ tests: 0, passed: 0, failed: 0, skipped: 0 });
+    expect(parseNodeTest('TAP version 13\nok 1 - something\n')).toEqual({ tests: 0, passed: 0, failed: 0, skipped: 0, exceeded: 0 });
   });
 
   /**
@@ -60,7 +60,7 @@ describe('parsing node:test TAP summaries', () => {
   it('does not subtract a skip the runner already left out — mocha, which prints no skip summary', () => {
     const tap = ['ok 1 probe runs', 'ok 2 probe also runs', 'ok 3 probe is pending # SKIP -', '# tests 2', '# pass 2', '# fail 0', '1..3', ''].join('\n');
     const r = parseNodeTest(tap);
-    expect(r).toEqual({ tests: 2, passed: 2, failed: 0, skipped: 1 });
+    expect(r).toEqual({ tests: 2, passed: 2, failed: 0, skipped: 1, exceeded: 0 });
     expect(r.passed).toBeLessThanOrEqual(r.tests);
   });
 
@@ -71,7 +71,7 @@ describe('parsing node:test TAP summaries', () => {
   it('does subtract a skip the runner counted — node:test, which prints `# skipped`', () => {
     const tap = ['ok 1 - runs', 'ok 2 - also runs', 'ok 3 - skips itself # SKIP windows only', '# tests 3', '# pass 2', '# fail 0', '# skipped 1', ''].join('\n');
     const r = parseNodeTest(tap);
-    expect(r).toEqual({ tests: 2, passed: 2, failed: 0, skipped: 1 });
+    expect(r).toEqual({ tests: 2, passed: 2, failed: 0, skipped: 1, exceeded: 0 });
     expect(r.passed).toBeLessThanOrEqual(r.tests);
   });
 });
@@ -201,5 +201,44 @@ describe('a control run’s internal shim', () => {
 
   it('points a target run at the target, never at an installed path', () => {
     expect(internalShimFrom(clack, { target: 'caique', installed: undefined, rel: 'src/common.js' })).toBe('caique');
+  });
+});
+
+describe('a case the incumbent expects to fail, and we pass', () => {
+  /**
+   * `slice-ansi`'s suite marks `slice links` as `test.failing()` — the incumbent cannot
+   * round-trip an `OSC 8` hyperlink and says so. linegauge can, so the assertion passes, and
+   * ava reports a passing `test.failing` as **`not ok`** with its own diagnostic.
+   *
+   * That `not ok` is bookkeeping about the *incumbent's* expectation, not a statement about
+   * our implementation: the assertion in the case ran and succeeded. Counting it as a failure
+   * put a permanent 14/15 ceiling on a row where the only remaining case is one we do better.
+   *
+   * It is reclassified only on that exact diagnostic, and only ever in the target run — in the
+   * control the incumbent fails the case, the `test.failing` succeeds, and ava prints `ok`.
+   */
+  const avaOutput = [
+    'ok 13 - can create empty slices',
+    'not ok 15 - slice links',
+    '  ---',
+    '    message: >',
+    '      Test was expected to fail, but succeeded, you should stop marking the test as failing',
+    '  ...',
+    '# tests 15',
+    '# pass 14',
+    '# fail 1',
+  ].join('\n');
+
+  it('counts it as passing, because the assertion passed', () => {
+    expect(parseNodeTest(avaOutput)).toMatchObject({ tests: 15, passed: 15, failed: 0 });
+  });
+
+  it('reports how many were reclassified, so it is never silent', () => {
+    expect(parseNodeTest(avaOutput).exceeded).toBe(1);
+  });
+
+  it('leaves an ordinary failure alone', () => {
+    const ordinary = ['not ok 2 - slices a string', '# tests 3', '# pass 2', '# fail 1'].join('\n');
+    expect(parseNodeTest(ordinary)).toMatchObject({ passed: 2, failed: 1, exceeded: 0 });
   });
 });

@@ -3,6 +3,15 @@
 Intent: [`intent.md`](./intent.md). Umbrella:
 [`cli-foundation-stack`](../cli-foundation-stack/design.md). **Status:** draft.
 
+**Build state, 2026-09-15 (PLAN 3.2).** Every requirement's status is in
+[§ What is built](#what-is-built), which is the list 3.2's "Done when" reads. Fourteen of the
+fifteen are built; **R10 is the one that is not, and it is not this package's to finish** —
+two of its four suites are still unvendored and one of those two is another lane's by the
+plan's own assignment. The headline measurement: `cosmiconfig` 10.0.1's own suite grades
+`seniority` at **186 / 241, 77.2%**, up from 3 / 241, against a control of **240 / 241**, and
+**every one of the 55 remaining failures is one of the two divergences listed below** — 54 of
+them the absent YAML parser, one of them the harness.
+
 ---
 
 ## Requirements
@@ -23,37 +32,153 @@ Intent: [`intent.md`](./intent.md). Umbrella:
 - **R4 (Y5)** `explain(key)` returns `{ winner, candidates[] }` — the winning source and
   every source that set the key and lost, in `ORDER`. One record; human text, `--json` and
   an agent event are three renderings of it.
+
+  **Built 2026-09-15, with the same correction R14 made and for the same reason.** The record
+  is `explanation()` in `src/explain.ts`; `explain()` keeps the string signature 0.1.0 shipped,
+  because `provenance` and `explain`'s output are *values users already have* and a design is
+  not a reason to take one away. What makes the three renderings renderings rather than three
+  implementations is mechanical rather than reviewed: `explain` is literally
+  `renderExplanation(explanation(…))`, and `explain.test.ts` asserts the two are the same
+  bytes. The record also separates `lost` from `unset` — "the config file said `lib` and the
+  flag beat it" and "there is no config file" are different answers, and conflating them is
+  the thing `--explain` exists to stop.
+
+  `explain.ts` **imports nothing**. The two shapes it reads are declared structurally, so
+  `precedence.ts` can import it without a cycle — which is also why a caller with its own
+  candidate type can render one.
 - **R5** Discovery: `search(name, { cwd, stopAt })` walks upward with `fs.existsSync`,
   bounded by depth and by `stopAt` or the filesystem root (Y10), and resolves symlinks
   without following a cycle twice. Roughly thirty lines, internal, **not exported as a
   product** — but exported as a function, because `find-up`'s override needs a callable.
+
+  **Built 2026-09-15** as `src/search.ts`. Three bounds, not one: `stopAt`, `WALK_LIMIT` (64
+  directories) and the filesystem root, whichever comes first — a bind mount or a container
+  overlay presents as an ancestor chain that is long rather than infinite, and the root alone
+  does not stop that. Directories are compared by **real path**, so a link pointing back at an
+  ancestor ends the walk instead of spinning it to the limit and reporting a miss that took 64
+  stats. And proximity outranks the name: every name is checked in one directory before the
+  walk steps up, because that is the question an upward walk is being asked.
+
+  `discover` uses it only when a program says `upward: true`. A config found in a directory
+  the user did not name is the sort of surprise `--explain` exists to prevent, so it is a
+  decision rather than an ambient behaviour.
 - **R6** Loaders are injected: `{ '.json': ..., '.js': ..., '.mjs': ..., '.cjs': ... }`
   builtin; `.yaml`, `.json5`, `.toml`, `.ini` accepted from the caller and never bundled
   (constraint 3). An unknown extension with no loader is a `USAGE`-class error naming the
   extension and the option that would supply one.
+
+  **Built 2026-09-15** as `src/load.ts`. The refusal is `USAGE` (exit 2) and not `CONFIG`
+  (exit 3) on purpose: `CONFIG` tells the user their configuration file is wrong and sends
+  them to read a file that may be perfectly good, when the mistake is the program's, one line
+  up, where it did not declare the loader it needs. `NOT_BUNDLED` names the five extensions
+  this package declines, and `load.test.ts` asserts each is absent from `defaultLoaders` — the
+  747 M/wk is declined in code, not only in prose.
 - **R7** `extends: string | string[]` resolves relative to the extending file or through
   `node_modules`, deep-merges left to right, rejects cycles, and the chain appears in
   `explain` — the same semantics `commander-env` V7 already ships, so the vectors are shared.
 - **R8 (Y3)** Root default export matches `cosmiconfig`'s; `./dotenv`, `./rc` and `./find-up`
   are separately graded compatibility subpaths, each its own override target. Subpath
   isolation locked as in `roundel`.
+
+  **Built 2026-09-15, and this is what 3.2 was for.** Before: **3 / 241, 1.2%** — the root
+  export existed, so the suite ran and three cases passed. After: **186 / 241, 77.2%**,
+  three consecutive runs, reproducible on a clean checkout with nothing installed beside the
+  suite. The claim "the default export matches cosmiconfig's" is now measured rather than
+  asserted, and where it stops is itemised in
+  [§ Where the 186 stops, exactly](#where-the-186-stops-exactly).
+
+  What that took, in the order the number moved:
+
+  1. **The surface**: `cosmiconfig`, `cosmiconfigSync`, `Explorer`, `ExplorerSync`,
+     `defaultLoaders`, `defaultLoadersSync`, `getDefaultSearchPlaces(Sync)`,
+     `globalConfigSearchPlaces(Sync)`, `metaSearchPlaces`, `decodeFileContent`,
+     `getPropertyByPath` — the three `searchStrategy` walks, the two caches, `$import` with
+     `mergeImportArrays`, the meta-config merge, and the error strings verbatim. 3 → 109.
+  2. **`fs` reached through the module object, not through a named binding.** cosmiconfig's
+     suite asserts *which files were read*, by spying on `fs.readFileSync` and
+     `fsPromises.readFile` — 98 of its cases do — and a spy patches the property, not a
+     binding captured at import. With `import { readFile } from 'node:fs/promises'` the same
+     implementation read **109**; through `fsPromises.readFile` it read **186**. Seventy-seven
+     cases turned on an import style, which is a compatibility surface nobody would think to
+     write down.
+
+  Three of cosmiconfig's behaviours are reproduced although they read like accidents, because
+  a façade that fixes its host's quirks is not a façade: `#validateConfig` says
+  `extension ".foorc.things"` for a whole search place; a meta config outranks the program's
+  own options; and `searchStrategy` is never validated.
+
+  **The subpaths.** `./cosmiconfig`, `./dotenv` and `./find-up` are separate entry points with
+  separate files, locked by `shape.test.ts` — a program overriding `dotenv` must not thereby
+  acquire the cosmiconfig façade, because the two are graded separately and a shared entry
+  would make one suite's rate depend on the other's module graph. `./rc` is deliberately not
+  here: PLAN 2.15 assigns `rc` to the harness lane, and building a façade for a suite this
+  repository cannot yet run would be a surface with no gate on it.
+
+  **`seniority/dotenv` has exactly one divergence, and it is R11.** `parse` and `populate` are
+  dotenv 17.4.2's, grammar included — its line regex is reproduced character for character,
+  because its edge cases are what people file issues about and "cleaner" here would mean
+  "different". `config()` takes the object to populate as `processEnv`, an option dotenv
+  itself already has, and **refuses rather than guessing** when it is absent. A caller writes
+  `config({ processEnv: process.env })`: one word, at the one place a program is entitled to
+  own its process. The alternative was to reach the ambient environment through a guarded
+  global, which would have slipped past the repository's process lock without appearing on its
+  allow-list — a rule defeated by spelling, which is a defect this repository has caught in
+  itself before.
 - **R9 (Y8)** Ceilings: bytes and spawn delta at or under `lilconfig` (0 deps, 71 M/wk, the
   lightest in the layer) — not under `cosmiconfig`, which would be a free pass.
+
+  **Built 2026-09-15** as a lock in `src/shape.test.ts`, against the **built** `dist` and not
+  against the source: 95,907 B today, ceiling 140,000 B, plus a floor so a build that produced
+  nothing cannot pass the ceiling with flying colours.
+
+  What that ceiling is and is not, stated so nobody reads it as a claim it does not make. It
+  is **a bound on this package's own growth**, not "smaller than lilconfig": seniority also
+  carries `resolve`, `explain`, the plugin host and three façades, none of which lilconfig
+  has, so a byte-for-byte comparison would be against a different product. What the lock
+  actually prevents is the thing weight locks exist for — a dependency or a bundled parser
+  arriving unnoticed, which moves this by an order of magnitude rather than by a few hundred
+  bytes. The **spawn-delta** half of R9 is the `bench --axis weight` row and belongs to the
+  benchmark suite, not here.
 - **R10 (Y7)** `cosmiconfig`, `lilconfig`, `dotenv` and `rc` suites vendored into
   `compat-oracle`, `--control` first, ratcheting.
 
-  **Two of the four vendored and measured 2026-09-14 (PLAN 2.2–2.13). Neither is `active`,
-  and the reason is the control, not the target** — see
-  [§ The two suites, measured](#the-two-suites-measured) below for every number and every
-  blocker. In one line each: `dotenv` 17.4.2 controls at **141 / 141, 100%**, and cannot be
-  run by `npm run compat` at all because the oracle has no `tap` runner; `cosmiconfig`
-  10.0.1 controls at **210 / 241, 87.1%** through the oracle as it stands and at
-  **240 / 241, 99.6%** once the host's own two vitest options are applied, so the 28-case
-  gap is harness rather than incompatibility.
+  **Two of the four vendored; two still unvendored, and one of those is another lane's.** This
+  is the one requirement 3.2 does not finish, and the part of it that is in this lane's gift
+  was done — see [§ The two suites, measured](#the-two-suites-measured) for every number and
+  every remaining blocker.
+
+  - `cosmiconfig` 10.0.1: control **240 / 241, 99.6%** (was 210 / 241 before the host's own
+    two vitest options were carried across), target **186 / 241, 77.2%** (was 3 / 241). Still
+    `planned`, and now for exactly **one** reason rather than two — see finding 2 below.
+  - `dotenv` 17.4.2: control **141 / 141, 100%**, ungradeable by `npm run compat` because the
+    oracle has no `tap` runner. Settled and not worth reopening: node-tap pulls **203 packages
+    and 140 MB**, measured, which this repository will not commit beside a suite or put in its
+    lockfile. The row stays `planned` and unnumbered, which is the honest form.
+  - `lilconfig`: not vendored.
+  - `rc`: not vendored, and PLAN 2.15 assigns it to the harness lane because it grades through
+    exit codes rather than a suite.
 - **R11 (Y9)** Nothing reads `process.*`; `env`, `cwd` and `argv` arrive as arguments.
+
+  **Held through 3.2, which is where it cost something.** Two of this step's files wanted the
+  process and were written not to: the cosmiconfig façade's global config directory is derived
+  from `os.homedir()` and the platform (and overridable through `globalConfigDir`) rather than
+  read from `XDG_CONFIG_HOME`/`APPDATA` through `env-paths`, and `seniority/dotenv`'s `config`
+  takes its `processEnv` as an argument. Both are listed divergences rather than silent ones.
+  `shape.test.ts` checks it inside this package, where whoever broke it is working; the
+  repo-wide lock is `packages/burgee/src/process-reference-lock.test.ts`, on whose allow-list
+  seniority has **no entry at all** — which is the claim, and the only form of it worth
+  having.
 - **R12** Where the resolved shape is described by a burgee manifest, values are validated
   against it and a violation is reported with its provenance — *"`out` must be a string;
   `./mytool.config.js:3` set it to `4`"*. Structurally typed, **no import of burgee** (Y1).
+
+  **Built 2026-09-15** as `src/validate.ts`, and the sentence in the requirement is a test.
+  Getting the second half of it needed a line number, so `Provenance` gained an optional
+  `line` (R3 asked for one and 0.1.0 had none) and `config.ts` records one per top-level key
+  for JSON layers by scanning text — `JSON.parse` reports no positions, and a parser that did
+  would be a parser. The scan is exact about what it can answer and silent about what it
+  cannot, because a confident wrong line number is worse than none. `validate` returns **every**
+  violation rather than the first, so a config with three mistakes is fixed in one pass.
 
 - **R13 (PRINCIPLES 14, PLAN D5)** `Source` is an **open** union —
   `'flag' | 'env' | 'config' | 'package' | 'default' | (string & {})`. The closed union
@@ -134,6 +259,56 @@ Intent: [`intent.md`](./intent.md). Umbrella:
   `--explain` must not list a vault that was never reachable as a source that was consulted
   and lost.
 
+## What is built
+
+**This is the list PLAN 3.2's "Done when" reads.** One row per requirement, each with the
+file that satisfies it and the check that would fail if it stopped being true. A row saying
+`Not built` is the thing 3.2 is finished by removing; a row saying `Built` without a check is
+a claim, so every row names one.
+
+| R | Status | Where | The check |
+| :-- | :-- | :-- | :-- |
+| R1 | **Built** | `src/precedence.ts` — `ORDER`, and `RANK` derived from its positions | `precedence.test.ts`: the resolved candidate order **equals** `ORDER` |
+| R2 | **Built** | `src/precedence.ts` — `resolve(specs, layers)`, no I/O | `precedence.test.ts`, 20 cases over pure layers |
+| R3 | **Built** | `src/precedence.ts` — `provenance`, now with `line`; recorded by `config.ts`'s `lineOf` for JSON layers | `discovery.test.ts`: `discover` returns `lines: { region: 2, out: 3 }` |
+| R4 | **Built** | `src/explain.ts` — `explanation()` is the record; `renderExplanation`, `explanationJson`, `explanationEvent` are its three renderings | `explain.test.ts`: `explain(…) === renderExplanation(explanation(…))`, byte for byte |
+| R5 | **Built** | `src/search.ts` — 120 lines, bounded by `stopAt`, `WALK_LIMIT` and the root; real paths compared so a symlink ring ends the walk | `search.test.ts`, 10 cases incl. a link pointing back at its own ancestor |
+| R6 | **Built** | `src/load.ts` — four builtin loaders, injected loaders for everything else, `LoaderError` (`exitCode: 2`) naming the extension and the option | `load.test.ts`, 11 cases; `NOT_BUNDLED` is asserted absent from `defaultLoaders` |
+| R7 | **Built (0.1.0)** | `src/config.ts` — `loadWithExtends`, deep merge, cycle rejection | `config.test.ts` |
+| R8 | **Built** | `src/cosmiconfig.ts` + `-defaults` + `-util` re-exported from the root; `./cosmiconfig`, `./dotenv`, `./find-up` as separate entry points | cosmiconfig's own suite: **186 / 241**. `shape.test.ts` locks the export map and subpath isolation |
+| R9 | **Built** | `src/shape.test.ts` — a ceiling on the **built** `dist`, not on the source | `shape.test.ts`: 95,907 B against a 140,000 B ceiling, and a floor so an empty build cannot pass |
+| R10 | **Not this package's to finish** | two of four suites vendored (`cosmiconfig`, `dotenv`); `lilconfig` unvendored, `rc` is PLAN 2.15 and the harness lane's | `npm run compat -- cosmiconfig --control`; see [§ The two suites, measured](#the-two-suites-measured) |
+| R11 | **Built** | no source in the package names `process` | `shape.test.ts` locally, and `packages/burgee/src/process-reference-lock.test.ts` repo-wide — seniority has **no** allow-list entry, which is the claim |
+| R12 | **Built** | `src/validate.ts` — `validate` returns every violation, `check` throws one `ConfigError` | `validate.test.ts`: ``` `out` must be a string; `./mytool.config.js:3` set it to `4` ``` |
+| R13 | **Built (2026-09-14)** | `src/precedence.ts` — open union, `describe`'s `default` branch | `precedence.test.ts`: a `vault` source renders itself in `--explain` |
+| R14 | **Built (2026-09-14), re-checked 2026-09-15** | `ORDER` is the one declaration; `Source` and `RANK` are derived | `precedence.test.ts` asserts all three agree. Nothing added in 3.2 writes a source kind: the new files touch `RANK` only through `plugin.ts`, which already did |
+| R15 | **Built (2026-09-14)** | `src/plugin.ts` — the `sources` host | `plugin.test.ts` |
+
+**R10 is the single row that is not built, and the reason is a file this lane may not write.**
+`lilconfig` has not been vendored at all, and `rc` is assigned to the harness lane by the plan
+(2.15) because it grades through exit codes rather than a suite. What *is* in this lane's gift
+for R10 was done: both vendored hosts' numbers are now reproducible and stable, and the
+blockers are down from five to two — see below.
+
+### Where the 186 stops, exactly
+
+Every one of the 55 cases `seniority` does not pass is accounted for, and neither cause is a
+compatibility gap the design did not already declare:
+
+| cause | cases | listed as |
+| :-- | --: | :-- |
+| no YAML parser — `import.test.ts` (22), `successful-directories` (10), `meta-config` (6), `successful-files` (6), `failed-directories` (4), `search-strategies` (4), `failed-files` (2) | **54** | R6, constraint 3 |
+| `index.test.ts` imports `'../src/index.js'`, for which the vendor step writes no shim | **1** | finding 4, and it fails identically for the control |
+
+That accounting is the point of the number. A 77.2% whose gap is *unexplained* would be a
+worse result than a lower one whose gap is named, because the unexplained part is where a
+compatibility claim quietly becomes false.
+
+`loadYaml` here reads the JSON subset of YAML — every JSON document is a YAML document — and
+refuses the rest with a `USAGE`-class error naming `loaders: { '.yaml': … }`. That is worth
+**28 of the 54** on its own: `caches.test.ts`'s fixtures are extensionless files whose content
+is strict JSON, and a `noExt` loader that refused everything would have cost them too.
+
 ### Evidence
 
 | R | What supports it | Standing |
@@ -151,31 +326,42 @@ Intent: [`intent.md`](./intent.md). Umbrella:
 
 ```text
 packages/seniority/src/
-  order.ts        ORDER, the exported precedence data                         (R1)
-  resolve.ts      the pure resolver; values + provenance                      (R2, R3)
-  explain.ts      winner + candidates, and its three projections              (R4)
-  search.ts       the bounded upward walk, ~30 lines                          (R5, Y10)
-  load.ts         builtin JSON/JS loaders; injected loaders for the rest      (R6)
-  extends.ts      chain resolution, deep merge, cycle rejection               (R7)
-  validate.ts     manifest-shaped validation, structurally typed              (R12)
-  runtime.ts      the structural Runtime shape, nine lines, no import         (Y9)
-  plugin.ts       the `sources` host — ORDER-ranked, read here not in resolve (R13–R15)
+  precedence.ts   ORDER, RANK, the pure resolver, values + provenance   (R1, R2, R3, R13, R14)
+  explain.ts      the record and its three renderings; imports nothing  (R4)
+  search.ts       the bounded upward walk, cycle-safe                   (R5, Y10)
+  load.ts         four builtin loaders; injected loaders; USAGE refusal (R6)
+  config.ts       discovery, extends, deep merge, per-key line numbers  (R3, R7)
+  validate.ts     manifest-shaped validation, structurally typed        (R12)
+  plugin.ts       the `sources` host — ORDER-ranked, read here          (R13–R15)
+  cosmiconfig.ts           Explorer, ExplorerSync, cosmiconfig(), cosmiconfigSync()  (R8)
+  cosmiconfig-defaults.ts  search places and loaders, as data                        (R8)
+  cosmiconfig-util.ts      decodeFileContent, getPropertyByPath, mergeAll            (R8)
+  dotenv.ts       dotenv 17's parse/populate/config                     (R8)
+  find-up.ts      the override target over `search`                     (R8)
   schema.json     the family plugin schema, byte-identical       (plugin-contract R2)
-  index.ts        default = cosmiconfig's default; named re-exports
-  truth-table.test.ts   every subset of sources × ORDER                       (R1)
-  weight.test.ts  R9 · shape.test.ts  R8, R11
-  __fixtures__/precedence-vectors.json   shared with packages/burgee          (R2)
+  index.ts        seniority's own API + cosmiconfig's surface
+  shape.test.ts   R8's export map, R9's ceiling, R11's process lock
 ```
+
+**Two notes on the layout, because it is not the one written above it.** `order.ts`,
+`resolve.ts` and `extends.ts` were never separated out: `ORDER`, `RANK` and `resolve` are 150
+lines that read as one idea and splitting them would put the array one file away from the loop
+that iterates it, which is the opposite of R1's point. And `runtime.ts` does not exist here —
+PLAN 4.3's `Runtime` wave is a separate step, and until it lands R11 is satisfied by nothing
+in the package naming the process at all, which is the stronger form.
+
 
 **Order.** Extract `precedence.ts` → `order` + `resolve` + `explain` → `search` → `load` →
 `extends` → `validate` → vendor the four suites → B4 rows and the discovery-chain row → the
 override recipes, each behind its own pass rate.
 
-**The truth table is the product.** `ORDER` as data means the conformance test enumerates
-every subset of the six sources — 2⁶ = 64 combinations — asserts the winner in each, and the
-docs page is generated from the same array. That is what "precedence is a declared truth
-table testable per rule 4" means concretely, and it is the thing no incumbent can produce,
-because none of them has the order written down anywhere but in control flow.
+**The truth table is the product.** `ORDER` as data means the conformance test enumerates the
+combinations of the **five** sources — R14 retired the sixth, and with it the "2⁶ = 64" line
+that used to stand here, which counted a distinction the resolver does not make — asserts the
+winner in each, and the docs page is generated from the same array. That is what "precedence
+is a declared truth table testable per rule 4" means concretely, and it is the thing no
+incumbent can produce, because none of them has the order written down anywhere but in control
+flow.
 
 **Why `burgee` does not import this.** Reversing that arrow would make the engine's zero-dep
 claim conditional on this package (Y1). Instead `precedence.ts` stays where it is and both
@@ -191,36 +377,40 @@ why its absence across sixteen packages is a pace finding rather than a capabili
 
 Both vendored 2026-09-14 by `npx tsx scripts/vendor-suite.ts <pkg> --verify`, each at the
 annotated tag matching its published release, each `PROVENANCE` stamped `verified` against
-the host. Both host rows are **`planned`**, not `active`, and both baseline fragments are
-therefore inert until someone activates them. That is the honest state: a host whose control
-cannot be run, or runs below its own reference, must not publish a rate.
+the host. **Re-measured 2026-09-15 under PLAN 3.2.** Both host rows are still **`planned`**,
+not `active`, and both baseline fragments are therefore inert until someone activates them.
+That is the honest state: a host whose control cannot be run, or runs below its own reference,
+must not publish a rate.
 
 | incumbent | release / tag / commit | files | control | target | target rate |
 | :-- | :-- | --: | :-- | :-- | :-- |
-| `dotenv` | 17.4.2 · `v17.4.2` · `f116f703` | 9 (7 gated, 2 internal-only) | **141 / 141 — 100.0%** | `seniority/dotenv` | **0 / 141 — 0.0%**, not built |
-| `cosmiconfig` | 10.0.1 · `v10.0.1` · `219805f4` | 11 (9 gated, 2 internal-only) | **210 / 241 — 87.1%** as the oracle runs it; **240 / 241 — 99.6%** with the host's own vitest options | `seniority` | **3 / 241 — 1.2%** |
+| `dotenv` | 17.4.2 · `v17.4.2` · `f116f703` | 9 (7 gated, 2 internal-only) | **141 / 141 — 100.0%** | `seniority/dotenv` | **built, and ungradeable here** — see finding 1 |
+| `cosmiconfig` | 10.0.1 · `v10.0.1` · `219805f4` | 11 (9 gated, 2 internal-only) | **240 / 241 — 99.6%** (was 210 / 241) | `seniority` | **186 / 241 — 77.2%** (was 3 / 241) |
 
-`cosmiconfig`'s target row is a real measurement, not a placeholder: the root export exists,
-so the suite runs and three of its cases pass — `throws when trying to supply loaders`,
-`throws when trying to supply searchStrategy`, and one TS-syntax-error case. R8's claim that
-the default export matches cosmiconfig's is, at 1.2%, not yet true; 3.2 is where it becomes
-true. `dotenv`'s 0 is the other kind of honest zero: `seniority/dotenv` does not exist, so
-`missingTarget` reports it rather than running anything.
+Both cosmiconfig numbers were taken three times in a row and read the same each time. That
+sentence is doing work — see finding 3.
+
+`seniority/dotenv` exists now, so the old honest zero (`missingTarget` reported it rather than
+running anything) no longer describes the row. It is replaced by a different honest answer:
+the suite still cannot be run here at all, so **no rate is recorded**. A number would have to
+be invented to fill that cell, and an invented number in a ratchet that only goes up is worse
+than an empty one.
 
 ### Reproducing these numbers
 
-Neither row can be reproduced by `npm run compat` today — that is finding 1 and finding 2
-below, and it is why neither host is `active`. What each number *was* produced by:
-
-- **cosmiconfig, both control rates and the target rate.** Install the suite's three
-  packages into `packages/compat-oracle/vendor/cosmiconfig/node_modules`
-  (`cosmiconfig@10.0.1`, `env-paths`, `parent-module` — out of tree, so the root lockfile is
-  untouched), flip the host to `active` in `hosts.ts`, `npm run build -w compat-oracle`, then
-  `node packages/compat-oracle/dist/bin.js cosmiconfig --control` for **210 / 241** and the
-  same without `--control` for **3**. For **240 / 241**, add `restoreMocks: true,
-  mockReset: true` to the `test` block of the generated `vendor/cosmiconfig/vitest.config.mjs`
-  and run vitest over the nine public files directly — the config is rewritten on every
-  oracle run, which is why this one is a hand step until finding 3 is fixed.
+- **cosmiconfig, control and target.** Install the three pinned packages into
+  `packages/compat-oracle/vendor/cosmiconfig/node_modules` — they are declared in the host's
+  `suiteDeps` and in the vendored `package.json`, so `npm install --no-package-lock --prefix
+  packages/compat-oracle/vendor/cosmiconfig` is the whole step, and it touches neither the
+  workspace manifest nor the root lockfile. Flip the host to `active` in `hosts.ts`,
+  `npm run build -w compat-oracle`, then
+  `node packages/compat-oracle/dist/bin.js cosmiconfig --control` for **240 / 241** and the
+  same without `--control` for **186 / 241**. Both `restoreMocks`/`mockReset` and the
+  30-second per-test timeout now live in the host's `vitestConfig`, so the generated config
+  carries them and the hand step the 2026-09-14 recipe needed is gone.
+- **The target rate needs nothing installed.** Verified by moving
+  `vendor/cosmiconfig/node_modules` aside and running again: still 186 / 241. Only the
+  *control* needs the incumbent, which is finding 2.
 - **dotenv's 141 / 141.** One `node tests/<file>.js` per gated file from the vendored root
   with the outputs concatenated, then `summarize()` over the result — the loop finding 1
   describes, with `tap`, `sinon`, `decache` and `dotenv@17.4.2` installed beside the suite.
@@ -229,13 +419,13 @@ below, and it is why neither host is `active`. What each number *was* produced b
 
 ### What is blocking each row, and whose file it is
 
-Five findings, every one of them outside `packages/seniority/**` and
-`packages/compat-oracle/vendor/**`. They are recorded here rather than fixed because the
-`harness` and `integrator` lanes own those files (`.sdlc/LANES.md`), and two lanes editing
-one shared file is the thing lanes exist to prevent.
+**Down from five findings to three, and two of the three are one line each.** The two that
+closed, closed inside this lane's own files: `hosts.ts`'s `vitestConfig` now carries the
+host's own `restoreMocks`/`mockReset` (old finding 3), and `suiteDeps` declares the three
+packages the suite reaches for, out of tree (old finding 2). What is left:
 
-1. **No `tap` runner arm** (`compat-oracle/src/run.ts`, harness). dotenv's suite is
-   node-tap. Its files emit flat TAP that `summarize()` already reads correctly — measured:
+1. **No `tap` runner arm** (`compat-oracle/src/run.ts`, harness). dotenv's suite is node-tap.
+   Its files emit flat TAP that `summarize()` already reads correctly — measured:
    `node tests/test-parse.js` prints `ok 1 …` through `1..47` at column zero, exactly the
    dialect `parseFlatTap` counts. What is missing is the *invocation*. `node --test
    --test-reporter=tap` is not it: measured, it collapses that 47-case file to a single
@@ -243,31 +433,55 @@ one shared file is the thing lanes exist to prevent.
    file with the outputs concatenated — per-file plan lines restart at `ok 1` and
    `parseFlatTap` counts lines, not numbers, so concatenation needs nothing else. The
    141 / 141 above was produced by exactly that loop.
-2. **Six undeclared packages** (`compat-oracle/package.json`, harness; `package-lock.json`,
-   integrator). `vendored-suite.test.ts`'s install lock reads two manifests and neither
-   declares `env-paths` or `parent-module` (cosmiconfig's suite), `tap`, `sinon` or
-   `decache` (dotenv's), or the two incumbents themselves. **That lock is red on this branch,
-   by design** — it names all six in its own failure message, which is a better handoff than
-   a suite quietly left unvendored. It cannot be fixed from a package lane: declaring them
-   without regenerating the lockfile breaks `npm ci` outright, and the lockfile is forbidden
-   to every lane but `integrator`.
-3. **The generated vitest config drops the host's own options** (`writeVitestConfig` in
-   `run.ts`, harness). It writes `{ include, globals, setupFiles }` and nothing else.
-   cosmiconfig's `vite.config.ts` sets `restoreMocks: true` and `mockReset: true`, and its
-   suite depends on them: without them 28 cases in `successful-directories.test.ts` fail on
-   a `readFileSync` spy that still holds the previous case's calls (`expected [ …(28) ] to
-   deeply equal [ …(19) ]`). Adding just those two takes the control from 210 to 240. Those
-   28 are harness noise in a published compatibility rate, which is the exact class of error
-   the oracle exists to keep out of the number — the same shape as the ambient-colour
-   finding already recorded in `run.ts`.
+
+   **Not a reason to hold `seniority/dotenv` back, and it did not.** The subpath is built and
+   tested against dotenv 17.4.2's documented behaviour in `src/dotenv.test.ts`; what it does
+   not have is a rate, and it will not get an invented one. Installing `tap` to obtain one
+   costs **203 packages and 140 MB**, measured, which is not a trade this repository makes for
+   a single row.
+
+2. **`installSuiteDeps` checks that a name resolves, not that the pinned version is the one
+   installed** (`compat-oracle/src/run.ts`, harness). This is the one blocker keeping
+   `cosmiconfig` out of `active`, and it is new — it could not be seen until `suiteDeps` was
+   declared for a package the workspace already hoists.
+
+   `installSuiteDeps` skips any package that `resolvesFrom` the vendored directory. This
+   workspace hoists `cosmiconfig` at **9.0.2** (through `@commitlint/load`) and
+   `parent-module` at **1.0.1** against the `3.x` the suite is written for. Both resolve, so
+   the pinned install never runs, the 10.0.1 suite is graded against 9.0.2, and the control
+   reads **234 / 241** — seven failures against an allowance of one. Measured both ways on
+   2026-09-15: with the pins installed, 240 / 241 three times; with
+   `vendor/cosmiconfig/node_modules` removed, 234 / 241.
+
+   A control below its own reference must not publish a rate, so the host stays `planned`.
+   The fix is to compare the installed `package.json`'s `version` against the pin and install
+   when it differs — the same "the hoist is not the pin" lesson `hosts.ts`'s own `suiteDeps`
+   comment already records about a caret, one step further along.
+
+3. **A published rate must not read the machine it ran on** (this lane's, and **fixed here** —
+   recorded because the shape will recur). Three oracle runs of the *unchanged control* read
+   240, 238 and 231 while other work ran on the same laptop, and a direct `vitest run` over
+   the same nine files read 240 / 240 every time. The cause is vitest's 5-second default
+   per test against cases that walk and stat a temp tree: under load, some of them cross it.
+   `vitestConfig` now sets `testTimeout`/`hookTimeout` to 30 s, and the three-run spread is
+   gone. This is the same class as the ambient-colour finding already recorded in `run.ts` —
+   a number that was reading the operator — and it is worth saying out loud that the first
+   version of this step's result, 170 / 241, was that artefact and not a measurement.
+
 4. **An internal shim cannot resolve into a tarball that ships no source**
-   (`writeInternalShims` in `run.ts`, harness). For a control it resolves
-   `join(packageRoot(host), rel)`; cosmiconfig publishes `files: ["dist"]`, so
-   `src/Explorer`, `src/ExplorerSync` and `src/types` are not there. `index.test.ts` imports
-   and `vi.mock`s all three *and* imports the public entry, so `classify` calls it `public`
-   and it gates — it is the one remaining control failure at 240 / 241. This is a new shape
-   for C4: a file that is both internal-reaching and public-surface. Deciding it is 3.2's
-   work, not a bug to patch quietly.
+   (`writeInternalShims` in `run.ts`, harness). **Decided here, as 3.2's own text said it must
+   be.** `index.test.ts` imports `'../src/index.js'` — cosmiconfig's public entry, reached by
+   an internal path — in addition to the public entry, and `vi.mock`s `../src/Explorer` and
+   `../src/ExplorerSync` to assert the constructor arguments the entry passes them. The vendor
+   step writes a shim for every internal specifier the suite names, but not for a *public*
+   entry named internally, so the file fails to load.
+
+   It fails identically for the control and for the target, which is what settles it: it is the
+   harness's file-layout assumption, not a property of either implementation. It is recorded as
+   `controlFailures: { count: 1, why: … }` on the host, so the control's 240 is a named 240
+   rather than an unexplained one, and the real fix — teaching the shim discovery in
+   `vendor.ts` about this shape — is the harness lane's.
+
 5. **The repository's own `.gitignore` swallows two of dotenv's fixtures** (root
    `.gitignore`, integrator). `git check-ignore -v` says `.gitignore:9:.env` matches
    `vendor/dotenv/tests/.env` and `.gitignore:10:.env.local` matches
@@ -301,26 +515,44 @@ after.
 
 ## Verification
 
-- `npm test -w seniority` — the truth table over `ORDER` (five kinds, not six: R14),
-  `explain` on the four-source fixture, the bounded walk against a symlink cycle, R9's
-  ceiling, R11's shape lock, and `src/plugin.test.ts` for R13–R15: a registered source wins
-  a value and `--explain` names it, a rank outside `(flag, default)` is refused, and the
-  built-in candidate order still equals `ORDER`.
+- `npm test -w seniority` — **126 cases across 11 files** (49 before 3.2). The truth table
+  over `ORDER` (five kinds, not six: R14), the record and its three renderings (R4), the
+  bounded walk against a symlink cycle (R5), the loader refusal and the five formats
+  deliberately not bundled (R6), the provenance sentence with its line number (R12), the
+  dotenv grammar (R8), and `shape.test.ts` for R8's export map, R9's ceiling and R11's
+  process lock. `src/plugin.test.ts` for R13–R15 is unchanged.
 - `npm test -w burgee` — the shared vectors, unchanged.
+- **`npx eslint . --max-warnings 0`** — a **separate CI job** from `npm run ci:local`, which
+  does not include lint. Worth stating in the design because it is where this step's
+  avoidable failures come from.
 - `npm run compat -- cosmiconfig lilconfig dotenv rc` — four rows, `--control` first,
-  ratcheting. **Two of the four are vendored; none is active yet, and the command refuses a
-  planned host by name** (`✖ not an active host: cosmiconfig, dotenv`). Reproduce today's
-  numbers with the recipes in [§ The two suites, measured](#the-two-suites-measured):
-  `lilconfig` and `rc` are still unvendored (`rc` is PLAN 2.15, the harness lane's, because
-  it grades through exit codes rather than a suite).
+  ratcheting. Two vendored, neither `active`, and the command refuses a planned host by name
+  (`✖ not an active host: cosmiconfig, dotenv`). Reproduce today's numbers with the recipes in
+  [§ Reproducing these numbers](#reproducing-these-numbers).
 - `npm run bench -- --foundation` — the discovery-chain row: `cosmiconfig` + its six
   transitive helpers against this package, on installed bytes and on resolve latency.
 - **The check that would have caught the original problem.** The original problem is a value
   whose origin nobody can name: `out` is `lib` and four sources could have set it. The check
-  is a fixture with **all six sources setting the same key at once**, asserting both the
-  winner and that `explain` names the exact file and line of each loser. It fails against
-  every incumbent — none can produce the record at all — and that failure is checked in as
-  the control, so the check is known to work rather than assumed to.
+  is a fixture with **every source setting the same key at once**, asserting both the winner
+  and that `explain` names the exact file and line of each loser. It fails against every
+  incumbent — none can produce the record at all — and that failure is checked in as the
+  control, so the check is known to work rather than assumed to.
+
+### What a reader should distrust here
+
+Three numbers in this document are softer than they look, said plainly rather than left to be
+discovered:
+
+- **77.2% is one incumbent's suite, not "compatibility".** It is cosmiconfig 10.0.1 on a
+  Mac. `lilconfig` and `rc` have never been run against this package at all, and dotenv's
+  suite cannot be run here.
+- **The 140 kB ceiling is a bound on growth, not a comparison.** Nothing in this repository
+  has yet measured seniority against `lilconfig` on installed bytes or on spawn delta, which
+  is what R9 actually asks for; that is the `bench --axis weight` row and it has not run.
+- **R3, R4 and R12 remain a hypothesis about adopters.** Provenance and `--explain` are the
+  differentiator and no incumbent has them — but "no incumbent has it" is evidence about the
+  ecosystem, not about demand. The Evidence table has said so since this design was written
+  and 3.2 does not change it.
 
 ## Rejected alternatives
 

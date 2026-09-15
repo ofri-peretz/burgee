@@ -285,7 +285,19 @@ export function applyToken(token: SgrToken, active: ActiveStyle[]): void {
     const family = `modifier-${token.code}`;
     removeFamily(active, family);
     active.push({ family, open: token.open, close });
+    return;
   }
+
+  // An SGR parameter this file has no close code for — `ESC[20m`, `ESC[1001m`. It used to
+  // be dropped here, which is the one failure on the `slice-ansi` row that was ours
+  // (`design.md` § R10 category E): the text survived a cut and its style did not, silently.
+  // The sequence is the caller's, not this library's to vet, so it is carried through and
+  // reopened like any other style. `SGR_RESET` is its closer because it is the only one
+  // that is correct for a parameter whose meaning is unknown — there is nothing to derive a
+  // narrower close from — and it is what `slice-ansi` emits for the same input.
+  const family = `unknown-${token.open}`;
+  removeFamily(active, family);
+  active.push({ family, open: token.open, close: SGR_RESET });
 }
 
 export const applyParameters = (parameters: string, active: ActiveStyle[]): void => {

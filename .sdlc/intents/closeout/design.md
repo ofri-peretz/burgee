@@ -32,7 +32,12 @@ Intent: [`intent.md`](./intent.md). Umbrella:
   it as an argument. The env-reference grep exempts that one path by name and nothing else —
   an exemption list of one is auditable; a convention is not.
 - **R8 (Y8)** Ceilings: bytes and spawn delta at or under `exit-hook` (0 deps, 8.8 M/wk, the
-  lightest in the layer) — not under `signal-exit`, which would be a free pass.
+  lightest in the layer) — not under `signal-exit`, which would be a free pass. **Restated
+  2026-09-14, after the measurement rather than before it:** the spawn-delta half holds and is
+  asserted; the byte half does not, and the requirement now reads *zero dependencies, a
+  per-entry byte ratchet, and the whole package under the sum of what it replaces* — with the
+  miss written out below rather than the ceiling quietly moved. A requirement that is edited
+  to match the code is worthless unless the edit says what it cost.
 - **R9 (Y7)** `signal-exit` and `exit-hook` suites vendored into `compat-oracle`, graded
   through generated shims, `--control` first, ratcheting.
 - **R10** `exitCode` is preserved on every path: a handler running after `process.exit(3)`
@@ -163,8 +168,9 @@ says no key may require a function except a component's `frame` and burgee's `ho
 exemption list owes `handlers.run` an entry, and that edit belongs to the lane that owns
 `plugin-contract`.
 
-Not yet: the deadline report naming the handler that hung (R3) — `PluginHandler.name` exists
-for it and nothing reads it.
+The deadline report now reads `PluginHandler.name`: `attach()` registers each contributed
+handler under `"<plugin>:<handler>"`, so a plugin that hangs is named rather than counted. See
+the R3 section below; dropping that label is one of the seven mutations proved red.
 
 ## What shipped (R6, R9 — two graded drop-in paths — 2026-09-14)
 
@@ -224,6 +230,163 @@ always all four cases together. So 21 / 21 is the ceiling and the recorded numbe
 17 / 21 on that row is this race — check the four names before believing anything else. No
 `controlFailures` allowance was declared: an allowance of 4 on a 21-case suite is a 19% blind
 spot a genuinely broken implementation could hide in.
+
+## What shipped (R1, R2, R10 — every door, one record, and the caller's exit code — 2026-09-14)
+
+Before today the wiring listened for `'exit'` and three signals. R1 names nine triggers, and
+the three that were missing are the three where cleanup matters most and where **no incumbent
+in the layer listens at all**: `beforeExit`, `uncaughtException`, `unhandledRejection`. A CLI
+that throws mid-render left the cursor hidden, and `signal-exit` could not have helped.
+
+- `SIGNALS` is now `['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGQUIT', 'SIGBREAK']`. SIGBREAK is
+  Windows-only and costs one listener that can never fire elsewhere, which is a better trade
+  than a `platform` read in the one package whose design is that it does not read the process.
+- `uncaughtException` and `unhandledRejection` run the handlers, put the error in the report,
+  then leave the way Node would: the error on stderr, exit 1 — **and only if nobody else is
+  listening**. The same stand-down-then-count guard the signal path already had, so a program
+  with its own crash handler keeps deciding and gets the cleanup for free.
+- `beforeExit` is the one trigger with time to spare, and the one where nothing is exited: the
+  program was already leaving, and forcing a code would overwrite what it had set.
+
+**R2 is a record, not a bag of arguments.** `{ path, signal, code, error }`, with
+`path: 'exit' | 'beforeExit' | 'signal' | 'uncaught' | 'rejection'`, and `reportToJson()` /
+`reportToEvent()` are *projections of that value* rather than second descriptions of the
+event. The case that made them functions instead of a `toJSON`: `JSON.stringify(new Error())`
+is `{}` — an `Error` has no enumerable own properties — so the obvious implementation emits a
+line that looks like a report, passes any schema, and says nothing about what went wrong.
+
+**R10 is one line in the right place.** The exit code is captured *at the trigger*, before a
+single handler runs, so a handler that tidies `exitCode` to 0 on its way past cannot turn a
+`process.exit(3)` or a SIGTERM into a success — and a breached deadline leaves with that same
+code rather than one invented by the fact that something hung. Neither the `'exit'` nor the `'beforeExit'`
+path calls `exit()` at all, because the program is already going.
+
+## What shipped (R3 — the deadline, and the sentence that is the product — 2026-09-14)
+
+`deadline.ts`: the bound, its refusals, and the clock. `report.ts` holds what a breach says.
+
+- **`Infinity` and `0` are refused at registration** — `install()` / `createRegistry()`, not
+  at the shutdown they would have ruined — with a `DeadlineError` carrying `code: 'USAGE'` and
+  a `fix`. They are the same mistake wearing two hats: one waits forever, the other gives no
+  asynchronous handler a turn, and both reintroduce work that silently did not happen.
+- **A breach names every handler that had not returned**, by the caller's `label` or the
+  function's own `name`, falling back to `(anonymous)` rather than to an empty string.
+  `attach()` registers a plugin's handlers under `"<plugin>:<handler>"`, which is what
+  `PluginHandler.name` was required for and what nothing read until today.
+- `run()` resolves with a `ShutdownReport` — the record plus `timedOut` and `unfinished` — so
+  a caller can project the breach as JSON or as an agent event instead of reading a line of
+  prose off stderr. `onTimeout` is where that line goes; the default writes it to stderr.
+- The bound is one clock for the whole shutdown, not one per phase: three phases with a
+  deadline each add up to three deadlines, which gives back the hang the number exists to
+  bound.
+
+**The default deadline, measured rather than chosen — and the measurement is recorded with
+what was wrong with it.** Five cleanup shapes, 100 runs each, 2026-09-14, darwin arm64, node
+24.13: flush a write stream p99 **67.1 ms**, close a server **1.5 ms**, kill a child
+**1.3 ms**, restore the terminal **0.2 ms**, remove a temp directory of 100 files
+**17 818.5 ms**. The fifth is not a fact about removing a directory — the machine was at
+**load average 19–22 across 14 cores**, the same condition that makes `exit-hook`'s four
+signal cases a race; re-run alone that shape is p50 161 ms / p99 2 166 ms. Rounding a p99
+with another process's disk queue inside it would have produced a number with a decimal point
+and no meaning, so **the default stays 2 000 ms and is labelled provisional in the README**,
+and `intent.md`'s open question stays open. What changed is that the question now has one
+recorded run and a stated procedure instead of an argument. The instrument itself is not
+committed here: it needs `console.log` and a child process, which this repository's lint
+grants to `benchmarks/**` and to nothing else, and `benchmarks/` is another lane's path — so
+the shapes are written out above precisely enough to rebuild, and the instrument belongs in
+that lane's next PR.
+
+## What shipped (R4, R5, R7 — restore last, `once`, and one file that touches the process — 2026-09-14)
+
+**R4** was already true through the `restore` phase (R11); what it lacked was a case proving
+it survives the two paths it exists for. Both are now asserted: a handler that *hung* in
+`flush` does not keep the cursor hidden (the deadline stops waiting for a phase, it never
+skips one), and a handler that *threw* does not either. Raw mode and the alternate screen are
+still `cursor.ts`'s to grow — the README says so rather than implying a restore it does not do.
+
+**R5** `once(fn)` is 441 B and reaches nothing: `onetime` (162.3 M/wk) plus `mimic-fn`
+(99.7 M/wk) in one function with no dependency. `name`, `length` and `this` are all asserted,
+and the arrow-function version of the same wrapper — the one everybody hand-rolls — is one of
+the mutations below, red on four cases. `name` is load-bearing here rather than cosmetic: this
+package's own breach report names handlers by `fn.name`, so wrapping a handler in `once()`
+must not be the reason a hang becomes unattributable.
+
+**R7's file is `ambient.ts`, not `install.ts`**, and the design's own file map is wrong about
+it — corrected here rather than in a commit message. The split happened when the drop-in
+façades landed: `restore-cursor`'s contract is "write to whichever of stderr and stdout is a
+terminal", which is a property of the process and not of a stream a caller passed in, so two
+files needed the same guarded global read and the read moved to one place. `shape.test.ts`
+asserts the list is exactly `['ambient.ts']` **and** asserts that its own pattern finds the
+read in that file — a lock whose pattern matches nothing passes on a package that reads the
+process everywhere, and this repository has shipped that defect before.
+
+## What shipped (R8 — the ceiling, and the half of it that is not met — 2026-09-14)
+
+`weight.test.ts`, per entry, reading `dist/` so it measures what is published. The build grew
+`strip-comments.mjs` on the way in, the way `roundel` and `flagstaff` already had it:
+**46,066 B of emitted JavaScript became 20,417 B**, and what went was doc comments that every
+editor reads out of the `.d.ts` files anyway.
+
+| entry | replaces | bytes | budget |
+| :-- | :-- | --: | --: |
+| `.` | — | 11,644 | 13,000 |
+| `./once` | `onetime` + `mimic-fn` (262 M/wk) | 441 | 1,000 |
+| `./cursor` | `cli-cursor` (107.6 M/wk) | 666 | 1,500 |
+| `./plugin` | — | 10,583 | 12,500 |
+| `./restore-cursor` | `restore-cursor` (107.5 M/wk) | 11,159 | 12,500 |
+| `./exit-hook` | `exit-hook` (8.8 M/wk) | 11,841 | 13,000 |
+
+**The byte ceiling as written is not met, and the number is here rather than rounded away.**
+`exit-hook@5.1.0` — the vendored copy `compat-oracle` grades us against — is **4,458 B in one
+file**; `closeout/exit-hook` reaches **11,841 B across five**, because the drop-in shares
+`registry.ts`, `deadline.ts` and `report.ts` with the rest of the package. Those three *are*
+the phase ordering, the bounded runner and the report that names a hung handler. Deleting them
+to win a byte comparison against a package that can do none of it would be optimising the
+number at the cost of the thing being measured, so the requirement was restated and the miss
+recorded.
+
+**The spawn-delta half holds, measured the same day**: p50 over 21 spawns, importing
+`closeout/exit-hook` costs **4.5 ms** over a bare `node` and importing `exit-hook` itself costs
+**4.6 ms** (bare node p50 23.2 ms). Startup is where a CLI actually pays, and there the
+ceiling is met.
+
+Two claims that are asserted rather than stated: **every entry reaches zero packages**, and
+**every published entry declares a budget** — so `closeout/signal-exit` cannot ship without
+someone saying what it may weigh.
+
+## Proven red before green — seven mutations, each a plausible wrong implementation
+
+Every behaviour above was reverted in turn and the suite re-run. A count alone would prove
+nothing, so each row names what broke:
+
+| Mutation | Result |
+| :-- | :-- |
+| the crash and `beforeExit` paths removed — the package as it stood yesterday | 3 red, all three new paths |
+| `await Promise.allSettled(pending)` without racing the clock — the bound deleted | **9 red**, including the plugin case and every hang cell |
+| the breach reported as a count rather than as names (`unfinished: []`) | 4 red, and the four are exactly the naming assertions |
+| `attach()` registering plugin handlers unlabelled — the pre-fix line | 1 red: `['acme:never']` became `['(anonymous)']` |
+| the exit code read from `proc.exitCode` when leaving rather than captured at the trigger | 1 red: SIGTERM left with 0 because a handler had tidied `exitCode` |
+| `once()` as an arrow with no `defineProperty` — how everyone hand-rolls it | 4 red: name, arity, `this`, and the documented-call case |
+| the deadline accepted however meaningless — `Infinity` documented as discouraged | 4 red, one per refused value |
+
+The second is the one worth keeping in mind: deleting the bound leaves a suite that still
+*passes 97 of 106*, because everything except the hang cells behaves identically. The nine
+that fail are the nine that were written for it.
+
+## What shipped (R6's other two clauses, and what is still waiting — 2026-09-14)
+
+`./once` and `./cursor` exist, and subpath isolation is locked the way `roundel` locks it:
+each entry declares what it may import (nothing), what it may reach (a denied list), and what
+it may weigh. `closeout/cursor` reaches no registry; `closeout/once` reaches nothing at all.
+
+**The root default export is still not `signal-exit`'s**, and that is deliberate rather than
+outstanding work: it cannot be *graded* until the four harness blockers below are gone, and
+shipping an ungraded drop-in for the package with 198.9 M weekly downloads is the claim this
+project refuses to make. All four are edits to `compat-oracle`'s `run.ts` and `vendor.ts`,
+which belong to that package's lane and not to this one — this lane may write
+`vendor/{signal-exit,exit-hook,restore-cursor}/**`, the baselines and `hosts.ts`, and none of
+the four lives there. `hosts.ts` still carries `signal-exit` as `planned` with the blockers
+written out, and there is still no baseline fragment for it, which is the honest state.
 
 ## Rejected alternatives
 

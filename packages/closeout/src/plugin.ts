@@ -43,7 +43,7 @@
  * the lane that owns `plugin-contract`, and is recorded in this package's `design.md` rather
  * than left in a commit message.
  */
-import { DEFAULT_PHASE, type ExitHandler, PHASES, type Phase } from './registry.js';
+import { DEFAULT_PHASE, type ExitHandler, type HandlerSpec, PHASES, type Phase } from './registry.js';
 
 /**
  * The plugin contract version. One number for the family — the same `1` flagstaff declares,
@@ -204,7 +204,7 @@ export function contributions(): Contribution[] {
  * to something it built itself, and so this file does not pull the process wiring in.
  */
 export interface HandlerHost {
-  add(handler: ExitHandler, phase?: Phase): () => void;
+  add(handler: ExitHandler, spec?: HandlerSpec): () => void;
 }
 
 /**
@@ -217,7 +217,15 @@ export interface HandlerHost {
  * shutdown happens; `attach()` wires, and the process (or the caller) triggers.
  */
 export function attach(host: HandlerHost): () => void {
-  const offs = contributions().map((c) => host.add(c.run, c.phase));
+  /*
+   * Each handler is registered under its contributed id, which is the whole reason a plugin
+   * handler is required to carry a name. A plugin's cleanup is the handler least likely to be
+   * a named function and most likely to be the one that hangs: it is somebody else's
+   * anonymous closure, registered by a host that never saw its source. Passing the id here is
+   * what turns "a handler did not return" into "acme:unlock did not return", which is the
+   * sentence the whole package exists to be able to say.
+   */
+  const offs = contributions().map((c) => host.add(c.run, { phase: c.phase, label: c.id }));
   return () => {
     for (const off of offs) off();
   };

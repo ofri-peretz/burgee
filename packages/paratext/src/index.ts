@@ -31,7 +31,18 @@ import { registerBuiltins } from './builtins.js';
 // `reset()`; a caller that wants ours plus theirs just registers theirs on top.
 registerBuiltins();
 
-export { bell, builtins, clipboard, cwd, image, link, notify, registerBuiltins, title } from './builtins.js';
+/**
+ * **R8: the root is `ansi-escapes`' surface.** `link` and `image` here are its *functions*,
+ * not this package's capability records — `link(text, url)` and `image(data, options)` — so
+ * that a caller who changes one specifier in an import gets what they asked for rather than
+ * an object shaped nothing like it. The other five records are still exported by name,
+ * because `ansi-escapes` has no member called `bell`, `clipboard`, `cwd`, `notify` or
+ * `title` and there is nothing for them to collide with. The two that moved are reached as
+ * `capability('link')` and `capability('image')`, or through `builtins`.
+ */
+// eslint-disable-next-line import-next/no-default-export -- the root default IS the drop-in surface; see ansi-escapes.ts
+export { default, ansiEscapesFor, type AnsiEscapes, beep, beginSynchronizedOutput, clearScreen, clearTerminal, clearViewport, ConEmu, cursorBackward, cursorDown, cursorForward, cursorGetPosition, cursorHide, cursorLeft, cursorMove, cursorNextLine, cursorPrevLine, cursorRestorePosition, cursorSavePosition, cursorShow, cursorTo, cursorUp, endSynchronizedOutput, enterAlternativeScreen, eraseDown, eraseEndLine, eraseLine, eraseLines, eraseScreen, eraseStartLine, eraseUp, exitAlternativeScreen, image, type ImageOptions, iTerm, link, type NotImplemented, scrollDown, scrollUp, setCwd, synchronizedOutput } from './ansi-escapes.js';
+export { bell, builtins, clipboard, cwd, notify, registerBuiltins, title } from './builtins.js';
 export { type Capability, CapabilityError, DEPRECATED, type Fields, type Support, capabilities, capability, check, emit, isDeprecation, refusals, register, reset, supports } from './capability.js';
 export { processRuntime, type Runtime } from './runtime.js';
 export { fieldsUsed, render } from './template.js';

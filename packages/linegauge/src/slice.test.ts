@@ -130,6 +130,40 @@ describe('the rules a code-unit slice cannot honour', () => {
 });
 
 /**
+ * `design.md` § R10 category E — the one failure on the `slice-ansi` row that was ours.
+ *
+ * The style stack tracked only the SGR parameters in its own close-code table and dropped
+ * the rest, so `ESC[1001m` vanished across a cut and the slice came back bare. `slice-ansi`
+ * re-emits **any** parameter it saw and closes with `ESC[0m`, and it is right to: the
+ * sequence is the caller's, not the library's to vet. A style stack that silently discards
+ * what it cannot name is a filter nobody asked for, and it fails in the worst direction —
+ * the text is still there, only unstyled, so nothing throws and no test of `width` moves.
+ *
+ * `ESC[0m` is the close, because it is the only closer that is correct for a parameter
+ * whose meaning is unknown: there is no way to derive a narrower one.
+ */
+describe('an SGR parameter the stack does not recognise', () => {
+  it.each([
+    [`${ESC}[20mTEST${ESC}[49m`, 0, 4, `${ESC}[20mTEST${ESC}[0m`],
+    [`${ESC}[1001mTEST${ESC}[49m`, 0, 3, `${ESC}[1001mTES${ESC}[0m`],
+    [`${ESC}[1001mTEST${ESC}[49m`, 0, 2, `${ESC}[1001mTE${ESC}[0m`],
+  ])('carries %j through a cut, and slice-ansi agrees', (input, start, end, expected) => {
+    expect(slice(input, start, end)).toBe(expected);
+    expect(slice(input, start, end)).toBe(sliceAnsi(input, start, end));
+  });
+
+  it('reopens it on the far side of a cut, like any other style', () => {
+    // The property that makes it a style rather than a passenger: taken from the middle,
+    // the unknown parameter is re-emitted at the start of the piece it applies to.
+    expect(slice(`${ESC}[1001mTEST${ESC}[0m`, 1, 3)).toBe(`${ESC}[1001mES${ESC}[0m`);
+  });
+
+  it('counts nothing towards the width, so the columns are unchanged', () => {
+    expect(width(`${ESC}[1001mTEST${ESC}[0m`)).toBe(4);
+  });
+});
+
+/**
  * The two places `slice-ansi` and this module disagree, each stated with the case that
  * decides it. Neither is an oversight in the corpus above: they are the reason R4 says
  * "never splits a grapheme cluster" and "rounds outward, never inward", and a suite that

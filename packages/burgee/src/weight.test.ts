@@ -105,6 +105,10 @@ const RULES: Record<string, EntryRule> = {
   // constraint, and E1 reads exit 2 as *rewrite the command*, which invites the same pair
   // again. Measured 53,295.
   //
+  // Two seniority subpaths, not the bare package — changed 2026-09-15 when the weight gate
+  // caught the engine 37% over its ceiling. The barrel pulled the whole package in, including
+  // a dynamic `import('seniority')` no bundler can shake; naming the halves cut 26%.
+  //
   // `seniority` is the one bare import `.` admits, and it is admitted rather than denied
   // because the alternative was worse: burgee shipped its own `precedence.ts` and
   // `config.ts`, 281 lines of which `config.ts` was byte-identical to seniority's. Two
@@ -113,7 +117,7 @@ const RULES: Record<string, EntryRule> = {
   // reports it. The output stack stays denied by name above: colour and progress are things
   // a parser has no reason to carry, where precedence is the parser's own job.
   ".": {
-    allow: ["seniority"],
+    allow: ["seniority/precedence"],
     budget: 53_300,
     denied: [
       "testing.js",
@@ -137,7 +141,7 @@ const RULES: Record<string, EntryRule> = {
   // carries the theme seam and the fake clock (56,626 measured).
   // 58,300 on 2026-09-13: the harness reaches the schema, so it carries the 395 B above.
   // Measured 58,260.
-  "./testing": { allow: ["seniority"], budget: 58_300, denied: ["dev.js"] },
+  "./testing": { allow: ["seniority/precedence"], budget: 58_300, denied: ["dev.js"] },
   // The brand generator. Pure geometry and string building — it must never reach
   // the engine, and the engine must never reach it: a CLI that ships argv parsing
   // has no reason to carry an SVG emitter.
@@ -150,7 +154,7 @@ const RULES: Record<string, EntryRule> = {
   // than the swallowtail), `markings` (a second colour on it), `sheen` and `bevel` (the
   // light on it, still and swept). Four options, one clip path and two renderers.
   "./cli": {
-    allow: ["roundel/contrast", "seniority"],
+    allow: ["roundel/contrast", "seniority/precedence"],
     budget: 74_000,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },

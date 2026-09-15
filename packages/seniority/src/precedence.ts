@@ -1,3 +1,5 @@
+import { explanation, renderExplanation } from './explain.js';
+
 /**
  * One precedence order, fixed and not configurable (commander-env V1–V3, V5):
  *
@@ -78,6 +80,8 @@ export interface Provenance {
   source: Source;
   /** The env name, the config file, or `package.json` — where a person would look. */
   location?: string;
+  /** The line within `location`, when the layer recorded one (R3). A file source may; an env name cannot. */
+  line?: number;
 }
 
 export interface Candidate {
@@ -85,11 +89,19 @@ export interface Candidate {
   location: string;
   /** `undefined` when the layer had nothing for this option. */
   value: unknown;
+  /** The line in `location` that set it, when the layer knows (R3). */
+  line?: number;
 }
 
 export interface Layer {
   path: string;
   data: Record<string, unknown>;
+  /**
+   * Key → the line in `path` that sets it, when the loader could tell (R3, R12). Optional
+   * everywhere: a `.js` config has no line a parser can hand back without a parser, and a
+   * missing line is reported as a missing line rather than as line zero.
+   */
+  lines?: Record<string, number>;
 }
 
 export interface Layers {
@@ -164,14 +176,20 @@ function fromEnv(name: string, spec: OptionSpec, layers: Layers): Candidate | un
   return { source: 'env', location: variable, value: parsed };
 }
 
+/** A file layer's candidate, carrying the line when the loader recorded one (R3). */
+function fromLayer(source: BuiltinSource, name: string, layer: Layer): Candidate {
+  const line = layer.lines?.[name];
+  return { source, location: layer.path, value: layer.data[name], ...(line === undefined ? {} : { line }) };
+}
+
 function candidatesFor(name: string, spec: OptionSpec, layers: Layers): Candidate[] {
   const out: { rank: number; candidate: Candidate }[] = [
     { rank: RANK.flag, candidate: { source: 'flag', location: `--${name}`, value: layers.flags[name] } },
   ];
   const env = fromEnv(name, spec, layers);
   if (env !== undefined) out.push({ rank: RANK.env, candidate: env });
-  if (layers.config !== undefined) out.push({ rank: RANK.config, candidate: { source: 'config', location: layers.config.path, value: layers.config.data[name] } });
-  if (layers.pkg !== undefined) out.push({ rank: RANK.package, candidate: { source: 'package', location: layers.pkg.path, value: layers.pkg.data[name] } });
+  if (layers.config !== undefined) out.push({ rank: RANK.config, candidate: fromLayer('config', name, layers.config) });
+  if (layers.pkg !== undefined) out.push({ rank: RANK.package, candidate: fromLayer('package', name, layers.pkg) });
   out.push({ rank: RANK.default, candidate: { source: 'default', location: 'default', value: spec.default } });
   for (const s of layers.sources ?? []) out.push({ rank: s.rank, candidate: { source: s.source, location: s.location, value: s.data[name] } });
   // Stable (ES2019), and every built-in was pushed before any plugin source, in `ORDER`: a
@@ -191,39 +209,19 @@ export function resolve(specs: Record<string, OptionSpec>, layers: Layers): Reso
     const winner = list.find((c) => c.value !== undefined);
     if (winner === undefined) continue;
     values.set(name, winner.value);
-    provenance.set(name, winner.source === 'default' ? { source: 'default' } : { source: winner.source, location: winner.location });
+    provenance.set(name, winner.source === 'default' ? { source: 'default' } : { source: winner.source, location: winner.location, ...(winner.line === undefined ? {} : { line: winner.line }) });
   }
   return { values: Object.fromEntries(values), provenance: Object.fromEntries(provenance), candidates: Object.fromEntries(candidates) };
 }
 
-const describe = (c: Candidate): string => {
-  switch (c.source) {
-    case 'flag':
-      return `flag ${c.location}`;
-    case 'env':
-      return `env ${c.location}`;
-    case 'config':
-      return `config file ${c.location}`;
-    case 'package':
-      return `package.json field in ${c.location}`;
-    case 'default':
-      return 'default';
-    // A source seniority has never heard of, rendered from what it declared about itself
-    // (R13). This is what lets `--explain` name a plugin's provenance without this package
-    // knowing the plugin exists — and it is the one code change the open union costs.
-    default:
-      return `${c.source} ${c.location}`.trim();
-  }
-};
-
-/** `--explain <option>`: the winning source and every candidate it beat, or that was unset (V3). */
+/**
+ * `--explain <option>`: the winning source and every candidate it beat, or that was unset (V3).
+ *
+ * The text is a **rendering of the record** (R4, Y5), not a second implementation of it —
+ * `explain.ts` owns `explanation()`, and this is `renderExplanation` over it. The record is
+ * what `--json` and the agent event are made of; `explain.test.ts` asserts the three agree
+ * by construction rather than by review.
+ */
 export function explain(name: string, resolution: Resolution): string {
-  const list = resolution.candidates[name];
-  if (list === undefined) return `${name} is not an option of this command\n`;
-  const winner = list.find((c) => c.value !== undefined);
-  const head = winner === undefined ? `${name} is unset` : `${name} = ${JSON.stringify(winner.value)}   from ${describe(winner)}`;
-  const rest = list
-    .filter((c) => c !== winner)
-    .map((c) => `${describe(c)} ${c.value === undefined ? '(unset)' : JSON.stringify(c.value)}`);
-  return `${head}\n${rest.length === 0 ? '' : `         candidates: ${rest.join(', ')}\n`}`;
+  return renderExplanation(explanation(name, resolution));
 }

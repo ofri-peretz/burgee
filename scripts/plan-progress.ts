@@ -15,7 +15,7 @@
  *
  * Run it to see what is left; run it in CI to see the plan finish.
  */
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -100,8 +100,20 @@ const designComplete = (slug: string): boolean => {
   return [...wanted].every((r) => shipped.has(r));
 };
 const pkgJson = (pkg: string): { version: string; description?: string } => json(`packages/${pkg}/package.json`);
-/** Band ids, from the runner rather than the config file — the compat ones are derived. */
-const bands = (): string[] => execFileSync('npx', ['tsx', 'scripts/control-bands.ts'], { cwd: ROOT, encoding: 'utf8' }).split('\n').flatMap((l) => [...l.matchAll(/\bcompat-[a-z0-9-]+-pass-rate\b/g)].map((m) => m[0]));
+/**
+ * Band ids, from the runner rather than the config file — the compat ones are derived, so
+ * `control-bands.json` deliberately does not list them.
+ *
+ * **Both channels.** `control-bands.ts` prints its listing to stderr and `execFileSync`
+ * returns stdout, so this read `0` bands against 19 suites and 2.17 could not go green no
+ * matter what the repository did — the third condition in this file to be false for a reason
+ * that had nothing to do with the step. A checker that reads the wrong stream is the same
+ * defect as one that greps a renamed slug: it cannot fail for the reason the step fails.
+ */
+const bands = (): string[] => {
+  const run = spawnSync('npx', ['tsx', 'scripts/control-bands.ts'], { cwd: ROOT, encoding: 'utf8' });
+  return `${run.stdout ?? ''}${run.stderr ?? ''}`.split('\n').flatMap((l) => [...l.matchAll(/\bcompat-[a-z0-9-]+-pass-rate\b/g)].map((m) => m[0]));
+};
 const citations = (): number => {
   const out = new Set<string>();
   for (const pkg of readdirSync(join(ROOT, 'packages'))) {

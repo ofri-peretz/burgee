@@ -1,5 +1,6 @@
 {
   "reference": 15,
-  "passed": 13,
-  "rate": 0.8666666666666667
+  "passed": 15,
+  "rate": 1,
+  "exceeded": 1
 }

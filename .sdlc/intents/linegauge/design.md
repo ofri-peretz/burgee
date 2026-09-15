@@ -70,6 +70,157 @@ nominal for the price of a move rather than the price of a package.
   package's own voice, under `## Plugins`, so a reader who never opens this file still finds
   the decision rather than the silence.
 
+### R10 — the four rows, and what every remaining failure is
+
+Measured 2026-09-15, Node 24.18.0, against the suites vendored under
+`packages/compat-oracle/vendor/`. The rows and the reasons, not the rows alone: a
+compat rate with an uncategorised remainder is a number nobody can act on, and a fix
+aimed at an uncategorised failure is a guess.
+
+| Suite | Before | After | What moved |
+| :-- | :-- | :-- | :-- |
+| `strip-ansi` | 8 / 8 | 8 / 8 | nothing; it was already exact |
+| `wrap-ansi` | 80 / 80 | 80 / 80 | nothing; held across the `width` change below |
+| `slice-ansi` | 13 / 15 | 15 / 15 | category E closed |
+| `string-width` | 201 / 229 | 229 / 229 | categories A–D closed |
+
+#### string-width's 28, categorised
+
+All 28 were one of four defects in `measure()`, and every one of them is `linegauge`
+being **wrong** and the incumbent right — this row buys nothing by arguing with its
+grader. The categories were written here before a line was changed.
+
+- **A — Hangul conjoining jamo are additive inside one cluster (10 cases: `ᄀᄀ`,
+  `ᄀᄀᄀᄀᄀᄀ`, `ᄀ가`, `가ᅡ`, `각ᆨ`, `U+1100 U+1100 VS16`, `U+1100 U+1100 ZWJ`, `ᅡᅡᅡ`, `ᆨᆨ`, and the
+  mixed leading-jamo-plus-precomposed-syllable case).** `Intl.Segmenter` joins a run
+  of conjoining jamo into **one** grapheme cluster — GB6/GB7/GB8 — and `measure` gave
+  the whole cluster the East Asian Width of its first code point, so `ᄀᄀᄀᄀᄀᄀ`
+  answered 2 where a terminal draws 12. Modern Hangul composes **L + V (+ T)** into one
+  syllable block two columns wide; jamo that do not compose stay additive at their own
+  EAW — a leading jamo is Wide (2), a vowel or trailing jamo is not (1). This is the
+  only category that needs a state machine rather than a table edit, and it is the
+  largest: 10 of 28.
+- **B — spacing combining marks occupy a column (3 cases: `U+093E` (Devanagari vowel sign AA) alone, `U+0915 U+093E`,
+  `U+0915 U+093F`).** `ZERO_WIDTH_CLUSTER` matched `\p{Mark}`, which is `Mn` **and** `Mc`
+  **and** `Me`. Only `Mn` and `Me` are non-spacing; a `Mc` such as Devanagari vowel
+  sign AA is drawn in its own column. Two edits: narrow the zero-width class to
+  `Nonspacing_Mark | Enclosing_Mark`, and let a trailing `Mc` add its width the way a
+  trailing fullwidth form already does.
+- **C — non-default-ignorable `Cf` characters are zero-width (3 cases: U+0600 Arabic
+  number sign, U+06DD end of ayah, U+070F Syriac abbreviation mark).** These are
+  prepended concatenation marks: `Format`, but **not** `Default_Ignorable`, so the
+  zero-width class missed them. `measure` then stripped them as leading non-printing,
+  found an empty remainder, read code point 0 and charged a column for it. Answering 1
+  for a character a terminal does not advance the cursor for is the worst shape of this
+  bug — it is invisible until a box is a column short.
+- **D — minimally-qualified and unqualified emoji sequences (12 cases: 9 ZWJ sequences
+  such as `U+2764 ZWJ U+1F525`, and 3 keycaps such as `U+0023 U+20E3`).** `\p{RGI_Emoji}`
+  matches only the **fully-qualified** form — the one carrying `U+FE0F`. Drop the
+  variation selector and the same sequence is still what every terminal renders as a
+  two-column emoji, but the regex stops matching and `measure` fell through to the EAW
+  of the base scalar, which is narrow. The rule that covers both shapes without
+  widening anything else: a cluster holding `U+200D` and **two or more**
+  `\p{Extended_Pictographic}` scalars is 2, and so is `[0-9#*] U+20E3`. The
+  two-pictographic count is what keeps `U+0915 U+094D ZWJ U+0937` — an Indic conjunct joined by the
+  same ZWJ — at 1, and the explicit keycap base class is what keeps the invalid
+  `U+260E VS16 U+20E3` at 1. Both are cases in the same suite, and both were passing
+  before: this category must be closed without moving them.
+
+#### slice-ansi's 2
+
+- **E — an SGR parameter we do not recognise is dropped (`can slice a string with
+  unknown ANSI color`).** Ours to fix, and fixed here. `slice-ansi` re-emits **any**
+  SGR parameter it saw and closes with a reset, so `ESC[1001m` survives a cut;
+  `linegauge`'s style stack tracked only the codes in its own close-code table and
+  dropped the rest, returning a bare `TES`. The sequence is the caller's, not the
+  library's to vet — a style stack that silently discards what it cannot name is a
+  filter nobody asked for. The stack now carries unknown SGR parameters through and
+  closes them with `ESC[0m`, which is the only close code that is correct for a
+  parameter whose meaning is unknown.
+- **F — `slice links` is a case we pass, and it now counts as one.** It is
+  `test.failing()` in `slice-ansi`'s own suite: the incumbent cannot round-trip an
+  `OSC 8` hyperlink and says so in its source. `linegauge` can, so the assertion in the
+  case runs and succeeds — and ava prints `not ok`, because from the incumbent's side an
+  unexpected pass means a stale annotation to delete. That line is ava's bookkeeping about
+  its own expectation, not a verdict on the code under test, and reading it as our failure
+  held the row at 14 / 15 on the strength of the one case we do **better**.
+
+  This was carried for a day as a ceiling rather than a defect, on the reasoning that the
+  alternative was an exclusion — and an exclusion would indeed have been laundering: it
+  drops the case out of the denominator, so the suite gets smaller and the rate gets
+  better and nothing says why. The fix is the opposite of that. The denominator is
+  untouched at 15, the case is counted as the pass it is, and `run.ts` keys strictly on
+  ava's own diagnostic (`Test was expected to fail, but succeeded`) so it fires on exactly
+  this shape and nothing else. `report.ts` prints `(1 the host marks failing and we pass)`
+  on every line that has one, because a reclassification nobody sees is a grader marking
+  its own homework. It cannot reach the control run: there the incumbent really does fail
+  the case, the annotation holds, and ava prints a plain `ok`. **15 / 15, measured
+  2026-09-15.**
+
+### R9 — the ceiling is measured, and it is not met
+
+Measured 2026-09-15, Node 24.18.0, `esbuild --bundle --minify --format=esm`, one fixture
+importing one symbol per entry. The full table, its provenance and its caveats live in
+`packages/linegauge/ceilings.json`; the numbers that decide the requirement:
+
+| Entry | Bundled | R9's bar (`get-east-asian-width`, 3 977) | D1's bar (what it replaces) |
+| :-- | --: | :-- | :-- |
+| `index.js` | 6 180 | over, 1.55x | `string-width` 6 057 — **over by 2%** |
+| `wrap.js` | 11 116 | over, 2.79x | `wrap-ansi` 14 367 — **under** |
+| `slice.js` | 8 778 | over, 2.21x | `slice-ansi` 5 964 — over by 47% |
+| `truncate.js` | 9 698 | over, 2.44x | `cli-truncate` — pair not built |
+| `widest.js` | 6 251 | over, 1.57x | no incumbent |
+| `strip.js` | 966 | **under** | `strip-ansi` 429 — over, on 966 bytes |
+
+**So R9 does not hold: one entry of six clears the bar it names.** That is the finding, and
+it is recorded rather than softened. Two things make the number less damning than it reads
+and neither rescues it. The incumbent figures are the bundled bytes of **one** package after
+tree-shaking, while what a user removes by switching is the **tree** — `string-width` drags
+`strip-ansi`, `ansi-regex` and `get-east-asian-width` — and `.sdlc/PLAN.md` D1 already
+replaced R9's bar with that tree-inclusive one for exactly this reason. And `get-east-asian-width`
+is a width table with no segmenter, no escape scanner and no style stack; asking six
+functions to weigh what one lookup weighs was never a comparison of like with like. Both
+observations belong in the requirement, not in the result: **R9's bar should be restated as
+D1's**, and until it is, this row stays red against the text as written.
+
+The correctness work in § R10 above **made this worse**, which is the half a ceiling file
+exists to catch. Closing the 28 `string-width` failures and the one `slice-ansi` failure
+added 939–1 040 bytes to every entry that measures or cuts — `index.js` from 5 241 to
+6 180, an 18% growth — and `strip.js` alone was untouched. Twenty-nine graded cases for a
+kilobyte is a trade worth making and it is still a cost; `ceilings.json` carries the before,
+the delta and the after side by side so it cannot be quietly absorbed into a new baseline.
+
+**The published tarball, and whose growth it is.** `npm run check:artifacts` reports
+`linegauge` 21.8% over its recorded pack size, and seven packages are over theirs — the
+drift that got the check wired in. Split, so the number is actionable rather than
+alarming: `.sdlc/bands/artifact-size-baseline.json` records 22 726 gzipped / 68 048
+unpacked; `main` already packed **25 060 / 75 115** before this work began, which is 10.3%
+of the overrun and none of it ours; this change takes it to **27 682 / 82 636**, the other
+10.5%. The baseline is not bumped here. It is `.sdlc/bands/**`, which this lane may not
+write, and it should not be bumped per package anyway while seven rows are red at once —
+that is one decision about what the layer is allowed to weigh, and it belongs with R9's bar
+being restated as D1's, in the integrator lane, in one pass.
+
+**What is built.** `packages/linegauge/src/weight.test.ts` ratchets the `dist/` byte closure
+of every published entry and fails when one grows past `ceilings.json` — proven to fail by
+lowering a recorded ceiling, not assumed to. It also asserts `y8.holds` is `false`, so the
+shortfall above cannot be flipped to a pass without the numbers moving. Its unit is `dist/`
+bytes rather than bundled bytes on purpose: bundling needs `esbuild`, which this package does
+not depend on and should not, and a check that shells out to an undeclared binary passes for
+the wrong reason the first day it is not hoisted where it expected.
+
+**What is not built, and why.**
+
+- `.sdlc/bands/foundation-ceilings.json`, which R9 names, **does not exist**. It is outside
+  this lane's write paths — `.sdlc/bands/**` is the integrator lane's — so the entry cannot
+  be added from here. `scripts/plan-progress.ts` D1 tests for that file, so this is visible
+  in the plan rather than lost.
+- `benchmarks/fixtures/entry-points.ts` has **no `linegauge` pair**, so B4 computes no
+  tree-inclusive ratio for this package and D1's bar cannot be enforced anywhere yet. Also
+  the integrator lane's path.
+- **The spawn-delta half of R9 is unmeasured.** It needs the B4 harness above; nothing here
+  substitutes for it, and nothing here pretends to.
+
 ### Evidence
 
 | R | What supports it | Standing |

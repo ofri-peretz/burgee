@@ -176,3 +176,13 @@ colours, [flagstaff](https://www.npmjs.com/package/flagstaff) flies it, and
 none requires the others.
 
 MIT © Ofri Peretz — see [LICENSE](./LICENSE).
+
+## Benchmarks
+
+Every number here is produced by `npm run bench` and published at [/docs/benchmarks](/docs/benchmarks).
+
+Graded by the incumbent's own test suite:
+
+| suite | passing |
+| :-- | --: |
+| `chalk` | 58 / 58 |

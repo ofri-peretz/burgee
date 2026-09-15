@@ -370,3 +370,16 @@ Part of the [burgee](https://github.com/ofri-peretz/burgee) family: a CLI on
 none requires the others.
 
 MIT © Ofri Peretz — see [LICENSE](./LICENSE).
+
+## Benchmarks
+
+Every number here is produced by `npm run bench` and published at [/docs/benchmarks](/docs/benchmarks).
+
+Graded by the incumbent's own test suite:
+
+| suite | passing |
+| :-- | --: |
+| `boxen` | 84 / 84 |
+| `cli-table3` | 29 / 29 |
+| `log-update` | 99 / 99 |
+| `ora` | 99 / 99 |

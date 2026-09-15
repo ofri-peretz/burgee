@@ -19,6 +19,8 @@ interface Grade {
   host: string;
   target: string;
   passed: number;
+  /** Cases the host's own suite marks `failing` that the target passes; counted, and said. */
+  exceeded?: number;
   reference: number;
   tests: number;
   rate: number;
@@ -42,7 +44,11 @@ const pct = (g: Grade | undefined): string => (g === undefined ? '—' : `${(g.r
 const cell = (g: Grade | undefined): string => {
   if (g === undefined) return '—';
   if (g.note !== undefined) return `0 / ${g.reference} (${g.note})`;
-  return `${g.passed} / ${g.reference > 0 ? g.reference : g.tests}`;
+  // A pass the host's own suite calls a failure is still a pass, but it is not the same
+  // kind of pass as the other fourteen, and a table that hides the difference is the kind
+  // of compat number this repository exists not to publish.
+  const over = g.exceeded === undefined || g.exceeded === 0 ? '' : ` (${g.exceeded} the host marks failing and we pass)`;
+  return `${g.passed} / ${g.reference > 0 ? g.reference : g.tests}${over}`;
 };
 
 const internals = (g: Grade | undefined): string => (g?.internals === undefined ? '—' : `${g.internals.passed} / ${g.internals.tests}`);

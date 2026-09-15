@@ -112,3 +112,14 @@ what it is, [roundel](https://www.npmjs.com/package/roundel) carries its colours
 none requires the others.
 
 MIT © Ofri Peretz — see [LICENSE](./LICENSE).
+
+## Benchmarks
+
+Every number here is produced by `npm run bench` and published at [/docs/benchmarks](/docs/benchmarks).
+
+Graded by the incumbent's own test suite:
+
+| suite | passing |
+| :-- | --: |
+| `commander` | 1360 / 1360 |
+| `yargs` | 804 / 804 |
