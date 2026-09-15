@@ -169,7 +169,24 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // The published target is 52 KB (`replacement-parser` #3). Measured 34,841 on
   // 2026-09-09, so the ratchet sits at 40,000: it goes red long before the public
   // claim does, which is the only useful place for a ceiling to sit.
-  burgee: 40_000,
+  // 41,000 from 40,000 on 2026-09-15, and the raise is the smaller half of the story.
+  //
+  // PLAN 3.2 built seniority's cosmiconfig-compatible surface and the package grew 182%.
+  // burgee imports it, so the engine's bundle went to **54,986 bytes** — 37% over this
+  // ceiling — and the gate caught it, which is what it is for.
+  //
+  // Most of that came back without touching the ceiling. Two imports were reaching through
+  // seniority's root barrel: a static one, and `await import('seniority')` for `discover`,
+  // which no bundler can tree-shake. Pointed at `seniority/precedence` and `seniority/config`
+  // — subpaths that now exist because the package's own doc comment already promised the
+  // filesystem half was "a separate import for exactly that reason" — the engine measures
+  // **40,562**, a 26% cut.
+  //
+  // The 562 bytes left are seniority's config discovery, which esbuild bundles because the
+  // dynamic import names a known specifier. The real fix is code splitting, which is a build
+  // change and not this PR's; until then the number is honest and the ceiling moves once,
+  // deliberately, to sit just above it rather than the measurement sitting above the ceiling.
+  burgee: 41_000,
   'burgee/commander': 64_000,
   'burgee/yargs': 112_000,
 };

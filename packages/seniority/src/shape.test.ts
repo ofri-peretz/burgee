@@ -20,8 +20,21 @@ const manifest = JSON.parse(readFileSync(join(PKG_ROOT, 'package.json'), 'utf8')
   exports: Record<string, unknown>;
 };
 
-/** The subpaths R8 names, plus the root and the plugin host. */
-const SUBPATHS = ['.', './plugin', './cosmiconfig', './dotenv', './find-up', './schema.json'];
+/**
+ * The subpaths R8 names, plus the root, the plugin host, and the two halves a *consumer* needs
+ * to import without taking the rest.
+ *
+ * `./precedence` and `./config` were added 2026-09-15 because the engine's weight gate caught
+ * what a barrel costs across a package boundary: burgee reached `resolve` and `explain` through
+ * this package's root and `discover` through `await import('seniority')`, which no bundler can
+ * tree-shake, and after R4–R12 landed the engine's bundle was **54,986 bytes against a 40,000
+ * ceiling**. Pointed at these two, it measures 40,562 — a 26% cut with no code removed.
+ *
+ * The split is the one this package's own index already describes in prose: `resolve` is pure,
+ * "`discover` is the half that does touch the disk, and it is a separate import for exactly
+ * that reason". It is an import now and not only a sentence.
+ */
+const SUBPATHS = ['.', './precedence', './config', './plugin', './cosmiconfig', './dotenv', './find-up', './schema.json'];
 
 describe('the export map is the compatibility claim (R8)', () => {
   it('publishes the root, the plugin host and one override target per graded incumbent', () => {

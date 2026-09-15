@@ -13,6 +13,11 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./precedence": {
+      "types": "./dist/precedence.d.ts",
+      "import": "./dist/precedence.js",
+      "default": "./dist/precedence.js"
+    },
     "./plugin": {
       "types": "./dist/plugin.d.ts",
       "import": "./dist/plugin.js",
@@ -33,7 +38,12 @@
       "import": "./dist/find-up.js",
       "default": "./dist/find-up.js"
     },
-    "./schema.json": "./dist/schema.json"
+    "./schema.json": "./dist/schema.json",
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "import": "./dist/config.js",
+      "default": "./dist/config.js"
+    }
   },
   "files": [
     "dist",
