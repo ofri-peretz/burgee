@@ -15,13 +15,22 @@
  * a program that is choosing; this is the way in for a program that already has ora.
  */
 import { Buffer } from 'node:buffer';
-import process from 'node:process';
 
 import { lineCount } from 'linegauge';
 import chalk from 'roundel/chalk';
 
 import { HIDE_CURSOR, restoreCursorOnExit, SHOW_CURSOR } from './cursor.js';
+import { processRuntime } from './runtime.js';
 import spinnerCorpus from './spinners.json' with { type: 'json' };
+
+/**
+ * The process, through the seam (Y9). `processRuntime()` hands back the live process
+ * narrowed to `Runtime`, so nothing below moved: `rt.env` is read when a probe runs,
+ * `rt.stderr` when a spinner is constructed, `rt.stdout`/`rt.stderr` when the hook is
+ * installed (ora mutates those two objects, and it must be those two), and `rt.kill` is
+ * looked up when Ctrl+C is swallowed — which is the one ora's own suite swaps.
+ */
+const rt = processRuntime();
 
 // ───── the spinner corpus (cli-spinners) ─────
 
@@ -36,9 +45,9 @@ export const spinners: Record<string, SpinnerDefinition> = spinnerCorpus;
 // ───── is-unicode-supported, is-interactive ─────
 
 function isUnicodeSupported(): boolean {
-  const { env } = process;
+  const { env } = rt;
   const { TERM, TERM_PROGRAM } = env;
-  if (process.platform !== 'win32') return TERM !== 'linux';
+  if (rt.platform !== 'win32') return TERM !== 'linux';
   return (
     Boolean(env['WT_SESSION']) ||
     Boolean(env['TERMINUS_SUBLIME']) ||
@@ -54,7 +63,7 @@ function isUnicodeSupported(): boolean {
 }
 
 function isInteractive(stream: OraStream | undefined): boolean {
-  return Boolean(stream?.isTTY) && process.env['TERM'] !== 'dumb' && !('CI' in process.env);
+  return Boolean(stream?.isTTY) && rt.env['TERM'] !== 'dumb' && !('CI' in rt.env);
 }
 
 // ───── log-symbols ─────
@@ -95,7 +104,7 @@ class StdinDiscarder {
     const code = typeof chunk === 'string' ? chunk.codePointAt(0) : (chunk as Uint8Array)[0];
     // Re-signalled rather than emitted, because emitting `SIGINT` directly breaks normal
     // Ctrl+C termination for every library that installed a listener for cleanup.
-    if (code === ASCII_ETX_CODE) process.kill(process.pid, 'SIGINT');
+    if (code === ASCII_ETX_CODE) rt.kill(rt.pid, 'SIGINT');
   };
 
   start(): void {
@@ -110,8 +119,8 @@ class StdinDiscarder {
   }
 
   #realStart(): void {
-    const stdin = process.stdin as unknown as RawStdin | undefined;
-    if (process.platform === 'win32' || stdin?.isTTY !== true || typeof stdin.setRawMode !== 'function') {
+    const stdin = rt.stdin as unknown as RawStdin | undefined;
+    if (rt.platform === 'win32' || stdin?.isTTY !== true || typeof stdin.setRawMode !== 'function') {
       this.#stdin = undefined;
       return;
     }
@@ -156,7 +165,7 @@ const validColors = new Set(['black', 'red', 'green', 'yellow', 'blue', 'magenta
 
 export type Color = 'black' | 'red' | 'green' | 'yellow' | 'blue' | 'magenta' | 'cyan' | 'white' | 'gray';
 
-/** What ora writes to: `process.stderr` by default, anything stream-shaped in a test. */
+/** What ora writes to: the runtime's stderr by default, anything stream-shaped in a test. */
 export interface OraStream {
   write(chunk: string, encoding?: unknown, callback?: unknown): boolean;
   isTTY?: boolean;
@@ -235,7 +244,7 @@ export class Ora {
 
   constructor(options?: Options | string) {
     const given = typeof options === 'string' ? { text: options } : options;
-    this.#options = { color: 'cyan', stream: process.stderr as unknown as OraStream, discardStdin: true, hideCursor: true, isEnabled: false, isSilent: false, indent: 0, ...given };
+    this.#options = { color: 'cyan', stream: rt.stderr as unknown as OraStream, discardStdin: true, hideCursor: true, isEnabled: false, isSilent: false, indent: 0, ...given };
 
     this.color = this.#options.color;
     this.#stream = this.#options.stream;
@@ -258,7 +267,7 @@ export class Ora {
     this.suffixText = this.#options.suffixText;
     this.indent = this.#options.indent;
 
-    if (process.env['NODE_ENV'] === 'test') this.#exposeTestProperties();
+    if (rt.env['NODE_ENV'] === 'test') this.#exposeTestProperties();
   }
 
   /**
@@ -480,7 +489,7 @@ export class Ora {
     if (this.isSpinning) return this;
 
     if (this.#options.hideCursor) this.#hideCursor();
-    if (this.#options.discardStdin && process.stdin.isTTY) {
+    if (this.#options.discardStdin && rt.stdin.isTTY) {
       stdinDiscarder.start();
       this.#isDiscardingStdin = true;
     }
@@ -622,7 +631,7 @@ export class Ora {
    */
   #installHook(): void {
     if (!this.isEnabled || this.#hookedStreams.size > 0) return;
-    for (const stream of new Set<OraStream>([this.#stream, process.stdout as unknown as OraStream, process.stderr as unknown as OraStream])) this.#hookStream(stream);
+    for (const stream of new Set<OraStream>([this.#stream, rt.stdout as unknown as OraStream, rt.stderr as unknown as OraStream])) this.#hookStream(stream);
   }
 
   #hookStream(stream: OraStream | undefined): void {

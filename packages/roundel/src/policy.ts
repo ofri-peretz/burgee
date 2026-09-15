@@ -13,19 +13,7 @@
  * 9,370 bytes. Comments are stripped from `dist`, so the prose is free; the statements
  * are not.
  */
-/**
- * The slice of a runtime the policy needs. burgee's `processRuntime` satisfies it, so
- * does a two-line literal in a test; nothing here imports a type from anywhere.
- */
-export interface Runtime {
-  env: Record<string, string | undefined>;
-  isTTY: { stdout: boolean };
-  /**
-   * The process arguments, when the caller owns them: `--color`, `--no-color` and
-   * `--color=…` are read here and nowhere else. A test literal leaves it out.
-   */
-  argv?: readonly string[];
-}
+import { type Runtime } from './runtime.js';
 
 export type OutputMode = 'tty' | 'pipe' | 'json' | 'accessible' | 'ci';
 
@@ -188,3 +176,14 @@ export type Paint = readonly Format[] | { readonly sgr: readonly number[] };
  * token is the identity, so a program that never declares its runtime prints plain text.
  */
 export const flown: { level: ColorLevel; paint: Partial<Record<TokenName, Paint>> } = { level: 0, paint: {} };
+
+/**
+ * The slice of a runtime this file reads is declared in `./runtime.js`, beside the one
+ * function in the package that names the process (Y9), and re-exported here because
+ * `roundel/policy` is the subpath a caller imports it from. One declaration, two doors.
+ *
+ * The import at the top is type-only, so `verbatimModuleSyntax` erases it whole: `policy.js`
+ * reaches no new module, and the weight of every subpath that stands on it is unchanged.
+ * `subpath-isolation.test.ts` is what holds that.
+ */
+export type { Runtime };
