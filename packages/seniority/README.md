@@ -270,6 +270,11 @@ Graded by the incumbent's own test suite:
 | `dotenv` | 0 / 141 |
 
 Weight, installed and tree-inclusive: **151,688 bytes** against **1,555,288** for the incumbents it replaces — a ratio of **0.0975**.
+## Where it sits
+
+Plugins register under the `sources` key, against the one schema the whole family shares.
+
+`burgee` builds on it, and it builds on nothing in this family.
 ## Licence
 
 MIT
