@@ -13,8 +13,10 @@
  *     uses the new width. Cache that number at import and the resize silently stops working.
  *   - ora hooks `stdout.write` and `stderr.write` — it mutates the stream objects — and
  *     re-signals a swallowed Ctrl+C through `kill`, which ora's own suite swaps out.
- *   - `cursor.ts` installs and removes signal listeners on the process, because the cursor
- *     belongs to the terminal rather than to whichever stream a caller passed in.
+ *   - ora re-signals a swallowed Ctrl+C through `kill`, so `kill` and `pid` are on the
+ *     interface below and nothing else about signals is: putting the cursor back however
+ *     the process dies belongs to `closeout`, which owns `restore-cursor` and `signal-exit`,
+ *     and no file here installs a signal listener any more.
  *
  * So `processRuntime()` returns the process itself, narrowed to the interface below. That is
  * not a shortcut: it is the only shape that leaves *when* and *how often* every read happens
@@ -38,9 +40,6 @@
  */
 import process from 'node:process';
 
-/** The events `cursor.ts` puts a listener on: the three terminations, and `'exit'`. */
-export type ExitEvent = NodeJS.Signals | 'exit';
-
 /**
  * Only the members this package actually reads. Anything not named here — `process.exit`,
  * `cwd`, `chdir`, `emit` — is unreachable through the seam by construction, because the
@@ -57,10 +56,6 @@ export interface Runtime {
   /** Set by `cli.ts` on the way out. Typed as node types it, string included. */
   exitCode?: number | string | null | undefined;
   kill(pid: number, signal: NodeJS.Signals): void;
-  on(event: ExitEvent, listener: () => void): void;
-  once(event: ExitEvent, listener: () => void): void;
-  removeListener(event: ExitEvent, listener: () => void): void;
-  listenerCount(event: ExitEvent): number;
 }
 
 /**

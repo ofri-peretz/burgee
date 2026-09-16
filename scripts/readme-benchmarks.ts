@@ -29,6 +29,16 @@ const PACKAGES = join(ROOT, 'packages');
 const BASELINE = join(PACKAGES, 'compat-oracle/baseline');
 const CEILINGS = join(ROOT, '.sdlc/bands/foundation-ceilings.json');
 const PAGE = '/docs/benchmarks';
+/**
+ * A fixed width, because this string feeds back into the number it prints.
+ *
+ * `ours` is measured from a tarball that contains this README, so writing the ratio changes the
+ * package's size, which changes the ratio. With a variable-width `String(ratio)` that is not a
+ * fixed point but a **two-cycle**: paratext oscillated 58,330 → 58,329 → 58,330 forever, because
+ * `1.887` is five characters and `1.8869` is six. At constant width the feedback still exists —
+ * a byte is a byte — but it cannot flip the length, so one iteration settles it.
+ */
+const RATIO_DIGITS = 4;
 const HEADING = '## Benchmarks';
 const PLACE_HEADING = '## Where it sits';
 /** The nine published layers. `compat-oracle` is internal tooling and is not one of them. */
@@ -86,7 +96,7 @@ export function section(pkg: string): string {
   if (weight !== undefined) {
     const caveat = (weight.unmeasured?.length ?? 0) > 0 ? ` (${weight.unmeasured?.join(', ') ?? ''} not installed here, so the ceiling is understated)` : '';
     lines.push(
-      `Weight, installed and tree-inclusive: **${weight.ours.toLocaleString('en-US')} bytes** against **${weight.ceiling.toLocaleString('en-US')}** for the incumbents it replaces — a ratio of **${String(weight.ratio)}**${caveat}.`,
+      `Weight, installed and tree-inclusive: **${weight.ours.toLocaleString('en-US')} bytes** against **${weight.ceiling.toLocaleString('en-US')}** for the incumbents it replaces — a ratio of **${weight.ratio.toFixed(RATIO_DIGITS)}**${caveat}.`,
       '',
     );
     // A weight ratio is only a claim once the package does the incumbent's job. `bellpull`

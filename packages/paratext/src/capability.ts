@@ -20,29 +20,11 @@
  */
 import { type Runtime } from './runtime.js';
 import schema from './schema.json' with { type: 'json' };
+import { type Support, supports } from './supports.js';
 import { render } from './template.js';
 
 /** What a caller hands a capability. Flat and string-valued, and therefore describable. */
 export type Fields = Readonly<Record<string, string | undefined>>;
-
-/**
- * When a terminal is believed to understand the sequence. Every clause is optional and all
- * of them must hold; `termProgram` and `envAny` are ORs within themselves.
- *
- * These are guesses and the type says so. No terminal answers "do you do OSC 1337", so a
- * caller who knows better re-registers the capability with a `when` that fits their world —
- * which is the point of holding this as data rather than burying it in a predicate.
- */
-export interface Support {
-  /** Refuse a pipe. Almost always true: a file that receives OSC gets control bytes in it. */
-  readonly tty?: boolean;
-  /** Any one of these `TERM_PROGRAM` values. */
-  readonly termProgram?: readonly string[];
-  /** Any one of these environment variables merely being set, as VTE announces itself. */
-  readonly envAny?: readonly string[];
-  /** An exact `TERM`, for the terminals that identify that way. */
-  readonly term?: string;
-}
 
 export interface Capability {
   /** How callers name it: `link`, `image`, `clipboard`, or anything a third party invents. */
@@ -67,20 +49,6 @@ const registry = new Map<string, Capability>();
 
 /** Thrown rather than returned: a malformed capability is a programming error at start-up. */
 export class CapabilityError extends Error {}
-
-/** Whether this runtime is believed to understand `capability`. */
-export function supports(runtime: Runtime, capability: Capability): boolean {
-  const { tty, termProgram, envAny, term } = capability.when;
-  if (tty === true && !runtime.isTTY.stdout) return false;
-  if (runtime.env['TERM'] === 'dumb') return false;
-  if (term !== undefined && runtime.env['TERM'] !== term) return false;
-  if (termProgram !== undefined || envAny !== undefined) {
-    const byProgram = termProgram?.includes(runtime.env['TERM_PROGRAM'] ?? '') ?? false;
-    const byEnv = envAny?.some((name) => runtime.env[name] !== undefined) ?? false;
-    if (!byProgram && !byEnv) return false;
-  }
-  return true;
-}
 
 /**
  * Add a capability, or replace one by name — replacing is deliberate, so a caller whose
@@ -217,3 +185,10 @@ export function emit(runtime: Runtime, name: string, fields: Fields = {}): strin
   if (found === undefined) return fields['text'] ?? fields['caption'] ?? '';
   return render(supports(runtime, found) ? found.encode : found.fallback, fields);
 }
+
+/**
+ * The support guess lives in `supports.ts` and is re-exported here, unchanged, because this
+ * is where every caller has always reached it. It moved so that `paratext/link` can ask
+ * "does this terminal do OSC 8" without loading `schema.json` — see that module's header.
+ */
+export { type Support, supports };

@@ -35,6 +35,20 @@ export interface ProcessLike {
   removeListener(event: string, listener: (...args: never[]) => void): unknown;
   listenerCount(event: string): number;
   exit(code?: number): never;
+  /**
+   * Send a signal to a process. closeout passes exactly one pid — {@link ProcessLike.pid},
+   * its own — because the only thing it ever does with this is re-raise the signal it just
+   * handled, so that a process killed by SIGINT *dies of SIGINT* instead of reporting 130.
+   *
+   * Required rather than optional, which is a deliberate cost. A `ProcessLike` without it
+   * would still compile and would silently take the exit path, and a seam that lets a fake
+   * quietly opt out of the behaviour under test is how `leaveAfter` stayed wrong through
+   * 21 / 21 and 6 / 6. A process that cannot raise a signal cannot honour this package's
+   * contract, so the type says so.
+   */
+  kill(pid: number, signal: string): unknown;
+  /** This process's own id — the only one {@link ProcessLike.kill} is ever given. */
+  pid: number;
   stderr: OutputStream;
   /**
    * Optional because the signal wiring has never needed it and its tests do not supply one:

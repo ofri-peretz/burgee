@@ -7,21 +7,25 @@
  * between them by asking whether the terminal is one. Anything this can do that line mode
  * cannot is decoration; anything line mode can do that this cannot would be a bug.
  *
- * **On the dependency the design named.** It said "spinner from flagstaff", and this does
- * not import flagstaff. A prompt has no spinner — it is waiting for a person, not for work
- * — and the repaint it needs is three escape sequences, written here. Importing flagstaff
- * to get them would make the one package that talks to a human the only one in the family
- * that requires a sibling, which is the rule `caique`'s own README states. If a prompt ever
- * needs to show progress *while* it waits, that is a caller composing `hoist()` around
- * `ask()`, not this file reaching for it.
+ * **On its one dependency.** The design said "spinner from flagstaff"; this imports
+ * `closeout` instead, and the difference is the point. A repaint is one escape sequence
+ * and belongs here. Hiding the cursor is a global side effect on someone else's terminal,
+ * and the obligation it creates — put it back however the process dies — is not a repaint.
+ * This file used to own `HIDE_CURSOR`/`SHOW_CURSOR`, the family's third copy, and restore
+ * on one path only: the keypress loop, which sees Ctrl-C because raw mode delivers it as a
+ * byte. A `SIGINT` from a parent, a `SIGTERM`, a crash or a `process.exit()` elsewhere
+ * never reached it, and left the cursor invisible until the user typed `reset` (measured
+ * against `dist/raw.js`, 2026-09-15: hide 1, show 0). `hideCursor()` registers the restore
+ * in the call that hides, so the two cannot drift.
  */
+import { hideCursor, type OutputStream } from 'closeout/cursor';
+import exitHook from 'closeout/exit-hook';
+
 import { type Answer, type Asked, type Io } from './ask.js';
 import { type Choice, type PromptSpec } from './spec.js';
 
 const ESC = '\u001B';
 const CSI = `${ESC}[`;
-const HIDE_CURSOR = `${CSI}?25l`;
-const SHOW_CURSOR = `${CSI}?25h`;
 /** Column 1, up `n` lines, clear to the end of the screen — the only repaint this needs. */
 const erase = (lines: number): string => `${CSI}1G${lines > 1 ? `${CSI}${lines - 1}A` : ''}${CSI}0J`;
 
@@ -116,11 +120,22 @@ function chosen(choices: Choice[], state: ListState, multi: boolean): Answer {
 }
 
 /**
+ * The writer, seen as a terminal, for `hideCursor()` — which refuses a non-TTY. caique's
+ * `Writer` is one method and has no `isTTY`: the terminal test this renderer makes is
+ * `canRender(io.keys)`, on the other half of the same terminal, and it has already been
+ * made. So it is answered here rather than re-asked of a stream that cannot answer.
+ */
+const asTerminal = (writer: Io['writer']): OutputStream => ({ write: (text: string) => writer.write(text), isTTY: true });
+
+/**
  * Drive a list prompt with the arrow keys, repainting in place.
  *
  * Returns the same `Asked` shape `ask()` does, so a caller can swap the two without
  * knowing which ran — and cancels the same way, because `Ctrl-C` in raw mode is a byte and
  * not a signal, and a person who presses it means to leave.
+ *
+ * The cursor is hidden through `closeout`: the byte path resolves and `restore()` runs in
+ * the `finally`; every path that never reaches the `finally` is the exit hook's.
  */
 export async function askList(spec: PromptSpec, io: RawIo, multi = false): Promise<Asked> {
   const choices = spec.choices ?? [];
@@ -129,12 +144,15 @@ export async function askList(spec: PromptSpec, io: RawIo, multi = false): Promi
 
   const paint = (): void => {
     const frame = renderList(spec, choices, state, multi);
-    io.writer.write((painted === 0 ? HIDE_CURSOR : erase(painted)) + frame);
+    io.writer.write((painted === 0 ? '' : erase(painted)) + frame);
     painted = frame.split('\n').length;
   };
 
   io.keys.setRawMode?.(true);
   io.keys.resume?.();
+  // Hide and register the restore together. `restore()` shows the cursor and unregisters,
+  // so a prompt that ends normally leaves nothing behind for exit to do.
+  const restore = hideCursor(asTerminal(io.writer), exitHook);
   paint();
 
   try {
@@ -154,15 +172,16 @@ export async function askList(spec: PromptSpec, io: RawIo, multi = false): Promi
 
       const done = (answer: Asked): void => {
         io.keys.off('data', onData);
-        // Leave the answered question on screen, the cursor back, and the terminal as it
-        // was found: a prompt that exits in raw mode leaves the shell unusable.
-        io.writer.write(`${erase(painted)}${renderList(spec, choices, state, multi)}\n${SHOW_CURSOR}`);
+        // Leave the answered question on screen; the `finally` puts the cursor and the
+        // terminal back, because a prompt that exits in raw mode leaves the shell unusable.
+        io.writer.write(`${erase(painted)}${renderList(spec, choices, state, multi)}\n`);
         resolve(answer);
       };
 
       io.keys.on('data', onData);
     });
   } finally {
+    restore();
     io.keys.setRawMode?.(false);
     io.keys.pause?.();
   }

@@ -61,7 +61,7 @@ let chalkOutput: string | undefined;
 const chalkGrade = (): string => {
   if (chalkOutput === undefined) {
     try {
-      chalkOutput = execFileSync('npm', ['run', 'compat', '--silent', '--', 'chalk'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+      chalkOutput = execFileSync(shim('npm'), ['run', 'compat', '--silent', '--', 'chalk'], spawnOpts({ cwd: ROOT, encoding: 'utf8' as const, stdio: ['ignore', 'pipe', 'ignore'] as const }));
     } catch {
       chalkOutput = '';
     }
@@ -89,16 +89,53 @@ const has = (p: string, needle: string): boolean => existsSync(join(ROOT, p)) &&
  * only fail on the one file that happens to use a wording is not a condition. This one
  * fails on all four until the requirements are actually accounted for.
  */
-const designComplete = (slug: string): boolean => {
+/**
+ * Why a design step is not done — or `''` when it is.
+ *
+ * A design records which requirements are built in one of two shapes, and the checker knew
+ * only one. `caique`, `closeout`, `flagstaff` and three others use a `## What shipped (R1,
+ * R2…)` heading; `seniority` uses a `| R11 | **Built** | evidence | check |` table. So 3.2
+ * read red with every one of its fifteen requirements reported "missing", including the ten
+ * the table plainly records as built — the **fourth** condition in this file to be false for a
+ * reason that had nothing to do with its step.
+ *
+ * Two formats for one fact is itself the drift this repository is about, and they should
+ * converge. Until they do, reading both is the honest reading; what is not honest is a `·`
+ * that means "the design does not say" sitting next to a `·` that means "R9 is not met",
+ * indistinguishable. So this returns the reason.
+ */
+const designGap = (slug: string): string => {
   const file = `.sdlc/intents/${slug}/design.md`;
-  if (!existsSync(join(ROOT, file))) return false;
+  if (!existsSync(join(ROOT, file))) return 'no design.md';
   const text = read(file);
-  if (text.includes('Not built')) return false;
-  const wanted = new Set([...text.matchAll(/^- \*\*(R\d+)/gm)].map((m) => m[1] as string));
-  if (wanted.size === 0) return false;
-  const shipped = new Set([...text.matchAll(/^## What shipped \(([^)]*)\)/gm)].flatMap((m) => [...(m[1] as string).matchAll(/R\d+/g)].map((r) => r[0])));
-  return [...wanted].every((r) => shipped.has(r));
+  const wanted = [...new Set([...text.matchAll(/^- \*\*(R\d+)/gm)].map((m) => m[1] as string))];
+  if (wanted.length === 0) return 'the design lists no requirements';
+  const shipped = new Set([
+    ...[...text.matchAll(/^## What shipped \(([^)]*)\)/gm)].flatMap((m) => [...(m[1] as string).matchAll(/R\d+/g)].map((r) => r[0])),
+    ...[...text.matchAll(/^\| (R\d+) \| \*\*Built\*\*/gm)].map((m) => m[1] as string),
+  ]);
+  if (shipped.size === 0) return 'the design records no per-requirement status, in either shape';
+  // An explicit "Not built" anywhere is the design telling on itself, and it outranks the list.
+  if (text.includes('Not built')) return 'the design says a requirement is not built';
+  const missing = wanted.filter((r) => !shipped.has(r));
+  return missing.length === 0 ? '' : `${missing.join(', ')} not recorded as built`;
 };
+/**
+ * `npm`, `npx` and `shasum` by a name Windows can actually find.
+ *
+ * `npm` and `npx` are `.cmd` shims there and neither `execFileSync` nor `spawnSync` searches
+ * `PATHEXT`, so every one of these returned nothing on `windows-latest` — and `landed()` catches,
+ * so five steps read as unfinished work for a reason that had nothing to do with the roadmap.
+ * That is the fifth condition in this file to be false for the wrong reason, and the same bug
+ * `bellpull` was built for; `bellpull/which` is the answer once it lands.
+ *
+ * `shell` is safe here only because every argument in this file is a literal.
+ */
+const WINDOWS = process.platform === 'win32';
+const shim = (cmd: string): string => (WINDOWS && (cmd === 'npm' || cmd === 'npx') ? `${cmd}.cmd` : cmd);
+const spawnOpts = <T extends object>(o: T): T & { shell: boolean } => ({ ...o, shell: WINDOWS });
+
+const designComplete = (slug: string): boolean => designGap(slug) === '';
 const pkgJson = (pkg: string): { version: string; description?: string; private?: boolean } => json(`packages/${pkg}/package.json`);
 /**
  * Band ids, from the runner rather than the config file — the compat ones are derived, so
@@ -111,7 +148,7 @@ const pkgJson = (pkg: string): { version: string; description?: string; private?
  * defect as one that greps a renamed slug: it cannot fail for the reason the step fails.
  */
 const bands = (): string[] => {
-  const run = spawnSync('npx', ['tsx', 'scripts/control-bands.ts'], { cwd: ROOT, encoding: 'utf8' });
+  const run = spawnSync(shim('npx'), ['tsx', 'scripts/control-bands.ts'], spawnOpts({ cwd: ROOT, encoding: 'utf8' as const }));
   return `${run.stdout ?? ''}${run.stderr ?? ''}`.split('\n').flatMap((l) => [...l.matchAll(/\bcompat-[a-z0-9-]+-pass-rate\b/g)].map((m) => m[0]));
 };
 const citations = (): number => {
@@ -162,7 +199,7 @@ const STEPS: Step[] = [
     },
   },
   // `existsSync` was the first version, and a file that exists proves nothing about drift.
-  { id: '0.2', what: 'every roadmap row agrees with its intent (runs the check)', done: () => { execFileSync('npx', ['tsx', 'scripts/roadmap-index.ts', '--check'], { cwd: ROOT, stdio: 'ignore' }); return true; } },
+  { id: '0.2', what: 'every roadmap row agrees with its intent (runs the check)', done: () => { execFileSync(shim('npx'), ['tsx', 'scripts/roadmap-index.ts', '--check'], spawnOpts({ cwd: ROOT, stdio: 'ignore' as const })); return true; } },
   {
     id: '0.4',
     what: 'chalk back to its 58 baseline (runs the gate, does not read it)',
@@ -197,17 +234,62 @@ const STEPS: Step[] = [
   { id: '1.5', what: 'bellpull hosts resolvers', done: () => existsSync(join(ROOT, 'packages/bellpull/src/plugin.ts')) },
   { id: '1.6', what: 'linegauge says why it has no plugins', done: () => has('packages/linegauge/README.md', '## Plugins') },
   { id: '2.17', what: 'one control band per graded suite', done: () => bands().filter((b) => b.startsWith('compat-')).length >= baselineSize() },
-  { id: '2.5.0', what: 'the six engine surfaces re-measured against the tree', done: () => { execFileSync('npx', ['tsx', 'scripts/roadmap-index.ts', '--check'], { cwd: ROOT, stdio: 'ignore' }); return readdirSync(join(ROOT, '.sdlc/intents')).filter((s) => s.startsWith('commander-') || s.startsWith('yargs-')).every((s) => existsSync(join(ROOT, '.sdlc/intents', s, 'issues.md'))); } },
+  { id: '2.5.0', what: 'the six engine surfaces re-measured against the tree', done: () => { execFileSync(shim('npx'), ['tsx', 'scripts/roadmap-index.ts', '--check'], spawnOpts({ cwd: ROOT, stdio: 'ignore' as const })); return readdirSync(join(ROOT, '.sdlc/intents')).filter((s) => s.startsWith('commander-') || s.startsWith('yargs-')).every((s) => existsSync(join(ROOT, '.sdlc/intents', s, 'issues.md'))); } },
   { id: '2.5.1', what: 'help snapshots exist at three widths', done: () => existsSync(join(ROOT, 'packages/burgee/src/__snapshots__')) && readdirSync(join(ROOT, 'packages/burgee/src/__snapshots__')).some((f) => f.startsWith('help')) },
   { id: '2.5.2', what: 'dependsOn/exclusive are spelled in the schema', done: () => has('packages/burgee/src/schema.ts', 'dependsOn') && has('packages/burgee/src/schema.ts', 'exclusive') },
   { id: '2.5.3', what: 'the Fig spec is validated, not just emitted', done: () => existsSync(join(ROOT, 'packages/burgee/src/fig-schema.test.ts')) },
-  { id: '2.5.4', what: 'the Ctrl+C test runs under a real PTY', done: () => has('packages/caique/src/prompt.test.ts', 'openpty') || has('.github/workflows/quality.yml', 'pty') },
+  /**
+   * Keyed on what a pty test *contains*, not on where someone guessed it would live.
+   *
+   * This read `has('packages/caique/src/prompt.test.ts', 'openpty')`, and that file has never
+   * existed — caique's raw-mode test is `raw.test.ts`. So the step could not go green however
+   * much of it was built, and when a lane did build a real pty test it had nowhere to land.
+   * Its fallback, `.github/workflows/quality.yml` containing `pty`, was wrong twice over: that
+   * file is integrator-owned, and the three-OS matrix is in `compat.yml`.
+   *
+   * A condition naming a filename breaks on a rename — which is exactly how 0.1 broke. A
+   * condition naming the *mechanism* does not.
+   */
+  {
+    id: '2.5.4',
+    what: 'the Ctrl+C test runs under a real PTY',
+    done: () =>
+      readdirSync(join(ROOT, 'packages'))
+        .filter((pkg) => existsSync(join(ROOT, 'packages', pkg, 'src')))
+        .some((pkg) =>
+          readdirSync(join(ROOT, 'packages', pkg, 'src'))
+            .filter((f) => f.endsWith('.test.ts'))
+            .some((f) => /openpty|pty\.fork|zpty|forkpty/.test(read(`packages/${pkg}/src/${f}`))),
+        ),
+  },
   { id: '3.1', what: 'paratext R8-R12 built', done: () => designComplete('paratext') },
   { id: '3.2', what: 'seniority at 1.0', done: () => designComplete('seniority') },
   { id: '3.3', what: 'closeout at 1.0', done: () => designComplete('closeout') },
   // `split('export').length > 2` was green: the file's own doc comment says "exports only
   // its own name". Count declarations, not the word.
-  { id: '3.4', what: 'bellpull exists as more than a name', done: () => existsSync(join(ROOT, 'packages/bellpull/src/index.ts')) && [...read('packages/bellpull/src/index.ts').matchAll(/^export (?:const|function|class|type|interface) /gm)].length > 1 },
+  /**
+   * Counts exported **names**, not export statements.
+   *
+   * It counted `^export (const|function|…)` declarations, which is a style this repository's own
+   * linter forbids: `import-next/group-exports` requires one grouped `export { … }` per module,
+   * and it fired on a two-statement export earlier the same night this was found. So bellpull
+   * could export thirty-three names through the mandated form and still read as "a name" — the
+   * checker demanding what the linter refuses.
+   *
+   * Eighth condition in this file found false for a reason unrelated to its step.
+   */
+  {
+    id: '3.4',
+    what: 'bellpull exists as more than a name',
+    done: () => {
+      const file = 'packages/bellpull/src/index.ts';
+      if (!existsSync(join(ROOT, file))) return false;
+      const src = read(file);
+      const declared = [...src.matchAll(/^export (?:const|function|class|type|interface) /gm)].length;
+      const grouped = [...src.matchAll(/^export \{([\s\S]*?)^\};?$/gm)].flatMap((m) => (m[1] as string).split(',')).filter((n) => n.trim().length > 0).length;
+      return declared + grouped > 1;
+    },
+  },
   { id: '3.5', what: 'linegauge R9-R10 built', done: () => designComplete('linegauge') },
   { id: '4.2', what: 'no uncovered issue above the reaction floor is left', done: () => readdirSync(join(ROOT, '.sdlc/intents')).filter((s) => existsSync(join(ROOT, '.sdlc/intents', s, 'issues.md'))).length >= PUBLISHED_PACKAGES && citations() > 0 && !readdirSync(join(ROOT, '.sdlc/intents')).some((s) => existsSync(join(ROOT, '.sdlc/intents', s, 'issues.md')) && read(`.sdlc/intents/${s}/issues.md`).includes('covered: no')) },
   /**
@@ -257,8 +339,15 @@ const STEPS: Step[] = [
 ];
 
 
+/** The design steps say why they are red, so "not done" is never confused with "cannot tell". */
+const DESIGN_STEPS: Record<string, string> = { '3.1': 'paratext', '3.2': 'seniority', '3.3': 'closeout', '3.5': 'linegauge' };
+
 const results = STEPS.map((step) => ({ ...step, ok: landed(step) }));
-for (const r of results) console.log(`${r.ok ? '✓' : '·'} ${r.id.padEnd(ID_WIDTH)} ${r.what}`);
+for (const r of results) {
+  const slug = DESIGN_STEPS[r.id];
+  const why = r.ok || slug === undefined ? '' : `  — ${designGap(slug)}`;
+  console.log(`${r.ok ? '✓' : '·'} ${r.id.padEnd(ID_WIDTH)} ${r.what}${why}`);
+}
 const left = results.filter((r) => !r.ok).length;
 console.log(`\n${results.length - left}/${results.length} landed. ${left === 0 ? 'The plan is done.' : `${String(left)} to go.`}`);
 console.log(`\nmanual: ${String(MANUAL.length)} steps whose truth is not in the tree`);

@@ -166,7 +166,8 @@ describe('the default export and the stderr variant are bound to the right strea
  * is not a terminal, so `hideCursor()` returns immediately and every one of the 99 runs
  * with the cursor path switched off. This is the same blind spot `flagstaff/ora` shipped a
  * defect through — 99 / 99 with no cursor restored on a signal — and the same fix answers
- * both, which is why `cursor.ts` is one module and not two.
+ * both, which is why the restore is one implementation and not two — `closeout`'s, since
+ * 2026-09-15.
  *
  * Proven to fail on the unfixed state: with `process.once('exit', …)` and nothing else —
  * which is what a straight port of `restore-cursor` minus `signal-exit` gives you, and what
@@ -249,14 +250,14 @@ describe.skipIf(process.platform === 'win32')('a cursor hidden mid-frame comes b
   );
 
   /**
-   * The other half of the re-raise, and the half nothing graded until now. `cursor.ts`
+   * The other half of the re-raise, and the half nothing graded until now. The registrar
    * re-raises **only** when `process.listenerCount(signal) === 0`; drop that condition and
    * all three cases above still pass, because none of them installs a handler of its own.
    * The claim "a renderer does not get to overrule a program that took SIGINT for itself"
-   * is made in `cursor.ts`, in `flagstaff/design.md` and in the README, so it needs a check.
+   * is made in `closeout`, in `flagstaff/design.md` and in the README, so it needs a check.
    *
    * **`ownHandlerRuns` is that check, and the other three assertions are not.** Measured by
-   * deleting the `listenerCount` guard from the built `dist/cursor.js`: the child is still
+   * deleting the `listenerCount` guard from the registrar's built output: the child is still
    * not killed and still exits 7, because the unconditional re-raise is caught by the
    * child's *own* handler rather than by node's default action. What actually changes is
    * that the program's handler is entered **twice for one Ctrl+C** — which is the bug, and

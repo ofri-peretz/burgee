@@ -37,6 +37,18 @@ one file several lanes append to at once; keep the diff to your own lines and ex
 The lockfile has its own trap (a Mac-regenerated lock fails Lockfile Sync); one lane
 touching it is the only safe number.
 
+**A lane taking its package from placeholder to implementation cannot leave `lint` green, and
+that is expected.** `.sdlc/bands/artifact-size-baseline.json` allows 10% growth, and `bellpull`
+going from a seven-line stub to a real package grew 921% packed and 1,467% unpacked. The check's
+own message — *"bump the baseline deliberately or trim"* — asks for something the lane is
+forbidden to do. So: **report the two numbers and leave the check red; the integrator runs
+`--update-baseline` when merging.** Verify the rest of `lint` passes, and say in the report that
+this is the only failure.
+
+The durable fix is to shard that file per package, the way `packages/compat-oracle/baseline/`
+was sharded for exactly this reason (PLAN `SHARD`) — a lane would then own its own fragment and
+no two lanes could collide. Not done yet; it is a step, not a workaround.
+
 ## Step ownership
 
 Three kinds, because three kinds exist:

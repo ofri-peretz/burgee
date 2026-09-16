@@ -1,7 +1,7 @@
 /**
  * Z1 / U7 — the shape lock. A working program is ONE file: `npm i flagstaff`, write it,
  * run it. No build step, no config, no directory convention. It installs the real packed
- * tarballs — flagstaff's and roundel's, its one same-repo dependency — rather than importing
+ * tarballs — flagstaff's and those of its three same-repo dependencies — rather than importing
  * from source, because importing from source would not prove that a stranger can do this.
  * Mirrors `roundel/src/shape.test.ts`.
  */
@@ -22,6 +22,8 @@ function npm(args: string[], options: Parameters<typeof execFileSync>[2]): strin
 const pkgRoot = fileURLToPath(new URL('..', import.meta.url));
 const roundelRoot = resolve(pkgRoot, '../roundel');
 const linegaugeRoot = resolve(pkgRoot, '../linegauge');
+/** The cursor net, since 2026-09-15: `restore-cursor` and `signal-exit` live here, not in flagstaff. */
+const closeoutRoot = resolve(pkgRoot, '../closeout');
 const ESC = String.fromCharCode(27);
 
 /**
@@ -49,7 +51,7 @@ function run(...argv: string[]): string {
 
 beforeAll(() => {
   dir = mkdtempSync(join(tmpdir(), 'flagstaff-shape-'));
-  const tarballs = [roundelRoot, linegaugeRoot, pkgRoot].map((root) => join(dir, npm(['pack', '--silent', '--pack-destination', dir], { cwd: root, encoding: 'utf8' }).trim()));
+  const tarballs = [roundelRoot, linegaugeRoot, closeoutRoot, pkgRoot].map((root) => join(dir, npm(['pack', '--silent', '--pack-destination', dir], { cwd: root, encoding: 'utf8' }).trim()));
   npm(['install', '--no-audit', '--no-fund', '--silent', ...tarballs], { cwd: dir, stdio: 'ignore' });
   writeFileSync(join(dir, 'cli.mjs'), ONE_FILE);
 }, 120_000);
@@ -81,11 +83,12 @@ describe('Z1 — one file, npm i, no build step', () => {
     }
   });
 
-  it('the package it installed depends on linegauge and roundel and on nothing else (U6: 0 external, 2 same-repo)', () => {
+  it('the package it installed depends on closeout, linegauge and roundel and on nothing else (U6: 0 external, 3 same-repo)', () => {
     const installed = JSON.parse(readFileSync(join(dir, 'node_modules/flagstaff/package.json'), 'utf8')) as { dependencies?: Record<string, string> };
-    expect(Object.keys(installed.dependencies ?? {}).toSorted()).toEqual(['linegauge', 'roundel']);
+    expect(Object.keys(installed.dependencies ?? {}).toSorted()).toEqual(['closeout', 'linegauge', 'roundel']);
     expect(existsSync(join(dir, 'node_modules/roundel/package.json'))).toBe(true);
     expect(existsSync(join(dir, 'node_modules/linegauge/package.json'))).toBe(true);
+    expect(existsSync(join(dir, 'node_modules/closeout/package.json'))).toBe(true);
     expect(existsSync(join(dir, 'node_modules/flagstaff/node_modules'))).toBe(false);
   });
 });

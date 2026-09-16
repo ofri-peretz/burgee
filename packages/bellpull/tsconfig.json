@@ -1,5 +1,6 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "rootDir": "src", "outDir": "dist", "types": ["node"] },
+  "$comment": "`newLine: lf` because `weight.test.ts` asserts `npm pack`'s unpackedSize is exactly the number in `.sdlc/bands/foundation-ceilings.json`, and `dist/` is emitted by tsc on whichever runner builds it. `.gitattributes` already pins the checkout to LF; this pins the other half, so the packed byte count is a fact about the package rather than about the operating system that compiled it.",
+  "compilerOptions": { "rootDir": "src", "outDir": "dist", "types": ["node"], "newLine": "lf" },
   "include": ["src"]
 }

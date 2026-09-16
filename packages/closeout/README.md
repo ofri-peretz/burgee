@@ -175,6 +175,25 @@ on the handlers when they are all synchronous, not on the clock.
 the code is captured at the trigger, before a single handler runs, and a breached deadline
 exits with that same code rather than one invented by the fact that something hung.
 
+**A signalled process dies of the signal.** Once the handlers have run, closeout removes its
+own listener and re-raises — so a program killed by Ctrl-C really dies of SIGINT rather than
+exiting 130. The two are different events to everything upstream of you: `WIFSIGNALED` is
+true for one and false for the other, so a shell knows to print `^C`, `make` stops a parallel
+build, a CI runner marks a job cancelled rather than failed, and a supervisor decides whether
+to restart. 128 + n is the number a shell reports *afterwards*; it is not a status a process
+can set for itself, and closeout only falls back to it on a runtime that refuses to raise the
+signal at all (SIGHUP on Windows).
+
+**A program that owns the signal keeps it.** The re-raise happens only when no other listener
+remains, counted after closeout's own comes off. A program with its own `SIGINT` handler gets
+the cleanup and still decides what happens next — and gets exactly one delivery for one
+Ctrl-C.
+
+> `closeout/exit-hook` is the one place this does not apply. `exit-hook` exits `128 + n` and
+> listens on SIGINT and SIGTERM only — no SIGHUP — and its own suite grades both, so the
+> drop-in keeps them. Use closeout's `onExit` rather than the drop-in when a closing terminal
+> has to reach your cleanup.
+
 ## Testing it
 
 Everything interesting is in a registry with no process attached:
@@ -188,7 +207,9 @@ await registry.run({ code: null, signal: 'SIGINT' });
 ```
 
 And `install({ process: fake })` wires one to something that is not the global process, for
-a test or for a runner hosting other programs.
+a test or for a runner hosting other programs. A `ProcessLike` owes `kill` and `pid` as well
+as the listener methods, because re-raising a signal is part of the contract above and a fake
+that could quietly skip it is how the missing re-raise survived two incumbent suites.
 
 ## API
 
@@ -293,12 +314,12 @@ Graded by the incumbent's own test suite:
 | `exit-hook` | 21 / 21 |
 | `restore-cursor` | 6 / 6 |
 
-Weight, installed and tree-inclusive: **90,239 bytes** against **170,604** for the incumbents it replaces — a ratio of **0.5289** (exit-hook not installed here, so the ceiling is understated).
+Weight, installed and tree-inclusive: **84,230 bytes** against **170,604** for the incumbents it replaces — a ratio of **0.4937** (exit-hook not installed here, so the ceiling is understated).
 ## Where it sits
 
 Plugins register under the `handlers` key, against the one schema the whole family shares.
 
-Nothing in this family builds on it yet, and it builds on nothing in this family.
+`burgee`, `caique`, `flagstaff` build on it, and it builds on nothing in this family.
 ## Licence
 
 MIT

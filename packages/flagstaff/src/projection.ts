@@ -5,7 +5,9 @@
  * `process` exists. The three sequences are written by hand rather than through
  * `node:readline`, whose helpers want a `Writable` where the loop only has a `Writer`.
  */
-import { HIDE_CURSOR, restoreCursorOnExit, SHOW_CURSOR } from './cursor.js';
+import { onExit } from 'closeout';
+import { HIDE_CURSOR, SHOW_CURSOR } from 'closeout/cursor';
+
 import { type Component } from './plugin.js';
 
 export interface Writer {
@@ -62,9 +64,11 @@ class TtyProjection<S> implements Projection<S> {
     this.#out.write(HIDE_CURSOR);
     // `close()` puts the cursor back, and `close()` does not run when a signal ends the
     // process — Ctrl+C during a spin used to leave the user's terminal with no cursor at
-    // all. The writer goes in so the restore lands on the Runtime's own stream: this module
-    // does not know `process` exists, and must not learn (R1).
-    this.#dropCursorNet = restoreCursorOnExit((s) => void this.#out.write(s));
+    // all. The writer is captured in the handler so the restore lands on the Runtime's own
+    // stream: this module does not know `process` exists, and must not learn (R1), so it
+    // registers through closeout rather than reaching for a stream closeout would pick.
+    // `restore` is the phase that runs last, after every handler a program registered.
+    this.#dropCursorNet = onExit(() => void this.#out.write(SHOW_CURSOR), { phase: 'restore' });
     this.#paint();
     if (this.#component.frame !== undefined) this.#cancel = this.#clock.schedule(() => this.#repaint(), this.#interval);
   }

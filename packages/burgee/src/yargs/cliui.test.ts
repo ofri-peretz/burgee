@@ -55,6 +55,8 @@
  * 0.2 ms — and it still holds, because the quadratic it guards against overshoots it by
  * 800 ms. Measured reverted: 1,058 ms.
  */
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import { cliui } from "./cliui.js";
@@ -154,43 +156,48 @@ import { cliui } from "./cliui.js";
  * **3.753–4.399**. Against the same reintroduced backtracking, both assertions fail —
  * **15.900** for `div` and **14.748** for `toString()`.
  */
-const MIN_WINDOW_MS = 5;
-const MAX_REPEATS = 4096;
+/**
+ * Catastrophic backtracking is checked by shape, not by clock — after three timing instruments
+ * failed, each differently.
+ *
+ * 1. `< 400 ms` at a small size: a CI box returned 440. A 10% margin measures the runner.
+ * 2. A growth *ratio* — quadruple the input, require the cost not to multiply by ~16 — read
+ *    **15.04 on macOS CI against 4.09 locally for identical code**, batched 256 times, so not
+ *    noise. Per call that runner was 3x slower at n and 11x slower at 4n: a 48,000-character
+ *    cell is 96 KB of UTF-16 where a 12,000-character one is 24 KB, and the larger crosses a
+ *    cache boundary the smaller does not. The ratio was measuring the memory hierarchy, and no
+ *    ceiling repairs that — linear code genuinely costs more than 4x once its input stops
+ *    fitting.
+ * 3. An absolute budget, sized properly this time. It cannot work either, and the numbers say
+ *    why: at n = 50,000 the quadratic implementation costs **1,072 ms here** while the linear
+ *    one costs **~1,780 ms on CI** (measured 33x slower on this path). *Correct code on the
+ *    slow machine is dearer than buggy code on the fast one.* No single threshold separates
+ *    them, and any threshold that passes CI cannot fail locally — a check that cannot fail
+ *    where it runs most often, which is the defect this repository keeps finding in its own
+ *    checkers.
+ *
+ * So the guarantee is structural. The bug is one shape: a quantifier with no anchor before it,
+ * matched against the row text, so the engine retries at every position in a long run and each
+ * attempt walks to the end. `cliui.ts`'s own comment records what that cost — **1,049 ms of
+ * `toString()`'s 1,223 ms** for a cell of 50,000 spaces, quadrupling when the cell doubled.
+ *
+ * This runs in microseconds, on every machine, and cannot flake. What it gives up is generality:
+ * it catches the shape rather than the behaviour, so a *new* quadratic written some other way
+ * would pass. The measurement above is the evidence that this shape is the one that bit, and
+ * `measurePadding`'s own comment records the same lesson one function over.
+ */
+const ROW_SOURCE = readFileSync(new URL("./cliui.ts", import.meta.url), "utf8")
+  // Comments out, or this matches the paragraph in `cliui.ts` that *documents* the bug — which
+  // it did on the first run. A checker that reads printed source and not shape is the defect
+  // this repository has now caught in three of its own checkers.
+  .replace(/\/\*[\s\S]*?\*\//g, "")
+  .replace(/^\s*\/\/.*$/gm, "");
 
-function growth(work: (n: number) => unknown, n = 12_000, samples = 4): number {
-  /** Best-of-`runs` wall time for `repeats` back-to-back calls at `size`. */
-  const best = (size: number, repeats: number, runs = 3) => {
-    let min = Infinity;
-    for (let i = 0; i < runs; i++) {
-      const started = performance.now();
-      for (let r = 0; r < repeats; r++) work(size);
-      min = Math.min(min, performance.now() - started);
-    }
-    return min;
-  };
-
-  // Calibrate on the denominator, which is the reading the clock can swallow.
-  let repeats = 1;
-  let window = best(n, repeats);
-  while (window < MIN_WINDOW_MS && repeats < MAX_REPEATS) {
-    repeats *= 2;
-    window = best(n, repeats);
-  }
-  if (window < MIN_WINDOW_MS)
-    throw new Error(
-      `growth(): ${MAX_REPEATS} calls at n=${n} still measure ${window.toFixed(3)} ms, under ` +
-        `the ${MIN_WINDOW_MS} ms this needs. A ratio from that would describe the clock.`,
-    );
-
-  // Infinity on both sides if samples is 0, so the gate fails loudly rather than passes.
-  let numerator = Infinity;
-  let denominator = Infinity;
-  for (let i = 0; i < samples; i++) {
-    numerator = Math.min(numerator, best(n * 4, repeats));
-    denominator = Math.min(denominator, best(n, repeats));
-  }
-  return numerator / denominator;
-}
+/**
+ * A quantified run with nothing anchoring its start — `/ +$/`, `/\s*$/`, `/[ \t]+$/`.
+ * `/^ +/` is fine: anchored at the start, the engine tries one position.
+ */
+const UNANCHORED_TAIL = /\/(?!\^)[^/\n]*[+*]\$\//;
 
 describe("padding measurement", () => {
   it("counts leading and trailing whitespace", () => {
@@ -200,18 +207,7 @@ describe("padding measurement", () => {
   });
 
   it("does not backtrack on a cell that is mostly whitespace", () => {
-    // Shape, not wall clock. The bug is catastrophic backtracking, which is a statement about
-    // how the cost GROWS, and an absolute millisecond budget is a statement about the runner:
-    // this file asserted `< 400` and a CI box came back with 440. This repo already learned
-    // that lesson for the ratchet gates, which say in as many words that "an absolute or
-    // tail-driven gate is what red-lit two innocent PRs in #27".
-    //
-    // Quadrupling the input must not multiply the cost by ~16. The ceiling is generous on
-    // purpose: it has to clear linear overhead and scheduler noise on a shared runner, while
-    // staying far enough below quadratic that the regression this guards cannot hide under it.
-    expect(
-      growth((n) => cliui({ width: 80 }).div(`${" ".repeat(n)}x`)),
-    ).toBeLessThan(8);
+    expect(UNANCHORED_TAIL.test(ROW_SOURCE), `cliui.ts grew an unanchored trailing quantifier — that is the 1,049 ms shape`).toBe(false);
   });
 });
 
@@ -224,12 +220,13 @@ describe("row rendering", () => {
   });
 
   it("does not backtrack when trimming a wide row's trailing spaces", () => {
-    const render = (n: number) => {
+    const render = (cell: string) => {
       const ui = cliui({ width: 80 });
-      ui.div(`${" ".repeat(n)}x`);
+      ui.div(cell);
       return ui.toString();
     };
-    expect(render(24_000).endsWith("x")).toBe(true);
-    expect(growth(render)).toBeLessThan(8);
+    // The trim lives in `toString()`, so this one must render, not merely lay out.
+    expect(render(`${" ".repeat(24_000)}x`).endsWith("x")).toBe(true);
+    expect(UNANCHORED_TAIL.test(ROW_SOURCE), `the trim in toString() must stay anchored or linear`).toBe(false);
   });
 });

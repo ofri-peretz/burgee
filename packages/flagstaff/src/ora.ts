@@ -2,7 +2,7 @@
  * `flagstaff/ora` — ora 9's public API, ported method for method and graded by ora's own
  * suite through `compat-oracle` (R6, U11). Its eight dependencies come with it: the
  * spinner corpus is `spinners.json` beside this file, the display width is `width.ts`,
- * the colours are `roundel/chalk`, the cursor control is `cursor.ts` (shared with
+ * the colours are `roundel/chalk`, the cursor control is `closeout` (shared with
  * `flagstaff/log-update`, which ports the same chain), and the log symbols, the stdin
  * discarder, the interactivity and unicode probes are the fifty lines below. A migration
  * is one import, and the tree that came with it — nine packages including the transitive
@@ -16,10 +16,11 @@
  */
 import { Buffer } from 'node:buffer';
 
+import { HIDE_CURSOR, SHOW_CURSOR } from 'closeout/cursor';
+import restoreCursor from 'closeout/restore-cursor';
 import { lineCount } from 'linegauge';
 import chalk from 'roundel/chalk';
 
-import { HIDE_CURSOR, restoreCursorOnExit, SHOW_CURSOR } from './cursor.js';
 import { processRuntime } from './runtime.js';
 import spinnerCorpus from './spinners.json' with { type: 'json' };
 
@@ -577,7 +578,7 @@ export class Ora {
 
   #hideCursor(): void {
     if (this.#stream.isTTY !== true) return;
-    restoreCursorOnExit();
+    restoreCursor();
     this.#stream.write(HIDE_CURSOR);
   }
 
