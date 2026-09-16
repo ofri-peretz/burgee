@@ -5,6 +5,15 @@ export function kebab(name: string): string {
   return name.replaceAll(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
 }
 
+/**
+ * Option names as the caller types them. Every surface that publishes a list of options —
+ * `--schema`, help, the Fig spec — renders the flags, never the canonical keys, and one
+ * helper here is the difference between that being true and being true three times.
+ */
+export function flagsOf(names: readonly string[]): string[] {
+  return names.map((n) => `--${kebab(n)}`);
+}
+
 /** `--dry-run` on the command line reaches the handler as `dryRun`. */
 export function camel(flag: string): string {
   return flag.replaceAll(/-([a-z0-9])/g, (_, c: string) => c.toUpperCase());

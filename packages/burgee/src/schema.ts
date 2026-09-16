@@ -4,8 +4,8 @@
  * manifest and nothing else. Choices are carried as data (N9), the same data that becomes
  * an MCP tool's input schema.
  */
-import type { ArgumentSpec, CommandNode, Effects, Example, Manifest, OptionSpec, Relation } from './manifest.js';
-import { kebab } from './names.js';
+import { type ArgumentSpec, type CommandNode, type Effects, type Example, type Manifest, type OptionSpec, type Relation, relationsOf } from './manifest.js';
+import { flagsOf, kebab } from './names.js';
 
 export interface JsonSchema {
   type: 'object';
@@ -26,6 +26,17 @@ export interface JsonSchemaProperty {
   flag?: string;
   /** The shared set this option was copied from (M4). */
   sharedFrom?: string;
+  /**
+   * The flags this option requires, and the flags it excludes — as the caller types them, not
+   * as the handler reads them, because the reader of this document is composing a command line
+   * (S5). Both are also in the command's `relations`; here they are on the property an agent is
+   * already looking at, which is the difference between reading a constraint and finding one.
+   *
+   * Omitted when the option declares none, so absent reads as "no constraint" rather than
+   * "constraints not published" — the rule `relations` follows one level up.
+   */
+  dependsOn?: string[];
+  exclusive?: string[];
 }
 
 export interface CommandSchema {
@@ -117,6 +128,8 @@ function optionProperty(name: string, spec: OptionSpec): JsonSchemaProperty {
   if (spec.minimum !== undefined) p.minimum = spec.minimum;
   if (spec.maximum !== undefined) p.maximum = spec.maximum;
   if (spec.sharedFrom !== undefined) p.sharedFrom = spec.sharedFrom;
+  if (spec.dependsOn !== undefined && spec.dependsOn.length > 0) p.dependsOn = flagsOf(spec.dependsOn);
+  if (spec.exclusive !== undefined && spec.exclusive.length > 0) p.exclusive = flagsOf(spec.exclusive);
   return p;
 }
 
@@ -155,7 +168,9 @@ export function commandSchemaOf(node: CommandNode, root: string[]): CommandSchem
   if (node.group !== undefined) out.group = node.group;
   if (node.load !== undefined) out.lazy = true;
   if (node.plugin !== undefined) out.plugin = node.plugin;
-  if (node.relations !== undefined && node.relations.length > 0) out.relations = node.relations.map(publishable);
+  // Both spellings, in one list, through the one function the engine enforces (S2/S6).
+  const relations = relationsOf(node);
+  if (relations.length > 0) out.relations = relations.map(publishable);
   return out;
 }
 
