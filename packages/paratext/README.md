@@ -101,4 +101,4 @@ Weight, installed and tree-inclusive: **66,080 bytes** against **30,912** for th
 
 Plugins register under the `capabilities` key, against the one schema the whole family shares.
 
-Nothing in this family builds on it yet, and it builds on nothing in this family.
+`flagstaff` builds on it, and it builds on nothing in this family.
