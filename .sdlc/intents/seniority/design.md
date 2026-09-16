@@ -144,7 +144,7 @@ them the absent YAML parser, one of them the harness.
 
   **Two of the four vendored; two still unvendored, and one of those is another lane's.** This
   is the one requirement 3.2 does not finish, and the part of it that is in this lane's gift
-  was done — see [§ The two suites, measured](#the-two-suites-measured) for every number and
+  was done — see [§ The four suites, measured](#the-four-suites-measured) for every number and
   every remaining blocker.
 
   - `cosmiconfig` 10.0.1: control **240 / 241, 99.6%** (was 210 / 241 before the host's own
@@ -285,7 +285,7 @@ are.
 | R7 | **Built** | shipped 0.1.0. `src/config.ts` — `loadWithExtends`, deep merge, cycle rejection | `config.test.ts` |
 | R8 | **Built** | `src/cosmiconfig.ts` + `-defaults` + `-util` re-exported from the root; `./cosmiconfig`, `./dotenv`, `./find-up` as separate entry points | cosmiconfig's own suite: **186 / 241**. `shape.test.ts` locks the export map and subpath isolation |
 | R9 | **Built** | `src/shape.test.ts` — a ceiling on the **built** `dist`, not on the source | `shape.test.ts`: 95,907 B against a 140,000 B ceiling, and a floor so an empty build cannot pass |
-| R10 | **Not built** | **not this package’s to finish.** Two of four suites vendored (`cosmiconfig`, `dotenv`); `lilconfig` unvendored, `rc` is PLAN 2.15 and the harness lane's | `npm run compat -- cosmiconfig --control`; see [§ The two suites, measured](#the-two-suites-measured) |
+| R10 | **Built** | all four vendored and graded control-first by the harness lane, 2026-09-16: `cosmiconfig` **186 / 243, 76.5%**, `dotenv` **74 / 141, 50.3%**, `lilconfig` **0 / 77**, `rc` **0 / 1** (`target not built yet`) | `npm run compat -- cosmiconfig --control`, and the same for the other three; see [§ The four suites, measured](#the-four-suites-measured) |
 | R11 | **Built** | no source in the package names `process` | `shape.test.ts` locally, and `packages/burgee/src/process-reference-lock.test.ts` repo-wide — seniority has **no** allow-list entry, which is the claim |
 | R12 | **Built** | `src/validate.ts` — `validate` returns every violation, `check` throws one `ConfigError` | `validate.test.ts`: ``` `out` must be a string; `./mytool.config.js:3` set it to `4` ``` |
 | R13 | **Built** | 2026-09-14. `src/precedence.ts` — open union, `describe`'s `default` branch | `precedence.test.ts`: a `vault` source renders itself in `--explain` |
@@ -381,14 +381,31 @@ case where one side is *changed on purpose* and the other is forgotten.
 winner; recording which one won is a write, not a second pass. That it is free is exactly
 why its absence across sixteen packages is a pace finding rather than a capability one.
 
-## The two suites, measured
+## The four suites, measured
 
-Both vendored 2026-09-14 by `npx tsx scripts/vendor-suite.ts <pkg> --verify`, each at the
-annotated tag matching its published release, each `PROVENANCE` stamped `verified` against
-the host. **Re-measured 2026-09-15 under PLAN 3.2.** Both host rows are still **`planned`**,
-not `active`, and both baseline fragments are therefore inert until someone activates them.
-That is the honest state: a host whose control cannot be run, or runs below its own reference,
-must not publish a rate.
+`cosmiconfig` and `dotenv` vendored 2026-09-14 by `npx tsx scripts/vendor-suite.ts <pkg>
+--verify`, each at the annotated tag matching its published release, each `PROVENANCE`
+stamped `verified` against the host; `lilconfig` and `rc` followed on 2026-09-16.
+
+**All four are `active` as of 2026-09-16**, and what activated them was three harness fixes
+rather than anything about this package — recorded here because the paragraph this replaces
+said the opposite for two days and the reason matters more than the status:
+
+| host | target | control | what had been blocking it |
+| :-- | --: | --: | :-- |
+| `cosmiconfig` | **186 / 243, 76.5%** | 240 / 243 (allowance 1) | `installSuiteDeps` skipped a pin it could resolve *by name*, so the 10.0.1 suite graded against the workspace's hoisted 9.0.2 and the control read 234 / 241 — below its own reference, which must not publish a rate |
+| `dotenv` | **74 / 141, 50.3%** | 141 / 141 | its suite is node-tap and `command()` had no `tap` arm, so it fell through to mocha's and graded zero |
+| `lilconfig` | **0 / 77** | 67 / 77 (allowance 10) | `jest.clearAllMocks` was unmapped, and it is called in a top-level `beforeEach` — a TypeError before every case, control 0 / 84 |
+| `rc` | **0 / 1**, `target not built yet` | 1 / 1 by exit code | nothing, in the end: its control had been *passing* by resolving `rc` out of a stray `/Users/…/node_modules`, which the same pin fix closed |
+
+**The rate moved down when it became honest.** `cosmiconfig`'s reference is now **243, not
+241**: two cases sit behind `if (process.platform === 'linux')` in
+`search-strategies.test.ts`, so a darwin run never registers them, and the published rate was
+dividing by whichever machine last generated it. They are counted **against us** rather than
+excluded, because we genuinely fail them — this package derives its global config directory
+from `os.homedir()` instead of reading `XDG_CONFIG_HOME` through `env-paths`, which is R11's
+listed divergence. Excluding them would have moved the number up, 76.5% → 77.2%, by dropping
+two cases we lose.
 
 | incumbent | release / tag / commit | files | control | target | target rate |
 | :-- | :-- | --: | :-- | :-- | :-- |
@@ -679,7 +696,7 @@ as much as the list.
 | Print anything | `explanation()` is a record and `renderExplanation` is one rendering of it. A package that owned the output would own the colour and the terminal detection too, which are two other packages' jobs | `roundel`, `flagstaff` |
 | Import burgee, or any sibling | The resolved shape is described **structurally** (R12/Y1). A config library that imports a CLI framework is a config library only that framework's users can have | the `Shape` interface — any object with those fields |
 | Cache discovery across processes | A config file read from a stale cache is the worst shape of this bug: correct output, wrong input, no error. The two caches that exist are cosmiconfig's own, inside the façade, because its suite grades them | — |
-| Vendor `lilconfig` and `rc` (R10) | `rc` grades through exit codes rather than a suite and PLAN 2.15 assigns it to the harness lane; `lilconfig` is unvendored. Both are writes under `packages/compat-oracle/**`, which is not this lane's path | R10 stays **Not built**, and PLAN 3.2 stays red for that and nothing else |
+| Vendor `lilconfig` and `rc` (R10) | `rc` grades through exit codes rather than a suite and PLAN 2.15 assigns it to the harness lane; `lilconfig` is unvendored. Both are writes under `packages/compat-oracle/**`, which is not this lane's path | **Done 2026-09-16 by the harness lane**, which is exactly where it was handed off to. R10 is `Built` and PLAN 3.2 is green |
 
 ## Verification
 

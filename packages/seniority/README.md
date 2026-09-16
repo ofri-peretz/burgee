@@ -266,8 +266,10 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
-| `cosmiconfig` | 186 / 241 |
-| `dotenv` | 0 / 141 |
+| `cosmiconfig` | 186 / 243 |
+| `dotenv` | 74 / 141 |
+| `lilconfig` | 0 / 77 |
+| `rc` | 0 / 1 |
 
 Weight, installed and tree-inclusive: **153,392 bytes** against **1,555,288** for the incumbents it replaces — a ratio of **0.0986**.
 ## Where it sits

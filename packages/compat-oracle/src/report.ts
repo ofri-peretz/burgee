@@ -60,7 +60,11 @@ function line(g: Grade, baseline: Baseline): string {
   // judgement, not arithmetic, so it is printed every time it is made — a reclassification
   // nobody sees is indistinguishable from a grader marking its own homework.
   const over = g.exceeded === undefined || g.exceeded === 0 ? '' : `   (${g.exceeded} the host marks failing and we pass)`;
-  return `  ${g.host.padEnd(HOST_COL)} ${bar(g.rate)} ${counts} ${pct}${arrow(g, baseline[g.host])}${skipped}${over}`;
+  // Printed for the same reason as the two above: the denominator here is the full suite and
+  // this machine did not run all of it, which a reader comparing two terminals has to be told
+  // rather than left to derive. It is why the rate is the same number on both.
+  const absent = absentHere(g.host) === 0 ? '' : `   (${absentHere(g.host)} the suite does not register on ${process.platform}, counted against us)`;
+  return `  ${g.host.padEnd(HOST_COL)} ${bar(g.rate)} ${counts} ${pct}${arrow(g, baseline[g.host])}${skipped}${over}${absent}`;
 }
 
 export type Write = (s: string) => void;
@@ -145,6 +149,24 @@ function vendorAll(hosts: Host[], write: Write): void {
 const allowedFailures = (host: string): number => HOSTS.find((h) => h.name === host)?.controlFailures?.count ?? 0;
 
 /**
+ * Cases *this* machine's copy of the suite does not contain, because the suite guards them
+ * with the platform — `0` on the platforms that hold the full set, and on every host that
+ * declares nothing.
+ *
+ * Read off the declaration and never inferred. A case inside
+ * `if (process.platform === 'linux') { … }` is not handed to the runner at all, so it emits
+ * no `# SKIP` and no line of any kind: there is nothing here for a heuristic to notice, which
+ * is why `cosmiconfig`'s 241-on-darwin against 243-on-ubuntu reached a published page as two
+ * different rates for one commit.
+ */
+export function absentHere(host: string, platform: NodeJS.Platform = process.platform): number {
+  const declared = HOSTS.find((h) => h.name === host)?.conditionalCases;
+  if (declared === undefined) return 0;
+  const absent = declared.only === undefined ? (declared.notOn ?? []).includes(platform) : !declared.only.includes(platform);
+  return absent ? declared.count : 0;
+}
+
+/**
  * The control proves the gate (`compat-oracle/intent.md`, criterion 3), so the bar is that
  * the host's own suite *passes* against the host's own package — not merely that something
  * registered. `passed === 0` was the whole test until 2026-09-09, and it let a control at
@@ -175,8 +197,34 @@ function controlShortfall(g: Grade): string | undefined {
   // case that never registered is not. Both commander and yargs skip one OS-specific test
   // on Linux and none on the machine that set the reference; without this the control is
   // red on ubuntu for doing exactly what it should.
-  const registered = g.tests + g.skipped;
+  //
+  // `+ absentHere`, for the case that does not even get that far. A skip is a case the
+  // runner was given and declined; a case the suite guards with `process.platform` is one
+  // the runner never saw, and the reference is deliberately the full set so the published
+  // denominator is the same on every machine. That shortfall is declared per host with its
+  // reason, exact rather than a ceiling, and spent only off the platforms that lack the
+  // cases — so a control that loses a case for any *other* reason is as red as it was.
+  const registered = g.tests + g.skipped + absentHere(g.host);
   if (g.reference > 0 && registered < g.reference) return `${String(registered)} of its own ${String(g.reference)} cases registered — the rest stopped running`;
+  // And the other direction, which was silent until 2026-09-16 and is the half that shipped.
+  //
+  // `rate()` divides by `max(reference, tests)` and its comment calls a larger count "the
+  // honest denominator until the baseline is re-measured" — true of a rate in isolation, and
+  // not true of a rate that is *published*. A control that counts more cases than the
+  // reference is proof the reference is not this suite, and the published denominator then
+  // depends on which machine last regenerated the page: `cosmiconfig` committed 186 / 241 at
+  // 77.2% from darwin and measured 76.5% on ubuntu, where the same suite is 243 cases. The
+  // control is the run that fixes the reference, so this is the run that has to refuse it —
+  // re-record the reference, or declare the difference in `conditionalCases`.
+  //
+  // Read off `tests` and NOT off `registered`, which is the distinction the first draft of
+  // this check got wrong and commander and yargs caught within one run. `registered` adds the
+  // skips back so the clause above cannot punish a machine for skipping more; the denominator
+  // is `max(reference, tests)` and skips are already out of `tests`, so adding them here made
+  // every host with a single OS-specific skip read one case over its own reference.
+  if (g.reference > 0 && g.tests > g.reference) {
+    return `${String(g.tests)} cases counted against a recorded reference of ${String(g.reference)} — the reference is not this suite, so the published denominator reads the machine`;
+  }
   return undefined;
 }
 
