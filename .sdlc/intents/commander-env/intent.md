@@ -104,3 +104,22 @@ None open. Decided at finalisation (2026-09-06):
 - **Env→array parsing uses the option's declared `separator`**, default `,`; an option
   with `multiple: false` receiving a separator-bearing env value is a `CONFIG` error
   with a `fix`, not a silent string.
+
+## Incumbents
+
+`commander, yargs` — the trackers whose issues are this surface's demand signal, and the input
+`scripts/mine-issues.ts` (PLAN 4.1) needs in order to write the `issues.md` beside this file.
+
+It is declared here because the miner's own `LAYERS` table, in
+`packages/compat-oracle/src/demand.ts`, knows the nine *packages* and not the surfaces of any
+one of them: `burgee`'s entry names `commander` and `yargs` for the whole package, and the six
+surface intents are not in the table at all. Until that table reads this line,
+`npx tsx scripts/mine-issues.ts commander-env` answers `no layer matched`.
+
+Chosen from evidence rather than from the slug, which is the reason to write it down at all.
+The rule: **the front-end this surface adapts, plus every other tracker this intent's own body
+cites three or more times.** Here that is `commander`, and `yargs`, which it cites eight times. Trackers cited once or twice
+(citty) are comparisons this intent draws, not incumbents it replaces; mining them would file
+issues under a surface no criterion here answers.
+
+<!-- incumbents: commander, yargs -->
