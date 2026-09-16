@@ -24,6 +24,27 @@ const TYPES = new Set(['string', 'boolean', 'number']);
 const RESERVED = new Set(['json', 'help', 'schema', 'mcp', 'version', 'explain']);
 
 /**
+ * `dependsOn` and `exclusive` may only name options this command declares, and never
+ * themselves.
+ *
+ * Both mistakes are silent at run time, in opposite directions, which is why they are refused
+ * here. A misspelt `dependsOn` compiles to an `implies` whose consequent is never set, so
+ * *every* invocation naming the option is refused for want of a flag the program does not
+ * have. A misspelt `exclusive` — and a self-reference, which is the same shape, since
+ * `conflicts: ['a', 'a']` sees one set option and not two — compiles to a constraint that can
+ * never fire, so the one the author wrote is simply absent.
+ */
+function checkRelationNames(name: string, key: string, spec: OptionSpec, options: Record<string, OptionSpec>): void {
+  for (const field of ['dependsOn', 'exclusive'] as const) {
+    for (const other of spec[field] ?? []) {
+      if (other !== key && other in options) continue;
+      const why = other === key ? 'itself' : `not an option of "${name}"`;
+      throw new Error(`burgee: option "${key}" of "${name}" declares ${field} "${other}", which is ${why}`);
+    }
+  }
+}
+
+/**
  * What must be true of a declaration before anything runs (yargs #1198, #887, #1679):
  * a known type, one short alias per command, no two keys that meet on the command line.
  */
@@ -44,6 +65,7 @@ export function checkDefinition(name: string, options: Record<string, OptionSpec
     if ((spec.minimum !== undefined || spec.maximum !== undefined || spec.integer !== undefined) && spec.type !== 'number') {
       throw new Error(`burgee: option "${key}" of "${name}" declares a numeric bound but is not a number`);
     }
+    checkRelationNames(name, key, spec, options);
   }
 }
 

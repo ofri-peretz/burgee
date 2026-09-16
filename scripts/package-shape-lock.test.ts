@@ -54,6 +54,7 @@ const FAMILY_ORDER = [
   'seniority',
   'bellpull',
   'closeout',
+  'paratext',
   'roundel',
   'flagstaff',
   'caique',
@@ -76,7 +77,16 @@ const FAMILY_ORDER = [
  * The arrow still points one way, and that is the part worth enforcing: the foundation
  * depends on nothing, so no edge can come back up.
  */
-const FOUNDATION = ['bellpull', 'closeout', 'linegauge', 'seniority'];
+/*
+ * `paratext` was in neither list until 2026-09-16 — a gap rather than a decision, and one
+ * nothing could see while no family package depended on it. `demand.ts`'s `LAYERS` has always
+ * named nine layers and these two lists between them named eight. The first consumer (R12,
+ * `flagstaff/box` and `flagstaff/table` linking a path) is what made the gap legible: the
+ * edge read as "a dependency on a package outside the family", which it is not. It belongs
+ * here, on the same terms as the other four — zero dependencies, nothing but Node builtins —
+ * and the two `it.each(FOUNDATION)` cases below now grade it as the floor.
+ */
+const FOUNDATION = ['bellpull', 'closeout', 'linegauge', 'paratext', 'seniority'];
 
 /** Node has these natively now (util.styleText, fs.glob, fetch, util.parseArgs). */
 const BANNED = ['chalk', 'picocolors', 'glob', 'node-fetch', 'minimist'];

@@ -189,6 +189,14 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   burgee: 41_000,
   'burgee/commander': 64_000,
   'burgee/yargs': 112_000,
+  // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
+  // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
+  // bundle grows by, set where the number actually is, so the next byte is a decision.
+  linegauge: 6_250,
+  'linegauge/wrap': 11_200,
+  'linegauge/slice': 8_850,
+  'linegauge/strip': 1_000,
+  paratext: 11_100,
 };
 
 /**
@@ -267,6 +275,31 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   'flagstaff/ora': 1,
   'flagstaff/boxen': 1,
   'flagstaff/log-update': 1,
+  // ── the foundation layers ─────────────────────────────────────────────────────────────
+  //
+  // Four of these five are above 1 and stay above it, and that is not a gate being loosened
+  // — it is the first time the number has existed. `linegauge`'s R9 and `paratext`'s R11
+  // both read `Not built` for the same reason, in the same words: this file had no pair for
+  // them, and `benchmarks/**` is not a package lane's to write.
+  //
+  // **The bar these rows do not carry is the requirement.** A bundled ratio compares our
+  // entry against ONE tree-shaken incumbent package; `string-width` does not ship alone — it
+  // drags `strip-ansi`, `ansi-regex` and `get-east-asian-width`, and what a user removes by
+  // switching is the tree. `.sdlc/PLAN.md` D1 decided that for the whole foundation tier,
+  // and `.sdlc/bands/foundation-ceilings.json` is where it is measured: against it
+  // `linegauge` reads 0.4904 and five of six layers hold. So these are ratchets at the
+  // measured value, exactly as `burgee/commander`'s 1.6 is, and not claims that we are
+  // lighter.
+  //
+  // `linegauge/wrap` is the one set at 1, because 0.774 earns it.
+  linegauge: 1.03,
+  'linegauge/wrap': 1,
+  'linegauge/slice': 1.5,
+  'linegauge/strip': 2.25,
+  // The layer that is over its D1 ceiling too — 66,305 against ansi-escapes' tree at 30,912,
+  // a ratio of 2.145. That breach is real, it is recorded in the ceilings file, and this
+  // ratchet exists so the bundled half cannot grow while it is being dealt with.
+  paratext: 2.55,
 };
 
 /**

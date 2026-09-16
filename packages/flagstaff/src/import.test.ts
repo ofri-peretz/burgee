@@ -94,7 +94,7 @@ describe('fromCliBoxes', () => {
  */
 describe('the corpora are not bundled (U5)', () => {
   /** The packages this repo publishes. A dependency on one is a same-repo edge (U6). */
-  const SAME_REPO = new Set(['roundel', 'linegauge', 'flagstaff', 'caique', 'burgee', 'bellpull', 'closeout', 'seniority']);
+  const SAME_REPO = new Set(['roundel', 'linegauge', 'flagstaff', 'caique', 'burgee', 'bellpull', 'closeout', 'seniority', 'paratext']);
 
   it('neither corpus is a dependency: they are the caller’s, and this module only reshapes them', async () => {
     const manifest = (await import('../package.json', { with: { type: 'json' } })) as { default: { dependencies: Record<string, string> } };

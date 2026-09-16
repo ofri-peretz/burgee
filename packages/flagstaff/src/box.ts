@@ -11,9 +11,15 @@ import { wrap } from 'linegauge/wrap';
  * Off a terminal the border is noise a screen reader reads character by character, so the
  * component's static projection is the text with its title, and only `frame()` draws.
  * `box()` itself is exported for the many callers who just want the string.
+ *
+ * **A box may carry a destination** (R12): `box(path, { href })` draws the text as a terminal
+ * hyperlink where the terminal is believed to do OSC 8, and as `text (url)` everywhere else.
+ * Neither decision nor sequence is this file's — both come from `paratext/link` through
+ * `./link.js`, which is the only module here that knows OSC 8 exists.
  */
 import { muted } from 'roundel/tokens';
 
+import { laid, painted, painter, STATIC, type Terminal } from './link.js';
 import { type BorderStyle, type Component, lookupBorder } from './plugin.js';
 
 export interface BoxOptions {
@@ -25,6 +31,17 @@ export interface BoxOptions {
   title?: string;
   /** Columns the whole box may occupy, borders included. Text wraps to fit. Default 80. */
   width?: number;
+  /**
+   * A url or a path the box's text points at — `file://…` for a path a terminal should be
+   * able to open, which is the case R12 is named after. The title is left alone: it is a
+   * label for the box, and a link around it would claim the border is clickable too.
+   */
+  href?: string;
+  /**
+   * The terminal the link is rendered for. Omitted, the real process is read through this
+   * package's seam. Supply one and the whole path is pure.
+   */
+  terminal?: Terminal;
 }
 
 const DEFAULT_WIDTH = 80;
@@ -38,8 +55,13 @@ const ELLIPSIS = '…';
 // and `box()` draws with it without knowing it exists.
 const resolve = (border: string | BorderStyle): BorderStyle => (typeof border === 'string' ? lookupBorder(border) : border);
 
-/** Pad a line to `cells` columns — measured, so a wide character counts as two. */
-const padEnd = (line: string, cells: number): string => line + ' '.repeat(Math.max(0, cells - width(line)));
+/**
+ * Pad a line to `cells` columns — measured, so a wide character counts as two. The gap is
+ * measured from `measured`, the line before any sequence was wrapped around it: `width()`
+ * strips OSC 8, so the two agree, and measuring the plain text means the geometry cannot
+ * depend on that staying true.
+ */
+const padEnd = (line: string, cells: number, measured = line): string => line + ' '.repeat(Math.max(0, cells - width(measured)));
 
 /** The title, cut to what the top border can hold, with an ellipsis when it was cut. */
 function fitTitle(title: string, cells: number): string {
@@ -75,10 +97,13 @@ export function box(text: string, options: BoxOptions = {}): string {
   const inner = Math.max(1, total - borderCells);
   const content = Math.max(1, inner - padX * BORDER_CELLS);
 
-  const wrapped = wrap(text, content, { hard: true, trim: false }).split('\n');
+  // The destination goes on after wrapping, around whatever text landed on each row: a link
+  // applied first is cut through the middle of its own url by the wrap (cli-table3 #338).
+  const paint = painter(options.terminal);
+  const wrapped = wrap(laid(text, options.href, paint), content, { hard: true, trim: false }).split('\n');
   const blank = Array.from({ length: padY }, () => '');
   const pad = ' '.repeat(padX);
-  const rows = [...blank, ...wrapped, ...blank].map((line) => `${style.left}${pad}${padEnd(line, content)}${pad}${style.right}`);
+  const rows = [...blank, ...wrapped, ...blank].map((line) => `${style.left}${pad}${padEnd(painted(line, options.href, paint), content, line)}${pad}${style.right}`);
 
   const top = topBorder(style, inner, options.title);
   const bottom = style.bottom === '' ? '' : style.bottomLeft + style.bottom.repeat(inner) + style.bottomRight;
@@ -88,14 +113,26 @@ export function box(text: string, options: BoxOptions = {}): string {
 export interface BoxState {
   text: string;
   title?: string;
+  /** Per-state destination, overriding the one the component was built with. */
+  href?: string;
 }
 
 /** A box as a component: the text off a terminal, the drawing on one (R1). */
 export function boxComponent(options: BoxOptions = {}): Component<BoxState> {
+  // A static projection is by definition the rendering with no terminal under it, so a box
+  // with a destination reads `src/index.ts (file:///…)` here — the url survives into the log
+  // an agent parses instead of being dropped with the escape (R12, PRINCIPLES rule 5).
+  const plain = painter(STATIC);
   return {
     name: 'box',
     // A border is noise to a screen reader and to a log; the title is not.
-    static: (state) => (state.title === undefined || state.title === '' ? state.text : `${state.title}: ${state.text}`),
-    frame: (_t, state) => muted(box(state.text, state.title === undefined ? options : { ...options, title: state.title })),
+    static: (state) => {
+      const body = laid(state.text, state.href ?? options.href, plain);
+      return state.title === undefined || state.title === '' ? body : `${state.title}: ${body}`;
+    },
+    frame: (_t, state) => muted(box(state.text, { ...options, ...(state.title === undefined ? {} : { title: state.title }), ...(state.href === undefined ? {} : { href: state.href }) })),
   };
 }
+
+/** The runtime shape `BoxOptions.terminal` takes, so a caller can name it (R12). */
+export type { Terminal } from './link.js';

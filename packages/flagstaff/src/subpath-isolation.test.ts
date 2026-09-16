@@ -62,8 +62,12 @@ const ALLOWED: Record<string, string[]> = {
   'import.js': [],
   'progress.js': [],
   'tasks.js': ['./plugin.js'],
-  'box.js': ['./plugin.js'],
-  'table.js': [],
+  // `./link.js` is where OSC 8 enters, and it enters from `paratext` (R12). It is a relative
+  // edge rather than a bare specifier on purpose: the adapter — which runtime paratext is
+  // asked about, and what a static projection is defined against — is this package's, and
+  // having exactly one of it is the point. The sequence itself is not here at all.
+  'box.js': ['./link.js', './plugin.js'],
+  'table.js': ['./link.js'],
 };
 
 /**
@@ -80,6 +84,10 @@ const INTERNAL_ALLOWED: Record<string, string[]> = {
   // `runtime.js` is where the process name went, and it is a leaf — the seam reaches
   // nothing, which is the point of it.
   'runtime.js': [],
+  // The hyperlink adapter (R12). It reaches the process seam and `paratext/link`, and
+  // nothing else in the package — in particular not `plugin.js`, so `flagstaff/table` still
+  // costs nothing for the registry it does not read.
+  'link.js': ['./runtime.js'],
 };
 
 const RELATIVE = /(?:from|import)\s*'(\.[^']+)'/g;

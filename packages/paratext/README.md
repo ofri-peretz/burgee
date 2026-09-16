@@ -96,9 +96,9 @@ Graded by the incumbent's own test suite:
 | :-- | --: |
 | `ansi-escapes` | 1 / 4 |
 
-Weight, installed and tree-inclusive: **66,080 bytes** against **30,912** for the incumbents it replaces — a ratio of **2.1377** (terminal-link, term-img not installed here, so the ceiling is understated).
+Weight, installed and tree-inclusive: **66,305 bytes** against **30,912** for the incumbents it replaces — a ratio of **2.1450** (terminal-link, term-img not installed here, so the ceiling is understated).
 ## Where it sits
 
 Plugins register under the `capabilities` key, against the one schema the whole family shares.
 
-Nothing in this family builds on it yet, and it builds on nothing in this family.
+`flagstaff` builds on it, and it builds on nothing in this family.

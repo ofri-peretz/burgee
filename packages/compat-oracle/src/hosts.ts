@@ -62,6 +62,46 @@ export interface ControlAllowance {
   why: string;
 }
 
+/**
+ * Cases the suite registers on some platforms and **does not register at all** on others,
+ * because the suite itself guards them with the platform.
+ *
+ * This is not a skip. A skipped case registers, prints `# SKIP`, and `controlShortfall`
+ * already accounts for it — that accommodation exists because commander and yargs each skip
+ * one OS-specific test on Linux. A case inside `if (process.platform === 'linux') { … }` is
+ * never handed to the runner, so it prints nothing, and the only visible effect is that the
+ * suite is smaller. There is nothing for an inference to read.
+ *
+ * Which is exactly how it reached a published page. `cosmiconfig`'s suite is **241 cases on
+ * darwin and 243 on ubuntu**, and until this field the reference was whichever machine last
+ * recorded it: `compat:page --check` on PR #338 read a row committed from darwin as
+ * `186 / 241, 77.2%` and measured the same row on ubuntu at `76.5%`, because `rate()`
+ * divides by `max(reference, registered)` and ubuntu registered 243. Same target, same
+ * commit, two published rates.
+ *
+ * The fix is to record the **full** set as the reference and declare what the other
+ * platforms lack, rather than to subtract the cases or to let the smaller machine set the
+ * number. Both halves matter: the denominator is then 243 everywhere, and the cases a
+ * platform does have are still all counted, so nothing is quietly excused. The declaration
+ * narrows and never widens — it is spent only on the platforms outside `only`, and only up
+ * to `count`.
+ */
+export interface ConditionalCases {
+  /** How many cases the platforms that lack them do not register. Exact, not a ceiling. */
+  count: number;
+  /**
+   * The platforms that register them, for a suite written `if (process.platform === 'x')`.
+   * Exactly one of `only` and `notOn` is given, and which one is not a style choice: each
+   * mirrors how the guard is actually spelled, so the declaration can be checked against the
+   * line it describes instead of being a list somebody derived.
+   */
+  only?: NodeJS.Platform[];
+  /** The platforms that do not, for a suite written `if (process.platform !== 'x')`. */
+  notOn?: NodeJS.Platform[];
+  /** Which cases, and the line of the suite that guards them. A lock refuses an empty one. */
+  why: string;
+}
+
 export interface Host {
   /**
    * The host's key here: its vendor directory, its baseline fragment, and the word a
@@ -122,6 +162,8 @@ export interface Host {
   excludes?: Exclusion[];
   /** What the control may fail against the host's own package, and why. */
   controlFailures?: ControlAllowance;
+  /** Cases only some platforms register at all, so the reference is the same everywhere. */
+  conditionalCases?: ConditionalCases;
   /** Files the runner must load first, relative to the vendored tests dir. */
   preamble?: string;
   /**
@@ -192,14 +234,20 @@ export interface Host {
    * all: it runs each file with node and grades the whole suite as one pass/fail bit, for
    * a host whose suite prints nothing a parser can read.
    *
-   * **`tap` is declared and not yet executable.** node-tap files emit flat TAP that
-   * `summarize()` already reads correctly — measured 2026-09-14: `node tests/test-parse.js`
-   * in a dotenv 17.4.2 checkout prints `ok 1 … 1..47` at column zero, exactly the dialect
-   * `parseFlatTap` counts. What is missing is the *invocation*: `run.ts`'s `command()` has
-   * no `tap` arm and its final `return` is mocha's, so a host declaring `tap` would be
-   * handed to mocha and silently graded as zero. A `tap` host stays `planned` until that arm
-   * exists — one spawn per file, outputs concatenated. `node --test` is **not** that arm:
-   * measured, it collapses a 47-case file to one `ok`.
+   * **`tap` is executable as of 2026-09-16, and it is the arm this comment specified.**
+   * node-tap files emit flat TAP that `summarize()` already read correctly — measured
+   * 2026-09-14: `node tests/test-parse.js` prints `ok 1 … 1..47` at column zero, exactly the
+   * dialect `parseFlatTap` counts. What was missing was the *invocation*: `command()` returns
+   * one spawn and this dialect needs one per file, so a host declaring `tap` fell through to
+   * mocha's final `return` and would have been graded as zero. `runTapFiles` in `run.ts` is
+   * the arm — one spawn per file, outputs concatenated — and `dotenv` is the first row
+   * through it, at a 141 / 141 control. `node --test` is **not** that arm: measured, it
+   * collapses a 47-case file to one `ok`.
+   *
+   * One property of this dialect a reader has to carry: node-tap's plan counts **assertions**,
+   * so the denominator moves with the branches that ran. dotenv's control plans sum to 141 and
+   * its target's to 147. `rate()` divides by the larger, so nothing can score above its own
+   * denominator, and the row is coarser than a per-case one without being dishonest.
    */
   runner: 'node:test' | 'mocha' | 'ava' | 'vitest' | 'tap' | 'exit-code';
   /** Our entry point graded against it. */
@@ -418,14 +466,15 @@ export const HOSTS: Host[] = [
     // and `baseline/rc.json` has to carry `mode: "exit-code"` so the row says on its face
     // that it is coarser than the others.
     //
-    // **Planned, not active, and the blocker is not the mode.** Every other host's control
-    // run re-exports the incumbent by name, so the incumbent has to be installed: `commander`,
-    // `yargs`, `cli-table`, `cpr` and the rest are root devDependencies for exactly that.
-    // `rc` is not in the workspace and is not reachable transitively, so on a clean `npm ci`
-    // the control cannot run — and CI runs the control (`compat.yml`, "Grade the real
-    // packages"). Activating this row before `rc` is declared would put a red control on
-    // main. Declaring it is a `package-lock.json` change, which belongs to the integrator
-    // lane; `vendorDeps` cannot substitute, because nothing installs a vendored manifest.
+    // **The blocker this row carried was a misreading of its own options, and it is gone.**
+    // The note said `rc` had to become a root devDependency — a `package-lock.json` edit the
+    // integrator lane owns — "because nothing installs a vendored manifest". That is true of
+    // `vendorDeps`, which leans on the workspace hoist, and false of `suiteDeps`, which
+    // `installSuiteDeps` installs into `vendor/rc/node_modules` at an exact pin on the first
+    // grade of a clean checkout. It is the same arrangement clack and `@inquirer/core` use
+    // for the incumbent their controls re-export, and `vendored-suite.test.ts` accepts it as
+    // a declaration for exactly that reason. So the incumbent is pinned here, the lockfile
+    // is untouched, and the control runs on `npm ci`.
     //
     // Also deliberate: `testGlob` names one of the three files. `ini.js` tests `lib/utils`,
     // an internal, and pulls the `ini` package; `nested-env-vars.js` is public and is the
@@ -435,11 +484,14 @@ export const HOSTS: Host[] = [
     testDir: 'test',
     testGlob: 'test.js',
     imports: [{ upstream: '../', subpath: '', reexportDefault: true }],
+    // The incumbent, for the control, at the release the suite comes from. Nothing else: the
+    // one graded file requires `assert`, `fs` and `path` and no package at all.
+    suiteDeps: ['rc@1.2.8'],
     surfaceFiles: ['index.js', 'lib/utils.js'],
     runner: 'exit-code',
     target: 'seniority/rc',
-    status: 'planned',
-    note: 'Blocked on one line the integrator lane owns: `rc` as a root devDependency, without which the control cannot run on a clean install. The grading mode it needs (`exit-code`) and the gate that refuses a silent downgrade to it are in place and proven.',
+    status: 'active',
+    note: "Activated 2026-09-16. Control **1 / 1** by exit code, graded against `rc@1.2.8` installed under `vendor/rc/node_modules` by `suiteDeps`. Target `seniority/rc` is **0 / 1** and the row says `target not built yet`: R8's rc-compatible subpath is not in `seniority`'s exports map, and naming the package root instead would grade rc's `rc(name, defaults, argv)` against the export R8 reserves for cosmiconfig's — a different API, so a zero measured there would be measuring the wrong thing rather than a better number. The zero is the same shape `dotenv`'s row records and it moves the day the subpath lands. **This row is one bit, not one case**, so `baseline/rc.json` declares `mode: \"exit-code\"` and `report.ts` refuses it without that line; read `1 / 1` as \"the suite ran and exited 0\", never as 100% of anything. The suite's own `require('../')` is *not* rewritten — the rewrite matches `'..'` and the source writes `'../'` — and it reaches the shim anyway through the vendored root's `main`, which is the mechanism commander's and yargs' CJS fixtures already rely on.",
   },
   {
     // `wrap-ansi` is the one incumbent in this layer with a measured correctness gap, and it
@@ -528,6 +580,11 @@ export const HOSTS: Host[] = [
       count: 1,
       why: "`index.test.ts` imports `'../src/index.js'` — cosmiconfig's own entry module, by path — in addition to the public entry, and `vi.mock`s `../src/Explorer` and `../src/ExplorerSync` to assert the CONSTRUCTOR ARGUMENTS the entry passes them. The vendor step generates a shim for every internal specifier the suite names, but `../src/index.js` is the host's public entry reached by an internal path, so no shim is written and the file fails to load. That is one graded case, and it fails identically for the control and for the target: it is the harness's file-layout assumption, not a property of either implementation. This is the C4 shape `seniority/design.md` finding 4 left open, decided here — the fix is in `vendor.ts`'s internal-shim discovery, which is the harness lane's file, and until it lands the honest form is a named allowance of exactly one rather than an unexplained 240.",
     },
+    conditionalCases: {
+      count: 2,
+      only: ['linux'],
+      why: "`search-strategies.test.ts` wraps its `global › finds config in OS default directory (XDG)` describe in `if (process.platform === 'linux')`, so its two cases — `async` and `sync` — are **not registered at all** anywhere else. The suite is 241 cases on darwin and 243 on ubuntu, and that is the whole of the difference: no other conditional construct exists in the nine files (`process.platform`, `os.platform`, `describe.each`, `skipIf` and `runIf` return exactly this one hit). The reference is the ubuntu 243, because the reference has to be the full suite or the number means less on the machine that has more. The two are real and we fail both: seniority resolves its global config directory from `os.homedir()` and the platform rather than reading `XDG_CONFIG_HOME` through `env-paths`, which is `seniority/design.md` R11 and a listed divergence. Counting them against us on every platform is the point — excluding them instead would have raised the published rate from 76.5% to 77.2% by dropping two cases we lose.",
+    },
     // Upstream's own `vite.config.ts` sets both, and its suite depends on them. Measured
     // 2026-09-14 and again 2026-09-15: without them 28 cases in
     // `successful-directories.test.ts` fail on a `readFileSync` spy that still holds the
@@ -552,8 +609,81 @@ export const HOSTS: Host[] = [
     },
     runner: 'vitest',
     target: 'seniority',
-    status: 'planned',
-    note: "Measured 2026-09-15 (PLAN 3.2) and STILL NOT activated — for one reason, down from the two the vendoring recorded, and it is a line in `run.ts` rather than anything about either implementation. Target `seniority` grades **186 / 241, 77.2%**, reproducible on a clean checkout with nothing installed beside the suite (verified by removing `vendor/cosmiconfig/node_modules` and re-running). Control grades **240 / 241, 99.6%** — up from 210 / 241 once `vitestConfig` carried upstream's own `restoreMocks`/`mockReset`, measured before and after — but only when the `suiteDeps` pins are actually installed. They are not, on a clean checkout: `installSuiteDeps` skips a package that `resolvesFrom` the vendored directory **by name**, and this workspace hoists `cosmiconfig` at 9.0.2 (through @commitlint/load) and `parent-module` at 1.0.1. So the install never runs, the 10.0.1 suite is graded against 9.0.2, and the control reads **234 / 241** — seven failures against an allowance of one. A control below its own reference must not publish a rate. The fix is to compare the installed version against the pin, not merely to resolve the name; `run.ts` is the harness lane's file."
+    status: 'active',
+    note: "Activated 2026-09-16, and **corrected the same day for a denominator that read the machine**. The reference is the ubuntu suite's 243, not darwin's 241 — see `conditionalCases` for the two-case difference and for why they are counted rather than subtracted. So: target `seniority` **186 / 243, 76.5%** on every platform, control **240 of the 241 darwin registers** and 242 of 243 on ubuntu, against an allowance of 1 and a declared two-case shortfall off linux. Both reproduced on a clean vendored directory (`rm -rf vendor/cosmiconfig/node_modules` before each). The row as first committed read 77.2% from darwin and measured 76.5% on ubuntu for the same commit, which `compat:page --check` caught on PR #338. The one reason this row stayed `planned` was the `installSuiteDeps` line below, and it is fixed: the check now compares the installed version *and its location* against the pin. The history: Measured 2026-09-15 (PLAN 3.2) and NOT activated — for one reason, and it is a line in `run.ts` rather than anything about either implementation. Target `seniority` grades **186 / 241, 77.2%**, reproducible on a clean checkout with nothing installed beside the suite (verified by removing `vendor/cosmiconfig/node_modules` and re-running). Control grades **240 / 241, 99.6%** — up from 210 / 241 once `vitestConfig` carried upstream's own `restoreMocks`/`mockReset`, measured before and after — but only when the `suiteDeps` pins are actually installed. They are not, on a clean checkout: `installSuiteDeps` skips a package that `resolvesFrom` the vendored directory **by name**, and this workspace hoists `cosmiconfig` at 9.0.2 (through @commitlint/load) and `parent-module` at 1.0.1. So the install never ran, the 10.0.1 suite was graded against 9.0.2, and the control read **234 / 241** — seven failures against an allowance of one. A control below its own reference must not publish a rate, so the row did not. `unsatisfiedPins` in `run.ts` is the fix and its doc comment carries the measurement; the second half of that comment is a second wrong answer the same door let through, found while activating `rc`."
+  },
+  {
+    // seniority's third incumbent, and the one that grades the *claim* rather than the API:
+    // `lilconfig` describes itself as "a zero-dependency alternative to cosmiconfig", which is
+    // seniority's own sentence, so its suite is the nearest thing to an adversarial reading of
+    // R8. Its last case — `npm package api › exports the same things as cosmiconfig` — is
+    // literally that comparison, run against the real `cosmiconfig` beside it.
+    //
+    // ## Two public specifiers for one entry, and why both are listed
+    //
+    // The suite reaches the library twice and spells it differently: `require('..')` at the
+    // top of the file, and `require('../index')` inside the last case. Both name the same
+    // module and only the first is the package root, so both are declared and both are
+    // rewritten to a generated shim. Leaving the second alone would point it at
+    // `vendor/lilconfig/src/index`, a file the vendor step deliberately does not copy, and
+    // the file would fail to load — a rewrite gap reading as a compatibility failure.
+    //
+    // ## Its tests live under `src/`, which is the thing to know before re-vendoring
+    //
+    // upstream files the suite at `src/spec/`, so `testDir` puts the vendored copy at
+    // `vendor/lilconfig/src/spec/`. `packages/compat-oracle/.gitignore` used to ignore
+    // `vendor/*/src/` outright — a blanket rule for the generated internal shims — and that
+    // rule would have swallowed this entire suite: gitignored, never committed, and on CI
+    // "not vendored" rather than a number. The rule now names the two hosts that actually
+    // file internals there, and `vendored-suite.test.ts` goes red if a third ever needs one.
+    name: 'lilconfig',
+    repo: 'https://github.com/antonk52/lilconfig',
+    testDir: 'src/spec',
+    testGlob: '*.spec.js',
+    imports: [
+      { upstream: '..', subpath: '', reexportDefault: false },
+      { upstream: '../index', subpath: '', reexportDefault: false },
+    ],
+    // All three are what the *suite* reaches for by name, pinned exactly to what upstream's
+    // own manifest declares at this release: the incumbent for the control, `cosmiconfig`
+    // because the parity case compares against the real one, and `typescript` because the
+    // ts-loader cases transpile through `transpileModule`. `cosmiconfig` is pinned at the 8.x
+    // upstream tested against and *not* at the 9.0.2 this workspace hoists — a parity case
+    // compared against a different major is measuring the wrong disagreement.
+    suiteDeps: ['lilconfig@3.1.3', 'cosmiconfig@8.3.6', 'typescript@5.3.3'],
+    surfaceFiles: ['src/index.d.ts', 'src/index.js'],
+    // **Seven cases that assert nothing, for anybody.** Each writes
+    // `expect(promise).rejects.toThrowError(…)` with no `await`, so the assertion is a
+    // promise nobody waits for and the case ends before it settles. jest 29 lets that pass
+    // silently — which is how upstream ships them green — and vitest 5 turns it into an
+    // error naming the missing `await`. Counting them against either side would score a
+    // *vacuous* case, so they are subtracted from the number rather than allowed: an
+    // allowance says "this failed and we know why", and the honest statement here is "this
+    // measured nothing". `requireMatch` makes the control refuse an exclusion that stops
+    // matching, so a reworded title cannot turn this into a silent seven-case discount, and
+    // they remain in the raw TAP.
+    excludes: [
+      { match: '> options > packageProp > string[] with null in the middle > async', why: "Un-awaited `expect(…).rejects.toThrowError`: the assertion never settles before the case ends, so it passes vacuously under jest and errors under vitest 5. Its `> sync` sibling asserts the same thing synchronously and is gated." },
+      { match: '> lilconfig > when to throw > non existing file', why: "Un-awaited `expect(…).rejects.toThrowError`, twice — once against lilconfig, once against cosmiconfig. The `lilconfigSync` case of the same name is synchronous, real, and gated." },
+      { match: '> lilconfig > when to throw > throws for invalid json', why: 'Un-awaited `expect(…).rejects.toThrowError`. The `lilconfigSync` case of the same name is gated.' },
+      { match: '> lilconfig > when to throw > throws for provided filepath that does not exist', why: 'Un-awaited `expect(…).rejects.toThrowError`. The `lilconfigSync` case of the same name is gated.' },
+      { match: '> lilconfig > when to throw > no loader specified for the search place', why: 'Un-awaited `expect(…).rejects.toThrowError`. The `lilconfigSync` case of the same name is gated.' },
+      { match: '> lilconfig > when to throw > loader is not a function', why: 'Un-awaited `expect(…).rejects.toThrowError`. The `lilconfigSync` case of the same name is gated.' },
+      { match: '> lilconfig > when to throw > throws for empty strings passed to load', why: 'Un-awaited `expect(…).rejects.toThrowError`. The `lilconfigSync` case of the same name is gated.' },
+    ],
+    conditionalCases: {
+      count: 2,
+      notOn: ['win32'],
+      why: "`default for searchFrom till root directory` and `searches root directory correctly`, each wrapped in `if (process.platform !== 'win32')` because both assert an `fs` call list rooted at `/`. They are the only conditional construct in the file — the `isNodeV20orNewer` branches pick an expected *message* and never add or drop a case, and this repository is Node 24 only. So the count does not move between darwin and ubuntu, which is why the reference is 77 on both and no number here changes. It is declared anyway: without it a Windows contributor's control registers 75 of 77 and goes red for doing exactly what the suite told it to, and finding that on their machine is worse than writing it here. Both cases are also two of the ten in `controlFailures`, so on Windows that allowance is spent down to eight.",
+    },
+    controlFailures: {
+      count: 10,
+      why: "Ten cases that read `fs.promises.access.mock.calls` and `fs.readFileSync.mock.calls` — eight under `options > cache` and the two `search … root directory` ones — and fail against **lilconfig's own package** here while passing upstream. The suite mocks `fs` with `jest.mock('fs', factory)` at module scope, which jest hoists above the `require('fs')` three lines earlier; `run.ts` maps `jest.mock` to `vi.doMock`, which is the runtime form and cannot hoist, so the test's own `fs` binding is the real module and its methods are not spies. Identical for the control and for the target, and a property of vitest 5 against jest 29 rather than of either implementation — the same divergence `clack`'s 30-case allowance records. Unlike those thirty, these ten *do* grade real behaviour (the load and search caches), so this is a blind spot and is written as one: 10 of 77, and it retires the day the harness rewrites `jest.mock(` to `vi.mock(` in the transform so vitest's own hoister sees it, which is the jest-globals mapping applied to the one construct that has to be syntactic rather than a value.",
+    },
+    runner: 'vitest',
+    target: 'seniority',
+    status: 'active',
+    note: "Vendored and activated 2026-09-16 at 3.1.3 (`v3.1.3` -> commit 77d7186c). Control **67 / 77** against a declared allowance of 10; target `seniority` **0 / 77**, and the reason is one line of TAP repeated 77 times — `TypeError: lilconfigSync is not a function`. seniority's root export is cosmiconfig's surface (R8) and carries no `lilconfig` / `lilconfigSync`, so this row measures the *absence* of the lilconfig façade rather than a partial one. That zero is measured, not assumed, and the row can only go up. It is named against the package root and not against a `seniority/lilconfig` that does not exist, for the reason cli-table3's note records. The denominator is 77 and not 84 because of the seven vacuous cases subtracted above; read it with that paragraph or not at all.",
   },
   {
     // The load-bearing one. `.sdlc/intents/seniority/issues.md` records 20 closed issues at
@@ -565,7 +695,20 @@ export const HOSTS: Host[] = [
     // `test-*.js` and not `*.js`: the directory also holds `.env` fixtures and a `types/`
     // subdirectory whose `test.ts` is a `tsc` type-check, not a runnable case.
     testGlob: 'test-*.js',
-    imports: [{ upstream: '../lib/main', subpath: '/dotenv', reexportDefault: false }],
+    // `control` is load-bearing and was missing until the control first ran: without it the
+    // control's shim re-exports `${target}${subpath}` — `dotenv/dotenv`, a subpath dotenv's
+    // exports map does not have — and the whole suite fails to load. Every host whose
+    // façade sits behind a subpath needs it, which is why `restore-cursor` and `exit-hook`
+    // carry one.
+    imports: [{ upstream: '../lib/main', subpath: '/dotenv', reexportDefault: false, control: 'dotenv' }],
+    // Everything the suite reaches for by name, installed into `vendor/dotenv/node_modules`
+    // and pinned to what upstream's own manifest declares at 17.4.2. This is the route the
+    // earlier note called closed: it said `tap` "pulls 203 packages and 140 MB, which this
+    // repository will not commit beside a suite or put in its lockfile" — both true, and
+    // neither is what `suiteDeps` does. They are installed on the first grade of a clean
+    // checkout, under a gitignored directory, and touch no manifest and no lockfile.
+    // Measured 2026-09-16: 319 packages, 86 MB, once.
+    suiteDeps: ['dotenv@17.4.2', 'tap@19.2.0', 'sinon@14.0.2', 'decache@4.6.2'],
     // Seven files, all of them named individually because `copyTests` copies a *directory*
     // whole and otherwise takes only files the glob matches — and every fixture dotenv reads
     // is a dotfile beside the tests, which no glob of runnable tests can name.
@@ -579,9 +722,15 @@ export const HOSTS: Host[] = [
     extraDirs: ['config.js', 'tests/.env', 'tests/.env-multiline', 'tests/.env.local', 'tests/.env.multiline', 'tests/.env.vault'],
     surfaceFiles: ['lib/main.d.ts', 'lib/main.js'],
     runner: 'tap',
-    target: 'seniority/dotenv',
-    status: 'planned',
-    note: "Vendored 2026-09-14 at 17.4.2 and NOT activated: its suite is node-tap, and `run.ts`'s `command()` has no `tap` arm — see the `runner` field's own comment for what the arm is and for the measurement that rules `node --test` out. Its suite also reaches for `tap`, `sinon` and `decache`, which the oracle does not declare; like cosmiconfig's, that declaration is the harness lane's file. Target `seniority/dotenv` is R8's compatibility subpath and is not built yet, so the target run is an honest 0 the moment the control can run at all.",
+    // The package **root**, with the façade reached through the import's own `/dotenv`
+    // subpath — the `restore-cursor` / `exit-hook` shape. It read `seniority/dotenv` while
+    // the row was `planned` and nothing ever composed the two: `missingTarget` concatenates
+    // them, looked for `seniority/dotenv/dotenv`, and the first real target run reported
+    // "target not built yet" for a subpath that exists. A planned row's shape is a guess
+    // until a run touches it, which is the same lesson `wrap-ansi`'s note records.
+    target: 'seniority',
+    status: 'active',
+    note: "Activated 2026-09-16. Control **141 / 141, 100%** — the first row graded through the `tap` arm, which is one `node <file>` spawn per file with the outputs concatenated, exactly as the `runner` field's comment specified. Target `seniority/dotenv` **74 passing, 50.3%**: R8's compatibility subpath exists, every one of the seven files loads and prints its plan, and the 73 failures are dotenv behaviour rather than harness — `DOTENV_KEY`/`.env.vault`, the debug logging and the CLI options, readable case by case in the raw TAP. **One thing to read carefully in this row and in any `tap` row after it:** node-tap's plan counts *assertions*, not cases, so the size of the suite depends on which branches ran — the control plans sum to 141 and the target's to 147. `rate()` divides by `max(reference, registered)`, so a target can never score above its own denominator, and the printed `74 / 141` is against the control's total while the percentage is against the larger one. That is the honest pair; it is not a per-case row and must not be read as one. Three things had to change together and none of them is about dotenv: the arm in `run.ts`; `control: 'dotenv'` on the import, without which the control's shim re-exported the non-existent `dotenv/dotenv`; and `target` reading the package root rather than the subpath it was already composing. The suite's own `tap`, `sinon` and `decache` are `suiteDeps` — 319 packages and 86 MB installed once into a gitignored `vendor/dotenv/node_modules`, in no manifest and no lockfile, which is the objection the earlier note raised and the reason it does not apply.",
   },
   {
     // The first monorepo host. Its key is flat because `@clack/prompts` cannot be a

@@ -124,8 +124,14 @@ jobs:
           # staged too, and a CI runner's numbers become a published measurement under the
           # exact name this split reserves for a chosen one. Moving it leaves nothing behind
           # in either case — a modified file is restored by the checkout, a new one is gone.
+          # `run.ts` now names an incomplete document as an observation itself — this job
+          # runs axis subsets, so its files already end in the sha. Renaming one again would
+          # give `<date>-<sha>-<sha>.json`, which `published.ts` reads as neither shape.
           for f in $(git status --porcelain benchmarks/results/ | awk '{print $NF}'); do
-            mv "$f" "${f%.json}-${GITHUB_SHA::7}.json"
+            case "$f" in
+              *-${GITHUB_SHA::7}.json) ;;
+              *) mv "$f" "${f%.json}-${GITHUB_SHA::7}.json" ;;
+            esac
           done
           git checkout -- benchmarks/results/
           # The commit, not just the date: two pushes to main on one day both
