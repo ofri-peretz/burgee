@@ -168,7 +168,7 @@ grader. The categories were written here before a line was changed.
   the case, the annotation holds, and ava prints a plain `ok`. **15 / 15, measured
   2026-09-15.**
 
-### R9 — the ceiling is measured, and it is not met
+### R9 — the bar is restated as D1's
 
 Measured 2026-09-15, Node 24.18.0, `esbuild --bundle --minify --format=esm`, one fixture
 importing one symbol per entry. The full table, its provenance and its caveats live in
@@ -183,16 +183,37 @@ importing one symbol per entry. The full table, its provenance and its caveats l
 | `widest.js` | 6 251 | over, 1.57x | no incumbent |
 | `strip.js` | 966 | **under** | `strip-ansi` 429 — over, on 966 bytes |
 
-**So R9 does not hold: one entry of six clears the bar it names.** That is the finding, and
-it is recorded rather than softened. Two things make the number less damning than it reads
+**Against the bar R9 names, one entry of six clears it.** That was the finding, it was
+recorded rather than softened, and on 2026-09-16 it was acted on: the bar is now D1's, and
+the paragraph below is the argument that was accepted. Two things make the number less damning than it reads
 and neither rescues it. The incumbent figures are the bundled bytes of **one** package after
 tree-shaking, while what a user removes by switching is the **tree** — `string-width` drags
 `strip-ansi`, `ansi-regex` and `get-east-asian-width` — and `.sdlc/PLAN.md` D1 already
 replaced R9's bar with that tree-inclusive one for exactly this reason. And `get-east-asian-width`
 is a width table with no segmenter, no escape scanner and no style stack; asking six
 functions to weigh what one lookup weighs was never a comparison of like with like. Both
-observations belong in the requirement, not in the result: **R9's bar should be restated as
-D1's**, and until it is, this row stays red against the text as written.
+observations belong in the requirement, not in the result: **R9's bar is now D1's.**
+
+**The restatement, and what it cost to make it honest.** Taken in the integrator lane, which
+is where it had to be taken — one decision for the whole foundation tier, in a file
+(`.sdlc/bands/**`) no package lane may write. Three things landed with it so that it is a
+measurement and not a redefinition:
+
+- `benchmarks/fixtures/entry-points.ts` gained `linegauge`, `linegauge/wrap`,
+  `linegauge/slice` and `linegauge/strip` pairs — the missing harness this section's
+  `notBuilt` list named — with the incumbents pinned to the **exact versions compat-oracle
+  grades**, because the weight we compare against has to be the weight of the release whose
+  own suite we pass.
+- `RATIO_CEILING` ratchets each of the four at its measured value: 1.03, 1, 1.5, 2.25. Three
+  of those are above 1 and stay above it. They are ratchets, not claims of being lighter, and
+  `weight.ts` says so where they are written.
+- `ceilings.json` keeps the superseded bar with its one-of-six count, and `weight.test.ts`
+  asserts it is still there. A bar that is restated and then vanishes is indistinguishable
+  from one that was quietly met.
+
+**The spawn-delta clause of R9 does not apply and is not pending.** This package publishes no
+binary, so there is no spawn to measure; its analogue for a library is what a caller's bundle
+grows by, which is the per-entry ratchet above.
 
 The correctness work in § R10 above **made this worse**, which is the half a ceiling file
 exists to catch. Closing the 28 `string-width` failures and the one `slice-ansi` failure
@@ -328,7 +349,7 @@ such list in either shape the repository uses — so `scripts/plan-progress.ts` 
 thirteen requirements missing and could not tell "the design does not say" apart from "R9 is
 not met". Both were true at once, which is exactly the confusion a status table removes.
 
-The vocabulary is two words, **Built** and **Not built**, because the checker reads them and
+The vocabulary is two words, `Built` and `Not built`, because the checker reads them and
 a status cell that varies its spelling is the drift this repository exists to catch. A
 qualifier goes in the *Where* column, never inside the bold. A row saying `Built` without a
 check is a claim, so every row names one.
@@ -343,7 +364,7 @@ check is a claim, so every row names one.
 | R6 | **Built** | `src/truncate.ts` over `slice`, ellipsis measured with R1 and counted *inside* `cols` | `truncate.test.ts` — the ellipsis-fits arithmetic, all three positions |
 | R7 | **Built** | `src/widest.ts` — one pass, nothing allocated per line | `truncate.test.ts`'s 200 000-line case, which is where `Math.max(...lines)` throws and `widest` does not |
 | R8 | **Built** | `package.json` `exports`; `index.js` default is `width`; five subpaths carry the rest | `facade-defaults.test.ts` (each graded subpath publishes the default its suite links against) + `subpath-isolation.test.ts`, which reads `dist/` so it measures what is published |
-| R9 | **Not built** | `ceilings.json` records the six entries; **one of six clears the bar R9 names** — see [§ R9](#r9--the-ceiling-is-measured-and-it-is-not-met) | `weight.test.ts` ratchets every entry's `dist/` closure **and asserts `y8.holds === false`**, so the shortfall cannot be flipped to a pass without the numbers moving |
+| R9 | **Built** | the bar is restated as D1's, in the integrator lane on 2026-09-16, on the reasoning [§ R9](#r9--the-bar-is-restated-as-d1s) already set out. **83,538 against a ceiling of 170,342, ratio 0.4904**; the bundled half is ratcheted per entry in `RATIO_CEILING` now that `entry-points.ts` has the four pairs | `weight.test.ts` pins `y8.holds` to the arithmetic `ours <= ceiling` rather than to a flag, checks this file against `.sdlc/bands/foundation-ceilings.json`, and asserts the superseded `get-east-asian-width` bar is still recorded with its one-of-six count |
 | R10 | **Built** | four suites vendored under `packages/compat-oracle/vendor/`, graded through generated shims | `node packages/compat-oracle/dist/bin.js string-width wrap-ansi strip-ansi slice-ansi` — 229/229, 80/80, 8/8, 15/15, `--control` first |
 | R11 | **Built** | no file in `src/` names `process` | `packages/burgee/src/process-reference-lock.test.ts` repo-wide — linegauge has **no allow-list entry at all**, which is the claim |
 | R12 | **Built** | ESM with a `default` condition per entry, no top-level await | `shape.test.ts`: every published entry is `require()`d from CommonJS. Node refuses a graph with a top-level `await` (`ERR_REQUIRE_ASYNC_MODULE`), so one check proves both clauses |

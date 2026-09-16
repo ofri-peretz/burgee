@@ -22,6 +22,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { observations, publishedResults } from './published.js';
+import { resultsName } from './run.js';
 
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const tsxCli = createRequire(import.meta.url).resolve('tsx/cli');
@@ -114,6 +115,46 @@ describe('the generated page', () => {
       execFileSync(process.execPath, [tsxCli, join(REPO_ROOT, 'scripts', 'bench-page.ts'), '--check'], { cwd: REPO_ROOT, stdio: 'pipe' });
     } finally {
       rmSync(observation, { force: true });
+    }
+  });
+});
+
+/**
+ * The third half, added 2026-09-16: **a run that did not measure everything cannot write the
+ * published name at all.**
+ *
+ * The two cases above check that a reader honours the name. Nothing checked that a *writer*
+ * earns it, and every caller but `bench.yml`'s two shell lines wrote `YYYY-MM-DD.json`
+ * whatever it had measured. `npm run bench -- --axis weight` writes a document with four
+ * axes reading `not-run`, under the name `docs.test.ts` pins `comparison.mdx` against —
+ * measured the same day, nine cases red, and the only thing between it and a published page
+ * stating four missing numbers was a person noticing a dirty file in `git status`.
+ */
+/** A results document with nothing in it but the two fields the name is built from. */
+const doc = (axes: Record<string, { status: string }>): Parameters<typeof resultsName>[0] =>
+  ({ suite: 'cli-benchmarks', measured: '2026-09-16T00:00:00.000Z', commit: 'abcdef1234567890', machine: {}, axes, bands: {}, claims: {}, records: [] }) as unknown as Parameters<typeof resultsName>[0];
+
+describe('a document names itself', () => {
+  it('publishes when every axis was measured', () => {
+    expect(resultsName(doc({ perf: { status: 'measured' }, weight: { status: 'measured' } }))).toBe('2026-09-16.json');
+  });
+
+  it('is an observation when an axis was not selected — the `--axis weight` case', () => {
+    expect(resultsName(doc({ perf: { status: 'not-run' }, weight: { status: 'measured' } }))).toBe('2026-09-16-abcdef1.json');
+  });
+
+  it('is an observation when a selected axis produced nothing', () => {
+    expect(resultsName(doc({ perf: { status: 'skipped' }, weight: { status: 'measured' } }))).toBe('2026-09-16-abcdef1.json');
+  });
+
+  it('and the observation name is one `publishedResults` refuses', () => {
+    const name = resultsName(doc({ perf: { status: 'not-run' }, weight: { status: 'measured' } }));
+    const dir = mkdtempSync(join(tmpdir(), 'named-'));
+    try {
+      writeFileSync(join(dir, name), '{}');
+      expect(publishedResults(dir), 'the writer and the reader disagree about what an observation looks like').toBeUndefined();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 });

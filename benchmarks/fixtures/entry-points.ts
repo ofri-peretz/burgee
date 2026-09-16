@@ -81,6 +81,50 @@ export const PAIRS: readonly EntryPair[] = [
     incumbent: { specifier: 'log-update', symbol: DEFAULT_EXPORT },
     why: 'the frame façade against log-update',
   },
+  // The foundation layers, added 2026-09-16. Two roadmap rows were red on their absence and
+  // said so in the same words: `linegauge`'s R9 `notBuilt` list reads *"benchmarks/
+  // fixtures/entry-points.ts has no `linegauge` pair, so B4 computes no tree-inclusive ratio
+  // for this package — also the integrator lane's path"*, and `paratext`'s R11 reads *"the
+  // B4 row is Not built: `grep -rl paratext benchmarks/` returns nothing"*. Both were right,
+  // and neither lane could write this file.
+  //
+  // The incumbents are pinned to the **exact versions compat-oracle grades** rather than to
+  // a range, which is the only pairing that means anything: the weight we compare against
+  // has to be the weight of the release whose own suite we pass. `slice-ansi` is 7.1.2 here
+  // and 9.0.0 on npm for that reason.
+  {
+    id: 'linegauge',
+    ours: { specifier: 'linegauge', symbol: DEFAULT_EXPORT },
+    incumbent: { specifier: 'string-width', symbol: DEFAULT_EXPORT },
+    why: 'the width layer against string-width, whose own suite grades it 229 / 229',
+  },
+  {
+    id: 'linegauge/wrap',
+    ours: { specifier: 'linegauge/wrap', symbol: DEFAULT_EXPORT },
+    incumbent: { specifier: 'wrap-ansi', symbol: DEFAULT_EXPORT },
+    why: 'the wrap façade against wrap-ansi, 80 / 80',
+  },
+  {
+    id: 'linegauge/slice',
+    ours: { specifier: 'linegauge/slice', symbol: DEFAULT_EXPORT },
+    incumbent: { specifier: 'slice-ansi', symbol: DEFAULT_EXPORT },
+    why: 'the slice façade against slice-ansi, 15 / 15',
+  },
+  {
+    id: 'linegauge/strip',
+    ours: { specifier: 'linegauge/strip', symbol: DEFAULT_EXPORT },
+    incumbent: { specifier: 'strip-ansi', symbol: DEFAULT_EXPORT },
+    why: 'the strip façade against strip-ansi, 8 / 8',
+  },
+  {
+    // paratext's root default is an object of capabilities, not a function, and
+    // `ansi-escapes`' is the same shape — so the fixture imports the default on both sides
+    // and the bundler keeps whatever each one reaches.
+    id: 'paratext',
+    ours: { specifier: 'paratext', symbol: DEFAULT_EXPORT },
+    incumbent: { specifier: 'ansi-escapes', symbol: DEFAULT_EXPORT },
+    why: 'the OSC layer against ansi-escapes — R11\'s B4 row, and the layer that is over its D1 ceiling',
+  },
 ];
 
 /**

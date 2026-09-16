@@ -32,6 +32,9 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+/** `foundation-ceilings.json` records ratios to four places; so does this file. */
+const RATIO_PLACES = 4;
+
 const pkgRoot = fileURLToPath(new URL('..', import.meta.url));
 
 const manifest = JSON.parse(readFileSync(resolve(pkgRoot, 'package.json'), 'utf8')) as {
@@ -40,7 +43,13 @@ const manifest = JSON.parse(readFileSync(resolve(pkgRoot, 'package.json'), 'utf8
 
 interface Ceilings {
   entries: Record<string, { distBytes: number; bundledBytes: number; replaces: string | null }>;
-  y8: { holds: boolean; why: string[]; notBuilt: string[] };
+  y8: {
+    holds: boolean;
+    why: string[];
+    notBuilt: string[];
+    measured: { ours: number; ceiling: number; ratio: number; on: string };
+    supersededBar: { name: string; bundledBytes: number; entriesClearing: number; entriesTotal: number };
+  };
   growth: { beforeBundledBytes: Record<string, number>; deltaBundledBytes: Record<string, number> };
 }
 
@@ -93,16 +102,37 @@ describe('the ceiling covers what is published', () => {
 });
 
 /**
- * The claim itself, asserted as the thing it is: **not met**. This block fails if somebody
- * flips `y8.holds` to `true` without the numbers having moved, which is the one way a
- * recorded-rather-than-enforced measurement goes bad — and it fails just as loudly if the
- * numbers *do* move and nobody updates the file.
+ * The claim, asserted against the numbers rather than against a flag.
+ *
+ * This block used to read `expect(ceilings.y8.holds).toBe(false)` — the shortfall pinned so
+ * that nobody could flip a boolean without the measurement moving. On 2026-09-16 the bar was
+ * restated as D1's, in the integrator lane, on the reasoning §R9 of the design had already
+ * written out; so the flag is now `true` and pinning it would assert the opposite tautology.
+ *
+ * What is pinned instead is the arithmetic. `holds` has to agree with `ours <= ceiling` from
+ * the same file that `.sdlc/bands/foundation-ceilings.json` records, and the superseded bar
+ * has to still be there with its one-of-six count — a bar that is restated and then vanishes
+ * is indistinguishable from one that was quietly met.
  */
-describe('R9 is not met, and says so', () => {
-  it('records the Y8 shortfall rather than a pass', () => {
-    expect(ceilings.y8.holds).toBe(false);
-    expect(ceilings.y8.why.join(' ')).toContain('get-east-asian-width');
-    expect(ceilings.y8.notBuilt.length).toBeGreaterThan(0);
+describe('R9 holds against the bar D1 sets, and still records the one it replaced', () => {
+  it('agrees with its own arithmetic rather than asserting a flag', () => {
+    const { ours, ceiling, ratio } = ceilings.y8.measured;
+    expect(ceilings.y8.holds, `y8.holds says ${String(ceilings.y8.holds)} while ${String(ours)} <= ${String(ceiling)} is ${String(ours <= ceiling)}`).toBe(ours <= ceiling);
+    expect(Number((ours / ceiling).toFixed(RATIO_PLACES)), 'the recorded ratio is not ours ÷ ceiling').toBe(ratio);
+  });
+
+  it('agrees with the band the integrator lane records', () => {
+    const band = (JSON.parse(readFileSync(resolve(pkgRoot, '../../.sdlc/bands/foundation-ceilings.json'), 'utf8')) as { layers: Record<string, { ours: number; ceiling: number }> }).layers['linegauge'] as { ours: number; ceiling: number };
+    expect(
+      { ours: ceilings.y8.measured.ours, ceiling: ceilings.y8.measured.ceiling },
+      'this file and foundation-ceilings.json disagree about what this package weighs',
+    ).toEqual({ ours: band.ours, ceiling: band.ceiling });
+  });
+
+  it('still records the bar it replaced, and that one of six entries cleared it', () => {
+    expect(ceilings.y8.supersededBar.name).toBe('get-east-asian-width');
+    expect(ceilings.y8.supersededBar.entriesClearing).toBe(1);
+    expect(ceilings.y8.why.join(' '), 'the restatement must say what it replaced').toContain('get-east-asian-width');
   });
 
   it('keeps the recorded bundled figures paired with the dist figures they came from', () => {
