@@ -142,6 +142,31 @@ const RULES: Record<string, EntryRule> = {
   // dependency. 52,683 -> 52,893 measured, 210 B, against this unchanged 53,300 — the walk
   // stops at a bare import, so linegauge's own bytes are not in that number; what the 210
   // buys is that help stops guessing. Nothing was raised for it.
+  //
+  // **This lock stayed green while B4's bundled axis went 11,553 bytes over its ceiling**, and
+  // the sentence above is why: this walk stops at a bare import, so closeout's and linegauge's
+  // own bytes were never inside the 52,893. esbuild bundles them. Measured per commit with the
+  // command B4 runs — `esbuild --bundle --minify --format=esm --platform=node` over a fixture
+  // importing `run` from `burgee`:
+  //
+  //   c8acb28487  40,562          wave 3 built out — the measurement 3.9 was set against
+  //   88f7ba65e3  41,192  +630    PLAN 4.3 (#326) — first breach of 41,000 and of 3.9
+  //   4970b604d0  46,072  +4,880  closeout wired (E5/O5)
+  //   17cc671211  52,553  +6,363  linegauge in help (this commit)
+  //
+  // Two things follow, and both are measurements rather than opinions. **The breach predates
+  // the composition wave**: 3.9 was set against 3.881, a margin of ~200 bytes, and #326 spent
+  // 630 of it before either dependency arrived — so reverting closeout *and* linegauge lands
+  // at 41,192 and is still over. And **deferring does not shrink**: esbuild inlines a dynamic
+  // import whose specifier is a literal, so it costs the module's bytes plus a wrapper. Making
+  // help lazy measures **+767 B** on an isolated fixture (10,407 → 11,174), not −6,325; and in
+  // the real graph the two dynamic imports the engine already has *cost* 654 B rather than
+  // saving it — `seniority/config` 373, `./completions.js` 281, both measured by turning them
+  // static. They stay dynamic, because B2 cold start is a real metric and the published package
+  // is not bundled. Recorded here so the next reader does not spend a session rediscovering
+  // that a lazy import is not a weight fix. Narrowing to `linegauge/widest` is not one either:
+  // the barrel is already fully shaken and the subpath saves 13 B, because `width.js` (5,215 B
+  // of it) is what measuring a column costs.
   ".": {
     allow: ["closeout", "linegauge", "seniority/precedence"],
     budget: 53_300,
