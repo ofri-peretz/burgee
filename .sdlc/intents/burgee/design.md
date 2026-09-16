@@ -457,10 +457,12 @@ names read from the source file each subpath's `dist/` path is built from. Re-de
 | `burgee/brand` | `defineBurgee`, `burgeeBody`, `burgeeFlagPath`, `chargeGroup`, `placeCharge`, `chargeTransform`, `chargeRotation`, `opposedField`, `fieldId`, `BURGEE_FLAG`, `BURGEE_ANGLE`, `CHARGE`, `FIELD_AXIS`, `DEFAULT_GROUND` | the burgee mark as SVG geometry — brand tooling, not CLI machinery |
 | `burgee/contrast` | `ratio`, `mix`, `check`, `report`, `fieldColorAt`, `auditBurgee`, `AA`, `contrast`, `luminance` | the WCAG maths the brand audit runs on |
 | `burgee/cli` | `program`, `brandCommand`, `devCommand` — **and `run(program)` at module load** | the `burgee` bin. Importing it executes the CLI; it is an executable, not a library entry |
+| `burgee/schema.json` | a file, not a module: the family's plugin schema, copied into `dist/` by `schema-to-dist.mjs` | what a plugin author validates their object against. **Added to this table 2026-09-16** — the row was missing, and the export is a day old. It is not a schema for `--schema`'s output; see F1 |
 
-Two of those rows will surprise a reader of the requirements: `burgee/brand` and
+Three of those rows will surprise a reader of the requirements: `burgee/brand` and
 `burgee/contrast` are brand tooling that ships inside the framework package, and no
-requirement above mentions either.
+requirement above mentions either — and `burgee/schema.json` is a **plugin** schema on a
+package whose F1 asks for a schema of something else entirely.
 
 ### How a consumer extends it
 
