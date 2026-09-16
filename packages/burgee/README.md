@@ -127,4 +127,4 @@ Graded by the incumbent's own test suite:
 
 It declares the plugin shape the rest of the family registers against, and hosts no key of its own.
 
-Nothing in this family builds on it yet, and it builds on `linegauge`, `roundel`, `seniority`.
+Nothing in this family builds on it yet, and it builds on `closeout`, `linegauge`, `roundel`, `seniority`.

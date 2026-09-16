@@ -35,6 +35,8 @@ const ignore: Listener = () => undefined;
 interface FakeProcess extends ProcessLike {
   raise(event: string, ...args: unknown[]): void;
   readonly exited: number | undefined;
+  /** What the process was signalled with, where `exited` is what it was told to exit with. */
+  readonly raised: string | undefined;
 }
 
 /** A process that records rather than leaves, so a SIGINT is a call and an exit is a number. */
@@ -42,6 +44,7 @@ function fakeProcess(): FakeProcess {
   const listeners = new Map<string, Listener[]>();
   const self: FakeProcess = {
     exited: undefined,
+    raised: undefined,
     on(event: string, listener: Listener) {
       listeners.set(event, [...(listeners.get(event) ?? []), listener]);
       return self;
@@ -59,6 +62,15 @@ function fakeProcess(): FakeProcess {
     exit(code?: number): never {
       (self as { exited: number | undefined }).exited = code;
       return undefined as never;
+    },
+    // `closeout`'s `ProcessLike` requires these, and requires them non-optionally on purpose:
+    // it re-raises a signal rather than exiting `128 + n`, so that a parent can see the child
+    // died *of* the signal. An optional `kill` would let a double quietly take the exit path
+    // and pass, which is how that defect survived exit-hook 21/21 and restore-cursor 6/6.
+    pid: 4242,
+    kill(_pid: number, signal?: string) {
+      (self as { raised: string | undefined }).raised = signal;
+      return true;
     },
     stderr: { write: () => true, isTTY: false },
     raise(event: string, ...args: unknown[]): void {

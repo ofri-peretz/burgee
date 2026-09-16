@@ -265,4 +265,4 @@ That ratio is not yet a claim: nothing here passes an incumbent suite, so it is 
 
 Plugins register under the `widgets` key, against the one schema the whole family shares.
 
-Nothing in this family builds on it yet, and it builds on nothing in this family.
+Nothing in this family builds on it yet, and it builds on `closeout`.

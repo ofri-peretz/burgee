@@ -1,39 +1,39 @@
 {
   "burgee": {
-    "size": 215787,
-    "unpackedSize": 921557
+    "size": 220015,
+    "unpackedSize": 932993
   },
   "caique": {
-    "size": 26819,
-    "unpackedSize": 79837
+    "size": 28379,
+    "unpackedSize": 84400
   },
   "flagstaff": {
-    "size": 57187,
-    "unpackedSize": 203183
+    "size": 56237,
+    "unpackedSize": 200195
   },
   "roundel": {
-    "size": 22993,
-    "unpackedSize": 63746
+    "size": 23891,
+    "unpackedSize": 66189
   },
   "bellpull": {
-    "size": 2613,
-    "unpackedSize": 5249
+    "size": 26698,
+    "unpackedSize": 82270
   },
   "closeout": {
-    "size": 26599,
-    "unpackedSize": 81168
+    "size": 27656,
+    "unpackedSize": 84226
   },
   "linegauge": {
-    "size": 27864,
-    "unpackedSize": 83075
+    "size": 28048,
+    "unpackedSize": 83553
   },
   "seniority": {
-    "size": 47186,
-    "unpackedSize": 151691
+    "size": 47619,
+    "unpackedSize": 153040
   },
   "paratext": {
-    "size": 17196,
-    "unpackedSize": 51671
+    "size": 17254,
+    "unpackedSize": 51867
   },
   "$comment": "Recorded pack sizes, refreshed 2026-09-14 and the refresh is the story. `check:artifacts` existed, `artifact-size-ratchet-lock.test.ts` unit-tested its verdict function against synthetic inputs, and **no workflow ever ran the verdict against the real packages** — so seven of them drifted past this file unchallenged: closeout +268%, seniority +112%, paratext +87%, burgee +51%, caique +46%, flagstaff +15%, linegauge +11%. The growth is explained — the PLAN 1.1 schema fold put a 6.5 KB family schema in every package that reaches the plugin registry, and waves 1 and 3 added plugin hosts and drop-in façades — but explaining growth is not the same as accepting it, which is why the numbers are named here rather than quietly replaced. `npm run lint` runs the check now, so the next one is caught."
 }

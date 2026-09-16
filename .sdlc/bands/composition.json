@@ -1,13 +1,17 @@
 {
-  "$comment": "PLAN rule 14 as a number. A layer nothing else uses has never been proven to fit the stack — the split into nine packages is only real if the packages actually compose. `edges` is the count of dependency edges inside the family and it may only go up, the same ratchet the compat rates use. `awaiting` names the packages that have no consumer yet; a package must leave the list the moment it gains one, and the list may only shrink. `burgee` is never on it: it is the top of the stack, and nothing using it is correct.",
+  "$comment": "PLAN rule 14 as a number. A layer nothing else uses has never been proven to fit the stack \u2014 the split into nine packages is only real if the packages actually compose. `edges` is the count of dependency edges inside the family and it may only go up, the same ratchet the compat rates use. `awaiting` names the packages that have no consumer yet; a package must leave the list the moment it gains one, and the list may only shrink. `burgee` is never on it: it is the top of the stack, and nothing using it is correct.",
   "target": "every package except burgee is used by at least one other package in the family",
-  "edges": 5,
-  "awaiting": ["bellpull", "caique", "closeout", "flagstaff", "paratext"],
+  "edges": 8,
+  "awaiting": [
+    "bellpull",
+    "caique",
+    "flagstaff",
+    "paratext"
+  ],
   "why": {
-    "bellpull": "one source file passing 0 of 68 cases — nothing can compose a package that does not exist yet (PLAN 3.4)",
-    "caique": "0 of 606 clack cases; no graded façade to depend on",
-    "closeout": "flagstaff and caique each wrote their own cursor restore instead — three copies of the job closeout owns",
-    "flagstaff": "no layer above it; burgee renders help through yargs' own cliui, which its suite grades",
-    "paratext": "1 of 4 ansi-escapes cases; the help path that would link is not wired"
+    "bellpull": "exists now \u2014 cross-spawn 68/68, up from a seven-line stub \u2014 but nothing imports it yet. `burgee/commander` still spawns with raw `node:child_process` and needs a `spawn()` that returns the ChildProcess; `compat-oracle/run.ts` needs `maxBuffer` and a sync call. Both are named in bellpull's design.md.",
+    "caique": "0 of 606 clack cases; burgee reaching it needs the guarded optional-surface mechanism U13 describes, which does not exist yet.",
+    "flagstaff": "burgee renders no spinner, box or table anywhere; `weight.test.ts` denies it by name. The honest edge does not exist yet, and manufacturing one would defeat this ratchet.",
+    "paratext": "its `link` works (43/43) but its only export is a root barrel that runs `registerBuiltins()` at import, so `--help` would put 16,955 B in every run's cold start. Needs a narrow `paratext/link` subpath with no registry side effect."
   }
 }

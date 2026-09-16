@@ -221,7 +221,7 @@ describe('the ceilings file', () => {
   );
 
   it(
-    'names the value the integrator lane has to write, so the handoff is a file and not a commit message',
+    'tracks the band: what this package weighs is what the ceilings file says it weighs',
     () => {
       const ours = measured();
       const { ceiling } = band();
@@ -231,12 +231,19 @@ describe('the ceilings file', () => {
       // replacement here, from the same measurement the band uses, so the number handed over
       // is measured rather than transcribed — and so it goes stale loudly if this package
       // grows again before the integrator gets to it.
-      const recommended = { ours, ceiling, ratio };
-      expect(recommended).toEqual({ ours: 82_270, ceiling: 714_984, ratio: 0.1151 });
-      // Recorded on 2026-09-15: the band still says `ours: 4761, ratio: 0.0067`, measured
-      // when this package was seven lines and did nothing. The rise to 0.1151 is the honest
-      // direction — the old ratio was the weight of a package that could not do the job.
-      expect(band().ours).toBe(4761);
+      // **The handoff completed on 2026-09-16, so this now tracks rather than waits.** While the
+      // lane was open it pinned its own recommendation (82,270 / 0.1151) and asserted the band
+      // still held the stub's 4,761 — correct then, and stale the moment the integrator wrote
+      // the file, which is what the sentence above promised would happen loudly.
+      //
+      // The recorded 82,141 is 129 bytes under what the lane measured, and the difference is
+      // this package's README: `npm pack` includes it, and `scripts/readme-benchmarks.ts`
+      // regenerated the generated half once `cross-spawn` had a graded row to report.
+      //
+      // Asserting equality rather than a literal is the durable form: the band follows the
+      // package, and a change to either without the other goes red here.
+      const { ours: recordedOurs, ceiling: recordedCeiling, ratio: recordedRatio } = band();
+      expect({ ours, ceiling, ratio }).toEqual({ ours: recordedOurs, ceiling: recordedCeiling, ratio: recordedRatio });
     },
     PACK_TIMEOUT_MS,
   );

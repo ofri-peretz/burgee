@@ -319,7 +319,7 @@ Weight, installed and tree-inclusive: **90,239 bytes** against **170,604** for t
 
 Plugins register under the `handlers` key, against the one schema the whole family shares.
 
-Nothing in this family builds on it yet, and it builds on nothing in this family.
+`burgee`, `caique`, `flagstaff` build on it, and it builds on nothing in this family.
 ## Licence
 
 MIT
