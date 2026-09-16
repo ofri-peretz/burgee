@@ -56,8 +56,27 @@ const RULES: Record<string, EntryRule> = {
    * entry, because the family's plugin contract is one file and every host ships it whole.
    * Measured 17,574 B on 2026-09-15, up from 16,955 B before `./link` was split out: two new
    * module boundaries and their re-export lines. Recorded rather than smoothed.
+   *
+   * **Raised from 19,000 to 20,500 on 2026-09-16, and the reason is a defect this entry was
+   * shipping.** `check()` read one array out of `schema.json` and enforced nothing else, so
+   * a capability with `when: 'not an object'` registered, `supports()` destructured the
+   * string to four `undefined` clauses and answered `true`, and the sequence went into the
+   * pipe. `shape.ts` is the walk that closes it: **2,500 B**, plus 120 B in `capability.ts`
+   * and 66 B of fail-safe in `supports.ts` — 2,686 B against 1,465 B of headroom.
+   *
+   * Bytes were found before the ceiling moved, and the trade is recorded so it is checkable.
+   * The walk went 2,661 B → 1,967 B (one message per rule instead of two; `const` and `type`
+   * share a sentence), `capability.ts` stopped rebuilding its record and its message table on
+   * every call, and `plugin.ts` gave back 92 B by dropping the copy of `fallback`-is-required
+   * it kept beside `capability.ts`'s. It then went **back up to 2,500 B** because
+   * `maintainability/cognitive-complexity` reads one function of 18 against a ceiling of 15,
+   * so the walk is five named functions rather than one — a lint rule this repository enforces
+   * bought 533 B, which is a trade worth writing down rather than quietly reversing.
+   *
+   * `.` now measures **20,221 B**. The new ceiling is *tighter* than the one it replaces:
+   * 279 B of headroom where there were 1,465.
    */
-  '.': { allow: [], budget: 19_000, denied: ['plugin.js'] },
+  '.': { allow: [], budget: 20_500, denied: ['plugin.js'] },
   /**
    * OSC 8 alone, for a host that wants one clickable URL and not a plugin contract.
    * Measured **2,337 B**: `link.js` 768, `template.js` 774, `supports.js` 652,
@@ -66,11 +85,16 @@ const RULES: Record<string, EntryRule> = {
    */
   './link': { allow: [], budget: 3_000, denied: ['index.js', 'capability.js', 'builtins.js', 'plugin.js', 'ansi-escapes.js', 'schema.json'] },
   /**
-   * The plugin host: `validate`, `contributions`, `attach`, and the `check()` it delegates
-   * to, which is what pulls `schema.json`. Measured 15,116 B. It must never reach `index.js`
-   * — registering a plugin is not a reason to register seven built-ins.
+   * The plugin host: `validate`, `contributions`, `attach`, and the `capability.ts` it
+   * delegates to, which is what pulls `schema.json`. Measured 15,116 B. It must never reach
+   * `index.js` — registering a plugin is not a reason to register seven built-ins.
+   *
+   * Raised from 16,500 to 18,000 on 2026-09-16 for the schema walk — the same 2,686 B the
+   * root pays, less the 92 B `plugin.ts` gave back by asking `capability.ts` for the refusal
+   * and its code instead of hand-checking `fallback` itself. Measured **17,710 B**; 290 B of
+   * headroom, where there were 1,384. The reasoning is written out on `.` above.
    */
-  './plugin': { allow: [], budget: 16_500, denied: ['index.js', 'builtins.js', 'ansi-escapes.js'] },
+  './plugin': { allow: [], budget: 18_000, denied: ['index.js', 'builtins.js', 'ansi-escapes.js'] },
 };
 
 const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;

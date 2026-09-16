@@ -28,7 +28,7 @@
  * R7 an exemption; `capabilities` owes it nothing, which is the argument the design makes
  * for holding capabilities as data in the first place.
  */
-import { type Capability, check, refusals, register as registerCapability } from './capability.js';
+import { type Capability, capabilityProblems, register as registerCapability } from './capability.js';
 
 /**
  * The plugin contract version. One number for the family — the same `1` flagstaff, caique
@@ -87,7 +87,7 @@ export function validate(plugin: unknown): asserts plugin is Plugin {
     throw new PluginError(
       'E_PLUGIN_CONTRACT',
       `plugin "${plugin['name']}" declares contract ${String(contract)}; this paratext knows ${CONTRACT}`,
-      'upgrade paratext, or lower the plugin’s contract',
+      FIX.E_PLUGIN_CONTRACT,
     );
   }
   validateCapabilities(plugin['capabilities'], plugin['name']);
@@ -104,19 +104,11 @@ function validateCapabilities(section: unknown, name: string): void {
     if (!isRecord(candidate)) throw new PluginError('E_PLUGIN_SCHEMA', `${at} is not an object`, 'a capability is `{ name, osc, when, encode, fallback }` — five fields of plain data');
 
     /**
-     * Before the schema, because `fallback` is the field people leave out and "required"
-     * would not tell them what they are giving up. Rule 6 has no opt-out: a sequence a
-     * terminal cannot read is not a feature, it is control bytes across somebody's screen.
-     */
-    if (candidate['fallback'] === undefined) {
-      throw new PluginError('E_NO_STATIC_PROJECTION', `${at} has no static projection`, 'add `fallback: "…"` — what prints where the terminal cannot do it; `""` is a legitimate answer, absence is not');
-    }
-
-    /**
      * The key is what a reader edits and the `name` is what the registry files it under, so
      * a mismatch registers the capability somewhere nobody is looking. Refused rather than
      * reconciled: guessing which of the two the author meant is how a silent wrong answer
-     * gets built.
+     * gets built. It is the one rule here that is about the *document* rather than the
+     * capability, which is why it is the one rule written out in this file.
      */
     if (candidate['name'] !== key) {
       throw new PluginError(
@@ -125,18 +117,30 @@ function validateCapabilities(section: unknown, name: string): void {
         `key it by its own name — \`"${String(candidate['name'])}": { … }\` — or rename the capability to "${key}"`,
       );
     }
-  }
 
-  /**
-   * Everything else comes from `check()`, which reads the published schema. A second copy of
-   * the rules here is the drift `plugin-schema-lock.test.ts` exists to forbid, one level up.
-   */
-  const problems = refusals(check({ name, capabilities: section }));
-  const first = problems[0];
-  if (first !== undefined) {
-    throw new PluginError('E_PLUGIN_SCHEMA', `plugin "${name}": ${first}`, 'compare the object against `paratext/schema.json`, which is the contract every host in the family ships');
+    /**
+     * Everything else comes from `capability.ts`, which reads the published schema — the
+     * presence of the five fields and, since the schema walk landed, their declared types,
+     * `oneOf`, `minLength` and `additionalProperties: false`. A second copy of the rules here
+     * is the drift `plugin-schema-lock.test.ts` exists to forbid, one level up; until this
+     * call replaced it, `fallback`'s absence was hand-checked in both files and everything
+     * else in neither.
+     *
+     * The code travels with the line, so `E_NO_STATIC_PROJECTION` still means "no static
+     * projection" here and `FIX` is what to do about each — one message per code, because a
+     * code that needs a different fix in a different file is not one code (R8).
+     */
+    const [first] = capabilityProblems(candidate, at);
+    if (first !== undefined) throw new PluginError(first.code, first.line, FIX[first.code]);
   }
 }
+
+/** What to do about each refusal, by code. The family's `fix` half of the vocabulary. */
+const FIX: Record<PluginErrorCode, string> = {
+  E_NO_STATIC_PROJECTION: 'add `fallback: "…"` — what prints where the terminal cannot do it; `""` is a legitimate answer, absence is not',
+  E_PLUGIN_SCHEMA: 'compare the object against `paratext/schema.json`, which is the contract every host in the family ships',
+  E_PLUGIN_CONTRACT: 'upgrade paratext, or lower the plugin’s contract',
+};
 
 const order: Plugin[] = [];
 
