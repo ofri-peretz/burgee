@@ -104,6 +104,62 @@ against real use; it does not prove demand, and the README will not imply it doe
   present. Run against real `execa` with no timeout set, the same cell hangs — that control
   is checked in, so the check is known to work rather than assumed to.
 
+## Reconciliations — decided while building, 2026-09-15
+
+Three things this document asks for could not all be true at once. Each is recorded here with
+what was chosen and why, rather than settled silently in code.
+
+**R1 vs R2: a breached deadline resolves, it does not reject.** R1 lists the deadline under
+"rejection is reserved for"; R2 says a breach yields `timedOut: true` with the output that
+arrived before the kill. A rejected promise has no `Result` to carry either on, and R2's whole
+content is that the partial output survives, because a CI timeout with the output discarded is
+undiagnosable. **R2 wins.** `run()` resolves with `ok: false`, `timedOut: true`,
+`signal: 'SIGKILL'` and the partial output. Rejection is reserved for the two cases where no
+process ran at all: the executable did not resolve, and the spawn failed.
+
+**R8's ceiling is `tinyexec`, and that is the wrong comparison for what got built.** The
+instinct is right — a ceiling set at `execa` would be a free pass. But `tinyexec` does not
+resolve executables, and roughly half of what is on disk here is resolution, so comparing the
+two on bytes compares a package that can answer "which binary ran" against one that cannot,
+and the smaller number wins by not doing the job. Measured instead against the `ceiling`
+`.sdlc/bands/foundation-ceilings.json` already holds (`execa` + `cross-spawn` + `which`,
+714,984 B): **82,270 B, a ratio of 0.1151**, up from 0.0067 when this package was seven lines.
+`tinyexec` is not installed in this workspace, so no number is claimed against it.
+
+**The `bellpull → closeout` edge is a parameter, not a dependency.** A spawned child must not
+be orphaned when the parent is killed, and `closeout` owns bounded exit paths. It cannot be an
+`import`: `scripts/package-shape-lock.test.ts` asserts that every package in the foundation
+tier — which is `bellpull`, `closeout`, `linegauge`, `seniority` — *"depends on nothing: it is
+the floor"*, so a package edge between two of them fails on main. `RunOptions.exitHost` is
+therefore the family's R3 idiom: the host is declared structurally, `closeout`'s own
+`Registry.add(handler, spec?) => () => void` satisfies it as written, and nothing is imported.
+Given no host, `run()` registers no signal handler at all — deciding when the process shuts
+down is the layer above's job.
+
+## Handoffs this lane cannot make itself
+
+Three files this lane may not write (`.sdlc/LANES.md`), with the value each should hold:
+
+| file | today | should be | owner |
+| :-- | :-- | :-- | :-- |
+| `.sdlc/bands/foundation-ceilings.json`, `layers.bellpull` | `ours: 4761`, `ratio: 0.0067` | `ours: 82270`, `ratio: 0.1151` | integrator |
+| `packages/compat-oracle/baseline/cross-spawn.json` | `passed: 0`, `rate: 0` | `passed: 68`, `rate: 1` | harness, per the table; the lane, per the sharding paragraph |
+| `.sdlc/bands/artifact-size-baseline.json`, `bellpull` | `size: 2613`, `unpackedSize: 5249` | `size: 26698`, `unpackedSize: 82270` | integrator |
+
+The third is the one that makes `npm run lint` red on this branch, and it is worth naming as a
+structural problem rather than a chore. `scripts/check-published-artifacts.ts` allows 10%
+growth against a baseline in `.sdlc/bands/`, and a lane that turns a seven-line reserved name
+into an implementation grows it by 1,467%. The band file is forbidden to every lane but
+`integrator`, and `--update-baseline` writes exactly that file — so **no package lane can take
+its package from stub to implementation and leave `lint` green.** Every foundation lane after
+this one meets the same wall. The fix is the integrator's, and it is either a `--update-baseline`
+run alongside the merge or a first-implementation exemption in the script.
+
+The second is the contradiction `.sdlc/LANES.md` already records: the prose assigns a package
+lane the baseline fragment of its own incumbents, the table gives `packages/compat-oracle/**`
+to `harness`, and `scripts/lanes.ts` reads only the table. Until that is resolved the ratchet
+for this row sits at 0, which means a regression from 68 to 1 would pass it.
+
 ## Rejected alternatives
 
 - **Competing on weight.** Taken, by a zero-dependency package with 119.5 M/wk published six
