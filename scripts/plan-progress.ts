@@ -216,7 +216,30 @@ const STEPS: Step[] = [
   { id: '2.5.1', what: 'help snapshots exist at three widths', done: () => existsSync(join(ROOT, 'packages/burgee/src/__snapshots__')) && readdirSync(join(ROOT, 'packages/burgee/src/__snapshots__')).some((f) => f.startsWith('help')) },
   { id: '2.5.2', what: 'dependsOn/exclusive are spelled in the schema', done: () => has('packages/burgee/src/schema.ts', 'dependsOn') && has('packages/burgee/src/schema.ts', 'exclusive') },
   { id: '2.5.3', what: 'the Fig spec is validated, not just emitted', done: () => existsSync(join(ROOT, 'packages/burgee/src/fig-schema.test.ts')) },
-  { id: '2.5.4', what: 'the Ctrl+C test runs under a real PTY', done: () => has('packages/caique/src/prompt.test.ts', 'openpty') || has('.github/workflows/quality.yml', 'pty') },
+  /**
+   * Keyed on what a pty test *contains*, not on where someone guessed it would live.
+   *
+   * This read `has('packages/caique/src/prompt.test.ts', 'openpty')`, and that file has never
+   * existed — caique's raw-mode test is `raw.test.ts`. So the step could not go green however
+   * much of it was built, and when a lane did build a real pty test it had nowhere to land.
+   * Its fallback, `.github/workflows/quality.yml` containing `pty`, was wrong twice over: that
+   * file is integrator-owned, and the three-OS matrix is in `compat.yml`.
+   *
+   * A condition naming a filename breaks on a rename — which is exactly how 0.1 broke. A
+   * condition naming the *mechanism* does not.
+   */
+  {
+    id: '2.5.4',
+    what: 'the Ctrl+C test runs under a real PTY',
+    done: () =>
+      readdirSync(join(ROOT, 'packages'))
+        .filter((pkg) => existsSync(join(ROOT, 'packages', pkg, 'src')))
+        .some((pkg) =>
+          readdirSync(join(ROOT, 'packages', pkg, 'src'))
+            .filter((f) => f.endsWith('.test.ts'))
+            .some((f) => /openpty|pty\.fork|zpty|forkpty/.test(read(`packages/${pkg}/src/${f}`))),
+        ),
+  },
   { id: '3.1', what: 'paratext R8-R12 built', done: () => designComplete('paratext') },
   { id: '3.2', what: 'seniority at 1.0', done: () => designComplete('seniority') },
   { id: '3.3', what: 'closeout at 1.0', done: () => designComplete('closeout') },
