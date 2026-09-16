@@ -154,68 +154,42 @@ import { cliui } from "./cliui.js";
  * **3.753–4.399**. Against the same reintroduced backtracking, both assertions fail —
  * **15.900** for `div` and **14.748** for `toString()`.
  */
-const MIN_WINDOW_MS = 5;
-const MAX_REPEATS = 4096;
-
-function growth<T>(prepare: (n: number) => T, run: (input: T) => unknown, n = 12_000, samples = 4): { ratio: number; numerator: number; denominator: number; repeats: number } {
-  // Build both inputs ONCE, outside every timed region.
-  //
-  // They used to be built inside it — `growth((n) => cliui({width:80}).div(' '.repeat(n)+'x'))`
-  // timed a fresh 12 KB or 48 KB string and a fresh `cliui` on every one of `repeats`
-  // iterations. That makes the reading a measurement of the allocator under whatever heap
-  // pressure the machine happens to be under, not of how the algorithm grows: the 4n batch
-  // produces four times the garbage, so a runner that collects during it and not during the
-  // n batch reports superlinear growth for perfectly linear code. It read **23.9** against a
-  // ceiling of 8 on all three CI platforms while reading 3.5-4.5 on the machine that wrote it.
-  //
-  // What the assertion claims to measure is shape. So only the call under test is timed.
-  const small = prepare(n);
-  const large = prepare(n * 4);
-  /** Best-of-`runs` wall time for `repeats` back-to-back calls on a prepared input. */
-  const best = (input: T, repeats: number, runs = 3) => {
-    let min = Infinity;
-    for (let i = 0; i < runs; i++) {
-      const started = performance.now();
-      for (let r = 0; r < repeats; r++) run(input);
-      min = Math.min(min, performance.now() - started);
-    }
-    return min;
-  };
-
-  // Calibrate on the denominator, which is the reading the clock can swallow.
-  let repeats = 1;
-  let window = best(small, repeats);
-  while (window < MIN_WINDOW_MS && repeats < MAX_REPEATS) {
-    repeats *= 2;
-    window = best(small, repeats);
-  }
-  if (window < MIN_WINDOW_MS)
-    throw new Error(
-      `growth(): ${MAX_REPEATS} calls at n=${n} still measure ${window.toFixed(3)} ms, under ` +
-        `the ${MIN_WINDOW_MS} ms this needs. A ratio from that would describe the clock.`,
-    );
-
-  // Infinity on both sides if samples is 0, so the gate fails loudly rather than passes.
-  let numerator = Infinity;
-  let denominator = Infinity;
-  for (let i = 0; i < samples; i++) {
-    numerator = Math.min(numerator, best(large, repeats));
-    denominator = Math.min(denominator, best(small, repeats));
-  }
-  return { ratio: numerator / denominator, numerator, denominator, repeats };
-}
-
 /**
- * The reading, with its working, because this gate has twice failed on a machine nobody could
- * reproduce — 10.1 then 23.9 on CI while the same commit read 3.5-4.5 everywhere else. A bare
- * `expected 23.9 to be less than 8` says the code is quadratic, which it demonstrably is not,
- * and gives nothing to diagnose from. The batch size is the interesting number: it is how much
- * averaging the calibration decided the machine needed, and a reading taken at `repeats: 1` is
- * a single call's luck rather than a measurement.
+ * The size at which a linear implementation and a quadratic one are not close.
+ *
+ * **Three instruments have now failed on this one assertion.** An absolute `< 400 ms` at a
+ * small size red-lit a CI box that came back with 440 — a 10% margin is a statement about the
+ * runner. Replacing it with a growth *ratio* — quadruple the input, require the cost not to
+ * multiply by ~16 — failed differently and worse: it read **15.04 on macOS CI against 4.09
+ * locally, for identical code**, batched 256 times, so not noise.
+ *
+ * The ratio's premise was wrong. Per call the CI runner was 3x slower at n and **11x slower at
+ * 4n**: a 48,000-character cell is 96 KB of UTF-16 where a 12,000-character one is 24 KB, so
+ * the larger crosses a cache boundary the smaller does not. The ratio was measuring the memory
+ * hierarchy. No ceiling fixes that, because linear code genuinely costs more than 4x once its
+ * input stops fitting.
+ *
+ * So: one size, large, and a budget with room to be wrong by orders of magnitude. Measured here
+ * — the linear implementation renders a 200,000-space cell in **0.2 ms**. The quadratic one
+ * this guards is recorded in `cliui.ts`'s own comment at **1,049 ms for 50,000 spaces**, which
+ * is ~17 seconds at this size. One second sits ~3,000x above linear and ~17x below quadratic.
+ * A runner an order of magnitude slower than this one still passes; a reintroduced backtracking
+ * regex still cannot.
+ *
+ * That is what separates this from the `< 400 ms` that failed — not that it is absolute, but
+ * that nothing about the machine can move a reading across a gap this wide.
  */
-const reading = (r: ReturnType<typeof growth>): string =>
-  `ratio ${r.ratio.toFixed(2)} — ${r.numerator.toFixed(2)} ms at 4n against ${r.denominator.toFixed(2)} ms at n, ` +
-  `batched ${String(r.repeats)}x. A linear implementation reads about 4.`;
+const PATHOLOGICAL = 200_000;
+const BUDGET_MS = 1_000;
+
+/** One long run of spaces then a single character — the shape that makes an unanchored regex backtrack. */
+const mostlyWhitespace = `${" ".repeat(PATHOLOGICAL)}x`;
+
+function costMs(work: () => unknown): number {
+  const started = performance.now();
+  work();
+  return performance.now() - started;
+}
 
 describe("padding measurement", () => {
   it("counts leading and trailing whitespace", () => {
@@ -225,20 +199,8 @@ describe("padding measurement", () => {
   });
 
   it("does not backtrack on a cell that is mostly whitespace", () => {
-    // Shape, not wall clock. The bug is catastrophic backtracking, which is a statement about
-    // how the cost GROWS, and an absolute millisecond budget is a statement about the runner:
-    // this file asserted `< 400` and a CI box came back with 440. This repo already learned
-    // that lesson for the ratchet gates, which say in as many words that "an absolute or
-    // tail-driven gate is what red-lit two innocent PRs in #27".
-    //
-    // Quadrupling the input must not multiply the cost by ~16. The ceiling is generous on
-    // purpose: it has to clear linear overhead and scheduler noise on a shared runner, while
-    // staying far enough below quadratic that the regression this guards cannot hide under it.
-    const measured = growth(
-      (n) => `${" ".repeat(n)}x`,
-      (cell) => cliui({ width: 80 }).div(cell),
-    );
-    expect(measured.ratio, reading(measured)).toBeLessThan(8);
+    const ms = costMs(() => cliui({ width: 80 }).div(mostlyWhitespace));
+    expect(ms, `${String(PATHOLOGICAL)} spaces laid out in ${ms.toFixed(1)} ms — linear reads well under 10, the backtracking regex reads thousands`).toBeLessThan(BUDGET_MS);
   });
 });
 
@@ -256,8 +218,9 @@ describe("row rendering", () => {
       ui.div(cell);
       return ui.toString();
     };
+    // The trim lives in `toString()`, so this one must render, not merely lay out.
     expect(render(`${" ".repeat(24_000)}x`).endsWith("x")).toBe(true);
-    const measured = growth((n) => `${" ".repeat(n)}x`, render);
-    expect(measured.ratio, reading(measured)).toBeLessThan(8);
+    const ms = costMs(() => render(mostlyWhitespace));
+    expect(ms, `${String(PATHOLOGICAL)} spaces rendered in ${ms.toFixed(1)} ms — linear reads well under 10`).toBeLessThan(BUDGET_MS);
   });
 });

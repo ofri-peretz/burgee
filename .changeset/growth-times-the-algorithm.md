@@ -2,27 +2,24 @@
 'burgee': patch
 ---
 
-The cliui growth gate times the call under test, not the construction of its input, and reports
-its working when it fails.
+The cliui backtracking gate stops measuring a ratio and measures one large case against a
+budget with orders of magnitude of headroom.
 
-`growth((n) => cliui({width:80}).div(' '.repeat(n)+'x'))` built a fresh string and a fresh
-`cliui` inside every one of `repeats` timed iterations. That makes the reading partly a
-measurement of the allocator under whatever heap pressure the machine is under, not of how the
-algorithm grows — the 4n batch produces four times the garbage, so a runner that collects
-during it and not during the n batch reports superlinear growth for perfectly linear code.
-Both inputs are now built once, outside every timed region.
+**Three instruments have now failed on this one assertion.** An absolute `< 400 ms` at a small
+size red-lit a CI box that returned 440 — a 10% margin is a statement about the runner. The
+growth *ratio* that replaced it failed worse: **15.04 on macOS CI against 4.09 locally, for
+identical code**, batched 256 times, so not noise.
 
-**This is an improvement to the instrument, not a proven fix for the CI failure.** The gate
-read 23.9 against a ceiling of 8 on all three CI platforms while reading 3.5–4.5 locally, and
-that could not be reproduced here: 15 consecutive runs green, and green again under a 64 MB
-heap with four CPUs deliberately saturated — where the *old* estimator also passed. So the
-cause is still environmental and unidentified.
+The ratio's premise was wrong. Per call the CI runner was 3x slower at n and **11x slower at
+4n**: a 48,000-character cell is 96 KB of UTF-16 where a 12,000-character one is 24 KB, so the
+larger crosses a cache boundary the smaller does not. The ratio was measuring the memory
+hierarchy, and no ceiling fixes that — linear code genuinely costs more than 4x once its input
+stops fitting.
 
-Which is why the reading now carries its working: `ratio 4.09 — 31.33 ms at 4n against 7.66 ms
-at n, batched 1024x`. The batch size is the diagnostic — it is how much averaging the
-calibration decided the machine needed, and a reading taken at `repeats: 1` is a single call's
-luck rather than a measurement. If this fails on CI again it will say something useful instead
-of accusing linear code of being quadratic.
+One size now, large, with a gap nothing about a machine can close. Measured: the linear
+implementation renders a 200,000-space cell in **0.2 ms**; restoring the upstream
+`str.replace(/ +$/, "")` renders it in **16,321 ms**. The budget is 1,000 ms — ~5,000x above
+linear, 16x below quadratic.
 
-Still catches the regression it exists for: restoring the upstream `str.replace(/ +$/, '')`
-reads 14.28.
+That is what separates it from the `< 400 ms` that failed: not that it is absolute, but that a
+reading cannot cross a gap this wide.
