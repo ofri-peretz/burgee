@@ -245,7 +245,29 @@ const STEPS: Step[] = [
   { id: '3.3', what: 'closeout at 1.0', done: () => designComplete('closeout') },
   // `split('export').length > 2` was green: the file's own doc comment says "exports only
   // its own name". Count declarations, not the word.
-  { id: '3.4', what: 'bellpull exists as more than a name', done: () => existsSync(join(ROOT, 'packages/bellpull/src/index.ts')) && [...read('packages/bellpull/src/index.ts').matchAll(/^export (?:const|function|class|type|interface) /gm)].length > 1 },
+  /**
+   * Counts exported **names**, not export statements.
+   *
+   * It counted `^export (const|function|…)` declarations, which is a style this repository's own
+   * linter forbids: `import-next/group-exports` requires one grouped `export { … }` per module,
+   * and it fired on a two-statement export earlier the same night this was found. So bellpull
+   * could export thirty-three names through the mandated form and still read as "a name" — the
+   * checker demanding what the linter refuses.
+   *
+   * Eighth condition in this file found false for a reason unrelated to its step.
+   */
+  {
+    id: '3.4',
+    what: 'bellpull exists as more than a name',
+    done: () => {
+      const file = 'packages/bellpull/src/index.ts';
+      if (!existsSync(join(ROOT, file))) return false;
+      const src = read(file);
+      const declared = [...src.matchAll(/^export (?:const|function|class|type|interface) /gm)].length;
+      const grouped = [...src.matchAll(/^export \{([\s\S]*?)^\};?$/gm)].flatMap((m) => (m[1] as string).split(',')).filter((n) => n.trim().length > 0).length;
+      return declared + grouped > 1;
+    },
+  },
   { id: '3.5', what: 'linegauge R9-R10 built', done: () => designComplete('linegauge') },
   { id: '4.2', what: 'no uncovered issue above the reaction floor is left', done: () => readdirSync(join(ROOT, '.sdlc/intents')).filter((s) => existsSync(join(ROOT, '.sdlc/intents', s, 'issues.md'))).length >= PUBLISHED_PACKAGES && citations() > 0 && !readdirSync(join(ROOT, '.sdlc/intents')).some((s) => existsSync(join(ROOT, '.sdlc/intents', s, 'issues.md')) && read(`.sdlc/intents/${s}/issues.md`).includes('covered: no')) },
   /**

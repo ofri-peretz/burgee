@@ -95,7 +95,6 @@ describe('every path a step names could exist', () => {
   const DELIBERATELY_ABSENT: Record<string, string> = {
     'scripts/plugin-contract-lock.test.ts': "1.7's condition IS its absence — the step is done when the lock exists, so a missing file is the honest red.",
     'packages/compat-oracle/baseline.json': 'SHARD asserts this is *gone*: the shared file was replaced by a directory of per-host fragments so lanes cannot collide.',
-    'packages/burgee/src/fig-schema.test.ts': "2.5.3's condition; the file exists on `lane/burgee-spawns-through-bellpull` and lands with it.",
   };
 
   it('names no path that has never existed', () => {
