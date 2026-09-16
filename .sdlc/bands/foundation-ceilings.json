@@ -92,14 +92,14 @@
       "$unmeasured": "Not installed in this workspace, so its bytes are absent from `ceiling` \u2014 the ceiling is therefore a floor on the real one, never an overstatement."
     },
     "bellpull": {
-      "ours": 82917,
+      "ours": 85906,
       "incumbents": {
         "execa": 647091,
         "cross-spawn": 46962,
         "which": 20931
       },
       "ceiling": 714984,
-      "ratio": 0.116,
+      "ratio": 0.1202,
       "lightestIncumbent": {
         "name": "which",
         "bytes": 20931

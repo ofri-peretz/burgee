@@ -260,22 +260,31 @@ describe('the ceilings file', () => {
       // is measured rather than transcribed — and so it goes stale loudly if this package
       // grows again before the integrator gets to it.
       //
-      // **That is what has just happened, for the second time.** The handoff completed on
-      // 2026-09-16 and this assertion became a plain equality against the band. Making
-      // bellpull's Windows path actually work then grew the package again, so the equality is
-      // back in its handoff form: the lane pins what it measured and asserts the band still
-      // holds the pre-lane number, which is the state the integrator replaces.
+      // **The handoff completed again on 2026-09-16, so this tracks rather than waits.** The
+      // lane pinned 85,129 / 0.1191; the integrator measured **85,906 / 0.1202** on the merged
+      // tree, because two bellpull branches landed together — the Windows resolution work and
+      // the `childProcess.spawn` property read that lets a consumer under commander's mocks see
+      // the mock. Neither lane could measure the other.
       //
-      // 82,141 → 85,129 B, ratio 0.1149 → 0.1191, all of it `resolveExecutable` in `which.ts`
-      // (the two-attempt `PATHEXT` walk that `run.ts` and `spawn-args.ts` must share) plus the
-      // `startDeadline` seam in `run.ts`, and mostly the `.d.ts` doc comments both carry —
-      // `strip-comments.mjs` takes them out of the `.js` and leaves them in the declarations,
-      // where a user still pays for them. Still an order of magnitude under the 714,984 B it
-      // replaces, and the direction is recorded rather than smoothed.
-      expect({ ours, ratio }, 'this lane measured a new weight — hand these two numbers to the integrator for `.sdlc/bands/foundation-ceilings.json`').toEqual({ ours: 85_129, ratio: 0.1191 });
-
+      // The growth is `resolveExecutable` in `which.ts` (the two-attempt `PATHEXT` walk that
+      // `run.ts` and `spawn-args.ts` must share — a single walk is the defect that made a
+      // shebang script resolve for the parse and be refused by the run), the `startDeadline`
+      // seam, and mostly the `.d.ts` doc comments both carry: `strip-comments.mjs` takes them
+      // out of the `.js` and leaves them in the declarations, where a user still pays.
+      //
+      // Settling it took two iterations, and the band records why: `ours` is measured from a
+      // tarball containing a README generated from `ours`, so writing the number changes it.
+      // 85,905 became 85,906 when the ratio string grew a character.
+      //
+      // Still an order of magnitude under the 714,984 B it replaces. Equality against the band
+      // rather than a literal is the durable form — the band follows the package, and either
+      // moving without the other goes red here.
       const { ours: recordedOurs, ceiling: recordedCeiling, ratio: recordedRatio } = band();
-      expect({ ours: recordedOurs, ceiling: recordedCeiling, ratio: recordedRatio }, 'the band moved under this lane — re-measure rather than editing the literal above').toEqual({ ours: 82_141, ceiling, ratio: 0.1149 });
+      expect({ ours, ceiling, ratio }, 'the package and its recorded weight disagree — re-measure and update the band').toEqual({
+        ours: recordedOurs,
+        ceiling: recordedCeiling,
+        ratio: recordedRatio,
+      });
     },
     PACK_TIMEOUT_MS,
   );
