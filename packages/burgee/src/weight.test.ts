@@ -167,9 +167,34 @@ const RULES: Record<string, EntryRule> = {
   // one run later), and a contributed path that is already declared (`find()` answered the
   // first node and `resolve()` the last). Four floor families cost about 5 KB each in the
   // notes above; the plugin host is the fifth and costs 4.2.
+  //
+  // 58,800 on 2026-09-16 for PLAN 2.5.2, `dependsOn` / `exclusive` on the option itself.
+  // **+1,621 bytes** (57,150 -> 58,771 measured, against a 57,200 ceiling), and
+  // the measurement is a rebuilt `dist`, not the stale one a package-local `vitest run`
+  // reads. Where it went, per built file: `manifest.js` +456 (`optionRelations` and
+  // `relationsOf`, the desugaring), `definition.js` +504 (a name that is not an option, or is
+  // the option itself, is refused when the command is declared), `help.js` +293 (the
+  // `(requires --x)` / `(conflicts with --y)` annotations), `schema.js` +281 (the two keys on
+  // the option, plus the derived relations reaching the published list), `names.js` +81
+  // (`flagsOf`, one helper for three projections that were about to spell it three times),
+  // `execute.js` +16, `validate.js` **-10**.
+  //
+  // It is the alias the plan called it — `exclusive` is `conflicts`, `dependsOn` is `implies`
+  // — so there is no second engine here, and that is what keeps the number this small: one
+  // `relationsOf` feeds the enforcement and the schema, and the projections are three `if`s.
+  // Against it: a constraint the caller could previously only discover by being refused now
+  // appears on the option's own help line, in `--schema`'s property for that option, and as
+  // Fig's `dependsOn` / `exclusiveOn`.
+  //
+  // Trimmed before the raise rather than after: sharing `flagsOf` across `schema`, `help`,
+  // `completions` and `validate` took 121 bytes off a first measurement of 58,892. Folding the
+  // definition-time check into the loop already walking the options saved another 108 and was
+  // then given back — `maintainability/cognitive-complexity` scored the merged
+  // `checkDefinition` at 30 against a ceiling of 15, and a lint rule this repo enforces
+  // outranks 108 bytes.
   ".": {
     allow: ["closeout", "linegauge", "seniority/precedence"],
-    budget: 57_200,
+    budget: 58_800,
     denied: [
       "testing.js",
       "testing-helpers.js",
@@ -202,7 +227,10 @@ const RULES: Record<string, EntryRule> = {
   // runs a whole program in-process and a program may register plugins. +4,090 (57,281 ->
   // 61,371), which is the `.` raise above minus `index.js`, the barrel the harness does not
   // take. Next hundred above the measurement.
-  "./testing": { allow: ["closeout", "linegauge", "seniority/precedence"], budget: 61_400, denied: ["dev.js"] },
+  // 63,000 on 2026-09-16 with `.` above: the harness runs a whole program in-process, so it
+  // carries `dependsOn`/`exclusive` for the same reason it carries the schema. +1,621
+  // (61,371 -> 62,992 measured). Next hundred above the measurement.
+  "./testing": { allow: ["closeout", "linegauge", "seniority/precedence"], budget: 63_000, denied: ["dev.js"] },
   // The brand generator. Pure geometry and string building — it must never reach
   // the engine, and the engine must never reach it: a CLI that ships argv parsing
   // has no reason to carry an SVG emitter.
@@ -217,9 +245,11 @@ const RULES: Record<string, EntryRule> = {
   // 76,500 on 2026-09-16: the package's own command line is a burgee program, so it carries
   // the plugin host for the same reason `.` does. +4,090 (72,360 -> 76,450). Next hundred
   // above the measurement.
+  // 78,100 on 2026-09-16 with `.` above: the package's own command line is a burgee program.
+  // +1,621 (76,450 -> 78,071 measured). Next hundred above the measurement.
   "./cli": {
     allow: ["closeout", "linegauge", "roundel/contrast", "seniority/precedence"],
-    budget: 76_500,
+    budget: 78_100,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   // Arithmetic over hex strings, and the arithmetic itself is roundel's — colour is the

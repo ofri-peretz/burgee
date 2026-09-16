@@ -42,6 +42,26 @@ export interface OptionSpec {
   /** Repeatable, and split on `separator` (`,` unless declared): `--tag a --tag b,c` → `['a', 'b', 'c']` (S8). */
   multiple?: boolean;
   separator?: string;
+  /**
+   * The other options this one requires: `--out --dependsOn force` is a usage error without
+   * `--force` (S2). Sugar for a `{ implies: [this, other] }` relation per name, and nothing
+   * else — one engine, one order, one error vocabulary.
+   *
+   * It exists as a second spelling because the first states the constraint away from the
+   * option it constrains: a reader looking at `out` learns nothing from a `relations` entry
+   * three keys down, and neither does the help line for `--out`. Both incumbents spell it on
+   * the option (commander `.implies()`, yargs `.implies()`), and so does Fig, whose `Option`
+   * declares this exact key.
+   */
+  dependsOn?: readonly string[];
+  /**
+   * The other options this one may not be given with (S2): `{ conflicts: [this, other] }` per
+   * name. Commander's `.conflicts()`, yargs' `.conflicts()`, Fig's `exclusiveOn`.
+   *
+   * One-sided is enough — the relation it compiles to holds whichever of the two argv names
+   * first — so declare it once, on whichever option the constraint belongs to.
+   */
+  exclusive?: readonly string[];
   /** `number` only. */
   minimum?: number;
   maximum?: number;
@@ -81,6 +101,33 @@ export type Relation =
   | { atMostOneOf: readonly string[] }
   | { conflicts: readonly string[] }
   | { implies: readonly [string, string | ((values: Record<string, unknown>) => boolean)] };
+
+/**
+ * The option-level `dependsOn` / `exclusive` of {@link OptionSpec}, as the `Relation` union
+ * the engine already enforces. Declaration order, options then their names, so two runs of
+ * the same manifest publish the same list.
+ */
+export function optionRelations(options: Record<string, OptionSpec>): Relation[] {
+  const out: Relation[] = [];
+  for (const [key, spec] of Object.entries(options)) {
+    for (const other of spec.dependsOn ?? []) out.push({ implies: [key, other] });
+    for (const other of spec.exclusive ?? []) out.push({ conflicts: [key, other] });
+  }
+  return out;
+}
+
+/**
+ * Every constraint on a command, from wherever it was declared: the command's own
+ * `relations` first, then the ones its options spell on themselves.
+ *
+ * One function because there must be one answer. `validate.ts` enforces this list and
+ * `schema.ts` publishes it, and a surface that computed its own would be the defect
+ * `relations-schema.test.ts` was written for — an agent learning a constraint by being
+ * refused, one round trip at a time.
+ */
+export function relationsOf(node: Pick<CommandNode, 'options' | 'relations'>): Relation[] {
+  return [...(node.relations ?? []), ...optionRelations(node.options)];
+}
 
 /** A positional, as help documents it (yargs #2012). */
 export interface ArgumentSpec {

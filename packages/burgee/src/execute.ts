@@ -14,7 +14,7 @@ import { detectAgent } from './agent.js';
 import { checkCommand } from './definition.js';
 import { ExitCode, isExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
 import { renderHelp } from './help.js';
-import { type ActionRequiredSpec, type ArgumentSpec, type CommandNode, type Effects, type Example, type LazyModule, Manifest, type OptionSpec, type Relation, type RunContext } from './manifest.js';
+import { type ActionRequiredSpec, type ArgumentSpec, type CommandNode, type Effects, type Example, type LazyModule, Manifest, type OptionSpec, type Relation, relationsOf, type RunContext } from './manifest.js';
 import { serveMcp } from './mcp.js';
 import { camel, kebab } from './names.js';
 import { nearestPackage, type Package } from './pkg.js';
@@ -618,7 +618,10 @@ async function dispatch(manifest: Manifest, { node, rest, name }: Resolved, io: 
   if (resolved.explainText !== undefined) return { json, text: resolved.explainText };
   const { provenance } = resolved;
   // S6: relations, then each value — numbers, choices, its Standard Schema — then the handler.
-  checkRelations(node.relations, resolved.values, provenance);
+  // `relationsOf` is what makes `dependsOn`/`exclusive` enforced rather than documented: the
+  // command's own `relations` and the ones its options spell on themselves are one list here,
+  // and `schema.ts` publishes that same list.
+  checkRelations(relationsOf(node), resolved.values, provenance);
   const values = await coerce(node.options, resolved.values);
   const { positionals, passthrough } = splitPositionals(parsed.tokens);
   requirePositionals(node, positionals);
