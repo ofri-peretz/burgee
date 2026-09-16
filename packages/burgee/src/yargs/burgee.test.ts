@@ -155,7 +155,9 @@ describe('plugins and the seam (J8, T1)', () => {
   it('fires preRun and postRun around the handler', async () => {
     const calls: string[] = [];
     const { y, run } = program();
-    y.use({ name: 'trace', hooks: { preRun: { handler: ({ command }) => void calls.push(`pre ${command}`) }, postRun: { handler: ({ command }) => void calls.push(`post ${command}`) } } });
+    // `contract: 1` because the plugin host reads it: a bare object with no contract was
+    // written against burgee 0.6.1, which validated nothing, and is refused by name.
+    y.use({ name: 'trace', contract: 1, hooks: { preRun: { handler: ({ command }) => void calls.push(`pre ${command}`) }, postRun: { handler: ({ command }) => void calls.push(`post ${command}`) } } });
     const r = await run(['greet', 'ada']);
     expect(r.code).toBe(ExitCode.OK);
     expect(calls).toEqual(['pre greet', 'post greet']);
