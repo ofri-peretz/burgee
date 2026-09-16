@@ -31,7 +31,19 @@ interface Step {
   done: () => boolean;
 }
 
-const baselineSize = (): number => readdirSync(join(ROOT, 'packages/compat-oracle/baseline')).filter((f) => f.endsWith('.json')).length;
+/**
+ * Fragments the oracle actually publishes a rate for.
+ *
+ * A fragment flagged `"planned": true` holds a measurement `hosts.ts` deliberately does not
+ * publish, and `compat-oracle`'s `baseline-scope.test.ts` pins the flag to that status.
+ * Counting those made this read two suites higher than the oracle grades — and made 2.17,
+ * "one control band per graded suite", compare a band count against a suite count derived a
+ * different way, which is how the two sides of that wire came apart in the first place.
+ */
+const baselineSize = (): number =>
+  readdirSync(join(ROOT, 'packages/compat-oracle/baseline'))
+    .filter((f) => f.endsWith('.json'))
+    .filter((f) => (JSON.parse(readFileSync(join(ROOT, 'packages/compat-oracle/baseline', f), 'utf8')) as { planned?: boolean }).planned !== true).length;
 
 const schemaHashes = (): Set<string> => {
   const out = new Set<string>();

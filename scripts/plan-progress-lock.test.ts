@@ -30,7 +30,7 @@
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
@@ -59,7 +59,13 @@ const COMPAT_BAND = /\bcompat-[a-z0-9-]+-pass-rate\b/g;
 describe('the roadmap checker agrees with the tools it asks', () => {
   it('sees every compat band the watcher derives — on whichever stream it prints to', () => {
     const derived = new Set([...BOTH('npx', ['tsx', 'scripts/control-bands.ts']).matchAll(COMPAT_BAND)].map((m) => m[0]));
-    const suites = readdirSync(resolve(ROOT, 'packages/compat-oracle/baseline')).filter((f) => f.endsWith('.json'));
+    const baseline = resolve(ROOT, 'packages/compat-oracle/baseline');
+    // A fragment flagged `"planned": true` records a measurement `hosts.ts` deliberately does
+    // not publish, so the watcher derives no band for it — see `compat-oracle`'s
+    // `baseline-scope.test.ts`, which pins the flag to that host's status.
+    const suites = readdirSync(baseline)
+      .filter((f) => f.endsWith('.json'))
+      .filter((f) => (JSON.parse(readFileSync(join(baseline, f), 'utf8')) as { planned?: boolean }).planned !== true);
     // One band per baseline fragment is 2.17's own done-condition; the point here is that the
     // checker and the watcher are counting the same thing.
     expect(derived.size, 'the watcher derives one band per baseline fragment').toBe(suites.length);
