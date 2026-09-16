@@ -47,24 +47,30 @@ const KB = 1024;
 const MS_PLACES = 1;
 const RATIO_PLACES = 2;
 /**
- * Installed size, measured **now**, not read from the published file.
+ * Installed size, measured **now**, and only where the walk is reproducible.
  *
- * Every other cell on that page comes from `publishedResults()`, and deliberately: a
- * millisecond is a property of the runner, so a published figure has to be one a person
- * chose. `installed-bytes` is the exception, and `published.ts` says so itself — it is why
- * the 2026-09-09 republication was refused for its millisecond rows and not for these: *"the
+ * Every other cell on that page comes from `publishedResults()`, deliberately: a millisecond
+ * is a property of the runner, so a published figure has to be one a person chose. Reading
+ * *installed bytes* from there too meant the page could drift arbitrarily far from the
+ * repository with every check green — and it did. `2026-09-09.json` records burgee at 574,318
+ * and the page said **561 KB** while the package grew past a megabyte.
+ *
+ * `published.ts` says installed bytes are the exception, in the passage explaining why the
+ * 2026-09-09 republication was refused for its millisecond rows and not for these: *"the
  * `installed-bytes` rows were byte-identical, which is the point of them."*
  *
- * Reading them from the published file anyway meant the page could drift arbitrarily far
- * from the repository and every case here stayed green. It did: `2026-09-09.json` records
- * burgee at 574,318 installed bytes and the page said **561 KB**, while the tree measures
- * **1,337,245** — the public comparison table understated our largest and least flattering
- * number by 2.3x, on the page whose own first line is *"this page is maintained by hand, and
- * that is the reason to distrust it most"*.
+ * **That is true of an incumbent and false of us**, which this file learned the expensive
+ * way. `installedBytes` walks `node_modules` from the dependency graph, and for the three
+ * incumbents that graph is what npm installed from the lockfile — identical everywhere. For
+ * `burgee` it starts at a *workspace link*, so it walks a developer's tree, dev dependencies
+ * and all. Measured 2026-09-16: **1311 KB on a working laptop, 991 KB on a clean CI
+ * checkout**, same commit. 991 is the number a user gets from `npm i burgee`; 1311 is a
+ * number about my machine.
  *
- * So this walks the tree. A number that cannot differ between machines does not need a
- * person to choose it, and tying it to the tree is what makes the cell impossible to leave
- * behind.
+ * So the row is measured against the tree, and the case runs **only in CI** — the one place
+ * the walk answers the user's question rather than the developer's. Skipping it locally is
+ * not softening it: the check that matters is the one on the machine that resembles an
+ * install, and it is required to pass there.
  */
 const kb = (variant: string): number => Math.round(installedBytes(variant) / KB);
 
@@ -91,12 +97,12 @@ const cell = (label: string, variant: string): string => {
 const overFloor = (variant: string): string => (value(variant, 'cold-start-ms') - value('bare node', 'cold-start-ms')).toFixed(MS_PLACES);
 
 describe('comparison.mdx states the numbers the suite measured', () => {
-  it.each([
+  it.skipIf(process.env['CI'] !== 'true').each([
     ['burgee', 'burgee'],
     ['commander', 'commander'],
     ['yargs', 'yargs'],
     ['cac', 'cac'],
-  ])('installed size for %s', (_label, variant) => {
+  ])('installed size for %s — checked in CI, where the node_modules walk resembles an install', (_label, variant) => {
     expect(cell('Installed size', variant), `the ${variant} cell of the installed-size row`).toContain(`${String(kb(variant))} KB`);
   });
 
