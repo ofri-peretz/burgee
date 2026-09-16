@@ -40,7 +40,18 @@
  * that is what `require('cross-spawn')` gives today and a migration must not have to change
  * how the value is called.
  */
-import { spawn as nodeSpawn, spawnSync as nodeSpawnSync, type ChildProcess, type SpawnSyncReturns } from 'node:child_process';
+/**
+ * The **default** import, not named bindings, and that is part of the drop-in claim.
+ *
+ * `commander`'s suite mocks the CJS exports object (`t.mock.method(childProcess, 'spawn')`) in
+ * ~23 `executableSubcommand` cases. A named ESM binding is captured at import and never
+ * re-syncs, so a consumer under that mock calls the real thing — measured, `burgee/commander`
+ * went 1360 / 1360 to *ungradeable*, an un-mocked spawn running a real subcommand whose exit
+ * killed the runner. A property read off the default sees the mock. Costs nothing: 68 / 68
+ * either way. `ChildProcess` is re-exported below because a consumer that declared it itself
+ * would trip `inline-implementation-lock`, which matches a type-only `node:child_process` too.
+ */
+import childProcess, { type ChildProcess, type SpawnSyncReturns } from 'node:child_process';
 
 import { ambientRuntime } from './ambient.js';
 import { hookChildProcess, notFoundError, verifyENOENT } from './enoent.js';
@@ -61,7 +72,7 @@ function parse(command: string, args?: ArgsOrOptions, options?: SpawnOptions | n
 function spawn(command: string, args?: ArgsOrOptions, options?: SpawnOptions | null): ChildProcess {
   const runtime = ambientRuntime();
   const parsed = parseArgs(command, args, options, runtime);
-  const child = nodeSpawn(parsed.command, parsed.args, parsed.options as never);
+  const child = childProcess.spawn(parsed.command, parsed.args, parsed.options as never);
   hookChildProcess(child, parsed, runtime);
   return child;
 }
@@ -76,7 +87,7 @@ function spawn(command: string, args?: ArgsOrOptions, options?: SpawnOptions | n
 function sync(command: string, args?: ArgsOrOptions, options?: SpawnOptions | null): SpawnSyncReturns<Buffer | string> {
   const runtime = ambientRuntime();
   const parsed = parseArgs(command, args, options, runtime);
-  const result = nodeSpawnSync(parsed.command, parsed.args, parsed.options as never);
+  const result = childProcess.spawnSync(parsed.command, parsed.args, parsed.options as never);
   // Assigned only when there is one: under `exactOptionalPropertyTypes` writing `undefined`
   // into an optional field is not the same as leaving it out, and `spawnSync`'s own contract
   // is that `error` is absent on success rather than present and undefined.
@@ -98,7 +109,7 @@ const _enoent = { hookChildProcess, verifyENOENT, notFoundError };
  */
 const crossSpawn = Object.assign(spawn, { spawn, sync, parse, _parse: parse, _enoent });
 
-export { _enoent, crossSpawn, parse, spawn, sync, type Parsed, type SpawnOptions };
+export { _enoent, crossSpawn, parse, spawn, sync, type ChildProcess, type Parsed, type SpawnOptions, type SpawnSyncReturns };
 
 // eslint-disable-next-line import-next/no-default-export -- the incumbent's entry is a default export and Y3 is the whole point of this file
 export default crossSpawn;
