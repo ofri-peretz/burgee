@@ -1,9 +1,9 @@
 {
-  "$comment": "Release budgets (cli-benchmarks / Y8). A ratchet that moves per PR is a record of what happened, not a limit on it — `benchmarks/axes/weight.ts` says so above RATIO_CEILING after four raises in one session. A budget lives here instead: set once for a release, from the measured distribution rather than from the last commit, and `scripts/release-budget-lock.test.ts` refuses to let a number here move unless `release` moves with it in the same commit.",
+  "$comment": "Release budgets (cli-benchmarks / Y8). A ratchet that moves per PR is a record of what happened, not a limit on it \u2014 `benchmarks/axes/weight.ts` says so above RATIO_CEILING after four raises in one session. A budget lives here instead: set once for a release, from the measured distribution rather than from the last commit, and `scripts/release-budget-lock.test.ts` refuses to let a number here move unless `release` moves with it in the same commit.",
   "release": "wave-3",
   "setOn": "2026-09-10",
   "budgets": {
-    "bundled-bytes-ratio:burgee÷cac": {
+    "bundled-bytes-ratio:burgee\u00f7cac": {
       "value": 3.9,
       "unit": "ratio",
       "why": "burgee's core bundle over cac's, the lightest zero-dependency incumbent in the field. cac has no --schema, no MCP surface and no manifest, so the denominator is a smaller package rather than a lighter one doing the same work; the ratio is published because a suite that only showed the five entry points we win is lying by selection. Raised 3.7 -> 3.9 on 2026-09-15: PLAN 3.2's cosmiconfig surface took the engine to 5.261, and narrowing two imports at seniority's root barrel - one static, one a dynamic import no bundler can shake - brought it to 3.881. The remainder is config discovery that esbuild bundles because the dynamic import names a known specifier; code splitting is the real fix.",
@@ -14,8 +14,13 @@
         "sd": 1082.1,
         "latest": 37196,
         "rule": "mean + 3 sd = 38,987 bytes, which is 3.73x cac's 10,452. Rounded down to 3.7: three sigma is where the band itself calls a single point an act-now breach, so a budget above it would admit growth the watcher already refuses.",
-        "note": "This band breached at 1 sigma on 2026-09-10 — Rule 4, eight consecutive above the mean. The budget is set from the distribution anyway, and deliberately: a budget derived from a drifting series still bounds the drift, and lowering it is the next release's decision to take with the trend in hand."
-      }
+        "note": "This band breached at 1 sigma on 2026-09-10 \u2014 Rule 4, eight consecutive above the mean. The budget is set from the distribution anyway, and deliberately: a budget derived from a drifting series still bounds the drift, and lowering it is the next release's decision to take with the trend in hand."
+      },
+      "deviation": {
+        "from": 3.7,
+        "why": "The rule derives 3.7 from the distribution; the number held here is 3.9, and until 2026-09-16 nothing said so. It was raised on 2026-09-15 because PLAN 3.2's cosmiconfig surface measured 3.881 after narrowing two imports at seniority's root barrel \u2014 a last measurement, not a distribution, which is what this file's own $comment warns against. Recorded rather than quietly re-derived: the honest history is that 0.2 of ratio was spent on config discovery esbuild bundles because the dynamic import names a known specifier, and code splitting is still the real fix."
+      },
+      "note": "BREACHED, and not by drift. Measured on main 2026-09-16 after the composition wave and the extension contract: core is 55,896 bundled bytes against the 41,000 gate, a ratio of 5.348 against cac's 10,452. Attributed per commit: #326's process seam +630 (which took main over 41,000 on its own, a day before any dependency landed), closeout +4,880 buying E5 and O5 where piped JSON was truncated by definition, linegauge in help.ts +6,363 buying columns measured instead of UTF-16 code units, and burgee's plugin host +3,343 buying a validator that refuses a plugin option named `json` \u2014 which silently overwrote the envelope flag before it existed. Not reversible by engineering: reverting both dependencies still lands at 41,192, and lazy-loading help measures +767 bytes rather than fewer, because esbuild inlines a literal-specifier dynamic import and then charges for the wrapper. Resetting this is a release decision with those numbers in hand. It cannot be taken from a lane or from an unattended run: the rule below derives from a distribution and there is one observation of the new tree, so any value written today would be a record of what happened rather than a limit on it \u2014 which is what this file's own $comment warns against. `bench.yml` is not a required check, which is why the first breach sat unnoticed on main for a day."
     }
   }
 }

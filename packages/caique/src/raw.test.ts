@@ -10,6 +10,12 @@
  * that exits still in raw mode with the cursor hidden leaves the shell unusable, and a
  * person who pressed Ctrl-C is exactly the person who will not think to run `reset`.
  */
+import { execFileSync } from 'node:child_process';
+import { closeSync, mkdtempSync, openSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { HIDE_CURSOR, SHOW_CURSOR } from 'closeout/cursor';
 import { describe, expect, it } from 'vitest';
 
 import { ask, type Reader, type Writer } from './ask.js';
@@ -184,5 +190,120 @@ describe('raw mode and line mode answer the same question the same way', () => {
     const viaLine = await ask(select, lineIo([]));
     const viaRaw = (await run(select, [CTRL_C])).answer;
     expect(viaRaw).toEqual(viaLine);
+  });
+});
+
+/**
+ * The restore a keypress loop cannot do, which is the case caique's own suite was silent
+ * about. Every block above drives the prompt in-process and lets it end; none of them
+ * kills it. So the 180 said nothing about the guarantee a person is most likely to notice
+ * losing: a prompt on screen, the process signalled from outside the tty, and a shell left
+ * with no cursor until they type `reset`.
+ *
+ * Raw mode is exactly what hides this. Ctrl-C typed at a terminal in raw mode arrives as a
+ * byte, `keyOf` reads it as `cancel`, and the loop restores — which is what `Ctrl-C
+ * cancels, and still restores the terminal` asserts, and it passes on the broken code. A
+ * `SIGINT` from a parent process, a `SIGTERM`, a crash, or a `process.exit()` elsewhere in
+ * the program never reaches that loop at all.
+ *
+ * This runs the **built** entry (`dist/raw.js`, guaranteed by turbo's `test` depending on
+ * `build`), because what is under test is what ships. fd 2 is handed to the child already
+ * pointing at a file — writes to a file descriptor are synchronous in node, so nothing is
+ * lost when the process is killed outright.
+ *
+ * Proven to fail on the unfixed state (the local `SHOW_CURSOR`, written only from
+ * `done()`): hide 1, show 0, for `SIGINT` and `SIGTERM` alike.
+ *
+ * `SIGHUP` is not graded. `closeout/exit-hook` listens on `SIGINT` and `SIGTERM`, which is
+ * the pair its incumbent listens on; a case demanding a third would be grading a change to
+ * somebody else's package rather than this one.
+ *
+ * Skipped on Windows, where `process.kill(process.pid, ...)` is an unconditional terminate
+ * rather than a real signal delivery, so the assertion would grade node's emulation.
+ */
+const distRaw = new URL('../dist/raw.js', import.meta.url).href;
+
+interface SignalOutcome {
+  hide: number;
+  show: number;
+  status: number | null;
+}
+
+/**
+ * Put a list prompt on screen in a child, then do something to the child.
+ *
+ * `answerFirst` presses enter before the signal: a prompt that ended has already restored
+ * and unregistered, so exit must not write a second show. That is the half of the pairing
+ * a handler which only ever adds would get wrong.
+ */
+function promptThenSignal(signal: string, answerFirst = false): SignalOutcome {
+  const dir = mkdtempSync(join(tmpdir(), 'caique-raw-signal-'));
+  const log = join(dir, 'fd2');
+  const child = join(dir, 'child.mjs');
+  // **Nothing is interpolated into this source.** It was built by template — the dist path, the
+  // key bytes and the signal name all spliced in — and CodeQL called it improper code
+  // sanitization. It was a false positive (`JSON.stringify` is the right encoder and every value
+  // was a module constant), but a test that *constructs code* to test a prompt is one refactor
+  // away from doing so with something it read. The child takes its three inputs from the
+  // environment and argv, so the body below is a fixed string and there is nothing to sanitize.
+  writeFileSync(
+    child,
+    [
+      'const listeners = [];',
+      'const keys = {',
+      '  isTTY: true,',
+      '  setRawMode: () => true,',
+      '  on: (_e, l) => listeners.push(l),',
+      '  off: (_e, l) => listeners.splice(listeners.indexOf(l), 1),',
+      '  resume: () => undefined,',
+      '  pause: () => undefined,',
+      '};',
+      'const io = { keys, writer: { write: (t) => process.stderr.write(t) }, reader: { line: () => Promise.resolve(undefined) } };',
+      'const { askList } = await import(process.env.CAIQUE_DIST);',
+      "askList({ kind: 'select', message: 'Which host?', choices: [{ value: 'ora' }, { value: 'chalk' }] }, io);",
+      "if (process.env.CAIQUE_ANSWER_FIRST === '1') {",
+      '  setTimeout(() => { for (const l of [...listeners]) l(process.env.CAIQUE_ENTER); }, 40);',
+      '}',
+      'setTimeout(() => process.kill(process.pid, process.argv[2]), 120);',
+      'setTimeout(() => process.exit(0), 5000);',
+    ].join('\n'),
+  );
+
+  const fd = openSync(log, 'w');
+  // `execFileSync` throws when the child does not exit 0 — which is every case here, since
+  // the point is that the signal still ends it. The throw carries `.status`.
+  let status: number | null = 0;
+  try {
+    execFileSync(process.execPath, [child, signal], {
+      stdio: ['ignore', 'pipe', fd],
+      timeout: 20_000,
+      env: { ...process.env, CAIQUE_DIST: distRaw, CAIQUE_ENTER: ENTER, CAIQUE_ANSWER_FIRST: answerFirst ? '1' : '0' },
+    });
+  } catch (error) {
+    status = (error as { status?: number | null }).status ?? null;
+  } finally {
+    closeSync(fd);
+  }
+
+  const written = readFileSync(log, 'utf8');
+  const count = (needle: string): number => written.split(needle).length - 1;
+  return { hide: count(HIDE_CURSOR), show: count(SHOW_CURSOR), status };
+}
+
+describe.skipIf(process.platform === 'win32')('a cursor hidden mid-prompt comes back when the process is signalled', () => {
+  it.each(['SIGINT', 'SIGTERM'])('%s puts the cursor back, and still ends the process', (signal) => {
+    const observed = promptThenSignal(signal);
+    expect(observed.hide).toBe(1);
+    expect(observed.show).toBe(1);
+    // 128 plus the signal number: the process still leaves, and leaves with the code the
+    // signal names. A restore that swallowed the signal would be the worse bug.
+    expect(observed.status).toBe(signal === 'SIGINT' ? 130 : 143);
+  });
+
+  it('a prompt that already ended leaves nothing for exit to do', () => {
+    const observed = promptThenSignal('SIGTERM', true);
+    expect(observed.hide).toBe(1);
+    // One show, not two: `restore()` unregistered the hook when the prompt was answered.
+    expect(observed.show).toBe(1);
   });
 });

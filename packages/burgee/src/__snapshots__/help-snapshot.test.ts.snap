@@ -1,0 +1,364 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > a group: grouped children, a deprecated one, a hidden one omitted, at 33 columns 1`] = `
+"Usage: app <command> [options]
+
+A fixture with every kind of help
+data, whose description is long
+enough to wrap at two of the
+three widths.
+
+Global options:
+  --json  machine-readable output
+  --help  show this help
+
+Release commands:
+  deploy  Ship a build
+  status  Show status
+
+Commands:
+  login   Sign in
+  old     Legacy (deprecated)
+"
+`;
+
+exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > a group: grouped children, a deprecated one, a hidden one omitted, at 80 columns 1`] = `
+"Usage: app <command> [options]
+
+A fixture with every kind of help data, whose description is long enough to wrap
+at two of the three widths.
+
+Global options:
+  --json  machine-readable output
+  --help  show this help
+
+Release commands:
+  deploy  Ship a build
+  status  Show status
+
+Commands:
+  login   Sign in
+  old     Legacy (deprecated)
+"
+`;
+
+exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > a group: grouped children, a deprecated one, a hidden one omitted, at 120 columns 1`] = `
+"Usage: app <command> [options]
+
+A fixture with every kind of help data, whose description is long enough to wrap at two of the three widths.
+
+Global options:
+  --json  machine-readable output
+  --help  show this help
+
+Release commands:
+  deploy  Ship a build
+  status  Show status
+
+Commands:
+  login   Sign in
+  old     Legacy (deprecated)
+"
+`;
+
+exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > a leaf with every field, at 33 columns 1`] = `
+"Usage: deploy [options] <target> [files...]
+
+Ship the current build to a
+target. This description is long
+enough that it must wrap at every
+width the renderer supports.
+
+Arguments:
+  <target>       where to ship
+  [files...]     extra files
+                 (default: none)
+
+Options:
+  --region <code>
+                 the region
+                 (default: eu)
+                 (one of: eu, us)
+                 [env:
+                 APP_REGION]
+  -f, --force    skip the
+                 confirmation
+  --legacy       old flag
+                 (deprecated: use
+                 --force)
+
+Global options:
+  --json         machine-readable
+                 output
+  --help         show this help
+
+Examples:
+  $ app deploy prod --region us
+    Ship to production in the US
+    region, no confirmation.
+  $ app deploy staging
+
+Environment:
+  APP_REGION     --region
+
+Deploys are logged at
+https://example.test/deploys.
+"
+`;
+
+exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > a leaf with every field, at 80 columns 1`] = `
+"Usage: deploy [options] <target> [files...]
+
+Ship the current build to a target. This description is long enough that it must
+wrap at every width the renderer supports.
+
+Arguments:
+  <target>         where to ship
+  [files...]       extra files (default: none)
+
+Options:
+  --region <code>  the region (default: eu) (one of: eu, us) [env: APP_REGION]
+  -f, --force      skip the confirmation
+  --legacy         old flag (deprecated: use --force)
+
+Global options:
+  --json           machine-readable output
+  --help           show this help
+
+Examples:
+  $ app deploy prod --region us
+    Ship to production in the US region, no confirmation.
+  $ app deploy staging
+
+Environment:
+  APP_REGION       --region
+
+Deploys are logged at https://example.test/deploys.
+"
+`;
+
+exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > a leaf with every field, at 120 columns 1`] = `
+"Usage: deploy [options] <target> [files...]
+
+Ship the current build to a target. This description is long enough that it must wrap at every width the renderer
+supports.
+
+Arguments:
+  <target>         where to ship
+  [files...]       extra files (default: none)
+
+Options:
+  --region <code>  the region (default: eu) (one of: eu, us) [env: APP_REGION]
+  -f, --force      skip the confirmation
+  --legacy         old flag (deprecated: use --force)
+
+Global options:
+  --json           machine-readable output
+  --help           show this help
+
+Examples:
+  $ app deploy prod --region us
+    Ship to production in the US region, no confirmation.
+  $ app deploy staging
+
+Environment:
+  APP_REGION       --region
+
+Deploys are logged at https://example.test/deploys.
+"
+`;
+
+exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > a leaf with every field, verbose, at 33 columns 1`] = `
+"Usage: deploy [options] <target> [files...]
+
+Ship the current build to a
+target. This description is long
+enough that it must wrap at every
+width the renderer supports.
+
+Arguments:
+  <target>       where to ship
+  [files...]     extra files
+                 (default: none)
+
+Options:
+  --region <code>
+                 the region
+                 (default: eu)
+                 (one of: eu, us)
+                 [env:
+                 APP_REGION]
+                 [string]
+  -f, --force    skip the
+                 confirmation
+                 [boolean]
+  --legacy       old flag
+                 [boolean]
+                 (deprecated: use
+                 --force)
+
+Global options:
+  --json         machine-readable
+                 output
+  --help         show this help
+
+Examples:
+  $ app deploy prod --region us
+    Ship to production in the US
+    region, no confirmation.
+  $ app deploy staging
+
+Environment:
+  APP_REGION     --region
+
+Deploys are logged at
+https://example.test/deploys.
+"
+`;
+
+exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > a leaf with every field, verbose, at 80 columns 1`] = `
+"Usage: deploy [options] <target> [files...]
+
+Ship the current build to a target. This description is long enough that it must
+wrap at every width the renderer supports.
+
+Arguments:
+  <target>         where to ship
+  [files...]       extra files (default: none)
+
+Options:
+  --region <code>  the region (default: eu) (one of: eu, us) [env: APP_REGION]
+                   [string]
+  -f, --force      skip the confirmation [boolean]
+  --legacy         old flag [boolean] (deprecated: use --force)
+
+Global options:
+  --json           machine-readable output
+  --help           show this help
+
+Examples:
+  $ app deploy prod --region us
+    Ship to production in the US region, no confirmation.
+  $ app deploy staging
+
+Environment:
+  APP_REGION       --region
+
+Deploys are logged at https://example.test/deploys.
+"
+`;
+
+exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > a leaf with every field, verbose, at 120 columns 1`] = `
+"Usage: deploy [options] <target> [files...]
+
+Ship the current build to a target. This description is long enough that it must wrap at every width the renderer
+supports.
+
+Arguments:
+  <target>         where to ship
+  [files...]       extra files (default: none)
+
+Options:
+  --region <code>  the region (default: eu) (one of: eu, us) [env: APP_REGION] [string]
+  -f, --force      skip the confirmation [boolean]
+  --legacy         old flag [boolean] (deprecated: use --force)
+
+Global options:
+  --json           machine-readable output
+  --help           show this help
+
+Examples:
+  $ app deploy prod --region us
+    Ship to production in the US region, no confirmation.
+  $ app deploy staging
+
+Environment:
+  APP_REGION       --region
+
+Deploys are logged at https://example.test/deploys.
+"
+`;
+
+exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > a leaf with nothing but a name, at 33 columns 1`] = `
+"Usage: ping [options]
+
+Global options:
+  --json  machine-readable output
+  --help  show this help
+"
+`;
+
+exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > a leaf with nothing but a name, at 80 columns 1`] = `
+"Usage: ping [options]
+
+Global options:
+  --json  machine-readable output
+  --help  show this help
+"
+`;
+
+exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > a leaf with nothing but a name, at 120 columns 1`] = `
+"Usage: ping [options]
+
+Global options:
+  --json  machine-readable output
+  --help  show this help
+"
+`;
+
+exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > terms wider than their code-unit count, at 33 columns 1`] = `
+"Usage: app <command> [options]
+
+宽 字符 的 命令 名 也要 对齐 到
+同一 列
+
+Global options:
+  --json         machine-readable
+                 output
+  --help         show this help
+
+Commands:
+  deploy-service
+                 ASCII: code
+                 units and
+                 columns agree
+  部署           CJK: two code
+                 units, four
+                 columns
+  🚀             emoji: two code
+                 units, two
+                 columns
+"
+`;
+
+exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > terms wider than their code-unit count, at 80 columns 1`] = `
+"Usage: app <command> [options]
+
+宽 字符 的 命令 名 也要 对齐 到 同一 列
+
+Global options:
+  --json          machine-readable output
+  --help          show this help
+
+Commands:
+  deploy-service  ASCII: code units and columns agree
+  部署            CJK: two code units, four columns
+  🚀              emoji: two code units, two columns
+"
+`;
+
+exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > terms wider than their code-unit count, at 120 columns 1`] = `
+"Usage: app <command> [options]
+
+宽 字符 的 命令 名 也要 对齐 到 同一 列
+
+Global options:
+  --json          machine-readable output
+  --help          show this help
+
+Commands:
+  deploy-service  ASCII: code units and columns agree
+  部署            CJK: two code units, four columns
+  🚀              emoji: two code units, two columns
+"
+`;

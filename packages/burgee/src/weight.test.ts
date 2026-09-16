@@ -116,9 +116,60 @@ const RULES: Record<string, EntryRule> = {
   // `--explain` is only worth anything if the thing that picked the value is the thing that
   // reports it. The output stack stays denied by name above: colour and progress are things
   // a parser has no reason to carry, where precedence is the parser's own job.
+  //
+  // `closeout` is the second, admitted on 2026-09-15 on exactly that test, and it passes it
+  // the same way. E5 ("SIGINT restores the terminal and exits 130") and O5 ("stdout is
+  // flushed before any exit path") are both marked `R` in `.sdlc/intents/burgee/design.md`,
+  // `exit-code.ts` has declared `SIGINT: 130` since the contract was written — and **neither
+  // was implemented**. The engine's only exit was `host.exit(code)`, which restores nothing
+  // and truncates a pipe by definition. Writing the listener here would have been the fourth
+  // copy of one in this repository; the exit is the layer's own job the way precedence is the
+  // parser's. `shutdown.ts` is the whole cost: 1,001 B on disk, 51,293 -> 52,683 measured
+  // against this unchanged 53,300 with the engine's 389 B of routing, so nothing was raised
+  // for it. The output stack stays denied below, `caique` included — prompting is a surface
+  // U13 reaches through a guarded dynamic import, not a dependency of the parser.
+  // `linegauge` is the third, admitted on 2026-09-15, and it is the same argument a third
+  // time. `help.ts` sized its term column, decided which terms overflow it, padded after a
+  // term and wrapped every description with `String.length` — the count of UTF-16 code
+  // units, which is the column count a terminal draws only for Latin-1. `部署` is two code
+  // units and four columns, so a CJK or emoji command name pushed its own description right
+  // of the shared column and a CJK description wrapped past the width the caller asked for.
+  // `yargs/cliui.ts` has imported the same `width` for the same job since it was ported,
+  // and the note under `./yargs` below records what a second copy of a width function
+  // costs: it measured a 13-column string as 25. This is the first copy being deleted
+  // rather than a fourth being written. Measuring a line is linegauge's own job the way
+  // precedence is the parser's and the exit is closeout's, and burgee already declared the
+  // dependency. 52,683 -> 52,893 measured, 210 B, against this unchanged 53,300 — the walk
+  // stops at a bare import, so linegauge's own bytes are not in that number; what the 210
+  // buys is that help stops guessing. Nothing was raised for it.
+  //
+  // 57,200 on 2026-09-16, for the plugin host, and this is the largest single raise in the
+  // file — so it is the one that has to justify itself hardest. `Manifest.use()` validated
+  // nothing: it pushed the plugin and called `this.add()` directly, where `defineCommand`
+  // enforces the reserved names of V5 and `checkDefinition`. A plugin's command therefore
+  // skipped both, and the worst case is not a tidiness one — `toParseConfig` seeds
+  // `json: { type: 'boolean' }` and then writes every declared option over the top of it, so a
+  // plugin option named `json` **replaced** the envelope flag. On an agent-native CLI whose
+  // whole contract is that `--json` is machine-readable output, a third party could take that
+  // away from every caller by naming an option, and no check anywhere said so.
+  //
+  // The cost is **4,191 bytes** (52,959 -> 57,150): `plugin.js` 3,922, `definition.js` 1,563
+  // (split out of `validate.js`, which shrank by the same amount), `manifest.js` +38,
+  // `index.js` +53, `execute.js` -310 where the reserved-name loop used to be inline. The
+  // ceiling is the next hundred above the measurement, as every raise above it is, leaving
+  // 50 bytes. It is not paid by a program that declines to call `use()` only in the sense
+  // that nothing here is: the validator is reachable from the barrel because `use()` is
+  // synchronous, and a deferred one would be a breaking signature change on a published API.
+  //
+  // What it buys is the whole of `plugin.test.ts`, each case of which was run red first: the
+  // `json` option above, `enforce: 'mid'` (accepted, and `NaN` in the comparator), a plugin
+  // with no name (accepted, attribution silently lost), a hook with no handler (a `TypeError`
+  // one run later), and a contributed path that is already declared (`find()` answered the
+  // first node and `resolve()` the last). Four floor families cost about 5 KB each in the
+  // notes above; the plugin host is the fifth and costs 4.2.
   ".": {
-    allow: ["seniority/precedence"],
-    budget: 53_300,
+    allow: ["closeout", "linegauge", "seniority/precedence"],
+    budget: 57_200,
     denied: [
       "testing.js",
       "testing-helpers.js",
@@ -141,7 +192,17 @@ const RULES: Record<string, EntryRule> = {
   // carries the theme seam and the fake clock (56,626 measured).
   // 58,300 on 2026-09-13: the harness reaches the schema, so it carries the 395 B above.
   // Measured 58,260.
-  "./testing": { allow: ["seniority/precedence"], budget: 58_300, denied: ["dev.js"] },
+  // `closeout` arrives here through the engine, and the harness reaches it *detached*: a run
+  // that injects its own `exit` gets a registry with no listeners on it, because a harness
+  // that attached nine to the test runner's process would exit the runner on the first raised
+  // signal. Measured 57,005.
+  // `linegauge` arrives here the same way `closeout` does: through the engine, because the
+  // harness renders help to assert on it. Measured 57,215.
+  // 61,400 on 2026-09-16: the plugin host arrives here through the engine, because the harness
+  // runs a whole program in-process and a program may register plugins. +4,090 (57,281 ->
+  // 61,371), which is the `.` raise above minus `index.js`, the barrel the harness does not
+  // take. Next hundred above the measurement.
+  "./testing": { allow: ["closeout", "linegauge", "seniority/precedence"], budget: 61_400, denied: ["dev.js"] },
   // The brand generator. Pure geometry and string building — it must never reach
   // the engine, and the engine must never reach it: a CLI that ships argv parsing
   // has no reason to carry an SVG emitter.
@@ -153,9 +214,12 @@ const RULES: Record<string, EntryRule> = {
   // Raised from 72,000 on 2026-09-09 for the sibling marks: `shape` (a silhouette other
   // than the swallowtail), `markings` (a second colour on it), `sheen` and `bevel` (the
   // light on it, still and swept). Four options, one clip path and two renderers.
+  // 76,500 on 2026-09-16: the package's own command line is a burgee program, so it carries
+  // the plugin host for the same reason `.` does. +4,090 (72,360 -> 76,450). Next hundred
+  // above the measurement.
   "./cli": {
-    allow: ["roundel/contrast", "seniority/precedence"],
-    budget: 74_000,
+    allow: ["closeout", "linegauge", "roundel/contrast", "seniority/precedence"],
+    budget: 76_500,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   // Arithmetic over hex strings, and the arithmetic itself is roundel's — colour is the
@@ -195,6 +259,14 @@ const RULES: Record<string, EntryRule> = {
     budget: 16_000,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js"],
   },
+  //
+  // Unchanged on 2026-09-16, and that took work. The front-end reaches the manifest and
+  // almost nothing else of the engine, so the plugin host landed on it too: 120,144 ->
+  // 130,903, **over 128,000**, which would have broken the parity claim in the paragraph
+  // above rather than merely spending a budget. 6,409 of that was `validate.js`, pulled in
+  // whole for `checkDefinition` — one function of it — while the other four fifths are
+  // run-time coercion the front-end never reaches. Splitting the definition-time checks into
+  // `definition.js` (1,563 B) is what fixed it: 125,667 measured, and the claim holds.
   "./commander": {
     allow: [],
     budget: 128_000,
@@ -235,9 +307,19 @@ const RULES: Record<string, EntryRule> = {
     denied: ["testing.js", "testing-helpers.js", "yargs-factory.js"],
   },
   // yargs-parser alone, for a program that imported it directly; never the factory.
+  //
+  // 41,900 on 2026-09-15 for the runtime seam (PLAN 4.3, Y9). This is the only entry the
+  // seam pushed over, and the arithmetic is the whole story: `yargs-parser.js` is 39,801 and
+  // `runtime.js` is 2,020, so the walk reads 41,821 against a 40,000 that had **221 bytes**
+  // spare before anything moved. What the 1,972 bought is that this file no longer names
+  // `process`: it built its default mixin from `process.env` captured at import and
+  // `process.cwd` passed by reference, and yargs' suite replaces the env object per test, so
+  // the captured one was a stale read waiting for a test to expose it. The parser entry pays
+  // for a seam it uses two members of, which is the honest cost of one file per package
+  // rather than one per caller. Ceiling is the next hundred above the measurement, as above.
   "./yargs/parser": {
     allow: [],
-    budget: 40_000,
+    budget: 41_900,
     denied: [
       "testing.js",
       "testing-helpers.js",
@@ -343,12 +425,20 @@ describe("the denied list", () => {
   });
 });
 
+/**
+ * Exports that are data rather than code: the plugin schema a plugin author reads. No import
+ * graph and no budget — the file *is* the payload — so a byte rule would measure nothing.
+ * Listed rather than pattern-matched so that adding one is still a decision somebody made.
+ */
+const DATA_EXPORTS = ["./schema.json"];
+
 describe("the lock grows with the package", () => {
   it("every published entry point declares a weight rule", () => {
     // Adding `burgee/commander` without a budget here fails, which is the point:
     // a new surface cannot ship until someone has said what it may weigh.
-    expect(Object.keys(manifest.exports).sort()).toEqual(
-      Object.keys(RULES).sort(),
+    const code = Object.keys(manifest.exports).filter(
+      (e) => !DATA_EXPORTS.includes(e),
     );
+    expect(code.sort()).toEqual(Object.keys(RULES).sort());
   });
 });

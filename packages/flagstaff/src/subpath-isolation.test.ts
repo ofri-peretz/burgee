@@ -35,18 +35,21 @@ const ALLOWED: Record<string, string[]> = {
   // The façade stands apart on purpose: it reads the corpus, the width function and the
   // cursor control, and nothing else in the package, so `flagstaff/ora` and `flagstaff`
   // share no code path and a program on one pays nothing for the other (R6, R10).
-  'ora.js': ['./cursor.js', './spinners.json'],
-  // The two façades share `cursor.js` — one implementation of putting the cursor back
-  // however the process dies, because both incumbents port the same `cli-cursor` →
-  // `restore-cursor` → `signal-exit` chain — and, through `wrap.js`, `width.js`. Nothing
-  // else. `wrap.js` is the ANSI-aware wrapper `box` and `table` share, which is why it is
-  // its own module rather than a section of this façade.
-  'log-update.js': ['./cursor.js'],
+  'ora.js': ['./runtime.js', './spinners.json'],
+  // The two façades share the cursor control, and since 2026-09-15 it is `closeout`'s
+  // rather than this package's: both incumbents port the same `cli-cursor` →
+  // `restore-cursor` → `signal-exit` chain, and closeout owns `restore-cursor` and grades
+  // 6/6 against its suite. A bare specifier is invisible to `RELATIVE`, so the edge that
+  // used to be `./cursor.js` is now checked in `weight.test.ts`'s `allow` list instead.
+  'log-update.js': ['./runtime.js'],
   // The boxen façade: the width function and the ANSI-aware wrapper, and nothing else in
   // the package. It carries cli-boxes' table itself rather than reading the registry —
   // `_borderStyles` is boxen's public surface, and a façade whose drawing changed when
   // somebody registered a plugin would be reinterpreting its host.
-  'boxen.js': [],
+  //
+  // `./runtime.js` is the process seam (Y9): boxen's contract *is* the process for one
+  // number — how wide the terminal is — and this is now the only way it reaches it.
+  'boxen.js': ['./runtime.js'],
   // The cli-table3 façade: the width function and nothing else in the package. It carries
   // its own wrapping — cli-table3's `wordWrap` splits on `/(\s+)/` and counts with its own
   // `strlen`, which `wrap.js` (a wrap-ansi port) does not reproduce — so a shared wrapper
@@ -68,11 +71,15 @@ const ALLOWED: Record<string, string[]> = {
  * only each *entry's* direct imports, so anything one level down was unlocked. `projection`
  * is the case that made this matter — it is the only core module that emits a cursor
  * operation, so it is the one that has to put the cursor back when a signal ends the process,
- * and it now reaches the same `cursor.js` both façades use rather than a third copy of a
+ * and it now reaches the same `closeout` both façades use rather than a third copy of a
  * subtle thing. A module listed here is checked exactly as an entry is.
  */
 const INTERNAL_ALLOWED: Record<string, string[]> = {
-  'projection.js': ['./cursor.js'],
+  // Now a leaf: the cursor net it registers is `closeout`'s, reached by a bare specifier.
+  'projection.js': [],
+  // `runtime.js` is where the process name went, and it is a leaf — the seam reaches
+  // nothing, which is the point of it.
+  'runtime.js': [],
 };
 
 const RELATIVE = /(?:from|import)\s*'(\.[^']+)'/g;

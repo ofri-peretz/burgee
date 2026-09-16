@@ -22,7 +22,7 @@
  * than that the script a person runs prints what it should.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -38,10 +38,18 @@ const TIMEOUT_MS = 120_000;
 
 const bandId = (host: string): string => `compat-${host}-pass-rate`;
 
-/** Every host with a committed baseline fragment. */
+/**
+ * Every host with a committed baseline fragment that the oracle actually publishes.
+ *
+ * `"planned": true` marks a fragment holding a measurement `hosts.ts` deliberately does not
+ * publish — see `baseline-scope.test.ts`, which pins the flag to that status. Such a host
+ * emits no band value, so a band for it reports "band not computed yet" forever, which is
+ * precisely the failure the other direction of this wire exists to catch.
+ */
 function gradedHosts(): string[] {
   return readdirSync(BASELINE)
     .filter((f) => f.endsWith('.json'))
+    .filter((f) => (JSON.parse(readFileSync(join(BASELINE, f), 'utf8')) as { planned?: boolean }).planned !== true)
     .map((f) => f.slice(0, -'.json'.length))
     .sort();
 }

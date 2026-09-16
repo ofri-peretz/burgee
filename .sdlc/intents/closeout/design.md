@@ -388,8 +388,178 @@ which belong to that package's lane and not to this one — this lane may write
 the four lives there. `hosts.ts` still carries `signal-exit` as `planned` with the blockers
 written out, and there is still no baseline fragment for it, which is the honest state.
 
+## What shipped (the re-raise — a signalled process dies of the signal — 2026-09-15)
+
+`leaveAfter` used to end a signal with `proc.exit(128 + n)`, and this document's own comment
+defended it: *"Re-raising the signal would be more faithful to POSIX, but it re-enters this
+listener; exiting explicitly is what a caller who owns `main` actually wants."* Both clauses
+were wrong, and the deciding evidence was the incumbent's source rather than an argument.
+
+**How it surfaced.** Not here. `flagstaff` tried to drop its 124-line copy of
+cursor-restore-on-death in favour of `closeout` and could not, because closeout suppressed
+the termination flagstaff's own suite asserts. Two defects came out of that attempt and
+**neither was visible from inside this package**: `exit-hook` graded 21 / 21 and
+`restore-cursor` 6 / 6 throughout, because neither incumbent suite ever kills a process —
+`exit-hook`'s two signal cases read the child's *exit code*, and `restore-cursor`'s six let
+the child fall off the end of `main`. A suite that only ever reads `$?` cannot tell
+`process.exit(130)` from a real SIGINT.
+
+- **The re-entrancy was already solved.** `signal-exit`'s signal path is `this.unload()` —
+  remove the handlers — and then `process.kill(process.pid, sig)`. closeout already removed
+  its own listener before counting; it had the hard half and stopped one line early. That
+  removal is now `standDown()`, named because two callers depend on it meaning one thing.
+- **The preference was the incumbent's to state.** `signal-exit` is closeout's declared
+  incumbent for this surface (`compat-oracle/src/demand.ts`). "What a caller who owns `main`
+  wants" is a claim about a caller, and the caller closeout has — flagstaff — wanted the
+  opposite loudly enough to keep its own copy.
+- **The guard is what the re-raise must not cost**, and it is a different assertion from the
+  three obvious ones. Delete the listener count and the child is still not killed and still
+  exits 7, because an unconditional re-raise is caught by the program's *own* handler; what
+  changes is that one Ctrl-C is delivered **twice**. `ownHandlerRuns` grades that and nothing
+  else does.
+- **`SIGNAL_EXIT_CODE` is now the fallback, not the answer.** A runtime that refuses to raise
+  a signal at itself (SIGHUP is `ENOSYS` on Windows) leaves with POSIX's number. `signal-exit`
+  handles the same case by branching on `process.platform` and substituting SIGINT; R7 says
+  this package does not read the process, so it tries the honest thing and takes the refusal
+  as the answer.
+- **One raise per signal, not one per arrival.** Two Ctrl-Cs in a tick enter the listener
+  twice before either has removed it. `registry.run` already made the second shutdown a
+  no-op and had nothing to say about the leaving — which did not matter while `exit()` was
+  terminal and does now. The `leaving` flag is what the old code got for free.
+
+**`ProcessLike` gained `kill` and `pid`, required.** Optional members would compile, and a
+double that omitted them would silently take the exit path — a seam that lets a fake opt out
+of the behaviour under test is precisely how this survived two incumbent suites. The three
+fakes in this package were updated, and two of them now *assert* the raise rather than
+tolerating it.
+
+**SIGHUP: measured, and not a defect here.** `closeout/exit-hook` registers nothing for
+SIGHUP, which is faithful: `exit-hook@5.1.0`'s `addHook` registers exactly `beforeExit`,
+`SIGINT`, `SIGTERM`, `exit` and `message` (vendored source, lines 121-138), and its suite
+grades only SIGINT and SIGTERM. closeout's **own** `onExit` has carried SIGHUP since
+`SIGNALS` was widened, and `signal.test.ts` confirms on a real SIGHUP that the cursor comes
+back — the `show` count was already 1 on the unfixed code, so the reported consequence
+("a cursor hidden by a spinner is not restored when the terminal closes") holds only for the
+drop-in, where it is the incumbent's behaviour. Both halves are now pinned by test, so
+closing the gap in the façade would fail a case that says why it is open.
+
+**Proven red before green.** `signal.test.ts` spawns real children, kills them, and reads
+`error.signal` — `WIFSIGNALED` as the parent sees it. On the unfixed code four cases fail
+(`expected null to be 'SIGINT'`, and the same for SIGTERM, SIGHUP, SIGQUIT) while the three
+fidelity cases pass. Reverting `install.ts` to its pre-fix state with the new assertions in
+place gives **10 red across three files**: those four, the five `matrix.test.ts` signal cells
+now asserting `proc.raised`, and the `install.test.ts` re-raise case.
+
+## The surface a consumer gets, derived from the tree (2026-09-15)
+
+R12 and its shipped entry already say everything about the plugin host. What is missing is
+the plain list of what the package offers, which today can only be assembled by reading eight
+shipped entries in order.
+
+**Derived, not transcribed.** One row per entry in `packages/closeout/package.json`'s
+`exports` map; the names are the exported declarations of the source file each subpath's
+`dist/` path is built from. Re-derive with `node -p "Object.keys(require('./packages/closeout/package.json').exports)"`
+and `grep '^export' packages/closeout/src/<file>.ts`.
+
+| Subpath | What a consumer gets | What it is for |
+| :-- | :-- | :-- |
+| `closeout` | `install`, `onExit`, `createRegistry`, `once`, `hideCursor`, `showCursor`, `HIDE_CURSOR`, `SHOW_CURSOR`, `assertDeadline`, `DEFAULT_DEADLINE`, `DEFAULT_PHASE`, `PHASES`, `SIGNALS`, `EXIT_PATHS`, `DeadlineError`, `DEADLINE_ERROR_CODE`, `timeoutMessage`, `reportToJson`, `reportToEvent`; types `Closeout`, `Registry`, `RegistryOptions`, `ExitHandler`, `HandlerOptions`, `HandlerSpec`, `ExitInfo`, `ExitPath`, `ExitEvent`, `ExitReport`, `ShutdownReport`, `Phase`, `InstallOptions`, `OutputStream`, `ProcessLike` | register cleanup, bound it, and read what happened |
+| `closeout/once` | `once` | the `onetime` + `mimic-fn` contract in one function, `name`/`length`/`this` preserved (R5) |
+| `closeout/cursor` | `showCursor`, `hideCursor`, `HIDE_CURSOR`, `SHOW_CURSOR`; `OutputStream` | the escape bytes and the two calls, against a stream the caller passes |
+| `closeout/plugin` | `register`, `validate`, `reset`, `registered`, `contributions`, `attach`, `CONTRACT`, `PLUGIN_PHASES`, `PluginError`; `Plugin`, `PluginHandler`, `Contribution`, `HandlerHost`, `PluginErrorCode` | the extension point (R12) |
+| `closeout/restore-cursor` | a default export, and nothing else | the drop-in path for `restore-cursor` — the stream is chosen from the process, which is why this is its own entry |
+| `closeout/exit-hook` | `asyncExitHook`, `gracefulExit`; `ExitHookCallback`, `AsyncExitHookOptions` | the drop-in path for `exit-hook` |
+| `closeout/schema.json` | the family plugin schema, as a file | what a plugin author or an agent validates against |
+
+Three things the table settles that the requirements do not:
+
+- **`onExit(fn, spec?)`'s second argument takes a bare phase as well as an options object.**
+  `HandlerSpec = Phase | HandlerOptions`, so `onExit(fn, 'restore')` and
+  `onExit(fn, { phase: 'flush', label: 'acme:unlock' })` are both spellings of the same
+  thing, and the bare phase is the common case. R1 says only `opts?`.
+- **`createRegistry` is public**, so a caller can build a registry of its own and drive it,
+  which is what makes `attach()` useful to something that is not the process-wide instance.
+- **The `signal-exit` drop-in is not a subpath.** R6 describes the root default export as
+  `signal-exit`'s; the root is a named re-export block with no default. `restore-cursor` and
+  `exit-hook` each got their own entry; `signal-exit` did not.
+
+**The extension summary, in one paragraph.** One key, `handlers` — an array of
+`{ name, phase?, run }`. `name` is required because a plugin's cleanup is the handler least
+likely to be a named function and most likely to be the one that hangs, and the whole product
+is being able to say "acme:unlock did not return" instead of "a handler did not return".
+`phase` is `flush` or `release` and **never `restore`**: closeout's own last phase is where
+the terminal goes back, and a plugin admitted to it could land after the hand-back depending
+on nothing but which registered first. `run` is the one function this key requires, which is
+the documented exception — an exit handler *is* behaviour, and what is data here is the
+**ordering**. `register()` validates and throws `PluginError` before touching the registry;
+`contributions()` is the static projection of the shutdown sequence, readable without
+triggering one; `attach(host)` wires each handler into its phase and returns the function
+that takes them all back off. **Registering does not run**: a plugin contributing cleanup
+must not decide when shutdown happens.
+
+### What closeout does not do, and why
+
+Beyond "Out of scope" below:
+
+- **It does not let a plugin into the `restore` phase.** See above; it is a refusal at the
+  door, because a rule enforced anywhere else is not a "never".
+- **It does not accept `Infinity` or `0` as a deadline.** Both are rejected at registration.
+  An unbounded deadline is the failure this package exists to remove, and a zero one is a
+  shutdown that never runs.
+- **It does not run handlers twice.** A second trigger of any kind records its path in the
+  report and runs nothing.
+- **It does not end a process it did not start, and does not supervise children.** That is
+  `bellpull`, one layer over, and the edge between them is a structural parameter rather than
+  a dependency.
+
+## Where this document and the code disagree (2026-09-15)
+
+Recorded rather than tidied away. This design already reconciles more of its own drift than
+any other in the repo — R7's file, R8's ceiling and R1-vs-R2 are all corrected in shipped
+entries below rather than edited away above. What remains:
+
+- **R6's root default export does not exist.** `src/index.ts` has no default export, so
+  `overrides: { "signal-exit": "npm:closeout@^1" }` does not resolve against this package as
+  written. The two drop-ins that did ship, `./restore-cursor` and `./exit-hook`, are
+  subpaths — and R6 names neither of them, listing only `./cursor` and `./once` as carrying
+  "the rest".
+- **R7 still names `install.ts` as the one process-touching file**, in the requirement text.
+  The shipped entry below is explicit that the file is `ambient.ts` and that this design's
+  own map was wrong about it. The correction is recorded; the requirement is not.
+- **The `## Design` file map lists `runtime.ts`, which this package does not have**, and
+  omits five files that it does: `ambient.ts`, `exit-hook.ts`, `plugin.ts`,
+  `restore-cursor.ts` and `schema.json`.
+- **R1's `opts?` understates the argument.** See the table above: a bare `Phase` string is
+  accepted and is the common spelling.
+- **The shared `schema.json` does not describe `handlers`.** It is flagstaff's file
+  byte-identical (PLAN 1.1) and its properties are `name`, `contract`, `tokens`, `glyphs`,
+  `spinners`, `borders`, `components`, `capabilities`. `handlers` validates today only
+  because the root sets `additionalProperties: true`, so `closeout/schema.json` — which this
+  package publishes as the thing a plugin author writes against — says nothing about the one
+  key this package hosts, and its `title` announces it as flagstaff's file. The same gap
+  exists for `caique`'s `widgets` and `bellpull`'s `resolvers`; one edit to flagstaff's source
+  copy closes all three.
+- **R12 records that `plugin-contract` R7's exemption list owes `handlers.run` an entry.**
+  That edit belongs to the `plugin-contract` lane and, as of this reading, has not been made.
+  It is restated here so that it is not lost between two designs.
+
 ## Rejected alternatives
 
+- **Adding SIGHUP to `closeout/exit-hook`, to close the gap flagstaff found.** It reads like
+  a strict improvement and it is a behaviour change to every program that swapped the
+  incumbent out: a closing terminal would start running hooks that never ran before, and the
+  program's SIGHUP disposition would change from "die now" to "die after the hooks". A
+  drop-in that handles a signal the incumbent leaves alone is not a drop-in. The gap is
+  pinned by a test that says why it is open, and closeout's own `onExit` is the answer.
+- **Filtering the signal list by `os.constants.signals` before raising, as `flagstaff` does.**
+  Correct there and a platform read here, which R7 spends the whole package avoiding. A `try`
+  around the raise gets the same answer from the runtime itself, and gets it for signals no
+  constants table would have predicted.
+- **Letting the raise be the only exit.** It is unreachable-by-design on every healthy path,
+  which is exactly why the line after it matters: a signal inherited as `SIG_IGN` or a
+  runtime whose `kill` is a no-op would leave a process that has finished its shutdown and
+  will not go — the one failure this package is named for, reintroduced by the fix for a
+  different one.
 - **`process.on('exit')` and trusting it.** It does not fire on signals, cannot await
   anything, and is exactly why six packages exist. It is a component here, not the answer.
 - **An infinite deadline, or `deadline: 0` to opt out.** Both reintroduce the failure the

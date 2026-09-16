@@ -430,6 +430,188 @@ the conformance matrix (wave 1).
   `npm test`, plus a lock that every rule named in this design exists in the plugin's
   manifest.
 
+## The surface a consumer gets, derived from the tree (2026-09-15)
+
+Ninety-two requirements say what the floor *is*. None of them is a list a consumer can scan
+to decide what to import. This section is that list, and it is derived rather than
+transcribed: one row per entry in `packages/burgee/package.json`'s `exports` map, with the
+names read from the source file each subpath's `dist/` path is built from. Re-derive with
+`node -p "Object.keys(require('./packages/burgee/package.json').exports)"` and
+`grep '^export' packages/burgee/src/<file>.ts`.
+
+| Subpath | What a consumer gets | What it is for |
+| :-- | :-- | :-- |
+| `burgee` | `defineCommand`, `defineProgram`, `execute`, `run`, `runCommand`, `resolveCommand`, `sharedOptions`, `checkDefinition`, `camel`, `kebab`, `UsageError`; `ExitCode`, `isExitCode`; `renderHelp`; `schemaOf`, `commandSchemaOf`, `inputSchemaOf`, `summaryOf`; `serveMcp`, `toolsOf`, `annotationsOf`, `MCP_PROTOCOL_VERSION`; `detectAgent`, `AGENT_PROBES`; `definePlugin`, `Manifest`; and `ConfigError`, `resolve`, `explain`, `envName`, `screaming` re-exported from `seniority/precedence` | declare a program and run it; every projection is a function over the manifest |
+| `burgee/commander` | `program`, `createCommand`, `createOption`, `createArgument`, `Command`, `Option`, `Argument`, `Help`, `CommanderError`, `InvalidArgumentError`, `InvalidOptionArgumentError`, `DualOptions`, `useColor`, `humanReadableArgName` | commander's API over burgee's engine — a façade, not a wrapper around commander |
+| `burgee/yargs` | default factory, `YargsInstance`, `isYargsInstance`, `Parser`, `applyExtends`, `hideBin`, `argsert`, `parseCommand`, `objFilter`, `isPromise`, `camelCase`, `decamelize`, `looksLikeNumber`, `YError`, `platformShim` | yargs' API over the same engine |
+| `burgee/yargs/helpers` | `applyExtends`, `hideBin`, `Parser` | the `yargs/helpers` drop-in specifier |
+| `burgee/yargs/parser` | default `yargsParser`, `YargsParser`, `Parser`, `camelCase`, `decamelize`, `looksLikeNumber`, `tokenizeArgString` | the `yargs-parser` drop-in specifier |
+| `burgee/completions` | `completionTree`, `renderCompletion`, `renderFigSpec`, `SHELLS`; `Shell` | static shell completions and a Fig spec, generated from a manifest |
+| `burgee/testing` | `runBurgee`, `fakeRuntime`, `fakeClock`, `captureConsole`, `swapEnv`, `stripAnsi`, `codeOf`, `finish`, `RuntimeExit`, `processRuntime`, `ExitCode`, `isExitCode` | the in-process harness of T1 |
+| `burgee/brand` | `defineBurgee`, `burgeeBody`, `burgeeFlagPath`, `chargeGroup`, `placeCharge`, `chargeTransform`, `chargeRotation`, `opposedField`, `fieldId`, `BURGEE_FLAG`, `BURGEE_ANGLE`, `CHARGE`, `FIELD_AXIS`, `DEFAULT_GROUND` | the burgee mark as SVG geometry — brand tooling, not CLI machinery |
+| `burgee/contrast` | `ratio`, `mix`, `check`, `report`, `fieldColorAt`, `auditBurgee`, `AA`, `contrast`, `luminance` | the WCAG maths the brand audit runs on |
+| `burgee/cli` | `program`, `brandCommand`, `devCommand` — **and `run(program)` at module load** | the `burgee` bin. Importing it executes the CLI; it is an executable, not a library entry |
+
+Two of those rows will surprise a reader of the requirements: `burgee/brand` and
+`burgee/contrast` are brand tooling that ships inside the framework package, and no
+requirement above mentions either.
+
+### How a consumer extends it
+
+**burgee's plugin is not the family's plugin, and this is the most important sentence in this
+section.** Every other layer declares, structurally, an object shaped
+`{ name, contract?, <its one key> }` — `roundel: tokens`, `flagstaff: tokens/glyphs/spinners/borders/components`,
+`caique: widgets`, `closeout: handlers`, `bellpull: resolvers` — validated at `register()`
+against a shared `schema.json` and refused with a shared `PluginError` vocabulary.
+`packages/burgee/src/manifest.ts` declares a different thing under the same word:
+
+```ts
+interface Plugin {
+  name: string;
+  commands?: CommandNode[];
+  hooks?: { preRun?: Hook; postRun?: Hook; onError?: Hook };
+  enforce?: 'pre' | 'post';
+}
+```
+
+No `contract`. No key any other layer reads, and no tolerance clause about keys it does not
+read. There is no `packages/burgee/src/plugin.ts`, so burgee is not a host as far as
+`scripts/plugin-error-vocabulary-lock.test.ts` is concerned — that lock derives its host list
+from the presence of that file — and `PluginError` appears nowhere in the package.
+
+So: **a burgee plugin contributes commands and lifecycle hooks; a family plugin contributes
+data to a layer. They are two extension points that share a noun.** Whether that is the
+intended design or an accident is a decision this lane cannot make, and it is recorded below
+as the finding it is.
+
+**What a burgee plugin may contribute.**
+
+| Field | Required | What it is |
+| :-- | :-- | :-- |
+| `name` | yes, by type | the attribution stamped onto every command the plugin contributes |
+| `commands` | no | `CommandNode[]`, added to the manifest with `plugin: <name>` |
+| `hooks` | no | `preRun`, `postRun`, `onError`, each `{ filter?: { command?: RegExp }, handler }` |
+| `enforce` | no | `'pre'` or `'post'`, the Vite/Rolldown convention |
+
+**What is validated: nothing.** `definePlugin(plugin)` is `return plugin;` — a types-only
+identity helper. It is worth comparing with `defineCommand`, which does check reserved names
+and calls `checkDefinition`. `Manifest.use()` pushes the plugin and adds its commands; it
+performs no collision check, no duplicate-name check, and no shape check.
+
+**What is refused: nothing.** There is no refusal path, no error code and no `fix` sentence
+anywhere in burgee's plugin surface.
+
+**What happens on a bad plugin**, read off `manifest.ts` rather than inferred:
+
+- `use(undefined)` — the push succeeds, then reading `plugin.commands` throws a raw
+  `TypeError`. Inside a run, `describeFailure` classifies that as `RUNTIME`; at program
+  construction it is an uncaught throw.
+- a plugin with no `name` — accepted. Its commands carry `plugin: undefined`, so M3
+  attribution is silently lost.
+- `enforce: 'mid'` — accepted. The comparator yields `NaN` and the hook order becomes
+  undefined behaviour, with no error.
+- a `handler` that is not a function — accepted at registration; the `TypeError` arrives at
+  `fire()` time as a `RUNTIME` failure, one run later than the mistake.
+- a malformed `CommandNode` — **never checked**. Plugin commands bypass `defineCommand`
+  entirely, so `checkDefinition` (unknown type, duplicate short flag, duplicate kebab name,
+  a numeric bound on a non-number) and the reserved-name guard never run on them. A plugin
+  option named `json` overwrites the reserved boolean in the parse config, which breaks the
+  O1 envelope without saying so.
+
+**Ordering, precisely.** `enforce: 'pre'` first, then unordered, then `'post'`, with
+registration order stable inside each bucket. That ordering is applied **only to hooks**.
+Commands are added in `use()` call order, so `enforce` has no effect on which plugin wins a
+path collision — and a collision resolves inconsistently: `find()` returns the first match
+while `resolve()` lets the last registered node win a tie.
+
+### What burgee does not do, and why
+
+Beyond "Out of scope" below, four refusals a consumer should know before looking:
+
+- **It does not parse argv itself in the sense of owning semantics.** The engine is the
+  manifest; the façades are the syntax. Argv parsing semantics are explicitly out of scope.
+- **It has no `AUTH` exit code and no author-facing error classification.** `ExitCode` is
+  `OK`, `RUNTIME`, `USAGE`, `CONFIG`, `CANCELLED`, `SIGINT`, and `describeFailure` maps by
+  `instanceof` over a fixed set. E6 and E7 ask for more than the code gives.
+- **It does not colour its own help.** The engine never reads `NO_COLOR` or `FORCE_COLOR`;
+  only the commander façade does, and `renderHelp` defaults colour off.
+- **It carries no plugin error vocabulary.** See above: the family's `PluginError` is the
+  output stack's, and burgee's extension point is outside it.
+
+## Where this document and the code disagree (2026-09-15)
+
+Recorded rather than tidied away. E5 and O5 are already known and reported by other lanes and
+are listed only so that this is one list rather than three.
+
+**Already known.** **E5** — SIGINT restoring the terminal and exiting 130: `src/shutdown.ts`
+wires closeout, but `ExitCode.SIGINT` is never produced by the engine. **O5** — stdout
+flushed before any exit path: the flush phase covers the host's own streams, so an injected
+`stdout` is never flushed.
+
+**The structural one.** **`definePlugin` is not the family plugin shape**, as set out above.
+Any document that describes burgee as declaring the shape the layers register against — this
+design does not, but the workspace plan reads that way — is describing something the code
+does not do.
+
+**Requirements the code does not meet.**
+
+- **F1** — "validating against a JSON Schema published with the package". No schema artifact
+  exists; `files` is `dist` and `locales`, and `schema.ts` only stamps `schemaVersion: 1`.
+- **F2** — "`--help --json` prints help as data". There is no JSON help surface: the help
+  path returns rendered text and the writer emits that text verbatim, so `--help --json`
+  prints the same prose as `--help`.
+- **O2** — the engine never consults `NO_COLOR` or `FORCE_COLOR`. The requirement is
+  satisfied by never colouring, which is not the stated policy.
+- **E3** — "every error carries `code`, `message`, `hint`, and where possible `fix`". The
+  error body is `{ code, message, hint }`; there is no `fix`, in a family where every other
+  refusal has one.
+- **E6** — there is no `AUTH` code, although the requirement calls it "the most actionable
+  single code in the survey".
+- **E7** — the taxonomy is not declarative. Classification is `instanceof` over a fixed set
+  with `RUNTIME` as the fallback; nothing lets an author declare a class.
+- **V8** — there is no `config explain` command. `--explain <option>` exists.
+- **S4** — the `--` pass-through half is built; `-` meaning stdin is not, and `ArgumentSpec`
+  has no `type` field for a positional to be file-typed in the first place.
+- **P2** — the non-TTY prompt error is specified as exit 2; the nearest mechanism
+  (`ctx.actionRequired`) exits 4, and there is no prompt-to-`USAGE` path in the package.
+- **D1 / M5** — a deprecation does not *require* a replacement. `deprecated` is
+  `boolean | string`, and `true` renders a bare marker and warns with no replacement named.
+- **D3** — completions never execute the CLI, which is the half that matters; but there is no
+  `dynamic` marker on an option, so the escape hatch the requirement describes does not exist.
+- **M1** — "every command carries a group" is not enforced; `group` is optional and the help
+  renderer falls back to a default heading.
+- **N6** — `effects` is optional, not required. A command that omits it is silently not
+  served as a tool rather than failing at definition time, which is the quieter of the two
+  failures.
+- **N13** — drilling is by command path only; there is no field-path selector.
+- **N14** — `--json` is a plain boolean. It takes no argument, so nothing lists valid fields
+  or rejects an invalid one.
+- **N15** — there is no non-JSON `agent` format. The only format flag in the package is
+  `--format=json-pretty` on the schema surface.
+- **J3** — there is no single explicit opt-in call that turns on behaviour-changing
+  guarantees for a façade user.
+- **J4** — "the program wins" is built and tested; "burgee's surface is withheld, reported by
+  `--schema`" is not — no schema type carries a withheld-surface field.
+- **T1** — `runBurgee` builds a full fake runtime and forwards only `argv`, `env`, `stdout`,
+  `stderr`, `exit` and `root`. `stdin`, `cwd` and TTY-ness are dropped, so passing `tty: true`
+  to the harness has no effect on a burgee program. This is the one on the list most likely
+  to make a test pass for the wrong reason.
+- **K1 / Z3 / U1** — "zero runtime dependencies" and "`burgee` → ∅" are not true:
+  `package.json` declares `closeout`, `linegauge`, `roundel` and `seniority`. They are
+  same-repo, which is the U6 shape, but the requirement as written says zero and says ∅.
+- **U13** — "`import 'burgee'` never resolves a family specifier". `src/index.ts` statically
+  re-exports from `seniority/precedence`, `src/execute.ts` imports it statically, and
+  `src/contrast.ts` statically imports `roundel/contrast`. The build is `tsc`, so those
+  specifiers survive into `dist`.
+- **Every requirement held by `L` is unimplemented, because the plugin that would hold it
+  does not exist.** `eslint-plugin-cli-floor` is an intent directory and not a package;
+  `packages/` contains ten directories and none of them is it, and `eslint.config.mjs` does
+  not reference it. That covers `no-console-in-command`, `require-json-output`,
+  `require-command-example`, `no-prompt-without-flag`, `deprecated-requires-replacement`,
+  `no-reserved-option-names`, `exit-code-constant`, `no-help-on-runtime-error` and
+  `env-option-documented` — and it means the `Holds` column's `L` and `R + L` rows are
+  claims about a future package, not about the floor as shipped.
+
 ## Rejected alternatives
 
 - **A new parser competing with commander/yargs.** Downloads are transitive; every

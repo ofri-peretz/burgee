@@ -1,7 +1,7 @@
 {
   "name": "bellpull",
   "version": "0.0.1",
-  "description": "The cord you pull to ring a bell in another room. Subprocesses with executable resolution and a structured result every caller can read \u2014 human, JSON envelope or agent event. Drop-in paths for execa, cross-spawn and which. Zero dependencies.",
+  "description": "The cord you pull to ring a bell in another room. Subprocesses with executable resolution and a structured result every caller can read — human, JSON envelope or agent event. Drop-in paths for execa, cross-spawn and which. Zero dependencies.",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -12,6 +12,22 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./schema.json": "./dist/schema.json",
+    "./which": {
+      "types": "./dist/which.d.ts",
+      "import": "./dist/which.js",
+      "default": "./dist/which.js"
+    },
+    "./cross-spawn": {
+      "types": "./dist/cross-spawn.d.ts",
+      "import": "./dist/cross-spawn.js",
+      "default": "./dist/cross-spawn.js"
+    },
+    "./plugin": {
+      "types": "./dist/plugin.d.ts",
+      "import": "./dist/plugin.js",
+      "default": "./dist/plugin.js"
     }
   },
   "files": [
@@ -20,9 +36,10 @@
     "!dist/**/*.test.*"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/schema-to-dist.mjs && node ../../scripts/strip-comments.mjs dist",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
+    "coverage": "vitest run --coverage.enabled",
     "lint": "eslint src"
   },
   "repository": {

@@ -16,6 +16,17 @@ the move first is the one the measured section below gives: it is the half that 
 graders, so if `flagstaff` goes red across the deletion we learn the consolidation was
 nominal for the price of a move rather than the price of a package.
 
+**Build state, 2026-09-15 (PLAN 3.5).** Every requirement's status is in
+[§ What is built](#what-is-built), which is the list 3.5's "Done when" reads and which this
+design did not have until today. **Twelve of the thirteen are built; R9 is the one that is
+not**, and it is not a bookkeeping gap — the ceiling is measured and the package is over it.
+The paragraph above is superseded on three counts and kept for the record: R2's fast path,
+R3's `strip` and R10's vendoring have all shipped and are graded. The headline measurement is
+four rows against the incumbents' own suites — `string-width` **229 / 229**, `wrap-ansi`
+**80 / 80**, `strip-ansi` **8 / 8**, `slice-ansi` **15 / 15** — and the headline cost is that
+closing them added 939–1 040 bundled bytes to every entry that measures or cuts, which is
+what R9 is red about.
+
 ---
 
 ## Requirements
@@ -242,13 +253,22 @@ packages/linegauge/src/
   wrap.ts         R5 — over slice
   truncate.ts     R6 — over slice
   widest.ts       R7
-  runtime.ts      the structural Runtime shape (Y9), nine lines, no import
+  style.ts        the shared style stack slice, wrap and truncate all cut with
   index.ts        default = width; named re-exports; no side effects
   *.test.ts       per module
-  graphemes.test.ts     the six-row table as assertions
-  differential.test.ts  fast path vs Segmenter path over the corpus   (R2, Y11)
-  weight.test.ts        R9 · shape.test.ts  R8, R11, R12
+  differential.test.ts  the six-row table as assertions, and the fast path against
+                        the Segmenter path over the corpus                (R2, Y11)
+  weight.test.ts        R9 · shape.test.ts R12 · facade-defaults.test.ts and
+  subpath-isolation.test.ts  R8
 ```
+
+Two names in that tree are corrections rather than plans. `runtime.ts` — *"the structural
+Runtime shape (Y9), nine lines"* — was never written and should not be: R11 is satisfied by
+this package naming `process` nowhere at all, which is the stronger form and is what
+`process-reference-lock.test.ts` records by giving linegauge no allow-list entry. A file
+existing only to satisfy a count is the ceremony PLAN 4.3 was rewritten to stop asking for.
+And `graphemes.test.ts` is folded into `differential.test.ts`: the table and the two-path
+identity share one corpus, and splitting them would have meant two lists to keep in step.
 
 ## What is already written, measured 2026-09-09
 
@@ -301,19 +321,167 @@ is real rather than nominal. `log-update` is the one to watch: it carries no `sl
 port precisely because wrap leaves each row self-contained, so it depends on a property of
 `wrap.ts` that no signature expresses.
 
+## What is built
+
+**This is the list PLAN 3.5's "Done when" reads**, and until 2026-09-15 this design had no
+such list in either shape the repository uses — so `scripts/plan-progress.ts` reported all
+thirteen requirements missing and could not tell "the design does not say" apart from "R9 is
+not met". Both were true at once, which is exactly the confusion a status table removes.
+
+The vocabulary is two words, **Built** and **Not built**, because the checker reads them and
+a status cell that varies its spelling is the drift this repository exists to catch. A
+qualifier goes in the *Where* column, never inside the bold. A row saying `Built` without a
+check is a claim, so every row names one.
+
+| R | Status | Where | The check |
+| :-- | :-- | :-- | :-- |
+| R1 | **Built** | `src/width.ts` — `measure()` over `Intl.Segmenter`: the Unicode W/F table, the Hangul jamo walk, the ZWJ and keycap rules | `width.test.ts` grades every case against the real `string-width`; `compat string-width` **229 / 229** |
+| R2 | **Built** | `src/width.ts` — `asciiColumns`, the 0x20–0x7E scan `width()` short-circuits to | `differential.test.ts`: `width(s) === measure(strip(s))` over the six-row table, 24 boundary fixtures and 2 000 inputs from a recorded seed |
+| R3 | **Built** | `src/strip.ts` — CSI, OSC 8 and the single-char escapes, with Node's own scanner measured rather than assumed | `strip.test.ts`, including the divergence from `util.stripVTControlCharacters`; `compat strip-ansi` **8 / 8** |
+| R4 | **Built** | `src/slice.ts` over `src/style.ts` — the style stack: open, close at the cut, reopen | `slice.test.ts`; `compat slice-ansi` **15 / 15** |
+| R5 | **Built** | `src/wrap.ts` — the wrap-ansi 10 port, moved out of `flagstaff` with its grader | `wrap.test.ts`; `compat wrap-ansi` **80 / 80** |
+| R6 | **Built** | `src/truncate.ts` over `slice`, ellipsis measured with R1 and counted *inside* `cols` | `truncate.test.ts` — the ellipsis-fits arithmetic, all three positions |
+| R7 | **Built** | `src/widest.ts` — one pass, nothing allocated per line | `truncate.test.ts`'s 200 000-line case, which is where `Math.max(...lines)` throws and `widest` does not |
+| R8 | **Built** | `package.json` `exports`; `index.js` default is `width`; five subpaths carry the rest | `facade-defaults.test.ts` (each graded subpath publishes the default its suite links against) + `subpath-isolation.test.ts`, which reads `dist/` so it measures what is published |
+| R9 | **Not built** | `ceilings.json` records the six entries; **one of six clears the bar R9 names** — see [§ R9](#r9--the-ceiling-is-measured-and-it-is-not-met) | `weight.test.ts` ratchets every entry's `dist/` closure **and asserts `y8.holds === false`**, so the shortfall cannot be flipped to a pass without the numbers moving |
+| R10 | **Built** | four suites vendored under `packages/compat-oracle/vendor/`, graded through generated shims | `node packages/compat-oracle/dist/bin.js string-width wrap-ansi strip-ansi slice-ansi` — 229/229, 80/80, 8/8, 15/15, `--control` first |
+| R11 | **Built** | no file in `src/` names `process` | `packages/burgee/src/process-reference-lock.test.ts` repo-wide — linegauge has **no allow-list entry at all**, which is the claim |
+| R12 | **Built** | ESM with a `default` condition per entry, no top-level await | `shape.test.ts`: every published entry is `require()`d from CommonJS. Node refuses a graph with a top-level `await` (`ERR_REQUIRE_ASYNC_MODULE`), so one check proves both clauses |
+| R13 | **Built** | `packages/linegauge/README.md` `## Plugins`, and [§ Extending](#extending-linegauge--there-is-no-key-and-that-is-the-answer) below | `plan-progress.ts` 1.6 greps the README for the section; the family's `plugin-contract` R5a records the refusal beside the other layers' keys |
+
+**R9 is the single row that is not built, and it is not a bookkeeping gap.** The ceiling is
+measured and the package is over it; the correctness work of 2026-09-15 made it *worse* by
+939–1 040 bundled bytes per measuring entry. The requirement stands as written until its bar
+is restated as D1's tree-inclusive one, and that restatement is one decision for the whole
+layer — seven packages are over their recorded artifact size at once — so it belongs in the
+integrator lane, not here. PLAN 3.5 stays red for that reason and for no other.
+
+**Two rows were claimed here before they were true, and both are now checked.** R2's design
+text has promised a `differential.test.ts` since 2026-09-09; the fast path shipped, the lock
+did not, and `index.ts`'s own comment still said the fast path was at the gate. R12 named a
+`shape.test.ts` that did not exist, so "`require('linegauge')` works" was asserted by nobody
+— in a package whose whole distribution story is an `overrides:` entry landing it inside
+CommonJS trees. Both files exist now and both were proven to fail first: widening
+`asciiColumns`'s range by one byte reds 2 cases and dropping its floor reds 8, and a
+top-level `await` added to `widest.ts` reds 3 of `shape.test.ts`'s 8.
+
+## Every feature linegauge offers
+
+Six functions and six entry points. A consumer needs nothing else installed, and needs
+nothing else from this family.
+
+| Import | Signature | What it answers |
+| :-- | :-- | :-- |
+| `linegauge` (default), `{ width }` | `width(s, { ambiguousIsNarrow?, countAnsiEscapeCodes? }) → number` | how many terminal columns `s` occupies once escapes are removed |
+| `linegauge` `{ measure }` | `measure(text, ambiguousIsWide?) → number` | the same, for text already known to hold no escapes — the slow path, exported so a caller can hold the two apart |
+| `linegauge` `{ lineCount }` | `lineCount(text, columns) → number` | how many screen lines `text` occupies at that width; an empty line still occupies one |
+| `linegauge/wrap` | `wrap(s, cols, { hard?, trim? }) → string` | hard wrap at `cols` display columns, word boundaries where one exists, styles reopened per line |
+| `linegauge/slice` | `slice(s, start, end) → string` | a substring **in display columns**, never splitting a cluster, styles closed at the cut and reopened |
+| `linegauge/truncate` | `truncate(s, cols, { position, ellipsis }) → string` | start / middle / end truncation, the ellipsis measured and counted inside `cols` |
+| `linegauge/widest` | `widest(lines) → number` | the widest of many, one pass, nothing allocated per line |
+| `linegauge/strip` | `strip(s) → string` | CSI, OSC (hyperlinks included) and single-character escapes removed |
+
+Four of the entry points also publish a **default** export, because that is what the suite of
+the package each replaces links against: `linegauge` → `string-width`, `linegauge/wrap` →
+`wrap-ansi`, `linegauge/slice` → `slice-ansi`, `linegauge/strip` → `strip-ansi`. That is what
+makes `overrides: { "string-width": "npm:linegauge@^1" }` resolve rather than fail to link.
+
+Three properties hold across all of it, and each is locked rather than intended:
+
+- **Zero dependencies**, and nothing reads `process` — terminal width is the caller's to pass
+  (R11).
+- **Each subpath costs only itself.** `linegauge/slice` does not drag the wrapper;
+  `subpath-isolation.test.ts` reads `dist/` and fails the moment one entry reaches for a
+  sibling.
+- **Every answer is graded against the incumbent's own suite**, not against a fixture we
+  wrote: 229/229, 80/80, 8/8, 15/15.
+
+## Extending linegauge — there is no key, and that is the answer
+
+R13. `packages/linegauge/README.md` carries this in the package's own voice; it is repeated
+here because "you cannot extend this, and here is why" is a thing a consumer has to be able
+to find, and a design that is silent on extension reads as an oversight rather than a
+decision.
+
+**linegauge hosts no plugin key.** Every other package in the family hosts one — `tokens` in
+roundel, `spinners`, `borders`, `glyphs` and `components` in flagstaff, `capabilities` in
+paratext, `sources` in seniority, `handlers` in closeout, `resolvers` in bellpull, `widgets`
+in caique. Each of those keys sits over a question with **more than one right answer**: which
+colour, which glyph, which terminal, where configuration lives, how an executable is found. A
+plugin settles such a question for one program without making anybody else wrong.
+
+These six functions are not that kind of question. `width('古代')` is 4 because Unicode
+classes those code points East Asian Wide and a terminal gives each of them two columns;
+`slice` returns the columns it was asked for or it returns the wrong string. Three
+consequences follow, and the third is the one that decides it.
+
+1. **A contribution would not extend linegauge, it would redefine the terminal** — for every
+   caller above it, including ones that never registered anything.
+2. **It would fail silently.** Nothing throws when a width is wrong: a box comes out a column
+   short, a table gains a phantom column, a help column stops lining up. Compare caique, where
+   an unregistered widget kind is *refused* by name; there is no equivalent refusal available
+   here, because every string is a legal input.
+3. **It would land under a published pass rate no grader produced.** This package's
+   correctness is differential — `width` against `string-width`, `wrap` against `wrap-ansi`,
+   `slice` against `slice-ansi`. A registered answer is an answer the graders never saw, so
+   the number on the README would stop meaning what it says. That is not a plugin system with
+   a caveat; it is a compatibility claim that has been quietly voided.
+
+**The two things that genuinely vary are already handled, without a registry.**
+
+- **The Unicode data.** The Wide and Fullwidth table is Unicode's and cluster boundaries come
+  from the platform's `Intl.Segmenter`. When Unicode ships a version, that is a release of
+  this package, re-graded (R1, R10) — not a registration a caller makes.
+- **The environment.** How wide the terminal is, and whether there is one at all, are the
+  caller's to pass. Nothing here reads `process` (R11). That is a parameter, not a plugin.
+
+**What a caller does instead.** Everything the six functions vary on is already an argument:
+`ambiguousIsNarrow` for a CJK terminal, `countAnsiEscapeCodes` for a caller measuring raw
+bytes, `position` and `ellipsis` on `truncate`, `hard` and `trim` on `wrap`. If a second
+correct answer ever arrives — an ambiguous-width policy some real terminal needs — it lands
+as one more option **with a differential test behind it**, because the graders have to see
+it. The family's `plugin-contract` records this refusal (R5a) next to the other layers' keys,
+so "no key" is one of the contract's answers rather than a hole in it.
+
+## What linegauge deliberately does not do
+
+Each with the reason, because a consumer deciding whether this package is enough needs the
+boundary as much as the list.
+
+| Not here | Why | Where instead |
+| :-- | :-- | :-- |
+| Draw anything — boxes, tables, columns, status lines, spinners | Measuring a line is not drawing one, and everything that draws needs the measurement while nothing about the measurement needs any of them. That asymmetry is why this is the lower package | `flagstaff` |
+| Author a style | This package preserves and re-emits escape sequences; it never writes one. A library that both measures and colours is two products, and the colour half is where the terminal-detection and accessibility questions live | `roundel` |
+| Read `process` | `stdout.columns` is an ambient global that makes every answer depend on where it was called. Taking the width as an argument is what makes `width` testable and what keeps this package off the repo's process allow-list (R11, Y9) | the caller passes it |
+| Ship an `ansi-regex`-shaped export | 345 M/wk makes it tempting, and a published regular expression is a compatibility contract on its exact matches, forever. `strip` is the behaviour; the pattern stays internal | — |
+| Bundle an East Asian width table of our own | `Intl.Segmenter` plus the runtime's ICU data is the entire reason this is six functions instead of a data package. A checked-in table is a Unicode-version liability owned forever | the platform |
+| Reorder bidirectional text | Real, and not the first problem a CLI has. It would also need a rendering model, which is `flagstaff`'s half of the stack | — |
+| Interpret hyperlinks | `strip` removes `OSC 8`; nothing here reads what it pointed at. Semantics belong to whatever emits them | `paratext` |
+| Cache, memoise or precompute | Every optimisation here is an optimisation of a 3.5 µs operation inside a process that has already paid Node's 30 ms startup, and R9's ceilings are already the binding constraint. Nothing is justified until a benchmark row moves | — |
+
 ## Verification
 
 - `npm test -w linegauge` — R1–R7 units, the grapheme table, the differential lock, the
-  weight ceiling, the shape lock.
+  weight ceiling, the shape lock. **913 tests, 10 files, 2026-09-15.**
 - `npm run compat -- string-width wrap-ansi strip-ansi slice-ansi` — four rows, `--control`
   first, ratcheting.
 - `npm test -w flagstaff` **after** the deletion, unchanged.
 - **The check that would have caught the original problem.** The original problem is a
-  severed grapheme: a naive slice returns half a ZWJ cluster and the terminal prints
-  garbage. `graphemes.test.ts` fails on any implementation that measures in code units, and
-  `differential.test.ts` fails the moment the fast path and the correct path disagree on any
-  corpus input. Both are proven to fail against a deliberately naive implementation checked
-  in as a fixture, so the check is known to work rather than assumed to.
+  severed grapheme: a naive slice returns half a ZWJ cluster and the terminal prints garbage.
+  `differential.test.ts` carries the six-row grapheme table as assertions — `.length` against
+  the cluster count against the column count, so any implementation that measures in code
+  units reds on the first row — and it fails the moment the fast path and the correct path
+  disagree on any corpus input.
+
+  **Proven to fail, by mutation rather than by a fixture.** The earlier wording here promised
+  "a deliberately naive implementation checked in as a fixture"; there was none, and there was
+  no `differential.test.ts` either, so the sentence described a check that did not exist. What
+  is true, measured 2026-09-15: widening `asciiColumns`'s range to `0x7F` reds 2 cases,
+  dropping its floor to `0x00` — which lets `ESC` itself onto the fast path — reds 8, and a
+  top-level `await` appended to `widest.ts` reds 3 of `shape.test.ts`'s 8. One mutation is
+  *not* caught and is recorded rather than hidden: swapping `codePointAt` for `charCodeAt` in
+  `asciiColumns` changes nothing, because every surrogate is above `0x7E` and bails either
+  way. The comment in `width.ts` overstates that one; the lock is right not to fire.
 
 ## Rejected alternatives
 

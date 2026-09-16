@@ -2,8 +2,8 @@
  * R5's sibling. `close()` puts the cursor back, and `close()` does not run when a signal ends
  * the process — so Ctrl+C during a frame left the user's terminal with no cursor at all
  * (issue #60). Neither incumbent has that defect: ora and log-update both reach
- * cli-cursor → restore-cursor → signal-exit, and since 2026-09-08 both façades here reach
- * `cursor.js`. The loop is the surface this package actually asks people to adopt, so it has
+ * cli-cursor → restore-cursor → signal-exit, and since 2026-09-15 all three surfaces here
+ * reach `closeout`. The loop is the surface this package actually asks people to adopt, so it has
  * to hold the same guarantee.
  *
  * Driven against the built `dist/`, in a child process that is really signalled, because none

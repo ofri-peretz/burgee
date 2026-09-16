@@ -487,6 +487,203 @@ taken:* take the behaviour and leave the vocabulary untyped as a follow-up — w
 codes came to be literals in the first place. The refusals work either way, so nothing would
 have forced the follow-up, and R8 would have stayed a claim no check could test.
 
+## The surface a consumer gets, derived from the tree (2026-09-15)
+
+R1–R11 say what flagstaff is *for*, and the "What shipped" log says how it got here. Neither
+is a list a consumer can scan, and flagstaff has the largest `exports` map in the family —
+fourteen entries and a `bin`. This is that list.
+
+**Derived, not transcribed.** One row per entry in `packages/flagstaff/package.json`'s
+`exports` map; the names are the exported declarations of the source file each subpath's
+`dist/` path is built from. Re-derive with `node -p "Object.keys(require('./packages/flagstaff/package.json').exports)"`
+and `grep '^export' packages/flagstaff/src/<file>.ts`.
+
+| Subpath | What a consumer gets | What it is for |
+| :-- | :-- | :-- |
+| `flagstaff` | `export *` of `box`, `import`, `loop`, `plugin`, `progress`, `spinner`, `table`, `tasks` — the core, and **no façade and no CLI** | the whole engine in one import |
+| `flagstaff/loop` | `hoist`, `manualClock`; `Runtime`, `Hoisted`, `ManualClock` | raise a component, update it, lower it — and the fake clock that makes a frame sequence a fixed string |
+| `flagstaff/plugin` | `register`, `validate`, `registered`, `lookupSpinner`, `lookupBorder`, `glyph`, `CONTRACT`, `PluginError`; `Plugin`, `Component`, `SpinnerDef`, `BorderStyle`, `PluginErrorCode` | the extension point — see below |
+| `flagstaff/spinner` | `spinner`; `SpinnerState`, `SpinnerStatus` | a spinner component over a registered style |
+| `flagstaff/progress` | `progress`; `ProgressState`, `ProgressOptions` | a progress bar whose static projection is a counted line |
+| `flagstaff/tasks` | `tasks`; `Task`, `TaskStatus`, `TasksState`, `TasksOptions` | a task list whose static projection is the settled tasks |
+| `flagstaff/box` | `box`, `boxComponent`; `BoxOptions`, `BoxState` | a bordered box as a string, or as a component |
+| `flagstaff/table` | `table`, `tableComponent`; `Row`, `TableOptions`, `TableState` | a grid as a string, or as a component. **This is not the cli-table3 façade** — see below |
+| `flagstaff/import` | `fromCliSpinners`, `fromCliBoxes`; `CliSpinner`, `CliBox`, `FromCliSpinnersOptions`, `FromCliBoxesOptions` | turn a cli-spinners or cli-boxes corpus the caller already has into a `Plugin` object |
+| `flagstaff/ora` | default `ora`, `Ora`, `oraPromise`, `spinners`; `Options`, `PersistOptions`, `PromiseOptions`, `OraStream`, `Color`, `Affix`, `SpinnerDefinition` | the drop-in path for `ora` (R6) |
+| `flagstaff/log-update` | default, `createLogUpdate`, `logUpdateStderr`; `LogUpdate`, `LogUpdateStream`, `LogUpdateOptions` | the drop-in path for `log-update` (R6) |
+| `flagstaff/boxen` | default `boxen`, `_borderStyles`; `BoxenOptions`, `BoxenBorderStyle`, `Spacing` | the drop-in path for `boxen` (R6) |
+| `flagstaff/cli-table3` | default `Table`, plus `Cell`, `ColSpanCell`, `RowSpanCell`, `strlen`, `pad`, `truncate`, `wordWrap`, `hyperlink`, `mergeOptions`, `makeTableLayout`, `computeWidths`, `computeHeights`; `TableChars`, `TableStyle`, `TableOptions` | the drop-in path for `cli-table3` (R6). The internals are exported because its suite grades them |
+| `flagstaff/schema.json` | the family plugin schema, as a file | what a plugin author or an agent validates against |
+| `bin: flagstaff` | `flagstaff check <file>` | load a plugin file, register it, render every contribution in all five modes, and grade it |
+
+**`flagstaff/table` and `flagstaff/cli-table3` are two different products**, and R6 conflates
+them. `./table` is the built-in grid component of R4; `./cli-table3` is the graded drop-in.
+A reader following R6's text imports the wrong one. Recorded below rather than fixed by
+editing R6.
+
+### How a consumer extends it
+
+Flagstaff hosts **five keys** — more than any other layer — and it is the only host that
+validates against `schema.json` rather than by hand. `packages/flagstaff/src/plugin.ts` and
+`packages/flagstaff/src/schema.json` are the truth together: `plugin.ts` walks the subset of
+JSON Schema the file uses, then adds two checks the schema cannot express.
+
+| Key | What a plugin contributes | Shape |
+| :-- | :-- | :-- |
+| `tokens` | a roundel theme | a token name to `#rrggbb` |
+| `glyphs` | the symbols every built-in draws its statuses with — `ok`, `fail`, `warn`, `info`, `running` | a meaning to a non-empty string |
+| `spinners` | spinner styles | `{ frames: string[], interval: integer ≥ 1, static: string }`, all three required |
+| `borders` | box border styles | cli-boxes' eight corner and edge keys, exactly, all required |
+| `components` | whole renderables | `{ static, frame?, sample?, interval? }` — `static` required |
+
+`name` is required; `contract` is optional and must not exceed `CONTRACT`, which is `1`.
+
+**Everything is data except two functions, and that is the contract.** A component's `static`
+and its optional `frame` are the only behaviour a plugin may carry. `sample` — the two named
+states `flagstaff check` and the docs gallery *show* the component with — is inert data, and
+the registry deep-copies and freezes it, so declaring one does not hand the registry a
+reference into the author's own object. The loop never reads `sample`: a running component's
+state comes from the program.
+
+**What is validated, and in what order.** `validate()` walks the plugin against the schema
+first, so the refusal names a path (`plugin.spinners.moon.static: required`). A missing
+`static` under `spinners` or `components` is then re-raised with its own code, because it is
+the one mistake a plugin author makes on purpose. After the schema: `contract` is compared,
+and every component's `static` is re-checked as an actual function — JSON Schema can say the
+key must be present but not that its value is callable.
+
+**What is refused, with which code.**
+
+| Code | Raised by | When |
+| :-- | :-- | :-- |
+| `E_PLUGIN_SCHEMA` | `validate()` | anything the schema walk rejects |
+| `E_NO_STATIC_PROJECTION` | `validate()` | a spinner or component with no `static`, or a component whose `static` is not a function |
+| `E_PLUGIN_CONTRACT` | `validate()` | a `contract` newer than this flagstaff knows |
+| `E_UNKNOWN_SPINNER` | `lookupSpinner()` | a style nobody registered — the message lists the styles that exist |
+| `E_UNKNOWN_BORDER` | `lookupBorder()` | a border nobody registered, same listing |
+| `E_NO_CONTRIBUTION` | `flagstaff check` | the plugin validates and contributes nothing flagstaff can render — how a misspelled top-level key tells on itself |
+| `E_COMPONENT_THREW` | `flagstaff check` | a component's `static` threw on the state it was shown with, naming the modes it broke in |
+
+`E_UNKNOWN_KIND` is an eighth member of the same union. It is caique's, and it lives here
+because this union is the vocabulary every host in the family shares (plugin-contract R8).
+
+**What happens on a bad plugin.** `register()` calls `validate()` first and throws a
+`PluginError` — `code`, `message`, `fix` — before touching the registry, so a refused plugin
+changes nothing. `flagstaff check <file>` is the same door with a report around it: exit 2 on
+a usage error, exit 1 on a refusal, exit 0 with a per-mode rendering otherwise.
+
+**What a plugin may and may not decide.**
+
+- **It may replace a built-in glyph, spinner or border.** The built-ins go through the same
+  public `register()` at import, so a later registration of the same name wins. That is the
+  intended override path.
+- **There is no `reset()` and no way to unregister.** Flagstaff is the only host in the
+  family without one; roundel, caique, closeout and bellpull all have it. A program that
+  wants to re-plug at runtime cannot, and a test must tolerate what an earlier test
+  registered. Recorded below.
+- **There is no `contributions()`.** `registered()` returns copies of the five `Map`s, so a
+  caller can see *what won* but not *who was shadowed*. The other four hosts report shadowing.
+- **A plugin cannot reach the registry except through `register()`.** `registered()` hands
+  back copies for exactly this reason: handing the live `Map`s out made `set` and `delete` a
+  second door through which a spinner with no `static` could arrive without meeting
+  `validate()`.
+- **Keys flagstaff does not read are allowed and are not an error.** `check` lists them under
+  `unknown` with the sentence "a key another package in the family reads is allowed here",
+  which is what makes one plugin object work across whatever subset of the family is
+  installed. Note that `capabilities` — paratext's key, and the one block of the shared schema
+  flagstaff does not read — is reported this way too.
+
+### What flagstaff does not do, and why
+
+Beyond "Out of scope" below:
+
+- **No layout engine.** `box` and `table` are string functions over `width` and `wrap`, which
+  live in `linegauge` and arrive here as imports. R7 locks the declaration, not the filename,
+  because a `readdir` filter for `layout*` waves through a layout engine called `measure.ts`.
+- **No signal handling of its own.** `src/runtime.ts` records that no file here installs a
+  signal listener any more; the cursor and the exit paths are `closeout`'s.
+- **It bundles no corpus into the core.** `flagstaff/import` turns a corpus the *caller*
+  supplies into a plugin. The single exception is `flagstaff/ora`, which re-exports
+  cli-spinners' corpus because ora's `spinners` export is part of the API being graded, and
+  the isolation lock keeps every other entry away from it.
+
+## Where this document and the code disagree (2026-09-15)
+
+Recorded rather than tidied away. Flagstaff's design is the oldest and longest in the family
+and has been edited forward eight times; most of what follows is a requirement that was
+corrected in a "What shipped" entry below but never in the requirement itself, which means a
+reader who stops at the requirements list is misled.
+
+- **R6 names `flagstaff/table` as the cli-table3 façade.** It is not. `./cli-table3` is the
+  façade; `./table` is the built-in grid component of R4. Two different modules, and the one
+  R6 names is the wrong one.
+- **R6's façades are recorded as unbuilt while two of them ship.** The "What shipped" log
+  still says the boxen and cli-table3 façades are *"not yet … blocked on a decision rather
+  than a port"*, and there is no shipped entry for either — while `src/boxen.ts` and
+  `src/cli-table3.ts` exist, are in the `exports` map, carry weight budgets in
+  `src/weight.test.ts`, and are named in `packages/compat-oracle/src/demand.ts`.
+- **R10's "Depends on `roundel` only" is false, and the test now asserts the opposite.**
+  `package.json` declares `closeout`, `linegauge` and `roundel`. R10 says a test asserts
+  `dependencies` is exactly `['roundel']`; `src/shape.test.ts` asserts the three-element list,
+  under the heading "0 external, 3 same-repo". The requirement was overtaken and not rewritten.
+- **R4's "built-ins … are registered through the public `register()`" is true of three kinds
+  and false of the five it names.** `src/builtins.ts` carries `glyphs`, `spinners` and
+  `borders` and **no `components` key**; the five components named in R4 — `spinner`,
+  `progress`, `tasks`, `box`, `table` — are exported functions, not registry entries. A
+  shipped entry below concedes this; R4 does not.
+- **R8 attributes two codes to `register()` that it cannot raise.** `E_UNKNOWN_SPINNER` and
+  `E_UNKNOWN_BORDER` come from `lookupSpinner()` and `lookupBorder()`. `validate()` raises
+  three codes, not five. And `check` never calls `lookupBorder`, so `E_UNKNOWN_BORDER` is
+  unreachable from the command R8 is about.
+- **R8's "each carrying a code … and a `fix`" does not hold on one path.** `cli.ts` calls
+  `spinner(style)` outside its `try`/`catch`, so a `PluginError` from that call lands in the
+  rejection handler, which writes the message alone — no code prefix, no `fix` line — and
+  exits 1.
+- **R8 says "all seven are members of one union"; the union has eight.** The eighth is
+  `E_UNKNOWN_KIND`, caique's, added when that host landed. The design mentions it nowhere.
+- **R1's `hoist` signature is wrong.** It is not `hoist(component, rt)`: `initial` is a
+  required third argument and an options object a fourth, and the returned value carries a
+  readonly `mode` alongside `update` and `lower`.
+- **R1's "through `node:readline` cursor ops" is not what the code does.** `src/projection.ts`
+  writes CSI sequences by hand and imports nothing from `node:readline`. A shipped entry
+  records this; R1 does not.
+- **R3's plugin shape is short by two keys.** It says `{ name, spinners?, glyphs?, tokens?,
+  components? }`. The type and the schema also carry `contract?` and `borders?`, and `borders`
+  is a contribution kind with its own lookup and its own error code.
+- **R7 names a `columns` function that does not exist.** No `columns` export exists anywhere
+  in `packages/`. The two string functions are `box()` and `table()`.
+- **R11 describes a `static` the importers do not derive.** R11 says the derived `static` is
+  "the first frame, or the label"; `src/import.ts` defaults it to an ellipsis. R11 also says
+  the importers turn the corpora "into registered plugins" — they return a `Plugin` object and
+  register nothing, which is the right design and the wrong sentence.
+- **The `src/` tree in the `## Design` section does not match the package.** It lists
+  `width.ts`, `components/` and `facades/`; `src/` is flat and has none of them. The
+  ora and log-update entries further describe `src/width.ts`, `src/wrap.ts`, `src/cursor.ts`
+  and their tests as flagstaff's own files — all four now live in `linegauge` or `closeout`,
+  and the design has a whole subsection about `src/cursor.ts` that no longer describes a file
+  in this package.
+- **"log-update … reaches no package at all, not even roundel" is no longer true.** Its weight
+  test allows `closeout/cursor`, `closeout/restore-cursor` and `linegauge/wrap`.
+- **R5 is stated as an invariant of the package and one shipped subpath is exempt.**
+  `src/log-update.test.ts` records that `flagstaff/log-update` writes cursor escapes off a
+  terminal, because its incumbent's suite requires it, and narrows the assertion to the
+  carriage return. The exemption is real and correct; the design never records it.
+- **Every byte figure in this document is stale but two.** The budgets in
+  `src/weight.test.ts` are the live numbers and five of them were deliberately raised on
+  2026-09-14 for the capability schema; the design's sentence "No budget moved" predates that.
+  No figures are restated here — a number copied into prose rots separately from the
+  assertion that holds it, which is how this list got long.
+- **`apps/docs` does not copy `schema.json` into `llms.txt`,** and the docs gallery is not
+  rendered at docs build time from `static('running')`: `gallery.mdx` is a committed file
+  written by `scripts/gallery-page.ts` under its own `npm run` script, and it renders through
+  `hoist()` in all five modes with sample states.
+- **The `examples/` conformance cases the Verification section promises do not exist.** No
+  file under `examples/` mentions flagstaff. The equivalent coverage is in-package, in
+  `src/builtins.test.ts` and `src/cli.test.ts`.
+- **`./schema.json` and `./boxen` and `./cli-table3` are shipped subpaths this design never
+  names as exports.** The schema is described as "shipped in the tarball" and is also an
+  export map entry a consumer can import.
+
 ## Rejected alternatives
 
 - **A React reconciler (Ink's model).** React plus yoga is the dependency bill this layer

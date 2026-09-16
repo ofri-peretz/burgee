@@ -2,9 +2,9 @@
  * `flagstaff/log-update` — log-update 8's public API, ported and graded by log-update's
  * own suite through `compat-oracle` (R6, U11). Its dependency tree comes with it: the
  * wrapping (wrap-ansi) is `wrap.ts`, the width (string-width) is `width.ts`, the cursor
- * control (cli-cursor → restore-cursor → signal-exit → onetime) is `cursor.ts`, shared
- * with `flagstaff/ora` because both incumbents port the same chain, and the handful of
- * sequences ansi-escapes contributes are the ten lines below.
+ * control (cli-cursor → restore-cursor → signal-exit → onetime) is `closeout`, shared with
+ * `flagstaff/ora` because both incumbents port the same chain and closeout owns its far end,
+ * and the handful of sequences ansi-escapes contributes are the ten lines below.
  *
  * What it does that a naive re-render does not: it diffs the previous frame against the
  * next and rewrites only the rows that changed. A five-row frame whose last row is a
@@ -18,11 +18,19 @@
  * `sliceAnsi`'s column arithmetic and a correction loop; its own suite renders both
  * through a real terminal emulator and cannot tell them apart.
  */
-import process from 'node:process';
-
+import { HIDE_CURSOR, SHOW_CURSOR } from 'closeout/cursor';
+import restoreCursor from 'closeout/restore-cursor';
 import { wrap } from 'linegauge/wrap';
 
-import { HIDE_CURSOR, restoreCursorOnExit, SHOW_CURSOR } from './cursor.js';
+import { processRuntime } from './runtime.js';
+
+/**
+ * The process, through the seam (Y9). `processRuntime()` hands back the live process
+ * narrowed to `Runtime`, so the two module-level renderers below are still bound to the
+ * real `stdout` and `stderr` objects — which is the whole of log-update's contract for
+ * them — and `rt.stderr.isTTY` is still read each time the cursor is hidden or shown.
+ */
+const rt = processRuntime();
 
 const CSI = '\u001B[';
 const SYNCHRONIZED_OUTPUT_ENABLE = `${CSI}?2026h`;
@@ -45,22 +53,23 @@ const eraseLines = (count: number): string => {
 
 /**
  * cli-cursor's `hide()`/`show()`, which is what log-update calls: the cursor belongs to the
- * process's terminal, not to whichever stream the caller passed in, so both go to
- * `process.stderr` regardless — as they do upstream, and as `flagstaff/ora` does. The
- * restore-on-death is `cursor.ts`, shared with the ora façade.
+ * process's terminal, not to whichever stream the caller passed in, so both go to the
+ * runtime's stderr regardless — as they do upstream, and as `flagstaff/ora` does. The
+ * restore-on-death is `closeout/restore-cursor`, shared with the ora façade; it picks the
+ * process's terminal the same way, so the hide here and the show there cannot disagree.
  */
 function hideCursor(): void {
-  if (process.stderr.isTTY !== true) return;
-  restoreCursorOnExit();
-  process.stderr.write(HIDE_CURSOR);
+  if (rt.stderr.isTTY !== true) return;
+  restoreCursor();
+  rt.stderr.write(HIDE_CURSOR);
 }
 
 function showCursor(): void {
-  if (process.stderr.isTTY !== true) return;
-  process.stderr.write(SHOW_CURSOR);
+  if (rt.stderr.isTTY !== true) return;
+  rt.stderr.write(SHOW_CURSOR);
 }
 
-/** What log-update writes to: `process.stdout` by default, anything stream-shaped in a test. */
+/** What log-update writes to: the runtime's stdout by default, anything stream-shaped in a test. */
 export interface LogUpdateStream {
   write(chunk: string): unknown;
   columns?: number;
@@ -171,7 +180,7 @@ function buildPatch({ previousCount, start, endPrevious, endNext, nextLines, end
   return sequence + moveToRow(start + writtenLineBreaks, nextLines.length - 1);
 }
 
-/** A renderer bound to one stream. `logUpdate` is this over `process.stdout`. */
+/** A renderer bound to one stream. `logUpdate` is this over the runtime's stdout. */
 export function createLogUpdate(stream: LogUpdateStream, { showCursor: keepCursor = false, defaultWidth, defaultHeight }: LogUpdateOptions = {}): LogUpdate {
   const widthOf = (): number => stream.columns ?? defaultWidth ?? DEFAULT_WIDTH;
   const heightOf = (): number => stream.rows ?? defaultHeight ?? DEFAULT_HEIGHT;
@@ -284,8 +293,8 @@ export function createLogUpdate(stream: LogUpdateStream, { showCursor: keepCurso
   return render;
 }
 
-const logUpdate: LogUpdate = createLogUpdate(process.stdout as unknown as LogUpdateStream);
+const logUpdate: LogUpdate = createLogUpdate(rt.stdout as unknown as LogUpdateStream);
 
-export const logUpdateStderr: LogUpdate = createLogUpdate(process.stderr as unknown as LogUpdateStream);
+export const logUpdateStderr: LogUpdate = createLogUpdate(rt.stderr as unknown as LogUpdateStream);
 
 export default logUpdate;

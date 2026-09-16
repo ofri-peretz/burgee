@@ -11,7 +11,8 @@
  * The SGR numbers below are chalk's tables (ansi-styles) as written; naming each would
  * double the file the R8 ceiling measures, so the lint's magic-number rule is off here.
  */
-import { colorLevel, type ColorLevel, type Runtime } from './policy.js';
+import { colorLevel, type ColorLevel } from './policy.js';
+import { processRuntime } from './runtime.js';
 import { sgr, type SgrPair } from './tokens.js';
 
 /** Colour support: none, 16 colours, 256 colours, truecolor. chalk's name for the policy's level. */
@@ -210,23 +211,23 @@ function builder(root: Root, chain: readonly SgrPair[], visible: boolean): Chalk
 }
 
 // ── Detection, once, at import ──────────────────────────────────────────────────────────
-// R6 against R9: chalk's contract is "detect the terminal at import", so this file — alone
-// in the package — reads the process, once, through the policy. The exception is recorded
-// in burgee's process-reference lock. Guarded: `process` is not a given where a bundle runs.
-const proc = (globalThis as { process?: { env: Runtime['env']; argv?: string[]; stdout?: { isTTY?: boolean }; stderr?: { isTTY?: boolean } } })
-  .process;
-
-/** The policy asks where the output is going — env, argv and the stream; for `chalkStderr` the stream is stderr. */
-const detect = (stream: 'stdout' | 'stderr'): ColorLevel =>
-  colorLevel({ env: proc?.env ?? {}, argv: proc?.argv ?? [], isTTY: { stdout: proc?.[stream]?.isTTY === true } });
-
-const stdoutLevel = detect('stdout');
-const stderrLevel = detect('stderr');
+// R6 against R9: chalk's contract is "detect the terminal at import", so this file asks the
+// runtime seam twice — once per stream — and it asks at import, not at first use. The
+// guarded `globalThis.process` cast that used to sit here moved to `./runtime.js` whole
+// (Y9); nothing about when or how often the process is read changed with it.
+const stdoutLevel = colorLevel(processRuntime());
+const stderrLevel = colorLevel(processRuntime('stderr'));
 const info = (level: ColorLevel): ColorInfo => (level === 0 ? false : { level, hasBasic: true, has256: level >= 2, has16m: level === 3 });
 
+/**
+ * The detected level is already one of the four, so checking it costs nothing and lets the
+ * validation and the default be one expression rather than two readings of `options.level`.
+ * A caller's own level is checked exactly as before — `new Chalk({ level: 9 })` throws.
+ */
 function create(options: ChalkOptions = {}, detected = stdoutLevel): ChalkInstance {
-  if (options.level !== undefined) checkLevel(options.level);
-  return builder({ level: options.level ?? detected }, [], false);
+  const { level = detected } = options;
+  checkLevel(level);
+  return builder({ level }, [], false);
 }
 
 /** `new Chalk({ level })` — an instance with its own level, detected when the option is omitted. */

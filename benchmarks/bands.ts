@@ -10,8 +10,8 @@
  * and reported "band not computed yet" forever. A band watching nothing looks exactly
  * like a band watching something healthy.
  */
-import { readdirSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { readdirSync, readFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { type AxisName } from './record.js';
@@ -59,8 +59,22 @@ const compatBand = (host: string): BandSpec => ({
  * were hand-kept and agreed with each other. Wave 2 adds twelve more from six package lanes
  * at once. Deriving it means a lane adds a host by adding its baseline fragment.
  */
-export const COMPAT_HOSTS: readonly string[] = readdirSync(resolve(dirname(fileURLToPath(import.meta.url)), '../packages/compat-oracle/baseline'))
+const BASELINE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../packages/compat-oracle/baseline');
+
+/**
+ * `"planned": true` in a fragment means the number in it was measured and is deliberately
+ * not published — `hosts.ts` carries the reason next to that host's `status: 'planned'`
+ * (cosmiconfig: its control reads 234 / 241 against an allowance of 1, and a control below
+ * its own reference must not publish a rate). Such a host gets no band, because a band is a
+ * published number that a gate watches.
+ *
+ * Without this filter the directory named two hosts the oracle never grades, and the compat
+ * axis — which fails closed on an ungraded host — withheld all seventeen of the graded ones
+ * on every CI run from wave 2 until 2026-09-16.
+ */
+export const COMPAT_HOSTS: readonly string[] = readdirSync(BASELINE_DIR)
   .filter((f) => f.endsWith('.json'))
+  .filter((f) => (JSON.parse(readFileSync(join(BASELINE_DIR, f), 'utf8')) as { planned?: boolean }).planned !== true)
   .map((f) => f.slice(0, -'.json'.length))
   .sort();
 
