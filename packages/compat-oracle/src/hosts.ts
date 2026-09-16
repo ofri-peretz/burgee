@@ -246,6 +246,32 @@ export interface Host {
    */
   avaConfig?: Record<string, unknown>;
   /**
+   * The TypeScript loader a `tap` host's suite is run under, when half its files are `.ts`.
+   *
+   * The `tap` arm is `node <file>` per file, and Node 24 strips types natively — which is
+   * enough for some suites and not for `signal-exit`'s. Measured 2026-09-16 on Node 24.18,
+   * plain `node`: `fallback.ts` runs, and the other three do not, for two reasons neither of
+   * which is about the implementation being graded. `signal-capture.ts` imports a *type* as a
+   * value (`import { ChildProcessWithoutNullStreams, spawn } from 'node:child_process'`) and
+   * type-stripping is erasure without a type-checker, so the binding survives and the module
+   * fails to link. `all-integration-test.ts` and `signal-exit-test.ts` import
+   * `'./fixtures/exec-err'` without an extension, which is TypeScript's resolution and not
+   * ESM's.
+   *
+   * Upstream handles both with `--loader ts-node/esm`, declared in its own
+   * `package.json` `tap.node-arg`. **That does not run on Node 24**: measured, every `.ts`
+   * file dies with `ERR_REQUIRE_CYCLE_MODULE` out of `importSyncForRequire`, because
+   * `require(esm)` landed after signal-exit was last published in 2023.
+   *
+   * `tsx` transpiles both constructs and is already a devDependency of this workspace, so
+   * it is named here and resolved through the module system rather than by path. This is the
+   * same substitution the `runner` field already makes when a jest suite runs under vitest:
+   * upstream's transpiler swapped for the equivalent that works here, with no assertion
+   * touched and no file edited. A closed set of one, so adding a second is a line somebody
+   * wrote on purpose.
+   */
+  tsLoader?: 'tsx';
+  /**
    * How its suite is executed. `vitest` is what a jest suite runs under, since jest's
    * globals are vitest's and vitest is already here. `exit-code` is not a TAP dialect at
    * all: it runs each file with node and grades the whole suite as one pass/fail bit, for
@@ -1032,52 +1058,65 @@ export const HOSTS: Host[] = [
     note: "Graded against `closeout/exit-hook`. The suite's fixtures live in `fixtures/` and `import … from '../index.js'`, which the vendor step rewrites to the same generated shim the test file gets, so one unedited suite grades either implementation. `ava` and `execa` are declared at the workspace root already, which is what `vendored-suite.test.ts` checks; the incumbent itself is the vendor-local copy described above.",
   },
   {
-    // **Not graded, and the reason is the harness rather than the suite.**
+    // **Vendored and runnable as of 2026-09-16, and still not graded.** The suite executes
+    // end to end — 127 cases registered, 123 passing against signal-exit's own package — and
+    // the row stays `planned` because a control that cannot clear its own reference must not
+    // publish a rate. The `note` below carries the measurement, the three blockers that are
+    // gone and the two that replaced them.
     //
-    // `signal-exit` is the headline incumbent of this layer — 198.9 M/wk, last published
-    // 2023-07-29, inside npm's own dependency tree — and `closeout/intent.md` R4 makes its
-    // pass rate the gate on the whole `overrides` recipe. It is deliberately *not* vendored:
-    // a directory of tests that cannot be run is worse than no directory, because
-    // `vendored-suite.test.ts` would then have to be told to ignore it, and an exclusion
-    // that large reads as a decision when it is a blockage.
+    // It is vendored now, where the earlier judgement was that "a directory of tests that
+    // cannot be run is worse than no directory". That judgement was right and no longer
+    // applies: these tests run. `vendored-suite.test.ts` is satisfied without being told to
+    // ignore anything — its undeclared-package check is scoped to *active* hosts, and `tap`
+    // is declared in the vendored manifest through `suiteDeps` regardless.
     //
-    // Measured 2026-09-14 against the repo at `v4.1.0`, four separate blockers, each in a
-    // file this lane may not write:
-    //
-    //  1. **Its runner is `tap`, and `Host['runner']` has no such member.** PLAN's wave-2
-    //     table says "tap ✅ TAP native"; `src/run.ts`'s `command()` has four branches —
-    //     `vitest`, `node:test`, `ava`, `mocha` — and tap is not one of them. The row in the
-    //     plan was written from `npm view signal-exit scripts.test` and not from this file.
-    //  2. **Half the suite is TypeScript run through a loader.** `test/*.ts` (four files) are
-    //     executed by tap with `--loader ts-node/esm`, declared in the host's own
-    //     `package.json` `tap.node-arg`. Neither `tap` nor `ts-node` is declared in this
-    //     workspace, and `vendored-suite.test.ts` fails any vendored file that names a
-    //     package no manifest declares — so vendoring the suite turns that lock red.
-    //  3. **Its tests reach into `dist/`, which the vendor step cannot shim.**
-    //     `test/all-integration-test.ts`, `test/fallback.ts`, `test/signals.js` and two
-    //     fixtures import `../dist/cjs/index.js` and `../dist/cjs/signals.js`.
-    //     `INTERNAL_PATTERNS` in `src/vendor.ts` knows `lib` and `src` and *throws* on
-    //     anything else, so `internalDir: 'dist'` is a change to that file, not a field here.
-    //  4. **`test/signals.js` asserts through `t.matchSnapshot()` against `tap-snapshots/`**,
-    //     which is tap's own snapshot format and has no reader outside tap.
-    //
-    // What unblocks it, in order: a `tap` branch in `command()` plus `'tap'` in the union
-    // above; a `dist` entry in `INTERNAL_PATTERNS`; and `tap` + `ts-node` as vendor-local
-    // devDependencies under `vendor/signal-exit/` (PLAN 2.14's rule, the same arrangement
-    // `exit-hook` uses here). That is the `run.ts`/`vendor.ts` owner's work — one dialect,
-    // the same size as PLAN 2.14's `cross-spawn` decision — and it is worth doing, because
-    // this is the one row `closeout`'s distribution claim rests on.
+    // `closeout/intent.md` R4 makes this row's pass rate the gate on the whole `overrides`
+    // recipe, which is why the harness for it is committed rather than abandoned: the next
+    // agent starts from 123 / 127 and one open question, not from four.
     name: 'signal-exit',
     repo: 'https://github.com/tapjs/signal-exit',
     testDir: 'test',
     testGlob: '*.{js,ts}',
-    imports: [{ upstream: '../dist/cjs/index.js', subpath: '/signal-exit', reexportDefault: false }],
+    // **Two public entries, and the second one is the whole reason this row works.**
+    // `signals.js` is not an internal: signal-exit's own exports map declares `"./signals"`
+    // beside `"."`, exactly as yargs declares `yargs/helpers`. Reading it as an internal was
+    // the first attempt and it produced no shim at all, because the only `require()` of it is
+    // inside `fixtures/`, which `ungradedDirs` prunes from the walk that collects internals —
+    // so the two fixtures and `signals.js`'s `t.mock()` would all have resolved a path that
+    // does not exist in a vendored copy. Declared here it is rewritten like any public
+    // specifier, in the test files and in the copied fixture tree alike.
+    imports: [
+      { upstream: '../dist/cjs/index.js', subpath: '/signal-exit', reexportDefault: false, control: 'signal-exit' },
+      { upstream: '../dist/cjs/signals.js', subpath: '/signal-exit/signals', reexportDefault: false, control: 'signal-exit/signals' },
+    ],
     surfaceFiles: ['src/index.ts', 'src/signals.ts'],
-    // Declared for the day the dialect lands; nothing reads it while the status is `planned`.
-    runner: 'node:test',
+    // signal-exit ships only its compiled output — its published `files` array is `["dist"]`
+    // — so `dist` is where it files the modules a test may reach and a `dist` pattern is in
+    // `INTERNAL_PATTERNS` for it. Nothing is on the internal list today, because both `dist`
+    // paths the suite names are public; the declaration is what makes `classify()` read this
+    // suite correctly, and what would catch a future release adding a third.
+    internalDir: 'dist',
+    runner: 'tap',
+    // Upstream's `--loader ts-node/esm` does not run on Node 24 — see the field's own doc.
+    tsLoader: 'tsx',
+    // The incumbent for the control, and the suite's own runner, both at the release the
+    // tests were vendored from. `tap@16.3.4` is what upstream's manifest declares at v4.1.0.
+    suiteDeps: ['signal-exit@4.1.0', 'tap@16.3.4'],
+    // `t.matchSnapshot()` reads these, and the path is relative to the vendored root because
+    // that is the cwd a `tap` spawn runs in. The earlier note called this a blocker on the
+    // grounds that the format "has no reader outside tap" — true, and the `tap` arm *is* tap:
+    // measured, `node test/signals.js` from the vendored root prints `ok … must match
+    // snapshot` against these files with no runner binary involved.
+    extraDirs: ['tap-snapshots'],
+    ungradedDirs: [
+      {
+        dir: 'fixtures',
+        why: "Programs the tests spawn as child processes to watch them exit — `exit.js`, `sigint.js`, `sigkill.js` and eighteen more. They match `*.{js,ts}` because that is simply how they are written, and running one as a test grades nothing: it installs a handler and kills itself. Two of them (`signal-capture.js`, `sigkill.js`) reach the implementation through `../../dist/`, which is why `dist/cjs/signals.js` is on the internal-shim list at all.",
+      },
+    ],
     target: 'closeout',
     status: 'planned',
-    note: '198.9 M/wk and stale since 2023-07-29 — the layer\'s headline incumbent. Blocked on the harness, not on closeout: its suite runs under `tap` with a `ts-node/esm` loader and reaches into `dist/`, and all three are edits to `run.ts` and `vendor.ts`. `runner` reads `node:test` as a placeholder so this entry type-checks; it is wrong on purpose and unread while the status is `planned`, and the dialect that lands must correct it. **No baseline fragment exists for this host, and that is the honest state** — a row here with a number in it would be a number nothing measured.',
+    note: "198.9 M/wk and stale since 2023-07-29 — the layer's headline incumbent, and **still `planned`, but for two measured reasons rather than four guessed ones.** The suite is now vendored and it runs: measured 2026-09-16, the control registers **127 cases and passes 123** against `signal-exit@4.1.0` installed beside it. It is not activated, because **a control that cannot clear its own reference must not publish a rate**, and the four it fails are not a `controlFailures` allowance — an allowance is a named exemption for something the incumbent genuinely cannot do, and at least two of these are the harness grading the wrong thing. Of the original four blockers, three are gone. (1) The `tap` runner arm exists and `dotenv` goes through it. (2) `tap-snapshots/` needs no reader outside tap because the arm *is* tap — `node test/signals.js` from the vendored root prints `ok … must match snapshot` with no runner binary, so `extraDirs` naming the directory is the whole fix. (3) `dist` is in `INTERNAL_PATTERNS` now, though it turned out not to be the mechanism this host needed: `dist/cjs/signals.js` is a **public** export (`\"./signals\"` sits beside `\".\"` in signal-exit's own exports map, exactly as `yargs/helpers` does), and reading it as an internal produced no shim at all, because its only `require()` is inside `fixtures/`, which `ungradedDirs` prunes from the walk that collects internals. Declared as a second public import it is rewritten everywhere, `t.mock('../dist/cjs/signals.js')` included — `rewriteAt` replaces the quoted literal, so the mock argument moves with it. (4) The `ts-node/esm` loader blocker is **worse than recorded and is handled**: upstream's `--loader ts-node/esm` does not run on Node 24 at all (every `.ts` file dies with `ERR_REQUIRE_CYCLE_MODULE`, because `require(esm)` landed after signal-exit's last release), and plain Node 24 type-stripping runs only one of the four (`signal-capture.ts` imports a type as a value, and two more import `'./fixtures/exec-err'` without an extension). `tsLoader: 'tsx'` runs all four. **The two that remain, both found by running it:** first, `test/no-process.js` > `process missing from the start` fails because the generated public shim is ESM by construction, so Node takes the `import` condition and hands the suite `dist/mjs/index.js` — while every one of these tests is written against `../dist/cjs/index.js`, and the two builds differ exactly here (the CJS build captures the global process object in a module-scope constant at load time and the ESM build does not, which is the behaviour `fixtures/process-gone.js` exists to check). The stack in the raw TAP names `dist/mjs/index.js` in so many words. `signal-exit-test.ts` > `does not exit if user handles signal` fails beside it and is very likely the same cause. That is not a defect in signal-exit or in closeout; it is this oracle grading a build the suite did not ask for, and fixing it means a CJS public shim, which is a change to the `shimName` rule four other hosts rely on. Second, `test/signals.js` loses 2 of its 3 cases to the shim indirection: it snapshots `t.mock('…/signals.js')` once per faked platform, and `t.mock` busts the cache of the *shim* rather than of the module behind it, so `darwin` and `linux` both get win32's list back. No allowance can make those two comparisons mean anything again. **So: the harness for this host is built and committed, the row is one honest measurement away, and the remaining work is the CJS-shim question — which is a decision about `shimName`, not about signal-exit.** No baseline fragment exists, deliberately: `reference`/`passed` record a *target* run, and no target run was taken against a control this one.",
   },
 ];
 

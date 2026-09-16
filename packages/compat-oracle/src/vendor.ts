@@ -145,6 +145,12 @@ const INTERNAL_PATTERNS: Record<string, RegExp> = {
   // slip into the gate.
   lib: /(?:from|require\()\s*['"](?:\.\.\/)+((?:build\/)?lib\/[^'"]+)['"]/g,
   src: /(?:from|require\()\s*['"](?:\.\.\/)+((?:build\/)?src\/[^'"]+)['"]/g,
+  // A host that ships only its *compiled* output and tests it there. `signal-exit`'s suite
+  // imports `../dist/cjs/index.js` and `../dist/cjs/signals.js`, and its published tarball's
+  // `files` array is `["dist"]` — so for the control the shim points at a file the package
+  // really does ship, which is the case `internalShimFrom`'s fallback exists for the
+  // opposite of.
+  dist: /(?:from|require\()\s*['"](?:\.\.\/)+((?:build\/)?dist\/[^'"]+)['"]/g,
 };
 
 /** Every internal module path a source imports, relative to the host's root. */

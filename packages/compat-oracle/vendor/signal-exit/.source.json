@@ -1,0 +1,83 @@
+{
+  "repo": "https://github.com/tapjs/signal-exit",
+  "version": "4.1.0",
+  "tag": "v4.1.0",
+  "commit": "458776d9cf8be89712aa1f7b45bb2163ce15ef4a",
+  "vendored": "2026-09-16",
+  "files": 8,
+  "internalFiles": [],
+  "internals": [],
+  "hashes": {
+    "test/all-integration-test.ts": "baf78bf97d0c76e24b5ad3df4808bb84745f2ff53ed9673ce1ea1f27f8e8d51f",
+    "test/fallback.ts": "bf83868afd5b138cd02924e6f9ae46961c184a3fc90129dac1a32eee4a2b2a26",
+    "test/many-handlers.js": "2a8a75ef30af7c53e0251bef37fecbf2ba8f3358233c80daf38bbda13b554077",
+    "test/multi-exit.js": "680acf9e3cd04b8d9b39a7799e2c16740cfc659b07641cfed6231ef8d34271c0",
+    "test/no-process.js": "110845a7c2c3341b153d8a8ca9f94f8561010b2da3fec5efa9e3e0cf67e3bb5a",
+    "test/signal-capture.ts": "800068c7ce9ebca41378bd278224a4db0f4b5f650240e2b1f76573635674de2a",
+    "test/signal-exit-test.ts": "2800147c3f725b4547956821e7682fb3131d1f65935533ccbb04166e8b736ed7",
+    "test/signals.js": "b7885aedd2fb9d9a7495bd41810e4a471ef21713e06fe1c9191f45860f36fec7",
+    "src/index.ts": "b8460be90e04ef57dd835533106727cd512466ba317468754de10b5b8f8ad06f",
+    "src/signals.ts": "ee35d10d3ba908d463d43f63fe43e87769f16d8764acba47d2d729ac262745df"
+  },
+  "tests": {
+    "test/all-integration-test.ts": [
+      "exits properly: ",
+      "exits properly: (external sig) "
+    ],
+    "test/fallback.ts": [],
+    "test/many-handlers.js": [
+      "parent"
+    ],
+    "test/multi-exit.js": [],
+    "test/no-process.js": [
+      "process missing from the start",
+      "process goes missing before onExit() call",
+      "process goes missing after onExit() call, before exit"
+    ],
+    "test/signal-capture.ts": [
+      "graceful exit",
+      "exit 0",
+      "exit 1",
+      "signal, no capture",
+      "signal, capture exit",
+      "signal, capture afterExit",
+      "signal, capture both"
+    ],
+    "test/signal-exit-test.ts": [
+      "receives an exit event when a process exits normally",
+      "receives an exit event when process.exit() is called",
+      "ensures that if alwaysLast=true, the handler is run last (signal)",
+      "ensures that if alwaysLast=true, the handler is run last (normal exit)",
+      "works when loaded multiple times",
+      "removes handlers when fully unwrapped",
+      "does not load() or unload() more than once",
+      "receives an exit event when a process is terminated with sigint",
+      "receives an exit event when a process is terminated with sigterm",
+      "does not exit on sigpipe",
+      "handles uncatchable signals with grace and poise",
+      "does not exit if user handles signal"
+    ],
+    "test/signals.js": []
+  },
+  "surface": {
+    "src/index.ts": [
+      "Emitter",
+      "Emitter.emit",
+      "Emitter.on",
+      "Emitter.removeListener",
+      "Handler",
+      "SignalExit",
+      "SignalExit.load",
+      "SignalExit.onExit",
+      "SignalExit.unload",
+      "SignalExitBase",
+      "SignalExitFallback",
+      "SignalExitFallback.load",
+      "SignalExitFallback.onExit",
+      "SignalExitFallback.unload"
+    ],
+    "src/signals.ts": [
+      "signals"
+    ]
+  }
+}
