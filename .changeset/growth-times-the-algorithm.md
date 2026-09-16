@@ -2,24 +2,27 @@
 'burgee': patch
 ---
 
-The cliui backtracking gate stops measuring a ratio and measures one large case against a
-budget with orders of magnitude of headroom.
+The cliui backtracking guard is checked by shape rather than by clock, after three timing
+instruments failed on it, each differently.
 
-**Three instruments have now failed on this one assertion.** An absolute `< 400 ms` at a small
-size red-lit a CI box that returned 440 — a 10% margin is a statement about the runner. The
-growth *ratio* that replaced it failed worse: **15.04 on macOS CI against 4.09 locally, for
-identical code**, batched 256 times, so not noise.
+1. `< 400 ms` at a small size — a CI box returned 440. A 10% margin measures the runner.
+2. A growth **ratio** read **15.04 on macOS CI against 4.09 locally for identical code**,
+   batched 256 times, so not noise. Per call that runner was 3x slower at n and 11x slower at
+   4n: a 48,000-character cell is 96 KB of UTF-16 where a 12,000-character one is 24 KB, and the
+   larger crosses a cache boundary the smaller does not. The ratio measured the memory
+   hierarchy, and no ceiling repairs that.
+3. An absolute budget cannot work either, and the numbers say why: at n = 50,000 the quadratic
+   implementation costs **1,072 ms here** while the linear one costs **~1,780 ms on CI**.
+   Correct code on the slow machine is dearer than buggy code on the fast one, so no threshold
+   separates them — and any threshold that passes CI cannot fail locally.
 
-The ratio's premise was wrong. Per call the CI runner was 3x slower at n and **11x slower at
-4n**: a 48,000-character cell is 96 KB of UTF-16 where a 12,000-character one is 24 KB, so the
-larger crosses a cache boundary the smaller does not. The ratio was measuring the memory
-hierarchy, and no ceiling fixes that — linear code genuinely costs more than 4x once its input
-stops fitting.
+The bug is one shape: a quantifier with no anchor before it, matched against the row text, so
+the engine retries at every position in a long run and each attempt walks to the end.
+`cliui.ts`'s own comment records the cost — 1,049 ms of `toString()`'s 1,223 ms for a cell of
+50,000 spaces, quadrupling when the cell doubled. The check now asserts that shape is absent:
+deterministic, microseconds, no flake. Reintroducing `str.replace(/ +$/, "")` turns it red.
 
-One size now, large, with a gap nothing about a machine can close. Measured: the linear
-implementation renders a 200,000-space cell in **0.2 ms**; restoring the upstream
-`str.replace(/ +$/, "")` renders it in **16,321 ms**. The budget is 1,000 ms — ~5,000x above
-linear, 16x below quadratic.
-
-That is what separates it from the `< 400 ms` that failed: not that it is absolute, but that a
-reading cannot cross a gap this wide.
+What it gives up is generality — it catches the shape rather than the behaviour, so a new
+quadratic written another way would pass. That is stated in the test. Its first run also
+matched the comment that documents the bug, which is why comments are stripped first: the third
+checker in this repository to be caught reading printed source rather than shape.

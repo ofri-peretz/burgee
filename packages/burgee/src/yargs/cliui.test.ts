@@ -55,6 +55,8 @@
  * 0.2 ms — and it still holds, because the quadratic it guards against overshoots it by
  * 800 ms. Measured reverted: 1,058 ms.
  */
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import { cliui } from "./cliui.js";
@@ -155,41 +157,47 @@ import { cliui } from "./cliui.js";
  * **15.900** for `div` and **14.748** for `toString()`.
  */
 /**
- * The size at which a linear implementation and a quadratic one are not close.
+ * Catastrophic backtracking is checked by shape, not by clock — after three timing instruments
+ * failed, each differently.
  *
- * **Three instruments have now failed on this one assertion.** An absolute `< 400 ms` at a
- * small size red-lit a CI box that came back with 440 — a 10% margin is a statement about the
- * runner. Replacing it with a growth *ratio* — quadruple the input, require the cost not to
- * multiply by ~16 — failed differently and worse: it read **15.04 on macOS CI against 4.09
- * locally, for identical code**, batched 256 times, so not noise.
+ * 1. `< 400 ms` at a small size: a CI box returned 440. A 10% margin measures the runner.
+ * 2. A growth *ratio* — quadruple the input, require the cost not to multiply by ~16 — read
+ *    **15.04 on macOS CI against 4.09 locally for identical code**, batched 256 times, so not
+ *    noise. Per call that runner was 3x slower at n and 11x slower at 4n: a 48,000-character
+ *    cell is 96 KB of UTF-16 where a 12,000-character one is 24 KB, and the larger crosses a
+ *    cache boundary the smaller does not. The ratio was measuring the memory hierarchy, and no
+ *    ceiling repairs that — linear code genuinely costs more than 4x once its input stops
+ *    fitting.
+ * 3. An absolute budget, sized properly this time. It cannot work either, and the numbers say
+ *    why: at n = 50,000 the quadratic implementation costs **1,072 ms here** while the linear
+ *    one costs **~1,780 ms on CI** (measured 33x slower on this path). *Correct code on the
+ *    slow machine is dearer than buggy code on the fast one.* No single threshold separates
+ *    them, and any threshold that passes CI cannot fail locally — a check that cannot fail
+ *    where it runs most often, which is the defect this repository keeps finding in its own
+ *    checkers.
  *
- * The ratio's premise was wrong. Per call the CI runner was 3x slower at n and **11x slower at
- * 4n**: a 48,000-character cell is 96 KB of UTF-16 where a 12,000-character one is 24 KB, so
- * the larger crosses a cache boundary the smaller does not. The ratio was measuring the memory
- * hierarchy. No ceiling fixes that, because linear code genuinely costs more than 4x once its
- * input stops fitting.
+ * So the guarantee is structural. The bug is one shape: a quantifier with no anchor before it,
+ * matched against the row text, so the engine retries at every position in a long run and each
+ * attempt walks to the end. `cliui.ts`'s own comment records what that cost — **1,049 ms of
+ * `toString()`'s 1,223 ms** for a cell of 50,000 spaces, quadrupling when the cell doubled.
  *
- * So: one size, large, and a budget with room to be wrong by orders of magnitude. Measured here
- * — the linear implementation renders a 200,000-space cell in **0.2 ms**. The quadratic one
- * this guards is recorded in `cliui.ts`'s own comment at **1,049 ms for 50,000 spaces**, which
- * is ~17 seconds at this size. One second sits ~3,000x above linear and ~17x below quadratic.
- * A runner an order of magnitude slower than this one still passes; a reintroduced backtracking
- * regex still cannot.
- *
- * That is what separates this from the `< 400 ms` that failed — not that it is absolute, but
- * that nothing about the machine can move a reading across a gap this wide.
+ * This runs in microseconds, on every machine, and cannot flake. What it gives up is generality:
+ * it catches the shape rather than the behaviour, so a *new* quadratic written some other way
+ * would pass. The measurement above is the evidence that this shape is the one that bit, and
+ * `measurePadding`'s own comment records the same lesson one function over.
  */
-const PATHOLOGICAL = 200_000;
-const BUDGET_MS = 1_000;
+const ROW_SOURCE = readFileSync(new URL("./cliui.ts", import.meta.url), "utf8")
+  // Comments out, or this matches the paragraph in `cliui.ts` that *documents* the bug — which
+  // it did on the first run. A checker that reads printed source and not shape is the defect
+  // this repository has now caught in three of its own checkers.
+  .replace(/\/\*[\s\S]*?\*\//g, "")
+  .replace(/^\s*\/\/.*$/gm, "");
 
-/** One long run of spaces then a single character — the shape that makes an unanchored regex backtrack. */
-const mostlyWhitespace = `${" ".repeat(PATHOLOGICAL)}x`;
-
-function costMs(work: () => unknown): number {
-  const started = performance.now();
-  work();
-  return performance.now() - started;
-}
+/**
+ * A quantified run with nothing anchoring its start — `/ +$/`, `/\s*$/`, `/[ \t]+$/`.
+ * `/^ +/` is fine: anchored at the start, the engine tries one position.
+ */
+const UNANCHORED_TAIL = /\/(?!\^)[^/\n]*[+*]\$\//;
 
 describe("padding measurement", () => {
   it("counts leading and trailing whitespace", () => {
@@ -199,8 +207,7 @@ describe("padding measurement", () => {
   });
 
   it("does not backtrack on a cell that is mostly whitespace", () => {
-    const ms = costMs(() => cliui({ width: 80 }).div(mostlyWhitespace));
-    expect(ms, `${String(PATHOLOGICAL)} spaces laid out in ${ms.toFixed(1)} ms — linear reads well under 10, the backtracking regex reads thousands`).toBeLessThan(BUDGET_MS);
+    expect(UNANCHORED_TAIL.test(ROW_SOURCE), `cliui.ts grew an unanchored trailing quantifier — that is the 1,049 ms shape`).toBe(false);
   });
 });
 
@@ -220,7 +227,6 @@ describe("row rendering", () => {
     };
     // The trim lives in `toString()`, so this one must render, not merely lay out.
     expect(render(`${" ".repeat(24_000)}x`).endsWith("x")).toBe(true);
-    const ms = costMs(() => render(mostlyWhitespace));
-    expect(ms, `${String(PATHOLOGICAL)} spaces rendered in ${ms.toFixed(1)} ms — linear reads well under 10`).toBeLessThan(BUDGET_MS);
+    expect(UNANCHORED_TAIL.test(ROW_SOURCE), `the trim in toString() must stay anchored or linear`).toBe(false);
   });
 });
