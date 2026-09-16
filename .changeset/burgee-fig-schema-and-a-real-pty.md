@@ -49,9 +49,12 @@ echoed `^C`, that the handler the program registered ran, and that the process *
 A program that exited 130 here would tell its parent it chose to stop.
 
 The pty comes from `python3`'s standard-library `pty.fork()`, so nothing enters the lockfile —
-the same borrowing as calling `git` in `compat-oracle/src/vendor.ts`. `script(1)` was measured
-and rejected: BSD `script` calls `tcgetattr` on its own stdin, so it dies with
-`Operation not supported on socket` under any test runner. **Windows is skipped with its
+the same borrowing as calling `git` in `compat-oracle/src/vendor.ts`. Two other dependency-free
+routes were considered: `script(1)` was measured and rejected, because BSD `script` calls
+`tcgetattr` on its own stdin and dies with `Operation not supported on socket` under any test
+runner; and `zsh/zpty`, which `scripts/complete-zsh.zsh` already uses for the zsh completion
+case, is right where the subject *is* a shell widget but is gated on `has('zsh')` and an
+apt-install, where `python3` is preinstalled on every hosted runner. **Windows is skipped with its
 reason**, not quietly dropped: Python's `pty` is POSIX-only and a Windows pseudo-console means
 ConPTY through a native addon, so the third OS PLAN 2.5.4 asks for costs `node-pty` — a native
 build on every runner, and `compat.yml` installs with `--ignore-scripts`. That is a decision for

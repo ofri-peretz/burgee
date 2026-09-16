@@ -36,17 +36,25 @@
  * wraps an fd that is already a terminal and cannot create one. Every npm answer
  * (`node-pty`) is a **native addon**, and U1 is zero external dependencies.
  *
- * Two dependency-free routes exist, and only one of them survives CI:
+ * Three dependency-free routes exist, and the choice between them is availability:
  *
+ *  - `zsh/zpty` — **the in-repo precedent, and not reused here.** `scripts/complete-zsh.zsh`
+ *    already drives a real pty this way (`zmodload zsh/zpty`, then a literal TAB written into
+ *    an interactive zsh), for `completions.test.ts`'s zsh case. It is the right tool there,
+ *    because what that test needs a terminal *for* is zsh's own completion widget. Here the
+ *    shell is irrelevant — the subject is a Node program — and zsh is a guard rather than a
+ *    given: that suite is `it.runIf(has('zsh'))` and its workflow apt-installs zsh on
+ *    `ubuntu-latest`, which is the one OS this case least needs help with.
  *  - `script(1)` — **rejected, measured.** BSD `script` (macOS) calls `tcgetattr` on its own
  *    stdin to copy the terminal's settings, so with a pipe there it exits
  *    `tcgetattr/ioctl: Operation not supported on socket` before running anything. A test
  *    runner's stdin is never a tty, so this fails on a developer's machine and in Actions
  *    alike. The util-linux spelling also takes different flags, so it is two techniques.
- *  - `python3 -c 'import pty'` — **used here.** `pty.fork()` is Python's standard library,
- *    present on every GitHub-hosted macOS and Linux runner and on any developer machine with
- *    Xcode command line tools. Nothing is installed and nothing enters the lockfile: it is the
- *    same kind of borrowing as calling `git` in `compat-oracle/src/vendor.ts`.
+ *  - `python3 -c 'import pty'` — **used here.** `pty.fork()` is Python's standard library and
+ *    is preinstalled on every GitHub-hosted runner, macOS and Linux alike, with no install
+ *    step — which is what decides it over `zpty` for a case that wants to run in the ordinary
+ *    `npm test` on the `compat.yml` matrix rather than in a shell-specific job. Nothing enters
+ *    the lockfile: the same borrowing as calling `git` in `compat-oracle/src/vendor.ts`.
  *
  * ## Windows is not covered, and cannot be at this price
  *
