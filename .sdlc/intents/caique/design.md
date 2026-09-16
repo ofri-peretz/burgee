@@ -221,13 +221,17 @@ drives a fake key stream, which is what made all seven cheap to check.
 Not yet: the `caique/clack` and `caique/inquirer` façades, still blocked on the
 render-grading decision in `output-stack-compat`.
 
-## What shipped (`plugin-contract` R5 — caique hosts `widgets` — 2026-09-13)
+## What shipped (R7, `plugin-contract` R5 — caique hosts `widgets` — 2026-09-13)
 
 `caique/plugin`: `register()`, `widgets()`, `widgetFor()`, `kinds()`, `projectionOf()`,
 `registered()`, `reset()`, and the family's error vocabulary with the same `fix` shape
 roundel and flagstaff use (R8). It is step 3 of `plugin-contract`'s order of execution.
 
-**`PromptKind` was widened first, and that ordering is the decision.** The union was closed,
+**`PromptKind` was widened first, and that ordering is the decision — this is R7.** The
+heading did not name R7 until 2026-09-16, which is why `plan-progress`'s `designGap()` read
+this design as incomplete while the requirement had been met for three days: the section
+describes the widening at length and the checker looks at headings. Recorded, not rewritten
+— the work below is unchanged and was already true. The union was closed,
 so a plugin's seventh kind did not type-check — which means hosting `widgets` on top of a
 closed union would have been a breaking change written as an additive one: every caller
 would have needed this repo to edit `spec.ts` before it could name its own kind. It is now
