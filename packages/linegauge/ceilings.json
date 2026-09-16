@@ -63,34 +63,56 @@
     }
   },
   "y8": {
-    "holds": false,
+    "holds": true,
+    "bar": "foundation-ceilings.json — D1's tree-inclusive ceiling",
+    "measured": {
+      "ours": 83538,
+      "ceiling": 170342,
+      "ratio": 0.4904,
+      "on": "2026-09-16"
+    },
     "why": [
-      "R9 asks for bundled bytes at or under `get-east-asian-width` (3977 bundled, 0 deps,",
-      "the lightest thing in this layer). Measured against that bar, one of six entries",
-      "clears it: `strip.js` at 966. `index.js` is 6180, which is 1.55x.",
+      "R9's bar is restated as D1's, and this is the restatement. Decided in the integrator",
+      "lane on 2026-09-16, on the reasoning this file already carried and the design section",
+      "§ R9 spelled out — the lane that found it could not make the change, because the bar is",
+      "one decision for the whole foundation tier and `.sdlc/bands/**` is not a package lane's",
+      "to write.",
       "",
-      "Against the weaker and more useful bar `.sdlc/PLAN.md` D1 substitutes — the bundled",
-      "bytes of the package each entry actually replaces — one of four holds: `wrap.js` at",
-      "11116 against `wrap-ansi` at 14367. `index.js` is 6180 against `string-width` at",
-      "6057 (2% over), `slice.js` is 8778 against `slice-ansi` at 5964 (47% over) and",
-      "`strip.js` is 966 against `strip-ansi` at 429 (2.3x, on a bundle small enough that",
-      "the ratio is not the interesting number).",
+      "R9's own text names two things that disagree: the bar `get-east-asian-width`, and the",
+      "file `.sdlc/bands/foundation-ceilings.json`, which records D1's. D1 is the later",
+      "decision and the defensible one. `get-east-asian-width` is a width table with no",
+      "segmenter, no escape scanner and no style stack; asking six functions to weigh what one",
+      "lookup weighs was never a comparison of like with like, and four of the six foundation",
+      "layers have no zero-dependency incumbent to anchor against at all — which is the reason",
+      "D1 gives for itself.",
       "",
-      "The measurement is not the whole claim and must not be quoted as if it were: the",
-      "incumbent figures above are the bundled bytes of ONE package, and `string-width`",
-      "does not ship alone — it carries `strip-ansi`, `ansi-regex` and",
-      "`get-east-asian-width`. What a user removes by switching is the tree; what the",
-      "bundler keeps after tree-shaking is this. The two answer different questions and",
-      "D1 chose the first. Computing it belongs in `benchmarks/axes/weight.ts`, which has",
-      "no `linegauge` pair yet — see `notBuilt` below."
+      "Against D1's bar this package reads **83,538 installed bytes against a ceiling of",
+      "170,342** — the tree-inclusive bytes of `string-width`, `wrap-ansi`, `strip-ansi` and",
+      "`slice-ansi`, which is what a user removes by switching — a ratio of **0.4904**.",
+      "",
+      "The old bar is kept below rather than deleted, because a bar that is restated and then",
+      "vanishes is indistinguishable from one that was quietly met. Against",
+      "`get-east-asian-width` at 3,977 bundled, one of six entries clears it: `strip.js` at",
+      "966. `index.js` is 6,180, 1.55x. That was true when it was written and it is still true."
+    ],
+    "supersededBar": {
+      "name": "get-east-asian-width",
+      "bundledBytes": 3977,
+      "entriesClearing": 1,
+      "entriesTotal": 6,
+      "why": "R9 as originally written. Recorded, not enforced — see `why` above."
+    },
+    "perEntryRatchet": [
+      "The bundled half is now gated per entry, which it never was: `benchmarks/",
+      "fixtures/entry-points.ts` gained `linegauge`, `linegauge/wrap`, `linegauge/slice` and",
+      "`linegauge/strip` pairs on 2026-09-16, and `RATIO_CEILING` in",
+      "`benchmarks/axes/weight.ts` ratchets each at its measured value — 1.03, 1 (0.774 earns",
+      "it), 1.5 and 2.25. Those are ratchets, not claims of being lighter, and the file says so."
     ],
     "notBuilt": [
-      ".sdlc/bands/foundation-ceilings.json — R9 names it and it does not exist. Outside",
-      "this lane's write paths (`.sdlc/bands/**` belongs to the integrator lane), so the",
-      "entry cannot be added from here.",
-      "benchmarks/fixtures/entry-points.ts has no `linegauge` pair, so B4 computes no",
-      "tree-inclusive ratio for this package. Also the integrator lane's path.",
-      "The spawn-delta half of R9 is unmeasured: it needs the B4 harness above."
+      "The spawn-delta clause of R9 does not apply and is not pending: this package publishes",
+      "no binary, so there is no spawn to measure. Its analogue for a library is what a",
+      "caller's bundle grows by, which is the per-entry B4 ratchet above."
     ]
   },
   "growth": {

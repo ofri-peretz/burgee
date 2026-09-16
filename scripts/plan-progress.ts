@@ -127,8 +127,14 @@ const designGap = (slug: string): string => {
     ...[...text.matchAll(/^\| (R\d+) \| \*\*Built\*\*/gm)].map((m) => m[1] as string),
   ]);
   if (shipped.size === 0) return 'the design records no per-requirement status, in either shape';
-  // An explicit "Not built" anywhere is the design telling on itself, and it outranks the list.
-  if (text.includes('Not built')) return 'the design says a requirement is not built';
+  // An explicit "Not built" anywhere is the design telling on itself, and it outranks the
+  // list — but only where it is a *status*. Inline code is stripped first, because three of
+  // these designs explain their own vocabulary ("the Status cell holds `Built` or `Not
+  // built`") and a checker that reads the sentence defining the word reports the word. That
+  // is the fourth time in this file a condition has been false for a reason that had nothing
+  // to do with its step, and the third caused by reading printed prose as if it were data.
+  const prose = text.replace(/`[^`\n]*`/g, '');
+  if (prose.includes('Not built')) return 'the design says a requirement is not built';
   const missing = wanted.filter((r) => !shipped.has(r));
   return missing.length === 0 ? '' : `${missing.join(', ')} not recorded as built`;
 };
