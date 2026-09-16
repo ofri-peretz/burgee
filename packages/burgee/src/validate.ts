@@ -6,7 +6,7 @@
  * arrived; that file says why. This one runs on every invocation, that one runs once.
  */
 import { type OptionSpec, type Relation } from './manifest.js';
-import { kebab } from './names.js';
+import { flagsOf, kebab } from './names.js';
 
 /** A usage problem the caller can fix, carrying the flag that fixes it (E3). */
 export class UsageError extends Error {
@@ -20,7 +20,7 @@ export class UsageError extends Error {
 
 type Sources = Record<string, { source: string }>;
 const isSet = (values: Record<string, unknown>, key: string, sources: Sources): boolean => values[key] !== undefined && sources[key]?.source !== 'default';
-const flagList = (keys: readonly string[]): string => keys.map((k) => `--${kebab(k)}`).join(', ');
+const flagList = (keys: readonly string[]): string => flagsOf(keys).join(', ');
 
 function exactlyOne(keys: readonly string[], on: string[]): void {
   if (on.length === 1) return;

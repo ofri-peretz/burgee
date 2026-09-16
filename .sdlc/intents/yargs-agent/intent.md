@@ -97,3 +97,22 @@ None open. Decided at finalisation (2026-09-06):
   `.completion()` and `.showHidden()` meet V1/V2 and D2 natively; the layer adds only
   `--explain`/provenance (through `yargs-agent`) and static completion generation
   (through the shared renderer, exposed as `yargs-agent`'s `completion` command).
+
+## Incumbents
+
+`yargs` — the trackers whose issues are this surface's demand signal, and the input
+`scripts/mine-issues.ts` (PLAN 4.1) needs in order to write the `issues.md` beside this file.
+
+It is declared here because the miner's own `LAYERS` table, in
+`packages/compat-oracle/src/demand.ts`, knows the nine *packages* and not the surfaces of any
+one of them: `burgee`'s entry names `commander` and `yargs` for the whole package, and the six
+surface intents are not in the table at all. Until that table reads this line,
+`npx tsx scripts/mine-issues.ts yargs-agent` answers `no layer matched`.
+
+Chosen from evidence rather than from the slug, which is the reason to write it down at all.
+The rule: **the front-end this surface adapts, plus every other tracker this intent's own body
+cites three or more times.** Here that is `yargs` alone. Trackers cited once or twice
+(none) are comparisons this intent draws, not incumbents it replaces; mining them would file
+issues under a surface no criterion here answers.
+
+<!-- incumbents: yargs -->
