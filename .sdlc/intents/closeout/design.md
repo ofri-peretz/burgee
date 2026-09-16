@@ -450,6 +450,99 @@ fidelity cases pass. Reverting `install.ts` to its pre-fix state with the new as
 place gives **10 red across three files**: those four, the five `matrix.test.ts` signal cells
 now asserting `proc.raised`, and the `install.test.ts` re-raise case.
 
+## The surface a consumer gets, derived from the tree (2026-09-15)
+
+R12 and its shipped entry already say everything about the plugin host. What is missing is
+the plain list of what the package offers, which today can only be assembled by reading eight
+shipped entries in order.
+
+**Derived, not transcribed.** One row per entry in `packages/closeout/package.json`'s
+`exports` map; the names are the exported declarations of the source file each subpath's
+`dist/` path is built from. Re-derive with `node -p "Object.keys(require('./packages/closeout/package.json').exports)"`
+and `grep '^export' packages/closeout/src/<file>.ts`.
+
+| Subpath | What a consumer gets | What it is for |
+| :-- | :-- | :-- |
+| `closeout` | `install`, `onExit`, `createRegistry`, `once`, `hideCursor`, `showCursor`, `HIDE_CURSOR`, `SHOW_CURSOR`, `assertDeadline`, `DEFAULT_DEADLINE`, `DEFAULT_PHASE`, `PHASES`, `SIGNALS`, `EXIT_PATHS`, `DeadlineError`, `DEADLINE_ERROR_CODE`, `timeoutMessage`, `reportToJson`, `reportToEvent`; types `Closeout`, `Registry`, `RegistryOptions`, `ExitHandler`, `HandlerOptions`, `HandlerSpec`, `ExitInfo`, `ExitPath`, `ExitEvent`, `ExitReport`, `ShutdownReport`, `Phase`, `InstallOptions`, `OutputStream`, `ProcessLike` | register cleanup, bound it, and read what happened |
+| `closeout/once` | `once` | the `onetime` + `mimic-fn` contract in one function, `name`/`length`/`this` preserved (R5) |
+| `closeout/cursor` | `showCursor`, `hideCursor`, `HIDE_CURSOR`, `SHOW_CURSOR`; `OutputStream` | the escape bytes and the two calls, against a stream the caller passes |
+| `closeout/plugin` | `register`, `validate`, `reset`, `registered`, `contributions`, `attach`, `CONTRACT`, `PLUGIN_PHASES`, `PluginError`; `Plugin`, `PluginHandler`, `Contribution`, `HandlerHost`, `PluginErrorCode` | the extension point (R12) |
+| `closeout/restore-cursor` | a default export, and nothing else | the drop-in path for `restore-cursor` — the stream is chosen from the process, which is why this is its own entry |
+| `closeout/exit-hook` | `asyncExitHook`, `gracefulExit`; `ExitHookCallback`, `AsyncExitHookOptions` | the drop-in path for `exit-hook` |
+| `closeout/schema.json` | the family plugin schema, as a file | what a plugin author or an agent validates against |
+
+Three things the table settles that the requirements do not:
+
+- **`onExit(fn, spec?)`'s second argument takes a bare phase as well as an options object.**
+  `HandlerSpec = Phase | HandlerOptions`, so `onExit(fn, 'restore')` and
+  `onExit(fn, { phase: 'flush', label: 'acme:unlock' })` are both spellings of the same
+  thing, and the bare phase is the common case. R1 says only `opts?`.
+- **`createRegistry` is public**, so a caller can build a registry of its own and drive it,
+  which is what makes `attach()` useful to something that is not the process-wide instance.
+- **The `signal-exit` drop-in is not a subpath.** R6 describes the root default export as
+  `signal-exit`'s; the root is a named re-export block with no default. `restore-cursor` and
+  `exit-hook` each got their own entry; `signal-exit` did not.
+
+**The extension summary, in one paragraph.** One key, `handlers` — an array of
+`{ name, phase?, run }`. `name` is required because a plugin's cleanup is the handler least
+likely to be a named function and most likely to be the one that hangs, and the whole product
+is being able to say "acme:unlock did not return" instead of "a handler did not return".
+`phase` is `flush` or `release` and **never `restore`**: closeout's own last phase is where
+the terminal goes back, and a plugin admitted to it could land after the hand-back depending
+on nothing but which registered first. `run` is the one function this key requires, which is
+the documented exception — an exit handler *is* behaviour, and what is data here is the
+**ordering**. `register()` validates and throws `PluginError` before touching the registry;
+`contributions()` is the static projection of the shutdown sequence, readable without
+triggering one; `attach(host)` wires each handler into its phase and returns the function
+that takes them all back off. **Registering does not run**: a plugin contributing cleanup
+must not decide when shutdown happens.
+
+### What closeout does not do, and why
+
+Beyond "Out of scope" below:
+
+- **It does not let a plugin into the `restore` phase.** See above; it is a refusal at the
+  door, because a rule enforced anywhere else is not a "never".
+- **It does not accept `Infinity` or `0` as a deadline.** Both are rejected at registration.
+  An unbounded deadline is the failure this package exists to remove, and a zero one is a
+  shutdown that never runs.
+- **It does not run handlers twice.** A second trigger of any kind records its path in the
+  report and runs nothing.
+- **It does not end a process it did not start, and does not supervise children.** That is
+  `bellpull`, one layer over, and the edge between them is a structural parameter rather than
+  a dependency.
+
+## Where this document and the code disagree (2026-09-15)
+
+Recorded rather than tidied away. This design already reconciles more of its own drift than
+any other in the repo — R7's file, R8's ceiling and R1-vs-R2 are all corrected in shipped
+entries below rather than edited away above. What remains:
+
+- **R6's root default export does not exist.** `src/index.ts` has no default export, so
+  `overrides: { "signal-exit": "npm:closeout@^1" }` does not resolve against this package as
+  written. The two drop-ins that did ship, `./restore-cursor` and `./exit-hook`, are
+  subpaths — and R6 names neither of them, listing only `./cursor` and `./once` as carrying
+  "the rest".
+- **R7 still names `install.ts` as the one process-touching file**, in the requirement text.
+  The shipped entry below is explicit that the file is `ambient.ts` and that this design's
+  own map was wrong about it. The correction is recorded; the requirement is not.
+- **The `## Design` file map lists `runtime.ts`, which this package does not have**, and
+  omits five files that it does: `ambient.ts`, `exit-hook.ts`, `plugin.ts`,
+  `restore-cursor.ts` and `schema.json`.
+- **R1's `opts?` understates the argument.** See the table above: a bare `Phase` string is
+  accepted and is the common spelling.
+- **The shared `schema.json` does not describe `handlers`.** It is flagstaff's file
+  byte-identical (PLAN 1.1) and its properties are `name`, `contract`, `tokens`, `glyphs`,
+  `spinners`, `borders`, `components`, `capabilities`. `handlers` validates today only
+  because the root sets `additionalProperties: true`, so `closeout/schema.json` — which this
+  package publishes as the thing a plugin author writes against — says nothing about the one
+  key this package hosts, and its `title` announces it as flagstaff's file. The same gap
+  exists for `caique`'s `widgets` and `bellpull`'s `resolvers`; one edit to flagstaff's source
+  copy closes all three.
+- **R12 records that `plugin-contract` R7's exemption list owes `handlers.run` an entry.**
+  That edit belongs to the `plugin-contract` lane and, as of this reading, has not been made.
+  It is restated here so that it is not lost between two designs.
+
 ## Rejected alternatives
 
 - **Adding SIGHUP to `closeout/exit-hook`, to close the gap flagstaff found.** It reads like
