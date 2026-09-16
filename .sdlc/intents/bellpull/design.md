@@ -457,6 +457,7 @@ Beyond "Out of scope" below:
 - **`shell` is off by default** and is documented as the injection surface it is. It is never
   switched on to solve a Windows problem.
 - **It claims no number against `tinyexec`**, which is not installed in this workspace.
+
 ## Where this document and the code disagreed (2026-09-15) — reconciled 2026-09-16
 
 The section this replaces listed eight divergences and left them standing. That is why nobody
