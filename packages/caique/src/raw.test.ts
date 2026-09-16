@@ -240,6 +240,12 @@ function promptThenSignal(signal: string, answerFirst = false): SignalOutcome {
   const dir = mkdtempSync(join(tmpdir(), 'caique-raw-signal-'));
   const log = join(dir, 'fd2');
   const child = join(dir, 'child.mjs');
+  // **Nothing is interpolated into this source.** It was built by template — the dist path, the
+  // key bytes and the signal name all spliced in — and CodeQL called it improper code
+  // sanitization. It was a false positive (`JSON.stringify` is the right encoder and every value
+  // was a module constant), but a test that *constructs code* to test a prompt is one refactor
+  // away from doing so with something it read. The child takes its three inputs from the
+  // environment and argv, so the body below is a fixed string and there is nothing to sanitize.
   writeFileSync(
     child,
     [
@@ -253,10 +259,12 @@ function promptThenSignal(signal: string, answerFirst = false): SignalOutcome {
       '  pause: () => undefined,',
       '};',
       'const io = { keys, writer: { write: (t) => process.stderr.write(t) }, reader: { line: () => Promise.resolve(undefined) } };',
-      `const { askList } = await import(${JSON.stringify(distRaw)});`,
-      `askList({ kind: 'select', message: 'Which host?', choices: [{ value: 'ora' }, { value: 'chalk' }] }, io);`,
-      answerFirst ? `setTimeout(() => { for (const l of [...listeners]) l(${JSON.stringify(ENTER)}); }, 40);` : '',
-      `setTimeout(() => process.kill(process.pid, '${signal}'), 120);`,
+      'const { askList } = await import(process.env.CAIQUE_DIST);',
+      "askList({ kind: 'select', message: 'Which host?', choices: [{ value: 'ora' }, { value: 'chalk' }] }, io);",
+      "if (process.env.CAIQUE_ANSWER_FIRST === '1') {",
+      '  setTimeout(() => { for (const l of [...listeners]) l(process.env.CAIQUE_ENTER); }, 40);',
+      '}',
+      'setTimeout(() => process.kill(process.pid, process.argv[2]), 120);',
       'setTimeout(() => process.exit(0), 5000);',
     ].join('\n'),
   );
@@ -266,7 +274,11 @@ function promptThenSignal(signal: string, answerFirst = false): SignalOutcome {
   // the point is that the signal still ends it. The throw carries `.status`.
   let status: number | null = 0;
   try {
-    execFileSync(process.execPath, [child], { stdio: ['ignore', 'pipe', fd], timeout: 20_000 });
+    execFileSync(process.execPath, [child, signal], {
+      stdio: ['ignore', 'pipe', fd],
+      timeout: 20_000,
+      env: { ...process.env, CAIQUE_DIST: distRaw, CAIQUE_ENTER: ENTER, CAIQUE_ANSWER_FIRST: answerFirst ? '1' : '0' },
+    });
   } catch (error) {
     status = (error as { status?: number | null }).status ?? null;
   } finally {
