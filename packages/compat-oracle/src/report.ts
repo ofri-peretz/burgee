@@ -226,13 +226,27 @@ interface Results {
  * replaces its hosts' rows and keeps the rest, so the page generated from the file never
  * loses a host because another was re-measured alone.
  */
+/**
+ * `planned` is written alongside the grades because a reader of this file cannot otherwise
+ * tell "the oracle does not grade this host yet" from "the oracle was supposed to grade
+ * this host and something broke". Both look like a missing entry in `grades`, and the
+ * difference is the whole judgement: the first is a declared gap, the second is a hole.
+ *
+ * It cost the compat axis every row to learn that. `baseline/cosmiconfig.json` and
+ * `baseline/dotenv.json` record measurements taken against hosts whose `status` is still
+ * `planned` (their notes say why they are not published), and `benchmarks/bands.ts` derives
+ * its host list from that directory. So the axis demanded a grade for a host the oracle
+ * never intended to produce one for, returned a reason, and every compat band and claim
+ * read `? unmeasured` on every CI run — measured 2026-09-16 on PR #335's bench job.
+ */
 function writeResults(path: string, graded: Grade[]): void {
   const previous: Grade[] = existsSync(path) ? (JSON.parse(readFileSync(path, 'utf8')) as Results).grades : [];
   const names = new Set(graded.map((g) => g.host));
   const grades = [...previous.filter((g) => !names.has(g.host)), ...graded];
   const order = new Map(active().map((h, i) => [h.name, i]));
   grades.sort((a, b) => (order.get(a.host) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.host) ?? Number.MAX_SAFE_INTEGER));
-  writeFileSync(path, `${JSON.stringify({ measured: new Date().toISOString(), grades }, null, 2)}\n`);
+  const planned = HOSTS.filter((h) => h.status === 'planned').map((h) => h.name);
+  writeFileSync(path, `${JSON.stringify({ measured: new Date().toISOString(), planned, grades }, null, 2)}\n`);
 }
 
 

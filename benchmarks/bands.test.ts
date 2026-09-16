@@ -26,6 +26,10 @@ const CONFIG = join(REPO_ROOT, '.sdlc/bands/control-bands.json');
 const derivedCompat = (): ConfiguredBand[] =>
   readdirSync(join(REPO_ROOT, 'packages/compat-oracle/baseline'))
     .filter((f) => f.endsWith('.json'))
+    // Mirrors `derivedCompatBands` in `scripts/control-bands.ts`, deliberately by reading
+    // the directory again rather than importing it: this case exists to catch the two
+    // halves drifting, and a shared helper would make them agree by construction.
+    .filter((f) => (JSON.parse(readFileSync(join(REPO_ROOT, 'packages/compat-oracle/baseline', f), 'utf8')) as { planned?: boolean }).planned !== true)
     .map((f) => f.slice(0, -'.json'.length))
     .sort()
     .map((host) => ({ id: `compat-${host}-pass-rate`, collector: 'benchmark-json' as const, suite: SUITE.cheap, jsonPath: `bands.compat-${host}-pass-rate.value` }));
