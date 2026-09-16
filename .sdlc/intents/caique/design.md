@@ -276,6 +276,90 @@ because the schema sets `additionalProperties: true`. Describing the key properl
 editing the source copy in flagstaff and propagating it, which is the same cross-package
 edit as the vocabulary line.
 
+## The surface a consumer gets, derived from the tree (2026-09-15)
+
+The plugin host is already fully described above, in the entry that shipped it. What is
+missing is the other half of the same question: the whole list of what this package offers,
+so that a consumer can scan it rather than assemble it from seven shipped entries.
+
+**Derived, not transcribed.** One row per entry in `packages/caique/package.json`'s `exports`
+map; the names are the exported declarations of the source file each subpath's `dist/` path
+is built from. Re-derive with `node -p "Object.keys(require('./packages/caique/package.json').exports)"`
+and `grep '^export' packages/caique/src/<file>.ts`.
+
+| Subpath | What a consumer gets | What it is for |
+| :-- | :-- | :-- |
+| `caique` | `export *` of `ask`, `binding`, `decide`, `raw`, `spec`, `terminal`, plus `processRuntime` — **not** `plugin` | everything but the host, in one import |
+| `caique/spec` | `BUILT_IN_KINDS`, `flagOf`, `problemWith`; `PromptKind`, `PromptSpec`, `Choice`, `BoundPrompt` | the prompt vocabulary, and the one home of the six built-in kinds |
+| `caique/decide` | `decide`; `Runtime`, `Flags`, `Decision`, `DecideInput` | the pure verdict — skip, prompt, or error — over value × TTY × CI × `--json` × `--yes` × `--interactive` |
+| `caique/binding` | `resolvePrompts`; `PromptableOption`, `ResolveInput`, `ResolveFailure`, `Resolved` | one host-agnostic resolution pass, rather than one binding per host |
+| `caique/ask` | `ask`, `projection`; `Io`, `Reader`, `Writer`, `ReadOptions`, `Answer`, `Asked` | the six built-ins in line mode, and the static text every non-terminal mode prints |
+| `caique/raw` | `keyOf`, `canRender`, `renderList`, `askList`; `Key`, `KeyStream`, `RawIo` | the raw-mode renderer, for the terminal that can take one |
+| `caique/terminal` | `createIo`, `streamsOf`; `Streams` | the only file that touches a terminal, and the only one that knows what echo is |
+| `caique/plugin` | `register`, `validate`, `reset`, `registered`, `widgets`, `widgetFor`, `kinds`, `projectionOf`, `CONTRACT`, `PluginError`; `Plugin`, `Widget`, `WidgetSample`, `Contribution`, `PluginErrorCode` | the extension point, described in full in the 2026-09-13 entry above |
+| `caique/schema.json` | the family plugin schema, as a file | what a plugin author or an agent validates against |
+
+`caique/plugin` is deliberately not reachable from the root: `src/index.ts` star-exports the
+other six and not it, so a program that only asks questions does not carry the registry.
+
+**The extension summary, in one paragraph, for a reader who does not want the whole entry.**
+One key, `widgets`. A widget is `{ static, frame?, sample? }` — the same shape a flagstaff
+component is, deliberately, so that "the same shape" stays a fact a lock can hold. `static`
+is required and is what a pipe, an agent and a screen reader get; `frame` is optional and
+drives `caique/raw`; `sample` is two named states of plain data a grader renders with, and
+carries no behaviour, so reading it never means running the author's code. `register()`
+validates and throws a `PluginError` before touching the registry. A kind that collides with
+one of the six is refused — extension is the space *outside* the built-ins, which is exactly
+what widening `PromptKind` opened up — and `password` is the reason that rule is not
+negotiable. A kind nobody registered is refused at render time with `E_UNKNOWN_KIND`, naming
+what is registered. Later wins, `widgets()` reports the shadowing, `reset()` forgets it all.
+
+### What caique does not do, and why
+
+Beyond "Out of scope" below:
+
+- **It never prompts under `--json`.** An agent asked to type is an agent that hangs, so
+  `--json` means "no human here" by definition and a missing value is a `USAGE` error.
+- **It never hangs on a non-TTY.** The failure mode this package exists to remove is the
+  silent wait; a non-TTY caller gets an error naming the flag.
+- **It does not detect an agent by user agent or parent process.** TTY-ness plus `CI` is the
+  honest signal and `--interactive` is the explicit override.
+- **A plugin cannot replace a built-in kind**, and `caique/plugin` is not re-exported from
+  the root, so a program that never registers anything never pays for the registry.
+
+## Where this document and the code disagree (2026-09-15)
+
+Recorded rather than tidied away. Caique's design is one of the two most honest in the repo
+and most of what follows is small; one item is a note that has been overtaken by a fix.
+
+- **The `## Design` file map lists four things that do not exist.** `widgets/` is a directory
+  in the map and the six live in `ask.ts` (the map says so two lines later, which is the
+  contradiction). `clack.ts`, `inquirer.ts` and `burgee.ts` are listed as files; the first two
+  are correctly recorded as not yet built further down, and `burgee.ts` was superseded by
+  `binding.ts`, which the map also lists. `raw.ts` and `plugin.ts` exist and are not in the
+  map.
+- **The "Open, and not caique's to close" note is stale.** It says `E_UNKNOWN_KIND` is not in
+  flagstaff's `PluginErrorCode` and that
+  `scripts/plugin-error-vocabulary-lock.test.ts` is red on that assertion. It is in the union
+  now, with a comment explaining why caique's code lives there. The note reads as an open
+  defect and is a closed one.
+- **"Also not done here: the schema's `widgets` entry" is still true**, and is worth
+  restating because it is the same gap in three packages rather than one. The shared
+  `schema.json` describes `name`, `contract`, `tokens`, `glyphs`, `spinners`, `borders`,
+  `components` and `capabilities`. It does not describe `widgets`, `handlers` or `resolvers`,
+  so `caique`, `closeout` and `bellpull` each host a key their own published schema says
+  nothing about, validating today only because the root sets `additionalProperties: true`.
+  One edit to flagstaff's source copy closes all three.
+- **The shared schema is titled `"flagstaff plugin"` and its `$id` points at flagstaff's
+  path**, in every package that ships it. Byte-identical is the requirement (PLAN 1.1) and
+  byte-identical is what shipped; the consequence is that a `caique/schema.json` a consumer
+  fetches announces itself as another package's file.
+- **R1's closed union is still the requirement text.** R7 widens it and says so, and the code
+  follows R7 — but a reader who stops at R1 sees six kinds and no extension point.
+- **The design describes tokens from roundel and a spinner from flagstaff.** `package.json`
+  declares one dependency, `closeout`. Nothing in `packages/caique/src/` imports `roundel` or
+  `flagstaff`; the widgets draw their own text.
+
 ## Rejected alternatives
 
 - ~~**Re-implementing prompts.** clack is good and maintained; the gap is the layer

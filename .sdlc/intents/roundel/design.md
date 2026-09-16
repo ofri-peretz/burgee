@@ -146,6 +146,135 @@ does not gets the defaults. Zero bytes of `roundel` in `import 'burgee'`.
   the terminal): the R1 truth table has one answer per input, and every component in the
   family is forbidden by the env grep from computing its own.
 
+## The surface a consumer gets, derived from the tree (2026-09-15)
+
+The requirements above say what roundel is *for*. This section says what is *in it*, so that
+a reader deciding whether to install it does not have to read eleven requirements and a file
+map to find out.
+
+**Derived, not transcribed.** The rows are `packages/roundel/package.json`'s `exports` map,
+one row per subpath, and the names are the exported declarations of the source file each
+subpath's `dist/` path is built from. Re-derive with `node -p "Object.keys(require('./packages/roundel/package.json').exports)"`
+and `grep '^export' packages/roundel/src/<file>.ts`. If a row disagrees with those two
+commands, the row is wrong.
+
+| Subpath | What a consumer gets | What it answers |
+| :-- | :-- | :-- |
+| `roundel` | `export *` of `policy`, `tokens`, `theme`, `contrast` and `plugin` — **not** `chalk` | the whole library for a program that wants all of it |
+| `roundel/policy` | `outputMode`, `colorLevel`, `flown`; `OutputMode`, `ColorLevel`, `TokenName`, `Format`, `Paint`, `ModeOptions` | "where is this output going, and may it carry colour" — the only env reader (R1, R2) |
+| `roundel/tokens` | `error`, `warn`, `ok`, `hint`, `muted`, `command`, `flag`, `value`, `heading`; `sgr`; `Token`, `SgrPair` | the nine semantic paints, identity at level 0 (R3) |
+| `roundel/theme` | `fly`, `audit`, `rgb256`, `toOklab`; `Hex`, `Style`, `Theme` | set the process theme once, and downsample a hex to what the level can show (R4) |
+| `roundel/contrast` | `contrast`, `luminance`, `channels`, `reportTheme`, `AA`, `AAA`, `floors`, `round2`; `Conformance`, `ThemeFinding` | the WCAG maths, and the gate `fly()` runs a truecolor theme through (R5) |
+| `roundel/chalk` | `Chalk`, `chalkStderr`, `supportsColor`, `supportsColorStderr`, `modifierNames`, `foregroundColorNames`, `backgroundColorNames`, `underlineColorNames`, `colorNames`, and chalk's type names | the drop-in path, graded by chalk's own suite (R6) |
+| `roundel/plugin` | `register`, `validate`, `reset`, `theme`, `contributions`, `registered`, `CONTRACT`, `PluginError`; `Plugin`, `Contribution`, `PluginErrorCode` | the extension point — see below |
+| `roundel/schema.json` | the family plugin schema, as a file | what a plugin author or an agent validates against before shipping |
+
+Two of those rows are not in R7's subpath list and have never been in this document:
+`roundel/plugin` and `roundel/schema.json`. They are recorded under "Where this document and
+the code disagree" rather than quietly appended to R7.
+
+`roundel/chalk` is deliberately not reachable from the root entry — `src/index.ts` star-exports
+the other four and not it, so a program that imports `roundel` does not pay for the façade.
+That is R7 working; it is noted here because it is the one thing in the table a reader is
+likely to assume the other way round.
+
+### How a consumer extends it
+
+**One key: `tokens`.** `packages/roundel/src/plugin.ts` is the contract, and it is the
+truth — `src/schema.json` is the family's shared file and is looser than this host in one
+way named below.
+
+A plugin is a plain object. roundel reads three fields and **ignores every other key without
+complaining**, which is what lets one object serve any subset of the family that happens to
+be installed; a plugin written for flagstaff registers here and contributes its theme, and
+its `spinners` are not an error.
+
+| Field | Required | What it must be |
+| :-- | :-- | :-- |
+| `name` | yes | a non-empty string. It is how a shadowed token is attributed in `contributions()` |
+| `contract` | no | an integer no greater than `CONTRACT`, which is `1` |
+| `tokens` | no | an object mapping a token name to `#rrggbb` |
+
+**What is validated, at `register()` and nowhere later.** `validate()` refuses: a plugin that
+is not a plain object; a missing or empty `name`; a `contract` that is not an integer or is
+newer than this roundel knows; a `tokens` that is not an object; a token name outside the ten
+`TOKEN_NAMES` admits — the nine of R3 plus `ground`, which is the colour a theme is checked
+*against*; and any value that is not `#rrggbb`.
+
+**What happens on a bad plugin.** `register()` throws a `PluginError` synchronously and
+registers nothing: `validate()` runs before the push, so a refused plugin leaves the registry
+exactly as it was. The error carries a `code` — `E_PLUGIN_SCHEMA` or `E_PLUGIN_CONTRACT` —
+a message naming the plugin and the offending key, and a `fix` sentence. A misspelt token
+name is **refused rather than dropped**, on purpose: a plugin whose `errror` key is silently
+ignored looks like it worked, and its author debugs the wrong thing.
+
+**What a plugin is deliberately not allowed to decide.**
+
+- **When colour is decided.** `register()` does not call `fly()`. A plugin that could would
+  mean the last plugin imported quietly re-flew the theme. The program calls `fly()` once.
+- **Whether the output carries colour at all.** `outputMode` and `colorLevel` read the
+  runtime and the user's instruction; no plugin key reaches them.
+- **An unreadable colour.** Contrast is *not* checked at `register()` — deliberately, so that
+  there is one contrast gate and not two. `fly()` checks a contributed theme exactly as it
+  checks a hand-written one and throws below 4.5:1 against the ground.
+- **A tenth token.** The vocabulary is closed. A name outside the ten is a typo, not an
+  extension point; extension here means re-colouring the nine, not inventing meanings.
+
+Order is registration order and **later wins**, like ESLint flat config. `contributions()` is
+the static projection of that: one row per token, naming the plugin that won it and, in
+order, the plugins it shadowed. `theme()` collapses the same data into the object `fly()`
+takes, rebuilt through a `Map` and filtered against the allowlist a second time so that a
+third party's JSON cannot carry a `__proto__` onto it. `reset()` forgets everything, for
+tests and for a program that re-themes at runtime.
+
+### What roundel does not do, and why
+
+Beyond the four items under "Out of scope" below, three refusals are worth a consumer
+knowing before they go looking:
+
+- **It has no CLI and no `bin`.** `burgee brand` owns the brand tooling; this is a library.
+- **It claims nothing about contrast at levels 1 and 2.** The 16- and 256-colour palettes are
+  the user's terminal theme, so a ratio computed against them would be invented (R5).
+- **It does not detect a terminal emulator by name.** supports-color's emulator allow-list,
+  `TEAMCITY_VERSION`, `TERM_PROGRAM` and the platform check are refused outright, which is
+  why the chalk differential sweep excludes them.
+
+## Where this document and the code disagree (2026-09-15)
+
+Recorded rather than tidied away, because a design edited to match the code teaches the next
+reader nothing.
+
+- **R11 describes a subpath that does not exist.** `roundel/import`, `fromBase16(scheme)` and
+  `fromITerm(plist)` are in no `exports` map and no source file; there is no
+  `packages/roundel/src/import.ts`. R11's own Evidence row already grades it *"hypothesis —
+  measure before lock"*, so nothing was promised on evidence — but the claim is also in the
+  shipped `packages/roundel/README.md`, where a consumer will read it as a feature. That
+  README is another lane's file; it is reported, not edited here. (flagstaff *does* ship an
+  `./import`, with `fromCliSpinners` and `fromCliBoxes` — a different thing with the same
+  name, which is how this one reads as plausible.)
+- **R7's subpath list is short by two.** It names `./policy`, `./tokens`, `./theme`,
+  `./contrast` and `./chalk`. The package also publishes `./plugin` and `./schema.json`, and
+  has since the plugin host landed. A subpath-isolation requirement that does not list every
+  published subpath cannot be read as covering them.
+- **The `## Design` file map omits four files that exist.** `plugin.ts`, `runtime.ts`,
+  `schema.json` and `contrast-vectors.json` are in `packages/roundel/src/` and not in the
+  map. `runtime.ts` in particular is the file R9 is about.
+- **R9 says "nothing reads `process.*`" and one file does.** `src/runtime.ts` reads
+  `globalThis.process` through a guarded cast, because `./chalk`'s contract is "detect the
+  terminal at import" and there is nowhere else for that to live. The rule the package
+  actually keeps is the family's one-seam rule — a single named file, exempted by path in
+  burgee's `process-reference-lock.test.ts` — which is a different and weaker claim than the
+  one R9 makes.
+- **The plugin host is absent from this design.** Until this section, nothing above the
+  "What shipped" line mentioned `tokens`, `register()` or `PluginError`, although roundel is
+  the family's `tokens` host and `packages/roundel/src/plugin.ts` has shipped. The
+  requirements list still stops at R11.
+- **The shared `schema.json` is looser than this host.** `src/schema.json` types `tokens` as
+  any string key matching `^#[0-9a-fA-F]{6}$`; `plugin.ts` additionally closes the key set to
+  ten names. An author validating only against the schema will believe a misspelt token is
+  legal. The schema file is byte-identical across the family by design (PLAN 1.1), so
+  tightening it is a cross-package edit and not roundel's alone.
+
 ## Rejected alternatives
 
 - **Depending on `burgee` for `contrast`.** Reverses the arrow (U1). Sixty lines duplicated
