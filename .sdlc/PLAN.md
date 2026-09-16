@@ -160,12 +160,36 @@ already carry.
 Done when: `scripts/competitor-issues.ts` shells `gh api` and the script runs with no
 environment variable that is not already set.
 
-**D8 — paratext's schema break rides alone, as 0.3.0.**
-D2 takes the break; this fixes how it ships. It is the only breaking change in wave 1,
-so it is released by itself, before 1.2–1.7 — a minor bump whose changelog has one
-entry is a migration note people can read. Bundling it with the plugin hosts would hide
-a break inside a feature release.
+**D8 — paratext's schema break rides alone, as 0.3.0. — SUPERSEDED BY D2, 2026-09-16.**
+D2 takes the break; this fixed how it ships. It is the only breaking change in wave 1,
+so it was to be released by itself, before 1.2–1.7 — a minor bump whose changelog has
+one entry is a migration note people can read. Bundling it with the plugin hosts would
+hide a break inside a feature release.
 Done when: paratext's release commit touches only paratext, and its version is 0.3.0.
+
+**That done-when cannot be met, and the reason is D2 itself.** D2 decided there is one
+plugin schema and every host ships it byte-identically — `packages/*/src/schema.json`
+hashes to one value, and `plugin-schema-lock.test.ts` enforces it. So a change to the
+capability shape *is* a change to eight other packages' published bytes. The changeset
+that carries the break says so in its own words:
+
+> flagstaff and roundel ship the same bytes: their published `./schema.json` gains the
+> capability definitions and nothing about what they validate changes.
+
+and it is therefore declared `'paratext': minor, 'flagstaff': patch, 'roundel': patch`.
+A release commit touching only paratext would leave two published packages carrying a
+`schema.json` that no longer matches paratext's — which is the thing D2 exists to prevent.
+
+The two decisions are in tension and **D2 wins**: one schema is a contract consumers
+validate against, and a release that breaks the byte-identity to preserve a changelog's
+tidiness trades a real invariant for a presentational one. D8's *intent* — that a
+consumer reading the changelog can find the migration note rather than discovering the
+break inside a feature release — is met by the changeset body, which is that note, and
+by `paratext`'s CHANGELOG entry carrying it verbatim.
+
+Recorded rather than quietly dropped, because "ships alone" is the kind of requirement
+that stays in a plan for months after the architecture made it impossible, and because
+the next person to read D8 will otherwise try to build it.
 
 **D9 — `plan-progress.ts` covers 30 of the 36 steps; 6 stay manual.**
 The six are the ones whose truth is not in the tree: the merge-queue ruleset (0.3, an
