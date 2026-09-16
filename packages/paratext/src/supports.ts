@@ -34,7 +34,17 @@ export interface Support {
  * the parameter, which is every existing caller.
  */
 export function supports(runtime: Runtime, capability: { readonly when: Support }): boolean {
-  const { tty, termProgram, envAny, term } = capability.when;
+  /**
+   * Belt, not braces. `register()` refuses a `when` that is not an object, and that refusal
+   * is what keeps one out of the registry `emit()` reads — this line closes nothing on its
+   * own. It is here because this function is exported, takes its `when` structurally, and a
+   * caller may hand it an object it parsed itself: destructuring a string yields four
+   * `undefined` clauses and therefore `true`, and the fail-safe answer to "can this terminal
+   * do it" is always *no* (rule 6). See `shape.test.ts`.
+   */
+  const declared: unknown = capability.when;
+  if (typeof declared !== 'object' || declared === null) return false;
+  const { tty, termProgram, envAny, term } = declared as Support;
   if (tty === true && !runtime.isTTY.stdout) return false;
   if (runtime.env['TERM'] === 'dumb') return false;
   if (term !== undefined && runtime.env['TERM'] !== term) return false;
