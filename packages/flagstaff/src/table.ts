@@ -11,12 +11,19 @@ import { wrap } from 'linegauge/wrap';
  * off a terminal and worse than useless to a screen reader, so `static()` emits one line
  * per row as `header: value` pairs — which is also what an agent can parse without knowing
  * anything about the drawing.
+ *
+ * **A cell may carry a destination** (R12): `{ text, href }` renders as a terminal hyperlink
+ * where the terminal is believed to do OSC 8 and as `text (url)` everywhere else. Neither
+ * decision nor sequence is this file's — both come from `paratext/link` through `./link.js`,
+ * which is the only module here that knows OSC 8 exists.
  */
 import { heading, muted } from 'roundel/tokens';
 
+import { type Cell, cellHref, cellText, laid, type Painter, painted, painter, STATIC, type Terminal } from './link.js';
 import { type Component } from './plugin.js';
 
-export type Row = string[];
+/** A row of cells. A plain `string[]` is still a row — a destination is opt-in per cell. */
+export type Row = Cell[];
 
 export interface TableOptions {
   /** Column headers. Omitted, the table is drawn without a header row. */
@@ -25,6 +32,12 @@ export interface TableOptions {
   width?: number;
   /** Alignment per column; `left` for any column not named. */
   align?: ('left' | 'right')[];
+  /**
+   * The terminal a linked cell is rendered for. Omitted, the real process is read through
+   * this package's seam. Supply one and the whole path is pure — which is how `link.test.ts`
+   * grades both branches without a terminal in sight.
+   */
+  terminal?: Terminal;
 }
 
 const DEFAULT_WIDTH = 80;
@@ -41,16 +54,21 @@ const V = '│';
 const H = '─';
 const CORNERS = { topLeft: '┌', topRight: '┐', bottomLeft: '└', bottomRight: '┘', top: '┬', bottom: '┴', left: '├', right: '┤', cross: '┼' };
 
-const padTo = (line: string, cells: number, align: 'left' | 'right'): string => {
-  const gap = ' '.repeat(Math.max(0, cells - width(line)));
+/**
+ * Pad to the column, then hand the text its destination. The gap is measured from the plain
+ * line, before any sequence is added — `width()` strips OSC 8, so the two orders agree, and
+ * measuring first means the alignment cannot depend on that staying true.
+ */
+const padTo = (line: string, cells: number, align: 'left' | 'right', measured = line): string => {
+  const gap = ' '.repeat(Math.max(0, cells - width(measured)));
   return align === 'right' ? gap + line : line + gap;
 };
 
 /** The natural width of each column: the widest cell in it, header included. */
-function naturalWidths(rows: Row[], columns: number): number[] {
+function naturalWidths(rows: Row[], columns: number, paint: Painter): number[] {
   const widths = Array.from({ length: columns }, () => 0);
   for (const row of rows) {
-    for (let index = 0; index < columns; index += 1) widths[index] = Math.max(widths[index] ?? 0, width(row[index] ?? ''));
+    for (let index = 0; index < columns; index += 1) widths[index] = Math.max(widths[index] ?? 0, width(laid(cellText(row[index]), cellHref(row[index]), paint)));
   }
   return widths;
 }
@@ -73,12 +91,23 @@ function fitWidths(natural: number[], available: number): number[] {
   return widths;
 }
 
-/** One logical row as the physical rows it occupies once its cells have wrapped. */
-function layoutRow(row: Row, widths: number[], align: ('left' | 'right')[]): string[] {
-  const cells = widths.map((w, index) => wrap(row[index] ?? '', w, { hard: true, trim: false }).split('\n'));
+/**
+ * One logical row as the physical rows it occupies once its cells have wrapped.
+ *
+ * The destination goes on **after** wrapping, around whatever text survived — the lesson
+ * cli-table3 learned the hard way in its issue #338, where a link applied first was cut
+ * through the middle of its own url and left a sequence that never closed.
+ */
+function layoutRow(row: Row, widths: number[], align: ('left' | 'right')[], paint: Painter): string[] {
+  const cells = widths.map((w, index) => wrap(laid(cellText(row[index]), cellHref(row[index]), paint), w, { hard: true, trim: false }).split('\n'));
   const height = Math.max(1, ...cells.map((lines) => lines.length));
   return Array.from({ length: height }, (_, line) =>
-    `${V} ${widths.map((w, index) => padTo(cells[index]?.[line] ?? '', w, align[index] ?? 'left')).join(` ${V} `)} ${V}`,
+    `${V} ${widths
+      .map((w, index) => {
+        const plain = cells[index]?.[line] ?? '';
+        return padTo(painted(plain, cellHref(row[index]), paint), w, align[index] ?? 'left', plain);
+      })
+      .join(` ${V} `)} ${V}`,
   );
 }
 
@@ -91,14 +120,16 @@ export function table(rows: Row[], options: TableOptions = {}): string {
   const align = options.align ?? [];
   const available = Math.max(columns * MIN_COLUMN, total - columns * CHROME_PER_COLUMN - CHROME_FIXED);
 
+  const paint = painter(options.terminal);
+
   const all = options.head === undefined ? rows : [options.head, ...rows];
-  const widths = fitWidths(naturalWidths(all, columns), available);
+  const widths = fitWidths(naturalWidths(all, columns, paint), available);
 
   const out = [rule(widths, CORNERS.topLeft, CORNERS.top, CORNERS.topRight)];
   if (options.head !== undefined) {
-    out.push(...layoutRow(options.head.map((cell) => heading(cell)), widths, align), rule(widths, CORNERS.left, CORNERS.cross, CORNERS.right));
+    out.push(...layoutRow(options.head.map((cell) => heading(cell)), widths, align, paint), rule(widths, CORNERS.left, CORNERS.cross, CORNERS.right));
   }
-  for (const row of rows) out.push(...layoutRow(row, widths, align));
+  for (const row of rows) out.push(...layoutRow(row, widths, align, paint));
   out.push(rule(widths, CORNERS.bottomLeft, CORNERS.bottom, CORNERS.bottomRight));
   return out.join('\n');
 }
@@ -110,13 +141,23 @@ export interface TableState {
 
 /** A table as a component: `header: value` pairs off a terminal, the grid on one (R1). */
 export function tableComponent(options: TableOptions = {}): Component<TableState> {
+  // A static projection is by definition the rendering with no terminal under it, so a
+  // linked cell reads `src/index.ts (file:///…)` here — the destination survives into the
+  // log an agent parses instead of being dropped with the escape (R12, PRINCIPLES rule 5).
+  const plain = painter(STATIC);
   return {
     name: 'table',
     // A drawn grid is unreadable in a log and to a screen reader. Pairs are not.
     static: (state) => {
       const head = state.head ?? options.head;
-      return state.rows.map((row) => (head === undefined ? row.join('\t') : row.map((cell, index) => `${head[index] ?? index}: ${cell}`).join(', '))).join('\n');
+      const show = (cell: Cell | undefined): string => laid(cellText(cell), cellHref(cell), plain);
+      return state.rows
+        .map((row) => (head === undefined ? row.map((cell) => show(cell)).join('\t') : row.map((cell, index) => `${head[index] ?? index}: ${show(cell)}`).join(', ')))
+        .join('\n');
     },
     frame: (_t, state) => muted(table(state.rows, state.head === undefined ? options : { ...options, head: state.head })),
   };
 }
+
+/** The cell shapes, re-exported so a caller of `flagstaff/table` can name them (R12). */
+export type { Cell, Linked } from './link.js';
