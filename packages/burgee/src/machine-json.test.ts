@@ -17,6 +17,7 @@ import { Command } from './commander.js';
 import { defineCommand, defineProgram } from './index.js';
 import { machineJson } from './schema.js';
 import { runBurgee } from './testing.js';
+import yargs from './yargs.js';
 
 const JSON_PRETTY = '--format=json-pretty';
 
@@ -127,6 +128,88 @@ describe('the commander front-end emits the compact document too', () => {
   it('indents when a person asks, for the same document', () => {
     const compact = runCommander(['--schema']);
     const pretty = runCommander(['--schema', '--format=json-pretty']);
+    expect(JSON.parse(compact)).toEqual(JSON.parse(pretty));
+    expect(compact.length).toBeLessThan(pretty.length);
+  });
+});
+
+/**
+ * The claim the two suites above cannot make between them.
+ *
+ * Each of those is true of one writer in isolation, and a writer can be perfectly
+ * consistent with itself while disagreeing with its siblings. `--schema` is *burgee's*
+ * surface rather than any host's (F1): the same CLI, declared three ways and driven through
+ * the engine, the commander façade and the yargs façade, has to hand an agent the same
+ * bytes — otherwise "burgee's agent surface" is three surfaces, and a reader has to know
+ * which front-end produced the document before it can know what it is holding.
+ *
+ * That is the state this test was written against. `yargs/factory.ts` spelled
+ * `JSON.stringify(schemaOf(…), null, 2)` by hand where `execute.ts` and
+ * `commander/command.ts` both called `machineJson(value, head)`, so the yargs façade could
+ * not see `--format=json-pretty` at all: it emitted the indented document always, and a
+ * plain `--schema` on a yargs-shaped CLI was 365 bytes where the other two wrote 240.
+ *
+ * Byte equality rather than `toEqual` on the parse is the assertion on purpose — a compact
+ * document and a pretty one parse alike, which is exactly why the divergence survived every
+ * other test in this package.
+ */
+const defined = defineProgram({
+  name: 'tool',
+  version: '1.0.0',
+  commands: [defineCommand({ name: 'info', description: 'Show info', run: () => undefined })],
+});
+
+const throughEngine = async (argv: string[]): Promise<string> => (await runBurgee(defined, { argv })).stdout;
+
+const throughCommander = (argv: string[]): string => {
+  const out: string[] = [];
+  const program = new Command('tool');
+  program.version('1.0.0');
+  program.configureOutput({ writeOut: (s: string) => void out.push(s) });
+  program.command('info').description('Show info').action(() => undefined);
+  program.parse(['node', 'test', ...argv]);
+  return out.join('');
+};
+
+const throughYargs = async (argv: string[]): Promise<string> => {
+  const out: string[] = [];
+  await yargs([])
+    .scriptName('tool')
+    .version('1.0.0')
+    .burgee({ stdout: { write: (s: string) => void out.push(s) }, stderr: { write: () => undefined }, exit: () => undefined })
+    .command('info', 'Show info', {}, () => undefined)
+    .parseAsync(argv);
+  return out.join('');
+};
+
+const frontEnds: [string, (argv: string[]) => string | Promise<string>][] = [
+  ['the engine', throughEngine],
+  ['the commander façade', throughCommander],
+  ['the yargs façade', throughYargs],
+];
+
+describe('the three front ends emit the same document', () => {
+  it('agrees byte for byte on the compact document', async () => {
+    const argv = ['--schema'];
+    const engine = await throughEngine(argv);
+    expect(throughCommander(argv)).toBe(engine);
+    expect(await throughYargs(argv)).toBe(engine);
+  });
+
+  it('agrees byte for byte on the readable one', async () => {
+    const argv = ['--schema', JSON_PRETTY];
+    const engine = await throughEngine(argv);
+    expect(throughCommander(argv)).toBe(engine);
+    expect(await throughYargs(argv)).toBe(engine);
+  });
+
+  it.each(frontEnds)('%s indents only when asked, and ends in one newline either way', async (_name, run) => {
+    const compact = await run(['--schema']);
+    const pretty = await run(['--schema', JSON_PRETTY]);
+    expect(compact.endsWith('\n')).toBe(true);
+    expect(pretty.endsWith('\n')).toBe(true);
+    expect(compact.slice(0, -1)).not.toContain('\n');
+    expect(pretty).toContain('\n  ');
     expect(JSON.parse(compact)).toEqual(JSON.parse(pretty));
     expect(compact.length).toBeLessThan(pretty.length);
   });
