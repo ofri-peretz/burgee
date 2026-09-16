@@ -269,7 +269,7 @@ Graded by the incumbent's own test suite:
 | `cosmiconfig` | 186 / 241 |
 | `dotenv` | 0 / 141 |
 
-Weight, installed and tree-inclusive: **153,040 bytes** against **1,555,288** for the incumbents it replaces — a ratio of **0.0984**.
+Weight, installed and tree-inclusive: **153,392 bytes** against **1,555,288** for the incumbents it replaces — a ratio of **0.0986**.
 ## Where it sits
 
 Plugins register under the `sources` key, against the one schema the whole family shares.
