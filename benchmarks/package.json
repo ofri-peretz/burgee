@@ -17,6 +17,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "bellpull": "^0.0.1",
     "burgee": "*",
     "caique": "*",
     "compat-oracle": "*",
