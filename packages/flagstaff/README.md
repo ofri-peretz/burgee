@@ -243,11 +243,11 @@ screen, not the bytes.
 `logUpdateStderr`, with the row-level diffing intact: a five-row frame whose last row is a
 counter costs one row of output per tick, not five.
 
-log-update ships 113.4 KB across **sixteen** packages. This is 29.6 KB across **none** —
-the subpath reaches no package at all, not even roundel.
+log-update ships 113.4 KB across **sixteen** packages. This subpath reaches two, both from
+this repository: `linegauge/wrap` for the wrapper, and `closeout` for the cursor.
 It carries no port of `slice-ansi` — the wrapper already makes every row self-contained,
 so clipping a frame to the terminal's height is an array slice. `signal-exit`, 22.0 KB of
-those sixteen, is 1.4 KB here: `cursor.ts`, shared with the ora façade because both
+those sixteen, is `closeout`'s to own, shared with the ora façade because both
 incumbents port the same `cli-cursor` → `restore-cursor` → `signal-exit` chain. Ctrl+C
 mid-frame puts your cursor back, and still terminates — unless your program installed its
 own `SIGINT` handler, in which case it is delivered once, to you, and this stays out of it.
@@ -332,11 +332,11 @@ Every subpath is a lock, not a convention, and the numbers below are asserted by
 `weight.test.ts` against `dist/`, not estimated: `flagstaff/loop` reaches 4.4 KB on disk and
 never the plugin registry; `flagstaff/plugin` 8.4 KB, of which 2.4 KB is the schema;
 `flagstaff/spinner` 9.4 KB; `flagstaff/ora` 46.5 KB — 55.9 KB with roundel counted, against
-ora's own 113.6 KB; `flagstaff/log-update` 29.6 KB, reaching **no package at all**, against
-log-update's own 113.4 KB across sixteen; `flagstaff/boxen` 33.7 KB — 43.0 KB with roundel
+ora's own 113.6 KB; `flagstaff/log-update` 29.6 KB, against
+log-update's own 113.4 KB across sixteen, reaching only `linegauge/wrap` and `closeout`; `flagstaff/boxen` 33.7 KB — 43.0 KB with roundel
 counted, against boxen's own 132.4 KB across nineteen; `flagstaff/cli-table3` 32.9 KB —
 42.3 KB with roundel, against cli-table3's own 106.0 KB across seven. The three façades share `wrap.js` and
-`width.js`, and the first two share `cursor.js`; none reaches another's port, and none
+`width.js`, and the first two share `closeout`; none reaches another's port, and none
 reaches the core. `sideEffects: false` lets a
 bundler drop what a program does not use. ESM with a `default` condition, so
 `require('flagstaff/spinner')` works from CommonJS on Node ≥ 24.

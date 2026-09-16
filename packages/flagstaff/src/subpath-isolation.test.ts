@@ -71,7 +71,7 @@ const ALLOWED: Record<string, string[]> = {
  * only each *entry's* direct imports, so anything one level down was unlocked. `projection`
  * is the case that made this matter — it is the only core module that emits a cursor
  * operation, so it is the one that has to put the cursor back when a signal ends the process,
- * and it now reaches the same `cursor.js` both façades use rather than a third copy of a
+ * and it now reaches the same `closeout` both façades use rather than a third copy of a
  * subtle thing. A module listed here is checked exactly as an entry is.
  */
 const INTERNAL_ALLOWED: Record<string, string[]> = {

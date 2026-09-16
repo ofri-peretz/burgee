@@ -220,8 +220,8 @@ describe.skipIf(process.platform === 'win32')('a cursor hidden mid-spin comes ba
   );
 
   /**
-   * `cursor.ts` re-raises **only** when `process.listenerCount(signal) === 0`. Delete that
-   * guard from the built `dist/cursor.js` and this case, as it was first written, still
+   * The registrar re-raises **only** when `process.listenerCount(signal) === 0`. Delete
+   * that guard from its built output and this case, as it was first written, still
    * passed: the child is not killed and still exits 7, because the unconditional re-raise
    * is caught by the child's *own* handler rather than by node's default action. What
    * actually changes is that the program's handler is entered **twice for one Ctrl+C**.

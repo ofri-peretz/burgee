@@ -2,9 +2,9 @@
  * `flagstaff/log-update` — log-update 8's public API, ported and graded by log-update's
  * own suite through `compat-oracle` (R6, U11). Its dependency tree comes with it: the
  * wrapping (wrap-ansi) is `wrap.ts`, the width (string-width) is `width.ts`, the cursor
- * control (cli-cursor → restore-cursor → signal-exit → onetime) is `cursor.ts`, shared
- * with `flagstaff/ora` because both incumbents port the same chain, and the handful of
- * sequences ansi-escapes contributes are the ten lines below.
+ * control (cli-cursor → restore-cursor → signal-exit → onetime) is `closeout`, shared with
+ * `flagstaff/ora` because both incumbents port the same chain and closeout owns its far end,
+ * and the handful of sequences ansi-escapes contributes are the ten lines below.
  *
  * What it does that a naive re-render does not: it diffs the previous frame against the
  * next and rewrites only the rows that changed. A five-row frame whose last row is a
@@ -18,10 +18,9 @@
  * `sliceAnsi`'s column arithmetic and a correction loop; its own suite renders both
  * through a real terminal emulator and cannot tell them apart.
  */
-import { wrap } from 'linegauge/wrap';
-
 import { HIDE_CURSOR, SHOW_CURSOR } from 'closeout/cursor';
 import restoreCursor from 'closeout/restore-cursor';
+import { wrap } from 'linegauge/wrap';
 
 import { processRuntime } from './runtime.js';
 
@@ -56,7 +55,8 @@ const eraseLines = (count: number): string => {
  * cli-cursor's `hide()`/`show()`, which is what log-update calls: the cursor belongs to the
  * process's terminal, not to whichever stream the caller passed in, so both go to the
  * runtime's stderr regardless — as they do upstream, and as `flagstaff/ora` does. The
- * restore-on-death is `cursor.ts`, shared with the ora façade.
+ * restore-on-death is `closeout/restore-cursor`, shared with the ora façade; it picks the
+ * process's terminal the same way, so the hide here and the show there cannot disagree.
  */
 function hideCursor(): void {
   if (rt.stderr.isTTY !== true) return;
