@@ -51,12 +51,50 @@ for `max` exceeded), so `commander-agent` renders them like every other error.
 | R1 (S1) | `defineCommand` infers the handler's `options` from the spec (`const` type parameter, `NoInfer` on the handler): choices → union, `number` → number, `multiple` → array, presence from `required`/`default` | `execute.ts` `InferOptions`, `schema-dsl.test.ts` (expectTypeOf) |
 | R2 (S1) | types `string`, `boolean`, `number`; `multiple` + `separator`; `required`, `default`, `env`, `hidden`, `short`, `deprecated`; any Standard Schema as `schema` (interface declared locally, no dependency) | `manifest.ts` |
 | R3 (S2/S6) | `relations`: `exactlyOneOf`, `atLeastOneOf`, `atMostOneOf`, `conflicts`, `implies` (name or predicate); validated after resolution, before choices and the handler; a typed `--no-x` counts as set | `validate.ts` `checkRelations` |
+| R3b (S2) — PLAN 2.5.2 | the same two constraints spelled **on the option**: `dependsOn` → `implies`, `exclusive` → `conflicts`. Desugared by `relationsOf` and enforced by the one engine; published on the option in `--schema`, on its line in help, and as Fig's `dependsOn` / `exclusiveOn`; an undeclared or self name is a definition-time error | `manifest.ts` `optionRelations`/`relationsOf`, `definition.ts`, `option-relations.test.ts` |
 | R4 (S3) | `number` rejects NaN/Infinity, enforces `minimum`/`maximum`/`integer` with the fix in the hint; an unknown `type`, a numeric bound on a non-number, are definition-time errors | `toNumber`, `checkDefinition` |
 | R5 (S4) | `--` pass-through preserved (G5, already); `file`/`path` types and `-` as stdin — not yet | — |
 | R6 (S5/V5) | canonical camelCase key, kebab-case on the command line, both in `--schema` (`flag`); duplicate short aliases and camel/kebab collisions are definition-time errors | `kebab`/`camel`, `checkDefinition` |
 | R7 (S7/S8) | `boolean` never consumes a value (parseArgs); `multiple` collects repetitions and splits on `separator` (`,` by default), from flags, env and config | `splitMultiple` |
 | `object` type (dotted options) | not yet | — |
 | commander front-end | commander's own `Option` API stays (it is the compatibility contract); `relations` on commander syntax — not yet | — |
+
+### `dependsOn` / `exclusive` are an alias, deliberately (PLAN 2.5.2)
+
+The plan's reading is the one implemented: **`exclusive` is `conflicts` and `dependsOn` is
+`implies`**, and neither adds an engine. `relationsOf(node)` concatenates the command's own
+`relations` with the ones its options spell on themselves, and that single list is what
+`validate.ts` enforces and what `--schema` publishes. There is therefore one evaluation order
+(S6: relations, then numbers, then choices, then Standard Schema), one error vocabulary (E3: a
+`UsageError` carrying the flag that fixes it, exit 2, the `{ ok: false, error: { code, message,
+hint } }` envelope under `--json`), and no way for the two spellings to disagree.
+
+Why a second spelling exists at all, since the first was already there:
+
+- **It is where the reader is looking.** A `relations` entry states the constraint away from
+  the option it constrains. Nothing in the declaration of `out` said it needed `force`, and
+  nothing in `--out`'s help line did either — help did not render `relations` in any form.
+- **It is what both incumbents spell.** commander has `.implies({...})` and `.conflicts()` on
+  the `Option`; yargs has `.implies()` / `.conflicts()` keyed by the option's own name. A
+  drop-in surface that only offered the command-level form would be asking a migrating CLI to
+  move a constraint it had already written.
+- **The projection one layer out already has these exact names.** Fig's `Option` declares
+  `dependsOn` and `exclusiveOn` — copied into `fig-schema.test.ts`'s allow-list from
+  `@withfig/autocomplete-types@1.31.0` with its file hash, well before this step. Ours emits
+  both, so the completion surface carries the constraint too.
+
+**Decisions taken here rather than asked:**
+
+- **One-sided.** `exclusive: ['table']` on `csv` is declared once, not on both options; the
+  `conflicts` relation it compiles to holds in either argv order.
+- **Names, not flags, in the declaration**; flags, not names, in every projection. The author
+  writes the canonical camelCase key (`dependsOn: ['dryRun']`), and `--schema`, help and the
+  Fig spec all render `--dry-run`, because their reader is composing a command line (S5).
+- **Omitted when empty.** An option declaring neither carries neither key, so absent reads as
+  "no constraint" rather than "not published" — the rule `relations` already follows.
+- **Ordered declared-first.** `relationsOf` yields the command's `relations` before the
+  derived ones, so adding an option-level constraint cannot change which error an existing
+  command reports first.
 
 ## Verification
 
