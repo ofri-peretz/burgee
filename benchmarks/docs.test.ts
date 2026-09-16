@@ -22,6 +22,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+import { installedBytes } from './axes/weight.js';
 import { publishedResults } from './published.js';
 import { type BenchRecord } from './record.js';
 
@@ -45,7 +46,27 @@ const value = (variant: string, metric: string): number => {
 const KB = 1024;
 const MS_PLACES = 1;
 const RATIO_PLACES = 2;
-const kb = (variant: string): number => Math.round(value(variant, 'installed-bytes') / KB);
+/**
+ * Installed size, measured **now**, not read from the published file.
+ *
+ * Every other cell on that page comes from `publishedResults()`, and deliberately: a
+ * millisecond is a property of the runner, so a published figure has to be one a person
+ * chose. `installed-bytes` is the exception, and `published.ts` says so itself — it is why
+ * the 2026-09-09 republication was refused for its millisecond rows and not for these: *"the
+ * `installed-bytes` rows were byte-identical, which is the point of them."*
+ *
+ * Reading them from the published file anyway meant the page could drift arbitrarily far
+ * from the repository and every case here stayed green. It did: `2026-09-09.json` records
+ * burgee at 574,318 installed bytes and the page said **561 KB**, while the tree measures
+ * **1,337,245** — the public comparison table understated our largest and least flattering
+ * number by 2.3x, on the page whose own first line is *"this page is maintained by hand, and
+ * that is the reason to distrust it most"*.
+ *
+ * So this walks the tree. A number that cannot differ between machines does not need a
+ * person to choose it, and tying it to the tree is what makes the cell impossible to leave
+ * behind.
+ */
+const kb = (variant: string): number => Math.round(installedBytes(variant) / KB);
 
 /**
  * One cell of the comparison table, found by its row label and its column header.
