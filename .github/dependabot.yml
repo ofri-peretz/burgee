@@ -44,6 +44,17 @@ updates:
       - dependency-name: "cpr"
       - dependency-name: "hashish"
       - dependency-name: "yargs-test-extends"
+      # B4's incumbents, pinned *exactly* in benchmarks/package.json by PLAN 3.5/3.1 (#339).
+      # A weight ratio only means something if the release we weigh against is the release
+      # whose own suite we pass — `slice-ansi` is 7.1.2 here and 9.0.0 on npm for that reason.
+      # #333 bumped it to 9.0.0 in a grouped PR, which would have silently re-pointed the
+      # comparison at a version compat-oracle does not grade. Like the hosts above, these move
+      # only through the re-vendor flow, and the two sides move together.
+      - dependency-name: "string-width"
+      - dependency-name: "wrap-ansi"
+      - dependency-name: "slice-ansi"
+      - dependency-name: "strip-ansi"
+      - dependency-name: "ansi-escapes"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
