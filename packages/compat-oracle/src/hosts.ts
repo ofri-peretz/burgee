@@ -229,6 +229,23 @@ export interface Host {
    */
   vitestConfig?: Record<string, unknown>;
   /**
+   * The same thing for ava, and it is the same argument: a setting from the host's own
+   * manifest that its assertions depend on, carried into the vendored root's `package.json`
+   * under its `ava` key so the suite runs the way upstream runs it.
+   *
+   * It is a *separate* field from `vitestConfig` rather than one generic `runnerConfig`
+   * because the two land in different files — vitest's in a generated `vitest.config.mjs`,
+   * ava's in the manifest ava reads from cwd — and a single field would hide which.
+   *
+   * `terminal-link` is why it exists. Upstream declares `ava: { serial: true }`, all ten of
+   * its cases mutate one shared module object (`supportsHyperlinks.stdout`), and
+   * `rootPackage()` wrote a fresh manifest without the block — so the vendored copy would
+   * have run ten state-mutating cases concurrently and the row would have read whatever the
+   * interleaving gave it. This is harness, not leniency: it is upstream's own setting, named
+   * here, and it touches no assertion.
+   */
+  avaConfig?: Record<string, unknown>;
+  /**
    * How its suite is executed. `vitest` is what a jest suite runs under, since jest's
    * globals are vitest's and vitest is already here. `exit-code` is not a TAP dialect at
    * all: it runs each file with node and grades the whole suite as one pass/fail bit, for
@@ -884,12 +901,23 @@ export const HOSTS: Host[] = [
     repo: 'https://github.com/sindresorhus/terminal-link',
     testDir: '.',
     testGlob: 'test.js',
-    imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
+    imports: [{ upstream: './index.js', subpath: '', reexportDefault: true, control: 'terminal-link' }],
     surfaceFiles: ['index.d.ts', 'index.js'],
     runner: 'ava',
+    // Upstream's own `ava` block, carried into the vendored manifest by `rootPackage()`.
+    // Every case mutates `supportsHyperlinks.stdout` / `.stderr` on one shared module object
+    // and restores it in `afterEach`; run concurrently the ten cases read each other's writes.
+    avaConfig: { serial: true },
+    // Both by name, and both at exact pins, installed into `vendor/terminal-link/node_modules`.
+    // `supports-hyperlinks` is pinned at the version `terminal-link@5.0.0`'s own `^4.1.0`
+    // resolves to, which matters for more than reproducibility: npm dedupes the two to one
+    // top-level copy, and the suite's whole method is that the object it mutates is the same
+    // object the implementation reads. A nested second copy would make every fallback case
+    // read the ambient terminal instead.
+    suiteDeps: ['terminal-link@5.0.0', 'supports-hyperlinks@4.5.0'],
     target: 'paratext',
-    status: 'planned',
-    note: "**Not vendored, and that is the lock's decision rather than mine.** The suite was vendored at 5.0.0 on 2026-09-14 (`v5.0.0` -> commit 975358c3, tarball ships no test like the other two) and then deleted again, because committing it turns `vendored-suite.test.ts` > \"declares every package a vendored suite reaches for by name\" red: its ten cases `import supportsHyperlinks from 'supports-hyperlinks'` and reassign `supportsHyperlinks.stdout` per case, and that package is declared in neither manifest — measured, `undeclared` comes back as `['supports-hyperlinks (vendor/terminal-link/test.js)']`. It is needed for the *target* run too, not only the control, because the bare import is in the test rather than in the implementation. The control additionally needs `terminal-link` itself: without it `packageRoot()` throws `ERR_MODULE_NOT_FOUND` out of `writeInternalShims` and takes the whole oracle process down rather than reporting one red row. Both are root-manifest edits, which is the integrator lane's file and not a package lane's. One more thing to settle before grading: upstream declares `ava: { serial: true }` and every case mutates that one shared module object, while `rootPackage()` in vendor.ts writes a fresh manifest carrying name, type, main, version, license and repository and *not* the `ava` block — so the vendored copy would run ten state-mutating cases concurrently. Activate when the root manifest declares `terminal-link` and `supports-hyperlinks` and vendor.ts carries the host's ava config.",
+    status: 'active',
+    note: "Activated 2026-09-16, vendored at 5.0.0 (`v5.0.0` -> commit 975358c3; the tarball ships no test, like the other two here). Control **10 / 10, 100.0%**; target `paratext` **0 / 10**, and this zero is a finer one than `ansi-escapes`' or `term-img`'s — every one of the ten cases *registers* and fails, eight of them on `TypeError: terminalLink is not a function` and two on `terminalLink.stderr is not a function`. The file loads; there is simply no callable OSC-8 link on `paratext`'s default export yet. **What the earlier note said blocked this row was a root-manifest edit, and that was the wrong of two available routes.** Its objection was exact — the suite's ten cases `import supportsHyperlinks from 'supports-hyperlinks'` and reassign `supportsHyperlinks.stdout` per case, the package is in neither manifest, and `undeclared` really did come back as `['supports-hyperlinks (vendor/terminal-link/test.js)']` — but it is an objection to `vendorDeps`, which leans on the workspace hoist. `suiteDeps` installs both names into a gitignored `vendor/terminal-link/node_modules` at exact pins, touches no manifest and no lockfile, and `vendored-suite.test.ts` reads a name in the vendored manifest as a declaration however it got there. **Why `supports-hyperlinks` is pinned at 4.5.0 rather than left to the hoist**: the suite's entire method is that the object it mutates is the object the implementation reads, and 4.5.0 is what `terminal-link@5.0.0`'s own `^4.1.0` resolves to, so npm dedupes the two to one top-level copy (verified: `vendor/terminal-link/node_modules/supports-hyperlinks` exists and no nested copy does). A second, nested copy would leave every fallback case reading the ambient terminal instead of the value it just set — green or red by which terminal ran it. The other half of the note was right and is now fixed in `vendor.ts`: upstream declares `ava: { serial: true }`, `rootPackage()` wrote a manifest without it, and ten cases sharing one mutable module object would have raced. It is carried through the `avaConfig` field, and the raw TAP shows it working — one `afterEach` printed after each case rather than all ten batched at the end, which is what the concurrent `term-img` run looks like two rows up. Nothing in this suite varies by platform: no `process.platform`, no `describe.each`, no skip guard, and the two `isSupported` cases assert `typeof … === 'boolean'`, which is true of whatever the ambient terminal reports.",
   },
   {
     name: 'term-img',
@@ -900,12 +928,16 @@ export const HOSTS: Host[] = [
     // `terminalImage('fixture.jpg')`, which `fs.readFileSync`s it relative to cwd — and cwd
     // is the vendored root. Without this the suite fails on the file system, not on us.
     extraDirs: ['fixture.jpg'],
-    imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
+    imports: [{ upstream: './index.js', subpath: '', reexportDefault: true, control: 'term-img' }],
     surfaceFiles: ['index.d.ts', 'index.js'],
     runner: 'ava',
+    // The incumbent itself, installed into `vendor/term-img/node_modules` at the release the
+    // suite is vendored from. This is the route the note below called a root-manifest edit:
+    // it is not one. `suiteDeps` touches no manifest and no lockfile — see `dotenv`.
+    suiteDeps: ['term-img@7.1.0'],
     target: 'paratext',
-    status: 'planned',
-    note: "Vendored 2026-09-14 at 7.1.0 (`v7.1.0` -> commit c495c815). **Its suite runs headless**, which was the open question: term-img draws through the iTerm2 inline-image protocol, so \"can it run without a terminal\" had to be answered before a rate meant anything. Read off the vendored file, the answer is yes — every case sets `TERM_PROGRAM` / `TERM_PROGRAM_VERSION` / `KONSOLE_VERSION` and `process.platform` by hand and asserts the returned string or the thrown `UnsupportedTerminalError`. No tty, no protocol round-trip, nothing rendered. The suite is 13 `test()` calls, one of them a loop over a five-terminal table, so **18 cases**. It is not graded for one reason only: `term-img` is in neither manifest and so not in node_modules (measured 2026-09-14 on a clean `npm ci`), and without it the control does not fail — it throws `ERR_MODULE_NOT_FOUND` out of `packageRoot()` and kills the oracle process. That is a root-manifest edit, the integrator lane's file. Two notes for whoever activates it. Its cases read `fixture.jpg` from cwd, which is why `extraDirs` names that file — it is not a directory, and `cpSync` copies it because the copy is recursive. And `iTerm2 support` is the one case that reaches a real machine: it calls `iterm2-version()`, which reads the installed iTerm2's Info.plist, so on a Linux runner it returns undefined and the case throws. That is a `controlFailures` allowance to declare with this sentence, not a compatibility defect — and it must be declared *before* the row goes active, or the control is red on CI and green on a Mac.",
+    status: 'active',
+    note: "Activated 2026-09-16. Control **18 / 18, 100.0%**; target `paratext` **0 / 18**, a measured zero of the `ansi-escapes` shape — the raw TAP is one line, `SyntaxError: The requested module './shim.js' does not provide an export named 'UnsupportedTerminalError'`, so the file never loads and no case registers. That is R8 unbuilt, stated by the host's own suite, and it is not a verdict on eighteen behaviours. Its suite runs headless, which the earlier note had already established: every case sets `TERM_PROGRAM` / `TERM_PROGRAM_VERSION` / `KONSOLE_VERSION` and `process.platform` by hand and asserts the returned string or the thrown `UnsupportedTerminalError` — no tty, no protocol round-trip, nothing rendered. 13 `test()` calls, one of them a loop over a five-terminal table, so **18 cases**. `extraDirs` names `fixture.jpg` because eleven cases `readFileSync` it relative to cwd, and cwd is the vendored root. **Two things the earlier note got wrong, and both took a measurement to find out.** First, it said the row needed a root-manifest edit because `term-img` is in neither manifest: `suiteDeps` is the route it did not consider, and it installs the incumbent into a gitignored `vendor/term-img/node_modules` at an exact pin, touching no manifest and no lockfile — the arrangement `dotenv` and `rc` already use, and `vendored-suite.test.ts` reads a `suiteDeps` name as a declaration. Second, it reserved a `controlFailures` allowance for `iTerm2 support` on the grounds that the case reaches a real machine. It does not. `iterm2-version@5.0.0` returns `process.env.TERM_PROGRAM_VERSION` whenever `TERM_PROGRAM === 'iTerm.app'`, **before** it goes near `app-path` and the installed bundle's `Info.plist`, and the case sets both by hand (`3.3.7`) — so the plist read is dead code under this suite. The platform gate above it is `process.platform !== 'darwin'`, and the case redefines `process.platform` to `darwin` itself, so a Linux runner takes the same fast path. **No allowance is declared, because nothing fails** — an allowance that excuses a case nobody fails is a dial, and this row would have shipped with one turned to 1. The 18 are the same 18 on every machine: the suite's only `process.platform` read is the `beforeEach` capturing the original value, no `test()` call is guarded by a platform, and `conditionalCases` has nothing to declare. One fragility to carry, and it is upstream's rather than ours: `afterEach` restores `process.platform` with `configurable: false`, so the suite works only while ava runs every `beforeEach` and every case before any `afterEach` — which is what the pinned ava does, visible in the raw TAP. An ava that interleaved hooks would break this suite against term-img itself, and the control is the run that would say so.",
   },
   {
     // The closeout layer's first graded host. `restore-cursor` is the smallest package in

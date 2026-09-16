@@ -215,6 +215,12 @@ export function rootPackage(host: Host, upstream: UpstreamPackage): Record<strin
   // it imports its own siblings. A host may declare either.
   const declared = { ...(host.vendorDeps ?? {}), ...(host.suiteDeps === undefined ? {} : Object.fromEntries(host.suiteDeps.map(splitSpec))) };
   if (Object.keys(declared).length > 0) pkg.devDependencies = declared;
+  // ava reads its configuration from the nearest `package.json` above its cwd, and the run's
+  // cwd is this directory — so upstream's own `ava` block belongs in the file this function
+  // writes or it is simply lost. `terminal-link` declares `{ serial: true }` and every one of
+  // its ten cases mutates one shared module object; without this the vendored copy runs them
+  // concurrently and the rate reads the interleaving rather than the implementation.
+  if (host.avaConfig !== undefined) pkg.ava = host.avaConfig;
   return pkg;
 }
 
