@@ -62,6 +62,46 @@ export interface ControlAllowance {
   why: string;
 }
 
+/**
+ * Cases the suite registers on some platforms and **does not register at all** on others,
+ * because the suite itself guards them with the platform.
+ *
+ * This is not a skip. A skipped case registers, prints `# SKIP`, and `controlShortfall`
+ * already accounts for it — that accommodation exists because commander and yargs each skip
+ * one OS-specific test on Linux. A case inside `if (process.platform === 'linux') { … }` is
+ * never handed to the runner, so it prints nothing, and the only visible effect is that the
+ * suite is smaller. There is nothing for an inference to read.
+ *
+ * Which is exactly how it reached a published page. `cosmiconfig`'s suite is **241 cases on
+ * darwin and 243 on ubuntu**, and until this field the reference was whichever machine last
+ * recorded it: `compat:page --check` on PR #338 read a row committed from darwin as
+ * `186 / 241, 77.2%` and measured the same row on ubuntu at `76.5%`, because `rate()`
+ * divides by `max(reference, registered)` and ubuntu registered 243. Same target, same
+ * commit, two published rates.
+ *
+ * The fix is to record the **full** set as the reference and declare what the other
+ * platforms lack, rather than to subtract the cases or to let the smaller machine set the
+ * number. Both halves matter: the denominator is then 243 everywhere, and the cases a
+ * platform does have are still all counted, so nothing is quietly excused. The declaration
+ * narrows and never widens — it is spent only on the platforms outside `only`, and only up
+ * to `count`.
+ */
+export interface ConditionalCases {
+  /** How many cases the platforms that lack them do not register. Exact, not a ceiling. */
+  count: number;
+  /**
+   * The platforms that register them, for a suite written `if (process.platform === 'x')`.
+   * Exactly one of `only` and `notOn` is given, and which one is not a style choice: each
+   * mirrors how the guard is actually spelled, so the declaration can be checked against the
+   * line it describes instead of being a list somebody derived.
+   */
+  only?: NodeJS.Platform[];
+  /** The platforms that do not, for a suite written `if (process.platform !== 'x')`. */
+  notOn?: NodeJS.Platform[];
+  /** Which cases, and the line of the suite that guards them. A lock refuses an empty one. */
+  why: string;
+}
+
 export interface Host {
   /**
    * The host's key here: its vendor directory, its baseline fragment, and the word a
@@ -122,6 +162,8 @@ export interface Host {
   excludes?: Exclusion[];
   /** What the control may fail against the host's own package, and why. */
   controlFailures?: ControlAllowance;
+  /** Cases only some platforms register at all, so the reference is the same everywhere. */
+  conditionalCases?: ConditionalCases;
   /** Files the runner must load first, relative to the vendored tests dir. */
   preamble?: string;
   /**
@@ -538,6 +580,11 @@ export const HOSTS: Host[] = [
       count: 1,
       why: "`index.test.ts` imports `'../src/index.js'` — cosmiconfig's own entry module, by path — in addition to the public entry, and `vi.mock`s `../src/Explorer` and `../src/ExplorerSync` to assert the CONSTRUCTOR ARGUMENTS the entry passes them. The vendor step generates a shim for every internal specifier the suite names, but `../src/index.js` is the host's public entry reached by an internal path, so no shim is written and the file fails to load. That is one graded case, and it fails identically for the control and for the target: it is the harness's file-layout assumption, not a property of either implementation. This is the C4 shape `seniority/design.md` finding 4 left open, decided here — the fix is in `vendor.ts`'s internal-shim discovery, which is the harness lane's file, and until it lands the honest form is a named allowance of exactly one rather than an unexplained 240.",
     },
+    conditionalCases: {
+      count: 2,
+      only: ['linux'],
+      why: "`search-strategies.test.ts` wraps its `global › finds config in OS default directory (XDG)` describe in `if (process.platform === 'linux')`, so its two cases — `async` and `sync` — are **not registered at all** anywhere else. The suite is 241 cases on darwin and 243 on ubuntu, and that is the whole of the difference: no other conditional construct exists in the nine files (`process.platform`, `os.platform`, `describe.each`, `skipIf` and `runIf` return exactly this one hit). The reference is the ubuntu 243, because the reference has to be the full suite or the number means less on the machine that has more. The two are real and we fail both: seniority resolves its global config directory from `os.homedir()` and the platform rather than reading `XDG_CONFIG_HOME` through `env-paths`, which is `seniority/design.md` R11 and a listed divergence. Counting them against us on every platform is the point — excluding them instead would have raised the published rate from 76.5% to 77.2% by dropping two cases we lose.",
+    },
     // Upstream's own `vite.config.ts` sets both, and its suite depends on them. Measured
     // 2026-09-14 and again 2026-09-15: without them 28 cases in
     // `successful-directories.test.ts` fail on a `readFileSync` spy that still holds the
@@ -563,7 +610,7 @@ export const HOSTS: Host[] = [
     runner: 'vitest',
     target: 'seniority',
     status: 'active',
-    note: "Activated 2026-09-16. Control **240 / 241, 99.6%** against an allowance of 1, target `seniority` **186 / 241, 77.2%** — both reproduced on a clean vendored directory (`rm -rf vendor/cosmiconfig/node_modules` before each). The one reason this row stayed `planned` was the `installSuiteDeps` line below, and it is fixed: the check now compares the installed version *and its location* against the pin. The history: Measured 2026-09-15 (PLAN 3.2) and NOT activated — for one reason, and it is a line in `run.ts` rather than anything about either implementation. Target `seniority` grades **186 / 241, 77.2%**, reproducible on a clean checkout with nothing installed beside the suite (verified by removing `vendor/cosmiconfig/node_modules` and re-running). Control grades **240 / 241, 99.6%** — up from 210 / 241 once `vitestConfig` carried upstream's own `restoreMocks`/`mockReset`, measured before and after — but only when the `suiteDeps` pins are actually installed. They are not, on a clean checkout: `installSuiteDeps` skips a package that `resolvesFrom` the vendored directory **by name**, and this workspace hoists `cosmiconfig` at 9.0.2 (through @commitlint/load) and `parent-module` at 1.0.1. So the install never ran, the 10.0.1 suite was graded against 9.0.2, and the control read **234 / 241** — seven failures against an allowance of one. A control below its own reference must not publish a rate, so the row did not. `unsatisfiedPins` in `run.ts` is the fix and its doc comment carries the measurement; the second half of that comment is a second wrong answer the same door let through, found while activating `rc`."
+    note: "Activated 2026-09-16, and **corrected the same day for a denominator that read the machine**. The reference is the ubuntu suite's 243, not darwin's 241 — see `conditionalCases` for the two-case difference and for why they are counted rather than subtracted. So: target `seniority` **186 / 243, 76.5%** on every platform, control **240 of the 241 darwin registers** and 242 of 243 on ubuntu, against an allowance of 1 and a declared two-case shortfall off linux. Both reproduced on a clean vendored directory (`rm -rf vendor/cosmiconfig/node_modules` before each). The row as first committed read 77.2% from darwin and measured 76.5% on ubuntu for the same commit, which `compat:page --check` caught on PR #338. The one reason this row stayed `planned` was the `installSuiteDeps` line below, and it is fixed: the check now compares the installed version *and its location* against the pin. The history: Measured 2026-09-15 (PLAN 3.2) and NOT activated — for one reason, and it is a line in `run.ts` rather than anything about either implementation. Target `seniority` grades **186 / 241, 77.2%**, reproducible on a clean checkout with nothing installed beside the suite (verified by removing `vendor/cosmiconfig/node_modules` and re-running). Control grades **240 / 241, 99.6%** — up from 210 / 241 once `vitestConfig` carried upstream's own `restoreMocks`/`mockReset`, measured before and after — but only when the `suiteDeps` pins are actually installed. They are not, on a clean checkout: `installSuiteDeps` skips a package that `resolvesFrom` the vendored directory **by name**, and this workspace hoists `cosmiconfig` at 9.0.2 (through @commitlint/load) and `parent-module` at 1.0.1. So the install never ran, the 10.0.1 suite was graded against 9.0.2, and the control read **234 / 241** — seven failures against an allowance of one. A control below its own reference must not publish a rate, so the row did not. `unsatisfiedPins` in `run.ts` is the fix and its doc comment carries the measurement; the second half of that comment is a second wrong answer the same door let through, found while activating `rc`."
   },
   {
     // seniority's third incumbent, and the one that grades the *claim* rather than the API:
@@ -624,6 +671,11 @@ export const HOSTS: Host[] = [
       { match: '> lilconfig > when to throw > loader is not a function', why: 'Un-awaited `expect(…).rejects.toThrowError`. The `lilconfigSync` case of the same name is gated.' },
       { match: '> lilconfig > when to throw > throws for empty strings passed to load', why: 'Un-awaited `expect(…).rejects.toThrowError`. The `lilconfigSync` case of the same name is gated.' },
     ],
+    conditionalCases: {
+      count: 2,
+      notOn: ['win32'],
+      why: "`default for searchFrom till root directory` and `searches root directory correctly`, each wrapped in `if (process.platform !== 'win32')` because both assert an `fs` call list rooted at `/`. They are the only conditional construct in the file — the `isNodeV20orNewer` branches pick an expected *message* and never add or drop a case, and this repository is Node 24 only. So the count does not move between darwin and ubuntu, which is why the reference is 77 on both and no number here changes. It is declared anyway: without it a Windows contributor's control registers 75 of 77 and goes red for doing exactly what the suite told it to, and finding that on their machine is worse than writing it here. Both cases are also two of the ten in `controlFailures`, so on Windows that allowance is spent down to eight.",
+    },
     controlFailures: {
       count: 10,
       why: "Ten cases that read `fs.promises.access.mock.calls` and `fs.readFileSync.mock.calls` — eight under `options > cache` and the two `search … root directory` ones — and fail against **lilconfig's own package** here while passing upstream. The suite mocks `fs` with `jest.mock('fs', factory)` at module scope, which jest hoists above the `require('fs')` three lines earlier; `run.ts` maps `jest.mock` to `vi.doMock`, which is the runtime form and cannot hoist, so the test's own `fs` binding is the real module and its methods are not spies. Identical for the control and for the target, and a property of vitest 5 against jest 29 rather than of either implementation — the same divergence `clack`'s 30-case allowance records. Unlike those thirty, these ten *do* grade real behaviour (the load and search caches), so this is a blind spot and is written as one: 10 of 77, and it retires the day the harness rewrites `jest.mock(` to `vi.mock(` in the transform so vitest's own hoister sees it, which is the jest-globals mapping applied to the one construct that has to be syntactic rather than a value.",
