@@ -12,14 +12,14 @@
  * `fast-wrap-ansi` and `sisteransi` — measured on 2026-09-09 the way every other bill in
  * this repo is: shipped code and data (`.js`/`.mjs`/`.cjs` plus imported `.json`,
  * `package.json` never counted), each package counted whole across its own resolved tree.
- * The whole of caique is 25,627 B and reaches **no package at all**, so the entry that
- * carries everything is a quarter of the incumbent that carries the least.
+ * The whole of caique is 29,042 B and reaches **one package, from this repo**, so the
+ * entry that carries everything is under a third of the incumbent that carries the least.
  *
  * The last test is the important one: **an entry point cannot be added without declaring
  * its budget here**, so the lock grows with the package instead of rotting behind it. It
  * reads `dist/`, so it measures what is published rather than what is written.
  */
-import { readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -30,14 +30,36 @@ const dist = resolve(pkgRoot, 'dist');
 
 interface Manifest {
   exports: Record<string, { import: string } | string>;
+  dependencies?: Record<string, string>;
 }
 
 // Read rather than import: the published entry list is data here, and a JSON import would
 // reach out of src/ for it.
 const manifest = JSON.parse(readFileSync(resolve(pkgRoot, 'package.json'), 'utf8')) as Manifest;
 
+/**
+ * Every package published from this repo, read from the directory rather than listed here,
+ * so a new sibling cannot make this lock stale by existing.
+ */
+const FAMILY = readdirSync(resolve(pkgRoot, '..')).filter((dir) => existsSync(resolve(pkgRoot, '..', dir, 'package.json')));
+
+/**
+ * The one package caique reaches, and the two subpaths of it.
+ *
+ * `closeout` is family and sits in the foundation tier, so the arrow is downward and
+ * `package-shape-lock.test.ts` sanctions it. It is here because the raw renderer hides the
+ * cursor, and the restore that owes — on every path the process can die by, not just the
+ * keypress that sees Ctrl-C as a byte — is closeout's declared job against `restore-cursor`
+ * and `signal-exit`. caique carried the third copy of those two escape sequences and no
+ * exit handler at all; see the note in `raw.ts`.
+ */
+const CLOSEOUT = ['closeout/cursor', 'closeout/exit-hook'];
+
 interface EntryRule {
-  /** Bare specifiers this entry may import. Empty everywhere: caique depends on nothing. */
+  /**
+   * Bare specifiers this entry may import. Empty on every leaf: the only edge caique has is
+   * the cursor restore, and it is paid by the two entries that can hide a cursor.
+   */
   allow: string[];
   /** Bytes reachable from it. A ratchet: lowering is free, raising is a decision with a comment. */
   budget: number;
@@ -47,9 +69,10 @@ interface EntryRule {
 
 const RULES: Record<string, EntryRule> = {
   // Everything, for a program that wants one import: the spec, the decision, both widget
-  // modes, the binding and the terminal. Measured 25,627 B on 2026-09-09 — a quarter of
-  // clack's 101,684 B across six packages, and caique reaches none.
-  '.': { allow: [], budget: 30_000, denied: [] },
+  // modes, the binding and the terminal. Measured 29,042 B on 2026-09-15 (27,336 B before
+  // the cursor restore) — under a third of clack's 101,684 B across six packages, and the
+  // only package caique reaches is one this repo publishes.
+  '.': { allow: CLOSEOUT, budget: 30_000, denied: [] },
   // The shape and its validator. The floor every other subpath stands on, and a leaf: a
   // program that only declares prompts pays 1,571 B and never loads a widget.
   './spec': { allow: [], budget: 2_500, denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
@@ -70,8 +93,11 @@ const RULES: Record<string, EntryRule> = {
   './plugin': { allow: [], budget: 20_000, denied: ['decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
   // The raw-mode renderer sits *on top of* line mode and answers the same questions, so it
   // carries `ask.js` by design — that shared answer is the arrangement, not an accident.
-  // It never reaches the terminal: a caller supplies its own streams. Measured 14,796 B.
-  './raw': { allow: [], budget: 17_000, denied: ['decide.js', 'binding.js', 'terminal.js', 'index.js'] },
+  // It never reaches the terminal: a caller supplies its own streams. Measured 16,502 B on
+  // 2026-09-15, against 14,796 B before it took the cursor restore from `closeout` — the
+  // 1,706 B is this file's own prose, since caique's build does not strip comments, and it
+  // was paid down to fit rather than charged to the budget.
+  './raw': { allow: CLOSEOUT, budget: 17_000, denied: ['decide.js', 'binding.js', 'terminal.js', 'index.js'] },
   // Resolving a whole command's prompts in one pass: the decision plus the widgets it may
   // reach for. Never the terminal, and never the raw renderer — a framework hands caique an
   // `Io`, and which one is the caller's business. Measured 15,475 B.
@@ -135,9 +161,26 @@ describe('the lock grows with the package', () => {
     expect(code.sort()).toEqual(Object.keys(RULES).sort());
   });
 
-  it('depends on nothing, which is the claim the whole family makes', () => {
+  /**
+   * The claim the whole family makes, stated the way it is actually true.
+   *
+   * It used to read "depends on nothing", and every entry had to reach no package at all.
+   * That is the rule which kept the third copy of `HIDE_CURSOR`/`SHOW_CURSOR` in `raw.ts`,
+   * along with no exit handler to undo them — a rule that forbids the arrow does not
+   * remove the need, it converts it into a copy, which is the outcome the repository's own
+   * packaging lock says principle 2 exists to prevent.
+   *
+   * So: nothing from outside this repository, and every same-repo edge declared as a real
+   * dependency in `package.json` rather than borrowed from a hoisted `node_modules`.
+   */
+  it('reaches nothing it does not install, and nothing outside this repo', () => {
+    const declared = new Set(Object.keys(manifest.dependencies ?? {}));
     for (const subpath of Object.keys(RULES)) {
-      expect(walk(entryFile(subpath)).external, `${subpath} reaches a package`).toEqual([]);
+      for (const specifier of walk(entryFile(subpath)).external) {
+        const owner = specifier.startsWith('@') ? specifier.split('/').slice(0, 2).join('/') : (specifier.split('/')[0] as string);
+        expect(declared.has(owner), `${subpath} reaches ${specifier}, which ${owner} is not declared for`).toBe(true);
+        expect(FAMILY, `${subpath} reaches ${owner}, which is not published from this repo`).toContain(owner);
+      }
     }
   });
 });
