@@ -44,13 +44,18 @@ The reference point to keep in view: a commander user's first line is
 
 ## Requirements — the CLI floor
 
-92 requirements: the shape lock (Z1–Z5), the original 26 (F/O/E/V/S/P/D/T), 27 folded in from the gap-track
-intents on 2026-09-06 (S5–S8, V6–V7, H1–H6, D3–D5, P3, M1–M6, K1–K5), and 27 added the
-same day with the compatible-replacement strategy and the architecture review
+**114 requirements**, counted 2026-09-16 by reading every row of every table below. This
+paragraph said *92*, and the arithmetic it recites is kept here because it says when each
+wave arrived: the shape lock (Z1–Z5), the original 26 (F/O/E/V/S/P/D/T), 27 folded in from
+the gap-track intents on 2026-09-06 (S5–S8, V6–V7, H1–H6, D3–D5, P3, M1–M6, K1–K5), and 27
+added the same day with the compatible-replacement strategy and the architecture review
 (K6, C1–C8, B1–B7, N1–N10, J1–J9), and 13 added 2026-09-08 with the output stack
-(U1–U13, from `cli-output-stack`). Each names the
-issue evidence, whether the **runtime** (R) guarantees it or the **lint** rule (L)
-enforces it, and where it lands.
+(U1–U13, from `cli-output-stack`). It is wrong twice over: `E6 E7 V8 N11–N15` were added
+after it was last totalled, and `C1–C8` names two rows the compatibility table does not
+have — it holds C1–C6. Each requirement names the issue evidence, whether the **runtime**
+(R) guarantees it or the **lint** rule (L) enforces it, and where it lands; what is
+*built* is in [What is built, requirement by
+requirement](#what-is-built-requirement-by-requirement-2026-09-16).
 
 ### Discoverability
 
@@ -432,7 +437,8 @@ the conformance matrix (wave 1).
 
 ## The surface a consumer gets, derived from the tree (2026-09-15)
 
-Ninety-two requirements say what the floor *is*. None of them is a list a consumer can scan
+A hundred and fourteen requirements say what the floor *is* — this read *"Ninety-two"* until
+the list was counted on 2026-09-16. None of them is a list a consumer can scan
 to decide what to import. This section is that list, and it is derived rather than
 transcribed: one row per entry in `packages/burgee/package.json`'s `exports` map, with the
 names read from the source file each subpath's `dist/` path is built from. Re-derive with
@@ -457,6 +463,14 @@ Two of those rows will surprise a reader of the requirements: `burgee/brand` and
 requirement above mentions either.
 
 ### How a consumer extends it
+
+> **Superseded on 2026-09-16, one day after it was written.** `packages/burgee/src/plugin.ts`
+> landed in #334 and #339 and closed every finding below: burgee now declares the family's
+> `Plugin` shape with a `contract` key, a `validate()` that refuses, and the family's
+> `PluginError` vocabulary with `code` and `fix`. The section is kept verbatim — a bar that is
+> restated and then vanishes is indistinguishable from one that was quietly met — and what
+> replaced it is recorded immediately after it, under *How a consumer extends it, as of
+> 2026-09-16*.
 
 **burgee's plugin is not the family's plugin, and this is the most important sentence in this
 section.** Every other layer declares, structurally, an object shaped
@@ -524,6 +538,24 @@ Commands are added in `use()` call order, so `enforce` has no effect on which pl
 path collision — and a collision resolves inconsistently: `find()` returns the first match
 while `resolve()` lets the last registered node win a tie.
 
+### How a consumer extends it, as of 2026-09-16
+
+`packages/burgee/src/plugin.ts` exists. It is the host file the family's locks read, and every
+finding above is closed:
+
+| What the section above found | What `plugin.ts` does now |
+| :-- | :-- |
+| *"No `contract`"* | `Plugin.contract?: number`, checked against `CONTRACT = 1`. **Absent is a refusal**, not a default, because burgee's extension point is published — 0.6.1 is on npm and validated nothing — so an object with no `contract` was authored against a host that read none, and its silence reads *unknown* rather than *fine*. `definePlugin` stamps the number, so only a plugin built against an older burgee ever hits it |
+| *"burgee is not a host as far as `plugin-error-vocabulary-lock.test.ts` is concerned"* | it is. `PluginError` with `code`, `message` and `fix`; codes `E_PLUGIN_SCHEMA` and `E_PLUGIN_CONTRACT` |
+| *"What is validated: nothing"* | `validate(plugin, taken)` refuses a non-object, a missing or empty `name`, an unknown `enforce` (`'mid'` no longer yields a `NaN` comparator), an unknown hook stage, a hook with no `handler`, a non-array `commands`, a node with no `path`, and a contributed path already declared |
+| *"a malformed `CommandNode` — never checked"* | `checkCommands` calls `checkCommand`, which is what `defineCommand` calls: the V5 reserved names and `checkDefinition`'s four. **A plugin option named `json` no longer replaces the envelope flag** in the parse config — it is refused at the door, and that is the defect the first case in `plugin.test.ts` is named for |
+| *"`use(undefined)` — the push succeeds, then … a raw `TypeError`"* | `Manifest.use()` validates **before** it pushes, so a refused plugin contributes no command and leaves no half-registration |
+| *"a collision resolves inconsistently: `find()` … `resolve()` …"* | a contributed path that is already declared is refused with that sentence as its `fix`. Which of `find()` and `resolve()` is right for a **first-party** duplicate is still open — it is a decision about every program, not about plugins |
+
+What is unchanged: a burgee plugin contributes `commands` and `hooks` where a family plugin
+contributes data to a layer, and `plugin.ts` **ignores every other key without complaining**,
+which is what lets one object register against any subset of the family that is installed.
+
 ### What burgee does not do, and why
 
 Beyond "Out of scope" below, four refusals a consumer should know before looking:
@@ -535,10 +567,294 @@ Beyond "Out of scope" below, four refusals a consumer should know before looking
   `instanceof` over a fixed set. E6 and E7 ask for more than the code gives.
 - **It does not colour its own help.** The engine never reads `NO_COLOR` or `FORCE_COLOR`;
   only the commander façade does, and `renderHelp` defaults colour off.
-- **It carries no plugin error vocabulary.** See above: the family's `PluginError` is the
-  output stack's, and burgee's extension point is outside it.
+- ~~**It carries no plugin error vocabulary.** See above: the family's `PluginError` is the
+  output stack's, and burgee's extension point is outside it.~~ **No longer true as of
+  2026-09-16**: `src/plugin.ts` declares `PluginError` with `code`, `message` and `fix`, and
+  `E_PLUGIN_SCHEMA` / `E_PLUGIN_CONTRACT` are the family's codes. Struck rather than deleted,
+  for the reason the section above it gives.
+
+## What is built, requirement by requirement (2026-09-16)
+
+Every requirement this design states, with the status the tree supports. It is the first
+reading of the whole list: the section below it, *Where this document and the code
+disagree*, was written on 2026-09-15 against a subset, and four of its entries have since
+closed. **Where the two disagree, this table is the later reading**; the older one is kept
+whole, because a bar that is restated and then vanishes is indistinguishable from one that
+was quietly met.
+
+**The count.** 114 requirements, in seventeen families — `Z F O E V S P D T H M K J C B N U`.
+The prose above says *92* and *"Ninety-two requirements"*; both are wrong, and wrong the same
+way, because `E6 E7 V8 N11–N15` were added after the arithmetic was last done and `C1–C8`
+names two rows that do not exist. **Built: 77. Not built: 37.**
+
+**How a row was decided.** From `packages/burgee/src/` and the repository around it, never
+from this document's prose about itself. `Not built` is the answer whenever the behaviour the
+requirement *states* is not true of the tree — including when a good half of it is, in which
+case the evidence says which half. A row whose `Holds` column reads `L` or `R + L` is judged
+on the behaviour, not the enforcement: `eslint-plugin-cli-floor` is still an intent directory
+and not a package (`packages/` holds ten directories and none of them is it), so every `L` is
+unimplemented, and a requirement whose *stated behaviour is the lint rule* — F3, O3, P1 — is
+`Not built` for that reason alone.
+
+**This table is not yet readable by the roadmap checker, and that is a defect in the checker
+rather than in the ids.** `scripts/plan-progress.ts`'s `designGap()` collects requirements
+with `/^- \*\*(R\d+)/` and statuses with `/^\| (R\d+) \| \*\*Built\*\*/`. burgee's ids are
+`N6`, `J3`, `U5` — never `R<n>` — so the largest design in the repository reports
+`the design lists no requirements`, exactly as an empty one would. Widening both patterns to
+`[A-Z]+\d+` is an integrator change (`scripts/**` is not this lane's), and until it lands this
+section is read by people and not by `npx tsx scripts/plan-progress.ts`.
+
+### The shape lock
+
+| # | Status | Evidence | The check |
+| :-- | :-- | :-- | :-- |
+| Z1 | **Built** | `src/shape.test.ts` installs the packed tarball into a temp dir, writes one `.mjs`, runs it | `shape.test.ts`: *"the user authored exactly one file, and never ran a build"* |
+| Z2 | **Built** | every capability is its own `exports` subpath, and the core entry is proven not to reach `dev.js`, `testing.js` or the output stack | `src/weight.test.ts`, the `denied` list per entry |
+| Z3 | Not built | `package.json` declares four runtime dependencies: `closeout`, `linegauge`, `roundel`, `seniority`. Restated below | `shape.test.ts`: *"depends on nothing **outside this repo**"* — the weaker claim it actually holds |
+| Z4 | **Built** | the README's first example is 9 lines and installs nothing but `burgee` | none. `Holds` says `lock`; no test pins the 15-line ceiling |
+| Z5 | **Built** | `defineProgram` builds the `Manifest` in memory at call time, and there is no precompute path at all, so it can never be a prerequisite | none for the bench half: `examples/demo-cli-large` is 30 commands, not the 250 of yargs #1005 |
+
+### Discoverability
+
+| # | Status | Evidence | The check |
+| :-- | :-- | :-- | :-- |
+| F1 | Not built | `schema.ts` prints the tree and stamps `schemaVersion: 1`. The *validating* half is absent: the only `schema.json` burgee publishes is the **family plugin schema** — byte-identical across six packages and titled `flagstaff plugin` — not a schema for `--schema` output, and nothing validates the document against anything | `schema.test.ts` asserts the shape; no test validates against a JSON Schema |
+| F2 | Not built | there is no JSON help surface. `dispatch` returns `renderHelp(…)` as text and `emit` writes it verbatim, so `--help --json` prints the same prose as `--help` | — |
+| F3 | Not built | held by `L` only; `eslint-plugin-cli-floor` is not a package | — |
+| F4 | **Built** | `help.ts`'s `commandSections` groups children by `group`; `hidden` is filtered by `runnable()`; `commandSchemaOf` carries `group` into `--schema` | `help.test.ts`, `schema.test.ts` |
+
+### Output
+
+| # | Status | Evidence | The check |
+| :-- | :-- | :-- | :-- |
+| O1 | **Built** | `emit()` writes `{ ok: true, data, meta }`; `report()` writes `{ ok: false, error: { code, message, hint } }` | `machine-json.test.ts`, `shape.test.ts` |
+| O2 | Not built | the engine never reads `NO_COLOR` or `FORCE_COLOR`; only `commander/command.ts`'s `useColor` does, for the façade. `renderHelp` defaults `color: false`, so the requirement is satisfied by never colouring rather than by the stated policy, and `FORCE_COLOR` overrides nothing | — |
+| O3 | Not built | held by `L` only | — |
+| O4 | **Built** | `help.ts` imports `styleText` from `node:util`; no colour package anywhere in the family | `scripts/layer-boundaries-lock.test.ts`: *"holds zero external runtime dependencies across the family"* |
+| O5 | **Built** 2026-09-16 | `shutdown.ts` registers `flushStreams` in closeout's `flush` phase over `[host.stdout, host.stderr]`, which runs before `release` and before `restore`; every `io.exit` in `execute.ts` goes through `leave()` | `shutdown.test.ts`, and `pty-signal.test.ts` on the signal path. Caveat: `detachedTeardown()` is built with **no** streams, so an injected `stdout` is still never drained — it is a synchronous `{ write }` with nothing buffered |
+
+### Errors and lifecycle
+
+| # | Status | Evidence | The check |
+| :-- | :-- | :-- | :-- |
+| E1 | **Built** | `exit-code.ts` declares exactly six codes and `isExitCode` | `scripts/exit-code-lock.test.ts`: no bare literal at an exit site outside the two front-ends |
+| E2 | **Built** | `describeFailure` classifies before rendering; `textFailure` prints `error: <message>` and a `hint:` line, never help and never a stack | `parsing-edges.test.ts`, `shape.test.ts` |
+| E3 | Not built | the error body is `{ code, message, hint }`. There is no `fix` — in a family where `PluginError`, `ConfigError` and `LoaderError` all carry one | — |
+| E4 | **Built** | `dispatch()` is the order, in one function: parse → resolve layers → relations → coerce → `await node.run` → `emit` → `leave` | `option-relations.test.ts`, `env.test.ts` |
+| E5 | **Built** 2026-09-16 | `shutdown.ts` binds closeout's `install()` — `exit`, `beforeExit`, five signals, `uncaughtException`, `unhandledRejection` — and hands the terminal back last | `pty-signal.test.ts`, in a **real** pty: *"dies of the signal rather than exiting"*, `WIFSIGNALED` with signal 2 |
+| E6 | Not built | `ExitCode` is `OK RUNTIME USAGE CONFIG CANCELLED SIGINT`. There is no `AUTH`, which the requirement itself calls *"the most actionable single code in the survey"* | — |
+| E7 | Not built | `describeFailure` is `instanceof` over a fixed set with `RUNTIME` as the fallback. Nothing lets an author declare a class, and no startup check refuses a reused code | — |
+
+### Values and precedence
+
+| # | Status | Evidence | The check |
+| :-- | :-- | :-- | :-- |
+| V1 | **Built** | `resolveValues` builds `Layers` and calls `seniority/precedence`'s `resolve`; per command, never global | `env.test.ts`: *"env never leaks into a command that does not declare the option"* |
+| V2 | **Built** | `OptionSpec.env` and `Manifest.envPrefix`; help renders `[env: NAME]` inline and an `Environment:` section; `--schema` publishes `options` verbatim, `env` included | `env.test.ts`, `help.test.ts` |
+| V3 | **Built** | `--explain <option>` through seniority's `explain()`, and `meta.provenance` on every `--json` envelope | `env.test.ts`: *"--explain prints the winner and the candidates it beat, and runs nothing"* |
+| V4 | **Built** | `pkg.ts`'s `nearestPackage` walks up from the entry file; `versionOf` prefers the declared version and falls back to it | `version-flag.test.ts`, `env.test.ts` |
+| V5 | **Built** | `definition.ts`'s `RESERVED` refuses `json help schema mcp version explain`, at `defineCommand` **and** at `Manifest.use()`. The `Holds` column says `L`; it is held by `R`. Restated below | `env.test.ts`: *"reserves version and explain like the other surfaces"*; `plugin.test.ts` |
+| V6 | **Built** | `seniority/config`'s `discover` with the fixed order, loaded lazily for a program that opted in; the chain is reported through `--explain` | `env.test.ts`; seniority's `discovery.test.ts` |
+| V7 | **Built** | `seniority/src/config.ts`'s `loadWithExtends` — deep merge, outermost first, cycle rejection, resolution from the extending file | seniority's `config.test.ts` |
+| V8 | Not built | there is no `config explain` command and no generated precedence table. `--explain <option>` exists and is a different surface | — |
+
+### Validation
+
+| # | Status | Evidence | The check |
+| :-- | :-- | :-- | :-- |
+| S1 | **Built** | `OptionSpec.schema` accepts any `StandardSchemaV1`; `InferOptions` derives the handler's type from the same declaration | `schema-dsl.test.ts` |
+| S2 | **Built** | `Relation` carries `exactlyOneOf`, `atLeastOneOf`, `atMostOneOf`, `conflicts` and a value-aware `implies`; `dependsOn`/`exclusive` compile into it through `optionRelations` | `option-relations.test.ts`, `relations-schema.test.ts` |
+| S3 | **Built** | `toNumber` refuses `NaN` and `Infinity`; `checkDefinition` refuses an unknown `type` at definition time | `schema-dsl.test.ts` |
+| S4 | Not built | the `--` half is built: `splitPositionals` hands everything after the terminator to the handler as `passthrough`. `-` meaning stdin is not, and `ArgumentSpec` has no `type` field, so no positional can be file-typed in the first place | `parsing-edges.test.ts` for the `--` half |
+| S5 | **Built** | `names.ts` — one canonical camelCase key, kebab derived; `checkDefinition` refuses two keys that meet on the command line | `schema-dsl.test.ts` |
+| S6 | **Built** | `dispatch()` calls `checkRelations` before `coerce`, and `coerce` checks choices before the Standard Schema | `option-relations.test.ts` |
+| S7 | **Built** | `toParseConfig` maps `boolean` to parseArgs' `type: 'boolean'`, which never consumes a value | `negation.test.ts`, `parsing-edges.test.ts` |
+| S8 | **Built** | `splitMultiple` with `separator` defaulting to `,`; repetition accumulates | `schema-dsl.test.ts` |
+
+### Prompts
+
+| # | Status | Evidence | The check |
+| :-- | :-- | :-- | :-- |
+| P1 | Not built | held by `L` only | — |
+| P2 | Not built | the requirement specifies exit **2**. The nearest mechanism, `ctx.actionRequired`, unwinds to `ExitCode.CANCELLED` (**4**), and there is no prompt-to-`USAGE` path in the package | — |
+| P3 | Not built | `caique/src/binding.ts` classifies a cancelled prompt as the string `'CANCELLED'` and never `RUNTIME`, which is the taxonomy half. Nothing *exits* 4: caique declares no numeric code, and burgee does not import caique, so no path joins the two | — |
+
+### Deprecation and completions
+
+| # | Status | Evidence | The check |
+| :-- | :-- | :-- | :-- |
+| D1 | Not built | `deprecated` is `boolean \| string`. `true` renders a bare `(deprecated)` and warns with no replacement named, so a deprecation does not *require* one | `help.test.ts` asserts both spellings render — the bare one included |
+| D2 | **Built** | `completions.ts` walks the manifest into bash, zsh, fish and PowerShell scripts, statically | `completions.test.ts`, `src/__snapshots__` |
+| D3 | Not built | the half that matters is built — no generated script runs Node on TAB. The escape hatch is not: there is no `dynamic` marker on an option anywhere in `OptionSpec` | `completions.test.ts` |
+| D4 | **Built** | snapshots in `src/__snapshots__`, and each of the four shells runs its own script | `.github/workflows/completions.yml` — bash through `COMP_WORDS`, zsh through a real TAB in a pty, fish through `complete -C`, pwsh through `TabExpansion2` |
+| D5 | **Built** | `renderFigSpec`, from the same walk as the shell scripts | `fig-spec.test.ts`, `fig-schema.test.ts` (keys pinned against `@withfig/autocomplete-types`) |
+
+### Testing
+
+| # | Status | Evidence | The check |
+| :-- | :-- | :-- | :-- |
+| T1 | Not built | `runBurgee` builds a full `fakeRuntime` and then forwards only `argv`, `env`, `stdout`, `stderr`, `exit` and `root` to `execute`. `stdin`, `cwd` and TTY-ness are dropped, so passing `tty: true` changes nothing about a burgee program | `testing-helpers.test.ts` — which does not assert the three that are dropped. This is the row most likely to make a test pass for the wrong reason |
+
+### Help
+
+| # | Status | Evidence | The check |
+| :-- | :-- | :-- | :-- |
+| H1 | **Built** | `renderHelp(manifest, node, opts)` reads the manifest and nothing else; no host help class is reachable from it | `help-snapshot.test.ts` |
+| H2 | **Built** | `exampleLines` puts `$ command` on one line and indents the description below it; never two columns | `help.test.ts`, `help-snapshot.test.ts` |
+| H3 | **Built** | `ioOf` sets `width: out.columns ?? HELP_WIDTH`, and `HELP_WIDTH` is 100 | `help-width.test.ts` |
+| H4 | **Built** | `renderHelp` emits `Options:` then `Global options:`, in that order, always | `help-snapshot.test.ts` |
+| H5 | **Built** | `annotate` appends `[env: NAME]` and `deprecation()` inline, on the option's own row | `help.test.ts` |
+| H6 | **Built** | `verbose` defaults false; `[string]` hints appear only when asked for | `help.test.ts` |
+
+### Modularity
+
+| # | Status | Evidence | The check |
+| :-- | :-- | :-- | :-- |
+| M1 | Not built | `CommandNode.group` is optional and nothing enforces it; `commandSections` falls back to the `Commands:` heading | — |
+| M2 | **Built** | `lazyRun` imports the module on the first call; `Manifest.add` wraps a `load`-only node | `examples/conformance/src/modularity.test.ts`: *"serves `--help` and `--schema` without importing a single lazy handler"* |
+| M3 | **Built** | `Manifest.use()` stamps `plugin: <name>` on every contributed node; `commandSchemaOf` publishes it | `plugin.test.ts`, `adoption-ladder.test.ts` |
+| M4 | **Built** | `sharedOptions(name, specs)` tags every copy `sharedFrom`, and the schema carries it | `schema-dsl.test.ts` |
+| M5 | Not built | the same defect as D1: `warnDeprecated` writes `warning: 'x' is deprecated` with no replacement when `deprecated` is `true` | `help.test.ts` |
+| M6 | **Built** | `resolveCommand` and `runCommand` are exported from `index.ts` | `shape.test.ts`'s export-map lock |
+
+### Packaging
+
+| # | Status | Evidence | The check |
+| :-- | :-- | :-- | :-- |
+| K1 | Not built | *zero* is not what any package holds: burgee declares four runtime dependencies, flagstaff four, caique one. What is locked is *no dependency outside this repo*. Restated below | `scripts/package-shape-lock.test.ts`: *"has no external runtime dependencies, and same-repo ones only point up the family"* |
+| K2 | **Built** | every entry publishes `default` beside `import`; no top-level await | `shape.test.ts`: *"consumable from CommonJS too — the same ESM file, through `require(esm)`"* |
+| K3 | **Built** | `util.styleText` for colour, `node:readline` for MCP, `node:util`'s `parseArgs` for argv. Nothing outside the repo is reachable at run time, so there is no package a native could have replaced. The named `L` rule does not exist | `scripts/package-shape-lock.test.ts`: *"imports none of the packages Node ships natively"* |
+| K4 | **Built** | `release.yml` runs `npm run check:artifacts` on the built `dist/` before the publish job, and publishes with `--provenance` under `id-token: write` | `scripts/deploy-lock.test.ts`, `scripts/check-published-artifacts.ts` |
+| K5 | **Built** | `.sdlc/bands/artifact-size-baseline.json`, packed and unpacked, with a 10% allowance | `scripts/artifact-size-ratchet-lock.test.ts` |
+| K6 | **Built** | one `EntryRule` per `exports` key, each with its own `allow`/`budget`/`denied`; config discovery, the completion templates and the dev loop are all reached by dynamic `import()` and paid for only on use | `src/weight.test.ts`: an entry point cannot be added without declaring a budget |
+
+### The adoption ladder
+
+| # | Status | Evidence | The check |
+| :-- | :-- | :-- | :-- |
+| J1 | **Built** | measured 2026-09-16: commander **1360 / 1360**, yargs **804 / 804**, every row `▲ 0` | `npm run compat` |
+| J2 | **Built** | `commander/command.ts` serves `--schema`, `--mcp` and the `--json` envelope from the projected manifest; `yargs/burgee.ts` projects the same snapshot | `adoption-ladder.test.ts`: *"a commander program gets `--schema` and MCP tools from its projected manifest"* |
+| J3 | Not built | there is no single explicit call that turns on behaviour-changing guarantees. The additive half is on by default, and the behavioural floor is not one line away — it is not reachable at all from a façade program | — |
+| J4 | Not built | *"the program wins"* is built and tested: `--schema` and `--mcp` are withheld when any command in the chain declares the flag, and `--json` likewise. *"reported by `--schema`"* is not — no type in `schema.ts` carries a withheld-surface field | `adoption-ladder.test.ts`: *"leaves a program that declares its own `--schema` option alone"* |
+| J5 | **Built** | `projectManifest` preserves plugin-contributed nodes across re-projection, and façade and native commands land in one `Manifest` | `adoption-ladder.test.ts`: *"puts commander-syntax and plugin commands in one manifest"* |
+| J6 | **Built** | the strict path is graded by the host's own vendored suite (C2); the enhanced path by `examples/conformance`, a separate suite with its own parity, MCP, harness and modularity files | `npm run compat`, and `examples/conformance` under `npm test` |
+| J7 | **Built** | `Manifest` does not record which façade filled it, and `plugin.ts` validates the same object whichever did | `adoption-ladder.test.ts`: *"accepts a plugin and records what it contributed"*, on a commander-syntax program |
+| J8 | **Built** | `Manifest.fire()` is called from `dispatch()`, which every rung reaches | `adoption-ladder.test.ts`: *"fires the plugin hook on a command declared in commander syntax"* |
+| J9 | **Built** | `./commander` and `./yargs` declare `allow: []` — no bare import at all, commander and yargs included. The real packages exist only under `packages/compat-oracle/vendor/` | `src/weight.test.ts`, `src/front-end-boundary-lock.test.ts` |
+
+### Compatibility
+
+| # | Status | Evidence | The check |
+| :-- | :-- | :-- | :-- |
+| C1 | Not built | `hosts.ts` pins **one** version per host (commander 15.0.0, yargs 18.1.0) and grades that. No package declares a supported host range, and no job runs a host's suite at a second major | — |
+| C2 | **Built** | graded through a one-line shim and published per release | `npm run compat`; `scripts/compat-page.ts --check` |
+| C3 | Not built | `compat.yml`'s matrix is three operating systems and **Node 24 only**, and the workflow says so in its own comment: *"`engines` still says `>=24`, so C3 is not met while this stands"* | `.github/workflows/compat.yml` |
+| C4 | **Built** | `packages/compat-oracle/baseline/*.json`, twenty-one files; an `Exclusion` needs a `why`, and the oracle refuses one that matches nothing | `npm run compat`, and compat-oracle's own suite |
+| C5 | **Built** | the `▲` column is the ratchet; lowering a rate needs a baseline edit | `npm run compat`; `.github/workflows/compat.yml` opens an issue when main goes red |
+| C6 | **Built** | `vendor/<host>/.source.json` records the upstream commit; `compat-upstream.yml` opens one issue per (host, version) and `compat-refresh.yml` opens the PR | `.github/workflows/compat-upstream.yml` |
+
+### Benchmarks
+
+| # | Status | Evidence | The check |
+| :-- | :-- | :-- | :-- |
+| B1 | Not built | the axis and its stub-driven harness exist and have never run: without `CLAUDE_CODE_OAUTH_TOKEN` it reports `skipped`, and both its bands read `unmeasured`, never a number. The requirement is a measurement, and the measurement has not happened | `benchmarks/agent.test.ts` drives the harness against a stub `claude`; `emit.test.ts` proves an unmeasured axis cannot read as measured |
+| B2 | **Built** | `axes/perf.ts`, `ROUNDS = 42` interleaved spawns, with `fixtures/cold-start/node.mjs` as the bare-node floor row | `benchmarks/perf.test.ts` |
+| B3 | **Built** | `axes/compat.ts` reads the oracle's output; `--no-oracle` reads the last results rather than recomputing | `benchmarks/bands.test.ts` |
+| B4 | **Built** | `axes/weight.ts` measures bundled and installed bytes per entry point against the package it replaces, with the resolved version written into every record. The measurement is built; **three of its gates are red as of 2026-09-16** — see below | `npm run bench -- --axis weight --check` |
+| B5 | **Built** | one `BenchRecord` shape, `results.schema.json`, one collector in `emit.ts` | `benchmarks/emit.test.ts`, `benchmarks/bands.test.ts` |
+| B6 | **Built** | `bench.yml` runs perf, compat, weight and reliability on every PR, and the agent axis on `cron: "40 5 * * 2"` | `benchmarks/ci-axes.test.ts` |
+| B7 | **Built** | every generated README section is derived from a measured record and refuses a hand-edited number | `scripts/readme-benchmarks-lock.test.ts`, `scripts/generated-page-gate-lock.test.ts` |
+
+### Agent interface
+
+| # | Status | Evidence | The check |
+| :-- | :-- | :-- | :-- |
+| N1 | **Built** | `mcp.ts` — newline-delimited JSON-RPC 2.0 over `node:readline`; `initialize`, `ping`, `tools/list`, `tools/call`; definitions from `toolsOf(manifest)` | `mcp.test.ts` |
+| N2 | **Built** | `toolsOf` serves only a command that declared `effects`, so absence is exclusion | `mcp.test.ts`, `adoption-ladder.test.ts` |
+| N3 | **Built** | `node:readline` and nothing else; no SDK | `src/weight.test.ts` — the `.` entry admits no MCP dependency |
+| N4 | **Built** | `callTool` runs `argvOf(…)` with `--json` appended, so a tool result is the same envelope a `--json` caller gets | `mcp.test.ts` |
+| N5 | **Built** | the `invoke` closure injects `stdout`/`stderr` as `{ write }` and its own `exit`, so `ioOf` reports `tty: false`; the engine never colours; failures come back as the E3 body | `mcp.test.ts` |
+| N6 | Not built | **`effects` is optional, not required.** `CommandNode.effects?: Effects`, and `toolsOf` filters on `c.effects !== undefined` — so a command that omits it is silently not served as a tool rather than failing at definition time, which is the quieter of the two failures. `annotationsOf` is correct once `effects` is there | `mcp.test.ts` asserts the filtering; nothing asserts a refusal, because there is none |
+| N7 | **Built** | `changedOf` throws when a command declaring `effects: 'idempotent'` returns no boolean `changed`, and `emit` carries it in `meta` | `machine-json.test.ts` |
+| N8 | **Built** | `surface()` answers `--schema` before any command resolves, before config and before any handler; `schema.ts` reads the manifest only | `schema.test.ts`, `shape.test.ts` |
+| N9 | **Built** | `optionProperty` publishes `enum`, `minimum` and `maximum` — and `flag`, `dependsOn`, `exclusive` — as data | `schema.test.ts`, `relations-schema.test.ts` |
+| N10 | Not built | clispec.dev and cli-agent-lint are named once, in `.sdlc/research/agent-requirements.md`. There is no axis, no CI job and no published result for either | — |
+| N11 | **Built** | `ctx.actionRequired(spec)` unwinds through `ActionRequired`; `runnableNext` prefixes the program name and carries the caller's own `--json` into each `next[]` command | `machine-json.test.ts` |
+| N12 | **Built** | `agent.ts` — `AGENT_PROBES`, `FORCE_TTY=1`, and `interactive = forced \|\| (tty && agent === undefined)`, which is the load-bearing clause. The probe list is **5** variables, not the 13 the requirement names; restated below | `agent.test.ts` |
+| N13 | Not built | the budget half is built (`Manifest.schemaBudget`, `SCHEMA_BUDGET = 48_000`, `summaryOf`). **Drilling is by command path only** — `summaryOf`'s own hint reads *"run `<command> --schema` for one command in full"* — and there is no field-path selector | `schema.test.ts` |
+| N14 | Not built | `--json` is seeded in `toParseConfig` as `{ type: 'boolean' }`. It takes no argument, so nothing lists valid fields and nothing rejects an invalid one | — |
+| N15 | Not built | there is no non-JSON `agent` format. The only format flag in the package is `--format=json-pretty`, and it makes the output *larger* | `machine-json.test.ts` |
+
+### The output stack
+
+| # | Status | Evidence | The check |
+| :-- | :-- | :-- | :-- |
+| U1 | Not built | the arrows as written are wrong in three rows of four. Measured from the manifests: `burgee → closeout, linegauge, roundel, seniority`; `flagstaff → closeout, linegauge, paratext, roundel`; `caique → closeout` **only**, not `roundel, flagstaff`. One-package-per-layer holds; the arrow list does not. Restated below | `scripts/package-shape-lock.test.ts`, `scripts/layer-boundaries-lock.test.ts`: *"no layer reaches past a sibling to the thing that sibling replaces"* |
+| U2 | **Built** | `roundel/src/policy.ts` — `OutputMode` is `'tty' \| 'pipe' \| 'json' \| 'accessible' \| 'ci'`, read from a `Runtime`; no component detects the terminal itself | roundel's `policy.test.ts` |
+| U3 | **Built** | `flagstaff/src/plugin.ts` refuses a spinner or component without a `static` projection, at `register()` | `scripts/plugin-contract-lock.test.ts` |
+| U4 | **Built** | the shared `schema.json` — plugins are data, `static` required and `frame` the one optional function | `scripts/plugin-schema-lock.test.ts` |
+| U5 | Not built | **measured 2026-09-16**, and the ceiling is the *lightest incumbent*, which three burgee entry points now exceed: `burgee/yargs ÷ yargs` **1.033** (gate ≤ 1), `burgee/commander ÷ commander` **1.631** (gate ≤ 1.6), `burgee ÷ cac` **5.44** (gate ≤ 3.9). The family's other subpaths hold — chalk 0.574, picocolors 0.162, ora 0.93, boxen 0.347, log-update 0.498 | `npm run bench -- --axis weight --check` |
+| U6 | **Built** | no package in the family declares a dependency outside this repository | `scripts/layer-boundaries-lock.test.ts`: *"holds zero external runtime dependencies across the family"* |
+| U7 | Not built | seven of nine packages have a `src/shape.test.ts` — **`caique` and `bellpull` do not**. The K5 half holds for every package | `ls packages/*/src/shape.test.ts`; `.sdlc/bands/artifact-size-baseline.json` |
+| U8 | **Built** | flagstaff publishes `ora`, `boxen`, `cli-table3`, `log-update` and `loop` — a box, columns and a status line, and no layout engine | none. The `exports` map is the evidence; nothing asserts the ceiling |
+| U9 | Not built | the design itself states the condition — *"locks when the weekly one-turn authoring eval reaches the pass rate it states"* — and that eval has not run. The schema and `llms.txt` halves exist | — |
+| U10 | Not built | `sideEffects` is declared by **three** of nine packages (`burgee`, `flagstaff`, `roundel`), and burgee's is `["./dist/cli.js"]` rather than `false` — correctly, because the bin has side effects, which makes the requirement wrong rather than the package. There is no *"root named import == subpath bytes"* tree-shake fixture. The ESM + `default` condition half is held everywhere. Restated below | `scripts/pack-list-lock.test.ts` for the conditions; nothing for the fixture |
+| U11 | **Built** | twenty-one incumbents graded by their own suites with the rate published and ratcheting, zeroes included and labelled (`clack 0 / 606`, `lilconfig 0 / 77`, `rc` *target not built yet*) | `npm run compat`; `scripts/compat-page.test.ts` |
+| U12 | Not built | the design states the condition — *"locks when the independence install test passes for every layer and the first adopter installs a layer alone"* — and neither has happened | — |
+| U13 | Not built | `src/index.ts` statically re-exports from `seniority/precedence`, `src/execute.ts` imports it statically, `src/help.ts` imports `linegauge` and `src/shutdown.ts` imports `closeout`; the build is `tsc`, so those specifiers survive into `dist`. The **output-stack** half of the claim does hold and is locked: `roundel`, `flagstaff` and `caique` are denied by name from the `.` entry | `src/weight.test.ts`, the `.` rule's `denied` list |
+
+### Requirements restated
+
+Seven requirements, in six rows, are wrong as written rather than unbuilt. The old wording is kept here
+verbatim, because a bar that is restated and then vanishes is indistinguishable from one that
+was quietly met. **None of these is a decision to lower a bar** — each records what the tree
+holds instead, and the row above stays as it is until someone decides.
+
+| # | As written | What is true instead |
+| :-- | :-- | :-- |
+| Z3 / K1 | *"Zero runtime dependencies (K1). oclif ships 18"* · *"Zero runtime dependencies in every layer package; hosts and UI libraries are peers"* | **No runtime dependency outside this repository.** burgee declares `closeout`, `linegauge`, `roundel`, `seniority`; flagstaff declares four; caique one. That is the U6 shape, and it is what `package-shape-lock.test.ts` and `shape.test.ts` actually assert. The comparison with oclif's 18 survives — none of ours is a third party — but *zero* is not the number, and has not been since the foundation packages landed |
+| V5 | `Holds: L (no-reserved-option-names)` | Held by **R**. `definition.ts`'s `RESERVED` refuses `json help schema mcp version explain` at `defineCommand` and at `Manifest.use()`, and throws rather than warns. The lint rule would be a second, earlier reading of the same rule, not the thing that holds it |
+| U1 | *"`burgee` → ∅, `roundel` → ∅, `flagstaff` → `roundel`, `caique` → `roundel`, `flagstaff`"* | `burgee → closeout, linegauge, roundel, seniority` · `roundel → ∅` · `flagstaff → closeout, linegauge, paratext, roundel` · `caique → closeout`. The *direction* rule holds and is locked; the enumeration was written before `closeout`, `linegauge`, `paratext` and `seniority` existed |
+| U10 | *"`sideEffects: false`"* | `sideEffects: ["./dist/cli.js"]` for burgee, because `burgee/cli` **is** an executable and runs `run(program)` at module load. Declaring it `false` would be a false statement a bundler acts on. What the requirement wants is "no incidental side effects", which is what the array says precisely — and what the six packages declaring nothing at all do not say |
+| N12 | *"`AI_AGENT` and the 13 vendor variables"* | `AGENT_PROBES` carries **five**: `AI_AGENT`, `CLAUDECODE`, `CURSOR_AGENT`, `CODEX_THREAD_ID`, `GEMINI_CLI`. The mechanism is complete and the list is data, so the gap is eight entries rather than a design change |
+| Z4 | `Holds: lock` | There is no lock. The example is 9 lines today and nothing would notice if it became 40 |
+
+### What this reading found that the tree contradicts
+
+Three things are stated in public and are not true of the tree. None is edited here — a
+published claim is PLAN step 2.1's, and that step stops and asks.
+
+1. **`packages/burgee/README.md:65` and the root `README.md:104`** both draw
+   `--schema    versioned, JSON-Schema validated`. The *versioned* half is true
+   (`schemaVersion: 1`). **JSON-Schema validated is not**: no schema for `--schema` output
+   exists, and nothing validates the document. The `schema.json` burgee does publish is the
+   family **plugin** schema, whose `title` still reads `flagstaff plugin`. This is F1's gap,
+   promoted to a claim.
+2. **`packages/burgee/package.json`'s own `description`** says *"drop-in compatible with
+   commander and yargs"*. PLAN step 2.1 exists to remove that word from five descriptions and
+   is the integrator's, marked *"published claim — stops and asks"*.
+3. **Three B4 gates are red as of 2026-09-16**, measured on a forced rebuild in this lane:
+   `burgee` bundled **56,859 B** against `max 41,000`; `burgee ÷ cac` **5.44** against
+   `max 3.9`; `burgee/commander ÷ commander` **1.631** against `max 1.6`; `burgee/yargs`
+   bundled **114,809 B** against `max 112,000`, ratio **1.033** against `max 1`. The last
+   result committed under `benchmarks/results/cli-benchmarks/` is dated 2026-09-15 and reads
+   `burgee` **40,562** and `burgee/yargs ÷ yargs` **0.990**, so the published numbers predate
+   the plugin host (#334, #339). `benchmarks/**` and `.sdlc/bands/**` are the integrator's:
+   **the numbers are reported here and nothing is edited.** The package's own dist-byte
+   ratchet (`src/weight.test.ts`, 32 cases) is green — it is the *bundled* measurement that
+   moved.
 
 ## Where this document and the code disagree (2026-09-15)
+
+> **Superseded by [What is built, requirement by
+> requirement](#what-is-built-requirement-by-requirement-2026-09-16), 2026-09-16.** That
+> section reads all 114 requirements; this one read a subset, and **three of its entries have
+> since closed** — E5, O5 and the structural `definePlugin` finding. One more, F1, has moved
+> without closing: the reason it gives is no longer the reason it fails. It is kept whole and
+> unedited below, with each of those four marked where it stands,
+> because a bar that is restated and then vanishes is indistinguishable from one that was
+> quietly met. Every entry **not** marked closed was re-checked against the tree on
+> 2026-09-16 and still holds.
 
 Recorded rather than tidied away. E5 and O5 are already known and reported by other lanes and
 are listed only so that this is one list rather than three.
@@ -548,15 +864,33 @@ wires closeout, but `ExitCode.SIGINT` is never produced by the engine. **O5** �
 flushed before any exit path: the flush phase covers the host's own streams, so an injected
 `stdout` is never flushed.
 
+> **E5 and O5 closed 2026-09-16.** `src/shutdown.ts` binds closeout's `install()` and the
+> drain goes in the `flush` phase, ahead of `release` and `restore`; `execute.ts`'s `leave()`
+> is the one door out and is awaited. `pty-signal.test.ts` grades Ctrl-C at a **real**
+> terminal: the child dies *of* `SIGINT`, `WIFSIGNALED` with signal 2, which is what 130
+> actually means. The injected-`stdout` half of O5 stands — `detachedTeardown()` takes no
+> streams — but an injected `{ write }` has nothing buffered to drain.
+
 **The structural one.** **`definePlugin` is not the family plugin shape**, as set out above.
 Any document that describes burgee as declaring the shape the layers register against — this
 design does not, but the workspace plan reads that way — is describing something the code
 does not do.
 
+> **Closed 2026-09-16** by #334 and #339. `src/plugin.ts` declares `Plugin` with `contract`,
+> `validate()` and `PluginError`; see *How a consumer extends it, as of 2026-09-16* above for
+> the finding-by-finding reading.
+
 **Requirements the code does not meet.**
 
 - **F1** — "validating against a JSON Schema published with the package". No schema artifact
   exists; `files` is `dist` and `locales`, and `schema.ts` only stamps `schemaVersion: 1`.
+  > **Moved 2026-09-16, and still not met.** A schema artifact *does* exist now — `exports`
+  > carries `"./schema.json": "./dist/schema.json"`, put there by `schema-to-dist.mjs` and
+  > pinned by `scripts/pack-list-lock.test.ts`. It is the wrong schema: it is the **family
+  > plugin** schema, byte-identical across six packages and still titled `flagstaff plugin`,
+  > and it describes what a plugin object may contain. Nothing describes or validates
+  > `--schema`'s own output. So the sentence to read is no longer "no schema artifact exists"
+  > but "the artifact that exists is for a different document".
 - **F2** — "`--help --json` prints help as data". There is no JSON help surface: the help
   path returns rendered text and the writer emits that text verbatim, so `--help --json`
   prints the same prose as `--help`.
