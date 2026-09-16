@@ -23,6 +23,8 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
+import { sync as crossSpawnSync } from 'bellpull/cross-spawn';
+
 import { DEFAULT_EXPORT, fixtureSource, PAIRS, type EntryPair } from '../fixtures/entry-points.js';
 import { type BenchRecord } from '../record.js';
 import { BENCH_ROOT, packageDir, relativeToRepo, resolvePackage } from '../resolve.js';
@@ -57,8 +59,18 @@ function dirBytes(dir: string): number {
  */
 function ownInstalledBytes(dir: string): number {
   if (!realpathSync(dir).startsWith(join(REPO_ROOT, 'packages'))) return dirBytes(dir);
-  const out = execFileSync('npm', ['pack', '--dry-run', '--json'], { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
-  return (JSON.parse(out) as { unpackedSize: number }[])[0]?.unpackedSize ?? 0;
+  // Through `bellpull`, not `execFileSync('npm', …)`, because `npm` is `npm.cmd` on Windows
+  // and neither `spawnSync` nor `execFileSync` searches `PATHEXT` — and since the fix for
+  // CVE-2024-27980 Node refuses to spawn a `.cmd` without `shell: true`. This line read the
+  // bare name until 2026-09-16 and nothing noticed, because nothing on the Windows leg
+  // called it; the moment `docs.test.ts` started measuring the tree it was `spawnSync npm
+  // ENOENT`. That is the exact defect bellpull was built for, and the repository's rule is
+  // that a problem a package owns is not re-solved at the call site.
+  const run = crossSpawnSync('npm', ['pack', '--dry-run', '--json'], { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  if (run.error !== undefined) throw new Error(`npm pack could not run in ${dir}: ${run.error.message}`);
+  if (run.status !== 0) throw new Error(`npm pack exited ${String(run.status)} in ${dir}`);
+  const stdout = typeof run.stdout === 'string' ? run.stdout : run.stdout.toString('utf8');
+  return (JSON.parse(stdout) as { unpackedSize: number }[])[0]?.unpackedSize ?? 0;
 }
 
 /**

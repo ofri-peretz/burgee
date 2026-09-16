@@ -22,6 +22,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+import { installedBytes } from './axes/weight.js';
 import { publishedResults } from './published.js';
 import { type BenchRecord } from './record.js';
 
@@ -45,7 +46,33 @@ const value = (variant: string, metric: string): number => {
 const KB = 1024;
 const MS_PLACES = 1;
 const RATIO_PLACES = 2;
-const kb = (variant: string): number => Math.round(value(variant, 'installed-bytes') / KB);
+/**
+ * Installed size, measured **now**, and only where the walk is reproducible.
+ *
+ * Every other cell on that page comes from `publishedResults()`, deliberately: a millisecond
+ * is a property of the runner, so a published figure has to be one a person chose. Reading
+ * *installed bytes* from there too meant the page could drift arbitrarily far from the
+ * repository with every check green — and it did. `2026-09-09.json` records burgee at 574,318
+ * and the page said **561 KB** while the package grew past a megabyte.
+ *
+ * `published.ts` says installed bytes are the exception, in the passage explaining why the
+ * 2026-09-09 republication was refused for its millisecond rows and not for these: *"the
+ * `installed-bytes` rows were byte-identical, which is the point of them."*
+ *
+ * **That is true of an incumbent and false of us**, which this file learned the expensive
+ * way. `installedBytes` walks `node_modules` from the dependency graph, and for the three
+ * incumbents that graph is what npm installed from the lockfile — identical everywhere. For
+ * `burgee` it starts at a *workspace link*, so it walks a developer's tree, dev dependencies
+ * and all. Measured 2026-09-16: **1311 KB on a working laptop, 991 KB on a clean CI
+ * checkout**, same commit. 991 is the number a user gets from `npm i burgee`; 1311 is a
+ * number about my machine.
+ *
+ * So the row is measured against the tree, and the case runs **only in CI** — the one place
+ * the walk answers the user's question rather than the developer's. Skipping it locally is
+ * not softening it: the check that matters is the one on the machine that resembles an
+ * install, and it is required to pass there.
+ */
+const kb = (variant: string): number => Math.round(installedBytes(variant) / KB);
 
 /**
  * One cell of the comparison table, found by its row label and its column header.
@@ -70,12 +97,12 @@ const cell = (label: string, variant: string): string => {
 const overFloor = (variant: string): string => (value(variant, 'cold-start-ms') - value('bare node', 'cold-start-ms')).toFixed(MS_PLACES);
 
 describe('comparison.mdx states the numbers the suite measured', () => {
-  it.each([
+  it.skipIf(process.env['CI'] !== 'true').each([
     ['burgee', 'burgee'],
     ['commander', 'commander'],
     ['yargs', 'yargs'],
     ['cac', 'cac'],
-  ])('installed size for %s', (_label, variant) => {
+  ])('installed size for %s — checked in CI, where the node_modules walk resembles an install', (_label, variant) => {
     expect(cell('Installed size', variant), `the ${variant} cell of the installed-size row`).toContain(`${String(kb(variant))} KB`);
   });
 
