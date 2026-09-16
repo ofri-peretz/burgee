@@ -383,14 +383,96 @@ describe('the argv array is the boundary, and a shell removes it', () => {
  * single/double escaping split is wrong for the shape the whole npm ecosystem ships. That is
  * worth more than a green skip, which is why it is written rather than guarded away.
  */
+/**
+ * An environment with **exactly one** key spelling `PATH`.
+ *
+ * Windows environment variables are case-insensitive and a JavaScript object's keys are not.
+ * `{ ...process.env, Path: … }` therefore produces two entries whenever the runner spelled it
+ * `PATH`, and the two halves of a spawn then read different ones: `pathKey` walks the keys in
+ * reverse and takes the override, while the environment block handed to the child is built by
+ * libuv, which uppercases and de-duplicates on its own terms. The parent resolves against one
+ * `PATH` and the child searches the other.
+ *
+ * That is not a hypothesis. It is what the first version of the block below did, and the
+ * symptom was `cmd.exe` reporting `'echo-argv' is not recognized` — bellpull had found the
+ * shim (or `run()` would have rejected with `NotFoundError` before spawning anything) and
+ * `cmd.exe`, searching the environment it was actually given, had not.
+ *
+ * `matrix.test.ts` builds its fixture environment this way for this reason. Not reusing it
+ * here is the whole of the defect.
+ */
+function envWithPathPrefix(prefix: string): Record<string, string | undefined> {
+  const env: Record<string, string | undefined> = {};
+  for (const [key, value] of Object.entries(process.env)) if (key.toUpperCase() !== 'PATH') env[key] = value;
+  env[WINDOWS ? 'Path' : 'PATH'] = `${prefix}${delimiter}${process.env['PATH'] ?? ''}`;
+  return env;
+}
+
+/**
+ * The lock for the paragraph above, and it runs on every platform.
+ *
+ * The bug it catches is Windows-only in its *effect*, but "this object has two keys that mean
+ * the same variable" is a fact about the object, checkable anywhere. A fixture defect that can
+ * only be caught on the platform it breaks is a fixture defect that gets rediscovered.
+ */
+describe('a fixture environment is unambiguous about PATH', () => {
+  it('carries exactly one key that spells PATH, whatever case the platform used', () => {
+    const keys = Object.keys(envWithPathPrefix('/somewhere')).filter((key) => key.toUpperCase() === 'PATH');
+    expect(keys, 'two keys differing only in case make the parent and the child read different PATHs').toHaveLength(1);
+  });
+
+  it('is what a naive spread does not give you', () => {
+    // The unfixed state, asserted so the check above is known to be able to fail. On a
+    // platform that spells it `PATH` this spread yields `PATH` and `Path` both; on one that
+    // spells it `Path` the override collides and there is only one. Either way the naive form
+    // is a coin toss about the runner, which is what makes it wrong.
+    const naive = { ...process.env, Path: '/somewhere' };
+    const keys = Object.keys(naive).filter((key) => key.toUpperCase() === 'PATH');
+    expect(keys.length, 'the naive spread is only ever safe by luck').toBeGreaterThanOrEqual(1);
+    if (!WINDOWS) expect(keys).toEqual(['PATH', 'Path']);
+  });
+});
+
+/**
+ * The same claim, end to end, through the path this package exists for: a `.cmd` on Windows.
+ *
+ * Everything above models `cmd.exe` and `CommandLineToArgvW` in TypeScript, which is the best
+ * a Mac can do and is explicitly *not* evidence that the real interpreters agree. This block
+ * is that evidence, and it can only ever run on a Windows runner.
+ *
+ * The fixture is a `node_modules/.bin/*.cmd` shim on purpose. That is the shape npm installs,
+ * it forwards with `%*`, and a batch line is re-parsed by `cmd.exe` *after* parameter
+ * substitution — which is why `escapeArgument`'s caret pass runs twice for this path and once
+ * for everything else. `isCmdShim` is the predicate that decides, and until a Windows runner
+ * existed nothing had ever executed either branch of it.
+ *
+ * ## Two variables, separated, after confounding them cost a CI round
+ *
+ * The first version invoked the shim **by bare name** and put its directory on `PATH`. That
+ * made one case depend on two things at once: whether the escaping survives two interpreters,
+ * and whether the child received the `PATH` the parent resolved against. The second failed, and
+ * the resulting `'echo-argv' is not recognized` said nothing about the first.
+ *
+ * So the escaping claim is now made **by path**, which is how `cross-spawn`'s own suite makes
+ * it — `should double escape when executing node_modules/.bin/<file>.cmd` spawns
+ * `${__dirname}/fixtures/node_modules/.bin/echo-cmd-shim`, a path with the extension left to
+ * `PATHEXT`, and never a `PATH` lookup. No environment is overridden, so nothing but the
+ * escaping can fail. The `PATH` round trip keeps its own case, which asserts what bellpull
+ * resolved *before* it asserts what came back, so the next failure of this kind names its own
+ * half.
+ */
 describe.runIf(WINDOWS)('a hostile argument through a real cmd-shim on Windows', () => {
   let dir: string;
   let bin: string;
+  let shim: string;
   let marker: string;
 
   beforeAll(() => {
     dir = mkdtempSync(join(tmpdir(), 'bellpull-cmdshim-'));
     bin = join(dir, 'node_modules', '.bin');
+    // Named without the extension, as `cross-spawn`'s own case names it: supplying `.cmd` is
+    // `PATHEXT`'s job and leaving it out keeps that half in the test.
+    shim = join(bin, 'echo-argv');
     marker = join(dir, 'OWNED');
     mkdirSync(bin, { recursive: true });
     writeFileSync(join(bin, 'echo-argv.mjs'), 'process.stdout.write(JSON.stringify(process.argv.slice(2)));\n');
@@ -400,23 +482,36 @@ describe.runIf(WINDOWS)('a hostile argument through a real cmd-shim on Windows',
 
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
-  const runtime = (): Runtime => ({
-    platform: process.platform,
-    env: { ...process.env, Path: `${bin}${delimiter}${process.env['PATH'] ?? ''}` },
-    cwd: dir,
+  /** No override at all: the ambient environment, which is unambiguous by construction. */
+  const plain = (): Runtime => ({ platform: process.platform, env: { ...process.env }, cwd: dir });
+
+  describe('named by path, so only the escaping is under test', () => {
+    it.each(['foo & calc', '"(foo|bar>baz|foz)"', 'bar\\', '%PATH%', 'a b'])('%j survives two interpreters and comes back as one argument', async (argument) => {
+      const result = await run(shim, [argument], { runtime: plain(), timeout: 30_000 });
+      expect(result.stderr).toBe('');
+      expect(JSON.parse(result.stdout)).toEqual([argument]);
+    }, 60_000);
+
+    it('an argument that would create a file does not create it', async () => {
+      const injected = `x & type nul > "${marker}"`;
+      const result = await run(shim, [injected], { runtime: plain(), timeout: 30_000 });
+      expect(JSON.parse(result.stdout)).toEqual([injected]);
+      expect(existsSync(marker), 'the injected command ran — escapeArgument did not hold across the shim').toBe(false);
+    }, 60_000);
   });
 
-  it.each(['foo & calc', '"(foo|bar>baz|foz)"', 'bar\\', '%PATH%', 'a b'])('%j survives two interpreters and comes back as one argument', async (argument) => {
-    const result = await run('echo-argv', [argument], { runtime: runtime(), timeout: 30_000 });
-    expect(result.stderr).toBe('');
-    expect(JSON.parse(result.stdout)).toEqual([argument]);
-  }, 60_000);
+  describe('named on PATH, which is the npm-script shape', () => {
+    it('resolves the shim and runs the file it resolved', async () => {
+      const result = await run('echo-argv', ['plain'], { runtime: { platform: process.platform, env: envWithPathPrefix(bin), cwd: dir }, timeout: 30_000 });
 
-  it('an argument that would create a file does not create it', async () => {
-    const injected = `x & type nul > "${marker}"`;
-    const result = await run('echo-argv', [injected], { runtime: runtime(), timeout: 30_000 });
-    expect(JSON.parse(result.stdout)).toEqual([injected]);
-    expect(existsSync(marker), 'the injected command ran — escapeArgument did not hold across the shim').toBe(false);
-  }, 60_000);
+      // Asserted first, and deliberately: this is what bellpull *resolved*. If it holds the
+      // `.cmd` and the run still failed, resolution was right and the child's environment was
+      // wrong — which is the one thing the previous version of this block could not tell you.
+      expect(result.executable?.path.toLowerCase()).toBe(`${shim}.cmd`.toLowerCase());
+      expect(result.executable?.from.toLowerCase()).toBe(bin.toLowerCase());
+      expect(result.stderr).toBe('');
+      expect(JSON.parse(result.stdout)).toEqual(['plain']);
+    }, 60_000);
+  });
 });
 

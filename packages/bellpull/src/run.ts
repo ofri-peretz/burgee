@@ -186,8 +186,26 @@ export async function run(command: string, args: readonly unknown[] = [], option
    * Run the file that was resolved, rather than handing the name back for the kernel to
    * resolve a second time. Two resolutions can disagree — a different `PATH`, a different
    * working directory, a file that appeared in between — and if they do, `executable` names
-   * one binary and another one runs, which makes the field worse than useless. On Windows
-   * `parse` has already produced the `cmd.exe` line and owns the answer.
+   * one binary and another one runs, which makes the field worse than useless.
+   *
+   * **On the Windows `cmd.exe` path that is exactly what happens, and the sentence that used
+   * to sit here — "`parse` has already produced the `cmd.exe` line and owns the answer" — was
+   * wrong.** `parse` builds the line from the command *as the caller wrote it*, so a caller
+   * who wrote a bare name hands that name to `cmd.exe`, which resolves it again against the
+   * child's own environment. `escape.test.ts` made the two disagree on a Windows runner:
+   * `resolved` held the full `…\node_modules\.bin\echo-argv.cmd` while `cmd.exe` reported
+   * `'echo-argv' is not recognized`.
+   *
+   * It is left as it is, and said rather than quietly patched. Building the line from
+   * `resolved.path` would be a deliberate divergence from `cross-spawn`, whose `parseNonShell`
+   * does the same thing with the same consequence and whose suite grades this package 68 / 68
+   * — its own cmd-shim case spawns a *path*, never a `PATH` lookup, so the divergence is
+   * invisible to it. Changing it is a drop-in decision, not a bug fix.
+   *
+   * What a caller should take from this: on Windows `executable` reports what **bellpull**
+   * resolved. That is the answer for a command given as a path, and for a bare name it is the
+   * answer only as long as the child's environment agrees with the one passed in — which is
+   * why a `PATH` key that appears twice in different cases is not a cosmetic problem.
    */
   const file = resolved !== undefined && parsed.command === original.command ? resolved.path : parsed.command;
 
