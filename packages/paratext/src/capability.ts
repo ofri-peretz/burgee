@@ -20,6 +20,7 @@
  */
 import { type Runtime } from './runtime.js';
 import schema from './schema.json' with { type: 'json' };
+import { type Schema, violations } from './shape.js';
 import { type Support, supports } from './supports.js';
 import { render } from './template.js';
 
@@ -47,18 +48,39 @@ export interface Capability {
 
 const registry = new Map<string, Capability>();
 
-/** Thrown rather than returned: a malformed capability is a programming error at start-up. */
-export class CapabilityError extends Error {}
+/**
+ * Thrown rather than returned: a malformed capability is a programming error at start-up.
+ *
+ * It carries a `code` from the family's one vocabulary, so that the same defect reported
+ * through `register()` and through `plugin.validate()` reads the same. See
+ * {@link CapabilityErrorCode} for where that vocabulary lives and why this file spells its
+ * two members out rather than importing them.
+ */
+export class CapabilityError extends Error {
+  constructor(
+    readonly code: CapabilityErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'CapabilityError';
+  }
+}
 
 /**
  * Add a capability, or replace one by name — replacing is deliberate, so a caller whose
  * terminal we mis-detect can correct the guess without patching the package.
+ *
+ * **This is the only way into the registry**, which is what makes one validator enough:
+ * `emit()` reads nothing else, the built-ins come through here, and `attach()` in
+ * `plugin.ts` hands its contributions to this same call. A capability whose `when` is not an
+ * object is refused here, and that refusal — not a guard further down — is the reason
+ * `supports()` is never asked about it.
  */
 export function register(capability: Capability): void {
   // Against the capability shape rather than against `check`: this argument *is* one
   // capability, so the document-level deprecation has nothing to say about it, and a
   // built-in registering through the same call must not be told it is writing 0.2 JSON.
-  for (const problem of capabilityProblems(capability)) throw new CapabilityError(problem);
+  for (const problem of capabilityProblems(capability)) throw new CapabilityError(problem.code, problem.line);
   registry.set(capability.name, capability);
 }
 
@@ -87,38 +109,75 @@ export const isDeprecation = (line: string): boolean => line.startsWith(DEPRECAT
 export const refusals = (lines: readonly string[]): string[] => lines.filter((line) => !isDeprecation(line));
 
 /**
+ * The codes this module can raise. Both are members of `plugin.ts`'s `PluginErrorCode`, which
+ * is this package's copy of the family vocabulary, and
+ * `scripts/plugin-error-vocabulary-lock.test.ts` holds them to it — it reads every `'E_…'`
+ * literal a host ships and fails on one that is not in that host's own union, and on a union
+ * that is not a subset of flagstaff's.
+ *
+ * Written out rather than imported from `plugin.ts` for a mechanical reason: `capability.js`
+ * must never reach `plugin.js` (the root entry's deny-list in `weight.test.ts`), and under
+ * `verbatimModuleSyntax` an inline `import { type … }` leaves a side-effect import behind
+ * that would make it do exactly that.
+ */
+export type CapabilityErrorCode = 'E_PLUGIN_SCHEMA' | 'E_NO_STATIC_PROJECTION';
+
+/** One thing wrong: the line a reader is shown, and the family code a thrower reports it as. */
+export interface Problem {
+  code: CapabilityErrorCode;
+  line: string;
+}
+
+const NEEDS_A_NAME = 'a capability needs a name';
+
+/**
+ * Why a missing field matters, where "is required" would not say it — `fallback` above all,
+ * which is the one people leave out and the one rule 6 has no opt-out for. Keyed by the
+ * field, so the list still comes from the schema's own `required` and this only supplies the
+ * sentence. A field added there and not here gets `… is required`, which is true if terse.
+ */
+const WHY: Record<string, string | undefined> = {
+  name: NEEDS_A_NAME,
+  fallback: 'fallback must be a template, even if it is empty — rule 6 has no opt-out',
+  when: 'when must say when the terminal understands this',
+  osc: "osc must name the code, or 'BEL'",
+};
+
+/**
  * Everything wrong with one capability, in the order a reader would fix it. `at` is where it
  * sits in the document — `capabilities.link` — and replaces its own name in the message,
  * because the key is what the reader has to go and edit.
+ *
+ * Two passes, and the order is the order an author fixes them in: the five fields have to be
+ * *there*, and then what is there has to be the shape the schema declares. Both read
+ * `schema.json`; neither restates it.
  */
-function capabilityProblems(candidate: object, at?: string): string[] {
-  const problems: string[] = [];
+export function capabilityProblems(candidate: object, at?: string): Problem[] {
+  const problems: Problem[] = [];
   // `object` on purpose: `check` exists to be pointed at a parsed JSON file whose shape
-  // nobody has verified yet, which is the whole reason a plugin is data. Re-building it from
-  // its own entries indexes it by name without asserting anything about it.
-  const record: Record<string, unknown> = Object.fromEntries(Object.entries(candidate));
-  const named = typeof record?.['name'] === 'string' && record['name'] !== '';
-  const label = at ?? (named ? String(record['name']) : '<unnamed>');
+  // nobody has verified yet, which is the whole reason a plugin is data. Read as a bag of
+  // unknowns — the cast asserts nothing about it, and `shape.ts` is what decides the shape.
+  const record = candidate as Record<string, unknown>;
+  const label = at ?? (typeof record['name'] === 'string' && record['name'] !== '' ? record['name'] : '<unnamed>');
 
-  // The required list comes from the published schema rather than from a second copy of it
-  // here, so a field added there cannot be forgotten here. `schemaFields` locks the reverse.
-  // A missing field says why it matters where the reason is not obvious: `fallback` is the
-  // one people leave out, and "is required" would not tell them what they are giving up.
-  const WHY: Record<string, string> = {
-    name: at === undefined ? 'a capability needs a name' : `${at}: a capability needs a name`,
-    fallback: `${label}: fallback must be a template, even if it is empty — rule 6 has no opt-out`,
-    when: `${label}: when must say when the terminal understands this`,
-    osc: `${label}: osc must name the code, or 'BEL'`,
-  };
   for (const field of CAPABILITY.required) {
-    if (record?.[field] === undefined) problems.push(WHY[field] ?? `${label}: ${field} is required`);
+    if (record[field] === undefined) {
+      // A missing `fallback` is the family's `E_NO_STATIC_PROJECTION` — the same defect
+      // flagstaff raises for a component with no static form, wearing OSC.
+      problems.push({
+        code: field === 'fallback' ? 'E_NO_STATIC_PROJECTION' : 'E_PLUGIN_SCHEMA',
+        line: field === 'name' && at === undefined ? NEEDS_A_NAME : `${label}: ${WHY[field] ?? `${field} is required`}`,
+      });
+    }
   }
-  if (typeof record?.['encode'] === 'string' && record['encode'] === '') problems.push(`${label}: encode must be a non-empty template`);
-  // Not `!fallback`: '' is a real answer — a window title has nothing to say in a log — and
-  // the distinction between empty and absent is the whole of rule 6 here.
-  if (record?.['fallback'] !== undefined && typeof record['fallback'] !== 'string') {
-    problems.push(`${label}: fallback must be a template, even if it is empty — rule 6 has no opt-out`);
-  }
+  /**
+   * And then the shape. This used to be two hand-written lines — `encode` non-empty and
+   * `fallback` a string — which are precisely `minLength` and `type`, two of the keywords
+   * `shape.ts` now reads out of the file instead of repeating. `when: 'not an object'`,
+   * `osc: { … }` and an undeclared key all validated clean until this call existed; see
+   * `shape.test.ts` for the measurement and `shape.ts` for what is and is not enforced.
+   */
+  for (const line of violations(CAPABILITY as Schema, record, label)) problems.push({ code: 'E_PLUGIN_SCHEMA', line });
   return problems;
 }
 
@@ -144,7 +203,7 @@ export function check(candidate: object): string[] {
     const named = typeof record['name'] === 'string' && record['name'] !== '' ? String(record['name']) : '<unnamed>';
     return [
       `${DEPRECATED}${named}: a capability written as the whole document is the shape paratext had before the family schema absorbed it — move it under \`capabilities\`, keyed by its name; 1.0 stops accepting this`,
-      ...capabilityProblems(record),
+      ...capabilityProblems(record).map(({ line }) => line),
     ];
   }
   if (typeof section !== 'object' || section === null || Array.isArray(section)) {
@@ -157,7 +216,7 @@ export function check(candidate: object): string[] {
     ...problems,
     ...Object.entries(section).flatMap(([key, value]) =>
       typeof value === 'object' && value !== null && !Array.isArray(value)
-        ? capabilityProblems(value as object, `capabilities.${key}`)
+        ? capabilityProblems(value as object, `capabilities.${key}`).map(({ line }) => line)
         : [`capabilities.${key}: must be an object`],
     ),
   ];

@@ -28,7 +28,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { place, rewrite, section } from './readme-benchmarks.js';
+import { place, pluginKeys, rewrite, section } from './readme-benchmarks.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PACKAGES = join(ROOT, 'packages');
@@ -52,13 +52,13 @@ describe('the generated half of every README matches what was measured', () => {
   });
 
   it('states a plugin key that the package actually declares, not one written down twice', () => {
+    // Derived by the generator, not re-derived here. This test used to read the `Plugin`
+    // interface itself — a second copy of the same rule — and the two diverged the moment the
+    // generator learned that `enforce` is not a key anything registers *under*: it orders
+    // burgee's hooks. The lock then demanded a README sentence the generator was right not to
+    // write. One definition, imported.
     for (const pkg of readmes().filter((p) => place(p) !== '')) {
-      const at = join(PACKAGES, pkg, 'src/plugin.ts');
-      if (!existsSync(at)) continue;
-      const declared = [...(/^export interface Plugin \{$([\s\S]*?)^\}$/m.exec(readFileSync(at, 'utf8'))?.[1] ?? '').matchAll(/^ {2}([a-zA-Z]+)\??:/gm)]
-        .map((m) => m[1] as string)
-        .filter((k) => k !== 'name' && k !== 'contract');
-      for (const key of declared) expect(place(pkg), `${pkg} hosts \`${key}\` and its README does not say so`).toContain(`\`${key}\``);
+      for (const key of pluginKeys(pkg)) expect(place(pkg), `${pkg} hosts \`${key}\` and its README does not say so`).toContain(`\`${key}\``);
     }
   });
 

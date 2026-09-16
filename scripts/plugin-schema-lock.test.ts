@@ -116,6 +116,9 @@ describe('the plugin schema', () => {
     handlers: "closeout's; same",
     sources: "seniority's; same",
     resolvers: "bellpull's; same",
+    commands: "burgee's; same — and burgee is the framework the shared shape is declared *by*, which makes it the oddest of the five to leave undescribed",
+    hooks: "burgee's; same",
+    enforce: "burgee's, and not a contribution key at all — it orders hooks, so describing it would need the schema to say that",
   };
 
   it.each(found.map((h) => h.name))('%s: the schema describes the key that package hosts', (name) => {

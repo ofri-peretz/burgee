@@ -118,11 +118,15 @@ export function section(pkg: string): string {
  * of key names and reported flagstaff as hosting none, because it hosts four the alternation
  * had never heard of — which is the whole argument against writing the list down twice.
  */
-function pluginKeys(pkg: string): string[] {
+export function pluginKeys(pkg: string): string[] {
   const at = join(PACKAGES, pkg, 'src/plugin.ts');
   if (!existsSync(at)) return [];
   const body = /^export interface Plugin \{$([\s\S]*?)^\}$/m.exec(readFileSync(at, 'utf8'))?.[1] ?? '';
-  return [...body.matchAll(/^ {2}([a-zA-Z]+)\??:/gm)].map((m) => m[1] as string).filter((k) => k !== 'name' && k !== 'contract');
+  // `name` and `contract` are the envelope every plugin carries. `enforce` is burgee's ordering
+  // hint — a plugin sets it to say *when* its hooks run, not to contribute anything — so calling
+  // it a key plugins "register under" is wrong in the one sentence a consumer reads.
+  const NOT_A_CONTRIBUTION = new Set(['name', 'contract', 'enforce']);
+  return [...body.matchAll(/^ {2}([a-zA-Z]+)\??:/gm)].map((m) => m[1] as string).filter((k) => !NOT_A_CONTRIBUTION.has(k));
 }
 
 /** Which packages of the family this one depends on, and which depend on it — from the manifests. */

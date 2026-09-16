@@ -4,7 +4,13 @@
  * Commands reach it through a façade (`burgee/commander`, `burgee/yargs`) or
  * natively, and it does not record which. That is the whole reason a plugin
  * written once works on every rung of the adoption ladder (J7, J8).
+ *
+ * The plugin *shape* and its refusals live in `./plugin.js`, which is this package's host in
+ * the sense `plugin-contract` means: one file per package owning `Plugin`, `validate()` and
+ * the error vocabulary. `use()` below is burgee's `register()`.
  */
+import { type Plugin, validate } from './plugin.js';
+
 /**
  * The Standard Schema interface (standardschema.dev), declared here so any implementation
  * — zod, valibot, arktype — is accepted as an option's `schema` without a dependency (S1).
@@ -180,17 +186,6 @@ export interface Hook {
   handler: (ctx: { command: string; options: Record<string, unknown> }) => void | Promise<void>;
 }
 
-export interface Plugin {
-  name: string;
-  commands?: CommandNode[];
-  hooks?: { preRun?: Hook; postRun?: Hook; onError?: Hook };
-  enforce?: 'pre' | 'post';
-}
-
-export function definePlugin(plugin: Plugin): Plugin {
-  return plugin;
-}
-
 /** Rolldown's lesson: evaluate the filter before crossing the boundary. */
 export function hookApplies(hook: Hook | undefined, command: string): hook is Hook {
   if (hook === undefined) return false;
@@ -218,11 +213,22 @@ export class Manifest {
     this.commands.push(node.load !== undefined && node.run === undefined ? { ...node, run: lazyRun(node.load) } : node);
   }
 
+  /**
+   * Register a plugin, after the plugin host has read it (`plugin.ts`).
+   *
+   * Nothing is pushed until everything has been checked, so a refused plugin contributes no
+   * command and leaves no half-registration behind: `use()` used to push first and read the
+   * object afterwards, which is how `use(undefined)` became a `TypeError` one line later.
+   */
   use(plugin: Plugin): void {
+    validate(
+      plugin,
+      this.commands.map((c) => c.path.join(' ')),
+    );
     this.plugins.push(plugin);
-    for (const command of plugin.commands ?? []) {
-      this.add({ ...command, plugin: plugin.name });
-    }
+    // Through the same guard `defineCommand` runs (V5 + checkDefinition), by way of `validate`
+    // above — a plugin's command is declared exactly as a first-party one and is read as one.
+    for (const command of plugin.commands ?? []) this.add({ ...command, plugin: plugin.name });
   }
 
   /** `enforce: 'pre'` first, then unordered, then `'post'` — the Vite/Rolldown convention. */
@@ -266,3 +272,10 @@ export class Manifest {
     return { node: best, rest: argv.slice(depth) };
   }
 }
+
+/**
+ * Re-exported so a façade importing `Plugin` keeps importing it from the module it registers
+ * against. The declaration itself lives in `./plugin.js`, which is the host file the family's
+ * locks read.
+ */
+export type { Plugin };

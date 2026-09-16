@@ -27,10 +27,16 @@ waiting on. The `## What shipped` sections below carry the detail.
 - **R3** `register(capability)` adds or replaces by name; `reset()` clears; `capabilities()`
   lists. The seven built-ins register through the same call at import. **Built**.
 - **R4** `check(candidate)` validates a plugin document against `schema.json` and returns the
-  violations by path. **Partly built.** It reads *one* list out of the schema — the
-  capability's `required` — and checks presence, plus two hand-written checks on `encode` and
-  `fallback`. Types, `additionalProperties: false` and `minLength` are declared in the schema
-  and enforced by nothing. Measured 2026-09-15; the measurement is below.
+  violations by path. **Built, and the claim is now bounded.** It was presence-checking only
+  until 2026-09-16 — it read the capability's `required` array and hand-checked `encode` and
+  `fallback` — which is measured below. `shape.ts` is the walk that closes it, and what it
+  enforces is exactly: `required` (in `capability.ts`, for the message), `type`, `oneOf`,
+  `const`, `minLength`, `minimum`, `items` and `additionalProperties: false`. That is every
+  keyword `$defs/capability` and its nested `when` write. **Not** enforced, and listed so the
+  next reader does not have to measure it again: `$ref`, `pattern`, `minItems`, `maxLength`,
+  `enum`, `allOf`, `anyOf`, `not` — none of which appears under a capability, so the gap is
+  potential rather than live, and a keyword added to the file tomorrow is unenforced until
+  someone adds it to `shape.ts`. Every refusal names its path and carries a family error code.
 - **R5 (Y9)** One file reads `process`: `runtime.ts`, exporting `processRuntime()`. Every
   other function takes a `Runtime`. **Built** — `grep -n "process\." packages/paratext/src/*.ts`
   names `runtime.ts` and one test's prose, and `packages/burgee/src/process-reference-lock.test.ts`
@@ -54,9 +60,10 @@ waiting on. The `## What shipped` sections below carry the detail.
   `schema.json` and `plugin.ts`.
 - **R11 (Y8)** A ceiling in `.sdlc/bands/foundation-ceilings.json`, and a B4 benchmark row.
   **Half built, and the built half is not this lane's work.** The ceilings file now exists
-  and carries a `paratext` entry — `ours: 44113`, `ceiling: 30912` against `ansi-escapes`
-  tree-inclusive, `ratio: 1.4271`, measured 2026-09-14 — created by the integrator, who owns
-  `.sdlc/bands/**`. **The B4 row is Not built**: `grep -rl paratext benchmarks/` returns
+  and carries a `paratext` entry — `ceiling: 30912` against `ansi-escapes` tree-inclusive,
+  measured 2026-09-14 — created by the integrator, who owns `.sdlc/bands/**`. Its `ours` reads
+  `57049`, which is what `npm pack --dry-run` gave before the schema walk; after it the same
+  command gives **64,059 B**. Reported rather than edited, for the same ownership reason. **The B4 row is Not built**: `grep -rl paratext benchmarks/` returns
   nothing on 2026-09-15, and `benchmarks/**` is not a package lane's to write either.
 - **R12** First same-repo consumer: `flagstaff/table` and `flagstaff/box` link paths via
   `paratext`. **Not built**, and not buildable from this lane — the edit is in
@@ -77,7 +84,7 @@ waiting on. The `## What shipped` sections below carry the detail.
 The list a consumer scans, rather than a tour. Three published entry points and one data
 file; nothing else is importable.
 
-### `paratext` — the root (17,574 B reachable, registers seven capabilities at import)
+### `paratext` — the root (20,221 B reachable, registers seven capabilities at import)
 
 | What | Surface |
 | :-- | :-- |
@@ -88,7 +95,7 @@ file; nothing else is importable.
 | Registration | `register(capability)`, `registerBuiltins()`, `reset()` |
 | Reading the registry without emitting | `capabilities(): string[]`, `capability(name): Capability \| undefined` |
 | Emitting | `emit(runtime, name, fields): string` |
-| Validating a plugin document | `check(document): string[]`, `refusals(lines)`, `isDeprecation(line)`, `DEPRECATED`, `CapabilityError` |
+| Validating a plugin document | `check(document): string[]`, `refusals(lines)`, `isDeprecation(line)`, `DEPRECATED`, `CapabilityError` (which carries a family `code`) |
 | The template language | `render(template, fields)`, `fieldsUsed(template)` |
 | The process seam | `processRuntime(): Runtime`, and the `Runtime` type |
 | Types | `Capability`, `Fields`, `Support`, `AnsiEscapes`, `ImageOptions`, `NotImplemented` |
@@ -102,7 +109,7 @@ file; nothing else is importable.
 | The guess, asked without emitting | `supportsLink(runtime): boolean` |
 | The record itself, for a host that wants to read or replace it | `LINK: Capability` — the same object `builtins.link` is |
 
-### `paratext/plugin` — the host (15,116 B)
+### `paratext/plugin` — the host (17,710 B)
 
 `CONTRACT` (`1`), `Plugin`, `validate`, `register`, `reset`, `registered`, `contributions`,
 `Contribution`, `attach`, `CapabilityHost`, `PluginError`, `PluginErrorCode`. Described
@@ -193,10 +200,13 @@ flat config.
 | **a capability with no `fallback`** | `E_NO_STATIC_PROJECTION` | checked *before* the schema, because `fallback` is the field people leave out and "is required" would not tell them what they are giving up. The same code flagstaff raises for a component with no static form and caique for a widget with no `static` |
 | key and `name` disagree | `E_PLUGIN_SCHEMA` | `{ "foo": { "name": "bar" } }` — refused rather than reconciled; guessing which the author meant is how a silent wrong answer gets built |
 | a missing required field | `E_PLUGIN_SCHEMA` | `name`, `osc`, `when`, `encode`, `fallback`, read from the schema's own `required` list |
-| an empty `encode` | `E_PLUGIN_SCHEMA` | `encode: ""` |
+| a field of the wrong type | `E_PLUGIN_SCHEMA` | `when: 'x'`, `when.tty: 'yes'`, `when.termProgram: 'iTerm.app'`, `fallback: 1` — `type`, read from the schema |
+| an `osc` that is neither | `E_PLUGIN_SCHEMA` | the schema's `oneOf`: `an integer ≥ 0 or "BEL"` |
+| an empty `encode` or `name` | `E_PLUGIN_SCHEMA` | the schema's `minLength: 1` |
+| a field the schema does not declare | `E_PLUGIN_SCHEMA` | `additionalProperties: false`, at the capability and inside `when` |
 
-**What is *not* refused, measured rather than assumed.** This is the honest half, and it is
-a defect rather than a policy. Run 2026-09-15 against `dist/plugin.js`:
+**What was *not* refused, measured rather than assumed — and fixed 2026-09-16.** Run
+2026-09-15 against `dist/plugin.js`:
 
 ```js
 register({ name: 'acme', capabilities: { x: {
@@ -207,14 +217,37 @@ register({ name: 'acme', capabilities: { x: {
 
 `osc` is declared `integer ≥ 0 | "BEL"` and an object passed. `when` is declared an object
 and a string passed. `additionalProperties: false` is declared and `extra` passed. None of
-the three is checked, because `check()` reads the schema's `required` array and nothing else
-of it — see R4. The `when` case is the one that matters: destructuring a string yields four
-`undefined` clauses, so `supports()` returns **true**, and a plugin with a typo there emits
-OSC into a pipe. That is precisely the failure this package exists to prevent, reachable
-through its own documented extension surface. It is recorded in
-[`issues.md`](./issues.md)-adjacent terms here rather than fixed in this lane, because the
-fix is a validator — either a small structural check in `capabilityProblems()` or a real
-JSON-Schema walk — and it wants its own red-first test and its own changeset.
+the three was checked, because `check()` read the schema's `required` array and nothing else
+of it. The `when` case is the one that mattered: destructuring a string yields four
+`undefined` clauses, so `supports()` returned **true**, and a plugin with a typo there emitted
+OSC into a pipe — precisely the failure this package exists to prevent, reachable through its
+own documented extension surface. Measured again on `dist` the same way, the record came back
+`"]8;;https://x.devDocs]8;;"` on a runtime with `isTTY.stdout: false`.
+
+`src/shape.ts` closes it: a 40-line walk over the keywords the schema actually uses, wired
+into `capabilityProblems()` so that **`register()` and `plugin.validate()` are closed by the
+same call**. `register()` is the only way into the registry `emit()` reads — the built-ins,
+`attach()` and a third party all go through it — so one refusal is what keeps a bad `when`
+away from `supports()` rather than a guard further down. `supports()` also answers `false`
+for a `when` it cannot read, which is belt rather than braces and is asserted separately in
+`src/shape.test.ts` so that neither half can pass for the other.
+
+**What it cost.** 2,500 B for `shape.js`, 120 B in `capability.ts`, 66 B of fail-safe in
+`supports.ts`. Bytes were found before the ceilings moved: the walk came down from 2,661 B to
+1,967 B, `capability.ts` stopped rebuilding its record and its message table per call, and
+`plugin.ts` gave back 92 B by dropping the copy of `fallback`-is-required it kept beside
+`capability.ts`'s. It then went back up to 2,500 B because
+`maintainability/cognitive-complexity` scores the walk 18 against a ceiling of 15 as one
+function, so it is five named ones — a lint rule this repository enforces bought 533 B, and
+that is recorded rather than reversed. The remainder moved the two ratchets: `.` 17,535 →
+**20,221 B** (budget 19,000 → 20,500) and `./plugin` 15,116 → **17,710 B** (budget 16,500 →
+18,000). Both ceilings are tighter in relative terms than the ones they replace — 279 B and
+290 B of headroom where there were 1,465 and 1,384.
+
+Packed, `paratext` goes **57,049 → 64,059 B** unpacked (`npm pack --dry-run --json`, the same
+measurement `benchmarks/axes/weight.ts` makes). `.sdlc/bands/foundation-ceilings.json` carries
+the old figure as `paratext.ours` and is the integrator's to move, so it is reported here
+rather than edited.
 
 **A second contributed name is not a second registration.** `attach()` calls `register()`
 once per *name*, so the last plugin to contribute `link` replaces it; `contributions()[].shadowed`
@@ -226,6 +259,7 @@ names the ones that lost, which is what a `burgee plugin check` prints.
 packages/paratext/src/
   capability.ts   R1–R4  the record, the registry, emit(), check()
   supports.ts     R1     the support guess, alone, so a subpath can ask without the registry
+  shape.ts        R4     the walk over the schema keywords a capability record uses
   template.ts     R6     {field} substitution, fieldsUsed()
   link.ts         R13    the OSC 8 record and the `paratext/link` entry — imports no registry
   builtins.ts     R7     seven records (link re-exported from link.ts), registered on demand
@@ -366,8 +400,12 @@ What is here is a reading of the code, not a memory of it.
 - **R4** — `check(document)`, `refusals()`, `isDeprecation()`. It reads the family schema's
   own `required` list so a field added there cannot be forgotten here, and returns one line
   per problem, prefixed with the path a reader has to go and edit (`capabilities.link: …`).
-  **It is presence-checking, not schema validation**; the gap is measured in the claims
-  section and is the largest single defect this reading found.
+  It was **presence-checking, not schema validation** until 2026-09-16 — the largest single
+  defect this reading found, measured in the claims section. `shape.ts` closed it: the same
+  call now enforces `type`, `oneOf`, `const`, `minLength`, `minimum`, `items` and
+  `additionalProperties: false`, every refusal carries a family error code, and `register()`
+  goes through it too, which is what keeps a malformed `when` out of the registry `emit()`
+  reads.
 - **R5** — `runtime.ts`. `Runtime` is `{ env, isTTY: { stdout }, cwd? }` and `processRuntime()`
   is the only function in the package that names `process`. `cwd` is optional because nothing
   deciding *support* reads it and a two-line test literal should not have to carry it;
@@ -498,14 +536,19 @@ nothing.
   is true and worth keeping is the other one: **it never emits OSC on a terminal that is not
   believed to understand it.** The intent's success criterion should be reworded to that;
   `intent.md` is this lane's file and the sentence is corrected there too.
-- **R4's "validates against `schema.json`" overstates `check()`.** It reads the schema's
-  `$defs.capability.required` array and asserts presence, and hand-checks that `encode` is a
-  non-empty string and `fallback` is a string. Nothing reads `type`, `oneOf`, `minimum`,
+- **R4's "validates against `schema.json`" overstated `check()` — fixed 2026-09-16, and the
+  replacement claim is narrower than the one it replaces.** It read the schema's
+  `$defs.capability.required` array and asserted presence, and hand-checked that `encode` was
+  a non-empty string and `fallback` a string. Nothing read `type`, `oneOf`, `minimum`,
   `minLength` or `additionalProperties: false`. Measured: a capability with `osc: { nope:
-  true }`, `when: 'not an object'` and an undeclared `extra: 1` is accepted by both `check()`
-  and `plugin.validate()`. The `when` case is a live rule-6 hole — a string destructures to
-  four `undefined` clauses, so `supports()` returns `true` and the capability emits into a
-  pipe. Not fixed in this lane: it wants a validator, a red-first test, and its own changeset.
+  true }`, `when: 'not an object'` and an undeclared `extra: 1` was accepted by both `check()`
+  and `plugin.validate()`, and the `when` case was a live rule-6 hole — a string destructures
+  to four `undefined` clauses, so `supports()` returned `true` and the capability emitted into
+  a pipe. `src/shape.ts` now enforces `type`, `oneOf`, `const`, `minLength`, `minimum`,
+  `items` and `additionalProperties: false`, which is every keyword the capability entry
+  writes. It does **not** enforce `$ref`, `pattern`, `minItems`, `maxLength`, `enum`, `allOf`,
+  `anyOf` or `not`; none of them appears under a capability today, so R4 should be read as
+  "validates the constructs the capability shape uses", not "validates the schema".
 - **R7 named three of the seven OSC codes wrongly** — `cwd` as OSC 7 (it is OSC 50, followed
   by OSC 9;9), `notify` as "OSC 9 / 777" (only 9 is emitted; 777 appears nowhere in the
   package), `title` as "OSC 0/2" (only 0). The records in `builtins.ts` are the truth and the

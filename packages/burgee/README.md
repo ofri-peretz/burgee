@@ -125,6 +125,6 @@ Graded by the incumbent's own test suite:
 | `yargs` | 804 / 804 |
 ## Where it sits
 
-It declares the plugin shape the rest of the family registers against, and hosts no key of its own.
+Plugins register under the `commands` and `hooks` keys, against the one schema the whole family shares.
 
 Nothing in this family builds on it yet, and it builds on `closeout`, `linegauge`, `roundel`, `seniority`.
