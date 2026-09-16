@@ -75,6 +75,21 @@ each case, is recorded under "Accepted at the Design→Build gate (2026-09-09)" 
   `./box` ≤ boxen, `./table` ≤ cli-table3, `./log-update` ≤ log-update — recorded when
   vendored. Depends on `roundel` only.
 
+  **"Depends on `roundel` only" has been false since 2026-09-09** and is corrected under
+  *Where this document and the code disagree*; as of 2026-09-16 the list is `closeout`,
+  `linegauge`, `paratext`, `roundel`.
+
+- **R12** `./box` and `./table` render a path or a url as a terminal hyperlink **through
+  `paratext`**, never through an escape written here. A cell may be `{ text, href }`; a box
+  may be given `{ href }`. The sequence on a terminal believed to do OSC 8, `text (url)`
+  everywhere else, and the destination survives into the static projection — an agent and a
+  screen reader get the url, a pipe gets no control byte. **Built (2026-09-16)** — `src/link.ts`,
+  and the number this requirement is really about is in the "What shipped" entry below.
+
+  This is `paratext` R12 from the other side: the first same-repo consumer of that package.
+  The requirement is filed here too because the edit is here, and a requirement that lives
+  only in the other lane's design is one this package's reader never sees.
+
 ### Evidence
 
 Issue ids from [what 230 issues say about the output stack](../../research/output-stack-open-issues.md),
@@ -606,6 +621,45 @@ Beyond "Out of scope" below:
   supplies into a plugin. The single exception is `flagstaff/ora`, which re-exports
   cli-spinners' corpus because ora's `spinners` export is part of the API being graded, and
   the isolation lock keeps every other entry away from it.
+
+## What shipped (R12, the hyperlink — 2026-09-16)
+
+`flagstaff` is the first package in the family to depend on `paratext`. `.sdlc/bands/composition.json`
+had `paratext` on `awaiting` with the reason *"needs a narrow `paratext/link` subpath with no
+registry side effect"*; that subpath shipped on 2026-09-15, so this is the edge it was waiting
+for. `edges` 8 → 9.
+
+**Which paratext entry, measured rather than assumed.** `paratext/link` — **2,410 B** across
+four modules (`link`, `runtime`, `supports`, `template`), registering nothing. The root is
+**20,221 B** across ten and runs `registerBuiltins()` at import, which a package declaring
+`sideEffects: false` should not put in a bundler's graph. 17,811 B of difference against a
+`./table` entry whose whole budget was 4,000 B. Measured in paratext's own `dist/`, because
+flagstaff's `walk()` stops at a bare specifier and would have reported the two as identical.
+
+**What it cost here.** `./table` +1,675 B (3,316 → 4,991, budget 4,000 → 6,000), `./box`
++1,502 B (17,282 → 18,784, budget 18,500 → 20,000), `.` +2,058 B (29,874 → 31,932, budget
+unchanged at 33,000), `./cli-table3` +109 B (28,759 → 28,868, budget unchanged at 29,000 and
+now 132 B inside it). The bytes are `src/link.ts` (1,038 B) and the `runtime.ts` seam (81 B),
+not an OSC 8 implementation — there is none in this package.
+
+**Degradation is paratext's to decide, and it is graded both ways.** `src/link.ts` asks
+`supportsLink(runtime)` for *layout* — off a terminal the url is content and belongs in the
+columns, on one it is carried by a sequence that measures zero — and `linkFor(runtime)` for
+the bytes. No file here names `isTTY` or `TERM` to make that call. `link.test.ts` writes every
+expectation as *what `paratext/link` returns for the same input*, so an expectation spelled
+`]8;;…` could not silently pass against a hand-rolled copy; the `TERM=dumb`-on-a-tty case
+is the one that proves the runtime is passed through rather than re-derived.
+
+**The inline copy is gone.** `cli-table3.ts` held the only other OSC 8 in the package — an
+array-joined sequence in `hyperlink()` and a `HYPERLINK_TAG` terminator. Both now come from
+paratext. The façade still emits unconditionally, because upstream's `hyperlink()` is an
+escape builder and `utils-test.js` grades its exact bytes with no terminal in the call; the
+runtime it is rendered against is a named constant saying so. cli-table3 still grades **29 /
+29**, and the whole oracle is unchanged at ▲ 0 on every row. The standing rule is now a lock:
+*no published file in this package spells an OSC 8 sequence of its own*, read off `dist/` so
+that `cli-table3.ts`'s prose about upstream issue #338 does not trip it. Proven to fail — with
+the previous `cli-table3.ts` restored and rebuilt, that case is the one and only red, while
+the two byte-identity cases stay green.
 
 ## Where this document and the code disagree (2026-09-15)
 

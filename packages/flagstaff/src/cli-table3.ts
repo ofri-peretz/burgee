@@ -27,14 +27,36 @@ import { measure } from 'linegauge';
  * `roundel/chalk` for the two default styles. `strlen` strips only SGR, exactly as upstream
  * does, so an OSC-8 hyperlink counts toward width in the same places it does there.
  */
+import { linkFor } from 'paratext/link';
 import chalk from 'roundel/chalk';
 
 const ESC = '\u001B';
 /** SGR only — upstream's regex. An OSC sequence is *not* stripped, and that is deliberate. */
 const SGR = /\u001B\[(?:\d*;){0,5}\d*m/g;
 const SGR_CAPTURE = /\u001B\[((?:\d*;){0,5}\d*)m/g;
-const HYPERLINK_TAG = `${ESC}]8;;\u0007`;
 const HALF = 2;
+
+/**
+ * A runtime paratext believes does OSC 8 — a tty, under a terminal that announces itself.
+ *
+ * It is a constant on purpose. This façade reproduces cli-table3, whose `hyperlink()` emits
+ * the sequence unconditionally because the caller asked for an `href`; the question "can this
+ * terminal do it" belongs to `flagstaff/table`, which asks paratext properly (R12). Naming
+ * the assumption here is what stops it from being made silently.
+ *
+ * `paratext/link` and not `paratext`: 2,410 B and no registry, against 20,221 B and
+ * `registerBuiltins()` at import. See `src/link.ts` for the measurement.
+ */
+const EMITTING = { env: { WT_SESSION: '1' }, isTTY: { stdout: true } };
+const emitLink = linkFor(EMITTING);
+
+/**
+ * The OSC 8 terminator, taken from paratext rather than spelled a second time: a link around
+ * nothing, to nowhere, is the opening tag and the closing tag back to back, and the two are
+ * the same bytes. `truncate()` looks for it to tell whether a cut line still has to be closed.
+ */
+const EMPTY_LINK = emitLink('', '');
+const HYPERLINK_TAG = EMPTY_LINK.slice(0, EMPTY_LINK.length / HALF);
 
 /** Widest line, measured with SGR removed. Upstream's `strlen`. */
 export function strlen(str: unknown): number {
@@ -253,11 +275,20 @@ function colorizeLines(input: string[]): string[] {
   });
 }
 
-/** OSC 8 — the terminal hyperlink escape. */
+/**
+ * OSC 8 — the terminal hyperlink escape, and **not this package's to spell** (R12). The
+ * sequence is paratext's `link` capability rendered against {@link EMITTING}; this function
+ * contributes the argument order and upstream's `url || text`, and nothing else.
+ *
+ * Upstream's `hyperlink()` is an escape *builder*, not a policy decision: `utils-test.js`
+ * grades its exact bytes with no terminal anywhere in the call, and a cell given an `href`
+ * gets a sequence whatever `process.stdout` is. So this stays unconditional — the caller
+ * already decided — and the runtime handed to paratext says so out loud. `flagstaff/table`
+ * is the surface that *asks* whether the terminal can (rule 6); a façade that started asking
+ * would be reinterpreting its host, and `link.test.ts` pins these bytes against upstream's.
+ */
 export function hyperlink(url: string, text: string): string {
-  const OSC = `${ESC}]`;
-  const BEL = '\u0007';
-  return [OSC, '8', ';', ';', url || text, BEL, text, OSC, '8', ';', ';', BEL].join('');
+  return emitLink(text, url || text);
 }
 
 /**

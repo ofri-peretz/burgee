@@ -24,6 +24,8 @@ const roundelRoot = resolve(pkgRoot, '../roundel');
 const linegaugeRoot = resolve(pkgRoot, '../linegauge');
 /** The cursor net, since 2026-09-15: `restore-cursor` and `signal-exit` live here, not in flagstaff. */
 const closeoutRoot = resolve(pkgRoot, '../closeout');
+/** OSC 8, since 2026-09-16: `box` and `table` link a path through `paratext/link` (R12). */
+const paratextRoot = resolve(pkgRoot, '../paratext');
 const ESC = String.fromCharCode(27);
 
 /**
@@ -51,7 +53,7 @@ function run(...argv: string[]): string {
 
 beforeAll(() => {
   dir = mkdtempSync(join(tmpdir(), 'flagstaff-shape-'));
-  const tarballs = [roundelRoot, linegaugeRoot, closeoutRoot, pkgRoot].map((root) => join(dir, npm(['pack', '--silent', '--pack-destination', dir], { cwd: root, encoding: 'utf8' }).trim()));
+  const tarballs = [roundelRoot, linegaugeRoot, closeoutRoot, paratextRoot, pkgRoot].map((root) => join(dir, npm(['pack', '--silent', '--pack-destination', dir], { cwd: root, encoding: 'utf8' }).trim()));
   npm(['install', '--no-audit', '--no-fund', '--silent', ...tarballs], { cwd: dir, stdio: 'ignore' });
   writeFileSync(join(dir, 'cli.mjs'), ONE_FILE);
 }, 120_000);
@@ -83,12 +85,13 @@ describe('Z1 — one file, npm i, no build step', () => {
     }
   });
 
-  it('the package it installed depends on closeout, linegauge and roundel and on nothing else (U6: 0 external, 3 same-repo)', () => {
+  it('the package it installed depends on closeout, linegauge, paratext and roundel and on nothing else (U6: 0 external, 4 same-repo)', () => {
     const installed = JSON.parse(readFileSync(join(dir, 'node_modules/flagstaff/package.json'), 'utf8')) as { dependencies?: Record<string, string> };
-    expect(Object.keys(installed.dependencies ?? {}).toSorted()).toEqual(['closeout', 'linegauge', 'roundel']);
+    expect(Object.keys(installed.dependencies ?? {}).toSorted()).toEqual(['closeout', 'linegauge', 'paratext', 'roundel']);
     expect(existsSync(join(dir, 'node_modules/roundel/package.json'))).toBe(true);
     expect(existsSync(join(dir, 'node_modules/linegauge/package.json'))).toBe(true);
     expect(existsSync(join(dir, 'node_modules/closeout/package.json'))).toBe(true);
+    expect(existsSync(join(dir, 'node_modules/paratext/package.json'))).toBe(true);
     expect(existsSync(join(dir, 'node_modules/flagstaff/node_modules'))).toBe(false);
   });
 });
