@@ -367,6 +367,11 @@ function derivedCompatBands(configured: BandConfig[]): BandConfig[] {
   return fs
     .readdirSync(dir)
     .filter((f) => f.endsWith('.json'))
+    // `"planned": true` means the fragment records a measurement `hosts.ts` deliberately
+    // does not publish, so there is no series to watch. A band for one reports "band not
+    // computed yet" forever, which reads exactly like a healthy young band — the failure
+    // this file's own `$comment` warns about.
+    .filter((f) => (JSON.parse(fs.readFileSync(path.join(dir, f), 'utf-8')) as { planned?: boolean }).planned !== true)
     .sort()
     .map((f) => f.slice(0, -'.json'.length))
     .map((host) => ({

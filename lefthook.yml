@@ -23,3 +23,10 @@ pre-push:
     # turbo still parallelises across packages inside the one run.
     battery:
       run: npx --no turbo run typecheck test build --output-logs=errors-only
+    # `turbo run test` covers workspaces, and `scripts/` is not one — the root vitest config
+    # is the only thing that runs `scripts/**/*.test.ts`. So the gate that is supposed to be
+    # what CI runs was missing a whole directory of locks, and `plan-progress-lock.test.ts`
+    # went red on ubuntu and windows after a local `ci:local` reported 45/45 (2026-09-16).
+    # This is the same line `npm test` already runs before its turbo half.
+    root-suite:
+      run: npx --no vitest run --config vitest.root.config.ts

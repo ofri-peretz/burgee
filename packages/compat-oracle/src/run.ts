@@ -681,6 +681,13 @@ export interface Baseline {
      * would still read 100%.
      */
     mode?: 'exit-code';
+    /**
+     * The measurement is recorded and deliberately unpublished: this host's `status` is
+     * still `planned` and the note beside it says why. `benchmarks/bands.ts` reads this
+     * directory to decide which hosts get a band, and without this flag it named two the
+     * oracle never grades — which took the whole compat axis down to zero published rows.
+     */
+    planned?: boolean;
   };
 }
 

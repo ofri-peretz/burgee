@@ -52,6 +52,17 @@ ships. `paratext/plugin` is the host: a plugin's capabilities arrive under `capa
 and every other key — another layer's `tokens`, `spinners`, `handlers` — is ignored without
 complaint.
 
+**What "grades against the schema" means, exactly.** `check()` and `register()` read the
+capability entry of that file and enforce `required`, `type`, `oneOf`, `const`, `minLength`,
+`minimum`, `items`, and `additionalProperties: false`, which between them is every keyword
+the capability shape writes. Each refusal names the path — `capabilities.link.when.tty`, not
+just the capability — and carries the family's error code. What it does **not** read is
+`$ref`, `pattern`, `minItems`, `maxLength`, `enum`, `allOf`, `anyOf` and `not`: none of them
+appears under a capability, so nothing is silently unchecked today, but a keyword added to
+the file tomorrow would be. Until 0.3 this was presence-checking only, and `when: 'not an
+object'` was therefore accepted — a string destructures to four empty clauses, so the support
+guess said *yes* and the sequence went into the pipe. That is now a refusal.
+
 ## The `ansi-escapes` members it replaces
 
 The root is call-compatible with `ansi-escapes` for the four OSC members of its surface, so
@@ -85,7 +96,7 @@ Graded by the incumbent's own test suite:
 | :-- | --: |
 | `ansi-escapes` | 1 / 4 |
 
-Weight, installed and tree-inclusive: **57,049 bytes** against **30,912** for the incumbents it replaces — a ratio of **1.8455** (terminal-link, term-img not installed here, so the ceiling is understated).
+Weight, installed and tree-inclusive: **66,080 bytes** against **30,912** for the incumbents it replaces — a ratio of **2.1377** (terminal-link, term-img not installed here, so the ceiling is understated).
 ## Where it sits
 
 Plugins register under the `capabilities` key, against the one schema the whole family shares.

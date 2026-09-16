@@ -11,6 +11,7 @@ import { parseArgs } from 'node:util';
 import { ConfigError, explain, type Layers, type Provenance, resolve as resolveLayers } from 'seniority/precedence';
 
 import { detectAgent } from './agent.js';
+import { checkCommand } from './definition.js';
 import { ExitCode, isExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
 import { renderHelp } from './help.js';
 import { type ActionRequiredSpec, type ArgumentSpec, type CommandNode, type Effects, type Example, type LazyModule, Manifest, type OptionSpec, type Relation, type RunContext } from './manifest.js';
@@ -20,7 +21,7 @@ import { nearestPackage, type Package } from './pkg.js';
 import { host } from './runtime.js';
 import { commandSchemaOf, machineJson, schemaOf, summaryOf } from './schema.js';
 import { detachedTeardown, processTeardown, type Teardown } from './shutdown.js';
-import { checkDefinition, checkRelations, coerce, UsageError } from './validate.js';
+import { checkRelations, coerce, UsageError } from './validate.js';
 
 export interface CommandContext<O> extends Omit<RunContext, 'options'> {
   options: O;
@@ -97,14 +98,10 @@ export interface Program {
   commands: AnyCommand[];
 }
 
-/** Reserved names a command may not redefine (V5): the surfaces every program serves. */
-const RESERVED = new Set(['json', 'help', 'schema', 'mcp', 'version', 'explain']);
-
 export function defineCommand<const S extends OptionSpecs = OptionSpecs>(command: Command<S>): Command<S> {
-  for (const name of Object.keys(command.options ?? {})) {
-    if (RESERVED.has(name) || RESERVED.has(kebab(name))) throw new Error(`burgee: option "${name}" is reserved and cannot be redefined`);
-  }
-  checkDefinition(command.name, command.options ?? {});
+  // The reserved names of V5 and `checkDefinition`'s four, in one place, because
+  // `Manifest.use()` needs exactly these on a plugin's commands and used to run neither.
+  checkCommand(command.name, command.options ?? {});
   return command;
 }
 

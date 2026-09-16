@@ -142,9 +142,34 @@ const RULES: Record<string, EntryRule> = {
   // dependency. 52,683 -> 52,893 measured, 210 B, against this unchanged 53,300 — the walk
   // stops at a bare import, so linegauge's own bytes are not in that number; what the 210
   // buys is that help stops guessing. Nothing was raised for it.
+  //
+  // 57,200 on 2026-09-16, for the plugin host, and this is the largest single raise in the
+  // file — so it is the one that has to justify itself hardest. `Manifest.use()` validated
+  // nothing: it pushed the plugin and called `this.add()` directly, where `defineCommand`
+  // enforces the reserved names of V5 and `checkDefinition`. A plugin's command therefore
+  // skipped both, and the worst case is not a tidiness one — `toParseConfig` seeds
+  // `json: { type: 'boolean' }` and then writes every declared option over the top of it, so a
+  // plugin option named `json` **replaced** the envelope flag. On an agent-native CLI whose
+  // whole contract is that `--json` is machine-readable output, a third party could take that
+  // away from every caller by naming an option, and no check anywhere said so.
+  //
+  // The cost is **4,191 bytes** (52,959 -> 57,150): `plugin.js` 3,922, `definition.js` 1,563
+  // (split out of `validate.js`, which shrank by the same amount), `manifest.js` +38,
+  // `index.js` +53, `execute.js` -310 where the reserved-name loop used to be inline. The
+  // ceiling is the next hundred above the measurement, as every raise above it is, leaving
+  // 50 bytes. It is not paid by a program that declines to call `use()` only in the sense
+  // that nothing here is: the validator is reachable from the barrel because `use()` is
+  // synchronous, and a deferred one would be a breaking signature change on a published API.
+  //
+  // What it buys is the whole of `plugin.test.ts`, each case of which was run red first: the
+  // `json` option above, `enforce: 'mid'` (accepted, and `NaN` in the comparator), a plugin
+  // with no name (accepted, attribution silently lost), a hook with no handler (a `TypeError`
+  // one run later), and a contributed path that is already declared (`find()` answered the
+  // first node and `resolve()` the last). Four floor families cost about 5 KB each in the
+  // notes above; the plugin host is the fifth and costs 4.2.
   ".": {
     allow: ["closeout", "linegauge", "seniority/precedence"],
-    budget: 53_300,
+    budget: 57_200,
     denied: [
       "testing.js",
       "testing-helpers.js",
@@ -173,7 +198,11 @@ const RULES: Record<string, EntryRule> = {
   // signal. Measured 57,005.
   // `linegauge` arrives here the same way `closeout` does: through the engine, because the
   // harness renders help to assert on it. Measured 57,215.
-  "./testing": { allow: ["closeout", "linegauge", "seniority/precedence"], budget: 58_300, denied: ["dev.js"] },
+  // 61,400 on 2026-09-16: the plugin host arrives here through the engine, because the harness
+  // runs a whole program in-process and a program may register plugins. +4,090 (57,281 ->
+  // 61,371), which is the `.` raise above minus `index.js`, the barrel the harness does not
+  // take. Next hundred above the measurement.
+  "./testing": { allow: ["closeout", "linegauge", "seniority/precedence"], budget: 61_400, denied: ["dev.js"] },
   // The brand generator. Pure geometry and string building — it must never reach
   // the engine, and the engine must never reach it: a CLI that ships argv parsing
   // has no reason to carry an SVG emitter.
@@ -185,9 +214,12 @@ const RULES: Record<string, EntryRule> = {
   // Raised from 72,000 on 2026-09-09 for the sibling marks: `shape` (a silhouette other
   // than the swallowtail), `markings` (a second colour on it), `sheen` and `bevel` (the
   // light on it, still and swept). Four options, one clip path and two renderers.
+  // 76,500 on 2026-09-16: the package's own command line is a burgee program, so it carries
+  // the plugin host for the same reason `.` does. +4,090 (72,360 -> 76,450). Next hundred
+  // above the measurement.
   "./cli": {
     allow: ["closeout", "linegauge", "roundel/contrast", "seniority/precedence"],
-    budget: 74_000,
+    budget: 76_500,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   // Arithmetic over hex strings, and the arithmetic itself is roundel's — colour is the
@@ -227,6 +259,14 @@ const RULES: Record<string, EntryRule> = {
     budget: 16_000,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js"],
   },
+  //
+  // Unchanged on 2026-09-16, and that took work. The front-end reaches the manifest and
+  // almost nothing else of the engine, so the plugin host landed on it too: 120,144 ->
+  // 130,903, **over 128,000**, which would have broken the parity claim in the paragraph
+  // above rather than merely spending a budget. 6,409 of that was `validate.js`, pulled in
+  // whole for `checkDefinition` — one function of it — while the other four fifths are
+  // run-time coercion the front-end never reaches. Splitting the definition-time checks into
+  // `definition.js` (1,563 B) is what fixed it: 125,667 measured, and the claim holds.
   "./commander": {
     allow: [],
     budget: 128_000,
@@ -385,12 +425,20 @@ describe("the denied list", () => {
   });
 });
 
+/**
+ * Exports that are data rather than code: the plugin schema a plugin author reads. No import
+ * graph and no budget — the file *is* the payload — so a byte rule would measure nothing.
+ * Listed rather than pattern-matched so that adding one is still a decision somebody made.
+ */
+const DATA_EXPORTS = ["./schema.json"];
+
 describe("the lock grows with the package", () => {
   it("every published entry point declares a weight rule", () => {
     // Adding `burgee/commander` without a budget here fails, which is the point:
     // a new surface cannot ship until someone has said what it may weigh.
-    expect(Object.keys(manifest.exports).sort()).toEqual(
-      Object.keys(RULES).sort(),
+    const code = Object.keys(manifest.exports).filter(
+      (e) => !DATA_EXPORTS.includes(e),
     );
+    expect(code.sort()).toEqual(Object.keys(RULES).sort());
   });
 });
