@@ -59,12 +59,24 @@ waiting on. The `## What shipped` sections below carry the detail.
   under `capabilities`, and one plugin object registers into every host. **Built** —
   `schema.json` and `plugin.ts`.
 - **R11 (Y8)** A ceiling in `.sdlc/bands/foundation-ceilings.json`, and a B4 benchmark row.
-  **Half built, and the built half is not this lane's work.** The ceilings file now exists
-  and carries a `paratext` entry — `ceiling: 30912` against `ansi-escapes` tree-inclusive,
-  measured 2026-09-14 — created by the integrator, who owns `.sdlc/bands/**`. Its `ours` reads
-  `57049`, which is what `npm pack --dry-run` gave before the schema walk; after it the same
-  command gives **64,059 B**. Reported rather than edited, for the same ownership reason. **The B4 row is Not built**: `grep -rl paratext benchmarks/` returns
-  nothing on 2026-09-15, and `benchmarks/**` is not a package lane's to write either.
+  **Built, both halves, and neither half was this lane's to build.** The ceilings file
+  carries a `paratext` entry — `ceiling: 30912`, the tree-inclusive bytes of `ansi-escapes`
+  — and on 2026-09-16 the integrator re-measured every layer in one pass, because five of six
+  had drifted and each package could only report its own drift. `ours` now reads **66,305**,
+  up from the `57049` recorded on 2026-09-14: `64,059` of that was the schema walk this lane
+  reported and could not edit, and the last 225 is `schema.json` growing a `propertyNames`
+  enum on `tokens`.
+
+  The B4 row exists as of 2026-09-16: `benchmarks/fixtures/entry-points.ts` carries a
+  `paratext` ÷ `ansi-escapes` pair, with the incumbent pinned to **7.3.0, the exact version
+  compat-oracle grades**, since the weight we compare against has to be the weight of the
+  release whose own suite we pass. It measures **11,059 bundled bytes, a ratio of 2.542**,
+  ratcheted at 2.55 in `RATIO_CEILING`.
+
+  **Both numbers say this layer is over what it replaces, and neither is softened here.**
+  2.145 tree-inclusive and 2.542 bundled. The ratchets exist to stop it growing while that is
+  dealt with; they are not claims of being lighter, and `weight.ts` says so where they are
+  written. This is the one foundation layer of six that does not hold against its D1 ceiling.
 - **R12** First same-repo consumer: `flagstaff/table` and `flagstaff/box` link paths via
   `paratext`. **Not built**, and not buildable from this lane — the edit is in
   `packages/flagstaff/**`. Re-checked 2026-09-15: no file under `packages/flagstaff/src`

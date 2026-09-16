@@ -99,7 +99,6 @@ describe('the roadmap checker agrees with the tools it asks', () => {
 describe('every path a step names could exist', () => {
   /** Absent on purpose. A path leaves this list by existing, never by being explained again. */
   const DELIBERATELY_ABSENT: Record<string, string> = {
-    'scripts/plugin-contract-lock.test.ts': "1.7's condition IS its absence — the step is done when the lock exists, so a missing file is the honest red.",
     'packages/compat-oracle/baseline.json': 'SHARD asserts this is *gone*: the shared file was replaced by a directory of per-host fragments so lanes cannot collide.',
   };
 

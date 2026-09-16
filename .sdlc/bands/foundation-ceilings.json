@@ -1,6 +1,6 @@
 {
-  "$comment": "Y8 ceilings for the foundation tier, as PLAN.md decision D1 defines them: the ceiling is the incumbent's installed bytes **including its dependency tree** \u2014 what a user actually removes by switching \u2014 because four of six foundation layers have no zero-dependency incumbent to anchor against at all. Where a zero-dep incumbent exists it is named separately as the harder target. Measured by `installedBytes` in benchmarks/axes/weight.ts, which walks each tree once and counts every installed copy exactly once.",
-  "measuredOn": "2026-09-14",
+  "$comment": "Y8 ceilings for the foundation tier, as PLAN.md decision D1 defines them: the ceiling is the incumbent's installed bytes **including its dependency tree** — what a user actually removes by switching — because four of six foundation layers have no zero-dependency incumbent to anchor against at all. Where a zero-dep incumbent exists it is named separately as the harder target. Measured by `installedBytes` in benchmarks/axes/weight.ts, which walks each tree once and counts every installed copy exactly once.",
+  "measuredOn": "2026-09-16",
   "method": "benchmarks/axes/weight.ts installedBytes(name), tree-inclusive, one count per realpath",
   "layers": {
     "linegauge": {
@@ -19,12 +19,12 @@
       }
     },
     "paratext": {
-      "ours": 66080,
+      "ours": 66305,
       "incumbents": {
         "ansi-escapes": 30912
       },
       "ceiling": 30912,
-      "ratio": 2.1377,
+      "ratio": 2.145,
       "lightestIncumbent": {
         "name": "ansi-escapes",
         "bytes": 30912
@@ -33,17 +33,17 @@
         "terminal-link",
         "term-img"
       ],
-      "$unmeasured": "Not installed in this workspace, so its bytes are absent from `ceiling` \u2014 the ceiling is therefore a floor on the real one, never an overstatement."
+      "$unmeasured": "Not installed in this workspace, so its bytes are absent from `ceiling` — the ceiling is therefore a floor on the real one, never an overstatement."
     },
     "seniority": {
-      "ours": 153040,
+      "ours": 153392,
       "incumbents": {
         "cosmiconfig": 1377599,
         "dotenv": 82402,
         "rc": 95287
       },
       "ceiling": 1555288,
-      "ratio": 0.0984,
+      "ratio": 0.0986,
       "lightestIncumbent": {
         "name": "dotenv",
         "bytes": 82402
@@ -52,16 +52,16 @@
         "dotenv": 82402
       },
       "$note": "A zero-dependency incumbent exists here, so Y8's original wording applies too and beating it is reported separately.",
-      "$grew": "151,688 B on 2026-09-14, up from 53,475 \u2014 PLAN 3.2 built the cosmiconfig-compatible surface plus the `./dotenv` and `./find-up` fa\u00e7ades, and the pack grew 182%. The Y8 ratio moved 0.034 to 0.098, so it is still an order of magnitude under what it replaces; the growth is recorded rather than smoothed because a ratio that only ever improves is a ratio nobody is watching."
+      "$grew": "151,688 B on 2026-09-14, up from 53,475 — PLAN 3.2 built the cosmiconfig-compatible surface plus the `./dotenv` and `./find-up` façades, and the pack grew 182%. The Y8 ratio moved 0.034 to 0.098, so it is still an order of magnitude under what it replaces; the growth is recorded rather than smoothed because a ratio that only ever improves is a ratio nobody is watching."
     },
     "closeout": {
-      "ours": 84230,
+      "ours": 84455,
       "incumbents": {
         "signal-exit": 76966,
         "restore-cursor": 93638
       },
       "ceiling": 170604,
-      "ratio": 0.4937,
+      "ratio": 0.495,
       "lightestIncumbent": {
         "name": "signal-exit",
         "bytes": 76966
@@ -73,15 +73,15 @@
       "unmeasured": [
         "exit-hook"
       ],
-      "$unmeasured": "Not installed in this workspace, so its bytes are absent from `ceiling` \u2014 the ceiling is therefore a floor on the real one, never an overstatement."
+      "$unmeasured": "Not installed in this workspace, so its bytes are absent from `ceiling` — the ceiling is therefore a floor on the real one, never an overstatement."
     },
     "caique": {
-      "ours": 84388,
+      "ours": 84740,
       "incumbents": {
         "@clack/prompts": 182219
       },
       "ceiling": 182219,
-      "ratio": 0.4631,
+      "ratio": 0.465,
       "lightestIncumbent": {
         "name": "@clack/prompts",
         "bytes": 182219
@@ -89,22 +89,23 @@
       "unmeasured": [
         "@inquirer/core"
       ],
-      "$unmeasured": "Not installed in this workspace, so its bytes are absent from `ceiling` \u2014 the ceiling is therefore a floor on the real one, never an overstatement."
+      "$unmeasured": "Not installed in this workspace, so its bytes are absent from `ceiling` — the ceiling is therefore a floor on the real one, never an overstatement."
     },
     "bellpull": {
-      "ours": 85906,
+      "ours": 86131,
       "incumbents": {
         "execa": 647091,
         "cross-spawn": 46962,
         "which": 20931
       },
       "ceiling": 714984,
-      "ratio": 0.1202,
+      "ratio": 0.1205,
       "lightestIncumbent": {
         "name": "which",
         "bytes": 20931
       },
-      "note": "Measured 2026-09-16 (82,918 after `cross-spawn.ts` moved to a live property read so commander\u2019s mock is seen), the first time this package had an implementation to weigh: 0.0067 was a seven-line stub exporting its own name. R8's ceiling is the wrong comparison and is left as-is rather than quietly swapped: it asks for bytes under `tinyexec`, which does not resolve executables at all, so the smaller number would win by not doing the job. `tinyexec` is not installed here, so no number is claimed against it. Note the fixed point: `ours` is measured from a tarball that contains a README generated from `ours`, so writing the number changes it. 82,918 became 82,917 when the ratio string lost a character; 0.116 is stable under regeneration, which is why it stops here rather than oscillating."
+      "note": "Measured 2026-09-16 (82,918 after `cross-spawn.ts` moved to a live property read so commander’s mock is seen), the first time this package had an implementation to weigh: 0.0067 was a seven-line stub exporting its own name. R8's ceiling is the wrong comparison and is left as-is rather than quietly swapped: it asks for bytes under `tinyexec`, which does not resolve executables at all, so the smaller number would win by not doing the job. `tinyexec` is not installed here, so no number is claimed against it. Note the fixed point: `ours` is measured from a tarball that contains a README generated from `ours`, so writing the number changes it. 82,918 became 82,917 when the ratio string lost a character; 0.116 is stable under regeneration, which is why it stops here rather than oscillating."
     }
-  }
+  },
+  "$remeasured": "2026-09-16, one pass over all six with `npm pack --dry-run --json` (the same command each package's own weight.test.ts spawns), because five of six had drifted from the 2026-09-14 figures and each package could only report the drift, not correct it — this file is the integrator's. What moved: paratext 66,080 to 66,305 (+225); seniority 153,040 to 153,392 (+352); closeout 84,230 to 84,455 (+225); caique 84,388 to 84,740 (+352); bellpull 85,906 to 86,131 (+225). The +225 common to every layer is `schema.json` growing a `propertyNames` enum on `tokens`: the schema promised any token name while roundel's validate() accepted ten, so a plugin validated against the file its own error names could still be refused at register(). Ceilings are unchanged — they are the incumbents' bytes, and no incumbent moved."
 }

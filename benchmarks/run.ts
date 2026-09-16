@@ -32,6 +32,8 @@ const REPO_ROOT = resolve(BENCH_ROOT, '..');
 const RESULTS_DIR = join(BENCH_ROOT, 'results');
 const ALL_AXES: AxisName[] = ['perf', 'compat', 'weight', 'reliability', 'agent'];
 const ISO_DATE = 10;
+/** Matches `${GITHUB_SHA::7}` in `bench.yml`, so one run cannot produce two spellings. */
+const SHORT_SHA = 7;
 
 interface Args {
   axes: AxisName[];
@@ -137,12 +139,32 @@ function printTable(doc: ResultsDoc): void {
   for (const [id, claim] of Object.entries(doc.claims)) console.warn(renderClaim(id, claim));
 }
 
+/**
+ * `YYYY-MM-DD.json` is the *published* measurement — what `/docs/benchmarks` is generated
+ * from and what `docs.test.ts` pins `comparison.mdx` against. `YYYY-MM-DD-<sha>.json` is an
+ * observation. `benchmarks/published.ts` explains the split at length.
+ *
+ * Until 2026-09-16 that distinction was a convention two shell lines in `bench.yml` kept,
+ * and every other caller wrote the published name whatever it had measured. `npm run bench
+ * -- --axis weight` writes a document whose other four axes read `not-run`, under the name
+ * the docs read: on 2026-09-16 exactly that turned nine `docs.test.ts` cases red, and the
+ * only thing between it and a published page stating four missing numbers was noticing.
+ *
+ * So the name is derived from the document rather than asserted by the caller. A suite with
+ * every axis `measured` may publish; anything less is an observation and is named like one.
+ */
 function write(doc: ResultsDoc): string {
   const dir = join(RESULTS_DIR, doc.suite);
   mkdirSync(dir, { recursive: true });
-  const file = join(dir, `${doc.measured.slice(0, ISO_DATE)}.json`);
-  writeFileSync(file, `${JSON.stringify(doc, null, 2)}\n`);
-  return relative(REPO_ROOT, file);
+  writeFileSync(join(dir, resultsName(doc)), `${JSON.stringify(doc, null, 2)}\n`);
+  return relative(REPO_ROOT, join(dir, resultsName(doc)));
+}
+
+/** Exported for `published.test.ts`, which drives it with a partial document. */
+export function resultsName(doc: ResultsDoc): string {
+  const date = doc.measured.slice(0, ISO_DATE);
+  const complete = Object.values(doc.axes).every((a) => (a as AxisState).status === 'measured');
+  return complete ? `${date}.json` : `${date}-${doc.commit.slice(0, SHORT_SHA)}.json`;
 }
 
 function documents(args: Args): { docs: ResultsDoc[]; axes: Map<AxisName, AxisState> } {
