@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { HOSTS } from './hosts.js';
-import { silentDowngrades, verdict } from './report.js';
+import { absentHere, silentDowngrades, verdict } from './report.js';
 import { type Baseline, type Grade, parseFlatTap, summarize, summarizeExitCodes, unmatchedExclusions } from './run.js';
 
 const grade = (host: string, over: Partial<Grade> = {}): Grade => ({
@@ -54,8 +54,10 @@ describe('the control verdict', () => {
   it("allows yargs the two failures its own version lookup causes, and not a third", () => {
     // Documented in `hosts.ts`; without the allowance the control has been red at 802/804.
     expect(HOSTS.find((h) => h.name === 'yargs')?.controlFailures?.count).toBe(2);
-    expect(verdict([grade('yargs', { tests: 804, passed: 802, failed: 2 })], empty, collect().write, true)).toBe(0);
-    expect(verdict([grade('yargs', { tests: 804, passed: 801, failed: 3 })], empty, collect().write, true)).toBe(1);
+    // `reference: 804` rather than the helper's default: a fixture registering 804 cases
+    // against a reference of 16 was only ever harmless because nothing looked at the gap.
+    expect(verdict([grade('yargs', { tests: 804, passed: 802, failed: 2, reference: 804 })], empty, collect().write, true)).toBe(0);
+    expect(verdict([grade('yargs', { tests: 804, passed: 801, failed: 3, reference: 804 })], empty, collect().write, true)).toBe(1);
   });
 
   it('fails a control that stopped registering cases, even though it fails none', () => {
@@ -75,8 +77,26 @@ describe('the control verdict', () => {
     expect(verdict([grade('yargs', { tests: 803, passed: 802, failed: 1, skipped: 1, reference: 804, rate: 802 / 804 })], empty, collect().write, true)).toBe(0);
   });
 
-  it('leaves a control alone when upstream grew, which is not a shortfall', () => {
-    expect(verdict([grade('cli-table3', { tests: 31, passed: 31, failed: 0, reference: 29, rate: 1 })], empty, collect().write, true)).toBe(0);
+  /**
+   * **Reversed 2026-09-16, deliberately.** This case used to assert the opposite — that a
+   * control registering 31 against a reference of 29 is "upstream grew, which is not a
+   * shortfall" and may pass. That was right about the cause and wrong about the remedy.
+   *
+   * The reference is the *published denominator*. `rate()` divides by
+   * `max(reference, registered)`, so a control that finds more cases than the reference does
+   * not merely notice growth — it changes the number on the page, and only on the machine
+   * that has the extra cases. Measured: `cosmiconfig` is 241 cases on darwin and 243 on
+   * ubuntu, and the row committed from darwin read 77.2% there and 76.5% on ubuntu for one
+   * commit. Nothing was red, because growth was allowed.
+   *
+   * So growth is now red, and the remedy is the one it always was: re-record the reference
+   * (a re-vendor already prints what moved, in `vendor-diff.md`), or declare a difference the
+   * suite creates on purpose in `conditionalCases`. Both are one edit and both are visible.
+   */
+  it('refuses a control that grew past its reference, because the reference is the published denominator', () => {
+    const out = collect();
+    expect(verdict([grade('cli-table3', { tests: 31, passed: 31, failed: 0, reference: 29, rate: 1 })], empty, out.write, true)).toBe(1);
+    expect(out.text()).toContain('the reference is not this suite');
   });
 
   it('gives a host with no declared allowance none', () => {
@@ -185,5 +205,96 @@ describe('excluding a case that cannot fail for any target', () => {
   it("refuses exclusions on a runner whose TAP has no case names to exclude by", () => {
     const summaryOnly = 'TAP version 13\n# tests 878\n# pass 878\n# fail 0\n';
     expect(summarize(summaryOnly, 1, 0, { excludes }).error).toContain('no per-case names');
+  });
+});
+
+/**
+ * The denominator must not read the machine it ran on.
+ *
+ * `cosmiconfig`'s suite is 241 cases on darwin and 243 on ubuntu — `search-strategies.test.ts`
+ * guards two with `if (process.platform === 'linux')`, so they are never registered anywhere
+ * else. `rate()` divides by `max(reference, registered)`, so a reference recorded from darwin
+ * published 77.2% there and 76.5% on ubuntu for the same commit and the same target, which
+ * `compat:page --check` caught on PR #338.
+ *
+ * Two things have to hold and they pull against each other: the smaller platform's control
+ * must not be red for cases the suite never gave it, and a case lost for any *other* reason
+ * must stay as red as it was. So the shortfall is declared per host, exact, and spent only
+ * off the platforms named in `only`.
+ */
+describe('a suite whose case count depends on the platform', () => {
+  it('counts the two cosmiconfig guards as absent off linux, and as present on it', () => {
+    expect(absentHere('cosmiconfig', 'darwin')).toBe(2);
+    expect(absentHere('cosmiconfig', 'win32')).toBe(2);
+    expect(absentHere('cosmiconfig', 'linux')).toBe(0);
+  });
+
+  it('reads the other spelling too, where the guard is `!== win32`', () => {
+    // lilconfig's two are absent on Windows and present on both platforms this repo grades
+    // on, so the declaration changes no published number and still makes a Windows run right.
+    expect(absentHere('lilconfig', 'win32')).toBe(2);
+    expect(absentHere('lilconfig', 'darwin')).toBe(0);
+    expect(absentHere('lilconfig', 'linux')).toBe(0);
+  });
+
+  it('claims nothing for a host that declares nothing', () => {
+    for (const host of ['commander', 'dotenv', 'rc']) {
+      for (const platform of ['darwin', 'linux', 'win32'] as const) expect(absentHere(host, platform)).toBe(0);
+    }
+  });
+
+  /**
+   * The invariant the declaration buys, stated as arithmetic rather than through `verdict`.
+   *
+   * `controlShortfall` reads `process.platform`, so a test that drove it end to end for
+   * cosmiconfig would itself pass on one OS and fail on the other — which is the defect under
+   * repair, written into its own lock. What has to hold is that what each platform registers
+   * plus what it is declared to lack is **one number**, and that number is the reference.
+   */
+  it('adds up to the same 243 on the machine that runs 241 and the one that runs 243', () => {
+    expect(241 + absentHere('cosmiconfig', 'darwin')).toBe(243);
+    expect(243 + absentHere('cosmiconfig', 'linux')).toBe(243);
+  });
+
+  /**
+   * The half that actually shipped, driven end to end through a host that declares nothing so
+   * the assertion holds on every OS.
+   *
+   * The undeclared machine was the *bigger* one: darwin recorded 241, ubuntu registered 243,
+   * and nothing objected — `rate()` simply widened the denominator, so one commit published
+   * two rates. A control that finds more cases than its reference is proof the reference is
+   * not the suite, and it is now red on the run whose whole job is to fix the reference.
+   */
+  it('refuses a control that registers MORE than its reference, which is how the rate read the machine', () => {
+    const out = collect();
+    expect(verdict([grade('commander', { tests: 243, passed: 243, failed: 0, reference: 241 })], empty, out.write, true)).toBe(1);
+    expect(out.text()).toContain('the reference is not this suite');
+  });
+
+  it('keeps the older half — a control short of its reference — exactly as red', () => {
+    const out = collect();
+    expect(verdict([grade('commander', { tests: 240, passed: 240, failed: 0, reference: 243 })], empty, out.write, true)).toBe(1);
+    expect(out.text()).toContain('of its own 243 cases registered');
+  });
+
+  it('is quiet when the reference is the suite', () => {
+    expect(verdict([grade('commander', { tests: 243, passed: 243, failed: 0, reference: 243 })], empty, collect().write, true)).toBe(0);
+  });
+
+  /**
+   * The first draft of the clause above read the count off `registered`, which adds the skips
+   * back so the *shortfall* clause cannot punish a machine for skipping more. commander and
+   * yargs caught it in one run: each skips one OS-specific case, so each read one case over
+   * its own reference and the control exited 1 on a repository where nothing was wrong.
+   *
+   * The two clauses want different quantities and that is not a subtlety to leave implicit —
+   * the shortfall asks "is every case accounted for", the denominator asks "did `rate()`'s
+   * divisor widen", and skips are already out of the divisor.
+   */
+  it('does not read a skipped case as the suite having grown', () => {
+    // commander on darwin: `# tests 1361`, `# skipped 1`, so `tests` is 1360 — its reference.
+    expect(verdict([grade('commander', { tests: 1360, passed: 1360, failed: 0, skipped: 1, reference: 1360 })], empty, collect().write, true)).toBe(0);
+    // yargs, with its declared allowance of 2 on top of the skip.
+    expect(verdict([grade('yargs', { tests: 804, passed: 802, failed: 2, skipped: 1, reference: 804 })], empty, collect().write, true)).toBe(0);
   });
 });
