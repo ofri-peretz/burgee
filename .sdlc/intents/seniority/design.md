@@ -266,6 +266,14 @@ file that satisfies it and the check that would fail if it stopped being true. A
 `Not built` is the thing 3.2 is finished by removing; a row saying `Built` without a check is
 a claim, so every row names one.
 
+**The Status cell holds two words and nothing else**, `Built` or `Not built`, because
+`scripts/plan-progress.ts` reads it. Four of these rows used to spell it `Built (0.1.0)` or
+`Built (2026-09-14)` and the checker — which matches `**Built**` — counted them as unrecorded,
+so R7, R13, R14 and R15 read as missing while the table plainly said otherwise. Two shapes for
+one fact is the drift this repository is about; two spellings of one word inside one table is
+the same drift, smaller. The version and the date belong in *Where*, which is where they now
+are.
+
 | R | Status | Where | The check |
 | :-- | :-- | :-- | :-- |
 | R1 | **Built** | `src/precedence.ts` — `ORDER`, and `RANK` derived from its positions | `precedence.test.ts`: the resolved candidate order **equals** `ORDER` |
@@ -274,15 +282,15 @@ a claim, so every row names one.
 | R4 | **Built** | `src/explain.ts` — `explanation()` is the record; `renderExplanation`, `explanationJson`, `explanationEvent` are its three renderings | `explain.test.ts`: `explain(…) === renderExplanation(explanation(…))`, byte for byte |
 | R5 | **Built** | `src/search.ts` — 120 lines, bounded by `stopAt`, `WALK_LIMIT` and the root; real paths compared so a symlink ring ends the walk | `search.test.ts`, 10 cases incl. a link pointing back at its own ancestor |
 | R6 | **Built** | `src/load.ts` — four builtin loaders, injected loaders for everything else, `LoaderError` (`exitCode: 2`) naming the extension and the option | `load.test.ts`, 11 cases; `NOT_BUNDLED` is asserted absent from `defaultLoaders` |
-| R7 | **Built (0.1.0)** | `src/config.ts` — `loadWithExtends`, deep merge, cycle rejection | `config.test.ts` |
+| R7 | **Built** | shipped 0.1.0. `src/config.ts` — `loadWithExtends`, deep merge, cycle rejection | `config.test.ts` |
 | R8 | **Built** | `src/cosmiconfig.ts` + `-defaults` + `-util` re-exported from the root; `./cosmiconfig`, `./dotenv`, `./find-up` as separate entry points | cosmiconfig's own suite: **186 / 241**. `shape.test.ts` locks the export map and subpath isolation |
 | R9 | **Built** | `src/shape.test.ts` — a ceiling on the **built** `dist`, not on the source | `shape.test.ts`: 95,907 B against a 140,000 B ceiling, and a floor so an empty build cannot pass |
-| R10 | **Not this package's to finish** | two of four suites vendored (`cosmiconfig`, `dotenv`); `lilconfig` unvendored, `rc` is PLAN 2.15 and the harness lane's | `npm run compat -- cosmiconfig --control`; see [§ The two suites, measured](#the-two-suites-measured) |
+| R10 | **Not built** | **not this package’s to finish.** Two of four suites vendored (`cosmiconfig`, `dotenv`); `lilconfig` unvendored, `rc` is PLAN 2.15 and the harness lane's | `npm run compat -- cosmiconfig --control`; see [§ The two suites, measured](#the-two-suites-measured) |
 | R11 | **Built** | no source in the package names `process` | `shape.test.ts` locally, and `packages/burgee/src/process-reference-lock.test.ts` repo-wide — seniority has **no** allow-list entry, which is the claim |
 | R12 | **Built** | `src/validate.ts` — `validate` returns every violation, `check` throws one `ConfigError` | `validate.test.ts`: ``` `out` must be a string; `./mytool.config.js:3` set it to `4` ``` |
-| R13 | **Built (2026-09-14)** | `src/precedence.ts` — open union, `describe`'s `default` branch | `precedence.test.ts`: a `vault` source renders itself in `--explain` |
-| R14 | **Built (2026-09-14), re-checked 2026-09-15** | `ORDER` is the one declaration; `Source` and `RANK` are derived | `precedence.test.ts` asserts all three agree. Nothing added in 3.2 writes a source kind: the new files touch `RANK` only through `plugin.ts`, which already did |
-| R15 | **Built (2026-09-14)** | `src/plugin.ts` — the `sources` host | `plugin.test.ts` |
+| R13 | **Built** | 2026-09-14. `src/precedence.ts` — open union, `describe`'s `default` branch | `precedence.test.ts`: a `vault` source renders itself in `--explain` |
+| R14 | **Built** | 2026-09-14, re-checked 2026-09-15. `ORDER` is the one declaration; `Source` and `RANK` are derived | `precedence.test.ts` asserts all three agree. Nothing added in 3.2 writes a source kind: the new files touch `RANK` only through `plugin.ts`, which already did |
+| R15 | **Built** | 2026-09-14. `src/plugin.ts` — the `sources` host, and `src/schema.json` **does not describe the key** (see below) | `plugin.test.ts` |
 
 **R10 is the single row that is not built, and the reason is a file this lane may not write.**
 `lilconfig` has not been vendored at all, and `rc` is assigned to the harness lane by the plan
@@ -512,6 +520,166 @@ after.
   fourth case is worth knowing about: dotenv's own `spawn` helper uses `timeout: 5000`, and
   on a cold first spawn the child exceeded it and returned empty stdout. Warm, 3 / 3. A
   control that flakes on the first run of the day is a real risk for this host.
+
+## Every feature seniority offers
+
+Eight entry points. A consumer needs nothing else installed, and needs nothing else from
+this family — `resolve` and `explain` are structurally typed over shapes the caller owns, so
+there is no burgee import anywhere in the package (Y1).
+
+**`seniority` — the root.** The product, in five groups.
+
+| Group | Exports | What it answers |
+| :-- | :-- | :-- |
+| Precedence | `resolve(specs, layers)`, `ORDER`, `RANK` | every declared option resolved from flags, env, config, package and defaults — with the order as **data**, not as control flow |
+| Provenance | `resolve(…).provenance` | for **every** key, always and not behind a flag: which source won, the file or variable it came from, and the line |
+| Explanation | `explanation(name, res)`, `explain(name, res)`, `explanationJson(e)`, `explanationEvent(e)` | the winner *and everything it beat*, as one record with three renderings: human text, `--json`, an agent event. `explain` is literally `renderExplanation(explanation(…))`, asserted byte for byte |
+| Discovery | `discover(d)`, `candidates(d)`, `loadWithExtends(path)`, `deepMerge(a, b)`, `lineOf` | find a config file, follow its `extends` chain, merge it — and say which paths were *going* to be tried and why |
+| Env | `envName(name, spec, prefix)`, `envBoolean(raw)`, `screaming(name)` | the variable an option reads, and the boolean spellings that count |
+| Loading | `loadPath`, `loaderFor`, `defaultLoaders` (as `builtinLoaders`), `NOT_BUNDLED`, `LoaderError` | four builtin loaders (`.json`, `.js`, `.mjs`, `.cjs`); everything else is the caller's to inject |
+| Search | `search(names, opts)`, `searchAll(names, opts)`, `WALK_LIMIT` | the bounded upward walk: `stopAt`, a 64-directory limit, real-path comparison so a symlink ring ends it |
+| Validation | `validate(shape, res)`, `check(shape, res)`, `ConfigError` | every violation at once, each naming the file, the line and the value — *"`out` must be a string; `./mytool.config.js:3` set it to `4`"* |
+
+**The subpaths.** Each is a separate file with its own module graph, locked by
+`shape.test.ts`, because each is graded separately and a shared entry would make one suite's
+rate depend on another's.
+
+| Subpath | Replaces | Standing |
+| :-- | :-- | :-- |
+| `seniority/cosmiconfig` | `cosmiconfig` | **186 / 241** on the host's own suite, control 240 / 241. The full surface: both explorers, three search strategies, two caches, `$import`, the meta-config merge, the error strings verbatim |
+| `seniority/dotenv` | `dotenv` | `parse` and `populate` are dotenv 17.4.2's, its line grammar reproduced character for character. Control **141 / 141**, ungradeable here for want of a `tap` runner. One divergence: `config()` takes `processEnv` rather than reaching for the ambient environment (R11) |
+| `seniority/find-up` | `find-up` → `locate-path` → `p-locate` → `path-exists` | the upward walk as a callable, so the override resolves |
+| `seniority/precedence` | — | `resolve`, `ORDER`, `RANK` alone, for a caller that wants the resolver and none of the discovery |
+| `seniority/config` | — | discovery and `extends` alone |
+| `seniority/plugin` | — | the `sources` host — see below |
+| `seniority/schema.json` | — | the family's plugin schema as data, because `E_PLUGIN_SCHEMA`'s `fix` names that specifier and an error whose advice does not resolve is worse than no advice |
+
+Three properties hold across all of it:
+
+- **Zero external dependencies.** `cosmiconfig` + `dotenv` + `rc` + `find-up` is 809 M/wk of
+  upward-walk alone; this is one package with no tree.
+- **Nothing reads `process`.** `env`, `cwd` and `argv` arrive as arguments (R11); seniority has
+  **no entry at all** on `packages/burgee/src/process-reference-lock.test.ts`'s allow-list.
+- **`resolve` is pure**, which is what makes `explain` worth trusting: the explanation is
+  computed from the same layers the answer was, not reconstructed afterwards.
+
+## Extending seniority — the `sources` key
+
+seniority hosts `sources` (`plugin-contract` R1, R5a, R6, R7, R8). `src/plugin.ts` is the
+whole contract and `src/plugin.test.ts` is what holds it; this section is that file read back
+as documentation, because a consumer should not have to read an implementation to learn what
+they are allowed to contribute.
+
+**What a plugin is.** One plain object, shared by the whole family. seniority reads exactly
+three fields and **ignores every other key without complaining** — a plugin written for
+flagstaff registers here, contributes nothing, and that is not an error. It is what makes one
+object work against whatever subset of the family is installed.
+
+```ts
+import { register, sources } from 'seniority/plugin';
+import { resolve } from 'seniority';
+
+register({
+  name: 'acme-vault',          // required, non-empty; how a refused source is reported
+  contract: 1,                 // optional; a host refuses a contract newer than it knows
+  sources: {
+    vault: {
+      rank: 15,                // strictly between RANK.flag and RANK.default
+      read: ({ env, cwd }) => ({ values: { token: '…' }, location: 'vault://acme/prod' }),
+    },
+    ci: { rank: 25, values: { colour: false }, location: 'the CI image' },  // the static form
+  },
+});
+
+const resolved = resolve(specs, { flags, env, files, sources: sources({ env, cwd }) });
+```
+
+**What a plugin may contribute.** One thing: a named resolution source, which `--explain`
+will then print by that name.
+
+| Field | Required | Contract |
+| :-- | :-- | :-- |
+| `rank` | yes | an **integer, strictly** between `RANK.flag` and `RANK.default` |
+| `values` | exactly one of these two | a plain object of option name → value: the **static** form, readable without being run |
+| `read(runtime)` | exactly one of these two | `(runtime) => { values, location? } \| undefined`: the **dynamic** form, for a vault or a remote config that has to go and look |
+| `location` | no | a string — the file, URL or variable set a person would go and open. Falls back to `read`'s own `location`, then to the source's name |
+
+**What is validated, and by what.** By `validate()` in `src/plugin.ts`, called from
+`register()` — at the door, before the plugin is kept. It is a hand-written walk rather than
+a schema pass, and that is worth stating plainly because the obvious assumption is wrong:
+
+> **`schema.json` does not describe `sources`.** All seven hosts ship a byte-identical copy of
+> the family schema (`scripts/plugin-schema-lock.test.ts` enforces the identity), and that file
+> describes `name`, `contract`, `tokens`, `glyphs`, `spinners`, `borders`, `components` and
+> `capabilities` — flagstaff's keys and paratext's. `sources` passes it only because the schema
+> sets `additionalProperties: true`. So `plugin.ts` is the truth for this key, and the schema is
+> the truth for the envelope around it. caique records the same gap for `widgets`, for the same
+> reason: describing the key properly means editing the source copy in flagstaff and
+> propagating it to all seven, which is one cross-package edit and not this lane's.
+>
+> The lock that would catch this does not exist. It asserts the seven copies are identical and
+> that each host exports the subpath its error message names; it never asserts that a host's
+> schema describes the key that host validates. A lock on *identity* passes on seven identical
+> copies of a file that is wrong.
+
+The checks, each with the code it throws and the `fix` it carries:
+
+| Refused | Code | Because |
+| :-- | :-- | :-- |
+| a non-object, or an array, or a function | `E_PLUGIN_SCHEMA` | a plugin is data |
+| a missing or empty `name` | `E_PLUGIN_SCHEMA` | the name is how a refused source is reported; without it the error cannot say whose |
+| `contract` newer than `1`, or not an integer | `E_PLUGIN_CONTRACT` | a host refuses what it does not understand rather than half-reading it |
+| `sources` that is not an object | `E_PLUGIN_SCHEMA` | |
+| a source that is not an object | `E_PLUGIN_SCHEMA` | |
+| `rank` not an integer, `<= RANK.flag`, or `>= RANK.default` | `E_PLUGIN_SCHEMA` | see below — this one is the decision |
+| **both** `values` and `read`, or **neither** | `E_PLUGIN_SCHEMA` | one source gives one answer |
+| `values` not an object, `read` not a function, `location` not a string | `E_PLUGIN_SCHEMA` | |
+
+**A plugin adds a source; it cannot reorder the five.** `rank` slots a source *between* two
+built-ins and does nothing else. Below `RANK.flag`, so what the user typed on the command line
+always wins; above `RANK.default`, so a declared default stays the floor. Both bounds are
+**refused at the door rather than clamped**, because a source silently demoted to last looks
+like it worked and its author then debugs the wrong thing. "The order is not configurable" —
+which the README states as a promise — survives extension exactly this far and no further.
+
+**Reading happens in `plugin.ts`, never in `resolve`.** `sources(runtime)` calls each `read`
+with the caller's own `{ env, cwd }` and returns plain `SourceLayer[]`; `resolve` receives
+data. That is what keeps `resolve` pure (R2) and keeps the package off the process allow-list
+(R11) — the two properties that make `--explain` worth trusting, and they would both be lost
+if a plugin's `read` ran inside the resolver.
+
+**`undefined` from a `read` contributes no candidate at all**, rather than an empty one.
+`--explain` must not list a vault that was never reachable as a source that was consulted and
+lost; those are different answers and telling them apart is what `--explain` is for.
+
+**Later wins at an equal rank**, like ESLint flat config: the registry is an ordered array, and
+the last word on a source name is the one nearest the program. `registered()` returns it in
+that order; `reset()` empties it, for tests and for a program that re-registers at runtime.
+
+**The type does not stand in the way.** `Source` is an open union —
+`'flag' | 'env' | 'config' | 'package' | 'default' | (string & {})` — widened at 0.2.0
+specifically so that hosting this key was an additive change rather than a breaking one
+written as an additive one (R13, PLAN D5). `describe()`'s `default` branch renders an unknown
+source as `` `${c.source} ${c.location}`.trim() ``, so **a plugin source explains itself in
+`--explain` without seniority knowing its name**. That is the whole reason the widening came
+first.
+
+## What seniority deliberately does not do
+
+Each with the reason. A consumer deciding whether this package is enough needs the boundary
+as much as the list.
+
+| Not here | Why | What to do instead |
+| :-- | :-- | :-- |
+| Bundle a YAML, TOML, INI or JSON5 parser | `js-yaml` 264 M + `json5` 205 M + `yaml` 176 M + `ini` 102 M is **747 M/wk** of parser this package refuses to put in anyone's tree for a format most programs do not use. It is also the single largest cause of the cosmiconfig gap — 54 of the 55 — and that is the honest price | inject it: `loaders: { '.yaml': parse }`. An unknown extension raises `LoaderError`, a **usage** error naming the option that would supply one |
+| Read `process.env`, `process.cwd()` or `process.argv` | An ambient read makes every answer depend on where it was called, and it defeats `--explain`: a provenance record that cannot be reproduced from its inputs is a story, not a record | pass `{ env, cwd }`. `seniority/dotenv`'s `config()` takes `processEnv` and **refuses rather than guessing** when it is absent |
+| Let a plugin reorder the five built-in sources | The precedence is the product. A program whose flag can be beaten by a config file is a program whose `--explain` output is the only way to know what it did, which is the failure this package exists to end | contribute a source with a `rank` between the two bounds |
+| Let a plugin replace a built-in source | Same reason, from the other side: `flag` and `default` are the two ends a caller reasons from | — |
+| Parse the command line | Where a flag *came from* is this package's question; what the tokens mean is the parser's, and the two have different compatibility targets | `burgee` |
+| Print anything | `explanation()` is a record and `renderExplanation` is one rendering of it. A package that owned the output would own the colour and the terminal detection too, which are two other packages' jobs | `roundel`, `flagstaff` |
+| Import burgee, or any sibling | The resolved shape is described **structurally** (R12/Y1). A config library that imports a CLI framework is a config library only that framework's users can have | the `Shape` interface — any object with those fields |
+| Cache discovery across processes | A config file read from a stale cache is the worst shape of this bug: correct output, wrong input, no error. The two caches that exist are cosmiconfig's own, inside the façade, because its suite grades them | — |
+| Vendor `lilconfig` and `rc` (R10) | `rc` grades through exit codes rather than a suite and PLAN 2.15 assigns it to the harness lane; `lilconfig` is unvendored. Both are writes under `packages/compat-oracle/**`, which is not this lane's path | R10 stays **Not built**, and PLAN 3.2 stays red for that and nothing else |
 
 ## Verification
 
