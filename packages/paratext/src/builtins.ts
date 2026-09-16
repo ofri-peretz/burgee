@@ -1,7 +1,8 @@
 /**
  * The capabilities this package ships — seven plain objects, registered through the public
  * `register`, which is the same call a third party makes. Nothing here reaches past
- * `capability.ts`, so a built-in cannot grow a power a stranger's plugin lacks (flagstaff U4).
+ * `capability.ts` and `link.ts`, so a built-in cannot grow a power a stranger's plugin lacks
+ * (flagstaff U4).
  *
  * Read them as the documentation of the format: each is a name, an OSC code, when a terminal
  * is believed to understand it, the bytes, and what to print when it does not. No functions,
@@ -18,26 +19,13 @@
  *   bell       —
  */
 import { type Capability, register } from './capability.js';
+import { LINK } from './link.js';
 
 const BEL = '\u0007';
 const OSC = '\u001B]';
 
 /** Terminals that announce themselves and are known to do the richer sequences. */
 const RICH = ['iTerm.app', 'WezTerm', 'ghostty'] as const;
-
-/**
- * OSC 8 — a hyperlink. The widest support in this layer, and unusually semi-detectable: VTE
- * publishes its version and Windows Terminal sets a session variable.
- */
-export const link: Capability = {
-  name: 'link',
-  osc: 8,
-  when: { tty: true, termProgram: [...RICH, 'vscode', 'Hyper', 'Apple_Terminal'], envAny: ['VTE_VERSION', 'WT_SESSION'] },
-  encode: `${OSC}8;;{url}${BEL}{text}${OSC}8;;${BEL}`,
-  // `text (url)` rather than bare text: a link whose destination vanishes in a pipe has lost
-  // the half that mattered. The optional group means a link with no url is just its text.
-  fallback: '{text}[ ({url})]',
-};
 
 /**
  * OSC 1337 — iTerm2's inline image. Kitty and Sixel are their own capabilities.
@@ -106,9 +94,21 @@ export const bell: Capability = {
 };
 
 /** Every capability this package ships, in one list a reader can check against the registry. */
-export const builtins: readonly Capability[] = [bell, clipboard, cwd, image, link, notify, title];
+export const builtins: readonly Capability[] = [bell, clipboard, cwd, image, LINK, notify, title];
 
 /** Registered through the public call, so the built-ins prove the extension surface works. */
 export function registerBuiltins(): void {
   for (const capability of builtins) register(capability);
 }
+
+/**
+ * OSC 8 — a hyperlink. Declared in `link.ts` rather than here, and re-exported under the
+ * name it has always had.
+ *
+ * It is the one built-in a caller may want **without** the registry: `paratext/link` is a
+ * subpath that reaches neither `capability.js` nor `schema.json`, so a program that puts one
+ * clickable URL in its `--help` does not load a plugin contract to do it. Keeping the record
+ * in that module and re-exporting it here means the object the registry ships and the object
+ * the subpath emits are the same one, rather than two copies free to drift.
+ */
+export { LINK as link };

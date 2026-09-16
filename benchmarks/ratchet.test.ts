@@ -13,11 +13,12 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { type Baseline, type Grade, hostRecords } from './axes/compat.js';
+import { type Baseline, type Grade, gradeRecords, hostRecords } from './axes/compat.js';
 import { ratioRecord, RATIO_CEILING as PERF_CEILING, type Variant, VARIANTS } from './axes/perf.js';
 import { BUNDLED_CEILING, type Measured, pairRecords } from './axes/weight.js';
+import { type AxisState } from './emit.js';
 import { PAIRS } from './fixtures/entry-points.js';
-import { gateFailures } from './record.js';
+import { type AxisName, gateFailures } from './record.js';
 import { verdict } from './run.js';
 
 const measuredAt = (bundled: number): Measured => ({ bundled, installed: 1, version: '0.0.0-test', dir: '<repo>/packages/test' });
@@ -110,5 +111,47 @@ describe('a gate with nothing behind it', () => {
     const gated = records.filter((r) => r.gate !== undefined);
     expect(gated.length).toBeGreaterThan(0);
     for (const r of gated) expect(r.gate?.why ?? '').not.toBe('');
+  });
+});
+
+/**
+ * The gate the other blocks in this file could not have caught, because they all reason
+ * about records: an axis that returns a reason contributes none, and every assertion above
+ * is about what `gateFailures` finds in a list. From wave 2 until 2026-09-16 the compat
+ * axis was in exactly that state on every CI run — the `planned` hosts `cosmiconfig` and
+ * `dotenv` have baseline fragments, `COMPAT_HOSTS` reads `baseline/`, and `run()` returned
+ * on the first ungraded name — so every compat band and claim printed `? unmeasured` and
+ * `--check` exited 0.
+ */
+describe('a selected axis that produced nothing', () => {
+  const skipped = new Map<AxisName, AxisState>([['compat', { status: 'skipped', reason: 'compat-oracle produced no usable grade for cosmiconfig' }]]);
+
+  it('exits non-zero, with no failing record anywhere', () => {
+    expect(gateFailures([])).toHaveLength(0);
+    expect(verdict([], skipped)).toBe(1);
+  });
+
+  it('leaves an axis nobody asked for alone — `--axis weight` must not fail on the other four', () => {
+    const notRun = new Map<AxisName, AxisState>([['compat', { status: 'not-run', reason: 'not selected by --axis' }]]);
+    expect(verdict([], notRun)).toBe(0);
+  });
+});
+
+/**
+ * B3's own version of the same hole, at the axis rather than at the exit code: a host the
+ * registry declares `planned` is a stated gap and must cost nothing, while a host it does
+ * not declare and did not grade must still stop the axis.
+ */
+describe('B3 compat — a planned host is a declared gap, not a hole', () => {
+  const graded: Grade = { host: 'chalk', target: 'roundel', tests: 58, passed: 58, failed: 0, skipped: 0, reference: 58, rate: 1 };
+
+  it('grades the hosts it has, when an ungraded one is declared planned', () => {
+    const out = gradeRecords({ measured: '', planned: ['cosmiconfig'], grades: [graded] }, ['chalk', 'cosmiconfig'], {});
+    expect('records' in out && out.records.length).toBeGreaterThan(0);
+  });
+
+  it('still refuses to publish when an undeclared host is missing', () => {
+    const out = gradeRecords({ measured: '', planned: [], grades: [graded] }, ['chalk', 'cosmiconfig'], {});
+    expect(out).toEqual({ reason: 'compat-oracle produced no usable grade for cosmiconfig' });
   });
 });

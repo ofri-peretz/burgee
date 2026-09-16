@@ -32,6 +32,11 @@ function fakeProcess(): ProcessLike {
     removeListener: () => self,
     listenerCount: () => 0,
     exit: (): never => undefined as never,
+    // A `kill` that records nothing, because nothing here asks how the process died: these
+    // cases are about ordering. `signal.test.ts` is where the raise itself is graded, on a
+    // real child.
+    kill: () => true,
+    pid: 1,
     stderr: { write: () => true, isTTY: true },
   };
   return self;

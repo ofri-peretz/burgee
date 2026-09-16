@@ -54,10 +54,14 @@ const sources = (dir: string): string[] =>
 /**
  * The entry points, read from `exports` rather than listed here, so a new subpath is
  * admitted by publishing it and not by editing this lock.
+ *
+ * A subpath whose value is a bare string is data rather than code — `./schema.json`, the
+ * plugin schema a plugin author reads — and has no module to have a boundary.
  */
 function entryStems(): Set<string> {
-  const exports_ = (JSON.parse(readFileSync(PKG, 'utf-8')) as { exports: Record<string, { import: string }> }).exports;
-  return new Set(Object.values(exports_).map((e) => e.import.replace(/^\.\/dist\//, '').replace(/\.js$/, '')));
+  const exports_ = (JSON.parse(readFileSync(PKG, 'utf-8')) as { exports: Record<string, { import?: string } | string> }).exports;
+  const code = Object.values(exports_).filter((e): e is { import: string } => typeof e === 'object' && typeof e.import === 'string');
+  return new Set(code.map((e) => e.import.replace(/^\.\/dist\//, '').replace(/\.js$/, '')));
 }
 
 /** Every import from one front-end directory into the other, in both directions. */

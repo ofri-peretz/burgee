@@ -14,7 +14,7 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/caique"><img src="https://img.shields.io/npm/v/caique?style=flat-square&color=0a6b47" alt="npm version" /></a>
   <img src="https://img.shields.io/badge/status-pre--release-a84c17?style=flat-square" alt="Status: pre-release" />
-  <img src="https://img.shields.io/badge/runtime%20dependencies-0-0a6b47?style=flat-square" alt="Zero runtime dependencies" />
+  <img src="https://img.shields.io/badge/dependencies-closeout-0a6b47?style=flat-square" alt="One dependency: closeout" />
   <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT" />
 </p>
 
@@ -35,12 +35,13 @@ flags in, a verdict out.
 
 ```js
 import { decide } from 'caique/decide';
+import { processRuntime } from 'caique';
 
 decide({
   value: undefined,                                  // nothing was passed
   spec: { kind: 'text', message: 'Where should it go?' },
   option: 'output-dir',
-  runtime: { env: process.env, isTTY: { stdin: process.stdin.isTTY } },
+  runtime: processRuntime(),                         // or your own { env, isTTY: { stdin } }
   required: true,
 });
 // no terminal -> { action: 'error', code: 'USAGE',
@@ -101,7 +102,7 @@ import { resolvePrompts } from 'caique/binding';
 const { values, failure } = await resolvePrompts({
   options,            // { name: { required: true, prompt: { kind: 'text', message: 'Project name?' } } }
   values,             // what every other source resolved
-  runtime: { env: process.env, isTTY: { stdin: process.stdin.isTTY } },
+  runtime: processRuntime(),
   flags: { json, yes, interactive },
   io: { reader, writer },
 });
@@ -125,7 +126,7 @@ that touches a terminal:
 import { createIo } from 'caique/terminal';
 import { ask } from 'caique/ask';
 
-const io = createIo({ input: process.stdin, output: process.stdout });
+const io = createIo();   // the terminal the program was started in
 await ask({ kind: 'password', message: 'Token?' }, io);
 io.close();
 ```
@@ -144,9 +145,11 @@ not a second implementation:
 
 ```js
 import { askList, canRender } from 'caique/raw';
-import { createIo } from 'caique/terminal';
+import { createIo, streamsOf } from 'caique/terminal';
+import { processRuntime } from 'caique';
 
-const io = { ...createIo({ input: process.stdin, output: process.stdout }), keys: process.stdin };
+const rt = processRuntime();
+const io = { ...createIo(streamsOf(rt)), keys: rt.stdin };
 const spec = { kind: 'select', message: 'Which host?', choices: [{ value: 'ora' }, { value: 'chalk' }] };
 const answer = canRender(io.keys) ? await askList(spec, io) : await ask(spec, io);
 ```
@@ -237,8 +240,10 @@ and argue with it — before it exists:
 Part of the [burgee](https://github.com/ofri-peretz/burgee) family: a CLI on
 [burgee](https://www.npmjs.com/package/burgee) declares what it is,
 [roundel](https://www.npmjs.com/package/roundel) carries its colours,
-[flagstaff](https://www.npmjs.com/package/flagstaff) flies it, and caique answers back. Each
-is an independent package; none requires the others.
+[flagstaff](https://www.npmjs.com/package/flagstaff) flies it, and caique answers back.
+caique installs one of them: [closeout](https://www.npmjs.com/package/closeout), because a
+prompt hides the cursor and owes it back however the process dies, and there is exactly one
+correct implementation of that. Nothing outside this repository is installed.
 
 MIT © Ofri Peretz — see [LICENSE](./LICENSE).
 
@@ -253,11 +258,11 @@ Graded by the incumbent's own test suite:
 | `clack` | 0 / 606 |
 | `inquirer-core` | 0 / 41 |
 
-Weight, installed and tree-inclusive: **79,256 bytes** against **182,219** for the incumbents it replaces — a ratio of **0.4349** (@inquirer/core not installed here, so the ceiling is understated).
+Weight, installed and tree-inclusive: **84,388 bytes** against **182,219** for the incumbents it replaces — a ratio of **0.4631** (@inquirer/core not installed here, so the ceiling is understated).
 
 That ratio is not yet a claim: nothing here passes an incumbent suite, so it is the weight of a package that does not do the job.
 ## Where it sits
 
 Plugins register under the `widgets` key, against the one schema the whole family shares.
 
-Nothing in this family builds on it yet, and it builds on nothing in this family.
+Nothing in this family builds on it yet, and it builds on `closeout`.

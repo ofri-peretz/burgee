@@ -24,7 +24,7 @@
  * `stripVTControlCharacters` is recorded — one shape in sixteen, and it was a live bug in
  * `width()`.
  *
- * Still at the Design→Build gate: the R2 ASCII fast path.
+ * R2's fast path: locked by `differential.test.ts`.
  */
 export { lineCount, measure, width, width as default, type WidthOptions } from './width.js';
 export { slice } from './slice.js';

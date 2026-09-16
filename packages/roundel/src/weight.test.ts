@@ -96,6 +96,15 @@ const RULES: Record<string, EntryRule> = {
   // the tokens' emitter and the policy it reads must fit under that. The other half of R8
   // — a spawn delta no larger than picocolors' — is a `cli-benchmarks` B4 row, not a byte
   // count, and is measured there. Never the theme or the maths: chalk has no theme.
+  //
+  // **Measured 9,367 B on 2026-09-15, and the budget did not move.** Y9 put the guarded
+  // `globalThis.process` cast behind `runtime.js`, which is a fourth module in this graph
+  // (chalk.js 5,920 · policy.js 1,972 · tokens.js 1,286 · runtime.js 189) where there were
+  // three: +189 B of new file against −133 B out of `chalk.js`, so +56 net against 59 B of
+  // headroom. **Three bytes are left.** That is stated rather than smoothed over, because a
+  // ratchet this tight will stop the next change to any of these four files, and the right
+  // answer then is to find the bytes — the ceiling is chalk 6.0.0's own source and a raise
+  // would be the claim getting weaker, not the package getting better.
   './chalk': { allow: [], budget: 9_370, denied: ['theme.js', 'contrast.js', 'index.js'] },
 };
 

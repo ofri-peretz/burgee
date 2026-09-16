@@ -9,8 +9,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { Command } from './commander.js';
-import { definePlugin, hookApplies, Manifest } from './manifest.js';
+import { hookApplies, Manifest } from './manifest.js';
 import { toolsOf } from './mcp.js';
+import { definePlugin } from './plugin.js';
 
 function marker(order: string[], name: string, enforce?: 'pre' | 'post') {
   return definePlugin({

@@ -5,8 +5,22 @@
  * Section order is fixed (R2): usage, description, arguments, options, global options,
  * commands (grouped, yargs #684), examples, environment, epilogue. Empty sections are
  * omitted. Width comes from the caller — the runtime, in practice (H3) — default 100.
+ *
+ * Every measurement of rendered text here is `linegauge`'s `width`, never `String.length`.
+ * `.length` counts UTF-16 code units, which equals the column count a terminal draws only
+ * for the Latin-1 subset: `部署` is two code units and four columns, `🚀` is two and two.
+ * This file sized its term column, decided which terms overflow it, computed the padding
+ * after a term, and word-wrapped every description with `.length`, so a CJK or emoji
+ * command name pushed its own description right of the shared column and a CJK
+ * description wrapped to a line wider than the terminal. `yargs/cliui.ts` one directory
+ * over has imported the same `width` for the same reason since it was ported; burgee
+ * already depended on `linegauge`, and this file simply was not asking.
+ *
+ * For ASCII the two agree exactly, which is why no graded commander or yargs screen moves.
  */
 import { styleText } from 'node:util';
+
+import { width as displayWidth, widest } from 'linegauge';
 
 import type { ArgumentSpec, CommandNode, Example, Manifest, OptionSpec } from './manifest.js';
 import { kebab } from './names.js';
@@ -171,30 +185,55 @@ function usageLine(node: CommandNode, root: string[], hasChildren: boolean, pain
   return `${paint.heading('Usage:')} ${parts.join(' ')}`;
 }
 
-/** Word-wrap one paragraph; lines the author indented are kept verbatim (yargs #2120). */
+/**
+ * Word-wrap one paragraph; lines the author indented are kept verbatim (yargs #2120).
+ *
+ * The running `used` is the width of `current` in columns, carried rather than recomputed:
+ * measuring the accumulated line once per word would make a long paragraph quadratic.
+ */
 export function wrap(text: string, width: number): string[] {
   const out: string[] = [];
   for (const line of text.split('\n')) {
-    if (/^\s/.test(line) || line.length <= width) {
-      out.push(line);
-      continue;
-    }
-    let current = '';
-    for (const word of line.split(' ')) {
-      if (current !== '' && current.length + 1 + word.length > width) {
-        out.push(current);
-        current = word;
-      } else current = current === '' ? word : `${current} ${word}`;
-    }
-    out.push(current);
+    // Kept verbatim: a line the author indented, and a line that already fits.
+    if (/^\s/.test(line) || displayWidth(line) <= width) out.push(line);
+    else out.push(...wrapLine(line, width));
   }
   return out;
 }
 
+/**
+ * Greedily fold one over-long line at its spaces. A word wider than the row is left to
+ * overflow rather than broken — `linegauge`'s own `wrap` defaults to `hard: false` for the
+ * same reason, and a help epilogue is mostly URLs.
+ */
+function wrapLine(line: string, width: number): string[] {
+  const rows: string[] = [];
+  let current = '';
+  let used = 0;
+  for (const word of line.split(' ')) {
+    const w = displayWidth(word);
+    if (current === '') {
+      current = word;
+      used = w;
+    } else if (used + 1 + w > width) {
+      rows.push(current);
+      current = word;
+      used = w;
+    } else {
+      current = `${current} ${word}`;
+      used += 1 + w;
+    }
+  }
+  rows.push(current);
+  return rows;
+}
+
 /** One term column for the whole help, sized to the longest term up to 40% of the width (R3). */
 function termColumn(rows: Row[], width: number): number {
-  const longest = Math.max(0, ...rows.map((r) => r.term.length));
-  return Math.min(longest, Math.floor(width * TERM_SHARE));
+  return Math.min(
+    widest(rows.map((r) => r.term)),
+    Math.floor(width * TERM_SHARE),
+  );
 }
 
 /**
@@ -214,11 +253,12 @@ function layout(rows: Row[], width: number, column: number, paint: Paint): strin
     }
     const wrapped = wrap(text, textWidth);
     const continuation = INDENT + ' '.repeat(column + GUTTER);
-    if (term.length > column) {
+    const termWidth = displayWidth(term);
+    if (termWidth > column) {
       lines.push(`${INDENT}${cell}`, ...wrapped.map((l) => `${continuation}${l}`));
       continue;
     }
-    const pad = ' '.repeat(column + GUTTER - term.length);
+    const pad = ' '.repeat(column + GUTTER - termWidth);
     lines.push(`${INDENT}${cell}${pad}${wrapped[0] ?? ''}`, ...wrapped.slice(1).map((l) => `${continuation}${l}`));
   }
   return lines;
