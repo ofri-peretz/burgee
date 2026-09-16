@@ -42,6 +42,8 @@ interface Budget {
   unit: string;
   why: string;
   derivedFrom: { band: string; observations: number; rule: string };
+  /** Present only when `value` sits off what `rule` derives, saying what is being spent. */
+  deviation?: { from: number; why: string };
 }
 interface Budgets {
   release: string;
@@ -80,6 +82,33 @@ describe('a release budget', () => {
     expect(budget.derivedFrom.band).toMatch(/\S/);
     expect(budget.derivedFrom.observations).toBeGreaterThanOrEqual(8);
     expect(budget.derivedFrom.rule).toMatch(/\S/);
+  });
+
+  /**
+   * And the number has to be the one the rule derives.
+   *
+   * The four checks above are satisfied by any non-empty strings and a count — which is how
+   * `bundled-bytes-ratio:burgee÷cac` came to hold **3.9** while its own `rule` reads
+   * *"mean + 3 sd = 38,987 bytes, which is 3.73x cac's 10,452. Rounded down to 3.7"*. Every
+   * field was present, `observations` was 41, and the guarded value was still set from the last
+   * measurement rather than the distribution — the exact failure this file's `$comment`
+   * condemns, passing this file's own lock.
+   *
+   * So: the value must appear in the rule that derives it, or the budget must say in
+   * `deviation` why it sits somewhere else. A deliberate step above the distribution is a real
+   * thing — a release that spends budget on purpose — but it has to be *stated*, not typed over
+   * the number and left looking derived.
+   */
+  it.each(Object.entries(current.budgets))('%s holds the number its rule derives, or says why not', (_id, budget) => {
+    const rule = budget.derivedFrom.rule;
+    const value = String(budget.value);
+    const derived = rule.includes(value);
+    if (derived) return;
+    expect(
+      budget.deviation?.why?.length ?? 0,
+      `value ${value} does not appear in its own rule ("${rule.slice(0, 80)}…"). Either derive it, or add ` +
+        `deviation: { from, why } saying what this release is spending the difference on.`,
+    ).toBeGreaterThan(40);
   });
 
   /** The lock itself. */
