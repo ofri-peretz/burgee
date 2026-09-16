@@ -7,9 +7,18 @@ vendor/*/shim*.mjs
 vendor/*/vitest.config.mjs
 vendor/*/vitest.setup.mjs
 # The generated internal shims, at whatever path a host files its own modules: `lib/` for
-# commander and yargs, `src/` for cli-table3, `build/` where a host compiles first.
+# commander, dotenv and yargs, `src/` for cli-table3 and cosmiconfig, `build/` where a host
+# compiles first.
+#
+# `src/` is named per host and the other two are not, because a host's *tests* can live
+# there too: `lilconfig` files its suite at `src/spec/`, so the blanket `vendor/*/src/` this
+# line replaced would have gitignored that whole vendored suite — never committed, and on CI
+# "not vendored" instead of a rate. A missing rule is the loud failure (`vendored-suite.test.ts`
+# computes each host's generated paths from its own `.source.json` and goes red for one it
+# cannot match), so a third host filing internals under `src/` adds a line here and knows why.
 vendor/*/lib/
-vendor/*/src/
+vendor/cli-table3/src/
+vendor/cosmiconfig/src/
 vendor/*/build/
 # Written by a *suite* rather than by the oracle, and upstream ignores both in its own
 # repository (`node-cross-spawn/.gitignore`: `test/fixtures/(*` and `test/tmp/`). Its

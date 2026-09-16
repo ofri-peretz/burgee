@@ -5,7 +5,7 @@
  * itself exercises it in CI (D4).
  */
 import { type CommandNode, type Manifest, type OptionSpec } from './manifest.js';
-import { kebab } from './names.js';
+import { flagsOf, kebab } from './names.js';
 
 export type Shell = 'bash' | 'zsh' | 'fish' | 'pwsh';
 export const SHELLS: readonly Shell[] = ['bash', 'zsh', 'fish', 'pwsh'];
@@ -262,6 +262,14 @@ interface FigOption {
   name: string[];
   description?: string;
   args?: { name: string; suggestions?: string[] };
+  /**
+   * Fig's own two keys for option relationships, spelled as Fig spells them:
+   * `dependsOn` keeps our name, `exclusive` becomes `exclusiveOn`. Both take the option's
+   * *spelling*, which is what Fig matches against on the command line — `fig-schema.test.ts`
+   * pins that these keys are ones `@withfig/autocomplete-types` declares on `Option`.
+   */
+  dependsOn?: string[];
+  exclusiveOn?: string[];
 }
 interface FigSubcommand {
   name: string;
@@ -275,6 +283,8 @@ function figOptions(node: Node): FigOption[] {
     const o: FigOption = { name: flags(n, s) };
     if (s.description !== undefined) o.description = s.description;
     if (takesValue(s)) o.args = { name: s.placeholder ?? 'value', ...(s.choices === undefined ? {} : { suggestions: [...s.choices] }) };
+    if (s.dependsOn !== undefined && s.dependsOn.length > 0) o.dependsOn = flagsOf(s.dependsOn);
+    if (s.exclusive !== undefined && s.exclusive.length > 0) o.exclusiveOn = flagsOf(s.exclusive);
     return o;
   });
 }

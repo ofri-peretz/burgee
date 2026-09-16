@@ -91,3 +91,22 @@ None open. Decided at finalisation (2026-09-06): grade against the vendored upst
 suite rather than tests we write; ship as a subpath export rather than a separate
 package, so `selvage` and its front-ends version together and a user cannot mix
 incompatible majors.
+
+## Incumbents
+
+`commander` — the trackers whose issues are this surface's demand signal, and the input
+`scripts/mine-issues.ts` (PLAN 4.1) needs in order to write the `issues.md` beside this file.
+
+It is declared here because the miner's own `LAYERS` table, in
+`packages/compat-oracle/src/demand.ts`, knows the nine *packages* and not the surfaces of any
+one of them: `burgee`'s entry names `commander` and `yargs` for the whole package, and the six
+surface intents are not in the table at all. Until that table reads this line,
+`npx tsx scripts/mine-issues.ts commander-compat` answers `no layer matched`.
+
+Chosen from evidence rather than from the slug, which is the reason to write it down at all.
+The rule: **the front-end this surface adapts, plus every other tracker this intent's own body
+cites three or more times.** Here that is `commander` alone. Trackers cited once or twice
+(none — it cites no tracker by number) are comparisons this intent draws, not incumbents it replaces; mining them would file
+issues under a surface no criterion here answers.
+
+<!-- incumbents: commander -->

@@ -23,7 +23,7 @@ import { styleText } from 'node:util';
 import { width as displayWidth, widest } from 'linegauge';
 
 import type { ArgumentSpec, CommandNode, Example, Manifest, OptionSpec } from './manifest.js';
-import { kebab } from './names.js';
+import { flagsOf, kebab } from './names.js';
 
 /** The token names of `roundel`'s R3, typed structurally: burgee never imports them (U13). */
 export type HelpToken = 'error' | 'warn' | 'ok' | 'hint' | 'muted' | 'command' | 'flag' | 'value' | 'heading';
@@ -113,13 +113,23 @@ function deprecation(d: boolean | string | undefined): string {
   return d === true ? ' (deprecated)' : ` (deprecated: use ${d})`;
 }
 
-/** Trailing annotations in a stable order (R4). */
+/**
+ * Trailing annotations in a stable order (R4).
+ *
+ * `dependsOn` and `exclusive` sit between the value-shaped notes and the environment one
+ * because that is where they are read: a caller who has decided what to pass then finds out
+ * what else it obliges or forbids. A constraint declared and not rendered here is one a person
+ * can only discover by being refused — the same defect `--schema` publishing `relations` fixed
+ * for agents, and help is the person's copy of that document.
+ */
 function annotate(text: string, spec: OptionSpec, verbose: boolean): string {
   const parts = [text];
   if (spec.required === true) parts.push('(required)');
   if (spec.default !== undefined) parts.push(`(default: ${String(spec.default)})`);
   if (spec.choices !== undefined) parts.push(`(one of: ${spec.choices.join(', ')})`);
   if (spec.multiple === true) parts.push('(repeatable)');
+  if (spec.dependsOn !== undefined && spec.dependsOn.length > 0) parts.push(`(requires ${flagsOf(spec.dependsOn).join(', ')})`);
+  if (spec.exclusive !== undefined && spec.exclusive.length > 0) parts.push(`(conflicts with ${flagsOf(spec.exclusive).join(', ')})`);
   if (spec.env !== undefined) parts.push(`[env: ${spec.env}]`);
   if (verbose) parts.push(`[${spec.type}]`);
   return `${parts.filter((p) => p !== '').join(' ')}${deprecation(spec.deprecated)}`.trim();

@@ -25,9 +25,13 @@ would flatter a partial implementation; measuring against the control's total do
 | **string-width** | `linegauge` | 229 / 229 | 100.0% | 229 / 229 | 100.0% | — | — |
 | **strip-ansi** | `linegauge/strip` | 8 / 8 | 100.0% | 8 / 8 | 100.0% | — | — |
 | **cross-spawn** | `bellpull/cross-spawn` | 68 / 68 | 100.0% | 68 / 68 | 100.0% | — | — |
+| **rc** | `seniority/rc` | 0 / 1 (target not built yet: seniority/rc) | 0.0% | 1 / 1 | 100.0% | — | — |
 | **wrap-ansi** | `linegauge/wrap` | 80 / 80 | 100.0% | 80 / 80 | 100.0% | — | — |
 | **slice-ansi** | `linegauge/slice` | 15 / 15 (1 the host marks failing and we pass) | 100.0% | 15 / 15 | 100.0% | — | — |
-| **clack** | `caique` | 0 / 606 | 0.0% | 578 / 606 | 95.4% | — | — |
+| **cosmiconfig** | `seniority` | 186 / 243 | 76.5% | 240 / 243 | 98.8% | 10 / 10 | 0 / 10 |
+| **lilconfig** | `seniority` | 0 / 77 | 0.0% | 67 / 77 | 87.0% | — | — |
+| **dotenv** | `seniority` | 74 / 141 | 50.3% | 141 / 141 | 100.0% | 0 / 0 | 7 / 13 |
+| **clack** | `caique` | 0 / 606 | 0.0% | 576 / 606 | 95.0% | — | — |
 | **inquirer-core** | `caique` | 0 / 41 | 0.0% | 41 / 41 | 100.0% | — | — |
 | **ansi-escapes** | `paratext` | 1 / 4 | 25.0% | 4 / 4 | 100.0% | — | — |
 | **restore-cursor** | `closeout` | 6 / 6 | 100.0% | 6 / 6 | 100.0% | — | — |
@@ -47,6 +51,13 @@ rate. These are excluded by name — they still run, and they still appear in th
 | Host | Cases | Why |
 | :--- | :--- | :--- |
 | **cli-table3** | `test/verify-legacy-compatibility-test.js > verify original cli-table behavior >` | Nine cases that call `commonTests(require('cli-table'))` — the *legacy* incumbent, not the target. They pass whatever `COMPAT_TARGET` names: breaking the target completely still scored 10 / 33, because 27% of the row was a self-test of a third-party package. The other nine, `@api cli-table2 matches verified behavior`, run the same assertions through the shim and are gated. `cli-table` stays a devDependency so the file still loads and the excluded cases still run; they are subtracted from the number, not hidden from the TAP. |
+| **lilconfig** | `> options > packageProp > string[] with null in the middle > async` | Un-awaited `expect(…).rejects.toThrowError`: the assertion never settles before the case ends, so it passes vacuously under jest and errors under vitest 5. Its `> sync` sibling asserts the same thing synchronously and is gated. |
+| **lilconfig** | `> lilconfig > when to throw > non existing file` | Un-awaited `expect(…).rejects.toThrowError`, twice — once against lilconfig, once against cosmiconfig. The `lilconfigSync` case of the same name is synchronous, real, and gated. |
+| **lilconfig** | `> lilconfig > when to throw > throws for invalid json` | Un-awaited `expect(…).rejects.toThrowError`. The `lilconfigSync` case of the same name is gated. |
+| **lilconfig** | `> lilconfig > when to throw > throws for provided filepath that does not exist` | Un-awaited `expect(…).rejects.toThrowError`. The `lilconfigSync` case of the same name is gated. |
+| **lilconfig** | `> lilconfig > when to throw > no loader specified for the search place` | Un-awaited `expect(…).rejects.toThrowError`. The `lilconfigSync` case of the same name is gated. |
+| **lilconfig** | `> lilconfig > when to throw > loader is not a function` | Un-awaited `expect(…).rejects.toThrowError`. The `lilconfigSync` case of the same name is gated. |
+| **lilconfig** | `> lilconfig > when to throw > throws for empty strings passed to load` | Un-awaited `expect(…).rejects.toThrowError`. The `lilconfigSync` case of the same name is gated. |
 
 ## Supported majors
 
@@ -74,9 +85,6 @@ CI unless it edits the baseline with a written reason (C5).
 
 | Host | Status | Why |
 | :--- | :--- | :--- |
-| rc | planned | Blocked on one line the integrator lane owns: `rc` as a root devDependency, without which the control cannot run on a clean install. The grading mode it needs (`exit-code`) and the gate that refuses a silent downgrade to it are in place and proven. |
-| cosmiconfig | planned | Measured 2026-09-15 (PLAN 3.2) and STILL NOT activated — for one reason, down from the two the vendoring recorded, and it is a line in `run.ts` rather than anything about either implementation. Target `seniority` grades **186 / 241, 77.2%**, reproducible on a clean checkout with nothing installed beside the suite (verified by removing `vendor/cosmiconfig/node_modules` and re-running). Control grades **240 / 241, 99.6%** — up from 210 / 241 once `vitestConfig` carried upstream's own `restoreMocks`/`mockReset`, measured before and after — but only when the `suiteDeps` pins are actually installed. They are not, on a clean checkout: `installSuiteDeps` skips a package that `resolvesFrom` the vendored directory **by name**, and this workspace hoists `cosmiconfig` at 9.0.2 (through @commitlint/load) and `parent-module` at 1.0.1. So the install never runs, the 10.0.1 suite is graded against 9.0.2, and the control reads **234 / 241** — seven failures against an allowance of one. A control below its own reference must not publish a rate. The fix is to compare the installed version against the pin, not merely to resolve the name; `run.ts` is the harness lane's file. |
-| dotenv | planned | Vendored 2026-09-14 at 17.4.2 and NOT activated: its suite is node-tap, and `run.ts`'s `command()` has no `tap` arm — see the `runner` field's own comment for what the arm is and for the measurement that rules `node --test` out. Its suite also reaches for `tap`, `sinon` and `decache`, which the oracle does not declare; like cosmiconfig's, that declaration is the harness lane's file. Target `seniority/dotenv` is R8's compatibility subpath and is not built yet, so the target run is an honest 0 the moment the control can run at all. |
 | meow | planned | The cheapest third host: a small surface and 42.8M/wk of genuinely chosen usage. |
 | cac | planned | Deferred: 49.4M/wk is almost entirely vite and vitest bundling it, not developers choosing it, so a façade converts few people. |
 | citty | planned | Deferred for the same reason as cac: nitro and unjs bundle it. |

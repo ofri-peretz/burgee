@@ -7,7 +7,7 @@
  * would be graded by our reading of the host's behaviour, which is the thing under test.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -257,16 +257,6 @@ function resolvesFileFrom(path: string, from: string): boolean {
   }
 }
 
-/** Whether a package is installed where a vendored suite would find it. */
-function resolvesFrom(name: string, dir: string): boolean {
-  try {
-    resolverAt(dir).resolve(`${name}/package.json`);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /**
  * What `--control` grades against: the incumbent's real package. Equal to the host's key
  * for every host whose key *is* its npm name, and to `npmName` for the scoped ones whose
@@ -487,6 +477,11 @@ globalThis.jest = {
   setTimeout: (ms) => vi.setConfig({ testTimeout: ms, hookTimeout: ms }),
   spyOn: (...args) => vi.spyOn(...args),
   restoreAllMocks: () => vi.restoreAllMocks(),
+  // lilconfig's suite calls this in a top-level \`beforeEach\`, so an unmapped name is not one
+  // failing case — it is a \`TypeError\` in the hook that runs before every case, and the
+  // control read **0 / 84** against lilconfig's own package until this line existed. Same
+  // rule as the rest: vitest's own equivalent, and no assertion touched.
+  clearAllMocks: () => vi.clearAllMocks(),
 };
 `;
 
@@ -560,8 +555,62 @@ function runExitCodes(host: Host, hostDir: string, files: string[], target: stri
   return { failures };
 }
 
+/**
+ * The `tap` dialect: **one spawn per file, outputs concatenated.**
+ *
+ * node-tap needs no reporter flag and no runner binary. A `tap` test file *is* a program:
+ * `node tests/test-parse.js` prints `TAP version 14`, one `ok`/`not ok` per assertion at
+ * column zero, and a `1..47` plan — which is the dialect `parseFlatTap` already counts.
+ * What was missing was never the parser, only this: `command()` returns one invocation and
+ * this runner needs `files.length` of them, so a host declaring `tap` fell through to
+ * mocha's arm and would have been graded as zero.
+ *
+ * `node --test` is **not** this arm: measured, it collapses a 47-case file to one `ok`.
+ *
+ * Concatenation is safe for the counts — `parseFlatTap` reads lines, not the numbers on
+ * them, so seven restarting `ok 1` sequences add up correctly — and the hazard it does carry
+ * is the one the reference already covers. A file that dies before printing its plan
+ * contributes fewer cases than it holds, and `controlShortfall` refuses a control that
+ * registers less than its reference while `rate()` keeps dividing a target by that same
+ * reference. A file that prints *nothing at all* never reaches either check, so it is an
+ * error here and named.
+ */
+function runTapFiles(host: Host, hostDir: string, files: string[], target: string): { output: string } | { error: string } {
+  const dir = join(hostDir, host.testDir);
+  const parts: string[] = [];
+  for (const file of files) {
+    // A tap file that fails exits non-zero *having already printed its TAP*, so stdout is
+    // the measurement in both branches and only an empty one is a broken run.
+    let stdout: string;
+    try {
+      stdout = execFileSync(process.execPath, [join(dir, file)], {
+        encoding: 'utf8',
+        cwd: hostDir,
+        env: { ...neutralEnv(), ...host.env, COMPAT_TARGET: target },
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: SUITE_TIMEOUT_MS,
+        maxBuffer: MAX_OUTPUT_BYTES,
+      });
+    } catch (cause) {
+      const failure = cause as { stdout?: string; stderr?: string; message: string };
+      stdout = failure.stdout ?? '';
+      if (stdout === '') {
+        const reason =
+          (failure.stderr ?? '')
+            .split('\n')
+            .map((l) => l.trim())
+            .find((l) => l !== '' && !l.startsWith('at ')) ?? failure.message;
+        return { error: `${file}: ${reason}`.slice(0, ERROR_EXCERPT) };
+      }
+    }
+    parts.push(stdout);
+  }
+  return { output: parts.join('\n') };
+}
+
 /** Runs the suite from its vendored root; a failing suite still prints its summary. */
 function runSuite(host: Host, hostDir: string, files: string[], target: string): { output: string } | { error: string } {
+  if (host.runner === 'tap') return runTapFiles(host, hostDir, files, target);
   const dir = join(hostDir, host.testDir);
   if (host.runner === 'vitest') writeVitestConfig(host, hostDir, files);
   const { bin, args } = command(host, hostDir, dir, files.map((f) => join(dir, f)));
@@ -604,19 +653,102 @@ function keepTap(host: Host, target: string, kind: 'public' | 'internal', run: {
 }
 
 /**
- * Install what a monorepo suite declares, into the vendored directory and nowhere else.
+ * Where a declared package resolves from for this suite, and at what version — the file
+ * Node would load, not the name the manifest writes.
  *
- * Skipped the moment the first declared package resolves from there, so a normal run does
- * no network at all; the install happens once per clean checkout. `--no-package-lock`
- * because the lockfile that matters is the workspace's and this is not part of it, and the
- * versions are already pinned exactly in `hosts.ts`.
+ * Read off the resolved `package.json` rather than inferred from the manifest, because the
+ * whole point is that resolution can succeed and still hand the suite the wrong thing.
+ */
+function installedCopy(name: string, dir: string): { at: string; version: string | undefined } | undefined {
+  try {
+    const at = resolverAt(dir).resolve(`${name}/package.json`);
+    return { at, version: (JSON.parse(readFileSync(at, 'utf8')) as { version?: string }).version };
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * An exact pin — `10.0.1`, never `^10.0.1`. The distinction decides which half of a
+ * vendored manifest may be held to a literal version.
+ *
+ * `suiteDeps` writes exact pins and means them: the suite is graded against one release and
+ * any other release is a different measurement (`hosts.ts` records the caret that moved
+ * clack's control from 576 to 40). `vendorDeps` writes ranges and means something else —
+ * "the workspace hoist supplies this, and `vendored-suite.test.ts` proves it resolves" — so
+ * holding one of those to a literal version would fire an install for a package doing
+ * exactly what it was declared to do.
+ */
+const EXACT_PIN = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.+-]+)?$/;
+
+/** A path with its symlinks resolved, or the path itself when it does not exist yet. */
+function realpath(at: string): string {
+  try {
+    return realpathSync(at);
+  } catch {
+    return at;
+  }
+}
+
+/**
+ * Declared packages the vendored directory does not have, at the version it declared, in the
+ * place it declared it.
+ *
+ * **Resolving the name is not the check, and treating it as one cost cosmiconfig its row.**
+ * The install was skipped the moment the name resolved from `vendor/<host>/` — and that
+ * resolution walks *up*, out of the vendored directory and out of the repository. Two
+ * different wrong answers arrived through that one door, both measured:
+ *
+ *   - the workspace's own `node_modules`, where this repository hoists `cosmiconfig` at
+ *     9.0.2 (through `@commitlint/load`) and `parent-module` at 1.0.1 against the 10.0.1 /
+ *     3.2.0 that suite pins. The install never ran, the 10.0.1 suite was graded against
+ *     9.0.2, and the control read 234 / 241 against an allowance of one;
+ *   - a store outside the repository altogether. Measured 2026-09-16 while activating `rc`:
+ *     `rc` is in no manifest and in no lockfile here, and the control graded **1 / 1** on a
+ *     checkout with nothing installed beside the suite, because `require.resolve` found
+ *     `/Users/<operator>/node_modules/rc` — 572 packages in a home directory, one of them at
+ *     exactly the pinned version. That is the `cli-table` defect this oracle already carries
+ *     a lock for (`vendored-suite.test.ts`), reached this time through the install check.
+ *
+ * So a pin is satisfied only by a copy **under `<dir>/node_modules/`** at that exact version.
+ * A range is not: `vendorDeps` says "the workspace hoist supplies this" and `vendored-suite`'s
+ * resolution test is what holds it, so requiring one of those beside the suite would fire an
+ * install for a package doing exactly what it was declared to do.
+ *
+ * Exported because the judgement is here and not in the `npm install` around it: absent,
+ * present at the wrong version, and present in the wrong place are one hole, and a test can
+ * only hold that if one function answers for all three.
+ */
+export function unsatisfiedPins(declared: Record<string, string>, dir: string): string[] {
+  // Compared as real paths, because only one side of this is one already. `require.resolve`
+  // returns a realpath, and on macOS the other side routinely is not: `/var` is a symlink to
+  // `/private/var`, so a prefix test against the spelling handed in answers "somewhere else"
+  // for a package sitting exactly where it was installed.
+  const beside = `${realpath(join(dir, 'node_modules'))}${sep}`;
+  return Object.entries(declared)
+    .filter(([name, want]) => {
+      const have = installedCopy(name, dir);
+      if (have === undefined) return true;
+      if (!EXACT_PIN.test(want)) return false;
+      return have.version !== want || !have.at.startsWith(beside);
+    })
+    .map(([name, want]) => `${name}@${want}`);
+}
+
+/**
+ * Install what a vendored suite declares, into the vendored directory and nowhere else.
+ *
+ * Skipped the moment every declared package is present *at the version it was declared at*,
+ * so a normal run does no network at all; the install happens once per clean checkout.
+ * `--no-package-lock` because the lockfile that matters is the workspace's and this is not
+ * part of it, and the versions are already pinned exactly in `hosts.ts`.
  */
 export function installSuiteDeps(host: Host, hostDir: string, write: Write = silent): void {
-  const names = Object.keys(readSuiteDeps(hostDir));
-  if (names.length === 0) return;
-  const missing = names.filter((name) => !resolvesFrom(name, hostDir));
-  if (missing.length === 0) return;
-  write(`  installing ${host.name}'s suite dependencies into vendor/${host.name}/node_modules: ${missing.join(', ')}\n`);
+  const declared = readSuiteDeps(hostDir);
+  if (Object.keys(declared).length === 0) return;
+  const wrong = unsatisfiedPins(declared, hostDir);
+  if (wrong.length === 0) return;
+  write(`  installing ${host.name}'s suite dependencies into vendor/${host.name}/node_modules: ${wrong.join(', ')}\n`);
   execFileSync('npm', ['install', '--no-audit', '--no-fund', '--no-package-lock', '--prefix', hostDir], { stdio: ['ignore', 'ignore', 'inherit'], timeout: INSTALL_TIMEOUT_MS });
 }
 

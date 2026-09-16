@@ -117,6 +117,7 @@
   "dependencies": {
     "closeout": "^0.1.0",
     "linegauge": "^0.2.0",
+    "paratext": "^0.2.0",
     "roundel": "^0.3.0"
   },
   "devDependencies": {

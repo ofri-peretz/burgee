@@ -95,10 +95,35 @@ interface EntryRule {
  * "put the cursor back however the process dies" instead of three, and a defect fixed on the
  * way: `cursor-net.test.ts` grades the restore the old module's process-wide guard discarded.
  */
+/**
+ * **2026-09-16, R12 — the hyperlink.** `box` and `table` render a path as a terminal
+ * hyperlink, and the sequence is `paratext`'s. Four measurements moved: `.` +2,058,
+ * `./box` +1,502, `./table` +1,675, `./cli-table3` +109.
+ *
+ * Two budgets rose with them — `./box` 18,500 -> 20,000 and `./table` 4,000 -> 6,000 — and
+ * this is the comment that makes each a decision rather than drift. The cost is not the OSC
+ * 8 implementation, which is not in this package at all: it is `link.js` (1,038 B, the
+ * adapter that decides *which runtime* paratext is asked about and what a static projection
+ * is defined against) plus the `runtime.js` seam (81 B) that `./table` had no reason to
+ * reach before, and about 500 B of `laid`/`painted` threading through each drawing.
+ *
+ * **Which paratext entry, and what the other one would have cost.** `paratext/link` —
+ * 2,410 B across four modules, no registry, no side effect at import. The root is 20,221 B
+ * across ten and calls `registerBuiltins()` when it loads, which a package declaring
+ * `sideEffects: false` should not be dragging into a bundler's graph. Measured, not assumed:
+ * the `walk()` below stops at a bare specifier, so neither figure appears in the numbers in
+ * this table — that is exactly the boundary artifact the 2026-09-09 note warns about, and it
+ * is why the choice had to be measured in paratext's own `dist/` instead. A 17,811 B
+ * difference against a 4,000 B entry was never going to be close, but it was checked.
+ *
+ * `./cli-table3` keeps its 29,000 and is now 132 B inside it. Deliberately left: the façade
+ * is a port of a frozen upstream, so its natural growth is zero, and a ratchet with thin
+ * headroom on a file nobody should be adding to is the ratchet working.
+ */
 const RULES: Record<string, EntryRule> = {
   // Everything: the loop, the registry, and all five built-ins. `box` and `table` bring the
   // wrapper and the width function with them, which is most of it. A program that wants one component should import its subpath (U5, R10).
-  '.': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'linegauge/wrap', 'roundel/policy', 'roundel/tokens'], budget: 33_000, measured: 29_874, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
+  '.': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'linegauge/wrap', 'paratext/link', 'roundel/policy', 'roundel/tokens'], budget: 33_000, measured: 31_932, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
   // The loop and its four projections; never the registry — a program that hoists its own
   // component pays nothing for the plugin host.
   //
@@ -167,7 +192,7 @@ const RULES: Record<string, EntryRule> = {
   // — 40%.** It carries its own wrapping rather than sharing `wrap.js`: cli-table3 splits
   // on `/(\s+)/` and counts with its own `strlen`, which a wrap-ansi port does not
   // reproduce, so sharing would be a divergence dressed up as reuse.
-  './cli-table3': { allow: ['linegauge', 'roundel/chalk'], budget: 29_000, measured: 28_759, denied: ['ora.js', 'spinners.json', 'boxen.js', 'log-update.js', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
+  './cli-table3': { allow: ['linegauge', 'paratext/link', 'roundel/chalk'], budget: 29_000, measured: 28_868, denied: ['ora.js', 'spinners.json', 'boxen.js', 'log-update.js', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
   // The four remaining built-ins (R4). `progress` is arithmetic and a token — 971 B, and it
   // reaches nothing, not even the registry. `tasks` reads its glyphs and its spinner style
   // from the registry, so it carries the plugin host: 9,773 B. `box` and `table` are string
@@ -187,8 +212,8 @@ const RULES: Record<string, EntryRule> = {
   // That is the price of R11 — a corpus imported with `fromCliBoxes()` is a registered
   // plugin, and `box('…', { border: 'arrow' })` then draws with it without knowing it
   // exists. A caller who wants neither passes a style object and a bundler drops the rest.
-  './box': { allow: ['linegauge', 'linegauge/wrap', 'roundel/tokens'], budget: 18_500, measured: 17_282, denied: ['loop.js', 'projection.js', 'table.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
-  './table': { allow: ['linegauge', 'linegauge/wrap', 'roundel/tokens'], budget: 4_000, measured: 3_316, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'box.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
+  './box': { allow: ['linegauge', 'linegauge/wrap', 'paratext/link', 'roundel/tokens'], budget: 20_000, measured: 18_784, denied: ['loop.js', 'projection.js', 'table.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
+  './table': { allow: ['linegauge', 'linegauge/wrap', 'paratext/link', 'roundel/tokens'], budget: 6_000, measured: 4_991, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'box.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
 };
 
 const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;

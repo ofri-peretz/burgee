@@ -59,18 +59,41 @@ waiting on. The `## What shipped` sections below carry the detail.
   under `capabilities`, and one plugin object registers into every host. **Built** —
   `schema.json` and `plugin.ts`.
 - **R11 (Y8)** A ceiling in `.sdlc/bands/foundation-ceilings.json`, and a B4 benchmark row.
-  **Half built, and the built half is not this lane's work.** The ceilings file now exists
-  and carries a `paratext` entry — `ceiling: 30912` against `ansi-escapes` tree-inclusive,
-  measured 2026-09-14 — created by the integrator, who owns `.sdlc/bands/**`. Its `ours` reads
-  `57049`, which is what `npm pack --dry-run` gave before the schema walk; after it the same
-  command gives **64,059 B**. Reported rather than edited, for the same ownership reason. **The B4 row is Not built**: `grep -rl paratext benchmarks/` returns
-  nothing on 2026-09-15, and `benchmarks/**` is not a package lane's to write either.
+  **Built, both halves, and neither half was this lane's to build.** The ceilings file
+  carries a `paratext` entry — `ceiling: 30912`, the tree-inclusive bytes of `ansi-escapes`
+  — and on 2026-09-16 the integrator re-measured every layer in one pass, because five of six
+  had drifted and each package could only report its own drift. `ours` now reads **66,305**,
+  up from the `57049` recorded on 2026-09-14: `64,059` of that was the schema walk this lane
+  reported and could not edit, and the last 225 is `schema.json` growing a `propertyNames`
+  enum on `tokens`.
+
+  The B4 row exists as of 2026-09-16: `benchmarks/fixtures/entry-points.ts` carries a
+  `paratext` ÷ `ansi-escapes` pair, with the incumbent pinned to **7.3.0, the exact version
+  compat-oracle grades**, since the weight we compare against has to be the weight of the
+  release whose own suite we pass. It measures **11,059 bundled bytes, a ratio of 2.542**,
+  ratcheted at 2.55 in `RATIO_CEILING`.
+
+  **Both numbers say this layer is over what it replaces, and neither is softened here.**
+  2.145 tree-inclusive and 2.542 bundled. The ratchets exist to stop it growing while that is
+  dealt with; they are not claims of being lighter, and `weight.ts` says so where they are
+  written. This is the one foundation layer of six that does not hold against its D1 ceiling.
 - **R12** First same-repo consumer: `flagstaff/table` and `flagstaff/box` link paths via
-  `paratext`. **Not built**, and not buildable from this lane — the edit is in
-  `packages/flagstaff/**`. Re-checked 2026-09-15: no file under `packages/flagstaff/src`
-  imports `paratext`, and `packages/flagstaff/package.json` does not depend on it. paratext's
-  side is ready twice over now: `emit(runtime, 'link', { text, url })` on the root, and
-  `paratext/link` for a consumer that cannot afford the root's 17,574 B.
+  `paratext`. **Built** — 2026-09-16, in the flagstaff lane, which is where the edit always
+  had to be. `packages/flagstaff/src/link.ts` is the only module there that knows OSC 8
+  exists and it implements none of it: it asks `supportsLink(runtime)` for *layout* — off a
+  terminal the url is content and belongs in the columns, on one it rides a sequence that
+  measures zero — and `linkFor(runtime)` for the bytes.
+
+  **It took the narrow entry, and the measurement is why.** `paratext/link` reaches 2,410 B
+  across 4 modules with no side effect at import; the root reaches 20,221 B across 10 and
+  runs `registerBuiltins()`. That is 17,811 B against a `./table` entry whose whole budget
+  was 4,000 B, and flagstaff declares `sideEffects: false`. R13's reason for existing,
+  stated as a number by the first consumer to face it.
+
+  The adoption also removed flagstaff's two inline OSC 8 sequences — the array-joined one in
+  `cli-table3.ts`'s `hyperlink()` and its `HYPERLINK_TAG` terminator — without moving that
+  façade's output by a byte, because upstream's `hyperlink()` is an escape builder graded by
+  `utils-test.js` with no terminal in the call. cli-table3 still grades 29 / 29.
 - **R13** A narrow published entry for OSC 8 — the sequence where the terminal is believed to
   do it, the static projection otherwise — that carries **no registry side effect at import**
   and is small enough to sit in a statically-imported cold-start graph. **Built
@@ -616,3 +639,37 @@ done yet".
   render it" and "what does it look like if not". Whether `--help` wants a `Docs` column at
   all is the caller's layout decision; `supportsLink(runtime)` is there so the caller can make
   it without emitting anything.
+
+## What shipped (R11, R12 — the B4 row, and the first consumer — 2026-09-16)
+
+Two requirements that had been half-built and unbuildable respectively, for the same
+reason: the work was in files this lane may not write. Both landed on 2026-09-16, in the
+lanes that own those files.
+
+**R11 — the ceiling and the B4 row.** The integrator re-measured every foundation layer in
+one pass, because five of six had drifted from the 2026-09-14 figures and each package
+could only report its own drift. `ours` reads **66,305** against a ceiling of **30,912**,
+the tree-inclusive bytes of `ansi-escapes` — a ratio of **2.145**.
+
+The B4 row exists now too: `benchmarks/fixtures/entry-points.ts` carries a
+`paratext` ÷ `ansi-escapes` pair with the incumbent pinned to **7.3.0, the exact version
+compat-oracle grades**, because the weight we compare against has to be the weight of the
+release whose own suite we pass. It measures **11,059 bundled bytes, a ratio of 2.542**,
+ratcheted at 2.55.
+
+**Both numbers say this layer is over what it replaces, and neither is softened.** paratext
+is the one foundation layer of six that does not hold against its D1 ceiling. The ratchets
+exist to stop it growing while that is dealt with; they are not claims of being lighter,
+and `benchmarks/axes/weight.ts` says so where they are written.
+
+**R12 — the first same-repo consumer.** `flagstaff/table` and `flagstaff/box` link through
+`paratext/link`, and the narrow entry was chosen on a measurement rather than a preference:
+2,410 B across 4 modules with no import-time side effect, against the root's 20,221 B
+across 10 with `registerBuiltins()`. flagstaff declares `sideEffects: false` and `./table`'s
+whole budget was 4,000 B.
+
+The consumer's arrival paid for itself twice. It removed flagstaff's two inline OSC 8
+sequences — the standing rule that a layer's job is not reimplemented by its callers — and
+it made a gap legible that had been invisible: `paratext` was in neither `FAMILY_ORDER` nor
+`FOUNDATION` in `scripts/package-shape-lock.test.ts`, so the new edge read as a dependency
+from *outside* the family. A layer nothing consumed could not have shown that.

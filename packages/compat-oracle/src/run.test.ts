@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { type Host, HOSTS } from './hosts.js';
-import { type Baseline, type Grade, internalShimFrom, parseFlatTap, parseNodeTest, regressed, summarize } from './run.js';
+import { type Baseline, type Grade, internalShimFrom, parseFlatTap, parseNodeTest, regressed, summarize, unsatisfiedPins } from './run.js';
 
 const grade = (passed: number): Grade => ({
   host: 'commander',
@@ -240,5 +240,99 @@ describe('a case the incumbent expects to fail, and we pass', () => {
   it('leaves an ordinary failure alone', () => {
     const ordinary = ['not ok 2 - slices a string', '# tests 3', '# pass 2', '# fail 1'].join('\n');
     expect(parseNodeTest(ordinary)).toMatchObject({ passed: 2, failed: 1, exceeded: 0 });
+  });
+});
+
+/**
+ * The `tap` dialect, whose whole shape is that **one grade is several files' output joined**.
+ *
+ * node-tap needs no runner binary: `node tests/test-parse.js` prints its own TAP and exits.
+ * So the arm spawns once per file and concatenates, which makes the counts a property of the
+ * *lines* rather than of any one file's summary — and that has to be true across restarting
+ * `ok 1` sequences, repeated `TAP version` banners, and tap's own `# { total, pass }` footer,
+ * which is a comment and not one of the three summary lines `parseNodeTest` reads.
+ *
+ * Taken verbatim from dotenv 17.4.2's real output at the shapes that matter, because the
+ * failure this guards against is the one `summarize` already names: an output with `ok` lines
+ * and no readable plan must not be counted, or a suite that died halfway reports what it
+ * managed as a score.
+ */
+/** A package on disk at `<root>/node_modules/<name>`, at a version. */
+const install = (root: string, name: string, version: string): void => {
+  const at = join(root, 'node_modules', name);
+  mkdirSync(at, { recursive: true });
+  writeFileSync(join(at, 'package.json'), `{"name":"${name}","version":"${version}","main":"index.js"}\n`);
+  writeFileSync(join(at, 'index.js'), 'module.exports = {};\n');
+};
+
+/** One node-tap file's output, at the shapes dotenv 17.4.2 really prints. */
+const tapFile = (n: number, failAt?: number): string =>
+  ['TAP version 14', ...Array.from({ length: n }, (_, i) => `${failAt === i + 1 ? 'not ok' : 'ok'} ${i + 1} - should be equal`), `1..${n}`, `# { total: ${n}, pass: ${n} }`, '# time=6.633ms'].join('\n');
+
+describe('concatenated node-tap output', () => {
+  it('adds up across files whose case numbers restart', () => {
+    expect(parseFlatTap([tapFile(3), tapFile(26), tapFile(12)].join('\n'))).toMatchObject({ tests: 41, passed: 41, failed: 0 });
+  });
+
+  it('reads the dialect as flat TAP, not as a summary — tap prints no `# tests` line', () => {
+    expect(summarize([tapFile(3), tapFile(26, 2)].join('\n'), 2, 29)).toMatchObject({ tests: 29, passed: 28, failed: 1, reference: 29 });
+  });
+
+  it('refuses output with cases and no plan at all, so a half-run is never a score', () => {
+    expect(summarize('ok 1 - should be equal\nok 2 - should be equal\n', 1, 47).error).toBeDefined();
+  });
+});
+
+/**
+ * The install check, and the two wrong answers that reached a published rate through it.
+ *
+ * `installSuiteDeps` used to skip a package the moment its name *resolved* from the vendored
+ * directory — and Node's resolver walks up, out of `vendor/<host>/` and out of the repository
+ * altogether. Both exits were taken in practice:
+ *
+ *   - the workspace's own `node_modules` hoists `cosmiconfig` at 9.0.2 against the 10.0.1 that
+ *     suite pins, so the install never ran and the control read 234 / 241 against an allowance
+ *     of one;
+ *   - a home-directory store outside the repo supplied `rc@1.2.8` — exactly the pinned
+ *     version — and `rc`'s control graded 1 / 1 on a checkout where `rc` was in no manifest,
+ *     no lockfile and no `node_modules` under the repo at all.
+ *
+ * Each case below is that shape, and each is red against the resolve-by-name check: it
+ * answered "satisfied" for all four.
+ */
+describe('a pinned suite dependency is satisfied only beside the suite', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'suite-deps-'));
+  const outside = mkdtempSync(join(tmpdir(), 'elsewhere-'));
+
+  // `dir` sits inside `outside`, so resolution from `dir` reaches `outside`'s node_modules
+  // the way a vendored directory reaches the workspace's — and the way anything in this
+  // repository reaches a store in a home directory.
+  const nested = join(outside, 'vendor', 'host');
+  mkdirSync(nested, { recursive: true });
+
+  it('accepts a pin installed beside the suite at that exact version', () => {
+    install(dir, 'pinned', '10.0.1');
+    expect(unsatisfiedPins({ pinned: '10.0.1' }, dir)).toEqual([]);
+  });
+
+  it('refuses a pin that is absent', () => {
+    expect(unsatisfiedPins({ missing: '1.0.0' }, dir)).toEqual(['missing@1.0.0']);
+  });
+
+  it('refuses a pin present beside the suite at a different version — the cosmiconfig 9.0.2 case', () => {
+    install(dir, 'drifted', '9.0.2');
+    expect(unsatisfiedPins({ drifted: '10.0.1' }, dir)).toEqual(['drifted@10.0.1']);
+  });
+
+  it('refuses a pin that only resolves from outside the vendored directory — the stray-store case', () => {
+    install(outside, 'strayed', '1.2.8');
+    // The version is exactly right, which is what makes this the dangerous one: a check on
+    // the version alone says yes, and the copy is on one machine and no other.
+    expect(unsatisfiedPins({ strayed: '1.2.8' }, nested)).toEqual(['strayed@1.2.8']);
+  });
+
+  it('leaves a range alone wherever it resolves, because that half is the hoist by design', () => {
+    install(outside, 'ranged', '0.5.6');
+    expect(unsatisfiedPins({ ranged: '^0.5.1' }, nested)).toEqual([]);
   });
 });
