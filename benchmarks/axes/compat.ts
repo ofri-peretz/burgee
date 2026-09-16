@@ -36,12 +36,14 @@ export interface Grade {
   error?: string;
 }
 
-interface Results {
+export interface Results {
   measured: string;
+  /** Hosts `hosts.ts` declares but does not grade yet. Absent in a file written before #336. */
+  planned?: string[];
   grades: Grade[];
 }
 
-export type Baseline = Record<string, { reference: number; passed: number; rate: number }>;
+export type Baseline = Record<string, { reference: number; passed: number; rate: number; planned?: boolean }>;
 
 /** One file per host — see `compat-oracle/src/run.ts` for why it is a directory. */
 export const readBaseline = (): Baseline =>
@@ -104,12 +106,34 @@ export function hostRecords(grade: Grade, baseline: Baseline): BenchRecord[] {
 export function run(allowRun = true): { records: BenchRecord[] } | { reason: string } {
   const results = readResults(allowRun);
   if ('reason' in results) return results;
-  const baseline = readBaseline();
+  return gradeRecords(results, COMPAT_HOSTS, readBaseline());
+}
+
+/**
+ * Split out of `run()` for one reason: `run()` reads two files and a directory, so the
+ * judgement below — which missing host is a declared gap and which is a hole — could only
+ * be exercised by arranging the filesystem. This takes both as arguments.
+ */
+export function gradeRecords(results: Results, hosts: readonly string[], baseline: Baseline): { records: BenchRecord[] } | { reason: string } {
+  const planned = new Set(results.planned ?? []);
   const records: BenchRecord[] = [];
-  for (const host of COMPAT_HOSTS) {
+  for (const host of hosts) {
     const grade = results.grades.find((g) => g.host === host);
-    // A host the registry names and the oracle did not grade is a hole in the suite, not
-    // a zero: emitting 0 here would feed a band a number nobody measured.
+    // A host whose `status` is still `planned` has a baseline fragment recording what a
+    // measurement *did* read — `cosmiconfig` at 186 / 241, `dotenv` at 0 / 141 — and a note
+    // in `hosts.ts` saying why the oracle will not publish it. That is a declared gap, so it
+    // contributes no band and is not a reason to withhold the hosts that were graded.
+    //
+    // Treating it as one cost every compat row. `COMPAT_HOSTS` reads `baseline/`, wave 2
+    // added six fragments for hosts it honestly could not grade, and this loop returned on
+    // the first of them in alphabetical order — so from that commit until 2026-09-16 every
+    // compat band and every compat claim read `? unmeasured` in CI, on the axis that carries
+    // the project's headline claim. Nothing went red: an axis that produces no records has
+    // no gates to fail.
+    if (grade === undefined && planned.has(host)) continue;
+    // A host the registry names, does *not* call planned, and the oracle did not grade is a
+    // hole in the suite, not a zero: emitting 0 here would feed a band a number nobody
+    // measured. `verdict()` in `run.ts` now exits non-zero on the skipped axis this makes.
     if (grade === undefined || grade.error !== undefined) return { reason: `compat-oracle produced no usable grade for ${host}` };
     records.push(...hostRecords(grade, baseline));
   }

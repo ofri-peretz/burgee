@@ -145,13 +145,14 @@ function write(doc: ResultsDoc): string {
   return relative(REPO_ROOT, file);
 }
 
-function documents(args: Args): ResultsDoc[] {
+function documents(args: Args): { docs: ResultsDoc[]; axes: Map<AxisName, AxisState> } {
   const { axes, records } = collect(args);
-  return [SUITE.cheap, SUITE.agent].map((suite: SuiteName) => {
+  const docs = [SUITE.cheap, SUITE.agent].map((suite: SuiteName) => {
     const mine = ALL_AXES.filter((a) => suiteOf(a) === suite);
     const subset = Object.fromEntries(mine.map((a) => [a, axes.get(a) as AxisState]));
     return buildDocument({ suite, commit: commit(REPO_ROOT), machine: machine(), axes: subset, records: records.filter((r) => mine.includes(r.axis)) });
   });
+  return { docs, axes };
 }
 
 /**
@@ -159,21 +160,36 @@ function documents(args: Args): ResultsDoc[] {
  * it with a synthetic record one step outside its gate and prove the non-zero exit,
  * without spawning a thousand processes to get there.
  */
-export function verdict(records: readonly BenchRecord[]): number {
+/**
+ * An axis that was *selected* and then could not produce numbers is a broken measurement,
+ * and until 2026-09-16 it exited 0. `gateFailures` reads records; an axis that returns a
+ * reason contributes none; no records means no gates; no gates means nothing to fail. The
+ * compat axis sat in exactly that state from wave 2 onward — every band and claim reading
+ * `? unmeasured` on every run, with `--check` green — which is the defect class this repo
+ * keeps rediscovering: a verification step that cannot fail for the reason the build is
+ * broken is not a verification step.
+ *
+ * `not-run` stays silent: `--axis weight` deliberately leaves four axes unselected, and a
+ * subset run must not be a failure. `skipped` is the one that means *tried and could not*.
+ */
+export function verdict(records: readonly BenchRecord[], axes: ReadonlyMap<AxisName, AxisState> = new Map()): number {
+  const broken = [...axes].filter(([, state]) => state.status === 'skipped');
+  for (const [axis, state] of broken) console.error(`\n✖ axis ${axis} was selected and produced no measurement — ${state.reason ?? ''}`);
   const failures = gateFailures(records);
   for (const f of failures) console.error(`\n✖ ${describeFailure(f)}`);
-  console.warn(`\n${String(failures.length)} gate failure(s).\n`);
-  return failures.length > 0 ? 1 : 0;
+  const total = failures.length + broken.length;
+  console.warn(`\n${String(total)} gate failure(s).\n`);
+  return total > 0 ? 1 : 0;
 }
 
 export function main(argv: readonly string[]): number {
   const args = parseArgs(argv);
-  const docs = documents(args);
+  const { docs, axes } = documents(args);
   for (const doc of docs) {
     printTable(doc);
     if (args.write) console.warn(`\n→ ${write(doc)}`);
   }
-  return args.check ? verdict(docs.flatMap((d) => d.records)) : 0;
+  return args.check ? verdict(docs.flatMap((d) => d.records), axes) : 0;
 }
 
 if (process.argv[1] !== undefined && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
