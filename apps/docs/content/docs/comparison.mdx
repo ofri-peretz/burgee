@@ -28,18 +28,30 @@ never for gating; the machine-independent figure is the ratio on
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
 | Downloads / week | new | 508.2M | 259.3M | 10.9M | 49.4M | 30.5M |
 | Runtime dependencies | **0** | 0 | 6 | **18** | 0 | 0 |
-| Installed size ⚙️ | 561 KB | 203 KB | 515 KB | 912 KB 📖 | 40 KB | 52 KB 📖 |
+| Installed size ⚙️ | 991 KB | 203 KB | 515 KB | 912 KB 📖 | 40 KB | 52 KB 📖 |
 | Full CLI run over bare node ⚙️ | **+14.0 ms** | +15.3 ms | +78.5 ms | +131 ms 📖 | +4.0 ms | +6 ms 📖 |
 
 Three things in that table got worse when they were measured rather than asserted, and
 they stay in it.
 
-**Installed size.** burgee installs at **561 KB**, not the 104 KB this page claimed — the
-published figure was a guess at the tarball, and the real one is `npm pack`'s unpacked
-size, which is what lands in a user's `node_modules`. It is our largest number and it is
-larger than commander's. It buys zero runtime dependencies and six drop-in front ends; it
-is still 561 KB, and the bundled column on [Benchmarks](/docs/benchmarks) — what an
-application actually grows by — is the number to judge us on.
+**Installed size.** burgee installs at **991 KB**. It is our largest number, it is our least
+flattering one, and it has now been wrong on this page twice in opposite directions.
+
+First it said 104 KB, a guess at the tarball rather than a measurement. That was corrected
+to **561 KB** on 2026-09-09 — the real `npm pack` unpacked size, which is what lands in a
+user's `node_modules` — and then the package grew to **2.3x that figure** while the cell sat
+still, because the cell was read from a *published* measurement rather than from a fresh
+install. Every check on this page compared the page against that file and stayed green.
+
+Fixed 2026-09-16: the row is now measured against the tree by CI on every run, so it cannot
+fall behind again. It is checked there and not on a developer's laptop for a reason worth
+stating, since it is the same class of mistake: the walk starts at a workspace link, so
+locally it counts a developer's dev dependencies too and reads **1311 KB** for the same
+commit. 991 KB is what `npm i burgee` gives you.
+
+It buys zero runtime dependencies and six drop-in front ends. It is still 991 KB, and the
+bundled column on [Benchmarks](/docs/benchmarks) — what an application actually grows by —
+is the number to judge us on. That one is over its own ceiling too, and says so.
 
 **Speed.** This page previously ran two rows, an import cost and a full run, with burgee's
 cells in both unsourced. The suite times one thing, a full CLI run as a process, so there

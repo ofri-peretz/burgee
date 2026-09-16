@@ -4,6 +4,9 @@
   "description": "An agent-native CLI framework, drop-in compatible with commander and yargs. One declaration; help, --json, --schema, --mcp and completions all projected from it.",
   "license": "MIT",
   "type": "module",
+  "sideEffects": [
+    "./dist/cli.js"
+  ],
   "engines": {
     "node": ">=24"
   },
