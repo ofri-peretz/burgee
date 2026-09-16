@@ -61,7 +61,7 @@ let chalkOutput: string | undefined;
 const chalkGrade = (): string => {
   if (chalkOutput === undefined) {
     try {
-      chalkOutput = execFileSync('npm', ['run', 'compat', '--silent', '--', 'chalk'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+      chalkOutput = execFileSync(shim('npm'), ['run', 'compat', '--silent', '--', 'chalk'], spawnOpts({ cwd: ROOT, encoding: 'utf8' as const, stdio: ['ignore', 'pipe', 'ignore'] as const }));
     } catch {
       chalkOutput = '';
     }
@@ -99,6 +99,21 @@ const designComplete = (slug: string): boolean => {
   const shipped = new Set([...text.matchAll(/^## What shipped \(([^)]*)\)/gm)].flatMap((m) => [...(m[1] as string).matchAll(/R\d+/g)].map((r) => r[0])));
   return [...wanted].every((r) => shipped.has(r));
 };
+/**
+ * `npm`, `npx` and `shasum` by a name Windows can actually find.
+ *
+ * `npm` and `npx` are `.cmd` shims there and neither `execFileSync` nor `spawnSync` searches
+ * `PATHEXT`, so every one of these returned nothing on `windows-latest` — and `landed()` catches,
+ * so five steps read as unfinished work for a reason that had nothing to do with the roadmap.
+ * That is the fifth condition in this file to be false for the wrong reason, and the same bug
+ * `bellpull` was built for; `bellpull/which` is the answer once it lands.
+ *
+ * `shell` is safe here only because every argument in this file is a literal.
+ */
+const WINDOWS = process.platform === 'win32';
+const shim = (cmd: string): string => (WINDOWS && (cmd === 'npm' || cmd === 'npx') ? `${cmd}.cmd` : cmd);
+const spawnOpts = <T extends object>(o: T): T & { shell: boolean } => ({ ...o, shell: WINDOWS });
+
 const pkgJson = (pkg: string): { version: string; description?: string; private?: boolean } => json(`packages/${pkg}/package.json`);
 /**
  * Band ids, from the runner rather than the config file — the compat ones are derived, so
@@ -111,7 +126,7 @@ const pkgJson = (pkg: string): { version: string; description?: string; private?
  * defect as one that greps a renamed slug: it cannot fail for the reason the step fails.
  */
 const bands = (): string[] => {
-  const run = spawnSync('npx', ['tsx', 'scripts/control-bands.ts'], { cwd: ROOT, encoding: 'utf8' });
+  const run = spawnSync(shim('npx'), ['tsx', 'scripts/control-bands.ts'], spawnOpts({ cwd: ROOT, encoding: 'utf8' as const }));
   return `${run.stdout ?? ''}${run.stderr ?? ''}`.split('\n').flatMap((l) => [...l.matchAll(/\bcompat-[a-z0-9-]+-pass-rate\b/g)].map((m) => m[0]));
 };
 const citations = (): number => {
@@ -162,7 +177,7 @@ const STEPS: Step[] = [
     },
   },
   // `existsSync` was the first version, and a file that exists proves nothing about drift.
-  { id: '0.2', what: 'every roadmap row agrees with its intent (runs the check)', done: () => { execFileSync('npx', ['tsx', 'scripts/roadmap-index.ts', '--check'], { cwd: ROOT, stdio: 'ignore' }); return true; } },
+  { id: '0.2', what: 'every roadmap row agrees with its intent (runs the check)', done: () => { execFileSync(shim('npx'), ['tsx', 'scripts/roadmap-index.ts', '--check'], spawnOpts({ cwd: ROOT, stdio: 'ignore' as const })); return true; } },
   {
     id: '0.4',
     what: 'chalk back to its 58 baseline (runs the gate, does not read it)',
@@ -197,7 +212,7 @@ const STEPS: Step[] = [
   { id: '1.5', what: 'bellpull hosts resolvers', done: () => existsSync(join(ROOT, 'packages/bellpull/src/plugin.ts')) },
   { id: '1.6', what: 'linegauge says why it has no plugins', done: () => has('packages/linegauge/README.md', '## Plugins') },
   { id: '2.17', what: 'one control band per graded suite', done: () => bands().filter((b) => b.startsWith('compat-')).length >= baselineSize() },
-  { id: '2.5.0', what: 'the six engine surfaces re-measured against the tree', done: () => { execFileSync('npx', ['tsx', 'scripts/roadmap-index.ts', '--check'], { cwd: ROOT, stdio: 'ignore' }); return readdirSync(join(ROOT, '.sdlc/intents')).filter((s) => s.startsWith('commander-') || s.startsWith('yargs-')).every((s) => existsSync(join(ROOT, '.sdlc/intents', s, 'issues.md'))); } },
+  { id: '2.5.0', what: 'the six engine surfaces re-measured against the tree', done: () => { execFileSync(shim('npx'), ['tsx', 'scripts/roadmap-index.ts', '--check'], spawnOpts({ cwd: ROOT, stdio: 'ignore' as const })); return readdirSync(join(ROOT, '.sdlc/intents')).filter((s) => s.startsWith('commander-') || s.startsWith('yargs-')).every((s) => existsSync(join(ROOT, '.sdlc/intents', s, 'issues.md'))); } },
   { id: '2.5.1', what: 'help snapshots exist at three widths', done: () => existsSync(join(ROOT, 'packages/burgee/src/__snapshots__')) && readdirSync(join(ROOT, 'packages/burgee/src/__snapshots__')).some((f) => f.startsWith('help')) },
   { id: '2.5.2', what: 'dependsOn/exclusive are spelled in the schema', done: () => has('packages/burgee/src/schema.ts', 'dependsOn') && has('packages/burgee/src/schema.ts', 'exclusive') },
   { id: '2.5.3', what: 'the Fig spec is validated, not just emitted', done: () => existsSync(join(ROOT, 'packages/burgee/src/fig-schema.test.ts')) },

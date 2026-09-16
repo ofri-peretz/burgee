@@ -36,8 +36,22 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+/**
+ * Both streams, and a command name Windows can actually find.
+ *
+ * `npx` is `npx.cmd` there, and `spawnSync` does not search `PATHEXT` — so this returned two
+ * empty strings on `windows-latest` and both assertions below failed for a reason that had
+ * nothing to do with the roadmap. Which is the joke: a lock written to catch checkers that
+ * cannot fail, shipped with the defect it was written about, in the same week `bellpull` was
+ * built because four other files had it too.
+ *
+ * `shell` on Windows is what the repository already does in `burgee/src/shape.test.ts`, and it
+ * is safe *here* only because every argument is a literal in this file. It is not a pattern to
+ * copy — `bellpull/which` is the answer, and this should use it once bellpull lands.
+ */
+const WINDOWS = process.platform === 'win32';
 const BOTH = (cmd: string, args: string[]): string => {
-  const run = spawnSync(cmd, args, { cwd: ROOT, encoding: 'utf8' });
+  const run = spawnSync(WINDOWS ? `${cmd}.cmd` : cmd, args, { cwd: ROOT, encoding: 'utf8', shell: WINDOWS });
   return `${run.stdout ?? ''}${run.stderr ?? ''}`;
 };
 const COMPAT_BAND = /\bcompat-[a-z0-9-]+-pass-rate\b/g;
