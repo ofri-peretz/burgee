@@ -23,12 +23,19 @@ packages do this today and every one of them emits the bytes and hopes.
 
 Concretely:
 
-- `link(url, text)`, `title(s)`, `image(buf)`, `clipboard(s)`, `notify(s)`, `cwd(path)`,
-  `bell()` — the seven built-ins, each a *capability record* rather than a function, so a
-  caller can read what it will emit before it emits it.
+- `link`, `title`, `image`, `clipboard`, `notify`, `cwd`, `bell` — the seven built-ins, each
+  a *capability record* rather than a function, so a caller can read what it will emit before
+  it emits it. Where a function wrapper exists it takes the incumbent's argument order:
+  `link(text, url)`, as `ansi-escapes` and `terminal-link` have it.
 - `emit(runtime, name, fields)` returns the OSC sequence when `supports()` says the terminal
-  does, and the capability's `fallback` template otherwise — **never an empty string, never
-  raw OSC on an unknown terminal**.
+  does, and the capability's `fallback` template otherwise — **never raw OSC on an unknown
+  terminal**. (An earlier wording here also promised "never an empty string". That was never
+  true and was not meant to be: `title`, `clipboard`, `cwd` and `bell` all project to `''`
+  deliberately, a window title having nothing to say in a log. Corrected 2026-09-15 —
+  see `design.md`, *What the design claimed and the code does not do*.)
+- A narrow entry point per capability a consumer can afford to import statically. `paratext`
+  itself registers all seven at import and reaches 17,574 B; `paratext/link` is 2,337 B and
+  registers nothing, which is what let `burgee`'s `--help` take the dependency at all.
 - `register(capability)` adds or replaces a capability. The built-ins use the same call, so a
   terminal we mis-detect is corrected by a caller in three lines, not by a fork.
 - The default export path is call-compatible with `ansi-escapes` for the OSC subset, so
