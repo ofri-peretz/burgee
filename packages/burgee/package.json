@@ -13,6 +13,7 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./schema.json": "./dist/schema.json",
     "./brand": {
       "types": "./dist/brand.d.ts",
       "import": "./dist/brand.js",
@@ -66,7 +67,7 @@
     "locales"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && node ../../scripts/strip-comments.mjs dist",
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/schema-to-dist.mjs && node ../../scripts/strip-comments.mjs dist",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
     "coverage": "vitest run --coverage.enabled",

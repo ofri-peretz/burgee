@@ -1,7 +1,9 @@
 /**
- * Definition-time checks (S3, S5, V5) and run-time validation in one fixed order (S6):
- * relations first, then each option's value — numbers, choices, Standard Schema. Every
- * failure is a usage error with the fix in hand (E3).
+ * Run-time validation in one fixed order (S6): relations first, then each option's value —
+ * numbers, choices, Standard Schema. Every failure is a usage error with the fix in hand (E3).
+ *
+ * The definition-time checks (S3, S5, V5) moved to `./definition.js` when the plugin host
+ * arrived; that file says why. This one runs on every invocation, that one runs once.
  */
 import { type OptionSpec, type Relation } from './manifest.js';
 import { kebab } from './names.js';
@@ -13,32 +15,6 @@ export class UsageError extends Error {
     readonly hint?: string,
   ) {
     super(message);
-  }
-}
-
-const TYPES = new Set(['string', 'boolean', 'number']);
-
-/**
- * What must be true of a declaration before anything runs (yargs #1198, #887, #1679):
- * a known type, one short alias per command, no two keys that meet on the command line.
- */
-export function checkDefinition(name: string, options: Record<string, OptionSpec>): void {
-  const shorts = new Map<string, string>();
-  const flags = new Map<string, string>();
-  for (const [key, spec] of Object.entries(options)) {
-    if (!TYPES.has(spec.type)) throw new Error(`burgee: option "${key}" of "${name}" has unknown type "${String(spec.type)}"`);
-    if (spec.short !== undefined) {
-      const owner = shorts.get(spec.short);
-      if (owner !== undefined) throw new Error(`burgee: options "${owner}" and "${key}" of "${name}" both use -${spec.short}`);
-      shorts.set(spec.short, key);
-    }
-    const flag = kebab(key);
-    const clash = flags.get(flag);
-    if (clash !== undefined) throw new Error(`burgee: options "${clash}" and "${key}" of "${name}" are both --${flag}`);
-    flags.set(flag, key);
-    if ((spec.minimum !== undefined || spec.maximum !== undefined || spec.integer !== undefined) && spec.type !== 'number') {
-      throw new Error(`burgee: option "${key}" of "${name}" declares a numeric bound but is not a number`);
-    }
   }
 }
 
