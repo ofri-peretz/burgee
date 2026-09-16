@@ -89,15 +89,36 @@ const has = (p: string, needle: string): boolean => existsSync(join(ROOT, p)) &&
  * only fail on the one file that happens to use a wording is not a condition. This one
  * fails on all four until the requirements are actually accounted for.
  */
-const designComplete = (slug: string): boolean => {
+/**
+ * Why a design step is not done — or `''` when it is.
+ *
+ * A design records which requirements are built in one of two shapes, and the checker knew
+ * only one. `caique`, `closeout`, `flagstaff` and three others use a `## What shipped (R1,
+ * R2…)` heading; `seniority` uses a `| R11 | **Built** | evidence | check |` table. So 3.2
+ * read red with every one of its fifteen requirements reported "missing", including the ten
+ * the table plainly records as built — the **fourth** condition in this file to be false for a
+ * reason that had nothing to do with its step.
+ *
+ * Two formats for one fact is itself the drift this repository is about, and they should
+ * converge. Until they do, reading both is the honest reading; what is not honest is a `·`
+ * that means "the design does not say" sitting next to a `·` that means "R9 is not met",
+ * indistinguishable. So this returns the reason.
+ */
+const designGap = (slug: string): string => {
   const file = `.sdlc/intents/${slug}/design.md`;
-  if (!existsSync(join(ROOT, file))) return false;
+  if (!existsSync(join(ROOT, file))) return 'no design.md';
   const text = read(file);
-  if (text.includes('Not built')) return false;
-  const wanted = new Set([...text.matchAll(/^- \*\*(R\d+)/gm)].map((m) => m[1] as string));
-  if (wanted.size === 0) return false;
-  const shipped = new Set([...text.matchAll(/^## What shipped \(([^)]*)\)/gm)].flatMap((m) => [...(m[1] as string).matchAll(/R\d+/g)].map((r) => r[0])));
-  return [...wanted].every((r) => shipped.has(r));
+  const wanted = [...new Set([...text.matchAll(/^- \*\*(R\d+)/gm)].map((m) => m[1] as string))];
+  if (wanted.length === 0) return 'the design lists no requirements';
+  const shipped = new Set([
+    ...[...text.matchAll(/^## What shipped \(([^)]*)\)/gm)].flatMap((m) => [...(m[1] as string).matchAll(/R\d+/g)].map((r) => r[0])),
+    ...[...text.matchAll(/^\| (R\d+) \| \*\*Built\*\*/gm)].map((m) => m[1] as string),
+  ]);
+  if (shipped.size === 0) return 'the design records no per-requirement status, in either shape';
+  // An explicit "Not built" anywhere is the design telling on itself, and it outranks the list.
+  if (text.includes('Not built')) return 'the design says a requirement is not built';
+  const missing = wanted.filter((r) => !shipped.has(r));
+  return missing.length === 0 ? '' : `${missing.join(', ')} not recorded as built`;
 };
 /**
  * `npm`, `npx` and `shasum` by a name Windows can actually find.
@@ -114,6 +135,7 @@ const WINDOWS = process.platform === 'win32';
 const shim = (cmd: string): string => (WINDOWS && (cmd === 'npm' || cmd === 'npx') ? `${cmd}.cmd` : cmd);
 const spawnOpts = <T extends object>(o: T): T & { shell: boolean } => ({ ...o, shell: WINDOWS });
 
+const designComplete = (slug: string): boolean => designGap(slug) === '';
 const pkgJson = (pkg: string): { version: string; description?: string; private?: boolean } => json(`packages/${pkg}/package.json`);
 /**
  * Band ids, from the runner rather than the config file — the compat ones are derived, so
@@ -317,8 +339,15 @@ const STEPS: Step[] = [
 ];
 
 
+/** The design steps say why they are red, so "not done" is never confused with "cannot tell". */
+const DESIGN_STEPS: Record<string, string> = { '3.1': 'paratext', '3.2': 'seniority', '3.3': 'closeout', '3.5': 'linegauge' };
+
 const results = STEPS.map((step) => ({ ...step, ok: landed(step) }));
-for (const r of results) console.log(`${r.ok ? '✓' : '·'} ${r.id.padEnd(ID_WIDTH)} ${r.what}`);
+for (const r of results) {
+  const slug = DESIGN_STEPS[r.id];
+  const why = r.ok || slug === undefined ? '' : `  — ${designGap(slug)}`;
+  console.log(`${r.ok ? '✓' : '·'} ${r.id.padEnd(ID_WIDTH)} ${r.what}${why}`);
+}
 const left = results.filter((r) => !r.ok).length;
 console.log(`\n${results.length - left}/${results.length} landed. ${left === 0 ? 'The plan is done.' : `${String(left)} to go.`}`);
 console.log(`\nmanual: ${String(MANUAL.length)} steps whose truth is not in the tree`);
