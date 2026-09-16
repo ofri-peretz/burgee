@@ -128,8 +128,22 @@ const RULES: Record<string, EntryRule> = {
   // against this unchanged 53,300 with the engine's 389 B of routing, so nothing was raised
   // for it. The output stack stays denied below, `caique` included — prompting is a surface
   // U13 reaches through a guarded dynamic import, not a dependency of the parser.
+  // `linegauge` is the third, admitted on 2026-09-15, and it is the same argument a third
+  // time. `help.ts` sized its term column, decided which terms overflow it, padded after a
+  // term and wrapped every description with `String.length` — the count of UTF-16 code
+  // units, which is the column count a terminal draws only for Latin-1. `部署` is two code
+  // units and four columns, so a CJK or emoji command name pushed its own description right
+  // of the shared column and a CJK description wrapped past the width the caller asked for.
+  // `yargs/cliui.ts` has imported the same `width` for the same job since it was ported,
+  // and the note under `./yargs` below records what a second copy of a width function
+  // costs: it measured a 13-column string as 25. This is the first copy being deleted
+  // rather than a fourth being written. Measuring a line is linegauge's own job the way
+  // precedence is the parser's and the exit is closeout's, and burgee already declared the
+  // dependency. 52,683 -> 52,893 measured, 210 B, against this unchanged 53,300 — the walk
+  // stops at a bare import, so linegauge's own bytes are not in that number; what the 210
+  // buys is that help stops guessing. Nothing was raised for it.
   ".": {
-    allow: ["closeout", "seniority/precedence"],
+    allow: ["closeout", "linegauge", "seniority/precedence"],
     budget: 53_300,
     denied: [
       "testing.js",
@@ -157,7 +171,9 @@ const RULES: Record<string, EntryRule> = {
   // that injects its own `exit` gets a registry with no listeners on it, because a harness
   // that attached nine to the test runner's process would exit the runner on the first raised
   // signal. Measured 57,005.
-  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 58_300, denied: ["dev.js"] },
+  // `linegauge` arrives here the same way `closeout` does: through the engine, because the
+  // harness renders help to assert on it. Measured 57,215.
+  "./testing": { allow: ["closeout", "linegauge", "seniority/precedence"], budget: 58_300, denied: ["dev.js"] },
   // The brand generator. Pure geometry and string building — it must never reach
   // the engine, and the engine must never reach it: a CLI that ships argv parsing
   // has no reason to carry an SVG emitter.
@@ -170,7 +186,7 @@ const RULES: Record<string, EntryRule> = {
   // than the swallowtail), `markings` (a second colour on it), `sheen` and `bevel` (the
   // light on it, still and swept). Four options, one clip path and two renderers.
   "./cli": {
-    allow: ["closeout", "roundel/contrast", "seniority/precedence"],
+    allow: ["closeout", "linegauge", "roundel/contrast", "seniority/precedence"],
     budget: 74_000,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
