@@ -41,12 +41,15 @@
  * a sentence in a commit message — and so it goes stale loudly if this package grows again
  * before the integrator writes it.
  */
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { readFileSync, statSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
+
+import { ambientRuntime } from './ambient.js';
+import { parse } from './spawn-args.js';
 
 const pkgRoot = fileURLToPath(new URL('..', import.meta.url));
 const dist = resolve(pkgRoot, 'dist');
@@ -196,9 +199,34 @@ describe('the lock grows with the package', () => {
  * sentence in a commit message nobody reads.
  */
 describe('the ceilings file', () => {
+  /**
+   * `npm pack`, spawned through this package's own `parse`.
+   *
+   * This line used to be `execFileSync('npm', …)`, and on Windows it was **the exact defect
+   * bellpull exists to fix**: `npm` is `npm.cmd`, and since the fix for CVE-2024-27980 Node
+   * refuses to spawn a `.cmd` or `.bat` without `shell: true`. So the weight lock of the
+   * package whose README opens with that sentence was the thing it broke on, and both cases
+   * below died before they measured anything — which is why the Windows run reported a
+   * thrown error rather than an assertion.
+   *
+   * The two fixes already written in this repository are the wrong two. `shape.test.ts` takes
+   * `WINDOWS ? 'npm.cmd' : 'npm'` with `shell: WINDOWS`, which is the injection surface
+   * `escape.ts`'s header is about; `ambient-colour.test.ts` sidesteps it by spawning the
+   * built `bin.js` with `process.execPath`, which works only when there is a `.js` entry to
+   * aim at. `npm pack` has neither. `parse` is the third option and the one this package is:
+   * it resolves `npm.CMD` through `PATHEXT`, builds the `cmd.exe /d /s /c` line itself, and
+   * escapes every argument, so nothing is handed to a shell as text.
+   *
+   * It is also the only place in the suite where the Windows spawn path is driven by
+   * something other than a test fixture, which makes it the closest thing here to a real
+   * consumer.
+   */
   const measured = (): number => {
-    const out = execFileSync('npm', ['pack', '--dry-run', '--json'], { cwd: pkgRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
-    return (JSON.parse(out) as { unpackedSize: number }[])[0]?.unpackedSize ?? 0;
+    const parsed = parse('npm', ['pack', '--dry-run', '--json'], { cwd: pkgRoot }, ambientRuntime());
+    const result = spawnSync(parsed.command, parsed.args, { ...parsed.options, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] } as never);
+    if (result.error !== undefined) throw result.error;
+    if (result.status !== 0) throw new Error(`npm pack exited ${String(result.status)}: ${String(result.stderr)}`);
+    return (JSON.parse(result.stdout as unknown as string) as { unpackedSize: number }[])[0]?.unpackedSize ?? 0;
   };
   const PACK_TIMEOUT_MS = 120_000;
   const band = (): { ours: number; ceiling: number; ratio: number } =>
@@ -231,19 +259,23 @@ describe('the ceilings file', () => {
       // replacement here, from the same measurement the band uses, so the number handed over
       // is measured rather than transcribed — and so it goes stale loudly if this package
       // grows again before the integrator gets to it.
-      // **The handoff completed on 2026-09-16, so this now tracks rather than waits.** While the
-      // lane was open it pinned its own recommendation (82,270 / 0.1151) and asserted the band
-      // still held the stub's 4,761 — correct then, and stale the moment the integrator wrote
-      // the file, which is what the sentence above promised would happen loudly.
       //
-      // The recorded 82,141 is 129 bytes under what the lane measured, and the difference is
-      // this package's README: `npm pack` includes it, and `scripts/readme-benchmarks.ts`
-      // regenerated the generated half once `cross-spawn` had a graded row to report.
+      // **That is what has just happened, for the second time.** The handoff completed on
+      // 2026-09-16 and this assertion became a plain equality against the band. Making
+      // bellpull's Windows path actually work then grew the package again, so the equality is
+      // back in its handoff form: the lane pins what it measured and asserts the band still
+      // holds the pre-lane number, which is the state the integrator replaces.
       //
-      // Asserting equality rather than a literal is the durable form: the band follows the
-      // package, and a change to either without the other goes red here.
+      // 82,141 → 85,129 B, ratio 0.1149 → 0.1191, all of it `resolveExecutable` in `which.ts`
+      // (the two-attempt `PATHEXT` walk that `run.ts` and `spawn-args.ts` must share) plus the
+      // `startDeadline` seam in `run.ts`, and mostly the `.d.ts` doc comments both carry —
+      // `strip-comments.mjs` takes them out of the `.js` and leaves them in the declarations,
+      // where a user still pays for them. Still an order of magnitude under the 714,984 B it
+      // replaces, and the direction is recorded rather than smoothed.
+      expect({ ours, ratio }, 'this lane measured a new weight — hand these two numbers to the integrator for `.sdlc/bands/foundation-ceilings.json`').toEqual({ ours: 85_129, ratio: 0.1191 });
+
       const { ours: recordedOurs, ceiling: recordedCeiling, ratio: recordedRatio } = band();
-      expect({ ours, ceiling, ratio }).toEqual({ ours: recordedOurs, ceiling: recordedCeiling, ratio: recordedRatio });
+      expect({ ours: recordedOurs, ceiling: recordedCeiling, ratio: recordedRatio }, 'the band moved under this lane — re-measure rather than editing the literal above').toEqual({ ours: 82_141, ceiling, ratio: 0.1149 });
     },
     PACK_TIMEOUT_MS,
   );

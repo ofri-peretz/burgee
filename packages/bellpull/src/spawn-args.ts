@@ -38,7 +38,7 @@ import { win32 } from 'node:path';
 import { escapeArgument, escapeCommand, isCmdShim, isDirectlyExecutable } from './escape.js';
 import { isWindows, type Runtime } from './runtime.js';
 import { readShebang } from './shebang.js';
-import { whichSync } from './which.js';
+import { resolveExecutable } from './which.js';
 
 /** Options a caller may pass through to `child_process`, plus the two this reads. */
 export interface SpawnOptions {
@@ -109,11 +109,11 @@ function detectShebang(parsed: Parsed, runtime: Runtime): string | undefined {
   // to use it too — `should support shebang…` puts the fixtures directory on `options.env`'s
   // PATH and nowhere else, and resolving against the parent's would miss it.
   const effective: Runtime = parsed.options.env === undefined ? runtime : { ...runtime, env: parsed.options.env };
-  // Twice, as `cross-spawn` does: once honouring `PATHEXT`, then once with it disabled, so
-  // an extensionless script on Windows is found rather than passed over for not being `.EXE`.
-  const resolve = (): string | undefined =>
-    whichSync(parsed.command, { runtime: effective, cwd: parsed.options.cwd })?.path ??
-    whichSync(parsed.command, { runtime: effective, cwd: parsed.options.cwd, pathExt: '' })?.path;
+  // `resolveExecutable`, not `whichSync`: the two-attempt `PATHEXT` walk is what finds an
+  // extensionless script on Windows, and it lives in `which.ts` so that `run.ts` cannot ask
+  // the same question a different way. It did, and the disagreement was a Windows-only
+  // rejection of a command this file had already resolved.
+  const resolve = (): string | undefined => resolveExecutable(parsed.command, { runtime: effective, cwd: parsed.options.cwd })?.path;
 
   parsed.file = resolve();
   if (parsed.file === undefined) return undefined;

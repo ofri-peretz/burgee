@@ -50,7 +50,7 @@ import { spawn as nodeSpawn, type ChildProcess } from 'node:child_process';
 import { hookChildProcess } from './enoent.js';
 import { type Runtime } from './runtime.js';
 import { parse, type SpawnOptions } from './spawn-args.js';
-import { NotFoundError, whichSync } from './which.js';
+import { NotFoundError, resolveExecutable } from './which.js';
 
 /** Milliseconds a child may take before it is killed. Finite by default — Y10. */
 export const DEFAULT_TIMEOUT = 30_000;
@@ -173,8 +173,13 @@ export async function run(command: string, args: readonly unknown[] = [], option
   // Resolution happens here and not inside the spawn, because the resolved path is a field
   // of the result: "which binary ran" is the question this layer exists to be able to
   // answer. With `shell: true` the shell resolves and we do not pretend otherwise.
+  //
+  // `resolveExecutable`, which is the same lookup `parse` just did. Asking a narrower
+  // question here — a single `PATHEXT` walk — meant that on Windows an extensionless script
+  // with a `#!` line resolved for the parse and was then rejected here, so `run()` refused a
+  // command it had already worked out how to run. See `which.ts`.
   const shell = rest.shell === true || typeof rest.shell === 'string';
-  const resolved = shell ? undefined : whichSync(original.command, { runtime, cwd: spawnOptions.cwd });
+  const resolved = shell ? undefined : resolveExecutable(original.command, { runtime, cwd: spawnOptions.cwd });
   if (!shell && resolved === undefined) throw new NotFoundError(original.command);
 
   /*
@@ -236,9 +241,14 @@ export async function run(command: string, args: readonly unknown[] = [], option
 }
 
 /** What a started deadline gives back: whether it fired, and how to stand it down. */
-interface Deadline {
+export interface Deadline {
   fired: () => boolean;
   cancel: () => void;
+}
+
+/** The half of `ChildProcess` the ladder uses. Structural, so the ladder can be driven without one. */
+export interface Killable {
+  kill: (signal?: NodeJS.Signals) => unknown;
 }
 
 /**
@@ -252,8 +262,21 @@ interface Deadline {
  *
  * Both timers are `unref`'d: a pending deadline must not be the reason a program stays
  * alive after its work is done.
+ *
+ * ## Exported, and `Killable` rather than `ChildProcess`, so the rungs can be proven
+ *
+ * An end-to-end cell cannot prove the second rung: it races `node`'s cold start. Until the
+ * child has run its first line the `SIGTERM` handler is not installed, so a deadline that
+ * fires during startup kills it by the *default* action and the run reports `SIGTERM` —
+ * correct behaviour, read as a failure. One cold start in twelve took 265 ms on an idle Mac
+ * against `matrix.test.ts`'s 300 ms deadline, and macOS CI duly went red.
+ *
+ * The ladder itself has no race. Showing that means not timing it: a structural parameter
+ * lets both rungs be driven on fake timers, asserting which signal at which tick with no
+ * process and no clock. `index.ts` does not re-export this — a seam for the suite, not
+ * surface for a caller.
  */
-function startDeadline(child: ChildProcess, timeout: number, grace: number): Deadline {
+export function startDeadline(child: Killable, timeout: number, grace: number): Deadline {
   if (timeout <= 0) return { fired: () => false, cancel: () => undefined };
 
   let fired = false;

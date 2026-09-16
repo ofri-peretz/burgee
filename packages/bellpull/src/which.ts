@@ -287,6 +287,25 @@ export function whichSync(command: string, options: WhichOptions): Resolution | 
 }
 
 /**
+ * Where `command` resolves to for the purpose of **spawning it** — two `PATHEXT` attempts,
+ * not one, as `cross-spawn` does.
+ *
+ * `PATHEXT` answers "what would the shell run if I typed this", which is right for `which`
+ * and wrong for a spawner: an extensionless file with a `#!` line is still runnable here,
+ * because `spawn-args.ts` puts the interpreter in front of it. So the walk is repeated with
+ * expansion disabled.
+ *
+ * **One function, because two callers asking this differently is a bug and was one.**
+ * `spawn-args.ts` made both attempts and `run.ts` only the first, so on Windows a shebang
+ * script resolved for the parse and was then refused by `run()` with `NotFoundError`. Off
+ * Windows `pathExtensions` is always `['']` and the second attempt is the first, so the
+ * divergence was invisible to a 68 / 68 grading.
+ */
+export function resolveExecutable(command: string, options: WhichOptions): Resolution | undefined {
+  return whichSync(command, options) ?? whichSync(command, { ...options, pathExt: '' });
+}
+
+/**
  * Where `command` resolves to, throwing {@link NotFoundError} when it resolves nowhere.
  *
  * `which`'s own shape, for the callers that want it — and the one place in this package

@@ -30,13 +30,17 @@
  * known to be able to fail rather than assumed to be.
  */
 import { execFileSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { delimiter, join } from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { escapeArgument, escapeCommand } from './escape.js';
+import { run } from './run.js';
+import { type Runtime } from './runtime.js';
+
+const WINDOWS = process.platform === 'win32';
 
 /**
  * `cmd.exe`'s tokenizer, which runs first and knows nothing about quotes.
@@ -298,12 +302,27 @@ describe('a double-escaped argument survives two interpreters', () => {
 });
 
 /**
- * POSIX has no escaping problem, because there is no string: `spawn` takes an argv array
- * straight to `execve`. This proves that the pass-through is what makes it safe, by running
- * the same vectors through a real subprocess and reading back what `argv` held — and by
- * showing the same call with `shell: true` executing the injected command.
+ * The argv array is the boundary, and a shell removes it — on **both** platforms.
+ *
+ * `spawn` without a shell takes an argv array straight to `execve` on POSIX, and on Windows
+ * `escapeArgument` plus `windowsVerbatimArguments` rebuilds that array on the far side of
+ * `cmd.exe`. Either way the argument is data. With `shell: true` it is text in a command
+ * line, and this suite runs the injection to show that — because a default is only
+ * load-bearing if the thing it refuses is actually exploitable.
+ *
+ * ## The half that used to be a lie on Windows
+ *
+ * This block was titled *"on POSIX the argv array is the boundary"* and ran unconditionally.
+ * Its injection vector was `x; touch <marker>`, and on Windows there is no `touch` and `;`
+ * is not a command separator, so the injection could not fire and the marker was never
+ * created — `expected false to be true`. The claim was not wrong, it was untested: the shell
+ * being demonstrated was `/bin/sh` and the runner was `cmd.exe`.
+ *
+ * A skip would have been the cheap fix. Windows escaping is the half of this package with no
+ * end-to-end coverage at all, so the vector is written for each platform's own shell instead
+ * and the claim is now graded on both.
  */
-describe('on POSIX the argv array is the boundary, and a shell removes it', () => {
+describe('the argv array is the boundary, and a shell removes it', () => {
   let dir: string;
   let echo: string;
   let marker: string;
@@ -312,27 +331,92 @@ describe('on POSIX the argv array is the boundary, and a shell removes it', () =
     dir = mkdtempSync(join(tmpdir(), 'bellpull-escape-'));
     echo = join(dir, 'echo-argv.mjs');
     marker = join(dir, 'OWNED');
-    writeFileSync(echo, "process.stdout.write(JSON.stringify(process.argv.slice(2)));\n");
+    writeFileSync(echo, 'process.stdout.write(JSON.stringify(process.argv.slice(2)));\n');
     chmodSync(echo, 0o755);
   });
 
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
-  const POSIX_VECTORS = ['foo & calc', 'foo | calc', 'foo; calc', '$(calc)', '`calc`', 'foo\ncalc', "it's", 'a"b', '*'];
+  /**
+   * Vectors that mean something to the platform's own interpreter.
+   *
+   * `;` and `$(…)` are `sh`; `&` and `%…%` are `cmd.exe`. A vector that is inert in the shell
+   * under test proves nothing about it, which is the trap this block just fell into.
+   */
+  const VERBATIM = WINDOWS
+    ? ['foo & calc', 'foo | calc', 'foo > owned.txt', '%PATH%', 'foo^& calc', 'a"b', '*']
+    : ['foo & calc', 'foo | calc', 'foo; calc', '$(calc)', '`calc`', 'foo\ncalc', "it's", 'a"b', '*'];
 
-  it.each(POSIX_VECTORS)('%s arrives verbatim through an argv array', (argument) => {
+  it.each(VERBATIM)('%j arrives verbatim through an argv array', (argument) => {
     const out = execFileSync(process.execPath, [echo, argument], { encoding: 'utf8' });
     expect(JSON.parse(out)).toEqual([argument]);
   });
 
   it('the same argument through a shell executes the injected command — which is why shell is off by default', () => {
-    // `shell: true` is the unfixed state for POSIX. This does not assert that bellpull is
-    // safe; it asserts that the thing bellpull refuses to do by default is exploitable, so
-    // the default is load-bearing rather than a preference.
-    const injected = `x; touch ${marker}`;
+    // `shell: true` is the unfixed state. This does not assert that bellpull is safe; it
+    // asserts that the thing bellpull refuses to do by default is exploitable, so the default
+    // is load-bearing rather than a preference.
+    //
+    // `&` separates commands for `cmd.exe` as `;` does for `sh`, and `type nul >` is how a
+    // batch line creates an empty file where POSIX would reach for `touch`.
+    const injected = WINDOWS ? `x & type nul > "${marker}"` : `x; touch ${marker}`;
     // eslint-disable-next-line node-security/detect-child-process -- the vulnerable call IS the assertion: this line exists to demonstrate that `shell: true` executes an injected command, which is the behaviour bellpull declines by default
-    execFileSync(`${process.execPath} ${echo}`, [injected], { shell: true, encoding: 'utf8' });
+    execFileSync(`"${process.execPath}" "${echo}"`, [injected], { shell: true, encoding: 'utf8' });
     expect(existsSync(marker), 'shell: true executed the injected command — this is the behaviour bellpull declines').toBe(true);
   });
+});
+
+/**
+ * The same claim, end to end, through the path this package exists for: a `.cmd` on Windows.
+ *
+ * Everything above models `cmd.exe` and `CommandLineToArgvW` in TypeScript, which is the best
+ * a Mac can do and is explicitly *not* evidence that the real interpreters agree. This block
+ * is that evidence, and it can only ever run on a Windows runner.
+ *
+ * The fixture is a `node_modules/.bin/*.cmd` shim on purpose. That is the shape npm actually
+ * installs, it forwards with `%*`, and a batch line is re-parsed by `cmd.exe` *after*
+ * parameter substitution — which is precisely why `escapeArgument`'s caret pass runs twice
+ * for this path and once for everything else. `isCmdShim` is the predicate that decides, and
+ * until a Windows runner existed nothing had ever executed either branch of it.
+ *
+ * If this block is red, the finding is real and belongs in `issues.md`: it would mean the
+ * single/double escaping split is wrong for the shape the whole npm ecosystem ships. That is
+ * worth more than a green skip, which is why it is written rather than guarded away.
+ */
+describe.runIf(WINDOWS)('a hostile argument through a real cmd-shim on Windows', () => {
+  let dir: string;
+  let bin: string;
+  let marker: string;
+
+  beforeAll(() => {
+    dir = mkdtempSync(join(tmpdir(), 'bellpull-cmdshim-'));
+    bin = join(dir, 'node_modules', '.bin');
+    marker = join(dir, 'OWNED');
+    mkdirSync(bin, { recursive: true });
+    writeFileSync(join(bin, 'echo-argv.mjs'), 'process.stdout.write(JSON.stringify(process.argv.slice(2)));\n');
+    // What npm writes: a batch file that re-invokes the interpreter and forwards `%*`.
+    writeFileSync(join(bin, 'echo-argv.cmd'), '@echo off\r\nnode "%~dp0echo-argv.mjs" %*\r\n');
+  });
+
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+  const runtime = (): Runtime => ({
+    platform: process.platform,
+    env: { ...process.env, Path: `${bin}${delimiter}${process.env['PATH'] ?? ''}` },
+    cwd: dir,
+  });
+
+  it.each(['foo & calc', '"(foo|bar>baz|foz)"', 'bar\\', '%PATH%', 'a b'])('%j survives two interpreters and comes back as one argument', async (argument) => {
+    const result = await run('echo-argv', [argument], { runtime: runtime(), timeout: 30_000 });
+    expect(result.stderr).toBe('');
+    expect(JSON.parse(result.stdout)).toEqual([argument]);
+  }, 60_000);
+
+  it('an argument that would create a file does not create it', async () => {
+    const injected = `x & type nul > "${marker}"`;
+    const result = await run('echo-argv', [injected], { runtime: runtime(), timeout: 30_000 });
+    expect(JSON.parse(result.stdout)).toEqual([injected]);
+    expect(existsSync(marker), 'the injected command ran — escapeArgument did not hold across the shim').toBe(false);
+  }, 60_000);
 });
 
