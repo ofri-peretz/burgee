@@ -20,7 +20,9 @@
  */
 import { wrap } from 'linegauge/wrap';
 
-import { HIDE_CURSOR, restoreCursorOnExit, SHOW_CURSOR } from './cursor.js';
+import { HIDE_CURSOR, SHOW_CURSOR } from 'closeout/cursor';
+import restoreCursor from 'closeout/restore-cursor';
+
 import { processRuntime } from './runtime.js';
 
 /**
@@ -58,7 +60,7 @@ const eraseLines = (count: number): string => {
  */
 function hideCursor(): void {
   if (rt.stderr.isTTY !== true) return;
-  restoreCursorOnExit();
+  restoreCursor();
   rt.stderr.write(HIDE_CURSOR);
 }
 

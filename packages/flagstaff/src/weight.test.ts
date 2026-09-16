@@ -76,19 +76,39 @@ interface EntryRule {
  * — and they did not buy a behaviour change: the compatibility rows are 58/99/99/84/6, the
  * same five figures as before.
  */
+/**
+ * **2026-09-15, the cursor consolidation.** `src/cursor.ts` (1,363 B) is gone and all three
+ * surfaces that used it — `ora`, `log-update`, `projection` — now reach `closeout`, which owns
+ * `restore-cursor` and `signal-exit` and grades 6/6 against restore-cursor's own suite. Four
+ * measurements fell: `.` −1,666, `./loop` −1,666, `./ora` −1,591, `./log-update` −1,591.
+ *
+ * **Nothing got lighter.** This is the same boundary artifact the 2026-09-09 note warns about,
+ * for the same reason: `walk()` stops at a bare specifier, so code that crosses a package
+ * boundary leaves this measurement while staying in the program. The deletion is 1,363 B of
+ * `cursor.js` plus the `runtime.js` edge the two façades no longer need for it; what replaced
+ * it is larger, not smaller, and lives in closeout. The honest direction of travel is the other
+ * one — flagstaff now drags `closeout` at install, so `installed-bytes` rises. That is Y2's
+ * number to state, not this one's to hide.
+ *
+ * No budget moved. Every one of the four was already inside its ratchet and is further inside
+ * it now, and a ratchet may fall for free. What the bytes bought is one implementation of
+ * "put the cursor back however the process dies" instead of three, and a defect fixed on the
+ * way: `cursor-net.test.ts` grades the restore the old module's process-wide guard discarded.
+ */
 const RULES: Record<string, EntryRule> = {
   // Everything: the loop, the registry, and all five built-ins. `box` and `table` bring the
   // wrapper and the width function with them, which is most of it. A program that wants one component should import its subpath (U5, R10).
-  '.': { allow: ['linegauge', 'linegauge/wrap', 'roundel/policy', 'roundel/tokens'], budget: 33_000, measured: 31_540, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
+  '.': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'linegauge/wrap', 'roundel/policy', 'roundel/tokens'], budget: 33_000, measured: 29_874, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
   // The loop and its four projections; never the registry — a program that hoists its own
   // component pays nothing for the plugin host.
   //
-  // Raised from 5,000 the same day, deliberately: `projection` now reaches `cursor.js`, so a
+  // Raised from 5,000 on 2026-09-08, deliberately: `projection` took on a cursor net, so a
   // Ctrl+C during a frame puts the cursor back instead of leaving the user's terminal without
-  // one. That is ~2.1 KB against a defect neither incumbent has — ora and log-update both
-  // reach cli-cursor → restore-cursor → signal-exit — on the one entry whose whole job is
-  // drawing on a terminal. The alternative was a third copy of a subtle implementation.
-  './loop': { allow: ['roundel/policy'], budget: 7_000, measured: 6_638, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
+  // one — a defect neither incumbent has, on the one entry whose whole job is drawing on a
+  // terminal. Since 2026-09-15 that net is `closeout`'s, reached by a bare specifier, so the
+  // measurement no longer carries it and the budget has more headroom than it needs. Left
+  // where it is: what the entry may weigh did not change because a dependency edge moved.
+  './loop': { allow: ['closeout', 'closeout/cursor', 'roundel/policy'], budget: 7_000, measured: 4_972, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
   // The registry, the validator, the built-ins and the schema they are checked against.
   // The registry, the validator, the built-ins and the schema they are checked against —
   // which now carries `borders` too, so both this and `./spinner` are larger than before.
@@ -97,11 +117,9 @@ const RULES: Record<string, EntryRule> = {
   // The ceiling is ora (R10). The spinner plus the registry it reads its style from;
   // ora 9.4.1's own index.js is 17,891 B before any of its sixteen dependencies.
   './spinner': { allow: ['roundel/tokens'], budget: 17_000, measured: 15_551, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
-  // The ora façade: the port, the width function, the cursor control and the spinner corpus
-  // it re-exports. Measured 46,543 B on 2026-09-08 (ora.js 20,701 · spinners.json 20,250 ·
-  // width.js 4,229 · cursor.js 1,363 — the cursor control moved out to its own module when
-  // `./log-update` came to need the same one; that cost 213 B of module boilerplate and
-  // removed the second copy that would otherwise have to stay correct),
+  // The ora façade: the port, the width function and the spinner corpus it re-exports. The
+  // cursor control is no longer counted here — it is `closeout`'s since 2026-09-15, and a bare
+  // specifier leaves this measurement while staying in the program.
   // and `roundel/chalk` — the only thing it reaches outside the package — is a further
   // 9,311 B (chalk.js 6,053 · policy.js 1,972 · tokens.js 1,286), which roundel's own
   // weight lock records at the same figure. **55,641 B in two packages, against ora 9.4.1's
@@ -119,21 +137,18 @@ const RULES: Record<string, EntryRule> = {
   //
   // It reaches nothing in the core: an ora migration does not drag the frame loop in, and
   // a program that hoists does not pay for the corpus.
-  './ora': { allow: ['linegauge', 'roundel/chalk'], budget: 43_000, measured: 42_627, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
-  // The log-update façade: the port, the ANSI-aware wrapper, the width function and the
-  // cursor control. Measured 29,573 B on 2026-09-08 (wrap.js 17,071 · log-update.js 6,910 ·
-  // width.js 4,229 · cursor.js 1,363), against log-update's own 113,368 B across sixteen
-  // packages (slice-ansi 27,630 · signal-exit 21,983 · wrap-ansi 20,004 · the rest).
-  // `cursor.js` is the 1,363 B that replaces signal-exit's 21,983, and it is shared with
-  // `./ora` rather than ported twice.
+  './ora': { allow: ['closeout/cursor', 'closeout/restore-cursor', 'linegauge', 'roundel/chalk'], budget: 43_000, measured: 41_036, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
+  // The log-update façade: the port, the ANSI-aware wrapper and the width function, against
+  // log-update's own 113,368 B across sixteen packages (slice-ansi 27,630 · signal-exit 21,983
+  // · wrap-ansi 20,004 · the rest). signal-exit's 21,983 B is what `closeout` replaces, shared
+  // with `./ora` rather than ported twice — and, since 2026-09-15, owned one package over
+  // rather than here.
   //
-  // `allow` is empty, and that is the number worth reading: this subpath reaches **no
-  // package at all**, not even roundel. `wrap.ts` carries the SGR close codes itself —
-  // they are ECMA-48, not a library's table — which took `roundel/chalk` off it and off
-  // `./box` and `./table` with it. Sixteen packages become none, at a quarter of the
-  // bytes. It shares `cursor.js` and `width.js` with `./ora` and reaches neither the corpus
-  // nor the core.
-  './log-update': { allow: ['linegauge/wrap'], budget: 9_000, measured: 8_627, denied: ['ora.js', 'spinners.json', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
+  // It reaches no package but `linegauge/wrap` and `closeout`. `wrap.ts` carries the SGR close
+  // codes itself — they are ECMA-48, not a library's table — which took `roundel/chalk` off it
+  // and off `./box` and `./table` with it. It shares the width function with `./ora` and
+  // reaches neither the corpus nor the core.
+  './log-update': { allow: ['closeout/cursor', 'closeout/restore-cursor', 'linegauge/wrap'], budget: 9_000, measured: 7_036, denied: ['ora.js', 'spinners.json', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
   // The boxen façade (R10). boxen 8.0.1 is 8 dependencies; this reaches `width.js`,
   // `wrap.js` and `roundel/chalk` — the first two already shipped for `./ora` and
   // `./log-update`, and `ansi-align`, `widest-line`, `camelcase` and `cli-boxes` are a few

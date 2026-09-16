@@ -19,7 +19,9 @@ import { Buffer } from 'node:buffer';
 import { lineCount } from 'linegauge';
 import chalk from 'roundel/chalk';
 
-import { HIDE_CURSOR, restoreCursorOnExit, SHOW_CURSOR } from './cursor.js';
+import { HIDE_CURSOR, SHOW_CURSOR } from 'closeout/cursor';
+import restoreCursor from 'closeout/restore-cursor';
+
 import { processRuntime } from './runtime.js';
 import spinnerCorpus from './spinners.json' with { type: 'json' };
 
@@ -577,7 +579,7 @@ export class Ora {
 
   #hideCursor(): void {
     if (this.#stream.isTTY !== true) return;
-    restoreCursorOnExit();
+    restoreCursor();
     this.#stream.write(HIDE_CURSOR);
   }
 
