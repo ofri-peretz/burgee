@@ -116,8 +116,20 @@ const RULES: Record<string, EntryRule> = {
   // `--explain` is only worth anything if the thing that picked the value is the thing that
   // reports it. The output stack stays denied by name above: colour and progress are things
   // a parser has no reason to carry, where precedence is the parser's own job.
+  //
+  // `closeout` is the second, admitted on 2026-09-15 on exactly that test, and it passes it
+  // the same way. E5 ("SIGINT restores the terminal and exits 130") and O5 ("stdout is
+  // flushed before any exit path") are both marked `R` in `.sdlc/intents/burgee/design.md`,
+  // `exit-code.ts` has declared `SIGINT: 130` since the contract was written — and **neither
+  // was implemented**. The engine's only exit was `host.exit(code)`, which restores nothing
+  // and truncates a pipe by definition. Writing the listener here would have been the fourth
+  // copy of one in this repository; the exit is the layer's own job the way precedence is the
+  // parser's. `shutdown.ts` is the whole cost: 1,001 B on disk, 51,293 -> 52,683 measured
+  // against this unchanged 53,300 with the engine's 389 B of routing, so nothing was raised
+  // for it. The output stack stays denied below, `caique` included — prompting is a surface
+  // U13 reaches through a guarded dynamic import, not a dependency of the parser.
   ".": {
-    allow: ["seniority/precedence"],
+    allow: ["closeout", "seniority/precedence"],
     budget: 53_300,
     denied: [
       "testing.js",
@@ -141,7 +153,11 @@ const RULES: Record<string, EntryRule> = {
   // carries the theme seam and the fake clock (56,626 measured).
   // 58,300 on 2026-09-13: the harness reaches the schema, so it carries the 395 B above.
   // Measured 58,260.
-  "./testing": { allow: ["seniority/precedence"], budget: 58_300, denied: ["dev.js"] },
+  // `closeout` arrives here through the engine, and the harness reaches it *detached*: a run
+  // that injects its own `exit` gets a registry with no listeners on it, because a harness
+  // that attached nine to the test runner's process would exit the runner on the first raised
+  // signal. Measured 57,005.
+  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 58_300, denied: ["dev.js"] },
   // The brand generator. Pure geometry and string building — it must never reach
   // the engine, and the engine must never reach it: a CLI that ships argv parsing
   // has no reason to carry an SVG emitter.
@@ -154,7 +170,7 @@ const RULES: Record<string, EntryRule> = {
   // than the swallowtail), `markings` (a second colour on it), `sheen` and `bevel` (the
   // light on it, still and swept). Four options, one clip path and two renderers.
   "./cli": {
-    allow: ["roundel/contrast", "seniority/precedence"],
+    allow: ["closeout", "roundel/contrast", "seniority/precedence"],
     budget: 74_000,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },

@@ -19,6 +19,7 @@ import { camel, kebab } from './names.js';
 import { nearestPackage, type Package } from './pkg.js';
 import { host } from './runtime.js';
 import { commandSchemaOf, machineJson, schemaOf, summaryOf } from './schema.js';
+import { detachedTeardown, processTeardown, type Teardown } from './shutdown.js';
 import { checkDefinition, checkRelations, coerce, UsageError } from './validate.js';
 
 export interface CommandContext<O> extends Omit<RunContext, 'options'> {
@@ -179,6 +180,19 @@ class ExitSignal extends Error {
     super(`exit ${code}`);
   }
 }
+
+/**
+ * `ctx.exit(code)`. It throws and does nothing else, which is the half that changed for E5.
+ *
+ * It used to call `io.exit` first and then throw. On a run that owns the process that first
+ * call is `process.exit`, so a handler the command had registered through `ctx.onExit` was
+ * registered and never ran — the program left before its own cleanup. `report` honours an
+ * exit signal silently and leaves through `leave`, so the code is still the caller's and the
+ * drain and the cleanup now happen on this path like every other.
+ */
+const ctxExit = (code: number): never => {
+  throw new ExitSignal(code);
+};
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -426,6 +440,22 @@ const HELP_WIDTH = 100;
 /** The real exit, used only when a caller injects none. */
 const processExit = (code: number): void => host.exit(code);
 
+/**
+ * The one way out (E5, O5): drain, run the run's cleanup, then leave.
+ *
+ * Every `io.exit` in this file goes through here, which is what makes the file's own
+ * sentence — *"exactly one code path from argv to exit"* — true of the exit as well as of
+ * the parse. It is awaited, so an asynchronous handler finishes; `process.exit` would have
+ * abandoned it, and closeout says so in its own words about the `'exit'` path.
+ *
+ * A signal that beat us here already ran the handlers, and closeout's run-once state machine
+ * makes this call a no-op rather than a second shutdown.
+ */
+async function leave(io: Io, code: number): Promise<void> {
+  await io.teardown.run(code);
+  io.exit(code);
+}
+
 /** The part of argv the parser will read as options: everything before `--`. */
 export function beforeTerminator(argv: readonly string[]): readonly string[] {
   const at = argv.indexOf('--');
@@ -550,6 +580,8 @@ interface Io {
   pkg: Package | undefined;
   /** Whether stdout is a terminal — one input to N12, never the whole answer. */
   tty: boolean;
+  /** Where `ctx.onExit` registers, and what `leave` runs before the exit (E5, O5). */
+  teardown: Teardown;
 }
 interface Outcome {
   json: boolean;
@@ -595,12 +627,9 @@ async function dispatch(manifest: Manifest, { node, rest, name }: Resolved, io: 
   requirePositionals(node, positionals);
   warnDeprecated(node, io);
   await manifest.fire('preRun', name, values);
-  const exit = (code: number): never => {
-    io.exit(code);
-    throw new ExitSignal(code);
-  };
   const detection = detectAgent(io.env, io.tty);
-  const data = await node.run({ options: values, positionals, passthrough, env: io.env, exit, actionRequired, ...detection });
+  const onExit = (handler: () => void | Promise<void>, label?: string): (() => void) => io.teardown.add(handler, label);
+  const data = await node.run({ options: values, positionals, passthrough, env: io.env, exit: ctxExit, onExit, actionRequired, ...detection });
   await manifest.fire('postRun', name, values);
   const changed = changedOf(node, data);
   return { json, data, provenance, ...(changed === undefined ? {} : { changed }) };
@@ -629,16 +658,16 @@ function warnDeprecated(node: CommandNode, io: Io): void {
 }
 
 /** Success: help, or the data on the requested surface. */
-function emit(io: Io, outcome: Outcome): void {
+async function emit(io: Io, outcome: Outcome): Promise<void> {
   if (outcome.text !== undefined) {
     io.out.write(outcome.text);
-    return io.exit(ExitCode.OK);
+    return await leave(io, ExitCode.OK);
   }
   // `meta.provenance` says where every option value came from (V3) — the difference between one call and five for an agent.
   const meta = { provenance: outcome.provenance ?? {}, ...(outcome.changed === undefined ? {} : { changed: outcome.changed }) };
   const envelope = { ok: true, data: outcome.data, meta };
   io.out.write(outcome.json ? `${JSON.stringify(envelope)}\n` : `${render(outcome.data)}\n`);
-  return io.exit(ExitCode.OK);
+  return await leave(io, ExitCode.OK);
 }
 
 interface FailureContext {
@@ -652,18 +681,18 @@ interface FailureContext {
 /** Failure: an exit signal is honoured silently; anything else is described on the requested surface. */
 async function report(cause: unknown, { manifest, io, argv, json, name }: FailureContext): Promise<void> {
   const failure = await describeFailure(cause, argv, resolveCommand(manifest, argv) ?? undefined);
-  if (failure.silent === true) return io.exit(failure.code);
+  if (failure.silent === true) return await leave(io, failure.code);
   await manifest.fire('onError', name, {});
   if (failure.action !== undefined) {
     const next = runnableNext(manifest, failure.action, json);
     const rendered: Failure = { ...failure, action: { ...failure.action, next } };
     const body = { ok: false, status: 'action_required', reason: failure.action.reason, message: failure.message, next, hint: failure.hint, error: { code: failure.code, message: failure.message } };
     io.err.write(json ? `${JSON.stringify(body)}\n` : textFailure(rendered));
-    return io.exit(failure.code);
+    return await leave(io, failure.code);
   }
   const body = { code: failure.code, message: failure.message, hint: failure.hint };
   io.err.write(json ? `${JSON.stringify({ ok: false, error: body })}\n` : textFailure(failure));
-  return io.exit(failure.code);
+  return await leave(io, failure.code);
 }
 
 /**
@@ -683,6 +712,10 @@ function ioOf(opts: RunOptions): Io {
     cwd: opts.cwd ?? host.cwd(),
     pkg: nearestPackage(dirname(opts.entry ?? host.argv[1] ?? host.cwd())),
     tty: out.isTTY === true,
+    // An injected `exit` is the whole definition of "this run does not own the process":
+    // the harness, the MCP loop and every façade test pass one, and none of them may have
+    // nine listeners attached to the runner's own process on their behalf.
+    teardown: opts.exit === undefined ? processTeardown([host.stdout, host.stderr]) : detachedTeardown(),
   };
 }
 
@@ -698,17 +731,17 @@ export async function execute(manifest: Manifest, opts: RunOptions & { root?: st
   let json = beforeTerminator(argv).includes('--json');
   let name = '';
   try {
-    if (await surface(manifest, argv, io)) return io.exit(ExitCode.OK);
+    if (await surface(manifest, argv, io)) return await leave(io, ExitCode.OK);
     const { node, rest } = manifest.resolve(argv, root);
     if (node?.run === undefined) {
       const { text, code } = unresolved({ manifest, root, io }, argv, node);
       (code === ExitCode.OK ? io.out : io.err).write(text);
-      return io.exit(code);
+      return await leave(io, code);
     }
     name = node.path.slice(root.length).join(' ');
     const outcome = await dispatch(manifest, { node: node as Runnable, rest, name }, io);
     json = outcome.json;
-    return emit(io, outcome);
+    return await emit(io, outcome);
   } catch (cause) {
     return await report(cause, { manifest, io, argv, json, name });
   }

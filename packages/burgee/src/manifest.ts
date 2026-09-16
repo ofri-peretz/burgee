@@ -115,6 +115,20 @@ export interface RunContext {
   agent?: string;
   /** Stop and tell the caller what to do instead of blocking on a prompt (N11). */
   actionRequired: (spec: ActionRequiredSpec) => never;
+  /**
+   * Cleanup that runs on **every** path out of the run (E5): a normal return, `ctx.exit`,
+   * Ctrl-C, SIGTERM, a terminal closing, an uncaught throw. Returns the function that
+   * unregisters it, for a command that cleaned up on its own.
+   *
+   * The handler runs after stdout has been drained (O5) and before the terminal is handed
+   * back, and it runs exactly once however many of those arrive together. `label` is what a
+   * breached shutdown deadline calls it; without one an arrow is reported as `(anonymous)`,
+   * and the anonymous arrow is the shape that hangs.
+   *
+   * Typed here rather than re-exported from `closeout`, so a command's signature does not
+   * change when that package's does.
+   */
+  onExit: (handler: () => void | Promise<void>, label?: string) => () => void;
 }
 
 export interface CommandNode {
