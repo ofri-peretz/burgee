@@ -29,7 +29,7 @@
  * view and the tool's own output. When they disagree, one of them is broken, and this says so.
  */
 import { spawnSync } from 'node:child_process';
-import { readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -75,4 +75,47 @@ describe('the roadmap checker agrees with the tools it asks', () => {
     expect(out, 'the report should not be an error dump').not.toMatch(/ENOENT|command not found|is not a function/);
     expect(out).toMatch(/^\d+\/\d+ landed\./m);
   }, 300_000);
+});
+
+/**
+ * A path a condition names must be a path that could exist.
+ *
+ * `2.5.4` was keyed on `has('packages/caique/src/prompt.test.ts', 'openpty')` — **a file that
+ * has never existed**; caique's raw-mode test is `raw.test.ts`. So the step could not go green
+ * however much of it was built, and when a lane finally built a real pty test it had nowhere to
+ * land. That is the seventh condition in this file found false for a reason unrelated to its
+ * step, and the first one a mechanical check could have caught on the day it was written.
+ *
+ * Three named paths are legitimately absent and say why below. Everything else must exist, so a
+ * renamed file breaks the build rather than quietly turning a step red — which is how `0.1`
+ * broke, and how it stayed broken.
+ */
+describe('every path a step names could exist', () => {
+  /** Absent on purpose. A path leaves this list by existing, never by being explained again. */
+  const DELIBERATELY_ABSENT: Record<string, string> = {
+    'scripts/plugin-contract-lock.test.ts': "1.7's condition IS its absence — the step is done when the lock exists, so a missing file is the honest red.",
+    'packages/compat-oracle/baseline.json': 'SHARD asserts this is *gone*: the shared file was replaced by a directory of per-host fragments so lanes cannot collide.',
+    'packages/burgee/src/fig-schema.test.ts': "2.5.3's condition; the file exists on `lane/burgee-spawns-through-bellpull` and lands with it.",
+  };
+
+  it('names no path that has never existed', () => {
+    // Comments out first. Without this the test reads the path out of the paragraph that
+    // *explains* a broken condition and reports it as broken again — which it did on its first
+    // run, over the comment two files away describing this very bug. Three checkers in this
+    // repository have now been caught reading printed source rather than code.
+    const source = readFileSync(resolve(ROOT, 'scripts/plan-progress.ts'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '');
+    const steps = source.slice(source.indexOf('const STEPS'));
+    const named = [...new Set([...steps.matchAll(/'((?:packages|scripts|\.sdlc|\.github|apps|benchmarks)\/[^']+)'/g)].map((m) => m[1] as string))];
+    expect(named.length, 'the STEPS array moved or changed shape — this test is reading nothing').toBeGreaterThan(15);
+
+    const missing = named.filter((path) => !existsSync(resolve(ROOT, path)) && DELIBERATELY_ABSENT[path] === undefined);
+    expect(missing, 'a condition keyed on a path that is not there can never go green — fix the path, or declare why it is absent').toEqual([]);
+  });
+
+  it('keeps that list honest — a path that now exists must leave it', () => {
+    const live = Object.keys(DELIBERATELY_ABSENT).filter((path) => existsSync(resolve(ROOT, path)));
+    expect(live, 'these exist now; delete them from DELIBERATELY_ABSENT').toEqual([]);
+  });
 });
