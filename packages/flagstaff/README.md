@@ -13,7 +13,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/flagstaff"><img src="https://img.shields.io/npm/v/flagstaff?style=flat-square&color=0a6b47" alt="npm version" /></a>
-  <img src="https://img.shields.io/badge/dependencies-roundel-0a6b47?style=flat-square" alt="One dependency: roundel" />
+  <img src="https://img.shields.io/badge/dependencies-4%20in--family-0a6b47?style=flat-square" alt="Four dependencies, all in this repository: closeout, linegauge, paratext, roundel" />
   <img src="https://img.shields.io/badge/Node.js-24+-green.svg?style=flat-square" alt="Node.js 24+" />
   <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT" />
 </p>
