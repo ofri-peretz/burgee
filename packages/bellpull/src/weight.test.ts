@@ -25,12 +25,15 @@
  *     compounds, since a dependency is a tree and a supply chain. `cross-spawn` has three
  *     (`path-key`, `shebang-command`, `which`, and `which` brings `isexe`); `execa` has
  *     twelve direct and sixteen packages.
- *   - **the package replaces `cross-spawn` (46,962 B installed) + `which` (20,931 B) at
- *     82,270 B of its own**, against a `ceiling` in
- *     `.sdlc/bands/foundation-ceilings.json` of 714,984 B — a ratio of **0.1151**, up from
- *     0.0067 when this package was seven lines and did nothing. That rise is the honest
+ *   - **the package replaces `cross-spawn` (46,962 B installed) + `which` (20,931 B)** at a
+ *     fraction of its own bytes, against a `ceiling` in
+ *     `.sdlc/bands/foundation-ceilings.json` of 714,984 B — a ratio of roughly **0.12**, up
+ *     from 0.0067 when this package was seven lines and did nothing. That rise is the honest
  *     direction and is recorded rather than smoothed: a ratio that only ever improves is a
- *     ratio nobody is watching.
+ *     ratio nobody is watching. **The exact figure is `layers.bellpull` in that band file and
+ *     nowhere else** — the cell below recomputes it from `npm pack` rather than comparing
+ *     against a copy. This bullet used to transcribe one (82,270 / 0.1151) and it was wrong
+ *     the next day, which is the argument against transcribing it at all.
  *   - **against `tinyexec` alone: not measured here, and not claimed.** `tinyexec` is not
  *     installed in this workspace, so a number would be a number nothing measured.
  *
