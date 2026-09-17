@@ -28,13 +28,13 @@ never for gating; the machine-independent figure is the ratio on
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
 | Downloads / week | new | 508.2M | 259.3M | 10.9M | 49.4M | 30.5M |
 | Runtime dependencies | **0** | 0 | 6 | **18** | 0 | 0 |
-| Installed size ⚙️ | 991 KB | 203 KB | 515 KB | 912 KB 📖 | 40 KB | 52 KB 📖 |
+| Installed size ⚙️ | 1076 KB | 203 KB | 515 KB | 912 KB 📖 | 40 KB | 52 KB 📖 |
 | Full CLI run over bare node ⚙️ | **+14.0 ms** | +15.3 ms | +78.5 ms | +131 ms 📖 | +4.0 ms | +6 ms 📖 |
 
 Three things in that table got worse when they were measured rather than asserted, and
 they stay in it.
 
-**Installed size.** burgee installs at **991 KB**. It is our largest number, it is our least
+**Installed size.** burgee installs at **1076 KB**. It is our largest number, it is our least
 flattering one, and it has now been wrong on this page twice in opposite directions.
 
 First it said 104 KB, a guess at the tarball rather than a measurement. That was corrected
@@ -49,7 +49,15 @@ stating, since it is the same class of mistake: the walk starts at a workspace l
 locally it counts a developer's dev dependencies too and reads **1311 KB** for the same
 commit. 991 KB is what `npm i burgee` gives you.
 
-It buys zero runtime dependencies and six drop-in front ends. It is still 991 KB, and the
+**85 KB of it arrived on 2026-09-17 and is worth naming.** `burgee/commander` now spawns
+sub-binaries through `bellpull` instead of `node:child_process`, so burgee installs bellpull's
+whole package — 86,113 bytes. What it buys is a Windows subcommand that actually works: upstream
+commander sends every Windows spawn through `node`, which is a workaround for `spawn` not
+searching `PATHEXT`, and it is simply wrong for a subcommand that is a `.cmd`, a `.bat`, or has
+a shebang that is not node. The check on this row is what surfaced the cost, which is the
+argument for the check.
+
+It buys no dependency outside this repository and six drop-in front ends. It is still 1076 KB, and the
 bundled column on [Benchmarks](/docs/benchmarks) — what an application actually grows by —
 is the number to judge us on. That one is over its own ceiling too, and says so.
 
