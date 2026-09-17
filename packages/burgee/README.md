@@ -127,4 +127,4 @@ Graded by the incumbent's own test suite:
 
 Plugins register under the `commands` and `hooks` keys, against the one schema the whole family shares.
 
-Nothing in this family builds on it yet, and it builds on `closeout`, `linegauge`, `roundel`, `seniority`.
+Nothing in this family builds on it yet, and it builds on `bellpull`, `closeout`, `linegauge`, `roundel`, `seniority`.

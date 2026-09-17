@@ -115,12 +115,12 @@ Graded by the incumbent's own test suite:
 | :-- | --: |
 | `cross-spawn` | 68 / 68 |
 
-Weight, installed and tree-inclusive: **86,131 bytes** against **714,984** for the incumbents it replaces — a ratio of **0.1205**.
+Weight, installed and tree-inclusive: **86,113 bytes** against **714,984** for the incumbents it replaces — a ratio of **0.1204**.
 ## Where it sits
 
 Plugins register under the `resolvers` key, against the one schema the whole family shares.
 
-Nothing in this family builds on it yet, and it builds on nothing in this family.
+`burgee` builds on it, and it builds on nothing in this family.
 ## Licence
 
 MIT
