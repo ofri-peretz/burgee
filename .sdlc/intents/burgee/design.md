@@ -448,6 +448,7 @@ names read from the source file each subpath's `dist/` path is built from. Re-de
 | `burgee/yargs/parser` | default `yargsParser`, `YargsParser`, `Parser`, `camelCase`, `decamelize`, `looksLikeNumber`, `tokenizeArgString` | the `yargs-parser` drop-in specifier |
 | `burgee/completions` | `completionTree`, `renderCompletion`, `renderFigSpec`, `SHELLS`; `Shell` | static shell completions and a Fig spec, generated from a manifest |
 | `burgee/testing` | `runBurgee`, `fakeRuntime`, `fakeClock`, `captureConsole`, `swapEnv`, `stripAnsi`, `codeOf`, `finish`, `RuntimeExit`, `processRuntime`, `ExitCode`, `isExitCode` | the in-process harness of T1 |
+| `burgee/plugin` | `CONTRACT`, `definePlugin`, `validate`, `PluginError`; `Plugin`, `PluginErrorCode` | the plugin host, at the subpath the other seven hosts publish theirs at (added 2026-09-17). The four names the root barrel also carries are one module behind two doors, the way `applyExtends` is published at both `burgee/yargs` and `burgee/yargs/helpers`; `validate` and the `Plugin` interface are the half only this subpath carries, because they are the *host's* vocabulary rather than a program author's |
 | `burgee/brand` | `defineBurgee`, `burgeeBody`, `burgeeFlagPath`, `chargeGroup`, `placeCharge`, `chargeTransform`, `chargeRotation`, `opposedField`, `fieldId`, `BURGEE_FLAG`, `BURGEE_ANGLE`, `CHARGE`, `FIELD_AXIS`, `DEFAULT_GROUND` | the burgee mark as SVG geometry — brand tooling, not CLI machinery |
 | `burgee/contrast` | `ratio`, `mix`, `check`, `report`, `fieldColorAt`, `auditBurgee`, `AA`, `contrast`, `luminance` | the WCAG maths the brand audit runs on |
 | `burgee/cli` | `program`, `brandCommand`, `devCommand` — **and `run(program)` at module load** | the `burgee` bin. Importing it executes the CLI; it is an executable, not a library entry |
@@ -475,9 +476,19 @@ interface Plugin {
 ```
 
 No `contract`. No key any other layer reads, and no tolerance clause about keys it does not
-read. There is no `packages/burgee/src/plugin.ts`, so burgee is not a host as far as
-`scripts/plugin-error-vocabulary-lock.test.ts` is concerned — that lock derives its host list
-from the presence of that file — and `PluginError` appears nowhere in the package.
+read. There was no `packages/burgee/src/plugin.ts`, so burgee was not a host as far as
+`scripts/plugin-error-vocabulary-lock.test.ts` was concerned — that lock derives its host list
+from the presence of that file — and `PluginError` appeared nowhere in the package.
+
+**Both halves of that paragraph are out of date, and the dates matter.** `src/plugin.ts`
+exists since 2026-09-16: it carries `CONTRACT`, `Plugin`, `PluginError`, `PluginErrorCode`,
+`validate` and a `definePlugin` that stamps and checks rather than returning its argument, and
+`Manifest.use()` now runs a plugin's commands through the same `checkCommand` `defineCommand`
+runs. What survived a day longer was the packaging: burgee hosted plugins and published no
+`./plugin`, the only host in the family that did not, which is why
+`scripts/plugin-contract-lock.test.ts` reached this package by relative path and recorded it
+in `NO_PLUGIN_SUBPATH`. Published 2026-09-17, and the refusal's `fix` names the specifier —
+it said "rebuild it with `definePlugin`" and never said where `definePlugin` was.
 
 So: **a burgee plugin contributes commands and lifecycle hooks; a family plugin contributes
 data to a layer. They are two extension points that share a noun.** Whether that is the

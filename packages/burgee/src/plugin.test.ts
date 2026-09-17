@@ -15,6 +15,9 @@
  * and they passed before and after. They are here so that if a later change removes a guard,
  * the failure above is explained by the test below it rather than by a commit message.
  */
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
 
 import { runCommand } from './execute.js';
@@ -203,5 +206,47 @@ describe('what the guards prevent (characterisation: true before the fix and aft
     manifest.add({ path: ['audit'], description: 'second', options: {} });
     expect(manifest.find(['audit'])?.description).toBe('first');
     expect(manifest.resolve(['audit']).node?.description).toBe('second');
+  });
+});
+
+/**
+ * R8 and `plugin-contract` 1.7 — the host is reachable by the specifier that names it.
+ *
+ * `scripts/plugin-contract-lock.test.ts` recorded burgee in `NO_PLUGIN_SUBPATH`: the one
+ * package in the family that hosts plugins and published no `./plugin`, so the lock had to
+ * import `../packages/burgee/src/plugin.js` by path to read the host the rest of the family
+ * registers against. It is the shape `plugin-schema-lock.test.ts` caught in flagstaff — a
+ * refusal whose `fix` names something the author cannot reach — and burgee's version was
+ * quieter, because the `fix` named no specifier at all: it said *rebuild it against this
+ * burgee, `definePlugin` stamps the contract*, and left the author to work out where
+ * `definePlugin` lives. The answer the rest of the family teaches is `<host>/plugin`, and
+ * `burgee/plugin` threw `ERR_PACKAGE_PATH_NOT_EXPORTED`.
+ *
+ * Both halves are asserted, because a packaging-only fix leaves the second one wrong: the
+ * subpath resolves, **and** the sentence that sends an author looking for it says its name.
+ */
+describe('the plugin host is reachable by the specifier the family names', () => {
+  const pkg = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8')) as {
+    exports: Record<string, { import?: string; types?: string } | string>;
+  };
+
+  it('publishes "./plugin", the subpath every other host publishes', () => {
+    expect(Object.keys(pkg.exports), 'burgee declares the plugin shape the family registers against and was the only host that could not be imported as one').toContain('./plugin');
+  });
+
+  it('points it at the host module itself', () => {
+    expect(pkg.exports['./plugin']).toMatchObject({ types: './dist/plugin.d.ts', import: './dist/plugin.js' });
+  });
+
+  it('names that specifier in the refusal an author who never read the README will meet', () => {
+    const manifest = new Manifest();
+    let thrown: { code?: string; fix?: string } = {};
+    try {
+      manifest.use({ name: 'acme' } as unknown as Plugin);
+    } catch (error) {
+      thrown = error as { code?: string; fix?: string };
+    }
+    expect(thrown.code).toBe('E_PLUGIN_CONTRACT');
+    expect(thrown.fix, 'the fix names `definePlugin` and has never said where `definePlugin` is').toContain('burgee/plugin');
   });
 });

@@ -37,6 +37,30 @@
  * version, because a silent behaviour change on a published extension point is worse than a
  * loud breaking one. `definePlugin` stamps the number it was compiled against, so an author
  * who rebuilds never types it and an author who does not is told exactly what happened.
+ *
+ * ## Where this file is published, and why it is published twice
+ *
+ * At `burgee/plugin`, since 2026-09-17, which is where `bellpull`, `caique`, `closeout`,
+ * `flagstaff`, `paratext`, `roundel` and `seniority` all publish theirs. burgee was the
+ * exception, and the exception was the package that declares the shape the other seven
+ * register against: `scripts/plugin-contract-lock.test.ts` had to import this file by
+ * relative path to read it, and recorded that in `NO_PLUGIN_SUBPATH`. The refusal above
+ * carried the same gap in a quieter form — its `fix` named `definePlugin` and no specifier,
+ * so an author following the family's one convention got `ERR_PACKAGE_PATH_NOT_EXPORTED`.
+ * It names `burgee/plugin` now, and that is the half a packaging-only fix would have left.
+ *
+ * **The root barrel keeps `CONTRACT`, `definePlugin`, `PluginError` and `PluginErrorCode`,
+ * and that is a decision rather than an oversight.** Two specifiers for one name is a defect
+ * when they are two implementations; here there is one module and two doors, which this
+ * package already does deliberately elsewhere — `applyExtends`, `hideBin` and `Parser` are
+ * published at `burgee/yargs` *and* `burgee/yargs/helpers`, because a yargs user types the
+ * second and the surface is one port either way. The same reasoning applies twice over here:
+ * `Manifest.use(plugin: Plugin)` is a root export, so a program author who registers a
+ * plugin — or writes a small one in the same file as their program, which is what
+ * `examples/demo-cli-large` does — should not have to reach a second specifier to satisfy a
+ * root signature. What `burgee/plugin` adds is the half the barrel never carried and should
+ * not: `validate()` and the `Plugin` interface as the *host's* vocabulary, which is what a
+ * plugin author in another package imports and what a family lock reads.
  */
 import { checkCommand } from './definition.js';
 import { type CommandNode, type Hook, type OptionSpec } from './manifest.js';
@@ -126,7 +150,7 @@ function checkContract(contract: unknown, name: string): void {
     throw new PluginError(
       'E_PLUGIN_CONTRACT',
       `plugin "${name}" declares no contract; burgee ${UNVALIDATED} and earlier validated none of it`,
-      `rebuild it against this burgee — \`definePlugin\` stamps \`contract: ${CONTRACT}\` — or add that key by hand`,
+      `rebuild it against this burgee — \`definePlugin\` from \`burgee/plugin\` stamps \`contract: ${CONTRACT}\` — or add that key by hand`,
     );
   }
   if (!Number.isInteger(contract) || (contract as number) < 1 || (contract as number) > CONTRACT) {

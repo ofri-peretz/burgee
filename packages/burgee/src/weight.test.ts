@@ -230,7 +230,35 @@ const RULES: Record<string, EntryRule> = {
   // 63,000 on 2026-09-16 with `.` above: the harness runs a whole program in-process, so it
   // carries `dependsOn`/`exclusive` for the same reason it carries the schema. +1,621
   // (61,371 -> 62,992 measured). Next hundred above the measurement.
-  "./testing": { allow: ["closeout", "linegauge", "seniority/precedence"], budget: 63_000, denied: ["dev.js"] },
+  // 63,100 on 2026-09-17, and this is the smallest raise in the file: **23 bytes**, the
+  // width of `` from `burgee/plugin` `` added to one refusal's `fix`. That sentence is what
+  // an author who never read the README is handed when their plugin declares no contract,
+  // and it named `definePlugin` without saying where `definePlugin` lives — the shape
+  // `plugin-schema-lock.test.ts` caught in flagstaff. 62,992 had 8 bytes spare, so the
+  // ratchet caught a 23-byte string, which is exactly the size of change it exists to make
+  // somebody decide about. Measured 63,015.
+  "./testing": { allow: ["closeout", "linegauge", "seniority/precedence"], budget: 63_100, denied: ["dev.js"] },
+  // The plugin host, at the subpath the rest of the family publishes it at. Added
+  // 2026-09-17: burgee was the one package that hosted plugins and published no
+  // `./plugin`, so `scripts/plugin-contract-lock.test.ts` had to reach it by relative
+  // path and recorded the gap in `NO_PLUGIN_SUBPATH`.
+  //
+  // It costs a program **nothing**, which is the only reason this entry can be added
+  // without raising anything above. `manifest.js` imports `validate` from `plugin.js`
+  // as a value — `use()` is synchronous — so every entry that reaches the manifest
+  // already carried these bytes. The subpath only gives them a door of their own:
+  // 6,301 measured, `plugin.js` (4,116) + `definition.js` (2,105) + `names.js`, and
+  // `allow: []` because the host imports nothing outside the package.
+  //
+  // Denied the engine in both spellings. A plugin author needs the shape and the
+  // refusals; if this entry ever reached `execute.js` it would mean the host had
+  // started depending on the runner, and `burgee/plugin` would quietly cost a
+  // consumer the whole framework.
+  "./plugin": {
+    allow: [],
+    budget: 6_400,
+    denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js"],
+  },
   // The brand generator. Pure geometry and string building — it must never reach
   // the engine, and the engine must never reach it: a CLI that ships argv parsing
   // has no reason to carry an SVG emitter.

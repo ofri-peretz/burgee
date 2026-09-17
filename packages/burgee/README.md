@@ -92,6 +92,25 @@ host's own suite passes 100%; below that the rate is published instead of claime
 | `burgee/commander` | The commander API, graded by commander's suite. |
 | `burgee/testing` | Run a command in-process and assert on its result — no spawning. |
 | `burgee/brand` | One brand declaration → flag, favicon, OG card, cover, lockup. The logo above is its own output. |
+| `burgee/plugin` | `definePlugin()`, `validate()`, `CONTRACT` and `PluginError` — the host, at the subpath every package in the family publishes its host at. |
+
+## Writing a plugin
+
+```ts
+import { definePlugin } from 'burgee/plugin';
+
+export default definePlugin({
+  name: 'acme',
+  commands: [{ path: ['audit'], description: 'Audit the tree', options: {}, effects: 'read_only', run: () => ({ findings: 0 }) }],
+});
+```
+
+A plugin's command is read by exactly the code a first-party one is read by, so the same
+refusals apply: reserved option names, duplicate flags, a contributed path that is already
+declared — and `effects`, which every runnable command declares. `definePlugin` stamps the
+`contract` this burgee was compiled against; an object that reaches `use()` without one is
+refused rather than accepted on trust, because burgee's extension point shipped before it
+validated anything.
 
 ## Status
 
