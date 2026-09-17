@@ -210,7 +210,7 @@ const RULES: Record<string, EntryRule> = {
   // declining is `effects: 'withheld'` — a thing said rather than a thing forgotten.
   ".": {
     allow: ["closeout", "linegauge", "seniority/precedence"],
-    budget: 60_600,
+    budget: 60_700,
     denied: [
       "testing.js",
       "testing-helpers.js",
@@ -257,7 +257,7 @@ const RULES: Record<string, EntryRule> = {
   // carries N6's refusal for the same reason it carries the schema. **+938** (63,015 ->
   // 63,953), the same four files and the same numbers as `.`, minus nothing — the harness
   // takes `index.js` too, and `index.js` did not change.
-  "./testing": { allow: ["closeout", "linegauge", "seniority/precedence"], budget: 64_800, denied: ["dev.js"] },
+  "./testing": { allow: ["closeout", "linegauge", "seniority/precedence"], budget: 64_900, denied: ["dev.js"] },
   // The plugin host, at the subpath the rest of the family publishes it at. Added
   // 2026-09-17: burgee was the one package that hosted plugins and published no
   // `./plugin`, so `scripts/plugin-contract-lock.test.ts` had to reach it by relative
@@ -311,7 +311,7 @@ const RULES: Record<string, EntryRule> = {
   // Neither declaration existed before this commit, and neither command was a tool.
   "./cli": {
     allow: ["closeout", "linegauge", "roundel/contrast", "seniority/precedence"],
-    budget: 79_900,
+    budget: 80_100,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   // Arithmetic over hex strings, and the arithmetic itself is roundel's — colour is the
@@ -415,6 +415,10 @@ const RULES: Record<string, EntryRule> = {
   // flag people type first. The document is `commandSchemaOf` scoped to one node, so the cost
   // is one helper and no second document shape. `./commander` and `./yargs` do not move: the
   // façades answer `--help` themselves.
+  //
+  // **E3, same day: +140 B on the same three.** `fix` beside `hint` in the failure envelope —
+  // the exact flag a caller runs, against the prose a person reads. An agent can execute one
+  // and has to interpret the other, and every *plugin* error in the family already carried it.
   "./commander": {
     allow: ["bellpull/cross-spawn"],
     budget: 129_000,

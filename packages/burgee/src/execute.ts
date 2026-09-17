@@ -382,6 +382,8 @@ interface Failure {
   code: ExitCodeType;
   message: string;
   hint?: string;
+  /** E3 — the exact command or flag to run next, where one exists. Never a guess. */
+  fix?: string;
   /** An exit signal: honour the code, print nothing. */
   silent?: boolean;
   /** N11: the caller must act; carried into the envelope with the runnable `next[]`. */
@@ -413,11 +415,12 @@ async function describeFailure(cause: unknown, argv: string[], node?: CommandNod
 
 function textFailure(failure: Failure): string {
   const hint = failure.hint === undefined ? '' : `hint: ${failure.hint}\n`;
+  const fix = failure.fix === undefined ? '' : `fix: ${failure.fix}\n`;
   if (failure.action !== undefined) {
     const next = (failure.action.next ?? []).map((n) => `  ${n.command}    ${n.when}\n`).join('');
     return `action required (${failure.action.reason}): ${failure.message}\n${next === '' ? '' : `next:\n${next}`}${hint}`;
   }
-  return `error: ${failure.message}\n${hint}`;
+  return `error: ${failure.message}\n${hint}${fix}`;
 }
 
 /** The `next[]` commands as the caller can run them: the program in front, the caller's own `--json` carried (N11). */
@@ -733,7 +736,8 @@ async function report(cause: unknown, { manifest, io, argv, json, name }: Failur
     io.err.write(json ? `${JSON.stringify(body)}\n` : textFailure(rendered));
     return await leave(io, failure.code);
   }
-  const body = { code: failure.code, message: failure.message, hint: failure.hint };
+  // E3 — `fix` beside `hint`: the exact flag or command, omitted rather than guessed.
+  const body = { code: failure.code, message: failure.message, hint: failure.hint, ...(failure.fix === undefined ? {} : { fix: failure.fix }) };
   io.err.write(json ? `${JSON.stringify({ ok: false, error: body })}\n` : textFailure(failure));
   return await leave(io, failure.code);
 }
