@@ -1,0 +1,41 @@
+{
+  "repo": "https://github.com/sindresorhus/terminal-link",
+  "version": "5.0.0",
+  "tag": "v5.0.0",
+  "commit": "975358c3b5bb99d0f9ac07ff51f692883358f6ab",
+  "vendored": "2026-09-16",
+  "files": 1,
+  "internalFiles": [],
+  "internals": [],
+  "hashes": {
+    "./index.d.ts": "707a0eef074f534a8e71f84795346397a379722c79d75c3b9ac2b747f33a0566",
+    "./index.js": "f2893ed6409d2bab59e05518786bac78aff488b41bbec78e50e686826c551196",
+    "./index.test-d.ts": "550a128c38c216f7d1eb4ea6d8cc536a3b4f81353d17e51d078d8cdb254bba42",
+    "./test.js": "c7d801bfc087abe51dce07228a23c9e06af86f336cbdae28aacaa2554bc21bda",
+    "index.d.ts": "707a0eef074f534a8e71f84795346397a379722c79d75c3b9ac2b747f33a0566",
+    "index.js": "f2893ed6409d2bab59e05518786bac78aff488b41bbec78e50e686826c551196"
+  },
+  "tests": {
+    "./index.d.ts": [],
+    "./index.js": [],
+    "./index.test-d.ts": [],
+    "./test.js": [
+      "main",
+      "stderr",
+      "default fallback",
+      "disabled fallback",
+      "explicitly enabled fallback",
+      "stderr default fallback",
+      "custom fallback",
+      "custom fallback stderr",
+      "isSupported",
+      "isSupported stderr"
+    ]
+  },
+  "surface": {
+    "index.d.ts": [
+      "Options"
+    ],
+    "index.js": []
+  }
+}

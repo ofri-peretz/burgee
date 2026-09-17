@@ -9,7 +9,7 @@
 import { ExitCode } from '../exit-code.js';
 import { type Effects, Manifest, type Plugin } from '../manifest.js';
 import { serveMcp } from '../mcp.js';
-import { schemaOf } from '../schema.js';
+import { machineJson, schemaOf } from '../schema.js';
 import { tokenizeArgString } from '../yargs-parser.js';
 
 import { projectManifest, render, type Snapshot } from './burgee.js';
@@ -1428,7 +1428,12 @@ export class YargsInstance {
       });
     }
     if (head.includes('--schema') && !this.#declares('schema')) {
-      this.#logger.log(JSON.stringify(schemaOf(this.manifest), null, 2));
+      // R1, through the same seam the engine and the commander façade use. Hand-rolling
+      // `JSON.stringify(…, null, 2)` here made this façade the one front-end that could not
+      // see `--format=json-pretty`, and emitted a different document from the other two for
+      // the same CLI. `--schema` is burgee's surface, not yargs', so it answers to burgee's
+      // byte discipline.
+      this.#logger.log(machineJson(schemaOf(this.manifest), head));
       this.exit(0);
       return true;
     }
