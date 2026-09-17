@@ -5,5 +5,8 @@
   "main": "./shim.js",
   "version": "7.1.0",
   "license": "MIT",
-  "repository": "sindresorhus/term-img"
+  "repository": "sindresorhus/term-img",
+  "devDependencies": {
+    "term-img": "7.1.0"
+  }
 }

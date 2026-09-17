@@ -349,7 +349,20 @@ const STEPS: Step[] = [
   // — the word appears inside a property. The migration is the nested shape, so read it.
   { id: 'D2', what: 'paratext validates the nested capabilities shape', done: () => 'capabilities' in json<{ properties: Record<string, unknown> }>('packages/paratext/src/schema.json').properties },
   { id: 'D5', what: 'both closed unions widened', done: () => has('packages/caique/src/spec.ts', '(string & {})') && has('packages/seniority/src/precedence.ts', '(string & {})') },
-  { id: 'D8', what: 'paratext shipped its break alone, at 0.3.0', done: () => pkgJson('paratext').version.startsWith('0.3') || pkgJson('paratext').version >= '0.3.0' },
+  /**
+   * D8 is superseded by D2 — see `.sdlc/PLAN.md`, which records why at length.
+   *
+   * "Alone" is not reachable: D2 made the plugin schema byte-identical across every host,
+   * so a change to the capability shape *is* a change to eight other packages' published
+   * bytes, and the changeset carrying the break declares `'paratext': minor, 'flagstaff':
+   * patch, 'roundel': patch` for exactly that reason. A release touching only paratext
+   * would leave two published packages carrying a `schema.json` that no longer matches it.
+   *
+   * What is left of D8 that can be checked is the half that survives: **paratext reaches
+   * 0.3.0**. The condition is unchanged; only its name stops promising a shape the
+   * architecture forbids. It still needs a release, so it stays red until one happens.
+   */
+  { id: 'D8', what: 'paratext at 0.3.0 (D8 "alone" superseded by D2)', done: () => pkgJson('paratext').version.startsWith('0.3') || pkgJson('paratext').version >= '0.3.0' },
   { id: 'LANES', what: 'the lane contract exists and is enforced', done: () => existsSync(join(ROOT, '.sdlc/LANES.md')) && existsSync(join(ROOT, 'scripts/lane-boundaries-lock.test.ts')) },
   // Byte budgets needed no sharding: they already live in each package's own `weight.test.ts`.
   // `release-budgets.json` holds one cross-package ratio and is integrator-owned by design.

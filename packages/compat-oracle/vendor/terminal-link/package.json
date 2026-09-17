@@ -1,0 +1,16 @@
+{
+  "name": "@vendored/terminal-link-suite",
+  "private": true,
+  "type": "module",
+  "main": "./shim.js",
+  "version": "5.0.0",
+  "license": "MIT",
+  "repository": "sindresorhus/terminal-link",
+  "devDependencies": {
+    "terminal-link": "5.0.0",
+    "supports-hyperlinks": "4.5.0"
+  },
+  "ava": {
+    "serial": true
+  }
+}
