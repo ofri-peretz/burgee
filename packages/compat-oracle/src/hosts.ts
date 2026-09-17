@@ -229,6 +229,49 @@ export interface Host {
    */
   vitestConfig?: Record<string, unknown>;
   /**
+   * The same thing for ava, and it is the same argument: a setting from the host's own
+   * manifest that its assertions depend on, carried into the vendored root's `package.json`
+   * under its `ava` key so the suite runs the way upstream runs it.
+   *
+   * It is a *separate* field from `vitestConfig` rather than one generic `runnerConfig`
+   * because the two land in different files — vitest's in a generated `vitest.config.mjs`,
+   * ava's in the manifest ava reads from cwd — and a single field would hide which.
+   *
+   * `terminal-link` is why it exists. Upstream declares `ava: { serial: true }`, all ten of
+   * its cases mutate one shared module object (`supportsHyperlinks.stdout`), and
+   * `rootPackage()` wrote a fresh manifest without the block — so the vendored copy would
+   * have run ten state-mutating cases concurrently and the row would have read whatever the
+   * interleaving gave it. This is harness, not leniency: it is upstream's own setting, named
+   * here, and it touches no assertion.
+   */
+  avaConfig?: Record<string, unknown>;
+  /**
+   * The TypeScript loader a `tap` host's suite is run under, when half its files are `.ts`.
+   *
+   * The `tap` arm is `node <file>` per file, and Node 24 strips types natively — which is
+   * enough for some suites and not for `signal-exit`'s. Measured 2026-09-16 on Node 24.18,
+   * plain `node`: `fallback.ts` runs, and the other three do not, for two reasons neither of
+   * which is about the implementation being graded. `signal-capture.ts` imports a *type* as a
+   * value (`import { ChildProcessWithoutNullStreams, spawn } from 'node:child_process'`) and
+   * type-stripping is erasure without a type-checker, so the binding survives and the module
+   * fails to link. `all-integration-test.ts` and `signal-exit-test.ts` import
+   * `'./fixtures/exec-err'` without an extension, which is TypeScript's resolution and not
+   * ESM's.
+   *
+   * Upstream handles both with `--loader ts-node/esm`, declared in its own
+   * `package.json` `tap.node-arg`. **That does not run on Node 24**: measured, every `.ts`
+   * file dies with `ERR_REQUIRE_CYCLE_MODULE` out of `importSyncForRequire`, because
+   * `require(esm)` landed after signal-exit was last published in 2023.
+   *
+   * `tsx` transpiles both constructs and is already a devDependency of this workspace, so
+   * it is named here and resolved through the module system rather than by path. This is the
+   * same substitution the `runner` field already makes when a jest suite runs under vitest:
+   * upstream's transpiler swapped for the equivalent that works here, with no assertion
+   * touched and no file edited. A closed set of one, so adding a second is a line somebody
+   * wrote on purpose.
+   */
+  tsLoader?: 'tsx';
+  /**
    * How its suite is executed. `vitest` is what a jest suite runs under, since jest's
    * globals are vitest's and vitest is already here. `exit-code` is not a TAP dialect at
    * all: it runs each file with node and grades the whole suite as one pass/fail bit, for
@@ -884,12 +927,23 @@ export const HOSTS: Host[] = [
     repo: 'https://github.com/sindresorhus/terminal-link',
     testDir: '.',
     testGlob: 'test.js',
-    imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
+    imports: [{ upstream: './index.js', subpath: '', reexportDefault: true, control: 'terminal-link' }],
     surfaceFiles: ['index.d.ts', 'index.js'],
     runner: 'ava',
+    // Upstream's own `ava` block, carried into the vendored manifest by `rootPackage()`.
+    // Every case mutates `supportsHyperlinks.stdout` / `.stderr` on one shared module object
+    // and restores it in `afterEach`; run concurrently the ten cases read each other's writes.
+    avaConfig: { serial: true },
+    // Both by name, and both at exact pins, installed into `vendor/terminal-link/node_modules`.
+    // `supports-hyperlinks` is pinned at the version `terminal-link@5.0.0`'s own `^4.1.0`
+    // resolves to, which matters for more than reproducibility: npm dedupes the two to one
+    // top-level copy, and the suite's whole method is that the object it mutates is the same
+    // object the implementation reads. A nested second copy would make every fallback case
+    // read the ambient terminal instead.
+    suiteDeps: ['terminal-link@5.0.0', 'supports-hyperlinks@4.5.0'],
     target: 'paratext',
-    status: 'planned',
-    note: "**Not vendored, and that is the lock's decision rather than mine.** The suite was vendored at 5.0.0 on 2026-09-14 (`v5.0.0` -> commit 975358c3, tarball ships no test like the other two) and then deleted again, because committing it turns `vendored-suite.test.ts` > \"declares every package a vendored suite reaches for by name\" red: its ten cases `import supportsHyperlinks from 'supports-hyperlinks'` and reassign `supportsHyperlinks.stdout` per case, and that package is declared in neither manifest — measured, `undeclared` comes back as `['supports-hyperlinks (vendor/terminal-link/test.js)']`. It is needed for the *target* run too, not only the control, because the bare import is in the test rather than in the implementation. The control additionally needs `terminal-link` itself: without it `packageRoot()` throws `ERR_MODULE_NOT_FOUND` out of `writeInternalShims` and takes the whole oracle process down rather than reporting one red row. Both are root-manifest edits, which is the integrator lane's file and not a package lane's. One more thing to settle before grading: upstream declares `ava: { serial: true }` and every case mutates that one shared module object, while `rootPackage()` in vendor.ts writes a fresh manifest carrying name, type, main, version, license and repository and *not* the `ava` block — so the vendored copy would run ten state-mutating cases concurrently. Activate when the root manifest declares `terminal-link` and `supports-hyperlinks` and vendor.ts carries the host's ava config.",
+    status: 'active',
+    note: "Activated 2026-09-16, vendored at 5.0.0 (`v5.0.0` -> commit 975358c3; the tarball ships no test, like the other two here). Control **10 / 10, 100.0%**; target `paratext` **0 / 10**, and this zero is a finer one than `ansi-escapes`' or `term-img`'s — every one of the ten cases *registers* and fails, eight of them on `TypeError: terminalLink is not a function` and two on `terminalLink.stderr is not a function`. The file loads; there is simply no callable OSC-8 link on `paratext`'s default export yet. **What the earlier note said blocked this row was a root-manifest edit, and that was the wrong of two available routes.** Its objection was exact — the suite's ten cases `import supportsHyperlinks from 'supports-hyperlinks'` and reassign `supportsHyperlinks.stdout` per case, the package is in neither manifest, and `undeclared` really did come back as `['supports-hyperlinks (vendor/terminal-link/test.js)']` — but it is an objection to `vendorDeps`, which leans on the workspace hoist. `suiteDeps` installs both names into a gitignored `vendor/terminal-link/node_modules` at exact pins, touches no manifest and no lockfile, and `vendored-suite.test.ts` reads a name in the vendored manifest as a declaration however it got there. **Why `supports-hyperlinks` is pinned at 4.5.0 rather than left to the hoist**: the suite's entire method is that the object it mutates is the object the implementation reads, and 4.5.0 is what `terminal-link@5.0.0`'s own `^4.1.0` resolves to, so npm dedupes the two to one top-level copy (verified: `vendor/terminal-link/node_modules/supports-hyperlinks` exists and no nested copy does). A second, nested copy would leave every fallback case reading the ambient terminal instead of the value it just set — green or red by which terminal ran it. The other half of the note was right and is now fixed in `vendor.ts`: upstream declares `ava: { serial: true }`, `rootPackage()` wrote a manifest without it, and ten cases sharing one mutable module object would have raced. It is carried through the `avaConfig` field, and the raw TAP shows it working — one `afterEach` printed after each case rather than all ten batched at the end, which is what the concurrent `term-img` run looks like two rows up. Nothing in this suite varies by platform: no `process.platform`, no `describe.each`, no skip guard, and the two `isSupported` cases assert `typeof … === 'boolean'`, which is true of whatever the ambient terminal reports.",
   },
   {
     name: 'term-img',
@@ -900,12 +954,16 @@ export const HOSTS: Host[] = [
     // `terminalImage('fixture.jpg')`, which `fs.readFileSync`s it relative to cwd — and cwd
     // is the vendored root. Without this the suite fails on the file system, not on us.
     extraDirs: ['fixture.jpg'],
-    imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
+    imports: [{ upstream: './index.js', subpath: '', reexportDefault: true, control: 'term-img' }],
     surfaceFiles: ['index.d.ts', 'index.js'],
     runner: 'ava',
+    // The incumbent itself, installed into `vendor/term-img/node_modules` at the release the
+    // suite is vendored from. This is the route the note below called a root-manifest edit:
+    // it is not one. `suiteDeps` touches no manifest and no lockfile — see `dotenv`.
+    suiteDeps: ['term-img@7.1.0'],
     target: 'paratext',
-    status: 'planned',
-    note: "Vendored 2026-09-14 at 7.1.0 (`v7.1.0` -> commit c495c815). **Its suite runs headless**, which was the open question: term-img draws through the iTerm2 inline-image protocol, so \"can it run without a terminal\" had to be answered before a rate meant anything. Read off the vendored file, the answer is yes — every case sets `TERM_PROGRAM` / `TERM_PROGRAM_VERSION` / `KONSOLE_VERSION` and `process.platform` by hand and asserts the returned string or the thrown `UnsupportedTerminalError`. No tty, no protocol round-trip, nothing rendered. The suite is 13 `test()` calls, one of them a loop over a five-terminal table, so **18 cases**. It is not graded for one reason only: `term-img` is in neither manifest and so not in node_modules (measured 2026-09-14 on a clean `npm ci`), and without it the control does not fail — it throws `ERR_MODULE_NOT_FOUND` out of `packageRoot()` and kills the oracle process. That is a root-manifest edit, the integrator lane's file. Two notes for whoever activates it. Its cases read `fixture.jpg` from cwd, which is why `extraDirs` names that file — it is not a directory, and `cpSync` copies it because the copy is recursive. And `iTerm2 support` is the one case that reaches a real machine: it calls `iterm2-version()`, which reads the installed iTerm2's Info.plist, so on a Linux runner it returns undefined and the case throws. That is a `controlFailures` allowance to declare with this sentence, not a compatibility defect — and it must be declared *before* the row goes active, or the control is red on CI and green on a Mac.",
+    status: 'active',
+    note: "Activated 2026-09-16. Control **18 / 18, 100.0%**; target `paratext` **0 / 18**, a measured zero of the `ansi-escapes` shape — the raw TAP is one line, `SyntaxError: The requested module './shim.js' does not provide an export named 'UnsupportedTerminalError'`, so the file never loads and no case registers. That is R8 unbuilt, stated by the host's own suite, and it is not a verdict on eighteen behaviours. Its suite runs headless, which the earlier note had already established: every case sets `TERM_PROGRAM` / `TERM_PROGRAM_VERSION` / `KONSOLE_VERSION` and `process.platform` by hand and asserts the returned string or the thrown `UnsupportedTerminalError` — no tty, no protocol round-trip, nothing rendered. 13 `test()` calls, one of them a loop over a five-terminal table, so **18 cases**. `extraDirs` names `fixture.jpg` because eleven cases `readFileSync` it relative to cwd, and cwd is the vendored root. **Two things the earlier note got wrong, and both took a measurement to find out.** First, it said the row needed a root-manifest edit because `term-img` is in neither manifest: `suiteDeps` is the route it did not consider, and it installs the incumbent into a gitignored `vendor/term-img/node_modules` at an exact pin, touching no manifest and no lockfile — the arrangement `dotenv` and `rc` already use, and `vendored-suite.test.ts` reads a `suiteDeps` name as a declaration. Second, it reserved a `controlFailures` allowance for `iTerm2 support` on the grounds that the case reaches a real machine. It does not. `iterm2-version@5.0.0` returns `process.env.TERM_PROGRAM_VERSION` whenever `TERM_PROGRAM === 'iTerm.app'`, **before** it goes near `app-path` and the installed bundle's `Info.plist`, and the case sets both by hand (`3.3.7`) — so the plist read is dead code under this suite. The platform gate above it is `process.platform !== 'darwin'`, and the case redefines `process.platform` to `darwin` itself, so a Linux runner takes the same fast path. **No allowance is declared, because nothing fails** — an allowance that excuses a case nobody fails is a dial, and this row would have shipped with one turned to 1. The 18 are the same 18 on every machine: the suite's only `process.platform` read is the `beforeEach` capturing the original value, no `test()` call is guarded by a platform, and `conditionalCases` has nothing to declare. One fragility to carry, and it is upstream's rather than ours: `afterEach` restores `process.platform` with `configurable: false`, so the suite works only while ava runs every `beforeEach` and every case before any `afterEach` — which is what the pinned ava does, visible in the raw TAP. An ava that interleaved hooks would break this suite against term-img itself, and the control is the run that would say so.",
   },
   {
     // The closeout layer's first graded host. `restore-cursor` is the smallest package in
@@ -1000,52 +1058,65 @@ export const HOSTS: Host[] = [
     note: "Graded against `closeout/exit-hook`. The suite's fixtures live in `fixtures/` and `import … from '../index.js'`, which the vendor step rewrites to the same generated shim the test file gets, so one unedited suite grades either implementation. `ava` and `execa` are declared at the workspace root already, which is what `vendored-suite.test.ts` checks; the incumbent itself is the vendor-local copy described above.",
   },
   {
-    // **Not graded, and the reason is the harness rather than the suite.**
+    // **Vendored and runnable as of 2026-09-16, and still not graded.** The suite executes
+    // end to end — 127 cases registered, 123 passing against signal-exit's own package — and
+    // the row stays `planned` because a control that cannot clear its own reference must not
+    // publish a rate. The `note` below carries the measurement, the three blockers that are
+    // gone and the two that replaced them.
     //
-    // `signal-exit` is the headline incumbent of this layer — 198.9 M/wk, last published
-    // 2023-07-29, inside npm's own dependency tree — and `closeout/intent.md` R4 makes its
-    // pass rate the gate on the whole `overrides` recipe. It is deliberately *not* vendored:
-    // a directory of tests that cannot be run is worse than no directory, because
-    // `vendored-suite.test.ts` would then have to be told to ignore it, and an exclusion
-    // that large reads as a decision when it is a blockage.
+    // It is vendored now, where the earlier judgement was that "a directory of tests that
+    // cannot be run is worse than no directory". That judgement was right and no longer
+    // applies: these tests run. `vendored-suite.test.ts` is satisfied without being told to
+    // ignore anything — its undeclared-package check is scoped to *active* hosts, and `tap`
+    // is declared in the vendored manifest through `suiteDeps` regardless.
     //
-    // Measured 2026-09-14 against the repo at `v4.1.0`, four separate blockers, each in a
-    // file this lane may not write:
-    //
-    //  1. **Its runner is `tap`, and `Host['runner']` has no such member.** PLAN's wave-2
-    //     table says "tap ✅ TAP native"; `src/run.ts`'s `command()` has four branches —
-    //     `vitest`, `node:test`, `ava`, `mocha` — and tap is not one of them. The row in the
-    //     plan was written from `npm view signal-exit scripts.test` and not from this file.
-    //  2. **Half the suite is TypeScript run through a loader.** `test/*.ts` (four files) are
-    //     executed by tap with `--loader ts-node/esm`, declared in the host's own
-    //     `package.json` `tap.node-arg`. Neither `tap` nor `ts-node` is declared in this
-    //     workspace, and `vendored-suite.test.ts` fails any vendored file that names a
-    //     package no manifest declares — so vendoring the suite turns that lock red.
-    //  3. **Its tests reach into `dist/`, which the vendor step cannot shim.**
-    //     `test/all-integration-test.ts`, `test/fallback.ts`, `test/signals.js` and two
-    //     fixtures import `../dist/cjs/index.js` and `../dist/cjs/signals.js`.
-    //     `INTERNAL_PATTERNS` in `src/vendor.ts` knows `lib` and `src` and *throws* on
-    //     anything else, so `internalDir: 'dist'` is a change to that file, not a field here.
-    //  4. **`test/signals.js` asserts through `t.matchSnapshot()` against `tap-snapshots/`**,
-    //     which is tap's own snapshot format and has no reader outside tap.
-    //
-    // What unblocks it, in order: a `tap` branch in `command()` plus `'tap'` in the union
-    // above; a `dist` entry in `INTERNAL_PATTERNS`; and `tap` + `ts-node` as vendor-local
-    // devDependencies under `vendor/signal-exit/` (PLAN 2.14's rule, the same arrangement
-    // `exit-hook` uses here). That is the `run.ts`/`vendor.ts` owner's work — one dialect,
-    // the same size as PLAN 2.14's `cross-spawn` decision — and it is worth doing, because
-    // this is the one row `closeout`'s distribution claim rests on.
+    // `closeout/intent.md` R4 makes this row's pass rate the gate on the whole `overrides`
+    // recipe, which is why the harness for it is committed rather than abandoned: the next
+    // agent starts from 123 / 127 and one open question, not from four.
     name: 'signal-exit',
     repo: 'https://github.com/tapjs/signal-exit',
     testDir: 'test',
     testGlob: '*.{js,ts}',
-    imports: [{ upstream: '../dist/cjs/index.js', subpath: '/signal-exit', reexportDefault: false }],
+    // **Two public entries, and the second one is the whole reason this row works.**
+    // `signals.js` is not an internal: signal-exit's own exports map declares `"./signals"`
+    // beside `"."`, exactly as yargs declares `yargs/helpers`. Reading it as an internal was
+    // the first attempt and it produced no shim at all, because the only `require()` of it is
+    // inside `fixtures/`, which `ungradedDirs` prunes from the walk that collects internals —
+    // so the two fixtures and `signals.js`'s `t.mock()` would all have resolved a path that
+    // does not exist in a vendored copy. Declared here it is rewritten like any public
+    // specifier, in the test files and in the copied fixture tree alike.
+    imports: [
+      { upstream: '../dist/cjs/index.js', subpath: '/signal-exit', reexportDefault: false, control: 'signal-exit' },
+      { upstream: '../dist/cjs/signals.js', subpath: '/signal-exit/signals', reexportDefault: false, control: 'signal-exit/signals' },
+    ],
     surfaceFiles: ['src/index.ts', 'src/signals.ts'],
-    // Declared for the day the dialect lands; nothing reads it while the status is `planned`.
-    runner: 'node:test',
+    // signal-exit ships only its compiled output — its published `files` array is `["dist"]`
+    // — so `dist` is where it files the modules a test may reach and a `dist` pattern is in
+    // `INTERNAL_PATTERNS` for it. Nothing is on the internal list today, because both `dist`
+    // paths the suite names are public; the declaration is what makes `classify()` read this
+    // suite correctly, and what would catch a future release adding a third.
+    internalDir: 'dist',
+    runner: 'tap',
+    // Upstream's `--loader ts-node/esm` does not run on Node 24 — see the field's own doc.
+    tsLoader: 'tsx',
+    // The incumbent for the control, and the suite's own runner, both at the release the
+    // tests were vendored from. `tap@16.3.4` is what upstream's manifest declares at v4.1.0.
+    suiteDeps: ['signal-exit@4.1.0', 'tap@16.3.4'],
+    // `t.matchSnapshot()` reads these, and the path is relative to the vendored root because
+    // that is the cwd a `tap` spawn runs in. The earlier note called this a blocker on the
+    // grounds that the format "has no reader outside tap" — true, and the `tap` arm *is* tap:
+    // measured, `node test/signals.js` from the vendored root prints `ok … must match
+    // snapshot` against these files with no runner binary involved.
+    extraDirs: ['tap-snapshots'],
+    ungradedDirs: [
+      {
+        dir: 'fixtures',
+        why: "Programs the tests spawn as child processes to watch them exit — `exit.js`, `sigint.js`, `sigkill.js` and eighteen more. They match `*.{js,ts}` because that is simply how they are written, and running one as a test grades nothing: it installs a handler and kills itself. Two of them (`signal-capture.js`, `sigkill.js`) reach the implementation through `../../dist/`, which is why `dist/cjs/signals.js` is on the internal-shim list at all.",
+      },
+    ],
     target: 'closeout',
     status: 'planned',
-    note: '198.9 M/wk and stale since 2023-07-29 — the layer\'s headline incumbent. Blocked on the harness, not on closeout: its suite runs under `tap` with a `ts-node/esm` loader and reaches into `dist/`, and all three are edits to `run.ts` and `vendor.ts`. `runner` reads `node:test` as a placeholder so this entry type-checks; it is wrong on purpose and unread while the status is `planned`, and the dialect that lands must correct it. **No baseline fragment exists for this host, and that is the honest state** — a row here with a number in it would be a number nothing measured.',
+    note: "198.9 M/wk and stale since 2023-07-29 — the layer's headline incumbent, and **still `planned`, but for two measured reasons rather than four guessed ones.** The suite is now vendored and it runs: measured 2026-09-16, the control registers **127 cases and passes 123** against `signal-exit@4.1.0` installed beside it. It is not activated, because **a control that cannot clear its own reference must not publish a rate**, and the four it fails are not a `controlFailures` allowance — an allowance is a named exemption for something the incumbent genuinely cannot do, and at least two of these are the harness grading the wrong thing. Of the original four blockers, three are gone. (1) The `tap` runner arm exists and `dotenv` goes through it. (2) `tap-snapshots/` needs no reader outside tap because the arm *is* tap — `node test/signals.js` from the vendored root prints `ok … must match snapshot` with no runner binary, so `extraDirs` naming the directory is the whole fix. (3) `dist` is in `INTERNAL_PATTERNS` now, though it turned out not to be the mechanism this host needed: `dist/cjs/signals.js` is a **public** export (`\"./signals\"` sits beside `\".\"` in signal-exit's own exports map, exactly as `yargs/helpers` does), and reading it as an internal produced no shim at all, because its only `require()` is inside `fixtures/`, which `ungradedDirs` prunes from the walk that collects internals. Declared as a second public import it is rewritten everywhere, `t.mock('../dist/cjs/signals.js')` included — `rewriteAt` replaces the quoted literal, so the mock argument moves with it. (4) The `ts-node/esm` loader blocker is **worse than recorded and is handled**: upstream's `--loader ts-node/esm` does not run on Node 24 at all (every `.ts` file dies with `ERR_REQUIRE_CYCLE_MODULE`, because `require(esm)` landed after signal-exit's last release), and plain Node 24 type-stripping runs only one of the four (`signal-capture.ts` imports a type as a value, and two more import `'./fixtures/exec-err'` without an extension). `tsLoader: 'tsx'` runs all four. **The two that remain, both found by running it:** first, `test/no-process.js` > `process missing from the start` fails because the generated public shim is ESM by construction, so Node takes the `import` condition and hands the suite `dist/mjs/index.js` — while every one of these tests is written against `../dist/cjs/index.js`, and the two builds differ exactly here (the CJS build captures the global process object in a module-scope constant at load time and the ESM build does not, which is the behaviour `fixtures/process-gone.js` exists to check). The stack in the raw TAP names `dist/mjs/index.js` in so many words. `signal-exit-test.ts` > `does not exit if user handles signal` fails beside it and is very likely the same cause. That is not a defect in signal-exit or in closeout; it is this oracle grading a build the suite did not ask for, and fixing it means a CJS public shim, which is a change to the `shimName` rule four other hosts rely on. Second, `test/signals.js` loses 2 of its 3 cases to the shim indirection: it snapshots `t.mock('…/signals.js')` once per faked platform, and `t.mock` busts the cache of the *shim* rather than of the module behind it, so `darwin` and `linux` both get win32's list back. No allowance can make those two comparisons mean anything again. **So: the harness for this host is built and committed, the row is one honest measurement away, and the remaining work is the CJS-shim question — which is a decision about `shimName`, not about signal-exit.** No baseline fragment exists, deliberately: `reference`/`passed` record a *target* run, and no target run was taken against a control this one.",
   },
 ];
 

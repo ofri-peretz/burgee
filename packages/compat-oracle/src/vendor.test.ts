@@ -61,6 +61,34 @@ describe('the vendored root package', () => {
     expect(pkg.type).toBe('module');
     expect(pkg.name).toBe('@vendored/yargs-suite');
   });
+
+  /**
+   * Red before `avaConfig` existed: `rootPackage` wrote name, type, main, version, license
+   * and repository and nothing else, so `terminal-link`'s `ava: { serial: true }` was
+   * dropped on the floor. ava reads its config from the nearest `package.json` above its
+   * cwd, and the run's cwd is this directory, so the setting is lost precisely where it is
+   * needed — and the failure is silent: ten cases that mutate one shared module object run
+   * concurrently and the rate reads the interleaving.
+   *
+   * Asserted off the vendored file on disk as well as off the function, because those are
+   * two different claims: the second is that the directory a run actually reads carries it.
+   */
+  it("carries the host's own ava configuration, which ava reads from the manifest and nowhere else", () => {
+    const terminalLink = HOSTS.find((h) => h.name === 'terminal-link') as Host;
+    expect(rootPackage(terminalLink, { version: '5.0.0', type: 'module' })['ava']).toEqual({ serial: true });
+    // A host that declares none gets no key at all, so every directory vendored before this
+    // field existed still reproduces byte for byte.
+    expect(rootPackage(commander, { type: 'commonjs' })['ava']).toBeUndefined();
+  });
+
+  it.each(HOSTS.filter((h) => h.avaConfig !== undefined).map((h) => [h.name, h] as const))(
+    "%s's vendored manifest on disk carries it too",
+    (name, host) => {
+      const at = join(VENDOR_DIR, name, 'package.json');
+      if (!existsSync(at)) return;
+      expect((JSON.parse(readFileSync(at, 'utf8')) as Record<string, unknown>)['ava']).toEqual(host.avaConfig);
+    },
+  );
 });
 
 /**

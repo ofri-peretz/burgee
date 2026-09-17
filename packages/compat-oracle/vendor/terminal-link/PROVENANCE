@@ -1,15 +1,15 @@
-package:  term-img
-repo:     https://github.com/sindresorhus/term-img
-version:  7.1.0
-tag:      v7.1.0
-commit:   c495c81578c1391fa0f753644a0d1e631f23a177
+package:  terminal-link
+repo:     https://github.com/sindresorhus/terminal-link
+version:  5.0.0
+tag:      v5.0.0
+commit:   975358c3b5bb99d0f9ac07ff51f692883358f6ab
 vendored: 2026-09-16
 files:    1
 tool:     scripts/vendor-suite.ts
 
 How this directory was made
 ---------------------------
-A shallow clone of https://github.com/sindresorhus/term-img at v7.1.0, then that repository's own test directory and
+A shallow clone of https://github.com/sindresorhus/terminal-link at v5.0.0, then that repository's own test directory and
 its fixtures copied here. The only edit is to the import specifiers that reach the library:
 each is rewritten to a generated shim, so one unedited suite can grade any implementation.
 Everything else — assertions, fixtures, helpers — is upstream's, byte for byte.
@@ -28,12 +28,12 @@ The shim is not in here
 There is deliberately no shim committed beside these tests. `shim.js` — or `shim.mjs`
 under a `type: commonjs` package, because the extension has to say the file is ESM — is
 written per run by packages/compat-oracle/src/run.ts, since its body names COMPAT_TARGET:
-the control run re-exports term-img itself, a target run re-exports ours. The
+the control run re-exports terminal-link itself, a target run re-exports ours. The
 vendor step deletes any shim it finds, so a stale one can never grade the wrong thing.
 
 Reproduce
 ---------
-    npx tsx scripts/vendor-suite.ts term-img --version 7.1.0
+    npx tsx scripts/vendor-suite.ts terminal-link --version 5.0.0
 
 Every field above is reproduced exactly, with one exception that is a date and not a
 defect: `vendored` is the day the copy was taken, so a fresh run writes today's.

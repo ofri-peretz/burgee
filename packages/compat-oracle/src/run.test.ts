@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { type Host, HOSTS } from './hosts.js';
-import { type Baseline, type Grade, internalShimFrom, parseFlatTap, parseNodeTest, regressed, summarize, unsatisfiedPins } from './run.js';
+import { type Baseline, type Grade, internalShimFrom, parseFlatTap, parseNodeTest, regressed, summarize, tsLoaderArgs, unsatisfiedPins } from './run.js';
 
 const grade = (passed: number): Grade => ({
   host: 'commander',
@@ -334,5 +334,34 @@ describe('a pinned suite dependency is satisfied only beside the suite', () => {
   it('leaves a range alone wherever it resolves, because that half is the hoist by design', () => {
     install(outside, 'ranged', '0.5.6');
     expect(unsatisfiedPins({ ranged: '^0.5.1' }, nested)).toEqual([]);
+  });
+});
+
+/**
+ * The TypeScript preload for a `tap` host whose suite is half `.ts`.
+ *
+ * Two properties, and the first one is the one that protects every other row: a host that
+ * declares no loader must spawn exactly what it spawned before, or `dotenv`'s 141 / 141
+ * quietly becomes a measurement of something else.
+ */
+describe('the TypeScript loader a tap host may declare', () => {
+  it('preloads nothing for a host that declares none, so every existing spawn is unchanged', () => {
+    for (const host of HOSTS.filter((h) => h.tsLoader === undefined)) {
+      expect(tsLoaderArgs(host), `${host.name} declares no tsLoader and must spawn a bare node`).toEqual([]);
+    }
+  });
+
+  it('resolves the loader through the module system rather than by path', () => {
+    const declared = HOSTS.filter((h) => h.tsLoader !== undefined);
+    // Not `toBeGreaterThan(0)`: the field is allowed to have no user, and a lock that
+    // demanded one would have to be deleted the day the last host stops needing it.
+    for (const host of declared) {
+      const args = tsLoaderArgs(host);
+      expect(args.slice(0, 2)).toEqual(['--no-warnings', '--import']);
+      // A `file://` URL, which is what `--import` takes — and proof the loader is on disk
+      // here rather than a name that happens to type-check. A literal
+      // `node_modules/tsx/dist/loader.mjs` would be a guess about a hoist free to move.
+      expect(args[2]).toMatch(/^file:\/\/.+\.mjs$/);
+    }
   });
 });
