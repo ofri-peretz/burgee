@@ -556,6 +556,27 @@ function runExitCodes(host: Host, hostDir: string, files: string[], target: stri
 }
 
 /**
+ * `--import <loader>` for a host whose suite is half TypeScript, or nothing.
+ *
+ * Resolved through the module system rather than written as a path: `tsx`'s own `.` export
+ * is its loader entry, and a literal `node_modules/tsx/dist/loader.mjs` would be a guess
+ * about a hoist that is allowed to move. The result is a `file://` URL, which is what
+ * `--import` takes.
+ *
+ * Exported so `run.test.ts` can hold the two properties that matter — nothing is preloaded
+ * for a host that declares no loader, so the eleven `tap`-less rows and `dotenv` keep
+ * spawning exactly what they spawned before.
+ */
+export function tsLoaderArgs(host: Host): string[] {
+  if (host.tsLoader === undefined) return [];
+  // `--no-warnings` is upstream's own first `node-arg` and is here for the same reason: a
+  // suite whose files are TypeScript under a `type`-less package emits one
+  // MODULE_TYPELESS_PACKAGE_JSON warning per file on stderr. It is noise either way — the
+  // grade reads stdout — but a reader of a failing run should not have to scroll past it.
+  return ['--no-warnings', '--import', import.meta.resolve(host.tsLoader)];
+}
+
+/**
  * The `tap` dialect: **one spawn per file, outputs concatenated.**
  *
  * node-tap needs no reporter flag and no runner binary. A `tap` test file *is* a program:
@@ -578,12 +599,13 @@ function runExitCodes(host: Host, hostDir: string, files: string[], target: stri
 function runTapFiles(host: Host, hostDir: string, files: string[], target: string): { output: string } | { error: string } {
   const dir = join(hostDir, host.testDir);
   const parts: string[] = [];
+  const preload = tsLoaderArgs(host);
   for (const file of files) {
     // A tap file that fails exits non-zero *having already printed its TAP*, so stdout is
     // the measurement in both branches and only an empty one is a broken run.
     let stdout: string;
     try {
-      stdout = execFileSync(process.execPath, [join(dir, file)], {
+      stdout = execFileSync(process.execPath, [...preload, join(dir, file)], {
         encoding: 'utf8',
         cwd: hostDir,
         env: { ...neutralEnv(), ...host.env, COMPAT_TARGET: target },
