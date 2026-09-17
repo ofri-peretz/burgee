@@ -297,9 +297,39 @@ const RULES: Record<string, EntryRule> = {
   // whole for `checkDefinition` — one function of it — while the other four fifths are
   // run-time coercion the front-end never reaches. Splitting the definition-time checks into
   // `definition.js` (1,563 B) is what fixed it: 125,667 measured, and the claim holds.
+  //
+  // **2026-09-17: `bellpull/cross-spawn`, +1,097 B, and the parity claim above is not true.**
+  //
+  // The edge is deliberate. `inline-implementation-lock` carried this front-end's hand-rolled
+  // spawn as a declared gap with the condition written into it — *"the engine lane adopts it
+  // once bellpull grades against cross-spawn's suite"* — and bellpull grades 68 / 68. What the
+  // bytes buy is the Windows branch: upstream sends **every** Windows spawn through `node`,
+  // which is a workaround for `spawn` not searching `PATHEXT`, and it is simply wrong for a
+  // subcommand that is a `.cmd`, a `.bat`, or a shebang that is not node. commander stays
+  // 1360 / 1360, measured after the wiring, and `burgee` no longer imports `node:child_process`
+  // anywhere — `ChildProcess` comes from bellpull, which re-exports it for this consumer.
+  //
+  // `spawn` must be read off the namespace at the call site and never captured into a local.
+  // commander's own suite mocks `childProcess.spawn` in roughly 23 `executableSubcommand`
+  // cases; a binding captured at import never re-syncs, and bellpull's `cross-spawn.ts` reads
+  // `spawn` off its own default import for exactly that reason. A named import here undoes it
+  // and takes the row from 1360 / 1360 to ungradeable — measured when bellpull was first wired.
+  //
+  // **704 of the first reading were my own prose.** The walk sums `dist/` bytes and `dist/`
+  // keeps doc comments, so the paragraph explaining this change was charged to the budget it
+  // was explaining: 128,790 with it, 128,086 without. The explanation lives here, in a test,
+  // where it does not ship. Worth remembering before writing an essay in a shipped file.
+  //
+  // The budget moves to the measurement. The sentence it is checked against does not survive:
+  // this entry reached **126,989 B before this change**, against commander's own `lib/` at
+  // **125,654** — measured, not quoted. So "parity with commander's 126 KB lib/" was already
+  // false by 1,335 B, and the round 128,000 was never a parity bar, only a round number above
+  // the then-current reading. It is now 2,432 B over. Recorded rather than smoothed: a budget
+  // whose comment claims a property it does not have is worse than no comment, because the
+  // next reader spends against a bar that is not there.
   "./commander": {
-    allow: [],
-    budget: 128_000,
+    allow: ["bellpull/cross-spawn"],
+    budget: 128_100,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   // yargs 18 ported method for method, with its whole dependency tree — yargs-parser 22,

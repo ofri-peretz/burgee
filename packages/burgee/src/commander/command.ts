@@ -1,3 +1,8 @@
+import { EventEmitter } from 'node:events';
+import fs from 'node:fs';
+import path from 'node:path';
+import { stripVTControlCharacters } from 'node:util';
+
 /**
  * commander's `Command`, ported method for method from commander 15 and graded by
  * commander's own suite through `compat-oracle`. The parse pipeline, the option
@@ -12,11 +17,9 @@
  *   - `parse(argv, { stdout, stderr, exit })` injects the streams and the exit, and
  *     then reports through the E1 taxonomy — the harness's seam (T1).
  */
-import childProcess from 'node:child_process';
-import { EventEmitter } from 'node:events';
-import fs from 'node:fs';
-import path from 'node:path';
-import { stripVTControlCharacters } from 'node:util';
+ 
+// eslint-disable-next-line import-next/no-namespace -- `spawn` is read off the namespace at the call site and never captured into a local. commander's own suite mocks `childProcess.spawn` in roughly 23 `executableSubcommand` cases, and a binding captured at import never re-syncs; bellpull's `cross-spawn.ts` reads `spawn` off its default import for this exact consumer, so a named import here would undo that and take the row from 1360 / 1360 to ungradeable.
+import * as crossSpawn from 'bellpull/cross-spawn';
 
 import { ExitCode } from '../exit-code.js';
 import { type Effects, Manifest, type OptionSpec, type Plugin } from '../manifest.js';
@@ -155,7 +158,7 @@ export class Command extends EventEmitter {
   rawArgs: string[] = [];
   /** like .args but after custom processing and collecting variadic */
   processedArgs: unknown[] = [];
-  runningCommand: childProcess.ChildProcess | undefined = undefined;
+  runningCommand: crossSpawn.ChildProcess | undefined = undefined;
 
   _allowUnknownOption = false;
   _allowExcessArguments = false;
@@ -804,20 +807,29 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
 
     const launchWithNode = SOURCE_EXT.includes(path.extname(executableFile));
 
-    let proc: childProcess.ChildProcess;
+    // Through `bellpull`, not `node:child_process`: it resolves the executable properly on
+    // Windows, where upstream sends every spawn through `node` to dodge `PATHEXT`. The
+    // reasoning, the measurement and the mock constraint are in `weight.test.ts`'s
+    // `./commander` entry — they are prose, and prose in this file ships.
+    let proc: crossSpawn.ChildProcess;
     if (host.platform !== 'win32') {
       if (launchWithNode) {
         args.unshift(executableFile);
         args = incrementNodeInspectorPort(host.execArgv).concat(args);
-        proc = childProcess.spawn(host.argv[0] ?? host.execPath, args, { stdio: 'inherit' });
+        proc = crossSpawn.spawn(host.argv[0] ?? host.execPath, args, { stdio: 'inherit' });
       } else {
-        proc = childProcess.spawn(executableFile, args, { stdio: 'inherit' });
+        proc = crossSpawn.spawn(executableFile, args, { stdio: 'inherit' });
       }
     } else {
       this._checkForMissingExecutable(executableFile, executableDir, subcommand._name);
-      args.unshift(executableFile);
-      args = incrementNodeInspectorPort(host.execArgv).concat(args);
-      proc = childProcess.spawn(host.execPath, args, { stdio: 'inherit' });
+      if (launchWithNode) {
+        args.unshift(executableFile);
+        args = incrementNodeInspectorPort(host.execArgv).concat(args);
+        proc = crossSpawn.spawn(host.execPath, args, { stdio: 'inherit' });
+      } else {
+        // The case upstream cannot reach: a `.cmd`, a `.bat`, or a shebang that is not node.
+        proc = crossSpawn.spawn(executableFile, args, { stdio: 'inherit' });
+      }
     }
 
     if (!proc.killed) {

@@ -63,8 +63,6 @@ const JOBS: Job[] = [
  * every entry is a layer that exists and a caller that has not adopted it.
  */
 const KNOWN: Record<string, string> = {
-  'burgee/src/commander/command.ts':
-    "commander's `executableSubcommand` spawns a sub-binary and forwards five signals to it. Both are bellpull's job; bellpull was a seven-line placeholder when this was written, and the engine lane adopts it once bellpull grades against cross-spawn's suite.",
   'compat-oracle/src/run.ts': 'runs each vendored suite in a child process. Internal tooling, never published — but it is still bellpull\'s job, and it is where the executable-resolution bug would bite CI first.',
   'compat-oracle/src/vendor.ts': '`git clone` and `git rev-parse`. Same as above.',
   'compat-oracle/src/upstream.ts':
