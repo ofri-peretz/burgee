@@ -210,7 +210,7 @@ const RULES: Record<string, EntryRule> = {
   // declining is `effects: 'withheld'` — a thing said rather than a thing forgotten.
   ".": {
     allow: ["closeout", "linegauge", "seniority/precedence"],
-    budget: 59_800,
+    budget: 60_600,
     denied: [
       "testing.js",
       "testing-helpers.js",
@@ -257,7 +257,7 @@ const RULES: Record<string, EntryRule> = {
   // carries N6's refusal for the same reason it carries the schema. **+938** (63,015 ->
   // 63,953), the same four files and the same numbers as `.`, minus nothing — the harness
   // takes `index.js` too, and `index.js` did not change.
-  "./testing": { allow: ["closeout", "linegauge", "seniority/precedence"], budget: 64_000, denied: ["dev.js"] },
+  "./testing": { allow: ["closeout", "linegauge", "seniority/precedence"], budget: 64_800, denied: ["dev.js"] },
   // The plugin host, at the subpath the rest of the family publishes it at. Added
   // 2026-09-17: burgee was the one package that hosted plugins and published no
   // `./plugin`, so `scripts/plugin-contract-lock.test.ts` had to reach it by relative
@@ -311,7 +311,7 @@ const RULES: Record<string, EntryRule> = {
   // Neither declaration existed before this commit, and neither command was a tool.
   "./cli": {
     allow: ["closeout", "linegauge", "roundel/contrast", "seniority/precedence"],
-    budget: 79_100,
+    budget: 79_900,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   // Arithmetic over hex strings, and the arithmetic itself is roundel's — colour is the
@@ -408,6 +408,13 @@ const RULES: Record<string, EntryRule> = {
   // paragraphs above disagree about commander's own `lib/` — 125,654 against 126,365 — because
   // they measured different installs of it; either way this entry passed it before today, and
   // the budget has not been a parity bar since.
+  //
+  // **F2, 2026-09-17: +795 B on the three entries that reach `dispatch`.** `--help --json`
+  // printed the same prose as `--help`, so a caller who asked for a machine-readable answer
+  // got one they had to parse — the failure the whole `--json` surface exists to avoid, on the
+  // flag people type first. The document is `commandSchemaOf` scoped to one node, so the cost
+  // is one helper and no second document shape. `./commander` and `./yargs` do not move: the
+  // façades answer `--help` themselves.
   "./commander": {
     allow: ["bellpull/cross-spawn"],
     budget: 129_000,

@@ -19,7 +19,7 @@ import { serveMcp } from './mcp.js';
 import { camel, kebab } from './names.js';
 import { nearestPackage, type Package } from './pkg.js';
 import { host } from './runtime.js';
-import { commandSchemaOf, machineJson, schemaOf, summaryOf } from './schema.js';
+import { commandSchemaOf, machineJson, schemaOf, summaryOf, typedName } from './schema.js';
 import { detachedTeardown, processTeardown, type Teardown } from './shutdown.js';
 import { checkRelations, coerce, UsageError } from './validate.js';
 
@@ -427,6 +427,26 @@ function runnableNext(manifest: Manifest, spec: ActionRequiredSpec, json: boolea
 }
 
 const HELP_FLAGS = new Set(['--help', '-h']);
+
+/**
+ * F2 — help as data: one command, its options and arguments, and the names of its children.
+ *
+ * The same `CommandSchema` shape `--schema` publishes, scoped to the node the reader asked
+ * about, so there is one document shape in the package rather than a second one invented for
+ * help. Children are names only: `--help` on a group is a menu, and a reader who wants a
+ * child's detail asks for that child.
+ */
+function helpDocumentOf(manifest: Manifest, node: CommandNode): Record<string, unknown> {
+  const root = manifest.rootPath;
+  const children = manifest.commands
+    .filter((c) => c.path.length === node.path.length + 1 && c.path.slice(0, node.path.length).join(' ') === node.path.join(' '))
+    .map((c) => typedName(c, root));
+  return {
+    schemaVersion: 1,
+    ...commandSchemaOf(node, root),
+    ...(children.length === 0 ? {} : { commands: children }),
+  };
+}
 /**
  * The same courtesy `--help` gets, for the flag people type first.
  *
@@ -486,7 +506,15 @@ function unresolved({ manifest, root, io }: Resolving, argv: string[], at: Comma
   const node = at ?? rootNode(manifest, root);
   const typed = argv.slice(node.path.length - root.length);
   const first = typed[0] ?? '';
-  if (typed.length > 0 && HELP_FLAGS.has(first)) return { text: renderHelp(manifest, node, { width: io.width }), code: ExitCode.OK };
+  if (typed.length > 0 && HELP_FLAGS.has(first)) {
+    // F2 — `--help --json` is help *as data*. Before this it printed the same prose as
+    // `--help`, so a caller who asked for a machine-readable answer got one they had to
+    // parse, which is the failure the whole `--json` surface exists to avoid. The document is
+    // `commandSchemaOf` for this node plus its immediate children, so the shape a reader
+    // already knows from `--schema` is the shape they get here, scoped to one command.
+    if (beforeTerminator(typed).includes('--json')) return { text: `${machineJson(helpDocumentOf(manifest, node), beforeTerminator(argv))}\n`, code: ExitCode.OK };
+    return { text: renderHelp(manifest, node, { width: io.width }), code: ExitCode.OK };
+  }
   if (first === '--version' || first === '-V') return { text: `${versionOf(manifest, io)}\n`, code: ExitCode.OK };
   if (typed.length === 0) return { text: renderHelp(manifest, node, { width: io.width }), code: ExitCode.USAGE };
   throw new UsageError(`unknown command "${typed[0] ?? ''}"`, 'run --help to see the available commands');
@@ -622,6 +650,10 @@ async function dispatch(manifest: Manifest, { node, rest, name }: Resolved, io: 
   const parsed = parseArgs({ args: rest, options: toParseConfig(node.options, manifest.config !== undefined), allowPositionals: true, strict: true, tokens: true });
   const flags = canonical(parsed.values as Values, node.options, parsed.tokens);
   const json = flags.json === true;
+  // F2 — help as data when both flags are given. It printed the same prose as `--help`, so a
+  // caller who asked for a machine-readable answer got one they had to parse: the exact
+  // failure the `--json` surface exists to avoid, on the flag people type first.
+  if (flags.help === true && json) return { json, text: `${machineJson(helpDocumentOf(manifest, node), json ? ['--json'] : [])}\n` };
   if (flags.help === true) return { json, text: renderHelp(manifest, node, { width: io.width }) };
   if (flags.version === true) return { json, text: `${versionOf(manifest, io)}\n` };
 
