@@ -4,7 +4,7 @@
  * manifest and nothing else. Choices are carried as data (N9), the same data that becomes
  * an MCP tool's input schema.
  */
-import { type ArgumentSpec, type CommandNode, type Effects, type Example, type Manifest, type OptionSpec, type Relation, relationsOf } from './manifest.js';
+import { type ArgumentSpec, type CommandNode, type DeclaredEffects, type Example, type Manifest, type OptionSpec, type Relation, relationsOf } from './manifest.js';
 import { flagsOf, kebab } from './names.js';
 
 export interface JsonSchema {
@@ -44,7 +44,12 @@ export interface CommandSchema {
   name: string;
   description?: string;
   summary?: string;
-  effects?: Effects;
+  /**
+   * What running it does, or `'withheld'` — published either way, because an agent reading
+   * the program as data is better served by *this exists and is not for you* than by a gap
+   * it cannot tell from a command that does not exist (N6).
+   */
+  effects?: DeclaredEffects;
   deprecated?: boolean | string;
   /** The heading it is listed under (M1). */
   group?: string;
@@ -187,7 +192,7 @@ export interface SchemaSummary {
   /** The full schema exceeded the budget; this lists every command and how to get one in full. */
   summarised: true;
   budget: number;
-  commands: { name: string; summary?: string; effects?: Effects }[];
+  commands: { name: string; summary?: string; effects?: DeclaredEffects }[];
   hint: string;
 }
 

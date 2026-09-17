@@ -32,6 +32,7 @@ const program = defineProgram({
     defineCommand({
       name: 'go',
       options: { shout: { type: 'boolean', default: true }, quiet: { type: 'boolean', short: 'q' }, name: { type: 'string' } },
+      effects: 'withheld',
       run: ({ options }) => options,
     }),
   ],
@@ -96,7 +97,7 @@ describe('what does not become negatable', () => {
     const withConfig = defineProgram({
       name: 'app',
       config: { name: 'app' },
-      commands: [defineCommand({ name: 'go', options: { shout: { type: 'boolean' } }, run: ({ options }) => options })],
+      commands: [defineCommand({ name: 'go', options: { shout: { type: 'boolean' } }, effects: 'withheld', run: ({ options }) => options })],
     });
     const r = await runBurgee(withConfig, { argv: ['go', '--json', '--no-config'] });
     expect(r.code).toBe(ExitCode.OK);

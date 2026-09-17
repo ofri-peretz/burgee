@@ -11,19 +11,21 @@ import { runBurgee } from './testing.js';
 const program = defineProgram({
   name: 'app',
   commands: [
-    defineCommand({ name: 'cat', run: ({ positionals }) => ({ files: positionals }) }),
+    defineCommand({ name: 'cat', effects: 'withheld', run: ({ positionals }) => ({ files: positionals }) }),
     defineCommand({
       name: 'run',
       options: { detach: { type: 'boolean' } },
+      effects: 'withheld',
       run: ({ options, positionals, passthrough }) => ({ detach: options['detach'] === true, image: positionals[0], passthrough }),
     }),
-    defineCommand({ name: 'deploy', run: () => 'deployed' }),
+    defineCommand({ name: 'deploy', effects: 'withheld', run: () => 'deployed' }),
     defineCommand({
       name: 'greet',
       options: { name: { type: 'string' } },
+      effects: 'withheld',
       run: ({ options, positionals }) => ({ name: options['name'], positionals }),
     }),
-    defineCommand({ name: 'bail', options: { code: { type: 'string' } }, run: ({ options, exit }) => exit(Number(options['code'])) }),
+    defineCommand({ name: 'bail', options: { code: { type: 'string' } }, effects: 'withheld', run: ({ options, exit }) => exit(Number(options['code'])) }),
   ],
 });
 

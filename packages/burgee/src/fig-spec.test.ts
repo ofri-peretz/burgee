@@ -35,12 +35,13 @@ const program = defineProgram({
       name: 'greet',
       description: 'say hello',
       options: { shout: { type: 'boolean' }, greeting: { type: 'string', choices: ['Hello', 'Hi'] } },
+      effects: 'withheld',
       run: () => 'ok',
     }),
     defineCommand({
       name: 'config',
       description: 'configuration',
-      commands: [defineCommand({ name: 'get', description: 'read one', options: { raw: { type: 'boolean' } }, run: () => 'ok' })],
+      commands: [defineCommand({ name: 'get', description: 'read one', options: { raw: { type: 'boolean' } }, effects: 'withheld', run: () => 'ok' })],
     }),
   ],
 });

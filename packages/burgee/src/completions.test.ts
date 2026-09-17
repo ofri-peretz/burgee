@@ -30,14 +30,15 @@ const program = defineProgram({
         greeting: { type: 'string', description: 'the greeting word', choices: ['Hello', 'Hi'] },
         secret: { type: 'string', hidden: true },
       },
+      effects: 'withheld',
       run: () => SENTINEL,
     }),
     defineCommand({
       name: 'config',
       description: 'Read configuration',
-      commands: [defineCommand({ name: 'get', description: 'Print one value', options: { raw: { type: 'boolean' } }, run: () => SENTINEL })],
+      commands: [defineCommand({ name: 'get', description: 'Print one value', options: { raw: { type: 'boolean' } }, effects: 'withheld', run: () => SENTINEL })],
     }),
-    defineCommand({ name: 'hush', hidden: true, run: () => SENTINEL }),
+    defineCommand({ name: 'hush', hidden: true, effects: 'withheld', run: () => SENTINEL }),
   ],
 });
 

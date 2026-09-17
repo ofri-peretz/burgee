@@ -56,6 +56,7 @@ const program = defineProgram({
         csv: { type: 'boolean', description: 'comma separated', exclusive: ['table'] },
         table: { type: 'boolean', description: 'a drawn table' },
       },
+      effects: 'withheld',
       run: () => ({ ok: true }),
     }),
   ],
@@ -124,11 +125,11 @@ describe('a name that is not an option is refused when the command is declared',
     ['dependsOn', { a: { type: 'string' as const, dependsOn: ['nope'] } }],
     ['exclusive', { a: { type: 'string' as const, exclusive: ['nope'] } }],
   ])('%s naming an undeclared option', (_field, options) => {
-    expect(() => defineCommand({ name: 'x', options, run: () => 'ok' })).toThrow(/"nope"/);
+    expect(() => defineCommand({ name: 'x', options, effects: 'withheld', run: () => 'ok' })).toThrow(/"nope"/);
   });
 
   it('an option may not depend on or exclude itself', () => {
-    expect(() => defineCommand({ name: 'x', options: { a: { type: 'string', exclusive: ['a'] } }, run: () => 'ok' })).toThrow(/itself/);
+    expect(() => defineCommand({ name: 'x', options: { a: { type: 'string', exclusive: ['a'] } }, effects: 'withheld', run: () => 'ok' })).toThrow(/itself/);
   });
 });
 
@@ -148,6 +149,7 @@ describe('what counts as “given” is the engine’s answer, not a second one'
           out: { type: 'string', dependsOn: ['force'] },
           force: { type: 'boolean', default: false, env: 'APP_FORCE' },
         },
+        effects: 'withheld',
         run: () => ({ ok: true }),
       }),
     ],

@@ -37,10 +37,10 @@ const program = defineProgram({
   name: 'app',
   description: 'A fixture whose command names are not all one column per code unit.',
   commands: [
-    defineCommand({ name: 'deploy-service', description: 'ASCII: code units and columns agree', run: ok }),
-    defineCommand({ name: '部署', description: 'CJK: two code units, four columns', run: ok }),
-    defineCommand({ name: '🚀', description: 'emoji: two code units, two columns', run: ok }),
-    defineCommand({ name: 'describe', description: '说明 文字 也要 按照 终端 的 列宽 来 折行 而不是 按照 代码 单元 的 数量', run: ok }),
+    defineCommand({ name: 'deploy-service', description: 'ASCII: code units and columns agree', effects: 'withheld', run: ok }),
+    defineCommand({ name: '部署', description: 'CJK: two code units, four columns', effects: 'withheld', run: ok }),
+    defineCommand({ name: '🚀', description: 'emoji: two code units, two columns', effects: 'withheld', run: ok }),
+    defineCommand({ name: 'describe', description: '说明 文字 也要 按照 终端 的 列宽 来 折行 而不是 按照 代码 单元 的 数量', effects: 'withheld', run: ok }),
   ],
 });
 
@@ -79,7 +79,7 @@ describe('help sizes its columns in display width, not code units', () => {
   it('wraps a description of wide characters to the columns available, not the code units', () => {
     const wide = defineProgram({
       name: 'app',
-      commands: [defineCommand({ name: 'go', description: '这是 一段 很长 的 中文 说明 需要 在 终端 里 正确 地 折行', run: ok })],
+      commands: [defineCommand({ name: 'go', description: '这是 一段 很长 的 中文 说明 需要 在 终端 里 正确 地 折行', effects: 'withheld', run: ok })],
     });
     const node = wide.find(['app', 'go']);
     if (node === undefined) throw new Error('fixture');
@@ -107,10 +107,10 @@ describe('help sizes its columns in display width, not code units', () => {
     const narrow = defineProgram({
       name: 'app',
       commands: [
-        defineCommand({ name: 'go', description: 'short', run: ok }),
+        defineCommand({ name: 'go', description: 'short', effects: 'withheld', run: ok }),
         // Seven code units, fourteen columns: it fits 40% of a 30-column screen when
         // counted as code units and does not when counted as columns.
-        defineCommand({ name: '部署到生产环境', description: 'to prod', run: ok }),
+        defineCommand({ name: '部署到生产环境', description: 'to prod', effects: 'withheld', run: ok }),
       ],
     });
     const node = narrow.find(['app']);

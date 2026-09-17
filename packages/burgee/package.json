@@ -17,6 +17,11 @@
       "default": "./dist/index.js"
     },
     "./schema.json": "./dist/schema.json",
+    "./plugin": {
+      "types": "./dist/plugin.d.ts",
+      "import": "./dist/plugin.js",
+      "default": "./dist/plugin.js"
+    },
     "./brand": {
       "types": "./dist/brand.d.ts",
       "import": "./dist/brand.js",

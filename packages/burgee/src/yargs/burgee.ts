@@ -4,7 +4,7 @@
  * this module projects that snapshot into the manifest every surface reads (J7, J8).
  * Nothing here runs at parse time unless a burgee surface was asked for.
  */
-import { type Effects, type Manifest, type OptionSpec } from '../manifest.js';
+import { type DeclaredEffects, type Manifest, type OptionSpec } from '../manifest.js';
 import { camelCase } from '../yargs-parser.js';
 
 import type { Positional } from './utils.js';
@@ -14,7 +14,7 @@ export interface Snapshot {
   name: string;
   version?: string | undefined;
   description?: string | undefined;
-  effects?: Effects | undefined;
+  effects?: DeclaredEffects | undefined;
   hasHandler: boolean;
   keys: string[];
   aliases: Record<string, string[]>;

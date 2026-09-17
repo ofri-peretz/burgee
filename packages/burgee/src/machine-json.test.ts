@@ -17,7 +17,7 @@ import { Command } from './commander.js';
 import { defineCommand, defineProgram } from './index.js';
 import { machineJson } from './schema.js';
 import { runBurgee } from './testing.js';
-import yargs from './yargs.js';
+import yargs, { type YargsInstance } from './yargs.js';
 
 const JSON_PRETTY = '--format=json-pretty';
 
@@ -72,8 +72,8 @@ describe('--schema emits the compact document', () => {
     name: 'app',
     version: '1.0.0',
     commands: [
-      defineCommand({ name: 'greet', description: 'Greet someone', options: { who: { type: 'string', required: true } }, run: () => 'hi' }),
-      defineCommand({ name: 'deploy', description: 'Ship a build', options: { target: { type: 'string', required: true } }, run: () => 'ok' }),
+      defineCommand({ name: 'greet', description: 'Greet someone', options: { who: { type: 'string', required: true } }, effects: 'withheld', run: () => 'hi' }),
+      defineCommand({ name: 'deploy', description: 'Ship a build', options: { target: { type: 'string', required: true } }, effects: 'withheld', run: () => 'ok' }),
     ],
   });
 
@@ -156,7 +156,7 @@ describe('the commander front-end emits the compact document too', () => {
 const defined = defineProgram({
   name: 'tool',
   version: '1.0.0',
-  commands: [defineCommand({ name: 'info', description: 'Show info', run: () => undefined })],
+  commands: [defineCommand({ name: 'info', description: 'Show info', effects: 'withheld', run: () => undefined })],
 });
 
 const throughEngine = async (argv: string[]): Promise<string> => (await runBurgee(defined, { argv })).stdout;
@@ -166,7 +166,7 @@ const throughCommander = (argv: string[]): string => {
   const program = new Command('tool');
   program.version('1.0.0');
   program.configureOutput({ writeOut: (s: string) => void out.push(s) });
-  program.command('info').description('Show info').action(() => undefined);
+  program.command('info').description('Show info').effects('withheld').action(() => undefined);
   program.parse(['node', 'test', ...argv]);
   return out.join('');
 };
@@ -177,7 +177,7 @@ const throughYargs = async (argv: string[]): Promise<string> => {
     .scriptName('tool')
     .version('1.0.0')
     .burgee({ stdout: { write: (s: string) => void out.push(s) }, stderr: { write: () => undefined }, exit: () => undefined })
-    .command('info', 'Show info', {}, () => undefined)
+    .command('info', 'Show info', (cmd: YargsInstance) => cmd.effects('withheld'), () => undefined)
     .parseAsync(argv);
   return out.join('');
 };

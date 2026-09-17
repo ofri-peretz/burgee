@@ -200,6 +200,7 @@ describe('the harness owns no process', () => {
       commands: [
         defineCommand({
           name: 'tidy',
+          effects: 'withheld',
           run: (ctx) => {
             ctx.onExit(() => void ran.push('cleaned up'), 'the temp directory');
             return { ok: true };
@@ -224,6 +225,7 @@ describe('the harness owns no process', () => {
       commands: [
         defineCommand({
           name: 'bail',
+          effects: 'withheld',
           run: (ctx) => {
             ctx.onExit(() => void ran.push('cleaned up'), 'the temp directory');
             return ctx.exit(ExitCode.CONFIG);

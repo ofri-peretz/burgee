@@ -24,7 +24,7 @@ const program = defineProgram({
       run: () => 'ok',
     }),
     defineCommand({ name: 'status', effects: 'read_only', run: () => 'fine' }),
-    defineCommand({ name: 'secret', hidden: true, run: () => 'x' }),
+    defineCommand({ name: 'secret', hidden: true, effects: 'withheld', run: () => 'x' }),
   ],
 });
 

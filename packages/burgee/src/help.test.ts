@@ -33,12 +33,13 @@ const program = defineProgram({
         { command: 'app deploy staging' },
       ],
       epilogue: 'Deploys are logged at https://example.test/deploys.',
+      effects: 'withheld',
       run: ok,
     }),
-    defineCommand({ name: 'status', description: 'Show status', group: 'Release commands:', run: ok }),
-    defineCommand({ name: 'login', description: 'Sign in', run: ok }),
-    defineCommand({ name: 'old', description: 'Legacy', deprecated: true, run: ok }),
-    defineCommand({ name: 'hush', description: 'Never listed', hidden: true, run: ok }),
+    defineCommand({ name: 'status', description: 'Show status', group: 'Release commands:', effects: 'withheld', run: ok }),
+    defineCommand({ name: 'login', description: 'Sign in', effects: 'withheld', run: ok }),
+    defineCommand({ name: 'old', description: 'Legacy', deprecated: true, effects: 'withheld', run: ok }),
+    defineCommand({ name: 'hush', description: 'Never listed', hidden: true, effects: 'withheld', run: ok }),
   ],
 });
 

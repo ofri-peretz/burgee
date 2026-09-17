@@ -14,7 +14,7 @@ import { detectAgent } from './agent.js';
 import { checkCommand } from './definition.js';
 import { ExitCode, isExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
 import { renderHelp } from './help.js';
-import { type ActionRequiredSpec, type ArgumentSpec, type CommandNode, type Effects, type Example, type LazyModule, Manifest, type OptionSpec, type Relation, relationsOf, type RunContext } from './manifest.js';
+import { type ActionRequiredSpec, type ArgumentSpec, type CommandNode, type DeclaredEffects, type Example, type LazyModule, Manifest, type OptionSpec, type Relation, relationsOf, type RunContext } from './manifest.js';
 import { serveMcp } from './mcp.js';
 import { camel, kebab } from './names.js';
 import { nearestPackage, type Package } from './pkg.js';
@@ -55,8 +55,17 @@ export interface Command<S extends OptionSpecs = OptionSpecs> {
   epilogue?: string;
   hidden?: boolean;
   deprecated?: boolean | string;
-  /** What running it does to the world (N6). Declaring it is what exposes the command as an MCP tool (N2). */
-  effects?: Effects;
+  /**
+   * What running it does to the world (N6). Declaring one of the three is what exposes the
+   * command as an MCP tool (N2); `'withheld'` declares that it is not offered to agents.
+   *
+   * Optional on the type and **required at definition time** on a command that runs:
+   * `defineCommand` refuses one that omits it. It stays optional here because a group that
+   * only holds subcommands declares none, and TypeScript cannot make a field's presence
+   * depend on a sibling's without splitting `Command` into a union that would cost the
+   * option-spec inference every caller of this type relies on.
+   */
+  effects?: DeclaredEffects;
   /** Relationships between options, validated before choices and the handler (S2, S6). */
   relations?: readonly Relation[];
   /** Absent on a group that only holds subcommands. `NoInfer`: the spec fixes S, the handler only reads it. */
@@ -99,9 +108,11 @@ export interface Program {
 }
 
 export function defineCommand<const S extends OptionSpecs = OptionSpecs>(command: Command<S>): Command<S> {
-  // The reserved names of V5 and `checkDefinition`'s four, in one place, because
-  // `Manifest.use()` needs exactly these on a plugin's commands and used to run neither.
-  checkCommand(command.name, command.options ?? {});
+  // The reserved names of V5, `checkDefinition`'s four and N6's declared effects, in one
+  // place, because `Manifest.use()` needs exactly these on a plugin's commands and used to
+  // run none of them. A node with `load` and no `run` is runnable: its module has not been
+  // imported, and what running it does to the world was knowable when it was declared.
+  checkCommand(command.name, command.options ?? {}, command.effects, command.run !== undefined || command.load !== undefined);
   return command;
 }
 
