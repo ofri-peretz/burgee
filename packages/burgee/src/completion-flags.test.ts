@@ -33,6 +33,7 @@ const program = defineProgram({
     defineCommand({
       name: 'go',
       options: { dryRun: { type: 'boolean', description: 'no writes' }, quiet: { type: 'boolean', short: 'q' }, name: { type: 'string' } },
+      effects: 'withheld',
       run: () => 'ok',
     }),
   ],

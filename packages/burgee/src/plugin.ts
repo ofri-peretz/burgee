@@ -191,7 +191,7 @@ function checkCommands(commands: unknown, name: string, taken: readonly string[]
      * author debugging against any layer has already learned this one (R8).
      */
     try {
-      checkCommand(path, (node['options'] ?? {}) as Record<string, OptionSpec>);
+      checkCommand(path, (node['options'] ?? {}) as Record<string, OptionSpec>, node['effects'], node['run'] !== undefined || node['load'] !== undefined);
     } catch (error) {
       throw schema(`${at}: ${(error as Error).message}`, 'a plugin command is declared exactly as a first-party one');
     }

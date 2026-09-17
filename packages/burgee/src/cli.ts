@@ -67,6 +67,15 @@ function surfaces(brand: BurgeeBrand, tagline: string): Array<{ file: string; sv
 export const brandCommand = defineCommand({
   name: 'brand',
   description: 'Generate a burgee — flag, favicon, social card, cover and lockup — from two colours',
+  /**
+   * It writes six files into a directory the caller names and overwrites whatever is there,
+   * so `destructiveHint` is true — which is what MCP's hint is about, the caller's data
+   * rather than the command's determinism. Re-running it with the same colours produces the
+   * same six files; that would make it `idempotent`, and N7 then requires the result to
+   * report `changed`, which would mean reading each existing file back to compare. The
+   * conservative reading is the one declared, and the honest one is recorded here.
+   */
+  effects: 'non_idempotent',
    
   options: {
     lead: {
@@ -166,6 +175,14 @@ export const devCommand = defineCommand({
   options: {
     'no-watch': { type: 'boolean', description: 'load once and serve; do not watch for changes' },
   },
+  /**
+   * The first real use of the opt-out, and it is not a formality. `dev` **is** an MCP server:
+   * it watches an entry and serves the program under it on stdio, and it does not return. An
+   * agent that called it as a tool would be starting a second, nested, never-finishing MCP
+   * server inside a tool call, over the same pipe. Withheld is not "we forgot to think about
+   * agents" here; it is the answer thinking about them gives.
+   */
+  effects: 'withheld',
   run: async ({ positionals, options }) => {
     const [entry] = positionals;
     if (entry === undefined) throw new Error('an entry file is required');

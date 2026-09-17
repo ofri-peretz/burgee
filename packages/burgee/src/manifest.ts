@@ -92,6 +92,26 @@ export interface LazyModule {
 export type Effects = 'read_only' | 'idempotent' | 'non_idempotent';
 
 /**
+ * What a command may declare under `effects`: one of the three above, or `'withheld'`.
+ *
+ * `'withheld'` is not an effect and is deliberately not spelled like one. It answers a
+ * different question — *may an agent call this?* — and it exists because the two questions
+ * used to share one absence. `effects: undefined` meant both "I decided agents should not
+ * have this" and "I forgot", and the second is the one that ships: the tool an author built
+ * for an agent was simply not in `tools/list`, and nothing said so (N6).
+ *
+ * It is not `'none'`, which reads as *this command has no effects* — which is `read_only`,
+ * the one value it could be confused with and the one confusion that would matter. Nor is it
+ * a second field: a boolean beside a now-required `effects` would mean that declaring what a
+ * command does to the world silently opts it in, and the default for *that* field would be
+ * the silence this change exists to remove. One field, four answers, no default.
+ *
+ * {@link Effects} stays the three, because `annotationsOf` is total on them: a withheld
+ * command has no hints, because it has no tool.
+ */
+export type DeclaredEffects = Effects | 'withheld';
+
+/**
  * A relationship between options, validated after parsing and before choices and the
  * handler (S2, S6). `implies` takes a second option name, or a predicate over the values.
  */
@@ -198,8 +218,14 @@ export interface CommandNode {
   epilogue?: string;
   hidden?: boolean;
   deprecated?: boolean | string;
-  /** Required for a command to be served as an MCP tool (N2, N6). */
-  effects?: Effects;
+  /**
+   * What running it does to the world, or `'withheld'` (N2, N6). Required on a node that
+   * runs — `checkCommand` refuses one that omits it — and optional on the type, because a
+   * group carries no `effects` and the host front-ends build nodes that never reach that
+   * door: commander and yargs have no notion of effects and their graded suites declare
+   * none, so a façade's command is withheld in fact and cannot be made to say so.
+   */
+  effects?: DeclaredEffects;
   run?: (ctx: RunContext) => unknown;
   /**
    * The handler's module, imported on dispatch only (M2): the manifest — help, schema,

@@ -192,9 +192,25 @@ const RULES: Record<string, EntryRule> = {
   // then given back — `maintainability/cognitive-complexity` scored the merged
   // `checkDefinition` at 30 against a ceiling of 15, and a lint rule this repo enforces
   // outranks 108 bytes.
+  //
+  // 59,800 on 2026-09-17 for N6: a runnable command that declares no `effects` is refused
+  // where it is declared. **+938** (58,794 -> 59,732), attributed per built file:
+  // `definition.js` +720 (`checkEffects`, plus the three answers and the fourth as data),
+  // `plugin.js` +74, `mcp.js` +70 (the filter now excludes `'withheld'` as well as
+  // `undefined`), `execute.js` +74 (`defineCommand` passes the node's `effects` and whether
+  // it runs). `manifest.js`, `schema.js` and `index.js` are unchanged to the byte: the new
+  // `DeclaredEffects` is a type, and `--schema` already passed `effects` through.
+  //
+  // What the 938 buys is the removal of a default rather than the addition of a check.
+  // `effects` was optional, and a command that omitted it was silently not served as a
+  // tool — *I decided agents should not have this* and *I forgot* were the same value, so
+  // an author shipped a CLI whose agent-facing half was simply absent, with a shorter
+  // `tools/list` as the only evidence. `.sdlc/intents/burgee/design.md` recorded it as the
+  // quieter of the two failures. It is now the louder one, at declaration time, and
+  // declining is `effects: 'withheld'` — a thing said rather than a thing forgotten.
   ".": {
     allow: ["closeout", "linegauge", "seniority/precedence"],
-    budget: 58_800,
+    budget: 59_800,
     denied: [
       "testing.js",
       "testing-helpers.js",
@@ -237,26 +253,37 @@ const RULES: Record<string, EntryRule> = {
   // `plugin-schema-lock.test.ts` caught in flagstaff. 62,992 had 8 bytes spare, so the
   // ratchet caught a 23-byte string, which is exactly the size of change it exists to make
   // somebody decide about. Measured 63,015.
-  "./testing": { allow: ["closeout", "linegauge", "seniority/precedence"], budget: 63_100, denied: ["dev.js"] },
+  // 64,000 on 2026-09-17 with `.` above: the harness runs a whole program in-process, so it
+  // carries N6's refusal for the same reason it carries the schema. **+938** (63,015 ->
+  // 63,953), the same four files and the same numbers as `.`, minus nothing — the harness
+  // takes `index.js` too, and `index.js` did not change.
+  "./testing": { allow: ["closeout", "linegauge", "seniority/precedence"], budget: 64_000, denied: ["dev.js"] },
   // The plugin host, at the subpath the rest of the family publishes it at. Added
   // 2026-09-17: burgee was the one package that hosted plugins and published no
   // `./plugin`, so `scripts/plugin-contract-lock.test.ts` had to reach it by relative
   // path and recorded the gap in `NO_PLUGIN_SUBPATH`.
   //
-  // It costs a program **nothing**, which is the only reason this entry can be added
+  // It costs a program **nothing**, which is the only reason this entry could be added
   // without raising anything above. `manifest.js` imports `validate` from `plugin.js`
   // as a value — `use()` is synchronous — so every entry that reaches the manifest
   // already carried these bytes. The subpath only gives them a door of their own:
-  // 6,301 measured, `plugin.js` (4,116) + `definition.js` (2,105) + `names.js`, and
-  // `allow: []` because the host imports nothing outside the package.
+  // 6,301 measured, which is `plugin.js` 3,945 + `definition.js` 2,067 + `names.js` 289,
+  // and `allow: []` because the host imports nothing outside the package.
   //
   // Denied the engine in both spellings. A plugin author needs the shape and the
   // refusals; if this entry ever reached `execute.js` it would mean the host had
   // started depending on the runner, and `burgee/plugin` would quietly cost a
   // consumer the whole framework.
+  //
+  // 7,100 on 2026-09-17 for N6, the definition-time refusal. **+794** (6,301 -> 7,095):
+  // `definition.js` +720 for `checkEffects`, the three answers and the fourth, and
+  // `plugin.js` +74 where `checkCommands` passes a node's `effects` and whether it runs.
+  // This entry pays the largest share of that change in proportional terms and should:
+  // the refusal is the plugin host's door as much as `defineCommand`'s, and a plugin's
+  // command is read by exactly the code a first-party one is read by.
   "./plugin": {
     allow: [],
-    budget: 6_400,
+    budget: 7_100,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js"],
   },
   // The brand generator. Pure geometry and string building — it must never reach
@@ -275,9 +302,16 @@ const RULES: Record<string, EntryRule> = {
   // above the measurement.
   // 78,100 on 2026-09-16 with `.` above: the package's own command line is a burgee program.
   // +1,621 (76,450 -> 78,071 measured). Next hundred above the measurement.
+  // 79,100 on 2026-09-17 with `.` above, and 56 of the bytes are this package answering its
+  // own question. **+994** (78,094 -> 79,088): the engine's 938, plus `cli.js` +56 for two
+  // declarations that had to be made rather than defaulted. `brand` is `non_idempotent`
+  // because it overwrites six files in a directory the caller names; `dev` is the first real
+  // `'withheld'` in the repository, because it *is* an MCP server — a tool call that started
+  // it would be a second, never-finishing server nested inside the first, on the same pipe.
+  // Neither declaration existed before this commit, and neither command was a tool.
   "./cli": {
     allow: ["closeout", "linegauge", "roundel/contrast", "seniority/precedence"],
-    budget: 78_100,
+    budget: 79_100,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   // Arithmetic over hex strings, and the arithmetic itself is roundel's — colour is the
@@ -325,6 +359,19 @@ const RULES: Record<string, EntryRule> = {
   // whole for `checkDefinition` — one function of it — while the other four fifths are
   // run-time coercion the front-end never reaches. Splitting the definition-time checks into
   // `definition.js` (1,563 B) is what fixed it: 125,667 measured, and the claim holds.
+  //
+  // Unchanged again on 2026-09-17, and this time by 124 bytes. N6 costs the front-end
+  // **+864** (127,012 -> 127,876) — `definition.js` +720, `plugin.js` +74, `mcp.js` +70,
+  // and none of `execute.js`, which the front-end does not reach. Two things follow and
+  // both are worth writing down. The front-end pays for a refusal it can never fire:
+  // commander has no notion of effects, its graded suite declares none, and a façade
+  // command therefore reaches the manifest without passing `defineCommand`'s door — so a
+  // commander user's command is withheld in fact and cannot be made to say so, which is the
+  // limit of this change and is recorded in `.sdlc/intents/burgee/design.md`. And the
+  // paragraph above is now the thing to watch: 128,000 is the budget, but commander's own
+  // `lib/` is 126,365, and the measurement passed that on 2026-09-16 rather than today.
+  // The ceiling says "no heavier than 128,000"; the claim says "no heavier than commander",
+  // and those stopped being the same sentence. Not this lane's to reset.
   "./commander": {
     allow: [],
     budget: 128_000,

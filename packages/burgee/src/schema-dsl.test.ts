@@ -36,6 +36,7 @@ const deploy = defineCommand({
         inline: { type: 'string' },
       },
       relations: [{ atMostOneOf: ['config', 'inline'] }, { conflicts: ['dryRun', 'force'] }, { implies: ['force', onProd] }],
+      effects: 'withheld',
       run: ({ options }) => options,
     });
 const program = defineProgram({ name: 'app', envPrefix: 'APP', commands: [deploy] });
@@ -63,6 +64,7 @@ describe('types are derived from the declaration (S1)', () => {
     defineCommand({
       name: 'typed',
       options: { level: { type: 'number', default: 1 }, mode: { type: 'string', choices: ['a', 'b'] } },
+      effects: 'withheld',
       run: ({ options }) => {
         expectTypeOf(options.level).toEqualTypeOf<number>();
         expectTypeOf(options.mode).toEqualTypeOf<'a' | 'b' | undefined>();
@@ -145,7 +147,7 @@ describe('relations, validated before choices and the handler (S2, S6)', () => {
   it('exactlyOneOf and atLeastOneOf', async () => {
     const p = defineProgram({
       name: 'p',
-      commands: [defineCommand({ name: 'x', options: { a: { type: 'boolean' }, b: { type: 'boolean' } }, relations: [{ exactlyOneOf: ['a', 'b'] }], run: () => 'ok' })],
+      commands: [defineCommand({ name: 'x', options: { a: { type: 'boolean' }, b: { type: 'boolean' } }, relations: [{ exactlyOneOf: ['a', 'b'] }], effects: 'withheld', run: () => 'ok' })],
     });
     expect((await runBurgee(p, { argv: ['x'] })).stderr).toMatch(/exactly one of --a, --b is required/);
     expect((await runBurgee(p, { argv: ['x', '--a', '--b'] })).stderr).toMatch(/drop all but one/);

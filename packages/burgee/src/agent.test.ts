@@ -18,7 +18,7 @@ describe('agent detection, not just isTTY (N12)', () => {
   });
   it('reaches the handler as ctx.interactive and ctx.agent, from the injected stdout', async () => {
     const seen: unknown[] = [];
-    const program = defineProgram({ name: 'app', commands: [defineCommand({ name: 'x', run: ({ interactive, agent }) => void seen.push({ interactive, agent }) })] });
+    const program = defineProgram({ name: 'app', commands: [defineCommand({ name: 'x', effects: 'withheld', run: ({ interactive, agent }) => void seen.push({ interactive, agent }) })] });
     const base: RunOptions = { argv: ['x'], stderr: { write: () => true }, exit: () => undefined };
     await execute(program, { ...base, env: {}, stdout: { write: () => true, isTTY: true } });
     await execute(program, { ...base, env: { GEMINI_CLI: '1' }, stdout: { write: () => true, isTTY: true } });

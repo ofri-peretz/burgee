@@ -256,7 +256,7 @@ these requirements turn that into a served interface rather than a document.
 | N3 | Zero runtime dependencies: JSON-RPC over stdio against `node:readline` | K1 | lock | cli-mcp |
 | N4 | Tool results are the O1 envelope, so MCP and `--json` callers see identical payloads | O1 | R | cli-mcp |
 | N5 | `--mcp` implies non-TTY: no prompts, no colour, E3 errors | O2, P2, E3 | R | cli-mcp |
-| N6 | Every command declares `effects: read_only \| idempotent \| non_idempotent`, **required not optional**, and it generates MCP's `readOnlyHint`/`idempotentHint`/`destructiveHint`. The spec defaults `destructiveHint` and `openWorldHint` to **true**, so silence is the dangerous reading | MCP `2026-07-28` schema | R + L | cli-mcp |
+| N6 | Every command that runs declares `effects: read_only \| idempotent \| non_idempotent \| withheld`, **required not optional**, refused at definition time when absent, and the first three generate MCP's `readOnlyHint`/`idempotentHint`/`destructiveHint`. The spec defaults `destructiveHint` and `openWorldHint` to **true**, so silence is the dangerous reading — and `withheld` is how an author says *not for agents* without that being the same value as having said nothing | MCP `2026-07-28` schema | R + L | cli-mcp |
 | N7 | A no-op announces itself: every idempotent command reports `changed: true \| false`. An agent reads silence as success, and a silent failure stays invisible for a median of ~10 steps against a median recovery window of 1 | arXiv 2607.09510, 1,794 trajectories | R | commander-agent → engine |
 | N8 | `--schema` succeeds with **no authentication, no config file and no network**. It is the one command an agent runs first, before anything is set up | clispec.dev v0.3 | R + lock | cli-mcp |
 | N9 | The manifest carries `enum`, `minimum` and `maximum` as **data**, not as completion callbacks — the four fields a tool definition needs and a flag parser cannot supply | Cobra #2362, the flag/schema gap | R | commander-schema |
@@ -591,9 +591,26 @@ does not do.
   `dynamic` marker on an option, so the escape hatch the requirement describes does not exist.
 - **M1** — "every command carries a group" is not enforced; `group` is optional and the help
   renderer falls back to a default heading.
-- **N6** — `effects` is optional, not required. A command that omits it is silently not
+- **N6** — ~~`effects` is optional, not required. A command that omits it is silently not
   served as a tool rather than failing at definition time, which is the quieter of the two
-  failures.
+  failures.~~ **Closed 2026-09-17.** A runnable command that declares no `effects` is refused
+  by `checkCommand`, so `defineCommand` and `Manifest.use()` both throw where the command is
+  written. Declining stays possible and is now something an author says: `effects:
+  'withheld'`, a fourth value of the same field. It is not `'none'` — which reads as *this
+  command has no effects*, i.e. `read_only`, the one value it could be confused with — and it
+  is not a second boolean field, because a boolean beside a now-required `effects` would mean
+  that declaring what a command does to the world silently opts it into the tool list, and
+  *that* field's default would be the silence this change exists to remove. One field, four
+  answers, no default, so there is no state in which forgetting is possible. `toolsOf`'s
+  filter is unchanged, which is the point: it did not have to become less strict for the
+  failure to become loud. **Two limits, stated rather than implied.** The refusal is on
+  burgee's own declaration API; a command built through the commander or yargs façade reaches
+  the manifest without passing that door, because neither incumbent has a notion of effects
+  and their graded suites (1360/1360 and 804/804, both `▲ 0` after this change) declare none —
+  so a façade user's command is withheld in fact and cannot be made to say so. And `effects`
+  stays optional on the *type*: TypeScript cannot make a field's presence depend on a
+  sibling's without splitting `Command` into a union that would cost the option-spec inference
+  every caller relies on, so the check is at definition time and not at compile time.
 - **N13** — drilling is by command path only; there is no field-path selector.
 - **N14** — `--json` is a plain boolean. It takes no argument, so nothing lists valid fields
   or rejects an invalid one.

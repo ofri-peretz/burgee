@@ -21,9 +21,10 @@ const program = defineProgram({
     defineCommand({
       name: 'deploy',
       options: { region: { type: 'string', default: 'us-1' }, verbose: { type: 'boolean' } },
+      effects: 'withheld',
       run: ({ options }) => ({ region: options['region'], verbose: options['verbose'] === true }),
     }),
-    defineCommand({ name: 'other', options: { name: { type: 'string' } }, run: ({ options }) => options['name'] ?? 'none' }),
+    defineCommand({ name: 'other', options: { name: { type: 'string' } }, effects: 'withheld', run: ({ options }) => options['name'] ?? 'none' }),
   ],
 });
 
@@ -81,7 +82,7 @@ describe('--explain and --version', () => {
 
   it('--version reads the package.json that owns the entry file (V4), unless the program declares one', async () => {
     expect((await run(['deploy', '--version'])).stdout).toBe('9.9.9\n');
-    const declared = defineProgram({ name: 'v', version: '1.0.0', commands: [defineCommand({ name: 'x', run: () => 1 })] });
+    const declared = defineProgram({ name: 'v', version: '1.0.0', commands: [defineCommand({ name: 'x', effects: 'withheld', run: () => 1 })] });
     const out: string[] = [];
     await execute(declared, { argv: ['x', '--version'], env: {}, entry, stdout: { write: (s: string) => out.push(s) }, stderr: { write: () => true }, exit: () => undefined });
     expect(out.join('')).toBe('1.0.0\n');

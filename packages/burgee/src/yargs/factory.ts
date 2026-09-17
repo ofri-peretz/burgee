@@ -7,7 +7,7 @@
  */
  
 import { ExitCode } from '../exit-code.js';
-import { type Effects, Manifest, type Plugin } from '../manifest.js';
+import { type DeclaredEffects, Manifest, type Plugin } from '../manifest.js';
 import { serveMcp } from '../mcp.js';
 import { machineJson, schemaOf } from '../schema.js';
 import { tokenizeArgString } from '../yargs-parser.js';
@@ -153,7 +153,7 @@ export class YargsInstance {
   #validation: ValidationInstance;
   // ───── burgee: the manifest projection, plugins, --json, the surfaces and the seam ─────
   #burgee: BurgeeState | undefined = undefined;
-  #effects: Effects | undefined = undefined;
+  #effects: DeclaredEffects | undefined = undefined;
   #manifest: Manifest | undefined = undefined;
 
   constructor(processArgs: string | string[] = [], cwd: string, parentRequire: NodeJS.Require | undefined, shim: PlatformShim) {
@@ -1283,7 +1283,7 @@ export class YargsInstance {
   }
 
   /** burgee: declare what the command does to the world (N6); what exposes it as an MCP tool (N2). */
-  effects(value: Effects): this {
+  effects(value: DeclaredEffects): this {
     this.#effects = value;
     return this;
   }

@@ -7,9 +7,15 @@
  * Only a command that declares its `effects` is a tool (N2, N6): an agent gaining
  * shell-equivalent power over a CLI nobody meant to publish is a security posture, not a
  * convenience.
+ *
+ * That filter is unchanged, and since 2026-09-17 it is fed a declaration rather than a
+ * silence. `checkCommand` refuses a runnable command that omits `effects`, so the only way
+ * to be absent from this list on purpose is to say `effects: 'withheld'` — which is what an
+ * author who means it now writes, and what an author who forgot is told to write.
  */
 import { createInterface } from 'node:readline';
 
+import { WITHHELD } from './definition.js';
 import { type CommandNode, type Effects, type Manifest } from './manifest.js';
 import { inputSchemaOf, type JsonSchema, runnable, typedName } from './schema.js';
 
@@ -60,10 +66,20 @@ function describe(node: CommandNode): string {
   return parts.filter((p) => p !== '').join('\n');
 }
 
-/** The tool list: every runnable, visible command that declared its effects. */
+/**
+ * The tool list: every runnable, visible command that declared what running it does.
+ *
+ * Two commands are absent and for different reasons. One declared `'withheld'` — an author
+ * who thought about it and said no, which is what that word is for. The other has no
+ * `effects` at all, which `checkCommand` now refuses at declaration, so on burgee's own API
+ * it cannot reach here; a command built through the commander or yargs façade still can,
+ * because neither incumbent has a notion of effects and neither can be made to acquire one
+ * without breaking the suites that grade the façades. The filter treats both as *not a
+ * tool*, which is the same conservative reading it always had.
+ */
 export function toolsOf(manifest: Manifest): Tool[] {
   return runnable(manifest)
-    .filter((c): c is CommandNode & { effects: Effects } => c.effects !== undefined)
+    .filter((c): c is CommandNode & { effects: Effects } => c.effects !== undefined && c.effects !== WITHHELD)
     .map((c) => ({ name: toolName(c, manifest.rootPath), description: describe(c), inputSchema: inputSchemaOf(c), annotations: annotationsOf(c.effects) }));
 }
 
