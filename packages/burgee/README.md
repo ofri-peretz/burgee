@@ -14,7 +14,7 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/burgee"><img src="https://img.shields.io/npm/v/burgee?style=flat-square&color=0a6b47" alt="npm version" /></a>
   <a href="https://www.npmjs.com/package/burgee"><img src="https://img.shields.io/npm/dm/burgee?style=flat-square" alt="npm downloads" /></a>
-  <img src="https://img.shields.io/badge/runtime%20dependencies-0-0a6b47?style=flat-square" alt="Zero runtime dependencies" />
+  <img src="https://img.shields.io/badge/dependencies-5%20in--family-0a6b47?style=flat-square" alt="Five dependencies, all in this repository: bellpull, closeout, linegauge, roundel, seniority" />
   <img src="https://img.shields.io/badge/Node.js-24+-green.svg?style=flat-square" alt="Node.js 24+" />
   <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT" />
 </p>
@@ -62,7 +62,7 @@ that on every commit.
 ```text
 defineCommand()  ──▶  manifest  ──┬──▶  human help
                                   ├──▶  --json      one stable envelope
-                                  ├──▶  --schema    versioned, JSON-Schema validated
+                                  ├──▶  --schema    versioned, one document per surface
                                   ├──▶  --mcp       an MCP server, generated
                                   ├──▶  completions bash · zsh · fish · pwsh
                                   ├──▶  TypeScript types

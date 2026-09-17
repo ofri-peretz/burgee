@@ -275,6 +275,71 @@ reader nothing.
   legal. The schema file is byte-identical across the family by design (PLAN 1.1), so
   tightening it is a cross-package edit and not roundel's alone.
 
+## What is built (2026-09-16)
+
+**One row per requirement, established from the tree rather than from this document's prose
+about itself.** Before today this design recorded no per-requirement status in either shape
+`scripts/plan-progress.ts` reads, so `designGap('roundel')` returned *"the design records no
+per-requirement status, in either shape"* — eleven requirements, none of them accounted for.
+A reader could not tell R11, which has no file at all, from R1, which has a truth table.
+
+**The Status cell holds two words and nothing else**, `Built` or `Not built`, because the
+checker matches `**Built**` exactly; `seniority`'s table learned that four spellings of one
+word read as four missing rows. The version and the date belong in *Where*. A row saying
+`Built` without a check in the last column is a claim, so every row names one — and an honest
+`Not built` is a better record than a `Built` nothing would catch.
+
+| R | Status | Where | The check |
+| :-- | :-- | :-- | :-- |
+| R1 | **Built** | `src/policy.ts` — `outputMode(rt, opts)`, the only reader of `CLI_ACCESSIBLE`, `CI` and `isTTY` in the package | `policy.test.ts` → *"outputMode — R1, first match wins"*, one row per mode |
+| R2 | **Built** | `src/policy.ts` — `colorLevel(rt, opts)`, `forced()`, `flagged()`, the CI vendor table and the `TERM`/`COLORTERM` fallback | `policy.test.ts`, eight `colorLevel` blocks incl. *"an explicit 'colour off' is never overridden into colour on"* and *"the one place roundel and chalk disagree, on purpose"*; `npm run compat -- chalk` **58 / 58** |
+| R3 | **Built** | `src/tokens.ts` — the nine tokens over `util.styleText`, identity while `flown.level` is 0; the only file in the package that emits an escape | `tokens.test.ts`: identity before `fly()`, the same paint under every mode once something asked, `json` never painted |
+| R4 | **Built** | `src/theme.ts` — `fly()`, `DEFAULTS` (rock and juniper, the variant chosen by contrast against the ground), `rgb256`/`toOklab`/`degrade` for the levels below truecolor. Signature restated below | `theme.test.ts` → *"fly — defaults"*, *"fly — hex below truecolor"*, *"conformance: AA by default, AAA on request"* |
+| R5 | **Built** | `src/contrast.ts` — `contrast`, `luminance`, `channels`, `AA`, `AAA`, `floors`, `reportTheme`; `src/theme.ts`'s `fly()` throws below the floor, and `audit()` is the same judgement as data. The 256-colour substitute is checked too, which R5 does not promise and the package does | `contrast.test.ts` against the WCAG reference values; `theme.test.ts` → *"fly — the contrast gate (R5)"* and *"the 256-colour substitution is checked, and chosen to pass"* |
+| R6 | **Built** | `src/chalk.ts` — the Proxy chain, `Chalk`, `chalkStderr`, `supportsColor`, `supportsColorStderr`, the four name arrays; chalk's mutable `level` lives inside the façade and nothing else reads it | `npm run compat -- chalk` — **58 / 58, 100.0%, ▲ 0** on chalk's own vendored suite; `chalk.test.ts` for the seams the suite does not reach |
+| R7 | **Built** | `src/subpath-isolation.test.ts` derives its subject from `package.json`'s `exports`, so it covers all seven published entries — the five R7 names plus `./plugin` and `./schema.json`, which R7 does not. `sideEffects: false`; `index.ts` is re-exports only. Restated below | `subpath-isolation.test.ts` → *"every isolation rule names a published entry"* and *"every internal rule names a file that exists and is not itself an entry"*, which is what closes `runtime.js` |
+| R8 | **Not built** | Half of it is. The **byte** ceilings are locked in `src/weight.test.ts` against `dist/` — `./tokens` 3,300 (picocolors), `./chalk` 9,370 (chalk 6.0.0's own `index.js` + `utilities.js`) — and B4 records a tree-inclusive ratio for both pairs, each under its `max: 1` gate — `roundel/tokens ÷ picocolors` and `roundel/chalk ÷ chalk`, in the `weight` axis of the latest `benchmarks/results/cli-benchmarks/` record. The **time** half is not built anywhere: R8 says `./tokens` costs picocolors *+10 ms* and `./chalk` no more than picocolors' spawn delta, and `benchmarks/` measures no such thing | `weight.test.ts` for the bytes. For the time: **nothing.** `benchmarks/fixtures/entry-points.ts` pairs `roundel/tokens` and `roundel/chalk` for `weight` only, and the `perf` axis carries seven variants — `bare node`, the three parsers and their three ratios — and no roundel row. `weight.test.ts`'s own comment says the spawn delta "is a `cli-benchmarks` B4 row … and is measured there", and it is not |
+| R9 | **Built** | Restated below. `src/runtime.ts` is the one file in the package that names the process, through a guarded `(globalThis as { process?: … }).process` bound to a local; `./chalk` is the only entry that reaches it, because chalk's contract is "detect the terminal at import". Every other module takes a `Runtime` | `packages/burgee/src/process-reference-lock.test.ts` — `roundel/src/runtime.ts` is the package's single allow-list entry, and the lock catches the *binding* wherever the process is bound from, not only a `process.env` member read. `subpath-isolation.test.ts`'s `INTERNAL_ALLOWED` pins `runtime.js` to reaching nothing |
+| R10 | **Built** | `package.json` — `"type": "module"`, and every code entry carries `types`/`import`/`default` | `shape.test.ts` → *"is consumable from CommonJS too — the same ESM file, through require(esm) (K2)"* and *"`roundel/chalk` is one import away too — chalk's default export, as ESM and through require(esm) (R6, R10)"*, both spawning a real `node` against an installed tarball |
+| R11 | **Not built** | There is no `packages/roundel/src/import.ts`, no `./import` in the `exports` map, and no `fromBase16` or `fromITerm` anywhere in `packages/`. Nothing was started and nothing was measured; R11's own Evidence row grades it *"hypothesis — measure before lock"*, so no evidence was spent on it either | `node -p "Object.keys(require('./packages/roundel/package.json').exports)"` lists seven entries and `./import` is not among them; `git grep fromBase16` returns nothing. The claim is nonetheless in the shipped `packages/roundel/README.md`, where a consumer reads it as a feature — another lane's file, reported here, not edited |
+
+### Requirements restated (2026-09-16), with the old wording kept
+
+A bar that is restated and then vanishes is indistinguishable from one that was quietly met,
+so each of these keeps the sentence it replaces.
+
+- **R4's signature.** *Was:* "`fly(theme)` sets the process theme once". *Is:* `fly(theme, rt, opts?)`
+  — the runtime is a required second argument and `{ json }` an optional third, because the level
+  is decided from the runtime at the moment the theme is flown and R2 forbids reading it any
+  other way. Nothing about what `fly` *does* changed; the one-argument spelling was never
+  shipped.
+- **R7's subpath list.** *Was:* "`./policy`, `./tokens`, `./theme`, `./contrast`, `./chalk`".
+  *Is:* every entry in the `exports` map — those five plus `./plugin` and `./schema.json`. The
+  lock already reads the map rather than a list, so it has been covering seven for as long as
+  seven have been published; R7's text is what was short, not the check.
+- **R9's claim.** *Was:* "Nothing reads `process.*`; `process-reference-lock` extends here."
+  *Is:* **one named file reads the process and every other module takes a `Runtime`** — the
+  family's one-seam rule, with `roundel/src/runtime.ts` on
+  `process-reference-lock.test.ts`'s allow-list. This is a weaker claim than R9 made and it is
+  the one the package keeps: `./chalk` has to detect the terminal at import to pass chalk's
+  suite, and there is nowhere else for that read to live. Y9 made the seam deliberate; R9 was
+  never rewritten to match.
+- **R1's inputs.** *Was:* "pure over `{ isTTY: { stdout }, env, json?: boolean }`". *Is:* pure
+  over a `Runtime` (`{ env, isTTY: { stdout }, argv? }`) plus a separate `{ json }` options
+  argument — `json` is the engine's knowledge of the run, not a field of the runtime, and
+  `argv` is where R2's `--color` flags are read from. Same inputs, two parameters.
+
+### What this reconciliation found that the design did not record
+
+- **R8's time half has no instrument.** Covered in the row above. This is the only place in
+  the design where a comment inside the code asserts a measurement exists elsewhere and it does
+  not — which is the shape of defect `scripts/plan-progress.ts`'s own header keeps a tally of.
+- **`roundel/plugin` and `roundel/schema.json` are shipped surface no requirement governs.**
+  "Where this document and the code disagree" already says the plugin host is absent from the
+  requirements; stated as a status, it means two of seven published subpaths are covered by
+  R7's lock and by no requirement's *intent*. `plugin.ts` is graded by `plugin.test.ts` and by
+  the family's `plugin-contract`, so it is not ungraded — it is unowned by this list.
+
 ## Rejected alternatives
 
 - **Depending on `burgee` for `contrast`.** Reverses the arrow (U1). Sixty lines duplicated
