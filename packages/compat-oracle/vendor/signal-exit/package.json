@@ -1,0 +1,16 @@
+{
+  "name": "@vendored/signal-exit-suite",
+  "private": true,
+  "type": "commonjs",
+  "main": "./shim.mjs",
+  "version": "4.1.0",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tapjs/signal-exit.git"
+  },
+  "devDependencies": {
+    "signal-exit": "4.1.0",
+    "tap": "16.3.4"
+  }
+}
