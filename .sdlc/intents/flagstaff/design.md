@@ -502,6 +502,34 @@ taken:* take the behaviour and leave the vocabulary untyped as a follow-up — w
 codes came to be literals in the first place. The refusals work either way, so nothing would
 have forced the follow-up, and R8 would have stayed a claim no check could test.
 
+
+### Note added 2026-09-16 — what this acceptance did not have in front of it
+
+**The acceptance above stands as given and is not rewritten here; this note is not a second
+one.** It records a fact about the document the acceptance was given on, so that whoever gave
+it can decide whether it still holds.
+
+On 2026-09-09, and until today, this design recorded a per-requirement status for **four of
+its twelve requirements** — R4, R6, R11 and R12, each through a `## What shipped (…)` heading.
+The other eight — R1, R2, R3, R5, R7, R8, R9, R10 — had no status in either shape
+`scripts/plan-progress.ts` reads, which is what `designGap('flagstaff')` reported in those
+words. The two decisions accepted above are narrow and each is argued on its own; what the
+signature sat on top of was a requirements list eight rows of which said nothing about whether
+they had been met.
+
+They now do, in [§ What is built (2026-09-16)](#what-is-built-2026-09-16), established from
+`packages/flagstaff/src/` rather than from this document's prose about itself. Of the eight,
+**six read `Built`** (R1, R2, R3, R5, R7, R9) and **two read `Not built`** (R8 and R10) — and
+one of the four that already had a heading, R4, reads `Not built` too, against the same
+`## What shipped (R4, …)` entry that concedes the gap in its own last paragraph. Seven
+requirements were restated where the wording, not the code, was what was wrong.
+
+Rule 3 is why this is a note and not an edit to the line above it: the agent that wrote the
+code does not approve it, and the same agent line reconciling a design cannot retire a
+human's signature on it or write a replacement. Three red rows and seven restatements are a
+material change to what the accepted document says; whether the acceptance survives that is
+the owner's call, not this lane's.
+
 ## The surface a consumer gets, derived from the tree (2026-09-15)
 
 R1–R11 say what flagstaff is *for*, and the "What shipped" log says how it got here. Neither
@@ -737,6 +765,106 @@ reader who stops at the requirements list is misled.
 - **`./schema.json` and `./boxen` and `./cli-table3` are shipped subpaths this design never
   names as exports.** The schema is described as "shipped in the tarball" and is also an
   export map entry a consumer can import.
+
+## What is built (2026-09-16)
+
+**One row per requirement, established from the tree rather than from this document's prose
+about itself.** Until today this design recorded a status for four of its twelve requirements
+— R4, R6, R11 and R12, each through a `## What shipped (…)` heading — and
+`designGap('flagstaff')` reported *"R1, R2, R3, R5, R7, R8, R9, R10 not recorded as built"*.
+Eight of twelve had no status of any kind, and the design carried a Design→Build acceptance
+anyway. That is the case PLAN D3's own note names: *"the grep proves the wording landed; it
+cannot prove a human meant it."* The dated note under the acceptance says so where the
+acceptance is.
+
+**The Status cell holds two words and nothing else**, `Built` or `Not built`, because the
+checker matches `**Built**` exactly. A row saying `Built` without a check in the last column
+is a claim, so every row names one; three rows read `Not built`, and that is the point of
+having the column rather than a defect in it.
+
+| R | Status | Where | The check |
+| :-- | :-- | :-- | :-- |
+| R1 | **Built** | `src/loop.ts` — `hoist()`, the mode from `roundel/policy` and nothing computed here; `src/projection.ts` — the four writers, the only module that emits a cursor op. Signature, the `readline` claim and the pipe wording all restated below | `loop.test.ts` → *"R1 · one component, five modes"*: the tty transcript, the NDJSON events on stderr with stdout untouched, the no-frame case, the multi-line erase, and `update`/`lower` after `lower` |
+| R2 | **Built** | `src/plugin.ts` — `Component<S>` is `{ name, static, frame?, sample?, interval? }`; `validate()` raises `E_NO_STATIC_PROJECTION` with a `fix` for a missing `static` and for a `static` that is not a function; the registry deep-copies and freezes `sample` on the way out | `plugin.test.ts` → *"R2 · a contribution without a static projection is refused"* (both cases), *"a registered contribution is frozen"*, *"mutating the object you registered does not change what was registered"*; `cli.test.ts` → *"names the state a component was rendered with, and takes the component's own when it declares one"* |
+| R3 | **Built** | `src/plugin.ts` walks `src/schema.json` — the sixty-line subset validator, no JSON Schema dependency — and `dist/schema.json` ships in the tarball as `flagstaff/schema.json`. The key list is two short in R3's text and is restated below | `plugin.test.ts` → *"R3 · validated against schema.json"*, *"a newer contract than this host knows is refused with the upgrade named"*, and *"the shipped schema is the source schema"* |
+| R4 | **Not built** | Three of the five contribution kinds go through the public door and two of the five *components* R4 names are not contributions at all. `src/builtins.ts` carries `glyphs`, `spinners` and `borders` and **no `components` key**; `spinner`, `progress`, `tasks`, `box` and `table` are exported factories on their own subpaths, taking options (`progress({ width })`, `table(rows, { head, align })`) that the schema's `components` shape — `{ static, frame?, sample?, interval? }` — cannot express. So the built-ins do have an API a plugin cannot reach, which is the one thing R4 exists to prevent. The shipped entry below concedes it in full and calls it *"a real gap in U4, not a technicality"*; R4 was never rewritten | What **is** locked: `plugin.test.ts` → *"R4 · builtins.ts is data with a type-only import, and plugin.ts registers it through the public door"* and *"R4 · the registry holds exactly what builtins declares — no key arrived by another route"*. What is **not** checked, because it is not true: that the five named components reach the registry at all. `grep -c components packages/flagstaff/src/builtins.ts` → 0 |
+| R5 | **Built** | `src/projection.ts` — only `TtyProjection` writes `HIDE_CURSOR`, `SHOW_CURSOR` or a CSI erase; `staticProjection` and `jsonProjection` are text and a newline. One shipped subpath is exempt and the exemption is restated below | `loop.test.ts` → *"R5 · off a terminal, no carriage return and no cursor escape"*; `builtins.test.ts` → *"R5 · every built-in is text off a terminal"*; `ora.test.ts` → *"R5 · a migrated spinner on a pipe writes text and nothing else"*, incl. the CI case where the stream claims to be a terminal; `log-update.test.ts` → *"R5 · the façade writes no carriage return, on a terminal or off one"* and *"never a bare cursor-home either"* |
+| R6 | **Built** | All four façades ship as their own subpaths and all four are graded by the incumbent's own suite. R6 names `flagstaff/table` as the cli-table3 façade and that is the wrong module — restated below | `npm run compat`, 2026-09-16: `ora` **99 / 99**, `log-update` **99 / 99**, `boxen` **84 / 84**, `cli-table3` **29 / 29**, every row **100.0% ▲ 0** |
+| R7 | **Built** | No `layout*` or `measure*` module, and no width or wrap pass declared here: `width` and `wrap` are imported from `linegauge`, which is where they have lived since F1. `box()` and `table()` are string functions. `columns` restated below | `plugin.test.ts` → *"R7 · no layout engine"* → *"src/ has no layout module"* and *"no module here declares a width or measure pass of its own — every one comes from linegauge"*, which locks the declaration rather than the filename |
+| R8 | **Not built** | The command is built and its usual refusals are graded; **R8's own sentence is not kept on one path, and its code inventory is wrong three ways.** In `src/cli.ts`, `main()`’s spinner loop calls `spinner(style)` outside the `try`/`catch` that wraps `register()`, so a `PluginError` raised there reaches the rejection handler at the foot of the file, which writes `e.message` alone — no code prefix, no `fix` line — and sets exit 1. R8 says every refusal carries a code from `PluginErrorCode` and a `fix`; that path carries neither, and no case asserts it either way. Separately: R8 attributes `E_UNKNOWN_SPINNER` and `E_UNKNOWN_BORDER` to `register()`, which cannot raise them (`lookupSpinner()` and `lookupBorder()` do); `check` never calls `lookupBorder`, so `E_UNKNOWN_BORDER` is unreachable from the command R8 is about; and R8 says "all seven are members of one union" where the union has **eight** — `E_UNKNOWN_KIND` is caique's and this design names it nowhere | What is graded: `cli.test.ts`, seven cases — all five modes and exit 0, exit 1 with the code and the fix for a missing `static`, the misspelled-key refusal, the throwing component with the modes it broke in, exit 2 on usage. What is not: the `spinner(style)` call in `main()`’s spinner loop. `scripts/plugin-error-vocabulary-lock.test.ts` holds the vocabulary itself and is proven to fail four ways |
+| R9 | **Built** | `src/loop.ts` — `manualClock()` moves only when told, with a `TICK_CAP` so a callback that reschedules itself at 0 ms throws rather than hanging; `src/projection.ts` takes the clock as an argument and reaches no timer of its own | `loop.test.ts` → *"R9 · deterministic"* → *"the tty transcript is the same bytes twenty runs over"*, plus the three `manualClock` ordering cases |
+| R10 | **Not built** | The isolation and the ratchet are built: `src/subpath-isolation.test.ts` and `src/weight.test.ts` derive their subject from the `exports` map, every entry must declare a rule with an `allow` list, a `denied` list, a `budget` **and** its last `measured` figure, and the measured figure is asserted rather than left in a comment to rot. What is not built is the rest of the sentence. **"Depends on `roundel` only" is false** — `package.json` declares `closeout`, `linegauge`, `paratext` and `roundel`, and `shape.test.ts` asserts the four-element list under the heading *"0 external, 4 same-repo"*, which is the opposite of what R10 says a test asserts. And two of the four named ceilings are not set from their incumbent: `./spinner` cites ora 9.4.1's 17,891 B and `./log-update` cites log-update's 113,368 B, but `./box` (20,000) and `./table` (6,000) are ratchets on this package's own history with no boxen or cli-table3 figure behind them | `shape.test.ts` → *"the package it installed depends on closeout, linegauge, paratext and roundel and on nothing else (U6: 0 external, 4 same-repo)"* — green, and green because it asserts the opposite of R10. `weight.test.ts` → *"every published entry point declares a weight rule"*. For `./box` ≤ boxen and `./table` ≤ cli-table3: **no check**, and `flagstaff/cli-table3` has no pair in `benchmarks/fixtures/entry-points.ts` either, so B4 computes no ratio for it |
+| R11 | **Built** | `src/import.ts` — `fromCliSpinners(json, opts)` and `fromCliBoxes(json)`, 838 B against a 2,000 budget, reaching nothing (its only imports are types). Neither corpus is bundled. Two sentences of R11 are wrong as written and are restated below | `import.test.ts` grades both against the real `cli-spinners` and `cli-boxes` packages, held as devDependencies so the day either corpus changes the test fails; its last case asserts neither became a dependency. `weight.test.ts` `'./import'` pins 838 B |
+| R12 | **Built** | `src/link.ts` — `painter()`, `laid()`, `painted()`, `cellText`/`cellHref`; the OSC 8 bytes are `paratext/link`'s and no published file here spells the sequence. the narrow `paratext/link` entry was chosen over the root — which runs `registerBuiltins()` at import, in a package declaring `sideEffects: false` — and the difference was measured in paratext’s own `dist/` rather than assumed, because flagstaff’s `walk()` stops at a bare specifier and would have called the two identical. The live figures are `weight.test.ts`’s asserted `measured` fields, not this document’s prose | `link.test.ts` writes every expectation as *what `paratext/link` returns for the same input*, so a hand-rolled copy could not pass; the `TERM=dumb`-on-a-tty case proves the runtime is passed through rather than re-derived; the last case is the standing rule as a lock, read off `dist/` — no `]8;;` in this package's published output — and is proven to fail against the previous `cli-table3.ts`. `cli-table3` still grades **29 / 29 ▲ 0** |
+
+### Requirements restated (2026-09-16), with the old wording kept
+
+A bar that is restated and then vanishes is indistinguishable from one that was quietly met.
+Each of these keeps the sentence it replaces. None of them changes what the package does;
+they change what this document claims it does.
+
+- **R1's signature.** *Was:* "`hoist(component, rt)` returns `{ update(state), lower() }`".
+  *Is:* `hoist(component, rt, initial, opts?)` returns `{ mode, update(state), lower(final?) }`
+  — the initial state is required, `{ json }` is the fourth argument, `lower()` takes an
+  optional final state, and the returned object carries a readonly `mode` so a caller can see
+  which projection it got.
+- **R1's cursor mechanism.** *Was:* "it repaints in place through `node:readline` cursor ops".
+  *Is:* `src/projection.ts` writes the three CSI sequences it needs by hand and imports nothing
+  from `node:readline`, whose helpers want a `Writable` where the loop has only a `Writer`.
+  `HIDE_CURSOR` and `SHOW_CURSOR` come from `closeout/cursor`, and the restore is registered
+  through `closeout`'s `onExit` so a signal mid-frame still puts the cursor back.
+- **R1's pipe writer.** *Was:* "on `pipe` and `ci` it writes `component.static(state)` once per
+  *state change*". *Is:* it writes **the lines past the common prefix** of the new projection
+  and the last one. A component whose text replaces itself is printed whole, which is the
+  ordinary case; one that grows a line at a time — `tasks`, whose static is every task that has
+  settled — is appended to rather than reprinted, and an empty projection writes nothing at
+  all. Printing the whole static every time would repeat every line already in the log, which
+  is what a pipe is not for.
+- **R3's plugin shape.** *Was:* "`{ name, spinners?, glyphs?, tokens?, components? }`". *Is:*
+  `{ name, contract?, tokens?, glyphs?, spinners?, borders?, components? }` — `borders` is a
+  contribution kind with its own lookup and its own error code, added when `fromCliBoxes()`
+  made a corpus a first-class plugin, and `contract` is what `E_PLUGIN_CONTRACT` compares.
+- **R5's scope.** *Was:* stated as an invariant of the package. *Is:* an invariant of **the
+  loop and every built-in**, with `flagstaff/log-update` exempt: its incumbent's own suite
+  requires cursor escapes off a terminal, so `log-update.test.ts` narrows the assertion to the
+  carriage return and to "never a bare cursor-home — every move is a row move". The exemption
+  is real, correct, and was never recorded here. R5's "a conformance case greps a piped run"
+  is also restated: no file under `examples/` mentions flagstaff, and the equivalent coverage
+  is in-package, in `loop.test.ts`, `builtins.test.ts` and `cli.test.ts`.
+- **R6's fourth façade.** *Was:* "`flagstaff/table` (cli-table3)". *Is:* **`flagstaff/cli-table3`**.
+  `./table` is the built-in grid component of R4 and `./cli-table3` is the graded drop-in; they
+  are two different products, and a reader following R6 imports the wrong one.
+- **R7's `columns`.** *Was:* "`box` and `columns` are string functions over `width`/`wrap`".
+  *Is:* `box()` and `table()`. No `columns` export exists anywhere in `packages/`. R7's
+  parenthetical "(`src/width.ts` was where they lived when this line was written.)" is also
+  spent: `width` and `wrap` are `linegauge`'s and arrive here as bare imports.
+- **R11's two wrong sentences.** *Was:* the importers "turn the two existing data corpora …
+  into registered plugins" with a derived `static` of "the first frame, or the label". *Is:*
+  they **return** a `Plugin` object and register nothing — the caller calls `register()`, which
+  is the right design and was the wrong sentence — and the derived `static` defaults to `'…'`,
+  with `staticFor` there because it is the author's call. A frozen `⠋` is an animation stopped
+  mid-stride, not a projection.
+
+### What this reconciliation found that the design does not record
+
+Everything under "Where this document and the code disagree (2026-09-15)" still stands and is
+not repeated here. These are additions.
+
+- **`flagstaff/cli-table3` has no B4 pair.** `benchmarks/fixtures/entry-points.ts` pairs
+  `flagstaff/ora`, `flagstaff/boxen` and `flagstaff/log-update` against their incumbents and
+  stops there, so the fourth façade — the one R6 misnames and the one R12 just changed — has no
+  tree-inclusive weight ratio and no ratio gate. This is the same hole `linegauge`'s R9 and
+  `paratext`'s R11 were red on, in the same file, and neither this lane nor those could write
+  it: `benchmarks/**` is the integrator's. Reported, not edited.
+- **The ora entry's `process` paragraph is stale.** It says "`process` is read here, and the
+  process-reference lock lists the file with the reason". The lock lists exactly one flagstaff
+  file — `flagstaff/src/runtime.ts` — and `ora.ts`, `boxen.ts` and `log-update.ts` each reach
+  the process only through `processRuntime()` from that seam. The behaviour the paragraph
+  describes is unchanged and correct; the file it attributes it to is not.
+- **Every façade budget is a ratchet on this package's own history, not on its incumbent,
+  except `./spinner` and `./log-update`.** Named in R10's row above. The published claim is
+  B4's ratio, and `weight.test.ts` says as much in its own header — but R10's text promises a
+  ceiling named after the incumbent for four entries and two of them do not have one.
 
 ## Rejected alternatives
 

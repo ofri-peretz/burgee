@@ -35,8 +35,8 @@
   <strong>Built for the CLIs agents drive.</strong> A command declares itself once and an agent
   can read that declaration directly: a stable envelope, a versioned schema, an MCP server, and
   an exit code that says <em>rewrite the command</em> rather than <em>something went wrong</em>.
-  Eight packages, one repository, one supply chain to audit — and zero runtime dependencies in
-  every one of them.
+  Nine packages, one repository, one supply chain to audit — and no dependency outside it in
+  any of them. Six take nothing at all; the other three take only each other.
 </p>
 
 <p align="center">
@@ -101,7 +101,7 @@ to a script and to an agent.
 ```text
 defineCommand()  ──▶  manifest  ──┬──▶  human help
                                   ├──▶  --json      one stable envelope
-                                  ├──▶  --schema    versioned, JSON-Schema validated
+                                  ├──▶  --schema    versioned, one document per surface
                                   ├──▶  --mcp       an MCP server, generated
                                   ├──▶  completions bash · zsh · fish · pwsh
                                   ├──▶  TypeScript types
