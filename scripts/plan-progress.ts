@@ -116,15 +116,38 @@ const has = (p: string, needle: string): boolean => existsSync(join(ROOT, p)) &&
  * that means "the design does not say" sitting next to a `·` that means "R9 is not met",
  * indistinguishable. So this returns the reason.
  */
+/**
+ * A requirement id. **Not just `R`** — `burgee`'s design numbers its 114 requirements
+ * `B1`…`Z5` across twenty families, and `compat-oracle` uses `C1`–`C6` beside `R1`–`R4`.
+ *
+ * The narrower pattern is why `designGap` reported *"the design lists no requirements"* for
+ * both of them: the largest design in the repository and the one that decides every
+ * published compatibility number each scored the same as a design with nothing in it. **A
+ * checker that cannot see a requirement can never report it missing** — the quiet half of
+ * this file's recurring failure, a condition false for a reason unrelated to its step, and
+ * the fifth time.
+ */
+export const ID = /\b([A-Z]\d+)\b/g;
+
+/**
+ * A requirement *declared*, in either shape the designs use: a `- **R1**` bullet, or a
+ * `| R1 | …` table row. `seniority` and `compat-oracle` declare in tables, most of the rest
+ * in bullets, and nothing said the two had to agree until something read both.
+ */
+export const REQUIREMENT = /^(?:- \*\*([A-Z]\d+)|\| ([A-Z]\d+) \|)/gm;
+
+/** A status row: `| N6 | **Built** | …`. The `Built` is the second cell, never prose later on. */
+export const STATUS_ROW = /^\| ([A-Z]\d+) \| \*\*Built\*\*/gm;
+
 const designGap = (slug: string): string => {
   const file = `.sdlc/intents/${slug}/design.md`;
   if (!existsSync(join(ROOT, file))) return 'no design.md';
   const text = read(file);
-  const wanted = [...new Set([...text.matchAll(/^- \*\*(R\d+)/gm)].map((m) => m[1] as string))];
+  const wanted = [...new Set([...text.matchAll(new RegExp(REQUIREMENT.source, 'gm'))].map((m) => (m[1] ?? m[2]) as string))];
   if (wanted.length === 0) return 'the design lists no requirements';
   const shipped = new Set([
-    ...[...text.matchAll(/^## What shipped \(([^)]*)\)/gm)].flatMap((m) => [...(m[1] as string).matchAll(/R\d+/g)].map((r) => r[0])),
-    ...[...text.matchAll(/^\| (R\d+) \| \*\*Built\*\*/gm)].map((m) => m[1] as string),
+    ...[...text.matchAll(/^## What shipped \(([^)]*)\)/gm)].flatMap((m) => [...(m[1] as string).matchAll(new RegExp(ID.source, 'g'))].map((r) => r[0])),
+    ...[...text.matchAll(new RegExp(STATUS_ROW.source, 'gm'))].map((m) => m[1] as string),
   ]);
   if (shipped.size === 0) return 'the design records no per-requirement status, in either shape';
   // An explicit "Not built" anywhere is the design telling on itself, and it outranks the
