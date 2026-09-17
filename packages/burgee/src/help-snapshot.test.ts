@@ -59,17 +59,18 @@ const full = defineProgram({
         { command: 'app deploy staging' },
       ],
       epilogue: 'Deploys are logged at https://example.test/deploys.',
+      effects: 'withheld',
       run: ok,
     }),
-    defineCommand({ name: 'status', description: 'Show status', group: 'Release commands:', run: ok }),
-    defineCommand({ name: 'login', description: 'Sign in', run: ok }),
-    defineCommand({ name: 'old', description: 'Legacy', deprecated: true, run: ok }),
-    defineCommand({ name: 'hush', description: 'Never listed', hidden: true, run: ok }),
+    defineCommand({ name: 'status', description: 'Show status', group: 'Release commands:', effects: 'withheld', run: ok }),
+    defineCommand({ name: 'login', description: 'Sign in', effects: 'withheld', run: ok }),
+    defineCommand({ name: 'old', description: 'Legacy', deprecated: true, effects: 'withheld', run: ok }),
+    defineCommand({ name: 'hush', description: 'Never listed', hidden: true, effects: 'withheld', run: ok }),
   ],
 });
 
 /** A leaf with nothing but a name: the floor, where every section but Usage is omitted (R2). */
-const bare = defineProgram({ name: 'app', commands: [defineCommand({ name: 'ping', run: ok })] });
+const bare = defineProgram({ name: 'app', commands: [defineCommand({ name: 'ping', effects: 'withheld', run: ok })] });
 
 /**
  * Terms whose display width is not their code-unit count. This is the Job-1 fix pinned as
@@ -80,9 +81,9 @@ const wide = defineProgram({
   name: 'app',
   description: '宽 字符 的 命令 名 也要 对齐 到 同一 列',
   commands: [
-    defineCommand({ name: 'deploy-service', description: 'ASCII: code units and columns agree', run: ok }),
-    defineCommand({ name: '部署', description: 'CJK: two code units, four columns', run: ok }),
-    defineCommand({ name: '🚀', description: 'emoji: two code units, two columns', run: ok }),
+    defineCommand({ name: 'deploy-service', description: 'ASCII: code units and columns agree', effects: 'withheld', run: ok }),
+    defineCommand({ name: '部署', description: 'CJK: two code units, four columns', effects: 'withheld', run: ok }),
+    defineCommand({ name: '🚀', description: 'emoji: two code units, two columns', effects: 'withheld', run: ok }),
   ],
 });
 

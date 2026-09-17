@@ -41,21 +41,21 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-// eslint-disable-next-line import-next/no-namespace, import-next/no-relative-packages -- the source, by path, on purpose: `burgee` hosts plugins and publishes no `./plugin`, so the package-name form cannot reach the one host this lock most needs to read — and reading `dist/` would measure the last build rather than the tree
+// eslint-disable-next-line import-next/no-namespace, import-next/no-relative-packages -- the source, by path, on purpose: the package-name form resolves to `dist/`, which would measure the last build rather than the tree. Every host is read the same way, so one host being stale cannot look like agreement
 import * as bellpull from '../packages/bellpull/src/plugin.js';
-// eslint-disable-next-line import-next/no-namespace, import-next/no-relative-packages -- the source, by path, on purpose: `burgee` hosts plugins and publishes no `./plugin`, so the package-name form cannot reach the one host this lock most needs to read — and reading `dist/` would measure the last build rather than the tree
+// eslint-disable-next-line import-next/no-namespace, import-next/no-relative-packages -- the source, by path, on purpose: the package-name form resolves to `dist/`, which would measure the last build rather than the tree. Every host is read the same way, so one host being stale cannot look like agreement
 import * as burgee from '../packages/burgee/src/plugin.js';
-// eslint-disable-next-line import-next/no-namespace, import-next/no-relative-packages -- the source, by path, on purpose: `burgee` hosts plugins and publishes no `./plugin`, so the package-name form cannot reach the one host this lock most needs to read — and reading `dist/` would measure the last build rather than the tree
+// eslint-disable-next-line import-next/no-namespace, import-next/no-relative-packages -- the source, by path, on purpose: the package-name form resolves to `dist/`, which would measure the last build rather than the tree. Every host is read the same way, so one host being stale cannot look like agreement
 import * as caique from '../packages/caique/src/plugin.js';
-// eslint-disable-next-line import-next/no-namespace, import-next/no-relative-packages -- the source, by path, on purpose: `burgee` hosts plugins and publishes no `./plugin`, so the package-name form cannot reach the one host this lock most needs to read — and reading `dist/` would measure the last build rather than the tree
+// eslint-disable-next-line import-next/no-namespace, import-next/no-relative-packages -- the source, by path, on purpose: the package-name form resolves to `dist/`, which would measure the last build rather than the tree. Every host is read the same way, so one host being stale cannot look like agreement
 import * as closeout from '../packages/closeout/src/plugin.js';
-// eslint-disable-next-line import-next/no-namespace, import-next/no-relative-packages -- the source, by path, on purpose: `burgee` hosts plugins and publishes no `./plugin`, so the package-name form cannot reach the one host this lock most needs to read — and reading `dist/` would measure the last build rather than the tree
+// eslint-disable-next-line import-next/no-namespace, import-next/no-relative-packages -- the source, by path, on purpose: the package-name form resolves to `dist/`, which would measure the last build rather than the tree. Every host is read the same way, so one host being stale cannot look like agreement
 import * as flagstaff from '../packages/flagstaff/src/plugin.js';
-// eslint-disable-next-line import-next/no-namespace, import-next/no-relative-packages -- the source, by path, on purpose: `burgee` hosts plugins and publishes no `./plugin`, so the package-name form cannot reach the one host this lock most needs to read — and reading `dist/` would measure the last build rather than the tree
+// eslint-disable-next-line import-next/no-namespace, import-next/no-relative-packages -- the source, by path, on purpose: the package-name form resolves to `dist/`, which would measure the last build rather than the tree. Every host is read the same way, so one host being stale cannot look like agreement
 import * as paratext from '../packages/paratext/src/plugin.js';
-// eslint-disable-next-line import-next/no-namespace, import-next/no-relative-packages -- the source, by path, on purpose: `burgee` hosts plugins and publishes no `./plugin`, so the package-name form cannot reach the one host this lock most needs to read — and reading `dist/` would measure the last build rather than the tree
+// eslint-disable-next-line import-next/no-namespace, import-next/no-relative-packages -- the source, by path, on purpose: the package-name form resolves to `dist/`, which would measure the last build rather than the tree. Every host is read the same way, so one host being stale cannot look like agreement
 import * as roundel from '../packages/roundel/src/plugin.js';
-// eslint-disable-next-line import-next/no-namespace, import-next/no-relative-packages -- the source, by path, on purpose: `burgee` hosts plugins and publishes no `./plugin`, so the package-name form cannot reach the one host this lock most needs to read — and reading `dist/` would measure the last build rather than the tree
+// eslint-disable-next-line import-next/no-namespace, import-next/no-relative-packages -- the source, by path, on purpose: the package-name form resolves to `dist/`, which would measure the last build rather than the tree. Every host is read the same way, so one host being stale cannot look like agreement
 import * as seniority from '../packages/seniority/src/plugin.js';
 
 /**
@@ -98,15 +98,16 @@ const HOST_KEYS: Record<string, string> = {
 };
 
 /**
- * `burgee` hosts plugins and does not publish `./plugin`.
+ * Every host publishes `./plugin`, and the set below is empty.
  *
- * Recorded as a declared gap rather than asserted away: `packages/burgee/**` is the engine
- * lane's path and this file is the integrator's, so the export is not this lane's to add.
- * The shape is the one `plugin-schema-lock.test.ts` caught in `flagstaff` — a host whose own
- * `E_PLUGIN_SCHEMA` message names a specifier that does not resolve — and it is the reason
- * assertion 1 reads `src/plugin.ts` directly instead of importing the published subpath.
+ * It held `burgee` until 2026-09-17 — the one package that hosted plugins and published no
+ * `./plugin`, recorded as a declared gap rather than asserted away because
+ * `packages/burgee/**` is the engine lane's path and this file is the integrator's. The
+ * engine lane published it, so the entry is gone; the set stays, because the assertion below
+ * it ("and no more") is what makes the emptiness a fact rather than an absence of checking,
+ * and a host that stops publishing the subpath has to be recorded here deliberately.
  */
-const NO_PLUGIN_SUBPATH = new Set(['burgee']);
+const NO_PLUGIN_SUBPATH = new Set<string>([]);
 
 /**
  * `burgee` declares the plugin *shape* the family registers against and hosts no key of its
@@ -208,9 +209,12 @@ describe('every layer says what it hosts, in the generated section', () => {
  * `register()`. Not a copy per host: the same reference, so a host that mutates what it is
  * given breaks the next host in line and the failure names which one.
  *
- * The source module is imported rather than the published subpath, because `burgee` hosts
- * plugins and does not publish `./plugin` (see `NO_PLUGIN_SUBPATH`) — and a lock that could
- * only run on the hosts whose packaging is already right would not have caught that.
+ * The source module is imported rather than the published subpath, and that was not always a
+ * choice: until 2026-09-17 `burgee` hosted plugins and published no `./plugin`, so the
+ * package-name form could not reach the one host this lock most needs to read. It reaches it
+ * now, and the imports stay by path anyway — a lock that could only run on the hosts whose
+ * packaging is already right would not have caught that, and `dist/` is the last build
+ * rather than the tree.
  */
 describe('one object registers into every host', () => {
   /**

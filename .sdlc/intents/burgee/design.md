@@ -261,7 +261,7 @@ these requirements turn that into a served interface rather than a document.
 | N3 | Zero runtime dependencies: JSON-RPC over stdio against `node:readline` | K1 | lock | cli-mcp |
 | N4 | Tool results are the O1 envelope, so MCP and `--json` callers see identical payloads | O1 | R | cli-mcp |
 | N5 | `--mcp` implies non-TTY: no prompts, no colour, E3 errors | O2, P2, E3 | R | cli-mcp |
-| N6 | Every command declares `effects: read_only \| idempotent \| non_idempotent`, **required not optional**, and it generates MCP's `readOnlyHint`/`idempotentHint`/`destructiveHint`. The spec defaults `destructiveHint` and `openWorldHint` to **true**, so silence is the dangerous reading | MCP `2026-07-28` schema | R + L | cli-mcp |
+| N6 | Every command that runs declares `effects: read_only \| idempotent \| non_idempotent \| withheld`, **required not optional**, refused at definition time when absent, and the first three generate MCP's `readOnlyHint`/`idempotentHint`/`destructiveHint`. The spec defaults `destructiveHint` and `openWorldHint` to **true**, so silence is the dangerous reading — and `withheld` is how an author says *not for agents* without that being the same value as having said nothing | MCP `2026-07-28` schema | R + L | cli-mcp |
 | N7 | A no-op announces itself: every idempotent command reports `changed: true \| false`. An agent reads silence as success, and a silent failure stays invisible for a median of ~10 steps against a median recovery window of 1 | arXiv 2607.09510, 1,794 trajectories | R | commander-agent → engine |
 | N8 | `--schema` succeeds with **no authentication, no config file and no network**. It is the one command an agent runs first, before anything is set up | clispec.dev v0.3 | R + lock | cli-mcp |
 | N9 | The manifest carries `enum`, `minimum` and `maximum` as **data**, not as completion callbacks — the four fields a tool definition needs and a flag parser cannot supply | Cobra #2362, the flag/schema gap | R | commander-schema |
@@ -454,6 +454,7 @@ names read from the source file each subpath's `dist/` path is built from. Re-de
 | `burgee/yargs/parser` | default `yargsParser`, `YargsParser`, `Parser`, `camelCase`, `decamelize`, `looksLikeNumber`, `tokenizeArgString` | the `yargs-parser` drop-in specifier |
 | `burgee/completions` | `completionTree`, `renderCompletion`, `renderFigSpec`, `SHELLS`; `Shell` | static shell completions and a Fig spec, generated from a manifest |
 | `burgee/testing` | `runBurgee`, `fakeRuntime`, `fakeClock`, `captureConsole`, `swapEnv`, `stripAnsi`, `codeOf`, `finish`, `RuntimeExit`, `processRuntime`, `ExitCode`, `isExitCode` | the in-process harness of T1 |
+| `burgee/plugin` | `CONTRACT`, `definePlugin`, `validate`, `PluginError`; `Plugin`, `PluginErrorCode` | the plugin host, at the subpath the other seven hosts publish theirs at (added 2026-09-17). The four names the root barrel also carries are one module behind two doors, the way `applyExtends` is published at both `burgee/yargs` and `burgee/yargs/helpers`; `validate` and the `Plugin` interface are the half only this subpath carries, because they are the *host's* vocabulary rather than a program author's |
 | `burgee/brand` | `defineBurgee`, `burgeeBody`, `burgeeFlagPath`, `chargeGroup`, `placeCharge`, `chargeTransform`, `chargeRotation`, `opposedField`, `fieldId`, `BURGEE_FLAG`, `BURGEE_ANGLE`, `CHARGE`, `FIELD_AXIS`, `DEFAULT_GROUND` | the burgee mark as SVG geometry — brand tooling, not CLI machinery |
 | `burgee/contrast` | `ratio`, `mix`, `check`, `report`, `fieldColorAt`, `auditBurgee`, `AA`, `contrast`, `luminance` | the WCAG maths the brand audit runs on |
 | `burgee/cli` | `program`, `brandCommand`, `devCommand` — **and `run(program)` at module load** | the `burgee` bin. Importing it executes the CLI; it is an executable, not a library entry |
@@ -491,9 +492,19 @@ interface Plugin {
 ```
 
 No `contract`. No key any other layer reads, and no tolerance clause about keys it does not
-read. There is no `packages/burgee/src/plugin.ts`, so burgee is not a host as far as
-`scripts/plugin-error-vocabulary-lock.test.ts` is concerned — that lock derives its host list
-from the presence of that file — and `PluginError` appears nowhere in the package.
+read. There was no `packages/burgee/src/plugin.ts`, so burgee was not a host as far as
+`scripts/plugin-error-vocabulary-lock.test.ts` was concerned — that lock derives its host list
+from the presence of that file — and `PluginError` appeared nowhere in the package.
+
+**Both halves of that paragraph are out of date, and the dates matter.** `src/plugin.ts`
+exists since 2026-09-16: it carries `CONTRACT`, `Plugin`, `PluginError`, `PluginErrorCode`,
+`validate` and a `definePlugin` that stamps and checks rather than returning its argument, and
+`Manifest.use()` now runs a plugin's commands through the same `checkCommand` `defineCommand`
+runs. What survived a day longer was the packaging: burgee hosted plugins and published no
+`./plugin`, the only host in the family that did not, which is why
+`scripts/plugin-contract-lock.test.ts` reached this package by relative path and recorded it
+in `NO_PLUGIN_SUBPATH`. Published 2026-09-17, and the refusal's `fix` names the specifier —
+it said "rebuild it with `definePlugin`" and never said where `definePlugin` was.
 
 So: **a burgee plugin contributes commands and lifecycle hooks; a family plugin contributes
 data to a layer. They are two extension points that share a noun.** Whether that is the
@@ -916,9 +927,26 @@ does not do.
   `dynamic` marker on an option, so the escape hatch the requirement describes does not exist.
 - **M1** — "every command carries a group" is not enforced; `group` is optional and the help
   renderer falls back to a default heading.
-- **N6** — `effects` is optional, not required. A command that omits it is silently not
+- **N6** — ~~`effects` is optional, not required. A command that omits it is silently not
   served as a tool rather than failing at definition time, which is the quieter of the two
-  failures.
+  failures.~~ **Closed 2026-09-17.** A runnable command that declares no `effects` is refused
+  by `checkCommand`, so `defineCommand` and `Manifest.use()` both throw where the command is
+  written. Declining stays possible and is now something an author says: `effects:
+  'withheld'`, a fourth value of the same field. It is not `'none'` — which reads as *this
+  command has no effects*, i.e. `read_only`, the one value it could be confused with — and it
+  is not a second boolean field, because a boolean beside a now-required `effects` would mean
+  that declaring what a command does to the world silently opts it into the tool list, and
+  *that* field's default would be the silence this change exists to remove. One field, four
+  answers, no default, so there is no state in which forgetting is possible. `toolsOf`'s
+  filter is unchanged, which is the point: it did not have to become less strict for the
+  failure to become loud. **Two limits, stated rather than implied.** The refusal is on
+  burgee's own declaration API; a command built through the commander or yargs façade reaches
+  the manifest without passing that door, because neither incumbent has a notion of effects
+  and their graded suites (1360/1360 and 804/804, both `▲ 0` after this change) declare none —
+  so a façade user's command is withheld in fact and cannot be made to say so. And `effects`
+  stays optional on the *type*: TypeScript cannot make a field's presence depend on a
+  sibling's without splitting `Command` into a union that would cost the option-spec inference
+  every caller relies on, so the check is at definition time and not at compile time.
 - **N13** — drilling is by command path only; there is no field-path selector.
 - **N14** — `--json` is a plain boolean. It takes no argument, so nothing lists valid fields
   or rejects an invalid one.

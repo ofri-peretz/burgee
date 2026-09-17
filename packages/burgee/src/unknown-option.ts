@@ -36,7 +36,7 @@ export function singleDashHint(argv: readonly string[]): string | undefined {
 export function unknownOption(
   cause: unknown,
   declared: readonly string[],
-): { message: string; hint: string } | undefined {
+): { message: string; hint: string; fix?: string } | undefined {
   if (!(cause instanceof Error)) return undefined;
   const flag = UNKNOWN_OPTION.exec(cause.message)?.groups?.['flag'];
   if (flag === undefined) return undefined;
@@ -48,5 +48,10 @@ export function unknownOption(
   return {
     message: `unknown option ${flag}`,
     hint: near === undefined ? 'run --help to see the available options' : `did you mean ${near}?`,
+    // E3 — `hint` is prose a person reads; `fix` is the exact flag a caller runs. An agent
+    // can execute one and has to interpret the other, which is the turn this field saves.
+    // Omitted rather than guessed when there is no near match: an executed guess burns the
+    // turn the field exists to save.
+    ...(near === undefined ? {} : { fix: near }),
   };
 }

@@ -46,6 +46,7 @@ run(defineCommand({
   name: 'greet',
   description: 'Greet someone by name',
   options: { name: { type: 'string', required: true, description: 'who to greet' } },
+  effects: 'read_only',
   run: ({ options }) => ({ greeting: \`hello, \${options.name}\` }),
 }));
 `;
@@ -185,7 +186,7 @@ describe('Z1 — one file, npm i, no build step', () => {
         "const { defineCommand, run } = require('burgee');",
         "const { Command } = require('burgee/commander');",
         "if (typeof Command !== 'function') throw new Error('burgee/commander has no Command');",
-        "run(defineCommand({ name: 'g', options: { name: { type: 'string', required: true } },",
+        "run(defineCommand({ name: 'g', options: { name: { type: 'string', required: true } }, effects: 'read_only',",
         '  run: ({ options }) => ({ greeting: `hello, ${options.name}` }) }), { argv: ["--name", "ada"] });',
         '',
       ].join('\n'),

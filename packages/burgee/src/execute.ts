@@ -14,12 +14,12 @@ import { detectAgent } from './agent.js';
 import { checkCommand } from './definition.js';
 import { ExitCode, isExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
 import { renderHelp } from './help.js';
-import { type ActionRequiredSpec, type ArgumentSpec, type CommandNode, type Effects, type Example, type LazyModule, Manifest, type OptionSpec, type Relation, relationsOf, type RunContext } from './manifest.js';
+import { type ActionRequiredSpec, type ArgumentSpec, type CommandNode, type DeclaredEffects, type Example, type LazyModule, Manifest, type OptionSpec, type Relation, relationsOf, type RunContext } from './manifest.js';
 import { serveMcp } from './mcp.js';
 import { camel, kebab } from './names.js';
 import { nearestPackage, type Package } from './pkg.js';
 import { host } from './runtime.js';
-import { commandSchemaOf, machineJson, schemaOf, summaryOf } from './schema.js';
+import { commandSchemaOf, machineJson, schemaOf, summaryOf, typedName } from './schema.js';
 import { detachedTeardown, processTeardown, type Teardown } from './shutdown.js';
 import { checkRelations, coerce, UsageError } from './validate.js';
 
@@ -55,8 +55,17 @@ export interface Command<S extends OptionSpecs = OptionSpecs> {
   epilogue?: string;
   hidden?: boolean;
   deprecated?: boolean | string;
-  /** What running it does to the world (N6). Declaring it is what exposes the command as an MCP tool (N2). */
-  effects?: Effects;
+  /**
+   * What running it does to the world (N6). Declaring one of the three is what exposes the
+   * command as an MCP tool (N2); `'withheld'` declares that it is not offered to agents.
+   *
+   * Optional on the type and **required at definition time** on a command that runs:
+   * `defineCommand` refuses one that omits it. It stays optional here because a group that
+   * only holds subcommands declares none, and TypeScript cannot make a field's presence
+   * depend on a sibling's without splitting `Command` into a union that would cost the
+   * option-spec inference every caller of this type relies on.
+   */
+  effects?: DeclaredEffects;
   /** Relationships between options, validated before choices and the handler (S2, S6). */
   relations?: readonly Relation[];
   /** Absent on a group that only holds subcommands. `NoInfer`: the spec fixes S, the handler only reads it. */
@@ -99,9 +108,11 @@ export interface Program {
 }
 
 export function defineCommand<const S extends OptionSpecs = OptionSpecs>(command: Command<S>): Command<S> {
-  // The reserved names of V5 and `checkDefinition`'s four, in one place, because
-  // `Manifest.use()` needs exactly these on a plugin's commands and used to run neither.
-  checkCommand(command.name, command.options ?? {});
+  // The reserved names of V5, `checkDefinition`'s four and N6's declared effects, in one
+  // place, because `Manifest.use()` needs exactly these on a plugin's commands and used to
+  // run none of them. A node with `load` and no `run` is runnable: its module has not been
+  // imported, and what running it does to the world was knowable when it was declared.
+  checkCommand(command.name, command.options ?? {}, command.effects, command.run !== undefined || command.load !== undefined);
   return command;
 }
 
@@ -371,6 +382,8 @@ interface Failure {
   code: ExitCodeType;
   message: string;
   hint?: string;
+  /** E3 — the exact command or flag to run next, where one exists. Never a guess. */
+  fix?: string;
   /** An exit signal: honour the code, print nothing. */
   silent?: boolean;
   /** N11: the caller must act; carried into the envelope with the runnable `next[]`. */
@@ -402,11 +415,12 @@ async function describeFailure(cause: unknown, argv: string[], node?: CommandNod
 
 function textFailure(failure: Failure): string {
   const hint = failure.hint === undefined ? '' : `hint: ${failure.hint}\n`;
+  const fix = failure.fix === undefined ? '' : `fix: ${failure.fix}\n`;
   if (failure.action !== undefined) {
     const next = (failure.action.next ?? []).map((n) => `  ${n.command}    ${n.when}\n`).join('');
     return `action required (${failure.action.reason}): ${failure.message}\n${next === '' ? '' : `next:\n${next}`}${hint}`;
   }
-  return `error: ${failure.message}\n${hint}`;
+  return `error: ${failure.message}\n${hint}${fix}`;
 }
 
 /** The `next[]` commands as the caller can run them: the program in front, the caller's own `--json` carried (N11). */
@@ -416,6 +430,26 @@ function runnableNext(manifest: Manifest, spec: ActionRequiredSpec, json: boolea
 }
 
 const HELP_FLAGS = new Set(['--help', '-h']);
+
+/**
+ * F2 — help as data: one command, its options and arguments, and the names of its children.
+ *
+ * The same `CommandSchema` shape `--schema` publishes, scoped to the node the reader asked
+ * about, so there is one document shape in the package rather than a second one invented for
+ * help. Children are names only: `--help` on a group is a menu, and a reader who wants a
+ * child's detail asks for that child.
+ */
+function helpDocumentOf(manifest: Manifest, node: CommandNode): Record<string, unknown> {
+  const root = manifest.rootPath;
+  const children = manifest.commands
+    .filter((c) => c.path.length === node.path.length + 1 && c.path.slice(0, node.path.length).join(' ') === node.path.join(' '))
+    .map((c) => typedName(c, root));
+  return {
+    schemaVersion: 1,
+    ...commandSchemaOf(node, root),
+    ...(children.length === 0 ? {} : { commands: children }),
+  };
+}
 /**
  * The same courtesy `--help` gets, for the flag people type first.
  *
@@ -475,7 +509,15 @@ function unresolved({ manifest, root, io }: Resolving, argv: string[], at: Comma
   const node = at ?? rootNode(manifest, root);
   const typed = argv.slice(node.path.length - root.length);
   const first = typed[0] ?? '';
-  if (typed.length > 0 && HELP_FLAGS.has(first)) return { text: renderHelp(manifest, node, { width: io.width }), code: ExitCode.OK };
+  if (typed.length > 0 && HELP_FLAGS.has(first)) {
+    // F2 — `--help --json` is help *as data*. Before this it printed the same prose as
+    // `--help`, so a caller who asked for a machine-readable answer got one they had to
+    // parse, which is the failure the whole `--json` surface exists to avoid. The document is
+    // `commandSchemaOf` for this node plus its immediate children, so the shape a reader
+    // already knows from `--schema` is the shape they get here, scoped to one command.
+    if (beforeTerminator(typed).includes('--json')) return { text: `${machineJson(helpDocumentOf(manifest, node), beforeTerminator(argv))}\n`, code: ExitCode.OK };
+    return { text: renderHelp(manifest, node, { width: io.width }), code: ExitCode.OK };
+  }
   if (first === '--version' || first === '-V') return { text: `${versionOf(manifest, io)}\n`, code: ExitCode.OK };
   if (typed.length === 0) return { text: renderHelp(manifest, node, { width: io.width }), code: ExitCode.USAGE };
   throw new UsageError(`unknown command "${typed[0] ?? ''}"`, 'run --help to see the available commands');
@@ -611,6 +653,10 @@ async function dispatch(manifest: Manifest, { node, rest, name }: Resolved, io: 
   const parsed = parseArgs({ args: rest, options: toParseConfig(node.options, manifest.config !== undefined), allowPositionals: true, strict: true, tokens: true });
   const flags = canonical(parsed.values as Values, node.options, parsed.tokens);
   const json = flags.json === true;
+  // F2 — help as data when both flags are given. It printed the same prose as `--help`, so a
+  // caller who asked for a machine-readable answer got one they had to parse: the exact
+  // failure the `--json` surface exists to avoid, on the flag people type first.
+  if (flags.help === true && json) return { json, text: `${machineJson(helpDocumentOf(manifest, node), json ? ['--json'] : [])}\n` };
   if (flags.help === true) return { json, text: renderHelp(manifest, node, { width: io.width }) };
   if (flags.version === true) return { json, text: `${versionOf(manifest, io)}\n` };
 
@@ -690,7 +736,8 @@ async function report(cause: unknown, { manifest, io, argv, json, name }: Failur
     io.err.write(json ? `${JSON.stringify(body)}\n` : textFailure(rendered));
     return await leave(io, failure.code);
   }
-  const body = { code: failure.code, message: failure.message, hint: failure.hint };
+  // E3 — `fix` beside `hint`: the exact flag or command, omitted rather than guessed.
+  const body = { code: failure.code, message: failure.message, hint: failure.hint, ...(failure.fix === undefined ? {} : { fix: failure.fix }) };
   io.err.write(json ? `${JSON.stringify({ ok: false, error: body })}\n` : textFailure(failure));
   return await leave(io, failure.code);
 }

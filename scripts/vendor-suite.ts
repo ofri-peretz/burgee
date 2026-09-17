@@ -57,7 +57,8 @@
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { createRequire } from 'node:module';
+import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { HOSTS, type Host } from 'compat-oracle/hosts';
@@ -67,6 +68,46 @@ import { vendor } from 'compat-oracle/vendor';
 
 const REPO_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const VENDOR_DIR = join(REPO_ROOT, 'packages', 'compat-oracle', 'vendor');
+
+/**
+ * R6 — this script must read the checkout it is writing into.
+ *
+ * The imports above are bare specifiers, so Node walks upward from the module's directory
+ * until it finds a `node_modules/compat-oracle`. From a worktree with none of its own, that
+ * walk **leaves the worktree** and lands in the parent checkout — and the run then writes into
+ * its own `vendor/` while reading another tree's definition of what to vendor. The output
+ * looks entirely normal.
+ *
+ * It bit two lane agents on 2026-09-17, independently, in one session; one had written two
+ * wrong manifests before noticing. Both found it by accident. This is the defect class the
+ * whole package exists to prevent, pointed inward — a measurement that reads a different thing
+ * from the one it reports on — and it is the same shape as `unsatisfiedPins`, written after a
+ * control graded 1 / 1 by resolving `rc` out of a stray `/Users/…/node_modules`.
+ *
+ * `REPO_ROOT` is derived from `import.meta.url` and cannot leave this tree. This checks the
+ * registry did not either, and **refuses** rather than repairing: there is no correct way to
+ * continue once the two disagree, and a wrong number that looks right is precisely the outcome
+ * this package exists to prevent.
+ *
+ * The separator in the comparison is load-bearing — a bare `startsWith(root)` accepts a
+ * sibling directory whose path merely shares a prefix, and a worktree sits inside the parent
+ * checkout, so near-miss paths are the normal case here rather than a curiosity.
+ */
+export function checkResolvedTree(resolved: string, root: string = REPO_ROOT): void {
+  const from = resolve(resolved.startsWith('file:') ? fileURLToPath(resolved) : resolved);
+  if (from === root || from.startsWith(`${root}${sep}`)) return;
+  throw new Error(
+    `vendor-suite: refusing to run. It would write into ${root} while reading its host registry from ${from}, ` +
+      'which is a different checkout — a bare specifier resolved upward out of this worktree. ' +
+      'Run `npm ci` here so this tree has its own node_modules, then try again.',
+  );
+}
+
+// `createRequire` anchored at this file walks the same path the static imports above do —
+// module directory upward — which is the walk that leaves the worktree. `import.meta.resolve`
+// would be the obvious probe and is not available: `tsx` compiles this to CJS, so it would be
+// a check that cannot fail for the reason the script fails.
+checkResolvedTree(createRequire(import.meta.url).resolve('compat-oracle/hosts'));
 /** Length of an ISO date, `YYYY-MM-DD`. */
 const ISO_DATE = 10;
 const today = (): string => new Date().toISOString().slice(0, ISO_DATE);

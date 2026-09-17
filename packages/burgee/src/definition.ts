@@ -20,6 +20,23 @@ import { kebab } from './names.js';
 
 const TYPES = new Set(['string', 'boolean', 'number']);
 
+/**
+ * The three answers about the world. Data rather than a second copy of {@link Effects} —
+ * `mcp.ts` maps each one to its MCP hints and this file refuses anything else.
+ */
+const EFFECTS: readonly string[] = ['read_only', 'idempotent', 'non_idempotent'];
+
+/**
+ * The fourth answer, which is not about the world: *this command is not offered to agents*.
+ *
+ * Exported because `mcp.ts` filters on it and a second spelling of a magic string is a
+ * second thing to keep in step. See `DeclaredEffects` in `manifest.ts` for why the word is
+ * `withheld` and not `none`.
+ */
+export const WITHHELD = 'withheld';
+
+const DECLARED: readonly string[] = [...EFFECTS, WITHHELD];
+
 /** Reserved names a command may not redefine (V5): the surfaces every program serves. */
 const RESERVED = new Set(['json', 'help', 'schema', 'mcp', 'version', 'explain']);
 
@@ -70,17 +87,54 @@ export function checkDefinition(name: string, options: Record<string, OptionSpec
 }
 
 /**
- * The whole door: the reserved names of V5, then {@link checkDefinition}.
+ * A command that runs says what running it does — or says that agents may not run it (N6).
+ *
+ * The refusal, not the filter, is the change. `toolsOf` serves only a command that declared
+ * its `effects`, and that stays: an agent gaining shell-equivalent power over a CLI nobody
+ * meant to publish is a security posture, not a convenience. What was wrong is that the
+ * filter's input had one spelling for two different things. *I decided agents should not
+ * have this* and *I forgot* both arrived as `undefined`, so the second shipped as the first:
+ * the tool an author built for an agent was silently absent from `tools/list`, with a
+ * shorter list than expected as the only evidence. `.sdlc/intents/burgee/design.md` called
+ * it the quieter of the two failures, and quiet is why it lasted.
+ *
+ * So there is no default, and therefore nothing to forget. Declining stays possible and
+ * becomes a thing an author writes down. **Breaking**: a runnable command declared without
+ * `effects` used to be accepted and is now refused where it is declared.
+ *
+ * The three projections then disagree on purpose, each correctly: `--schema` publishes
+ * `effects: "withheld"`, because an agent reading a program as data is better served by
+ * *this exists and is not for you* than by a gap; `tools/list` omits it; Fig and the shell
+ * completions carry it unchanged, because withholding is about agents and a person typing at
+ * a terminal is not one.
+ */
+function checkEffects(name: string, effects: unknown, runs: boolean): void {
+  if (effects === undefined) {
+    if (!runs) return;
+    throw new Error(`burgee: command "${name}" is runnable and declares no effects; declare ${EFFECTS.join(', ')} — or ${WITHHELD}, which serves it to people and keeps it out of the MCP tool list`);
+  }
+  if (!DECLARED.includes(effects as string)) {
+    throw new Error(`burgee: command "${name}" declares effects ${JSON.stringify(effects)}, which is not an effects; use ${DECLARED.join(', ')}`);
+  }
+}
+
+/**
+ * The whole door: the reserved names of V5, {@link checkDefinition}, and {@link checkEffects}.
  *
  * This exists as one function because it was two. `defineCommand` ran both; `Manifest.use()`
  * ran neither, so a plugin's command was admitted unread — and a plugin option named `json`
  * did not clash with the envelope flag, it replaced it in the parse config. The fix is not a
  * second copy of the guard beside `use()`; it is that there is one guard and both callers
  * reach it, which is the only arrangement a reader can check by looking.
+ *
+ * `effects` and `runs` are required rather than optional for exactly that reason. An optional
+ * third argument would be a check a caller can decline by writing nothing, which is the shape
+ * of the defect `checkEffects` exists to remove, one level up.
  */
-export function checkCommand(name: string, options: Record<string, OptionSpec>): void {
+export function checkCommand(name: string, options: Record<string, OptionSpec>, effects: unknown, runs: boolean): void {
   for (const key of Object.keys(options)) {
     if (RESERVED.has(key) || RESERVED.has(kebab(key))) throw new Error(`burgee: option "${key}" is reserved and cannot be redefined`);
   }
   checkDefinition(name, options);
+  checkEffects(name, effects, runs);
 }

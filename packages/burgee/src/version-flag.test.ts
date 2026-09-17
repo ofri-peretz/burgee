@@ -26,7 +26,7 @@ import { runBurgee } from './testing.js';
 const group = defineProgram({
   name: 'app',
   version: '4.2.0',
-  commands: [defineCommand({ name: 'greet', run: () => 'hi' })],
+  commands: [defineCommand({ name: 'greet', effects: 'withheld', run: () => 'hi' })],
 });
 
 describe('V4 — the version flag on a command group', () => {

@@ -8,7 +8,8 @@ import { PassThrough } from 'node:stream';
 
 import { describe, expect, it } from 'vitest';
 
-import { annotationsOf, defineCommand, defineProgram, execute, inputSchemaOf, MCP_PROTOCOL_VERSION, serveMcp, toolsOf } from './index.js';
+import { renderCompletion, renderFigSpec } from './completions.js';
+import { annotationsOf, defineCommand, defineProgram, execute, inputSchemaOf, Manifest, MCP_PROTOCOL_VERSION, schemaOf, serveMcp, toolsOf } from './index.js';
 import { runBurgee } from './testing.js';
 
 const program = defineProgram({
@@ -29,8 +30,10 @@ const program = defineProgram({
     }),
     defineCommand({ name: 'config', commands: [defineCommand({ name: 'get', effects: 'read_only', arguments: [{ name: 'key' }], run: ({ positionals }) => ({ key: positionals[0], value: 'ada' }) })] }),
     defineCommand({ name: 'fail', effects: 'idempotent', run: () => { throw new Error('boom'); } }),
-    // No effects declared: never a tool (N2).
-    defineCommand({ name: 'wipe', description: 'Delete everything', run: () => 'gone' }),
+    // Withheld: served to a person, never a tool (N2, N6). It carried no `effects` at all
+    // until 2026-09-17, which said the same thing to `toolsOf` and nothing at all to a
+    // reader — the two spellings this fixture now distinguishes.
+    defineCommand({ name: 'wipe', description: 'Delete everything', effects: 'withheld', run: () => 'gone' }),
   ],
 });
 
@@ -72,11 +75,11 @@ describe('--mcp', () => {
     const replies = await session([init, { jsonrpc: '2.0', id: 2, method: 'tools/list' }]);
     const tools = (replies.get(2)?.['result'] as { tools: { name: string }[] }).tools;
     const expected = program.commands
-      .filter((c) => c.run !== undefined && c.effects !== undefined)
-      .map((c) => ({ name: c.path.slice(1).join('_'), inputSchema: inputSchemaOf(c), annotations: annotationsOf(c.effects ?? 'read_only') }));
+      .filter((c) => c.run !== undefined && c.effects !== undefined && c.effects !== 'withheld')
+      .map((c) => ({ name: c.path.slice(1).join('_'), inputSchema: inputSchemaOf(c), annotations: annotationsOf((c.effects ?? 'read_only') as Exclude<typeof c.effects, 'withheld' | undefined>) }));
     expect(tools.map((t) => t.name)).toEqual(['greet', 'config_get', 'fail']);
     expect(tools).toMatchObject(expected);
-    // proven red: an implementation that exposes everything lists the undeclared command
+    // proven red: an implementation that exposes everything lists the withheld command
     expect(tools.some((t) => t.name === 'wipe')).toBe(false);
     expect(toolsOf(program).find((t) => t.name === 'greet')?.description).toBe('Greet someone\nExample: app greet ada --shout — loudly');
   });
@@ -120,5 +123,106 @@ describe('--mcp', () => {
     await run;
     expect(code).toBe(0);
     expect(JSON.parse(out.join('').trim())).toMatchObject({ id: 1, result: { serverInfo: { name: 'app' } } });
+  });
+});
+
+/**
+ * N6 — declining has to be something an author *says*.
+ *
+ * The filter in `toolsOf` is right and stays: an agent gaining shell-equivalent power over a
+ * CLI nobody meant to publish is a security posture, not a convenience. What was wrong is
+ * that it had two inputs and one spelling. *I thought about this command and agents should
+ * not have it* and *I forgot* both arrived as `effects: undefined`, so the tool an author
+ * built for an agent was silently not there, and the only evidence was a shorter
+ * `tools/list` than they expected. `.sdlc/intents/burgee/design.md` recorded it as **the
+ * quieter of the two failures**, which is the reason it sat.
+ *
+ * So `effects` has no default. A command that runs declares one of the three answers about
+ * the world, or `'withheld'`, which is not an answer about the world at all: it says the
+ * command is not offered to agents. There is no state left in which forgetting is possible,
+ * which is why the filter did not have to become less strict to make the failure loud.
+ *
+ * Every case below was run against the unfixed tree: the first two passed nothing and threw
+ * nothing, and `'withheld'` was an unknown string that `toolsOf` served as a tool with
+ * `destructiveHint: false`, which is the worst of the three outcomes it can produce.
+ */
+describe('a runnable command declares its effects, or declines out loud (N6)', () => {
+  it('refuses a command that runs and says nothing', () => {
+    expect(() => defineCommand({ name: 'wipe', description: 'Delete everything', run: () => 'gone' })).toThrow(
+      /burgee: command "wipe" is runnable and declares no effects/,
+    );
+  });
+
+  it('names the four answers in the refusal, so the fix is in the message', () => {
+    let message = '(nothing was thrown)';
+    try {
+      defineCommand({ name: 'wipe', run: () => 'gone' });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    for (const answer of ['read_only', 'idempotent', 'non_idempotent', 'withheld']) expect(message).toContain(answer);
+  });
+
+  it('refuses a spelling that is not one of the four, rather than treating it as a decline', () => {
+    expect(() => defineCommand({ name: 'wipe', effects: 'none' as 'read_only', run: () => 'gone' })).toThrow(/is not an effects/);
+  });
+
+  it('asks nothing of a command that only holds subcommands — a group does not run', () => {
+    expect(() => defineCommand({ name: 'config', commands: [defineCommand({ name: 'get', effects: 'read_only', run: () => 'x' })] })).not.toThrow();
+  });
+
+  it('asks it of a lazy command too, whose module has not loaded and whose effects are already knowable', () => {
+    expect(() => defineCommand({ name: 'later', load: async () => ({ run: () => 'x' }) })).toThrow(/declares no effects/);
+  });
+
+  /**
+   * The three projections, on one withheld command, saying three different and correct
+   * things. `--schema` publishes the word, because an agent reading the program as data is
+   * better served by *this exists and is not for you* than by a gap it cannot distinguish
+   * from a command that does not exist. `tools/list` omits it, which is the filter
+   * unchanged. Fig and the shell completions carry it exactly as before: withholding is
+   * about agents, and a person typing at a terminal is not one — nothing in
+   * `completions.ts` reads `effects`, and nothing here makes it start.
+   */
+  describe('and the projections each say the right thing about it', () => {
+    const withheld = defineProgram({
+      name: 'app',
+      commands: [
+        defineCommand({ name: 'wipe', description: 'Delete everything', effects: 'withheld', run: () => 'gone' }),
+        defineCommand({ name: 'status', description: 'Show status', effects: 'read_only', run: () => 'fine' }),
+      ],
+    });
+
+    it('--schema publishes it, and says it is withheld', () => {
+      const wipe = schemaOf(withheld).commands.find((c) => c.name === 'wipe');
+      expect(wipe, '--schema dropped a command the program serves').toBeDefined();
+      expect(wipe?.effects).toBe('withheld');
+    });
+
+    it('tools/list omits it — the filter is unchanged', () => {
+      expect(toolsOf(withheld).map((t) => t.name)).toEqual(['status']);
+    });
+
+    it('the Fig spec and the shell completions still offer it, because a person is not an agent', () => {
+      expect(renderFigSpec(withheld).subcommands?.map((s) => s.name)).toContain('wipe');
+      expect(renderCompletion(withheld, 'bash')).toContain('wipe');
+    });
+  });
+
+  /**
+   * A plugin's command is read by exactly the code a first-party one is read by, so it meets
+   * this refusal too — under the family's code, because a plugin author debugging against any
+   * layer has already learned that vocabulary (R8).
+   */
+  it('refuses it in a plugin command as well, under the family code', () => {
+    const manifest = new Manifest();
+    let thrown: { code?: string; message?: string } = {};
+    try {
+      manifest.use({ name: 'acme', contract: 1, commands: [{ path: ['audit'], options: {}, run: () => 0 }] } as unknown as Parameters<Manifest['use']>[0]);
+    } catch (error) {
+      thrown = error as { code?: string; message?: string };
+    }
+    expect(thrown.code).toBe('E_PLUGIN_SCHEMA');
+    expect(thrown.message).toMatch(/declares no effects/);
   });
 });

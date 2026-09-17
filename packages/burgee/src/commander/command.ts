@@ -22,7 +22,7 @@ import { stripVTControlCharacters } from 'node:util';
 import * as crossSpawn from 'bellpull/cross-spawn';
 
 import { ExitCode } from '../exit-code.js';
-import { type Effects, Manifest, type OptionSpec, type Plugin } from '../manifest.js';
+import { type DeclaredEffects, Manifest, type OptionSpec, type Plugin } from '../manifest.js';
 import { serveMcp } from '../mcp.js';
 import { host } from '../runtime.js';
 import { machineJson, schemaOf } from '../schema.js';
@@ -201,7 +201,7 @@ export class Command extends EventEmitter {
   /** burgee: the root's projection, created on first use. */
   _manifest: Manifest | undefined = undefined;
   /** burgee: what this command does to the world (N6); declaring it exposes the command as an MCP tool. */
-  _effects: Effects | undefined = undefined;
+  _effects: DeclaredEffects | undefined = undefined;
   /** burgee: `true`, or the replacement's name (M5). Shown in help, schema and a one-line warning on use. */
   _deprecated: boolean | string | undefined = undefined;
   _deprecationWarned = false;
@@ -1681,7 +1681,7 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
   }
 
   /** burgee: declare what the command does to the world (N6). This is what exposes it as an MCP tool (N2). */
-  effects(value: Effects): this {
+  effects(value: DeclaredEffects): this {
     this._effects = value;
     return this;
   }

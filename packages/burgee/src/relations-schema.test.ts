@@ -25,11 +25,12 @@ const program = defineProgram({
       name: 'export',
       options: { csv: { type: 'boolean' }, table: { type: 'boolean' }, out: { type: 'string' }, force: { type: 'boolean' } },
       relations: [{ exactlyOneOf: ['csv', 'table'] }, { implies: ['out', 'force'] }],
+      effects: 'withheld',
       run: () => 'ok',
     }),
-    defineCommand({ name: 'plain', options: { x: { type: 'string' } }, run: () => 'ok' }),
+    defineCommand({ name: 'plain', options: { x: { type: 'string' } }, effects: 'withheld', run: () => 'ok' }),
     // Declared and empty — the case that separates "omit when absent" from "omit when empty".
-    defineCommand({ name: 'empty', options: { x: { type: 'string' } }, relations: [], run: () => 'ok' }),
+    defineCommand({ name: 'empty', options: { x: { type: 'string' } }, relations: [], effects: 'withheld', run: () => 'ok' }),
   ],
 });
 
@@ -66,6 +67,7 @@ describe('a predicate cannot be published, and says so', () => {
         name: 'deploy',
         options: { target: { type: 'string' }, approve: { type: 'boolean' } },
         relations: [{ implies: ['target', isProd] }],
+        effects: 'withheld',
         run: () => 'ok',
       }),
     ],
