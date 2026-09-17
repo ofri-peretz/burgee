@@ -1,5 +1,109 @@
 # linegauge
 
+## 0.3.0
+
+### Minor Changes
+
+- [#303](https://github.com/ofri-peretz/burgee/pull/303) [`fc640dd`](https://github.com/ofri-peretz/burgee/commit/fc640ddec11255c12d1e0948c5b8e99cc3f3263b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Give `linegauge/strip`, `linegauge/wrap` and `linegauge/slice` a default export, each the
+  same function object as the subpath's named export.
+
+  The three packages they replace — `strip-ansi`, `wrap-ansi`, `slice-ansi` — all publish a
+  single function as their default, so `import stripAnsi from 'linegauge/strip'` now reads
+  exactly like the import it replaces. The root default is untouched and still `width`: that
+  one is spent on the `string-width` override recipe and cannot move.
+
+  This is what unblocked grading those three suites. Their tests open with
+  `import x from './index.js'`, and without a default the generated shim does not fail a case,
+  it fails to link — measured at `# tests 0 / # pass 0 / # fail 2` on eight cases the
+  implementation already satisfied. All three now grade: `strip-ansi` 8 / 8, `wrap-ansi`
+  80 / 80, `slice-ansi` 13 / 15.
+
+### Patch Changes
+
+- [#332](https://github.com/ofri-peretz/burgee/pull/332) [`3ea38c3`](https://github.com/ofri-peretz/burgee/commit/3ea38c363b9f0cee9f1c1c2dae4037b047e98328) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Lock the two claims `linegauge` was making with nothing behind them: that its ASCII fast path
+  agrees with the path it short-circuits, and that `require('linegauge')` works.
+
+  `width()` has had two implementations of one answer since `slice` landed — `asciiColumns`
+  returns `s.length` for printable ASCII, everything else walks `Intl.Segmenter`. The design
+  has promised a `differential.test.ts` locking the two together since 2026-09-09, `index.ts`
+  still said the fast path was unbuilt, and no test compared them. Every existing case either
+  used an input the fast path rejects or one where both paths are trivially right, so widening
+  the fast path's range by a byte passed the entire suite. A wrong fast path is not a slow
+  program, it is a silently wrong measurement: a box a column short, a help column that stops
+  lining up, and nothing thrown.
+
+  `differential.test.ts` now asserts `width(s) === measure(strip(s))` over the intent's six-row
+  grapheme table, 24 boundary fixtures and 2 000 inputs from a recorded seed, and carries the
+  grapheme table itself as assertions — code units against cluster count against columns.
+  Proven red before green: widening the range to `0x7F` fails 2 cases and dropping its floor to
+  `0x00`, which lets `ESC` onto the fast path, fails 8.
+
+  `shape.test.ts` covers R12. Nothing in the tree had ever called `require` on this package,
+  and the override recipe it is built for — `overrides: { "string-width": "npm:linegauge@^1" }`
+  — lands it inside CommonJS trees that have required `string-width` since 2015. Every
+  published entry is now required from CommonJS, which proves both halves of R12 at once: Node
+  refuses a graph containing a top-level `await` with `ERR_REQUIRE_ASYNC_MODULE`, so a `require`
+  that returns the namespace is also the no-top-level-await check. Proven red by appending a
+  top-level `await` to `widest.ts`: 3 of 8 cases fail.
+
+  No behaviour change. 913 tests, up from 867.
+
+- [#316](https://github.com/ofri-peretz/burgee/pull/316) [`c8acb28`](https://github.com/ofri-peretz/burgee/commit/c8acb2848714a1cbe3e26a2f9895d7498fb4f096) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `width` and the style stack now answer what `string-width` and `slice-ansi` answer on
+  twenty-nine cases they did not. The `string-width` row goes 201 / 229 → **229 / 229**; the
+  `slice-ansi` row goes 13 / 15 → **15 / 15**. `wrap-ansi` holds
+  at 80 / 80 and `strip-ansi` at 8 / 8 across the change.
+
+  Four defects in `width`, not twenty-eight cases. **Hangul conjoining jamo** are additive
+  inside a grapheme cluster: `Intl.Segmenter` joins a run of them into one cluster, and
+  measuring that cluster by its first code point answered 2 where a terminal draws 12. Modern
+  Hangul composes L + V (+ T) into one two-column syllable and leaves unmatched jamo at their
+  own East Asian Width. **Spacing combining marks** occupy a column — the zero-width class
+  matched `\p{Mark}`, which is the spacing marks as well as the non-spacing ones, so
+  Devanagari vowel sign AA measured 0. **Prepended concatenation marks** (`U+0600`, `U+06DD`,
+  `U+070F`) are `Format` but not `Default_Ignorable`, so they missed the zero-width class and
+  were charged a column each — the worst shape of the bug, because a character the cursor never
+  advances past is invisible until a box comes out short. And **minimally-qualified emoji
+  sequences** — the same ZWJ sequence or keycap without its `U+FE0F` — are still two columns
+  in every terminal, but `\p{RGI_Emoji}` matches only the fully-qualified spelling.
+
+  One defect in the style stack, which `slice`, `wrap` and `truncate` share. An SGR parameter
+  with no entry in the close-code table — `ESC[20m`, `ESC[1001m` — was **dropped** at a cut, so
+  the text survived and its styling did not, silently. It is now carried through and reopened
+  like any other style, closed with `ESC[0m`. The sequence is the caller's, not this library's
+  to vet.
+
+  Measured cost, stated rather than absorbed: the minified bundle grows 939–1 040 bytes per
+  entry that measures or cuts — `linegauge` itself from 5 241 to 6 180 bytes, 18%. `strip` is
+  unchanged. `packages/linegauge/ceilings.json` carries the before, the delta and the after,
+  and a new `weight.test.ts` ratchets every subpath's `dist/` closure so the next growth cannot
+  be silent. That file also records, rather than hides, that R9's weight ceiling is **not met**:
+  one entry of six is under the bar the design names.
+
+- [#339](https://github.com/ofri-peretz/burgee/pull/339) [`f295630`](https://github.com/ofri-peretz/burgee/commit/f2956301d5f9dcbcac0b001b00ebaf0315891fac) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `schema.json` constrains token names, because it was promising something no host honours.
+
+  `tokens` was described as any name to a `#rrggbb` colour. `roundel`'s `validate()` accepts
+  ten semantic names — `error`, `warn`, `ok`, `hint`, `muted`, `command`, `flag`, `value`,
+  `heading`, `ground` — and throws on everything else. So a plugin author doing exactly what
+  their own `E_PLUGIN_SCHEMA` error tells them, comparing their object against
+  `roundel/schema.json`, got a green from the schema and `"accent" is not a token` from
+  `register()`. Measured 2026-09-16 with `{ accent: '[#336699](https://github.com/ofri-peretz/burgee/issues/336699)' }`.
+
+  The schema now carries `propertyNames.enum`, and `scripts/plugin-contract-lock.test.ts`
+  pins the enum and the runtime set to each other from both sides, so neither can grow a
+  name the other does not know.
+
+  Every host ships a byte-identical copy of this file (`plugin-schema-lock.test.ts` asserts
+  it), which is why nine packages are listed. Only the key `roundel` owns is constrained:
+  describing `widgets`, `handlers`, `sources`, `resolvers` or `commands` in a file all eight
+  hosts share is what made _flagstaff_ start validating caique's key last time
+  (`PluginError: plugin.widgets.later: expected object, got boolean`), and those stay in
+  `plugin-schema-lock`'s `UNDESCRIBED` list with that reason.
+
+  `linegauge` is in the list for a different change: `ceilings.json`'s R9 block now records
+  the bar as D1's tree-inclusive ceiling — 83,538 against 170,342, a ratio of 0.4904 — and
+  keeps the superseded `get-east-asian-width` bar beside it with the count of entries that
+  cleared it.
+
 ## 0.2.0
 
 ### Minor Changes
