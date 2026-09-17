@@ -28,13 +28,13 @@ never for gating; the machine-independent figure is the ratio on
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
 | Downloads / week | new | 508.2M | 259.3M | 10.9M | 49.4M | 30.5M |
 | Runtime dependencies | **0** | 0 | 6 | **18** | 0 | 0 |
-| Installed size ⚙️ | 1076 KB | 203 KB | 515 KB | 912 KB 📖 | 40 KB | 52 KB 📖 |
+| Installed size ⚙️ | 1083 KB | 203 KB | 515 KB | 912 KB 📖 | 40 KB | 52 KB 📖 |
 | Full CLI run over bare node ⚙️ | **+14.0 ms** | +15.3 ms | +78.5 ms | +131 ms 📖 | +4.0 ms | +6 ms 📖 |
 
 Three things in that table got worse when they were measured rather than asserted, and
 they stay in it.
 
-**Installed size.** burgee installs at **1076 KB**. It is our largest number, it is our least
+**Installed size.** burgee installs at **1083 KB**. It is our largest number, it is our least
 flattering one, and it has now been wrong on this page twice in opposite directions.
 
 First it said 104 KB, a guess at the tarball rather than a measurement. That was corrected
@@ -46,8 +46,8 @@ install. Every check on this page compared the page against that file and stayed
 Fixed 2026-09-16: the row is now measured against the tree by CI on every run, so it cannot
 fall behind again. It is checked there and not on a developer's laptop for a reason worth
 stating, since it is the same class of mistake: the walk starts at a workspace link, so
-locally it counts a developer's dev dependencies too and reads **1311 KB** for the same
-commit. 991 KB is what `npm i burgee` gives you.
+locally it counts a developer's dev dependencies too and reads several hundred KB more for the
+same commit. The cell is whatever `npm i burgee` puts on disk on the runner, and nothing else.
 
 **85 KB of it arrived on 2026-09-17 and is worth naming.** `burgee/commander` now spawns
 sub-binaries through `bellpull` instead of `node:child_process`, so burgee installs bellpull's
@@ -57,7 +57,7 @@ searching `PATHEXT`, and it is simply wrong for a subcommand that is a `.cmd`, a
 a shebang that is not node. The check on this row is what surfaced the cost, which is the
 argument for the check.
 
-It buys no dependency outside this repository and six drop-in front ends. It is still 1076 KB, and the
+It buys no dependency outside this repository and six drop-in front ends. It is still 1083 KB, and the
 bundled column on [Benchmarks](/docs/benchmarks) — what an application actually grows by —
 is the number to judge us on. That one is over its own ceiling too, and says so.
 
