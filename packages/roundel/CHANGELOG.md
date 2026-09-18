@@ -1,5 +1,74 @@
 # roundel
 
+## 0.3.1
+
+### Patch Changes
+
+- [#326](https://github.com/ofri-peretz/burgee/pull/326) [`88f7ba6`](https://github.com/ofri-peretz/burgee/commit/88f7ba65e3a79ed20bf7c5bc4feae8b87684122b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - One `Runtime` seam per package, and one file in each that names the process (Y9).
+
+  `roundel/src/runtime.ts` and `flagstaff/src/runtime.ts` each declare a `Runtime` — the slice
+  of the world that package actually needs — and a `processRuntime()` that is the only place
+  the real process is named. Six files stop naming it: `roundel/chalk`, and flagstaff's `cli`,
+  `ora`, `boxen`, `cursor` and `log-update`.
+
+  Nothing about the ports' behaviour moved, and the shape of each seam is what holds that.
+  roundel's returns a literal, because chalk's contract is to detect the terminal once at
+  import; flagstaff's hands back the live process narrowed to the interface, because its
+  incumbents read the process at call time — boxen takes `stdout.columns` every time a box is
+  drawn, so a box drawn after a resize still uses the new width, and ora still hooks the real
+  stream objects and still looks up `kill` when it re-signals a swallowed Ctrl+C. The
+  compatibility rows are unchanged: chalk 58/58, ora 99/99, log-update 99/99, boxen 84/84,
+  restore-cursor 6/6.
+
+- [#294](https://github.com/ofri-peretz/burgee/pull/294) [`3f92a60`](https://github.com/ofri-peretz/burgee/commit/3f92a6099b1b8d5d476c64405ca963d40bf9af45) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - paratext validates against the family plugin schema, with its shape under `capabilities`.
+
+  paratext shipped its own `schema.json` whose root _was_ one capability, so the family had
+  three plugin schemas where the contract says one (PRINCIPLES 14, `plugin-contract` R2).
+  The capability shape is now `$defs/capability` of the shared file, reached through a
+  `capabilities` key beside `spinners`, `tokens` and `components`, and
+  `packages/*/src/schema.json` hashes to one value. flagstaff and roundel ship the same
+  bytes: their published `./schema.json` gains the capability definitions and nothing about
+  what they validate changes.
+
+  `check()` follows the schema's `$defs/capabilityDocument` and takes either shape:
+
+  - a plugin carrying its capabilities under `capabilities`, which is where they live from
+    now on, and whose problems are reported at `capabilities.<key>`;
+  - **deprecated** — one capability written as the whole document, which is what a 0.2
+    capability file looks like. It still validates, and `check()` returns a `deprecated:`
+    line saying to move it under `capabilities`. paratext 1.0 stops accepting it
+    (`.sdlc/PLAN.md` D2).
+
+  `refusals()` and `isDeprecation()` are exported to tell the two kinds of line apart; the
+  lines that are not deprecations are the ones that block, and the ones `register()` throws
+  on. `register(capability)` is unchanged: it takes one capability, not a document, so it
+  neither reports nor accepts the document-level deprecation.
+
+- [#339](https://github.com/ofri-peretz/burgee/pull/339) [`f295630`](https://github.com/ofri-peretz/burgee/commit/f2956301d5f9dcbcac0b001b00ebaf0315891fac) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `schema.json` constrains token names, because it was promising something no host honours.
+
+  `tokens` was described as any name to a `#rrggbb` colour. `roundel`'s `validate()` accepts
+  ten semantic names — `error`, `warn`, `ok`, `hint`, `muted`, `command`, `flag`, `value`,
+  `heading`, `ground` — and throws on everything else. So a plugin author doing exactly what
+  their own `E_PLUGIN_SCHEMA` error tells them, comparing their object against
+  `roundel/schema.json`, got a green from the schema and `"accent" is not a token` from
+  `register()`. Measured 2026-09-16 with `{ accent: '[#336699](https://github.com/ofri-peretz/burgee/issues/336699)' }`.
+
+  The schema now carries `propertyNames.enum`, and `scripts/plugin-contract-lock.test.ts`
+  pins the enum and the runtime set to each other from both sides, so neither can grow a
+  name the other does not know.
+
+  Every host ships a byte-identical copy of this file (`plugin-schema-lock.test.ts` asserts
+  it), which is why nine packages are listed. Only the key `roundel` owns is constrained:
+  describing `widgets`, `handlers`, `sources`, `resolvers` or `commands` in a file all eight
+  hosts share is what made _flagstaff_ start validating caique's key last time
+  (`PluginError: plugin.widgets.later: expected object, got boolean`), and those stay in
+  `plugin-schema-lock`'s `UNDESCRIBED` list with that reason.
+
+  `linegauge` is in the list for a different change: `ceilings.json`'s R9 block now records
+  the bar as D1's tree-inclusive ceiling — 83,538 against 170,342, a ratio of 0.4904 — and
+  keeps the superseded `get-east-asian-width` bar beside it with the count of entries that
+  cleared it.
+
 ## 0.3.0
 
 ### Minor Changes

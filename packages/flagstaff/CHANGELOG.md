@@ -1,5 +1,100 @@
 # flagstaff
 
+## 0.3.0
+
+### Minor Changes
+
+- [#340](https://github.com/ofri-peretz/burgee/pull/340) [`c123029`](https://github.com/ofri-peretz/burgee/commit/c12302982e13432d7145399def4c790890546cc3) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `flagstaff/box` and `flagstaff/table` render a path or a url as a terminal hyperlink, and `flagstaff` is the first package in the family to build on `paratext` (paratext R12).
+
+  A table cell may be `{ text, href }` and a box may be given `{ href }`. On a terminal believed to understand OSC 8 the text becomes a real hyperlink; on a pipe, in a log, under `TERM=dumb`, and for a screen reader it reads `src/index.ts (file:///repo/src/index.ts)` — the destination survives rather than being dropped with the escape, and no control byte reaches a file. Neither the guess nor the sequence is flagstaff's: both come from `paratext/link`, and `flagstaff` passes it a runtime instead of re-deciding.
+
+  `flagstaff/cli-table3`'s `hyperlink()` now builds its sequence the same way. It still emits unconditionally and byte for byte what upstream emits — that is the drop-in contract, and cli-table3 still grades 29 / 29 — but the escape itself is no longer written out a second time in this package. `src/link.test.ts` locks that: no published file here spells an OSC 8 sequence of its own.
+
+  `paratext/link` rather than `paratext`: 2,410 B and no registry against 20,221 B and `registerBuiltins()` at import, measured in paratext's own `dist/`. `flagstaff/table` grew 1,675 B and `flagstaff/box` 1,502 B; the two budgets in `weight.test.ts` moved with them and the reasoning is recorded there.
+
+### Patch Changes
+
+- [#332](https://github.com/ofri-peretz/burgee/pull/332) [`3ea38c3`](https://github.com/ofri-peretz/burgee/commit/3ea38c363b9f0cee9f1c1c2dae4037b047e98328) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `flagstaff` no longer carries its own copy of "put the cursor back however the process dies". `src/cursor.ts` is deleted and its three consumers — the `ora` façade, the `log-update` façade and the loop's `tty` projection — reach `closeout` instead, which owns `restore-cursor` and `signal-exit` and grades 6 / 6 against `restore-cursor`'s own suite. That module's own header argued there is exactly one correct implementation of this and that a second copy is a second place to get it wrong; it was the second copy. There was a third, in `caique`.
+
+  The two façades use `closeout/restore-cursor`, whose contract is the one their incumbents grade: the stream is a property of the _process_ — stderr if it is a terminal, else stdout — decided when you call, and written at exit whatever `isTTY` says by then. The projection uses `closeout`'s `onExit` in the `restore` phase, because it draws on the stream the Runtime handed it and must not learn that `process` exists. `closeout/exit-hook` is deliberately **not** used: it is faithful to its own incumbent, which never registers SIGHUP, so a closing terminal would not have reached the restore.
+
+  **A defect went with it.** The deleted module held a process-wide `cursorRestoreInstalled` flag — first caller installs the net, every later caller gets a no-op. That reads like a guard against a duplicate restore. It was a lost one: the second surface's writer was never registered, so a program with a hoisted frame on stdout and a spinner on stderr hid two cursors and put back one, leaving stderr's hidden. Measured on the previous build at `stderr { hide: 1, show: 0 }`. Registering per caller fixes it, and `src/cursor-net.test.ts` grades both halves — every hidden stream restored, and the one redundant (idempotent) show that two surfaces on a single stream now write.
+
+  No compatibility row moves: ora 99 / 99, log-update 99 / 99, boxen 84 / 84. None of those suites kills the process, which is why the guarantee is graded by flagstaff's own signal cases against the built `dist/` in a child that is really signalled.
+
+  `flagstaff` now depends on `closeout`. The per-entry weight measurements fall — `.` −1,666 B, `./loop` −1,666 B, `./ora` −1,591 B, `./log-update` −1,591 B — and **nothing got lighter**: the walk stops at a bare specifier, so the code left the measurement while staying in the program. Installed bytes go up, not down.
+
+- [#326](https://github.com/ofri-peretz/burgee/pull/326) [`88f7ba6`](https://github.com/ofri-peretz/burgee/commit/88f7ba65e3a79ed20bf7c5bc4feae8b87684122b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - One `Runtime` seam per package, and one file in each that names the process (Y9).
+
+  `roundel/src/runtime.ts` and `flagstaff/src/runtime.ts` each declare a `Runtime` — the slice
+  of the world that package actually needs — and a `processRuntime()` that is the only place
+  the real process is named. Six files stop naming it: `roundel/chalk`, and flagstaff's `cli`,
+  `ora`, `boxen`, `cursor` and `log-update`.
+
+  Nothing about the ports' behaviour moved, and the shape of each seam is what holds that.
+  roundel's returns a literal, because chalk's contract is to detect the terminal once at
+  import; flagstaff's hands back the live process narrowed to the interface, because its
+  incumbents read the process at call time — boxen takes `stdout.columns` every time a box is
+  drawn, so a box drawn after a resize still uses the new width, and ora still hooks the real
+  stream objects and still looks up `kill` when it re-signals a swallowed Ctrl+C. The
+  compatibility rows are unchanged: chalk 58/58, ora 99/99, log-update 99/99, boxen 84/84,
+  restore-cursor 6/6.
+
+- [#294](https://github.com/ofri-peretz/burgee/pull/294) [`3f92a60`](https://github.com/ofri-peretz/burgee/commit/3f92a6099b1b8d5d476c64405ca963d40bf9af45) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - paratext validates against the family plugin schema, with its shape under `capabilities`.
+
+  paratext shipped its own `schema.json` whose root _was_ one capability, so the family had
+  three plugin schemas where the contract says one (PRINCIPLES 14, `plugin-contract` R2).
+  The capability shape is now `$defs/capability` of the shared file, reached through a
+  `capabilities` key beside `spinners`, `tokens` and `components`, and
+  `packages/*/src/schema.json` hashes to one value. flagstaff and roundel ship the same
+  bytes: their published `./schema.json` gains the capability definitions and nothing about
+  what they validate changes.
+
+  `check()` follows the schema's `$defs/capabilityDocument` and takes either shape:
+
+  - a plugin carrying its capabilities under `capabilities`, which is where they live from
+    now on, and whose problems are reported at `capabilities.<key>`;
+  - **deprecated** — one capability written as the whole document, which is what a 0.2
+    capability file looks like. It still validates, and `check()` returns a `deprecated:`
+    line saying to move it under `capabilities`. paratext 1.0 stops accepting it
+    (`.sdlc/PLAN.md` D2).
+
+  `refusals()` and `isDeprecation()` are exported to tell the two kinds of line apart; the
+  lines that are not deprecations are the ones that block, and the ones `register()` throws
+  on. `register(capability)` is unchanged: it takes one capability, not a document, so it
+  neither reports nor accepts the document-level deprecation.
+
+- [#339](https://github.com/ofri-peretz/burgee/pull/339) [`f295630`](https://github.com/ofri-peretz/burgee/commit/f2956301d5f9dcbcac0b001b00ebaf0315891fac) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `schema.json` constrains token names, because it was promising something no host honours.
+
+  `tokens` was described as any name to a `#rrggbb` colour. `roundel`'s `validate()` accepts
+  ten semantic names — `error`, `warn`, `ok`, `hint`, `muted`, `command`, `flag`, `value`,
+  `heading`, `ground` — and throws on everything else. So a plugin author doing exactly what
+  their own `E_PLUGIN_SCHEMA` error tells them, comparing their object against
+  `roundel/schema.json`, got a green from the schema and `"accent" is not a token` from
+  `register()`. Measured 2026-09-16 with `{ accent: '[#336699](https://github.com/ofri-peretz/burgee/issues/336699)' }`.
+
+  The schema now carries `propertyNames.enum`, and `scripts/plugin-contract-lock.test.ts`
+  pins the enum and the runtime set to each other from both sides, so neither can grow a
+  name the other does not know.
+
+  Every host ships a byte-identical copy of this file (`plugin-schema-lock.test.ts` asserts
+  it), which is why nine packages are listed. Only the key `roundel` owns is constrained:
+  describing `widgets`, `handlers`, `sources`, `resolvers` or `commands` in a file all eight
+  hosts share is what made _flagstaff_ start validating caique's key last time
+  (`PluginError: plugin.widgets.later: expected object, got boolean`), and those stay in
+  `plugin-schema-lock`'s `UNDESCRIBED` list with that reason.
+
+  `linegauge` is in the list for a different change: `ceilings.json`'s R9 block now records
+  the bar as D1's tree-inclusive ceiling — 83,538 against 170,342, a ratio of 0.4904 — and
+  keeps the superseded `get-east-asian-width` bar beside it with the count of entries that
+  cleared it.
+
+- Updated dependencies [[`c8acb28`](https://github.com/ofri-peretz/burgee/commit/c8acb2848714a1cbe3e26a2f9895d7498fb4f096), [`fc640dd`](https://github.com/ofri-peretz/burgee/commit/fc640ddec11255c12d1e0948c5b8e99cc3f3263b), [`3f92a60`](https://github.com/ofri-peretz/burgee/commit/3f92a6099b1b8d5d476c64405ca963d40bf9af45), [`3ea38c3`](https://github.com/ofri-peretz/burgee/commit/3ea38c363b9f0cee9f1c1c2dae4037b047e98328), [`fc640dd`](https://github.com/ofri-peretz/burgee/commit/fc640ddec11255c12d1e0948c5b8e99cc3f3263b), [`3ea38c3`](https://github.com/ofri-peretz/burgee/commit/3ea38c363b9f0cee9f1c1c2dae4037b047e98328), [`c8acb28`](https://github.com/ofri-peretz/burgee/commit/c8acb2848714a1cbe3e26a2f9895d7498fb4f096), [`88f7ba6`](https://github.com/ofri-peretz/burgee/commit/88f7ba65e3a79ed20bf7c5bc4feae8b87684122b), [`c8acb28`](https://github.com/ofri-peretz/burgee/commit/c8acb2848714a1cbe3e26a2f9895d7498fb4f096), [`3f92a60`](https://github.com/ofri-peretz/burgee/commit/3f92a6099b1b8d5d476c64405ca963d40bf9af45), [`fc640dd`](https://github.com/ofri-peretz/burgee/commit/fc640ddec11255c12d1e0948c5b8e99cc3f3263b), [`3ea38c3`](https://github.com/ofri-peretz/burgee/commit/3ea38c363b9f0cee9f1c1c2dae4037b047e98328), [`0f00f72`](https://github.com/ofri-peretz/burgee/commit/0f00f7273ab0ca111c5869e2b08eb79314df7f70), [`f295630`](https://github.com/ofri-peretz/burgee/commit/f2956301d5f9dcbcac0b001b00ebaf0315891fac)]:
+  - closeout@0.2.0
+  - linegauge@0.3.0
+  - roundel@0.3.1
+  - paratext@0.3.0
+
 ## 0.2.1
 
 ### Patch Changes
