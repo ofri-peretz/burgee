@@ -50,7 +50,8 @@
     "gallery:page": "tsx scripts/gallery-page.ts",
     "schema:sync": "node scripts/schema-sync.mjs",
     "check:artifacts": "tsx scripts/check-published-artifacts.ts",
-    "mark-lab": "node scripts/mark-lab.mts"
+    "mark-lab": "node scripts/mark-lab.mts",
+    "decisions": "tsx scripts/decisions.ts"
   },
   "overrides": {
     "smol-toml": "^1.7.1"

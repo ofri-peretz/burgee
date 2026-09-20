@@ -1,0 +1,6 @@
+{
+  "ceiling": 102,
+  "measured": "2026-09-20",
+  "why": "102 questions across 48 intents, with nothing in the repository able to close one. The ceiling is set at the measurement so the next question raised without one closed is a decision rather than a drift. Lowering it is what closing looks like; raising it is taken here, with the reason, like every other ratchet.",
+  "closedIn": ".sdlc/DECISIONS.md"
+}
