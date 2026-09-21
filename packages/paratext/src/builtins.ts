@@ -1,8 +1,8 @@
 /**
  * The capabilities this package ships — seven plain objects, registered through the public
  * `register`, which is the same call a third party makes. Nothing here reaches past
- * `capability.ts` and `link.ts`, so a built-in cannot grow a power a stranger's plugin lacks
- * (flagstaff U4).
+ * `capability.ts`, `link.ts` and `image.ts`, so a built-in cannot grow a power a stranger's
+ * plugin lacks (flagstaff U4).
  *
  * Read them as the documentation of the format: each is a name, an OSC code, when a terminal
  * is believed to understand it, the bytes, and what to print when it does not. No functions,
@@ -19,6 +19,7 @@
  *   bell       —
  */
 import { type Capability, register } from './capability.js';
+import { IMAGE } from './image.js';
 import { LINK } from './link.js';
 
 const BEL = '\u0007';
@@ -26,23 +27,6 @@ const OSC = '\u001B]';
 
 /** Terminals that announce themselves and are known to do the richer sequences. */
 const RICH = ['iTerm.app', 'WezTerm', 'ghostty'] as const;
-
-/**
- * OSC 1337 — iTerm2's inline image. Kitty and Sixel are their own capabilities.
- *
- * The four optional groups are `ansi-escapes`' four options, in its order, so that R8's
- * `image()` is byte-identical to the incumbent's for the same input rather than merely
- * call-compatible. `size` is the one worth a sentence: the protocol makes it optional and
- * xterm.js requires it, which is why upstream always writes it and why a caller that can
- * count the bytes should pass it.
- */
-export const image: Capability = {
-  name: 'image',
-  osc: 1337,
-  when: { tty: true, termProgram: ['iTerm.app'] },
-  encode: `${OSC}1337;File=inline=1[;width={width}][;height={height}][;preserveAspectRatio={preserveAspectRatio}][;size={size}]:{base64}${BEL}`,
-  fallback: '{caption}',
-};
 
 /** OSC 0 — the window and tab title. */
 export const title: Capability = {
@@ -94,7 +78,7 @@ export const bell: Capability = {
 };
 
 /** Every capability this package ships, in one list a reader can check against the registry. */
-export const builtins: readonly Capability[] = [bell, clipboard, cwd, image, LINK, notify, title];
+export const builtins: readonly Capability[] = [bell, clipboard, cwd, IMAGE, LINK, notify, title];
 
 /** Registered through the public call, so the built-ins prove the extension surface works. */
 export function registerBuiltins(): void {
@@ -102,13 +86,14 @@ export function registerBuiltins(): void {
 }
 
 /**
- * OSC 8 — a hyperlink. Declared in `link.ts` rather than here, and re-exported under the
- * name it has always had.
+ * OSC 8 — a hyperlink, and OSC 1337 — an inline image. Declared in `link.ts` and `image.ts`
+ * rather than here, and re-exported under the names they have always had.
  *
- * It is the one built-in a caller may want **without** the registry: `paratext/link` is a
- * subpath that reaches neither `capability.js` nor `schema.json`, so a program that puts one
- * clickable URL in its `--help` does not load a plugin contract to do it. Keeping the record
- * in that module and re-exporting it here means the object the registry ships and the object
- * the subpath emits are the same one, rather than two copies free to drift.
+ * They are the two built-ins a caller may want **without** the registry: `paratext/link` and
+ * `paratext/term-img` are subpaths that reach neither `capability.js` nor `schema.json`, so a
+ * program that puts one clickable URL in its `--help`, or one inline image on an iTerm2, does
+ * not load a plugin contract to do it. Keeping each record in its own module and re-exporting
+ * it here means the object the registry ships and the object the subpath emits are the same
+ * one, rather than two copies free to drift.
  */
-export { LINK as link };
+export { IMAGE as image, LINK as link };
