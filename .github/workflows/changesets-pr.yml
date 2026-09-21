@@ -128,9 +128,20 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
           LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
         run: |
           set -euo pipefail
+          # The Version PR is the one PR that must not have a changeset: it *consumes* them.
+          # It deletes every `.changeset/*.md` and edits a `packages/*/package.json` per bump,
+          # which is exactly the `missing` shape below — so before this line every release
+          # went red here and collected a "Changeset reminder" comment telling its author to
+          # run `npm run changeset`. A red check on every release is how a team learns to
+          # read red as normal. `changeset-release/main` is the branch changesets/action
+          # pushes to; a human cannot reach this branch, because the action force-pushes it.
+          if [ "$HEAD_REF" = "changeset-release/main" ]; then
+            echo "status=release" >> "$GITHUB_OUTPUT"; exit 0
+          fi
           if echo ",$LABELS," | grep -q ',skip-changeset,'; then
             echo "status=skipped" >> "$GITHUB_OUTPUT"; exit 0
           fi
