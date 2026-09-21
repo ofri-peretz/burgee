@@ -136,27 +136,66 @@ function isAmbiguous(codePoint: number): boolean {
 }
 
 /**
- * `v`-mode properties: the whole point of using them is that Node ships the tables.
+ * The five Unicode property classes, **built from source strings on first use**.
  *
- * The mark classes are spelled out as `Nonspacing_Mark` and `Enclosing_Mark` rather than
- * the `\p{Mark}` that stood here, because `\p{Mark}` is those two **and** `Spacing_Mark` —
- * and a spacing mark is exactly the kind that does occupy a column. `ा`, Devanagari
- * vowel sign AA, answered 0 under the wider class and a terminal draws it one column wide.
+ * A `\p{…}` class under the `v` flag is not free to have in a file. V8 builds the set when
+ * it *compiles the literal*, not when the literal is evaluated — so a module carrying these
+ * five pays for all of them at import even if nothing ever calls them. Measured on Node 24,
+ * five literals alone in a module: **12.0 ms against 2.0 for the same module with the
+ * regexes replaced by numbers.**
  *
- * `\p{Format}` joins the zero-width class for the mirror-image reason. A prepended
- * concatenation mark — `U+0600`, `U+06DD`, `U+070F` — is `Format` but *not*
- * `Default_Ignorable`, so it fell through to the base-scalar path below, which stripped it
- * as leading non-printing, found an empty remainder, read code point 0 and charged a column
- * for it. Charging a column for a character the cursor never advances past is the shape of
- * bug that stays invisible until a box comes out a column short.
+ * Wrapping the literals in arrow functions does not help, which is the part worth writing
+ * down because it looks like it should: measured **11.6 ms**, inside the noise of the eager
+ * form. Deferring *evaluation* changes nothing when the cost is at *compile*.
+ *
+ * A `new RegExp(source, flags)` is different: nothing is built until the constructor runs.
+ * The same module in that form imports in **2.4 ms**, and a caller that actually tests a
+ * non-ASCII cluster pays the 10 ms once, on the first call, which is where it belongs — a
+ * CLI printing help, flags and paths never touches any of them.
+ *
+ * **A probe once blamed one of these five for 10.61 ms and it was measuring its own
+ * ordering.** `new RegExp('^\\p{RGI_Emoji}$', 'v')` ran first in a cold process, so it paid
+ * a one-time Unicode-data initialisation that whichever regex ran first would have paid; in
+ * a warm process the same constructor costs 0.01 ms. The number was real, the attribution
+ * was not, and the fix it suggested — wrapping the literals in functions — measured to
+ * nothing. Worth keeping because the shape recurs: a benchmark that puts its subject first
+ * will find it expensive.
+ *
+ * What this costs: a string loses the syntax checking a literal gets at build time.
+ * `width.test.ts` constructs all five and exercises each, so a typo fails the suite rather
+ * than a user's terminal.
  */
-const ZERO_WIDTH_CLUSTER =
-  /^(?:\p{Default_Ignorable_Code_Point}|\p{Control}|\p{Format}|\p{Nonspacing_Mark}|\p{Enclosing_Mark}|\p{Surrogate})+$/v;
-const LEADING_NON_PRINTING =
-  /^[\p{Default_Ignorable_Code_Point}\p{Control}\p{Format}\p{Nonspacing_Mark}\p{Enclosing_Mark}\p{Surrogate}]+/v;
-const RGI_EMOJI = /^\p{RGI_Emoji}$/v;
-const SPACING_MARK = /^\p{Spacing_Mark}$/v;
-const EXTENDED_PICTOGRAPHIC = /^\p{Extended_Pictographic}$/u;
+const classes: Record<string, RegExp | undefined> = {};
+
+/**
+ * The ignorable/control/format/mark/surrogate set, written once and spelled two ways.
+ *
+ * Sharing one string between the alternation and the character class was tried and is
+ * wrong: `|` is an alternation operator in `(?:…)` and a literal pipe inside `[…]`, so the
+ * class form silently began matching `|` and stopped matching most of the set. `width()`
+ * answered **15 for a three-column string** and the suite said so immediately. Two
+ * constants, one list.
+ */
+const INVISIBLE_CLASSES = ['\\p{Default_Ignorable_Code_Point}', '\\p{Control}', '\\p{Format}', '\\p{Nonspacing_Mark}', '\\p{Enclosing_Mark}', '\\p{Surrogate}'] as const;
+const INVISIBLE_ALTERNATION = INVISIBLE_CLASSES.join('|');
+const INVISIBLE_SET = INVISIBLE_CLASSES.join('');
+
+/**
+ * Each flag is written literally at its own construction.
+ *
+ * The first version passed `flags` through a shared `built(key, source, flags)` helper, and
+ * `secure-coding/no-unsafe-regex-construction` — one of this family's own rules — refused
+ * it: a `RegExp` whose flags are a variable cannot be read for what it does. The rule is
+ * right, the fix is three more lines, and it is worth noting that the rule caught it in the
+ * repository that ships the rule.
+ */
+/** A cluster that occupies no column: ignorables, controls, formats, marks, lone surrogates. */
+const ZERO_WIDTH_CLUSTER = (): RegExp => (classes['zeroWidth'] ??= new RegExp(`^(?:${INVISIBLE_ALTERNATION})+$`, 'v'));
+/** The same set, anchored at the start, for stripping a cluster's invisible prefix. */
+const LEADING_NON_PRINTING = (): RegExp => (classes['leading'] ??= new RegExp(`^[${INVISIBLE_SET}]+`, 'v'));
+const RGI_EMOJI = (): RegExp => (classes['rgi'] ??= new RegExp('^\\p{RGI_Emoji}$', 'v'));
+const SPACING_MARK = (): RegExp => (classes['spacing'] ??= new RegExp('^\\p{Spacing_Mark}$', 'v'));
+const EXTENDED_PICTOGRAPHIC = (): RegExp => (classes['pictographic'] ??= new RegExp('^\\p{Extended_Pictographic}$', 'u'));
 
 /**
  * An **unqualified keycap**: the base, then `U+20E3`, with the `U+FE0F` that would have made
@@ -222,7 +261,7 @@ function trailingColumns(visible: string, ambiguousIsWide: boolean): number {
   for (const character of [...visible].slice(1)) {
     const codePoint = character.codePointAt(0) ?? 0;
     const isForm = codePoint >= FORMS_FIRST && codePoint <= FORMS_LAST;
-    if (isForm || SPACING_MARK.test(character)) extra += columnsOf(codePoint, ambiguousIsWide);
+    if (isForm || SPACING_MARK().test(character)) extra += columnsOf(codePoint, ambiguousIsWide);
   }
   return extra;
 }
@@ -245,7 +284,7 @@ function isUnqualifiedEmojiSequence(cluster: string): boolean {
   if (!cluster.includes(ZWJ)) return false;
   let pictographs = 0;
   for (const character of cluster) {
-    if (EXTENDED_PICTOGRAPHIC.test(character)) pictographs += 1;
+    if (EXTENDED_PICTOGRAPHIC().test(character)) pictographs += 1;
     if (pictographs >= EMOJI_ZWJ_PICTOGRAPHS) return true;
   }
   return false;
@@ -281,7 +320,7 @@ function isJamo(codePoint: number): boolean {
 function hangulColumns(visible: string, ambiguousIsWide: boolean): number | undefined {
   const codePoints: number[] = [];
   for (const character of visible) {
-    if (ZERO_WIDTH_CLUSTER.test(character)) continue;
+    if (ZERO_WIDTH_CLUSTER().test(character)) continue;
     codePoints.push(character.codePointAt(0) ?? 0);
   }
   if (codePoints.length === 0 || !isJamo(codePoints[0] ?? 0)) return undefined;
@@ -311,12 +350,12 @@ function hangulColumns(visible: string, ambiguousIsWide: boolean): number | unde
 export function measure(text: string, ambiguousIsWide = false): number {
   let columns = 0;
   for (const { segment } of segmenter().segment(text)) {
-    if (ZERO_WIDTH_CLUSTER.test(segment)) continue;
-    if (RGI_EMOJI.test(segment) || isUnqualifiedEmojiSequence(segment)) {
+    if (ZERO_WIDTH_CLUSTER().test(segment)) continue;
+    if (RGI_EMOJI().test(segment) || isUnqualifiedEmojiSequence(segment)) {
       columns += WIDE_COLUMNS;
       continue;
     }
-    const visible = segment.replace(LEADING_NON_PRINTING, '');
+    const visible = segment.replace(LEADING_NON_PRINTING(), '');
     const hangul = hangulColumns(visible, ambiguousIsWide);
     if (hangul !== undefined) {
       columns += hangul;

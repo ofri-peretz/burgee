@@ -196,3 +196,35 @@ describe('ambiguousIsNarrow', () => {
     expect(width('±你', { ambiguousIsNarrow: false })).toBe(4);
   });
 });
+
+/**
+ * The five `\p{…}` classes are built from source strings (see `width.ts`), which trades the
+ * syntax checking a literal gets at build time for ~10 ms of import cost nobody was using.
+ * This is the other half of that trade: a typo in any of the five fails here rather than in
+ * a user's terminal.
+ *
+ * Each case is chosen so that **only the class under test can produce the number**. The
+ * first draft compared an emoji against `'ab'` and both measured 2, so it passed whatever
+ * the regex did — a test that could not fail is the thing this file exists to catch.
+ */
+describe('the Unicode classes survive being built from strings', () => {
+  it('zero-width cluster: an invisible character occupies no column', () => {
+    expect(width('\u200B')).toBe(0);
+  });
+
+  it('leading non-printing: an invisible prefix does not add to its cluster', () => {
+    expect(width('\u200B\u0915')).toBe(width('\u0915'));
+  });
+
+  it('RGI emoji: a ZWJ sequence is one two-column cluster, not four', () => {
+    expect(width('\u{1F469}\u200D\u{1F4BB}')).toBe(2);
+  });
+
+  it('spacing mark: it takes a column of its own, unlike a nonspacing mark', () => {
+    expect(width('\u0915\u0903')).toBe(width('\u0915') + 1);
+  });
+
+  it('extended pictographic: a lone pictograph is two columns', () => {
+    expect(width('\u{1F600}')).toBe(2);
+  });
+});
