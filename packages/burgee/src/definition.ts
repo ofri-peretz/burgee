@@ -16,7 +16,7 @@
  * than commander's own `lib/`. One file per job, and the front-ends pay for the job they use.
  */
 import { type OptionSpec } from './manifest.js';
-import { kebab } from './names.js';
+import { camel, kebab } from './names.js';
 
 const TYPES = new Set(['string', 'boolean', 'number']);
 
@@ -41,6 +41,11 @@ const DECLARED: readonly string[] = [...EFFECTS, WITHHELD];
 const RESERVED = new Set(['json', 'help', 'schema', 'mcp', 'version', 'explain']);
 
 /**
+ * What must be true of one option's spec, as opposed to its name: a numeric bound only on a
+ * number, and relations that name options this command declares. The name's own checks —
+ * type, short alias, reserved surface, canonical key — stay in {@link checkDefinition}'s
+ * loop, which is where `flag` is computed.
+ *
  * `dependsOn` and `exclusive` may only name options this command declares, and never
  * themselves.
  *
@@ -51,7 +56,10 @@ const RESERVED = new Set(['json', 'help', 'schema', 'mcp', 'version', 'explain']
  * `conflicts: ['a', 'a']` sees one set option and not two — compiles to a constraint that can
  * never fire, so the one the author wrote is simply absent.
  */
-function checkRelationNames(name: string, key: string, spec: OptionSpec, options: Record<string, OptionSpec>): void {
+function checkSpec(name: string, key: string, spec: OptionSpec, options: Record<string, OptionSpec>): void {
+  if ((spec.minimum !== undefined || spec.maximum !== undefined || spec.integer !== undefined) && spec.type !== 'number') {
+    throw new Error(`burgee: option "${key}" of "${name}" declares a numeric bound but is not a number`);
+  }
   for (const field of ['dependsOn', 'exclusive'] as const) {
     for (const other of spec[field] ?? []) {
       if (other !== key && other in options) continue;
@@ -63,7 +71,15 @@ function checkRelationNames(name: string, key: string, spec: OptionSpec, options
 
 /**
  * What must be true of a declaration before anything runs (yargs #1198, #887, #1679):
- * a known type, one short alias per command, no two keys that meet on the command line.
+ * a known type, one short alias per command, no two keys that meet on the command line, and
+ * none of V5's reserved surfaces.
+ *
+ * The reserved names used to be a second loop over the same keys in {@link checkCommand},
+ * and the numeric bound used to be a fourth branch in this one. Both moved to pay for the
+ * canonical-key check below without raising a weight ceiling — `./plugin` had 5 bytes of
+ * headroom — and both are better where they are now: `flag` is computed once here and
+ * `kebab` is the identity on every reserved name, and a numeric bound is a fact about a
+ * spec rather than about a name. The file is 51 bytes smaller than before the check existed.
  */
 export function checkDefinition(name: string, options: Record<string, OptionSpec>): void {
   const shorts = new Map<string, string>();
@@ -76,13 +92,26 @@ export function checkDefinition(name: string, options: Record<string, OptionSpec
       shorts.set(spec.short, key);
     }
     const flag = kebab(key);
-    const clash = flags.get(flag);
+    // V5's reserved surfaces, checked on the flag rather than the key: `kebab` is the
+    // identity on every name in the set, so one test covers both spellings.
+    if (RESERVED.has(flag)) throw new Error(`burgee: option "${key}" is reserved and cannot be redefined`);
+    // The engine keys options camelCase and only camelCase (S5, `names.ts`): `toParseConfig`
+    // kebabs the declared name to build the flag and `canonical` camels every parsed key back,
+    // so the flag layer reaching `resolveLayers` is camelCase while the specs beside it are
+    // keyed as declared. Declare `'dry-run'` and the two never meet — `--dry-run` parses,
+    // resolves to nothing, and the handler is handed `undefined` with no error anywhere.
+    //
+    // It is the same defect as the clash beside it, so it throws through the same sentence
+    // rather than growing a second one: two keys that meet on the command line, one of them
+    // written by `kebab()` rather than by the author. That framing is also what makes it
+    // affordable — a separate message cost 187 bytes against 5 of headroom on `./plugin`.
+    // Refused here rather than repaired at run time: a second accepted spelling would have
+    // to be carried through help, --schema, Fig, the env, config and package.json layers and
+    // the relation names, to reach a key the engine already has one canonical form of.
+    const clash = flags.get(flag) ?? (camel(flag) === key ? undefined : camel(flag));
     if (clash !== undefined) throw new Error(`burgee: options "${clash}" and "${key}" of "${name}" are both --${flag}`);
     flags.set(flag, key);
-    if ((spec.minimum !== undefined || spec.maximum !== undefined || spec.integer !== undefined) && spec.type !== 'number') {
-      throw new Error(`burgee: option "${key}" of "${name}" declares a numeric bound but is not a number`);
-    }
-    checkRelationNames(name, key, spec, options);
+    checkSpec(name, key, spec, options);
   }
 }
 
@@ -119,7 +148,8 @@ function checkEffects(name: string, effects: unknown, runs: boolean): void {
 }
 
 /**
- * The whole door: the reserved names of V5, {@link checkDefinition}, and {@link checkEffects}.
+ * The whole door: {@link checkDefinition} — which carries V5's reserved names — and
+ * {@link checkEffects}.
  *
  * This exists as one function because it was two. `defineCommand` ran both; `Manifest.use()`
  * ran neither, so a plugin's command was admitted unread — and a plugin option named `json`
@@ -132,9 +162,6 @@ function checkEffects(name: string, effects: unknown, runs: boolean): void {
  * of the defect `checkEffects` exists to remove, one level up.
  */
 export function checkCommand(name: string, options: Record<string, OptionSpec>, effects: unknown, runs: boolean): void {
-  for (const key of Object.keys(options)) {
-    if (RESERVED.has(key) || RESERVED.has(kebab(key))) throw new Error(`burgee: option "${key}" is reserved and cannot be redefined`);
-  }
   checkDefinition(name, options);
   checkEffects(name, effects, runs);
 }
