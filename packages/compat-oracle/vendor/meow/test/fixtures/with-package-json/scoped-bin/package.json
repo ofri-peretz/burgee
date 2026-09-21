@@ -1,0 +1,5 @@
+{
+	"name": "@sindresorhus/foo",
+	"bin": "./fixture.js",
+	"type": "module"
+}

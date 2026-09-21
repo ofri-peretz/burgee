@@ -934,11 +934,19 @@ export const HOSTS: Host[] = [
     repo: 'https://github.com/sindresorhus/meow',
     testDir: 'test',
     testGlob: '*.js',
-    imports: [{ upstream: '../source/index.js', subpath: '', reexportDefault: false }],
-    runner: 'node:test',
+    // Two spellings, because meow's suite reaches the library two ways: most files import
+    // the source, and `build.js` and one flags file import the built bundle — which is what
+    // meow actually publishes (`exports.default` is `./build/index.js`).
+    imports: [
+      { upstream: '../source/index.js', subpath: '', reexportDefault: true },
+      { upstream: '../build/index.js', subpath: '', reexportDefault: true },
+    ],
+    suiteDeps: ['meow@14.1.0', 'ava@6.4.1', 'common-tags@2.0.0-alpha.1', 'execa@9.6.1', 'indent-string@5.0.0', 'read-pkg@10.1.0', 'stack-utils@2.0.6'],
+    runner: 'ava',
     target: 'burgee/meow',
     status: 'planned',
-    note: 'The cheapest third host: a small surface and 42.8M/wk of genuinely chosen usage.',
+    note: "Vendored and measured 2026-09-21 at 14.1.0. **Every one of the three facts this row carried was wrong**, and each was invisible until something ran the suite. It said `runner: 'node:test'`; the suite is **ava** — `import test from 'ava'` in all 36 files — so nothing would have been graded. It named `../source/index.js` as the only import; `build.js` and one file under `test/flags/` import `../build/index.js`, which is what meow publishes (`exports.default` is `./build/index.js`), so a single rewrite left two files pointing at a path the vendored tree does not have. And it set `reexportDefault: false`; meow's whole API *is* its default export, so the generated `export * from 'meow'` produced `SyntaxError: The requested module '../shim.js' does not provide an export named 'default'` in every file. **A `planned` row's configuration is a guess until a control runs**, which is the shape `terminal-link` and `ansi-escapes` were caught in too.\n\n**Size, which the old note also understated.** \"A small surface\" is 36 files and **148 cases** — 28 at the test root, 84 under `test/flags/`, 36 under `test/options/`. Six suite dependencies plus meow itself, pinned above; meow has **zero** runtime dependencies at 14 because it rollups everything into `build/index.js`.\n\n**Control: 144 / 148, 97.3%**, graded against `meow@14.1.0` installed under `vendor/meow/node_modules`. The four are the reference's own and none is a divergence: `build › main` wants the built bundle, `test › return object` and the two `options › help › support help shortcut` cases read a `package.json` that is the vendored root's rather than a fixture's. They are not declared as `controlFailures` — no target run has been taken, and an allowance written before there is anything to allow is a number nobody measured.\n\n**One number in the grade still disagrees with itself and is not yet explained**: `tests 148, passed 144` alongside `failed 22`. 148 − 144 is 4. ava's TAP counts an uncaught exception outside the `not ok` lines and `summarize()` has notes about exactly this; until it is chased, read `passed` and ignore `failed` on this host.\n\nStill `planned`, deliberately. D-004 puts the three front-ends last, and building the façade is a Design→Build transition a human accepts. What this row is now is the feedback loop that has to exist first: a control that clears its own reference, so the next failure means the façade rather than the harness.",
+
   },
   {
     name: 'cac',

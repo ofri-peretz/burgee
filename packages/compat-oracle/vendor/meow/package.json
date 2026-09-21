@@ -1,0 +1,18 @@
+{
+  "name": "@vendored/meow-suite",
+  "private": true,
+  "type": "module",
+  "main": "./shim.js",
+  "version": "14.1.0",
+  "license": "MIT",
+  "repository": "sindresorhus/meow",
+  "devDependencies": {
+    "meow": "14.1.0",
+    "ava": "6.4.1",
+    "common-tags": "2.0.0-alpha.1",
+    "execa": "9.6.1",
+    "indent-string": "5.0.0",
+    "read-pkg": "10.1.0",
+    "stack-utils": "2.0.6"
+  }
+}

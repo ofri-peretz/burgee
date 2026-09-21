@@ -434,13 +434,42 @@ function command(host: Host, hostDir: string, dir: string, paths: string[]): { b
   // file is a helper, never a test: chalk's two spawned fixtures are vendored beside the
   // tests (their import is rewritten like any other) and ava leaves them to the tests
   // that spawn them. `--tap` is its TAP reporter; the summary lines are node's.
-  if (host.runner === 'ava') return { bin: process.execPath, args: [join(packageRoot('ava'), 'entrypoints', 'cli.js'), '--tap', ...paths] };
+  //
+  // Resolved from the vendored root when the host pins its own — the same rule
+  // `writeInternalShims` already applies to the incumbent. Without it the run launches
+  // whatever the workspace hoisted, and a suite written for another major loads it: this
+  // repo hoists **ava 8.0.1**, meow's suite is written for the **6.4.1** its `suiteDeps`
+  // installs under `vendor/meow/node_modules`, and ava 8 against those files prints
+  // `1..0 / # tests 0 / # fail 32`. The vendored 6.4.1 against the same files prints
+  // `# tests 148 / # pass 144`. A runner resolved from the wrong tree reports a suite that
+  // does not exist, and it reports it as failures rather than as an error.
+  if (host.runner === 'ava') return { bin: process.execPath, args: [avaCli(packageRoot('ava', runnerFrom(host, hostDir))), '--tap', ...paths] };
   const preamble = host.preamble === undefined ? [] : ['--require', join(dir, host.preamble)];
   const timeout = String(host.timeoutMs ?? DEFAULT_TIMEOUT_MS);
   return {
     bin: process.execPath,
-    args: [require.resolve('mocha/bin/mocha.js'), '--reporter', 'tap', '--timeout', timeout, ...preamble, ...paths],
+    args: [join(packageRoot('mocha', runnerFrom(host, hostDir)), 'bin', 'mocha.js'), '--reporter', 'tap', '--timeout', timeout, ...preamble, ...paths],
   };
+}
+
+/**
+ * Where to resolve the runner from: the vendored root for a host that pins its own suite
+ * dependencies, the workspace otherwise. `suiteDeps` exists precisely so a suite runs
+ * against the versions it was written for, and the runner is one of them.
+ */
+function runnerFrom(host: Host, hostDir: string): string | undefined {
+  return host.suiteDeps === undefined ? undefined : hostDir;
+}
+
+/**
+ * ava's CLI entry, which is not one filename across its majors: 8 ships
+ * `entrypoints/cli.js` and 6 ships `entrypoints/cli.mjs`. Its exports map admits neither by
+ * name, so this looks rather than resolves. Hardcoding `cli.js` made a 6.x host die with
+ * `MODULE_NOT_FOUND` before a single test ran, and `grade()` read that as a suite of zero.
+ */
+function avaCli(root: string): string {
+  const entry = join(root, 'entrypoints', 'cli.js');
+  return existsSync(entry) ? entry : join(root, 'entrypoints', 'cli.mjs');
 }
 
 /**
