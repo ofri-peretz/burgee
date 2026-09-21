@@ -107,7 +107,7 @@ token figure from this intent is quoting something nobody measured.
 
 ## Open questions
 
-- **Is compact the default for `--schema`, or opt-in?** Proposed: default. Its reader is a
+- **Is compact the default for `--schema`, or opt-in?** **Decided 2026-09-20 → D-061.** Proposed: default. Its reader is a
   machine by construction (N8), and `--format=json-pretty` covers the human debugging it.
 - **Which formats, and who decides?** **Answered 2026-09-09 by measuring.** On fifty rows of
   four fields: minified JSON 2,749 B, NDJSON 2,747 (0% — its win is streaming), logfmt 2,047
@@ -117,9 +117,9 @@ token figure from this intent is quoting something nobody measured.
   what [`plugin-contract`](../plugin-contract/intent.md) admits, so `formats` becomes a key on
   the shared plugin object and **the CLI's author decides what their agents read**. N15's
   `agent` format is then one registered format among several rather than a built-in.
-- **Where does the budget live?** N13 puts it on `--schema`. Proposed: on any machine format,
+- **Where does the budget live?** **Decided 2026-09-20 → D-062.** N13 puts it on `--schema`. Proposed: on any machine format,
   because a large result set has the same problem a large schema does.
-- **Does `meta.provenance` stay in the default envelope?** It is the whole point of the
+- **Does `meta.provenance` stay in the default envelope?** **Decided 2026-09-20 → D-063.** It is the whole point of the
   `diagnose-provenance` benchmark task and dead weight in every other. Proposed: keep it, and
   let `--fields` drop it — a default that is right for the task that needs it, projectable
   by the tasks that do not.

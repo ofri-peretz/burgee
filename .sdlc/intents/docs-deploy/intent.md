@@ -190,14 +190,17 @@ wrong page. Tightening it is its own intent, not a thing to do quietly here.
 
 ## Open questions
 
+Decided — none open. The items below were settled when this intent was written and are
+kept as the record they always were (confirmed 2026-09-20, D-072).
+
 None open. Decided at finalisation (2026-09-06):
 
-- **Host is `burgee.interlace.tools`**, one subdomain per property like the others.
+- Decided: **Host is `burgee.interlace.tools`**, one subdomain per property like the others.
   Changed from the proposed `cli.interlace.tools` by the owner on 2026-09-08: the
   subdomain is named for the package, not for the category.
-- **One app, hard-coded** in the workflows; the `vercel-apps.json` map returns when a
+- Decided: **One app, hard-coded** in the workflows; the `vercel-apps.json` map returns when a
   second app exists.
-- **A package may earn its own docs app** (owner, 2026-09-08), at `roundel.`,
+- Decided: **A package may earn its own docs app** (owner, 2026-09-08), at `roundel.`,
   `flagstaff.` or `caique.interlace.tools` — one subdomain per package, on the same
   pattern. The map is what turns that from a copied workflow into a table, so the second
   app is the trigger for building it and nothing before that.

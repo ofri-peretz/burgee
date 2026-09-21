@@ -107,7 +107,7 @@ hosts that exist.** The status stays `review`.
 
 ## Open questions
 
-- Whether `tokens` accepts only hex (truecolor) or also styleText names. Proposed: both,
+- Whether `tokens` accepts only hex **Decided 2026-09-20 → D-066.** (truecolor) or also styleText names. Proposed: both,
   hex is contrast-checked, names are not (roundel R5).
-- Whether third-party plugins get a namespace on npm (`burgee-plugin-*`) or none. Proposed:
+- Whether third-party plugins get a namespace on npm **Decided 2026-09-20 → D-067.** (`burgee-plugin-*`) or none. Proposed:
   a `keywords` convention only; the gallery indexes by keyword, not by name.

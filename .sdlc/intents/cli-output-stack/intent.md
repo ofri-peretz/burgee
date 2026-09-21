@@ -182,7 +182,10 @@ these criteria are the acceptance bar for `shipped`, and the umbrella is a long 
 
 ## Open questions
 
-- **Published names — candidates 2026-09-07, pending owner sign-off.** Compounds
+Decided — none open. The items below were settled when this intent was written and are
+kept as the record they always were (confirmed 2026-09-20, D-072).
+
+- Decided: **Published names — candidates 2026-09-07, pending owner sign-off.** Compounds
   (`burgee-style`) were rejected the same day: each layer is its own product (U12) and a
   prefix says the opposite. Chosen the way `burgee` was — the vocabulary of flags and the
   rigging that flies them, timeless, standalone, one pronunciation, free on npm that day:
@@ -214,10 +217,10 @@ these criteria are the acceptance bar for `shipped`, and the umbrella is a long 
   vexillum (style), figurehead (render; a perfect fit for character plugins, rejected for its
   everyday meaning), hailer (prompts; shouts rather than asks); `pennon` and `answering`, the first picks. Stubs: npm's similarity rule guards `flag-staff` and `flag_staff` automatically; `flagstaffs`
   optional. The `burgee-*` compounds so nobody squats them.
-- **Where the policy module lives.** U2 needs one decision point that `roundel`,
+- Decided: **Where the policy module lives.** U2 needs one decision point that `roundel`,
   `flagstaff` and `caique` all read. Candidates: a fourth tiny package, or a subpath
   of `roundel` that the others peer on. Decide in `roundel/design.md`; the constraint
   is that it costs the chalk façade nothing it does not already need.
-- **Sequencing against the scoreboard.** No package of the stack publishes before
+- Decided: **Sequencing against the scoreboard.** No package of the stack publishes before
   `burgee/commander` publishes its pass rate. A second product before the first has a
   number splits the repo's credibility.

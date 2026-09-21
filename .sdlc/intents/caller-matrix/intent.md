@@ -87,6 +87,6 @@ recorded status needed no correction.
 
 ## Open questions
 
-- The sixth caller. Candidates: a web terminal (xterm.js in a browser, where TTY is true
+- The sixth caller. **Decided 2026-09-20 → D-068.** Candidates: a web terminal (xterm.js in a browser, where TTY is true
   but width and fonts differ) and a chat surface (Slack/Discord bots that wrap CLIs and want
   Markdown). Proposed: record both, build neither until an adopter names one.

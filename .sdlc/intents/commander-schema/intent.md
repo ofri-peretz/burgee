@@ -110,10 +110,13 @@ here rather than on the wave table, where wave 3 is marked complete.
 
 ## Open questions
 
+Decided — none open. The items below were settled when this intent was written and are
+kept as the record they always were (confirmed 2026-09-20, D-072).
+
 None open. Decided at finalisation (2026-09-06):
 
-- **Floor additions S5–S8 are adopted** into the umbrella (see its design).
-- **Nested and dotted options are an `object` type** declared once, with the flat CLI
+- Decided: **Floor additions S5–S8 are adopted** into the umbrella (see its design).
+- Decided: **Nested and dotted options are an `object` type** declared once, with the flat CLI
   syntax `--bq.project x` and env `PREFIX_BQ_PROJECT`; the layer reassembles the object
   and `--schema` shows the nested shape. No new grammar.
 

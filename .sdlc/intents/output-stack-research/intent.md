@@ -99,5 +99,5 @@ the research nowhere.
 
 ## Open questions
 
-- Whether sindresorhus's *discussions* (where some repos push feature talk) count as a
+- Whether sindresorhus's *discussions* **Decided 2026-09-20 → D-071.** (where some repos push feature talk) count as a
   tracker. Proposed: yes, read them, cite them as discussions.

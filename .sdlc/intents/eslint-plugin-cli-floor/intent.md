@@ -112,12 +112,15 @@ real constraint it encoded is lost and must be re-established before the package
 
 ## Open questions
 
+Decided — none open. The items below were settled when this intent was written and are
+kept as the record they always were (confirmed 2026-09-20, D-072).
+
 None open. Decided at finalisation (2026-09-06):
 
-- **Package name is `eslint-plugin-cli-floor`.** `eslint-plugin-cli-floor` is held by npm's
+- Decided: **Package name is `eslint-plugin-cli-floor`.** `eslint-plugin-cli-floor` is held by npm's
   security placeholder (`0.0.1-security`) and cannot be published; `eslint-plugin-cli-floor` was free on 2026-09-06 and says what the plugin holds. The rule prefix is
   `cli-floor/`.
-- **`no-prompt-without-flag` ships in `strict` only** until a precision study on ten
+- Decided: **`no-prompt-without-flag` ships in `strict` only** until a precision study on ten
   real CLIs shows fewer than one false positive per hundred prompt calls; the study is
   R6 in the design.
-- **citty idioms are out** for v1; the anchors are commander and yargs only.
+- Decided: **citty idioms are out** for v1; the anchors are commander and yargs only.

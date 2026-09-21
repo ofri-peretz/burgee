@@ -98,10 +98,13 @@ The shipped behaviour is strong; the criteria as written are not satisfied.
 
 ## Open questions
 
+Decided — none open. The items below were settled when this intent was written and are
+kept as the record they always were (confirmed 2026-09-20, D-072).
+
 None open. Decided at finalisation (2026-09-06):
 
-- **Floor additions V6–V7 are adopted.**
-- **Env→array parsing uses the option's declared `separator`**, default `,`; an option
+- Decided: **Floor additions V6–V7 are adopted.**
+- Decided: **Env→array parsing uses the option's declared `separator`**, default `,`; an option
   with `multiple: false` receiving a separator-bearing env value is a `CONFIG` error
   with a `fix`, not a silent string.
 

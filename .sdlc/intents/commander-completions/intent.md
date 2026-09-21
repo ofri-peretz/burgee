@@ -79,10 +79,13 @@ Also unbuilt, though not a criterion: the `--dynamic` escape hatch named under "
 
 ## Open questions
 
+Decided — none open. The items below were settled when this intent was written and are
+kept as the record they always were (confirmed 2026-09-20, D-072).
+
 None open. Decided at finalisation (2026-09-06):
 
-- **Floor additions D3–D5 are adopted.**
-- **Print-only installation for v1.** `mytool completion zsh` prints the script and one
+- Decided: **Floor additions D3–D5 are adopted.**
+- Decided: **Print-only installation for v1.** `mytool completion zsh` prints the script and one
   line of instruction; no tool edits a user's shell rc file.
 
 ## Incumbents
