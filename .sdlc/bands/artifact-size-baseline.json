@@ -32,8 +32,9 @@
     "unpackedSize": 153040
   },
   "paratext": {
-    "size": 22113,
-    "unpackedSize": 66080
+    "size": 25959,
+    "unpackedSize": 78734,
+    "$comment": "Bumped deliberately 2026-09-20 for two real public entry points, not for drift: `paratext/terminal-link` (0 / 10 -> 8 / 10 against terminal-link's own suite) and `paratext/term-img` (0 / 18 -> 12 / 18). +17.4% gzipped, +19.1% unpacked, measured after both landed. A drop-in fa\u00e7ade per incumbent is what D-006 found every 100% row in this repository already does, so this package gains entry points as it gains graded surface; the bytes are the price of the rows, and reverting this number means reverting them. Note that `.d.ts` keeps every doc comment, so prose in a published file is a published byte here."
   },
-  "$comment": "Recorded pack sizes, refreshed 2026-09-14 and the refresh is the story. `check:artifacts` existed, `artifact-size-ratchet-lock.test.ts` unit-tested its verdict function against synthetic inputs, and **no workflow ever ran the verdict against the real packages** — so seven of them drifted past this file unchallenged: closeout +268%, seniority +112%, paratext +87%, burgee +51%, caique +46%, flagstaff +15%, linegauge +11%. The growth is explained — the PLAN 1.1 schema fold put a 6.5 KB family schema in every package that reaches the plugin registry, and waves 1 and 3 added plugin hosts and drop-in façades — but explaining growth is not the same as accepting it, which is why the numbers are named here rather than quietly replaced. `npm run lint` runs the check now, so the next one is caught."
+  "$comment": "Recorded pack sizes, refreshed 2026-09-14 and the refresh is the story. `check:artifacts` existed, `artifact-size-ratchet-lock.test.ts` unit-tested its verdict function against synthetic inputs, and **no workflow ever ran the verdict against the real packages** \u2014 so seven of them drifted past this file unchallenged: closeout +268%, seniority +112%, paratext +87%, burgee +51%, caique +46%, flagstaff +15%, linegauge +11%. The growth is explained \u2014 the PLAN 1.1 schema fold put a 6.5 KB family schema in every package that reaches the plugin registry, and waves 1 and 3 added plugin hosts and drop-in fa\u00e7ades \u2014 but explaining growth is not the same as accepting it, which is why the numbers are named here rather than quietly replaced. `npm run lint` runs the check now, so the next one is caught."
 }
