@@ -95,7 +95,7 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `ansi-escapes` | 1 / 4 |
-| `term-img` | 0 / 18 |
+| `term-img` | 12 / 18 |
 | `terminal-link` | 0 / 10 |
 
 Weight, installed and tree-inclusive: **66,343 bytes** against **30,912** for the incumbents it replaces — a ratio of **2.1462** (terminal-link, term-img not installed here, so the ceiling is understated).

@@ -24,6 +24,11 @@
       "default": "./dist/plugin.js"
     },
     "./schema.json": "./dist/schema.json",
+    "./term-img": {
+      "types": "./dist/term-img.d.ts",
+      "import": "./dist/term-img.js",
+      "default": "./dist/term-img.js"
+    },
     "./terminal-link": {
       "types": "./dist/terminal-link.d.ts",
       "import": "./dist/terminal-link.js",
