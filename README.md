@@ -205,7 +205,7 @@ published figure taken on another machine, not reproduced here.
 | :--- | ---: | ---: | ---: | ---: | ---: |
 | Runtime dependencies | **0** | 0 | 6 | **18** | 0 |
 | Full CLI run over bare node | **+14.0 ms** | +15.3 ms | +78.5 ms | +131 ms † | +4.0 ms |
-| Installed size | 561 KB | 203 KB | 515 KB | 912 KB † | 40 KB |
+| Installed size | 1083 KB | 203 KB | 515 KB | 912 KB † | 40 KB |
 
 The speed comes from `node:util.parseArgs` being in the standard library, not from a faster
 language: burgee is TypeScript, like both incumbents.
@@ -214,14 +214,14 @@ Milliseconds are a property of the machine that produced them, so nothing gates 
 What is gated is the ratio between two spawns interleaved in the same run, which cancels the
 machine out — and three of those gates are **claims we have not met**:
 
-| Claim | Measured | |
-| :--- | ---: | :--- |
-| `burgee` starts at or below `cac`, the lightest framework in the landscape | 1.322× | ❌ **not met** |
-| `burgee` is lighter in a user's bundle than `cac` | 3.333× | ❌ **not met** |
-| `burgee/commander` is lighter in a user's bundle than `commander` | 1.496× | ❌ **not met** |
-| `burgee/yargs` is lighter in a user's bundle than `yargs` | 0.906× | ✅ met |
-| the core entry point is under 52 KB bundled | 34,841 bytes | ✅ met |
-| an agent spends ≥40% fewer tokens and ≥30% fewer turns | — | **unmeasured** |
+| Claim | Gate | Measured | |
+| :--- | :--- | ---: | :--- |
+| `burgee` starts at or below `cac`, the lightest framework in the landscape | `cold-start-at-or-below-cac` | 2.567× | ❌ **not met** |
+| `burgee` is lighter in a user's bundle than `cac` | `lighter-than-cac` | 5.538× | ❌ **not met** |
+| `burgee/commander` is lighter in a user's bundle than `commander` | `lighter-than-commander` | 1.773× | ❌ **not met** |
+| `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 1.038× | ❌ **not met** |
+| the core entry point is under 52 KB bundled | `core-under-52kb-bundled` | 57,880 bytes | ❌ **not met** |
+| an agent spends ≥40% fewer tokens and ≥30% fewer turns | `agent-tokens-40pct` | — | **unmeasured** |
 
 Installed size is our largest number and it is larger than commander's. It buys zero runtime
 dependencies and six drop-in front ends, and it stays on the page either way: *not met* and
