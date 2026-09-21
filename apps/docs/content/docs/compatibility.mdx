@@ -25,14 +25,14 @@ would flatter a partial implementation; measuring against the control's total do
 | **string-width** | `linegauge` | 229 / 229 | 100.0% | 229 / 229 | 100.0% | — | — |
 | **strip-ansi** | `linegauge/strip` | 8 / 8 | 100.0% | 8 / 8 | 100.0% | — | — |
 | **cross-spawn** | `bellpull/cross-spawn` | 68 / 68 | 100.0% | 68 / 68 | 100.0% | — | — |
-| **rc** | `seniority/rc` | 0 / 1 (target not built yet: seniority/rc) | 0.0% | 1 / 1 | 100.0% | — | — |
+| **rc** | `seniority/rc` | 0 / 1 | 0.0% | 1 / 1 | 100.0% | — | — |
 | **wrap-ansi** | `linegauge/wrap` | 80 / 80 | 100.0% | 80 / 80 | 100.0% | — | — |
 | **slice-ansi** | `linegauge/slice` | 15 / 15 (1 the host marks failing and we pass) | 100.0% | 15 / 15 | 100.0% | — | — |
 | **cosmiconfig** | `seniority` | 186 / 243 | 76.5% | 240 / 243 | 98.8% | 10 / 10 | 0 / 10 |
-| **lilconfig** | `seniority` | 0 / 77 | 0.0% | 67 / 77 | 87.0% | — | — |
-| **dotenv** | `seniority` | 74 / 141 | 50.3% | 141 / 141 | 100.0% | 0 / 0 | 7 / 13 |
-| **clack** | `caique` | 0 / 606 | 0.0% | 576 / 606 | 95.0% | — | — |
-| **inquirer-core** | `caique` | 0 / 41 | 0.0% | 41 / 41 | 100.0% | — | — |
+| **lilconfig** | `seniority` | 67 / 77 | 87.0% | 67 / 77 | 87.0% | — | — |
+| **dotenv** | `seniority` | 80 / 141 | 56.7% | 141 / 141 | 100.0% | 0 / 0 | 7 / 13 |
+| **clack** | `caique/clack` | 14 / 17 | 82.4% | 17 / 17 | 100.0% | — | — |
+| **inquirer-core** | `caique/inquirer` | 41 / 41 | 100.0% | 41 / 41 | 100.0% | — | — |
 | **ansi-escapes** | `paratext` | 1 / 4 | 25.0% | 4 / 4 | 100.0% | — | — |
 | **terminal-link** | `paratext/terminal-link` | 8 / 10 | 80.0% | 10 / 10 | 100.0% | — | — |
 | **term-img** | `paratext/term-img` | 12 / 18 | 66.7% | 18 / 18 | 100.0% | — | — |
@@ -60,6 +60,23 @@ rate. These are excluded by name — they still run, and they still appear in th
 | **lilconfig** | `> lilconfig > when to throw > no loader specified for the search place` | Un-awaited `expect(…).rejects.toThrowError`. The `lilconfigSync` case of the same name is gated. |
 | **lilconfig** | `> lilconfig > when to throw > loader is not a function` | Un-awaited `expect(…).rejects.toThrowError`. The `lilconfigSync` case of the same name is gated. |
 | **lilconfig** | `> lilconfig > when to throw > throws for empty strings passed to load` | Un-awaited `expect(…).rejects.toThrowError`. The `lilconfigSync` case of the same name is gated. |
+| **clack** | `test/path.test.ts >` | 30 cases. Snapshots of the path prompt's frames, **and** the one file in this suite that fails against clack's own published package here: it mocks `node:fs` with `vi.mock('node:fs')` and no factory, which vitest answers from a `__mocks__` directory beside the project root. Upstream's `__mocks__/fs.cjs` is vendored there by `extraDirs` and is still never loaded — measured 2026-09-14 by putting a `console.error` in it and watching it not print under vitest 5.0.0, which upstream's vitest 3.2.4 does load; a `test.alias` for `node:fs` is no better. So those 30 read the real filesystem, list the real `/tmp`, and diff against a memfs snapshot. That was a `controlFailures` allowance of 30 until 2026-09-20 and is now redundant: the file is subtracted as a drawing like the other sixteen, and an allowance that excuses a case nobody counts is a dial, which is the objection `term-img`'s note already records. |
+| **clack** | `test/autocomplete.test.ts >` | 27 cases, 24 snapshot assertions — the autocomplete prompt drawn frame by frame. |
+| **clack** | `test/box.test.ts >` | 46 cases, 23 snapshot assertions — box borders, padding and title placement, drawn. |
+| **clack** | `test/confirm.test.ts >` | 24 cases, 12 snapshot assertions — the confirm prompt drawn in each of its states. |
+| **clack** | `test/date.test.ts >` | 16 cases, 7 snapshot assertions — the date prompt drawn. |
+| **clack** | `test/group-multi-select.test.ts >` | 42 cases, 21 snapshot assertions — grouped selection drawn. |
+| **clack** | `test/log.test.ts >` | 32 cases, 16 snapshot assertions — the log symbols and their bars, drawn. |
+| **clack** | `test/multi-line.test.ts >` | 28 cases, 14 snapshot assertions — the multi-line editor drawn. |
+| **clack** | `test/multi-select.test.ts >` | 48 cases, 24 snapshot assertions — multi-selection drawn. |
+| **clack** | `test/note.test.ts >` | 18 cases, 9 snapshot assertions — the note box drawn. |
+| **clack** | `test/password.test.ts >` | 18 cases, 9 snapshot assertions — the masked prompt drawn. |
+| **clack** | `test/progress-bar.test.ts >` | 44 cases, 19 snapshot assertions — the progress bar drawn at each fill. |
+| **clack** | `test/select-key.test.ts >` | 24 cases, 12 snapshot assertions — the key-select prompt drawn. |
+| **clack** | `test/select.test.ts >` | 40 cases, 20 snapshot assertions — the select prompt drawn. |
+| **clack** | `test/spinner.test.ts >` | 60 cases, 28 snapshot assertions — spinner frames, drawn. |
+| **clack** | `test/task-log.test.ts >` | 64 cases, 27 snapshot assertions — the task log drawn as it fills and clears. |
+| **clack** | `test/text.test.ts >` | 28 cases, 14 snapshot assertions — the text prompt drawn. |
 
 ## Supported majors
 

@@ -432,7 +432,79 @@ The 30 cases `@clack/prompts` fails against itself are all of `path.test.ts`, wh
 `node:fs` through upstream's `__mocks__/fs.cjs`; vitest 5.0.0 never loads that file where
 upstream's vitest 3.2.4 does (measured by putting a `console.error` in it and watching it
 not print). It is a runner-version divergence in the harness, declared as a
-`controlFailures` allowance with its reason rather than rounded away.
+`controlFailures` allowance with its reason rather than rounded away. **Superseded
+2026-09-20:** the allowance is gone, because `path.test.ts` is now subtracted as one of the
+seventeen drawing files below. An allowance that excuses cases nobody counts is a dial.
+
+## Both façades built, and both numbers moved (2026-09-20)
+
+`caique/inquirer` and `caique/clack` exist. The two rows moved off the package root the same
+day, which is D-006 and D-007 in one edit — a root presents caique's own API and can never
+match an incumbent's, and a façade may not be named in a host row before it exists.
+
+| Suite | Control | Target, before | Target, after |
+| :-- | --: | --: | --: |
+| `@inquirer/core` 12.0.3 | **41 / 41** | `caique` 0 / 41 | **`caique/inquirer` 41 / 41, 100.0%** |
+| `@clack/prompts` 1.8.1 | **17 / 17** (was 576 / 606) | `caique` 0 / 606 | **`caique/clack` 14 / 17, 82.4%** |
+
+### R8 — `caique/inquirer`
+
+`@inquirer/core`'s whole surface except `usePagination`: `createPrompt`, the six hooks, the
+eight key predicates, `makeTheme`, `Separator` and the five error classes, over
+`node:readline`, `node:async_hooks`, `closeout/exit-hook` and `linegauge/wrap`. Six new
+modules in `packages/caique/src/`, plus the existing `runtime.ts`, which is the only file in
+the package allowed to name `process`.
+
+**It was reachable because those 41 cases grade a loop and not a drawing.** `@inquirer/testing`
+renders through a headless xterm and asserts the screen. Three things had to be right that
+reading the API would not have told us, and each is a case:
+
+1. `AsyncResource.bind` on every `useState` setter and every keypress handler. Without it a
+   `setState` called from an `EventEmitter` listener registered inside a `useEffect` runs in
+   a different async context and finds no hook store.
+2. The first render deferred by one `setImmediate` **only** when the input has
+   `readableFlowing`. That is how a keystroke typed before the prompt existed is discarded
+   rather than answered — upstream issue #1303, and a graded case.
+3. `createPrompt`'s caller file captured at construction through `Error.prepareStackTrace`,
+   because the error a render function gets for returning nothing names that file, and the
+   case snapshots the message including the path.
+
+**`usePagination` is not implemented, and that is a stated gap rather than an oversight.**
+It is 121 lines of list-window arithmetic that this suite does not touch anywhere. Shipping
+an ungraded re-derivation of it would be exactly the unmeasured claim the oracle exists to
+prevent, so it is named here instead. It is the one thing standing between this subpath and
+a full drop-in for `@inquirer/prompts`' `select` and `checkbox`, and the way to close it is
+to grade it — `@inquirer/core`'s repository has a pagination suite that is not vendored yet.
+
+### R8 — `caique/clack`, and the ceiling
+
+D-001 is executed: the seventeen files of `@clack/prompts`' suite that carry
+`toMatchSnapshot()` are subtracted from the row as a declared subset, one `excludes` entry
+per file, each with its case count and its snapshot count, and all of it published on the
+compatibility page. 289 of the suite's 444 assertions are snapshots, in 17 of its 19 files;
+the other two files carry none, and they are the row.
+
+**A named subtraction was possible here, and that had to be checked first.** `summarize()`
+in `run.ts` refuses an exclusion it cannot name, and some runners' TAP prints counts with no
+per-case names — which is why `ansi-escapes`' ceiling is written in prose instead. vitest's
+`tap-flat` prints one named line per case; verified in the raw TAP of both runs before the
+entries were written. `requireMatch` on the control means a file renamed upstream turns the
+control red rather than quietly shrinking the denominator.
+
+**The ceiling is 14 of 17, and the missing three are all of `guide.test.ts`:**
+
+- `every prompt renders the same guide` and `no prompt renders a guide when withGuide is
+  false` require all twelve of clack's prompts to render a frame whose first line is its
+  grey bar. That is the drawing this row subtracts by decision — building it to pass two
+  cases would be building the thing U3 says caique will not build.
+- `no prompt renders a guide when withGuide is globally false` calls
+  `updateSettings({ withGuide: false })` **imported from `@clack/core`** and asserts our
+  prompts obey it. That is module-level state inside a package caique does not depend on and
+  cannot read. No implementation of ours passes it without taking the dependency U6 forbids,
+  so it is structurally out of reach rather than unfinished.
+
+14 / 17 with that paragraph beside it is the honest number. 0 / 606 was also honest and said
+less; 606 / 606 would have required being clack.
 
 Still open, and named so it is a decision rather than a silence:
 `packages/caique/competitors.json` still fingerprints `inquirer` at the `./ask` subpath.

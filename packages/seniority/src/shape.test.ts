@@ -34,7 +34,7 @@ const manifest = JSON.parse(readFileSync(join(PKG_ROOT, 'package.json'), 'utf8')
  * "`discover` is the half that does touch the disk, and it is a separate import for exactly
  * that reason". It is an import now and not only a sentence.
  */
-const SUBPATHS = ['.', './precedence', './config', './plugin', './cosmiconfig', './dotenv', './find-up', './schema.json'];
+const SUBPATHS = ['.', './precedence', './config', './plugin', './cosmiconfig', './dotenv', './lilconfig', './rc', './find-up', './schema.json'];
 
 describe('the export map is the compatibility claim (R8)', () => {
   it('publishes the root, the plugin host and one override target per graded incumbent', () => {
