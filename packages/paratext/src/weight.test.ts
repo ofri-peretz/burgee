@@ -85,6 +85,14 @@ const RULES: Record<string, EntryRule> = {
    */
   './link': { allow: [], budget: 3_000, denied: ['index.js', 'capability.js', 'builtins.js', 'plugin.js', 'ansi-escapes.js', 'schema.json'] },
   /**
+   * The `terminal-link` façade. It reaches `link.js` for the `LINK` record and `supports`,
+   * `runtime.js` for the process seam and `template.js` to render — the same graph `./link`
+   * walks, plus its own file. It must never reach `index.js`: taking a drop-in hyperlink is
+   * not a reason to register seven built-ins, which is the whole argument for `./link`
+   * existing and applies here unchanged.
+   */
+  './terminal-link': { allow: [], budget: 6_000, denied: ['index.js', 'capability.js', 'builtins.js', 'plugin.js', 'ansi-escapes.js', 'schema.json'] },
+  /**
    * The plugin host: `validate`, `contributions`, `attach`, and the `capability.ts` it
    * delegates to, which is what pulls `schema.json`. Measured 15,116 B. It must never reach
    * `index.js` — registering a plugin is not a reason to register seven built-ins.
