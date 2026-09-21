@@ -1,6 +1,6 @@
 {
   "name": "compat-oracle",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Grades burgee's compatibility against commander and yargs, and roundel's against chalk, using their own test suites, plus reference drivers that run the real incumbents for byte-for-byte comparison. Internal; never published.",
   "license": "MIT",
   "type": "module",
