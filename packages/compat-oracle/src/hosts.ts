@@ -934,11 +934,29 @@ export const HOSTS: Host[] = [
     repo: 'https://github.com/sindresorhus/meow',
     testDir: 'test',
     testGlob: '*.js',
-    imports: [{ upstream: '../source/index.js', subpath: '', reexportDefault: false }],
-    runner: 'node:test',
+    // Two spellings, because meow's suite reaches the library two ways: most files import
+    // the source, and `build.js` and one flags file import the built bundle — which is what
+    // meow actually publishes (`exports.default` is `./build/index.js`).
+    imports: [
+      { upstream: '../source/index.js', subpath: '', reexportDefault: true },
+      { upstream: '../build/index.js', subpath: '', reexportDefault: true },
+    ],
+    suiteDeps: ['meow@14.1.0', 'ava@6.4.1', 'common-tags@2.0.0-alpha.1', 'execa@9.6.1', 'indent-string@5.0.0', 'read-pkg@10.1.0', 'stack-utils@2.0.6'],
+    ungradedDirs: [
+      {
+        dir: 'fixtures',
+        why: "Twenty-four CLI programs the tests spawn with execa — two thirds of everything under `test/`. ava's own globs exclude them and the harness's walk did not, so ava was handed them as test files and each one that exits non-zero was counted: the row read `# fail 22` beside `# tests 148 / # pass 144`, a summary that disagrees with itself. Ungraded, `test/` is 12 test files.",
+      },
+    ],
+    runner: 'ava',
     target: 'burgee/meow',
     status: 'planned',
-    note: 'The cheapest third host: a small surface and 42.8M/wk of genuinely chosen usage.',
+    note:
+      // Kept short on purpose: a `planned` row's note is published verbatim in the
+      // compatibility page's table, so the full account lives in `.sdlc/FINISH-ALL.md`
+      // under "meow" and in the commit that measured it.
+      "Vendored and measured 2026-09-21 at 14.1.0. **Control 144 / 148, 97.3%** against `meow@14.1.0` — 148 cases across 18 graded files, plus 24 `fixtures/` programs the tests spawn and `ungradedDirs` prunes. The four the control misses are the reference's own: one wants the built bundle, three read the vendored root's `package.json` rather than a fixture's. Every one of the three facts this row carried while unmeasured was wrong — the runner, the import path and `reexportDefault` — which is why a `planned` row's configuration is a guess until a control runs it. Still planned: D-004 puts the three front-ends last, and this is the feedback loop that has to exist before the façade.",
+
   },
   {
     name: 'cac',
