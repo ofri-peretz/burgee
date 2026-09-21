@@ -997,8 +997,12 @@ export class Table extends Array<unknown> {
  * alone. Measured 2026-09-20 — every one of the 104 internal cases failed as
  * `X is not a function`, with the names sitting one property access away. Attaching them
  * here costs 240 B — the whole of the headroom `weight.test.ts` had left on this entry, and
- * the reason its budget moved with it — and takes the informational column from 0 / 104 to
- * 90 / 104. The gated row is 29 / 29 before and after.
+ * the reason its budget moved with it — and took the informational column from 0 / 104 to
+ * 90 / 104 on the day it landed. **It reads 103 / 104 now**, equal to the control: the
+ * thirteen the row then called a ceiling were the shim handing `../src/cell` this whole
+ * module instead of the `Cell` class, which `internalExports` fixed on 2026-09-21, and the
+ * last four wanted `Cell.RowSpanCell`, which the line below this one now carries. The
+ * gated row is 29 / 29 throughout, before and after both changes.
  *
  * Nothing new is being published. `strlen`, `pad`, `truncate`, `wordWrap`, `hyperlink`,
  * `mergeOptions`, `Cell`, `ColSpanCell`, `RowSpanCell`, `makeTableLayout`, `computeWidths`
