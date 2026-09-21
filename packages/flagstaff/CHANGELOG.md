@@ -1,5 +1,18 @@
 # flagstaff
 
+## 0.3.3
+
+### Patch Changes
+
+- [#404](https://github.com/ofri-peretz/burgee/pull/404) [`c70ff9c`](https://github.com/ofri-peretz/burgee/commit/c70ff9c6bf00ec4aff9b8a735f4246dd3193fb1a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `flagstaff/cli-table3`'s `Cell` carries `ColSpanCell` and `RowSpanCell`, the way cli-table3's
+  own `src/cell.js` publishes them — `module.exports = Cell; module.exports.ColSpanCell = …;
+module.exports.RowSpanCell = …`. A caller who reaches `Cell.RowSpanCell` on the incumbent now
+  reaches it here. Both names were already named exports of the module; this is a second
+  spelling of the incumbent's shape, and nothing new is published.
+
+  With it, cli-table3's internal suite reads **103 / 104** against a control of 103 / 104 — the
+  target matches the reference exactly, up from 90.
+
 ## 0.3.2
 
 ### Patch Changes
