@@ -2,7 +2,7 @@
 
 Intent: [`intent.md`](./intent.md). **Status:** draft.
 
-Parent design: [`docs-deploy/design.md`](../docs-deploy/design.md), whose R1–R6 this one
+Parent design: [`docs-deploy/spec.md`](../docs-deploy/spec.md), whose R1–R6 this one
 generalises from one app to N. Nothing below re-argues a decision that design made; where
 a line of it changes, the change is named.
 
@@ -47,7 +47,7 @@ a line of it changes, the change is named.
       }
     },
     "excluded": {
-      "caique": "Has not earned an app: `.sdlc/intents/caique/` is at `review`, `ask()` is unbuilt, and its clack/inquirer scoreboard rows are recorded blocked. Its pages live at burgee.interlace.tools/docs/caique until the bar in docs-per-package/design.md §R12 is met."
+      "caique": "Has not earned an app: `.sdlc/intents/caique/` is at `review`, `ask()` is unbuilt, and its clack/inquirer scoreboard rows are recorded blocked. Its pages live at burgee.interlace.tools/docs/caique until the bar in docs-per-package/spec.md §R12 is met."
     }
   }
   ```

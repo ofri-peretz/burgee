@@ -9,9 +9,9 @@ Intent: [`intent.md`](./intent.md). **Status:** review — corrected from `shipp
 - **R1** `scripts/__tests__/intent-artifacts.lock.test.ts` asserts, for every
   `.sdlc/intents/*/`: `intent.md` has `# Intent —`, a `**Status:**` line with a value in
   `draft|review|approved|shipped|dropped`, and the sections `## What is wanted`,
-  `## Why now`, `## Constraints`, `## Success criteria`; `design.md`, when present, has
+  `## Why now`, `## Constraints`, `## Success criteria`; `spec.md`, when present, has
   `## Rejected alternatives` (or `## Explicit non-goals`) and `## Out of scope` (or
-  `## Non-goals`); `approved`/`shipped` require `design.md`; no `intent.md` exists
+  `## Non-goals`); `approved`/`shipped` require `spec.md`; no `intent.md` exists
   outside `.sdlc/intents/`.
 - **R2** `evals/layer1/links.test.ts`: every `[text](relative)` in the agent-facing set
   resolves to a file (anchors ignored); every `scripts/<name>` or `npm run <script>`

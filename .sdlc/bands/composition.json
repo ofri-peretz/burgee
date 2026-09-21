@@ -7,7 +7,7 @@
     "flagstaff"
   ],
   "why": {
-    "bellpull": "exists now — cross-spawn 68/68, up from a seven-line stub — but nothing imports it yet. `burgee/commander` still spawns with raw `node:child_process` and needs a `spawn()` that returns the ChildProcess; `compat-oracle/run.ts` needs `maxBuffer` and a sync call. Both are named in bellpull's design.md.",
+    "bellpull": "exists now — cross-spawn 68/68, up from a seven-line stub — but nothing imports it yet. `burgee/commander` still spawns with raw `node:child_process` and needs a `spawn()` that returns the ChildProcess; `compat-oracle/run.ts` needs `maxBuffer` and a sync call. Both are named in bellpull's spec.md.",
     "caique": "0 of 606 clack cases; burgee reaching it needs the guarded optional-surface mechanism U13 describes, which does not exist yet.",
     "flagstaff": "burgee renders no spinner, box or table anywhere; `weight.test.ts` denies it by name. The honest edge does not exist yet, and manufacturing one would defeat this ratchet."
   },

@@ -1,7 +1,7 @@
 # Design — linegauge
 
 Intent: [`intent.md`](./intent.md). Umbrella:
-[`cli-foundation-stack`](../cli-foundation-stack/design.md).
+[`cli-foundation-stack`](../cli-foundation-stack/spec.md).
 
 **Accepted by the owner (Ofri) on 2026-09-09, at the Design→Build gate**, scoped to **the
 move only**: `width` and `wrap` leave `flagstaff` for `linegauge`, carrying the differential

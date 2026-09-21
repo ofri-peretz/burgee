@@ -134,7 +134,7 @@ describe('--mcp', () => {
  * that it had two inputs and one spelling. *I thought about this command and agents should
  * not have it* and *I forgot* both arrived as `effects: undefined`, so the tool an author
  * built for an agent was silently not there, and the only evidence was a shorter
- * `tools/list` than they expected. `.sdlc/intents/burgee/design.md` recorded it as **the
+ * `tools/list` than they expected. `.sdlc/intents/burgee/spec.md` recorded it as **the
  * quieter of the two failures**, which is the reason it sat.
  *
  * So `effects` has no default. A command that runs declares one of the three answers about

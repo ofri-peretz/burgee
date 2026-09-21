@@ -2,7 +2,7 @@
  * E5 and O5 — every door out of a burgee program, bound by the package whose job that is.
  *
  * `exit-code.ts` has declared `SIGINT: 130` and *"SIGINT after the terminal was restored"*
- * since the contract was written, and `.sdlc/intents/burgee/design.md` marks both E5 and O5
+ * since the contract was written, and `.sdlc/intents/burgee/spec.md` marks both E5 and O5
  * `R`. Neither was implemented. The engine's only exit was `host.exit(code)` — `process.exit`
  * — which restores nothing, runs nothing, and truncates a pipe by definition (yargs #1519,
  * #2118: *"No truncated JSON"*). A constant is not an implementation.

@@ -65,7 +65,7 @@ through their `configureHelp` / `getHelp` seams. It fixes, by construction:
 - Every row above has a snapshot case on the demo showing the behaviour.
 - Rendered help for the demo fits 100 columns with no line wrapped mid-command.
 - `commander-agent` and `yargs-agent` render byte-identical help for the two demos
-  (allow-listed differences as in `yargs-agent/design.md`).
+  (allow-listed differences as in `yargs-agent/spec.md`).
 
 ## Verified against `main` — 2026-09-09
 

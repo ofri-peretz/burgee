@@ -95,7 +95,7 @@ export function checkDefinition(name: string, options: Record<string, OptionSpec
  * filter's input had one spelling for two different things. *I decided agents should not
  * have this* and *I forgot* both arrived as `undefined`, so the second shipped as the first:
  * the tool an author built for an agent was silently absent from `tools/list`, with a
- * shorter list than expected as the only evidence. `.sdlc/intents/burgee/design.md` called
+ * shorter list than expected as the only evidence. `.sdlc/intents/burgee/spec.md` called
  * it the quieter of the two failures, and quiet is why it lasted.
  *
  * So there is no default, and therefore nothing to forget. Declining stays possible and

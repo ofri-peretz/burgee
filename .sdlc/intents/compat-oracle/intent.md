@@ -32,7 +32,7 @@ entire upstream gate at any implementation:
 
 The 5 failures are fixture subprocesses resolving from a flat copy's root, not gaps.
 
-Two things follow. `AI_NATIVE_SDLC.md` rule 2 asks for a feedback loop that exits
+Two things follow. `CLAUDE.md` rule 2 asks for a feedback loop that exits
 non-zero before work starts — for compatibility the competitor already wrote it, and
 not wiring it up is leaving a free acceptance test on the table. And the compatible
 replacement (`.sdlc/research/competitor-landscape.md` §5) is only credible if its claim

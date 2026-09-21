@@ -30,7 +30,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CASES_DIR = path.join(REPO_ROOT, 'evals/cases');
 const RESULTS_DIR = path.join(REPO_ROOT, 'evals/results');
-const UMBRELLA_DESIGN = '.sdlc/intents/burgee/design.md';
+const UMBRELLA_DESIGN = '.sdlc/intents/burgee/spec.md';
 
 /** Documents an agent is expected to read and obey. */
 const CONFIG_FILES = ['README.md', 'CLAUDE.md', 'AGENTS.md'];
@@ -157,7 +157,7 @@ export function unknownFloorIds(root = REPO_ROOT): string[] {
   const out: string[] = [];
   const children = readDirOrEmpty(root, '.sdlc/intents').filter((e) => e.isDirectory() && !NOT_A_CHILD.has(e.name));
   for (const e of children) {
-    for (const f of ['intent.md', 'design.md']) {
+    for (const f of ['intent.md', 'spec.md']) {
       for (const id of citedIds(path.join(root, '.sdlc/intents', e.name, f))) {
         if (!defined.has(id)) out.push(`.sdlc/intents/${e.name}/${f} → ${id}`);
       }

@@ -7,7 +7,7 @@ import { wrap as wrapAnsi } from 'linegauge/wrap';
  * `t.snapshot(box)` cases: every one asserts the exact characters it produces. A user
  * migrating off boxen cares about one thing — does my box still look the same — so matching
  * the drawing byte for byte *is* the compatibility claim, not a way of avoiding one. The
- * decision is recorded in `.sdlc/intents/output-stack-compat/design.md`.
+ * decision is recorded in `.sdlc/intents/output-stack-compat/spec.md`.
  *
  * There is no U3 tension to resolve. `boxen()` takes a state and returns a string; that is
  * `static(state)` already, with no frame to project and no non-TTY caller to protect. U3's
