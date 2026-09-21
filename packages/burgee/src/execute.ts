@@ -642,6 +642,26 @@ function changedOf(node: CommandNode, data: unknown): boolean | undefined {
   return undefined;
 }
 
+/**
+ * E1 — a command that ran to completion and left work undone names its own code in its
+ * result, and the engine honours it.
+ *
+ * Read off the data the way `changedOf` reads `changed`, because it is the same kind of
+ * fact: something the handler knows and the caller cannot see. Before this there was
+ * exactly one success path and it left with `OK`, so a command could report *or* fail, not
+ * both — `ctx.exit` unwinds before the result is emitted and prints nothing, and a throw
+ * carries a message where the document should be.
+ *
+ * `burgee migrate` is what made that a gap rather than a shape. Its whole contract is that
+ * an agent reads the refusal list *and* branches on the code (A8): a report with no code
+ * means re-running to find out, and a code with no report means parsing prose for a file
+ * name. Opt-in by naming the field, so nothing that does not name it changes.
+ */
+function exitCodeOf(data: unknown): ExitCodeType {
+  const code = isPlainObject(data) ? data['exitCode'] : undefined;
+  return isExitCode(code) ? code : ExitCode.OK;
+}
+
 /** `--version`: the declared version, else the owning package.json's (V4). */
 function versionOf(manifest: Manifest, io: Io): string {
   const declared = manifest.version ?? (typeof io.pkg?.data['version'] === 'string' ? io.pkg.data['version'] : undefined);
@@ -713,7 +733,7 @@ async function emit(io: Io, outcome: Outcome): Promise<void> {
   const meta = { provenance: outcome.provenance ?? {}, ...(outcome.changed === undefined ? {} : { changed: outcome.changed }) };
   const envelope = { ok: true, data: outcome.data, meta };
   io.out.write(outcome.json ? `${JSON.stringify(envelope)}\n` : `${render(outcome.data)}\n`);
-  return await leave(io, ExitCode.OK);
+  return await leave(io, exitCodeOf(outcome.data));
 }
 
 interface FailureContext {

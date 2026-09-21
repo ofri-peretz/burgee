@@ -177,10 +177,52 @@ export const devCommand = defineCommand({
   },
 });
 
+/**
+ * `burgee migrate [dir]` — rewrite a commander or yargs project's imports to burgee's
+ * drop-in front-ends and report what changed, with the numbers that say why it was safe.
+ *
+ * The engine is loaded on this path only (K6), the same way `dev` is: a dynamic import, so
+ * `burgee`'s own start-up and the framework's weight are what they were. `weight.test.ts`
+ * denies `migrate.js` to the root entry by name, so that cannot drift back.
+ *
+ * `idempotent` is the honest answer rather than the conservative one, and it is earned:
+ * `burgee/commander` is not a key in the mapping, so a second run over a migrated tree
+ * rewrites nothing. N6 then requires the result to report `changed`, which it does.
+ */
+export const migrateCommand = defineCommand({
+  name: 'migrate',
+  description: 'Rewrite commander and yargs imports to burgee’s drop-in front-ends, and report what changed',
+  arguments: [{ name: 'dir', description: 'the project to migrate. Defaults to the current directory', required: false }],
+  /**
+   * Declared camelCase, typed kebab. `toParseConfig` kebabs a spec's name for the parser and
+   * `canonical` camelCases it back, so `dryRun` here **is** `--dry-run` on the command line.
+   *
+   * It is spelled out because the other spelling is silent: a spec declared `'dry-run'`
+   * parses, resolves to nothing, and hands the handler `undefined` — the flag simply has no
+   * effect, with no error anywhere. `burgee brand` and `burgee dev` are both declared that
+   * way today (`--allow-low-contrast`, `--bordure-width`, `--no-watch`), which is a live
+   * defect in shipped commands and is not this lane's to fix; it was found by running this
+   * one through the built binary rather than in-process.
+   */
+  options: {
+    dryRun: { type: 'boolean', description: 'scan and report; write nothing' },
+    force: { type: 'boolean', description: 'migrate even though the git tree has uncommitted changes' },
+  },
+  effects: 'idempotent',
+  examples: [
+    { command: 'burgee migrate --dry-run', description: 'what it would change, without changing it' },
+    { command: 'burgee migrate --json', description: 'the same report as data; exit 1 when anything was refused' },
+  ],
+  run: async ({ positionals, options }) => {
+    const [{ migrate }, { host }] = await Promise.all([import('./migrate.js'), import('./runtime.js')]);
+    return await migrate({ dir: positionals[0] ?? host.cwd(), dryRun: options.dryRun === true, force: options.force === true });
+  },
+});
+
 export const program = defineProgram({
   name: 'burgee',
   description: 'The agent-native CLI framework, and the tools that come with it',
-  commands: [brandCommand, devCommand],
+  commands: [brandCommand, devCommand, migrateCommand],
 });
 
 run(program);
