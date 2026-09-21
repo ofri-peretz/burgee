@@ -23,7 +23,7 @@
     "caique": "*",
     "compat-oracle": "*",
     "flagstaff": "*",
-    "linegauge": "^0.3.2",
+    "linegauge": "^0.3.3",
     "paratext": "^0.4.0",
     "roundel": "*"
   },
