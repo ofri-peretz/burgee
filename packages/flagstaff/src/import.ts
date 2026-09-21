@@ -51,13 +51,17 @@ export interface FromCliSpinnersOptions {
 
 /** Turn cli-spinners' `spinners.json` into a plugin. The corpus stays the caller's. */
 export function fromCliSpinners(corpus: Record<string, CliSpinner>, { name = 'cli-spinners', staticFor = () => DEFAULT_STATIC }: FromCliSpinnersOptions = {}): Plugin {
-  const spinners: Record<string, SpinnerDef> = {};
-  for (const [style, spinner] of Object.entries(corpus)) {
-    // `random` is cli-spinners' own function export, not a style; a JSON corpus has none,
-    // but a caller who passes the module rather than the JSON would otherwise import it.
-    if (!Array.isArray(spinner?.frames) || spinner.frames.length === 0) continue;
-    spinners[style] = { frames: spinner.frames, interval: spinner.interval ?? DEFAULT_INTERVAL, static: staticFor(style, spinner) };
-  }
+  // `fromEntries` rather than a loop assigning `spinners[style]`: the corpus is the caller's
+  // JSON and JSON can carry the key `__proto__`, which plain assignment hands to the
+  // prototype setter — the entry then vanishes from the map *and* whatever it held becomes
+  // the fallback every other lookup inherits. `fromEntries` defines an own property instead.
+  const spinners = Object.fromEntries(
+    Object.entries(corpus)
+      // `random` is cli-spinners' own function export, not a style; a JSON corpus has none,
+      // but a caller who passes the module rather than the JSON would otherwise import it.
+      .filter(([, spinner]) => Array.isArray(spinner?.frames) && spinner.frames.length > 0)
+      .map(([style, spinner]): [string, SpinnerDef] => [style, { frames: spinner.frames, interval: spinner.interval ?? DEFAULT_INTERVAL, static: staticFor(style, spinner) }]),
+  );
   return { name, contract: 1, spinners };
 }
 
@@ -67,10 +71,7 @@ export interface FromCliBoxesOptions {
 
 /** Turn cli-boxes' `boxes.json` into a plugin. Its shape is already ours, so this is a copy. */
 export function fromCliBoxes(corpus: Record<string, CliBox>, { name = 'cli-boxes' }: FromCliBoxesOptions = {}): Plugin {
-  const borders: Record<string, BorderStyle> = {};
-  for (const [style, box] of Object.entries(corpus)) {
-    if (typeof box?.topLeft !== 'string') continue;
-    borders[style] = box;
-  }
+  // `fromEntries` for the same reason as above: a `__proto__` key stays a border style.
+  const borders = Object.fromEntries(Object.entries(corpus).filter(([, box]) => typeof box?.topLeft === 'string'));
   return { name, contract: 1, borders };
 }

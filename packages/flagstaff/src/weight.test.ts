@@ -161,10 +161,10 @@ const RULES: Record<string, EntryRule> = {
   // The registry, the validator, the built-ins and the schema they are checked against —
   // which now carries `borders` too, so both this and `./spinner` are larger than before.
   // Measured 10,190 B, of which the schema is 2,978: the contract ships in the tarball (R3).
-  './plugin': { allow: [], budget: 16_000, measured: 14_623, denied: ['loop.js', 'projection.js', 'spinner.js', 'cli.js', 'index.js'] },
+  './plugin': { allow: [], budget: 16_000, measured: 14_935, denied: ['loop.js', 'projection.js', 'spinner.js', 'cli.js', 'index.js'] },
   // The ceiling is ora (R10). The spinner plus the registry it reads its style from;
   // ora 9.4.1's own index.js is 17,891 B before any of its sixteen dependencies.
-  './spinner': { allow: ['roundel/tokens'], budget: 17_000, measured: 15_551, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
+  './spinner': { allow: ['roundel/tokens'], budget: 17_000, measured: 15_863, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
   // The ora façade: the port, the width function and the spinner corpus it re-exports. The
   // cursor control is no longer counted here — it is `closeout`'s since 2026-09-15, and a bare
   // specifier leaves this measurement while staying in the program.
@@ -227,7 +227,7 @@ const RULES: Record<string, EntryRule> = {
   // types, which `verbatimModuleSyntax` erases, so the file that turns ~80 spinners into a
   // plugin costs less than one of them. The corpora themselves are the caller's (U5), and
   // the last case in `import.test.ts` asserts neither became a dependency.
-  './import': { allow: [], budget: 2_000, measured: 838, denied: ['plugin.js', 'builtins.js', 'schema.json', 'loop.js', 'projection.js', 'box.js', 'spinner.js', 'cli.js', 'index.js'] },
+  './import': { allow: [], budget: 2_000, measured: 758, denied: ['plugin.js', 'builtins.js', 'schema.json', 'loop.js', 'projection.js', 'box.js', 'spinner.js', 'cli.js', 'index.js'] },
   './progress': { allow: ['roundel/tokens'], budget: 2_000, measured: 971, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'cli.js', 'index.js'] },
   './tasks': { allow: ['roundel/tokens'], budget: 17_000, measured: 15_962, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
   // `box` reads its named borders from the registry, the way `tasks` reads its glyphs, so

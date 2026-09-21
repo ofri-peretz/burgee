@@ -90,6 +90,20 @@ const OPTIONS = {
   conventions: {
     // Tool config files are named by their tools (next.config.mjs, vitest.config.ts).
     "filename-case": { case: "kebabCase", ignore: [/\.config\.m?[jt]s$/] },
+    // Pinned to the default this rule shipped until eslint-plugin-conventions 6.0.0, which
+    // flipped it from `in` to `Object.hasOwn`. That is the whole behaviour change between
+    // 5.3.5 and 6.0.2 — the rule body is otherwise identical — and it is the wrong default
+    // for TypeScript: `in` is the narrowing operator and `Object.hasOwn` is not. Measured
+    // against a union `A | B` where only `A` carries `reason`, reading that field behind a
+    // `hasOwn` guard fails to compile with "Property 'reason' does not exist on type
+    // 'A | B'", and reading it behind an `in` guard compiles. Unpinned the rule fires 48
+    // times here, every one of them at a discriminated union.
+    //
+    // It does not autofix across that boundary — the rule refuses a fix when the two forms
+    // disagree about the prototype chain — so nothing was silently rewritten. Pinning keeps
+    // the consistency check working rather than turning it off, and the five places that
+    // deliberately use `Object.hasOwn` keep their own disables and their reasons.
+    "consistent-existence-index-check": { preferred: "in" },
   },
 };
 

@@ -93,7 +93,10 @@ export async function resolvePrompts<O extends PromptableOption>({ options, valu
     if (isFailure(verdict)) return { values: out, failure: verdict };
     if (verdict.action === 'skip') continue;
     if (verdict.action === 'answer') {
-      out[option] = verdict.value;
+      // `defineProperty` rather than `out[option] =`: the key is chosen by whoever declared
+      // the options, and a declared option named `__proto__` would otherwise reach the setter
+      // instead of becoming a field. Defining it writes an own property on every key.
+      Object.defineProperty(out, option, { value: verdict.value, writable: true, enumerable: true, configurable: true });
       continue;
     }
 
@@ -104,7 +107,7 @@ export async function resolvePrompts<O extends PromptableOption>({ options, valu
     if (!answer.ok) {
       return { values: out, failure: { option, code: 'CANCELLED', message: `cancelled at --${option}`, fix: `pass --${option} to skip the question` } };
     }
-    out[option] = answer.value;
+    Object.defineProperty(out, option, { value: answer.value, writable: true, enumerable: true, configurable: true });
   }
 
   return { values: out };
