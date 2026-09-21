@@ -208,13 +208,33 @@ const RULES: Record<string, EntryRule> = {
   // `tools/list` as the only evidence. `.sdlc/intents/burgee/design.md` recorded it as the
   // quieter of the two failures. It is now the louder one, at declaration time, and
   // declining is `effects: 'withheld'` — a thing said rather than a thing forgotten.
+  //
+  // 60,900 on 2026-09-20 for `burgee migrate`'s A8, and **none of the 162 bytes are the
+  // codemod**: `migrate.js` is 10,878 B on disk and is denied below by name, because
+  // `cli.ts` reaches it through a dynamic import and the root entry must never reach it at
+  // all. What the engine gained is `exitCodeOf` in `execute.js` — nine lines that read an
+  // `exitCode` off a command's result the way `changedOf` already reads `changed`.
+  //
+  // It is a raise into a claim that is already breached (D-005: `core-under-52kb-bundled`
+  // is 57,880 against 53,248), so it has to earn more than a feature does. Before this
+  // there was exactly one success path and it left with `OK`: a command could emit a
+  // document *or* fail, never both — `ctx.exit` unwinds before the result is written and
+  // prints nothing, and a throw puts a message where the document goes. An agent migrating
+  // a repository unattended needs the refusal list *and* the code; a report with no code
+  // means running it twice to find out, and a code with no report means parsing prose for a
+  // file name. 162 B, measured (60,661 -> 60,823), and opt-in by naming the field, so every
+  // command that does not name it exits exactly as it did.
   ".": {
     allow: ["closeout", "linegauge", "seniority/precedence"],
-    budget: 60_700,
+    budget: 60_900,
     denied: [
       "testing.js",
       "testing-helpers.js",
       "dev.js",
+      // The codemod. `import 'burgee'` is a framework, not a migration tool, and 10 KB of
+      // scanner has no business in a user's shipped CLI — `cli.ts` loads it on the
+      // `migrate` path only (K6), the same arrangement `dev.js` has above.
+      "migrate.js",
       "roundel",
       "flagstaff",
       "caique",
@@ -257,7 +277,11 @@ const RULES: Record<string, EntryRule> = {
   // carries N6's refusal for the same reason it carries the schema. **+938** (63,015 ->
   // 63,953), the same four files and the same numbers as `.`, minus nothing — the harness
   // takes `index.js` too, and `index.js` did not change.
-  "./testing": { allow: ["closeout", "linegauge", "seniority/precedence"], budget: 64_900, denied: ["dev.js"] },
+  // 65,100 on 2026-09-20 with `.` above: the harness runs a whole program in-process, so it
+  // carries `exitCodeOf` for the same reason it carries the schema. **+162** (64,882 ->
+  // 65,044), the same single function and the same number as `.`. `migrate.js` is denied
+  // here too — a harness that reached the codemod would be measuring a surface no test runs.
+  "./testing": { allow: ["closeout", "linegauge", "seniority/precedence"], budget: 65_100, denied: ["dev.js", "migrate.js"] },
   // The plugin host, at the subpath the rest of the family publishes it at. Added
   // 2026-09-17: burgee was the one package that hosted plugins and published no
   // `./plugin`, so `scripts/plugin-contract-lock.test.ts` had to reach it by relative
@@ -309,9 +333,17 @@ const RULES: Record<string, EntryRule> = {
   // `'withheld'` in the repository, because it *is* an MCP server — a tool call that started
   // it would be a second, never-finishing server nested inside the first, on the same pipe.
   // Neither declaration existed before this commit, and neither command was a tool.
+  // 81,400 on 2026-09-20 for `burgee migrate`, and the split is the whole argument for how
+  // it is wired. **+1,276** (80,017 -> 81,293): 162 of them are `exitCodeOf` in the engine,
+  // recorded under `.` above, and the other **1,114** are `cli.js` — the command's
+  // declaration, its two options, its two examples and the dynamic import that fetches the
+  // engine. `migrate.js` itself is 10,878 B and **none of it is in this number**, because
+  // `cli.ts` reaches it with `await import('./migrate.js')` and the walk reports a dynamic
+  // import as `lazy` rather than following it (K6). A user who runs `burgee brand` pays the
+  // 1,114; a user who runs `burgee migrate` pays the rest, once, on the run that asked.
   "./cli": {
     allow: ["closeout", "linegauge", "roundel/contrast", "seniority/precedence"],
-    budget: 80_100,
+    budget: 81_400,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   // Arithmetic over hex strings, and the arithmetic itself is roundel's — colour is the

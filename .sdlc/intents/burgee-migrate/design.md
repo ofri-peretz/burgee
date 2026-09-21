@@ -112,3 +112,53 @@ baseline's, and exiting zero with refusals present.
 - Rewriting `package.json` dependencies. The report says what became removable; removing it
   is the maintainer's commit, not ours.
 - A `--revert`. `git checkout` is the revert, and A6 guarantees there is something to revert to.
+
+## Amendments — what building it proved wrong
+
+Five things in the sections above did not survive contact with the implementation. They are
+recorded here rather than edited away, because a design that quietly agrees with whatever
+got built has stopped being a gate.
+
+- **A8 named an exit code that does not exist.** `ExitCode.DataError` is not in E1, which has
+  six codes and a lock (`scripts/exit-code-lock.test.ts`) that reads them out of
+  `exit-code.ts`; a seventh would be a contract change in a lane that does not own the
+  contract. The code shipped is `ExitCode.RUNTIME` — *the command ran and did not do the
+  whole job* — which is also the right one: `USAGE` (2) tells an agent to rewrite the
+  command, and there is nothing wrong with the command.
+- **A8's other half needed a framework capability that did not exist.** `emit` had exactly
+  one success path and it left with `OK`, so a command could emit a document *or* fail, never
+  both: `ctx.exit` unwinds before the result is written and prints nothing, and a throw puts a
+  message where the document goes. A report with no code means running it twice; a code with
+  no report means parsing prose for a file name. `emit` now honours an `exitCode` named in a
+  command's own result, the way `changedOf` already honours `changed` — **162 bytes** measured
+  (60,661 → 60,823 on the root entry, 80,017 → 81,293 on `./cli`), and the ratchets were
+  raised with the measurement in `weight.test.ts` rather than quietly.
+- **A10's budget cannot be measured as a single wall clock.** Over 1,000 files the command is
+  1,000 reads, 667 writes and 17 ms of scanning, so one number grades the filesystem. On the
+  development host at load average 33 on 14 cores the same build measured 390 ms and 4,515 ms
+  minutes apart, and **the raw I/O floor alone — the same reads and writes with no scanning —
+  measured 960 to 1,325 ms**, so no implementation could have passed. The gate is now three
+  numbers, each failing on its own: the scan under 100 ms (17 measured), the slowest single
+  file under 1 ms (0.074 measured), and the whole command under 500 ms **or** inside this
+  host's own measured I/O floor plus the scan's budget — which on an idle machine is the
+  design's 500 ms unchanged, and on a loaded one is the only claim left that the code can be
+  held to: *the codemod costs less than reading and writing the same files*.
+- **The commander gate is byte-for-byte on the value import, not on the file.**
+  `demo-cli-commander/src/program.ts` and `src/burgee.ts` each keep a *type-only* import of
+  real commander on purpose — the demo casts burgee's classes to commander's declared types,
+  and that cast is the drop-in claim stated as a type. The codemod rewrites a type-only
+  import like any other, which is right for a user and wrong for this one fixture. Asserted
+  separately, as a difference that exists and is understood, rather than special-cased in the
+  codemod.
+- **`yargs-parser` is in the intent's example output and not in A2's table.** The table is
+  what shipped: four mappings, and `burgee/yargs/parser` is reachable but not produced by
+  `migrate`. The example's *"commander, yargs, yargs-parser removed"* counts a transitive
+  dependency the command does not claim.
+
+Found on the way, outside this lane and not fixed here: **an option declared in kebab-case
+never reaches its handler.** `toParseConfig` kebabs a spec's name for the parser and
+`canonical` camelCases it back, so a spec declared `'dry-run'` parses, resolves to nothing,
+and hands the handler `undefined` — the flag has no effect and nothing says so. `burgee brand`
+(`--allow-low-contrast`, `--bordure-width`) and `burgee dev` (`--no-watch`) are all declared
+that way today. It was found by running `migrate` through the built binary; every in-process
+case passed.
