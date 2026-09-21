@@ -53,7 +53,7 @@ rest to a sibling.
   `string-width` declares `engines: ">=20"` and `slice-ansi` declares `>=22`. Both could
   call it today. Neither does. That is Y4's ideal position: the builtin is a **component**,
   and the package composes it.
-- **We write this code either way.** `flagstaff/design.md` already schedules `src/width.ts` —
+- **We write this code either way.** `flagstaff/spec.md` already schedules `src/width.ts` —
   *"display width of a string (East Asian wide, combining, ANSI-stripped)"* — because rule 2
   forbids depending on `string-width`. Its own design marks that function *"a hypothesis
   until measured against `string-width`"*. Publishing it is the marginal cost of grading and

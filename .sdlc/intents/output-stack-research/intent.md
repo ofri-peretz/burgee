@@ -89,7 +89,7 @@ around it overstated what the doc closed.
 - **The three layer intents are re-issued with citations, and any row that lost its evidence is
   marked hypothesis** — **not met.** `roundel/intent.md`, `flagstaff/intent.md` and
   `caique/intent.md` reference `output-stack-open-issues.md` zero times each; only
-  `roundel/design.md` and `flagstaff/design.md` cite it, and `caique` cites it nowhere at all.
+  `roundel/spec.md` and `flagstaff/spec.md` cite it, and `caique` cites it nowhere at all.
   None of the six files contains the word *hypothesis*. The citations landed in the research
   doc's own U-table rather than being pushed back into the intents the criterion names.
 

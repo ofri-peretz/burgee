@@ -73,7 +73,7 @@ describe('the contract string-width has always kept', () => {
 
 /**
  * The twenty-eight cases that took the `string-width` row from 201 / 229 to 229, in the four
- * categories `design.md` § R10 names. They are reproduced here rather than left to the
+ * categories `spec.md` § R10 names. They are reproduced here rather than left to the
  * vendored suite for the reason the block above gives — the loop is a second, not a full
  * grading run — and each is asserted against a literal *and* against the installed
  * incumbent, so a wrong answer cannot pass by agreeing with a moved dependency.
@@ -81,7 +81,7 @@ describe('the contract string-width has always kept', () => {
  * Every one of the four was `linegauge` being wrong and `string-width` right. None of them
  * is a judgement call, which is why they are closed rather than argued with.
  */
-describe('the twenty-eight string-width cases (design.md R10, categories A–D)', () => {
+describe('the twenty-eight string-width cases (spec.md R10, categories A–D)', () => {
   /**
    * A — `Intl.Segmenter` joins a run of conjoining jamo into one cluster (GB6/GB7/GB8), and
    * measuring the cluster by its first code point answered 2 where a terminal draws 12.

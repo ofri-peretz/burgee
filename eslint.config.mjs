@@ -244,7 +244,7 @@ export default [
     rules: { "import-next/max-dependencies": "off" },
   },
   {
-    // Docs copy is static English; i18n is out of scope (design.md).
+    // Docs copy is static English; i18n is out of scope (spec.md).
     files: TSX_FILES,
     rules: { "react-features/jsx-no-literals": "off" },
   },
@@ -426,7 +426,7 @@ export default [
   // ── The benchmark suite (intent cli-benchmarks) ───────────────────────────
   {
     // `benchmarks/run.ts` and the axes are process entry points with nothing to export
-    // to the rest of the tree, and the design's layout (design.md) puts each axis in
+    // to the rest of the tree, and the design's layout (spec.md) puts each axis in
     // `axes/` beside the modules it shares with the others — `record.ts`, `stats.ts`,
     // `bands.ts` — so every axis reaches one directory up by construction.
     files: ["benchmarks/**"],

@@ -59,7 +59,7 @@ has no graded row at all yet.
 
 ## Next three, per layer
 
-1. **burgee** — write the missing `intent.md` + `design.md`. Then the engine's own gap:
+1. **burgee** — write the missing `intent.md` + `spec.md`. Then the engine's own gap:
    `--schema` still emits `schemaVersion: 1` and drops `relations`, and nothing asserts any
    surface *fails on plain commander*, which is the claim that makes a switch worth making.
 2. **roundel** — a theme/preset surface as data (rule 7), seeded from chalk's two declined

@@ -25,11 +25,11 @@
  *
  * ## The deadline resolves, and why that is a decision
  *
- * `design.md` R1 lists the deadline under "rejection is reserved for", and R2 says a breach
+ * `spec.md` R1 lists the deadline under "rejection is reserved for", and R2 says a breach
  * gives `timedOut: true` with the output that arrived before the kill. Those cannot both be
  * the surface: a rejected promise has no `Result` to carry `timedOut` or the partial output
  * on, and R2's whole content is that the partial output survives, because a CI timeout with
- * the output discarded is undiagnosable. **R2 wins**, it is recorded in `design.md` under
+ * the output discarded is undiagnosable. **R2 wins**, it is recorded in `spec.md` under
  * "Reconciliations", and `ok` is `false` — a run that was killed did not succeed.
  *
  * ## Y10, the reason the default is finite

@@ -2,8 +2,8 @@
 
 Intent: [`intent.md`](./intent.md). **Status:** draft.
 
-Children: [`linegauge`](../linegauge/design.md) · [`seniority`](../seniority/design.md) ·
-[`bellpull`](../bellpull/design.md) · [`closeout`](../closeout/design.md).
+Children: [`linegauge`](../linegauge/spec.md) · [`seniority`](../seniority/spec.md) ·
+[`bellpull`](../bellpull/spec.md) · [`closeout`](../closeout/spec.md).
 
 ---
 

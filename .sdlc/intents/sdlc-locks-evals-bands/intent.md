@@ -17,8 +17,8 @@
 The three mechanisms `eslint/` has and this repo only promises:
 
 1. **The intent lock.** A vitest test that fails when an `intent.md` lacks its required
-   sections, when an `approved` or `shipped` intent has no `design.md`, when a
-   `design.md` lacks a rejected-alternatives and an out-of-scope section, or when an
+   sections, when an `approved` or `shipped` intent has no `spec.md`, when a
+   `spec.md` lacks a rejected-alternatives and an out-of-scope section, or when an
    `intent.md` appears anywhere outside `.sdlc/intents/`.
 2. **Evals layer 1.** Every relative link in every agent-facing document (`README.md`,
    `docs/**`, `.github/**/*.md`, `apps/docs/content/**`) resolves; every script named in
@@ -63,7 +63,7 @@ The three mechanisms `eslint/` has and this repo only promises:
 ## Success criteria
 
 - Renaming `## Why now` in any intent turns `npm test` red; setting an intent to
-  `approved` with no `design.md` turns it red.
+  `approved` with no `spec.md` turns it red.
 - A deliberately broken relative link in `.sdlc/intents/README.md` fails the evals job.
 - `control-bands.yml` runs weekly and records four observations per run; after eight
   runs the first 2σ evaluation is real, not "insufficient points".
@@ -75,11 +75,11 @@ The three mechanisms `eslint/` has and this repo only promises:
 **Status corrected from `shipped` to `review`.** Two of four criteria met. The locks are real and
 were mutation-tested for this pass; the *bands* half of this intent has produced nothing.
 
-- **Renaming `## Why now` turns `npm test` red; `approved` with no `design.md` turns it red** —
+- **Renaming `## Why now` turns `npm test` red; `approved` with no `spec.md` turns it red** —
   **met**, and proven rather than assumed. On a scratch copy of `.sdlc/` plus the lock test,
   renaming `## Why now` to `## Rationale` in one intent produced `1 failed | 36 passed` with
   `AssertionError: … lacks ## Why now`; setting the one design-less intent to `approved` produced
-  `is "approved" but has no design.md`. A stray `intent.md` outside `.sdlc/intents/` fails too.
+  `is "approved" but has no spec.md`. A stray `intent.md` outside `.sdlc/intents/` fails too.
 - **A broken relative link in `.sdlc/intents/README.md` fails the evals job** — **not met.**
   `scripts/run-evals.ts` scans `README.md`, `CLAUDE.md`, `AGENTS.md` and the directories `docs`,
   `.github`, `.sdlc/bands`, `apps/docs/content` — 14 files, **none of them under

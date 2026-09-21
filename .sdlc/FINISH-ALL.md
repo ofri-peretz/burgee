@@ -2,7 +2,7 @@
 
 **Decision, 2026-09-17:** every package in this repo gets finished and positioned. Not a
 subset. This file is the living tracker for that program; it is a program tracker like
-`.sdlc/PLAN.md`'s siblings, not an intent — each package's own `intent.md` + `design.md`
+`.sdlc/PLAN.md`'s siblings, not an intent — each package's own `intent.md` + `spec.md`
 under `.sdlc/intents/<slug>/` stays the acceptance artifact.
 
 ## The number the compat page implies is wrong

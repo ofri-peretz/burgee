@@ -47,7 +47,7 @@ on their own `node_modules` with one command.
   export their own name and nothing else. A reserved name with no roadmap decays into
   squatting, which is exactly what made `fathom`, `tender`, `halyard` and `ballast`
   unusable to everyone. This intent is what makes the reservation honest.
-- **Two of the four are being written anyway.** `flagstaff/design.md` already schedules
+- **Two of the four are being written anyway.** `flagstaff/spec.md` already schedules
   `src/width.ts` — *"display width of a string (East Asian wide, combining, ANSI-stripped)"* —
   because rule 2 forbids depending on `string-width`. `caique/intent.md` already promises
   *"cancellation returns `CANCELLED` and `Ctrl+C` restores the terminal"*, which **is**
@@ -84,7 +84,7 @@ on their own `node_modules` with one command.
   and the scoreboard grows thirteen rows.
 - `cli-benchmarks` B4 gains a per-package row **and a new axis**: the override collapse,
   measured on a real tree.
-- `burgee/design.md` gains Y1–Y12.
+- `burgee/spec.md` gains Y1–Y12.
 - `.sdlc/research/replacement-map.md` becomes the generated source of the mapping table
   rather than a hand-written one.
 
@@ -129,7 +129,7 @@ on their own `node_modules` with one command.
 - **Does `seniority` move ahead of `linegauge` in the order?** **Decided 2026-09-20 → D-047.** It is the biggest layer
   (1.81 B/wk) *and* the cheapest to start, because `precedence.ts` already exists. The
   ordering below is driven by what unblocks already-scheduled work, not by size; the
-  criterion for pulling it forward is recorded in `design.md`.
+  criterion for pulling it forward is recorded in `spec.md`.
 - **Does `bellpull` survive a re-check?** **Decided 2026-09-20 → D-048.** `tinyexec` — 119 M/wk, zero dependencies,
   published 2026-09-03 — already owns the weight pitch. Its trajectory is a kill signal,
   and `bellpull` is last for that reason.
@@ -137,4 +137,4 @@ on their own `node_modules` with one command.
   this layer was measured. Somebody else is moving here now.
 - **Where does the `Runtime` seam live for four packages **Decided 2026-09-20 → D-069.** that are not allowed to import
   burgee?** Each declaring its own structural type is four definitions of one shape; a
-  shared type-only package is a fifth package. Deferred to `design.md`.
+  shared type-only package is a fifth package. Deferred to `spec.md`.

@@ -4,7 +4,7 @@
 > requirement U11. The commander move, repeated seven times: a façade over our engine,
 > graded by the incumbent's own suite, with a published, ratcheting pass rate.
 
-**Status:** review · **Design:** [`design.md`](./design.md) (2026-09-08) · **Opened:** 2026-09-08 · **Owner:** @ofri-peretz
+**Status:** review · **Design:** [`spec.md`](./spec.md) (2026-09-08) · **Opened:** 2026-09-08 · **Owner:** @ofri-peretz
 
 ---
 
@@ -12,7 +12,7 @@
 
 **Corrected 2026-09-09.** Four of eight rows graded, each with its control in the same run:
 chalk 58 / 58, ora 99 / 99, log-update 99 / 99, boxen 84 / 84. The status above is `review`,
-not `draft` — this intent does have a `design.md`, and under the SDLC it is not `approved`
+not `draft` — this intent does have a `spec.md`, and under the SDLC it is not `approved`
 until a human has accepted that design; the rows shipped so far did so under `roundel`'s and
 `flagstaff`'s own designs, which is where their façade requirements (R6) actually live.
 
@@ -26,7 +26,7 @@ A user of any of these changes one import and their tests still pass:
 | picocolors | `roundel/tokens` | roundel | node:test | API is a subset; graded for completeness, not compat |
 | ora 9 | `flagstaff/ora` | flagstaff | node:test | **shipped 2026-09-08 — 99 / 99.** `ora().start()` chain; `isSpinning`, `succeed`, `fail`; the `spinners` corpus; the stream hooks |
 | log-update 8 | `flagstaff/log-update` | flagstaff | node:test | **shipped 2026-09-08 — 99 / 99.** `logUpdate()`, `.clear()`, `.done()`, `.persist()`, `createLogUpdate`, stderr variant. Its cases render every frame through a real terminal emulator and assert the screen. The one façade so far that lowers a layer guarantee (R5), allow-listed with its reason under constraint 2 below |
-| boxen 8 | `flagstaff/boxen` | flagstaff | ava | border styles, padding, title, `fullscreen`. **Unblocked 2026-09-08 — see [`design.md`](./design.md).** The oracle drives real ava, which reads its own `.snap` files, so there was never a format to teach; every case is `t.snapshot(box)`, and since `box()` is a pure function that drawing *is* the contract, so every case gates |
+| boxen 8 | `flagstaff/boxen` | flagstaff | ava | border styles, padding, title, `fullscreen`. **Unblocked 2026-09-08 — see [`spec.md`](./spec.md).** The oracle drives real ava, which reads its own `.snap` files, so there was never a format to teach; every case is `t.snapshot(box)`, and since `box()` is a pure function that drawing *is* the contract, so every case gates |
 | cli-table3 | `flagstaff/table` | flagstaff | vitest | **Blocked on a decision — see below.** The runner exists as of 2026-09-08; what is unsettled is that 221 of its 234 cases test its own `src/` modules |
 | inquirer 14 | `caique/inquirer` | caique | vitest | `inquirer.prompt([...])`, `@inquirer/*` prompt kinds |
 | clack 1 | `caique/clack` | caique | vitest | `text`, `confirm`, `select`, `group`, `isCancel`, `spinner` |
@@ -121,7 +121,7 @@ So the row is worth having, but what it may claim has to be decided before it is
 13 gated cases with the 221 reported beside them, or the row dropped and the reason
 published. Either is defensible; quietly shipping "13 / 13, 100%" is not.
 
-**Decided 2026-09-08 ([`design.md`](./design.md)): the first.** 13 gated, 221 reported
+**Decided 2026-09-08 ([`spec.md`](./spec.md)): the first.** 13 gated, 221 reported
 beside them, and every scoreboard row publishes three numbers — gated, internal, drawing —
 so no row can show one figure a reader might take for the whole suite. The same decision
 unblocks boxen, clack and inquirer: a drawing is a contract, and for a pure string function
@@ -182,7 +182,7 @@ avoiding one.
    eventually, not the reason to move; the façade is the door.
 
    **This rewording of constraint 2 was accepted by the owner on 2026-09-08** — PR #62,
-   merged by the owner, which is the acceptance — together with the `flagstaff/design.md`
+   merged by the owner, which is the acceptance — together with the `flagstaff/spec.md`
    edits in the same PR. It is recorded because it was drafted in the PR it governs — and because "a façade cannot lower
    the layer's guarantees" is precisely the rule that first façade broke: `flagstaff/ora`
    restored the cursor on a normal exit but not on a signal, which ora itself does. That
@@ -215,7 +215,7 @@ making it **four**.
   by `npm run compat` and `npm run compat -- --control` on 2026-09-09: chalk 58 / 58, ora
   99 / 99, log-update 99 / 99, boxen 84 / 84, each identical against the real package. Missing:
   picocolors, cli-table3, inquirer, clack. Of those four, **two are stale as written** — the
-  2026-09-08 decision in `design.md` records that clack and inquirer are graded 65% and 59% by
+  2026-09-08 decision in `spec.md` records that clack and inquirer are graded 65% and 59% by
   snapshots of their own drawing, so a façade that matched them would *be* the incumbent. Eight
   rows is no longer the target the design holds; the criterion has not been rewritten to say so.
 - **chalk and ora at parity with the real package before their façades publish** — the parity

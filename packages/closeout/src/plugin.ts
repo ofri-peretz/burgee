@@ -40,7 +40,7 @@
  * data encoding of "close this socket". What R5a asks for, and what this delivers, is that
  * the **ordering** is data — inspectable, diffable, and printable by a `plugin check` without
  * running anything. R7's exemption list owes `handlers.run` an entry; that edit belongs to
- * the lane that owns `plugin-contract`, and is recorded in this package's `design.md` rather
+ * the lane that owns `plugin-contract`, and is recorded in this package's `spec.md` rather
  * than left in a commit message.
  */
 import { DEFAULT_PHASE, type ExitHandler, type HandlerSpec, PHASES, type Phase } from './registry.js';

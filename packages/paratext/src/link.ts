@@ -6,7 +6,7 @@
  * is imported *statically* by `execute.ts`, so anything help reaches is in the cold-start
  * graph of `burgee foo --json` too, and paratext published nothing narrower than its 17,574 B
  * root, which runs `registerBuiltins()` at import. This entry is 2,337 B and registers
- * nothing — there is no registry in its graph. See design.md R13.
+ * nothing — there is no registry in its graph. See spec.md R13.
  *
  * **What it gives up, said plainly.** `link()` here reads {@link LINK} directly, so a caller
  * who corrected our guess by re-registering `link` on the global registry does not change
