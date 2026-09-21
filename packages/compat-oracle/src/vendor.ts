@@ -12,6 +12,7 @@ import { join, matchesGlob, relative, resolve, sep } from 'node:path';
 
 import { testFiles } from './discover.js';
 import { type Host } from './hosts.js';
+import { fieldsFromRecord, PROVENANCE_FILE, renderProvenance } from './provenance.js';
 import { type CompatRecord, diffRecords, latestVersion, readRecord, type RecordDiff, snapshot } from './upstream.js';
 
 /** Length of an ISO date, `YYYY-MM-DD`. */
@@ -402,6 +403,14 @@ export function vendor(host: Host, into: string, version = host.pinnedVersion ??
       internals: [...internals].sort(),
     });
     writeFileSync(join(staging, '.source.json'), `${JSON.stringify(record, null, 2)}\n`);
+    // **Beside the record, not instead of it.** `scripts/vendor-suite.ts` used to be the only
+    // writer of `PROVENANCE`, so `compat --vendor` — which calls this function — replaced the
+    // host directory and left the file behind in the old one. `provenance.test.ts` then went
+    // red on a host nobody had touched by hand, naming a file the oracle had deleted itself.
+    // Both files come from the same `record`, so writing one without the other was only ever
+    // a division of labour between two callers, and the invariant the lock states is that a
+    // vendored suite says where it came from.
+    writeFileSync(join(staging, PROVENANCE_FILE), renderProvenance(fieldsFromRecord(host.name, record)));
     // A stale shim from a previous target would silently grade the wrong thing.
     // Both names: a re-vendor that changes the package's type must not leave the old one.
     host.imports.forEach((_, i) => {
