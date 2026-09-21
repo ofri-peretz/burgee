@@ -56,7 +56,14 @@ export function fromCliSpinners(corpus: Record<string, CliSpinner>, { name = 'cl
     // `random` is cli-spinners' own function export, not a style; a JSON corpus has none,
     // but a caller who passes the module rather than the JSON would otherwise import it.
     if (!Array.isArray(spinner?.frames) || spinner.frames.length === 0) continue;
-    spinners[style] = { frames: spinner.frames, interval: spinner.interval ?? DEFAULT_INTERVAL, static: staticFor(style, spinner) };
+    // The corpus is the caller's JSON, so the key is theirs too. `defineProperty` writes an
+    // own property for every key; plain assignment would route `__proto__` to the setter.
+    Object.defineProperty(spinners, style, {
+      value: { frames: spinner.frames, interval: spinner.interval ?? DEFAULT_INTERVAL, static: staticFor(style, spinner) },
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    });
   }
   return { name, contract: 1, spinners };
 }
@@ -70,7 +77,7 @@ export function fromCliBoxes(corpus: Record<string, CliBox>, { name = 'cli-boxes
   const borders: Record<string, BorderStyle> = {};
   for (const [style, box] of Object.entries(corpus)) {
     if (typeof box?.topLeft !== 'string') continue;
-    borders[style] = box;
+    Object.defineProperty(borders, style, { value: box, writable: true, enumerable: true, configurable: true });
   }
   return { name, contract: 1, borders };
 }

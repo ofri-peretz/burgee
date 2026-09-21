@@ -249,7 +249,9 @@ function deepFrozen<T>(value: T, seen = new WeakMap<object, unknown>()): T {
   // array literal rebuilds it — so one loop covers both shapes.
   const copy = (Array.isArray(value) ? [] : {}) as Record<string, unknown>;
   seen.set(value, copy);
-  for (const [k, v] of Object.entries(value)) copy[k] = deepFrozen(v, seen);
+  // A sample is the plugin author's data, so `__proto__` is a key it may legitimately carry;
+  // `defineProperty` copies it as an own property rather than handing it to the setter.
+  for (const [k, v] of Object.entries(value)) Object.defineProperty(copy, k, { value: deepFrozen(v, seen), writable: true, enumerable: true, configurable: true });
   return frozen(copy) as T;
 }
 

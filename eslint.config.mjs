@@ -66,7 +66,19 @@ const OFF = {
   },
   "secure-coding": {},
   "node-security": {},
-  conventions: {},
+  conventions: {
+    // `'key' in object` is TypeScript's **narrowing operator**, and this rule asks for a
+    // form that does not narrow. Measured: `Object.hasOwn(x, 'reason') ? x.reason : …`
+    // against `A | B` fails with "Property 'reason' does not exist on type 'A | B'", where
+    // `'reason' in x ? x.reason : …` compiles. It fires 48 times here, at discriminated
+    // unions, and following it would replace working type narrowing with casts.
+    //
+    // The rule reads as written for JavaScript, where `in` versus `hasOwn` is a
+    // prototype-chain question. In TypeScript it is a type-system question with a different
+    // answer, and that is worth taking back to the plugin rather than working around here.
+    "consistent-existence-index-check":
+      "`in` is TypeScript's narrowing operator; the suggested form does not narrow",
+  },
   maintainability: {},
   modernization: {},
   modularity: {},

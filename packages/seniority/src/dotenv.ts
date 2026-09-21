@@ -107,7 +107,8 @@ export function populate(target: Record<string, string | undefined>, parsed: Rec
   const populated: Record<string, string> = {};
   const override = options.override === true;
   for (const [key, value] of Object.entries(parsed)) {
-    // eslint-disable-next-line conventions/consistent-existence-index-check -- `in` would treat `toString` as already present in every environment and silently drop a variable of that name. dotenv uses `Object.prototype.hasOwnProperty.call` here for the same reason.
+    // `in` would treat `toString` as already present in every environment and silently drop a variable of that
+    // name. dotenv uses `Object.prototype.hasOwnProperty.call` here for the same reason.
     const held = Object.hasOwn(target, key);
     if (held && options.debug === true) debugLog(`"${key}" is already defined and ${override ? 'WAS overwritten' : 'was NOT overwritten'}`);
     if (held && !override) continue;

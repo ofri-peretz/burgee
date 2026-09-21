@@ -11,6 +11,8 @@
  * 'arrow' })` — with no import path of its own. A corpus that needed a private door would
  * not be a plugin, it would be a second built-in table.
  */
+import { readFileSync } from 'node:fs';
+
 import cliBoxes from 'cli-boxes';
 import cliSpinners from 'cli-spinners';
 import { describe, expect, it } from 'vitest';
@@ -96,16 +98,39 @@ describe('the corpora are not bundled (U5)', () => {
   /** The packages this repo publishes. A dependency on one is a same-repo edge (U6). */
   const SAME_REPO = new Set(['roundel', 'linegauge', 'flagstaff', 'caique', 'burgee', 'bellpull', 'closeout', 'seniority', 'paratext']);
 
-  it('neither corpus is a dependency: they are the caller’s, and this module only reshapes them', async () => {
-    const manifest = (await import('../package.json', { with: { type: 'json' } })) as { default: { dependencies: Record<string, string> } };
-    const deps = Object.keys(manifest.default.dependencies);
+  it('neither corpus is a dependency: they are the caller’s, and this module only reshapes them', () => {
+    const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { dependencies: Record<string, string> };
+    const deps = Object.keys(manifest.dependencies);
     expect(deps).not.toContain('cli-spinners');
     expect(deps).not.toContain('cli-boxes');
   });
 
-  it('every dependency is a package this repo publishes (U6: 0 external)', async () => {
-    const manifest = (await import('../package.json', { with: { type: 'json' } })) as { default: { dependencies: Record<string, string> } };
-    const external = Object.keys(manifest.default.dependencies).filter((d) => !SAME_REPO.has(d));
+  it('every dependency is a package this repo publishes (U6: 0 external)', () => {
+    const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { dependencies: Record<string, string> };
+    const external = Object.keys(manifest.dependencies).filter((d) => !SAME_REPO.has(d));
     expect(external, 'flagstaff ships zero external dependencies').toEqual([]);
+  });
+});
+
+/**
+ * A corpus is the caller's JSON, and JSON can carry the key `__proto__`. Written with plain
+ * assignment, that key reaches the prototype setter instead of becoming a style: the entry
+ * vanishes from the plugin *and* whatever it held becomes the fallback every other lookup
+ * inherits. `defineProperty` writes an own property for every key, so the entry stays an
+ * entry and the plugin keeps a clean prototype.
+ */
+describe('a corpus key named __proto__ is a style, not a prototype', () => {
+  const entry = { frames: ['x'], interval: 80 };
+
+  it('fromCliSpinners keeps it as an own key and does not reparent the map', () => {
+    const plugin = fromCliSpinners(JSON.parse('{"__proto__": {"frames": ["x"], "interval": 80}, "dots": {"frames": ["a"], "interval": 80}}') as Record<string, typeof entry>);
+    expect(Object.getPrototypeOf(plugin.spinners!)).toBe(Object.prototype);
+    expect(Object.keys(plugin.spinners!).sort()).toEqual(['__proto__', 'dots']);
+  });
+
+  it('fromCliBoxes keeps it as an own key and does not reparent the map', () => {
+    const plugin = fromCliBoxes(JSON.parse('{"__proto__": {"topLeft": "+", "top": "-", "topRight": "+", "right": "|", "bottomRight": "+", "bottom": "-", "bottomLeft": "+", "left": "|"}}') as never);
+    expect(Object.getPrototypeOf(plugin.borders!)).toBe(Object.prototype);
+    expect(Object.keys(plugin.borders!)).toEqual(['__proto__']);
   });
 });

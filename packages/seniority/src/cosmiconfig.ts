@@ -124,7 +124,11 @@ function getExtensionDescription(extension: string): string {
 const SKIPPABLE: ReadonlySet<string> = new Set(['ENOENT', 'EISDIR', 'ENOTDIR', 'EACCES']);
 const isSkippable = (error: unknown): boolean => SKIPPABLE.has(String((error as { code?: string } | null)?.code));
 
-// eslint-disable-next-line conventions/consistent-existence-index-check -- cosmiconfig's own `hasOwn` is `Object.prototype.hasOwnProperty`, and the difference matters here: `'$import' in loaded` would be true for an object that merely inherits the key, which is how a prototype-polluted config would start importing files.
+// cosmiconfig's own `hasOwn` is `Object.prototype.hasOwnProperty`, and the difference matters here: `'$import'
+
+// in loaded` would be true for an object that merely inherits the key, which is how a prototype-polluted
+
+// config would start importing files.
 const hasOwn = (o: unknown, key: string): boolean => typeof o === 'object' && o !== null && Object.hasOwn(o, key);
 
 /** `env-paths(name, { suffix: '' }).config`, computed from the platform rather than read from the environment. */

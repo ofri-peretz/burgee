@@ -37,7 +37,9 @@ const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
  * what the array form is for.
  */
 export function getPropertyByPath(source: unknown, path: string | readonly string[]): unknown {
-  // eslint-disable-next-line conventions/consistent-existence-index-check -- `in` is a different function: it walks the prototype chain, so `getPropertyByPath(source, 'toString')` would answer with `Object.prototype.toString` for every object. cosmiconfig uses `Object.prototype.hasOwnProperty.call` here and the own-property question is the one being asked.
+  // `in` is a different function: it walks the prototype chain, so `getPropertyByPath(source, 'toString')`
+  // would answer with `Object.prototype.toString` for every object. cosmiconfig uses
+  // `Object.prototype.hasOwnProperty.call` here and the own-property question is the one being asked.
   if (typeof path === 'string' && isRecord(source) && Object.hasOwn(source, path)) return source[path];
   const parsed = typeof path === 'string' ? path.split('.') : path;
   return parsed.reduce<unknown>((previous, key) => (isRecord(previous) ? previous[key] : undefined), source);
@@ -85,12 +87,14 @@ function merge(target: Record<string, unknown>, source: Record<string, unknown>,
     if (forbidden(key)) continue;
     const incoming = source[key];
     const existing = target[key];
-    // eslint-disable-next-line conventions/consistent-existence-index-check -- Own properties only, deliberately: `in` would report `toString` and `valueOf` as present on every target and merge a config's key into a prototype method. This is the function `__proto__` and `constructor` are already excluded from.
+    // Own properties only, deliberately: `in` would report `toString` and `valueOf` as present on every target
+    // and merge a config's key into a prototype method. This is the function `__proto__` and `constructor` are
+    // already excluded from.
     if (Object.hasOwn(target, key) && Array.isArray(existing) && Array.isArray(incoming) && mergeArrays) {
       existing.push(...incoming);
       continue;
     }
-    // eslint-disable-next-line conventions/consistent-existence-index-check -- as above
+    // as above
     if (Object.hasOwn(target, key) && isPlainObject(existing) && isPlainObject(incoming)) {
       target[key] = merge(existing, incoming, mergeArrays);
       continue;
