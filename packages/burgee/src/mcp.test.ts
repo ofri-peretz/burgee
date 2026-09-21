@@ -71,11 +71,17 @@ describe('--mcp', () => {
     expect(replies.size).toBe(2); // the notification got no reply
   });
 
-  it('lists exactly the commands that declared effects, generated from the manifest (N1, N2, N6)', async () => {
+  /**
+   * Every command in this fixture is native, so `defineCommand` has already refused any that
+   * omitted `effects` — the filter's two halves are indistinguishable here, which is why this
+   * test stayed green when G1 dropped one of them. What a program that *can* be silent looks
+   * like is `facade-surface.test.ts`.
+   */
+  it('lists exactly the commands the author did not withhold, generated from the manifest (N1, N2, N6)', async () => {
     const replies = await session([init, { jsonrpc: '2.0', id: 2, method: 'tools/list' }]);
     const tools = (replies.get(2)?.['result'] as { tools: { name: string }[] }).tools;
     const expected = program.commands
-      .filter((c) => c.run !== undefined && c.effects !== undefined && c.effects !== 'withheld')
+      .filter((c) => c.run !== undefined && c.effects !== 'withheld')
       .map((c) => ({ name: c.path.slice(1).join('_'), inputSchema: inputSchemaOf(c), annotations: annotationsOf((c.effects ?? 'read_only') as Exclude<typeof c.effects, 'withheld' | undefined>) }));
     expect(tools.map((t) => t.name)).toEqual(['greet', 'config_get', 'fail']);
     expect(tools).toMatchObject(expected);

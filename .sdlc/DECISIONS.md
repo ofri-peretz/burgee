@@ -39,8 +39,6 @@ An escalated decision sits in the table with `Owner` in the fourth column and a 
 beside it, and the default is what happens until the owner says otherwise — a question with
 no answer is a decision to do nothing, made slowly.
 
-| # | Decision | Answer | Taken / Accepted | Date | Superseded by |
-| :--- | :--- | :--- | :--- | :--- | :--- |
 | D-001 | clack's compat row: publish a stated subset or the raw measurement | **Stated subset**, the `cli-table3` shape — subtract with the reason in `conditionalCases`. 289 of clack's 444 assertions snapshot its exact drawing; a façade matching them would *be* clack, which caique's design rejects (U3). The behavioural remainder is `limit-options` (14) + `guide` (3) | Taken | 2026-09-20 | — |
 | D-002 | One intent for the façade programme, or one per façade | **One** — `facade-per-incumbent`, with per-package requirements appended to existing designs. The finding is uniform; eleven near-identical intents is ceremony, not a handoff | Taken | 2026-09-20 | — |
 | D-003 | caique, paratext and closeout have no status ledger: backfill fully or only the façade rows | **Fully.** A ledger covering three rows of twenty-three reads as complete and tells the reader less than no ledger at all | Taken | 2026-09-20 | — |
