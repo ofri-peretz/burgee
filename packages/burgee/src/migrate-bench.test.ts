@@ -39,7 +39,6 @@ import { migrate, rewriteSource, sourceFiles } from './migrate.js';
 /** The budget, in one place, in the units the design states it in. */
 const FILES = 1000;
 const WHOLE_PROJECT_MS = 500;
-const SINGLE_FILE_MS = 1;
 /** The scan's own share. Measured at about 25 ms, so this is four times the headroom it needs. */
 const SCAN_MS = 100;
 /** `migrate` writes two files in three on this fixture, which is what the floor has to replay. */
@@ -101,8 +100,72 @@ async function ioFloor(dir: string): Promise<number> {
 const RUNS = 3;
 const fastest = (times: number[]): number => Math.min(...times);
 
+/**
+ * A CPU yardstick measured in the same run, on the same machine, as the thing it grades.
+ *
+ * The first version of the two cases below asserted **absolute milliseconds** — 100 ms for
+ * a thousand files, 1 ms for the slowest one — and they were set on an Apple M4 Pro. A
+ * GitHub ubuntu runner measured the same scan at **301.4 ms**, three times the budget, for
+ * no reason but the machine. That is the mistake this repository's own benchmark page
+ * already names: *"milliseconds are a property of the machine that produced them, so
+ * nothing gates on them"*. The whole-command case beneath had already been made relative to
+ * that host's I/O floor; the scan case had not, and it is the one that failed.
+ *
+ * So the scan is graded against a fixed unit of work on the same CPU: a `RegExp` walk over
+ * a synthetic string the same shape as the fixtures, which is the same class of work the
+ * scan does. A fast machine and a slow one produce different milliseconds and the same
+ * ratio, which is the only kind of number a gate can hold.
+ */
+function cpuYardstick(): number {
+  const text = `import { Command } from 'commander';\n`.repeat(YARDSTICK_LINES);
+  const probe = /from\s+'([^']+)'/g;
+  // Warmed, for the same reason the cases are.
+  for (let i = 0; i < 2; i += 1) {
+    probe.lastIndex = 0;
+    while (probe.exec(text) !== null) continue;
+  }
+  const started = performance.now();
+  probe.lastIndex = 0;
+  let seen = 0;
+  while (probe.exec(text) !== null) seen += 1;
+  const elapsed = performance.now() - started;
+  expect(seen, 'the yardstick matched nothing, so it is timing an empty loop').toBe(YARDSTICK_LINES);
+  return Math.max(elapsed, MIN_YARDSTICK_MS);
+}
+
+/** Lines in the yardstick's synthetic source — one import each, like the fixtures. */
+const YARDSTICK_LINES = 20_000;
+/** A floor, so a machine that measures the yardstick at zero cannot make the budget zero. */
+const MIN_YARDSTICK_MS = 0.1;
+/**
+ * How many yardsticks the whole scan may cost.
+ *
+ * **Calibrated on one machine, and that is stated rather than hidden.** Three readings on
+ * an Apple M4 Pro: 21.2, 22.6 and 22.6 yardsticks, for a scan of 16.5-17.4 ms. The budget
+ * is 40 — roughly 1.8x the observed cost — which leaves room for a machine whose ratio sits
+ * higher than this one's and still fires on a regression that doubles the work.
+ *
+ * What is *not* claimed: that the ratio is machine-independent. It is only far more stable
+ * than the milliseconds were. The absolute form of this gate read 17.0 ms here and **301.4
+ * ms on a GitHub ubuntu runner** — an 18x spread on a number that was budgeted at 100 —
+ * which is the mistake the benchmarks page already names: *"milliseconds are a property of
+ * the machine that produced them, so nothing gates on them"*. The CI run of this commit is
+ * the second calibration point; if the ratio there is near this one, the design holds, and
+ * if it is not, this number is wrong and the comment should say so rather than be raised.
+ */
+const SCAN_YARDSTICKS = 40;
+/**
+ * The same, for one file.
+ *
+ * One file is a twentieth of a percent of the scan, so this is a much larger multiple of a
+ * much smaller number and is dominated by whatever the machine was doing during that one
+ * call. Two yardsticks, for the same reason the case above is warmed: the gate is meant to
+ * catch a scan that became super-linear in file size, not a scheduler hiccup.
+ */
+const SINGLE_FILE_YARDSTICKS = 2;
+
 describe('A10 — measured, not asserted', () => {
-  it(`scans ${FILES} files' worth of source in under ${SCAN_MS} ms, with no filesystem in the timed region`, () => {
+  it(`scans ${FILES} files' worth of source in under ${SCAN_YARDSTICKS} yardsticks of the same machine's CPU`, () => {
     const dir = tree();
     const sources = sourceFiles(dir).map((f) => readFileSync(join(dir, f), 'utf8'));
     // Warmed, for the reason the next case gives at length.
@@ -113,10 +176,12 @@ describe('A10 — measured, not asserted', () => {
     const elapsed = performance.now() - started;
     // A budget met by doing nothing is not a budget.
     expect(rewritten).toBe(CHANGED);
-    expect(elapsed, `the scan of ${sources.length} files took ${elapsed.toFixed(1)} ms against a ${SCAN_MS} ms budget`).toBeLessThan(SCAN_MS);
+    const unit = cpuYardstick();
+    const budget = unit * SCAN_YARDSTICKS;
+    expect(elapsed, `the scan of ${sources.length} files took ${elapsed.toFixed(1)} ms — ${(elapsed / unit).toFixed(1)} yardsticks on this machine, against a budget of ${String(SCAN_YARDSTICKS)} (${budget.toFixed(1)} ms here)`).toBeLessThan(budget);
   });
 
-  it(`scans the slowest single file in under ${SINGLE_FILE_MS} ms`, () => {
+  it(`scans the slowest single file in under ${SINGLE_FILE_YARDSTICKS} yardstick of the same machine's CPU`, () => {
     const dir = tree();
     const files = sourceFiles(dir);
     const sources = files.map((f) => readFileSync(join(dir, f), 'utf8'));
@@ -132,7 +197,9 @@ describe('A10 — measured, not asserted', () => {
       rewriteSource(source);
       slowest = Math.max(slowest, performance.now() - started);
     }
-    expect(slowest, `the slowest of ${files.length} files took ${slowest.toFixed(3)} ms against a ${SINGLE_FILE_MS} ms budget`).toBeLessThan(SINGLE_FILE_MS);
+    const unit = cpuYardstick();
+    const budget = unit * SINGLE_FILE_YARDSTICKS;
+    expect(slowest, `the slowest of ${files.length} files took ${slowest.toFixed(3)} ms — ${(slowest / unit).toFixed(2)} yardsticks on this machine, against a budget of ${String(SINGLE_FILE_YARDSTICKS)} (${budget.toFixed(3)} ms here)`).toBeLessThan(budget);
   });
 
   it(`migrates ${FILES} files in under ${WHOLE_PROJECT_MS} ms, or inside this host's own I/O floor`, async () => {
