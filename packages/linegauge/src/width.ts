@@ -154,6 +154,25 @@ const ZERO_WIDTH_CLUSTER =
   /^(?:\p{Default_Ignorable_Code_Point}|\p{Control}|\p{Format}|\p{Nonspacing_Mark}|\p{Enclosing_Mark}|\p{Surrogate})+$/v;
 const LEADING_NON_PRINTING =
   /^[\p{Default_Ignorable_Code_Point}\p{Control}\p{Format}\p{Nonspacing_Mark}\p{Enclosing_Mark}\p{Surrogate}]+/v;
+/**
+ * **Left eager on purpose, 2026-09-21, after a measurement that said otherwise was wrong.**
+ *
+ * A probe reported `new RegExp('^\\p{RGI_Emoji}$', 'v')` at **10.61 ms** against 0.14 for
+ * `\p{Spacing_Mark}` and 0.02 for `\p{Extended_Pictographic}`, which read as more than half
+ * of this package's import cost sitting in one line. It is not. That probe ran RGI_Emoji
+ * **first in a cold process**, so it paid a one-time Unicode-data initialisation that
+ * whichever regex ran first would have paid. In a warm process the literal costs 1.44 ms and
+ * the constructor 0.01.
+ *
+ * Making it lazy was built and measured, and `width.js` imported in **16.84 ms against
+ * 15.92 eager** — no change, inside the noise. Making *all five* module-scope `\p{…}`
+ * literals lazy measured **15.41**, also inside it. So the cost is not the regexes, and the
+ * lazy form was reverted rather than kept: a change that measures to nothing is a change
+ * somebody will later mistake for one.
+ *
+ * `width.js` does import in about 16 ms against `strip.js`'s 4.9, and that gap is real and
+ * still unexplained. It is not this line.
+ */
 const RGI_EMOJI = /^\p{RGI_Emoji}$/v;
 const SPACING_MARK = /^\p{Spacing_Mark}$/v;
 const EXTENDED_PICTOGRAPHIC = /^\p{Extended_Pictographic}$/u;
