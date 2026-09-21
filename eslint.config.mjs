@@ -125,6 +125,11 @@ export default [
       "**/node_modules/**",
       "**/coverage/**",
       "**/.dev-fixtures/**",
+      // B4's generated entry-point fixtures and their esbuild output. `benchmarks/.gitignore`
+      // already excludes them from git, but a flat config does not read a nested `.gitignore`,
+      // so without this line `npm run bench` followed by `npm run lint` fails on a file the
+      // benchmark wrote. Both commands are in CONTRIBUTING; the order between them was not.
+      "benchmarks/.fixtures/**",
       ".sdlc/research/issues/**",
       "apps/docs/next-env.d.ts",
       // Vendored upstream test suites (compat-oracle C6). They are the hosts' own
