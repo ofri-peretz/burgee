@@ -950,12 +950,12 @@ export const HOSTS: Host[] = [
     ],
     runner: 'ava',
     target: 'burgee/meow',
-    status: 'planned',
+    status: 'active',
     note:
       // Kept short on purpose: a `planned` row's note is published verbatim in the
-      // compatibility page's table, so the full account lives in `.sdlc/FINISH-ALL.md`
-      // under "meow" and in the commit that measured it.
-      "Vendored and measured 2026-09-21 at 14.1.0. **Control 144 / 148, 97.3%** against `meow@14.1.0` — 148 cases across 18 graded files, plus 24 `fixtures/` programs the tests spawn and `ungradedDirs` prunes. The four the control misses are the reference's own: one wants the built bundle, three read the vendored root's `package.json` rather than a fixture's. Every one of the three facts this row carried while unmeasured was wrong — the runner, the import path and `reexportDefault` — which is why a `planned` row's configuration is a guess until a control runs it. Still planned: D-004 puts the three front-ends last, and this is the feedback loop that has to exist before the façade.",
+      // compatibility page's table. This row is active now, so the number does the talking
+      // and the full account lives in `.sdlc/FINISH-ALL.md` under "meow".
+      "Vendored 2026-09-21 at 14.1.0 and built the same day. **Target `burgee/meow` 132 / 148, 89.2%**, against a control of **146 / 148**. 148 cases across 18 graded files; the other 24 files under `test/` are the `fixtures/` CLI programs the tests spawn, pruned by `ungradedDirs`. meow is one function over `yargs-parser`, and burgee already ships its own for `burgee/yargs`, so the façade took nothing new into the tree — it costs 58,761 bundled bytes, of which the option contract is about 16 K and the parser is the rest. The control's two are `build › main`, which wants meow's rollup bundle, and `pkg normalization is lazy`, which wants `normalize-package-data`'s mutation of the caller's own object. Of our sixteen, the largest group is `--no-`-prefixed boolean flags: a fixture declares `noAutoVersion` and burgee's parser negates `autoVersion` before it matches the declared name, which is a parser question rather than a meow one.",
 
   },
   {

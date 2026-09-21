@@ -81,6 +81,10 @@ export const host = {
   get stderr(): NodeJS.WriteStream {
     return process.stderr;
   },
+  /** What `ps` shows. meow renames the process after the binary it is; nothing else sets it. */
+  setTitle(value: string): void {
+    process.title = value;
+  },
   /**
    * The terminal's width, or undefined when there is no terminal to ask. Guarded on
    * `process` itself because cliui's upstream is guarded there: `getWindowWidth` is reached
