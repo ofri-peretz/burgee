@@ -164,8 +164,18 @@ function isAmbiguous(codePoint: number): boolean {
  * What this costs: a string loses the syntax checking a literal gets at build time.
  * `width.test.ts` constructs all five and exercises each, so a typo fails the suite rather
  * than a user's terminal.
+ *
+ * Five bindings rather than one keyed object, and that is a measured 141 bytes per bundled
+ * entry point: a minifier renames a module-level `let` to one character and cannot touch a
+ * property name, so `classes['zeroWidth']` survives minification at full length in three
+ * places each. Those 141 bytes were what put `linegauge`, `linegauge/wrap` and
+ * `linegauge/slice` over their B4 ceilings the day this laziness landed.
  */
-const classes: Record<string, RegExp | undefined> = {};
+let zeroWidthClass: RegExp | undefined;
+let leadingClass: RegExp | undefined;
+let rgiClass: RegExp | undefined;
+let spacingClass: RegExp | undefined;
+let pictographicClass: RegExp | undefined;
 
 /**
  * The ignorable/control/format/mark/surrogate set, written once and spelled two ways.
@@ -190,12 +200,12 @@ const INVISIBLE_SET = INVISIBLE_CLASSES.join('');
  * repository that ships the rule.
  */
 /** A cluster that occupies no column: ignorables, controls, formats, marks, lone surrogates. */
-const ZERO_WIDTH_CLUSTER = (): RegExp => (classes['zeroWidth'] ??= new RegExp(`^(?:${INVISIBLE_ALTERNATION})+$`, 'v'));
+const ZERO_WIDTH_CLUSTER = (): RegExp => (zeroWidthClass ??= new RegExp(`^(?:${INVISIBLE_ALTERNATION})+$`, 'v'));
 /** The same set, anchored at the start, for stripping a cluster's invisible prefix. */
-const LEADING_NON_PRINTING = (): RegExp => (classes['leading'] ??= new RegExp(`^[${INVISIBLE_SET}]+`, 'v'));
-const RGI_EMOJI = (): RegExp => (classes['rgi'] ??= new RegExp('^\\p{RGI_Emoji}$', 'v'));
-const SPACING_MARK = (): RegExp => (classes['spacing'] ??= new RegExp('^\\p{Spacing_Mark}$', 'v'));
-const EXTENDED_PICTOGRAPHIC = (): RegExp => (classes['pictographic'] ??= new RegExp('^\\p{Extended_Pictographic}$', 'u'));
+const LEADING_NON_PRINTING = (): RegExp => (leadingClass ??= new RegExp(`^[${INVISIBLE_SET}]+`, 'v'));
+const RGI_EMOJI = (): RegExp => (rgiClass ??= new RegExp('^\\p{RGI_Emoji}$', 'v'));
+const SPACING_MARK = (): RegExp => (spacingClass ??= new RegExp('^\\p{Spacing_Mark}$', 'v'));
+const EXTENDED_PICTOGRAPHIC = (): RegExp => (pictographicClass ??= new RegExp('^\\p{Extended_Pictographic}$', 'u'));
 
 /**
  * An **unqualified keycap**: the base, then `U+20E3`, with the `U+FE0F` that would have made
