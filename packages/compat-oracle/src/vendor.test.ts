@@ -4,14 +4,15 @@
  * dir; and the vendored root is a package a CJS fixture can `require('../../')` — with
  * the upstream's own `version`, `license` and `repository`, because the suites read them.
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
 import { HOSTS, type Host } from './hosts.js';
-import { rewriteAt, rootPackage, shimName, splitSpec } from './vendor.js';
+import { rewriteAt, rootPackage, shimName, splitSpec, vendor } from './vendor.js';
 
 const VENDOR_DIR = resolve(fileURLToPath(new URL('..', import.meta.url)), 'vendor');
 
@@ -158,5 +159,41 @@ describe('a host whose repository is a monorepo', () => {
     // `test-utils.ts` — nodenext spelling. Taking the specifier literally vendored nothing
     // and all nineteen failed to load, which reads as a compatibility number.
     expect(existsSync(join(VENDOR_DIR, 'clack', 'packages', 'prompts', 'test', 'test-utils.ts'))).toBe(true);
+  });
+});
+
+/**
+ * The two ways a re-vendor run damaged the tree on 2026-09-21, each pinned so it cannot
+ * happen twice. Both are about the same thing: a vendor step that acts before it knows it
+ * can finish.
+ *
+ * Proven red before green — each assertion was run against the previous implementation:
+ *   1. `pinnedVersion` absent from `Host` entirely: slice-ansi vendored at whatever `npm
+ *      view` returned, which was 9.0.1 against a 7.1.2 control.
+ *   2. `vendor()` beginning with `rmSync(join(into, host.name))`: a run producing no test
+ *      files left the host with no `.source.json`, no `package.json` and no suite, which is
+ *      how `dotenv` lost 141 graded cases and reported "no test files vendored".
+ */
+describe('a vendor run that cannot finish', () => {
+  it('takes its version from the host pin rather than from npm', () => {
+    const sliceAnsi = HOSTS.find((h) => h.name === 'slice-ansi');
+    expect(sliceAnsi?.pinnedVersion, 'slice-ansi is pinned in prose; the pin has to be a field vendor() can read').toBe('7.1.2');
+  });
+
+  it('leaves the previous suite standing when it produces nothing', () => {
+    const into = mkdtempSync(join(tmpdir(), 'vendor-refusal-'));
+    const host = HOSTS.find((h) => h.name === 'slice-ansi');
+    if (host === undefined) throw new Error('slice-ansi is not a host');
+    const live = join(into, host.name);
+    mkdirSync(live, { recursive: true });
+    writeFileSync(join(live, '.source.json'), '{"version":"7.1.2"}');
+    writeFileSync(join(live, 'test.js'), '// the suite that was already here');
+
+    // A glob that matches nothing — the shape `dotenv` hit, where the clone succeeds and
+    // the copy yields no graded file. The question is what survives.
+    expect(() => vendor({ ...host, testGlob: 'no-such-file-*.js' }, into)).toThrow(/produced no test files/u);
+    expect(existsSync(join(live, '.source.json')), 'the previous record was deleted by a failed run').toBe(true);
+    expect(readFileSync(join(live, 'test.js'), 'utf8')).toContain('already here');
+    rmSync(into, { recursive: true, force: true });
   });
 });

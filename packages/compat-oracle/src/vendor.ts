@@ -6,7 +6,7 @@
  * tests, and a scheduled job re-runs this to make the treadmill visible.
  */
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, matchesGlob, relative, resolve, sep } from 'node:path';
 
@@ -357,20 +357,28 @@ function siblingFile(from: string, name: string): { name: string; path: string }
 }
 
 /** Vendor the host's suite at its latest npm release (or the given version). */
-export function vendor(host: Host, into: string, version = latestVersion(host.npmName ?? host.name)): VendorResult {
+export function vendor(host: Host, into: string, version = host.pinnedVersion ?? latestVersion(host.npmName ?? host.name)): VendorResult {
   const clone = mkdtempSync(join(tmpdir(), `vendor-${host.name}-`));
   try {
     const { commit, tag } = cloneRelease(host, version, clone);
     const previous = readRecord(join(into, host.name));
 
     const from = join(clone, host.testDir);
+    // **Built beside the live directory, then swapped, so a failure leaves the previous
+    // suite standing.** This used to `rmSync` the host directory and rebuild in place, and
+    // on 2026-09-21 a run that produced nothing left `dotenv` with its `.source.json`,
+    // `PROVENANCE`, `package.json` and every test file gone — the row reported "no test
+    // files vendored" and four others lost their grades the same day. A vendor step that
+    // deletes before it knows it can replace turns a bad fetch into data loss.
+    const live = join(into, host.name);
+    const staging = `${live}.vendoring`;
+    rmSync(staging, { recursive: true, force: true });
     // Upstream's own directory name, because suites use cwd-relative paths into it.
-    const dest = join(into, host.name, host.testDir);
-    rmSync(join(into, host.name), { recursive: true, force: true });
+    const dest = join(staging, host.testDir);
     mkdirSync(dest, { recursive: true });
 
     for (const extra of host.extraDirs ?? []) {
-      cpSync(join(clone, extra), join(into, host.name, extra), { recursive: true, verbatimSymlinks: true });
+      cpSync(join(clone, extra), join(staging, extra), { recursive: true, verbatimSymlinks: true });
     }
 
     // Suites run from vendor/<host>/ as if it were the upstream repo root, and some read
@@ -379,10 +387,10 @@ export function vendor(host: Host, into: string, version = latestVersion(host.np
     // minimal one with a *different* name: upstream's own name plus its exports map would
     // make Node's self-reference rule resolve `import 'yargs'` to a file that is not here.
     const upstream = JSON.parse(readFileSync(join(clone, 'package.json'), 'utf8')) as UpstreamPackage;
-    writeFileSync(join(into, host.name, 'package.json'), `${JSON.stringify(rootPackage(host, upstream), null, 2)}\n`);
+    writeFileSync(join(staging, 'package.json'), `${JSON.stringify(rootPackage(host, upstream), null, 2)}\n`);
 
     const packageType = upstream.type ?? 'commonjs';
-    const { files, internalFiles, internals } = copyTests(host, { from, dest, hostDir: join(into, host.name) }, packageType);
+    const { files, internalFiles, internals } = copyTests(host, { from, dest, hostDir: staging }, packageType);
 
     const record = snapshot(clone, host, {
       version,
@@ -393,12 +401,21 @@ export function vendor(host: Host, into: string, version = latestVersion(host.np
       internalFiles,
       internals: [...internals].sort(),
     });
-    writeFileSync(join(into, host.name, '.source.json'), `${JSON.stringify(record, null, 2)}\n`);
+    writeFileSync(join(staging, '.source.json'), `${JSON.stringify(record, null, 2)}\n`);
     // A stale shim from a previous target would silently grade the wrong thing.
     // Both names: a re-vendor that changes the package's type must not leave the old one.
     host.imports.forEach((_, i) => {
-      for (const type of ['module', 'commonjs']) rmSync(join(into, host.name, shimName(i, type)), { force: true });
+      for (const type of ['module', 'commonjs']) rmSync(join(staging, shimName(i, type)), { force: true });
     });
+    // The swap, and the refusal that makes staging worth the trouble: a run that produced
+    // no graded files is a failed run, and it leaves what was there alone.
+    if (files === 0) {
+      rmSync(staging, { recursive: true, force: true });
+      throw new Error(`vendor: ${host.name} produced no test files at ${version} — refusing to replace the vendored suite with nothing. Check the tag and the host's testDir/testGlob.`);
+    }
+    rmSync(live, { recursive: true, force: true });
+    renameSync(staging, live);
+
     const result: VendorResult = { host: host.name, commit, version, tag, files, internalFiles, internals: [...internals].sort(), record };
     if (previous !== undefined) {
       result.previous = previous;

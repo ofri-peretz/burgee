@@ -188,6 +188,17 @@ export interface Host {
   /** Git tag prefix for releases; `v` unless the host does otherwise. */
   tagPrefix?: string;
   /**
+   * The version this host is vendored at, when "latest" is the wrong answer.
+   *
+   * A pin used to live only in prose. `slice-ansi`'s note said "vendored at 7.1.2, not at
+   * the 9.0.0 on npm, and that is a deliberate pin" and explained exactly why — the control
+   * grades against the *installed* package, so vendoring a newer major measures the gap
+   * between two of the incumbent's own majors and publishes it as ours. On 2026-09-21 a
+   * re-vendor run moved it to 9.0.1 anyway, because nothing in the code could read a
+   * paragraph. A pin a script cannot see is not a pin.
+   */
+  pinnedVersion?: string;
+  /**
    * Packages this host's *suite* reaches for by name, written into the vendored root's
    * `package.json` rather than into the workspace.
    *
@@ -578,6 +589,8 @@ export const HOSTS: Host[] = [
     // lane; `--upstream` reports the gap every day until it happens.
     name: 'slice-ansi',
     repo: 'https://github.com/chalk/slice-ansi',
+    // The pin the paragraph above describes, in a form `vendor()` can read.
+    pinnedVersion: '7.1.2',
     testDir: '.',
     testGlob: 'test.js',
     imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
