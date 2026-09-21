@@ -153,6 +153,14 @@ function isAmbiguous(codePoint: number): boolean {
  * non-ASCII cluster pays the 10 ms once, on the first call, which is where it belongs — a
  * CLI printing help, flags and paths never touches any of them.
  *
+ * **A probe once blamed one of these five for 10.61 ms and it was measuring its own
+ * ordering.** `new RegExp('^\\p{RGI_Emoji}$', 'v')` ran first in a cold process, so it paid
+ * a one-time Unicode-data initialisation that whichever regex ran first would have paid; in
+ * a warm process the same constructor costs 0.01 ms. The number was real, the attribution
+ * was not, and the fix it suggested — wrapping the literals in functions — measured to
+ * nothing. Worth keeping because the shape recurs: a benchmark that puts its subject first
+ * will find it expensive.
+ *
  * What this costs: a string loses the syntax checking a literal gets at build time.
  * `width.test.ts` constructs all five and exercises each, so a typo fails the suite rather
  * than a user's terminal.
