@@ -47,8 +47,7 @@ describe('merging a config file cannot reach a prototype', () => {
 
   it('does not copy a `prototype` key, which matters the moment a merge target is a function', () => {
     const merged = mergeAll([parse('{"prototype": {"isAdmin": true}}')], { mergeArrays: false });
-    // Own properties only, deliberately: the claim is that the key was never *copied*, and `in` would answer
-    // for an inherited one — the exact distinction this whole file is about.
+    // eslint-disable-next-line conventions/consistent-existence-index-check -- Own properties only, deliberately: the claim is that the key was never *copied*, and `in` would answer for an inherited one — the exact distinction this whole file is about.
     expect(Object.hasOwn(merged, 'prototype')).toBe(false);
   });
 
