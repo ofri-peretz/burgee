@@ -68,23 +68,45 @@ way `cli-table3` subtracts its nine legacy self-tests, or stays a measured 0 / 6
 explanation. Default taken if unanswered: the `cli-table3` shape — subtract with the reason
 written into `conditionalCases`, because a number nobody can act on is not a measurement.
 
-### 3. One harness fix retires blind spots on two hosts
+### 3. The harness fix that was going to retire two blind spots does not — measured
 
-`run.ts` maps `jest.mock` to `vi.doMock`, the runtime form, which cannot hoist — so a suite
-that calls `jest.mock('fs', factory)` at module scope gets the real module, not a spy. That
-costs **10 of lilconfig's 77** (the load and search caches — real behaviour, graded nowhere)
-and is the same cause as clack's 30-case allowance. Rewriting `jest.mock(` to `vi.mock(` in
-the transform, so vitest's own hoister sees it syntactically, retires both at once.
+`run.ts` maps `jest.mock` to `vi.doMock`, the runtime form, which cannot hoist. The plan
+here said rewriting `jest.mock(` to `vi.mock(` in the transform — so vitest's own hoister
+sees it syntactically — would retire **10 of lilconfig's 77** and clack's 30-case allowance
+together, and called it the highest-leverage change in the programme.
 
-Highest leverage single change in the program. Do it first.
+**It was built and it moves nothing.** A `pre` plugin on the generated vitest config,
+rewriting the graded file's text before vitest parses it, verified to fire on
+`src/spec/index.spec.js`:
+
+```
+with the rewrite      67 passed, 17 failed
+without the rewrite   67 passed, 17 failed
+clack control         576 / 606, both ways
+```
+
+The cause is one layer below the hoist. `index.spec.js` is CJS and takes its `fs` through
+`require('fs')`, which resolves through Node rather than through vitest's module runner — so
+no `vi.mock` of a builtin reaches the test's own binding however early it is hoisted.
+`fs.promises.access.mock` is `undefined` at the assertion, which is exactly what the failure
+says. Inlining the target (`server.deps.inline`) was tried and moved nothing either.
+
+Those ten cannot be graded under vitest without editing upstream's suite, which is the one
+thing this oracle may never do. They stay a declared blind spot **with no retirement date**,
+and the transform was reverted rather than kept, because a harness change that fixes nothing
+is a harness change somebody will later mistake for one.
+
+The cost of the wrong premise was about forty minutes. The cost of having kept it would have
+been a plugin in the harness forever, and a note promising a fix that had already happened.
 
 ## Order
 
 Cheapest-to-complete first, because each finished package is a sellable claim and a
 half-finished one is a liability on npm today.
 
-1. **Harness** — `jest.mock` → `vi.mock` in the transform. Unblocks lilconfig's 10 and
-   clack's 30 before either package is touched.
+1. ~~**Harness** — `jest.mock` → `vi.mock` in the transform.~~ **Struck 2026-09-20: built,
+   measured, reverted.** See finding 3 — the ten are structural, not harness, and lilconfig's
+   gradeable gap is 67 rather than 77.
 2. **paratext** — three façades, 31 cases. Finishes a package that is public at 1 / 4.
 3. **seniority** — `rc` (1), `lilconfig` (67), `cosmiconfig` (57), `dotenv` (67). The
    largest real gap, and `explain` is the differentiator nobody else has.
