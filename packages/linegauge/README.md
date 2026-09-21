@@ -159,7 +159,7 @@ Weight, installed and tree-inclusive: **83,538 bytes** against **170,342** for t
 
 It hosts no plugin key of its own.
 
-`burgee` and `flagstaff` build on it, and it builds on nothing in this family.
+`burgee`, `caique`, `flagstaff` build on it, and it builds on nothing in this family.
 ## Licence
 
 MIT
