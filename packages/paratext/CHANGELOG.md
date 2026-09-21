@@ -1,5 +1,48 @@
 # paratext
 
+## 0.4.0
+
+### Minor Changes
+
+- [#380](https://github.com/ofri-peretz/burgee/pull/380) [`f3224f4`](https://github.com/ofri-peretz/burgee/commit/f3224f4f43da21bbeeac931c2ec8afc50f0c3235) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `paratext/term-img` — the `term-img` surface as a drop-in subpath.
+
+  `terminalImage(image, options?)` and `UnsupportedTerminalError`, graded at **12 / 18**
+  against term-img's own suite, up from 0. A subpath rather than the package root because the
+  root default export is already `ansi-escapes`' object and term-img's default export is a
+  function — one default cannot be both, which is why the row measured zero: its whole TAP was
+  a `SyntaxError` about a missing named export, not eighteen failing behaviours.
+
+  The six cases that stay red are one decision. `term-img` accepts a **path** and reads it;
+  this package takes bytes only, so that `node:fs` stays out of a package that otherwise
+  touches nothing but strings. The refusal is a `TypeError` thrown at exactly the point
+  upstream would have opened the file, which is what keeps the four path-to-an-unsupported-
+  terminal cases passing. `terminalImage(await readFile(path))` is the migration.
+
+  The five-terminal support table is term-img's own — iTerm2 ≥ 3, WezTerm ≥ 20220319,
+  Konsole ≥ 22.04, Rio ≥ 0.1.13, VSCode ≥ 1.80 — read from the environment, with no
+  `iterm2-version` and no `ansi-escapes` behind it, and with upstream's iTerm2 major-version
+  comparison corrected so that 10.x is not read as 1.x.
+
+  The OSC 1337 record moved from `builtins.ts` into its own module so the new subpath can
+  reach it without loading the plugin registry. `paratext`'s exported `image` capability is
+  the same object it always was.
+
+- [#372](https://github.com/ofri-peretz/burgee/pull/372) [`2f6cb16`](https://github.com/ofri-peretz/burgee/commit/2f6cb160f488668c56d61e3e3f0ed612137295af) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `paratext/terminal-link` — the `terminal-link` surface as a drop-in subpath.
+
+  `terminalLink(text, url, options?)`, `terminalLink.stderr`, and `isSupported` on both,
+  graded at **8 / 10** against terminal-link's own suite, up from 0. A subpath rather than the
+  package root because the root default export is already `ansi-escapes`' object and
+  terminal-link's default export is a function — one default cannot be both.
+
+  `Runtime.isTTY` gains an optional `stderr`, since this façade's whole surface is a pair and
+  deciding both streams from one would answer the wrong question for half the API.
+
+### Patch Changes
+
+- [#373](https://github.com/ofri-peretz/burgee/pull/373) [`a1f1d40`](https://github.com/ofri-peretz/burgee/commit/a1f1d40b7d1e7244f3a180943b641bb3b491d256) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Stage 2's artifact is now `spec.md`, the name Anthropic's AI-Native SDLC playbook gives it, so the source comments and README sections that cite a package's own design document point at `spec.md` rather than `design.md`.
+
+  No behaviour changes. The published tarballs do move, by two bytes per surviving reference — `design.md` is nine characters and `spec.md` is seven — so the four packages carrying a weight band were re-measured against it: linegauge 83,538 to 83,536; paratext 66,343 to 66,341; closeout 84,455 to 84,453; bellpull 86,113 to 86,107.
+
 ## 0.3.0
 
 ### Minor Changes
