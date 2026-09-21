@@ -32,7 +32,7 @@
     "@colors/colors (1.5.0) is required directly by four of cli-table3's test files and reached us only as a hoisted optional dependency of cli-table3 — the same fragility, one release from breaking."
   ],
   "devDependencies": {
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.1"
   },
   "exports": {
     "./drivers/commander": {
