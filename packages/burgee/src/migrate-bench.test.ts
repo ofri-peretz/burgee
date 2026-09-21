@@ -145,13 +145,22 @@ const P99 = 0.99;
  * is 40 — roughly 1.8x the observed cost — which leaves room for a machine whose ratio sits
  * higher than this one's and still fires on a regression that doubles the work.
  *
- * What is *not* claimed: that the ratio is machine-independent. It is only far more stable
- * than the milliseconds were. The absolute form of this gate read 17.0 ms here and **301.4
- * ms on a GitHub ubuntu runner** — an 18x spread on a number that was budgeted at 100 —
- * which is the mistake the benchmarks page already names: *"milliseconds are a property of
- * the machine that produced them, so nothing gates on them"*. The CI run of this commit is
- * the second calibration point; if the ratio there is near this one, the design holds, and
- * if it is not, this number is wrong and the comment should say so rather than be raised.
+ * **The second calibration point came back and refuted the design, so this says so rather
+ * than raising the number.** The comment here used to promise exactly that test. A macOS
+ * runner measured **123.8 yardsticks** against the 21.2-22.6 observed on an M4 Pro — a 5x
+ * spread on a ratio that was supposed to cancel the machine out. The absolute form was worse
+ * (17.0 ms here, 301.4 ms on an ubuntu runner, budgeted at 100), but "less wrong" is not a
+ * gate.
+ *
+ * The yardstick is a tight `RegExp` loop; the scan allocates per file. A contended runner
+ * punishes allocation and GC far more than it punishes a regex loop, so the two do not scale
+ * together and the ratio carries the runner's contention rather than cancelling it.
+ *
+ * So the assertion runs on a developer's machine, where it has been shown to mean something,
+ * and prints the measurement on CI instead of grading it. What still protects CI is the
+ * whole-command case below, whose baseline is that host's own I/O floor — reading and
+ * writing the same files is comparable work in a way a regex loop is not — and the
+ * `rewritten` assertion here, which fails on any host if the scan stops finding imports.
  */
 const SCAN_YARDSTICKS = 40;
 /**
@@ -177,8 +186,17 @@ describe('A10 — measured, not asserted', () => {
     // A budget met by doing nothing is not a budget.
     expect(rewritten).toBe(CHANGED);
     const unit = cpuYardstick();
-    const budget = unit * SCAN_YARDSTICKS;
-    expect(elapsed, `the scan of ${sources.length} files took ${elapsed.toFixed(1)} ms — ${(elapsed / unit).toFixed(1)} yardsticks on this machine, against a budget of ${String(SCAN_YARDSTICKS)} (${budget.toFixed(1)} ms here)`).toBeLessThan(budget);
+    const ratio = elapsed / unit;
+    const said = `the scan of ${sources.length} files took ${elapsed.toFixed(1)} ms — ${ratio.toFixed(1)} yardsticks on this machine, against a budget of ${String(SCAN_YARDSTICKS)}`;
+    // Gated only where the yardstick has been shown to mean something. See the note on
+    // SCAN_YARDSTICKS: the ratio is stable on a developer's machine and is not stable across
+    // CI runners, so asserting it there grades the runner. The measurement still runs
+    // everywhere — a scan that stopped working would fail `rewritten` above on any host.
+    if (process.env['CI'] === 'true') {
+      process.stdout.write(`${said} — informational on CI\n`);
+      return;
+    }
+    expect(elapsed, `${said} (${(unit * SCAN_YARDSTICKS).toFixed(1)} ms here)`).toBeLessThan(unit * SCAN_YARDSTICKS);
   });
 
   it(`scans the p99 file in under ${SINGLE_FILE_YARDSTICKS} yardsticks of the same machine's CPU`, () => {
@@ -212,7 +230,13 @@ describe('A10 — measured, not asserted', () => {
     const p99 = sorted[Math.floor(sorted.length * P99)] ?? 0;
     const unit = cpuYardstick();
     const budget = unit * SINGLE_FILE_YARDSTICKS;
-    expect(p99, `the p99 of ${files.length} files took ${p99.toFixed(3)} ms — ${(p99 / unit).toFixed(2)} yardsticks on this machine, against a budget of ${String(SINGLE_FILE_YARDSTICKS)} (${budget.toFixed(3)} ms here); slowest single sample ${(sorted.at(-1) ?? 0).toFixed(3)} ms`).toBeLessThan(budget);
+    const said = `the p99 of ${files.length} files took ${p99.toFixed(3)} ms — ${(p99 / unit).toFixed(2)} yardsticks on this machine, against a budget of ${String(SINGLE_FILE_YARDSTICKS)} (${budget.toFixed(3)} ms here); slowest single sample ${(sorted.at(-1) ?? 0).toFixed(3)} ms`;
+    // Same reason as the case above: the yardstick does not hold across CI runners.
+    if (process.env['CI'] === 'true') {
+      process.stdout.write(`${said} — informational on CI\n`);
+      return;
+    }
+    expect(p99, said).toBeLessThan(budget);
   });
 
   it(`migrates ${FILES} files in under ${WHOLE_PROJECT_MS} ms, or inside this host's own I/O floor`, async () => {
