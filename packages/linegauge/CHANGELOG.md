@@ -1,5 +1,36 @@
 # linegauge
 
+## 0.3.2
+
+### Patch Changes
+
+- [#386](https://github.com/ofri-peretz/burgee/pull/386) [`5a85175`](https://github.com/ofri-peretz/burgee/commit/5a85175da66df5e797446eaada1c3492cc8b8fff) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The Unicode segmenter is built on first use rather than at import, and both packages now
+  strip comments from what they publish.
+
+  `new Intl.Segmenter()` loads ICU's grapheme-break data. Two were constructed at module
+  scope, and almost nothing paid for them: every caller takes the ASCII fast path first, so a
+  run of printable ASCII — a help screen, a flag name, a path — never reaches `segment()`.
+  `segmenter` is now a function; the two call sites become `segmenter()`.
+
+  `linegauge` and `seniority` were also the two published packages whose build never ran
+  `strip-comments` at all. Unpacked: linegauge 83,538 → 56,148 and seniority 193,682 →
+  139,793.
+
+  Together these take `import 'burgee'` from 56.87 ms to 44.39 ms, medians of seven.
+
+- [#389](https://github.com/ofri-peretz/burgee/pull/389) [`88a6996`](https://github.com/ofri-peretz/burgee/commit/88a699645f986c6e5dcead465e3f36238f0ae77d) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The five Unicode property classes are built on first use, not at import.
+
+  A `\p{…}` class under the `v` flag is built when V8 **compiles the literal**, not when the
+  literal is evaluated — so a module carrying five of them pays for all five at import even if
+  nothing calls them. Wrapping the literals in functions does not help; only constructing from
+  a source string does.
+
+  Measured on Node 24: `width.js` imports in **5.95 ms against 15.30**, `linegauge` in
+  **11.60 against 19.00**, and `import 'burgee'` in **21.69 against 33.26**. A caller that
+  measures a non-ASCII cluster pays the ~10 ms once, on first call.
+
+  string-width 229/229, wrap-ansi 80/80, slice-ansi 15/15 and strip-ansi 8/8 are unchanged.
+
 ## 0.3.1
 
 ### Patch Changes
