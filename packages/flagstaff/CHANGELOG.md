@@ -1,5 +1,24 @@
 # flagstaff
 
+## 0.3.2
+
+### Patch Changes
+
+- [#398](https://github.com/ofri-peretz/burgee/pull/398) [`ee35904`](https://github.com/ofri-peretz/burgee/commit/ee35904e987a0133f2c0b51371227f840e0fd677) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A `__proto__` key in a caller's corpus stays a style.
+
+  `fromCliSpinners` and `fromCliBoxes` built their maps by assigning `map[key] = value` over
+  the caller's JSON. JSON can carry the key `__proto__`, and that assignment hands it to the
+  prototype setter rather than defining a property: the entry vanished from the plugin _and_
+  whatever it held became the fallback that every other `lookupSpinner` and `lookupBorder`
+  inherited. Both now build with `Object.fromEntries`, which defines an own property for
+  every key, and the returned map keeps `Object.prototype`.
+
+  The registry's `deepFrozen` copy and caique's prompt binding write the same shape from a
+  loop they cannot turn into an expression, and use `Object.defineProperty` instead.
+
+  `flagstaff/import` is 80 bytes lighter for it — 838 B to 758 B — because two loops became
+  two expressions.
+
 ## 0.3.1
 
 ### Patch Changes
