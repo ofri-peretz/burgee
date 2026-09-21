@@ -3,7 +3,7 @@
   "version": "0.6.5",
   "tag": "v0.6.5",
   "commit": "9577efd51114e61fb035b7cc493adf0c0dc7921b",
-  "vendored": "2026-09-09",
+  "vendored": "2026-09-21",
   "files": 11,
   "internalFiles": [
     "cell-test.js",
@@ -14,7 +14,6 @@
   "internals": [
     "src/cell",
     "src/layout-manager",
-    "src/table",
     "src/utils"
   ],
   "hashes": {

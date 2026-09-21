@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "main": "./shim.js",
-  "version": "18.1.0",
+  "version": "18.2.0",
   "license": "MIT",
   "repository": {
     "type": "git",

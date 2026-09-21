@@ -1,19 +1,19 @@
 {
   "repo": "https://github.com/chalk/wrap-ansi",
-  "version": "10.0.1",
-  "tag": "v10.0.1",
-  "commit": "c6b6259a58843e491e8703c5010a2a517b5f5738",
-  "vendored": "2026-09-14",
+  "version": "10.0.2",
+  "tag": "v10.0.2",
+  "commit": "4e44ec236852ac3ca28a554dbc3b5fc396346f1d",
+  "vendored": "2026-09-21",
   "files": 1,
   "internalFiles": [],
   "internals": [],
   "hashes": {
     "./index.d.ts": "06f92be4ba4f9cf7a447ecabb0f37f0520861b837ca7a2a4455a64c0831bd0d9",
-    "./index.js": "f65241b568824dcbfee59df47a24f9a891029899af101066d08c7a28013a0dca",
+    "./index.js": "0c65e1cad00d994a60eb6755ea7ed1bde4d81d072b0ab83d19a301bf67ca1750",
     "./index.test-d.ts": "16f9f2246aa651a94810a3eacaa4e92241b1ebf465e167c65912f0ac6223e621",
-    "./test.js": "911cbf79581e947d1ffc2a72d5039962cb5efd003c9be8d11e1f61a30fef3377",
+    "./test.js": "90e7ccaec359edc306c1483b9b9003039d28019fc3960be4473b139b6017520f",
     "index.d.ts": "06f92be4ba4f9cf7a447ecabb0f37f0520861b837ca7a2a4455a64c0831bd0d9",
-    "index.js": "f65241b568824dcbfee59df47a24f9a891029899af101066d08c7a28013a0dca"
+    "index.js": "0c65e1cad00d994a60eb6755ea7ed1bde4d81d072b0ab83d19a301bf67ca1750"
   },
   "tests": {
     "./index.d.ts": [],
@@ -99,7 +99,12 @@
       "closes and reopens styles around a carriage return before a wrap",
       "keeps a row of zero-width words linear rather than quadratic",
       "places the word after a hard-wrapped word at the right column",
-      "does not reopen styles on a trailing empty row"
+      "does not reopen styles on a trailing empty row",
+      "keeps a sequence whole when a combining mark follows it",
+      "keeps a C1 SGR sequence whole when a combining mark follows it",
+      "keeps a non-SGR CSI sequence whole when a combining mark follows it",
+      "continues to normalize plain text around sequences",
+      "does not normalize text inside OSC sequences"
     ]
   },
   "surface": {
