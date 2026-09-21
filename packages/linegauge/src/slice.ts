@@ -69,7 +69,7 @@ function takeEscape(cut: Cut, escape: RegExpExecArray, end: number): void {
 
 /** One run of plain text, cluster by cluster. Returns true when the range has been filled. */
 function takeText(cut: Cut, run: string, start: number, end: number): boolean {
-  for (const { segment } of segmenter.segment(run)) {
+  for (const { segment } of segmenter().segment(run)) {
     const columns = measure(segment);
     // Rule 1: a cluster is in when any column it occupies is in, so a zero-width mark rides
     // with the cluster it follows rather than falling off the front of a slice.

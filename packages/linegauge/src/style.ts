@@ -98,7 +98,16 @@ export const MODIFIER_CLOSE = new Map<number, number>([
 ]);
 export const MODIFIER_CLOSE_CODES = new Set(MODIFIER_CLOSE.values());
 
-export const segmenter = new Intl.Segmenter();
+/**
+ * Built on first use, not at import — see the twin in `width.ts` for the measurement.
+ *
+ * Exported as a **function** rather than an instance, which is the only part of this that
+ * touches a caller: `segmenter.segment(x)` becomes `segmenter().segment(x)`. Keeping the
+ * old shape would mean a getter on a module namespace, and a property that constructs ICU
+ * data the first time somebody reads it is worse to debug than a call that says so.
+ */
+let cached: Intl.Segmenter | undefined;
+export const segmenter = (): Intl.Segmenter => (cached ??= new Intl.Segmenter());
 
 export const sgr = (code: number | string): string => `${ESC}${CSI}${code}${SGR_TERMINATOR}`;
 export const hyperlink = (url: string, parameters = ''): string => `${ESC}${OSC}8;${parameters};${url}${BELL}`;

@@ -188,7 +188,20 @@ const JAMO_LEADING: readonly number[] = [0x1100, 0x115f, 0xa960, 0xa97c];
 const JAMO_VOWEL: readonly number[] = [0x1160, 0x11a7, 0xd7b0, 0xd7c6];
 const JAMO_TRAILING: readonly number[] = [0x11a8, 0x11ff, 0xd7cb, 0xd7fb];
 
-const segmenter = new Intl.Segmenter();
+/**
+ * Built on first use, not at import.
+ *
+ * `new Intl.Segmenter()` loads ICU's grapheme-break data, and it measured **7.0 ms of
+ * `linegauge`'s 26.9 ms import** across the two constructed at module scope here and in
+ * `style.ts`. Almost nothing pays for it: every caller goes through the ASCII fast path
+ * first, and a run of printable ASCII — which is what a help screen, a flag name and a path
+ * are — never reaches `segment()` at all. A CLI that prints one line of English used to
+ * build a Unicode segmenter to do it.
+ *
+ * One instance, kept after the first call, so a text run that does need clusters pays once.
+ */
+let cached: Intl.Segmenter | undefined;
+const segmenter = (): Intl.Segmenter => (cached ??= new Intl.Segmenter());
 
 /** East Asian Width of one code point, in columns, under the caller's ambiguous policy. */
 function columnsOf(codePoint: number, ambiguousIsWide: boolean): number {
@@ -297,7 +310,7 @@ function hangulColumns(visible: string, ambiguousIsWide: boolean): number | unde
  */
 export function measure(text: string, ambiguousIsWide = false): number {
   let columns = 0;
-  for (const { segment } of segmenter.segment(text)) {
+  for (const { segment } of segmenter().segment(text)) {
     if (ZERO_WIDTH_CLUSTER.test(segment)) continue;
     if (RGI_EMOJI.test(segment) || isUnqualifiedEmojiSequence(segment)) {
       columns += WIDE_COLUMNS;
