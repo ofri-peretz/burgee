@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ExitCode, isExitCode } from './index.js';
 
-// E1 lock: the contract in design.md, pinned. A changed number here is a breaking
+// E1 lock: the contract in spec.md, pinned. A changed number here is a breaking
 // change for every agent that branches on it.
 describe('ExitCode (E1)', () => {
   it('matches the design contract exactly', () => {

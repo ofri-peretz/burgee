@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 /**
  * Workspace lock — the Stage 1 / Stage 2 artifacts keep their shape, in one place.
  *
- * `.sdlc/intents/<slug>/intent.md` and its `design.md` are the handoff between the
+ * `.sdlc/intents/<slug>/intent.md` and its `spec.md` are the handoff between the
  * stages of AI_NATIVE_SDLC.md, under the convention CLAUDE.md documents. They are
  * only worth anything if they are uniform: a control-band breach writes one
  * automatically, a person writes the next by hand, and both have to be readable by
@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
  *
  * Two rules are load-bearing.
  *
- * An `approved` intent with no `design.md` beside it means somebody liked an idea and
+ * An `approved` intent with no `spec.md` beside it means somebody liked an idea and
  * called that a design — exactly the handoff this stage exists to prevent, and silent
  * because a missing file looks like nothing at all.
  *
@@ -46,14 +46,14 @@ const SUCCESS_SECTIONS = ['## Success criteria', '## How we will know it worked'
 /**
  * CLAUDE.md rule 3: record what you rejected. Accepts every form the reference
  * intents use — a rejected option and a declared non-goal are the same artifact,
- * and `ci-speed/design.md` files its under the latter.
+ * and `ci-speed/spec.md` files its under the latter.
  */
 const REJECTION_HEADINGS =
   /^## (Rejected\b|Explicit non-goals|Non-goals|Out of scope|Risks and rejected)/m;
 
 const STATUSES = ['draft', 'review', 'approved', 'shipped', 'dropped'] as const;
 /** Statuses that assert the work has been designed, not merely wanted. */
-const NEEDS_DESIGN = new Set(['approved', 'shipped']);
+const NEEDS_SPEC = new Set(['approved', 'shipped']);
 
 const SKIP_DIRS = new Set([
   'node_modules', '.git', 'dist', 'build', 'coverage', '.next', '.turbo',
@@ -108,7 +108,7 @@ function statusDrift(slug: string, readme: string): string[] {
   return drift;
 }
 
-/** Published packages with no `intent.md` or no `design.md`, as `<pkg>/<file>` strings. */
+/** Published packages with no `intent.md` or no `spec.md`, as `<pkg>/<file>` strings. */
 function missingArtifacts(): string[] {
   const packages = join(REPO_ROOT, 'packages');
   const missing: string[] = [];
@@ -120,7 +120,7 @@ function missingArtifacts(): string[] {
     // A reserved name is a public promise too, so `bellpull` at 0.0.1 counts.
     if (manifest.private === true || manifest.version === undefined) continue;
     const slug = dir.name;
-    for (const artifact of ['intent.md', 'design.md']) {
+    for (const artifact of ['intent.md', 'spec.md']) {
       if (!existsSync(join(INTENT_DIR, slug, artifact))) missing.push(`${dir.name}/${artifact}`);
     }
   }
@@ -129,7 +129,7 @@ function missingArtifacts(): string[] {
 
 describe('intent artifacts', () => {
   it('ships the templates the flow and the control-band watcher both write from', () => {
-    for (const f of ['README.md', '_template/intent.md', '_template/design.md']) {
+    for (const f of ['README.md', '_template/intent.md', '_template/spec.md']) {
       expect(existsSync(join(INTENT_DIR, f)), `.sdlc/intents/${f} is missing`).toBe(true);
     }
   });
@@ -142,7 +142,7 @@ describe('intent artifacts', () => {
   });
 
   it('the design template carries requirements, verification and a rejection record', () => {
-    const tpl = readFileSync(join(INTENT_DIR, '_template/design.md'), 'utf-8');
+    const tpl = readFileSync(join(INTENT_DIR, '_template/spec.md'), 'utf-8');
     for (const s of ['## Requirements', '## Design', '## Verification']) {
       expect(tpl, `template lacks ${s}`).toContain(s);
     }
@@ -198,20 +198,20 @@ describe('intent artifacts', () => {
         'nothing to measure the loop closing against',
     ).toBe(true);
 
-    const designPath = join(dir, 'design.md');
-    if (NEEDS_DESIGN.has(status!)) {
+    const specPath = join(dir, 'spec.md');
+    if (NEEDS_SPEC.has(status!)) {
       expect(
-        existsSync(designPath),
-        `.sdlc/intents/${slug} is "${status}" but has no design.md — approving an ` +
+        existsSync(specPath),
+        `.sdlc/intents/${slug} is "${status}" but has no spec.md — approving an ` +
           'intent means it has been designed, not that somebody liked it',
       ).toBe(true);
     }
 
-    if (existsSync(designPath)) {
-      const design = readFileSync(designPath, 'utf-8');
+    if (existsSync(specPath)) {
+      const spec = readFileSync(specPath, 'utf-8');
       expect(
-        REJECTION_HEADINGS.test(design),
-        `.sdlc/intents/${slug}/design.md records nothing rejected — CLAUDE.md rule 3`,
+        REJECTION_HEADINGS.test(spec),
+        `.sdlc/intents/${slug}/spec.md records nothing rejected — CLAUDE.md rule 3`,
       ).toBe(true);
     }
   });

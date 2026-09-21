@@ -100,7 +100,7 @@ Six incumbents, **685 M weekly downloads**, and none of them can promise the las
   if it does not, it becomes one of our own conformance cases.
 - **Does `once`/`onetime` belong here at all?** **Decided 2026-09-20 → D-019.** 162 M/wk and it is genuinely used outside
   lifecycle. Keeping it makes the override recipe richer; it also widens the layer past its
-  name. Deferred to `design.md`.
+  name. Deferred to `spec.md`.
 - **Worker threads and `beforeExit`.** **Decided 2026-09-20 → D-020.** Whether the exactly-once guarantee extends across
   worker boundaries, or is documented as per-thread. Being wrong here is worse than being
   narrow.

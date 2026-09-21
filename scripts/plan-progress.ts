@@ -56,7 +56,7 @@ const schemaHashes = (): Set<string> => {
 
 const gated = (): number =>
   readdirSync(join(ROOT, '.sdlc/intents')).filter((slug) => {
-    const design = join(ROOT, '.sdlc/intents', slug, 'design.md');
+    const design = join(ROOT, '.sdlc/intents', slug, 'spec.md');
     return existsSync(design) && readFileSync(design, 'utf-8').includes('Accepted at the Design→Build gate');
   }).length;
 
@@ -140,8 +140,8 @@ export const REQUIREMENT = /^(?:- \*\*([A-Z]\d+)|\| ([A-Z]\d+) \|)/gm;
 export const STATUS_ROW = /^\| ([A-Z]\d+) \| \*\*Built\*\*/gm;
 
 const designGap = (slug: string): string => {
-  const file = `.sdlc/intents/${slug}/design.md`;
-  if (!existsSync(join(ROOT, file))) return 'no design.md';
+  const file = `.sdlc/intents/${slug}/spec.md`;
+  if (!existsSync(join(ROOT, file))) return 'no spec.md';
   const text = read(file);
   const wanted = [...new Set([...text.matchAll(new RegExp(REQUIREMENT.source, 'gm'))].map((m) => (m[1] ?? m[2]) as string))];
   if (wanted.length === 0) return 'the design lists no requirements';

@@ -33,7 +33,7 @@
   description: "yargs-* extensions"
 - name: floor
   color: "000000"
-  description: "Changes a floor requirement (design.md)"
+  description: "Changes a floor requirement (spec.md)"
 - name: agent-efficiency
   color: "BFD4F2"
   description: "Affects tokens / turns an AI agent spends"

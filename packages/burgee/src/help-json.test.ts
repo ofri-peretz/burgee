@@ -3,7 +3,7 @@
  *
  * It printed the same prose as `--help`, so a caller who asked for a machine-readable answer
  * got one they had to parse — the exact failure the whole `--json` surface exists to avoid,
- * on the flag people type first. `.sdlc/intents/burgee/design.md` recorded it as `Not built`:
+ * on the flag people type first. `.sdlc/intents/burgee/spec.md` recorded it as `Not built`:
  * *"no JSON help surface; `--help --json` prints the same prose as `--help`."*
  *
  * Every case here was written first and run against the unfixed tree; their failures are in

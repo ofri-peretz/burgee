@@ -6,7 +6,7 @@ Intent: [`intent.md`](./intent.md). **Status:** dropped (superseded 2026-09-06).
 
 ## Requirements
 
-The same R1–R12 as [`commander-agent/design.md`](../commander-agent/design.md), met
+The same R1–R12 as [`commander-agent/spec.md`](../commander-agent/spec.md), met
 through yargs' surface. Only the mapping differs:
 
 | yargs API | Layer use |
