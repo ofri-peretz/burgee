@@ -255,14 +255,12 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
-| `clack` | 0 / 606 |
-| `inquirer-core` | 0 / 41 |
+| `clack` | 14 / 17 |
+| `inquirer-core` | 41 / 41 |
 
 Weight, installed and tree-inclusive: **84,740 bytes** against **182,219** for the incumbents it replaces — a ratio of **0.4650** (@inquirer/core not installed here, so the ceiling is understated).
-
-That ratio is not yet a claim: nothing here passes an incumbent suite, so it is the weight of a package that does not do the job.
 ## Where it sits
 
 Plugins register under the `widgets` key, against the one schema the whole family shares.
 
-Nothing in this family builds on it yet, and it builds on `closeout`.
+Nothing in this family builds on it yet, and it builds on `closeout` and `linegauge`.

@@ -12,8 +12,15 @@
  * `fast-wrap-ansi` and `sisteransi` — measured on 2026-09-09 the way every other bill in
  * this repo is: shipped code and data (`.js`/`.mjs`/`.cjs` plus imported `.json`,
  * `package.json` never counted), each package counted whole across its own resolved tree.
- * The whole of caique is 29,042 B and reaches **one package, from this repo**, so the
- * entry that carries everything is under a third of the incumbent that carries the least.
+ * The root entry, which carries everything caique itself does, is 13,942 B and reaches two
+ * packages, both from this repo — a seventh of the incumbent that carries the least.
+ *
+ * **Every number below dropped on 2026-09-20 and none of the code got smaller.** caique's
+ * build gained `scripts/strip-comments.mjs`, which closeout has run since it was published:
+ * the `.d.ts` files keep every doc comment, so an editor loses nothing, and the `.js` a user
+ * actually loads stops carrying this repository's prose. It was the two compatibility
+ * façades that forced the question — they took the published tarball past the artifact
+ * ratchet — and paying for the comments twice was the wrong thing to have been doing anyway.
  *
  * The last test is the important one: **an entry point cannot be added without declaring
  * its budget here**, so the lock grows with the package instead of rotting behind it. It
@@ -44,7 +51,13 @@ const manifest = JSON.parse(readFileSync(resolve(pkgRoot, 'package.json'), 'utf8
 const FAMILY = readdirSync(resolve(pkgRoot, '..')).filter((dir) => existsSync(resolve(pkgRoot, '..', dir, 'package.json')));
 
 /**
- * The one package caique reaches, and the two subpaths of it.
+ * The cursor restore, and the two subpaths of `closeout` it is paid in.
+ *
+ * It is no longer the *only* package caique reaches: the two compatibility façades added on
+ * 2026-09-20 also reach `linegauge/wrap`, because a list that wraps and a prompt that
+ * re-draws both need the incumbent's own line-breaking and this repository publishes a
+ * graded port of it. Both edges are downward, both are declared in `package.json`, and the
+ * last test in this file is what checks that neither can be taken without saying so.
  *
  * `closeout` is family and sits in the foundation tier, so the arrow is downward and
  * `package-shape-lock.test.ts` sanctions it. It is here because the raw renderer hides the
@@ -69,42 +82,75 @@ interface EntryRule {
 
 const RULES: Record<string, EntryRule> = {
   // Everything, for a program that wants one import: the spec, the decision, both widget
-  // modes, the binding and the terminal. Measured 29,042 B on 2026-09-15 (27,336 B before
-  // the cursor restore) — under a third of clack's 101,684 B across six packages, and the
-  // only package caique reaches is one this repo publishes.
-  '.': { allow: CLOSEOUT, budget: 30_000, denied: [] },
+  // modes, the binding and the terminal. Measured 13,942 B on 2026-09-20 — a seventh of
+  // clack's 101,684 B across six packages, and the only packages caique reaches are ones
+  // this repo publishes. Neither façade is reachable from here: a program that imports
+  // `caique` gets caique, and pays nothing for the two compatibility subpaths.
+  '.': { allow: CLOSEOUT, budget: 15_000, denied: ['clack.js', 'inquirer.js'] },
   // The shape and its validator. The floor every other subpath stands on, and a leaf: a
-  // program that only declares prompts pays 1,571 B and never loads a widget.
-  './spec': { allow: [], budget: 2_500, denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
+  // program that only declares prompts pays 739 B and never loads a widget.
+  './spec': { allow: [], budget: 1_000, denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
   // The rule that decides whether a person can be asked at all — the file that keeps a CLI
   // from hanging under an agent. It reaches only the spec, never a widget: deciding not to
-  // ask must not cost the machinery of asking. Measured 4,986 B.
-  './decide': { allow: [], budget: 6_000, denied: ['ask.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
+  // ask must not cost the machinery of asking. Measured 2,133 B.
+  './decide': { allow: [], budget: 2_500, denied: ['ask.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
+  // The drop-in subpath for `@clack/prompts`, and the smallest façade in the family — one
+  // exported function, because one function is what clack's suite grades that is not a
+  // drawing. See `clack.ts`'s own header and D-001: 289 of that suite's 444 assertions are
+  // snapshots of clack's frames, subtracted from the row as a declared subset, and
+  // `limitOptions` plus the three `guide` cases are the whole behavioural remainder.
+  // Measured 4,564 B on 2026-09-20 against `@clack/prompts` 1.8.1's own 101,684 B across
+  // six packages, which is the U5 ceiling this file's header names.
+  './clack': {
+    allow: ['linegauge/wrap'],
+    budget: 5_500,
+    denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js', 'spec.js', 'plugin.js', 'inquirer.js'],
+  },
+  // The drop-in subpath for `@inquirer/core` — graded 41 / 41 by the incumbent's own suite
+  // through `compat-oracle`, which is the only reason any of it can be trusted.
+  //
+  // **It is a leaf away from the rest of caique, deliberately.** A program migrating off
+  // inquirer imports this and nothing else; a program written against caique's own API
+  // never loads a byte of it. So the denied list names every other module in the package,
+  // including `spec.js` — the two worlds share a package and share no code. The one module
+  // they *do* share is `runtime.js`, and that is the point of it: it is the single file in
+  // caique allowed to name `process`, and the façade reads the environment and the two
+  // streams through it like everything else here (`runtime.test.ts` is the lock).
+  //
+  // Measured 20,623 B on 2026-09-20, reaching `closeout/cursor`, `closeout/exit-hook` and
+  // `linegauge/wrap`, all published from this repository — against `@inquirer/core` 12.0.3's
+  // own 33,583 B and a resolved tree of 83,916 B across ten packages (`@inquirer/core`,
+  // `@inquirer/ansi`, `@inquirer/figures`, `@inquirer/type`, `cli-width`, `fast-wrap-ansi`,
+  // `fast-string-width`, `fast-string-truncated-width`, `mute-stream`, `signal-exit`),
+  // measured the same day and the same way. The claim this subpath makes is compatibility
+  // rather than weight; U5's ceiling for caique is clack, and it is the root entry above
+  // that carries it.
+  './inquirer': {
+    allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap'],
+    budget: 23_000,
+    denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js', 'spec.js', 'plugin.js', 'clack.js'],
+  },
   // The six widgets in line mode (R5), which is the floor and the accessible rendering.
-  // Measured 8,564 B — the whole prompt surface, with no terminal and no raw mode.
-  './ask': { allow: [], budget: 10_000, denied: ['decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
+  // Measured 4,234 B — the whole prompt surface, with no terminal and no raw mode.
+  './ask': { allow: [], budget: 5_000, denied: ['decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
   // The plugin host for `widgets`. Unlike roundel's, which is a leaf, this one carries
   // `ask.js` **by design**: `projectionOf()` is one surface over all kinds, drawing the six
   // built-ins itself and a registered widget's `static` for anything else. Splitting that in
   // two would make every caller re-implement the six-kind test, and the built-in list is
-  // exactly what `E_UNKNOWN_KIND` has to be right about. Measured 17,817 B on 2026-09-13 —
-  // 8,705 B of host over the 9,112 B of spec-plus-widgets it projects. It reaches no
-  // package, like everything else here.
-  './plugin': { allow: [], budget: 20_000, denied: ['decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
+  // exactly what `E_UNKNOWN_KIND` has to be right about. Measured 9,788 B on 2026-09-20 —
+  // most of it the family schema `schema.json`, which every plugin host in the repo carries.
+  './plugin': { allow: [], budget: 11_000, denied: ['decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
   // The raw-mode renderer sits *on top of* line mode and answers the same questions, so it
   // carries `ask.js` by design — that shared answer is the arrangement, not an accident.
-  // It never reaches the terminal: a caller supplies its own streams. Measured 16,502 B on
-  // 2026-09-15, against 14,796 B before it took the cursor restore from `closeout` — the
-  // 1,706 B is this file's own prose, since caique's build does not strip comments, and it
-  // was paid down to fit rather than charged to the budget.
-  './raw': { allow: CLOSEOUT, budget: 17_000, denied: ['decide.js', 'binding.js', 'terminal.js', 'index.js'] },
+  // It never reaches the terminal: a caller supplies its own streams. Measured 3,656 B.
+  './raw': { allow: CLOSEOUT, budget: 4_500, denied: ['decide.js', 'binding.js', 'terminal.js', 'index.js'] },
   // Resolving a whole command's prompts in one pass: the decision plus the widgets it may
   // reach for. Never the terminal, and never the raw renderer — a framework hands caique an
-  // `Io`, and which one is the caller's business. Measured 15,475 B.
-  './binding': { allow: [], budget: 18_000, denied: ['raw.js', 'terminal.js', 'index.js'] },
+  // `Io`, and which one is the caller's business. Measured 8,123 B.
+  './binding': { allow: [], budget: 9_500, denied: ['raw.js', 'terminal.js', 'index.js'] },
   // The only file that touches a stream, and the only one that knows what echo is. It
-  // carries `ask.js` for the `Io` shape it implements. Measured 11,975 B.
-  './terminal': { allow: [], budget: 14_000, denied: ['decide.js', 'raw.js', 'binding.js', 'index.js'] },
+  // carries `ask.js` for the `Io` shape it implements. Measured 1,947 B.
+  './terminal': { allow: [], budget: 2_500, denied: ['decide.js', 'raw.js', 'binding.js', 'index.js'] },
 };
 
 const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;

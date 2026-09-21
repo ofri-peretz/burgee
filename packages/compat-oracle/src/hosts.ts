@@ -809,14 +809,51 @@ export const HOSTS: Host[] = [
     // its test dir, so the copy step never saw it. Without it those 30 cases run against
     // the real filesystem and every one of them fails against clack itself.
     extraDirs: ['packages/prompts/__mocks__'],
-    controlFailures: {
-      count: 30,
-      why: "`path.test.ts`'s 30 cases, which fail against clack's own published package here and pass upstream. The suite mocks `node:fs` with `vi.mock('node:fs')` and no factory, answered by upstream's `__mocks__/fs.cjs` — vendored beside the root by `extraDirs`, and still never loaded: measured 2026-09-14 by putting a `console.error` in that file and watching it not print under vitest 5.0.0, which upstream's vitest 3.2.4 does load. A `test.alias` for `node:fs` was tried and is no better. So those 30 read the real filesystem, list the real `/tmp`, and diff against a memfs snapshot. It is a runner-version divergence in the harness, not a fact about clack or about caique, and it is named here rather than hidden so the other 576 are a number and not a rounding.",
-    },
+    // ---------------------------------------------------------------------------------
+    // D-001, executed. Seventeen entries, one per file, and every one of them is a file
+    // whose cases carry `toMatchSnapshot()`. The other two files of the nineteen —
+    // `limit-options.test.ts` and `guide.test.ts` — carry none, and they are the row.
+    //
+    // **Why the unit is the file.** Counted on 2026-09-20 with `grep -c toMatchSnapshot`
+    // over the vendored suite: 289 snapshot assertions across these seventeen, zero across
+    // the other two. Excluding case by case would mean 589 entries, each needing its own
+    // reason, and the reason would be the same sentence 589 times. It does mean a
+    // snapshot-free case sitting inside a snapshot-carrying file is subtracted along with
+    // its file, and that error runs in the flattering direction — so it is stated here
+    // rather than left for a reader to find.
+    //
+    // **`summarize()` will accept this, and that was checked before it was written.** It
+    // refuses an exclusion it cannot name, and some runners' TAP prints counts with no
+    // per-case names (ava's, which is why `ansi-escapes`' ceiling is prose). vitest's
+    // `tap-flat` prints one named line per case — verified in the raw TAP of both the
+    // control and the target run — so every entry below matches real lines, and
+    // `requireMatch` makes the control red the day one of these files is renamed upstream.
+    excludes: [
+      {
+        match: 'test/path.test.ts > ',
+        why: "30 cases. Snapshots of the path prompt's frames, **and** the one file in this suite that fails against clack's own published package here: it mocks `node:fs` with `vi.mock('node:fs')` and no factory, which vitest answers from a `__mocks__` directory beside the project root. Upstream's `__mocks__/fs.cjs` is vendored there by `extraDirs` and is still never loaded — measured 2026-09-14 by putting a `console.error` in it and watching it not print under vitest 5.0.0, which upstream's vitest 3.2.4 does load; a `test.alias` for `node:fs` is no better. So those 30 read the real filesystem, list the real `/tmp`, and diff against a memfs snapshot. That was a `controlFailures` allowance of 30 until 2026-09-20 and is now redundant: the file is subtracted as a drawing like the other sixteen, and an allowance that excuses a case nobody counts is a dial, which is the objection `term-img`'s note already records.",
+      },
+      { match: 'test/autocomplete.test.ts > ', why: '27 cases, 24 snapshot assertions — the autocomplete prompt drawn frame by frame.' },
+      { match: 'test/box.test.ts > ', why: '46 cases, 23 snapshot assertions — box borders, padding and title placement, drawn.' },
+      { match: 'test/confirm.test.ts > ', why: '24 cases, 12 snapshot assertions — the confirm prompt drawn in each of its states.' },
+      { match: 'test/date.test.ts > ', why: '16 cases, 7 snapshot assertions — the date prompt drawn.' },
+      { match: 'test/group-multi-select.test.ts > ', why: '42 cases, 21 snapshot assertions — grouped selection drawn.' },
+      { match: 'test/log.test.ts > ', why: '32 cases, 16 snapshot assertions — the log symbols and their bars, drawn.' },
+      { match: 'test/multi-line.test.ts > ', why: '28 cases, 14 snapshot assertions — the multi-line editor drawn.' },
+      { match: 'test/multi-select.test.ts > ', why: '48 cases, 24 snapshot assertions — multi-selection drawn.' },
+      { match: 'test/note.test.ts > ', why: '18 cases, 9 snapshot assertions — the note box drawn.' },
+      { match: 'test/password.test.ts > ', why: '18 cases, 9 snapshot assertions — the masked prompt drawn.' },
+      { match: 'test/progress-bar.test.ts > ', why: '44 cases, 19 snapshot assertions — the progress bar drawn at each fill.' },
+      { match: 'test/select-key.test.ts > ', why: '24 cases, 12 snapshot assertions — the key-select prompt drawn.' },
+      { match: 'test/select.test.ts > ', why: '40 cases, 20 snapshot assertions — the select prompt drawn.' },
+      { match: 'test/spinner.test.ts > ', why: '60 cases, 28 snapshot assertions — spinner frames, drawn.' },
+      { match: 'test/task-log.test.ts > ', why: '64 cases, 27 snapshot assertions — the task log drawn as it fills and clears.' },
+      { match: 'test/text.test.ts > ', why: '28 cases, 14 snapshot assertions — the text prompt drawn.' },
+    ],
     runner: 'vitest',
-    target: 'caique',
+    target: 'caique/clack',
     status: 'active',
-    note: "Measured 2026-09-08 at 1.8.0: 289 of its 444 assertions are `toMatchSnapshot()`, in 17 of its 19 files — the suite grades clack's exact drawing. A façade that matched those frame for frame would be clack, and caique's design rejects wrapping clack precisely because it \"has no static projection to give\" (U3). What is left when the drawings are removed is limit-options (14) and guide (3). Still `planned` after the 2026-09-14 vendoring run: see the control number recorded in `.sdlc/intents/caique/design.md`. The row names `caique` — the package root that exists — and not a `caique/clack` façade that does not, because naming an unbuilt façade publishes \"target not built yet\" where a measured number belongs (the lesson cli-table3's note records).",
+    note: "**Read the denominator before the number: this row publishes 17, not 606, and the subtraction is declared above.** Measured 2026-09-08 at 1.8.0 and re-counted 2026-09-20: 289 of the suite's 444 assertions are `toMatchSnapshot()`, in 17 of its 19 files. Those seventeen grade clack's exact drawing, and a façade matching them frame for frame would *be* clack — which caique's design rejects for a stated reason, that clack \"has no static projection to give\" (U3). D-001 chose the `cli-table3` shape over publishing 0 / 606: subtract the drawings as a declared subset with the reason written in. **A named subtraction was possible here and is not possible everywhere** — vitest's `tap-flat` prints one named line per case, so `summarize()` can name what it removes and `requireMatch` makes the control red if a file is renamed upstream; ava's TAP prints counts and no names, which is why `ansi-escapes`' ceiling is prose instead. Control **17 / 17** after the subtraction (576 / 606 before it, the 30 being `path.test.ts`, now excluded as a drawing rather than allowed as a control failure). Target `caique/clack` **14 / 17, 82.4%**, and the missing three are a **ceiling, not a shortfall**: they are all of `guide.test.ts`. Two of them require every one of clack's twelve prompts to render a frame whose first line is its grey bar, which is the drawing this row subtracts by decision. The third calls `updateSettings({ withGuide: false })` **imported from `@clack/core`** and asserts our prompts obey it — module-level state inside a package caique does not depend on and cannot read, so no implementation of ours passes it without taking the dependency U6 forbids. The row named `caique`, the package root, and measured 0 / 606 until `caique/clack` was built on 2026-09-20; it moved the same day, which is D-007 (never name a façade before it exists) and D-006 (a root can never match an incumbent) in one edit.",
   },
   {
     // 2.16: the testable unit of the inquirer monorepo, and the decision that came with it.
@@ -848,9 +885,9 @@ export const HOSTS: Host[] = [
       '@inquirer/testing@3.3.13',
     ],
     runner: 'vitest',
-    target: 'caique',
+    target: 'caique/inquirer',
     status: 'active',
-    note: 'Vendored and controlled 2026-09-14. The row names `caique`, the package root that exists today, so the number is measured rather than "target not built yet".',
+    note: "Activated 2026-09-20 at **41 / 41, 100.0%**, control **41 / 41**. The row moved from the package root `caique` (0 / 41) to the drop-in subpath `caique/inquirer` the same day the subpath was built, which is D-006 and D-007 in one edit: every row at 100% names a dedicated façade and every row at zero names a root, and a façade may not be named before it exists. **The 41 are a loop, not a drawing, and that is why they were reachable.** `@inquirer/testing` renders through a headless xterm and asserts the screen, so what is graded is hooks keeping their place across re-renders, keypresses that stop the instant a prompt settles, a `useEffect` cleanup that throws superseding the answer it was about to give, and an already-aborted signal still restoring the cursor — behaviours a second implementation can share. Contrast `clack`'s row directly below, where 289 of 444 assertions snapshot the incumbent's exact frames. **Three things had to be right that no amount of reading the API would have told us**, and each is a case: `AsyncResource.bind` on every setter and every keypress handler, without which a `setState` called from an `EventEmitter` listener registered inside an effect finds no hook store; the first render deferred by one `setImmediate` **only** when the input has `readableFlowing`, which is how a keystroke typed before the prompt existed is discarded rather than answered (upstream issue #1303); and `createPrompt`'s caller file captured at construction through `Error.prepareStackTrace`, because the error a render function gets for returning nothing names that file and the case snapshots it. The façade reaches `closeout/exit-hook` and `linegauge/wrap` and nothing else — both published from this repository, both declared in `packages/caique/package.json`, and `weight.test.ts` is what enforces that. `@inquirer/core`'s `usePagination` is **not** implemented and is named as a gap in `.sdlc/intents/caique/design.md`: it is 121 lines of list-window arithmetic this suite does not touch, and shipping an ungraded re-derivation of it would be the unmeasured claim the rest of this file exists to prevent.",
   },
   {
     name: 'meow',

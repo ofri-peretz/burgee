@@ -23,10 +23,20 @@
       "import": "./dist/binding.js",
       "default": "./dist/binding.js"
     },
+    "./clack": {
+      "types": "./dist/clack.d.ts",
+      "import": "./dist/clack.js",
+      "default": "./dist/clack.js"
+    },
     "./decide": {
       "types": "./dist/decide.d.ts",
       "import": "./dist/decide.js",
       "default": "./dist/decide.js"
+    },
+    "./inquirer": {
+      "types": "./dist/inquirer.d.ts",
+      "import": "./dist/inquirer.js",
+      "default": "./dist/inquirer.js"
     },
     "./plugin": {
       "types": "./dist/plugin.d.ts",
@@ -56,7 +66,7 @@
     "!dist/**/*.test.*"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && node ../../scripts/schema-to-dist.mjs",
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/schema-to-dist.mjs && node ../../scripts/strip-comments.mjs dist",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
     "coverage": "vitest run --coverage.enabled",
@@ -83,7 +93,8 @@
     "non-tty"
   ],
   "dependencies": {
-    "closeout": "^0.2.0"
+    "closeout": "^0.2.0",
+    "linegauge": "^0.3.0"
   },
   "devDependencies": {
     "vitest": "^5.0.0"
