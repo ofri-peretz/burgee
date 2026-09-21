@@ -251,6 +251,49 @@ export function collectBenchmark(cfg: BandConfig, root = REPO_ROOT): Observation
   return out;
 }
 
+/**
+ * Whether the newest results file in a band's suite actually measured it.
+ *
+ * `npm run bench -- --axis perf` writes a complete document with
+ * `{"status":"not-run","reason":"not selected by --axis"}` for every axis it skipped, and
+ * `collectBenchmark` reads `<id>.value` off it, gets nothing, and moves on — correctly, and
+ * **silently**. The band then evaluates whatever point it already had.
+ *
+ * That is not hypothetical, and reading it wrong cost an afternoon. On 2026-09-21 the
+ * watcher reported `✗ core-bundled-bytes: 2σ (latest 40562)` while the tree measured
+ * **58,027**, and sixteen of nineteen series had no point from the newest document. That
+ * looks like a dead loop and is not one: the complete four-axis run is `bench.yml`'s weekly
+ * cron, every other document is a partial run from a pull request, and 40562 was simply the
+ * newest *complete* measurement — taken before the growth the B4 gate is red about.
+ *
+ * So this is not a failure detector. It is the sentence a reader needs beside a σ figure to
+ * know which run it came from, because "latest 40562" reads as *now* and means *last
+ * Tuesday*. The workflow's own comment says a series that stops updating looks perfectly
+ * healthy; a series that updates weekly looks stopped, and both are read from the same line.
+ */
+export function unmeasured(cfg: BandConfig, root = REPO_ROOT): { newest: string; reason: string } | undefined {
+  if (cfg.collector !== 'benchmark-json' || !cfg.jsonPath) return undefined;
+  const dir = path.join(root, 'benchmarks/results', cfg.suite ?? '');
+  let newest: string | undefined;
+  try {
+    newest = fs.readdirSync(dir).filter((f) => DATED_JSON.test(f)).sort().at(-1);
+  } catch {
+    return undefined;
+  }
+  if (newest === undefined) return undefined;
+  let doc: unknown;
+  try {
+    doc = JSON.parse(fs.readFileSync(path.join(dir, newest), 'utf-8'));
+  } catch {
+    return undefined;
+  }
+  if (pick(doc, cfg.jsonPath) !== null) return undefined;
+  // The path is `bands.<id>.value`; the entry beside it says why there is no value.
+  const entry = cfg.jsonPath.split('.').slice(0, -1).reduce<unknown>((a, k) => (a === null || typeof a !== 'object' ? null : Reflect.get(a, k)), doc);
+  const reason = entry !== null && typeof entry === 'object' && 'reason' in entry ? String(Reflect.get(entry, 'reason')) : 'the metric is absent from the document';
+  return { newest: newest.replace('.json', ''), reason };
+}
+
 /** 32 MiB — a long `git log --all` in a busy repo. */
 const GIT_BUFFER = 33554432;
 
@@ -577,7 +620,21 @@ async function main(): Promise<void> {
 
   const series = loadSeries();
   console.warn('\n🎛️ Control bands\n');
-  const breaches = loadConfig().flatMap((cfg) => reportBand(cfg, series[cfg.id] ?? []));
+  const config = loadConfig();
+
+  // Reported before the bands, because a band scored against a point the newest run did not
+  // take is not a quiet band — it is a wrong one, and reading it first stops the σ lines
+  // below being believed.
+  const dark = config.flatMap((cfg) => {
+    const gap = unmeasured(cfg, REPO_ROOT);
+    if (gap === undefined) return [];
+    const latest = (series[cfg.id] ?? []).at(-1);
+    console.warn(`  ⚠ ${cfg.id}: not measured by ${gap.newest} — ${gap.reason}. The band below scores ${latest === undefined ? 'nothing' : `${latest.value} from ${latest.date}`}.`);
+    return [cfg.id];
+  });
+  if (dark.length > 0) console.warn(`\n${dark.length} series the newest results document did not measure — the complete four-axis run is weekly, so a partial run from a pull request leaves most bands scoring their last complete point.\n`);
+
+  const breaches = config.flatMap((cfg) => reportBand(cfg, series[cfg.id] ?? []));
 
   if (args.has('--write-intent')) {
     for (const { breach, cfg } of breaches) {
@@ -589,6 +646,11 @@ async function main(): Promise<void> {
   // 1σ is a log tier by contract — it must never gate.
   const actionable = breaches.filter((b) => b.breach.tier !== '1σ');
   console.warn(`\n${breaches.length} breach(es), ${actionable.length} at 2σ or above.\n`);
+  // A dark series does **not** fail the check, and that is deliberate. `bench.yml` runs the
+  // complete four-axis suite weekly; every other results document is a partial run from a
+  // pull request, and against one of those most bands are legitimately unmeasured. Failing
+  // here would fail on the normal case. What the lines above buy is that a reader of a σ
+  // figure can see it is scoring a point from a named older run rather than from today.
   if (args.has('--check') && actionable.length > 0) process.exitCode = 1;
 }
 
