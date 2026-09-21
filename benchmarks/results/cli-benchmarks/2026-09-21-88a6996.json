@@ -1,0 +1,484 @@
+{
+  "schema": 1,
+  "suite": "cli-benchmarks",
+  "measured": "2026-09-21T11:02:15.240Z",
+  "commit": "88a699645f986c6e5dcead465e3f36238f0ae77d-dirty",
+  "machine": {
+    "os": "darwin",
+    "release": "25.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M4 Pro",
+    "cores": 14,
+    "memoryGb": 48,
+    "node": "v24.18.0",
+    "ci": false
+  },
+  "axes": {
+    "perf": {
+      "status": "measured",
+      "method": "42 interleaved rounds — a whole multiple of the seven variants, so the rotation gives every variant each starting position equally often; each round spawns every variant once as `node <fixture> greet ada`, after one discarded warm-up round. Every parsing variant's package is resolved against the range `benchmarks/package.json` declares before any timing, and its version and resolved path are on every row. Absolute ms are a property of the machine recorded above and are not comparable across machines; the banded number is the paired ratio."
+    },
+    "compat": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "weight": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "reliability": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    }
+  },
+  "records": [
+    {
+      "axis": "perf",
+      "variant": "bare node",
+      "metric": "cold-start-ms",
+      "unit": "ms",
+      "samples": 42,
+      "median": 28.07,
+      "p95": 35.25,
+      "note": "the floor: Node starting and writing one line, no parser",
+      "detail": {
+        "fixture": "node.mjs"
+      }
+    },
+    {
+      "axis": "perf",
+      "variant": "commander",
+      "metric": "cold-start-ms",
+      "unit": "ms",
+      "samples": 42,
+      "median": 40.42,
+      "p95": 53.98,
+      "note": "spawned `node commander.mjs greet ada`; 12.35 ms of this is above the bare-node floor",
+      "detail": {
+        "fixture": "commander.mjs",
+        "package": "commander",
+        "version": "15.0.0",
+        "resolvedFrom": "<repo>/node_modules/commander"
+      }
+    },
+    {
+      "axis": "perf",
+      "variant": "burgee/commander",
+      "metric": "cold-start-ms",
+      "unit": "ms",
+      "samples": 42,
+      "median": 56.55,
+      "p95": 120.36,
+      "note": "spawned `node burgee-commander.mjs greet ada`; 28.49 ms of this is above the bare-node floor",
+      "detail": {
+        "fixture": "burgee-commander.mjs",
+        "package": "burgee",
+        "version": "0.7.1",
+        "resolvedFrom": "<repo>/node_modules/burgee"
+      }
+    },
+    {
+      "axis": "perf",
+      "variant": "yargs",
+      "metric": "cold-start-ms",
+      "unit": "ms",
+      "samples": 42,
+      "median": 104.07,
+      "p95": 144.34,
+      "note": "spawned `node yargs.mjs greet ada`; 76 ms of this is above the bare-node floor",
+      "detail": {
+        "fixture": "yargs.mjs",
+        "package": "yargs",
+        "version": "18.1.0",
+        "resolvedFrom": "<repo>/node_modules/yargs"
+      }
+    },
+    {
+      "axis": "perf",
+      "variant": "burgee/yargs",
+      "metric": "cold-start-ms",
+      "unit": "ms",
+      "samples": 42,
+      "median": 87.29,
+      "p95": 138.99,
+      "note": "spawned `node burgee-yargs.mjs greet ada`; 59.22 ms of this is above the bare-node floor",
+      "detail": {
+        "fixture": "burgee-yargs.mjs",
+        "package": "burgee",
+        "version": "0.7.1",
+        "resolvedFrom": "<repo>/node_modules/burgee"
+      }
+    },
+    {
+      "axis": "perf",
+      "variant": "cac",
+      "metric": "cold-start-ms",
+      "unit": "ms",
+      "samples": 42,
+      "median": 31.82,
+      "p95": 92.81,
+      "note": "spawned `node cac.mjs greet ada`; 3.75 ms of this is above the bare-node floor",
+      "detail": {
+        "fixture": "cac.mjs",
+        "package": "cac",
+        "version": "7.0.0",
+        "resolvedFrom": "<repo>/node_modules/cac"
+      }
+    },
+    {
+      "axis": "perf",
+      "variant": "burgee",
+      "metric": "cold-start-ms",
+      "unit": "ms",
+      "samples": 42,
+      "median": 68.11,
+      "p95": 82.37,
+      "note": "spawned `node burgee.mjs greet ada`; 40.04 ms of this is above the bare-node floor",
+      "detail": {
+        "fixture": "burgee.mjs",
+        "package": "burgee",
+        "version": "0.7.1",
+        "resolvedFrom": "<repo>/node_modules/burgee"
+      }
+    },
+    {
+      "axis": "perf",
+      "variant": "burgee/commander ÷ commander",
+      "metric": "cold-start-ratio",
+      "unit": "ratio",
+      "samples": 42,
+      "median": 1.391,
+      "p95": 3.035,
+      "gate": {
+        "max": 1.4,
+        "why": "the front-end must not cost meaningfully more to start than the package it replaces; a ceiling, not a promise — the measured value is what the band watches"
+      },
+      "note": "median of 42 paired spawns, each round's burgee/commander against the same round's commander",
+      "detail": {
+        "ours": "burgee@0.7.1",
+        "host": "commander@15.0.0"
+      }
+    },
+    {
+      "axis": "perf",
+      "variant": "burgee/yargs ÷ yargs",
+      "metric": "cold-start-ratio",
+      "unit": "ratio",
+      "samples": 42,
+      "median": 0.841,
+      "p95": 1.345,
+      "gate": {
+        "max": 0.95,
+        "why": "the front-end must not cost meaningfully more to start than the package it replaces; a ceiling, not a promise — the measured value is what the band watches"
+      },
+      "note": "median of 42 paired spawns, each round's burgee/yargs against the same round's yargs",
+      "detail": {
+        "ours": "burgee@0.7.1",
+        "host": "yargs@18.1.0"
+      }
+    },
+    {
+      "axis": "perf",
+      "variant": "burgee ÷ cac",
+      "metric": "cold-start-ratio",
+      "unit": "ratio",
+      "samples": 42,
+      "median": 2.131,
+      "p95": 2.605,
+      "gate": {
+        "max": 1.7,
+        "why": "the front-end must not cost meaningfully more to start than the package it replaces; a ceiling, not a promise — the measured value is what the band watches"
+      },
+      "note": "median of 42 paired spawns, each round's burgee against the same round's cac",
+      "detail": {
+        "ours": "burgee@0.7.1",
+        "host": "cac@7.0.0"
+      }
+    }
+  ],
+  "bands": {
+    "cold-start-ratio": {
+      "value": 1.391,
+      "from": {
+        "axis": "perf",
+        "variant": "burgee/commander ÷ commander",
+        "metric": "cold-start-ratio"
+      }
+    },
+    "compat-ansi-escapes-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-boxen-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-chalk-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-clack-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-cli-table3-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-commander-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-cosmiconfig-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-cross-spawn-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-dotenv-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-exit-hook-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-inquirer-core-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-lilconfig-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-log-update-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-ora-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-rc-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-restore-cursor-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-slice-ansi-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-string-width-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-strip-ansi-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-term-img-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-terminal-link-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-wrap-ansi-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-yargs-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "agent-exit-code-accuracy": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "agent-structured-output-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "agent-hangs-per-100": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "agent-schema-bytes": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "core-bundled-bytes": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "commander-front-end-bundled-bytes": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "yargs-front-end-bundled-bytes": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    }
+  },
+  "claims": {
+    "cold-start-at-or-below-cac": {
+      "claim": "the engine starts at or below cac, the lightest framework in the landscape",
+      "source": ".sdlc/intents/replacement-parser/intent.md #2, the scoreboard row in .sdlc/intents/README.md, and the speed row of apps/docs/content/docs/comparison.mdx",
+      "target": "<= 1",
+      "measured": 2.131,
+      "unit": "ratio",
+      "met": false,
+      "from": {
+        "axis": "perf",
+        "variant": "burgee ÷ cac",
+        "metric": "cold-start-ratio"
+      }
+    },
+    "core-under-52kb-bundled": {
+      "claim": "the core entry point is under 52 KB bundled",
+      "source": ".sdlc/intents/replacement-parser/intent.md #3",
+      "target": "<= 53248",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "lighter-than-cac": {
+      "claim": "`burgee` is lighter in a user's bundle than `cac`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "lighter-than-commander": {
+      "claim": "`burgee/commander` is lighter in a user's bundle than `commander`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "lighter-than-yargs": {
+      "claim": "`burgee/yargs` is lighter in a user's bundle than `yargs`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "lighter-than-chalk": {
+      "claim": "`roundel/chalk` is lighter in a user's bundle than `chalk`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "lighter-than-picocolors": {
+      "claim": "`roundel/tokens` is lighter in a user's bundle than `picocolors`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "lighter-than-ora": {
+      "claim": "`flagstaff/ora` is lighter in a user's bundle than `ora`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "lighter-than-boxen": {
+      "claim": "`flagstaff/boxen` is lighter in a user's bundle than `boxen`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "lighter-than-log-update": {
+      "claim": "`flagstaff/log-update` is lighter in a user's bundle than `log-update`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "lighter-than-string-width": {
+      "claim": "`linegauge` is lighter in a user's bundle than `string-width`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "lighter-than-wrap-ansi": {
+      "claim": "`linegauge/wrap` is lighter in a user's bundle than `wrap-ansi`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "lighter-than-slice-ansi": {
+      "claim": "`linegauge/slice` is lighter in a user's bundle than `slice-ansi`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "lighter-than-strip-ansi": {
+      "claim": "`linegauge/strip` is lighter in a user's bundle than `strip-ansi`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "lighter-than-ansi-escapes": {
+      "claim": "`paratext` is lighter in a user's bundle than `ansi-escapes`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "compat-commander": {
+      "claim": "commander's own test suite passes 1360 of 1360 against our entry point",
+      "source": "packages/compat-oracle/baseline/, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx",
+      "target": ">= 1360",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "compat-yargs": {
+      "claim": "yargs's own test suite passes 804 of 804 against our entry point",
+      "source": "packages/compat-oracle/baseline/, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx",
+      "target": ">= 804",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "compat-chalk": {
+      "claim": "chalk's own test suite passes 58 of 58 against our entry point",
+      "source": "packages/compat-oracle/baseline/, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx",
+      "target": ">= 58",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "compat-ora": {
+      "claim": "ora's own test suite passes 99 of 99 against our entry point",
+      "source": "packages/compat-oracle/baseline/, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx",
+      "target": ">= 99",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "compat-log-update": {
+      "claim": "log-update's own test suite passes 99 of 99 against our entry point",
+      "source": "packages/compat-oracle/baseline/, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx",
+      "target": ">= 99",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "compat-boxen": {
+      "claim": "boxen's own test suite passes 84 of 84 against our entry point",
+      "source": "packages/compat-oracle/baseline/, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx",
+      "target": ">= 84",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    }
+  }
+}
