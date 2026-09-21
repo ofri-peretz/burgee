@@ -109,6 +109,20 @@ is a harness change somebody will later mistake for one.
 The cost of the wrong premise was about forty minutes. The cost of having kept it would have
 been a plugin in the harness forever, and a note promising a fix that had already happened.
 
+## What is left, as of 2026-09-21
+
+**Nothing on an active row is a gap.** Every remaining case is a ceiling with a named
+cause, and D-097 lists them one by one. The number this file opened with — "the gradeable
+gap is 385" — was a premise, and measuring it took it to zero: `ansi-escapes` and
+`terminal-link` died on contact in September, `cli-table3`'s 104 closed on 2026-09-21 when
+the thirteen "ceiling" cases turned out to be the shim, and everything else was already a
+decision somebody had taken (constraint 3 for cosmiconfig's YAML, R11 for dotenv's and rc's
+ambient environment, D-030 for term-img, U6 for clack's last case).
+
+So the programme is now three unbuilt front-ends and one control that cannot clear its own
+reference. That is a much smaller and much more honest statement than this file made when
+it was written, and it is what the order below should be read against.
+
 ## Order
 
 Cheapest-to-complete first, because each finished package is a sellable claim and a
