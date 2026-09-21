@@ -25,21 +25,6 @@ import { DEFAULT_GROUND, defineBurgee, opposedField, type BurgeeBrand } from './
 import { auditBurgee, report, type ContrastFinding } from './contrast.js';
 import { defineCommand, defineProgram, run } from './execute.js';
 
-interface Options {
-  'no-watch'?: boolean;
-  name?: string;
-  on?: string;
-  'allow-low-contrast'?: boolean;
-  lead?: string;
-  follow?: string;
-  ground?: string;
-  charge?: string;
-  bordure?: string;
-  'bordure-width'?: string;
-  out?: string;
-  tagline?: string;
-}
-
 /** Master size for the standalone flag; rasterisers downsample from here. */
 const MASTER = 512;
 
@@ -99,14 +84,14 @@ export const brandCommand = defineCommand({
       description: 'path to an SVG whose contents replace the bars, drawn in a 0 0 100 100 box',
     },
     bordure: { type: 'string', description: 'outline colour, hex. Omit for no outline' },
-    'bordure-width': { type: 'string', default: DEFAULT_BORDURE_WIDTH, description: 'outline width' },
+    bordureWidth: { type: 'string', default: DEFAULT_BORDURE_WIDTH, description: 'outline width' },
     tagline: { type: 'string', description: 'one line under the name on the card and cover' },
     out: { type: 'string', description: 'directory to write into. Omit to print the flag only' },
     'on': {
       type: 'string',
       description: 'page colour(s) the flag will fly on, comma separated. Checked for contrast',
     },
-    'allow-low-contrast': {
+    allowLowContrast: {
       type: 'boolean',
       description: 'emit anyway when a contrast check fails. Says so in the output',
     },
@@ -126,7 +111,7 @@ export const brandCommand = defineCommand({
         : {
             bordure: {
               color: options.bordure,
-              width: Number(options['bordure-width'] ?? DEFAULT_BORDURE_WIDTH),
+              width: Number(options.bordureWidth ?? DEFAULT_BORDURE_WIDTH),
             },
           };
 
@@ -147,7 +132,7 @@ export const brandCommand = defineCommand({
       .filter((g) => g !== '');
     const findings: ContrastFinding[] = auditBurgee(brand, grounds);
     const failed = findings.filter((f) => !f.passes);
-    if (failed.length > 0 && options['allow-low-contrast'] !== true) {
+    if (failed.length > 0 && options.allowLowContrast !== true) {
       throw new Error(`contrast below WCAG AA:\n${report(failed)}\n${CONTRAST_HINT}`);
     }
 
@@ -173,7 +158,7 @@ export const devCommand = defineCommand({
   description: 'Watch a CLI entry, reload it on change, and serve it as MCP on stdio while you write it',
   arguments: [{ name: 'entry', description: 'the module that exports the program, as program or as its default export', required: true }],
   options: {
-    'no-watch': { type: 'boolean', description: 'load once and serve; do not watch for changes' },
+    noWatch: { type: 'boolean', description: 'load once and serve; do not watch for changes' },
   },
   /**
    * The first real use of the opt-out, and it is not a formality. `dev` **is** an MCP server:
@@ -187,7 +172,7 @@ export const devCommand = defineCommand({
     const [entry] = positionals;
     if (entry === undefined) throw new Error('an entry file is required');
     const [{ dev }, { processRuntime }] = await Promise.all([import('./dev.js'), import('./runtime.js')]);
-    const handle = dev({ entry, input: processRuntime.stdin, output: processRuntime.stdout, log: processRuntime.stderr, watch: options['no-watch'] !== true });
+    const handle = dev({ entry, input: processRuntime.stdin, output: processRuntime.stdout, log: processRuntime.stderr, watch: options.noWatch !== true });
     await handle.done;
   },
 });
