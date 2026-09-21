@@ -95,6 +95,7 @@ no answer is a decision to do nothing, made slowly.
 | D-052 | `burgee migrate`: interactive or not | **Non-interactive by default.** The second audience is an agent migrating a repository unattended; a prompt is a wall. Safety comes from refusing a dirty git tree and from `--dry-run`, not from asking | Taken | 2026-09-20 |
 | D-053 | `burgee migrate`: does it rewrite API calls too | **No — imports only.** `program.parse()` is the same call on both sides; that is what 1360 / 1360 means. Editing call sites would be claiming the façade is not drop-in, which is the opposite of the product | Taken | 2026-09-20 |
 | D-054 | `burgee migrate`: does it edit `package.json` | **No.** The report says which dependencies became removable; removing them is the maintainer's commit. A codemod that edits a manifest is a codemod that resolves a lockfile, and that is not this | Taken | 2026-09-20 |
+| D-055 | `burgee migrate`: how fast is fast enough | **A measured budget, not an adjective: 1,000 files under 500 ms, any single file under 1 ms**, gated on the number. One text pass, no AST — which costs two orders of magnitude less *and* costs no dependency, so the fast choice and the rule-2 choice are the same choice. A codemod a person watches is one they run once and never again | Taken | 2026-09-20 |
 
 ## How a question gets closed
 

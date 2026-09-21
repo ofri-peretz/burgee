@@ -39,6 +39,12 @@
   refused, so an agent branches on the code and reads the reason from `refused`.
 - **A9** It is a burgee command. `--help`, `--help --json`, `--schema`, the exit-code
   contract and `fix:` on failure are the framework's, not this feature's.
+- **A10** **It is fast enough that nobody waits.** One pass over each file's text, no parse,
+  no AST, no second read — and a measured budget rather than an adjective: **a 1,000-file
+  project in under 500 ms, and any single file in under 1 ms**, wall-clock, on the CI runner.
+  The budget is a gate in `migrate.bench.test.ts`, not a sentence in a README. A codemod a
+  person watches is a codemod they run once and never again, and the whole purpose of this
+  command is that trying burgee costs four minutes rather than an afternoon.
 
 ## Design
 
@@ -48,6 +54,13 @@ the five specifier positions in A3 and rewrites the quoted string in place; ever
 in the file, including formatting and comments, is untouched by construction. This is the
 whole reason the feature can exist with zero dependencies, and it is also why A4 exists: a
 position this scan cannot classify is refused rather than guessed.
+
+**Why one pass and no AST (A10).** Reading a file, parsing it to a syntax tree, editing the
+tree and printing it back costs roughly two orders of magnitude more than scanning the text
+once for five known positions — and it would also cost a dependency, which rule 2 forbids.
+The two constraints agree, which is rare and worth saying: the fast choice and the
+zero-dependency choice are the same choice here. Files are read and rewritten concurrently,
+bounded by the open-file limit rather than by a thread pool.
 
 **Why refusal beats best-effort.** A codemod that half-works is worse than one that declines,
 because the failure surfaces later as a runtime error in someone else's CLI, and the first
@@ -72,6 +85,8 @@ feature — it predates it — which is what makes it a real gate.
 4. A deep import is refused with file and line; the file on disk is unchanged afterwards.
 5. A file mixing a mappable and a refused specifier is left entirely unchanged (A5).
 6. `--json` round-trips: every count in the human report is present in the document.
+7. **A10 is measured, not asserted**: a generated 1,000-file tree migrates inside 500 ms and
+   the slowest single file inside 1 ms, failing on the number rather than on a feeling.
 
 **Proven red before green** — each of the six runs against a mutation of the implementation
 before the implementation exists, and the mutations are named in the test file: mapping
