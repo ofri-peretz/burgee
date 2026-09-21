@@ -61,10 +61,23 @@ jobs:
           pr-title: "chore(release): version packages"
           commit-message: "chore(release): version packages"
           # The token is an INPUT, not an env var. A PR opened with GITHUB_TOKEN raises no
-          # workflow runs — GitHub's loop-prevention rule — so the Version PR would sit at
-          # 0 checks against 3 required ones and could never merge (#35). Any other
-          # credential lifts that: RELEASE_BOT_PAT when it exists, and the default token
-          # otherwise, which keeps this workflow working until the secret is added.
+          # workflow runs — GitHub's loop-prevention rule — so the Version PR sits at 0
+          # checks against 3 required ones and can never merge (#35).
+          #
+          # **The sentence that used to end this paragraph was wrong, and it cost real
+          # time.** It said "RELEASE_BOT_PAT when it exists, and the default token
+          # otherwise, which keeps this workflow working until the secret is added". The
+          # default token is precisely the one that raises no runs, so the fallback does
+          # not keep anything working — it is the deadlock. #299, #367, #383 and #393 each
+          # sat at zero checks until somebody intervened by hand.
+          #
+          # **Until `RELEASE_BOT_PAT` is set, every release needs this by hand**: close the
+          # Version PR and reopen it. That is a human action, so the workflows fire. Two
+          # traps come with it. `gh pr update-branch` pushes with GITHUB_TOKEN and puts the
+          # PR straight back to zero checks, so update *first* and reopen *after*. And the
+          # reopen cancels any run already in flight, which surfaces as a Quality Gate
+          # failing in four seconds on five `cancelled` sub-jobs rather than on anything
+          # real — wait for the run to settle before reading it.
           #
           # Passing it as `env: GITHUB_TOKEN` instead does not work and is worse than not
           # working: the action reads `github-token` and then *throws* if the environment
