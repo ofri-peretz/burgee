@@ -419,9 +419,31 @@ const RULES: Record<string, EntryRule> = {
   // **E3, same day: +140 B on the same three.** `fix` beside `hint` in the failure envelope —
   // the exact flag a caller runs, against the prose a person reads. An agent can execute one
   // and has to interpret the other, and every *plugin* error in the family already carried it.
+  //
+  // **`facade-gets-more`, 2026-09-21: 129,000 -> 129,400, and this entry alone.** +350 B
+  // (128,973 -> 129,323), attributed: the `--mcp` transport is held before the first tool
+  // call rather than read at reply time (G3), an undeclared `--json` is recognised in
+  // `parseOptions` instead of spliced out of the unknown list afterwards (G4), and a failure
+  // under that flag is the envelope on stdout rather than prose on stderr (G5). `_takeJson`
+  // and one closure are deleted to part-pay for it: `_declares` is now one method the
+  // `--schema`, `--mcp` and `--json` surfaces share.
+  //
+  // What the 350 buys is the three rows in `.sdlc/intents/facade-gets-more/intent.md`. The
+  // worst was G3: a commander program that **had** declared its effects listed its tool and
+  // then never answered `tools/call` at all — no reply, exit 0, the client waiting forever —
+  // because `invoke` replaces `_outputConfiguration` on every command and the transport read
+  // the writer back out of it. A surface that is listed and cannot be called is worse than
+  // one that is absent.
+  //
+  // **And the number to distrust while reading this one.** `scripts/strip-comments.mjs`
+  // walks `readdirSync(dir)` and does not recurse, so `dist/commander/` is never stripped:
+  // **14,312 B of this entry is doc comments**, measured by transpiling the five files with
+  // `removeComments`. That is 41× the change above, in a directory whose sibling `dist/*.js`
+  // files are stripped. Recorded and not fixed here — it would move several entries at once,
+  // which is D-073's shape, and this lane owns none of `scripts/`.
   "./commander": {
     allow: ["bellpull/cross-spawn"],
-    budget: 129_000,
+    budget: 129_400,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   // yargs 18 ported method for method, with its whole dependency tree — yargs-parser 22,

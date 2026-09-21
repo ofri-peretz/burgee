@@ -198,12 +198,23 @@ describe('a commander program gets --schema and MCP tools from its projected man
     expect(schema.commands[0]).toMatchObject({ effects: 'non_idempotent', inputSchema: { required: ['target'] } });
   });
 
-  it('exposes as MCP tools only the commands whose effects were declared (N2)', () => {
+  /**
+   * **This assertion was reversed on 2026-09-21 (G1), and deliberately.** It used to read
+   * "exposes as MCP tools only the commands whose effects were declared", and pinned an
+   * undeclared command as absent. On burgee's own API that distinction is real — a runnable
+   * command cannot omit `effects`, so silence is impossible and absence always means
+   * `'withheld'`. On *this* façade it was not: commander has no notion of effects, so every
+   * command a migrated user writes is undeclared, and the pin said their whole program was
+   * not a tool. `withheld` still means absent, which is the half worth keeping.
+   */
+  it('exposes as MCP tools every command the author did not withhold (N2, G1)', () => {
     const program = new Command('app');
     program.command('status').description('Show status').effects('read_only').action(() => undefined);
     program.command('wipe').description('Delete everything').action(() => undefined);
-    expect(toolsOf(program.manifest).map((t) => t.name)).toEqual(['status']);
+    program.command('nuke').description('Delete everything, twice').effects('withheld').action(() => undefined);
+    expect(toolsOf(program.manifest).map((t) => t.name)).toEqual(['status', 'wipe']);
     expect(toolsOf(program.manifest)[0]?.annotations).toEqual({ readOnlyHint: true, idempotentHint: true, destructiveHint: false });
+    expect(toolsOf(program.manifest)[1]?.annotations).toEqual({ effects: 'undeclared' });
   });
 
   it('leaves a program that declares its own --schema option alone', async () => {
