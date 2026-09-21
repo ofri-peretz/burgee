@@ -555,9 +555,15 @@ export const HOSTS: Host[] = [
     imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
     surfaceFiles: ['index.d.ts', 'index.js'],
     runner: 'node:test',
+    // Declared, not committed. `has-ansi` used to sit in `vendor/wrap-ansi/node_modules/`
+    // with a `.gitignore` note naming the hazard — "a `--vendor` re-run deletes it" — and on
+    // 2026-09-21 a re-vendor run did exactly that, taking this row from 80 / 80 to **0 / 80**
+    // on `Cannot find package 'has-ansi'`. A documented hazard is still a hazard.
+    // `installSuiteDeps` restores this on every grade, so a re-vendor cannot remove it.
+    suiteDeps: ['has-ansi@6.0.2'],
     target: 'linegauge/wrap',
     status: 'active',
-    note: "80 / 80 control and 80 / 80 target, measured 2026-09-14 — the port reproduces wrap-ansi 10 exactly, which is what `wrap.test.ts` already asserted in-package and this makes public. Its suite imports `has-ansi`, which is committed under `vendor/wrap-ansi/node_modules/` rather than added to the root manifest; `vendor/wrap-ansi/.gitignore` carries the reason and the one hazard (a `--vendor` re-run deletes it).",
+    note: "80 / 80 control and 80 / 80 target, measured 2026-09-14 — the port reproduces wrap-ansi 10 exactly, which is what `wrap.test.ts` already asserted in-package and this makes public. Its suite imports `has-ansi`, declared in `suiteDeps` since 2026-09-21: it was a committed `vendor/wrap-ansi/node_modules/` directory, the `.gitignore` beside it named the hazard that a re-vendor would delete it, and a re-vendor then deleted it and took the row to 0 / 80.",
   },
   {
     // R4's grader, and the reason the style stack was extracted from `wrap.ts` at all:
