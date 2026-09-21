@@ -1,5 +1,39 @@
 # flagstaff
 
+## 0.3.1
+
+### Patch Changes
+
+- [#375](https://github.com/ofri-peretz/burgee/pull/375) [`98ac9a3`](https://github.com/ofri-peretz/burgee/commit/98ac9a38adce19bd8067d47b72573bb5fe0a3637) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `flagstaff/cli-table3` — cli-table3's internal surface now hangs off the default export, and
+  the informational internals column moves **0 / 104 to 90 / 104** against a control of 103 / 104.
+
+  No behaviour changed and the gated row is 29 / 29 before and after. All 104 internal cases
+  were failing as `X is not a function`: the compat oracle reaches a target's internals through
+  a CommonJS shim whose body is `module.exports = loaded?.default ?? loaded`, and that unwrap
+  hands the suite the `Table` class rather than the namespace where `Cell`, `strlen`,
+  `computeWidths` and fifteen more already lived. `Object.assign(Table, { … })` at the foot of
+  the module publishes them the way cli-table3's own `src/cell.js` publishes `ColSpanCell` and
+  `RowSpanCell` — a second spelling of names this subpath already exported, plus six that were
+  private only because nothing had asked.
+
+  Two ceilings are recorded with the measurement in `compat-oracle/src/hosts.ts` rather than
+  chased: 13 cases in `table-layout-test.js` that resolve `Cell` to `Table` because the shim
+  collapses four internal modules onto one entry, and the 94 cases of `cell-test.js`, which
+  never register in the control run either.
+
+  `./cli-table3`'s byte ratchet rises 29,000 to 29,300 for the 240 B this costs, with the
+  reasoning in `weight.test.ts`. It is a ceiling moving in the loosening direction and is the
+  owner's to reverse.
+
+- [#373](https://github.com/ofri-peretz/burgee/pull/373) [`a1f1d40`](https://github.com/ofri-peretz/burgee/commit/a1f1d40b7d1e7244f3a180943b641bb3b491d256) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Stage 2's artifact is now `spec.md`, the name Anthropic's AI-Native SDLC playbook gives it, so the source comments and README sections that cite a package's own design document point at `spec.md` rather than `design.md`.
+
+  No behaviour changes. The published tarballs do move, by two bytes per surviving reference — `design.md` is nine characters and `spec.md` is seven — so the four packages carrying a weight band were re-measured against it: linegauge 83,538 to 83,536; paratext 66,343 to 66,341; closeout 84,455 to 84,453; bellpull 86,113 to 86,107.
+
+- Updated dependencies [[`f3224f4`](https://github.com/ofri-peretz/burgee/commit/f3224f4f43da21bbeeac931c2ec8afc50f0c3235), [`2f6cb16`](https://github.com/ofri-peretz/burgee/commit/2f6cb160f488668c56d61e3e3f0ed612137295af), [`a1f1d40`](https://github.com/ofri-peretz/burgee/commit/a1f1d40b7d1e7244f3a180943b641bb3b491d256)]:
+  - paratext@0.4.0
+  - closeout@0.2.1
+  - linegauge@0.3.1
+
 ## 0.3.0
 
 ### Minor Changes
