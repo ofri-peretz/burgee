@@ -142,16 +142,16 @@ returns **404**.
 
 None open. Decided at finalisation (2026-09-06):
 
-- **One model for the band and the article**: the model most agents run today, pinned by
+- Decided 2026-09-06: **One model for the band and the article**: the model most agents run today, pinned by
   id in every results file; a model change starts a new band history. Cheaper models may
   be run ad hoc but never feed the band.
-- **A yargs cell is added when `yargs-agent` lands** (four cells: host × layer). The band
+- Decided 2026-09-06: **A yargs cell is added when `yargs-agent` lands** (four cells: host × layer). The band
   reads the commander `layer: on` cell only, so the number stays comparable.
-- **"Turns" means tool calls** as reported by `claude -p --output-format json`;
+- Decided 2026-09-06: **"Turns" means tool calls** as reported by `claude -p --output-format json`;
   documented in the results schema.
-- **B1 runs weekly, B2/B3/B4 run per PR.** B1 costs money and is noisy over short
+- Decided 2026-09-06: **B1 runs weekly, B2/B3/B4 run per PR.** B1 costs money and is noisy over short
   intervals; the other three are cheap, deterministic enough to gate on, and are the ones
   a PR can regress silently.
-- **The name is `cli-benchmarks`, not `agent-cli-bench`.** The suite outgrew the agent
+- Decided 2026-09-06: **The name is `cli-benchmarks`, not `agent-cli-bench`.** The suite outgrew the agent
   axis on 2026-09-06; a name that describes one of four axes would mislead the next
   reader into adding a fifth benchmark elsewhere.

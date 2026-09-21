@@ -92,15 +92,15 @@ Six incumbents, **685 M weekly downloads**, and none of them can promise the las
 
 ## Open questions
 
-- **What is the default deadline?** It must be long enough that an honest flush completes
+- **What is the default deadline?** **Decided 2026-09-20 → D-017.** It must be long enough that an honest flush completes
   and short enough that an agent is not stuck. There is no incumbent to copy, so the number
   has to be argued from measurement of real cleanup work.
-- **Can `exitCode` be preserved on every path?** A handler that runs after `process.exit(3)`
+- **Can `exitCode` be preserved on every path?** **Decided 2026-09-20 → D-018.** A handler that runs after `process.exit(3)`
   must not silently change the code to 0. `signal-exit`'s suite may or may not assert this;
   if it does not, it becomes one of our own conformance cases.
-- **Does `once`/`onetime` belong here at all?** 162 M/wk and it is genuinely used outside
+- **Does `once`/`onetime` belong here at all?** **Decided 2026-09-20 → D-019.** 162 M/wk and it is genuinely used outside
   lifecycle. Keeping it makes the override recipe richer; it also widens the layer past its
   name. Deferred to `design.md`.
-- **Worker threads and `beforeExit`.** Whether the exactly-once guarantee extends across
+- **Worker threads and `beforeExit`.** **Decided 2026-09-20 → D-020.** Whether the exactly-once guarantee extends across
   worker boundaries, or is documented as per-thread. Being wrong here is worse than being
   narrow.

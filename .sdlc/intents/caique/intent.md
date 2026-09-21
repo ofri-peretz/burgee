@@ -95,7 +95,7 @@ criterion 2 all count it. It is also unpublished: 0.1.0 in the tree, **0.0.1 on 
 
 None open. Decided at finalisation (2026-09-06):
 
-- **Floor addition P3 is adopted.**
-- **"Go back a step" is out of scope for v1**; groups are linear.
-- **`--interactive` prompts for missing required options only; `--interactive=all`
+- Decided 2026-09-06: **Floor addition P3 is adopted.**
+- Decided 2026-09-06: **"Go back a step" is out of scope for v1**; groups are linear.
+- Decided 2026-09-06: **`--interactive` prompts for missing required options only; `--interactive=all`
   also prompts optional ones that declare a `prompt`.**

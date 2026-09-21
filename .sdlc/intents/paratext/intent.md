@@ -99,8 +99,8 @@ Concretely:
 
 ## Open questions
 
-- Whether `image` should accept a path as well as a buffer — `term-img` does, and it means
+- Whether `image` should accept a path as well as a buffer **Decided 2026-09-20 → D-030.** — `term-img` does, and it means
   `node:fs` in a package that otherwise touches nothing. Leaning: no; the caller reads the
   file and owns the I/O.
-- Whether the `Support` table for known terminals lives in the package or in a data file a
+- Whether the `Support` table for known terminals lives in the package **Decided 2026-09-20 → D-031.** or in a data file a
   plugin can replace wholesale. Leaning: data file, because that is the thing that rots.

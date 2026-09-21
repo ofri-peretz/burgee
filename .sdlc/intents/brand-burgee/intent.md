@@ -110,13 +110,13 @@ design exists; that is the lock working, not an obstacle to route around.
 
 ## Open questions
 
-- **Does this belong in this repo at all?** It shares the "one declaration, many
+- **Does this belong in this repo at all?** **Decided 2026-09-20 → D-043.** It shares the "one declaration, many
   projections" thesis, but nothing else — not argv, not the manifest. `interlace` is the
   other candidate home. This is the question to settle before any design.
-- What does "provide your logo image" mean concretely — is a supplied glyph *embedded* in
+- What does "provide your logo image" mean concretely **Decided 2026-09-20 → D-044.** — is a supplied glyph *embedded* in
   the flag field, or does the generator only ever emit the two-tone field? Embedding a
   raster into an SVG that must stay legible at 16px is a different problem from
   colouring a locked shape.
-- Should the generator itself be a burgee CLI? It would be the honest dogfood — a real
+- Should the generator itself be a burgee CLI? **Decided 2026-09-20 → D-045.** It would be the honest dogfood — a real
   command, served through `--json`, `--schema` and `--mcp` like any other.
-- Which raster formats actually earn their place, and against which rasteriser.
+- Which raster formats actually earn their place **Decided 2026-09-20 → D-046.**, and against which rasteriser.

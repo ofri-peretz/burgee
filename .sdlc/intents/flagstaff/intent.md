@@ -141,10 +141,10 @@ name a home the work does not live in, and three name an artifact that does not 
 
 ## Open questions
 
-- **Plugin discovery.** Explicit `register()` only, or also a `burgee.plugins` field in
+- **Plugin discovery.** **Decided 2026-09-20 → D-028.** Explicit `register()` only, or also a `burgee.plugins` field in
   `package.json` the way ESLint flat config lists plugins as an array? Data-first says
   the array; Z1 says nothing may require a config file. Explicit first, discovery only if
   `cli-modularity` needs it for its own plugins.
-- **Character and mascot plugins.** A state-keyed frame set is the same shape as a
+- **Character and mascot plugins.** **Decided 2026-09-20 → D-029.** A state-keyed frame set is the same shape as a
   spinner with more states. Whether it earns its own key or is just a spinner with named
   states is a design question, and the smaller answer is probably right.

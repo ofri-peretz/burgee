@@ -133,19 +133,19 @@ repo can run it.
 
 ## Open questions
 
-1. **Name.** The family names are nautical or from printing — `burgee`, `flagstaff`,
+1. **Name.** **Decided 2026-09-20 → D-034.** The family names are nautical or from printing — `burgee`, `flagstaff`,
    `caique`, `bellpull`, `linegauge`, `paratext`. `loadline` is free on npm today
    (2026-09-14) and is the mark on a hull that says how deeply it may be loaded: a
    published limit, verified by survey, that you may not cross. `plimsoll` (the same mark),
    `assay`, `waterline` and `freeboard` are all taken. The name is the owner's call.
-2. **Does it leave this repo?** Rule 10 is one repo per family. If `eslint/` is to be
+2. **Does it leave this repo?** **Decided 2026-09-20 → D-035.** Rule 10 is one repo per family. If `eslint/` is to be
    graded by the same instrument, the grader is its own family and the vendored suites
    travel with it — a much larger move than a rename. If it stays, it is burgee-family only
    and `eslint/` keeps making compatibility claims with no instrument.
-3. **What happens to `conformance`?** Same private status, adjacent job, not covered by
+3. **What happens to `conformance`?** **Decided 2026-09-20 → D-036.** Same private status, adjacent job, not covered by
    this intent's evidence.
-4. **Do the vendored suites ship in the tarball?** 322 files of someone else's tests, under
+4. **Do the vendored suites ship in the tarball?** **Decided 2026-09-20 → D-037.** 322 files of someone else's tests, under
    their own licences. Publishing the grader without them makes it un-runnable by a
    stranger; publishing with them is a licence question this intent has not answered.
-5. **The four changesets.** Released with the first version of the new package, or retired
+5. **The four changesets.** **Decided 2026-09-20 → D-038.** Released with the first version of the new package, or retired
    because their prose already lives in the commits that introduced them?

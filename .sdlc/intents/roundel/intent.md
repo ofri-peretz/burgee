@@ -111,9 +111,9 @@ recently run `34309347964`). The weight is measured; the ship is not.
 
 ## Open questions
 
-- **Does `./policy` stay here or become its own package?** Deferred to `design.md`. The
+- **Does `./policy` stay here or become its own package?** **Decided 2026-09-20 → D-026.** Deferred to `design.md`. The
   test is whether `flagstaff` peering on `roundel` for one function is acceptable, or
   whether a package of one function is the smaller evil.
-- **`chalk.level` and `chalkStderr`.** Chalk's global mutable level and its per-stream
+- **`chalk.level` and `chalkStderr`.** **Decided 2026-09-20 → D-027.** Chalk's global mutable level and its per-stream
   instance are the two places its model and U2 disagree. The façade has to honour both to
   pass chalk's tests; how that maps onto one policy is a design decision.
