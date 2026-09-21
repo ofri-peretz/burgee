@@ -96,6 +96,20 @@ const cell = (label: string, variant: string): string => {
 /** The row the page publishes: a variant's median spawn less the bare-node floor. */
 const overFloor = (variant: string): string => (value(variant, 'cold-start-ms') - value('bare node', 'cold-start-ms')).toFixed(MS_PLACES);
 
+/**
+ * How far the stated installed size may sit from the measured one.
+ *
+ * **Exactness here was a tax with no signal.** This cell moved five times in one night —
+ * 1076, 1083, 1128, 1130, 1148, 1103, 1104 — because every merge that publishes a byte
+ * changes it, and each change failed CI on a branch whose author could not have known the
+ * number until CI told them. The cell exists to stop the drift that once left it at 561 KB
+ * against a tree 2.3x that; a 2% band stops exactly that and stops nothing else.
+ *
+ * Anything that moves this row by more than 2% is a change worth restating by hand.
+ */
+const SIZE_TOLERANCE = 0.02;
+const PERCENT = 100;
+
 describe('comparison.mdx states the numbers the suite measured', () => {
   it.skipIf(process.env['CI'] !== 'true').each([
     ['burgee', 'burgee'],
@@ -103,7 +117,13 @@ describe('comparison.mdx states the numbers the suite measured', () => {
     ['yargs', 'yargs'],
     ['cac', 'cac'],
   ])('installed size for %s — checked in CI, where the node_modules walk resembles an install', (_label, variant) => {
-    expect(cell('Installed size', variant), `the ${variant} cell of the installed-size row`).toContain(`${String(kb(variant))} KB`);
+    const measured = kb(variant);
+    const stated = Number(/([\d,]+)\s*KB/.exec(cell('Installed size', variant))?.[1]?.replace(/,/gu, '') ?? Number.NaN);
+    expect(stated, `the ${variant} cell of the installed-size row states no KB figure`).not.toBeNaN();
+    expect(
+      Math.abs(stated - measured) / measured,
+      `the ${variant} cell says ${String(stated)} KB and the tree measures ${String(measured)} KB — outside the ${String(SIZE_TOLERANCE * PERCENT)}% band`,
+    ).toBeLessThanOrEqual(SIZE_TOLERANCE);
   });
 
   it.each(['burgee', 'commander', 'yargs', 'cac'])('full-run delta over bare node for %s', (variant) => {

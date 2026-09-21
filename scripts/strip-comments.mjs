@@ -7,6 +7,12 @@
 // Emitted JSON is re-serialised without its indentation for the same reason: tsc pretty-
 // prints every data file it copies, and flagstaff's spinner corpus pays 13 KB for the
 // whitespace. The parse is also a check that what shipped is valid JSON.
+//
+// It walks **subdirectories too**, and that was a real omission rather than a tidy-up: the
+// first version read one level, so `dist/commander/` shipped untouched and **14,312 bytes of
+// burgee's `./commander` entry were doc comments** — forty-one times the ratchet that entry
+// had just been raised by. A package with a flat `dist/` never noticed; one with a nested
+// entry point paid for prose on every install.
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -15,20 +21,28 @@ import ts from 'typescript';
 const dir = process.argv[2] ?? 'dist';
 let files = 0;
 let jsonFiles = 0;
-for (const name of readdirSync(dir)) {
-  if (name.endsWith('.json')) {
-    const at = join(dir, name);
-    writeFileSync(at, JSON.stringify(JSON.parse(readFileSync(at, 'utf8'))));
-    jsonFiles += 1;
-    continue;
+
+function strip(at) {
+  for (const entry of readdirSync(at, { withFileTypes: true })) {
+    const full = join(at, entry.name);
+    if (entry.isDirectory()) {
+      strip(full);
+      continue;
+    }
+    if (entry.name.endsWith('.json')) {
+      writeFileSync(full, JSON.stringify(JSON.parse(readFileSync(full, 'utf8'))));
+      jsonFiles += 1;
+      continue;
+    }
+    if (!entry.name.endsWith('.js')) continue;
+    const { outputText } = ts.transpileModule(readFileSync(full, 'utf8'), {
+      fileName: full,
+      compilerOptions: { removeComments: true, target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext },
+    });
+    writeFileSync(full, outputText);
+    files += 1;
   }
-  if (!name.endsWith('.js')) continue;
-  const at = join(dir, name);
-  const { outputText } = ts.transpileModule(readFileSync(at, 'utf8'), {
-    fileName: at,
-    compilerOptions: { removeComments: true, target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext },
-  });
-  writeFileSync(at, outputText);
-  files += 1;
 }
+
+strip(dir);
 process.stdout.write(`stripped comments from ${files} file(s) and reserialised ${jsonFiles} JSON file(s) in ${dir}\n`);
