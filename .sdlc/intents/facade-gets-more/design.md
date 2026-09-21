@@ -147,6 +147,56 @@ at once and no way to attribute a break. `fix` is added because it is new inform
 fixes the command-group root and leaves the swallowed-operand defect, because the operand
 is consumed before `_parseCommand` sees the list. Half of a two-line fix is not cheaper.
 
+## Cold start — measured here, deliberately not changed here
+
+Asked, while this lane was open, whether `execute.ts`'s three static imports — `help.js`,
+`mcp.js`, `schema.js`, 15.45 kB of the root bundle — should become `await import()` to move
+`cold-start-at-or-below-cac`, which stands at **2.581** against a claim of ≤ 1. They were
+measured rather than assumed, and the answer is: that specific change buys 4.3 ms of 55, and
+the reason is not in `execute.ts`.
+
+`benchmarks/fixtures/cold-start/burgee.mjs` imports from the **barrel**, which is what a user
+writes, and `index.ts` re-exports `renderHelp`, `serveMcp`, `toolsOf` and `schemaOf`
+statically. Node loads those three whatever `execute.ts` does, so the deferral only reshapes
+the graph; it does not shrink it.
+
+Medians of 25 interleaved pairs of `import 'burgee'`, the same alternating shape
+`benchmarks/axes/perf.ts` uses, patching a copy of `dist/` and restoring it:
+
+| variant | median | delta |
+| :-- | --: | --: |
+| as shipped | 65.7 ms | — |
+| `execute.js` defers all three, barrel unchanged | 61.4 ms | **−4.3 ms** |
+| barrel **also** stops re-exporting them | 37.5 ms | **−27.7 ms** |
+
+Where the time goes, each measured as its own graph, standalone:
+
+| module graph | load |
+| :-- | --: |
+| `linegauge` (reached from `help.js`) | 31.3 ms |
+| `closeout` (reached from `shutdown.js`) | 14.3 ms |
+| `roundel` | 11.0 ms |
+| `seniority/precedence` | 7.1 ms |
+| `commander`, for scale | 12.5 ms |
+
+And inside `linegauge`, two separable costs: `const segmenter = new Intl.Segmenter()` at
+module scope, which is **7.0 ms** to construct on this box and is paid by every run whether
+or not anything is measured; and its `dist/` carrying doc comments, worth **4.8 ms** of parse
+time on the same interleaved A/B.
+
+Two conclusions, both of which belong to somebody else's lane:
+
+1. **The claim cannot be met by deferring modules from `execute.ts`.** cac's whole overhead
+   above bare node is 4.6 ms (29.8 vs 25.2). burgee's is 55.0 ms. To reach a ratio of 1,
+   `import { run } from 'burgee'` must load in about what cac does — so the barrel must
+   reach almost nothing at startup, `linegauge`, `closeout` and the three surfaces included.
+   The −27.7 ms row above is the largest single step and it lands at roughly 1.8, not 1.
+2. **Removing the three from the barrel is a breaking public API change** — `renderHelp`,
+   `serveMcp`, `toolsOf`, `schemaOf` and friends. That is an owner's call about burgee's
+   public surface, not a byte optimisation, and doing it inside a façade lane would hide it.
+
+Nothing here was changed. The scripts are `.claude/repro/ab.sh` and `ab-linegauge.sh`.
+
 ## Out of scope
 
 - `--help --json` (F2) and `--explain` (V3) on the façades. Both are served by the engine's
