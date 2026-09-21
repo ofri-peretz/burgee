@@ -4,14 +4,14 @@
  * `tools/call`. Tool definitions come from the manifest and nothing else; a tool call is
  * the same run a `--json` caller gets, so both see one envelope (N4).
  *
- * Only a command that declares its `effects` is a tool (N2, N6): an agent gaining
- * shell-equivalent power over a CLI nobody meant to publish is a security posture, not a
- * convenience.
+ * A command an author withheld is not a tool (N2, N6): an agent gaining shell-equivalent
+ * power over a CLI nobody meant to publish is a security posture, not a convenience. That is
+ * a decision somebody wrote down — `effects: 'withheld'` — and `checkCommand` refuses a
+ * runnable command that omits `effects` on burgee's own API, so on that API silence is
+ * impossible.
  *
- * That filter is unchanged, and since 2026-09-17 it is fed a declaration rather than a
- * silence. `checkCommand` refuses a runnable command that omits `effects`, so the only way
- * to be absent from this list on purpose is to say `effects: 'withheld'` — which is what an
- * author who means it now writes, and what an author who forgot is told to write.
+ * It is not impossible on the façades, and since 2026-09-21 silence is no longer read as
+ * refusal there (G1). See {@link toolsOf}.
  */
 import { createInterface } from 'node:readline';
 
@@ -29,9 +29,15 @@ interface Request {
 }
 
 export interface ToolAnnotations {
-  readOnlyHint: boolean;
-  idempotentHint: boolean;
-  destructiveHint: boolean;
+  readOnlyHint?: boolean;
+  idempotentHint?: boolean;
+  destructiveHint?: boolean;
+  /**
+   * `'undeclared'`, and only ever that (G1). It appears on a command whose author said
+   * nothing — every commander and yargs command that did not call `.effects()` — and never
+   * beside a hint, because a hint is what a declaration produces.
+   */
+  effects?: 'undeclared';
 }
 
 export interface Tool {
@@ -48,8 +54,17 @@ const JSON_RPC_INVALID_REQUEST = -32600;
 const JSON_RPC_METHOD_NOT_FOUND = -32601;
 const JSON_RPC_INVALID_PARAMS = -32602;
 
-/** MCP's hints, from the declared effects. `destructiveHint` is only ever false by declaration. */
-export function annotationsOf(effects: Effects): ToolAnnotations {
+/**
+ * MCP's hints, from the declared effects. `destructiveHint` is only ever false by declaration.
+ *
+ * No declaration returns no hints (G1). That is not a gap: MCP defines a default for each of
+ * the three — `readOnlyHint: false`, `destructiveHint: true`, `idempotentHint: false` — so an
+ * absent hint already reads as *assume the worst*, in the client's own vocabulary and without
+ * burgee inventing a value it has no basis for. `effects: 'undeclared'` is the positive half:
+ * this command is not a `read_only` one, and it is not a `withheld` one either — nobody said.
+ */
+export function annotationsOf(effects?: Effects): ToolAnnotations {
+  if (effects === undefined) return { effects: 'undeclared' };
   return {
     readOnlyHint: effects === 'read_only',
     idempotentHint: effects !== 'non_idempotent',
@@ -67,20 +82,26 @@ function describe(node: CommandNode): string {
 }
 
 /**
- * The tool list: every runnable, visible command that declared what running it does.
+ * The tool list: every runnable, visible command an author has not withheld.
  *
- * Two commands are absent and for different reasons. One declared `'withheld'` — an author
- * who thought about it and said no, which is what that word is for. The other has no
- * `effects` at all, which `checkCommand` now refuses at declaration, so on burgee's own API
- * it cannot reach here; a command built through the commander or yargs façade still can,
- * because neither incumbent has a notion of effects and neither can be made to acquire one
- * without breaking the suites that grade the façades. The filter treats both as *not a
- * tool*, which is the same conservative reading it always had.
+ * One word is absent and one is not, and until 2026-09-21 they were the same thing. An
+ * author who wrote `'withheld'` thought about it and said no; that is what the word is for
+ * and it still means absent. An author who wrote nothing — which on burgee's own API
+ * `checkCommand` refuses, and which **every** command built through the commander or yargs
+ * façade is, because neither incumbent has a notion of effects and neither can be made to
+ * acquire one without breaking the suites that grade the façades — was treated the same way,
+ * so a migrated user's whole program was silently not a tool.
+ *
+ * Reading silence as refusal was conservative and it was also the thing standing between the
+ * product and its own pitch. Absent-from-the-list is strictly worse for the caller than
+ * present-with-honest-annotations: an agent that cannot see a command cannot decide about it,
+ * and cannot ask. So an undeclared command is listed and says so — see {@link annotationsOf}
+ * for why it carries no hints rather than a reassuring default.
  */
 export function toolsOf(manifest: Manifest): Tool[] {
   return runnable(manifest)
-    .filter((c): c is CommandNode & { effects: Effects } => c.effects !== undefined && c.effects !== WITHHELD)
-    .map((c) => ({ name: toolName(c, manifest.rootPath), description: describe(c), inputSchema: inputSchemaOf(c), annotations: annotationsOf(c.effects) }));
+    .filter((c) => c.effects !== WITHHELD)
+    .map((c) => ({ name: toolName(c, manifest.rootPath), description: describe(c), inputSchema: inputSchemaOf(c), annotations: annotationsOf(c.effects as Effects | undefined) }));
 }
 
 function optionArgs(node: CommandNode, args: Record<string, unknown>): string[] {
@@ -123,8 +144,9 @@ async function callTool(session: Session, params: Record<string, unknown> | unde
   const given = params ?? {};
   const raw = given['name'];
   const name = typeof raw === 'string' ? raw : '';
-  const exposed = new Set(toolsOf(manifest).map((t) => t.name));
-  const node = exposed.has(name) ? runnable(manifest).find((c) => toolName(c, root) === name) : undefined;
+  // The same predicate `toolsOf` filters by, rather than a `Set` of its output: one rule for
+  // what is callable, in one place, and a withheld command is still refused here.
+  const node = runnable(manifest).find((c) => c.effects !== WITHHELD && toolName(c, root) === name);
   if (node === undefined) return { error: { code: JSON_RPC_INVALID_PARAMS, message: `unknown tool "${name}"` } };
   const args = (given['arguments'] ?? {}) as Record<string, unknown>;
   const { stdout, stderr, code } = await invoke(argvOf(node, root, args));
