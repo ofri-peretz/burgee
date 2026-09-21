@@ -3,7 +3,7 @@
  *
  * This repository already decided that for `boxen`: every one of its ava cases is
  * `t.snapshot(box)`, and the compat-oracle's R2 gates a drawing case when the host's
- * contract *is* its output (`.sdlc/intents/output-stack-compat/design.md`). burgee's own
+ * contract *is* its output (`.sdlc/intents/output-stack-compat/spec.md`). burgee's own
  * help had no snapshot at all — twenty by-construction fixes asserted once each, by a test
  * that names the property it is checking and therefore cannot see a change it was not
  * looking for. A snapshot sees all of them.

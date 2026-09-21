@@ -79,7 +79,7 @@ Measured on this repo today, not felt:
 Checked criterion by criterion on `61bd11b9`. **One of four met, one half.** `draft` is the
 honest status and it is already what this file says — but note that a `burgee brand` command,
 six generated surfaces and a `brand:check` script all shipped *before* this intent has a
-`design.md`, so the Design→Build gate was skipped here. It cannot move to `approved` until that
+`spec.md`, so the Design→Build gate was skipped here. It cannot move to `approved` until that
 design exists; that is the lock working, not an obstacle to route around.
 
 `npm run brand:check` exits 0: `brand: 6 surfaces and the mark component match the declaration`.

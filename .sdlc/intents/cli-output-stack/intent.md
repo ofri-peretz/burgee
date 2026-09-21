@@ -74,7 +74,7 @@ tests, not a reason to switch.
 - `cli-benchmarks` B4 grows a per-subpath row and a new published number: **total
   runtime dependencies of a complete CLI**, burgee stack against commander + chalk + ora +
   cli-table3 + inquirer.
-- `burgee/design.md` gains U1–U8.
+- `burgee/spec.md` gains U1–U8.
 
 ## Constraints
 
@@ -219,7 +219,7 @@ kept as the record they always were (confirmed 2026-09-20, D-072).
   optional. The `burgee-*` compounds so nobody squats them.
 - Decided: **Where the policy module lives.** U2 needs one decision point that `roundel`,
   `flagstaff` and `caique` all read. Candidates: a fourth tiny package, or a subpath
-  of `roundel` that the others peer on. Decide in `roundel/design.md`; the constraint
+  of `roundel` that the others peer on. Decide in `roundel/spec.md`; the constraint
   is that it costs the chalk façade nothing it does not already need.
 - Decided: **Sequencing against the scoreboard.** No package of the stack publishes before
   `burgee/commander` publishes its pass rate. A second product before the first has a

@@ -1,7 +1,7 @@
 # Design — seniority
 
 Intent: [`intent.md`](./intent.md). Umbrella:
-[`cli-foundation-stack`](../cli-foundation-stack/design.md). **Status:** draft.
+[`cli-foundation-stack`](../cli-foundation-stack/spec.md). **Status:** draft.
 
 **Build state, 2026-09-15 (PLAN 3.2).** Every requirement's status is in
 [§ What is built](#what-is-built), which is the list 3.2's "Done when" reads. Fourteen of the

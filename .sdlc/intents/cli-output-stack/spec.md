@@ -59,7 +59,7 @@ principle, and principles drift.
 
 ## At approval — the edits the human gate triggers
 
-1. Fold U1–U13 into `burgee/design.md`'s floor table and change its header
+1. Fold U1–U13 into `burgee/spec.md`'s floor table and change its header
    from 79 to 92 requirements; every stack intent already cites the ids.
 2. Change `scripts/package-shape-lock.test.ts` per R1 (same-repo dependencies, ordered).
 3. Add the R13 step to `release.yml` and commit an empty `.sdlc/bands/scoreboard-public.json`
@@ -115,7 +115,7 @@ publishes a working release before `burgee/commander`'s pass rate is on the docs
 - **Scoped names.** Ruled out by the owner in the index.
 - **Peers instead of same-repo dependencies.** Rejected 2026-09-08 with U6: a peer pushes an
   install step onto the user for a package we ship ourselves.
-- **Wrapping clack in `caique`.** Reversed 2026-09-08; see `caique/design.md`.
+- **Wrapping clack in `caique`.** Reversed 2026-09-08; see `caique/spec.md`.
 - **Ink compatibility.** Would mean shipping React; contradicts U6 and U8.
 
 ## Out of scope

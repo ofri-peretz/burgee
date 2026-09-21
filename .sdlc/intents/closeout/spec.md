@@ -1,7 +1,7 @@
 # Design — closeout
 
 Intent: [`intent.md`](./intent.md). Umbrella:
-[`cli-foundation-stack`](../cli-foundation-stack/design.md). **Status:** draft.
+[`cli-foundation-stack`](../cli-foundation-stack/spec.md). **Status:** draft.
 
 ---
 

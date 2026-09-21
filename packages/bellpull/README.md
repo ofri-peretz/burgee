@@ -33,7 +33,7 @@ only when **no process ran**: the executable did not resolve, or the spawn faile
 - **Zero dependencies.** `cross-spawn` pulls three packages; `execa` pulls sixteen.
 
 **What it is not.** `execa`'s streaming API and its `` $`cmd` `` form are a different product
-and are out of scope — see [`design.md`](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/bellpull/design.md).
+and are out of scope — see [`spec.md`](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/bellpull/spec.md).
 And the weight pitch in this layer is already taken: `tinyexec` is zero-dependency, has
 119.5 M downloads a week, and was published 2026-09-03. The claim here is resolution and
 shape, not bytes.
@@ -115,7 +115,7 @@ Graded by the incumbent's own test suite:
 | :-- | --: |
 | `cross-spawn` | 68 / 68 |
 
-Weight, installed and tree-inclusive: **86,113 bytes** against **714,984** for the incumbents it replaces — a ratio of **0.1204**.
+Weight, installed and tree-inclusive: **86,107 bytes** against **714,984** for the incumbents it replaces — a ratio of **0.1204**.
 ## Where it sits
 
 Plugins register under the `resolvers` key, against the one schema the whole family shares.

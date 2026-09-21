@@ -26,7 +26,7 @@
  *
  * **Honest scope.** `execa`'s surface is not reproduced — its streaming API and its
  * template-literal form are a different product and are recorded as out of scope in
- * `design.md`. What is here is the result shape and the resolution, which is what the
+ * `spec.md`. What is here is the result shape and the resolution, which is what the
  * intent's kill gate says to build on.
  */
 import { ambientRuntime } from './ambient.js';

@@ -110,10 +110,10 @@ They share one design (`cli-foundation-stack`), one set of Y rules, and one shap
 gating them four times is four copies of the same conversation.
 
 **All four are accepted at the Design→Build gate as of 2026-09-13**, under the owner's
-standing instruction to proceed, recorded in each `design.md` with that wording. What
+standing instruction to proceed, recorded in each `spec.md` with that wording. What
 is *not* pre-accepted: any change to a published claim (an npm `description`, a README
 number, a version ≥ 1.0), which stops and asks as it always did.
-Done when: `grep -l "Accepted at the Design→Build gate" .sdlc/intents/*/design.md | wc -l`
+Done when: `grep -l "Accepted at the Design→Build gate" .sdlc/intents/*/spec.md | wc -l`
 → ≥ 6 (the four, plus paratext and plugin-contract).
 
 **D4 — one PR per package, not per suite.** Wave 2 groups a package's suites into one
@@ -148,8 +148,8 @@ source that are not in either list.
 **D6 — the widening is a requirement inside the existing designs, not a new intent.**
 It is one line per package in service of a step those designs already have (caique R5,
 seniority's sources). A third intent for a type change would put the reason in a file
-nobody reading `spec.ts` opens. Recorded in `.sdlc/intents/caique/design.md` and
-`.sdlc/intents/seniority/design.md`.
+nobody reading `spec.ts` opens. Recorded in `.sdlc/intents/caique/spec.md` and
+`.sdlc/intents/seniority/spec.md`.
 Done when: both design files name the open-union idiom.
 
 **D7 — the issue miner uses `gh api` with the session's existing token.**

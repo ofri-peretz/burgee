@@ -1,7 +1,7 @@
 # Design — bellpull
 
 Intent: [`intent.md`](./intent.md). Umbrella:
-[`cli-foundation-stack`](../cli-foundation-stack/design.md). **Status:** draft.
+[`cli-foundation-stack`](../cli-foundation-stack/spec.md). **Status:** draft.
 
 **This design is conditional.** It describes what gets built *if* the intent's kill gate
 clears. Nothing here is started before that evaluation is recorded.
@@ -20,7 +20,7 @@ never evaluated would be accepting the condition away.
 **Reconciled against the tree on 2026-09-16** — see "Where this document and the code
 disagreed" below for what moved and why. The document now describes what shipped; **it is
 not accepted**, and the Design→Build acceptance line is a human's to write
-(`AI_NATIVE_SDLC.md` rule 3 — the agent that wrote the code does not approve it).
+(`CLAUDE.md` rule 3 — the agent that wrote the code does not approve it).
 
 ---
 

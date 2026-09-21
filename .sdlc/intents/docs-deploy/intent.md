@@ -8,7 +8,7 @@
 > Everything that does not need a credential is built and merged; see
 > [What is built](#what-is-built-2026-09-08). The status stays `review` on purpose:
 > `shipped` would claim the site is live, and it is not until the three owner steps below
-> are done. (`design.md` is not the reason — it has been beside this file since
+> are done. (`spec.md` is not the reason — it has been beside this file since
 > [`b68ae937c6`](https://github.com/ofri-peretz/burgee/commit/b68ae937c6), which is why it
 > is not in the build-stage diff.)
 
@@ -29,7 +29,7 @@ agents the layer is for.
 ## Why now
 
 - **Everything the repo publishes points at GitHub blobs.** The umbrella intent, the
-  README and the PR bodies link to `github.com/.../design.md`; the floor page and the
+  README and the PR bodies link to `github.com/.../spec.md`; the floor page and the
   research page exist only in a build artifact.
 - **The eslint repo already solved this**, including the failure modes: PR #123
   (`feat/auto-deploy-on-main`) and `CLAUDE.md`'s "Deploy: main branch only" section

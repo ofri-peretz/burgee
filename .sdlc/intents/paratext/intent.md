@@ -32,7 +32,7 @@ Concretely:
   terminal**. (An earlier wording here also promised "never an empty string". That was never
   true and was not meant to be: `title`, `clipboard`, `cwd` and `bell` all project to `''`
   deliberately, a window title having nothing to say in a log. Corrected 2026-09-15 —
-  see `design.md`, *What the design claimed and the code does not do*.)
+  see `spec.md`, *What the design claimed and the code does not do*.)
 - A narrow entry point per capability a consumer can afford to import statically. `paratext`
   itself registers all seven at import and reaches 17,574 B; `paratext/link` is 2,337 B and
   registers nothing, which is what let `burgee`'s `--help` take the dependency at all.

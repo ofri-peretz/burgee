@@ -14,7 +14,7 @@ publish an unmeasured number. The wording of C1–C6 and R1–R4 below is carrie
 that table unchanged; where the tree has since made a bar wrong, the bar is restated in
 [§ Requirements restated](#requirements-restated) with its **original sentence kept beside
 it**, because a bar that is restated and then vanishes is indistinguishable from one that
-was quietly met (`linegauge/design.md`).
+was quietly met (`linegauge/spec.md`).
 
 - **C1** Every published package declares its supported host range, and the compatibility page names the **majors graded**: the host's current major first (suite at the latest release tag), earlier majors only once their own suite is vendored at its last tag and graded — a major is never listed on the strength of the next one's suite
 - **C2** A compat front-end is graded by the host's own suite through a one-line shim; the pass rate is emitted as JSON and published per release
