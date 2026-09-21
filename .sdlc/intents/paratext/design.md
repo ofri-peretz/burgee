@@ -733,3 +733,26 @@ budget was raised from 20,500 to 20,900 with the arithmetic written into `weight
 R9 is now complete: three suites vendored, three graded, three ceilings written down —
 `ansi-escapes` 1 / 4 (CSI is out of scope), `terminal-link` 8 / 10 (the suite mutates
 another package's module object), `term-img` 12 / 18 (D-030).
+
+### One thing this lane found and may not fix
+
+`npm run lint` is red on `check:artifacts` for paratext, and **it is red on `main` too.**
+Measured 2026-09-20 with `npm pack --dry-run` on each tree in turn:
+
+| tree | gzipped | unpacked | against the band |
+| :-- | --: | --: | :-- |
+| `.sdlc/bands/artifact-size-baseline.json` | 22,113 | 66,080 | the recorded baseline |
+| `main` | 25,966 | 80,007 | **+17.4% / +21.1%**, past the 10% allowance |
+| this branch | 25,959 | 78,734 | **+17.4% / +19.1%** |
+
+So the gate was already failing before `term-img` existed — `paratext/terminal-link` added
+`terminal-link.js` and its declaration file without the band following — and this branch
+ships **1,273 fewer unpacked bytes than `main`**, because moving `IMAGE` into its own module
+took more prose out of `builtins.d.ts` and `ansi-escapes.d.ts` than the new subpath's
+declarations put back. `.d.ts` files keep every doc comment by design
+(`scripts/strip-comments.mjs` says so), so in this package a paragraph is a published byte.
+
+The fix is one row of `.sdlc/bands/artifact-size-baseline.json`, which this lane does not
+own and did not touch. `--update-baseline` is the wrong instrument for it: it rewrites every
+package's row from the machine that ran it, and burgee's and flagstaff's rows would be
+overwritten with this laptop's numbers — the same defect the compatibility page has.
