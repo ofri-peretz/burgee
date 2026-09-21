@@ -1,5 +1,111 @@
 # burgee
 
+## 0.8.0
+
+### Minor Changes
+
+- [#382](https://github.com/ofri-peretz/burgee/pull/382) [`0a37307`](https://github.com/ofri-peretz/burgee/commit/0a37307b01d0909753285c7ca88a2e4ef7cd4eee) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` — the mechanical path from commander or yargs to burgee.
+
+  Every migration that actually happened shipped the codemod before the wave, not after it:
+  `jest-codemods`, `pnpm import`, `biome migrate eslint`. burgee already had the strongest
+  possible version of the claim — change one import and commander's own 1,360 tests still pass
+  — and no path from _could_ to _did_.
+
+  ```
+  $ burgee migrate --dry-run
+  files: 3
+  imports: 3
+  mapped: [{"from":"commander","to":"burgee/commander","imports":3,"files":3}]
+  refused: []
+  detected: {"declared":["commander"],"imported":["commander"]}
+  dependencies: {"before":["commander"],"removable":["commander"],"after":0}
+  graded: [{"host":"commander","reference":1360,"passed":1360,"rate":1}]
+  ```
+
+  It detects hosts from two independent sources that are allowed to disagree — `package.json`
+  and the specifiers source actually imports — rewrites `commander`, `yargs`, `yargs/yargs`
+  and `yargs/helpers` across all five specifier positions, and **refuses by file and line** on
+  a deep import or a non-literal dynamic specifier, leaving that whole file untouched (D-051).
+  It refuses a dirty git tree unless `--force`, writes nothing under `--dry-run`, never edits
+  `package.json` (D-054), and never touches an API call site (D-053). The compat figures are
+  read from `compat-oracle`'s baseline through a lock, never typed into the report.
+
+  **Specifiers, not syntax trees** (D-050): a scan over five known positions needs no parser
+  and therefore no dependency, and it is the fast choice as well as the rule-2 one. Measured
+  over a generated 1,000-file tree: **the whole scan phase is 17 ms** and **the slowest single
+  file 0.074 ms** against a 1 ms budget; the rest of the command is filesystem.
+
+  The gate is `examples/demo-cli-commander`, which holds the same program written twice — once
+  against `commander`, once against `burgee/commander` — and predates this feature. Migrating
+  the commander variant produces the hand-written drop-in's import byte for byte.
+
+  The engine gains one thing on its behalf, in `execute.ts`: a command's result may name an
+  `exitCode`, and `emit` honours it. Before this there was exactly one success path and it left
+  with `OK`, so a command could emit a document _or_ fail, never both — and an agent migrating
+  a repository unattended needs the refusal list **and** the code. **162 bytes** measured
+  (60,661 → 60,823 on the root entry), opt-in by naming the field. `migrate` itself is 10,878
+  bytes loaded through a dynamic import and is denied to the root entry by name, so
+  `import 'burgee'` never reaches it.
+
+- [#384](https://github.com/ofri-peretz/burgee/pull/384) [`7f32875`](https://github.com/ofri-peretz/burgee/commit/7f328752e8318fefd70bf87eebcb0c05d789d607) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A program written in commander's or yargs' own syntax now gets burgee's agent surfaces.
+
+  `--mcp` lists every command instead of none: a façade command arrives with no `effects`
+  because neither incumbent has such a concept, and the filter used to read undeclared as
+  _not a tool_. It is now listed with `effects: "undeclared"` — absent from the list is
+  strictly worse for a caller than present with an honest annotation. `withheld` still means
+  absent.
+
+  `tools/call` used to return **nothing at all** — the reply writer was read out of
+  `_outputConfiguration` at reply time, and the first tool call replaces that so the run can
+  be captured. A client waited forever. It now answers the `--json` envelope, call after call.
+
+  `--json` works at the root of a command group and no longer swallows the operand after it,
+  and a failure under `--json` is the envelope on stdout with `fix:` rather than prose on
+  stderr.
+
+  commander stays 1360 / 1360 and yargs 804 / 804 against their own suites.
+
+### Patch Changes
+
+- [#385](https://github.com/ofri-peretz/burgee/pull/385) [`c219e65`](https://github.com/ofri-peretz/burgee/commit/c219e65e2a4b0de1836b285c0df8e43a92c74189) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A kebab-case option key is now refused where it is declared, instead of silently never
+  reaching the handler.
+
+  `toParseConfig` kebabs each declared name to build the flag and `canonical` camels every
+  parsed key back, so the flag layer handed to `resolveLayers` is keyed camelCase while the
+  specs beside it are keyed as declared. Declare `'dry-run'` and the two never meet: `--dry-run`
+  parses, resolves to nothing, and the handler is given `undefined`. No error anywhere.
+
+  Three of burgee's own commands were live instances. `burgee brand --allow-low-contrast` never
+  suppressed the WCAG failure it names, `--bordure-width` was always `1.5` whatever was passed,
+  and `burgee dev --no-watch` still watched. All three are fixed by spelling the key `camelCase`;
+  the flags are unchanged, and `--bordure-width 7` now reaches the SVG as `stroke-width="14"`
+  against the default's `3`, `--allow-low-contrast` emits, and `--no-watch` logs no reload when
+  the entry is edited.
+
+  **Breaking for a declaration, not for a command line.** `checkDefinition` refuses a key that
+  does not survive `camel(kebab(key))` — `'dry-run'`, and also `URL`, whose canonical form is
+  `url`. It throws through the clash message that was already there, because it is the same
+  defect: two keys that meet on the command line, one of them written by `kebab()` rather than
+  by the author. The engine was not taught a second spelling. Threading one through help,
+  `--schema`, Fig, the env, config and package.json layers and the relation names, to reach a
+  key that already has exactly one canonical form, is a larger surface than the bug.
+
+  **No weight ceiling moved**, which is what D-073 asks for. `./plugin` had 5 bytes of headroom
+  and a standalone message cost 187, so two things moved to pay for it: V5's reserved names out
+  of their own loop in `checkCommand` into the pass `checkDefinition` was already making, and
+  the numeric-bound check out of that loop into the spec helper beside the relation names. Both
+  read better where they are now — `flag` is computed once and `kebab` is the identity on every
+  reserved name, and a numeric bound is a fact about a spec rather than about a name.
+  `definition.js` is 51 bytes smaller than before the check existed. `checkDefinition` now
+  carries the reserved names; `checkCommand` is still the one door both callers reach.
+
+  Found while building `burgee migrate`: it showed up only through the built binary, because
+  every in-process case had been written camelCase.
+
+- Updated dependencies [[`5a85175`](https://github.com/ofri-peretz/burgee/commit/5a85175da66df5e797446eaada1c3492cc8b8fff), [`88a6996`](https://github.com/ofri-peretz/burgee/commit/88a699645f986c6e5dcead465e3f36238f0ae77d)]:
+  - linegauge@0.3.2
+  - seniority@0.3.1
+
 ## 0.7.1
 
 ### Patch Changes
