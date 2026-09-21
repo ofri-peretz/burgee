@@ -98,8 +98,11 @@ ships in the same package (R6)" and that the docs site consumes the Markdown ren
 
 ## Open questions
 
+Decided — none open. The items below were settled when this intent was written and are
+kept as the record they always were (confirmed 2026-09-20, D-072).
+
 None open. Decided at finalisation (2026-09-06):
 
-- **Floor additions H1–H6 are adopted.**
-- **Markdown output ships in the same package** (R6); man-page output does not. The docs
+- Decided: **Floor additions H1–H6 are adopted.**
+- Decided: **Markdown output ships in the same package** (R6); man-page output does not. The docs
   site consumes the Markdown renderer to publish the demo's help.

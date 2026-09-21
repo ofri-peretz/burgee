@@ -231,5 +231,5 @@ making it **four**.
 
 ## Open questions
 
-- Whether picocolors deserves a row at all; its API is nine functions. Proposed: one row,
+- Whether picocolors deserves a row at all **Decided 2026-09-20 → D-070.**; its API is nine functions. Proposed: one row,
   graded once, never re-vendored unless it changes.

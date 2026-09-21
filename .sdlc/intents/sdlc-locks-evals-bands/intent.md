@@ -102,10 +102,13 @@ collector that could run.
 
 ## Open questions
 
+Decided — none open. The items below were settled when this intent was written and are
+kept as the record they always were (confirmed 2026-09-20, D-072).
+
 None open. Decided at finalisation (2026-09-06):
 
-- **Copy `scripts/control-bands.ts` verbatim from `eslint/`** (with its tests); extract a
+- Decided: **Copy `scripts/control-bands.ts` verbatim from `eslint/`** (with its tests); extract a
   shared package only when a third repo needs it.
-- **The false-positive band imports `eslint.config.mjs`** and counts `'off'` entries
+- Decided: **The false-positive band imports `eslint.config.mjs`** and counts `'off'` entries
   inside blocks whose leading comment contains `Finding`; exact, and it fails loudly if
   the config's shape changes.

@@ -135,6 +135,6 @@ on their own `node_modules` with one command.
   and `bellpull` is last for that reason.
 - **Does `config-layers` become a competitor?** **Decided 2026-09-20 → D-049.** First published 2026-09-08, the same day
   this layer was measured. Somebody else is moving here now.
-- **Where does the `Runtime` seam live for four packages that are not allowed to import
+- **Where does the `Runtime` seam live for four packages **Decided 2026-09-20 → D-069.** that are not allowed to import
   burgee?** Each declaring its own structural type is four definitions of one shape; a
   shared type-only package is a fifth package. Deferred to `design.md`.

@@ -197,18 +197,18 @@ package's site."_ See the open question below.
 
 ## Open questions
 
-1. **The host rename.** The intent above says `burgee.interlace.tools`; the deployed host
+1. **The host rename.** **Decided 2026-09-20 → D-056.** The intent above says `burgee.interlace.tools`; the deployed host
    is `cli.interlace.tools` — in `.github/workflows/deploy-docs.yml:58`, in
    `apps/docs/src/lib/llms.ts` (`SITE`), and on the Vercel project named
    `cli-interlace-tools`. Does `cli.interlace.tools` 301 to the new host, stay as a family
    alias, or get retired? Owner's call; it is DNS and a Vercel project, not code.
-2. **`caique`'s app.** Its intent is at `review`, `decide()` is started and `ask()` is not,
+2. **`caique`'s app.** **Decided 2026-09-20 → D-057.** Its intent is at `review`, `decide()` is started and `ask()` is not,
    and the compatibility rows for clack and inquirer are recorded as _blocked_. On the bar
    this design proposes it does not qualify today. **Resolved 2026-09-14 by the map above:**
    caique does not get its own host, it gets a section on `seniority.interlace.tools`. The
    bar stands and nothing thin ships; the question that remains is whether the owner agrees
    with the grouping, not whether caique waits.
-3. **Does the five-site map hold at fifteen packages?** The grouping is by incumbent, and
+3. **Does the five-site map hold at fifteen packages?** **Decided 2026-09-20 → D-058.** The grouping is by incumbent, and
    incumbents are not evenly distributed — `linegauge` alone replaces four. A tenth package
    whose incumbent nobody searches for is a section; one replacing something with chalk's
    traffic is a host. The map is a judgement per package, and criterion 1 only enforces that
@@ -218,7 +218,7 @@ package's site."_ See the open question below.
    fails `ENEEDAUTH` because it has no npm trusted publisher.~~ **Resolved 2026-09-14:** the
    owner configured the trusted publisher. The section is a page about a package a reader
    can install as soon as the next release run lands 0.2.0; nothing in the map changes.
-5. **The affected gate gets worse before it gets better.** `auto-deploy.yml` records the
+5. **The affected gate gets worse before it gets better.** **Decided 2026-09-20 → D-059.** `auto-deploy.yml` records the
    measurement: the root workspace devDepends on `burgee`, `compat-oracle` and
    `flagstaff`, so a one-file commit under `packages/roundel/` marks _all eleven_
    workspaces changed. At one app that is one redundant deploy per product merge; at four
@@ -226,6 +226,6 @@ package's site."_ See the open question below.
    change reaching _no_ app) but does not fix this one, whose only fix is the root
    `devDependencies` — which are there for their own reasons. Does the owner want that
    opened as its own intent, or accept the redundant deploys?
-6. **Four GitHub Environments, or one.** Per-app environments let a reviewer see which
+6. **Four GitHub Environments, or one.** **Decided 2026-09-20 → D-060.** Per-app environments let a reviewer see which
    site they are approving; one shared environment is one place to add reviewers. This is
    a preference, and the design picks per-app pending the owner's word.

@@ -87,13 +87,16 @@ parity contract that replaced them.
 
 ## Open questions
 
+Decided — none open. The items below were settled when this intent was written and are
+kept as the record they always were (confirmed 2026-09-20, D-072).
+
 None open. Decided at finalisation (2026-09-06):
 
-- **Usage vs runtime in `.fail((msg, err))`**: `err` present → runtime; absent → usage.
+- Decided: **Usage vs runtime in `.fail((msg, err))`**: `err` present → runtime; absent → usage.
   yargs #1797 (sync handler errors bypassing `fail`) is covered because the layer also
   wraps every handler in the after-validation middleware and converts a throw to a
   `CliError` itself; `.fail()` is the fallback, not the only path.
-- **`yargs-env` and `yargs-completions` are not planned.** yargs' `.env()`, `.config()`,
+- Decided: **`yargs-env` and `yargs-completions` are not planned.** yargs' `.env()`, `.config()`,
   `.completion()` and `.showHidden()` meet V1/V2 and D2 natively; the layer adds only
   `--explain`/provenance (through `yargs-agent`) and static completion generation
   (through the shared renderer, exposed as `yargs-agent`'s `completion` command).

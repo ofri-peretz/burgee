@@ -93,8 +93,11 @@ that is fixed, K6 provenance is proven for exactly one of four packages.
 
 ## Open questions
 
+Decided — none open. The items below were settled when this intent was written and are
+kept as the record they always were (confirmed 2026-09-20, D-072).
+
 None open. Decided at finalisation (2026-09-06):
 
-- **Floor additions K1–K5 are adopted.**
-- **Single-file bundling is a docs page** (`esbuild --bundle --format=esm` on a zero-dep
+- Decided: **Floor additions K1–K5 are adopted.**
+- Decided: **Single-file bundling is a docs page** (`esbuild --bundle --format=esm` on a zero-dep
   ESM package works by construction); no `examples/bundled/` check.

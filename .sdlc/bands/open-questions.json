@@ -1,6 +1,6 @@
 {
-  "ceiling": 45,
+  "ceiling": 0,
   "measured": "2026-09-20",
-  "why": "45 open across 21 intents. The history is the point: 102 first read, 94 once items carrying their own answer stopped counting, 70 after the package design questions closed as D-013..D-033, 45 after the infrastructure ones closed as D-034..D-049. Lowering this is what closing looks like; raising it is taken in .sdlc/DECISIONS.md with the reason.",
+  "why": "Zero open. 102 first read, 94 once items carrying their own answer stopped counting, 70 after the package design questions (D-013..D-033), 45 after the infrastructure ones (D-034..D-049), 0 after the last sweep (D-056..D-072). The ceiling at zero is the point: the next question raised is visible the moment it is raised, and it either closes in .sdlc/DECISIONS.md or this number moves deliberately with the reason beside it. A backlog is only invisible while nothing counts it.",
   "closedIn": ".sdlc/DECISIONS.md"
 }

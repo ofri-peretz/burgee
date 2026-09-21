@@ -72,5 +72,5 @@ it deliberately.
 
 ## Open questions
 
-- Is this a real regression, a change in what we measure, or a change in the corpus?
-- Which commit is the first one outside the band?
+- Decided 2026-09-20 → D-064: a real regression. Is this a real regression, a change in what we measure, or a change in the corpus?
+- Decided 2026-09-20 → D-065: answered by a bisect over `benchmarks/results/`, not here. Which commit is the first one outside the band?

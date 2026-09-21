@@ -109,14 +109,17 @@ form it promised them, and one cannot fail.
 
 ## Open questions
 
+Decided — none open. The items below were settled when this intent was written and are
+kept as the record they always were (confirmed 2026-09-20, D-072).
+
 None open. Decided at finalisation (2026-09-06):
 
-- **`RunResult.stdout` is raw.** A `stripAnsi(result)` helper is exported; tests that
+- Decided: **`RunResult.stdout` is raw.** A `stripAnsi(result)` helper is exported; tests that
   want lines call `result.stdout.split('
 ')`. One shape, no hidden transformation.
-- **`stdin` accepts a string or a `Readable`**; the string form is sugar for
+- Decided: **`stdin` accepts a string or a `Readable`**; the string form is sugar for
   `Readable.from([text])`.
-- **yargs `parseAsync` completion (yargs #1069, #1797)** is the first verification task of
+- Decided: **yargs `parseAsync` completion (yargs #1069, #1797)** is the first verification task of
   the yargs harness, not an open question: the harness awaits `parseAsync` and, in
   addition, awaits a `handlerDone` promise the layer resolves in its after-handler
   middleware. If yargs resolves early, the suite catches it; the design does not depend

@@ -97,8 +97,11 @@ admits to. The evidence is the lock, not the gate.
 
 ## Open questions
 
+Decided — none open. The items below were settled when this intent was written and are
+kept as the record they always were (confirmed 2026-09-20, D-072).
+
 None open. Decided at finalisation (2026-09-06):
 
-- **Floor additions M1–M6 are adopted.**
-- **Plugins are registration functions only in v1**; `setup`/`teardown` lifecycles
+- Decided: **Floor additions M1–M6 are adopted.**
+- Decided: **Plugins are registration functions only in v1**; `setup`/`teardown` lifecycles
   (citty #92) wait for a consumer that needs them.
