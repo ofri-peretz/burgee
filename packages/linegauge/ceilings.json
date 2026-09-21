@@ -86,7 +86,7 @@
       "layers have no zero-dependency incumbent to anchor against at all — which is the reason",
       "D1 gives for itself.",
       "",
-      "Against D1's bar this package reads **83,538 installed bytes against a ceiling of",
+      "Against D1's bar this package reads **83,536 installed bytes against a ceiling of",
       "170,342** — the tree-inclusive bytes of `string-width`, `wrap-ansi`, `strip-ansi` and",
       "`slice-ansi`, which is what a user removes by switching — a ratio of **0.4904**.",
       "",
