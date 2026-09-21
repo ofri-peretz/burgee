@@ -5,7 +5,8 @@
   "description": "One suite, four axes (agent cost, cold start, compatibility, weight). Emits one JSON document per run under results/, which the Stage 6 control bands read. Internal; never published.",
   "type": "module",
   "exports": {
-    "./published.js": "./published.ts"
+    "./published.js": "./published.ts",
+    "./claims.js": "./claims.ts"
   },
   "engines": {
     "node": ">=24"
