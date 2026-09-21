@@ -1,5 +1,17 @@
 # linegauge
 
+## 0.3.3
+
+### Patch Changes
+
+- [#400](https://github.com/ofri-peretz/burgee/pull/400) [`5b224e5`](https://github.com/ofri-peretz/burgee/commit/5b224e58db17a72c225d7ea8e14109d6d93f3968) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Thirty fewer bundled bytes per entry point, at no change in behaviour.
+
+  The five Unicode property classes are built on first use and were cached in one object
+  keyed by name. A minifier renames a module-level binding to a single character and cannot
+  touch a property name, so each `classes['zeroWidth']` survived minification at full length.
+  Five `let` bindings hold the same five regexes: `linegauge` 6,307 → 6,277 bundled bytes,
+  `linegauge/wrap` 11,278 → 11,248, `linegauge/slice` 8,938 → 8,908.
+
 ## 0.3.2
 
 ### Patch Changes
