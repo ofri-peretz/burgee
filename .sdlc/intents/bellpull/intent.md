@@ -111,14 +111,14 @@ package is fourth and not first.
 
 ## Open questions
 
-- **Streaming.** `execa`'s suite covers streams heavily; a result-shaped API and a streaming
+- **Streaming.** **Decided 2026-09-20 → D-013.** `execa`'s suite covers streams heavily; a result-shaped API and a streaming
   API are different products. Whether streaming is a subpath, a callback on `run`, or out of
   scope decides how much of that suite can pass at all.
-- **How much of `execa`'s surface is worth reproducing?** It is by far the largest
+- **How much of `execa`'s surface is worth reproducing?** **Decided 2026-09-20 → D-014.** It is by far the largest
   compatibility surface in the family, and its template-literal API (`` $`cmd` ``) is a
   different shape from `run`.
-- **Does `open` (130 M/wk, 6 deps) fold in here?** It spawns `xdg-open` / `start` / `open` —
+- **Does `open` (130 M/wk, 6 deps) fold in here?** **Decided 2026-09-20 → D-015.** It spawns `xdg-open` / `start` / `open` —
   structurally this layer wearing a different hat. It would add a platform-detection surface
   this package otherwise does not have.
-- **Is `duration` measurable honestly?** Wall-clock from spawn to close includes Node's own
+- **Is `duration` measurable honestly?** **Decided 2026-09-20 → D-016.** Wall-clock from spawn to close includes Node's own
   scheduling; claiming it as the child's cost would be a number we cannot defend.

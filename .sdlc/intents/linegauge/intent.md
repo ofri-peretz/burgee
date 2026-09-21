@@ -100,12 +100,12 @@ rest to a sibling.
 
 ## Open questions
 
-- **Does `wrap` reopen styles per line the way `wrap-ansi` does, or emit a closing sequence
+- **Does `wrap` reopen styles per line the way `wrap-ansi` does, or emit a closing sequence **Decided 2026-09-20 → D-024.**
   and let the caller re-style?** `wrap-ansi`'s behaviour is what its suite tests, so
   compatibility decides it — but the two differ on trailing whitespace, and its suite may not
   cover the disagreement.
-- **Is `ansi-regex` a subpath or an internal?** It is 345 M/wk on its own and a plausible
+- **Is `ansi-regex` a subpath or an internal?** **Decided 2026-09-20 → D-025.** It is 345 M/wk on its own and a plausible
   override target, but exporting a regex as public API is a compatibility liability forever.
-- **What is the honest fast-path threshold?** `Intl.Segmenter` measured 3.5 µs per
+- **What is the honest fast-path threshold?** **Decided 2026-09-20 → D-033.** `Intl.Segmenter` measured 3.5 µs per
   segmentation of a 50-character string. Whether the ASCII scan pays at every input size or
   only above one is a measurement, not a guess.

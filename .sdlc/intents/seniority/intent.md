@@ -113,13 +113,13 @@ seven packages; this is one, with none.*
 
 ## Open questions
 
-- **Does `resolve` stay synchronous?** `fs.existsSync` in a bounded loop is fast and makes
+- **Does `resolve` stay synchronous?** **Decided 2026-09-20 → D-021.** `fs.existsSync` in a bounded loop is fast and makes
   the API trivial; async loaders (a `.ts` config through a transform) may force a dual API,
   which doubles the surface being graded.
-- **How much of `cosmiconfig`'s search semantics are worth reproducing?** Its suite is the
+- **How much of `cosmiconfig`'s search semantics are worth reproducing?** **Decided 2026-09-20 → D-022.** Its suite is the
   grader, and its search-places model is larger than the truth table needs. Where they
   disagree, the divergence must be listed and reasoned, not silently lost.
-- **Does `env-paths` (77.6 M/wk) belong here or in `closeout`?** It is OS config-directory
+- **Does `env-paths` (77.6 M/wk) belong here or in `closeout`?** **Decided 2026-09-20 → D-023.** It is OS config-directory
   resolution, which is discovery-adjacent but not precedence.
-- **What does `config-layers` actually do?** Published the day this was measured; it has to
+- **What does `config-layers` actually do?** **Decided 2026-09-20 → D-032.** Published the day this was measured; it has to
   be read before F3 opens, not after.

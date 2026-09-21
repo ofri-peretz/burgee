@@ -27,7 +27,18 @@ const INTENTS = join(REPO_ROOT, '.sdlc/intents');
  * checkers, so the section is sliced explicitly rather than anchored.
  */
 const HEADING = /^#{1,6} /gm;
-const ITEM = /^\s*(?:[-*]|\d+\.)\s+\S/gm;
+/** The start of a list item — the unit a question is written as. */
+const ITEM = /^[ \t]*(?:[-*]|\d+\.)[ \t]+\S/gm;
+/**
+ * An item that has already been answered, and is left in place as a record.
+ *
+ * The first count read 102 and it was wrong in the direction that flatters the backlog:
+ * `burgee`'s five were struck through and dated `Decided 2026-09-05`, and one of
+ * `agent-headroom`'s says `Answered 2026-09-09 by measuring`. A question carrying its own
+ * answer is not open, so counting it inflates the ceiling and makes the ratchet meaningless
+ * — the count would fall by closing nothing.
+ */
+const RESOLVED = /^[ \t]*(?:[-*]|\d+\.)[ \t]+~~|\b(?:Decided|Answered|Resolved|Superseded)\b/;
 
 /** Right-aligns the count beside the slug; no intent is anywhere near a thousand. */
 const COUNT_WIDTH = 3;
@@ -45,7 +56,13 @@ export function questionsIn(markdown: string): number {
   HEADING.lastIndex = from;
   const next = HEADING.exec(markdown);
   const section = markdown.slice(from, next?.index ?? markdown.length);
-  return (section.match(ITEM) ?? []).length;
+  return items(section).filter((item) => !RESOLVED.test(item)).length;
+}
+
+/** The section split into whole list items, each running to the next item's bullet. */
+function items(section: string): string[] {
+  const starts = [...section.matchAll(ITEM)].map((m) => m.index);
+  return starts.map((start, i) => section.slice(start, starts[i + 1] ?? section.length));
 }
 
 /** Every intent that still carries at least one, heaviest first. */

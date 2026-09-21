@@ -155,17 +155,17 @@ honest status and it is already what this file says. The declaration landed; the
 
 ## Open questions
 
-- **Where the fingerprint lives.** Proposed: `packages/<pkg>/competitors.json`, one file per
+- **Where the fingerprint lives.** **Decided 2026-09-20 → D-039.** Proposed: `packages/<pkg>/competitors.json`, one file per
   package, holding the declaration *and* the last-seen fingerprint, so the diff is a git
   diff and a human can see what moved in a PR. The alternative — a central
   `.sdlc/bands/competitors.json` — is one file to lock but breaks constraint 5.
-- **Whether the surface diff should read `.d.ts` or the entry's exports.** Proposed: both,
+- **Whether the surface diff should read `.d.ts` or the entry's exports.** **Decided 2026-09-20 → D-040.** Proposed: both,
   with `.d.ts` preferred when present, since a type-only addition is a real API addition and
   is invisible to a runtime export scan.
-- **Whether a stale weight claim should fail CI or only open an issue.** Proposed: open an
+- **Whether a stale weight claim should fail CI or only open an issue.** **Decided 2026-09-20 → D-041.** Proposed: open an
   issue. A competitor getting heavier is not our regression, and a red build we cannot fix
   by changing our own code is a broken feedback loop.
-- **Whether `hosts.ts` and `competitors.json` merge.** Proposed: no. A host is something we
+- **Whether `hosts.ts` and `competitors.json` merge.** **Decided 2026-09-20 → D-042.** Proposed: no. A host is something we
   run a *test suite* from and needs a repo, a runner and a shim; a competitor is something we
   measure a *surface* against and needs only a name. Every host is a competitor; most
   competitors are not hosts.

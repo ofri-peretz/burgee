@@ -126,14 +126,14 @@ on their own `node_modules` with one command.
 
 ## Open questions
 
-- **Does `seniority` move ahead of `linegauge` in the order?** It is the biggest layer
+- **Does `seniority` move ahead of `linegauge` in the order?** **Decided 2026-09-20 → D-047.** It is the biggest layer
   (1.81 B/wk) *and* the cheapest to start, because `precedence.ts` already exists. The
   ordering below is driven by what unblocks already-scheduled work, not by size; the
   criterion for pulling it forward is recorded in `design.md`.
-- **Does `bellpull` survive a re-check?** `tinyexec` — 119 M/wk, zero dependencies,
+- **Does `bellpull` survive a re-check?** **Decided 2026-09-20 → D-048.** `tinyexec` — 119 M/wk, zero dependencies,
   published 2026-09-03 — already owns the weight pitch. Its trajectory is a kill signal,
   and `bellpull` is last for that reason.
-- **Does `config-layers` become a competitor?** First published 2026-09-08, the same day
+- **Does `config-layers` become a competitor?** **Decided 2026-09-20 → D-049.** First published 2026-09-08, the same day
   this layer was measured. Somebody else is moving here now.
 - **Where does the `Runtime` seam live for four packages that are not allowed to import
   burgee?** Each declaring its own structural type is four definitions of one shape; a
