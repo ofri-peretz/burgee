@@ -180,6 +180,22 @@ describe('a vendor run that cannot finish', () => {
     expect(sliceAnsi?.pinnedVersion, 'slice-ansi is pinned in prose; the pin has to be a field vendor() can read').toBe('7.1.2');
   });
 
+  it('writes PROVENANCE beside the record, so `compat --vendor` cannot delete it', () => {
+    // `scripts/vendor-suite.ts` was the only writer of PROVENANCE, and `vendor()` replaces
+    // the host directory wholesale — so re-vendoring through the oracle removed a file
+    // `provenance.test.ts` requires, and blamed the host. The clone here is the same one
+    // the refusal case below makes, for the same reason: this is the function under test.
+    const into = mkdtempSync(join(tmpdir(), 'vendor-provenance-'));
+    const host = HOSTS.find((h) => h.name === 'slice-ansi');
+    if (host === undefined) throw new Error('slice-ansi is not a host');
+    vendor(host, into);
+    const live = join(into, host.name);
+    expect(existsSync(join(live, '.source.json'))).toBe(true);
+    expect(existsSync(join(live, 'PROVENANCE')), 'vendor() wrote the record and not the provenance').toBe(true);
+    expect(readFileSync(join(live, 'PROVENANCE'), 'utf8')).toContain('7.1.2');
+    rmSync(into, { recursive: true, force: true });
+  });
+
   it('leaves the previous suite standing when it produces nothing', () => {
     const into = mkdtempSync(join(tmpdir(), 'vendor-refusal-'));
     const host = HOSTS.find((h) => h.name === 'slice-ansi');
