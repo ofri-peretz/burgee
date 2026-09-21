@@ -9,15 +9,22 @@
  *   - SGR state not carried across wrapped lines;
  *   - `vAlign: 'bottom'` ignored.
  *
- * All four *are* covered upstream — by the 221 cases that `require('../src/…')`, which C4
+ * All four *are* covered upstream — by the 197 cases that `require('../src/…')`, which C4
  * keeps off the gate because passing them would mean copying cli-table3's file layout. So
  * the behaviour is real, the coverage is not ours to inherit, and it is asserted here
  * instead. Every expectation was captured from **real cli-table3 0.6.5**, so these remain
  * its answers rather than mine.
+ *
+ * **2026-09-20: 103 of those 197 now run against this file**, and 90 of them pass — see the
+ * `cli-table3` note in `compat-oracle/src/hosts.ts` for the two ceilings that hold the rest.
+ * That does not retire the cases below. They stay because the informational column is
+ * informational: it is not ratcheted, it is not gated, and a port whose only evidence lived
+ * on a line nothing fails on would be a port with no evidence. It also stays honest about
+ * the other 94 — `cell-test.js` never registers a case, in the control run either.
  */
 import { describe, expect, it } from 'vitest';
 
-import Table from './cli-table3.js';
+import Table, { Cell, ColSpanCell, RowSpanCell, computeHeights, computeWidths, hyperlink, makeTableLayout, mergeOptions, pad, strlen, truncate, wordWrap } from './cli-table3.js';
 
 const ESC = '\u001B';
 
@@ -104,5 +111,63 @@ describe('the shape the incumbent promises', () => {
     const table = new Table({ colWidths: [10] });
     table.push(['x']);
     expect(table.width).toBe(12);
+  });
+});
+
+/**
+ * The internal surface, and why a unit test guards a thing the compat row would notice.
+ *
+ * It would notice it late and say the wrong thing. The oracle reaches a target's internals
+ * through a CommonJS shim whose body is `module.exports = loaded?.default ?? loaded`, so
+ * every one of cli-table3's four internal modules arrives at its suite as this file's
+ * *default export* — not its namespace. Drop one of these names and 104 informational cases
+ * read `X is not a function`, which is the same thing they read when an algorithm is
+ * genuinely wrong. This separates the two: a name going missing fails here, in this
+ * package, by name.
+ *
+ * Asserted as identity rather than `typeof`, for the twelve that are also named exports.
+ * `typeof x === 'function'` passes for the wrong function, and the failure mode being
+ * guarded against — a rename that updates one spelling and not the other — produces exactly
+ * that.
+ */
+describe('cli-table3 internals hang off the default export', () => {
+  it('carries every name cli-table3 puts on `src/utils`, `src/layout-manager` and `src/cell`', () => {
+    const surface = Table as unknown as Record<string, unknown>;
+    // Upstream's own three lists, verbatim: `utils.js`, `layout-manager.js`, and the two
+    // `module.exports.` lines at the foot of `cell.js` plus the `Cell` they hang off.
+    const expected = [
+      'strlen',
+      'repeat',
+      'pad',
+      'truncate',
+      'mergeOptions',
+      'wordWrap',
+      'colorizeLines',
+      'hyperlink',
+      'makeTableLayout',
+      'layoutTable',
+      'addRowSpanCells',
+      'maxWidth',
+      'fillInTable',
+      'computeWidths',
+      'computeHeights',
+      'Cell',
+      'ColSpanCell',
+      'RowSpanCell',
+    ];
+    expect(expected.filter((name) => typeof surface[name] !== 'function')).toEqual([]);
+  });
+
+  it('spells the twelve that are also named exports the same both ways', () => {
+    const surface = Table as unknown as Record<string, unknown>;
+    const both = { strlen, pad, truncate, mergeOptions, wordWrap, hyperlink, makeTableLayout, computeWidths, computeHeights, Cell, ColSpanCell, RowSpanCell };
+    expect(Object.entries(both).filter(([name, fn]) => surface[name] !== fn)).toEqual([]);
+  });
+
+  it('leaves the gated surface alone — the default export is still the constructor', () => {
+    const table = new Table({ head: ['a'] });
+    table.push(['1']);
+    expect(table).toBeInstanceOf(Table);
+    expect(typeof table.toString()).toBe('string');
   });
 });

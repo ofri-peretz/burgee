@@ -983,4 +983,30 @@ export class Table extends Array<unknown> {
   }
 }
 
+/**
+ * The internal surface, hung off the default export — which is how cli-table3 itself
+ * publishes the half of it that escapes: `src/cell.js` ends
+ * `module.exports = Cell; module.exports.ColSpanCell = …; module.exports.RowSpanCell = …`.
+ *
+ * It is here because of how the oracle reaches a target's internals, and the mechanism is
+ * worth stating precisely. A suite's `require('../src/utils')` is left byte-identical and a
+ * shim is written at that path; for a CommonJS host the shim body is
+ * `module.exports = loaded?.default ?? loaded`. That unwrap is right for a target whose
+ * whole meaning *is* its default export, and lossy for this one: the namespace carries
+ * `Cell`, `strlen`, `computeWidths` and the rest, and `.default` is the `Table` class
+ * alone. Measured 2026-09-20 — every one of the 104 internal cases failed as
+ * `X is not a function`, with the names sitting one property access away. Attaching them
+ * here costs 240 B — the whole of the headroom `weight.test.ts` had left on this entry, and
+ * the reason its budget moved with it — and takes the informational column from 0 / 104 to
+ * 90 / 104. The gated row is 29 / 29 before and after.
+ *
+ * Nothing new is being published. `strlen`, `pad`, `truncate`, `wordWrap`, `hyperlink`,
+ * `mergeOptions`, `Cell`, `ColSpanCell`, `RowSpanCell`, `makeTableLayout`, `computeWidths`
+ * and `computeHeights` are already named exports of this module; this is a second spelling
+ * of names a caller can already reach, plus the six that were private for no reason other
+ * than that nothing had asked for them. The gated surface is untouched and stays what the
+ * header says it is: `module.exports = Table`.
+ */
+Object.assign(Table, { Cell, ColSpanCell, RowSpanCell, strlen, repeat, pad, truncate, mergeOptions, wordWrap, colorizeLines, hyperlink, makeTableLayout, layoutTable, addRowSpanCells, maxWidth, fillInTable, computeWidths, computeHeights });
+
 export default Table;
