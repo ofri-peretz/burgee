@@ -1,7 +1,7 @@
 # Design — `paratext`
 
 Intent: [`intent.md`](./intent.md). Umbrella:
-[`cli-foundation-stack`](../cli-foundation-stack/design.md).
+[`cli-foundation-stack`](../cli-foundation-stack/spec.md).
 
 **Accepted at the Design→Build gate 2026-09-13** under the owner's standing instruction to
 proceed, recorded here rather than assumed. Most of R1–R7 was built before this design
@@ -346,7 +346,7 @@ roundel/flagstaff schemas, one PR) → R13 → R11 → R12.
 - **The check that would have caught the original problem** — the original problem is a
   package on npm with no intent. `scripts/intent-artifacts-lock.test.ts` holds the rule:
   every `packages/<name>` with a published version has `.sdlc/intents/<name>/intent.md` and
-  `design.md`. Proven to fail by moving this directory aside.
+  `spec.md`. Proven to fail by moving this directory aside.
 
 ## What shipped (R13, R14 — the entry the engine could take — 2026-09-15)
 

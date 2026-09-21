@@ -19,8 +19,8 @@
 
 Every substantive change starts here. See `AI_NATIVE_SDLC.md`, one level above this
 repo, for why. Layout and status values are the same as in `eslint/`: one directory per
-intent, `intent.md` then `design.md`, statuses `draft → review → approved → shipped`
-(or `dropped`), and `approved` requires a `design.md` beside it.
+intent, `intent.md` then `spec.md`, statuses `draft → review → approved → shipped`
+(or `dropped`), and `approved` requires a `spec.md` beside it.
 
 ## The message
 
@@ -40,7 +40,7 @@ the reasoning; this is the state.
 
 |                                 |                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | :------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Published**                   | The output stack is public. `burgee@0.7.0`, `roundel@0.3.1`, `flagstaff@0.3.0`, `caique@0.2.0` — all four with SLSA provenance over npm Trusted Publishing, and zero _external_ dependencies — the family consumes itself now, bottom-up: `flagstaff` and `burgee` both depend on `roundel`, and nothing depends on anything outside this repo. The foundation four — `linegauge@0.3.0`, `seniority@0.2.0`, `bellpull@0.1.0`, `closeout@0.2.0` — are still reservations |
+| **Published**                   | The output stack is public. `burgee@0.7.1`, `roundel@0.3.1`, `flagstaff@0.3.1`, `caique@0.3.0` — all four with SLSA provenance over npm Trusted Publishing, and zero _external_ dependencies — the family consumes itself now, bottom-up: `flagstaff` and `burgee` both depend on `roundel`, and nothing depends on anything outside this repo. The foundation four — `linegauge@0.3.1`, `seniority@0.3.0`, `bellpull@0.1.1`, `closeout@0.2.1` — are still reservations |
 | **Scoreboard**                  | **Public**, at [burgee.interlace.tools/docs/compatibility](https://burgee.interlace.tools/docs/compatibility), generated from the oracle and checked against it on every Ratchet run. Seven hosts at 100%: commander **1,360 / 1,360**, yargs **804 / 804**, chalk 58, ora 99, log-update 99, boxen 84, cli-table3 29                                                                                                                                                   |
 | **Waves done**                  | 0, 3 ✅ · 1, 2, 4 in flight 🔨 · 5 conditional                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | **Intent states**               | 11 `shipped` · 13 `review` · 3 `approved` · 10 `draft` · 2 `dropped`, counted 2026-09-09                                                                                                                                                                                                                                                                                                                                                                                |
@@ -89,7 +89,7 @@ foundation beneath the toolset.** Four more packages — `linegauge` (text measu
 standing in for **49 incumbents carrying 6.94 B weekly downloads** that nothing in this repo
 previously named. The names were published as `0.0.1` stubs that day and planned the same
 day: [`cli-foundation-stack`](./cli-foundation-stack/intent.md) is their umbrella, each has an
-`intent.md` + `design.md` pair, and the tier ships in four waves **F1–F4** behind the engine's
+`intent.md` + `spec.md` pair, and the tier ships in four waves **F1–F4** behind the engine's
 public scoreboard. All five artifacts are `draft` — the human gate has not run — and `bellpull`
 carries a kill gate rather than a launch date, because a zero-dependency rival already holds
 the weight pitch in its layer. Eight packages in three tiers: burgee **declares**, the output stack is
@@ -229,7 +229,7 @@ candidate, and killing one early is the point.
 ## The umbrella
 
 [`burgee/`](./burgee/) is the parent of everything
-below. Its `design.md` carries the **74-requirement floor** (F/O/E/V/S/P/D/T/H/M/K/C/B/N
+below. Its `spec.md` carries the **74-requirement floor** (F/O/E/V/S/P/D/T/H/M/K/C/B/N
 ids) that every child cites.
 
 Two research documents feed it, and every intent cites one or both:
@@ -302,7 +302,7 @@ converts it from a permanent dependency into a fixable backlog, so it now has an
 | 10  | [`first-adopter/`](./first-adopter/)                     | a CLI we did not write, using the layer, reviewed by someone who did not build it; **the dependents ranking script** (2026-09-08)                                                                                                                                                                                                                                                                                                                         | A1–A5                      | review — **0 of 5. There is no adopter, external or internal.** `depends:burgee` on npm returns zero. The ranked prospect list is the whole of this lane so far                                                                                                                                               |
 | 11  | [`cli-mcp/`](./cli-mcp/)                                 | `--mcp` turns any CLI on the floor into an MCP server, generated from the manifest                                                                                                                                                                                                                                                                                                                                                                        | N1–N5                      | review — 3 of 5. Handshake, typed tools and destructive opt-in all verified live. **Not met:** B1 over MCP vs Bash, and the docs config is a `mytool` template                                                                                                                                                |
 | 12  | [`dev-loop/`](./dev-loop/)                               | `burgee dev` — watch, reload, and serve live MCP so your agent sees a command as you write it                                                                                                                                                                                                                                                                                                                                                             | W1–W6                      | review — 2 of 5. Save-to-callable measured at **66–89 ms** end to end on 30 commands, against a 500 ms bar. **Not met:** the Z2 byte-identity test does not exist, `list_changed` has no conformance case, and the manifest is summarised rather than printed                                                 |
-| 22  | [`brand-burgee/`](./brand-burgee/)                       | `defineBurgee({ lead, follow })` — favicon, raster set, OG card and theme variants generated from one declaration; the Interlace −30° geometry stays locked                                                                                                                                                                                                                                                                                               | —                          | draft — 1 of 4, and built ahead of its gate: `burgee brand` ships with no `design.md`. The OG card is hand-written, no workflow runs `brand:check`, and an unrelated two-colour pair currently cannot render                                                                                                  |
+| 22  | [`brand-burgee/`](./brand-burgee/)                       | `defineBurgee({ lead, follow })` — favicon, raster set, OG card and theme variants generated from one declaration; the Interlace −30° geometry stays locked                                                                                                                                                                                                                                                                                               | —                          | draft — 1 of 4, and built ahead of its gate: `burgee brand` ships with no `spec.md`. The OG card is hand-written, no workflow runs `brand:check`, and an unrelated two-colour pair currently cannot render                                                                                                  |
 | 31  | [`docs-per-package/`](./docs-per-package/)               | **one docs app per published package**, each on its own `interlace.tools` host — `.github/vercel-apps.json` as the one table both workflows read, a shared `docs-kit` chassis instead of four copies, the family-wide pages (`compatibility`, `comparison`, `gallery`) kept on burgee alone, and a written bar a package has to clear before it earns a site. Extends [`docs-deploy`](./docs-deploy/), which deferred the map "until a second app exists" | B7                         | draft                                                                                                                                                                                                                                                                                                         |
 
 ### The gaps — research clusters neither host ships
@@ -714,13 +714,13 @@ The artifacts and the waves table used to disagree: nineteen of thirty-six inten
 commander's own suite. `review` meant both _"awaiting a decision"_ and _"shipped and
 scoring 100%"_, which made every status in the repo unreadable.
 
-- **Almost every buildable intent still reads `review`.** Per `AI_NATIVE_SDLC.md` rule 3,
+- **Almost every buildable intent still reads `review`.** Per `CLAUDE.md` rule 3,
   `approved` is the human gate — and the engine, the oracle and the façades were built
   through it. Either wave 1's intents move to `approved` retroactively, or the gate is
   acknowledged as advisory in practice. The plan does not pretend otherwise.
 - **`replacement-parser` is largely built and says `review`.** Same fix. So are `caique`,
   `dev-loop`, `cli-mcp` and the two compat intents.
-- **`brand-burgee` is built and has no `design.md` at all.** `burgee brand`, six generated
+- **`brand-burgee` is built and has no `spec.md` at all.** `burgee brand`, six generated
   surfaces and a `brand:check` script all shipped ahead of a design. It cannot move to
   `approved` until one exists — which is the lock doing its job, not an obstacle to route
   around.
@@ -884,19 +884,19 @@ agent working on any layer has the whole stack in context.
 
 | Job                                                                                           | Entry point               | Published                                               |
 | :-------------------------------------------------------------------------------------------- | :------------------------ | :------------------------------------------------------ |
-| the framework                                                                                 | `burgee`                  | ✅ `burgee@0.7.0`                                       |
+| the framework                                                                                 | `burgee`                  | ✅ `burgee@0.7.1`                                       |
 | in-process harness (T1)                                                                       | `burgee/testing`          | subpath                                                 |
 | commander compatibility                                                                       | `burgee/commander`        | wave 2                                                  |
 | yargs compatibility                                                                           | `burgee/yargs`            | wave 4                                                  |
 | opt-in host quirks                                                                            | `burgee/quirks/*`         | wave 2                                                  |
 | the lint wedge                                                                                | `eslint-plugin-cli-floor` | wave 4                                                  |
 | the colours a CLI carries: policy, tokens, theme, chalk path                                  | `roundel`                 | ✅ `roundel@0.3.1` — chalk path graded 58 / 58          |
-| the staff the flag flies from: frame loop, plugin host, ora/boxen/cli-table3/log-update paths | `flagstaff`               | ✅ `flagstaff@0.3.0`                                    |
-| the parrot that always answers back: prompts, flags first                                     | `caique`                  | ✅ `caique@0.2.0`                                       |
-| measuring and cutting styled text: width, wrap, truncate, slice                               | `linegauge`               | `linegauge@0.3.0` stub; F1                              |
-| ending cleanly: exactly-once handlers, a deadline, terminal restore                           | `closeout`                | `closeout@0.2.0` stub; F2                               |
-| which source outranks which, and which one set this value                                     | `seniority`               | `seniority@0.2.0` stub; F3                              |
-| running another program and getting a result back                                             | `bellpull`                | `bellpull@0.1.0` stub; F4, conditional on its kill gate |
+| the staff the flag flies from: frame loop, plugin host, ora/boxen/cli-table3/log-update paths | `flagstaff`               | ✅ `flagstaff@0.3.1`                                    |
+| the parrot that always answers back: prompts, flags first                                     | `caique`                  | ✅ `caique@0.3.0`                                       |
+| measuring and cutting styled text: width, wrap, truncate, slice                               | `linegauge`               | `linegauge@0.3.1` stub; F1                              |
+| ending cleanly: exactly-once handlers, a deadline, terminal restore                           | `closeout`                | `closeout@0.2.1` stub; F2                               |
+| which source outranks which, and which one set this value                                     | `seniority`               | `seniority@0.3.0` stub; F3                              |
+| running another program and getting a result back                                             | `bellpull`                | `bellpull@0.1.1` stub; F4, conditional on its kill gate |
 | grading + reference drivers                                                                   | `compat-oracle`           | private, never                                          |
 
 Every entry point above must declare a weight rule in `packages/burgee/src/weight.test.ts`
@@ -1051,7 +1051,7 @@ Three statuses moved in this pass, and two of them moved **down**: `sdlc-locks-e
 `review` to `shipped`, because all three of its criteria are demonstrably met and locked.
 
 Nothing else moved up, and that is deliberate: `approved` is a human gate per
-`AI_NATIVE_SDLC.md` rule 3, and an agent cannot grant it. Several intents — `caique`,
+`CLAUDE.md` rule 3, and an agent cannot grant it. Several intents — `caique`,
 `dev-loop`, `cli-mcp`, `commander-compat`, `yargs-compat`, `brand-burgee` — have substantial
 build behind them while still reading `review` or `draft`. That is the drift
 [Status drift, stated](#status-drift-stated) already admits: the gate has been advisory in

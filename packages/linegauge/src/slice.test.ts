@@ -130,7 +130,7 @@ describe('the rules a code-unit slice cannot honour', () => {
 });
 
 /**
- * `design.md` § R10 category E — the one failure on the `slice-ansi` row that was ours.
+ * `spec.md` § R10 category E — the one failure on the `slice-ansi` row that was ours.
  *
  * The style stack tracked only the SGR parameters in its own close-code table and dropped
  * the rest, so `ESC[1001m` vanished across a cut and the slice came back bare. `slice-ansi`

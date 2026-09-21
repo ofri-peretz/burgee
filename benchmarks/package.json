@@ -18,13 +18,13 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "bellpull": "^0.1.0",
+    "bellpull": "^0.1.1",
     "burgee": "*",
     "caique": "*",
     "compat-oracle": "*",
     "flagstaff": "*",
-    "linegauge": "^0.3.0",
-    "paratext": "^0.3.0",
+    "linegauge": "^0.3.1",
+    "paratext": "^0.4.0",
     "roundel": "*"
   },
   "devDependencies": {

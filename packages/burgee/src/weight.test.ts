@@ -119,7 +119,7 @@ const RULES: Record<string, EntryRule> = {
   //
   // `closeout` is the second, admitted on 2026-09-15 on exactly that test, and it passes it
   // the same way. E5 ("SIGINT restores the terminal and exits 130") and O5 ("stdout is
-  // flushed before any exit path") are both marked `R` in `.sdlc/intents/burgee/design.md`,
+  // flushed before any exit path") are both marked `R` in `.sdlc/intents/burgee/spec.md`,
   // `exit-code.ts` has declared `SIGINT: 130` since the contract was written — and **neither
   // was implemented**. The engine's only exit was `host.exit(code)`, which restores nothing
   // and truncates a pipe by definition. Writing the listener here would have been the fourth
@@ -205,7 +205,7 @@ const RULES: Record<string, EntryRule> = {
   // `effects` was optional, and a command that omitted it was silently not served as a
   // tool — *I decided agents should not have this* and *I forgot* were the same value, so
   // an author shipped a CLI whose agent-facing half was simply absent, with a shorter
-  // `tools/list` as the only evidence. `.sdlc/intents/burgee/design.md` recorded it as the
+  // `tools/list` as the only evidence. `.sdlc/intents/burgee/spec.md` recorded it as the
   // quieter of the two failures. It is now the louder one, at declaration time, and
   // declining is `effects: 'withheld'` — a thing said rather than a thing forgotten.
   ".": {
@@ -397,7 +397,7 @@ const RULES: Record<string, EntryRule> = {
   // commander has no notion of effects, its graded suite declares none, and a façade
   // command therefore reaches the manifest without passing `defineCommand`'s door — so a
   // commander user's command is withheld in fact and cannot be made to say so, which is the
-  // limit of this change and is recorded in `.sdlc/intents/burgee/design.md`. And the
+  // limit of this change and is recorded in `.sdlc/intents/burgee/spec.md`. And the
   // paragraph above is now the thing to watch: 128,000 is the budget, but commander's own
   // `lib/` is 126,365, and the measurement passed that on 2026-09-16 rather than today.
   // The ceiling says "no heavier than 128,000"; the claim says "no heavier than commander",

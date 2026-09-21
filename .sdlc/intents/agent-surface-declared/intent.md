@@ -12,7 +12,7 @@ becomes something an author *says*, so the two outcomes stop looking identical.
 
 ## Why now
 
-`.sdlc/intents/burgee/design.md` has carried N6 as `Not built` with the cause in its own
+`.sdlc/intents/burgee/spec.md` has carried N6 as `Not built` with the cause in its own
 words:
 
 > **N6** — `effects` is optional, not required. A command that omits it is silently not
@@ -63,7 +63,7 @@ breaking change** and the changeset says so in those words.
 
 ## Open questions
 
-None open. Two were resolved while building and both are recorded in `design.md`: the opt-out
+None open. Two were resolved while building and both are recorded in `spec.md`: the opt-out
 is a fourth value of `effects` rather than a separate field, and it is spelled `'withheld'`
 rather than `'none'` — *none* reads as *no effects*, which is `read_only`.
 

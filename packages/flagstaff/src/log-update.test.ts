@@ -254,7 +254,7 @@ describe.skipIf(process.platform === 'win32')('a cursor hidden mid-frame comes b
    * re-raises **only** when `process.listenerCount(signal) === 0`; drop that condition and
    * all three cases above still pass, because none of them installs a handler of its own.
    * The claim "a renderer does not get to overrule a program that took SIGINT for itself"
-   * is made in `closeout`, in `flagstaff/design.md` and in the README, so it needs a check.
+   * is made in `closeout`, in `flagstaff/spec.md` and in the README, so it needs a check.
    *
    * **`ownHandlerRuns` is that check, and the other three assertions are not.** Measured by
    * deleting the `listenerCount` guard from the registrar's built output: the child is still

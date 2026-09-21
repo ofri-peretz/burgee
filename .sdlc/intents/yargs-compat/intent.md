@@ -39,14 +39,14 @@ The bill for this host, counted rather than estimated: **108 public methods**,
 2. **Weight ceiling**: the front-end's reachable bytes stay under what yargs installs
    for the same surface (`weight.test.ts` entry `./yargs`, 256,000 B).
 3. **Never edit the vendored suite to pass.** Rule 2. A failing upstream test is either
-   a bug to fix or a divergence with a written reason in `design.md`; nothing is excluded.
+   a bug to fix or a divergence with a written reason in `spec.md`; nothing is excluded.
 4. The pass rate ratchets (C5): it may not fall between releases.
 
 ## Success criteria
 
 1. `npm run compat` reports a pass rate published in CI, on the docs site, and in the
    control bands.
-2. Every divergence is a failing upstream test with a recorded reason in `design.md`;
+2. Every divergence is a failing upstream test with a recorded reason in `spec.md`;
    an unrecorded failure is a bug.
 3. `examples/demo-cli-yargs` runs unmodified against both real yargs and this front-end,
    producing byte-identical stdout for every conformance case.
@@ -62,7 +62,7 @@ Checked criterion by criterion on `61bd11b9`. **Three of four met.** The status 
   `.sdlc/bands/control-bands.json`.
 - **Every divergence is a failing upstream test with a recorded reason** — met, vacuously:
   `results.json` reads `passed: 804, failed: 0, skipped: 1`, internals 23 / 23. There is nothing
-  to record, and `design.md:14` records X4.
+  to record, and `spec.md:14` records X4.
 - **`examples/demo-cli-yargs` byte-identical against both** — **met.** 26 cases in
   `examples/conformance/src/yargs-parity.test.ts`; `hosts.ts` swaps only the factory.
 - **B4 shows the ceiling met** — met. `./yargs` measures **216,594 B** against the 256,000 B

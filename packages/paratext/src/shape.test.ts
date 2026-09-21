@@ -28,7 +28,7 @@ import { type Runtime } from './runtime.js';
 import { supports } from './supports.js';
 
 /**
- * The record from the measurement in `.sdlc/intents/paratext/design.md`, unchanged: three
+ * The record from the measurement in `.sdlc/intents/paratext/spec.md`, unchanged: three
  * separate schema violations — `osc` an object where the schema says integer-or-`"BEL"`,
  * `when` a string where it says object, and an undeclared `extra` under
  * `additionalProperties: false` — in one object that used to pass.

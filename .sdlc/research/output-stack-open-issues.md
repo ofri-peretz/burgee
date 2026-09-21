@@ -168,7 +168,7 @@ the PTY tests exist.**
 Reading: one width function, ANSI- and hyperlink-aware, shared by box, table, prompt and
 spinner. Node 24 strips VT sequences natively but does not know East Asian width; whether
 the stack ships its own table or accepts the imprecision is a measured decision.
-**Owner: `flagstaff` (a `width` module in `design.md`); hypothesis — measure against
+**Owner: `flagstaff` (a `width` module in `spec.md`); hypothesis — measure against
 `string-width` before lock.**
 
 ## 6. Stdin, raw mode and Ctrl+C

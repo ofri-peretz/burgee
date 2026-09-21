@@ -83,7 +83,7 @@ no `packages/burgee/src/security*`, no `./security` in burgee's exports, and non
 `codes.ts` / `sarif.ts` / `report.ts` files the design names.
 
 - **Q1–Q7 hold, each with a test** — not met; none of the seven is implemented. (Worth fixing
-  while here: the criterion says "Q1–Q7 below", but Q1–Q7 are defined in `design.md:11-17`, not
+  while here: the criterion says "Q1–Q7 below", but Q1–Q7 are defined in `spec.md:11-17`, not
   in this file, so the criterion points at a section that is not there.)
 - **Emitted SARIF validates against the OASIS 2.1.0 schema in CI** — not met; no SARIF is
   emitted and no job validates one.
