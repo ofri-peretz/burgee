@@ -31,6 +31,7 @@
  */
 import { registerBuiltins } from './builtins.js';
 import { emit } from './capability.js';
+import { imageFields, type ImageOptions } from './image.js';
 import { processRuntime, type Runtime } from './runtime.js';
 
 /**
@@ -49,20 +50,6 @@ registerBuiltins();
 /** The bell. A byte, not a sequence — and the one member that is a value rather than a call. */
 const BEL = '\u0007';
 
-/** `ansi-escapes`' `image()` options, plus the field a projection needs. */
-export interface ImageOptions {
-  /** Cells, pixels (`20px`) or percent (`50%`) — passed through as the incumbent passes it. */
-  width?: number | string;
-  height?: number | string;
-  /** `false` writes `preserveAspectRatio=0`, exactly as upstream does. */
-  preserveAspectRatio?: boolean;
-  /**
-   * What a terminal that cannot draw the image prints instead. paratext's addition, and not
-   * optional in spirit: an image with no caption projects to nothing, which is silence where
-   * the incumbent would have written bytes nobody can read.
-   */
-  caption?: string;
-}
 
 /** The members of `ansi-escapes` paratext implements, bound to one runtime. */
 export interface AnsiEscapes {
@@ -76,9 +63,6 @@ export interface AnsiEscapes {
   setCwd: (cwd?: string) => string;
 }
 
-/** Only when truthy, which is upstream's own test (`if (options.width)`). */
-const optional = (value: number | string | undefined): string | undefined => (value === undefined || value === 0 || value === '' ? undefined : String(value));
-
 /**
  * The surface bound to a runtime you supply.
  *
@@ -90,20 +74,10 @@ export function ansiEscapesFor(runtime: Runtime): AnsiEscapes {
   return {
     beep: BEL,
     link: (text, url) => emit(runtime, 'link', { text, url }),
-    image: (data, options = {}) => {
-      const bytes = typeof data === 'string' ? Buffer.from(data, 'utf8') : Buffer.from(data);
-      return emit(runtime, 'image', {
-        base64: bytes.toString('base64'),
-        caption: options.caption,
-        width: optional(options.width),
-        height: optional(options.height),
-        // Upstream writes this only for an explicit `false`; `true` is the default and says
-        // nothing. Same rule here, so the two produce the same bytes for the same call.
-        preserveAspectRatio: options.preserveAspectRatio === false ? '0' : undefined,
-        // The spec calls it optional and xterm.js does not, so it is always written.
-        size: String(bytes.byteLength),
-      });
-    },
+    // Through `emit`, not through the record: a caller who re-registered `image` to correct
+    // our guess about their terminal must change what this returns. `paratext/term-img` is
+    // the one that renders the record directly, because it carries no registry.
+    image: (data, options = {}) => emit(runtime, 'image', imageFields(data, options)),
     setCwd: (cwd) => emit(runtime, 'cwd', { path: cwd ?? runtime.cwd ?? '' }),
   };
 }
@@ -197,3 +171,10 @@ export const ConEmu: NotImplemented = undefined;
  */
 // eslint-disable-next-line import-next/no-default-export -- the incumbent's entry is a default export and R8 is the whole point of this file
 export default Object.freeze({ beep, image, link, setCwd });
+
+/**
+ * `ansi-escapes`' `image()` options, declared beside the record in `image.ts` and re-exported
+ * here under the name this surface has always published. `paratext/term-img` takes the same
+ * object, and one definition is what keeps the two façades describing one call.
+ */
+export { type ImageOptions };

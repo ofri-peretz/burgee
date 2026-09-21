@@ -11,17 +11,26 @@ Read as a scoreboard, `compatibility.mdx` suggests ~1,000 cases of gap. **The gr
 is 385**, and the difference is not progress — it is one host whose suite cannot be passed
 without abandoning the package that targets it.
 
+**Corrected 2026-09-20, after measuring three of these rows.** 385 was itself too high by 13.
+`ansi-escapes` was listed at 3 and its real gap is **zero** — three of its four cases are
+CSI, which paratext states out of scope, so the row's ceiling is 1 and it is already there.
+`terminal-link` was listed at 10 and is now **8 / 10 built**, the last two a ceiling rather
+than a gap: they require reading inside another package's module object, which a
+zero-dependency façade cannot do and should not want to. Two premises out of three died on
+contact with a measurement, which is the argument for measuring a premise *before* building
+against it.
+
 | Host | Target | Now | Gradeable gap | Kind |
 | :--- | :--- | ---: | ---: | :--- |
 | cli-table3 (internals) | `flagstaff/cli-table3` | 0 / 104 | 104 | gap |
-| lilconfig | `seniority` | 0 / 77 | 67 | gap + 10 blind spot |
+| lilconfig | `seniority` | 0 / 77 | 67 | gap + a **permanent** 10-case blind spot |
 | dotenv | `seniority` | 74 / 141 | 67 | gap |
 | cosmiconfig | `seniority` | 186 / 243 | 57 | gap |
 | inquirer-core | `caique` | 0 / 41 | 41 | gap |
 | term-img | `paratext` | 0 / 18 | 18 | gap |
 | clack | `caique` | 0 / 606 | **17** | design disagreement |
-| terminal-link | `paratext` | 0 / 10 | 10 | gap |
-| ansi-escapes | `paratext` | 1 / 4 | 3 | gap |
+| ~~terminal-link~~ | `paratext/terminal-link` | **8 / 10** | 0 | **built 2026-09-20 — 8 is the ceiling** |
+| ~~ansi-escapes~~ | `paratext` | 1 / 4 | **0** | **already at its ceiling** |
 | rc | `seniority/rc` | 0 / 1 | 1 | target not built |
 | meow / cac / citty | `burgee/*` | planned | — | three unbuilt front-ends |
 | signal-exit | `closeout` | planned | — | control below its own reference |
@@ -117,8 +126,17 @@ half-finished one is a liability on npm today.
 
 ## Not compat, and required before "sellable"
 
-- **The `Benchmarks` gate has been red on main since 2026-09-15 17:11 UTC.** The published
-  claim `core-under-52kb-bundled` is broken at 57,880 against 53,248, plus six ratchets.
+- **The `Benchmarks` gate has been red on main since 2026-09-15 17:11 UTC**, and two
+  decisions now sit on it. The published claim is **settled**: every row of the README claim
+  table was restated at its measurement on 2026-09-20 and five of six read *not met*, with
+  `claim-table-lock.test.ts` holding it there. The **ratchets are not**, and deliberately so
+  — **D-073** refuses to raise seven ceilings at once, because `weight.ts` already records
+  what that costs ("a ceiling moved per PR is a record of what happened, not a limit on it",
+  written after four raises in one session). **D-074** records the sharper question: the B4
+  axis says it measures "what a user's application grows by" and bundles with esbuild
+  `--outfile`, which *inlines* `await import()`, so `completions.js` is counted as startup
+  weight that no real bundler would load at startup. Both are the owner's, both have a
+  default, and until one is taken **this gate stays red and every report says so.**
   Attributed: `main` measured 56,857 and #361 added 1,021, so 15,857 of the overrun predates
   it. `completions.js` is 7,763 B of the root bundle — `execute.ts` reaches it through
   `await import(…)`, which esbuild inlines under `--outfile`. Either the optional surfaces

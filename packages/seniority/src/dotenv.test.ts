@@ -68,6 +68,21 @@ describe('populate (dotenv 17.4.2)', () => {
   it('refuses a target that is not an object, naming the argument', () => {
     expect(() => populate(undefined as unknown as Record<string, string>, { A: '1' })).toThrow('OBJECT_REQUIRED: Please check the processEnv argument being passed to populate');
   });
+
+  /**
+   * The check dotenv itself makes, and the one its own suite grades:
+   * `returns any errors thrown on passing not json type` calls `populate(process.env, '')` —
+   * a perfectly good target and a string where the parsed object should be — and matches the
+   * message exactly. Our target guard above never fires for it.
+   */
+  it('refuses a `parsed` that is not an object, which is the check dotenv makes', () => {
+    expect(() => populate({}, '' as unknown as Record<string, string>)).toThrow('OBJECT_REQUIRED: Please check the processEnv argument being passed to populate');
+  });
+
+  it('returns what it set, and nothing it left alone', () => {
+    expect(populate({ A: 'already' }, { A: 'from-file', B: 'from-file' })).toEqual({ B: 'from-file' });
+    expect(populate({ A: 'already' }, { A: 'from-file' }, { override: true })).toEqual({ A: 'from-file' });
+  });
 });
 
 describe('config takes its environment as an argument (R8 divergence, R11)', () => {

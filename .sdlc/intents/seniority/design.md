@@ -107,12 +107,22 @@ them the absent YAML parser, one of them the harness.
   `extension ".foorc.things"` for a whole search place; a meta config outranks the program's
   own options; and `searchStrategy` is never validated.
 
-  **The subpaths.** `./cosmiconfig`, `./dotenv` and `./find-up` are separate entry points with
-  separate files, locked by `shape.test.ts` — a program overriding `dotenv` must not thereby
-  acquire the cosmiconfig façade, because the two are graded separately and a shared entry
-  would make one suite's rate depend on the other's module graph. `./rc` is deliberately not
-  here: PLAN 2.15 assigns `rc` to the harness lane, and building a façade for a suite this
-  repository cannot yet run would be a surface with no gate on it.
+  **The subpaths, and D-006 is why there are now five.** `./cosmiconfig`, `./dotenv`,
+  `./lilconfig`, `./rc` and `./find-up` are separate entry points with separate files, locked
+  by `shape.test.ts` — a program overriding `dotenv` must not thereby acquire the cosmiconfig
+  façade, because the two are graded separately and a shared entry would make one suite's rate
+  depend on the other's module graph.
+
+  `./lilconfig` and `./rc` were added 2026-09-20 and the lilconfig row is the cleanest possible
+  demonstration of D-006: **0 / 77 → 67 / 77 with no change to any existing file**, because the
+  suite had been pointed at the package *root*, which presents cosmiconfig's surface and has no
+  `lilconfigSync` in it. The zero was seventy-seven copies of one `TypeError`. It could not have
+  been fixed by widening the root either, and that is the part worth keeping: lilconfig's last
+  case reads `Object.keys()` of the module it is given, drops the four factory names and
+  `metaSearchPlaces`, and compares what is left against the real cosmiconfig's — so a module
+  exporting both surfaces fails it *by construction*. `seniority/lilconfig` therefore publishes
+  four runtime names and no more, and `lilconfig.test.ts` locks that, because adding an export
+  is the least alarming edit anyone could make to it.
 
   **`seniority/dotenv` has exactly one divergence, and it is R11.** `parse` and `populate` are
   dotenv 17.4.2's, grammar included — its line regex is reproduced character for character,
@@ -283,9 +293,9 @@ are.
 | R5 | **Built** | `src/search.ts` — 120 lines, bounded by `stopAt`, `WALK_LIMIT` and the root; real paths compared so a symlink ring ends the walk | `search.test.ts`, 10 cases incl. a link pointing back at its own ancestor |
 | R6 | **Built** | `src/load.ts` — four builtin loaders, injected loaders for everything else, `LoaderError` (`exitCode: 2`) naming the extension and the option | `load.test.ts`, 11 cases; `NOT_BUNDLED` is asserted absent from `defaultLoaders` |
 | R7 | **Built** | shipped 0.1.0. `src/config.ts` — `loadWithExtends`, deep merge, cycle rejection | `config.test.ts` |
-| R8 | **Built** | `src/cosmiconfig.ts` + `-defaults` + `-util` re-exported from the root; `./cosmiconfig`, `./dotenv`, `./find-up` as separate entry points | cosmiconfig's own suite: **186 / 241**. `shape.test.ts` locks the export map and subpath isolation |
+| R8 | **Built** | `src/cosmiconfig.ts` + `-defaults` + `-util` re-exported from the root; `./cosmiconfig`, `./dotenv`, `./lilconfig`, `./rc`, `./find-up` as separate entry points | the incumbents' own suites: cosmiconfig **186 / 243**, dotenv **80 / 141**, lilconfig **67 / 77**, rc **0 / 1**. `shape.test.ts` locks the export map and subpath isolation |
 | R9 | **Built** | `src/shape.test.ts` — a ceiling on the **built** `dist`, not on the source | `shape.test.ts`: 95,907 B against a 140,000 B ceiling, and a floor so an empty build cannot pass |
-| R10 | **Built** | all four vendored and graded control-first by the harness lane, 2026-09-16: `cosmiconfig` **186 / 243, 76.5%**, `dotenv` **74 / 141, 50.3%**, `lilconfig` **0 / 77**, `rc` **0 / 1** (`target not built yet`) | `npm run compat -- cosmiconfig --control`, and the same for the other three; see [§ The four suites, measured](#the-four-suites-measured) |
+| R10 | **Built** | all four vendored and graded control-first, re-measured 2026-09-20: `cosmiconfig` **186 / 243, 76.5%**, `dotenv` **80 / 141, 56.7%**, `lilconfig` **67 / 77, 87.0%**, `rc` **0 / 1** (measured, not a placeholder) | `npm run compat -- cosmiconfig --control`, and the same for the other three; see [§ The four suites, measured](#the-four-suites-measured) |
 | R11 | **Built** | no source in the package names `process` | `shape.test.ts` locally, and `packages/burgee/src/process-reference-lock.test.ts` repo-wide — seniority has **no** allow-list entry, which is the claim |
 | R12 | **Built** | `src/validate.ts` — `validate` returns every violation, `check` throws one `ConfigError` | `validate.test.ts`: ``` `out` must be a string; `./mytool.config.js:3` set it to `4` ``` |
 | R13 | **Built** | 2026-09-14. `src/precedence.ts` — open union, `describe`'s `default` branch | `precedence.test.ts`: a `vault` source renders itself in `--explain` |
@@ -394,9 +404,9 @@ said the opposite for two days and the reason matters more than the status:
 | host | target | control | what had been blocking it |
 | :-- | --: | --: | :-- |
 | `cosmiconfig` | **186 / 243, 76.5%** | 240 / 243 (allowance 1) | `installSuiteDeps` skipped a pin it could resolve *by name*, so the 10.0.1 suite graded against the workspace's hoisted 9.0.2 and the control read 234 / 241 — below its own reference, which must not publish a rate |
-| `dotenv` | **74 / 141, 50.3%** | 141 / 141 | its suite is node-tap and `command()` had no `tap` arm, so it fell through to mocha's and graded zero |
-| `lilconfig` | **0 / 77** | 67 / 77 (allowance 10) | `jest.clearAllMocks` was unmapped, and it is called in a top-level `beforeEach` — a TypeError before every case, control 0 / 84 |
-| `rc` | **0 / 1**, `target not built yet` | 1 / 1 by exit code | nothing, in the end: its control had been *passing* by resolving `rc` out of a stray `/Users/…/node_modules`, which the same pin fix closed |
+| `dotenv` | **74 / 141, 50.3%** → **80 / 141, 56.7%** | 141 / 141 | its suite is node-tap and `command()` had no `tap` arm, so it fell through to mocha's and graded zero |
+| `lilconfig` | **0 / 77** → **67 / 77, 87.0%** | 67 / 77 (allowance 10) | `jest.clearAllMocks` was unmapped, and it is called in a top-level `beforeEach` — a TypeError before every case, control 0 / 84 |
+| `rc` | **0 / 1**, `target not built yet` → **0 / 1**, measured | 1 / 1 by exit code | nothing, in the end: its control had been *passing* by resolving `rc` out of a stray `/Users/…/node_modules`, which the same pin fix closed |
 
 **The rate moved down when it became honest.** `cosmiconfig`'s reference is now **243, not
 241**: two cases sit behind `if (process.platform === 'linux')` in
@@ -420,6 +430,61 @@ running anything) no longer describes the row. It is replaced by a different hon
 the suite still cannot be run here at all, so **no rate is recorded**. A number would have to
 be invented to fill that cell, and an invented number in a ratchet that only goes up is worse
 than an empty one.
+
+### The four ceilings, named — 2026-09-20
+
+Every case the four suites do not give us is accounted for below, and **none of the four gaps
+is an unfound bug**. That matters more than the rates: a percentage whose remainder is
+unexplained is where a compatibility claim quietly becomes false.
+
+| host | today | ceiling reachable here | what the rest is | whose call |
+| :-- | --: | --: | :-- | :-- |
+| `cosmiconfig` | 186 / 243 | **187** | 54 YAML · 1 harness shim · 2 linux XDG | constraint 3 (owner) |
+| `dotenv` | 80 / 141 | **80 — reached** | 27 `.env.vault` / `DOTENV_KEY` · 34 ambient `process.env` | scope + R11 |
+| `lilconfig` | 67 / 77 | **67 — reached** | 10 `jest.mock('fs')` under vitest | declared blind spot |
+| `rc` | 0 / 1 | **0** | 1 ambient `process.env` | R11 |
+
+**cosmiconfig — 54 of the 55, and it is measured now rather than read off the fixtures.**
+Every failing entry in the raw TAP was matched against its diagnostic: 54 carry
+`no YAML parser` — the `LoaderError` `loadYaml` throws — and the 55th is `index.test.ts`, the
+one-case harness allowance `controlFailures` already declares. So there is no behavioural
+divergence hiding inside the number and no route past it that is not `js-yaml` or a parser
+written to replace it. The largest single block is the whole of `import.test.ts`, 22 cases:
+`$import` **is built and works**, and every one of its fixtures is `.yml`, so the suite cannot
+see the feature. Lifting this is constraint 3 — 747 M/wk of format parsers deliberately not
+taken — which is a decision about what the package refuses to be, and therefore the owner's.
+
+**dotenv — 61 short, in two blocks and no third.** 26 cases in `test-config-vault.js` plus 1
+in `test-decrypt.js` are `DOTENV_KEY` and the `.env.vault` format, which dotenv itself
+deprecated in favour of dotenvx and this package declines. The other 34 — 31 of
+`test-config.js`'s 32 and all 3 of `test-config-cli.js` — need `config()` to default
+`processEnv` to `process.env` and `path` to a cwd-relative `.env`. Read the case list and
+every one of them asserts `process.env.BASIC` after a bare `config()`. The one case in that
+file that hands `config` an object of its own, `can write to a different object rather than
+process.env`, passes.
+
+**rc — one assertion, and its line number.** `node test/test.js` in the vendored directory
+against the built façade fails at `test.js:14`, `assert.equal(config.envOption, 42)`, *having
+already passed line 13*. rc's signature is `rc(name, defaults, argv, parse)`: argv is a
+parameter and the environment is not. `packages/seniority/src/rc.test.ts` is that same file,
+case for case, with the environment supplied as an argument — and it passes. The distance
+between 0 / 1 and 1 / 1 is therefore one allow-list entry in
+`packages/burgee/src/process-reference-lock.test.ts`, not one line of rc semantics.
+
+### R11 is true by its own wording and weaker than it reads
+
+Worth writing down because this lane kept running into it. The claim is "nothing reads
+`process.*`", the repo-wide lock enforces exactly that pattern, and seniority passes it with no
+allow-list entry. But `cosmiconfig.ts` has read the working directory since it was written —
+`resolvePath(filepath)`, `resolvePath(from)` and `resolvePath('')`, one-argument `path.resolve`,
+which resolves against the live cwd — and `lilconfig.ts` now does the same for
+`search(searchFrom = …)` and `load()`'s relative paths, because its incumbent's suite hands it
+paths relative to the cwd. That is the working directory by a different spelling. It is not a
+dodge (a façade must absolutise a relative path somehow, and `node:path` is the only tool that
+does it) but the honest statement of R11 is **"nothing in this package reads the *environment*
+or *argv*, and the working directory enters only through `node:path`"** — not the stronger
+thing a reader takes from the lock passing. The three things that genuinely have no route in
+are `env`, `argv`, and `exit`, and those are the three the façades keep colliding with.
 
 ### Reproducing these numbers
 

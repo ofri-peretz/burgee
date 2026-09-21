@@ -73,10 +73,18 @@ const RULES: Record<string, EntryRule> = {
    * so the walk is five named functions rather than one — a lint rule this repository enforces
    * bought 533 B, which is a trade worth writing down rather than quietly reversing.
    *
-   * `.` now measures **20,221 B**. The new ceiling is *tighter* than the one it replaces:
-   * 279 B of headroom where there were 1,465.
+   * `.` measured **20,221 B** after that, against a ceiling *tighter* than the one it
+   * replaced: 279 B of headroom where there had been 1,465.
+   *
+   * **Raised from 20,500 to 20,900 on 2026-09-20, for a module boundary rather than a
+   * feature.** `paratext/term-img` needs the OSC 1337 record without the registry, so `IMAGE`
+   * and `ImageOptions` moved out of `builtins.ts` and `ansi-escapes.ts` into `image.js` —
+   * the same move `link.ts` made, and it costs the same kind of bytes: a new file with its
+   * own import list, and two re-export lines to keep the published names where they were.
+   * The root reaches it whole, so it pays **+399 B** (20,221 → 20,620) for a file it would
+   * otherwise have inlined. The headroom is 280 B, which is where the last raise left it.
    */
-  '.': { allow: [], budget: 20_500, denied: ['plugin.js'] },
+  '.': { allow: [], budget: 20_900, denied: ['plugin.js'] },
   /**
    * OSC 8 alone, for a host that wants one clickable URL and not a plugin contract.
    * Measured **2,337 B**: `link.js` 768, `template.js` 774, `supports.js` 652,
@@ -92,6 +100,22 @@ const RULES: Record<string, EntryRule> = {
    * existing and applies here unchanged.
    */
   './terminal-link': { allow: [], budget: 6_000, denied: ['index.js', 'capability.js', 'builtins.js', 'plugin.js', 'ansi-escapes.js', 'schema.json'] },
+  /**
+   * The `term-img` façade. It reaches `image.js` for the `IMAGE` record and the field
+   * arithmetic, `runtime.js` for the process seam and `template.js` to render — and, unlike
+   * `./terminal-link`, it does *not* reach `link.js`, because OSC 1337 and OSC 8 are now two
+   * records in two files. The deny-list is the same one, and for the same reason: taking a
+   * drop-in `terminalImage` is not a reason to register seven built-ins.
+   *
+   * `index.js` matters twice over here. Reaching it would not only run `registerBuiltins()`
+   * at import; it would pull `ansi-escapes.js`, whose own top-level `registerBuiltins()` is
+   * the second copy of that side effect.
+   *
+   * Measured **4,362 B**: `term-img.js` 2,526, `image.js` 880, `template.js` 774,
+   * `runtime.js` 182. Most of its own file is the five-terminal version table, which is the
+   * part `term-img` pays two dependencies for.
+   */
+  './term-img': { allow: [], budget: 5_000, denied: ['index.js', 'capability.js', 'builtins.js', 'plugin.js', 'ansi-escapes.js', 'schema.json'] },
   /**
    * The plugin host: `validate`, `contributions`, `attach`, and the `capability.ts` it
    * delegates to, which is what pulls `schema.json`. Measured 15,116 B. It must never reach
