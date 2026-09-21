@@ -22,7 +22,7 @@ against it.
 
 | Host | Target | Now | Gradeable gap | Kind |
 | :--- | :--- | ---: | ---: | :--- |
-| cli-table3 (internals) | `flagstaff/cli-table3` | 0 / 104 | 104 | gap |
+| ~~cli-table3 (internals)~~ | `flagstaff/cli-table3` | **103 / 104** | 0 | **closed 2026-09-21 — equals the control** |
 | lilconfig | `seniority` | 0 / 77 | 67 | gap + a **permanent** 10-case blind spot |
 | dotenv | `seniority` | 74 / 141 | 67 | gap |
 | cosmiconfig | `seniority` | 186 / 243 | 57 | gap |
@@ -120,7 +120,14 @@ half-finished one is a liability on npm today.
 3. **seniority** — `rc` (1), `lilconfig` (67), `cosmiconfig` (57), `dotenv` (67). The
    largest real gap, and `explain` is the differentiator nobody else has.
 4. **caique** — `inquirer` façade (41), then clack's 17 and the positioning statement.
-5. **flagstaff** — cli-table3's 104 internals, with the control at 103 / 104 as the bar.
+5. ~~**flagstaff** — cli-table3's 104 internals, with the control at 103 / 104 as the bar.~~
+   **Done 2026-09-21 at 103 / 104, the bar exactly.** The thirteen the row called a ceiling were the
+   instrument: the shim re-exported the target's whole entry at `../src/cell`, so a suite asking for the
+   `Cell` class got the `Table` class. `internalExports` names the export per internal path on a target
+   run, and the façade hangs `ColSpanCell`/`RowSpanCell` off `Cell` the way cli-table3's own
+   `src/cell.js` does. The one case left is `cell-test.js` dying at load, which costs the control the
+   same. **A third premise in this file died on a measurement**, after `ansi-escapes` and
+   `terminal-link` — which is the argument for measuring a premise before building against it.
 6. **burgee** — `meow`, `cac`, `citty` front-ends.
 7. **closeout** — `signal-exit`, once its control clears its own reference.
 
