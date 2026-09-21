@@ -33,6 +33,16 @@
       "import": "./dist/dotenv.js",
       "default": "./dist/dotenv.js"
     },
+    "./lilconfig": {
+      "types": "./dist/lilconfig.d.ts",
+      "import": "./dist/lilconfig.js",
+      "default": "./dist/lilconfig.js"
+    },
+    "./rc": {
+      "types": "./dist/rc.d.ts",
+      "import": "./dist/rc.js",
+      "default": "./dist/rc.js"
+    },
     "./find-up": {
       "types": "./dist/find-up.d.ts",
       "import": "./dist/find-up.js",

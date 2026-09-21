@@ -28,12 +28,12 @@
     "unpackedSize": 83538
   },
   "seniority": {
-    "size": 47616,
-    "unpackedSize": 153040
+    "size": 59124,
+    "unpackedSize": 193682
   },
   "paratext": {
     "size": 22113,
     "unpackedSize": 66080
   },
-  "$comment": "Recorded pack sizes, refreshed 2026-09-14 and the refresh is the story. `check:artifacts` existed, `artifact-size-ratchet-lock.test.ts` unit-tested its verdict function against synthetic inputs, and **no workflow ever ran the verdict against the real packages** — so seven of them drifted past this file unchallenged: closeout +268%, seniority +112%, paratext +87%, burgee +51%, caique +46%, flagstaff +15%, linegauge +11%. The growth is explained — the PLAN 1.1 schema fold put a 6.5 KB family schema in every package that reaches the plugin registry, and waves 1 and 3 added plugin hosts and drop-in façades — but explaining growth is not the same as accepting it, which is why the numbers are named here rather than quietly replaced. `npm run lint` runs the check now, so the next one is caught."
+  "$comment": "Recorded pack sizes, refreshed 2026-09-14 and the refresh is the story. `check:artifacts` existed, `artifact-size-ratchet-lock.test.ts` unit-tested its verdict function against synthetic inputs, and **no workflow ever ran the verdict against the real packages** \u2014 so seven of them drifted past this file unchallenged: closeout +268%, seniority +112%, paratext +87%, burgee +51%, caique +46%, flagstaff +15%, linegauge +11%. The growth is explained \u2014 the PLAN 1.1 schema fold put a 6.5 KB family schema in every package that reaches the plugin registry, and waves 1 and 3 added plugin hosts and drop-in fa\u00e7ades \u2014 but explaining growth is not the same as accepting it, which is why the numbers are named here rather than quietly replaced. `npm run lint` runs the check now, so the next one is caught. seniority moved 2026-09-20, deliberately and in one direction: 47,616 -> 59,124 gzipped and 153,040 -> 193,682 unpacked, +24.2% and +26.6%. The cause is two drop-in subpaths that did not exist \u2014 `seniority/lilconfig` (lilconfig 3.1.3's surface, which took its compat row from 0 / 77 to 67 / 77) and `seniority/rc` (rc 1.2.8's merge without its four dependencies). Both are product, not drift, and the package's own R9 ceiling in `shape.test.ts` \u2014 140,000 B of built `dist`, measured against lilconfig \u2014 is still met. The band is raised here rather than the ceiling there, because they measure different things: this one is the tarball a consumer downloads, that one is the graph a bundler walks."
 }

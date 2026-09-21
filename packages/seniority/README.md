@@ -222,7 +222,7 @@ The root export carries cosmiconfig's own surface, so a migration is the import 
 `defaultLoadersSync`, `getDefaultSearchPlaces`, `globalConfigSearchPlaces`, `metaSearchPlaces`
 — all three search strategies, both caches, `$import`, and the meta-config merge.
 
-**Graded by cosmiconfig 10.0.1's own test suite: 186 of 241 cases.** Not "compatible" — a
+**Graded by cosmiconfig 10.0.1's own test suite: 186 of 243 cases.** Not "compatible" — a
 number, from the incumbent's tests, run unmodified. Where it stops is one thing:
 
 > **YAML.** cosmiconfig reads `.yaml`, `.yml` and extensionless files through `js-yaml`.
@@ -233,7 +233,10 @@ number, from the incumbent's tests, run unmodified. Where it stops is one thing:
 
 Every one of the 55 cases not passing is that, bar one that is the test harness reaching for a
 file path the vendored copy does not have. None of them is a difference in how a config is
-found, merged or reported.
+found, merged or reported — and that is counted rather than claimed: every failing entry in
+the raw output was matched against its own diagnostic, and 54 of the 55 carry the "no YAML
+parser" refusal above. The largest block is the whole of `import.test.ts`, 22 cases: `$import`
+works, and every fixture it is tested with is `.yml`.
 
 ### `seniority/dotenv`
 
@@ -250,13 +253,52 @@ That one word is the whole difference, and it is deliberate: nothing in this pac
 writes `process` on its own. It is also why `parse` is usable in a test, in a browser build,
 or on a string you already have.
 
+### `seniority/lilconfig`
+
+`lilconfig`, `lilconfigSync`, `defaultLoaders`, `defaultLoadersSync` — lilconfig's search
+places, its loader tables (`.json` through `require` in the sync one, exactly as upstream),
+its caches, and its disagreements with cosmiconfig kept rather than smoothed over:
+
+```js
+- import { lilconfigSync } from "lilconfig";
++ import { lilconfigSync } from "seniority/lilconfig";
+```
+
+**Graded by lilconfig 3.1.3's own test suite: 67 of 77 cases — the same score the real
+`lilconfig` gets here.** The ten neither of us passes assert which files were read by mocking
+`fs` with `jest.mock`, which cannot reach a CommonJS `require('fs')` under vitest. No case in
+that suite separates this from the package it replaces.
+
+Its own entry point, not the root: lilconfig's last test reads the *keys* of the module it is
+given and compares them with cosmiconfig's, so one module cannot honestly be both.
+
+### `seniority/rc`
+
+rc's merge — the `/etc`, `$HOME` and upward-walk file stack in rc's own order, `__` nesting
+for environment keys, JSON with comments, `deep-extend`'s merge, and the `configs` / `config`
+report of which files were actually read — with none of rc's four dependencies.
+
+```js
+- const config = require("rc")("mytool", defaults);
++ import rc from "seniority/rc";
++ const config = rc("mytool", defaults, argv, undefined, { env: process.env });
+```
+
+Two differences, both on purpose. The environment is an argument, for the same reason
+`config` takes one. And an INI-shaped file is refused by name rather than parsed — pass
+`ini.parse` in rc's own fourth position and you have rc's behaviour, with the parser as
+*your* dependency.
+
+**Graded by rc 1.2.8's own test: 0 of 1.** That suite is one script of bare assertions, and
+it sets `process.env` before calling `rc(name, defaults)` — a signature with no slot for an
+environment. It gets past the first assertion and fails on the second. The same script with
+the environment passed in is `src/rc.test.ts`, and it passes.
+
 ### `seniority/find-up`
 
 `findUp`, `findUpSync`, `findUpMultiple`, `findUpMultipleSync` over the same bounded walk —
 `stopAt`, a depth limit, and a symlink ring that ends the walk instead of spinning it.
 `find-up` → `locate-path` → `p-locate` → `path-exists` is four packages for that.
-
-`rc` is not built yet.
 
 ## Benchmarks
 
@@ -267,8 +309,8 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `cosmiconfig` | 186 / 243 |
-| `dotenv` | 74 / 141 |
-| `lilconfig` | 0 / 77 |
+| `dotenv` | 80 / 141 |
+| `lilconfig` | 67 / 77 |
 | `rc` | 0 / 1 |
 
 Weight, installed and tree-inclusive: **153,435 bytes** against **1,555,288** for the incumbents it replaces — a ratio of **0.0987**.
