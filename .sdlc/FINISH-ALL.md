@@ -32,7 +32,8 @@ against it.
 | ~~terminal-link~~ | `paratext/terminal-link` | **8 / 10** | 0 | **built 2026-09-20 — 8 is the ceiling** |
 | ~~ansi-escapes~~ | `paratext` | 1 / 4 | **0** | **already at its ceiling** |
 | rc | `seniority/rc` | 0 / 1 | 1 | target not built |
-| meow / cac / citty | `burgee/*` | planned | — | three unbuilt front-ends |
+| meow | `burgee/meow` | **control 144 / 148** | 148 | harness ready, façade unbuilt |
+| cac / citty | `burgee/*` | planned | — | two unbuilt front-ends |
 | signal-exit | `closeout` | planned | — | control below its own reference |
 
 Thirteen rows are already 100%: commander 1360, yargs 804, chalk 58, ora 99, log-update 99,
@@ -129,6 +130,25 @@ half-finished one is a liability on npm today.
    same. **A third premise in this file died on a measurement**, after `ansi-escapes` and
    `terminal-link` — which is the argument for measuring a premise before building against it.
 6. **burgee** — `meow`, `cac`, `citty` front-ends.
+   **meow's harness is ready as of 2026-09-21, and getting there found four defects.** The
+   row's own configuration was wrong three ways — `runner: 'node:test'` where the suite is
+   ava, one import path where two files reach `../build/index.js`, and `reexportDefault:
+   false` where meow's whole API *is* its default export, which made the generated shim
+   fail every file with "does not provide an export named 'default'". Underneath it the
+   harness was wrong three more ways: the runner was resolved from the workspace rather
+   than the host's pinned tree (this repo hoists **ava 8.0.1**, meow's suite wants the
+   **6.4.1** its `suiteDeps` installs, and ava 8 against those files prints
+   `1..0 / # tests 0 / # fail 32` — a suite of zero reported as thirty-two failures);
+   ava's CLI entry is `cli.js` on 8 and `cli.mjs` on 6, and its exports map admits neither
+   by name; and the walk handed ava the 24 `fixtures/` CLI programs the tests spawn, which
+   is where `failed 22` beside `passed 144` came from. Pruned and pinned, the control reads
+   **148 cases · 144 passed · 4 failed · 18 graded files**, and the four are the
+   reference's own. `vendor()` also turned out not to write `PROVENANCE`, so re-vendoring
+   through the oracle deleted a file its own lock requires — fixed separately.
+
+   **The façade is not built and this does not build it.** D-004 puts the three front-ends
+   last and a human accepts at Design→Build. What exists now is a control that clears its
+   own reference, so the next failure means the façade rather than the harness.
 7. **closeout** — `signal-exit`, once its control clears its own reference.
 
 ## Not compat, and required before "sellable"

@@ -104,7 +104,7 @@ CI unless it edits the baseline with a written reason (C5).
 
 | Host | Status | Why |
 | :--- | :--- | :--- |
-| meow | planned | The cheapest third host: a small surface and 42.8M/wk of genuinely chosen usage. |
+| meow | planned | Vendored and measured 2026-09-21 at 14.1.0. **Control 144 / 148, 97.3%** against `meow@14.1.0` — 148 cases across 18 graded files, plus 24 `fixtures/` programs the tests spawn and `ungradedDirs` prunes. The four the control misses are the reference's own: one wants the built bundle, three read the vendored root's `package.json` rather than a fixture's. Every one of the three facts this row carried while unmeasured was wrong — the runner, the import path and `reexportDefault` — which is why a `planned` row's configuration is a guess until a control runs it. Still planned: D-004 puts the three front-ends last, and this is the feedback loop that has to exist before the façade. |
 | cac | planned | Deferred: 49.4M/wk is almost entirely vite and vitest bundling it, not developers choosing it, so a façade converts few people. |
 | citty | planned | Deferred for the same reason as cac: nitro and unjs bundle it. |
 | oclif | rejected | Its API is inseparable from its shape: a project layout, a build step and a generator. A façade could not be adopted without adopting the shape that Z1 exists to prevent, and oclif does 10.9M/wk against commander’s 508M, so the shape is also what lost. |
