@@ -44,7 +44,7 @@ function tokenize(string: string): Token[] {
         for (const character of plainText) tokens.push({ value: character, width: 1 });
         return;
       }
-      for (const { segment } of segmenter.segment(plainText)) tokens.push({ value: segment, width: measure(segment) });
+      for (const { segment } of segmenter().segment(plainText)) tokens.push({ value: segment, width: measure(segment) });
     },
     (escape) => tokens.push({ value: escape, width: 0 }),
   );
