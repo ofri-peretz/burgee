@@ -126,8 +126,17 @@ half-finished one is a liability on npm today.
 
 ## Not compat, and required before "sellable"
 
-- **The `Benchmarks` gate has been red on main since 2026-09-15 17:11 UTC.** The published
-  claim `core-under-52kb-bundled` is broken at 57,880 against 53,248, plus six ratchets.
+- **The `Benchmarks` gate has been red on main since 2026-09-15 17:11 UTC**, and two
+  decisions now sit on it. The published claim is **settled**: every row of the README claim
+  table was restated at its measurement on 2026-09-20 and five of six read *not met*, with
+  `claim-table-lock.test.ts` holding it there. The **ratchets are not**, and deliberately so
+  — **D-073** refuses to raise seven ceilings at once, because `weight.ts` already records
+  what that costs ("a ceiling moved per PR is a record of what happened, not a limit on it",
+  written after four raises in one session). **D-074** records the sharper question: the B4
+  axis says it measures "what a user's application grows by" and bundles with esbuild
+  `--outfile`, which *inlines* `await import()`, so `completions.js` is counted as startup
+  weight that no real bundler would load at startup. Both are the owner's, both have a
+  default, and until one is taken **this gate stays red and every report says so.**
   Attributed: `main` measured 56,857 and #361 added 1,021, so 15,857 of the overrun predates
   it. `completions.js` is 7,763 B of the root bundle — `execute.ts` reaches it through
   `await import(…)`, which esbuild inlines under `--outfile`. Either the optional surfaces
