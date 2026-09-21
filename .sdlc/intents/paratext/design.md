@@ -673,3 +673,86 @@ sequences — the standing rule that a layer's job is not reimplemented by its c
 it made a gap legible that had been invisible: `paratext` was in neither `FAMILY_ORDER` nor
 `FOUNDATION` in `scripts/package-shape-lock.test.ts`, so the new edge read as a dependency
 from *outside* the family. A layer nothing consumed could not have shown that.
+
+## What shipped (R9, the third suite — `paratext/term-img` at 12 / 18 — 2026-09-20)
+
+The last of R9's three rows is graded. `term-img`'s eighteen cases ran against
+`paratext/term-img` and **12 pass, 66.7%, up from 0 — and 12 is the ceiling.**
+
+**The zero was the export map, not the surface.** The note written the day the row was
+activated called it "a measured zero of the `ansi-escapes` shape", which reads as *nothing
+is built*. The raw TAP was one line: `SyntaxError: The requested module './shim.js' does not
+provide an export named 'UnsupportedTerminalError'`. The row was pointed at the package
+root, whose default export is already `ansi-escapes`' object (R8), and `term-img`'s default
+export is a function — one default cannot be both. That is D-006, and `terminal-link` hit
+the same wall four days earlier. Every row in this repository at 100% targets a subpath.
+
+**The six that stay red are D-030, named.** `iTerm2 support`, `WezTerm support`,
+`Konsole support`, `Rio support`, `VSCode support` and `handles options parameter
+correctly` — every one of them hands `terminalImage` a **path** and a terminal the suite has
+just declared supported, and expects bytes back. D-030 says `image` takes bytes only, which
+is what keeps `node:fs` out of this package. The façade refuses a string with a `TypeError`
+naming the decision, and refuses it **at exactly the line upstream calls `fs.readFileSync`**
+— after the argument check and after the terminal check. That placement is what makes the
+number 12 and not 8: the four cases that hand a path to an *unsupported* terminal never
+reach it, because upstream would not have opened the file either.
+
+Turning the six green is available and is a lie — it means base64-ing the characters
+`fixture.jpg` and calling them a JPEG. So **66.7% on this row means complete**, the way 25%
+does on `ansi-escapes`, and the ceiling is written into the host entry beside the six names.
+
+**The one divergence, argued rather than assumed.** The façade carries `term-img`'s own
+terminal table — iTerm2 ≥ 3, WezTerm ≥ 20220319, Konsole ≥ 22.04, Rio ≥ 0.1.13, VSCode ≥
+1.80, from the environment alone — rather than `IMAGE.when`, which also requires a tty. Not
+because a tty clause would cost a case, but because `term-img`'s unsupported branch is
+`fallback()`, and its default **throws**. Rule 6 says never put raw OSC into a pipe; it does
+not license crashing a caller that the incumbent would merely have made an ugly log of.
+Adding the tty clause here would turn every piped run into an `UnsupportedTerminalError`.
+The root's `image()` keeps it, because there the projection really is a string. The
+divergence belongs to one surface, and it is asserted in `term-img.test.ts` so that a later
+"consistency" edit has to argue with it.
+
+It is also, unlike `terminal-link`'s ceiling, **not** a peek inside somebody else's module
+object: it is five version comparisons we wrote, deterministic on every machine, and it
+replaces two of upstream's dependencies (`iterm2-version`, `ansi-escapes`) with nothing.
+
+**One upstream defect fixed in passing.** `checkITermVersion` reads the major version as
+`Number(version[0])` — the first *character* — so `10.2.1` reads as `1` and an iTerm2 seven
+majors past the minimum is refused. The façade uses `Number.parseInt`. Nothing in the
+vendored suite distinguishes the two (its case is `3.3.7`), so this is recorded here rather
+than measured there, and `term-img.test.ts` pins it.
+
+**The record moved, it did not multiply.** `IMAGE` and `ImageOptions` left `builtins.ts` and
+`ansi-escapes.ts` for `image.ts`, so a subpath can reach OSC 1337 without `capability.js`
+and its 6,756 B of `schema.json` — the same move `link.ts` made for OSC 8, and the same
+refusal to copy instead. `builtins.ts` re-exports it as `image`, so the object the registry
+ships and the object the façade renders are one object. `./term-img` measures **4,362 B**
+and reaches no registry; the root paid **+399 B** for the new module boundary, and the
+budget was raised from 20,500 to 20,900 with the arithmetic written into `weight.test.ts`.
+
+R9 is now complete: three suites vendored, three graded, three ceilings written down —
+`ansi-escapes` 1 / 4 (CSI is out of scope), `terminal-link` 8 / 10 (the suite mutates
+another package's module object), `term-img` 12 / 18 (D-030).
+
+### One thing this lane found and may not fix
+
+`npm run lint` is red on `check:artifacts` for paratext, and **it is red on `main` too.**
+Measured 2026-09-20 with `npm pack --dry-run` on each tree in turn:
+
+| tree | gzipped | unpacked | against the band |
+| :-- | --: | --: | :-- |
+| `.sdlc/bands/artifact-size-baseline.json` | 22,113 | 66,080 | the recorded baseline |
+| `main` | 25,966 | 80,007 | **+17.4% / +21.1%**, past the 10% allowance |
+| this branch | 25,959 | 78,734 | **+17.4% / +19.1%** |
+
+So the gate was already failing before `term-img` existed — `paratext/terminal-link` added
+`terminal-link.js` and its declaration file without the band following — and this branch
+ships **1,273 fewer unpacked bytes than `main`**, because moving `IMAGE` into its own module
+took more prose out of `builtins.d.ts` and `ansi-escapes.d.ts` than the new subpath's
+declarations put back. `.d.ts` files keep every doc comment by design
+(`scripts/strip-comments.mjs` says so), so in this package a paragraph is a published byte.
+
+The fix is one row of `.sdlc/bands/artifact-size-baseline.json`, which this lane does not
+own and did not touch. `--update-baseline` is the wrong instrument for it: it rewrites every
+package's row from the machine that ran it, and burgee's and flagstaff's rows would be
+overwritten with this laptop's numbers — the same defect the compatibility page has.
