@@ -23,7 +23,12 @@
       "import": "./dist/plugin.js",
       "default": "./dist/plugin.js"
     },
-    "./schema.json": "./dist/schema.json"
+    "./schema.json": "./dist/schema.json",
+    "./terminal-link": {
+      "types": "./dist/terminal-link.d.ts",
+      "import": "./dist/terminal-link.js",
+      "default": "./dist/terminal-link.js"
+    }
   },
   "files": [
     "dist",

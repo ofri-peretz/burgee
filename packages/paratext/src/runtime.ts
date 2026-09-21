@@ -5,7 +5,16 @@
  */
 export interface Runtime {
   env: Record<string, string | undefined>;
-  isTTY: { stdout: boolean };
+  /**
+   * `stderr` is optional and falls back to `stdout` when absent.
+   *
+   * Only `paratext/terminal-link` reads it — its whole surface is a pair, `terminalLink`
+   * against stdout and `terminalLink.stderr` against stderr, and a façade that decided both
+   * from one stream would answer the wrong question for half of its API. Optional because a
+   * two-line test literal should not have to carry a stream it is not asking about, and
+   * because every existing caller of this type predates the field.
+   */
+  isTTY: { stdout: boolean; stderr?: boolean };
   /**
    * The working directory, for the one capability that has to name it.
    *
@@ -21,6 +30,6 @@ export interface Runtime {
 /** What a real process looks like. Callers that have not got one pass their own. */
 export const processRuntime = (): Runtime => ({
   env: process.env,
-  isTTY: { stdout: process.stdout.isTTY === true },
+  isTTY: { stdout: process.stdout.isTTY === true, stderr: process.stderr.isTTY === true },
   cwd: process.cwd(),
 });
