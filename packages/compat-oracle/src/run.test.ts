@@ -4,13 +4,14 @@
  * been shown to fail is not a gate.
  */
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { type Host, HOSTS } from './hosts.js';
-import { type Baseline, type Grade, internalShimFrom, parseFlatTap, parseNodeTest, regressed, summarize, tsLoaderArgs, unsatisfiedPins } from './run.js';
+import { type Baseline, type Grade, internalShimBody, internalShimFrom, parseFlatTap, parseNodeTest, regressed, summarize, tsLoaderArgs, unsatisfiedPins } from './run.js';
 
 const grade = (passed: number): Grade => ({
   host: 'commander',
@@ -201,6 +202,65 @@ describe('a control run’s internal shim', () => {
 
   it('points a target run at the target, never at an installed path', () => {
     expect(internalShimFrom(clack, { target: 'caique', installed: undefined, rel: 'src/common.js' })).toBe('caique');
+  });
+});
+
+/**
+ * A test that asks `require('../src/cell')` for one class gets one class.
+ *
+ * The default shim re-exports the target's whole main entry at every internal path, which
+ * is right for a namespace of free functions and wrong for a class. cli-table3's
+ * `table-layout-test.js` does `new Cell(opts)` and `expect(cell).toBeInstanceOf(Cell)`;
+ * handed the namespace it constructed a `Table` and compared against one, and thirteen
+ * cases read as divergences when nothing had diverged — the row's own note called them a
+ * ceiling `internalShimFrom` could not reach. It could not; the shim *body* could.
+ *
+ * The evaluation order matters and is asserted: `.default` first, because a target whose
+ * names hang off its default export is the shape that motivated this, then the namespace,
+ * so a target that publishes the name flat is not required to publish it twice.
+ */
+/**
+ * Written to a file and `require`d, the way the oracle's own shim is: a `new Function`
+ * would run the text without proving that Node loads it, and CWE-95 refuses it anyway.
+ * The fake target ships `Cell` in both of the shapes the body has to handle.
+ */
+const shimFor = (named: string | undefined, shape: 'default' | 'flat'): unknown => {
+  const dir = mkdtempSync(join(tmpdir(), 'named-shim-'));
+  const pkg = join(dir, 'node_modules', 'faketarget');
+  mkdirSync(pkg, { recursive: true });
+  writeFileSync(join(pkg, 'package.json'), '{"name":"faketarget","version":"0.0.0","main":"index.cjs"}\n');
+  const body = shape === 'default' ? 'module.exports = { default: { Cell } };' : 'module.exports = { Cell };';
+  writeFileSync(join(pkg, 'index.cjs'), `class Cell {}\n${body}\n`);
+  const at = join(dir, 'shim.cjs');
+  writeFileSync(at, internalShimBody('faketarget', 'commonjs', named));
+  return createRequire(join(dir, 'anchor.cjs'))(at);
+};
+
+
+describe('an internal shim for one named export', () => {
+  const cliTable3 = HOSTS.find((h) => h.name === 'cli-table3') as Host;
+
+  it('takes the name off the default export when the target hangs it there', () => {
+    expect((shimFor('Cell', 'default') as { name?: string }).name).toBe('Cell');
+  });
+
+  it('takes it off the namespace when there is no default', () => {
+    expect((shimFor('Cell', 'flat') as { name?: string }).name).toBe('Cell');
+  });
+
+  it('without a name it hands over the whole namespace, which is the Cell-shaped bug', () => {
+    // The default shim's answer at `../src/cell` is the module, not the class — so
+    // `new Cell(opts)` built the wrong object and `toBeInstanceOf(Cell)` compared against it.
+    expect(typeof shimFor(undefined, 'flat')).toBe('object');
+  });
+
+  it('is unchanged without a name, for the hosts whose internals are namespaces', () => {
+    expect(internalShimBody('target', 'commonjs')).toBe(internalShimBody('target', 'commonjs', undefined));
+    expect(internalShimBody('target', 'module')).toContain("export * from 'target'");
+  });
+
+  it('cli-table3 declares the one path that needs it, and only that one', () => {
+    expect(cliTable3.internalExports).toEqual({ 'src/cell': 'Cell' });
   });
 });
 

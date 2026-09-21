@@ -1007,6 +1007,13 @@ export class Table extends Array<unknown> {
  * than that nothing had asked for them. The gated surface is untouched and stays what the
  * header says it is: `module.exports = Table`.
  */
+// `Cell` carries its two subclasses the way cli-table3's own `src/cell.js` ends —
+// `module.exports = Cell; module.exports.ColSpanCell = …; module.exports.RowSpanCell = …`.
+// Matching that shape is the façade's job rather than a favour to the oracle: a caller who
+// reaches `Cell.RowSpanCell` on the incumbent reaches it here, and `table-layout-test.js`
+// is one such caller — `expect(actualCell).toBeInstanceOf(Cell.RowSpanCell)`.
+Object.assign(Cell, { ColSpanCell, RowSpanCell });
+
 Object.assign(Table, { Cell, ColSpanCell, RowSpanCell, strlen, repeat, pad, truncate, mergeOptions, wordWrap, colorizeLines, hyperlink, makeTableLayout, layoutTable, addRowSpanCells, maxWidth, fillInTable, computeWidths, computeHeights });
 
 export default Table;

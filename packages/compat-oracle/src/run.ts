@@ -378,7 +378,10 @@ function writeInternalShims(host: Host, { hostDir, target, internals, packageTyp
     const at = join(anchor, rel);
     mkdirSync(dirname(at), { recursive: true });
     const from = internalShimFrom(host, { target, installed, rel });
-    writeFileSync(at, `// generated per run — COMPAT_TARGET=${target}\n${internalShimBody(from, packageType)}`);
+    // Only when the shim points at the target package: a control's `from` is the host's own
+    // file, which already exports what the suite expects.
+    const named = from === target ? host.internalExports?.[rel] : undefined;
+    writeFileSync(at, `// generated per run — COMPAT_TARGET=${target}\n${internalShimBody(from, packageType, named)}`);
   }
 }
 
@@ -391,7 +394,13 @@ function writeInternalShims(host: Host, { hostDir, target, internals, packageTyp
  * cli-table3's four internal files hit. A CJS host gets a CJS shim; `.default ?? loaded`
  * unwraps an ES module target while leaving a CommonJS one alone.
  */
-function internalShimBody(from: string, packageType: string): string {
+export function internalShimBody(from: string, packageType: string, named?: string): string {
+  if (named !== undefined) {
+    // The named form has to be CommonJS whatever the host is, for the same reason the
+    // unnamed one does: the shim is written at an extension-less path and Node reads it as
+    // CommonJS. `export { X as default }` there is a syntax error.
+    return `const loaded = require('${from}');\nmodule.exports = (loaded?.default ?? loaded)?.${named} ?? (loaded ?? {})['${named}'];\n`;
+  }
   if (packageType === 'module') return `export * from '${from}';\n`;
   return `const loaded = require('${from}');\nmodule.exports = loaded?.default ?? loaded;\n`;
 }
