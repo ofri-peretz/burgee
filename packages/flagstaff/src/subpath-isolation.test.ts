@@ -26,10 +26,14 @@ interface Manifest {
 }
 const manifest = JSON.parse(readFileSync(resolve(pkgRoot, 'package.json'), 'utf8')) as Manifest;
 
-/** The only edges allowed. `projection` and `builtins` are leaves; the schema is data. */
+/**
+ * The only edges allowed. `projection`, `builtins` and `conforms` are leaves; the schema is data.
+ * `plugin.js` reads `plugin.schema.json` — flagstaff's slice of the family schema — and never the
+ * whole `schema.json`, which ships as data for authors and costs no import (D-108, 2026-09-23).
+ */
 const ALLOWED: Record<string, string[]> = {
   'loop.js': ['./projection.js'],
-  'plugin.js': ['./builtins.js', './schema.json'],
+  'plugin.js': ['./builtins.js', './conforms.js', './plugin.schema.json'],
   'spinner.js': ['./plugin.js'],
   'index.js': ['./box.js', './import.js', './loop.js', './plugin.js', './progress.js', './spinner.js', './table.js', './tasks.js'],
   // The façade stands apart on purpose: it reads the corpus, the width function and the

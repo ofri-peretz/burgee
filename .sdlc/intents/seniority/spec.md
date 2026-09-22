@@ -300,7 +300,7 @@ are.
 | R12 | **Built** | `src/validate.ts` — `validate` returns every violation, `check` throws one `ConfigError` | `validate.test.ts`: ``` `out` must be a string; `./mytool.config.js:3` set it to `4` ``` |
 | R13 | **Built** | 2026-09-14. `src/precedence.ts` — open union, `describe`'s `default` branch | `precedence.test.ts`: a `vault` source renders itself in `--explain` |
 | R14 | **Built** | 2026-09-14, re-checked 2026-09-15. `ORDER` is the one declaration; `Source` and `RANK` are derived | `precedence.test.ts` asserts all three agree. Nothing added in 3.2 writes a source kind: the new files touch `RANK` only through `plugin.ts`, which already did |
-| R15 | **Built** | 2026-09-14. `src/plugin.ts` — the `sources` host, and `src/schema.json` **does not describe the key** (see below) | `plugin.test.ts` |
+| R15 | **Built** | 2026-09-14. `src/plugin.ts` — the `sources` host; `src/schema.json` describes the key since 2026-09-23 (see below) | `plugin.test.ts` |
 
 **R10 is the single row that is not built, and the reason is a file this lane may not write.**
 `lilconfig` has not been vendored at all, and `rc` is assigned to the harness lane by the plan
@@ -698,6 +698,8 @@ a schema pass, and that is worth stating plainly because the obvious assumption 
 > the truth for the envelope around it. caique records the same gap for `widgets`, for the same
 > reason: describing the key properly means editing the source copy in flagstaff and
 > propagating it to all seven, which is one cross-package edit and not this lane's.
+>
+> **Resolved 2026-09-23:** the family schema now describes `resolvers`, `widgets`, `handlers`, `sources`, `commands`, `hooks` and `enforce`. flagstaff, the one host that validated against the whole file, validates against its own slice (`plugin.schema.json`), so no host enforces another's keys; `plugin-schema-lock.test.ts` has no allow-list left, and `plugin-schema-agreement.test.ts` holds each definition to its host's verdict.
 >
 > The lock that would catch this does not exist. It asserts the seven copies are identical and
 > that each host exports the subpath its error message names; it never asserts that a host's

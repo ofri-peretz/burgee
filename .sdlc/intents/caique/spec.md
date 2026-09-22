@@ -278,7 +278,7 @@ Also not done here: the schema's `widgets` entry. R2 requires every host's `sche
 be byte-identical, so caique ships flagstaff's file verbatim; `widgets` validates today only
 because the schema sets `additionalProperties: true`. Describing the key properly means
 editing the source copy in flagstaff and propagating it, which is the same cross-package
-edit as the vocabulary line.
+edit as the vocabulary line. **Resolved 2026-09-23:** the family schema now describes `resolvers`, `widgets`, `handlers`, `sources`, `commands`, `hooks` and `enforce`. flagstaff, the one host that validated against the whole file, validates against its own slice (`plugin.schema.json`), so no host enforces another's keys; `plugin-schema-lock.test.ts` has no allow-list left, and `plugin-schema-agreement.test.ts` holds each definition to its host's verdict.
 
 ## The surface a consumer gets, derived from the tree (2026-09-15)
 
