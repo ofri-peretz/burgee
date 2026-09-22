@@ -67,6 +67,23 @@ type Paint = Record<'heading' | Kind, (s: string) => string>;
 
 const identity = (s: string): string => s;
 const PLAIN: Paint = { heading: identity, command: identity, flag: identity, value: identity };
+/**
+ * Whether the engine colours help (O2). `FORCE_COLOR` decides when set — `0` and `false`
+ * off, anything else, the empty string included, on — so it overrides a pipe and
+ * `NO_COLOR` both, as Node's own `getColorDepth` does. Otherwise colour needs someone to
+ * see it: an interactive terminal (the caller's answer, in which a detected agent is not
+ * one, N12), no non-empty `NO_COLOR`, and a `TERM` other than `dumb`.
+ *
+ * It lives here, not in the engine, so the startup path pays for none of it (W4).
+ * Not `tty.WriteStream.prototype.hasColors(env)`, which gives the same answers: with
+ * both variables set it calls `process.emitWarning`, and this runs under an injected env.
+ */
+export function colorFor(env: Record<string, string | undefined>, interactive: boolean): boolean {
+  const force = env['FORCE_COLOR'];
+  if (force !== undefined) return force !== '0' && force !== 'false';
+  return interactive && !env['NO_COLOR'] && env['TERM'] !== 'dumb';
+}
+
 /** The defaults, over `util.styleText`. The stream check is off: `color` is the one gate (R7). */
 const DEFAULTS: Paint = {
   heading: (s) => styleText('bold', s, { validateStream: false }),

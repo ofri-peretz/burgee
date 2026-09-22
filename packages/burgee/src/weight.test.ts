@@ -249,9 +249,13 @@ const RULES: Record<string, EntryRule> = {
   // message*, and a retry loop on one is a retry loop on both, forever. The requirement calls
   // `AUTH` "the most actionable single code in the survey" and it is the one the taxonomy was
   // missing. 374 bytes for a branch every caller can take.
+  //
+  // 42,750 on 2026-09-22 for O2: help follows `NO_COLOR` and `FORCE_COLOR` instead of never
+  // colouring. The policy lives in `help.js`, off the startup path; what `.` pays is passing
+  // the run's `io` through and asking `detectAgent`, which it already loads. Measured 42,723.
   ".": {
     allow: ["closeout", "seniority/precedence"],
-    budget: 42_700,
+    budget: 42_750,
     denied: [
       "testing.js",
       "testing-helpers.js",
@@ -319,7 +323,8 @@ const RULES: Record<string, EntryRule> = {
   // read the repository the test was running in. The 92 bytes are three forwarded fields.
   // 47,400 on 2026-09-22 with `.` above: the harness runs a whole program, so it carries
   // `AuthError` for the same reason it carries everything else. Measured 47,385.
-  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 47_400, denied: ["dev.js", "migrate.js"] },
+  // 47,450 with `.`'s O2 bytes, for the same reason. Measured 47,434.
+  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 47_450, denied: ["dev.js", "migrate.js"] },
   /**
    * The four doors the root barrel stopped holding open (see `.` above). Each is the same
    * module the engine reaches behind an `await import()`, published so a program that wants it
@@ -328,9 +333,12 @@ const RULES: Record<string, EntryRule> = {
    */
   // The renderer. `linegauge` is the one external it admits: help is the only surface that
   // measures a terminal. Measured 8,676.
+  // 8,950 for O2's `colorFor`, which lives here so the startup path does not pay for it; it
+  // takes `interactive` as a boolean because importing `detectAgent` cost this entry 1,160
+  // bytes of vendor table. Measured 8,911.
   "./help": {
     allow: ["linegauge"],
-    budget: 8_700,
+    budget: 8_950,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
   },
   // The MCP server. It reaches the schema and the manifest, because a tool list *is* the

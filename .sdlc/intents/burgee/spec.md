@@ -598,7 +598,7 @@ was quietly met.
 **The count.** 114 requirements, in seventeen families — `Z F O E V S P D T H M K J C B N U`.
 The prose above says *92* and *"Ninety-two requirements"*; both are wrong, and wrong the same
 way, because `E6 E7 V8 N11–N15` were added after the arithmetic was last done and `C1–C8`
-names two rows that do not exist. **Built: 82. Not built: 32**, and the count moves as rows are
+names two rows that do not exist. **Built: 83. Not built: 31**, and the count moves as rows are
 built rather than as the prose is rewritten — T1 moved on 2026-09-22 and the tally moved with
 it. An audit whose total disagrees with its own rows is the failure this paragraph is a record
 of; `spec-tally-lock.test.ts` now derives the two numbers from the tables instead of trusting
@@ -645,7 +645,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | # | Status | Evidence | The check |
 | :-- | :-- | :-- | :-- |
 | O1 | **Built** | `emit()` writes `{ ok: true, data, meta }`; `report()` writes `{ ok: false, error: { code, message, hint } }` | `machine-json.test.ts`, `shape.test.ts` |
-| O2 | Not built | the engine never reads `NO_COLOR` or `FORCE_COLOR`; only `commander/command.ts`'s `useColor` does, for the façade. `renderHelp` defaults `color: false`, so the requirement is satisfied by never colouring rather than by the stated policy, and `FORCE_COLOR` overrides nothing | — |
+| O2 | **Built** | `execute.ts`'s `lookOf` is the one decision every help path takes: `FORCE_COLOR` decides when set (`0`/`false` off, anything else on, over a pipe and over `NO_COLOR`, as Node's `getColorDepth` does); otherwise colour needs an interactive terminal — a detected agent is not one (N12) — no non-empty `NO_COLOR`, and `TERM` not `dumb`. Spinners, redraws and prompts are not the engine's to draw; the row holds for what it draws | `color.test.ts`: *"FORCE_COLOR overrides a pipe and NO_COLOR, and FORCE_COLOR=0 overrides a terminal"* — three of its four cases red on the engine before `lookOf` |
 | O3 | Not built | held by `L` only | — |
 | O4 | **Built** | `help.ts` imports `styleText` from `node:util`; no colour package anywhere in the family | `scripts/layer-boundaries-lock.test.ts`: *"holds zero external runtime dependencies across the family"* |
 | O5 | **Built** 2026-09-16 | `shutdown.ts` registers `flushStreams` in closeout's `flush` phase over `[host.stdout, host.stderr]`, which runs before `release` and before `restore`; every `io.exit` in `execute.ts` goes through `leave()` | `shutdown.test.ts`, and `pty-signal.test.ts` on the signal path. Caveat: `detachedTeardown()` is built with **no** streams, so an injected `stdout` is still never drained — it is a synchronous `{ write }` with nothing buffered |

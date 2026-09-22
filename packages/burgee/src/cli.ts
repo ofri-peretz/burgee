@@ -199,10 +199,8 @@ export const migrateCommand = defineCommand({
    *
    * It is spelled out because the other spelling is silent: a spec declared `'dry-run'`
    * parses, resolves to nothing, and hands the handler `undefined` — the flag simply has no
-   * effect, with no error anywhere. `burgee brand` and `burgee dev` are both declared that
-   * way today (`--allow-low-contrast`, `--bordure-width`, `--no-watch`), which is a live
-   * defect in shipped commands and is not this lane's to fix; it was found by running this
-   * one through the built binary rather than in-process.
+   * effect, with no error anywhere. `burgee brand` and `burgee dev` once shipped three flags
+   * that way; `option-key-canonical.test.ts` now refuses the spelling.
    */
   options: {
     dryRun: { type: 'boolean', description: 'scan and report; write nothing' },

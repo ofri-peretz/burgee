@@ -207,9 +207,15 @@ describe('theme seam (R7; roundel used without being imported)', () => {
     expect(themed.replace(ANSI, '')).toMatch(/\n {2}deploy +Ship a build\n/);
   });
 
-  it('the engine still renders help plain: no colour decision was added to it', async () => {
-    const r = await runBurgee(program, { argv: ['deploy', '--help'], tty: true });
-    expect(r.stdout).toBe(renderHelp(program, deploy, { width: 100 }));
-    expect(r.stdout).not.toMatch(ANSI);
+  // This case once read "the engine still renders help plain: no colour decision was added
+  // to it" — the guard that kept the theme seam byte-identical when it landed. O2 then asked
+  // for exactly that decision, so the invariant it protected is what remains: the engine's
+  // colour adds ANSI and nothing else, and NO_COLOR gives back the plain render byte for byte.
+  it('the engine colours help by O2 alone: ANSI is all it adds, and NO_COLOR removes it', async () => {
+    const coloured = await runBurgee(program, { argv: ['deploy', '--help'], tty: true, env: {} });
+    expect(coloured.stdout).toMatch(ANSI);
+    expect(coloured.stdout.replace(ANSI, '')).toBe(renderHelp(program, deploy, { width: 100 }));
+    const plain = await runBurgee(program, { argv: ['deploy', '--help'], tty: true, env: { NO_COLOR: '1' } });
+    expect(plain.stdout).toBe(renderHelp(program, deploy, { width: 100 }));
   });
 });
