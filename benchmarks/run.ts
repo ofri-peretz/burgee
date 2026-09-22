@@ -38,6 +38,8 @@ const SHORT_SHA = 7;
 interface Args {
   axes: AxisName[];
   check: boolean;
+  /** Write the *published* name rather than an observation. See `resultsName`. */
+  publish: boolean;
   write: boolean;
   oracle: boolean;
   rounds?: number;
@@ -50,6 +52,7 @@ export function parseArgs(argv: readonly string[]): Args {
   return {
     axes: picked.length > 0 ? picked : ALL_AXES,
     check: argv.includes('--check'),
+    publish: argv.includes('--publish'),
     write: !argv.includes('--no-write'),
     oracle: !argv.includes('--no-oracle'),
     ...(roundsAt === -1 ? {} : { rounds: Number(argv[roundsAt + 1]) }),
@@ -152,19 +155,34 @@ function printTable(doc: ResultsDoc): void {
  *
  * So the name is derived from the document rather than asserted by the caller. A suite with
  * every axis `measured` may publish; anything less is an observation and is named like one.
+ *
+ * **And completeness alone is not enough, which cost a published page on 2026-09-21.** A plain
+ * `npm run bench` on a laptop measures all four cheap axes, so it was complete, so it wrote
+ * `2026-09-22.json` — the name reserved for a chosen measurement — and `bench-page --check`
+ * then failed because the generated pages still held the two-core CI runner's figures. The
+ * numbers that would have replaced them were an M4 Pro's: `+14.0 ms` becoming `+33.8 ms` and
+ * `burgee ÷ cac` 1.322 becoming 1.708, neither of them a change to the code. That is the exact
+ * harm `published.ts` was written against, and `bench.yml` already guards it — it moves any
+ * published-named file aside under the commit that produced it. Nothing guarded a developer's
+ * machine, and the only thing between it and a republication was the pre-push hook noticing.
+ *
+ * So publishing is now something a caller asks for. `--publish` writes the dated name; without
+ * it, a complete run is an observation like any other. The bands and the claim table glob the
+ * directory and read every observation; only the docs care which one is published.
  */
-function write(doc: ResultsDoc): string {
+function write(doc: ResultsDoc, publish: boolean): string {
   const dir = join(RESULTS_DIR, doc.suite);
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, resultsName(doc)), `${JSON.stringify(doc, null, 2)}\n`);
-  return relative(REPO_ROOT, join(dir, resultsName(doc)));
+  const name = resultsName(doc, publish);
+  writeFileSync(join(dir, name), `${JSON.stringify(doc, null, 2)}\n`);
+  return relative(REPO_ROOT, join(dir, name));
 }
 
 /** Exported for `published.test.ts`, which drives it with a partial document. */
-export function resultsName(doc: ResultsDoc): string {
+export function resultsName(doc: ResultsDoc, publish = false): string {
   const date = doc.measured.slice(0, ISO_DATE);
   const complete = Object.values(doc.axes).every((a) => (a as AxisState).status === 'measured');
-  return complete ? `${date}.json` : `${date}-${doc.commit.slice(0, SHORT_SHA)}.json`;
+  return complete && publish ? `${date}.json` : `${date}-${doc.commit.slice(0, SHORT_SHA)}.json`;
 }
 
 function documents(args: Args): { docs: ResultsDoc[]; axes: Map<AxisName, AxisState> } {
@@ -209,7 +227,7 @@ export function main(argv: readonly string[]): number {
   const { docs, axes } = documents(args);
   for (const doc of docs) {
     printTable(doc);
-    if (args.write) console.warn(`\n→ ${write(doc)}`);
+    if (args.write) console.warn(`\n→ ${write(doc, args.publish)}`);
   }
   return args.check ? verdict(docs.flatMap((d) => d.records), axes) : 0;
 }
