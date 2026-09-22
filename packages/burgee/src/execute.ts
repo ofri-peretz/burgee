@@ -564,10 +564,10 @@ async function unresolved({ manifest, root, io }: Resolving, argv: string[], at:
     // `commandSchemaOf` for this node plus its immediate children, so the shape a reader
     // already knows from `--schema` is the shape they get here, scoped to one command.
     if (beforeTerminator(typed).includes('--json')) return { text: `${await machineJson(await helpDocumentOf(manifest, node), beforeTerminator(argv))}\n`, code: ExitCode.OK };
-    return { text: await renderHelp(manifest, node, { width: io.width }), code: ExitCode.OK };
+    return { text: await renderHelp(manifest, node, lookOf(io)), code: ExitCode.OK };
   }
   if (first === '--version' || first === '-V') return { text: `${versionOf(manifest, io)}\n`, code: ExitCode.OK };
-  if (typed.length === 0) return { text: await renderHelp(manifest, node, { width: io.width }), code: ExitCode.USAGE };
+  if (typed.length === 0) return { text: await renderHelp(manifest, node, lookOf(io)), code: ExitCode.USAGE };
   throw new UsageError(`unknown command "${typed[0] ?? ''}"`, 'run --help to see the available commands');
 }
 
@@ -598,7 +598,7 @@ async function surface(manifest: Manifest, argv: string[], io: Io): Promise<bool
   const head = beforeTerminator(argv);
   if (await completion(manifest, argv, io)) return true;
   if (argv[0] === 'help') {
-    io.out.write(await helpCommand(manifest, argv.slice(1), manifest.rootPath, io.width));
+    io.out.write(await helpCommand(manifest, argv.slice(1), manifest.rootPath, lookOf(io)));
     return true;
   }
   if (head.includes('--schema')) {
@@ -649,9 +649,32 @@ async function schemaSurface(manifest: Manifest, argv: string[]): Promise<unknow
 }
 
 /** `help [command…]` is synthesised for every program (yargs #1020): the named node's help, or the root's. */
-async function helpCommand(manifest: Manifest, argv: string[], root: string[], width: number): Promise<string> {
+async function helpCommand(manifest: Manifest, argv: string[], root: string[], look: Look): Promise<string> {
   const { node } = manifest.resolve(argv, root);
-  return renderHelp(manifest, node ?? rootNode(manifest, root), { width });
+  return renderHelp(manifest, node ?? rootNode(manifest, root), look);
+}
+
+interface Look {
+  width: number;
+  color: boolean;
+}
+
+/**
+ * How help is drawn (O2). `FORCE_COLOR` decides whenever it is set — `0` and `false` off,
+ * anything else, the empty string included, on — so it overrides a pipe and `NO_COLOR`
+ * both, as Node's own `getColorDepth` does. Otherwise colour needs someone to see it: an
+ * interactive terminal (a detected agent is not one, N12), no non-empty `NO_COLOR`, and a
+ * `TERM` other than `dumb`.
+ *
+ * Not `tty.WriteStream.prototype.hasColors(env)`, which gives the same answers: with both
+ * variables set it calls `process.emitWarning`, and this runs under an injected env too.
+ */
+function lookOf(io: Io): Look {
+  const force = io.env['FORCE_COLOR'];
+  const color = force === undefined
+    ? detectAgent(io.env, io.tty).interactive && !io.env['NO_COLOR'] && io.env['TERM'] !== 'dumb'
+    : force !== '0' && force !== 'false';
+  return { width: io.width, color };
 }
 
 type Runnable = CommandNode & { run: NonNullable<CommandNode['run']> };
@@ -730,7 +753,7 @@ async function dispatch(manifest: Manifest, { node, rest, name }: Resolved, io: 
   // caller who asked for a machine-readable answer got one they had to parse: the exact
   // failure the `--json` surface exists to avoid, on the flag people type first.
   if (flags.help === true && json) return { json, text: `${await machineJson(await helpDocumentOf(manifest, node), json ? ['--json'] : [])}\n` };
-  if (flags.help === true) return { json, text: await renderHelp(manifest, node, { width: io.width }) };
+  if (flags.help === true) return { json, text: await renderHelp(manifest, node, lookOf(io)) };
   if (flags.version === true) return { json, text: `${versionOf(manifest, io)}\n` };
 
   const resolved = await resolveValues(manifest, node.options, flags, io);
