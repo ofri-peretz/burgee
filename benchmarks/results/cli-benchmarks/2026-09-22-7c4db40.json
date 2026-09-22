@@ -1,0 +1,1519 @@
+{
+  "schema": 1,
+  "suite": "cli-benchmarks",
+  "measured": "2026-09-22T19:40:30.612Z",
+  "commit": "7c4db403a2e4c62daae4746e99cbda24172db021-dirty",
+  "machine": {
+    "os": "darwin",
+    "release": "25.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M4 Pro",
+    "cores": 14,
+    "memoryGb": 48,
+    "node": "v24.13.0",
+    "ci": false
+  },
+  "axes": {
+    "perf": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "weight": {
+      "status": "measured",
+      "method": "Each entry point is bundled with `esbuild --bundle --minify --format=esm --platform=node` over a fixture that imports it and re-exports one symbol; the incumbent is bundled by the same command over the same fixture shape. Installed bytes are the package directory plus every production dependency, transitively — each dependency resolved from the directory of the package that depends on it, and deduplicated by resolved path, so a nested copy is counted where npm actually put it. Every top-level package is resolved from `benchmarks/`, whose package.json pins the versions — the workspace root has an older commander hoisted, and resolving from there would compare against the wrong package."
+    },
+    "reliability": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    }
+  },
+  "records": [
+    {
+      "axis": "weight",
+      "variant": "burgee",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 27973,
+      "p95": 27973,
+      "gate": {
+        "max": 28700,
+        "why": "a ratchet on what a user's bundle grows by; raising it is a decision, not a drift"
+      },
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing `run` from `burgee`",
+      "detail": {
+        "version": "0.8.0",
+        "resolvedFrom": "<repo>/node_modules/burgee"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "cac",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 10452,
+      "p95": 10452,
+      "note": "the same fixture over `cac` — core against the published target: cac, the lightest framework in the landscape (§6)",
+      "detail": {
+        "version": "7.0.0",
+        "resolvedFrom": "<repo>/node_modules/cac"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "burgee",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 1140798,
+      "p95": 1140798,
+      "note": "`npm pack` unpacked size of burgee plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.8.0",
+        "resolvedFrom": "<repo>/node_modules/burgee"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "cac",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 41198,
+      "p95": 41198,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "7.0.0",
+        "resolvedFrom": "<repo>/node_modules/cac"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "burgee ÷ cac",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 2.676,
+      "p95": 2.676,
+      "gate": {
+        "max": 2.8,
+        "why": "a ratchet at the measured value, not the claim: this entry point is currently heavier than what it replaces on a bundled basis, and the gate exists to stop that growing"
+      },
+      "note": "core against the published target: cac, the lightest framework in the landscape (§6); both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "burgee@0.8.0",
+        "incumbent": "cac@7.0.0"
+      }
+    },
+    {
+      "axis": "weight",
+      "samples": 1,
+      "variant": "cac + cosmiconfig + exit-hook + restore-cursor",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "median": 97711,
+      "p95": 97711,
+      "note": "the capability-parity stack for `burgee`: cac plus 3 package(s) a user of it installs to reach the same capability set — `cosmiconfig` for find and load a config file, and merge it under the flags; `exit-hook` for run cleanup on every path out, including a signal; `restore-cursor` for hand the terminal back with the cursor visible. Each addition is a package this repository publishes a graded drop-in for (`seniority/cosmiconfig`, `closeout/exit-hook`, `closeout/restore-cursor`), which is the rule that decides what may be in this stack"
+    },
+    {
+      "axis": "weight",
+      "samples": 1,
+      "variant": "burgee ÷ (cac + cosmiconfig + exit-hook + restore-cursor)",
+      "metric": "bundled-bytes-ratio-parity",
+      "unit": "ratio",
+      "median": 0.286,
+      "p95": 0.286,
+      "note": "10452 bytes for `cac` alone, 97711 for the stack. Reported, never gated — a ceiling here would be a ceiling on somebody else's dependency tree. 5 of our capabilities have no incumbent to add and cost this stack nothing: `--schema`: the whole program as one JSON document; `--mcp`: the program as an MCP server over stdio; the `{ ok, data }` envelope on `--json`, on every command; agent detection, and the non-interactive floor that follows from it; option relations (`dependsOn`, `exclusive`) and Standard Schema validation",
+      "detail": {
+        "bare": 10452,
+        "stack": 97711,
+        "unmatched": 5
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "burgee/commander",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 59421,
+      "p95": 59421,
+      "gate": {
+        "max": 59450,
+        "why": "a ratchet on what a user's bundle grows by; raising it is a decision, not a drift"
+      },
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing `Command` from `burgee/commander`",
+      "detail": {
+        "version": "0.8.0",
+        "resolvedFrom": "<repo>/node_modules/burgee"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "commander",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 39084,
+      "p95": 39084,
+      "note": "the same fixture over `commander` — the commander front-end against commander itself",
+      "detail": {
+        "version": "15.0.0",
+        "resolvedFrom": "<repo>/node_modules/commander"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "burgee/commander",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 1140798,
+      "p95": 1140798,
+      "note": "`npm pack` unpacked size of burgee plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.8.0",
+        "resolvedFrom": "<repo>/node_modules/burgee"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "commander",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 207368,
+      "p95": 207368,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "15.0.0",
+        "resolvedFrom": "<repo>/node_modules/commander"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "burgee/commander ÷ commander",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 1.52,
+      "p95": 1.52,
+      "gate": {
+        "max": 1.52,
+        "why": "a ratchet at the measured value, not the claim: this entry point is currently heavier than what it replaces on a bundled basis, and the gate exists to stop that growing"
+      },
+      "note": "the commander front-end against commander itself; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "burgee/commander@0.8.0",
+        "incumbent": "commander@15.0.0"
+      }
+    },
+    {
+      "axis": "weight",
+      "samples": 1,
+      "variant": "commander + cosmiconfig + exit-hook + restore-cursor",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "median": 126354,
+      "p95": 126354,
+      "note": "the capability-parity stack for `burgee/commander`: commander plus 3 package(s) a user of it installs to reach the same capability set — `cosmiconfig` for find and load a config file, and merge it under the flags; `exit-hook` for run cleanup on every path out, including a signal; `restore-cursor` for hand the terminal back with the cursor visible. Each addition is a package this repository publishes a graded drop-in for (`seniority/cosmiconfig`, `closeout/exit-hook`, `closeout/restore-cursor`), which is the rule that decides what may be in this stack"
+    },
+    {
+      "axis": "weight",
+      "samples": 1,
+      "variant": "burgee/commander ÷ (commander + cosmiconfig + exit-hook + restore-cursor)",
+      "metric": "bundled-bytes-ratio-parity",
+      "unit": "ratio",
+      "median": 0.47,
+      "p95": 0.47,
+      "note": "39084 bytes for `commander` alone, 126354 for the stack. Reported, never gated — a ceiling here would be a ceiling on somebody else's dependency tree. 5 of our capabilities have no incumbent to add and cost this stack nothing: `--schema`: the whole program as one JSON document; `--mcp`: the program as an MCP server over stdio; the `{ ok, data }` envelope on `--json`, on every command; agent detection, and the non-interactive floor that follows from it; option relations (`dependsOn`, `exclusive`) and Standard Schema validation",
+      "detail": {
+        "bare": 39084,
+        "stack": 126354,
+        "unmatched": 5
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "burgee/yargs",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 105573,
+      "p95": 105573,
+      "gate": {
+        "max": 107700,
+        "why": "a ratchet on what a user's bundle grows by; raising it is a decision, not a drift"
+      },
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `burgee/yargs`",
+      "detail": {
+        "version": "0.8.0",
+        "resolvedFrom": "<repo>/node_modules/burgee"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "yargs",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 111152,
+      "p95": 111152,
+      "note": "the same fixture over `yargs` — the yargs front-end against yargs and its five dependencies",
+      "detail": {
+        "version": "18.1.0",
+        "resolvedFrom": "<repo>/node_modules/yargs"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "burgee/yargs",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 1140798,
+      "p95": 1140798,
+      "note": "`npm pack` unpacked size of burgee plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.8.0",
+        "resolvedFrom": "<repo>/node_modules/burgee"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "yargs",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 526898,
+      "p95": 526898,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "18.1.0",
+        "resolvedFrom": "<repo>/node_modules/yargs"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "burgee/yargs ÷ yargs",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.95,
+      "p95": 0.95,
+      "gate": {
+        "max": 1,
+        "why": "U5, stated as a check: this entry point is no heavier in a user's bundle than the package it replaces"
+      },
+      "note": "the yargs front-end against yargs and its five dependencies; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "burgee/yargs@0.8.0",
+        "incumbent": "yargs@18.1.0"
+      }
+    },
+    {
+      "axis": "weight",
+      "samples": 1,
+      "variant": "yargs + cosmiconfig + exit-hook + restore-cursor",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "median": 198269,
+      "p95": 198269,
+      "note": "the capability-parity stack for `burgee/yargs`: yargs plus 3 package(s) a user of it installs to reach the same capability set — `cosmiconfig` for find and load a config file, and merge it under the flags; `exit-hook` for run cleanup on every path out, including a signal; `restore-cursor` for hand the terminal back with the cursor visible. Each addition is a package this repository publishes a graded drop-in for (`seniority/cosmiconfig`, `closeout/exit-hook`, `closeout/restore-cursor`), which is the rule that decides what may be in this stack"
+    },
+    {
+      "axis": "weight",
+      "samples": 1,
+      "variant": "burgee/yargs ÷ (yargs + cosmiconfig + exit-hook + restore-cursor)",
+      "metric": "bundled-bytes-ratio-parity",
+      "unit": "ratio",
+      "median": 0.532,
+      "p95": 0.532,
+      "note": "111152 bytes for `yargs` alone, 198269 for the stack. Reported, never gated — a ceiling here would be a ceiling on somebody else's dependency tree. 5 of our capabilities have no incumbent to add and cost this stack nothing: `--schema`: the whole program as one JSON document; `--mcp`: the program as an MCP server over stdio; the `{ ok, data }` envelope on `--json`, on every command; agent detection, and the non-interactive floor that follows from it; option relations (`dependsOn`, `exclusive`) and Standard Schema validation",
+      "detail": {
+        "bare": 111152,
+        "stack": 198269,
+        "unmatched": 5
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "roundel/chalk",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 4590,
+      "p95": 4590,
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `roundel/chalk`",
+      "detail": {
+        "version": "0.3.1",
+        "resolvedFrom": "<repo>/node_modules/roundel"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "chalk",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 7990,
+      "p95": 7990,
+      "note": "the same fixture over `chalk` — the colour façade against chalk",
+      "detail": {
+        "version": "6.0.0",
+        "resolvedFrom": "<repo>/node_modules/chalk"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "roundel/chalk",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 70414,
+      "p95": 70414,
+      "note": "`npm pack` unpacked size of roundel plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.3.1",
+        "resolvedFrom": "<repo>/node_modules/roundel"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "chalk",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 56029,
+      "p95": 56029,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "6.0.0",
+        "resolvedFrom": "<repo>/node_modules/chalk"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "roundel/chalk ÷ chalk",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.574,
+      "p95": 0.574,
+      "gate": {
+        "max": 1,
+        "why": "U5, stated as a check: this entry point is no heavier in a user's bundle than the package it replaces"
+      },
+      "note": "the colour façade against chalk; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "roundel/chalk@0.3.1",
+        "incumbent": "chalk@6.0.0"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "roundel/tokens",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 415,
+      "p95": 415,
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing `error` from `roundel/tokens`",
+      "detail": {
+        "version": "0.3.1",
+        "resolvedFrom": "<repo>/node_modules/roundel"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "picocolors",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 2557,
+      "p95": 2557,
+      "note": "the same fixture over `picocolors` — the roadmap's second bet: colour under picocolors' weight",
+      "detail": {
+        "version": "1.1.1",
+        "resolvedFrom": "<repo>/node_modules/picocolors"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "roundel/tokens",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 70414,
+      "p95": 70414,
+      "note": "`npm pack` unpacked size of roundel plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.3.1",
+        "resolvedFrom": "<repo>/node_modules/roundel"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "picocolors",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 6373,
+      "p95": 6373,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "1.1.1",
+        "resolvedFrom": "<repo>/node_modules/picocolors"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "roundel/tokens ÷ picocolors",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.162,
+      "p95": 0.162,
+      "gate": {
+        "max": 1,
+        "why": "U5, stated as a check: this entry point is no heavier in a user's bundle than the package it replaces"
+      },
+      "note": "the roadmap's second bet: colour under picocolors' weight; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "roundel/tokens@0.3.1",
+        "incumbent": "picocolors@1.1.1"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/ora",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 55544,
+      "p95": 55544,
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `flagstaff/ora`",
+      "detail": {
+        "version": "0.3.3",
+        "resolvedFrom": "<repo>/node_modules/flagstaff"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "ora",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 59519,
+      "p95": 59519,
+      "note": "the same fixture over `ora` — the spinner façade against ora",
+      "detail": {
+        "version": "9.4.1",
+        "resolvedFrom": "<repo>/node_modules/ora"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/ora",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 510941,
+      "p95": 510941,
+      "note": "`npm pack` unpacked size of flagstaff plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.3.3",
+        "resolvedFrom": "<repo>/node_modules/flagstaff"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "ora",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 284554,
+      "p95": 284554,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "9.4.1",
+        "resolvedFrom": "<repo>/node_modules/ora"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/ora ÷ ora",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.933,
+      "p95": 0.933,
+      "gate": {
+        "max": 1,
+        "why": "U5, stated as a check: this entry point is no heavier in a user's bundle than the package it replaces"
+      },
+      "note": "the spinner façade against ora; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "flagstaff/ora@0.3.3",
+        "incumbent": "ora@9.4.1"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/boxen",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 22722,
+      "p95": 22722,
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `flagstaff/boxen`",
+      "detail": {
+        "version": "0.3.3",
+        "resolvedFrom": "<repo>/node_modules/flagstaff"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "boxen",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 64823,
+      "p95": 64823,
+      "note": "the same fixture over `boxen` — the box façade against boxen",
+      "detail": {
+        "version": "8.0.1",
+        "resolvedFrom": "<repo>/node_modules/boxen"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/boxen",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 510941,
+      "p95": 510941,
+      "note": "`npm pack` unpacked size of flagstaff plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.3.3",
+        "resolvedFrom": "<repo>/node_modules/flagstaff"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "boxen",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 747463,
+      "p95": 747463,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "8.0.1",
+        "resolvedFrom": "<repo>/node_modules/boxen"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/boxen ÷ boxen",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.351,
+      "p95": 0.351,
+      "gate": {
+        "max": 1,
+        "why": "U5, stated as a check: this entry point is no heavier in a user's bundle than the package it replaces"
+      },
+      "note": "the box façade against boxen; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "flagstaff/boxen@0.3.3",
+        "incumbent": "boxen@8.0.1"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/log-update",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 18337,
+      "p95": 18337,
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `flagstaff/log-update`",
+      "detail": {
+        "version": "0.3.3",
+        "resolvedFrom": "<repo>/node_modules/flagstaff"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "log-update",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 36390,
+      "p95": 36390,
+      "note": "the same fixture over `log-update` — the frame façade against log-update",
+      "detail": {
+        "version": "8.0.0",
+        "resolvedFrom": "<repo>/node_modules/log-update"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/log-update",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 510941,
+      "p95": 510941,
+      "note": "`npm pack` unpacked size of flagstaff plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.3.3",
+        "resolvedFrom": "<repo>/node_modules/flagstaff"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "log-update",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 261977,
+      "p95": 261977,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "8.0.0",
+        "resolvedFrom": "<repo>/node_modules/log-update"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/log-update ÷ log-update",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.504,
+      "p95": 0.504,
+      "gate": {
+        "max": 1,
+        "why": "U5, stated as a check: this entry point is no heavier in a user's bundle than the package it replaces"
+      },
+      "note": "the frame façade against log-update; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "flagstaff/log-update@0.3.3",
+        "incumbent": "log-update@8.0.0"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "linegauge",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 6361,
+      "p95": 6361,
+      "gate": {
+        "max": 6400,
+        "why": "a ratchet on what a user's bundle grows by; raising it is a decision, not a drift"
+      },
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `linegauge`",
+      "detail": {
+        "version": "0.3.3",
+        "resolvedFrom": "<repo>/node_modules/linegauge"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "string-width",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 6068,
+      "p95": 6068,
+      "note": "the same fixture over `string-width` — the width layer against string-width, whose own suite grades it 229 / 229",
+      "detail": {
+        "version": "8.2.2",
+        "resolvedFrom": "<repo>/node_modules/string-width"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "linegauge",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 76751,
+      "p95": 76751,
+      "note": "`npm pack` unpacked size of linegauge plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.3.3",
+        "resolvedFrom": "<repo>/node_modules/linegauge"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "string-width",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 36669,
+      "p95": 36669,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "8.2.2",
+        "resolvedFrom": "<repo>/node_modules/string-width"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "linegauge ÷ string-width",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 1.048,
+      "p95": 1.048,
+      "gate": {
+        "max": 1.05,
+        "why": "a ratchet at the measured value, not the claim: this entry point is currently heavier than what it replaces on a bundled basis, and the gate exists to stop that growing"
+      },
+      "note": "the width layer against string-width, whose own suite grades it 229 / 229; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "linegauge@0.3.3",
+        "incumbent": "string-width@8.2.2"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "linegauge/wrap",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 11332,
+      "p95": 11332,
+      "gate": {
+        "max": 11350,
+        "why": "a ratchet on what a user's bundle grows by; raising it is a decision, not a drift"
+      },
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `linegauge/wrap`",
+      "detail": {
+        "version": "0.3.3",
+        "resolvedFrom": "<repo>/node_modules/linegauge"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "wrap-ansi",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 14376,
+      "p95": 14376,
+      "note": "the same fixture over `wrap-ansi` — the wrap façade against wrap-ansi, 80 / 80",
+      "detail": {
+        "version": "10.0.1",
+        "resolvedFrom": "<repo>/node_modules/wrap-ansi"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "linegauge/wrap",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 76751,
+      "p95": 76751,
+      "note": "`npm pack` unpacked size of linegauge plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.3.3",
+        "resolvedFrom": "<repo>/node_modules/linegauge"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "wrap-ansi",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 79687,
+      "p95": 79687,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "10.0.1",
+        "resolvedFrom": "<repo>/node_modules/wrap-ansi"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "linegauge/wrap ÷ wrap-ansi",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.788,
+      "p95": 0.788,
+      "gate": {
+        "max": 1,
+        "why": "U5, stated as a check: this entry point is no heavier in a user's bundle than the package it replaces"
+      },
+      "note": "the wrap façade against wrap-ansi, 80 / 80; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "linegauge/wrap@0.3.3",
+        "incumbent": "wrap-ansi@10.0.1"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "linegauge/slice",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 8992,
+      "p95": 8992,
+      "gate": {
+        "max": 9000,
+        "why": "a ratchet on what a user's bundle grows by; raising it is a decision, not a drift"
+      },
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `linegauge/slice`",
+      "detail": {
+        "version": "0.3.3",
+        "resolvedFrom": "<repo>/node_modules/linegauge"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "slice-ansi",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 5971,
+      "p95": 5971,
+      "note": "the same fixture over `slice-ansi` — the slice façade against slice-ansi, 15 / 15",
+      "detail": {
+        "version": "7.1.2",
+        "resolvedFrom": "<repo>/node_modules/slice-ansi"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "linegauge/slice",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 76751,
+      "p95": 76751,
+      "note": "`npm pack` unpacked size of linegauge plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.3.3",
+        "resolvedFrom": "<repo>/node_modules/linegauge"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "slice-ansi",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 43642,
+      "p95": 43642,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "7.1.2",
+        "resolvedFrom": "<repo>/node_modules/slice-ansi"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "linegauge/slice ÷ slice-ansi",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 1.506,
+      "p95": 1.506,
+      "gate": {
+        "max": 1.51,
+        "why": "a ratchet at the measured value, not the claim: this entry point is currently heavier than what it replaces on a bundled basis, and the gate exists to stop that growing"
+      },
+      "note": "the slice façade against slice-ansi, 15 / 15; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "linegauge/slice@0.3.3",
+        "incumbent": "slice-ansi@7.1.2"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "linegauge/strip",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 954,
+      "p95": 954,
+      "gate": {
+        "max": 1000,
+        "why": "a ratchet on what a user's bundle grows by; raising it is a decision, not a drift"
+      },
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `linegauge/strip`",
+      "detail": {
+        "version": "0.3.3",
+        "resolvedFrom": "<repo>/node_modules/linegauge"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "strip-ansi",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 438,
+      "p95": 438,
+      "note": "the same fixture over `strip-ansi` — the strip façade against strip-ansi, 8 / 8",
+      "detail": {
+        "version": "7.2.0",
+        "resolvedFrom": "<repo>/node_modules/strip-ansi"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "linegauge/strip",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 76751,
+      "p95": 76751,
+      "note": "`npm pack` unpacked size of linegauge plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.3.3",
+        "resolvedFrom": "<repo>/node_modules/linegauge"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "strip-ansi",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 10344,
+      "p95": 10344,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "7.2.0",
+        "resolvedFrom": "<repo>/node_modules/strip-ansi"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "linegauge/strip ÷ strip-ansi",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 2.178,
+      "p95": 2.178,
+      "gate": {
+        "max": 2.25,
+        "why": "a ratchet at the measured value, not the claim: this entry point is currently heavier than what it replaces on a bundled basis, and the gate exists to stop that growing"
+      },
+      "note": "the strip façade against strip-ansi, 8 / 8; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "linegauge/strip@0.3.3",
+        "incumbent": "strip-ansi@7.2.0"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "paratext",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 6736,
+      "p95": 6736,
+      "gate": {
+        "max": 6800,
+        "why": "a ratchet on what a user's bundle grows by; raising it is a decision, not a drift"
+      },
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `paratext`",
+      "detail": {
+        "version": "0.4.0",
+        "resolvedFrom": "<repo>/node_modules/paratext"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "ansi-escapes",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 4351,
+      "p95": 4351,
+      "note": "the same fixture over `ansi-escapes` — the OSC layer against ansi-escapes — R11's B4 row, and the layer that is over its D1 ceiling",
+      "detail": {
+        "version": "7.3.0",
+        "resolvedFrom": "<repo>/node_modules/ansi-escapes"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "paratext",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 85228,
+      "p95": 85228,
+      "note": "`npm pack` unpacked size of paratext plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.4.0",
+        "resolvedFrom": "<repo>/node_modules/paratext"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "ansi-escapes",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 30912,
+      "p95": 30912,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "7.3.0",
+        "resolvedFrom": "<repo>/node_modules/ansi-escapes"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "paratext ÷ ansi-escapes",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 1.548,
+      "p95": 1.548,
+      "gate": {
+        "max": 1.55,
+        "why": "a ratchet at the measured value, not the claim: this entry point is currently heavier than what it replaces on a bundled basis, and the gate exists to stop that growing"
+      },
+      "note": "the OSC layer against ansi-escapes — R11's B4 row, and the layer that is over its D1 ceiling; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "paratext@0.4.0",
+        "incumbent": "ansi-escapes@7.3.0"
+      }
+    }
+  ],
+  "bands": {
+    "cold-start-ratio": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-ansi-escapes-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-boxen-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-chalk-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-clack-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-cli-table3-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-commander-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-cosmiconfig-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-cross-spawn-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-dotenv-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-exit-hook-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-inquirer-core-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-lilconfig-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-log-update-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-meow-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-ora-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-rc-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-restore-cursor-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-slice-ansi-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-string-width-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-strip-ansi-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-term-img-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-terminal-link-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-wrap-ansi-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "compat-yargs-pass-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "agent-exit-code-accuracy": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "agent-structured-output-rate": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "agent-hangs-per-100": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "agent-schema-bytes": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    },
+    "core-bundled-bytes": {
+      "value": 27973,
+      "from": {
+        "axis": "weight",
+        "variant": "burgee",
+        "metric": "bundled-bytes"
+      }
+    },
+    "commander-front-end-bundled-bytes": {
+      "value": 59421,
+      "from": {
+        "axis": "weight",
+        "variant": "burgee/commander",
+        "metric": "bundled-bytes"
+      }
+    },
+    "yargs-front-end-bundled-bytes": {
+      "value": 105573,
+      "from": {
+        "axis": "weight",
+        "variant": "burgee/yargs",
+        "metric": "bundled-bytes"
+      }
+    }
+  },
+  "claims": {
+    "cold-start-at-or-below-cac": {
+      "claim": "the engine starts at or below cac, the lightest framework in the landscape",
+      "source": ".sdlc/intents/replacement-parser/intent.md #2, the scoreboard row in .sdlc/intents/README.md, and the speed row of apps/docs/content/docs/comparison.mdx",
+      "target": "<= 1",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "core-under-52kb-bundled": {
+      "claim": "the core entry point is under 52 KB bundled",
+      "source": ".sdlc/intents/replacement-parser/intent.md #3",
+      "target": "<= 53248",
+      "measured": 27973,
+      "unit": "bytes",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "burgee",
+        "metric": "bundled-bytes"
+      }
+    },
+    "lighter-than-cac": {
+      "claim": "`burgee` is lighter in a user's bundle than `cac`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 2.676,
+      "unit": "ratio",
+      "met": false,
+      "from": {
+        "axis": "weight",
+        "variant": "burgee ÷ cac",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-commander": {
+      "claim": "`burgee/commander` is lighter in a user's bundle than `commander`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 1.52,
+      "unit": "ratio",
+      "met": false,
+      "from": {
+        "axis": "weight",
+        "variant": "burgee/commander ÷ commander",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-yargs": {
+      "claim": "`burgee/yargs` is lighter in a user's bundle than `yargs`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 0.95,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "burgee/yargs ÷ yargs",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-chalk": {
+      "claim": "`roundel/chalk` is lighter in a user's bundle than `chalk`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 0.574,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "roundel/chalk ÷ chalk",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-picocolors": {
+      "claim": "`roundel/tokens` is lighter in a user's bundle than `picocolors`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 0.162,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "roundel/tokens ÷ picocolors",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-ora": {
+      "claim": "`flagstaff/ora` is lighter in a user's bundle than `ora`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 0.933,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "flagstaff/ora ÷ ora",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-boxen": {
+      "claim": "`flagstaff/boxen` is lighter in a user's bundle than `boxen`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 0.351,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "flagstaff/boxen ÷ boxen",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-log-update": {
+      "claim": "`flagstaff/log-update` is lighter in a user's bundle than `log-update`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 0.504,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "flagstaff/log-update ÷ log-update",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-string-width": {
+      "claim": "`linegauge` is lighter in a user's bundle than `string-width`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 1.048,
+      "unit": "ratio",
+      "met": false,
+      "from": {
+        "axis": "weight",
+        "variant": "linegauge ÷ string-width",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-wrap-ansi": {
+      "claim": "`linegauge/wrap` is lighter in a user's bundle than `wrap-ansi`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 0.788,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "linegauge/wrap ÷ wrap-ansi",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-slice-ansi": {
+      "claim": "`linegauge/slice` is lighter in a user's bundle than `slice-ansi`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 1.506,
+      "unit": "ratio",
+      "met": false,
+      "from": {
+        "axis": "weight",
+        "variant": "linegauge/slice ÷ slice-ansi",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-strip-ansi": {
+      "claim": "`linegauge/strip` is lighter in a user's bundle than `strip-ansi`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 2.178,
+      "unit": "ratio",
+      "met": false,
+      "from": {
+        "axis": "weight",
+        "variant": "linegauge/strip ÷ strip-ansi",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-ansi-escapes": {
+      "claim": "`paratext` is lighter in a user's bundle than `ansi-escapes`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 1.548,
+      "unit": "ratio",
+      "met": false,
+      "from": {
+        "axis": "weight",
+        "variant": "paratext ÷ ansi-escapes",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-cac-at-parity": {
+      "claim": "`burgee` is lighter in a user's bundle than `cac` plus the 3 packages a user of it installs to reach the same capability set",
+      "source": "U5 in .sdlc/intents/README.md, read as the choice a reader makes; the stack and the rule that decides it are `PARITY` in benchmarks/fixtures/entry-points.ts",
+      "target": "<= 1",
+      "measured": 0.286,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "burgee ÷ (cac + cosmiconfig + exit-hook + restore-cursor)",
+        "metric": "bundled-bytes-ratio-parity"
+      }
+    },
+    "lighter-than-commander-at-parity": {
+      "claim": "`burgee/commander` is lighter in a user's bundle than `commander` plus the 3 packages a user of it installs to reach the same capability set",
+      "source": "U5 in .sdlc/intents/README.md, read as the choice a reader makes; the stack and the rule that decides it are `PARITY` in benchmarks/fixtures/entry-points.ts",
+      "target": "<= 1",
+      "measured": 0.47,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "burgee/commander ÷ (commander + cosmiconfig + exit-hook + restore-cursor)",
+        "metric": "bundled-bytes-ratio-parity"
+      }
+    },
+    "lighter-than-yargs-at-parity": {
+      "claim": "`burgee/yargs` is lighter in a user's bundle than `yargs` plus the 3 packages a user of it installs to reach the same capability set",
+      "source": "U5 in .sdlc/intents/README.md, read as the choice a reader makes; the stack and the rule that decides it are `PARITY` in benchmarks/fixtures/entry-points.ts",
+      "target": "<= 1",
+      "measured": 0.532,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "burgee/yargs ÷ (yargs + cosmiconfig + exit-hook + restore-cursor)",
+        "metric": "bundled-bytes-ratio-parity"
+      }
+    },
+    "compat-commander": {
+      "claim": "commander's own test suite passes 1360 of 1360 against our entry point",
+      "source": "packages/compat-oracle/baseline/, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx",
+      "target": ">= 1360",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "compat-yargs": {
+      "claim": "yargs's own test suite passes 804 of 804 against our entry point",
+      "source": "packages/compat-oracle/baseline/, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx",
+      "target": ">= 804",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "compat-chalk": {
+      "claim": "chalk's own test suite passes 58 of 58 against our entry point",
+      "source": "packages/compat-oracle/baseline/, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx",
+      "target": ">= 58",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "compat-ora": {
+      "claim": "ora's own test suite passes 99 of 99 against our entry point",
+      "source": "packages/compat-oracle/baseline/, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx",
+      "target": ">= 99",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "compat-log-update": {
+      "claim": "log-update's own test suite passes 99 of 99 against our entry point",
+      "source": "packages/compat-oracle/baseline/, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx",
+      "target": ">= 99",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    },
+    "compat-boxen": {
+      "claim": "boxen's own test suite passes 84 of 84 against our entry point",
+      "source": "packages/compat-oracle/baseline/, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx",
+      "target": ">= 84",
+      "status": "unmeasured",
+      "reason": "not selected by --axis"
+    }
+  }
+}
