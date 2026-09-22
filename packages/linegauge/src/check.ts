@@ -65,7 +65,21 @@ const firstOf = (plugin: unknown): number[] => overridesOf(plugin).flatMap(([, o
 /** What a contribution replaced, when it replaced anything. */
 const shadows = (names: readonly string[]): string => (names.length === 0 ? '' : ` (replaces ${names.join(', ')})`);
 
+/**
+ * Every refusal leaves through here, wherever it was raised: `register()`, or a plugin file that
+ * registers itself on import — which throws inside the `import()`, before any line of `inspect`
+ * could catch it, and used to reach the bin as a bare message with no code and no fix (R8).
+ */
 export async function check(argv: readonly string[], write: (s: string) => void): Promise<number> {
+  try {
+    return await inspect(argv, write);
+  } catch (error) {
+    if (!(error instanceof PluginError)) throw error;
+    return refuse(error.code, error.message, error.fix, write);
+  }
+}
+
+async function inspect(argv: readonly string[], write: (s: string) => void): Promise<number> {
   const file = argv[0];
   if (file === undefined) {
     write('usage: linegauge check <plugin-file>\n');
@@ -77,13 +91,8 @@ export async function check(argv: readonly string[], write: (s: string) => void)
   // The built-in answer, measured before the plugin lands, so each row can show what it changed.
   for (const registered of [...overrides().keys()]) setOverrides(registered, {});
   const builtIn = new Map(firstOf(plugin).map((code) => [code, width(String.fromCodePoint(code))]));
-  try {
-    validate(plugin);
-    register(plugin);
-  } catch (error) {
-    if (!(error instanceof PluginError)) throw error;
-    return refuse(error.code, error.message, error.fix, write);
-  }
+  validate(plugin);
+  register(plugin);
   const name = (plugin as { name: string }).name;
   const rows = overridesOf(plugin).flatMap(([label, o]) =>
     (o.ranges ?? []).map(([low, high]) => {

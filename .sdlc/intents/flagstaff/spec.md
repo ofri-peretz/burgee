@@ -54,14 +54,19 @@ each case, is recorded under "Accepted at the Design→Build gate (2026-09-09)" 
   on any refusal**, each carrying a code from `PluginErrorCode` and a `fix`.
 
   **Widened 2026-09-09.** This said "exit 1 on a schema error", which was narrower than what
-  the command actually refuses and left the extra refusals looking unspecified. `check` can
-  emit any of seven codes: the five `register()` raises — `E_PLUGIN_SCHEMA`,
-  `E_NO_STATIC_PROJECTION`, `E_PLUGIN_CONTRACT`, `E_UNKNOWN_SPINNER`, `E_UNKNOWN_BORDER` —
-  and two only a renderer can discover, `E_NO_CONTRIBUTION` (the plugin validates and
+  the command actually refuses and left the extra refusals looking unspecified. `check`
+  emits five codes: the three `validate()` raises inside `register()` — `E_PLUGIN_SCHEMA`,
+  `E_NO_STATIC_PROJECTION`, `E_PLUGIN_CONTRACT` — and two only a renderer can discover, `E_NO_CONTRIBUTION` (the plugin validates and
   contributes nothing flagstaff can render, which is how a misspelled top-level key tells on
   itself, since the schema allows unknown keys on purpose) and `E_COMPONENT_THREW` (a
   component's `static` threw on the state it was shown with, naming the modes it broke in).
-  All seven are members of one union in `plugin.ts`; none is spelled at a call site.
+  All five are members of one union in `plugin.ts` that has **eight**: `E_UNKNOWN_SPINNER` and
+  `E_UNKNOWN_BORDER` come from `lookupSpinner()` and `lookupBorder()` — `check` looks up only
+  a spinner it has just registered, and no border — and `E_UNKNOWN_KIND` is caique's. None is
+  spelled at a call site, and **every one reaching `check`, wherever it was raised, leaves
+  through one handler** that prints its code and its `fix`: a plugin file that registers
+  itself on import throws before `main()` has a line of its own. *Corrected 2026-09-22*, when
+  this paragraph was found wrong three ways (below).
 - **R9** Deterministic: with a fake clock, a spinner's TTY output for N ticks is a fixed
   string; a snapshot test runs 20 times in CI.
 - **R11** `flagstaff/import`: `fromCliSpinners(json)` and `fromCliBoxes(json)` turn the two
@@ -519,7 +524,8 @@ they had been met.
 
 They now do, in [§ What is built (2026-09-16)](#what-is-built-2026-09-16), established from
 `packages/flagstaff/src/` rather than from this document's prose about itself. Of the eight,
-**six read `Built`** (R1, R2, R3, R5, R7, R9) and **two read `Not built`** (R8 and R10) — and
+**six read `Built`** (R1, R2, R3, R5, R7, R9) and **two read `Not built`** (R8 and R10; R8
+was built on 2026-09-22) — and
 one of the four that already had a heading, R4, reads `Not built` too, against the same
 `## What shipped (R4, …)` entry that concedes the gap in its own last paragraph. Seven
 requirements were restated where the wording, not the code, was what was wrong.
@@ -716,13 +722,14 @@ reader who stops at the requirements list is misled.
 - **R8 attributes two codes to `register()` that it cannot raise.** `E_UNKNOWN_SPINNER` and
   `E_UNKNOWN_BORDER` come from `lookupSpinner()` and `lookupBorder()`. `validate()` raises
   three codes, not five. And `check` never calls `lookupBorder`, so `E_UNKNOWN_BORDER` is
-  unreachable from the command R8 is about.
+  unreachable from the command R8 is about. *Fixed 2026-09-22: R8 restated.*
 - **R8's "each carrying a code … and a `fix`" does not hold on one path.** `cli.ts` calls
   `spinner(style)` outside its `try`/`catch`, so a `PluginError` from that call lands in the
   rejection handler, which writes the message alone — no code prefix, no `fix` line — and
-  exits 1.
+  exits 1. *Fixed 2026-09-22: that handler is now the one every refusal leaves through.*
 - **R8 says "all seven are members of one union"; the union has eight.** The eighth is
   `E_UNKNOWN_KIND`, caique's, added when that host landed. The design mentions it nowhere.
+  *Fixed 2026-09-22: R8 names all eight.*
 - **R1's `hoist` signature is wrong.** It is not `hoist(component, rt)`: `initial` is a
   required third argument and an options object a fourth, and the returned value carries a
   readonly `mode` alongside `update` and `lower`.
@@ -779,7 +786,7 @@ acceptance is.
 
 **The Status cell holds two words and nothing else**, `Built` or `Not built`, because the
 checker matches `**Built**` exactly. A row saying `Built` without a check in the last column
-is a claim, so every row names one; three rows read `Not built`, and that is the point of
+is a claim, so every row names one; two rows read `Not built`, and that is the point of
 having the column rather than a defect in it.
 
 | R | Status | Where | The check |
@@ -791,7 +798,7 @@ having the column rather than a defect in it.
 | R5 | **Built** | `src/projection.ts` — only `TtyProjection` writes `HIDE_CURSOR`, `SHOW_CURSOR` or a CSI erase; `staticProjection` and `jsonProjection` are text and a newline. One shipped subpath is exempt and the exemption is restated below | `loop.test.ts` → *"R5 · off a terminal, no carriage return and no cursor escape"*; `builtins.test.ts` → *"R5 · every built-in is text off a terminal"*; `ora.test.ts` → *"R5 · a migrated spinner on a pipe writes text and nothing else"*, incl. the CI case where the stream claims to be a terminal; `log-update.test.ts` → *"R5 · the façade writes no carriage return, on a terminal or off one"* and *"never a bare cursor-home either"* |
 | R6 | **Built** | All four façades ship as their own subpaths and all four are graded by the incumbent's own suite. R6 names `flagstaff/table` as the cli-table3 façade and that is the wrong module — restated below | `npm run compat`, 2026-09-16: `ora` **99 / 99**, `log-update` **99 / 99**, `boxen` **84 / 84**, `cli-table3` **29 / 29**, every row **100.0% ▲ 0** |
 | R7 | **Built** | No `layout*` or `measure*` module, and no width or wrap pass declared here: `width` and `wrap` are imported from `linegauge`, which is where they have lived since F1. `box()` and `table()` are string functions. `columns` restated below | `plugin.test.ts` → *"R7 · no layout engine"* → *"src/ has no layout module"* and *"no module here declares a width or measure pass of its own — every one comes from linegauge"*, which locks the declaration rather than the filename |
-| R8 | **Not built** | The command is built and its usual refusals are graded; **R8's own sentence is not kept on one path, and its code inventory is wrong three ways.** In `src/cli.ts`, `main()`’s spinner loop calls `spinner(style)` outside the `try`/`catch` that wraps `register()`, so a `PluginError` raised there reaches the rejection handler at the foot of the file, which writes `e.message` alone — no code prefix, no `fix` line — and sets exit 1. R8 says every refusal carries a code from `PluginErrorCode` and a `fix`; that path carries neither, and no case asserts it either way. Separately: R8 attributes `E_UNKNOWN_SPINNER` and `E_UNKNOWN_BORDER` to `register()`, which cannot raise them (`lookupSpinner()` and `lookupBorder()` do); `check` never calls `lookupBorder`, so `E_UNKNOWN_BORDER` is unreachable from the command R8 is about; and R8 says "all seven are members of one union" where the union has **eight** — `E_UNKNOWN_KIND` is caique's and this design names it nowhere | What is graded: `cli.test.ts`, seven cases — all five modes and exit 0, exit 1 with the code and the fix for a missing `static`, the misspelled-key refusal, the throwing component with the modes it broke in, exit 2 on usage. What is not: the `spinner(style)` call in `main()`’s spinner loop. `scripts/plugin-error-vocabulary-lock.test.ts` holds the vocabulary itself and is proven to fail four ways |
+| R8 | **Built** | Every `PluginError` reaching `check` leaves through the one rejection handler in `src/cli.ts`, which prints it with its code and its `fix` and exits 1 — `main()`'s `try` around `register()` alone was deleted, because it covered one call and a plugin file that registers itself on import throws before it. R8's code inventory is restated above: five codes `check` emits, in a union of eight | `cli.test.ts`: *"a refusal raised outside register()'s own try still carries its code and its fix (R8)"* — red on the build before the handler, where stdout was empty and the message went to stderr bare. `scripts/plugin-error-vocabulary-lock.test.ts` holds the vocabulary |
 | R9 | **Built** | `src/loop.ts` — `manualClock()` moves only when told, with a `TICK_CAP` so a callback that reschedules itself at 0 ms throws rather than hanging; `src/projection.ts` takes the clock as an argument and reaches no timer of its own | `loop.test.ts` → *"R9 · deterministic"* → *"the tty transcript is the same bytes twenty runs over"*, plus the three `manualClock` ordering cases |
 | R10 | **Not built** | The isolation and the ratchet are built: `src/subpath-isolation.test.ts` and `src/weight.test.ts` derive their subject from the `exports` map, every entry must declare a rule with an `allow` list, a `denied` list, a `budget` **and** its last `measured` figure, and the measured figure is asserted rather than left in a comment to rot. What is not built is the rest of the sentence. **"Depends on `roundel` only" is false** — `package.json` declares `closeout`, `linegauge`, `paratext` and `roundel`, and `shape.test.ts` asserts the four-element list under the heading *"0 external, 4 same-repo"*, which is the opposite of what R10 says a test asserts. And two of the four named ceilings are not set from their incumbent: `./spinner` cites ora 9.4.1's 17,891 B and `./log-update` cites log-update's 113,368 B, but `./box` (20,000) and `./table` (6,000) are ratchets on this package's own history with no boxen or cli-table3 figure behind them | `shape.test.ts` → *"the package it installed depends on closeout, linegauge, paratext and roundel and on nothing else (U6: 0 external, 4 same-repo)"* — green, and green because it asserts the opposite of R10. `weight.test.ts` → *"every published entry point declares a weight rule"*. For `./box` ≤ boxen and `./table` ≤ cli-table3: **no check**, and `flagstaff/cli-table3` has no pair in `benchmarks/fixtures/entry-points.ts` either, so B4 computes no ratio for it |
 | R11 | **Built** | `src/import.ts` — `fromCliSpinners(json, opts)` and `fromCliBoxes(json)`, 838 B against a 2,000 budget, reaching nothing (its only imports are types). Neither corpus is bundled. Two sentences of R11 are wrong as written and are restated below | `import.test.ts` grades both against the real `cli-spinners` and `cli-boxes` packages, held as devDependencies so the day either corpus changes the test fails; its last case asserts neither became a dependency. `weight.test.ts` `'./import'` pins 838 B |

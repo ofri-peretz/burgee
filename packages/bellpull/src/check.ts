@@ -44,7 +44,21 @@ function refuse(code: PluginErrorCode, message: string, fix: string, write: (s: 
 /** What a contribution replaced, when it replaced anything. */
 const shadows = (names: readonly string[]): string => (names.length === 0 ? '' : ` (replaces ${names.join(', ')})`);
 
+/**
+ * Every refusal leaves through here, wherever it was raised: `register()`, or a plugin file that
+ * registers itself on import — which throws inside the `import()`, before any line of `inspect`
+ * could catch it, and used to reach the bin as a bare message with no code and no fix (R8).
+ */
 export async function check(argv: readonly string[], write: (s: string) => void): Promise<number> {
+  try {
+    return await inspect(argv, write);
+  } catch (error) {
+    if (!(error instanceof PluginError)) throw error;
+    return refuse(error.code, error.message, error.fix, write);
+  }
+}
+
+async function inspect(argv: readonly string[], write: (s: string) => void): Promise<number> {
   const file = argv[0];
   if (file === undefined) {
     write('usage: bellpull check <plugin-file>\n');
@@ -54,13 +68,8 @@ export async function check(argv: readonly string[], write: (s: string) => void)
   const loaded = (await import(pathToFileURL(resolve(file)).href)) as { default?: unknown };
   const plugin: unknown = loaded.default ?? loaded;
   reset();
-  try {
-    validate(plugin);
-    register(plugin);
-  } catch (error) {
-    if (!(error instanceof PluginError)) throw error;
-    return refuse(error.code, error.message, error.fix, write);
-  }
+  validate(plugin);
+  register(plugin);
   const name = (plugin as { name: string }).name;
   const rows = contributions()
     .filter((c) => c.from === (plugin as { name: string }).name)

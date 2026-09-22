@@ -31,6 +31,10 @@ beforeAll(() => {
   writeFileSync(join(dir, 'sampled.mjs'), 'export default { name: \'sampled\', components: { gauge: { sample: { running: { pct: 0 }, done: { pct: 100 } }, static: (s) => `[${s.pct}%]` } } };\n');
   // #59 — a component that throws on the state it is handed.
   writeFileSync(join(dir, 'throws.mjs'), 'export default { name: \'throws\', components: { g: { static: (s) => s.label.toUpperCase() } } };\n');
+  // R8 — a plugin file that registers itself on import, and is refused there: before `main()`'s
+  // own `try`, so the refusal reaches the handler at the foot of `cli.ts`.
+  const host = new URL('../dist/plugin.js', import.meta.url).href;
+  writeFileSync(join(dir, 'selfreg.mjs'), `import { register } from '${host}';\nregister({ name: 'self', spinners: { s: { frames: ['a'], interval: 80 } } });\nexport default {};\n`);
 });
 
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
@@ -108,5 +112,11 @@ describe('flagstaff check', () => {
     const { code, stdout } = check();
     expect(code).toBe(2);
     expect(stdout).toBe('usage: flagstaff check <plugin-file>\n');
+  });
+
+  it('a refusal raised outside register()\'s own try still carries its code and its fix (R8)', () => {
+    const { code, stdout } = check('check', 'selfreg.mjs');
+    expect(code).toBe(1);
+    expect(stdout).toMatch(/^E_NO_STATIC_PROJECTION: .*\n {2}fix: /);
   });
 });
