@@ -58,7 +58,10 @@ beforeAll(() => {
 /** Every assertion spawns; see `roundel/src/shape.test.ts` for why a spawn needs 30 s under turbo. */
 const SPAWN = 30_000;
 
-afterAll(() => rmSync(dir, { recursive: true, force: true }), SPAWN);
+// Teardown gets setup's clock, not a spawn's. It is one `rmSync` of a small install, and under
+// the pre-push battery — every package's suite at once — it still ran past 30 s: vitest
+// reported "Hook timed out in 30000ms", and this was the only hook declaring 30 s.
+afterAll(() => rmSync(dir, { recursive: true, force: true }), 120_000);
 
 describe('Z1 — one file, npm i, no build step', { timeout: SPAWN }, () => {
   it('with no terminal, a missing required value is a usage error that names the flag', () => {

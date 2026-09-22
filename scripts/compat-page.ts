@@ -6,7 +6,8 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { HOSTS } from 'compat-oracle/hosts';
+// eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: a bare `compat-oracle/*` resolves from another checkout's dist/ in an uninstalled worktree (compat-oracle R6, scripts/oracle-import-lock.test.ts)
+import { HOSTS } from '../packages/compat-oracle/src/hosts.js';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const oracle = join(root, 'packages', 'compat-oracle');
@@ -66,6 +67,22 @@ const others = HOSTS.filter((h) => h.status !== 'active').map((h) => `| ${h.name
  */
 const excluded = HOSTS.filter((h) => (h.excludes ?? []).length > 0).flatMap((h) => (h.excludes ?? []).map((e) => `| **${h.name}** | \`${e.match.trim()}\` | ${e.why} |`));
 
+/**
+ * The other three ways a case leaves a number, published beside the exclusions (C4). Each is
+ * declared in `hosts.ts` with a mandatory reason; until 2026-09-23 only `excludes` reached this
+ * page, so a reader saw the named cases and none of the allowances behind the other rates.
+ */
+const active = HOSTS.filter((h) => h.status === 'active');
+const allowances = active.flatMap((h) =>
+  h.controlFailures === undefined ? [] : [`| **${h.name}** | ${h.controlFailures.count} | ${h.controlFailures.why} |`],
+);
+const platformOnly = (c: { only?: readonly string[]; notOn?: readonly string[] }): string =>
+  c.only !== undefined ? `only on ${c.only.join(', ')}` : `not on ${(c.notOn ?? []).join(', ')}`;
+const conditional = active.flatMap((h) =>
+  h.conditionalCases === undefined ? [] : [`| **${h.name}** | ${h.conditionalCases.count} | ${platformOnly(h.conditionalCases)} | ${h.conditionalCases.why} |`],
+);
+const ungraded = active.flatMap((h) => (h.ungradedDirs ?? []).map((d) => `| **${h.name}** | \`${d.dir}/\` | ${d.why} |`));
+
 const page = `---
 title: Compatibility
 description: Each host's own test suite, run against burgee in CI. A published pass rate that only goes up — never the word "compatible".
@@ -102,6 +119,45 @@ rate. These are excluded by name — they still run, and they still appear in th
 | Host | Cases | Why |
 | :--- | :--- | :--- |
 ${excluded.join('\n')}
+`
+}${
+  allowances.length === 0
+    ? ''
+    : `
+### Control failures allowed
+
+The control is the real host run through our harness. Where it fails a case for a reason that
+is the harness's and not the host's, the allowance is the exact count, and the gate refuses a
+different one — so it can neither hide a regression nor grow quietly.
+
+| Host | Cases | Why |
+| :--- | ---: | :--- |
+${allowances.join('\n')}
+`
+}${
+  conditional.length === 0
+    ? ''
+    : `
+### Cases only some platforms register
+
+The reference is the full suite on every platform, so a case a platform never registers is
+counted against us there rather than dropped.
+
+| Host | Cases | Registered | Why |
+| :--- | ---: | :--- | :--- |
+${conditional.join('\n')}
+`
+}${
+  ungraded.length === 0
+    ? ''
+    : `
+### Directories vendored and not graded
+
+Copied with the suite because its tests need them, and never run as tests themselves.
+
+| Host | Directory | Why |
+| :--- | :--- | :--- |
+${ungraded.join('\n')}
 `
 }
 ## Supported majors
