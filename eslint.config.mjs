@@ -419,6 +419,10 @@ export default [
     files: [
       "packages/burgee/src/commander/**/*.ts",
       "packages/burgee/src/yargs/**/*.ts",
+      // `meow/` joined them on 2026-09-21 for the same reason: `meow.ts` is published from
+      // the `exports` map and its parts sit one directory down, so every one of them reaches
+      // `../yargs-parser.js` and `../runtime.js` by construction.
+      "packages/burgee/src/meow/**/*.ts",
     ],
     rules: { "import-next/no-relative-parent-imports": "off" },
   },
@@ -704,6 +708,12 @@ export default [
       // uses it too. It is still commander's port, still graded by commander's own suite,
       // and reshaping it to satisfy a complexity budget would change what those tests see.
       "packages/burgee/src/suggest.ts",
+      // meow's option contract, graded by meow's own 148 cases. Its shape is the suite's —
+      // the validation order, which errors throw and which print and exit, and the wording of
+      // each — so splitting `meow()` to satisfy a complexity budget would be reshaping a port
+      // to please a rule, which is the move every other entry in this list exists to refuse.
+      "packages/burgee/src/meow.ts",
+      "packages/burgee/src/meow/**/*.ts",
       "packages/burgee/src/yargs.ts",
       "packages/burgee/src/yargs-helpers.ts",
       "packages/burgee/src/yargs-parser.ts",
@@ -764,6 +774,10 @@ export default [
     files: [
       "packages/burgee/src/yargs.ts",
       "packages/burgee/src/yargs-parser.ts",
+      // `import meow from 'burgee/meow'` is the drop-in for the same reason: meow's entire
+      // API is one default-exported function, and every program written for it imports it
+      // that way.
+      "packages/burgee/src/meow.ts",
       "packages/flagstaff/src/ora.ts",
       "packages/flagstaff/src/log-update.ts",
       "packages/flagstaff/src/boxen.ts",

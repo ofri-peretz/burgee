@@ -942,6 +942,10 @@ export const HOSTS: Host[] = [
       { upstream: '../build/index.js', subpath: '', reexportDefault: true },
     ],
     suiteDeps: ['meow@14.1.0', 'ava@6.4.1', 'common-tags@2.0.0-alpha.1', 'execa@9.6.1', 'indent-string@5.0.0', 'read-pkg@10.1.0', 'stack-utils@2.0.6'],
+    controlFailures: {
+      count: 2,
+      why: "Two cases real meow cannot pass from a vendored copy of its tests. `build › main` imports `../build/index.js`, the rollup bundle meow publishes — it is built by `npm run build` in meow's own repo and the vendor step takes only `test/`, so the file is not there for either side. `pkg normalization is lazy` asserts that reading `cli.pkg` mutates the caller's own object, which is `normalize-package-data` doing it in place; meow gets that from a dependency and the vendored root does not install it. Neither is a divergence and neither is reachable: the first needs a build the oracle does not run, the second a package this repo will not take (U6). Measured 2026-09-21 — the control is 146 / 148 with these two named and 148 / 148 without them.",
+    },
     ungradedDirs: [
       {
         dir: 'fixtures',
@@ -950,12 +954,12 @@ export const HOSTS: Host[] = [
     ],
     runner: 'ava',
     target: 'burgee/meow',
-    status: 'planned',
+    status: 'active',
     note:
       // Kept short on purpose: a `planned` row's note is published verbatim in the
-      // compatibility page's table, so the full account lives in `.sdlc/FINISH-ALL.md`
-      // under "meow" and in the commit that measured it.
-      "Vendored and measured 2026-09-21 at 14.1.0. **Control 144 / 148, 97.3%** against `meow@14.1.0` — 148 cases across 18 graded files, plus 24 `fixtures/` programs the tests spawn and `ungradedDirs` prunes. The four the control misses are the reference's own: one wants the built bundle, three read the vendored root's `package.json` rather than a fixture's. Every one of the three facts this row carried while unmeasured was wrong — the runner, the import path and `reexportDefault` — which is why a `planned` row's configuration is a guess until a control runs it. Still planned: D-004 puts the three front-ends last, and this is the feedback loop that has to exist before the façade.",
+      // compatibility page's table. This row is active now, so the number does the talking
+      // and the full account lives in `.sdlc/FINISH-ALL.md` under "meow".
+      "Vendored 2026-09-21 at 14.1.0 and built the same day. **Target `burgee/meow` 132 / 148, 89.2%**, against a control of **146 / 148**. 148 cases across 18 graded files; the other 24 files under `test/` are the `fixtures/` CLI programs the tests spawn, pruned by `ungradedDirs`. meow is one function over `yargs-parser`, and burgee already ships its own for `burgee/yargs`, so the façade took nothing new into the tree — it costs 59,820 bundled bytes, of which the option contract is about 16 K and the parser is the rest. The control's two are `build › main`, which wants meow's rollup bundle, and `pkg normalization is lazy`, which wants `normalize-package-data`'s mutation of the caller's own object. Of our sixteen, the largest group is `--no-`-prefixed boolean flags: a fixture declares `noAutoVersion` and burgee's parser negates `autoVersion` before it matches the declared name, which is a parser question rather than a meow one.",
 
   },
   {

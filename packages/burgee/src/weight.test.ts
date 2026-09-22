@@ -350,6 +350,22 @@ const RULES: Record<string, EntryRule> = {
   // layer below this one, and the WCAG maths lived in both packages until 2026-09-09.
   // Nothing in the engine reaches this: a CLI that ships argv parsing has no reason to
   // carry a contrast checker, which is why `.` still denies `roundel` outright.
+  /**
+   * meow is one function over a parser, and that parser is the weight: measured 59,820 bytes,
+   * of which the option contract is about 16 K and `yargs-parser` is the rest. Upstream meow
+   * looks lighter only because it *depends* on yargs-parser instead of carrying it; a caller
+   * installing meow installs both, and this number is what they would have paid either way.
+   * Set at the measurement, which is why it is not a round figure. Sits between
+   * `./commander` (129,400) and nothing — the two other front ends are larger still.
+   *
+   * It denies the engine outright: a caller who wanted `execute` would have imported burgee
+   * itself rather than its meow-shaped door.
+   */
+  "./meow": {
+    allow: [],
+    budget: 59_900,
+    denied: ["index.js", "execute.js", "help.js", "mcp.js", "schema.js", "completions.js", "plugin.js"],
+  },
   "./contrast": {
     allow: ["roundel/contrast"],
     budget: 12_000,

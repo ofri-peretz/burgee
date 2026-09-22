@@ -5,6 +5,7 @@
   "main": "./shim.js",
   "version": "14.1.0",
   "license": "MIT",
+  "description": "CLI app helper",
   "repository": "sindresorhus/meow",
   "devDependencies": {
     "meow": "14.1.0",

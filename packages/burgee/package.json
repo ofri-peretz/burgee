@@ -47,6 +47,11 @@
       "import": "./dist/commander.js",
       "default": "./dist/commander.js"
     },
+    "./meow": {
+      "types": "./dist/meow.d.ts",
+      "import": "./dist/meow.js",
+      "default": "./dist/meow.js"
+    },
     "./completions": {
       "types": "./dist/completions.d.ts",
       "import": "./dist/completions.js",

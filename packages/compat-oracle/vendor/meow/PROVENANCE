@@ -4,7 +4,7 @@ version:  14.1.0
 tag:      v14.1.0
 commit:   14a216feea8408d84162fab5f9823c4d5b308ef2
 vendored: 2026-09-21
-files:    36
+files:    18
 tool:     scripts/vendor-suite.ts
 
 How this directory was made

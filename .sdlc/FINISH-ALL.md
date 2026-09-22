@@ -32,7 +32,7 @@ against it.
 | ~~terminal-link~~ | `paratext/terminal-link` | **8 / 10** | 0 | **built 2026-09-20 — 8 is the ceiling** |
 | ~~ansi-escapes~~ | `paratext` | 1 / 4 | **0** | **already at its ceiling** |
 | rc | `seniority/rc` | 0 / 1 | 1 | target not built |
-| meow | `burgee/meow` | **control 144 / 148** | 148 | harness ready, façade unbuilt |
+| ~~meow~~ | `burgee/meow` | **132 / 148** | 16 | **built 2026-09-21 — control 146 / 148** |
 | cac / citty | `burgee/*` | planned | — | two unbuilt front-ends |
 | signal-exit | `closeout` | planned | — | control below its own reference |
 
@@ -160,9 +160,28 @@ half-finished one is a liability on npm today.
    reference's own. `vendor()` also turned out not to write `PROVENANCE`, so re-vendoring
    through the oracle deleted a file its own lock requires — fixed separately.
 
-   **The façade is not built and this does not build it.** D-004 puts the three front-ends
-   last and a human accepts at Design→Build. What exists now is a control that clears its
-   own reference, so the next failure means the façade rather than the harness.
+   **Built 2026-09-21: `burgee/meow` grades 132 / 148 (89.2%) against a control of 146 / 148.**
+   meow is one function over `yargs-parser` and burgee already ships its own for
+   `burgee/yargs`, so the façade took nothing new into the tree. It lives in `src/meow.ts`
+   with its parts in `src/meow/` — the shape `commander/` and `yargs/` already use — and
+   costs 59,820 bundled bytes, of which the option contract is about 16 K and the parser is
+   the rest. Upstream meow looks lighter only because it *depends* on yargs-parser instead
+   of carrying it.
+
+   **The sixteen it does not pass, and none of them is a guess.** The largest group is
+   `--no-`-prefixed boolean flags: a fixture declares `noAutoVersion`, and burgee's parser
+   negates `autoVersion` before it matches the declared name, so the flag arrives under two
+   keys and the unknown-flag check reports one of them. That is a `yargs-parser` question,
+   not a meow one, and fixing it there is the next move. The rest are single cases — a
+   one-line help block's exact trailing newline, `-F` casing through the camel-case
+   expansion, and `normalize-package-data`'s lazy mutation, which meow gets from a
+   dependency this repo will not take.
+
+   Two of the control's own two moved on the way: the vendored root now carries upstream's
+   `description`, because meow's help block opens with `pkg.description` and three cases
+   assert the string “CLI app helper”. Without it they failed for the control exactly as for
+   the target — a ceiling the harness had put there rather than one either implementation
+   earned.
 7. **closeout** — `signal-exit`, once its control clears its own reference.
 
 ## Not compat, and required before "sellable"

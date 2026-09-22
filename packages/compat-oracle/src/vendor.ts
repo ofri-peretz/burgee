@@ -193,6 +193,7 @@ export interface UpstreamPackage {
   type?: string;
   version?: string;
   license?: string;
+  description?: string;
   repository?: unknown;
 }
 
@@ -210,6 +211,11 @@ export function rootPackage(host: Host, upstream: UpstreamPackage): Record<strin
   const pkg: Record<string, unknown> = { name: `@vendored/${host.name}-suite`, private: true, type, main: `./${shimName(0, type)}` };
   if (upstream.version !== undefined) pkg.version = upstream.version;
   if (upstream.license !== undefined) pkg.license = upstream.license;
+  // Upstream's own description, because a suite may read it back. meow's help block opens
+  // with `pkg.description`, so three of its cases assert the string "CLI app helper" — and
+  // without this line they fail for the control exactly as for the target, which is a
+  // ceiling this file put there rather than one either implementation earned.
+  if (upstream.description !== undefined) pkg.description = upstream.description;
   if (upstream.repository !== undefined) pkg.repository = upstream.repository;
   // Written from `hosts.ts` rather than left to a human, so a re-vendor cannot drop it: the
   // whole file is regenerated on every run, and a hand-added dependency would survive exactly
