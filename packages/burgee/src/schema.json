@@ -39,7 +39,7 @@
           "heading",
           "ground"
         ],
-        "description": "roundel's ten semantic tokens, and nothing else — `roundel`'s own validate() refuses any other name."
+        "description": "roundel's ten semantic tokens, and nothing else \u2014 `roundel`'s own validate() refuses any other name."
       }
     },
     "glyphs": {
@@ -73,6 +73,9 @@
     },
     "capabilities": {
       "$ref": "#/$defs/capabilities"
+    },
+    "widths": {
+      "$ref": "#/$defs/widths"
     }
   },
   "$defs": {
@@ -120,7 +123,7 @@
             "running",
             "done"
           ],
-          "description": "Two states to *show* this component with: `flagstaff check` and the docs gallery render `running` then `done`. Omitted, they assume `{ phase: 'running' }` and `{ phase: 'done' }` and say so in the output. The loop never reads it — a running program's state comes from the program.",
+          "description": "Two states to *show* this component with: `flagstaff check` and the docs gallery render `running` then `done`. Omitted, they assume `{ phase: 'running' }` and `{ phase: 'done' }` and say so in the output. The loop never reads it \u2014 a running program's state comes from the program.",
           "properties": {
             "running": {
               "description": "The state to open with."
@@ -187,12 +190,12 @@
         "fallback"
       ],
       "additionalProperties": false,
-      "description": "One paratext capability: what it says to the terminal, when the terminal is believed to understand it, and what prints when it does not. No functions, so it travels through JSON. `encode` and `fallback` are templates: `{field}` is the field's value, `{field|base64}` is it base64-encoded, and `[ … ]` is emitted only when every field inside it has a value.",
+      "description": "One paratext capability: what it says to the terminal, when the terminal is believed to understand it, and what prints when it does not. No functions, so it travels through JSON. `encode` and `fallback` are templates: `{field}` is the field's value, `{field|base64}` is it base64-encoded, and `[ \u2026 ]` is emitted only when every field inside it has a value.",
       "properties": {
         "name": {
           "type": "string",
           "minLength": 1,
-          "description": "How callers name it. Registering an existing name replaces it — how a caller corrects a guess we got wrong."
+          "description": "How callers name it. Registering an existing name replaces it \u2014 how a caller corrects a guess we got wrong."
         },
         "osc": {
           "description": "The OSC code this speaks, or 'BEL' for the bell and for protocols that are not OSC at all, such as Kitty's.",
@@ -208,7 +211,7 @@
         },
         "when": {
           "type": "object",
-          "description": "When the terminal is believed to understand it. Every clause must hold; `termProgram` and `envAny` are ORs within themselves. Guesses — no terminal answers 'do you do OSC 1337' — and therefore data a caller can replace.",
+          "description": "When the terminal is believed to understand it. Every clause must hold; `termProgram` and `envAny` are ORs within themselves. Guesses \u2014 no terminal answers 'do you do OSC 1337' \u2014 and therefore data a caller can replace.",
           "additionalProperties": false,
           "properties": {
             "tty": {
@@ -231,7 +234,7 @@
             },
             "term": {
               "type": "string",
-              "description": "An exact TERM — Kitty is xterm-kitty."
+              "description": "An exact TERM \u2014 Kitty is xterm-kitty."
             }
           }
         },
@@ -242,7 +245,7 @@
         },
         "fallback": {
           "type": "string",
-          "description": "What to print when it does not — PRINCIPLES rule 6. '' is a legitimate answer, a window title having nothing to say in a log; absence is not, which is why this is required and may be ''."
+          "description": "What to print when it does not \u2014 PRINCIPLES rule 6. '' is a legitimate answer, a window title having nothing to say in a log; absence is not, which is why this is required and may be ''."
         }
       },
       "examples": [
@@ -260,7 +263,7 @@
     },
     "capabilities": {
       "type": "object",
-      "description": "paratext capabilities by name — the OSC section of a plugin, read the way flagstaff reads `spinners`.",
+      "description": "paratext capabilities by name \u2014 the OSC section of a plugin, read the way flagstaff reads `spinners`.",
       "additionalProperties": {
         "$ref": "#/$defs/capability"
       }
@@ -291,10 +294,59 @@
         },
         {
           "deprecated": true,
-          "description": "Deprecated: one capability as the whole document, the shape paratext's schema had before this one absorbed it. Accepted for one minor release, removed at 1.0 — `check()` validates it and says so.",
+          "description": "Deprecated: one capability as the whole document, the shape paratext's schema had before this one absorbed it. Accepted for one minor release, removed at 1.0 \u2014 `check()` validates it and says so.",
           "$ref": "#/$defs/capability"
         }
       ]
+    },
+    "widthRange": {
+      "type": "array",
+      "description": "One inclusive code-point range, as [low, high]. A single code point is written [n, n].",
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 1114111
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "widthOverride": {
+      "type": "object",
+      "description": "A linegauge width override: the column count a named set of code-point ranges occupies, for a terminal that disagrees with the Unicode tables. Data only \u2014 no function, so it can be written in a config file, diffed, and printed by `linegauge check` without running anyone code.",
+      "required": [
+        "ranges",
+        "columns",
+        "why"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "ranges": {
+          "type": "array",
+          "description": "The code points this override applies to.",
+          "items": {
+            "$ref": "#/$defs/widthRange"
+          },
+          "minItems": 1
+        },
+        "columns": {
+          "type": "integer",
+          "description": "Columns each cluster in those ranges occupies: 0 for a zero-width mark, 1 narrow, 2 wide.",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "why": {
+          "type": "string",
+          "description": "The terminal or the reason. Required, because a width table with no provenance is one nobody can audit when it turns out to be wrong \u2014 which is the normal outcome for ambiguous width.",
+          "minLength": 1
+        }
+      }
+    },
+    "widths": {
+      "type": "object",
+      "description": "linegauge width overrides by name \u2014 the measurement section of a plugin, read the way flagstaff reads `spinners`.",
+      "additionalProperties": {
+        "$ref": "#/$defs/widthOverride"
+      }
     }
   }
 }

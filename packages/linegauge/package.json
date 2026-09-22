@@ -37,7 +37,13 @@
       "types": "./dist/strip.d.ts",
       "import": "./dist/strip.js",
       "default": "./dist/strip.js"
-    }
+    },
+    "./plugin": {
+      "types": "./dist/plugin.d.ts",
+      "import": "./dist/plugin.js",
+      "default": "./dist/plugin.js"
+    },
+    "./schema.json": "./dist/schema.json"
   },
   "files": [
     "dist",
@@ -45,7 +51,7 @@
     "!dist/**/*.test.*"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && node ../../scripts/strip-comments.mjs dist",
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/schema-to-dist.mjs && node ../../scripts/strip-comments.mjs dist",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
     "coverage": "vitest run --coverage.enabled",

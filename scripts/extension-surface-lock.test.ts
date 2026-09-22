@@ -18,11 +18,16 @@
  * | :--- | :---: | :---: | :---: | :---: |
  * | flagstaff | yes | yes | yes | yes |
  * | burgee | yes | yes | no | no |
- * | bellpull, caique, closeout, paratext, roundel, seniority | yes | yes | no | no |
- * | linegauge | no | — | — | — |
+ * | bellpull, caique, closeout, linegauge, paratext, roundel, seniority | yes | yes | no | no |
  *
- * Eight of nine packages publish `./plugin` and `./schema.json` and every one of them exports
- * `validate`, so the *data* half is built everywhere. The feedback loop exists once and the
+ * **Nine of nine since 2026-09-22.** `linegauge` was the empty row, and it was empty honestly:
+ * a width function is not obviously extensible, and an extension point invented to fill a table
+ * is worse than a gap that says so. It hosts `widths` now — code-point ranges a terminal
+ * disagrees with the Unicode tables about, which is a disagreement `width.ts` already documents
+ * and had no way for a user to settle.
+ *
+ * All nine publish `./plugin` and `./schema.json` and every one exports `validate`, so the
+ * *data* half is built everywhere. The feedback loop exists once and the
  * weekly measurement exists once, both in `flagstaff`. A surface nobody can check is a
  * surface nobody outside this repository can write against, which is the difference between
  * an extension point and a published interface.
@@ -48,7 +53,7 @@ const DECLARED = {
   caique: { plugin: true, check: false, eval: false },
   closeout: { plugin: true, check: false, eval: false },
   flagstaff: { plugin: true, check: true, eval: true },
-  linegauge: { plugin: false, check: false, eval: false },
+  linegauge: { plugin: true, check: false, eval: false },
   paratext: { plugin: true, check: false, eval: false },
   roundel: { plugin: true, check: false, eval: false },
   seniority: { plugin: true, check: false, eval: false },

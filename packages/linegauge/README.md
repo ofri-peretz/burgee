@@ -154,10 +154,10 @@ its own suite — which this package passes. The runner reports that as a failur
 to the incumbent an unexpected pass means a stale annotation; it is counted here as the
 pass it is, and marked rather than left to look like the ones beside it.
 
-Weight, installed and tree-inclusive: **83,536 bytes** against **170,342** for the incumbents it replaces — a ratio of **0.4904**.
+Weight, installed and tree-inclusive: **75,916 bytes** against **170,342** for the incumbents it replaces — a ratio of **0.4457**.
 ## Where it sits
 
-It hosts no plugin key of its own.
+Plugins register under the `widths` key, against the one schema the whole family shares.
 
 `burgee`, `caique`, `flagstaff` build on it, and it builds on nothing in this family.
 ## Licence

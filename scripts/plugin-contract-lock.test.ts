@@ -52,6 +52,8 @@ import * as closeout from '../packages/closeout/src/plugin.js';
 // eslint-disable-next-line import-next/no-namespace, import-next/no-relative-packages -- the source, by path, on purpose: the package-name form resolves to `dist/`, which would measure the last build rather than the tree. Every host is read the same way, so one host being stale cannot look like agreement
 import * as flagstaff from '../packages/flagstaff/src/plugin.js';
 // eslint-disable-next-line import-next/no-namespace, import-next/no-relative-packages -- the source, by path, on purpose: the package-name form resolves to `dist/`, which would measure the last build rather than the tree. Every host is read the same way, so one host being stale cannot look like agreement
+import * as linegauge from '../packages/linegauge/src/plugin.js';
+// eslint-disable-next-line import-next/no-namespace, import-next/no-relative-packages -- the source, by path, on purpose: the package-name form resolves to `dist/`, which would measure the last build rather than the tree. Every host is read the same way, so one host being stale cannot look like agreement
 import * as paratext from '../packages/paratext/src/plugin.js';
 // eslint-disable-next-line import-next/no-namespace, import-next/no-relative-packages -- the source, by path, on purpose: the package-name form resolves to `dist/`, which would measure the last build rather than the tree. Every host is read the same way, so one host being stale cannot look like agreement
 import * as roundel from '../packages/roundel/src/plugin.js';
@@ -73,7 +75,7 @@ interface PluginModule {
   definePlugin?: (plugin: unknown) => unknown;
 }
 
-const MODULES: Record<string, PluginModule> = { bellpull, burgee, caique, closeout, flagstaff, paratext, roundel, seniority };
+const MODULES: Record<string, PluginModule> = { bellpull, burgee, caique, closeout, flagstaff, linegauge, paratext, roundel, seniority };
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const PACKAGES = join(ROOT, 'packages');
@@ -81,10 +83,16 @@ const PACKAGES = join(ROOT, 'packages');
 /**
  * What each layer hosts — `plugin-contract` R4, R5, R5a and the wave-1 rows 1.2–1.6.
  *
- * `linegauge` is deliberately absent and that absence is R5a's other half: it hosts nothing
- * and says so in its README, which assertion 3 below still checks. A layer added here
- * without a `src/plugin.ts` fails the first case, and a layer with one and no row here fails
- * the coverage case — so the table cannot drift from the tree in either direction.
+ * `linegauge` was deliberately absent until 2026-09-22 and that absence *was* R5a's other
+ * half: eight of nine hosted something and the ninth said, in its README, that it hosted
+ * nothing. It hosts `widths` now — code-point ranges a terminal disagrees with the Unicode
+ * tables about — so the table is nine of nine and the README section says so instead. The
+ * empty row was honest while it lasted; an extension point invented to fill it would not have
+ * been, which is why it took this long to find one the package actually wanted.
+ *
+ * A layer added here without a `src/plugin.ts` fails the first case, and a layer with one and
+ * no row here fails the coverage case — so the table cannot drift from the tree in either
+ * direction.
  */
 const HOST_KEYS: Record<string, string> = {
   roundel: 'tokens',
@@ -93,6 +101,7 @@ const HOST_KEYS: Record<string, string> = {
   closeout: 'handlers',
   seniority: 'sources',
   bellpull: 'resolvers',
+  linegauge: 'widths',
   paratext: 'capabilities',
   burgee: 'commands',
 };
@@ -196,9 +205,18 @@ describe('every layer says what it hosts, in the generated section', () => {
     expect(readFileSync(layer.readme, 'utf8'), `${layer.name} hosts \`${HOST_KEYS[layer.name] ?? ''}\` and its README never names the key`).toContain(`\`${HOST_KEYS[layer.name] ?? ''}\``);
   });
 
-  it('linegauge hosts nothing and its README says so — R5a\'s other half', () => {
-    expect(existsSync(join(PACKAGES, 'linegauge/src/plugin.ts')), 'linegauge grew a plugin host; this case and 1.6 both need rewriting').toBe(false);
-    expect(readFileSync(join(PACKAGES, 'linegauge/README.md'), 'utf8')).toMatch(/hosts no plugin key of its own/);
+  /**
+   * This case used to assert the opposite — that `linegauge/src/plugin.ts` does **not** exist
+   * and that its README says it hosts nothing — and it carried its own replacement instruction:
+   * *"linegauge grew a plugin host; this case and 1.6 both need rewriting"*. It grew one on
+   * 2026-09-22, so here is the rewrite. The property worth keeping is the same one in the other
+   * direction: whatever the tree does, the README says it.
+   */
+  it('linegauge hosts `widths`, and its README no longer says it hosts nothing', () => {
+    expect(existsSync(join(PACKAGES, 'linegauge/src/plugin.ts')), 'linegauge lost its plugin host; this case needs rewriting again').toBe(true);
+    const readme = readFileSync(join(PACKAGES, 'linegauge/README.md'), 'utf8');
+    expect(readme, 'the README still claims linegauge hosts nothing').not.toMatch(/hosts no plugin key of its own/);
+    expect(readme).toContain('`widths`');
   });
 });
 
@@ -235,6 +253,7 @@ describe('one object registers into every host', () => {
     resolvers: {},
     capabilities: {},
     commands: [],
+    widths: { ambiguous: { ranges: [[0x2013, 0x2013]], columns: 1, why: 'the contract lock, measured nowhere — this object exists to be registered, not believed' } },
   });
 
   it('imports a module for every host in the tree, and no more', () => {

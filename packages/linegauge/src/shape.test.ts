@@ -39,13 +39,27 @@ const manifest = JSON.parse(readFileSync(resolve(pkgRoot, 'package.json'), 'utf8
 };
 const loadFromCjs = createRequire(import.meta.url);
 
-/** Every published entry, with the named export it must carry, from the manifest rather than a list. */
+/**
+ * The named export each entry must carry, where it is not the subpath's own word.
+ *
+ * `./plugin` is the exception and it is the family's shape, not this package's: a plugin host
+ * exports `validate`, `register` and `CONTRACT`, never a function called `plugin`. `width` is
+ * the root's, because the root is `width` with the rest hung off it.
+ */
+const NAMED: Record<string, string> = { '.': 'width', './plugin': 'validate' };
+
+/**
+ * Every published *code* entry, with the named export it must carry, from the manifest rather
+ * than a list. `./schema.json` is filtered out by the `condition.import` check — it maps to a
+ * plain string because it is data, and requiring it would assert that a JSON document exports
+ * a function.
+ */
 const ENTRIES = Object.entries(manifest.exports)
-  .filter(([, condition]) => typeof condition.import === 'string')
+  .filter(([, condition]) => typeof condition?.import === 'string')
   .map(([subpath, condition]) => ({
     subpath,
     file: resolve(pkgRoot, condition.import as string),
-    named: subpath === '.' ? 'width' : subpath.slice(2),
+    named: NAMED[subpath] ?? subpath.slice(2),
   }));
 
 describe('R12 — every published entry is requirable from CommonJS', () => {

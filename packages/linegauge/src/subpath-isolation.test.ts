@@ -23,7 +23,7 @@ import { describe, expect, it } from 'vitest';
 
 const pkgRoot = fileURLToPath(new URL('..', import.meta.url));
 const manifest = JSON.parse(readFileSync(resolve(pkgRoot, 'package.json'), 'utf8')) as {
-  exports: Record<string, { import: string }>;
+  exports: Record<string, { import?: string } | string>;
 };
 
 /**
@@ -44,6 +44,10 @@ const ALLOWED: Record<string, string[]> = {
   // reaches *it* — which is why `style.js` no longer reaches `width.js`. A strip that needed
   // a measurement would be a cycle, and there is nothing to measure in removing bytes.
   'strip.js': ['./style.js'],
+  // The plugin host reaches `width.js` and nothing else — the module that reads `widths` is the
+  // module that owns the override table, and a host that reached `wrap` or `slice` would mean
+  // the extension point had grown past the one measurement it exists to correct.
+  'plugin.js': ['./width.js'],
 };
 
 /**
@@ -80,7 +84,12 @@ describe.each(Object.keys(INTERNAL_ALLOWED))('internal module %s', (file) => {
 });
 
 describe('the rule covers what is published', () => {
-  const published = Object.values(manifest.exports).map((e) => e.import.replace('./dist/', ''));
+  // Code entries only: `./schema.json` maps to a plain string because it is data, and a JSON
+  // document reaches nothing and is reached by nobody — there is no isolation rule to write.
+  const published = Object.values(manifest.exports)
+    .map((e) => (typeof e === 'string' ? undefined : e.import))
+    .filter((file): file is string => file !== undefined)
+    .map((file) => file.replace('./dist/', ''));
 
   it('every published entry has a rule, and every rule names a published entry', () => {
     expect(Object.keys(ALLOWED).toSorted()).toEqual(published.toSorted());

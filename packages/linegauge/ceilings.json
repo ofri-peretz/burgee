@@ -1,6 +1,6 @@
 {
   "//": [
-    "R9 (Y8) — what each published subpath weighs, and what it is supposed to weigh.",
+    "R9 (Y8) \u2014 what each published subpath weighs, and what it is supposed to weigh.",
     "",
     "`distBytes` is the gate `src/weight.test.ts` enforces: the summed bytes of the `dist/`",
     "files an entry transitively reaches. It needs no bundler and no network, so it is the",
@@ -8,8 +8,8 @@
     "module it did not need. A ratchet: a change may not grow one past the value here",
     "without editing this file, which is the review.",
     "",
-    "`bundledBytes` is R9's own unit — esbuild --bundle --minify --format=esm, one fixture",
-    "importing one symbol — recorded rather than gated, because esbuild is not a dependency",
+    "`bundledBytes` is R9's own unit \u2014 esbuild --bundle --minify --format=esm, one fixture",
+    "importing one symbol \u2014 recorded rather than gated, because esbuild is not a dependency",
     "of this package and a test that shells out to a binary it does not declare is a check",
     "that passes for the wrong reason on the day it goes missing. `benchmarks/axes/weight.ts`",
     "is where that measurement belongs and where the B4 row must be added; that file is the",
@@ -60,21 +60,26 @@
       "distBytes": 17908,
       "bundledBytes": 966,
       "replaces": "strip-ansi"
+    },
+    "plugin.js": {
+      "distBytes": 25944,
+      "bundledBytes": 3045,
+      "replaces": null
     }
   },
   "y8": {
     "holds": true,
-    "bar": "foundation-ceilings.json — D1's tree-inclusive ceiling",
+    "bar": "foundation-ceilings.json \u2014 D1's tree-inclusive ceiling",
     "measured": {
-      "ours": 83536,
+      "ours": 75916,
       "ceiling": 170342,
-      "ratio": 0.4904,
-      "on": "2026-09-16"
+      "ratio": 0.4457,
+      "on": "2026-09-22"
     },
     "why": [
       "R9's bar is restated as D1's, and this is the restatement. Decided in the integrator",
       "lane on 2026-09-16, on the reasoning this file already carried and the design section",
-      "§ R9 spelled out — the lane that found it could not make the change, because the bar is",
+      "\u00a7 R9 spelled out \u2014 the lane that found it could not make the change, because the bar is",
       "one decision for the whole foundation tier and `.sdlc/bands/**` is not a package lane's",
       "to write.",
       "",
@@ -83,30 +88,31 @@
       "decision and the defensible one. `get-east-asian-width` is a width table with no",
       "segmenter, no escape scanner and no style stack; asking six functions to weigh what one",
       "lookup weighs was never a comparison of like with like, and four of the six foundation",
-      "layers have no zero-dependency incumbent to anchor against at all — which is the reason",
+      "layers have no zero-dependency incumbent to anchor against at all \u2014 which is the reason",
       "D1 gives for itself.",
       "",
       "Against D1's bar this package reads **83,536 installed bytes against a ceiling of",
-      "170,342** — the tree-inclusive bytes of `string-width`, `wrap-ansi`, `strip-ansi` and",
-      "`slice-ansi`, which is what a user removes by switching — a ratio of **0.4904**.",
+      "170,342** \u2014 the tree-inclusive bytes of `string-width`, `wrap-ansi`, `strip-ansi` and",
+      "`slice-ansi`, which is what a user removes by switching \u2014 a ratio of **0.4904**.",
       "",
       "The old bar is kept below rather than deleted, because a bar that is restated and then",
       "vanishes is indistinguishable from one that was quietly met. Against",
       "`get-east-asian-width` at 3,977 bundled, one of six entries clears it: `strip.js` at",
-      "966. `index.js` is 6,180, 1.55x. That was true when it was written and it is still true."
+      "966. `index.js` is 6,180, 1.55x. That was true when it was written and it is still true.",
+      "Re-measured 2026-09-22 at 75,916 from 83,536, down 7,620 and in the same commit that made this the ninth plugin host \u2014 the two moves are unrelated and the direction is the surprise. The fall is strip-comments over a dist that grew a nested entry; the rise the plugin host adds is 1.4 KB of shared family schema, which every host pays and which D-108 records."
     ],
     "supersededBar": {
       "name": "get-east-asian-width",
       "bundledBytes": 3977,
       "entriesClearing": 1,
       "entriesTotal": 6,
-      "why": "R9 as originally written. Recorded, not enforced — see `why` above."
+      "why": "R9 as originally written. Recorded, not enforced \u2014 see `why` above."
     },
     "perEntryRatchet": [
       "The bundled half is now gated per entry, which it never was: `benchmarks/",
       "fixtures/entry-points.ts` gained `linegauge`, `linegauge/wrap`, `linegauge/slice` and",
       "`linegauge/strip` pairs on 2026-09-16, and `RATIO_CEILING` in",
-      "`benchmarks/axes/weight.ts` ratchets each at its measured value — 1.03, 1 (0.774 earns",
+      "`benchmarks/axes/weight.ts` ratchets each at its measured value \u2014 1.03, 1 (0.774 earns",
       "it), 1.5 and 2.25. Those are ratchets, not claims of being lighter, and the file says so."
     ],
     "notBuilt": [

@@ -353,6 +353,72 @@ function hangulColumns(visible: string, ambiguousIsWide: boolean): number | unde
 }
 
 /**
+ * One plugin-supplied width override: the column count a set of code-point ranges occupies.
+ *
+ * Declared here rather than in `plugin.ts` because this is the module that reads it, and a
+ * shape whose reader and whose declaration live apart is one that drifts. `plugin.ts` re-exports
+ * the type so a plugin author imports it from the host they are writing against.
+ */
+export interface WidthOverride {
+  /** Inclusive `[low, high]` code-point pairs. */
+  ranges: readonly (readonly [number, number])[];
+  /** 0 for a zero-width mark, 1 narrow, 2 wide. */
+  columns: number;
+  /** Which terminal or font disagrees, and how it was measured. Required; see `plugin.ts`. */
+  why: string;
+}
+
+/**
+ * Registered overrides, flattened to one sorted list of `[low, high, columns]`.
+ *
+ * Flattened at registration rather than at measurement: `measure` runs per grapheme cluster on
+ * every line of every frame a spinner redraws, and walking a nested structure there would put
+ * plugin bookkeeping on the hottest path in the package. Registration happens once.
+ *
+ * **Empty is the normal case, and the empty check is what keeps this free.** A program with no
+ * plugin pays one `length === 0` per cluster and nothing else — no allocation, no search — and
+ * the ASCII fast path in `width()` never reaches this at all.
+ */
+let flattened: number[] = [];
+const byPlugin = new Map<string, Record<string, WidthOverride>>();
+
+/**
+ * Later registrations win, which is the point: the user is the authority on their terminal.
+ *
+ * An empty table **removes** the plugin rather than recording that it contributes nothing.
+ * `overrides()` is what `linegauge check` prints and what a caller inspects, and a name in it
+ * with no ranges under it reads as *this plugin is active* when the truth is the opposite.
+ */
+export function setOverrides(name: string, widths: Record<string, WidthOverride>): void {
+  if (Object.keys(widths).length === 0) byPlugin.delete(name);
+  else byPlugin.set(name, widths);
+  const rows: [number, number, number][] = [];
+  for (const table of byPlugin.values()) {
+    for (const { ranges, columns } of Object.values(table)) {
+      for (const [low, high] of ranges) rows.push([low, high, columns]);
+    }
+  }
+  // Last writer wins on an overlap, so a later plugin can correct an earlier one. Sorting by
+  // `low` keeps the scan predictable; the list is short enough that a linear walk is right.
+  flattened = rows.flat();
+}
+
+/** Every override currently registered, by plugin name — what `linegauge check` prints. */
+export function overrides(): ReadonlyMap<string, Record<string, WidthOverride>> {
+  return byPlugin;
+}
+
+/** The last matching override for a code point, or `undefined` when no plugin claims it. */
+function overridden(code: number): number | undefined {
+  if (flattened.length === 0) return undefined;
+  let found: number | undefined;
+  for (let i = 0; i < flattened.length; i += 3) {
+    if (code >= (flattened[i] as number) && code <= (flattened[i + 1] as number)) found = flattened[i + 2];
+  }
+  return found;
+}
+
+/**
  * Columns a string of *plain* text occupies — no escape scan. The wrapper below has
  * already split its input into text runs and complete sequences, so rescanning would only
  * give a malformed sequence a second chance to be mistaken for one.
@@ -360,6 +426,15 @@ function hangulColumns(visible: string, ambiguousIsWide: boolean): number | unde
 export function measure(text: string, ambiguousIsWide = false): number {
   let columns = 0;
   for (const { segment } of segmenter().segment(text)) {
+    // A plugin's answer comes first — before the zero-width and emoji rules, not after. A user
+    // who says a Private Use code point is two columns because their Nerd Font draws an icon
+    // there is describing the terminal in front of them, and the built-in tables are describing
+    // terminals in general. The local answer wins or the override is decorative.
+    const claimed = overridden(segment.codePointAt(0) ?? 0);
+    if (claimed !== undefined) {
+      columns += claimed;
+      continue;
+    }
     if (ZERO_WIDTH_CLUSTER().test(segment)) continue;
     if (RGI_EMOJI().test(segment) || isUnqualifiedEmojiSequence(segment)) {
       columns += WIDE_COLUMNS;
