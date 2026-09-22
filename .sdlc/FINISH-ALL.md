@@ -184,6 +184,31 @@ half-finished one is a liability on npm today.
    earned.
 7. **closeout** — `signal-exit`, once its control clears its own reference.
 
+## Extensibility, measured 2026-09-21
+
+PRINCIPLES 7 asks three things of a plugin surface. Only the first is built everywhere.
+
+| | plugin + schema | `validate` | `check` command | weekly eval |
+| :--- | :---: | :---: | :---: | :---: |
+| flagstaff | ✅ | ✅ | ✅ | ✅ |
+| burgee | ✅ | ✅ | ❌ | ❌ |
+| bellpull, caique, closeout, paratext, roundel, seniority | ✅ | ✅ | ❌ | ❌ |
+| linegauge | ❌ | — | — | — |
+
+**One `check` command and one eval case, against eight declared surfaces.** A surface nobody
+can check is a surface nobody outside this repository can write against. `check` cannot be
+shared — flagstaff's is 200 lines rendering a spinner in five output modes, and each
+package's would render its own contribution kinds — so this is seven builds, not one.
+
+PRINCIPLES also names where the demand is, and it is not evenly spread: chalk closes feature
+requests by policy and still carries *"Semantic Theming / Profile Support"* and *"Implement
+Custom Color Presets"* among seventeen declined, so **roundel's theme surface is the one with
+evidence behind it**. `seniority` carries three open ones (cosmiconfig TOML, c12 rc-format,
+c12 vite-loader). Those two come first.
+
+`scripts/extension-surface-lock.test.ts` holds the table above: the gap can close, it cannot
+drift, and a package that grows a `check` must grow an eval in the same commit.
+
 ## Not compat, and required before "sellable"
 
 - **The `Benchmarks` gate has been red on main since 2026-09-15 17:11 UTC**, and two
