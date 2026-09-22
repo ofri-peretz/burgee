@@ -33,8 +33,15 @@ const manifest = JSON.parse(readFileSync(join(PKG_ROOT, 'package.json'), 'utf8')
  * The split is the one this package's own index already describes in prose: `resolve` is pure,
  * "`discover` is the half that does touch the disk, and it is a separate import for exactly
  * that reason". It is an import now and not only a sentence.
+ *
+ * `./explain` was added 2026-09-22 for the same reason one boundary further in, and the same
+ * consumer measured it. `explain` was exported from `./precedence`, so every program that
+ * resolved a configuration loaded `explain.js` whether or not anything ever explained one:
+ * 1,018 bundled bytes and one more module on burgee's startup path, for the branch taken when
+ * a user asks *why did this option get that value*. `seniority/precedence` no longer re-exports
+ * it; the root still does, so `import { explain } from 'seniority'` is unchanged.
  */
-const SUBPATHS = ['.', './precedence', './config', './plugin', './cosmiconfig', './dotenv', './lilconfig', './rc', './find-up', './schema.json'];
+const SUBPATHS = ['.', './precedence', './explain', './config', './plugin', './cosmiconfig', './dotenv', './lilconfig', './rc', './find-up', './schema.json'];
 
 describe('the export map is the compatibility claim (R8)', () => {
   it('publishes the root, the plugin host and one override target per graded incumbent', () => {

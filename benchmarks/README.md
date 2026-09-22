@@ -57,7 +57,8 @@ the un-run state *and* passes on a correct answer.
 
 ## What comes out
 
-`results/<suite>/<YYYY-MM-DD>.json`, shaped by [`results.schema.json`](./results.schema.json):
+`results/<suite>/<YYYY-MM-DD>-<sha>.json`, shaped by
+[`results.schema.json`](./results.schema.json):
 
 - **records** — every measurement in one shape, `{ axis, variant, metric, unit, samples,
   median, p95 }` (B5), so one band collector reads all four axes and a fifth needs no
@@ -70,6 +71,28 @@ the un-run state *and* passes on a correct answer.
 
 Two suites, because the axes run on two cadences: `cli-benchmarks` (perf, compat, weight —
 free and deterministic, gate every PR) and `agent-cli-bench` (B1 — costs money, weekly).
+
+### Observations and the published measurement
+
+Every run writes an **observation**, `<date>-<sha>.json`. The bands glob the directory and
+read all of them, because a series that stops updating looks perfectly healthy and landing
+every run is what keeps that honest.
+
+Exactly one file per suite is the **published measurement**, `<date>.json` with no sha. It is
+what `/docs/benchmarks` is generated from and what `docs.test.ts` pins `comparison.mdx`
+against, and it is written only by:
+
+```bash
+npm run bench -- --publish
+```
+
+That flag is the *person choosing*, and it is the whole point. B2's milliseconds are a property
+of the box: the same commit reads `+14.0 ms` on a two-core runner and `+33.8 ms` on an M4 Pro,
+and `burgee ÷ cac` reads 1.443 against 1.708. Until 2026-09-21 any complete run wrote the
+published name, so a plain `npm run bench` on a laptop republished the project's public figures
+as a side effect of measuring anything — and `bench.yml` moves published-named files aside
+under the commit that produced them, so the laptop was the *only* path that ever published.
+Now it is a flag, and republishing is a decision with a commit message attached to it.
 
 ## The numbers are machine-dependent, and the bands are not
 

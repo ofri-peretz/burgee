@@ -17,11 +17,11 @@
  *
  * Zero dependencies; Node builtins only.
  */
+export { explain } from './explain-entry.js';
 export {
   ConfigError,
   envBoolean,
   envName,
-  explain,
   ORDER,
   RANK,
   resolve,

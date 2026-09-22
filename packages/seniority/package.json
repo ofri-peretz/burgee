@@ -18,6 +18,11 @@
       "import": "./dist/precedence.js",
       "default": "./dist/precedence.js"
     },
+    "./explain": {
+      "types": "./dist/explain-entry.d.ts",
+      "import": "./dist/explain-entry.js",
+      "default": "./dist/explain-entry.js"
+    },
     "./plugin": {
       "types": "./dist/plugin.d.ts",
       "import": "./dist/plugin.js",

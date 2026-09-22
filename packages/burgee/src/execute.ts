@@ -329,9 +329,11 @@ async function resolveValues(manifest: Manifest, specs: Record<string, OptionSpe
   const resolution = resolveLayers(specs, layers);
   const out: Resolved2 = { values: resolution.values as Values, provenance: resolution.provenance };
   const asked = values['explain'];
-  // `--explain` is the only reader of `seniority/precedence`'s explain half, and it is 1,018
-  // bundled bytes that a program which never explains its configuration should not carry.
-  if (typeof asked === 'string') out.explainText = (await import('seniority/precedence')).explain(asked, resolution);
+  // `--explain` is 1,018 bundled bytes and one more module that a program which never explains
+  // its configuration should not carry. Lazy here, and at `seniority/explain` rather than in
+  // `seniority/precedence`, because a re-export from a module the engine imports statically
+  // would have kept it on the startup path however this line were written.
+  if (typeof asked === 'string') out.explainText = (await import('seniority/explain')).explain(asked, resolution);
   for (const [name, spec] of Object.entries(specs)) {
     if (out.values[name] === undefined && spec.required === true && out.explainText === undefined) {
       throw new UsageError(`missing required option --${kebab(name)}`, `pass --${kebab(name)} <value>`);

@@ -8,8 +8,9 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { explain } from './explain-entry.js';
 import { register, reset, sources, CONTRACT, PluginError, type Plugin, type SourceRuntime } from './plugin.js';
-import { explain, ORDER, RANK, resolve, type Layers } from './precedence.js';
+import { ORDER, RANK, resolve, type Layers } from './precedence.js';
 
 const specs = { region: { type: 'string' as const, default: 'us-1' } };
 const base: Layers = { flags: {}, env: {}, envPrefix: 'APP' };

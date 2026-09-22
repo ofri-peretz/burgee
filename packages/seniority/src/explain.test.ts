@@ -1,8 +1,9 @@
 /** R4 (Y5) — one record, three renderings, and the text `explain` already printed is one of them. */
 import { describe as suite, expect, it } from 'vitest';
 
+import { explain } from './explain-entry.js';
 import { explanation, explanationEvent, explanationJson, renderExplanation } from './explain.js';
-import { explain, ORDER, resolve, type Layers } from './precedence.js';
+import { ORDER, resolve, type Layers } from './precedence.js';
 
 const specs = {
   region: { type: 'string' as const, default: 'us-1' },

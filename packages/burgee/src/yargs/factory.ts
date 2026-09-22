@@ -8,7 +8,6 @@
  
 import { ExitCode } from '../exit-code.js';
 import { type DeclaredEffects, Manifest, type Plugin } from '../manifest.js';
-import { serveMcp } from '../mcp.js';
 import { machineJson, schemaOf } from '../schema.js';
 import { tokenizeArgString } from '../yargs-parser.js';
 
@@ -1452,10 +1451,20 @@ export class YargsInstance {
         return { stdout: out.join(''), stderr: err.join(''), code };
       };
       const write = this.#burgee?.stdout ?? this.#shim.process.stdout();
-      return serveMcp(this.manifest, { input: this.#shim.process.stdin() as NodeJS.ReadableStream & { setEncoding?: unknown }, output: { write: (s) => void write.write(s) }, invoke }).then(() => {
-        this.exit(0);
-        return true;
-      });
+      // Loaded here rather than imported at the top, which is what the note above `#surfaces`
+      // has claimed since it was written: this branch already returns a promise, so the server
+      // costs nothing until somebody asks for it. It was a static import until 2026-09-22 and
+      // the whole 2,520 bytes sat on the startup path of every `burgee/yargs` program — the
+      // same shape the commander façade fixed and the root barrel fixed (D-101), missed here
+      // because a comment said it had already been done.
+      return import('../mcp.js')
+        .then(async ({ serveMcp }) =>
+          serveMcp(this.manifest, { input: this.#shim.process.stdin() as NodeJS.ReadableStream & { setEncoding?: unknown }, output: { write: (s) => void write.write(s) }, invoke }),
+        )
+        .then(() => {
+          this.exit(0);
+          return true;
+        });
     }
     return false;
   }
