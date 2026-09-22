@@ -7,6 +7,10 @@
   </a>
 </p>
 
+<p align="center">
+  Docs: <a href="https://burgee.interlace.tools/docs/packages/closeout">https://burgee.interlace.tools/docs/packages/closeout</a>
+</p>
+
 **Close everything out.**
 
 Exit handlers that run exactly once on every path, terminal restore, and a bounded deadline

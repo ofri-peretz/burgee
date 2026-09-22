@@ -7,6 +7,10 @@
   </a>
 </p>
 
+<p align="center">
+  Docs: <a href="https://burgee.interlace.tools/docs/packages/seniority">https://burgee.interlace.tools/docs/packages/seniority</a>
+</p>
+
 **Which source outranks the others.**
 
 One resolution for flags, environment variables, config files, a `package.json` field and

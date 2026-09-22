@@ -48,7 +48,7 @@
     "url": "git+https://github.com/ofri-peretz/burgee.git",
     "directory": "packages/bellpull"
   },
-  "homepage": "https://github.com/ofri-peretz/burgee/tree/main/packages/bellpull#readme",
+  "homepage": "https://burgee.interlace.tools/docs/packages/bellpull",
   "bugs": {
     "url": "https://github.com/ofri-peretz/burgee/issues"
   },
@@ -65,7 +65,10 @@
     "agent",
     "plugin",
     "plugins",
-    "extensible"
+    "extensible",
+    "ai-agent",
+    "json",
+    "zero-dependency"
   ],
   "devDependencies": {
     "vitest": "^5.0.1"

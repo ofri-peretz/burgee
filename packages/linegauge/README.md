@@ -7,6 +7,10 @@
   </a>
 </p>
 
+<p align="center">
+  Docs: <a href="https://burgee.interlace.tools/docs/packages/linegauge">https://burgee.interlace.tools/docs/packages/linegauge</a>
+</p>
+
 **Measuring, wrapping, truncating and slicing styled terminal text — without the edge
 fraying.**
 

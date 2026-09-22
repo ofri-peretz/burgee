@@ -7,6 +7,10 @@
   </a>
 </p>
 
+<p align="center">
+  Docs: <a href="https://burgee.interlace.tools/docs/packages/paratext">https://burgee.interlace.tools/docs/packages/paratext</a>
+</p>
+
 *Paratext* is the literary term for everything around a text that is not the text — the
 title, the cover, the margins, the notes. This package owns the terminal equivalent:
 **OSC**, the escape class (`ESC ]`) that addresses the terminal *program* rather than the
