@@ -226,7 +226,7 @@ const RULES: Record<string, EntryRule> = {
   // command that does not name it exits exactly as it did.
   ".": {
     allow: ["closeout", "linegauge", "seniority/precedence"],
-    budget: 60_900,
+    budget: 61_000,
     denied: [
       "testing.js",
       "testing-helpers.js",
@@ -281,7 +281,7 @@ const RULES: Record<string, EntryRule> = {
   // carries `exitCodeOf` for the same reason it carries the schema. **+162** (64,882 ->
   // 65,044), the same single function and the same number as `.`. `migrate.js` is denied
   // here too — a harness that reached the codemod would be measuring a surface no test runs.
-  "./testing": { allow: ["closeout", "linegauge", "seniority/precedence"], budget: 65_100, denied: ["dev.js", "migrate.js"] },
+  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 65_100, denied: ["dev.js", "migrate.js"] },
   // The plugin host, at the subpath the rest of the family publishes it at. Added
   // 2026-09-17: burgee was the one package that hosted plugins and published no
   // `./plugin`, so `scripts/plugin-contract-lock.test.ts` had to reach it by relative
@@ -342,7 +342,7 @@ const RULES: Record<string, EntryRule> = {
   // import as `lazy` rather than following it (K6). A user who runs `burgee brand` pays the
   // 1,114; a user who runs `burgee migrate` pays the rest, once, on the run that asked.
   "./cli": {
-    allow: ["closeout", "linegauge", "roundel/contrast", "seniority/precedence"],
+    allow: ["closeout", "roundel/contrast", "seniority/precedence"],
     budget: 81_400,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },

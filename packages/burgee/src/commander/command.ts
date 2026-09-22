@@ -23,7 +23,6 @@ import * as crossSpawn from 'bellpull/cross-spawn';
 
 import { ExitCode } from '../exit-code.js';
 import { type DeclaredEffects, Manifest, type OptionSpec, type Plugin } from '../manifest.js';
-import { serveMcp } from '../mcp.js';
 import { host } from '../runtime.js';
 import { machineJson, schemaOf } from '../schema.js';
 import { suggestSimilar } from '../suggest.js';
@@ -1751,6 +1750,12 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
     if (head.includes('--schema') && !root._declares('--schema')) {
       // R1, and the same escape hatch the engine has: `--schema` is burgee's surface, not
       // commander's, so it answers to E-floor byte discipline rather than to the host.
+      //
+      // **Static, and it has to be.** `commander/sync.test.ts` holds `parse()` synchronous —
+      // that is commander's contract, not a preference — and `--schema` answers inside it.
+      // Making this an `await import()` saved 2.2 KB and returned a Promise nobody awaited,
+      // so the document never printed. The MCP branch below is different: `--mcp` already
+      // returns a Promise, so loading its server on demand costs no contract.
       root._outputConfiguration.writeOut(`${machineJson(schemaOf(this.manifest), head)}\n`);
       return true;
     }
@@ -1764,7 +1769,7 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
         await root.parseAsync(args, { from: 'user', stdout: { write: (s) => out.push(s) }, stderr: { write: (s) => err.push(s) }, exit: (c) => void (code = c) });
         return { stdout: out.join(''), stderr: err.join(''), code };
       };
-      return serveMcp(this.manifest, { input: host.stdin, output: { write: writeOut }, invoke }).then(() => true);
+      return import('../mcp.js').then(async ({ serveMcp }) => serveMcp(this.manifest, { input: host.stdin, output: { write: writeOut }, invoke })).then(() => true);
     }
     return false;
   }
