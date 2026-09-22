@@ -9,14 +9,14 @@ fix; nothing below is done except where marked **done**.
 | #   | Gap                                                                                                               | Fix                                                                                                                 |
 | --- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | 1   | Version PR #437 is `BLOCKED` with 0 checks — the fifth time (#299, #367, #383, #393). Nothing ships until it moves | Set `RELEASE_BOT_PAT`, or mint a token with `actions/create-github-app-token` in `changesets-pr.yml`                |
-| 2   | Docs home (`index.mdx`) is titled "Interlace CLI" and says burgee *delegates* to commander; README says *replaces* | Rewrite `index.mdx` from the README pitch; it is also the sidebar title every page shows                            |
+| 2   | Docs home (`index.mdx`) is titled "Interlace CLI" and says burgee *delegates* to commander; README says *replaces* | **done** — `index.mdx` is "Overview", pitched as the README is: replaces commander and yargs                        |
 | 3   | No package had a docs page                                                                                        | **done** — `scripts/sync-package-docs.ts` projects each README to `/docs/packages/<name>`, locked against drift      |
 | 4   | B1 — "does an agent do better with burgee?" — has never produced a number (118 `not-run` of 119 results)          | Set `CLAUDE_CODE_OAUTH_TOKEN` for `bench.yml`; B1 is the claim the whole pitch rests on                            |
-| 5   | Docs app has no `sitemap.ts`, `robots.ts`, `metadataBase`, canonical, or JSON-LD                                  | Add all four in `apps/docs/src/app`; `noindex` the brand-lab / caique-lab / caique-sheet pages                       |
-| 6   | Every `package.json` `homepage` points at GitHub; no README links to `burgee.interlace.tools`                    | Point `homepage` at `/docs/packages/<name>`; add a docs link under each README header                               |
-| 7   | Count and status drift in the root README                                                                         | **Partly done** — counts say nine and paratext has its row and mark. Still open: the "planned · 0.0.1 stub" status on four released 0.2–0.4 packages     |
-| 8   | npm keywords miss what people and models search for                                                               | burgee: `cli-framework`, `argument-parser`, `mcp-server`, `model-context-protocol`, `ai-agent`, `json-schema`, `zero-dependency`; the others: `non-tty`, `json`, `agent` |
-| 9   | No root `AGENTS.md`; `llms.txt` has no package → incumbent map                                                    | Add both; the map is the single most quotable line for "commander alternative" questions                            |
+| 5   | Docs app has no `sitemap.ts`, `robots.ts`, `metadataBase`, canonical, or JSON-LD                                  | **done** — `sitemap.ts` and `robots.ts` from the loader, `metadataBase`, per-page canonical, JSON-LD; labs `noindex` |
+| 6   | Every `package.json` `homepage` points at GitHub; no README links to `burgee.interlace.tools`                    | **done** — every `homepage` is `/docs/packages/<name>`, and every README links it under its header                  |
+| 7   | Count and status drift in the root README                                                                         | **done** — counts say nine, paratext has its row and mark, and all nine are "released — `name@x.y.z`" from their manifests |
+| 8   | npm keywords miss what people and models search for                                                               | **done** — burgee gains thirteen search keywords; the others `agent`, `ai-agent`, `non-tty`, `json`, `zero-dependency` where true |
+| 9   | No root `AGENTS.md`; `llms.txt` has no package → incumbent map                                                    | **done** — root `AGENTS.md`; `llms.txt` opens with a package map read from each manifest                           |
 | 10  | burgee is invisible on the blog — one "Coming soon" card                                                          | Open `sdlc/intent/burgee-agent-help-parsing.md` in `blog-public` (angle 1 below)                                    |
 
 ## Release queue
@@ -78,11 +78,11 @@ served to humans and agents alike."* It is just not the same pitch everywhere:
 | Surface                  | Says                                                   |
 | ------------------------ | ------------------------------------------------------ |
 | Root README              | replaces commander and yargs; nine packages            |
-| Root README, family      | four released packages still marked "planned" stubs    |
-| Docs home                | "Interlace CLI"; delegates parsing to commander/yargs  |
+| Root README, family      | **done** — all nine marked released, versions from manifests |
+| Docs home                | **done** — "Overview"; replaces commander and yargs      |
 | `llms.ts:34`             | "…projected from one declaration" (third variant)      |
-| `the-floor.mdx` / README | 74 vs 101 floor requirements                           |
-| caique README            | "Pre-release" at 0.4.0                                 |
+| `the-floor.mdx` / README | **done** — both now say 114 (the burgee spec's count); the page tables 74 of them |
+| caique README            | **done** — "Released, pre-1.0"                          |
 
 Fix: one canonical pitch in `llms.ts`, imported by the docs layout. Let the README carry
 the same string, checked by a small lock of the same kind as `sync-doc-versions`.
@@ -110,12 +110,12 @@ legibility table. Those are the formats models quote.
 
 **Missing, in the order models would notice:**
 
-1. The incumbent names in titles and H2s. Models answer "commander alternative" from pages
+1. **done** — The incumbent names in titles and H2s. Models answer "commander alternative" from pages
    that literally say it. Add `/docs/vs/commander` and `/docs/vs/yargs`, each with the compat number.
-2. A short FAQ block in the burgee npm README, since the npm READMEs are the most-indexed copy.
-3. A root `AGENTS.md`, plus a package map in `llms.txt` (package → what it replaces →
+2. **done** — A short FAQ block in the burgee npm README, since the npm READMEs are the most-indexed copy.
+3. **done** — A root `AGENTS.md`, plus a package map in `llms.txt` (package → what it replaces →
    docs URL).
-4. `.md` twins of docs pages. The blog already serves these, so the pattern can be copied.
-5. `SoftwareSourceCode` JSON-LD and a sitemap on the docs site (gap #5).
+4. **done** — `.md` twins of docs pages (`/docs/<slug>.md`, advertised by `rel="alternate"`). The blog's pattern, copied.
+5. **done** — `SoftwareSourceCode` JSON-LD and a sitemap on the docs site (gap #5).
 6. Package READMEs other than burgee and seniority never mention `--json`, `--schema` or MCP,
    which is the one angle that sets each of them apart.
