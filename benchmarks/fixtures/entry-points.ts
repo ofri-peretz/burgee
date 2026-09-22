@@ -14,6 +14,12 @@ export interface EntryPair {
   ours: { specifier: string; symbol: string };
   /** What it replaces. `default` means the fixture imports the default export. */
   incumbent: { specifier: string; symbol: string };
+  /**
+   * The claim id, when `lighter-than-<incumbent>` would collide: a package can have a drop-in
+   * façade *and* a native API against the same incumbent (flagstaff/ora and flagstaff/spinner),
+   * and one id may only ever name one row.
+   */
+  claim?: string;
   /** Why this is the right comparison, for the table. */
   why: string;
 }
@@ -74,6 +80,33 @@ export const PAIRS: readonly EntryPair[] = [
     ours: { specifier: 'flagstaff/boxen', symbol: DEFAULT_EXPORT },
     incumbent: { specifier: 'boxen', symbol: DEFAULT_EXPORT },
     why: 'the box façade against boxen',
+  },
+  {
+    id: 'flagstaff/cli-table3',
+    ours: { specifier: 'flagstaff/cli-table3', symbol: DEFAULT_EXPORT },
+    incumbent: { specifier: 'cli-table3', symbol: DEFAULT_EXPORT },
+    why: 'the table façade against cli-table3',
+  },
+  {
+    id: 'flagstaff/spinner',
+    claim: 'flagstaff-spinner-lighter-than-ora',
+    ours: { specifier: 'flagstaff/spinner', symbol: 'spinner' },
+    incumbent: { specifier: 'ora', symbol: DEFAULT_EXPORT },
+    why: 'flagstaff R10: the native spinner may not weigh more than ora',
+  },
+  {
+    id: 'flagstaff/box',
+    claim: 'flagstaff-box-lighter-than-boxen',
+    ours: { specifier: 'flagstaff/box', symbol: 'box' },
+    incumbent: { specifier: 'boxen', symbol: DEFAULT_EXPORT },
+    why: 'flagstaff R10: the native box may not weigh more than boxen',
+  },
+  {
+    id: 'flagstaff/table',
+    claim: 'flagstaff-table-lighter-than-cli-table3',
+    ours: { specifier: 'flagstaff/table', symbol: 'table' },
+    incumbent: { specifier: 'cli-table3', symbol: DEFAULT_EXPORT },
+    why: 'flagstaff R10: the native table may not weigh more than cli-table3',
   },
   {
     id: 'flagstaff/log-update',
