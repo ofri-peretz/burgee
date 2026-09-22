@@ -61,7 +61,10 @@
     "cross-spawn",
     "which",
     "npm-run-path",
-    "agent"
+    "agent",
+    "plugin",
+    "plugins",
+    "extensible"
   ],
   "devDependencies": {
     "vitest": "^5.0.1"
