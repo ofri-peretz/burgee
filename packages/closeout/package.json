@@ -1,6 +1,6 @@
 {
   "name": "closeout",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Close everything out. Exit handlers that run exactly once on every path, terminal restore, and a bounded deadline so shutdown cannot hang. Drop-in paths for signal-exit, exit-hook and restore-cursor. Zero dependencies.",
   "license": "MIT",
   "type": "module",

@@ -1,6 +1,6 @@
 {
   "name": "seniority",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Which source outranks the others. One resolution for flags, environment, project and home config files and defaults \u2014 with provenance, so every value can say where it came from. Drop-in paths for cosmiconfig, dotenv and rc. Zero dependencies.",
   "license": "MIT",
   "type": "module",

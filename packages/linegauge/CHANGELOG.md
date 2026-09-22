@@ -1,5 +1,89 @@
 # linegauge
 
+## 0.4.0
+
+### Minor Changes
+
+- [#421](https://github.com/ofri-peretz/burgee/pull/421) [`db3c59e`](https://github.com/ofri-peretz/burgee/commit/db3c59e3dcd373c7e6e4a057715adb173766523f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - linegauge hosts plugins — `widths`, and it is the ninth of nine.
+
+  `scripts/extension-surface-lock.test.ts` has carried `linegauge: { plugin: false }` since it was
+  written, and the row was empty honestly: a width function is not obviously extensible, and an
+  extension point invented to fill a table is worse than a gap that says so.
+
+  What makes `widths` real is that the package already admits the problem. `width.ts` says
+  ambiguous-width characters are _"counted narrow, which is what a terminal does unless it has been
+  told it is rendering an East Asian locale"_ — and that covers only the ambiguity Unicode
+  sanctions. A Nerd Font putting a two-column icon in the Private Use Area, a code point added by a
+  Unicode release newer than the table compiled into this build, a font drawing U+2500 wide: each
+  is a real, local disagreement with the built-in answer, and until now a user had no way to settle
+  it short of patching the package.
+
+  ```js
+  export default {
+    name: "nerd-font",
+    widths: {
+      icons: {
+        ranges: [[0xe000, 0xf8ff]],
+        columns: 2,
+        why: "Nerd Font patches two-column icons into the PUA; measured in WezTerm",
+      },
+    },
+  };
+  ```
+
+  Three fields of plain data, so a plugin can arrive as JSON, be diffed, be generated and be printed
+  without running its author's code (R7). **`why` is required**, which no other `$def` in the family
+  does: a width table with no provenance cannot be audited when it turns out to be wrong, and _wrong_
+  is the normal outcome for ambiguous width.
+
+  A later registration wins over an earlier one and over the built-in tables, which is the point —
+  the built-in answer is right for most terminals and the user is the authority on theirs. An
+  override applies **before** the zero-width and emoji rules, or it would be decorative. A program
+  with no plugin pays one `length === 0` per cluster, and the ASCII fast path never reaches it.
+
+  The family schema gains `widthRange`, `widthOverride` and `widths`, and because it is one
+  byte-identical file across every host, **every host that validates against it grows by about
+  1.3 KB** — five flagstaff budgets and two paratext ones moved for a definition only linegauge
+  reads. That trade is the design's and is recorded as D-108 rather than absorbed.
+
+- [#421](https://github.com/ofri-peretz/burgee/pull/421) [`db3c59e`](https://github.com/ofri-peretz/burgee/commit/db3c59e3dcd373c7e6e4a057715adb173766523f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Every plugin host has a `check` command.
+
+  ```bash
+  npx linegauge check ./my-widths.mjs
+  npx burgee check ./my-plugin.mjs --json
+  ```
+
+  PRINCIPLES 7 asks three things of an extension surface: the plugin is data validated against one
+  published schema, there is a **`check` command that shows it every way it can be seen**, and the
+  bar is measured. The first was built in all nine hosts; the second existed in `flagstaff` alone.
+  So an author writing a plugin for any other host found out what it did by shipping it into a
+  program — and a surface nobody can check is a surface nobody outside this repository can write
+  against.
+
+  Each command validates, registers, and shows what the host does with the plugin, in the host's own
+  terms: linegauge measures each code point **before and after** the override, paratext shows a
+  capability's `encode` **and** its `fallback`, roundel each token and what it replaced, caique each
+  widget's static projection rendered with its own sample. burgee's returns a **document** rather
+  than printing one, so `burgee check --json` is the form an agent that just wrote a plugin reads.
+
+  They share one contract with the author, held identically across all nine:
+
+  - a readable report, contribution by contribution, with **`ok` as the last line**;
+  - a refusal with a code from the family's vocabulary and a `fix`, exit 1;
+  - **`E_NO_CONTRIBUTION`** for a plugin that contributes nothing to this host — the schema allows
+    unknown keys so one object registers everywhere, which makes a misspelled key silent, and this
+    is how that typo tells on itself;
+  - exit 2 with no file.
+
+  Each host also gains an eval case measuring the one-turn claim, proved to discriminate before it
+  was committed: green against a correct plugin, red against the same plugin with one field broken.
+
+### Patch Changes
+
+- [#430](https://github.com/ofri-peretz/burgee/pull/430) [`4d1b2b3`](https://github.com/ofri-peretz/burgee/commit/4d1b2b399cff354864d1e2e843a19fde80ef1f30) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `check` now reports every refusal with its code and its fix, wherever it was raised.
+
+  Some plugin files register themselves on import: they call `register()` at the top of the module and export the result. Until now, when such a file was refused, the error was thrown inside `check`'s `import()`, before the only `try` that turns a `PluginError` into `E_PLUGIN_SCHEMA: …` plus a `fix:` line. The author got the bare message on stderr, with no code and no fix. Now the whole of `check` runs inside that one handler, so every refusal comes out the same way on every host.
+
 ## 0.3.3
 
 ### Patch Changes
