@@ -77,7 +77,10 @@
     "theme",
     "chalk",
     "picocolors",
-    "styleText"
+    "styleText",
+    "plugin",
+    "plugins",
+    "extensible"
   ],
   "devDependencies": {
     "vitest": "^5.0.1"

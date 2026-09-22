@@ -72,7 +72,10 @@
     "cleanup",
     "shutdown",
     "restore-cursor",
-    "teardown"
+    "teardown",
+    "plugin",
+    "plugins",
+    "extensible"
   ],
   "devDependencies": {
     "vitest": "^5.0.1"

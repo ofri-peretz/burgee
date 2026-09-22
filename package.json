@@ -52,7 +52,8 @@
     "check:artifacts": "tsx scripts/check-published-artifacts.ts",
     "mark-lab": "node scripts/mark-lab.mts",
     "decisions": "tsx scripts/decisions.ts",
-    "weight:page": "tsx scripts/subpath-weight.ts"
+    "weight:page": "tsx scripts/subpath-weight.ts",
+    "plugins:page": "tsx scripts/plugins-page.ts"
   },
   "overrides": {
     "smol-toml": "^1.7.1"

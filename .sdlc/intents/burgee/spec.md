@@ -598,7 +598,7 @@ was quietly met.
 **The count.** 114 requirements, in seventeen families — `Z F O E V S P D T H M K J C B N U`.
 The prose above says *92* and *"Ninety-two requirements"*; both are wrong, and wrong the same
 way, because `E6 E7 V8 N11–N15` were added after the arithmetic was last done and `C1–C8`
-names two rows that do not exist. **Built: 86. Not built: 28**, and the count moves as rows are
+names two rows that do not exist. **Built: 87. Not built: 27**, and the count moves as rows are
 built rather than as the prose is rewritten — T1 moved on 2026-09-22 and the tally moved with
 it. An audit whose total disagrees with its own rows is the failure this paragraph is a record
 of; `spec-tally-lock.test.ts` now derives the two numbers from the tables instead of trusting
@@ -765,7 +765,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | :-- | :-- | :-- | :-- |
 | C1 | Not built | `hosts.ts` pins **one** version per host (commander 15.0.0, yargs 18.1.0) and grades that. No package declares a supported host range, and no job runs a host's suite at a second major | — |
 | C2 | **Built** | graded through a one-line shim and published per release | `npm run compat`; `scripts/compat-page.ts --check` |
-| C3 | Not built | `compat.yml`'s matrix is three operating systems and **Node 24 only**, and the workflow says so in its own comment: *"`engines` still says `>=24`, so C3 is not met while this stands"* | `.github/workflows/compat.yml` |
+| C3 | **Built** | `compat.yml`'s `matrix` job runs Linux, macOS and Windows × Node **24 and 26** — every even major `engines: >=24` admits. 26 was narrowed out on 2026-09-08 to halve CI while the output stack landed (#64) and came back on 2026-09-23, after the whole suite passed on v26.10.0: 767 root tests and every package's. It is graded a month before its LTS promotion, not first as one | `.github/workflows/compat.yml` `matrix.node`; `npm test` on Node 26.10.0 |
 | C4 | **Built** | `packages/compat-oracle/baseline/*.json`, twenty-one files; an `Exclusion` needs a `why`, and the oracle refuses one that matches nothing | `npm run compat`, and compat-oracle's own suite |
 | C5 | **Built** | the `▲` column is the ratchet; lowering a rate needs a baseline edit | `npm run compat`; `.github/workflows/compat.yml` opens an issue when main goes red |
 | C6 | **Built** | `vendor/<host>/.source.json` records the upstream commit; `compat-upstream.yml` opens one issue per (host, version) and `compat-refresh.yml` opens the PR | `.github/workflows/compat-upstream.yml` |

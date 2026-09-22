@@ -91,7 +91,10 @@
     "inquirer",
     "clack",
     "agent",
-    "non-tty"
+    "non-tty",
+    "plugin",
+    "plugins",
+    "extensible"
   ],
   "dependencies": {
     "closeout": "^0.3.0",
