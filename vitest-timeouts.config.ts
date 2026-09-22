@@ -1,5 +1,5 @@
 /**
- * One timeout policy for the package suites, and the measurement that set it.
+ * One timeout policy for every suite in the repository, and the measurement that set it.
  *
  * vitest's defaults — 5 s for a test, 10 s for a hook — are sized for a test body that
  * computes. Most of these suites do not: they write config files into temp directories and
@@ -33,6 +33,20 @@
  * 30 s, not 60: it has to be far enough above "the machine is busy" to stop being a coin toss
  * and far enough below "forever" that a genuine hang still fails a build rather than parking
  * it. A test that needs more than thirty seconds of wall clock is a test with a bug in it.
+ *
+ * ## The root suite too, and the first version of this policy left it out
+ *
+ * It covered the package suites only, on the reasoning that `vitest.root.config.ts` runs as its
+ * own lefthook command after the battery with nothing competing with it. The premise is true
+ * and the conclusion does not follow. Contention is one reason a body exceeds 5 s; **doing nine
+ * seconds of work** is another, and `scripts/deploy-lock.test.ts` does exactly that — it
+ * extracts the bash out of `deploy-docs.yml` and runs it, three cases at six to nine seconds
+ * each. Those are not slow because the machine is busy; they are slow because verifying a
+ * deploy script means running it.
+ *
+ * Worth writing down rather than quietly widening: the first version drew a tidy line between
+ * two things that fail identically for two different reasons, and a rule like that leaves a
+ * gate red for a week before anyone reads it.
  */
 export const timeouts = {
   testTimeout: 30_000,

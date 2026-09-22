@@ -600,9 +600,16 @@ const RULES: Record<string, EntryRule> = {
   // note above `#surfaces` said it loaded lazily — the branch already returns a promise, so it
   // always could have. Measured 214,722 on disk, and the entry point went 107,665 -> 105,240
   // bundled.
+  //
+  // 214,900 on 2026-09-22 for **68 bytes**: the `.catch` that fires `onError`. Both façades ran
+  // `preRun → handler → postRun` as a `.then` chain, so a handler that threw skipped `postRun`
+  // *and* never reached `onError` — a plugin that opened a span or took a lock in `preRun` had
+  // nowhere to close it, on every command that fails. `onError` was also never fired by either
+  // façade at all, so a plugin declaring it was silently dead on the two front ends this
+  // package exists for. `plugin-lifecycle.test.ts` holds it.
   "./yargs": {
     allow: [],
-    budget: 214_800,
+    budget: 214_900,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   "./yargs/helpers": {
