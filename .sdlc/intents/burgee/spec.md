@@ -598,7 +598,7 @@ was quietly met.
 **The count.** 114 requirements, in seventeen families — `Z F O E V S P D T H M K J C B N U`.
 The prose above says *92* and *"Ninety-two requirements"*; both are wrong, and wrong the same
 way, because `E6 E7 V8 N11–N15` were added after the arithmetic was last done and `C1–C8`
-names two rows that do not exist. **Built: 83. Not built: 31**, and the count moves as rows are
+names two rows that do not exist. **Built: 84. Not built: 30**, and the count moves as rows are
 built rather than as the prose is rewritten — T1 moved on 2026-09-22 and the tally moved with
 it. An audit whose total disagrees with its own rows is the failure this paragraph is a record
 of; `spec-tally-lock.test.ts` now derives the two numbers from the tables instead of trusting
@@ -812,7 +812,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | U4 | **Built** | the shared `schema.json` — plugins are data, `static` required and `frame` the one optional function | `scripts/plugin-schema-lock.test.ts` |
 | U5 | Not built | **measured 2026-09-16**, and the ceiling is the *lightest incumbent*, which three burgee entry points now exceed: `burgee/yargs ÷ yargs` **1.033** (gate ≤ 1), `burgee/commander ÷ commander` **1.631** (gate ≤ 1.6), `burgee ÷ cac` **5.44** (gate ≤ 3.9). The family's other subpaths hold — chalk 0.574, picocolors 0.162, ora 0.93, boxen 0.347, log-update 0.498 | `npm run bench -- --axis weight --check` |
 | U6 | **Built** | no package in the family declares a dependency outside this repository | `scripts/layer-boundaries-lock.test.ts`: *"holds zero external runtime dependencies across the family"* |
-| U7 | Not built | seven of nine packages have a `src/shape.test.ts` — **`caique` and `bellpull` do not**. The K5 half holds for every package | `ls packages/*/src/shape.test.ts`; `.sdlc/bands/artifact-size-baseline.json` |
+| U7 | **Built** | all nine packages have a `src/shape.test.ts`; `caique` and `bellpull`, the two without one, each install their packed tarball into an empty project, run one authored `.mjs` with no build step, `require()` the same entries from CommonJS, and assert the installed dependency set — bellpull none, caique `closeout` and `linegauge`. Each went red when one published subpath was deleted from its `exports`. The K5 half holds for every package | `ls packages/*/src/shape.test.ts`; `.sdlc/bands/artifact-size-baseline.json` |
 | U8 | **Built** | flagstaff publishes `ora`, `boxen`, `cli-table3`, `log-update` and `loop` — a box, columns and a status line, and no layout engine | none. The `exports` map is the evidence; nothing asserts the ceiling |
 | U9 | Not built | the design itself states the condition — *"locks when the weekly one-turn authoring eval reaches the pass rate it states"* — and that eval has not run. The schema and `llms.txt` halves exist | — |
 | U10 | Not built | `sideEffects` is declared by **three** of nine packages (`burgee`, `flagstaff`, `roundel`), and burgee's is `["./dist/cli.js"]` rather than `false` — correctly, because the bin has side effects, which makes the requirement wrong rather than the package. There is no *"root named import == subpath bytes"* tree-shake fixture. The ESM + `default` condition half is held everywhere. Restated below | `scripts/pack-list-lock.test.ts` for the conditions; nothing for the fixture |
