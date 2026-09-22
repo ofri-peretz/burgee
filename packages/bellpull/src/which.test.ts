@@ -122,7 +122,7 @@ beforeAll(() => {
   executable(writable, 'tool', 'owned');
 });
 
-afterAll(() => rmSync(root, { recursive: true, force: true }));
+afterAll(() => rmSync(root, { recursive: true, force: true }), 60_000);
 
 describe('the differentiator: where it was found, not just what', () => {
   it('reports the PATH entry that answered', () => {
