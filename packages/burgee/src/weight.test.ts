@@ -578,9 +578,14 @@ const RULES: Record<string, EntryRule> = {
   // surface (yargs lib/ 158 K + yargs-parser 52 K + the rest), so the lock proves the
   // front-end is no heavier than the package it replaces. `import 'burgee'` reaches none
   // of it. The 29 locales are JSON read at runtime, not imports, so they are not walked.
+  // 214,800 from 256,000 on 2026-09-22, with `--mcp` made lazy here: a ceiling 41 KB above the
+  // measurement is not a ratchet. `mcp.js` was a static import in `yargs/factory.ts` while the
+  // note above `#surfaces` said it loaded lazily — the branch already returns a promise, so it
+  // always could have. Measured 214,722 on disk, and the entry point went 107,665 -> 105,240
+  // bundled.
   "./yargs": {
     allow: [],
-    budget: 256_000,
+    budget: 214_800,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   "./yargs/helpers": {
