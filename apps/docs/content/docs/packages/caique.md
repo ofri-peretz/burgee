@@ -1,22 +1,7 @@
-<p align="center">
-  <a href="https://github.com/ofri-peretz/burgee/tree/main/packages/caique" target="blank">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ofri-peretz/burgee/main/brand-assets/caique-lockup.svg" />
-      <img src="https://raw.githubusercontent.com/ofri-peretz/burgee/main/brand-assets/caique-lockup-light.svg" alt="caique" width="360" />
-    </picture>
-  </a>
-</p>
-
-<p align="center">
-  Prompts that are flags first — so an agent answers before it is asked, and nothing ever hangs.
-</p>
-
-<p align="center">
-  <a href="https://www.npmjs.com/package/caique"><img src="https://img.shields.io/npm/v/caique?style=flat-square&color=0a6b47" alt="npm version" /></a>
-  <img src="https://img.shields.io/badge/status-pre--release-a84c17?style=flat-square" alt="Status: pre-release" />
-  <img src="https://img.shields.io/badge/dependencies-closeout-0a6b47?style=flat-square" alt="One dependency: closeout" />
-  <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT" />
-</p>
+---
+title: caique
+description: "The parrot that always answers back, and the boat that goes between ship and shore. Prompts that are flags first, so agents answer before they are asked and non-TTY callers get an error naming the flag, never a hang. Drop-in path for inquirer and clack."
+---
 
 **Pre-release.** The first working slice is here — `decide()`, below — and the rest follows
 [`.sdlc/intents/caique/`](https://github.com/ofri-peretz/burgee/tree/main/.sdlc/intents/caique).
@@ -245,7 +230,7 @@ caique installs one of them: [closeout](https://www.npmjs.com/package/closeout),
 prompt hides the cursor and owes it back however the process dies, and there is exactly one
 correct implementation of that. Nothing outside this repository is installed.
 
-MIT © Ofri Peretz — see [LICENSE](./LICENSE).
+MIT © Ofri Peretz — see [LICENSE](https://github.com/ofri-peretz/burgee/blob/main/packages/caique/LICENSE).
 
 ## Benchmarks
 
