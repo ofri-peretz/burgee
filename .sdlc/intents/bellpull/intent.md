@@ -5,7 +5,7 @@
 > zero-dependency rival already holds the weight pitch, so this intent carries a kill gate
 > rather than a launch date.
 
-**Status:** draft · **Opened:** 2026-09-09 · **Owner:** @ofri-peretz · **Name published:** `bellpull@0.0.1`, 2026-09-09
+**Status:** approved (2026-09-23, under the owner's delegation, D-128) · **Opened:** 2026-09-09 · **Owner:** @ofri-peretz · **Name published:** `bellpull@0.0.1`, 2026-09-09
 
 ---
 

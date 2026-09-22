@@ -5,7 +5,7 @@
 > back. Re-parented 2026-09-08 under [`cli-output-stack`](../cli-output-stack/intent.md) (U6, U11,
 > U12): caique **implements** prompts over Node natives; clack and inquirer are migration paths.
 
-**Status:** review · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
+**Status:** approved (2026-09-23, under the owner's delegation, D-128) · **Opened:** 2026-09-06 · **Owner:** @ofri-peretz
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why still `review`:** `packages/caique/src/` is one file exporting a name; nothing of P1–P3 is built.
 

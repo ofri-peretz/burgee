@@ -31,31 +31,47 @@ Three kinds, because they close three different ways:
 | A12 | seniority: cosmiconfig 186/243, dotenv 80/141, lilconfig 67/77, rc 0/1 | compat baselines | same |
 | A13 | caique: clack 14/17 | compat baselines | same |
 | A14 | the foundation layers are static imports of the engine, which the claim says they are not | burgee U13 | measured, and either made lazy or the claim restated with the number |
+| A15 | `-` means stdin for a file positional | burgee S4, D-112 | `ArgumentSpec.type: 'file'`; `-` hands the handler `process.stdin`; a test pipes a file through `-` |
+| A16 | `--json=<a,b>` selects fields | burgee N14, D-113 | bare `--json` unchanged; `--json a` stays a positional; fields filter the envelope's data |
+| A17 | `--schema <path> --field <name>` | burgee N13, D-115 | one field of one command, the same shape `--schema` prints for it |
+| A18 | a generated `config explain` | burgee V8, D-116 | synthesised when the program reads config; every value with the source that won |
+| A19 | `defineError({ name, code })` | burgee E7, D-117 | adds a `CLASSIFIED` row; a reused code fails at startup |
+| A20 | `dynamic: true` completion marker | burgee D3, D-118 | opt-in per option; completion scripts call back only for those |
+| A21 | non-TTY prompt exits 2, cancelled prompt exits 4 | burgee P2, P3, D-119 | an `ask()` bridge maps caique's verdict to `UsageError` / `CANCELLED`, no new dependency edge |
+| A22 | `.burgee({ floor: true })` on façades | burgee J3, J4, D-120 | one call turns the behavioural floor on; `--schema` names the flags the program shadows |
+| A23 | plugin hooks `parse` and `shutdown` | plugin surface, D-121 | in the schema, the plugins page's "cannot do yet" list shrinks by the two |
+| A24 | `burgee/program-schema.json` | burgee F1, schema-is-validated, D-122 | published; `--schema` output validated against it in a test, no runtime validator |
+| A25 | `.effects()` on commander façade commands | agent-surface-declared R6, D-126 | a façade command can declare its effects and reach MCP |
 
-## B — decide, then build (recommended answer in bold)
+## B — decide, then build
+
+All taken 2026-09-23 under the owner's delegation ("you should be able to close the open
+decisions yourself"). The ruling is the D-row in `.sdlc/DECISIONS.md`; for B12 and B13
+it differs from the recommendation this table carried. What each one asks to be
+built moved to A15–A25.
 
 | # | Decision | Source | Recommendation |
 | :-- | :-- | :-- | :-- |
-| B1 | Every command must carry a group | burgee M1 | **No — restate M1 as "a group is available and rendered"**; forcing a group on a three-command CLI is ceremony Z1 forbids |
-| B2 | `-` means stdin for a file-typed positional | burgee S4 | **Yes: `ArgumentSpec.type: 'file'`, and `-` hands the handler `process.stdin`** |
-| B3 | `--json <fields>` selects fields; bare `--json` unchanged | burgee N14 | **Yes, as `--json=<a,b>` only**, so `cmd --json positional` can never be misread |
-| B4 | a compact non-JSON `agent` format | burgee N15 | **Defer past 1.0** — B1 is unmeasured, and N15's justification is token cost |
-| B5 | `--schema` drill below command path | burgee N13 | **Yes: `--schema <path> --field options`** |
-| B6 | a generated `config explain` command | burgee V8 | **Yes, synthesised when the program has config** |
-| B7 | author-declared error classes; a reused code fails at startup | burgee E7 | **Yes: `defineError({ name, code })` rows in `CLASSIFIED`** |
-| B8 | a `dynamic` marker for runtime-completed options | burgee D3 | **Yes, opt-in per option** |
-| B9 | a prompt in a non-TTY exits 2; a cancelled prompt exits 4 | burgee P2, P3 | **Yes, through an `ask()` bridge in burgee that maps caique's verdict to `UsageError` / `CANCELLED`** |
-| B10 | one call that turns on the behavioural floor for façade programs | burgee J3, J4 | **Yes: `.burgee({ floor: true })`**, and `--schema` reports which flags the program shadows |
-| B11 | burgee plugin hooks beyond preRun/postRun/onError | plugin surface | **Add `parse` (argv in, argv out) and `shutdown`**; help and config stay out until an adopter asks |
-| B12 | the validator for `--schema` output | schema-is-validated, burgee F1 | **Publish flagstaff's `conforms` walker from a foundation layer** — one walker for the family |
-| B13 | the lint half of F3, O3, P1: `eslint-plugin-cli-floor` | burgee F3, O3, P1 | **Ship it as a tenth package** |
-| B14 | built-in components as plugin contributions | flagstaff R4 | **Restate R4 to the three kinds that are contributions**; components stay factories |
-| B15 | `fromBase16` / `fromITerm` theme import | roundel R11 | **Defer past 1.0** — its own evidence row says "hypothesis — measure before lock" |
-| B16 | façade commands are withheld from MCP and cannot say otherwise | agent-surface-declared R6 | **`.effects()` on façade commands** (yargs has it); commander gains the same |
+| ~~B1~~ | ~~Every command must carry a group~~ | burgee M1 | **decided — D-111** |
+| ~~B2~~ | ~~`-` means stdin for a file-typed positional~~ | burgee S4 | **decided — D-112** |
+| ~~B3~~ | ~~`--json <fields>` selects fields; bare `--json` unchanged~~ | burgee N14 | **decided — D-113** |
+| ~~B4~~ | ~~a compact non-JSON `agent` format~~ | burgee N15 | **decided — D-114** |
+| ~~B5~~ | ~~`--schema` drill below command path~~ | burgee N13 | **decided — D-115** |
+| ~~B6~~ | ~~a generated `config explain` command~~ | burgee V8 | **decided — D-116** |
+| ~~B7~~ | ~~author-declared error classes; a reused code fails at startup~~ | burgee E7 | **decided — D-117** |
+| ~~B8~~ | ~~a `dynamic` marker for runtime-completed options~~ | burgee D3 | **decided — D-118** |
+| ~~B9~~ | ~~a prompt in a non-TTY exits 2; a cancelled prompt exits 4~~ | burgee P2, P3 | **decided — D-119** |
+| ~~B10~~ | ~~one call that turns on the behavioural floor for façade programs~~ | burgee J3, J4 | **decided — D-120** |
+| ~~B11~~ | ~~burgee plugin hooks beyond preRun/postRun/onError~~ | plugin surface | **decided — D-121** |
+| ~~B12~~ | ~~the validator for `--schema` output~~ | schema-is-validated, burgee F1 | **decided — D-122** |
+| ~~B13~~ | ~~the lint half of F3, O3, P1: `eslint-plugin-cli-floor`~~ | burgee F3, O3, P1 | **decided — D-123** |
+| ~~B14~~ | ~~built-in components as plugin contributions~~ | flagstaff R4 | **decided — D-124** |
+| ~~B15~~ | ~~`fromBase16` / `fromITerm` theme import~~ | roundel R11 | **decided — D-125** |
+| ~~B16~~ | ~~façade commands are withheld from MCP and cannot say otherwise~~ | agent-surface-declared R6 | **decided — D-126** |
 | ~~B17~~ | ~~"zero runtime dependencies" vs "none outside this repo"~~ — **accepted by the owner 2026-09-23 (D-110): every production dependency is in-family**, as a dependency, peer or optional dependency; Z3 and K1 Built | burgee Z3, K1 | done |
-| B18 | `lighter-than-commander` 1.52, `lighter-than-cac` 2.65, cold start 1.44 × cac | claims, u5-weight-claim | **Keep the claims and measure the gap** — restating them is a positioning call |
-| B20 | Accept the requirement restatements already written in the specs — compat-oracle R1, R3, C4 and the rest of its "Requirements restated" table; burgee U1, U10, Z3/K1; flagstaff R10's dependency sentence | each spec's restatement table | **Accept** — each replaces a sentence the tree has measurably outgrown, and keeps the original verbatim beside it |
-| B19 | design acceptance for linegauge, closeout, bellpull, seniority (draft) and caique, paratext (review) | each intent | **Accept linegauge now** — 0 rows open, every suite at 100% |
+| ~~B18~~ | ~~`lighter-than-commander` 1.52, `lighter-than-cac` 2.65, cold start 1.44 × cac~~ | claims, u5-weight-claim | **decided — D-127** |
+| ~~B20~~ | ~~Accept the requirement restatements already written in the specs — compat-oracle R1, R3, C4 and the rest of its "Requirements restated" table; burgee U1, U10, Z3/K1; flagstaff R10's dependency sentence~~ | each spec's restatement table | **decided — D-129** |
+| ~~B19~~ | ~~design acceptance for linegauge, closeout, bellpull, seniority (draft) and caique, paratext (review)~~ | each intent | **decided — D-128** |
 
 ## C — outside the repo
 
@@ -64,4 +80,5 @@ Three kinds, because they close three different ways:
 | C1 | agent-tokens-40pct unmeasured | burgee B1 | `CLAUDE_CODE_OAUTH_TOKEN`, or an API key and ~$5–15 |
 | C2 | the one-turn plugin-authoring eval has never run | burgee U9 | the same credential |
 | C3 | the first outside adopter | burgee U12 | a CLI we did not write, installing one layer alone |
+| C5 | the lint half of F3, O3, P1 | burgee F3, O3, P1, D-123 | a rule set in the Interlace ESLint monorepo, not here |
 | C4 | clispec.dev and cli-agent-lint have no axis | burgee N10 | both tools to exist and be runnable offline — unverified |

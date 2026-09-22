@@ -173,7 +173,7 @@ requirement](#what-is-built-requirement-by-requirement-2026-09-16).
 
 | # | Requirement | Evidence | Holds | Lands in |
 | :-- | :-- | :-- | :-- | :-- |
-| M1 | Every command carries a group | yargs #684 | R | commander-agent |
+| M1 | A command may carry a group, and help renders commands under their group (restated 2026-09-23, D-111) | yargs #684 | R | commander-agent |
 | M2 | The manifest is complete before any handler module loads | yargs #1067, #2479 | R | commander-agent |
 | M3 | Every plugin's contributions are attributed in the manifest | commander #2505 | R | commander-agent |
 | M4 | Shared options are declared once and copied per command | commander #2583, citty #154 | R | commander-agent |
@@ -281,7 +281,7 @@ and evidence in [`cli-output-stack/intent.md`](../cli-output-stack/intent.md).
 
 | id | Requirement | Evidence | R/L | Lands in |
 | :-- | :-- | :-- | :-- | :-- |
-| U1 | One package per layer; dependency arrows point up only (`burgee` → ∅, `roundel` → ∅, `flagstaff` → `roundel`, `caique` → `roundel`, `flagstaff`) | listr2 #771, #708, #676; ora #234 (layers coupled by adapters and peer ranges); layers have different buyers and change rates | lock (`package-shape-lock`) | all |
+| U1 | One package per layer; dependency arrows point up only (restated 2026-09-23, D-129: `burgee → bellpull, closeout, linegauge, roundel, seniority` · `flagstaff → closeout, linegauge, paratext, roundel` · `caique → closeout, linegauge` · the foundation → ∅) | listr2 #771, #708, #676; ora #234 (layers coupled by adapters and peer ranges); layers have different buyers and change rates | lock (`package-shape-lock`) | all |
 | U2 | Output policy decided once from `Runtime`: `tty \| pipe \| json \| accessible \| ci`; no component detects the terminal itself | picocolors #100, #85; chalk #624, #614 (declined); cli-table3 #357, #180; listr2 #687, #716; clack #286; ora #218, #235 (declined); ink D#577 | lock + L | roundel |
 | U3 | Every styled or animated output has a static projection; a component or plugin without one is refused at registration | clack #585, #510, #533; ink D#734; Inquirer D#1356, D#1699, #1783; ora #116; log-update #59 (declined); listr2 #732, #716 | lock | flagstaff, caique |
 | U4 | Plugins are data, inspectable without execution; at most one `frame` function | chalk #666 (declined), #677, #659; clack #36, #345, #379; ora #255, #240; boxen #106, #99, #94; cli-table3 #352, #355; ink D#641; lineage: ESLint flat config | lock | flagstaff, plugin-contract |
@@ -290,7 +290,7 @@ and evidence in [`cli-output-stack/intent.md`](../cli-output-stack/intent.md).
 | U7 | Every package has its own Z1 shape test and K5 size ratchet | cli-table3 #357, #356; ora #229; Z1, K5 | lock | all |
 | U8 | No layout engine; box, columns and a status line are the ceiling | ora #231 (declined: "try Ink"); ink #765, #222, #676, #660, #870, #251, #834, #978, D#555, D#959 | lock | flagstaff |
 | U9 | Agent-authorable plugins: schema in the tarball and `llms.txt`, `check` renders every mode, weekly one-turn eval | clack #533, #525; Inquirer D#1699; ink D#776; the one-turn eval is unmeasured | hypothesis → lock once measured | flagstaff, plugin-contract |
-| U10 | ESM + `default` condition, `sideEffects: false`, tree-shake fixture: root named import == subpath bytes | picocolors #70 (35 reactions), #50, #59; chalk #632, #633, #641, #628, #627, #620 (declined, every one), #613, #661, #626; ora #239 (declined); listr2 #755, #745; Inquirer D#1270, D#1206; K2, B4 | lock + B4 | all |
+| U10 | ESM + `default` condition, `sideEffects` naming only the files that act when loaded (restated 2026-09-23, D-129), tree-shake fixture: root named import == subpath bytes | picocolors #70 (35 reactions), #50, #59; chalk #632, #633, #641, #628, #627, #620 (declined, every one), #613, #661, #626; ora #239 (declined); listr2 #755, #745; Inquirer D#1270, D#1206; K2, B4 | lock + B4 | all |
 | U11 | Every replaced incumbent gets a façade graded by its own suite, pass rate published and ratcheting | picocolors #100, #92; listr2 #676; Inquirer D#1782, D#1471; clack #551, #553, #555, #556, #557; C1–C6 | lock + band | output-stack-compat |
 | U12 | Each layer is an independent product: own README leading with its own incumbents, own benchmarks, installs and works alone | no issue; only the download spread in the landscape table (chalk 440M/wk to ink 5.8M/wk, each chosen separately) | hypothesis → lock once measured | all |
 | U13 | `burgee`'s optional surfaces reach the family by presence-guarded dynamic `import()` and fall back to the static projection; `import 'burgee'` never resolves a family specifier | ink #976; ora #229; Z3 and U1 both hold | lock (weight `denied`) | burgee |
@@ -598,7 +598,7 @@ was quietly met.
 **The count.** 114 requirements, in seventeen families — `Z F O E V S P D T H M K J C B N U`.
 The prose above says *92* and *"Ninety-two requirements"*; both are wrong, and wrong the same
 way, because `E6 E7 V8 N11–N15` were added after the arithmetic was last done and `C1–C8`
-names two rows that do not exist. **Built: 89. Not built: 25**, and the count moves as rows are
+names two rows that do not exist. **Built: 92. Not built: 22**, and the count moves as rows are
 built rather than as the prose is rewritten — T1 moved on 2026-09-22 and the tally moved with
 it. An audit whose total disagrees with its own rows is the failure this paragraph is a record
 of; `spec-tally-lock.test.ts` now derives the two numbers from the tables instead of trusting
@@ -637,7 +637,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | :-- | :-- | :-- | :-- |
 | F1 | Not built | `schema.ts` prints the tree and stamps `schemaVersion: 1`. The *validating* half is absent: the only `schema.json` burgee publishes is the **family plugin schema** — byte-identical across six packages and titled `flagstaff plugin` — not a schema for `--schema` output, and nothing validates the document against anything | `schema.test.ts` asserts the shape; no test validates against a JSON Schema |
 | F2 | **Built** | `--help --json` prints the help *document*: `{ schemaVersion, name, arguments, options, examples, inputSchema, commands }`, which is `commandSchemaOf` for the node plus its immediate children — the same shape `--schema` publishes, scoped to one command, so there is one document shape in the package rather than a second one invented for help. This row read `Not built` until 2026-09-22 and was stale, not wrong when written: `dispatch` and `unresolved` both grew the branch afterwards and nothing moved the audit | `help-json.test.ts`, and the three call sites carry `// F2 — help as data` in `execute.ts` |
-| F3 | Not built | held by `L` only; `eslint-plugin-cli-floor` is not a package | — |
+| F3 | Not built | **The lint half lives in the Interlace ESLint monorepo (D-123).** held by `L` only; `eslint-plugin-cli-floor` is not a package | — |
 | F4 | **Built** | `help.ts`'s `commandSections` groups children by `group`; `hidden` is filtered by `runnable()`; `commandSchemaOf` carries `group` into `--schema` | `help.test.ts`, `schema.test.ts` |
 
 ### Output
@@ -646,7 +646,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | :-- | :-- | :-- | :-- |
 | O1 | **Built** | `emit()` writes `{ ok: true, data, meta }`; `report()` writes `{ ok: false, error: { code, message, hint } }` | `machine-json.test.ts`, `shape.test.ts` |
 | O2 | **Built** | `execute.ts`'s `lookOf` is the one decision every help path takes: `FORCE_COLOR` decides when set (`0`/`false` off, anything else on, over a pipe and over `NO_COLOR`, as Node's `getColorDepth` does); otherwise colour needs an interactive terminal — a detected agent is not one (N12) — no non-empty `NO_COLOR`, and `TERM` not `dumb`. Spinners, redraws and prompts are not the engine's to draw; the row holds for what it draws | `color.test.ts`: *"FORCE_COLOR overrides a pipe and NO_COLOR, and FORCE_COLOR=0 overrides a terminal"* — three of its four cases red on the engine before `lookOf` |
-| O3 | Not built | held by `L` only | — |
+| O3 | Not built | **The lint half lives in the Interlace ESLint monorepo (D-123).** held by `L` only | — |
 | O4 | **Built** | `help.ts` imports `styleText` from `node:util`; no colour package anywhere in the family | `scripts/layer-boundaries-lock.test.ts`: *"holds zero external runtime dependencies across the family"* |
 | O5 | **Built** 2026-09-16 | `shutdown.ts` registers `flushStreams` in closeout's `flush` phase over `[host.stdout, host.stderr]`, which runs before `release` and before `restore`; every `io.exit` in `execute.ts` goes through `leave()` | `shutdown.test.ts`, and `pty-signal.test.ts` on the signal path. Caveat: `detachedTeardown()` is built with **no** streams, so an injected `stdout` is still never drained — it is a synchronous `{ write }` with nothing buffered |
 
@@ -692,7 +692,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 
 | # | Status | Evidence | The check |
 | :-- | :-- | :-- | :-- |
-| P1 | Not built | held by `L` only | — |
+| P1 | Not built | **The lint half lives in the Interlace ESLint monorepo (D-123).** held by `L` only | — |
 | P2 | Not built | the requirement specifies exit **2**. The nearest mechanism, `ctx.actionRequired`, unwinds to `ExitCode.CANCELLED` (**4**), and there is no prompt-to-`USAGE` path in the package | — |
 | P3 | Not built | `caique/src/binding.ts` classifies a cancelled prompt as the string `'CANCELLED'` and never `RUNTIME`, which is the taxonomy half. Nothing *exits* 4: caique declares no numeric code, and burgee does not import caique, so no path joins the two | — |
 
@@ -727,7 +727,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 
 | # | Status | Evidence | The check |
 | :-- | :-- | :-- | :-- |
-| M1 | Not built | `CommandNode.group` is optional and nothing enforces it; `commandSections` falls back to the `Commands:` heading | — |
+| M1 | **Built** | Restated by D-111: a group is available, not mandatory. `CommandNode.group` carries it, `help.ts`'s `commandSections` renders children under their group and the rest under `Commands:`, and `commandSchemaOf` publishes it in `--schema` | `help-snapshot.test.ts`: *"a group: grouped children, a deprecated one, a hidden one omitted"* |
 | M2 | **Built** | `lazyRun` imports the module on the first call; `Manifest.add` wraps a `load`-only node | `examples/conformance/src/modularity.test.ts`: *"serves `--help` and `--schema` without importing a single lazy handler"* |
 | M3 | **Built** | `Manifest.use()` stamps `plugin: <name>` on every contributed node; `commandSchemaOf` publishes it | `plugin.test.ts`, `adoption-ladder.test.ts` |
 | M4 | **Built** | `sharedOptions(name, specs)` tags every copy `sharedFrom`, and the schema carries it | `schema-dsl.test.ts` |
@@ -800,13 +800,13 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | N12 | **Built** | `agent.ts` — `AGENT_PROBES`, `FORCE_TTY=1`, and `interactive = forced \|\| (tty && agent === undefined)`, which is the load-bearing clause. The probe list is **5** variables, not the 13 the requirement names; restated below | `agent.test.ts` |
 | N13 | Not built | the budget half is built (`Manifest.schemaBudget`, `SCHEMA_BUDGET = 48_000`, `summaryOf`). **Drilling is by command path only** — `summaryOf`'s own hint reads *"run `<command> --schema` for one command in full"* — and there is no field-path selector | `schema.test.ts` |
 | N14 | Not built | `--json` is seeded in `toParseConfig` as `{ type: 'boolean' }`. It takes no argument, so nothing lists valid fields and nothing rejects an invalid one | — |
-| N15 | Not built | there is no non-JSON `agent` format. The only format flag in the package is `--format=json-pretty`, and it makes the output *larger* | `machine-json.test.ts` |
+| N15 | Not built | **Deferred past 1.0 (D-114)** — not a 1.0 gate. there is no non-JSON `agent` format. The only format flag in the package is `--format=json-pretty`, and it makes the output *larger* | `machine-json.test.ts` |
 
 ### The output stack
 
 | # | Status | Evidence | The check |
 | :-- | :-- | :-- | :-- |
-| U1 | Not built | the arrows as written are wrong in three rows of four. Measured from the manifests: `burgee → closeout, linegauge, roundel, seniority`; `flagstaff → closeout, linegauge, paratext, roundel`; `caique → closeout` **only**, not `roundel, flagstaff`. One-package-per-layer holds; the arrow list does not. Restated below | `scripts/package-shape-lock.test.ts`, `scripts/layer-boundaries-lock.test.ts`: *"no layer reaches past a sibling to the thing that sibling replaces"* |
+| U1 | **Built** | Restated by D-129 to the arrows the manifests hold. One package per layer, and every arrow points up the family or into the foundation — nothing reaches past a sibling, and nothing leaves the repository (D-110) | `scripts/package-shape-lock.test.ts`: *"has no external runtime dependencies, and same-repo ones only point up the family"*; `scripts/layer-boundaries-lock.test.ts` |
 | U2 | **Built** | `roundel/src/policy.ts` — `OutputMode` is `'tty' \| 'pipe' \| 'json' \| 'accessible' \| 'ci'`, read from a `Runtime`; no component detects the terminal itself | roundel's `policy.test.ts` |
 | U3 | **Built** | `flagstaff/src/plugin.ts` refuses a spinner or component without a `static` projection, at `register()` | `scripts/plugin-contract-lock.test.ts` |
 | U4 | **Built** | the shared `schema.json` — plugins are data, `static` required and `frame` the one optional function | `scripts/plugin-schema-lock.test.ts` |
@@ -815,7 +815,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | U7 | **Built** | all nine packages have a `src/shape.test.ts`; `caique` and `bellpull`, the two without one, each install their packed tarball into an empty project, run one authored `.mjs` with no build step, `require()` the same entries from CommonJS, and assert the installed dependency set — bellpull none, caique `closeout` and `linegauge`. Each went red when one published subpath was deleted from its `exports`. The K5 half holds for every package | `ls packages/*/src/shape.test.ts`; `.sdlc/bands/artifact-size-baseline.json` |
 | U8 | **Built** | flagstaff publishes `ora`, `boxen`, `cli-table3`, `log-update` and `loop` — a box, columns and a status line, and no layout engine | none. The `exports` map is the evidence; nothing asserts the ceiling |
 | U9 | Not built | the design itself states the condition — *"locks when the weekly one-turn authoring eval reaches the pass rate it states"* — and that eval has not run. The schema and `llms.txt` halves exist | — |
-| U10 | Not built | **Everything but the literal `false` closed on 2026-09-23.** All nine packages declare `sideEffects` truthfully — each `bin`, plus paratext's two modules that call `registerBuiltins()` at load — and the fixture exists: `scripts/tree-shake-fixture.test.ts` bundles 32 same-binding root/subpath pairs with esbuild and requires them equal to the byte (they are), and `scripts/side-effects-lock.test.ts` holds the declarations to the tree. Measured: a root import of `seniority`'s `explain` went 2,939 → 1,067 B, `caique`'s `decide` 1,235 → 734 B. What stays open is the sentence's `sideEffects: false`, which a package with a `bin` cannot truthfully say — the restatement below, pending (GAPS B20). Before: `sideEffects` is declared by **three** of nine packages (`burgee`, `flagstaff`, `roundel`), and burgee's is `["./dist/cli.js"]` rather than `false` — correctly, because the bin has side effects, which makes the requirement wrong rather than the package. There is no *"root named import == subpath bytes"* tree-shake fixture. The ESM + `default` condition half is held everywhere. Restated below | `scripts/pack-list-lock.test.ts` for the conditions; nothing for the fixture |
+| U10 | **Built** | Restated by D-129. All nine packages declare `sideEffects` truthfully — each `bin`, plus paratext's two modules that register built-ins at load — and a root named import bundles to its subpath's bytes: 32 pairs, equal to the byte | `scripts/side-effects-lock.test.ts`; `scripts/tree-shake-fixture.test.ts` |
 | U11 | **Built** | twenty-one incumbents graded by their own suites with the rate published and ratcheting, zeroes included and labelled (`clack 0 / 606`, `lilconfig 0 / 77`, `rc` *target not built yet*) | `npm run compat`; `scripts/compat-page.test.ts` |
 | U12 | Not built | the design states the condition — *"locks when the independence install test passes for every layer and the first adopter installs a layer alone"* — and neither has happened | — |
 | U13 | Not built | `src/index.ts` statically re-exports from `seniority/precedence`, `src/execute.ts` imports it statically, `src/help.ts` imports `linegauge` and `src/shutdown.ts` imports `closeout`; the build is `tsc`, so those specifiers survive into `dist`. The **output-stack** half of the claim does hold and is locked: `roundel`, `flagstaff` and `caique` are denied by name from the `.` entry | `src/weight.test.ts`, the `.` rule's `denied` list |

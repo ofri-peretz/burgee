@@ -6,7 +6,7 @@
 > engine. **A standalone product**: its competitors are `cosmiconfig`, `lilconfig`, `rc`
 > and `dotenv`, and it is useful with nothing else installed.
 
-**Status:** draft · **Opened:** 2026-09-09 · **Owner:** @ofri-peretz · **Name published:** `seniority@0.0.1`, 2026-09-09
+**Status:** approved (2026-09-23, under the owner's delegation, D-128) · **Opened:** 2026-09-09 · **Owner:** @ofri-peretz · **Name published:** `seniority@0.0.1`, 2026-09-09
 
 ---
 
