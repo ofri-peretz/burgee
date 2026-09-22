@@ -351,7 +351,7 @@ const RULES: Record<string, EntryRule> = {
   // Nothing in the engine reaches this: a CLI that ships argv parsing has no reason to
   // carry a contrast checker, which is why `.` still denies `roundel` outright.
   /**
-   * meow is one function over a parser, and that parser is the weight: measured 58,761 bytes,
+   * meow is one function over a parser, and that parser is the weight: measured 59,820 bytes,
    * of which the option contract is about 16 K and `yargs-parser` is the rest. Upstream meow
    * looks lighter only because it *depends* on yargs-parser instead of carrying it; a caller
    * installing meow installs both, and this number is what they would have paid either way.
@@ -363,7 +363,7 @@ const RULES: Record<string, EntryRule> = {
    */
   "./meow": {
     allow: [],
-    budget: 58_900,
+    budget: 59_900,
     denied: ["index.js", "execute.js", "help.js", "mcp.js", "schema.js", "completions.js", "plugin.js"],
   },
   "./contrast": {

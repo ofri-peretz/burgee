@@ -164,7 +164,7 @@ half-finished one is a liability on npm today.
    meow is one function over `yargs-parser` and burgee already ships its own for
    `burgee/yargs`, so the façade took nothing new into the tree. It lives in `src/meow.ts`
    with its parts in `src/meow/` — the shape `commander/` and `yargs/` already use — and
-   costs 58,761 bundled bytes, of which the option contract is about 16 K and the parser is
+   costs 59,820 bundled bytes, of which the option contract is about 16 K and the parser is
    the rest. Upstream meow looks lighter only because it *depends* on yargs-parser instead
    of carrying it.
 
