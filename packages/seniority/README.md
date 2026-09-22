@@ -313,7 +313,7 @@ Graded by the incumbent's own test suite:
 | `lilconfig` | 67 / 77 |
 | `rc` | 0 / 1 |
 
-Weight, installed and tree-inclusive: **144,904 bytes** against **1,555,288** for the incumbents it replaces — a ratio of **0.0932**.
+Weight, installed and tree-inclusive: **151,463 bytes** against **1,555,288** for the incumbents it replaces — a ratio of **0.0974**.
 ## Where it sits
 
 Plugins register under the `sources` key, against the one schema the whole family shares.
