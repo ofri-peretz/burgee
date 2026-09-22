@@ -84,6 +84,7 @@
     "compat-oracle": "*",
     "cpr": "^3.0.1",
     "cross-spawn": "^7.0.6",
+    "esbuild": "^0.28.2",
     "eslint": "^10.10.0",
     "eslint-plugin-browser-security": "^2.1.5",
     "eslint-plugin-conventions": "^6.0.2",

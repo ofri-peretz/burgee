@@ -79,7 +79,9 @@ beforeAll(() => {
  */
 const SPAWN = 30_000;
 
-afterAll(() => rmSync(dir, { recursive: true, force: true }), SPAWN);
+// Teardown gets setup's clock, not a spawn's: under the pre-push battery one `rmSync` of a
+// small install ran past 30 s ("Hook timed out in 30000ms"), in more than one package.
+afterAll(() => rmSync(dir, { recursive: true, force: true }), 120_000);
 
 describe('Z1 — one file, npm i, no build step', { timeout: SPAWN }, () => {
   it('prints plain text through a pipe, whatever the env says', () => {

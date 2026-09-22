@@ -4,7 +4,7 @@
   "description": "The colours a CLI carries. One output policy, semantic tokens, a theme, and a chalk migration path lighter than chalk. Zero dependencies.",
   "license": "MIT",
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": ["./dist/cli.js"],
   "engines": {
     "node": ">=24"
   },

@@ -4,7 +4,7 @@
   "method": "benchmarks/axes/weight.ts installedBytes(name), tree-inclusive, one count per realpath",
   "layers": {
     "linegauge": {
-      "ours": 83683,
+      "ours": 83719,
       "incumbents": {
         "string-width": 36669,
         "wrap-ansi": 79687,
@@ -12,19 +12,19 @@
         "slice-ansi": 43642
       },
       "ceiling": 170342,
-      "ratio": 0.4913,
+      "ratio": 0.4915,
       "lightestIncumbent": {
         "name": "strip-ansi",
         "bytes": 10344
       }
     },
     "paratext": {
-      "ours": 92160,
+      "ours": 92241,
       "incumbents": {
         "ansi-escapes": 30912
       },
       "ceiling": 30912,
-      "ratio": 2.9814,
+      "ratio": 2.984,
       "lightestIncumbent": {
         "name": "ansi-escapes",
         "bytes": 30912
@@ -36,7 +36,7 @@
       "$unmeasured": "Not installed in this workspace, so its bytes are absent from `ceiling` — the ceiling is therefore a floor on the real one, never an overstatement."
     },
     "seniority": {
-      "ours": 151463,
+      "ours": 151499,
       "incumbents": {
         "cosmiconfig": 1377599,
         "dotenv": 82402,
@@ -55,13 +55,13 @@
       "$grew": "151,688 B on 2026-09-14, up from 53,475 — PLAN 3.2 built the cosmiconfig-compatible surface plus the `./dotenv` and `./find-up` façades, and the pack grew 182%. The Y8 ratio moved 0.034 to 0.098, so it is still an order of magnitude under what it replaces; the growth is recorded rather than smoothed because a ratio that only ever improves is a ratio nobody is watching."
     },
     "closeout": {
-      "ours": 95387,
+      "ours": 95423,
       "incumbents": {
         "signal-exit": 76966,
         "restore-cursor": 93638
       },
       "ceiling": 170604,
-      "ratio": 0.5591,
+      "ratio": 0.5593,
       "lightestIncumbent": {
         "name": "signal-exit",
         "bytes": 76966
@@ -76,12 +76,12 @@
       "$unmeasured": "Not installed in this workspace, so its bytes are absent from `ceiling` — the ceiling is therefore a floor on the real one, never an overstatement."
     },
     "caique": {
-      "ours": 121782,
+      "ours": 121818,
       "incumbents": {
         "@clack/prompts": 182219
       },
       "ceiling": 182219,
-      "ratio": 0.6683,
+      "ratio": 0.6685,
       "lightestIncumbent": {
         "name": "@clack/prompts",
         "bytes": 182219
@@ -92,14 +92,14 @@
       "$unmeasured": "Not installed in this workspace, so its bytes are absent from `ceiling` — the ceiling is therefore a floor on the real one, never an overstatement."
     },
     "bellpull": {
-      "ours": 97040,
+      "ours": 97076,
       "incumbents": {
         "execa": 647091,
         "cross-spawn": 46962,
         "which": 20931
       },
       "ceiling": 714984,
-      "ratio": 0.1357,
+      "ratio": 0.1358,
       "lightestIncumbent": {
         "name": "which",
         "bytes": 20931
