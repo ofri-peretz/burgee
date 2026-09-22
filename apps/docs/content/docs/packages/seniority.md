@@ -1,11 +1,7 @@
-<p align="center">
-  <a href="https://github.com/ofri-peretz/burgee/tree/main/packages/seniority" target="blank">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ofri-peretz/burgee/main/brand-assets/seniority-lockup.svg" />
-      <img src="https://raw.githubusercontent.com/ofri-peretz/burgee/main/brand-assets/seniority-lockup-light.svg" alt="seniority" width="360" />
-    </picture>
-  </a>
-</p>
+---
+title: seniority
+description: "Which source outranks the others. One resolution for flags, environment, project and home config files and defaults — with provenance, so every value can say where it came from. Drop-in paths for cosmiconfig, dotenv and rc. Zero dependencies."
+---
 
 **Which source outranks the others.**
 

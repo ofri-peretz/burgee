@@ -48,6 +48,7 @@ const MARKS = [
   'seniority',
   'bellpull',
   'closeout',
+  'paratext',
 ] as const;
 
 /** Extrusion, in the marks' own 100-unit space. */
