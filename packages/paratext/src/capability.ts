@@ -19,7 +19,9 @@
  * support" but "can someone add theirs without waiting for us".
  */
 import { type Runtime } from './runtime.js';
-import schema from './schema.json' with { type: 'json' };
+// The capability definition alone, not the family schema: see `scripts/schema-sync.mjs`'s
+// FRAGMENTS and D-108. The whole contract still ships at `paratext/schema.json`, as data.
+import CAPABILITY_SCHEMA from './capability.schema.json' with { type: 'json' };
 import { type Schema, violations } from './shape.js';
 import { type Support, supports } from './supports.js';
 import { render } from './template.js';
@@ -90,7 +92,7 @@ export function register(capability: Capability): void {
  * capability's required fields; the root's are a *plugin's*, so everything that reads the
  * shape reads it from here and there is still exactly one copy of the list.
  */
-const CAPABILITY = schema.$defs.capability;
+const CAPABILITY = CAPABILITY_SCHEMA;
 
 /**
  * The prefix on a line `check` returns that does **not** refuse the document.

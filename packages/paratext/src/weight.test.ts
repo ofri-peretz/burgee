@@ -84,15 +84,16 @@ const RULES: Record<string, EntryRule> = {
    * The root reaches it whole, so it pays **+399 B** (20,221 → 20,620) for a file it would
    * otherwise have inlined. The headroom is 280 B, which is where the last raise left it.
    */
-  // 22,100 and 19,400 on 2026-09-22, and **neither is paratext's own code**. The family plugin
-  // schema is one byte-identical file across every host (`scripts/plugin-schema-lock.test.ts`),
-  // and it grew `widthRange`, `widthOverride` and `widths` when `linegauge` became the ninth
-  // host. Minified into `dist/` that is about 1,300 bytes, and every host that *imports* the
-  // schema to validate against pays them — paratext's `capability.ts` does.
-  //
-  // The trade is the design's, stated rather than absorbed: one contract in one file means one
-  // host's `$defs` land in every host's bundle, and at nine hosts that is measurable. D-108.
-  '.': { allow: [], budget: 22_100, denied: ['plugin.js'] },
+  // **16,100 and 13,400 on 2026-09-22 — down from 20,900 and 18,000, having briefly gone up.**
+  // The family plugin schema is one byte-identical file across every host, and it grew when
+  // `linegauge` became the ninth; paratext imported the whole of it to read one definition,
+  // `$defs.capability`, so every host's definitions rode in every paratext user's bundle and
+  // these two budgets were first *raised* to 22,100 and 19,400 to absorb it. That was the wrong
+  // answer and D-108 said why. paratext now imports a generated fragment of exactly that
+  // definition — `capability.schema.json`, written by `scripts/schema-sync.mjs` and held to the
+  // source by `plugin-schema-lock.test.ts` — and publishes the whole contract as data it does not
+  // import. Measured 16,002 and 13,328: both entries are lighter than they were this morning.
+  '.': { allow: [], budget: 16_100, denied: ['plugin.js'] },
   /**
    * OSC 8 alone, for a host that wants one clickable URL and not a plugin contract.
    * Measured **2,337 B**: `link.js` 768, `template.js` 774, `supports.js` 652,
@@ -134,7 +135,7 @@ const RULES: Record<string, EntryRule> = {
    * and its code instead of hand-checking `fallback` itself. Measured **17,710 B**; 290 B of
    * headroom, where there were 1,384. The reasoning is written out on `.` above.
    */
-  './plugin': { allow: [], budget: 19_400, denied: ['index.js', 'builtins.js', 'ansi-escapes.js'] },
+  './plugin': { allow: [], budget: 13_400, denied: ['index.js', 'builtins.js', 'ansi-escapes.js'] },
 };
 
 const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;

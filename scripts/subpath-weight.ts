@@ -261,7 +261,7 @@ after.
 All three are the **initial load**: the entry chunk plus the transitive closure of its \`import\`
 statements, bundled with \`esbuild --bundle --minify --format=esm --platform=node --splitting\`.
 A chunk reached only through \`await import()\` costs nothing until that branch runs, which is
-what a real bundler does and what the figures on [/docs/benchmarks](./benchmarks) mean too — the
+what a real bundler does and what the figures on [/docs/benchmarks](/docs/benchmarks) mean too — the
 same function produces both.
 
 ${sections}

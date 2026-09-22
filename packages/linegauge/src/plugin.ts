@@ -41,7 +41,66 @@
  * Nothing here imports another layer, and the plugin shape is declared rather than imported
  * (R3).
  */
-import { setOverrides, type WidthOverride } from './width.js';
+import { setClaim } from './width.js';
+
+/**
+ * One plugin-supplied width override: the column count a set of code-point ranges occupies.
+ */
+export interface WidthOverride {
+  /** Inclusive `[low, high]` code-point pairs. */
+  ranges: readonly (readonly [number, number])[];
+  /** 0 for a zero-width mark, 1 narrow, 2 wide. */
+  columns: number;
+  /** Which terminal or font disagrees, and how it was measured. Required; see the file comment. */
+  why: string;
+}
+
+/**
+ * Registered overrides, flattened to one list of `[low, high, columns]` triples.
+ *
+ * Flattened at registration rather than at measurement: `measure` runs per grapheme cluster on
+ * every line of every frame a spinner redraws, and walking a nested structure there would put
+ * plugin bookkeeping on the hottest path in the package. Registration happens once.
+ */
+let flattened: number[] = [];
+const byPlugin = new Map<string, Record<string, WidthOverride>>();
+
+/** The last matching override for a code point, or `undefined` when no plugin claims it. */
+function overridden(code: number): number | undefined {
+  let found: number | undefined;
+  for (let i = 0; i < flattened.length; i += 3) {
+    if (code >= (flattened[i] as number) && code <= (flattened[i + 1] as number)) found = flattened[i + 2];
+  }
+  return found;
+}
+
+/**
+ * Later registrations win, which is the point: the user is the authority on their terminal.
+ *
+ * An empty table **removes** the plugin rather than recording that it contributes nothing.
+ * `overrides()` is what `linegauge check` prints and what a caller inspects, and a name in it
+ * with no ranges under it reads as *this plugin is active* when the truth is the opposite.
+ *
+ * The seam in `width.ts` is installed only while something is registered, so the last plugin
+ * leaving puts `measure` back on the path with no call in it at all.
+ */
+export function setOverrides(name: string, widths: Record<string, WidthOverride>): void {
+  if (Object.keys(widths).length === 0) byPlugin.delete(name);
+  else byPlugin.set(name, widths);
+  const rows: number[] = [];
+  for (const table of byPlugin.values()) {
+    for (const { ranges, columns } of Object.values(table)) {
+      for (const [low, high] of ranges) rows.push(low, high, columns);
+    }
+  }
+  flattened = rows;
+  setClaim(rows.length === 0 ? undefined : overridden);
+}
+
+/** Every override currently registered, by plugin name — what `linegauge check` prints. */
+export function overrides(): ReadonlyMap<string, Record<string, WidthOverride>> {
+  return byPlugin;
+}
 
 /**
  * The plugin contract version. One number for the family — the same `1` flagstaff, caique,
@@ -176,4 +235,3 @@ export function register(plugin: unknown): void {
   setOverrides(plugin.name, plugin.widths ?? {});
 }
 
-export { type WidthOverride };

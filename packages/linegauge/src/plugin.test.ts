@@ -15,8 +15,8 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { CONTRACT, PluginError, problems, register, validate } from './plugin.js';
-import { overrides, setOverrides, width } from './width.js';
+import { CONTRACT, overrides, PluginError, problems, register, setOverrides, validate } from './plugin.js';
+import { width } from './width.js';
 
 /** Each case starts from no overrides: registration is global, which is what makes it useful. */
 afterEach(() => {

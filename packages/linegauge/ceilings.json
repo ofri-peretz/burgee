@@ -62,7 +62,7 @@
       "replaces": "strip-ansi"
     },
     "plugin.js": {
-      "distBytes": 25944,
+      "distBytes": 25988,
       "bundledBytes": 3045,
       "replaces": null
     }
