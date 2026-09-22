@@ -150,7 +150,7 @@ function esbuildBin(): string {
  * the correction when it goes against us. Nothing is hidden: the whole-bundle figure stays on
  * every row.
  */
-interface Metafile {
+export interface Metafile {
   outputs: Record<string, { bytes: number; entryPoint?: string; imports?: { path: string; kind: string }[] }>;
 }
 
@@ -160,7 +160,7 @@ interface Metafile {
  * A `dynamic-import` edge is deliberately not followed: that chunk is fetched when the branch
  * runs, which is the whole reason `--splitting` is the right command here.
  */
-function initialBytes(meta: Metafile, entryFile: string): number {
+export function initialBytes(meta: Metafile, entryFile: string): number {
   const entry = Object.keys(meta.outputs).find((out) => out.endsWith(`/${entryFile}`));
   if (entry === undefined) throw new Error(`esbuild metafile names no output for ${entryFile}`);
   const seen = new Set<string>();

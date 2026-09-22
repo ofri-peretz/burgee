@@ -51,7 +51,8 @@
     "schema:sync": "node scripts/schema-sync.mjs",
     "check:artifacts": "tsx scripts/check-published-artifacts.ts",
     "mark-lab": "node scripts/mark-lab.mts",
-    "decisions": "tsx scripts/decisions.ts"
+    "decisions": "tsx scripts/decisions.ts",
+    "weight:page": "tsx scripts/subpath-weight.ts"
   },
   "overrides": {
     "smol-toml": "^1.7.1"

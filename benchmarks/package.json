@@ -5,8 +5,11 @@
   "description": "One suite, four axes (agent cost, cold start, compatibility, weight). Emits one JSON document per run under results/, which the Stage 6 control bands read. Internal; never published.",
   "type": "module",
   "exports": {
+    "./axes/weight.js": "./axes/weight.ts",
+    "./claims.js": "./claims.ts",
+    "./fixtures/entry-points.js": "./fixtures/entry-points.ts",
     "./published.js": "./published.ts",
-    "./claims.js": "./claims.ts"
+    "./resolve.js": "./resolve.ts"
   },
   "engines": {
     "node": ">=24"
