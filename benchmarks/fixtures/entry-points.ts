@@ -138,3 +138,108 @@ export function fixtureSource({ specifier, symbol }: { specifier: string; symbol
     ? `import x from ${JSON.stringify(specifier)};\nexport default x;\n`
     : `import { ${symbol} } from ${JSON.stringify(specifier)};\nexport { ${symbol} };\n`;
 }
+
+/**
+ * One capability our entry point supplies, and the incumbent package a user of the bare
+ * incumbent installs to get it.
+ */
+export interface ParityAdd {
+  /** The package they add, and the one symbol the fixture uses. */
+  specifier: string;
+  symbol: string;
+  /** What it buys, in the words of the thing it buys. */
+  capability: string;
+  /** Our graded drop-in for it — the evidence that we do this job, not a claim that we do. */
+  gradedBy: string;
+}
+
+/**
+ * **The premium, measured rather than asserted.**
+ *
+ * `bundled-bytes-ratio` compares our entry point against one incumbent package, and for the
+ * façades it is the wrong shape of question. `burgee` is 27 KB against `cac`'s 10 KB, and the
+ * row reads as a 2.6x loss — but a program that picks `cac` and then wants its config file
+ * read, its shutdown bounded and its cursor handed back on Ctrl-C does not get those from
+ * `cac`. It installs three more packages. The comparison a reader is actually making is
+ * *what do I pay for this capability set*, and until this table existed the suite only
+ * answered *what do I pay for this import*.
+ *
+ * ## The rule that keeps this from being a rigged denominator
+ *
+ * **An incumbent may be added only where this repository publishes a graded drop-in for it** —
+ * a `compat-oracle` row with a pass rate against that package's own suite. That is the
+ * evidence our entry point does the same job, rather than our word for it, and
+ * `parity.test.ts` fails if an addition here names a package with no active row.
+ *
+ * It is a self-limiting rule on purpose. We cannot pad a stack with packages we merely
+ * resemble, and the capabilities we have that no incumbent supplies — `--schema`, `--mcp`,
+ * the `{ ok, data }` envelope, agent detection, option relations — are listed in `unmatched`
+ * and contribute **zero bytes**. They are the part of the premium that is real and unpriced,
+ * and saying so is worth more than finding a package to charge for them.
+ *
+ * Both ratios are published on every row. The bare one does not go away and does not stop
+ * being the number it was: D-074's scar tissue is about *changing* a measurement while it is
+ * failing, and this adds one beside it.
+ */
+export interface ParityStack {
+  /** The `EntryPair` this augments. */
+  id: string;
+  adds: readonly ParityAdd[];
+  /** What we supply that nothing on npm does, and which therefore costs the stack nothing. */
+  unmatched: readonly string[];
+}
+
+/**
+ * The three additions every framework row shares, because none of the three incumbents
+ * resolves a config file, bounds its own shutdown, or hands the terminal back.
+ */
+const FRAMEWORK_ADDS: readonly ParityAdd[] = [
+  {
+    specifier: 'cosmiconfig',
+    symbol: 'cosmiconfig',
+    capability: 'find and load a config file, and merge it under the flags',
+    gradedBy: 'seniority/cosmiconfig',
+  },
+  {
+    specifier: 'exit-hook',
+    symbol: DEFAULT_EXPORT,
+    capability: 'run cleanup on every path out, including a signal',
+    gradedBy: 'closeout/exit-hook',
+  },
+  {
+    specifier: 'restore-cursor',
+    symbol: DEFAULT_EXPORT,
+    capability: 'hand the terminal back with the cursor visible',
+    gradedBy: 'closeout/restore-cursor',
+  },
+];
+
+/** What the three framework entries do that nothing on npm packages up. */
+const FRAMEWORK_UNMATCHED = [
+  '`--schema`: the whole program as one JSON document',
+  '`--mcp`: the program as an MCP server over stdio',
+  'the `{ ok, data }` envelope on `--json`, on every command',
+  'agent detection, and the non-interactive floor that follows from it',
+  'option relations (`dependsOn`, `exclusive`) and Standard Schema validation',
+] as const;
+
+export const PARITY: readonly ParityStack[] = [
+  { id: 'burgee', adds: FRAMEWORK_ADDS, unmatched: FRAMEWORK_UNMATCHED },
+  { id: 'burgee/commander', adds: FRAMEWORK_ADDS, unmatched: FRAMEWORK_UNMATCHED },
+  { id: 'burgee/yargs', adds: FRAMEWORK_ADDS, unmatched: FRAMEWORK_UNMATCHED },
+];
+
+/**
+ * The stack's fixture: the incumbent and everything a user adds to it, each used by one
+ * symbol so the bundler keeps what each one reaches and nothing more. Exactly the shape
+ * `fixtureSource` makes for one package, over several.
+ */
+export function stackFixtureSource(sides: readonly { specifier: string; symbol: string }[]): string {
+  const lines = sides.map((side, i) =>
+    side.symbol === DEFAULT_EXPORT
+      ? `import x${String(i)} from ${JSON.stringify(side.specifier)};`
+      : `import { ${side.symbol} as x${String(i)} } from ${JSON.stringify(side.specifier)};`,
+  );
+  const names = sides.map((_, i) => `x${String(i)}`);
+  return `${lines.join('\n')}\nexport default [${names.join(', ')}];\n`;
+}

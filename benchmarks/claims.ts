@@ -20,7 +20,7 @@
  * project, and a suite that printed the same thing for both would be hiding the more
  * important one.
  */
-import { PAIRS } from './fixtures/entry-points.js';
+import { PAIRS, PARITY } from './fixtures/entry-points.js';
 import { type AxisName } from './record.js';
 
 export interface ClaimSpec {
@@ -83,6 +83,32 @@ export const CLAIMS: readonly ClaimSpec[] = [
     from: { axis: 'weight' as const, variant: `${pair.id} ÷ ${pair.incumbent.specifier}`, metric: 'bundled-bytes-ratio' },
     test: { max: 1 },
   })),
+  /**
+   * The same claim as `lighter-than-*`, asked the way a reader actually chooses.
+   *
+   * `lighter-than-cac` compares a framework against a parser and reads 2.636. That is a true
+   * number and it stays on the page, but it is not the decision anybody makes: a program that
+   * picks `cac` and then wants its config file read, its shutdown bounded and its cursor handed
+   * back installs three more packages, and *that* is what our one import is competing with.
+   *
+   * These rows are gated at 1 rather than ratcheted, because unlike the bare ratio there is no
+   * structural reason we should ever lose them — and if we do, the right response is to find
+   * out why rather than to move a ceiling. What keeps them honest is `parity.test.ts`: a stack
+   * may only contain packages this repository publishes a *graded* drop-in for, so the
+   * denominator cannot be padded with things we merely resemble.
+   */
+  ...PARITY.map((stack) => {
+    const pair = PAIRS.find((p) => p.id === stack.id);
+    const incumbent = pair?.incumbent.specifier ?? '';
+    const added = stack.adds.map((a) => a.specifier).join(' + ');
+    return {
+      id: `lighter-than-${incumbent}-at-parity`,
+      claim: `\`${stack.id}\` is lighter in a user's bundle than \`${incumbent}\` plus the ${String(stack.adds.length)} packages a user of it installs to reach the same capability set`,
+      source: 'U5 in .sdlc/intents/README.md, read as the choice a reader makes; the stack and the rule that decides it are `PARITY` in benchmarks/fixtures/entry-points.ts',
+      from: { axis: 'weight' as const, variant: `${stack.id} ÷ (${incumbent} + ${added})`, metric: 'bundled-bytes-ratio-parity' },
+      test: { max: 1 },
+    };
+  }),
   ...COMPAT_TARGETS.map(([host, passing]) => ({
     id: `compat-${host}`,
     claim: `${host}'s own test suite passes ${String(passing)} of ${String(passing)} against our entry point`,
