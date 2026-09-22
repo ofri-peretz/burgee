@@ -35,3 +35,8 @@ export function getPageOrNotFound(slug: string[] | undefined): DocsPage {
   if (!page) notFound();
   return page as DocsPage;
 }
+
+/** Resolve a docs page or `undefined` — for route handlers, which answer their own 404. */
+export function findPage(slug: string[] | undefined): DocsPage | undefined {
+  return source.getPage(slug) as DocsPage | undefined;
+}
