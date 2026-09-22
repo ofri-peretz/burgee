@@ -53,7 +53,7 @@ never produces a favicon or a lockup, and should not.
 ## How it lands in the repo
 
 A path string drops straight into the declaration in `scripts/brand.mts`; `npm run brand`
-regenerates twenty-three surfaces from it and `npm run brand -- --check` fails the build if
+regenerates every surface from it and `npm run brand -- --check` fails the build if
 any of them is ever hand-edited afterwards.
 
 **If the work is delivered as a drawing rather than as path data** — an Illustrator file, a

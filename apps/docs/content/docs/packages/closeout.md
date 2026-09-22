@@ -1,11 +1,7 @@
-<p align="center">
-  <a href="https://github.com/ofri-peretz/burgee/tree/main/packages/closeout" target="blank">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ofri-peretz/burgee/main/brand-assets/closeout-lockup.svg" />
-      <img src="https://raw.githubusercontent.com/ofri-peretz/burgee/main/brand-assets/closeout-lockup-light.svg" alt="closeout" width="360" />
-    </picture>
-  </a>
-</p>
+---
+title: closeout
+description: "Close everything out. Exit handlers that run exactly once on every path, terminal restore, and a bounded deadline so shutdown cannot hang. Drop-in paths for signal-exit, exit-hook and restore-cursor. Zero dependencies."
+---
 
 **Close everything out.**
 
@@ -321,7 +317,7 @@ Graded by the incumbent's own test suite:
 | `exit-hook` | 21 / 21 |
 | `restore-cursor` | 6 / 6 |
 
-Weight, installed and tree-inclusive: **95,470 bytes** against **170,604** for the incumbents it replaces — a ratio of **0.5596** (exit-hook not installed here, so the ceiling is understated).
+Weight, installed and tree-inclusive: **95,434 bytes** against **170,604** for the incumbents it replaces — a ratio of **0.5594** (exit-hook not installed here, so the ceiling is understated).
 ## Where it sits
 
 Plugins register under the `handlers` key, against the one schema the whole family shares.

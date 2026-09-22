@@ -1,11 +1,7 @@
-<p align="center">
-  <a href="https://github.com/ofri-peretz/burgee/tree/main/packages/paratext" target="blank">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ofri-peretz/burgee/main/brand-assets/paratext-lockup.svg" />
-      <img src="https://raw.githubusercontent.com/ofri-peretz/burgee/main/brand-assets/paratext-lockup-light.svg" alt="paratext" width="360" />
-    </picture>
-  </a>
-</p>
+---
+title: paratext
+description: "Everything around your terminal output that is not the output: hyperlinks, images, window title, clipboard, notifications and the bell — each with a static fallback for terminals that cannot do it. Covers the OSC half of ansi-escapes, terminal-link and term-img; a drop-in path is not claimed until the compat oracle grades one. Zero dependencies."
+---
 
 *Paratext* is the literary term for everything around a text that is not the text — the
 title, the cover, the margins, the notes. This package owns the terminal equivalent:
@@ -105,7 +101,7 @@ Graded by the incumbent's own test suite:
 | `term-img` | 12 / 18 |
 | `terminal-link` | 0 / 10 |
 
-Weight, installed and tree-inclusive: **92,288 bytes** against **30,912** for the incumbents it replaces — a ratio of **2.9855** (terminal-link, term-img not installed here, so the ceiling is understated).
+Weight, installed and tree-inclusive: **92,207 bytes** against **30,912** for the incumbents it replaces — a ratio of **2.9829** (terminal-link, term-img not installed here, so the ceiling is understated).
 ## Where it sits
 
 Plugins register under the `capabilities` key, against the one schema the whole family shares.

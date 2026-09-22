@@ -1,11 +1,7 @@
-<p align="center">
-  <a href="https://github.com/ofri-peretz/burgee/tree/main/packages/bellpull" target="blank">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ofri-peretz/burgee/main/brand-assets/bellpull-lockup.svg" />
-      <img src="https://raw.githubusercontent.com/ofri-peretz/burgee/main/brand-assets/bellpull-lockup-light.svg" alt="bellpull" width="360" />
-    </picture>
-  </a>
-</p>
+---
+title: bellpull
+description: "The cord you pull to ring a bell in another room. Subprocesses with executable resolution and a structured result every caller can read — human, JSON envelope or agent event. Drop-in paths for execa, cross-spawn and which. Zero dependencies."
+---
 
 A **bellpull** is the cord in one room wired to a bell in another. You pull it here; a bell rings there; someone comes back to you.
 
@@ -122,7 +118,7 @@ Graded by the incumbent's own test suite:
 | :-- | --: |
 | `cross-spawn` | 68 / 68 |
 
-Weight, installed and tree-inclusive: **97,123 bytes** against **714,984** for the incumbents it replaces — a ratio of **0.1358**.
+Weight, installed and tree-inclusive: **97,087 bytes** against **714,984** for the incumbents it replaces — a ratio of **0.1358**.
 ## Where it sits
 
 Plugins register under the `resolvers` key, against the one schema the whole family shares.

@@ -1,11 +1,7 @@
-<p align="center">
-  <a href="https://github.com/ofri-peretz/burgee/tree/main/packages/linegauge" target="blank">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ofri-peretz/burgee/main/brand-assets/linegauge-lockup.svg" />
-      <img src="https://raw.githubusercontent.com/ofri-peretz/burgee/main/brand-assets/linegauge-lockup-light.svg" alt="linegauge" width="360" />
-    </picture>
-  </a>
-</p>
+---
+title: linegauge
+description: "A printer's line gauge — the steel rule marked in picas and points. Measuring, wrapping, truncating and slicing styled terminal text without the edge fraying — grapheme-correct over Intl.Segmenter. Drop-in paths for string-width, wrap-ansi, strip-ansi and slice-ansi. Zero dependencies."
+---
 
 **Measuring, wrapping, truncating and slicing styled terminal text — without the edge
 fraying.**
@@ -161,7 +157,7 @@ its own suite — which this package passes. The runner reports that as a failur
 to the incumbent an unexpected pass means a stale annotation; it is counted here as the
 pass it is, and marked rather than left to look like the ones beside it.
 
-Weight, installed and tree-inclusive: **83,766 bytes** against **170,342** for the incumbents it replaces — a ratio of **0.4918**.
+Weight, installed and tree-inclusive: **83,730 bytes** against **170,342** for the incumbents it replaces — a ratio of **0.4915**.
 ## Where it sits
 
 Plugins register under the `widths` key, against the one schema the whole family shares.
