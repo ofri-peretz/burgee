@@ -4,7 +4,7 @@
   "method": "benchmarks/axes/weight.ts installedBytes(name), tree-inclusive, one count per realpath",
   "layers": {
     "linegauge": {
-      "ours": 83536,
+      "ours": 76751,
       "incumbents": {
         "string-width": 36669,
         "wrap-ansi": 79687,
@@ -12,19 +12,19 @@
         "slice-ansi": 43642
       },
       "ceiling": 170342,
-      "ratio": 0.4904,
+      "ratio": 0.4506,
       "lightestIncumbent": {
         "name": "strip-ansi",
         "bytes": 10344
       }
     },
     "paratext": {
-      "ours": 66341,
+      "ours": 85228,
       "incumbents": {
         "ansi-escapes": 30912
       },
       "ceiling": 30912,
-      "ratio": 2.1461,
+      "ratio": 2.7571,
       "lightestIncumbent": {
         "name": "ansi-escapes",
         "bytes": 30912
@@ -36,14 +36,14 @@
       "$unmeasured": "Not installed in this workspace, so its bytes are absent from `ceiling` — the ceiling is therefore a floor on the real one, never an overstatement."
     },
     "seniority": {
-      "ours": 153435,
+      "ours": 144531,
       "incumbents": {
         "cosmiconfig": 1377599,
         "dotenv": 82402,
         "rc": 95287
       },
       "ceiling": 1555288,
-      "ratio": 0.0987,
+      "ratio": 0.0929,
       "lightestIncumbent": {
         "name": "dotenv",
         "bytes": 82402
@@ -55,13 +55,13 @@
       "$grew": "151,688 B on 2026-09-14, up from 53,475 — PLAN 3.2 built the cosmiconfig-compatible surface plus the `./dotenv` and `./find-up` façades, and the pack grew 182%. The Y8 ratio moved 0.034 to 0.098, so it is still an order of magnitude under what it replaces; the growth is recorded rather than smoothed because a ratio that only ever improves is a ratio nobody is watching."
     },
     "closeout": {
-      "ours": 84453,
+      "ours": 88455,
       "incumbents": {
         "signal-exit": 76966,
         "restore-cursor": 93638
       },
       "ceiling": 170604,
-      "ratio": 0.495,
+      "ratio": 0.5185,
       "lightestIncumbent": {
         "name": "signal-exit",
         "bytes": 76966
@@ -76,12 +76,12 @@
       "$unmeasured": "Not installed in this workspace, so its bytes are absent from `ceiling` — the ceiling is therefore a floor on the real one, never an overstatement."
     },
     "caique": {
-      "ours": 84740,
+      "ours": 114850,
       "incumbents": {
         "@clack/prompts": 182219
       },
       "ceiling": 182219,
-      "ratio": 0.465,
+      "ratio": 0.6303,
       "lightestIncumbent": {
         "name": "@clack/prompts",
         "bytes": 182219
@@ -92,14 +92,14 @@
       "$unmeasured": "Not installed in this workspace, so its bytes are absent from `ceiling` — the ceiling is therefore a floor on the real one, never an overstatement."
     },
     "bellpull": {
-      "ours": 86107,
+      "ours": 90108,
       "incumbents": {
         "execa": 647091,
         "cross-spawn": 46962,
         "which": 20931
       },
       "ceiling": 714984,
-      "ratio": 0.1204,
+      "ratio": 0.126,
       "lightestIncumbent": {
         "name": "which",
         "bytes": 20931

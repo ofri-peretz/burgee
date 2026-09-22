@@ -1,7 +1,7 @@
 {
   "name": "paratext",
   "version": "0.4.0",
-  "description": "Everything around your terminal output that is not the output: hyperlinks, images, window title, clipboard, notifications and the bell — each with a static fallback for terminals that cannot do it. Covers the OSC half of ansi-escapes, terminal-link and term-img; a drop-in path is not claimed until the compat oracle grades one. Zero dependencies.",
+  "description": "Everything around your terminal output that is not the output: hyperlinks, images, window title, clipboard, notifications and the bell \u2014 each with a static fallback for terminals that cannot do it. Covers the OSC half of ansi-escapes, terminal-link and term-img; a drop-in path is not claimed until the compat oracle grades one. Zero dependencies.",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -41,7 +41,7 @@
     "!dist/**/*.test.*"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && node ../../scripts/strip-comments.mjs dist",
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/schema-to-dist.mjs && node ../../scripts/strip-comments.mjs dist",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
     "lint": "eslint src",
@@ -72,5 +72,8 @@
   ],
   "devDependencies": {
     "vitest": "^5.0.1"
+  },
+  "bin": {
+    "paratext": "./dist/cli.js"
   }
 }

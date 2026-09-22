@@ -60,16 +60,21 @@
       "distBytes": 17908,
       "bundledBytes": 966,
       "replaces": "strip-ansi"
+    },
+    "plugin.js": {
+      "distBytes": 25988,
+      "bundledBytes": 3045,
+      "replaces": null
     }
   },
   "y8": {
     "holds": true,
     "bar": "foundation-ceilings.json — D1's tree-inclusive ceiling",
     "measured": {
-      "ours": 83536,
+      "ours": 76751,
       "ceiling": 170342,
-      "ratio": 0.4904,
-      "on": "2026-09-16"
+      "ratio": 0.4506,
+      "on": "2026-09-22"
     },
     "why": [
       "R9's bar is restated as D1's, and this is the restatement. Decided in the integrator",
@@ -93,7 +98,8 @@
       "The old bar is kept below rather than deleted, because a bar that is restated and then",
       "vanishes is indistinguishable from one that was quietly met. Against",
       "`get-east-asian-width` at 3,977 bundled, one of six entries clears it: `strip.js` at",
-      "966. `index.js` is 6,180, 1.55x. That was true when it was written and it is still true."
+      "966. `index.js` is 6,180, 1.55x. That was true when it was written and it is still true.",
+      "Re-measured 2026-09-22 at 75,916 from 83,536, down 7,620 and in the same commit that made this the ninth plugin host — the two moves are unrelated and the direction is the surprise. The fall is strip-comments over a dist that grew a nested entry; the rise the plugin host adds is 1.4 KB of shared family schema, which every host pays and which D-108 records."
     ],
     "supersededBar": {
       "name": "get-east-asian-width",

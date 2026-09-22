@@ -85,8 +85,21 @@ describe('nothing reads the process (R11, Y9)', () => {
    * deliberately redundant: it fails inside this package, where whoever broke it is working,
    * rather than in another package's suite.
    */
-  it('names `process` nowhere in its sources', () => {
-    const offenders = sources().filter((file) =>
+  /**
+   * Nowhere **except the file `package.json` declares as the program**, and that exception is
+   * derived rather than written here. Since 2026-09-22 the package has a `bin` — `seniority
+   * check`, the feedback loop PRINCIPLES 7 asks every plugin host for — and a command line owns
+   * its process by definition: argv in, stdout out, an exit code set. The pure part is `check.ts`
+   * and it names `process` nowhere; `cli.ts` is the ten lines that hand it the real three.
+   *
+   * Read from `bin` so the exemption cannot outlive the reason. Drop the `bin` and `cli.ts` is
+   * back under the rule; add a second file that reaches for `process` and it fails as before.
+   */
+  it('names `process` nowhere in its sources, except the one file that is the program', () => {
+    const bin = Object.values((JSON.parse(readFileSync(join(PKG_ROOT, 'package.json'), 'utf8')) as { bin?: Record<string, string> }).bin ?? {}).map((target) =>
+      join(PKG_ROOT, 'src', target.replace('./dist/', '').replace(/\.js$/u, '.ts')),
+    );
+    const offenders = sources().filter((file) => !bin.includes(file)).filter((file) =>
       readFileSync(file, 'utf8')
         .split('\n')
         .some((line) => !/^\s*(\*|\/\/|\/\*)/.test(line) && /(?<![.\w])process\??\.(env|argv|exit|exitCode|stdout|stderr|stdin|cwd)\b/u.test(line.replace(/'(?:[^'\\]|\\.)*'/gu, "''").replace(/`(?:[^`\\$]|\\.)*`/gu, '``'))),

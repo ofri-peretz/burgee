@@ -150,7 +150,7 @@ function esbuildBin(): string {
  * the correction when it goes against us. Nothing is hidden: the whole-bundle figure stays on
  * every row.
  */
-interface Metafile {
+export interface Metafile {
   outputs: Record<string, { bytes: number; entryPoint?: string; imports?: { path: string; kind: string }[] }>;
 }
 
@@ -160,7 +160,7 @@ interface Metafile {
  * A `dynamic-import` edge is deliberately not followed: that chunk is fetched when the branch
  * runs, which is the whole reason `--splitting` is the right command here.
  */
-function initialBytes(meta: Metafile, entryFile: string): number {
+export function initialBytes(meta: Metafile, entryFile: string): number {
   const entry = Object.keys(meta.outputs).find((out) => out.endsWith(`/${entryFile}`));
   if (entry === undefined) throw new Error(`esbuild metafile names no output for ${entryFile}`);
   const seen = new Set<string>();
@@ -303,7 +303,10 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // ceilings follow the measurements down — a ratchet that stays where the number used to be
   // is not a ratchet, it is headroom nobody decided to grant.
   burgee: 28_700,
-  'burgee/commander': 59_200,
+  // 59,250 on 2026-09-22 for **61 bytes**: the `.catch` that fires `onError`. A plugin's
+  // lifecycle closes on every front end now — `preRun` opens and exactly one of `postRun` or
+  // `onError` closes — where before a handler that threw left a plugin with no closing hook.
+  'burgee/commander': 59_250,
   'burgee/yargs': 107_700,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
@@ -318,11 +321,27 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // commit around it. D-096 defaulted to "the trade stands and the ceilings move" and left it
   // to the integrator; D-099 established that this loop owns a band breach the machinery was
   // built to route, so the ceilings move here, at the measurement, with the trade named.
-  linegauge: 6_300,
-  'linegauge/wrap': 11_300,
-  'linegauge/slice': 8_950,
+  //
+  // **+68 on each of the three, 2026-09-22, and it is the seam linegauge's plugin host needs.**
+  // The first cut put the whole override table in `width.ts` and cost **+182** on every entry —
+  // the note beside it claimed a program without a plugin paid one empty-list check per cluster,
+  // which was true of runtime and false of bytes, and B4 said so on the first CI run. The table
+  // moved into `plugin.ts`; `width.ts` keeps one nullable slot and one optional call, which is
+  // the 68. That is the floor for an override that has to be consulted inside `measure`.
+  linegauge: 6_400,
+  'linegauge/wrap': 11_350,
+  'linegauge/slice': 9_000,
   'linegauge/strip': 1_000,
-  paratext: 11_150,
+  //
+  // **Down from 11,150 to 6,800, and the reason is the most useful thing this block records.**
+  // paratext imported the whole family plugin schema to validate against one definition in it,
+  // `$defs.capability` — 2,121 of 8,141 minified bytes. So every host's definitions rode in
+  // every paratext user's bundle, and making linegauge the ninth host added 1,343 more
+  // (12,465 measured). It imports a generated fragment of exactly that definition now
+  // (`scripts/schema-sync.mjs`, locked by `plugin-schema-lock.test.ts`) and ships the full
+  // contract as data it does not import. **6,736 measured** — below the 11,122 it read before
+  // tonight, not just below the regression. D-108.
+  paratext: 6_800,
 };
 
 /**
@@ -428,14 +447,17 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // 1.04 and 2.56 on 2026-09-21, with the four byte ceilings above and for the same reason
   // (D-096): 111 bytes an entry that measurement says are not recoverable, against 9 ms of
   // import time.
-  linegauge: 1.04,
+  // 1.05 and 1.51 with the +68 seam above.
+  linegauge: 1.05,
   'linegauge/wrap': 1,
-  'linegauge/slice': 1.5,
+  'linegauge/slice': 1.51,
   'linegauge/strip': 2.25,
   // The layer that is over its D1 ceiling too — 66,305 against ansi-escapes' tree at 30,912,
   // a ratio of 2.145. That breach is real, it is recorded in the ceilings file, and this
   // ratchet exists so the bundled half cannot grow while it is being dealt with.
-  paratext: 2.56,
+  // 1.55 from 2.56 — see the byte ceiling above for why this is the largest single fall a
+  // foundation row has had.
+  paratext: 1.55,
 };
 
 /**

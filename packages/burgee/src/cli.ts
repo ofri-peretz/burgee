@@ -219,10 +219,27 @@ export const migrateCommand = defineCommand({
   },
 });
 
+/**
+ * `burgee check <plugin-file>` — the feedback loop PRINCIPLES 7 asks every extension surface
+ * for, and the one burgee did not have. See `check.ts`: this one returns its report as data, so
+ * `--json` is the form an agent that just wrote a plugin reads.
+ */
+export const pluginCheckCommand = defineCommand({
+  name: 'check',
+  description: 'Validate a burgee plugin, register it into a throwaway program, and report what it contributes',
+  arguments: [{ name: 'file', description: 'the plugin module to check' }],
+  effects: 'read_only',
+  examples: [
+    { command: 'burgee check ./my-plugin.mjs', description: 'what the plugin contributes, or why it was refused' },
+    { command: 'burgee check ./my-plugin.mjs --json', description: 'the same, as data; exit 1 on a refusal' },
+  ],
+  run: async ({ positionals }) => (await import('./check.js')).checkPlugin(positionals[0] ?? ''),
+});
+
 export const program = defineProgram({
   name: 'burgee',
   description: 'The agent-native CLI framework, and the tools that come with it',
-  commands: [brandCommand, devCommand, migrateCommand],
+  commands: [brandCommand, devCommand, migrateCommand, pluginCheckCommand],
 });
 
 run(program);

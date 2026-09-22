@@ -156,3 +156,37 @@ function firstDifference(a: string, b: string): number {
   }
   return 0;
 }
+
+/**
+ * A host that validates against one definition imports that definition, not the family schema —
+ * and the fragment it imports cannot drift from the definition it was cut from.
+ *
+ * D-108 is why the fragments exist: every host that imported `schema.json` to validate paid for
+ * every other host's definitions, and making `linegauge` the ninth host cost paratext's default
+ * import **1,343 bytes** for a definition paratext never reads. paratext only ever read
+ * `$defs.capability` — 2,121 of the schema's 8,141 minified bytes — so it imports that alone now,
+ * and still publishes the whole contract at `paratext/schema.json` as data.
+ *
+ * The risk a fragment introduces is the one byte-identity exists to prevent: two copies of a
+ * definition, free to disagree. So each fragment is compared structurally against the source's
+ * `$defs`, and `scripts/schema-sync.mjs` writes them — the same script that keeps the copies
+ * identical, so there is one place a definition changes.
+ */
+describe('schema fragments', () => {
+  const FRAGMENTS = [{ at: 'paratext/src/capability.schema.json', def: 'capability' }];
+  const source = JSON.parse(readFileSync(join(resolve(fileURLToPath(new URL('..', import.meta.url))), 'packages/flagstaff/src/schema.json'), 'utf8')) as {
+    $defs: Record<string, unknown>;
+  };
+
+  it.each(FRAGMENTS)('$at is exactly $def from the family schema', ({ at, def }) => {
+    const path = join(resolve(fileURLToPath(new URL('..', import.meta.url))), 'packages', at);
+    expect(existsSync(path), `${at} is missing — run \`node scripts/schema-sync.mjs\``).toBe(true);
+    expect(JSON.parse(readFileSync(path, 'utf8')), `${at} drifted from $defs.${def} — run \`node scripts/schema-sync.mjs\``).toEqual(source.$defs[def]);
+  });
+
+  it.each(FRAGMENTS)('$at is imported instead of the whole schema', ({ at }) => {
+    const [pkg] = at.split('/');
+    const host = readFileSync(join(resolve(fileURLToPath(new URL('..', import.meta.url))), 'packages', pkg ?? '', 'src/capability.ts'), 'utf8');
+    expect(host, `${pkg} still imports the whole family schema, so its users pay for every host's definitions`).not.toMatch(/from '\.\/schema\.json'/);
+  });
+});

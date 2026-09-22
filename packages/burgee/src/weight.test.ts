@@ -242,9 +242,16 @@ const RULES: Record<string, EntryRule> = {
   // second number is the one D-093 declined this split on without having, which is why the
   // decision is reversed rather than re-argued. `linegauge` leaves the allow-list with
   // `help.js`: the renderer is the only thing that measured a terminal.
+  //
+  // 42,700 on 2026-09-22 for **374 bytes**: E6's `AUTH` code and the `AuthError` that reaches
+  // it. A refused credential exited `RUNTIME` before this — the code for everything — so a
+  // caller could not tell *get a credential and run it again* from *it failed, read the
+  // message*, and a retry loop on one is a retry loop on both, forever. The requirement calls
+  // `AUTH` "the most actionable single code in the survey" and it is the one the taxonomy was
+  // missing. 374 bytes for a branch every caller can take.
   ".": {
     allow: ["closeout", "seniority/precedence"],
-    budget: 42_300,
+    budget: 42_700,
     denied: [
       "testing.js",
       "testing-helpers.js",
@@ -302,7 +309,17 @@ const RULES: Record<string, EntryRule> = {
   // 46,900 on 2026-09-21, down from 65,100 with `.` above: the harness runs a whole program
   // in-process, so it stops carrying the four surfaces the barrel stopped carrying. Measured
   // 46,850.
-  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 46_900, denied: ["dev.js", "migrate.js"] },
+  //
+  // 47,000 on 2026-09-22 for **92 bytes**, and they are the smallest raise in this file that
+  // bought the most. `runBurgee` built a whole `fakeRuntime` — argv, env, cwd, stdin, per-stream
+  // TTY-ness — and forwarded six of the nine to `execute`. `cwd`, `stdin` and `isTTY` were
+  // computed and dropped, which is `.sdlc/intents/burgee/spec.md`'s T1 and which that document
+  // calls "the row most likely to make a test pass for the wrong reason". It is: `tty: true`
+  // got the non-interactive floor, and a `cwd` pointed at a fixture tree had config discovery
+  // read the repository the test was running in. The 92 bytes are three forwarded fields.
+  // 47,400 on 2026-09-22 with `.` above: the harness runs a whole program, so it carries
+  // `AuthError` for the same reason it carries everything else. Measured 47,385.
+  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 47_400, denied: ["dev.js", "migrate.js"] },
   /**
    * The four doors the root barrel stopped holding open (see `.` above). Each is the same
    * module the engine reaches behind an `await import()`, published so a program that wants it
@@ -583,9 +600,16 @@ const RULES: Record<string, EntryRule> = {
   // note above `#surfaces` said it loaded lazily — the branch already returns a promise, so it
   // always could have. Measured 214,722 on disk, and the entry point went 107,665 -> 105,240
   // bundled.
+  //
+  // 214,900 on 2026-09-22 for **68 bytes**: the `.catch` that fires `onError`. Both façades ran
+  // `preRun → handler → postRun` as a `.then` chain, so a handler that threw skipped `postRun`
+  // *and* never reached `onError` — a plugin that opened a span or took a lock in `preRun` had
+  // nowhere to close it, on every command that fails. `onError` was also never fired by either
+  // façade at all, so a plugin declaring it was silently dead on the two front ends this
+  // package exists for. `plugin-lifecycle.test.ts` holds it.
   "./yargs": {
     allow: [],
-    budget: 214_800,
+    budget: 214_900,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   "./yargs/helpers": {

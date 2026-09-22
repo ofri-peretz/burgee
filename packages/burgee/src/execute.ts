@@ -18,7 +18,7 @@ import { camel, kebab } from './names.js';
 import { nearestPackage, type Package } from './pkg.js';
 import { host } from './runtime.js';
 import { detachedTeardown, processTeardown, type Teardown } from './shutdown.js';
-import { checkRelations, coerce, UsageError } from './validate.js';
+import { AuthError, checkRelations, coerce, UsageError } from './validate.js';
 
 export interface CommandContext<O> extends Omit<RunContext, 'options'> {
   options: O;
@@ -391,18 +391,40 @@ interface Failure {
   action?: ActionRequiredSpec;
 }
 
+/**
+ * The error classes that name their own exit code — a table rather than a chain of
+ * `instanceof`, which is the shape E7 asks for: an author classifies an error and the
+ * framework maps it to a stable code.
+ *
+ * Order is the answer when a class extends another; none of these do today, and `find` takes
+ * the first match so the list is the precedence if one ever does. **`AuthError` sits apart from
+ * `ConfigError` on purpose**: a missing credential is not a broken config file. `CONFIG` says
+ * *fix the runner* and `AUTH` says *get a credential*, which are different actions, and
+ * collapsing them is what having one code for everything looks like.
+ */
+const CLASSIFIED: readonly (readonly [new (...args: never[]) => Error, ExitCodeType])[] = [
+  [UsageError, ExitCode.USAGE],
+  [AuthError, ExitCode.AUTH],
+  [ConfigError, ExitCode.CONFIG],
+];
+
+/** `hint` and `fix` off an error that carries them, and nothing when it does not (E3). */
+function carried(cause: unknown): { hint?: string; fix?: string } {
+  const { hint, fix } = (cause ?? {}) as { hint?: unknown; fix?: unknown };
+  return {
+    ...(typeof hint === 'string' ? { hint } : {}),
+    ...(typeof fix === 'string' ? { fix } : {}),
+  };
+}
+
 /** E2/E3 — a usage error never prints a stack, a runtime failure never prints help. */
 async function describeFailure(cause: unknown, argv: string[], node?: CommandNode): Promise<Failure> {
   const signal = exitSignal(cause);
   if (signal !== undefined) return { code: signal, message: '', silent: true };
   const message = cause instanceof Error ? cause.message : String(cause);
   if (cause instanceof ActionRequired) return { code: ExitCode.CANCELLED, message, action: cause.spec, ...(cause.spec.hint === undefined ? {} : { hint: cause.spec.hint }) };
-  if (cause instanceof UsageError) {
-    return { code: ExitCode.USAGE, message, ...(cause.hint === undefined ? {} : { hint: cause.hint }) };
-  }
-  if (cause instanceof ConfigError) {
-    return { code: ExitCode.CONFIG, message, ...(cause.hint === undefined ? {} : { hint: cause.hint }) };
-  }
+  const named = CLASSIFIED.find(([Class]) => cause instanceof Class);
+  if (named !== undefined) return { code: named[1], message, ...carried(cause) };
   if (isParseArgsFailure(cause)) {
     // Loaded only here: see unknown-option.ts for why none of this is imported.
     const explain = await import('./unknown-option.js');

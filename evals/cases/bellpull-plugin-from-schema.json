@@ -1,0 +1,28 @@
+{
+  "id": "bellpull-plugin-from-schema",
+  "why": "PRINCIPLES 7, for bellpull. The claim every plugin host makes is that its `schema.json` plus its README is enough for an agent to write a working plugin in one turn, and that `bellpull check` tells it so without a human reading the output. Until 2026-09-22 only flagstaff measured that; this is bellpull's half. If the agent needs a second turn, or someone has to explain a refusal, the schema is not self-describing and `check` is not the feedback loop it claims to be.",
+  "prompt": "Read packages/bellpull/src/schema.json and packages/bellpull/README.md. Write a bellpull plugin to the file evals/results/asdf-plugin.mjs. It must be a single ES module with a default export, must be named \"asdf\", and must contribute one resolver called \"asdf\" that finds executables under the asdf shims directory when ASDF_DATA_DIR is set. Then verify it by running: node packages/bellpull/dist/cli.js check evals/results/asdf-plugin.mjs \u2014 and if that command exits non-zero, fix the plugin until it exits zero. Do not modify anything under packages/.",
+  "allowedTools": "Read,Write,Edit,Bash",
+  "expect": [
+    {
+      "check": "shell",
+      "value": "test -f evals/results/asdf-plugin.mjs"
+    },
+    {
+      "check": "shell",
+      "value": "node packages/bellpull/dist/cli.js check evals/results/asdf-plugin.mjs"
+    },
+    {
+      "check": "shell",
+      "value": "node packages/bellpull/dist/cli.js check evals/results/asdf-plugin.mjs | grep -q '^asdf: ok'"
+    },
+    {
+      "check": "shell",
+      "value": "node packages/bellpull/dist/cli.js check evals/results/asdf-plugin.mjs | grep -q '^asdf \u2014 1 resolvers'"
+    },
+    {
+      "check": "output-omits",
+      "value": "E_PLUGIN_SCHEMA"
+    }
+  ]
+}

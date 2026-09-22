@@ -1483,12 +1483,20 @@ export class YargsInstance {
     const name = original.replace(/^\$0 ?/, '').split(' ')[0] ?? '';
     const options: Record<string, unknown> = {};
     for (const key of Object.keys(this.#options.key)) options[key] = argv[key];
+    // See `commander/command.ts` for the same three lines and the same reason: `preRun` opens,
+    // and exactly one of `postRun` or `onError` closes. Without the `catch` a plugin got an
+    // opening hook and no closing one on every command that throws, and `onError` never fired
+    // on a yargs-syntax program at all.
     return manifest
       .fire('preRun', name, options)
       .then(() => handler(argv))
       .then(async (value: unknown) => {
         await manifest.fire('postRun', name, options);
         return settle(value);
+      })
+      .catch(async (cause: unknown) => {
+        await manifest.fire('onError', name, options);
+        throw cause;
       });
   }
 

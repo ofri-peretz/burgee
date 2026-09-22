@@ -18,6 +18,27 @@ export class UsageError extends Error {
   }
 }
 
+/**
+ * E6 — the far side said no. Throw this and the run leaves with `ExitCode.AUTH`.
+ *
+ * The one error class whose *response* is unambiguous: not "read the message and decide" but
+ * "get a credential and run it again". A handler that throws a bare `Error` for a 401 gets
+ * `RUNTIME`, which is the code for everything, and a caller retrying on it retries forever.
+ *
+ * `fix` is the exact command that gets the credential, where the program knows it — `hint` is
+ * prose a person reads and `fix` is a line a caller runs, which is the turn the field saves.
+ */
+export class AuthError extends Error {
+  constructor(
+    message: string,
+    readonly hint?: string,
+    readonly fix?: string,
+  ) {
+    super(message);
+    this.name = 'AuthError';
+  }
+}
+
 type Sources = Record<string, { source: string }>;
 const isSet = (values: Record<string, unknown>, key: string, sources: Sources): boolean => values[key] !== undefined && sources[key]?.source !== 'default';
 const flagList = (keys: readonly string[]): string => flagsOf(keys).join(', ');

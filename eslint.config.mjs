@@ -605,7 +605,9 @@ export default [
   },
   {
     // A package's `bin` entry has no exports by design: it is the program, not a module.
-    files: ["packages/flagstaff/src/cli.ts"],
+    // Every package has one since 2026-09-22 — each plugin host grew a `check` command — so
+    // this is the same rule `packages/*/src/bin.ts` already carries, stated for the other name.
+    files: ["packages/*/src/cli.ts"],
     rules: { "import-next/no-unused-modules": "off" },
   },
   {

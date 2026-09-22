@@ -75,5 +75,8 @@
   ],
   "devDependencies": {
     "vitest": "^5.0.1"
+  },
+  "bin": {
+    "closeout": "./dist/cli.js"
   }
 }

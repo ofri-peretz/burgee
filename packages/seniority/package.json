@@ -96,5 +96,8 @@
   ],
   "devDependencies": {
     "vitest": "^5.0.1"
+  },
+  "bin": {
+    "seniority": "./dist/cli.js"
   }
 }

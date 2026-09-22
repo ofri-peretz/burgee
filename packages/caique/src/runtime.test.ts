@@ -46,11 +46,19 @@ function codeOf(line: string): string {
 }
 
 describe('the runtime seam', () => {
-  it('is the only file in caique that reads the process', () => {
+  /**
+   * The only library file, and the declared program beside it. `caique check` (2026-09-22) is a
+   * ten-line `cli.ts` that owns the process by definition — argv in, stdout out, an exit code
+   * set — and hands all three to a pure `check.ts`. Read from `package.json`'s `bin`, so the
+   * exemption lasts exactly as long as the program does.
+   */
+  it('is the only file in caique that reads the process, besides the program itself', () => {
     const offenders: string[] = [];
+    const manifest = JSON.parse(readFileSync(join(src, '..', 'package.json'), 'utf8')) as { bin?: Record<string, string> };
+    const bin = new Set(Object.values(manifest.bin ?? {}).map((t) => t.replace('./dist/', '').replace(/\.js$/u, '.ts')));
     for (const file of sources(src)) {
       const rel = relative(src, file).split(sep).join('/');
-      if (rel === 'runtime.ts') continue;
+      if (rel === 'runtime.ts' || bin.has(rel)) continue;
       readFileSync(file, 'utf8')
         .split(/\r?\n/)
         .forEach((line, i) => {

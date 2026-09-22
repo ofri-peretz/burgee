@@ -18,14 +18,22 @@ that touches the paths above:
 run non-interactively with `claude -p`. Reports `skipped` without a credential.
 
 Cases come from real incidents or from a claim somebody made that needs measuring, and
-they are written by whoever owns the claim. One so far:
+they are written by whoever owns the claim. Nine, one per plugin host:
 
 | case | the claim it measures |
 | :-- | :-- |
 | `flagstaff-plugin-from-schema` | U9 / flagstaff R8 — that `schema.json` plus one worked example is enough for an agent to write a working plugin **in one turn**, and that `flagstaff check` tells it so without a human reading the output |
+| `bellpull-plugin-from-schema` | the same claim for a resolver |
+| `burgee-plugin-from-schema` | the same claim for a command and a hook — and the one case read through `--json`, because burgee's `check` returns a document |
+| `caique-plugin-from-schema` | the same claim for a widget |
+| `closeout-plugin-from-schema` | the same claim for an exit handler |
+| `linegauge-plugin-from-schema` | the same claim for a width override |
+| `paratext-plugin-from-schema` | the same claim for a capability |
+| `roundel-plugin-from-schema` | the same claim for a token |
+| `seniority-plugin-from-schema` | the same claim for a configuration source |
 
-A case earns its place by discriminating. That one's shell checks were run both ways
-before it was committed: green against a correct plugin, and red against the same plugin
+A case earns its place by discriminating. Every one's shell checks were run both ways
+before it was committed. The first, flagstaff's: green against a correct plugin, and red against the same plugin
 with its `static` removed, where `check` exits 1 with
 `E_NO_STATIC_PROJECTION … fix: give it a \`static\`` — which is the feedback loop the claim
 is about. A case that cannot fail is not measuring anything.

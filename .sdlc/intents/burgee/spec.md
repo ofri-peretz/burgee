@@ -598,7 +598,11 @@ was quietly met.
 **The count.** 114 requirements, in seventeen families — `Z F O E V S P D T H M K J C B N U`.
 The prose above says *92* and *"Ninety-two requirements"*; both are wrong, and wrong the same
 way, because `E6 E7 V8 N11–N15` were added after the arithmetic was last done and `C1–C8`
-names two rows that do not exist. **Built: 77. Not built: 37.**
+names two rows that do not exist. **Built: 82. Not built: 32**, and the count moves as rows are
+built rather than as the prose is rewritten — T1 moved on 2026-09-22 and the tally moved with
+it. An audit whose total disagrees with its own rows is the failure this paragraph is a record
+of; `spec-tally-lock.test.ts` now derives the two numbers from the tables instead of trusting
+this sentence.
 
 **How a row was decided.** From `packages/burgee/src/` and the repository around it, never
 from this document's prose about itself. `Not built` is the answer whenever the behaviour the
@@ -632,7 +636,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | # | Status | Evidence | The check |
 | :-- | :-- | :-- | :-- |
 | F1 | Not built | `schema.ts` prints the tree and stamps `schemaVersion: 1`. The *validating* half is absent: the only `schema.json` burgee publishes is the **family plugin schema** — byte-identical across six packages and titled `flagstaff plugin` — not a schema for `--schema` output, and nothing validates the document against anything | `schema.test.ts` asserts the shape; no test validates against a JSON Schema |
-| F2 | Not built | there is no JSON help surface. `dispatch` returns `renderHelp(…)` as text and `emit` writes it verbatim, so `--help --json` prints the same prose as `--help` | — |
+| F2 | **Built** | `--help --json` prints the help *document*: `{ schemaVersion, name, arguments, options, examples, inputSchema, commands }`, which is `commandSchemaOf` for the node plus its immediate children — the same shape `--schema` publishes, scoped to one command, so there is one document shape in the package rather than a second one invented for help. This row read `Not built` until 2026-09-22 and was stale, not wrong when written: `dispatch` and `unresolved` both grew the branch afterwards and nothing moved the audit | `help-json.test.ts`, and the three call sites carry `// F2 — help as data` in `execute.ts` |
 | F3 | Not built | held by `L` only; `eslint-plugin-cli-floor` is not a package | — |
 | F4 | **Built** | `help.ts`'s `commandSections` groups children by `group`; `hidden` is filtered by `runnable()`; `commandSchemaOf` carries `group` into `--schema` | `help.test.ts`, `schema.test.ts` |
 
@@ -652,11 +656,11 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | :-- | :-- | :-- | :-- |
 | E1 | **Built** | `exit-code.ts` declares exactly six codes and `isExitCode` | `scripts/exit-code-lock.test.ts`: no bare literal at an exit site outside the two front-ends |
 | E2 | **Built** | `describeFailure` classifies before rendering; `textFailure` prints `error: <message>` and a `hint:` line, never help and never a stack | `parsing-edges.test.ts`, `shape.test.ts` |
-| E3 | Not built | the error body is `{ code, message, hint }`. There is no `fix` — in a family where `PluginError`, `ConfigError` and `LoaderError` all carry one | — |
+| E3 | **Built** | `Failure` carries `fix` beside `hint`, `textFailure` renders `fix: …` and the `--json` envelope carries it as `error.fix`. The producer is `unknownOption`, which sets it to the near match it found and **omits it rather than guessing** when there is none — an executed guess burns the turn the field exists to save. `AuthError` takes one from the author. This row read `Not built` until 2026-09-22 and was stale: the field, both renderers and the first producer had all landed | `auth-exit.test.ts` asserts `fix:` on stderr and `error.fix` in the envelope; `unknown-option.test.ts` for the near-match half |
 | E4 | **Built** | `dispatch()` is the order, in one function: parse → resolve layers → relations → coerce → `await node.run` → `emit` → `leave` | `option-relations.test.ts`, `env.test.ts` |
 | E5 | **Built** 2026-09-16 | `shutdown.ts` binds closeout's `install()` — `exit`, `beforeExit`, five signals, `uncaughtException`, `unhandledRejection` — and hands the terminal back last | `pty-signal.test.ts`, in a **real** pty: *"dies of the signal rather than exiting"*, `WIFSIGNALED` with signal 2 |
-| E6 | Not built | `ExitCode` is `OK RUNTIME USAGE CONFIG CANCELLED SIGINT`. There is no `AUTH`, which the requirement itself calls *"the most actionable single code in the survey"* | — |
-| E7 | Not built | `describeFailure` is `instanceof` over a fixed set with `RUNTIME` as the fallback. Nothing lets an author declare a class, and no startup check refuses a reused code | — |
+| E6 | **Built** 2026-09-22 | `ExitCode.AUTH` is **5**, and `AuthError(message, hint?, fix?)` in `validate.ts` is how a handler reaches it. `describeFailure` maps it above `ConfigError`, because a missing credential is not a broken config file — `CONFIG` says fix the runner and `AUTH` says get a credential, which are different actions. 5 rather than `gh`'s 4 because 4 is `CANCELLED` here and moving a published code is breaking for every consumer that branches on it | `auth-exit.test.ts`: `AUTH` and `RUNTIME` differ on two commands of the same program, both renderings carry `hint` and `fix`, and no two names share a code. `scripts/exit-code-lock.test.ts` holds the contract at seven |
+| E7 | Not built | **The mapping half is declarative since 2026-09-22**: `CLASSIFIED` in `execute.ts` is a table of error class → `ExitCode`, and `describeFailure` finds in it rather than running a chain of `instanceof` — so adding a class is a row, and the list is the precedence if one ever extends another. Two halves are still absent: nothing lets an **author** declare a class of their own, and there is no startup check that refuses a reused code. The reuse half has a *build-time* lock — `exit-code.test.ts` asserts no two names share a number and `scripts/exit-code-lock.test.ts` holds the contract at seven across every package — which is the property, caught earlier than a startup check would catch it, but not the mechanism the requirement describes | `exit-code.test.ts`, `scripts/exit-code-lock.test.ts`, `auth-exit.test.ts` |
 
 ### Values and precedence
 
@@ -706,7 +710,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 
 | # | Status | Evidence | The check |
 | :-- | :-- | :-- | :-- |
-| T1 | Not built | `runBurgee` builds a full `fakeRuntime` and then forwards only `argv`, `env`, `stdout`, `stderr`, `exit` and `root` to `execute`. `stdin`, `cwd` and TTY-ness are dropped, so passing `tty: true` changes nothing about a burgee program | `testing-helpers.test.ts` — which does not assert the three that are dropped. This is the row most likely to make a test pass for the wrong reason |
+| T1 | **Built** | `runBurgee` forwards `cwd`, `stdin` and per-stream TTY-ness to `execute` alongside argv, env, the two streams and `exit`. It did not until 2026-09-22: `fakeRuntime` computed all three and six of the nine fields were passed on, so `tty: true` got the non-interactive floor and a `cwd` pointed at a fixture tree had config discovery read the repository the test was running in | `testing-harness-forward.test.ts` — two cases, both proved to fail on the six-field version. `interactive` reads `[true, false]` for `tty: true`/`false`, and a `<name>.config.json` under the given `cwd` reaches the handler |
 
 ### Help
 
@@ -787,7 +791,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | N3 | **Built** | `node:readline` and nothing else; no SDK | `src/weight.test.ts` — the `.` entry admits no MCP dependency |
 | N4 | **Built** | `callTool` runs `argvOf(…)` with `--json` appended, so a tool result is the same envelope a `--json` caller gets | `mcp.test.ts` |
 | N5 | **Built** | the `invoke` closure injects `stdout`/`stderr` as `{ write }` and its own `exit`, so `ioOf` reports `tty: false`; the engine never colours; failures come back as the E3 body | `mcp.test.ts` |
-| N6 | Not built | **`effects` is optional, not required.** `CommandNode.effects?: Effects`, and `toolsOf` filters on `c.effects !== undefined` — so a command that omits it is silently not served as a tool rather than failing at definition time, which is the quieter of the two failures. `annotationsOf` is correct once `effects` is there | `mcp.test.ts` asserts the filtering; nothing asserts a refusal, because there is none |
+| N6 | **Built** | `checkEffects` throws at definition time: *"command X is runnable and declares no effects; declare read_only, idempotent, non_idempotent — or withheld, which serves it to people and keeps it out of the MCP tool list"*. Declining is a thing said rather than a thing forgotten, which is the whole point — *I decided agents should not have this* and *I forgot* were the same value before. Stale row: this landed with the 938-byte change recorded in `weight.test.ts` | `definition.test.ts`, and every fixture in the package has had to declare `effects` since |
 | N7 | **Built** | `changedOf` throws when a command declaring `effects: 'idempotent'` returns no boolean `changed`, and `emit` carries it in `meta` | `machine-json.test.ts` |
 | N8 | **Built** | `surface()` answers `--schema` before any command resolves, before config and before any handler; `schema.ts` reads the manifest only | `schema.test.ts`, `shape.test.ts` |
 | N9 | **Built** | `optionProperty` publishes `enum`, `minimum` and `maximum` — and `flag`, `dependsOn`, `exclusive` — as data | `schema.test.ts`, `relations-schema.test.ts` |

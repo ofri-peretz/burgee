@@ -1853,12 +1853,23 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
     }
     const name = this.name();
     const options = this.opts();
+    // `preRun` opens and **exactly one of `postRun` or `onError` closes**, which is the
+    // contract the engine has always held and this chain did not. Without the `catch`, a
+    // handler that threw skipped `postRun` and never reached `onError`, so a plugin that
+    // started a span or took a lock in `preRun` had nowhere to finish it — on every command
+    // that fails, which is not an edge case. `onError` was also simply never fired here under
+    // any circumstances, so a plugin declaring it was silently dead on a commander-syntax
+    // program: the front end this package exists for, and a hook commander cannot offer at all.
     return manifest
       .fire('preRun', name, options)
       .then(() => handler(this.processedArgs))
       .then(async (value) => {
         await manifest.fire('postRun', name, options);
         settle(value);
+      })
+      .catch(async (cause: unknown) => {
+        await manifest.fire('onError', name, options);
+        throw cause;
       });
   }
 

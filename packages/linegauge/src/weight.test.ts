@@ -38,7 +38,7 @@ const RATIO_PLACES = 4;
 const pkgRoot = fileURLToPath(new URL('..', import.meta.url));
 
 const manifest = JSON.parse(readFileSync(resolve(pkgRoot, 'package.json'), 'utf8')) as {
-  exports: Record<string, { import: string }>;
+  exports: Record<string, { import?: string } | string>;
 };
 
 interface Ceilings {
@@ -89,7 +89,12 @@ describe.each(Object.keys(ceilings.entries))('published entry %s', (entry) => {
 });
 
 describe('the ceiling covers what is published', () => {
-  const published = Object.values(manifest.exports).map((e) => e.import.replace('./dist/', ''));
+  // Code entries only: `./schema.json` maps to a plain string because it is data, and a data
+  // export has no import graph to walk or bytes to budget as code.
+  const published = Object.values(manifest.exports)
+    .map((e) => (typeof e === 'string' ? undefined : e.import))
+    .filter((file): file is string => file !== undefined)
+    .map((file) => file.replace('./dist/', ''));
 
   /**
    * The rule that keeps the gate from being skipped by adding a subpath. A new entry with

@@ -54,7 +54,7 @@ export interface Plugin {
  * widget with no `static`, and a capability with no `fallback` is the same defect wearing
  * OSC. One code, one fix shape, three layers.
  */
-export type PluginErrorCode = 'E_PLUGIN_SCHEMA' | 'E_PLUGIN_CONTRACT' | 'E_NO_STATIC_PROJECTION';
+export type PluginErrorCode = 'E_PLUGIN_SCHEMA' | 'E_PLUGIN_CONTRACT' | 'E_NO_STATIC_PROJECTION' | 'E_NO_CONTRIBUTION';
 
 /** A refused plugin says what is wrong and what to do about it — the family's one vocabulary. */
 export class PluginError extends Error {
@@ -140,6 +140,7 @@ const FIX: Record<PluginErrorCode, string> = {
   E_NO_STATIC_PROJECTION: 'add `fallback: "…"` — what prints where the terminal cannot do it; `""` is a legitimate answer, absence is not',
   E_PLUGIN_SCHEMA: 'compare the object against `paratext/schema.json`, which is the contract every host in the family ships',
   E_PLUGIN_CONTRACT: 'upgrade paratext, or lower the plugin’s contract',
+  E_NO_CONTRIBUTION: 'add a `capabilities` section — a key another package in the family reads is allowed in the same object, but `paratext check` cannot show it',
 };
 
 const order: Plugin[] = [];

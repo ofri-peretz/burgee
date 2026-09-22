@@ -353,6 +353,27 @@ function hangulColumns(visible: string, ambiguousIsWide: boolean): number | unde
 }
 
 /**
+ * The one seam the plugin host needs, and all a program without a plugin pays for.
+ *
+ * The override table, its flattening and its registry used to live here, and they cost
+ * **182 bundled bytes on every entry of this package** — `linegauge`, `./wrap`, `./slice` —
+ * and on every package that measures a column, burgee's help renderer included. The note above
+ * the table said a program with no plugin "pays one `length === 0` per cluster", which was true
+ * of runtime and false of bytes: B4 caught it on the first CI run. Now `plugin.ts` owns the
+ * table and installs a function here, and a program that never imports `linegauge/plugin` carries
+ * one nullable slot and one optional call.
+ *
+ * Not re-exported from `index.ts` on purpose. It is a seam between two modules of this package,
+ * not an API — a caller who wants overrides writes a plugin, which is data and can be checked.
+ */
+let claim: ((code: number) => number | undefined) | undefined;
+
+/** Installed by `plugin.ts` when the first override registers, and cleared when the last one goes. */
+export function setClaim(fn: ((code: number) => number | undefined) | undefined): void {
+  claim = fn;
+}
+
+/**
  * Columns a string of *plain* text occupies — no escape scan. The wrapper below has
  * already split its input into text runs and complete sequences, so rescanning would only
  * give a malformed sequence a second chance to be mistaken for one.
@@ -360,6 +381,15 @@ function hangulColumns(visible: string, ambiguousIsWide: boolean): number | unde
 export function measure(text: string, ambiguousIsWide = false): number {
   let columns = 0;
   for (const { segment } of segmenter().segment(text)) {
+    // A plugin's answer comes first — before the zero-width and emoji rules, not after. A user
+    // who says a Private Use code point is two columns because their Nerd Font draws an icon
+    // there is describing the terminal in front of them, and the built-in tables are describing
+    // terminals in general. The local answer wins or the override is decorative.
+    const claimed = claim?.(segment.codePointAt(0) ?? 0);
+    if (claimed !== undefined) {
+      columns += claimed;
+      continue;
+    }
     if (ZERO_WIDTH_CLUSTER().test(segment)) continue;
     if (RGI_EMOJI().test(segment) || isUnqualifiedEmojiSequence(segment)) {
       columns += WIDE_COLUMNS;
