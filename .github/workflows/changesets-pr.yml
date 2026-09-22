@@ -16,6 +16,9 @@ run-name: >-
 #
 # 2. On push to main — open / refresh the "Version Packages" PR and enable
 #    auto-merge on it. Merging it triggers release.yml. No `publish:` here.
+#    With no release credential configured it falls back to GITHUB_TOKEN and then
+#    runs the required checks, merges and starts the release itself (`checks`,
+#    `land`) — no human close-and-reopen.
 # ─────────────────────────────────────────────────────────────────────────────
 
 on:
@@ -42,6 +45,15 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    outputs:
+      token-source: ${{ steps.source.outputs.source }}
+      has-changesets: ${{ steps.changesets.outputs.has-changesets }}
+      pr-number: ${{ steps.changesets.outputs.pr-number }}
+    env:
+      # `secrets` cannot be read in a step's `if:`; a job-level env can, and a boolean of
+      # it carries nothing secret.
+      HAS_APP_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY != '' }}
+      HAS_PAT: ${{ secrets.RELEASE_BOT_PAT != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -49,6 +61,54 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           turbo-cache: "false"
+
+      # ── Which credential opens the Version PR ────────────────────────────────────────
+      #
+      # A PR opened, or a branch pushed, with GITHUB_TOKEN raises no workflow runs —
+      # GitHub's loop-prevention rule — so the Version PR sat at 0 checks against 3
+      # required ones on #299, #367, #383 and #393, each unblocked by a human closing and
+      # reopening it. And a merge that GITHUB_TOKEN's auto-merge performs raises no runs on
+      # main either: #393 landed as 54432b9 and neither `release.yml` nor `quality.yml`
+      # ran on it. So the order of preference is:
+      #
+      #   1. A GitHub App installation token (`vars.RELEASE_APP_ID` +
+      #      `secrets.RELEASE_APP_PRIVATE_KEY`). Its pushes and PRs raise runs, it belongs
+      #      to no person, and it expires in an hour.
+      #   2. `secrets.RELEASE_BOT_PAT`. Same effect, but a long-lived personal credential.
+      #   3. GITHUB_TOKEN — and then this workflow does the part a human used to do: the
+      #      `checks` job below dispatches each required workflow on the Version PR's
+      #      branch and mirrors its result onto the PR's head commit, and the `land` job
+      #      merges and starts the post-merge runs itself. See those jobs for why a
+      #      dispatch alone is not enough.
+      #
+      # `client-id` takes either the App's Client ID or its numeric App ID: both are
+      # accepted as the JWT issuer, and `app-id` is the deprecated spelling of the input.
+      - name: Mint the release App's token
+        id: app
+        if: vars.RELEASE_APP_ID != '' && env.HAS_APP_KEY == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Say which credential this run uses
+        id: source
+        env:
+          APP_TOKEN_MINTED: ${{ steps.app.outputs.token != '' }}
+          HAS_APP_ID: ${{ vars.RELEASE_APP_ID != '' }}
+        run: |
+          set -euo pipefail
+          if [ "$APP_TOKEN_MINTED" = "true" ]; then
+            echo "source=app" >> "$GITHUB_OUTPUT"
+          elif [ "$HAS_PAT" = "true" ]; then
+            echo "source=pat" >> "$GITHUB_OUTPUT"
+          else
+            echo "source=github-token" >> "$GITHUB_OUTPUT"
+            missing="vars.RELEASE_APP_ID=$([ "$HAS_APP_ID" = "true" ] && echo set || echo MISSING), secrets.RELEASE_APP_PRIVATE_KEY=$([ "$HAS_APP_KEY" = "true" ] && echo set || echo MISSING), secrets.RELEASE_BOT_PAT=MISSING"
+            echo "::warning title=Version PR opened with GITHUB_TOKEN::No release credential is configured ($missing). A PR opened with GITHUB_TOKEN raises no workflow runs, so this workflow will dispatch the required checks itself, mirror them onto the PR, and merge it itself. Set RELEASE_APP_ID (repo variable) + RELEASE_APP_PRIVATE_KEY (repo secret), or RELEASE_BOT_PAT, to retire the fallback — see .sdlc/GAPS.md C5."
+          fi
 
       - name: Open / refresh Version PR
         id: changesets
@@ -60,32 +120,12 @@ jobs:
           version-script: npm run changeset:version
           pr-title: "chore(release): version packages"
           commit-message: "chore(release): version packages"
-          # The token is an INPUT, not an env var. A PR opened with GITHUB_TOKEN raises no
-          # workflow runs — GitHub's loop-prevention rule — so the Version PR sits at 0
-          # checks against 3 required ones and can never merge (#35).
-          #
-          # **The sentence that used to end this paragraph was wrong, and it cost real
-          # time.** It said "RELEASE_BOT_PAT when it exists, and the default token
-          # otherwise, which keeps this workflow working until the secret is added". The
-          # default token is precisely the one that raises no runs, so the fallback does
-          # not keep anything working — it is the deadlock. #299, #367, #383 and #393 each
-          # sat at zero checks until somebody intervened by hand.
-          #
-          # **Until `RELEASE_BOT_PAT` is set, every release needs this by hand**: close the
-          # Version PR and reopen it. That is a human action, so the workflows fire. Two
-          # traps come with it. `gh pr update-branch` pushes with GITHUB_TOKEN and puts the
-          # PR straight back to zero checks, so update *first* and reopen *after*. And the
-          # reopen cancels any run already in flight, which surfaces as a Quality Gate
-          # failing in four seconds on five `cancelled` sub-jobs rather than on anything
-          # real — wait for the run to settle before reading it.
-          #
-          # Passing it as `env: GITHUB_TOKEN` instead does not work and is worse than not
-          # working: the action reads `github-token` and then *throws* if the environment
-          # variable is set to anything different — "Please pass the custom GitHub token to
-          # the github-token input and remove the GITHUB_TOKEN environment variable to
-          # avoid conflicts". The env spelling is therefore silent today (both resolve to
-          # github.token) and a hard failure the moment the PAT exists.
-          github-token: ${{ secrets.RELEASE_BOT_PAT || secrets.GITHUB_TOKEN }}
+          # The token is an INPUT, not an env var. Passing it as `env: GITHUB_TOKEN` is
+          # worse than not working: the action reads `github-token` and then *throws* if
+          # the environment variable is set to anything different — "Please pass the
+          # custom GitHub token to the github-token input and remove the GITHUB_TOKEN
+          # environment variable to avoid conflicts".
+          github-token: ${{ steps.app.outputs.token || secrets.RELEASE_BOT_PAT || secrets.GITHUB_TOKEN }}
         env:
           # lefthook's pre-push would otherwise gate the bot's push; the real
           # gates run on the resulting Version PR.
@@ -96,19 +136,156 @@ jobs:
         # `has-changesets` and `pullRequestNumber` is `pr-number`. An unknown output is the
         # empty string rather than an error, so the old spelling made this condition
         # silently false — the auto-merge and auto-approve below have never once run.
-        if: steps.changesets.outputs.has-changesets == 'true' && steps.changesets.outputs.pr-number
+        #
+        # Not under GITHUB_TOKEN: the merge auto-merge performs is attributed to whoever
+        # enabled it, and a GITHUB_TOKEN merge raises no push runs — #393 merged that way
+        # and nothing released it. The `land` job merges in that case, and starts the runs.
+        if: >-
+          steps.changesets.outputs.has-changesets == 'true' && steps.changesets.outputs.pr-number
+          && steps.source.outputs.source != 'github-token'
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_BOT_PAT || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app.outputs.token || secrets.RELEASE_BOT_PAT }}
           PR: ${{ steps.changesets.outputs.pr-number }}
-          HAS_PAT: ${{ secrets.RELEASE_BOT_PAT != '' }}
+          SOURCE: ${{ steps.source.outputs.source }}
         run: |
           set -euo pipefail
-          if [ "$HAS_PAT" = "true" ]; then
+          # An App cannot approve the PR it opened; a PAT's user can. No review is required
+          # (`required_approving_review_count: 0`), so this is a signature, not a gate.
+          if [ "$SOURCE" = "pat" ]; then
             gh pr review "$PR" --approve --body "Auto-approved by changesets bot — review via the changesets that produced this PR." || \
               echo "::warning::Auto-approve failed (PAT may lack permission). Auto-merge still set."
           fi
           gh pr merge "$PR" --auto --squash || \
             echo "::warning::gh pr merge --auto returned non-zero. Is auto-merge enabled in Settings → General?"
+
+  # ── GITHUB_TOKEN fallback, part 1: the required checks ─────────────────────────────
+  #
+  # A `workflow_dispatch` is the one event GITHUB_TOKEN may raise, so each workflow that
+  # reports a required check is dispatched on the Version PR's branch. That is not enough
+  # on its own: GitHub documents that checks from a `workflow_dispatch` run "do not
+  # satisfy a required status check" even when they pass on the PR's head commit
+  # (docs.github.com → Troubleshooting required status checks). The rule is about check
+  # runs made by workflow jobs; a commit *status* with the same context is what branch
+  # protection reads for a required context with no app pinned (`app_id: null`, which is
+  # how `main` is configured). So each leg waits for its dispatched run and posts that
+  # run's result — never an assumed one — as a status on the head commit, linked to the
+  # run.
+  #
+  # One leg per workflow that reports a required check. `scripts/lint-workflows.ts`
+  # fails if a workflow reports a REQUIRED_CHECKS name and has no row here, or has no
+  # `workflow_dispatch:` trigger to be dispatched by.
+  checks:
+    name: Version PR · ${{ matrix.check }} (dispatched)
+    needs: version
+    if: >-
+      needs.version.outputs.token-source == 'github-token'
+      && needs.version.outputs.has-changesets == 'true' && needs.version.outputs.pr-number != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      actions: write # gh workflow run
+      statuses: write # mirror the result onto the head commit
+      contents: read
+      pull-requests: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { workflow: quality.yml, check: "Quality Gate" }
+          - { workflow: quality-full.yml, check: "Quality (Full) Gate" }
+          - { workflow: claude-code-review.yml, check: "review" }
+          - { workflow: compat.yml, check: "Ratchet · each host's suite against burgee" }
+    steps:
+      - name: Dispatch ${{ matrix.workflow }} and mirror `${{ matrix.check }}`
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ needs.version.outputs.pr-number }}
+          BRANCH: changeset-release/main
+          WORKFLOW: ${{ matrix.workflow }}
+          CHECK: ${{ matrix.check }}
+        run: |
+          set -euo pipefail
+          sha=$(gh pr view "$PR" --json headRefOid --jq .headRefOid)
+          status() { # state description [target_url]
+            args=(-f state="$1" -f context="$CHECK" -f description="${2:0:140}")
+            [ -n "${3:-}" ] && args+=(-f target_url="$3")
+            gh api -X POST "repos/$GH_REPO/statuses/$sha" "${args[@]}" >/dev/null
+          }
+          status pending "Dispatched $WORKFLOW (Version PR opened with GITHUB_TOKEN)"
+          since=$(date -u -d '-2 minutes' +%Y-%m-%dT%H:%M:%SZ)
+          gh workflow run "$WORKFLOW" --ref "$BRANCH"
+
+          # `gh workflow run` does not return the run it created; find it by head SHA.
+          run=""
+          for _ in $(seq 1 36); do
+            run=$(gh run list --workflow "$WORKFLOW" --branch "$BRANCH" --event workflow_dispatch --limit 20 \
+              --json databaseId,headSha,createdAt \
+              --jq "[.[] | select(.headSha == \"$sha\" and .createdAt >= \"$since\")] | first | .databaseId // empty")
+            [ -n "$run" ] && break
+            sleep 5
+          done
+          if [ -z "$run" ]; then
+            status error "No $WORKFLOW run appeared for $sha — the branch may have moved; the next refresh re-dispatches"
+            echo "::error::No dispatched $WORKFLOW run found for $sha."
+            exit 1
+          fi
+          url="$GITHUB_SERVER_URL/$GH_REPO/actions/runs/$run"
+          echo "Waiting on $url"
+          gh run watch "$run" --interval 30 >/dev/null || true
+
+          conclusion=$(gh run view "$run" --json jobs --jq "[.jobs[] | select(.name == \"$CHECK\")] | first | .conclusion // \"missing\"")
+          if [ "$conclusion" = "success" ]; then
+            status success "$CHECK passed in the dispatched $WORKFLOW run" "$url"
+          else
+            status failure "$CHECK: $conclusion in the dispatched $WORKFLOW run" "$url"
+            echo "::error::$CHECK concluded '$conclusion' on the Version PR — $url"
+            exit 1
+          fi
+
+  # ── GITHUB_TOKEN fallback, part 2: merge, then start what the merge will not ───────
+  #
+  # Under GITHUB_TOKEN the merge itself raises no push runs (see #393 above), so this job
+  # merges only once every mirrored check is green, and then dispatches the post-merge
+  # verification and the release on `main`. `release.yml` publishes only once its own
+  # `verify` job sees `Quality Gate` and `Quality (Full) Gate` pass on that commit, so
+  # dispatching the release beside them is safe: it waits for them.
+  #
+  # A merge refused here is not an error: it means `main` moved under the PR (strict
+  # branch protection), and the push that moved it re-runs this workflow, which refreshes
+  # the Version PR and comes back through here.
+  land:
+    name: Version PR · merge and start the release
+    needs: [version, checks]
+    if: needs.version.outputs.token-source == 'github-token' && needs.checks.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: write # gh workflow run on main
+      contents: write # the merge
+      pull-requests: write
+    steps:
+      - name: Merge the Version PR and dispatch the post-merge runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ needs.version.outputs.pr-number }}
+        run: |
+          set -euo pipefail
+          # An auto-merge a GITHUB_TOKEN run enabled before this job existed can win the race
+          # the moment the last status lands. That merge raised no runs either, so it is
+          # handled exactly like ours: the post-merge runs below still have to be started.
+          if ! gh pr merge "$PR" --squash; then
+            if [ "$(gh pr view "$PR" --json state --jq .state)" != "MERGED" ]; then
+              echo "::warning::The Version PR did not merge (main moved, or a check went red since). The next push to main refreshes it and retries."
+              exit 0
+            fi
+            echo "#$PR was already merged — starting the post-merge runs it did not raise."
+          fi
+          for wf in quality.yml quality-full.yml release.yml; do
+            gh workflow run "$wf" --ref main
+          done
+          echo "Merged #$PR; dispatched quality.yml, quality-full.yml and release.yml on main." >> "$GITHUB_STEP_SUMMARY"
 
   required:
     name: Changeset present
