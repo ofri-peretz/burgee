@@ -242,9 +242,16 @@ const RULES: Record<string, EntryRule> = {
   // second number is the one D-093 declined this split on without having, which is why the
   // decision is reversed rather than re-argued. `linegauge` leaves the allow-list with
   // `help.js`: the renderer is the only thing that measured a terminal.
+  //
+  // 42,700 on 2026-09-22 for **374 bytes**: E6's `AUTH` code and the `AuthError` that reaches
+  // it. A refused credential exited `RUNTIME` before this — the code for everything — so a
+  // caller could not tell *get a credential and run it again* from *it failed, read the
+  // message*, and a retry loop on one is a retry loop on both, forever. The requirement calls
+  // `AUTH` "the most actionable single code in the survey" and it is the one the taxonomy was
+  // missing. 374 bytes for a branch every caller can take.
   ".": {
     allow: ["closeout", "seniority/precedence"],
-    budget: 42_300,
+    budget: 42_700,
     denied: [
       "testing.js",
       "testing-helpers.js",
@@ -310,7 +317,9 @@ const RULES: Record<string, EntryRule> = {
   // calls "the row most likely to make a test pass for the wrong reason". It is: `tty: true`
   // got the non-interactive floor, and a `cwd` pointed at a fixture tree had config discovery
   // read the repository the test was running in. The 92 bytes are three forwarded fields.
-  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 47_000, denied: ["dev.js", "migrate.js"] },
+  // 47,400 on 2026-09-22 with `.` above: the harness runs a whole program, so it carries
+  // `AuthError` for the same reason it carries everything else. Measured 47,385.
+  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 47_400, denied: ["dev.js", "migrate.js"] },
   /**
    * The four doors the root barrel stopped holding open (see `.` above). Each is the same
    * module the engine reaches behind an `await import()`, published so a program that wants it

@@ -47,7 +47,7 @@ export {
   type RunResult,
 } from './execute.js';
 export { checkCommand, checkDefinition } from './definition.js';
-export { camel, kebab, UsageError } from './validate.js';
+export { AuthError, camel, kebab, UsageError } from './validate.js';
 export { AGENT_PROBES, detectAgent, type AgentProbe, type Detection } from './agent.js';
 export type { HelpOptions, HelpTheme, HelpToken } from './help.js';
 export type { Invoke, ServeOptions, Tool, ToolAnnotations } from './mcp.js';

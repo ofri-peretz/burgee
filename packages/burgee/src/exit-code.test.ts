@@ -12,6 +12,7 @@ describe('ExitCode (E1)', () => {
       USAGE: 2,
       CONFIG: 3,
       CANCELLED: 4,
+      AUTH: 5,
       SIGINT: 130,
     });
   });
@@ -21,10 +22,13 @@ describe('ExitCode (E1)', () => {
     expect(new Set(codes).size).toBe(codes.length);
   });
 
-  it('recognises only the six codes', () => {
+  it('recognises only the seven codes', () => {
     expect(isExitCode(ExitCode.SIGINT)).toBe(true);
     expect(isExitCode(ExitCode.OK)).toBe(true);
-    expect(isExitCode(ExitCode.CANCELLED + 1)).toBe(false);
+    expect(isExitCode(ExitCode.AUTH)).toBe(true);
+    // 6, not `CANCELLED + 1` — that was 5 and became `AUTH` when E6 landed, so the case
+    // asserting an unknown code was asserting a known one. The next free number instead.
+    expect(isExitCode(ExitCode.AUTH + 1)).toBe(false);
     expect(isExitCode('2')).toBe(false);
   });
 });

@@ -53,6 +53,31 @@ describe("the burgee audit's tally", () => {
     expect(stated, `the document says Not built: ${String(stated)} and the tables hold ${String(notBuilt)}`).toBe(notBuilt);
   });
 
+  /**
+   * The assertion the first draft left out, and it went straight past a real regression.
+   *
+   * `E7` was marked **Partly built** — a status the document does not have. Three of its
+   * statuses are matched here, so the row simply stopped being counted, and the two totals
+   * stayed consistent with each other at 113 of 114 while a requirement quietly left the
+   * audit. Two numbers agreeing is not the property worth checking; **every requirement
+   * having a verdict** is.
+   *
+   * The document's own convention is the answer and it is written down two paragraphs above
+   * the tables: *"`Not built` is the answer whenever the behaviour the requirement states is
+   * not true of the tree — including when a good half of it is, in which case the evidence
+   * says which half."* There is no third status, on purpose.
+   */
+  it('gives every requirement a verdict', () => {
+    const audited = new Set(rows.map((r) => r[1]));
+    const declared = [...spec.matchAll(/^\| (\*\*)?([A-Z]+\d+)(\*\*)? \|/gm)].map((m) => m[2] ?? '');
+    const missing = [...new Set(declared)].filter((id) => !audited.has(id));
+    expect(
+      missing,
+      'a requirement has no Built / Not built row. A status the tables do not use — "Partly built" was the one — ' +
+        'drops the row out of the audit and leaves both totals agreeing with each other about a smaller document.',
+    ).toEqual([]);
+  });
+
   it('numbers every requirement once', () => {
     const ids = rows.map((r) => r[1]);
     const seen = new Set<string>();
