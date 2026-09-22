@@ -1,7 +1,8 @@
 /** commander-env V1–V3, V5, R2, R7 — one case per precedence pair and per upstream issue, on the pure resolver. */
 import { describe, expect, it } from 'vitest';
 
-import { ConfigError, envName, explain, ORDER, RANK, resolve, screaming, type Layers } from './precedence.js';
+import { explain } from './explain-entry.js';
+import { ConfigError, envName, ORDER, RANK, resolve, screaming, type Layers } from './precedence.js';
 
 const specs = {
   region: { type: 'string' as const, default: 'us-1', description: 'the region' },

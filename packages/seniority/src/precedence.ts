@@ -1,4 +1,3 @@
-import { explanation, renderExplanation } from './explain.js';
 
 /**
  * One precedence order, fixed and not configurable (commander-env V1–V3, V5):
@@ -215,13 +214,15 @@ export function resolve(specs: Record<string, OptionSpec>, layers: Layers): Reso
 }
 
 /**
- * `--explain <option>`: the winning source and every candidate it beat, or that was unset (V3).
+ * `--explain <option>` lives at `seniority/explain`, not here.
  *
- * The text is a **rendering of the record** (R4, Y5), not a second implementation of it —
- * `explain.ts` owns `explanation()`, and this is `renderExplanation` over it. The record is
- * what `--json` and the agent event are made of; `explain.test.ts` asserts the three agree
- * by construction rather than by review.
+ * It was exported from this module until 2026-09-22, and a re-export is not free: it made
+ * `explain.js` live for every consumer that resolves a configuration, whether or not anything
+ * ever explains one. `burgee` is the consumer that measured it — 1,018 bundled bytes and one
+ * more module on the startup path of every program, for a branch taken only when a user asks
+ * *why did this option get that value*.
+ *
+ * Nothing about the answer changed: `explain.ts` still owns `explanation()`, the text is still
+ * a rendering of the record rather than a second implementation of it, and `explain.test.ts`
+ * still asserts the three agree by construction.
  */
-export function explain(name: string, resolution: Resolution): string {
-  return renderExplanation(explanation(name, resolution));
-}

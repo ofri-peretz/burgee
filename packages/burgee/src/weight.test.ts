@@ -332,9 +332,14 @@ const RULES: Record<string, EntryRule> = {
   },
   // Configuration precedence, provenance and `--explain`, which are `seniority`'s and are
   // re-exported rather than reimplemented. 90 bytes of door. Measured 90.
+  //
+  // Two externals since 2026-09-22, not one: `explain` moved out of `seniority/precedence` into
+  // `seniority/explain`, because a re-export there put `explain.js` on the startup path of every
+  // program that resolves a configuration. This door still opens on both halves — it is the
+  // configuration surface — and `.` above pays for neither.
   "./config": {
-    allow: ["seniority/precedence"],
-    budget: 100,
+    allow: ["seniority/explain", "seniority/precedence"],
+    budget: 130,
     denied: ["index.js", "execute.js", "help.js", "mcp.js", "schema.js", "testing.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
   },
   // The plugin host, at the subpath the rest of the family publishes it at. Added
