@@ -61,10 +61,14 @@ import { createRequire } from 'node:module';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { HOSTS, type Host } from 'compat-oracle/hosts';
-import { fieldsFromRecord, PROVENANCE_FILE, type ProvenanceFields, renderProvenance, UNKNOWN } from 'compat-oracle/provenance';
-import { type CompatRecord, latestVersion, readRecord } from 'compat-oracle/upstream';
-import { vendor } from 'compat-oracle/vendor';
+// eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: a bare `compat-oracle/*` resolves from another checkout's dist/ in an uninstalled worktree (compat-oracle R6, scripts/oracle-import-lock.test.ts)
+import { HOSTS, type Host } from '../packages/compat-oracle/src/hosts.js';
+// eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: a bare `compat-oracle/*` resolves from another checkout's dist/ in an uninstalled worktree (compat-oracle R6, scripts/oracle-import-lock.test.ts)
+import { fieldsFromRecord, PROVENANCE_FILE, type ProvenanceFields, renderProvenance, UNKNOWN } from '../packages/compat-oracle/src/provenance.js';
+// eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: a bare `compat-oracle/*` resolves from another checkout's dist/ in an uninstalled worktree (compat-oracle R6, scripts/oracle-import-lock.test.ts)
+import { type CompatRecord, latestVersion, readRecord } from '../packages/compat-oracle/src/upstream.js';
+// eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: a bare `compat-oracle/*` resolves from another checkout's dist/ in an uninstalled worktree (compat-oracle R6, scripts/oracle-import-lock.test.ts)
+import { vendor } from '../packages/compat-oracle/src/vendor.js';
 
 const REPO_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const VENDOR_DIR = join(REPO_ROOT, 'packages', 'compat-oracle', 'vendor');

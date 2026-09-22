@@ -6,7 +6,8 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { HOSTS } from 'compat-oracle/hosts';
+// eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: a bare `compat-oracle/*` resolves from another checkout's dist/ in an uninstalled worktree (compat-oracle R6, scripts/oracle-import-lock.test.ts)
+import { HOSTS } from '../packages/compat-oracle/src/hosts.js';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const oracle = join(root, 'packages', 'compat-oracle');

@@ -53,7 +53,8 @@ import {
   type SearchItem,
   type Section,
   TOP_N,
-} from 'compat-oracle/demand';
+  // eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: a bare `compat-oracle/*` resolves from another checkout's dist/ in an uninstalled worktree (compat-oracle R6, scripts/oracle-import-lock.test.ts)
+} from '../packages/compat-oracle/src/demand.js';
 
 const REPO_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const INTENTS = join(REPO_ROOT, '.sdlc', 'intents');
