@@ -135,7 +135,10 @@ const RULES: Record<string, EntryRule> = {
    * and its code instead of hand-checking `fallback` itself. Measured **17,710 B**; 290 B of
    * headroom, where there were 1,384. The reasoning is written out on `.` above.
    */
-  './plugin': { allow: [], budget: 13_400, denied: ['index.js', 'builtins.js', 'ansi-escapes.js'] },
+  // 13,500 for **96 bytes**: `FIX` is a runtime table keyed by `PluginErrorCode`, so the
+  // `E_NO_CONTRIBUTION` code `paratext check` refuses with has to carry its fix text here, where
+  // every refusal's fix lives. Measured 13,496.
+  './plugin': { allow: [], budget: 13_500, denied: ['index.js', 'builtins.js', 'ansi-escapes.js'] },
 };
 
 const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;

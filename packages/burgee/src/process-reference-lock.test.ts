@@ -95,6 +95,27 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
   return out;
 }
 
+/**
+ * The one other file allowed to name the process, per package: the program `package.json`
+ * declares as its `bin`. Derived, not listed — the note above says an allow-list's failure mode
+ * is an entry that outlives the code that earned it, and one read from `bin` cannot. Every plugin
+ * host grew a `check` command on 2026-09-22 and each is a ten-line `cli.ts` that hands argv, a
+ * writer and an exit code to a pure `check.ts`; a command line owns its process by definition.
+ */
+function binSources(pkg: string): Set<string> {
+  let manifest: { bin?: Record<string, string> | string };
+  try {
+    manifest = JSON.parse(readFileSync(join(PACKAGES, pkg, 'package.json'), 'utf-8')) as { bin?: Record<string, string> | string };
+  } catch {
+    return new Set();
+  }
+  const targets = typeof manifest.bin === 'string' ? [manifest.bin] : Object.values(manifest.bin ?? {});
+  return new Set(targets.map((t) => `${pkg}/src/${t.replace('./dist/', '').replace(/\.js$/u, '.ts')}`));
+}
+
+/** A file that may name the process: a package's runtime seam, or the program it declares. */
+const ownsProcess = (pkg: string, rel: string): boolean => ALLOWED.has(rel) || binSources(pkg).has(rel);
+
 describe('process references stay behind the Runtime seam', () => {
   it('no layer source reads process.* outside the three files that own it', () => {
     const offenders: string[] = [];
@@ -110,7 +131,7 @@ describe('process references stay behind the Runtime seam', () => {
       for (const f of files) {
         // POSIX separators on every OS: the allow-list is written with them.
         const rel = relative(PACKAGES, f).split(sep).join('/');
-        if (ALLOWED.has(rel)) continue;
+        if (ownsProcess(pkg.name, rel)) continue;
         // CRLF checkouts (Windows) would otherwise leave a \r that stops the comment-stripping regex.
         const lines = readFileSync(f, 'utf-8').split(/\r?\n/);
         lines.forEach((line, i) => {

@@ -59,36 +59,55 @@ describe('strip agrees with strip-ansi', () => {
 });
 
 /**
- * The measurement, pinned. `util.stripVTControlCharacters` is exact on fifteen of the sixteen
- * shapes above and wrong on one, and this records which — so the next person to ask "why not
- * just use Node's?" reads the answer instead of re-deriving it, and so the day Node fixes it
- * the row that says otherwise goes red.
+ * The measurement, pinned — and it went red on 2026-09-22 exactly as it was written to.
+ *
+ * `util.stripVTControlCharacters` was exact on fifteen of the sixteen shapes above and wrong on
+ * one, the RGB colon form (`ESC[38:2::255:0:0m`): its scanner stopped at the first `:` and left
+ * `:2::255:0:0m` in the output as text. This block recorded which, *"so the day Node fixes it the
+ * row that says otherwise goes red"*. That day was the CI runner moving to **Node v24.21.0**,
+ * where the colon form strips cleanly. **v24.13.0 and v24.18.0 still leave the parameters
+ * behind**, measured on both.
+ *
+ * So the block is now about the version rather than about Node, and the part that matters did
+ * not move: linegauge declares `engines.node >= 24`, which admits every Node 24 that still has
+ * the bug, so its own scanner is still needed and still correct on all of them. What each case
+ * asserts is linegauge's behaviour unconditionally, and Node's behaviour as one of the two shapes
+ * it has been measured to take — a third shape is a new Node and a new note, which is the
+ * property this canary was always for.
  */
-describe('where Node\u2019s own stripper diverges', () => {
+const NODE_FIXED_COLON_FORM = nodeStripHandlesColon();
+
+function nodeStripHandlesColon(): boolean {
+  return nodeStrip(`${ESC}[38:2::255:0:0mred${ESC}[39m`) === 'red';
+}
+
+describe('where Node\u2019s own stripper diverges, on the Node versions where it still does', () => {
   const COLON = `${ESC}[38:2::255:0:0mred${ESC}[39m`;
 
-  it('agrees with Node on fifteen of the sixteen shapes', () => {
+  it('agrees with Node everywhere except the colon form, and there only on an older Node 24', () => {
     const differ = SHAPES.filter(([, input]) => nodeStrip(input) !== stripAnsi(input)).map(([name]) => name);
-    expect(differ, 'if this list changed, Node changed — update the note in strip.ts').toEqual(['RGB colon form']);
+    expect(differ, 'a shape outside the two measured states — Node changed again; update the note in strip.ts').toEqual(
+      NODE_FIXED_COLON_FORM ? [] : ['RGB colon form'],
+    );
   });
 
-  it('leaves the sub-parameters of a colon-form colour in the output as text', () => {
-    // Node's scanner stops at the first `:`. This is not an exotic dialect — it is how a
-    // truecolor SGR is written in the ITU T.416 sub-parameter form, which chalk and
+  it('strips a colon-form colour correctly on every Node, which is why it has its own scanner', () => {
+    // Node's scanner stopped at the first `:` before v24.21. This is not an exotic dialect — it
+    // is how a truecolor SGR is written in the ITU T.416 sub-parameter form, which chalk and
     // wrap-ansi both emit and which `style.ts` has always parsed.
-    expect(nodeStrip(COLON)).toBe(':2::255:0:0mred');
     expect(strip(COLON)).toBe('red');
+    expect(nodeStrip(COLON)).toBe(NODE_FIXED_COLON_FORM ? 'red' : ':2::255:0:0mred');
   });
 
   /**
    * The live consequence, which is why this was worth fixing rather than noting. `width.ts`
-   * called `stripVTControlCharacters`, so every measurement of a colon-form string was wrong
-   * by the length of the leftover parameters — and `wrap`, `slice`, `truncate`, `widest` and
-   * flagstaff's box, table and spinner all measure through it.
+   * called `stripVTControlCharacters`, so every measurement of a colon-form string was wrong by
+   * the length of the leftover parameters — and `wrap`, `slice`, `truncate`, `widest` and
+   * flagstaff's box, table and spinner all measure through it. On a Node that still has the bug,
+   * that is 15 for a three-column string.
    */
-  it('and that made width() answer 15 for a three-column string', () => {
+  it('measures a colon-form string at its real width on every Node', () => {
     expect(width(COLON)).toBe(3);
-    // The number the old implementation produced, stated so the regression has a shape.
-    expect(nodeStrip(COLON).length).toBe(15);
+    expect(nodeStrip(COLON).length).toBe(NODE_FIXED_COLON_FORM ? 3 : 15);
   });
 });

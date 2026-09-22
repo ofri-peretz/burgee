@@ -123,7 +123,7 @@ export interface Plugin {
  * Two codes, both already in the family's vocabulary
  * (`scripts/plugin-error-vocabulary-lock.test.ts`).
  */
-export type PluginErrorCode = 'E_PLUGIN_SCHEMA' | 'E_PLUGIN_CONTRACT';
+export type PluginErrorCode = 'E_PLUGIN_SCHEMA' | 'E_PLUGIN_CONTRACT' | 'E_NO_CONTRIBUTION';
 
 /** A refused plugin says what is wrong and what to do about it — the family's one vocabulary. */
 export class PluginError extends Error {

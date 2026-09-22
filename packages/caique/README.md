@@ -258,7 +258,7 @@ Graded by the incumbent's own test suite:
 | `clack` | 14 / 17 |
 | `inquirer-core` | 41 / 41 |
 
-Weight, installed and tree-inclusive: **111,914 bytes** against **182,219** for the incumbents it replaces — a ratio of **0.6142** (@inquirer/core not installed here, so the ceiling is understated).
+Weight, installed and tree-inclusive: **114,850 bytes** against **182,219** for the incumbents it replaces — a ratio of **0.6303** (@inquirer/core not installed here, so the ceiling is understated).
 ## Where it sits
 
 Plugins register under the `widgets` key, against the one schema the whole family shares.

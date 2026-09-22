@@ -1,0 +1,28 @@
+{
+  "id": "closeout-plugin-from-schema",
+  "why": "PRINCIPLES 7, for closeout. The claim every plugin host makes is that its `schema.json` plus its README is enough for an agent to write a working plugin in one turn, and that `closeout check` tells it so without a human reading the output. Until 2026-09-22 only flagstaff measured that; this is closeout's half. If the agent needs a second turn, or someone has to explain a refusal, the schema is not self-describing and `check` is not the feedback loop it claims to be.",
+  "prompt": "Read packages/closeout/src/schema.json and packages/closeout/README.md. Write a closeout plugin to the file evals/results/lockfile-plugin.mjs. It must be a single ES module with a default export, must be named \"lockfile\", and must contribute one exit handler called \"unlock\" that runs on every path out of the process. Then verify it by running: node packages/closeout/dist/cli.js check evals/results/lockfile-plugin.mjs \u2014 and if that command exits non-zero, fix the plugin until it exits zero. Do not modify anything under packages/.",
+  "allowedTools": "Read,Write,Edit,Bash",
+  "expect": [
+    {
+      "check": "shell",
+      "value": "test -f evals/results/lockfile-plugin.mjs"
+    },
+    {
+      "check": "shell",
+      "value": "node packages/closeout/dist/cli.js check evals/results/lockfile-plugin.mjs"
+    },
+    {
+      "check": "shell",
+      "value": "node packages/closeout/dist/cli.js check evals/results/lockfile-plugin.mjs | grep -q '^lockfile: ok'"
+    },
+    {
+      "check": "shell",
+      "value": "node packages/closeout/dist/cli.js check evals/results/lockfile-plugin.mjs | grep -q '^lockfile \u2014 1 handlers'"
+    },
+    {
+      "check": "output-omits",
+      "value": "E_PLUGIN_SCHEMA"
+    }
+  ]
+}

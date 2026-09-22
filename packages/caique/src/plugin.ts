@@ -67,7 +67,7 @@ export interface Plugin {
   widgets?: Record<string, Widget>;
 }
 
-export type PluginErrorCode = 'E_PLUGIN_SCHEMA' | 'E_PLUGIN_CONTRACT' | 'E_NO_STATIC_PROJECTION' | 'E_UNKNOWN_KIND';
+export type PluginErrorCode = 'E_PLUGIN_SCHEMA' | 'E_PLUGIN_CONTRACT' | 'E_NO_STATIC_PROJECTION' | 'E_UNKNOWN_KIND' | 'E_NO_CONTRIBUTION';
 
 /** A refused plugin says what is wrong and what to do about it — the family's one vocabulary. */
 export class PluginError extends Error {

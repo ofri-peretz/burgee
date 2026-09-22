@@ -1,0 +1,24 @@
+{
+  "id": "burgee-plugin-from-schema",
+  "why": "PRINCIPLES 7, for burgee \u2014 and the one case in the family measured through `--json`, because burgee's `check` returns its report as a document rather than printing it. The claim is that `burgee/plugin`'s schema plus the README is enough for an agent to write a plugin that contributes a command and a hook in one turn, and that the agent can read the verdict without parsing prose: a refusal carries `refused.code` and `refused.fix`, and the process exits 1. If the agent has to scrape text to find out what went wrong, the document is not doing its job.",
+  "prompt": "Read packages/burgee/src/schema.json, packages/burgee/src/plugin.ts and packages/burgee/README.md. Write a burgee plugin to the file evals/results/audit-plugin.mjs. It must be a single ES module with a default export, must be named \"audit\", must contribute one command whose path is [\"audit\"] and which only reads, and must add a preRun hook that applies only to commands whose name starts with \"deploy\". Then verify it by running: node packages/burgee/dist/cli.js check evals/results/audit-plugin.mjs --json \u2014 read the JSON it prints, and if the process exits non-zero, fix the plugin using the `fix` it gives you until it exits zero. Do not modify anything under packages/.",
+  "allowedTools": "Read,Write,Edit,Bash",
+  "expect": [
+    {
+      "check": "shell",
+      "value": "test -f evals/results/audit-plugin.mjs"
+    },
+    {
+      "check": "shell",
+      "value": "node packages/burgee/dist/cli.js check evals/results/audit-plugin.mjs --json"
+    },
+    {
+      "check": "shell",
+      "value": "node packages/burgee/dist/cli.js check evals/results/audit-plugin.mjs --json | node -e \"let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const d=JSON.parse(s).data;process.exit(d.name==='audit'&&d.commands.length===1&&d.hooks.some(h=>h.stage==='preRun')?0:1)})\""
+    },
+    {
+      "check": "output-omits",
+      "value": "E_PLUGIN_SCHEMA"
+    }
+  ]
+}

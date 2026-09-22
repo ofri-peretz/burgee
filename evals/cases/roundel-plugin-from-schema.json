@@ -1,0 +1,28 @@
+{
+  "id": "roundel-plugin-from-schema",
+  "why": "PRINCIPLES 7, for roundel. The claim every plugin host makes is that its `schema.json` plus its README is enough for an agent to write a working plugin in one turn, and that `roundel check` tells it so without a human reading the output. Until 2026-09-22 only flagstaff measured that; this is roundel's half. If the agent needs a second turn, or someone has to explain a refusal, the schema is not self-describing and `check` is not the feedback loop it claims to be.",
+  "prompt": "Read packages/roundel/src/schema.json and packages/roundel/README.md. Write a roundel plugin to the file evals/results/brand-plugin.mjs. It must be a single ES module with a default export, must be named \"brand\", and must contribute one token override that sets the `ok` token to the colour #2E7D32. Then verify it by running: node packages/roundel/dist/cli.js check evals/results/brand-plugin.mjs \u2014 and if that command exits non-zero, fix the plugin until it exits zero. Do not modify anything under packages/.",
+  "allowedTools": "Read,Write,Edit,Bash",
+  "expect": [
+    {
+      "check": "shell",
+      "value": "test -f evals/results/brand-plugin.mjs"
+    },
+    {
+      "check": "shell",
+      "value": "node packages/roundel/dist/cli.js check evals/results/brand-plugin.mjs"
+    },
+    {
+      "check": "shell",
+      "value": "node packages/roundel/dist/cli.js check evals/results/brand-plugin.mjs | grep -q '^brand: ok'"
+    },
+    {
+      "check": "shell",
+      "value": "node packages/roundel/dist/cli.js check evals/results/brand-plugin.mjs | grep -q '^brand \u2014 1 tokens'"
+    },
+    {
+      "check": "output-omits",
+      "value": "E_PLUGIN_SCHEMA"
+    }
+  ]
+}

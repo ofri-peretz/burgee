@@ -55,9 +55,20 @@ const touchesProcess = (file: string): boolean =>
       return PROCESS_READ.test(code) || REFLECTED_READ.test(line);
     });
 
-describe('exactly one file touches the process (R7)', () => {
-  it('and it is ambient.ts', () => {
-    expect(sources().filter(touchesProcess)).toEqual(['ambient.ts']);
+describe('exactly one file touches the process (R7), plus the program', () => {
+  /**
+   * `ambient.ts` is the library's one door to the process, and that is R7. The second file is
+   * not the library: it is the `bin` `package.json` declares — `closeout check`, since
+   * 2026-09-22 — and a command line owns its process by definition. It is read from `bin`, so
+   * the exemption lasts exactly as long as the program does, and the pure logic lives in
+   * `check.ts`, which touches nothing.
+   */
+  it('and it is ambient.ts, with the declared bin beside it', () => {
+    const bin = Object.values((JSON.parse(readFileSync(resolve(pkgRoot, 'package.json'), 'utf8')) as { bin?: Record<string, string> }).bin ?? {}).map((target) =>
+      target.replace('./dist/', '').replace(/\.js$/u, '.ts'),
+    );
+    expect(sources().filter(touchesProcess).filter((file) => !bin.includes(file))).toEqual(['ambient.ts']);
+    expect(bin.every((file) => sources().includes(file)), 'package.json names a bin with no source behind it').toBe(true);
   });
 
   it('the check can fail — it finds the read it is looking for', () => {

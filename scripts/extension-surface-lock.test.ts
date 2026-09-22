@@ -17,8 +17,23 @@
  * | | plugin + schema | `validate` | `check` | eval |
  * | :--- | :---: | :---: | :---: | :---: |
  * | flagstaff | yes | yes | yes | yes |
- * | burgee | yes | yes | no | no |
- * | bellpull, caique, closeout, linegauge, paratext, roundel, seniority | yes | yes | no | no |
+ * | burgee | yes | yes | yes | yes |
+ * | bellpull, caique, closeout, linegauge, paratext, roundel, seniority | yes | yes | yes | yes |
+ *
+ * **`check` is nine of nine since 2026-09-22.** It was one — `flagstaff check` — so an author
+ * writing a plugin for any other host found out what it did by shipping it into a program. Each
+ * package's is its own (`src/check.ts`, with a ten-line `src/cli.ts` that owns the process),
+ * because each renders something different and each package is an independent product. What
+ * they share is the contract with the author, and `plugin-check-lock.test.ts` holds that
+ * identically across all nine: a readable report ending in `ok`, a refusal with a code and a
+ * fix, `E_NO_CONTRIBUTION` for a plugin with nothing for this host, and exit 2 with no file.
+ *
+ * **And the eval column is nine of nine with it**, because this file's one enforced implication
+ * refuses a `check` without a case. Each of the eight new cases under `evals/cases/` was proved
+ * to discriminate before it was committed: every shell check green against a correct plugin, and
+ * red against the same plugin with one field broken, where that host's `check` refuses with its
+ * own code — `E_NO_STATIC_PROJECTION` for paratext's missing fallback, `E_PLUGIN_CONTRACT` for
+ * burgee's missing contract, `E_PLUGIN_SCHEMA` for the rest.
  *
  * **Nine of nine since 2026-09-22.** `linegauge` was the empty row, and it was empty honestly:
  * a width function is not obviously extensible, and an extension point invented to fill a table
@@ -48,15 +63,15 @@ const PACKAGES = join(REPO_ROOT, 'packages');
 
 /** What PRINCIPLES 7 asks for, per package, as it stands. */
 const DECLARED = {
-  bellpull: { plugin: true, check: false, eval: false },
-  burgee: { plugin: true, check: false, eval: false },
-  caique: { plugin: true, check: false, eval: false },
-  closeout: { plugin: true, check: false, eval: false },
+  bellpull: { plugin: true, check: true, eval: true },
+  burgee: { plugin: true, check: true, eval: true },
+  caique: { plugin: true, check: true, eval: true },
+  closeout: { plugin: true, check: true, eval: true },
   flagstaff: { plugin: true, check: true, eval: true },
-  linegauge: { plugin: true, check: false, eval: false },
-  paratext: { plugin: true, check: false, eval: false },
-  roundel: { plugin: true, check: false, eval: false },
-  seniority: { plugin: true, check: false, eval: false },
+  linegauge: { plugin: true, check: true, eval: true },
+  paratext: { plugin: true, check: true, eval: true },
+  roundel: { plugin: true, check: true, eval: true },
+  seniority: { plugin: true, check: true, eval: true },
 } as const;
 
 /** Published packages only — `compat-oracle` and `docs` are private and extend nothing. */

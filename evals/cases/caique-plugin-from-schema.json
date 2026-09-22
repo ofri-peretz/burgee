@@ -1,0 +1,28 @@
+{
+  "id": "caique-plugin-from-schema",
+  "why": "PRINCIPLES 7, for caique. The claim every plugin host makes is that its `schema.json` plus its README is enough for an agent to write a working plugin in one turn, and that `caique check` tells it so without a human reading the output. Until 2026-09-22 only flagstaff measured that; this is caique's half. If the agent needs a second turn, or someone has to explain a refusal, the schema is not self-describing and `check` is not the feedback loop it claims to be.",
+  "prompt": "Read packages/caique/src/schema.json and packages/caique/README.md. Write a caique plugin to the file evals/results/stars-plugin.mjs. It must be a single ES module with a default export, must be named \"stars\", and must contribute one widget for a new prompt kind called \"rating\" with a static projection and a sample to preview it with. Then verify it by running: node packages/caique/dist/cli.js check evals/results/stars-plugin.mjs \u2014 and if that command exits non-zero, fix the plugin until it exits zero. Do not modify anything under packages/.",
+  "allowedTools": "Read,Write,Edit,Bash",
+  "expect": [
+    {
+      "check": "shell",
+      "value": "test -f evals/results/stars-plugin.mjs"
+    },
+    {
+      "check": "shell",
+      "value": "node packages/caique/dist/cli.js check evals/results/stars-plugin.mjs"
+    },
+    {
+      "check": "shell",
+      "value": "node packages/caique/dist/cli.js check evals/results/stars-plugin.mjs | grep -q '^stars: ok'"
+    },
+    {
+      "check": "shell",
+      "value": "node packages/caique/dist/cli.js check evals/results/stars-plugin.mjs | grep -q '^stars \u2014 1 widgets'"
+    },
+    {
+      "check": "output-omits",
+      "value": "E_PLUGIN_SCHEMA"
+    }
+  ]
+}
