@@ -26,19 +26,19 @@ const APP = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CONTENT = join(APP, 'content', 'docs');
 const PRERENDERED = join(APP, '.next', 'server', 'app');
 
-/** Every `.mdx` under `content/docs`, as repo-relative paths. */
+/** Every `.md` and `.mdx` under `content/docs`, as repo-relative paths. */
 function mdxFiles(dir: string, found: string[] = []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const abs = join(dir, entry.name);
     if (entry.isDirectory()) mdxFiles(abs, found);
-    else if (entry.name.endsWith('.mdx')) found.push(abs);
+    else if (/\.mdx?$/.test(entry.name)) found.push(abs);
   }
   return found;
 }
 
 /** The URL fumadocs' loader gives a file: `baseUrl` + its path, with `index` folded away. */
 function urlOf(abs: string): string {
-  const slug = relative(CONTENT, abs).replace(/\.mdx$/, '').split(/[\\/]/).filter((s) => s !== 'index');
+  const slug = relative(CONTENT, abs).replace(/\.mdx?$/, '').split(/[\\/]/).filter((s) => s !== 'index');
   return ['/docs', ...slug].join('/').replace('//', '/');
 }
 
