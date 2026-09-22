@@ -1,3 +1,6 @@
+// The capability definition alone, not the family schema: see `scripts/schema-sync.mjs`'s
+// FRAGMENTS and D-108. The whole contract still ships at `paratext/schema.json`, as data.
+import CAPABILITY_SCHEMA from './capability.schema.json' with { type: 'json' };
 /**
  * A capability is one plain object, and that is the whole extension surface.
  *
@@ -19,9 +22,6 @@
  * support" but "can someone add theirs without waiting for us".
  */
 import { type Runtime } from './runtime.js';
-// The capability definition alone, not the family schema: see `scripts/schema-sync.mjs`'s
-// FRAGMENTS and D-108. The whole contract still ships at `paratext/schema.json`, as data.
-import CAPABILITY_SCHEMA from './capability.schema.json' with { type: 'json' };
 import { type Schema, violations } from './shape.js';
 import { type Support, supports } from './supports.js';
 import { render } from './template.js';

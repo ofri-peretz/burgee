@@ -324,7 +324,7 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   //
   // **+68 on each of the three, 2026-09-22, and it is the seam linegauge's plugin host needs.**
   // The first cut put the whole override table in `width.ts` and cost **+182** on every entry —
-  // the note beside it claimed a program without a plugin "pays one `length === 0` per cluster",
+  // the note beside it claimed a program without a plugin paid one empty-list check per cluster,
   // which was true of runtime and false of bytes, and B4 said so on the first CI run. The table
   // moved into `plugin.ts`; `width.ts` keeps one nullable slot and one optional call, which is
   // the 68. That is the floor for an override that has to be consulted inside `measure`.
