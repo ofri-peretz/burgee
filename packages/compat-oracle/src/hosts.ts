@@ -942,6 +942,10 @@ export const HOSTS: Host[] = [
       { upstream: '../build/index.js', subpath: '', reexportDefault: true },
     ],
     suiteDeps: ['meow@14.1.0', 'ava@6.4.1', 'common-tags@2.0.0-alpha.1', 'execa@9.6.1', 'indent-string@5.0.0', 'read-pkg@10.1.0', 'stack-utils@2.0.6'],
+    controlFailures: {
+      count: 2,
+      why: "Two cases real meow cannot pass from a vendored copy of its tests. `build › main` imports `../build/index.js`, the rollup bundle meow publishes — it is built by `npm run build` in meow's own repo and the vendor step takes only `test/`, so the file is not there for either side. `pkg normalization is lazy` asserts that reading `cli.pkg` mutates the caller's own object, which is `normalize-package-data` doing it in place; meow gets that from a dependency and the vendored root does not install it. Neither is a divergence and neither is reachable: the first needs a build the oracle does not run, the second a package this repo will not take (U6). Measured 2026-09-21 — the control is 146 / 148 with these two named and 148 / 148 without them.",
+    },
     ungradedDirs: [
       {
         dir: 'fixtures',
