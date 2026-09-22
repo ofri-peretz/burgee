@@ -228,6 +228,11 @@ Every row moved, and the ones that went from ❌ to ✅ went a long way: 57,880 
 1.038× → 0.969×. The three still red moved too — 2.567× → 1.708×, 1.773× → 1.514×, 5.538× →
 2.740× — which is why they are worth reading rather than skipping.
 
+Bundled bytes are byte-identical wherever they are measured; cold start is not, and not even as
+a ratio. The 1.708× above is an M4 Pro's. CI's two-core runner reads **1.443×** on the same
+commit, and read 1.716× on the commit before it — so the ratio cancels the machine out *within*
+a box and only approximately across two.
+
 The two that moved to met are one change: the root barrel stopped re-exporting the value half of
 five optional modules, so `import { run } from 'burgee'` no longer loads the help renderer, the
 MCP server, the schema surface, the plugin host or the configuration layer. Each has a subpath of

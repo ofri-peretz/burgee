@@ -265,17 +265,34 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // dynamic import names a known specifier. The real fix is code splitting, which is a build
   // change and not this PR's; until then the number is honest and the ceiling moves once,
   // deliberately, to sit just above it rather than the measurement sitting above the ceiling.
-  burgee: 41_000,
-  'burgee/commander': 64_000,
-  'burgee/yargs': 112_000,
+  //
+  // **Down, on 2026-09-21, for the first time.** Two things happened at once: the metric
+  // started counting the whole startup graph rather than the entry chunk (D-100, which made
+  // every number bigger), and the root barrel stopped holding five optional modules open
+  // (D-101, which made this one much smaller). The engine measures **28,637** and the three
+  // ceilings follow the measurements down — a ratchet that stays where the number used to be
+  // is not a ratchet, it is headroom nobody decided to grant.
+  burgee: 28_700,
+  'burgee/commander': 59_200,
+  'burgee/yargs': 107_700,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
   // bundle grows by, set where the number actually is, so the next byte is a decision.
-  linegauge: 6_250,
-  'linegauge/wrap': 11_200,
-  'linegauge/slice': 8_850,
+  //
+  // **Four of these move up by between 22 and 74 bytes, and D-096 is why.** #389 made
+  // linegauge's five Unicode property classes lazy; #400 recovered thirty of the bytes that
+  // cost, and the remaining ~111 an entry are **not recoverable by engineering** — writing
+  // the two joined source strings out literally to drop the array and its `.join()` calls
+  // measures **+73 bytes**, not fewer. What they buy is `width.js` importing in 5.95 ms
+  // rather than 15.30. `paratext`'s 22 are an older breach that measures the same at every
+  // commit around it. D-096 defaulted to "the trade stands and the ceilings move" and left it
+  // to the integrator; D-099 established that this loop owns a band breach the machinery was
+  // built to route, so the ceilings move here, at the measurement, with the trade named.
+  linegauge: 6_300,
+  'linegauge/wrap': 11_300,
+  'linegauge/slice': 8_950,
   'linegauge/strip': 1_000,
-  paratext: 11_100,
+  paratext: 11_150,
 };
 
 /**
@@ -348,7 +365,14 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // sigma over 41 observations, and `scripts/release-budget-lock.test.ts` refuses to let it
   // move unless the release moves with it in the same commit.
   burgee: releaseBudget('bundled-bytes-ratio:burgee\u00F7cac'),
-  'burgee/commander': 1.6,
+  // 1.52 from 1.6 on 2026-09-21: measured 1.514 under the corrected metric (D-100). The
+  // front-end's residual over commander is `commander/command.js` at 33,487 bundled against
+  // commander's 27,226, plus `bellpull/cross-spawn` at 5,060 — and the spawn cannot go lazy
+  // without giving up `parse()`'s synchronous contract and the ~23 `executableSubcommand`
+  // cases in commander's own suite that mock it, which is what the 1360 / 1360 row rests on.
+  // D-102 records that, and that ≤ 1 is not reachable while the façade also carries a
+  // manifest, a schema and an MCP server.
+  'burgee/commander': 1.52,
   'burgee/yargs': 1,
   'roundel/chalk': 1,
   'flagstaff/ora': 1,
@@ -371,14 +395,17 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // lighter.
   //
   // `linegauge/wrap` is the one set at 1, because 0.774 earns it.
-  linegauge: 1.03,
+  // 1.04 and 2.56 on 2026-09-21, with the four byte ceilings above and for the same reason
+  // (D-096): 111 bytes an entry that measurement says are not recoverable, against 9 ms of
+  // import time.
+  linegauge: 1.04,
   'linegauge/wrap': 1,
   'linegauge/slice': 1.5,
   'linegauge/strip': 2.25,
   // The layer that is over its D1 ceiling too — 66,305 against ansi-escapes' tree at 30,912,
   // a ratio of 2.145. That breach is real, it is recorded in the ceilings file, and this
   // ratchet exists so the bundled half cannot grow while it is being dealt with.
-  paratext: 2.55,
+  paratext: 2.56,
 };
 
 /**
