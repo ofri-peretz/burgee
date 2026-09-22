@@ -25,7 +25,7 @@ import { join, resolve } from 'node:path';
 
 import { sync as crossSpawnSync } from 'bellpull/cross-spawn';
 
-import { DEFAULT_EXPORT, fixtureSource, PAIRS, type EntryPair } from '../fixtures/entry-points.js';
+import { DEFAULT_EXPORT, fixtureSource, PAIRS, PARITY, stackFixtureSource, type EntryPair, type ParityStack } from '../fixtures/entry-points.js';
 import { type BenchRecord } from '../record.js';
 import { BENCH_ROOT, packageDir, relativeToRepo, resolvePackage } from '../resolve.js';
 import { round } from '../stats.js';
@@ -212,6 +212,36 @@ function measure(side: { specifier: string; symbol: string }, id: string): Measu
   const { dir, version } = resolvePackage(pkg);
   const { initial, whole } = bundle(side, id);
   return { bundled: initial, whole, installed: installedBytes(pkg), version, dir: relativeToRepo(dir) };
+}
+
+/**
+ * The incumbent plus everything a user of it installs to reach our capability set, bundled
+ * as one program. See `PARITY` in `fixtures/entry-points.ts` for the rule that decides what
+ * may be in it — and, more importantly, what may not.
+ *
+ * One fixture over several packages rather than the sum of several fixtures, because the sum
+ * would double-count: `cosmiconfig` and `restore-cursor` share transitive dependencies with
+ * each other and with the incumbent, and a user installing all three pays for each shared
+ * module once. Bundling them together is what a user's bundler does, so it is what this does.
+ */
+function stackBytes(stack: ParityStack, incumbent: { specifier: string; symbol: string }, id: string): { initial: number; whole: number } {
+  const sides = [incumbent, ...stack.adds.map((a) => ({ specifier: a.specifier, symbol: a.symbol }))];
+  mkdirSync(SCRATCH, { recursive: true });
+  const stem = `stack-${id.replaceAll('/', '__')}`;
+  const file = join(SCRATCH, `${stem}.mjs`);
+  writeFileSync(file, stackFixtureSource(sides));
+  const outdir = join(SCRATCH, `${stem}.chunks`);
+  rmSync(outdir, { recursive: true, force: true });
+  const metafile = join(SCRATCH, `${stem}.meta.json`);
+  execFileSync(esbuildBin(), [file, '--bundle', '--minify', '--format=esm', '--platform=node', '--splitting', `--outdir=${outdir}`, `--metafile=${metafile}`], {
+    cwd: BENCH_ROOT,
+    stdio: 'pipe',
+  });
+  const meta = JSON.parse(readFileSync(metafile, 'utf8')) as Metafile;
+  const whole = readdirSync(outdir)
+    .filter((f) => f.endsWith('.js'))
+    .reduce((sum, f) => sum + statSync(join(outdir, f)).size, 0);
+  return { initial: initialBytes(meta, `${stem}.js`), whole };
 }
 
 interface BytesRow {
@@ -469,10 +499,50 @@ export function pairRecords(pair: EntryPair, ours: Measured, theirs: Measured): 
   ];
 }
 
+/**
+ * The premium, as two rows: what the incumbent stack costs, and our ratio against it.
+ *
+ * Reported, never gated. A gate here would be a gate on somebody else's dependency tree —
+ * `cosmiconfig` shipping a smaller YAML parser would turn our build red for nothing — and the
+ * number's job is to say what a reader is actually choosing between, not to ratchet.
+ */
+function parityRecords(pair: EntryPair, stack: ParityStack, ours: Measured, theirs: Measured): BenchRecord[] {
+  const { initial } = stackBytes(stack, pair.incumbent, pair.id);
+  const ratio = round(ours.bundled / initial, RATIO_PLACES);
+  const added = stack.adds.map((a) => a.specifier).join(' + ');
+  const common = { axis: 'weight' as const, samples: 1 };
+  return [
+    {
+      ...common,
+      variant: `${pair.incumbent.specifier} + ${added}`,
+      metric: 'bundled-bytes',
+      unit: 'bytes',
+      median: initial,
+      p95: initial,
+      note: `the capability-parity stack for \`${pair.id}\`: ${pair.incumbent.specifier} plus ${String(stack.adds.length)} package(s) a user of it installs to reach the same capability set — ${stack.adds.map((a) => `\`${a.specifier}\` for ${a.capability}`).join('; ')}. Each addition is a package this repository publishes a graded drop-in for (${stack.adds.map((a) => `\`${a.gradedBy}\``).join(', ')}), which is the rule that decides what may be in this stack`,
+    },
+    {
+      ...common,
+      variant: `${pair.id} ÷ (${pair.incumbent.specifier} + ${added})`,
+      metric: 'bundled-bytes-ratio-parity',
+      unit: 'ratio',
+      median: ratio,
+      p95: ratio,
+      note: `${theirs.bundled} bytes for \`${pair.incumbent.specifier}\` alone, ${initial} for the stack. Reported, never gated — a ceiling here would be a ceiling on somebody else's dependency tree. ${String(stack.unmatched.length)} of our capabilities have no incumbent to add and cost this stack nothing: ${stack.unmatched.join('; ')}`,
+      detail: { bare: theirs.bundled, stack: initial, unmatched: stack.unmatched.length },
+    },
+  ];
+}
+
 export function run(): BenchRecord[] {
   rmSync(SCRATCH, { recursive: true, force: true });
   try {
-    return PAIRS.flatMap((pair) => pairRecords(pair, measure(pair.ours, `ours-${pair.id}`), measure(pair.incumbent, `theirs-${pair.id}`)));
+    return PAIRS.flatMap((pair) => {
+      const ours = measure(pair.ours, `ours-${pair.id}`);
+      const theirs = measure(pair.incumbent, `theirs-${pair.id}`);
+      const stack = PARITY.find((p) => p.id === pair.id);
+      return [...pairRecords(pair, ours, theirs), ...(stack === undefined ? [] : parityRecords(pair, stack, ours, theirs))];
+    });
   } finally {
     rmSync(SCRATCH, { recursive: true, force: true });
   }

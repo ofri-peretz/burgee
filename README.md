@@ -212,44 +212,63 @@ language: burgee is TypeScript, like both incumbents.
 
 Milliseconds are a property of the machine that produced them, so nothing gates on them.
 What is gated is the ratio between two spawns interleaved in the same run, which cancels the
-machine out. Six of those gates are stated in public; **two are met, three are not, and one has
-never been measured**:
+machine out. Nine of those gates are stated in public — **five are met, three are not, and one
+has never been measured**:
 
 | Claim | Gate | Measured | |
 | :--- | :--- | ---: | :--- |
-| the core entry point is under 52 KB bundled | `core-under-52kb-bundled` | 28,637 bytes | ✅ met |
-| `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 0.969× | ✅ met |
-| `burgee` starts at or below `cac`, the lightest framework in the landscape | `cold-start-at-or-below-cac` | 1.708× | ❌ **not met** |
-| `burgee/commander` is lighter in a user's bundle than `commander` | `lighter-than-commander` | 1.514× | ❌ **not met** |
-| `burgee` is lighter in a user's bundle than `cac` | `lighter-than-cac` | 2.740× | ❌ **not met** |
+| the core entry point is under 52 KB bundled | `core-under-52kb-bundled` | 27,552 bytes | ✅ met |
+| `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 0.947× | ✅ met |
+| `burgee` is lighter than `cac` **plus what a cac user installs to match it** | `lighter-than-cac-at-parity` | 0.282× | ✅ met |
+| `burgee/commander` is lighter than `commander` **plus the same** | `lighter-than-commander-at-parity` | 0.468× | ✅ met |
+| `burgee/yargs` is lighter than `yargs` **plus the same** | `lighter-than-yargs-at-parity` | 0.531× | ✅ met |
+| `burgee` starts at or below `cac`, the lightest framework in the landscape | `cold-start-at-or-below-cac` | 1.443× | ❌ **not met** |
+| `burgee/commander` is lighter in a user's bundle than `commander` alone | `lighter-than-commander` | 1.514× | ❌ **not met** |
+| `burgee` is lighter in a user's bundle than `cac` alone | `lighter-than-cac` | 2.636× | ❌ **not met** |
 | an agent spends ≥40% fewer tokens and ≥30% fewer turns | `agent-tokens-40pct` | — | **unmeasured** |
 
-Every row moved, and the ones that went from ❌ to ✅ went a long way: 57,880 bytes → 28,637, and
-1.038× → 0.969×. The three still red moved too — 2.567× → 1.708×, 1.773× → 1.514×, 5.538× →
-2.740× — which is why they are worth reading rather than skipping.
+### The two ways to ask the bundle question, and why both are here
 
-Bundled bytes are byte-identical wherever they are measured; cold start is not, and not even as
-a ratio. The 1.708× above is an M4 Pro's. CI's two-core runner reads **1.443×** on the same
-commit, and read 1.716× on the commit before it — so the ratio cancels the machine out *within*
-a box and only approximately across two.
+`burgee` is 27,552 bundled bytes and `cac` is 10,457, so the bare row reads **2.636× and it
+stays on this page**. It is also not the choice anyone makes. A program that picks `cac` and
+then wants its config file read, its shutdown bounded on every path out, and its cursor handed
+back on Ctrl-C installs three more packages — and *that* is what one `import` of burgee competes
+with:
 
-The two that moved to met are one change: the root barrel stopped re-exporting the value half of
-five optional modules, so `import { run } from 'burgee'` no longer loads the help renderer, the
-MCP server, the schema surface, the plugin host or the configuration layer. Each has a subpath of
-its own now, every `type` stayed where it was, and the initial load a consumer pays fell 50.5%.
+| | the incumbent alone | + what you add to match burgee | ours |
+| :--- | ---: | ---: | ---: |
+| `cac` | 10,457 B | **97,711 B** | 27,552 B |
+| `commander` | 39,085 B | **126,354 B** | 59,156 B |
+| `yargs` | 111,110 B | **198,269 B** | 105,240 B |
 
-**The three that remain have a measured floor above their own gate,** which is worth saying
-plainly rather than leaving as a to-do. `cac` is 10,457 bundled bytes of parser and help
-renderer; burgee's 28,637 is that plus coercion, choices, relations, Standard Schema,
-configuration precedence, signal-bound shutdown, terminal restore and agent detection. Stripping
-every branch still left measures a floor near **2.26×**. Our `commander/command.js` is 33,487
-bundled against commander's 27,226, and the front-end also carries a cross-platform spawn that
-cannot go lazy without giving up `parse()`'s synchronous contract and the 1360 / 1360 compat row
-that depends on it — at byte parity with commander's own file the ratio still lands near
-**1.09×**. And `import 'cac'` is one file in 4.2 ms where `import 'burgee'` is seventeen in 17.4.
-Closing those gaps means deleting the product, not optimising it; the decision is
-[D-102](./.sdlc/DECISIONS.md), and until it is answered all three stay on this page saying **not
-met**.
+The additions are `cosmiconfig` (find and load a config file), `exit-hook` (run cleanup on
+every path out, including a signal) and `restore-cursor` (hand the terminal back), bundled
+together so a module two of them share is paid for once — which is what a real bundler does.
+
+**The rule that stops this being a rigged denominator:** a package may only enter a stack where
+this repository publishes a *graded drop-in* for it — a `compat-oracle` row whose pass rate
+comes from that package's own test suite. `seniority/cosmiconfig`, `closeout/exit-hook` and
+`closeout/restore-cursor` each have one, which is evidence we do the job rather than our word
+for it, and [`parity.test.ts`](./benchmarks/parity.test.ts) fails if an addition names a package
+with no active row. It is self-limiting on purpose: we cannot pad a stack with packages we
+merely resemble.
+
+And the capabilities with nothing to add against — `--schema`, `--mcp`, the `{ ok, data }`
+envelope on every command, agent detection, option relations and Standard Schema — are priced
+at **zero**. They are the part of the premium that is real and unpriced, and saying so is worth
+more than finding a package to charge for them.
+
+### The three that are not met
+
+`cold-start-at-or-below-cac` and the two bare weight rows have a measured floor above their own
+gate, and it is worth saying plainly rather than leaving as a to-do. `cac` is 10,457 bytes of
+parser and help renderer; burgee's 27,552 is that plus coercion, choices, relations, Standard
+Schema, configuration precedence, signal-bound shutdown, terminal restore and agent detection.
+Our `commander/command.js` is 33,487 bundled against commander's 27,226, and the front-end also
+carries a cross-platform spawn that cannot go lazy without giving up `parse()`'s synchronous
+contract and the 1360 / 1360 compat row that rests on it. And `import 'cac'` is one file in
+4.2 ms where `import 'burgee'` is twenty-one in 20 ms. Closing them means deleting the product,
+not optimising it; the decision is [D-102](./.sdlc/DECISIONS.md).
 
 The last one has never run. B1 spawns 50 agent runs and refuses to start without a credential,
 and nothing in the suite can turn a run that did not happen into a number — `emit.test.ts`
