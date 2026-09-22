@@ -57,6 +57,7 @@ const RESERVED = new Set(['json', 'help', 'schema', 'mcp', 'version', 'explain']
  * never fire, so the one the author wrote is simply absent.
  */
 function checkSpec(name: string, key: string, spec: OptionSpec, options: Record<string, OptionSpec>): void {
+  checkDeprecated(`option "${key}" of "${name}"`, spec.deprecated);
   if ((spec.minimum !== undefined || spec.maximum !== undefined || spec.integer !== undefined) && spec.type !== 'number') {
     throw new Error(`burgee: option "${key}" of "${name}" declares a numeric bound but is not a number`);
   }
@@ -148,6 +149,16 @@ function checkEffects(name: string, effects: unknown, runs: boolean): void {
 }
 
 /**
+ * D1 / M5: a deprecation names what replaces it, so help, `--schema` and the warning can all
+ * say so. A bare `true` — or `''`, which renders as "use " — deprecates without telling the
+ * reader where to go. The façades never reach this: commander and yargs accept the bare form
+ * and their graded suites expect it, so only burgee's own door asks for more.
+ */
+function checkDeprecated(what: string, deprecated: boolean | string | undefined): void {
+  if (deprecated === true || deprecated === '') throw new Error(`burgee: ${what} is deprecated with no replacement; name it, e.g. deprecated: '--force'`);
+}
+
+/**
  * The whole door: {@link checkDefinition} — which carries V5's reserved names — and
  * {@link checkEffects}.
  *
@@ -161,7 +172,8 @@ function checkEffects(name: string, effects: unknown, runs: boolean): void {
  * third argument would be a check a caller can decline by writing nothing, which is the shape
  * of the defect `checkEffects` exists to remove, one level up.
  */
-export function checkCommand(name: string, options: Record<string, OptionSpec>, effects: unknown, runs: boolean): void {
+export function checkCommand(name: string, options: Record<string, OptionSpec>, effects: unknown, runs: boolean, deprecated: boolean | string | undefined): void {
+  checkDeprecated(`command "${name}"`, deprecated);
   checkDefinition(name, options);
   checkEffects(name, effects, runs);
 }

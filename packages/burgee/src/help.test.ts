@@ -39,10 +39,12 @@ const program = defineProgram({
     }),
     defineCommand({ name: 'status', description: 'Show status', group: 'Release commands:', effects: 'withheld', run: ok }),
     defineCommand({ name: 'login', description: 'Sign in', effects: 'withheld', run: ok }),
-    defineCommand({ name: 'old', description: 'Legacy', deprecated: true, effects: 'withheld', run: ok }),
     defineCommand({ name: 'hush', description: 'Never listed', hidden: true, effects: 'withheld', run: ok }),
   ],
 });
+// A bare `deprecated: true` is what commander and yargs declare, so it reaches the manifest
+// through `add`, the façades' route: `defineCommand` refuses it and asks for the replacement (D1).
+program.add({ path: ['app', 'old'], description: 'Legacy', deprecated: true, options: {}, run: ok });
 
 const deploy = program.find(['app', 'deploy']) ?? program.commands[0];
 const root = program.find(['app']) ?? program.commands[0];

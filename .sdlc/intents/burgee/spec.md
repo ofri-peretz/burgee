@@ -598,7 +598,7 @@ was quietly met.
 **The count.** 114 requirements, in seventeen families — `Z F O E V S P D T H M K J C B N U`.
 The prose above says *92* and *"Ninety-two requirements"*; both are wrong, and wrong the same
 way, because `E6 E7 V8 N11–N15` were added after the arithmetic was last done and `C1–C8`
-names two rows that do not exist. **Built: 84. Not built: 30**, and the count moves as rows are
+names two rows that do not exist. **Built: 86. Not built: 28**, and the count moves as rows are
 built rather than as the prose is rewritten — T1 moved on 2026-09-22 and the tally moved with
 it. An audit whose total disagrees with its own rows is the failure this paragraph is a record
 of; `spec-tally-lock.test.ts` now derives the two numbers from the tables instead of trusting
@@ -700,7 +700,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 
 | # | Status | Evidence | The check |
 | :-- | :-- | :-- | :-- |
-| D1 | Not built | `deprecated` is `boolean \| string`. `true` renders a bare `(deprecated)` and warns with no replacement named, so a deprecation does not *require* one | `help.test.ts` asserts both spellings render — the bare one included |
+| D1 | **Built** | `definition.ts`'s `checkDeprecated` refuses `deprecated: true` and `''` on a command and on every option, at the one door `defineCommand` and `Manifest.use()` share, with the fix in the message. A named replacement already reached all three surfaces — help's `(deprecated: use X)`, `--schema`'s `deprecated`, the warning's `, use 'X'` — so requiring it is what was missing. The façades do not pass that door: commander and yargs accept the bare form and their graded suites expect it | `deprecation.test.ts`: *"refuses a command deprecated with no replacement"* — three of its five cases red before the refusal |
 | D2 | **Built** | `completions.ts` walks the manifest into bash, zsh, fish and PowerShell scripts, statically | `completions.test.ts`, `src/__snapshots__` |
 | D3 | Not built | the half that matters is built — no generated script runs Node on TAB. The escape hatch is not: there is no `dynamic` marker on an option anywhere in `OptionSpec` | `completions.test.ts` |
 | D4 | **Built** | snapshots in `src/__snapshots__`, and each of the four shells runs its own script | `.github/workflows/completions.yml` — bash through `COMP_WORDS`, zsh through a real TAB in a pty, fish through `complete -C`, pwsh through `TabExpansion2` |
@@ -731,7 +731,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | M2 | **Built** | `lazyRun` imports the module on the first call; `Manifest.add` wraps a `load`-only node | `examples/conformance/src/modularity.test.ts`: *"serves `--help` and `--schema` without importing a single lazy handler"* |
 | M3 | **Built** | `Manifest.use()` stamps `plugin: <name>` on every contributed node; `commandSchemaOf` publishes it | `plugin.test.ts`, `adoption-ladder.test.ts` |
 | M4 | **Built** | `sharedOptions(name, specs)` tags every copy `sharedFrom`, and the schema carries it | `schema-dsl.test.ts` |
-| M5 | Not built | the same defect as D1: `warnDeprecated` writes `warning: 'x' is deprecated` with no replacement when `deprecated` is `true` | `help.test.ts` |
+| M5 | **Built** | D1's refusal covers it: a command declared through burgee cannot be deprecated without naming its replacement, so `warnDeprecated` always has one to write. A façade command deprecated the incumbent's way still warns bare, as the incumbent does | `deprecation.test.ts` |
 | M6 | **Built** | `resolveCommand` and `runCommand` are exported from `index.ts` | `shape.test.ts`'s export-map lock |
 
 ### Packaging

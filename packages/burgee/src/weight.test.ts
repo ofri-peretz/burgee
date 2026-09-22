@@ -255,7 +255,8 @@ const RULES: Record<string, EntryRule> = {
   // the run's `io` through and asking `detectAgent`, which it already loads. Measured 42,723.
   ".": {
     allow: ["closeout", "seniority/precedence"],
-    budget: 42_750,
+    // 43,150 on 2026-09-22 for D1, the definition-time refusal of a deprecation that names no replacement: `checkDeprecated` in `definition.js`, which `plugin.js` imports, so every entry that reaches the manifest pays it — the façades included, though they never call it with `true`. Measured 43,111.
+    budget: 43_150,
     denied: [
       "testing.js",
       "testing-helpers.js",
@@ -324,7 +325,8 @@ const RULES: Record<string, EntryRule> = {
   // 47,400 on 2026-09-22 with `.` above: the harness runs a whole program, so it carries
   // `AuthError` for the same reason it carries everything else. Measured 47,385.
   // 47,450 with `.`'s O2 bytes, for the same reason. Measured 47,434.
-  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 47_450, denied: ["dev.js", "migrate.js"] },
+  // 47,850 with `.`'s D1 bytes. Measured 47,822.
+  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 47_850, denied: ["dev.js", "migrate.js"] },
   /**
    * The four doors the root barrel stopped holding open (see `.` above). Each is the same
    * module the engine reaches behind an `await import()`, published so a program that wants it
@@ -343,16 +345,17 @@ const RULES: Record<string, EntryRule> = {
   },
   // The MCP server. It reaches the schema and the manifest, because a tool list *is* the
   // schema, and nothing outside the package. `invoke` is injected, which is what keeps the
-  // runner out. Measured 19,950.
+  // runner out. Measured 19,950. 20,350 on 2026-09-22 for D1; measured 20,318.
   "./mcp": {
     allow: [],
-    budget: 20_000,
+    budget: 20_350,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
   },
   // The schema surface and the `Manifest` class it reads. Measured 14,891.
+  // 15,300 on 2026-09-22 for D1; measured 15,259.
   "./schema": {
     allow: [],
-    budget: 14_900,
+    budget: 15_300,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
   },
   // Configuration precedence, provenance and `--explain`, which are `seniority`'s and are
@@ -390,9 +393,12 @@ const RULES: Record<string, EntryRule> = {
   // This entry pays the largest share of that change in proportional terms and should:
   // the refusal is the plugin host's door as much as `defineCommand`'s, and a plugin's
   // command is read by exactly the code a first-party one is read by.
+  //
+  // 7,450 on 2026-09-22 for D1, the same door refusing `deprecated: true` — a plugin's
+  // command names its replacement exactly as a first-party one must. Measured 7,412.
   "./plugin": {
     allow: [],
-    budget: 7_100,
+    budget: 7_450,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js"],
   },
   // The brand generator. Pure geometry and string building — it must never reach
@@ -615,9 +621,11 @@ const RULES: Record<string, EntryRule> = {
   // nowhere to close it, on every command that fails. `onError` was also never fired by either
   // façade at all, so a plugin declaring it was silently dead on the two front ends this
   // package exists for. `plugin-lifecycle.test.ts` holds it.
+  //
+  // 215,300 on 2026-09-22 for D1, the definition-time refusal of a deprecation that names no replacement: `checkDeprecated` in `definition.js`, which `plugin.js` imports, so every entry that reaches the manifest pays it — the façades included, though they never call it with `true`. Measured 215,236.
   "./yargs": {
     allow: [],
-    budget: 214_900,
+    budget: 215_300,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   "./yargs/helpers": {
