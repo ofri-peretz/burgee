@@ -611,6 +611,13 @@ export default [
     rules: { "import-next/no-unused-modules": "off" },
   },
   {
+    // A plugin is a default-exported object: every host reads `loaded.default ?? loaded`, so
+    // the default export is the contract, not a style choice. And a plugin is data — a rank,
+    // an interval, a code-point range — so its numbers are values, not magic.
+    files: ["examples/plugins/**"],
+    rules: { "import-next/no-default-export": "off", "conventions/no-magic-numbers": "off" },
+  },
+  {
     // FP 8 (also seen in scripts/run-evals.ts): no-unhandled-promise fires on every call
     // to a function-typed *parameter* inside an async function, assuming it returns a
     // promise. The writer parameter returns void. Tracked in the eslint monorepo.

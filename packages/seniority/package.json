@@ -92,7 +92,10 @@
     "precedence",
     "env",
     "settings",
-    "provenance"
+    "provenance",
+    "plugin",
+    "plugins",
+    "extensible"
   ],
   "devDependencies": {
     "vitest": "^5.0.1"

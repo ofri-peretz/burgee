@@ -123,7 +123,10 @@
     "yargs",
     "mcp",
     "agent",
-    "framework"
+    "framework",
+    "plugin",
+    "plugins",
+    "extensible"
   ],
   "publishConfig": {
     "access": "public",

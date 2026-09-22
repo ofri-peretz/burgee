@@ -126,6 +126,10 @@ jobs:
       - uses: ./.github/actions/setup
       - name: The published benchmarks page is the one the committed results generate
         run: npm run bench:page -- --check
+      # Its inputs — each package's Plugin type, the schema, the manifests, the oracle's host
+      # table and the example — are all committed, so it belongs in this fast required lane.
+      - name: The published plugins page is the one the packages generate
+        run: npm run plugins:page -- --check
 
   quality-gate:
     name: Quality Gate
