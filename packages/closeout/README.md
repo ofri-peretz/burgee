@@ -314,7 +314,7 @@ Graded by the incumbent's own test suite:
 | `exit-hook` | 21 / 21 |
 | `restore-cursor` | 6 / 6 |
 
-Weight, installed and tree-inclusive: **95,434 bytes** against **170,604** for the incumbents it replaces — a ratio of **0.5594** (exit-hook not installed here, so the ceiling is understated).
+Weight, installed and tree-inclusive: **95,470 bytes** against **170,604** for the incumbents it replaces — a ratio of **0.5596** (exit-hook not installed here, so the ceiling is understated).
 ## Where it sits
 
 Plugins register under the `handlers` key, against the one schema the whole family shares.
