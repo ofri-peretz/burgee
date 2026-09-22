@@ -16,8 +16,7 @@ competitors, and the family is a claim about *layers of a CLI*, not about a bund
 | **Motion** | `flagstaff` | The repaint loop, and plugins as data — every animation carrying a static projection for pipes, `--json` and screen readers | ora, log-update, boxen, cli-table3, Ink |
 | **Dialogue** | `caique` | Prompts that are flags first: a caller who passed the flag is never asked, and a non-TTY caller gets an error naming the flag rather than a hang | inquirer, clack |
 
-Under those four sits the **foundation tier** — the loop's own plumbing, each planned rather
-than released:
+Under those four sits the **foundation tier** — the loop's own plumbing:
 
 | Layer | Package | What it owns | Named for |
 | :-- | :-- | :-- | :-- |
@@ -25,6 +24,7 @@ than released:
 | **Config** | `seniority` | Precedence across flag, env, project file, home file and default, with provenance | Ranking higher through longer service, and therefore winning a conflict |
 | **Process** | `bellpull` | Run a subprocess; resolve the executable; return a result every caller can read | The cord in one room, wired to a bell in another |
 | **Lifecycle** | `closeout` | Exit handlers that run once on every path, terminal restore, a bounded deadline | To settle and finish — nothing left open |
+| **Terminal** | `paratext` | OSC: hyperlinks, images, window title, clipboard, notifications, bell — each with a static fallback | Everything around a text that is not the text |
 
 `compat-oracle` is a measuring instrument, never published, and has no public identity.
 
@@ -79,7 +79,7 @@ every other patch is a marking clipped to the silhouette, so each is drawn gener
 outline decides where it ends. The Interlace mark rides on the wing, in paper and ink,
 because the lifted pair on a green wing is 1.42:1 and disappears.
 
-### The foundation four
+### The foundation five
 
 They are plumbing, and their marks say so: no creature, no scene, nothing that asks to be
 looked at twice. Each is the instrument its name means, drawn flat.
@@ -98,6 +98,12 @@ actually takes.
 **`closeout`** is the double rule an accountant draws under a settled total, with the mark
 above it as the total it closes.
 
+**`paratext`** is a page with its text block cut away, so the ink is exactly the paratext:
+three margins and a deep head, with the mark in the head where a page carries its title. The
+dog-ear is what makes the rectangle a page rather than a frame. It is the one mark closest to a
+stock icon (a document), and it is saved from being one by the hole: the text is the part
+that is missing.
+
 ## The system every mark obeys
 
 Enforced by `scripts/brand.mts` and `npm run brand -- --check`, not by taste:
@@ -111,7 +117,71 @@ Enforced by `scripts/brand.mts` and `npm run brand -- --check`, not by taste:
 | Outline | one band, `#efe9dd` | A flat ink body dissolves into a dark card; on paper the band disappears and the body carries the silhouette |
 | Sheen | `0.16`, swept only in `alive()` | The only gradient left in the system, and it parks under `prefers-reduced-motion` |
 | Bevel | `0.28` | The whole of the third dimension a logo can afford: an edge that catches light, sub-pixel at 16px and gone rather than muddy |
-| Floor | legible at 16px | Every mark is checked as a favicon before it is checked as a lockup |
+| Floor | legible at 16px | Every mark is checked as a favicon before it is checked as a lockup — see [the floor](#3-the-floor--measured-not-argued) |
+
+## Adding a package's mark
+
+Every package npm publishes owes the family a mark. `npm run brand -- --check` fails until it
+has one, so this is the path, not a suggestion.
+
+### 1. The brief — written before anything is drawn
+
+Three lines, added to "What each mark has to say" above:
+
+1. **The metaphor** — what the package's name means as an object, taken from its intent.
+   The name was chosen for its metaphor; the mark draws that object, not the package's API.
+2. **Must read as / must not read as** — one of each, as in the
+   [commission brief](./commission.md). The "must not" is usually a stock icon or a sibling.
+3. **Where the mark rides** — the part of the object that carries the Interlace charge,
+   and why that part (a roundel's centre, a page's head, the pull a hand takes).
+
+### 2. The parameters — the whole declaration
+
+A new mark is one entry in `SIBLINGS` in [`scripts/brand.mts`](../../scripts/brand.mts) plus
+its share in `MARK_SHARE`. Nothing else is designed per mark; light, outline, bevel,
+favicon, lockups and the 3D stage are generated from these.
+
+| Parameter | What it is | Constraint |
+| :-- | :-- | :-- |
+| `name` | The npm name | Must match a public package |
+| `shape` | One SVG path `d`, `evenodd`, in `0 0 100 100` | Closed outlines; a nested subpath is a hole; never burgee's swallowtail |
+| `at` | Where the charge rides, in the same box | Centre at least 15 units inside every edge |
+| `MARK_SHARE[name]` | Charge size against burgee's own | 0.6 – 1.2 |
+| `markings` *(optional)* | Second-colour patches, clipped to the shape | Palette colours only |
+| `tagline` | The lockup subtitle | At most 32 characters, one line; says what the object does, not the API |
+
+### 3. The floor — measured, not argued
+
+**Enforced by `--check`** (CI runs it through `npm run lint`):
+
+| Measure | Floor | Why |
+| :-- | :-- | :-- |
+| Coverage | Every public package has a mark | paratext reached 0.5.0 — four releases — without one, and nothing noticed |
+| Charge contrast | Each charge colour ≥ 3:1 on ink (WCAG 2.2 non-text) | A logo has no stylesheet to compensate with |
+| Charge share | 0.6 – 1.2 | 0.62 is the smallest share that passed the 16px review; above 1.2 the capsules leave the body |
+| Charge inset | ≥ 15 units from every edge | A charge near the edge is cropped by the outline and the favicon mask |
+| Palette | Markings use ink, rock, juniper, paper only | The family is one ink; a fifth colour is a different family |
+| Swallowtail | Only burgee flies it | A sibling with a swallowtail claims the declaration layer |
+| Tagline | ≤ 32 characters | The lockup subtitle is one line |
+| Drift | Every generated surface matches the declaration | Generated files are never hand-edited |
+| Reach | Package README shows both lockups; root README family row and `brand-stage.tsx` list the mark | Each of these lists has been missed before |
+
+**Reviewed by a person**, because no cheap check measures them. Record the result in the PR:
+
+| Measure | How | Passes when |
+| :-- | :-- | :-- |
+| 16px legibility | The flag at 16, 32 and 128px on ink and paper, beside the whole family | The silhouette names the object at 16px without the charge |
+| Reads as / not as | Show the 128px mark to someone without the name | They name the brief's "reads as", not its "must not" |
+| Family fit | The new flag in the root README row | Same weight and density as its neighbours; nothing asks to be looked at twice |
+| Three elements, at most | Count silhouette, charge and markings | burgee is one silhouette and one charge; every third element so far made a mark worse |
+
+### 4. Landing it
+
+1. Add the brief, the `SIBLINGS` entry and the `MARK_SHARE` value.
+2. `npm run brand` — writes five surfaces per mark.
+3. Put the lockup block at the top of the package README (copy any sibling's), and add the
+   flag to the root README family row and `MARKS` in `brand-stage.tsx`.
+4. `npm run brand -- --check` must be green; attach the review sheet to the PR.
 
 ## Where the assets live
 
