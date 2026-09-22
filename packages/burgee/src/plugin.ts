@@ -62,7 +62,7 @@
  * not: `validate()` and the `Plugin` interface as the *host's* vocabulary, which is what a
  * plugin author in another package imports and what a family lock reads.
  */
-import { checkCommand } from './definition.js';
+import { checkCommand, type Declared } from './definition.js';
 import { type CommandNode, type Hook, type OptionSpec } from './manifest.js';
 
 /**
@@ -191,7 +191,7 @@ function checkCommands(commands: unknown, name: string, taken: readonly string[]
      * author debugging against any layer has already learned this one (R8).
      */
     try {
-      checkCommand(path, (node['options'] ?? {}) as Record<string, OptionSpec>, node['effects'], node['run'] !== undefined || node['load'] !== undefined);
+      checkCommand(path, node as Declared);
     } catch (error) {
       throw schema(`${at}: ${(error as Error).message}`, 'a plugin command is declared exactly as a first-party one');
     }
