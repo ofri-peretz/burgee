@@ -40,7 +40,8 @@ for (const target of hosts) {
 }
 
 /**
- * Fragments: one `$defs` entry a host validates against at runtime, written on its own.
+ * Fragments: what a host validates against at runtime, written on its own — one `$defs` entry,
+ * or a host's slice of the whole: the top-level keys it reads and the definitions they name.
  *
  * The published `schema.json` stays one byte-identical file — that is the contract, and a plugin
  * author validates against all of it. But a host that *imports* the schema to validate pulls every
@@ -48,15 +49,34 @@ for (const target of hosts) {
  * `linegauge` the ninth host grew paratext's default import by **1,343 bytes** for a definition
  * paratext never reads, and paratext only ever read one — `$defs.capability`, 2,121 of the
  * schema's 8,141 minified bytes. So a host names the definition it validates against here, gets
- * exactly that, and ships the whole contract as data it does not import.
+ * exactly that, and ships the whole contract as data it does not import. flagstaff took a slice
+ * on 2026-09-23, when the schema grew to describe all nine hosts: it was the one host importing
+ * the whole file, so every host's definitions were landing in its users' bundles.
  *
  * Generated rather than hand-copied, and `plugin-schema-lock.test.ts` asserts each fragment
  * deep-equals its definition in the source, so a fragment can go stale in neither direction.
  */
-const FRAGMENTS = [{ target: 'paratext/src/capability.schema.json', def: 'capability' }];
-const defs = JSON.parse(source.toString('utf8')).$defs;
-for (const { target, def } of FRAGMENTS) {
-  const want = `${JSON.stringify(defs[def], null, 2)}\n`;
+const FRAGMENTS = [
+  { target: 'paratext/src/capability.schema.json', def: 'capability' },
+  // A host fragment: the top-level keys the host reads and the definitions they reference, so
+  // flagstaff validates its own contributions without carrying seven other hosts' definitions.
+  { target: 'flagstaff/src/plugin.schema.json', keys: ['name', 'contract', 'tokens', 'glyphs', 'spinners', 'borders', 'components'], defs: ['spinner', 'component', 'border'] },
+];
+const family = JSON.parse(source.toString('utf8'));
+/** The document a fragment entry describes — one definition, or a host's slice of the whole. */
+const fragmentOf = (entry) =>
+  entry.def !== undefined
+    ? family.$defs[entry.def]
+    : {
+        type: family.type,
+        required: family.required,
+        additionalProperties: family.additionalProperties,
+        properties: Object.fromEntries(entry.keys.map((k) => [k, family.properties[k]])),
+        $defs: Object.fromEntries(entry.defs.map((d) => [d, family.$defs[d]])),
+      };
+for (const entry of FRAGMENTS) {
+  const { target } = entry;
+  const want = `${JSON.stringify(fragmentOf(entry), null, 2)}\n`;
   const at = join(packages, target);
   const current = existsSync(at) ? readFileSync(at, 'utf8') : undefined;
   if (current === want) continue;

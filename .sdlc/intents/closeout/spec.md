@@ -538,7 +538,7 @@ entries below rather than edited away above. What remains:
   package publishes as the thing a plugin author writes against — says nothing about the one
   key this package hosts, and its `title` announces it as flagstaff's file. The same gap
   exists for `caique`'s `widgets` and `bellpull`'s `resolvers`; one edit to flagstaff's source
-  copy closes all three.
+  copy closes all three. **Resolved 2026-09-23:** the family schema now describes `resolvers`, `widgets`, `handlers`, `sources`, `commands`, `hooks` and `enforce`. flagstaff, the one host that validated against the whole file, validates against its own slice (`plugin.schema.json`), so no host enforces another's keys; `plugin-schema-lock.test.ts` has no allow-list left, and `plugin-schema-agreement.test.ts` holds each definition to its host's verdict.
 - **R12 records that `plugin-contract` R7's exemption list owes `handlers.run` an entry.**
   That edit belongs to the `plugin-contract` lane and, as of this reading, has not been made.
   It is restated here so that it is not lost between two designs.
