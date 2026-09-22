@@ -4,7 +4,8 @@
  * two more. The manifest is complete from the declarations here; no handler module is
  * imported until its command is dispatched (M2), which `loads()` lets a test prove.
  */
-import { defineCommand, definePlugin, defineProgram, sharedOptions, type AnyCommand } from 'burgee';
+import { defineCommand, defineProgram, sharedOptions, type AnyCommand } from 'burgee';
+import { definePlugin } from 'burgee/plugin';
 
 /** M4: declared once, spread into each command that takes them, never global. */
 const common = sharedOptions('common', {

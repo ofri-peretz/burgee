@@ -22,7 +22,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { defineCommand, defineProgram, renderHelp } from './index.js';
+import { renderHelp } from './help-entry.js';
+import { defineCommand, defineProgram } from './index.js';
 import { type CommandNode, type Manifest } from './manifest.js';
 
 const ok = (): string => 'ok';

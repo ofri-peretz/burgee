@@ -136,7 +136,7 @@ const doc = (axes: Record<string, { status: string }>): Parameters<typeof result
 
 describe('a document names itself', () => {
   it('publishes when every axis was measured', () => {
-    expect(resultsName(doc({ perf: { status: 'measured' }, weight: { status: 'measured' } }))).toBe('2026-09-16.json');
+    expect(resultsName(doc({ perf: { status: 'measured' }, weight: { status: 'measured' } }), true)).toBe('2026-09-16.json');
   });
 
   it('is an observation when an axis was not selected — the `--axis weight` case', () => {
@@ -145,6 +145,23 @@ describe('a document names itself', () => {
 
   it('is an observation when a selected axis produced nothing', () => {
     expect(resultsName(doc({ perf: { status: 'skipped' }, weight: { status: 'measured' } }))).toBe('2026-09-16-abcdef1.json');
+  });
+
+  /**
+   * The case that cost a published page on 2026-09-21, and the one completeness alone could
+   * not catch: a plain `npm run bench` on a developer's machine measures all four cheap axes,
+   * so it *was* complete, so it wrote the name the docs read. The figures it would have
+   * republished were an M4 Pro's against a two-core runner's — `+14.0 ms` becoming `+33.8 ms`
+   * — which is a change of box, not of code. `bench.yml` already moves a published-named file
+   * aside; nothing guarded a laptop.
+   *
+   * Fails on the unfixed `resultsName`, which returned the dated name for any complete
+   * document whatever the caller asked for.
+   */
+  it('does not publish a complete run the caller did not ask to publish', () => {
+    const complete = doc({ perf: { status: 'measured' }, weight: { status: 'measured' } });
+    expect(resultsName(complete)).toBe('2026-09-16-abcdef1.json');
+    expect(resultsName(complete, false)).toBe('2026-09-16-abcdef1.json');
   });
 
   it('and the observation name is one `publishedResults` refuses', () => {

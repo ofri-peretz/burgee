@@ -102,6 +102,16 @@ let coldStartMs = 0;
 /** A deadline long enough that the child is certainly armed, expressed in cold starts. */
 const budget = (): number => Math.max(500, coldStartMs * 4);
 
+/**
+ * A fixture that outlives its suite is a bug in the suite, not a detail of the fixture.
+ *
+ * Both long-lived fixtures below are pinned open by a `setInterval` and one of them declines
+ * `SIGTERM` on purpose, so the only thing that ends them is the parent's ladder — and a parent
+ * that is killed never gets there. A minute is far longer than any case here (the deadlines are
+ * in the hundreds of milliseconds) and far shorter than "until the machine is rebooted".
+ */
+const SELF_LIMIT = "setTimeout(() => process.exit(0), 60_000);";
+
 beforeAll(async () => {
   dir = mkdtempSync(join(tmpdir(), 'bellpull-matrix-'));
   runtime = { platform: process.platform, env: envWithPathPrefix(dir), cwd: dir, uid: process.getuid?.(), gid: process.getgid?.() };
@@ -111,16 +121,28 @@ beforeAll(async () => {
   fixture('to-stderr', "process.stderr.write('problem'); process.exit(3);");
   fixture('echo-argv', 'process.stdout.write(JSON.stringify(process.argv.slice(2)));');
   // Writes, flushes, then ignores SIGTERM forever. The control case for R2.
+  //
+  // `SELF_LIMIT` is what stops "forever" from meaning it. The ladder SIGKILLs this child
+  // 300 ms in, so nothing here ever reaches a minute — but the ladder's second rung is a
+  // timer in the *parent*, and a parent that dies first never fires it. When a hook in this
+  // file timed out, vitest tore the worker down mid-run and left a `stubborn` behind:
+  // SIGTERM-ignoring, `setInterval`-pinned, spinning until the machine is rebooted. That is
+  // a leak that pays for itself in the wrong direction — one timeout leaves a process that
+  // makes the next timeout likelier — and it is why this suite read as "load-sensitive"
+  // (D-091) and got worse over a long session rather than flaking at random. Found with a
+  // `pgrep`: one survivor, and its temp directory already deleted out from under it.
   fixture(
     'stubborn',
-    `process.on('SIGTERM', () => {});
+    `${SELF_LIMIT}
+process.on('SIGTERM', () => {});
 process.stdout.write('partial output\\n');
 setInterval(() => {}, 1000);`,
   );
   // Leaves politely on SIGTERM, so the ladder's first rung is enough.
   fixture(
     'polite',
-    `process.stdout.write('starting\\n');
+    `${SELF_LIMIT}
+process.stdout.write('starting\\n');
 process.on('SIGTERM', () => process.exit(0));
 setInterval(() => {}, 1000);`,
   );
@@ -135,7 +157,8 @@ setInterval(() => {}, 1000);`,
   coldStartMs = Math.max(...samples);
 }, 60_000);
 
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+// 60 s like everything else here that touches the filesystem under this suite's own load.
+afterAll(() => rmSync(dir, { recursive: true, force: true }), 60_000);
 
 describe('a result, not a string and a thrown error (R1)', () => {
   it('resolves on success with the output and the resolved executable', async () => {
@@ -381,9 +404,16 @@ describe('a spawned child is not orphaned when the parent shuts down', () => {
 
 describe('one result, three renderings (R5, Y5)', () => {
   let result: Result;
+  // 60 s, like every other hook and case in this file that spawns a real child. It is the one
+  // that did not have it, and the difference was invisible until the machine was busy: vitest's
+  // default hook budget is 10 s, a cold `node` on an idle box is ~32 ms, and under sixteen
+  // concurrent turbo tasks it is ~278 ms and climbing. This hook then failed the whole
+  // `bellpull` suite from inside `ci:local` and the pre-push hook, with a message naming a
+  // `describe` two hundred lines away — which is why it read as the load-sensitive flake of
+  // D-091 rather than as the thing it is: one spawn budgeted as if it were arithmetic.
   beforeAll(async () => {
     result = await run('exit-25', [], { runtime });
-  });
+  }, 60_000);
 
   it('the human form names the failure and where the binary came from', () => {
     const text = format(result);

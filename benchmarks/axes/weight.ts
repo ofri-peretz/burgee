@@ -119,23 +119,89 @@ function esbuildBin(): string {
   return join(resolvePackage('esbuild').dir, 'bin', 'esbuild');
 }
 
-function bundle(side: { specifier: string; symbol: string }, id: string): number {
+/**
+ * What a user's application grows by, in the two numbers that answer different questions.
+ *
+ * **`bundled` is the initial load** — the entry chunk plus the transitive closure of every
+ * chunk it reaches through an `import` *statement*. It is measured with `--splitting
+ * --outdir`, which is what a real bundler does: a literal-specifier `await import()` becomes
+ * a chunk fetched when the branch runs, not bytes on the startup path. **`whole` is every
+ * chunk together**, the disk cost of the feature set.
+ *
+ * This used to be one number from `--outfile`, and `--outfile` has no chunks — it inlines
+ * every dynamic import into the entry. So `completions.js` (7,662 B), `seniority/config`
+ * (4,352 B) and `unknown-option.js` (1,514 B) were all counted as startup weight for a
+ * program that reaches none of them unless a user types a completion, a config file exists,
+ * or a flag is misspelled.
+ *
+ * **The closure is not a detail, and measuring the entry chunk alone was wrong.** esbuild puts
+ * a module that is reachable both statically from the entry *and* dynamically from some branch
+ * into a shared chunk, which the entry then imports with a plain `import` statement — loaded at
+ * startup, in a separate file. Measured 2026-09-21 on `burgee/commander`: entry chunk 51,257 B,
+ * initial load **59,157 B**, because `schema`, `plugin`, `definition` and `manifest` sit in a
+ * 7,681-byte shared chunk that the entry statically imports. Counting the entry chunk alone
+ * understated the startup cost of every row that has one, in our favour. `initialBytes` walks
+ * `import-statement` edges only, so a `dynamic-import` edge still costs nothing until it runs.
+ *
+ * **Both numbers are published, and that is the point.** D-074 refused a metric change while
+ * the axis was failing — "changing a measurement while it is failing is the one move this
+ * repository has the most scar tissue about" — and the way to make it honestly is to add the
+ * number that matches the axis's own words rather than to swap one for the other, and to take
+ * the correction when it goes against us. Nothing is hidden: the whole-bundle figure stays on
+ * every row.
+ */
+interface Metafile {
+  outputs: Record<string, { bytes: number; entryPoint?: string; imports?: { path: string; kind: string }[] }>;
+}
+
+/**
+ * The entry chunk plus every chunk reachable from it through `import` statements.
+ *
+ * A `dynamic-import` edge is deliberately not followed: that chunk is fetched when the branch
+ * runs, which is the whole reason `--splitting` is the right command here.
+ */
+function initialBytes(meta: Metafile, entryFile: string): number {
+  const entry = Object.keys(meta.outputs).find((out) => out.endsWith(`/${entryFile}`));
+  if (entry === undefined) throw new Error(`esbuild metafile names no output for ${entryFile}`);
+  const seen = new Set<string>();
+  const walk = (path: string): void => {
+    const output = meta.outputs[path];
+    if (output === undefined || seen.has(path)) return;
+    seen.add(path);
+    for (const edge of output.imports ?? []) if (edge.kind === 'import-statement') walk(edge.path);
+  };
+  walk(entry);
+  let total = 0;
+  for (const path of seen) total += meta.outputs[path]?.bytes ?? 0;
+  return total;
+}
+
+function bundle(side: { specifier: string; symbol: string }, id: string): { initial: number; whole: number } {
   mkdirSync(SCRATCH, { recursive: true });
-  const file = join(SCRATCH, `${id.replaceAll('/', '__')}.mjs`);
+  const stem = id.replaceAll('/', '__');
+  const file = join(SCRATCH, `${stem}.mjs`);
   writeFileSync(file, fixtureSource(side));
-  const out = `${file}.bundle.mjs`;
+  const outdir = join(SCRATCH, `${stem}.chunks`);
+  rmSync(outdir, { recursive: true, force: true });
+  const metafile = join(SCRATCH, `${stem}.meta.json`);
   // esbuild from the CLI, not the API: one fewer import in a suite that measures imports,
   // and the exact command is quotable in the results file.
-  execFileSync(esbuildBin(), [file, '--bundle', '--minify', '--format=esm', '--platform=node', `--outfile=${out}`], {
+  execFileSync(esbuildBin(), [file, '--bundle', '--minify', '--format=esm', '--platform=node', '--splitting', `--outdir=${outdir}`, `--metafile=${metafile}`], {
     cwd: BENCH_ROOT,
     stdio: 'pipe',
   });
-  const bytes = statSync(out).size;
-  return bytes;
+  const meta = JSON.parse(readFileSync(metafile, 'utf8')) as Metafile;
+  const whole = readdirSync(outdir)
+    .filter((f) => f.endsWith('.js'))
+    .reduce((sum, f) => sum + statSync(join(outdir, f)).size, 0);
+  return { initial: initialBytes(meta, `${stem}.js`), whole };
 }
 
 export interface Measured {
+  /** The initial load: the entry chunk and every chunk it statically imports. */
   bundled: number;
+  /** Every chunk together: the disk cost of the feature set. */
+  whole: number;
   installed: number;
   version: string;
   dir: string;
@@ -144,7 +210,8 @@ export interface Measured {
 function measure(side: { specifier: string; symbol: string }, id: string): Measured {
   const pkg = packageOf(side.specifier);
   const { dir, version } = resolvePackage(pkg);
-  return { bundled: bundle(side, id), installed: installedBytes(pkg), version, dir: relativeToRepo(dir) };
+  const { initial, whole } = bundle(side, id);
+  return { bundled: initial, whole, installed: installedBytes(pkg), version, dir: relativeToRepo(dir) };
 }
 
 interface BytesRow {
@@ -198,17 +265,34 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // dynamic import names a known specifier. The real fix is code splitting, which is a build
   // change and not this PR's; until then the number is honest and the ceiling moves once,
   // deliberately, to sit just above it rather than the measurement sitting above the ceiling.
-  burgee: 41_000,
-  'burgee/commander': 64_000,
-  'burgee/yargs': 112_000,
+  //
+  // **Down, on 2026-09-21, for the first time.** Two things happened at once: the metric
+  // started counting the whole startup graph rather than the entry chunk (D-100, which made
+  // every number bigger), and the root barrel stopped holding five optional modules open
+  // (D-101, which made this one much smaller). The engine measures **28,637** and the three
+  // ceilings follow the measurements down — a ratchet that stays where the number used to be
+  // is not a ratchet, it is headroom nobody decided to grant.
+  burgee: 28_700,
+  'burgee/commander': 59_200,
+  'burgee/yargs': 107_700,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
   // bundle grows by, set where the number actually is, so the next byte is a decision.
-  linegauge: 6_250,
-  'linegauge/wrap': 11_200,
-  'linegauge/slice': 8_850,
+  //
+  // **Four of these move up by between 22 and 74 bytes, and D-096 is why.** #389 made
+  // linegauge's five Unicode property classes lazy; #400 recovered thirty of the bytes that
+  // cost, and the remaining ~111 an entry are **not recoverable by engineering** — writing
+  // the two joined source strings out literally to drop the array and its `.join()` calls
+  // measures **+73 bytes**, not fewer. What they buy is `width.js` importing in 5.95 ms
+  // rather than 15.30. `paratext`'s 22 are an older breach that measures the same at every
+  // commit around it. D-096 defaulted to "the trade stands and the ceilings move" and left it
+  // to the integrator; D-099 established that this loop owns a band breach the machinery was
+  // built to route, so the ceilings move here, at the measurement, with the trade named.
+  linegauge: 6_300,
+  'linegauge/wrap': 11_300,
+  'linegauge/slice': 8_950,
   'linegauge/strip': 1_000,
-  paratext: 11_100,
+  paratext: 11_150,
 };
 
 /**
@@ -281,7 +365,14 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // sigma over 41 observations, and `scripts/release-budget-lock.test.ts` refuses to let it
   // move unless the release moves with it in the same commit.
   burgee: releaseBudget('bundled-bytes-ratio:burgee\u00F7cac'),
-  'burgee/commander': 1.6,
+  // 1.52 from 1.6 on 2026-09-21: measured 1.514 under the corrected metric (D-100). The
+  // front-end's residual over commander is `commander/command.js` at 33,487 bundled against
+  // commander's 27,226, plus `bellpull/cross-spawn` at 5,060 — and the spawn cannot go lazy
+  // without giving up `parse()`'s synchronous contract and the ~23 `executableSubcommand`
+  // cases in commander's own suite that mock it, which is what the 1360 / 1360 row rests on.
+  // D-102 records that, and that ≤ 1 is not reachable while the façade also carries a
+  // manifest, a schema and an MCP server.
+  'burgee/commander': 1.52,
   'burgee/yargs': 1,
   'roundel/chalk': 1,
   'flagstaff/ora': 1,
@@ -304,14 +395,17 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // lighter.
   //
   // `linegauge/wrap` is the one set at 1, because 0.774 earns it.
-  linegauge: 1.03,
+  // 1.04 and 2.56 on 2026-09-21, with the four byte ceilings above and for the same reason
+  // (D-096): 111 bytes an entry that measurement says are not recoverable, against 9 ms of
+  // import time.
+  linegauge: 1.04,
   'linegauge/wrap': 1,
   'linegauge/slice': 1.5,
   'linegauge/strip': 2.25,
   // The layer that is over its D1 ceiling too — 66,305 against ansi-escapes' tree at 30,912,
   // a ratio of 2.145. That breach is real, it is recorded in the ceilings file, and this
   // ratchet exists so the bundled half cannot grow while it is being dealt with.
-  paratext: 2.55,
+  paratext: 2.56,
 };
 
 /**

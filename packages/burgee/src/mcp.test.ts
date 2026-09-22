@@ -9,7 +9,9 @@ import { PassThrough } from 'node:stream';
 import { describe, expect, it } from 'vitest';
 
 import { renderCompletion, renderFigSpec } from './completions.js';
-import { annotationsOf, defineCommand, defineProgram, execute, inputSchemaOf, Manifest, MCP_PROTOCOL_VERSION, schemaOf, serveMcp, toolsOf } from './index.js';
+import { defineCommand, defineProgram, execute } from './index.js';
+import { annotationsOf, MCP_PROTOCOL_VERSION, serveMcp, toolsOf } from './mcp-entry.js';
+import { inputSchemaOf, Manifest, schemaOf } from './schema-entry.js';
 import { runBurgee } from './testing.js';
 
 const program = defineProgram({

@@ -1,7 +1,8 @@
 /** F1 / N8 / N9 — the program as data, from the manifest alone. */
 import { describe, expect, it } from 'vitest';
 
-import { defineCommand, defineProgram, schemaOf } from './index.js';
+import { defineCommand, defineProgram } from './index.js';
+import { schemaOf } from './schema-entry.js';
 import { runBurgee } from './testing.js';
 
 const program = defineProgram({

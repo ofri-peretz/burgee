@@ -21,7 +21,7 @@ import { PAIRS } from './fixtures/entry-points.js';
 import { type AxisName, gateFailures } from './record.js';
 import { verdict } from './run.js';
 
-const measuredAt = (bundled: number): Measured => ({ bundled, installed: 1, version: '0.0.0-test', dir: '<repo>/packages/test' });
+const measuredAt = (bundled: number): Measured => ({ bundled, whole: bundled, installed: 1, version: '0.0.0-test', dir: '<repo>/packages/test' });
 
 describe('B4 weight — the bundled-bytes ratchet', () => {
   const pair = PAIRS.find((p) => p.id === 'burgee') as (typeof PAIRS)[number];

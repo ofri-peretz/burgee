@@ -1,7 +1,8 @@
 /** cli-mcp's second slice on the engine: N7 changed, N11 action required, N12 agent detection, N13 the schema budget. */
 import { describe, expect, it } from 'vitest';
 
-import { defineCommand, defineProgram, detectAgent, execute, type RunOptions, summaryOf } from './index.js';
+import { defineCommand, defineProgram, detectAgent, execute, type RunOptions } from './index.js';
+import { summaryOf } from './schema-entry.js';
 import { runBurgee } from './testing.js';
 
 describe('agent detection, not just isTTY (N12)', () => {

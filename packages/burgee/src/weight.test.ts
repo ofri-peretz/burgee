@@ -224,9 +224,27 @@ const RULES: Record<string, EntryRule> = {
   // means running it twice to find out, and a code with no report means parsing prose for a
   // file name. 162 B, measured (60,661 -> 60,823), and opt-in by naming the field, so every
   // command that does not name it exits exactly as it did.
+  // **42,300 on 2026-09-21, down 18,700 — the first time this budget has ever fallen.**
+  // Every raise above it was a feature arriving at the root barrel; this is the barrel
+  // giving four of them back. `index.ts` re-exported the value half of `help.ts`, `mcp.ts`,
+  // `schema.ts`, `plugin.ts`, `manifest.ts` and `seniority/precedence` as a convenience, and
+  // a re-export is not a convenience to a consumer: it makes every one of those modules live
+  // for a program that reads none of them. `execute.ts` already loaded each behind an
+  // `await import()`; this file was the only thing holding them on the startup path.
+  //
+  // They each have a door of their own now — `burgee/help`, `burgee/mcp`, `burgee/schema`,
+  // `burgee/plugin`, `burgee/config` — and **every `type` stayed**, because a type re-export
+  // is erased and costs a consumer nothing. `Manifest` is the class at `burgee/schema` and
+  // the type here, which is what keeps `defineProgram`'s return type nameable.
+  //
+  // Measured 60,823 -> 42,223 on disk; bundled, the initial load a consumer pays went
+  // **44,663 -> 28,637 bytes** and cold start `burgee ÷ cac` went **2.113 -> 1.737**. That
+  // second number is the one D-093 declined this split on without having, which is why the
+  // decision is reversed rather than re-argued. `linegauge` leaves the allow-list with
+  // `help.js`: the renderer is the only thing that measured a terminal.
   ".": {
-    allow: ["closeout", "linegauge", "seniority/precedence"],
-    budget: 60_900,
+    allow: ["closeout", "seniority/precedence"],
+    budget: 42_300,
     denied: [
       "testing.js",
       "testing-helpers.js",
@@ -281,7 +299,44 @@ const RULES: Record<string, EntryRule> = {
   // carries `exitCodeOf` for the same reason it carries the schema. **+162** (64,882 ->
   // 65,044), the same single function and the same number as `.`. `migrate.js` is denied
   // here too — a harness that reached the codemod would be measuring a surface no test runs.
-  "./testing": { allow: ["closeout", "linegauge", "seniority/precedence"], budget: 65_100, denied: ["dev.js", "migrate.js"] },
+  // 46,900 on 2026-09-21, down from 65,100 with `.` above: the harness runs a whole program
+  // in-process, so it stops carrying the four surfaces the barrel stopped carrying. Measured
+  // 46,850.
+  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 46_900, denied: ["dev.js", "migrate.js"] },
+  /**
+   * The four doors the root barrel stopped holding open (see `.` above). Each is the same
+   * module the engine reaches behind an `await import()`, published so a program that wants it
+   * says so — and each denies `execute.js` in both spellings, because a surface that started
+   * reaching the runner would quietly cost its consumer the whole framework.
+   */
+  // The renderer. `linegauge` is the one external it admits: help is the only surface that
+  // measures a terminal. Measured 8,676.
+  "./help": {
+    allow: ["linegauge"],
+    budget: 8_700,
+    denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
+  },
+  // The MCP server. It reaches the schema and the manifest, because a tool list *is* the
+  // schema, and nothing outside the package. `invoke` is injected, which is what keeps the
+  // runner out. Measured 19,950.
+  "./mcp": {
+    allow: [],
+    budget: 20_000,
+    denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
+  },
+  // The schema surface and the `Manifest` class it reads. Measured 14,891.
+  "./schema": {
+    allow: [],
+    budget: 14_900,
+    denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
+  },
+  // Configuration precedence, provenance and `--explain`, which are `seniority`'s and are
+  // re-exported rather than reimplemented. 90 bytes of door. Measured 90.
+  "./config": {
+    allow: ["seniority/precedence"],
+    budget: 100,
+    denied: ["index.js", "execute.js", "help.js", "mcp.js", "schema.js", "testing.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
+  },
   // The plugin host, at the subpath the rest of the family publishes it at. Added
   // 2026-09-17: burgee was the one package that hosted plugins and published no
   // `./plugin`, so `scripts/plugin-contract-lock.test.ts` had to reach it by relative
@@ -342,7 +397,7 @@ const RULES: Record<string, EntryRule> = {
   // import as `lazy` rather than following it (K6). A user who runs `burgee brand` pays the
   // 1,114; a user who runs `burgee migrate` pays the rest, once, on the run that asked.
   "./cli": {
-    allow: ["closeout", "linegauge", "roundel/contrast", "seniority/precedence"],
+    allow: ["closeout", "roundel/contrast", "seniority/precedence"],
     budget: 81_400,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
