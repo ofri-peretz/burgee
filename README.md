@@ -152,6 +152,42 @@ labelled as such rather than estimated.
 
 ---
 
+## 🔌 Extend every layer
+
+Every package in the family takes plugins, and all nine take them the same way. A plugin is a
+plain object. Each package validates it against **one published schema** — the same
+`schema.json` ships in every package — and each has a `check` command that shows what a plugin
+contributes, or refuses it with a code and the fix, before it ships.
+
+Each package reads its own key and ignores the rest, so **one object can extend every layer at
+once**: brand colours, a spinner, a terminal quirk, a config source, where the company's tools
+live, what to flush on exit, a prompt of its own, and a command every one of its CLIs gets.
+
+<!-- plugins:start -->
+
+| Package | A plugin adds | Check it |
+| :--- | :--- | :--- |
+| [`bellpull`](./packages/bellpull/) | `resolvers` | `npx bellpull check ./plugin.mjs` |
+| [`burgee`](./packages/burgee/) | `commands`, `hooks` | `npx burgee check ./plugin.mjs` |
+| [`caique`](./packages/caique/) | `widgets` | `npx caique check ./plugin.mjs` |
+| [`closeout`](./packages/closeout/) | `handlers` | `npx closeout check ./plugin.mjs` |
+| [`flagstaff`](./packages/flagstaff/) | `tokens`, `glyphs`, `spinners`, `borders`, `components` | `npx flagstaff check ./plugin.mjs` |
+| [`linegauge`](./packages/linegauge/) | `widths` | `npx linegauge check ./plugin.mjs` |
+| [`paratext`](./packages/paratext/) | `capabilities` | `npx paratext check ./plugin.mjs` |
+| [`roundel`](./packages/roundel/) | `tokens` | `npx roundel check ./plugin.mjs` |
+| [`seniority`](./packages/seniority/) | `sources` | `npx seniority check ./plugin.mjs` |
+
+<!-- plugins:end -->
+
+Where an incumbent has an extension point — commander's `.hook()`, yargs middleware,
+cosmiconfig's loaders, inquirer's `createPrompt` — it lives in one program or one call. A
+plugin here is written once and shared: across programs, across layers, and across commander,
+yargs and native syntax alike. The [plugins page](./apps/docs/content/docs/plugins.mdx) has the
+whole nine-layer example, which every package's `check` accepts in CI, each incumbent's own
+extension point beside ours, and what a plugin cannot do yet.
+
+---
+
 ## 🔁 Already on commander? Change one import
 
 ```diff
@@ -176,7 +212,8 @@ test instead of its twenty and would flatter a partial implementation.
 
 And you immediately gain something commander cannot sell you at any price: **plugins**. Its
 plugin RFC ([#2505](https://github.com/tj/commander.js/issues/2505)) has been open and
-unanswered for years; yargs has none at all.
+unanswered for years; yargs offers middleware on one program, not a plugin shared across
+programs.
 
 A plugin contributes to the manifest, and the manifest never records which façade filled
 it — so one plugin works on commander syntax, yargs syntax and native alike.

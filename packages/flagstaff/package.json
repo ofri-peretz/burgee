@@ -112,7 +112,9 @@
     "log-update",
     "boxen",
     "cli-table3",
-    "plugins"
+    "plugins",
+    "plugin",
+    "extensible"
   ],
   "dependencies": {
     "closeout": "^0.3.0",

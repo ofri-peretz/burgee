@@ -68,7 +68,10 @@
     "notification",
     "image",
     "title",
-    "bell"
+    "bell",
+    "plugin",
+    "plugins",
+    "extensible"
   ],
   "devDependencies": {
     "vitest": "^5.0.1"
