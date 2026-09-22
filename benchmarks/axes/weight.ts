@@ -306,7 +306,11 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // 59,250 on 2026-09-22 for **61 bytes**: the `.catch` that fires `onError`. A plugin's
   // lifecycle closes on every front end now — `preRun` opens and exactly one of `postRun` or
   // `onError` closes — where before a handler that threw left a plugin with no closing hook.
-  'burgee/commander': 59_250,
+  //
+  // 59,450 on 2026-09-22 for **171 bytes**, D-109: D1's refusal of a deprecation that names no
+  // replacement. The front end never declares one, but a plugin registered through it passes the
+  // same definition door as a first-party command, and that door is what carries the check.
+  'burgee/commander': 59_450,
   'burgee/yargs': 107_700,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
