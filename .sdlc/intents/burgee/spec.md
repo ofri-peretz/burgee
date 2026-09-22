@@ -598,7 +598,11 @@ was quietly met.
 **The count.** 114 requirements, in seventeen families — `Z F O E V S P D T H M K J C B N U`.
 The prose above says *92* and *"Ninety-two requirements"*; both are wrong, and wrong the same
 way, because `E6 E7 V8 N11–N15` were added after the arithmetic was last done and `C1–C8`
-names two rows that do not exist. **Built: 77. Not built: 37.**
+names two rows that do not exist. **Built: 78. Not built: 36**, and the count moves as rows are
+built rather than as the prose is rewritten — T1 moved on 2026-09-22 and the tally moved with
+it. An audit whose total disagrees with its own rows is the failure this paragraph is a record
+of; `spec-tally-lock.test.ts` now derives the two numbers from the tables instead of trusting
+this sentence.
 
 **How a row was decided.** From `packages/burgee/src/` and the repository around it, never
 from this document's prose about itself. `Not built` is the answer whenever the behaviour the
@@ -706,7 +710,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 
 | # | Status | Evidence | The check |
 | :-- | :-- | :-- | :-- |
-| T1 | Not built | `runBurgee` builds a full `fakeRuntime` and then forwards only `argv`, `env`, `stdout`, `stderr`, `exit` and `root` to `execute`. `stdin`, `cwd` and TTY-ness are dropped, so passing `tty: true` changes nothing about a burgee program | `testing-helpers.test.ts` — which does not assert the three that are dropped. This is the row most likely to make a test pass for the wrong reason |
+| T1 | **Built** | `runBurgee` forwards `cwd`, `stdin` and per-stream TTY-ness to `execute` alongside argv, env, the two streams and `exit`. It did not until 2026-09-22: `fakeRuntime` computed all three and six of the nine fields were passed on, so `tty: true` got the non-interactive floor and a `cwd` pointed at a fixture tree had config discovery read the repository the test was running in | `testing-harness-forward.test.ts` — two cases, both proved to fail on the six-field version. `interactive` reads `[true, false]` for `tty: true`/`false`, and a `<name>.config.json` under the given `cwd` reaches the handler |
 
 ### Help
 

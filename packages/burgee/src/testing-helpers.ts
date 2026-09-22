@@ -227,7 +227,16 @@ export async function runBurgee(program: Manifest, opts: RunOptions): Promise<Ru
     await execute(program, {
       argv: rt.argv,
       env: rt.env,
-      stdout: rt.stdout,
+      // `cwd`, `stdin` and `isTTY` are forwarded, and until 2026-09-22 they were not (T1).
+      // `fakeRuntime` computed all three and `execute` accepts all three, and the six lines
+      // between them passed six of nine — so a caller could write `tty: true` and get the
+      // non-interactive floor, or point `cwd` at a fixture tree and have config discovery read
+      // the repository the test was running in. A harness defect is invisible by construction,
+      // because the thing it breaks is the evidence; `testing-harness-forward.test.ts` is the
+      // check, and it fails on the six-line version.
+      cwd: rt.cwd,
+      stdin: rt.stdin,
+      stdout: { write: rt.stdout.write, isTTY: rt.isTTY.stdout },
       stderr: rt.stderr,
       exit: (c: number) => rt.exit(c as ExitCode),
       root: program.rootPath,

@@ -302,7 +302,15 @@ const RULES: Record<string, EntryRule> = {
   // 46,900 on 2026-09-21, down from 65,100 with `.` above: the harness runs a whole program
   // in-process, so it stops carrying the four surfaces the barrel stopped carrying. Measured
   // 46,850.
-  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 46_900, denied: ["dev.js", "migrate.js"] },
+  //
+  // 47,000 on 2026-09-22 for **92 bytes**, and they are the smallest raise in this file that
+  // bought the most. `runBurgee` built a whole `fakeRuntime` — argv, env, cwd, stdin, per-stream
+  // TTY-ness — and forwarded six of the nine to `execute`. `cwd`, `stdin` and `isTTY` were
+  // computed and dropped, which is `.sdlc/intents/burgee/spec.md`'s T1 and which that document
+  // calls "the row most likely to make a test pass for the wrong reason". It is: `tty: true`
+  // got the non-interactive floor, and a `cwd` pointed at a fixture tree had config discovery
+  // read the repository the test was running in. The 92 bytes are three forwarded fields.
+  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 47_000, denied: ["dev.js", "migrate.js"] },
   /**
    * The four doors the root barrel stopped holding open (see `.` above). Each is the same
    * module the engine reaches behind an `await import()`, published so a program that wants it
