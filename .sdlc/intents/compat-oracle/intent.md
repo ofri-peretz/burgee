@@ -103,7 +103,7 @@ graded, six controls, everything vendored.
 - **The Node matrix green on every Node LTS in `engines` across Linux, macOS and Windows** —
   **not met, and the workflow says so itself.** `compat.yml` runs all three OSes but `node: [24]`
   only, above a comment reading *"`engines` still says `>=24`, so C3 is not met while this
-  stands"*. Every published package declares `>=24`, so Node 26 is claimed and untested.
+  stands"*. Every published package declares `>=24`, so Node 26 is claimed and untested. **Restored 2026-09-23:** 26 is back in the matrix after the whole suite passed on v26.10.0.
 - **The published rate appears on the docs site and in `README.md`** — half. The docs page serves
   every number. The **root `README.md` publishes no rate at all** — line 56 still says "graded by
   commander's own 1,215 tests and yargs' 1,185", both of which are stale counts, and no pass rate
