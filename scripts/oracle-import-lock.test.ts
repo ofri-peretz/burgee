@@ -11,7 +11,7 @@
  * Import declarations are read with the TypeScript parser, not a regex over the text.
  */
 import { readdirSync, readFileSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
+import { join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import ts from 'typescript';
@@ -42,16 +42,18 @@ function specifiers(file: string): string[] {
 }
 
 const FILES = SCANNED.flatMap((dir) => sources(join(root, dir)));
+/** Repository-relative with forward slashes, so a name compares equal on Windows too. */
+const rel = (file: string): string => relative(root, file).split(sep).join('/');
 
 describe('repository scripts reach compat-oracle by path (R6)', () => {
   it('scans the scripts that vendor and grade, so this cannot pass by reading nothing', () => {
-    const names = FILES.map((f) => relative(root, f));
+    const names = FILES.map(rel);
     expect(names).toContain('scripts/vendor-suite.ts');
     expect(names).toContain('scripts/compat-page.ts');
   });
 
   it('no script imports compat-oracle by package name', () => {
-    const bare = FILES.flatMap((file) => specifiers(file).filter((s) => s === 'compat-oracle' || s.startsWith('compat-oracle/')).map((s) => `${relative(root, file)}: ${s}`));
+    const bare = FILES.flatMap((file) => specifiers(file).filter((s) => s === 'compat-oracle' || s.startsWith('compat-oracle/')).map((s) => `${rel(file)}: ${s}`));
     expect(bare, 'import it as ../packages/compat-oracle/src/<module>.js — a bare name can resolve from another checkout').toEqual([]);
   });
 });
