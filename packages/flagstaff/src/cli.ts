@@ -160,12 +160,7 @@ async function main(argv: string[], write: (s: string) => void): Promise<number>
   // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the file to check is the user's own, named on the command line
   const loaded = (await import(pathToFileURL(resolve(file)).href)) as { default?: unknown };
   const plugin = loaded.default ?? loaded;
-  try {
-    register(plugin);
-  } catch (e) {
-    if (!(e instanceof PluginError)) throw e;
-    return refuse(e.code, e.message, e.fix, write);
-  }
+  register(plugin);
   const { name, spinners = {}, components = {} } = plugin as Plugin;
   const { line, total } = census(plugin as Record<string, unknown>);
   write(`${name} — ${line}\n`);
@@ -195,11 +190,20 @@ async function main(argv: string[], write: (s: string) => void): Promise<number>
 
 const [, , command, ...rest] = rt.argv;
 const args = command === 'check' ? rest : [command, ...rest].filter((a): a is string => a !== undefined);
-main(args, (s) => rt.stdout.write(s)).then(
+const out = (s: string): unknown => rt.stdout.write(s);
+// Every refusal comes through here, wherever it was raised (R8): `register()`, a lookup in the
+// spinner loop, or a plugin file that registers itself on import — which throws before `main()`
+// has a line of its own to catch it. One handler, so no path can print a refusal without its
+// code and its fix, which is what the old `try` around `register()` alone let happen.
+main(args, out).then(
   (code) => {
     rt.exitCode = code;
   },
   (e: unknown) => {
+    if (e instanceof PluginError) {
+      rt.exitCode = refuse(e.code, e.message, e.fix, out);
+      return;
+    }
     rt.stderr.write(`${e instanceof Error ? e.message : String(e)}\n`);
     rt.exitCode = EXIT_RUNTIME;
   },
