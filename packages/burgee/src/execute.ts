@@ -110,7 +110,7 @@ export function defineCommand<const S extends OptionSpecs = OptionSpecs>(command
   // place, because `Manifest.use()` needs exactly these on a plugin's commands and used to
   // run none of them. A node with `load` and no `run` is runnable: its module has not been
   // imported, and what running it does to the world was knowable when it was declared.
-  checkCommand(command.name, command.options ?? {}, command.effects, command.run !== undefined || command.load !== undefined, command.deprecated);
+  checkCommand(command.name, command);
   return command;
 }
 

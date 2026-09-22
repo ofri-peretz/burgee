@@ -168,12 +168,22 @@ function checkDeprecated(what: string, deprecated: boolean | string | undefined)
  * second copy of the guard beside `use()`; it is that there is one guard and both callers
  * reach it, which is the only arrangement a reader can check by looking.
  *
- * `effects` and `runs` are required rather than optional for exactly that reason. An optional
- * third argument would be a check a caller can decline by writing nothing, which is the shape
- * of the defect `checkEffects` exists to remove, one level up.
+ * It takes the declaration whole, for exactly that reason. It took `effects` and `runs` as
+ * required arguments so a caller could not decline a check by writing nothing; D1 would have
+ * made that five, and a sixth field would make it six. Reading the object means a field the
+ * door checks is one no caller has to remember to forward — including whether it runs.
  */
-export function checkCommand(name: string, options: Record<string, OptionSpec>, effects: unknown, runs: boolean, deprecated: boolean | string | undefined): void {
-  checkDeprecated(`command "${name}"`, deprecated);
-  checkDefinition(name, options);
-  checkEffects(name, effects, runs);
+export function checkCommand(name: string, declared: Declared): void {
+  checkDeprecated(`command "${name}"`, declared.deprecated);
+  checkDefinition(name, declared.options ?? {});
+  checkEffects(name, declared.effects, declared.run !== undefined || declared.load !== undefined);
+}
+
+/** What the door reads of a command: a first-party declaration and a plugin's have the same fields. */
+export interface Declared {
+  options?: Record<string, OptionSpec>;
+  effects?: unknown;
+  deprecated?: boolean | string;
+  run?: unknown;
+  load?: unknown;
 }
