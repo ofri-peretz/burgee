@@ -122,46 +122,83 @@ function esbuildBin(): string {
 /**
  * What a user's application grows by, in the two numbers that answer different questions.
  *
- * **`bundled` is the entry chunk** — the code that loads when the import is evaluated. It is
- * measured with `--splitting --outdir`, which is what a real bundler does: a literal-specifier
- * `await import()` becomes a chunk fetched when the branch runs, not bytes on the startup
- * path. **`whole` is every chunk together**, the disk cost of the feature set.
+ * **`bundled` is the initial load** — the entry chunk plus the transitive closure of every
+ * chunk it reaches through an `import` *statement*. It is measured with `--splitting
+ * --outdir`, which is what a real bundler does: a literal-specifier `await import()` becomes
+ * a chunk fetched when the branch runs, not bytes on the startup path. **`whole` is every
+ * chunk together**, the disk cost of the feature set.
  *
  * This used to be one number from `--outfile`, and `--outfile` has no chunks — it inlines
  * every dynamic import into the entry. So `completions.js` (7,662 B), `seniority/config`
  * (4,352 B) and `unknown-option.js` (1,514 B) were all counted as startup weight for a
  * program that reaches none of them unless a user types a completion, a config file exists,
- * or a flag is misspelled. Measured 2026-09-21: core reads **58,056 bytes** under `--outfile`
- * and **40,570** as an entry chunk, and the difference is exactly those chunks.
+ * or a flag is misspelled.
  *
- * **Both are published, and that is the point.** D-074 refused this change while the axis was
- * failing — "changing a measurement while it is failing is the one move this repository has
- * the most scar tissue about" — and the way to make it honestly is to add the number that
- * matches the axis's own words rather than to swap one for the other. Nothing is hidden: the
- * whole-bundle figure stays on every row, and two claims move because the metric finally
- * measures what it says it measures, not because anything got smaller.
+ * **The closure is not a detail, and measuring the entry chunk alone was wrong.** esbuild puts
+ * a module that is reachable both statically from the entry *and* dynamically from some branch
+ * into a shared chunk, which the entry then imports with a plain `import` statement — loaded at
+ * startup, in a separate file. Measured 2026-09-21 on `burgee/commander`: entry chunk 51,257 B,
+ * initial load **59,157 B**, because `schema`, `plugin`, `definition` and `manifest` sit in a
+ * 7,681-byte shared chunk that the entry statically imports. Counting the entry chunk alone
+ * understated the startup cost of every row that has one, in our favour. `initialBytes` walks
+ * `import-statement` edges only, so a `dynamic-import` edge still costs nothing until it runs.
+ *
+ * **Both numbers are published, and that is the point.** D-074 refused a metric change while
+ * the axis was failing — "changing a measurement while it is failing is the one move this
+ * repository has the most scar tissue about" — and the way to make it honestly is to add the
+ * number that matches the axis's own words rather than to swap one for the other, and to take
+ * the correction when it goes against us. Nothing is hidden: the whole-bundle figure stays on
+ * every row.
  */
-function bundle(side: { specifier: string; symbol: string }, id: string): { entry: number; whole: number } {
+interface Metafile {
+  outputs: Record<string, { bytes: number; entryPoint?: string; imports?: { path: string; kind: string }[] }>;
+}
+
+/**
+ * The entry chunk plus every chunk reachable from it through `import` statements.
+ *
+ * A `dynamic-import` edge is deliberately not followed: that chunk is fetched when the branch
+ * runs, which is the whole reason `--splitting` is the right command here.
+ */
+function initialBytes(meta: Metafile, entryFile: string): number {
+  const entry = Object.keys(meta.outputs).find((out) => out.endsWith(`/${entryFile}`));
+  if (entry === undefined) throw new Error(`esbuild metafile names no output for ${entryFile}`);
+  const seen = new Set<string>();
+  const walk = (path: string): void => {
+    const output = meta.outputs[path];
+    if (output === undefined || seen.has(path)) return;
+    seen.add(path);
+    for (const edge of output.imports ?? []) if (edge.kind === 'import-statement') walk(edge.path);
+  };
+  walk(entry);
+  let total = 0;
+  for (const path of seen) total += meta.outputs[path]?.bytes ?? 0;
+  return total;
+}
+
+function bundle(side: { specifier: string; symbol: string }, id: string): { initial: number; whole: number } {
   mkdirSync(SCRATCH, { recursive: true });
   const stem = id.replaceAll('/', '__');
   const file = join(SCRATCH, `${stem}.mjs`);
   writeFileSync(file, fixtureSource(side));
   const outdir = join(SCRATCH, `${stem}.chunks`);
   rmSync(outdir, { recursive: true, force: true });
+  const metafile = join(SCRATCH, `${stem}.meta.json`);
   // esbuild from the CLI, not the API: one fewer import in a suite that measures imports,
   // and the exact command is quotable in the results file.
-  execFileSync(esbuildBin(), [file, '--bundle', '--minify', '--format=esm', '--platform=node', '--splitting', `--outdir=${outdir}`], {
+  execFileSync(esbuildBin(), [file, '--bundle', '--minify', '--format=esm', '--platform=node', '--splitting', `--outdir=${outdir}`, `--metafile=${metafile}`], {
     cwd: BENCH_ROOT,
     stdio: 'pipe',
   });
-  const files = readdirSync(outdir).filter((f) => f.endsWith('.js'));
-  const entry = statSync(join(outdir, `${stem}.js`)).size;
-  const whole = files.reduce((sum, f) => sum + statSync(join(outdir, f)).size, 0);
-  return { entry, whole };
+  const meta = JSON.parse(readFileSync(metafile, 'utf8')) as Metafile;
+  const whole = readdirSync(outdir)
+    .filter((f) => f.endsWith('.js'))
+    .reduce((sum, f) => sum + statSync(join(outdir, f)).size, 0);
+  return { initial: initialBytes(meta, `${stem}.js`), whole };
 }
 
 export interface Measured {
-  /** The entry chunk: what loads when the import is evaluated. */
+  /** The initial load: the entry chunk and every chunk it statically imports. */
   bundled: number;
   /** Every chunk together: the disk cost of the feature set. */
   whole: number;
@@ -173,8 +210,8 @@ export interface Measured {
 function measure(side: { specifier: string; symbol: string }, id: string): Measured {
   const pkg = packageOf(side.specifier);
   const { dir, version } = resolvePackage(pkg);
-  const { entry, whole } = bundle(side, id);
-  return { bundled: entry, whole, installed: installedBytes(pkg), version, dir: relativeToRepo(dir) };
+  const { initial, whole } = bundle(side, id);
+  return { bundled: initial, whole, installed: installedBytes(pkg), version, dir: relativeToRepo(dir) };
 }
 
 interface BytesRow {

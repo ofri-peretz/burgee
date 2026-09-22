@@ -8,7 +8,7 @@
 import { dirname } from 'node:path';
 import { parseArgs } from 'node:util';
 
-import { ConfigError, explain, type Layers, type Provenance, resolve as resolveLayers } from 'seniority/precedence';
+import { ConfigError, type Layers, type Provenance, resolve as resolveLayers } from 'seniority/precedence';
 
 import { detectAgent } from './agent.js';
 import { checkCommand } from './definition.js';
@@ -17,7 +17,6 @@ import { type ActionRequiredSpec, type ArgumentSpec, type CommandNode, type Decl
 import { camel, kebab } from './names.js';
 import { nearestPackage, type Package } from './pkg.js';
 import { host } from './runtime.js';
-import { commandSchemaOf, machineJson, schemaOf, summaryOf, typedName } from './schema.js';
 import { detachedTeardown, processTeardown, type Teardown } from './shutdown.js';
 import { checkRelations, coerce, UsageError } from './validate.js';
 
@@ -330,7 +329,9 @@ async function resolveValues(manifest: Manifest, specs: Record<string, OptionSpe
   const resolution = resolveLayers(specs, layers);
   const out: Resolved2 = { values: resolution.values as Values, provenance: resolution.provenance };
   const asked = values['explain'];
-  if (typeof asked === 'string') out.explainText = explain(asked, resolution);
+  // `--explain` is the only reader of `seniority/precedence`'s explain half, and it is 1,018
+  // bundled bytes that a program which never explains its configuration should not carry.
+  if (typeof asked === 'string') out.explainText = (await import('seniority/precedence')).explain(asked, resolution);
   for (const [name, spec] of Object.entries(specs)) {
     if (out.values[name] === undefined && spec.required === true && out.explainText === undefined) {
       throw new UsageError(`missing required option --${kebab(name)}`, `pass --${kebab(name)} <value>`);
@@ -437,7 +438,8 @@ const HELP_FLAGS = new Set(['--help', '-h']);
  * help. Children are names only: `--help` on a group is a menu, and a reader who wants a
  * child's detail asks for that child.
  */
-function helpDocumentOf(manifest: Manifest, node: CommandNode): Record<string, unknown> {
+async function helpDocumentOf(manifest: Manifest, node: CommandNode): Promise<Record<string, unknown>> {
+  const { commandSchemaOf, typedName } = await import('./schema.js');
   const root = manifest.rootPath;
   const children = manifest.commands
     .filter((c) => c.path.length === node.path.length + 1 && c.path.slice(0, node.path.length).join(' ') === node.path.join(' '))
@@ -514,6 +516,19 @@ interface Resolving {
 const renderHelp = async (...args: Parameters<typeof import('./help.js')['renderHelp']>): Promise<string> =>
   (await import('./help.js')).renderHelp(...args);
 
+/**
+ * `schema.ts` on demand, for the same reason help is: nothing in it runs unless a reader asks
+ * for a document.
+ *
+ * Every call site — `--help --json`, `--schema`, and the `help` command — is a branch a normal
+ * run never takes, and the module is 2,640 bundled bytes plus the `plugin.ts` and `manifest.ts`
+ * it drags into the same chunk. It was static because `schemaSurface` and `helpDocumentOf` were
+ * synchronous; both are only ever called from `async` functions, so making them `async` costs a
+ * microtask on a path that is about to write to stdout and print nothing else.
+ */
+const machineJson = async (...args: Parameters<typeof import('./schema.js')['machineJson']>): Promise<string> =>
+  (await import('./schema.js')).machineJson(...args);
+
 async function unresolved({ manifest, root, io }: Resolving, argv: string[], at: CommandNode | undefined): Promise<{ text: string; code: ExitCodeType }> {
   const node = at ?? rootNode(manifest, root);
   const typed = argv.slice(node.path.length - root.length);
@@ -524,7 +539,7 @@ async function unresolved({ manifest, root, io }: Resolving, argv: string[], at:
     // parse, which is the failure the whole `--json` surface exists to avoid. The document is
     // `commandSchemaOf` for this node plus its immediate children, so the shape a reader
     // already knows from `--schema` is the shape they get here, scoped to one command.
-    if (beforeTerminator(typed).includes('--json')) return { text: `${machineJson(helpDocumentOf(manifest, node), beforeTerminator(argv))}\n`, code: ExitCode.OK };
+    if (beforeTerminator(typed).includes('--json')) return { text: `${await machineJson(await helpDocumentOf(manifest, node), beforeTerminator(argv))}\n`, code: ExitCode.OK };
     return { text: await renderHelp(manifest, node, { width: io.width }), code: ExitCode.OK };
   }
   if (first === '--version' || first === '-V') return { text: `${versionOf(manifest, io)}\n`, code: ExitCode.OK };
@@ -563,7 +578,7 @@ async function surface(manifest: Manifest, argv: string[], io: Io): Promise<bool
     return true;
   }
   if (head.includes('--schema')) {
-    io.out.write(`${machineJson(schemaSurface(manifest, argv), head)}\n`);
+    io.out.write(`${await machineJson(await schemaSurface(manifest, argv), head)}\n`);
     return true;
   }
   if (head[0] === '--mcp') {
@@ -599,7 +614,8 @@ const SCHEMA_BUDGET = 48_000;
  * named (the drilling), the whole program when it fits, a summary naming every command
  * and how to drill when it does not.
  */
-function schemaSurface(manifest: Manifest, argv: string[]): unknown {
+async function schemaSurface(manifest: Manifest, argv: string[]): Promise<unknown> {
+  const { commandSchemaOf, schemaOf, summaryOf } = await import('./schema.js');
   // `--format=…` is a flag, never a step in the command path being drilled into.
   const { node } = manifest.resolve(beforeTerminator(argv).filter((a) => a !== '--schema' && !a.startsWith('--format=')) as string[], manifest.rootPath);
   if (node?.run !== undefined) return commandSchemaOf(node, manifest.rootPath);
@@ -689,7 +705,7 @@ async function dispatch(manifest: Manifest, { node, rest, name }: Resolved, io: 
   // F2 — help as data when both flags are given. It printed the same prose as `--help`, so a
   // caller who asked for a machine-readable answer got one they had to parse: the exact
   // failure the `--json` surface exists to avoid, on the flag people type first.
-  if (flags.help === true && json) return { json, text: `${machineJson(helpDocumentOf(manifest, node), json ? ['--json'] : [])}\n` };
+  if (flags.help === true && json) return { json, text: `${await machineJson(await helpDocumentOf(manifest, node), json ? ['--json'] : [])}\n` };
   if (flags.help === true) return { json, text: await renderHelp(manifest, node, { width: io.width }) };
   if (flags.version === true) return { json, text: `${versionOf(manifest, io)}\n` };
 

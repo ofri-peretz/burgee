@@ -23,8 +23,9 @@
 import { width } from 'linegauge';
 import { describe, expect, it } from 'vitest';
 
+import { renderHelp } from './help-entry.js';
 import { wrap } from './help.js';
-import { defineCommand, defineProgram, renderHelp } from './index.js';
+import { defineCommand, defineProgram } from './index.js';
 
 const ok = (): string => 'ok';
 

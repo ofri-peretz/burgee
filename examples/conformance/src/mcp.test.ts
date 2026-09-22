@@ -5,7 +5,9 @@
  */
 import { PassThrough } from 'node:stream';
 
-import { execute, inputSchemaOf, MCP_PROTOCOL_VERSION, serveMcp, toolsOf } from 'burgee';
+import { execute } from 'burgee';
+import { MCP_PROTOCOL_VERSION, serveMcp, toolsOf } from 'burgee/mcp';
+import { inputSchemaOf } from 'burgee/schema';
 import { runBurgee } from 'burgee/testing';
 import { program } from 'demo-cli-burgee';
 import { describe, expect, it } from 'vitest';

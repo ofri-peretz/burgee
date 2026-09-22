@@ -212,16 +212,43 @@ language: burgee is TypeScript, like both incumbents.
 
 Milliseconds are a property of the machine that produced them, so nothing gates on them.
 What is gated is the ratio between two spawns interleaved in the same run, which cancels the
-machine out — and three of those gates are **claims we have not met**:
+machine out. Six of those gates are stated in public; **two are met, three are not, and one has
+never been measured**:
 
 | Claim | Gate | Measured | |
 | :--- | :--- | ---: | :--- |
-| `burgee` starts at or below `cac`, the lightest framework in the landscape | `cold-start-at-or-below-cac` | 2.567× | ❌ **not met** |
-| `burgee` is lighter in a user's bundle than `cac` | `lighter-than-cac` | 5.538× | ❌ **not met** |
-| `burgee/commander` is lighter in a user's bundle than `commander` | `lighter-than-commander` | 1.773× | ❌ **not met** |
-| `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 1.038× | ❌ **not met** |
-| the core entry point is under 52 KB bundled | `core-under-52kb-bundled` | 57,880 bytes | ❌ **not met** |
+| the core entry point is under 52 KB bundled | `core-under-52kb-bundled` | 28,637 bytes | ✅ met |
+| `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 0.969× | ✅ met |
+| `burgee` starts at or below `cac`, the lightest framework in the landscape | `cold-start-at-or-below-cac` | 1.708× | ❌ **not met** |
+| `burgee/commander` is lighter in a user's bundle than `commander` | `lighter-than-commander` | 1.514× | ❌ **not met** |
+| `burgee` is lighter in a user's bundle than `cac` | `lighter-than-cac` | 2.740× | ❌ **not met** |
 | an agent spends ≥40% fewer tokens and ≥30% fewer turns | `agent-tokens-40pct` | — | **unmeasured** |
+
+Every row moved, and the ones that went from ❌ to ✅ went a long way: 57,880 bytes → 28,637, and
+1.038× → 0.969×. The three still red moved too — 2.567× → 1.708×, 1.773× → 1.514×, 5.538× →
+2.740× — which is why they are worth reading rather than skipping.
+
+The two that moved to met are one change: the root barrel stopped re-exporting the value half of
+five optional modules, so `import { run } from 'burgee'` no longer loads the help renderer, the
+MCP server, the schema surface, the plugin host or the configuration layer. Each has a subpath of
+its own now, every `type` stayed where it was, and the initial load a consumer pays fell 50.5%.
+
+**The three that remain have a measured floor above their own gate,** which is worth saying
+plainly rather than leaving as a to-do. `cac` is 10,457 bundled bytes of parser and help
+renderer; burgee's 28,637 is that plus coercion, choices, relations, Standard Schema,
+configuration precedence, signal-bound shutdown, terminal restore and agent detection. Stripping
+every branch still left measures a floor near **2.26×**. Our `commander/command.js` is 33,487
+bundled against commander's 27,226, and the front-end also carries a cross-platform spawn that
+cannot go lazy without giving up `parse()`'s synchronous contract and the 1360 / 1360 compat row
+that depends on it — at byte parity with commander's own file the ratio still lands near
+**1.09×**. And `import 'cac'` is one file in 4.2 ms where `import 'burgee'` is seventeen in 17.4.
+Closing those gaps means deleting the product, not optimising it; the decision is
+[D-102](./.sdlc/DECISIONS.md), and until it is answered all three stay on this page saying **not
+met**.
+
+The last one has never run. B1 spawns 50 agent runs and refuses to start without a credential,
+and nothing in the suite can turn a run that did not happen into a number — `emit.test.ts`
+enforces that. It is [D-103](./.sdlc/DECISIONS.md).
 
 Installed size is our largest number and it is larger than commander's. It buys zero runtime
 dependencies and six drop-in front ends, and it stays on the page either way: *not met* and

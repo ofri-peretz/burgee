@@ -22,6 +22,26 @@
       "import": "./dist/plugin.js",
       "default": "./dist/plugin.js"
     },
+    "./help": {
+      "types": "./dist/help-entry.d.ts",
+      "import": "./dist/help-entry.js",
+      "default": "./dist/help-entry.js"
+    },
+    "./mcp": {
+      "types": "./dist/mcp-entry.d.ts",
+      "import": "./dist/mcp-entry.js",
+      "default": "./dist/mcp-entry.js"
+    },
+    "./schema": {
+      "types": "./dist/schema-entry.d.ts",
+      "import": "./dist/schema-entry.js",
+      "default": "./dist/schema-entry.js"
+    },
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "import": "./dist/config.js",
+      "default": "./dist/config.js"
+    },
     "./brand": {
       "types": "./dist/brand.d.ts",
       "import": "./dist/brand.js",

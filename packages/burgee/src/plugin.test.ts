@@ -21,7 +21,9 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { runCommand } from './execute.js';
-import { definePlugin, Manifest, type Plugin } from './index.js';
+import { type Plugin } from './index.js';
+import { definePlugin } from './plugin.js';
+import { Manifest } from './schema-entry.js';
 
 /** The refusal's code, or what was thrown instead — so a raw `TypeError` reads as one. */
 function refusal(fn: () => unknown): { code?: string; message: string } {
