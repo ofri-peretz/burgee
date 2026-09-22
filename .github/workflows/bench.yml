@@ -125,12 +125,14 @@ jobs:
           # exact name this split reserves for a chosen one. Moving it leaves nothing behind
           # in either case — a modified file is restored by the checkout, a new one is gone.
           # `run.ts` now names an incomplete document as an observation itself — this job
-          # runs axis subsets, so its files already end in the sha. Renaming one again would
-          # give `<date>-<sha>-<sha>.json`, which `published.ts` reads as neither shape.
+          # runs axis subsets, so its files already end in `<sha>-ci`. Renaming one again would
+          # give `<date>-<sha>-ci-<sha>-ci.json`, which `published.ts` reads as neither shape.
+          # The `-ci` is D-110: a local run of the same commit is a different observation, and
+          # before the suffix it had this file's exact path — #419 was closed for that.
           for f in $(git status --porcelain benchmarks/results/ | awk '{print $NF}'); do
             case "$f" in
-              *-${GITHUB_SHA::7}.json) ;;
-              *) mv "$f" "${f%.json}-${GITHUB_SHA::7}.json" ;;
+              *-${GITHUB_SHA::7}-ci.json) ;;
+              *) mv "$f" "${f%.json}-${GITHUB_SHA::7}-ci.json" ;;
             esac
           done
           git checkout -- benchmarks/results/
@@ -216,7 +218,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          FILE=$(ls -1 benchmarks/results/agent-cli-bench/*.json | tail -n 1)
+          # Newest by mtime, not by name: the file this run just wrote. By name, any committed
+          # observation of the same day with a later sha sorts after it and is read instead.
+          FILE=$(ls -1t benchmarks/results/agent-cli-bench/*.json | head -n 1)
           STATUS=$(node -p "JSON.parse(require('fs').readFileSync('$FILE','utf8')).axes.agent.status")
           REASON=$(node -p "JSON.parse(require('fs').readFileSync('$FILE','utf8')).axes.agent.reason || ''")
           echo "status=$STATUS" >> "$GITHUB_OUTPUT"

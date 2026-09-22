@@ -226,7 +226,23 @@ function pick(obj: unknown, dotted: string): number | null {
  * quiet. The observations are the series. The published measurement is one of its points,
  * not a substitute for it.
  */
-export const DATED_JSON = /^\d{4}-\d{2}-\d{2}(-[0-9a-f]{7,40})?\.json$/;
+export const DATED_JSON = /^\d{4}-\d{2}-\d{2}(-[0-9a-f]{7,40}(-ci|-local)?)?\.json$/;
+
+/**
+ * Whether a results document was measured on a CI runner — the only runs a band reads (D-110).
+ *
+ * A series is one machine class or it is not a series. On 2026-09-22 `c0fa8a3` read
+ * `cold-start-ratio` 1.121 on the nightly’s four-core runner and 1.233 on an M4 Pro, with no
+ * change to the code between them. Mixed into one window, a laptop run either breaches on its
+ * own or widens σ until a real drift fits inside it. The deterministic bands (bytes, pass
+ * rates, exit codes) lose nothing by the filter: CI measures every one of them on every push
+ * to main. Read from the document, not the name, so the observations named before the
+ * `-ci`/`-local` suffix — and a published measurement, whichever machine a person chose —
+ * are sorted by the same rule.
+ */
+export function onCi(doc: unknown): boolean {
+  return (doc as { machine?: { ci?: unknown } } | null)?.machine?.ci === true;
+}
 
 /** Every dated result file in a benchmark suite, and the metric read out of each. */
 export function collectBenchmark(cfg: BandConfig, root = REPO_ROOT): Observation[] {
@@ -242,7 +258,8 @@ export function collectBenchmark(cfg: BandConfig, root = REPO_ROOT): Observation
   for (const file of files) {
     let value: number | null;
     try {
-      value = pick(JSON.parse(fs.readFileSync(path.join(dir, file), 'utf-8')), cfg.jsonPath);
+      const doc: unknown = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf-8'));
+      value = onCi(doc) ? pick(doc, cfg.jsonPath) : null;
     } catch {
       continue; // a malformed historical run is not a reason to lose the rest
     }
@@ -274,19 +291,21 @@ export function collectBenchmark(cfg: BandConfig, root = REPO_ROOT): Observation
 export function unmeasured(cfg: BandConfig, root = REPO_ROOT): { newest: string; reason: string } | undefined {
   if (cfg.collector !== 'benchmark-json' || !cfg.jsonPath) return undefined;
   const dir = path.join(root, 'benchmarks/results', cfg.suite ?? '');
+  // The newest *CI* document: a local run feeds no band, so it cannot be the one that did not measure it.
   let newest: string | undefined;
+  let doc: unknown;
   try {
-    newest = fs.readdirSync(dir).filter((f) => DATED_JSON.test(f)).sort().at(-1);
+    for (const f of fs.readdirSync(dir).filter((f) => DATED_JSON.test(f)).sort().reverse()) {
+      doc = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf-8'));
+      if (onCi(doc)) {
+        newest = f;
+        break;
+      }
+    }
   } catch {
     return undefined;
   }
   if (newest === undefined) return undefined;
-  let doc: unknown;
-  try {
-    doc = JSON.parse(fs.readFileSync(path.join(dir, newest), 'utf-8'));
-  } catch {
-    return undefined;
-  }
   if (pick(doc, cfg.jsonPath) !== null) return undefined;
   // The path is `bands.<id>.value`; the entry beside it says why there is no value.
   const entry = cfg.jsonPath.split('.').slice(0, -1).reduce<unknown>((a, k) => (a === null || typeof a !== 'object' ? null : Reflect.get(a, k)), doc);
@@ -325,7 +344,8 @@ function collectFromGit(cfg: BandConfig): Observation[] {
         .filter(Boolean);
       if (revs.length === 0) continue;
       const blob = execFileSync('git', ['show', `${revs.at(-1)}:${rel}`], { cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: GIT_BUFFER });
-      const value = pick(JSON.parse(blob), cfg.jsonPath);
+      const doc: unknown = JSON.parse(blob);
+      const value = onCi(doc) ? pick(doc, cfg.jsonPath) : null;
       if (value !== null) out.push({ date: path.basename(rel).replace('.json', ''), value });
     } catch {
       continue; // a historical run in a different shape is not a reason to lose the rest

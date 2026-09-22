@@ -34,17 +34,21 @@ function withPartialRun(): string {
   mkdirSync(dir, { recursive: true });
   writeFileSync(
     join(dir, '2026-09-15-aaaaaaa.json'),
-    JSON.stringify({ bands: { 'core-bundled-bytes': { value: 40562 }, 'cold-start-ratio': { value: 1.068 } } }),
+    JSON.stringify({ machine: { ci: true }, bands: { 'core-bundled-bytes': { value: 40562 }, 'cold-start-ratio': { value: 1.068 } } }),
   );
   writeFileSync(
     join(dir, '2026-09-21-bbbbbbb.json'),
     JSON.stringify({
+      machine: { ci: true },
       bands: {
         'core-bundled-bytes': { status: 'not-run', reason: 'not selected by --axis' },
         'cold-start-ratio': { value: 1.391 },
       },
     }),
   );
+  // Newer, local, and complete: it feeds no band (D-110), so it must not answer for one. Named
+  // the way observations were before the suffix, so only the document can say it was local.
+  writeFileSync(join(dir, '2026-09-22-ccccccc.json'), JSON.stringify({ machine: { ci: false }, bands: { 'core-bundled-bytes': { value: 58027 } } }));
   return root;
 }
 
@@ -59,6 +63,10 @@ describe('a band the newest results document did not measure', () => {
       newest: '2026-09-21-bbbbbbb',
       reason: 'not selected by --axis',
     });
+  });
+
+  it('reads past a newer local run, which is not part of any series', () => {
+    expect(unmeasured(band('core-bundled-bytes'), root)?.newest).toBe('2026-09-21-bbbbbbb');
   });
 
   it('says nothing about a band that document did measure', () => {

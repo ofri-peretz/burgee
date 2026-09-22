@@ -24,7 +24,7 @@ import { method as reliabilityMethod, run as runReliability } from './axes/relia
 import { method as weightMethod, run as runWeight } from './axes/weight.js';
 import { SUITE, type SuiteName, suiteOf } from './bands.js';
 import { type AxisState, type BandEntry, buildDocument, type ClaimEntry, type ResultsDoc } from './emit.js';
-import { commit, machine } from './machine.js';
+import { commit, machine, type Machine } from './machine.js';
 import { type AxisName, type BenchRecord, describeFailure, gateFailures } from './record.js';
 
 const BENCH_ROOT = dirname(fileURLToPath(import.meta.url));
@@ -144,8 +144,8 @@ function printTable(doc: ResultsDoc): void {
 
 /**
  * `YYYY-MM-DD.json` is the *published* measurement — what `/docs/benchmarks` is generated
- * from and what `docs.test.ts` pins `comparison.mdx` against. `YYYY-MM-DD-<sha>.json` is an
- * observation. `benchmarks/published.ts` explains the split at length.
+ * from and what `docs.test.ts` pins `comparison.mdx` against. `YYYY-MM-DD-<sha>-<ci|local>.json`
+ * is an observation. `benchmarks/published.ts` explains the split at length.
  *
  * Until 2026-09-16 that distinction was a convention two shell lines in `bench.yml` kept,
  * and every other caller wrote the published name whatever it had measured. `npm run bench
@@ -182,7 +182,10 @@ function write(doc: ResultsDoc, publish: boolean): string {
 export function resultsName(doc: ResultsDoc, publish = false): string {
   const date = doc.measured.slice(0, ISO_DATE);
   const complete = Object.values(doc.axes).every((a) => (a as AxisState).status === 'measured');
-  return complete && publish ? `${date}.json` : `${date}-${doc.commit.slice(0, SHORT_SHA)}.json`;
+  // `-ci`/`-local`: a sha names a commit, not a run, and two machines' runs of one commit
+  // shared a path until 2026-09-22 — landing either deleted the other (D-110).
+  const where = (doc.machine as Partial<Machine>).ci === true ? 'ci' : 'local';
+  return complete && publish ? `${date}.json` : `${date}-${doc.commit.slice(0, SHORT_SHA)}-${where}.json`;
 }
 
 function documents(args: Args): { docs: ResultsDoc[]; axes: Map<AxisName, AxisState> } {
