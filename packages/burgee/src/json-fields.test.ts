@@ -36,7 +36,7 @@ const program = defineProgram({
 });
 
 const data = (stdout: string): unknown => (JSON.parse(stdout) as { data: unknown }).data;
-const error = (stderr: string): { code: string; message: string; hint: string } => (JSON.parse(stderr) as { error: { code: string; message: string; hint: string } }).error;
+const error = (stdout: string): { code: string; message: string; hint: string } => (JSON.parse(stdout) as { error: { code: string; message: string; hint: string } }).error;
 
 /** A program whose one command declares `fields` as given, however malformed. */
 const bad = (fields: string[]): ReturnType<typeof defineProgram> =>
@@ -66,21 +66,21 @@ describe('--json=<fields> (N14)', () => {
     const before = ran;
     const r = await runBurgee(program, { argv: ['view', '--json=name,owner'] });
     expect(r.code).toBe(2);
-    expect(error(r.stderr).message).toContain('"owner"');
-    expect(error(r.stderr).hint).toBe('valid fields: name, stars, private');
+    expect(error(r.stdout).message).toContain('"owner"');
+    expect(error(r.stdout).hint).toBe('valid fields: name, stars, private');
     expect(ran).toBe(before);
   });
 
   it('refuses an unknown field of an undeclared command, naming the keys the result has', async () => {
     const r = await runBurgee(program, { argv: ['list', '--json=owner'] });
     expect(r.code).toBe(2);
-    expect(error(r.stderr).hint).toBe('valid fields: name, stars, private');
+    expect(error(r.stdout).hint).toBe('valid fields: name, stars, private');
   });
 
   it('`--json=` on a command that declares none says so, as JSON', async () => {
     const r = await runBurgee(program, { argv: ['list', '--json='] });
     expect(r.code).toBe(2);
-    expect(error(r.stderr).message).toBe('"list" declares no fields to list');
+    expect(error(r.stdout).message).toBe('"list" declares no fields to list');
   });
 
   it('bare `--json` is unchanged, and never takes the next word as fields', async () => {
@@ -102,8 +102,8 @@ describe('--json=<fields> (N14)', () => {
   it('refuses a malformed field declaration the first time `--json=` reads it', async () => {
     const dup = await runBurgee(bad(['a', 'a']), { argv: ['bad', '--json='] });
     expect(dup.code).not.toBe(0);
-    expect(dup.stderr).toContain('distinct, non-empty names without commas');
+    expect(dup.stdout).toContain('distinct, non-empty names without commas');
     const comma = await runBurgee(bad(['a,b']), { argv: ['bad', '--json=a'] });
-    expect(comma.stderr).toContain('without commas');
+    expect(comma.stdout).toContain('without commas');
   });
 });
