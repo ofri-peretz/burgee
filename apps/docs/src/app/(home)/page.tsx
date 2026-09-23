@@ -1,5 +1,6 @@
 import { BurgeeMark } from '#/components/burgee-mark';
-import { PITCH, REPO, SITE } from '#/lib/site';
+import { PITCH } from '#/lib/llms';
+import { REPO, SITE, SUMMARY } from '#/lib/site';
 import { type Metadata } from 'next';
 import Link from 'next/link';
 
@@ -14,7 +15,7 @@ const HERO_MARK_SIZE = 96;
  */
 export const metadata: Metadata = {
   title: { absolute: 'burgee — the CLI framework that replaces commander and yargs' },
-  description: PITCH,
+  description: SUMMARY,
   alternates: { canonical: '/' },
 };
 
@@ -22,13 +23,13 @@ export const metadata: Metadata = {
  * `SoftwareSourceCode` JSON-LD: the structured statement of what this site documents — a
  * TypeScript codebase, where its source is, and its licence — for a search engine or a
  * model that reads schema.org before prose. Every value is a fact the repository states
- * elsewhere: the licence is `packages/burgee/package.json`'s, the pitch is `PITCH`.
+ * elsewhere: the licence is `packages/burgee/package.json`'s, the description is `SUMMARY`.
  */
 const JSON_LD = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareSourceCode',
   name: 'burgee',
-  description: PITCH,
+  description: SUMMARY,
   url: SITE,
   codeRepository: REPO,
   programmingLanguage: 'TypeScript',
@@ -53,12 +54,8 @@ export default function HomePage() {
       <h1 className="text-4xl font-bold tracking-tight">
         <span className="font-mono lowercase">burgee</span>
       </h1>
-      <p className="max-w-xl text-lg text-fd-muted-foreground">
-        Everything a CLI needs that isn&apos;t your CLI: help, structured output, a typed
-        schema, an MCP server, completions, types and docs — every one of them projected
-        from a single declaration. You write the commands; humans and agents both get a
-        first-class interface to them.
-      </p>
+      <p className="max-w-xl text-lg text-fd-muted-foreground">{PITCH}</p>
+      <p className="max-w-xl text-fd-muted-foreground">{SUMMARY}</p>
       <Link
         href="/docs"
         className="rounded-md bg-fd-primary px-4 py-2 font-medium text-fd-primary-foreground"

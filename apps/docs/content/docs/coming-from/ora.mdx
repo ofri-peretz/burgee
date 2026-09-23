@@ -1,0 +1,59 @@
+---
+title: Coming from ora
+description: "An ora alternative with a drop-in path: import ora from flagstaff/ora, graded 99 / 99 by ora's own test suite — then a frame loop whose static projection gives pipes one line per state and --json one event per transition."
+---
+
+**flagstaff** is an **ora alternative** you adopt by changing one import. `flagstaff/ora` is
+ora 9's whole API, and ora's own test suite is the grade.
+
+## Migrate from ora in one import
+
+```diff
+- import ora from 'ora';
++ import ora from 'flagstaff/ora';
+```
+
+Everything else stays: `ora({ text, spinner, color, indent, prefixText, suffixText })`,
+`.start() .stop() .succeed() .fail() .warn() .info() .stopAndPersist()`, `oraPromise()` and
+the `spinners` corpus. The cursor is restored on a clean exit and on `SIGINT`, `SIGTERM` and
+`SIGHUP`, as ora's is.
+
+## Is flagstaff compatible with ora?
+
+Graded, not claimed. ora's own suite, vendored at 9.4.1 and unmodified apart from the import
+specifier, runs against `flagstaff/ora` beside a control that runs it against real ora:
+
+| | passing | rate |
+| :-- | --: | --: |
+| `flagstaff/ora` | 99 / 99 | 100.0% |
+| ora itself (control) | 99 / 99 | 100.0% |
+
+From [Compatibility](/docs/compatibility), which `npm run compat:page` generates from the
+oracle's last run; that page is the authority. The same page grades flagstaff's
+`log-update`, `boxen` and `cli-table3` paths.
+
+## What you gain over ora
+
+`flagstaff/ora` is deliberately ora's behaviour to the byte, so the façade alone changes the
+dependency tree and not the output. The gain is the frame loop underneath it, `hoist()`,
+which you adopt a file at a time:
+
+| mode | what `hoist()` writes for the same three calls |
+| :-- | :-- |
+| `tty` | the spinner, repainted in place, then the final line left on screen |
+| `pipe`, `ci` | one line per state change — no `\r`, no escape |
+| `json` | one NDJSON event per transition, on stderr |
+| `accessible` | the static text, never a redraw |
+
+ora, off a terminal, still prints frames — `\r` after `\r` into the log an agent reads back.
+Every flagstaff component has a required `static(state)`, and that **static projection** is
+what a pipe, an agent and a screen reader get. Which mode runs is decided once by roundel's
+output policy, never by the component.
+
+## When to switch from ora
+
+- Your CLI's output is read by an agent or captured in CI logs.
+- You want spinners, progress, boxes and tables on one loop rather than four packages.
+
+The loop, the built-ins and the other drop-in paths are on
+[flagstaff](/docs/packages/flagstaff).
