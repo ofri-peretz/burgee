@@ -166,7 +166,7 @@ MIT © Ofri Peretz — see [LICENSE](https://github.com/ofri-peretz/burgee/blob/
 
 ## Benchmarks
 
-Every number here is produced by `npm run bench` and published at [/docs/benchmarks](/docs/benchmarks).
+Every number here is produced by `npm run bench` and published at [/docs/benchmarks](https://burgee.interlace.tools/docs/benchmarks).
 
 Graded by the incumbent's own test suite:
 

@@ -14,6 +14,17 @@
       "outputDirectory": "apps/docs/.next",
       "familyPages": true
     },
+    "roundel": {
+      "package": "roundel",
+      "workspace": "docs-roundel",
+      "dir": "apps/docs-roundel",
+      "projectId": "prj_eHHFqEsB8E0gNDL0C98rsaRjMK6t",
+      "productionUrl": "https://roundel.interlace.tools",
+      "rootDirectory": "",
+      "buildCommand": "npx turbo run build --filter=docs-roundel",
+      "outputDirectory": "apps/docs-roundel/.next",
+      "familyPages": false
+    },
     "flagstaff": {
       "package": "flagstaff",
       "workspace": "docs-flagstaff",
@@ -92,7 +103,5 @@
       "familyPages": false
     }
   },
-  "excluded": {
-    "roundel": "Its app lands in the next commit of this change; until then its README renders as a section of the front door, which is what an excluded package gets."
-  }
+  "excluded": {}
 }

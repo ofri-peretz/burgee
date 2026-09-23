@@ -17,5 +17,5 @@ family-wide pages — [compatibility](/docs/compatibility), [comparison](/docs/c
 | [flagstaff](https://flagstaff.interlace.tools/docs) | ora, log-update, boxen and cli-table3 | [flagstaff.interlace.tools](https://flagstaff.interlace.tools) |
 | [linegauge](https://linegauge.interlace.tools/docs) | string-width, wrap-ansi, strip-ansi and slice-ansi | [linegauge.interlace.tools](https://linegauge.interlace.tools) |
 | [paratext](https://paratext.interlace.tools/docs) | ansi-escapes, terminal-link and term-img | [paratext.interlace.tools](https://paratext.interlace.tools) |
-| [roundel](https://burgee.interlace.tools/docs/packages/roundel) | chalk | [burgee.interlace.tools](https://burgee.interlace.tools) |
+| [roundel](https://roundel.interlace.tools/docs) | chalk | [roundel.interlace.tools](https://roundel.interlace.tools) |
 | [seniority](https://seniority.interlace.tools/docs) | cosmiconfig, dotenv and rc | [seniority.interlace.tools](https://seniority.interlace.tools) |
