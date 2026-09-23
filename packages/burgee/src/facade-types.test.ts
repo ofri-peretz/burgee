@@ -60,12 +60,18 @@ const OPTIONS: ts.CompilerOptions = {
   noEmit: true,
 };
 
+/**
+ * TypeScript hands its host forward-slash paths on every platform, so the in-memory keys are
+ * normalised the same way — a `join()` key is backslashed on Windows and never matched.
+ */
+const slash = (path: string): string => path.replaceAll('\\', '/');
+
 /** A program over in-memory files; the real filesystem answers everything else. */
 function program(files: Record<string, string>): ts.Program {
-  const virtual = new Map(Object.entries(files).map(([name, text]) => [join(ROOT, name), text]));
+  const virtual = new Map(Object.entries(files).map(([name, text]) => [slash(join(ROOT, name)), text]));
   const host = ts.createCompilerHost(OPTIONS);
   const { getSourceFile, fileExists, readFile, directoryExists } = host;
-  const dirs = new Set([...virtual.keys()].flatMap((f) => [dirname(f), ROOT]));
+  const dirs = new Set([...virtual.keys()].flatMap((f) => [dirname(f), slash(ROOT)]));
   host.fileExists = (f) => virtual.has(f) || fileExists.call(host, f);
   host.readFile = (f) => virtual.get(f) ?? readFile.call(host, f);
   host.directoryExists = (d) => dirs.has(d) || (directoryExists?.call(host, d) ?? true);
@@ -82,7 +88,7 @@ function typeErrors(files: Record<string, string>): string[] {
     const message = ts.flattenDiagnosticMessageText(d.messageText, '\n');
     if (d.file === undefined || d.start === undefined) return `TS${d.code} ${message}`;
     const { line } = d.file.getLineAndCharacterOfPosition(d.start);
-    return `${d.file.fileName.replace(`${ROOT}/`, '')}:${line + 1} TS${d.code} ${message}`;
+    return `${d.file.fileName.replace(`${slash(ROOT)}/`, '')}:${line + 1} TS${d.code} ${message}`;
   });
 }
 
@@ -93,7 +99,7 @@ function exportsOf(specifiers: string[]): Record<string, string[]> {
   const checker = prog.getTypeChecker();
   return Object.fromEntries(
     specifiers.map((s, i) => {
-      const source = prog.getSourceFile(join(ROOT, `probe-${i}.ts`));
+      const source = prog.getSourceFile(slash(join(ROOT, `probe-${i}.ts`)));
       const decl = source?.statements[0];
       if (decl === undefined || !ts.isExportDeclaration(decl) || decl.moduleSpecifier === undefined) throw new Error(`no probe for ${s}`);
       const mod = checker.getSymbolAtLocation(decl.moduleSpecifier);
@@ -381,7 +387,7 @@ export const tools = yargs([])
     // compiles — so every member of `Argv` is checked against a live instance.
     const prog = program({ 'members.ts': "import type { Argv } from 'burgee/yargs';\nexport type A = Argv;\n" });
     const checker = prog.getTypeChecker();
-    const alias = prog.getSourceFile(join(ROOT, 'members.ts'))?.statements[1];
+    const alias = prog.getSourceFile(slash(join(ROOT, 'members.ts')))?.statements[1];
     if (alias === undefined || !ts.isTypeAliasDeclaration(alias)) throw new Error('no probe');
     const members = checker.getTypeAtLocation(alias).getProperties().map((p) => p.name);
     const instance = yargs([]) as unknown as Record<string, unknown>;
