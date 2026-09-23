@@ -12,10 +12,9 @@
  * `llms.txt` out of `.next` and fails if a single file under `content/docs/` is missing
  * from it, so the drift cannot survive a build.
  */
+import { type PublicPackage } from '#/lib/packages';
+import { PITCH, SITE } from '#/lib/site';
 import { type DocsPage } from '#/lib/source';
-
-/** The canonical origin, so an agent that pulled the file elsewhere can still resolve a link. */
-export const SITE = 'https://burgee.interlace.tools';
 
 /** A YAML frontmatter block at the head of a file, which the projection re-states itself. */
 const FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/;
@@ -27,21 +26,37 @@ function row(page: DocsPage): string {
 }
 
 /**
- * `/llms.txt` — the map. One heading, then one line per page the loader knows.
- * Every page appears exactly once; nothing is filtered, ordered, or excerpted by hand.
+ * One package's row in the map: what it replaces first, because "what is the alternative to
+ * commander?" is the question this section is here to answer, then its npm description.
  */
-export function llmsIndex(pages: readonly DocsPage[]): string {
-  return ['# burgee', '', '> Everything a CLI needs that is not your CLI, projected from one declaration.', '', '## Documentation', '', ...pages.map(row), ''].join('\n');
+function packageRow(pkg: PublicPackage): string {
+  return `- [${pkg.name}](${pkg.url}) — replaces ${pkg.replaces}. ${pkg.description}`;
 }
 
-/** One page's section of the corpus: a title, the URL it came from, then its Markdown. */
-async function section(page: DocsPage): Promise<string> {
+/**
+ * `/llms.txt` — the map. The pitch, then the package map (package → what it replaces → its
+ * page), then one line per page the loader knows. Every docs page appears exactly once under
+ * `## Documentation`; nothing is filtered, ordered, or excerpted by hand. The package pages
+ * appear in both sections on purpose — the map answers "which package", the index answers
+ * "which page" — and `tests/llms-txt.test.ts` checks each section against its own ground truth.
+ */
+export function llmsIndex(pages: readonly DocsPage[], packages: readonly PublicPackage[]): string {
+  return ['# burgee', '', `> ${PITCH}`, '', '## Packages', '', ...packages.map(packageRow), '', '## Documentation', '', ...pages.map(row), ''].join('\n');
+}
+
+/**
+ * One page as Markdown: a title, its description, the URL it came from, then its source.
+ * It is both a section of `/llms-full.txt` and the whole body of the page's `.md` twin, so
+ * the corpus and the per-page file cannot disagree about what a page says.
+ */
+export async function markdownOf(page: DocsPage): Promise<string> {
   const raw = await page.data.getText('raw');
-  return [`# ${page.data.title}`, '', `Source: ${SITE}${page.url}`, '', raw.replace(FRONTMATTER, '').trim(), ''].join('\n');
+  const description = page.data.description ?? '';
+  return [`# ${page.data.title}`, '', ...(description === '' ? [] : [`> ${description}`, '']), `Source: ${SITE}${page.url}`, '', raw.replace(FRONTMATTER, '').trim(), ''].join('\n');
 }
 
 /** `/llms-full.txt` — the whole corpus, in one response, in the order the index lists it. */
 export async function llmsFull(pages: readonly DocsPage[]): Promise<string> {
-  const sections = await Promise.all(pages.map(section));
+  const sections = await Promise.all(pages.map(markdownOf));
   return sections.join('\n---\n\n');
 }

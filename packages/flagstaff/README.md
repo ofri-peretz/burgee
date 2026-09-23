@@ -18,6 +18,10 @@
   <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT" />
 </p>
 
+<p align="center">
+  Docs: <a href="https://burgee.interlace.tools/docs/packages/flagstaff">https://burgee.interlace.tools/docs/packages/flagstaff</a>
+</p>
+
 ora animates a spinner and, off a terminal, prints frames anyway — `\r` after `\r` into the
 log an agent reads back. Ink fixes the terminal by shipping React and a layout engine.
 **flagstaff** is the staff the flag flies from: a frame loop that hoists a component, holds

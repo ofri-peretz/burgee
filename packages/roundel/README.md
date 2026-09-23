@@ -19,6 +19,10 @@
   <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT" />
 </p>
 
+<p align="center">
+  Docs: <a href="https://burgee.interlace.tools/docs/packages/roundel">https://burgee.interlace.tools/docs/packages/roundel</a>
+</p>
+
 chalk gives you `red`; picocolors gives you `red` for fewer bytes. Neither gives you
 `error`, and each decides on its own whether the terminal has colour — which is why a
 program's spinner, prompt and help so often disagree. **roundel** is the colours a CLI

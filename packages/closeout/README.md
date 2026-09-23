@@ -7,6 +7,10 @@
   </a>
 </p>
 
+<p align="center">
+  Docs: <a href="https://burgee.interlace.tools/docs/packages/closeout">https://burgee.interlace.tools/docs/packages/closeout</a>
+</p>
+
 **Close everything out.**
 
 Exit handlers that run exactly once on every path, terminal restore, and a bounded deadline
@@ -321,7 +325,7 @@ Graded by the incumbent's own test suite:
 | `exit-hook` | 21 / 21 |
 | `restore-cursor` | 6 / 6 |
 
-Weight, installed and tree-inclusive: **95,911 bytes** against **170,604** for the incumbents it replaces — a ratio of **0.5622** (exit-hook not installed here, so the ceiling is understated).
+Weight, installed and tree-inclusive: **96,126 bytes** against **170,604** for the incumbents it replaces — a ratio of **0.5634** (exit-hook not installed here, so the ceiling is understated).
 ## Where it sits
 
 Plugins register under the `handlers` key, against the one schema the whole family shares.

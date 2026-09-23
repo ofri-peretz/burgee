@@ -1,4 +1,5 @@
 import { llmsIndex } from '#/lib/llms';
+import { publicPackages } from '#/lib/packages';
 import { allPages } from '#/lib/source';
 
 // Prerendered at build time: the corpus only changes when the build does, and a static
@@ -7,7 +8,7 @@ export const dynamic = 'force-static';
 export const revalidate = false;
 
 export function GET(): Response {
-  return new Response(llmsIndex(allPages()), {
+  return new Response(llmsIndex(allPages(), publicPackages()), {
     headers: { 'content-type': 'text/plain; charset=utf-8' },
   });
 }

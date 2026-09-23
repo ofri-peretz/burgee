@@ -13,13 +13,18 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/caique"><img src="https://img.shields.io/npm/v/caique?style=flat-square&color=0a6b47" alt="npm version" /></a>
-  <img src="https://img.shields.io/badge/status-pre--release-a84c17?style=flat-square" alt="Status: pre-release" />
   <img src="https://img.shields.io/badge/dependencies-closeout-0a6b47?style=flat-square" alt="One dependency: closeout" />
   <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT" />
 </p>
 
-**Pre-release.** The first working slice is here — `decide()`, below — and the rest follows
-[`.sdlc/intents/caique/`](https://github.com/ofri-peretz/burgee/tree/main/.sdlc/intents/caique).
+<p align="center">
+  Docs: <a href="https://burgee.interlace.tools/docs/packages/caique">https://burgee.interlace.tools/docs/packages/caique</a>
+</p>
+
+**Released, pre-1.0.** `decide()`, `ask()` and the `caique/inquirer` and `caique/clack`
+drop-in paths ship today, each path graded by its incumbent's own suite on the
+[compatibility page](https://burgee.interlace.tools/docs/compatibility); what is still to come
+follows [`.sdlc/intents/caique/`](https://github.com/ofri-peretz/burgee/tree/main/.sdlc/intents/caique).
 
 A **caique** (kah-EEK) is a small, loud, never-silent parrot — and this one always answers
 back. It is also the light wooden boat of the Bosphorus and the Greek islands, the one that
@@ -194,7 +199,7 @@ counted whole across its own resolved tree.
   every confirmation; cancellation exits `CANCELLED` and restores the terminal.
 - **Accessible mode** falls back to line input with no live redraw.
 - **A migration path from `@inquirer/prompts` and `@clack/prompts`**, graded by their own
-  suites. See below for what that is graded at today, which is zero.
+  suites. The current grade is generated under *Benchmarks*, below.
 
 ## Which incumbents this is measured against
 
@@ -213,6 +218,11 @@ package whose download count is larger:
 | :-- | --: | --: | --: |
 | [`@inquirer/core` 12.0.3](https://github.com/SBoudrias/Inquirer.js) | 41 | 41 (100%) | **0 (0.0%)** |
 | [`@clack/prompts` 1.8.1](https://github.com/bombshell-dev/clack) | 606 | 576 (95.0%) | **0 (0.0%)** |
+
+**The two caique cells are the 2026-09-14 record, kept as written and superseded since:** the
+`caique/inquirer` and `caique/clack` façades have shipped, and their current rates are
+generated under *Benchmarks* below and on the
+[compatibility page](https://burgee.interlace.tools/docs/compatibility).
 
 Measured 2026-09-14 by `npm run compat`, which runs each incumbent's own unedited suite
 twice: once against the incumbent (the control — the column that proves the gate works)
@@ -258,7 +268,7 @@ Graded by the incumbent's own test suite:
 | `clack` | 14 / 17 |
 | `inquirer-core` | 41 / 41 |
 
-Weight, installed and tree-inclusive: **121,865 bytes** against **182,219** for the incumbents it replaces — a ratio of **0.6688** (@inquirer/core not installed here, so the ceiling is understated).
+Weight, installed and tree-inclusive: **122,372 bytes** against **182,219** for the incumbents it replaces — a ratio of **0.6716** (@inquirer/core not installed here, so the ceiling is understated).
 ## Where it sits
 
 Plugins register under the `widgets` key, against the one schema the whole family shares.

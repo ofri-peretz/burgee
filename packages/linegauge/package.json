@@ -63,7 +63,7 @@
     "url": "git+https://github.com/ofri-peretz/burgee.git",
     "directory": "packages/linegauge"
   },
-  "homepage": "https://github.com/ofri-peretz/burgee/tree/main/packages/linegauge#readme",
+  "homepage": "https://burgee.interlace.tools/docs/packages/linegauge",
   "bugs": {
     "url": "https://github.com/ofri-peretz/burgee/issues"
   },
@@ -82,7 +82,8 @@
     "unicode",
     "plugin",
     "plugins",
-    "extensible"
+    "extensible",
+    "zero-dependency"
   ],
   "devDependencies": {
     "vitest": "^5.0.1"
