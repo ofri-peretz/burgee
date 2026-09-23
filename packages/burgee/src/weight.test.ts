@@ -259,7 +259,9 @@ const RULES: Record<string, EntryRule> = {
     // 43,100 on 2026-09-23 for N14, `--json=<fields>`: the selection, the listing and the refusals live in `fields.js`, imported only when `--json=` is typed; what stays on the startup path is spotting it and calling in, plus the declared `fields` copied onto the node. Measured 43,092 — after N13 moved `--schema` off the path, which is what made the room.
     // 44,500 on 2026-09-23 for E7, `defineError`: the root re-exports it, so `.` carries `define-error.js`; the engine only reads `Symbol.for('burgee.exitCode')` off a thrown error's class and never imports it. 43,950 after merging N13 (#476), which moved `--schema` off the path. Measured 43,939.
     // 44,600 with N14 (#470) and E7 together, after merging main. Measured 44,568.
-    budget: 44_600,
+    // 43,600 on 2026-09-23 for D-122, the `parse` and `shutdown` plugin stages: the `parse` loop lives in `parse-hooks.js`, loaded only when a plugin declares it; what stays is `Manifest.declares`, the call into that chunk, and registering `shutdown` on the run's teardown. Measured 43,501.
+    // 45,000 with D-122 on top of N14 and E7, after merging main. Measured 44,975.
+    budget: 45_000,
     denied: [
       "testing.js",
       "testing-helpers.js",
@@ -333,7 +335,9 @@ const RULES: Record<string, EntryRule> = {
   // 48,000 on 2026-09-23 for E7 — the engine's symbol read, not the module. Measured 47,965.
   // 47,500 after merging N13 (#476). Measured 47,458.
   // 48,100 with N14 (#470) and E7 together. Measured 48,087.
-  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 48_100, denied: ["dev.js", "migrate.js"] },
+  // 48,300 on 2026-09-23 for D-122 — the same engine and manifest bytes as `.`. Measured 48,212.
+  // 48,500 with D-122 on top of N14 and E7, after merging main. Measured 48,494.
+  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 48_500, denied: ["dev.js", "migrate.js"] },
   /**
    * The four doors the root barrel stopped holding open (see `.` above). Each is the same
    * module the engine reaches behind an `await import()`, published so a program that wants it
@@ -363,8 +367,11 @@ const RULES: Record<string, EntryRule> = {
   "./mcp": {
     allow: [],
     // 20,400 on 2026-09-23 for N14: `--schema` publishes a command's declared `fields`. Measured 20,334.
-    // 24,790 covers both N14 and the MCP stdout capture above; the merged entry passes under it.
-    budget: 24_790,
+    // 20,550 on 2026-09-23 for D-122: `Manifest.declares` and the `parse` call-in, which every entry reaching the manifest carries. Measured 20,504.
+    // 20,600 with D-122 on top of N14 and E7, after merging main. Measured 20,568.
+  //
+    // 24,850 with the MCP stdout capture (#521) on top of D-122's 20,568. Measured 24,835.
+    budget: 24_850,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
   },
   // The schema surface and the `Manifest` class it reads. Measured 14,891.
@@ -372,6 +379,8 @@ const RULES: Record<string, EntryRule> = {
   "./schema": {
     allow: [],
     // 15,300 on 2026-09-23 for N14: `--schema` publishes a command's declared `fields`. Measured 15,275.
+    // 15,500 on 2026-09-23 for D-122, the same manifest bytes. Measured 15,445.
+    // 15,300 with D-122 on top of N14 and E7, after merging main. Measured 15,294.
     budget: 15_300,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
   },
@@ -644,7 +653,9 @@ const RULES: Record<string, EntryRule> = {
     allow: [],
     // 215,300 on 2026-09-23 for N14, through the engine and the schema. Measured 215,252.
     // 215,250 on 2026-09-23: `export { Yargs as 'module.exports' }`, which yargs' own entry has, so `require('burgee/yargs')` hands a CommonJS caller the factory rather than a namespace. Measured 215,221.
-    budget: 215_250,
+    // 215,500 on 2026-09-23 for D-122, through the engine and the manifest. Measured 215,422.
+    // 215,350 with D-122 on top of N14 and E7, after merging main. Measured 215,309.
+    budget: 215_350,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   "./yargs/helpers": {

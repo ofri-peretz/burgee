@@ -329,10 +329,15 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // the startup graph even though `define-error.js` is not. Inlined rather than a helper, which
   // took it from 113 over to 59. Measured 28,759.
   //
-  // 28,850 on 2026-09-23 for **56 bytes**, the MCP stdout capture (#521): measured 28,815 on
-  // top of E7's 28,759. The capture lives in the lazily loaded MCP chunk; what reaches the
+  // 29,150 on 2026-09-23 for **316 bytes**, D-122: the `parse` and `shutdown` plugin stages.
+  // What stays on the startup path is `Manifest.declares`, the `parse` call-in (its loop is
+  // `parse-hooks.js`, imported only when a plugin declares one) and the shutdown registration
+  // behind `declares('shutdown')`. Measured 29,116.
+  //
+  // 29,200 on 2026-09-23 for **56 bytes**, the MCP stdout capture (#521): measured 29,172 on
+  // top of D-122's 29,116. The capture lives in the lazily loaded MCP chunk; what reaches the
   // startup graph is the `host` seam it shares with the entry.
-  burgee: 28_850,
+  burgee: 29_200,
   // 59,250 on 2026-09-22 for **61 bytes**: the `.catch` that fires `onError`. A plugin's
   // lifecycle closes on every front end now — `preRun` opens and exactly one of `postRun` or
   // `onError` closes — where before a handler that threw left a plugin with no closing hook.
@@ -344,13 +349,15 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // 59,600 on 2026-09-23 for **171 bytes**, D-134: the manifest projection publishes each
   // option under the flag commander accepts (a lone `--no-x` as `noX`, a pair folded, which
   // booleans negate), so `--mcp` and completions stop offering flags commander refuses.
+  // 59,850 on 2026-09-23 for **208 bytes**, D-122 — the same stages through the engine the
+  // façade runs on. Measured 59,808.
   //
-  // 59,650 on 2026-09-23 for **14 bytes** (59,592 -> 59,606), none of them new code on the
+  // The MCP stdout capture (#521) adds **15 bytes** here (59,808 -> 59,823 with D-122), none new code on the
   // startup path: the lazily-loaded MCP chunk now reads stdout through the `host` seam to keep
   // a tool call's prints off the JSON-RPC stream, so `host` is shared between the entry and
   // that chunk, esbuild moves it into the shared chunk the entry already imports, and the 14
   // are the cross-chunk export and import names.
-  'burgee/commander': 59_650,
+  'burgee/commander': 59_850,
   'burgee/yargs': 107_700,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's

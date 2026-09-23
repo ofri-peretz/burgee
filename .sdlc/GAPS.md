@@ -39,7 +39,7 @@ Three kinds, because they close three different ways:
 | A20 | `dynamic: true` completion marker | burgee D3, D-119 | opt-in per option; completion scripts call back only for those |
 | A21 | non-TTY prompt exits 2, cancelled prompt exits 4 | burgee P2, P3, D-120 | an `ask()` bridge maps caique's verdict to `UsageError` / `CANCELLED`, no new dependency edge |
 | A22 | `.burgee({ floor: true })` on façades | burgee J3, J4, D-121 | one call turns the behavioural floor on; `--schema` names the flags the program shadows |
-| A23 | plugin hooks `parse` and `shutdown` | plugin surface, D-122 | in the schema, the plugins page's "cannot do yet" list shrinks by the two |
+| ~~A23~~ | ~~plugin hooks `parse` and `shutdown`~~ — **closed**: `parse` rewrites argv before resolution, chained in `enforce` order; `shutdown` fires once through the run's teardown; both in the schema, and the plugins page's limit now reads help and config only | plugin surface, D-122 | done |
 | A24 | `burgee/program-schema.json` | burgee F1, schema-is-validated, D-123 | published; `--schema` output validated against it in a test, no runtime validator |
 | ~~A25~~ | ~~`.effects()` on commander façade commands~~ — **already built**, found 2026-09-23: both façades have `.effects()`, `facade-surface.test.ts` covers declared, undeclared and withheld; the spec row was stale | agent-surface-declared R6, D-127 | done |
 | ~~A26~~ | ~~`signal-exit`'s API at closeout's root, so the `overrides` recipe resolves~~ — **closed by restatement** (D-133): R6 restated to the three subpaths; the README's two-incumbent `overrides` recipe never linked and is withdrawn; `scripts/override-recipe-lock.test.ts` | closeout R6 | done |
