@@ -1,6 +1,6 @@
 # Design — `--schema` output validates against a published schema
 
-Intent: [`intent.md`](./intent.md). **Status:** review — the validator is an open question the
+Intent: [`intent.md`](./intent.md). **Status:** approved (2026-09-23, under the owner's delegation, D-129). — the validator is an open question the
 intent names, and this design does not pre-empt it.
 
 ---
