@@ -40,6 +40,8 @@ const PAIRS: readonly (readonly [string, string])[] = [
   ['restore-cursor', 'closeout/restore-cursor'],
   ['exit-hook', 'closeout/exit-hook'],
   ['signal-exit', 'closeout/signal-exit'],
+  ['dotenv', 'seniority/dotenv'],
+  ['rc', 'seniority/rc'],
 ];
 
 /** What `require()` returns, or `undefined` when the specifier is not installed here. */
@@ -62,7 +64,7 @@ const installed = PAIRS.filter(([incumbent]) => required(incumbent) !== undefine
 
 describe('require() of a drop-in matches require() of its incumbent', () => {
   it('finds the CommonJS incumbents installed, so the comparison cannot pass vacuously', () => {
-    expect(installed.map(([incumbent]) => incumbent)).toEqual(expect.arrayContaining(['yargs', 'cross-spawn', 'cli-table3']));
+    expect(installed.map(([incumbent]) => incumbent)).toEqual(expect.arrayContaining(['yargs', 'cross-spawn', 'cli-table3', 'dotenv', 'rc']));
   });
 
   it.each(installed)('require(%s) and require(%s) are the same kind of value', (incumbent, ours) => {
