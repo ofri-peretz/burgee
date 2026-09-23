@@ -16,7 +16,7 @@
  * `compat.ts` to anything the oracle did not measure and this goes red, whatever the
  * report prints.
  */
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -31,18 +31,38 @@ function oracle(host: string): Graded {
   return { reference, passed, rate };
 }
 
+/**
+ * The control column of the published compatibility page, per host: `| **host** | `target` |
+ * ours | rate | control | …`. That page is generated on ubuntu by `npm run compat:page`
+ * and committed, so it is the one place the control's count is recorded.
+ */
+const PAGE = resolve(fileURLToPath(new URL('..', import.meta.url)), '../../apps/docs/content/docs/compatibility.mdx');
+const CONTROL = new Map(
+  [...readFileSync(PAGE, 'utf8').matchAll(/^\| \*\*([\w@/-]+)\*\* \| `[^`]+` \| [^|]+ \| [\d.]+% \| (\d+) \/ \d+ \|/gmu)].map(([, host, control]) => [host!, Number(control)]),
+);
+
 describe('the graded numbers migrate reports', () => {
   it.each(Object.keys(GRADED))('%s matches the oracle baseline exactly', (host) => {
-    expect(GRADED[host]).toEqual(oracle(host));
+    const { reference, passed, rate } = GRADED[host] as Graded;
+    expect({ reference, passed, rate }).toEqual(oracle(host));
   });
 
-  it('carries a row for every host migrate can rewrite, and no other', () => {
-    // A row without a mapping would claim a migration path that does not exist; a mapping
-    // without a row would print a blank where the measurement goes.
-    expect(Object.keys(GRADED).sort()).toEqual(['commander', 'yargs']);
+  // D-134: `control` decides whether `migrate` rewrites a host at all, so it is held to the
+  // published page as tightly as the grade is held to the baseline.
+  it.each(Object.keys(GRADED))('%s carries the control the compatibility page publishes', (host) => {
+    expect(GRADED[host]?.control).toBe(CONTROL.get(host));
   });
 
-  it('reads a real baseline file, so the comparison above cannot pass vacuously', () => {
+  it('carries a row for every host the oracle has a baseline for, and no other', () => {
+    // Restated 2026-09-23 (A11): it was commander and yargs, the two hosts `migrate`
+    // rewrote. It now rewrites every level drop-in and reports the rest, so every graded
+    // host needs its row — a mapping without one would print a blank where the grade goes.
+    const baselines = readdirSync(BASELINE).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -'.json'.length));
+    expect(Object.keys(GRADED).sort()).toEqual(baselines.sort());
+  });
+
+  it('reads a real baseline file and a real page, so the comparisons above cannot pass vacuously', () => {
     expect(oracle('commander').reference).toBeGreaterThan(0);
+    expect(CONTROL.size).toBeGreaterThan(20);
   });
 });

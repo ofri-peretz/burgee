@@ -22,30 +22,47 @@
  * import on the `migrate` path only, and `weight.test.ts` denies `migrate.js` to the root
  * entry by name so that cannot drift.
  */
-import { readdirSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { ambientRuntime, run } from 'bellpull';
 
-import { GRADED, type Graded } from './compat.js';
+import { DROP_INS, GRADED, isLevel, type Row } from './compat.js';
 import { ExitCode } from './exit-code.js';
 
+/** The npm package a specifier names: `@scope/name/x` → `@scope/name`, `name/x` → `name`. */
+export function packageOf(specifier: string): string {
+  const parts = specifier.split('/');
+  return parts.slice(0, specifier.startsWith('@') ? 2 : 1).join('/');
+}
+
 /**
- * A2 — the whole mapping, as data.
+ * A2, A11 — the whole mapping, as data, and none of it typed here.
+ *
+ * Every drop-in the oracle grades **level** with its incumbent (D-134): the incumbent's own
+ * suite passes as many cases against the family's replacement as against the incumbent
+ * itself, in the same harness. That is commander and yargs, and chalk, ora, string-width,
+ * cross-spawn, signal-exit and the rest — `compat.ts` holds the list and a lock re-derives it
+ * from `compat-oracle`. A drop-in that is not level yet is reported, never rewritten.
  *
  * Whole specifiers only. `burgee/commander` is not a key, which is what makes a second run
  * over an already-migrated tree a no-op and lets the command declare `effects: 'idempotent'`.
+ * `yargs/yargs` is the one key the oracle does not name: yargs documents it as an entry,
+ * and it is the same module as `yargs`.
  */
-export const MAPPING: Readonly<Record<string, string>> = {
-  commander: 'burgee/commander',
-  yargs: 'burgee/yargs',
-  'yargs/yargs': 'burgee/yargs',
-  'yargs/helpers': 'burgee/yargs/helpers',
-};
+export const MAPPING: Readonly<Record<string, string>> = Object.fromEntries(
+  DROP_INS.filter((d) => isLevel(d.host)).flatMap((d) => (d.from === 'yargs' ? [[d.from, d.to], ['yargs/yargs', d.to]] : [[d.from, d.to]])),
+);
 
-/** The packages a project depends on that this command is about (A1). */
-export const HOSTS = ['commander', 'yargs'] as const;
+/** The packages a project depends on that this command rewrites (A1). */
+export const HOSTS: readonly string[] = [...new Set(Object.keys(MAPPING).map(packageOf))];
+
+/** Graded drop-ins that are not level yet: reported so a user knows the path exists, never rewritten (A11). */
+const PARTIAL = DROP_INS.filter((d) => !isLevel(d.host));
+
+/** The `GRADED` key for an incumbent package — `@inquirer/core` is graded as `inquirer-core`. */
+const HOST_OF = new Map(DROP_INS.map((d) => [packageOf(d.from), d.host]));
 
 /** Why a file was left untouched. Both are named positions, never a guess (A4). */
 export type RefusalReason = 'deep-import' | 'non-literal-specifier';
@@ -74,14 +91,25 @@ export interface Detection {
   imported: string[];
 }
 
+/** A declared incumbent with a graded drop-in that is not level yet (A11). */
+export interface NotLevel extends Row {
+  from: string;
+  to: string;
+}
+
 export interface MigrationReport {
   files: number;
   imports: number;
   mapped: Mapped[];
   refused: Refusal[];
   detected: Detection;
-  dependencies: { before: string[]; removable: string[]; after: number };
-  graded: (Graded & { host: string })[];
+  /** `add`: the family packages the rewritten imports now name, which the project must depend on. */
+  dependencies: { before: string[]; removable: string[]; after: number; add: string[] };
+  graded: (Row & { host: string })[];
+  /** Declared incumbents whose drop-in is graded but not level — left alone, with the grade that says why. */
+  partial: NotLevel[];
+  /** The install and uninstall to run next, for the package manager the lockfile names; `''` when there is none. */
+  next: string;
   dryRun: boolean;
   /** N7 — an idempotent command says whether it changed anything; silence is what an agent misreads. */
   changed: boolean;
@@ -380,15 +408,30 @@ interface Manifest {
   devDependencies?: Record<string, string>;
 }
 
-/** Hosts `package.json` declares — one of A1's two independent sources. */
-async function declaredHosts(dir: string): Promise<string[]> {
+/** Every dependency `package.json` declares — one of A1's two independent sources. */
+async function declaredDependencies(dir: string): Promise<Set<string>> {
   try {
     const raw = JSON.parse(await readFile(join(dir, 'package.json'), 'utf8')) as Manifest;
-    const declared = { ...raw.dependencies, ...raw.devDependencies };
-    return HOSTS.filter((host) => declared[host] !== undefined);
+    return new Set(Object.keys({ ...raw.dependencies, ...raw.devDependencies }));
   } catch {
-    return [];
+    return new Set();
   }
+}
+
+/** The package manager whose lockfile is here, so `next` is a command that runs as written. */
+function installer(dir: string): { add: string; remove: string } {
+  const has = (file: string): boolean => existsSync(join(dir, file));
+  if (has('pnpm-lock.yaml')) return { add: 'pnpm add', remove: 'pnpm remove' };
+  if (has('yarn.lock')) return { add: 'yarn add', remove: 'yarn remove' };
+  if (has('bun.lockb') || has('bun.lock')) return { add: 'bun add', remove: 'bun remove' };
+  return { add: 'npm install', remove: 'npm uninstall' };
+}
+
+/** `npm install roundel flagstaff && npm uninstall chalk ora`, or the half that applies. */
+function nextStep(dir: string, add: string[], remove: string[]): string {
+  const pm = installer(dir);
+  const steps = [add.length > 0 ? `${pm.add} ${add.join(' ')}` : '', remove.length > 0 ? `${pm.remove} ${remove.join(' ')}` : ''];
+  return steps.filter((c) => c !== '').join(' && ');
 }
 
 /**
@@ -467,8 +510,9 @@ function rollup(all: { from: string; to: string; file: string }[]): Mapped[] {
  * template is a number that goes stale silently, and this repository has published four
  * of those and caught them all late.
  */
-function gradedFor(hosts: string[]): (Graded & { host: string })[] {
-  return hosts.filter((host) => GRADED[host] !== undefined).map((host) => ({ host, ...(GRADED[host] as Graded) }));
+function gradedFor(packages: string[]): (Row & { host: string })[] {
+  const hosts = [...new Set(packages.map((p) => HOST_OF.get(p)).filter((h) => h !== undefined))];
+  return hosts.filter((host) => GRADED[host] !== undefined).map((host) => ({ host, ...(GRADED[host] as Row) }));
 }
 
 /**
@@ -507,22 +551,27 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
 
   const all = results.flatMap(({ file, result }) => result.mapped.map((m) => ({ ...m, file })));
   const refused: Refusal[] = results.flatMap(({ file, result }) => result.refused.map((r) => ({ file, ...r })));
-  const imported = [...new Set(results.flatMap(({ result }) => (result.relevant ? result.mapped.map((m) => m.from) : [])))];
-  const declared = await declaredHosts(dir);
+  const imported = [...new Set(results.flatMap(({ result }) => (result.relevant ? result.mapped.map((m) => packageOf(m.from)) : [])))].sort();
+  const dependencies = await declaredDependencies(dir);
+  const declared = HOSTS.filter((host) => dependencies.has(host));
   // A dependency is removable only when nothing still imports it — a file that was refused
   // still imports commander, so the maintainer's `npm rm` would break their own build.
-  const stillUsed = new Set(refused.map((r) => r.specifier.split('/')[0] ?? ''));
+  const stillUsed = new Set(refused.map((r) => packageOf(r.specifier)));
   const removable = declared.filter((host) => !stillUsed.has(host));
   const touched = [...new Set(all.map((m) => m.file))];
+  const add = [...new Set(all.map((m) => packageOf(m.to)))].filter((p) => !dependencies.has(p)).sort();
+  const partial = PARTIAL.filter((d) => dependencies.has(d.from)).map((d) => ({ from: d.from, to: d.to, ...(GRADED[d.host] as Row) }));
 
   return {
     files: touched.length,
     imports: all.length,
     mapped: rollup(all),
     refused,
-    detected: { declared, imported: [...new Set(imported.map((s) => s.split('/')[0] ?? s))].sort() },
-    dependencies: { before: declared, removable, after: declared.length - removable.length },
-    graded: gradedFor([...new Set([...declared, ...imported.map((s) => s.split('/')[0] ?? s)])].sort()),
+    detected: { declared, imported },
+    dependencies: { before: declared, removable, after: declared.length - removable.length, add },
+    graded: gradedFor([...new Set([...declared, ...imported])].sort()),
+    partial,
+    next: nextStep(dir, add, removable),
     dryRun,
     changed: !dryRun && touched.length > 0,
     exitCode: refused.length > 0 ? ExitCode.RUNTIME : ExitCode.OK,

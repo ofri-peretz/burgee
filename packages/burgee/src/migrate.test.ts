@@ -30,7 +30,7 @@ import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { ExitCode } from './exit-code.js';
-import { DirtyTreeError, MAPPING, migrate, rewriteSource, scan, sourceFiles, workingTree } from './migrate.js';
+import { DirtyTreeError, MAPPING, migrate, packageOf, rewriteSource, scan, sourceFiles, workingTree } from './migrate.js';
 
 /** A project on disk, under a fresh temporary directory each time. */
 function project(files: Record<string, string>): string {
@@ -46,16 +46,45 @@ function project(files: Record<string, string>): string {
 const clean = (): undefined => undefined;
 const read = (dir: string, file: string): string => readFileSync(join(dir, file), 'utf8');
 
+/** Whether a family specifier is a subpath its package's exports map publishes. */
+function published(to: string): boolean {
+  const name = packageOf(to);
+  const pkg = JSON.parse(readFileSync(new URL(`../../${name}/package.json`, import.meta.url), 'utf8')) as { exports: Record<string, unknown> };
+  return pkg.exports[`.${to.slice(name.length)}`] !== undefined;
+}
+
 describe('A2 — the mapping is data, and it is the design’s table', () => {
   it('maps every row, subpaths included', () => {
     // M-a: collapsing `yargs/helpers` to `burgee/yargs` is the mutation this kills. It is
     // the plausible one — three of the four rows have no subpath on the right — and it
     // would hand a user `hideBin` from a module that does not export it.
+    //
+    // Restated 2026-09-23 (A11, D-134): the table grew from commander and yargs to every
+    // drop-in the oracle grades level with its incumbent, so it is written out here in full
+    // — a row that appears or disappears is a decision, and this is where it shows.
+    // `scripts/migrate-drop-ins-lock.test.ts` holds the same list equal to `compat-oracle`.
     expect(MAPPING).toEqual({
       commander: 'burgee/commander',
       yargs: 'burgee/yargs',
       'yargs/yargs': 'burgee/yargs',
       'yargs/helpers': 'burgee/yargs/helpers',
+      'yargs-parser': 'burgee/yargs/parser',
+      chalk: 'roundel/chalk',
+      ora: 'flagstaff/ora',
+      'log-update': 'flagstaff/log-update',
+      boxen: 'flagstaff/boxen',
+      'cli-table3': 'flagstaff/cli-table3',
+      'string-width': 'linegauge',
+      'strip-ansi': 'linegauge/strip',
+      'wrap-ansi': 'linegauge/wrap',
+      'slice-ansi': 'linegauge/slice',
+      'cross-spawn': 'bellpull/cross-spawn',
+      lilconfig: 'seniority/lilconfig',
+      '@inquirer/core': 'caique/inquirer',
+      'restore-cursor': 'closeout/restore-cursor',
+      'exit-hook': 'closeout/exit-hook',
+      'signal-exit': 'closeout/signal-exit',
+      'signal-exit/signals': 'closeout/signal-exit/signals',
     });
   });
 
@@ -65,11 +94,11 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
     expect(mapped).toEqual([{ from: 'yargs/helpers', to: 'burgee/yargs/helpers' }]);
   });
 
-  it('every specifier it can produce is a subpath burgee actually publishes', () => {
+  it('every specifier it can produce is a subpath its package actually publishes', () => {
     // A mapping to an unpublished subpath is a codemod that installs ERR_MODULE_NOT_FOUND.
-    const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { exports: Record<string, unknown> };
-    const published = new Set(Object.keys(pkg.exports).map((e) => e.replace(/^\./, 'burgee')));
-    expect([...new Set(Object.values(MAPPING))].filter((to) => !published.has(to))).toEqual([]);
+    // Restated 2026-09-23 (A11): the targets are no longer all burgee's, so each is checked
+    // against the exports map of the family package it names.
+    expect([...new Set(Object.values(MAPPING))].filter((to) => !published(to))).toEqual([]);
   });
 
   it('is a fixed point: a migrated file migrates to itself', () => {
@@ -179,7 +208,9 @@ describe('A5 — the unit of success is the file', () => {
       'src/b.ts': "import 'yargs';\n",
     });
     const report = await migrate({ dir, status: clean });
-    expect(report.dependencies).toEqual({ before: ['commander', 'yargs'], removable: ['yargs'], after: 1 });
+    // `add` joined the report with A11: the rewritten import names burgee, which this
+    // project does not declare yet.
+    expect(report.dependencies).toEqual({ before: ['commander', 'yargs'], removable: ['yargs'], after: 1, add: ['burgee'] });
   });
 });
 
@@ -242,7 +273,9 @@ describe('A7 — the numbers in the report are read, not typed', () => {
     const dir = project({ 'src/a.ts': "import 'commander';\n" });
     // M-d lands in `compat-baseline-lock.test.ts`, which holds these equal to
     // `compat-oracle/baseline/commander.json`. This case only proves the report reaches them.
-    expect((await migrate({ dir, status: clean })).graded).toEqual([{ host: 'commander', reference: 1360, passed: 1360, rate: 1 }]);
+    // `control` joined the row with A11 (D-134): it is what decides whether a drop-in is
+    // rewritten at all, so the report shows it beside the grade.
+    expect((await migrate({ dir, status: clean })).graded).toEqual([{ host: 'commander', reference: 1360, passed: 1360, rate: 1, control: 1360 }]);
   });
 
   it('does not claim a graded row for a host the project does not use', async () => {
@@ -279,8 +312,61 @@ describe('A8 — the exit code says whether anything was left undone', () => {
   it('carries every count the human surface prints', async () => {
     const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { commander: '^15.0.0' } }), 'src/a.ts': "import 'commander';\n" });
     expect(Object.keys(await migrate({ dir, status: clean })).sort()).toEqual(
-      ['changed', 'dependencies', 'detected', 'dryRun', 'exitCode', 'files', 'graded', 'imports', 'mapped', 'refused'].sort(),
+      // `partial` and `next` joined with A11: what was left alone and why, and the command to run.
+      ['changed', 'dependencies', 'detected', 'dryRun', 'exitCode', 'files', 'graded', 'imports', 'mapped', 'next', 'partial', 'refused'].sort(),
     );
+  });
+});
+
+describe('A11 — every drop-in the oracle grades level, in one run', () => {
+  it('rewrites the family drop-ins beside the front-ends, in one pass over one file', () => {
+    const source = "import { Command } from 'commander';\nimport chalk from 'chalk';\nimport ora from 'ora';\nconst spawn = require('cross-spawn');\n";
+    expect(rewriteSource(source).source).toBe(
+      "import { Command } from 'burgee/commander';\nimport chalk from 'roundel/chalk';\nimport ora from 'flagstaff/ora';\nconst spawn = require('bellpull/cross-spawn');\n",
+    );
+  });
+
+  it('keeps a scoped incumbent whole, and refuses a deep import into it', () => {
+    expect(rewriteSource("import { createPrompt } from '@inquirer/core';\n").source).toBe("import { createPrompt } from 'caique/inquirer';\n");
+    expect(rewriteSource("import x from '@inquirer/core/dist/esm/lib/key.js';\n").refused).toEqual([{ line: 1, specifier: '@inquirer/core/dist/esm/lib/key.js', reason: 'deep-import' }]);
+    expect(packageOf('@inquirer/core/dist/x.js')).toBe('@inquirer/core');
+  });
+
+  it('leaves a drop-in that is not level yet alone, and says so with its grade', async () => {
+    // dotenv's drop-in passes 80 of the 141 cases dotenv itself passes: rewriting it would
+    // be a migration that breaks someone. It is reported, not refused — `dotenv/config` is
+    // not a deep import into anything this command rewrites.
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { dotenv: '^16.0.0', chalk: '^5.0.0' } }),
+      'src/a.ts': "import 'dotenv/config';\nimport chalk from 'chalk';\n",
+    });
+    const report = await migrate({ dir, status: clean });
+    expect(read(dir, 'src/a.ts')).toBe("import 'dotenv/config';\nimport chalk from 'roundel/chalk';\n");
+    expect(report.refused).toEqual([]);
+    expect(report.partial).toEqual([{ from: 'dotenv', to: 'seniority/dotenv', reference: 141, passed: 80, rate: 0.5673758865248227, control: 141 }]);
+  });
+
+  it('names the family packages to add, and the command that adds them and removes the incumbents', async () => {
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { chalk: '^5.0.0', ora: '^8.0.0', flagstaff: '^0.5.0' } }),
+      'pnpm-lock.yaml': '',
+      'src/a.ts': "import chalk from 'chalk';\nimport ora from 'ora';\n",
+    });
+    const report = await migrate({ dir, status: clean });
+    // flagstaff is already declared, so only roundel is new.
+    expect(report.dependencies.add).toEqual(['roundel']);
+    expect(report.next).toBe('pnpm add roundel && pnpm remove chalk ora');
+  });
+
+  it('defaults the next step to npm, and prints nothing when there is nothing to do', async () => {
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { 'string-width': '^7.0.0' } }), 'src/a.ts': "import w from 'string-width';\n" });
+    expect((await migrate({ dir, status: clean })).next).toBe('npm install linegauge && npm uninstall string-width');
+    const empty = project({ 'src/a.ts': 'export {};\n' });
+    expect((await migrate({ dir: empty, status: clean })).next).toBe('');
+  });
+
+  it('maps a subpath of an incumbent to the same subpath of its drop-in', () => {
+    expect(rewriteSource("import { signals } from 'signal-exit/signals';\n").source).toBe("import { signals } from 'closeout/signal-exit/signals';\n");
   });
 });
 
