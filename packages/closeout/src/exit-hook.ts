@@ -272,7 +272,7 @@ function listen(): void {
  * Register a synchronous hook. Returns the function that unregisters it.
  *
  * Declared here and exported at the foot of the file: `exit-hook`'s default *is* its
- * `exitHook`, so `overrides: { "exit-hook": "npm:closeout@^1" }` only resolves if ours is a
+ * `exitHook`, so an `import exitHook from 'closeout/exit-hook'` swap only works if ours is a
  * default too, and this repository's lint wants every export last and grouped.
  */
 function exitHook(onExit: ExitHookCallback): () => void {
