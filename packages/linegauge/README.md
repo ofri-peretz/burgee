@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  Docs: <a href="https://burgee.interlace.tools/docs/packages/linegauge">https://burgee.interlace.tools/docs/packages/linegauge</a>
+  Docs: <a href="https://linegauge.interlace.tools">https://linegauge.interlace.tools</a>
 </p>
 
 **Measuring, wrapping, truncating and slicing styled terminal text — without the edge
@@ -169,7 +169,7 @@ its own suite — which this package passes. The runner reports that as a failur
 to the incumbent an unexpected pass means a stale annotation; it is counted here as the
 pass it is, and marked rather than left to look like the ones beside it.
 
-Weight, installed and tree-inclusive: **84,642 bytes** against **170,342** for the incumbents it replaces — a ratio of **0.4969**.
+Weight, installed and tree-inclusive: **84,579 bytes** against **170,342** for the incumbents it replaces — a ratio of **0.4965**.
 ## Where it sits
 
 Plugins register under the `widths` key, against the one schema the whole family shares.

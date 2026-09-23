@@ -11,8 +11,8 @@ import { fileURLToPath } from 'node:url';
  */
 
 /**
- * Deploy lock — the docs site deploys from `main` and from nowhere else, and the deploy
- * proves it served what it built.
+ * Deploy lock — every docs site deploys from `main` and from nowhere else, and each deploy
+ * proves it served what it built, on its own host.
  *
  * Every rule below is a line in `.sdlc/intents/docs-deploy/intent.md` that costs nothing
  * to break by accident and is invisible once broken. Adding `pull_request:` to
@@ -48,10 +48,17 @@ import { fileURLToPath } from 'node:url';
  * | re-add `$comment` to `vercel.json` | carries no key Vercel will reject at deploy time |
  * | drop `--target=preview` from the preview deploy line | deploys a preview to preview, not to production |
  * | narrow the protection case back to `401\|403` | treats a Deployment Protection redirect as protection |
+ * | key `concurrency.group` on the ref again, or delete it | serialises every deploy of one host |
  *
- * The last two are the deploy that #79 shipped and that never once succeeded. Root
- * Directory on the `cli-interlace-tools` project is unset — the repo root — so
- * `vercel.json` belongs there and the CLI has to run there. Rooted at `apps/docs`, the
+ * **Per row, not per file** (docs-per-package, criterion 8). There is one workflow and one
+ * table (`.github/vercel-apps.json`); the executed cases run once for every row in the table,
+ * with that row's host as `PRODUCTION_URL`, so a mutation that only breaks one app's path — or
+ * a row whose host the verify step mishandles — fails under that row's name. The per-row
+ * mutations were each re-proven red on 2026-09-23 against all nine rows.
+ *
+ * `--archive=tgz` and the repo-root CLI are the deploy that #79 shipped and that never once
+ * succeeded. Root Directory on every project is unset — the repo root — so `vercel.json`
+ * belongs there and the CLI has to run there. Rooted at the app, the
  * prebuilt upload could not see the hoisted root `node_modules` an npm-workspaces install
  * produces, and production died on `File does not exist: "node_modules/client-only/
  * index.js"`. Deploying from the root means the upload is the whole traced closure, which
@@ -82,7 +89,8 @@ interface Job {
 interface Workflow {
   on?: Record<string, unknown>;
   env?: Record<string, string>;
-  jobs?: Record<string, Job>;
+  concurrency?: { group?: string; 'cancel-in-progress'?: boolean };
+  jobs?: Record<string, Job & { concurrency?: unknown; strategy?: { matrix?: Record<string, unknown> } }>;
 }
 
 const load = (file: string): Workflow => loadYaml(text(file)) as Workflow;
@@ -95,6 +103,19 @@ const triggers = (wf: Workflow): string[] => Object.keys((wf.on ?? (wf as Record
 
 const deployDocs = load('deploy-docs.yml');
 const autoDeploy = load('auto-deploy.yml');
+
+interface Row {
+  package: string;
+  workspace: string;
+  dir: string;
+  productionUrl: string;
+  buildCommand: string;
+  outputDirectory: string;
+  familyPages: boolean;
+}
+/** Every row of the table — the executed cases below run once per row. */
+const ROWS: [string, Row][] = Object.entries((JSON.parse(readFileSync(join(REPO_ROOT, '.github', 'vercel-apps.json'), 'utf8')) as { apps: Record<string, Row> }).apps);
+const FAMILY = ROWS.find(([, row]) => row.familyPages)?.[1];
 
 // ─── Running a step for real ────────────────────────────────────────────────────────
 //
@@ -172,8 +193,11 @@ function runStep(body: string, env: Record<string, string>): Result {
 const preflight = script(step(deployDocs.jobs?.preflight, 'Check credentials and approval'));
 const verifyStep = step(deployDocs.jobs?.deploy, 'Verify the deployed URL serves this build');
 const llmsStep = step(deployDocs.jobs?.deploy, 'Verify the agent surfaces are on the deployed build');
-/** The workflow-level `env:`, which the verify step reads `PRODUCTION_URL` out of. */
-const workflowEnv = deployDocs.env ?? {};
+/**
+ * The deploy job's `env:`, with `PRODUCTION_URL` set the way the preflight output sets it for
+ * one row. The verify step reads the host from there; it is no longer a workflow constant.
+ */
+const envFor = (row: Row): Record<string, string> => ({ ...deployDocs.jobs?.deploy?.env, PRODUCTION_URL: row.productionUrl });
 
 /**
  * These `run:` blocks are POSIX shell and the runner they execute on is
@@ -192,6 +216,20 @@ describe('deploy-docs.yml', () => {
   it('is reachable only by hand', () => {
     // Constraint 1. A `push:` or `pull_request:` trigger here is a deploy per branch.
     expect(triggers(deployDocs)).toEqual(['workflow_dispatch']);
+  });
+
+  it('serialises every deploy of one host, whoever fired it', () => {
+    // Run 35816373791: a hand-fired production deploy and the one auto-deploy.yml dispatched
+    // for the same commit sat in different groups — this one was keyed on the ref, and the two
+    // pass different refs for one commit — so both ran, the second moved the alias, and the
+    // first read back a build that was not its own. One group per app, never per ref or per
+    // environment, and never cancelling a deploy mid-upload.
+    expect(deployDocs.concurrency?.group, 'deploy-docs.yml has no per-app concurrency group — two deploys of one host race for its alias').toBe('docs-deploy-${{ inputs.app }}');
+    expect(deployDocs.concurrency?.['cancel-in-progress']).toBe(false);
+    // auto-deploy.yml only dispatches this workflow. A job there holding the same group would
+    // be the *pending* run GitHub cancels when a third arrives — dropping a merge's deploy.
+    const autoGroups = [autoDeploy.concurrency?.group ?? '', ...Object.values(autoDeploy.jobs ?? {}).map((job) => JSON.stringify(job.concurrency ?? ''))];
+    expect(autoGroups.filter((group) => group.includes('docs-deploy-'))).toEqual([]);
   });
 
   it('gates every later job on the preflight verdict', () => {
@@ -256,9 +294,18 @@ describe('deploy-docs.yml', () => {
     expect(build?.env?.NEXT_PUBLIC_BUILD_SHA).not.toContain('github.sha');
   });
 
+  it('reads the host it checks from the resolved row, not a constant', () => {
+    // A workflow-level PRODUCTION_URL is one host for nine apps: every app but one would be
+    // verified against the wrong site and fail — or, worse, against a host that happens to
+    // serve the same commit and pass.
+    expect(deployDocs.env?.PRODUCTION_URL, 'PRODUCTION_URL is a workflow-level constant again').toBeUndefined();
+    expect(deployDocs.jobs?.deploy?.env?.PRODUCTION_URL).toBe('${{ needs.preflight.outputs.production_url }}');
+  });
+
+  describe.each(ROWS)('for the %s row', (_key, row) => {
   executes('passes only when the deployed URL serves the build it just made', () => {
     const body = script(verifyStep, { 'inputs.environment': 'production' });
-    const base = { ...workflowEnv, DEPLOY_URL: 'https://dep.vercel.app', EXPECTED_SHA: SHA };
+    const base = { ...envFor(row), DEPLOY_URL: 'https://dep.vercel.app', EXPECTED_SHA: SHA };
 
     const served = runStep(body, { ...base, SHIM_CODE: '200', SHIM_RC: '0', SHIM_BODY: page(SHA) });
     expect(served.status, served.output).toBe(0);
@@ -283,17 +330,20 @@ describe('deploy-docs.yml', () => {
     // 000 *and* exits 6, so `$(curl … || echo 000)` used to yield the un-matchable code
     // `000000`, fall through to `*)`, and kill the run with `returned HTTP 000000`.
     const body = script(verifyStep, { 'inputs.environment': 'production' });
-    const r = runStep(body, { ...workflowEnv, DEPLOY_URL: 'https://dep.vercel.app', EXPECTED_SHA: SHA, SHIM_CODE: '000', SHIM_RC: '6', SHIM_BODY: '' });
+    const r = runStep(body, { ...envFor(row), DEPLOY_URL: 'https://dep.vercel.app', EXPECTED_SHA: SHA, SHIM_CODE: '000', SHIM_RC: '6', SHIM_BODY: '' });
     expect(r.status, `an unresolvable host exited ${r.status}; the deploy succeeded and DNS is the owner's step, so this must warn\n${r.output}`).toBe(0);
     expect(r.output).toContain('::warning::');
     expect(r.output).not.toContain('000000');
+    // ...and it names the record the owner has to add, for this row's host, not a curl code.
+    expect(r.output).toContain(`A  ${new URL(row.productionUrl).host}  76.76.21.21`);
   });
 
   executes('says so, rather than failing, when Deployment Protection hides the page', () => {
     const body = script(verifyStep, { 'inputs.environment': 'preview' });
-    const r = runStep(body, { ...workflowEnv, DEPLOY_URL: 'https://dep.vercel.app', EXPECTED_SHA: SHA, SHIM_CODE: '401', SHIM_RC: '0', SHIM_BODY: '' });
+    const r = runStep(body, { ...envFor(row), DEPLOY_URL: 'https://dep.vercel.app', EXPECTED_SHA: SHA, SHIM_CODE: '401', SHIM_RC: '0', SHIM_BODY: '' });
     expect(r.status, r.output).toBe(0);
     expect(r.output).toContain('::warning::');
+  });
   });
 
   it('deploys a preview to preview, not to production', () => {
@@ -323,12 +373,12 @@ describe('deploy-docs.yml', () => {
     // protected preview down the `*)` branch and failed the run on a deploy that worked.
     const body = script(verifyStep, { 'inputs.environment': 'preview' });
     for (const code of ['302', '307']) {
-      const r = runStep(body, { ...workflowEnv, DEPLOY_URL: 'https://dep.vercel.app', EXPECTED_SHA: SHA, SHIM_CODE: code, SHIM_RC: '0', SHIM_BODY: '' });
+      const r = runStep(body, { ...envFor(ROWS[0]![1]), DEPLOY_URL: 'https://dep.vercel.app', EXPECTED_SHA: SHA, SHIM_CODE: code, SHIM_RC: '0', SHIM_BODY: '' });
       expect(r.status, `a ${code} from Deployment Protection exited ${r.status}; the deploy succeeded and this must warn\n${r.output}`).toBe(0);
       expect(r.output).toContain('::warning::');
     }
     // The llms.txt step has the same failure mode and the same fix.
-    const llms = runStep(script(llmsStep), { ...workflowEnv, DEPLOY_URL: 'https://dep.vercel.app', SHIM_CODE: '302', SHIM_RC: '0', SHIM_BODY: '' });
+    const llms = runStep(script(llmsStep), { ...envFor(ROWS[0]![1]), DEPLOY_URL: 'https://dep.vercel.app', SHIM_CODE: '302', SHIM_RC: '0', SHIM_BODY: '' });
     expect(llms.status, `the /llms.txt step failed on a 302 from Deployment Protection\n${llms.output}`).toBe(0);
   });
 
@@ -361,15 +411,15 @@ describe('deploy-docs.yml', () => {
     }
   });
 
-  executes('checks that /llms.txt is on the deployed build and has rows in it', () => {
+  executes.each(ROWS)('checks that /llms.txt is on the deployed build and has rows in it (%s)', (_key, row) => {
     const body = script(llmsStep);
-    const base = { ...workflowEnv, DEPLOY_URL: 'https://dep.vercel.app' };
+    const base = { ...envFor(row), DEPLOY_URL: 'https://dep.vercel.app' };
 
-    const ok = runStep(body, { ...base, SHIM_CODE: '200', SHIM_RC: '0', SHIM_BODY: '# burgee\n\n- [The floor](https://burgee.interlace.tools/docs/the-floor)\n' });
+    const ok = runStep(body, { ...base, SHIM_CODE: '200', SHIM_RC: '0', SHIM_BODY: `# ${row.package}\n\n- [Overview](${row.productionUrl}/docs)\n` });
     expect(ok.status, ok.output).toBe(0);
 
     // Served, but empty — a map that lost every road still returns 200.
-    const empty = runStep(body, { ...base, SHIM_CODE: '200', SHIM_RC: '0', SHIM_BODY: '# burgee\n' });
+    const empty = runStep(body, { ...base, SHIM_CODE: '200', SHIM_RC: '0', SHIM_BODY: `# ${row.package}\n` });
     expect(empty.status, empty.output).not.toBe(0);
 
     // The route did not survive the build.
@@ -388,19 +438,19 @@ describe('the scoreboard band, which gates the stack’s release', () => {
    */
   const band = JSON.parse(readFileSync(join(REPO_ROOT, '.sdlc/bands/scoreboard-public.json'), 'utf8')) as { commanderCompatibilityPage: string | null };
 
-  it('names a page on the host deploy-docs.yml deploys to, not some other origin', () => {
+  it('names a page on the host of the app that owns the family pages, not some other origin', () => {
     const url = band.commanderCompatibilityPage;
     if (url === null) return; // not yet public — release.yml refuses the stack, which is the point
-    expect(String(workflowEnv['PRODUCTION_URL'] ?? ''), 'the workflow has no PRODUCTION_URL to check against').not.toBe('');
-    expect(url.startsWith(String(workflowEnv['PRODUCTION_URL'])), `${url} is not under ${String(workflowEnv['PRODUCTION_URL'])}`).toBe(true);
+    expect(FAMILY?.productionUrl ?? '', 'no row of .github/vercel-apps.json is familyPages: true').not.toBe('');
+    expect(url.startsWith(String(FAMILY?.productionUrl)), `${url} is not under ${String(FAMILY?.productionUrl)}`).toBe(true);
   });
 
   it('names a page this repo actually builds', () => {
     const url = band.commanderCompatibilityPage;
     if (url === null) return;
-    const route = url.slice(String(workflowEnv['PRODUCTION_URL']).length).replace(/^\/+|\/+$/g, '');
+    const route = url.slice(String(FAMILY?.productionUrl).length).replace(/^\/+|\/+$/g, '');
     // fumadocs serves `content/docs/<route>.mdx` at `/docs/<route>`.
-    const source = join(REPO_ROOT, 'apps/docs/content', `${route}.mdx`);
+    const source = join(REPO_ROOT, String(FAMILY?.dir), 'content', `${route}.mdx`);
     expect(existsSync(source), `${url} would be served from ${source}, which does not exist`).toBe(true);
   });
 });
@@ -413,12 +463,13 @@ describe('auto-deploy.yml', () => {
 
   it('is gated on the turbo-affected verdict, never on always()', () => {
     // What this does guarantee: the dispatch job cannot be reached unless the `affected`
-    // job computed `docs=true` from turbo's own graph, and no other ref can reach it at
-    // all. What it does NOT guarantee — measured, see the intent — is that a merge
-    // touching only `packages/**` is skipped: the root workspace devDepends on
-    // `burgee`, `compat-oracle` and `flagstaff`, so turbo reports every workspace
-    // changed, `docs` included. Loosening this `if:` would remove even the ref gate.
-    expect(autoDeploy.jobs?.['deploy-docs']?.if).toBe("needs.affected.outputs.docs == 'true'");
+    // job computed a non-empty set of apps from turbo's own graph, and no other ref can
+    // reach it at all. What it does NOT guarantee — measured, see the intent — is that a
+    // merge touching only `packages/**` is skipped: the root workspace devDepends on several
+    // packages, so turbo reports every workspace changed, every docs app included. Loosening
+    // this `if:` would remove even the ref gate.
+    expect(autoDeploy.jobs?.deploy?.if).toBe("needs.affected.outputs.apps != '[]'");
+    expect(autoDeploy.jobs?.deploy?.strategy?.matrix?.app).toBe('${{ fromJSON(needs.affected.outputs.apps) }}');
     const compute = (autoDeploy.jobs?.affected?.steps ?? []).map((s) => s.run ?? '').join('\n');
     expect(compute).toContain('--filter="...[$BEFORE_SHA]"');
   });
@@ -428,6 +479,7 @@ describe('auto-deploy.yml', () => {
     // dispatch supplies what a person would have typed.
     expect(text('auto-deploy.yml')).toContain('-f approval=RELEASE_APPROVAL');
     expect(text('auto-deploy.yml')).toContain('-f environment=production');
+    expect(text('auto-deploy.yml')).toContain('-f app=${{ matrix.app }}');
   });
 });
 
@@ -442,18 +494,26 @@ describe('vercel.json', () => {
     outputDirectory?: string;
   };
 
-  it('is at the repo root and nowhere else', () => {
+  it.each(ROWS)('is at the repo root and nowhere else (%s)', (_key, row) => {
     // Two of them is worse than the wrong one: Vercel would read the root file while
     // every reviewer reads the app-local one, and they would drift apart in silence.
-    expect(existsSync(join(REPO_ROOT, 'apps', 'docs', 'vercel.json')), 'apps/docs/vercel.json is back. The Vercel project has no Root Directory set, so Vercel reads the ROOT vercel.json and this one is a decoy that no deploy obeys').toBe(false);
+    expect(existsSync(join(REPO_ROOT, row.dir, 'vercel.json')), `${row.dir}/vercel.json is back. No project has a Root Directory set, so Vercel reads the ROOT vercel.json and this one is a decoy that no deploy obeys`).toBe(false);
   });
 
-  it('points Vercel at the app the root build actually emits', () => {
-    // The silent half of the move. From the root, `outputDirectory: ".next"` names a
-    // directory `next build` never writes — the deploy uploads nothing and serves a 404,
-    // with every step green.
-    expect(vercel.outputDirectory).toBe('apps/docs/.next');
-    expect(vercel.buildCommand).toContain('--filter=docs');
+  it('carries no per-app build setting — every project reads it, so one would serve one app on every host', () => {
+    // With Root Directory unset, all nine projects read this one file. A `buildCommand`
+    // here builds the same app for every host: the sibling eslint repo shipped its docs to
+    // its registry domain exactly that way. The build settings are per row, and
+    // deploy-docs.yml's self-heal step writes them onto each project before it deploys.
+    expect(vercel.buildCommand, 'vercel.json has a buildCommand again — every project would build that one app').toBeUndefined();
+    expect(vercel.outputDirectory, 'vercel.json has an outputDirectory again — every project would serve that one app').toBeUndefined();
+  });
+
+  it.each(ROWS)('points each project at the app its build actually emits (%s)', (_key, row) => {
+    // The silent half. From the root, `outputDirectory: ".next"` names a directory `next
+    // build` never writes — the deploy uploads nothing and serves a 404, with every step green.
+    expect(row.outputDirectory).toBe(`${row.dir}/.next`);
+    expect(row.buildCommand).toBe(`npx turbo run build --filter=${row.workspace}`);
   });
 
   it('carries no key Vercel will reject at deploy time', () => {

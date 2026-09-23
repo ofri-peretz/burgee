@@ -1,6 +1,6 @@
 {
   "name": "seniority",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Which source outranks the others. One resolution for flags, environment, project and home config files and defaults \u2014 with provenance, so every value can say where it came from. Drop-in paths for cosmiconfig, dotenv and rc. Zero dependencies.",
   "license": "MIT",
   "type": "module",
@@ -78,7 +78,7 @@
     "url": "git+https://github.com/ofri-peretz/burgee.git",
     "directory": "packages/seniority"
   },
-  "homepage": "https://burgee.interlace.tools/docs/packages/seniority",
+  "homepage": "https://seniority.interlace.tools",
   "bugs": {
     "url": "https://github.com/ofri-peretz/burgee/issues"
   },

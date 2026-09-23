@@ -377,14 +377,14 @@ the number, 0 against the dozen.
 | | Layer | Package | What the layer owns | Replaces | Status |
 | :-- | :-- | :-- | :-- | :-- | :-- |
 | **Engine** | argv, dispatch, manifest | [`burgee`](./packages/burgee/) | one declaration projected to help, `--json`, `--schema`, MCP, completions, types | commander · yargs | released — `burgee@0.10.0` |
-| **Output stack** | colour | [`roundel`](./packages/roundel/) | one output policy, nine semantic tokens, a contrast-checked theme, and chalk's API over them | chalk · picocolors | released — `roundel@0.4.2` |
-| | render | [`flagstaff`](./packages/flagstaff/) | frame loop with a static projection; plugin host for spinners, progress, boxes, tables | ora · log-update · boxen · cli-table3 | released — `flagstaff@0.3.6` |
-| | prompt | [`caique`](./packages/caique/) | prompts that are flags first, and never hang | inquirer · clack · prompts | released — `caique@0.4.2` |
-| **Foundation** | text | [`linegauge`](./packages/linegauge/) | measure, wrap, truncate and slice styled text without the edge fraying | string-width · wrap-ansi · strip-ansi · slice-ansi | released — `linegauge@0.4.3` |
-| | config | [`seniority`](./packages/seniority/) | precedence across flag, env, project file, home file and default — with provenance | cosmiconfig · dotenv · rc | released — `seniority@0.4.2` |
-| | process | [`bellpull`](./packages/bellpull/) | run a subprocess; resolve the executable; return a result every caller can read | execa · cross-spawn · which | released — `bellpull@0.2.2` |
-| | lifecycle | [`closeout`](./packages/closeout/) | exit handlers that run once on every path, terminal restore, bounded deadline | signal-exit · exit-hook · restore-cursor | released — `closeout@0.4.0` |
-| | terminal | [`paratext`](./packages/paratext/) | hyperlinks, images, window title, clipboard, notifications, bell — each with a static fallback | ansi-escapes (OSC half) · terminal-link · term-img | released — `paratext@0.5.3` |
+| **Output stack** | colour | [`roundel`](./packages/roundel/) | one output policy, nine semantic tokens, a contrast-checked theme, and chalk's API over them | chalk · picocolors | released — `roundel@0.4.3` |
+| | render | [`flagstaff`](./packages/flagstaff/) | frame loop with a static projection; plugin host for spinners, progress, boxes, tables | ora · log-update · boxen · cli-table3 | released — `flagstaff@0.3.7` |
+| | prompt | [`caique`](./packages/caique/) | prompts that are flags first, and never hang | inquirer · clack · prompts | released — `caique@0.4.3` |
+| **Foundation** | text | [`linegauge`](./packages/linegauge/) | measure, wrap, truncate and slice styled text without the edge fraying | string-width · wrap-ansi · strip-ansi · slice-ansi | released — `linegauge@0.4.4` |
+| | config | [`seniority`](./packages/seniority/) | precedence across flag, env, project file, home file and default — with provenance | cosmiconfig · dotenv · rc | released — `seniority@0.4.3` |
+| | process | [`bellpull`](./packages/bellpull/) | run a subprocess; resolve the executable; return a result every caller can read | execa · cross-spawn · which | released — `bellpull@0.2.3` |
+| | lifecycle | [`closeout`](./packages/closeout/) | exit handlers that run once on every path, terminal restore, bounded deadline | signal-exit · exit-hook · restore-cursor | released — `closeout@0.4.1` |
+| | terminal | [`paratext`](./packages/paratext/) | hyperlinks, images, window title, clipboard, notifications, bell — each with a static fallback | ansi-escapes (OSC half) · terminal-link · term-img | released — `paratext@0.5.4` |
 
 All nine are released on npm. Where an incumbent's own test suite has been vendored, the
 compat oracle grades the drop-in path against it and publishes the rate — including the ones
@@ -416,7 +416,7 @@ was built before that gate was evaluated. The measurements behind the layers are
 | [`packages/paratext/`](./packages/paratext/) | **paratext** — everything around the output that is not the output: hyperlinks, images, window title, clipboard, notifications and the bell, each with a static fallback. Released; intent in [`.sdlc/intents/paratext/`](./.sdlc/intents/paratext/). |
 | [`packages/compat-oracle/`](./packages/compat-oracle/) | Internal, never published. Grades compatibility using the hosts' own suites, plus reference drivers that run the real incumbents for byte-for-byte comparison. |
 | [`examples/`](./examples/) | Demo CLIs and the conformance suite that runs every floor case on every host. |
-| [`apps/docs/`](./apps/docs/) | Documentation site (Next.js + fumadocs), deployed at [burgee.interlace.tools](https://burgee.interlace.tools) with [`llms.txt`](https://burgee.interlace.tools/llms.txt) and a Markdown twin of every page. |
+| [`apps/docs/`](./apps/docs/) | The front-door documentation site (Next.js + fumadocs), deployed at [burgee.interlace.tools](https://burgee.interlace.tools) with [`llms.txt`](https://burgee.interlace.tools/llms.txt) and a Markdown twin of every page. Every other package has its own site at `https://<package>.interlace.tools` — `apps/docs-<package>/`, on the shared chassis `apps/docs-chassis/` — named once in [`.github/vercel-apps.json`](./.github/vercel-apps.json). |
 | [`.sdlc/intents/`](./.sdlc/intents/) | Stage 1 + 2 artifacts of the AI-native SDLC: `intent.md` + `spec.md` per change, and the wave plan. |
 | [`.sdlc/research/`](./.sdlc/research/) | The evidence everything above rests on. |
 | [`.sdlc/brand/`](./.sdlc/brand/) | What each package is and what its mark has to say ([identity model](./.sdlc/brand/identity-model.md)), and the [brief](./.sdlc/brand/commission.md) a designer would work from. |

@@ -1,6 +1,6 @@
 {
   "name": "caique",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "The parrot that always answers back, and the boat that goes between ship and shore. Prompts that are flags first, so agents answer before they are asked and non-TTY callers get an error naming the flag, never a hang. Drop-in path for inquirer and clack.",
   "license": "MIT",
   "type": "module",
@@ -78,7 +78,7 @@
     "url": "git+https://github.com/ofri-peretz/burgee.git",
     "directory": "packages/caique"
   },
-  "homepage": "https://burgee.interlace.tools/docs/packages/caique",
+  "homepage": "https://caique.interlace.tools",
   "bugs": {
     "url": "https://github.com/ofri-peretz/burgee/issues"
   },
@@ -98,8 +98,8 @@
     "ai-agent"
   ],
   "dependencies": {
-    "closeout": "^0.4.0",
-    "linegauge": "^0.4.3"
+    "closeout": "^0.4.1",
+    "linegauge": "^0.4.4"
   },
   "devDependencies": {
     "vitest": "^5.0.1"

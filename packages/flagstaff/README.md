@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  Docs: <a href="https://burgee.interlace.tools/docs/packages/flagstaff">https://burgee.interlace.tools/docs/packages/flagstaff</a>
+  Docs: <a href="https://flagstaff.interlace.tools">https://flagstaff.interlace.tools</a>
 </p>
 
 ora animates a spinner and, off a terminal, prints frames anyway — `\r` after `\r` into the
