@@ -450,6 +450,32 @@ fidelity cases pass. Reverting `install.ts` to its pre-fix state with the new as
 place gives **10 red across three files**: those four, the five `matrix.test.ts` signal cells
 now asserting `proc.raised`, and the `install.test.ts` re-raise case.
 
+## What shipped (R9 for `signal-exit` — graded, 134 / 135 — 2026-09-23)
+
+`closeout/signal-exit` and `closeout/signal-exit/signals` exist, and `signal-exit`'s own suite
+grades them **134 of 135 on Linux, the same case its control fails** (127 cases on macOS, whose signal list is four shorter; `conditionalCases` declares the eight) (`does not exit if user handles
+signal`, a signal-exit 4.1.0 defect on every current Node — the host's `controlFailures`
+names it). The four harness blockers the 2026-09-14 section lists are gone: `tap` is a runner
+arm, `tsx` runs the TypeScript files, `dist` is a declared internal directory, and the
+snapshot reader is tap itself. `baseline/signal-exit.json` records the rate.
+
+**The façade is the one CommonJS file in the family, and that was measured, not chosen.**
+`no-process.js` and `signals.js` require the module, change `globalThis.process`, evict it
+from `require.cache` and require it again, expecting a fresh evaluation. An ES module is
+evaluated once per process however the cache is edited (a second `require()` of an evicted
+ES module returned the first instance on Node 24.13), and an ESM build of the same façade
+failed those four cases. It is written as `.cts`, compiled by the same `tsc`, and exported as
+`export = { onExit, load, unload, signals }`, which Node's CommonJS lexer reads as named
+exports — `import { onExit } from 'closeout/signal-exit'` works from ESM. It reads the process
+through `ambient.ts` (R7), weighs 4,797 B against the incumbent's 10,995 B, and shares
+`signal-exit`'s global emitter so a transitive copy of the real package and this façade run
+each handler once.
+
+**R6 is still open.** It asks for `signal-exit`'s API at the package *root*, so that
+`overrides: { "signal-exit": "npm:closeout@^1" }` resolves; this ships it at a subpath. The
+root is ESM and carries the phase registry, and making it CommonJS for the override is a
+decision about the whole package, not a detail of this one.
+
 ## The surface a consumer gets, derived from the tree (2026-09-15)
 
 R12 and its shipped entry already say everything about the plugin host. What is missing is
@@ -469,6 +495,8 @@ and `grep '^export' packages/closeout/src/<file>.ts`.
 | `closeout/plugin` | `register`, `validate`, `reset`, `registered`, `contributions`, `attach`, `CONTRACT`, `PLUGIN_PHASES`, `PluginError`; `Plugin`, `PluginHandler`, `Contribution`, `HandlerHost`, `PluginErrorCode` | the extension point (R12) |
 | `closeout/restore-cursor` | a default export, and nothing else | the drop-in path for `restore-cursor` — the stream is chosen from the process, which is why this is its own entry |
 | `closeout/exit-hook` | `asyncExitHook`, `gracefulExit`; `ExitHookCallback`, `AsyncExitHookOptions` | the drop-in path for `exit-hook` |
+| `closeout/signal-exit` | `onExit`, `load`, `unload`, `signals` (CommonJS, `export =`) | the drop-in path for `signal-exit` 4 — graded 134 / 135 |
+| `closeout/signal-exit/signals` | `signals` (CommonJS) | `signal-exit/signals`, the platform's fatal-signal list |
 | `closeout/schema.json` | the family plugin schema, as a file | what a plugin author or an agent validates against |
 
 Three things the table settles that the requirements do not:
