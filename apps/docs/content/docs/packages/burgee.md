@@ -8,6 +8,10 @@ belongs to — a flag of identity, not of instruction. That is what this framewo
 a command-line program: a command declares itself once, and every surface is that
 declaration read by a different reader.
 
+It replaces **commander** and **yargs**: `burgee/commander` and `burgee/yargs` are drop-in,
+graded by each one's own test suite. Change one import and the same program answers agents
+too — `--json` for results, `--schema` for the command tree, `--mcp` for an MCP server.
+
 ## Start here
 
 ```bash
@@ -22,6 +26,7 @@ run(defineCommand({
   name: 'greet',
   description: 'Greet someone by name',
   options: { name: { type: 'string', required: true, description: 'who to greet' } },
+  effects: 'read_only', // what running it does to the world; required, and what --mcp reads
   run: ({ options }) => ({ greeting: `hello, ${options.name}` }),
 }));
 ```
@@ -31,7 +36,7 @@ $ node cli.mjs --name ada
 greeting: hello, ada
 
 $ node cli.mjs --json --name ada
-{"ok":true,"data":{"greeting":"hello, ada"}}
+{"ok":true,"data":{"greeting":"hello, ada"},"meta":{"provenance":{"name":{"source":"flag","location":"--name"}}}}
 
 $ node cli.mjs            # exit 2
 error: missing required option --name
@@ -69,6 +74,18 @@ published and ratcheting:
 
 Your code and your tests are unchanged. A façade is never called "compatible" until its
 host's own suite passes 100%; below that the rate is published instead of claimed.
+
+Or let the codemod make that change, and the same one for chalk, ora, string-width,
+cross-spawn, signal-exit and every other incumbent the family replaces at full grade:
+
+```bash
+npx burgee migrate --dry-run
+npx burgee migrate
+```
+
+It rewrites import specifiers and nothing else, leaves a replacement that is not level yet
+alone with its grade, refuses a file it cannot rewrite whole, and prints the install command
+to run next — [Migrate](https://burgee.interlace.tools/docs/migrate).
 
 ## What is in the box
 
@@ -130,9 +147,11 @@ the declaration read by a different reader.
 
 ### How do I expose a CLI over MCP?
 
-Run it with `--mcp`: the same manifest is served as MCP tools over stdio. A command becomes
-a tool only when it declares its `effects` (`read_only`, `idempotent` or `non_idempotent`),
-so nothing reaches an agent by accident. Register it with any stdio client:
+Run it with `--mcp`: the same manifest is served as MCP tools over stdio. Every runnable
+command declares its `effects` — `read_only`, `idempotent` or `non_idempotent`, which become
+MCP's hints, or `withheld`, which keeps it out of the tool list — so nothing reaches an
+agent by accident. On `burgee/commander` and `burgee/yargs`, a command that declared
+nothing is still listed, marked `effects: 'undeclared'`. Register it with any stdio client:
 
 ```json
 { "mcpServers": { "mytool": { "command": "npx", "args": ["mytool", "--mcp"] } } }
@@ -140,7 +159,7 @@ so nothing reaches an agent by accident. Register it with any stdio client:
 
 ### Does it have dependencies?
 
-None outside this repository. `burgee` installs five packages from its own family —
+None outside the burgee family. `burgee` installs five packages from that family —
 `bellpull`, `closeout`, `linegauge`, `roundel` and `seniority` — and each of those takes
 nothing from outside it either: one repository, one release pipeline, one supply chain to
 audit.

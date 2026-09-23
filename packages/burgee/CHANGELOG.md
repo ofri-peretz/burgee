@@ -1,5 +1,67 @@
 # burgee
 
+## 0.11.1
+
+### Patch Changes
+
+- [#508](https://github.com/ofri-peretz/burgee/pull/508) [`1aae1e2`](https://github.com/ofri-peretz/burgee/commit/1aae1e2186ce88421067df5317795773419e53d0) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The installed `burgee` command runs. `dist/cli.js` shipped without `#!/usr/bin/env node`, so `npx burgee …` and the linked bin were handed to `/bin/sh` on macOS and Linux and failed with `import: command not found`. `check:artifacts` now refuses any published bin that is missing from the pack list or does not start with the shebang.
+
+- [#508](https://github.com/ofri-peretz/burgee/pull/508) [`1aae1e2`](https://github.com/ofri-peretz/burgee/commit/1aae1e2186ce88421067df5317795773419e53d0) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Shell completions offer only flags the parser accepts. Every declared boolean was completed with a `--no-<name>` twin, which is right for burgee's own parser and wrong under `burgee/commander`, where commander negates only what the program declared — so `--no-skip-blank`, `--color` (for a lone `--no-color`) and `--no-version` were each a TAB away and each `unknown option`. Completions now read `OptionSpec.negatable`, which the commander façade sets from the program's own declarations.
+
+- [#508](https://github.com/ofri-peretz/burgee/pull/508) [`1aae1e2`](https://github.com/ofri-peretz/burgee/commit/1aae1e2186ce88421067df5317795773419e53d0) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The README's MCP answer says what `--mcp` does: every runnable command declares its `effects`, `withheld` is what keeps one out of the tool list, and a `burgee/commander` or `burgee/yargs` command that declared nothing is listed as `effects: 'undeclared'` rather than left out.
+
+- [#508](https://github.com/ofri-peretz/burgee/pull/508) [`1aae1e2`](https://github.com/ofri-peretz/burgee/commit/1aae1e2186ce88421067df5317795773419e53d0) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--mcp` tool calls reach the program with multi-word options. `tools/call` rebuilt argv as `--<property>`, so `skipBlank` went out as `--skipBlank` and both the engine and `burgee/commander` refused it; it now sends the flag the schema advertises (`--skip-blank`), and a `false` for a boolean that defaults on goes as `--no-<name>`. Under `burgee/commander`, a lone `--no-color` is advertised as `noColor` (flag `--no-color`) instead of a `--color` commander never accepts. `run(defineCommand(…))` now keeps the command's `effects`, `examples`, `arguments` and `relations`, so a single-command program's tool carries the hints it declared and is named after the program rather than `""`. An unknown-option `fix` is spelled as the flag is typed (`--dry-run`, never `--dryRun`). `OptionSpec` gains `negatable?: boolean` — `false` refuses `--no-<name>`.
+
+- [#508](https://github.com/ofri-peretz/burgee/pull/508) [`1aae1e2`](https://github.com/ofri-peretz/burgee/commit/1aae1e2186ce88421067df5317795773419e53d0) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The README's "Start here" runs. The quickstart omitted `effects`, which `defineCommand` requires of every runnable command, so the first thing a new user pasted threw `command "greet" is runnable and declares no effects`; its `--json` line also left out the `meta` the envelope carries. The shape test now runs the snippet and its transcript straight from both READMEs instead of from a private copy.
+- Updated dependencies [[`1aae1e2`](https://github.com/ofri-peretz/burgee/commit/1aae1e2186ce88421067df5317795773419e53d0)]:
+  - bellpull@0.3.1
+  - closeout@0.5.1
+  - linegauge@0.5.1
+  - roundel@0.5.1
+  - seniority@0.5.1
+
+## 0.11.0
+
+### Minor Changes
+
+- [#507](https://github.com/ofri-peretz/burgee/pull/507) [`b8e97dc`](https://github.com/ofri-peretz/burgee/commit/b8e97dcb64772e413f0b6f9e17e063c73314d242) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Runs on Node 20 and 22, not just 24+: `engines.node` is now `^20.19.0 || >=22.13.0`. Those are the first releases where `require(esm)` loads without a warning, so the CommonJS `require()` path keeps working. Every package's test suite runs on exactly 20.19.0 and 22.13.0, on Linux, macOS and Windows. caique's prompts no longer call `Promise.withResolvers`, which Node 20 doesn't have.
+
+### Patch Changes
+
+- [#505](https://github.com/ofri-peretz/burgee/pull/505) [`9800b43`](https://github.com/ofri-peretz/burgee/commit/9800b43d9c74a49dfb66d04a40fd0d1c48892e20) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Docs: the README says "no dependency outside the burgee family" instead of implying none at all — burgee declares five, every one of them a sibling. The `zero-dependency` keyword is now `no-external-dependencies`.
+
+- [#506](https://github.com/ofri-peretz/burgee/pull/506) [`891e132`](https://github.com/ofri-peretz/burgee/commit/891e132c4b1d8fe3001123014ea977c8ab30e973) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/yargs` exports yargs' types — `Argv`, `Arguments`, `ArgumentsCamelCase`, `CommandModule`, `CommandBuilder`, `Options`, `PositionalOptions`, `InferredOptionTypes`, `MiddlewareFunction` and the rest of `@types/yargs`' ESM surface — and its default export is typed as a factory returning `Argv`, so a typed chain infers `argv` and an instance passes wherever a program says `Argv`. `burgee/commander` adds `OptionValues`, `OptionValueSource`, `HelpConfiguration` and `ParseOptionsResult`, `opts<T>()` / `optsWithGlobals<T>()` are generic as in commander, and its `OutputConfiguration` takes any subset. `burgee migrate` now checks every name an import asks for against what the façade exports: a type-only import of a name it lacks stays on the incumbent and is reported under `kept`, and any other is refused as `unknown-export`.
+- Updated dependencies [[`9800b43`](https://github.com/ofri-peretz/burgee/commit/9800b43d9c74a49dfb66d04a40fd0d1c48892e20), [`b8e97dc`](https://github.com/ofri-peretz/burgee/commit/b8e97dcb64772e413f0b6f9e17e063c73314d242)]:
+  - bellpull@0.3.0
+  - closeout@0.5.0
+  - linegauge@0.5.0
+  - seniority@0.5.0
+  - roundel@0.5.0
+
+## 0.10.0
+
+### Minor Changes
+
+- [#476](https://github.com/ofri-peretz/burgee/pull/476) [`23e8b35`](https://github.com/ofri-peretz/burgee/commit/23e8b353b0d3ac8569782ee1712c8f6e9004a1e4) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--schema <command> --field <path>` returns a single field of a command's schema, such as `--field options.region`, so an agent can read the part it needs without loading the whole document. An unknown path step is refused with the valid fields at that level listed.
+
+### Patch Changes
+
+- Updated dependencies [[`69563d1`](https://github.com/ofri-peretz/burgee/commit/69563d1fb14d9a4b29364446bae2fc48d86f6103), [`2dc573f`](https://github.com/ofri-peretz/burgee/commit/2dc573f884e7a4cc46829cd8f2c949a17f07710c)]:
+  - closeout@0.4.0
+  - linegauge@0.4.3
+
+## 0.9.2
+
+### Patch Changes
+
+- [#465](https://github.com/ofri-peretz/burgee/pull/465) [`acf98f3`](https://github.com/ofri-peretz/burgee/commit/acf98f3e612c6d79e6c2b78a847abcd06a063cbc) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Each README now opens with the incumbent it replaces and the agent surface it serves (`--json`, an agent event, or a static projection), so npm shows both above the fold. README text only; no code changed.
+- Updated dependencies [[`acf98f3`](https://github.com/ofri-peretz/burgee/commit/acf98f3e612c6d79e6c2b78a847abcd06a063cbc)]:
+  - roundel@0.4.2
+  - linegauge@0.4.2
+  - seniority@0.4.2
+  - bellpull@0.2.2
+  - closeout@0.3.2
+
 ## 0.9.1
 
 ### Patch Changes

@@ -1,25 +1,29 @@
 /**
- * The facts about the site that more than one route states: where it lives, where its
- * source lives, what it is in one sentence, and which routes are not for search engines.
+ * The facts about the site that more than one route states: where it lives, what it is in one
+ * sentence, and which routes are not for search engines.
  *
- * They are here rather than repeated because each has at least three readers — the root
- * metadata, `sitemap.ts`, `robots.ts`, the home page's JSON-LD and the llms.txt projection
- * — and a canonical origin spelled two ways is two sites to a crawler.
+ * Where it lives is not written here. It is the `burgee` row of `.github/vercel-apps.json`,
+ * resolved by `docs-chassis/site` — the same way every package's site resolves its own — so
+ * the canonical origin in the metadata, the sitemap, robots.txt, the JSON-LD and llms.txt is
+ * one value, and the deploy workflow checks the same value after it deploys.
  */
+import { defineSite } from 'docs-chassis/site';
 import { type Metadata } from 'next';
 
-/** The canonical origin. Every absolute URL the site emits — canonical, sitemap, llms.txt — starts here. */
-export const SITE = 'https://burgee.interlace.tools';
+import manifest from '../../../../packages/burgee/package.json';
 
-/** The source repository, for JSON-LD's `codeRepository` and the links an agent follows out. */
-export const REPO = 'https://github.com/ofri-peretz/burgee';
+/** This app's row in `.github/vercel-apps.json`, and the package it documents. */
+export const site = defineSite('burgee', manifest);
 
 /**
- * The one-sentence pitch, in the words the root README uses: burgee *replaces* commander
- * and yargs. The docs home once said it *delegates* to them — a different product — and a
- * model asked "what is burgee?" quotes whichever sentence it met first.
+ * What burgee is, in one sentence, in the words the root README uses: burgee *replaces*
+ * commander and yargs. The docs home once said it *delegates* to them — a different product —
+ * and a model asked "what is burgee?" quotes whichever sentence it met first.
+ *
+ * This is the definition, not the pitch. The pitch — the tagline — is `PITCH` in
+ * `#/lib/llms`, and `scripts/pitch-lock.test.ts` holds every copy of it to that one string.
  */
-export const PITCH =
+export const SUMMARY =
   'A CLI framework that replaces commander and yargs, is drop-in compatible with both, and projects help, --json, --schema, an MCP server and shell completions from one declaration.';
 
 /**

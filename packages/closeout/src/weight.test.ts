@@ -78,9 +78,19 @@ const RULES: Record<string, EntryRule> = {
   // The drop-in for `exit-hook` (8.8 M/wk), graded 21 / 21 by its own suite. Measured
   // 11,841 B against the incumbent's 4,458 B in one file.
   './exit-hook': { allow: [], budget: 13_000, denied: ['plugin.js', 'restore-cursor.js', 'cursor.js'] },
+  // The drop-in for `signal-exit` (198.9 M/wk), graded 134 / 135 by its own suite — the case
+  // it misses, signal-exit misses too. Measured 4,797 B on 2026-09-23 across the façade, its
+  // signal list and `ambient.js`, against the incumbent's 10,995 B (`dist/cjs/index.js` +
+  // `signals.js`). It reaches one ES module, the package's door to the process, and never
+  // the registry.
+  './signal-exit': { allow: [], budget: 5_500, denied: ['index.js', 'registry.js', 'install.js', 'exit-hook.js'] },
+  // The platform's fatal-signal list, alone. Measured 381 B.
+  './signal-exit/signals': { allow: [], budget: 500, denied: ['index.js', 'registry.js', 'signal-exit.cjs'] },
 };
 
-const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;
+// `require("…")` as well: the `signal-exit` façade is CommonJS, and tsc prints its requires
+// double-quoted. A walker that followed only `from '…'` would weigh that entry as one file.
+const SPECIFIER = /(?:from|import|require\()\s*['"]([^'"]+)['"]/g;
 
 function walk(entry: string): { reached: string[]; external: string[]; bytes: number } {
   const files = new Set<string>();
@@ -125,6 +135,10 @@ describe.each(Object.keys(RULES))('entry %s', (subpath) => {
 });
 
 describe('the lock grows with the package', () => {
+  it('follows a CommonJS require, so the signal-exit entry is weighed with its signal list', () => {
+    expect(walk(entryFile('./signal-exit')).reached).toContain('signal-exit-signals.cjs');
+  });
+
   it('every published entry point declares a weight rule', () => {
     // Adding `closeout/signal-exit` without a budget here fails, which is the point: a new
     // surface cannot ship until someone has said what it may weigh.

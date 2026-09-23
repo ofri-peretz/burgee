@@ -15,12 +15,12 @@
   <a href="https://www.npmjs.com/package/roundel"><img src="https://img.shields.io/npm/v/roundel?style=flat-square&color=0a6b47" alt="npm version" /></a>
   <a href="https://www.npmjs.com/package/roundel"><img src="https://img.shields.io/npm/dm/roundel?style=flat-square" alt="npm downloads" /></a>
   <img src="https://img.shields.io/badge/runtime%20dependencies-0-0a6b47?style=flat-square" alt="Zero runtime dependencies" />
-  <img src="https://img.shields.io/badge/Node.js-24+-green.svg?style=flat-square" alt="Node.js 24+" />
+  <img src="https://img.shields.io/badge/Node.js-20.19%2B%20%7C%2022.13%2B-green.svg?style=flat-square" alt="Node.js 20.19+ or 22.13+" />
   <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT" />
 </p>
 
 <p align="center">
-  Docs: <a href="https://burgee.interlace.tools/docs/packages/roundel">https://burgee.interlace.tools/docs/packages/roundel</a>
+  Docs: <a href="https://roundel.interlace.tools">https://roundel.interlace.tools</a>
 </p>
 
 chalk gives you `red`; picocolors gives you `red` for fewer bytes. Neither gives you
@@ -30,6 +30,9 @@ carries: one output policy decided once from the runtime, nine semantic tokens o
 `util.styleText`, and a theme that changes them all together, contrast-checked before it
 flies — plus chalk's API over the same tokens, for the program that is not ready to give
 chalk up. Zero dependencies, five subpaths, each costing only itself.
+
+For an agent, the policy is the point: under `--json`, `NO_COLOR` or a pipe nobody asked to
+colour, every token returns its input unchanged, so captured output never carries an escape.
 
 A **roundel** is a flag's colours carried onto another surface — the rings on an aircraft's
 wing, the London Underground sign. Identity, expressed purely in colour, on something that is
@@ -164,7 +167,7 @@ before the ansi-styles and supports-color chalk also ships). Importing one never
 another — the tokens never carry the theme, the theme never carries the tokens, chalk
 carries neither — and `sideEffects: false` lets a bundler drop what a program does not use.
 ESM with a `default` condition, so `require('roundel/tokens')` works from CommonJS on
-Node ≥ 24.
+Node 20.19+ and 22.13+.
 
 ## What is next
 

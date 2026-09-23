@@ -11,7 +11,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { retarget } from "./sync-doc-versions.js";
+import { retarget, retargetRanges } from "./sync-doc-versions.js";
 
 const versions = new Map([["burgee", "0.5.0"]]);
 
@@ -42,5 +42,29 @@ describe("retarget", () => {
     );
     expect(text).toBe("burgee@0.5.0 and burgee@0.5.0");
     expect(changed).toHaveLength(2);
+  });
+});
+
+describe("retargetRanges", () => {
+  const versions = new Map([["closeout", "0.4.0"], ["burgee", "2.3.1"]]);
+
+  it("moves a 0.x caret range the version has left", () => {
+    const { text, changed } = retargetRanges('{ "exit-hook": "npm:closeout@^0.3" }', versions);
+    expect(text).toBe('{ "exit-hook": "npm:closeout@^0.4" }');
+    expect(changed).toEqual(["npm:closeout@^0.3 → ^0.4"]);
+  });
+
+  it("leaves a range that still holds exactly as written", () => {
+    const text = "npm:closeout@^0.4 and npm:burgee@^2.1 and npm:burgee@^2";
+    expect(retargetRanges(text, versions)).toEqual({ text, changed: [] });
+  });
+
+  it("moves a >=1 range across a major", () => {
+    expect(retargetRanges("npm:burgee@^1.9", versions).text).toBe("npm:burgee@^2");
+  });
+
+  it("does not touch a package it has no version for", () => {
+    const text = "npm:string-width@^7";
+    expect(retargetRanges(text, versions).text).toBe(text);
   });
 });

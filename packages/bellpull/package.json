@@ -1,12 +1,12 @@
 {
   "name": "bellpull",
-  "version": "0.2.1",
+  "version": "0.3.1",
   "description": "The cord you pull to ring a bell in another room. Subprocesses with executable resolution and a structured result every caller can read \u2014 human, JSON envelope or agent event. Drop-in paths for execa, cross-spawn and which. Zero dependencies.",
   "license": "MIT",
   "type": "module",
   "sideEffects": ["./dist/cli.js"],
   "engines": {
-    "node": ">=24"
+    "node": "^20.19.0 || >=22.13.0"
   },
   "exports": {
     ".": {
@@ -48,7 +48,7 @@
     "url": "git+https://github.com/ofri-peretz/burgee.git",
     "directory": "packages/bellpull"
   },
-  "homepage": "https://burgee.interlace.tools/docs/packages/bellpull",
+  "homepage": "https://bellpull.interlace.tools",
   "bugs": {
     "url": "https://github.com/ofri-peretz/burgee/issues"
   },

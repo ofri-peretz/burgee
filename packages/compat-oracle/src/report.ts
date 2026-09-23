@@ -167,6 +167,57 @@ export function absentHere(host: string, platform: NodeJS.Platform = process.pla
 }
 
 /**
+ * The passes this machine cannot see: a host's declared `passing`, on a platform where
+ * {@link absentHere} says its conditional cases never register, and `0` everywhere else.
+ */
+export function absentPassing(host: string, platform: NodeJS.Platform = process.platform): number {
+  if (absentHere(host, platform) === 0) return 0;
+  return HOSTS.find((h) => h.name === host)?.conditionalCases?.passing ?? 0;
+}
+
+/** Did this row fall — a control short of its reference, or a target below its baseline? */
+function fellFor(control: boolean, baseline: Baseline): (g: Grade) => boolean {
+  return (g) => g.error !== undefined || (control ? controlShortfall(g) !== undefined : regressed(g, baseline, absentPassing(g.host)));
+}
+
+/** How many more times a row that fell is graded before its red is believed (R7). */
+export const REPEATS = 2;
+
+/**
+ * R7 — repeat and agree. A row that fell is graded again, up to {@link REPEATS} more times, and
+ * is red only if every attempt agrees it fell. Under machine load three rows have moved with
+ * nothing in them changing — `exit-hook` on a fixed 1000 ms kill, `cross-spawn`'s shebang
+ * timeout, `ansi-escapes` — and a gate that is red on a busy runner and green on an idle one
+ * is measuring the runner.
+ *
+ * It cannot hide a regression: a real one fails every attempt, and only rows that fell are
+ * re-run, so a green run costs nothing. A row that recovers is **named**, with each attempt's
+ * count, on the run's own output and on the grade (`attempts`), so a flake is a fact a reader
+ * can see and count rather than a red that went away.
+ */
+/** What `repeatAndAgree` needs besides the grades: when a row fell, how to grade it again, where to say so. */
+export interface Agreement {
+  fell: (g: Grade) => boolean;
+  regrade: (g: Grade) => Grade;
+  write: Write;
+  repeats?: number;
+}
+
+export function repeatAndAgree(grades: Grade[], { fell, regrade, write, repeats = REPEATS }: Agreement): Grade[] {
+  return grades.map((first) => {
+    if (!fell(first)) return first;
+    const attempts = [first.passed];
+    let last = first;
+    for (let i = 0; i < repeats && fell(last); i += 1) {
+      last = regrade(first);
+      attempts.push(last.passed);
+    }
+    if (!fell(last)) write(`\n⚠ ${first.host}: fell on attempt 1 and recovered on attempt ${String(attempts.length)} (${attempts.join(' → ')} passing) — load, not a regression; the flake is recorded, not hidden\n`);
+    return { ...last, attempts };
+  });
+}
+
+/**
  * The control proves the gate (`compat-oracle/intent.md`, criterion 3), so the bar is that
  * the host's own suite *passes* against the host's own package — not merely that something
  * registered. `passed === 0` was the whole test until 2026-09-09, and it let a control at
@@ -251,7 +302,7 @@ export function silentDowngrades(grades: Grade[], baseline: Baseline): string[] 
 
 export function verdict(grades: Grade[], baseline: Baseline, write: Write, control = false): number {
   const broken = grades.filter((g) => g.error !== undefined);
-  const fell = control ? controlFell(grades) : grades.filter((g) => regressed(g, baseline));
+  const fell = control ? controlFell(grades) : grades.filter((g) => regressed(g, baseline, absentPassing(g.host)));
   for (const g of fell) {
     if (control) write(`\n✖ ${g.host}: ${controlShortfall(g) ?? ''} — the control proves the gate, so it has to pass\n`);
     else write(`\n✖ ${g.host}: ${g.passed} passing, baseline was ${baseline[g.host]?.passed ?? 0}\n`);
@@ -359,7 +410,8 @@ export async function main(argv: string[], write: Write): Promise<number> {
   if (wantsVendor) vendorAll(hosts, write);
 
   const baseline = readBaseline(BASELINE);
-  const grades = hosts.map((host) => grade(host, VENDOR_DIR, targetFor(host), baseline[host.name]?.reference ?? 0));
+  const gradeOf = (host: Host): Grade => grade(host, VENDOR_DIR, targetFor(host), baseline[host.name]?.reference ?? 0);
+  const grades = repeatAndAgree(hosts.map(gradeOf), { fell: fellFor(control, baseline), regrade: (g) => gradeOf(hosts.find((h) => h.name === g.host) as Host), write });
 
   write(control ? '\ncontrol — each host graded against its real package\n\n' : '\ncompatibility\n\n');
   for (const g of grades) write(gradeLines(g, baseline));

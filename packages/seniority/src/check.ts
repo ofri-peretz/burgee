@@ -21,6 +21,7 @@
  * Pure: it takes argv and a writer and returns an exit code. `cli.ts` is the ten lines that own
  * the process, so this file can be driven by a test without spawning anything.
  */
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -34,6 +35,42 @@ import { PluginError, type PluginErrorCode, register, reset, validate } from './
 export const EXIT_OK = 0;
 export const EXIT_RUNTIME = 1;
 export const EXIT_USAGE = 2;
+
+const USAGE = 'usage: seniority check <plugin-file>\n';
+const HELP = `${USAGE}
+Load a plugin file, validate it against the family schema, register it, and report what
+seniority does with it. Exit 0 when it contributes, 1 on a refusal (with a code and a fix), 2 on
+a usage error.
+
+  -h, --help     show this help
+  -V, --version  print the version
+`;
+
+/** The package's own version, read when asked for rather than on every run. */
+function version(): string {
+  return (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version;
+}
+
+/**
+ * The plugin file, or the exit code when the argument is not one. A flag is never a plugin path:
+ * before this, `seniority --help` reached the `import()` and failed as `Cannot find module '…/--help'`
+ * — the first thing a new user types, read as a file.
+ */
+function target(arg: string | undefined, write: (s: string) => void): string | number {
+  if (arg === '--help' || arg === '-h') {
+    write(HELP);
+    return EXIT_OK;
+  }
+  if (arg === '--version' || arg === '-V') {
+    write(`${version()}\n`);
+    return EXIT_OK;
+  }
+  if (arg === undefined || arg.startsWith('-')) {
+    write(arg === undefined ? USAGE : `unknown option ${arg}\n${USAGE}`);
+    return EXIT_USAGE;
+  }
+  return arg;
+}
 
 /** Every way this command says no, in the family's vocabulary: the code, then the fix. */
 function refuse(code: PluginErrorCode, message: string, fix: string, write: (s: string) => void): number {
@@ -59,11 +96,8 @@ export async function check(argv: readonly string[], write: (s: string) => void)
 }
 
 async function inspect(argv: readonly string[], write: (s: string) => void): Promise<number> {
-  const file = argv[0];
-  if (file === undefined) {
-    write('usage: seniority check <plugin-file>\n');
-    return EXIT_USAGE;
-  }
+  const file = target(argv[0], write);
+  if (typeof file === 'number') return file;
   // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the file to check is the user's own, named on the command line
   const loaded = (await import(pathToFileURL(resolve(file)).href)) as { default?: unknown };
   const plugin: unknown = loaded.default ?? loaded;

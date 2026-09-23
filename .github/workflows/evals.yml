@@ -5,6 +5,11 @@ name: Agent Evals
 # ofri-peretz/eslint. Layer 1 is deterministic and always runs; layer 2 needs
 # CLAUDE_CODE_OAUTH_TOKEN (preferred) or ANTHROPIC_API_KEY and reports skipped
 # without one. See evals/README.md.
+#
+# Outside a pull request the run is also recorded: `--record` writes one JSON line to
+# `evals/history/<date>-<sha7>.json`, and the `record` job lands it on main through a
+# pull request (roadmap `marketing-and-docs` 2.2) — `evals/results/` is gitignored, so
+# without this the weekly run kept no history at all.
 
 on:
   pull_request:
@@ -15,9 +20,13 @@ on:
       - "docs/**"
       - ".github/**"
       - ".sdlc/bands/**"
-      - "apps/docs/content/**"
+      # Every docs app's content — a glob, so adding a package's site needs no edit here.
+      - "apps/*/content/**"
       - "eslint.config.mjs"
       - "evals/**"
+      # The pull request the `record` job opens carries data and nothing else. Running the
+      # task evals on it would spend a credential to re-measure a line it just measured.
+      - "!evals/history/**"
       - "scripts/run-evals.ts"
   schedule:
     - cron: "20 5 * * 4"
@@ -38,21 +47,49 @@ jobs:
     permissions:
       contents: read
       issues: write
+    outputs:
+      recorded: ${{ steps.recorded.outputs.recorded }}
+    env:
+      HAS_CREDENTIAL: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' || secrets.ANTHROPIC_API_KEY != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup
         with:
           turbo-cache: "false"
+      # Layer 2 spawns `claude`, and nothing installed it: the day a credential is set,
+      # every case would have come back `error` for a missing binary. `bench.yml`'s B1 job
+      # found the same gap the same way (issue #146). Only with a credential, because
+      # without one layer 2 skips and the install is 30 seconds of nothing.
+      - name: Install the agent the task evals run
+        if: env.HAS_CREDENTIAL == 'true'
+        run: npm install --global @anthropic-ai/claude-code
       - name: Run evals
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          RECORD: ${{ github.event_name != 'pull_request' && '--record' || '' }}
         shell: bash
-        run: npx tsx scripts/run-evals.ts 2>&1 | tee evals.log
+        # `${RECORD:+…}`: one flag, or no argument at all — never an empty-string argument.
+        run: npx tsx scripts/run-evals.ts ${RECORD:+"$RECORD"} 2>&1 | tee evals.log
       - name: Summary
         if: always()
         run: |
           { echo '## Agent evals'; echo; echo '```'; cat evals.log || echo '(no output)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      # `always()`: a failing week is the week the history most needs to show.
+      - name: Was a history line written?
+        id: recorded
+        if: always()
+        shell: bash
+        run: |
+          if compgen -G 'evals/history/*.json' >/dev/null; then echo "recorded=true" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always() && steps.recorded.outputs.recorded == 'true'
+        with:
+          name: evals-history
+          path: evals/history/*.json
+          retention-days: 7
       - name: Open an issue on a scheduled failure
         if: failure() && github.event_name == 'schedule'
         env:
@@ -64,3 +101,80 @@ jobs:
           EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')
           BODY=$(printf '%s\n\n[Run](%s)\n' 'The weekly agent-configuration evals failed: a config document drifted, or a task eval stopped passing.' "$RUN_URL")
           if [ -n "$EXISTING" ]; then gh issue comment "$EXISTING" --body "$BODY"; else gh issue create --title "$TITLE" --body "$BODY"; fi
+
+  # ── Land the run's line on main ────────────────────────────────────────────────────
+  #
+  # The same shape `bench.yml` and `control-bands.yml` use for their observations — a
+  # dated branch, a pull request labelled `skip-changeset`, auto-merge — with the
+  # credential order `changesets-pr.yml` settled on, because the order is the whole
+  # difference between a line that lands and one that waits forever:
+  #
+  #   1. the release GitHub App's installation token (`vars.RELEASE_APP_ID` +
+  #      `secrets.RELEASE_APP_PRIVATE_KEY`);
+  #   2. `secrets.RELEASE_BOT_PAT`;
+  #   3. GITHUB_TOKEN. A pull request it opens raises no workflow runs, so the required
+  #      checks never report and auto-merge never fires — `bench.yml` documents five of
+  #      its own landed by hand. The line is still committed to a branch and still has a
+  #      pull request; under this fallback a human merges it. That is why a line is its own
+  #      file: pull requests that pile up never conflict with each other.
+  #
+  # A separate job so the one that runs an agent never holds a write token: the eval job
+  # checks out with `persist-credentials: false` and reads nothing but `contents`.
+  record:
+    name: Record the run in evals/history
+    needs: evals
+    if: >-
+      always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+      && needs.evals.outputs.recorded == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      # `secrets` cannot be read in a step's `if:`; a job-level env of the boolean can.
+      HAS_APP_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY != '' }}
+      HAS_PAT: ${{ secrets.RELEASE_BOT_PAT != '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: evals-history
+          path: evals/history/
+      - name: Mint the release App's token
+        id: app
+        if: vars.RELEASE_APP_ID != '' && env.HAS_APP_KEY == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Open a pull request with the line
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || secrets.RELEASE_BOT_PAT || github.token }}
+          SOURCE: ${{ steps.app.outputs.token != '' && 'app' || (env.HAS_PAT == 'true' && 'pat' || 'github-token') }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          if [ -z "$(git status --porcelain evals/history/)" ]; then
+            echo "Nothing new to record."; exit 0
+          fi
+          # The run id, not the date: a dispatch and the schedule on one day, on one commit,
+          # would otherwise collide on the branch name and red the job for doing its job.
+          BRANCH="chore/evals-history-${GITHUB_RUN_ID}"
+          TITLE="chore(workspace): record agent eval results"
+          BODY=$(printf 'One line from the weekly agent evals, landed so `evals/history/` has a series (`scripts/eval-history.ts` has the format). Data only: nothing here for a review to catch.\n\nCredential: `%s`.\n\n[Run](%s)\n' "$SOURCE" "$RUN_URL")
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add evals/history/
+          git commit -m "$TITLE"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/$BRANCH"
+          gh pr create --base main --head "$BRANCH" --label skip-changeset --title "$TITLE" --body "$BODY"
+          if [ "$SOURCE" = "github-token" ]; then
+            echo "::warning title=Eval history opened with GITHUB_TOKEN::The pull request raises no checks, so it will not auto-merge; merge it by hand, or set RELEASE_APP_ID + RELEASE_APP_PRIVATE_KEY (or RELEASE_BOT_PAT) — see .sdlc/GAPS.md C5."
+          fi
+          gh pr merge --auto --squash "$BRANCH" || echo "::warning::gh pr merge --auto returned non-zero; the pull request is open for a human."

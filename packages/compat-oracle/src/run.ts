@@ -17,6 +17,12 @@ import { type Exclusion, type Host, type HostImport } from './hosts.js';
 import { readSuiteDeps, shimName } from './vendor.js';
 
 export interface Grade {
+  /**
+   * R7 — the passing count of every attempt, when the first one fell and the row was graded
+   * again (`repeatAndAgree`). Present only on a row that was re-run, so its absence means the
+   * first attempt stood; a list whose last entry recovered is a flake, named rather than silent.
+   */
+  attempts?: number[];
   host: string;
   target: string;
   files: number;
@@ -295,10 +301,29 @@ function missingTarget(host: Host, target: string): string | undefined {
 function shimSource(entry: HostImport, host: Host, target: string): string {
   const header = `// generated per run — COMPAT_TARGET=${target}`;
   const from = target === controlName(host) ? (entry.control ?? `${target}${entry.subpath}`) : `${target}${entry.subpath}`;
-  // `export *` never carries a default; yargs' entry has one and its tests use it. The
-  // `module.exports` name is what `require()` of an ES module returns whole, so a CJS
-  // fixture's `require('../../')` gets the callable factory, exactly as it does from yargs.
-  const withDefault = entry.reexportDefault ? `export { default } from '${from}';\nexport { default as 'module.exports' } from '${from}';\n` : '';
+  // A CommonJS shim hands the suite whatever `require()` of the implementation returns — the
+  // `require` condition, where an ESM shim takes `import`. For a dual package that is a
+  // different build: signal-exit's suite is written against `dist/cjs`, whose behaviour
+  // differs from `dist/mjs` in exactly what `no-process.js` checks.
+  //
+  // It also evicts the implementation from the require cache each time *it* is loaded. A
+  // suite that busts the cache — `delete require.cache[require.resolve('../../')]` in
+  // `process-gone.js`, `t.mock('../dist/cjs/signals.js')` in `signals.js` — busts the path it
+  // names, which is now the shim; without this the re-required shim hands back the cached
+  // implementation and the test measures the harness. A cached shim still returns one instance.
+  if (host.shim === 'cjs') {
+    return `${header}\nconst target = require.resolve('${from}');\ndelete require.cache[target];\nmodule.exports = require(target);\n`;
+  }
+  // `export *` never carries a default; yargs' entry has one and its tests use it.
+  //
+  // It does carry `'module.exports'` — the name `require()` of an ES module returns whole —
+  // when the module under test exports it, and only then. This shim used to add it itself,
+  // for every host with a default, on the target run as much as the control: a CJS fixture's
+  // `require('../../')` got the callable from the shim, so `require('bellpull/cross-spawn')`
+  // handing a real caller a namespace was never graded (2026-09-23). yargs' entry exports the
+  // name, and so does each family drop-in whose incumbent's `require()` returns its default;
+  // `scripts/drop-in-require-shape-lock.test.ts` checks that from outside the oracle.
+  const withDefault = entry.reexportDefault ? `export { default } from '${from}';\n` : '';
   return `${header}\nexport * from '${from}';\n${withDefault}`;
 }
 
@@ -311,7 +336,7 @@ function shimSource(entry: HostImport, host: Host, target: string): string {
 function writeShims(host: Host, hostDir: string, target: string, packageType: string): void {
   // The vendored package's own type decides the extension, and the vendor step wrote the
   // rewritten specifiers against the same rule — so the two always name one file.
-  host.imports.forEach((entry, i) => writeFileSync(join(hostDir, shimName(i, packageType)), shimSource(entry, host, target)));
+  host.imports.forEach((entry, i) => writeFileSync(join(hostDir, shimName(i, packageType, host.shim)), shimSource(entry, host, target)));
 }
 
 /**
@@ -907,7 +932,8 @@ export function readBaseline(path: string): Baseline {
 }
 
 /** C5 — the rate ratchets. Falling below the recorded baseline fails. */
-export function regressed(grade: Grade, baseline: Baseline): boolean {
+export function regressed(grade: Grade, baseline: Baseline, unseen = 0): boolean {
   const was = baseline[grade.host];
-  return was !== undefined && grade.passed < was.passed;
+  // `unseen`: passes this platform cannot register (`absentPassing`), declared per host.
+  return was !== undefined && grade.passed + unseen < was.passed;
 }
