@@ -4,7 +4,7 @@
   "method": "benchmarks/axes/weight.ts installedBytes(name, dir), tree-inclusive, one count per realpath — `dir` a fresh `npm i <incumbent>@latest` in an empty directory, one per incumbent, never the workspace install (whose hoisted copies lag the registry)",
   "layers": {
     "linegauge": {
-      "ours": 85532,
+      "ours": 85762,
       "incumbents": {
         "string-width": 36801,
         "wrap-ansi": 80185,
@@ -12,35 +12,35 @@
         "slice-ansi": 66999
       },
       "ceiling": 194329,
-      "ratio": 0.4401,
+      "ratio": 0.4413,
       "lightestIncumbent": {
         "name": "strip-ansi",
         "bytes": 10344
       }
     },
     "paratext": {
-      "ours": 93924,
+      "ours": 94154,
       "incumbents": {
         "ansi-escapes": 30912,
         "terminal-link": 61152,
         "term-img": 2143923
       },
       "ceiling": 2235987,
-      "ratio": 0.042,
+      "ratio": 0.0421,
       "lightestIncumbent": {
         "name": "ansi-escapes",
         "bytes": 30912
       }
     },
     "seniority": {
-      "ours": 155498,
+      "ours": 155728,
       "incumbents": {
         "cosmiconfig": 1832269,
         "dotenv": 44951,
         "rc": 95287
       },
       "ceiling": 1972507,
-      "ratio": 0.0788,
+      "ratio": 0.0789,
       "lightestIncumbent": {
         "name": "dotenv",
         "bytes": 44951
@@ -52,14 +52,14 @@
       "$grew": "151,688 B on 2026-09-14, up from 53,475 — PLAN 3.2 built the cosmiconfig-compatible surface plus the `./dotenv` and `./find-up` façades, and the pack grew 182%. The Y8 ratio moved 0.034 to 0.098, so it is still an order of magnitude under what it replaces; the growth is recorded rather than smoothed because a ratio that only ever improves is a ratio nobody is watching."
     },
     "closeout": {
-      "ours": 103120,
+      "ours": 103350,
       "incumbents": {
         "signal-exit": 76966,
         "restore-cursor": 93638,
         "exit-hook": 13200
       },
       "ceiling": 183804,
-      "ratio": 0.561,
+      "ratio": 0.5623,
       "lightestIncumbent": {
         "name": "signal-exit",
         "bytes": 76966
@@ -70,27 +70,27 @@
       "$note": "A zero-dependency incumbent exists here, so Y8's original wording applies too and beating it is reported separately."
     },
     "caique": {
-      "ours": 123245,
+      "ours": 123475,
       "incumbents": {
         "@clack/prompts": 182472,
         "@inquirer/core": 206577
       },
       "ceiling": 389049,
-      "ratio": 0.3168,
+      "ratio": 0.3174,
       "lightestIncumbent": {
         "name": "@clack/prompts",
         "bytes": 182472
       }
     },
     "bellpull": {
-      "ours": 103573,
+      "ours": 103803,
       "incumbents": {
         "execa": 647091,
         "cross-spawn": 46962,
         "which": 71500
       },
       "ceiling": 765553,
-      "ratio": 0.1353,
+      "ratio": 0.1356,
       "lightestIncumbent": {
         "name": "cross-spawn",
         "bytes": 46962

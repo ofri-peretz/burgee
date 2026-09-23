@@ -105,7 +105,7 @@ Graded by the incumbent's own test suite:
 | `term-img` | 12 / 18 |
 | `terminal-link` | 8 / 10 |
 
-Weight, installed and tree-inclusive: **93,924 bytes** against **2,235,987** for the incumbents it replaces — a ratio of **0.0420**.
+Weight, installed and tree-inclusive: **94,154 bytes** against **2,235,987** for the incumbents it replaces — a ratio of **0.0421**.
 ## Where it sits
 
 Plugins register under the `capabilities` key, against the one schema the whole family shares.
