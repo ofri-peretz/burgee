@@ -20,6 +20,11 @@ Your program and your tests stay as they are. `npx burgee migrate --dry-run` rew
 `yargs`, `yargs/yargs` and `yargs/helpers` across a codebase, prints the plan first, and
 refuses — by file and line — anything it cannot rewrite mechanically.
 
+Your types move with the import. `burgee/yargs` exports what a typed program reads from
+`@types/yargs` — `Argv`, `Arguments`, `CommandModule`, `Options`, `InferredOptionTypes` and
+the rest — so `import yargs, { type Argv } from 'burgee/yargs'` compiles, and a typed chain
+infers `argv` exactly as it did.
+
 ## Is it really compatible with yargs?
 
 Compatibility is graded, not claimed. yargs' own test suite — vendored, unmodified apart

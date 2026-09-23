@@ -49,7 +49,10 @@ asking cold.
   `import type` from `'yargs'`, with `@types/yargs` kept as a devDependency. `burgee migrate`
   rewrites type-only specifiers too, so on a TypeScript yargs project it currently turns a
   working type import into a broken one. This is a burgee gap to close, not a target problem.
-  It hits devcontainers/cli, spectral and commitlint.
+  It hits devcontainers/cli, spectral and commitlint. **Closed after this ranking:**
+  `burgee/yargs` now exports @types/yargs' surface (and `burgee/commander` commander's), so
+  the diffs below no longer need the `import type` split, and `burgee migrate` checks every
+  name it moves against what the façade exports.
 
 ## The ten
 
