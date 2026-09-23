@@ -11,7 +11,7 @@
  * it: `restore-cursor` → `onetime` → `mimic-fn`, with `signal-exit` alongside. Every one of
  * those is a thing closeout already owns — the once-only wrapper, the exit registration, the
  * phase that guarantees the terminal is handed back *last*. This file is the shape that lets
- * `overrides: { "restore-cursor": "npm:closeout@^1" }` resolve, and it is graded by
+ * `import restoreCursor from 'closeout/restore-cursor'` replace it, and it is graded by
  * `restore-cursor`'s own suite in `compat-oracle` rather than by anything written here.
  *
  * ## Two things the incumbent's suite decides that a reading of the README would not
