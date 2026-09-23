@@ -38,6 +38,10 @@ const program = defineProgram({
 const data = (stdout: string): unknown => (JSON.parse(stdout) as { data: unknown }).data;
 const error = (stderr: string): { code: string; message: string; hint: string } => (JSON.parse(stderr) as { error: { code: string; message: string; hint: string } }).error;
 
+/** A program whose one command declares `fields` as given, however malformed. */
+const bad = (fields: string[]): ReturnType<typeof defineProgram> =>
+  defineProgram({ name: 'app', version: '1.0.0', commands: [defineCommand({ name: 'bad', fields, effects: 'read_only', run: () => ({}) })] });
+
 describe('--json=<fields> (N14)', () => {
   it('selects the named fields of an object result', async () => {
     const r = await runBurgee(program, { argv: ['view', '--json=name,stars'] });
@@ -95,8 +99,11 @@ describe('--json=<fields> (N14)', () => {
     expect(JSON.stringify(JSON.parse(r.stdout))).toContain('"fields":["name","stars","private"]');
   });
 
-  it('refuses a malformed field declaration when the command is defined', () => {
-    expect(() => defineCommand({ name: 'bad', fields: ['a', 'a'], effects: 'read_only', run: () => ({}) })).toThrow(/distinct, non-empty/);
-    expect(() => defineCommand({ name: 'bad', fields: ['a,b'], effects: 'read_only', run: () => ({}) })).toThrow(/without commas/);
+  it('refuses a malformed field declaration the first time `--json=` reads it', async () => {
+    const dup = await runBurgee(bad(['a', 'a']), { argv: ['bad', '--json='] });
+    expect(dup.code).not.toBe(0);
+    expect(dup.stderr).toContain('distinct, non-empty names without commas');
+    const comma = await runBurgee(bad(['a,b']), { argv: ['bad', '--json=a'] });
+    expect(comma.stderr).toContain('without commas');
   });
 });
