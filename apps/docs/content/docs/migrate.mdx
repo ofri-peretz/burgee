@@ -62,6 +62,11 @@ equal.
 - **A name the replacement does not export.** Every imported name is checked against the
   replacement's exports. A type-only import of a missing name stays on the incumbent, with a
   note to keep its types installed; a value import of one refuses the file.
+- **A `require()` of a replacement that has a default export.** `require()` of an ES module
+  returns its namespace, so `const chalk = require('chalk')` pointed at `roundel/chalk` would
+  leave `chalk.red` undefined. The file is refused with `require-of-default`; switch it to
+  `import`, or leave it on the incumbent. `const { Command } = require('commander')` moves,
+  because it reads names and not a default.
 - **A deep import** (`commander/lib/command.js`) or **a specifier that is not a literal**
   (`require(name)`). The file is refused by name and line, and left exactly as it was — a
   file is rewritten whole or not at all.

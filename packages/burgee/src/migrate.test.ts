@@ -320,9 +320,11 @@ describe('A8 — the exit code says whether anything was left undone', () => {
 
 describe('A12 — every drop-in the oracle grades level, in one run', () => {
   it('rewrites the family drop-ins beside the front-ends, in one pass over one file', () => {
-    const source = "import { Command } from 'commander';\nimport chalk from 'chalk';\nimport ora from 'ora';\nconst spawn = require('cross-spawn');\n";
+    // cross-spawn was a `require()` here until the case below: a require of an ES module with a
+    // default gets its namespace, so that rewrite produced `spawn is not a function`.
+    const source = "import { Command } from 'commander';\nimport chalk from 'chalk';\nimport ora from 'ora';\nimport spawn from 'cross-spawn';\n";
     expect(rewriteSource(source).source).toBe(
-      "import { Command } from 'burgee/commander';\nimport chalk from 'roundel/chalk';\nimport ora from 'flagstaff/ora';\nconst spawn = require('bellpull/cross-spawn');\n",
+      "import { Command } from 'burgee/commander';\nimport chalk from 'roundel/chalk';\nimport ora from 'flagstaff/ora';\nimport spawn from 'bellpull/cross-spawn';\n",
     );
   });
 
@@ -373,6 +375,15 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     expect(kept.source).toBe("import boxen from 'flagstaff/boxen';\nimport type { Options } from 'boxen';\n");
     expect(kept.kept.map((k) => k.names)).toEqual([['Options']]);
     expect(rewriteSource("import { modifiers } from 'chalk';\n").refused.map((r) => r.specifier)).toEqual(['chalk']);
+  });
+
+  it('refuses a require() whose target is an ES module with a default, and rewrites one without', () => {
+    // `require()` of an ES module returns its namespace: `require('roundel/chalk').red` is
+    // undefined where `require('chalk').red` was a function. commander's façade has no default,
+    // so `const { Command } = require('commander')` reads the same names either way.
+    expect(rewriteSource("const chalk = require('chalk');\n").refused).toEqual([{ line: 1, specifier: 'chalk', reason: 'require-of-default' }]);
+    expect(rewriteSource("const { Command } = require('commander');\n").source).toBe("const { Command } = require('burgee/commander');\n");
+    expect(rewriteSource("const { onExit } = require('signal-exit');\n").source).toBe("const { onExit } = require('closeout/signal-exit');\n");
   });
 
   it('maps a subpath of an incumbent to the same subpath of its drop-in', () => {

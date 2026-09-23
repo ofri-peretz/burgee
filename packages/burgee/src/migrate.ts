@@ -360,8 +360,20 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
  *
  * `unknown-export` is a named import the target does not export — rewriting it would turn a
  * working import into TS2305 or a `SyntaxError` at load, so the file stays as it was.
+ *
+ * `require-of-default` is a `require('chalk')` whose target is an ES module with a default
+ * export. `require()` of an ES module returns its namespace, so `chalk.red` would be
+ * `undefined` — measured on every family drop-in with a default, 2026-09-23. It moves once
+ * the target also exports its default as `'module.exports'`, which is what Node hands a
+ * CommonJS caller; until then the file stays on the incumbent, where it works.
  */
-export type RefusalReason = 'deep-import' | 'non-literal-specifier' | 'unknown-export';
+export type RefusalReason = 'deep-import' | 'non-literal-specifier' | 'unknown-export' | 'require-of-default';
+
+/** Whether `require(to)` hands a CommonJS caller a namespace where the incumbent handed it the export itself. */
+function requireGetsNamespace(to: string): boolean {
+  const exported = FACADE_EXPORTS[to] ?? [];
+  return exported.includes('default') && !exported.includes('module.exports');
+}
 
 export interface Refusal {
   /** Relative to the directory being migrated, with forward slashes on every platform. */
@@ -446,6 +458,8 @@ interface Site {
    * — the import clause, which is all `bindingsOf` needs. Absent for the other three positions.
    */
   clause?: string[];
+  /** `require('x')`: CommonJS receives the target's whole namespace, not its default export. */
+  require?: true;
 }
 
 interface Scan {
@@ -615,6 +629,7 @@ function siteOf(source: string, at: { open: number; close: number; line: number 
   const site: Site = { specifier: source.slice(open + 1, close - 1), start: open + 1, end: close - 1, line };
   // The clause ends in the `from` just pushed; everything before it is the bindings.
   if (tokens.previous === 'from' && tokens.clause !== undefined) site.clause = tokens.clause.slice(0, -1);
+  if (tokens.previous === '(' && tokens.before === 'require') site.require = true;
   return site;
 }
 
@@ -759,6 +774,10 @@ export function rewriteSource(source: string): Rewrite {
   for (const site of hits) {
     const to = MAPPING[site.specifier];
     if (to === undefined) continue;
+    if (site.require === true && requireGetsNamespace(to)) {
+      unknown.push({ line: site.line, specifier: site.specifier, reason: 'require-of-default' });
+      continue;
+    }
     const { typeOnly, missing } = missingFrom(site, to);
     if (missing.length === 0) moving.push(site);
     else if (typeOnly) kept.push({ line: site.line, specifier: site.specifier, names: missing, note: `${to} does not export ${missing.join(', ')}; this type-only import stays on '${site.specifier}', so keep its types installed` });
