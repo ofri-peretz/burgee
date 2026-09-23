@@ -23,7 +23,7 @@ A phase is done when its exit criterion is met, not when its tasks are ticked.
 | Dependents (npm `dependencies`) | `scripts/rank-dependents.ts` | 0 known | monthly, into this file |
 | AI citation rate | the weekly probe (M4 below) | not measured | this file |
 | Agent task success, B1 | `bench.yml` | never run | README "Measured" |
-| Docs traffic and `llms.txt` hits | Vercel Analytics (M3) | not measured | the Vercel dashboard |
+| Docs traffic and `llms.txt` hits | Vercel Web Analytics (page views); request logs and Observability (`llms.txt`, `.md` twins) | not measured | the Vercel dashboard |
 
 ## Phase 0: ship what is built (this week)
 
@@ -59,8 +59,8 @@ recorded here.
 | # | Item | Owner | Done when |
 | :-- | :-- | :-- | :-- |
 | 2.1 | Run B1 (agent tokens and turns) | **you**: set `CLAUDE_CODE_OAUTH_TOKEN` for `bench.yml` | the README's `agent-tokens-40pct` row has a number, met or not |
-| 2.2 | Commit eval results (`evals/results` is gitignored) so they have a history | agent | a weekly run appends one JSON |
-| 2.3 | Vercel Analytics on the docs app, with a `llms.txt` / `.md` twin hit counter | agent, plus **you** to enable it on the project | a week of data |
+| 2.2 | Commit eval results (`evals/results` is gitignored) so they have a history | agent | a weekly run appends one JSON. **Built in [#464](https://github.com/ofri-peretz/burgee/pull/464)**: `evals.yml` records every run on `main` to `evals/history/<date>-<sha7>.json` and lands it by PR. Layer 2 records `skipped` until `CLAUDE_CODE_OAUTH_TOKEN` is set (as for 2.1), and the PR auto-merges only with the release App or PAT (C5) |
+| 2.3 | Vercel Analytics on the docs app, with a `llms.txt` / `.md` twin hit counter | agent, plus **you** to enable it on the project | a week of data. **Code in [#464](https://github.com/ofri-peretz/burgee/pull/464)**: `<Analytics />` in the root layout. The `llms.txt` / `.md` routes are `force-static` and invisible to `track()`, so their hits are read from Vercel request logs and Observability. **You**: project `burgee` → Analytics → Enable (the script 404s until then) |
 | 2.4 | AI citation probe: 5 fixed questions × 3 assistants, weekly, logging whether burgee is named and which URL is cited | agent, plus **you** for API keys | 4 weeks of data in this file |
 
 The five probe questions are fixed so the series stays comparable:
