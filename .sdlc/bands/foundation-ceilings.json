@@ -19,21 +19,18 @@
       }
     },
     "paratext": {
-      "ours": 94006,
+      "ours": 93924,
       "incumbents": {
-        "ansi-escapes": 30912
+        "ansi-escapes": 30912,
+        "terminal-link": 61152,
+        "term-img": 2143923
       },
-      "ceiling": 30912,
-      "ratio": 3.0411,
+      "ceiling": 2235987,
+      "ratio": 0.042,
       "lightestIncumbent": {
         "name": "ansi-escapes",
         "bytes": 30912
-      },
-      "unmeasured": [
-        "terminal-link",
-        "term-img"
-      ],
-      "$unmeasured": "Measured from a fresh install on 2026-09-23 — terminal-link 5.0.0 at 61,152 B, term-img 7.1.0 at 2,143,923 B (iterm2-version → app-path → plist, @xmldom and xmlbuilder) — and still not folded into `ceiling`. Until then these were absent only because the workspace never installed them; now the reason is a decision: term-img alone would move this layer's ratio from about 3.0 to about 0.04, and a remeasure should not make a claim that large on its own. The ceiling therefore stays a floor on the real one, never an overstatement; folding them in is D1's owner call."
+      }
     },
     "seniority": {
       "ours": 153324,
@@ -55,13 +52,14 @@
       "$grew": "151,688 B on 2026-09-14, up from 53,475 — PLAN 3.2 built the cosmiconfig-compatible surface plus the `./dotenv` and `./find-up` façades, and the pack grew 182%. The Y8 ratio moved 0.034 to 0.098, so it is still an order of magnitude under what it replaces; the growth is recorded rather than smoothed because a ratio that only ever improves is a ratio nobody is watching."
     },
     "closeout": {
-      "ours": 103164,
+      "ours": 103093,
       "incumbents": {
         "signal-exit": 76966,
-        "restore-cursor": 93638
+        "restore-cursor": 93638,
+        "exit-hook": 13200
       },
-      "ceiling": 170604,
-      "ratio": 0.6047,
+      "ceiling": 183804,
+      "ratio": 0.5609,
       "lightestIncumbent": {
         "name": "signal-exit",
         "bytes": 76966
@@ -69,27 +67,20 @@
       "zeroDependencyAnchor": {
         "signal-exit": 76966
       },
-      "$note": "A zero-dependency incumbent exists here, so Y8's original wording applies too and beating it is reported separately.",
-      "unmeasured": [
-        "exit-hook"
-      ],
-      "$unmeasured": "Measured from a fresh install on 2026-09-23 — exit-hook 5.1.0 at 13,200 B, zero dependencies — and still not folded into `ceiling`, so the ceiling stays a floor on the real one, never an overstatement. It is the layer's lightest zero-dependency incumbent and R8's named bar, reported by closeout's own weight test rather than summed here."
+      "$note": "A zero-dependency incumbent exists here, so Y8's original wording applies too and beating it is reported separately."
     },
     "caique": {
-      "ours": 123321,
+      "ours": 123245,
       "incumbents": {
-        "@clack/prompts": 182472
+        "@clack/prompts": 182472,
+        "@inquirer/core": 206577
       },
-      "ceiling": 182472,
-      "ratio": 0.6758,
+      "ceiling": 389049,
+      "ratio": 0.3168,
       "lightestIncumbent": {
         "name": "@clack/prompts",
         "bytes": 182472
-      },
-      "unmeasured": [
-        "@inquirer/core"
-      ],
-      "$unmeasured": "Measured from a fresh install on 2026-09-23 — @inquirer/core 12.0.3 at 206,577 B — and still not folded into `ceiling`, so the ceiling stays a floor on the real one, never an overstatement; folding it in would move this layer's ratio from about 0.67 to about 0.31, which is D1's owner call, not a remeasure's."
+      }
     },
     "bellpull": {
       "ours": 98757,
@@ -107,5 +98,5 @@
       "note": "Measured 2026-09-16 (82,918 after `cross-spawn.ts` moved to a live property read so commander’s mock is seen), the first time this package had an implementation to weigh: 0.0067 was a seven-line stub exporting its own name. R8's ceiling is the wrong comparison and is left as-is rather than quietly swapped: it asks for bytes under `tinyexec`, which does not resolve executables at all, so the smaller number would win by not doing the job. `tinyexec` is not installed here, so no number is claimed against it. Note the fixed point: `ours` is measured from a tarball that contains a README generated from `ours`, so writing the number changes it. 82,918 became 82,917 when the ratio string lost a character; 0.116 is stable under regeneration, which is why it stops here rather than oscillating."
     }
   },
-  "$remeasured": "2026-09-23, incumbents re-measured from a fresh install. Every incumbent had been weighed from the workspace's own node_modules, where a copy is whatever npm hoisted for somebody else — cosmiconfig's 1,377,599 was 9.0.2's tree while `npm i cosmiconfig` gives 10.0.1, and `which` resolved to cross-spawn's hoisted 2.0.2. Now each incumbent is `npm i <name>@latest --ignore-scripts` into its own empty directory and weighed there with `installedBytes(name, dir)` (the `method` field says so). What moved: linegauge ceiling 170,342 to 194,329 (ratio 0.4965 to 0.4352) — slice-ansi 7.1.2 to 9.0.1 (43,642 to 66,999), wrap-ansi 10.0.1 to 10.0.2 (79,687 to 80,185), string-width 36,669 to 36,801 (same 8.2.2; its get-east-asian-width is 1.7.0 fresh, 1.6.0 hoisted); seniority ceiling 1,555,288 to 1,972,507 (0.098 to 0.0773) — cosmiconfig 9.0.2 to 10.0.1 (1,377,599 to 1,832,269) and dotenv 17.2.3 to 18.0.3 (82,402 to 44,951, still zero-dependency and still the lightest); bellpull ceiling 714,984 to 765,553 (0.1369 to 0.1278) — which 2.0.2 to 7.0.0 (20,931 to 71,500, isexe 4 beside it), so the lightest incumbent is now cross-spawn at 46,962; caique ceiling 182,219 to 182,472 (0.6715 to 0.6706) — @clack/prompts 1.8.0 to 1.8.1. Unchanged at latest: strip-ansi 7.2.0, ansi-escapes 7.3.0, rc 1.2.8, signal-exit 4.1.0, restore-cursor 5.1.0, execa 10.0.1, cross-spawn 7.0.6. The four `unmeasured` incumbents were measured too and are recorded in each layer's `$unmeasured`, not summed — folding term-img's 2.1 MB into paratext's ceiling is a claim, not a remeasure. `ours` then taken to a fixed point with `npm pack --dry-run --json` after the regenerated Benchmarks sections (stable on the third pass): paratext 93,104 to 93,113, closeout 102,262 to 102,271, caique 122,353 to 122,362 — the README caveat now says those incumbents were measured but left out of the ceiling, since \"not installed here\" stopped being true. linegauge, seniority and bellpull did not move. No layer crossed 1 in either direction; paratext is still over. Earlier: 2026-09-22, second pass, `npm pack --dry-run --json` to a fixed point (stable on the second iteration), after every public README gained a docs-site link under its header and every manifest a docs-site `homepage` and search keywords. What moved: linegauge 84,210 to 84,371 (+161); paratext 92,729 to 92,903 (+174); seniority 151,990 to 152,192 (+202); closeout 95,911 to 96,126 (+215); caique 121,865 to 122,372 (+507 — the same, plus its README no longer calling a released package pre-release); bellpull 97,564 to 97,751 (+187). Every move is README and manifest text plus the regenerated Benchmarks section, none of it code; paratext's ratio crosses 3.0 on those 174 bytes. No ceiling moved. Earlier the same day: 2026-09-22, one pass with `npm pack --dry-run --json`, after each foundation README gained its brand lockup header (the mark floor now requires every public package to show one). What moved: linegauge 83,766 to 84,210 (+444); paratext 92,288 to 92,729 (+441); seniority 151,546 to 151,990 (+444); closeout 95,470 to 95,911 (+441); bellpull 97,123 to 97,564 (+441). Every move is the header block and nothing else — the three-byte difference is the package name's length. caique did not move: its README already carried the lockup. Stable on the second pass. No ceiling moved. Then caique 122,372 to 122,416 (+44) when its dependency badge was corrected to name both of its dependencies; stable on the second pass. Then 2026-09-22, third pass, `npm pack --dry-run --json` to a fixed point (stable on the second iteration), after each package README gained an opening that names the incumbent it replaces and its agent surface (roadmap `marketing-and-docs.md` 1.3): linegauge 84,371 to 84,642 (+271); paratext 92,903 to 93,167 (+264); seniority 152,192 to 152,493 (+301); closeout 96,126 to 96,456 (+330); bellpull 97,751 to 97,927 (+176); caique did not move, its README already did both. README text and the regenerated Benchmarks section only, no code. No ceiling moved. Then, 2026-09-23 with burgee#508 on top of main: every foundation package +874–877 B (linegauge 84,596→85,473; paratext 93,130→94,006; seniority 152,447→153,324; closeout 102,288→103,164; caique 122,447→123,321; bellpull 97,881→98,757) — each bin now answers --help/--version instead of loading them as a plugin path. Stable on the second pass; no ceiling moved."
+  "$remeasured": "2026-09-23, incumbents re-measured from a fresh install. Every incumbent had been weighed from the workspace's own node_modules, where a copy is whatever npm hoisted for somebody else — cosmiconfig's 1,377,599 was 9.0.2's tree while `npm i cosmiconfig` gives 10.0.1, and `which` resolved to cross-spawn's hoisted 2.0.2. Now each incumbent is `npm i <name>@latest --ignore-scripts` into its own empty directory and weighed there with `installedBytes(name, dir)` (the `method` field says so). What moved: linegauge ceiling 170,342 to 194,329 (ratio 0.4965 to 0.4352) — slice-ansi 7.1.2 to 9.0.1 (43,642 to 66,999), wrap-ansi 10.0.1 to 10.0.2 (79,687 to 80,185), string-width 36,669 to 36,801 (same 8.2.2; its get-east-asian-width is 1.7.0 fresh, 1.6.0 hoisted); seniority ceiling 1,555,288 to 1,972,507 (0.098 to 0.0773) — cosmiconfig 9.0.2 to 10.0.1 (1,377,599 to 1,832,269) and dotenv 17.2.3 to 18.0.3 (82,402 to 44,951, still zero-dependency and still the lightest); bellpull ceiling 714,984 to 765,553 (0.1369 to 0.1278) — which 2.0.2 to 7.0.0 (20,931 to 71,500, isexe 4 beside it), so the lightest incumbent is now cross-spawn at 46,962; caique ceiling 182,219 to 182,472 (0.6715 to 0.6706) — @clack/prompts 1.8.0 to 1.8.1. Unchanged at latest: strip-ansi 7.2.0, ansi-escapes 7.3.0, rc 1.2.8, signal-exit 4.1.0, restore-cursor 5.1.0, execa 10.0.1, cross-spawn 7.0.6. The four `unmeasured` incumbents were measured too and are recorded in each layer's `$unmeasured`, not summed — folding term-img's 2.1 MB into paratext's ceiling is a claim, not a remeasure. `ours` then taken to a fixed point with `npm pack --dry-run --json` after the regenerated Benchmarks sections (stable on the third pass): paratext 93,104 to 93,113, closeout 102,262 to 102,271, caique 122,353 to 122,362 — the README caveat now says those incumbents were measured but left out of the ceiling, since \"not installed here\" stopped being true. linegauge, seniority and bellpull did not move. No layer crossed 1 in either direction; paratext is still over. Earlier: 2026-09-22, second pass, `npm pack --dry-run --json` to a fixed point (stable on the second iteration), after every public README gained a docs-site link under its header and every manifest a docs-site `homepage` and search keywords. What moved: linegauge 84,210 to 84,371 (+161); paratext 92,729 to 92,903 (+174); seniority 151,990 to 152,192 (+202); closeout 95,911 to 96,126 (+215); caique 121,865 to 122,372 (+507 — the same, plus its README no longer calling a released package pre-release); bellpull 97,564 to 97,751 (+187). Every move is README and manifest text plus the regenerated Benchmarks section, none of it code; paratext's ratio crosses 3.0 on those 174 bytes. No ceiling moved. Earlier the same day: 2026-09-22, one pass with `npm pack --dry-run --json`, after each foundation README gained its brand lockup header (the mark floor now requires every public package to show one). What moved: linegauge 83,766 to 84,210 (+444); paratext 92,288 to 92,729 (+441); seniority 151,546 to 151,990 (+444); closeout 95,470 to 95,911 (+441); bellpull 97,123 to 97,564 (+441). Every move is the header block and nothing else — the three-byte difference is the package name's length. caique did not move: its README already carried the lockup. Stable on the second pass. No ceiling moved. Then caique 122,372 to 122,416 (+44) when its dependency badge was corrected to name both of its dependencies; stable on the second pass. Then 2026-09-22, third pass, `npm pack --dry-run --json` to a fixed point (stable on the second iteration), after each package README gained an opening that names the incumbent it replaces and its agent surface (roadmap `marketing-and-docs.md` 1.3): linegauge 84,371 to 84,642 (+271); paratext 92,903 to 93,167 (+264); seniority 152,192 to 152,493 (+301); closeout 96,126 to 96,456 (+330); bellpull 97,751 to 97,927 (+176); caique did not move, its README already did both. README text and the regenerated Benchmarks section only, no code. No ceiling moved. Then, 2026-09-23 with burgee#508 on top of main: every foundation package +874–877 B (linegauge 84,596→85,473; paratext 93,130→94,006; seniority 152,447→153,324; closeout 102,288→103,164; caique 122,447→123,321; bellpull 97,881→98,757) — each bin now answers --help/--version instead of loading them as a plugin path. Stable on the second pass; no ceiling moved. Then the four incumbents measured on 2026-09-23 and held out of `ceiling` are counted: terminal-link 5.0.0 (61,152 B) and term-img 7.1.0 (2,143,923 B) in paratext, exit-hook 5.1.0 (13,200 B) in closeout, @inquirer/core 12.0.3 (206,577 B) in caique. The admission rule is parity.test.ts's: an incumbent counts only where this repository publishes a graded drop-in for it — paratext/term-img 12/18, paratext/terminal-link 8/10, closeout's exit-hook 21/21, caique/inquirer 41/41 on the compatibility page. term-img's tree dominates paratext's ceiling and its drop-in is graded 12/18, not 18/18: read paratext's ratio with that beside it."
 }
