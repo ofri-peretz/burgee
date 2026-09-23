@@ -68,6 +68,10 @@ or an environment variable) and left out otherwise, so an agent that spells out 
 The `--json` envelope, byte for byte. Under `burgee/commander`, `data` is what the action
 **returned**: an action that prints instead gives `data: null`, because commander actions
 return nothing. Return the value — `.action(() => ({ lines }))` — and it is `data`.
+Printed output becomes the tool result: whatever a handler writes to stdout during a call
+(`console.log`, `process.stdout.write`) is captured and follows the envelope as a second
+text item, never a stray line on the JSON-RPC stream, and what it writes to stderr stays on
+stderr.
 
 ### Client configuration
 

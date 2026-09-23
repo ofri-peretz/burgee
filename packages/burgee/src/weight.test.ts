@@ -349,9 +349,13 @@ const RULES: Record<string, EntryRule> = {
   // 20,520 on 2026-09-23, measured 20,480: `tools/call` now sends each argument as the flag
   // the schema advertises (`--dry-run`, not `--dryRun`) and a `false` that must be said as
   // `--no-<name>`, and a root command's tool has a name. +215 for calls that used to fail.
+  // 24,790 on 2026-09-23, measured 24,747: a tool call's stdout is captured and returned as
+  // its result instead of corrupting the JSON-RPC stream (+2,187 in `mcp.js`), and the capture
+  // reaches the real stdout through the `host` seam, which brings `runtime.js` (+2,080) into
+  // this door — every front-end that serves `--mcp` already carries it.
   "./mcp": {
     allow: [],
-    budget: 20_520,
+    budget: 24_790,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
   },
   // The schema surface and the `Manifest` class it reads. Measured 14,891.
