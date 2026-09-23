@@ -335,7 +335,13 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // 59,600 on 2026-09-23 for **171 bytes**, D-134: the manifest projection publishes each
   // option under the flag commander accepts (a lone `--no-x` as `noX`, a pair folded, which
   // booleans negate), so `--mcp` and completions stop offering flags commander refuses.
-  'burgee/commander': 59_600,
+  //
+  // 59,650 on 2026-09-23 for **14 bytes** (59,592 -> 59,606), none of them new code on the
+  // startup path: the lazily-loaded MCP chunk now reads stdout through the `host` seam to keep
+  // a tool call's prints off the JSON-RPC stream, so `host` is shared between the entry and
+  // that chunk, esbuild moves it into the shared chunk the entry already imports, and the 14
+  // are the cross-chunk export and import names.
+  'burgee/commander': 59_650,
   'burgee/yargs': 107_700,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
