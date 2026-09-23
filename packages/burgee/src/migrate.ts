@@ -94,6 +94,11 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
     'spawn',
     'sync',
   ],
+  'bellpull/node-which': [
+    'NodeWhichOptions',
+    'default',
+    'module.exports',
+  ],
   'burgee/commander': [
     'AddHelpTextContext',
     'AddHelpTextPosition',

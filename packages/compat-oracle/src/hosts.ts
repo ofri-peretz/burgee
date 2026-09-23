@@ -547,6 +547,26 @@ export const HOSTS: Host[] = [
     note: "The suite runs each of its cases four times — `spawn`, `spawn-force-shell`, `sync`, `sync-force-shell` — so a divergence in one path cannot hide behind the other three. It is also the most load-sensitive row here: every case spawns a real subprocess under the suite's own `jest.setTimeout(10000)`, and `sync-force-shell > should support shebang…` spawns three. Measured 2026-09-14 on a 14-core machine at load 16–21 (five agents at once), one `spawn.sync` of the shebang fixture took 0.6–3.5 s and that case timed out in 3 runs of 6; at load ~1 the same call takes 32 ms and the control is 68 / 68 every time. A control of 67 / 68 on this case means the machine, not the target — which is a reason to read the TAP before re-recording anything, not a reason to widen a timeout the suite chose.",
   },
   {
+    // node-which 7 — `which(cmd, opts)` and `which.sync` — graded against `bellpull/node-which`
+    // (R9), its own entry so `bellpull/which` stays resolution alone. `test/index.js` only:
+    // `test/bin.js` spawns node-which's own CLI, `bin/which.js`, which bellpull does not ship
+    // and a drop-in for the library does not owe.
+    name: 'which',
+    repo: 'https://github.com/npm/node-which',
+    testDir: 'test',
+    testGlob: 'index.js',
+    // The suite reloads the module per case with `t.mock('..')` after flipping
+    // `process.platform`, so the shim is CommonJS and evicts its target, as signal-exit's does.
+    imports: [{ upstream: '..', subpath: '/node-which', reexportDefault: true, control: 'which' }],
+    surfaceFiles: ['lib/index.js'],
+    runner: 'tap',
+    shim: 'cjs',
+    suiteDeps: ['which@7.0.0', 'tap@16.3.4'],
+    target: 'bellpull',
+    status: 'active',
+    note: "Vendored 2026-09-23 at 7.0.0. The row grades `bellpull/node-which`, node-which's own API as its own entry beside `bellpull/which`'s `whichSync` family: `all`, `nothrow`, `path`, `pathExt`, `delimiter`, Windows' working-directory-first search and its extension list, quoted `PATH` parts, and the `ENOENT` error. The platform is read per call rather than at load, which is what lets one ESM module answer a suite that flips `process.platform` between cases.",
+  },
+  {
     // The host with no parseable output, and the reason `mode: "exit-code"` exists.
     //
     // `npm view rc scripts.test` is `set -e; node test/test.js; node test/ini.js; node

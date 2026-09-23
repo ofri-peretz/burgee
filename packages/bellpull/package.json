@@ -20,6 +20,11 @@
       "import": "./dist/which.js",
       "default": "./dist/which.js"
     },
+    "./node-which": {
+      "types": "./dist/node-which.d.ts",
+      "import": "./dist/node-which.js",
+      "default": "./dist/node-which.js"
+    },
     "./cross-spawn": {
       "types": "./dist/cross-spawn.d.ts",
       "import": "./dist/cross-spawn.js",
