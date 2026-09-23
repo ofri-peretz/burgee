@@ -1,5 +1,11 @@
 # linegauge
 
+## 0.4.3
+
+### Patch Changes
+
+- [#480](https://github.com/ofri-peretz/burgee/pull/480) [`2dc573f`](https://github.com/ofri-peretz/burgee/commit/2dc573f884e7a4cc46829cd8f2c949a17f07710c) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - README corrections: paratext shows terminal-link at its measured 8 / 10 (was the stale 0 / 10 floor); linegauge's and closeout's `npm:` override examples resolve to the current release instead of 0.2 / 0.1.
+
 ## 0.4.2
 
 ### Patch Changes
