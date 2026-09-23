@@ -47,8 +47,108 @@ export const MAPPING: Readonly<Record<string, string>> = {
 /** The packages a project depends on that this command is about (A1). */
 export const HOSTS = ['commander', 'yargs'] as const;
 
-/** Why a file was left untouched. Both are named positions, never a guess (A4). */
-export type RefusalReason = 'deep-import' | 'non-literal-specifier';
+/**
+ * Every name each target exports — values and types alike — so a rewrite that moves
+ * `import { Argv } from 'yargs'` can first ask whether `burgee/yargs` has an `Argv`.
+ *
+ * A specifier-only rewrite (D-050) cannot tell a value from a type, and does not need to:
+ * a name the target does not export breaks the build either way. This is data rather than
+ * a lookup because the lookup is the TypeScript checker, which is the dependency this
+ * command exists not to have; `facade-types.test.ts` holds the table equal to what the
+ * checker sees in `dist/*.d.ts`, so it cannot drift from the façades it describes.
+ */
+export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
+  'burgee/commander': [
+    'AddHelpTextContext',
+    'AddHelpTextPosition',
+    'Argument',
+    'BurgeeParseOptions',
+    'Command',
+    'CommandOptions',
+    'CommanderError',
+    'DualOptions',
+    'ErrorOptions',
+    'ExecutableCommandOptions',
+    'Help',
+    'HelpConfiguration',
+    'HelpContext',
+    'HookEvent',
+    'HookListener',
+    'InvalidArgumentError',
+    'InvalidOptionArgumentError',
+    'Option',
+    'OptionValueSource',
+    'OptionValues',
+    'OutputConfiguration',
+    'OutputContext',
+    'ParseOptions',
+    'ParseOptionsResult',
+    'createArgument',
+    'createCommand',
+    'createOption',
+    'humanReadableArgName',
+    'program',
+    'useColor',
+  ],
+  'burgee/yargs': [
+    'Arguments',
+    'ArgumentsCamelCase',
+    'Argv',
+    'AsyncCompletionFunction',
+    'BuilderArguments',
+    'BuilderCallback',
+    'Choices',
+    'CommandBuilder',
+    'CommandModule',
+    'CompletionCallback',
+    'Defined',
+    'DetailedArguments',
+    'FallbackCompletionFunction',
+    'InferredOptionType',
+    'InferredOptionTypeInner',
+    'InferredOptionTypePrimitive',
+    'InferredOptionTypes',
+    'MiddlewareFunction',
+    'Options',
+    'ParseCallback',
+    'ParsedCommand',
+    'Parser',
+    'ParserConfigurationOptions',
+    'PlatformShim',
+    'PositionalOptions',
+    'PositionalOptionsType',
+    'PromiseCompletionFunction',
+    'RequireDirectoryOptions',
+    'SyncCompletionFunction',
+    'ToArray',
+    'ToNumber',
+    'ToString',
+    'YError',
+    'YargsInstance',
+    'applyExtends',
+    'argsert',
+    'camelCase',
+    'decamelize',
+    'default',
+    'hideBin',
+    'isPromise',
+    'isYargsInstance',
+    'looksLikeNumber',
+    'module.exports',
+    'objFilter',
+    'parseCommand',
+    'platformShim',
+  ],
+  'burgee/yargs/helpers': ['Parser', 'applyExtends', 'hideBin'],
+};
+
+/**
+ * Why a file was left untouched. Each is a named position, never a guess (A4).
+ *
+ * `unknown-export` is a named import the target does not export — rewriting it would turn a
+ * working import into TS2305 or a `SyntaxError` at load, so the file stays as it was.
+ */
+export type RefusalReason = 'deep-import' | 'non-literal-specifier' | 'unknown-export';
 
 export interface Refusal {
   /** Relative to the directory being migrated, with forward slashes on every platform. */
@@ -57,6 +157,24 @@ export interface Refusal {
   /** The specifier as written, or `''` for a dynamic specifier that is not a literal. */
   specifier: string;
   reason: RefusalReason;
+  /** For `unknown-export`: the names the target does not export. */
+  names?: string[];
+}
+
+/**
+ * A type-only import left on the incumbent because the façade does not export every name in
+ * it. Types are erased, so the file's values still move to burgee and the program runs on it;
+ * the types keep compiling against the incumbent's declarations, which is why the incumbent
+ * is then not reported removable.
+ */
+export interface Kept {
+  file: string;
+  line: number;
+  specifier: string;
+  /** The names the façade does not export. */
+  names: string[];
+  /** The note a reader acts on. */
+  note: string;
 }
 
 /** One rewritten specifier, for the per-mapping rollup the report prints. */
@@ -79,6 +197,8 @@ export interface MigrationReport {
   imports: number;
   mapped: Mapped[];
   refused: Refusal[];
+  /** Type-only imports left pointing at the incumbent, each with the note that says why. */
+  kept: Kept[];
   detected: Detection;
   dependencies: { before: string[]; removable: string[]; after: number };
   graded: (Graded & { host: string })[];
@@ -97,6 +217,11 @@ interface Site {
   start: number;
   end: number;
   line: number;
+  /**
+   * For `import … from` and `export … from`: the code tokens between the keyword and `from`
+   * — the import clause, which is all `bindingsOf` needs. Absent for the other three positions.
+   */
+  clause?: string[];
 }
 
 interface Scan {
@@ -234,6 +359,13 @@ interface Tokens {
   pending: boolean;
   /** Lines where a call was opened and what followed was not a string literal. */
   nonLiteral: number[];
+  /**
+   * The tokens since the last `import` or `export` keyword — the clause of the statement in
+   * progress — or `undefined` once there is none. A clause never holds `(` or `=`, and the
+   * token after its `from` is the specifier, so either closes it: `export function f(…)`
+   * does not drag its body along.
+   */
+  clause: string[] | undefined;
 }
 
 /**
@@ -246,8 +378,20 @@ interface Tokens {
 function push(tokens: Tokens, text: string, line: number): void {
   if (tokens.pending && text !== QUOTED && text !== ')') tokens.nonLiteral.push(line);
   tokens.pending = text === '(' && (tokens.previous === 'import' || tokens.previous === 'require');
+  if (text === 'import' || text === 'export') tokens.clause = [];
+  else if (text === '(' || text === '=' || tokens.previous === 'from') tokens.clause = undefined;
+  else tokens.clause?.push(text);
   tokens.before = tokens.previous;
   tokens.previous = text;
+}
+
+/** The specifier between the quotes at `open` and just before `close`, with its clause when it follows a `from`. */
+function siteOf(source: string, at: { open: number; close: number; line: number }, tokens: Tokens): Site {
+  const { open, close, line } = at;
+  const site: Site = { specifier: source.slice(open + 1, close - 1), start: open + 1, end: close - 1, line };
+  // The clause ends in the `from` just pushed; everything before it is the bindings.
+  if (tokens.previous === 'from' && tokens.clause !== undefined) site.clause = tokens.clause.slice(0, -1);
+  return site;
 }
 
 /**
@@ -261,7 +405,7 @@ function push(tokens: Tokens, text: string, line: number): void {
  */
 export function scan(source: string): Scan {
   const sites: Site[] = [];
-  const tokens: Tokens = { previous: '', before: '', pending: false, nonLiteral: [] };
+  const tokens: Tokens = { previous: '', before: '', pending: false, nonLiteral: [], clause: undefined };
   let line = 1;
   let i = 0;
 
@@ -276,7 +420,7 @@ export function scan(source: string): Scan {
     if (literal !== -1) {
       const c = source.charAt(i);
       const quoted = c === "'" || c === '"';
-      if (quoted && isSpecifier(tokens.previous, tokens.before)) sites.push({ specifier: source.slice(i + 1, literal - 1), start: i + 1, end: literal - 1, line });
+      if (quoted && isSpecifier(tokens.previous, tokens.before)) sites.push(siteOf(source, { open: i, close: literal, line }, tokens));
       push(tokens, quoted ? QUOTED : 'lit', line);
       line += newlines(source, i, literal);
       i = literal;
@@ -300,6 +444,7 @@ export interface Rewrite {
   source: string;
   mapped: { from: string; to: string }[];
   refused: Omit<Refusal, 'file'>[];
+  kept: Omit<Kept, 'file'>[];
   /** Whether this file references a host at all. A file that does not is not "untouched", it is unrelated. */
   relevant: boolean;
 }
@@ -330,6 +475,45 @@ function isDeep(specifier: string): boolean {
 }
 
 /**
+ * The names an import or re-export clause asks the module for, and whether the whole
+ * statement is type-only (`import type …`, `export type …`).
+ *
+ * Read off the tokens the scan already has: `{ a, type b, c as d }` asks for `a`, `b` and
+ * `c`; a default or namespace binding asks for no name a façade could lack (`default` is
+ * the factory, and `* as ns` is checked where it is used, which a scan cannot see). A name
+ * written as a string (`{ 'a-b' as c }`) is left unverified rather than guessed at.
+ */
+export function bindingsOf(clause: readonly string[]): { typeOnly: boolean; names: string[] } {
+  // `import type from 'x'` is a default binding named `type`, not a modifier.
+  const typeOnly = clause[0] === 'type' && clause.length > 1;
+  const open = clause.indexOf('{');
+  const close = clause.indexOf('}', open);
+  if (open === -1 || close === -1) return { typeOnly, names: [] };
+  const names: string[] = [];
+  let element: string[] = [];
+  for (const token of [...clause.slice(open + 1, close), ',']) {
+    if (token !== ',') {
+      element.push(token);
+      continue;
+    }
+    // `type x` / `type x as y`: the modifier. `type` alone, or `type as y`, is a binding named `type`.
+    const modifier = element[0] === 'type' && element.length > 1 && element[1] !== 'as';
+    const name = modifier ? element[1] : element[0];
+    if (name !== undefined && name !== 'default' && name !== QUOTED && WORD.test(name.charAt(0))) names.push(name);
+    element = [];
+  }
+  return { typeOnly, names };
+}
+
+/** The names in `site`'s clause that `to` does not export. Empty when there is no clause, or no table for `to`. */
+function missingFrom(site: Site, to: string): { typeOnly: boolean; missing: string[] } {
+  const exported = FACADE_EXPORTS[to];
+  if (site.clause === undefined || exported === undefined) return { typeOnly: false, missing: [] };
+  const { typeOnly, names } = bindingsOf(site.clause);
+  return { typeOnly, missing: names.filter((name) => !exported.includes(name)) };
+}
+
+/**
  * A2/A5 — map every host specifier in one file, or map none of them.
  *
  * The edits are applied from the end backwards so earlier offsets stay valid, and the
@@ -337,25 +521,41 @@ function isDeep(specifier: string): boolean {
  * the file, so the worst case is *nothing changed here, and here is why* (D-051).
  */
 export function rewriteSource(source: string): Rewrite {
-  if (!mentionsAHost(source)) return { source, mapped: [], refused: [], relevant: false };
+  if (!mentionsAHost(source)) return { source, mapped: [], refused: [], kept: [], relevant: false };
   const { sites, nonLiteral } = scan(source);
   const hits = sites.filter((s) => MAPPING[s.specifier] !== undefined || isDeep(s.specifier));
-  if (hits.length === 0) return { source, mapped: [], refused: [], relevant: false };
+  if (hits.length === 0) return { source, mapped: [], refused: [], kept: [], relevant: false };
+
+  // A name the façade lacks: a type-only statement stays on the incumbent (types are
+  // erased, so the rest of the file can still move); anything else is refused, because
+  // a value import of a missing name fails at load and a mixed one cannot be split by a scan.
+  const kept: Omit<Kept, 'file'>[] = [];
+  const unknown: Omit<Refusal, 'file'>[] = [];
+  const moving: Site[] = [];
+  for (const site of hits) {
+    const to = MAPPING[site.specifier];
+    if (to === undefined) continue;
+    const { typeOnly, missing } = missingFrom(site, to);
+    if (missing.length === 0) moving.push(site);
+    else if (typeOnly) kept.push({ line: site.line, specifier: site.specifier, names: missing, note: `${to} does not export ${missing.join(', ')}; this type-only import stays on '${site.specifier}', so keep its types installed` });
+    else unknown.push({ line: site.line, specifier: site.specifier, reason: 'unknown-export', names: missing });
+  }
 
   const refused: Omit<Refusal, 'file'>[] = [
     ...hits.filter((s) => isDeep(s.specifier)).map((s) => ({ line: s.line, specifier: s.specifier, reason: 'deep-import' as const })),
     ...nonLiteral.map((line) => ({ line, specifier: '', reason: 'non-literal-specifier' as const })),
+    ...unknown,
   ].sort((a, b) => a.line - b.line);
-  if (refused.length > 0) return { source, mapped: [], refused, relevant: true };
+  if (refused.length > 0) return { source, mapped: [], refused, kept: [], relevant: true };
 
   let out = source;
   const mapped: { from: string; to: string }[] = [];
-  for (const site of [...hits].sort((a, b) => b.start - a.start)) {
+  for (const site of moving.sort((a, b) => b.start - a.start)) {
     const to = MAPPING[site.specifier] as string;
     out = `${out.slice(0, site.start)}${to}${out.slice(site.end)}`;
     mapped.push({ from: site.specifier, to });
   }
-  return { source: out, mapped: mapped.reverse(), refused: [], relevant: true };
+  return { source: out, mapped: mapped.reverse(), refused: [], kept, relevant: true };
 }
 
 /* ------------------------------------------------------------------ the project */
@@ -429,7 +629,7 @@ export interface MigrateOptions {
 }
 
 /** A file the pre-filter rejected: never decoded, never scanned, never written. */
-const EMPTY: Rewrite = { source: '', mapped: [], refused: [], relevant: false };
+const EMPTY: Rewrite = { source: '', mapped: [], refused: [], kept: [], relevant: false };
 
 /**
  * One batch: read them all, scan them all, write the ones that changed — three phases, not
@@ -507,11 +707,13 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
 
   const all = results.flatMap(({ file, result }) => result.mapped.map((m) => ({ ...m, file })));
   const refused: Refusal[] = results.flatMap(({ file, result }) => result.refused.map((r) => ({ file, ...r })));
-  const imported = [...new Set(results.flatMap(({ result }) => (result.relevant ? result.mapped.map((m) => m.from) : [])))];
+  const kept: Kept[] = results.flatMap(({ file, result }) => result.kept.map((k) => ({ file, ...k })));
+  const imported = [...new Set(results.flatMap(({ result }) => (result.relevant ? [...result.mapped.map((m) => m.from), ...result.kept.map((k) => k.specifier)] : [])))];
   const declared = await declaredHosts(dir);
   // A dependency is removable only when nothing still imports it — a file that was refused
-  // still imports commander, so the maintainer's `npm rm` would break their own build.
-  const stillUsed = new Set(refused.map((r) => r.specifier.split('/')[0] ?? ''));
+  // still imports commander, and so does a kept type-only import, so the maintainer's
+  // `npm rm` would break their own build.
+  const stillUsed = new Set([...refused, ...kept].map((r) => r.specifier.split('/')[0] ?? ''));
   const removable = declared.filter((host) => !stillUsed.has(host));
   const touched = [...new Set(all.map((m) => m.file))];
 
@@ -520,6 +722,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
     imports: all.length,
     mapped: rollup(all),
     refused,
+    kept,
     detected: { declared, imported: [...new Set(imported.map((s) => s.split('/')[0] ?? s))].sort() },
     dependencies: { before: declared, removable, after: declared.length - removable.length },
     graded: gradedFor([...new Set([...declared, ...imported.map((s) => s.split('/')[0] ?? s)])].sort()),

@@ -312,10 +312,16 @@ function shimSource(entry: HostImport, host: Host, target: string): string {
     const exported = entry.reexportDefault ? 'loaded?.default ?? loaded' : 'loaded';
     return `${header}\nconst target = require.resolve('${from}');\ndelete require.cache[target];\nconst loaded = require(target);\nmodule.exports = ${exported};\n`;
   }
-  // `export *` never carries a default; yargs' entry has one and its tests use it. The
-  // `module.exports` name is what `require()` of an ES module returns whole, so a CJS
-  // fixture's `require('../../')` gets the callable factory, exactly as it does from yargs.
-  const withDefault = entry.reexportDefault ? `export { default } from '${from}';\nexport { default as 'module.exports' } from '${from}';\n` : '';
+  // `export *` never carries a default; yargs' entry has one and its tests use it.
+  //
+  // It does carry `'module.exports'` — the name `require()` of an ES module returns whole —
+  // when the module under test exports it, and only then. This shim used to add it itself,
+  // for every host with a default, on the target run as much as the control: a CJS fixture's
+  // `require('../../')` got the callable from the shim, so `require('bellpull/cross-spawn')`
+  // handing a real caller a namespace was never graded (2026-09-23). yargs' entry exports the
+  // name, and so does each family drop-in whose incumbent's `require()` returns its default;
+  // `scripts/drop-in-require-shape-lock.test.ts` checks that from outside the oracle.
+  const withDefault = entry.reexportDefault ? `export { default } from '${from}';\n` : '';
   return `${header}\nexport * from '${from}';\n${withDefault}`;
 }
 

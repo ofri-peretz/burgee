@@ -19,21 +19,21 @@ Three kinds, because they close three different ways:
 | # | Gap | Source | Done when |
 | :-- | :-- | :-- | :-- |
 | ~~A1~~ | ~~vendor scripts resolve the oracle through bare specifiers~~ — **closed**: four scripts, seven specifiers, `oracle-import-lock.test.ts` | compat-oracle R6 | done |
-| A3 | only one of four declared subtractions reaches the published compatibility page | compat-oracle C4 | `compatibility.mdx` renders `excludes`, `controlFailures`, `conditionalCases`, `ungradedDirs`, each with its reason; a lock fails when a kind is not rendered |
+| ~~A3~~ | ~~only one of four declared subtractions reaches the published compatibility page~~ — **closed**: `compatibility.mdx` renders all four subtraction kinds; `scripts/compat-page-subtractions.test.ts` | compat-oracle C4 | done |
 | A4 | three rows are load-sensitive and nothing in the gate knows | compat-oracle R7 | load-sensitive cases repeat-and-agree before a row is red; a flake is named, not silent |
-| A5 | the dependency arrows in the layer table are wrong in three rows of four | burgee U1 | table restated from the manifests; the layer lock is its check |
-| A6 | `sideEffects` declared by three of nine packages; no tree-shake fixture | burgee U10 | every package declares it truthfully; a fixture proves a root named import bundles to its subpath's bytes |
-| A7 | CI grades Node 24 only while `engines` says `>=24` | burgee C3, compat-oracle C3 | the compat matrix runs every supported even major (24, 26) |
-| A8 | "depends on roundel only" is false, and two ceilings are ratchets on history rather than the incumbent | flagstaff R10 | requirement restated to the four same-repo deps; `./box` and `./table` ceilings set from boxen's and cli-table3's measured bytes |
+| ~~A5~~ | ~~the dependency arrows in the layer table are wrong in three rows of four~~ — **closed**: layer table restated from the manifests (burgee U1 Built) | burgee U1 | done |
+| ~~A6~~ | ~~`sideEffects` declared by three of nine packages; no tree-shake fixture~~ — **closed**: all nine declare `sideEffects` truthfully; `side-effects-lock.test.ts`, `tree-shake-fixture.test.ts` (burgee U10 Built) | burgee U10 | done |
+| ~~A7~~ | ~~CI grades Node 24 only while `engines` says `>=24`~~ — **closed**: `compat.yml` matrix runs Node 24 and 26 on three OSes (compat-oracle C3 Built) | burgee C3, compat-oracle C3 | done |
+| ~~A8~~ | ~~"depends on roundel only" is false, and two ceilings are ratchets on history rather than the incumbent~~ — **closed**: ceilings gated in B4 (#449), dependency sentence restated under D-130 (#463); flagstaff R10 Built | flagstaff R10 | done |
 | ~~A9~~ | ~~`signal-exit` is not graded at all~~ — **closed**: `closeout/signal-exit` graded 134 / 135 by signal-exit's own suite, level with its control; the root-export half of R6 stays open (A26) | closeout, PLAN 3.3 | done |
 | A10 | `execa`'s suite not vendored; `tinyexec` not installed so no ceiling — **`which` closed 2026-09-23**: vendored and graded 5 / 5 against `bellpull/node-which` | bellpull R8, R9 | `execa` vendored and graded; `tinyexec` a devDependency with its B4 row |
-| A11 | paratext: ansi-escapes 1/4, terminal-link 0/10, term-img 12/18 | compat baselines | each suite at 100%, or each failing case named with its reason |
-| A12 | seniority: cosmiconfig 186/243, dotenv 80/141, lilconfig 67/77, rc 0/1 | compat baselines | same |
-| A13 | caique: clack 14/17 | compat baselines | same |
-| A14 | the foundation layers are static imports of the engine, which the claim says they are not | burgee U13 | measured, and either made lazy or the claim restated with the number |
+| A11 | paratext: ansi-escapes 1/4, terminal-link 8/10, term-img 12/18 — **each at a recorded ceiling**: CSI is out of scope (3 of ansi-escapes' 4), terminal-link's 2 read another package's mutated module object, term-img's 6 pass a PATH where D-030 takes bytes. terminal-link's baseline was stale at 0 and is now 8 | compat baselines | each ceiling restated as a decision, or lifted |
+| A12 | seniority: cosmiconfig 186/243, dotenv **106**/141 (was 80), lilconfig 67/77, rc **1/1** (was 0) — D-135 lifted the two; dotenv's remaining 35 are the declined vault/decrypt (27), dotenvx tips (2), and 6 internal-module cases the harness cannot map yet | compat baselines | each suite at 100%, or each failing case named with its reason |
+| A13 | caique: clack 14/17 — the 3 are `guide.test.ts`, which renders all twelve clack prompts; `caique/clack` exports only `limitOptions`, so closing it is a clack prompt façade, not a fix | compat baselines | the twelve prompts, or the row restated to `limitOptions` |
+| ~~A14~~ | ~~the foundation layers are static imports of the engine~~ — **closed by restatement (D-136)**: two in-family specifiers are static and declared, the output stack is dynamic; the `.` weight rule asserts exactly that | burgee U13 | done |
 | A15 | `-` means stdin for a file positional | burgee S4, D-113 | `ArgumentSpec.type: 'file'`; `-` hands the handler `process.stdin`; a test pipes a file through `-` |
 | A16 | `--json=<a,b>` selects fields | burgee N14, D-114 | bare `--json` unchanged; `--json a` stays a positional; fields filter the envelope's data |
-| A17 | `--schema <path> --field <name>` | burgee N13, D-116 | one field of one command, the same shape `--schema` prints for it |
+| ~~A17~~ | ~~`--schema <path> --field <name>`~~ — **closed**: dotted field paths below a command; an unknown step names the valid ones | burgee N13, D-116 | done |
 | A18 | a generated `config explain` | burgee V8, D-117 | synthesised when the program reads config; every value with the source that won |
 | A19 | `defineError({ name, code })` | burgee E7, D-118 | adds a `CLASSIFIED` row; a reused code fails at startup |
 | A20 | `dynamic: true` completion marker | burgee D3, D-119 | opt-in per option; completion scripts call back only for those |
@@ -41,8 +41,8 @@ Three kinds, because they close three different ways:
 | A22 | `.burgee({ floor: true })` on façades | burgee J3, J4, D-121 | one call turns the behavioural floor on; `--schema` names the flags the program shadows |
 | A23 | plugin hooks `parse` and `shutdown` | plugin surface, D-122 | in the schema, the plugins page's "cannot do yet" list shrinks by the two |
 | A24 | `burgee/program-schema.json` | burgee F1, schema-is-validated, D-123 | published; `--schema` output validated against it in a test, no runtime validator |
-| A25 | `.effects()` on commander façade commands | agent-surface-declared R6, D-127 | a façade command can declare its effects and reach MCP |
-| A26 | `signal-exit`'s API at closeout's root, so the `overrides` recipe resolves | closeout R6 | the recipe installs and the suite passes through it, or R6 restated to the subpath |
+| ~~A25~~ | ~~`.effects()` on commander façade commands~~ — **already built**, found 2026-09-23: both façades have `.effects()`, `facade-surface.test.ts` covers declared, undeclared and withheld; the spec row was stale | agent-surface-declared R6, D-127 | done |
+| ~~A26~~ | ~~`signal-exit`'s API at closeout's root, so the `overrides` recipe resolves~~ — **closed by restatement** (D-133): R6 restated to the three subpaths; the README's two-incumbent `overrides` recipe never linked and is withdrawn; `scripts/override-recipe-lock.test.ts` | closeout R6 | done |
 
 ## B — decide, then build
 

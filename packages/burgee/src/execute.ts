@@ -253,7 +253,7 @@ function toParseConfig(specs: Record<string, OptionSpec>, withConfig: boolean): 
     // boolean flag cannot carry a value, so `--x=false` is refused. Without `--no-x` the
     // top layer of that chain can only ever say `true`, and a boolean turned on in a config
     // file could not be turned off from the command line at all.
-    if (spec.type === 'boolean') config[`${NO}${kebab(name)}`] = { type: 'boolean' };
+    if (spec.type === 'boolean' && spec.negatable !== false) config[`${NO}${kebab(name)}`] = { type: 'boolean' };
   }
   return config;
 }
@@ -431,7 +431,8 @@ async function describeFailure(cause: unknown, argv: string[], node?: CommandNod
     const explain = await import('./unknown-option.js');
     const dash = explain.singleDashHint(argv);
     if (dash !== undefined) return { code: ExitCode.USAGE, message, hint: dash };
-    const better = explain.unknownOption(cause, Object.keys(node?.options ?? {}));
+    // The flags as typed, not the canonical keys: `fix` is run verbatim, and `--dryRun` is refused.
+    const better = explain.unknownOption(cause, Object.keys(node?.options ?? {}).map(kebab));
     return { code: ExitCode.USAGE, message, hint: 'run --help to see the available options', ...better };
   }
   return { code: ExitCode.RUNTIME, message };
@@ -605,6 +606,8 @@ async function surface(manifest: Manifest, argv: string[], io: Io): Promise<bool
     return true;
   }
   if (head.includes('--schema')) {
+    // The whole surface is its own chunk (M2): only `--schema` loads it, or the schema it serves.
+    const { schemaSurface } = await import('./schema-surface.js');
     io.out.write(`${await machineJson(await schemaSurface(manifest, argv), head)}\n`);
     return true;
   }
@@ -632,23 +635,6 @@ async function surface(manifest: Manifest, argv: string[], io: Io): Promise<bool
     return true;
   }
   return false;
-}
-
-const SCHEMA_BUDGET = 48_000;
-
-/**
- * `--schema` under a character budget (N13): one command's full schema when a command is
- * named (the drilling), the whole program when it fits, a summary naming every command
- * and how to drill when it does not.
- */
-async function schemaSurface(manifest: Manifest, argv: string[]): Promise<unknown> {
-  const { commandSchemaOf, schemaOf, summaryOf } = await import('./schema.js');
-  // `--format=…` is a flag, never a step in the command path being drilled into.
-  const { node } = manifest.resolve(beforeTerminator(argv).filter((a) => a !== '--schema' && !a.startsWith('--format=')) as string[], manifest.rootPath);
-  if (node?.run !== undefined) return commandSchemaOf(node, manifest.rootPath);
-  const full = schemaOf(manifest);
-  const budget = manifest.schemaBudget ?? SCHEMA_BUDGET;
-  return JSON.stringify(full).length <= budget ? full : summaryOf(manifest, budget);
 }
 
 /** `help [command…]` is synthesised for every program (yargs #1020): the named node's help, or the root's. */
@@ -902,9 +888,12 @@ export async function run<S extends OptionSpecs>(target: Command<S> | Manifest, 
   if (target instanceof Manifest) return await execute(target, opts);
   const manifest = new Manifest();
   manifest.rootPath = [target.name];
+  // Every declared field, through the same copy `defineProgram` uses. This listed three by
+  // hand, so the `effects` `defineCommand` requires never reached `--mcp` (the tool said
+  // `undeclared`), and `examples`, `arguments` and `relations` never reached help or the schema.
   manifest.add({
     path: [target.name],
-    ...(target.description === undefined ? {} : { description: target.description }),
+    ...helpFields(target as AnyCommand),
     options: target.options ?? {},
     ...(target.run === undefined ? {} : { run: target.run as (ctx: RunContext) => unknown }),
   });
