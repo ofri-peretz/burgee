@@ -409,6 +409,26 @@ const CLASSIFIED: readonly (readonly [new (...args: never[]) => Error, ExitCodeT
   [ConfigError, ExitCode.CONFIG],
 ];
 
+/** The refusals a thrown value may name by string; `RUNTIME` is the default, never a claim. */
+// A Map, not an object: `'toString' in {…}` is true, and a thrown `{ code: 'toString' }` must not claim anything.
+const NAMED: ReadonlyMap<unknown, ExitCodeType> = new Map([
+  ['USAGE', ExitCode.USAGE],
+  ['CONFIG', ExitCode.CONFIG],
+  ['CANCELLED', ExitCode.CANCELLED],
+  ['AUTH', ExitCode.AUTH],
+]);
+
+function namedCode(cause: unknown): ExitCodeType | undefined {
+  return NAMED.get((cause as { code?: unknown } | null | undefined)?.code);
+}
+
+/** What went wrong, in words: an Error's message, a refusal object's `message`, or the value itself. */
+function messageOf(cause: unknown): string {
+  if (cause instanceof Error) return cause.message;
+  const said = (cause as { message?: unknown } | null | undefined)?.message;
+  return typeof said === 'string' ? said : String(cause);
+}
+
 /** `hint` and `fix` off an error that carries them, and nothing when it does not (E3). */
 function carried(cause: unknown): { hint?: string; fix?: string } {
   const { hint, fix } = (cause ?? {}) as { hint?: unknown; fix?: unknown };
@@ -422,10 +442,16 @@ function carried(cause: unknown): { hint?: string; fix?: string } {
 async function describeFailure(cause: unknown, argv: string[], node?: CommandNode): Promise<Failure> {
   const signal = exitSignal(cause);
   if (signal !== undefined) return { code: signal, message: '', silent: true };
-  const message = cause instanceof Error ? cause.message : String(cause);
+  const message = messageOf(cause);
   if (cause instanceof ActionRequired) return { code: ExitCode.CANCELLED, message, action: cause.spec, ...(cause.spec.hint === undefined ? {} : { hint: cause.spec.hint }) };
   const named = CLASSIFIED.find(([Class]) => cause instanceof Class);
   if (named !== undefined) return { code: named[1], message, ...carried(cause) };
+  // P2 / P3 / D-120 — a refusal that names its contract code by string (`code: 'USAGE'`,
+  // `'CANCELLED'`, …) leaves with that code. It is how caique's prompt verdicts reach an exit
+  // status with no dependency edge between the two packages: caique returns
+  // `{ code, message, fix }`, the handler throws it, and nothing here imports caique.
+  const byName = namedCode(cause);
+  if (byName !== undefined) return { code: byName, message, ...carried(cause) };
   if (isParseArgsFailure(cause)) {
     // Loaded only here: see unknown-option.ts for why none of this is imported.
     const explain = await import('./unknown-option.js');

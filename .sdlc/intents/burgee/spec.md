@@ -598,7 +598,7 @@ was quietly met.
 **The count.** 114 requirements, in seventeen families — `Z F O E V S P D T H M K J C B N U`.
 The prose above says *92* and *"Ninety-two requirements"*; both are wrong, and wrong the same
 way, because `E6 E7 V8 N11–N15` were added after the arithmetic was last done and `C1–C8`
-names two rows that do not exist. **Built: 92. Not built: 22**, and the count moves as rows are
+names two rows that do not exist. **Built: 94. Not built: 20**, and the count moves as rows are
 built rather than as the prose is rewritten — T1 moved on 2026-09-22 and the tally moved with
 it. An audit whose total disagrees with its own rows is the failure this paragraph is a record
 of; `spec-tally-lock.test.ts` now derives the two numbers from the tables instead of trusting
@@ -693,8 +693,8 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | # | Status | Evidence | The check |
 | :-- | :-- | :-- | :-- |
 | P1 | Not built | **The lint half lives in the Interlace ESLint monorepo (D-124).** held by `L` only | — |
-| P2 | Not built | the requirement specifies exit **2**. The nearest mechanism, `ctx.actionRequired`, unwinds to `ExitCode.CANCELLED` (**4**), and there is no prompt-to-`USAGE` path in the package | — |
-| P3 | Not built | `caique/src/binding.ts` classifies a cancelled prompt as the string `'CANCELLED'` and never `RUNTIME`, which is the taxonomy half. Nothing *exits* 4: caique declares no numeric code, and burgee does not import caique, so no path joins the two | — |
+| P2 | **Built** | a thrown refusal carrying `code: 'USAGE'` leaves with exit 2, its message and `fix` rendered as E3 (D-120) — which is how caique's non-TTY verdict, `{ code: 'USAGE', message, fix }` naming the flag, reaches an exit status. burgee does not import caique: the contract is the shape, and `scripts/prompt-exit-codes.test.ts` proves it with each package's real code | `scripts/prompt-exit-codes.test.ts` |
+| P3 | **Built** | caique's cancelled prompt, `{ code: 'CANCELLED', message, fix }`, thrown from a handler exits 4 — never `RUNTIME` — with the fix line saying how to skip the question (D-120). The same rule maps `CONFIG` and `AUTH` by name; any other string code (`ENOENT`) is not a claim and stays `RUNTIME` | `scripts/prompt-exit-codes.test.ts` |
 
 ### Deprecation and completions
 

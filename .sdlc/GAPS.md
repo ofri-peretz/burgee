@@ -37,7 +37,7 @@ Three kinds, because they close three different ways:
 | A18 | a generated `config explain` | burgee V8, D-117 | synthesised when the program reads config; every value with the source that won |
 | A19 | `defineError({ name, code })` | burgee E7, D-118 | adds a `CLASSIFIED` row; a reused code fails at startup |
 | A20 | `dynamic: true` completion marker | burgee D3, D-119 | opt-in per option; completion scripts call back only for those |
-| A21 | non-TTY prompt exits 2, cancelled prompt exits 4 | burgee P2, P3, D-120 | an `ask()` bridge maps caique's verdict to `UsageError` / `CANCELLED`, no new dependency edge |
+| ~~A21~~ | ~~non-TTY prompt exits 2, cancelled prompt exits 4~~ — **closed**: a thrown `code: 'USAGE' / 'CANCELLED'` maps by name; caique's real refusals proven end to end | burgee P2, P3, D-120 | done |
 | A22 | `.burgee({ floor: true })` on façades | burgee J3, J4, D-121 | one call turns the behavioural floor on; `--schema` names the flags the program shadows |
 | A23 | plugin hooks `parse` and `shutdown` | plugin surface, D-122 | in the schema, the plugins page's "cannot do yet" list shrinks by the two |
 | A24 | `burgee/program-schema.json` | burgee F1, schema-is-validated, D-123 | published; `--schema` output validated against it in a test, no runtime validator |
