@@ -27,8 +27,9 @@ log an agent reads back. Ink fixes the terminal by shipping React and a layout e
 **flagstaff** is the staff the flag flies from: a frame loop that hoists a component, holds
 it, changes it and lowers it, and a **static projection** that is what every mode but the
 terminal gets — one line per state on a pipe, one event per transition under `--json`,
-plain text for a screen reader. Plugins are data. No layout engine. One dependency, and it
-is [roundel](../roundel/README.md).
+plain text for a screen reader. Plugins are data. No layout engine. Four dependencies, all
+from this repository: [roundel](../roundel/README.md), [paratext](../paratext/README.md),
+[linegauge](../linegauge/README.md) and [closeout](../closeout/README.md).
 
 A **flagstaff** is the simplest part of the whole apparatus and the only one that is always
 in view: a flag is hoisted on it, held there, changed, and lowered when it is done. That is a

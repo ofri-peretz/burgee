@@ -13,7 +13,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/caique"><img src="https://img.shields.io/npm/v/caique?style=flat-square&color=0a6b47" alt="npm version" /></a>
-  <img src="https://img.shields.io/badge/dependencies-closeout-0a6b47?style=flat-square" alt="One dependency: closeout" />
+  <img src="https://img.shields.io/badge/dependencies-2%20in--family-0a6b47?style=flat-square" alt="Two dependencies, both in this repository: closeout, linegauge" />
   <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT" />
 </p>
 
@@ -268,7 +268,7 @@ Graded by the incumbent's own test suite:
 | `clack` | 14 / 17 |
 | `inquirer-core` | 41 / 41 |
 
-Weight, installed and tree-inclusive: **122,372 bytes** against **182,219** for the incumbents it replaces — a ratio of **0.6716** (@inquirer/core not installed here, so the ceiling is understated).
+Weight, installed and tree-inclusive: **122,416 bytes** against **182,219** for the incumbents it replaces — a ratio of **0.6718** (@inquirer/core not installed here, so the ceiling is understated).
 ## Where it sits
 
 Plugins register under the `widgets` key, against the one schema the whole family shares.
