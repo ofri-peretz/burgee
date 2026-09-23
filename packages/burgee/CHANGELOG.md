@@ -1,5 +1,17 @@
 # burgee
 
+## 0.9.2
+
+### Patch Changes
+
+- [#465](https://github.com/ofri-peretz/burgee/pull/465) [`acf98f3`](https://github.com/ofri-peretz/burgee/commit/acf98f3e612c6d79e6c2b78a847abcd06a063cbc) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Each README now opens with the incumbent it replaces and the agent surface it serves (`--json`, an agent event, or a static projection), so npm shows both above the fold. README text only; no code changed.
+- Updated dependencies [[`acf98f3`](https://github.com/ofri-peretz/burgee/commit/acf98f3e612c6d79e6c2b78a847abcd06a063cbc)]:
+  - roundel@0.4.2
+  - linegauge@0.4.2
+  - seniority@0.4.2
+  - bellpull@0.2.2
+  - closeout@0.3.2
+
 ## 0.9.1
 
 ### Patch Changes

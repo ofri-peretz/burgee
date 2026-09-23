@@ -52,6 +52,11 @@ describe('the vendored root package', () => {
     expect(shimName(2, 'commonjs')).toBe('shim-2.mjs');
   });
 
+  it("names a host's CommonJS shim .cjs whatever the package type (signal-exit)", () => {
+    expect(shimName(0, 'module', 'cjs')).toBe('shim.cjs');
+    expect(shimName(1, 'commonjs', 'cjs')).toBe('shim-1.cjs');
+  });
+
   it('points main at the very shim it names', () => {
     expect(rootPackage(yargs, { type: 'module' }).main).toBe(`./${shimName(0, 'module')}`);
     expect(rootPackage(commander, { type: 'commonjs' }).main).toBe(`./${shimName(0, 'commonjs')}`);

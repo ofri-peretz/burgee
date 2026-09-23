@@ -1,3 +1,4 @@
+import { Analytics } from '@vercel/analytics/next';
 import { PITCH } from '#/lib/llms';
 import { SITE } from '#/lib/site';
 import { RootProvider } from 'fumadocs-ui/provider/next';
@@ -39,6 +40,17 @@ export default function Layout({ children }: { children: ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <body className="flex min-h-screen flex-col">
         <RootProvider>{children}</RootProvider>
+        {/*
+          Vercel Web Analytics (roadmap 2.3): page views, so Phase 4 can see which
+          `/docs/packages/*` pages are read before any of them earns its own app. It injects
+          `/_vercel/insights/script.js` after hydration, and that path only answers once Web
+          Analytics is enabled on the Vercel project — until then it is a quiet 404. The
+          agent-facing routes (`/llms.txt`, `/llms-full.txt`, the `.md` twins) are
+          prerendered and served from the CDN with no HTML and no function invocation, so
+          neither this component nor `track()` from `@vercel/analytics/server` can see
+          them; their hits are in the project's request logs and Observability instead.
+        */}
+        <Analytics />
       </body>
     </html>
   );

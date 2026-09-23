@@ -85,7 +85,9 @@ function surface(): { pkg: string; subpaths: string[] }[] {
  * a better outcome than an exemption with a paragraph attached. The names are ours, out of our
  * own `package.json`, and it is still not worth building a program out of them.
  */
-const READ_EXPORTS = `import(process.env.SUBPATH_SPECIFIER).then((m) => { process.stdout.write(JSON.stringify(Object.keys(m))); process.exit(0); }, () => { process.stdout.write('[]'); process.exit(0); });`;
+// `'module.exports'` is dropped: Node adds it to every CommonJS namespace (closeout's
+// `signal-exit` façade is one), and it is a key, not a name `import { … }` can spell.
+const READ_EXPORTS = `import(process.env.SUBPATH_SPECIFIER).then((m) => { process.stdout.write(JSON.stringify(Object.keys(m).filter((k) => k !== 'module.exports'))); process.exit(0); }, () => { process.stdout.write('[]'); process.exit(0); });`;
 
 /** How long a module gets to load before it is assumed to be hanging, in ms. */
 const IMPORT_BUDGET = 30_000;

@@ -167,6 +167,15 @@ export function absentHere(host: string, platform: NodeJS.Platform = process.pla
 }
 
 /**
+ * The passes this machine cannot see: a host's declared `passing`, on a platform where
+ * {@link absentHere} says its conditional cases never register, and `0` everywhere else.
+ */
+export function absentPassing(host: string, platform: NodeJS.Platform = process.platform): number {
+  if (absentHere(host, platform) === 0) return 0;
+  return HOSTS.find((h) => h.name === host)?.conditionalCases?.passing ?? 0;
+}
+
+/**
  * The control proves the gate (`compat-oracle/intent.md`, criterion 3), so the bar is that
  * the host's own suite *passes* against the host's own package — not merely that something
  * registered. `passed === 0` was the whole test until 2026-09-09, and it let a control at
@@ -251,7 +260,7 @@ export function silentDowngrades(grades: Grade[], baseline: Baseline): string[] 
 
 export function verdict(grades: Grade[], baseline: Baseline, write: Write, control = false): number {
   const broken = grades.filter((g) => g.error !== undefined);
-  const fell = control ? controlFell(grades) : grades.filter((g) => regressed(g, baseline));
+  const fell = control ? controlFell(grades) : grades.filter((g) => regressed(g, baseline, absentPassing(g.host)));
   for (const g of fell) {
     if (control) write(`\n✖ ${g.host}: ${controlShortfall(g) ?? ''} — the control proves the gate, so it has to pass\n`);
     else write(`\n✖ ${g.host}: ${g.passed} passing, baseline was ${baseline[g.host]?.passed ?? 0}\n`);

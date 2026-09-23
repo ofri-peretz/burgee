@@ -5,7 +5,7 @@ globalThis.process = {}
 t.teardown(() => {
   globalThis.process = process
 })
-import { onExit, load, unload } from '../shim.mjs'
+import { onExit, load, unload } from '../shim.cjs'
 onExit(() => {
   throw new Error('this should never happen')
 })
