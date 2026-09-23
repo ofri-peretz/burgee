@@ -120,9 +120,14 @@ stray.
 
 ## Running
 
-With the merge queue **off** (today): lanes push `lane/<name>`, the integrator merges a
-wave's lanes into one `wave/<n>` PR and lands that. With it **on**: every lane opens its
-own PR and the batching disappears. Nothing else changes.
+The merge queue is still **off** (checked 2026-09-22: `gh api repos/ofri-peretz/burgee/rulesets`
+returns none; step 0.3 is the owner's, tracked as `.sdlc/GAPS.md` C6). In practice every lane
+already opens its own PR against `main` and lands it on its own — the `wave/<n>` batching this
+section used to prescribe is not how the tree moves — and strict branch protection serialises the
+merges: a PR behind `main` updates and re-runs before it can land. Releases are continuous
+alongside that (see PLAN.md, *Releasing*): the one Version PR refreshes on every push that
+carries a changeset. With the queue **on**, the update-and-re-run step moves into the queue.
+Nothing else changes.
 
 Order: `harness` 2.0 first (every package lane's suites need it) and `output` 0.4 in
 parallel, because a red ratchet grades nothing landing after it. Then the six package
