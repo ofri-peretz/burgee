@@ -1,5 +1,17 @@
 # burgee
 
+## 0.10.0
+
+### Minor Changes
+
+- [#476](https://github.com/ofri-peretz/burgee/pull/476) [`23e8b35`](https://github.com/ofri-peretz/burgee/commit/23e8b353b0d3ac8569782ee1712c8f6e9004a1e4) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--schema <command> --field <path>` returns a single field of a command's schema, such as `--field options.region`, so an agent can read the part it needs without loading the whole document. An unknown path step is refused with the valid fields at that level listed.
+
+### Patch Changes
+
+- Updated dependencies [[`69563d1`](https://github.com/ofri-peretz/burgee/commit/69563d1fb14d9a4b29364446bae2fc48d86f6103), [`2dc573f`](https://github.com/ofri-peretz/burgee/commit/2dc573f884e7a4cc46829cd8f2c949a17f07710c)]:
+  - closeout@0.4.0
+  - linegauge@0.4.3
+
 ## 0.9.2
 
 ### Patch Changes
