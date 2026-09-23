@@ -156,6 +156,8 @@ export interface ArgumentSpec {
   required?: boolean;
   variadic?: boolean;
   default?: string;
+  /** `'file'`: a path, where `-` means standard input — handed to the handler as `ctx.stdin` (S4). */
+  type?: 'file';
 }
 
 /** One example: a single copy-pasteable command line, the description below it (H2). */
@@ -179,6 +181,11 @@ export interface RunContext {
   options: Record<string, unknown>;
   positionals: string[];
   passthrough: string[];
+  /**
+   * Standard input, present only when a `type: 'file'` argument was given `-` (S4). The
+   * positional still reads `-`, so a handler checks it the same way it checks a path.
+   */
+  stdin?: NodeJS.ReadableStream;
   env: Record<string, string | undefined>;
   /** Exit with an E1 code. Unwinds cleanly: the code is honoured and nothing is printed. */
   exit: (code: number) => never;

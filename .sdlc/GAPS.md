@@ -31,7 +31,7 @@ Three kinds, because they close three different ways:
 | A12 | seniority: cosmiconfig 186/243, dotenv 80/141, lilconfig 67/77, rc 0/1 | compat baselines | same |
 | A13 | caique: clack 14/17 | compat baselines | same |
 | A14 | the foundation layers are static imports of the engine, which the claim says they are not | burgee U13 | measured, and either made lazy or the claim restated with the number |
-| A15 | `-` means stdin for a file positional | burgee S4, D-113 | `ArgumentSpec.type: 'file'`; `-` hands the handler `process.stdin`; a test pipes a file through `-` |
+| ~~A15~~ | ~~`-` means stdin for a file positional~~ — **closed**: `type: 'file'` arguments hand `-` over as `ctx.stdin`; two `-` refused | burgee S4, D-113 | done |
 | A16 | `--json=<a,b>` selects fields | burgee N14, D-114 | bare `--json` unchanged; `--json a` stays a positional; fields filter the envelope's data |
 | A17 | `--schema <path> --field <name>` | burgee N13, D-116 | one field of one command, the same shape `--schema` prints for it |
 | A18 | a generated `config explain` | burgee V8, D-117 | synthesised when the program reads config; every value with the source that won |

@@ -256,7 +256,8 @@ const RULES: Record<string, EntryRule> = {
   ".": {
     allow: ["closeout", "seniority/precedence"],
     // 43,000 on 2026-09-22 for D1, the definition-time refusal of a deprecation that names no replacement: `checkDeprecated` in `definition.js`, which `plugin.js` imports, so every entry that reaches the manifest pays it — the façades included, though they never call it with `true`. Measured 42,950.
-    budget: 43_000,
+    // 43,100 on 2026-09-23 for S4, `-` as stdin: the check lives in `stdin-dash.js`, imported only when a positional is `-`; what stays is that test and the spread. Measured 43,084.
+    budget: 43_100,
     denied: [
       "testing.js",
       "testing-helpers.js",
@@ -326,7 +327,8 @@ const RULES: Record<string, EntryRule> = {
   // `AuthError` for the same reason it carries everything else. Measured 47,385.
   // 47,450 with `.`'s O2 bytes, for the same reason. Measured 47,434.
   // 47,700 with `.`'s D1 bytes. Measured 47,661.
-  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 47_700, denied: ["dev.js", "migrate.js"] },
+  // 47,800 on 2026-09-23 for S4 — the same engine bytes as `.`. Measured 47,795.
+  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 47_800, denied: ["dev.js", "migrate.js"] },
   /**
    * The four doors the root barrel stopped holding open (see `.` above). Each is the same
    * module the engine reaches behind an `await import()`, published so a program that wants it
