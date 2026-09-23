@@ -15,6 +15,7 @@
  * This is the package's command line, so it owns the process by definition; everything it
  * renders goes through the same `hoist()` a program uses, over buffers and a manual clock.
  */
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -150,12 +151,45 @@ function describe(value: unknown): string {
   }
 }
 
-async function main(argv: string[], write: (s: string) => void): Promise<number> {
-  const file = argv[0];
-  if (file === undefined) {
-    write('usage: flagstaff check <plugin-file>\n');
+const USAGE = 'usage: flagstaff check <plugin-file>\n';
+const HELP = `${USAGE}
+Load a plugin file, validate it against the family schema, and render every contribution in
+all five output modes side by side. Exit 0 when it renders, 1 on a refusal (with a code and
+a fix), 2 on a usage error.
+
+  -h, --help     show this help
+  -V, --version  print the version
+`;
+
+/** The package's own version, read when asked for rather than on every run. */
+function version(): string {
+  return (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version;
+}
+
+/**
+ * The plugin file, or the exit code when the argument is not one. A flag is never a plugin path:
+ * before this, `flagstaff --help` reached the `import()` and failed as `Cannot find module '…/--help'`
+ * — the first thing a new user types, read as a file.
+ */
+function target(arg: string | undefined, write: (s: string) => void): string | number {
+  if (arg === '--help' || arg === '-h') {
+    write(HELP);
+    return EXIT_OK;
+  }
+  if (arg === '--version' || arg === '-V') {
+    write(`${version()}\n`);
+    return EXIT_OK;
+  }
+  if (arg === undefined || arg.startsWith('-')) {
+    write(arg === undefined ? USAGE : `unknown option ${arg}\n${USAGE}`);
     return EXIT_USAGE;
   }
+  return arg;
+}
+
+async function main(argv: string[], write: (s: string) => void): Promise<number> {
+  const file = target(argv[0], write);
+  if (typeof file === 'number') return file;
   const before = new Set(registered().plugins);
   // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the file to check is the user's own, named on the command line
   const loaded = (await import(pathToFileURL(resolve(file)).href)) as { default?: unknown };

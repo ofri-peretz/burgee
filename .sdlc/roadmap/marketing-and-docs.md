@@ -108,7 +108,7 @@ intent's own rule applies: a package earns its app, and traffic is the evidence.
 | # | Item | Owner |
 | :-- | :-- | :-- |
 | 5.1 | [`first-adopter`](../intents/first-adopter/spec.md): one real CLI migrated, with its maintainer's consent | **you** approve each outreach |
-| 5.2 | Rank commander and yargs dependents (`npm run rank:dependents`); open issues offering a migration PR on the top 10 by fit, never unsolicited PRs | agent drafts, **you** send |
+| 5.2 | Rank commander and yargs dependents (`npm run rank:dependents`); open issues offering a migration PR on the top 10 by fit, never unsolicited PRs. **Status: drafted — owner sends.** Ten targets and ten drafts in [`adoption-targets.md`](../research/adoption-targets.md) (2026-09-23) | agent drafts, **you** send |
 | 5.3 | A "used by" row in the README, once there is a dependent to list | agent |
 
 **Exit:** one external dependent on npm.

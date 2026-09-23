@@ -28,16 +28,25 @@ repository.
 | [`compat-oracle`](./packages/compat-oracle/) | private: grades each drop-in path with the incumbent's own test suite | — |
 
 Each package's `package.json` `description` is the canonical one-liner, and its README is
-the canonical page: `scripts/sync-package-docs.ts` projects every README to
-`apps/docs/content/docs/packages/<name>.md`, and a lock test fails when the two differ.
+the canonical page: `scripts/sync-package-docs.ts` projects every README into that package's
+own docs app (`apps/docs-<name>/content/docs/index.md`; burgee's into
+`apps/docs/content/docs/packages/burgee.md`), and a lock test fails when any of them differ.
 
 ## Where the docs live
 
-- **Site:** [burgee.interlace.tools](https://burgee.interlace.tools) — `apps/docs`, Next.js 16
-  with fumadocs. Read [`apps/docs/AGENTS.md`](./apps/docs/AGENTS.md) before touching it: this
-  Next.js is newer than your training data.
-- **Content:** `apps/docs/content/docs/`. The package pages under `packages/` are generated —
-  edit the package README, then run `npx tsx scripts/sync-package-docs.ts`.
+- **Sites:** one per published package, `https://<package>.interlace.tools`, each a thin
+  Next.js 16 + fumadocs app under `apps/` on the shared private chassis `apps/docs-chassis`.
+  [`.github/vercel-apps.json`](./.github/vercel-apps.json) names every app once — host,
+  Vercel project, directory, build — and the deploy workflows read only that. Adding a
+  package's site is a row there plus an app directory. Read
+  [`apps/docs/AGENTS.md`](./apps/docs/AGENTS.md) before touching any of them: this Next.js is
+  newer than your training data.
+- **The front door:** [burgee.interlace.tools](https://burgee.interlace.tools) — `apps/docs`,
+  the one app with the family-wide pages (compatibility, comparison, gallery, benchmarks);
+  every other site links there for them. Its `/docs/packages/<name>` and the moved
+  `/docs/coming-from/*` URLs 301 to the package hosts.
+- **Content:** each app's `content/docs/`. Package README pages are generated — edit the
+  package README, then run `npx tsx scripts/sync-package-docs.ts`.
 - **For agents:** [`/llms.txt`](https://burgee.interlace.tools/llms.txt) (the map, with a
   package → incumbent table), [`/llms-full.txt`](https://burgee.interlace.tools/llms-full.txt)
   (the whole corpus), and a Markdown twin of every page at its URL plus `.md`.

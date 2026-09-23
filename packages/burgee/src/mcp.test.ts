@@ -9,7 +9,7 @@ import { PassThrough } from 'node:stream';
 import { describe, expect, it } from 'vitest';
 
 import { renderCompletion, renderFigSpec } from './completions.js';
-import { defineCommand, defineProgram, execute } from './index.js';
+import { defineCommand, defineProgram, execute, run } from './index.js';
 import { annotationsOf, MCP_PROTOCOL_VERSION, serveMcp, toolsOf } from './mcp-entry.js';
 import { inputSchemaOf, Manifest, schemaOf } from './schema-entry.js';
 import { runBurgee } from './testing.js';
@@ -232,5 +232,82 @@ describe('a runnable command declares its effects, or declines out loud (N6)', (
     }
     expect(thrown.code).toBe('E_PLUGIN_SCHEMA');
     expect(thrown.message).toMatch(/declares no effects/);
+  });
+});
+
+/** One `tools/call` through the engine's own `--mcp`; the tool result's text and error flag. */
+async function call(manifest: Manifest, name: string, args: Record<string, unknown>): Promise<{ text: string; isError: boolean }> {
+  const input = new PassThrough();
+  const out: string[] = [];
+  const running = execute(manifest, { argv: ['--mcp'], env: {}, stdin: input, stdout: { write: (s: string) => out.push(s) }, stderr: { write: () => true }, exit: () => undefined });
+  input.write(`${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } })}\n`);
+  input.end();
+  await running;
+  const reply = JSON.parse(out.join('').trim()) as { result: { content: { text: string }[]; isError: boolean } };
+  return { text: reply.result.content[0]?.text ?? '', isError: reply.result.isError };
+}
+
+/**
+ * The arguments an agent sends are the names `tools/list` advertised, and each one has to reach
+ * the handler. `argvOf` wrote `--${name}` from the canonical key, so `dryRun` became
+ * `--dryRun` — which the engine refuses, because the command line is kebab-case (S5) — and a
+ * boolean sent as `false` was dropped, so an option that defaults on could not be turned off.
+ */
+describe('tools/call — multi-word options and negations', () => {
+  const tidy = defineProgram({
+    name: 'tidy',
+    commands: [
+      defineCommand({
+        name: 'run',
+        effects: 'read_only',
+        options: { dryRun: { type: 'boolean' }, maxLines: { type: 'string' }, color: { type: 'boolean', default: true } },
+        run: ({ options }) => ({ dryRun: options.dryRun, maxLines: options.maxLines, color: options.color }),
+      }),
+    ],
+  });
+
+  it('sends a camelCase property as the kebab-case flag the schema names', async () => {
+    const r = await call(tidy, 'run', { dryRun: true, maxLines: '3' });
+    expect(r.isError, r.text).toBe(false);
+    expect(JSON.parse(r.text)).toMatchObject({ ok: true, data: { dryRun: true, maxLines: '3' } });
+  });
+
+  it('turns a boolean that defaults on off, when the agent says false', async () => {
+    const r = await call(tidy, 'run', { color: false });
+    expect(JSON.parse(r.text)).toMatchObject({ ok: true, data: { color: false } });
+  });
+
+  it('says nothing for a false it does not need to, so a relation is not tripped by it', async () => {
+    const r = await call(tidy, 'run', { dryRun: false });
+    expect(JSON.parse(r.text)).toMatchObject({ ok: true, data: { color: true } });
+    expect((JSON.parse(r.text) as { data: { dryRun?: boolean } }).data.dryRun).not.toBe(true);
+  });
+});
+
+/**
+ * The README's one-file CLI, served over `--mcp`. `run(defineCommand(…))` built its manifest
+ * from the name, the description and the options alone, so the `effects` that `defineCommand`
+ * had just insisted on never reached `tools/list` — the tool said `effects: 'undeclared'` — and
+ * the tool was named `""`, the command's path with the program's own name taken off, which
+ * for a single command is everything. MCP tool names are one character or more.
+ */
+describe('a single-command program over --mcp', () => {
+  it('is one tool, named after the program, carrying the effects it declared', async () => {
+    const input = new PassThrough();
+    const out: string[] = [];
+    const greet = defineCommand({
+      name: 'greet',
+      options: { name: { type: 'string', required: true } },
+      effects: 'read_only',
+      run: ({ options }) => ({ greeting: `hello, ${options.name ?? ''}` }),
+    });
+    const running = run(greet, { argv: ['--mcp'], env: {}, stdin: input, stdout: { write: (s: string) => out.push(s) }, stderr: { write: () => true }, exit: () => undefined });
+    input.write(`${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' })}\n`);
+    input.write(`${JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'greet', arguments: { name: 'ada' } } })}\n`);
+    input.end();
+    await running;
+    const [list, called] = out.join('').trim().split('\n').map((l) => JSON.parse(l) as { result: Record<string, unknown> });
+    expect(list?.result['tools']).toMatchObject([{ name: 'greet', annotations: { readOnlyHint: true, idempotentHint: true, destructiveHint: false } }]);
+    expect(called?.result).toMatchObject({ isError: false });
   });
 });

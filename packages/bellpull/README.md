@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  Docs: <a href="https://burgee.interlace.tools/docs/packages/bellpull">https://burgee.interlace.tools/docs/packages/bellpull</a>
+  Docs: <a href="https://bellpull.interlace.tools">https://bellpull.interlace.tools</a>
 </p>
 
 A **bellpull** is the cord in one room wired to a bell in another. You pull it here; a bell rings there; someone comes back to you.
@@ -109,8 +109,8 @@ measures:
 | :-- | --: | --: |
 | `cross-spawn` suite, macOS | 68 / 68 | **68 / 68** |
 
-Installed, tree-inclusive: **82,270 bytes**, against a ceiling of 714,984 — a ratio of
-**0.1151**, up from 0.0067 when this package was seven lines and did nothing. The rise is the
+Installed, tree-inclusive: **97,864 bytes**, against a ceiling of 765,553 — a ratio of
+**0.1278**, up from 0.0067 when this package was seven lines and did nothing. The rise is the
 honest direction.
 
 **What the 68 / 68 does not cover.** On POSIX `cross-spawn` is a pass-through, so its suite
@@ -129,7 +129,7 @@ Graded by the incumbent's own test suite:
 | :-- | --: |
 | `cross-spawn` | 68 / 68 |
 
-Weight, installed and tree-inclusive: **97,927 bytes** against **714,984** for the incumbents it replaces — a ratio of **0.1370**.
+Weight, installed and tree-inclusive: **98,757 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1290**.
 ## Where it sits
 
 Plugins register under the `resolvers` key, against the one schema the whole family shares.
