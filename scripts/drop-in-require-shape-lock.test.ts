@@ -43,6 +43,7 @@ const PAIRS: readonly (readonly [string, string])[] = [
   ['signal-exit', 'closeout/signal-exit'],
   ['dotenv', 'seniority/dotenv'],
   ['rc', 'seniority/rc'],
+  ['yargs-parser', 'burgee/yargs/parser'],
 ];
 
 /** What `require()` returns, or `undefined` when the specifier is not installed here. */
