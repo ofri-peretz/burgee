@@ -598,7 +598,7 @@ was quietly met.
 **The count.** 114 requirements, in seventeen families — `Z F O E V S P D T H M K J C B N U`.
 The prose above says *92* and *"Ninety-two requirements"*; both are wrong, and wrong the same
 way, because `E6 E7 V8 N11–N15` were added after the arithmetic was last done and `C1–C8`
-names two rows that do not exist. **Built: 92. Not built: 22**, and the count moves as rows are
+names two rows that do not exist. **Built: 93. Not built: 21**, and the count moves as rows are
 built rather than as the prose is rewritten — T1 moved on 2026-09-22 and the tally moved with
 it. An audit whose total disagrees with its own rows is the failure this paragraph is a record
 of; `spec-tally-lock.test.ts` now derives the two numbers from the tables instead of trusting
@@ -702,7 +702,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | :-- | :-- | :-- | :-- |
 | D1 | **Built** | `definition.ts`'s `checkDeprecated` refuses `deprecated: true` and `''` on a command and on every option, at the one door `defineCommand` and `Manifest.use()` share, with the fix in the message. A named replacement already reached all three surfaces — help's `(deprecated: use X)`, `--schema`'s `deprecated`, the warning's `, use 'X'` — so requiring it is what was missing. The façades do not pass that door: commander and yargs accept the bare form and their graded suites expect it | `deprecation.test.ts`: *"refuses a command deprecated with no replacement"* — three of its five cases red before the refusal |
 | D2 | **Built** | `completions.ts` walks the manifest into bash, zsh, fish and PowerShell scripts, statically | `completions.test.ts`, `src/__snapshots__` |
-| D3 | Not built | the half that matters is built — no generated script runs Node on TAB. The escape hatch is not: there is no `dynamic` marker on an option anywhere in `OptionSpec` | `completions.test.ts` |
+| D3 | **Built** | no generated script runs the program on TAB unless an option opts in (D-119). The opt-in is the completer itself — `complete: (partial) => string[]` on the option, since a `dynamic: true` with nothing to call would have nothing to run: bash, zsh, fish and PowerShell call `<program> __complete <command> --<option> <partial>` for that option alone, every other option completes from `choices` or not at all, and each script's header says which of the two promises it keeps. `__complete` prints nothing and exits 0 for an unknown command, an option with no completer or a completer that throws — a TAB never prints an error into a prompt | `completions.test.ts`, `completions-dynamic.test.ts` (real bash, zsh and fish against a real program on `PATH`) |
 | D4 | **Built** | snapshots in `src/__snapshots__`, and each of the four shells runs its own script | `.github/workflows/completions.yml` — bash through `COMP_WORDS`, zsh through a real TAB in a pty, fish through `complete -C`, pwsh through `TabExpansion2` |
 | D5 | **Built** | `renderFigSpec`, from the same walk as the shell scripts | `fig-spec.test.ts`, `fig-schema.test.ts` (keys pinned against `@withfig/autocomplete-types`) |
 

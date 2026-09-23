@@ -31,6 +31,13 @@ export type StandardResult<Output> = { readonly value: Output; readonly issues?:
 export interface OptionSpec {
   /** `boolean` never consumes a value (S7); `number` rejects NaN and Infinity (S3). */
   type: 'string' | 'boolean' | 'number';
+  /**
+   * D3 / D-119 — values computed when a person presses TAB: the generated script calls the
+   * program back (`<program> __complete <command> --<option> <partial>`) for this option and
+   * no other. Declaring it is the opt-in; an option without one completes from `choices`, or
+   * not at all, and never runs the program.
+   */
+  complete?: (partial: string) => Iterable<string> | Promise<Iterable<string>>;
   description?: string;
   required?: boolean;
   short?: string;

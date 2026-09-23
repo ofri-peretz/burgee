@@ -599,6 +599,10 @@ async function completion(manifest: Manifest, argv: string[], io: Io): Promise<b
 
 async function surface(manifest: Manifest, argv: string[], io: Io): Promise<boolean> {
   const head = beforeTerminator(argv);
+  if (argv[0] === '__complete') {
+    await (await import('./complete-dynamic.js')).completeDynamic(manifest, argv.slice(1), (t) => io.out.write(t));
+    return true;
+  }
   if (await completion(manifest, argv, io)) return true;
   if (argv[0] === 'help') {
     io.out.write(await helpCommand(manifest, argv.slice(1), manifest.rootPath, io));
