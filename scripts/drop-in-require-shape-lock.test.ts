@@ -37,6 +37,7 @@ const PAIRS: readonly (readonly [string, string])[] = [
   ['wrap-ansi', 'linegauge/wrap'],
   ['slice-ansi', 'linegauge/slice'],
   ['cross-spawn', 'bellpull/cross-spawn'],
+  ['which', 'bellpull/node-which'],
   ['restore-cursor', 'closeout/restore-cursor'],
   ['exit-hook', 'closeout/exit-hook'],
   ['signal-exit', 'closeout/signal-exit'],

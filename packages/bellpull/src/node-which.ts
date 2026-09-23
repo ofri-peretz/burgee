@@ -123,6 +123,9 @@ async function which(cmd: string, opt: NodeWhichOptions = {}): Promise<Found> {
 
 which.sync = whichSync;
 
+// `'module.exports'` is what Node hands a CommonJS `require()` of an ES module, so
+// `require('bellpull/node-which')` gets this function with `.sync` on it, as `require('which')` does.
+export { which as 'module.exports' };
 // node-which's entry is a default export, so the drop-in's has to be.
 // eslint-disable-next-line import-next/no-default-export -- the incumbent's entry is a default export, and matching it is the point of this file
 export default which;
