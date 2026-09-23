@@ -1,5 +1,11 @@
 # closeout
 
+## 0.4.2
+
+### Patch Changes
+
+- [#501](https://github.com/ofri-peretz/burgee/pull/501) [`a4a5c43`](https://github.com/ofri-peretz/burgee/commit/a4a5c43269d2aeab80b69ab53bc48b2108bca866) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The README's exit-hook / restore-cursor override examples resolve to the current release (`^0.4`).
+
 ## 0.4.1
 
 ### Patch Changes
