@@ -73,6 +73,13 @@ export interface OptionSpec {
   /** `true` renders `(deprecated)`; a string names the replacement: `(deprecated: use --force)` (yargs #2248). */
   deprecated?: boolean | string;
   hidden?: boolean;
+  /**
+   * `boolean` only: whether `--no-<name>` is accepted. Every boolean is negatable unless this
+   * says `false`. burgee's own parser negates every boolean (see `toParseConfig`); the
+   * commander façade sets `false` where commander would refuse the negation, so completions
+   * and `--mcp` never offer or send a flag the parser behind them rejects.
+   */
+  negatable?: boolean;
   /** The shared set this option was copied from (M4); `--schema` carries it, help lists the option like any other. */
   sharedFrom?: string;
 }

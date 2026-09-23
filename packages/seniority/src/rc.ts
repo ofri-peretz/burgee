@@ -69,7 +69,7 @@ export type RcParse = (content: string) => RcConfig;
  * makes for `processEnv`.
  */
 export interface RcOptions {
-  /** The environment to read `<NAME>_*` from; the process's own when omitted, as rc does (D-131). */
+  /** The environment to read `<NAME>_*` from; the process's own when omitted, as rc does (D-135). */
   env?: Record<string, string | undefined>;
   /** Where the upward walk for `.<name>rc` starts. */
   cwd?: string;
@@ -235,7 +235,7 @@ function fromEnv(prefix: string, env: Record<string, string | undefined>): RcCon
  */
 export function rc(name: string, defaults?: RcConfig | string, argv?: RcConfig, parseWith: RcParse = parse, options: RcOptions = {}): RcConfig {
   if (typeof name !== 'string') throw new TypeError('rc(name): name *must* be string');
-  // D-131: rc reads the ambient environment by default, so the drop-in does too — through the one seam.
+  // D-135: rc reads the ambient environment by default, so the drop-in does too — through the one seam.
   const env = options.env ?? ambientEnv() ?? {};
   const cwd = options.cwd ?? resolvePath('');
   const home = options.home ?? homedir();

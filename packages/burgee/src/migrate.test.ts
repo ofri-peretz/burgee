@@ -30,7 +30,7 @@ import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { ExitCode } from './exit-code.js';
-import { DirtyTreeError, MAPPING, migrate, rewriteSource, scan, sourceFiles, workingTree } from './migrate.js';
+import { bindingsOf, DirtyTreeError, FACADE_EXPORTS, MAPPING, migrate, rewriteSource, scan, sourceFiles, workingTree } from './migrate.js';
 
 /** A project on disk, under a fresh temporary directory each time. */
 function project(files: Record<string, string>): string {
@@ -279,8 +279,109 @@ describe('A8 — the exit code says whether anything was left undone', () => {
   it('carries every count the human surface prints', async () => {
     const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { commander: '^15.0.0' } }), 'src/a.ts': "import 'commander';\n" });
     expect(Object.keys(await migrate({ dir, status: clean })).sort()).toEqual(
-      ['changed', 'dependencies', 'detected', 'dryRun', 'exitCode', 'files', 'graded', 'imports', 'mapped', 'refused'].sort(),
+      ['changed', 'dependencies', 'detected', 'dryRun', 'exitCode', 'files', 'graded', 'imports', 'kept', 'mapped', 'refused'].sort(),
     );
+  });
+});
+
+/**
+ * A rewrite is only right if the target exports every name the import asks for.
+ *
+ * The defect this closes: `import type { Argv } from 'yargs'` was rewritten to
+ * `'burgee/yargs'`, which exported no `Argv`, so a TypeScript yargs project came out of the
+ * codemod not compiling (`.sdlc/research/adoption-targets.md`). The façades now export the
+ * incumbents' whole type surface — `facade-types.test.ts` compiles against it — and this is
+ * the guard for the next name that is not there.
+ *
+ * Mutations, each red against a case below:
+ *   M-f  no check at all — every import is rewritten. → "keeps a type-only import …" and
+ *        "refuses a value import …" both fail: the file is rewritten to a missing name.
+ *   M-g  a missing name refuses the file even when the import is type-only. → "keeps a
+ *        type-only import …": the value import next to it never moves.
+ *   M-h  `type` read as a modifier on `{ type }` / `import type from`. → the bindingsOf cases.
+ *   M-i  a kept import's host reported removable. → "does not call the host removable …".
+ */
+describe('A11 — a rewrite moves only names the target exports', () => {
+  it.each([
+    ["import type { Argv } from 'yargs';", "import type { Argv } from 'burgee/yargs';"],
+    ["import yargs, { Argv } from 'yargs';", "import yargs, { Argv } from 'burgee/yargs';"],
+    ["import yargs, { type Arguments } from 'yargs';", "import yargs, { type Arguments } from 'burgee/yargs';"],
+    ["import type { CommandModule, InferredOptionTypes } from 'yargs';", "import type { CommandModule, InferredOptionTypes } from 'burgee/yargs';"],
+    ["import { Command, type OptionValues } from 'commander';", "import { Command, type OptionValues } from 'burgee/commander';"],
+    ["export type { Argv as Y } from 'yargs';", "export type { Argv as Y } from 'burgee/yargs';"],
+    ["import * as yargs from 'yargs';", "import * as yargs from 'burgee/yargs';"],
+  ])('rewrites %j — every name in it is exported', (source, expected) => {
+    expect(rewriteSource(`${source}\n`)).toMatchObject({ source: `${expected}\n`, refused: [], kept: [] });
+  });
+
+  it('keeps a type-only import of a name the façade lacks, and moves the rest of the file', () => {
+    const source = "import yargs from 'yargs';\nimport type { Argv, NotAYargsType } from 'yargs';\n";
+    const result = rewriteSource(source);
+    expect(result.source).toBe("import yargs from 'burgee/yargs';\nimport type { Argv, NotAYargsType } from 'yargs';\n");
+    expect(result.refused).toEqual([]);
+    expect(result.kept).toEqual([
+      {
+        line: 2,
+        specifier: 'yargs',
+        names: ['NotAYargsType'],
+        note: "burgee/yargs does not export NotAYargsType; this type-only import stays on 'yargs', so keep its types installed",
+      },
+    ]);
+  });
+
+  it('refuses a value import of a name the façade lacks, and leaves the file as it was', () => {
+    const source = "import { Command } from 'commander';\nimport { NotACommanderExport } from 'commander';\n";
+    expect(rewriteSource(source)).toEqual({
+      source,
+      mapped: [],
+      refused: [{ line: 2, specifier: 'commander', reason: 'unknown-export', names: ['NotACommanderExport'] }],
+      kept: [],
+      relevant: true,
+    });
+  });
+
+  it('refuses a mixed import with a missing type — a scan cannot split the statement', () => {
+    const result = rewriteSource("import yargs, { type NotAYargsType } from 'yargs';\n");
+    expect(result.refused).toEqual([{ line: 1, specifier: 'yargs', reason: 'unknown-export', names: ['NotAYargsType'] }]);
+  });
+
+  it('does not call the host removable while a kept import still names it', async () => {
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { yargs: '^18.0.0' } }),
+      'src/a.ts': "import yargs from 'yargs';\nimport type { NotAYargsType } from 'yargs';\n",
+    });
+    const report = await migrate({ dir, status: clean });
+    expect(report.kept).toMatchObject([{ file: 'src/a.ts', line: 2, specifier: 'yargs', names: ['NotAYargsType'] }]);
+    expect(report.dependencies).toEqual({ before: ['yargs'], removable: [], after: 1 });
+    expect(report.exitCode, 'a kept type import is a note, not a failure — the program compiles and runs').toBe(ExitCode.OK);
+    expect(read(dir, 'src/a.ts')).toBe("import yargs from 'burgee/yargs';\nimport type { NotAYargsType } from 'yargs';\n");
+  });
+
+  it('checks every target the mapping can produce', () => {
+    expect(Object.keys(FACADE_EXPORTS).sort()).toEqual([...new Set(Object.values(MAPPING))].sort());
+  });
+
+  it.each([
+    [['{', 'a', ',', 'type', 'b', ',', 'c', 'as', 'd', '}'], { typeOnly: false, names: ['a', 'b', 'c'] }],
+    [['type', '{', 'Argv', '}'], { typeOnly: true, names: ['Argv'] }],
+    [['type'], { typeOnly: false, names: [] }],
+    [['yargs', ',', '{', 'type', '}'], { typeOnly: false, names: ['type'] }],
+    [['{', 'type', 'as', 't', '}'], { typeOnly: false, names: ['type'] }],
+    [['{', 'default', 'as', 'yargs', ',', '}'], { typeOnly: false, names: [] }],
+    [['*', 'as', 'ns'], { typeOnly: false, names: [] }],
+    [['type', '*', 'as', 'ns'], { typeOnly: true, names: [] }],
+  ])('bindingsOf(%j)', (clause, expected) => {
+    expect(bindingsOf(clause)).toEqual(expected);
+  });
+
+  it('reads the clause across lines and comments', () => {
+    const source = "import {\n  // the instance\n  Argv,\n  /* and */ Arguments,\n} from 'yargs';\n";
+    expect(scan(source).sites[0]?.clause).toEqual(['{', 'Argv', ',', 'Arguments', ',', '}']);
+  });
+
+  it('does not carry a clause into a later dynamic import', () => {
+    const source = "export function load() {\n  return import('yargs');\n}\n";
+    expect(scan(source).sites[0]).not.toHaveProperty('clause');
   });
 });
 

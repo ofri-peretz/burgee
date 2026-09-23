@@ -113,10 +113,10 @@ describe('config takes its environment as an argument (R8 divergence, R11)', () 
     expect(result.error).toBeInstanceOf(Error);
   });
 
-  it('populates the process environment when given none, as dotenv does (D-131)', () => {
+  it('populates the process environment when given none, as dotenv does (D-135)', () => {
     // Restated 2026-09-23. This case used to assert the opposite — a bare `config()` refused,
     // naming `processEnv` — because R11 kept every file in seniority away from the process.
-    // D-131 opened one seam, `runtime.ts`, for the drop-in façades only: dotenv's own suite
+    // D-135 opened one seam, `runtime.ts`, for the drop-in façades only: dotenv's own suite
     // asserts `process.env.BASIC` after a bare `config()` in 34 cases, and a drop-in that makes
     // every migrating caller add an argument is not a drop-in. The resolver stays pure.
     const key = `SENIORITY_D131_${String(process.pid)}`;

@@ -34,7 +34,7 @@ const ALLOWED = new Set([
   // to. `git log -- packages/burgee/src/process-reference-lock.test.ts` has them.
   //
   // `linegauge`, `closeout`, `bellpull` and `caique`'s other files are absent because they
-  // name the process nowhere. seniority joined on 2026-09-23 (D-131): its resolver still takes
+  // name the process nowhere. seniority joined on 2026-09-23 (D-135): its resolver still takes
   // `env`, `cwd` and `argv` as arguments, and only its dotenv and rc drop-ins — whose incumbents
   // read the process by default, and whose suites assert it — open the seam.
   'burgee/src/runtime.ts',

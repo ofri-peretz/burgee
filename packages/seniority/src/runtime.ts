@@ -5,7 +5,7 @@
  */
 
 /**
- * seniority's one door to the process (Y9, D-131) — the same seam `burgee`, `paratext`,
+ * seniority's one door to the process (Y9, D-135) — the same seam `burgee`, `paratext`,
  * `flagstaff`, `roundel` and `caique` each have one of.
  *
  * Only the drop-in façades open it: `seniority/dotenv`'s `config()` and `seniority/rc`, whose

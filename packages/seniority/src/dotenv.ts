@@ -133,7 +133,7 @@ export interface ConfigOptions extends Omit<PopulateOptions, 'debug'> {
   debug?: boolean | string;
   /** One file or several, highest priority first — an earlier file's key is not overwritten by a later one. `./.env` when omitted; a leading `~` is the home directory; a `URL` is read as one. */
   path: string | URL | readonly (string | URL)[];
-  /** The object to populate; the process's own environment when omitted, as dotenv does (D-131). */
+  /** The object to populate; the process's own environment when omitted, as dotenv does (D-135). */
   processEnv: Record<string, string | undefined>;
   encoding?: BufferEncoding;
 }
@@ -149,7 +149,7 @@ export interface ConfigResult {
  * before it can say anything useful.
  */
 export function config(options: Partial<ConfigOptions> = {}): ConfigResult {
-  // D-131: dotenv populates `process.env` and reads `./.env` when told nothing, and so does the
+  // D-135: dotenv populates `process.env` and reads `./.env` when told nothing, and so does the
   // drop-in — through `runtime.ts`, the one seam, and only when the caller passed nothing.
   const processEnv = options.processEnv ?? ambientEnv();
   if (typeof processEnv !== 'object' || processEnv === null) {
