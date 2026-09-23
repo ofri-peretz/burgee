@@ -368,12 +368,13 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
   });
 
   it('checks a family target\'s exports too: a type it lacks is kept, a value it lacks refuses', () => {
-    // flagstaff/boxen has no `Options` type; the type-only import stays on boxen and says why,
-    // while `boxen` itself moves. roundel/chalk has no `modifiers` array: a value import of
-    // it would not run, so the file is refused rather than rewritten.
-    const kept = rewriteSource("import boxen from 'boxen';\nimport type { Options } from 'boxen';\n");
-    expect(kept.source).toBe("import boxen from 'flagstaff/boxen';\nimport type { Options } from 'boxen';\n");
-    expect(kept.kept.map((k) => k.names)).toEqual([['Options']]);
+    // flagstaff/cli-table3 has no `HorizontalAlignment` type (a named gap in
+    // drop-in-type-surface-lock.test.ts); the type-only import stays on cli-table3 and says
+    // why, while `cli-table3` itself moves. roundel/chalk has no `modifiers` array: a value
+    // import of it would not run, so the file is refused rather than rewritten.
+    const kept = rewriteSource("import Table from 'cli-table3';\nimport type { HorizontalAlignment } from 'cli-table3';\n");
+    expect(kept.source).toBe("import Table from 'flagstaff/cli-table3';\nimport type { HorizontalAlignment } from 'cli-table3';\n");
+    expect(kept.kept.map((k) => k.names)).toEqual([['HorizontalAlignment']]);
     expect(rewriteSource("import { modifiers } from 'chalk';\n").refused.map((r) => r.specifier)).toEqual(['chalk']);
   });
 
