@@ -4,7 +4,7 @@
   "method": "benchmarks/axes/weight.ts installedBytes(name, dir), tree-inclusive, one count per realpath — `dir` a fresh `npm i <incumbent>@latest` in an empty directory, one per incumbent, never the workspace install (whose hoisted copies lag the registry)",
   "layers": {
     "linegauge": {
-      "ours": 84579,
+      "ours": 84596,
       "incumbents": {
         "string-width": 36801,
         "wrap-ansi": 80185,
@@ -12,19 +12,19 @@
         "slice-ansi": 66999
       },
       "ceiling": 194329,
-      "ratio": 0.4352,
+      "ratio": 0.4353,
       "lightestIncumbent": {
         "name": "strip-ansi",
         "bytes": 10344
       }
     },
     "paratext": {
-      "ours": 93113,
+      "ours": 93130,
       "incumbents": {
         "ansi-escapes": 30912
       },
       "ceiling": 30912,
-      "ratio": 3.0122,
+      "ratio": 3.0127,
       "lightestIncumbent": {
         "name": "ansi-escapes",
         "bytes": 30912
@@ -36,7 +36,7 @@
       "$unmeasured": "Measured from a fresh install on 2026-09-23 — terminal-link 5.0.0 at 61,152 B, term-img 7.1.0 at 2,143,923 B (iterm2-version → app-path → plist, @xmldom and xmlbuilder) — and still not folded into `ceiling`. Until then these were absent only because the workspace never installed them; now the reason is a decision: term-img alone would move this layer's ratio from about 3.0 to about 0.04, and a remeasure should not make a claim that large on its own. The ceiling therefore stays a floor on the real one, never an overstatement; folding them in is D1's owner call."
     },
     "seniority": {
-      "ours": 152430,
+      "ours": 152447,
       "incumbents": {
         "cosmiconfig": 1832269,
         "dotenv": 44951,
@@ -55,13 +55,13 @@
       "$grew": "151,688 B on 2026-09-14, up from 53,475 — PLAN 3.2 built the cosmiconfig-compatible surface plus the `./dotenv` and `./find-up` façades, and the pack grew 182%. The Y8 ratio moved 0.034 to 0.098, so it is still an order of magnitude under what it replaces; the growth is recorded rather than smoothed because a ratio that only ever improves is a ratio nobody is watching."
     },
     "closeout": {
-      "ours": 102271,
+      "ours": 102288,
       "incumbents": {
         "signal-exit": 76966,
         "restore-cursor": 93638
       },
       "ceiling": 170604,
-      "ratio": 0.5995,
+      "ratio": 0.5996,
       "lightestIncumbent": {
         "name": "signal-exit",
         "bytes": 76966
@@ -76,12 +76,12 @@
       "$unmeasured": "Measured from a fresh install on 2026-09-23 — exit-hook 5.1.0 at 13,200 B, zero dependencies — and still not folded into `ceiling`, so the ceiling stays a floor on the real one, never an overstatement. It is the layer's lightest zero-dependency incumbent and R8's named bar, reported by closeout's own weight test rather than summed here."
     },
     "caique": {
-      "ours": 122362,
+      "ours": 122447,
       "incumbents": {
         "@clack/prompts": 182472
       },
       "ceiling": 182472,
-      "ratio": 0.6706,
+      "ratio": 0.671,
       "lightestIncumbent": {
         "name": "@clack/prompts",
         "bytes": 182472
@@ -92,14 +92,14 @@
       "$unmeasured": "Measured from a fresh install on 2026-09-23 — @inquirer/core 12.0.3 at 206,577 B — and still not folded into `ceiling`, so the ceiling stays a floor on the real one, never an overstatement; folding it in would move this layer's ratio from about 0.67 to about 0.31, which is D1's owner call, not a remeasure's."
     },
     "bellpull": {
-      "ours": 98740,
+      "ours": 97881,
       "incumbents": {
         "execa": 647091,
         "cross-spawn": 46962,
         "which": 71500
       },
       "ceiling": 765553,
-      "ratio": 0.129,
+      "ratio": 0.1279,
       "lightestIncumbent": {
         "name": "cross-spawn",
         "bytes": 46962

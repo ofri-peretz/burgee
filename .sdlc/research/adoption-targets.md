@@ -37,7 +37,10 @@ asking cold.
 
 ## Two costs every target pays
 
-- **Node ≥ 24.** Every published burgee package declares `engines: >=24` (K2, C3). Nine of the
+- **Node ≥ 24 — removed by D-132 (2026-09-23).** Every published package now declares
+  `^20.19.0 || >=22.13.0`, and `compat.yml`'s `floor` job runs each suite on exactly those two
+  versions on three OSes. So the Node sentence in each draft below no longer applies; delete it
+  before sending. What follows is the finding that led to the change. Every published burgee package declared `engines: >=24` (K2, C3). Nine of the
   ten test Node 22 in CI, and three test Node 20 (`@devcontainers/cli`, `pa11y-ci`,
   `@graphql-codegen/cli`). Node 22 is in maintenance
   LTS until April 2027, so for most of them adopting burgee means dropping a supported line
@@ -49,7 +52,10 @@ asking cold.
   `import type` from `'yargs'`, with `@types/yargs` kept as a devDependency. `burgee migrate`
   rewrites type-only specifiers too, so on a TypeScript yargs project it currently turns a
   working type import into a broken one. This is a burgee gap to close, not a target problem.
-  It hits devcontainers/cli, spectral and commitlint.
+  It hits devcontainers/cli, spectral and commitlint. **Closed after this ranking:**
+  `burgee/yargs` now exports @types/yargs' surface (and `burgee/commander` commander's), so
+  the diffs below no longer need the `import type` split, and `burgee migrate` checks every
+  name it moves against what the façade exports.
 
 ## The ten
 

@@ -323,7 +323,7 @@ Graded by the incumbent's own test suite:
 | `restore-cursor` | 6 / 6 |
 | `signal-exit` | 134 / 135 |
 
-Weight, installed and tree-inclusive: **102,271 bytes** against **170,604** for the incumbents it replaces — a ratio of **0.5995** (exit-hook measured but left out of the ceiling, so it is understated).
+Weight, installed and tree-inclusive: **102,288 bytes** against **170,604** for the incumbents it replaces — a ratio of **0.5996** (exit-hook measured but left out of the ceiling, so it is understated).
 ## Where it sits
 
 Plugins register under the `handlers` key, against the one schema the whole family shares.
