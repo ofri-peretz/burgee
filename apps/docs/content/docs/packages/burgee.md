@@ -57,8 +57,10 @@ Nothing here needs keeping in sync, because nothing is written twice.
 
 ## Already on commander?
 
-Drop-in compatible with both incumbents, graded by **their own test suites** — 1,215
-commander tests and 1,185 yargs tests — with the pass rate published and ratcheting:
+Drop-in compatible with both incumbents, graded by **their own test suites** — 1,360 / 1,360
+of commander's tests and 804 / 804 of yargs' on the
+[compatibility page](https://burgee.interlace.tools/docs/compatibility) — with the pass rate
+published and ratcheting:
 
 ```diff
 - import { Command } from 'commander';
@@ -103,8 +105,45 @@ help from the manifest, plugins with hook filters, and a `burgee/commander` faç
 runs a real commander program. The dev loop, prompts, lazy commands and groups are not
 here yet.
 
-Roadmap, architecture and the 101-requirement floor:
+Roadmap, architecture and the 114-requirement floor:
 <https://github.com/ofri-peretz/burgee>
+
+## FAQ
+
+### Is burgee a commander alternative?
+
+Yes — and a yargs alternative. It is drop-in compatible with both: change
+`import { Command } from 'commander'` to `import { Command } from 'burgee/commander'` (or
+`yargs` to `burgee/yargs`) and your code and tests are unchanged. Compatibility is graded by
+each host's own test suite in CI, not asserted. Side by side:
+[burgee vs commander](https://burgee.interlace.tools/docs/vs/commander) and
+[burgee vs yargs](https://burgee.interlace.tools/docs/vs/yargs).
+
+### How do I make my CLI usable by an AI agent?
+
+Declare it with `defineCommand()` — or keep it on commander or yargs syntax through the
+drop-in front ends. Every command then answers `--json` with one stable envelope,
+`--schema` with the whole command tree as data, and exits `2` when the *command* was wrong
+so an agent knows to rewrite it rather than retry. None of it is written by hand; it is
+the declaration read by a different reader.
+[Your CLI is an agent tool](https://burgee.interlace.tools/docs/agent-surfaces) has each surface.
+
+### How do I expose a CLI over MCP?
+
+Run it with `--mcp`: the same manifest is served as MCP tools over stdio. A command becomes
+a tool only when it declares its `effects` (`read_only`, `idempotent` or `non_idempotent`),
+so nothing reaches an agent by accident. Register it with any stdio client:
+
+```json
+{ "mcpServers": { "mytool": { "command": "npx", "args": ["mytool", "--mcp"] } } }
+```
+
+### Does it have dependencies?
+
+None outside this repository. `burgee` installs five packages from its own family —
+`bellpull`, `closeout`, `linegauge`, `roundel` and `seniority` — and each of those takes
+nothing from outside it either: one repository, one release pipeline, one supply chain to
+audit.
 
 ---
 

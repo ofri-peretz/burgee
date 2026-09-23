@@ -7,6 +7,10 @@
   </a>
 </p>
 
+<p align="center">
+  Docs: <a href="https://burgee.interlace.tools/docs/packages/seniority">https://burgee.interlace.tools/docs/packages/seniority</a>
+</p>
+
 **Which source outranks the others.**
 
 One resolution for flags, environment variables, config files, a `package.json` field and
@@ -320,7 +324,7 @@ Graded by the incumbent's own test suite:
 | `lilconfig` | 67 / 77 |
 | `rc` | 0 / 1 |
 
-Weight, installed and tree-inclusive: **151,990 bytes** against **1,555,288** for the incumbents it replaces — a ratio of **0.0977**.
+Weight, installed and tree-inclusive: **152,192 bytes** against **1,555,288** for the incumbents it replaces — a ratio of **0.0979**.
 ## Where it sits
 
 Plugins register under the `sources` key, against the one schema the whole family shares.

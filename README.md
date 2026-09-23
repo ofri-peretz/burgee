@@ -46,6 +46,11 @@
 </p>
 
 <p align="center">
+  <strong>📖 Docs: <a href="https://burgee.interlace.tools">burgee.interlace.tools</a></strong>
+  &nbsp;·&nbsp; <a href="https://burgee.interlace.tools/llms.txt">llms.txt</a>
+</p>
+
+<p align="center">
   <a href="#-start-here">Start here</a> &nbsp;·&nbsp;
   <a href="#-already-on-commander-change-one-import">Migrate</a> &nbsp;·&nbsp;
   <a href="#-measured">Measured</a> &nbsp;·&nbsp;
@@ -374,20 +379,23 @@ the number, 0 against the dozen.
 | **Engine** | argv, dispatch, manifest | [`burgee`](./packages/burgee/) | one declaration projected to help, `--json`, `--schema`, MCP, completions, types | commander · yargs | released — `burgee@0.9.0` |
 | **Output stack** | colour | [`roundel`](./packages/roundel/) | one output policy, nine semantic tokens, a contrast-checked theme, and chalk's API over them | chalk · picocolors | released — `roundel@0.4.0` |
 | | render | [`flagstaff`](./packages/flagstaff/) | frame loop with a static projection; plugin host for spinners, progress, boxes, tables | ora · log-update · boxen · cli-table3 | released — `flagstaff@0.3.4` |
-| | prompt | [`caique`](./packages/caique/) | prompts that are flags first, and never hang | inquirer · clack · prompts | pre-release — `caique@0.4.0` |
-| **Foundation** | text | [`linegauge`](./packages/linegauge/) | measure, wrap, truncate and slice styled text without the edge fraying | string-width · wrap-ansi · strip-ansi · slice-ansi | planned · F1 |
-| | config | [`seniority`](./packages/seniority/) | precedence across flag, env, project file, home file and default — with provenance | cosmiconfig · dotenv · rc | planned · F3 |
-| | process | [`bellpull`](./packages/bellpull/) | run a subprocess; resolve the executable; return a result every caller can read | execa · cross-spawn · which | planned · F4 |
-| | lifecycle | [`closeout`](./packages/closeout/) | exit handlers that run once on every path, terminal restore, bounded deadline | signal-exit · exit-hook · restore-cursor | planned · F2 |
+| | prompt | [`caique`](./packages/caique/) | prompts that are flags first, and never hang | inquirer · clack · prompts | released — `caique@0.4.0` |
+| **Foundation** | text | [`linegauge`](./packages/linegauge/) | measure, wrap, truncate and slice styled text without the edge fraying | string-width · wrap-ansi · strip-ansi · slice-ansi | released — `linegauge@0.4.0` |
+| | config | [`seniority`](./packages/seniority/) | precedence across flag, env, project file, home file and default — with provenance | cosmiconfig · dotenv · rc | released — `seniority@0.4.0` |
+| | process | [`bellpull`](./packages/bellpull/) | run a subprocess; resolve the executable; return a result every caller can read | execa · cross-spawn · which | released — `bellpull@0.2.0` |
+| | lifecycle | [`closeout`](./packages/closeout/) | exit handlers that run once on every path, terminal restore, bounded deadline | signal-exit · exit-hook · restore-cursor | released — `closeout@0.3.0` |
 | | terminal | [`paratext`](./packages/paratext/) | hyperlinks, images, window title, clipboard, notifications, bell — each with a static fallback | ansi-escapes (OSC half) · terminal-link · term-img | released — `paratext@0.5.0` |
 
-The four foundation packages are published as `0.0.1` reservation stubs and are **planned, not
-released**: each has an intent and a design under
-[`.sdlc/intents/cli-foundation-stack/`](./.sdlc/intents/cli-foundation-stack/), all at `draft` —
-the human gate has not run — and none ships a working release before the commander scoreboard is
-public. Waves F1–F4 are ordered by what unblocks work already scheduled, not by layer size; the
-`bellpull` intent carries a kill gate, because a zero-dependency rival already holds the weight
-pitch in that layer. The measurements are in
+All nine are released on npm. Where an incumbent's own test suite has been vendored, the
+compat oracle grades the drop-in path against it and publishes the rate — including the ones
+not yet at 100% — on the [compatibility page](https://burgee.interlace.tools/docs/compatibility).
+Released is not the same as accepted: the four
+foundation packages began as `0.0.1` name reservations, were built out in waves F1–F4, and
+their intents under [`.sdlc/intents/cli-foundation-stack/`](./.sdlc/intents/cli-foundation-stack/)
+are still at `draft` — the human gate on the design has not run, and all nine are pre-1.0, so
+an API can still move. The `bellpull` intent carries a kill gate, because a zero-dependency
+rival already holds the weight pitch in that layer, and its spec says plainly that the package
+was built before that gate was evaluated. The measurements behind the layers are in
 [`candidate-layers.md`](./.sdlc/research/candidate-layers.md) and
 [`replacement-map.md`](./.sdlc/research/replacement-map.md).
 
@@ -399,15 +407,16 @@ pitch in that layer. The measurements are in
 | :-- | :-- |
 | [`packages/burgee/`](./packages/burgee/) | The framework. `burgee` is the engine, `burgee/commander` the compat façade, `burgee/testing` the in-process harness (T1). |
 | [`packages/roundel/`](./packages/roundel/) | **roundel** — the colours a CLI carries: `roundel/policy` (`outputMode`, `colorLevel`), `roundel/tokens` (nine semantic tokens), `roundel/theme` (`fly()`, contrast-checked), `roundel/contrast`, and `roundel/chalk` — chalk 6's API over the tokens, graded by chalk's own suite (58 / 58, against a 58 / 58 control). Intent in [`.sdlc/intents/roundel/`](./.sdlc/intents/roundel/). |
-| [`packages/flagstaff/`](./packages/flagstaff/) | **flagstaff** — the staff the flag flies from: a frame loop with a static projection for agents, and the plugin host for spinners, progress, boxes and tables. Released `0.1.0`; its one dependency is roundel. Intent in [`.sdlc/intents/flagstaff/`](./.sdlc/intents/flagstaff/). |
-| [`packages/caique/`](./packages/caique/) | **caique** — the parrot that always answers back: prompts that are flags first and never hang. Pre-release `0.1.0`: `decide()` is in, the rest follows [`.sdlc/intents/caique/`](./.sdlc/intents/caique/). |
-| [`packages/linegauge/`](./packages/linegauge/) | **linegauge** — a printer's rule for text: width, wrap, truncate and slice, grapheme-correct over `Intl.Segmenter`. Planned, not released; intent in [`.sdlc/intents/linegauge/`](./.sdlc/intents/linegauge/). |
-| [`packages/seniority/`](./packages/seniority/) | **seniority** — which source outranks which, with provenance for every resolved value. Planned, not released; intent in [`.sdlc/intents/seniority/`](./.sdlc/intents/seniority/). |
-| [`packages/bellpull/`](./packages/bellpull/) | **bellpull** — pull here, work happens there: subprocesses with a structured result and a static projection. Planned, not released; intent in [`.sdlc/intents/bellpull/`](./.sdlc/intents/bellpull/). |
-| [`packages/closeout/`](./packages/closeout/) | **closeout** — settle and finish: exit handlers that run once, terminal restore, and a deadline so shutdown cannot hang. Planned, not released; intent in [`.sdlc/intents/closeout/`](./.sdlc/intents/closeout/). |
+| [`packages/flagstaff/`](./packages/flagstaff/) | **flagstaff** — the staff the flag flies from: a frame loop with a static projection for agents, and the plugin host for spinners, progress, boxes and tables. Released; its one dependency is roundel. Intent in [`.sdlc/intents/flagstaff/`](./.sdlc/intents/flagstaff/). |
+| [`packages/caique/`](./packages/caique/) | **caique** — the parrot that always answers back: prompts that are flags first and never hang. Released, with graded `caique/inquirer` and `caique/clack` paths; intent in [`.sdlc/intents/caique/`](./.sdlc/intents/caique/). |
+| [`packages/linegauge/`](./packages/linegauge/) | **linegauge** — a printer's rule for text: width, wrap, truncate and slice, grapheme-correct over `Intl.Segmenter`. Released; intent in [`.sdlc/intents/linegauge/`](./.sdlc/intents/linegauge/). |
+| [`packages/seniority/`](./packages/seniority/) | **seniority** — which source outranks which, with provenance for every resolved value. Released; intent in [`.sdlc/intents/seniority/`](./.sdlc/intents/seniority/). |
+| [`packages/bellpull/`](./packages/bellpull/) | **bellpull** — pull here, work happens there: subprocesses with a structured result and a static projection. Released; intent in [`.sdlc/intents/bellpull/`](./.sdlc/intents/bellpull/). |
+| [`packages/closeout/`](./packages/closeout/) | **closeout** — settle and finish: exit handlers that run once, terminal restore, and a deadline so shutdown cannot hang. Released; intent in [`.sdlc/intents/closeout/`](./.sdlc/intents/closeout/). |
+| [`packages/paratext/`](./packages/paratext/) | **paratext** — everything around the output that is not the output: hyperlinks, images, window title, clipboard, notifications and the bell, each with a static fallback. Released; intent in [`.sdlc/intents/paratext/`](./.sdlc/intents/paratext/). |
 | [`packages/compat-oracle/`](./packages/compat-oracle/) | Internal, never published. Grades compatibility using the hosts' own suites, plus reference drivers that run the real incumbents for byte-for-byte comparison. |
 | [`examples/`](./examples/) | Demo CLIs and the conformance suite that runs every floor case on every host. |
-| [`apps/docs/`](./apps/docs/) | Documentation site (Next.js + fumadocs). |
+| [`apps/docs/`](./apps/docs/) | Documentation site (Next.js + fumadocs), deployed at [burgee.interlace.tools](https://burgee.interlace.tools) with [`llms.txt`](https://burgee.interlace.tools/llms.txt) and a Markdown twin of every page. |
 | [`.sdlc/intents/`](./.sdlc/intents/) | Stage 1 + 2 artifacts of the AI-native SDLC: `intent.md` + `spec.md` per change, and the wave plan. |
 | [`.sdlc/research/`](./.sdlc/research/) | The evidence everything above rests on. |
 | [`.sdlc/brand/`](./.sdlc/brand/) | What each package is and what its mark has to say ([identity model](./.sdlc/brand/identity-model.md)), and the [brief](./.sdlc/brand/commission.md) a designer would work from. |
@@ -445,7 +454,7 @@ determine as well as what it found.
 Four locks — shape, process-reference, weight per entry point, and the adoption ladder — are
 each proven to fail before they passed. A compat façade does not reach 1.0 until its host's
 own suite passes **100%** (`C7`): both do today, which clears that gate and not the rest —
-1.0 waits on the [floor](./apps/docs/content/docs/the-floor.mdx), 101 requirements of which
+1.0 waits on the [floor](./apps/docs/content/docs/the-floor.mdx), 114 requirements of which
 the surfaces, the env/config/schema families and both façades are built. Until then the rate
 is published rather than the word "compatible" claimed.
 
