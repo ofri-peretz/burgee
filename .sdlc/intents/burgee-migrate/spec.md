@@ -46,7 +46,7 @@
   person watches is a codemod they run once and never again, and the whole purpose of this
   command is that trying burgee costs four minutes rather than an afternoon.
 
-- **A11** *(added 2026-09-23, D-134)* **One run migrates the whole family, not two hosts.**
+- **A12** *(added 2026-09-23, D-137)* **One run migrates the whole family, not two hosts.**
   Every drop-in `compat-oracle` grades **level** with its incumbent — the incumbent's own
   suite passes as many cases against the replacement as against the incumbent itself, in the
   same harness — is rewritten: `chalk` → `roundel/chalk`, `ora` → `flagstaff/ora`,
@@ -127,7 +127,7 @@ baseline's, and exiting zero with refusals present.
 
 ## Amendments — what building it proved wrong
 
-Five things in the sections above did not survive contact with the implementation. They are
+Six things in the sections above did not survive contact with the implementation. They are
 recorded here rather than edited away, because a design that quietly agrees with whatever
 got built has stopped being a gate.
 
@@ -166,6 +166,19 @@ got built has stopped being a gate.
   what shipped: four mappings, and `burgee/yargs/parser` is reachable but not produced by
   `migrate`. The example's *"commander, yargs, yargs-parser removed"* counts a transitive
   dependency the command does not claim.
+
+- **A2 assumed every name an import asks for exists on the other side.** It did not:
+  `burgee/yargs` exported no `Argv`, `Arguments` or `CommandModule`, so
+  `import type { Argv } from 'yargs'` became an import of nothing, and every TypeScript +
+  yargs adoption target came out of the codemod not compiling
+  (`.sdlc/research/adoption-targets.md`). The façades now export the incumbents' whole type
+  surface, and the rewrite gained **A11 — a rewrite moves only names the target exports**:
+  each `import`/`export … from` clause is read off the tokens the scan already has and checked
+  against `FACADE_EXPORTS`, a table `facade-types.test.ts` holds equal to what `tsc` sees in
+  `dist`. A type-only statement naming something the façade lacks stays on the incumbent and
+  is reported under `kept`, with a note, and the host is then not called removable; any
+  other import of a missing name is refused as `unknown-export` under A5. Still a scan, still
+  no parser: the check is a set lookup per named binding.
 
 Found on the way, outside this lane and not fixed here: **an option declared in kebab-case
 never reaches its handler.** `toParseConfig` kebabs a spec's name for the parser and

@@ -30,7 +30,7 @@ import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { ExitCode } from './exit-code.js';
-import { DirtyTreeError, MAPPING, migrate, packageOf, rewriteSource, scan, sourceFiles, workingTree } from './migrate.js';
+import { bindingsOf, DirtyTreeError, FACADE_EXPORTS, MAPPING, migrate, packageOf, rewriteSource, scan, sourceFiles, workingTree } from './migrate.js';
 
 /** A project on disk, under a fresh temporary directory each time. */
 function project(files: Record<string, string>): string {
@@ -59,7 +59,7 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
     // the plausible one — three of the four rows have no subpath on the right — and it
     // would hand a user `hideBin` from a module that does not export it.
     //
-    // Restated 2026-09-23 (A11, D-134): the table grew from commander and yargs to every
+    // Restated 2026-09-23 (A12, D-137): the table grew from commander and yargs to every
     // drop-in the oracle grades level with its incumbent, so it is written out here in full
     // — a row that appears or disappears is a decision, and this is where it shows.
     // `scripts/migrate-drop-ins-lock.test.ts` holds the same list equal to `compat-oracle`.
@@ -96,7 +96,7 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
 
   it('every specifier it can produce is a subpath its package actually publishes', () => {
     // A mapping to an unpublished subpath is a codemod that installs ERR_MODULE_NOT_FOUND.
-    // Restated 2026-09-23 (A11): the targets are no longer all burgee's, so each is checked
+    // Restated 2026-09-23 (A12): the targets are no longer all burgee's, so each is checked
     // against the exports map of the family package it names.
     expect([...new Set(Object.values(MAPPING))].filter((to) => !published(to))).toEqual([]);
   });
@@ -208,7 +208,7 @@ describe('A5 — the unit of success is the file', () => {
       'src/b.ts': "import 'yargs';\n",
     });
     const report = await migrate({ dir, status: clean });
-    // `add` joined the report with A11: the rewritten import names burgee, which this
+    // `add` joined the report with A12: the rewritten import names burgee, which this
     // project does not declare yet.
     expect(report.dependencies).toEqual({ before: ['commander', 'yargs'], removable: ['yargs'], after: 1, add: ['burgee'] });
   });
@@ -273,7 +273,7 @@ describe('A7 — the numbers in the report are read, not typed', () => {
     const dir = project({ 'src/a.ts': "import 'commander';\n" });
     // M-d lands in `compat-baseline-lock.test.ts`, which holds these equal to
     // `compat-oracle/baseline/commander.json`. This case only proves the report reaches them.
-    // `control` joined the row with A11 (D-134): it is what decides whether a drop-in is
+    // `control` joined the row with A12 (D-137): it is what decides whether a drop-in is
     // rewritten at all, so the report shows it beside the grade.
     expect((await migrate({ dir, status: clean })).graded).toEqual([{ host: 'commander', reference: 1360, passed: 1360, rate: 1, control: 1360 }]);
   });
@@ -312,13 +312,13 @@ describe('A8 — the exit code says whether anything was left undone', () => {
   it('carries every count the human surface prints', async () => {
     const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { commander: '^15.0.0' } }), 'src/a.ts': "import 'commander';\n" });
     expect(Object.keys(await migrate({ dir, status: clean })).sort()).toEqual(
-      // `partial` and `next` joined with A11: what was left alone and why, and the command to run.
-      ['changed', 'dependencies', 'detected', 'dryRun', 'exitCode', 'files', 'graded', 'imports', 'mapped', 'next', 'partial', 'refused'].sort(),
+      // `partial` and `next` joined with A12: what was left alone and why, and the command to run.
+      ['changed', 'dependencies', 'detected', 'dryRun', 'exitCode', 'files', 'graded', 'imports', 'kept', 'mapped', 'next', 'partial', 'refused'].sort(),
     );
   });
 });
 
-describe('A11 — every drop-in the oracle grades level, in one run', () => {
+describe('A12 — every drop-in the oracle grades level, in one run', () => {
   it('rewrites the family drop-ins beside the front-ends, in one pass over one file', () => {
     const source = "import { Command } from 'commander';\nimport chalk from 'chalk';\nimport ora from 'ora';\nconst spawn = require('cross-spawn');\n";
     expect(rewriteSource(source).source).toBe(
@@ -365,8 +365,120 @@ describe('A11 — every drop-in the oracle grades level, in one run', () => {
     expect((await migrate({ dir: empty, status: clean })).next).toBe('');
   });
 
+  it('checks a family target\'s exports too: a type it lacks is kept, a value it lacks refuses', () => {
+    // flagstaff/boxen has no `Options` type; the type-only import stays on boxen and says why,
+    // while `boxen` itself moves. roundel/chalk has no `modifiers` array: a value import of
+    // it would not run, so the file is refused rather than rewritten.
+    const kept = rewriteSource("import boxen from 'boxen';\nimport type { Options } from 'boxen';\n");
+    expect(kept.source).toBe("import boxen from 'flagstaff/boxen';\nimport type { Options } from 'boxen';\n");
+    expect(kept.kept.map((k) => k.names)).toEqual([['Options']]);
+    expect(rewriteSource("import { modifiers } from 'chalk';\n").refused.map((r) => r.specifier)).toEqual(['chalk']);
+  });
+
   it('maps a subpath of an incumbent to the same subpath of its drop-in', () => {
     expect(rewriteSource("import { signals } from 'signal-exit/signals';\n").source).toBe("import { signals } from 'closeout/signal-exit/signals';\n");
+  });
+});
+
+/**
+ * A rewrite is only right if the target exports every name the import asks for.
+ *
+ * The defect this closes: `import type { Argv } from 'yargs'` was rewritten to
+ * `'burgee/yargs'`, which exported no `Argv`, so a TypeScript yargs project came out of the
+ * codemod not compiling (`.sdlc/research/adoption-targets.md`). The façades now export the
+ * incumbents' whole type surface — `facade-types.test.ts` compiles against it — and this is
+ * the guard for the next name that is not there.
+ *
+ * Mutations, each red against a case below:
+ *   M-f  no check at all — every import is rewritten. → "keeps a type-only import …" and
+ *        "refuses a value import …" both fail: the file is rewritten to a missing name.
+ *   M-g  a missing name refuses the file even when the import is type-only. → "keeps a
+ *        type-only import …": the value import next to it never moves.
+ *   M-h  `type` read as a modifier on `{ type }` / `import type from`. → the bindingsOf cases.
+ *   M-i  a kept import's host reported removable. → "does not call the host removable …".
+ */
+describe('A11 — a rewrite moves only names the target exports', () => {
+  it.each([
+    ["import type { Argv } from 'yargs';", "import type { Argv } from 'burgee/yargs';"],
+    ["import yargs, { Argv } from 'yargs';", "import yargs, { Argv } from 'burgee/yargs';"],
+    ["import yargs, { type Arguments } from 'yargs';", "import yargs, { type Arguments } from 'burgee/yargs';"],
+    ["import type { CommandModule, InferredOptionTypes } from 'yargs';", "import type { CommandModule, InferredOptionTypes } from 'burgee/yargs';"],
+    ["import { Command, type OptionValues } from 'commander';", "import { Command, type OptionValues } from 'burgee/commander';"],
+    ["export type { Argv as Y } from 'yargs';", "export type { Argv as Y } from 'burgee/yargs';"],
+    ["import * as yargs from 'yargs';", "import * as yargs from 'burgee/yargs';"],
+  ])('rewrites %j — every name in it is exported', (source, expected) => {
+    expect(rewriteSource(`${source}\n`)).toMatchObject({ source: `${expected}\n`, refused: [], kept: [] });
+  });
+
+  it('keeps a type-only import of a name the façade lacks, and moves the rest of the file', () => {
+    const source = "import yargs from 'yargs';\nimport type { Argv, NotAYargsType } from 'yargs';\n";
+    const result = rewriteSource(source);
+    expect(result.source).toBe("import yargs from 'burgee/yargs';\nimport type { Argv, NotAYargsType } from 'yargs';\n");
+    expect(result.refused).toEqual([]);
+    expect(result.kept).toEqual([
+      {
+        line: 2,
+        specifier: 'yargs',
+        names: ['NotAYargsType'],
+        note: "burgee/yargs does not export NotAYargsType; this type-only import stays on 'yargs', so keep its types installed",
+      },
+    ]);
+  });
+
+  it('refuses a value import of a name the façade lacks, and leaves the file as it was', () => {
+    const source = "import { Command } from 'commander';\nimport { NotACommanderExport } from 'commander';\n";
+    expect(rewriteSource(source)).toEqual({
+      source,
+      mapped: [],
+      refused: [{ line: 2, specifier: 'commander', reason: 'unknown-export', names: ['NotACommanderExport'] }],
+      kept: [],
+      relevant: true,
+    });
+  });
+
+  it('refuses a mixed import with a missing type — a scan cannot split the statement', () => {
+    const result = rewriteSource("import yargs, { type NotAYargsType } from 'yargs';\n");
+    expect(result.refused).toEqual([{ line: 1, specifier: 'yargs', reason: 'unknown-export', names: ['NotAYargsType'] }]);
+  });
+
+  it('does not call the host removable while a kept import still names it', async () => {
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { yargs: '^18.0.0' } }),
+      'src/a.ts': "import yargs from 'yargs';\nimport type { NotAYargsType } from 'yargs';\n",
+    });
+    const report = await migrate({ dir, status: clean });
+    expect(report.kept).toMatchObject([{ file: 'src/a.ts', line: 2, specifier: 'yargs', names: ['NotAYargsType'] }]);
+    // `add` joined the report with A12: the rewritten imports now name burgee.
+    expect(report.dependencies).toEqual({ before: ['yargs'], removable: [], after: 1, add: ['burgee'] });
+    expect(report.exitCode, 'a kept type import is a note, not a failure — the program compiles and runs').toBe(ExitCode.OK);
+    expect(read(dir, 'src/a.ts')).toBe("import yargs from 'burgee/yargs';\nimport type { NotAYargsType } from 'yargs';\n");
+  });
+
+  it('checks every target the mapping can produce', () => {
+    expect(Object.keys(FACADE_EXPORTS).sort()).toEqual([...new Set(Object.values(MAPPING))].sort());
+  });
+
+  it.each([
+    [['{', 'a', ',', 'type', 'b', ',', 'c', 'as', 'd', '}'], { typeOnly: false, names: ['a', 'b', 'c'] }],
+    [['type', '{', 'Argv', '}'], { typeOnly: true, names: ['Argv'] }],
+    [['type'], { typeOnly: false, names: [] }],
+    [['yargs', ',', '{', 'type', '}'], { typeOnly: false, names: ['type'] }],
+    [['{', 'type', 'as', 't', '}'], { typeOnly: false, names: ['type'] }],
+    [['{', 'default', 'as', 'yargs', ',', '}'], { typeOnly: false, names: [] }],
+    [['*', 'as', 'ns'], { typeOnly: false, names: [] }],
+    [['type', '*', 'as', 'ns'], { typeOnly: true, names: [] }],
+  ])('bindingsOf(%j)', (clause, expected) => {
+    expect(bindingsOf(clause)).toEqual(expected);
+  });
+
+  it('reads the clause across lines and comments', () => {
+    const source = "import {\n  // the instance\n  Argv,\n  /* and */ Arguments,\n} from 'yargs';\n";
+    expect(scan(source).sites[0]?.clause).toEqual(['{', 'Argv', ',', 'Arguments', ',', '}']);
+  });
+
+  it('does not carry a clause into a later dynamic import', () => {
+    const source = "export function load() {\n  return import('yargs');\n}\n";
+    expect(scan(source).sites[0]).not.toHaveProperty('clause');
   });
 });
 

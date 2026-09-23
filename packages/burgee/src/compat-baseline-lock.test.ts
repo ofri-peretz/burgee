@@ -47,14 +47,14 @@ describe('the graded numbers migrate reports', () => {
     expect({ reference, passed, rate }).toEqual(oracle(host));
   });
 
-  // D-134: `control` decides whether `migrate` rewrites a host at all, so it is held to the
+  // D-137: `control` decides whether `migrate` rewrites a host at all, so it is held to the
   // published page as tightly as the grade is held to the baseline.
   it.each(Object.keys(GRADED))('%s carries the control the compatibility page publishes', (host) => {
     expect(GRADED[host]?.control).toBe(CONTROL.get(host));
   });
 
   it('carries a row for every host the oracle has a baseline for, and no other', () => {
-    // Restated 2026-09-23 (A11): it was commander and yargs, the two hosts `migrate`
+    // Restated 2026-09-23 (A12): it was commander and yargs, the two hosts `migrate`
     // rewrote. It now rewrites every level drop-in and reports the rest, so every graded
     // host needs its row — a mapping without one would print a blank where the grade goes.
     const baselines = readdirSync(BASELINE).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -'.json'.length));

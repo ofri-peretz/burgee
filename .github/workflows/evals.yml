@@ -20,7 +20,8 @@ on:
       - "docs/**"
       - ".github/**"
       - ".sdlc/bands/**"
-      - "apps/docs/content/**"
+      # Every docs app's content — a glob, so adding a package's site needs no edit here.
+      - "apps/*/content/**"
       - "eslint.config.mjs"
       - "evals/**"
       # The pull request the `record` job opens carries data and nothing else. Running the

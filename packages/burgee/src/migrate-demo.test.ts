@@ -89,7 +89,7 @@ describe('demo-cli-commander — the codemod against the hand-written drop-in', 
     const r = await report;
     expect(r).toMatchObject({ refused: [], exitCode: 0, changed: true });
     expect(r.detected).toEqual({ declared: ['commander'], imported: ['commander'] });
-    // `add` and `control` joined the report with A11 (D-134); `add` is empty because the demo already declares burgee.
+    // `add` and `control` joined the report with A12 (D-137); `add` is empty because the demo already declares burgee.
     expect(r.dependencies).toEqual({ before: ['commander'], removable: ['commander'], after: 0, add: [] });
     expect(r.graded).toEqual([{ host: 'commander', reference: 1360, passed: 1360, rate: 1, control: 1360 }]);
   });
@@ -108,7 +108,7 @@ describe('demo-cli-yargs — the second case', () => {
   it('reports the real counts and the oracle’s yargs row', async () => {
     const r = await report;
     expect(r).toMatchObject({ files: 2, imports: 2, refused: [], exitCode: 0 });
-    // `add` and `control` joined the report with A11 (D-134); `add` is empty because the demo already declares burgee. yargs' control is 802, two
+    // `add` and `control` joined the report with A12 (D-137); `add` is empty because the demo already declares burgee. yargs' control is 802, two
     // cases real yargs cannot pass from a vendored copy.
     expect(r.graded).toEqual([{ host: 'yargs', reference: 804, passed: 804, rate: 1, control: 802 }]);
     expect(r.dependencies).toEqual({ before: ['yargs'], removable: ['yargs'], after: 0, add: [] });

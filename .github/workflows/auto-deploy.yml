@@ -2,38 +2,43 @@
 name: Auto Deploy on Main
 
 # ─────────────────────────────────────────────────────────────────────────────
-# One merge to `main` → at most one production docs deploy. Ported from
-# ofri-peretz/eslint; `.sdlc/intents/docs-deploy/intent.md` is the intent.
+# One merge to `main` → at most one production deploy per affected docs app.
+# Ported from ofri-peretz/eslint; `.sdlc/intents/docs-deploy/intent.md` is the
+# intent, `.sdlc/intents/docs-per-package/` made it one matrix over the table.
 #
-# Why turbo-affected and not a path filter: a path filter under-fires the day
-# `apps/docs` gains a workspace dependency, and the miss is silent — the site
-# simply stops matching the code. `turbo run build --filter=...[<sha>]` walks the
-# dependency graph instead, so that day needs no edit here.
+# WHICH APPS: turbo's affected workspaces, intersected with the `workspace` of
+# every row in `.github/vercel-apps.json`. The table is the only mapping from a
+# workspace to an app — there is no `case "$ws" in …` here to keep in lockstep
+# with it, which is the duplication the sibling eslint repo carries and this
+# file exists not to. Adding a package's site adds a row; this file is unchanged.
 #
-# What that does NOT buy today — measured on this repo, not assumed. A merge
-# touching only `packages/**` still deploys. `docs` has no workspace dependency
-# at all, but the ROOT workspace devDepends on `burgee`, `compat-oracle` and
-# `flagstaff` (and reaches `roundel` through them), so a change to any of those
-# puts the root package in turbo's changed set, and turbo then reports all 11
-# workspaces changed — `docs` among them. One-file commits, `turbo@11.16.0`:
+# Why turbo-affected and not a path filter: a path filter under-fires the day an
+# app gains a workspace dependency, and the miss is silent — the site simply
+# stops matching the code. `turbo run build --filter=...[<sha>]` walks the
+# dependency graph instead. Every app devDepends on the package it documents
+# and on the shared chassis, so a change to either reaches it.
 #
-#   packages/caique/**            → caique          (reachable from no root dep)
-#   packages/roundel/**           → all 11, incl. docs
-#   packages/burgee/**            → all 11, incl. docs
-#   packages/flagstaff/README.md  → all 11, incl. docs
-#   packages/compat-oracle/**     → all 11, incl. docs
-#   apps/docs/**                  → docs
-#   scripts/**, root README.md    → nothing
+# What that does NOT buy today — measured on this repo, not assumed. The ROOT
+# workspace devDepends on several packages, so a change to any of them puts the
+# root package in turbo's changed set, and turbo then reports every workspace
+# changed — every docs app among them. `--filter=<ws>[<sha>]`,
+# `--filter=...<ws>[<sha>]` and `--affected` all report the same, so there is no
+# tighter turbo expression to switch to; the only fix is to the root
+# devDependencies, which are there for their own reasons (D-059 accepts the
+# redundant deploys). A change outside the workspace graph (scripts/**, the
+# root README) deploys nothing.
 #
-# `--filter=docs[<sha>]`, `--filter=...docs[<sha>]` and `--affected` all report
-# the same, so there is no tighter turbo expression to switch to; the only fix
-# is to the root devDependencies, which are there for their own reasons.
-#
-# So the guarantee here is narrower than "deploys only when the docs changed",
+# So the guarantee here is narrower than "deploys only the sites that changed",
 # and `.sdlc/intents/docs-deploy/intent.md` records it as unmet rather than met:
-# most product merges deploy, a change outside the workspace graph does not, and
-# no ref other than `main` can deploy at all. `scripts/deploy-lock.test.ts` pins
-# the `if:` that carries the last of those.
+# most product merges deploy every site, a change outside the workspace graph
+# deploys none, and no ref other than `main` can deploy at all.
+# `scripts/deploy-lock.test.ts` pins the `if:` that carries the last of those.
+#
+# Two deploys of one host never overlap: deploy-docs.yml holds one concurrency
+# group per app, which both this dispatch and a hand-fired run land in. This
+# file deliberately holds NO such group itself — a waiting job in that group
+# would be the pending run GitHub cancels when a third arrives, silently
+# dropping this merge's deploy.
 #
 # Why this is not itself the deploy: `deploy-docs.yml` owns the credential, the
 # build and the post-deploy check. This workflow only decides *whether*. It
@@ -64,7 +69,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
-      docs: ${{ steps.compute.outputs.docs }}
+      apps: ${{ steps.compute.outputs.apps }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -79,13 +84,15 @@ jobs:
         run: |
           set -euo pipefail
 
-          # No usable diff base — deploy, rather than silently skip. `before`
-          # is all-zeros on a branch creation, and unreachable after a
+          TABLE=.github/vercel-apps.json
+
+          # No usable diff base — deploy every app, rather than silently skip.
+          # `before` is all-zeros on a branch creation, and unreachable after a
           # force-push that rewrote history past our fetch.
           if [ -z "$BEFORE_SHA" ] || [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ] \
              || ! git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
-            echo "::notice::No usable diff base (BEFORE_SHA=$BEFORE_SHA) — deploying the docs to be safe."
-            echo "docs=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::No usable diff base (BEFORE_SHA=$BEFORE_SHA) — deploying every docs app to be safe."
+            echo "apps=$(jq -c '.apps | keys_unsorted' "$TABLE")" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -95,21 +102,26 @@ jobs:
           echo "Affected workspaces:"
           echo "$AFFECTED" | sed 's/^/  /'
 
-          docs=false
-          while IFS= read -r ws; do
-            # The workspace is literally named `docs` (apps/docs/package.json).
-            case "$ws" in docs) docs=true ;; esac
-          done <<< "$AFFECTED"
+          # Exact string equality against each row's `workspace` — never a
+          # substring match, under which one workspace name would match every
+          # workspace whose name merely starts with it.
+          APPS=$(jq -c --argjson ws "$(printf '%s\n' "$AFFECTED" | jq -R . | jq -sc .)" \
+            '[.apps | to_entries[] | select(.value.workspace as $w | $ws | index([$w])) | .key]' "$TABLE")
 
-          echo "docs=$docs" >> "$GITHUB_OUTPUT"
-          echo "Dispatch decision: docs=$docs"
+          echo "apps=$APPS" >> "$GITHUB_OUTPUT"
+          echo "Dispatch decision: $APPS"
 
-  deploy-docs:
-    name: Dispatch deploy-docs.yml (production)
+  deploy:
+    name: Dispatch deploy-docs.yml · ${{ matrix.app }} (production)
     needs: affected
-    if: needs.affected.outputs.docs == 'true'
+    if: needs.affected.outputs.apps != '[]'
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    strategy:
+      # One app's failed dispatch must not cancel another's.
+      fail-fast: false
+      matrix:
+        app: ${{ fromJSON(needs.affected.outputs.apps) }}
     permissions:
       actions: write # dispatch deploy-docs.yml via `gh workflow run`
     steps:
@@ -118,8 +130,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh workflow run deploy-docs.yml \
-            --repo ofri-peretz/burgee \
+            --repo "${{ github.repository }}" \
             --ref main \
+            -f app=${{ matrix.app }} \
             -f environment=production \
             -f ref=${{ github.sha }} \
             -f approval=RELEASE_APPROVAL

@@ -116,7 +116,7 @@ export const DROP_INS: readonly DropIn[] = [
   { host: 'signal-exit', from: 'signal-exit/signals', to: 'closeout/signal-exit/signals' },
 ];
 
-/** Level: the drop-in passes every case the incumbent passes against its own suite (D-134). */
+/** Level: the drop-in passes every case the incumbent passes against its own suite (D-137). */
 export const isLevel = (host: string): boolean => {
   const row = GRADED[host];
   return row !== undefined && row.passed >= row.control;

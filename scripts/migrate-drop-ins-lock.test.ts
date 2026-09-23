@@ -5,7 +5,7 @@
  */
 
 /**
- * Lock — the drop-ins `burgee migrate` rewrites are the ones `compat-oracle` grades (A11, D-134).
+ * Lock — the drop-ins `burgee migrate` rewrites are the ones `compat-oracle` grades (A12, D-137).
  *
  * `packages/burgee/src/compat.ts` carries `DROP_INS` as a copy, because the oracle is
  * `private: true` and a user who installs burgee has no `hosts.ts` to read. A copy nothing
