@@ -335,7 +335,14 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // 59,600 on 2026-09-23 for **171 bytes**, D-134: the manifest projection publishes each
   // option under the flag commander accepts (a lone `--no-x` as `noX`, a pair folded, which
   // booleans negate), so `--mcp` and completions stop offering flags commander refuses.
-  'burgee/commander': 59_600,
+  //
+  // 60,500 on 2026-09-23 for **897 bytes**, D-140 (59,586 -> 60,483): a commander program run
+  // the commander way — `parseAsync(process.argv)`, nothing injected — let an action that threw
+  // under `--json` escape as a stack trace instead of the envelope and an E1 exit code, and
+  // filed an `AuthError` as exit 1 where E6 says 5. The bytes are the unseamed `--json` catch,
+  // `AuthError`/`UsageError` (which the façade never reached before) and the one
+  // classification both façades share. None of it is on a path a passing command takes.
+  'burgee/commander': 60_500,
   'burgee/yargs': 107_700,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
@@ -450,8 +457,9 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // cases in commander's own suite that mock it, which is what the 1360 / 1360 row rests on.
   // D-102 records that, and that ≤ 1 is not reachable while the façade also carries a
   // manifest, a schema and an MCP server. 1.53 on 2026-09-23 for the same 171 bytes as the
-  // bundled ceiling above (D-134): measured 1.524.
-  'burgee/commander': 1.53,
+  // bundled ceiling above (D-134): measured 1.524. 1.55 on 2026-09-23 for the 897 bytes of
+  // D-140 beside it: measured 1.548.
+  'burgee/commander': 1.55,
   'burgee/yargs': 1,
   'roundel/chalk': 1,
   'flagstaff/ora': 1,

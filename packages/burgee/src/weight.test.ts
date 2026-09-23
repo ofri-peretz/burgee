@@ -626,9 +626,17 @@ const RULES: Record<string, EntryRule> = {
   // package exists for. `plugin-lifecycle.test.ts` holds it.
   //
   // 215,200 on 2026-09-22 for D1, the definition-time refusal of a deprecation that names no replacement: `checkDeprecated` in `definition.js`, which `plugin.js` imports, so every entry that reaches the manifest pays it — the façades included, though they never call it with `true`. Measured 215,183.
+  //
+  // 217,000 on 2026-09-23 for D-140, **+1,728 bytes** (215,183 -> 216,911): a handler that
+  // failed under `--json` on a yargs program escaped `parseAsync()` as an uncaught exception when
+  // it threw synchronously or threw a non-Error, a thrown string was filed as `usage` (exit 2),
+  // an async rejection wrote its envelope twice under `--mcp`, and an `AuthError` left with 1
+  // where E6 promises 5. The bytes are `facade-failure.js` (the one classification both façades
+  // share), the `--json` catch on the unseamed path, the one-envelope latch, and 65 B of
+  // `host.exitCode`'s setter in `runtime.js`. `json-failure.test.ts` holds each case.
   "./yargs": {
     allow: [],
-    budget: 215_200,
+    budget: 217_000,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   "./yargs/helpers": {
@@ -647,9 +655,13 @@ const RULES: Record<string, EntryRule> = {
   // the captured one was a stale read waiting for a test to expose it. The parser entry pays
   // for a seam it uses two members of, which is the honest cost of one file per package
   // rather than one per caller. Ceiling is the next hundred above the measurement, as above.
+  //
+  // 42,000 on 2026-09-23 for 65 bytes of the same seam: `host.exitCode` gained a setter (D-140),
+  // so a façade can leave a failed `--json` run with its E1 code without calling `exit()` over
+  // an undrained stdout. Measured 41,946; this entry never sets it, and pays for the file.
   "./yargs/parser": {
     allow: [],
-    budget: 41_900,
+    budget: 42_000,
     denied: [
       "testing.js",
       "testing-helpers.js",
