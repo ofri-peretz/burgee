@@ -4,6 +4,7 @@
  *
  *   - every `exports` target exists on disk;
  *   - the pack list contains no source maps, no tests, no agent docs;
+ *   - every `bin` target is in the pack list and starts with `#!/usr/bin/env node`;
  *   - neither the gzipped tarball NOR the unpacked tree is more than 10% larger than
  *     the recorded baseline (a shrink in either is reported so the baseline can be
  *     lowered in the same PR).
@@ -23,6 +24,7 @@ const PERCENT = 100;
 export interface Pkg {
   name: string;
   private?: boolean;
+  bin?: string | Record<string, string>;
   exports?: Record<string, string | Record<string, string>>;
 }
 export interface PackEntry {
@@ -61,6 +63,50 @@ function forbiddenInPack(pkg: Pkg, pack: PackEntry): string[] {
   return pack.files
     .filter(({ path }) => FORBIDDEN.some((re) => re.test(path)))
     .map(({ path }) => `${pkg.name}: would publish ${path}`);
+}
+
+/** The interpreter line every executable npm links onto a PATH has to start with. */
+export const SHEBANG = "#!/usr/bin/env node";
+
+/**
+ * Every `bin` target ships, and starts with the shebang.
+ *
+ * npm links a bin by symlinking the file and marking it executable; it does not wrap it. A
+ * bin without `#!/usr/bin/env node` is therefore handed to `/bin/sh` on macOS and Linux, which
+ * reads `import { mkdirSync … }` as a shell command — burgee@0.10.0 shipped exactly that, so
+ * `npx burgee` and the installed `burgee` printed `import: command not found` while eight
+ * sibling bins worked. Nothing looked: `tsc` copies a shebang through when the source has one
+ * and adds none when it does not, and every test ran the bin as `node dist/cli.js`, which
+ * never reads line one.
+ *
+ * `read` is the file's text, injected so the lock test drives this without a build.
+ */
+export function binProblems(
+  pkg: Pkg,
+  pack: PackEntry,
+  read: (file: string) => string | undefined,
+): string[] {
+  const bins =
+    typeof pkg.bin === "string"
+      ? { [pkg.name]: pkg.bin }
+      : (pkg.bin ?? {});
+  const packed = new Set(pack.files.map(({ path }) => path));
+  const problems: string[] = [];
+  for (const [command, target] of Object.entries(bins)) {
+    const file = target.replace(/^\.\//, "");
+    if (!packed.has(file)) {
+      problems.push(
+        `${pkg.name}: bin ${command} -> ${target} is not in the pack list`,
+      );
+      continue;
+    }
+    const first = (read(file) ?? "").split("\n", 1)[0] ?? "";
+    if (first.trimEnd() !== SHEBANG)
+      problems.push(
+        `${pkg.name}: bin ${command} -> ${target} does not start with "${SHEBANG}" (it starts ${JSON.stringify(first.slice(0, 40))}); the installed command runs under /bin/sh`,
+      );
+  }
+  return problems;
 }
 
 /** The tarball ratchets: growth past the allowance fails, a shrink is reported so the baseline can follow. */
@@ -131,6 +177,11 @@ function check(
   return [
     ...missingExportTargets(dir, pkg),
     ...forbiddenInPack(pkg, pack),
+    ...binProblems(pkg, pack, (file) =>
+      existsSync(join(dir, file))
+        ? readFileSync(join(dir, file), "utf8")
+        : undefined,
+    ),
     ...sizeVerdict(pkg, pack, baseline, update),
   ];
 }
