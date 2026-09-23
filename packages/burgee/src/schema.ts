@@ -1,3 +1,4 @@
+import { ExitCode } from './exit-code.js';
 /**
  * `--schema` — the program as data (F1). It is the one command an agent runs first, so it
  * must succeed with no authentication, no config file and no network (N8): it reads the
@@ -104,6 +105,11 @@ export interface ProgramSchema {
   name: string;
   version?: string;
   description?: string;
+  /**
+   * F1 — what each exit code means, so an agent branches on the number without reading prose:
+   * the contract's seven, the same table `ExitCode` exports.
+   */
+  exitCodes: Readonly<Record<string, number>>;
   commands: CommandSchema[];
 }
 
@@ -221,7 +227,7 @@ export function summaryOf(manifest: Manifest, budget: number): SchemaSummary {
 export function schemaOf(manifest: Manifest): ProgramSchema {
   const root = manifest.rootPath;
   const program = manifest.find(root);
-  const out: ProgramSchema = { schemaVersion: 1, name: root.join(' '), commands: runnable(manifest).map((c) => commandSchemaOf(c, root)) };
+  const out: ProgramSchema = { schemaVersion: 1, name: root.join(' '), exitCodes: ExitCode, commands: runnable(manifest).map((c) => commandSchemaOf(c, root)) };
   if (manifest.version !== undefined) out.version = manifest.version;
   const description = program?.description;
   if (description !== undefined) out.description = description;

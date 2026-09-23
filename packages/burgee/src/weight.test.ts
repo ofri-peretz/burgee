@@ -348,14 +348,16 @@ const RULES: Record<string, EntryRule> = {
   // runner out. Measured 19,950. 20,300 on 2026-09-22 for D1; measured 20,265.
   "./mcp": {
     allow: [],
-    budget: 20_300,
+    // 20,600 on 2026-09-23 for F1: `--schema` carries the exit-code table, so `schema.js` reaches `exit-code.js`. Measured 20,594.
+    budget: 20_600,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
   },
   // The schema surface and the `Manifest` class it reads. Measured 14,891.
   // 15,250 on 2026-09-22 for D1; measured 15,206.
   "./schema": {
     allow: [],
-    budget: 15_250,
+    // 15,550 on 2026-09-23 for F1, the exit-code table in `--schema`. Measured 15,535.
+    budget: 15_550,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
   },
   // Configuration precedence, provenance and `--explain`, which are `seniority`'s and are
@@ -625,7 +627,8 @@ const RULES: Record<string, EntryRule> = {
   // 215,200 on 2026-09-22 for D1, the definition-time refusal of a deprecation that names no replacement: `checkDeprecated` in `definition.js`, which `plugin.js` imports, so every entry that reaches the manifest pays it — the façades included, though they never call it with `true`. Measured 215,183.
   "./yargs": {
     allow: [],
-    budget: 215_200,
+    // 215,300 on 2026-09-23 for F1, through the schema. Measured 215,247.
+    budget: 215_300,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   "./yargs/helpers": {
@@ -757,7 +760,9 @@ describe("the denied list", () => {
  * graph and no budget — the file *is* the payload — so a byte rule would measure nothing.
  * Listed rather than pattern-matched so that adding one is still a decision somebody made.
  */
-const DATA_EXPORTS = ["./schema.json"];
+// Data, not code: a file a reader validates against, which no import reaches and no budget can weigh.
+// `program-schema.json` is the shape of `--schema` (F1, D-123).
+const DATA_EXPORTS = ["./schema.json", "./program-schema.json"];
 
 describe("the lock grows with the package", () => {
   it("every published entry point declares a weight rule", () => {
