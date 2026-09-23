@@ -54,6 +54,7 @@ import { homedir } from 'node:os';
 import { dirname, join, resolve as resolvePath } from 'node:path';
 
 import { LoaderError } from './load.js';
+import { ambientEnv } from './runtime.js';
 
 /** A parsed config document. rc places no shape on it, and neither does this. */
 export type RcConfig = Record<string, unknown>;
@@ -68,7 +69,7 @@ export type RcParse = (content: string) => RcConfig;
  * makes for `processEnv`.
  */
 export interface RcOptions {
-  /** The environment to read `<NAME>_*` from. Pass `process.env` at the one place a program owns its process. */
+  /** The environment to read `<NAME>_*` from; the process's own when omitted, as rc does (D-135). */
   env?: Record<string, string | undefined>;
   /** Where the upward walk for `.<name>rc` starts. */
   cwd?: string;
@@ -234,7 +235,8 @@ function fromEnv(prefix: string, env: Record<string, string | undefined>): RcCon
  */
 export function rc(name: string, defaults?: RcConfig | string, argv?: RcConfig, parseWith: RcParse = parse, options: RcOptions = {}): RcConfig {
   if (typeof name !== 'string') throw new TypeError('rc(name): name *must* be string');
-  const env = options.env ?? {};
+  // D-135: rc reads the ambient environment by default, so the drop-in does too — through the one seam.
+  const env = options.env ?? ambientEnv() ?? {};
   const cwd = options.cwd ?? resolvePath('');
   const home = options.home ?? homedir();
   const args = argv ?? {};
