@@ -69,6 +69,12 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
+      # Build first, then test. Every docs app's `test` depends on its own `build`, so a bare
+      # `turbo run test` runs ten Next builds alongside the package suites, and the
+      # timing-bound tests among them lose the CPU: burgee's PowerShell completion case, about
+      # six seconds cold on a runner, timed out at 45 s. Built first, the test step hits
+      # turbo's cache for every build and runs the suites on a quiet machine.
+      - run: npx turbo run build
       - run: npx turbo run test
 
   build:

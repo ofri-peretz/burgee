@@ -37,19 +37,20 @@ function children(manifest: Manifest, at: string[]): Node[] {
 /**
  * A spec the *parser* will negate, marked where that is still knowable.
  *
- * `toParseConfig` registers `no-<name>` for the options a command declares, and not for the
+ * `toParseConfig` registers `no-<name>` for the booleans a command declares, and not for the
  * reserved ones — `--no-json` and `--no-help` are not accepted. By the time `flags()` sees
  * an option, `nodeOf` has merged the declared with `GLOBAL` and `ROOT_ONLY` and the two are
  * indistinguishable, so completing every boolean would offer flags the parser refuses.
- * The mark is set on the declared side of that merge and nowhere else.
+ * So `negatable` is resolved to an explicit `true` on the declared side of that merge, and
+ * only there — and only where the spec does not say `false`, which the commander façade does
+ * for every boolean commander would not negate.
  */
-type Negatable = OptionSpec & { negatable?: boolean };
 
 function nodeOf(manifest: Manifest, c: CommandNode): Node {
-  const visible: Record<string, Negatable> = Object.fromEntries(
+  const visible: Record<string, OptionSpec> = Object.fromEntries(
     Object.entries(c.options)
       .filter(([, spec]) => spec.hidden !== true)
-      .map(([name, spec]) => [name, spec.type === 'boolean' ? { ...spec, negatable: true } : spec]),
+      .map(([name, spec]) => [name, { ...spec, negatable: spec.type === 'boolean' && spec.negatable !== false }]),
   );
   const isRoot = c.path.length === manifest.rootPath.length;
   return {
@@ -84,7 +85,7 @@ const sq = (s: string): string => `'${s.replaceAll("'", "'\\''")}'`;
 const flags = (name: string, spec: OptionSpec): string[] => {
   const long = `--${kebab(name)}`;
   const spellings = spec.short === undefined ? [long] : [`-${spec.short}`, long];
-  return (spec as Negatable).negatable === true ? [...spellings, `--no-${kebab(name)}`] : spellings;
+  return spec.negatable === true ? [...spellings, `--no-${kebab(name)}`] : spellings;
 };
 const takesValue = (spec: OptionSpec): boolean => spec.type !== 'boolean';
 const fname = (program: string, path: string[]): string => `_${[program, ...path].join('_').replaceAll(/[^A-Za-z0-9_]/g, '_')}`;
@@ -204,7 +205,7 @@ function fish(program: string, root: Node): string {
       lines.push(fishOption(program, cond, kebab(name), spec));
       // The negation carries no short form — `-s q` belongs to the positive spelling only.
       // Omitted rather than set to `undefined`, which `exactOptionalPropertyTypes` refuses.
-      if ((spec as Negatable).negatable === true) {
+      if (spec.negatable === true) {
         const { short: _short, ...unshort } = spec;
         lines.push(fishOption(program, cond, `no-${kebab(name)}`, unshort));
       }

@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  Docs: <a href="https://burgee.interlace.tools/docs/packages/paratext">https://burgee.interlace.tools/docs/packages/paratext</a>
+  Docs: <a href="https://paratext.interlace.tools">https://paratext.interlace.tools</a>
 </p>
 
 *Paratext* is the literary term for everything around a text that is not the text — the
@@ -111,9 +111,9 @@ Graded by the incumbent's own test suite:
 | :-- | --: |
 | `ansi-escapes` | 1 / 4 |
 | `term-img` | 12 / 18 |
-| `terminal-link` | 0 / 10 |
+| `terminal-link` | 8 / 10 |
 
-Weight, installed and tree-inclusive: **93,167 bytes** against **30,912** for the incumbents it replaces — a ratio of **3.0139** (terminal-link, term-img not installed here, so the ceiling is understated).
+Weight, installed and tree-inclusive: **94,006 bytes** against **30,912** for the incumbents it replaces — a ratio of **3.0411** (terminal-link, term-img measured but left out of the ceiling, so it is understated).
 ## Where it sits
 
 Plugins register under the `capabilities` key, against the one schema the whole family shares.

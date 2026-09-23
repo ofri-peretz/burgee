@@ -23,6 +23,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { Command } from './commander.js';
 import { renderCompletion, SHELLS } from './completions.js';
 import { defineCommand, defineProgram, ExitCode } from './index.js';
 import { runBurgee } from './testing.js';
@@ -67,5 +68,48 @@ describe.each(SHELLS)('%s completions', (shell) => {
     for (const { flag, r } of results) {
       expect(r.code, `${shell} offers ${flag}, which the parser answers with ${String(r.code)}: ${r.stderr ?? ''}`).not.toBe(ExitCode.USAGE);
     }
+  });
+});
+
+/**
+ * The same promise through `burgee/commander`, whose parser is commander's and negates nothing
+ * it was not told to. The engine registers `--no-<name>` for every boolean; commander accepts
+ * `--no-x` only where the program declared it, and `--no-color` alone has no `--color`. The
+ * completions offered the engine's set for both, so `lines count --no-skip-blank`, `--color`
+ * and `--no-version` were each a TAB away and each `error: unknown option`.
+ */
+describe('through burgee/commander', () => {
+  function lines(): Command {
+    const program = new Command();
+    program.name('lines').version('1.0.0').exitOverride();
+    program
+      .command('count')
+      .option('--skip-blank', 'ignore blank lines')
+      .option('--max-lines <n>', 'stop after n')
+      .option('--no-color', 'plain output')
+      .option('--trim', 'trim each line')
+      .option('--no-trim', 'keep whitespace')
+      .action(() => undefined);
+    return program;
+  }
+
+  describe.each(SHELLS)('%s completions', (shell) => {
+    const script = renderCompletion(lines().manifest, shell);
+    const flags = offered(script).filter((f) => !RESERVED.has(f));
+
+    it.each(['--skip-blank', '--max-lines', '--no-color', '--trim', '--no-trim'])('offers %s', (flag) => {
+      expect(flags).toContain(flag);
+    });
+
+    it('offers no flag commander refuses', async () => {
+      const runs = flags.map(async (flag) => {
+        const err: string[] = [];
+        let code = 0;
+        const argv = flag === '--max-lines' ? ['count', flag, '3'] : ['count', flag];
+        await lines().parseAsync(argv, { from: 'user', stdout: { write: () => true }, stderr: { write: (s) => void err.push(s) }, exit: (c) => void (code = c) });
+        return { flag, err: err.join(''), code };
+      });
+      for (const r of await Promise.all(runs)) expect(r, `${shell} offers ${r.flag}`).toEqual({ flag: r.flag, err: '', code: 0 });
+    });
   });
 });
