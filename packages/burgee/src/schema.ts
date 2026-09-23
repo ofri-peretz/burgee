@@ -160,6 +160,9 @@ export function typedName(node: CommandNode, root: string[]): string {
   return node.path.slice(root.length).join(' ');
 }
 
+/** Keys a command's schema publishes exactly as the node holds them, in the order they appear. */
+const PASSED_THROUGH = ['description', 'summary', 'effects', 'fields', 'deprecated', 'group'] as const;
+
 export function commandSchemaOf(node: CommandNode, root: string[]): CommandSchema {
   const out: CommandSchema = {
     name: typedName(node, root),
@@ -168,12 +171,9 @@ export function commandSchemaOf(node: CommandNode, root: string[]): CommandSchem
     examples: node.examples ?? [],
     inputSchema: inputSchemaOf(node),
   };
-  if (node.description !== undefined) out.description = node.description;
-  if (node.summary !== undefined) out.summary = node.summary;
-  if (node.effects !== undefined) out.effects = node.effects;
-  if (node.fields !== undefined) out.fields = node.fields;
-  if (node.deprecated !== undefined) out.deprecated = node.deprecated;
-  if (node.group !== undefined) out.group = node.group;
+  // One loop over the copied-as-is keys, in published order: six `if` lines cost the façade
+  // bundle more than N14's `fields` could be allowed to add (the B4 ratchet, 59,450 B).
+  for (const key of PASSED_THROUGH) if (node[key] !== undefined) Object.assign(out, { [key]: node[key] });
   if (node.load !== undefined) out.lazy = true;
   if (node.plugin !== undefined) out.plugin = node.plugin;
   // Both spellings, in one list, through the one function the engine enforces (S2/S6).
