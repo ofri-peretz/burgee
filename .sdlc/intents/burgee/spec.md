@@ -258,7 +258,7 @@ these requirements turn that into a served interface rather than a document.
 | :-- | :-- | :-- | :-- | :-- |
 | N1 | `--mcp` serves the CLI over MCP stdio; tool definitions are generated from the manifest, never hand-written | citty #187; yargs #1605, #1838, #2121 | R | cli-mcp |
 | N2 | A command appears as a tool only if it opts in; destructive commands default to absent | security posture, not convenience | R + L | cli-mcp |
-| N3 | Zero runtime dependencies: JSON-RPC over stdio against `node:readline` | K1 | lock | cli-mcp |
+| N3 | No dependency outside the burgee family: JSON-RPC over stdio against `node:readline` | K1 | lock | cli-mcp |
 | N4 | Tool results are the O1 envelope, so MCP and `--json` callers see identical payloads | O1 | R | cli-mcp |
 | N5 | `--mcp` implies non-TTY: no prompts, no colour, E3 errors | O2, P2, E3 | R | cli-mcp |
 | N6 | Every command that runs declares `effects: read_only \| idempotent \| non_idempotent \| withheld`, **required not optional**, refused at definition time when absent, and the first three generate MCP's `readOnlyHint`/`idempotentHint`/`destructiveHint`. The spec defaults `destructiveHint` and `openWorldHint` to **true**, so silence is the dangerous reading — and `withheld` is how an author says *not for agents* without that being the same value as having said nothing | MCP `2026-07-28` schema | R + L | cli-mcp |

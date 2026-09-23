@@ -24,7 +24,7 @@ mytool --mcp
 ```
 
 Serves the same manifest as [MCP](https://modelcontextprotocol.io) tools over stdio —
-JSON-RPC 2.0, three methods, zero dependencies. A tool call runs the command exactly as a
+JSON-RPC 2.0, three methods, no dependency outside the burgee family. A tool call runs the command exactly as a
 `--json` caller would; the result is that envelope, byte for byte, so an agent reading
 your CLI over MCP and one shelling out with `--json` see one payload.
 
