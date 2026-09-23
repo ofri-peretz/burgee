@@ -86,11 +86,18 @@ function published(): string[] {
 const manifest = (name: string): { exports?: Record<string, unknown>; bin?: Record<string, string> } =>
   JSON.parse(readFileSync(join(PACKAGES, name, 'package.json'), 'utf8')) as { exports?: Record<string, unknown>; bin?: Record<string, string> };
 
-/** A `check` command, which is a `cli.ts` that answers to the word. */
+/**
+ * A `check` command: a `cli.ts` that answers to the word, in its own text or in a module it
+ * imports locally — burgee's bin is `run(program)` over `program.ts`, split so that importing
+ * the commands does not run the CLI.
+ */
 function hasCheck(name: string): boolean {
-  const cli = join(PACKAGES, name, 'src', 'cli.ts');
+  const src = join(PACKAGES, name, 'src');
+  const cli = join(src, 'cli.ts');
   if (!existsSync(cli)) return false;
-  return /['"`]check['"`]/u.test(readFileSync(cli, 'utf8'));
+  const text = readFileSync(cli, 'utf8');
+  const local = [...text.matchAll(/from '\.\/([\w-]+)\.js'/gu)].map(([, file]) => join(src, `${file!}.ts`)).filter((f) => existsSync(f));
+  return [text, ...local.map((f) => readFileSync(f, 'utf8'))].some((t) => /['"`]check['"`]/u.test(t));
 }
 
 function hasEval(name: string): boolean {

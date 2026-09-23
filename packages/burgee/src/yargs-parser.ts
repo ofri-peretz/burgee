@@ -29,6 +29,17 @@ export interface DetailedArguments {
   configuration: Record<string, any>;
 }
 
+// yargs-parser's own type names, so a typed program migrates by its import alone. Permissive on
+// purpose: this parser takes its options as `any`, and a narrower type here would reject a
+// program that compiles against yargs-parser today.
+export interface Arguments {
+  _: (string | number)[];
+  '--'?: (string | number)[];
+  [argName: string]: any;
+}
+export type Options = Record<string, any>;
+export type Configuration = Record<string, boolean | string | undefined>;
+
 export function camelCase(str: string): string {
   const isCamelCase = str !== str.toLowerCase() && str !== str.toUpperCase();
   if (!isCamelCase) str = str.toLowerCase();

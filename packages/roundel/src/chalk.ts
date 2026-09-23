@@ -88,6 +88,15 @@ export const backgroundColorNames = Object.keys(BACKGROUND) as BackgroundColorNa
 export const underlineColorNames = Object.keys(UNDERLINE) as UnderlineColorName[];
 export const colorNames: ColorName[] = [...foregroundColorNames, ...backgroundColorNames];
 
+// chalk's deprecated type spellings, which chalk still exports, so such an import migrates as
+// is. Its deprecated *arrays* (`colors`, `modifiers`, …) are not here: `./chalk`'s budget is
+// chalk's own source size, and they cost 142 B of it (drop-in-type-surface-lock.test.ts).
+export type Modifiers = ModifierName;
+export type ForegroundColor = ForegroundColorName;
+export type BackgroundColor = BackgroundColorName;
+export type Color = ColorName;
+export type Options = ChalkOptions;
+
 // ── Colour models: rgb, hex and ansi256, downsampled to what the level can show ─────────
 // ponytail: theme.ts has the same cube maths for hex tokens; R7 forbids this file reaching
 // it, and chalk's 256 → 16 rounding is chalk's own, so the lines are duplicated.
