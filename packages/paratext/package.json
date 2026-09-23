@@ -1,6 +1,6 @@
 {
   "name": "paratext",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Everything around your terminal output that is not the output: hyperlinks, images, window title, clipboard, notifications and the bell \u2014 each with a static fallback for terminals that cannot do it. Covers the OSC half of ansi-escapes, terminal-link and term-img; a drop-in path is not claimed until the compat oracle grades one. Zero dependencies.",
   "license": "MIT",
   "type": "module",
