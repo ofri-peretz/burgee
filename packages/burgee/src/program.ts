@@ -191,7 +191,7 @@ export const devCommand = defineCommand({
  */
 export const migrateCommand = defineCommand({
   name: 'migrate',
-  description: 'Rewrite commander and yargs imports to burgee’s drop-in front-ends, and report what changed',
+  description: 'Rewrite imports of commander, yargs, chalk, ora and every other graded incumbent to the family’s drop-ins, and report what to install',
   arguments: [{ name: 'dir', description: 'the project to migrate. Defaults to the current directory', required: false }],
   /**
    * Declared camelCase, typed kebab. `toParseConfig` kebabs a spec's name for the parser and

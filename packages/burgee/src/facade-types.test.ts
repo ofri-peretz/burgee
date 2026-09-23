@@ -104,7 +104,13 @@ function exportsOf(specifiers: string[]): Record<string, string[]> {
       if (decl === undefined || !ts.isExportDeclaration(decl) || decl.moduleSpecifier === undefined) throw new Error(`no probe for ${s}`);
       const mod = checker.getSymbolAtLocation(decl.moduleSpecifier);
       if (mod === undefined) throw new Error(`${s} does not resolve`);
-      return [s, checker.getExportsOfModule(mod).map((e) => e.name).sort()];
+      // With properties: `closeout/signal-exit` is CommonJS, `export = { onExit, … }`, and
+      // TypeScript accepts `import { onExit }` from it — the module's own exports alone report
+      // none of those names, and would have the table refuse an import that compiles.
+      const names = checker.getExportsOfModule(mod).map((e) => e.name);
+      const exportEquals = mod.exports?.get(ts.InternalSymbolName.ExportEquals);
+      if (exportEquals !== undefined) names.push(...checker.getPropertiesOfType(checker.getTypeOfSymbol(exportEquals)).map((p) => p.name));
+      return [s, [...new Set(names)].sort()];
     }),
   );
 }
@@ -417,7 +423,9 @@ describe('the control — the fixtures are the incumbents’ idiom, not ours', (
 });
 
 describe('coverage — every name the incumbent exports, the façade exports', () => {
-  const surfaces = exportsOf(['yargs', 'yargs/helpers', 'commander', 'burgee/yargs', 'burgee/yargs/helpers', 'burgee/commander']);
+  // Every target `migrate` can produce (A12), so the table below is held to the checker for
+  // the whole family and not only the two front-ends it started with.
+  const surfaces = exportsOf([...new Set(['yargs', 'yargs/helpers', 'commander', ...Object.keys(FACADE_EXPORTS)])]);
 
   it.each([
     // `yargs` resolves to @types/yargs' ESM entry, `index.d.mts` — the file an ESM program reads.

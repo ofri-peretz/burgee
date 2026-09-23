@@ -43,6 +43,10 @@ Three kinds, because they close three different ways:
 | A24 | `burgee/program-schema.json` | burgee F1, schema-is-validated, D-123 | published; `--schema` output validated against it in a test, no runtime validator |
 | ~~A25~~ | ~~`.effects()` on commander façade commands~~ — **already built**, found 2026-09-23: both façades have `.effects()`, `facade-surface.test.ts` covers declared, undeclared and withheld; the spec row was stale | agent-surface-declared R6, D-127 | done |
 | ~~A26~~ | ~~`signal-exit`'s API at closeout's root, so the `overrides` recipe resolves~~ — **closed by restatement** (D-133): R6 restated to the three subpaths; the README's two-incumbent `overrides` recipe never linked and is withdrawn; `scripts/override-recipe-lock.test.ts` | closeout R6 | done |
+| A27 | terminal-link sits at 8 / 10 because two cases (`main`, `stderr`) set `supportsHyperlinks.stdout` on another package's module object, which a zero-dependency drop-in cannot see | compat-oracle `excludes`, burgee-migrate A12 | an exclusion that matches a case **exactly** — `stderr` is a substring of three other titles, and `parseFlatTap` matches by substring — then both named with that reason, and terminal-link joins `burgee migrate` at level |
+| A28 | ansi-escapes is capped at 1 / 4: three of its four cases are CSI (`cursorTo`, clear, synchronized output) and paratext states CSI out of scope, so this incumbent can never be migrated | paratext scope, burgee-migrate A12 | either paratext takes ansi-escapes' CSI surface at the root (the drop-in becomes real) or the row says, beside the grade, that it never will — a scope decision, see B-rows |
+| A29 | `require-of-default` refuses a `require()` of an ESM-only incumbent (chalk 6, ora 9, …) whose own `require()` already returns a namespace — safe, but it declines rewrites that would have been exact | burgee-migrate A12 | refuse only where the incumbent's `require()` returns its default (cross-spawn, cli-table3, yargs, dotenv, rc) and the target lacks `'module.exports'`; derived, not typed |
+| A30 | `dev.test.ts` "reloads thirty commands within the budget" measured 1,035 ms against 500 on a Windows CI runner (2026-09-23) and 4,098 ms in a loaded local pre-push battery | burgee W6 | the budget graded against a same-machine yardstick, as `migrate-bench.test.ts` does, rather than absolute milliseconds |
 
 ## B — decide, then build
 
@@ -73,6 +77,7 @@ built moved to A15–A25.
 | ~~B18~~ | ~~`lighter-than-commander` 1.52, `lighter-than-cac` 2.65, cold start 1.44 × cac~~ | claims, u5-weight-claim | **decided — D-128** |
 | ~~B20~~ | ~~Accept the requirement restatements already written in the specs — compat-oracle R1, R3, C4 and the rest of its "Requirements restated" table; burgee U1, U10, Z3/K1; flagstaff R10's dependency sentence~~ | each spec's restatement table | **decided — D-130** |
 | ~~B19~~ | ~~design acceptance for linegauge, closeout, bellpull, seniority (draft) and caique, paratext (review)~~ | each intent | **decided — D-129** |
+| B21 | Does paratext take ansi-escapes' CSI surface (`cursorTo`, `eraseLines`, `clearScreen`, …) so `ansi-escapes` can be migrated, or does the row stay at its 1 / 4 ceiling for good? (A28) | paratext scope, burgee-migrate A12 | **Take it, at the root, as data**: CSI sequences are string constants and a handful of formatters, the same shape paratext's OSC surface already has; the family already emits them privately in flagstaff and closeout, and one public home is fewer copies, not more. Measure the bytes against ansi-escapes' own before accepting |
 
 ## C — outside the repo
 
