@@ -1,4 +1,5 @@
 import { BURGEE_FLAG_DATA_URI } from '#/components/burgee-flag';
+import { PITCH } from '#/lib/llms';
 import { ImageResponse } from 'next/og';
 
 export const alt = 'burgee — everything a CLI needs that is not your CLI';
@@ -28,10 +29,7 @@ export default function Image() {
       <img src={BURGEE_FLAG_DATA_URI} width={FLAG_SIZE} height={FLAG_SIZE} alt="" />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
         <div style={{ fontSize: 96, fontWeight: 700, letterSpacing: '-0.03em' }}>burgee</div>
-        <div style={{ fontSize: 34, color: '#a1a1aa', maxWidth: 640, lineHeight: 1.3 }}>
-          Everything a CLI needs that isn&apos;t your CLI. Written once, served to humans and
-          agents alike.
-        </div>
+        <div style={{ fontSize: 34, color: '#a1a1aa', maxWidth: 640, lineHeight: 1.3 }}>{PITCH}</div>
       </div>
     </div>,
     size,

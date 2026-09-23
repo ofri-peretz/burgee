@@ -8,6 +8,10 @@ belongs to — a flag of identity, not of instruction. That is what this framewo
 a command-line program: a command declares itself once, and every surface is that
 declaration read by a different reader.
 
+It replaces **commander** and **yargs**: `burgee/commander` and `burgee/yargs` are drop-in,
+graded by each one's own test suite. Change one import and the same program answers agents
+too — `--json` for results, `--schema` for the command tree, `--mcp` for an MCP server.
+
 ## Start here
 
 ```bash

@@ -15,11 +15,14 @@ export const SITE = 'https://burgee.interlace.tools';
 export const REPO = 'https://github.com/ofri-peretz/burgee';
 
 /**
- * The one-sentence pitch, in the words the root README uses: burgee *replaces* commander
- * and yargs. The docs home once said it *delegates* to them — a different product — and a
- * model asked "what is burgee?" quotes whichever sentence it met first.
+ * What burgee is, in one sentence, in the words the root README uses: burgee *replaces*
+ * commander and yargs. The docs home once said it *delegates* to them — a different product —
+ * and a model asked "what is burgee?" quotes whichever sentence it met first.
+ *
+ * This is the definition, not the pitch. The pitch — the tagline — is `PITCH` in
+ * `#/lib/llms`, and `scripts/pitch-lock.test.ts` holds every copy of it to that one string.
  */
-export const PITCH =
+export const SUMMARY =
   'A CLI framework that replaces commander and yargs, is drop-in compatible with both, and projects help, --json, --schema, an MCP server and shell completions from one declaration.';
 
 /**
