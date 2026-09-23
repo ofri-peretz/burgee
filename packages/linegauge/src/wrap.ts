@@ -340,4 +340,5 @@ export function wrap(string: string, columns: number, options: WrapOptions = {})
  * lock on 2026-09-14, which is the lock doing exactly its job on the wrong input.
  */
 // eslint-disable-next-line import-next/no-default-export -- the incumbent's own suite imports a default; see above. This is the drop-in surface, not a style choice.
-export { wrap as default };
+// wrap-ansi's name for `WrapOptions`, so `import { type Options } from 'wrap-ansi'` migrates as is.
+export { wrap as default, type WrapOptions as Options };
