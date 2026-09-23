@@ -1,6 +1,6 @@
 {
   "name": "flagstaff",
-  "version": "0.3.5",
+  "version": "0.3.7",
   "description": "The staff the flag flies from. A terminal frame loop with a static projection for agents and screen readers, and a plugin host for spinners, progress, boxes and tables. Drop-in paths for ora, log-update, boxen and cli-table3. No dependency outside the burgee family.",
   "license": "MIT",
   "type": "module",
@@ -97,7 +97,7 @@
     "url": "git+https://github.com/ofri-peretz/burgee.git",
     "directory": "packages/flagstaff"
   },
-  "homepage": "https://burgee.interlace.tools/docs/packages/flagstaff",
+  "homepage": "https://flagstaff.interlace.tools",
   "bugs": {
     "url": "https://github.com/ofri-peretz/burgee/issues"
   },
@@ -121,10 +121,10 @@
     "json"
   ],
   "dependencies": {
-    "closeout": "^0.3.1",
-    "linegauge": "^0.4.1",
-    "paratext": "^0.5.1",
-    "roundel": "^0.4.1"
+    "closeout": "^0.4.1",
+    "linegauge": "^0.4.4",
+    "paratext": "^0.5.4",
+    "roundel": "^0.4.3"
   },
   "devDependencies": {
     "fast-check": "^4.10.1",

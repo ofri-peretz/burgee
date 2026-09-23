@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  Docs: <a href="https://burgee.interlace.tools/docs/packages/caique">https://burgee.interlace.tools/docs/packages/caique</a>
+  Docs: <a href="https://caique.interlace.tools">https://caique.interlace.tools</a>
 </p>
 
 **Released, pre-1.0.** `decide()`, `ask()` and the `caique/inquirer` and `caique/clack`
@@ -268,7 +268,7 @@ Graded by the incumbent's own test suite:
 | `clack` | 14 / 17 |
 | `inquirer-core` | 41 / 41 |
 
-Weight, installed and tree-inclusive: **122,416 bytes** against **182,219** for the incumbents it replaces — a ratio of **0.6718** (@inquirer/core not installed here, so the ceiling is understated).
+Weight, installed and tree-inclusive: **122,353 bytes** against **182,219** for the incumbents it replaces — a ratio of **0.6715** (@inquirer/core not installed here, so the ceiling is understated).
 ## Where it sits
 
 Plugins register under the `widgets` key, against the one schema the whole family shares.

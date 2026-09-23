@@ -1,5 +1,17 @@
 # linegauge
 
+## 0.4.4
+
+### Patch Changes
+
+- [#494](https://github.com/ofri-peretz/burgee/pull/494) [`f7f6d4b`](https://github.com/ofri-peretz/burgee/commit/f7f6d4b8e8f9d9c7010bd4c81fda4b4d106fc9f0) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Each package's `homepage` and README docs link now point at its own documentation site, `https://<package>.interlace.tools`, instead of a page on burgee's site. The old `burgee.interlace.tools/docs/packages/<package>` URLs answer with a 301 to the new host, so nothing already linked breaks. closeout's README override example also resolves to the current release again (`npm:closeout@^0.4`; the 0.4.0 release left it at `^0.3`).
+
+## 0.4.3
+
+### Patch Changes
+
+- [#480](https://github.com/ofri-peretz/burgee/pull/480) [`2dc573f`](https://github.com/ofri-peretz/burgee/commit/2dc573f884e7a4cc46829cd8f2c949a17f07710c) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - README corrections: paratext shows terminal-link at its measured 8 / 10 (was the stale 0 / 10 floor); linegauge's and closeout's `npm:` override examples resolve to the current release instead of 0.2 / 0.1.
+
 ## 0.4.2
 
 ### Patch Changes
