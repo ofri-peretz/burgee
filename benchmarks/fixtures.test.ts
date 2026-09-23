@@ -48,9 +48,15 @@ describe('weight fixtures', () => {
     expect(fixtureSource({ specifier: 'ora', symbol: DEFAULT_EXPORT })).toBe('import x from "ora";\nexport default x;\n');
   });
 
-  it('pair each entry point with exactly one incumbent, and no incumbent twice', () => {
-    const incumbents = PAIRS.map((p) => p.incumbent.specifier);
-    expect(new Set(incumbents).size).toBe(incumbents.length);
+  // This read "no incumbent twice" until 2026-09-23. What it protected was one record per
+  // incumbent; flagstaff R10 then needed its native `spinner`, `box` and `table` against the
+  // same ora, boxen and cli-table3 its façades answer to. The axis now measures an incumbent
+  // once and dedupes its rows (`uniqueRecords`), so the invariant is kept where it lives.
+  it('pair each entry point with exactly one incumbent, and name every pair and claim once', () => {
+    const ids = PAIRS.map((p) => p.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    const claims = PAIRS.map((p) => p.claim ?? `lighter-than-${p.incumbent.specifier}`);
+    expect(new Set(claims).size, 'two pairs against one incumbent need an explicit `claim` id').toBe(claims.length);
     for (const pair of PAIRS) expect(pair.why).not.toBe('');
   });
 });

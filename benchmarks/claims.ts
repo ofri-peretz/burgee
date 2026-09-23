@@ -77,7 +77,7 @@ export const CLAIMS: readonly ClaimSpec[] = [
     test: { max: CORE_BUNDLE_TARGET },
   },
   ...PAIRS.map((pair) => ({
-    id: `lighter-than-${pair.incumbent.specifier}`,
+    id: pair.claim ?? `lighter-than-${pair.incumbent.specifier}`,
     claim: `\`${pair.ours.specifier}\` is lighter in a user's bundle than \`${pair.incumbent.specifier}\`, the package it replaces`,
     source: 'U5 in .sdlc/intents/README.md — "lighter per subpath than the incumbent it replaces"',
     from: { axis: 'weight' as const, variant: `${pair.id} ÷ ${pair.incumbent.specifier}`, metric: 'bundled-bytes-ratio' },
