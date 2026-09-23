@@ -752,6 +752,17 @@ function missingFrom(site: Site, to: string): { typeOnly: boolean; missing: stri
   return { typeOnly, missing: names.filter((name) => !exported.includes(name)) };
 }
 
+/** What one host site does: move, stay on the incumbent as a kept type import, or refuse the file. */
+function classify(site: Site): 'moves' | 'unmapped' | Omit<Kept, 'file'> | Omit<Refusal, 'file'> {
+  const to = MAPPING[site.specifier];
+  if (to === undefined) return 'unmapped';
+  if (site.require === true && requireGetsNamespace(to)) return { line: site.line, specifier: site.specifier, reason: 'require-of-default' };
+  const { typeOnly, missing } = missingFrom(site, to);
+  if (missing.length === 0) return 'moves';
+  if (typeOnly) return { line: site.line, specifier: site.specifier, names: missing, note: `${to} does not export ${missing.join(', ')}; this type-only import stays on '${site.specifier}', so keep its types installed` };
+  return { line: site.line, specifier: site.specifier, reason: 'unknown-export', names: missing };
+}
+
 /**
  * A2/A5 — map every host specifier in one file, or map none of them.
  *
@@ -772,16 +783,11 @@ export function rewriteSource(source: string): Rewrite {
   const unknown: Omit<Refusal, 'file'>[] = [];
   const moving: Site[] = [];
   for (const site of hits) {
-    const to = MAPPING[site.specifier];
-    if (to === undefined) continue;
-    if (site.require === true && requireGetsNamespace(to)) {
-      unknown.push({ line: site.line, specifier: site.specifier, reason: 'require-of-default' });
-      continue;
-    }
-    const { typeOnly, missing } = missingFrom(site, to);
-    if (missing.length === 0) moving.push(site);
-    else if (typeOnly) kept.push({ line: site.line, specifier: site.specifier, names: missing, note: `${to} does not export ${missing.join(', ')}; this type-only import stays on '${site.specifier}', so keep its types installed` });
-    else unknown.push({ line: site.line, specifier: site.specifier, reason: 'unknown-export', names: missing });
+    const verdict = classify(site);
+    if (verdict === 'unmapped') continue;
+    if (verdict === 'moves') moving.push(site);
+    else if ('note' in verdict) kept.push(verdict);
+    else unknown.push(verdict);
   }
 
   const refused: Omit<Refusal, 'file'>[] = [
