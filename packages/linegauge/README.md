@@ -169,7 +169,7 @@ its own suite — which this package passes. The runner reports that as a failur
 to the incumbent an unexpected pass means a stale annotation; it is counted here as the
 pass it is, and marked rather than left to look like the ones beside it.
 
-Weight, installed and tree-inclusive: **84,579 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.4352**.
+Weight, installed and tree-inclusive: **84,596 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.4353**.
 ## Where it sits
 
 Plugins register under the `widths` key, against the one schema the whole family shares.

@@ -325,7 +325,7 @@ counted, against boxen's own 132.4 KB across nineteen; `flagstaff/cli-table3` 32
 `width.js`, and the first two share `closeout`; none reaches another's port, and none
 reaches the core. `sideEffects: false` lets a
 bundler drop what a program does not use. ESM with a `default` condition, so
-`require('flagstaff/spinner')` works from CommonJS on Node ≥ 24.
+`require('flagstaff/spinner')` works from CommonJS on Node 20.19+ and 22.13+.
 
 ## What is next
 

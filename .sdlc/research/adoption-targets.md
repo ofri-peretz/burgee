@@ -37,7 +37,10 @@ asking cold.
 
 ## Two costs every target pays
 
-- **Node ≥ 24.** Every published burgee package declares `engines: >=24` (K2, C3). Nine of the
+- **Node ≥ 24 — removed by D-132 (2026-09-23).** Every published package now declares
+  `^20.19.0 || >=22.13.0`, and `compat.yml`'s `floor` job runs each suite on exactly those two
+  versions on three OSes. So the Node sentence in each draft below no longer applies; delete it
+  before sending. What follows is the finding that led to the change. Every published burgee package declared `engines: >=24` (K2, C3). Nine of the
   ten test Node 22 in CI, and three test Node 20 (`@devcontainers/cli`, `pa11y-ci`,
   `@graphql-codegen/cli`). Node 22 is in maintenance
   LTS until April 2027, so for most of them adopting burgee means dropping a supported line
