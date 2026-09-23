@@ -256,7 +256,8 @@ const RULES: Record<string, EntryRule> = {
   ".": {
     allow: ["closeout", "seniority/precedence"],
     // 43,000 on 2026-09-22 for D1, the definition-time refusal of a deprecation that names no replacement: `checkDeprecated` in `definition.js`, which `plugin.js` imports, so every entry that reaches the manifest pays it — the façades included, though they never call it with `true`. Measured 42,950.
-    budget: 43_000,
+    // 44,500 on 2026-09-23 for E7, `defineError`: the root re-exports it, so `.` carries `define-error.js`; the engine only reads `Symbol.for('burgee.exitCode')` off a thrown error's class and never imports it. Measured 44,446.
+    budget: 44_500,
     denied: [
       "testing.js",
       "testing-helpers.js",
@@ -326,7 +327,8 @@ const RULES: Record<string, EntryRule> = {
   // `AuthError` for the same reason it carries everything else. Measured 47,385.
   // 47,450 with `.`'s O2 bytes, for the same reason. Measured 47,434.
   // 47,700 with `.`'s D1 bytes. Measured 47,661.
-  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 47_700, denied: ["dev.js", "migrate.js"] },
+  // 48,000 on 2026-09-23 for E7 — the engine's symbol read, not the module. Measured 47,965.
+  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 48_000, denied: ["dev.js", "migrate.js"] },
   /**
    * The four doors the root barrel stopped holding open (see `.` above). Each is the same
    * module the engine reaches behind an `await import()`, published so a program that wants it

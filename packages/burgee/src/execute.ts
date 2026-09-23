@@ -409,6 +409,17 @@ const CLASSIFIED: readonly (readonly [new (...args: never[]) => Error, ExitCodeT
   [ConfigError, ExitCode.CONFIG],
 ];
 
+/**
+ * E7 — the code a `defineError` class declared, read off `Symbol.for('burgee.exitCode')` on
+ * the instance's class (or a parent, since statics are inherited). By symbol, not by import:
+ * the engine never loads `define-error.js`, so a program that defines no error pays nothing.
+ */
+function definedCode(cause: unknown): number | undefined {
+  const Class = (cause as { constructor?: Record<symbol, unknown> } | null | undefined)?.constructor;
+  const code = Class?.[Symbol.for('burgee.exitCode')];
+  return typeof code === 'number' ? code : undefined;
+}
+
 /** `hint` and `fix` off an error that carries them, and nothing when it does not (E3). */
 function carried(cause: unknown): { hint?: string; fix?: string } {
   const { hint, fix } = (cause ?? {}) as { hint?: unknown; fix?: unknown };
@@ -426,6 +437,9 @@ async function describeFailure(cause: unknown, argv: string[], node?: CommandNod
   if (cause instanceof ActionRequired) return { code: ExitCode.CANCELLED, message, action: cause.spec, ...(cause.spec.hint === undefined ? {} : { hint: cause.spec.hint }) };
   const named = CLASSIFIED.find(([Class]) => cause instanceof Class);
   if (named !== undefined) return { code: named[1], message, ...carried(cause) };
+  // E7 — an author's own class, from `defineError`: its declared code, rendered like the built-in ones.
+  const own = definedCode(cause);
+  if (own !== undefined) return { code: own as ExitCodeType, message, ...carried(cause) };
   if (isParseArgsFailure(cause)) {
     // Loaded only here: see unknown-option.ts for why none of this is imported.
     const explain = await import('./unknown-option.js');
