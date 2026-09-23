@@ -52,7 +52,7 @@ widest(['a', 'bbb', 'cc']); // 3
 Byte-for-byte call-compatible, so this resolves without a code change:
 
 ```json
-{ "overrides": { "string-width": "npm:linegauge@^0.4" } }
+{ "overrides": { "string-width": "npm:linegauge@^0.5" } }
 ```
 
 ## What "without the edge fraying" means
