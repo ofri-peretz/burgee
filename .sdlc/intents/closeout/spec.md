@@ -28,6 +28,11 @@ Intent: [`intent.md`](./intent.md). Umbrella:
 - **R6 (Y3)** The root default export is `signal-exit`'s default, call-compatible including
   its `{ alwaysLast }` option, so `overrides: { "signal-exit": "npm:closeout@^1" }`
   resolves. `./cursor`, `./once` carry the rest; subpath isolation locked as in `roundel`.
+  *Restated 2026-09-23 (D-133):* each drop-in is a subpath — `closeout/signal-exit` (graded
+  134 / 135, level with its control), `closeout/exit-hook`, `closeout/restore-cursor` — swapped
+  by import. The root stays closeout's own API; an `overrides` entry cannot aim at a subpath,
+  and one root default cannot serve three incumbents. `scripts/override-recipe-lock.test.ts`
+  fails any published recipe that would not link.
 - **R7 (Y9)** Exactly one file, `src/install.ts`, touches `process`. Everything else takes
   it as an argument. The env-reference grep exempts that one path by name and nothing else —
   an exemption list of one is auditable; a convention is not.
