@@ -25,7 +25,7 @@ Three kinds, because they close three different ways:
 | A6 | `sideEffects` declared by three of nine packages; no tree-shake fixture | burgee U10 | every package declares it truthfully; a fixture proves a root named import bundles to its subpath's bytes |
 | A7 | CI grades Node 24 only while `engines` says `>=24` | burgee C3, compat-oracle C3 | the compat matrix runs every supported even major (24, 26) |
 | A8 | "depends on roundel only" is false, and two ceilings are ratchets on history rather than the incumbent | flagstaff R10 | requirement restated to the four same-repo deps; `./box` and `./table` ceilings set from boxen's and cli-table3's measured bytes |
-| A9 | `signal-exit` — the biggest incumbent closeout replaces, ~199 M/wk — is not graded at all | closeout, PLAN 3.3 | its suite vendored and in the baseline |
+| ~~A9~~ | ~~`signal-exit` is not graded at all~~ — **closed**: `closeout/signal-exit` graded 134 / 135 by signal-exit's own suite, level with its control; the root-export half of R6 stays open (A26) | closeout, PLAN 3.3 | done |
 | A10 | `execa` and `which` suites not vendored; `tinyexec` not installed so no ceiling | bellpull R8, R9 | both suites vendored and graded; `tinyexec` a devDependency with its B4 row |
 | A11 | paratext: ansi-escapes 1/4, terminal-link 0/10, term-img 12/18 | compat baselines | each suite at 100%, or each failing case named with its reason |
 | A12 | seniority: cosmiconfig 186/243, dotenv 80/141, lilconfig 67/77, rc 0/1 | compat baselines | same |
@@ -42,6 +42,7 @@ Three kinds, because they close three different ways:
 | A23 | plugin hooks `parse` and `shutdown` | plugin surface, D-122 | in the schema, the plugins page's "cannot do yet" list shrinks by the two |
 | A24 | `burgee/program-schema.json` | burgee F1, schema-is-validated, D-123 | published; `--schema` output validated against it in a test, no runtime validator |
 | A25 | `.effects()` on commander façade commands | agent-surface-declared R6, D-127 | a façade command can declare its effects and reach MCP |
+| A26 | `signal-exit`'s API at closeout's root, so the `overrides` recipe resolves | closeout R6 | the recipe installs and the suite passes through it, or R6 restated to the subpath |
 
 ## B — decide, then build
 

@@ -4,6 +4,7 @@
 # four of them were committed once, with `/Users/…/burgee-wave3/…` inside.
 vendor/*/shim*.js
 vendor/*/shim*.mjs
+vendor/*/shim*.cjs
 vendor/*/vitest.config.mjs
 vendor/*/vitest.setup.mjs
 # The generated internal shims, at whatever path a host files its own modules: `lib/` for
