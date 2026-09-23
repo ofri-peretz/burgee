@@ -79,6 +79,7 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
       'wrap-ansi': 'linegauge/wrap',
       'slice-ansi': 'linegauge/slice',
       'cross-spawn': 'bellpull/cross-spawn',
+      which: 'bellpull/node-which',
       rc: 'seniority/rc',
       lilconfig: 'seniority/lilconfig',
       '@inquirer/core': 'caique/inquirer',
