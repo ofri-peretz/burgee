@@ -459,34 +459,50 @@ a random name*, so nine lanes writing nine changesets produce zero merge conflic
 lane edits a `version` field by hand — the changeset PR does it, and a lane that bumps a
 version directly is a lane that will conflict with every other lane.
 
-**The real dependency graph** (`dependencies`, not devDependencies, measured 2026-09-13):
+**The real dependency graph** (`dependencies`, not devDependencies; versions from
+`packages/*/package.json`, measured 2026-09-22):
 
 ```
-linegauge 0.2.0 ──┐
-roundel   0.3.0 ──┴─→ flagstaff 0.2.1
-roundel   0.3.0 ──┐
-seniority 0.1.0 ──┴─→ burgee    0.6.0
-paratext  0.2.0      caique 0.1.1   closeout 0.1.0   bellpull 0.0.1   (no dependents)
-compat-oracle 0.0.0  private — never published
+bellpull 0.2.0 ─┐
+closeout 0.3.0 ─┼─→ burgee    0.9.0
+linegauge 0.4.0 ┤
+roundel  0.4.0 ─┤
+seniority 0.4.0 ┘
+closeout, linegauge, paratext 0.5.0, roundel ──→ flagstaff 0.3.4
+closeout, linegauge ───────────────────────────→ caique    0.4.0
+burgee, flagstaff, roundel ────────────────────→ compat-oracle 0.1.0  private — never published
 ```
 
-**Bump order is therefore two deep, not nine.** Four of the nine packages have no
-dependents at all and can release in any order, on any day, from any lane. Only two
-edges exist: `linegauge`/`roundel` before `flagstaff`, and `roundel`/`seniority` before
-`burgee`. Changesets computes this itself — the order is written here so a lane can see
-that its release blocks nobody.
+**Bump order is still two deep.** Six packages (bellpull, closeout, linegauge, paratext,
+roundel, seniority) depend on nothing in the repo; three (burgee, flagstaff, caique) depend
+only on those six; `compat-oracle` sits on top and is never published. A leaf bump
+patch-bumps its dependents through `updateInternalDependencies: "patch"`. Changesets
+computes all of this itself — it is written here so a lane can see what its release touches.
 
-**What rides alone.** paratext's schema change (D2) is the only breaking change in
-wave 1, so it ships as **0.3.0 by itself**, before 1.2–1.7, with a changeset whose body
-is the migration note (D8). Nothing else in the plan is breaking: D5's widening is
-additive, and every wave-2 step changes only `baseline.json` fragments and READMEs.
+**What rode alone.** paratext's schema change (D2) was the one breaking change in wave 1
+and shipped as 0.3.0 by itself, with the migration note as its changeset body (D8).
+paratext has since moved to 0.5.0.
 
-**Queue interaction.** With no merge queue (wave 0.3), the changeset PR is one more PR
-competing for `main`, and it rebases every time a lane lands — which is how twenty
-observation PRs deadlocked this week. So while the queue is off, **the integrator lane
-holds releases to one batch per wave**: lanes land, the wave closes, one changeset PR
-goes out. With the queue on, releases stop being scheduled at all — each lane's
-changeset rides with its own PR.
+**Cadence: continuous, not one batch per wave.** This section used to say the integrator
+holds releases to one Version PR per wave. That is not what happened, and it should not be
+the rule: thirteen Version PRs merged in the nine days from 2026-09-13 to 2026-09-22
+(#206 → #413), because lanes land one PR at a time and every push to `main` that carries a
+changeset refreshes the single open Version PR (`changesets-pr.yml`). Continuous is the rule
+now, for three reasons:
+
+- **Batching bought nothing.** The batch rule existed because the Version PR rebased on every
+  landing and competed for `main`. It still does, but it is one PR that changesets rewrites
+  from scratch each time — it never conflicts, and merging it costs one CI cycle.
+- **Small releases are the cheap ones to undo.** A Version PR carrying one or two changesets
+  names exactly what went out; a wave's worth makes a bad release hard to bisect.
+- **Nothing waits on a human any more.** The stall that made releases feel expensive was the
+  Version PR sitting at zero checks. Opened with `GITHUB_TOKEN` it now dispatches its own
+  required checks and merges itself; `release.yml` publishes only after `Quality Gate` and
+  `Quality (Full) Gate` pass on the merge commit.
+
+Hold a release only by not merging a changeset — never by holding the Version PR. With the
+merge queue on (`.sdlc/GAPS.md` C6) nothing here changes: the Version PR is one more queue
+entry.
 Done when: `ls .changeset/*.md` is non-empty on every lane branch that changed a
 published package, and `git log --oneline -- packages/*/package.json` shows no
 hand-edited version bump.
