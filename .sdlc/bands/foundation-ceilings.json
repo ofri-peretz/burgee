@@ -33,7 +33,7 @@
       }
     },
     "seniority": {
-      "ours": 155350,
+      "ours": 155498,
       "incumbents": {
         "cosmiconfig": 1832269,
         "dotenv": 44951,
@@ -83,14 +83,14 @@
       }
     },
     "bellpull": {
-      "ours": 98757,
+      "ours": 98821,
       "incumbents": {
         "execa": 647091,
         "cross-spawn": 46962,
         "which": 71500
       },
       "ceiling": 765553,
-      "ratio": 0.129,
+      "ratio": 0.1291,
       "lightestIncumbent": {
         "name": "cross-spawn",
         "bytes": 46962
