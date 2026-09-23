@@ -4,7 +4,7 @@
   "method": "benchmarks/axes/weight.ts installedBytes(name, dir), tree-inclusive, one count per realpath — `dir` a fresh `npm i <incumbent>@latest` in an empty directory, one per incumbent, never the workspace install (whose hoisted copies lag the registry)",
   "layers": {
     "linegauge": {
-      "ours": 85473,
+      "ours": 85532,
       "incumbents": {
         "string-width": 36801,
         "wrap-ansi": 80185,
@@ -12,7 +12,7 @@
         "slice-ansi": 66999
       },
       "ceiling": 194329,
-      "ratio": 0.4398,
+      "ratio": 0.4401,
       "lightestIncumbent": {
         "name": "strip-ansi",
         "bytes": 10344
@@ -55,13 +55,13 @@
       "$grew": "151,688 B on 2026-09-14, up from 53,475 — PLAN 3.2 built the cosmiconfig-compatible surface plus the `./dotenv` and `./find-up` façades, and the pack grew 182%. The Y8 ratio moved 0.034 to 0.098, so it is still an order of magnitude under what it replaces; the growth is recorded rather than smoothed because a ratio that only ever improves is a ratio nobody is watching."
     },
     "closeout": {
-      "ours": 103147,
+      "ours": 103191,
       "incumbents": {
         "signal-exit": 76966,
         "restore-cursor": 93638
       },
       "ceiling": 170604,
-      "ratio": 0.6046,
+      "ratio": 0.6049,
       "lightestIncumbent": {
         "name": "signal-exit",
         "bytes": 76966
