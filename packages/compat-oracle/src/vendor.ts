@@ -80,8 +80,9 @@ function cloneRelease(host: Host, version: string, clone: string): { commit: str
  * `.js` file is parsed as CommonJS and the shim is a syntax error. `.mjs` is ESM whatever
  * the package says, which is the only property that matters here.
  */
-export function shimName(index: number, packageType?: string): string {
-  const ext = packageType === 'module' ? 'js' : 'mjs';
+export function shimName(index: number, packageType?: string, shim?: Host['shim']): string {
+  let ext = packageType === 'module' ? 'js' : 'mjs';
+  if (shim === 'cjs') ext = 'cjs';
   return index === 0 ? `shim.${ext}` : `shim-${index}.${ext}`;
 }
 
@@ -102,7 +103,7 @@ export function rewriteAt(source: string, host: Host, { fileDir, hostDir, packag
   return host.imports.reduce((acc, entry, i) => {
     // A bare specifier reads the same from every file; a relative one moves with the file.
     const upstreamHere = entry.upstream.startsWith('.') ? dotted(relative(fileDir, resolve(testDir, entry.upstream))) : entry.upstream;
-    const shimHere = dotted(relative(fileDir, join(hostDir, shimName(i, packageType))));
+    const shimHere = dotted(relative(fileDir, join(hostDir, shimName(i, packageType, host.shim))));
     return acc.replaceAll(`'${upstreamHere}'`, `'${shimHere}'`).replaceAll(`"${upstreamHere}"`, `"${shimHere}"`);
   }, source);
 }
@@ -208,7 +209,7 @@ export interface UpstreamPackage {
  */
 export function rootPackage(host: Host, upstream: UpstreamPackage): Record<string, unknown> {
   const type = upstream.type ?? 'commonjs';
-  const pkg: Record<string, unknown> = { name: `@vendored/${host.name}-suite`, private: true, type, main: `./${shimName(0, type)}` };
+  const pkg: Record<string, unknown> = { name: `@vendored/${host.name}-suite`, private: true, type, main: `./${shimName(0, type, host.shim)}` };
   if (upstream.version !== undefined) pkg.version = upstream.version;
   if (upstream.license !== undefined) pkg.license = upstream.license;
   // Upstream's own description, because a suite may read it back. meow's help block opens
@@ -421,6 +422,7 @@ export function vendor(host: Host, into: string, version = host.pinnedVersion ??
     // Both names: a re-vendor that changes the package's type must not leave the old one.
     host.imports.forEach((_, i) => {
       for (const type of ['module', 'commonjs']) rmSync(join(staging, shimName(i, type)), { force: true });
+      rmSync(join(staging, shimName(i, undefined, 'cjs')), { force: true });
     });
     // The swap, and the refusal that makes staging worth the trouble: a run that produced
     // no graded files is a failed run, and it leaves what was there alone.

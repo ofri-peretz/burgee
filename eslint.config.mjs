@@ -238,6 +238,19 @@ export default [
 
   // ── Scope-specific exceptions ─────────────────────────────────────────────
   {
+    // closeout's `signal-exit` façade is CommonJS because the incumbent's own suite re-evaluates
+    // it under a changed `process`, which an ES module cannot be (closeout spec, 2026-09-23).
+    // `import x = require()` and `export =` are therefore the syntax, not a lapse, and the one
+    // export object is what Node's lexer turns into named exports.
+    files: ["packages/closeout/src/*.cts"],
+    rules: {
+      "import-next/no-commonjs": "off",
+      "import-next/unambiguous": "off",
+      "import-next/no-unused-modules": "off",
+      "import-next/no-default-export": "off",
+    },
+  },
+  {
     // Tests import the package's public entry on purpose; scripts and tests are
     // entry points with nothing to export.
     files: ["**/*.test.ts", "scripts/**"],

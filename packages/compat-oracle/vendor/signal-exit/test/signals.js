@@ -5,7 +5,7 @@ for (const platform of platforms) {
   t.test(platform, t => {
     global.process = { ...process_, platform }
     t.equal(process.platform, platform)
-    t.matchSnapshot(t.mock('../shim-1.mjs'))
+    t.matchSnapshot(t.mock('../shim-1.cjs'))
     global.process = process_
     t.end()
   })

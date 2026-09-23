@@ -321,6 +321,7 @@ Graded by the incumbent's own test suite:
 | :-- | --: |
 | `exit-hook` | 21 / 21 |
 | `restore-cursor` | 6 / 6 |
+| `signal-exit` | 134 / 135 |
 
 Weight, installed and tree-inclusive: **96,456 bytes** against **170,604** for the incumbents it replaces — a ratio of **0.5654** (exit-hook not installed here, so the ceiling is understated).
 ## Where it sits
