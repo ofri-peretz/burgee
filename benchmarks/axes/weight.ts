@@ -323,7 +323,23 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // (D-101, which made this one much smaller). The engine measures **28,637** and the three
   // ceilings follow the measurements down — a ratchet that stays where the number used to be
   // is not a ratchet, it is headroom nobody decided to grant.
-  burgee: 28_700,
+  //
+  // 28,800 on 2026-09-23 for **59 bytes**, D-118 (E7): the engine reads a `defineError` class's
+  // declared code off `Symbol.for('burgee.exitCode')` on every failure path, so the read is on
+  // the startup graph even though `define-error.js` is not. Inlined rather than a helper, which
+  // took it from 113 over to 59. Measured 28,759.
+  //
+  // 29,150 on 2026-09-23 for **316 bytes**, D-122: the `parse` and `shutdown` plugin stages.
+  // What stays on the startup path is `Manifest.declares`, the `parse` call-in (its loop is
+  // `parse-hooks.js`, imported only when a plugin declares one) and the shutdown registration
+  // behind `declares('shutdown')`. Measured 29,116.
+  //
+  // 29,200 on 2026-09-23 for **56 bytes**, the MCP stdout capture (#521): measured 29,172 on
+  // top of D-122's 29,116. The capture lives in the lazily loaded MCP chunk; what reaches the
+  // startup graph is the `host` seam it shares with the entry.
+  // 29,250 on 2026-09-23 for **66 bytes**, D-140: the `--json` failure path classifies a
+  // thrown error once for every front end. Measured 29,238 on top of #521's 29,172.
+  burgee: 29_250,
   // 59,250 on 2026-09-22 for **61 bytes**: the `.catch` that fires `onError`. A plugin's
   // lifecycle closes on every front end now — `preRun` opens and exactly one of `postRun` or
   // `onError` closes — where before a handler that threw left a plugin with no closing hook.
@@ -335,6 +351,14 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // 59,600 on 2026-09-23 for **171 bytes**, D-134: the manifest projection publishes each
   // option under the flag commander accepts (a lone `--no-x` as `noX`, a pair folded, which
   // booleans negate), so `--mcp` and completions stop offering flags commander refuses.
+  // 59,850 on 2026-09-23 for **208 bytes**, D-122 — the same stages through the engine the
+  // façade runs on. Measured 59,808.
+  //
+  // The MCP stdout capture (#521) adds **15 bytes** here (59,808 -> 59,823 with D-122), none new code on the
+  // startup path: the lazily-loaded MCP chunk now reads stdout through the `host` seam to keep
+  // a tool call's prints off the JSON-RPC stream, so `host` is shared between the entry and
+  // that chunk, esbuild moves it into the shared chunk the entry already imports, and the 14
+  // are the cross-chunk export and import names.
   //
   // 60,500 on 2026-09-23 for **897 bytes**, D-140 (59,586 -> 60,483): a commander program run
   // the commander way — `parseAsync(process.argv)`, nothing injected — let an action that threw
@@ -342,7 +366,8 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // filed an `AuthError` as exit 1 where E6 says 5. The bytes are the unseamed `--json` catch,
   // `AuthError`/`UsageError` (which the façade never reached before) and the one
   // classification both façades share. None of it is on a path a passing command takes.
-  'burgee/commander': 60_500,
+  // Merged 2026-09-23: D-140's 897 bytes on top of D-122 and #521 measure 60,713.
+  'burgee/commander': 60_750,
   'burgee/yargs': 107_700,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
@@ -457,9 +482,13 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // cases in commander's own suite that mock it, which is what the 1360 / 1360 row rests on.
   // D-102 records that, and that ≤ 1 is not reachable while the façade also carries a
   // manifest, a schema and an MCP server. 1.53 on 2026-09-23 for the same 171 bytes as the
+  // bundled ceiling above (D-134): measured 1.524.
+  // 1.535 on 2026-09-23: D-122 left the façade at 59,808 (1.530, on the ceiling) and the MCP
+  // stdout capture (#521) adds 15 bytes of cross-chunk names — 59,823, measured 1.531.
   // bundled ceiling above (D-134): measured 1.524. 1.55 on 2026-09-23 for the 897 bytes of
   // D-140 beside it: measured 1.548.
-  'burgee/commander': 1.55,
+  // Merged 2026-09-23 with D-122 and #521: measured 1.553.
+  'burgee/commander': 1.555,
   'burgee/yargs': 1,
   'roundel/chalk': 1,
   'flagstaff/ora': 1,

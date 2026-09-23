@@ -51,7 +51,8 @@ The same program, after the import swap, answers four things commander cannot:
 - **`--mcp`** — the same commands served as MCP tools over stdio. Every command with an
   action is a tool; one that declared nothing is annotated `effects: 'undeclared'` with no
   hints, `.effects('read_only')` (or `idempotent`, `non_idempotent`) adds them, and
-  `.effects('withheld')` keeps a command out.
+  `.effects('withheld')` keeps a command out. An action that prints is still a useful
+  tool: its printed output becomes the tool result instead of corrupting the stream.
 - **Completions** — `completion bash | zsh | fish | pwsh`, generated from the same
   declaration; pressing TAB never runs your program.
 

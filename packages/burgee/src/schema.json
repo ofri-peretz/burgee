@@ -114,9 +114,12 @@
     },
     "hooks": {
       "type": "object",
-      "description": "burgee lifecycle hooks. preRun opens around a command, and exactly one of postRun or onError closes.",
+      "description": "burgee lifecycle hooks. parse rewrites argv before a command is resolved; preRun opens around a command, and exactly one of postRun or onError closes; shutdown fires once as the program leaves, by any path.",
       "additionalProperties": false,
       "properties": {
+        "parse": {
+          "$ref": "#/$defs/hook"
+        },
         "preRun": {
           "$ref": "#/$defs/hook"
         },
@@ -124,6 +127,9 @@
           "$ref": "#/$defs/hook"
         },
         "onError": {
+          "$ref": "#/$defs/hook"
+        },
+        "shutdown": {
           "$ref": "#/$defs/hook"
         }
       }
@@ -629,7 +635,7 @@
           "description": "`{ command: RegExp }`: fire only for commands whose path matches."
         },
         "handler": {
-          "description": "(ctx) => void | Promise<void>. Required."
+          "description": "(ctx) => void | Promise<void>. Required. On parse it may return the string[] argv to use instead."
         }
       }
     }
