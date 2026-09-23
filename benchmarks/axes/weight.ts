@@ -323,11 +323,16 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // (D-101, which made this one much smaller). The engine measures **28,637** and the three
   // ceilings follow the measurements down — a ratchet that stays where the number used to be
   // is not a ratchet, it is headroom nobody decided to grant.
-  // 28,750 on 2026-09-23 for the MCP stdout capture (#521): `mcp.ts` sits in the engine's
-  // startup graph, so its +430 minified bytes reach every user's bundle (measured 28,705,
-  // main 28,275). The fix for that is to load `mcp.ts` only when `--mcp` is asked for — queued,
-  // not smuggled in here; this raise is the measured cost, not headroom.
-  burgee: 28_750,
+  //
+  // 28,800 on 2026-09-23 for **59 bytes**, D-118 (E7): the engine reads a `defineError` class's
+  // declared code off `Symbol.for('burgee.exitCode')` on every failure path, so the read is on
+  // the startup graph even though `define-error.js` is not. Inlined rather than a helper, which
+  // took it from 113 over to 59. Measured 28,759.
+  //
+  // 28,850 on 2026-09-23 for **56 bytes**, the MCP stdout capture (#521): measured 28,815 on
+  // top of E7's 28,759. The capture lives in the lazily loaded MCP chunk; what reaches the
+  // startup graph is the `host` seam it shares with the entry.
+  burgee: 28_850,
   // 59,250 on 2026-09-22 for **61 bytes**: the `.catch` that fires `onError`. A plugin's
   // lifecycle closes on every front end now — `preRun` opens and exactly one of `postRun` or
   // `onError` closes — where before a handler that threw left a plugin with no closing hook.
