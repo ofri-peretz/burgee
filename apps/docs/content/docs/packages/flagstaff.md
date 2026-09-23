@@ -1,6 +1,6 @@
 ---
 title: flagstaff
-description: "The staff the flag flies from. A terminal frame loop with a static projection for agents and screen readers, and a plugin host for spinners, progress, boxes and tables. Drop-in paths for ora, log-update, boxen and cli-table3. Zero dependencies."
+description: "The staff the flag flies from. A terminal frame loop with a static projection for agents and screen readers, and a plugin host for spinners, progress, boxes and tables. Drop-in paths for ora, log-update, boxen and cli-table3. No dependency outside the burgee family."
 ---
 
 ora animates a spinner and, off a terminal, prints frames anyway — `\r` after `\r` into the
@@ -8,8 +8,9 @@ log an agent reads back. Ink fixes the terminal by shipping React and a layout e
 **flagstaff** is the staff the flag flies from: a frame loop that hoists a component, holds
 it, changes it and lowers it, and a **static projection** that is what every mode but the
 terminal gets — one line per state on a pipe, one event per transition under `--json`,
-plain text for a screen reader. Plugins are data. No layout engine. One dependency, and it
-is [roundel](https://github.com/ofri-peretz/burgee/blob/main/packages/roundel/README.md).
+plain text for a screen reader. Plugins are data. No layout engine. Four dependencies, all
+from this repository: [roundel](https://github.com/ofri-peretz/burgee/blob/main/packages/roundel/README.md), [paratext](https://github.com/ofri-peretz/burgee/blob/main/packages/paratext/README.md),
+[linegauge](https://github.com/ofri-peretz/burgee/blob/main/packages/linegauge/README.md) and [closeout](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/README.md).
 
 A **flagstaff** is the simplest part of the whole apparatus and the only one that is always
 in view: a flag is hoisted on it, held there, changed, and lowered when it is done. That is a
