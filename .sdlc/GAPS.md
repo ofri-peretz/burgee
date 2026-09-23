@@ -34,7 +34,7 @@ Three kinds, because they close three different ways:
 | A15 | `-` means stdin for a file positional | burgee S4, D-113 | `ArgumentSpec.type: 'file'`; `-` hands the handler `process.stdin`; a test pipes a file through `-` |
 | A16 | `--json=<a,b>` selects fields | burgee N14, D-114 | bare `--json` unchanged; `--json a` stays a positional; fields filter the envelope's data |
 | A17 | `--schema <path> --field <name>` | burgee N13, D-116 | one field of one command, the same shape `--schema` prints for it |
-| A18 | a generated `config explain` | burgee V8, D-117 | synthesised when the program reads config; every value with the source that won |
+| ~~A18~~ | ~~a generated `config explain`~~ — **closed**: synthesised from the resolver's order and provenance; `--json`; gives way to a program's own | burgee V8, D-117 | done |
 | A19 | `defineError({ name, code })` | burgee E7, D-118 | adds a `CLASSIFIED` row; a reused code fails at startup |
 | A20 | `dynamic: true` completion marker | burgee D3, D-119 | opt-in per option; completion scripts call back only for those |
 | A21 | non-TTY prompt exits 2, cancelled prompt exits 4 | burgee P2, P3, D-120 | an `ask()` bridge maps caique's verdict to `UsageError` / `CANCELLED`, no new dependency edge |
