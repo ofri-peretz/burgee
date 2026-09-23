@@ -20,7 +20,7 @@ Three kinds, because they close three different ways:
 | :-- | :-- | :-- | :-- |
 | ~~A1~~ | ~~vendor scripts resolve the oracle through bare specifiers~~ — **closed**: four scripts, seven specifiers, `oracle-import-lock.test.ts` | compat-oracle R6 | done |
 | A3 | only one of four declared subtractions reaches the published compatibility page | compat-oracle C4 | `compatibility.mdx` renders `excludes`, `controlFailures`, `conditionalCases`, `ungradedDirs`, each with its reason; a lock fails when a kind is not rendered |
-| A4 | three rows are load-sensitive and nothing in the gate knows | compat-oracle R7 | load-sensitive cases repeat-and-agree before a row is red; a flake is named, not silent |
+| ~~A4~~ | ~~three rows are load-sensitive and nothing in the gate knows~~ — **closed**: `repeatAndAgree` re-grades a fallen row up to twice; red only if every attempt agrees, a recovery is named with its counts | compat-oracle R7 | done |
 | A5 | the dependency arrows in the layer table are wrong in three rows of four | burgee U1 | table restated from the manifests; the layer lock is its check |
 | A6 | `sideEffects` declared by three of nine packages; no tree-shake fixture | burgee U10 | every package declares it truthfully; a fixture proves a root named import bundles to its subpath's bytes |
 | A7 | CI grades Node 24 only while `engines` says `>=24` | burgee C3, compat-oracle C3 | the compat matrix runs every supported even major (24, 26) |
