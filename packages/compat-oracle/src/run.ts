@@ -518,7 +518,7 @@ function avaCli(root: string): string {
  * out of the number.
  */
 const jestGlobals = (): string => `// generated per run
-import { createRequire } from 'node:module';
+import { createRequire, isBuiltin, syncBuiltinESMExports } from 'node:module';
 import { vi } from 'vitest';
 
 // Anchored here, at the vendored root, which is where a bare id resolves from. A *relative*
@@ -530,12 +530,37 @@ import { vi } from 'vitest';
 // oracle exists to keep out of the number.
 const require = createRequire(import.meta.url);
 
+// A jest.mock of a Node builtin, done the way jest's effect reaches a CommonJS suite. jest
+// hoists \`jest.mock('fs', factory)\` above the file's own \`require('fs')\` and hands *every*
+// require of it — the test's and the library's — the factory's object. vitest's mocking never
+// sees \`require()\`, so lilconfig's control failed ten cases that read spy call lists from a
+// binding that was the real module (A12). A builtin is one shared object per process, so the
+// factory's values are written onto it, nested objects (\`fs.promises\`) member by member, and
+// \`syncBuiltinESMExports()\` carries them to ESM importers. Each vitest file has its own
+// worker, so the patch lives exactly as long as jest's file-scoped mock would.
+const builtinPatch = (real, mocked) => {
+  for (const key of Object.keys(mocked)) {
+    const value = mocked[key];
+    if (value === real[key]) continue;
+    const nested = value !== null && typeof value === 'object' && real[key] !== null && typeof real[key] === 'object';
+    if (nested) builtinPatch(real[key], value);
+    else Object.defineProperty(real, key, { value, writable: true, configurable: true, enumerable: true });
+  }
+};
+const mockModule = (id, factory, ...rest) => {
+  const bare = String(id).replace(/^node:/, '');
+  if (factory === undefined || !isBuiltin(bare)) return vi.doMock(id, factory, ...rest);
+  builtinPatch(require(bare), factory());
+  syncBuiltinESMExports();
+};
+
 globalThis.jest = {
   fn: (...args) => vi.fn(...args),
   // \`vi.mock\` is hoisted by vitest's transform and refuses to be called from inside a
   // wrapper; \`vi.doMock\` is its runtime form, which is what a \`jest.mock\` call reached at
-  // run time actually means. These suites call it before the require it affects.
-  mock: (...args) => vi.doMock(...args),
+  // run time actually means. These suites call it before the require it affects. A builtin
+  // with a factory is patched in place instead — see \`mockModule\`.
+  mock: mockModule,
   requireActual: (id) => require(id),
   // The three cross-spawn's suite reaches for. \`setTimeout\` is jest's *per-file* timeout
   // knob, which is \`vi.setConfig({ testTimeout })\` here — a suite that calls it at module
@@ -552,6 +577,40 @@ globalThis.jest = {
 };
 `;
 
+/**
+ * jest's hoist, done where a vitest run can do it: every `jest.mock(…)` statement that starts
+ * a line is moved to the top of the file, as babel-plugin-jest-hoist moves it above the
+ * file's own requires. lilconfig reads `fs.promises.readFile` once, at load, so a mock that
+ * ran after `require(lilconfig)` was never the function it called — two cases failed against
+ * lilconfig's own package for the harness's reason (A12). jest's contract makes the move
+ * safe: a factory may reference only globals and `mock`-prefixed names. `vi.mock` is left
+ * alone, since vitest hoists it itself. Emitted into the generated config as source, so it
+ * must reach nothing but `closeOf`, which is emitted beside it.
+ */
+export function hoistJestMocks(source: string): string {
+  const blocks: string[] = [];
+  let rest = source;
+  for (let at = rest.search(/^jest\.mock\(/m); at !== -1; at = rest.search(/^jest\.mock\(/m)) {
+    const end = closeOf(rest, at);
+    if (end === -1) break;
+    blocks.push(rest.slice(at, end));
+    rest = rest.slice(0, at) + rest.slice(end);
+  }
+  return blocks.length === 0 ? source : `${blocks.join('\n')}\n${rest}`;
+}
+
+/** Just past the `)` closing the call opened at `at` (and its `;`), skipping string literals; -1 if unclosed. */
+function closeOf(text: string, at: number): number {
+  const token = /(['"`])(?:\\.|(?!\1)[^\\])*\1|[()]/g;
+  token.lastIndex = at;
+  let depth = 0;
+  for (let m = token.exec(text); m !== null; m = token.exec(text)) {
+    depth += m[0] === '(' ? 1 : 0;
+    if (m[0] === ')' && --depth === 0) return text[token.lastIndex] === ';' ? token.lastIndex + 1 : token.lastIndex;
+  }
+  return -1;
+}
+
 function writeVitestConfig(host: Host, hostDir: string, files: string[]): void {
   const root = packageDirOf(host, hostDir);
   const include = files.map((f) => JSON.stringify(relative(root, join(hostDir, host.testDir, f)).split(sep).join('/')));
@@ -565,7 +624,8 @@ function writeVitestConfig(host: Host, hostDir: string, files: string[]): void {
   const extra = Object.entries(host.vitestConfig ?? {})
     .map(([key, value]) => `, ${key}: ${JSON.stringify(value)}`)
     .join('');
-  writeFileSync(join(root, 'vitest.config.mjs'), `// generated per run\nexport default { test: { include: [${include.join(', ')}], globals: true, setupFiles: ['./vitest.setup.mjs']${extra} } };\n`);
+  const hoist = `{ name: 'jest-hoist', enforce: 'pre', transform: (code, id) => (/\\/node_modules\\//.test(id) ? null : hoistJestMocks(code)) }`;
+  writeFileSync(join(root, 'vitest.config.mjs'), `// generated per run\n${closeOf.toString()}\n${hoistJestMocks.toString()}\nexport default { plugins: [${hoist}], test: { include: [${include.join(', ')}], globals: true, setupFiles: ['./vitest.setup.mjs']${extra} } };\n`);
 }
 
 /**

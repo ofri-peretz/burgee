@@ -11,7 +11,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { type Host, HOSTS } from './hosts.js';
-import { type Baseline, type Grade, internalShimBody, internalShimFrom, parseFlatTap, parseNodeTest, regressed, summarize, tsLoaderArgs, unsatisfiedPins } from './run.js';
+import { type Baseline, type Grade, hoistJestMocks, internalShimBody, internalShimFrom, parseFlatTap, parseNodeTest, regressed, summarize, tsLoaderArgs, unsatisfiedPins } from './run.js';
 
 const grade = (passed: number): Grade => ({
   host: 'commander',
@@ -423,5 +423,24 @@ describe('the TypeScript loader a tap host may declare', () => {
       // `node_modules/tsx/dist/loader.mjs` would be a guess about a hoist free to move.
       expect(args[2]).toMatch(/^file:\/\/.+\.mjs$/);
     }
+  });
+});
+
+describe('jest.mock is hoisted as jest hoists it (A12)', () => {
+  it('moves a top-level jest.mock above the requires it has to precede', () => {
+    const source = ["const lib = require('lib');", "jest.mock('fs', () => {", "  const fs = jest.requireActual('fs');", "  return { ...fs, readFileSync: jest.fn(fs.readFileSync) };", '});', 'test();', ''].join('\n');
+    const out = hoistJestMocks(source);
+    expect(out.indexOf("jest.mock('fs'")).toBeLessThan(out.indexOf("require('lib')"));
+    expect(out.match(/jest\.mock\(/g)).toHaveLength(1);
+    expect(out).toContain('return { ...fs, readFileSync: jest.fn(fs.readFileSync) };\n});');
+  });
+
+  it('reads past a parenthesis inside a string, and leaves vi.mock and indented calls alone', () => {
+    const source = "require('x');\njest.mock('a', () => ({ label: ')(' }));\nvi.mock('b');\n  jest.mock('c');\n";
+    expect(hoistJestMocks(source)).toBe("jest.mock('a', () => ({ label: ')(' }));\nrequire('x');\n\nvi.mock('b');\n  jest.mock('c');\n");
+  });
+
+  it('returns a file with no jest.mock unchanged', () => {
+    expect(hoistJestMocks("require('x');\n")).toBe("require('x');\n");
   });
 });
