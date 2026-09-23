@@ -328,7 +328,12 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // declared code off `Symbol.for('burgee.exitCode')` on every failure path, so the read is on
   // the startup graph even though `define-error.js` is not. Inlined rather than a helper, which
   // took it from 113 over to 59. Measured 28,759.
-  burgee: 28_800,
+  //
+  // 29,150 on 2026-09-23 for **316 bytes**, D-122: the `parse` and `shutdown` plugin stages.
+  // What stays on the startup path is `Manifest.declares`, the `parse` call-in (its loop is
+  // `parse-hooks.js`, imported only when a plugin declares one) and the shutdown registration
+  // behind `declares('shutdown')`. Measured 29,116.
+  burgee: 29_150,
   // 59,250 on 2026-09-22 for **61 bytes**: the `.catch` that fires `onError`. A plugin's
   // lifecycle closes on every front end now — `preRun` opens and exactly one of `postRun` or
   // `onError` closes — where before a handler that threw left a plugin with no closing hook.
@@ -340,7 +345,9 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // 59,600 on 2026-09-23 for **171 bytes**, D-134: the manifest projection publishes each
   // option under the flag commander accepts (a lone `--no-x` as `noX`, a pair folded, which
   // booleans negate), so `--mcp` and completions stop offering flags commander refuses.
-  'burgee/commander': 59_600,
+  // 59,850 on 2026-09-23 for **208 bytes**, D-122 — the same stages through the engine the
+  // façade runs on. Measured 59,808.
+  'burgee/commander': 59_850,
   'burgee/yargs': 107_700,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's

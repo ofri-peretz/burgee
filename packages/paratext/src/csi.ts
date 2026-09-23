@@ -72,8 +72,8 @@ export const clearScreen = '\u001Bc';
 export const clearViewport = `${eraseScreen}${ESC}H`;
 /**
  * Erase the screen, the scrollback, and home the cursor. ponytail: upstream has a second form
- * for Windows before 10.0.10586; Node 24, this package's floor, does not run there, so it is
- * not carried.
+ * for Windows 10 before build 10586 (November 2015), whose console predates these sequences; it
+ * is not carried, so such a host gets this form. Add the branch if one is ever reported.
  */
 export const clearTerminal = `${eraseScreen}${ESC}3J${ESC}H`;
 
