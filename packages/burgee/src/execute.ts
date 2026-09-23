@@ -253,7 +253,7 @@ function toParseConfig(specs: Record<string, OptionSpec>, withConfig: boolean): 
     // boolean flag cannot carry a value, so `--x=false` is refused. Without `--no-x` the
     // top layer of that chain can only ever say `true`, and a boolean turned on in a config
     // file could not be turned off from the command line at all.
-    if (spec.type === 'boolean') config[`${NO}${kebab(name)}`] = { type: 'boolean' };
+    if (spec.type === 'boolean' && spec.negatable !== false) config[`${NO}${kebab(name)}`] = { type: 'boolean' };
   }
   return config;
 }
@@ -431,7 +431,8 @@ async function describeFailure(cause: unknown, argv: string[], node?: CommandNod
     const explain = await import('./unknown-option.js');
     const dash = explain.singleDashHint(argv);
     if (dash !== undefined) return { code: ExitCode.USAGE, message, hint: dash };
-    const better = explain.unknownOption(cause, Object.keys(node?.options ?? {}));
+    // The flags as typed, not the canonical keys: `fix` is run verbatim, and `--dryRun` is refused.
+    const better = explain.unknownOption(cause, Object.keys(node?.options ?? {}).map(kebab));
     return { code: ExitCode.USAGE, message, hint: 'run --help to see the available options', ...better };
   }
   return { code: ExitCode.RUNTIME, message };
@@ -887,9 +888,12 @@ export async function run<S extends OptionSpecs>(target: Command<S> | Manifest, 
   if (target instanceof Manifest) return await execute(target, opts);
   const manifest = new Manifest();
   manifest.rootPath = [target.name];
+  // Every declared field, through the same copy `defineProgram` uses. This listed three by
+  // hand, so the `effects` `defineCommand` requires never reached `--mcp` (the tool said
+  // `undeclared`), and `examples`, `arguments` and `relations` never reached help or the schema.
   manifest.add({
     path: [target.name],
-    ...(target.description === undefined ? {} : { description: target.description }),
+    ...helpFields(target as AnyCommand),
     options: target.options ?? {},
     ...(target.run === undefined ? {} : { run: target.run as (ctx: RunContext) => unknown }),
   });
