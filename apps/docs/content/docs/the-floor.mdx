@@ -177,7 +177,7 @@ turn it into a served interface rather than a document.
 | ID | Requirement | Holds |
 | :-- | :-- | :-- |
 | N1 | `--mcp` serves the CLI over MCP stdio; tool definitions are generated from the manifest, never hand-written | runtime |
-| N2 | A command appears as a tool only if it opts in; destructive commands default to absent | both |
+| N2 | A command is kept from agents only by a declaration: `effects: 'withheld'`. Every runnable command on burgee's own API declares its effects; a façade command that declared nothing is listed as `effects: 'undeclared'`, with no hints | both |
 | N3 | No dependency outside the burgee family: JSON-RPC over stdio against `node:readline` | lock |
 | N4 | Tool results are the standard envelope, so MCP and `--json` callers see identical payloads | runtime |
 | N5 | `--mcp` implies non-TTY: no prompts, no colour, structured errors | runtime |

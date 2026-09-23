@@ -42,8 +42,9 @@ number.
   with errors in the same shape.
 - **`--schema`** — the command tree as data, with a JSON Schema per command; no handler
   runs, so an agent can call it first.
-- **`--mcp`** — the same commands as MCP tools over stdio, exposed only when a command
-  declares its `effects`.
+- **`--mcp`** — the same commands as MCP tools over stdio. A command that declared nothing
+  is listed as `effects: 'undeclared'` with no hints; `.effects('read_only')` adds them and
+  `.effects('withheld')` keeps a command out.
 - **Completions** — `completion bash | zsh | fish | pwsh`, static scripts generated from the
   declaration.
 - **An exit-code contract** — `2` means *rewrite the command*; any other non-zero means the

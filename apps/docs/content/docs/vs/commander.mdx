@@ -39,13 +39,16 @@ is never called "compatible" until its host's own suite passes 100%.
 The same program, after the import swap, answers four things commander cannot:
 
 - **`--json`** — every command's result in one stable envelope, `{ "ok": true, "data": … }`,
-  with errors in the same shape. No stdout scraping.
+  with errors in the same shape. No stdout scraping. `data` is what the action returns, so
+  an action that only prints gives `data: null` — commander actions return nothing; return
+  the value (`.action(() => ({ lines }))`) and it is `data`.
 - **`--schema`** — the whole command tree as data: commands, arguments, options, choices,
   defaults and a JSON Schema per command. It runs no handler and reads no config, so it is
   safe for an agent to call first.
-- **`--mcp`** — the same commands served as MCP tools over stdio. A command becomes a tool
-  when it declares its `effects` (`.effects('read_only')` on commander syntax), so nothing
-  is exposed to an agent by accident.
+- **`--mcp`** — the same commands served as MCP tools over stdio. Every command with an
+  action is a tool; one that declared nothing is annotated `effects: 'undeclared'` with no
+  hints, `.effects('read_only')` (or `idempotent`, `non_idempotent`) adds them, and
+  `.effects('withheld')` keeps a command out.
 - **Completions** — `completion bash | zsh | fish | pwsh`, generated from the same
   declaration; pressing TAB never runs your program.
 
