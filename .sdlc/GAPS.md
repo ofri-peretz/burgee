@@ -20,7 +20,7 @@ Three kinds, because they close three different ways:
 | :-- | :-- | :-- | :-- |
 | ~~A1~~ | ~~vendor scripts resolve the oracle through bare specifiers~~ — **closed**: four scripts, seven specifiers, `oracle-import-lock.test.ts` | compat-oracle R6 | done |
 | ~~A3~~ | ~~only one of four declared subtractions reaches the published compatibility page~~ — **closed**: `compatibility.mdx` renders all four subtraction kinds; `scripts/compat-page-subtractions.test.ts` | compat-oracle C4 | done |
-| A4 | three rows are load-sensitive and nothing in the gate knows | compat-oracle R7 | load-sensitive cases repeat-and-agree before a row is red; a flake is named, not silent |
+| ~~A4~~ | ~~three rows are load-sensitive and nothing in the gate knows~~ — **closed**: `repeatAndAgree` re-grades a fallen row up to twice; red only if every attempt agrees, a recovery is named with its counts | compat-oracle R7 | done |
 | ~~A5~~ | ~~the dependency arrows in the layer table are wrong in three rows of four~~ — **closed**: layer table restated from the manifests (burgee U1 Built) | burgee U1 | done |
 | ~~A6~~ | ~~`sideEffects` declared by three of nine packages; no tree-shake fixture~~ — **closed**: all nine declare `sideEffects` truthfully; `side-effects-lock.test.ts`, `tree-shake-fixture.test.ts` (burgee U10 Built) | burgee U10 | done |
 | ~~A7~~ | ~~CI grades Node 24 only while `engines` says `>=24`~~ — **closed**: `compat.yml` matrix runs Node 24 and 26 on three OSes (compat-oracle C3 Built) | burgee C3, compat-oracle C3 | done |
