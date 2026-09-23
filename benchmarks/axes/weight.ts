@@ -20,7 +20,7 @@
  * a transitive dependency is resolved from**. See `installedBytes`.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import { sync as crossSpawnSync } from 'bellpull/cross-spawn';
@@ -197,14 +197,14 @@ export function initialBytes(meta: Metafile, entryFile: string): number {
   return total;
 }
 
-function bundle(side: { specifier: string; symbol: string }, id: string): { initial: number; whole: number } {
-  mkdirSync(SCRATCH, { recursive: true });
+function bundle(side: { specifier: string; symbol: string }, id: string, scratch: string): { initial: number; whole: number } {
+  mkdirSync(scratch, { recursive: true });
   const stem = id.replaceAll('/', '__');
-  const file = join(SCRATCH, `${stem}.mjs`);
+  const file = join(scratch, `${stem}.mjs`);
   writeFileSync(file, fixtureSource(side));
-  const outdir = join(SCRATCH, `${stem}.chunks`);
+  const outdir = join(scratch, `${stem}.chunks`);
   rmSync(outdir, { recursive: true, force: true });
-  const metafile = join(SCRATCH, `${stem}.meta.json`);
+  const metafile = join(scratch, `${stem}.meta.json`);
   // esbuild from the CLI, not the API: one fewer import in a suite that measures imports,
   // and the exact command is quotable in the results file.
   execFileSync(esbuildBin(), [file, '--bundle', '--minify', '--format=esm', '--platform=node', '--splitting', `--outdir=${outdir}`, `--metafile=${metafile}`], {
@@ -228,11 +228,15 @@ export interface Measured {
   dir: string;
 }
 
-function measure(side: { specifier: string; symbol: string }, id: string): Measured {
+/**
+ * `installed` is false only for `bundledRecords`, which drops the installed rows: it is the one
+ * call that must stay cheap, and `npm pack` over a workspace is the slow half of this axis.
+ */
+function measure(side: { specifier: string; symbol: string }, id: string, scratch: string = SCRATCH, installed = true): Measured {
   const pkg = packageOf(side.specifier);
   const { dir, version } = resolvePackage(pkg);
-  const { initial, whole } = bundle(side, id);
-  return { bundled: initial, whole, installed: installedBytes(pkg), version, dir: relativeToRepo(dir) };
+  const { initial, whole } = bundle(side, id, scratch);
+  return { bundled: initial, whole, installed: installed ? installedBytes(pkg) : Number.NaN, version, dir: relativeToRepo(dir) };
 }
 
 /**
@@ -245,15 +249,15 @@ function measure(side: { specifier: string; symbol: string }, id: string): Measu
  * each other and with the incumbent, and a user installing all three pays for each shared
  * module once. Bundling them together is what a user's bundler does, so it is what this does.
  */
-function stackBytes(stack: ParityStack, incumbent: { specifier: string; symbol: string }, id: string): { initial: number; whole: number } {
+function stackBytes(stack: ParityStack, incumbent: { specifier: string; symbol: string }, id: string, scratch: string): { initial: number; whole: number } {
   const sides = [incumbent, ...stack.adds.map((a) => ({ specifier: a.specifier, symbol: a.symbol }))];
-  mkdirSync(SCRATCH, { recursive: true });
+  mkdirSync(scratch, { recursive: true });
   const stem = `stack-${id.replaceAll('/', '__')}`;
-  const file = join(SCRATCH, `${stem}.mjs`);
+  const file = join(scratch, `${stem}.mjs`);
   writeFileSync(file, stackFixtureSource(sides));
-  const outdir = join(SCRATCH, `${stem}.chunks`);
+  const outdir = join(scratch, `${stem}.chunks`);
   rmSync(outdir, { recursive: true, force: true });
-  const metafile = join(SCRATCH, `${stem}.meta.json`);
+  const metafile = join(scratch, `${stem}.meta.json`);
   execFileSync(esbuildBin(), [file, '--bundle', '--minify', '--format=esm', '--platform=node', '--splitting', `--outdir=${outdir}`, `--metafile=${metafile}`], {
     cwd: BENCH_ROOT,
     stdio: 'pipe',
@@ -558,8 +562,8 @@ export function pairRecords(pair: EntryPair, ours: Measured, theirs: Measured): 
  * `cosmiconfig` shipping a smaller YAML parser would turn our build red for nothing — and the
  * number's job is to say what a reader is actually choosing between, not to ratchet.
  */
-function parityRecords(pair: EntryPair, stack: ParityStack, ours: Measured, theirs: Measured): BenchRecord[] {
-  const { initial } = stackBytes(stack, pair.incumbent, pair.id);
+function parityRecords(pair: EntryPair, stack: ParityStack, { ours, theirs }: { ours: Measured; theirs: Measured }, scratch: string = SCRATCH): BenchRecord[] {
+  const { initial } = stackBytes(stack, pair.incumbent, pair.id, scratch);
   const ratio = round(ours.bundled / initial, RATIO_PLACES);
   const added = stack.adds.map((a) => a.specifier).join(' + ');
   const common = { axis: 'weight' as const, samples: 1 };
@@ -612,11 +616,45 @@ export function run(): BenchRecord[] {
         const theirs = incumbents.get(pair.incumbent.specifier) ?? measure(pair.incumbent, `theirs-${pair.id}`);
         incumbents.set(pair.incumbent.specifier, theirs);
         const stack = PARITY.find((p) => p.id === pair.id);
-        return [...pairRecords(pair, ours, theirs), ...(stack === undefined ? [] : parityRecords(pair, stack, ours, theirs))];
+        return [...pairRecords(pair, ours, theirs), ...(stack === undefined ? [] : parityRecords(pair, stack, { ours, theirs }))];
       }),
     );
   } finally {
     rmSync(SCRATCH, { recursive: true, force: true });
+  }
+}
+
+/**
+ * The bundled half of `run()` for the pairs named: every `bundled-bytes`, ratio and parity
+ * record, built by the same `pairRecords`/`parityRecords` and so named, rounded and gated
+ * exactly as the full run names them — without `npm pack` or the installed walk.
+ *
+ * It exists for the root README's gate rows (`scripts/readme-gates.ts`). Those rows are the
+ * figures the project quotes most, and they were a hand-copied snapshot of a run: D-134 moved
+ * `burgee/commander` by 171 bytes, raised the ceiling above in the same PR, and left the
+ * README saying 1.514 where the build measured 1.524 — which a published article then quoted.
+ * Bundling is a second or two; this is cheap enough to run on every push.
+ *
+ * A private scratch directory under `benchmarks/` rather than `SCRATCH`: the fixtures have to
+ * resolve from here, and `run()` deletes `SCRATCH` wholesale.
+ */
+export function bundledRecords(ids: readonly string[]): BenchRecord[] {
+  const scratch = mkdtempSync(join(BENCH_ROOT, '.fixtures-'));
+  try {
+    return uniqueRecords(
+      ids.flatMap((id) => {
+        const pair = PAIRS.find((p) => p.id === id);
+        if (pair === undefined) throw new Error(`no B4 pair "${id}" in fixtures/entry-points.ts`);
+        const ours = measure(pair.ours, `ours-${pair.id}`, scratch, false);
+        const theirs = measure(pair.incumbent, `theirs-${pair.id}`, scratch, false);
+        const stack = PARITY.find((p) => p.id === pair.id);
+        return [...pairRecords(pair, ours, theirs), ...(stack === undefined ? [] : parityRecords(pair, stack, { ours, theirs }, scratch))].filter(
+          (r) => r.metric !== 'installed-bytes',
+        );
+      }),
+    );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
   }
 }
 
