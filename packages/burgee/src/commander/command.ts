@@ -23,6 +23,7 @@ import * as crossSpawn from 'bellpull/cross-spawn';
 
 import { ExitCode } from '../exit-code.js';
 import { type DeclaredEffects, Manifest, type OptionSpec, type Plugin } from '../manifest.js';
+import { camel } from '../names.js';
 import { host } from '../runtime.js';
 import { machineJson, schemaOf } from '../schema.js';
 import { suggestSimilar } from '../suggest.js';
@@ -1686,17 +1687,33 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
     visit(this, [rootName]);
   }
 
-  /** Options as the manifest describes them, on a null-prototype record. */
+  /**
+   * Options as the manifest describes them, on a null-prototype record — keyed so that the
+   * spelling every surface derives from a key, `--${kebab(key)}`, is a flag commander accepts.
+   *
+   * Commander negates only what it was told to, where burgee's own parser negates every
+   * boolean. So a boolean is `negatable` here only when the program declared its `--no-` twin,
+   * which folds onto it rather than appearing twice; and a `--no-x` declared alone, which has
+   * no `--x`, is described as the switch it is, under `noX`. Before this, `--no-color` was
+   * published as `color` with `flag: '--color'`: completions offered `--color` and
+   * `--no-skip-blank`, and `--mcp` sent `--color` — each refused by the parser behind them.
+   */
   _optionSpecs(): Record<string, OptionSpec> {
     const specs = Object.create(null) as Record<string, OptionSpec>;
+    const positive = new Set(this.options.filter((o) => !o.negate).map((o) => o.attributeName()));
+    const negated = new Set(this.options.filter((o) => o.negate).map((o) => o.attributeName()));
     for (const option of this.options) {
+      if (option.negate && positive.has(option.attributeName())) continue;
       const spec: OptionSpec = { type: option.required || option.optional ? 'string' : 'boolean' };
       if (option.description) spec.description = option.description;
       if (option.mandatory) spec.required = true;
       if (option.short && option.long) spec.short = option.short.slice(1);
-      if (typeof option.defaultValue === 'string' || typeof option.defaultValue === 'boolean') spec.default = option.defaultValue;
       if (option.envVar) spec.env = option.envVar;
-      Object.defineProperty(specs, option.attributeName(), { value: spec, enumerable: true, writable: true, configurable: true });
+      if (spec.type === 'boolean') spec.negatable = !option.negate && negated.has(option.attributeName());
+      // A lone `--no-x` defaults `x` to true; that default is `x`'s, not this switch's.
+      if (!option.negate && (typeof option.defaultValue === 'string' || typeof option.defaultValue === 'boolean')) spec.default = option.defaultValue;
+      const key = option.negate ? camel(option.name()) : option.attributeName();
+      Object.defineProperty(specs, key, { value: spec, enumerable: true, writable: true, configurable: true });
     }
     return specs;
   }
