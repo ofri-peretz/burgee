@@ -28,6 +28,7 @@
  * **Every `type` stays.** A type re-export is erased and costs a consumer nothing, so the
  * whole type surface is still importable from `burgee` and no typed program has to move.
  */
+export { defineError, type DefinedErrorClass, type DefinedErrorOptions, type ErrorDefinition } from './define-error.js';
 export { ExitCode, isExitCode, type ExitCode as ExitCodeValue } from './exit-code.js';
 export {
   defineCommand,

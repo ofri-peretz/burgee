@@ -433,6 +433,12 @@ async function describeFailure(cause: unknown, argv: string[], node?: CommandNod
   if (cause instanceof ActionRequired) return { code: ExitCode.CANCELLED, message, action: cause.spec, ...(cause.spec.hint === undefined ? {} : { hint: cause.spec.hint }) };
   const named = CLASSIFIED.find(([Class]) => cause instanceof Class);
   if (named !== undefined) return { code: named[1], message, ...carried(cause) };
+  // E7 — an author's own class, from `defineError`: its declared code, read off
+  // `Symbol.for('burgee.exitCode')` on the instance's class (or a parent — statics inherit), and
+  // rendered like the built-in ones. By symbol, not by import: the engine never loads
+  // `define-error.js`, so a program that defines no error pays for this read and nothing else.
+  const own = (cause as { constructor?: Record<symbol, unknown> } | null | undefined)?.constructor?.[Symbol.for('burgee.exitCode')];
+  if (typeof own === 'number') return { code: own as ExitCodeType, message, ...carried(cause) };
   if (isParseArgsFailure(cause)) {
     // Loaded only here: see unknown-option.ts for why none of this is imported.
     const explain = await import('./unknown-option.js');
