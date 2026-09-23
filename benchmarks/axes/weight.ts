@@ -102,10 +102,31 @@ export function installedBytes(name: string, from: string = BENCH_ROOT, seen = n
   const key = realpathSync(dir);
   if (seen.has(key)) return 0;
   seen.add(key);
-  const manifest = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as { dependencies?: Record<string, string> };
   let total = ownInstalledBytes(dir);
-  for (const dep of Object.keys(manifest.dependencies ?? {})) total += installedBytes(dep, dir, seen);
+  for (const dep of installedDependencies(dir)) total += installedBytes(dep, dir, seen);
   return total;
+}
+
+/**
+ * What npm put on disk for a package: its `dependencies`, and each `optionalDependencies`
+ * entry that is actually installed. npm installs optional dependencies by default, so leaving
+ * them out under-counted every incumbent that has one — cli-table3's `@colors/colors` — which
+ * `weight.test.ts`'s nested-install check caught when cli-table3 was first measured here.
+ */
+export function installedDependencies(dir: string): string[] {
+  const manifest = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as {
+    dependencies?: Record<string, string>;
+    optionalDependencies?: Record<string, string>;
+  };
+  const optional = Object.keys(manifest.optionalDependencies ?? {}).filter((dep) => {
+    try {
+      packageDir(dep, dir);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+  return [...new Set([...Object.keys(manifest.dependencies ?? {}), ...optional])];
 }
 
 /** The package a specifier belongs to: `burgee/commander` is published by `burgee`. */
@@ -560,15 +581,35 @@ function parityRecords(pair: EntryPair, stack: ParityStack, ours: Measured, thei
   ];
 }
 
+/**
+ * One record per variant and metric. Two pairs against one incumbent each emit that incumbent's
+ * rows; a results document holding them twice would let a reader — or `findRecord` — pick either.
+ */
+export function uniqueRecords(records: readonly BenchRecord[]): BenchRecord[] {
+  const seen = new Set<string>();
+  return records.filter((r) => {
+    const key = `${r.variant}\u0000${r.metric}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export function run(): BenchRecord[] {
   rmSync(SCRATCH, { recursive: true, force: true });
   try {
-    return PAIRS.flatMap((pair) => {
-      const ours = measure(pair.ours, `ours-${pair.id}`);
-      const theirs = measure(pair.incumbent, `theirs-${pair.id}`);
-      const stack = PARITY.find((p) => p.id === pair.id);
-      return [...pairRecords(pair, ours, theirs), ...(stack === undefined ? [] : parityRecords(pair, stack, ours, theirs))];
-    });
+    // An incumbent may stand against two of our entry points — flagstaff's `ora` façade and its
+    // native `spinner` both answer to ora — and is measured once, not once per pair.
+    const incumbents = new Map<string, Measured>();
+    return uniqueRecords(
+      PAIRS.flatMap((pair) => {
+        const ours = measure(pair.ours, `ours-${pair.id}`);
+        const theirs = incumbents.get(pair.incumbent.specifier) ?? measure(pair.incumbent, `theirs-${pair.id}`);
+        incumbents.set(pair.incumbent.specifier, theirs);
+        const stack = PARITY.find((p) => p.id === pair.id);
+        return [...pairRecords(pair, ours, theirs), ...(stack === undefined ? [] : parityRecords(pair, stack, ours, theirs))];
+      }),
+    );
   } finally {
     rmSync(SCRATCH, { recursive: true, force: true });
   }

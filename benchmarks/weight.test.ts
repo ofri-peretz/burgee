@@ -18,6 +18,7 @@ import { join, sep } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { installedDependencies, uniqueRecords } from './axes/weight.js';
 import { PAIRS } from './fixtures/entry-points.js';
 import manifest from './package.json' with { type: 'json' };
 import { BENCH_ROOT, packageDir, satisfies } from './resolve.js';
@@ -83,8 +84,7 @@ function closure(name: string, from = BENCH_ROOT, seen = new Set<string>()): Set
   const key = realpathSync(dir);
   if (seen.has(key)) return seen;
   seen.add(key);
-  const deps = (JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as { dependencies?: Record<string, string> }).dependencies ?? {};
-  for (const dep of Object.keys(deps)) closure(dep, dir, seen);
+  for (const dep of installedDependencies(dir)) closure(dep, dir, seen);
   return seen;
 }
 
@@ -103,6 +103,16 @@ function unreached(name: string): string[] {
     .filter((nested) => existsSync(nested))
     .flatMap((nested) => entriesIn(nested).filter((candidate) => !seen.has(realpathSync(candidate))));
 }
+
+const row = (variant: string, metric: string, median: number): Parameters<typeof uniqueRecords>[0][number] =>
+  ({ axis: 'weight', variant, metric, unit: 'bytes', samples: 1, median, p95: median }) as Parameters<typeof uniqueRecords>[0][number];
+
+describe('an incumbent paired twice is one record, not two', () => {
+  it('keeps the first row for each variant and metric', () => {
+    const out = uniqueRecords([row('ora', 'bundled-bytes', 1), row('flagstaff/ora', 'bundled-bytes', 2), row('ora', 'bundled-bytes', 1), row('ora', 'installed-bytes', 3)]);
+    expect(out.map((r) => `${r.variant} ${r.metric}`)).toEqual(['ora bundled-bytes', 'flagstaff/ora bundled-bytes', 'ora installed-bytes']);
+  });
+});
 
 describe('installed bytes count every copy on disk, once', () => {
   const measured = [...new Set(PAIRS.map((p) => p.incumbent.specifier))];
