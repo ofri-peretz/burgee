@@ -473,7 +473,9 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // D-102 records that, and that ≤ 1 is not reachable while the façade also carries a
   // manifest, a schema and an MCP server. 1.53 on 2026-09-23 for the same 171 bytes as the
   // bundled ceiling above (D-134): measured 1.524.
-  'burgee/commander': 1.53,
+  // 1.535 on 2026-09-23: D-122 left the façade at 59,808 (1.530, on the ceiling) and the MCP
+  // stdout capture (#521) adds 15 bytes of cross-chunk names — 59,823, measured 1.531.
+  'burgee/commander': 1.535,
   'burgee/yargs': 1,
   'roundel/chalk': 1,
   'flagstaff/ora': 1,
