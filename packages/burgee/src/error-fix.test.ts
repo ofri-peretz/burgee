@@ -19,7 +19,7 @@ import { defineCommand, defineProgram, execute } from './execute.js';
 const program = defineProgram({
   name: 'tool',
   version: '1.0.0',
-  commands: [defineCommand({ name: 'deploy', effects: 'non_idempotent', options: { force: { type: 'boolean' } }, run: () => ({ ok: true }) })],
+  commands: [defineCommand({ name: 'deploy', effects: 'non_idempotent', options: { force: { type: 'boolean' }, dryRun: { type: 'boolean' } }, run: () => ({ ok: true }) })],
 });
 
 const failWith = async (argv: string[]): Promise<{ text: string; json: Record<string, unknown> | undefined }> => {
@@ -43,6 +43,13 @@ describe('an error says what to run, not only what went wrong', () => {
     const { json } = await failWith(['deploy', '--forc', '--json']);
     const error = (json?.['error'] ?? {}) as Record<string, unknown>;
     expect(error['fix'], 'the exact flag, executable without interpretation').toBe('--force');
+  });
+
+  it('spells the fix as the flag is typed, never as the key it is declared under', async () => {
+    // The candidates were the canonical keys, so a near miss on `--dry-run` was "fixed" to
+    // `--dryRun`, which the parser refuses in turn: an agent that ran the fix failed twice.
+    const { json } = await failWith(['deploy', '--dryrun', '--json']);
+    expect(json?.['error']).toMatchObject({ fix: '--dry-run' });
   });
 
   it('keeps `hint` as the prose beside it — they are different things', async () => {

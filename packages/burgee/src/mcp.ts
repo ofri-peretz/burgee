@@ -17,6 +17,7 @@ import { createInterface } from 'node:readline';
 
 import { WITHHELD } from './definition.js';
 import { type CommandNode, type Effects, type Manifest } from './manifest.js';
+import { kebab } from './names.js';
 import { inputSchemaOf, type JsonSchema, runnable, typedName } from './schema.js';
 
 export const MCP_PROTOCOL_VERSION = '2025-06-18';
@@ -72,8 +73,12 @@ export function annotationsOf(effects?: Effects): ToolAnnotations {
   };
 }
 
-/** `config get` → `config_get`: MCP tool names are `[a-zA-Z0-9_-]`. */
-export const toolName = (node: CommandNode, root: string[]): string => typedName(node, root).replaceAll(' ', '_');
+/**
+ * `config get` → `config_get`: MCP tool names are `[a-zA-Z0-9_-]`, one character or more. A
+ * program whose root runs — a single `run(defineCommand(…))`, a commander program with a root
+ * `.action()` — has no typed name at all, so its tool is named after the program.
+ */
+export const toolName = (node: CommandNode, root: string[]): string => (typedName(node, root) || root.join(' ')).replaceAll(' ', '_');
 
 function describe(node: CommandNode): string {
   const parts = [node.description ?? node.summary ?? ''];
@@ -104,14 +109,25 @@ export function toolsOf(manifest: Manifest): Tool[] {
     .map((c) => ({ name: toolName(c, manifest.rootPath), description: describe(c), inputSchema: inputSchemaOf(c), annotations: annotationsOf(c.effects as Effects | undefined) }));
 }
 
+/**
+ * Each argument as the flag `inputSchemaOf` advertises for it — `flag: '--dry-run'` for the
+ * property `dryRun`. This wrote `--${name}`, the canonical key with dashes in front, which the
+ * engine and commander both refuse for every multi-word option.
+ *
+ * `false` for a boolean the command would otherwise read as `true` — a default, or an
+ * environment variable behind it — goes as `--no-<name>`. Any other `false` is left unsaid:
+ * a typed negation counts as *given* to a relation (S2), so sending one for every boolean an
+ * agent spells out would trip `dependsOn` and `exclusive` on options nobody set.
+ */
 function optionArgs(node: CommandNode, args: Record<string, unknown>): string[] {
   const out: string[] = [];
   for (const [name, spec] of Object.entries(node.options)) {
     const value = args[name];
     if (value === undefined || value === null) continue;
-    if (spec.type === 'boolean') {
-      if (value === true) out.push(`--${name}`);
-    } else out.push(`--${name}`, String(value));
+    const flag = `--${kebab(name)}`;
+    if (spec.type !== 'boolean') out.push(flag, String(value));
+    else if (value === true) out.push(flag);
+    else if (value === false && spec.negatable !== false && (spec.default === true || spec.env !== undefined)) out.push(`--no-${kebab(name)}`);
   }
   return out;
 }

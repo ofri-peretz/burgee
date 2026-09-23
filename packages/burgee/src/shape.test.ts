@@ -15,7 +15,7 @@
  */
 import { execFileSync } from 'node:child_process';
 
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -30,8 +30,42 @@ function npm(args: string[], options: Parameters<typeof execFileSync>[2]): strin
 
 const pkgRoot = fileURLToPath(new URL('..', import.meta.url));
 
+/** One `$ node cli.mjs …` session from a README transcript: argv, the exit it states, and what it prints. */
+interface Session {
+  argv: string[];
+  code: number;
+  output: string;
+}
+
+/** A README's "Start here": the file it tells a stranger to write, and the transcript it promises. */
+function quickstart(readme: string): { source: string; transcript: Session[] } {
+  const text = readFileSync(readme, 'utf8');
+  const at = text.search(/\n## [^\n]*Start here\n/);
+  const section = text.slice(at, text.indexOf('\n## ', at + 1));
+  const transcript = (/```console\n([\s\S]*?)```/.exec(section)?.[1] ?? '')
+    .trim()
+    .split(/\n\n(?=\$ )/)
+    .map((block) => {
+      const [command = '', ...output] = block.split('\n');
+      const [typed = '', exit] = command.replace(/^\$ node cli\.mjs/, '').split('#');
+      return {
+        argv: typed.trim().split(/\s+/).filter((a) => a !== ''),
+        code: exit === undefined ? 0 : Number(/exit (\d+)/.exec(exit)?.[1]),
+        output: output.join('\n'),
+      };
+    });
+  return { source: /```js\n([\s\S]*?)```/.exec(section)?.[1] ?? '', transcript };
+}
+
 /**
- * The whole CLI. Every character a user has to write.
+ * The whole CLI. Every character a user has to write — **read from the README's "Start here"**,
+ * not copied from it.
+ *
+ * It used to be a copy, and the copy is how burgee@0.10.0 shipped a quickstart that threw: the
+ * test's version declared `effects: 'read_only'`, the README's did not, and `defineCommand`
+ * refuses a runnable command without one. Every commit proved that *a* one-file CLI works, and
+ * the one a stranger pastes first was never run. The transcript under it is run too, byte for
+ * byte, so the output the README promises is the output there is.
  *
  * `.mjs`, not `.js`: the extension carries the module type, so this works in any
  * project regardless of whether its package.json declares `"type"`. With a `.js`
@@ -39,24 +73,21 @@ const pkgRoot = fileURLToPath(new URL('..', import.meta.url));
  * MODULE_TYPELESS_PACKAGE_JSON to stderr on every run, which would corrupt the
  * clean output this project exists to promise — or fails outright. One file with
  * no config beats one file plus a config field.
+ *
+ * The package README (npm's page) and the repository's (GitHub's) both open with it.
  */
-const ONE_FILE = `import { defineCommand, run } from 'burgee';
-
-run(defineCommand({
-  name: 'greet',
-  description: 'Greet someone by name',
-  options: { name: { type: 'string', required: true, description: 'who to greet' } },
-  effects: 'read_only',
-  run: ({ options }) => ({ greeting: \`hello, \${options.name}\` }),
-}));
-`;
+const QUICKSTARTS = {
+  'packages/burgee/README.md': quickstart(join(pkgRoot, 'README.md')),
+  'README.md': quickstart(join(pkgRoot, '..', '..', 'README.md')),
+};
+const ONE_FILE = QUICKSTARTS['packages/burgee/README.md'].source;
 
 let dir: string;
 
-function cli(...argv: string[]): { code: number; stdout: string; stderr: string } {
+function cliIn(cwd: string, argv: string[]): { code: number; stdout: string; stderr: string } {
   try {
     const stdout = execFileSync(process.execPath, ['cli.mjs', ...argv], {
-      cwd: dir,
+      cwd,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -66,6 +97,8 @@ function cli(...argv: string[]): { code: number; stdout: string; stderr: string 
     return { code: err.status ?? 1, stdout: err.stdout ?? '', stderr: err.stderr ?? '' };
   }
 }
+
+const cli = (...argv: string[]): ReturnType<typeof cliIn> => cliIn(dir, argv);
 
 /** `npm pack` in `cwd`, into `into`; returns the tarball's absolute path. */
 function pack(cwd: string, into: string): string {
@@ -103,6 +136,42 @@ beforeAll(() => {
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
 describe('Z1 — one file, npm i, no build step', () => {
+  describe.each(Object.entries(QUICKSTARTS))('%s "Start here"', (readme, { source, transcript }) => {
+    let at: string;
+    beforeAll(() => {
+      // Its own directory, sharing the install: the one-file assertion below holds for `dir`.
+      at = mkdtempSync(join(tmpdir(), 'burgee-readme-'));
+      symlinkSync(join(dir, 'node_modules'), join(at, 'node_modules'), 'junction');
+      writeFileSync(join(at, 'cli.mjs'), source);
+    });
+    afterAll(() => rmSync(at, { recursive: true, force: true }));
+
+    it('has a file and a transcript to run', () => {
+      expect(source, readme).toContain("from 'burgee'");
+      expect(transcript.length).toBeGreaterThanOrEqual(3);
+    });
+
+    it.each(transcript.map((t) => [t.argv.join(' '), t] as const))('$ node cli.mjs %s', (_argv, session) => {
+      const r = cliIn(at, session.argv);
+      expect(`${r.stdout}${r.stderr}`.trimEnd()).toBe(session.output);
+      expect(r.code).toBe(session.code);
+    });
+  });
+
+  /*
+   * The bin a user gets from `npm install burgee`, run the way a shell runs it — through the
+   * symlink npm made, not as `node dist/cli.js`. burgee@0.10.0 had no shebang and this is the
+   * spelling that failed; `node …` never reads line one.
+   */
+  it.skipIf(WINDOWS)('the installed `burgee` command runs as a command', () => {
+    const out = execFileSync(join(dir, 'node_modules', '.bin', 'burgee'), ['--help'], {
+      cwd: dir,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    expect(out).toContain('Usage: burgee');
+  });
+
   it('runs a CLI whose entire source is a single file', () => {
     const r = cli('--name', 'ada');
     expect(r.stderr).toBe('');

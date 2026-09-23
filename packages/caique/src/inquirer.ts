@@ -260,7 +260,14 @@ function runPrompt<Value, Config>(view: ViewFunction<Value, Config>, origin: str
   output.mute();
 
   const screen = new ScreenManager(rl);
-  const { promise, resolve, reject } = Promise.withResolvers<Value>();
+  // Not `Promise.withResolvers` (Node 22): the executor form is the same three handles and
+  // keeps `engines` open to Node 20.19.
+  let resolve!: (value: Value) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<Value>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
 
   return withHooks(rl, (cycle) => {
     // Bound to this async context so it still finds the hook store when a signal or an
