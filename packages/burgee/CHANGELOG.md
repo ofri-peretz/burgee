@@ -1,5 +1,25 @@
 # burgee
 
+## 0.11.1
+
+### Patch Changes
+
+- [#508](https://github.com/ofri-peretz/burgee/pull/508) [`1aae1e2`](https://github.com/ofri-peretz/burgee/commit/1aae1e2186ce88421067df5317795773419e53d0) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The installed `burgee` command runs. `dist/cli.js` shipped without `#!/usr/bin/env node`, so `npx burgee …` and the linked bin were handed to `/bin/sh` on macOS and Linux and failed with `import: command not found`. `check:artifacts` now refuses any published bin that is missing from the pack list or does not start with the shebang.
+
+- [#508](https://github.com/ofri-peretz/burgee/pull/508) [`1aae1e2`](https://github.com/ofri-peretz/burgee/commit/1aae1e2186ce88421067df5317795773419e53d0) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Shell completions offer only flags the parser accepts. Every declared boolean was completed with a `--no-<name>` twin, which is right for burgee's own parser and wrong under `burgee/commander`, where commander negates only what the program declared — so `--no-skip-blank`, `--color` (for a lone `--no-color`) and `--no-version` were each a TAB away and each `unknown option`. Completions now read `OptionSpec.negatable`, which the commander façade sets from the program's own declarations.
+
+- [#508](https://github.com/ofri-peretz/burgee/pull/508) [`1aae1e2`](https://github.com/ofri-peretz/burgee/commit/1aae1e2186ce88421067df5317795773419e53d0) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The README's MCP answer says what `--mcp` does: every runnable command declares its `effects`, `withheld` is what keeps one out of the tool list, and a `burgee/commander` or `burgee/yargs` command that declared nothing is listed as `effects: 'undeclared'` rather than left out.
+
+- [#508](https://github.com/ofri-peretz/burgee/pull/508) [`1aae1e2`](https://github.com/ofri-peretz/burgee/commit/1aae1e2186ce88421067df5317795773419e53d0) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--mcp` tool calls reach the program with multi-word options. `tools/call` rebuilt argv as `--<property>`, so `skipBlank` went out as `--skipBlank` and both the engine and `burgee/commander` refused it; it now sends the flag the schema advertises (`--skip-blank`), and a `false` for a boolean that defaults on goes as `--no-<name>`. Under `burgee/commander`, a lone `--no-color` is advertised as `noColor` (flag `--no-color`) instead of a `--color` commander never accepts. `run(defineCommand(…))` now keeps the command's `effects`, `examples`, `arguments` and `relations`, so a single-command program's tool carries the hints it declared and is named after the program rather than `""`. An unknown-option `fix` is spelled as the flag is typed (`--dry-run`, never `--dryRun`). `OptionSpec` gains `negatable?: boolean` — `false` refuses `--no-<name>`.
+
+- [#508](https://github.com/ofri-peretz/burgee/pull/508) [`1aae1e2`](https://github.com/ofri-peretz/burgee/commit/1aae1e2186ce88421067df5317795773419e53d0) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The README's "Start here" runs. The quickstart omitted `effects`, which `defineCommand` requires of every runnable command, so the first thing a new user pasted threw `command "greet" is runnable and declares no effects`; its `--json` line also left out the `meta` the envelope carries. The shape test now runs the snippet and its transcript straight from both READMEs instead of from a private copy.
+- Updated dependencies [[`1aae1e2`](https://github.com/ofri-peretz/burgee/commit/1aae1e2186ce88421067df5317795773419e53d0)]:
+  - bellpull@0.3.1
+  - closeout@0.5.1
+  - linegauge@0.5.1
+  - roundel@0.5.1
+  - seniority@0.5.1
+
 ## 0.11.0
 
 ### Minor Changes
