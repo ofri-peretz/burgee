@@ -30,7 +30,7 @@ Three kinds, because they close three different ways:
 | A11 | paratext: ansi-escapes 1/4, terminal-link 0/10, term-img 12/18 | compat baselines | each suite at 100%, or each failing case named with its reason |
 | A12 | seniority: cosmiconfig 186/243, dotenv 80/141, lilconfig 67/77, rc 0/1 | compat baselines | same |
 | A13 | caique: clack 14/17 | compat baselines | same |
-| A14 | the foundation layers are static imports of the engine, which the claim says they are not | burgee U13 | measured, and either made lazy or the claim restated with the number |
+| ~~A14~~ | ~~the foundation layers are static imports of the engine~~ — **closed by restatement (D-136)**: two in-family specifiers are static and declared, the output stack is dynamic; the `.` weight rule asserts exactly that | burgee U13 | done |
 | A15 | `-` means stdin for a file positional | burgee S4, D-113 | `ArgumentSpec.type: 'file'`; `-` hands the handler `process.stdin`; a test pipes a file through `-` |
 | A16 | `--json=<a,b>` selects fields | burgee N14, D-114 | bare `--json` unchanged; `--json a` stays a positional; fields filter the envelope's data |
 | ~~A17~~ | ~~`--schema <path> --field <name>`~~ — **closed**: dotted field paths below a command; an unknown step names the valid ones | burgee N13, D-116 | done |
