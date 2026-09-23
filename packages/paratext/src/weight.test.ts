@@ -93,7 +93,10 @@ const RULES: Record<string, EntryRule> = {
   // definition — `capability.schema.json`, written by `scripts/schema-sync.mjs` and held to the
   // source by `plugin-schema-lock.test.ts` — and publishes the whole contract as data it does not
   // import. Measured 16,002 and 13,328: both entries are lighter than they were this morning.
-  '.': { allow: [], budget: 16_100, denied: ['plugin.js'] },
+  // 16,100 → 16,200 under A27: `runtime.js` gained `commandLineRuntime()` for `./terminal-link`
+  // (R5 keeps every `process` read in that one file). A bundler drops it from this entry; this
+  // walk counts the whole file. Measured 16,117.
+  '.': { allow: [], budget: 16_200, denied: ['plugin.js'] },
   /**
    * OSC 8 alone, for a host that wants one clickable URL and not a plugin contract.
    * Measured **2,337 B**: `link.js` 768, `template.js` 774, `supports.js` 652,
@@ -107,8 +110,11 @@ const RULES: Record<string, EntryRule> = {
    * walks, plus its own file. It must never reach `index.js`: taking a drop-in hyperlink is
    * not a reason to register seven built-ins, which is the whole argument for `./link`
    * existing and applies here unchanged.
+   *
+   * 6,000 → 9,300 under A27: `hyperlinks.js` is `supports-hyperlinks`' own detection table,
+   * carried so the façade links exactly where the incumbent does. Measured 9,222.
    */
-  './terminal-link': { allow: [], budget: 6_000, denied: ['index.js', 'capability.js', 'builtins.js', 'plugin.js', 'ansi-escapes.js', 'schema.json'] },
+  './terminal-link': { allow: [], budget: 9_300, denied: ['index.js', 'capability.js', 'builtins.js', 'plugin.js', 'ansi-escapes.js', 'schema.json'] },
   /**
    * The `term-img` façade. It reaches `image.js` for the `IMAGE` record and the field
    * arithmetic, `runtime.js` for the process seam and `template.js` to render — and, unlike

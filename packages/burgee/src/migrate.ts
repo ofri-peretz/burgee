@@ -341,6 +341,14 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
     'visibleWidth',
     'wrap',
   ],
+  'paratext/terminal-link': [
+    'LinkOptions',
+    'Options',
+    'Target',
+    'TerminalLink',
+    'default',
+    'terminalLinkFor',
+  ],
   'roundel/chalk': [
     'BackgroundColor',
     'BackgroundColorName',

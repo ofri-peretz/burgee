@@ -111,9 +111,9 @@ Graded by the incumbent's own test suite:
 | :-- | --: |
 | `ansi-escapes` | 1 / 4 |
 | `term-img` | 12 / 18 |
-| `terminal-link` | 8 / 10 |
+| `terminal-link` | 8 / 8 |
 
-Weight, installed and tree-inclusive: **94,236 bytes** against **30,912** for the incumbents it replaces — a ratio of **3.0485** (terminal-link, term-img measured but left out of the ceiling, so it is understated).
+Weight, installed and tree-inclusive: **101,438 bytes** against **30,912** for the incumbents it replaces — a ratio of **3.2815** (terminal-link, term-img measured but left out of the ceiling, so it is understated).
 ## Where it sits
 
 Plugins register under the `capabilities` key, against the one schema the whole family shares.

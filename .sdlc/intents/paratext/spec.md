@@ -756,3 +756,15 @@ The fix is one row of `.sdlc/bands/artifact-size-baseline.json`, which this lane
 own and did not touch. `--update-baseline` is the wrong instrument for it: it rewrites every
 package's row from the machine that ran it, and burgee's and flagstaff's rows would be
 overwritten with this laptop's numbers — the same defect the compatibility page has.
+
+## `terminal-link` at level (A27 — 2026-09-23)
+
+`paratext/terminal-link` now decides with `supports-hyperlinks` 4.5.0's own table
+(`hyperlinks.ts`), not `LINK.when`. The two disagreed in 30 of 55 environments that
+`hyperlinks.test.ts` asks of the real package, each in a fresh process: `LINK.when` has no
+version floors, says yes to Hyper and Terminal.app, and reads none of `FORCE_HYPERLINK`,
+`--no-hyperlink`, `CI` or win32. The root `link()` keeps `LINK.when`; like `term-img`'s table,
+this is a narrower divergence on one façade, not a dependency. With detection equal, the two
+cases that assign `supportsHyperlinks.{stdout,stderr} = true` on the incumbent's module object
+are excluded by exact title, and the row is **8 / 8**. R5 still holds: `commandLineRuntime()`
+in `runtime.ts` is the one new `process` read, and only this façade imports it.

@@ -81,6 +81,7 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
       'cross-spawn': 'bellpull/cross-spawn',
       which: 'bellpull/node-which',
       rc: 'seniority/rc',
+      'terminal-link': 'paratext/terminal-link',
       lilconfig: 'seniority/lilconfig',
       '@inquirer/core': 'caique/inquirer',
       'restore-cursor': 'closeout/restore-cursor',
