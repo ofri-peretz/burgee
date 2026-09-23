@@ -323,7 +323,11 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // (D-101, which made this one much smaller). The engine measures **28,637** and the three
   // ceilings follow the measurements down — a ratchet that stays where the number used to be
   // is not a ratchet, it is headroom nobody decided to grant.
-  burgee: 28_700,
+  // 28,750 on 2026-09-23 for the MCP stdout capture (#521): `mcp.ts` sits in the engine's
+  // startup graph, so its +430 minified bytes reach every user's bundle (measured 28,705,
+  // main 28,275). The fix for that is to load `mcp.ts` only when `--mcp` is asked for — queued,
+  // not smuggled in here; this raise is the measured cost, not headroom.
+  burgee: 28_750,
   // 59,250 on 2026-09-22 for **61 bytes**: the `.catch` that fires `onError`. A plugin's
   // lifecycle closes on every front end now — `preRun` opens and exactly one of `postRun` or
   // `onError` closes — where before a handler that threw left a plugin with no closing hook.
