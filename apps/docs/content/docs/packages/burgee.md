@@ -75,6 +75,18 @@ published and ratcheting:
 Your code and your tests are unchanged. A façade is never called "compatible" until its
 host's own suite passes 100%; below that the rate is published instead of claimed.
 
+Or let the codemod make that change, and the same one for chalk, ora, string-width,
+cross-spawn, signal-exit and every other incumbent the family replaces at full grade:
+
+```bash
+npx burgee migrate --dry-run
+npx burgee migrate
+```
+
+It rewrites import specifiers and nothing else, leaves a replacement that is not level yet
+alone with its grade, refuses a file it cannot rewrite whole, and prints the install command
+to run next — [Migrate](https://burgee.interlace.tools/docs/migrate).
+
 ## What is in the box
 
 | Import | Gives you |

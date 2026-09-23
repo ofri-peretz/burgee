@@ -15,7 +15,7 @@
  * (or the import's `control`, where the incumbent is a separate package, as `yargs-parser`
  * is), and the drop-in is `<target><subpath>`.
  */
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -23,10 +23,13 @@ import { describe, expect, it } from 'vitest';
 
 // eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: a bare `burgee/*` resolves from another checkout's dist/ in an uninstalled worktree, and `compat.ts` is not an export
 import { DROP_INS } from '../packages/burgee/src/compat.js';
+// eslint-disable-next-line import-next/no-relative-packages -- by path, for the same reason as the line above
+import { MAPPING } from '../packages/burgee/src/migrate.js';
 // eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: compat-oracle is private and never installed as a dependency (compat-oracle R6, scripts/oracle-import-lock.test.ts)
 import { HOSTS } from '../packages/compat-oracle/src/hosts.js';
 
-const BASELINE = resolve(fileURLToPath(new URL('..', import.meta.url)), 'packages/compat-oracle/baseline');
+const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
+const BASELINE = join(ROOT, 'packages/compat-oracle/baseline');
 
 /** Every graded pair, from the oracle: hosts with a baseline and a family target. */
 const derived = HOSTS.filter((h) => existsSync(join(BASELINE, `${h.name}.json`)) && h.target !== '—').flatMap((h) =>
@@ -43,5 +46,18 @@ describe("burgee migrate's drop-ins are the oracle's", () => {
 
   it('holds DROP_INS equal to the pairs the oracle grades', () => {
     expect(DROP_INS.map(key).sort()).toEqual(unique.map(key).sort());
+  });
+});
+
+describe('the Migrate page lists exactly what the codemod rewrites', () => {
+  const page = readFileSync(join(ROOT, 'apps/docs/content/docs/migrate.mdx'), 'utf8');
+  const rows = [...page.matchAll(/^\| `([^`]+)` \| `([^`]+)` \|$/gmu)].map(([, from, to]) => [from!, to!] as const);
+
+  it('reads a table, so the comparison cannot pass vacuously', () => {
+    expect(rows.length).toBeGreaterThan(20);
+  });
+
+  it('holds the table equal to MAPPING, row for row', () => {
+    expect(Object.fromEntries(rows)).toEqual(MAPPING);
   });
 });
