@@ -10,8 +10,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { HOSTS } from './hosts.js';
-import { absentHere, silentDowngrades, verdict } from './report.js';
-import { type Baseline, type Grade, parseFlatTap, summarize, summarizeExitCodes, unmatchedExclusions } from './run.js';
+import { absentHere, absentPassing, silentDowngrades, verdict } from './report.js';
+import { type Baseline, type Grade, parseFlatTap, regressed, summarize, summarizeExitCodes, unmatchedExclusions } from './run.js';
 
 const grade = (host: string, over: Partial<Grade> = {}): Grade => ({
   host,
@@ -222,6 +222,9 @@ describe('excluding a case that cannot fail for any target', () => {
  * must stay as red as it was. So the shortfall is declared per host, exact, and spent only
  * off the platforms named in `only`.
  */
+/** A signal-exit grade as darwin measures it: 127 cases registered of the 135 reference. */
+const onDarwin = (passed: number): Grade => ({ host: 'signal-exit', target: 'closeout', files: 8, tests: 127, passed, failed: 127 - passed, skipped: 0, reference: 135, rate: passed / 135 });
+
 describe('a suite whose case count depends on the platform', () => {
   it('counts the two cosmiconfig guards as absent off linux, and as present on it', () => {
     expect(absentHere('cosmiconfig', 'darwin')).toBe(2);
@@ -235,6 +238,18 @@ describe('a suite whose case count depends on the platform', () => {
     expect(absentHere('lilconfig', 'win32')).toBe(2);
     expect(absentHere('lilconfig', 'darwin')).toBe(0);
     expect(absentHere('lilconfig', 'linux')).toBe(0);
+  });
+
+  it('credits the ratchet with declared passes only where the cases are absent (signal-exit)', () => {
+    // signal-exit's 8 Linux-only cases pass where they run, so darwin may not be read as
+    // having lost them; cosmiconfig's 2 fail where they run, so darwin is credited nothing.
+    expect(absentPassing('signal-exit', 'darwin')).toBe(8);
+    expect(absentPassing('signal-exit', 'linux')).toBe(0);
+    expect(absentPassing('cosmiconfig', 'darwin')).toBe(0);
+    const baseline = { 'signal-exit': { reference: 135, passed: 134, rate: 134 / 135 } };
+    expect(regressed(onDarwin(126), baseline, absentPassing('signal-exit', 'darwin'))).toBe(false);
+    // A real loss on darwin is still a loss: the credit is exact, not a cushion.
+    expect(regressed(onDarwin(125), baseline, absentPassing('signal-exit', 'darwin'))).toBe(true);
   });
 
   it('claims nothing for a host that declares nothing', () => {
