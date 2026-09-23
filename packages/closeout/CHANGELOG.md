@@ -1,5 +1,15 @@
 # closeout
 
+## 0.4.0
+
+### Minor Changes
+
+- [#459](https://github.com/ofri-peretz/burgee/pull/459) [`69563d1`](https://github.com/ofri-peretz/burgee/commit/69563d1fb14d9a4b29364446bae2fc48d86f6103) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `closeout/signal-exit` and `closeout/signal-exit/signals` — the drop-in path for `signal-exit` 4 (198.9 M/wk), graded 134 / 135 by signal-exit's own test suite, the same case its own package fails. `onExit`, `load`, `unload` and `signals`, at 4,797 B against the incumbent's 10,995 B. CommonJS on purpose — the suite re-evaluates the module under a changed `process` — and importable by name from ESM.
+
+### Patch Changes
+
+- [#480](https://github.com/ofri-peretz/burgee/pull/480) [`2dc573f`](https://github.com/ofri-peretz/burgee/commit/2dc573f884e7a4cc46829cd8f2c949a17f07710c) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - README corrections: paratext shows terminal-link at its measured 8 / 10 (was the stale 0 / 10 floor); linegauge's and closeout's `npm:` override examples resolve to the current release instead of 0.2 / 0.1.
+
 ## 0.3.2
 
 ### Patch Changes
