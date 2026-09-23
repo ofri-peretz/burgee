@@ -312,8 +312,8 @@ describe('A8 — the exit code says whether anything was left undone', () => {
   it('carries every count the human surface prints', async () => {
     const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { commander: '^15.0.0' } }), 'src/a.ts': "import 'commander';\n" });
     expect(Object.keys(await migrate({ dir, status: clean })).sort()).toEqual(
-      // `partial` and `next` joined with A12: what was left alone and why, and the command to run.
-      ['changed', 'dependencies', 'detected', 'dryRun', 'exitCode', 'files', 'graded', 'imports', 'kept', 'mapped', 'next', 'partial', 'refused'].sort(),
+      // `partial`, `offMajor` and `next` joined with A12: what was left alone and why, and the command to run.
+      ['changed', 'dependencies', 'detected', 'dryRun', 'exitCode', 'files', 'graded', 'imports', 'kept', 'mapped', 'next', 'offMajor', 'partial', 'refused'].sort(),
     );
   });
 });
@@ -339,7 +339,7 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     // be a migration that breaks someone. It is reported, not refused — `dotenv/config` is
     // not a deep import into anything this command rewrites.
     const dir = project({
-      'package.json': JSON.stringify({ name: 'x', dependencies: { dotenv: '^16.0.0', chalk: '^5.0.0' } }),
+      'package.json': JSON.stringify({ name: 'x', dependencies: { dotenv: '^17.0.0', chalk: '^6.0.0' } }),
       'src/a.ts': "import 'dotenv/config';\nimport chalk from 'chalk';\n",
     });
     const report = await migrate({ dir, status: clean });
@@ -350,7 +350,7 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
 
   it('names the family packages to add, and the command that adds them and removes the incumbents', async () => {
     const dir = project({
-      'package.json': JSON.stringify({ name: 'x', dependencies: { chalk: '^5.0.0', ora: '^8.0.0', flagstaff: '^0.5.0' } }),
+      'package.json': JSON.stringify({ name: 'x', dependencies: { chalk: '^6.0.0', ora: '^9.0.0', flagstaff: '^0.5.0' } }),
       'pnpm-lock.yaml': '',
       'src/a.ts': "import chalk from 'chalk';\nimport ora from 'ora';\n",
     });
@@ -361,7 +361,7 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
   });
 
   it('defaults the next step to npm, and prints nothing when there is nothing to do', async () => {
-    const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { 'string-width': '^7.0.0' } }), 'src/a.ts': "import w from 'string-width';\n" });
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { 'string-width': '^8.0.0' } }), 'src/a.ts': "import w from 'string-width';\n" });
     expect((await migrate({ dir, status: clean })).next).toBe('npm install linegauge && npm uninstall string-width');
     const empty = project({ 'src/a.ts': 'export {};\n' });
     expect((await migrate({ dir: empty, status: clean })).next).toBe('');
@@ -385,6 +385,24 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     expect(rewriteSource("const chalk = require('chalk');\n").refused).toEqual([{ line: 1, specifier: 'chalk', reason: 'require-of-default' }]);
     expect(rewriteSource("const { Command } = require('commander');\n").source).toBe("const { Command } = require('burgee/commander');\n");
     expect(rewriteSource("const { onExit } = require('signal-exit');\n").source).toBe("const { onExit } = require('closeout/signal-exit');\n");
+  });
+
+  it('leaves an incumbent on another major alone, and says which versions', async () => {
+    // signal-exit 3 exports a function; the grade is for 4, which exports `onExit`. Rewriting
+    // `require('signal-exit')(cb)` onto closeout/signal-exit would call an object. The installed
+    // version wins over the declared range: chalk is declared ^6 and installed at 4.1.2.
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { 'signal-exit': '^3.0.7', chalk: '^6.0.0', ora: '^9.0.0' } }),
+      'node_modules/chalk/package.json': JSON.stringify({ name: 'chalk', version: '4.1.2' }),
+      'src/a.js': "const onExit = require('signal-exit');\nimport chalk from 'chalk';\nimport ora from 'ora';\n",
+    });
+    const report = await migrate({ dir, status: clean });
+    expect(read(dir, 'src/a.js')).toBe("const onExit = require('signal-exit');\nimport chalk from 'chalk';\nimport ora from 'flagstaff/ora';\n");
+    expect(report.offMajor).toEqual([
+      { from: 'chalk', found: '4.1.2', graded: '6.0.0' },
+      { from: 'signal-exit', found: '^3.0.7', graded: '4.1.0' },
+    ]);
+    expect(report.dependencies.removable).toEqual(['ora']);
   });
 
   it('maps a subpath of an incumbent to the same subpath of its drop-in', () => {

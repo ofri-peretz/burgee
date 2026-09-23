@@ -62,6 +62,11 @@ equal.
 - **A name the replacement does not export.** Every imported name is checked against the
   replacement's exports. A type-only import of a missing name stays on the incumbent, with a
   note to keep its types installed; a value import of one refuses the file.
+- **An incumbent on a major the oracle did not grade.** The grade is for one major:
+  `signal-exit` 3 exports a function where 4 exports `onExit`, and `chalk` 4 is CommonJS where
+  6 is not. A project whose installed version — or, with nothing installed, whose declared
+  range — is on another major is listed under `offMajor` with both versions, and not
+  rewritten. Upgrade it first, and run the command again.
 - **A `require()` of a replacement that has a default export.** `require()` of an ES module
   returns its namespace, so `const chalk = require('chalk')` pointed at `roundel/chalk` would
   leave `chalk.red` undefined. The file is refused with `require-of-default`; switch it to

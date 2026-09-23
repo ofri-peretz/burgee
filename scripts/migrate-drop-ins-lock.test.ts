@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 // eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: a bare `burgee/*` resolves from another checkout's dist/ in an uninstalled worktree, and `compat.ts` is not an export
-import { DROP_INS } from '../packages/burgee/src/compat.js';
+import { DROP_INS, GRADED_VERSIONS } from '../packages/burgee/src/compat.js';
 // eslint-disable-next-line import-next/no-relative-packages -- by path, for the same reason as the line above
 import { MAPPING } from '../packages/burgee/src/migrate.js';
 // eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: compat-oracle is private and never installed as a dependency (compat-oracle R6, scripts/oracle-import-lock.test.ts)
@@ -59,5 +59,22 @@ describe('the Migrate page lists exactly what the codemod rewrites', () => {
 
   it('holds the table equal to MAPPING, row for row', () => {
     expect(Object.fromEntries(rows)).toEqual(MAPPING);
+  });
+});
+
+describe('the graded versions are the oracle\'s', () => {
+  /** What the oracle vendored for each host, and — for an import whose incumbent is its own package — what its control resolves. */
+  const vendored = (host: string, from: string): string => {
+    const own = HOSTS.find((h) => h.name === host);
+    const pkg = from.startsWith('@') ? from.split('/').slice(0, 2).join('/') : from.split('/')[0]!;
+    if (own !== undefined && (own.npmName ?? own.name) === pkg) {
+      return (JSON.parse(readFileSync(join(ROOT, 'packages/compat-oracle/vendor', host, '.source.json'), 'utf8')) as { version: string }).version;
+    }
+    return (JSON.parse(readFileSync(join(ROOT, 'node_modules', pkg, 'package.json'), 'utf8')) as { version: string }).version;
+  };
+
+  it.each(DROP_INS.map((d) => [d.from, d.host] as const))('%s is graded at the version the oracle ran', (from, host) => {
+    const pkg = from.startsWith('@') ? from.split('/').slice(0, 2).join('/') : from.split('/')[0]!;
+    expect(GRADED_VERSIONS[pkg]).toBe(vendored(host, from));
   });
 });

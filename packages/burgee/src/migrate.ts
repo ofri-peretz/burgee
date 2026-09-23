@@ -28,7 +28,7 @@ import { join } from 'node:path';
 
 import { ambientRuntime, run } from 'bellpull';
 
-import { DROP_INS, GRADED, isLevel, type Row } from './compat.js';
+import { DROP_INS, GRADED, GRADED_VERSIONS, isLevel, type Row } from './compat.js';
 import { ExitCode } from './exit-code.js';
 
 /** The npm package a specifier names: `@scope/name/x` → `@scope/name`, `name/x` → `name`. */
@@ -60,6 +60,12 @@ export const HOSTS: readonly string[] = [...new Set(Object.keys(MAPPING).map(pac
 
 /** Graded drop-ins that are not level yet: reported so a user knows the path exists, never rewritten (A12). */
 const PARTIAL = DROP_INS.filter((d) => !isLevel(d.host));
+
+/** The leading number of a version or a range — `^3.0.7` is 3, `>=18` is 18; `undefined` for `*` or a tag. */
+export function majorOf(version: string): number | undefined {
+  const digits = /\d+/.exec(version);
+  return digits === null ? undefined : Number(digits[0]);
+}
 
 /** The `GRADED` key for an incumbent package — `@inquirer/core` is graded as `inquirer-core`. */
 const HOST_OF = new Map(DROP_INS.map((d) => [packageOf(d.from), d.host]));
@@ -417,6 +423,14 @@ export interface Detection {
   imported: string[];
 }
 
+/** An incumbent the project has on a different major from the one graded — left alone (A12). */
+export interface OffMajor {
+  from: string;
+  /** The installed version, or the declared range when nothing is installed here. */
+  found: string;
+  graded: string;
+}
+
 /** A declared incumbent with a graded drop-in that is not level yet (A12). */
 export interface NotLevel extends Row {
   from: string;
@@ -436,6 +450,8 @@ export interface MigrationReport {
   graded: (Row & { host: string })[];
   /** Declared incumbents whose drop-in is graded but not level — left alone, with the grade that says why. */
   partial: NotLevel[];
+  /** Incumbents on a major the oracle did not grade — left alone, never rewritten onto an API they do not use. */
+  offMajor: OffMajor[];
   /** The install and uninstall to run next, for the package manager the lockfile names; `''` when there is none. */
   next: string;
   dryRun: boolean;
@@ -763,6 +779,9 @@ function classify(site: Site): 'moves' | 'unmapped' | Omit<Kept, 'file'> | Omit<
   return { line: site.line, specifier: site.specifier, reason: 'unknown-export', names: missing };
 }
 
+/** No package skipped. */
+const NONE: ReadonlySet<string> = new Set();
+
 /**
  * A2/A5 — map every host specifier in one file, or map none of them.
  *
@@ -770,10 +789,10 @@ function classify(site: Site): 'moves' | 'unmapped' | Omit<Kept, 'file'> | Omit<
  * source is returned unchanged the moment there is a refusal in it: the unit of success is
  * the file, so the worst case is *nothing changed here, and here is why* (D-051).
  */
-export function rewriteSource(source: string): Rewrite {
+export function rewriteSource(source: string, skip: ReadonlySet<string> = NONE): Rewrite {
   if (!mentionsAHost(source)) return { source, mapped: [], refused: [], kept: [], relevant: false };
   const { sites, nonLiteral } = scan(source);
-  const hits = sites.filter((s) => MAPPING[s.specifier] !== undefined || isDeep(s.specifier));
+  const hits = sites.filter((s) => !skip.has(packageOf(s.specifier)) && (MAPPING[s.specifier] !== undefined || isDeep(s.specifier)));
   if (hits.length === 0) return { source, mapped: [], refused: [], kept: [], relevant: false };
 
   // A name the façade lacks: a type-only statement stays on the incumbent (types are
@@ -829,14 +848,34 @@ interface Manifest {
   devDependencies?: Record<string, string>;
 }
 
-/** Every dependency `package.json` declares — one of A1's two independent sources. */
-async function declaredDependencies(dir: string): Promise<Set<string>> {
+/** Every dependency `package.json` declares, with its range — one of A1's two independent sources. */
+async function declaredDependencies(dir: string): Promise<Map<string, string>> {
   try {
     const raw = JSON.parse(await readFile(join(dir, 'package.json'), 'utf8')) as Manifest;
-    return new Set(Object.keys({ ...raw.dependencies, ...raw.devDependencies }));
+    return new Map(Object.entries({ ...raw.dependencies, ...raw.devDependencies }));
   } catch {
-    return new Set();
+    return new Map();
   }
+}
+
+/** The version installed at `dir/node_modules/<name>`, when there is one. */
+async function installedVersion(dir: string, name: string): Promise<string | undefined> {
+  try {
+    return (JSON.parse(await readFile(join(dir, 'node_modules', name, 'package.json'), 'utf8')) as { version?: string }).version;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Incumbents this project has on a major other than the graded one (A12). */
+async function offMajorOf(dir: string, dependencies: Map<string, string>): Promise<OffMajor[]> {
+  const found = await Promise.all(HOSTS.map(async (from) => ({ from, found: (await installedVersion(dir, from)) ?? dependencies.get(from) })));
+  return found.flatMap(({ from, found: version }) => {
+    const graded = GRADED_VERSIONS[from];
+    if (version === undefined || graded === undefined) return [];
+    const major = majorOf(version);
+    return major === undefined || major === majorOf(graded) ? [] : [{ from, found: version, graded }];
+  });
 }
 
 /** The package manager whose lockfile is here, so `next` is a command that runs as written. */
@@ -906,11 +945,11 @@ const EMPTY: Rewrite = { source: '', mapped: [], refused: [], kept: [], relevant
  * record, is **3.1–5.2 seconds** — an order of magnitude, which is why the concurrency is
  * here at all.)
  */
-async function migrateBatch(dir: string, batch: string[], write: boolean): Promise<Rewrite[]> {
+async function migrateBatch(dir: string, batch: string[], write: boolean, skip: ReadonlySet<string>): Promise<Rewrite[]> {
   // Read as bytes and decode only what the pre-filter admits: on the bench tree a third of
   // the files never become a string at all, which is 405 ms against 427 for the same work.
   const sources = await Promise.all(batch.map(async (file) => await readFile(join(dir, file))));
-  const results = sources.map((bytes) => (mentionsAHost(bytes) ? rewriteSource(bytes.toString('utf8')) : EMPTY));
+  const results = sources.map((bytes) => (mentionsAHost(bytes) ? rewriteSource(bytes.toString('utf8'), skip) : EMPTY));
   if (write) await Promise.all(results.map(async (r, i) => (r.mapped.length === 0 ? undefined : await writeFile(join(dir, batch[i] as string), r.source))));
   return results;
 }
@@ -961,12 +1000,15 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
   const entries = await (options.status ?? workingTree)(dir);
   if (!dryRun && !force && entries !== undefined && entries.length > 0) throw new DirtyTreeError(entries);
 
+  const dependencies = await declaredDependencies(dir);
+  const offMajor = await offMajorOf(dir, dependencies);
+  const skip = new Set(offMajor.map((o) => o.from));
   const files = sourceFiles(dir);
   const results: { file: string; result: Rewrite }[] = [];
   for (let i = 0; i < files.length; i += BATCH) {
     const batch = files.slice(i, i + BATCH);
     // eslint-disable-next-line reliability/no-await-in-loop -- the await IS the bound (A10). Each batch is 256 files in flight at once; awaiting one before opening the next is what keeps the command inside the open-file limit on a repository of any size, and `Promise.all` over every file in a monorepo is EMFILE.
-    const done = await migrateBatch(dir, batch, !dryRun);
+    const done = await migrateBatch(dir, batch, !dryRun, skip);
     results.push(...done.map((result, k) => ({ file: batch[k] as string, result })));
   }
 
@@ -974,13 +1016,12 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
   const refused: Refusal[] = results.flatMap(({ file, result }) => result.refused.map((r) => ({ file, ...r })));
   const kept: Kept[] = results.flatMap(({ file, result }) => result.kept.map((k) => ({ file, ...k })));
   const imported = [...new Set(results.flatMap(({ result }) => (result.relevant ? [...result.mapped.map((m) => packageOf(m.from)), ...result.kept.map((k) => packageOf(k.specifier))] : [])))].sort();
-  const dependencies = await declaredDependencies(dir);
   const declared = HOSTS.filter((host) => dependencies.has(host));
   // A dependency is removable only when nothing still imports it — a file that was refused
   // still imports commander, and so does a kept type-only import, so the maintainer's
   // `npm rm` would break their own build.
   const stillUsed = new Set([...refused, ...kept].map((r) => packageOf(r.specifier)));
-  const removable = declared.filter((host) => !stillUsed.has(host));
+  const removable = declared.filter((host) => !stillUsed.has(host) && !skip.has(host));
   const touched = [...new Set(all.map((m) => m.file))];
   const add = [...new Set(all.map((m) => packageOf(m.to)))].filter((p) => !dependencies.has(p)).sort();
   const partial = PARTIAL.filter((d) => dependencies.has(d.from)).map((d) => ({ from: d.from, to: d.to, ...(GRADED[d.host] as Row) }));
@@ -995,6 +1036,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
     dependencies: { before: declared, removable, after: declared.length - removable.length, add },
     graded: gradedFor([...new Set([...declared, ...imported])].sort()),
     partial,
+    offMajor,
     next: nextStep(dir, add, removable),
     dryRun,
     changed: !dryRun && touched.length > 0,

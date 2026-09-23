@@ -116,6 +116,44 @@ export const DROP_INS: readonly DropIn[] = [
   { host: 'signal-exit', from: 'signal-exit/signals', to: 'closeout/signal-exit/signals' },
 ];
 
+/**
+ * The version each incumbent package was graded at: `vendor/<host>/.source.json`, or for
+ * `yargs-parser` the copy the yargs control resolves. The grade is for that major and no other
+ * — `signal-exit` 3 exports a function where 4 exports `onExit`, and `chalk` 4 is CommonJS where
+ * 6 is not — so `migrate` leaves a project on another major alone and says so.
+ * `scripts/migrate-drop-ins-lock.test.ts` holds each equal to the oracle's.
+ */
+/* eslint-disable conventions/prefer-dependency-version-strategy -- these are the exact versions the oracle graded, not dependency ranges: this object is data read by `migrate`, never a manifest npm installs from */
+export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
+  '@clack/prompts': '1.8.1',
+  '@inquirer/core': '12.0.3',
+  'ansi-escapes': '7.3.0',
+  boxen: '8.0.1',
+  chalk: '6.0.0',
+  'cli-table3': '0.6.5',
+  commander: '15.0.0',
+  cosmiconfig: '10.0.1',
+  'cross-spawn': '7.0.6',
+  dotenv: '17.4.2',
+  'exit-hook': '5.1.0',
+  lilconfig: '3.1.3',
+  'log-update': '8.0.0',
+  meow: '14.1.0',
+  ora: '9.4.1',
+  rc: '1.2.8',
+  'restore-cursor': '5.1.0',
+  'signal-exit': '4.1.0',
+  'slice-ansi': '7.1.2',
+  'string-width': '8.2.2',
+  'strip-ansi': '7.2.0',
+  'term-img': '7.1.0',
+  'terminal-link': '5.0.0',
+  'wrap-ansi': '10.0.1',
+  yargs: '18.1.0',
+  'yargs-parser': '22.0.0',
+};
+/* eslint-enable conventions/prefer-dependency-version-strategy */
+
 /** Level: the drop-in passes every case the incumbent passes against its own suite (D-137). */
 export const isLevel = (host: string): boolean => {
   const row = GRADED[host];
