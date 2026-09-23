@@ -30,7 +30,7 @@ Three kinds, because they close three different ways:
 | A11 | paratext: ansi-escapes 1/4, terminal-link 8/10, term-img 12/18 — **each at a recorded ceiling**: CSI is out of scope (3 of ansi-escapes' 4), terminal-link's 2 read another package's mutated module object, term-img's 6 pass a PATH where D-030 takes bytes. terminal-link's baseline was stale at 0 and is now 8 | compat baselines | each ceiling restated as a decision, or lifted |
 | A12 | seniority: cosmiconfig 186/243, dotenv **106**/141 (was 80), lilconfig 67/77, rc **1/1** (was 0) — D-135 lifted the two; dotenv's remaining 35 are the declined vault/decrypt (27), dotenvx tips (2), and 6 internal-module cases the harness cannot map yet | compat baselines | each suite at 100%, or each failing case named with its reason |
 | A13 | caique: clack 14/17 — the 3 are `guide.test.ts`, which renders all twelve clack prompts; `caique/clack` exports only `limitOptions`, so closing it is a clack prompt façade, not a fix | compat baselines | the twelve prompts, or the row restated to `limitOptions` |
-| A14 | the foundation layers are static imports of the engine, which the claim says they are not | burgee U13 | measured, and either made lazy or the claim restated with the number |
+| ~~A14~~ | ~~the foundation layers are static imports of the engine~~ — **closed by restatement (D-136)**: two in-family specifiers are static and declared, the output stack is dynamic; the `.` weight rule asserts exactly that | burgee U13 | done |
 | A15 | `-` means stdin for a file positional | burgee S4, D-113 | `ArgumentSpec.type: 'file'`; `-` hands the handler `process.stdin`; a test pipes a file through `-` |
 | A16 | `--json=<a,b>` selects fields | burgee N14, D-114 | bare `--json` unchanged; `--json a` stays a positional; fields filter the envelope's data |
 | ~~A17~~ | ~~`--schema <path> --field <name>`~~ — **closed**: dotted field paths below a command; an unknown step names the valid ones | burgee N13, D-116 | done |
@@ -42,7 +42,7 @@ Three kinds, because they close three different ways:
 | A23 | plugin hooks `parse` and `shutdown` | plugin surface, D-122 | in the schema, the plugins page's "cannot do yet" list shrinks by the two |
 | A24 | `burgee/program-schema.json` | burgee F1, schema-is-validated, D-123 | published; `--schema` output validated against it in a test, no runtime validator |
 | ~~A25~~ | ~~`.effects()` on commander façade commands~~ — **already built**, found 2026-09-23: both façades have `.effects()`, `facade-surface.test.ts` covers declared, undeclared and withheld; the spec row was stale | agent-surface-declared R6, D-127 | done |
-| A26 | `signal-exit`'s API at closeout's root, so the `overrides` recipe resolves | closeout R6 | the recipe installs and the suite passes through it, or R6 restated to the subpath |
+| ~~A26~~ | ~~`signal-exit`'s API at closeout's root, so the `overrides` recipe resolves~~ — **closed by restatement** (D-133): R6 restated to the three subpaths; the README's two-incumbent `overrides` recipe never linked and is withdrawn; `scripts/override-recipe-lock.test.ts` | closeout R6 | done |
 
 ## B — decide, then build
 
