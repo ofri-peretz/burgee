@@ -284,6 +284,11 @@ function exitHook(onExit: ExitHookCallback): () => void {
   };
 }
 
+
+// exit-hook's own type names, so a typed program migrates by its import alone — `burgee migrate`
+// checks every imported name against this module and would otherwise leave the import on exit-hook.
+export type Options = AsyncExitHookOptions;
+
 /**
  * Register an asynchronous hook, bounded by `wait`.
  *

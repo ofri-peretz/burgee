@@ -54,7 +54,7 @@
   `closeout/signal-exit` and the rest. The list is `DROP_INS` in `compat.ts`, re-derived from
   the oracle's host table by `scripts/migrate-drop-ins-lock.test.ts`; the control counts come
   from the published compatibility page. A drop-in that is not level yet (dotenv, cosmiconfig,
-  clack, meow, rc, ansi-escapes, terminal-link, term-img) is reported under `partial` with its
+  clack, meow, ansi-escapes, terminal-link, term-img) is reported under `partial` with its
   grade and never rewritten. The report names the family packages to add and prints `next`,
   the install-and-uninstall command for the package manager the lockfile names.
 

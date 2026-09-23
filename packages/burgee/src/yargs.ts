@@ -59,4 +59,7 @@ export type {
  */
 const Yargs = YargsFactory(shim) as unknown as (processArgs?: readonly string[] | string, cwd?: string, parentRequire?: NodeJS.Require) => Argv;
 
+// yargs' own entry does this: `'module.exports'` is what Node hands a CommonJS `require()` of
+// an ES module, so `const yargs = require('burgee/yargs')` gets the factory, as from yargs.
+export { Yargs as 'module.exports' };
 export default Yargs;

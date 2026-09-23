@@ -79,6 +79,7 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
       'wrap-ansi': 'linegauge/wrap',
       'slice-ansi': 'linegauge/slice',
       'cross-spawn': 'bellpull/cross-spawn',
+      rc: 'seniority/rc',
       lilconfig: 'seniority/lilconfig',
       '@inquirer/core': 'caique/inquirer',
       'restore-cursor': 'closeout/restore-cursor',
@@ -335,7 +336,7 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
   });
 
   it('leaves a drop-in that is not level yet alone, and says so with its grade', async () => {
-    // dotenv's drop-in passes 80 of the 141 cases dotenv itself passes: rewriting it would
+    // dotenv's drop-in passes 106 of the 141 cases dotenv itself passes: rewriting it would
     // be a migration that breaks someone. It is reported, not refused — `dotenv/config` is
     // not a deep import into anything this command rewrites.
     const dir = project({
@@ -345,7 +346,7 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     const report = await migrate({ dir, status: clean });
     expect(read(dir, 'src/a.ts')).toBe("import 'dotenv/config';\nimport chalk from 'roundel/chalk';\n");
     expect(report.refused).toEqual([]);
-    expect(report.partial).toEqual([{ from: 'dotenv', to: 'seniority/dotenv', reference: 141, passed: 80, rate: 0.5673758865248227, control: 141 }]);
+    expect(report.partial).toEqual([{ from: 'dotenv', to: 'seniority/dotenv', reference: 141, passed: 106, rate: 0.75177304964539, control: 141 }]);
   });
 
   it('names the family packages to add, and the command that adds them and removes the incumbents', async () => {

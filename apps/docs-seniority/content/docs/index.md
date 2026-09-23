@@ -317,11 +317,11 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `cosmiconfig` | 186 / 243 |
-| `dotenv` | 80 / 141 |
+| `dotenv` | 106 / 141 |
 | `lilconfig` | 67 / 77 |
-| `rc` | 0 / 1 |
+| `rc` | 1 / 1 |
 
-Weight, installed and tree-inclusive: **153,324 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.0777**.
+Weight, installed and tree-inclusive: **155,498 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.0788**.
 ## Where it sits
 
 Plugins register under the `sources` key, against the one schema the whole family shares.
