@@ -69,6 +69,12 @@ The `--json` envelope, byte for byte. Under `burgee/commander`, `data` is what t
 **returned**: an action that prints instead gives `data: null`, because commander actions
 return nothing. Return the value — `.action(() => ({ lines }))` — and it is `data`.
 
+A handler that throws, rejects or throws something that is not an `Error` is an error
+result, not a crashed server: `isError: true`, and the text is the `{ "ok": false, "error":
+… }` envelope a `--json` caller gets on stdout. An `AuthError` carries `code` 5 (`"auth"` on
+the commander and yargs front ends) with its `hint` and `fix`, and the server answers the
+next call.
+
 ### Client configuration
 
 For Claude Desktop, Claude Code, Cursor or any stdio client, register the program as a

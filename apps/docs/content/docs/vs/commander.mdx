@@ -39,7 +39,10 @@ is never called "compatible" until its host's own suite passes 100%.
 The same program, after the import swap, answers four things commander cannot:
 
 - **`--json`** — every command's result in one stable envelope, `{ "ok": true, "data": … }`,
-  with errors in the same shape. No stdout scraping. `data` is what the action returns, so
+  and every failure in the same place: `{ "ok": false, "error": { "code", "message" } }` on
+  stdout, alone, whether commander refused the command line or the action threw — with the
+  exit code the error names (`AuthError` exits 5). Through 0.11.1 an action that threw under a
+  plain `parseAsync(process.argv)` escaped as a stack trace instead. No stdout scraping. `data` is what the action returns, so
   an action that only prints gives `data: null` — commander actions return nothing; return
   the value (`.action(() => ({ lines }))`) and it is `data`.
 - **`--schema`** — the whole command tree as data: commands, arguments, options, choices,

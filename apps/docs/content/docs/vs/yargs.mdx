@@ -44,7 +44,9 @@ number.
 ## What you gain over yargs
 
 - **`--json`** — every command's result in one stable envelope, `{ "ok": true, "data": … }`,
-  with errors in the same shape.
+  and every failure as one `{ "ok": false, "error": { "code", "message" } }` on stdout, with
+  the exit code the error names — a handler that throws included, which through 0.11.1 could
+  escape `parseAsync()` as a stack trace.
 - **`--schema`** — the command tree as data, with a JSON Schema per command; no handler
   runs, so an agent can call it first.
 - **`--mcp`** — the same commands as MCP tools over stdio. A command that declared nothing
