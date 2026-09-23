@@ -109,7 +109,10 @@ const _enoent = { hookChildProcess, verifyENOENT, notFoundError };
  */
 const crossSpawn = Object.assign(spawn, { spawn, sync, parse, _parse: parse, _enoent });
 
-export { _enoent, crossSpawn, parse, spawn, sync, type ChildProcess, type Parsed, type SpawnOptions, type SpawnSyncReturns };
+// `'module.exports'` is what Node hands a CommonJS `require()` of an ES module, so
+// `const spawn = require('bellpull/cross-spawn')` gets this function with `.sync` on it, as
+// `require('cross-spawn')` does. The oracle's shim used to add it; now the package does.
+export { _enoent, crossSpawn, crossSpawn as 'module.exports', parse, spawn, sync, type ChildProcess, type Parsed, type SpawnOptions, type SpawnSyncReturns };
 
 // eslint-disable-next-line import-next/no-default-export -- the incumbent's entry is a default export and Y3 is the whole point of this file
 export default crossSpawn;

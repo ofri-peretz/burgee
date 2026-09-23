@@ -632,7 +632,8 @@ const RULES: Record<string, EntryRule> = {
   // 215,200 on 2026-09-22 for D1, the definition-time refusal of a deprecation that names no replacement: `checkDeprecated` in `definition.js`, which `plugin.js` imports, so every entry that reaches the manifest pays it — the façades included, though they never call it with `true`. Measured 215,183.
   "./yargs": {
     allow: [],
-    budget: 215_200,
+    // 215,250 on 2026-09-23: `export { Yargs as 'module.exports' }`, which yargs' own entry has, so `require('burgee/yargs')` hands a CommonJS caller the factory rather than a namespace. Measured 215,221.
+    budget: 215_250,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   "./yargs/helpers": {
