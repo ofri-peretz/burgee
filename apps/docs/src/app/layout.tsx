@@ -1,4 +1,5 @@
 import { Analytics } from '@vercel/analytics/next';
+import { PITCH } from '#/lib/llms';
 import { SITE } from '#/lib/site';
 import { RootProvider } from 'fumadocs-ui/provider/next';
 import { type Metadata } from 'next';
@@ -16,11 +17,9 @@ import './global.css';
  */
 const BUILD_SHA = process.env.NEXT_PUBLIC_BUILD_SHA ?? process.env.VERCEL_GIT_COMMIT_SHA ?? 'dev';
 
-const DESCRIPTION =
-  "Everything a CLI needs that isn't your CLI: help, structured output, a typed schema, an MCP server, completions, types and docs, every one projected from a single declaration.";
-
 /**
- * Site-wide defaults. `metadataBase` is what turns every relative URL a page states —
+ * Site-wide defaults. The description is the canonical {@link PITCH}, never a local variant.
+ * `metadataBase` is what turns every relative URL a page states —
  * canonical, the `.md` alternate, Open Graph `url`, the `opengraph-image` file convention —
  * into an absolute one on the canonical host rather than whichever preview URL served the
  * build. The Open Graph and Twitter blocks are the fallback card for any page that states
@@ -30,10 +29,10 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE),
   other: { 'x-build-sha': BUILD_SHA },
   title: { default: 'burgee', template: '%s | burgee' },
-  description: DESCRIPTION,
+  description: PITCH,
   applicationName: 'burgee',
-  openGraph: { type: 'website', siteName: 'burgee', locale: 'en_US', url: '/', title: 'burgee', description: DESCRIPTION },
-  twitter: { card: 'summary_large_image', title: 'burgee', description: DESCRIPTION },
+  openGraph: { type: 'website', siteName: 'burgee', locale: 'en_US', url: '/', title: 'burgee', description: PITCH },
+  twitter: { card: 'summary_large_image', title: 'burgee', description: PITCH },
 };
 
 export default function Layout({ children }: { children: ReactNode }) {

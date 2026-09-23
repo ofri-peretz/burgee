@@ -45,10 +45,10 @@ shows nine download series.
 | # | Item | Owner | Done when |
 | :-- | :-- | :-- | :-- |
 | 1.1 | Submit the sitemap to Google Search Console and Bing Webmaster Tools; verify the domain | **you** (needs account access) | both show the sitemap as read |
-| 1.2 | One "coming from X" page per incumbent: chalk, ora, inquirer, cosmiconfig, execa, signal-exit, string-width, ansi-escapes, the same shape as `/docs/vs/commander` | agent | eight pages; each names its compat row or says there is none |
-| 1.3 | Each package README opens with the incumbent it replaces, then its agent surface in 3 lines (`--json` / non-TTY behaviour) | agent | the README lock checks both lines exist |
+| 1.2 | One "coming from X" page per incumbent: chalk, ora, inquirer, cosmiconfig, execa, signal-exit, string-width, ansi-escapes, the same shape as `/docs/vs/commander` | agent | **done** — [#465](https://github.com/ofri-peretz/burgee/pull/465): eight pages under `/docs/coming-from/`; execa and signal-exit say there is no graded row |
+| 1.3 | Each package README opens with the incumbent it replaces, then its agent surface in 3 lines (`--json` / non-TTY behaviour) | agent | **done** — [#465](https://github.com/ofri-peretz/burgee/pull/465): `scripts/readme-opening-lock.test.ts` checks both in the 25 lines after the header |
 | 1.4 | Blog `llms.txt` and `also-building.tsx` link to the docs site | lane D | merged |
-| 1.5 | One canonical pitch string, exported from `apps/docs/src/lib/llms.ts`; README and layout checked against it | agent | a lock fails on a fourth variant |
+| 1.5 | One canonical pitch string, exported from `apps/docs/src/lib/llms.ts`; README and layout checked against it | agent | **done** — [#465](https://github.com/ofri-peretz/burgee/pull/465): `scripts/pitch-lock.test.ts` fails on a fourth variant |
 
 **Exit:** a search for "commander alternative" and "chalk alternative" returns a burgee page
 in the top 20 on at least one engine. This is checked by hand at the end of the phase and

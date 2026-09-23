@@ -13,8 +13,17 @@
  * from it, so the drift cannot survive a build.
  */
 import { type PublicPackage } from '#/lib/packages';
-import { PITCH, SITE } from '#/lib/site';
+import { SITE, SUMMARY } from '#/lib/site';
 import { type DocsPage } from '#/lib/source';
+
+/**
+ * The pitch, once. The root README's tagline, `packages/burgee/README.md`'s, the brand
+ * card's `TAGLINE` in `scripts/brand.mts`, the site's default metadata and the head of
+ * `/llms.txt` all say this sentence, and `scripts/pitch-lock.test.ts` fails the moment any of
+ * them says another — the go-to-market audit found three variants in three places, and a
+ * model quotes whichever one it met first.
+ */
+export const PITCH = "Everything a CLI needs that isn't your CLI. Written once, served to humans and agents alike.";
 
 /** A YAML frontmatter block at the head of a file, which the projection re-states itself. */
 const FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/;
@@ -34,14 +43,14 @@ function packageRow(pkg: PublicPackage): string {
 }
 
 /**
- * `/llms.txt` — the map. The pitch, then the package map (package → what it replaces → its
+ * `/llms.txt` — the map. The pitch, then what burgee is in one sentence, then the package map (package → what it replaces → its
  * page), then one line per page the loader knows. Every docs page appears exactly once under
  * `## Documentation`; nothing is filtered, ordered, or excerpted by hand. The package pages
  * appear in both sections on purpose — the map answers "which package", the index answers
  * "which page" — and `tests/llms-txt.test.ts` checks each section against its own ground truth.
  */
 export function llmsIndex(pages: readonly DocsPage[], packages: readonly PublicPackage[]): string {
-  return ['# burgee', '', `> ${PITCH}`, '', '## Packages', '', ...packages.map(packageRow), '', '## Documentation', '', ...pages.map(row), ''].join('\n');
+  return ['# burgee', '', `> ${PITCH}`, '', SUMMARY, '', '## Packages', '', ...packages.map(packageRow), '', '## Documentation', '', ...pages.map(row), ''].join('\n');
 }
 
 /**
