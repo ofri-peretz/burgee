@@ -182,6 +182,12 @@ export interface OraStream {
 /** A prefix or suffix, resolved on every frame when it is a function. */
 export type Affix = string | (() => string);
 
+// ora's own type names, so a typed program migrates by its import alone — `burgee migrate`
+// checks every imported name against this module and would otherwise leave the import on ora.
+export type Spinner = SpinnerDefinition;
+export type PrefixTextGenerator = () => string;
+export type SuffixTextGenerator = () => string;
+
 export interface Options {
   text?: string;
   prefixText?: Affix;

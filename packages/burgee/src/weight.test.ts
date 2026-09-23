@@ -348,10 +348,13 @@ const RULES: Record<string, EntryRule> = {
   // The MCP server. It reaches the schema and the manifest, because a tool list *is* the
   // schema, and nothing outside the package. `invoke` is injected, which is what keeps the
   // runner out. Measured 19,950. 20,300 on 2026-09-22 for D1; measured 20,265.
+  // 20,520 on 2026-09-23, measured 20,480: `tools/call` now sends each argument as the flag
+  // the schema advertises (`--dry-run`, not `--dryRun`) and a `false` that must be said as
+  // `--no-<name>`, and a root command's tool has a name. +215 for calls that used to fail.
   "./mcp": {
     allow: [],
     // 20,400 on 2026-09-23 for N14: `--schema` publishes a command's declared `fields`. Measured 20,334.
-    budget: 20_400,
+    budget: 20_520,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
   },
   // The schema surface and the `Manifest` class it reads. Measured 14,891.
@@ -630,7 +633,8 @@ const RULES: Record<string, EntryRule> = {
   "./yargs": {
     allow: [],
     // 215,300 on 2026-09-23 for N14, through the engine and the schema. Measured 215,252.
-    budget: 215_300,
+    // 215,250 on 2026-09-23: `export { Yargs as 'module.exports' }`, which yargs' own entry has, so `require('burgee/yargs')` hands a CommonJS caller the factory rather than a namespace. Measured 215,221.
+    budget: 215_250,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   "./yargs/helpers": {

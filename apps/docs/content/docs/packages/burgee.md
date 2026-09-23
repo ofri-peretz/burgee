@@ -26,6 +26,7 @@ run(defineCommand({
   name: 'greet',
   description: 'Greet someone by name',
   options: { name: { type: 'string', required: true, description: 'who to greet' } },
+  effects: 'read_only', // what running it does to the world; required, and what --mcp reads
   run: ({ options }) => ({ greeting: `hello, ${options.name}` }),
 }));
 ```
@@ -35,7 +36,7 @@ $ node cli.mjs --name ada
 greeting: hello, ada
 
 $ node cli.mjs --json --name ada
-{"ok":true,"data":{"greeting":"hello, ada"}}
+{"ok":true,"data":{"greeting":"hello, ada"},"meta":{"provenance":{"name":{"source":"flag","location":"--name"}}}}
 
 $ node cli.mjs            # exit 2
 error: missing required option --name
@@ -134,9 +135,11 @@ the declaration read by a different reader.
 
 ### How do I expose a CLI over MCP?
 
-Run it with `--mcp`: the same manifest is served as MCP tools over stdio. A command becomes
-a tool only when it declares its `effects` (`read_only`, `idempotent` or `non_idempotent`),
-so nothing reaches an agent by accident. Register it with any stdio client:
+Run it with `--mcp`: the same manifest is served as MCP tools over stdio. Every runnable
+command declares its `effects` — `read_only`, `idempotent` or `non_idempotent`, which become
+MCP's hints, or `withheld`, which keeps it out of the tool list — so nothing reaches an
+agent by accident. On `burgee/commander` and `burgee/yargs`, a command that declared
+nothing is still listed, marked `effects: 'undeclared'`. Register it with any stdio client:
 
 ```json
 { "mcpServers": { "mytool": { "command": "npx", "args": ["mytool", "--mcp"] } } }
@@ -144,7 +147,7 @@ so nothing reaches an agent by accident. Register it with any stdio client:
 
 ### Does it have dependencies?
 
-None outside this repository. `burgee` installs five packages from its own family —
+None outside the burgee family. `burgee` installs five packages from that family —
 `bellpull`, `closeout`, `linegauge`, `roundel` and `seniority` — and each of those takes
 nothing from outside it either: one repository, one release pipeline, one supply chain to
 audit.

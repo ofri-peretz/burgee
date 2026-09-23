@@ -5,7 +5,7 @@
 #   1. node_modules keyed on package-lock.json — skips `npm ci` on hit.
 #   2. ~/.npm (via setup-node).
 #   3. .turbo task cache (opt-out with turbo-cache: "false").
-#   4. (opt-in) apps/docs/.next/cache.
+#   4. (opt-in) every docs app's .next/cache.
 #
 # Node version comes from .nvmrc — single source of truth.
 
@@ -18,13 +18,13 @@ inputs:
     required: false
     default: "true"
   next-cache:
-    description: Restore + save apps/docs/.next/cache. "true" for jobs that build the docs.
+    description: Restore + save every docs app's .next/cache. "true" for jobs that build the docs.
     required: false
     default: "false"
   node-modules-cache:
     description: >-
       Restore + save node_modules. "false" forces a fresh `npm ci` from the registry every
-      run — the lint job does this on purpose: burgee is a customer of the Interlace ESLint
+      run — the lint job does this on purpose: this repo is a customer of the Interlace ESLint
       plugins, and each install is a real download that counts toward their adoption.
     required: false
     default: "true"
@@ -78,8 +78,11 @@ runs:
       if: inputs.next-cache == 'true'
       uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
       with:
-        path: apps/docs/.next/cache
-        key: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('apps/docs/**/*.[jt]s', 'apps/docs/**/*.[jt]sx', 'apps/docs/**/*.mdx') }}
+        # Every app, one glob: a path per app would be an edit here per app, which
+        # is exactly what `.github/vercel-apps.json` exists to prevent. It costs a
+        # little cache precision — any app's change busts every app's cache.
+        path: apps/*/.next/cache
+        key: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('apps/**/*.[jt]s', 'apps/**/*.[jt]sx', 'apps/**/*.mdx', 'apps/**/*.md') }}
         restore-keys: |
           nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
           nextjs-${{ runner.os }}-
