@@ -1,4 +1,15 @@
-# paratext
+<p align="center">
+  <a href="https://github.com/ofri-peretz/burgee/tree/main/packages/paratext" target="blank">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ofri-peretz/burgee/main/brand-assets/paratext-lockup.svg" />
+      <img src="https://raw.githubusercontent.com/ofri-peretz/burgee/main/brand-assets/paratext-lockup-light.svg" alt="paratext" width="360" />
+    </picture>
+  </a>
+</p>
+
+<p align="center">
+  Docs: <a href="https://burgee.interlace.tools/docs/packages/paratext">https://burgee.interlace.tools/docs/packages/paratext</a>
+</p>
 
 *Paratext* is the literary term for everything around a text that is not the text — the
 title, the cover, the margins, the notes. This package owns the terminal equivalent:
@@ -98,7 +109,7 @@ Graded by the incumbent's own test suite:
 | `term-img` | 12 / 18 |
 | `terminal-link` | 0 / 10 |
 
-Weight, installed and tree-inclusive: **92,288 bytes** against **30,912** for the incumbents it replaces — a ratio of **2.9855** (terminal-link, term-img not installed here, so the ceiling is understated).
+Weight, installed and tree-inclusive: **92,903 bytes** against **30,912** for the incumbents it replaces — a ratio of **3.0054** (terminal-link, term-img not installed here, so the ceiling is understated).
 ## Where it sits
 
 Plugins register under the `capabilities` key, against the one schema the whole family shares.

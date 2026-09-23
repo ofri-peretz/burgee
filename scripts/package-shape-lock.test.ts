@@ -136,11 +136,11 @@ describe.each(published)('published package $pkg.name', ({ dir, pkg }) => {
     expect(offenders, `${pkg.name} may depend only on earlier family packages, or on the foundation tier`).toEqual([]);
   });
 
-  // The owner's rule, 2026-09-23 (D-110): a published package depends on nothing outside this
+  // The owner's rule, 2026-09-23 (D-111): a published package depends on nothing outside this
   // repository — not as a dependency, not as a peer, not as an optional one. npm installs
   // peers and optional dependencies by default, so checking `dependencies` alone left two of
   // the three doors open; a package could have taken an external peer and passed.
-  it('installs nothing from outside this repository — dependencies, peers or optional (D-110)', () => {
+  it('installs nothing from outside this repository — dependencies, peers or optional (D-111)', () => {
     const family = new Set(published.map((p) => p.pkg.name));
     const fields = [pkg.dependencies, pkg.peerDependencies, pkg.optionalDependencies];
     const external = fields.flatMap((f) => Object.keys(f ?? {})).filter((dep) => !family.has(dep));

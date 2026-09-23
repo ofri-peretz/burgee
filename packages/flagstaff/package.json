@@ -97,7 +97,7 @@
     "url": "git+https://github.com/ofri-peretz/burgee.git",
     "directory": "packages/flagstaff"
   },
-  "homepage": "https://github.com/ofri-peretz/burgee/tree/main/packages/flagstaff#readme",
+  "homepage": "https://burgee.interlace.tools/docs/packages/flagstaff",
   "bugs": {
     "url": "https://github.com/ofri-peretz/burgee/issues"
   },
@@ -114,7 +114,11 @@
     "cli-table3",
     "plugins",
     "plugin",
-    "extensible"
+    "extensible",
+    "agent",
+    "ai-agent",
+    "non-tty",
+    "json"
   ],
   "dependencies": {
     "closeout": "^0.3.0",

@@ -3,10 +3,12 @@
   "pages": [
     "index",
     "getting-started",
+    "packages",
     "plugins",
     "the-floor",
     "comparison",
     "compatibility",
+    "vs",
     "benchmarks",
     "weight",
     "gallery",

@@ -23,7 +23,7 @@ other requirement:
 | :-- | :-- | :-- |
 | Z1 | A working CLI is **one file**: `npm i`, write it, run it. No build step, no config file, no directory convention, no codegen, no scaffold | lock |
 | Z2 | Every capability beyond Z1 is **additive and removable**: precomputed manifests, lazy loading, plugins, the dev loop, scaffolding. Deleting any of them leaves a working CLI | lock |
-| Z3 | No runtime dependency outside the family (K1, restated by the owner 2026-09-23, D-110). oclif ships 18 | lock |
+| Z3 | No runtime dependency outside the family (K1, restated by the owner 2026-09-23, D-111). oclif ships 18 | lock |
 | Z4 | The first example in the README is **15 lines or fewer** and has no build step | lock |
 | Z5 | The manifest is computed **in memory at startup by default**. Precomputing it is an opt-in optimisation for large CLIs, never a prerequisite | R + bench |
 
@@ -184,7 +184,7 @@ requirement](#what-is-built-requirement-by-requirement-2026-09-16).
 
 | # | Requirement | Evidence | Holds | Lands in |
 | :-- | :-- | :-- | :-- | :-- |
-| K1 | Every published package depends only on in-family packages — as a dependency, a peer or an optional dependency; nothing from outside this repository (restated by the owner 2026-09-23, D-110) | oclif/core #1627 | lock | all |
+| K1 | Every published package depends only on in-family packages — as a dependency, a peer or an optional dependency; nothing from outside this repository (restated by the owner 2026-09-23, D-111) | oclif/core #1627 | lock | all |
 | K2 | ESM source, Node ≥ 24 — and **consumable from CommonJS**: every entry exposes a `default` condition beside `import`, and the library has no top-level await, so `require()` loads the same file via `require(esm)`. One artifact, both module systems, asserted by installing the tarball and requiring it | oclif/core #1450, #1396; a CJS commander user must still be able to change one import | lock | all |
 | K3 | Node natives over packages (`util.styleText`, `fs.glob`, `fetch`) | oclif/core #1627 | L (`prefer-native-style-text`) + lock | all |
 | K4 | An artifact gate runs on the built `dist/` before publish; every package publishes with npm provenance via trusted publishing | eslint SARIF formatter incident; @oclif/core's 18 runtime deps | release.yml | all |
@@ -627,7 +627,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | :-- | :-- | :-- | :-- |
 | Z1 | **Built** | `src/shape.test.ts` installs the packed tarball into a temp dir, writes one `.mjs`, runs it | `shape.test.ts`: *"the user authored exactly one file, and never ran a build"* |
 | Z2 | **Built** | every capability is its own `exports` subpath, and the core entry is proven not to reach `dev.js`, `testing.js` or the output stack | `src/weight.test.ts`, the `denied` list per entry |
-| Z3 | **Built** | burgee depends on `bellpull`, `closeout`, `linegauge`, `roundel` and `seniority` — all in-family — and on nothing else, as a dependency, peer or optional dependency. The requirement said *zero*; the owner restated it to *in-family only* (D-110), which is what the family was designed to be | `scripts/package-shape-lock.test.ts`: *"installs nothing from outside this repository — dependencies, peers or optional (D-110)"* |
+| Z3 | **Built** | burgee depends on `bellpull`, `closeout`, `linegauge`, `roundel` and `seniority` — all in-family — and on nothing else, as a dependency, peer or optional dependency. The requirement said *zero*; the owner restated it to *in-family only* (D-111), which is what the family was designed to be | `scripts/package-shape-lock.test.ts`: *"installs nothing from outside this repository — dependencies, peers or optional (D-111)"* |
 | Z4 | **Built** | the README's first example is 9 lines and installs nothing but `burgee` | none. `Holds` says `lock`; no test pins the 15-line ceiling |
 | Z5 | **Built** | `defineProgram` builds the `Manifest` in memory at call time, and there is no precompute path at all, so it can never be a prerequisite | none for the bench half: `examples/demo-cli-large` is 30 commands, not the 250 of yargs #1005 |
 
@@ -738,7 +738,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 
 | # | Status | Evidence | The check |
 | :-- | :-- | :-- | :-- |
-| K1 | **Built** | All nine published packages: bellpull, closeout, linegauge, paratext, roundel and seniority depend on nothing; burgee, caique and flagstaff only on siblings. Held across `dependencies`, `peerDependencies` and `optionalDependencies` — the lock checked the first alone until 2026-09-23 | `scripts/package-shape-lock.test.ts`: *"installs nothing from outside this repository — dependencies, peers or optional (D-110)"*, proved red with an external peer on roundel |
+| K1 | **Built** | All nine published packages: bellpull, closeout, linegauge, paratext, roundel and seniority depend on nothing; burgee, caique and flagstaff only on siblings. Held across `dependencies`, `peerDependencies` and `optionalDependencies` — the lock checked the first alone until 2026-09-23 | `scripts/package-shape-lock.test.ts`: *"installs nothing from outside this repository — dependencies, peers or optional (D-111)"*, proved red with an external peer on roundel |
 | K2 | **Built** | every entry publishes `default` beside `import`; no top-level await | `shape.test.ts`: *"consumable from CommonJS too — the same ESM file, through `require(esm)`"* |
 | K3 | **Built** | `util.styleText` for colour, `node:readline` for MCP, `node:util`'s `parseArgs` for argv. Nothing outside the repo is reachable at run time, so there is no package a native could have replaced. The named `L` rule does not exist | `scripts/package-shape-lock.test.ts`: *"imports none of the packages Node ships natively"* |
 | K4 | **Built** | `release.yml` runs `npm run check:artifacts` on the built `dist/` before the publish job, and publishes with `--provenance` under `id-token: write` | `scripts/deploy-lock.test.ts`, `scripts/check-published-artifacts.ts` |
@@ -806,7 +806,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 
 | # | Status | Evidence | The check |
 | :-- | :-- | :-- | :-- |
-| U1 | **Built** | Restated by D-130 to the arrows the manifests hold. One package per layer, and every arrow points up the family or into the foundation — nothing reaches past a sibling, and nothing leaves the repository (D-110) | `scripts/package-shape-lock.test.ts`: *"has no external runtime dependencies, and same-repo ones only point up the family"*; `scripts/layer-boundaries-lock.test.ts` |
+| U1 | **Built** | Restated by D-130 to the arrows the manifests hold. One package per layer, and every arrow points up the family or into the foundation — nothing reaches past a sibling, and nothing leaves the repository (D-111) | `scripts/package-shape-lock.test.ts`: *"has no external runtime dependencies, and same-repo ones only point up the family"*; `scripts/layer-boundaries-lock.test.ts` |
 | U2 | **Built** | `roundel/src/policy.ts` — `OutputMode` is `'tty' \| 'pipe' \| 'json' \| 'accessible' \| 'ci'`, read from a `Runtime`; no component detects the terminal itself | roundel's `policy.test.ts` |
 | U3 | **Built** | `flagstaff/src/plugin.ts` refuses a spinner or component without a `static` projection, at `register()` | `scripts/plugin-contract-lock.test.ts` |
 | U4 | **Built** | the shared `schema.json` — plugins are data, `static` required and `frame` the one optional function | `scripts/plugin-schema-lock.test.ts` |

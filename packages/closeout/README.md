@@ -1,4 +1,15 @@
-# closeout
+<p align="center">
+  <a href="https://github.com/ofri-peretz/burgee/tree/main/packages/closeout" target="blank">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ofri-peretz/burgee/main/brand-assets/closeout-lockup.svg" />
+      <img src="https://raw.githubusercontent.com/ofri-peretz/burgee/main/brand-assets/closeout-lockup-light.svg" alt="closeout" width="360" />
+    </picture>
+  </a>
+</p>
+
+<p align="center">
+  Docs: <a href="https://burgee.interlace.tools/docs/packages/closeout">https://burgee.interlace.tools/docs/packages/closeout</a>
+</p>
 
 **Close everything out.**
 
@@ -314,7 +325,7 @@ Graded by the incumbent's own test suite:
 | `exit-hook` | 21 / 21 |
 | `restore-cursor` | 6 / 6 |
 
-Weight, installed and tree-inclusive: **95,470 bytes** against **170,604** for the incumbents it replaces — a ratio of **0.5596** (exit-hook not installed here, so the ceiling is understated).
+Weight, installed and tree-inclusive: **96,126 bytes** against **170,604** for the incumbents it replaces — a ratio of **0.5634** (exit-hook not installed here, so the ceiling is understated).
 ## Where it sits
 
 Plugins register under the `handlers` key, against the one schema the whole family shares.

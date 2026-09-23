@@ -68,7 +68,7 @@ built moved to A15–A25.
 | ~~B14~~ | ~~built-in components as plugin contributions~~ | flagstaff R4 | **decided — D-125** |
 | ~~B15~~ | ~~`fromBase16` / `fromITerm` theme import~~ | roundel R11 | **decided — D-126** |
 | ~~B16~~ | ~~façade commands are withheld from MCP and cannot say otherwise~~ | agent-surface-declared R6 | **decided — D-127** |
-| ~~B17~~ | ~~"zero runtime dependencies" vs "none outside this repo"~~ — **accepted by the owner 2026-09-23 (D-110): every production dependency is in-family**, as a dependency, peer or optional dependency; Z3 and K1 Built | burgee Z3, K1 | done |
+| ~~B17~~ | ~~"zero runtime dependencies" vs "none outside this repo"~~ — **accepted by the owner 2026-09-23 (D-111): every production dependency is in-family**, as a dependency, peer or optional dependency; Z3 and K1 Built | burgee Z3, K1 | done |
 | ~~B18~~ | ~~`lighter-than-commander` 1.52, `lighter-than-cac` 2.65, cold start 1.44 × cac~~ | claims, u5-weight-claim | **decided — D-128** |
 | ~~B20~~ | ~~Accept the requirement restatements already written in the specs — compat-oracle R1, R3, C4 and the rest of its "Requirements restated" table; burgee U1, U10, Z3/K1; flagstaff R10's dependency sentence~~ | each spec's restatement table | **decided — D-130** |
 | ~~B19~~ | ~~design acceptance for linegauge, closeout, bellpull, seniority (draft) and caique, paratext (review)~~ | each intent | **decided — D-129** |
@@ -82,3 +82,15 @@ built moved to A15–A25.
 | C3 | the first outside adopter | burgee U12 | a CLI we did not write, installing one layer alone |
 | C5 | the lint half of F3, O3, P1 | burgee F3, O3, P1, D-124 | a rule set in the Interlace ESLint monorepo, not here |
 | C4 | clispec.dev and cli-agent-lint have no axis | burgee N10 | both tools to exist and be runnable offline — unverified |
+
+## Release queue — owner actions
+
+Settings only the repository owner can change. The release loop runs without them — the Version
+PR falls back to `GITHUB_TOKEN` and unblocks itself (D-110) — but each one removes a workaround.
+Numbered on from C, because each needs something from outside the repo.
+
+| # | Gap | Exact setting | Done when |
+| :-- | :-- | :-- | :-- |
+| C5 | The Version PR is opened with `GITHUB_TOKEN`, so its checks are dispatched and mirrored as statuses, and it merges itself | **Preferred — a GitHub App.** github.com → Settings → Developer settings → GitHub Apps → *New GitHub App*: no webhook; Repository permissions **Contents: Read and write**, **Pull requests: Read and write**; install it on `ofri-peretz/burgee` only. Then repo → Settings → Secrets and variables → Actions → **Variables** → `RELEASE_APP_ID` (the App ID or Client ID), and **Secrets** → `RELEASE_APP_PRIVATE_KEY` (the whole generated `.pem`). **Alternative:** Settings → Developer settings → Personal access tokens → Fine-grained → repo `ofri-peretz/burgee`, Contents + Pull requests read/write, saved as the repo secret `RELEASE_BOT_PAT` | the next push to main's `Changesets` run has no *Version PR opened with GITHUB_TOKEN* warning and no `Version PR · … (dispatched)` jobs, and the Version PR shows its checks as `pull_request` runs |
+| C6 | No merge queue: strict protection makes every PR behind `main` update and re-run by hand (PLAN 0.3) | repo → Settings → Rules → Rulesets → *New branch ruleset*: target `main`, enforcement **Active**, **Require merge queue** (merge method squash), **Require status checks to pass**: `Quality Gate`, `Quality (Full) Gate`, `review`, and `Ratchet · each host's suite against burgee` — `scripts/lint-workflows.ts` already treats that one as required, but live branch protection lists only the first three. Every workflow reporting them already triggers on `merge_group:` (lint-enforced) | `gh api repos/ofri-peretz/burgee/rulesets` lists the ruleset, and a PR lands through the queue |
+| C7 | Publishing authenticates with the long-lived `NPM_TOKEN` | npmjs.com → each of the nine published packages (bellpull, burgee, caique, closeout, flagstaff, linegauge, paratext, roundel, seniority) → Settings → **Trusted Publisher** → GitHub Actions: organization/user `ofri-peretz`, repository `burgee`, workflow filename `release.yml`, environment `production`. After all nine: remove `NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}` from `release.yml`'s publish step (a PR), then delete the repo secret `NPM_TOKEN` (Settings → Secrets and variables → Actions) | a release publishes with `NPM_TOKEN` absent, and each package's npm page shows provenance from `release.yml` |

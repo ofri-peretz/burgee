@@ -1,4 +1,15 @@
-# bellpull
+<p align="center">
+  <a href="https://github.com/ofri-peretz/burgee/tree/main/packages/bellpull" target="blank">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ofri-peretz/burgee/main/brand-assets/bellpull-lockup.svg" />
+      <img src="https://raw.githubusercontent.com/ofri-peretz/burgee/main/brand-assets/bellpull-lockup-light.svg" alt="bellpull" width="360" />
+    </picture>
+  </a>
+</p>
+
+<p align="center">
+  Docs: <a href="https://burgee.interlace.tools/docs/packages/bellpull">https://burgee.interlace.tools/docs/packages/bellpull</a>
+</p>
 
 A **bellpull** is the cord in one room wired to a bell in another. You pull it here; a bell rings there; someone comes back to you.
 
@@ -115,7 +126,7 @@ Graded by the incumbent's own test suite:
 | :-- | --: |
 | `cross-spawn` | 68 / 68 |
 
-Weight, installed and tree-inclusive: **97,123 bytes** against **714,984** for the incumbents it replaces — a ratio of **0.1358**.
+Weight, installed and tree-inclusive: **97,751 bytes** against **714,984** for the incumbents it replaces — a ratio of **0.1367**.
 ## Where it sits
 
 Plugins register under the `resolvers` key, against the one schema the whole family shares.

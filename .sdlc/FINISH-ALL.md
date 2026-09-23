@@ -227,14 +227,14 @@ drift, and a package that grows a `check` must grow an eval in the same commit.
   `await import(…)`, which esbuild inlines under `--outfile`. Either the optional surfaces
   (`completion`, `--mcp`, `--schema`, plugins — about 17.7 KB) become opt-in, or the 52 KB
   claim is restated at the measurement. A bands decision; not a ratchet raise.
-- **Four packages are public and not ready**: paratext 0.3.0 at 1 / 4 vs ansi-escapes,
-  caique 0.2.0 at 0 / 606 vs clack, seniority 0.2.0 at 0 / 77 vs lilconfig. Each README
-  leads with the gap until the row is green.
-- **`changesets-pr.yml` states the wrong cause.** Its comment claims the default token
-  "keeps this workflow working"; that token is precisely the one that raises no workflow runs,
-  so the Version PR sits at 0 checks against 3 required and is permanently BLOCKED. Worked
-  around on #299 by closing and reopening the PR under a human credential. Fix the comment,
-  and set `RELEASE_BOT_PAT` to end it.
+- **Four packages are public and not ready**: paratext 0.5.0, caique 0.4.0 and seniority
+  0.4.0 (versions from `packages/*/package.json`, 2026-09-22) still trail their incumbents'
+  suites — the current scores are rows A11–A13 of `.sdlc/GAPS.md`. Each README leads with the
+  gap until the row is green.
+- ~~**`changesets-pr.yml` states the wrong cause.**~~ — **closed**: the comment was corrected
+  in #396, and the deadlock itself no longer needs a human. With no release credential the
+  workflow dispatches the required checks, mirrors them onto the Version PR and merges it
+  itself; the credential that retires that fallback is `.sdlc/GAPS.md` C5.
 
 ## Sellable, per package
 

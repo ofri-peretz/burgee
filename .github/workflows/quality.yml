@@ -2,7 +2,7 @@
 name: Quality Gate
 
 run-name: >-
-  Quality · ${{ github.event_name == 'pull_request' && format('PR #{0} · {1}', github.event.pull_request.number, github.event.pull_request.title) || github.event.head_commit.message || format('merge queue · {0}', github.ref_name) }}
+  Quality · ${{ github.event_name == 'pull_request' && format('PR #{0} · {1}', github.event.pull_request.number, github.event.pull_request.title) || github.event.head_commit.message || format('{0} · {1}', github.event_name == 'workflow_dispatch' && 'dispatched' || 'merge queue', github.ref_name) }}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Fast-loop quality gate — every PR push and every push to main. Same split as
@@ -26,6 +26,10 @@ on:
   # trigger never reports inside the queue — the entry neither merges nor fails. Enforced by
   # REQUIRED_CHECKS in scripts/lint-workflows.ts.
   merge_group:
+  # The Version PR's GITHUB_TOKEN fallback (changesets-pr.yml `checks`) dispatches this on
+  # `changeset-release/main`, and its `land` job on `main` after a merge that raised no push
+  # run. A `workflow_dispatch` is the one event GITHUB_TOKEN may raise.
+  workflow_dispatch:
 
 concurrency:
   group: quality-${{ github.ref }}

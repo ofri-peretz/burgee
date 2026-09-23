@@ -11,8 +11,11 @@ run-name: >-
 #
 #   1. detect   — diff each public package's version against npm; emit a matrix.
 #   2. build    — `turbo run build --filter='./packages/*'` once; upload dist/.
+#      verify   — in parallel with build: wait for `Quality Gate` and `Quality (Full)
+#                 Gate` to pass on this very commit. Nothing publishes otherwise.
 #   3. publish  — one job per package in parallel: `npm publish --provenance`,
-#                 git tag `<name>@<version>`, GitHub Release with generated notes.
+#                 git tag `<name>@<version>`, GitHub Release with that version's
+#                 CHANGELOG section as its notes.
 #
 # Every step is idempotent, so re-running after a partial failure is safe.
 # Auth: Trusted Publishing (OIDC) once configured on npm; NPM_TOKEN fallback
@@ -108,10 +111,97 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  # A push to main starts this workflow and the quality workflows at the same moment, so
+  # before this job the publish ran beside the gates rather than after them: a commit whose
+  # `Quality (Full) Gate` went red — an admin merge, a flaky re-run, a GITHUB_TOKEN merge
+  # that raised no gate run at all — could still reach npm. This waits for both gates on
+  # `github.sha` and answers `ok`; `publish` runs only on `ok == 'true'`.
+  #
+  # Chosen over `on: workflow_run` because that would move the trigger, the `github.sha`
+  # and the dispatch inputs every step here reads, and a `workflow_run` fires once per
+  # upstream workflow — two gates, two releases racing. A wait keeps every step idempotent
+  # exactly as it was.
+  #
+  # A gate cancelled because a newer push to main superseded it is not a failure: that
+  # push runs its own release, which publishes the same versions (detect diffs against
+  # npm). So a superseded commit answers `ok=false` green, and only a gate that actually
+  # failed turns this red.
+  verify:
+    name: Required checks passed on this commit
+    needs: detect
+    if: needs.detect.outputs.count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    permissions:
+      checks: read
+      contents: read
+    outputs:
+      ok: ${{ steps.wait.outputs.ok }}
+    steps:
+      - name: Wait for Quality Gate and Quality (Full) Gate on ${{ github.sha }}
+        id: wait
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          DRY_RUN: ${{ inputs.dry-run || false }}
+          # The contexts branch protection requires that also run on a push to main.
+          # `review` is PR-only, so it has nothing to report here.
+          CHECKS: "Quality Gate|Quality (Full) Gate"
+        run: |
+          set -euo pipefail
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Dry run — nothing publishes, so the gate is not awaited."
+            exit 0
+          fi
+          IFS='|' read -ra names <<< "$CHECKS"
+          deadline=$(( $(date +%s) + 45 * 60 ))
+          while :; do
+            pending=""; failed=""; cancelled=""
+            for name in "${names[@]}"; do
+              # The latest run of the check with this name on this commit, from Actions.
+              state=$(gh api -X GET "repos/$GH_REPO/commits/$SHA/check-runs" -f check_name="$name" -f filter=latest \
+                --jq '[.check_runs[] | select(.app.slug == "github-actions")] | sort_by(.started_at) | last
+                      | if . == null then "missing" elif .status != "completed" then .status else .conclusion end')
+              case "$state" in
+                success) ;;
+                missing|queued|in_progress|waiting|pending|requested) pending+="$name ($state); " ;;
+                cancelled) cancelled+="$name; " ;;
+                *) failed+="$name ($state); " ;;
+              esac
+            done
+            if [ -z "$pending" ] && [ -z "$failed" ] && [ -z "$cancelled" ]; then
+              echo "ok=true" >> "$GITHUB_OUTPUT"
+              echo "✅ ${CHECKS//|/ and } passed on $SHA" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            if [ -n "$failed" ]; then
+              echo "::error::Refusing to publish $SHA — a required check did not pass: $failed"
+              exit 1
+            fi
+            if [ -n "$cancelled" ] && [ -z "$pending" ]; then
+              head=$(gh api "repos/$GH_REPO/commits/main" --jq .sha)
+              if [ "$head" != "$SHA" ]; then
+                echo "ok=false" >> "$GITHUB_OUTPUT"
+                echo "::notice::$SHA was superseded by $head before its gates finished (cancelled: $cancelled). The release run for the newer commit publishes."
+                exit 0
+              fi
+              echo "::error::Refusing to publish $SHA — a required check was cancelled on the head of main: $cancelled Re-run it, then re-run this workflow."
+              exit 1
+            fi
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "::error::Gave up waiting for $pending on $SHA after 45 minutes. Re-run this workflow once they report."
+              exit 1
+            fi
+            echo "waiting: $pending"
+            sleep 30
+          done
+
   publish:
     name: Publish ${{ matrix.name }}@${{ matrix.version }}
-    needs: [detect, build]
-    if: needs.detect.outputs.count != '0'
+    needs: [detect, build, verify]
+    if: needs.detect.outputs.count != '0' && needs.verify.outputs.ok == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: production
@@ -188,12 +278,15 @@ jobs:
           DIST_TAG: ${{ inputs.dist-tag || 'latest' }}
         run: |
           set -euo pipefail
-          notes="$PKG_DIR/CHANGELOG.md"
+          # This version's section only — the whole CHANGELOG.md made every release page
+          # repeat every release before it. Empty when the version has no section.
+          notes="$RUNNER_TEMP/notes.md"
+          bash scripts/changelog-section.sh "$PKG_DIR/CHANGELOG.md" "$PKG_VER" > "$notes"
           extra=()
           [ "$DIST_TAG" = "latest" ] || extra+=(--prerelease)
           if gh release view "$TAG_NAME" >/dev/null 2>&1; then
             echo "↻ Release $TAG_NAME exists."
-          elif [ -f "$notes" ]; then
+          elif [ -s "$notes" ]; then
             gh release create "$TAG_NAME" --title "$PKG_NAME@$PKG_VER" --notes-file "$notes" --latest=false "${extra[@]}"
           else
             gh release create "$TAG_NAME" --title "$PKG_NAME@$PKG_VER" --generate-notes --latest=false "${extra[@]}"

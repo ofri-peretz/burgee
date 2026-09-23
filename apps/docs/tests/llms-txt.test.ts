@@ -26,19 +26,19 @@ const APP = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CONTENT = join(APP, 'content', 'docs');
 const PRERENDERED = join(APP, '.next', 'server', 'app');
 
-/** Every `.mdx` under `content/docs`, as repo-relative paths. */
+/** Every `.md` and `.mdx` under `content/docs`, as repo-relative paths. */
 function mdxFiles(dir: string, found: string[] = []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const abs = join(dir, entry.name);
     if (entry.isDirectory()) mdxFiles(abs, found);
-    else if (entry.name.endsWith('.mdx')) found.push(abs);
+    else if (/\.mdx?$/.test(entry.name)) found.push(abs);
   }
   return found;
 }
 
 /** The URL fumadocs' loader gives a file: `baseUrl` + its path, with `index` folded away. */
 function urlOf(abs: string): string {
-  const slug = relative(CONTENT, abs).replace(/\.mdx$/, '').split(/[\\/]/).filter((s) => s !== 'index');
+  const slug = relative(CONTENT, abs).replace(/\.mdx?$/, '').split(/[\\/]/).filter((s) => s !== 'index');
   return ['/docs', ...slug].join('/').replace('//', '/');
 }
 
@@ -51,6 +51,28 @@ function body(route: string): string {
 
 const urls = mdxFiles(CONTENT).map(urlOf).sort();
 
+/**
+ * The `## Documentation` section alone. The package map above it links the package pages
+ * too — on purpose, it answers a different question — so the page-index assertions read only
+ * the section they are about, and the package-map assertions read only theirs.
+ */
+function section(text: string, heading: string): string {
+  const start = text.indexOf(`\n## ${heading}\n`);
+  if (start === -1) throw new Error(`llms.txt has no "## ${heading}" section`);
+  const next = text.indexOf('\n## ', start + 1);
+  return text.slice(start, next === -1 ? undefined : next);
+}
+
+/**
+ * The public packages, read from their manifests on disk: the ground truth the package map
+ * is checked against, independent of `src/lib/packages.ts` that produced it.
+ */
+const PACKAGES = join(APP, '..', '..', 'packages');
+const publicPackages = readdirSync(PACKAGES, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() && existsSync(join(PACKAGES, entry.name, 'package.json')))
+  .map((entry) => ({ dir: entry.name, manifest: JSON.parse(readFileSync(join(PACKAGES, entry.name, 'package.json'), 'utf8')) as { name: string; private?: boolean } }))
+  .filter(({ manifest }) => manifest.private !== true);
+
 describe('llms.txt is a projection of the docs, not a list somebody maintains', () => {
   it('has pages to project at all', () => {
     // Guards the assertions below against a silently empty content directory, which would
@@ -59,15 +81,25 @@ describe('llms.txt is a projection of the docs, not a list somebody maintains', 
   });
 
   it('lists every page under content/docs', () => {
-    const text = body('llms.txt');
+    const text = section(body('llms.txt'), 'Documentation');
     const missing = urls.filter((url) => !text.includes(`(https://burgee.interlace.tools${url})`));
     expect(missing, `llms.txt is missing ${missing.length} page(s) that exist under content/docs: ${missing.join(', ')}`).toEqual([]);
   });
 
   it('lists nothing that is not a page', () => {
     // The other direction: a stale hard-coded row survives the file being deleted.
-    const listed = [...body('llms.txt').matchAll(/\(https:\/\/burgee\.interlace\.tools(\/docs[^)]*)\)/g)].map((m) => m[1]);
+    const listed = [...section(body('llms.txt'), 'Documentation').matchAll(/\(https:\/\/burgee\.interlace\.tools(\/docs[^)]*)\)/g)].map((m) => m[1]);
     expect(listed.toSorted()).toEqual(urls);
+  });
+
+  it('maps every public package to what it replaces and its page', () => {
+    // The package map is the most quotable line on the site for "what is the alternative to
+    // commander?", so a package missing from it is a question the site cannot answer.
+    expect(publicPackages.length).toBeGreaterThan(0);
+    const map = section(body('llms.txt'), 'Packages');
+    const missing = publicPackages.filter(({ dir, manifest }) => !map.includes(`- [${manifest.name}](https://burgee.interlace.tools/docs/packages/${dir}) — replaces `));
+    expect(missing.map(({ manifest }) => manifest.name), `llms.txt's package map is missing ${missing.length} public package(s)`).toEqual([]);
+    expect(map).not.toMatch(/compat-oracle/);
   });
 
   it('carries the whole corpus in llms-full.txt, one section per page', () => {

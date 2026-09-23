@@ -63,7 +63,7 @@
     "url": "git+https://github.com/ofri-peretz/burgee.git",
     "directory": "packages/roundel"
   },
-  "homepage": "https://github.com/ofri-peretz/burgee/tree/main/packages/roundel#readme",
+  "homepage": "https://burgee.interlace.tools/docs/packages/roundel",
   "bugs": {
     "url": "https://github.com/ofri-peretz/burgee/issues"
   },
@@ -80,7 +80,10 @@
     "styleText",
     "plugin",
     "plugins",
-    "extensible"
+    "extensible",
+    "non-tty",
+    "json",
+    "zero-dependency"
   ],
   "devDependencies": {
     "vitest": "^5.0.1"
