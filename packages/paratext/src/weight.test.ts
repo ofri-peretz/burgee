@@ -93,7 +93,9 @@ const RULES: Record<string, EntryRule> = {
   // definition — `capability.schema.json`, written by `scripts/schema-sync.mjs` and held to the
   // source by `plugin-schema-lock.test.ts` — and publishes the whole contract as data it does not
   // import. Measured 16,002 and 13,328: both entries are lighter than they were this morning.
-  '.': { allow: [], budget: 16_100, denied: ['plugin.js'] },
+  // 17,700 on 2026-09-23, D-138: the CSI half of `ansi-escapes` (`csi.js`) on the root, which the default
+  // export carries as the incumbent's does. Measured 17,698.
+  '.': { allow: [], budget: 17_700, denied: ['plugin.js'] },
   /**
    * OSC 8 alone, for a host that wants one clickable URL and not a plugin contract.
    * Measured **2,337 B**: `link.js` 768, `template.js` 774, `supports.js` 652,

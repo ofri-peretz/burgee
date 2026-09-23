@@ -46,6 +46,7 @@ equal.
 | `wrap-ansi` | `linegauge/wrap` |
 | `slice-ansi` | `linegauge/slice` |
 | `cross-spawn` | `bellpull/cross-spawn` |
+| `ansi-escapes` | `paratext` |
 | `which` | `bellpull/node-which` |
 | `rc` | `seniority/rc` |
 | `lilconfig` | `seniority/lilconfig` |
@@ -57,8 +58,8 @@ equal.
 
 ## What it leaves alone, and says so
 
-- **A drop-in that is not level yet.** dotenv, cosmiconfig, clack, meow, ansi-escapes,
-  terminal-link and term-img each have a graded replacement that passes fewer of the
+- **A drop-in that is not level yet.** dotenv, cosmiconfig, clack, meow, terminal-link
+  and term-img each have a graded replacement that passes fewer of the
   incumbent's cases than the incumbent does. The report lists them under `partial` with the
   grade, and never rewrites them: a codemod that breaks your CLI is worse than none.
 - **A name the replacement does not export.** Every imported name is checked against the

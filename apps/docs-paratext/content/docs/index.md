@@ -101,11 +101,11 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
-| `ansi-escapes` | 1 / 4 |
+| `ansi-escapes` | 4 / 4 |
 | `term-img` | 12 / 18 |
 | `terminal-link` | 8 / 10 |
 
-Weight, installed and tree-inclusive: **94,154 bytes** against **2,235,987** for the incumbents it replaces — a ratio of **0.0421**.
+Weight, installed and tree-inclusive: **98,283 bytes** against **2,235,987** for the incumbents it replaces — a ratio of **0.0440**.
 ## Where it sits
 
 Plugins register under the `capabilities` key, against the one schema the whole family shares.
