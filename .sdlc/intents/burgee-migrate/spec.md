@@ -46,6 +46,18 @@
   person watches is a codemod they run once and never again, and the whole purpose of this
   command is that trying burgee costs four minutes rather than an afternoon.
 
+- **A12** *(added 2026-09-23, D-137)* **One run migrates the whole family, not two hosts.**
+  Every drop-in `compat-oracle` grades **level** with its incumbent — the incumbent's own
+  suite passes as many cases against the replacement as against the incumbent itself, in the
+  same harness — is rewritten: `chalk` → `roundel/chalk`, `ora` → `flagstaff/ora`,
+  `string-width` → `linegauge`, `cross-spawn` → `bellpull/cross-spawn`, `signal-exit` →
+  `closeout/signal-exit` and the rest. The list is `DROP_INS` in `compat.ts`, re-derived from
+  the oracle's host table by `scripts/migrate-drop-ins-lock.test.ts`; the control counts come
+  from the published compatibility page. A drop-in that is not level yet (dotenv, cosmiconfig,
+  clack, meow, ansi-escapes, terminal-link, term-img) is reported under `partial` with its
+  grade and never rewritten. The report names the family packages to add and prints `next`,
+  the install-and-uninstall command for the package manager the lockfile names.
+
 ## Design
 
 **Specifiers, not syntax trees.** The rewrite is over module specifiers, so it does not need
