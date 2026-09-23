@@ -5,7 +5,7 @@
 > seed: _"One app, hard-coded in the workflows; the `vercel-apps.json` map returns when a
 > second app exists."_ A second app now exists to build, so the map returns.
 
-**Status:** built · **Opened:** 2026-09-08 · **Revised:** 2026-09-23 · **Owner:** @ofri-peretz
+**Status:** approved (2026-09-23, the owner's override, D-131 — built in the PR that carries it) · **Opened:** 2026-09-08 · **Revised:** 2026-09-23 · **Owner:** @ofri-peretz
 
 ---
 

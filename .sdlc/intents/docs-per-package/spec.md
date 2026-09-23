@@ -1,6 +1,6 @@
 # Design — One docs app per published package
 
-Intent: [`intent.md`](./intent.md). **Status:** built (2026-09-23).
+Intent: [`intent.md`](./intent.md). **Status:** approved (2026-09-23, D-131) — built in the PR that carries this note.
 
 > **As built — where the build departs from the text below, and why.** Every departure is
 > also in the PR that built it.
