@@ -105,9 +105,12 @@ function exportsOf(specifiers: string[]): Record<string, string[]> {
       const mod = checker.getSymbolAtLocation(decl.moduleSpecifier);
       if (mod === undefined) throw new Error(`${s} does not resolve`);
       // With properties: `closeout/signal-exit` is CommonJS, `export = { onExit, … }`, and
-      // TypeScript accepts `import { onExit }` from it — `getExportsOfModule` alone reports
+      // TypeScript accepts `import { onExit }` from it — the module's own exports alone report
       // none of those names, and would have the table refuse an import that compiles.
-      return [s, checker.getExportsAndPropertiesOfModule(mod).map((e) => e.name).sort()];
+      const names = checker.getExportsOfModule(mod).map((e) => e.name);
+      const exportEquals = mod.exports?.get(ts.InternalSymbolName.ExportEquals);
+      if (exportEquals !== undefined) names.push(...checker.getPropertiesOfType(checker.getTypeOfSymbol(exportEquals)).map((p) => p.name));
+      return [s, [...new Set(names)].sort()];
     }),
   );
 }
