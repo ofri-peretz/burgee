@@ -22,6 +22,9 @@ result.executable; // { path: '/opt/homebrew/bin/git', from: '/opt/homebrew/bin'
 rebuilds the same fields out of the error. Here a non-zero exit is a value. The promise rejects
 only when **no process ran**: the executable did not resolve, or the spawn failed.
 
+One result, three readers: `format()` for a person, `toJson()` for `--json`, `toEvent()` for
+an agent — so a `--json` flag cannot report something the human output did not.
+
 ## What it does that the alternatives do not
 
 - **Tells you which binary ran.** `whichSync` returns the path *and* the `PATH` entry it came
@@ -118,7 +121,7 @@ Graded by the incumbent's own test suite:
 | :-- | --: |
 | `cross-spawn` | 68 / 68 |
 
-Weight, installed and tree-inclusive: **97,751 bytes** against **714,984** for the incumbents it replaces — a ratio of **0.1367**.
+Weight, installed and tree-inclusive: **97,927 bytes** against **714,984** for the incumbents it replaces — a ratio of **0.1370**.
 ## Where it sits
 
 Plugins register under the `resolvers` key, against the one schema the whole family shares.

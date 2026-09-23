@@ -256,8 +256,8 @@ const RULES: Record<string, EntryRule> = {
   ".": {
     allow: ["closeout", "seniority/precedence"],
     // 43,000 on 2026-09-22 for D1, the definition-time refusal of a deprecation that names no replacement: `checkDeprecated` in `definition.js`, which `plugin.js` imports, so every entry that reaches the manifest pays it — the façades included, though they never call it with `true`. Measured 42,950.
-    // 43,700 on 2026-09-23 for N14, `--json=<fields>`: the selection, the listing and the refusals live in `fields.js`, imported only when `--json=` is typed; what stays on the startup path is spotting it and calling in, plus the declared `fields` copied onto the node. Measured 43,599.
-    budget: 43_700,
+    // 43,100 on 2026-09-23 for N14, `--json=<fields>`: the selection, the listing and the refusals live in `fields.js`, imported only when `--json=` is typed; what stays on the startup path is spotting it and calling in, plus the declared `fields` copied onto the node. Measured 43,092 — after N13 moved `--schema` off the path, which is what made the room.
+    budget: 43_100,
     denied: [
       "testing.js",
       "testing-helpers.js",
@@ -327,8 +327,8 @@ const RULES: Record<string, EntryRule> = {
   // `AuthError` for the same reason it carries everything else. Measured 47,385.
   // 47,450 with `.`'s O2 bytes, for the same reason. Measured 47,434.
   // 47,700 with `.`'s D1 bytes. Measured 47,661.
-  // 48,400 on 2026-09-23 for N14 — the same engine bytes as `.`. Measured 48,310.
-  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 48_400, denied: ["dev.js", "migrate.js"] },
+  // 47,850 on 2026-09-23 for N14 — the same engine bytes as `.`. Measured 47,803.
+  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 47_850, denied: ["dev.js", "migrate.js"] },
   /**
    * The four doors the root barrel stopped holding open (see `.` above). Each is the same
    * module the engine reaches behind an `await import()`, published so a program that wants it

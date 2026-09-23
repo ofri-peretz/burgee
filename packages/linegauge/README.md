@@ -19,6 +19,10 @@ against a line of type and checks it fits the measure it was set to.
 
 Zero dependencies. Grapheme-correct over the platform's own `Intl.Segmenter`.
 
+Drop-in paths for **string-width** (the default export), **wrap-ansi**, **strip-ansi** and
+**slice-ansi**. Nothing here reads `process`, so a pipe, `--json` and an agent get the same
+columns a terminal does — burgee, caique and flagstaff measure their output with it.
+
 ```bash
 npm i linegauge
 ```
@@ -56,7 +60,7 @@ widest(['a', 'bbb', 'cc']); // 3
 Byte-for-byte call-compatible, so this resolves without a code change:
 
 ```json
-{ "overrides": { "string-width": "npm:linegauge@^0.2" } }
+{ "overrides": { "string-width": "npm:linegauge@^0.4" } }
 ```
 
 ## What "without the edge fraying" means
@@ -165,7 +169,7 @@ its own suite — which this package passes. The runner reports that as a failur
 to the incumbent an unexpected pass means a stale annotation; it is counted here as the
 pass it is, and marked rather than left to look like the ones beside it.
 
-Weight, installed and tree-inclusive: **84,371 bytes** against **170,342** for the incumbents it replaces — a ratio of **0.4953**.
+Weight, installed and tree-inclusive: **84,642 bytes** against **170,342** for the incumbents it replaces — a ratio of **0.4969**.
 ## Where it sits
 
 Plugins register under the `widths` key, against the one schema the whole family shares.

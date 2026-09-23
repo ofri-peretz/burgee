@@ -1,0 +1,62 @@
+---
+title: Coming from chalk
+description: "A chalk alternative with a drop-in path: import chalk from roundel/chalk, graded 58 / 58 by chalk's own test suite — then semantic tokens that go plain on a pipe, under NO_COLOR and under --json."
+---
+
+**roundel** is a **chalk alternative** you adopt by changing one import. `roundel/chalk`
+implements chalk 6's API itself, over roundel's own emitter and output policy, and chalk's
+own test suite is the grade.
+
+## Migrate from chalk in one import
+
+```diff
+- import chalk from 'chalk';
++ import chalk from 'roundel/chalk';
+```
+
+The chain (`chalk.red.bold.underline(s)`), `rgb` / `hex` / `ansi256`, `chalk.level`,
+`new Chalk({ level })`, `chalkStderr` and `supportsColor` stay as they are. It is ESM with a
+`default` condition, so `require('roundel/chalk')` works too.
+
+## Is roundel compatible with chalk?
+
+Graded, not claimed. chalk's own suite, vendored at 6.0.0 and unmodified apart from the
+import specifier, runs against `roundel/chalk` beside a control that runs it against real
+chalk:
+
+| | passing | rate |
+| :-- | --: | --: |
+| `roundel/chalk` | 58 / 58 | 100.0% |
+| chalk itself (control) | 58 / 58 | 100.0% |
+
+From [Compatibility](/docs/compatibility), which `npm run compat:page` generates from the
+oracle's last run; that page is the authority.
+
+What differs, by design: the level is per façade (`chalk.level = 0` silences
+`roundel/chalk` and nothing else), the tagged template literal chalk removed in 5 is not
+brought back, and chalk's per-terminal-program allow-list is not reproduced — a program on
+one of those terminals asks for colour with `FORCE_COLOR` or `--color`.
+
+## What you gain over chalk
+
+chalk gives you `red`. roundel's tokens give you `error`, `hint`, `command` and `flag`, and
+one output policy decides — once, for every package in the family — whether they style:
+
+- **Agents and pipes get plain text.** Through a pipe nobody asked to colour, under
+  `NO_COLOR`, or with `--json`, every token returns its input unchanged. `--json` is the one
+  output the colour level never enters: structured text carries no escapes.
+- **One answer for the whole program.** `outputMode()` returns `tty`, `pipe`, `json`,
+  `accessible` or `ci` from the runtime you pass it, so a spinner, a prompt and the help
+  cannot disagree about the terminal the way chalk and ora can.
+- **A theme that is checked.** `fly()` refuses a hex token below 4.5:1 contrast against the
+  declared ground, at every colour level, so an unreadable theme fails in CI.
+
+`roundel/chalk` is the door, and the tokens are where those properties live: move a file at a
+time, or never.
+
+## When to switch from chalk
+
+- Your CLI is run by agents or in CI, and escape codes in captured output are a bug.
+- You want the colours to mean something (`error`, not `red`) and change together.
+
+The full package, its subpaths and its policy are on [roundel](/docs/packages/roundel).

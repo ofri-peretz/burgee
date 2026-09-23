@@ -17,6 +17,11 @@ One resolution for flags, environment variables, config files, a `package.json` 
 declared defaults — in a fixed order, with **provenance**, so every value can say where it
 came from.
 
+It replaces **cosmiconfig**, **dotenv** and **rc**, each through a drop-in path graded by that
+incumbent's own suite. The provenance is data too: `explanationJson()` is the `--json` record
+and `explanationEvent()` the agent event, so an agent asking "why is this set?" gets the
+answer a person does.
+
 ```
 flag  >  env  >  config file  >  package.json field  >  default
 ```
@@ -324,7 +329,7 @@ Graded by the incumbent's own test suite:
 | `lilconfig` | 67 / 77 |
 | `rc` | 0 / 1 |
 
-Weight, installed and tree-inclusive: **152,192 bytes** against **1,555,288** for the incumbents it replaces — a ratio of **0.0979**.
+Weight, installed and tree-inclusive: **152,493 bytes** against **1,555,288** for the incumbents it replaces — a ratio of **0.0980**.
 ## Where it sits
 
 Plugins register under the `sources` key, against the one schema the whole family shares.

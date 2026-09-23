@@ -31,6 +31,9 @@ carries: one output policy decided once from the runtime, nine semantic tokens o
 flies — plus chalk's API over the same tokens, for the program that is not ready to give
 chalk up. Zero dependencies, five subpaths, each costing only itself.
 
+For an agent, the policy is the point: under `--json`, `NO_COLOR` or a pipe nobody asked to
+colour, every token returns its input unchanged, so captured output never carries an escape.
+
 A **roundel** is a flag's colours carried onto another surface — the rings on an aircraft's
 wing, the London Underground sign. Identity, expressed purely in colour, on something that is
 not a flag. That is what this package is for a command-line program: not `red` and `blue`,

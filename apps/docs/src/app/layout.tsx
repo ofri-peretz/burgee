@@ -1,3 +1,5 @@
+import { Analytics } from '@vercel/analytics/next';
+import { PITCH } from '#/lib/llms';
 import { SITE } from '#/lib/site';
 import { RootProvider } from 'fumadocs-ui/provider/next';
 import { type Metadata } from 'next';
@@ -15,11 +17,9 @@ import './global.css';
  */
 const BUILD_SHA = process.env.NEXT_PUBLIC_BUILD_SHA ?? process.env.VERCEL_GIT_COMMIT_SHA ?? 'dev';
 
-const DESCRIPTION =
-  "Everything a CLI needs that isn't your CLI: help, structured output, a typed schema, an MCP server, completions, types and docs, every one projected from a single declaration.";
-
 /**
- * Site-wide defaults. `metadataBase` is what turns every relative URL a page states —
+ * Site-wide defaults. The description is the canonical {@link PITCH}, never a local variant.
+ * `metadataBase` is what turns every relative URL a page states —
  * canonical, the `.md` alternate, Open Graph `url`, the `opengraph-image` file convention —
  * into an absolute one on the canonical host rather than whichever preview URL served the
  * build. The Open Graph and Twitter blocks are the fallback card for any page that states
@@ -29,10 +29,10 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE),
   other: { 'x-build-sha': BUILD_SHA },
   title: { default: 'burgee', template: '%s | burgee' },
-  description: DESCRIPTION,
+  description: PITCH,
   applicationName: 'burgee',
-  openGraph: { type: 'website', siteName: 'burgee', locale: 'en_US', url: '/', title: 'burgee', description: DESCRIPTION },
-  twitter: { card: 'summary_large_image', title: 'burgee', description: DESCRIPTION },
+  openGraph: { type: 'website', siteName: 'burgee', locale: 'en_US', url: '/', title: 'burgee', description: PITCH },
+  twitter: { card: 'summary_large_image', title: 'burgee', description: PITCH },
 };
 
 export default function Layout({ children }: { children: ReactNode }) {
@@ -40,6 +40,17 @@ export default function Layout({ children }: { children: ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <body className="flex min-h-screen flex-col">
         <RootProvider>{children}</RootProvider>
+        {/*
+          Vercel Web Analytics (roadmap 2.3): page views, so Phase 4 can see which
+          `/docs/packages/*` pages are read before any of them earns its own app. It injects
+          `/_vercel/insights/script.js` after hydration, and that path only answers once Web
+          Analytics is enabled on the Vercel project — until then it is a quiet 404. The
+          agent-facing routes (`/llms.txt`, `/llms-full.txt`, the `.md` twins) are
+          prerendered and served from the CDN with no HTML and no function invocation, so
+          neither this component nor `track()` from `@vercel/analytics/server` can see
+          them; their hits are in the project's request logs and Observability instead.
+        */}
+        <Analytics />
       </body>
     </html>
   );
