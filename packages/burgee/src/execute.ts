@@ -66,6 +66,12 @@ export interface Command<S extends OptionSpecs = OptionSpecs> {
   effects?: DeclaredEffects;
   /** Relationships between options, validated before choices and the handler (S2, S6). */
   relations?: readonly Relation[];
+  /**
+   * The top-level fields of this command's result (N14). With them, `--json=` lists them
+   * without running the handler and `--json=a,b` refuses an unknown field before it runs.
+   * Without them `--json=a,b` still selects, checked against the result's own keys.
+   */
+  fields?: readonly string[];
   /** Absent on a group that only holds subcommands. `NoInfer`: the spec fixes S, the handler only reads it. */
   run?: (ctx: CommandContext<InferOptions<NoInfer<S>>>) => unknown;
   /** The handler's module, imported on dispatch only (M2); everything else about the command is declared here. */
@@ -86,6 +92,7 @@ function helpFields(c: AnyCommand): Partial<CommandNode> {
   if (c.deprecated !== undefined) node.deprecated = c.deprecated;
   if (c.effects !== undefined) node.effects = c.effects;
   if (c.relations !== undefined) node.relations = c.relations;
+  if (c.fields !== undefined) node.fields = c.fields;
   return node;
 }
 
@@ -567,7 +574,7 @@ async function unresolved({ manifest, root, io }: Resolving, argv: string[], at:
     // parse, which is the failure the whole `--json` surface exists to avoid. The document is
     // `commandSchemaOf` for this node plus its immediate children, so the shape a reader
     // already knows from `--schema` is the shape they get here, scoped to one command.
-    if (beforeTerminator(typed).includes('--json')) return { text: `${await machineJson(await helpDocumentOf(manifest, node), beforeTerminator(argv))}\n`, code: ExitCode.OK };
+    if (beforeTerminator(typed).some(isJsonFlag)) return { text: `${await machineJson(await helpDocumentOf(manifest, node), beforeTerminator(argv))}\n`, code: ExitCode.OK };
     return { text: await renderHelp(manifest, node, io), code: ExitCode.OK };
   }
   if (first === '--version' || first === '-V') return { text: `${versionOf(manifest, io)}\n`, code: ExitCode.OK };
@@ -704,6 +711,12 @@ function exitCodeOf(data: unknown): ExitCodeType {
   return isExitCode(code) ? code : ExitCode.OK;
 }
 
+/** `--json`, or `--json=<fields>` (N14). */
+function isJsonFlag(arg: string): boolean {
+  return arg === '--json' || arg.startsWith('--json=');
+}
+
+
 /** `--version`: the declared version, else the owning package.json's (V4). */
 function versionOf(manifest: Manifest, io: Io): string {
   const declared = manifest.version ?? (typeof io.pkg?.data['version'] === 'string' ? io.pkg.data['version'] : undefined);
@@ -711,7 +724,12 @@ function versionOf(manifest: Manifest, io: Io): string {
   return declared;
 }
 
-async function dispatch(manifest: Manifest, { node, rest, name }: Resolved, io: Io): Promise<Outcome> {
+async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolved, io: Io): Promise<Outcome> {
+  // N14's selection is imported only when a caller typed `--json=` (M2): every other run pays nothing for it.
+  const select = typed.some((a) => a.startsWith('--json=')) ? await import('./fields.js') : undefined;
+  const { args: rest, fields } = select?.jsonFields(typed) ?? { args: typed };
+  if (fields?.length === 0) return { json: true, text: `${JSON.stringify(select?.listFields(node))}\n` };
+  if (fields !== undefined) select?.checkFields(fields, node);
   const parsed = parseArgs({ args: rest, options: toParseConfig(node.options, manifest.config !== undefined), allowPositionals: true, strict: true, tokens: true });
   const flags = canonical(parsed.values as Values, node.options, parsed.tokens);
   const json = flags.json === true;
@@ -740,7 +758,8 @@ async function dispatch(manifest: Manifest, { node, rest, name }: Resolved, io: 
   const data = await node.run({ options: values, positionals, passthrough, env: io.env, exit: ctxExit, onExit, actionRequired, ...detection });
   await manifest.fire('postRun', name, values);
   const changed = changedOf(node, data);
-  return { json, data, provenance, ...(changed === undefined ? {} : { changed }) };
+  const selected = fields === undefined || select === undefined ? data : select.selectFields(data, fields);
+  return { json, data: selected, provenance, ...(changed === undefined ? {} : { changed }) };
 }
 
 /** A declared, required positional that argv did not supply is a usage error naming it, as on both hosts. */
@@ -837,7 +856,7 @@ export async function execute(manifest: Manifest, opts: RunOptions & { root?: st
   const root = opts.root ?? manifest.rootPath;
 
   // Only a `--json` before `--` asks for the envelope; after it, it is pass-through (G5).
-  let json = beforeTerminator(argv).includes('--json');
+  let json = beforeTerminator(argv).some(isJsonFlag);
   let name = '';
   try {
     if (await surface(manifest, argv, io)) return await leave(io, ExitCode.OK);

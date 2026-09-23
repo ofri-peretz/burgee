@@ -179,6 +179,7 @@ export function checkCommand(name: string, declared: Declared): void {
   checkEffects(name, declared.effects, declared.run !== undefined || declared.load !== undefined);
 }
 
+
 /** What the door reads of a command: a first-party declaration and a plugin's have the same fields. */
 export interface Declared {
   options?: Record<string, OptionSpec>;
