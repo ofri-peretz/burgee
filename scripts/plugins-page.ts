@@ -64,6 +64,7 @@ const EXTENSION_POINTS: Record<string, string> = {
   'exit-hook': 'None — it is the hook',
   'restore-cursor': 'None',
   'cross-spawn': 'None',
+  which: 'None',
 };
 
 /** The member names of a host's exported `Plugin` type. */
