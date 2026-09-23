@@ -17,6 +17,12 @@ import { type Exclusion, type Host, type HostImport } from './hosts.js';
 import { readSuiteDeps, shimName } from './vendor.js';
 
 export interface Grade {
+  /**
+   * R7 — the passing count of every attempt, when the first one fell and the row was graded
+   * again (`repeatAndAgree`). Present only on a row that was re-run, so its absence means the
+   * first attempt stood; a list whose last entry recovered is a flake, named rather than silent.
+   */
+  attempts?: number[];
   host: string;
   target: string;
   files: number;
