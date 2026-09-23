@@ -9,6 +9,10 @@ title, the cover, the margins, the notes. This package owns the terminal equival
 character grid. Hyperlinks, inline images, the window title, the clipboard, desktop
 notifications, the working directory, and the bell.
 
+It covers the OSC half of **ansi-escapes**, **terminal-link** and **term-img**; a drop-in
+path is not claimed until the compat oracle grades one. Every capability has a static projection, so a
+pipe or an agent gets `Docs (https://x.dev)`, never raw escape bytes.
+
 Zero dependencies. The intent and design live at
 [`.sdlc/intents/paratext/`](https://github.com/ofri-peretz/burgee/tree/main/.sdlc/intents/paratext).
 
@@ -99,9 +103,9 @@ Graded by the incumbent's own test suite:
 | :-- | --: |
 | `ansi-escapes` | 1 / 4 |
 | `term-img` | 12 / 18 |
-| `terminal-link` | 0 / 10 |
+| `terminal-link` | 8 / 10 |
 
-Weight, installed and tree-inclusive: **92,903 bytes** against **30,912** for the incumbents it replaces — a ratio of **3.0054** (terminal-link, term-img not installed here, so the ceiling is understated).
+Weight, installed and tree-inclusive: **93,167 bytes** against **30,912** for the incumbents it replaces — a ratio of **3.0139** (terminal-link, term-img not installed here, so the ceiling is understated).
 ## Where it sits
 
 Plugins register under the `capabilities` key, against the one schema the whole family shares.

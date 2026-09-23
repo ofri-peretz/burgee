@@ -23,7 +23,7 @@ A phase is done when its exit criterion is met, not when its tasks are ticked.
 | Dependents (npm `dependencies`) | `scripts/rank-dependents.ts` | 0 known | monthly, into this file |
 | AI citation rate | the weekly probe (M4 below) | not measured | this file |
 | Agent task success, B1 | `bench.yml` | never run | README "Measured" |
-| Docs traffic and `llms.txt` hits | Vercel Analytics (M3) | not measured | the Vercel dashboard |
+| Docs traffic and `llms.txt` hits | Vercel Web Analytics (page views); request logs and Observability (`llms.txt`, `.md` twins) | not measured | the Vercel dashboard |
 
 ## Phase 0: ship what is built (this week)
 
@@ -45,10 +45,10 @@ shows nine download series.
 | # | Item | Owner | Done when |
 | :-- | :-- | :-- | :-- |
 | 1.1 | Submit the sitemap to Google Search Console and Bing Webmaster Tools; verify the domain | **you** (needs account access) | both show the sitemap as read |
-| 1.2 | One "coming from X" page per incumbent: chalk, ora, inquirer, cosmiconfig, execa, signal-exit, string-width, ansi-escapes, the same shape as `/docs/vs/commander` | agent | eight pages; each names its compat row or says there is none |
-| 1.3 | Each package README opens with the incumbent it replaces, then its agent surface in 3 lines (`--json` / non-TTY behaviour) | agent | the README lock checks both lines exist |
+| 1.2 | One "coming from X" page per incumbent: chalk, ora, inquirer, cosmiconfig, execa, signal-exit, string-width, ansi-escapes, the same shape as `/docs/vs/commander` | agent | **done** — [#465](https://github.com/ofri-peretz/burgee/pull/465): eight pages under `/docs/coming-from/`; execa and signal-exit say there is no graded row |
+| 1.3 | Each package README opens with the incumbent it replaces, then its agent surface in 3 lines (`--json` / non-TTY behaviour) | agent | **done** — [#465](https://github.com/ofri-peretz/burgee/pull/465): `scripts/readme-opening-lock.test.ts` checks both in the 25 lines after the header |
 | 1.4 | Blog `llms.txt` and `also-building.tsx` link to the docs site | lane D | merged |
-| 1.5 | One canonical pitch string, exported from `apps/docs/src/lib/llms.ts`; README and layout checked against it | agent | a lock fails on a fourth variant |
+| 1.5 | One canonical pitch string, exported from `apps/docs/src/lib/llms.ts`; README and layout checked against it | agent | **done** — [#465](https://github.com/ofri-peretz/burgee/pull/465): `scripts/pitch-lock.test.ts` fails on a fourth variant |
 
 **Exit:** a search for "commander alternative" and "chalk alternative" returns a burgee page
 in the top 20 on at least one engine. This is checked by hand at the end of the phase and
@@ -59,8 +59,8 @@ recorded here.
 | # | Item | Owner | Done when |
 | :-- | :-- | :-- | :-- |
 | 2.1 | Run B1 (agent tokens and turns) | **you**: set `CLAUDE_CODE_OAUTH_TOKEN` for `bench.yml` | the README's `agent-tokens-40pct` row has a number, met or not |
-| 2.2 | Commit eval results (`evals/results` is gitignored) so they have a history | agent | a weekly run appends one JSON |
-| 2.3 | Vercel Analytics on the docs app, with a `llms.txt` / `.md` twin hit counter | agent, plus **you** to enable it on the project | a week of data |
+| 2.2 | Commit eval results (`evals/results` is gitignored) so they have a history | agent | a weekly run appends one JSON. **Built in [#464](https://github.com/ofri-peretz/burgee/pull/464)**: `evals.yml` records every run on `main` to `evals/history/<date>-<sha7>.json` and lands it by PR. Layer 2 records `skipped` until `CLAUDE_CODE_OAUTH_TOKEN` is set (as for 2.1), and the PR auto-merges only with the release App or PAT (C5) |
+| 2.3 | Vercel Analytics on the docs app, with a `llms.txt` / `.md` twin hit counter | agent, plus **you** to enable it on the project | a week of data. **Code in [#464](https://github.com/ofri-peretz/burgee/pull/464)**: `<Analytics />` in the root layout. The `llms.txt` / `.md` routes are `force-static` and invisible to `track()`, so their hits are read from Vercel request logs and Observability. **You**: project `burgee` → Analytics → Enable (the script 404s until then) |
 | 2.4 | AI citation probe: 5 fixed questions × 3 assistants, weekly, logging whether burgee is named and which URL is cited | agent, plus **you** for API keys | 4 weeks of data in this file |
 
 The five probe questions are fixed so the series stays comparable:

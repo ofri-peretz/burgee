@@ -619,6 +619,8 @@ async function surface(manifest: Manifest, argv: string[], io: Io): Promise<bool
     return true;
   }
   if (head.includes('--schema')) {
+    // The whole surface is its own chunk (M2): only `--schema` loads it, or the schema it serves.
+    const { schemaSurface } = await import('./schema-surface.js');
     io.out.write(`${await machineJson(await schemaSurface(manifest, argv), head)}\n`);
     return true;
   }
@@ -646,23 +648,6 @@ async function surface(manifest: Manifest, argv: string[], io: Io): Promise<bool
     return true;
   }
   return false;
-}
-
-const SCHEMA_BUDGET = 48_000;
-
-/**
- * `--schema` under a character budget (N13): one command's full schema when a command is
- * named (the drilling), the whole program when it fits, a summary naming every command
- * and how to drill when it does not.
- */
-async function schemaSurface(manifest: Manifest, argv: string[]): Promise<unknown> {
-  const { commandSchemaOf, schemaOf, summaryOf } = await import('./schema.js');
-  // `--format=…` is a flag, never a step in the command path being drilled into.
-  const { node } = manifest.resolve(beforeTerminator(argv).filter((a) => a !== '--schema' && !a.startsWith('--format=')) as string[], manifest.rootPath);
-  if (node?.run !== undefined) return commandSchemaOf(node, manifest.rootPath);
-  const full = schemaOf(manifest);
-  const budget = manifest.schemaBudget ?? SCHEMA_BUDGET;
-  return JSON.stringify(full).length <= budget ? full : summaryOf(manifest, budget);
 }
 
 /** `help [command…]` is synthesised for every program (yargs #1020): the named node's help, or the root's. */

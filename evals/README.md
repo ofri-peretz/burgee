@@ -40,6 +40,24 @@ is about. A case that cannot fail is not measuring anything.
 
 Whatever a case asks the agent to write goes under `evals/results/`, which is gitignored.
 
+## History
+
+`evals/results/` is gitignored, so a run's outcome used to live only as long as its CI
+logs. Every run of `evals.yml` outside a pull request now passes `--record`, which writes
+one compact JSON line to `evals/history/<YYYY-MM-DD>-<sha7>.json`: the date, the full
+commit, the model, the billing, layer 1's pass count, and for layer 2 each case's status,
+turns and tokens (from `claude -p --output-format json`). A run with no credential is
+recorded too, as `"tasks": { "status": "skipped" }`, so the series shows the weeks nothing
+was measured. The workflow's `record` job lands the line on `main` through a pull request,
+with the same credential order as the Version PR: the release App, then
+`RELEASE_BOT_PAT`, then `GITHUB_TOKEN` (whose pull request raises no checks and needs a
+human merge).
+
+One file per run, not one appended file, so pull requests that wait for a merge never
+conflict with each other. Read the series with `cat evals/history/*.json` (that is JSONL).
+`scripts/eval-history.ts` owns the format and `scripts/eval-history-lock.test.ts` holds
+every committed line to it.
+
 Credentials, same rule as `eslint/`: set `CLAUDE_CODE_OAUTH_TOKEN` (subscription, no
 per-token charge, from `claude setup-token`) **or** `ANTHROPIC_API_KEY` (billed per
 token). Not both — the API key outranks the token.

@@ -13,7 +13,7 @@ Object.defineProperty(process, 'platform', {
   configurable: true,
 })
 
-const { signals } = require('../../shim-1.mjs')
+const { signals } = require('../../shim-1.cjs')
 signals.push('SIGKILL')
 const { load } = require('../../')
 load()
