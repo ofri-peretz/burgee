@@ -33,11 +33,12 @@ const ALLOWED = new Set([
   // beside the code it constrains, not in the list of exceptions it is no longer an exception
   // to. `git log -- packages/burgee/src/process-reference-lock.test.ts` has them.
   //
-  // `seniority`, `linegauge`, `closeout`, `bellpull` and `caique`'s other files are absent
-  // because they name the process nowhere. That is the stronger claim, and it is the one
-  // seniority's own `shape.test.ts` makes (R11): a package that takes `env`, `cwd` and `argv`
-  // as arguments has already done what a seam is for.
+  // `linegauge`, `closeout`, `bellpull` and `caique`'s other files are absent because they
+  // name the process nowhere. seniority joined on 2026-09-23 (D-131): its resolver still takes
+  // `env`, `cwd` and `argv` as arguments, and only its dotenv and rc drop-ins — whose incumbents
+  // read the process by default, and whose suites assert it — open the seam.
   'burgee/src/runtime.ts',
+  'seniority/src/runtime.ts',
   'paratext/src/runtime.ts',
   'flagstaff/src/runtime.ts',
   'roundel/src/runtime.ts',
