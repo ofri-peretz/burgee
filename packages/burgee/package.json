@@ -8,7 +8,7 @@
     "./dist/cli.js"
   ],
   "engines": {
-    "node": ">=24"
+    "node": "^20.19.0 || >=22.13.0"
   },
   "exports": {
     ".": {
