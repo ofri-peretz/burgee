@@ -201,6 +201,11 @@ extension point beside ours, and what a plugin cannot do yet.
 + import { Command } from 'burgee/commander';
 ```
 
+Or `npx burgee migrate`, which makes that change — and the same one for chalk, ora,
+string-width, cross-spawn, signal-exit and every other incumbent the family replaces at full
+grade — then prints the install command to run next
+([Migrate](./apps/docs/content/docs/migrate.mdx)).
+
 Your code and your tests are unchanged. Compatibility is not asserted here, it is graded —
 each host's own suite, vendored unmodified apart from the import specifier, pointed at
 burgee and run in CI against a control that runs the real host:
