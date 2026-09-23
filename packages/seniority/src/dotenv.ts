@@ -20,9 +20,14 @@
  * schedule this package has no opinion about. `populate`'s `debug` line **is** built, because
  * it is `console.log` rather than a stream and one graded case asserts it.
  */
-import { readFileSync } from 'node:fs';
+// Default imports, read through at call time: dotenv's suite stubs `fs.readFileSync` and
+// `os.homedir` on the module objects, and a named import binds past the stub.
+import fs from 'node:fs';
+import os from 'node:os';
+import { join } from 'node:path';
 
 import { LoaderError } from './load.js';
+import { ambientCwd, ambientEnv } from './runtime.js';
 
 /**
  * dotenv's own line grammar, character for character (`lib/main.js`, 17.4.2).
@@ -123,10 +128,12 @@ function debugLog(message: string): void {
   console.log(`[seniority/dotenv][DEBUG] ${message}`);
 }
 
-export interface ConfigOptions extends PopulateOptions {
-  /** One file or several, highest priority first — an earlier file's key is not overwritten by a later one. */
-  path: string | readonly string[];
-  /** The object to populate. **Required**: see this file's header, and R11. */
+export interface ConfigOptions extends Omit<PopulateOptions, 'debug'> {
+  /** Log what it does, through `console.log`; a string is read as dotenv reads it (`'false'`, `'0'`, … are false). */
+  debug?: boolean | string;
+  /** One file or several, highest priority first — an earlier file's key is not overwritten by a later one. `./.env` when omitted; a leading `~` is the home directory; a `URL` is read as one. */
+  path: string | URL | readonly (string | URL)[];
+  /** The object to populate; the process's own environment when omitted, as dotenv does (D-135). */
   processEnv: Record<string, string | undefined>;
   encoding?: BufferEncoding;
 }
@@ -141,31 +148,56 @@ export interface ConfigResult {
  * missing file** — dotenv is loaded at import time, where a throw takes the program down
  * before it can say anything useful.
  */
-export function config(options: ConfigOptions): ConfigResult {
-  if (typeof options.processEnv !== 'object' || options.processEnv === null) {
-    throw new LoaderError(
-      'seniority/dotenv needs a `processEnv` to populate',
-      '',
-      'pass processEnv: process.env — nothing in seniority reads the process itself (R11), so the object to populate is an argument',
-    );
+export function config(options: Partial<ConfigOptions> = {}): ConfigResult {
+  // D-135: dotenv populates `process.env` and reads `./.env` when told nothing, and so does the
+  // drop-in — through `runtime.ts`, the one seam, and only when the caller passed nothing.
+  const processEnv = options.processEnv ?? ambientEnv();
+  if (typeof processEnv !== 'object' || processEnv === null) {
+    throw new LoaderError('seniority/dotenv has no environment to populate', '', 'pass processEnv: the object to write into — this runtime has no process');
   }
-  const paths = typeof options.path === 'string' ? [options.path] : options.path;
+  const debug = truthy(processEnv['DOTENV_CONFIG_DEBUG'] ?? options.debug);
+  if (options.encoding === undefined && debug) debugLog('no encoding is specified (UTF-8 is used by default)');
+  const given = options.path ?? join(ambientCwd() ?? '.', '.env');
+  const paths = (Array.isArray(given) ? given : [given]).map(home);
+  const { parsedAll, lastError } = readAll(paths, options.encoding ?? 'utf8', debug);
+  dotenv.populate(processEnv, parsedAll, { ...options, debug });
+  return lastError === undefined ? { parsed: parsedAll } : { parsed: parsedAll, error: lastError };
+}
+
+/**
+ * dotenv 17, step for step: every path is tried, a failure is remembered rather than returned,
+ * and what did parse is still returned beside the last error.
+ */
+function readAll(paths: readonly (string | URL)[], encoding: BufferEncoding, debug: boolean): { parsedAll: Record<string, string>; lastError?: Error } {
   const parsedAll: Record<string, string> = {};
+  let lastError: Error | undefined;
   for (const path of paths) {
     try {
       // Through the module object, exactly as dotenv's own `configDotenv` reaches
       // `DotenvModule.parse`: its suite stubs `dotenv.parse` and then asserts on what
       // `config` returned, which only works if the call goes through the object a stub can
       // patch. A direct call to the local binding is invisible to the stub.
-      const parsed = dotenv.parse(readFileSync(path, { encoding: options.encoding ?? 'utf8' }));
+      const parsed = dotenv.parse(fs.readFileSync(path, { encoding }));
       // Earlier file wins, so `populate`'s own rule does the work: keys already set are kept.
       dotenv.populate(parsedAll, parsed);
     } catch (cause) {
-      return { error: cause instanceof Error ? cause : new Error(String(cause)) };
+      const error = cause instanceof Error ? cause : new Error(String(cause));
+      if (debug) debugLog(`failed to load ${String(path)} ${error.message}`);
+      lastError = error;
     }
   }
-  dotenv.populate(options.processEnv, parsedAll, options);
-  return { parsed: parsedAll };
+  return lastError === undefined ? { parsedAll } : { parsedAll, lastError };
+}
+
+/** dotenv's `parseBoolean`: a string is true unless it spells false; anything else by truthiness. */
+function truthy(value: unknown): boolean {
+  if (typeof value === 'string') return !['false', '0', 'no', 'off', ''].includes(value.toLowerCase());
+  return Boolean(value);
+}
+
+/** dotenv's `_resolveHome`: a leading `~` is the home directory; a URL passes through to `fs`. */
+function home(path: string | URL): string | URL {
+  return typeof path === 'string' && path.startsWith('~') ? join(os.homedir(), path.slice(1)) : path;
 }
 
 /**
@@ -188,5 +220,8 @@ export function config(options: ConfigOptions): ConfigResult {
  * reaches dotenv's.
  */
 const dotenv = { config, parse, populate };
+// `'module.exports'` is what Node hands a CommonJS `require()` of an ES module, so
+// `require('seniority/dotenv')` gets this object — mutable, as a test that stubs `config` needs, as `require('dotenv')` does.
+export { dotenv as 'module.exports' };
 // eslint-disable-next-line import-next/no-default-export -- The drop-in shape, and the thing being graded: `require('dotenv')` returns one mutable object and dotenv's own suite stubs a method on it. A named export cannot be what `require()` of an ES module hands back whole.
 export default dotenv;

@@ -323,7 +323,12 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // (D-101, which made this one much smaller). The engine measures **28,637** and the three
   // ceilings follow the measurements down — a ratchet that stays where the number used to be
   // is not a ratchet, it is headroom nobody decided to grant.
-  burgee: 28_700,
+  //
+  // 28,800 on 2026-09-23 for **59 bytes**, D-118 (E7): the engine reads a `defineError` class's
+  // declared code off `Symbol.for('burgee.exitCode')` on every failure path, so the read is on
+  // the startup graph even though `define-error.js` is not. Inlined rather than a helper, which
+  // took it from 113 over to 59. Measured 28,759.
+  burgee: 28_800,
   // 59,250 on 2026-09-22 for **61 bytes**: the `.catch` that fires `onError`. A plugin's
   // lifecycle closes on every front end now — `preRun` opens and exactly one of `postRun` or
   // `onError` closes — where before a handler that threw left a plugin with no closing hook.
@@ -331,7 +336,11 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // 59,450 on 2026-09-22 for **171 bytes**, D-109: D1's refusal of a deprecation that names no
   // replacement. The front end never declares one, but a plugin registered through it passes the
   // same definition door as a first-party command, and that door is what carries the check.
-  'burgee/commander': 59_450,
+  //
+  // 59,600 on 2026-09-23 for **171 bytes**, D-134: the manifest projection publishes each
+  // option under the flag commander accepts (a lone `--no-x` as `noX`, a pair folded, which
+  // booleans negate), so `--mcp` and completions stop offering flags commander refuses.
+  'burgee/commander': 59_600,
   'burgee/yargs': 107_700,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
@@ -445,8 +454,9 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // without giving up `parse()`'s synchronous contract and the ~23 `executableSubcommand`
   // cases in commander's own suite that mock it, which is what the 1360 / 1360 row rests on.
   // D-102 records that, and that ≤ 1 is not reachable while the façade also carries a
-  // manifest, a schema and an MCP server.
-  'burgee/commander': 1.52,
+  // manifest, a schema and an MCP server. 1.53 on 2026-09-23 for the same 171 bytes as the
+  // bundled ceiling above (D-134): measured 1.524.
+  'burgee/commander': 1.53,
   'burgee/yargs': 1,
   'roundel/chalk': 1,
   'flagstaff/ora': 1,
