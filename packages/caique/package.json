@@ -78,7 +78,7 @@
     "url": "git+https://github.com/ofri-peretz/burgee.git",
     "directory": "packages/caique"
   },
-  "homepage": "https://burgee.interlace.tools/docs/packages/caique",
+  "homepage": "https://caique.interlace.tools",
   "bugs": {
     "url": "https://github.com/ofri-peretz/burgee/issues"
   },

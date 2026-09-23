@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  Docs: <a href="https://burgee.interlace.tools/docs/packages/closeout">https://burgee.interlace.tools/docs/packages/closeout</a>
+  Docs: <a href="https://closeout.interlace.tools">https://closeout.interlace.tools</a>
 </p>
 
 **Close everything out.**
@@ -331,7 +331,7 @@ Graded by the incumbent's own test suite:
 | `restore-cursor` | 6 / 6 |
 | `signal-exit` | 134 / 135 |
 
-Weight, installed and tree-inclusive: **96,456 bytes** against **170,604** for the incumbents it replaces — a ratio of **0.5654** (exit-hook not installed here, so the ceiling is understated).
+Weight, installed and tree-inclusive: **102,262 bytes** against **170,604** for the incumbents it replaces — a ratio of **0.5994** (exit-hook not installed here, so the ceiling is understated).
 ## Where it sits
 
 Plugins register under the `handlers` key, against the one schema the whole family shares.

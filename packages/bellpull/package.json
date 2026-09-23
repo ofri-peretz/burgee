@@ -48,7 +48,7 @@
     "url": "git+https://github.com/ofri-peretz/burgee.git",
     "directory": "packages/bellpull"
   },
-  "homepage": "https://burgee.interlace.tools/docs/packages/bellpull",
+  "homepage": "https://bellpull.interlace.tools",
   "bugs": {
     "url": "https://github.com/ofri-peretz/burgee/issues"
   },
