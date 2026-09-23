@@ -323,7 +323,12 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // (D-101, which made this one much smaller). The engine measures **28,637** and the three
   // ceilings follow the measurements down — a ratchet that stays where the number used to be
   // is not a ratchet, it is headroom nobody decided to grant.
-  burgee: 28_700,
+  //
+  // 28,800 on 2026-09-23 for **59 bytes**, D-118 (E7): the engine reads a `defineError` class's
+  // declared code off `Symbol.for('burgee.exitCode')` on every failure path, so the read is on
+  // the startup graph even though `define-error.js` is not. Inlined rather than a helper, which
+  // took it from 113 over to 59. Measured 28,759.
+  burgee: 28_800,
   // 59,250 on 2026-09-22 for **61 bytes**: the `.catch` that fires `onError`. A plugin's
   // lifecycle closes on every front end now — `preRun` opens and exactly one of `postRun` or
   // `onError` closes — where before a handler that threw left a plugin with no closing hook.
