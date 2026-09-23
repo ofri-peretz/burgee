@@ -67,6 +67,8 @@ function forbiddenInPack(pkg: Pkg, pack: PackEntry): string[] {
 
 /** The interpreter line every executable npm links onto a PATH has to start with. */
 export const SHEBANG = "#!/usr/bin/env node";
+/** How much of a wrong first line the refusal quotes. */
+const QUOTED = 40;
 
 /**
  * Every `bin` target ships, and starts with the shebang.
@@ -103,7 +105,7 @@ export function binProblems(
     const first = (read(file) ?? "").split("\n", 1)[0] ?? "";
     if (first.trimEnd() !== SHEBANG)
       problems.push(
-        `${pkg.name}: bin ${command} -> ${target} does not start with "${SHEBANG}" (it starts ${JSON.stringify(first.slice(0, 40))}); the installed command runs under /bin/sh`,
+        `${pkg.name}: bin ${command} -> ${target} does not start with "${SHEBANG}" (it starts ${JSON.stringify(first.slice(0, QUOTED))}); the installed command runs under /bin/sh`,
       );
   }
   return problems;
