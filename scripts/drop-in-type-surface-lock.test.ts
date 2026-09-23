@@ -85,6 +85,9 @@ const OPTIONS: ts.CompilerOptions = {
   noEmit: true,
 };
 
+/** The virtual probe directory exists, as far as the compiler host is concerned. */
+const always = (): boolean => true;
+
 /** Every name a specifier exports as an ES importer sees it, `export =` properties included; `undefined` when it does not resolve. */
 function surfaces(specifiers: readonly string[]): Map<string, string[] | undefined> {
   const probeDir = join(ROOT, 'packages/burgee/.type-probe');
@@ -93,7 +96,7 @@ function surfaces(specifiers: readonly string[]): Map<string, string[] | undefin
   const { fileExists, readFile, getSourceFile } = host;
   host.fileExists = (f) => files.has(f) || fileExists.call(host, f);
   host.readFile = (f) => files.get(f) ?? readFile.call(host, f);
-  host.directoryExists = () => true;
+  host.directoryExists = always;
   host.getSourceFile = (f, v, ...rest) => {
     const text = files.get(f);
     return text === undefined ? getSourceFile.call(host, f, v, ...rest) : ts.createSourceFile(f, text, v, true);

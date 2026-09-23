@@ -339,6 +339,6 @@ export function wrap(string: string, columns: number, options: WrapOptions = {})
  * that spells one out makes the entry look as though it reaches a sibling. Caught by that
  * lock on 2026-09-14, which is the lock doing exactly its job on the wrong input.
  */
+// `Options` is wrap-ansi's name for `WrapOptions`, so `import { type Options } from 'wrap-ansi'` migrates as is.
 // eslint-disable-next-line import-next/no-default-export -- the incumbent's own suite imports a default; see above. This is the drop-in surface, not a style choice.
-// wrap-ansi's name for `WrapOptions`, so `import { type Options } from 'wrap-ansi'` migrates as is.
 export { wrap as default, type WrapOptions as Options };
