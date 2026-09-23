@@ -390,6 +390,12 @@ function determineDimensions(text: string, input: Resolved): Resolved {
 /** boxen re-exports cli-boxes under this name, so it is surface a caller can reach. */
 export { BOXES as _borderStyles };
 
+// boxen's own type names, so a typed program migrates by its import alone — `burgee migrate`
+// checks every imported name against this module and would otherwise leave the import on boxen.
+export type Options = BoxenOptions;
+export type CustomBorderStyle = BoxenBorderStyle;
+export type Boxes = typeof BOXES;
+
 /**
  * `import boxen from 'boxen'` is the incumbent's surface. A named export here would break
  * every migration this file exists to serve, so the house rule yields to the host.

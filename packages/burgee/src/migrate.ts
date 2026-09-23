@@ -134,6 +134,7 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
     'isPromise',
     'isYargsInstance',
     'looksLikeNumber',
+    'module.exports',
     'objFilter',
     'parseCommand',
     'platformShim',
