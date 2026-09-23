@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "$comment": "Every deployable docs app in this repo, once. Read by .github/workflows/deploy-docs.yml, .github/workflows/auto-deploy.yml, each app's src/site.ts (through apps/docs-chassis), scripts/brand.mts, scripts/sync-package-docs.ts and scripts/vercel-apps-lock.test.ts. orgId and projectId are PUBLIC identifiers, not secrets; VERCEL_TOKEN is the only secret. Adding a package means adding a row here and an app directory - never a workflow edit. A published package with no row needs an 'excluded' entry with its reason; its README page then renders as a section of the familyPages app.",
+  "orgId": "team_sZpUs6MAa1BKXZJY6Hq2nfnh",
+  "apps": {
+    "burgee": {
+      "package": "burgee",
+      "workspace": "docs",
+      "dir": "apps/docs",
+      "projectId": "prj_GOVxKYQ6nXNUEj9vdAbc5cSB0vLJ",
+      "productionUrl": "https://burgee.interlace.tools",
+      "rootDirectory": "",
+      "buildCommand": "npx turbo run build --filter=docs",
+      "outputDirectory": "apps/docs/.next",
+      "familyPages": true
+    },
+    "flagstaff": {
+      "package": "flagstaff",
+      "workspace": "docs-flagstaff",
+      "dir": "apps/docs-flagstaff",
+      "projectId": "prj_8ft5X3cEmaNhOwKoSqnmbjZUKKrK",
+      "productionUrl": "https://flagstaff.interlace.tools",
+      "rootDirectory": "",
+      "buildCommand": "npx turbo run build --filter=docs-flagstaff",
+      "outputDirectory": "apps/docs-flagstaff/.next",
+      "familyPages": false
+    },
+    "caique": {
+      "package": "caique",
+      "workspace": "docs-caique",
+      "dir": "apps/docs-caique",
+      "projectId": "prj_jvSDglBRIuwUmweswErrxnqmrCUI",
+      "productionUrl": "https://caique.interlace.tools",
+      "rootDirectory": "",
+      "buildCommand": "npx turbo run build --filter=docs-caique",
+      "outputDirectory": "apps/docs-caique/.next",
+      "familyPages": false
+    },
+    "linegauge": {
+      "package": "linegauge",
+      "workspace": "docs-linegauge",
+      "dir": "apps/docs-linegauge",
+      "projectId": "prj_nK7VI1uQM7x0YoksHtCoGv1dkpta",
+      "productionUrl": "https://linegauge.interlace.tools",
+      "rootDirectory": "",
+      "buildCommand": "npx turbo run build --filter=docs-linegauge",
+      "outputDirectory": "apps/docs-linegauge/.next",
+      "familyPages": false
+    },
+    "seniority": {
+      "package": "seniority",
+      "workspace": "docs-seniority",
+      "dir": "apps/docs-seniority",
+      "projectId": "prj_layTlmmIJM9AbOpBwCjzoJ1e517n",
+      "productionUrl": "https://seniority.interlace.tools",
+      "rootDirectory": "",
+      "buildCommand": "npx turbo run build --filter=docs-seniority",
+      "outputDirectory": "apps/docs-seniority/.next",
+      "familyPages": false
+    },
+    "bellpull": {
+      "package": "bellpull",
+      "workspace": "docs-bellpull",
+      "dir": "apps/docs-bellpull",
+      "projectId": "prj_OsEEDbBRjoLS0m9uneWTfv8En19g",
+      "productionUrl": "https://bellpull.interlace.tools",
+      "rootDirectory": "",
+      "buildCommand": "npx turbo run build --filter=docs-bellpull",
+      "outputDirectory": "apps/docs-bellpull/.next",
+      "familyPages": false
+    },
+    "closeout": {
+      "package": "closeout",
+      "workspace": "docs-closeout",
+      "dir": "apps/docs-closeout",
+      "projectId": "prj_2Wk3W1BVOfUDGhU0xSVNbjqhJVe6",
+      "productionUrl": "https://closeout.interlace.tools",
+      "rootDirectory": "",
+      "buildCommand": "npx turbo run build --filter=docs-closeout",
+      "outputDirectory": "apps/docs-closeout/.next",
+      "familyPages": false
+    },
+    "paratext": {
+      "package": "paratext",
+      "workspace": "docs-paratext",
+      "dir": "apps/docs-paratext",
+      "projectId": "prj_oht4jZVLq8EE6eiWgh0l0JEAkrlm",
+      "productionUrl": "https://paratext.interlace.tools",
+      "rootDirectory": "",
+      "buildCommand": "npx turbo run build --filter=docs-paratext",
+      "outputDirectory": "apps/docs-paratext/.next",
+      "familyPages": false
+    }
+  },
+  "excluded": {
+    "roundel": "Its app lands in the next commit of this change; until then its README renders as a section of the front door, which is what an excluded package gets."
+  }
+}

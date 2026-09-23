@@ -40,7 +40,9 @@ const UMBRELLA_DESIGN = '.sdlc/intents/burgee/spec.md';
 
 /** Documents an agent is expected to read and obey. */
 const CONFIG_FILES = ['README.md', 'CLAUDE.md', 'AGENTS.md'];
-const CONFIG_DIRS = ['docs', '.github', '.sdlc/bands', 'apps/docs/content'];
+/** Every docs app's content, from `.github/vercel-apps.json` — the one place an app is named. */
+const APP_CONTENT = Object.values((JSON.parse(fs.readFileSync(path.join(REPO_ROOT, '.github/vercel-apps.json'), 'utf8')) as { apps: Record<string, { dir: string }> }).apps).map((app) => `${app.dir}/content`);
+const CONFIG_DIRS = ['docs', '.github', '.sdlc/bands', ...APP_CONTENT];
 const SKIP_DIRS = new Set(['node_modules', 'issues', 'results', '.next', 'dist']);
 /** Intents describe work that does not exist yet; a script they name is a plan, not a link. */
 const PLANNED_DOCS = /^docs\/intents\//;

@@ -1,14 +1,8 @@
 {
   "title": "Packages",
   "pages": [
+    "index",
     "burgee",
-    "bellpull",
-    "caique",
-    "closeout",
-    "flagstaff",
-    "linegauge",
-    "paratext",
-    "roundel",
-    "seniority"
+    "roundel"
   ]
 }
