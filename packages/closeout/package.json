@@ -58,7 +58,7 @@
     "url": "git+https://github.com/ofri-peretz/burgee.git",
     "directory": "packages/closeout"
   },
-  "homepage": "https://github.com/ofri-peretz/burgee/tree/main/packages/closeout#readme",
+  "homepage": "https://burgee.interlace.tools/docs/packages/closeout",
   "bugs": {
     "url": "https://github.com/ofri-peretz/burgee/issues"
   },
@@ -75,7 +75,12 @@
     "teardown",
     "plugin",
     "plugins",
-    "extensible"
+    "extensible",
+    "agent",
+    "ai-agent",
+    "non-tty",
+    "json",
+    "zero-dependency"
   ],
   "devDependencies": {
     "vitest": "^5.0.1"

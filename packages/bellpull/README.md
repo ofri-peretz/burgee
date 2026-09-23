@@ -7,6 +7,10 @@
   </a>
 </p>
 
+<p align="center">
+  Docs: <a href="https://burgee.interlace.tools/docs/packages/bellpull">https://burgee.interlace.tools/docs/packages/bellpull</a>
+</p>
+
 A **bellpull** is the cord in one room wired to a bell in another. You pull it here; a bell rings there; someone comes back to you.
 
 That is a subprocess. Request work at a distance, work happens elsewhere, a result returns. **That last clause is the package.**
@@ -122,7 +126,7 @@ Graded by the incumbent's own test suite:
 | :-- | --: |
 | `cross-spawn` | 68 / 68 |
 
-Weight, installed and tree-inclusive: **97,564 bytes** against **714,984** for the incumbents it replaces — a ratio of **0.1365**.
+Weight, installed and tree-inclusive: **97,751 bytes** against **714,984** for the incumbents it replaces — a ratio of **0.1367**.
 ## Where it sits
 
 Plugins register under the `resolvers` key, against the one schema the whole family shares.

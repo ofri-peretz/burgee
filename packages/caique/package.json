@@ -78,7 +78,7 @@
     "url": "git+https://github.com/ofri-peretz/burgee.git",
     "directory": "packages/caique"
   },
-  "homepage": "https://github.com/ofri-peretz/burgee/tree/main/packages/caique#readme",
+  "homepage": "https://burgee.interlace.tools/docs/packages/caique",
   "bugs": {
     "url": "https://github.com/ofri-peretz/burgee/issues"
   },
@@ -94,7 +94,8 @@
     "non-tty",
     "plugin",
     "plugins",
-    "extensible"
+    "extensible",
+    "ai-agent"
   ],
   "dependencies": {
     "closeout": "^0.3.0",

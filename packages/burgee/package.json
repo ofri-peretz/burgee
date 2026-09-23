@@ -111,7 +111,7 @@
     "url": "git+https://github.com/ofri-peretz/burgee.git",
     "directory": "packages/burgee"
   },
-  "homepage": "https://github.com/ofri-peretz/burgee#readme",
+  "homepage": "https://burgee.interlace.tools/docs/packages/burgee",
   "bugs": {
     "url": "https://github.com/ofri-peretz/burgee/issues"
   },
@@ -126,7 +126,20 @@
     "framework",
     "plugin",
     "plugins",
-    "extensible"
+    "extensible",
+    "cli-framework",
+    "argument-parser",
+    "subcommands",
+    "json-schema",
+    "mcp-server",
+    "model-context-protocol",
+    "ai-agent",
+    "llm",
+    "shell-completion",
+    "typescript",
+    "zero-dependency",
+    "commander-alternative",
+    "yargs-alternative"
   ],
   "publishConfig": {
     "access": "public",

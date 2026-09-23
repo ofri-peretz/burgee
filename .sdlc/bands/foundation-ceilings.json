@@ -4,7 +4,7 @@
   "method": "benchmarks/axes/weight.ts installedBytes(name), tree-inclusive, one count per realpath",
   "layers": {
     "linegauge": {
-      "ours": 84210,
+      "ours": 84371,
       "incumbents": {
         "string-width": 36669,
         "wrap-ansi": 79687,
@@ -12,19 +12,19 @@
         "slice-ansi": 43642
       },
       "ceiling": 170342,
-      "ratio": 0.4944,
+      "ratio": 0.4953,
       "lightestIncumbent": {
         "name": "strip-ansi",
         "bytes": 10344
       }
     },
     "paratext": {
-      "ours": 92729,
+      "ours": 92903,
       "incumbents": {
         "ansi-escapes": 30912
       },
       "ceiling": 30912,
-      "ratio": 2.9998,
+      "ratio": 3.0054,
       "lightestIncumbent": {
         "name": "ansi-escapes",
         "bytes": 30912
@@ -36,14 +36,14 @@
       "$unmeasured": "Not installed in this workspace, so its bytes are absent from `ceiling` — the ceiling is therefore a floor on the real one, never an overstatement."
     },
     "seniority": {
-      "ours": 151990,
+      "ours": 152192,
       "incumbents": {
         "cosmiconfig": 1377599,
         "dotenv": 82402,
         "rc": 95287
       },
       "ceiling": 1555288,
-      "ratio": 0.0977,
+      "ratio": 0.0979,
       "lightestIncumbent": {
         "name": "dotenv",
         "bytes": 82402
@@ -55,13 +55,13 @@
       "$grew": "151,688 B on 2026-09-14, up from 53,475 — PLAN 3.2 built the cosmiconfig-compatible surface plus the `./dotenv` and `./find-up` façades, and the pack grew 182%. The Y8 ratio moved 0.034 to 0.098, so it is still an order of magnitude under what it replaces; the growth is recorded rather than smoothed because a ratio that only ever improves is a ratio nobody is watching."
     },
     "closeout": {
-      "ours": 95911,
+      "ours": 96126,
       "incumbents": {
         "signal-exit": 76966,
         "restore-cursor": 93638
       },
       "ceiling": 170604,
-      "ratio": 0.5622,
+      "ratio": 0.5634,
       "lightestIncumbent": {
         "name": "signal-exit",
         "bytes": 76966
@@ -76,12 +76,12 @@
       "$unmeasured": "Not installed in this workspace, so its bytes are absent from `ceiling` — the ceiling is therefore a floor on the real one, never an overstatement."
     },
     "caique": {
-      "ours": 121865,
+      "ours": 122372,
       "incumbents": {
         "@clack/prompts": 182219
       },
       "ceiling": 182219,
-      "ratio": 0.6688,
+      "ratio": 0.6716,
       "lightestIncumbent": {
         "name": "@clack/prompts",
         "bytes": 182219
@@ -92,14 +92,14 @@
       "$unmeasured": "Not installed in this workspace, so its bytes are absent from `ceiling` — the ceiling is therefore a floor on the real one, never an overstatement."
     },
     "bellpull": {
-      "ours": 97564,
+      "ours": 97751,
       "incumbents": {
         "execa": 647091,
         "cross-spawn": 46962,
         "which": 20931
       },
       "ceiling": 714984,
-      "ratio": 0.1365,
+      "ratio": 0.1367,
       "lightestIncumbent": {
         "name": "which",
         "bytes": 20931
@@ -107,5 +107,5 @@
       "note": "Measured 2026-09-16 (82,918 after `cross-spawn.ts` moved to a live property read so commander’s mock is seen), the first time this package had an implementation to weigh: 0.0067 was a seven-line stub exporting its own name. R8's ceiling is the wrong comparison and is left as-is rather than quietly swapped: it asks for bytes under `tinyexec`, which does not resolve executables at all, so the smaller number would win by not doing the job. `tinyexec` is not installed here, so no number is claimed against it. Note the fixed point: `ours` is measured from a tarball that contains a README generated from `ours`, so writing the number changes it. 82,918 became 82,917 when the ratio string lost a character; 0.116 is stable under regeneration, which is why it stops here rather than oscillating."
     }
   },
-  "$remeasured": "2026-09-22, one pass with `npm pack --dry-run --json`, after each foundation README gained its brand lockup header (the mark floor now requires every public package to show one). What moved: linegauge 83,766 to 84,210 (+444); paratext 92,288 to 92,729 (+441); seniority 151,546 to 151,990 (+444); closeout 95,470 to 95,911 (+441); bellpull 97,123 to 97,564 (+441). Every move is the header block and nothing else — the three-byte difference is the package name's length. caique did not move: its README already carried the lockup. Stable on the second pass. No ceiling moved."
+  "$remeasured": "2026-09-22, second pass, `npm pack --dry-run --json` to a fixed point (stable on the second iteration), after every public README gained a docs-site link under its header and every manifest a docs-site `homepage` and search keywords. What moved: linegauge 84,210 to 84,371 (+161); paratext 92,729 to 92,903 (+174); seniority 151,990 to 152,192 (+202); closeout 95,911 to 96,126 (+215); caique 121,865 to 122,372 (+507 — the same, plus its README no longer calling a released package pre-release); bellpull 97,564 to 97,751 (+187). Every move is README and manifest text plus the regenerated Benchmarks section, none of it code; paratext's ratio crosses 3.0 on those 174 bytes. No ceiling moved. Earlier the same day: 2026-09-22, one pass with `npm pack --dry-run --json`, after each foundation README gained its brand lockup header (the mark floor now requires every public package to show one). What moved: linegauge 83,766 to 84,210 (+444); paratext 92,288 to 92,729 (+441); seniority 151,546 to 151,990 (+444); closeout 95,470 to 95,911 (+441); bellpull 97,123 to 97,564 (+441). Every move is the header block and nothing else — the three-byte difference is the package name's length. caique did not move: its README already carried the lockup. Stable on the second pass. No ceiling moved."
 }
