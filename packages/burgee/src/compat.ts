@@ -64,7 +64,7 @@ export const GRADED: Readonly<Record<string, Row>> = {
   clack: { reference: 17, passed: 14, rate: 0.8235294117647058, control: 17 },
   'inquirer-core': { reference: 41, passed: 41, rate: 1, control: 41 },
   meow: { reference: 148, passed: 132, rate: 0.8918918918918919, control: 146 },
-  'ansi-escapes': { reference: 4, passed: 1, rate: 0.25, control: 4 },
+  'ansi-escapes': { reference: 4, passed: 4, rate: 1, control: 4 },
   'terminal-link': { reference: 10, passed: 8, rate: 0.8, control: 10 },
   'term-img': { reference: 18, passed: 12, rate: 0.6666666666666666, control: 18 },
   'restore-cursor': { reference: 6, passed: 6, rate: 1, control: 6 },
