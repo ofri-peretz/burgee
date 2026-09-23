@@ -26,6 +26,7 @@ run(defineCommand({
   name: 'greet',
   description: 'Greet someone by name',
   options: { name: { type: 'string', required: true, description: 'who to greet' } },
+  effects: 'read_only', // what running it does to the world; required, and what --mcp reads
   run: ({ options }) => ({ greeting: `hello, ${options.name}` }),
 }));
 ```
@@ -35,7 +36,7 @@ $ node cli.mjs --name ada
 greeting: hello, ada
 
 $ node cli.mjs --json --name ada
-{"ok":true,"data":{"greeting":"hello, ada"}}
+{"ok":true,"data":{"greeting":"hello, ada"},"meta":{"provenance":{"name":{"source":"flag","location":"--name"}}}}
 
 $ node cli.mjs            # exit 2
 error: missing required option --name
