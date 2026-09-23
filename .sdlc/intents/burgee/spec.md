@@ -598,7 +598,7 @@ was quietly met.
 **The count.** 114 requirements, in seventeen families — `Z F O E V S P D T H M K J C B N U`.
 The prose above says *92* and *"Ninety-two requirements"*; both are wrong, and wrong the same
 way, because `E6 E7 V8 N11–N15` were added after the arithmetic was last done and `C1–C8`
-names two rows that do not exist. **Built: 92. Not built: 22**, and the count moves as rows are
+names two rows that do not exist. **Built: 93. Not built: 21**, and the count moves as rows are
 built rather than as the prose is rewritten — T1 moved on 2026-09-22 and the tally moved with
 it. An audit whose total disagrees with its own rows is the failure this paragraph is a record
 of; `spec-tally-lock.test.ts` now derives the two numbers from the tables instead of trusting
@@ -798,7 +798,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | N10 | Not built | clispec.dev and cli-agent-lint are named once, in `.sdlc/research/agent-requirements.md`. There is no axis, no CI job and no published result for either | — |
 | N11 | **Built** | `ctx.actionRequired(spec)` unwinds through `ActionRequired`; `runnableNext` prefixes the program name and carries the caller's own `--json` into each `next[]` command | `machine-json.test.ts` |
 | N12 | **Built** | `agent.ts` — `AGENT_PROBES`, `FORCE_TTY=1`, and `interactive = forced \|\| (tty && agent === undefined)`, which is the load-bearing clause. The probe list is **5** variables, not the 13 the requirement names; restated below | `agent.test.ts` |
-| N13 | Not built | the budget half is built (`Manifest.schemaBudget`, `SCHEMA_BUDGET = 48_000`, `summaryOf`). **Drilling is by command path only** — `summaryOf`'s own hint reads *"run `<command> --schema` for one command in full"* — and there is no field-path selector | `schema.test.ts` |
+| N13 | **Built** | the budget half: `Manifest.schemaBudget`, `SCHEMA_BUDGET = 48_000`, `summaryOf`. The drilling half: by command path (`--schema <command>`), and below it by field path (D-116) — `--schema <command> --field options.region` returns that one value, a step that does not exist is refused with the steps that do, and the walk lives in `schema-surface.js`, loaded only when `--field` is typed | `schema.test.ts`, `schema-field.test.ts` |
 | N14 | Not built | `--json` is seeded in `toParseConfig` as `{ type: 'boolean' }`. It takes no argument, so nothing lists valid fields and nothing rejects an invalid one | — |
 | N15 | Not built | **Deferred past 1.0 (D-115)** — not a 1.0 gate. there is no non-JSON `agent` format. The only format flag in the package is `--format=json-pretty`, and it makes the output *larger* | `machine-json.test.ts` |
 
