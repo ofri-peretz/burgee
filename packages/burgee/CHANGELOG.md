@@ -1,5 +1,23 @@
 # burgee
 
+## 0.11.0
+
+### Minor Changes
+
+- [#507](https://github.com/ofri-peretz/burgee/pull/507) [`b8e97dc`](https://github.com/ofri-peretz/burgee/commit/b8e97dcb64772e413f0b6f9e17e063c73314d242) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Runs on Node 20 and 22, not just 24+: `engines.node` is now `^20.19.0 || >=22.13.0`. Those are the first releases where `require(esm)` loads without a warning, so the CommonJS `require()` path keeps working. Every package's test suite runs on exactly 20.19.0 and 22.13.0, on Linux, macOS and Windows. caique's prompts no longer call `Promise.withResolvers`, which Node 20 doesn't have.
+
+### Patch Changes
+
+- [#505](https://github.com/ofri-peretz/burgee/pull/505) [`9800b43`](https://github.com/ofri-peretz/burgee/commit/9800b43d9c74a49dfb66d04a40fd0d1c48892e20) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Docs: the README says "no dependency outside the burgee family" instead of implying none at all — burgee declares five, every one of them a sibling. The `zero-dependency` keyword is now `no-external-dependencies`.
+
+- [#506](https://github.com/ofri-peretz/burgee/pull/506) [`891e132`](https://github.com/ofri-peretz/burgee/commit/891e132c4b1d8fe3001123014ea977c8ab30e973) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/yargs` exports yargs' types — `Argv`, `Arguments`, `ArgumentsCamelCase`, `CommandModule`, `CommandBuilder`, `Options`, `PositionalOptions`, `InferredOptionTypes`, `MiddlewareFunction` and the rest of `@types/yargs`' ESM surface — and its default export is typed as a factory returning `Argv`, so a typed chain infers `argv` and an instance passes wherever a program says `Argv`. `burgee/commander` adds `OptionValues`, `OptionValueSource`, `HelpConfiguration` and `ParseOptionsResult`, `opts<T>()` / `optsWithGlobals<T>()` are generic as in commander, and its `OutputConfiguration` takes any subset. `burgee migrate` now checks every name an import asks for against what the façade exports: a type-only import of a name it lacks stays on the incumbent and is reported under `kept`, and any other is refused as `unknown-export`.
+- Updated dependencies [[`9800b43`](https://github.com/ofri-peretz/burgee/commit/9800b43d9c74a49dfb66d04a40fd0d1c48892e20), [`b8e97dc`](https://github.com/ofri-peretz/burgee/commit/b8e97dcb64772e413f0b6f9e17e063c73314d242)]:
+  - bellpull@0.3.0
+  - closeout@0.5.0
+  - linegauge@0.5.0
+  - seniority@0.5.0
+  - roundel@0.5.0
+
 ## 0.10.0
 
 ### Minor Changes
