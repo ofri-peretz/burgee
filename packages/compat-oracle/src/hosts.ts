@@ -98,6 +98,14 @@ export interface ConditionalCases {
   only?: NodeJS.Platform[];
   /** The platforms that do not, for a suite written `if (process.platform !== 'x')`. */
   notOn?: NodeJS.Platform[];
+  /**
+   * How many of them the target passes on the platforms that run them. The ratchet credits
+   * exactly this many on a platform that lacks them, so a machine cannot regress cases it
+   * never registered — and, because it is declared rather than assumed, cannot hide a real
+   * loss behind them either. Omitted means none: cosmiconfig's two XDG cases fail where
+   * they run, and crediting them on darwin would let darwin lose two others unseen.
+   */
+  passing?: number;
   /** Which cases, and the line of the suite that guards them. A lock refuses an empty one. */
   why: string;
 }
@@ -321,6 +329,13 @@ export interface Host {
    * denominator, and the row is coarser than a per-case one without being dishonest.
    */
   runner: 'node:test' | 'mocha' | 'ava' | 'vitest' | 'tap' | 'exit-code';
+  /**
+   * The shim's module system. Unset, every shim is ESM and Node resolves the implementation
+   * through its `import` condition. `'cjs'` writes `module.exports = require(…)` instead, for a
+   * suite written against a dual package's CommonJS build — which a dual package is free to
+   * make behave differently, and signal-exit does.
+   */
+  shim?: 'cjs';
   /** Our entry point graded against it. */
   target: string;
   status: 'active' | 'planned' | 'rejected';
@@ -1157,21 +1172,15 @@ export const HOSTS: Host[] = [
     note: "Graded against `closeout/exit-hook`. The suite's fixtures live in `fixtures/` and `import … from '../index.js'`, which the vendor step rewrites to the same generated shim the test file gets, so one unedited suite grades either implementation. `ava` and `execa` are declared at the workspace root already, which is what `vendored-suite.test.ts` checks; the incumbent itself is the vendor-local copy described above.",
   },
   {
-    // **Vendored and runnable as of 2026-09-16, and still not graded.** The suite executes
-    // end to end — 127 cases registered, 123 passing against signal-exit's own package — and
-    // the row stays `planned` because a control that cannot clear its own reference must not
-    // publish a rate. The `note` below carries the measurement, the three blockers that are
-    // gone and the two that replaced them.
-    //
-    // It is vendored now, where the earlier judgement was that "a directory of tests that
-    // cannot be run is worse than no directory". That judgement was right and no longer
-    // applies: these tests run. `vendored-suite.test.ts` is satisfied without being told to
-    // ignore anything — its undeclared-package check is scoped to *active* hosts, and `tap`
-    // is declared in the vendored manifest through `suiteDeps` regardless.
+    // **Graded as of 2026-09-23: 134 / 135, level with signal-exit's own package.** The one
+    // case both fail is signal-exit's, not ours — see `controlFailures`. Getting the control
+    // to 126 took two harness fixes (`shim: 'cjs'`, and a shim that evicts its target from
+    // `require.cache`, since `t.mock()` only busts the shim's own entry); getting the target
+    // there took a CommonJS façade, `closeout/signal-exit`, because the suite re-evaluates the
+    // module under a changed `process` and an ES module is evaluated once per process.
     //
     // `closeout/intent.md` R4 makes this row's pass rate the gate on the whole `overrides`
-    // recipe, which is why the harness for it is committed rather than abandoned: the next
-    // agent starts from 123 / 127 and one open question, not from four.
+    // recipe.
     name: 'signal-exit',
     repo: 'https://github.com/tapjs/signal-exit',
     testDir: 'test',
@@ -1196,6 +1205,17 @@ export const HOSTS: Host[] = [
     // suite correctly, and what would catch a future release adding a third.
     internalDir: 'dist',
     runner: 'tap',
+    shim: 'cjs',
+    controlFailures: {
+      count: 1,
+      why: "`signal-exit-test.ts` > `does not exit if user handles signal` fails for signal-exit 4.1.0 itself. Its fixture, `signal-listener.js`, re-sends SIGTERM from a `setTimeout` inside the listener and expects the fourth to kill the process; on current Node the process exits cleanly after the first (`calledListener=1, code=0, signal=null`). Measured 2026-09-23 with the fixture requiring `signal-exit` directly — no shim — on Node 22.22, 24.13 and 26.10 on macOS, and on Node 24 in a Linux container. signal-exit's last release was 2023-07-29, before any of those Nodes.",
+    },
+    conditionalCases: {
+      count: 8,
+      only: ['linux'],
+      passing: 8,
+      why: "`all-integration-test.ts` loops twice over `signals` (lines 31 and 64), and the list is the platform's: Linux adds SIGIO, SIGPOLL, SIGPWR and SIGSTKFLT, so the suite registers 135 cases on ubuntu and 127 on darwin — 4 signals × 2 loops. The reference is the ubuntu 135. All 8 pass against signal-exit and against closeout. Windows is not declared because it differs by more than one count can say (the first loop is empty there and the list is three signals long), and the ratchet runs on ubuntu.",
+    },
     // Upstream's `--loader ts-node/esm` does not run on Node 24 — see the field's own doc.
     tsLoader: 'tsx',
     // The incumbent for the control, and the suite's own runner, both at the release the
@@ -1214,8 +1234,8 @@ export const HOSTS: Host[] = [
       },
     ],
     target: 'closeout',
-    status: 'planned',
-    note: "198.9 M/wk and stale since 2023-07-29 — the layer's headline incumbent, and **still `planned`, but for two measured reasons rather than four guessed ones.** The suite is now vendored and it runs: measured 2026-09-16, the control registers **127 cases and passes 123** against `signal-exit@4.1.0` installed beside it. It is not activated, because **a control that cannot clear its own reference must not publish a rate**, and the four it fails are not a `controlFailures` allowance — an allowance is a named exemption for something the incumbent genuinely cannot do, and at least two of these are the harness grading the wrong thing. Of the original four blockers, three are gone. (1) The `tap` runner arm exists and `dotenv` goes through it. (2) `tap-snapshots/` needs no reader outside tap because the arm *is* tap — `node test/signals.js` from the vendored root prints `ok … must match snapshot` with no runner binary, so `extraDirs` naming the directory is the whole fix. (3) `dist` is in `INTERNAL_PATTERNS` now, though it turned out not to be the mechanism this host needed: `dist/cjs/signals.js` is a **public** export (`\"./signals\"` sits beside `\".\"` in signal-exit's own exports map, exactly as `yargs/helpers` does), and reading it as an internal produced no shim at all, because its only `require()` is inside `fixtures/`, which `ungradedDirs` prunes from the walk that collects internals. Declared as a second public import it is rewritten everywhere, `t.mock('../dist/cjs/signals.js')` included — `rewriteAt` replaces the quoted literal, so the mock argument moves with it. (4) The `ts-node/esm` loader blocker is **worse than recorded and is handled**: upstream's `--loader ts-node/esm` does not run on Node 24 at all (every `.ts` file dies with `ERR_REQUIRE_CYCLE_MODULE`, because `require(esm)` landed after signal-exit's last release), and plain Node 24 type-stripping runs only one of the four (`signal-capture.ts` imports a type as a value, and two more import `'./fixtures/exec-err'` without an extension). `tsLoader: 'tsx'` runs all four. **The two that remain, both found by running it:** first, `test/no-process.js` > `process missing from the start` fails because the generated public shim is ESM by construction, so Node takes the `import` condition and hands the suite `dist/mjs/index.js` — while every one of these tests is written against `../dist/cjs/index.js`, and the two builds differ exactly here (the CJS build captures the global process object in a module-scope constant at load time and the ESM build does not, which is the behaviour `fixtures/process-gone.js` exists to check). The stack in the raw TAP names `dist/mjs/index.js` in so many words. `signal-exit-test.ts` > `does not exit if user handles signal` fails beside it and is very likely the same cause. That is not a defect in signal-exit or in closeout; it is this oracle grading a build the suite did not ask for, and fixing it means a CJS public shim, which is a change to the `shimName` rule four other hosts rely on. Second, `test/signals.js` loses 2 of its 3 cases to the shim indirection: it snapshots `t.mock('…/signals.js')` once per faked platform, and `t.mock` busts the cache of the *shim* rather than of the module behind it, so `darwin` and `linux` both get win32's list back. No allowance can make those two comparisons mean anything again. **So: the harness for this host is built and committed, the row is one honest measurement away, and the remaining work is the CJS-shim question — which is a decision about `shimName`, not about signal-exit.** No baseline fragment exists, deliberately: `reference`/`passed` record a *target* run, and no target run was taken against a control this one.",
+    status: 'active',
+    note: "198.9 M/wk and stale since 2023-07-29 — the layer's headline incumbent. Graded against `closeout/signal-exit` (with `closeout/signal-exit/signals` for the suite's second public import): **134 of 135 on ubuntu, the same case the control fails** (126 of 127 on darwin, whose signal list is four shorter — see `conditionalCases`). The façade is the one CommonJS file in the family, and that is measured rather than preferred: `no-process.js` and `signals.js` require the module, swap out the global `process`, evict it from `require.cache` and require it again, and an ES module is evaluated once per process however the cache is edited — measured 2026-09-23, an ESM build of the same façade failed `process missing from the start` and all three `signals.js` snapshots when those files were run directly, and a two-line probe confirmed a second `require()` of an evicted ES module returns the first instance. It exports `export = { onExit, load, unload, signals }`, which Node's CommonJS lexer reads as named exports, so `import { onExit } from 'closeout/signal-exit'` works from ESM too. It shares signal-exit's global emitter (`Symbol.for('signal-exit emitter')`), so a program with this façade and a transitive copy of the real package runs each handler once.",
   },
 ];
 

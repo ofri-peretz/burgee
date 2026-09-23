@@ -38,7 +38,9 @@ const PROCESS_READ = /(?:(?<=\bglobalThis\.)|(?<![.\w]))process\??\.(env|argv|ex
 /** `Reflect.get(globalThis, 'process')` is a process read too — it is the one this package makes. */
 const REFLECTED_READ = /Reflect\.get\(globalThis, 'process'\)/;
 
-const sources = (): string[] => readdirSync(src).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'));
+// `.cts` too: the `signal-exit` façade is CommonJS, and a lock that cannot see a file cannot
+// say it reads nothing it should not.
+const sources = (): string[] => readdirSync(src).filter((f) => /\.c?ts$/u.test(f) && !f.endsWith('.test.ts'));
 
 const touchesProcess = (file: string): boolean =>
   readFileSync(join(src, file), 'utf8')
@@ -84,7 +86,7 @@ describe('every published subpath has a module behind it (R6)', () => {
   };
 
   it.each(Object.entries(manifest.exports).filter(([, target]) => typeof target === 'object'))('%s', (subpath, target) => {
-    const file = (target as { import: string }).import.replace('./dist/', '').replace(/\.js$/, '.ts');
+    const file = (target as { import: string }).import.replace('./dist/', '').replace(/\.js$/, '.ts').replace(/\.cjs$/, '.cts');
     expect(sources(), `${subpath} names ${file}, which does not exist in src/`).toContain(file);
   });
 });
