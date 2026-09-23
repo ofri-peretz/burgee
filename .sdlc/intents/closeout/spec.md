@@ -450,10 +450,10 @@ fidelity cases pass. Reverting `install.ts` to its pre-fix state with the new as
 place gives **10 red across three files**: those four, the five `matrix.test.ts` signal cells
 now asserting `proc.raised`, and the `install.test.ts` re-raise case.
 
-## What shipped (R9 for `signal-exit` — graded, 126 / 127 — 2026-09-23)
+## What shipped (R9 for `signal-exit` — graded, 134 / 135 — 2026-09-23)
 
 `closeout/signal-exit` and `closeout/signal-exit/signals` exist, and `signal-exit`'s own suite
-grades them **126 of 127, the same case its control fails** (`does not exit if user handles
+grades them **134 of 135 on Linux, the same case its control fails** (127 cases on macOS, whose signal list is four shorter; `conditionalCases` declares the eight) (`does not exit if user handles
 signal`, a signal-exit 4.1.0 defect on every current Node — the host's `controlFailures`
 names it). The four harness blockers the 2026-09-14 section lists are gone: `tap` is a runner
 arm, `tsx` runs the TypeScript files, `dist` is a declared internal directory, and the
@@ -495,7 +495,7 @@ and `grep '^export' packages/closeout/src/<file>.ts`.
 | `closeout/plugin` | `register`, `validate`, `reset`, `registered`, `contributions`, `attach`, `CONTRACT`, `PLUGIN_PHASES`, `PluginError`; `Plugin`, `PluginHandler`, `Contribution`, `HandlerHost`, `PluginErrorCode` | the extension point (R12) |
 | `closeout/restore-cursor` | a default export, and nothing else | the drop-in path for `restore-cursor` — the stream is chosen from the process, which is why this is its own entry |
 | `closeout/exit-hook` | `asyncExitHook`, `gracefulExit`; `ExitHookCallback`, `AsyncExitHookOptions` | the drop-in path for `exit-hook` |
-| `closeout/signal-exit` | `onExit`, `load`, `unload`, `signals` (CommonJS, `export =`) | the drop-in path for `signal-exit` 4 — graded 126 / 127 |
+| `closeout/signal-exit` | `onExit`, `load`, `unload`, `signals` (CommonJS, `export =`) | the drop-in path for `signal-exit` 4 — graded 134 / 135 |
 | `closeout/signal-exit/signals` | `signals` (CommonJS) | `signal-exit/signals`, the platform's fatal-signal list |
 | `closeout/schema.json` | the family plugin schema, as a file | what a plugin author or an agent validates against |
 

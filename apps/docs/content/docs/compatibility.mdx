@@ -39,7 +39,7 @@ would flatter a partial implementation; measuring against the control's total do
 | **term-img** | `paratext/term-img` | 12 / 18 | 66.7% | 18 / 18 | 100.0% | — | — |
 | **restore-cursor** | `closeout` | 6 / 6 | 100.0% | 6 / 6 | 100.0% | — | — |
 | **exit-hook** | `closeout` | 21 / 21 | 100.0% | 21 / 21 | 100.0% | — | — |
-| **signal-exit** | `closeout` | 126 / 127 | 99.2% | 126 / 127 | 99.2% | — | — |
+| **signal-exit** | `closeout` | 134 / 135 | 99.3% | 134 / 135 | 99.3% | — | — |
 
 **Every file of every suite is vendored and run**, and every case that leaves the gate is
 named below. Files that import only the host's *internal* modules (its own file layout) are
@@ -103,6 +103,7 @@ counted against us there rather than dropped.
 | :--- | ---: | :--- | :--- |
 | **cosmiconfig** | 2 | only on linux | `search-strategies.test.ts` wraps its `global › finds config in OS default directory (XDG)` describe in `if (process.platform === 'linux')`, so its two cases — `async` and `sync` — are **not registered at all** anywhere else. The suite is 241 cases on darwin and 243 on ubuntu, and that is the whole of the difference: no other conditional construct exists in the nine files (`process.platform`, `os.platform`, `describe.each`, `skipIf` and `runIf` return exactly this one hit). The reference is the ubuntu 243, because the reference has to be the full suite or the number means less on the machine that has more. The two are real and we fail both: seniority resolves its global config directory from `os.homedir()` and the platform rather than reading `XDG_CONFIG_HOME` through `env-paths`, which is `seniority/spec.md` R11 and a listed divergence. Counting them against us on every platform is the point — excluding them instead would have raised the published rate from 76.5% to 77.2% by dropping two cases we lose. |
 | **lilconfig** | 2 | not on win32 | `default for searchFrom till root directory` and `searches root directory correctly`, each wrapped in `if (process.platform !== 'win32')` because both assert an `fs` call list rooted at `/`. They are the only conditional construct in the file — the `isNodeV20orNewer` branches pick an expected *message* and never add or drop a case, and this repository is Node 24 only. So the count does not move between darwin and ubuntu, which is why the reference is 77 on both and no number here changes. It is declared anyway: without it a Windows contributor's control registers 75 of 77 and goes red for doing exactly what the suite told it to, and finding that on their machine is worse than writing it here. Both cases are also two of the ten in `controlFailures`, so on Windows that allowance is spent down to eight. |
+| **signal-exit** | 8 | only on linux | `all-integration-test.ts` loops twice over `signals` (lines 31 and 64), and the list is the platform's: Linux adds SIGIO, SIGPOLL, SIGPWR and SIGSTKFLT, so the suite registers 135 cases on ubuntu and 127 on darwin — 4 signals × 2 loops. The reference is the ubuntu 135. All 8 pass against signal-exit and against closeout. Windows is not declared because it differs by more than one count can say (the first loop is empty there and the list is three signals long), and the ratchet runs on ubuntu. |
 
 ### Directories vendored and not graded
 

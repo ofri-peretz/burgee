@@ -920,7 +920,8 @@ export function readBaseline(path: string): Baseline {
 }
 
 /** C5 — the rate ratchets. Falling below the recorded baseline fails. */
-export function regressed(grade: Grade, baseline: Baseline): boolean {
+export function regressed(grade: Grade, baseline: Baseline, unseen = 0): boolean {
   const was = baseline[grade.host];
-  return was !== undefined && grade.passed < was.passed;
+  // `unseen`: passes this platform cannot register (`absentPassing`), declared per host.
+  return was !== undefined && grade.passed + unseen < was.passed;
 }

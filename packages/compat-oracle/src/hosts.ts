@@ -98,6 +98,14 @@ export interface ConditionalCases {
   only?: NodeJS.Platform[];
   /** The platforms that do not, for a suite written `if (process.platform !== 'x')`. */
   notOn?: NodeJS.Platform[];
+  /**
+   * How many of them the target passes on the platforms that run them. The ratchet credits
+   * exactly this many on a platform that lacks them, so a machine cannot regress cases it
+   * never registered — and, because it is declared rather than assumed, cannot hide a real
+   * loss behind them either. Omitted means none: cosmiconfig's two XDG cases fail where
+   * they run, and crediting them on darwin would let darwin lose two others unseen.
+   */
+  passing?: number;
   /** Which cases, and the line of the suite that guards them. A lock refuses an empty one. */
   why: string;
 }
@@ -1164,7 +1172,7 @@ export const HOSTS: Host[] = [
     note: "Graded against `closeout/exit-hook`. The suite's fixtures live in `fixtures/` and `import … from '../index.js'`, which the vendor step rewrites to the same generated shim the test file gets, so one unedited suite grades either implementation. `ava` and `execa` are declared at the workspace root already, which is what `vendored-suite.test.ts` checks; the incumbent itself is the vendor-local copy described above.",
   },
   {
-    // **Graded as of 2026-09-23: 126 / 127, level with signal-exit's own package.** The one
+    // **Graded as of 2026-09-23: 134 / 135, level with signal-exit's own package.** The one
     // case both fail is signal-exit's, not ours — see `controlFailures`. Getting the control
     // to 126 took two harness fixes (`shim: 'cjs'`, and a shim that evicts its target from
     // `require.cache`, since `t.mock()` only busts the shim's own entry); getting the target
@@ -1202,6 +1210,12 @@ export const HOSTS: Host[] = [
       count: 1,
       why: "`signal-exit-test.ts` > `does not exit if user handles signal` fails for signal-exit 4.1.0 itself. Its fixture, `signal-listener.js`, re-sends SIGTERM from a `setTimeout` inside the listener and expects the fourth to kill the process; on current Node the process exits cleanly after the first (`calledListener=1, code=0, signal=null`). Measured 2026-09-23 with the fixture requiring `signal-exit` directly — no shim — on Node 22.22, 24.13 and 26.10 on macOS, and on Node 24 in a Linux container. signal-exit's last release was 2023-07-29, before any of those Nodes.",
     },
+    conditionalCases: {
+      count: 8,
+      only: ['linux'],
+      passing: 8,
+      why: "`all-integration-test.ts` loops twice over `signals` (lines 31 and 64), and the list is the platform's: Linux adds SIGIO, SIGPOLL, SIGPWR and SIGSTKFLT, so the suite registers 135 cases on ubuntu and 127 on darwin — 4 signals × 2 loops. The reference is the ubuntu 135. All 8 pass against signal-exit and against closeout. Windows is not declared because it differs by more than one count can say (the first loop is empty there and the list is three signals long), and the ratchet runs on ubuntu.",
+    },
     // Upstream's `--loader ts-node/esm` does not run on Node 24 — see the field's own doc.
     tsLoader: 'tsx',
     // The incumbent for the control, and the suite's own runner, both at the release the
@@ -1221,7 +1235,7 @@ export const HOSTS: Host[] = [
     ],
     target: 'closeout',
     status: 'active',
-    note: "198.9 M/wk and stale since 2023-07-29 — the layer's headline incumbent. Graded against `closeout/signal-exit` (with `closeout/signal-exit/signals` for the suite's second public import): **126 of 127, the same case the control fails.** The façade is the one CommonJS file in the family, and that is measured rather than preferred: `no-process.js` and `signals.js` require the module, swap out the global `process`, evict it from `require.cache` and require it again, and an ES module is evaluated once per process however the cache is edited — measured 2026-09-23, an ESM build of the same façade failed `process missing from the start` and all three `signals.js` snapshots when those files were run directly, and a two-line probe confirmed a second `require()` of an evicted ES module returns the first instance. It exports `export = { onExit, load, unload, signals }`, which Node's CommonJS lexer reads as named exports, so `import { onExit } from 'closeout/signal-exit'` works from ESM too. It shares signal-exit's global emitter (`Symbol.for('signal-exit emitter')`), so a program with this façade and a transitive copy of the real package runs each handler once.",
+    note: "198.9 M/wk and stale since 2023-07-29 — the layer's headline incumbent. Graded against `closeout/signal-exit` (with `closeout/signal-exit/signals` for the suite's second public import): **134 of 135 on ubuntu, the same case the control fails** (126 of 127 on darwin, whose signal list is four shorter — see `conditionalCases`). The façade is the one CommonJS file in the family, and that is measured rather than preferred: `no-process.js` and `signals.js` require the module, swap out the global `process`, evict it from `require.cache` and require it again, and an ES module is evaluated once per process however the cache is edited — measured 2026-09-23, an ESM build of the same façade failed `process missing from the start` and all three `signals.js` snapshots when those files were run directly, and a two-line probe confirmed a second `require()` of an evicted ES module returns the first instance. It exports `export = { onExit, load, unload, signals }`, which Node's CommonJS lexer reads as named exports, so `import { onExit } from 'closeout/signal-exit'` works from ESM too. It shares signal-exit's global emitter (`Symbol.for('signal-exit emitter')`), so a program with this façade and a transitive copy of the real package runs each handler once.",
   },
 ];
 

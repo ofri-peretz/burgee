@@ -78,7 +78,7 @@ const RULES: Record<string, EntryRule> = {
   // The drop-in for `exit-hook` (8.8 M/wk), graded 21 / 21 by its own suite. Measured
   // 11,841 B against the incumbent's 4,458 B in one file.
   './exit-hook': { allow: [], budget: 13_000, denied: ['plugin.js', 'restore-cursor.js', 'cursor.js'] },
-  // The drop-in for `signal-exit` (198.9 M/wk), graded 126 / 127 by its own suite — the case
+  // The drop-in for `signal-exit` (198.9 M/wk), graded 134 / 135 by its own suite — the case
   // it misses, signal-exit misses too. Measured 4,797 B on 2026-09-23 across the façade, its
   // signal list and `ambient.js`, against the incumbent's 10,995 B (`dist/cjs/index.js` +
   // `signals.js`). It reaches one ES module, the package's door to the process, and never
