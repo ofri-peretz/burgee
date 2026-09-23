@@ -19,12 +19,12 @@ Three kinds, because they close three different ways:
 | # | Gap | Source | Done when |
 | :-- | :-- | :-- | :-- |
 | ~~A1~~ | ~~vendor scripts resolve the oracle through bare specifiers~~ — **closed**: four scripts, seven specifiers, `oracle-import-lock.test.ts` | compat-oracle R6 | done |
-| A3 | only one of four declared subtractions reaches the published compatibility page | compat-oracle C4 | `compatibility.mdx` renders `excludes`, `controlFailures`, `conditionalCases`, `ungradedDirs`, each with its reason; a lock fails when a kind is not rendered |
+| ~~A3~~ | ~~only one of four declared subtractions reaches the published compatibility page~~ — **closed**: `compatibility.mdx` renders all four subtraction kinds; `scripts/compat-page-subtractions.test.ts` | compat-oracle C4 | done |
 | A4 | three rows are load-sensitive and nothing in the gate knows | compat-oracle R7 | load-sensitive cases repeat-and-agree before a row is red; a flake is named, not silent |
-| A5 | the dependency arrows in the layer table are wrong in three rows of four | burgee U1 | table restated from the manifests; the layer lock is its check |
-| A6 | `sideEffects` declared by three of nine packages; no tree-shake fixture | burgee U10 | every package declares it truthfully; a fixture proves a root named import bundles to its subpath's bytes |
-| A7 | CI grades Node 24 only while `engines` says `>=24` | burgee C3, compat-oracle C3 | the compat matrix runs every supported even major (24, 26) |
-| A8 | "depends on roundel only" is false, and two ceilings are ratchets on history rather than the incumbent | flagstaff R10 | requirement restated to the four same-repo deps; `./box` and `./table` ceilings set from boxen's and cli-table3's measured bytes |
+| ~~A5~~ | ~~the dependency arrows in the layer table are wrong in three rows of four~~ — **closed**: layer table restated from the manifests (burgee U1 Built) | burgee U1 | done |
+| ~~A6~~ | ~~`sideEffects` declared by three of nine packages; no tree-shake fixture~~ — **closed**: all nine declare `sideEffects` truthfully; `side-effects-lock.test.ts`, `tree-shake-fixture.test.ts` (burgee U10 Built) | burgee U10 | done |
+| ~~A7~~ | ~~CI grades Node 24 only while `engines` says `>=24`~~ — **closed**: `compat.yml` matrix runs Node 24 and 26 on three OSes (compat-oracle C3 Built) | burgee C3, compat-oracle C3 | done |
+| ~~A8~~ | ~~"depends on roundel only" is false, and two ceilings are ratchets on history rather than the incumbent~~ — **closed**: ceilings gated in B4 (#449), dependency sentence restated under D-130 (#463); flagstaff R10 Built | flagstaff R10 | done |
 | ~~A9~~ | ~~`signal-exit` is not graded at all~~ — **closed**: `closeout/signal-exit` graded 134 / 135 by signal-exit's own suite, level with its control; the root-export half of R6 stays open (A26) | closeout, PLAN 3.3 | done |
 | A10 | `execa` and `which` suites not vendored; `tinyexec` not installed so no ceiling | bellpull R8, R9 | both suites vendored and graded; `tinyexec` a devDependency with its B4 row |
 | A11 | paratext: ansi-escapes 1/4, terminal-link 0/10, term-img 12/18 | compat baselines | each suite at 100%, or each failing case named with its reason |
@@ -41,7 +41,7 @@ Three kinds, because they close three different ways:
 | A22 | `.burgee({ floor: true })` on façades | burgee J3, J4, D-121 | one call turns the behavioural floor on; `--schema` names the flags the program shadows |
 | A23 | plugin hooks `parse` and `shutdown` | plugin surface, D-122 | in the schema, the plugins page's "cannot do yet" list shrinks by the two |
 | A24 | `burgee/program-schema.json` | burgee F1, schema-is-validated, D-123 | published; `--schema` output validated against it in a test, no runtime validator |
-| A25 | `.effects()` on commander façade commands | agent-surface-declared R6, D-127 | a façade command can declare its effects and reach MCP |
+| ~~A25~~ | ~~`.effects()` on commander façade commands~~ — **already built**, found 2026-09-23: both façades have `.effects()`, `facade-surface.test.ts` covers declared, undeclared and withheld; the spec row was stale | agent-surface-declared R6, D-127 | done |
 | A26 | `signal-exit`'s API at closeout's root, so the `overrides` recipe resolves | closeout R6 | the recipe installs and the suite passes through it, or R6 restated to the subpath |
 
 ## B — decide, then build
