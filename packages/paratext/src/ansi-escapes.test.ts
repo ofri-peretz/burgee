@@ -3,11 +3,10 @@
  *
  * The incumbent's own suite is the other half of this file's argument: `npm run compat --
  * ansi-escapes` grades paratext against `ansi-escapes@7.3.0`'s four ava cases, and three of
- * them assert CSI (`cursorTo(2, 2)`, the clear sequence, `ESC [ ? 2026 h/l`). paratext owns
- * OSC and says so, so **the ceiling on that row is 1 / 4 and 25% means complete** — see the
- * `ansi-escapes` entry in `compat-oracle/src/hosts.ts`. The assertions here are written to
- * hold that line from this side: the four OSC members are byte-identical to the incumbent,
- * and every CSI name is declared and empty on purpose.
+ * them assert CSI (`cursorTo(2, 2)`, the clear sequence, `ESC [ ? 2026 h/l`). Since D-138
+ * paratext implements the CSI half too, so the assertions here hold both halves from this
+ * side: the four OSC members are byte-identical to the incumbent on a terminal that
+ * understands them, and every CSI member is byte-identical to `ansi-escapes` 7.3.0 itself.
  *
  * Two of these tests exist because of a failure in this repo's own history. `closeout`'s
  * `onExit()` threw `ReferenceError` in a published release while 39 tests passed, because
@@ -111,31 +110,39 @@ describe('the way a caller actually calls it', () => {
   });
 });
 
-describe('the half paratext does not own', () => {
+describe('the CSI half, byte-exact with the incumbent (D-138)', () => {
   /**
-   * Declared and empty. The names exist so that `import ansiEscapes, { cursorTo } from
-   * 'paratext'` *loads* — an ESM named import of a name the module does not export is a
-   * `SyntaxError` that takes the whole module down, which is exactly the one line of TAP
-   * this row printed before R8 — and they are `undefined` because paratext does not
-   * implement CSI. TypeScript types each as `undefined`, so calling one is a compile error
-   * rather than a runtime surprise.
+   * Restated 2026-09-23. This block asserted that every CSI name was declared and `undefined`,
+   * and that the default export carried only the four OSC members: paratext did not own CSI,
+   * so the row's ceiling was 1 / 4 and `burgee migrate` could never move a program off
+   * `ansi-escapes`. D-138 moved the CSI half here. The honest assertion now is equality with
+   * the incumbent, member by member, against `ansi-escapes` 7.3.0 itself.
    */
-  it('declares every CSI name ansi-escapes exports, and implements none of them', () => {
-    expect(cursorTo).toBeUndefined();
-    expect(clearTerminal).toBeUndefined();
-    expect(beginSynchronizedOutput).toBeUndefined();
-    expect(synchronizedOutput).toBeUndefined();
+  const CSI_VALUES = ['cursorLeft', 'cursorSavePosition', 'cursorRestorePosition', 'cursorGetPosition', 'cursorNextLine', 'cursorPrevLine', 'cursorHide', 'cursorShow', 'eraseEndLine', 'eraseStartLine', 'eraseLine', 'eraseDown', 'eraseUp', 'eraseScreen', 'scrollUp', 'scrollDown', 'clearScreen', 'clearViewport', 'clearTerminal', 'enterAlternativeScreen', 'exitAlternativeScreen', 'beginSynchronizedOutput', 'endSynchronizedOutput'] as const;
+
+  it.each(CSI_VALUES)('%s is the incumbent\'s bytes', async (name) => {
+    const incumbent = (await import('ansi-escapes')) as unknown as Record<string, unknown>;
+    expect((ansiEscapes as unknown as Record<string, unknown>)[name]).toBe(incumbent[name]);
   });
 
-  /**
-   * The default export carries only what paratext implements. A CSI key present with an
-   * `undefined` value would read as a claim being made and not kept; absence is the honest
-   * shape, and it keeps the incumbent's three CSI cases failing for the stated reason
-   * rather than passing by accident.
-   */
-  it('keeps the default export to the members it implements', () => {
-    expect(Object.keys(ansiEscapes).toSorted()).toEqual(['beep', 'image', 'link', 'setCwd']);
-    expect(ansiEscapes).not.toHaveProperty('cursorTo');
+  it('formats every CSI call the incumbent formats, argument for argument', async () => {
+    const theirs = (await import('ansi-escapes')) as unknown as Record<string, (...a: unknown[]) => string>;
+    const ours = ansiEscapes as unknown as Record<string, (...a: unknown[]) => string>;
+    const calls: [string, unknown[]][] = [
+      ['cursorTo', [2, 2]], ['cursorTo', [4]], ['cursorMove', [-3, 2]], ['cursorMove', [5, -1]], ['cursorMove', [0, 0]],
+      ['cursorUp', []], ['cursorUp', [3]], ['cursorDown', [2]], ['cursorForward', [7]], ['cursorBackward', []],
+      ['eraseLines', [0]], ['eraseLines', [1]], ['eraseLines', [3]], ['synchronizedOutput', ['foo']],
+    ];
+    for (const [name, args] of calls) expect(ours[name]?.(...args), `${name}(${args.join(', ')})`).toBe(theirs[name]?.(...args));
+    expect(() => ours['cursorTo']?.()).toThrow(TypeError);
+  });
+
+  it('puts the CSI half on the default export, and the named export is the same function', () => {
+    // eslint-disable-next-line import-next/no-named-as-default-member -- the member and the named export being one function is the assertion; ansi-escapes' own suite asserts the same
+    expect(ansiEscapes.cursorTo).toBe(cursorTo);
+    expect(ansiEscapes).toHaveProperty('clearTerminal', clearTerminal);
+    expect(beginSynchronizedOutput).toBe('\u001B[?2026h');
+    expect(synchronizedOutput('x')).toBe('\u001B[?2026hx\u001B[?2026l');
   });
 
   /** OSC, but no capability ships them yet: `iTerm.annotation` and ConEmu's progress bar. */

@@ -4,7 +4,7 @@
  *
  * Asked of Node's own `require()` for every installed incumbent in `MAPPING` and its target,
  * so a table that drifts from the packages goes red here. Before A29 every `require()` of an
- * ESM-only incumbent was refused — ten of them, chalk 6 to exit-hook 5 — although their
+ * ESM-only incumbent was refused — ten of them then, chalk 6 to exit-hook 5, and ansi-escapes 7 once it was level — although their
  * `require()` already returned the namespace the target returns.
  */
 import { createRequire } from 'node:module';
