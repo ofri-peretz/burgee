@@ -109,7 +109,10 @@ async function ioFloor(dir: string): Promise<number> {
 const SHARED_HOST = process.env['CI'] === 'true' || process.env['TURBO_HASH'] !== undefined;
 
 /** Runs are timed in a batch and the fastest is graded: contention only ever adds time. */
-const RUNS = 3;
+// One pair where the budget only reports (SHARED_HOST): seven 1,000-file trees took 95 s on
+// a Windows CI runner and hit vitest's 60 s timeout, failing a case whose number is not graded
+// there. The migration itself is still asserted on that one run.
+const RUNS = SHARED_HOST ? 1 : 3;
 const fastest = (times: number[]): number => Math.min(...times);
 
 /**
@@ -308,5 +311,6 @@ describe('A10 — measured, not asserted', () => {
       return;
     }
     expect(Math.min(run - WHOLE_PROJECT_MS, overhead - scanBudget), said).toBeLessThan(0);
-  });
+    // Generating the trees is file-system work a slow runner does at its own pace; the budget is the timing above, not this.
+  }, 180_000);
 });
