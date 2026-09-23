@@ -18,7 +18,7 @@
   <a href="https://github.com/ofri-peretz/burgee/actions/workflows/codeql.yml"><img src="https://github.com/ofri-peretz/burgee/actions/workflows/codeql.yml/badge.svg?branch=main" alt="CodeQL" /></a>
   <a href="https://app.codecov.io/gh/ofri-peretz/burgee"><img src="https://codecov.io/gh/ofri-peretz/burgee/branch/main/graph/badge.svg" alt="Coverage" /></a>
   <a href="https://scorecard.dev/viewer/?uri=github.com/ofri-peretz/burgee"><img src="https://api.scorecard.dev/projects/github.com/ofri-peretz/burgee/badge" alt="OpenSSF Scorecard" /></a>
-  <a href="./packages/burgee/package.json"><img src="https://img.shields.io/badge/external%20dependencies-0-0a6b47?style=flat-square" alt="Zero external dependencies" /></a>
+  <a href="./packages/burgee/package.json"><img src="https://img.shields.io/badge/dependencies-5%20in%20family%2C%200%20outside-0a6b47?style=flat-square" alt="Five dependencies, all in the burgee family: no dependency outside the burgee family" /></a>
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-20.19%2B%20%7C%2022.13%2B-green.svg?style=flat-square" alt="Node.js 20.19+ or 22.13+" /></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.7+-blue.svg?style=flat-square" alt="TypeScript" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT" /></a>
@@ -35,8 +35,8 @@
   <strong>Built for the CLIs agents drive.</strong> A command declares itself once and an agent
   can read that declaration directly: a stable envelope, a versioned schema, an MCP server, and
   an exit code that says <em>rewrite the command</em> rather than <em>something went wrong</em>.
-  Nine packages, one repository, one supply chain to audit — and no dependency outside it in
-  any of them. Six take nothing at all; the other three take only each other.
+  Nine packages, one repository, one supply chain to audit — and no dependency outside the burgee
+  family in any of them. Six take nothing at all; the other three take only each other.
 </p>
 
 <p align="center">
@@ -245,7 +245,7 @@ published figure taken on another machine, not reproduced here.
 
 | | **burgee** | commander | yargs | @oclif/core | cac |
 | :--- | ---: | ---: | ---: | ---: | ---: |
-| Runtime dependencies | **0** | 0 | 6 | **18** | 0 |
+| Runtime dependencies | **5**, none outside the burgee family | 0 | 6 | **18** | 0 |
 | Full CLI run over bare node | **+14.0 ms** | +15.3 ms | +78.5 ms | +131 ms † | +4.0 ms |
 | Installed size | 1154 KB | 203 KB | 515 KB | 912 KB † | 40 KB |
 
@@ -316,8 +316,8 @@ The last one has never run. B1 spawns 50 agent runs and refuses to start without
 and nothing in the suite can turn a run that did not happen into a number — `emit.test.ts`
 enforces that. It is [D-103](./.sdlc/DECISIONS.md).
 
-Installed size is our largest number and it is larger than commander's. It buys zero runtime
-dependencies and six drop-in front ends, and it stays on the page either way: *not met* and
+Installed size is our largest number and it is larger than commander's. It buys no dependency
+outside the burgee family and six drop-in front ends, and it stays on the page either way: *not met* and
 *unmeasured* are different outcomes and neither collapses into the other. Every figure here,
 including the ones that go against us, comes from
 [`benchmarks.mdx`](./apps/docs/content/docs/benchmarks.mdx) and
@@ -330,7 +330,7 @@ including the ones that go against us, comes from
 
 | You are… | What burgee gives you |
 | :--- | :--- |
-| **Shipping your first CLI** | One file, zero dependencies, help and `--json` for free |
+| **Shipping your first CLI** | One file, no dependency outside the burgee family, help and `--json` for free |
 | **Maintaining a commander CLI** | A one-line import swap, graded against commander's own suite |
 | **Building for agents** | `--schema`, `--mcp` and a stable envelope, projected — never hand-written |
 | **On a platform team** | Plugins that work across commander, yargs and native syntax alike |
@@ -366,7 +366,7 @@ including the ones that go against us, comes from
 
 **burgee** declares; the **output stack** is what a CLI shows; the **foundation** is what it
 stands on. Every one is an independent product with its own README and its own incumbents, and
-every one is zero-dependency.
+none has a dependency outside the burgee family.
 
 A complete CLI on the incumbents is a dozen packages under a handful of accounts. This is
 nine packages, one repository, one release pipeline and one supply chain to audit, with a

@@ -55,6 +55,50 @@ const ALT_COUNT = /alt="(Zero|One|Two|Three|Four|Five|Six|Seven|Eight|Nine)(?: r
 /** A badge that names its dependencies rather than counting them: `dependencies-closeout`. */
 const NAMED_BADGE = /img\.shields\.io\/badge\/dependencies-([a-z][a-z%20,·-]*?)-[\da-f]{6}/gu;
 
+/**
+ * An absolute "no dependencies" claim: `zero dependencies`, `0 runtime dependencies`, `no
+ * external dependencies`, `zero-dependency`, and a table row `Runtime dependencies | **0**`.
+ * Followed by *outside*, *beyond* or *except* it is qualified, not absolute — that is the
+ * sentence a package with in-family dependencies should use. A "zero-dependency rival" or
+ * "incumbent" describes somebody else's package, not this one.
+ */
+const ABSOLUTE = [
+  /\b(?:zero|0|no)\s+(?:runtime\s+|external\s+|production\s+)?dependencies\b(?!\s+(?:outside|beyond|except))/giu,
+  /\bzero[-\s]dep(?:endency|s)?\b(?!\s+(?:outside|beyond|except|rival|incumbent))/giu,
+  /\|\s*runtime dependencies\s*\|\s*\**0\**\s*\|/giu,
+];
+
+/** Every absolute claim in `text`, whitespace collapsed. */
+const absoluteClaims = (text: string): string[] => ABSOLUTE.flatMap((re) => [...text.matchAll(re)].map((m) => m[0].replaceAll(/\s+/gu, ' ')));
+
+interface Surface {
+  file: string;
+  text: string;
+}
+
+/** Markdown and MDX pages under `dir`, recursively. */
+const pages = (dir: string): string[] =>
+  existsSync(dir) ? readdirSync(dir, { recursive: true, encoding: 'utf8' }).filter((f) => /\.mdx?$/u.test(f)).map((f) => join(dir, f)) : [];
+
+/** The docs app a package owns, from `.github/vercel-apps.json`. */
+const docsDir = (name: string): string | undefined => {
+  const table = JSON.parse(readFileSync(join(ROOT, '.github', 'vercel-apps.json'), 'utf8')) as { apps: Record<string, { package?: string; dir?: string }> };
+  return Object.values(table.apps).find((a) => a.package === name)?.dir;
+};
+
+/** Everything published about `name`: its README, its description, its docs site — and, for burgee, the root README. */
+const surfaces = (name: string): Surface[] => {
+  const read = (file: string): Surface[] => (existsSync(join(ROOT, file)) ? [{ file, text: readFileSync(join(ROOT, file), 'utf8') }] : []);
+  const { description = '' } = JSON.parse(readFileSync(join(PACKAGES, name, 'package.json'), 'utf8')) as { description?: string };
+  const site = docsDir(name);
+  return [
+    ...read(`packages/${name}/README.md`),
+    ...(name === 'burgee' ? read('README.md') : []),
+    { file: `packages/${name}/package.json#description`, text: description },
+    ...(site ? pages(join(ROOT, site, 'content')).flatMap((f) => read(f.slice(ROOT.length + 1))) : []),
+  ];
+};
+
 const WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
 
 describe('a README may not claim a dependency count its manifest contradicts', () => {
@@ -101,6 +145,36 @@ describe('a README may not claim a dependency count its manifest contradicts', (
     const { description = '' } = JSON.parse(readFileSync(join(PACKAGES, name, 'package.json'), 'utf8')) as { description?: string };
     if (!/\bzero dependencies\b/iu.test(description)) return;
     expect(dependencies(name), `${name}'s package.json description says "Zero dependencies"`).toEqual([]);
+  });
+
+  /**
+   * Prose is a claim too, and the count badges above cannot read it. On 2026-09-23 the root
+   * README said burgee had **0** runtime dependencies in its Measured table, called its first
+   * CLI "zero dependencies" and every package "zero-dependency" — over a manifest declaring
+   * five, all in the family. The honest sentence is "no dependency outside the burgee
+   * family", and that is the one wording this lets through for a package that declares any.
+   *
+   * Read: every published README (the root one speaks for `burgee`, whose manifest its badge
+   * links), every package.json description, and every page of the package's docs site.
+   */
+  it.each(names)('%s: no README, description or docs page says "zero/no runtime dependencies" over a manifest that declares one', (name) => {
+    const actual = dependencies(name);
+    if (actual.length === 0) return;
+    const found = surfaces(name).flatMap(({ file, text }) => absoluteClaims(text).map((claim) => `${file}: "${claim}"`));
+    expect(found, `${name} declares ${String(actual.length)} dependenc${actual.length === 1 ? 'y' : 'ies'} (${actual.join(', ')}) — say "no dependency outside the burgee family" instead`).toEqual([]);
+  });
+
+  it('reads a claim in every shape it has taken, and lets the precise one through', () => {
+    expect(absoluteClaims('| Runtime dependencies | **0** | 0 | 6 |')).toHaveLength(1);
+    expect(absoluteClaims('One file, zero dependencies, help for free')).toHaveLength(1);
+    expect(absoluteClaims('every one is\nzero-dependency.')).toHaveLength(1);
+    expect(absoluteClaims('with zero runtime dependencies where yargs has six')).toHaveLength(1);
+    expect(absoluteClaims('It has 0 runtime dependencies.')).toHaveLength(1);
+    expect(absoluteClaims('No runtime dependencies at all.')).toHaveLength(1);
+    expect(absoluteClaims('No dependency outside the burgee family.')).toEqual([]);
+    expect(absoluteClaims('zero runtime dependencies beyond commander')).toEqual([]);
+    expect(absoluteClaims('twenty lines and no dependency.')).toEqual([]);
+    expect(absoluteClaims('because a zero-dependency\nrival already holds the weight pitch')).toEqual([]);
   });
 
   /**

@@ -137,7 +137,7 @@
     "llm",
     "shell-completion",
     "typescript",
-    "zero-dependency",
+    "no-external-dependencies",
     "commander-alternative",
     "yargs-alternative"
   ],

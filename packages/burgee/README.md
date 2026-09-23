@@ -164,7 +164,7 @@ so nothing reaches an agent by accident. Register it with any stdio client:
 
 ### Does it have dependencies?
 
-None outside this repository. `burgee` installs five packages from its own family —
+None outside the burgee family. `burgee` installs five packages from that family —
 `bellpull`, `closeout`, `linegauge`, `roundel` and `seniority` — and each of those takes
 nothing from outside it either: one repository, one release pipeline, one supply chain to
 audit.
