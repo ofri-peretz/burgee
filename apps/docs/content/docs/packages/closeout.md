@@ -289,7 +289,7 @@ import restoreCursor from 'closeout/restore-cursor';
 or, without touching the source at all:
 
 ```json
-{ "overrides": { "exit-hook": "npm:closeout@^0.1", "restore-cursor": "npm:closeout@^0.1" } }
+{ "overrides": { "exit-hook": "npm:closeout@^0.3", "restore-cursor": "npm:closeout@^0.3" } }
 ```
 
 One thing to know before you swap `exit-hook`: its bound is per hook (`{ wait }`) and the
