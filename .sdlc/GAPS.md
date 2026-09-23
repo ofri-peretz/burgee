@@ -25,12 +25,13 @@ Three kinds, because they close three different ways:
 | A6 | `sideEffects` declared by three of nine packages; no tree-shake fixture | burgee U10 | every package declares it truthfully; a fixture proves a root named import bundles to its subpath's bytes |
 | A7 | CI grades Node 24 only while `engines` says `>=24` | burgee C3, compat-oracle C3 | the compat matrix runs every supported even major (24, 26) |
 | A8 | "depends on roundel only" is false, and two ceilings are ratchets on history rather than the incumbent | flagstaff R10 | requirement restated to the four same-repo deps; `./box` and `./table` ceilings set from boxen's and cli-table3's measured bytes |
-| A9 | `signal-exit` — the biggest incumbent closeout replaces, ~199 M/wk — is not graded at all | closeout, PLAN 3.3 | its suite vendored and in the baseline |
+| ~~A9~~ | ~~`signal-exit` is not graded at all~~ — **closed**: `closeout/signal-exit` graded 126 / 127 by signal-exit's own suite, level with its control; the root-export half of R6 stays open (A26) | closeout, PLAN 3.3 | done |
 | A10 | `execa` and `which` suites not vendored; `tinyexec` not installed so no ceiling | bellpull R8, R9 | both suites vendored and graded; `tinyexec` a devDependency with its B4 row |
 | A11 | paratext: ansi-escapes 1/4, terminal-link 0/10, term-img 12/18 | compat baselines | each suite at 100%, or each failing case named with its reason |
 | A12 | seniority: cosmiconfig 186/243, dotenv 80/141, lilconfig 67/77, rc 0/1 | compat baselines | same |
 | A13 | caique: clack 14/17 | compat baselines | same |
 | A14 | the foundation layers are static imports of the engine, which the claim says they are not | burgee U13 | measured, and either made lazy or the claim restated with the number |
+| A26 | `signal-exit`'s API at closeout's root, so the `overrides` recipe resolves | closeout R6 | the recipe installs and the suite passes through it, or R6 restated to the subpath |
 
 ## B — decide, then build (recommended answer in bold)
 

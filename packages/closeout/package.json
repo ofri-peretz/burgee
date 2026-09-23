@@ -39,6 +39,16 @@
       "types": "./dist/exit-hook.d.ts",
       "import": "./dist/exit-hook.js",
       "default": "./dist/exit-hook.js"
+    },
+    "./signal-exit": {
+      "types": "./dist/signal-exit.d.cts",
+      "import": "./dist/signal-exit.cjs",
+      "default": "./dist/signal-exit.cjs"
+    },
+    "./signal-exit/signals": {
+      "types": "./dist/signal-exit-signals.d.cts",
+      "import": "./dist/signal-exit-signals.cjs",
+      "default": "./dist/signal-exit-signals.cjs"
     }
   },
   "files": [
