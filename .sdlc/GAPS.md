@@ -53,7 +53,7 @@ Three kinds, because they close three different ways:
 | B14 | built-in components as plugin contributions | flagstaff R4 | **Restate R4 to the three kinds that are contributions**; components stay factories |
 | B15 | `fromBase16` / `fromITerm` theme import | roundel R11 | **Defer past 1.0** — its own evidence row says "hypothesis — measure before lock" |
 | B16 | façade commands are withheld from MCP and cannot say otherwise | agent-surface-declared R6 | **`.effects()` on façade commands** (yargs has it); commander gains the same |
-| B17 | "zero runtime dependencies" vs "none outside this repo" | burgee Z3, K1 | **Restate to "none outside this repo"** — the layers are the design |
+| ~~B17~~ | ~~"zero runtime dependencies" vs "none outside this repo"~~ — **accepted by the owner 2026-09-23 (D-111): every production dependency is in-family**, as a dependency, peer or optional dependency; Z3 and K1 Built | burgee Z3, K1 | done |
 | B18 | `lighter-than-commander` 1.52, `lighter-than-cac` 2.65, cold start 1.44 × cac | claims, u5-weight-claim | **Keep the claims and measure the gap** — restating them is a positioning call |
 | B20 | Accept the requirement restatements already written in the specs — compat-oracle R1, R3, C4 and the rest of its "Requirements restated" table; burgee U1, U10, Z3/K1; flagstaff R10's dependency sentence | each spec's restatement table | **Accept** — each replaces a sentence the tree has measurably outgrown, and keeps the original verbatim beside it |
 | B19 | design acceptance for linegauge, closeout, bellpull, seniority (draft) and caique, paratext (review) | each intent | **Accept linegauge now** — 0 rows open, every suite at 100% |
