@@ -1,6 +1,6 @@
 # Intent — `--schema` output validates against a published schema
 
-**Status:** approved (2026-09-23, under the owner's delegation, D-128) · **Opened:** `2026-09-17` · **Owner:** `@ofri-peretz`
+**Status:** approved (2026-09-23, under the owner's delegation, D-129) · **Opened:** `2026-09-17` · **Owner:** `@ofri-peretz`
 
 ---
 

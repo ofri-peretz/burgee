@@ -1,6 +1,6 @@
 # Design — caique
 
-Intent: [`intent.md`](./intent.md). **Status:** approved (2026-09-23, under the owner's delegation, D-128).
+Intent: [`intent.md`](./intent.md). **Status:** approved (2026-09-23, under the owner's delegation, D-129).
 
 ---
 
