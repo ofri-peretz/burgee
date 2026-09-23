@@ -1,6 +1,33 @@
 # Design — One docs app per published package
 
-Intent: [`intent.md`](./intent.md). **Status:** draft.
+Intent: [`intent.md`](./intent.md). **Status:** built (2026-09-23).
+
+> **As built — where the build departs from the text below, and why.** Every departure is
+> also in the PR that built it.
+>
+> - **Nine rows, not three** — [D-131](../../DECISIONS.md), the owner's override. R11's
+>   "caique: not built" and R12's four-page bar are retired; `excluded` stays in the table as
+>   the regrouping lever (an excluded package renders as a section of the front door).
+> - **The chassis is `apps/docs-chassis`, not `packages/docs-kit`.** Intent constraint 5 says
+>   it must not live among the published packages; `packages/*` is where they live. It is a
+>   private workspace (`docs-chassis`), a dependency of nothing under `packages/`, and its
+>   exports are one file per component (the repo's React lint allows one per file):
+>   `config`, `site`, `source`, `source-config`, `llms`, `packages`, `routes`, `root-layout`,
+>   `nav`, `brand-logo`, `home-shell`, `docs-shell`, `docs-page`, `package-home`, `json-ld`,
+>   `og`, `next-config`, `testing`.
+> - **R8: the `app` input has no default.** A default of `burgee` names an app in a workflow,
+>   which criterion 5 forbids; the input is required and preflight lists the known keys.
+> - **R8: one concurrency group per app, `docs-deploy-<app>`**, not per ref and environment.
+>   A hand-fired deploy and the auto-dispatched one for the same commit raced for the alias
+>   (run 35816373791). `auto-deploy.yml` holds no group of its own: it only dispatches.
+> - **R7: the self-heal PATCH sends `rootDirectory: null`** (for the row's `""`), the build
+>   command and the output directory — not `framework`/`installCommand`, which the root
+>   `vercel.json` already states for every app.
+> - **L3 changed with R12:** it checks each app has an index and each package app a
+>   `coming-from` page. **L13** is a glob, `docs-*`, so a new app needs no changeset edit.
+> - **The unmeasured DNS case names the record** (`A <host> 76.76.21.21`) and still warns
+>   rather than fails, as `deploy-lock.test.ts` already pinned.
+> - **Constraint 7's analytics clause: overridden for PostHog** (D-131), in the chassis once.
 
 Parent design: [`docs-deploy/spec.md`](../docs-deploy/spec.md), whose R1–R6 this one
 generalises from one app to N. Nothing below re-argues a decision that design made; where

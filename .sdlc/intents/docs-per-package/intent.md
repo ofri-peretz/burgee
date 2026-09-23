@@ -5,7 +5,7 @@
 > seed: _"One app, hard-coded in the workflows; the `vercel-apps.json` map returns when a
 > second app exists."_ A second app now exists to build, so the map returns.
 
-**Status:** draft · **Opened:** 2026-09-08 · **Revised:** 2026-09-14 · **Owner:** @ofri-peretz
+**Status:** built · **Opened:** 2026-09-08 · **Revised:** 2026-09-23 · **Owner:** @ofri-peretz
 
 ---
 
@@ -14,37 +14,40 @@
 Every **published** package in this repo has its own documentation site, on its own
 `interlace.tools` subdomain, deployed by the same workflow from the same table:
 
-> **Revised 2026-09-14.** This table said four packages when four were published. Nine are
-> now `private: false` and eight are on npm, so the map below is the whole family, and the
-> question the original could not ask — _which packages share a site_ — is answered here.
+> **Revised 2026-09-23 — the owner's override, [D-131](../../DECISIONS.md).** Every published
+> package gets its own app and its own host: nine rows, no "section on another host". It
+> supersedes D-057 (caique as a section on seniority — whose premise is stale: caique now
+> grades 14 / 17 against clack and 41 / 41 against inquirer-core on the live compatibility
+> page) and D-058's grouping. The five-site grouping this section argued for, and the
+> reasoning, stay below struck through, because the design that holds the override is the
+> same one: a table, so regrouping is a data change.
 
-| Package     | Host                        | App                                                      | Arrives from                                                                                                   |
-| :---------- | :-------------------------- | :------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------- |
-| `burgee`    | `burgee.interlace.tools`    | `apps/docs` — live today as `cli.interlace.tools`        | commander, yargs                                                                                               |
-| `roundel`   | `roundel.interlace.tools`   | new                                                      | chalk                                                                                                          |
-| `linegauge` | `linegauge.interlace.tools` | new                                                      | string-width, wrap-ansi, strip-ansi, slice-ansi                                                                |
-| `flagstaff` | `flagstaff.interlace.tools` | new — hosts `paratext` as a section                      | ora, log-update, boxen, cli-table3 · ansi-escapes, terminal-link, term-img                                     |
-| `seniority` | `seniority.interlace.tools` | new — hosts `closeout`, `bellpull`, `caique` as sections | cosmiconfig, dotenv, rc · signal-exit, exit-hook, restore-cursor · execa, cross-spawn, which · inquirer, clack |
+| Package     | Host                                                             | App                   | Arrives from                                                    |
+| :---------- | :--------------------------------------------------------------- | :-------------------- | :-------------------------------------------------------------- |
+| `burgee`    | [`burgee.interlace.tools`](https://burgee.interlace.tools)       | `apps/docs` — the front door | commander, yargs                                         |
+| `roundel`   | [`roundel.interlace.tools`](https://roundel.interlace.tools)     | `apps/docs-roundel`   | chalk                                                           |
+| `flagstaff` | [`flagstaff.interlace.tools`](https://flagstaff.interlace.tools) | `apps/docs-flagstaff` | ora, log-update, boxen, cli-table3                              |
+| `caique`    | [`caique.interlace.tools`](https://caique.interlace.tools)       | `apps/docs-caique`    | inquirer, clack                                                 |
+| `linegauge` | [`linegauge.interlace.tools`](https://linegauge.interlace.tools) | `apps/docs-linegauge` | string-width, wrap-ansi, strip-ansi, slice-ansi                 |
+| `seniority` | [`seniority.interlace.tools`](https://seniority.interlace.tools) | `apps/docs-seniority` | cosmiconfig, dotenv, rc                                         |
+| `bellpull`  | [`bellpull.interlace.tools`](https://bellpull.interlace.tools)   | `apps/docs-bellpull`  | execa, cross-spawn, which                                       |
+| `closeout`  | [`closeout.interlace.tools`](https://closeout.interlace.tools)   | `apps/docs-closeout`  | signal-exit, exit-hook, restore-cursor                          |
+| `paratext`  | [`paratext.interlace.tools`](https://paratext.interlace.tools)   | `apps/docs-paratext`  | ansi-escapes (OSC half), terminal-link, term-img                |
 
-Five sites, nine packages. **The unit that earns a site is not the package — it is the
-incumbent a reader is arriving from**, because that is the search they typed and the first
-question they ask on landing ("does it do what chalk does?"). Two packages replacing
-unrelated incumbents cannot share a front page without burying both; four replacing stages
-of one lifecycle can.
+Nine sites, nine packages. The unit that earns a site is still the incumbent a reader is
+arriving from — which is why each package app carries its README and its
+`/docs/coming-from/<incumbent>` page, and why the family-wide pages stay on the front door.
 
-The four that share rather than own, and why:
+<details><summary>The superseded five-site grouping (2026-09-14), kept for the record</summary>
 
-- **`paratext` with `flagstaff`.** Both write to the terminal _around_ the content — one
-  draws frames, spinners and tables, the other sets the title, the hyperlink, the bell.
-  Same reader, same mental model, one navigation.
-- **`closeout`, `bellpull`, `caique` with `seniority`.** The process lifecycle in order:
-  config resolved on the way in, prompts during, subprocesses out, shutdown at the end.
-  One reader is holding all four questions at once.
+~~Five sites, nine packages: `paratext` a section on flagstaff's site; `closeout`, `bellpull`,
+`caique` sections on seniority's. The unit that earns a site is not the package — it is the
+incumbent a reader is arriving from; two packages replacing unrelated incumbents cannot share a
+front page without burying both; four replacing stages of one lifecycle can.~~ Superseded by
+D-131: a section on another package's host is the prefix-says-accessory PRINCIPLES.md rule 8
+forbids, and the table makes the grouping a data change either way.
 
-And the split that looks wrong and is not: **`linegauge` and `roundel` both handle text and
-still get separate sites.** They answer unrelated questions — _how wide is this_ versus
-_what colour is this_ — and between them they replace the two highest-traffic incumbents in
-the set. Merging them would bury the two pages most likely to be found.
+</details>
 
 And the thing that actually has to be true when this lands, which is not the four sites:
 
@@ -58,17 +61,17 @@ Three things follow from that and are part of what is wanted, not decoration:
 
 1. **The family-wide pages stay on burgee.** `compatibility`, `comparison` and `gallery`
    are generated from one measurement each; they live at `burgee.interlace.tools` and the
-   other three sites link to them. One scoreboard, one comparison table, one gallery, so a
+   other eight sites link to them. One scoreboard, one comparison table, one gallery, so a
    published number cannot disagree with itself across four hosts. burgee is the front
    door.
 2. **Four Next apps are not four copies of the same six config files.** The shared
    chassis — `next.config.mjs`, `source.config.ts`, the layout, the brand components, the
    `llms.txt` / `llms-full.txt` routes, the two docs tests — lives in one place that each
    app imports.
-3. **A package earns its app.** An app with one page is worse than a section on burgee's
-   site: it costs a Vercel project, a DNS record, a GitHub Environment and a post-deploy
-   check, and it returns a page that would have been a heading. The bar is written down
-   and checked, not judged per package.
+3. ~~**A package earns its app.** An app with one page is worse than a section on burgee's
+   site … The bar is written down and checked, not judged per package.~~ Superseded by D-131:
+   every published package has an app. What is checked instead is that each app carries the
+   two pages a reader arrives for — its README and its incumbent's `coming-from` page.
 
 ## Why now
 
@@ -157,8 +160,9 @@ https://cli.interlace.tools`. That constant, hard-coded on the grounds that ther
    rule 2 governs published packages; this must not quietly become an exception to it.
 6. **Adding a package must not require editing a workflow.** If shipping package five
    means a diff in `.github/workflows/`, this intent did not land.
-7. **Budget.** Vercel stays on the plan the repo is on today; no app adds analytics, CSP
-   or a runtime service. PRINCIPLES.md rule 1: packages, never services — four static
+7. **Budget.** Vercel stays on the plan the repo is on today; no app adds CSP or a runtime
+   service. *Analytics: overridden by the owner 2026-09-23 (D-131) — PostHog, one project
+   shared with the blog, added once in the shared chassis; it replaces Vercel Web Analytics.* PRINCIPLES.md rule 1: packages, never services — four static
    sites are four static sites.
 
 ## Success criteria
@@ -202,13 +206,13 @@ package's site."_ See the open question below.
    `apps/docs/src/lib/llms.ts` (`SITE`), and on the Vercel project named
    `cli-interlace-tools`. Does `cli.interlace.tools` 301 to the new host, stay as a family
    alias, or get retired? Owner's call; it is DNS and a Vercel project, not code.
-2. **`caique`'s app.** **Decided 2026-09-20 → D-057.** Its intent is at `review`, `decide()` is started and `ask()` is not,
+2. **`caique`'s app.** **Decided 2026-09-20 → D-057; superseded 2026-09-23 → D-131 (its own host).** Its intent is at `review`, `decide()` is started and `ask()` is not,
    and the compatibility rows for clack and inquirer are recorded as _blocked_. On the bar
    this design proposes it does not qualify today. **Resolved 2026-09-14 by the map above:**
    caique does not get its own host, it gets a section on `seniority.interlace.tools`. The
    bar stands and nothing thin ships; the question that remains is whether the owner agrees
    with the grouping, not whether caique waits.
-3. **Does the five-site map hold at fifteen packages?** **Decided 2026-09-20 → D-058.** The grouping is by incumbent, and
+3. **Does the five-site map hold at fifteen packages?** **Decided 2026-09-20 → D-058; superseded 2026-09-23 → D-131 (one host per package).** The grouping is by incumbent, and
    incumbents are not evenly distributed — `linegauge` alone replaces four. A tenth package
    whose incumbent nobody searches for is a section; one replacing something with chalk's
    traffic is a host. The map is a judgement per package, and criterion 1 only enforces that
