@@ -220,5 +220,8 @@ function home(path: string | URL): string | URL {
  * reaches dotenv's.
  */
 const dotenv = { config, parse, populate };
+// `'module.exports'` is what Node hands a CommonJS `require()` of an ES module, so
+// `require('seniority/dotenv')` gets this object — mutable, as a test that stubs `config` needs, as `require('dotenv')` does.
+export { dotenv as 'module.exports' };
 // eslint-disable-next-line import-next/no-default-export -- The drop-in shape, and the thing being graded: `require('dotenv')` returns one mutable object and dotenv's own suite stubs a method on it. A named export cannot be what `require()` of an ES module hands back whole.
 export default dotenv;

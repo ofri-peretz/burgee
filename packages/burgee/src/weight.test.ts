@@ -627,7 +627,9 @@ const RULES: Record<string, EntryRule> = {
   //
   // 215,200 on 2026-09-22 for D1, the definition-time refusal of a deprecation that names no replacement: `checkDeprecated` in `definition.js`, which `plugin.js` imports, so every entry that reaches the manifest pays it — the façades included, though they never call it with `true`. Measured 215,183.
   //
-  // 217,000 on 2026-09-23 for D-140, **+1,728 bytes** (215,183 -> 216,911): a handler that
+  // 215,250 on 2026-09-23: `export { Yargs as 'module.exports' }`, which yargs' own entry has, so `require('burgee/yargs')` hands a CommonJS caller the factory rather than a namespace. Measured 215,221.
+  //
+  // 217,100 on 2026-09-23 for D-140, **+1,781 bytes** (215,221 -> 217,002): a handler that
   // failed under `--json` on a yargs program escaped `parseAsync()` as an uncaught exception when
   // it threw synchronously or threw a non-Error, a thrown string was filed as `usage` (exit 2),
   // an async rejection wrote its envelope twice under `--mcp`, and an `AuthError` left with 1
@@ -636,7 +638,7 @@ const RULES: Record<string, EntryRule> = {
   // `host.exitCode`'s setter in `runtime.js`. `json-failure.test.ts` holds each case.
   "./yargs": {
     allow: [],
-    budget: 217_000,
+    budget: 217_100,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   "./yargs/helpers": {
