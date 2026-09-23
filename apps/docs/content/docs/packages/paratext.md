@@ -101,7 +101,7 @@ Graded by the incumbent's own test suite:
 | `term-img` | 12 / 18 |
 | `terminal-link` | 0 / 10 |
 
-Weight, installed and tree-inclusive: **92,903 bytes** against **30,912** for the incumbents it replaces — a ratio of **3.0054** (terminal-link, term-img not installed here, so the ceiling is understated).
+Weight, installed and tree-inclusive: **93,133 bytes** against **30,912** for the incumbents it replaces — a ratio of **3.0128** (terminal-link, term-img not installed here, so the ceiling is understated).
 ## Where it sits
 
 Plugins register under the `capabilities` key, against the one schema the whole family shares.

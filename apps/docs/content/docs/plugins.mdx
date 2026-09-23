@@ -71,7 +71,7 @@ This is a committed file, not an illustration: `scripts/plugin-example-lock.test
 | :--- | :--- | :--- | :--- | :--- |
 | **bellpull** | `resolvers` | bellpull resolvers by name: extra directories searched for an executable, before PATH (negative rank) or after it (positive). Two resolvers with one name shadow; two names both apply, in rank order. | `npx bellpull check ./plugin.mjs` | **cross-spawn** — None |
 | **burgee** | `commands` | burgee commands this plugin contributes. Each is read by exactly the code a program's own command is, and a burgee plugin must declare `contract`. | `npx burgee check ./plugin.mjs` | **commander** — Lifecycle hooks on one program (`.hook('preAction')`); no plugin shareable across programs — the plugin RFC, [#2505](https://github.com/tj/commander.js/issues/2505), is open<br />**yargs** — Middleware on one program (`.middleware()`), and commands loaded from modules (`.commandDir()`)<br />**meow** — None<br />**cac** — Events on one program (`cli.on()`)<br />**citty** — `setup` and `cleanup` on each command |
-|  | `hooks` | burgee lifecycle hooks. preRun opens around a command, and exactly one of postRun or onError closes. |  |  |
+|  | `hooks` | burgee lifecycle hooks. parse rewrites argv before a command is resolved; preRun opens around a command, and exactly one of postRun or onError closes; shutdown fires once as the program leaves, by any path. |  |  |
 | **caique** | `widgets` | caique prompt widgets by kind. The six built-in kinds — text, confirm, select, multiselect, password, path — cannot be replaced: a plugin adds kinds of its own. | `npx caique check ./plugin.mjs` | **clack** — Custom prompts built on `@clack/core`<br />**inquirer-core** — Custom prompts built with `createPrompt` |
 | **closeout** | `handlers` | closeout exit handlers. The phase decides the order they run in, not their position in this list. | `npx closeout check ./plugin.mjs` | **restore-cursor** — None<br />**exit-hook** — None — it is the hook<br />**signal-exit** — None — it is the hook |
 | **flagstaff** | `tokens` | A roundel theme: semantic token name to a hex colour, contrast-checked when flown. | `npx flagstaff check ./plugin.mjs` | **ora** — A custom spinner object, per instance (`spinner: { frames, interval }`)<br />**log-update** — None<br />**boxen** — A custom border object, per call (`borderStyle`)<br />**cli-table3** — Custom border characters, per table (`chars`) |
@@ -89,9 +89,10 @@ model can read it without running anything.
 
 ## What a plugin cannot do yet
 
-- **burgee's hooks cover the run of a command and nothing around it.** A plugin can act at
-  `preRun`, `postRun`, `onError` — not before arguments are parsed, not inside
-  help, not in config resolution, not at shutdown. Contributing commands has no such limit.
+- **burgee's hooks stop at help and config.** A plugin can act at
+  `parse`, `preRun`, `postRun`, `onError`, `shutdown` — rewriting argv before a command is resolved,
+  around the run, and once as the program leaves — but not inside help rendering and not in
+  config resolution. Contributing commands has no such limit.
 - **flagstaff's built-in components are not contributions.** A plugin adds spinners, borders
   and components of its own; it cannot replace `progress`, `box` or `table`.
 - **The schema cannot say "function".** `static`, `run`, `read` and `handler` are required

@@ -256,7 +256,8 @@ const RULES: Record<string, EntryRule> = {
   ".": {
     allow: ["closeout", "seniority/precedence"],
     // 43,000 on 2026-09-22 for D1, the definition-time refusal of a deprecation that names no replacement: `checkDeprecated` in `definition.js`, which `plugin.js` imports, so every entry that reaches the manifest pays it — the façades included, though they never call it with `true`. Measured 42,950.
-    budget: 43_000,
+    // 43,600 on 2026-09-23 for D-122, the `parse` and `shutdown` plugin stages: the `parse` loop lives in `parse-hooks.js`, loaded only when a plugin declares it; what stays is `Manifest.declares`, the call into that chunk, and registering `shutdown` on the run's teardown. Measured 43,501.
+    budget: 43_600,
     denied: [
       "testing.js",
       "testing-helpers.js",
@@ -326,7 +327,8 @@ const RULES: Record<string, EntryRule> = {
   // `AuthError` for the same reason it carries everything else. Measured 47,385.
   // 47,450 with `.`'s O2 bytes, for the same reason. Measured 47,434.
   // 47,700 with `.`'s D1 bytes. Measured 47,661.
-  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 47_700, denied: ["dev.js", "migrate.js"] },
+  // 48,300 on 2026-09-23 for D-122 — the same engine and manifest bytes as `.`. Measured 48,212.
+  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 48_300, denied: ["dev.js", "migrate.js"] },
   /**
    * The four doors the root barrel stopped holding open (see `.` above). Each is the same
    * module the engine reaches behind an `await import()`, published so a program that wants it
@@ -348,14 +350,16 @@ const RULES: Record<string, EntryRule> = {
   // runner out. Measured 19,950. 20,300 on 2026-09-22 for D1; measured 20,265.
   "./mcp": {
     allow: [],
-    budget: 20_300,
+    // 20,550 on 2026-09-23 for D-122: `Manifest.declares` and the `parse` call-in, which every entry reaching the manifest carries. Measured 20,504.
+    budget: 20_550,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
   },
   // The schema surface and the `Manifest` class it reads. Measured 14,891.
   // 15,250 on 2026-09-22 for D1; measured 15,206.
   "./schema": {
     allow: [],
-    budget: 15_250,
+    // 15,500 on 2026-09-23 for D-122, the same manifest bytes. Measured 15,445.
+    budget: 15_500,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
   },
   // Configuration precedence, provenance and `--explain`, which are `seniority`'s and are
@@ -625,7 +629,8 @@ const RULES: Record<string, EntryRule> = {
   // 215,200 on 2026-09-22 for D1, the definition-time refusal of a deprecation that names no replacement: `checkDeprecated` in `definition.js`, which `plugin.js` imports, so every entry that reaches the manifest pays it — the façades included, though they never call it with `true`. Measured 215,183.
   "./yargs": {
     allow: [],
-    budget: 215_200,
+    // 215,500 on 2026-09-23 for D-122, through the engine and the manifest. Measured 215,422.
+    budget: 215_500,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   "./yargs/helpers": {

@@ -53,6 +53,7 @@
     "mark-lab": "node scripts/mark-lab.mts",
     "decisions": "tsx scripts/decisions.ts",
     "weight:page": "tsx scripts/subpath-weight.ts",
+    "weight:converge": "node scripts/weight-converge.mjs",
     "plugins:page": "tsx scripts/plugins-page.ts"
   },
   "overrides": {

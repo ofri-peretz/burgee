@@ -847,13 +847,19 @@ export async function execute(manifest: Manifest, opts: RunOptions & { root?: st
   // `from: 'node'` is commander's default and means argv still carries execPath and the
   // script. Doing the slice here keeps `process` out of every façade.
   const raw = opts.argv ?? host.argv;
-  const argv = opts.argv === undefined || opts.from === 'node' ? raw.slice(2) : raw;
+  const typed = opts.argv === undefined || opts.from === 'node' ? raw.slice(2) : raw;
   const root = opts.root ?? manifest.rootPath;
 
   // Only a `--json` before `--` asks for the envelope; after it, it is pass-through (G5).
-  let json = beforeTerminator(argv).includes('--json');
+  let json = beforeTerminator(typed).includes('--json');
   let name = '';
+  // D-122 — `shutdown` fires once, on whichever path the run leaves by, through the same
+  // teardown `ctx.onExit` uses. Registered only when a plugin declares one.
+  if (manifest.declares('shutdown')) io.teardown.add(async () => await manifest.fire('shutdown', name, {}), 'plugin shutdown hooks');
+  let argv = typed;
   try {
+    argv = manifest.declares('parse') ? await manifest.parse([...typed]) : typed;
+    json = beforeTerminator(argv).includes('--json');
     if (await surface(manifest, argv, io)) return await leave(io, ExitCode.OK);
     const { node, rest } = manifest.resolve(argv, root);
     if (node?.run === undefined) {
