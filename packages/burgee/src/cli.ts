@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * `burgee` — the package's own command line; the commands live in `program.ts`.
  *

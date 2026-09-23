@@ -1,12 +1,12 @@
 {
   "name": "closeout",
-  "version": "0.4.0",
+  "version": "0.5.1",
   "description": "Close everything out. Exit handlers that run exactly once on every path, terminal restore, and a bounded deadline so shutdown cannot hang. Drop-in paths for signal-exit, exit-hook and restore-cursor. Zero dependencies.",
   "license": "MIT",
   "type": "module",
   "sideEffects": ["./dist/cli.js"],
   "engines": {
-    "node": ">=24"
+    "node": "^20.19.0 || >=22.13.0"
   },
   "exports": {
     ".": {
@@ -68,7 +68,7 @@
     "url": "git+https://github.com/ofri-peretz/burgee.git",
     "directory": "packages/closeout"
   },
-  "homepage": "https://burgee.interlace.tools/docs/packages/closeout",
+  "homepage": "https://closeout.interlace.tools",
   "bugs": {
     "url": "https://github.com/ofri-peretz/burgee/issues"
   },

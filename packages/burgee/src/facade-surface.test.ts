@@ -58,7 +58,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { Command } from './commander.js';
 import { toolsOf } from './mcp.js';
-import yargs, { type YargsInstance } from './yargs.js';
+import yargs, { type Argv } from './yargs.js';
 
 /** A program in plain commander syntax. Nothing here is burgee's. */
 function commanderProgram(): Command {
@@ -123,8 +123,8 @@ describe('G1/G2 — a façade command is a tool, and says what it did not declar
   it('does the same for a program in plain yargs syntax', () => {
     const y = yargs([])
       .scriptName('ydemo')
-      .command('greet <who>', 'greet someone', (b: YargsInstance) => b, () => undefined)
-      .command('wipe', 'delete everything', (b: YargsInstance) => b.effects('withheld'), () => undefined);
+      .command('greet <who>', 'greet someone', (b: Argv) => b, () => undefined)
+      .command('wipe', 'delete everything', (b: Argv) => b.effects('withheld'), () => undefined);
     const tools = toolsOf(y.manifest);
     expect(tools.map((t) => t.name)).toEqual(['greet']);
     expect(tools[0]?.annotations).toEqual({ effects: 'undeclared' });
@@ -235,5 +235,65 @@ describe('G5 — a failure under `--json` is the envelope', () => {
     const { out, err } = await run(commanderProgram(), ['greet']);
     expect(out).toBe('');
     expect(err).toBe("error: missing required argument 'who'\n");
+  });
+});
+
+/**
+ * A multi-word option reaches the program through `--mcp`.
+ *
+ * `tools/list` advertised `skipBlank` (with `flag: '--skip-blank'`), and `tools/call` turned it
+ * back into `--skipBlank` — the canonical key with two dashes in front — which commander has
+ * never heard of, so every call that set a multi-word option came back
+ * `unknown option '--skipBlank'`. A negation fared worse: `--no-color` was advertised as
+ * `color` with `flag: '--color'`, `color: false` was dropped, and `color: true` was refused.
+ *
+ * So the test does not name a single property. It reads the schema the server advertises and
+ * sets every property in it, which is what an agent does.
+ */
+/** A commander program with every shape of multi-word and negated option, and what its action saw. */
+function lines(): { program: Command; seen: Record<string, unknown>[] } {
+  const seen: Record<string, unknown>[] = [];
+  const program = new Command();
+  program.name('lines');
+  program
+    .command('count')
+    .effects('read_only')
+    .option('--skip-blank', 'ignore blank lines')
+    .option('--max-lines <n>', 'stop after n')
+    .option('--no-color', 'plain output')
+    .option('--trim', 'trim each line')
+    .option('--no-trim', 'keep whitespace')
+    .action((opts: Record<string, unknown>) => {
+      seen.push({ ...opts });
+      return opts;
+    });
+  return { program, seen };
+}
+
+describe('G6 — every argument the schema advertises reaches the program', () => {
+  it('advertises each option under a name whose flag commander accepts', () => {
+    const count = toolsOf(lines().program.manifest).find((t) => t.name === 'count');
+    const flags = Object.values(count?.inputSchema.properties ?? {}).map((p) => (p as { flag?: string }).flag);
+    expect(flags).toEqual(['--skip-blank', '--max-lines', '--no-color', '--trim']);
+  });
+
+  it('passes every advertised property through a tools/call', async () => {
+    const { program, seen } = lines();
+    const [listed] = await serve(['{"jsonrpc":"2.0","id":1,"method":"tools/list"}'], lines().program);
+    const tool = (JSON.parse(listed ?? '{}') as { result: { tools: { name: string; inputSchema: { properties: Record<string, { type: string }> } }[] } }).result.tools[0];
+    const args = Object.fromEntries(Object.entries(tool?.inputSchema.properties ?? {}).map(([k, p]) => [k, p.type === 'boolean' ? true : '3']));
+    const [reply] = await serve([JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'count', arguments: args } })], program);
+    const body = JSON.parse(reply ?? '{}') as { result: { content: { text: string }[]; isError: boolean } };
+    expect(body.result.content[0]?.text).not.toMatch(/unknown option/);
+    expect(body.result.isError).toBe(false);
+    expect(seen[0]).toEqual({ skipBlank: true, maxLines: '3', color: false, trim: true });
+  });
+
+  it('turns a paired boolean off with its negation', async () => {
+    const { program, seen } = lines();
+    await serve(['{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"count","arguments":{"trim":false}}}'], program);
+    // `--trim` then `--no-trim` declared: commander sets no default, so false is only reached by typing it.
+    expect(seen[0]).toMatchObject({ color: true });
+    expect(seen[0]?.['trim']).not.toBe(true);
   });
 });

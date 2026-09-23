@@ -94,7 +94,7 @@ export function section(pkg: string): string {
     lines.push('No suite is graded against this package yet, so there is no compatibility number to quote.', '');
   }
   if (weight !== undefined) {
-    const caveat = (weight.unmeasured?.length ?? 0) > 0 ? ` (${weight.unmeasured?.join(', ') ?? ''} not installed here, so the ceiling is understated)` : '';
+    const caveat = (weight.unmeasured?.length ?? 0) > 0 ? ` (${weight.unmeasured?.join(', ') ?? ''} measured but left out of the ceiling, so it is understated)` : '';
     lines.push(
       `Weight, installed and tree-inclusive: **${weight.ours.toLocaleString('en-US')} bytes** against **${weight.ceiling.toLocaleString('en-US')}** for the incumbents it replaces — a ratio of **${weight.ratio.toFixed(RATIO_DIGITS)}**${caveat}.`,
       '',
