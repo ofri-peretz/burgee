@@ -5,7 +5,7 @@ the window title, the clipboard, desktop notifications, the working directory, t
 as one zero-dependency package that **never emits a sequence it cannot prove the terminal
 understands**, and falls back to a static projection when it cannot.
 
-**Status:** review · **Opened:** 2026-09-13 · **Owner:** @ofri-peretz · **Name published:** `paratext@0.2.0`
+**Status:** approved (2026-09-23, under the owner's delegation, D-129) · **Opened:** 2026-09-13 · **Owner:** @ofri-peretz · **Name published:** `paratext@0.2.0`
 
 > Written after the package shipped. `paratext` reached npm at 0.2.0 with 5 source files
 > and 40 tests and no Stage 1 or Stage 2 artifact — the same failure as `brand-burgee`,

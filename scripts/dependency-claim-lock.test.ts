@@ -49,6 +49,14 @@ const dependencies = (name: string): string[] =>
  */
 const COUNT_BADGE = /img\.shields\.io\/badge\/(?:runtime%20)?dependencies-(\d+)/g;
 
+/** The same badge read for its alt text: `alt="Four dependencies, all in this repository"`. */
+const ALT_COUNT = /alt="(Zero|One|Two|Three|Four|Five|Six|Seven|Eight|Nine)(?: runtime)? dependenc(?:y|ies)\b/gu;
+
+/** A badge that names its dependencies rather than counting them: `dependencies-closeout`. */
+const NAMED_BADGE = /img\.shields\.io\/badge\/dependencies-([a-z][a-z%20,·-]*?)-[\da-f]{6}/gu;
+
+const WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+
 describe('a README may not claim a dependency count its manifest contradicts', () => {
   const names = published();
 
@@ -67,14 +75,43 @@ describe('a README may not claim a dependency count its manifest contradicts', (
   });
 
   /**
+   * The badge's alt text is a claim too, and it is the one a screen reader reads. caique's
+   * said *"One dependency: closeout"* over a manifest declaring two on 2026-09-22 — the
+   * count badge above could not see it, because that badge names its package instead of
+   * counting. So both are read: the alt text's number word, and the names in the badge.
+   */
+  it.each(names)('%s: the badge alt text and the names it lists match the manifest', (name) => {
+    const readme = join(PACKAGES, name, 'README.md');
+    if (!existsSync(readme)) return;
+    const text = readFileSync(readme, 'utf8');
+    const actual = dependencies(name);
+    for (const [, word] of text.matchAll(ALT_COUNT)) {
+      expect(WORDS.indexOf(word!), `${name}'s badge alt text says "${String(word)}" dependencies and its package.json declares ${String(actual.length)}`).toBe(actual.length);
+    }
+    for (const [, list] of text.matchAll(NAMED_BADGE)) {
+      expect(decodeURIComponent(list!).split(/[\s,·]+/u).toSorted(), `${name}'s badge names its dependencies`).toEqual(actual.toSorted());
+    }
+  });
+
+  /**
+   * The npm description is the first sentence anyone reads, and it is restated nowhere a
+   * reviewer looks. flagstaff's said *"Zero dependencies."* for a week after it took four.
+   */
+  it.each(names)('%s: a description that says "Zero dependencies" means it', (name) => {
+    const { description = '' } = JSON.parse(readFileSync(join(PACKAGES, name, 'package.json'), 'utf8')) as { description?: string };
+    if (!/\bzero dependencies\b/iu.test(description)) return;
+    expect(dependencies(name), `${name}'s package.json description says "Zero dependencies"`).toEqual([]);
+  });
+
+  /**
    * The root README counts the packages and characterises them in one sentence. Both halves
    * were wrong at once, which is the argument for checking the number rather than the prose:
    * a count is unambiguous, and it was the count that gave the sentence away.
    */
   it('the root README counts the published packages correctly', () => {
-    const WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve'];
+    const COUNTS = [...WORDS, 'Ten', 'Eleven', 'Twelve'];
     const stated = /^\s*(\w+) packages, one repository/m.exec(readFileSync(join(ROOT, 'README.md'), 'utf8'))?.[1];
     expect(stated, 'the root README no longer opens with "<N> packages, one repository" — update this case with it').toBeDefined();
-    expect(stated, `the root README says "${String(stated)} packages" and there are ${String(names.length)}`).toBe(WORDS[names.length]);
+    expect(stated, `the root README says "${String(stated)} packages" and there are ${String(names.length)}`).toBe(COUNTS[names.length]);
   });
 });
