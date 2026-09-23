@@ -1,0 +1,74 @@
+---
+title: Coming from string-width
+description: "A string-width alternative with zero dependencies: linegauge's default export is string-width, graded 229 / 229 by its own suite — plus wrap-ansi, strip-ansi and slice-ansi paths, grapheme-correct over Intl.Segmenter and pure, so a pipe and a terminal get the same columns."
+---
+
+**linegauge** is a **string-width alternative** you adopt by changing one import. Its default
+export is `width`, call-compatible with string-width's default, and string-width's own test
+suite is the grade.
+
+## Migrate from string-width in one import
+
+```diff
+- import stringWidth from 'string-width';
++ import stringWidth from 'linegauge';
+```
+
+It also answers the questions string-width's neighbours do, one subpath each:
+
+| Incumbent | linegauge path |
+| :-- | :-- |
+| `string-width` | `linegauge` (the default export) |
+| `strip-ansi` | `linegauge/strip` |
+| `wrap-ansi` | `linegauge/wrap` |
+| `slice-ansi` | `linegauge/slice` |
+
+Because the default export is call-compatible, an `overrides` entry can move a transitive
+string-width onto linegauge without a code change; the form is on the
+[linegauge](/docs/packages/linegauge) page.
+
+## Is linegauge compatible with string-width?
+
+Graded, not claimed. Each incumbent's own suite, vendored and unmodified apart from the
+import specifier, runs against its linegauge path beside a control that runs it against the
+real package:
+
+| | linegauge | control |
+| :-- | --: | --: |
+| `string-width` → `linegauge` | 229 / 229 | 229 / 229 |
+| `strip-ansi` → `linegauge/strip` | 8 / 8 | 8 / 8 |
+| `wrap-ansi` → `linegauge/wrap` | 80 / 80 | 80 / 80 |
+| `slice-ansi` → `linegauge/slice` | 15 / 15 | 15 / 15 |
+
+From [Compatibility](/docs/compatibility), which `npm run compat:page` generates from the
+oracle's last run; that page is the authority. One slice-ansi case is one the incumbent marks
+as failing in its own suite, and linegauge passes it.
+
+What differs, by design: ambiguous-width characters count narrow, which is what a terminal
+does unless it is rendering an East Asian locale. string-width makes that an option;
+linegauge does not.
+
+## What you gain over string-width
+
+linegauge has no output mode of its own, and that is its agent surface: it is pure. Nothing
+in it reads `process`, so how wide the terminal is — and whether there is one — is the
+caller's to pass, and the same input gives the same columns on a pipe, under `--json` and in
+a test.
+
+- **The edge never frays.** A cut that would land inside a grapheme drops the whole cluster;
+  a style open at a cut is re-emitted and closed, so a slice pasted anywhere neither loses
+  its colour nor leaks it.
+- **The ellipsis is inside the budget.** `truncate(text, 10)` occupies ten columns or fewer,
+  never eleven — the property a table column depends on.
+- **Grapheme-correct over the platform.** Cluster boundaries come from the platform's own
+  `Intl.Segmenter`.
+- **The family measures with it.** burgee, caique and flagstaff build on linegauge, so what
+  they write for a pipe or an agent is measured the same way a terminal draws it.
+
+## When to switch from string-width
+
+- Your dependency tree carries several of string-width, strip-ansi, wrap-ansi and
+  slice-ansi, and you would rather it carried one package.
+- A table or box in your CLI gains a phantom column under emoji, CJK or styled input.
+
+The API and the design notes are on [linegauge](/docs/packages/linegauge).

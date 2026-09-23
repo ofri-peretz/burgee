@@ -16,6 +16,11 @@
 Exit handlers that run exactly once on every path, terminal restore, and a bounded deadline
 so shutdown cannot hang.
 
+It replaces **signal-exit**, **exit-hook** and **restore-cursor** — the last two through
+drop-in subpaths graded by their own suites; signal-exit's drop-in is not shipped until it can
+be graded. Every handler gets one record, and `reportToJson()` and `reportToEvent()` project
+that record as a `--json` line or an agent event.
+
 To *close out* is to settle and finish — an account, a position, a shift. Everything
 outstanding is resolved and nothing is left open. That is what a process should do on the
 way out, and mostly does not.
@@ -326,7 +331,7 @@ Graded by the incumbent's own test suite:
 | `restore-cursor` | 6 / 6 |
 | `signal-exit` | 134 / 135 |
 
-Weight, installed and tree-inclusive: **96,126 bytes** against **170,604** for the incumbents it replaces — a ratio of **0.5634** (exit-hook not installed here, so the ceiling is understated).
+Weight, installed and tree-inclusive: **96,456 bytes** against **170,604** for the incumbents it replaces — a ratio of **0.5654** (exit-hook not installed here, so the ceiling is understated).
 ## Where it sits
 
 Plugins register under the `handlers` key, against the one schema the whole family shares.

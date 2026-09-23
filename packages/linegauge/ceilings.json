@@ -71,9 +71,9 @@
     "holds": true,
     "bar": "foundation-ceilings.json — D1's tree-inclusive ceiling",
     "measured": {
-      "ours": 84371,
+      "ours": 84642,
       "ceiling": 170342,
-      "ratio": 0.4953,
+      "ratio": 0.4969,
       "on": "2026-09-22"
     },
     "why": [
