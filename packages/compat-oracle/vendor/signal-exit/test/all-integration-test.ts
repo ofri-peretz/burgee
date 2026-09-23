@@ -1,7 +1,7 @@
 import assert from 'assert'
 import { exec } from 'child_process'
 import t from 'tap'
-import { signals } from '../shim.mjs'
+import { signals } from '../shim.cjs'
 
 const isWindows = process.platform === 'win32'
 const shell = isWindows ? null : { shell: '/bin/bash' }

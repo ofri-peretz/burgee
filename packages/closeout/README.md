@@ -297,7 +297,7 @@ import restoreCursor from 'closeout/restore-cursor';
 or, without touching the source at all:
 
 ```json
-{ "overrides": { "exit-hook": "npm:closeout@^0.1", "restore-cursor": "npm:closeout@^0.1" } }
+{ "overrides": { "exit-hook": "npm:closeout@^0.3", "restore-cursor": "npm:closeout@^0.3" } }
 ```
 
 One thing to know before you swap `exit-hook`: its bound is per hook (`{ wait }`) and the
@@ -329,6 +329,7 @@ Graded by the incumbent's own test suite:
 | :-- | --: |
 | `exit-hook` | 21 / 21 |
 | `restore-cursor` | 6 / 6 |
+| `signal-exit` | 134 / 135 |
 
 Weight, installed and tree-inclusive: **96,456 bytes** against **170,604** for the incumbents it replaces — a ratio of **0.5654** (exit-hook not installed here, so the ceiling is understated).
 ## Where it sits
