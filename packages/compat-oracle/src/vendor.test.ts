@@ -29,6 +29,16 @@ describe('rewriting public specifiers', () => {
     const out = rewriteAt("import * as parser from 'yargs-parser';", yargs, { fileDir: '/v/yargs/test/esm', hostDir: '/v/yargs' });
     expect(out).toBe("import * as parser from '../../shim-2.js';");
   });
+
+  it("rewrites a dots-only specifier where a module is named, and leaves the same dots in a path alone (node-which)", () => {
+    const which = HOSTS.find((h) => h.name === 'which') as Host;
+    const source = ["const which = t.mock('..', mocks)", "const rel = join('..', dir, name)", "const again = require('..')"].join('\n');
+    const out = rewriteAt(source, which, { fileDir: '/v/which/test', hostDir: '/v/which', packageType: 'commonjs' });
+    expect(out).toContain("t.mock('../shim.cjs', mocks)");
+    expect(out).toContain("require('../shim.cjs')");
+    // The path computation is a path, not an import: rewriting it failed a case against node-which itself.
+    expect(out).toContain("join('..', dir, name)");
+  });
 });
 
 describe('the vendored root package', () => {

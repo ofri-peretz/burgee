@@ -128,8 +128,9 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `cross-spawn` | 68 / 68 |
+| `which` | 5 / 5 |
 
-Weight, installed and tree-inclusive: **97,927 bytes** against **714,984** for the incumbents it replaces — a ratio of **0.1370**.
+Weight, installed and tree-inclusive: **102,603 bytes** against **714,984** for the incumbents it replaces — a ratio of **0.1435**.
 ## Where it sits
 
 Plugins register under the `resolvers` key, against the one schema the whole family shares.

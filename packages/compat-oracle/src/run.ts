@@ -306,7 +306,11 @@ function shimSource(entry: HostImport, host: Host, target: string): string {
   // names, which is now the shim; without this the re-required shim hands back the cached
   // implementation and the test measures the harness. A cached shim still returns one instance.
   if (host.shim === 'cjs') {
-    return `${header}\nconst target = require.resolve('${from}');\ndelete require.cache[target];\nmodule.exports = require(target);\n`;
+    // `reexportDefault` means the suite calls the module itself — node-which's `which(cmd)`.
+    // `require()` of an ES module returns its namespace, so the default is unwrapped; a CJS
+    // incumbent has none and is handed over whole, which is what it already was.
+    const exported = entry.reexportDefault ? 'loaded?.default ?? loaded' : 'loaded';
+    return `${header}\nconst target = require.resolve('${from}');\ndelete require.cache[target];\nconst loaded = require(target);\nmodule.exports = ${exported};\n`;
   }
   // `export *` never carries a default; yargs' entry has one and its tests use it. The
   // `module.exports` name is what `require()` of an ES module returns whole, so a CJS
