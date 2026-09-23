@@ -226,6 +226,8 @@ export interface CommandNode {
    * none, so a façade's command is withheld in fact and cannot be made to say so.
    */
   effects?: DeclaredEffects;
+  /** The result's top-level fields, as declared (N14); what `--json=` lists. */
+  fields?: readonly string[];
   run?: (ctx: RunContext) => unknown;
   /**
    * The handler's module, imported on dispatch only (M2): the manifest — help, schema,

@@ -177,12 +177,21 @@ export function checkCommand(name: string, declared: Declared): void {
   checkDeprecated(`command "${name}"`, declared.deprecated);
   checkDefinition(name, declared.options ?? {});
   checkEffects(name, declared.effects, declared.run !== undefined || declared.load !== undefined);
+  checkFieldList(name, declared.fields);
+}
+
+/** N14: `fields` is what `--json=` lists, so it has to be a list of distinct, non-empty names. */
+function checkFieldList(name: string, fields: unknown): void {
+  if (fields === undefined) return;
+  const ok = Array.isArray(fields) && fields.every((f) => typeof f === 'string' && f !== '' && !f.includes(',')) && new Set(fields).size === fields.length;
+  if (!ok) throw new Error(`burgee: command "${name}" declares fields ${JSON.stringify(fields)}; declare distinct, non-empty names without commas`);
 }
 
 /** What the door reads of a command: a first-party declaration and a plugin's have the same fields. */
 export interface Declared {
   options?: Record<string, OptionSpec>;
   effects?: unknown;
+  fields?: unknown;
   deprecated?: boolean | string;
   run?: unknown;
   load?: unknown;

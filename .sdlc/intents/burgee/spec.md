@@ -598,7 +598,7 @@ was quietly met.
 **The count.** 114 requirements, in seventeen families — `Z F O E V S P D T H M K J C B N U`.
 The prose above says *92* and *"Ninety-two requirements"*; both are wrong, and wrong the same
 way, because `E6 E7 V8 N11–N15` were added after the arithmetic was last done and `C1–C8`
-names two rows that do not exist. **Built: 89. Not built: 25**, and the count moves as rows are
+names two rows that do not exist. **Built: 90. Not built: 24**, and the count moves as rows are
 built rather than as the prose is rewritten — T1 moved on 2026-09-22 and the tally moved with
 it. An audit whose total disagrees with its own rows is the failure this paragraph is a record
 of; `spec-tally-lock.test.ts` now derives the two numbers from the tables instead of trusting
@@ -799,7 +799,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | N11 | **Built** | `ctx.actionRequired(spec)` unwinds through `ActionRequired`; `runnableNext` prefixes the program name and carries the caller's own `--json` into each `next[]` command | `machine-json.test.ts` |
 | N12 | **Built** | `agent.ts` — `AGENT_PROBES`, `FORCE_TTY=1`, and `interactive = forced \|\| (tty && agent === undefined)`, which is the load-bearing clause. The probe list is **5** variables, not the 13 the requirement names; restated below | `agent.test.ts` |
 | N13 | Not built | the budget half is built (`Manifest.schemaBudget`, `SCHEMA_BUDGET = 48_000`, `summaryOf`). **Drilling is by command path only** — `summaryOf`'s own hint reads *"run `<command> --schema` for one command in full"* — and there is no field-path selector | `schema.test.ts` |
-| N14 | Not built | `--json` is seeded in `toParseConfig` as `{ type: 'boolean' }`. It takes no argument, so nothing lists valid fields and nothing rejects an invalid one | — |
+| N14 | **Built** | `--json=<a,b>` selects the result's top-level fields — of the object, or of each object in a list — and only the `=` form takes them, so `cmd --json name` keeps `name` a positional (D-114). A command may declare `fields`: then `--json=` lists them without running the handler, `--json=a,x` is refused before it runs with `valid fields: …` as the hint, and `--schema` publishes them. Undeclared, the selection is checked against the keys the result has. | `src/json-fields.test.ts` |
 | N15 | Not built | there is no non-JSON `agent` format. The only format flag in the package is `--format=json-pretty`, and it makes the output *larger* | `machine-json.test.ts` |
 
 ### The output stack

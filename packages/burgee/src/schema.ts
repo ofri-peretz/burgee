@@ -50,6 +50,8 @@ export interface CommandSchema {
    * it cannot tell from a command that does not exist (N6).
    */
   effects?: DeclaredEffects;
+  /** What `--json=` selects from (N14), when the command declares it. */
+  fields?: readonly string[];
   deprecated?: boolean | string;
   /** The heading it is listed under (M1). */
   group?: string;
@@ -169,6 +171,7 @@ export function commandSchemaOf(node: CommandNode, root: string[]): CommandSchem
   if (node.description !== undefined) out.description = node.description;
   if (node.summary !== undefined) out.summary = node.summary;
   if (node.effects !== undefined) out.effects = node.effects;
+  if (node.fields !== undefined) out.fields = node.fields;
   if (node.deprecated !== undefined) out.deprecated = node.deprecated;
   if (node.group !== undefined) out.group = node.group;
   if (node.load !== undefined) out.lazy = true;
