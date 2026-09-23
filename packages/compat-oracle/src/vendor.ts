@@ -98,12 +98,24 @@ const dotted = (p: string): string => {
   return posix.startsWith('.') ? posix : `./${posix}`;
 };
 
+/** A dots-only specifier (`'..'`, `'../..'`) where a module is named; see `rewriteAt`. */
+const NAMED_DOTS = /((?:require(?:\.resolve)?|import|mock)\(\s*|from\s+|import\s+)(['"])([./]+)\2/g;
+
 export function rewriteAt(source: string, host: Host, { fileDir, hostDir, packageType = 'module' }: { fileDir: string; hostDir: string; packageType?: string }): string {
   const testDir = join(hostDir, host.testDir);
   return host.imports.reduce((acc, entry, i) => {
     // A bare specifier reads the same from every file; a relative one moves with the file.
     const upstreamHere = entry.upstream.startsWith('.') ? dotted(relative(fileDir, resolve(testDir, entry.upstream))) : entry.upstream;
     const shimHere = dotted(relative(fileDir, join(hostDir, shimName(i, packageType, host.shim))));
+    // A specifier that is only dots — `'..'`, `'../..'` — is also an ordinary path segment:
+    // node-which's suite writes `join('..', dir, …)`, and replacing every such literal turned a
+    // path computation into a path to the shim and failed a case against the incumbent itself.
+    // So those are rewritten only where a module is named: `require(…)`, `require.resolve(…)`,
+    // `import(…)`, `*.mock(…)`, `from …`, a bare `import …`. Any other specifier is distinctive
+    // enough that the literal replace, which reaches the forms nobody lists, is the safer one.
+    if (/^[./]+$/.test(upstreamHere)) {
+      return acc.replace(NAMED_DOTS, (whole: string, lead: string, quote: string, spec: string) => (spec === upstreamHere ? `${lead}${quote}${shimHere}${quote}` : whole));
+    }
     return acc.replaceAll(`'${upstreamHere}'`, `'${shimHere}'`).replaceAll(`"${upstreamHere}"`, `"${shimHere}"`);
   }, source);
 }

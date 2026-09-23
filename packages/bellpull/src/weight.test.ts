@@ -86,6 +86,11 @@ const RULES: Record<string, EntryRule> = {
   // `ambient.js` — deliberately, and the only entry that does: a drop-in reads `process`
   // because its callers expect it to. Measured 12,852 B.
   './cross-spawn': { allow: [], budget: 14_000, denied: ['plugin.js', 'index.js', 'run.js', 'project.js'] },
+  // The drop-in for node-which 7 (`which`, 50 M/wk), graded 5 / 5 by its own suite. Like
+  // `./cross-spawn` it reaches `ambient.js` on purpose — a drop-in reads the process because
+  // its callers expect it to — and so it is its own entry, keeping `./which` resolution alone.
+  // Measured 4,528 B on 2026-09-23.
+  './node-which': { allow: [], budget: 5_000, denied: ['run.js', 'index.js', 'cross-spawn.js', 'plugin.js', 'project.js'] },
   // The plugin host. Carries the runtime shape, never the spawner — registering a plugin
   // must not pull a subprocess API in. Measured 6,818 B.
   './plugin': { allow: [], budget: 8_000, denied: ['run.js', 'index.js', 'cross-spawn.js', 'which.js', 'ambient.js'] },
@@ -154,7 +159,10 @@ describe('the lock grows with the package', () => {
   it('keeps `./which` free of the spawner, so resolution can be adopted on its own', () => {
     // The design's order: "`which` ships first, and possibly alone". A caller who wants only
     // the 779 M/wk that `which` + `isexe` + `path-key` cover must not pay for `run`.
-    expect(walk(entryFile('./which')).reached.filter((f) => f.endsWith('.js')).sort()).toEqual(['runtime.js', 'which.js']);
+    // `executable.js` since 2026-09-23: the `isexe` check moved out of `which.js` so the
+    // node-which drop-in shares it without an import cycle. It is spawner-free and reads nothing
+    // ambient, which is what this test is for; the list names it rather than loosening.
+    expect(walk(entryFile('./which')).reached.filter((f) => f.endsWith('.js')).sort()).toEqual(['executable.js', 'runtime.js', 'which.js']);
   });
 
   /**
