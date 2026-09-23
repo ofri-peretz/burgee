@@ -79,6 +79,23 @@ export interface OutputContext {
 }
 
 export type HookEvent = 'preSubcommand' | 'preAction' | 'postAction';
+
+/**
+ * commander's option-value types, as `typings/index.d.ts` declares them. `any` is
+ * commander's choice and the point: `program.opts().port` is usable without a cast, and
+ * `opts<T>()` narrows it — a program written against commander's types relies on both;
+ * `unknown` here breaks every `opts().x` such a program reads.
+ */
+export type OptionValues = Record<string, any>;
+/** Where an option's value came from. A string, so an author can define their own; the known ones autocomplete. */
+export type OptionValueSource = 'default' | 'config' | 'env' | 'cli' | 'implied' | (string & Record<never, never>) | undefined;
+/** What `.configureHelp()` takes: any subset of `Help`'s methods and settings. */
+export type HelpConfiguration = Partial<Help>;
+/** `.parseOptions()`'s split of an argv into operands and unknown options. */
+export interface ParseOptionsResult {
+  operands: string[];
+  unknown: string[];
+}
 export type HookListener = (thisCommand: Command, actionCommand: Command) => void | Promise<void>;
 export type AddHelpTextPosition = 'beforeAll' | 'before' | 'after' | 'afterAll';
 export type AddHelpTextContext = { error: boolean; command: Command };
@@ -1091,7 +1108,7 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
    *     sub --unknown uuu op => [sub], [--unknown uuu op]
    *     sub -- --unknown uuu op => [sub --unknown uuu op], []
    */
-  parseOptions(args: string[]): { operands: string[]; unknown: string[] } {
+  parseOptions(args: string[]): ParseOptionsResult {
     const operands: string[] = [];
     const unknown: string[] = [];
     let dest = operands;
@@ -1212,22 +1229,22 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
     return { operands, unknown };
   }
 
-  /** Local option values as key-value pairs. */
-  opts(): Record<string, unknown> {
+  /** Local option values as key-value pairs; `opts<T>()` types them, as commander's own declaration does. */
+  opts<T extends OptionValues = OptionValues>(): T {
     if (this._storeOptionsAsProperties) {
       const result: Record<string, unknown> = {};
       for (const option of this.options) {
         const key = option.attributeName();
         result[key] = key === this._versionOptionName ? this._version : (this as unknown as Record<string, unknown>)[key];
       }
-      return result;
+      return result as T;
     }
-    return this._optionValues;
+    return this._optionValues as T;
   }
 
   /** Merged local and global option values; globals overwrite locals. */
-  optsWithGlobals(): Record<string, unknown> {
-    return this._getCommandAndAncestors().reduce<Record<string, unknown>>((combined, cmd) => Object.assign(combined, cmd.opts()), {});
+  optsWithGlobals<T extends OptionValues = OptionValues>(): T {
+    return this._getCommandAndAncestors().reduce<Record<string, unknown>>((combined, cmd) => Object.assign(combined, cmd.opts()), {}) as T;
   }
 
   /** Display an error message and exit (or call exitOverride). */
@@ -1852,7 +1869,7 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
       return isThenable(result) ? Promise.resolve(result).then(settle) : settle(result);
     }
     const name = this.name();
-    const options = this.opts();
+    const options = this.opts<Record<string, unknown>>();
     // `preRun` opens and **exactly one of `postRun` or `onError` closes**, which is the
     // contract the engine has always held and this chain did not. Without the `catch`, a
     // handler that threw skipped `postRun` and never reached `onError`, so a plugin that
