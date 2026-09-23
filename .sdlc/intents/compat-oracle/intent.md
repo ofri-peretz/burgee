@@ -1,6 +1,6 @@
 # Intent — `compat-oracle`
 
-**Status:** review · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
+**Status:** approved (2026-09-23, under the owner's delegation, D-129) · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Evidence:** both suites vendored in full and both gates proven; commander 1,361/1,361 and yargs 804/804 in the same run. Publishing the page is `docs-deploy`’s remainder, not this intent’s.
 
