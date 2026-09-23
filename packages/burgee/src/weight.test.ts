@@ -256,7 +256,8 @@ const RULES: Record<string, EntryRule> = {
   ".": {
     allow: ["closeout", "seniority/precedence"],
     // 43,000 on 2026-09-22 for D1, the definition-time refusal of a deprecation that names no replacement: `checkDeprecated` in `definition.js`, which `plugin.js` imports, so every entry that reaches the manifest pays it — the façades included, though they never call it with `true`. Measured 42,950.
-    budget: 43_000,
+    // 43,100 on 2026-09-23 for N14, `--json=<fields>`: the selection, the listing and the refusals live in `fields.js`, imported only when `--json=` is typed; what stays on the startup path is spotting it and calling in, plus the declared `fields` copied onto the node. Measured 43,092 — after N13 moved `--schema` off the path, which is what made the room.
+    budget: 43_100,
     denied: [
       "testing.js",
       "testing-helpers.js",
@@ -326,7 +327,8 @@ const RULES: Record<string, EntryRule> = {
   // `AuthError` for the same reason it carries everything else. Measured 47,385.
   // 47,450 with `.`'s O2 bytes, for the same reason. Measured 47,434.
   // 47,700 with `.`'s D1 bytes. Measured 47,661.
-  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 47_700, denied: ["dev.js", "migrate.js"] },
+  // 47,850 on 2026-09-23 for N14 — the same engine bytes as `.`. Measured 47,803.
+  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 47_850, denied: ["dev.js", "migrate.js"] },
   /**
    * The four doors the root barrel stopped holding open (see `.` above). Each is the same
    * module the engine reaches behind an `await import()`, published so a program that wants it
@@ -355,6 +357,8 @@ const RULES: Record<string, EntryRule> = {
   // this door — every front-end that serves `--mcp` already carries it.
   "./mcp": {
     allow: [],
+    // 20,400 on 2026-09-23 for N14: `--schema` publishes a command's declared `fields`. Measured 20,334.
+    // 24,790 covers both N14 and the MCP stdout capture above; the merged entry passes under it.
     budget: 24_790,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
   },
@@ -362,7 +366,8 @@ const RULES: Record<string, EntryRule> = {
   // 15,250 on 2026-09-22 for D1; measured 15,206.
   "./schema": {
     allow: [],
-    budget: 15_250,
+    // 15,300 on 2026-09-23 for N14: `--schema` publishes a command's declared `fields`. Measured 15,275.
+    budget: 15_300,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
   },
   // Configuration precedence, provenance and `--explain`, which are `seniority`'s and are
@@ -632,6 +637,7 @@ const RULES: Record<string, EntryRule> = {
   // 215,200 on 2026-09-22 for D1, the definition-time refusal of a deprecation that names no replacement: `checkDeprecated` in `definition.js`, which `plugin.js` imports, so every entry that reaches the manifest pays it — the façades included, though they never call it with `true`. Measured 215,183.
   "./yargs": {
     allow: [],
+    // 215,300 on 2026-09-23 for N14, through the engine and the schema. Measured 215,252.
     // 215,250 on 2026-09-23: `export { Yargs as 'module.exports' }`, which yargs' own entry has, so `require('burgee/yargs')` hands a CommonJS caller the factory rather than a namespace. Measured 215,221.
     budget: 215_250,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],

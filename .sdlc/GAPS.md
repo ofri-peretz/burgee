@@ -32,7 +32,7 @@ Three kinds, because they close three different ways:
 | A13 | caique: clack 14/17 — the 3 are `guide.test.ts`, which renders all twelve clack prompts; `caique/clack` exports only `limitOptions`, so closing it is a clack prompt façade, not a fix | compat baselines | the twelve prompts, or the row restated to `limitOptions` |
 | ~~A14~~ | ~~the foundation layers are static imports of the engine~~ — **closed by restatement (D-136)**: two in-family specifiers are static and declared, the output stack is dynamic; the `.` weight rule asserts exactly that | burgee U13 | done |
 | A15 | `-` means stdin for a file positional | burgee S4, D-113 | `ArgumentSpec.type: 'file'`; `-` hands the handler `process.stdin`; a test pipes a file through `-` |
-| A16 | `--json=<a,b>` selects fields | burgee N14, D-114 | bare `--json` unchanged; `--json a` stays a positional; fields filter the envelope's data |
+| ~~A16~~ | ~~`--json=<a,b>` selects fields~~ — **closed**: `--json=a,b` selects, `--json=` lists declared `fields`, an unknown field refuses naming the valid set | burgee N14, D-114 | done |
 | ~~A17~~ | ~~`--schema <path> --field <name>`~~ — **closed**: dotted field paths below a command; an unknown step names the valid ones | burgee N13, D-116 | done |
 | A18 | a generated `config explain` | burgee V8, D-117 | synthesised when the program reads config; every value with the source that won |
 | A19 | `defineError({ name, code })` | burgee E7, D-118 | adds a `CLASSIFIED` row; a reused code fails at startup |
