@@ -152,9 +152,9 @@ export function serialize(line: HistoryLine): string {
   return `${JSON.stringify(line)}\n`;
 }
 
-/** Writes the run's line and returns the path relative to `root`. */
+/** Writes the run's line and returns the path relative to `root`, with `/` on every OS. */
 export function writeHistory(line: HistoryLine, root: string): string {
-  const rel = path.join(HISTORY_DIR, historyFileName(line));
+  const rel = path.posix.join(HISTORY_DIR, historyFileName(line));
   fs.mkdirSync(path.join(root, HISTORY_DIR), { recursive: true });
   fs.writeFileSync(path.join(root, rel), serialize(line));
   return rel;
