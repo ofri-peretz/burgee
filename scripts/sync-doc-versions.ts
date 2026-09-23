@@ -77,6 +77,49 @@ export function retarget(
   return { text: lines.join("\n"), changed };
 }
 
+/**
+ * The same move for an install example's range: `npm:closeout@^0.3` in a README, which
+ * `readme-range-lock.test.ts` requires the package's version to satisfy. A minor release of
+ * a 0.x package moves the version out of its own caret range, so without this every such
+ * release left the lock red for the next PR to trip over (closeout 0.4.0, 2026-09-23).
+ *
+ * Only an unsatisfied range is rewritten, to the caret range the version heads — `^0.4` for
+ * 0.4.x, `^2` for 2.x — at the precision it was written in, so a range that still holds is
+ * left exactly as the author wrote it.
+ */
+export function retargetRanges(
+  text: string,
+  versions: Map<string, string>,
+): { text: string; changed: string[] } {
+  const changed: string[] = [];
+  let next = text;
+  for (const [name, version] of versions) {
+    const [major = 0, minor = 0, patch = 0] = version.split(".").map(Number);
+    // eslint-disable-next-line secure-coding/detect-non-literal-regexp -- `escape` makes the manifest name a literal, as in `retarget`
+    const alias = new RegExp(String.raw`npm:${escape(name)}@\^(\d+)(?:\.(\d+))?(?:\.(\d+))?`, "g");
+    next = next.replace(alias, (whole, a: string, b?: string, c?: string) => {
+      const [ra, rb = 0, rc = 0] = [Number(a), Number(b ?? 0), Number(c ?? 0)];
+      const holds =
+        major === 0
+          ? ra === 0 && rb === minor && (c === undefined || patch >= rc)
+          : ra === major && (minor > rb || (minor === rb && patch >= rc));
+      if (holds) return whole;
+      const range = major === 0 ? `0.${minor}` : String(major);
+      changed.push(`npm:${name}@^${[a, b, c].filter((x) => x !== undefined).join(".")} → ^${range}`);
+      return `npm:${name}@^${range}`;
+    });
+  }
+  return { text: next, changed };
+}
+
+/** Every published package's README: the install examples live there. */
+function packageReadmes(): string[] {
+  const dir = join(REPO_ROOT, "packages");
+  return readdirSync(dir, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && existsSync(join(dir, e.name, "README.md")))
+    .map((e) => join("packages", e.name, "README.md"));
+}
+
 function main(): void {
   const check = process.argv.includes("--check");
   const versions = workspaceVersions();
@@ -89,6 +132,14 @@ function main(): void {
     process.stdout.write(
       `${doc}\n${changed.map((c) => `  ${c}`).join("\n")}\n`,
     );
+    if (!check) writeFileSync(path, text);
+  }
+  for (const doc of packageReadmes()) {
+    const path = join(REPO_ROOT, doc);
+    const { text, changed } = retargetRanges(readFileSync(path, "utf-8"), versions);
+    if (changed.length === 0) continue;
+    stale += changed.length;
+    process.stdout.write(`${doc}\n${changed.map((c) => `  ${c}`).join("\n")}\n`);
     if (!check) writeFileSync(path, text);
   }
   if (stale === 0)
