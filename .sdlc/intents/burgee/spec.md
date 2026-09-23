@@ -598,7 +598,7 @@ was quietly met.
 **The count.** 114 requirements, in seventeen families — `Z F O E V S P D T H M K J C B N U`.
 The prose above says *92* and *"Ninety-two requirements"*; both are wrong, and wrong the same
 way, because `E6 E7 V8 N11–N15` were added after the arithmetic was last done and `C1–C8`
-names two rows that do not exist. **Built: 92. Not built: 22**, and the count moves as rows are
+names two rows that do not exist. **Built: 93. Not built: 21**, and the count moves as rows are
 built rather than as the prose is rewritten — T1 moved on 2026-09-22 and the tally moved with
 it. An audit whose total disagrees with its own rows is the failure this paragraph is a record
 of; `spec-tally-lock.test.ts` now derives the two numbers from the tables instead of trusting
@@ -818,7 +818,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | U10 | **Built** | Restated by D-130. All nine packages declare `sideEffects` truthfully — each `bin`, plus paratext's two modules that register built-ins at load — and a root named import bundles to its subpath's bytes: 32 pairs, equal to the byte | `scripts/side-effects-lock.test.ts`; `scripts/tree-shake-fixture.test.ts` |
 | U11 | **Built** | twenty-one incumbents graded by their own suites with the rate published and ratcheting, zeroes included and labelled (`clack 0 / 606`, `lilconfig 0 / 77`, `rc` *target not built yet*) | `npm run compat`; `scripts/compat-page.test.ts` |
 | U12 | Not built | the design states the condition — *"locks when the independence install test passes for every layer and the first adopter installs a layer alone"* — and neither has happened | — |
-| U13 | Not built | `src/index.ts` statically re-exports from `seniority/precedence`, `src/execute.ts` imports it statically, `src/help.ts` imports `linegauge` and `src/shutdown.ts` imports `closeout`; the build is `tsc`, so those specifiers survive into `dist`. The **output-stack** half of the claim does hold and is locked: `roundel`, `flagstaff` and `caique` are denied by name from the `.` entry | `src/weight.test.ts`, the `.` rule's `denied` list |
+| U13 | **Built** | restated by D-132 — measured: `import 'burgee'` statically reaches two family specifiers, `closeout` (shutdown) and `seniority/precedence` (the resolver), both declared in-family dependencies (D-111), and nothing else in the family; the output stack — `roundel`, `flagstaff`, `caique` — and every optional surface (`help`, `schema`, `mcp`, completions, `--json=`, `config explain`) arrive by dynamic `import()`. The original text, *"`import 'burgee'` never resolves a family specifier"*, was false for the two the engine cannot run without | `src/weight.test.ts` — the `.` rule's `allow` is exactly `closeout` and `seniority/precedence`, and its `denied` names the output stack |
 
 ### Requirements restated
 
