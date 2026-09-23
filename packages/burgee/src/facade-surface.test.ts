@@ -58,7 +58,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { Command } from './commander.js';
 import { toolsOf } from './mcp.js';
-import yargs, { type YargsInstance } from './yargs.js';
+import yargs, { type Argv } from './yargs.js';
 
 /** A program in plain commander syntax. Nothing here is burgee's. */
 function commanderProgram(): Command {
@@ -123,8 +123,8 @@ describe('G1/G2 — a façade command is a tool, and says what it did not declar
   it('does the same for a program in plain yargs syntax', () => {
     const y = yargs([])
       .scriptName('ydemo')
-      .command('greet <who>', 'greet someone', (b: YargsInstance) => b, () => undefined)
-      .command('wipe', 'delete everything', (b: YargsInstance) => b.effects('withheld'), () => undefined);
+      .command('greet <who>', 'greet someone', (b: Argv) => b, () => undefined)
+      .command('wipe', 'delete everything', (b: Argv) => b.effects('withheld'), () => undefined);
     const tools = toolsOf(y.manifest);
     expect(tools.map((t) => t.name)).toEqual(['greet']);
     expect(tools[0]?.annotations).toEqual({ effects: 'undeclared' });
