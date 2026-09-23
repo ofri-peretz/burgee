@@ -17,7 +17,7 @@ import { Command } from './commander.js';
 import { defineCommand, defineProgram } from './index.js';
 import { machineJson } from './schema.js';
 import { runBurgee } from './testing.js';
-import yargs, { type YargsInstance } from './yargs.js';
+import yargs, { type Argv } from './yargs.js';
 
 const JSON_PRETTY = '--format=json-pretty';
 
@@ -177,7 +177,7 @@ const throughYargs = async (argv: string[]): Promise<string> => {
     .scriptName('tool')
     .version('1.0.0')
     .burgee({ stdout: { write: (s: string) => void out.push(s) }, stderr: { write: () => undefined }, exit: () => undefined })
-    .command('info', 'Show info', (cmd: YargsInstance) => cmd.effects('withheld'), () => undefined)
+    .command('info', 'Show info', (cmd: Argv) => cmd.effects('withheld'), () => undefined)
     .parseAsync(argv);
   return out.join('');
 };
