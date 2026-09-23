@@ -279,5 +279,8 @@ export function rc(name: string, defaults?: RcConfig | string, argv?: RcConfig, 
   return resolved;
 }
 
+// `'module.exports'` is what Node hands a CommonJS `require()` of an ES module, so
+// `require('seniority/rc')` gets this function, as `require('rc')` does.
+export { rc as 'module.exports' };
 // eslint-disable-next-line import-next/no-default-export -- The drop-in shape: `require('rc')(name, defaults)` is how every program written for rc reaches it, and the generated shim re-exports this under the `module.exports` name that `require()` of an ES module returns whole.
 export default rc;

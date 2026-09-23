@@ -74,7 +74,12 @@ describe('Z1 — one file, npm i, no build step', { timeout: SPAWN }, () => {
         "const { run, format } = require('bellpull');",
         "const { whichSync } = require('bellpull/which');",
         "const crossSpawn = require('bellpull/cross-spawn');",
-        "process.stdout.write([run, format, whichSync, crossSpawn.default, crossSpawn.sync].map((f) => typeof f).join(' '));",
+        // Restated 2026-09-23: this read `crossSpawn.default`, which pinned the namespace a
+        // `require()` of an ES module returns — and that is what broke every
+        // `const spawn = require('cross-spawn'); spawn(...)` caller migrated here. The module
+        // now exports its default as `'module.exports'`, so `require()` hands back the function
+        // itself with `.sync` on it, as cross-spawn does (drop-in-require-shape-lock.test.ts).
+        "process.stdout.write([run, format, whichSync, crossSpawn, crossSpawn.sync].map((f) => typeof f).join(' '));",
       ].join('\n'),
     );
     try {
