@@ -112,7 +112,8 @@ describe('the failure is a usage error in this CLI’s established shape', () =>
   it('--json carries it in the same envelope every other usage error uses', async () => {
     const r = await run(['export', '--json', '--csv', '--table']);
     expect(r.code).toBe(ExitCode.USAGE);
-    expect(JSON.parse(r.stderr)).toEqual({
+    expect(r.stderr).toBe('');
+    expect(JSON.parse(r.stdout)).toEqual({
       ok: false,
       error: { code: ExitCode.USAGE, message: '--csv, --table cannot be used together', hint: 'drop one of them' },
     });

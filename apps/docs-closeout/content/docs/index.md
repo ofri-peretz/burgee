@@ -8,9 +8,8 @@ description: "Close everything out. Exit handlers that run exactly once on every
 Exit handlers that run exactly once on every path, terminal restore, and a bounded deadline
 so shutdown cannot hang.
 
-It replaces **signal-exit**, **exit-hook** and **restore-cursor** — the last two through
-drop-in subpaths graded by their own suites; signal-exit's drop-in is not shipped until it can
-be graded. Every handler gets one record, and `reportToJson()` and `reportToEvent()` project
+It replaces **signal-exit**, **exit-hook** and **restore-cursor**, each through a drop-in
+subpath graded by the incumbent's own suite. Every handler gets one record, and `reportToJson()` and `reportToEvent()` project
 that record as a `--json` line or an agent event.
 
 To *close out* is to settle and finish — an account, a position, a shift. Everything
@@ -272,7 +271,7 @@ What `signal-exit`, `exit-hook`, `restore-cursor`, `cli-cursor`, `onetime` and `
 between them is one problem — leaving cleanly — and this is one package with no dependencies
 rather than six with a tree.
 
-Two of those paths are built and **graded by the incumbent's own test suite**, unedited apart
+Three of those paths are built and **graded by the incumbent's own test suite**, unedited apart
 from the import specifier, through `compat-oracle`. The control column is that suite run
 against the incumbent itself, which is what says the gate works before it grades us:
 
@@ -280,17 +279,21 @@ against the incumbent itself, which is what says the gate works before it grades
 | :-- | :-- | --: | --: |
 | `closeout/exit-hook` | `exit-hook@5.1.0` (8.8 M/wk) | 21 / 21 | 21 / 21 |
 | `closeout/restore-cursor` | `restore-cursor@5.1.0` (107.5 M/wk) | 6 / 6 | 6 / 6 |
+| `closeout/signal-exit` | `signal-exit@4` (198.9 M/wk) | 134 / 135 | 134 / 135 |
+
+The one `signal-exit` case short fails against `signal-exit` itself as well, which is what the
+control column is for.
 
 ```js
 import exitHook, {asyncExitHook, gracefulExit} from 'closeout/exit-hook';
 import restoreCursor from 'closeout/restore-cursor';
+import {onExit} from 'closeout/signal-exit';
 ```
 
-or, without touching the source at all:
-
-```json
-{ "overrides": { "exit-hook": "npm:closeout@^0.5", "restore-cursor": "npm:closeout@^0.5" } }
-```
+The swap is an import change, not an `overrides` entry. An override points the incumbent's
+name at closeout's *root*, and the root is closeout's own API — it has one default to give,
+and three incumbents would each need it. An override for a transitive copy has nowhere to
+land, so this package does not print one.
 
 One thing to know before you swap `exit-hook`: its bound is per hook (`{ wait }`) and the
 façade keeps that bound rather than imposing closeout's own 2 000 ms deadline, because a
@@ -305,11 +308,7 @@ product. Startup cost is the half that matches: p50 over 21 spawns, importing
 `closeout/exit-hook` costs **4.5 ms** over a bare `node`, and importing `exit-hook` itself
 costs **4.6 ms**.
 
-**Still to come:** raw mode and alternate-screen restore, and the `signal-exit` path. That
-last one is not written because it cannot yet be *graded*: `signal-exit`'s suite runs under
-`tap` with a `ts-node/esm` loader and reaches into its own `dist/`, none of which the
-compatibility harness supports today. Shipping an ungraded drop-in for the package with
-198.9 M weekly downloads is exactly the claim this project refuses to make.
+**Still to come:** raw mode and alternate-screen restore.
 
 ## Benchmarks
 
@@ -323,7 +322,7 @@ Graded by the incumbent's own test suite:
 | `restore-cursor` | 6 / 6 |
 | `signal-exit` | 134 / 135 |
 
-Weight, installed and tree-inclusive: **103,164 bytes** against **170,604** for the incumbents it replaces — a ratio of **0.6047** (exit-hook measured but left out of the ceiling, so it is understated).
+Weight, installed and tree-inclusive: **103,421 bytes** against **170,604** for the incumbents it replaces — a ratio of **0.6062** (exit-hook measured but left out of the ceiling, so it is understated).
 ## Where it sits
 
 Plugins register under the `handlers` key, against the one schema the whole family shares.

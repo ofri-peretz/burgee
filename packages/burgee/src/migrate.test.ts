@@ -30,7 +30,7 @@ import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { ExitCode } from './exit-code.js';
-import { bindingsOf, DirtyTreeError, FACADE_EXPORTS, MAPPING, migrate, rewriteSource, scan, sourceFiles, workingTree } from './migrate.js';
+import { bindingsOf, DirtyTreeError, FACADE_EXPORTS, MAPPING, migrate, packageOf, rewriteSource, scan, sourceFiles, workingTree } from './migrate.js';
 
 /** A project on disk, under a fresh temporary directory each time. */
 function project(files: Record<string, string>): string {
@@ -46,16 +46,49 @@ function project(files: Record<string, string>): string {
 const clean = (): undefined => undefined;
 const read = (dir: string, file: string): string => readFileSync(join(dir, file), 'utf8');
 
+/** Whether a family specifier is a subpath its package's exports map publishes. */
+function published(to: string): boolean {
+  const name = packageOf(to);
+  const pkg = JSON.parse(readFileSync(new URL(`../../${name}/package.json`, import.meta.url), 'utf8')) as { exports: Record<string, unknown> };
+  return pkg.exports[`.${to.slice(name.length)}`] !== undefined;
+}
+
 describe('A2 — the mapping is data, and it is the design’s table', () => {
   it('maps every row, subpaths included', () => {
     // M-a: collapsing `yargs/helpers` to `burgee/yargs` is the mutation this kills. It is
     // the plausible one — three of the four rows have no subpath on the right — and it
     // would hand a user `hideBin` from a module that does not export it.
+    //
+    // Restated 2026-09-23 (A12, D-137): the table grew from commander and yargs to every
+    // drop-in the oracle grades level with its incumbent, so it is written out here in full
+    // — a row that appears or disappears is a decision, and this is where it shows.
+    // `scripts/migrate-drop-ins-lock.test.ts` holds the same list equal to `compat-oracle`.
     expect(MAPPING).toEqual({
       commander: 'burgee/commander',
       yargs: 'burgee/yargs',
       'yargs/yargs': 'burgee/yargs',
       'yargs/helpers': 'burgee/yargs/helpers',
+      'yargs-parser': 'burgee/yargs/parser',
+      chalk: 'roundel/chalk',
+      ora: 'flagstaff/ora',
+      'log-update': 'flagstaff/log-update',
+      boxen: 'flagstaff/boxen',
+      'cli-table3': 'flagstaff/cli-table3',
+      'string-width': 'linegauge',
+      'strip-ansi': 'linegauge/strip',
+      'wrap-ansi': 'linegauge/wrap',
+      'slice-ansi': 'linegauge/slice',
+      'cross-spawn': 'bellpull/cross-spawn',
+      'ansi-escapes': 'paratext',
+      which: 'bellpull/node-which',
+      rc: 'seniority/rc',
+      'terminal-link': 'paratext/terminal-link',
+      lilconfig: 'seniority/lilconfig',
+      '@inquirer/core': 'caique/inquirer',
+      'restore-cursor': 'closeout/restore-cursor',
+      'exit-hook': 'closeout/exit-hook',
+      'signal-exit': 'closeout/signal-exit',
+      'signal-exit/signals': 'closeout/signal-exit/signals',
     });
   });
 
@@ -65,11 +98,11 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
     expect(mapped).toEqual([{ from: 'yargs/helpers', to: 'burgee/yargs/helpers' }]);
   });
 
-  it('every specifier it can produce is a subpath burgee actually publishes', () => {
+  it('every specifier it can produce is a subpath its package actually publishes', () => {
     // A mapping to an unpublished subpath is a codemod that installs ERR_MODULE_NOT_FOUND.
-    const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { exports: Record<string, unknown> };
-    const published = new Set(Object.keys(pkg.exports).map((e) => e.replace(/^\./, 'burgee')));
-    expect([...new Set(Object.values(MAPPING))].filter((to) => !published.has(to))).toEqual([]);
+    // Restated 2026-09-23 (A12): the targets are no longer all burgee's, so each is checked
+    // against the exports map of the family package it names.
+    expect([...new Set(Object.values(MAPPING))].filter((to) => !published(to))).toEqual([]);
   });
 
   it('is a fixed point: a migrated file migrates to itself', () => {
@@ -179,7 +212,9 @@ describe('A5 — the unit of success is the file', () => {
       'src/b.ts': "import 'yargs';\n",
     });
     const report = await migrate({ dir, status: clean });
-    expect(report.dependencies).toEqual({ before: ['commander', 'yargs'], removable: ['yargs'], after: 1 });
+    // `add` joined the report with A12: the rewritten import names burgee, which this
+    // project does not declare yet.
+    expect(report.dependencies).toEqual({ before: ['commander', 'yargs'], removable: ['yargs'], after: 1, add: ['burgee'] });
   });
 });
 
@@ -242,7 +277,9 @@ describe('A7 — the numbers in the report are read, not typed', () => {
     const dir = project({ 'src/a.ts': "import 'commander';\n" });
     // M-d lands in `compat-baseline-lock.test.ts`, which holds these equal to
     // `compat-oracle/baseline/commander.json`. This case only proves the report reaches them.
-    expect((await migrate({ dir, status: clean })).graded).toEqual([{ host: 'commander', reference: 1360, passed: 1360, rate: 1 }]);
+    // `control` joined the row with A12 (D-137): it is what decides whether a drop-in is
+    // rewritten at all, so the report shows it beside the grade.
+    expect((await migrate({ dir, status: clean })).graded).toEqual([{ host: 'commander', reference: 1360, passed: 1360, rate: 1, control: 1360 }]);
   });
 
   it('does not claim a graded row for a host the project does not use', async () => {
@@ -279,8 +316,105 @@ describe('A8 — the exit code says whether anything was left undone', () => {
   it('carries every count the human surface prints', async () => {
     const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { commander: '^15.0.0' } }), 'src/a.ts': "import 'commander';\n" });
     expect(Object.keys(await migrate({ dir, status: clean })).sort()).toEqual(
-      ['changed', 'dependencies', 'detected', 'dryRun', 'exitCode', 'files', 'graded', 'imports', 'kept', 'mapped', 'refused'].sort(),
+      // `partial`, `offMajor` and `next` joined with A12: what was left alone and why, and the command to run.
+      ['changed', 'dependencies', 'detected', 'dryRun', 'exitCode', 'files', 'graded', 'imports', 'kept', 'mapped', 'next', 'offMajor', 'partial', 'refused'].sort(),
     );
+  });
+});
+
+describe('A12 — every drop-in the oracle grades level, in one run', () => {
+  it('rewrites the family drop-ins beside the front-ends, in one pass over one file', () => {
+    // cross-spawn was a `require()` here until the case below: a require of an ES module with a
+    // default gets its namespace, so that rewrite produced `spawn is not a function`.
+    const source = "import { Command } from 'commander';\nimport chalk from 'chalk';\nimport ora from 'ora';\nimport spawn from 'cross-spawn';\n";
+    expect(rewriteSource(source).source).toBe(
+      "import { Command } from 'burgee/commander';\nimport chalk from 'roundel/chalk';\nimport ora from 'flagstaff/ora';\nimport spawn from 'bellpull/cross-spawn';\n",
+    );
+  });
+
+  it('keeps a scoped incumbent whole, and refuses a deep import into it', () => {
+    expect(rewriteSource("import { createPrompt } from '@inquirer/core';\n").source).toBe("import { createPrompt } from 'caique/inquirer';\n");
+    expect(rewriteSource("import x from '@inquirer/core/dist/esm/lib/key.js';\n").refused).toEqual([{ line: 1, specifier: '@inquirer/core/dist/esm/lib/key.js', reason: 'deep-import' }]);
+    expect(packageOf('@inquirer/core/dist/x.js')).toBe('@inquirer/core');
+  });
+
+  it('leaves a drop-in that is not level yet alone, and says so with its grade', async () => {
+    // dotenv's drop-in passes 106 of the 141 cases dotenv itself passes: rewriting it would
+    // be a migration that breaks someone. It is reported, not refused — `dotenv/config` is
+    // not a deep import into anything this command rewrites.
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { dotenv: '^17.0.0', chalk: '^6.0.0' } }),
+      'src/a.ts': "import 'dotenv/config';\nimport chalk from 'chalk';\n",
+    });
+    const report = await migrate({ dir, status: clean });
+    expect(read(dir, 'src/a.ts')).toBe("import 'dotenv/config';\nimport chalk from 'roundel/chalk';\n");
+    expect(report.refused).toEqual([]);
+    expect(report.partial).toEqual([{ from: 'dotenv', to: 'seniority/dotenv', reference: 141, passed: 106, rate: 0.75177304964539, control: 141 }]);
+  });
+
+  it('names the family packages to add, and the command that adds them and removes the incumbents', async () => {
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { chalk: '^6.0.0', ora: '^9.0.0', flagstaff: '^0.5.0' } }),
+      'pnpm-lock.yaml': '',
+      'src/a.ts': "import chalk from 'chalk';\nimport ora from 'ora';\n",
+    });
+    const report = await migrate({ dir, status: clean });
+    // flagstaff is already declared, so only roundel is new.
+    expect(report.dependencies.add).toEqual(['roundel']);
+    expect(report.next).toBe('pnpm add roundel && pnpm remove chalk ora');
+  });
+
+  it('defaults the next step to npm, and prints nothing when there is nothing to do', async () => {
+    const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { 'string-width': '^8.0.0' } }), 'src/a.ts': "import w from 'string-width';\n" });
+    expect((await migrate({ dir, status: clean })).next).toBe('npm install linegauge && npm uninstall string-width');
+    const empty = project({ 'src/a.ts': 'export {};\n' });
+    expect((await migrate({ dir: empty, status: clean })).next).toBe('');
+  });
+
+  it('checks a family target\'s exports too: a type it lacks is kept, a value it lacks refuses', () => {
+    // flagstaff/cli-table3 has no `HorizontalAlignment` type (a named gap in
+    // drop-in-type-surface-lock.test.ts); the type-only import stays on cli-table3 and says
+    // why, while `cli-table3` itself moves. roundel/chalk has no `modifiers` array: a value
+    // import of it would not run, so the file is refused rather than rewritten.
+    const kept = rewriteSource("import Table from 'cli-table3';\nimport type { HorizontalAlignment } from 'cli-table3';\n");
+    expect(kept.source).toBe("import Table from 'flagstaff/cli-table3';\nimport type { HorizontalAlignment } from 'cli-table3';\n");
+    expect(kept.kept.map((k) => k.names)).toEqual([['HorizontalAlignment']]);
+    expect(rewriteSource("import { modifiers } from 'chalk';\n").refused.map((r) => r.specifier)).toEqual(['chalk']);
+  });
+
+  it('moves a require() whose two sides return the same kind of value (A29)', () => {
+    // Restated 2026-09-23 (A29). This expected `require('chalk')` refused, reasoning from chalk
+    // 4, whose CommonJS `require()` returned the function. The chalk migrate rewrites is 6
+    // (GRADED_VERSIONS; other majors are skipped), which is ESM only: its `require()` returns a
+    // namespace, and so does roundel/chalk's, so the line reads the same either way.
+    // `migrate-require.test.ts` holds every pair to what Node's own `require()` returns.
+    // commander's façade has no default, so `const { Command } = require('commander')` reads
+    // the same names either way.
+    expect(rewriteSource("const chalk = require('chalk');\n").source).toBe("const chalk = require('roundel/chalk');\n");
+    expect(rewriteSource("const { Command } = require('commander');\n").source).toBe("const { Command } = require('burgee/commander');\n");
+    expect(rewriteSource("const { onExit } = require('signal-exit');\n").source).toBe("const { onExit } = require('closeout/signal-exit');\n");
+  });
+
+  it('leaves an incumbent on another major alone, and says which versions', async () => {
+    // signal-exit 3 exports a function; the grade is for 4, which exports `onExit`. Rewriting
+    // `require('signal-exit')(cb)` onto closeout/signal-exit would call an object. The installed
+    // version wins over the declared range: chalk is declared ^6 and installed at 4.1.2.
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { 'signal-exit': '^3.0.7', chalk: '^6.0.0', ora: '^9.0.0' } }),
+      'node_modules/chalk/package.json': JSON.stringify({ name: 'chalk', version: '4.1.2' }),
+      'src/a.js': "const onExit = require('signal-exit');\nimport chalk from 'chalk';\nimport ora from 'ora';\n",
+    });
+    const report = await migrate({ dir, status: clean });
+    expect(read(dir, 'src/a.js')).toBe("const onExit = require('signal-exit');\nimport chalk from 'chalk';\nimport ora from 'flagstaff/ora';\n");
+    expect(report.offMajor).toEqual([
+      { from: 'chalk', found: '4.1.2', graded: '6.0.0' },
+      { from: 'signal-exit', found: '^3.0.7', graded: '4.1.0' },
+    ]);
+    expect(report.dependencies.removable).toEqual(['ora']);
+  });
+
+  it('maps a subpath of an incumbent to the same subpath of its drop-in', () => {
+    expect(rewriteSource("import { signals } from 'signal-exit/signals';\n").source).toBe("import { signals } from 'closeout/signal-exit/signals';\n");
   });
 });
 
@@ -352,7 +486,8 @@ describe('A11 — a rewrite moves only names the target exports', () => {
     });
     const report = await migrate({ dir, status: clean });
     expect(report.kept).toMatchObject([{ file: 'src/a.ts', line: 2, specifier: 'yargs', names: ['NotAYargsType'] }]);
-    expect(report.dependencies).toEqual({ before: ['yargs'], removable: [], after: 1 });
+    // `add` joined the report with A12: the rewritten imports now name burgee.
+    expect(report.dependencies).toEqual({ before: ['yargs'], removable: [], after: 1, add: ['burgee'] });
     expect(report.exitCode, 'a kept type import is a note, not a failure — the program compiles and runs').toBe(ExitCode.OK);
     expect(read(dir, 'src/a.ts')).toBe("import yargs from 'burgee/yargs';\nimport type { NotAYargsType } from 'yargs';\n");
   });

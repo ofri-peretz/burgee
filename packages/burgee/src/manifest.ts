@@ -163,6 +163,8 @@ export interface ArgumentSpec {
   required?: boolean;
   variadic?: boolean;
   default?: string;
+  /** `'file'`: a path, where `-` means standard input — handed to the handler as `ctx.stdin` (S4). */
+  type?: 'file';
 }
 
 /** One example: a single copy-pasteable command line, the description below it (H2). */
@@ -186,6 +188,11 @@ export interface RunContext {
   options: Record<string, unknown>;
   positionals: string[];
   passthrough: string[];
+  /**
+   * Standard input, present only when a `type: 'file'` argument was given `-` (S4). The
+   * positional still reads `-`, so a handler checks it the same way it checks a path.
+   */
+  stdin?: NodeJS.ReadableStream;
   env: Record<string, string | undefined>;
   /** Exit with an E1 code. Unwinds cleanly: the code is honoured and nothing is printed. */
   exit: (code: number) => never;
@@ -233,6 +240,8 @@ export interface CommandNode {
    * none, so a façade's command is withheld in fact and cannot be made to say so.
    */
   effects?: DeclaredEffects;
+  /** The result's top-level fields, as declared (N14); what `--json=` lists. */
+  fields?: readonly string[];
   run?: (ctx: RunContext) => unknown;
   /**
    * The handler's module, imported on dispatch only (M2): the manifest — help, schema,
@@ -261,10 +270,21 @@ export interface HookFilter {
   command?: RegExp;
 }
 
+/** What a hook is handed. `argv` on `parse` only; `options` is empty on `parse` and `shutdown`. */
+export interface HookContext {
+  command: string;
+  options: Record<string, unknown>;
+  argv?: string[];
+}
+
 export interface Hook {
   filter?: HookFilter;
-  handler: (ctx: { command: string; options: Record<string, unknown> }) => void | Promise<void>;
+  /** `parse` may return the argv to use instead; every other stage's return is ignored. */
+  handler: (ctx: HookContext) => unknown;
 }
+
+/** The stages a plugin hook fires at. `parse` and `shutdown` bracket the run (D-122). */
+export type HookStage = 'parse' | 'preRun' | 'postRun' | 'onError' | 'shutdown';
 
 /** Rolldown's lesson: evaluate the filter before crossing the boundary. */
 export function hookApplies(hook: Hook | undefined, command: string): hook is Hook {
@@ -318,8 +338,23 @@ export class Manifest {
     );
   }
 
+  /** Whether any registered plugin declares a hook at `stage` — so a run without one pays nothing. */
+  declares(stage: HookStage): boolean {
+    return this.plugins.some((p) => p.hooks?.[stage] !== undefined);
+  }
+
+  /**
+   * `parse` (D-122): argv in, argv out, before the command is resolved. Each plugin, in
+   * `enforce` order, is handed what the previous one returned; returning nothing keeps it.
+   * A filter is matched against the typed argv, since no command has been resolved yet.
+   */
+  async parse(argv: string[]): Promise<string[]> {
+    // Its own chunk: only a program with a `parse` hook loads the loop that runs one.
+    return (await import('./parse-hooks.js')).runParseHooks(this.ordered(), argv);
+  }
+
   async fire(
-    stage: 'preRun' | 'postRun' | 'onError',
+    stage: Exclude<HookStage, 'parse'>,
     command: string,
     options: Record<string, unknown>,
   ): Promise<void> {

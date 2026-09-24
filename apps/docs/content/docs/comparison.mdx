@@ -28,13 +28,13 @@ never for gating; the machine-independent figure is the ratio on
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
 | Downloads / week | new | 508.2M | 259.3M | 10.9M | 49.4M | 30.5M |
 | Runtime dependencies | **5**, none outside the burgee family | 0 | 6 | **18** | 0 | 0 |
-| Installed size ⚙️ | 1230 KB | 203 KB | 515 KB | 912 KB 📖 | 40 KB | 52 KB 📖 |
+| Installed size ⚙️ | 1276 KB | 203 KB | 515 KB | 912 KB 📖 | 40 KB | 52 KB 📖 |
 | Full CLI run over bare node ⚙️ | **+14.0 ms** | +15.3 ms | +78.5 ms | +131 ms 📖 | +4.0 ms | +6 ms 📖 |
 
 Three things in that table got worse when they were measured rather than asserted, and
 they stay in it.
 
-**Installed size.** burgee installs at **1230 KB**. It is our largest number, it is our least
+**Installed size.** burgee installs at **1276 KB**. It is our largest number, it is our least
 flattering one, and it has now been wrong on this page twice in opposite directions.
 
 First it said 104 KB, a guess at the tarball rather than a measurement. That was corrected
@@ -57,7 +57,7 @@ searching `PATHEXT`, and it is simply wrong for a subcommand that is a `.cmd`, a
 a shebang that is not node. The check on this row is what surfaced the cost, which is the
 argument for the check.
 
-It buys no dependency outside the burgee family and seven drop-in front ends. It is still 1230 KB, and the
+It buys no dependency outside the burgee family and seven drop-in front ends. It is still 1276 KB, and the
 bundled column on [Benchmarks](/docs/benchmarks) — what an application actually grows by —
 is the number to judge us on. That one is over its own ceiling too, and says so.
 

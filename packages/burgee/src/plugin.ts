@@ -63,7 +63,7 @@
  * plugin author in another package imports and what a family lock reads.
  */
 import { checkCommand, type Declared } from './definition.js';
-import { type CommandNode, type Hook, type OptionSpec } from './manifest.js';
+import { type CommandNode, type Hook, type HookStage, type OptionSpec } from './manifest.js';
 
 /**
  * The plugin contract version. One number for the family — the same `1` flagstaff, caique and
@@ -82,7 +82,7 @@ export interface Plugin {
   name: string;
   contract?: number;
   commands?: CommandNode[];
-  hooks?: { preRun?: Hook; postRun?: Hook; onError?: Hook };
+  hooks?: Partial<Record<HookStage, Hook>>;
   enforce?: 'pre' | 'post';
 }
 
@@ -112,8 +112,8 @@ const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
  */
 const ENFORCE: readonly string[] = ['pre', 'post'];
 
-/** The three moments a hook may be fired at. A fourth spelling is a typo that never fires. */
-const STAGES: readonly string[] = ['preRun', 'postRun', 'onError'];
+/** The moments a hook may be fired at. Any other spelling is a typo that never fires. */
+const STAGES: readonly string[] = ['parse', 'preRun', 'postRun', 'onError', 'shutdown'];
 
 const schema = (message: string, fix: string): PluginError => new PluginError('E_PLUGIN_SCHEMA', message, fix);
 
