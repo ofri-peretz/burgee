@@ -18,7 +18,7 @@ import { camel, kebab } from './names.js';
 import { nearestPackage, type Package } from './pkg.js';
 import { host } from './runtime.js';
 import { detachedTeardown, processTeardown, type Teardown } from './shutdown.js';
-import { checkRelations, coerce, UsageError } from './validate.js';
+import { coerce, UsageError } from './validate.js';
 
 export interface CommandContext<O> extends Omit<RunContext, 'options'> {
   options: O;
@@ -672,8 +672,10 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   // S6: relations, then each value — numbers, choices, its Standard Schema — then the handler.
   // `relationsOf` is what makes `dependsOn`/`exclusive` enforced rather than documented: the
   // command's own `relations` and the ones its options spell on themselves are one list here,
-  // and `schema.ts` publishes that same list.
-  checkRelations(relationsOf(node), resolved.values, provenance);
+  // and `schema.ts` publishes that same list. The check is its own chunk (U5), loaded only
+  // for a command that declares a relation.
+  const relations = relationsOf(node);
+  if (relations.length > 0) (await import('./relations.js')).checkRelations(relations, resolved.values, provenance);
   const values = await coerce(node.options, resolved.values);
   const { positionals, passthrough } = splitPositionals(parsed.tokens);
   requirePositionals(node, positionals);

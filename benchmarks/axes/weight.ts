@@ -372,7 +372,9 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // 28,076 on 2026-09-24 for U5: the failure path — `describeFailure`, the classification
   // table, the named-refusal lookup and the envelope — moved to `failure.js`, imported only from
   // the `catch`. Measured 27,996.
-  burgee: 28_076,
+  // 27,018 on 2026-09-24 for U5: relation checking (`exactlyOneOf` … `implies`) moved to
+  // `relations.js`, imported only for a command that declares a relation. Measured 26,938.
+  burgee: 27_018,
   // 29,650 on 2026-09-23: D-140 and #521 on top of V8 (#481). Measured 29,634.
   // 29,200 on 2026-09-23 for **56 bytes**, the MCP stdout capture (#521): measured 29,172 on
   // top of D-122's 29,116. The capture lives in the lazily loaded MCP chunk; what reaches the
