@@ -8,7 +8,7 @@
 param([Parameter(Mandatory)][string]$Script, [Parameter(Mandatory)][string]$Line)
 $program = ($Line -split ' ')[0]
 $dir = $null
-if (-not (Get-Command $program -CommandType Application -ErrorAction SilentlyContinue)) {
+if (-not (Get-Command $program -CommandType Application -TotalCount 1 -ErrorAction SilentlyContinue)) {
   $dir = Join-Path ([System.IO.Path]::GetTempPath()) ("burgee-complete-" + [guid]::NewGuid().ToString('N'))
   New-Item -ItemType Directory -Path $dir | Out-Null
   if ($IsWindows) {
