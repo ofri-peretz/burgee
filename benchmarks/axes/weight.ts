@@ -338,13 +338,18 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // stdin. The check itself is `stdin-dash.js`, imported only when a positional is `-`; what
   // stays on the startup path is that test and the spread into the handler's context.
   // Measured 29,209.
+  // 29,450 on 2026-09-23 for **303 bytes**, D-117 (V8): `config explain`. The command is
+  // `config-explain.js`, imported only on that path; what stays on the startup path is the
+  // test that recognises it and the `resolution` step a run and the command share.
+  // Measured 29,419.
+  // 29,550 with V8 on top of S4, after merging main. Measured 29,512.
+  burgee: 29_550,
   // 29,200 on 2026-09-23 for **56 bytes**, the MCP stdout capture (#521): measured 29,172 on
   // top of D-122's 29,116. The capture lives in the lazily loaded MCP chunk; what reaches the
   // startup graph is the `host` seam it shares with the entry.
   // 29,250 on 2026-09-23 for **66 bytes**, D-140: the `--json` failure path classifies a
   // thrown error once for every front end. Measured 29,238 on top of #521's 29,172.
   // 29,350 on 2026-09-23: D-140's 66 bytes and #521 on top of S4's 93 (29,238 + 93). Measured 29,331.
-  burgee: 29_350,
   // 59,250 on 2026-09-22 for **61 bytes**: the `.catch` that fires `onError`. A plugin's
   // lifecycle closes on every front end now — `preRun` opens and exactly one of `postRun` or
   // `onError` closes — where before a handler that threw left a plugin with no closing hook.

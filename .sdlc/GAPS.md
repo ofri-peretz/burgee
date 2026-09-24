@@ -34,7 +34,7 @@ Three kinds, because they close three different ways:
 | ~~A15~~ | ~~`-` means stdin for a file positional~~ — **closed**: `type: 'file'` arguments hand `-` over as `ctx.stdin`; two `-` refused | burgee S4, D-113 | done |
 | ~~A16~~ | ~~`--json=<a,b>` selects fields~~ — **closed**: `--json=a,b` selects, `--json=` lists declared `fields`, an unknown field refuses naming the valid set | burgee N14, D-114 | done |
 | ~~A17~~ | ~~`--schema <path> --field <name>`~~ — **closed**: dotted field paths below a command; an unknown step names the valid ones | burgee N13, D-116 | done |
-| A18 | a generated `config explain` | burgee V8, D-117 | synthesised when the program reads config; every value with the source that won |
+| ~~A18~~ | ~~a generated `config explain`~~ — **closed**: synthesised from the resolver's order and provenance; `--json`; gives way to a program's own | burgee V8, D-117 | done |
 | ~~A19~~ | ~~`defineError({ name, code })`~~ — **closed**: the class leaves with its code, rendered like `UsageError`; a reused or reserved code throws at definition | burgee E7, D-118 | done |
 | A20 | `dynamic: true` completion marker | burgee D3, D-119 | opt-in per option; completion scripts call back only for those |
 | A21 | non-TTY prompt exits 2, cancelled prompt exits 4 | burgee P2, P3, D-120 | an `ask()` bridge maps caique's verdict to `UsageError` / `CANCELLED`, no new dependency edge |
