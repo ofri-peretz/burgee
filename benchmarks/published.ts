@@ -16,8 +16,9 @@
  * the point of them, and the ms rows were not, which is also the point of them.
  *
  * So the filename carries the distinction. `YYYY-MM-DD.json` is the published measurement;
- * `YYYY-MM-DD-<sha>.json` is an observation from the run at that commit. The bands glob
- * the directory and see both. The docs read only the first, and a CI run can no longer
+ * `YYYY-MM-DD-<sha>-<ci|local>.json` is an observation from a run at that commit, on a CI
+ * runner or not (D-142 — without the suffix two machines' runs of one commit shared a path).
+ * The bands glob the directory and read the CI runs of both shapes. The docs read only the first, and a CI run can no longer
  * change a public number without a person choosing to.
  */
 import { existsSync, readdirSync } from 'node:fs';
