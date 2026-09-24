@@ -66,6 +66,12 @@ export interface Command<S extends OptionSpecs = OptionSpecs> {
   effects?: DeclaredEffects;
   /** Relationships between options, validated before choices and the handler (S2, S6). */
   relations?: readonly Relation[];
+  /**
+   * The top-level fields of this command's result (N14). With them, `--json=` lists them
+   * without running the handler and `--json=a,b` refuses an unknown field before it runs.
+   * Without them `--json=a,b` still selects, checked against the result's own keys.
+   */
+  fields?: readonly string[];
   /** Absent on a group that only holds subcommands. `NoInfer`: the spec fixes S, the handler only reads it. */
   run?: (ctx: CommandContext<InferOptions<NoInfer<S>>>) => unknown;
   /** The handler's module, imported on dispatch only (M2); everything else about the command is declared here. */
@@ -86,6 +92,7 @@ function helpFields(c: AnyCommand): Partial<CommandNode> {
   if (c.deprecated !== undefined) node.deprecated = c.deprecated;
   if (c.effects !== undefined) node.effects = c.effects;
   if (c.relations !== undefined) node.relations = c.relations;
+  if (c.fields !== undefined) node.fields = c.fields;
   return node;
 }
 
@@ -253,7 +260,7 @@ function toParseConfig(specs: Record<string, OptionSpec>, withConfig: boolean): 
     // boolean flag cannot carry a value, so `--x=false` is refused. Without `--no-x` the
     // top layer of that chain can only ever say `true`, and a boolean turned on in a config
     // file could not be turned off from the command line at all.
-    if (spec.type === 'boolean') config[`${NO}${kebab(name)}`] = { type: 'boolean' };
+    if (spec.type === 'boolean' && spec.negatable !== false) config[`${NO}${kebab(name)}`] = { type: 'boolean' };
   }
   return config;
 }
@@ -426,12 +433,19 @@ async function describeFailure(cause: unknown, argv: string[], node?: CommandNod
   if (cause instanceof ActionRequired) return { code: ExitCode.CANCELLED, message, action: cause.spec, ...(cause.spec.hint === undefined ? {} : { hint: cause.spec.hint }) };
   const named = CLASSIFIED.find(([Class]) => cause instanceof Class);
   if (named !== undefined) return { code: named[1], message, ...carried(cause) };
+  // E7 — an author's own class, from `defineError`: its declared code, read off
+  // `Symbol.for('burgee.exitCode')` on the instance's class (or a parent — statics inherit), and
+  // rendered like the built-in ones. By symbol, not by import: the engine never loads
+  // `define-error.js`, so a program that defines no error pays for this read and nothing else.
+  const own = (cause as { constructor?: Record<symbol, unknown> } | null | undefined)?.constructor?.[Symbol.for('burgee.exitCode')];
+  if (typeof own === 'number') return { code: own as ExitCodeType, message, ...carried(cause) };
   if (isParseArgsFailure(cause)) {
     // Loaded only here: see unknown-option.ts for why none of this is imported.
     const explain = await import('./unknown-option.js');
     const dash = explain.singleDashHint(argv);
     if (dash !== undefined) return { code: ExitCode.USAGE, message, hint: dash };
-    const better = explain.unknownOption(cause, Object.keys(node?.options ?? {}));
+    // The flags as typed, not the canonical keys: `fix` is run verbatim, and `--dryRun` is refused.
+    const better = explain.unknownOption(cause, Object.keys(node?.options ?? {}).map(kebab));
     return { code: ExitCode.USAGE, message, hint: 'run --help to see the available options', ...better };
   }
   return { code: ExitCode.RUNTIME, message };
@@ -566,7 +580,7 @@ async function unresolved({ manifest, root, io }: Resolving, argv: string[], at:
     // parse, which is the failure the whole `--json` surface exists to avoid. The document is
     // `commandSchemaOf` for this node plus its immediate children, so the shape a reader
     // already knows from `--schema` is the shape they get here, scoped to one command.
-    if (beforeTerminator(typed).includes('--json')) return { text: `${await machineJson(await helpDocumentOf(manifest, node), beforeTerminator(argv))}\n`, code: ExitCode.OK };
+    if (beforeTerminator(typed).some(isJsonFlag)) return { text: `${await machineJson(await helpDocumentOf(manifest, node), beforeTerminator(argv))}\n`, code: ExitCode.OK };
     return { text: await renderHelp(manifest, node, io), code: ExitCode.OK };
   }
   if (first === '--version' || first === '-V') return { text: `${versionOf(manifest, io)}\n`, code: ExitCode.OK };
@@ -707,6 +721,12 @@ function exitCodeOf(data: unknown): ExitCodeType {
   return isExitCode(code) ? code : ExitCode.OK;
 }
 
+/** `--json`, or `--json=<fields>` (N14). */
+function isJsonFlag(arg: string): boolean {
+  return arg === '--json' || arg.startsWith('--json=');
+}
+
+
 /** `--version`: the declared version, else the owning package.json's (V4). */
 function versionOf(manifest: Manifest, io: Io): string {
   const declared = manifest.version ?? (typeof io.pkg?.data['version'] === 'string' ? io.pkg.data['version'] : undefined);
@@ -714,7 +734,12 @@ function versionOf(manifest: Manifest, io: Io): string {
   return declared;
 }
 
-async function dispatch(manifest: Manifest, { node, rest, name }: Resolved, io: Io): Promise<Outcome> {
+async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolved, io: Io): Promise<Outcome> {
+  // N14's selection is imported only when a caller typed `--json=` (M2): every other run pays nothing for it.
+  const select = typed.some((a) => a.startsWith('--json=')) ? await import('./fields.js') : undefined;
+  const { args: rest, fields } = select?.jsonFields(typed) ?? { args: typed };
+  if (fields?.length === 0) return { json: true, text: `${JSON.stringify(select?.listFields(node))}\n` };
+  if (fields !== undefined) select?.checkFields(fields, node);
   const parsed = parseArgs({ args: rest, options: toParseConfig(node.options, manifest.config !== undefined), allowPositionals: true, strict: true, tokens: true });
   const flags = canonical(parsed.values as Values, node.options, parsed.tokens);
   const json = flags.json === true;
@@ -743,7 +768,8 @@ async function dispatch(manifest: Manifest, { node, rest, name }: Resolved, io: 
   const data = await node.run({ options: values, positionals, passthrough, env: io.env, exit: ctxExit, onExit, actionRequired, ...detection });
   await manifest.fire('postRun', name, values);
   const changed = changedOf(node, data);
-  return { json, data, provenance, ...(changed === undefined ? {} : { changed }) };
+  const selected = fields === undefined || select === undefined ? data : select.selectFields(data, fields);
+  return { json, data: selected, provenance, ...(changed === undefined ? {} : { changed }) };
 }
 
 /** A declared, required positional that argv did not supply is a usage error naming it, as on both hosts. */
@@ -836,13 +862,19 @@ export async function execute(manifest: Manifest, opts: RunOptions & { root?: st
   // `from: 'node'` is commander's default and means argv still carries execPath and the
   // script. Doing the slice here keeps `process` out of every façade.
   const raw = opts.argv ?? host.argv;
-  const argv = opts.argv === undefined || opts.from === 'node' ? raw.slice(2) : raw;
+  const typed = opts.argv === undefined || opts.from === 'node' ? raw.slice(2) : raw;
   const root = opts.root ?? manifest.rootPath;
 
   // Only a `--json` before `--` asks for the envelope; after it, it is pass-through (G5).
-  let json = beforeTerminator(argv).includes('--json');
+  let json = beforeTerminator(typed).some(isJsonFlag);
   let name = '';
+  // D-122 — `shutdown` fires once, on whichever path the run leaves by, through the same
+  // teardown `ctx.onExit` uses. Registered only when a plugin declares one.
+  if (manifest.declares('shutdown')) io.teardown.add(async () => await manifest.fire('shutdown', name, {}), 'plugin shutdown hooks');
+  let argv = typed;
   try {
+    argv = manifest.declares('parse') ? await manifest.parse([...typed]) : typed;
+    json = beforeTerminator(argv).some(isJsonFlag);
     if (await surface(manifest, argv, io)) return await leave(io, ExitCode.OK);
     const { node, rest } = manifest.resolve(argv, root);
     if (node?.run === undefined) {
@@ -891,9 +923,12 @@ export async function run<S extends OptionSpecs>(target: Command<S> | Manifest, 
   if (target instanceof Manifest) return await execute(target, opts);
   const manifest = new Manifest();
   manifest.rootPath = [target.name];
+  // Every declared field, through the same copy `defineProgram` uses. This listed three by
+  // hand, so the `effects` `defineCommand` requires never reached `--mcp` (the tool said
+  // `undeclared`), and `examples`, `arguments` and `relations` never reached help or the schema.
   manifest.add({
     path: [target.name],
-    ...(target.description === undefined ? {} : { description: target.description }),
+    ...helpFields(target as AnyCommand),
     options: target.options ?? {},
     ...(target.run === undefined ? {} : { run: target.run as (ctx: RunContext) => unknown }),
   });

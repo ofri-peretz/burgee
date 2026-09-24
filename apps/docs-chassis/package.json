@@ -1,0 +1,48 @@
+{
+  "name": "docs-chassis",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Private. The shared Next.js + fumadocs chassis every docs app in apps/ imports: config reader, llms.txt/sitemap/robots/.md projections, layout, brand, tests. Never published and never a dependency of anything under packages/.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit -p .",
+    "typecheck": "tsc --noEmit -p .",
+    "lint": "eslint src",
+    "test": "vitest run"
+  },
+  "exports": {
+    "./brand-logo": "./src/brand-logo.tsx",
+    "./config": "./src/config.ts",
+    "./docs-page": "./src/docs-page.tsx",
+    "./docs-shell": "./src/docs-shell.tsx",
+    "./home-shell": "./src/home-shell.tsx",
+    "./json-ld": "./src/json-ld.tsx",
+    "./llms": "./src/llms.ts",
+    "./nav": "./src/nav.tsx",
+    "./next-config": "./src/next-config.mjs",
+    "./og": "./src/og.tsx",
+    "./package-home": "./src/package-home.tsx",
+    "./packages": "./src/packages.ts",
+    "./root-layout": "./src/root-layout.tsx",
+    "./routes": "./src/routes.ts",
+    "./site": "./src/site.ts",
+    "./source": "./src/source.ts",
+    "./source-config": "./src/source-config.mjs",
+    "./testing": "./src/testing.ts"
+  },
+  "dependencies": {
+    "fumadocs-core": "^16.15.11",
+    "fumadocs-mdx": "^15.4.1",
+    "fumadocs-ui": "^16.15.11",
+    "next": "^16.3.5",
+    "posthog-js": "1.376.4",
+    "react": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/mdx": "^2.0.14",
+    "@types/node": "^26.6.1",
+    "@types/react": "^19.3.0",
+    "typescript": "^5.7.0",
+    "vitest": "^5.0.1"
+  }
+}

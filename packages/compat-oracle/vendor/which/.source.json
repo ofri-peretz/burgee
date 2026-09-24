@@ -1,0 +1,53 @@
+{
+  "repo": "https://github.com/npm/node-which",
+  "version": "7.0.0",
+  "tag": "v7.0.0",
+  "commit": "297db11d58eebe01551ae0875a127a89ee63d2cb",
+  "vendored": "2026-09-23",
+  "files": 1,
+  "internalFiles": [],
+  "internals": [],
+  "hashes": {
+    "test/bin.js": "dcdea64ec4af1ed035ccbcb9b9e75ca4ece43d97fd67ebcdafbd350487e323c0",
+    "test/index.js": "a4f4ece27279abac3740c71d8b96bcf77aa1a42947eedc44d82349b08b8664d7",
+    "lib/index.js": "d9d32d45a01826692a1a0c70d40c6182aa0405713166ecd4a3bd3df68d3b90bf"
+  },
+  "tests": {
+    "test/bin.js": [
+      "finds node",
+      "does not find flergyderp",
+      "finds node and tap",
+      "finds node and tap, but not flergyderp",
+      "cli flags",
+      "shows usage",
+      "complains about unknown flag",
+      "anything after -- is ignored"
+    ],
+    "test/index.js": [
+      "${t.name} - ${platform}",
+      "does not find missed",
+      "throw",
+      "nothrow",
+      "does not find non-executable",
+      "absolute",
+      "with path",
+      "find when executable",
+      "absolute",
+      "with process.env.PATH",
+      "with path opt",
+      "no ./",
+      "with ./",
+      "with ../",
+      "find all",
+      "pathExt",
+      "foo.sh - env vars",
+      "foo.sh - opts",
+      "foo - env vars",
+      "foo - opts",
+      "foo - no pathext"
+    ]
+  },
+  "surface": {
+    "lib/index.js": []
+  }
+}
