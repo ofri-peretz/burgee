@@ -826,7 +826,15 @@ interface FailureContext {
   name: string;
 }
 
-/** Failure: an exit signal is honoured silently; anything else is described on the requested surface. */
+/**
+ * Failure: an exit signal is honoured silently; anything else is described on the requested surface.
+ *
+ * **Under `--json` the envelope is on stdout, and stderr carries nothing** (O1, D-140) — the
+ * same place the success envelope goes and the same place both façades have always put theirs.
+ * It was on stderr with stdout empty, so a caller reading stdout for the envelope `--json`
+ * promises read nothing on exactly the runs that needed one, and `--mcp` only found it because
+ * its reader fell back to stderr. Without `--json` it is prose on stderr, as it was.
+ */
 async function report(cause: unknown, { manifest, io, argv, json, name }: FailureContext): Promise<void> {
   const failure = await describeFailure(cause, argv, resolveCommand(manifest, argv) ?? undefined);
   if (failure.silent === true) return await leave(io, failure.code);
@@ -835,12 +843,14 @@ async function report(cause: unknown, { manifest, io, argv, json, name }: Failur
     const next = runnableNext(manifest, failure.action, json);
     const rendered: Failure = { ...failure, action: { ...failure.action, next } };
     const body = { ok: false, status: 'action_required', reason: failure.action.reason, message: failure.message, next, hint: failure.hint, error: { code: failure.code, message: failure.message } };
-    io.err.write(json ? `${JSON.stringify(body)}\n` : textFailure(rendered));
+    if (json) io.out.write(`${JSON.stringify(body)}\n`);
+    else io.err.write(textFailure(rendered));
     return await leave(io, failure.code);
   }
   // E3 — `fix` beside `hint`: the exact flag or command, omitted rather than guessed.
   const body = { code: failure.code, message: failure.message, hint: failure.hint, ...(failure.fix === undefined ? {} : { fix: failure.fix }) };
-  io.err.write(json ? `${JSON.stringify({ ok: false, error: body })}\n` : textFailure(failure));
+  if (json) io.out.write(`${JSON.stringify({ ok: false, error: body })}\n`);
+  else io.err.write(textFailure(failure));
   return await leave(io, failure.code);
 }
 

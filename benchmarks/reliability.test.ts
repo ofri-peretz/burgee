@@ -60,11 +60,11 @@ describe('structured output', () => {
   });
 
   /**
-   * The bug this caught: a machine-readable *error* belongs on stderr, and burgee puts it
-   * there. Judging stdout alone scored a correctly placed envelope as a failure, and read
-   * as burgee managing 25% on its own headline feature.
+   * The bug this caught: burgee's engine put a failure envelope on stderr (until D-140 moved it
+   * to stdout), and judging stdout alone scored that envelope as a failure, which read as burgee
+   * managing 25% on its own headline feature. A CLI under comparison may still do the same.
    */
-  it('reads it off stderr when the command failed, which is where an error envelope belongs', () => {
+  it('reads it off stderr when the command failed and put it there', () => {
     expect(judge(task({ json: true }), run({ status: 2, stderr: '{"ok":false,"error":{"code":2}}' })).jsonParsed).toBe(true);
   });
 
