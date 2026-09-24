@@ -88,6 +88,9 @@ greeting: hello, ada
 $ node cli.mjs --name ada --json
 {"ok":true,"data":{"greeting":"hello, ada"},"meta":{"provenance":{"name":{"source":"flag","location":"--name"}}}}
 
+$ node cli.mjs --name ada --format=agent
+greeting="hello, ada"
+
 $ node cli.mjs                                    # exit 2, not 1
 error: missing required option --name
 hint: pass --name <value>
@@ -265,19 +268,19 @@ has never been measured**:
 
 | Claim | Gate | Measured | |
 | :--- | :--- | ---: | :--- |
-| the core entry point is under 52 KB bundled | `core-under-52kb-bundled` | 30,107 bytes | ✅ met |
+| the core entry point is under 52 KB bundled | `core-under-52kb-bundled` | 30,178 bytes | ✅ met |
 | `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 0.958× | ✅ met |
-| `burgee` is lighter than `cac` **plus what a cac user installs to match it** | `lighter-than-cac-at-parity` | 0.308× | ✅ met |
+| `burgee` is lighter than `cac` **plus what a cac user installs to match it** | `lighter-than-cac-at-parity` | 0.309× | ✅ met |
 | `burgee/commander` is lighter than `commander` **plus the same** | `lighter-than-commander-at-parity` | 0.481× | ✅ met |
 | `burgee/yargs` is lighter than `yargs` **plus the same** | `lighter-than-yargs-at-parity` | 0.537× | ✅ met |
 | `burgee` starts at or below `cac`, the lightest framework in the landscape | `cold-start-at-or-below-cac` | 1.443× | ❌ **not met** |
 | `burgee/commander` is lighter in a user's bundle than `commander` alone | `lighter-than-commander` | 1.554× | ❌ **not met** |
-| `burgee` is lighter in a user's bundle than `cac` alone | `lighter-than-cac` | 2.881× | ❌ **not met** |
+| `burgee` is lighter in a user's bundle than `cac` alone | `lighter-than-cac` | 2.887× | ❌ **not met** |
 | an agent spends ≥40% fewer tokens and ≥30% fewer turns | `agent-tokens-40pct` | — | **unmeasured** |
 
 ### The two ways to ask the bundle question, and why both are here
 
-`burgee` is 30,107 bundled bytes and `cac` is 10,452, so the bare row reads **2.881× and it
+`burgee` is 30,178 bundled bytes and `cac` is 10,452, so the bare row reads **2.887× and it
 stays on this page**. It is also not the choice anyone makes. A program that picks `cac` and
 then wants its config file read, its shutdown bounded on every path out, and its cursor handed
 back on Ctrl-C installs three more packages — and *that* is what one `import` of burgee competes
@@ -285,7 +288,7 @@ with:
 
 | | the incumbent alone | + what you add to match burgee | ours |
 | :--- | ---: | ---: | ---: |
-| `cac` | 10,452 B | **97,711 B** | 30,107 B |
+| `cac` | 10,452 B | **97,711 B** | 30,178 B |
 | `commander` | 39,084 B | **126,354 B** | 60,738 B |
 | `yargs` | 111,152 B | **198,269 B** | 106,523 B |
 
@@ -310,7 +313,7 @@ more than finding a package to charge for them.
 
 `cold-start-at-or-below-cac` and the two bare weight rows have a measured floor above their own
 gate, and it is worth saying plainly rather than leaving as a to-do. `cac` is 10,452 bytes of
-parser and help renderer; burgee's 30,107 is that plus coercion, choices, relations, Standard
+parser and help renderer; burgee's 30,178 is that plus coercion, choices, relations, Standard
 Schema, configuration precedence, signal-bound shutdown, terminal restore and agent detection.
 Our `commander/command.js` is 33,487 bundled against commander's 27,226, and the front-end also
 carries a cross-platform spawn that cannot go lazy without giving up `parse()`'s synchronous

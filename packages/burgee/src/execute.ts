@@ -722,6 +722,8 @@ interface Io {
 }
 interface Outcome {
   json: boolean;
+  /** How `--format=agent` prints the data (N15), when it was typed and is burgee's. */
+  lines?: ((data: unknown) => string) | undefined;
   data?: unknown;
   /** Text to print and leave OK: help, a version, an explanation. */
   text?: string;
@@ -760,6 +762,9 @@ function exitCodeOf(data: unknown): ExitCodeType {
   return isExitCode(code) ? code : ExitCode.OK;
 }
 
+/** A flag `fields.js` reads off argv: N14's `--json=<fields>` and N15's `--format=agent`. */
+const readsLazily = (arg: string): boolean => arg.startsWith('--json=') || arg === '--format=agent';
+
 /** `--json`, or `--json=<fields>` (N14). */
 function isJsonFlag(arg: string): boolean {
   return arg === '--json' || arg.startsWith('--json=');
@@ -774,9 +779,10 @@ function versionOf(manifest: Manifest, io: Io): string {
 }
 
 async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolved, io: Io): Promise<Outcome> {
-  // N14's selection is imported only when a caller typed `--json=` (M2): every other run pays nothing for it.
-  const select = typed.some((a) => a.startsWith('--json=')) ? await import('./fields.js') : undefined;
-  const { args: rest, fields } = select?.jsonFields(typed) ?? { args: typed };
+  // N14's selection and N15's format are imported only when a caller typed `--json=` or
+  // `--format=agent` (M2): every other run pays nothing for either.
+  const select = typed.some(readsLazily) ? await import('./fields.js') : undefined;
+  const { args: rest, fields, lines } = select?.jsonFields(typed, node) ?? { args: typed };
   if (fields?.length === 0) return { json: true, text: `${JSON.stringify(select?.listFields(node))}\n` };
   if (fields !== undefined) select?.checkFields(fields, node);
   const parsed = parseArgs({ args: rest, options: toParseConfig(node.options, manifest.config !== undefined), allowPositionals: true, strict: true, tokens: true });
@@ -810,7 +816,7 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   await manifest.fire('postRun', name, values);
   const changed = changedOf(node, data);
   const selected = fields === undefined || select === undefined ? data : select.selectFields(data, fields);
-  return { json, data: selected, provenance, ...(changed === undefined ? {} : { changed }) };
+  return { json, lines, data: selected, provenance, ...(changed === undefined ? {} : { changed }) };
 }
 
 /** A declared, required positional that argv did not supply is a usage error naming it, as on both hosts. */
@@ -844,7 +850,7 @@ async function emit(io: Io, outcome: Outcome): Promise<void> {
   // `meta.provenance` says where every option value came from (V3) — the difference between one call and five for an agent.
   const meta = { provenance: outcome.provenance ?? {}, ...(outcome.changed === undefined ? {} : { changed: outcome.changed }) };
   const envelope = { ok: true, data: outcome.data, meta };
-  io.out.write(outcome.json ? `${JSON.stringify(envelope)}\n` : `${render(outcome.data)}\n`);
+  io.out.write(outcome.json ? `${JSON.stringify(envelope)}\n` : (outcome.lines?.(outcome.data) ?? `${render(outcome.data)}\n`));
   return await leave(io, exitCodeOf(outcome.data));
 }
 

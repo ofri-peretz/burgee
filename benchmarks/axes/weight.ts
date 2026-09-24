@@ -369,7 +369,8 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // on CI's ubuntu and macOS runners, which read 32 bytes more; the ceiling covers both.
   // 29,950 with D3 on top of S4, V8, F1 and D-140, after merging main. Measured 29,841.
   // 30,200 on 2026-09-23: P2/P3 on top of D3 (#478) and D-140. Measured 30,107.
-  burgee: 30_200,
+  // 30,260 on 2026-09-24 for N15: `--format=agent` rides the lazy `fields.js` load `--json=` already had, so the startup path gains one alternative in the test that loads it (`readsLazily`) and a `lines?.()` in `emit` — 71 B; the formatter is its own chunk. Measured 30,178.
+  burgee: 30_260,
   // 29,650 on 2026-09-23: D-140 and #521 on top of V8 (#481). Measured 29,634.
   // 29,200 on 2026-09-23 for **56 bytes**, the MCP stdout capture (#521): measured 29,172 on
   // top of D-122's 29,116. The capture lives in the lazily loaded MCP chunk; what reaches the
