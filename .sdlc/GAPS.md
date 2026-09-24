@@ -36,7 +36,7 @@ Three kinds, because they close three different ways:
 | ~~A17~~ | ~~`--schema <path> --field <name>`~~ — **closed**: dotted field paths below a command; an unknown step names the valid ones | burgee N13, D-116 | done |
 | ~~A18~~ | ~~a generated `config explain`~~ — **closed**: synthesised from the resolver's order and provenance; `--json`; gives way to a program's own | burgee V8, D-117 | done |
 | ~~A19~~ | ~~`defineError({ name, code })`~~ — **closed**: the class leaves with its code, rendered like `UsageError`; a reused or reserved code throws at definition | burgee E7, D-118 | done |
-| A20 | `dynamic: true` completion marker | burgee D3, D-119 | opt-in per option; completion scripts call back only for those |
+| ~~A20~~ | ~~`dynamic: true` completion marker~~ — **closed**: an option's `complete` function is the opt-in; four shells call back for it alone | burgee D3, D-119 | done |
 | ~~A21~~ | ~~non-TTY prompt exits 2, cancelled prompt exits 4~~ — **closed**: a thrown `code: 'USAGE' / 'CANCELLED'` maps by name; caique's real refusals proven end to end | burgee P2, P3, D-120 | done |
 | A22 | `.burgee({ floor: true })` on façades | burgee J3, J4, D-121 | one call turns the behavioural floor on; `--schema` names the flags the program shadows |
 | ~~A23~~ | ~~plugin hooks `parse` and `shutdown`~~ — **closed**: `parse` rewrites argv before resolution, chained in `enforce` order; `shutdown` fires once through the run's teardown; both in the schema, and the plugins page's limit now reads help and config only | plugin surface, D-122 | done |

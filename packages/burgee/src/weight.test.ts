@@ -266,7 +266,12 @@ const RULES: Record<string, EntryRule> = {
     // 45,600 with V8 on top of D-122, N14 and E7, after merging main. Measured 45,495.
     // 45,700 with V8 on top of S4, after merging main. Measured 45,629.
     // 45,900 on 2026-09-23: D-140 and #521 on top of V8 (#481). Measured 45,883.
-    budget: 45_900,
+    // 43,150 on 2026-09-23 for D3, dynamic completion: the callback lives in `complete-dynamic.js`, loaded only when argv starts with `__complete`; what stays is that one test.
+    // 45,200 with D3, dynamic completion (D-119), on top of D-122, N14 and E7, after merging main. Measured 45,156.
+    // 45,900 with D3 on top of S4, V8 and F1, after merging main. Measured 45,812.
+    // 46,100 with D3 on top of S4, V8, F1 and D-140, after merging main. Measured 46,066.
+    // 46,650 on 2026-09-23: P2/P3 on top of D3 (#478) and D-140. Measured 46,566.
+    budget: 46_650,
     // 45,400 with D-140 and #521 on top of S4. Measured 45,361.
     // 45,250 with D-140 (the `--json` failure classification) on top of D-122 and #521. Measured 45,227.
     // 43,500 on 2026-09-23 for P2/P3: a thrown refusal names its exit code by string (`USAGE`, `CANCELLED`, …), which is how caique's prompt verdicts reach an exit status with no dependency edge — the four-row table and its lookup sit in `describeFailure`, where every failure is read. Measured 43,450.
@@ -350,7 +355,12 @@ const RULES: Record<string, EntryRule> = {
   // 49,100 with V8 on top of D-122, N14 and E7, after merging main. Measured 49,014.
   // 49,200 with V8 on top of S4, after merging main. Measured 49,148.
   // 49,450 on 2026-09-23: D-140 and #521 on top of V8 (#481). Measured 49,402.
-  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 49_450, denied: ["dev.js", "migrate.js"] },
+  // 47,850 on 2026-09-23 for D3 — the same engine bytes as `.`. Measured 47,844.
+  // 48,800 with D3 on top of D-122, N14 and E7, after merging main. Measured 48,675.
+  // 49,400 with D3 on top of S4, V8 and F1, after merging main. Measured 49,331.
+  // 49,700 with D3 on top of S4, V8, F1 and D-140, after merging main. Measured 49,585.
+  // 50,200 on 2026-09-23: P2/P3 on top of D3 (#478) and D-140. Measured 50,085.
+  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 50_200, denied: ["dev.js", "migrate.js"] },
   // 48,900 with D-140 and #521 on top of S4 — the same engine bytes as `.`. Measured 48,880.
   // 48,750 with D-140 on top of D-122 and #521 — the same engine bytes as `.`. Measured 48,746.
   // 48,200 on 2026-09-23 for P2/P3 — the same engine bytes as `.`. Measured 48,161.
