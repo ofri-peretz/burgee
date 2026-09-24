@@ -7,7 +7,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and scripts read the app table through its one typed reader rather than re-parsing it
-import { familyApp } from '../apps/docs-chassis/src/config';
+import { appForPackage, familyApp } from '../apps/docs-chassis/src/config';
 
 // eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: a bare `compat-oracle/*` resolves from another checkout's dist/ in an uninstalled worktree (compat-oracle R6, scripts/oracle-import-lock.test.ts)
 import { HOSTS } from '../packages/compat-oracle/src/hosts.js';
@@ -62,10 +62,28 @@ const cell = (g: Grade | undefined): string => {
 };
 
 const internals = (g: Grade | undefined): string => (g?.internals === undefined ? '—' : `${g.internals.passed} / ${g.internals.tests}`);
+/**
+ * The page that walks a user of this host's package across: the package app's
+ * `coming-from/<host>` guide, or the family app's `vs/<host>` page for burgee's own
+ * front-ends. Linked only when the page exists, so a host without one stays plain text.
+ */
+function guideUrl(h: (typeof HOSTS)[number]): string | undefined {
+  const app = appForPackage(h.target.split('/')[0] ?? '');
+  if (app === undefined) return undefined;
+  const section = app.familyPages ? 'vs' : 'coming-from';
+  // `inquirer-core` is graded by @inquirer/core's suite; its guide is the one for inquirer.
+  for (const slug of [h.name, h.name.replace(/-core$/u, '')]) {
+    if (existsSync(join(root, app.dir, 'content', 'docs', section, `${slug}.mdx`))) return `${app.productionUrl}/docs/${section}/${slug}`;
+  }
+  return undefined;
+}
+
 const rows = HOSTS.filter((h) => h.status === 'active').map((h) => {
   const b = burgee?.grades.find((g) => g.host === h.name);
   const c = control?.grades.find((g) => g.host === h.name);
-  return `| **${h.name}** | \`${h.target}\` | ${cell(b)} | ${pct(b)} | ${cell(c)} | ${pct(c)} | ${internals(b)} | ${internals(c)} |`;
+  const url = guideUrl(h);
+  const name = url === undefined ? `**${h.name}**` : `[**${h.name}**](${url})`;
+  return `| ${name} | \`${h.target}\` | ${cell(b)} | ${pct(b)} | ${cell(c)} | ${pct(c)} | ${internals(b)} | ${internals(c)} |`;
 });
 const others = HOSTS.filter((h) => h.status !== 'active').map((h) => `| ${h.name} | ${h.status} | ${h.note ?? ''} |`);
 
