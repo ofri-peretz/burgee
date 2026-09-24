@@ -668,9 +668,12 @@ const RULES: Record<string, EntryRule> = {
   // the captured one was a stale read waiting for a test to expose it. The parser entry pays
   // for a seam it uses two members of, which is the honest cost of one file per package
   // rather than one per caller. Ceiling is the next hundred above the measurement, as above.
+  // 41,900 → 42,000 under A29: `export { yargsParser as 'module.exports' }`, so a CommonJS
+  // `require('burgee/yargs/parser')` gets the function, as `require('yargs-parser')` does.
+  // Measured 41,914.
   "./yargs/parser": {
     allow: [],
-    budget: 41_900,
+    budget: 42_000,
     denied: [
       "testing.js",
       "testing-helpers.js",

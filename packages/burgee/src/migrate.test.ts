@@ -382,11 +382,15 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     expect(rewriteSource("import { modifiers } from 'chalk';\n").refused.map((r) => r.specifier)).toEqual(['chalk']);
   });
 
-  it('refuses a require() whose target is an ES module with a default, and rewrites one without', () => {
-    // `require()` of an ES module returns its namespace: `require('roundel/chalk').red` is
-    // undefined where `require('chalk').red` was a function. commander's façade has no default,
-    // so `const { Command } = require('commander')` reads the same names either way.
-    expect(rewriteSource("const chalk = require('chalk');\n").refused).toEqual([{ line: 1, specifier: 'chalk', reason: 'require-of-default' }]);
+  it('moves a require() whose two sides return the same kind of value (A29)', () => {
+    // Restated 2026-09-23 (A29). This expected `require('chalk')` refused, reasoning from chalk
+    // 4, whose CommonJS `require()` returned the function. The chalk migrate rewrites is 6
+    // (GRADED_VERSIONS; other majors are skipped), which is ESM only: its `require()` returns a
+    // namespace, and so does roundel/chalk's, so the line reads the same either way.
+    // `migrate-require.test.ts` holds every pair to what Node's own `require()` returns.
+    // commander's façade has no default, so `const { Command } = require('commander')` reads
+    // the same names either way.
+    expect(rewriteSource("const chalk = require('chalk');\n").source).toBe("const chalk = require('roundel/chalk');\n");
     expect(rewriteSource("const { Command } = require('commander');\n").source).toBe("const { Command } = require('burgee/commander');\n");
     expect(rewriteSource("const { onExit } = require('signal-exit');\n").source).toBe("const { onExit } = require('closeout/signal-exit');\n");
   });
