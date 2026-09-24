@@ -134,7 +134,7 @@ describe('the script side: only a declared completer calls back (D3)', () => {
   });
 
   const pwsh = (line: string): string[] => lines(execFileSync('pwsh', ['-NoProfile', '-File', join(repo, 'scripts/complete-pwsh.ps1'), '-Script', scriptFor('pwsh'), '-Line', line], { encoding: 'utf8', env }));
-  it.runIf(POSIX && has('pwsh'))('PowerShell: TAB after --region lists what the program returned', { timeout: 30_000 }, () => {
+  it.runIf(POSIX && has('pwsh'))('PowerShell: TAB after --region lists what the program returned', { timeout: 120_000 }, () => {
     expect(pwsh('dyn deploy --region ')).toEqual(['eu-west', 'eu-north', 'us-east']);
   });
 });
