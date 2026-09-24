@@ -64,6 +64,7 @@ const EXTENSION_POINTS: Record<string, string> = {
   'exit-hook': 'None — it is the hook',
   'restore-cursor': 'None',
   'cross-spawn': 'None',
+  which: 'None',
 };
 
 /** The member names of a host's exported `Plugin` type. */
@@ -160,9 +161,10 @@ model can read it without running anything.
 
 ## What a plugin cannot do yet
 
-- **burgee's hooks cover the run of a command and nothing around it.** A plugin can act at
-  ${stages.map((s) => `\`${s}\``).join(', ')} — not before arguments are parsed, not inside
-  help, not in config resolution, not at shutdown. Contributing commands has no such limit.
+- **burgee's hooks stop at help and config.** A plugin can act at
+  ${stages.map((s) => `\`${s}\``).join(', ')} — rewriting argv before a command is resolved,
+  around the run, and once as the program leaves — but not inside help rendering and not in
+  config resolution. Contributing commands has no such limit.
 - **flagstaff's built-in components are not contributions.** A plugin adds spinners, borders
   and components of its own; it cannot replace \`progress\`, \`box\` or \`table\`.
 - **The schema cannot say "function".** \`static\`, \`run\`, \`read\` and \`handler\` are required

@@ -370,6 +370,20 @@ function unlit(brand: BurgeeBrand, keepMarkings: boolean): string {
 /** Whose markings survive the trip: the ones drawn inside their own outline. */
 const CLIP_FREE: Record<string, boolean> = { roundel: true, flagstaff: true, caique: false };
 
+/**
+ * Where each package's docs app lives, from `.github/vercel-apps.json` — the one place an app
+ * is named. Every app but the front door serves its package's favicon at `/icon.svg`, and uses
+ * the same file as its nav mark and its social card, so this is the only copy of the mark an
+ * app carries — generated, never hand-copied.
+ */
+const APP_DIRS: ReadonlyMap<string, string> = new Map(
+  Object.values(
+    (JSON.parse(readFileSync(join(repo, '.github', 'vercel-apps.json'), 'utf8')) as { apps: Record<string, { package: string; dir: string; familyPages: boolean }> }).apps,
+  )
+    .filter((app) => !app.familyPages)
+    .map((app) => [app.package, app.dir]),
+);
+
 /** Every surface, and the file that consumes it. */
 const surfaces: ReadonlyArray<{ path: string; svg: string }> = [
   { path: 'brand-assets/burgee-flag.svg', svg: burgee.flag(MASTER) },
@@ -390,6 +404,8 @@ const surfaces: ReadonlyArray<{ path: string; svg: string }> = [
       { path: `brand-assets/${name}-flag.svg`, svg: mark.flag(MASTER) },
       { path: `brand-assets/${name}-flag-alive.svg`, svg: mark.alive(MASTER) },
       { path: `apps/docs/public/brand/${name}.svg`, svg: unlit(brand, CLIP_FREE[name] ?? false) },
+      // The package's own docs site: favicon, nav mark and OG card, all from this one file.
+      ...(APP_DIRS.has(name) ? [{ path: `${APP_DIRS.get(name)}/src/app/icon.svg`, svg: mark.favicon() }] : []),
       {
         path: `brand-assets/${name}-lockup.svg`,
         svg: mark.lockup({ theme: 'dark', subtitle: tagline }),

@@ -13,7 +13,7 @@ Intent: [`intent.md`](./intent.md). **Status:** approved.
 | R3 | **Built** | `'withheld'` is absent from `tools/list` and published as `"withheld"` in `--schema` | `mcp.test.ts` |
 | R4 | **Built** | the refusal names the command and every remedy | `mcp.test.ts` asserts the message |
 | R5 | **Built** | a group (subcommands, no handler) is not asked | `mcp.test.ts` |
-| R6 | **Not built** | a façade command reaches the manifest via `Manifest.add()` without passing `defineCommand`'s door, so a commander or yargs user's command is withheld **in fact** and cannot be made to say so | `npm run compat` — both incumbents stay at 1360 / 1360 and 804 / 804 precisely because the refusal cannot reach them |
+| R6 | **Built** | restated by what shipped (D-127): both façades carry `.effects()` — `Command.prototype.effects` in `commander/command.ts`, `YargsInstance.effects` in `yargs/factory.ts` — and each projects the declaration onto the manifest node. A façade command that declares nothing is **listed** as `effects: 'undeclared'` with no hints, rather than withheld, so no incumbent program loses tools by switching; declaring one adds the MCP hints; `.effects('withheld')` keeps it out. Neither passes `defineCommand`'s door, so neither is *refused* for declaring nothing — the incumbents' own suites declare none, and that is why they stay at 1360 / 1360 and 804 / 804 | `facade-surface.test.ts`, `yargs/burgee.test.ts`, `npm run compat` |
 
 ## Design
 

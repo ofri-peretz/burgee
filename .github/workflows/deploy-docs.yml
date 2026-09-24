@@ -2,8 +2,16 @@
 name: Deploy Docs
 
 # ─────────────────────────────────────────────────────────────────────────────
-# The only path that ships `apps/docs`. Ported from ofri-peretz/eslint, trimmed
-# to what this repo has. `.sdlc/intents/docs-deploy/intent.md` is the intent.
+# The only path that ships a docs app. Ported from ofri-peretz/eslint, trimmed
+# to what this repo has. `.sdlc/intents/docs-deploy/intent.md` is the intent;
+# `.sdlc/intents/docs-per-package/` made it one workflow for N apps.
+#
+# WHICH APP is the `app` input, validated against `.github/vercel-apps.json` —
+# the one file that names every app, its Vercel project, its host and its build.
+# Nothing about any app is written in this file: adding a package's site is a
+# row in that table and an app directory, never an edit here
+# (`scripts/vercel-apps-lock.test.ts` fails if an app key, directory, host or
+# project id appears under .github/workflows/).
 #
 # Manual-only by construction. `vercel.json` (repo root — see the deploy job) sets
 # `git.deploymentEnabled: false`, so Vercel never deploys on a push, and this
@@ -15,18 +23,25 @@ name: Deploy Docs
 # and nothing is deployed. Nothing else in CI depends on it. The moment the
 # secret exists the same file deploys, with no second PR — the pattern of #47.
 #
-# Required, owner-created (see the PR body for the one-sitting version):
-#   VERCEL_TOKEN       https://vercel.com/account/tokens
-#   VERCEL_ORG_ID      team id, from the Vercel project's Settings → General
-#   VERCEL_PROJECT_ID  project id, same page
+# Required, owner-created: VERCEL_TOKEN (https://vercel.com/account/tokens), a
+# REPOSITORY secret. It is the only one. The team id and each project id are
+# public identifiers and live in the table, not in secrets — N per-app secrets
+# would be N things to add, rotate and get wrong for values that are not secret.
 # ─────────────────────────────────────────────────────────────────────────────
 
 run-name: >-
-  Deploy Docs · ${{ inputs.environment }} · ${{ github.actor }}
+  Deploy Docs · ${{ inputs.app }} · ${{ inputs.environment }} · ${{ github.actor }}
 
 on:
   workflow_dispatch:
     inputs:
+      app:
+        # A string, not a `choice`: a fixed options list would be a second copy of the
+        # table. No default, for the same reason — a default names an app. Preflight
+        # refuses a key the table does not have and lists the ones it does.
+        description: "App key from .github/vercel-apps.json."
+        required: true
+        type: string
       environment:
         description: "Target environment."
         required: true
@@ -43,8 +58,16 @@ on:
         default: ""
 
 concurrency:
-  # Two production deploys must not overlap; previews are keyed per ref.
-  group: deploy-docs-${{ inputs.environment }}-${{ inputs.ref || github.ref }}
+  # ONE group per app, whoever fired the run. A hand-fired deploy and the one
+  # auto-deploy.yml dispatches for the same merge used to sit in different groups
+  # (this one was keyed on the ref, and the two pass different refs for the same
+  # commit), so both ran at once and the second alias move made the first run's
+  # read-back see a build that was not its own: run 35816373791 failed "serving
+  # build b0c0c9c…, not 2dc573f… The deploy uploaded but the alias did not move".
+  # Every deploy of one host now queues behind the last; two apps still deploy in
+  # parallel. auto-deploy.yml only dispatches this workflow, so this group is the
+  # one both paths share — `scripts/deploy-lock.test.ts` pins it.
+  group: docs-deploy-${{ inputs.app }}
   cancel-in-progress: false
 
 permissions:
@@ -52,10 +75,6 @@ permissions:
 
 env:
   TURBO_TELEMETRY_DISABLED: "1"
-  # The canonical host. Hard-coded on purpose: there is one app. The
-  # `.github/vercel-apps.json` map the eslint repo carries returns here when
-  # there is a second one — the intent decided that at finalisation.
-  PRODUCTION_URL: https://burgee.interlace.tools
 
 jobs:
   # ── Is there anything to deploy with, and is anyone allowed to? ────────────
@@ -65,7 +84,45 @@ jobs:
     timeout-minutes: 5
     outputs:
       ready: ${{ steps.check.outputs.ready }}
+      org_id: ${{ steps.app.outputs.org_id }}
+      project_id: ${{ steps.app.outputs.project_id }}
+      production_url: ${{ steps.app.outputs.production_url }}
+      root_directory: ${{ steps.app.outputs.root_directory }}
+      build_command: ${{ steps.app.outputs.build_command }}
+      output_directory: ${{ steps.app.outputs.output_directory }}
     steps:
+      # Only the table is needed here; the full checkout happens in the deploy job.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: .github/vercel-apps.json
+          sparse-checkout-cone-mode: false
+          fetch-depth: 1
+
+      # The row is the whole of what this run knows about the app. An unknown key
+      # fails here, loudly, before a credential is even looked at — `jq -e` exits
+      # non-zero on null, which is the difference between refusing a typo and
+      # deploying one with every field empty.
+      - id: app
+        name: Resolve the app
+        env:
+          APP: ${{ inputs.app }}
+        run: |
+          set -euo pipefail
+          TABLE=.github/vercel-apps.json
+          ROW=$(jq -ec --arg app "$APP" '.apps[$app]' "$TABLE") || {
+            echo "::error::No app '$APP' in $TABLE. Known: $(jq -r '.apps | keys | join(", ")' "$TABLE")"
+            exit 1
+          }
+          {
+            echo "org_id=$(jq -er '.orgId' "$TABLE")"
+            echo "project_id=$(jq -er '.projectId' <<< "$ROW")"
+            echo "production_url=$(jq -er '.productionUrl' <<< "$ROW")"
+            echo "root_directory=$(jq -r '.rootDirectory' <<< "$ROW")"
+            echo "build_command=$(jq -er '.buildCommand' <<< "$ROW")"
+            echo "output_directory=$(jq -er '.outputDirectory' <<< "$ROW")"
+          } >> "$GITHUB_OUTPUT"
+          echo "Resolved '$APP': $(jq -r '.productionUrl + " (" + .dir + ")"' <<< "$ROW")"
+
       - id: check
         name: Check credentials and approval
         env:
@@ -93,12 +150,12 @@ jobs:
               echo "3. \`vercel deploy --prebuilt\` it;"
               echo "4. read \`<meta name=\"x-build-sha\">\` back off the deployed URL and fail if it is not that commit."
               echo
-              echo "Add \`VERCEL_TOKEN\`, \`VERCEL_ORG_ID\` and \`VERCEL_PROJECT_ID\` under Settings → Secrets and variables → Actions."
+              echo "Add \`VERCEL_TOKEN\` under Settings → Secrets and variables → Actions. It is the only secret: the team and project ids come from \`.github/vercel-apps.json\`."
               echo
-              echo "> **They must be _repository_ secrets, not _environment_ secrets.** This job"
-              echo "> declares no \`environment:\`, so a secret scoped to \`docs-production\` or"
-              echo "> \`docs-preview\` is invisible here and every run would stay green and inert"
-              echo "> forever — the failure this summary exists to make impossible."
+              echo "> **It must be a _repository_ secret, not an _environment_ secret.** This job"
+              echo "> declares no \`environment:\`, so a secret scoped to a \`<app>-production\` or"
+              echo "> \`<app>-preview\` environment is invisible here and every run would stay green"
+              echo "> and inert forever — the failure this summary exists to make impossible."
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
@@ -107,7 +164,7 @@ jobs:
           # Constraint 2 of the intent: a production deploy fired by hand
           # stops for a human. `auto-deploy.yml` passes this, because the PR
           # that merged was the human. A GitHub Environment with required
-          # reviewers (Settings → Environments → docs-production) turns this
+          # reviewers (Settings → Environments → <app>-production) turns this
           # refusal into a real pause; the job below already declares it.
           if [ "$ENVIRONMENT" = "production" ] && [ "${APPROVAL:-}" != "RELEASE_APPROVAL" ]; then
             echo "::error::Production deploy refused: type RELEASE_APPROVAL in the 'approval' field to confirm. (auto-deploy.yml passes it for you on a merge to main.)"
@@ -117,7 +174,7 @@ jobs:
           echo "ready=true" >> "$GITHUB_OUTPUT"
 
   deploy:
-    name: Deploy (${{ inputs.environment }})
+    name: Deploy ${{ inputs.app }} (${{ inputs.environment }})
     needs: preflight
     if: needs.preflight.outputs.ready == 'true'
     runs-on: ubuntu-latest
@@ -126,22 +183,24 @@ jobs:
       contents: read
       deployments: write # GitHub Deployments API records the deploy URL
     environment:
+      # One per app (D-060): a reviewer approving a deploy sees which site it is.
       # Auto-created on first use. Add required reviewers here to make a
       # production deploy pause rather than merely be gated on the string.
-      name: ${{ inputs.environment == 'production' && 'docs-production' || 'docs-preview' }}
+      name: ${{ inputs.app }}-${{ inputs.environment == 'production' && 'production' || 'preview' }}
       url: ${{ steps.deploy.outputs.url }}
     env:
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_ORG_ID: ${{ needs.preflight.outputs.org_id }}
+      VERCEL_PROJECT_ID: ${{ needs.preflight.outputs.project_id }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      PRODUCTION_URL: ${{ needs.preflight.outputs.production_url }}
     # No `defaults.run.working-directory`: the Vercel CLI runs at the REPO ROOT.
-    # Root Directory on the `cli-interlace-tools` project is unset (the repo
-    # root), so `vercel.json` lives there and that is where the CLI has to run.
+    # Root Directory on every project is unset (the repo root), so `vercel.json`
+    # lives there and that is where the CLI has to run.
     #
-    # This was `working-directory: apps/docs`, and the first real production
+    # This was `working-directory: <the app>`, and the first real production
     # deploy died on it: `File does not exist: "node_modules/client-only/
     # index.js"`. This is an npm-workspaces monorepo, so the runtime files Next
-    # traces are hoisted to the ROOT `node_modules` — outside `apps/docs` — and a
+    # traces are hoisted to the ROOT `node_modules` — outside the app — and a
     # prebuilt upload rooted at the app cannot contain them. The root is the only
     # directory that sees both the app and the dependencies it traced.
     steps:
@@ -163,12 +222,34 @@ jobs:
         id: sha
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
+      # Every project reads the same root `vercel.json` (Root Directory unset, see
+      # above), so that file can hold only what is true for every app — and the
+      # build command and output directory, which differ per app, would otherwise
+      # be whatever someone last typed into the dashboard. Nine projects, one
+      # config: the sibling eslint repo shipped its docs site to its registry
+      # domain exactly this way. So the row is written onto the project before
+      # every deploy, and the dashboard cannot drift from a reviewed file.
+      - name: Self-heal Vercel project config
+        env:
+          ROOT_DIRECTORY: ${{ needs.preflight.outputs.root_directory }}
+          BUILD_COMMAND: ${{ needs.preflight.outputs.build_command }}
+          OUTPUT_DIRECTORY: ${{ needs.preflight.outputs.output_directory }}
+        run: |
+          set -euo pipefail
+          BODY=$(jq -nc --arg root "$ROOT_DIRECTORY" --arg build "$BUILD_COMMAND" --arg out "$OUTPUT_DIRECTORY" \
+            '{rootDirectory: (if $root == "" then null else $root end), buildCommand: $build, outputDirectory: $out}')
+          curl -sf -X PATCH "https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}?teamId=${VERCEL_ORG_ID}" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" -H "Content-Type: application/json" \
+            -d "$BODY" > /dev/null
+          echo "Project ${VERCEL_PROJECT_ID}: $BODY"
+
       - name: Pull Vercel environment metadata
         run: npx vercel pull --yes --environment=${{ inputs.environment }} --token="$VERCEL_TOKEN"
 
       - name: Build (${{ inputs.environment }})
         env:
-          # Stamped into `<meta name="x-build-sha">` by apps/docs/src/app/layout.tsx.
+          # Stamped into `<meta name="x-build-sha">` by every app's root layout
+          # (`docs-chassis/layout`, `rootMetadata`).
           # This is what the post-deploy check reads back.
           NEXT_PUBLIC_BUILD_SHA: ${{ steps.sha.outputs.sha }}
         run: |
@@ -182,8 +263,8 @@ jobs:
       # `--target=preview` on the preview line is NOT redundant. Git integration is off
       # for this project, so a CLI deploy has no branch to infer a preview from and the
       # CLI falls back to **production** — measured 2026-09-09: the same command without
-      # the flag returned `"target": "production"` and took the
-      # `cli-interlace-tools.vercel.app` alias, while with it the deployment came back
+      # the flag returned `"target": "production"` and took the project's
+      # `.vercel.app` production alias, while with it the deployment came back
       # `"target": null` and stayed a Preview. Without the flag, `environment=preview`
       # silently ships production, which is the opposite of what the input says.
       #
@@ -192,7 +273,7 @@ jobs:
       # than 15,000 files, and the count that matters is not the app's — deploying
       # from the repo root means the upload is the whole traced closure, root
       # `node_modules` included. An earlier revision of this file argued the flag
-      # away on "397 files in `.next`", which measured the wrong tree and was
+      # away on "397 files in the app's `.next`", which measured the wrong tree and was
       # written while the deploy had never once succeeded. The corpus only grows;
       # a limit you cross silently at some future merge is not a limit worth
       # discovering in production. `scripts/deploy-lock.test.ts` pins the flag on
@@ -270,9 +351,17 @@ jobs:
               ;;
             000)
               # No HTTP response at all — almost always DNS that does not exist
-              # yet, which is the state between adding the token and pointing the
-              # record. The deploy itself already succeeded; do not fail on it.
-              echo "::warning::$TARGET could not be reached (curl exit $RC). Expected until the DNS record for ${PRODUCTION_URL#https://} exists; the deploy itself succeeded ($DEPLOY_URL)."
+              # yet, which is the state between creating a project and pointing
+              # its record. The deploy itself already succeeded; do not fail on
+              # it, but name the exact record that is missing rather than a bare
+              # curl error, because that is the owner's one remaining step.
+              HOST="${PRODUCTION_URL#https://}"
+              if [ "$RC" -eq 6 ]; then
+                echo "::warning::DNS for $HOST does not resolve yet, so this build could not be verified. Add the record at the registrar: A  $HOST  76.76.21.21 (Vercel). The deploy itself succeeded ($DEPLOY_URL)."
+                echo "### ⚠ DNS: add \`A $HOST 76.76.21.21\`" >> "$GITHUB_STEP_SUMMARY"
+              else
+                echo "::warning::$TARGET could not be reached (curl exit $RC). Expected until the DNS record for $HOST exists; the deploy itself succeeded ($DEPLOY_URL)."
+              fi
               exit 0
               ;;
             *)
@@ -337,10 +426,11 @@ jobs:
           [ "$status" = "failure" ] && icon="❌"
           [ "$status" = "cancelled" ] && icon="⏹"
           {
-            echo "# $icon Deploy Docs · ${{ inputs.environment }}"
+            echo "# $icon Deploy Docs · ${{ inputs.app }} · ${{ inputs.environment }}"
             echo
             echo "| Field | Value |"
             echo "|---|---|"
+            echo "| App | \`${{ inputs.app }}\` → $PRODUCTION_URL |"
             echo "| Environment | \`${{ inputs.environment }}\` |"
             echo "| Ref | \`${{ inputs.ref || github.ref }}\` |"
             echo "| Build SHA | \`${{ steps.sha.outputs.sha }}\` |"

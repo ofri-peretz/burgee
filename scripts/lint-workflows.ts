@@ -21,6 +21,10 @@
  *     matrix — the Version PR's GITHUB_TOKEN fallback runs exactly those rows,
  *     and a required check with no row leaves that PR blocked. See VERSION_PR_KICKER.
  *
+ * 10. A workflow that runs `npm publish` publishes from one job, not a matrix, walking the
+ *     `plan` output of a needed job that runs `scripts/release-order.mts` — the dependency
+ *     order computed from the package.json files. See publishOrderProblems.
+ *
  * Soft warnings (notice line, not a failure):
  *  9. Third-party actions are pinned to a SHA, not a floating tag.
  *     `actions/*`, `github/*`, and `./.github/actions/*` are exempt.
@@ -39,6 +43,8 @@ import process from 'node:process';
 import url from 'node:url';
 
 import yaml from 'js-yaml';
+
+import { publishOrderProblems, type WorkflowShape } from './release-order.mjs';
 
 interface Step {
   name?: string;
@@ -325,6 +331,8 @@ for (const [file, wf] of parsed) {
       }
     });
   }
+
+  errors.push(...publishOrderProblems(file, wf as WorkflowShape));
 
   const allSteps = Object.values(wf.jobs ?? {}).flatMap((job) => job?.steps ?? []);
   errors.push(...renamedOutputs(sources.get(file) ?? '', allSteps, file));

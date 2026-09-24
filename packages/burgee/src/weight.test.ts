@@ -256,8 +256,13 @@ const RULES: Record<string, EntryRule> = {
   ".": {
     allow: ["closeout", "seniority/precedence"],
     // 43,000 on 2026-09-22 for D1, the definition-time refusal of a deprecation that names no replacement: `checkDeprecated` in `definition.js`, which `plugin.js` imports, so every entry that reaches the manifest pays it — the façades included, though they never call it with `true`. Measured 42,950.
-    // 43,100 on 2026-09-23 for S4, `-` as stdin: the check lives in `stdin-dash.js`, imported only when a positional is `-`; what stays is that test and the spread. Measured 43,084.
-    budget: 43_100,
+    // 43,100 on 2026-09-23 for N14, `--json=<fields>`: the selection, the listing and the refusals live in `fields.js`, imported only when `--json=` is typed; what stays on the startup path is spotting it and calling in, plus the declared `fields` copied onto the node. Measured 43,092 — after N13 moved `--schema` off the path, which is what made the room.
+    // 44,500 on 2026-09-23 for E7, `defineError`: the root re-exports it, so `.` carries `define-error.js`; the engine only reads `Symbol.for('burgee.exitCode')` off a thrown error's class and never imports it. 43,950 after merging N13 (#476), which moved `--schema` off the path. Measured 43,939.
+    // 44,600 with N14 (#470) and E7 together, after merging main. Measured 44,568.
+    // 43,600 on 2026-09-23 for D-122, the `parse` and `shutdown` plugin stages: the `parse` loop lives in `parse-hooks.js`, loaded only when a plugin declares it; what stays is `Manifest.declares`, the call into that chunk, and registering `shutdown` on the run's teardown. Measured 43,501.
+    // 45,000 with D-122 on top of N14 and E7, after merging main. Measured 44,975.
+    // 45,200 with S4, `-` as stdin, on top of D-122, N14 and E7: the check lives in `stdin-dash.js`, imported only when a positional is `-`; what stays is that test and the spread. Measured 45,107.
+    budget: 45_200,
     denied: [
       "testing.js",
       "testing-helpers.js",
@@ -327,8 +332,14 @@ const RULES: Record<string, EntryRule> = {
   // `AuthError` for the same reason it carries everything else. Measured 47,385.
   // 47,450 with `.`'s O2 bytes, for the same reason. Measured 47,434.
   // 47,700 with `.`'s D1 bytes. Measured 47,661.
-  // 47,800 on 2026-09-23 for S4 — the same engine bytes as `.`. Measured 47,795.
-  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 47_800, denied: ["dev.js", "migrate.js"] },
+  // 47,850 on 2026-09-23 for N14 — the same engine bytes as `.`. Measured 47,803.
+  // 48,000 on 2026-09-23 for E7 — the engine's symbol read, not the module. Measured 47,965.
+  // 47,500 after merging N13 (#476). Measured 47,458.
+  // 48,100 with N14 (#470) and E7 together. Measured 48,087.
+  // 48,300 on 2026-09-23 for D-122 — the same engine and manifest bytes as `.`. Measured 48,212.
+  // 48,500 with D-122 on top of N14 and E7, after merging main. Measured 48,494.
+  // 48,700 with S4 on top of D-122, N14 and E7 — the same engine bytes as `.`. Measured 48,626.
+  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 48_700, denied: ["dev.js", "migrate.js"] },
   /**
    * The four doors the root barrel stopped holding open (see `.` above). Each is the same
    * module the engine reaches behind an `await import()`, published so a program that wants it
@@ -348,16 +359,25 @@ const RULES: Record<string, EntryRule> = {
   // The MCP server. It reaches the schema and the manifest, because a tool list *is* the
   // schema, and nothing outside the package. `invoke` is injected, which is what keeps the
   // runner out. Measured 19,950. 20,300 on 2026-09-22 for D1; measured 20,265.
+  // 20,520 on 2026-09-23, measured 20,480: `tools/call` now sends each argument as the flag
+  // the schema advertises (`--dry-run`, not `--dryRun`) and a `false` that must be said as
+  // `--no-<name>`, and a root command's tool has a name. +215 for calls that used to fail.
   "./mcp": {
     allow: [],
-    budget: 20_300,
+    // 20,400 on 2026-09-23 for N14: `--schema` publishes a command's declared `fields`. Measured 20,334.
+    // 20,550 on 2026-09-23 for D-122: `Manifest.declares` and the `parse` call-in, which every entry reaching the manifest carries. Measured 20,504.
+    // 20,600 with D-122 on top of N14 and E7, after merging main. Measured 20,568.
+    budget: 20_600,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
   },
   // The schema surface and the `Manifest` class it reads. Measured 14,891.
   // 15,250 on 2026-09-22 for D1; measured 15,206.
   "./schema": {
     allow: [],
-    budget: 15_250,
+    // 15,300 on 2026-09-23 for N14: `--schema` publishes a command's declared `fields`. Measured 15,275.
+    // 15,500 on 2026-09-23 for D-122, the same manifest bytes. Measured 15,445.
+    // 15,300 with D-122 on top of N14 and E7, after merging main. Measured 15,294.
+    budget: 15_300,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
   },
   // Configuration precedence, provenance and `--explain`, which are `seniority`'s and are
@@ -627,7 +647,11 @@ const RULES: Record<string, EntryRule> = {
   // 215,200 on 2026-09-22 for D1, the definition-time refusal of a deprecation that names no replacement: `checkDeprecated` in `definition.js`, which `plugin.js` imports, so every entry that reaches the manifest pays it — the façades included, though they never call it with `true`. Measured 215,183.
   "./yargs": {
     allow: [],
-    budget: 215_200,
+    // 215,300 on 2026-09-23 for N14, through the engine and the schema. Measured 215,252.
+    // 215,250 on 2026-09-23: `export { Yargs as 'module.exports' }`, which yargs' own entry has, so `require('burgee/yargs')` hands a CommonJS caller the factory rather than a namespace. Measured 215,221.
+    // 215,500 on 2026-09-23 for D-122, through the engine and the manifest. Measured 215,422.
+    // 215,350 with D-122 on top of N14 and E7, after merging main. Measured 215,309.
+    budget: 215_350,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   "./yargs/helpers": {
@@ -646,9 +670,12 @@ const RULES: Record<string, EntryRule> = {
   // the captured one was a stale read waiting for a test to expose it. The parser entry pays
   // for a seam it uses two members of, which is the honest cost of one file per package
   // rather than one per caller. Ceiling is the next hundred above the measurement, as above.
+  // 41,900 → 42,000 under A29: `export { yargsParser as 'module.exports' }`, so a CommonJS
+  // `require('burgee/yargs/parser')` gets the function, as `require('yargs-parser')` does.
+  // Measured 41,914.
   "./yargs/parser": {
     allow: [],
-    budget: 41_900,
+    budget: 42_000,
     denied: [
       "testing.js",
       "testing-helpers.js",

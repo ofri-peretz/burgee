@@ -73,6 +73,13 @@ export interface OptionSpec {
   /** `true` renders `(deprecated)`; a string names the replacement: `(deprecated: use --force)` (yargs #2248). */
   deprecated?: boolean | string;
   hidden?: boolean;
+  /**
+   * `boolean` only: whether `--no-<name>` is accepted. Every boolean is negatable unless this
+   * says `false`. burgee's own parser negates every boolean (see `toParseConfig`); the
+   * commander façade sets `false` where commander would refuse the negation, so completions
+   * and `--mcp` never offer or send a flag the parser behind them rejects.
+   */
+  negatable?: boolean;
   /** The shared set this option was copied from (M4); `--schema` carries it, help lists the option like any other. */
   sharedFrom?: string;
 }
@@ -233,6 +240,8 @@ export interface CommandNode {
    * none, so a façade's command is withheld in fact and cannot be made to say so.
    */
   effects?: DeclaredEffects;
+  /** The result's top-level fields, as declared (N14); what `--json=` lists. */
+  fields?: readonly string[];
   run?: (ctx: RunContext) => unknown;
   /**
    * The handler's module, imported on dispatch only (M2): the manifest — help, schema,
@@ -261,10 +270,21 @@ export interface HookFilter {
   command?: RegExp;
 }
 
+/** What a hook is handed. `argv` on `parse` only; `options` is empty on `parse` and `shutdown`. */
+export interface HookContext {
+  command: string;
+  options: Record<string, unknown>;
+  argv?: string[];
+}
+
 export interface Hook {
   filter?: HookFilter;
-  handler: (ctx: { command: string; options: Record<string, unknown> }) => void | Promise<void>;
+  /** `parse` may return the argv to use instead; every other stage's return is ignored. */
+  handler: (ctx: HookContext) => unknown;
 }
+
+/** The stages a plugin hook fires at. `parse` and `shutdown` bracket the run (D-122). */
+export type HookStage = 'parse' | 'preRun' | 'postRun' | 'onError' | 'shutdown';
 
 /** Rolldown's lesson: evaluate the filter before crossing the boundary. */
 export function hookApplies(hook: Hook | undefined, command: string): hook is Hook {
@@ -318,8 +338,23 @@ export class Manifest {
     );
   }
 
+  /** Whether any registered plugin declares a hook at `stage` — so a run without one pays nothing. */
+  declares(stage: HookStage): boolean {
+    return this.plugins.some((p) => p.hooks?.[stage] !== undefined);
+  }
+
+  /**
+   * `parse` (D-122): argv in, argv out, before the command is resolved. Each plugin, in
+   * `enforce` order, is handed what the previous one returned; returning nothing keeps it.
+   * A filter is matched against the typed argv, since no command has been resolved yet.
+   */
+  async parse(argv: string[]): Promise<string[]> {
+    // Its own chunk: only a program with a `parse` hook loads the loop that runs one.
+    return (await import('./parse-hooks.js')).runParseHooks(this.ordered(), argv);
+  }
+
   async fire(
-    stage: 'preRun' | 'postRun' | 'onError',
+    stage: Exclude<HookStage, 'parse'>,
     command: string,
     options: Record<string, unknown>,
   ): Promise<void> {
