@@ -58,6 +58,19 @@ updates:
       # cli-table3 0.6.5 is the release compat-oracle vendors and grades (vendor/cli-table3/.source.json),
       # and since 2026-09-23 the one B4 weighs flagstaff/table and flagstaff/cli-table3 against.
       - dependency-name: "cli-table3"
+      # The Interlace plugins (every `eslint-plugin-*` here is one) fixed two things in
+      # September that had been hiding findings in this repo, and #571 met all of them at once:
+      # 57 lint errors and 3 warnings, which failed Lint and Quality Gate.
+      # - @interlace/eslint-devkit 1.19.5 resolves a NodeNext `./x.js` specifier to `x.ts`, so
+      #   `import-next/no-cycle` now sees four real import cycles.
+      # - maintainability 3.2.11's `consistent-function-scoping` no longer counts module-level
+      #   names as captures. That flags 53 functions.
+      # - node-security 5.6.2's `no-zip-slip` no longer fires on three lines that carry an
+      #   `eslint-disable` for it.
+      # Every new plugin release requires devkit ^1.19.5 or later, so ignoring one plugin still
+      # lets the resolver in. The whole family moves together, by hand, in the PR that fixes the
+      # findings, the way #398 did. Drop this entry in that PR.
+      - dependency-name: "eslint-plugin-*"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

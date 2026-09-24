@@ -405,7 +405,11 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // classification both façades share. None of it is on a path a passing command takes.
   // Merged 2026-09-23: D-140's 897 bytes on top of D-122 and #521 measure 60,713.
   // 60,850 on 2026-09-23: P2/P3 on top of D3 (#478) and D-140, with 80 B for CI reading ~32 B over local. Measured 60,738.
-  'burgee/commander': 60_850,
+  // 61,100 on 2026-09-24 for J3/J4: `.burgee({ floor: true })` routes commander's own exits
+  // through E1 and a failing action to the one-line report D-140 already carries, and
+  // `--schema` names the reserved surfaces the program shadows. No module is added — the floor
+  // is three checks in front of code already on this path. Measured 61,014 (+276).
+  'burgee/commander': 61_100,
   'burgee/yargs': 107_700,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
@@ -528,7 +532,8 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // exit-code table the façade's `--schema` now carries: measured 1.531.
   // 1.555 on 2026-09-23: D-140 and #521 on top of main (72a810352e). Measured 1.554.
   // 1.56 on 2026-09-23: P2/P3 on top of D3 (#478) and D-140. Measured 1.554 locally, ~1.555 in CI.
-  'burgee/commander': 1.56,
+  // 1.565 on 2026-09-24 for J3/J4: the same 276 bytes as the bundled ceiling above. Measured 1.561.
+  'burgee/commander': 1.565,
   // bundled ceiling above (D-134): measured 1.524.
   // 1.535 on 2026-09-23: D-122 left the façade at 59,808 (1.530, on the ceiling) and the MCP
   // stdout capture (#521) adds 15 bytes of cross-chunk names — 59,823, measured 1.531.
