@@ -4,10 +4,11 @@
  * dir; and the vendored root is a package a CJS fixture can `require('../../')` — with
  * the upstream's own `version`, `license` and `repository`, because the suites read them.
  */
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
@@ -189,6 +190,30 @@ describe('a host whose repository is a monorepo', () => {
  *      files left the host with no `.source.json`, no `package.json` and no suite, which is
  *      how `dotenv` lost 141 graded cases and reported "no test files vendored".
  */
+/**
+ * slice-ansi's shape at a `v7.1.2` tag, in a throwaway local repo. `vendor()` is what these
+ * cases test, not GitHub: cloning the real upstream made the required gate fail whenever the
+ * network did (run 35962708764, `git clone` exit 128 after ~40 s). `host.repo` is the URL the
+ * clone reads, so a `file://` one exercises the same `git clone --depth 1 --branch` path.
+ */
+function localSliceAnsi(): Host {
+  const host = HOSTS.find((h) => h.name === 'slice-ansi');
+  if (host === undefined) throw new Error('slice-ansi is not a host');
+  const repo = mkdtempSync(join(tmpdir(), 'vendor-upstream-'));
+  writeFileSync(join(repo, 'package.json'), '{"name":"slice-ansi","version":"7.1.2","type":"module","license":"MIT"}\n');
+  writeFileSync(join(repo, 'index.js'), 'export default function sliceAnsi(s, a, b) { return s.slice(a, b); }\n');
+  writeFileSync(join(repo, 'index.d.ts'), 'export default function sliceAnsi(s: string, a: number, b?: number): string;\n');
+  writeFileSync(join(repo, 'test.js'), "import test from 'ava';\nimport sliceAnsi from './index.js';\n\ntest('slices', (t) => {\n  t.is(sliceAnsi('abc', 1), 'bc');\n});\n");
+  const git = (...args: string[]): void => {
+    execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', '-c', 'tag.gpgsign=false', ...args], { cwd: repo, stdio: 'ignore' });
+  };
+  git('init', '-q');
+  git('add', '.');
+  git('commit', '-q', '-m', 'fixture');
+  git('tag', 'v7.1.2');
+  return { ...host, repo: pathToFileURL(repo).href };
+}
+
 describe('a vendor run that cannot finish', () => {
   it('takes its version from the host pin rather than from npm', () => {
     const sliceAnsi = HOSTS.find((h) => h.name === 'slice-ansi');
@@ -198,23 +223,22 @@ describe('a vendor run that cannot finish', () => {
   it('writes PROVENANCE beside the record, so `compat --vendor` cannot delete it', () => {
     // `scripts/vendor-suite.ts` was the only writer of PROVENANCE, and `vendor()` replaces
     // the host directory wholesale — so re-vendoring through the oracle removed a file
-    // `provenance.test.ts` requires, and blamed the host. The clone here is the same one
-    // the refusal case below makes, for the same reason: this is the function under test.
+    // `provenance.test.ts` requires, and blamed the host. The clone here is the same local
+    // fixture the refusal case below makes, for the same reason: this is the function under test.
     const into = mkdtempSync(join(tmpdir(), 'vendor-provenance-'));
-    const host = HOSTS.find((h) => h.name === 'slice-ansi');
-    if (host === undefined) throw new Error('slice-ansi is not a host');
+    const host = localSliceAnsi();
     vendor(host, into);
     const live = join(into, host.name);
     expect(existsSync(join(live, '.source.json'))).toBe(true);
     expect(existsSync(join(live, 'PROVENANCE')), 'vendor() wrote the record and not the provenance').toBe(true);
     expect(readFileSync(join(live, 'PROVENANCE'), 'utf8')).toContain('7.1.2');
     rmSync(into, { recursive: true, force: true });
+    rmSync(fileURLToPath(host.repo), { recursive: true, force: true });
   });
 
   it('leaves the previous suite standing when it produces nothing', () => {
     const into = mkdtempSync(join(tmpdir(), 'vendor-refusal-'));
-    const host = HOSTS.find((h) => h.name === 'slice-ansi');
-    if (host === undefined) throw new Error('slice-ansi is not a host');
+    const host = localSliceAnsi();
     const live = join(into, host.name);
     mkdirSync(live, { recursive: true });
     writeFileSync(join(live, '.source.json'), '{"version":"7.1.2"}');
@@ -226,5 +250,6 @@ describe('a vendor run that cannot finish', () => {
     expect(existsSync(join(live, '.source.json')), 'the previous record was deleted by a failed run').toBe(true);
     expect(readFileSync(join(live, 'test.js'), 'utf8')).toContain('already here');
     rmSync(into, { recursive: true, force: true });
+    rmSync(fileURLToPath(host.repo), { recursive: true, force: true });
   });
 });
