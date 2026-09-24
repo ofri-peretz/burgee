@@ -334,6 +334,10 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // `parse-hooks.js`, imported only when a plugin declares one) and the shutdown registration
   // behind `declares('shutdown')`. Measured 29,116.
   //
+  // 29,250 on 2026-09-23 for **93 bytes**, D-113 (S4): `-` on a `type: 'file'` positional is
+  // stdin. The check itself is `stdin-dash.js`, imported only when a positional is `-`; what
+  // stays on the startup path is that test and the spread into the handler's context.
+  // Measured 29,209.
   // 29,200 on 2026-09-23 for **56 bytes**, the MCP stdout capture (#521): measured 29,172 on
   // top of D-122's 29,116. The capture lives in the lazily loaded MCP chunk; what reaches the
   // startup graph is the `host` seam it shares with the entry.
