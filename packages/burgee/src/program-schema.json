@@ -1,0 +1,272 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://burgee.dev/program-schema.json",
+  "title": "burgee --schema",
+  "description": "The document `<program> --schema` prints: the program as data, for an agent or an MCP host to read without running anything. Published so a reader can validate what a program says about itself (burgee F1, D-123); burgee's own test validates `--schema` output against this file on every run.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "name",
+    "exitCodes",
+    "commands"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "description": "Bumped only when a field changes meaning."
+    },
+    "name": {
+      "type": "string",
+      "description": "The program as typed."
+    },
+    "version": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "exitCodes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "description": "What each exit code means (F1): the contract's names and numbers, so a caller branches on the code without reading prose."
+    },
+    "commands": {
+      "type": "array",
+      "description": "Every runnable, visible command, in declaration order.",
+      "items": {
+        "$ref": "#/$defs/command"
+      }
+    }
+  },
+  "$defs": {
+    "command": {
+      "type": "object",
+      "required": [
+        "name",
+        "arguments",
+        "options",
+        "examples",
+        "inputSchema"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The command as typed, without the program name: `config get`."
+        },
+        "description": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "effects": {
+          "type": "string",
+          "pattern": "^(read_only|idempotent|non_idempotent|withheld)$",
+          "description": "What running it does to the world, or `withheld` (N6)."
+        },
+        "deprecated": {
+          "description": "`true`, or the replacement's name (M5)."
+        },
+        "group": {
+          "type": "string"
+        },
+        "lazy": {
+          "const": true,
+          "description": "Its handler loads on dispatch (M2)."
+        },
+        "plugin": {
+          "type": "string",
+          "description": "The plugin that contributed it (M3)."
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The result's top-level fields, what `--json=` selects from (N14)."
+        },
+        "arguments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/argument"
+          }
+        },
+        "options": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/option"
+          }
+        },
+        "relations": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "description": "Constraints between options (S2, S6): exactlyOneOf, atLeastOneOf, atMostOneOf, conflicts, implies."
+        },
+        "examples": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/example"
+          }
+        },
+        "inputSchema": {
+          "$ref": "#/$defs/inputSchema"
+        }
+      }
+    },
+    "argument": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "variadic": {
+          "type": "boolean"
+        },
+        "default": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "pattern": "^file$",
+          "description": "`file`: `-` means standard input (S4)."
+        }
+      }
+    },
+    "option": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "pattern": "^(string|boolean|number)$"
+        },
+        "description": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "short": {
+          "type": "string"
+        },
+        "default": {
+          "description": "A string, boolean, number, or a list of strings or numbers."
+        },
+        "env": {
+          "type": "string"
+        },
+        "choices": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "multiple": {
+          "type": "boolean"
+        },
+        "separator": {
+          "type": "string"
+        },
+        "dependsOn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "exclusive": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "minimum": {
+          "type": "number"
+        },
+        "maximum": {
+          "type": "number"
+        },
+        "integer": {
+          "type": "boolean"
+        },
+        "schema": {
+          "type": "object",
+          "description": "A Standard Schema validator, as its own library serialises it."
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "deprecated": {
+          "description": "`true`, or the replacement's name."
+        },
+        "hidden": {
+          "type": "boolean"
+        },
+        "sharedFrom": {
+          "type": "string"
+        }
+      }
+    },
+    "example": {
+      "type": "object",
+      "required": [
+        "command"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "inputSchema": {
+      "type": "object",
+      "required": [
+        "type",
+        "properties",
+        "required",
+        "additionalProperties"
+      ],
+      "additionalProperties": false,
+      "description": "The arguments and options as one JSON Schema object — what an MCP tool call takes.",
+      "properties": {
+        "type": {
+          "const": "object"
+        },
+        "properties": {
+          "type": "object"
+        },
+        "required": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": {
+          "const": false
+        }
+      }
+    }
+  }
+}

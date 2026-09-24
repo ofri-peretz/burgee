@@ -343,8 +343,12 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // test that recognises it and the `resolution` step a run and the command share.
   // Measured 29,419.
   // 29,550 with V8 on top of S4, after merging main. Measured 29,512.
+  // 29,200 on 2026-09-23 for **68 bytes**, D-123 (F1): `--schema` carries the exit-code table,
+  // so the schema surface reaches `exit-code.js`. Measured 29,184.
+  // 29,650 with F1 on top of S4 and V8, after merging main. Measured 29,580.
+  // 29,750 on 2026-09-23: D-140 and #521 on top of main (72a810352e). Measured 29,702.
+  burgee: 29_750,
   // 29,650 on 2026-09-23: D-140 and #521 on top of V8 (#481). Measured 29,634.
-  burgee: 29_650,
   // 29,200 on 2026-09-23 for **56 bytes**, the MCP stdout capture (#521): measured 29,172 on
   // top of D-122's 29,116. The capture lives in the lazily loaded MCP chunk; what reaches the
   // startup graph is the `host` seam it shares with the entry.
@@ -497,13 +501,16 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // cases in commander's own suite that mock it, which is what the 1360 / 1360 row rests on.
   // D-102 records that, and that ≤ 1 is not reachable while the façade also carries a
   // manifest, a schema and an MCP server. 1.53 on 2026-09-23 for the same 171 bytes as the
+  // bundled ceiling above (D-134): measured 1.524. 1.54 on 2026-09-23 for F1 (D-123), the
+  // exit-code table the façade's `--schema` now carries: measured 1.531.
+  // 1.555 on 2026-09-23: D-140 and #521 on top of main (72a810352e). Measured 1.554.
+  'burgee/commander': 1.555,
   // bundled ceiling above (D-134): measured 1.524.
   // 1.535 on 2026-09-23: D-122 left the façade at 59,808 (1.530, on the ceiling) and the MCP
   // stdout capture (#521) adds 15 bytes of cross-chunk names — 59,823, measured 1.531.
   // bundled ceiling above (D-134): measured 1.524. 1.55 on 2026-09-23 for the 897 bytes of
   // D-140 beside it: measured 1.548.
   // Merged 2026-09-23 with D-122 and #521: measured 1.553.
-  'burgee/commander': 1.555,
   'burgee/yargs': 1,
   'roundel/chalk': 1,
   'flagstaff/ora': 1,

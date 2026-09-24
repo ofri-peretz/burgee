@@ -383,9 +383,12 @@ const RULES: Record<string, EntryRule> = {
     // 20,400 on 2026-09-23 for N14: `--schema` publishes a command's declared `fields`. Measured 20,334.
     // 20,550 on 2026-09-23 for D-122: `Manifest.declares` and the `parse` call-in, which every entry reaching the manifest carries. Measured 20,504.
     // 20,600 with D-122 on top of N14 and E7, after merging main. Measured 20,568.
+    // 20,600 on 2026-09-23 for F1: `--schema` carries the exit-code table, so `schema.js` reaches `exit-code.js`. Measured 20,594.
+    // 21,000 with F1 on top of D-122, N14 and E7, after merging main. Measured 20,897.
+    // 25,250 on 2026-09-23: D-140 and #521 on top of main (72a810352e). Measured 25,229.
+    budget: 25_250,
     // 24,850 with the MCP stdout capture (#521) on top of D-122's 20,568. Measured 24,835.
     // 24,950 with D-140's MCP error classification on top of #521. Measured 24,900.
-    budget: 24_950,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
   },
   // The schema surface and the `Manifest` class it reads. Measured 14,891.
@@ -395,7 +398,9 @@ const RULES: Record<string, EntryRule> = {
     // 15,300 on 2026-09-23 for N14: `--schema` publishes a command's declared `fields`. Measured 15,275.
     // 15,500 on 2026-09-23 for D-122, the same manifest bytes. Measured 15,445.
     // 15,300 with D-122 on top of N14 and E7, after merging main. Measured 15,294.
-    budget: 15_300,
+    // 15,550 on 2026-09-23 for F1, the exit-code table in `--schema`. Measured 15,535.
+    // 15,700 with F1 on top of D-122, N14 and E7, after merging main. Measured 15,623.
+    budget: 15_700,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
   },
   // Configuration precedence, provenance and `--explain`, which are `seniority`'s and are
@@ -680,9 +685,11 @@ const RULES: Record<string, EntryRule> = {
     // 215,250 on 2026-09-23: `export { Yargs as 'module.exports' }`, which yargs' own entry has, so `require('burgee/yargs')` hands a CommonJS caller the factory rather than a namespace. Measured 215,221.
     // 215,500 on 2026-09-23 for D-122, through the engine and the manifest. Measured 215,422.
     // 215,350 with D-122 on top of N14 and E7, after merging main. Measured 215,309.
+    // 215,500 with F1 on top of D-122, N14 and E7, after merging main — the exit-code table, through the schema. Measured 215,406.
+    // 217,200 on 2026-09-23: D-140 and #521 on top of main (72a810352e). Measured 217,187.
+    budget: 217_200,
     // 217,100 with D-140 on top of D-122, N14 and E7, after merging #521. Measured 217,090.
     // 217,150 with A29's CommonJS export on top. Measured 217,123.
-    budget: 217_150,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   "./yargs/helpers": {
@@ -821,7 +828,9 @@ describe("the denied list", () => {
  * graph and no budget — the file *is* the payload — so a byte rule would measure nothing.
  * Listed rather than pattern-matched so that adding one is still a decision somebody made.
  */
-const DATA_EXPORTS = ["./schema.json"];
+// Data, not code: a file a reader validates against, which no import reaches and no budget can weigh.
+// `program-schema.json` is the shape of `--schema` (F1, D-123).
+const DATA_EXPORTS = ["./schema.json", "./program-schema.json"];
 
 describe("the lock grows with the package", () => {
   it("every published entry point declares a weight rule", () => {
