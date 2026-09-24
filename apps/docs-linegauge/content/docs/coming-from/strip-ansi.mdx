@@ -1,0 +1,76 @@
+---
+title: Coming from strip-ansi
+description: "A strip-ansi alternative with a drop-in path: import stripAnsi from linegauge/strip, graded 8 / 8 by strip-ansi's own test suite — then no ansi-regex underneath, and one escape scanner shared with width, wrap and slice, so what strip removes is exactly what they count as zero columns."
+---
+
+**linegauge** is a **strip-ansi alternative** you adopt by changing one import.
+`linegauge/strip`'s default export is `strip`, call-compatible with strip-ansi's default, and
+strip-ansi's own test suite is the grade.
+
+## Migrate from strip-ansi in one import
+
+```diff
+- import stripAnsi from 'strip-ansi';
++ import stripAnsi from 'linegauge/strip';
+```
+
+It is a subpath rather than the package root because the root's default export is `width`,
+the string-width drop-in. The same function is also the named export `strip`, from
+`linegauge/strip` or from `linegauge`.
+
+It also answers the questions strip-ansi's neighbours do, one subpath each:
+
+| Incumbent | linegauge path |
+| :-- | :-- |
+| `string-width` | `linegauge` (the default export) |
+| `strip-ansi` | `linegauge/strip` |
+| `wrap-ansi` | `linegauge/wrap` |
+| `slice-ansi` | `linegauge/slice` |
+
+## Is linegauge compatible with strip-ansi?
+
+Graded, not claimed. strip-ansi's own suite, vendored at 7.2.0 and unmodified apart from the
+import specifier, runs against `linegauge/strip` beside a control that runs it against the
+real strip-ansi:
+
+| | passing | rate |
+| :-- | --: | --: |
+| `linegauge/strip` | 8 / 8 | 100.0% |
+| strip-ansi itself (control) | 8 / 8 | 100.0% |
+
+From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
+oracle's last run; that page is the authority. The suite is small, and every case in it is a
+shape a stripper has to get right: `OSC 8` hyperlinks, the 8-bit CSI introducer and a bare
+BEL terminator.
+
+What it removes, beyond the suite: CSI, OSC including `OSC 8` under both terminators, DCS,
+the charset selections and the single-character escapes. A lone `ESC` with nothing that
+parses after it is text and is kept, the same answer strip-ansi gives.
+
+The same page grades `linegauge` against string-width (229 / 229), `linegauge/wrap` against
+wrap-ansi (80 / 80) and `linegauge/slice` against slice-ansi (15 / 15).
+
+## What you gain over strip-ansi
+
+strip-ansi 7.2.0 is one scan with one dependency, `ansi-regex`. `linegauge/strip` has none,
+and it is pure: it reads nothing from `process`, so the same input strips the same way on a
+pipe, under `--json` and in a test.
+
+- **One scanner for the whole family.** `width` measures what `strip` leaves, and `wrap` and
+  `slice` find escapes with the same scanner `strip` is built on, so a string measured,
+  wrapped, sliced and stripped never disagrees with itself about where the escapes were.
+- **The family strips with it.** burgee, caique and flagstaff build on linegauge, so what
+  they write for a pipe or an agent is stripped the same way.
+
+## When to switch from strip-ansi
+
+- Your dependency tree carries strip-ansi beside string-width, wrap-ansi or slice-ansi, and
+  you would rather it carried one package with no dependencies.
+- You were about to replace strip-ansi with Node's `util.stripVTControlCharacters`. Measured
+  on Node 24 over sixteen sequence shapes, it agrees with strip-ansi on fifteen; on the
+  sub-parameter form of a truecolor SGR (`ESC[38:2::255:0:0m`, ITU T.416) it stops at the first
+  `:` and leaves the rest in the output as text. `linegauge/strip` removes it whole, as
+  strip-ansi does.
+
+The API and the design notes are on [linegauge](/docs); the width path is on
+[Coming from string-width](/docs/coming-from/string-width).

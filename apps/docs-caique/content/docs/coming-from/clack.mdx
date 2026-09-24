@@ -1,0 +1,128 @@
+---
+title: Coming from clack
+description: "A clack (@clack/prompts) alternative you move to prompt by prompt, not by one import: each clack prompt mapped to its caique equivalent, or to none — and prompts that are flags first, so a non-TTY caller gets an error naming the flag instead of a hang."
+---
+
+**caique** is a **clack alternative** built on one rule: a prompt is a flag first. It is not
+a drop-in for `@clack/prompts`. caique takes a prompt as a spec rather than clack's call
+signature and deliberately does not draw clack's frames, so you move a CLI across one prompt
+at a time. This page maps each clack export to its caique counterpart, or says there is
+none.
+
+## Migrate from clack prompt by prompt
+
+| clack (`@clack/prompts`) | caique |
+| :-- | :-- |
+| `text`, `password`, `path` | `ask({ kind: 'text' \| 'password' \| 'path', message, initial, validate }, io)` from `caique/ask`. `password` is read without echo by `createIo()` from `caique/terminal` |
+| `confirm` | `ask({ kind: 'confirm', message, initial }, io)`. With `--yes` passed to `decide()`, it is answered `true` without asking |
+| `select`, `multiselect` | `ask({ kind: 'select' \| 'multiselect', message, choices: [{ value, label, hint }] }, io)` asks by number. `askList(spec, io, multi)` from `caique/raw` adds arrow keys where there is a terminal |
+| `group` | `resolvePrompts({ options, values, runtime, flags, io })` from `caique/binding`, which asks in declaration order and stops at the first refusal |
+| `isCancel` | check the result: `ask()` returns `{ ok: false, reason: 'cancelled' }`, and `resolvePrompts()` returns a `failure` with code `CANCELLED` |
+| `cancel`, `intro`, `outro`, `note`, `log`, `box` | no equivalent |
+| `spinner`, `progress`, `tasks`, `taskLog`, `stream` | no equivalent |
+| `date`, `multiline`, `selectKey`, `groupMultiselect`, `autocomplete`, `autocompleteMultiselect` | no equivalent |
+| `limitOptions` | `limitOptions` from `caique/clack`, the only clack function carried under its own name |
+| `settings`, `updateSettings` | no equivalent |
+| `isTTY`, `isCI` | no equivalent. `decide()` reads the terminal and `CI` from the runtime you pass it |
+
+clack's `S_*` symbols, `symbol`, `symbolBar`, `unicode`, `unicodeOr`,
+`formatInstructionFooter`, `SELECT_INSTRUCTIONS`, `MULTISELECT_INSTRUCTIONS` and
+`CANCEL_SYMBOL` are pieces of its drawing, and none of them has an equivalent.
+
+### A `text` and a `confirm`, before and after
+
+```js
+// clack
+import { cancel, confirm, isCancel, text } from '@clack/prompts';
+
+const name = await text({ message: 'Project name?' });
+if (isCancel(name)) { cancel('Cancelled.'); process.exit(0); }
+const git = await confirm({ message: 'Initialise git?' });
+if (isCancel(git)) { cancel('Cancelled.'); process.exit(0); }
+```
+
+```js
+// caique
+import { processRuntime } from 'caique';
+import { resolvePrompts } from 'caique/binding';
+import { createIo } from 'caique/terminal';
+
+const io = createIo();
+const { values, failure } = await resolvePrompts({
+  options: {
+    name: { required: true, prompt: { kind: 'text', message: 'Project name?' } },
+    git: { required: true, prompt: { kind: 'confirm', message: 'Initialise git?', initial: true } },
+  },
+  values: supplied,              // what --name, --git, env and config already answered
+  runtime: processRuntime(),
+  flags: { json, yes },          // the run's --json and --yes
+  io,
+});
+io.close();
+if (failure) {
+  console.error(`${failure.message}\n${failure.fix ?? ''}`);
+  process.exit(failure.code === 'CANCELLED' ? 0 : 2);
+}
+```
+
+The two questions are the same, but the second program can also be answered without a
+person. An option `supplied` already answers is never asked. `--yes` answers the `confirm`.
+With no terminal, or under `CI`, the first unanswered option comes back as a failure,
+`--name is required when there is no terminal`, rather than a wait. One difference to carry
+over deliberately: caique asks only for options marked `required`, unless the run passed
+`--interactive`.
+
+## Is caique compatible with clack?
+
+For the prompts, no — moving them is a rewrite, as above. `caique/clack` is **only the
+`limitOptions` helper**: the sliding window that decides which options a list shows when it
+is taller than the terminal. It is graded against the slice of `@clack/prompts`' own suite
+that is not a drawing. The suite is vendored at 1.8.1 and unmodified apart from the import
+specifier, and 17 of its 19 files — 289 of its 444 assertions — are snapshots of clack's
+exact frames, subtracted by name:
+
+| | passing | rate |
+| :-- | --: | --: |
+| `caique/clack` | 14 / 17 | 82.4% |
+| `@clack/prompts` itself (control) | 17 / 17 | 100.0% |
+
+From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
+oracle's last run; that page is the authority. The 14 are all of `limit-options.test.ts`.
+The 3 that fail are all of `guide.test.ts`. Two need every clack prompt to draw a frame
+whose first line is clack's grey bar, which is the drawing caique does not reproduce. The
+third sets `updateSettings({ withGuide: false })` in `@clack/prompts`' sibling package
+`@clack/core` and asserts that our prompts obey it. No implementation can pass it without
+depending on `@clack/core`.
+
+## What you gain over clack
+
+A prompt that waits for a human who is not there is a hang, and a hung agent is a failed
+task. caique's `decide()` rules on every prompt before anything is drawn:
+
+- **An agent answers before it is asked.** A value from any source — flag, env, config —
+  means the prompt is skipped.
+- **`--json` never prompts.** A missing value is an error, `--name is required under
+  --json`, with a fix naming the flag.
+- **No terminal is never a prompt.** Without a terminal on stdin, or with `CI` set, the
+  verdict is an error naming the flag and the fix, never a wait on stdin. `--interactive`
+  cannot override that; it can only ask for more where a terminal exists.
+- **Checked exhaustively.** All 256 combinations of value, kind, TTY, CI, `--json`, `--yes`,
+  `--interactive` and required are generated and checked in `decide.test.ts`.
+- **Line mode is the floor.** No raw mode, no cursor movement, no redraw, so the accessible
+  rendering and the terminal rendering are the same bytes. A closed stdin is a
+  cancellation, not an empty answer, and invalid input is re-asked five times, then given
+  up.
+
+All of caique fits a 15,000 B budget that its `weight.test.ts` asserts. `@clack/prompts` is
+101,684 B across six packages, and caique reaches no package outside the burgee family.
+
+## When to switch from clack
+
+- Your CLI runs in CI, in a container or under an agent, and a prompt there must fail fast
+  with the flag that fixes it.
+- You want every prompt answerable from the command line, and you can rewrite each prompt
+  call to get it.
+- Stay on clack for its drawing — spinners, notes, boxes and task logs have no caique
+  equivalent.
+
+The rule, the widgets and the inquirer path are on [caique](/docs).
