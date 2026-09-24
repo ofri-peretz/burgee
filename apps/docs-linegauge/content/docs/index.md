@@ -81,10 +81,11 @@ The incumbent is the specification. `width` runs against `string-width`, `wrap` 
 
 | | |
 | :-- | :-- |
-| `width(text, { countAnsiEscapeCodes })` | terminal columns the text occupies |
+| `width(text, { ambiguousIsNarrow, countAnsiEscapeCodes })` | terminal columns the text occupies |
 | `wrap(text, columns, options)` | fold to a width, styles preserved across rows |
 | `truncate(text, columns, { position, ellipsis })` | cut to a budget, ellipsis counted inside it |
 | `slice(text, start, end)` | the columns `[start, end)`, self-contained |
+| `strip(text)` | the text with its escape sequences removed (`linegauge/strip`) |
 | `widest(lines)` | the width of the widest line of any iterable |
 | `lineCount(text, columns)` | rows the text occupies at that width |
 | `measure(text)` | columns of plain text, no escape scan |
@@ -94,18 +95,21 @@ with whatever a template produced.
 
 ## Design notes
 
-**Ambiguous-width characters count narrow**, which is what a terminal does unless told it is
-rendering an East Asian locale. `string-width` makes that an option; nothing above this has
-ever needed the other answer, so it is not one here.
+**Ambiguous-width characters count narrow by default**, which is what a terminal does unless
+it is rendering with a CJK font. `width(text, { ambiguousIsNarrow: false })` counts them two
+columns wide for that context — string-width's option, under its name and with its default.
+Nothing can detect which a terminal is doing, so it is the caller's decision.
 
 **Not a terminal emulator.** Semicolon-delimited SGR, colon-delimited extended colour and
 OSC 8 hyperlinks are understood. Every other complete CSI or OSC command is carried through
 as an opaque zero-width unit, and anything that only looks like an introducer stays plain
 text.
 
-**Still at the Design→Build gate:** an exported `strip`, and the ASCII fast path — a byte
-scan when the string has no non-ASCII code unit, so the segmenter is reached only when it
-earns its cost.
+**`strip` is exported**, from the root and as the `linegauge/strip` subpath whose default
+export is the strip-ansi drop-in. `width` measures what it leaves.
+
+**An ASCII fast path.** A string of printable ASCII is measured by a scan of its code units,
+so the segmenter is reached only when it earns its cost.
 
 ## Plugins
 
@@ -139,9 +143,9 @@ The two things that genuinely vary are already handled without a registry:
   to pass; nothing here reads `process`. That is a parameter, not a plugin.
 
 The family's plugin contract records this refusal next to the other layers' keys (R5a), so
-"no key" is one of the contract's answers rather than a hole in it. If a real second answer
-ever arrives — an ambiguous-width policy some terminal actually needs — it lands as an option
-with a differential test behind it, because the graders have to see it.
+"no key" is one of the contract's answers rather than a hole in it. The one real second
+answer so far — the ambiguous-width policy a CJK terminal needs — landed that way: as
+`ambiguousIsNarrow`, an option with tests behind it, not a registration.
 
 ## Benchmarks
 
@@ -161,7 +165,7 @@ its own suite — which this package passes. The runner reports that as a failur
 to the incumbent an unexpected pass means a stale annotation; it is counted here as the
 pass it is, and marked rather than left to look like the ones beside it.
 
-Weight, installed and tree-inclusive: **85,762 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.4413**.
+Weight, installed and tree-inclusive: **86,081 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.4430**.
 ## Where it sits
 
 Plugins register under the `widths` key, against the one schema the whole family shares.

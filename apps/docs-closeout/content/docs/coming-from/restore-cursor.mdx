@@ -1,0 +1,77 @@
+---
+title: Coming from restore-cursor
+description: "A restore-cursor alternative with a drop-in path: import restoreCursor from closeout/restore-cursor, graded 6 / 6 by restore-cursor's own test suite — then zero dependencies, and a restore phase that runs after every other exit handler."
+---
+
+**closeout** is a **restore-cursor alternative** you adopt by changing one import.
+`closeout/restore-cursor` is restore-cursor 5's API, and restore-cursor's own test suite is
+the grade.
+
+## Migrate from restore-cursor in one import
+
+```diff
+- import restoreCursor from 'restore-cursor';
++ import restoreCursor from 'closeout/restore-cursor';
+```
+
+Everything else stays: `restoreCursor()` arranges for the cursor to be shown again however
+the process ends, registers at most once, and writes nothing when neither stream is a
+terminal — escape sequences in a pipe corrupt the output the pipe exists to carry. The stream
+is chosen the way restore-cursor chooses it: stderr if it is a TTY, otherwise stdout if it
+is. The decision is taken when you call, and the sequence goes out at exit whatever `isTTY`
+says by then.
+
+## Is closeout compatible with restore-cursor?
+
+Graded, not claimed. restore-cursor's own suite, vendored at 5.1.0 and unmodified apart from
+the import specifier, runs against `closeout/restore-cursor` beside a control that runs it
+against real restore-cursor:
+
+| | passing | rate |
+| :-- | --: | --: |
+| `closeout/restore-cursor` | 6 / 6 | 100.0% |
+| restore-cursor itself (control) | 6 / 6 | 100.0% |
+
+From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
+oracle's last run; that page is the authority, and its front-end column reads `closeout`
+because the row's import is composed onto the package root as `closeout/restore-cursor`. Four
+of the six cases spawn a child with stdout and stderr forced to each TTY combination and
+assert which stream the sequence came out on — or that nothing did; the other two write and
+remove the script those four run.
+
+## What you gain over restore-cursor
+
+- **Zero dependencies.** restore-cursor 5.1.0 depends on `onetime` and `signal-exit`, and
+  `onetime` on `mimic-function`. The once-only guard and the exit registration are closeout's
+  own.
+- **Last is a phase, not a sort.** The restore is registered in closeout's `restore` phase,
+  which runs after `flush` and `release` — closeout's answer to restore-cursor's
+  `alwaysLast`, and ordered against every other handler, a plugin's included, by declaration
+  rather than by import order.
+- **Every exit path, bounded.** The restore rides closeout's own `onExit`: a normal exit, an
+  emptied event loop, `SIGINT`, `SIGTERM`, `SIGHUP`, `SIGQUIT`, an uncaught throw and an
+  unhandled rejection, once, under a deadline that a hung handler cannot outlast.
+- **Hide and restore as one call.** If you pair restore-cursor with a hand-written hide,
+  `hideCursor(stream)` hides and registers the restore at the same moment, so the two cannot
+  drift apart:
+
+```js
+import { hideCursor } from 'closeout';
+
+const restore = hideCursor(process.stderr);
+try {
+  await drawTheSpinner();
+} finally {
+  restore();
+}
+```
+
+`hideCursor` is closeout's own API, not a cli-cursor drop-in.
+
+## When to switch from restore-cursor
+
+- Ctrl-C leaves a hidden cursor in your users' shells.
+- Your cursor restore has to run after your other cleanup, and you want that to be a
+  guarantee rather than an import order.
+
+The API, the phases and the deadline are on [closeout](/docs).
