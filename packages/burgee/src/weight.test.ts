@@ -261,7 +261,8 @@ const RULES: Record<string, EntryRule> = {
     // 44,600 with N14 (#470) and E7 together, after merging main. Measured 44,568.
     // 43,600 on 2026-09-23 for D-122, the `parse` and `shutdown` plugin stages: the `parse` loop lives in `parse-hooks.js`, loaded only when a plugin declares it; what stays is `Manifest.declares`, the call into that chunk, and registering `shutdown` on the run's teardown. Measured 43,501.
     // 45,000 with D-122 on top of N14 and E7, after merging main. Measured 44,975.
-    budget: 45_000,
+    // 45,200 with S4, `-` as stdin, on top of D-122, N14 and E7: the check lives in `stdin-dash.js`, imported only when a positional is `-`; what stays is that test and the spread. Measured 45,107.
+    budget: 45_200,
     denied: [
       "testing.js",
       "testing-helpers.js",
@@ -337,7 +338,8 @@ const RULES: Record<string, EntryRule> = {
   // 48,100 with N14 (#470) and E7 together. Measured 48,087.
   // 48,300 on 2026-09-23 for D-122 — the same engine and manifest bytes as `.`. Measured 48,212.
   // 48,500 with D-122 on top of N14 and E7, after merging main. Measured 48,494.
-  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 48_500, denied: ["dev.js", "migrate.js"] },
+  // 48,700 with S4 on top of D-122, N14 and E7 — the same engine bytes as `.`. Measured 48,626.
+  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 48_700, denied: ["dev.js", "migrate.js"] },
   /**
    * The four doors the root barrel stopped holding open (see `.` above). Each is the same
    * module the engine reaches behind an `await import()`, published so a program that wants it
