@@ -47,7 +47,7 @@ describe('defineError (E7)', () => {
   it('carries the code into the JSON envelope an agent reads', async () => {
     const r = await runBurgee(program, { argv: ['push', '--json'] });
     expect(r.code).toBe(10);
-    expect(JSON.parse(r.stderr)).toEqual({ ok: false, error: { code: 10, message: 'quota exceeded', hint: 'wait an hour, or raise the plan', fix: 'app plan upgrade' } });
+    expect(JSON.parse(r.stdout)).toEqual({ ok: false, error: { code: 10, message: 'quota exceeded', hint: 'wait an hour, or raise the plan', fix: 'app plan upgrade' } });
   });
 
   it('a subclass leaves with its parent’s code', async () => {

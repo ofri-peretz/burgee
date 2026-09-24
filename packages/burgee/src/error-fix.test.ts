@@ -27,11 +27,12 @@ const failWith = async (argv: string[]): Promise<{ text: string; json: Record<st
   const err: string[] = [];
   await execute(program, { argv, env: {}, stdout: { write: (s: string) => out.push(s) }, stderr: { write: (s: string) => err.push(s) }, exit: () => undefined });
   const text = `${out.join('')}${err.join('')}`;
-  // The failure envelope goes to **stderr** — stdout is the program's own output, and an
-  // agent reading a result must never find an error mixed into it.
+  // The failure envelope goes to **stdout**, where `--json` promises the envelope whether the
+  // run worked or not; it was on stderr until D-140. `ok: false` is what keeps it from being
+  // read as a result.
   let json: Record<string, unknown> | undefined;
   try {
-    json = JSON.parse(err.join('')) as Record<string, unknown>;
+    json = JSON.parse(out.join('')) as Record<string, unknown>;
   } catch {
     json = undefined;
   }

@@ -134,10 +134,10 @@ export function judge(task: Task, run: RunOutcome): Judgement {
   // A hang is never a pass, whatever status the killed process left behind.
   const exitCorrect = run.hung ? false : exitTellsTheTruth(task.expect, run.status);
 
-  // stdout when it worked, stderr when it did not: a machine-readable *error* belongs on
-  // stderr, and burgee puts it there. Reading stdout alone scored a correctly placed
-  // envelope as a failure — which it did, and read as burgee managing 25% on its own
-  // headline feature, until this read both.
+  // Either stream. burgee puts every `--json` envelope, failure included, on stdout (D-140),
+  // but its engine put the failure on stderr until then, and a CLI under comparison may do
+  // either — reading stdout alone scored a placed envelope as a failure once already, and read
+  // as burgee managing 25% on its own headline feature, until this read both.
   return {
     hung: run.hung,
     exitCorrect,

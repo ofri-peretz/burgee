@@ -13,11 +13,14 @@
  * It is not impossible on the façades, and since 2026-09-21 silence is no longer read as
  * refusal there (G1). See {@link toolsOf}.
  */
+import { Console } from 'node:console';
 import { createInterface } from 'node:readline';
+import { Writable } from 'node:stream';
 
 import { WITHHELD } from './definition.js';
 import { type CommandNode, type Effects, type Manifest } from './manifest.js';
 import { kebab } from './names.js';
+import { host } from './runtime.js';
 import { inputSchemaOf, type JsonSchema, runnable, typedName } from './schema.js';
 
 export const MCP_PROTOCOL_VERSION = '2025-06-18';
@@ -154,6 +157,60 @@ interface Session {
   serverInfo: { name: string; version: string };
 }
 
+/**
+ * The console methods that print to stdout. `warn`, `error`, `trace` and `assert` go to stderr
+ * and stay there; the counters, timers and groups are here because their state lives on the
+ * console that prints them.
+ */
+const STDOUT_CONSOLE = ['log', 'info', 'debug', 'dir', 'dirxml', 'table', 'group', 'groupCollapsed', 'groupEnd', 'count', 'countReset', 'time', 'timeLog', 'timeEnd'] as const;
+
+/** Set while a frame goes out, so a transport that *is* `process.stdout` passes the capture. */
+let framing = false;
+
+/**
+ * Run one tool call with its stdout held back: what it prints — `console.log` in a commander
+ * action, a `process.stdout.write` — is returned instead of reaching the stream the frames go
+ * out on, where a client reads it as a malformed message. stderr is not touched. Everything is
+ * put back when the call settles, however it settles.
+ *
+ * One capture at a time is all there is to handle: `serve` awaits each request before reading
+ * the next line, so two calls never overlap. `framing` covers the one write that can land
+ * mid-call — `swap`'s notification from `burgee dev`.
+ */
+async function printedBy<T>(run: () => Promise<T>): Promise<{ settled: PromiseSettledResult<T>; printed: string }> {
+  const chunks: string[] = [];
+  const decoder = new TextDecoder();
+  // A string is text already; bytes are UTF-8, which is all a console or a `write` sends.
+  const take = (chunk: unknown): void => void chunks.push(typeof chunk === 'string' ? chunk : decoder.decode(chunk as Uint8Array));
+  const sink = new Writable({
+    decodeStrings: false,
+    write(chunk, _encoding, done): void {
+      take(chunk);
+      done();
+    },
+  });
+  const stdout = host.stdout;
+  const write = stdout.write;
+  stdout.write = function (chunk: unknown, ...rest: unknown[]): boolean {
+    if (framing) return Reflect.apply(write, stdout, [chunk, ...rest]) as boolean;
+    take(chunk);
+    const done = rest.find((r): r is () => void => typeof r === 'function');
+    if (done !== undefined) queueMicrotask(done);
+    return true;
+  } as typeof stdout.write;
+  const printer = new Console({ stdout: sink, stderr: host.stderr });
+  const saved = STDOUT_CONSOLE.map((m) => [m, console[m]] as const);
+  for (const m of STDOUT_CONSOLE) Reflect.set(console, m, printer[m].bind(printer));
+  try {
+    return { settled: { status: 'fulfilled', value: await run() }, printed: chunks.join('') };
+  } catch (reason) {
+    return { settled: { status: 'rejected', reason }, printed: chunks.join('') };
+  } finally {
+    for (const [m, fn] of saved) Reflect.set(console, m, fn);
+    stdout.write = write;
+  }
+}
+
 async function callTool(session: Session, params: Record<string, unknown> | undefined): Promise<unknown> {
   const { manifest, invoke } = session;
   const root = manifest.rootPath;
@@ -165,10 +222,24 @@ async function callTool(session: Session, params: Record<string, unknown> | unde
   const node = runnable(manifest).find((c) => c.effects !== WITHHELD && toolName(c, root) === name);
   if (node === undefined) return { error: { code: JSON_RPC_INVALID_PARAMS, message: `unknown tool "${name}"` } };
   const args = (given['arguments'] ?? {}) as Record<string, unknown>;
-  const { stdout, stderr, code } = await invoke(argvOf(node, root, args));
-  // The envelope is the payload (N4): stdout carries it on success and on a reported failure.
-  const text = stdout.trim() !== '' ? stdout.trim() : stderr.trim();
-  return { result: { content: [{ type: 'text', text }], isError: code !== 0 } };
+  const { settled, printed } = await printedBy(async () => await invoke(argvOf(node, root, args)));
+  let text: string;
+  let isError: boolean;
+  if (settled.status === 'fulfilled') {
+    const { stdout, stderr, code } = settled.value;
+    // The envelope is the payload (N4): stdout carries it on success and on a reported failure.
+    text = stdout.trim() !== '' ? stdout.trim() : stderr.trim();
+    isError = code !== 0;
+  } else {
+    // A runner that rejects is this call's failure, not the transport's: the server goes on.
+    text = settled.reason instanceof Error ? settled.reason.message : String(settled.reason);
+    isError = true;
+  }
+  // What the handler printed is part of its answer — for a commander action that prints
+  // rather than returns, it is the whole answer — so it follows the envelope as text.
+  const content = [{ type: 'text', text }];
+  if (printed.trim() !== '') content.push({ type: 'text', text: printed.trimEnd() });
+  return { result: { content, isError } };
 }
 
 async function handle(session: Session, request: Request): Promise<unknown> {
@@ -213,7 +284,14 @@ export function startMcp(manifest: Manifest, opts: ServeOptions): McpServer {
     invoke: opts.invoke,
     serverInfo: { name: manifest.rootPath.join(' ') || 'burgee', version: manifest.version ?? '0.0.0' },
   };
-  const reply = (body: Record<string, unknown>): void => void opts.output.write(`${JSON.stringify({ jsonrpc: '2.0', ...body })}\n`);
+  const reply = (body: Record<string, unknown>): void => {
+    framing = true;
+    try {
+      opts.output.write(`${JSON.stringify({ jsonrpc: '2.0', ...body })}\n`);
+    } finally {
+      framing = false;
+    }
+  };
   const swap = (next: Manifest, invoke?: Invoke): void => {
     session.manifest = next;
     if (invoke !== undefined) session.invoke = invoke;
