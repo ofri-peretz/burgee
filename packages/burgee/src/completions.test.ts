@@ -138,8 +138,9 @@ describe('each shell exercises its script (D4)', () => {
   });
 
   const pwsh = (line: string): string[] => lines(execFileSync('pwsh', ['-NoProfile', '-File', join(repo, 'scripts/complete-pwsh.ps1'), '-Script', scriptFor('pwsh'), '-Line', line], { encoding: 'utf8' }));
-  // pwsh starts cold in about two seconds on a runner, three times here.
-  it.runIf(has('pwsh'))('PowerShell: subcommands, options and choice values with tooltips', { timeout: 30_000 }, () => {
+  // pwsh starts cold in about two seconds on a runner, three times here — and a Windows runner
+  // took 33.6 s for the three against the old 30 s (#484, #433), so the ceiling is 120 s.
+  it.runIf(has('pwsh'))('PowerShell: subcommands, options and choice values with tooltips', { timeout: 120_000 }, () => {
     expect(pwsh('demo con')).toEqual(['config']);
     expect(pwsh('demo greet --')).toEqual(expect.arrayContaining(['--shout', '--greeting', '--json', '--help']));
     expect(pwsh('demo greet --greeting ')).toEqual(['Hello', 'Hi']);
