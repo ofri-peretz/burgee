@@ -54,6 +54,7 @@
     "mark-lab": "node scripts/mark-lab.mts",
     "decisions": "tsx scripts/decisions.ts",
     "weight:page": "tsx scripts/subpath-weight.ts",
+    "weight:converge": "node scripts/weight-converge.mjs",
     "plugins:page": "tsx scripts/plugins-page.ts"
   },
   "overrides": {
@@ -117,6 +118,8 @@
     "slice-ansi": "^7.1.0",
     "string-width": "^8.2.2",
     "strip-ansi": "^7.1.2",
+    "supports-hyperlinks": "4.5.0",
+    "terminal-link": "5.0.0",
     "terminal.js": "^1.0.11",
     "tsx": "^4.19.0",
     "turbo": "^2.11.1",

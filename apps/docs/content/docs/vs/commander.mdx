@@ -39,7 +39,10 @@ is never called "compatible" until its host's own suite passes 100%.
 The same program, after the import swap, answers four things commander cannot:
 
 - **`--json`** — every command's result in one stable envelope, `{ "ok": true, "data": … }`,
-  with errors in the same shape. No stdout scraping. `data` is what the action returns, so
+  and every failure in the same place: `{ "ok": false, "error": { "code", "message" } }` on
+  stdout, alone, whether commander refused the command line or the action threw — with the
+  exit code the error names (`AuthError` exits 5). Through 0.11.1 an action that threw under a
+  plain `parseAsync(process.argv)` escaped as a stack trace instead. No stdout scraping. `data` is what the action returns, so
   an action that only prints gives `data: null` — commander actions return nothing; return
   the value (`.action(() => ({ lines }))`) and it is `data`.
 - **`--schema`** — the whole command tree as data: commands, arguments, options, choices,
@@ -48,7 +51,8 @@ The same program, after the import swap, answers four things commander cannot:
 - **`--mcp`** — the same commands served as MCP tools over stdio. Every command with an
   action is a tool; one that declared nothing is annotated `effects: 'undeclared'` with no
   hints, `.effects('read_only')` (or `idempotent`, `non_idempotent`) adds them, and
-  `.effects('withheld')` keeps a command out.
+  `.effects('withheld')` keeps a command out. An action that prints is still a useful
+  tool: its printed output becomes the tool result instead of corrupting the stream.
 - **Completions** — `completion bash | zsh | fish | pwsh`, generated from the same
   declaration; pressing TAB never runs your program.
 
@@ -71,7 +75,7 @@ Weight. From the root README's *Measured* table (2026-09-09, one machine, genera
 | :-- | --: | --: |
 | Runtime dependencies | 5, none outside the burgee family | 0 |
 | Full CLI run over bare node | +14.0 ms | +15.3 ms |
-| Installed size | 1250 KB | 203 KB |
+| Installed size | 1276 KB | 203 KB |
 
 The `lighter-than-commander` gate — `burgee/commander` lighter in a bundle than commander
 alone — is **not met** (1.514×). Against commander *plus* what a commander user installs to

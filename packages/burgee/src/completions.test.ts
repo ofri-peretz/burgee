@@ -120,8 +120,9 @@ describe('each shell exercises its script (D4)', () => {
     expect(bash('demo greet ada --')).not.toContain(SENTINEL);
   });
 
+  // A pty zsh under a loaded pre-push battery: up to 40 s to start and 30 s to list, per call.
   const zsh = (line: string): string => execFileSync('zsh', [join(repo, 'scripts/complete-zsh.zsh'), scriptFor('zsh'), line], { encoding: 'utf8' });
-  it.runIf(has('zsh'))('zsh: a real TAB in a pseudo-terminal completes the command and lists options with descriptions', { timeout: 30_000 }, () => {
+  it.runIf(has('zsh'))('zsh: a real TAB in a pseudo-terminal completes the command and lists options with descriptions', { timeout: 120_000 }, () => {
     expect(zsh('demo con')).toContain('demo config');
     const options = zsh('demo greet --');
     for (const w of ['--greeting', '--shout', '--json', '--help']) expect(options).toContain(w);
@@ -137,8 +138,9 @@ describe('each shell exercises its script (D4)', () => {
   });
 
   const pwsh = (line: string): string[] => lines(execFileSync('pwsh', ['-NoProfile', '-File', join(repo, 'scripts/complete-pwsh.ps1'), '-Script', scriptFor('pwsh'), '-Line', line], { encoding: 'utf8' }));
-  // pwsh starts cold in about two seconds on a runner, three times here.
-  it.runIf(has('pwsh'))('PowerShell: subcommands, options and choice values with tooltips', { timeout: 30_000 }, () => {
+  // pwsh starts cold in about two seconds on a runner, three times here — and a Windows runner
+  // took 33.6 s for the three against the old 30 s (#484, #433), so the ceiling is 120 s.
+  it.runIf(has('pwsh'))('PowerShell: subcommands, options and choice values with tooltips', { timeout: 120_000 }, () => {
     expect(pwsh('demo con')).toEqual(['config']);
     expect(pwsh('demo greet --')).toEqual(expect.arrayContaining(['--shout', '--greeting', '--json', '--help']));
     expect(pwsh('demo greet --greeting ')).toEqual(['Hello', 'Hi']);

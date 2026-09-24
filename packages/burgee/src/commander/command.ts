@@ -22,6 +22,7 @@ import { stripVTControlCharacters } from 'node:util';
 import * as crossSpawn from 'bellpull/cross-spawn';
 
 import { ExitCode } from '../exit-code.js';
+import { handlerFailure } from '../facade-failure.js';
 import { type DeclaredEffects, Manifest, type OptionSpec, type Plugin } from '../manifest.js';
 import { camel } from '../names.js';
 import { host } from '../runtime.js';
@@ -1269,12 +1270,29 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
 
   /** One failure as the envelope (E3, G5); `fix` only when one candidate was named. */
   _reportJson(code: string, message: string): void {
+    const [first = '', ...rest] = message.replace(/^error: /, '').split('\n');
+    const guess = /\(Did you mean (\S+)\?\)/.exec(rest.join(''));
+    this._writeFailure({ code, message: first, ...(guess === null ? {} : { fix: guess[1] }) });
+  }
+
+  /** The failure envelope on stdout, once per run however many paths see the same failure (G5). */
+  _writeFailure(error: Record<string, unknown>): void {
     const burgee = this._root()._burgee;
     if (burgee === undefined || !burgee.json || burgee.reported) return;
     burgee.reported = true;
-    const [first = '', ...rest] = message.replace(/^error: /, '').split('\n');
-    const guess = /\(Did you mean (\S+)\?\)/.exec(rest.join(''));
-    this._outputConfiguration.writeOut(`${JSON.stringify({ ok: false, error: { code, message: first, ...(guess === null ? {} : { fix: guess[1] }) } })}\n`);
+    this._outputConfiguration.writeOut(`${JSON.stringify({ ok: false, error })}\n`);
+  }
+
+  /**
+   * A handler's failure — a throw, a rejection, a thrown non-Error — reported on the surface the
+   * run asked for, with the E1 code its error names: `AuthError` is AUTH, `UsageError` USAGE,
+   * anything else RUNTIME (E6, D-140). Returns that code.
+   */
+  _reportHandlerFailure(err: unknown): ExitCode {
+    const { exit, error } = handlerFailure(err);
+    if (this._burgee?.json === true) this._writeFailure(error);
+    else this._outputConfiguration.writeErr(`error: ${error.message}\n`);
+    return exit;
   }
 
   /** Apply environment variables to options that have no value from the cli or client code. */
@@ -1840,7 +1858,7 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
   _runBurgee(run: () => unknown): unknown {
     const root = this._root();
     const burgee = root._burgee;
-    if (burgee === undefined) return run();
+    if (burgee === undefined) return root._runCommanderWay(run);
     const finish = (code: number): void => {
       root._burgee = undefined;
       burgee.exit?.(code);
@@ -1851,15 +1869,45 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
         finish(e1(err));
         return;
       }
-      const message = err instanceof Error ? err.message : String(err);
-      if (burgee.json) root._reportJson('runtime', message);
-      else root._outputConfiguration.writeErr(`error: ${message}\n`);
-      finish(ExitCode.RUNTIME);
+      finish(root._reportHandlerFailure(err));
     };
     try {
       const result = run();
       if (isThenable(result)) return Promise.resolve(result).then(() => finish(ExitCode.OK), fail);
       finish(ExitCode.OK);
+      return undefined;
+    } catch (err) {
+      fail(err);
+      return undefined;
+    }
+  }
+
+  /**
+   * Nothing injected — `program.parseAsync(process.argv)`, the way every commander program is
+   * run. Commander's own contract, with one exception: a handler that fails under `--json`
+   * settles to the envelope on stdout and the E1 code its error names, set as the process's
+   * exit code, instead of escaping `parse`/`parseAsync` for Node to print as a stack (D-140).
+   *
+   * The seam check in `_runBurgee` cannot see this case, and that was the defect: it runs
+   * before argv is parsed, and `--json` is only recognised *during* the parse, so the run was
+   * already committed to "no burgee" when the handler threw. A `CommanderError` is left alone —
+   * `error()` has reported it already, and an `exitOverride` caller is owed the throw — and so
+   * is every failure without `--json`, which is commander's to surface as it always has.
+   */
+  _runCommanderWay(run: () => unknown): unknown {
+    const done = (): void => {
+      this._burgee = undefined;
+    };
+    const fail = (err: unknown): void => {
+      const json = this._burgee?.json === true && !(err instanceof CommanderError);
+      if (json) host.exitCode = this._reportHandlerFailure(err);
+      done();
+      if (!json) throw err;
+    };
+    try {
+      const result = run();
+      if (isThenable(result)) return Promise.resolve(result).then(done, fail);
+      done();
       return undefined;
     } catch (err) {
       fail(err);

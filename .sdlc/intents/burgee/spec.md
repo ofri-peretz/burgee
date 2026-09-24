@@ -598,7 +598,7 @@ was quietly met.
 **The count.** 114 requirements, in seventeen families — `Z F O E V S P D T H M K J C B N U`.
 The prose above says *92* and *"Ninety-two requirements"*; both are wrong, and wrong the same
 way, because `E6 E7 V8 N11–N15` were added after the arithmetic was last done and `C1–C8`
-names two rows that do not exist. **Built: 94. Not built: 20**, and the count moves as rows are
+names two rows that do not exist. **Built: 101. Not built: 13**, and the count moves as rows are
 built rather than as the prose is rewritten — T1 moved on 2026-09-22 and the tally moved with
 it. An audit whose total disagrees with its own rows is the failure this paragraph is a record
 of; `spec-tally-lock.test.ts` now derives the two numbers from the tables instead of trusting
@@ -635,7 +635,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 
 | # | Status | Evidence | The check |
 | :-- | :-- | :-- | :-- |
-| F1 | Not built | `schema.ts` prints the tree and stamps `schemaVersion: 1`. The *validating* half is absent: the only `schema.json` burgee publishes is the **family plugin schema** — byte-identical across six packages and titled `flagstaff plugin` — not a schema for `--schema` output, and nothing validates the document against anything | `schema.test.ts` asserts the shape; no test validates against a JSON Schema |
+| F1 | **Built** | `--schema` prints the tree with `schemaVersion: 1`, and now the exit-code table (`exitCodes`, the contract's seven) so a caller branches on the number without prose. It validates against `burgee/program-schema.json`, published with the package; `scripts/program-schema.test.ts` validates real output against it on every run with the family's one walker, and no runtime validator ships (D-123) | `schema.test.ts`, `scripts/program-schema.test.ts` |
 | F2 | **Built** | `--help --json` prints the help *document*: `{ schemaVersion, name, arguments, options, examples, inputSchema, commands }`, which is `commandSchemaOf` for the node plus its immediate children — the same shape `--schema` publishes, scoped to one command, so there is one document shape in the package rather than a second one invented for help. This row read `Not built` until 2026-09-22 and was stale, not wrong when written: `dispatch` and `unresolved` both grew the branch afterwards and nothing moved the audit | `help-json.test.ts`, and the three call sites carry `// F2 — help as data` in `execute.ts` |
 | F3 | Not built | **The lint half lives in the Interlace ESLint monorepo (D-124).** held by `L` only; `eslint-plugin-cli-floor` is not a package | — |
 | F4 | **Built** | `help.ts`'s `commandSections` groups children by `group`; `hidden` is filtered by `runnable()`; `commandSchemaOf` carries `group` into `--schema` | `help.test.ts`, `schema.test.ts` |
@@ -673,7 +673,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | V5 | **Built** | `definition.ts`'s `RESERVED` refuses `json help schema mcp version explain`, at `defineCommand` **and** at `Manifest.use()`. The `Holds` column says `L`; it is held by `R`. Restated below | `env.test.ts`: *"reserves version and explain like the other surfaces"*; `plugin.test.ts` |
 | V6 | **Built** | `seniority/config`'s `discover` with the fixed order, loaded lazily for a program that opted in; the chain is reported through `--explain` | `env.test.ts`; seniority's `discovery.test.ts` |
 | V7 | **Built** | `seniority/src/config.ts`'s `loadWithExtends` — deep merge, outermost first, cycle rejection, resolution from the extending file | seniority's `config.test.ts` |
-| V8 | Not built | there is no `config explain` command and no generated precedence table. `--explain <option>` exists and is a different surface | — |
+| V8 | **Built** | `config explain [command…]` is synthesised for a program that reads config and does not define the command itself (D-117). It prints the precedence from `seniority`'s own `ORDER` — so the table cannot disagree with what a run does — then every option with its value and the source that won, file and line included; `--json` answers as data; `--config <path>` and `--no-config` choose what is read, as on a run. `--explain <option>` remains the per-option view | `config-explain.test.ts` |
 
 ### Validation
 
@@ -682,7 +682,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | S1 | **Built** | `OptionSpec.schema` accepts any `StandardSchemaV1`; `InferOptions` derives the handler's type from the same declaration | `schema-dsl.test.ts` |
 | S2 | **Built** | `Relation` carries `exactlyOneOf`, `atLeastOneOf`, `atMostOneOf`, `conflicts` and a value-aware `implies`; `dependsOn`/`exclusive` compile into it through `optionRelations` | `option-relations.test.ts`, `relations-schema.test.ts` |
 | S3 | **Built** | `toNumber` refuses `NaN` and `Infinity`; `checkDefinition` refuses an unknown `type` at definition time | `schema-dsl.test.ts` |
-| S4 | Not built | the `--` half is built: `splitPositionals` hands everything after the terminator to the handler as `passthrough`. `-` meaning stdin is not, and `ArgumentSpec` has no `type` field, so no positional can be file-typed in the first place | `parsing-edges.test.ts` for the `--` half |
+| S4 | **Built** | `ArgumentSpec.type: 'file'` (D-113): a `-` there hands the handler the injected stdin as `ctx.stdin`, and the positional still reads `-`. A variadic file argument covers every position it takes; `-` for two file arguments is a usage error, because stdin can be read once; `-` on any other argument is just a string. The `--` half was already built: `splitPositionals` hands everything after the terminator to the handler as `passthrough` | `stdin-dash.test.ts`, `parsing-edges.test.ts` |
 | S5 | **Built** | `names.ts` — one canonical camelCase key, kebab derived; `checkDefinition` refuses two keys that meet on the command line | `schema-dsl.test.ts` |
 | S6 | **Built** | `dispatch()` calls `checkRelations` before `coerce`, and `coerce` checks choices before the Standard Schema | `option-relations.test.ts` |
 | S7 | **Built** | `toParseConfig` maps `boolean` to parseArgs' `type: 'boolean'`, which never consumes a value | `negation.test.ts`, `parsing-edges.test.ts` |
@@ -693,8 +693,8 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | # | Status | Evidence | The check |
 | :-- | :-- | :-- | :-- |
 | P1 | Not built | **The lint half lives in the Interlace ESLint monorepo (D-124).** held by `L` only | — |
-| P2 | Not built | the requirement specifies exit **2**. The nearest mechanism, `ctx.actionRequired`, unwinds to `ExitCode.CANCELLED` (**4**), and there is no prompt-to-`USAGE` path in the package | — |
-| P3 | Not built | `caique/src/binding.ts` classifies a cancelled prompt as the string `'CANCELLED'` and never `RUNTIME`, which is the taxonomy half. Nothing *exits* 4: caique declares no numeric code, and burgee does not import caique, so no path joins the two | — |
+| P2 | **Built** | a thrown refusal carrying `code: 'USAGE'` leaves with exit 2, its message and `fix` rendered as E3 (D-120) — which is how caique's non-TTY verdict, `{ code: 'USAGE', message, fix }` naming the flag, reaches an exit status. burgee does not import caique: the contract is the shape, and `scripts/prompt-exit-codes.test.ts` proves it with each package's real code | `scripts/prompt-exit-codes.test.ts` |
+| P3 | **Built** | caique's cancelled prompt, `{ code: 'CANCELLED', message, fix }`, thrown from a handler exits 4 — never `RUNTIME` — with the fix line saying how to skip the question (D-120). The same rule maps `CONFIG` and `AUTH` by name; any other string code (`ENOENT`) is not a claim and stays `RUNTIME` | `scripts/prompt-exit-codes.test.ts` |
 
 ### Deprecation and completions
 
@@ -702,7 +702,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | :-- | :-- | :-- | :-- |
 | D1 | **Built** | `definition.ts`'s `checkDeprecated` refuses `deprecated: true` and `''` on a command and on every option, at the one door `defineCommand` and `Manifest.use()` share, with the fix in the message. A named replacement already reached all three surfaces — help's `(deprecated: use X)`, `--schema`'s `deprecated`, the warning's `, use 'X'` — so requiring it is what was missing. The façades do not pass that door: commander and yargs accept the bare form and their graded suites expect it | `deprecation.test.ts`: *"refuses a command deprecated with no replacement"* — three of its five cases red before the refusal |
 | D2 | **Built** | `completions.ts` walks the manifest into bash, zsh, fish and PowerShell scripts, statically | `completions.test.ts`, `src/__snapshots__` |
-| D3 | Not built | the half that matters is built — no generated script runs Node on TAB. The escape hatch is not: there is no `dynamic` marker on an option anywhere in `OptionSpec` | `completions.test.ts` |
+| D3 | **Built** | no generated script runs the program on TAB unless an option opts in (D-119). The opt-in is the completer itself — `complete: (partial) => string[]` on the option, since a `dynamic: true` with nothing to call would have nothing to run: bash, zsh, fish and PowerShell call `<program> __complete <command> --<option> <partial>` for that option alone, every other option completes from `choices` or not at all, and each script's header says which of the two promises it keeps. `__complete` prints nothing and exits 0 for an unknown command, an option with no completer or a completer that throws — a TAB never prints an error into a prompt | `completions.test.ts`, `completions-dynamic.test.ts` (real bash, zsh and fish against a real program on `PATH`) |
 | D4 | **Built** | snapshots in `src/__snapshots__`, and each of the four shells runs its own script | `.github/workflows/completions.yml` — bash through `COMP_WORDS`, zsh through a real TAB in a pty, fish through `complete -C`, pwsh through `TabExpansion2` |
 | D5 | **Built** | `renderFigSpec`, from the same walk as the shell scripts | `fig-spec.test.ts`, `fig-schema.test.ts` (keys pinned against `@withfig/autocomplete-types`) |
 
@@ -799,7 +799,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | N11 | **Built** | `ctx.actionRequired(spec)` unwinds through `ActionRequired`; `runnableNext` prefixes the program name and carries the caller's own `--json` into each `next[]` command | `machine-json.test.ts` |
 | N12 | **Built** | `agent.ts` — `AGENT_PROBES`, `FORCE_TTY=1`, and `interactive = forced \|\| (tty && agent === undefined)`, which is the load-bearing clause. The probe list is **5** variables, not the 13 the requirement names; restated below | `agent.test.ts` |
 | N13 | **Built** | the budget half: `Manifest.schemaBudget`, `SCHEMA_BUDGET = 48_000`, `summaryOf`. The drilling half: by command path (`--schema <command>`), and below it by field path (D-116) — `--schema <command> --field options.region` returns that one value, a step that does not exist is refused with the steps that do, and the walk lives in `schema-surface.js`, loaded only when `--field` is typed | `schema.test.ts`, `schema-field.test.ts` |
-| N14 | Not built | `--json` is seeded in `toParseConfig` as `{ type: 'boolean' }`. It takes no argument, so nothing lists valid fields and nothing rejects an invalid one | — |
+| N14 | **Built** | `--json=<a,b>` selects the result's top-level fields — of the object, or of each object in a list — and only the `=` form takes them, so `cmd --json name` keeps `name` a positional (D-114). A command may declare `fields`: then `--json=` lists them without running the handler, `--json=a,x` is refused before it runs with `valid fields: …` as the hint, and `--schema` publishes them. Undeclared, the selection is checked against the keys the result has. | `src/json-fields.test.ts` |
 | N15 | Not built | **Deferred past 1.0 (D-115)** — not a 1.0 gate. there is no non-JSON `agent` format. The only format flag in the package is `--format=json-pretty`, and it makes the output *larger* | `machine-json.test.ts` |
 
 ### The output stack

@@ -1,3 +1,4 @@
+import { ExitCode } from './exit-code.js';
 /**
  * `--schema` — the program as data (F1). It is the one command an agent runs first, so it
  * must succeed with no authentication, no config file and no network (N8): it reads the
@@ -50,6 +51,8 @@ export interface CommandSchema {
    * it cannot tell from a command that does not exist (N6).
    */
   effects?: DeclaredEffects;
+  /** What `--json=` selects from (N14), when the command declares it. */
+  fields?: readonly string[];
   deprecated?: boolean | string;
   /** The heading it is listed under (M1). */
   group?: string;
@@ -104,6 +107,11 @@ export interface ProgramSchema {
   name: string;
   version?: string;
   description?: string;
+  /**
+   * F1 — what each exit code means, so an agent branches on the number without reading prose:
+   * the contract's seven, the same table `ExitCode` exports.
+   */
+  exitCodes: Readonly<Record<string, number>>;
   commands: CommandSchema[];
 }
 
@@ -158,6 +166,9 @@ export function typedName(node: CommandNode, root: string[]): string {
   return node.path.slice(root.length).join(' ');
 }
 
+/** Keys a command's schema publishes exactly as the node holds them, in the order they appear. */
+const PASSED_THROUGH = ['description', 'summary', 'effects', 'fields', 'deprecated', 'group'] as const;
+
 export function commandSchemaOf(node: CommandNode, root: string[]): CommandSchema {
   const out: CommandSchema = {
     name: typedName(node, root),
@@ -166,11 +177,9 @@ export function commandSchemaOf(node: CommandNode, root: string[]): CommandSchem
     examples: node.examples ?? [],
     inputSchema: inputSchemaOf(node),
   };
-  if (node.description !== undefined) out.description = node.description;
-  if (node.summary !== undefined) out.summary = node.summary;
-  if (node.effects !== undefined) out.effects = node.effects;
-  if (node.deprecated !== undefined) out.deprecated = node.deprecated;
-  if (node.group !== undefined) out.group = node.group;
+  // One loop over the copied-as-is keys, in published order: six `if` lines cost the façade
+  // bundle more than N14's `fields` could be allowed to add (the B4 ratchet, 59,450 B).
+  for (const key of PASSED_THROUGH) if (node[key] !== undefined) Object.assign(out, { [key]: node[key] });
   if (node.load !== undefined) out.lazy = true;
   if (node.plugin !== undefined) out.plugin = node.plugin;
   // Both spellings, in one list, through the one function the engine enforces (S2/S6).
@@ -221,7 +230,7 @@ export function summaryOf(manifest: Manifest, budget: number): SchemaSummary {
 export function schemaOf(manifest: Manifest): ProgramSchema {
   const root = manifest.rootPath;
   const program = manifest.find(root);
-  const out: ProgramSchema = { schemaVersion: 1, name: root.join(' '), commands: runnable(manifest).map((c) => commandSchemaOf(c, root)) };
+  const out: ProgramSchema = { schemaVersion: 1, name: root.join(' '), exitCodes: ExitCode, commands: runnable(manifest).map((c) => commandSchemaOf(c, root)) };
   if (manifest.version !== undefined) out.version = manifest.version;
   const description = program?.description;
   if (description !== undefined) out.description = description;

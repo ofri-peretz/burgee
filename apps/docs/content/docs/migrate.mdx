@@ -46,9 +46,12 @@ equal.
 | `wrap-ansi` | `linegauge/wrap` |
 | `slice-ansi` | `linegauge/slice` |
 | `cross-spawn` | `bellpull/cross-spawn` |
+| `ansi-escapes` | `paratext` |
+| `which` | `bellpull/node-which` |
 | `rc` | `seniority/rc` |
 | `lilconfig` | `seniority/lilconfig` |
 | `@inquirer/core` | `caique/inquirer` |
+| `terminal-link` | `paratext/terminal-link` |
 | `restore-cursor` | `closeout/restore-cursor` |
 | `exit-hook` | `closeout/exit-hook` |
 | `signal-exit` | `closeout/signal-exit` |
@@ -56,8 +59,8 @@ equal.
 
 ## What it leaves alone, and says so
 
-- **A drop-in that is not level yet.** dotenv, cosmiconfig, clack, meow, ansi-escapes,
-  terminal-link and term-img each have a graded replacement that passes fewer of the
+- **A drop-in that is not level yet.** dotenv, cosmiconfig, clack, meow
+  and term-img each have a graded replacement that passes fewer of the
   incumbent's cases than the incumbent does. The report lists them under `partial` with the
   grade, and never rewrites them: a codemod that breaks your CLI is worse than none.
 - **A name the replacement does not export.** Every imported name is checked against the
@@ -68,11 +71,14 @@ equal.
   6 is not. A project whose installed version — or, with nothing installed, whose declared
   range — is on another major is listed under `offMajor` with both versions, and not
   rewritten. Upgrade it first, and run the command again.
-- **A `require()` of a replacement that has a default export.** `require()` of an ES module
-  returns its namespace, so `const chalk = require('chalk')` pointed at `roundel/chalk` would
-  leave `chalk.red` undefined. The file is refused with `require-of-default`; switch it to
-  `import`, or leave it on the incumbent. `const { Command } = require('commander')` moves,
-  because it reads names and not a default.
+- **A `require()` whose two sides return different kinds of value.** `require()` of an ES
+  module returns its namespace. The incumbents that ship ESM only (chalk 6, ora 9, boxen 8 and
+  nine more) already hand `require()` a namespace, and so do their replacements, so
+  `const chalk = require('chalk')` moves. Where the incumbent hands back its export itself — a
+  function or a class — and the replacement would hand back a namespace, the file is refused
+  with `require-of-default`. No current replacement is in that position: each one whose
+  incumbent returns a function exports it as `'module.exports'`, which is what Node hands a
+  CommonJS caller. `const { Command } = require('commander')` moves, because it reads names.
 - **A deep import** (`commander/lib/command.js`) or **a specifier that is not a literal**
   (`require(name)`). The file is refused by name and line, and left exactly as it was — a
   file is rewritten whole or not at all.

@@ -28,6 +28,7 @@ const require = createRequire(new URL('../package.json', import.meta.url));
 const PAIRS: readonly (readonly [string, string])[] = [
   ['yargs', 'burgee/yargs'],
   ['chalk', 'roundel/chalk'],
+  ['ansi-escapes', 'paratext'],
   ['ora', 'flagstaff/ora'],
   ['log-update', 'flagstaff/log-update'],
   ['boxen', 'flagstaff/boxen'],
@@ -37,11 +38,14 @@ const PAIRS: readonly (readonly [string, string])[] = [
   ['wrap-ansi', 'linegauge/wrap'],
   ['slice-ansi', 'linegauge/slice'],
   ['cross-spawn', 'bellpull/cross-spawn'],
+  ['which', 'bellpull/node-which'],
   ['restore-cursor', 'closeout/restore-cursor'],
   ['exit-hook', 'closeout/exit-hook'],
   ['signal-exit', 'closeout/signal-exit'],
   ['dotenv', 'seniority/dotenv'],
   ['rc', 'seniority/rc'],
+  ['terminal-link', 'paratext/terminal-link'],
+  ['yargs-parser', 'burgee/yargs/parser'],
 ];
 
 /** What `require()` returns, or `undefined` when the specifier is not installed here. */

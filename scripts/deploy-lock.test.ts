@@ -171,8 +171,12 @@ function runStep(body: string, env: Record<string, string>): Result {
   chmodSync(join(bin, 'curl'), 0o755);
   chmodSync(join(bin, 'sleep'), 0o755);
 
+  // The steps download to fixed `/tmp/home.html` / `/tmp/llms.txt` — fine on a fresh runner,
+  // a race here: every concurrent run of this file (another worktree's pre-push, the root
+  // suite beside turbo) shares them, and `served` read `stale`'s `cafebabe` body back. Each
+  // run gets its own.
   const scriptFile = join(dir, 'step.sh');
-  writeFileSync(scriptFile, body);
+  writeFileSync(scriptFile, body.replaceAll('/tmp/', `${dir}/`));
   const outFile = join(dir, 'github_output');
   const summaryFile = join(dir, 'github_summary');
   writeFileSync(outFile, '');
