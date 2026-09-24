@@ -11,18 +11,20 @@ zpty -b z zsh -f -i
 zpty -w z "PS1='' RPS1=''; unsetopt beep; autoload -Uz compinit; compinit -u -D; source ${(q)script}; bindkey '^I' complete-word; zstyle ':completion:*' completer _complete; zstyle ':completion:*' menu no; zstyle ':completion:*' list-prompt ''; zstyle ':completion:*' format ''; print READY"
 local buf chunk; buf=''
 # compinit on a loaded machine (CI, a parallel test run) can take seconds.
-repeat 200 { zpty -r -t z chunk && buf+=$chunk; [[ $buf == *READY* ]] && break; sleep 0.1 }
+repeat 400 { zpty -r -t z chunk && buf+=$chunk; [[ $buf == *READY* ]] && break; sleep 0.1 }
 sleep 0.2
 zpty -w -n z "$line"$'\t'
 buf=''
 local quiet=0 i=0
-repeat 120 {
+repeat 300 {
   (( i++ ))
   if zpty -r -t z chunk; then buf+=$chunk; quiet=0; else (( quiet++ )); fi
   # zle echoes the typed line at once; the completion output follows after the function
   # has been autoloaded. Stop only once something beyond the echo has arrived and stayed
-  # quiet; otherwise keep waiting, up to the full budget (a loaded runner can take seconds).
-  [[ ${#buf} -gt $(( ${#line} + 8 )) && $quiet -ge 8 ]] && break
+  # quiet for two seconds; otherwise keep waiting, up to the full budget. 0.8 s of quiet was
+  # the old window, and under a loaded pre-push battery zsh can pause that long between the
+  # first completion line and the rest, so the list came back cut short.
+  [[ ${#buf} -gt $(( ${#line} + 8 )) && $quiet -ge 20 ]] && break
   sleep 0.1
 }
 zpty -d z
