@@ -121,8 +121,9 @@ describe('the script side: only a declared completer calls back (D3)', () => {
     expect(bash('dyn deploy --tier ')).toEqual(['free', 'pro']);
   });
 
+  // A pty zsh under a loaded pre-push battery: up to 40 s to start and 30 s to list, per call.
   const zsh = (line: string): string => execFileSync('zsh', [join(repo, 'scripts/complete-zsh.zsh'), scriptFor('zsh'), line], { encoding: 'utf8', env });
-  it.runIf(POSIX && has('zsh'))('zsh: TAB after --region lists what the program returned', { timeout: 30_000 }, () => {
+  it.runIf(POSIX && has('zsh'))('zsh: TAB after --region lists what the program returned', { timeout: 120_000 }, () => {
     const out = zsh('dyn deploy --region ');
     for (const r of ['eu-west', 'eu-north', 'us-east']) expect(out).toContain(r);
   });
