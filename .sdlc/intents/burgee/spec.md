@@ -598,7 +598,7 @@ was quietly met.
 **The count.** 114 requirements, in seventeen families — `Z F O E V S P D T H M K J C B N U`.
 The prose above says *92* and *"Ninety-two requirements"*; both are wrong, and wrong the same
 way, because `E6 E7 V8 N11–N15` were added after the arithmetic was last done and `C1–C8`
-names two rows that do not exist. **Built: 102. Not built: 12**, and the count moves as rows are
+names two rows that do not exist. **Built: 103. Not built: 11**, and the count moves as rows are
 built rather than as the prose is rewritten — T1 moved on 2026-09-22 and the tally moved with
 it. An audit whose total disagrees with its own rows is the failure this paragraph is a record
 of; `spec-tally-lock.test.ts` now derives the two numbers from the tables instead of trusting
@@ -763,7 +763,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 
 | # | Status | Evidence | The check |
 | :-- | :-- | :-- | :-- |
-| C1 | Not built | `hosts.ts` pins **one** version per host (commander 15.0.0, yargs 18.1.0) and grades that. No package declares a supported host range, and no job runs a host's suite at a second major | — |
+| C1 | **Built** | `SUPPORTED_MAJORS` in `burgee/src/compat.ts` declares, per incumbent, the majors its drop-in claims, and `migrate`'s off-major check reads it. A second major is graded for the two headline hosts: `PREVIOUS_MAJORS` in `compat-oracle/src/hosts.ts` vendors commander 14.0.3's and yargs 17.7.3's own suites with the incumbent installed beside each, baselines under `baseline/majors/`, and `compat.yml`'s ratchet job runs `--majors` and `--majors --control` before the page check; the page publishes the rows. Measured 2026-09-24: **commander 14 1329 / 1331** (control 1331) — the two `exitOverride` excess-argument cases, whose message 15 extended — and **yargs 17 191 / 794** (control 793 of 794, one allowance: the vendored manifest's name) — 17's CommonJS singleton, which 18 removed. Neither is level, so under D-145 every range is the current major alone: graded, published, not claimed | `scripts/supported-majors-lock.test.ts` — red with commander declared `[14, 15]` (1329 below a control of 1331) and red with the `--majors --control` step removed from `compat.yml`; the ratchet's own `--majors` grade |
 | C2 | **Built** | graded through a one-line shim and published per release | `npm run compat`; `scripts/compat-page.ts --check` |
 | C3 | **Built** | `compat.yml`'s `matrix` job runs Linux, macOS and Windows × Node **24 and 26** — every even major `engines: >=24` admits. 26 was narrowed out on 2026-09-08 to halve CI while the output stack landed (#64) and came back on 2026-09-23, after the whole suite passed on v26.10.0: 767 root tests and every package's. It is graded a month before its LTS promotion, not first as one. Since D-132 (2026-09-23) `engines` also admits 20.19+ and 22.13+, and the `floor` job runs every published package's suite on exactly 20.19.0 and 22.13.0 on the same three OSes | `.github/workflows/compat.yml` `matrix.node`, `floor` `matrix.node`; `npm test` on Node 26.10.0 |
 | C4 | **Built** | `packages/compat-oracle/baseline/*.json`, twenty-one files; an `Exclusion` needs a `why`, and the oracle refuses one that matches nothing | `npm run compat`, and compat-oracle's own suite |

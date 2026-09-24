@@ -2,6 +2,7 @@
 #
 #   ratchet — C5: each host's own suite against burgee; falling below the recorded baseline
 #             fails. Runs where the baselines were recorded (Linux, the .nvmrc Node).
+#             C1: the same, for each incumbent's previous major (`--majors`).
 #   matrix  — C3: every Node LTS in `engines` × Linux, macOS, Windows. Our own suite is a
 #             hard gate everywhere; the controls are informational off Linux, because the
 #             hosts' suites are themselves OS-sensitive and a baseline recorded on one OS
@@ -49,6 +50,17 @@ jobs:
       - name: Grade the real packages, so the page has its control column
         shell: bash
         run: node packages/compat-oracle/dist/bin.js --control 2>&1 | tee -a compat.log
+      # C1 — each drop-in against its incumbent's OLDER major, graded by that major's own
+      # suite (`PREVIOUS_MAJORS` in hosts.ts: commander 14, yargs 17). Same ratchet, same
+      # control, same Linux runner as the two steps above, and before the page check because
+      # the page carries these rows. `SUPPORTED_MAJORS` in burgee's compat.ts claims an older
+      # major only when this grades it level; `scripts/supported-majors-lock.test.ts` holds that.
+      - name: Grade burgee against the previous majors (C1, fails below baseline)
+        shell: bash
+        run: node packages/compat-oracle/dist/bin.js --majors 2>&1 | tee -a compat.log
+      - name: Grade the previous majors' real packages
+        shell: bash
+        run: node packages/compat-oracle/dist/bin.js --majors --control 2>&1 | tee -a compat.log
       # The page went stale in silence once: `flagstaff/cli-table3` was graded 29 / 29 and
       # the published table went on saying `flagstaff/table` 0 / 29, because the number was
       # measured, merged, and never regenerated. `bench:page` has had this check since it

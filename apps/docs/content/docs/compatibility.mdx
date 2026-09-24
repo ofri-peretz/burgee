@@ -95,6 +95,7 @@ different one — so it can neither hide a regression nor grow quietly.
 | **cosmiconfig** | 1 | `index.test.ts` imports `'../src/index.js'` — cosmiconfig's own entry module, by path — in addition to the public entry, and `vi.mock`s `../src/Explorer` and `../src/ExplorerSync` to assert the CONSTRUCTOR ARGUMENTS the entry passes them. The vendor step generates a shim for every internal specifier the suite names, but `../src/index.js` is the host's public entry reached by an internal path, so no shim is written and the file fails to load. That is one graded case, and it fails identically for the control and for the target: it is the harness's file-layout assumption, not a property of either implementation. This is the C4 shape `seniority/spec.md` finding 4 left open, decided here — the fix is in `vendor.ts`'s internal-shim discovery, which is the harness lane's file, and until it lands the honest form is a named allowance of exactly one rather than an unexplained 240. |
 | **meow** | 2 | Two cases real meow cannot pass from a vendored copy of its tests. `build › main` imports `../build/index.js`, the rollup bundle meow publishes — it is built by `npm run build` in meow's own repo and the vendor step takes only `test/`, so the file is not there for either side. `pkg normalization is lazy` asserts that reading `cli.pkg` mutates the caller's own object, which is `normalize-package-data` doing it in place; meow gets that from a dependency and the vendored root does not install it. Neither is a divergence and neither is reachable: the first needs a build the oracle does not run, the second a package this repo will not take (U6). Measured 2026-09-21 — the control is 146 / 148 with these two named and 148 / 148 without them. |
 | **signal-exit** | 1 | `signal-exit-test.ts` > `does not exit if user handles signal` fails for signal-exit 4.1.0 itself. Its fixture, `signal-listener.js`, re-sends SIGTERM from a `setTimeout` inside the listener and expects the fourth to kill the process; on current Node the process exits cleanly after the first (`calledListener=1, code=0, signal=null`). Measured 2026-09-23 with the fixture requiring `signal-exit` directly — no shim — on Node 22.22, 24.13 and 26.10 on macOS, and on Node 24 in a Linux container. signal-exit's last release was 2023-07-29, before any of those Nodes. |
+| **yargs-17** | 1 | `helpers > applyExtends > exposes applyExtends helper` extends `./package.json` from the cwd and asserts its `name` is `yargs`. The cwd is the vendored root, whose manifest is deliberately `@vendored/yargs-17-suite` (`rootPackage()` — upstream's name would let Node's self-reference resolve `yargs` to a file that is not here). The current-major row's two allowed failures are the same lookup reading the same file. |
 
 ### Cases only some platforms register
 
@@ -118,24 +119,53 @@ Copied with the suite because its tests need them, and never run as tests themse
 | **yargs** | `esm/` | yargs' separate ESM suite, which upstream runs under its own command. Found by this walk on 2026-09-09 and deliberately not graded yet: `platform-shim-test.mjs` imports `lib/platform-shims/esm.mjs`, an internal the vendor step's `../lib/` detector does not reach from a subdirectory, so grading the directory today adds three files that fail to load rather than three that measure anything. Named here so it is a decision with a date rather than a silence; grading it is its own piece of work. |
 | **meow** | `fixtures/` | Twenty-four CLI programs the tests spawn with execa — two thirds of everything under `test/`. ava's own globs exclude them and the harness's walk did not, so ava was handed them as test files and each one that exits non-zero was counted: the row read `# fail 22` beside `# tests 148 / # pass 144`, a summary that disagrees with itself. Ungraded, `test/` is 12 test files. |
 | **signal-exit** | `fixtures/` | Programs the tests spawn as child processes to watch them exit — `exit.js`, `sigint.js`, `sigkill.js` and eighteen more. They match `*.{js,ts}` because that is simply how they are written, and running one as a test grades nothing: it installs a handler and kills itself. Two of them (`signal-capture.js`, `sigkill.js`) reach the implementation through `../../dist/`, which is why `dist/cjs/signals.js` is on the internal-shim list at all. |
+| **yargs-17** | `helpers/` | `utils.cjs`, the output-capture helper the top-level tests require. A helper, never a test. |
 
 ## Supported majors
 
-Compatibility is claimed only where it is graded, and it is graded against the host's
-**current major** — the suite is vendored at the tag of the latest npm release, so the
-number above always names a release, never a branch.
+A major is claimed only where the host's **own suite at that major** grades the front-end
+level with the host itself — every case the host passes in this harness, passed. The current
+major is the release the table above grades. An older major is its own suite, vendored at that
+major's last tag and graded in CI beside the current one; the claim is
+`SUPPORTED_MAJORS` in `burgee/src/compat.ts`, which `burgee migrate` reads, and a lock holds it
+to these rows (C1).
 
-| Host | Major graded | Release | Older majors |
+| Host | Majors claimed | Release graded | Older majors graded |
 | :-- | :-- | :-- | :-- |
-| commander | **15** (current) | 15.0.0 | Programs written for 12–14 run unchanged wherever 15 kept their API; each earlier major's own suite is vendored at its last tag and graded before it is listed here (C1) |
-| yargs | **18** (current) | 18.1.0 | Programs written for 17 run unchanged wherever 18 kept their API; 17's own suite is vendored at its last tag and graded before it is listed here (C1) |
-| chalk | **6** (current) | 6.0.0 | Programs written for 5 run unchanged: 6 added underline styles and colours and made a numeric `FORCE_COLOR` an exact level; 5's own suite is vendored at its last tag and graded before it is listed here (C1) |
-| ora | **9** (current) | 9.4.1 | Programs written for 8 run unchanged wherever 9 kept their API; 8's own suite is vendored at its last tag and graded before it is listed here (C1) |
-| log-update | **8** (current) | 8.0.0 | Programs written for 7 run unchanged wherever 8 kept their API; 7's own suite is vendored at its last tag and graded before it is listed here (C1) |
-| cli-table3 | **0.6** (current) | 0.6.5 | Its only major; 0.6's suite is what is graded here |
+| commander | **15** | 15.0.0 | **commander-14** (14.0.3) — graded, not claimed |
+| yargs | **18** | 18.1.0 | **yargs-17** (17.7.3) — graded, not claimed |
+| chalk | **6** | 6.0.0 | — |
+| ora | **9** | 9.4.1 | — |
+| log-update | **8** | 8.0.0 | — |
+| boxen | **8** | 8.0.1 | — |
+| cli-table3 | **0** | 0.6.5 | — |
+| string-width | **8** | 8.2.2 | — |
+| strip-ansi | **7** | 7.2.0 | — |
+| cross-spawn | **7** | 7.0.6 | — |
+| which | **7** | 7.0.0 | — |
+| rc | **1** | 1.2.8 | — |
+| wrap-ansi | **10** | 10.0.1 | — |
+| slice-ansi | **7** | 7.1.2 | — |
+| cosmiconfig | **10** | 10.0.1 | — |
+| lilconfig | **3** | 3.1.3 | — |
+| dotenv | **17** | 17.4.2 | — |
+| clack | **1** | 1.8.1 | — |
+| inquirer-core | **12** | 12.0.3 | — |
+| meow | **14** | 14.1.0 | — |
+| ansi-escapes | **7** | 7.3.0 | — |
+| terminal-link | **5** | 5.0.0 | — |
+| term-img | **7** | 7.1.0 | — |
+| restore-cursor | **5** | 5.1.0 | — |
+| exit-hook | **5** | 5.1.0 | — |
+| signal-exit | **4** | 4.1.0 | — |
 
-A new major of a host is a new line here, opened by the daily release watch the day it
-ships; the previous major stays listed for as long as its suite is still graded.
+| Host | Front-end | burgee | rate | control | rate | internals (burgee) | internals (control) |
+| :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| **commander-14** | `burgee/commander` | 1329 / 1331 | 99.8% | 1331 / 1331 | 100.0% | 25 / 36 | 36 / 36 |
+| **yargs-17** | `burgee/yargs` | 191 / 794 | 24.1% | 793 / 794 | 99.9% | 7 / 23 | 23 / 23 |
+
+An older major that grades below level is published here and not claimed: a program on it is
+left alone by `burgee migrate`, and the note in `hosts.ts` names the cases that differ.
 
 A front-end does not reach 1.0 until its rate is **100%** (C7). Below that it ships pre-1.0
 and is never described as compatible. The rate ratchets: a pull request that lowers it fails
@@ -154,4 +184,6 @@ CI unless it edits the baseline with a written reason (C5).
 ```bash
 npm run compat -- --vendor --control   # vendor both suites, grade the real hosts
 npm run compat                          # grade burgee
+npm run compat -- --majors --control    # the older majors, against the real hosts (C1)
+npm run compat -- --majors              # the older majors, against burgee
 ```
