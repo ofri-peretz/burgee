@@ -195,6 +195,23 @@ describe('excluding a case that cannot fail for any target', () => {
     expect(summarize(TAP, 1, 0, { excludes: stale, requireMatch: true }).error).toContain('exclusion matched no case');
   });
 
+  it('matches an exact exclusion by the whole title, not by a word inside another one (A27)', () => {
+    const tap = ['ok 1 - main', 'not ok 2 - stderr', 'ok 3 - stderr default fallback', 'ok 4 - custom fallback stderr', 'ok 5 - isSupported stderr', ''].join('\n');
+    const exact = [{ match: 'stderr', why: 'mutates another module', exact: true }];
+    expect(parseFlatTap(tap, exact)).toEqual({ tests: 4, passed: 4, failed: 0, skipped: 0 });
+    expect(unmatchedExclusions(tap, [{ match: 'stder', why: 'a prefix is not a title', exact: true }])).toEqual(['stder']);
+  });
+
+  it('subtracts exclusions from a summary by the case lines they match, as ava prints both (A27)', () => {
+    const ava = ['TAP version 13', 'not ok 1 - main', 'not ok 2 - stderr', 'ok 3 - stderr default fallback', 'ok 4 - isSupported', '', '1..4', '# tests 4', '# pass 2', '# fail 2', ''].join('\n');
+    const both = [
+      { match: 'main', why: 'x', exact: true },
+      { match: 'stderr', why: 'x', exact: true },
+    ];
+    expect(summarize(ava, 1, 2, { excludes: both, requireMatch: true })).toMatchObject({ tests: 2, passed: 2, failed: 0, rate: 1 });
+    expect(summarize('# tests 4\n# pass 4\n# fail 0\n', 1, 4, { excludes: both }).error).toContain('no per-case names');
+  });
+
   it('lets a target run register nothing from a file that failed to import', () => {
     // The façade does not exist yet: every file fails to load, so no excluded case appears.
     // That is not a stale exclusion, and it must not read as a broken oracle.

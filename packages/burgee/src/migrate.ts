@@ -410,6 +410,14 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
     'synchronizedOutput',
     'title',
   ],
+  'paratext/terminal-link': [
+    'LinkOptions',
+    'Options',
+    'Target',
+    'TerminalLink',
+    'default',
+    'terminalLinkFor',
+  ],
   'roundel/chalk': [
     'BackgroundColor',
     'BackgroundColorName',
