@@ -1,5 +1,7 @@
 # Generated per run — the fixtures are a projection of fixtures/entry-points.ts
 .fixtures/
+# `bundledRecords` scratch, one per call so a lock and a bench run cannot delete each other's
+.fixtures-*/
 
 # Raw agent transcripts. One exemplar per task is committed by hand for the article;
 # the rest are large, per-run, and say nothing a reader needs.

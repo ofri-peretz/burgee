@@ -1,5 +1,17 @@
 # closeout
 
+## 0.5.2
+
+### Patch Changes
+
+- [#518](https://github.com/ofri-peretz/burgee/pull/518) [`866b972`](https://github.com/ofri-peretz/burgee/commit/866b9724652bebea867a730b8f2ea5e0ca63f5ab) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - README weight lines now count every incumbent with a graded drop-in: terminal-link and term-img (paratext), exit-hook (closeout), @inquirer/core (caique).
+
+- [#474](https://github.com/ofri-peretz/burgee/pull/474) [`1955419`](https://github.com/ofri-peretz/burgee/commit/19554194342b55f8893161f894a8c2a4df1b0f21) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - burgee plugins can hook two more stages. `parse` runs before the command is resolved: it receives argv and may return a replacement, which is how an alias plugin maps `d` to `deploy`. `shutdown` runs once as the program exits, whether the command succeeded or failed. The family `schema.json` shipped in every package now describes both stages.
+
+- [#492](https://github.com/ofri-peretz/burgee/pull/492) [`1b002e0`](https://github.com/ofri-peretz/burgee/commit/1b002e0b72f8dc1aa61020fb40c26e50949f16e7) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The README no longer prints an `overrides` recipe: an override points an incumbent's name at closeout's root, which is closeout's own API, so `exit-hook` and `restore-cursor` never linked through it. Each drop-in — now including `closeout/signal-exit`, graded 134 / 135 by signal-exit's own suite — is swapped by import.
+
+- [#519](https://github.com/ofri-peretz/burgee/pull/519) [`77ff1cb`](https://github.com/ofri-peretz/burgee/commit/77ff1cb8e595d32bb8bddf441ae21fc61e6f247d) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The drop-ins now export their incumbents' type names, so a TypeScript program migrates by its import alone: `roundel/chalk` gains chalk's `Color`, `ForegroundColor`, `BackgroundColor`, `Modifiers` and `Options`; `flagstaff/ora` gains `Spinner`, `PrefixTextGenerator` and `SuffixTextGenerator`; `flagstaff/boxen` gains `Options`, `CustomBorderStyle` and `Boxes`; `flagstaff/log-update`, `linegauge`, `linegauge/wrap` and `closeout/exit-hook` gain `Options`; `burgee/yargs/parser` gains `Arguments`, `Options` and `Configuration`. Types only — no runtime bytes.
+
 ## 0.5.1
 
 ### Patch Changes
