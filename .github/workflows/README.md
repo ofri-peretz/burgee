@@ -38,6 +38,12 @@ if `changesets-pr.yml`'s `checks` matrix has no row for it.
 | [`codeql.yml`](./codeql.yml) | CodeQL on the promote gate and weekly |
 | [`scorecard.yml`](./scorecard.yml) | OpenSSF Scorecard on push to main and weekly; SARIF to Code scanning, results published so the README badge resolves |
 
+## Dependencies
+
+| Workflow | Role |
+| :-- | :-- |
+| [`dependabot-automerge.yml`](./dependabot-automerge.yml) | Dependabot PRs (`pull_request_target`, never checks out the PR): turns on `--auto --squash` only when every updated dependency is a semver patch or minor and none is `direct:production` (GitHub Actions bumps are exempt from that type test). The required checks still gate the merge. On a push that makes the PR stop qualifying, it turns off the auto-merge it had turned on. Uses the release credential chain, else `GITHUB_TOKEN` with a warning |
+
 ## Coverage
 
 | Workflow | Role |
