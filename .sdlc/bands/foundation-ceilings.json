@@ -19,14 +19,14 @@
       }
     },
     "paratext": {
-      "ours": 98283,
+      "ours": 105620,
       "incumbents": {
         "ansi-escapes": 30912,
         "terminal-link": 61152,
         "term-img": 2143923
       },
       "ceiling": 2235987,
-      "ratio": 0.044,
+      "ratio": 0.0472,
       "lightestIncumbent": {
         "name": "ansi-escapes",
         "bytes": 30912
