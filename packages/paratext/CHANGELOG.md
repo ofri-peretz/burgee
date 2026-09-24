@@ -1,5 +1,19 @@
 # paratext
 
+## 0.7.0
+
+### Minor Changes
+
+- [#543](https://github.com/ofri-peretz/burgee/pull/543) [`dc1b1a7`](https://github.com/ofri-peretz/burgee/commit/dc1b1a7156f7548d7229b54b9f3d367bfda0af08) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - paratext implements `ansi-escapes`' CSI half — `cursorTo`, `cursorMove`, `eraseLines`, `clearTerminal`, `enterAlternativeScreen`, `synchronizedOutput` and the rest, byte-exact with ansi-escapes 7.3.0 — so `import ansiEscapes from 'paratext'` is a full drop-in, graded 4 / 4 by ansi-escapes' own suite (it was 1 / 4 with CSI declared `undefined`). `burgee migrate` now rewrites `ansi-escapes` to `paratext`.
+
+- [#546](https://github.com/ofri-peretz/burgee/pull/546) [`0592441`](https://github.com/ofri-peretz/burgee/commit/0592441c9ca8f81098a4aff48f15cfb141a0bece) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `paratext/terminal-link` now links exactly where `supports-hyperlinks` 4.5.0 does. It honours `FORCE_HYPERLINK`, `--no-hyperlink` / `--hyperlink=always`, `CI`, win32 outside Windows Terminal, NETLIFY, and the incumbent's version floors for iTerm2, WezTerm, VS Code and VTE (0.50.0 segfaults on OSC 8). It also recognises kitty, alacritty, ghostty, zed, Orca and Cursor. Its previous guess disagreed with the incumbent in 30 of 55 environments. The compatibility row is now 8 / 8, so `burgee migrate` rewrites `terminal-link` imports to `paratext/terminal-link`.
+
+### Patch Changes
+
+- [#518](https://github.com/ofri-peretz/burgee/pull/518) [`866b972`](https://github.com/ofri-peretz/burgee/commit/866b9724652bebea867a730b8f2ea5e0ca63f5ab) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - README weight lines now count every incumbent with a graded drop-in: terminal-link and term-img (paratext), exit-hook (closeout), @inquirer/core (caique).
+
+- [#474](https://github.com/ofri-peretz/burgee/pull/474) [`1955419`](https://github.com/ofri-peretz/burgee/commit/19554194342b55f8893161f894a8c2a4df1b0f21) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - burgee plugins can hook two more stages. `parse` runs before the command is resolved: it receives argv and may return a replacement, which is how an alias plugin maps `d` to `deploy`. `shutdown` runs once as the program exits, whether the command succeeded or failed. The family `schema.json` shipped in every package now describes both stages.
+
 ## 0.6.1
 
 ### Patch Changes
