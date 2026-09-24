@@ -1,0 +1,3221 @@
+{
+  "schema": 1,
+  "suite": "cli-benchmarks",
+  "measured": "2026-09-23T19:47:26.660Z",
+  "commit": "3e560731b386be3429afc7ad0396bcd1c48ad9dd-dirty",
+  "machine": {
+    "os": "linux",
+    "release": "6.17.0-1022-azure",
+    "arch": "x64",
+    "cpu": "Intel(R) Xeon(R) 6973P-C",
+    "cores": 4,
+    "memoryGb": 16,
+    "node": "v24.13.0",
+    "ci": true
+  },
+  "axes": {
+    "perf": {
+      "status": "measured",
+      "method": "42 interleaved rounds — a whole multiple of the seven variants, so the rotation gives every variant each starting position equally often; each round spawns every variant once as `node <fixture> greet ada`, after one discarded warm-up round. Every parsing variant's package is resolved against the range `benchmarks/package.json` declares before any timing, and its version and resolved path are on every row. Absolute ms are a property of the machine recorded above and are not comparable across machines; the banded number is the paired ratio."
+    },
+    "compat": {
+      "status": "measured",
+      "method": "Read from `packages/compat-oracle/results.json` — each host's own upstream test suite, vendored and run against our entry point by compat-oracle, which computes the rate. This axis re-emits that number and bands it; it contains no grading logic. The oracle is run to produce the file when a checkout has none (about 25 seconds)."
+    },
+    "weight": {
+      "status": "measured",
+      "method": "Each entry point is bundled with `esbuild --bundle --minify --format=esm --platform=node` over a fixture that imports it and re-exports one symbol; the incumbent is bundled by the same command over the same fixture shape. Installed bytes are the package directory plus every production dependency, transitively — each dependency resolved from the directory of the package that depends on it, and deduplicated by resolved path, so a nested copy is counted where npm actually put it. Every top-level package is resolved from `benchmarks/`, whose package.json pins the versions — the workspace root has an older commander hoisted, and resolving from there would compare against the wrong package."
+    },
+    "reliability": {
+      "status": "measured",
+      "method": "Ten tasks per variant, one spawn each, non-TTY with stdin closed. The same demo program built on burgee, commander and yargs. Exit codes are judged by class (0 ok, 2 usage, other runtime), not by value; `--json` is judged by whether an addressable envelope parses off whichever stream carried it. This is not B1: it measures what an agent can act on, never what it spends. `schema-bytes` is emitted only for a variant that answers `--schema` with a parseable document — neither incumbent has one, and no record is written rather than a zero."
+    }
+  },
+  "records": [
+    {
+      "axis": "perf",
+      "variant": "bare node",
+      "metric": "cold-start-ms",
+      "unit": "ms",
+      "samples": 42,
+      "median": 22.67,
+      "p95": 23.67,
+      "note": "the floor: Node starting and writing one line, no parser",
+      "detail": {
+        "fixture": "node.mjs"
+      }
+    },
+    {
+      "axis": "perf",
+      "variant": "commander",
+      "metric": "cold-start-ms",
+      "unit": "ms",
+      "samples": 42,
+      "median": 34.35,
+      "p95": 36.14,
+      "note": "spawned `node commander.mjs greet ada`; 11.68 ms of this is above the bare-node floor",
+      "detail": {
+        "fixture": "commander.mjs",
+        "package": "commander",
+        "version": "15.0.0",
+        "resolvedFrom": "<repo>/node_modules/commander"
+      }
+    },
+    {
+      "axis": "perf",
+      "variant": "burgee/commander",
+      "metric": "cold-start-ms",
+      "unit": "ms",
+      "samples": 42,
+      "median": 38.68,
+      "p95": 41.48,
+      "note": "spawned `node burgee-commander.mjs greet ada`; 16.01 ms of this is above the bare-node floor",
+      "detail": {
+        "fixture": "burgee-commander.mjs",
+        "package": "burgee",
+        "version": "0.11.1",
+        "resolvedFrom": "<repo>/node_modules/burgee"
+      }
+    },
+    {
+      "axis": "perf",
+      "variant": "yargs",
+      "metric": "cold-start-ms",
+      "unit": "ms",
+      "samples": 42,
+      "median": 80.32,
+      "p95": 83.81,
+      "note": "spawned `node yargs.mjs greet ada`; 57.65 ms of this is above the bare-node floor",
+      "detail": {
+        "fixture": "yargs.mjs",
+        "package": "yargs",
+        "version": "18.1.0",
+        "resolvedFrom": "<repo>/node_modules/yargs"
+      }
+    },
+    {
+      "axis": "perf",
+      "variant": "burgee/yargs",
+      "metric": "cold-start-ms",
+      "unit": "ms",
+      "samples": 42,
+      "median": 73.39,
+      "p95": 76.82,
+      "note": "spawned `node burgee-yargs.mjs greet ada`; 50.72 ms of this is above the bare-node floor",
+      "detail": {
+        "fixture": "burgee-yargs.mjs",
+        "package": "burgee",
+        "version": "0.11.1",
+        "resolvedFrom": "<repo>/node_modules/burgee"
+      }
+    },
+    {
+      "axis": "perf",
+      "variant": "cac",
+      "metric": "cold-start-ms",
+      "unit": "ms",
+      "samples": 42,
+      "median": 25.76,
+      "p95": 26.67,
+      "note": "spawned `node cac.mjs greet ada`; 3.09 ms of this is above the bare-node floor",
+      "detail": {
+        "fixture": "cac.mjs",
+        "package": "cac",
+        "version": "7.0.0",
+        "resolvedFrom": "<repo>/node_modules/cac"
+      }
+    },
+    {
+      "axis": "perf",
+      "variant": "burgee",
+      "metric": "cold-start-ms",
+      "unit": "ms",
+      "samples": 42,
+      "median": 36.57,
+      "p95": 39.8,
+      "note": "spawned `node burgee.mjs greet ada`; 13.9 ms of this is above the bare-node floor",
+      "detail": {
+        "fixture": "burgee.mjs",
+        "package": "burgee",
+        "version": "0.11.1",
+        "resolvedFrom": "<repo>/node_modules/burgee"
+      }
+    },
+    {
+      "axis": "perf",
+      "variant": "burgee/commander ÷ commander",
+      "metric": "cold-start-ratio",
+      "unit": "ratio",
+      "samples": 42,
+      "median": 1.125,
+      "p95": 1.2,
+      "gate": {
+        "max": 1.4,
+        "why": "the front-end must not cost meaningfully more to start than the package it replaces; a ceiling, not a promise — the measured value is what the band watches"
+      },
+      "note": "median of 42 paired spawns, each round's burgee/commander against the same round's commander",
+      "detail": {
+        "ours": "burgee@0.11.1",
+        "host": "commander@15.0.0"
+      }
+    },
+    {
+      "axis": "perf",
+      "variant": "burgee/yargs ÷ yargs",
+      "metric": "cold-start-ratio",
+      "unit": "ratio",
+      "samples": 42,
+      "median": 0.91,
+      "p95": 0.952,
+      "gate": {
+        "max": 0.95,
+        "why": "the front-end must not cost meaningfully more to start than the package it replaces; a ceiling, not a promise — the measured value is what the band watches"
+      },
+      "note": "median of 42 paired spawns, each round's burgee/yargs against the same round's yargs",
+      "detail": {
+        "ours": "burgee@0.11.1",
+        "host": "yargs@18.1.0"
+      }
+    },
+    {
+      "axis": "perf",
+      "variant": "burgee ÷ cac",
+      "metric": "cold-start-ratio",
+      "unit": "ratio",
+      "samples": 42,
+      "median": 1.42,
+      "p95": 1.549,
+      "gate": {
+        "max": 1.7,
+        "why": "the front-end must not cost meaningfully more to start than the package it replaces; a ceiling, not a promise — the measured value is what the band watches"
+      },
+      "note": "median of 42 paired spawns, each round's burgee against the same round's cac",
+      "detail": {
+        "ours": "burgee@0.11.1",
+        "host": "cac@7.0.0"
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "ansi-escapes",
+      "metric": "pass-rate",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.25,
+      "p95": 0.25,
+      "gate": {
+        "min": 0.25,
+        "why": "the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up"
+      },
+      "note": "ansi-escapes's own suite against `paratext`, as graded by compat-oracle.",
+      "detail": {
+        "target": "paratext",
+        "passed": 1,
+        "tests": 4,
+        "skipped": 0,
+        "reference": 4,
+        "denominator": 4
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "ansi-escapes",
+      "metric": "passing-tests",
+      "unit": "tests",
+      "samples": 1,
+      "median": 1,
+      "p95": 1,
+      "gate": {
+        "min": 1,
+        "why": "the ratchet in counts rather than in a rounded rate: one lost case out of 1,360 moves the rate by 0.0007 and this by 1"
+      },
+      "note": "passing cases in ansi-escapes's own suite",
+      "detail": {
+        "target": "paratext"
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "boxen",
+      "metric": "pass-rate",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 1,
+      "p95": 1,
+      "gate": {
+        "min": 1,
+        "why": "the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up"
+      },
+      "note": "boxen's own suite against `flagstaff/boxen`, as graded by compat-oracle.",
+      "detail": {
+        "target": "flagstaff/boxen",
+        "passed": 84,
+        "tests": 84,
+        "skipped": 0,
+        "reference": 84,
+        "denominator": 84
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "boxen",
+      "metric": "passing-tests",
+      "unit": "tests",
+      "samples": 1,
+      "median": 84,
+      "p95": 84,
+      "gate": {
+        "min": 84,
+        "why": "the ratchet in counts rather than in a rounded rate: one lost case out of 1,360 moves the rate by 0.0007 and this by 1"
+      },
+      "note": "passing cases in boxen's own suite",
+      "detail": {
+        "target": "flagstaff/boxen"
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "chalk",
+      "metric": "pass-rate",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 1,
+      "p95": 1,
+      "gate": {
+        "min": 1,
+        "why": "the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up"
+      },
+      "note": "chalk's own suite against `roundel/chalk`, as graded by compat-oracle.",
+      "detail": {
+        "target": "roundel/chalk",
+        "passed": 58,
+        "tests": 58,
+        "skipped": 0,
+        "reference": 58,
+        "denominator": 58
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "chalk",
+      "metric": "passing-tests",
+      "unit": "tests",
+      "samples": 1,
+      "median": 58,
+      "p95": 58,
+      "gate": {
+        "min": 58,
+        "why": "the ratchet in counts rather than in a rounded rate: one lost case out of 1,360 moves the rate by 0.0007 and this by 1"
+      },
+      "note": "passing cases in chalk's own suite",
+      "detail": {
+        "target": "roundel/chalk"
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "clack",
+      "metric": "pass-rate",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.8235294117647058,
+      "p95": 0.8235294117647058,
+      "gate": {
+        "min": 0.8235294117647058,
+        "why": "the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up"
+      },
+      "note": "clack's own suite against `caique/clack`, as graded by compat-oracle.",
+      "detail": {
+        "target": "caique/clack",
+        "passed": 14,
+        "tests": 17,
+        "skipped": 0,
+        "reference": 17,
+        "denominator": 17
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "clack",
+      "metric": "passing-tests",
+      "unit": "tests",
+      "samples": 1,
+      "median": 14,
+      "p95": 14,
+      "gate": {
+        "min": 14,
+        "why": "the ratchet in counts rather than in a rounded rate: one lost case out of 1,360 moves the rate by 0.0007 and this by 1"
+      },
+      "note": "passing cases in clack's own suite",
+      "detail": {
+        "target": "caique/clack"
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "cli-table3",
+      "metric": "pass-rate",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 1,
+      "p95": 1,
+      "gate": {
+        "min": 1,
+        "why": "the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up"
+      },
+      "note": "cli-table3's own suite against `flagstaff/cli-table3`, as graded by compat-oracle.",
+      "detail": {
+        "target": "flagstaff/cli-table3",
+        "passed": 29,
+        "tests": 29,
+        "skipped": 0,
+        "reference": 29,
+        "denominator": 29
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "cli-table3",
+      "metric": "passing-tests",
+      "unit": "tests",
+      "samples": 1,
+      "median": 29,
+      "p95": 29,
+      "gate": {
+        "min": 29,
+        "why": "the ratchet in counts rather than in a rounded rate: one lost case out of 1,360 moves the rate by 0.0007 and this by 1"
+      },
+      "note": "passing cases in cli-table3's own suite",
+      "detail": {
+        "target": "flagstaff/cli-table3"
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "commander",
+      "metric": "pass-rate",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 1,
+      "p95": 1,
+      "gate": {
+        "min": 1,
+        "why": "the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up"
+      },
+      "note": "commander's own suite against `burgee/commander`, as graded by compat-oracle. 1 case(s) skipped on this OS are inside that count, as the host's own summary reports them",
+      "detail": {
+        "target": "burgee/commander",
+        "passed": 1360,
+        "tests": 1360,
+        "skipped": 1,
+        "reference": 1360,
+        "denominator": 1360
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "commander",
+      "metric": "passing-tests",
+      "unit": "tests",
+      "samples": 1,
+      "median": 1360,
+      "p95": 1360,
+      "gate": {
+        "min": 1360,
+        "why": "the ratchet in counts rather than in a rounded rate: one lost case out of 1,360 moves the rate by 0.0007 and this by 1"
+      },
+      "note": "passing cases in commander's own suite",
+      "detail": {
+        "target": "burgee/commander"
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "cosmiconfig",
+      "metric": "pass-rate",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.7654320987654321,
+      "p95": 0.7654320987654321,
+      "gate": {
+        "min": 0.7654320987654321,
+        "why": "the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up"
+      },
+      "note": "cosmiconfig's own suite against `seniority`, as graded by compat-oracle.",
+      "detail": {
+        "target": "seniority",
+        "passed": 186,
+        "tests": 243,
+        "skipped": 0,
+        "reference": 243,
+        "denominator": 243
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "cosmiconfig",
+      "metric": "passing-tests",
+      "unit": "tests",
+      "samples": 1,
+      "median": 186,
+      "p95": 186,
+      "gate": {
+        "min": 186,
+        "why": "the ratchet in counts rather than in a rounded rate: one lost case out of 1,360 moves the rate by 0.0007 and this by 1"
+      },
+      "note": "passing cases in cosmiconfig's own suite",
+      "detail": {
+        "target": "seniority"
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "cross-spawn",
+      "metric": "pass-rate",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 1,
+      "p95": 1,
+      "gate": {
+        "min": 1,
+        "why": "the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up"
+      },
+      "note": "cross-spawn's own suite against `bellpull/cross-spawn`, as graded by compat-oracle.",
+      "detail": {
+        "target": "bellpull/cross-spawn",
+        "passed": 68,
+        "tests": 68,
+        "skipped": 0,
+        "reference": 68,
+        "denominator": 68
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "cross-spawn",
+      "metric": "passing-tests",
+      "unit": "tests",
+      "samples": 1,
+      "median": 68,
+      "p95": 68,
+      "gate": {
+        "min": 68,
+        "why": "the ratchet in counts rather than in a rounded rate: one lost case out of 1,360 moves the rate by 0.0007 and this by 1"
+      },
+      "note": "passing cases in cross-spawn's own suite",
+      "detail": {
+        "target": "bellpull/cross-spawn"
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "dotenv",
+      "metric": "pass-rate",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.75177304964539,
+      "p95": 0.75177304964539,
+      "gate": {
+        "min": 0.75177304964539,
+        "why": "the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up"
+      },
+      "note": "dotenv's own suite against `seniority`, as graded by compat-oracle.",
+      "detail": {
+        "target": "seniority",
+        "passed": 106,
+        "tests": 141,
+        "skipped": 0,
+        "reference": 141,
+        "denominator": 141
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "dotenv",
+      "metric": "passing-tests",
+      "unit": "tests",
+      "samples": 1,
+      "median": 106,
+      "p95": 106,
+      "gate": {
+        "min": 106,
+        "why": "the ratchet in counts rather than in a rounded rate: one lost case out of 1,360 moves the rate by 0.0007 and this by 1"
+      },
+      "note": "passing cases in dotenv's own suite",
+      "detail": {
+        "target": "seniority"
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "exit-hook",
+      "metric": "pass-rate",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 1,
+      "p95": 1,
+      "gate": {
+        "min": 1,
+        "why": "the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up"
+      },
+      "note": "exit-hook's own suite against `closeout`, as graded by compat-oracle.",
+      "detail": {
+        "target": "closeout",
+        "passed": 21,
+        "tests": 21,
+        "skipped": 0,
+        "reference": 21,
+        "denominator": 21
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "exit-hook",
+      "metric": "passing-tests",
+      "unit": "tests",
+      "samples": 1,
+      "median": 21,
+      "p95": 21,
+      "gate": {
+        "min": 21,
+        "why": "the ratchet in counts rather than in a rounded rate: one lost case out of 1,360 moves the rate by 0.0007 and this by 1"
+      },
+      "note": "passing cases in exit-hook's own suite",
+      "detail": {
+        "target": "closeout"
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "inquirer-core",
+      "metric": "pass-rate",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 1,
+      "p95": 1,
+      "gate": {
+        "min": 1,
+        "why": "the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up"
+      },
+      "note": "inquirer-core's own suite against `caique/inquirer`, as graded by compat-oracle.",
+      "detail": {
+        "target": "caique/inquirer",
+        "passed": 41,
+        "tests": 41,
+        "skipped": 0,
+        "reference": 41,
+        "denominator": 41
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "inquirer-core",
+      "metric": "passing-tests",
+      "unit": "tests",
+      "samples": 1,
+      "median": 41,
+      "p95": 41,
+      "gate": {
+        "min": 41,
+        "why": "the ratchet in counts rather than in a rounded rate: one lost case out of 1,360 moves the rate by 0.0007 and this by 1"
+      },
+      "note": "passing cases in inquirer-core's own suite",
+      "detail": {
+        "target": "caique/inquirer"
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "lilconfig",
+      "metric": "pass-rate",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.8701298701298701,
+      "p95": 0.8701298701298701,
+      "gate": {
+        "min": 0.8701298701298701,
+        "why": "the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up"
+      },
+      "note": "lilconfig's own suite against `seniority`, as graded by compat-oracle.",
+      "detail": {
+        "target": "seniority",
+        "passed": 67,
+        "tests": 77,
+        "skipped": 0,
+        "reference": 77,
+        "denominator": 77
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "lilconfig",
+      "metric": "passing-tests",
+      "unit": "tests",
+      "samples": 1,
+      "median": 67,
+      "p95": 67,
+      "gate": {
+        "min": 67,
+        "why": "the ratchet in counts rather than in a rounded rate: one lost case out of 1,360 moves the rate by 0.0007 and this by 1"
+      },
+      "note": "passing cases in lilconfig's own suite",
+      "detail": {
+        "target": "seniority"
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "log-update",
+      "metric": "pass-rate",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 1,
+      "p95": 1,
+      "gate": {
+        "min": 1,
+        "why": "the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up"
+      },
+      "note": "log-update's own suite against `flagstaff/log-update`, as graded by compat-oracle.",
+      "detail": {
+        "target": "flagstaff/log-update",
+        "passed": 99,
+        "tests": 99,
+        "skipped": 0,
+        "reference": 99,
+        "denominator": 99
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "log-update",
+      "metric": "passing-tests",
+      "unit": "tests",
+      "samples": 1,
+      "median": 99,
+      "p95": 99,
+      "gate": {
+        "min": 99,
+        "why": "the ratchet in counts rather than in a rounded rate: one lost case out of 1,360 moves the rate by 0.0007 and this by 1"
+      },
+      "note": "passing cases in log-update's own suite",
+      "detail": {
+        "target": "flagstaff/log-update"
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "meow",
+      "metric": "pass-rate",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.8918918918918919,
+      "p95": 0.8918918918918919,
+      "gate": {
+        "min": 0.8918918918918919,
+        "why": "the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up"
+      },
+      "note": "meow's own suite against `burgee/meow`, as graded by compat-oracle.",
+      "detail": {
+        "target": "burgee/meow",
+        "passed": 132,
+        "tests": 148,
+        "skipped": 0,
+        "reference": 148,
+        "denominator": 148
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "meow",
+      "metric": "passing-tests",
+      "unit": "tests",
+      "samples": 1,
+      "median": 132,
+      "p95": 132,
+      "gate": {
+        "min": 132,
+        "why": "the ratchet in counts rather than in a rounded rate: one lost case out of 1,360 moves the rate by 0.0007 and this by 1"
+      },
+      "note": "passing cases in meow's own suite",
+      "detail": {
+        "target": "burgee/meow"
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "ora",
+      "metric": "pass-rate",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 1,
+      "p95": 1,
+      "gate": {
+        "min": 1,
+        "why": "the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up"
+      },
+      "note": "ora's own suite against `flagstaff/ora`, as graded by compat-oracle.",
+      "detail": {
+        "target": "flagstaff/ora",
+        "passed": 99,
+        "tests": 99,
+        "skipped": 0,
+        "reference": 99,
+        "denominator": 99
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "ora",
+      "metric": "passing-tests",
+      "unit": "tests",
+      "samples": 1,
+      "median": 99,
+      "p95": 99,
+      "gate": {
+        "min": 99,
+        "why": "the ratchet in counts rather than in a rounded rate: one lost case out of 1,360 moves the rate by 0.0007 and this by 1"
+      },
+      "note": "passing cases in ora's own suite",
+      "detail": {
+        "target": "flagstaff/ora"
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "rc",
+      "metric": "pass-rate",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 1,
+      "p95": 1,
+      "gate": {
+        "min": 1,
+        "why": "the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up"
+      },
+      "note": "rc's own suite against `seniority/rc`, as graded by compat-oracle.",
+      "detail": {
+        "target": "seniority/rc",
+        "passed": 1,
+        "tests": 1,
+        "skipped": 0,
+        "reference": 1,
+        "denominator": 1
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "rc",
+      "metric": "passing-tests",
+      "unit": "tests",
+      "samples": 1,
+      "median": 1,
+      "p95": 1,
+      "gate": {
+        "min": 1,
+        "why": "the ratchet in counts rather than in a rounded rate: one lost case out of 1,360 moves the rate by 0.0007 and this by 1"
+      },
+      "note": "passing cases in rc's own suite",
+      "detail": {
+        "target": "seniority/rc"
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "restore-cursor",
+      "metric": "pass-rate",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 1,
+      "p95": 1,
+      "gate": {
+        "min": 1,
+        "why": "the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up"
+      },
+      "note": "restore-cursor's own suite against `closeout`, as graded by compat-oracle.",
+      "detail": {
+        "target": "closeout",
+        "passed": 6,
+        "tests": 6,
+        "skipped": 0,
+        "reference": 6,
+        "denominator": 6
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "restore-cursor",
+      "metric": "passing-tests",
+      "unit": "tests",
+      "samples": 1,
+      "median": 6,
+      "p95": 6,
+      "gate": {
+        "min": 6,
+        "why": "the ratchet in counts rather than in a rounded rate: one lost case out of 1,360 moves the rate by 0.0007 and this by 1"
+      },
+      "note": "passing cases in restore-cursor's own suite",
+      "detail": {
+        "target": "closeout"
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "signal-exit",
+      "metric": "pass-rate",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.9925925925925926,
+      "p95": 0.9925925925925926,
+      "gate": {
+        "min": 0.9925925925925926,
+        "why": "the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up"
+      },
+      "note": "signal-exit's own suite against `closeout`, as graded by compat-oracle.",
+      "detail": {
+        "target": "closeout",
+        "passed": 134,
+        "tests": 135,
+        "skipped": 0,
+        "reference": 135,
+        "denominator": 135
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "signal-exit",
+      "metric": "passing-tests",
+      "unit": "tests",
+      "samples": 1,
+      "median": 134,
+      "p95": 134,
+      "gate": {
+        "min": 134,
+        "why": "the ratchet in counts rather than in a rounded rate: one lost case out of 1,360 moves the rate by 0.0007 and this by 1"
+      },
+      "note": "passing cases in signal-exit's own suite",
+      "detail": {
+        "target": "closeout"
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "slice-ansi",
+      "metric": "pass-rate",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 1,
+      "p95": 1,
+      "gate": {
+        "min": 1,
+        "why": "the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up"
+      },
+      "note": "slice-ansi's own suite against `linegauge/slice`, as graded by compat-oracle.",
+      "detail": {
+        "target": "linegauge/slice",
+        "passed": 15,
+        "tests": 15,
+        "skipped": 0,
+        "reference": 15,
+        "denominator": 15
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "slice-ansi",
+      "metric": "passing-tests",
+      "unit": "tests",
+      "samples": 1,
+      "median": 15,
+      "p95": 15,
+      "gate": {
+        "min": 15,
+        "why": "the ratchet in counts rather than in a rounded rate: one lost case out of 1,360 moves the rate by 0.0007 and this by 1"
+      },
+      "note": "passing cases in slice-ansi's own suite",
+      "detail": {
+        "target": "linegauge/slice"
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "string-width",
+      "metric": "pass-rate",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 1,
+      "p95": 1,
+      "gate": {
+        "min": 1,
+        "why": "the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up"
+      },
+      "note": "string-width's own suite against `linegauge`, as graded by compat-oracle.",
+      "detail": {
+        "target": "linegauge",
+        "passed": 229,
+        "tests": 229,
+        "skipped": 0,
+        "reference": 229,
+        "denominator": 229
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "string-width",
+      "metric": "passing-tests",
+      "unit": "tests",
+      "samples": 1,
+      "median": 229,
+      "p95": 229,
+      "gate": {
+        "min": 229,
+        "why": "the ratchet in counts rather than in a rounded rate: one lost case out of 1,360 moves the rate by 0.0007 and this by 1"
+      },
+      "note": "passing cases in string-width's own suite",
+      "detail": {
+        "target": "linegauge"
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "strip-ansi",
+      "metric": "pass-rate",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 1,
+      "p95": 1,
+      "gate": {
+        "min": 1,
+        "why": "the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up"
+      },
+      "note": "strip-ansi's own suite against `linegauge/strip`, as graded by compat-oracle.",
+      "detail": {
+        "target": "linegauge/strip",
+        "passed": 8,
+        "tests": 8,
+        "skipped": 0,
+        "reference": 8,
+        "denominator": 8
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "strip-ansi",
+      "metric": "passing-tests",
+      "unit": "tests",
+      "samples": 1,
+      "median": 8,
+      "p95": 8,
+      "gate": {
+        "min": 8,
+        "why": "the ratchet in counts rather than in a rounded rate: one lost case out of 1,360 moves the rate by 0.0007 and this by 1"
+      },
+      "note": "passing cases in strip-ansi's own suite",
+      "detail": {
+        "target": "linegauge/strip"
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "term-img",
+      "metric": "pass-rate",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.6666666666666666,
+      "p95": 0.6666666666666666,
+      "gate": {
+        "min": 0.6666666666666666,
+        "why": "the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up"
+      },
+      "note": "term-img's own suite against `paratext/term-img`, as graded by compat-oracle.",
+      "detail": {
+        "target": "paratext/term-img",
+        "passed": 12,
+        "tests": 18,
+        "skipped": 0,
+        "reference": 18,
+        "denominator": 18
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "term-img",
+      "metric": "passing-tests",
+      "unit": "tests",
+      "samples": 1,
+      "median": 12,
+      "p95": 12,
+      "gate": {
+        "min": 12,
+        "why": "the ratchet in counts rather than in a rounded rate: one lost case out of 1,360 moves the rate by 0.0007 and this by 1"
+      },
+      "note": "passing cases in term-img's own suite",
+      "detail": {
+        "target": "paratext/term-img"
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "terminal-link",
+      "metric": "pass-rate",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.8,
+      "p95": 0.8,
+      "gate": {
+        "min": 0.8,
+        "why": "the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up"
+      },
+      "note": "terminal-link's own suite against `paratext/terminal-link`, as graded by compat-oracle.",
+      "detail": {
+        "target": "paratext/terminal-link",
+        "passed": 8,
+        "tests": 10,
+        "skipped": 0,
+        "reference": 10,
+        "denominator": 10
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "terminal-link",
+      "metric": "passing-tests",
+      "unit": "tests",
+      "samples": 1,
+      "median": 8,
+      "p95": 8,
+      "gate": {
+        "min": 8,
+        "why": "the ratchet in counts rather than in a rounded rate: one lost case out of 1,360 moves the rate by 0.0007 and this by 1"
+      },
+      "note": "passing cases in terminal-link's own suite",
+      "detail": {
+        "target": "paratext/terminal-link"
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "wrap-ansi",
+      "metric": "pass-rate",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 1,
+      "p95": 1,
+      "gate": {
+        "min": 1,
+        "why": "the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up"
+      },
+      "note": "wrap-ansi's own suite against `linegauge/wrap`, as graded by compat-oracle.",
+      "detail": {
+        "target": "linegauge/wrap",
+        "passed": 80,
+        "tests": 80,
+        "skipped": 0,
+        "reference": 80,
+        "denominator": 80
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "wrap-ansi",
+      "metric": "passing-tests",
+      "unit": "tests",
+      "samples": 1,
+      "median": 80,
+      "p95": 80,
+      "gate": {
+        "min": 80,
+        "why": "the ratchet in counts rather than in a rounded rate: one lost case out of 1,360 moves the rate by 0.0007 and this by 1"
+      },
+      "note": "passing cases in wrap-ansi's own suite",
+      "detail": {
+        "target": "linegauge/wrap"
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "yargs",
+      "metric": "pass-rate",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 1,
+      "p95": 1,
+      "gate": {
+        "min": 1,
+        "why": "the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up"
+      },
+      "note": "yargs's own suite against `burgee/yargs`, as graded by compat-oracle. 1 case(s) skipped on this OS are inside that count, as the host's own summary reports them",
+      "detail": {
+        "target": "burgee/yargs",
+        "passed": 804,
+        "tests": 804,
+        "skipped": 1,
+        "reference": 804,
+        "denominator": 804
+      }
+    },
+    {
+      "axis": "compat",
+      "variant": "yargs",
+      "metric": "passing-tests",
+      "unit": "tests",
+      "samples": 1,
+      "median": 804,
+      "p95": 804,
+      "gate": {
+        "min": 804,
+        "why": "the ratchet in counts rather than in a rounded rate: one lost case out of 1,360 moves the rate by 0.0007 and this by 1"
+      },
+      "note": "passing cases in yargs's own suite",
+      "detail": {
+        "target": "burgee/yargs"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "burgee",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 28649,
+      "p95": 28649,
+      "gate": {
+        "max": 28700,
+        "why": "a ratchet on what a user's bundle grows by; raising it is a decision, not a drift"
+      },
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing `run` from `burgee`",
+      "detail": {
+        "version": "0.11.1",
+        "resolvedFrom": "<repo>/node_modules/burgee"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "cac",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 10452,
+      "p95": 10452,
+      "note": "the same fixture over `cac` — core against the published target: cac, the lightest framework in the landscape (§6)",
+      "detail": {
+        "version": "7.0.0",
+        "resolvedFrom": "<repo>/node_modules/cac"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "burgee",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 1291919,
+      "p95": 1291919,
+      "note": "`npm pack` unpacked size of burgee plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.11.1",
+        "resolvedFrom": "<repo>/node_modules/burgee"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "cac",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 41198,
+      "p95": 41198,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "7.0.0",
+        "resolvedFrom": "<repo>/node_modules/cac"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "burgee ÷ cac",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 2.741,
+      "p95": 2.741,
+      "gate": {
+        "max": 2.8,
+        "why": "a ratchet at the measured value, not the claim: this entry point is currently heavier than what it replaces on a bundled basis, and the gate exists to stop that growing"
+      },
+      "note": "core against the published target: cac, the lightest framework in the landscape (§6); both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "burgee@0.11.1",
+        "incumbent": "cac@7.0.0"
+      }
+    },
+    {
+      "axis": "weight",
+      "samples": 1,
+      "variant": "cac + cosmiconfig + exit-hook + restore-cursor",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "median": 97711,
+      "p95": 97711,
+      "note": "the capability-parity stack for `burgee`: cac plus 3 package(s) a user of it installs to reach the same capability set — `cosmiconfig` for find and load a config file, and merge it under the flags; `exit-hook` for run cleanup on every path out, including a signal; `restore-cursor` for hand the terminal back with the cursor visible. Each addition is a package this repository publishes a graded drop-in for (`seniority/cosmiconfig`, `closeout/exit-hook`, `closeout/restore-cursor`), which is the rule that decides what may be in this stack"
+    },
+    {
+      "axis": "weight",
+      "samples": 1,
+      "variant": "burgee ÷ (cac + cosmiconfig + exit-hook + restore-cursor)",
+      "metric": "bundled-bytes-ratio-parity",
+      "unit": "ratio",
+      "median": 0.293,
+      "p95": 0.293,
+      "note": "10452 bytes for `cac` alone, 97711 for the stack. Reported, never gated — a ceiling here would be a ceiling on somebody else's dependency tree. 5 of our capabilities have no incumbent to add and cost this stack nothing: `--schema`: the whole program as one JSON document; `--mcp`: the program as an MCP server over stdio; the `{ ok, data }` envelope on `--json`, on every command; agent detection, and the non-interactive floor that follows from it; option relations (`dependsOn`, `exclusive`) and Standard Schema validation",
+      "detail": {
+        "bare": 10452,
+        "stack": 97711,
+        "unmatched": 5
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "burgee/commander",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 59497,
+      "p95": 59497,
+      "gate": {
+        "max": 59600,
+        "why": "a ratchet on what a user's bundle grows by; raising it is a decision, not a drift"
+      },
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing `Command` from `burgee/commander`",
+      "detail": {
+        "version": "0.11.1",
+        "resolvedFrom": "<repo>/node_modules/burgee"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "commander",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 39084,
+      "p95": 39084,
+      "note": "the same fixture over `commander` — the commander front-end against commander itself",
+      "detail": {
+        "version": "15.0.0",
+        "resolvedFrom": "<repo>/node_modules/commander"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "burgee/commander",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 1291919,
+      "p95": 1291919,
+      "note": "`npm pack` unpacked size of burgee plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.11.1",
+        "resolvedFrom": "<repo>/node_modules/burgee"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "commander",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 207368,
+      "p95": 207368,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "15.0.0",
+        "resolvedFrom": "<repo>/node_modules/commander"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "burgee/commander ÷ commander",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 1.522,
+      "p95": 1.522,
+      "gate": {
+        "max": 1.53,
+        "why": "a ratchet at the measured value, not the claim: this entry point is currently heavier than what it replaces on a bundled basis, and the gate exists to stop that growing"
+      },
+      "note": "the commander front-end against commander itself; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "burgee/commander@0.11.1",
+        "incumbent": "commander@15.0.0"
+      }
+    },
+    {
+      "axis": "weight",
+      "samples": 1,
+      "variant": "commander + cosmiconfig + exit-hook + restore-cursor",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "median": 126354,
+      "p95": 126354,
+      "note": "the capability-parity stack for `burgee/commander`: commander plus 3 package(s) a user of it installs to reach the same capability set — `cosmiconfig` for find and load a config file, and merge it under the flags; `exit-hook` for run cleanup on every path out, including a signal; `restore-cursor` for hand the terminal back with the cursor visible. Each addition is a package this repository publishes a graded drop-in for (`seniority/cosmiconfig`, `closeout/exit-hook`, `closeout/restore-cursor`), which is the rule that decides what may be in this stack"
+    },
+    {
+      "axis": "weight",
+      "samples": 1,
+      "variant": "burgee/commander ÷ (commander + cosmiconfig + exit-hook + restore-cursor)",
+      "metric": "bundled-bytes-ratio-parity",
+      "unit": "ratio",
+      "median": 0.471,
+      "p95": 0.471,
+      "note": "39084 bytes for `commander` alone, 126354 for the stack. Reported, never gated — a ceiling here would be a ceiling on somebody else's dependency tree. 5 of our capabilities have no incumbent to add and cost this stack nothing: `--schema`: the whole program as one JSON document; `--mcp`: the program as an MCP server over stdio; the `{ ok, data }` envelope on `--json`, on every command; agent detection, and the non-interactive floor that follows from it; option relations (`dependsOn`, `exclusive`) and Standard Schema validation",
+      "detail": {
+        "bare": 39084,
+        "stack": 126354,
+        "unmatched": 5
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "burgee/yargs",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 105482,
+      "p95": 105482,
+      "gate": {
+        "max": 107700,
+        "why": "a ratchet on what a user's bundle grows by; raising it is a decision, not a drift"
+      },
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `burgee/yargs`",
+      "detail": {
+        "version": "0.11.1",
+        "resolvedFrom": "<repo>/node_modules/burgee"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "yargs",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 111152,
+      "p95": 111152,
+      "note": "the same fixture over `yargs` — the yargs front-end against yargs and its five dependencies",
+      "detail": {
+        "version": "18.1.0",
+        "resolvedFrom": "<repo>/node_modules/yargs"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "burgee/yargs",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 1291919,
+      "p95": 1291919,
+      "note": "`npm pack` unpacked size of burgee plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.11.1",
+        "resolvedFrom": "<repo>/node_modules/burgee"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "yargs",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 526898,
+      "p95": 526898,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "18.1.0",
+        "resolvedFrom": "<repo>/node_modules/yargs"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "burgee/yargs ÷ yargs",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.949,
+      "p95": 0.949,
+      "gate": {
+        "max": 1,
+        "why": "U5, stated as a check: this entry point is no heavier in a user's bundle than the package it replaces"
+      },
+      "note": "the yargs front-end against yargs and its five dependencies; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "burgee/yargs@0.11.1",
+        "incumbent": "yargs@18.1.0"
+      }
+    },
+    {
+      "axis": "weight",
+      "samples": 1,
+      "variant": "yargs + cosmiconfig + exit-hook + restore-cursor",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "median": 198269,
+      "p95": 198269,
+      "note": "the capability-parity stack for `burgee/yargs`: yargs plus 3 package(s) a user of it installs to reach the same capability set — `cosmiconfig` for find and load a config file, and merge it under the flags; `exit-hook` for run cleanup on every path out, including a signal; `restore-cursor` for hand the terminal back with the cursor visible. Each addition is a package this repository publishes a graded drop-in for (`seniority/cosmiconfig`, `closeout/exit-hook`, `closeout/restore-cursor`), which is the rule that decides what may be in this stack"
+    },
+    {
+      "axis": "weight",
+      "samples": 1,
+      "variant": "burgee/yargs ÷ (yargs + cosmiconfig + exit-hook + restore-cursor)",
+      "metric": "bundled-bytes-ratio-parity",
+      "unit": "ratio",
+      "median": 0.532,
+      "p95": 0.532,
+      "note": "111152 bytes for `yargs` alone, 198269 for the stack. Reported, never gated — a ceiling here would be a ceiling on somebody else's dependency tree. 5 of our capabilities have no incumbent to add and cost this stack nothing: `--schema`: the whole program as one JSON document; `--mcp`: the program as an MCP server over stdio; the `{ ok, data }` envelope on `--json`, on every command; agent detection, and the non-interactive floor that follows from it; option relations (`dependsOn`, `exclusive`) and Standard Schema validation",
+      "detail": {
+        "bare": 111152,
+        "stack": 198269,
+        "unmatched": 5
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "roundel/chalk",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 4590,
+      "p95": 4590,
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `roundel/chalk`",
+      "detail": {
+        "version": "0.5.1",
+        "resolvedFrom": "<repo>/node_modules/roundel"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "chalk",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 7990,
+      "p95": 7990,
+      "note": "the same fixture over `chalk` — the colour façade against chalk",
+      "detail": {
+        "version": "6.0.0",
+        "resolvedFrom": "<repo>/node_modules/chalk"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "roundel/chalk",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 78857,
+      "p95": 78857,
+      "note": "`npm pack` unpacked size of roundel plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.5.1",
+        "resolvedFrom": "<repo>/node_modules/roundel"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "chalk",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 56029,
+      "p95": 56029,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "6.0.0",
+        "resolvedFrom": "<repo>/node_modules/chalk"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "roundel/chalk ÷ chalk",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.574,
+      "p95": 0.574,
+      "gate": {
+        "max": 1,
+        "why": "U5, stated as a check: this entry point is no heavier in a user's bundle than the package it replaces"
+      },
+      "note": "the colour façade against chalk; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "roundel/chalk@0.5.1",
+        "incumbent": "chalk@6.0.0"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "roundel/tokens",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 415,
+      "p95": 415,
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing `error` from `roundel/tokens`",
+      "detail": {
+        "version": "0.5.1",
+        "resolvedFrom": "<repo>/node_modules/roundel"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "picocolors",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 2557,
+      "p95": 2557,
+      "note": "the same fixture over `picocolors` — the roadmap's second bet: colour under picocolors' weight",
+      "detail": {
+        "version": "1.1.1",
+        "resolvedFrom": "<repo>/node_modules/picocolors"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "roundel/tokens",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 78857,
+      "p95": 78857,
+      "note": "`npm pack` unpacked size of roundel plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.5.1",
+        "resolvedFrom": "<repo>/node_modules/roundel"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "picocolors",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 6373,
+      "p95": 6373,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "1.1.1",
+        "resolvedFrom": "<repo>/node_modules/picocolors"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "roundel/tokens ÷ picocolors",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.162,
+      "p95": 0.162,
+      "gate": {
+        "max": 1,
+        "why": "U5, stated as a check: this entry point is no heavier in a user's bundle than the package it replaces"
+      },
+      "note": "the roadmap's second bet: colour under picocolors' weight; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "roundel/tokens@0.5.1",
+        "incumbent": "picocolors@1.1.1"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/ora",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 55543,
+      "p95": 55543,
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `flagstaff/ora`",
+      "detail": {
+        "version": "0.4.1",
+        "resolvedFrom": "<repo>/node_modules/flagstaff"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "ora",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 59519,
+      "p95": 59519,
+      "note": "the same fixture over `ora` — the spinner façade against ora",
+      "detail": {
+        "version": "9.4.1",
+        "resolvedFrom": "<repo>/node_modules/ora"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/ora",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 564721,
+      "p95": 564721,
+      "note": "`npm pack` unpacked size of flagstaff plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.4.1",
+        "resolvedFrom": "<repo>/node_modules/flagstaff"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "ora",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 284554,
+      "p95": 284554,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "9.4.1",
+        "resolvedFrom": "<repo>/node_modules/ora"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/ora ÷ ora",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.933,
+      "p95": 0.933,
+      "gate": {
+        "max": 1,
+        "why": "U5, stated as a check: this entry point is no heavier in a user's bundle than the package it replaces"
+      },
+      "note": "the spinner façade against ora; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "flagstaff/ora@0.4.1",
+        "incumbent": "ora@9.4.1"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/boxen",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 22718,
+      "p95": 22718,
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `flagstaff/boxen`",
+      "detail": {
+        "version": "0.4.1",
+        "resolvedFrom": "<repo>/node_modules/flagstaff"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "boxen",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 64823,
+      "p95": 64823,
+      "note": "the same fixture over `boxen` — the box façade against boxen",
+      "detail": {
+        "version": "8.0.1",
+        "resolvedFrom": "<repo>/node_modules/boxen"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/boxen",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 564721,
+      "p95": 564721,
+      "note": "`npm pack` unpacked size of flagstaff plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.4.1",
+        "resolvedFrom": "<repo>/node_modules/flagstaff"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "boxen",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 747463,
+      "p95": 747463,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "8.0.1",
+        "resolvedFrom": "<repo>/node_modules/boxen"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/boxen ÷ boxen",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.35,
+      "p95": 0.35,
+      "gate": {
+        "max": 1,
+        "why": "U5, stated as a check: this entry point is no heavier in a user's bundle than the package it replaces"
+      },
+      "note": "the box façade against boxen; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "flagstaff/boxen@0.4.1",
+        "incumbent": "boxen@8.0.1"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/cli-table3",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 23973,
+      "p95": 23973,
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `flagstaff/cli-table3`",
+      "detail": {
+        "version": "0.4.1",
+        "resolvedFrom": "<repo>/node_modules/flagstaff"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "cli-table3",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 34620,
+      "p95": 34620,
+      "note": "the same fixture over `cli-table3` — the table façade against cli-table3",
+      "detail": {
+        "version": "0.6.5",
+        "resolvedFrom": "<repo>/node_modules/cli-table3"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/cli-table3",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 564721,
+      "p95": 564721,
+      "note": "`npm pack` unpacked size of flagstaff plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.4.1",
+        "resolvedFrom": "<repo>/node_modules/flagstaff"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "cli-table3",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 153737,
+      "p95": 153737,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "0.6.5",
+        "resolvedFrom": "<repo>/node_modules/cli-table3"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/cli-table3 ÷ cli-table3",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.692,
+      "p95": 0.692,
+      "gate": {
+        "max": 1,
+        "why": "U5, stated as a check: this entry point is no heavier in a user's bundle than the package it replaces"
+      },
+      "note": "the table façade against cli-table3; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "flagstaff/cli-table3@0.4.1",
+        "incumbent": "cli-table3@0.6.5"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/spinner",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 8639,
+      "p95": 8639,
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing `spinner` from `flagstaff/spinner`",
+      "detail": {
+        "version": "0.4.1",
+        "resolvedFrom": "<repo>/node_modules/flagstaff"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/spinner",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 564721,
+      "p95": 564721,
+      "note": "`npm pack` unpacked size of flagstaff plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.4.1",
+        "resolvedFrom": "<repo>/node_modules/flagstaff"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/spinner ÷ ora",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.145,
+      "p95": 0.145,
+      "gate": {
+        "max": 1,
+        "why": "U5, stated as a check: this entry point is no heavier in a user's bundle than the package it replaces"
+      },
+      "note": "flagstaff R10: the native spinner may not weigh more than ora; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "flagstaff/spinner@0.4.1",
+        "incumbent": "ora@9.4.1"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/box",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 21919,
+      "p95": 21919,
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing `box` from `flagstaff/box`",
+      "detail": {
+        "version": "0.4.1",
+        "resolvedFrom": "<repo>/node_modules/flagstaff"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/box",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 564721,
+      "p95": 564721,
+      "note": "`npm pack` unpacked size of flagstaff plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.4.1",
+        "resolvedFrom": "<repo>/node_modules/flagstaff"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/box ÷ boxen",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.338,
+      "p95": 0.338,
+      "gate": {
+        "max": 1,
+        "why": "U5, stated as a check: this entry point is no heavier in a user's bundle than the package it replaces"
+      },
+      "note": "flagstaff R10: the native box may not weigh more than boxen; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "flagstaff/box@0.4.1",
+        "incumbent": "boxen@8.0.1"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/table",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 14989,
+      "p95": 14989,
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing `table` from `flagstaff/table`",
+      "detail": {
+        "version": "0.4.1",
+        "resolvedFrom": "<repo>/node_modules/flagstaff"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/table",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 564721,
+      "p95": 564721,
+      "note": "`npm pack` unpacked size of flagstaff plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.4.1",
+        "resolvedFrom": "<repo>/node_modules/flagstaff"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/table ÷ cli-table3",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.433,
+      "p95": 0.433,
+      "gate": {
+        "max": 1,
+        "why": "U5, stated as a check: this entry point is no heavier in a user's bundle than the package it replaces"
+      },
+      "note": "flagstaff R10: the native table may not weigh more than cli-table3; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "flagstaff/table@0.4.1",
+        "incumbent": "cli-table3@0.6.5"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/log-update",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 18337,
+      "p95": 18337,
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `flagstaff/log-update`",
+      "detail": {
+        "version": "0.4.1",
+        "resolvedFrom": "<repo>/node_modules/flagstaff"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "log-update",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 36390,
+      "p95": 36390,
+      "note": "the same fixture over `log-update` — the frame façade against log-update",
+      "detail": {
+        "version": "8.0.0",
+        "resolvedFrom": "<repo>/node_modules/log-update"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/log-update",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 564721,
+      "p95": 564721,
+      "note": "`npm pack` unpacked size of flagstaff plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.4.1",
+        "resolvedFrom": "<repo>/node_modules/flagstaff"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "log-update",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 261977,
+      "p95": 261977,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "8.0.0",
+        "resolvedFrom": "<repo>/node_modules/log-update"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "flagstaff/log-update ÷ log-update",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.504,
+      "p95": 0.504,
+      "gate": {
+        "max": 1,
+        "why": "U5, stated as a check: this entry point is no heavier in a user's bundle than the package it replaces"
+      },
+      "note": "the frame façade against log-update; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "flagstaff/log-update@0.4.1",
+        "incumbent": "log-update@8.0.0"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "linegauge",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 6360,
+      "p95": 6360,
+      "gate": {
+        "max": 6400,
+        "why": "a ratchet on what a user's bundle grows by; raising it is a decision, not a drift"
+      },
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `linegauge`",
+      "detail": {
+        "version": "0.5.1",
+        "resolvedFrom": "<repo>/node_modules/linegauge"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "string-width",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 6068,
+      "p95": 6068,
+      "note": "the same fixture over `string-width` — the width layer against string-width, whose own suite grades it 229 / 229",
+      "detail": {
+        "version": "8.2.2",
+        "resolvedFrom": "<repo>/node_modules/string-width"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "linegauge",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 85532,
+      "p95": 85532,
+      "note": "`npm pack` unpacked size of linegauge plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.5.1",
+        "resolvedFrom": "<repo>/node_modules/linegauge"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "string-width",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 36669,
+      "p95": 36669,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "8.2.2",
+        "resolvedFrom": "<repo>/node_modules/string-width"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "linegauge ÷ string-width",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 1.048,
+      "p95": 1.048,
+      "gate": {
+        "max": 1.05,
+        "why": "a ratchet at the measured value, not the claim: this entry point is currently heavier than what it replaces on a bundled basis, and the gate exists to stop that growing"
+      },
+      "note": "the width layer against string-width, whose own suite grades it 229 / 229; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "linegauge@0.5.1",
+        "incumbent": "string-width@8.2.2"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "linegauge/wrap",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 11332,
+      "p95": 11332,
+      "gate": {
+        "max": 11350,
+        "why": "a ratchet on what a user's bundle grows by; raising it is a decision, not a drift"
+      },
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `linegauge/wrap`",
+      "detail": {
+        "version": "0.5.1",
+        "resolvedFrom": "<repo>/node_modules/linegauge"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "wrap-ansi",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 14376,
+      "p95": 14376,
+      "note": "the same fixture over `wrap-ansi` — the wrap façade against wrap-ansi, 80 / 80",
+      "detail": {
+        "version": "10.0.1",
+        "resolvedFrom": "<repo>/node_modules/wrap-ansi"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "linegauge/wrap",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 85532,
+      "p95": 85532,
+      "note": "`npm pack` unpacked size of linegauge plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.5.1",
+        "resolvedFrom": "<repo>/node_modules/linegauge"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "wrap-ansi",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 79687,
+      "p95": 79687,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "10.0.1",
+        "resolvedFrom": "<repo>/node_modules/wrap-ansi"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "linegauge/wrap ÷ wrap-ansi",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 0.788,
+      "p95": 0.788,
+      "gate": {
+        "max": 1,
+        "why": "U5, stated as a check: this entry point is no heavier in a user's bundle than the package it replaces"
+      },
+      "note": "the wrap façade against wrap-ansi, 80 / 80; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "linegauge/wrap@0.5.1",
+        "incumbent": "wrap-ansi@10.0.1"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "linegauge/slice",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 8992,
+      "p95": 8992,
+      "gate": {
+        "max": 9000,
+        "why": "a ratchet on what a user's bundle grows by; raising it is a decision, not a drift"
+      },
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `linegauge/slice`",
+      "detail": {
+        "version": "0.5.1",
+        "resolvedFrom": "<repo>/node_modules/linegauge"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "slice-ansi",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 5971,
+      "p95": 5971,
+      "note": "the same fixture over `slice-ansi` — the slice façade against slice-ansi, 15 / 15",
+      "detail": {
+        "version": "7.1.2",
+        "resolvedFrom": "<repo>/node_modules/slice-ansi"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "linegauge/slice",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 85532,
+      "p95": 85532,
+      "note": "`npm pack` unpacked size of linegauge plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.5.1",
+        "resolvedFrom": "<repo>/node_modules/linegauge"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "slice-ansi",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 43642,
+      "p95": 43642,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "7.1.2",
+        "resolvedFrom": "<repo>/node_modules/slice-ansi"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "linegauge/slice ÷ slice-ansi",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 1.506,
+      "p95": 1.506,
+      "gate": {
+        "max": 1.51,
+        "why": "a ratchet at the measured value, not the claim: this entry point is currently heavier than what it replaces on a bundled basis, and the gate exists to stop that growing"
+      },
+      "note": "the slice façade against slice-ansi, 15 / 15; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "linegauge/slice@0.5.1",
+        "incumbent": "slice-ansi@7.1.2"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "linegauge/strip",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 954,
+      "p95": 954,
+      "gate": {
+        "max": 1000,
+        "why": "a ratchet on what a user's bundle grows by; raising it is a decision, not a drift"
+      },
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `linegauge/strip`",
+      "detail": {
+        "version": "0.5.1",
+        "resolvedFrom": "<repo>/node_modules/linegauge"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "strip-ansi",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 438,
+      "p95": 438,
+      "note": "the same fixture over `strip-ansi` — the strip façade against strip-ansi, 8 / 8",
+      "detail": {
+        "version": "7.2.0",
+        "resolvedFrom": "<repo>/node_modules/strip-ansi"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "linegauge/strip",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 85532,
+      "p95": 85532,
+      "note": "`npm pack` unpacked size of linegauge plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.5.1",
+        "resolvedFrom": "<repo>/node_modules/linegauge"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "strip-ansi",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 10344,
+      "p95": 10344,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "7.2.0",
+        "resolvedFrom": "<repo>/node_modules/strip-ansi"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "linegauge/strip ÷ strip-ansi",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 2.178,
+      "p95": 2.178,
+      "gate": {
+        "max": 2.25,
+        "why": "a ratchet at the measured value, not the claim: this entry point is currently heavier than what it replaces on a bundled basis, and the gate exists to stop that growing"
+      },
+      "note": "the strip façade against strip-ansi, 8 / 8; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "linegauge/strip@0.5.1",
+        "incumbent": "strip-ansi@7.2.0"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "paratext",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 6736,
+      "p95": 6736,
+      "gate": {
+        "max": 6800,
+        "why": "a ratchet on what a user's bundle grows by; raising it is a decision, not a drift"
+      },
+      "note": "esbuild --bundle --minify --format=esm --platform=node over a fixture importing its default export from `paratext`",
+      "detail": {
+        "version": "0.6.1",
+        "resolvedFrom": "<repo>/node_modules/paratext"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "ansi-escapes",
+      "metric": "bundled-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 4351,
+      "p95": 4351,
+      "note": "the same fixture over `ansi-escapes` — the OSC layer against ansi-escapes — R11's B4 row, and the layer that is over its D1 ceiling",
+      "detail": {
+        "version": "7.3.0",
+        "resolvedFrom": "<repo>/node_modules/ansi-escapes"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "paratext",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 94006,
+      "p95": 94006,
+      "note": "`npm pack` unpacked size of paratext plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question",
+      "detail": {
+        "version": "0.6.1",
+        "resolvedFrom": "<repo>/node_modules/paratext"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "ansi-escapes",
+      "metric": "installed-bytes",
+      "unit": "bytes",
+      "samples": 1,
+      "median": 30912,
+      "p95": 30912,
+      "note": "bytes on disk for it and every production dependency it drags in",
+      "detail": {
+        "version": "7.3.0",
+        "resolvedFrom": "<repo>/node_modules/ansi-escapes"
+      }
+    },
+    {
+      "axis": "weight",
+      "variant": "paratext ÷ ansi-escapes",
+      "metric": "bundled-bytes-ratio",
+      "unit": "ratio",
+      "samples": 1,
+      "median": 1.548,
+      "p95": 1.548,
+      "gate": {
+        "max": 1.55,
+        "why": "a ratchet at the measured value, not the claim: this entry point is currently heavier than what it replaces on a bundled basis, and the gate exists to stop that growing"
+      },
+      "note": "the OSC layer against ansi-escapes — R11's B4 row, and the layer that is over its D1 ceiling; both sides bundled by the same command, both resolved from benchmarks/",
+      "detail": {
+        "ours": "paratext@0.6.1",
+        "incumbent": "ansi-escapes@7.3.0"
+      }
+    },
+    {
+      "axis": "reliability",
+      "variant": "burgee",
+      "samples": 10,
+      "metric": "hangs-per-100",
+      "unit": "runs",
+      "median": 0,
+      "p95": 0,
+      "note": "non-TTY runs, stdin closed, that never exited",
+      "gate": {
+        "max": 0,
+        "why": "a CLI that waits for a human under a pipe fails an agent task every time"
+      }
+    },
+    {
+      "axis": "reliability",
+      "variant": "burgee",
+      "samples": 10,
+      "metric": "exit-code-accuracy",
+      "unit": "ratio",
+      "median": 1,
+      "p95": 1,
+      "note": "0 ok, 2 usage error, any other non-zero runtime — the class an agent acts on"
+    },
+    {
+      "axis": "reliability",
+      "variant": "burgee",
+      "samples": 10,
+      "metric": "structured-output-rate",
+      "unit": "ratio",
+      "median": 1,
+      "p95": 1,
+      "note": "of the tasks that asked for --json, those that produced an addressable envelope"
+    },
+    {
+      "axis": "reliability",
+      "variant": "burgee",
+      "samples": 10,
+      "metric": "recovery-bytes",
+      "unit": "bytes",
+      "median": 75,
+      "p95": 75,
+      "note": "median bytes an agent reads per task; reported, never gated — a hint costs bytes and may save turns"
+    },
+    {
+      "axis": "reliability",
+      "variant": "burgee",
+      "samples": 10,
+      "metric": "schema-bytes",
+      "unit": "bytes",
+      "median": 1483,
+      "p95": 1483,
+      "note": "bytes of `--schema`, the whole surface an agent reads to discover the CLI; compact by default since agent-headroom R1, `--format=json-pretty` for a person"
+    },
+    {
+      "axis": "reliability",
+      "variant": "commander",
+      "samples": 10,
+      "metric": "hangs-per-100",
+      "unit": "runs",
+      "median": 0,
+      "p95": 0,
+      "note": "non-TTY runs, stdin closed, that never exited"
+    },
+    {
+      "axis": "reliability",
+      "variant": "commander",
+      "samples": 10,
+      "metric": "exit-code-accuracy",
+      "unit": "ratio",
+      "median": 0.4,
+      "p95": 0.4,
+      "note": "0 ok, 2 usage error, any other non-zero runtime — the class an agent acts on"
+    },
+    {
+      "axis": "reliability",
+      "variant": "commander",
+      "samples": 10,
+      "metric": "structured-output-rate",
+      "unit": "ratio",
+      "median": 0.25,
+      "p95": 0.25,
+      "note": "of the tasks that asked for --json, those that produced an addressable envelope"
+    },
+    {
+      "axis": "reliability",
+      "variant": "commander",
+      "samples": 10,
+      "metric": "recovery-bytes",
+      "unit": "bytes",
+      "median": 31,
+      "p95": 31,
+      "note": "median bytes an agent reads per task; reported, never gated — a hint costs bytes and may save turns"
+    },
+    {
+      "axis": "reliability",
+      "variant": "yargs",
+      "samples": 10,
+      "metric": "hangs-per-100",
+      "unit": "runs",
+      "median": 0,
+      "p95": 0,
+      "note": "non-TTY runs, stdin closed, that never exited"
+    },
+    {
+      "axis": "reliability",
+      "variant": "yargs",
+      "samples": 10,
+      "metric": "exit-code-accuracy",
+      "unit": "ratio",
+      "median": 0.4,
+      "p95": 0.4,
+      "note": "0 ok, 2 usage error, any other non-zero runtime — the class an agent acts on"
+    },
+    {
+      "axis": "reliability",
+      "variant": "yargs",
+      "samples": 10,
+      "metric": "structured-output-rate",
+      "unit": "ratio",
+      "median": 0.25,
+      "p95": 0.25,
+      "note": "of the tasks that asked for --json, those that produced an addressable envelope"
+    },
+    {
+      "axis": "reliability",
+      "variant": "yargs",
+      "samples": 10,
+      "metric": "recovery-bytes",
+      "unit": "bytes",
+      "median": 458,
+      "p95": 458,
+      "note": "median bytes an agent reads per task; reported, never gated — a hint costs bytes and may save turns"
+    }
+  ],
+  "bands": {
+    "cold-start-ratio": {
+      "value": 1.125,
+      "from": {
+        "axis": "perf",
+        "variant": "burgee/commander ÷ commander",
+        "metric": "cold-start-ratio"
+      }
+    },
+    "compat-ansi-escapes-pass-rate": {
+      "value": 0.25,
+      "from": {
+        "axis": "compat",
+        "variant": "ansi-escapes",
+        "metric": "pass-rate"
+      }
+    },
+    "compat-boxen-pass-rate": {
+      "value": 1,
+      "from": {
+        "axis": "compat",
+        "variant": "boxen",
+        "metric": "pass-rate"
+      }
+    },
+    "compat-chalk-pass-rate": {
+      "value": 1,
+      "from": {
+        "axis": "compat",
+        "variant": "chalk",
+        "metric": "pass-rate"
+      }
+    },
+    "compat-clack-pass-rate": {
+      "value": 0.8235294117647058,
+      "from": {
+        "axis": "compat",
+        "variant": "clack",
+        "metric": "pass-rate"
+      }
+    },
+    "compat-cli-table3-pass-rate": {
+      "value": 1,
+      "from": {
+        "axis": "compat",
+        "variant": "cli-table3",
+        "metric": "pass-rate"
+      }
+    },
+    "compat-commander-pass-rate": {
+      "value": 1,
+      "from": {
+        "axis": "compat",
+        "variant": "commander",
+        "metric": "pass-rate"
+      }
+    },
+    "compat-cosmiconfig-pass-rate": {
+      "value": 0.7654320987654321,
+      "from": {
+        "axis": "compat",
+        "variant": "cosmiconfig",
+        "metric": "pass-rate"
+      }
+    },
+    "compat-cross-spawn-pass-rate": {
+      "value": 1,
+      "from": {
+        "axis": "compat",
+        "variant": "cross-spawn",
+        "metric": "pass-rate"
+      }
+    },
+    "compat-dotenv-pass-rate": {
+      "value": 0.75177304964539,
+      "from": {
+        "axis": "compat",
+        "variant": "dotenv",
+        "metric": "pass-rate"
+      }
+    },
+    "compat-exit-hook-pass-rate": {
+      "value": 1,
+      "from": {
+        "axis": "compat",
+        "variant": "exit-hook",
+        "metric": "pass-rate"
+      }
+    },
+    "compat-inquirer-core-pass-rate": {
+      "value": 1,
+      "from": {
+        "axis": "compat",
+        "variant": "inquirer-core",
+        "metric": "pass-rate"
+      }
+    },
+    "compat-lilconfig-pass-rate": {
+      "value": 0.8701298701298701,
+      "from": {
+        "axis": "compat",
+        "variant": "lilconfig",
+        "metric": "pass-rate"
+      }
+    },
+    "compat-log-update-pass-rate": {
+      "value": 1,
+      "from": {
+        "axis": "compat",
+        "variant": "log-update",
+        "metric": "pass-rate"
+      }
+    },
+    "compat-meow-pass-rate": {
+      "value": 0.8918918918918919,
+      "from": {
+        "axis": "compat",
+        "variant": "meow",
+        "metric": "pass-rate"
+      }
+    },
+    "compat-ora-pass-rate": {
+      "value": 1,
+      "from": {
+        "axis": "compat",
+        "variant": "ora",
+        "metric": "pass-rate"
+      }
+    },
+    "compat-rc-pass-rate": {
+      "value": 1,
+      "from": {
+        "axis": "compat",
+        "variant": "rc",
+        "metric": "pass-rate"
+      }
+    },
+    "compat-restore-cursor-pass-rate": {
+      "value": 1,
+      "from": {
+        "axis": "compat",
+        "variant": "restore-cursor",
+        "metric": "pass-rate"
+      }
+    },
+    "compat-signal-exit-pass-rate": {
+      "value": 0.9925925925925926,
+      "from": {
+        "axis": "compat",
+        "variant": "signal-exit",
+        "metric": "pass-rate"
+      }
+    },
+    "compat-slice-ansi-pass-rate": {
+      "value": 1,
+      "from": {
+        "axis": "compat",
+        "variant": "slice-ansi",
+        "metric": "pass-rate"
+      }
+    },
+    "compat-string-width-pass-rate": {
+      "value": 1,
+      "from": {
+        "axis": "compat",
+        "variant": "string-width",
+        "metric": "pass-rate"
+      }
+    },
+    "compat-strip-ansi-pass-rate": {
+      "value": 1,
+      "from": {
+        "axis": "compat",
+        "variant": "strip-ansi",
+        "metric": "pass-rate"
+      }
+    },
+    "compat-term-img-pass-rate": {
+      "value": 0.6666666666666666,
+      "from": {
+        "axis": "compat",
+        "variant": "term-img",
+        "metric": "pass-rate"
+      }
+    },
+    "compat-terminal-link-pass-rate": {
+      "value": 0.8,
+      "from": {
+        "axis": "compat",
+        "variant": "terminal-link",
+        "metric": "pass-rate"
+      }
+    },
+    "compat-wrap-ansi-pass-rate": {
+      "value": 1,
+      "from": {
+        "axis": "compat",
+        "variant": "wrap-ansi",
+        "metric": "pass-rate"
+      }
+    },
+    "compat-yargs-pass-rate": {
+      "value": 1,
+      "from": {
+        "axis": "compat",
+        "variant": "yargs",
+        "metric": "pass-rate"
+      }
+    },
+    "agent-exit-code-accuracy": {
+      "value": 1,
+      "from": {
+        "axis": "reliability",
+        "variant": "burgee",
+        "metric": "exit-code-accuracy"
+      }
+    },
+    "agent-structured-output-rate": {
+      "value": 1,
+      "from": {
+        "axis": "reliability",
+        "variant": "burgee",
+        "metric": "structured-output-rate"
+      }
+    },
+    "agent-hangs-per-100": {
+      "value": 0,
+      "from": {
+        "axis": "reliability",
+        "variant": "burgee",
+        "metric": "hangs-per-100"
+      }
+    },
+    "agent-schema-bytes": {
+      "value": 1483,
+      "from": {
+        "axis": "reliability",
+        "variant": "burgee",
+        "metric": "schema-bytes"
+      }
+    },
+    "core-bundled-bytes": {
+      "value": 28649,
+      "from": {
+        "axis": "weight",
+        "variant": "burgee",
+        "metric": "bundled-bytes"
+      }
+    },
+    "commander-front-end-bundled-bytes": {
+      "value": 59497,
+      "from": {
+        "axis": "weight",
+        "variant": "burgee/commander",
+        "metric": "bundled-bytes"
+      }
+    },
+    "yargs-front-end-bundled-bytes": {
+      "value": 105482,
+      "from": {
+        "axis": "weight",
+        "variant": "burgee/yargs",
+        "metric": "bundled-bytes"
+      }
+    }
+  },
+  "claims": {
+    "cold-start-at-or-below-cac": {
+      "claim": "the engine starts at or below cac, the lightest framework in the landscape",
+      "source": ".sdlc/intents/replacement-parser/intent.md #2, the scoreboard row in .sdlc/intents/README.md, and the speed row of apps/docs/content/docs/comparison.mdx",
+      "target": "<= 1",
+      "measured": 1.42,
+      "unit": "ratio",
+      "met": false,
+      "from": {
+        "axis": "perf",
+        "variant": "burgee ÷ cac",
+        "metric": "cold-start-ratio"
+      }
+    },
+    "core-under-52kb-bundled": {
+      "claim": "the core entry point is under 52 KB bundled",
+      "source": ".sdlc/intents/replacement-parser/intent.md #3",
+      "target": "<= 53248",
+      "measured": 28649,
+      "unit": "bytes",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "burgee",
+        "metric": "bundled-bytes"
+      }
+    },
+    "lighter-than-cac": {
+      "claim": "`burgee` is lighter in a user's bundle than `cac`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 2.741,
+      "unit": "ratio",
+      "met": false,
+      "from": {
+        "axis": "weight",
+        "variant": "burgee ÷ cac",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-commander": {
+      "claim": "`burgee/commander` is lighter in a user's bundle than `commander`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 1.522,
+      "unit": "ratio",
+      "met": false,
+      "from": {
+        "axis": "weight",
+        "variant": "burgee/commander ÷ commander",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-yargs": {
+      "claim": "`burgee/yargs` is lighter in a user's bundle than `yargs`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 0.949,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "burgee/yargs ÷ yargs",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-chalk": {
+      "claim": "`roundel/chalk` is lighter in a user's bundle than `chalk`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 0.574,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "roundel/chalk ÷ chalk",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-picocolors": {
+      "claim": "`roundel/tokens` is lighter in a user's bundle than `picocolors`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 0.162,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "roundel/tokens ÷ picocolors",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-ora": {
+      "claim": "`flagstaff/ora` is lighter in a user's bundle than `ora`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 0.933,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "flagstaff/ora ÷ ora",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-boxen": {
+      "claim": "`flagstaff/boxen` is lighter in a user's bundle than `boxen`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 0.35,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "flagstaff/boxen ÷ boxen",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-cli-table3": {
+      "claim": "`flagstaff/cli-table3` is lighter in a user's bundle than `cli-table3`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 0.692,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "flagstaff/cli-table3 ÷ cli-table3",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "flagstaff-spinner-lighter-than-ora": {
+      "claim": "`flagstaff/spinner` is lighter in a user's bundle than `ora`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 0.145,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "flagstaff/spinner ÷ ora",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "flagstaff-box-lighter-than-boxen": {
+      "claim": "`flagstaff/box` is lighter in a user's bundle than `boxen`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 0.338,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "flagstaff/box ÷ boxen",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "flagstaff-table-lighter-than-cli-table3": {
+      "claim": "`flagstaff/table` is lighter in a user's bundle than `cli-table3`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 0.433,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "flagstaff/table ÷ cli-table3",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-log-update": {
+      "claim": "`flagstaff/log-update` is lighter in a user's bundle than `log-update`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 0.504,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "flagstaff/log-update ÷ log-update",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-string-width": {
+      "claim": "`linegauge` is lighter in a user's bundle than `string-width`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 1.048,
+      "unit": "ratio",
+      "met": false,
+      "from": {
+        "axis": "weight",
+        "variant": "linegauge ÷ string-width",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-wrap-ansi": {
+      "claim": "`linegauge/wrap` is lighter in a user's bundle than `wrap-ansi`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 0.788,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "linegauge/wrap ÷ wrap-ansi",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-slice-ansi": {
+      "claim": "`linegauge/slice` is lighter in a user's bundle than `slice-ansi`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 1.506,
+      "unit": "ratio",
+      "met": false,
+      "from": {
+        "axis": "weight",
+        "variant": "linegauge/slice ÷ slice-ansi",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-strip-ansi": {
+      "claim": "`linegauge/strip` is lighter in a user's bundle than `strip-ansi`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 2.178,
+      "unit": "ratio",
+      "met": false,
+      "from": {
+        "axis": "weight",
+        "variant": "linegauge/strip ÷ strip-ansi",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-ansi-escapes": {
+      "claim": "`paratext` is lighter in a user's bundle than `ansi-escapes`, the package it replaces",
+      "source": "U5 in .sdlc/intents/README.md — \"lighter per subpath than the incumbent it replaces\"",
+      "target": "<= 1",
+      "measured": 1.548,
+      "unit": "ratio",
+      "met": false,
+      "from": {
+        "axis": "weight",
+        "variant": "paratext ÷ ansi-escapes",
+        "metric": "bundled-bytes-ratio"
+      }
+    },
+    "lighter-than-cac-at-parity": {
+      "claim": "`burgee` is lighter in a user's bundle than `cac` plus the 3 packages a user of it installs to reach the same capability set",
+      "source": "U5 in .sdlc/intents/README.md, read as the choice a reader makes; the stack and the rule that decides it are `PARITY` in benchmarks/fixtures/entry-points.ts",
+      "target": "<= 1",
+      "measured": 0.293,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "burgee ÷ (cac + cosmiconfig + exit-hook + restore-cursor)",
+        "metric": "bundled-bytes-ratio-parity"
+      }
+    },
+    "lighter-than-commander-at-parity": {
+      "claim": "`burgee/commander` is lighter in a user's bundle than `commander` plus the 3 packages a user of it installs to reach the same capability set",
+      "source": "U5 in .sdlc/intents/README.md, read as the choice a reader makes; the stack and the rule that decides it are `PARITY` in benchmarks/fixtures/entry-points.ts",
+      "target": "<= 1",
+      "measured": 0.471,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "burgee/commander ÷ (commander + cosmiconfig + exit-hook + restore-cursor)",
+        "metric": "bundled-bytes-ratio-parity"
+      }
+    },
+    "lighter-than-yargs-at-parity": {
+      "claim": "`burgee/yargs` is lighter in a user's bundle than `yargs` plus the 3 packages a user of it installs to reach the same capability set",
+      "source": "U5 in .sdlc/intents/README.md, read as the choice a reader makes; the stack and the rule that decides it are `PARITY` in benchmarks/fixtures/entry-points.ts",
+      "target": "<= 1",
+      "measured": 0.532,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "weight",
+        "variant": "burgee/yargs ÷ (yargs + cosmiconfig + exit-hook + restore-cursor)",
+        "metric": "bundled-bytes-ratio-parity"
+      }
+    },
+    "compat-commander": {
+      "claim": "commander's own test suite passes 1360 of 1360 against our entry point",
+      "source": "packages/compat-oracle/baseline/, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx",
+      "target": ">= 1360",
+      "measured": 1360,
+      "unit": "tests",
+      "met": true,
+      "from": {
+        "axis": "compat",
+        "variant": "commander",
+        "metric": "passing-tests"
+      }
+    },
+    "compat-yargs": {
+      "claim": "yargs's own test suite passes 804 of 804 against our entry point",
+      "source": "packages/compat-oracle/baseline/, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx",
+      "target": ">= 804",
+      "measured": 804,
+      "unit": "tests",
+      "met": true,
+      "from": {
+        "axis": "compat",
+        "variant": "yargs",
+        "metric": "passing-tests"
+      }
+    },
+    "compat-chalk": {
+      "claim": "chalk's own test suite passes 58 of 58 against our entry point",
+      "source": "packages/compat-oracle/baseline/, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx",
+      "target": ">= 58",
+      "measured": 58,
+      "unit": "tests",
+      "met": true,
+      "from": {
+        "axis": "compat",
+        "variant": "chalk",
+        "metric": "passing-tests"
+      }
+    },
+    "compat-ora": {
+      "claim": "ora's own test suite passes 99 of 99 against our entry point",
+      "source": "packages/compat-oracle/baseline/, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx",
+      "target": ">= 99",
+      "measured": 99,
+      "unit": "tests",
+      "met": true,
+      "from": {
+        "axis": "compat",
+        "variant": "ora",
+        "metric": "passing-tests"
+      }
+    },
+    "compat-log-update": {
+      "claim": "log-update's own test suite passes 99 of 99 against our entry point",
+      "source": "packages/compat-oracle/baseline/, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx",
+      "target": ">= 99",
+      "measured": 99,
+      "unit": "tests",
+      "met": true,
+      "from": {
+        "axis": "compat",
+        "variant": "log-update",
+        "metric": "passing-tests"
+      }
+    },
+    "compat-boxen": {
+      "claim": "boxen's own test suite passes 84 of 84 against our entry point",
+      "source": "packages/compat-oracle/baseline/, published at /docs/compatibility and in the capabilities table of apps/docs/content/docs/comparison.mdx",
+      "target": ">= 84",
+      "measured": 84,
+      "unit": "tests",
+      "met": true,
+      "from": {
+        "axis": "compat",
+        "variant": "boxen",
+        "metric": "passing-tests"
+      }
+    }
+  }
+}
