@@ -1,17 +1,26 @@
 /**
- * Writes apps/docs/content/docs/compatibility.mdx from the oracle's last results. Generated,
+ * Writes the family app's content/docs/compatibility.mdx (apps/docs today) from the oracle's last results. Generated,
  * never hand-edited, so the published number is the measured number (B7, C2).
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+// eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and scripts read the app table through its one typed reader rather than re-parsing it
+import { familyApp } from '../apps/docs-chassis/src/config';
+
 // eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: a bare `compat-oracle/*` resolves from another checkout's dist/ in an uninstalled worktree (compat-oracle R6, scripts/oracle-import-lock.test.ts)
 import { HOSTS } from '../packages/compat-oracle/src/hosts.js';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const oracle = join(root, 'packages', 'compat-oracle');
-const OUT = join(root, 'apps', 'docs', 'content', 'docs', 'compatibility.mdx');
+/**
+ * The family app's content, from `.github/vercel-apps.json`'s one `familyPages: true` row —
+ * never a second app's (docs-per-package R13). One page, one host, so a published number
+ * cannot disagree with itself; `scripts/vercel-apps-lock.test.ts` fails if this path leaves
+ * that app.
+ */
+export const OUT = join(root, familyApp().dir, 'content', 'docs', 'compatibility.mdx');
 const PERCENT = 100;
 /** Length of an ISO date, `YYYY-MM-DD`. */
 const ISO_DATE = 10;

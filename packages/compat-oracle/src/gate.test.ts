@@ -10,8 +10,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { HOSTS } from './hosts.js';
-import { absentHere, silentDowngrades, verdict } from './report.js';
-import { type Baseline, type Grade, parseFlatTap, summarize, summarizeExitCodes, unmatchedExclusions } from './run.js';
+import { absentHere, absentPassing, REPEATS, repeatAndAgree, silentDowngrades, verdict } from './report.js';
+import { type Baseline, type Grade, parseFlatTap, regressed, summarize, summarizeExitCodes, unmatchedExclusions } from './run.js';
 
 const grade = (host: string, over: Partial<Grade> = {}): Grade => ({
   host,
@@ -195,6 +195,23 @@ describe('excluding a case that cannot fail for any target', () => {
     expect(summarize(TAP, 1, 0, { excludes: stale, requireMatch: true }).error).toContain('exclusion matched no case');
   });
 
+  it('matches an exact exclusion by the whole title, not by a word inside another one (A27)', () => {
+    const tap = ['ok 1 - main', 'not ok 2 - stderr', 'ok 3 - stderr default fallback', 'ok 4 - custom fallback stderr', 'ok 5 - isSupported stderr', ''].join('\n');
+    const exact = [{ match: 'stderr', why: 'mutates another module', exact: true }];
+    expect(parseFlatTap(tap, exact)).toEqual({ tests: 4, passed: 4, failed: 0, skipped: 0 });
+    expect(unmatchedExclusions(tap, [{ match: 'stder', why: 'a prefix is not a title', exact: true }])).toEqual(['stder']);
+  });
+
+  it('subtracts exclusions from a summary by the case lines they match, as ava prints both (A27)', () => {
+    const ava = ['TAP version 13', 'not ok 1 - main', 'not ok 2 - stderr', 'ok 3 - stderr default fallback', 'ok 4 - isSupported', '', '1..4', '# tests 4', '# pass 2', '# fail 2', ''].join('\n');
+    const both = [
+      { match: 'main', why: 'x', exact: true },
+      { match: 'stderr', why: 'x', exact: true },
+    ];
+    expect(summarize(ava, 1, 2, { excludes: both, requireMatch: true })).toMatchObject({ tests: 2, passed: 2, failed: 0, rate: 1 });
+    expect(summarize('# tests 4\n# pass 4\n# fail 0\n', 1, 4, { excludes: both }).error).toContain('no per-case names');
+  });
+
   it('lets a target run register nothing from a file that failed to import', () => {
     // The façade does not exist yet: every file fails to load, so no excluded case appears.
     // That is not a stale exclusion, and it must not read as a broken oracle.
@@ -222,6 +239,9 @@ describe('excluding a case that cannot fail for any target', () => {
  * must stay as red as it was. So the shortfall is declared per host, exact, and spent only
  * off the platforms named in `only`.
  */
+/** A signal-exit grade as darwin measures it: 127 cases registered of the 135 reference. */
+const onDarwin = (passed: number): Grade => ({ host: 'signal-exit', target: 'closeout', files: 8, tests: 127, passed, failed: 127 - passed, skipped: 0, reference: 135, rate: passed / 135 });
+
 describe('a suite whose case count depends on the platform', () => {
   it('counts the two cosmiconfig guards as absent off linux, and as present on it', () => {
     expect(absentHere('cosmiconfig', 'darwin')).toBe(2);
@@ -235,6 +255,18 @@ describe('a suite whose case count depends on the platform', () => {
     expect(absentHere('lilconfig', 'win32')).toBe(2);
     expect(absentHere('lilconfig', 'darwin')).toBe(0);
     expect(absentHere('lilconfig', 'linux')).toBe(0);
+  });
+
+  it('credits the ratchet with declared passes only where the cases are absent (signal-exit)', () => {
+    // signal-exit's 8 Linux-only cases pass where they run, so darwin may not be read as
+    // having lost them; cosmiconfig's 2 fail where they run, so darwin is credited nothing.
+    expect(absentPassing('signal-exit', 'darwin')).toBe(8);
+    expect(absentPassing('signal-exit', 'linux')).toBe(0);
+    expect(absentPassing('cosmiconfig', 'darwin')).toBe(0);
+    const baseline = { 'signal-exit': { reference: 135, passed: 134, rate: 134 / 135 } };
+    expect(regressed(onDarwin(126), baseline, absentPassing('signal-exit', 'darwin'))).toBe(false);
+    // A real loss on darwin is still a loss: the credit is exact, not a cushion.
+    expect(regressed(onDarwin(125), baseline, absentPassing('signal-exit', 'darwin'))).toBe(true);
   });
 
   it('claims nothing for a host that declares nothing', () => {
@@ -296,5 +328,50 @@ describe('a suite whose case count depends on the platform', () => {
     expect(verdict([grade('commander', { tests: 1360, passed: 1360, failed: 0, skipped: 1, reference: 1360 })], empty, collect().write, true)).toBe(0);
     // yargs, with its declared allowance of 2 on top of the skip.
     expect(verdict([grade('yargs', { tests: 804, passed: 802, failed: 2, skipped: 1, reference: 804 })], empty, collect().write, true)).toBe(0);
+  });
+});
+
+/**
+ * R7 — a row that fell is graded again before its red is believed, and a recovery is named.
+ * Driven with a scripted `regrade`, so each case says exactly what the runner "did".
+ */
+/** An exit-hook grade with `passed` of its 21 cases. */
+const exitHookAt = (passed: number): Grade => ({ host: 'exit-hook', target: 'closeout/exit-hook', files: 1, tests: 21, passed, failed: 21 - passed, skipped: 0, reference: 21, rate: passed / 21 });
+const belowAll = (g: Grade): boolean => g.passed < 21;
+/** A `regrade` that answers each call with the next scripted count, and counts its calls. */
+function scripted(...runs: number[]): { regrade: () => Grade; calls: () => number } {
+  let i = 0;
+  return { regrade: () => exitHookAt(runs[i++] ?? 0), calls: () => i };
+}
+
+describe('repeat and agree (R7)', () => {
+  it('leaves a row that did not fall alone, and grades it once', () => {
+    const { regrade, calls } = scripted();
+    const [g] = repeatAndAgree([exitHookAt(21)], { fell: belowAll, regrade, write: () => undefined });
+    expect(g?.attempts).toBeUndefined();
+    expect(calls()).toBe(0);
+  });
+
+  it('believes a recovery under load, and names it with every attempt', () => {
+    const said: string[] = [];
+    const { regrade } = scripted(21);
+    const [g] = repeatAndAgree([exitHookAt(17)], { fell: belowAll, regrade, write: (s) => said.push(s) });
+    expect(g?.passed).toBe(21);
+    expect(g?.attempts).toEqual([17, 21]);
+    expect(said.join('')).toContain('exit-hook: fell on attempt 1 and recovered on attempt 2 (17 → 21 passing)');
+  });
+
+  it('keeps a row red when every attempt agrees — a real regression cannot hide', () => {
+    const { regrade, calls } = scripted(17, 17);
+    const [g] = repeatAndAgree([exitHookAt(17)], { fell: belowAll, regrade, write: () => undefined });
+    expect(belowAll(g as Grade)).toBe(true);
+    expect(g?.attempts).toEqual([17, 17, 17]);
+    expect(calls()).toBe(REPEATS);
+  });
+
+  it('stops at the first attempt that recovers', () => {
+    const { regrade, calls } = scripted(21, 3);
+    repeatAndAgree([exitHookAt(17)], { fell: belowAll, regrade, write: () => undefined });
+    expect(calls()).toBe(1);
   });
 });

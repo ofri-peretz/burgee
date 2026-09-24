@@ -29,6 +29,17 @@ export interface DetailedArguments {
   configuration: Record<string, any>;
 }
 
+// yargs-parser's own type names, so a typed program migrates by its import alone. Permissive on
+// purpose: this parser takes its options as `any`, and a narrower type here would reject a
+// program that compiles against yargs-parser today.
+export interface Arguments {
+  _: (string | number)[];
+  '--'?: (string | number)[];
+  [argName: string]: any;
+}
+export type Options = Record<string, any>;
+export type Configuration = Record<string, boolean | string | undefined>;
+
 export function camelCase(str: string): string {
   const isCamelCase = str !== str.toLowerCase() && str !== str.toUpperCase();
   if (!isCamelCase) str = str.toLowerCase();
@@ -901,6 +912,8 @@ yargsParser.camelCase = camelCase;
 yargsParser.decamelize = decamelize;
 yargsParser.looksLikeNumber = looksLikeNumber;
 
-export { yargsParser as Parser };
+// yargs-parser's CommonJS build is `module.exports = yargsParser`, so `const parse = require('yargs-parser')`
+// gets the function; `'module.exports'` is what Node hands the same `require()` of this module (A29).
+export { yargsParser as 'module.exports', yargsParser as Parser };
 /** `burgee/yargs/parser`: what `import parser from 'yargs-parser'` gives, the same object the front-end parses with. */
 export default yargsParser;

@@ -185,7 +185,7 @@ requirement](#what-is-built-requirement-by-requirement-2026-09-16).
 | # | Requirement | Evidence | Holds | Lands in |
 | :-- | :-- | :-- | :-- | :-- |
 | K1 | Every published package depends only on in-family packages — as a dependency, a peer or an optional dependency; nothing from outside this repository (restated by the owner 2026-09-23, D-111) | oclif/core #1627 | lock | all |
-| K2 | ESM source, Node ≥ 24 — and **consumable from CommonJS**: every entry exposes a `default` condition beside `import`, and the library has no top-level await, so `require()` loads the same file via `require(esm)`. One artifact, both module systems, asserted by installing the tarball and requiring it | oclif/core #1450, #1396; a CJS commander user must still be able to change one import | lock | all |
+| K2 | ESM source, Node ≥ 24 — **restated 2026-09-23 (D-132): Node `^20.19.0` or `>=22.13.0`**, the first releases where `require(esm)` loads without a warning — and **consumable from CommonJS**: every entry exposes a `default` condition beside `import`, and the library has no top-level await, so `require()` loads the same file via `require(esm)`. One artifact, both module systems, asserted by installing the tarball and requiring it | oclif/core #1450, #1396; a CJS commander user must still be able to change one import | lock | all |
 | K3 | Node natives over packages (`util.styleText`, `fs.glob`, `fetch`) | oclif/core #1627 | L (`prefer-native-style-text`) + lock | all |
 | K4 | An artifact gate runs on the built `dist/` before publish; every package publishes with npm provenance via trusted publishing | eslint SARIF formatter incident; @oclif/core's 18 runtime deps | release.yml | all |
 | K5 | Per-package size budget, ratcheted | eslint `artifact-size-baseline.json` | lock | all |
@@ -258,7 +258,7 @@ these requirements turn that into a served interface rather than a document.
 | :-- | :-- | :-- | :-- | :-- |
 | N1 | `--mcp` serves the CLI over MCP stdio; tool definitions are generated from the manifest, never hand-written | citty #187; yargs #1605, #1838, #2121 | R | cli-mcp |
 | N2 | A command appears as a tool only if it opts in; destructive commands default to absent | security posture, not convenience | R + L | cli-mcp |
-| N3 | Zero runtime dependencies: JSON-RPC over stdio against `node:readline` | K1 | lock | cli-mcp |
+| N3 | No dependency outside the burgee family: JSON-RPC over stdio against `node:readline` | K1 | lock | cli-mcp |
 | N4 | Tool results are the O1 envelope, so MCP and `--json` callers see identical payloads | O1 | R | cli-mcp |
 | N5 | `--mcp` implies non-TTY: no prompts, no colour, E3 errors | O2, P2, E3 | R | cli-mcp |
 | N6 | Every command that runs declares `effects: read_only \| idempotent \| non_idempotent \| withheld`, **required not optional**, refused at definition time when absent, and the first three generate MCP's `readOnlyHint`/`idempotentHint`/`destructiveHint`. The spec defaults `destructiveHint` and `openWorldHint` to **true**, so silence is the dangerous reading — and `withheld` is how an author says *not for agents* without that being the same value as having said nothing | MCP `2026-07-28` schema | R + L | cli-mcp |
@@ -598,7 +598,7 @@ was quietly met.
 **The count.** 114 requirements, in seventeen families — `Z F O E V S P D T H M K J C B N U`.
 The prose above says *92* and *"Ninety-two requirements"*; both are wrong, and wrong the same
 way, because `E6 E7 V8 N11–N15` were added after the arithmetic was last done and `C1–C8`
-names two rows that do not exist. **Built: 93. Not built: 21**, and the count moves as rows are
+names two rows that do not exist. **Built: 96. Not built: 18**, and the count moves as rows are
 built rather than as the prose is rewritten — T1 moved on 2026-09-22 and the tally moved with
 it. An audit whose total disagrees with its own rows is the failure this paragraph is a record
 of; `spec-tally-lock.test.ts` now derives the two numbers from the tables instead of trusting
@@ -739,7 +739,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | # | Status | Evidence | The check |
 | :-- | :-- | :-- | :-- |
 | K1 | **Built** | All nine published packages: bellpull, closeout, linegauge, paratext, roundel and seniority depend on nothing; burgee, caique and flagstaff only on siblings. Held across `dependencies`, `peerDependencies` and `optionalDependencies` — the lock checked the first alone until 2026-09-23 | `scripts/package-shape-lock.test.ts`: *"installs nothing from outside this repository — dependencies, peers or optional (D-111)"*, proved red with an external peer on roundel |
-| K2 | **Built** | every entry publishes `default` beside `import`; no top-level await | `shape.test.ts`: *"consumable from CommonJS too — the same ESM file, through `require(esm)`"* |
+| K2 | **Built** | every entry publishes `default` beside `import`; no top-level await; every entry `require()`s and `import`s on 20.19.0 and 22.13.0 (D-132) | `shape.test.ts`: *"consumable from CommonJS too — the same ESM file, through `require(esm)`"* |
 | K3 | **Built** | `util.styleText` for colour, `node:readline` for MCP, `node:util`'s `parseArgs` for argv. Nothing outside the repo is reachable at run time, so there is no package a native could have replaced. The named `L` rule does not exist | `scripts/package-shape-lock.test.ts`: *"imports none of the packages Node ships natively"* |
 | K4 | **Built** | `release.yml` runs `npm run check:artifacts` on the built `dist/` before the publish job, and publishes with `--provenance` under `id-token: write` | `scripts/deploy-lock.test.ts`, `scripts/check-published-artifacts.ts` |
 | K5 | **Built** | `.sdlc/bands/artifact-size-baseline.json`, packed and unpacked, with a 10% allowance | `scripts/artifact-size-ratchet-lock.test.ts` |
@@ -765,7 +765,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | :-- | :-- | :-- | :-- |
 | C1 | Not built | `hosts.ts` pins **one** version per host (commander 15.0.0, yargs 18.1.0) and grades that. No package declares a supported host range, and no job runs a host's suite at a second major | — |
 | C2 | **Built** | graded through a one-line shim and published per release | `npm run compat`; `scripts/compat-page.ts --check` |
-| C3 | **Built** | `compat.yml`'s `matrix` job runs Linux, macOS and Windows × Node **24 and 26** — every even major `engines: >=24` admits. 26 was narrowed out on 2026-09-08 to halve CI while the output stack landed (#64) and came back on 2026-09-23, after the whole suite passed on v26.10.0: 767 root tests and every package's. It is graded a month before its LTS promotion, not first as one | `.github/workflows/compat.yml` `matrix.node`; `npm test` on Node 26.10.0 |
+| C3 | **Built** | `compat.yml`'s `matrix` job runs Linux, macOS and Windows × Node **24 and 26** — every even major `engines: >=24` admits. 26 was narrowed out on 2026-09-08 to halve CI while the output stack landed (#64) and came back on 2026-09-23, after the whole suite passed on v26.10.0: 767 root tests and every package's. It is graded a month before its LTS promotion, not first as one. Since D-132 (2026-09-23) `engines` also admits 20.19+ and 22.13+, and the `floor` job runs every published package's suite on exactly 20.19.0 and 22.13.0 on the same three OSes | `.github/workflows/compat.yml` `matrix.node`, `floor` `matrix.node`; `npm test` on Node 26.10.0 |
 | C4 | **Built** | `packages/compat-oracle/baseline/*.json`, twenty-one files; an `Exclusion` needs a `why`, and the oracle refuses one that matches nothing | `npm run compat`, and compat-oracle's own suite |
 | C5 | **Built** | the `▲` column is the ratchet; lowering a rate needs a baseline edit | `npm run compat`; `.github/workflows/compat.yml` opens an issue when main goes red |
 | C6 | **Built** | `vendor/<host>/.source.json` records the upstream commit; `compat-upstream.yml` opens one issue per (host, version) and `compat-refresh.yml` opens the PR | `.github/workflows/compat-upstream.yml` |
@@ -798,8 +798,8 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | N10 | Not built | clispec.dev and cli-agent-lint are named once, in `.sdlc/research/agent-requirements.md`. There is no axis, no CI job and no published result for either | — |
 | N11 | **Built** | `ctx.actionRequired(spec)` unwinds through `ActionRequired`; `runnableNext` prefixes the program name and carries the caller's own `--json` into each `next[]` command | `machine-json.test.ts` |
 | N12 | **Built** | `agent.ts` — `AGENT_PROBES`, `FORCE_TTY=1`, and `interactive = forced \|\| (tty && agent === undefined)`, which is the load-bearing clause. The probe list is **5** variables, not the 13 the requirement names; restated below | `agent.test.ts` |
-| N13 | Not built | the budget half is built (`Manifest.schemaBudget`, `SCHEMA_BUDGET = 48_000`, `summaryOf`). **Drilling is by command path only** — `summaryOf`'s own hint reads *"run `<command> --schema` for one command in full"* — and there is no field-path selector | `schema.test.ts` |
-| N14 | Not built | `--json` is seeded in `toParseConfig` as `{ type: 'boolean' }`. It takes no argument, so nothing lists valid fields and nothing rejects an invalid one | — |
+| N13 | **Built** | the budget half: `Manifest.schemaBudget`, `SCHEMA_BUDGET = 48_000`, `summaryOf`. The drilling half: by command path (`--schema <command>`), and below it by field path (D-116) — `--schema <command> --field options.region` returns that one value, a step that does not exist is refused with the steps that do, and the walk lives in `schema-surface.js`, loaded only when `--field` is typed | `schema.test.ts`, `schema-field.test.ts` |
+| N14 | **Built** | `--json=<a,b>` selects the result's top-level fields — of the object, or of each object in a list — and only the `=` form takes them, so `cmd --json name` keeps `name` a positional (D-114). A command may declare `fields`: then `--json=` lists them without running the handler, `--json=a,x` is refused before it runs with `valid fields: …` as the hint, and `--schema` publishes them. Undeclared, the selection is checked against the keys the result has. | `src/json-fields.test.ts` |
 | N15 | Not built | **Deferred past 1.0 (D-115)** — not a 1.0 gate. there is no non-JSON `agent` format. The only format flag in the package is `--format=json-pretty`, and it makes the output *larger* | `machine-json.test.ts` |
 
 ### The output stack
@@ -818,7 +818,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | U10 | **Built** | Restated by D-130. All nine packages declare `sideEffects` truthfully — each `bin`, plus paratext's two modules that register built-ins at load — and a root named import bundles to its subpath's bytes: 32 pairs, equal to the byte | `scripts/side-effects-lock.test.ts`; `scripts/tree-shake-fixture.test.ts` |
 | U11 | **Built** | twenty-one incumbents graded by their own suites with the rate published and ratcheting, zeroes included and labelled (`clack 0 / 606`, `lilconfig 0 / 77`, `rc` *target not built yet*) | `npm run compat`; `scripts/compat-page.test.ts` |
 | U12 | Not built | the design states the condition — *"locks when the independence install test passes for every layer and the first adopter installs a layer alone"* — and neither has happened | — |
-| U13 | Not built | `src/index.ts` statically re-exports from `seniority/precedence`, `src/execute.ts` imports it statically, `src/help.ts` imports `linegauge` and `src/shutdown.ts` imports `closeout`; the build is `tsc`, so those specifiers survive into `dist`. The **output-stack** half of the claim does hold and is locked: `roundel`, `flagstaff` and `caique` are denied by name from the `.` entry | `src/weight.test.ts`, the `.` rule's `denied` list |
+| U13 | **Built** | restated by D-136 — measured: `import 'burgee'` statically reaches two family specifiers, `closeout` (shutdown) and `seniority/precedence` (the resolver), both declared in-family dependencies (D-111), and nothing else in the family; the output stack — `roundel`, `flagstaff`, `caique` — and every optional surface (`help`, `schema`, `mcp`, completions, `--json=`, `config explain`) arrive by dynamic `import()`. The original text, *"`import 'burgee'` never resolves a family specifier"*, was false for the two the engine cannot run without | `src/weight.test.ts` — the `.` rule's `allow` is exactly `closeout` and `seniority/precedence`, and its `denied` names the output stack |
 
 ### Requirements restated
 

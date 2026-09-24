@@ -7,24 +7,28 @@
  * reaches 100% in this repository targets a subpath, and every row near zero was pointed at
  * a package root presenting its own native API.
  *
- * **Two of upstream's ten cases cannot be graded here, and the reason is not a gap.** Its
- * suite mutates `supportsHyperlinks.stdout = true` and expects the implementation to read
- * *that module object* at call time. paratext takes no runtime dependency (rule 2), so it
- * cannot see the mutation; it answers from its own detection, which on a headless runner
- * says "no hyperlinks". The six cases that set the flag to `false` therefore agree with us
- * by coincidence of environment and pass, the two `isSupported` cases only assert a boolean,
- * and `main` and `stderr` — the two that set it to `true` — get our fallback where they
- * expect OSC 8. Reading `supports-hyperlinks` when it happens to be installed would turn
- * those green and would be gaming the oracle: it would change what a real caller gets based
- * on what else is in their `node_modules`. The ceiling is 8 / 10 and it is written down.
+ * **Detection is the incumbent's, not paratext's** (A27): `supportsHyperlinks()` in
+ * `hyperlinks.ts` is `supports-hyperlinks` 4.5.0 read from a `Runtime`, graded against the real
+ * package in `hyperlinks.test.ts`. `LINK.when` — the root `link()`'s guess — disagreed with it
+ * in ordinary terminals, and a drop-in must link exactly where the incumbent did.
+ *
+ * **Two of upstream's ten cases are excluded from the grade, by exact title.** `main` and
+ * `stderr` assign `supportsHyperlinks.stdout = true` on *that module object* and expect OSC 8
+ * on a headless runner. paratext takes no runtime dependency (rule 2), so it cannot see the
+ * assignment; it answers from the same detection the module would have computed, which on
+ * that runner is no. Reading `supports-hyperlinks` when it happens to be installed would
+ * turn them green and change what a caller gets based on what else is in `node_modules`.
  */
+import { supportsHyperlinks } from './hyperlinks.js';
 import { LINK } from './link.js';
-import { processRuntime, type Runtime } from './runtime.js';
-import { supports } from './supports.js';
+import { commandLineRuntime, type Runtime } from './runtime.js';
 import { render } from './template.js';
 
 /** Which stream a call is bound for. Upstream's `target` option, spelled the same way. */
 export type Target = 'stdout' | 'stderr';
+
+/** Upstream's name for the options, so `import { type Options } from 'terminal-link'` migrates. */
+export type Options = LinkOptions;
 
 export interface LinkOptions {
   target?: Target;
@@ -38,19 +42,10 @@ export interface LinkOptions {
   fallback?: boolean | ((text: string, url: string) => string);
 }
 
-/**
- * A runtime whose `isTTY.stdout` answers for `target`, so one detection path serves both
- * streams. `stderr` falls back to `stdout` when a caller's runtime predates the field.
- */
-function streamRuntime(runtime: Runtime, target: Target): Runtime {
-  const tty = target === 'stderr' ? (runtime.isTTY.stderr ?? runtime.isTTY.stdout) : runtime.isTTY.stdout;
-  return { ...runtime, isTTY: { ...runtime.isTTY, stdout: tty } };
-}
-
 /** `terminalLink` bound to a runtime you supply — the pure form, and what the export wraps. */
 export function terminalLinkFor(runtime: Runtime) {
   const call = (text: string, url: string, { target = 'stdout', ...options }: LinkOptions = {}): string => {
-    if (supports(streamRuntime(runtime, target), LINK)) return render(LINK.encode, { text, url });
+    if (supportsHyperlinks(runtime, target)) return render(LINK.encode, { text, url });
     if (options.fallback === false) return text;
     if (typeof options.fallback === 'function') return options.fallback(text, url);
     return `${text} ${url}`;
@@ -58,7 +53,8 @@ export function terminalLinkFor(runtime: Runtime) {
   return call;
 }
 
-const bound = terminalLinkFor(processRuntime());
+const runtime = commandLineRuntime();
+const bound = terminalLinkFor(runtime);
 
 /**
  * `terminalLink(text, url, options?)` against the real process.
@@ -73,12 +69,11 @@ export interface TerminalLink {
   stderr: { (text: string, url: string, options?: Omit<LinkOptions, 'target'>): string; isSupported: boolean };
 }
 
-const runtime = processRuntime();
 const stderr = ((text: string, url: string, options: Omit<LinkOptions, 'target'> = {}) => bound(text, url, { ...options, target: 'stderr' })) as TerminalLink['stderr'];
-stderr.isSupported = supports(streamRuntime(runtime, 'stderr'), LINK);
+stderr.isSupported = supportsHyperlinks(runtime, 'stderr');
 
 const terminalLink = bound as TerminalLink;
-terminalLink.isSupported = supports(streamRuntime(runtime, 'stdout'), LINK);
+terminalLink.isSupported = supportsHyperlinks(runtime, 'stdout');
 terminalLink.stderr = stderr;
 
 // eslint-disable-next-line import-next/no-default-export -- the default IS the drop-in surface; terminal-link's default export is a function

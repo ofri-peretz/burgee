@@ -131,7 +131,7 @@ export default [
       // benchmark wrote. Both commands are in CONTRIBUTING; the order between them was not.
       "benchmarks/.fixtures/**",
       ".sdlc/research/issues/**",
-      "apps/docs/next-env.d.ts",
+      "apps/*/next-env.d.ts",
       // Vendored upstream test suites (compat-oracle C6). They are the hosts' own
       // files, unmodified except one import specifier, and are graded, never linted:
       // "fixing" them would grade our reading of the host instead of the host.
@@ -214,9 +214,10 @@ export default [
   // ── Framework-mandated default exports ────────────────────────────────────
   {
     files: [
-      "apps/docs/src/app/**",
-      "apps/docs/source.config.ts",
-      "apps/docs/src/mdx-components.tsx",
+      "apps/*/src/app/**",
+      "apps/*/source.config.ts",
+      // Loaded by fumadocs-mdx as an app's source.config — the default export is its contract.
+      "apps/docs-chassis/src/source-config.mjs",
       "**/*.config.{js,mjs,ts,mts}",
       "eslint.config.mjs",
       "commitlint.config.mjs",
@@ -237,6 +238,19 @@ export default [
   },
 
   // ── Scope-specific exceptions ─────────────────────────────────────────────
+  {
+    // closeout's `signal-exit` façade is CommonJS because the incumbent's own suite re-evaluates
+    // it under a changed `process`, which an ES module cannot be (closeout spec, 2026-09-23).
+    // `import x = require()` and `export =` are therefore the syntax, not a lapse, and the one
+    // export object is what Node's lexer turns into named exports.
+    files: ["packages/closeout/src/*.cts"],
+    rules: {
+      "import-next/no-commonjs": "off",
+      "import-next/unambiguous": "off",
+      "import-next/no-unused-modules": "off",
+      "import-next/no-default-export": "off",
+    },
+  },
   {
     // Tests import the package's public entry on purpose; scripts and tests are
     // entry points with nothing to export.
@@ -271,7 +285,7 @@ export default [
     // next/og renders this once on the server through satori: inline styles
     // are the only styling it understands, there is no CSS, no token, no
     // re-render. The brand hex values here are the dark-theme tokens verbatim.
-    files: ["apps/docs/src/app/opengraph-image.tsx"],
+    files: ["apps/*/src/app/opengraph-image.tsx", "apps/docs-chassis/src/og.tsx"],
     rules: {
       "react-features/no-raw-color-literal": "off",
       "react-features/no-inline-style": "off",
@@ -332,10 +346,22 @@ export default [
     files: ["packages/*/src/**/*.test.ts"],
     rules: { "import-next/no-extraneous-dependencies": "off" },
   },
+  // The docs apps read two files outside every workspace, by path, on purpose. The chassis's
+  // config reader imports `.github/vercel-apps.json` — the one table that names every app —
+  // so Next inlines it at build time; and each app's site module imports its documented
+  // package's `package.json`, which no package exports (and adding an export would change a
+  // published surface to serve a docs site). Both are the dependency, stated.
+  {
+    files: ["apps/docs-chassis/src/config.ts", "apps/*/src/site.ts", "apps/docs/src/lib/site.ts"],
+    rules: {
+      "import-next/no-relative-parent-imports": "off",
+      "import-next/no-relative-packages": "off",
+    },
+  },
   // Two specifiers no package.json can declare: fumadocs' virtual module
   // `fumadocs-mdx:collections/server` and the types-only `mdx/types`.
   {
-    files: ["apps/docs/src/lib/source.ts", "apps/docs/src/mdx-components.tsx"],
+    files: ["apps/*/src/source.ts", "apps/*/src/lib/source.ts", "apps/docs-chassis/src/mdx.tsx", "apps/docs-chassis/src/source.ts"],
     rules: { "import-next/no-extraneous-dependencies": "off" },
   },
   // scripts/lint-workflows.ts (copied verbatim from ofri-peretz/eslint):

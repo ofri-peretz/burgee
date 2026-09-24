@@ -26,7 +26,9 @@
  *
  * R2's fast path: locked by `differential.test.ts`.
  */
-export { lineCount, measure, width, width as default, type WidthOptions } from './width.js';
+// `Options` is string-width's name for `WidthOptions`: the root is string-width's drop-in, so a
+// typed program's `import { type Options } from 'string-width'` migrates by its import alone.
+export { lineCount, measure, width, width as default, type WidthOptions, type WidthOptions as Options } from './width.js';
 export { slice } from './slice.js';
 export { strip } from './strip.js';
 export { truncate, type TruncateOptions } from './truncate.js';

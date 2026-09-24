@@ -1,5 +1,5 @@
 /**
- * Writes apps/docs/content/docs/gallery.mdx from what flagstaff has actually registered.
+ * Writes the family app's content/docs/gallery.mdx (apps/docs today) from what flagstaff has actually registered.
  *
  * Every cell below is produced by running the component, not by describing it: the modes
  * table hoists each built-in over a buffer and a manual clock — the same `hoist()` a
@@ -17,8 +17,17 @@ import { fileURLToPath } from 'node:url';
 import cliSpinners from 'cli-spinners';
 import { box, boxComponent, type Component, fromCliBoxes, fromCliSpinners, hoist, manualClock, progress, registered, type Runtime, spinner, tableComponent, tasks } from 'flagstaff';
 
+// eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and scripts read the app table through its one typed reader rather than re-parsing it
+import { familyApp } from '../apps/docs-chassis/src/config';
+
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
-export const OUT = join(root, 'apps', 'docs', 'content', 'docs', 'gallery.mdx');
+/**
+ * The family app's content, from `.github/vercel-apps.json`'s one `familyPages: true` row —
+ * never a second app's (docs-per-package R13). One page, one host, so a published number
+ * cannot disagree with itself; `scripts/vercel-apps-lock.test.ts` fails if this path leaves
+ * that app.
+ */
+export const OUT = join(root, familyApp().dir, 'content', 'docs', 'gallery.mdx');
 
 const MODES = ['tty', 'pipe', 'ci', 'json', 'accessible'] as const;
 type Mode = (typeof MODES)[number];

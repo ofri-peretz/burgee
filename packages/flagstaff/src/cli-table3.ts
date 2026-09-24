@@ -1020,4 +1020,7 @@ Object.assign(Cell, { ColSpanCell, RowSpanCell });
 
 Object.assign(Table, { Cell, ColSpanCell, RowSpanCell, strlen, repeat, pad, truncate, mergeOptions, wordWrap, colorizeLines, hyperlink, makeTableLayout, layoutTable, addRowSpanCells, maxWidth, fillInTable, computeWidths, computeHeights });
 
+// `'module.exports'` is what Node hands a CommonJS `require()` of an ES module, so
+// `const Table = require('flagstaff/cli-table3')` gets the class, as `require('cli-table3')` does.
+export { Table as 'module.exports' };
 export default Table;

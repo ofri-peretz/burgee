@@ -23,6 +23,7 @@ import * as crossSpawn from 'bellpull/cross-spawn';
 
 import { ExitCode } from '../exit-code.js';
 import { type DeclaredEffects, Manifest, type OptionSpec, type Plugin } from '../manifest.js';
+import { camel } from '../names.js';
 import { host } from '../runtime.js';
 import { machineJson, schemaOf } from '../schema.js';
 import { suggestSimilar } from '../suggest.js';
@@ -79,6 +80,23 @@ export interface OutputContext {
 }
 
 export type HookEvent = 'preSubcommand' | 'preAction' | 'postAction';
+
+/**
+ * commander's option-value types, as `typings/index.d.ts` declares them. `any` is
+ * commander's choice and the point: `program.opts().port` is usable without a cast, and
+ * `opts<T>()` narrows it — a program written against commander's types relies on both;
+ * `unknown` here breaks every `opts().x` such a program reads.
+ */
+export type OptionValues = Record<string, any>;
+/** Where an option's value came from. A string, so an author can define their own; the known ones autocomplete. */
+export type OptionValueSource = 'default' | 'config' | 'env' | 'cli' | 'implied' | (string & Record<never, never>) | undefined;
+/** What `.configureHelp()` takes: any subset of `Help`'s methods and settings. */
+export type HelpConfiguration = Partial<Help>;
+/** `.parseOptions()`'s split of an argv into operands and unknown options. */
+export interface ParseOptionsResult {
+  operands: string[];
+  unknown: string[];
+}
 export type HookListener = (thisCommand: Command, actionCommand: Command) => void | Promise<void>;
 export type AddHelpTextPosition = 'beforeAll' | 'before' | 'after' | 'afterAll';
 export type AddHelpTextContext = { error: boolean; command: Command };
@@ -1091,7 +1109,7 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
    *     sub --unknown uuu op => [sub], [--unknown uuu op]
    *     sub -- --unknown uuu op => [sub --unknown uuu op], []
    */
-  parseOptions(args: string[]): { operands: string[]; unknown: string[] } {
+  parseOptions(args: string[]): ParseOptionsResult {
     const operands: string[] = [];
     const unknown: string[] = [];
     let dest = operands;
@@ -1212,22 +1230,22 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
     return { operands, unknown };
   }
 
-  /** Local option values as key-value pairs. */
-  opts(): Record<string, unknown> {
+  /** Local option values as key-value pairs; `opts<T>()` types them, as commander's own declaration does. */
+  opts<T extends OptionValues = OptionValues>(): T {
     if (this._storeOptionsAsProperties) {
       const result: Record<string, unknown> = {};
       for (const option of this.options) {
         const key = option.attributeName();
         result[key] = key === this._versionOptionName ? this._version : (this as unknown as Record<string, unknown>)[key];
       }
-      return result;
+      return result as T;
     }
-    return this._optionValues;
+    return this._optionValues as T;
   }
 
   /** Merged local and global option values; globals overwrite locals. */
-  optsWithGlobals(): Record<string, unknown> {
-    return this._getCommandAndAncestors().reduce<Record<string, unknown>>((combined, cmd) => Object.assign(combined, cmd.opts()), {});
+  optsWithGlobals<T extends OptionValues = OptionValues>(): T {
+    return this._getCommandAndAncestors().reduce<Record<string, unknown>>((combined, cmd) => Object.assign(combined, cmd.opts()), {}) as T;
   }
 
   /** Display an error message and exit (or call exitOverride). */
@@ -1686,17 +1704,32 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
     visit(this, [rootName]);
   }
 
-  /** Options as the manifest describes them, on a null-prototype record. */
+  /**
+   * Options as the manifest describes them, on a null-prototype record — keyed so that the
+   * spelling every surface derives from a key, `--${kebab(key)}`, is a flag commander accepts.
+   *
+   * Commander negates only what it was told to, where burgee's own parser negates every
+   * boolean. So a boolean is `negatable` here only when the program declared its `--no-` twin,
+   * which folds onto it rather than appearing twice; and a `--no-x` declared alone, which has
+   * no `--x`, is described as the switch it is, under `noX`. Before this, `--no-color` was
+   * published as `color` with `flag: '--color'`: completions offered `--color` and
+   * `--no-skip-blank`, and `--mcp` sent `--color` — each refused by the parser behind them.
+   */
   _optionSpecs(): Record<string, OptionSpec> {
     const specs = Object.create(null) as Record<string, OptionSpec>;
     for (const option of this.options) {
+      const name = option.attributeName();
+      // `--x` with `--no-x`, in either order: the one pair commander negates.
+      const paired = this.options.some((o) => o.negate !== option.negate && o.attributeName() === name);
+      if (option.negate && paired) continue;
       const spec: OptionSpec = { type: option.required || option.optional ? 'string' : 'boolean' };
       if (option.description) spec.description = option.description;
       if (option.mandatory) spec.required = true;
       if (option.short && option.long) spec.short = option.short.slice(1);
       if (typeof option.defaultValue === 'string' || typeof option.defaultValue === 'boolean') spec.default = option.defaultValue;
       if (option.envVar) spec.env = option.envVar;
-      Object.defineProperty(specs, option.attributeName(), { value: spec, enumerable: true, writable: true, configurable: true });
+      if (spec.type === 'boolean') spec.negatable = paired;
+      Object.defineProperty(specs, option.negate ? camel(option.name()) : name, { value: spec, enumerable: true, writable: true, configurable: true });
     }
     return specs;
   }
@@ -1852,7 +1885,7 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
       return isThenable(result) ? Promise.resolve(result).then(settle) : settle(result);
     }
     const name = this.name();
-    const options = this.opts();
+    const options = this.opts<Record<string, unknown>>();
     // `preRun` opens and **exactly one of `postRun` or `onError` closes**, which is the
     // contract the engine has always held and this chain did not. Without the `catch`, a
     // handler that threw skipped `postRun` and never reached `onError`, so a plugin that
