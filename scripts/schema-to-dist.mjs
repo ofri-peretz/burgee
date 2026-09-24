@@ -13,9 +13,13 @@ import process from 'node:process';
 
 // Copy and handle the failure, rather than checking first: between an existsSync and a
 // copy the file can go, and the check buys nothing the catch does not.
-try {
-  copyFileSync('src/schema.json', 'dist/schema.json');
-} catch (error) {
-  if (error.code !== 'ENOENT') throw error;
-  process.stdout.write('no src/schema.json — nothing to copy\n');
+// `program-schema.json` too: burgee publishes the shape of its own `--schema` document beside
+// the plugin schema (F1, D-123), and nothing imports that file either.
+for (const file of ['schema.json', 'program-schema.json']) {
+  try {
+    copyFileSync(`src/${file}`, `dist/${file}`);
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+    if (file === 'schema.json') process.stdout.write('no src/schema.json — nothing to copy\n');
+  }
 }

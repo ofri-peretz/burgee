@@ -261,9 +261,14 @@ const RULES: Record<string, EntryRule> = {
     // 44,600 with N14 (#470) and E7 together, after merging main. Measured 44,568.
     // 43,600 on 2026-09-23 for D-122, the `parse` and `shutdown` plugin stages: the `parse` loop lives in `parse-hooks.js`, loaded only when a plugin declares it; what stays is `Manifest.declares`, the call into that chunk, and registering `shutdown` on the run's teardown. Measured 43,501.
     // 45,000 with D-122 on top of N14 and E7, after merging main. Measured 44,975.
+    // 45,200 with S4, `-` as stdin, on top of D-122, N14 and E7: the check lives in `stdin-dash.js`, imported only when a positional is `-`; what stays is that test and the spread. Measured 45,107.
+    // 43,500 on 2026-09-23 for V8, `config explain`: the command lives in `config-explain.js`, loaded only on that path; what stays is recognising it and the `resolution` step it shares with a run. Measured 43,472.
+    // 45,600 with V8 on top of D-122, N14 and E7, after merging main. Measured 45,495.
+    // 45,700 with V8 on top of S4, after merging main. Measured 45,629.
     // 43,150 on 2026-09-23 for D3, dynamic completion: the callback lives in `complete-dynamic.js`, loaded only when argv starts with `__complete`; what stays is that one test.
     // 45,200 with D3, dynamic completion (D-119), on top of D-122, N14 and E7, after merging main. Measured 45,156.
-    budget: 45_200,
+    // 45,900 with D3 on top of S4, V8 and F1, after merging main. Measured 45,812.
+    budget: 45_900,
     denied: [
       "testing.js",
       "testing-helpers.js",
@@ -339,9 +344,14 @@ const RULES: Record<string, EntryRule> = {
   // 48,100 with N14 (#470) and E7 together. Measured 48,087.
   // 48,300 on 2026-09-23 for D-122 — the same engine and manifest bytes as `.`. Measured 48,212.
   // 48,500 with D-122 on top of N14 and E7, after merging main. Measured 48,494.
+  // 48,700 with S4 on top of D-122, N14 and E7 — the same engine bytes as `.`. Measured 48,626.
+  // 48,200 on 2026-09-23 for V8 — the same engine bytes as `.`. Measured 48,183.
+  // 49,100 with V8 on top of D-122, N14 and E7, after merging main. Measured 49,014.
+  // 49,200 with V8 on top of S4, after merging main. Measured 49,148.
   // 47,850 on 2026-09-23 for D3 — the same engine bytes as `.`. Measured 47,844.
   // 48,800 with D3 on top of D-122, N14 and E7, after merging main. Measured 48,675.
-  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 48_800, denied: ["dev.js", "migrate.js"] },
+  // 49,400 with D3 on top of S4, V8 and F1, after merging main. Measured 49,331.
+  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 49_400, denied: ["dev.js", "migrate.js"] },
   /**
    * The four doors the root barrel stopped holding open (see `.` above). Each is the same
    * module the engine reaches behind an `await import()`, published so a program that wants it
@@ -369,7 +379,9 @@ const RULES: Record<string, EntryRule> = {
     // 20,400 on 2026-09-23 for N14: `--schema` publishes a command's declared `fields`. Measured 20,334.
     // 20,550 on 2026-09-23 for D-122: `Manifest.declares` and the `parse` call-in, which every entry reaching the manifest carries. Measured 20,504.
     // 20,600 with D-122 on top of N14 and E7, after merging main. Measured 20,568.
-    budget: 20_600,
+    // 20,600 on 2026-09-23 for F1: `--schema` carries the exit-code table, so `schema.js` reaches `exit-code.js`. Measured 20,594.
+    // 21,000 with F1 on top of D-122, N14 and E7, after merging main. Measured 20,897.
+    budget: 21_000,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
   },
   // The schema surface and the `Manifest` class it reads. Measured 14,891.
@@ -379,7 +391,9 @@ const RULES: Record<string, EntryRule> = {
     // 15,300 on 2026-09-23 for N14: `--schema` publishes a command's declared `fields`. Measured 15,275.
     // 15,500 on 2026-09-23 for D-122, the same manifest bytes. Measured 15,445.
     // 15,300 with D-122 on top of N14 and E7, after merging main. Measured 15,294.
-    budget: 15_300,
+    // 15,550 on 2026-09-23 for F1, the exit-code table in `--schema`. Measured 15,535.
+    // 15,700 with F1 on top of D-122, N14 and E7, after merging main. Measured 15,623.
+    budget: 15_700,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
   },
   // Configuration precedence, provenance and `--explain`, which are `seniority`'s and are
@@ -653,7 +667,8 @@ const RULES: Record<string, EntryRule> = {
     // 215,250 on 2026-09-23: `export { Yargs as 'module.exports' }`, which yargs' own entry has, so `require('burgee/yargs')` hands a CommonJS caller the factory rather than a namespace. Measured 215,221.
     // 215,500 on 2026-09-23 for D-122, through the engine and the manifest. Measured 215,422.
     // 215,350 with D-122 on top of N14 and E7, after merging main. Measured 215,309.
-    budget: 215_350,
+    // 215,500 with F1 on top of D-122, N14 and E7, after merging main — the exit-code table, through the schema. Measured 215,406.
+    budget: 215_500,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   "./yargs/helpers": {
@@ -788,7 +803,9 @@ describe("the denied list", () => {
  * graph and no budget — the file *is* the payload — so a byte rule would measure nothing.
  * Listed rather than pattern-matched so that adding one is still a decision somebody made.
  */
-const DATA_EXPORTS = ["./schema.json"];
+// Data, not code: a file a reader validates against, which no import reaches and no budget can weigh.
+// `program-schema.json` is the shape of `--schema` (F1, D-123).
+const DATA_EXPORTS = ["./schema.json", "./program-schema.json"];
 
 describe("the lock grows with the package", () => {
   it("every published entry point declares a weight rule", () => {
