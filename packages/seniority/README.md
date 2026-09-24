@@ -8,7 +8,8 @@
 </p>
 
 <p align="center">
-  Docs: <a href="https://seniority.interlace.tools">https://seniority.interlace.tools</a>
+  Docs: <a href="https://seniority.interlace.tools">https://seniority.interlace.tools</a><br />
+  Migrating from: <a href="https://seniority.interlace.tools/docs/coming-from/cosmiconfig">cosmiconfig</a> · <a href="https://seniority.interlace.tools/docs/coming-from/dotenv">dotenv</a> · <a href="https://seniority.interlace.tools/docs/coming-from/rc">rc</a>
 </p>
 
 **Which source outranks the others.**
@@ -339,7 +340,7 @@ Graded by the incumbent's own test suite:
 | `lilconfig` | 77 / 77 |
 | `rc` | 1 / 1 |
 
-Weight, installed and tree-inclusive: **156,361 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.0793**.
+Weight, installed and tree-inclusive: **156,630 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.0794**.
 ## Where it sits
 
 Plugins register under the `sources` key, against the one schema the whole family shares.

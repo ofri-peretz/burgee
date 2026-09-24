@@ -8,7 +8,8 @@
 </p>
 
 <p align="center">
-  Docs: <a href="https://bellpull.interlace.tools">https://bellpull.interlace.tools</a>
+  Docs: <a href="https://bellpull.interlace.tools">https://bellpull.interlace.tools</a><br />
+  Migrating from: <a href="https://bellpull.interlace.tools/docs/coming-from/execa">execa</a> · <a href="https://bellpull.interlace.tools/docs/coming-from/cross-spawn">cross-spawn</a> · <a href="https://bellpull.interlace.tools/docs/coming-from/which">which</a>
 </p>
 
 A **bellpull** is the cord in one room wired to a bell in another. You pull it here; a bell rings there; someone comes back to you.
@@ -135,7 +136,7 @@ Graded by the incumbent's own test suite:
 | `cross-spawn` | 68 / 68 |
 | `which` | 5 / 5 |
 
-Weight, installed and tree-inclusive: **104,308 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1363**.
+Weight, installed and tree-inclusive: **104,578 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1366**.
 ## Where it sits
 
 Plugins register under the `resolvers` key, against the one schema the whole family shares.

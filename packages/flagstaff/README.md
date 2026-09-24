@@ -19,7 +19,8 @@
 </p>
 
 <p align="center">
-  Docs: <a href="https://flagstaff.interlace.tools">https://flagstaff.interlace.tools</a>
+  Docs: <a href="https://flagstaff.interlace.tools">https://flagstaff.interlace.tools</a><br />
+  Migrating from: <a href="https://flagstaff.interlace.tools/docs/coming-from/ora">ora</a> · <a href="https://flagstaff.interlace.tools/docs/coming-from/log-update">log-update</a> · <a href="https://flagstaff.interlace.tools/docs/coming-from/boxen">boxen</a> · <a href="https://flagstaff.interlace.tools/docs/coming-from/cli-table3">cli-table3</a>
 </p>
 
 ora animates a spinner and, off a terminal, prints frames anyway — `\r` after `\r` into the

@@ -8,7 +8,8 @@
 </p>
 
 <p align="center">
-  Docs: <a href="https://closeout.interlace.tools">https://closeout.interlace.tools</a>
+  Docs: <a href="https://closeout.interlace.tools">https://closeout.interlace.tools</a><br />
+  Migrating from: <a href="https://closeout.interlace.tools/docs/coming-from/signal-exit">signal-exit</a> · <a href="https://closeout.interlace.tools/docs/coming-from/exit-hook">exit-hook</a> · <a href="https://closeout.interlace.tools/docs/coming-from/restore-cursor">restore-cursor</a>
 </p>
 
 **Close everything out.**
@@ -330,7 +331,7 @@ Graded by the incumbent's own test suite:
 | `restore-cursor` | 6 / 6 |
 | `signal-exit` | 134 / 135 |
 
-Weight, installed and tree-inclusive: **103,350 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.5623**.
+Weight, installed and tree-inclusive: **103,646 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.5639**.
 ## Where it sits
 
 Plugins register under the `handlers` key, against the one schema the whole family shares.
