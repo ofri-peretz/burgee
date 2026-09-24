@@ -5,39 +5,9 @@
  * The definition-time checks (S3, S5, V5) moved to `./definition.js` when the plugin host
  * arrived; that file says why. This one runs on every invocation, that one runs once.
  */
+import { UsageError } from './errors.js';
 import { type OptionSpec, type Relation } from './manifest.js';
 import { flagsOf, kebab } from './names.js';
-
-/** A usage problem the caller can fix, carrying the flag that fixes it (E3). */
-export class UsageError extends Error {
-  constructor(
-    message: string,
-    readonly hint?: string,
-  ) {
-    super(message);
-  }
-}
-
-/**
- * E6 — the far side said no. Throw this and the run leaves with `ExitCode.AUTH`.
- *
- * The one error class whose *response* is unambiguous: not "read the message and decide" but
- * "get a credential and run it again". A handler that throws a bare `Error` for a 401 gets
- * `RUNTIME`, which is the code for everything, and a caller retrying on it retries forever.
- *
- * `fix` is the exact command that gets the credential, where the program knows it — `hint` is
- * prose a person reads and `fix` is a line a caller runs, which is the turn the field saves.
- */
-export class AuthError extends Error {
-  constructor(
-    message: string,
-    readonly hint?: string,
-    readonly fix?: string,
-  ) {
-    super(message);
-    this.name = 'AuthError';
-  }
-}
 
 type Sources = Record<string, { source: string }>;
 const isSet = (values: Record<string, unknown>, key: string, sources: Sources): boolean => values[key] !== undefined && sources[key]?.source !== 'default';
@@ -142,3 +112,7 @@ export async function coerce(specs: Record<string, OptionSpec>, values: Record<s
 }
 
 export { camel, kebab } from './names.js';
+
+// The two classes live in `errors.ts` so a façade can recognise them without this module;
+// re-exported here so every existing import keeps its path.
+export { AuthError, UsageError } from './errors.js';
