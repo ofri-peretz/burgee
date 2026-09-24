@@ -1,5 +1,18 @@
 # benchmarks
 
+## 0.0.2
+
+### Patch Changes
+
+- Updated dependencies [[`9800b43`](https://github.com/ofri-peretz/burgee/commit/9800b43d9c74a49dfb66d04a40fd0d1c48892e20), [`891e132`](https://github.com/ofri-peretz/burgee/commit/891e132c4b1d8fe3001123014ea977c8ab30e973), [`9800b43`](https://github.com/ofri-peretz/burgee/commit/9800b43d9c74a49dfb66d04a40fd0d1c48892e20), [`b8e97dc`](https://github.com/ofri-peretz/burgee/commit/b8e97dcb64772e413f0b6f9e17e063c73314d242)]:
+  - burgee@0.11.0
+  - bellpull@0.3.0
+  - caique@0.5.0
+  - linegauge@0.5.0
+  - paratext@0.6.0
+  - flagstaff@0.4.0
+  - roundel@0.5.0
+
 ## 0.0.1
 
 ### Patch Changes

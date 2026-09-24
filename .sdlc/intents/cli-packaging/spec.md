@@ -12,7 +12,8 @@ Intent: [`intent.md`](./intent.md). **Status:** review.
 - **R2 (K2)** Every non-private package: `"type": "module"`, every `exports` entry has
   `types` + `import` + `default` (the `default` is what lets CommonJS `require()` the ESM
   file), `engines.node: ">=24"`, no `main`; locked. Revised 2026-09-07 from "import only"
-  when the owner required CJS consumers to be supported.
+  when the owner required CJS consumers to be supported. Revised 2026-09-23 (D-132):
+  `engines.node: "^20.19.0 || >=22.13.0"`, the floors where `require(esm)` loads silently.
 - **R3 (K3)** `eslint-plugin-cli-floor`'s `prefer-native-style-text` and
   `import-next/no-nodejs-modules` off (already) — plus a lock that no package imports
   `chalk`, `picocolors`, `glob`, `node-fetch`, `minimist`.

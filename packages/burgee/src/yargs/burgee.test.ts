@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ExitCode } from '../exit-code.js';
-import yargs, { type YargsInstance } from '../yargs.js';
+import yargs from '../yargs.js';
 
 type Argv = Record<string, unknown>;
 
@@ -32,7 +32,7 @@ function program(): { y: ReturnType<typeof yargs>; run: (args: string[]) => Prom
     .command(
       'greet <name>',
       'Greet someone',
-      (cmd: YargsInstance) => cmd.positional('name', { type: 'string', describe: 'who to greet' }).option('shout', { type: 'boolean', describe: 'uppercase it' }).effects('read_only'),
+      (cmd) => cmd.positional('name', { type: 'string', describe: 'who to greet' }).option('shout', { type: 'boolean', describe: 'uppercase it' }).effects('read_only'),
       (argv: Argv) => ({ greeting: `${argv.shout ? 'HELLO' : 'Hello'}, ${String(argv.name)}` }),
     )
     .command('fail', 'Throw from the handler', {}, () => {

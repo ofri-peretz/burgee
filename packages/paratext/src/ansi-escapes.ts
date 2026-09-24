@@ -1,36 +1,32 @@
 /**
- * R8 — the `ansi-escapes` surface, for the half of it paratext owns.
+ * R8 — the `ansi-escapes` surface, all of it paratext implements.
  *
  * `ansi-escapes` is one module with two unrelated jobs in it. Most of its thirty-seven
- * members are **CSI**: move the cursor, erase a line, swap to the alternate screen — the
- * character grid, which `flagstaff` draws and `closeout` puts back. Four are **OSC**: talk
- * to the terminal *program* about a hyperlink, an image, the working directory, and the
- * bell. Those four are this package, and they are the four implemented here.
+ * members are **CSI**: move the cursor, erase a line, swap to the alternate screen. Four are
+ * **OSC**: talk to the terminal *program* about a hyperlink, an image, the working directory,
+ * and the bell. The OSC four are paratext's own, implemented here. The CSI half is in
+ * `csi.ts`, byte-exact with the incumbent (D-138): it was declared `undefined` until
+ * 2026-09-23, which kept the drop-in loading and capped its grade at 1 / 4, since three of the
+ * incumbent's four cases are CSI — and so `burgee migrate` could never move a program off it.
  *
  * **The one deliberate difference, and the reason to prefer this.** `ansi-escapes` emits
- * the bytes and lets the terminal sort it out; that is what puts `]1337;File=inline=1;…`
- * across the screen of anyone who piped your output to a file. Every function here goes
+ * the OSC bytes and lets the terminal sort it out; that is what puts `]1337;File=inline=1;…`
+ * across the screen of anyone who piped your output to a file. Every OSC function here goes
  * through {@link emit}, so on a terminal believed to understand the sequence you get the
  * incumbent's exact bytes, and everywhere else you get the capability's static projection —
  * `Docs (https://x.dev)` for a link, the caption for an image, nothing for a `setCwd`
- * (PRINCIPLES rule 6). Same call, same bytes where they work, something readable where they
- * do not.
+ * (PRINCIPLES rule 6). The CSI members do not degrade, because the incumbent's do not.
  *
- * **Why the CSI names are here at all, as `undefined`.** A drop-in has to *load*. ESM
- * refuses a named import of a name the module does not export, so `import ansiEscapes, {
- * cursorTo } from 'paratext'` would be a `SyntaxError` that takes the file down before a
- * line of it runs — which is precisely the one line of TAP the compat oracle printed for
- * this row before R8 existed. So every name the incumbent exports is declared. The
- * thirty-three paratext does not implement are `undefined` and typed {@link NotImplemented},
- * which makes calling one a **compile error naming this comment** rather than a runtime
- * `TypeError` at three in the morning.
+ * `iTerm` and `ConEmu` are still declared and empty: each would be a capability paratext does
+ * not have yet, typed {@link NotImplemented} so calling one is a compile error, not a
+ * runtime `TypeError`.
  *
- * Graded by `npm run compat -- ansi-escapes`. Its suite is four ava cases and three of them
- * assert CSI, so **the ceiling on that row is 1 / 4**: 25% there means complete. The
- * reasoning is written out in the `ansi-escapes` entry of `compat-oracle/src/hosts.ts`.
+ * Graded by `npm run compat -- ansi-escapes`.
  */
 import { registerBuiltins } from './builtins.js';
 import { emit } from './capability.js';
+// eslint-disable-next-line import-next/no-namespace -- the default export carries exactly csi's members, as the incumbent's carries its CSI half; listing thirty-one names twice cost 1.5 KB of the package against its weight ceiling
+import * as csi from './csi.js';
 import { imageFields, type ImageOptions } from './image.js';
 import { processRuntime, type Runtime } from './runtime.js';
 
@@ -110,45 +106,6 @@ export const setCwd = (cwd?: string): string => ansiEscapesFor(processRuntime())
  */
 export type NotImplemented = undefined;
 
-/*
- * The CSI half of `ansi-escapes` — the character grid.
- *
- * Out of scope by design, not by omission: `flagstaff` draws the grid and `closeout` puts
- * the cursor and the screen back, and a second implementation of either inside this package
- * would be the copy PRINCIPLES rule 2 exists to prevent. Declared so that a drop-in module
- * loads; `undefined` so that nothing here pretends to do it.
- */
-export const cursorTo: NotImplemented = undefined;
-export const cursorMove: NotImplemented = undefined;
-export const cursorUp: NotImplemented = undefined;
-export const cursorDown: NotImplemented = undefined;
-export const cursorForward: NotImplemented = undefined;
-export const cursorBackward: NotImplemented = undefined;
-export const cursorLeft: NotImplemented = undefined;
-export const cursorSavePosition: NotImplemented = undefined;
-export const cursorRestorePosition: NotImplemented = undefined;
-export const cursorGetPosition: NotImplemented = undefined;
-export const cursorNextLine: NotImplemented = undefined;
-export const cursorPrevLine: NotImplemented = undefined;
-export const cursorHide: NotImplemented = undefined;
-export const cursorShow: NotImplemented = undefined;
-export const eraseLines: NotImplemented = undefined;
-export const eraseEndLine: NotImplemented = undefined;
-export const eraseStartLine: NotImplemented = undefined;
-export const eraseLine: NotImplemented = undefined;
-export const eraseDown: NotImplemented = undefined;
-export const eraseUp: NotImplemented = undefined;
-export const eraseScreen: NotImplemented = undefined;
-export const scrollUp: NotImplemented = undefined;
-export const scrollDown: NotImplemented = undefined;
-export const clearViewport: NotImplemented = undefined;
-export const clearScreen: NotImplemented = undefined;
-export const clearTerminal: NotImplemented = undefined;
-export const enterAlternativeScreen: NotImplemented = undefined;
-export const exitAlternativeScreen: NotImplemented = undefined;
-export const beginSynchronizedOutput: NotImplemented = undefined;
-export const endSynchronizedOutput: NotImplemented = undefined;
-export const synchronizedOutput: NotImplemented = undefined;
 
 /*
  * OSC, and still not implemented — which is a different sentence and deserves its own block.
@@ -162,15 +119,14 @@ export const iTerm: NotImplemented = undefined;
 export const ConEmu: NotImplemented = undefined;
 
 /**
- * The default export, carrying only what this package implements.
- *
- * A CSI key present with an `undefined` value would read as a claim made and not kept, so
- * the object has four members and says so. Frozen, because the incumbent's own suite asserts
+ * The default export, carrying what this package implements: the CSI half and the four OSC
+ * members. `iTerm` and `ConEmu` stay off it — a key present with an `undefined` value would
+ * read as a claim made and not kept. Frozen, because the incumbent's own suite asserts
  * that a named export and the member are the same object and a caller reassigning one would
  * make that quietly untrue.
  */
 // eslint-disable-next-line import-next/no-default-export -- the incumbent's entry is a default export and R8 is the whole point of this file
-export default Object.freeze({ beep, image, link, setCwd });
+export default Object.freeze({ ...csi, beep, image, link, setCwd });
 
 /**
  * `ansi-escapes`' `image()` options, declared beside the record in `image.ts` and re-exported
@@ -178,3 +134,5 @@ export default Object.freeze({ beep, image, link, setCwd });
  * object, and one definition is what keeps the two façades describing one call.
  */
 export { type ImageOptions };
+export { beginSynchronizedOutput, clearScreen, clearTerminal, clearViewport, cursorBackward, cursorDown, cursorForward, cursorGetPosition, cursorHide, cursorLeft, cursorMove, cursorNextLine, cursorPrevLine, cursorRestorePosition, cursorSavePosition, cursorShow, cursorTo, cursorUp, endSynchronizedOutput, enterAlternativeScreen, eraseDown, eraseEndLine, eraseLine, eraseLines, eraseScreen, eraseStartLine, eraseUp, exitAlternativeScreen, scrollDown, scrollUp, synchronizedOutput } from './csi.js';
+

@@ -20,12 +20,18 @@
  * Usage:
  *   tsx scripts/run-evals.ts             # both layers
  *   tsx scripts/run-evals.ts --config    # layer 1 only
+ *   tsx scripts/run-evals.ts --record    # both layers, plus one line in evals/history/
+ *
+ * `--record` is for the scheduled run in `evals.yml`, which lands the line through a pull
+ * request; see `scripts/eval-history.ts` for the format.
  */
 
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+
+import { type CaseUsage, historyLine, parseClaudeJson, writeHistory } from './eval-history';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CASES_DIR = path.join(REPO_ROOT, 'evals/cases');
@@ -34,7 +40,9 @@ const UMBRELLA_DESIGN = '.sdlc/intents/burgee/spec.md';
 
 /** Documents an agent is expected to read and obey. */
 const CONFIG_FILES = ['README.md', 'CLAUDE.md', 'AGENTS.md'];
-const CONFIG_DIRS = ['docs', '.github', '.sdlc/bands', 'apps/docs/content'];
+/** Every docs app's content, from `.github/vercel-apps.json` — the one place an app is named. */
+const APP_CONTENT = Object.values((JSON.parse(fs.readFileSync(path.join(REPO_ROOT, '.github/vercel-apps.json'), 'utf8')) as { apps: Record<string, { dir: string }> }).apps).map((app) => `${app.dir}/content`);
+const CONFIG_DIRS = ['docs', '.github', '.sdlc/bands', ...APP_CONTENT];
 const SKIP_DIRS = new Set(['node_modules', 'issues', 'results', '.next', 'dist']);
 /** Intents describe work that does not exist yet; a script they name is a plan, not a link. */
 const PLANNED_DOCS = /^docs\/intents\//;
@@ -244,22 +252,29 @@ const CASE_TIMEOUT_MS = 180_000;
 /** 16 MiB of transcript. */
 const OUTPUT_BUFFER = 16777216;
 
-interface CaseResult {
+interface CaseResult extends CaseUsage {
   id: string;
   status: 'pass' | 'fail' | 'error';
   failed: string[];
 }
 
+const NO_USAGE: CaseUsage = { turns: null, tokens: null, model: null };
+
+/**
+ * `--output-format json` so the run reports its turns and tokens for the history line.
+ * The grade reads the document's `result`, which is exactly what text mode prints.
+ */
 function runCase(c: EvalCase): CaseResult {
-  const args = ['-p', c.prompt, '--allowedTools', c.allowedTools ?? 'Read,Grep,Glob', '--max-turns', process.env.EVAL_MAX_TURNS ?? '3'];
+  const args = ['-p', c.prompt, '--allowedTools', c.allowedTools ?? 'Read,Grep,Glob', '--max-turns', process.env.EVAL_MAX_TURNS ?? '3', '--output-format', 'json'];
   if (process.env.EVAL_MODEL) args.push('--model', process.env.EVAL_MODEL);
   const r = spawnSync('claude', args, { cwd: REPO_ROOT, encoding: 'utf8', env: evalEnv(process.env), timeout: CASE_TIMEOUT_MS, maxBuffer: OUTPUT_BUFFER });
-  if (r.error || typeof r.stdout !== 'string') return { id: c.id, status: 'error', failed: [String(r.error ?? 'no output')] };
-  const { ok, failed } = grade(r.stdout, c.expect);
-  return { id: c.id, status: ok ? 'pass' : 'fail', failed };
+  if (r.error || typeof r.stdout !== 'string') return { id: c.id, status: 'error', failed: [String(r.error ?? 'no output')], ...NO_USAGE };
+  const { text, usage } = parseClaudeJson(r.stdout);
+  const { ok, failed } = grade(text, c.expect);
+  return { id: c.id, status: ok ? 'pass' : 'fail', failed, ...usage };
 }
 
-function runTaskLayer(cases: EvalCase[]): number {
+function runTaskLayer(cases: EvalCase[]): CaseResult[] {
   const { billing, bothSet } = billingFor(process.env);
   console.warn(`\n🧪 Layer 2 — ${cases.length} task eval(s), billing to ${BILLING_LABEL[billing]}\n`);
   if (bothSet) console.warn('  ⚠️ Both credentials are set; ANTHROPIC_API_KEY wins and bills per token. Unset one.\n');
@@ -273,28 +288,50 @@ function runTaskLayer(cases: EvalCase[]): number {
   fs.mkdirSync(RESULTS_DIR, { recursive: true });
   fs.writeFileSync(path.join(RESULTS_DIR, `${stamp}.json`), `${JSON.stringify({ date: stamp, total: results.length, passed, results }, null, 2)}\n`);
   console.warn(`\n  pass rate: ${passed}/${results.length}`);
-  return results.length - passed;
+  return results;
+}
+
+/** The commit under evaluation: Actions says so, and a local run asks git. */
+function currentCommit(): string {
+  if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA;
+  return spawnSync('git', ['rev-parse', 'HEAD'], { cwd: REPO_ROOT, encoding: 'utf8' }).stdout.trim();
 }
 
 // ---------------------------------------------------------------------------
 
 function main(): void {
   const configOnly = process.argv.includes('--config');
+  const record = process.argv.includes('--record');
   let failures = 0;
 
   console.warn('\n🧪 Layer 1 — configuration checks\n');
-  for (const r of runConfigLayer()) {
+  const config = runConfigLayer();
+  for (const r of config) {
     console.warn(`  ${r.passed ? '✓' : '✗'} ${r.name}\n    ${r.detail}`);
     if (!r.passed) failures++;
   }
 
   const cases = loadCases();
+  let ran: CaseResult[] | null = null;
   if (configOnly) {
     console.warn('\n🧪 Layer 2 — skipped (--config)\n');
   } else if (!billingFor(process.env).hasCredential) {
     console.warn(`\n🧪 Layer 2 — skipped: no credential (${cases.length} case(s) not run).\n`);
   } else {
-    failures += runTaskLayer(cases);
+    ran = runTaskLayer(cases);
+    failures += ran.filter((r) => r.status !== 'pass').length;
+  }
+
+  if (record) {
+    const line = historyLine({
+      date: new Date().toISOString().slice(0, 'YYYY-MM-DD'.length),
+      commit: currentCommit(),
+      billing: billingFor(process.env).billing,
+      pinnedModel: process.env.EVAL_MODEL,
+      config: { passed: config.filter((r) => r.passed).length, total: config.length },
+      cases: ran,
+    });
+    console.warn(`  recorded → ${writeHistory(line, REPO_ROOT)}`);
   }
 
   console.warn(`\n${failures === 0 ? '✅ evals pass' : `💥 ${failures} eval failure(s)`}\n`);

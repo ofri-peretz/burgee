@@ -69,8 +69,9 @@ describe('strip agrees with strip-ansi', () => {
  * behind**, measured on both.
  *
  * So the block is now about the version rather than about Node, and the part that matters did
- * not move: linegauge declares `engines.node >= 24`, which admits every Node 24 that still has
- * the bug, so its own scanner is still needed and still correct on all of them. What each case
+ * not move: linegauge's `engines` admits every Node 24 before v24.21 — and, since D-132, Node
+ * 20.19+ and 22.13+, which have the same bug (both measured, and graded by `compat.yml`'s `floor`
+ * cells) — so its own scanner is still needed and still correct on all of them. What each case
  * asserts is linegauge's behaviour unconditionally, and Node's behaviour as one of the two shapes
  * it has been measured to take — a third shape is a new Node and a new note, which is the
  * property this canary was always for.

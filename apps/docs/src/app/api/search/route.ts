@@ -1,4 +1,4 @@
 import { source } from '#/lib/source';
-import { createFromSource } from 'fumadocs-core/search/server';
+import { searchRoute } from 'docs-chassis/routes';
 
-export const { GET } = createFromSource(source, { language: 'english' });
+export const GET = searchRoute(source);
