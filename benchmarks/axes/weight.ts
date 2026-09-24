@@ -347,7 +347,13 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // so the schema surface reaches `exit-code.js`. Measured 29,184.
   // 29,650 with F1 on top of S4 and V8, after merging main. Measured 29,580.
   // 29,750 on 2026-09-23: D-140 and #521 on top of main (72a810352e). Measured 29,702.
-  burgee: 29_750,
+  // 29,300 on 2026-09-23 for **135 bytes**, D-119 (D3): dynamic completion. The callback is
+  // `complete-dynamic.js`, imported only when argv starts with `__complete`; what stays on the
+  // startup path is that one test. Measured 29,251.
+  // 29,800 with D3 on top of S4, V8 and F1, after merging main. Measured 29,719 here and 29,751
+  // on CI's ubuntu and macOS runners, which read 32 bytes more; the ceiling covers both.
+  // 29,950 with D3 on top of S4, V8, F1 and D-140, after merging main. Measured 29,841.
+  burgee: 29_950,
   // 29,650 on 2026-09-23: D-140 and #521 on top of V8 (#481). Measured 29,634.
   // 29,200 on 2026-09-23 for **56 bytes**, the MCP stdout capture (#521): measured 29,172 on
   // top of D-122's 29,116. The capture lives in the lazily loaded MCP chunk; what reaches the
