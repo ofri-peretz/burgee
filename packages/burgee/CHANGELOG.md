@@ -1,5 +1,11 @@
 # burgee
 
+## 0.12.1
+
+### Patch Changes
+
+- [#566](https://github.com/ofri-peretz/burgee/pull/566) [`c938fbf`](https://github.com/ofri-peretz/burgee/commit/c938fbf2a4955bb0de704c4208d93c840a87f9ca) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--mcp` holds stdout for the whole session, not only during a tool call. A timer or stream a handler left behind that printed after its reply went out still landed on the JSON-RPC transport, and a strict client stopped parsing there. Between calls, anything written to stdout now goes to stderr; replies are the only thing on the transport.
+
 ## 0.12.0
 
 ### Minor Changes
