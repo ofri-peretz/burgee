@@ -411,6 +411,39 @@ describe('a tool call that prints', () => {
     expect(textOf(results.get(2))).not.toContain('from slow');
   });
 
+  /**
+   * The capture ends with the call, but the session does not: a timer or a stream a handler
+   * left behind prints after its reply went out, while stdout is still the transport. Red
+   * before the session hold — `late` sat between frame 1 and frame 2.
+   */
+  it('keeps what a handler prints after its call returned off the stream', async () => {
+    const lines: string[] = [];
+    const errs: string[] = [];
+    const originalOut = process.stdout.write;
+    const originalErr = process.stderr.write;
+    process.stdout.write = ((s: string | Uint8Array) => lines.push(String(s)) > 0) as typeof process.stdout.write;
+    process.stderr.write = ((s: string | Uint8Array) => errs.push(String(s)) > 0) as typeof process.stderr.write;
+    const input = new PassThrough();
+    const invoke = async (): Promise<{ stdout: string; stderr: string; code: number }> => {
+      setTimeout(() => process.stdout.write('late\n'), 5);
+      return { stdout: '{"ok":true}', stderr: '', code: 0 };
+    };
+    try {
+      const done = serveMcp(program, { input, output: { write: (s: string) => process.stdout.write(s) }, invoke });
+      input.write(`${JSON.stringify(callOf(1, 'greet'))}\n`);
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      input.end(`${JSON.stringify(callOf(2, 'greet'))}\n`);
+      await done;
+    } finally {
+      process.stdout.write = originalOut;
+      process.stderr.write = originalErr;
+    }
+    const stream = lines.join('').split('\n').filter((l) => l !== '');
+    expect(stream.map((l) => (JSON.parse(l) as { id: number }).id)).toEqual([1, 2]);
+    expect(errs.join('')).toContain('late');
+    expect(process.stdout.write).toBe(originalOut);
+  });
+
   describe('puts stdout and the console back after the call', () => {
     it('when the handler throws after printing', async () => {
       const before = snapshot();
