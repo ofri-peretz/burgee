@@ -374,7 +374,11 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // the `catch`. Measured 27,996.
   // 27,018 on 2026-09-24 for U5: relation checking (`exactlyOneOf` … `implies`) moved to
   // `relations.js`, imported only for a command that declares a relation. Measured 26,938.
-  burgee: 27_018,
+  // 24,631 on 2026-09-24 for U5: every surface answered without running a command — help,
+  // `--version`, `help [command…]`, `completion`, `__complete`, `config explain`, `--schema`,
+  // `--mcp` — routed from `surfaces.js`, imported only when argv could ask for one; what stays
+  // is `mayServe`, the test that decides. Measured 24,551.
+  burgee: 24_631,
   // 29,650 on 2026-09-23: D-140 and #521 on top of V8 (#481). Measured 29,634.
   // 29,200 on 2026-09-23 for **56 bytes**, the MCP stdout capture (#521): measured 29,172 on
   // top of D-122's 29,116. The capture lives in the lazily loaded MCP chunk; what reaches the
