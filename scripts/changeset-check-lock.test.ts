@@ -21,7 +21,7 @@
  * script touches git, which is what makes it runnable outside a PR.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -51,16 +51,63 @@ function checkScript(): string {
   return lines.join('\n');
 }
 
+/**
+ * The environment without git's own variables. Git exports `GIT_DIR` and friends to its
+ * hooks, and lefthook's pre-push runs this suite. A `git init` that inherits them does not
+ * create a scratch repository. It re-initialises the repository being pushed, as bare. So
+ * every git this file runs, directly or through the step, gets an environment without them.
+ */
+function withoutGit(): NodeJS.ProcessEnv {
+  return Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
+}
+
 /** Run the step with a given environment and return what it wrote to `$GITHUB_OUTPUT`. */
-function statusFor(env: Record<string, string>): string {
-  const dir = mkdtempSync(join(tmpdir(), 'changeset-check-'));
-  const script = join(dir, 'check.sh');
-  const out = join(dir, 'output');
+function statusFor(env: Record<string, string>, cwd = mkdtempSync(join(tmpdir(), 'changeset-check-'))): string {
+  const scratch = mkdtempSync(join(tmpdir(), 'changeset-check-'));
+  const script = join(scratch, 'check.sh');
+  const out = join(scratch, 'output');
   writeFileSync(script, checkScript());
   writeFileSync(out, '');
-  execFileSync('bash', [script], { cwd: dir, env: { ...process.env, ...env, GITHUB_OUTPUT: out }, stdio: 'pipe' });
+  execFileSync('bash', [script], { cwd, env: { ...withoutGit(), ...env, GITHUB_OUTPUT: out }, stdio: 'pipe' });
   return (/^status=(.*)$/m.exec(readFileSync(out, 'utf8'))?.[1] ?? '').trim();
 }
+
+const MANIFEST = { name: 'flagstaff', version: '1.0.0', dependencies: { roundel: '^0.5.2' }, devDependencies: { 'fast-check': '^4.10.1' } };
+
+/**
+ * A throwaway repository with two commits: `base` holds {@link MANIFEST}, and `head` applies
+ * `change` to it. Returns the SHAs the step reads, so the script runs its real `git diff`.
+ */
+function pullRequest(change: (manifest: typeof MANIFEST) => object, extra: Record<string, string> = {}): { BASE_SHA: string; HEAD_SHA: string; cwd: string } {
+  const cwd = mkdtempSync(join(tmpdir(), 'changeset-check-repo-'));
+  const git = (...args: string[]): string =>
+    execFileSync('git', ['-c', 'user.name=lock', '-c', 'user.email=lock@example.com', '-c', 'commit.gpgsign=false', ...args], { cwd, env: withoutGit(), stdio: 'pipe' })
+      .toString()
+      .trim();
+  const manifest = join(cwd, 'packages/flagstaff/package.json');
+  git('init', '--quiet');
+  mkdirSync(dirname(manifest), { recursive: true });
+  writeFileSync(manifest, `${JSON.stringify(MANIFEST, undefined, 2)}\n`);
+  git('add', '.');
+  git('commit', '--quiet', '-m', 'base');
+  const BASE_SHA = git('rev-parse', 'HEAD');
+  writeFileSync(manifest, `${JSON.stringify(change(structuredClone(MANIFEST)), undefined, 2)}\n`);
+  for (const [path, text] of Object.entries(extra)) {
+    mkdirSync(dirname(join(cwd, path)), { recursive: true });
+    writeFileSync(join(cwd, path), text);
+  }
+  git('add', '.');
+  git('commit', '--quiet', '-m', 'head');
+  return { BASE_SHA, HEAD_SHA: git('rev-parse', 'HEAD'), cwd };
+}
+
+/** The step's answer for a pull request opened by `author` that makes `change`. */
+function statusOf(author: string, change: (manifest: typeof MANIFEST) => object, extra?: Record<string, string>): string {
+  const { cwd, ...shas } = pullRequest(change, extra);
+  return statusFor({ ...shas, HEAD_REF: 'dependabot/npm_and_yarn/all-packages-0', LABELS: 'dependencies,npm', PR_AUTHOR: author }, cwd);
+}
+
+const bumpDev = (m: typeof MANIFEST): object => ({ ...m, devDependencies: { 'fast-check': '^4.10.2' } });
 
 describe('the changeset check and the Version PR', () => {
   it('answers `release` for the branch changesets pushes, before it looks at any diff', () => {
@@ -79,5 +126,29 @@ describe('the changeset check and the Version PR', () => {
     const source = readFileSync(WORKFLOW, 'utf8');
     const failing = source.slice(source.indexOf('name: Fail when the changeset is missing'));
     expect(/^\s*if: steps\.check\.outputs\.status == 'missing'$/m.test(failing.split('run:')[0] ?? '')).toBe(true);
+  });
+});
+
+/**
+ * Dependabot's grouped bumps move `devDependencies` in a package's manifest, and the check
+ * went red on every one of them (#571) — a PR nobody authored, so nobody added the label.
+ * The exemption is for exactly that shape and nothing wider: a runtime dependency reaches
+ * the package's users, and so does anything under `src/`.
+ */
+describe('the changeset check and Dependabot', () => {
+  it('answers `dev-dependencies` when Dependabot moves only devDependencies', () => {
+    expect(statusOf('dependabot[bot]', bumpDev)).toBe('dev-dependencies');
+  });
+
+  it('still answers `missing` when Dependabot moves a runtime dependency', () => {
+    expect(statusOf('dependabot[bot]', (m) => ({ ...m, dependencies: { roundel: '^0.6.0' } }))).toBe('missing');
+  });
+
+  it('still answers `missing` when a src/ change rides on a Dependabot branch', () => {
+    expect(statusOf('dependabot[bot]', bumpDev, { 'packages/flagstaff/src/index.ts': 'export {};\n' })).toBe('missing');
+  });
+
+  it('does not extend the exemption to a person — the label is their signed decision', () => {
+    expect(statusOf('ofri-peretz', bumpDev)).toBe('missing');
   });
 });

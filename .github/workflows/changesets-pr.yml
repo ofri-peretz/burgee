@@ -307,6 +307,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
           LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
           set -euo pipefail
           # The Version PR is the one PR that must not have a changeset: it *consumes* them.
@@ -326,8 +327,34 @@ jobs:
             | grep -E '^\.changeset/[^/]+\.md$' | grep -vE '^\.changeset/(README|config)\.md$' || true)
           src=$(git diff --name-only "$BASE_SHA"..."$HEAD_SHA" \
             | grep -E '^packages/[^/]+/(src|package\.json)' || true)
+          # A Dependabot PR that moves only `devDependencies` in a package's manifest ships
+          # nothing to that package's users. Without this, every grouped bump that touched a
+          # package's test tooling went red here (#571), and no one owned the PR to add the
+          # label. It is narrow on purpose. A Dependabot bump of a runtime dependency, or any
+          # `src/` change pushed onto its branch, still needs a changeset, because a user
+          # installs that. Each manifest is compared at the merge base with `devDependencies`
+          # removed from both sides.
+          dev_only=false
+          if [ -z "$added" ] && [ -n "$src" ] && [ "${PR_AUTHOR:-}" = "dependabot[bot]" ]; then
+            dev_only=true
+            merge_base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+            for f in $src; do
+              case "$f" in packages/*/package.json) ;; *) dev_only=false; break ;; esac
+              if ! node -e '
+                const [a, b] = process.argv.slice(1).map((text) => {
+                  const manifest = JSON.parse(text);
+                  delete manifest.devDependencies;
+                  return JSON.stringify(manifest);
+                });
+                process.exit(a === b ? 0 : 1);
+              ' "$(git show "$merge_base:$f" 2>/dev/null)" "$(git show "$HEAD_SHA:$f" 2>/dev/null)"; then
+                dev_only=false; break
+              fi
+            done
+          fi
           if [ -n "$added" ]; then echo "status=present" >> "$GITHUB_OUTPUT"
           elif [ -z "$src" ]; then echo "status=not-needed" >> "$GITHUB_OUTPUT"
+          elif [ "$dev_only" = "true" ]; then echo "status=dev-dependencies" >> "$GITHUB_OUTPUT"
           else echo "status=missing" >> "$GITHUB_OUTPUT"; echo "::warning::PR changes packages/ source but has no changeset."
           fi
 
