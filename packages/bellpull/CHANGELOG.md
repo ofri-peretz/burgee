@@ -1,5 +1,19 @@
 # bellpull
 
+## 0.4.0
+
+### Minor Changes
+
+- [#490](https://github.com/ofri-peretz/burgee/pull/490) [`8a02d68`](https://github.com/ofri-peretz/burgee/commit/8a02d68fbf30e7837efc7f38899b1f4beb4cee69) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `bellpull/node-which` is a drop-in replacement for node-which 7: `which(cmd, opts)` returns a promise and `which.sync` runs synchronously, with node-which's `all`, `nothrow`, `path`, `pathExt` and `delimiter` options and its `ENOENT` error. It passes node-which's own test suite, 5 of 5. `bellpull/which` is unchanged: it stays bellpull's own resolution API and never reads the process.
+
+  `require('bellpull/node-which')` returns the function with `.sync` on it, as `require('which')` does, and `burgee migrate` now rewrites `which` to it.
+
+### Patch Changes
+
+- [#474](https://github.com/ofri-peretz/burgee/pull/474) [`1955419`](https://github.com/ofri-peretz/burgee/commit/19554194342b55f8893161f894a8c2a4df1b0f21) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - burgee plugins can hook two more stages. `parse` runs before the command is resolved: it receives argv and may return a replacement, which is how an alias plugin maps `d` to `deploy`. `shutdown` runs once as the program exits, whether the command succeeded or failed. The family `schema.json` shipped in every package now describes both stages.
+
+- [#522](https://github.com/ofri-peretz/burgee/pull/522) [`f4be6a8`](https://github.com/ofri-peretz/burgee/commit/f4be6a8733e338bea4483992edeaa72fcddd36fd) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `require('bellpull/cross-spawn')`, `require('flagstaff/cli-table3')`, `require('burgee/yargs')`, `require('seniority/dotenv')` and `require('seniority/rc')` now return what the incumbent's `require()` does — the function, the class, the factory, the object — instead of an ES module namespace. Each exports its default as `'module.exports'`, which is what Node hands a CommonJS caller, and which yargs' own entry already does. `const spawn = require('…'); spawn(…)` threw before.
+
 ## 0.3.1
 
 ### Patch Changes
