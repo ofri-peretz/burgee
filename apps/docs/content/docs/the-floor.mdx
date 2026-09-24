@@ -1,12 +1,18 @@
 ---
 title: The floor
-description: The 74 requirements every CLI on the layer meets, and who holds each — runtime, lint, or both.
+description: The requirements every CLI on burgee meets, and who holds each — runtime, lint, or both. 74 of the floor's 114 are tabled here.
 ---
 
-Each requirement is held by the **runtime** (the `commander-*` / `yargs-*` extensions), by the **lint** plugin
+The floor is **114 requirements**: the 109 rows of the requirement tables in
+[`.sdlc/intents/burgee/spec.md`](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/burgee/spec.md#requirements--the-cli-floor)
+plus the five shape-lock rows Z1–Z5 above them, which is the count that spec states. This
+page tables **74** of them — the families below. The spec is the complete list, and what is
+built, requirement by requirement, is recorded there too.
+
+Each requirement is held by the **runtime**, by the **lint** plugin
 (`eslint-plugin-cli-floor`), or both. A rule with neither is a suggestion, and suggestions are
 not a floor. Evidence for every line is an open issue in a leading CLI library — see
-[Research](/.sdlc/research).
+[Research](https://github.com/ofri-peretz/burgee/tree/main/.sdlc/research).
 
 ## Discoverability
 
@@ -127,8 +133,8 @@ not a floor. Evidence for every line is an open issue in a leading CLI library �
 
 | ID | Requirement | Holds |
 | :-- | :-- | :-- |
-| K1 | Zero runtime dependencies in every layer package; hosts and UI libraries are peers | lock |
-| K2 | ESM only, Node 24 or newer | lock |
+| K1 | No dependency outside the burgee family in any published package; hosts and UI libraries are peers | lock |
+| K2 | ESM only, Node 20.19+ or 22.13+ (restated 2026-09-23, D-132; was Node 24 or newer) | lock |
 | K3 | Node natives over packages | both |
 | K4 | An artifact gate runs on the built output before publish | release |
 | K5 | Per-package size budget, ratcheted | lock |
@@ -171,7 +177,7 @@ turn it into a served interface rather than a document.
 | ID | Requirement | Holds |
 | :-- | :-- | :-- |
 | N1 | `--mcp` serves the CLI over MCP stdio; tool definitions are generated from the manifest, never hand-written | runtime |
-| N2 | A command appears as a tool only if it opts in; destructive commands default to absent | both |
-| N3 | Zero runtime dependencies: JSON-RPC over stdio against `node:readline` | lock |
+| N2 | A command is kept from agents only by a declaration: `effects: 'withheld'`. Every runnable command on burgee's own API declares its effects; a façade command that declared nothing is listed as `effects: 'undeclared'`, with no hints | both |
+| N3 | No dependency outside the burgee family: JSON-RPC over stdio against `node:readline` | lock |
 | N4 | Tool results are the standard envelope, so MCP and `--json` callers see identical payloads | runtime |
 | N5 | `--mcp` implies non-TTY: no prompts, no colour, structured errors | runtime |

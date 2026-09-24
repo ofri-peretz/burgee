@@ -229,7 +229,7 @@ function pick(obj: unknown, dotted: string): number | null {
 export const DATED_JSON = /^\d{4}-\d{2}-\d{2}(-[0-9a-f]{7,40}(-ci|-local)?)?\.json$/;
 
 /**
- * Whether a results document was measured on a CI runner — the only runs a band reads (D-110).
+ * Whether a results document was measured on a CI runner — the only runs a band reads (D-142).
  *
  * A series is one machine class or it is not a series. On 2026-09-22 `c0fa8a3` read
  * `cold-start-ratio` 1.121 on the nightly’s four-core runner and 1.233 on an M4 Pro, with no

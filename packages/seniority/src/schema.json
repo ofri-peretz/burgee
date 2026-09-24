@@ -76,6 +76,68 @@
     },
     "widths": {
       "$ref": "#/$defs/widths"
+    },
+    "resolvers": {
+      "type": "object",
+      "description": "bellpull resolvers by name: extra directories searched for an executable, before PATH (negative rank) or after it (positive). Two resolvers with one name shadow; two names both apply, in rank order.",
+      "additionalProperties": {
+        "$ref": "#/$defs/resolver"
+      }
+    },
+    "widgets": {
+      "type": "object",
+      "description": "caique prompt widgets by kind. The six built-in kinds \u2014 text, confirm, select, multiselect, password, path \u2014 cannot be replaced: a plugin adds kinds of its own.",
+      "additionalProperties": {
+        "$ref": "#/$defs/widget"
+      }
+    },
+    "handlers": {
+      "type": "array",
+      "description": "closeout exit handlers. The phase decides the order they run in, not their position in this list.",
+      "items": {
+        "$ref": "#/$defs/handler"
+      }
+    },
+    "sources": {
+      "type": "object",
+      "description": "seniority configuration sources by name, ranked against the built-in layers: a flag is 0 and a declared default is 40, and a plugin source sits strictly between.",
+      "additionalProperties": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "commands": {
+      "type": "array",
+      "description": "burgee commands this plugin contributes. Each is read by exactly the code a program's own command is, and a burgee plugin must declare `contract`.",
+      "items": {
+        "$ref": "#/$defs/command"
+      }
+    },
+    "hooks": {
+      "type": "object",
+      "description": "burgee lifecycle hooks. parse rewrites argv before a command is resolved; preRun opens around a command, and exactly one of postRun or onError closes; shutdown fires once as the program leaves, by any path.",
+      "additionalProperties": false,
+      "properties": {
+        "parse": {
+          "$ref": "#/$defs/hook"
+        },
+        "preRun": {
+          "$ref": "#/$defs/hook"
+        },
+        "postRun": {
+          "$ref": "#/$defs/hook"
+        },
+        "onError": {
+          "$ref": "#/$defs/hook"
+        },
+        "shutdown": {
+          "$ref": "#/$defs/hook"
+        }
+      }
+    },
+    "enforce": {
+      "type": "string",
+      "pattern": "^(pre|post)$",
+      "description": "burgee: order this plugin's hooks before (`pre`) or after (`post`) the others."
     }
   },
   "$defs": {
@@ -346,6 +408,235 @@
       "description": "linegauge width overrides by name \u2014 the measurement section of a plugin, read the way flagstaff reads `spinners`.",
       "additionalProperties": {
         "$ref": "#/$defs/widthOverride"
+      }
+    },
+    "resolver": {
+      "type": "object",
+      "required": [
+        "rank",
+        "paths"
+      ],
+      "description": "One bellpull resolver: where to look for an executable, and when.",
+      "properties": {
+        "rank": {
+          "type": "number",
+          "description": "Search order against PATH: negative searches before it, positive after."
+        },
+        "paths": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Directories to search. `{VAR}` is substituted from the environment; each must be absolute, or start with a `{VAR}` that holds an absolute path.",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(/|\\{|[A-Za-z]:[\\\\/]|\\\\\\\\)"
+          }
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Extensions to try on Windows, in place of PATHEXT."
+        },
+        "when": {
+          "type": "object",
+          "description": "When the resolver applies. Leave it out and it always does.",
+          "properties": {
+            "platform": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "process.platform values it applies on."
+            },
+            "envAny": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "It applies when any of these environment variables is set."
+            }
+          }
+        }
+      }
+    },
+    "widget": {
+      "type": "object",
+      "required": [
+        "static"
+      ],
+      "description": "One caique widget: how a prompt kind of the plugin's own is drawn.",
+      "properties": {
+        "static": {
+          "description": "(spec) => string. Required: what a pipe, an agent or a screen reader gets instead of the interactive prompt."
+        },
+        "frame": {
+          "description": "(t, spec) => string. Optional: the animated form; leave it out and the widget is line-mode only."
+        },
+        "sample": {
+          "type": "object",
+          "required": [
+            "running",
+            "done"
+          ],
+          "description": "Two named states of plain data that `caique check` renders the widget with."
+        }
+      }
+    },
+    "handler": {
+      "type": "object",
+      "required": [
+        "name",
+        "run"
+      ],
+      "description": "One closeout exit handler.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "How the handler is named in a report, including the one the deadline prints when it does not return."
+        },
+        "phase": {
+          "type": "string",
+          "pattern": "^(flush|release)$",
+          "description": "When it runs. Defaults to `release`; `restore` is closeout's own last phase and a plugin may not use it."
+        },
+        "run": {
+          "description": "(info) => void | Promise<void>. Required: the cleanup itself."
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "rank"
+      ],
+      "description": "One seniority source. Exactly one of `values` (static) or `read(runtime)` (fetched) gives its answer.",
+      "properties": {
+        "rank": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 39,
+          "description": "Precedence, strictly between the flag (0) and the declared default (40): a source may not beat what the user typed, nor sink below the default."
+        },
+        "values": {
+          "type": "object",
+          "description": "Option name to value."
+        },
+        "read": {
+          "description": "(runtime) => { values, location? } | undefined."
+        },
+        "location": {
+          "type": "string",
+          "description": "The file, URL or variable set a person would go and look at."
+        }
+      }
+    },
+    "option": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "description": "One burgee option, keyed by its camelCase name; the flag is its kebab-case form.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "pattern": "^(string|boolean|number)$"
+        },
+        "description": {
+          "type": "string"
+        },
+        "short": {
+          "type": "string",
+          "minLength": 1
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "env": {
+          "type": "string"
+        },
+        "choices": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "dependsOn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Options that must be set with this one; each must be another option of the same command."
+        },
+        "exclusive": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Options that may not be set with this one; each must be another option of the same command."
+        },
+        "deprecated": {
+          "description": "What replaces this option, e.g. '--force'. `true` alone, or an empty string, is refused: a deprecation names its replacement."
+        }
+      }
+    },
+    "command": {
+      "type": "object",
+      "required": [
+        "path"
+      ],
+      "description": "One burgee command node, declared exactly as a program's own command is.",
+      "properties": {
+        "path": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "The words a user types. May not repeat a path the program or an earlier plugin already declares."
+        },
+        "description": {
+          "type": "string"
+        },
+        "options": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/option"
+          }
+        },
+        "effects": {
+          "type": "string",
+          "pattern": "^(read_only|idempotent|non_idempotent|withheld)$",
+          "description": "What running it does to the world. Required on any command that runs; `withheld` serves it to people and keeps it out of the MCP tool list."
+        },
+        "deprecated": {
+          "description": "What replaces this command. `true` alone, or an empty string, is refused."
+        },
+        "run": {
+          "description": "(ctx) => unknown. What the command does; its return value is the `--json` envelope's data."
+        },
+        "load": {
+          "description": "() => Promise<module>. A lazy form of `run`, imported on dispatch."
+        }
+      }
+    },
+    "hook": {
+      "type": "object",
+      "required": [
+        "handler"
+      ],
+      "description": "One burgee hook.",
+      "properties": {
+        "filter": {
+          "type": "object",
+          "description": "`{ command: RegExp }`: fire only for commands whose path matches."
+        },
+        "handler": {
+          "description": "(ctx) => void | Promise<void>. Required. On parse it may return the string[] argv to use instead."
+        }
       }
     }
   }

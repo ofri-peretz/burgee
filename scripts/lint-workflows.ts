@@ -16,9 +16,17 @@
  *     input is a hard error at run time, not a warning, so a workflow that
  *     uses one fails on every run — silently, if nothing watches the branch
  *     it runs on. See RENAMED_INPUTS.
+ *  8. Every workflow that reports a REQUIRED_CHECKS name can be dispatched
+ *     (`workflow_dispatch:`) and has a row in changesets-pr.yml's `checks`
+ *     matrix — the Version PR's GITHUB_TOKEN fallback runs exactly those rows,
+ *     and a required check with no row leaves that PR blocked. See VERSION_PR_KICKER.
+ *
+ * 10. A workflow that runs `npm publish` publishes from one job, not a matrix, walking the
+ *     `plan` output of a needed job that runs `scripts/release-order.mts` — the dependency
+ *     order computed from the package.json files. See publishOrderProblems.
  *
  * Soft warnings (notice line, not a failure):
- *  8. Third-party actions are pinned to a SHA, not a floating tag.
+ *  9. Third-party actions are pinned to a SHA, not a floating tag.
  *     `actions/*`, `github/*`, and `./.github/actions/*` are exempt.
  *
  * Usage:
@@ -35,6 +43,8 @@ import process from 'node:process';
 import url from 'node:url';
 
 import yaml from 'js-yaml';
+
+import { publishOrderProblems, type WorkflowShape } from './release-order.mjs';
 
 interface Step {
   name?: string;
@@ -214,6 +224,28 @@ const REQUIRED_CHECKS = new Set([
   "Ratchet · each host's suite against burgee",
 ]);
 
+/**
+ * The workflow that runs the required checks on the Version PR when it had to be opened with
+ * GITHUB_TOKEN, and the job whose matrix names them.
+ *
+ * A PR GITHUB_TOKEN opens raises no `pull_request` runs, so its required checks never report
+ * and it sits BLOCKED at zero checks — #299, #367, #383 and #393 each needed a human to close
+ * and reopen it. The fallback dispatches every workflow that reports a required check and
+ * mirrors the result onto the PR. A required check added later without a row in that matrix,
+ * or on a workflow that cannot be dispatched, is that deadlock back, and nobody sees it until
+ * the next release sits there.
+ */
+const VERSION_PR_KICKER = { file: 'changesets-pr.yml', job: 'checks' };
+
+/** `{ workflow, check }` rows of the kicker's matrix; empty when the file or job is missing. */
+function kickerRows(): { workflow?: string; check?: string }[] {
+  const job = parsed.get(VERSION_PR_KICKER.file)?.jobs?.[VERSION_PR_KICKER.job] as
+    | { strategy?: { matrix?: { include?: unknown } } }
+    | undefined;
+  const include = job?.strategy?.matrix?.include;
+  return Array.isArray(include) ? (include as { workflow?: string; check?: string }[]) : [];
+}
+
 /** The context names a workflow reports, which is `name:` where there is one and the key where there is not. */
 function checkNames(wf: Workflow): string[] {
   return Object.entries(wf.jobs ?? {}).map(([key, job]) => job?.name ?? key);
@@ -236,6 +268,22 @@ for (const [file, wf] of parsed) {
     errors.push(
       `[merge-queue] ${file}: reports the required check${required.length > 1 ? 's' : ''} ${required.map((n) => `\`${n}\``).join(', ')} but has no \`merge_group:\` trigger — inside a merge queue the check never reports at all, so the entry never merges and never fails.`,
     );
+  }
+
+  if (required.length > 0) {
+    if (!t.includes('workflow_dispatch')) {
+      errors.push(
+        `[version-pr] ${file}: reports the required check${required.length > 1 ? 's' : ''} ${required.map((n) => `\`${n}\``).join(', ')} but has no \`workflow_dispatch:\` trigger — the Version PR's GITHUB_TOKEN fallback cannot run it, and the PR sits BLOCKED at zero checks.`,
+      );
+    }
+    const rows = kickerRows();
+    for (const name of required) {
+      if (!rows.some((r) => r.workflow === file && r.check === name)) {
+        errors.push(
+          `[version-pr] ${file}: reports the required check \`${name}\` but ${VERSION_PR_KICKER.file} → ${VERSION_PR_KICKER.job} has no \`{ workflow: ${file}, check: "${name}" }\` row — a Version PR opened with GITHUB_TOKEN never gets it.`,
+        );
+      }
+    }
   }
 
   // A queue entry's ref is unique; a pull request's number is empty on a `merge_group`
@@ -283,6 +331,8 @@ for (const [file, wf] of parsed) {
       }
     });
   }
+
+  errors.push(...publishOrderProblems(file, wf as WorkflowShape));
 
   const allSteps = Object.values(wf.jobs ?? {}).flatMap((job) => job?.steps ?? []);
   errors.push(...renamedOutputs(sources.get(file) ?? '', allSteps, file));

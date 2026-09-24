@@ -99,6 +99,16 @@ describe.each(HOSTS)('$name check', ({ name, check, valid, key }) => {
     expect(code).toBe(1);
   });
 
+  it('refuses a plugin file that registers itself on import, with the code and the fix (R8)', async () => {
+    // The import is where this one throws — before any line after it runs — so it is only a
+    // coded refusal if the whole of `check` is inside the one handler.
+    const host = new URL(`../packages/${name}/src/plugin.ts`, import.meta.url).pathname;
+    const { code, out } = await run(check, [file(`import { register } from '${host}';\nregister({ ${key}: {} });\nexport default {};`)]);
+    expect(out).toMatch(/^E_PLUGIN_[A-Z]+: /);
+    expect(out).toContain('\n  fix: ');
+    expect(code).toBe(1);
+  });
+
   it('is a usage error with no file', async () => {
     const { code, out } = await run(check, []);
     expect(out).toContain(`usage: ${name} check`);

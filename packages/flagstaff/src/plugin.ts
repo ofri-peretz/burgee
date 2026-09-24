@@ -6,7 +6,10 @@
  * construction (U3, U4). Nothing in this file writes to a stream.
  */
 import { builtins } from './builtins.js';
-import schema from './schema.json' with { type: 'json' };
+import { check, type Root } from './conforms.js';
+// flagstaff's own keys and definitions only, cut from the family schema by `schema-sync.mjs`
+// (D-108): the whole contract still ships at `flagstaff/schema.json`, as data.
+import schema from './plugin.schema.json' with { type: 'json' };
 
 /** A border style, in cli-boxes' shape exactly, so that corpus imports unchanged. */
 export interface BorderStyle {
@@ -96,87 +99,7 @@ export class PluginError extends Error {
   }
 }
 
-interface JsonSchema {
-  type?: string;
-  const?: unknown;
-  required?: string[];
-  properties?: Record<string, JsonSchema>;
-  additionalProperties?: JsonSchema | boolean;
-  items?: JsonSchema;
-  minItems?: number;
-  minLength?: number;
-  minimum?: number;
-  pattern?: string;
-  $ref?: string;
-}
-
-const DEFS_PREFIX = '#/$defs/';
-const ROOT = schema as JsonSchema & { $defs: Record<string, JsonSchema> };
-
-function typeOf(value: unknown): string {
-  if (Array.isArray(value)) return 'array';
-  if (value === null) return 'null';
-  if (typeof value === 'number') return Number.isInteger(value) ? 'integer' : 'number';
-  return typeof value;
-}
-
-type Problem = string | undefined;
-
-function checkScalar(value: unknown, node: JsonSchema, path: string): Problem {
-  if (node.const !== undefined && value !== node.const) return `${path}: expected ${JSON.stringify(node.const)}, got ${JSON.stringify(value)}`;
-  if (typeof value === 'string') {
-    if (node.minLength !== undefined && value.length < node.minLength) return `${path}: must not be empty`;
-    // The pattern is schema.json's own, shipped with the package; nothing here compiles an input.
-    // eslint-disable-next-line secure-coding/detect-non-literal-regexp -- the pattern comes from the bundled schema, never from the plugin
-    if (node.pattern !== undefined && !new RegExp(node.pattern).test(value)) return `${path}: ${JSON.stringify(value)} does not match ${node.pattern}`;
-  }
-  if (typeof value === 'number' && node.minimum !== undefined && value < node.minimum) return `${path}: must be at least ${node.minimum}`;
-  return undefined;
-}
-
-function checkArray(value: unknown[], node: JsonSchema, path: string): Problem {
-  if (node.minItems !== undefined && value.length < node.minItems) return `${path}: needs at least ${node.minItems} item(s)`;
-  const { items } = node;
-  if (items === undefined) return undefined;
-  for (const [i, item] of value.entries()) {
-    const problem = check(item, items, `${path}[${i}]`);
-    if (problem !== undefined) return problem;
-  }
-  return undefined;
-}
-
-const isSchema = (x: unknown): x is JsonSchema => typeof x === 'object' && x !== null;
-
-function checkObject(record: Record<string, unknown>, node: JsonSchema, path: string): Problem {
-  for (const key of node.required ?? []) {
-    if (!(key in record)) return `${path}.${key}: required`;
-  }
-  for (const [key, child] of Object.entries(record)) {
-    const rule = node.properties?.[key] ?? (isSchema(node.additionalProperties) ? node.additionalProperties : undefined);
-    if (rule === undefined) {
-      if (node.additionalProperties === false) return `${path}.${key}: not allowed`;
-      continue;
-    }
-    const problem = check(child, rule, `${path}.${key}`);
-    if (problem !== undefined) return problem;
-  }
-  return undefined;
-}
-
-/** The subset of JSON Schema `schema.json` uses, walked by hand: a validator is a dependency the package will not carry. */
-function check(value: unknown, node: JsonSchema, path: string): Problem {
-  if (node.$ref !== undefined) {
-    const def = ROOT.$defs[node.$ref.slice(DEFS_PREFIX.length)];
-    return def === undefined ? `${path}: unknown $ref ${node.$ref}` : check(value, def, path);
-  }
-  const actual = typeOf(value);
-  if (node.type !== undefined && actual !== node.type && !(node.type === 'number' && actual === 'integer')) {
-    return `${path}: expected ${node.type}, got ${actual}`;
-  }
-  if (Array.isArray(value)) return checkArray(value, node, path);
-  if (actual === 'object') return checkObject(value as Record<string, unknown>, node, path);
-  return checkScalar(value, node, path);
-}
+const ROOT = schema as Root;
 
 const NO_STATIC = /\.(?:spinners|components)\.([^.]+)\.static: required$/;
 

@@ -9,10 +9,21 @@ run-name: >-
 # integrity matrix. Fires on every push to main (normally the merge of the
 # "Version Packages" PR). Three stages:
 #
-#   1. detect   — diff each public package's version against npm; emit a matrix.
+#   1. detect   — order the public packages dependencies-first from their package.json
+#                 files (`scripts/release-order.mts`), diff each version against npm, and
+#                 emit the ones to publish as an ordered `plan`.
 #   2. build    — `turbo run build --filter='./packages/*'` once; upload dist/.
-#   3. publish  — one job per package in parallel: `npm publish --provenance`,
-#                 git tag `<name>@<version>`, GitHub Release with generated notes.
+#      verify   — in parallel with build: wait for `Quality Gate` and `Quality (Full)
+#                 Gate` to pass on this very commit. Nothing publishes otherwise.
+#   3. publish  — one job walks the plan in order. Before each package it waits until every
+#                 in-family dependency is on npm at the workspace's version; then
+#                 `npm publish --provenance`, git tag `<name>@<version>`, GitHub Release
+#                 with that version's CHANGELOG section as its notes.
+#
+# Why one ordered loop and not a matrix: on 2026-09-23 (run 35822025894) the matrix leg for
+# burgee@0.10.0 reached npm ~8 minutes before closeout@0.4.0 and linegauge@0.4.3, which it
+# depends on, and `npm i burgee` failed until they landed. `npm run lint:workflows` refuses a
+# publishing matrix, a second publishing job, or an order that is not the computed plan.
 #
 # Every step is idempotent, so re-running after a partial failure is safe.
 # Auth: Trusted Publishing (OIDC) once configured on npm; NPM_TOKEN fallback
@@ -52,42 +63,38 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      matrix: ${{ steps.detect.outputs.matrix }}
+      plan: ${{ steps.detect.outputs.plan }}
       count: ${{ steps.detect.outputs.count }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
         with:
           turbo-cache: "false"
-      - name: Diff local versions vs npm
+      - name: Diff local versions vs npm, in dependency order
         id: detect
         run: |
           set -euo pipefail
-          publish=()
-          for pkg_json in packages/*/package.json; do
-            dir=$(basename "$(dirname "$pkg_json")")
-            [ "$(node -p "require('./$pkg_json').private === true")" = "true" ] && continue
-            name=$(node -p "require('./$pkg_json').name")
-            local_ver=$(node -p "require('./$pkg_json').version")
+          # Every public package, each after the workspace packages it depends on — computed
+          # from the package.json files now, never a list kept by hand.
+          order=$(node scripts/release-order.mts)
+          echo "Publish order: $(jq -r 'map(.name) | join(" → ")' <<<"$order")"
+          publish='[]'
+          while IFS= read -r row; do
+            name=$(jq -r .name <<<"$row")
+            local_ver=$(jq -r .version <<<"$row")
             npm_ver=$(npm view "$name" version 2>/dev/null || echo "")
             if [ -z "$npm_ver" ]; then
               echo "🆕 $name: first release ($local_ver)"
-              publish+=("{\"dir\":\"$dir\",\"name\":\"$name\",\"version\":\"$local_ver\"}")
             elif node -e "process.exit(require('semver').gt('$local_ver','$npm_ver') ? 0 : 1)"; then
               echo "📦 $name: $npm_ver → $local_ver"
-              publish+=("{\"dir\":\"$dir\",\"name\":\"$name\",\"version\":\"$local_ver\"}")
             else
               echo "✅ $name: $local_ver (npm has $npm_ver)"
+              continue
             fi
-          done
-          count=${#publish[@]}
-          if [ "$count" -eq 0 ]; then
-            echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
-          else
-            json=$(IFS=,; echo "[${publish[*]}]")
-            echo "matrix={\"include\":$json}" >> "$GITHUB_OUTPUT"
-          fi
-          echo "count=$count" >> "$GITHUB_OUTPUT"
+            publish=$(jq -c --argjson row "$row" '. + [$row]' <<<"$publish")
+          done < <(jq -c '.[]' <<<"$order")
+          echo "plan=$publish" >> "$GITHUB_OUTPUT"
+          echo "count=$(jq length <<<"$publish")" >> "$GITHUB_OUTPUT"
 
   build:
     name: Build packages
@@ -108,20 +115,110 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  publish:
-    name: Publish ${{ matrix.name }}@${{ matrix.version }}
-    needs: [detect, build]
+  # A push to main starts this workflow and the quality workflows at the same moment, so
+  # before this job the publish ran beside the gates rather than after them: a commit whose
+  # `Quality (Full) Gate` went red — an admin merge, a flaky re-run, a GITHUB_TOKEN merge
+  # that raised no gate run at all — could still reach npm. This waits for both gates on
+  # `github.sha` and answers `ok`; `publish` runs only on `ok == 'true'`.
+  #
+  # Chosen over `on: workflow_run` because that would move the trigger, the `github.sha`
+  # and the dispatch inputs every step here reads, and a `workflow_run` fires once per
+  # upstream workflow — two gates, two releases racing. A wait keeps every step idempotent
+  # exactly as it was.
+  #
+  # A gate cancelled because a newer push to main superseded it is not a failure: that
+  # push runs its own release, which publishes the same versions (detect diffs against
+  # npm). So a superseded commit answers `ok=false` green, and only a gate that actually
+  # failed turns this red.
+  verify:
+    name: Required checks passed on this commit
+    needs: detect
     if: needs.detect.outputs.count != '0'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 50
+    permissions:
+      checks: read
+      contents: read
+    outputs:
+      ok: ${{ steps.wait.outputs.ok }}
+    steps:
+      - name: Wait for Quality Gate and Quality (Full) Gate on ${{ github.sha }}
+        id: wait
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          DRY_RUN: ${{ inputs.dry-run || false }}
+          # The contexts branch protection requires that also run on a push to main.
+          # `review` is PR-only, so it has nothing to report here.
+          CHECKS: "Quality Gate|Quality (Full) Gate"
+        run: |
+          set -euo pipefail
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Dry run — nothing publishes, so the gate is not awaited."
+            exit 0
+          fi
+          IFS='|' read -ra names <<< "$CHECKS"
+          deadline=$(( $(date +%s) + 45 * 60 ))
+          while :; do
+            pending=""; failed=""; cancelled=""
+            for name in "${names[@]}"; do
+              # The latest run of the check with this name on this commit, from Actions.
+              state=$(gh api -X GET "repos/$GH_REPO/commits/$SHA/check-runs" -f check_name="$name" -f filter=latest \
+                --jq '[.check_runs[] | select(.app.slug == "github-actions")] | sort_by(.started_at) | last
+                      | if . == null then "missing" elif .status != "completed" then .status else .conclusion end')
+              case "$state" in
+                success) ;;
+                missing|queued|in_progress|waiting|pending|requested) pending+="$name ($state); " ;;
+                cancelled) cancelled+="$name; " ;;
+                *) failed+="$name ($state); " ;;
+              esac
+            done
+            if [ -z "$pending" ] && [ -z "$failed" ] && [ -z "$cancelled" ]; then
+              echo "ok=true" >> "$GITHUB_OUTPUT"
+              echo "✅ ${CHECKS//|/ and } passed on $SHA" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            if [ -n "$failed" ]; then
+              echo "::error::Refusing to publish $SHA — a required check did not pass: $failed"
+              exit 1
+            fi
+            if [ -n "$cancelled" ] && [ -z "$pending" ]; then
+              head=$(gh api "repos/$GH_REPO/commits/main" --jq .sha)
+              if [ "$head" != "$SHA" ]; then
+                echo "ok=false" >> "$GITHUB_OUTPUT"
+                echo "::notice::$SHA was superseded by $head before its gates finished (cancelled: $cancelled). The release run for the newer commit publishes."
+                exit 0
+              fi
+              echo "::error::Refusing to publish $SHA — a required check was cancelled on the head of main: $cancelled Re-run it, then re-run this workflow."
+              exit 1
+            fi
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "::error::Gave up waiting for $pending on $SHA after 45 minutes. Re-run this workflow once they report."
+              exit 1
+            fi
+            echo "waiting: $pending"
+            sleep 30
+          done
+
+  # One job, one loop, in the plan's order — not a matrix. Matrix legs run in parallel and
+  # cannot wait on each other, which is how burgee@0.10.0 reached npm before two of its
+  # dependencies. Before each package the loop confirms every in-family dependency is
+  # installable at the workspace's version: one this run published is awaited (the registry
+  # can lag the publish by a few seconds), one outside the plan must already be there. A
+  # package whose dependency failed is not published; unrelated packages still are, and the
+  # job goes red so a re-run finishes the rest (every step is idempotent).
+  publish:
+    name: Publish in dependency order
+    needs: [detect, build, verify]
+    if: needs.detect.outputs.count != '0' && needs.verify.outputs.ok == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
     environment: production
     permissions:
       contents: write
       id-token: write
-    strategy:
-      fail-fast: false
-      max-parallel: 8
-      matrix: ${{ fromJSON(needs.detect.outputs.matrix) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -140,61 +237,112 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-      - name: Scoreboard gate (cli-output-stack R13) — the stack ships no working release before the engine's row is public
-        env:
-          PKG_NAME: ${{ matrix.name }}
-          PKG_VER: ${{ matrix.version }}
-        run: |
-          set -euo pipefail
-          case "$PKG_NAME" in roundel|flagstaff|caique) ;; *) exit 0 ;; esac
-          case "$PKG_VER" in 0.0.*) echo "reservation release, gate not applied"; exit 0 ;; esac
-          url=$(node -p "try{require('./.sdlc/bands/scoreboard-public.json').commanderCompatibilityPage||''}catch{''}")
-          if [ -z "$url" ]; then
-            echo "::error::$PKG_NAME@$PKG_VER refused: .sdlc/bands/scoreboard-public.json names no published commander compatibility page (cli-output-stack R13)."
-            exit 1
-          fi
-          echo "scoreboard public at $url — gate open"
-      - name: Publish ${{ matrix.name }}@${{ matrix.version }}
+      - name: Publish, tag and release each package, dependencies first
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: "true"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DRY_RUN: ${{ inputs.dry-run || false }}
           DIST_TAG: ${{ inputs.dist-tag || 'latest' }}
-          PKG_DIR: packages/${{ matrix.dir }}
-          PKG_NAME: ${{ matrix.name }}
-          PKG_VER: ${{ matrix.version }}
+          PLAN: ${{ needs.detect.outputs.plan }}
+          # How long a dependency this run just published may take to become installable.
+          DEP_WAIT_SECONDS: "600"
         run: |
-          set -euo pipefail
-          [ -d "$PKG_DIR/dist" ] || { echo "::error::Missing $PKG_DIR/dist — build artifact incomplete."; exit 1; }
-          tag_name="${PKG_NAME##*/}@${PKG_VER}"
-          if [ "$DRY_RUN" = "true" ]; then
-            (cd "$PKG_DIR" && npm publish --dry-run --tag "$DIST_TAG" --access public); exit 0
-          fi
-          if npm view "$PKG_NAME@$PKG_VER" version >/dev/null 2>&1; then
-            echo "✅ $PKG_NAME@$PKG_VER already on npm — skipping publish."
-          else
-            (cd "$PKG_DIR" && npm publish --tag "$DIST_TAG" --access public --provenance)
-          fi
-          git rev-parse -q --verify "refs/tags/$tag_name" >/dev/null || git tag -a "$tag_name" -m "Release $tag_name"
-          git push origin "$tag_name" || echo "(tag already on remote)"
-          echo "TAG_NAME=$tag_name" >> "$GITHUB_ENV"
-      - name: Create GitHub Release
-        if: ${{ !inputs.dry-run }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PKG_NAME: ${{ matrix.name }}
-          PKG_VER: ${{ matrix.version }}
-          PKG_DIR: packages/${{ matrix.dir }}
-          DIST_TAG: ${{ inputs.dist-tag || 'latest' }}
-        run: |
-          set -euo pipefail
-          notes="$PKG_DIR/CHANGELOG.md"
-          extra=()
-          [ "$DIST_TAG" = "latest" ] || extra+=(--prerelease)
-          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
-            echo "↻ Release $TAG_NAME exists."
-          elif [ -f "$notes" ]; then
-            gh release create "$TAG_NAME" --title "$PKG_NAME@$PKG_VER" --notes-file "$notes" --latest=false "${extra[@]}"
-          else
-            gh release create "$TAG_NAME" --title "$PKG_NAME@$PKG_VER" --generate-notes --latest=false "${extra[@]}"
+          # No `set -e`: one package failing must not stop an unrelated one. Every command
+          # that can fail is checked where it runs.
+          set -uo pipefail
+
+          # installable NAME VERSION — the registry serves NAME@VERSION.
+          installable() { npm view "$1@$2" version >/dev/null 2>&1; }
+
+          # Scoreboard gate (cli-output-stack R13) — the stack ships no working release before
+          # the engine's row is public.
+          scoreboard_gate() {
+            case "$1" in roundel|flagstaff|caique) ;; *) return 0 ;; esac
+            case "$2" in 0.0.*) echo "reservation release, gate not applied"; return 0 ;; esac
+            local url
+            url=$(node -p "try{require('./.sdlc/bands/scoreboard-public.json').commanderCompatibilityPage||''}catch{''}")
+            if [ -z "$url" ]; then
+              echo "::error::$1@$2 refused: .sdlc/bands/scoreboard-public.json names no published commander compatibility page (cli-output-stack R13)."
+              return 1
+            fi
+            echo "scoreboard public at $url — gate open"
+          }
+
+          # release_one DIR NAME VERSION — gate, publish (skipped when already on npm), tag, GitHub Release.
+          release_one() {
+            local PKG_DIR="packages/$1" PKG_NAME="$2" PKG_VER="$3"
+            local tag_name="${PKG_NAME##*/}@${PKG_VER}" notes="$RUNNER_TEMP/notes-${1}.md"
+            [ -d "$PKG_DIR/dist" ] || { echo "::error::Missing $PKG_DIR/dist — build artifact incomplete."; return 1; }
+            scoreboard_gate "$PKG_NAME" "$PKG_VER" || return 1
+            if [ "$DRY_RUN" = "true" ]; then
+              (cd "$PKG_DIR" && npm publish --dry-run --tag "$DIST_TAG" --access public) || return 1
+              return 0
+            fi
+            if installable "$PKG_NAME" "$PKG_VER"; then
+              echo "✅ $PKG_NAME@$PKG_VER already on npm — skipping publish."
+            else
+              (cd "$PKG_DIR" && npm publish --tag "$DIST_TAG" --access public --provenance) || return 1
+            fi
+            git rev-parse -q --verify "refs/tags/$tag_name" >/dev/null || git tag -a "$tag_name" -m "Release $tag_name" || return 1
+            git push origin "$tag_name" || echo "(tag already on remote)"
+            # This version's section only — the whole CHANGELOG.md made every release page
+            # repeat every release before it. Empty when the version has no section.
+            bash scripts/changelog-section.sh "$PKG_DIR/CHANGELOG.md" "$PKG_VER" > "$notes" || return 1
+            local extra=()
+            [ "$DIST_TAG" = "latest" ] || extra+=(--prerelease)
+            if gh release view "$tag_name" >/dev/null 2>&1; then
+              echo "↻ Release $tag_name exists."
+            elif [ -s "$notes" ]; then
+              gh release create "$tag_name" --title "$PKG_NAME@$PKG_VER" --notes-file "$notes" --latest=false ${extra[@]+"${extra[@]}"} || return 1
+            else
+              gh release create "$tag_name" --title "$PKG_NAME@$PKG_VER" --generate-notes --latest=false ${extra[@]+"${extra[@]}"} || return 1
+            fi
+          }
+
+          # Read up front: nothing inside the loop may consume the plan from stdin.
+          rows=()
+          while IFS= read -r row; do rows+=("$row"); done < <(jq -c '.[]' <<<"$PLAN")
+          planned=" $(jq -r 'map(.name) | join(" ")' <<<"$PLAN") "
+          done_=" "; failed=" "
+          for row in ${rows[@]+"${rows[@]}"}; do
+            name=$(jq -r .name <<<"$row"); ver=$(jq -r .version <<<"$row"); dir=$(jq -r .dir <<<"$row")
+            echo "::group::$name@$ver"
+            blocked=""
+            deps=()
+            while IFS= read -r dep_row; do deps+=("$dep_row"); done < <(jq -r '.deps[] | "\(.name) \(.version)"' <<<"$row")
+            for dep_row in ${deps[@]+"${deps[@]}"}; do
+              read -r dep dep_ver <<<"$dep_row"
+              if [[ "$failed" == *" $dep "* ]]; then
+                blocked="its dependency $dep@$dep_ver did not publish in this run"
+              elif [[ "$planned" == *" $dep "* ]]; then
+                if [[ "$done_" != *" $dep "* ]]; then
+                  blocked="the plan lists its dependency $dep after it — the order is wrong"
+                elif [ "$DRY_RUN" != "true" ]; then
+                  waited=0
+                  until installable "$dep" "$dep_ver"; do
+                    if [ "$waited" -ge "$DEP_WAIT_SECONDS" ]; then blocked="its dependency $dep@$dep_ver is still not on npm after ${waited}s"; break; fi
+                    sleep 10; waited=$((waited + 10))
+                  done
+                fi
+              elif ! installable "$dep" "$dep_ver"; then
+                blocked="its dependency $dep@$dep_ver is not on npm and this run does not publish it"
+              fi
+              [ -n "$blocked" ] && break
+            done
+            if [ -n "$blocked" ]; then
+              echo "::error::Not publishing $name@$ver — $blocked."
+              failed+="$name "
+            elif release_one "$dir" "$name" "$ver"; then
+              done_+="$name "
+              echo "- $name@$ver" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::error::$name@$ver did not release; packages that depend on it are held back."
+              failed+="$name "
+            fi
+            echo "::endgroup::"
+          done
+          if [ "$failed" != " " ]; then
+            echo "::error::Not released:${failed% }. Re-run this workflow once fixed — it skips what is already out."
+            exit 1
           fi

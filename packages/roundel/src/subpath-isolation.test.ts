@@ -15,7 +15,7 @@ import { describe, expect, it } from 'vitest';
 const pkgRoot = fileURLToPath(new URL('..', import.meta.url));
 
 interface Manifest {
-  sideEffects: boolean;
+  sideEffects: boolean | string[];
   exports: Record<string, { import: string } | string>;
 }
 const manifest = JSON.parse(readFileSync(resolve(pkgRoot, 'package.json'), 'utf8')) as Manifest;
@@ -91,8 +91,12 @@ describe.each(Object.keys(INTERNAL_ALLOWED))('internal module %s', (file) => {
 });
 
 describe('the package as a whole', () => {
-  it('declares sideEffects: false, so a bundler may drop what a program does not use (U10)', () => {
-    expect(manifest.sideEffects).toBe(false);
+  // This read `sideEffects: false`, U10's literal wording, until roundel shipped a `check`
+  // command on 2026-09-22: its `bin` runs a program when loaded, so `false` became untrue.
+  // Listing the bin alone tree-shakes identically — no consumer imports a bin — and says what
+  // is so. `scripts/side-effects-lock.test.ts` holds every package to the same rule.
+  it('declares no side effect but its bin, so a bundler may drop what a program does not use (U10)', () => {
+    expect(manifest.sideEffects).toEqual(['./dist/cli.js']);
   });
 
   it('has a root entry that is re-exports only — no side effects, nothing of its own', () => {

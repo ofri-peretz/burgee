@@ -1,6 +1,6 @@
 {
   "name": "burgee",
-  "version": "0.8.0",
+  "version": "0.11.1",
   "description": "An agent-native CLI framework, drop-in compatible with commander and yargs. One declaration; help, --json, --schema, --mcp and completions all projected from it.",
   "license": "MIT",
   "type": "module",
@@ -8,7 +8,7 @@
     "./dist/cli.js"
   ],
   "engines": {
-    "node": ">=24"
+    "node": "^20.19.0 || >=22.13.0"
   },
   "exports": {
     ".": {
@@ -17,6 +17,7 @@
       "default": "./dist/index.js"
     },
     "./schema.json": "./dist/schema.json",
+    "./program-schema.json": "./dist/program-schema.json",
     "./plugin": {
       "types": "./dist/plugin.d.ts",
       "import": "./dist/plugin.js",
@@ -111,7 +112,7 @@
     "url": "git+https://github.com/ofri-peretz/burgee.git",
     "directory": "packages/burgee"
   },
-  "homepage": "https://github.com/ofri-peretz/burgee#readme",
+  "homepage": "https://burgee.interlace.tools/docs/packages/burgee",
   "bugs": {
     "url": "https://github.com/ofri-peretz/burgee/issues"
   },
@@ -123,18 +124,34 @@
     "yargs",
     "mcp",
     "agent",
-    "framework"
+    "framework",
+    "plugin",
+    "plugins",
+    "extensible",
+    "cli-framework",
+    "argument-parser",
+    "subcommands",
+    "json-schema",
+    "mcp-server",
+    "model-context-protocol",
+    "ai-agent",
+    "llm",
+    "shell-completion",
+    "typescript",
+    "no-external-dependencies",
+    "commander-alternative",
+    "yargs-alternative"
   ],
   "publishConfig": {
     "access": "public",
     "provenance": true
   },
   "dependencies": {
-    "bellpull": "^0.1.1",
-    "closeout": "^0.2.1",
-    "linegauge": "^0.3.2",
-    "roundel": "^0.3.1",
-    "seniority": "^0.3.1"
+    "bellpull": "^0.3.1",
+    "closeout": "^0.5.1",
+    "linegauge": "^0.5.1",
+    "roundel": "^0.5.1",
+    "seniority": "^0.5.1"
   },
   "devDependencies": {
     "vitest": "^5.0.1"

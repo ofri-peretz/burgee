@@ -101,10 +101,11 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        # Node 24 only for now — a deliberate narrowing, not a claim that 26 is unsupported.
-        # `engines` still says `>=24`, so C3 is not met while this stands; the band row says
-        # so. Put 26 back by adding it here, and nothing else changes.
-        node: [24]
+        # Every even major `engines` admits (C3). 26 was narrowed out on 2026-09-08 (#64) to
+        # halve the matrix while the output stack landed; it landed, and 26 came back on
+        # 2026-09-23 after the whole suite passed on v26.10.0 locally. 26 is Current until its
+        # LTS promotion in late October — graded now so it is not first graded as an LTS.
+        node: [24, 26]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # The shared setup action pins Node from .nvmrc; a matrix needs the version varied,
@@ -120,3 +121,45 @@ jobs:
       - name: Controls (informational off Linux)
         continue-on-error: ${{ matrix.os != 'ubuntu-latest' }}
         run: node packages/compat-oracle/dist/bin.js --control
+
+  # C3 for the lower half of `engines` (D-132). The nine published packages declare
+  # `^20.19.0 || >=22.13.0`; the job above covers 24 and 26, this one the two floors,
+  # exact — a floor is only a claim if the floor itself is what runs. 20.19 and 22.13 are
+  # where `require(esm)` loads without a warning, which is what K2's CommonJS promise needs.
+  #
+  # Built once on the .nvmrc Node, because that is the Node the release builds on and the
+  # dist npm ships is what a Node 20 or 22 user runs. The workspace tooling (root tests,
+  # compat-oracle, docs) stays on 24 — its `engines` says so — so only the published
+  # suites run here. Hard gate on every cell, the same policy as `matrix`.
+  floor:
+    name: Node ${{ matrix.node }} · ${{ matrix.os }} · published suites
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: ['20.19.0', '22.13.0']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - name: Build on the .nvmrc Node — the dist npm ships
+        run: npx turbo run build --filter='./packages/*'
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - name: Every published package's suite (hard gate on every cell)
+        shell: bash
+        run: |
+          set -uo pipefail
+          node --version
+          failed=()
+          for dir in packages/*/; do
+            name=$(basename "$dir")
+            [ "$(node -p "require('./${dir}package.json').private === true")" = true ] && continue
+            echo "::group::$name"
+            (cd "$dir" && npx vitest run) || failed+=("$name")
+            echo "::endgroup::"
+          done
+          if [ ${#failed[@]} -gt 0 ]; then echo "::error::red on Node $(node --version): ${failed[*]}"; exit 1; fi

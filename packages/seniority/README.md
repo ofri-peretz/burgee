@@ -1,10 +1,26 @@
-# seniority
+<p align="center">
+  <a href="https://github.com/ofri-peretz/burgee/tree/main/packages/seniority" target="blank">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ofri-peretz/burgee/main/brand-assets/seniority-lockup.svg" />
+      <img src="https://raw.githubusercontent.com/ofri-peretz/burgee/main/brand-assets/seniority-lockup-light.svg" alt="seniority" width="360" />
+    </picture>
+  </a>
+</p>
+
+<p align="center">
+  Docs: <a href="https://seniority.interlace.tools">https://seniority.interlace.tools</a>
+</p>
 
 **Which source outranks the others.**
 
 One resolution for flags, environment variables, config files, a `package.json` field and
 declared defaults — in a fixed order, with **provenance**, so every value can say where it
 came from.
+
+It replaces **cosmiconfig**, **dotenv** and **rc**, each through a drop-in path graded by that
+incumbent's own suite. The provenance is data too: `explanationJson()` is the `--json` record
+and `explanationEvent()` the agent event, so an agent asking "why is this set?" gets the
+answer a person does.
 
 ```
 flag  >  env  >  config file  >  package.json field  >  default
@@ -309,11 +325,11 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `cosmiconfig` | 186 / 243 |
-| `dotenv` | 80 / 141 |
-| `lilconfig` | 67 / 77 |
-| `rc` | 0 / 1 |
+| `dotenv` | 106 / 141 |
+| `lilconfig` | 77 / 77 |
+| `rc` | 1 / 1 |
 
-Weight, installed and tree-inclusive: **144,531 bytes** against **1,555,288** for the incumbents it replaces — a ratio of **0.0929**.
+Weight, installed and tree-inclusive: **155,728 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.0789**.
 ## Where it sits
 
 Plugins register under the `sources` key, against the one schema the whole family shares.

@@ -111,9 +111,9 @@ file; nothing else is importable.
 
 | What | Surface |
 | :-- | :-- |
-| The `ansi-escapes` drop-in | `default` (frozen, four members: `beep`, `image`, `link`, `setCwd`), and each as a named export |
+| The `ansi-escapes` drop-in | `default` (frozen: the 31 CSI members from `csi.ts` and `beep`, `image`, `link`, `setCwd`), and each as a named export |
 | The same, bound to a runtime you supply | `ansiEscapesFor(runtime): AnsiEscapes` — nothing reads `process` |
-| The CSI half of `ansi-escapes`' surface | 31 names declared and `undefined`, typed `NotImplemented`, plus `iTerm` and `ConEmu`. They exist so a drop-in *loads*; calling one is a compile error, not a 3 a.m. `TypeError` |
+| The CSI half of `ansi-escapes`' surface | *Restated 2026-09-23 (D-138):* all 31, byte-exact with `ansi-escapes` 7.3.0, in `csi.ts`. `iTerm` and `ConEmu` stay declared and `undefined`, typed `NotImplemented` |
 | The five capability records with no `ansi-escapes` name to collide with | `bell`, `clipboard`, `cwd`, `notify`, `title`, and `builtins` — the array of all seven |
 | Registration | `register(capability)`, `registerBuiltins()`, `reset()` |
 | Reading the registry without emitting | `capabilities(): string[]`, `capability(name): Capability \| undefined` |
@@ -622,6 +622,10 @@ done yet".
   because it already has two owners in this family: `flagstaff` draws the grid and `closeout`
   puts it back, and a second implementation inside this package is the copy PRINCIPLES rule 2
   exists to prevent.
+  *Reversed 2026-09-23 (D-138): CSI is in.* `flagstaff` and `closeout` emit the few sequences
+  they need privately and stay free of this package; what had no home in the family was the
+  public surface a program imports from `ansi-escapes`, so the row could never pass and
+  `burgee migrate` could never move a program off it. `csi.ts` is that surface, 4 / 4.
 - **Reading files for `image`.** `term-img` accepts a path, which means `node:fs` in a
   package that otherwise touches nothing but strings. The caller reads the file and owns the
   I/O; this package owns bytes-to-escape.
@@ -756,3 +760,15 @@ The fix is one row of `.sdlc/bands/artifact-size-baseline.json`, which this lane
 own and did not touch. `--update-baseline` is the wrong instrument for it: it rewrites every
 package's row from the machine that ran it, and burgee's and flagstaff's rows would be
 overwritten with this laptop's numbers — the same defect the compatibility page has.
+
+## `terminal-link` at level (A27 — 2026-09-23)
+
+`paratext/terminal-link` now decides with `supports-hyperlinks` 4.5.0's own table
+(`hyperlinks.ts`), not `LINK.when`. The two disagreed in 30 of 55 environments that
+`hyperlinks.test.ts` asks of the real package, each in a fresh process: `LINK.when` has no
+version floors, says yes to Hyper and Terminal.app, and reads none of `FORCE_HYPERLINK`,
+`--no-hyperlink`, `CI` or win32. The root `link()` keeps `LINK.when`; like `term-img`'s table,
+this is a narrower divergence on one façade, not a dependency. With detection equal, the two
+cases that assign `supportsHyperlinks.{stdout,stderr} = true` on the incumbent's module object
+are excluded by exact title, and the row is **8 / 8**. R5 still holds: `commandLineRuntime()`
+in `runtime.ts` is the one new `process` read, and only this façade imports it.

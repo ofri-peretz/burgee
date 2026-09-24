@@ -63,6 +63,8 @@ const JOBS: Job[] = [
  * every entry is a layer that exists and a caller that has not adopted it.
  */
 const KNOWN: Record<string, string> = {
+  'paratext/src/csi.ts':
+    "`cursorHide` and `cursorShow` are two members of `ansi-escapes`' public surface, which the drop-in has to export as constants (D-138). `closeout/cursor` owns *doing* it; importing closeout here would add its whole installed tree (~103 KB) to paratext's, against paratext's own weight ceiling, for two string literals.",
   'compat-oracle/src/run.ts': 'runs each vendored suite in a child process. Internal tooling, never published — but it is still bellpull\'s job, and it is where the executable-resolution bug would bite CI first.',
   'compat-oracle/src/vendor.ts': '`git clone` and `git rev-parse`. Same as above.',
   'compat-oracle/src/upstream.ts':

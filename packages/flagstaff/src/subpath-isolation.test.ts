@@ -21,15 +21,19 @@ import { describe, expect, it } from 'vitest';
 const pkgRoot = fileURLToPath(new URL('..', import.meta.url));
 
 interface Manifest {
-  sideEffects: boolean;
+  sideEffects: boolean | string[];
   exports: Record<string, { import: string } | string>;
 }
 const manifest = JSON.parse(readFileSync(resolve(pkgRoot, 'package.json'), 'utf8')) as Manifest;
 
-/** The only edges allowed. `projection` and `builtins` are leaves; the schema is data. */
+/**
+ * The only edges allowed. `projection`, `builtins` and `conforms` are leaves; the schema is data.
+ * `plugin.js` reads `plugin.schema.json` — flagstaff's slice of the family schema — and never the
+ * whole `schema.json`, which ships as data for authors and costs no import (D-108, 2026-09-23).
+ */
 const ALLOWED: Record<string, string[]> = {
   'loop.js': ['./projection.js'],
-  'plugin.js': ['./builtins.js', './schema.json'],
+  'plugin.js': ['./builtins.js', './conforms.js', './plugin.schema.json'],
   'spinner.js': ['./plugin.js'],
   'index.js': ['./box.js', './import.js', './loop.js', './plugin.js', './progress.js', './spinner.js', './table.js', './tasks.js'],
   // The façade stands apart on purpose: it reads the corpus, the width function and the
@@ -127,8 +131,12 @@ describe.each(Object.keys(INTERNAL_ALLOWED))('internal module %s', (file) => {
 });
 
 describe('the package as a whole', () => {
-  it('declares sideEffects: false, so a bundler may drop what a program does not use (U10)', () => {
-    expect(manifest.sideEffects).toBe(false);
+  // This read `sideEffects: false`, U10's literal wording. flagstaff's `bin` (`flagstaff check`)
+  // runs a program when loaded, so `false` was untrue. Listing the bin alone tree-shakes
+  // identically — no consumer imports a bin — and says what is so.
+  // `scripts/side-effects-lock.test.ts` holds every package to the same rule.
+  it('declares no side effect but its bin, so a bundler may drop what a program does not use (U10)', () => {
+    expect(manifest.sideEffects).toEqual(['./dist/cli.js']);
   });
 
   it('has a root entry that is re-exports only — no side effects, nothing of its own', () => {

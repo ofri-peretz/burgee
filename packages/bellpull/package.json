@@ -1,11 +1,12 @@
 {
   "name": "bellpull",
-  "version": "0.1.1",
+  "version": "0.3.1",
   "description": "The cord you pull to ring a bell in another room. Subprocesses with executable resolution and a structured result every caller can read \u2014 human, JSON envelope or agent event. Drop-in paths for execa, cross-spawn and which. Zero dependencies.",
   "license": "MIT",
   "type": "module",
+  "sideEffects": ["./dist/cli.js"],
   "engines": {
-    "node": ">=24"
+    "node": "^20.19.0 || >=22.13.0"
   },
   "exports": {
     ".": {
@@ -18,6 +19,11 @@
       "types": "./dist/which.d.ts",
       "import": "./dist/which.js",
       "default": "./dist/which.js"
+    },
+    "./node-which": {
+      "types": "./dist/node-which.d.ts",
+      "import": "./dist/node-which.js",
+      "default": "./dist/node-which.js"
     },
     "./cross-spawn": {
       "types": "./dist/cross-spawn.d.ts",
@@ -47,7 +53,7 @@
     "url": "git+https://github.com/ofri-peretz/burgee.git",
     "directory": "packages/bellpull"
   },
-  "homepage": "https://github.com/ofri-peretz/burgee/tree/main/packages/bellpull#readme",
+  "homepage": "https://bellpull.interlace.tools",
   "bugs": {
     "url": "https://github.com/ofri-peretz/burgee/issues"
   },
@@ -61,7 +67,13 @@
     "cross-spawn",
     "which",
     "npm-run-path",
-    "agent"
+    "agent",
+    "plugin",
+    "plugins",
+    "extensible",
+    "ai-agent",
+    "json",
+    "zero-dependency"
   ],
   "devDependencies": {
     "vitest": "^5.0.1"

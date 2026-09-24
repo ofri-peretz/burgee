@@ -183,7 +183,7 @@ export function resultsName(doc: ResultsDoc, publish = false): string {
   const date = doc.measured.slice(0, ISO_DATE);
   const complete = Object.values(doc.axes).every((a) => (a as AxisState).status === 'measured');
   // `-ci`/`-local`: a sha names a commit, not a run, and two machines' runs of one commit
-  // shared a path until 2026-09-22 — landing either deleted the other (D-110).
+  // shared a path until 2026-09-22 — landing either deleted the other (D-142).
   const where = (doc.machine as Partial<Machine>).ci === true ? 'ci' : 'local';
   return complete && publish ? `${date}.json` : `${date}-${doc.commit.slice(0, SHORT_SHA)}-${where}.json`;
 }

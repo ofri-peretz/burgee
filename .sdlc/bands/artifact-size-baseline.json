@@ -1,40 +1,39 @@
 {
   "burgee": {
-    "size": 168667,
-    "unpackedSize": 661215
+    "size": 189725,
+    "unpackedSize": 744915
   },
   "caique": {
-    "size": 35802,
-    "unpackedSize": 110328
+    "size": 39267,
+    "unpackedSize": 121782
   },
   "flagstaff": {
-    "size": 53844,
-    "unpackedSize": 188624
+    "size": 57002,
+    "unpackedSize": 201484
   },
   "roundel": {
-    "size": 23891,
-    "unpackedSize": 66189
+    "size": 27478,
+    "unpackedSize": 77346
   },
   "bellpull": {
-    "size": 27998,
-    "unpackedSize": 85906
+    "size": 31540,
+    "unpackedSize": 97040
   },
   "closeout": {
-    "size": 27662,
-    "unpackedSize": 84230
+    "size": 31178,
+    "unpackedSize": 95387
   },
   "linegauge": {
-    "size": 24794,
-    "unpackedSize": 76751
+    "size": 26717,
+    "unpackedSize": 83683
   },
   "seniority": {
-    "size": 39222,
-    "unpackedSize": 139793
+    "size": 42903,
+    "unpackedSize": 151463
   },
   "paratext": {
-    "size": 25959,
-    "unpackedSize": 78732,
-    "$comment": "Bumped deliberately 2026-09-20 for two real public entry points, not for drift: `paratext/terminal-link` (0 / 10 -> 8 / 10 against terminal-link's own suite) and `paratext/term-img` (0 / 18 -> 12 / 18). +17.4% gzipped, +19.1% unpacked, measured after both landed. A drop-in fa\u00e7ade per incumbent is what D-006 found every 100% row in this repository already does, so this package gains entry points as it gains graded surface; the bytes are the price of the rows, and reverting this number means reverting them. Note that `.d.ts` keeps every doc comment, so prose in a published file is a published byte here."
+    "size": 32593,
+    "unpackedSize": 101438
   },
-  "$comment": "Recorded pack sizes, refreshed 2026-09-14 and the refresh is the story. `check:artifacts` existed, `artifact-size-ratchet-lock.test.ts` unit-tested its verdict function against synthetic inputs, and **no workflow ever ran the verdict against the real packages** \u2014 so seven of them drifted past this file unchallenged: closeout +268%, seniority +112%, paratext +87%, burgee +51%, caique +46%, flagstaff +15%, linegauge +11%. The growth is explained \u2014 the PLAN 1.1 schema fold put a 6.5 KB family schema in every package that reaches the plugin registry, and waves 1 and 3 added plugin hosts and drop-in fa\u00e7ades \u2014 but explaining growth is not the same as accepting it, which is why the numbers are named here rather than quietly replaced. `npm run lint` runs the check now, so the next one is caught. seniority moved 2026-09-20, deliberately and in one direction: 47,616 -> 59,124 gzipped and 153,040 -> 193,682 unpacked, +24.2% and +26.6%. The cause is two drop-in subpaths that did not exist \u2014 `seniority/lilconfig` (lilconfig 3.1.3's surface, which took its compat row from 0 / 77 to 67 / 77) and `seniority/rc` (rc 1.2.8's merge without its four dependencies). Both are product, not drift, and the package's own R9 ceiling in `shape.test.ts` \u2014 140,000 B of built `dist`, measured against lilconfig \u2014 is still met. The band is raised here rather than the ceiling there, because they measure different things: this one is the tarball a consumer downloads, that one is the graph a bundler walks. **Lowered 2026-09-21, and this direction needs no permission.** `scripts/strip-comments.mjs` read only the top level of `dist/`, so every nested entry point shipped its doc comments: burgee unpacked 949,221 -> 635,640 (-33.0%) and flagstaff 200,204 -> 188,624 the moment it recursed. A ratchet tightening is always free; it is the loosening that is a decision. **2026-09-21: `linegauge` and `seniority` were the two published packages whose build never ran `strip-comments` at all** \u2014 not a recursion gap, simply absent from their `build` script. Adding it: linegauge unpacked 83,538 -> 56,148 (-32.8%), seniority 193,682 -> 139,793 (-27.8%). Both directions of this file's history now have the same cause: a stripper that was not reaching what it was supposed to reach."
+  "$comment": "Recorded pack sizes, refreshed 2026-09-14 and the refresh is the story. `check:artifacts` existed, `artifact-size-ratchet-lock.test.ts` unit-tested its verdict function against synthetic inputs, and **no workflow ever ran the verdict against the real packages** \u2014 so seven of them drifted past this file unchallenged: closeout +268%, seniority +112%, paratext +87%, burgee +51%, caique +46%, flagstaff +15%, linegauge +11%. The growth is explained \u2014 the PLAN 1.1 schema fold put a 6.5 KB family schema in every package that reaches the plugin registry, and waves 1 and 3 added plugin hosts and drop-in fa\u00e7ades \u2014 but explaining growth is not the same as accepting it, which is why the numbers are named here rather than quietly replaced. `npm run lint` runs the check now, so the next one is caught. seniority moved 2026-09-20, deliberately and in one direction: 47,616 -> 59,124 gzipped and 153,040 -> 193,682 unpacked, +24.2% and +26.6%. The cause is two drop-in subpaths that did not exist \u2014 `seniority/lilconfig` (lilconfig 3.1.3's surface, which took its compat row from 0 / 77 to 67 / 77) and `seniority/rc` (rc 1.2.8's merge without its four dependencies). Both are product, not drift, and the package's own R9 ceiling in `shape.test.ts` \u2014 140,000 B of built `dist`, measured against lilconfig \u2014 is still met. The band is raised here rather than the ceiling there, because they measure different things: this one is the tarball a consumer downloads, that one is the graph a bundler walks. **Lowered 2026-09-21, and this direction needs no permission.** `scripts/strip-comments.mjs` read only the top level of `dist/`, so every nested entry point shipped its doc comments: burgee unpacked 949,221 -> 635,640 (-33.0%) and flagstaff 200,204 -> 188,624 the moment it recursed. A ratchet tightening is always free; it is the loosening that is a decision. **2026-09-21: `linegauge` and `seniority` were the two published packages whose build never ran `strip-comments` at all** \u2014 not a recursion gap, simply absent from their `build` script. Adding it: linegauge unpacked 83,538 -> 56,148 (-32.8%), seniority 193,682 -> 139,793 (-27.8%). Both directions of this file's history now have the same cause: a stripper that was not reaching what it was supposed to reach. **Raised 2026-09-23, burgee only: 173,668 -> 189,725 gzipped and 677,098 -> 744,915 unpacked (+9.2%, +10.0%).** The cause is the fa\u00e7ades' type surface: `burgee/yargs` shipped no `Argv`, `Arguments` or `CommandModule`, so every TypeScript + yargs adoption target failed to compile after `burgee migrate`. `dist/yargs/types.d.ts` is @types/yargs' declarations with their doc comments \u2014 53,093 bytes, the hover text a yargs user already reads \u2014 and emits 11 bytes of JavaScript, so no bundle and no import graph moved; the rest is `migrate`'s export table and name check. Declarations keep their comments by the same rule as every other `.d.ts` here (`strip-comments.mjs`). **Raised 2026-09-23, paratext only: 29,566 -> 32,593 gzipped and 92,160 -> 101,438 unpacked (+10.2%, +10.1%).** The cause is A27: `paratext/terminal-link` now carries `supports-hyperlinks` 4.5.0's own detection (`dist/hyperlinks.js`) instead of paratext's `LINK.when`, which disagreed with the incumbent in 30 of 55 environments graded in `hyperlinks.test.ts`. That table is what makes the row level and lets `burgee migrate` rewrite `terminal-link`; the root entry does not import it."
 }

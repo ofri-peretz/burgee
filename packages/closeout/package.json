@@ -1,11 +1,12 @@
 {
   "name": "closeout",
-  "version": "0.2.1",
+  "version": "0.5.1",
   "description": "Close everything out. Exit handlers that run exactly once on every path, terminal restore, and a bounded deadline so shutdown cannot hang. Drop-in paths for signal-exit, exit-hook and restore-cursor. Zero dependencies.",
   "license": "MIT",
   "type": "module",
+  "sideEffects": ["./dist/cli.js"],
   "engines": {
-    "node": ">=24"
+    "node": "^20.19.0 || >=22.13.0"
   },
   "exports": {
     ".": {
@@ -38,6 +39,16 @@
       "types": "./dist/exit-hook.d.ts",
       "import": "./dist/exit-hook.js",
       "default": "./dist/exit-hook.js"
+    },
+    "./signal-exit": {
+      "types": "./dist/signal-exit.d.cts",
+      "import": "./dist/signal-exit.cjs",
+      "default": "./dist/signal-exit.cjs"
+    },
+    "./signal-exit/signals": {
+      "types": "./dist/signal-exit-signals.d.cts",
+      "import": "./dist/signal-exit-signals.cjs",
+      "default": "./dist/signal-exit-signals.cjs"
     }
   },
   "files": [
@@ -57,7 +68,7 @@
     "url": "git+https://github.com/ofri-peretz/burgee.git",
     "directory": "packages/closeout"
   },
-  "homepage": "https://github.com/ofri-peretz/burgee/tree/main/packages/closeout#readme",
+  "homepage": "https://closeout.interlace.tools",
   "bugs": {
     "url": "https://github.com/ofri-peretz/burgee/issues"
   },
@@ -71,7 +82,15 @@
     "cleanup",
     "shutdown",
     "restore-cursor",
-    "teardown"
+    "teardown",
+    "plugin",
+    "plugins",
+    "extensible",
+    "agent",
+    "ai-agent",
+    "non-tty",
+    "json",
+    "zero-dependency"
   ],
   "devDependencies": {
     "vitest": "^5.0.1"

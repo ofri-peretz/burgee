@@ -184,7 +184,7 @@ describe('a document names itself', () => {
  * `c0fa8a3` (an M4 Pro, `ci: false`) landed in #420 under the exact path the nightly's run of
  * the same commit (a four-core EPYC, `ci: true`) was about to land at in #419 — so #419 could
  * only have landed by deleting #420's file, and was closed instead. One of two observations
- * of the same code was lost to a filename. D-110.
+ * of the same code was lost to a filename. D-142.
  */
 const SUITES = ['cli-benchmarks', 'agent-cli-bench'] as const;
 const SUFFIX = /-(ci|local)\.json$/;

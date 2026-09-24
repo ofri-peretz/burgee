@@ -1,4 +1,15 @@
-# bellpull
+<p align="center">
+  <a href="https://github.com/ofri-peretz/burgee/tree/main/packages/bellpull" target="blank">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ofri-peretz/burgee/main/brand-assets/bellpull-lockup.svg" />
+      <img src="https://raw.githubusercontent.com/ofri-peretz/burgee/main/brand-assets/bellpull-lockup-light.svg" alt="bellpull" width="360" />
+    </picture>
+  </a>
+</p>
+
+<p align="center">
+  Docs: <a href="https://bellpull.interlace.tools">https://bellpull.interlace.tools</a>
+</p>
 
 A **bellpull** is the cord in one room wired to a bell in another. You pull it here; a bell rings there; someone comes back to you.
 
@@ -18,6 +29,9 @@ result.executable; // { path: '/opt/homebrew/bin/git', from: '/opt/homebrew/bin'
 `execa` throws when a child exits non-zero, so every caller wraps every call and every wrapper
 rebuilds the same fields out of the error. Here a non-zero exit is a value. The promise rejects
 only when **no process ran**: the executable did not resolve, or the spawn failed.
+
+One result, three readers: `format()` for a person, `toJson()` for `--json`, `toEvent()` for
+an agent — so a `--json` flag cannot report something the human output did not.
 
 ## What it does that the alternatives do not
 
@@ -95,8 +109,8 @@ measures:
 | :-- | --: | --: |
 | `cross-spawn` suite, macOS | 68 / 68 | **68 / 68** |
 
-Installed, tree-inclusive: **82,270 bytes**, against a ceiling of 714,984 — a ratio of
-**0.1151**, up from 0.0067 when this package was seven lines and did nothing. The rise is the
+Installed, tree-inclusive: **97,864 bytes**, against a ceiling of 765,553 — a ratio of
+**0.1278**, up from 0.0067 when this package was seven lines and did nothing. The rise is the
 honest direction.
 
 **What the 68 / 68 does not cover.** On POSIX `cross-spawn` is a pass-through, so its suite
@@ -114,8 +128,9 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `cross-spawn` | 68 / 68 |
+| `which` | 5 / 5 |
 
-Weight, installed and tree-inclusive: **90,108 bytes** against **714,984** for the incumbents it replaces — a ratio of **0.1260**.
+Weight, installed and tree-inclusive: **103,803 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1356**.
 ## Where it sits
 
 Plugins register under the `resolvers` key, against the one schema the whole family shares.

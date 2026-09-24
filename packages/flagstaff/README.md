@@ -14,8 +14,12 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/flagstaff"><img src="https://img.shields.io/npm/v/flagstaff?style=flat-square&color=0a6b47" alt="npm version" /></a>
   <img src="https://img.shields.io/badge/dependencies-4%20in--family-0a6b47?style=flat-square" alt="Four dependencies, all in this repository: closeout, linegauge, paratext, roundel" />
-  <img src="https://img.shields.io/badge/Node.js-24+-green.svg?style=flat-square" alt="Node.js 24+" />
+  <img src="https://img.shields.io/badge/Node.js-20.19%2B%20%7C%2022.13%2B-green.svg?style=flat-square" alt="Node.js 20.19+ or 22.13+" />
   <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT" />
+</p>
+
+<p align="center">
+  Docs: <a href="https://flagstaff.interlace.tools">https://flagstaff.interlace.tools</a>
 </p>
 
 ora animates a spinner and, off a terminal, prints frames anyway — `\r` after `\r` into the
@@ -23,8 +27,9 @@ log an agent reads back. Ink fixes the terminal by shipping React and a layout e
 **flagstaff** is the staff the flag flies from: a frame loop that hoists a component, holds
 it, changes it and lowers it, and a **static projection** that is what every mode but the
 terminal gets — one line per state on a pipe, one event per transition under `--json`,
-plain text for a screen reader. Plugins are data. No layout engine. One dependency, and it
-is [roundel](../roundel/README.md).
+plain text for a screen reader. Plugins are data. No layout engine. Four dependencies, all
+from this repository: [roundel](../roundel/README.md), [paratext](../paratext/README.md),
+[linegauge](../linegauge/README.md) and [closeout](../closeout/README.md).
 
 A **flagstaff** is the simplest part of the whole apparatus and the only one that is always
 in view: a flag is hoisted on it, held there, changed, and lowered when it is done. That is a
@@ -339,7 +344,7 @@ counted, against boxen's own 132.4 KB across nineteen; `flagstaff/cli-table3` 32
 `width.js`, and the first two share `closeout`; none reaches another's port, and none
 reaches the core. `sideEffects: false` lets a
 bundler drop what a program does not use. ESM with a `default` condition, so
-`require('flagstaff/spinner')` works from CommonJS on Node ≥ 24.
+`require('flagstaff/spinner')` works from CommonJS on Node 20.19+ and 22.13+.
 
 ## What is next
 

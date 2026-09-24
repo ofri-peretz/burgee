@@ -17,6 +17,12 @@ import { type Exclusion, type Host, type HostImport } from './hosts.js';
 import { readSuiteDeps, shimName } from './vendor.js';
 
 export interface Grade {
+  /**
+   * R7 — the passing count of every attempt, when the first one fell and the row was graded
+   * again (`repeatAndAgree`). Present only on a row that was re-run, so its absence means the
+   * first attempt stood; a list whose last entry recovered is a flake, named rather than silent.
+   */
+  attempts?: number[];
   host: string;
   target: string;
   files: number;
@@ -146,8 +152,12 @@ export function parseNodeTest(output: string): { tests: number; passed: number; 
  * counts have to be read off the lines themselves. (`--reporter=tap` is nested, which is
  * worse: the counts are then per file rather than per test.)
  */
+/** A flat TAP case line's title: `not ok 3 - stderr # SKIP` is `stderr`. */
+const titleOf = (line: string): string | undefined => /^(?:not )?ok \d+ - (.*?)(?: # .*)?$/.exec(line)?.[1];
+const excludedBy = (line: string, e: Exclusion): boolean => (e.exact === true ? titleOf(line) === e.match : line.includes(e.match));
+
 export function parseFlatTap(output: string, excludes: Exclusion[] = []): { tests: number; passed: number; failed: number; skipped: number } {
-  const lines = output.split('\n').filter((l) => !excludes.some((e) => l.includes(e.match)));
+  const lines = output.split('\n').filter((l) => !excludes.some((e) => excludedBy(l, e)));
   const ok = lines.filter((l) => FLAT_OK.test(l));
   const skipped = ok.filter((l) => FLAT_SKIP.test(l)).length;
   const passed = ok.length - skipped;
@@ -164,10 +174,30 @@ export function parseFlatTap(output: string, excludes: Exclusion[] = []): { test
  */
 export function unmatchedExclusions(output: string, excludes: Exclusion[]): string[] {
   const cases = output.split('\n').filter((l) => FLAT_OK.test(l) || FLAT_NOT_OK.test(l));
-  return excludes.filter((e) => !cases.some((l) => l.includes(e.match))).map((e) => e.match);
+  return excludes.filter((e) => !cases.some((l) => excludedBy(l, e))).map((e) => e.match);
 }
 
 type Summary = Pick<Grade, 'files' | 'tests' | 'passed' | 'failed' | 'skipped' | 'exceeded' | 'reference' | 'rate' | 'error'>;
+
+/**
+ * A counted summary less the declared exclusions. The summary is counts, not names, so an
+ * exclusion is subtracted by the case lines it matches — ava prints one per case (A27). A run
+ * with no case lines has nothing to exclude *by*, and an exclusion that silently does nothing
+ * is worse than a refusal.
+ */
+function summaryExcluding(output: string, files: number, reference: number, gate: Gate): Summary {
+  const excludes = gate.excludes ?? [];
+  const cases = output.split('\n').filter((l) => FLAT_OK.test(l) || FLAT_NOT_OK.test(l));
+  const broken = (error: string): Summary => ({ files, tests: 0, passed: 0, failed: 0, skipped: 0, reference, rate: 0, error });
+  if (cases.length === 0) return broken(`${excludes.length} exclusion(s) declared, but this runner's TAP carries no per-case names to exclude by`);
+  const missed = gate.requireMatch === true ? unmatchedExclusions(output, excludes) : [];
+  if (missed.length > 0) return broken(`exclusion matched no case: ${missed.join(', ')}`);
+  const out = cases.filter((l) => excludes.some((e) => excludedBy(l, e)));
+  const passedOut = out.filter((l) => FLAT_OK.test(l) && !FLAT_SKIP.test(l)).length;
+  const failedOut = out.filter((l) => FLAT_NOT_OK.test(l)).length;
+  const counted = parseNodeTest(output);
+  return rate(files, { ...counted, tests: counted.tests - passedOut - failedOut, passed: counted.passed - passedOut, failed: counted.failed - failedOut }, reference);
+}
 
 /**
  * Turn a runner's stdout into a grade. Pure, so the one case that has silently read as
@@ -190,10 +220,8 @@ export function summarize(output: string, files: number, reference: number, gate
   // Summary lines win where they exist: node:test prints a plan *and* a summary, and the
   // summary is the runner's own count rather than one inferred from its lines.
   if (TAP_TESTS.test(output)) {
-    // Those three lines are counts, not names: there is nothing here to exclude *by*, and
-    // an exclusion that silently does nothing is worse than one that refuses to run.
-    if (excludes.length > 0) return broken(`${excludes.length} exclusion(s) declared, but this runner's TAP carries no per-case names to exclude by`);
-    return rate(files, parseNodeTest(output), reference);
+    if (excludes.length === 0) return rate(files, parseNodeTest(output), reference);
+    return summaryExcluding(output, files, reference, gate);
   }
   // A plan and no summary is vitest's dialect. Without either, the runner was killed
   // mid-run — and its `ok` lines must not be counted, or a suite that died at test 72
@@ -295,10 +323,33 @@ function missingTarget(host: Host, target: string): string | undefined {
 function shimSource(entry: HostImport, host: Host, target: string): string {
   const header = `// generated per run — COMPAT_TARGET=${target}`;
   const from = target === controlName(host) ? (entry.control ?? `${target}${entry.subpath}`) : `${target}${entry.subpath}`;
-  // `export *` never carries a default; yargs' entry has one and its tests use it. The
-  // `module.exports` name is what `require()` of an ES module returns whole, so a CJS
-  // fixture's `require('../../')` gets the callable factory, exactly as it does from yargs.
-  const withDefault = entry.reexportDefault ? `export { default } from '${from}';\nexport { default as 'module.exports' } from '${from}';\n` : '';
+  // A CommonJS shim hands the suite whatever `require()` of the implementation returns — the
+  // `require` condition, where an ESM shim takes `import`. For a dual package that is a
+  // different build: signal-exit's suite is written against `dist/cjs`, whose behaviour
+  // differs from `dist/mjs` in exactly what `no-process.js` checks.
+  //
+  // It also evicts the implementation from the require cache each time *it* is loaded. A
+  // suite that busts the cache — `delete require.cache[require.resolve('../../')]` in
+  // `process-gone.js`, `t.mock('../dist/cjs/signals.js')` in `signals.js` — busts the path it
+  // names, which is now the shim; without this the re-required shim hands back the cached
+  // implementation and the test measures the harness. A cached shim still returns one instance.
+  if (host.shim === 'cjs') {
+    // `reexportDefault` means the suite calls the module itself — node-which's `which(cmd)`.
+    // `require()` of an ES module returns its namespace, so the default is unwrapped; a CJS
+    // incumbent has none and is handed over whole, which is what it already was.
+    const exported = entry.reexportDefault ? 'loaded?.default ?? loaded' : 'loaded';
+    return `${header}\nconst target = require.resolve('${from}');\ndelete require.cache[target];\nconst loaded = require(target);\nmodule.exports = ${exported};\n`;
+  }
+  // `export *` never carries a default; yargs' entry has one and its tests use it.
+  //
+  // It does carry `'module.exports'` — the name `require()` of an ES module returns whole —
+  // when the module under test exports it, and only then. This shim used to add it itself,
+  // for every host with a default, on the target run as much as the control: a CJS fixture's
+  // `require('../../')` got the callable from the shim, so `require('bellpull/cross-spawn')`
+  // handing a real caller a namespace was never graded (2026-09-23). yargs' entry exports the
+  // name, and so does each family drop-in whose incumbent's `require()` returns its default;
+  // `scripts/drop-in-require-shape-lock.test.ts` checks that from outside the oracle.
+  const withDefault = entry.reexportDefault ? `export { default } from '${from}';\n` : '';
   return `${header}\nexport * from '${from}';\n${withDefault}`;
 }
 
@@ -311,7 +362,7 @@ function shimSource(entry: HostImport, host: Host, target: string): string {
 function writeShims(host: Host, hostDir: string, target: string, packageType: string): void {
   // The vendored package's own type decides the extension, and the vendor step wrote the
   // rewritten specifiers against the same rule — so the two always name one file.
-  host.imports.forEach((entry, i) => writeFileSync(join(hostDir, shimName(i, packageType)), shimSource(entry, host, target)));
+  host.imports.forEach((entry, i) => writeFileSync(join(hostDir, shimName(i, packageType, host.shim)), shimSource(entry, host, target)));
 }
 
 /**
@@ -489,7 +540,7 @@ function avaCli(root: string): string {
  * out of the number.
  */
 const jestGlobals = (): string => `// generated per run
-import { createRequire } from 'node:module';
+import { createRequire, isBuiltin, syncBuiltinESMExports } from 'node:module';
 import { vi } from 'vitest';
 
 // Anchored here, at the vendored root, which is where a bare id resolves from. A *relative*
@@ -501,12 +552,37 @@ import { vi } from 'vitest';
 // oracle exists to keep out of the number.
 const require = createRequire(import.meta.url);
 
+// A jest.mock of a Node builtin, done the way jest's effect reaches a CommonJS suite. jest
+// hoists \`jest.mock('fs', factory)\` above the file's own \`require('fs')\` and hands *every*
+// require of it — the test's and the library's — the factory's object. vitest's mocking never
+// sees \`require()\`, so lilconfig's control failed ten cases that read spy call lists from a
+// binding that was the real module (A12). A builtin is one shared object per process, so the
+// factory's values are written onto it, nested objects (\`fs.promises\`) member by member, and
+// \`syncBuiltinESMExports()\` carries them to ESM importers. Each vitest file has its own
+// worker, so the patch lives exactly as long as jest's file-scoped mock would.
+const builtinPatch = (real, mocked) => {
+  for (const key of Object.keys(mocked)) {
+    const value = mocked[key];
+    if (value === real[key]) continue;
+    const nested = value !== null && typeof value === 'object' && real[key] !== null && typeof real[key] === 'object';
+    if (nested) builtinPatch(real[key], value);
+    else Object.defineProperty(real, key, { value, writable: true, configurable: true, enumerable: true });
+  }
+};
+const mockModule = (id, factory, ...rest) => {
+  const bare = String(id).replace(/^node:/, '');
+  if (factory === undefined || !isBuiltin(bare)) return vi.doMock(id, factory, ...rest);
+  builtinPatch(require(bare), factory());
+  syncBuiltinESMExports();
+};
+
 globalThis.jest = {
   fn: (...args) => vi.fn(...args),
   // \`vi.mock\` is hoisted by vitest's transform and refuses to be called from inside a
   // wrapper; \`vi.doMock\` is its runtime form, which is what a \`jest.mock\` call reached at
-  // run time actually means. These suites call it before the require it affects.
-  mock: (...args) => vi.doMock(...args),
+  // run time actually means. These suites call it before the require it affects. A builtin
+  // with a factory is patched in place instead — see \`mockModule\`.
+  mock: mockModule,
   requireActual: (id) => require(id),
   // The three cross-spawn's suite reaches for. \`setTimeout\` is jest's *per-file* timeout
   // knob, which is \`vi.setConfig({ testTimeout })\` here — a suite that calls it at module
@@ -523,6 +599,40 @@ globalThis.jest = {
 };
 `;
 
+/**
+ * jest's hoist, done where a vitest run can do it: every `jest.mock(…)` statement that starts
+ * a line is moved to the top of the file, as babel-plugin-jest-hoist moves it above the
+ * file's own requires. lilconfig reads `fs.promises.readFile` once, at load, so a mock that
+ * ran after `require(lilconfig)` was never the function it called — two cases failed against
+ * lilconfig's own package for the harness's reason (A12). jest's contract makes the move
+ * safe: a factory may reference only globals and `mock`-prefixed names. `vi.mock` is left
+ * alone, since vitest hoists it itself. Emitted into the generated config as source, so it
+ * must reach nothing but `closeOf`, which is emitted beside it.
+ */
+export function hoistJestMocks(source: string): string {
+  const blocks: string[] = [];
+  let rest = source;
+  for (let at = rest.search(/^jest\.mock\(/m); at !== -1; at = rest.search(/^jest\.mock\(/m)) {
+    const end = closeOf(rest, at);
+    if (end === -1) break;
+    blocks.push(rest.slice(at, end));
+    rest = rest.slice(0, at) + rest.slice(end);
+  }
+  return blocks.length === 0 ? source : `${blocks.join('\n')}\n${rest}`;
+}
+
+/** Just past the `)` closing the call opened at `at` (and its `;`), skipping string literals; -1 if unclosed. */
+function closeOf(text: string, at: number): number {
+  const token = /(['"`])(?:\\.|(?!\1)[^\\])*\1|[()]/g;
+  token.lastIndex = at;
+  let depth = 0;
+  for (let m = token.exec(text); m !== null; m = token.exec(text)) {
+    depth += m[0] === '(' ? 1 : 0;
+    if (m[0] === ')' && --depth === 0) return text[token.lastIndex] === ';' ? token.lastIndex + 1 : token.lastIndex;
+  }
+  return -1;
+}
+
 function writeVitestConfig(host: Host, hostDir: string, files: string[]): void {
   const root = packageDirOf(host, hostDir);
   const include = files.map((f) => JSON.stringify(relative(root, join(hostDir, host.testDir, f)).split(sep).join('/')));
@@ -536,7 +646,8 @@ function writeVitestConfig(host: Host, hostDir: string, files: string[]): void {
   const extra = Object.entries(host.vitestConfig ?? {})
     .map(([key, value]) => `, ${key}: ${JSON.stringify(value)}`)
     .join('');
-  writeFileSync(join(root, 'vitest.config.mjs'), `// generated per run\nexport default { test: { include: [${include.join(', ')}], globals: true, setupFiles: ['./vitest.setup.mjs']${extra} } };\n`);
+  const hoist = `{ name: 'jest-hoist', enforce: 'pre', transform: (code, id) => (/\\/node_modules\\//.test(id) ? null : hoistJestMocks(code)) }`;
+  writeFileSync(join(root, 'vitest.config.mjs'), `// generated per run\n${closeOf.toString()}\n${hoistJestMocks.toString()}\nexport default { plugins: [${hoist}], test: { include: [${include.join(', ')}], globals: true, setupFiles: ['./vitest.setup.mjs']${extra} } };\n`);
 }
 
 /**
@@ -907,7 +1018,8 @@ export function readBaseline(path: string): Baseline {
 }
 
 /** C5 — the rate ratchets. Falling below the recorded baseline fails. */
-export function regressed(grade: Grade, baseline: Baseline): boolean {
+export function regressed(grade: Grade, baseline: Baseline, unseen = 0): boolean {
   const was = baseline[grade.host];
-  return was !== undefined && grade.passed < was.passed;
+  // `unseen`: passes this platform cannot register (`absentPassing`), declared per host.
+  return was !== undefined && grade.passed + unseen < was.passed;
 }

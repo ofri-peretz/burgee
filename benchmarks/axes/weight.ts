@@ -102,10 +102,31 @@ export function installedBytes(name: string, from: string = BENCH_ROOT, seen = n
   const key = realpathSync(dir);
   if (seen.has(key)) return 0;
   seen.add(key);
-  const manifest = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as { dependencies?: Record<string, string> };
   let total = ownInstalledBytes(dir);
-  for (const dep of Object.keys(manifest.dependencies ?? {})) total += installedBytes(dep, dir, seen);
+  for (const dep of installedDependencies(dir)) total += installedBytes(dep, dir, seen);
   return total;
+}
+
+/**
+ * What npm put on disk for a package: its `dependencies`, and each `optionalDependencies`
+ * entry that is actually installed. npm installs optional dependencies by default, so leaving
+ * them out under-counted every incumbent that has one — cli-table3's `@colors/colors` — which
+ * `weight.test.ts`'s nested-install check caught when cli-table3 was first measured here.
+ */
+export function installedDependencies(dir: string): string[] {
+  const manifest = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as {
+    dependencies?: Record<string, string>;
+    optionalDependencies?: Record<string, string>;
+  };
+  const optional = Object.keys(manifest.optionalDependencies ?? {}).filter((dep) => {
+    try {
+      packageDir(dep, dir);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+  return [...new Set([...Object.keys(manifest.dependencies ?? {}), ...optional])];
 }
 
 /** The package a specifier belongs to: `burgee/commander` is published by `burgee`. */
@@ -302,7 +323,38 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // (D-101, which made this one much smaller). The engine measures **28,637** and the three
   // ceilings follow the measurements down — a ratchet that stays where the number used to be
   // is not a ratchet, it is headroom nobody decided to grant.
-  burgee: 28_700,
+  //
+  // 28,800 on 2026-09-23 for **59 bytes**, D-118 (E7): the engine reads a `defineError` class's
+  // declared code off `Symbol.for('burgee.exitCode')` on every failure path, so the read is on
+  // the startup graph even though `define-error.js` is not. Inlined rather than a helper, which
+  // took it from 113 over to 59. Measured 28,759.
+  //
+  // 29,150 on 2026-09-23 for **316 bytes**, D-122: the `parse` and `shutdown` plugin stages.
+  // What stays on the startup path is `Manifest.declares`, the `parse` call-in (its loop is
+  // `parse-hooks.js`, imported only when a plugin declares one) and the shutdown registration
+  // behind `declares('shutdown')`. Measured 29,116.
+  //
+  // 29,250 on 2026-09-23 for **93 bytes**, D-113 (S4): `-` on a `type: 'file'` positional is
+  // stdin. The check itself is `stdin-dash.js`, imported only when a positional is `-`; what
+  // stays on the startup path is that test and the spread into the handler's context.
+  // Measured 29,209.
+  // 29,450 on 2026-09-23 for **303 bytes**, D-117 (V8): `config explain`. The command is
+  // `config-explain.js`, imported only on that path; what stays on the startup path is the
+  // test that recognises it and the `resolution` step a run and the command share.
+  // Measured 29,419.
+  // 29,550 with V8 on top of S4, after merging main. Measured 29,512.
+  // 29,200 on 2026-09-23 for **68 bytes**, D-123 (F1): `--schema` carries the exit-code table,
+  // so the schema surface reaches `exit-code.js`. Measured 29,184.
+  // 29,650 with F1 on top of S4 and V8, after merging main. Measured 29,580.
+  // 29,750 on 2026-09-23: D-140 and #521 on top of main (72a810352e). Measured 29,702.
+  burgee: 29_750,
+  // 29,650 on 2026-09-23: D-140 and #521 on top of V8 (#481). Measured 29,634.
+  // 29,200 on 2026-09-23 for **56 bytes**, the MCP stdout capture (#521): measured 29,172 on
+  // top of D-122's 29,116. The capture lives in the lazily loaded MCP chunk; what reaches the
+  // startup graph is the `host` seam it shares with the entry.
+  // 29,250 on 2026-09-23 for **66 bytes**, D-140: the `--json` failure path classifies a
+  // thrown error once for every front end. Measured 29,238 on top of #521's 29,172.
+  // 29,350 on 2026-09-23: D-140's 66 bytes and #521 on top of S4's 93 (29,238 + 93). Measured 29,331.
   // 59,250 on 2026-09-22 for **61 bytes**: the `.catch` that fires `onError`. A plugin's
   // lifecycle closes on every front end now — `preRun` opens and exactly one of `postRun` or
   // `onError` closes — where before a handler that threw left a plugin with no closing hook.
@@ -310,7 +362,27 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // 59,450 on 2026-09-22 for **171 bytes**, D-109: D1's refusal of a deprecation that names no
   // replacement. The front end never declares one, but a plugin registered through it passes the
   // same definition door as a first-party command, and that door is what carries the check.
-  'burgee/commander': 59_450,
+  //
+  // 59,600 on 2026-09-23 for **171 bytes**, D-134: the manifest projection publishes each
+  // option under the flag commander accepts (a lone `--no-x` as `noX`, a pair folded, which
+  // booleans negate), so `--mcp` and completions stop offering flags commander refuses.
+  // 59,850 on 2026-09-23 for **208 bytes**, D-122 — the same stages through the engine the
+  // façade runs on. Measured 59,808.
+  //
+  // The MCP stdout capture (#521) adds **15 bytes** here (59,808 -> 59,823 with D-122), none new code on the
+  // startup path: the lazily-loaded MCP chunk now reads stdout through the `host` seam to keep
+  // a tool call's prints off the JSON-RPC stream, so `host` is shared between the entry and
+  // that chunk, esbuild moves it into the shared chunk the entry already imports, and the 14
+  // are the cross-chunk export and import names.
+  //
+  // 60,500 on 2026-09-23 for **897 bytes**, D-140 (59,586 -> 60,483): a commander program run
+  // the commander way — `parseAsync(process.argv)`, nothing injected — let an action that threw
+  // under `--json` escape as a stack trace instead of the envelope and an E1 exit code, and
+  // filed an `AuthError` as exit 1 where E6 says 5. The bytes are the unseamed `--json` catch,
+  // `AuthError`/`UsageError` (which the façade never reached before) and the one
+  // classification both façades share. None of it is on a path a passing command takes.
+  // Merged 2026-09-23: D-140's 897 bytes on top of D-122 and #521 measure 60,713.
+  'burgee/commander': 60_750,
   'burgee/yargs': 107_700,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
@@ -345,7 +417,11 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // (`scripts/schema-sync.mjs`, locked by `plugin-schema-lock.test.ts`) and ships the full
   // contract as data it does not import. **6,736 measured** — below the 11,122 it read before
   // tonight, not just below the regression. D-108.
-  paratext: 6_800,
+  //
+  // 8,450 on 2026-09-23 for **1,630 bytes**, D-138: paratext took `ansi-escapes`' CSI half, so
+  // the entry now carries what the incumbent carries. The ceiling below it was set against an
+  // entry with none of it. Measured 8,430.
+  paratext: 8_450,
 };
 
 /**
@@ -424,8 +500,17 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // without giving up `parse()`'s synchronous contract and the ~23 `executableSubcommand`
   // cases in commander's own suite that mock it, which is what the 1360 / 1360 row rests on.
   // D-102 records that, and that ≤ 1 is not reachable while the façade also carries a
-  // manifest, a schema and an MCP server.
-  'burgee/commander': 1.52,
+  // manifest, a schema and an MCP server. 1.53 on 2026-09-23 for the same 171 bytes as the
+  // bundled ceiling above (D-134): measured 1.524. 1.54 on 2026-09-23 for F1 (D-123), the
+  // exit-code table the façade's `--schema` now carries: measured 1.531.
+  // 1.555 on 2026-09-23: D-140 and #521 on top of main (72a810352e). Measured 1.554.
+  'burgee/commander': 1.555,
+  // bundled ceiling above (D-134): measured 1.524.
+  // 1.535 on 2026-09-23: D-122 left the façade at 59,808 (1.530, on the ceiling) and the MCP
+  // stdout capture (#521) adds 15 bytes of cross-chunk names — 59,823, measured 1.531.
+  // bundled ceiling above (D-134): measured 1.524. 1.55 on 2026-09-23 for the 897 bytes of
+  // D-140 beside it: measured 1.548.
+  // Merged 2026-09-23 with D-122 and #521: measured 1.553.
   'burgee/yargs': 1,
   'roundel/chalk': 1,
   'flagstaff/ora': 1,
@@ -461,7 +546,11 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // ratchet exists so the bundled half cannot grow while it is being dealt with.
   // 1.55 from 2.56 — see the byte ceiling above for why this is the largest single fall a
   // foundation row has had.
-  paratext: 1.55,
+  // 1.94 on 2026-09-23, D-138: until today this ratio set paratext *without* CSI against
+  // `ansi-escapes` *with* it. Both sides now carry the same thirty-one members, so 1.937 is the
+  // first like-for-like figure — what is left over is the capability registry that makes the
+  // OSC half degrade on a pipe. Measured 1.937.
+  paratext: 1.94,
 };
 
 /**
@@ -560,15 +649,35 @@ function parityRecords(pair: EntryPair, stack: ParityStack, ours: Measured, thei
   ];
 }
 
+/**
+ * One record per variant and metric. Two pairs against one incumbent each emit that incumbent's
+ * rows; a results document holding them twice would let a reader — or `findRecord` — pick either.
+ */
+export function uniqueRecords(records: readonly BenchRecord[]): BenchRecord[] {
+  const seen = new Set<string>();
+  return records.filter((r) => {
+    const key = `${r.variant}\u0000${r.metric}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export function run(): BenchRecord[] {
   rmSync(SCRATCH, { recursive: true, force: true });
   try {
-    return PAIRS.flatMap((pair) => {
-      const ours = measure(pair.ours, `ours-${pair.id}`);
-      const theirs = measure(pair.incumbent, `theirs-${pair.id}`);
-      const stack = PARITY.find((p) => p.id === pair.id);
-      return [...pairRecords(pair, ours, theirs), ...(stack === undefined ? [] : parityRecords(pair, stack, ours, theirs))];
-    });
+    // An incumbent may stand against two of our entry points — flagstaff's `ora` façade and its
+    // native `spinner` both answer to ora — and is measured once, not once per pair.
+    const incumbents = new Map<string, Measured>();
+    return uniqueRecords(
+      PAIRS.flatMap((pair) => {
+        const ours = measure(pair.ours, `ours-${pair.id}`);
+        const theirs = incumbents.get(pair.incumbent.specifier) ?? measure(pair.incumbent, `theirs-${pair.id}`);
+        incumbents.set(pair.incumbent.specifier, theirs);
+        const stack = PARITY.find((p) => p.id === pair.id);
+        return [...pairRecords(pair, ours, theirs), ...(stack === undefined ? [] : parityRecords(pair, stack, ours, theirs))];
+      }),
+    );
   } finally {
     rmSync(SCRATCH, { recursive: true, force: true });
   }

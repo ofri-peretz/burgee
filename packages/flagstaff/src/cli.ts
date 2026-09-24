@@ -15,6 +15,7 @@
  * This is the package's command line, so it owns the process by definition; everything it
  * renders goes through the same `hoist()` a program uses, over buffers and a manual clock.
  */
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -150,22 +151,50 @@ function describe(value: unknown): string {
   }
 }
 
-async function main(argv: string[], write: (s: string) => void): Promise<number> {
-  const file = argv[0];
-  if (file === undefined) {
-    write('usage: flagstaff check <plugin-file>\n');
+const USAGE = 'usage: flagstaff check <plugin-file>\n';
+const HELP = `${USAGE}
+Load a plugin file, validate it against the family schema, and render every contribution in
+all five output modes side by side. Exit 0 when it renders, 1 on a refusal (with a code and
+a fix), 2 on a usage error.
+
+  -h, --help     show this help
+  -V, --version  print the version
+`;
+
+/** The package's own version, read when asked for rather than on every run. */
+function version(): string {
+  return (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version;
+}
+
+/**
+ * The plugin file, or the exit code when the argument is not one. A flag is never a plugin path:
+ * before this, `flagstaff --help` reached the `import()` and failed as `Cannot find module '…/--help'`
+ * — the first thing a new user types, read as a file.
+ */
+function target(arg: string | undefined, write: (s: string) => void): string | number {
+  if (arg === '--help' || arg === '-h') {
+    write(HELP);
+    return EXIT_OK;
+  }
+  if (arg === '--version' || arg === '-V') {
+    write(`${version()}\n`);
+    return EXIT_OK;
+  }
+  if (arg === undefined || arg.startsWith('-')) {
+    write(arg === undefined ? USAGE : `unknown option ${arg}\n${USAGE}`);
     return EXIT_USAGE;
   }
+  return arg;
+}
+
+async function main(argv: string[], write: (s: string) => void): Promise<number> {
+  const file = target(argv[0], write);
+  if (typeof file === 'number') return file;
   const before = new Set(registered().plugins);
   // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the file to check is the user's own, named on the command line
   const loaded = (await import(pathToFileURL(resolve(file)).href)) as { default?: unknown };
   const plugin = loaded.default ?? loaded;
-  try {
-    register(plugin);
-  } catch (e) {
-    if (!(e instanceof PluginError)) throw e;
-    return refuse(e.code, e.message, e.fix, write);
-  }
+  register(plugin);
   const { name, spinners = {}, components = {} } = plugin as Plugin;
   const { line, total } = census(plugin as Record<string, unknown>);
   write(`${name} — ${line}\n`);
@@ -195,11 +224,20 @@ async function main(argv: string[], write: (s: string) => void): Promise<number>
 
 const [, , command, ...rest] = rt.argv;
 const args = command === 'check' ? rest : [command, ...rest].filter((a): a is string => a !== undefined);
-main(args, (s) => rt.stdout.write(s)).then(
+const out = (s: string): unknown => rt.stdout.write(s);
+// Every refusal comes through here, wherever it was raised (R8): `register()`, a lookup in the
+// spinner loop, or a plugin file that registers itself on import — which throws before `main()`
+// has a line of its own to catch it. One handler, so no path can print a refusal without its
+// code and its fix, which is what the old `try` around `register()` alone let happen.
+main(args, out).then(
   (code) => {
     rt.exitCode = code;
   },
   (e: unknown) => {
+    if (e instanceof PluginError) {
+      rt.exitCode = refuse(e.code, e.message, e.fix, out);
+      return;
+    }
     rt.stderr.write(`${e instanceof Error ? e.message : String(e)}\n`);
     rt.exitCode = EXIT_RUNTIME;
   },

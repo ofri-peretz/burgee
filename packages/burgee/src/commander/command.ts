@@ -22,7 +22,9 @@ import { stripVTControlCharacters } from 'node:util';
 import * as crossSpawn from 'bellpull/cross-spawn';
 
 import { ExitCode } from '../exit-code.js';
+import { handlerFailure } from '../facade-failure.js';
 import { type DeclaredEffects, Manifest, type OptionSpec, type Plugin } from '../manifest.js';
+import { camel } from '../names.js';
 import { host } from '../runtime.js';
 import { machineJson, schemaOf } from '../schema.js';
 import { suggestSimilar } from '../suggest.js';
@@ -79,6 +81,23 @@ export interface OutputContext {
 }
 
 export type HookEvent = 'preSubcommand' | 'preAction' | 'postAction';
+
+/**
+ * commander's option-value types, as `typings/index.d.ts` declares them. `any` is
+ * commander's choice and the point: `program.opts().port` is usable without a cast, and
+ * `opts<T>()` narrows it — a program written against commander's types relies on both;
+ * `unknown` here breaks every `opts().x` such a program reads.
+ */
+export type OptionValues = Record<string, any>;
+/** Where an option's value came from. A string, so an author can define their own; the known ones autocomplete. */
+export type OptionValueSource = 'default' | 'config' | 'env' | 'cli' | 'implied' | (string & Record<never, never>) | undefined;
+/** What `.configureHelp()` takes: any subset of `Help`'s methods and settings. */
+export type HelpConfiguration = Partial<Help>;
+/** `.parseOptions()`'s split of an argv into operands and unknown options. */
+export interface ParseOptionsResult {
+  operands: string[];
+  unknown: string[];
+}
 export type HookListener = (thisCommand: Command, actionCommand: Command) => void | Promise<void>;
 export type AddHelpTextPosition = 'beforeAll' | 'before' | 'after' | 'afterAll';
 export type AddHelpTextContext = { error: boolean; command: Command };
@@ -1091,7 +1110,7 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
    *     sub --unknown uuu op => [sub], [--unknown uuu op]
    *     sub -- --unknown uuu op => [sub --unknown uuu op], []
    */
-  parseOptions(args: string[]): { operands: string[]; unknown: string[] } {
+  parseOptions(args: string[]): ParseOptionsResult {
     const operands: string[] = [];
     const unknown: string[] = [];
     let dest = operands;
@@ -1212,22 +1231,22 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
     return { operands, unknown };
   }
 
-  /** Local option values as key-value pairs. */
-  opts(): Record<string, unknown> {
+  /** Local option values as key-value pairs; `opts<T>()` types them, as commander's own declaration does. */
+  opts<T extends OptionValues = OptionValues>(): T {
     if (this._storeOptionsAsProperties) {
       const result: Record<string, unknown> = {};
       for (const option of this.options) {
         const key = option.attributeName();
         result[key] = key === this._versionOptionName ? this._version : (this as unknown as Record<string, unknown>)[key];
       }
-      return result;
+      return result as T;
     }
-    return this._optionValues;
+    return this._optionValues as T;
   }
 
   /** Merged local and global option values; globals overwrite locals. */
-  optsWithGlobals(): Record<string, unknown> {
-    return this._getCommandAndAncestors().reduce<Record<string, unknown>>((combined, cmd) => Object.assign(combined, cmd.opts()), {});
+  optsWithGlobals<T extends OptionValues = OptionValues>(): T {
+    return this._getCommandAndAncestors().reduce<Record<string, unknown>>((combined, cmd) => Object.assign(combined, cmd.opts()), {}) as T;
   }
 
   /** Display an error message and exit (or call exitOverride). */
@@ -1251,12 +1270,29 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
 
   /** One failure as the envelope (E3, G5); `fix` only when one candidate was named. */
   _reportJson(code: string, message: string): void {
+    const [first = '', ...rest] = message.replace(/^error: /, '').split('\n');
+    const guess = /\(Did you mean (\S+)\?\)/.exec(rest.join(''));
+    this._writeFailure({ code, message: first, ...(guess === null ? {} : { fix: guess[1] }) });
+  }
+
+  /** The failure envelope on stdout, once per run however many paths see the same failure (G5). */
+  _writeFailure(error: Record<string, unknown>): void {
     const burgee = this._root()._burgee;
     if (burgee === undefined || !burgee.json || burgee.reported) return;
     burgee.reported = true;
-    const [first = '', ...rest] = message.replace(/^error: /, '').split('\n');
-    const guess = /\(Did you mean (\S+)\?\)/.exec(rest.join(''));
-    this._outputConfiguration.writeOut(`${JSON.stringify({ ok: false, error: { code, message: first, ...(guess === null ? {} : { fix: guess[1] }) } })}\n`);
+    this._outputConfiguration.writeOut(`${JSON.stringify({ ok: false, error })}\n`);
+  }
+
+  /**
+   * A handler's failure — a throw, a rejection, a thrown non-Error — reported on the surface the
+   * run asked for, with the E1 code its error names: `AuthError` is AUTH, `UsageError` USAGE,
+   * anything else RUNTIME (E6, D-140). Returns that code.
+   */
+  _reportHandlerFailure(err: unknown): ExitCode {
+    const { exit, error } = handlerFailure(err);
+    if (this._burgee?.json === true) this._writeFailure(error);
+    else this._outputConfiguration.writeErr(`error: ${error.message}\n`);
+    return exit;
   }
 
   /** Apply environment variables to options that have no value from the cli or client code. */
@@ -1686,17 +1722,32 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
     visit(this, [rootName]);
   }
 
-  /** Options as the manifest describes them, on a null-prototype record. */
+  /**
+   * Options as the manifest describes them, on a null-prototype record — keyed so that the
+   * spelling every surface derives from a key, `--${kebab(key)}`, is a flag commander accepts.
+   *
+   * Commander negates only what it was told to, where burgee's own parser negates every
+   * boolean. So a boolean is `negatable` here only when the program declared its `--no-` twin,
+   * which folds onto it rather than appearing twice; and a `--no-x` declared alone, which has
+   * no `--x`, is described as the switch it is, under `noX`. Before this, `--no-color` was
+   * published as `color` with `flag: '--color'`: completions offered `--color` and
+   * `--no-skip-blank`, and `--mcp` sent `--color` — each refused by the parser behind them.
+   */
   _optionSpecs(): Record<string, OptionSpec> {
     const specs = Object.create(null) as Record<string, OptionSpec>;
     for (const option of this.options) {
+      const name = option.attributeName();
+      // `--x` with `--no-x`, in either order: the one pair commander negates.
+      const paired = this.options.some((o) => o.negate !== option.negate && o.attributeName() === name);
+      if (option.negate && paired) continue;
       const spec: OptionSpec = { type: option.required || option.optional ? 'string' : 'boolean' };
       if (option.description) spec.description = option.description;
       if (option.mandatory) spec.required = true;
       if (option.short && option.long) spec.short = option.short.slice(1);
       if (typeof option.defaultValue === 'string' || typeof option.defaultValue === 'boolean') spec.default = option.defaultValue;
       if (option.envVar) spec.env = option.envVar;
-      Object.defineProperty(specs, option.attributeName(), { value: spec, enumerable: true, writable: true, configurable: true });
+      if (spec.type === 'boolean') spec.negatable = paired;
+      Object.defineProperty(specs, option.negate ? camel(option.name()) : name, { value: spec, enumerable: true, writable: true, configurable: true });
     }
     return specs;
   }
@@ -1807,7 +1858,7 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
   _runBurgee(run: () => unknown): unknown {
     const root = this._root();
     const burgee = root._burgee;
-    if (burgee === undefined) return run();
+    if (burgee === undefined) return root._runCommanderWay(run);
     const finish = (code: number): void => {
       root._burgee = undefined;
       burgee.exit?.(code);
@@ -1818,15 +1869,45 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
         finish(e1(err));
         return;
       }
-      const message = err instanceof Error ? err.message : String(err);
-      if (burgee.json) root._reportJson('runtime', message);
-      else root._outputConfiguration.writeErr(`error: ${message}\n`);
-      finish(ExitCode.RUNTIME);
+      finish(root._reportHandlerFailure(err));
     };
     try {
       const result = run();
       if (isThenable(result)) return Promise.resolve(result).then(() => finish(ExitCode.OK), fail);
       finish(ExitCode.OK);
+      return undefined;
+    } catch (err) {
+      fail(err);
+      return undefined;
+    }
+  }
+
+  /**
+   * Nothing injected — `program.parseAsync(process.argv)`, the way every commander program is
+   * run. Commander's own contract, with one exception: a handler that fails under `--json`
+   * settles to the envelope on stdout and the E1 code its error names, set as the process's
+   * exit code, instead of escaping `parse`/`parseAsync` for Node to print as a stack (D-140).
+   *
+   * The seam check in `_runBurgee` cannot see this case, and that was the defect: it runs
+   * before argv is parsed, and `--json` is only recognised *during* the parse, so the run was
+   * already committed to "no burgee" when the handler threw. A `CommanderError` is left alone —
+   * `error()` has reported it already, and an `exitOverride` caller is owed the throw — and so
+   * is every failure without `--json`, which is commander's to surface as it always has.
+   */
+  _runCommanderWay(run: () => unknown): unknown {
+    const done = (): void => {
+      this._burgee = undefined;
+    };
+    const fail = (err: unknown): void => {
+      const json = this._burgee?.json === true && !(err instanceof CommanderError);
+      if (json) host.exitCode = this._reportHandlerFailure(err);
+      done();
+      if (!json) throw err;
+    };
+    try {
+      const result = run();
+      if (isThenable(result)) return Promise.resolve(result).then(done, fail);
+      done();
       return undefined;
     } catch (err) {
       fail(err);
@@ -1852,7 +1933,7 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
       return isThenable(result) ? Promise.resolve(result).then(settle) : settle(result);
     }
     const name = this.name();
-    const options = this.opts();
+    const options = this.opts<Record<string, unknown>>();
     // `preRun` opens and **exactly one of `postRun` or `onError` closes**, which is the
     // contract the engine has always held and this chain did not. Without the `catch`, a
     // handler that threw skipped `postRun` and never reached `onError`, so a plugin that

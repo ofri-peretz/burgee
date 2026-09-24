@@ -1,30 +1,17 @@
-import { getPageOrNotFound, source } from '#/lib/source';
-import { getMDXComponents } from '#/mdx-components';
-import { DocsBody, DocsDescription, DocsPage, DocsTitle } from 'fumadocs-ui/layouts/docs/page';
+import { source } from '#/lib/source';
+import { DocsPageView, docsPageMetadata } from 'docs-chassis/docs-page';
+import { type Metadata } from 'next';
 
-async function Page(props: PageProps<'/docs/[[...slug]]'>) {
-  const params = await props.params;
-  const { body: MDX, toc, title, description } = getPageOrNotFound(params.slug).data;
-
-  return (
-    <DocsPage toc={toc}>
-      <DocsTitle>{title}</DocsTitle>
-      <DocsDescription>{description}</DocsDescription>
-      <DocsBody>
-        <MDX components={getMDXComponents()} />
-      </DocsBody>
-    </DocsPage>
-  );
+function Page(props: PageProps<'/docs/[[...slug]]'>) {
+  return <DocsPageView source={source} params={props.params} />;
 }
 
-async function generateStaticParams() {
+function generateStaticParams(): { slug: string[] }[] {
   return source.generateParams();
 }
 
-async function generateMetadata(props: PageProps<'/docs/[[...slug]]'>) {
-  const params = await props.params;
-  const { title, description } = getPageOrNotFound(params.slug).data;
-  return { title, description };
+async function generateMetadata(props: PageProps<'/docs/[[...slug]]'>): Promise<Metadata> {
+  return docsPageMetadata(source, props.params);
 }
 
 export { generateMetadata, generateStaticParams };

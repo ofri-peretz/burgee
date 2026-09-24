@@ -46,7 +46,7 @@ function withPartialRun(): string {
       },
     }),
   );
-  // Newer, local, and complete: it feeds no band (D-110), so it must not answer for one. Named
+  // Newer, local, and complete: it feeds no band (D-142), so it must not answer for one. Named
   // the way observations were before the suffix, so only the document can say it was local.
   writeFileSync(join(dir, '2026-09-22-ccccccc.json'), JSON.stringify({ machine: { ci: false }, bands: { 'core-bundled-bytes': { value: 58027 } } }));
   return root;

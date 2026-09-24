@@ -17,7 +17,7 @@
  *
  * So the filename carries the distinction. `YYYY-MM-DD.json` is the published measurement;
  * `YYYY-MM-DD-<sha>-<ci|local>.json` is an observation from a run at that commit, on a CI
- * runner or not (D-110 — without the suffix two machines' runs of one commit shared a path).
+ * runner or not (D-142 — without the suffix two machines' runs of one commit shared a path).
  * The bands glob the directory and read the CI runs of both shapes. The docs read only the first, and a CI run can no longer
  * change a public number without a person choosing to.
  */

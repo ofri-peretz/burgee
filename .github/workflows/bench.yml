@@ -127,7 +127,7 @@ jobs:
           # `run.ts` now names an incomplete document as an observation itself — this job
           # runs axis subsets, so its files already end in `<sha>-ci`. Renaming one again would
           # give `<date>-<sha>-ci-<sha>-ci.json`, which `published.ts` reads as neither shape.
-          # The `-ci` is D-110: a local run of the same commit is a different observation, and
+          # The `-ci` is D-142: a local run of the same commit is a different observation, and
           # before the suffix it had this file's exact path — #419 was closed for that.
           for f in $(git status --porcelain benchmarks/results/ | awk '{print $NF}'); do
             case "$f" in

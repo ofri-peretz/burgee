@@ -9,7 +9,7 @@
  * This is also the package's first adopter. If `burgee/brand` is awkward to use
  * here, it will be awkward for everyone.
  */
-import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -124,6 +124,7 @@ const MARK_SHARE = {
   seniority: 0.68,
   bellpull: 0.8,
   closeout: 0.9,
+  paratext: 0.95,
 } as const;
 
 /**
@@ -296,79 +297,52 @@ const CLOSEOUT = RULED.at
 /** Above the rule: the total it is drawn under. */
 const TOTAL = { x: 50, y: 38 } as const;
 
-const siblings: ReadonlyArray<{ name: string; tagline: string; brand: BurgeeBrand }> = [
-  {
-    name: 'roundel',
-    tagline: 'The colours a CLI carries.',
-    brand: {
-      ...LIT,
-      name: 'roundel',
-      shape: ROUNDEL,
-      markings: ROUNDEL_RINGS,
-      charge: interlace(MARK_SHARE.roundel),
-    },
-  },
-  {
-    name: 'flagstaff',
-    tagline: 'The staff the flag flies from.',
-    brand: {
-      ...LIT,
-      name: 'flagstaff',
-      shape: STAFF_AND_FLAG,
-      charge: interlace(MARK_SHARE.flagstaff, SIGN_CENTRE),
-    },
-  },
-  {
-    name: 'caique',
-    tagline: 'Prompts that never hang.',
-    brand: {
-      ...LIT,
-      name: 'caique',
-      shape: PARROT,
-      charge: interlace(MARK_SHARE.caique, WING),
-    },
-  },
-  {
-    name: 'linegauge',
-    tagline: "The printer's rule, for text.",
-    brand: {
-      ...LIT,
-      name: 'linegauge',
-      shape: LINEGAUGE,
-      charge: interlace(MARK_SHARE.linegauge, RULE_FACE),
-    },
-  },
-  {
-    name: 'seniority',
-    tagline: 'Which source outranks which.',
-    brand: {
-      ...LIT,
-      name: 'seniority',
-      shape: SENIORITY,
-      charge: interlace(MARK_SHARE.seniority, RANK),
-    },
-  },
-  {
-    name: 'bellpull',
-    tagline: 'Pull here, work happens there.',
-    brand: {
-      ...LIT,
-      name: 'bellpull',
-      shape: BELLPULL,
-      charge: interlace(MARK_SHARE.bellpull, PULL),
-    },
-  },
-  {
-    name: 'closeout',
-    tagline: 'Settle, and finish.',
-    brand: {
-      ...LIT,
-      name: 'closeout',
-      shape: CLOSEOUT,
-      charge: interlace(MARK_SHARE.closeout, TOTAL),
-    },
-  },
+/**
+ * Paratext: everything around a text that is not the text — the title, the margins, the
+ * notes. Drawn as a page with its text block cut away, so the ink is exactly the
+ * paratext: three margins, and a deep head where a page carries its title. The dog-ear
+ * is what makes the rectangle a page rather than a frame.
+ */
+const PAGE = { left: 18, right: 82, top: 4, bottom: 96, ear: 16 } as const;
+const TEXT_BLOCK = { left: 29, right: 71, top: 44, bottom: 85 } as const;
+const PARATEXT =
+  `M${PAGE.left} ${PAGE.top} H${PAGE.right - PAGE.ear} L${PAGE.right} ${PAGE.top + PAGE.ear}` +
+  ` V${PAGE.bottom} H${PAGE.left} Z` +
+  ` M${TEXT_BLOCK.left} ${TEXT_BLOCK.top} H${TEXT_BLOCK.right} V${TEXT_BLOCK.bottom} H${TEXT_BLOCK.left} Z`;
+/** In the head margin, where the title goes. */
+const HEAD = { x: 50, y: 24 } as const;
+
+type Sibling = {
+  name: keyof typeof MARK_SHARE;
+  tagline: string;
+  shape: string;
+  /** Where the Interlace mark rides, in the mark's own 100-unit box. */
+  at: { x: number; y: number };
+  markings?: string;
+};
+
+const SIBLINGS: readonly Sibling[] = [
+  { name: 'roundel', tagline: 'The colours a CLI carries.', shape: ROUNDEL, at: CHARGE, markings: ROUNDEL_RINGS },
+  { name: 'flagstaff', tagline: 'The staff the flag flies from.', shape: STAFF_AND_FLAG, at: SIGN_CENTRE },
+  { name: 'caique', tagline: 'Prompts that never hang.', shape: PARROT, at: WING },
+  { name: 'linegauge', tagline: "The printer's rule, for text.", shape: LINEGAUGE, at: RULE_FACE },
+  { name: 'seniority', tagline: 'Which source outranks which.', shape: SENIORITY, at: RANK },
+  { name: 'bellpull', tagline: 'Pull here, work happens there.', shape: BELLPULL, at: PULL },
+  { name: 'closeout', tagline: 'Settle, and finish.', shape: CLOSEOUT, at: TOTAL },
+  { name: 'paratext', tagline: 'Everything around the output.', shape: PARATEXT, at: HEAD },
 ];
+
+const siblings = SIBLINGS.map(({ name, tagline, shape, at, markings }) => ({
+  name,
+  tagline,
+  brand: {
+    ...LIT,
+    name,
+    shape,
+    ...(markings === undefined ? {} : { markings }),
+    charge: interlace(MARK_SHARE[name], at),
+  } satisfies BurgeeBrand,
+}));
 
 /**
  * The marks again, flat and unlit, for the docs site's 3D stage.
@@ -396,6 +370,20 @@ function unlit(brand: BurgeeBrand, keepMarkings: boolean): string {
 /** Whose markings survive the trip: the ones drawn inside their own outline. */
 const CLIP_FREE: Record<string, boolean> = { roundel: true, flagstaff: true, caique: false };
 
+/**
+ * Where each package's docs app lives, from `.github/vercel-apps.json` — the one place an app
+ * is named. Every app but the front door serves its package's favicon at `/icon.svg`, and uses
+ * the same file as its nav mark and its social card, so this is the only copy of the mark an
+ * app carries — generated, never hand-copied.
+ */
+const APP_DIRS: ReadonlyMap<string, string> = new Map(
+  Object.values(
+    (JSON.parse(readFileSync(join(repo, '.github', 'vercel-apps.json'), 'utf8')) as { apps: Record<string, { package: string; dir: string; familyPages: boolean }> }).apps,
+  )
+    .filter((app) => !app.familyPages)
+    .map((app) => [app.package, app.dir]),
+);
+
 /** Every surface, and the file that consumes it. */
 const surfaces: ReadonlyArray<{ path: string; svg: string }> = [
   { path: 'brand-assets/burgee-flag.svg', svg: burgee.flag(MASTER) },
@@ -416,6 +404,8 @@ const surfaces: ReadonlyArray<{ path: string; svg: string }> = [
       { path: `brand-assets/${name}-flag.svg`, svg: mark.flag(MASTER) },
       { path: `brand-assets/${name}-flag-alive.svg`, svg: mark.alive(MASTER) },
       { path: `apps/docs/public/brand/${name}.svg`, svg: unlit(brand, CLIP_FREE[name] ?? false) },
+      // The package's own docs site: favicon, nav mark and OG card, all from this one file.
+      ...(APP_DIRS.has(name) ? [{ path: `${APP_DIRS.get(name)}/src/app/icon.svg`, svg: mark.favicon() }] : []),
       {
         path: `brand-assets/${name}-lockup.svg`,
         svg: mark.lockup({ theme: 'dark', subtitle: tagline }),
@@ -493,6 +483,105 @@ function componentDrift(): string | null {
   return null;
 }
 
+/**
+ * The quality floor, as numbers. A new package's mark passes or fails here, not in
+ * review: every bound is calibrated on the family as it stands, and
+ * `.sdlc/brand/identity-model.md` ("Adding a package's mark") says why each exists.
+ */
+const FLOOR = {
+  /** WCAG 2.2 non-text contrast, each charge colour on the ink body. */
+  contrast: 3,
+  /** The charge's size against burgee's own. 0.62 is the smallest that passed the 16px review. */
+  share: { min: 0.6, max: 1.2 },
+  /** The charge's centre, kept this far inside the 100-unit box so it is never cropped. */
+  inset: 15,
+  /** The lockup subtitle is one line at the lockup's width. */
+  tagline: 32,
+} as const;
+
+const PALETTE = new Set([INK, ROCK_LIFT, JUNIPER_LIFT, PAPER]);
+
+/** WCAG 2.2's constants, named once: the sRGB linearisation and the channel weights. */
+const WCAG = {
+  knee: 0.039_28,
+  slope: 12.92,
+  offset: 0.055,
+  gamma: 2.4,
+  weights: [0.2126, 0.7152, 0.0722],
+  flare: 0.05,
+} as const;
+const CHANNEL_MAX = 255;
+const HEX_RADIX = 16;
+/** Every mark is drawn in a `0 0 100 100` box. */
+const BOX = 100;
+
+/** WCAG 2.2 relative luminance of a `#rrggbb` colour. */
+function luminance(hex: string): number {
+  return WCAG.weights.reduce((sum, weight, i) => {
+    const from = 1 + i * 2;
+    const c = Number.parseInt(hex.slice(from, from + 2), HEX_RADIX) / CHANNEL_MAX;
+    const linear = c <= WCAG.knee ? c / WCAG.slope : ((c + WCAG.offset) / (1 + WCAG.offset)) ** WCAG.gamma;
+    return sum + weight * linear;
+  }, 0);
+}
+
+const contrast = (a: string, b: string): number => {
+  const [hi = 0, lo = 0] = [luminance(a), luminance(b)].toSorted((x, y) => y - x);
+  return (hi + WCAG.flare) / (lo + WCAG.flare);
+};
+
+/** Every package npm publishes. Each one owes the family a mark. */
+function publicPackages(): string[] {
+  return readdirSync(join(repo, 'packages'), { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+    .map((e) => read(`packages/${e.name}/package.json`))
+    .filter((m): m is string => m !== null)
+    .map((m) => JSON.parse(m) as { name: string; private?: boolean })
+    .filter((m) => m.private !== true)
+    .map((m) => m.name);
+}
+
+/** One mark against the numeric floor. */
+function markProblems({ name, tagline, shape, at, markings }: Sibling): string[] {
+  const out: string[] = [];
+  const share = MARK_SHARE[name];
+  if (share < FLOOR.share.min || share > FLOOR.share.max) {
+    out.push(`${name}: charge share ${share} is outside ${FLOOR.share.min}–${FLOOR.share.max}`);
+  }
+  if ([at.x, at.y].some((v) => v < FLOOR.inset || v > BOX - FLOOR.inset)) {
+    out.push(`${name}: charge at (${at.x}, ${at.y}) is within ${FLOOR.inset} of the box edge`);
+  }
+  if (tagline.length > FLOOR.tagline) out.push(`${name}: tagline is ${tagline.length} chars, over ${FLOOR.tagline}`);
+  // Only burgee flies the swallowtail; a sibling carrying it claims the declaration layer.
+  if (shape.includes(burgeeFlagPath())) out.push(`${name}: flies burgee's swallowtail`);
+  const offPalette = (markings?.match(/#[\da-f]{6}/giu) ?? []).filter((hex) => !PALETTE.has(hex.toLowerCase()));
+  return [...out, ...offPalette.map((hex) => `${name}: ${hex} is not in the palette`)];
+}
+
+/** The hand-kept lists a mark has to reach. Each has been missed before. */
+function reachProblems(name: string): string[] {
+  const own = read(`packages/${name}/README.md`) ?? '';
+  const lockups = [`brand-assets/${name}-lockup.svg`, `brand-assets/${name}-lockup-light.svg`];
+  return [
+    ...lockups.filter((l) => !own.includes(l)).map((l) => `packages/${name}/README.md does not show ${l}`),
+    ...((read('README.md') ?? '').includes(`brand-assets/${name}-flag-alive.svg`) ? [] : [`README.md family row is missing ${name}`]),
+    ...((read('apps/docs/src/components/brand-stage.tsx') ?? '').includes(`'${name}'`) ? [] : [`brand-stage.tsx MARKS is missing ${name}`]),
+  ];
+}
+
+/** Every way a mark can miss the floor, or a package can miss its mark. */
+function qualityProblems(): string[] {
+  const marked = new Set(['burgee', ...SIBLINGS.map((s) => s.name)]);
+  return [
+    ...publicPackages().filter((n) => !marked.has(n)).map((n) => `${n}: published, but has no mark — add it to SIBLINGS`),
+    ...SIBLINGS.flatMap(markProblems),
+    ...[ROCK_LIFT, JUNIPER_LIFT]
+      .filter((color) => contrast(color, INK) < FLOOR.contrast)
+      .map((color) => `charge ${color} on ink is ${contrast(color, INK).toFixed(2)}:1, under ${FLOOR.contrast}:1`),
+    ...[...marked].flatMap(reachProblems),
+  ];
+}
+
 const check = process.argv.includes('--check');
 const drifted: string[] = [];
 
@@ -509,6 +598,14 @@ for (const surface of surfaces) {
 
 const componentProblem = componentDrift();
 if (componentProblem !== null) drifted.push(componentProblem);
+
+// Checked on write too: regenerating cannot lift a mark over its floor.
+const belowFloor = qualityProblems();
+if (belowFloor.length > 0) {
+  console.error('marks below the quality floor (.sdlc/brand/identity-model.md):');
+  for (const p of belowFloor) console.error(`  ${p}`);
+  process.exitCode = 1;
+}
 
 if (check && drifted.length > 0) {
   console.error('brand assets have drifted from the declaration:');

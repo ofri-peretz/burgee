@@ -1,12 +1,12 @@
 {
   "name": "roundel",
-  "version": "0.3.1",
+  "version": "0.5.1",
   "description": "The colours a CLI carries. One output policy, semantic tokens, a theme, and a chalk migration path lighter than chalk. Zero dependencies.",
   "license": "MIT",
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": ["./dist/cli.js"],
   "engines": {
-    "node": ">=24"
+    "node": "^20.19.0 || >=22.13.0"
   },
   "exports": {
     ".": {
@@ -63,7 +63,7 @@
     "url": "git+https://github.com/ofri-peretz/burgee.git",
     "directory": "packages/roundel"
   },
-  "homepage": "https://github.com/ofri-peretz/burgee/tree/main/packages/roundel#readme",
+  "homepage": "https://roundel.interlace.tools",
   "bugs": {
     "url": "https://github.com/ofri-peretz/burgee/issues"
   },
@@ -77,7 +77,13 @@
     "theme",
     "chalk",
     "picocolors",
-    "styleText"
+    "styleText",
+    "plugin",
+    "plugins",
+    "extensible",
+    "non-tty",
+    "json",
+    "zero-dependency"
   ],
   "devDependencies": {
     "vitest": "^5.0.1"

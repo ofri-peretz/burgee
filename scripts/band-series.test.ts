@@ -40,7 +40,7 @@ describe('collectBenchmark', () => {
       put('2026-09-09-5bc506c.json', 1.2);
       put('2026-09-10-abc1234-ci.json', 1.3);
       put('notes.json', 9.9);
-      // D-110: the same commit on a laptop is a different machine, and not this series.
+      // D-142: the same commit on a laptop is a different machine, and not this series.
       put('2026-09-10-abc1234-local.json', 1.7, false);
       put('2026-09-11.json', 1.8, false);
       const cfg = { id: 'r', collector: 'benchmark-json', suite: 'cli-benchmarks', jsonPath: 'bands.r.value', worse: 'higher' } as unknown as BandConfig;

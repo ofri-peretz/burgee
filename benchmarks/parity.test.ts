@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 /**
  * Lock — the capability-parity stack cannot be padded.
  *
@@ -17,8 +19,8 @@
  * — and it refuses, today, every capability we have that no incumbent packages up. Those are
  * listed in `unmatched` and priced at **zero**, which is the honest place to put them.
  */
-import { HOSTS } from 'compat-oracle/hosts';
-import { describe, expect, it } from 'vitest';
+// eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: a bare `compat-oracle/*` resolves from another checkout's dist/ in an uninstalled worktree (compat-oracle R6, scripts/oracle-import-lock.test.ts)
+import { HOSTS } from '../packages/compat-oracle/src/hosts.js';
 
 import { DEFAULT_EXPORT, PAIRS, PARITY } from './fixtures/entry-points.js';
 

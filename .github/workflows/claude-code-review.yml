@@ -13,6 +13,11 @@ on:
   # Required check — see the note in quality.yml. It reports green without reviewing
   # anything here; the reviewing happened on the pull request this entry came from.
   merge_group:
+  # Dispatched on `changeset-release/main` by changesets-pr.yml's GITHUB_TOKEN fallback,
+  # because a PR GITHUB_TOKEN opens raises no `pull_request` run. The Version PR is
+  # changesets' own bookkeeping — version fields and CHANGELOG lines generated from
+  # changesets that were reviewed on their own PRs — so it reports green without a review.
+  workflow_dispatch:
 
 concurrency:
   # `github.event.pull_request.number` is empty on a `merge_group` event, so on its own it
@@ -28,7 +33,7 @@ permissions:
 
 jobs:
   review:
-    if: github.event_name == 'merge_group' || github.event.pull_request.draft == false
+    if: github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -41,6 +46,9 @@ jobs:
           if [ "$EVENT_NAME" = "merge_group" ]; then
             echo "present=false" >> "$GITHUB_OUTPUT"
             echo "::notice title=Claude review skipped::A queue entry is code that was already reviewed on its pull request. The job reports green so the queue can drain."
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Claude review skipped::A dispatched run has no pull request to review — it is the Version PR's GITHUB_TOKEN fallback, whose changesets were reviewed on their own PRs."
           elif [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
             echo "present=true" >> "$GITHUB_OUTPUT"
           else

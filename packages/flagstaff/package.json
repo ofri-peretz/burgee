@@ -1,12 +1,12 @@
 {
   "name": "flagstaff",
-  "version": "0.3.3",
-  "description": "The staff the flag flies from. A terminal frame loop with a static projection for agents and screen readers, and a plugin host for spinners, progress, boxes and tables. Drop-in paths for ora, log-update, boxen and cli-table3. Zero dependencies.",
+  "version": "0.4.1",
+  "description": "The staff the flag flies from. A terminal frame loop with a static projection for agents and screen readers, and a plugin host for spinners, progress, boxes and tables. Drop-in paths for ora, log-update, boxen and cli-table3. No dependency outside the burgee family.",
   "license": "MIT",
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": ["./dist/cli.js"],
   "engines": {
-    "node": ">=24"
+    "node": "^20.19.0 || >=22.13.0"
   },
   "exports": {
     ".": {
@@ -86,7 +86,7 @@
     "THIRD-PARTY.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && node ../../scripts/strip-comments.mjs dist",
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/schema-to-dist.mjs && node ../../scripts/strip-comments.mjs dist",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
     "coverage": "vitest run --coverage.enabled",
@@ -97,7 +97,7 @@
     "url": "git+https://github.com/ofri-peretz/burgee.git",
     "directory": "packages/flagstaff"
   },
-  "homepage": "https://github.com/ofri-peretz/burgee/tree/main/packages/flagstaff#readme",
+  "homepage": "https://flagstaff.interlace.tools",
   "bugs": {
     "url": "https://github.com/ofri-peretz/burgee/issues"
   },
@@ -112,13 +112,19 @@
     "log-update",
     "boxen",
     "cli-table3",
-    "plugins"
+    "plugins",
+    "plugin",
+    "extensible",
+    "agent",
+    "ai-agent",
+    "non-tty",
+    "json"
   ],
   "dependencies": {
-    "closeout": "^0.2.1",
-    "linegauge": "^0.3.1",
-    "paratext": "^0.4.0",
-    "roundel": "^0.3.1"
+    "closeout": "^0.5.1",
+    "linegauge": "^0.5.1",
+    "paratext": "^0.6.1",
+    "roundel": "^0.5.1"
   },
   "devDependencies": {
     "fast-check": "^4.10.1",

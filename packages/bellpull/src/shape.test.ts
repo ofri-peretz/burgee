@@ -49,7 +49,10 @@ beforeAll(() => {
 /** Every assertion spawns; see `roundel/src/shape.test.ts` for why a spawn needs 30 s under turbo. */
 const SPAWN = 30_000;
 
-afterAll(() => rmSync(dir, { recursive: true, force: true }), SPAWN);
+// Teardown gets setup's clock, not a spawn's. It is one `rmSync` of a small install, and under
+// the pre-push battery — every package's suite at once — it still ran past 30 s: vitest
+// reported "Hook timed out in 30000ms", and this was the only hook declaring 30 s.
+afterAll(() => rmSync(dir, { recursive: true, force: true }), 120_000);
 
 describe('Z1 — one file, npm i, no build step', { timeout: SPAWN }, () => {
   it('runs a child found on PATH and reports a non-zero exit as data, not an exception', () => {
@@ -71,7 +74,12 @@ describe('Z1 — one file, npm i, no build step', { timeout: SPAWN }, () => {
         "const { run, format } = require('bellpull');",
         "const { whichSync } = require('bellpull/which');",
         "const crossSpawn = require('bellpull/cross-spawn');",
-        "process.stdout.write([run, format, whichSync, crossSpawn.default, crossSpawn.sync].map((f) => typeof f).join(' '));",
+        // Restated 2026-09-23: this read `crossSpawn.default`, which pinned the namespace a
+        // `require()` of an ES module returns — and that is what broke every
+        // `const spawn = require('cross-spawn'); spawn(...)` caller migrated here. The module
+        // now exports its default as `'module.exports'`, so `require()` hands back the function
+        // itself with `.sync` on it, as cross-spawn does (drop-in-require-shape-lock.test.ts).
+        "process.stdout.write([run, format, whichSync, crossSpawn, crossSpawn.sync].map((f) => typeof f).join(' '));",
       ].join('\n'),
     );
     try {

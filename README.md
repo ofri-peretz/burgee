@@ -18,8 +18,8 @@
   <a href="https://github.com/ofri-peretz/burgee/actions/workflows/codeql.yml"><img src="https://github.com/ofri-peretz/burgee/actions/workflows/codeql.yml/badge.svg?branch=main" alt="CodeQL" /></a>
   <a href="https://app.codecov.io/gh/ofri-peretz/burgee"><img src="https://codecov.io/gh/ofri-peretz/burgee/branch/main/graph/badge.svg" alt="Coverage" /></a>
   <a href="https://scorecard.dev/viewer/?uri=github.com/ofri-peretz/burgee"><img src="https://api.scorecard.dev/projects/github.com/ofri-peretz/burgee/badge" alt="OpenSSF Scorecard" /></a>
-  <a href="./packages/burgee/package.json"><img src="https://img.shields.io/badge/external%20dependencies-0-0a6b47?style=flat-square" alt="Zero external dependencies" /></a>
-  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-24+-green.svg?style=flat-square" alt="Node.js 24+" /></a>
+  <a href="./packages/burgee/package.json"><img src="https://img.shields.io/badge/dependencies-5%20in%20family%2C%200%20outside-0a6b47?style=flat-square" alt="Five dependencies, all in the burgee family: no dependency outside the burgee family" /></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-20.19%2B%20%7C%2022.13%2B-green.svg?style=flat-square" alt="Node.js 20.19+ or 22.13+" /></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.7+-blue.svg?style=flat-square" alt="TypeScript" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT" /></a>
   <a href="https://github.com/ofri-peretz/burgee"><img src="https://img.shields.io/github/stars/ofri-peretz/burgee?style=flat&logo=github&label=Star" alt="GitHub stars" /></a>
@@ -35,14 +35,19 @@
   <strong>Built for the CLIs agents drive.</strong> A command declares itself once and an agent
   can read that declaration directly: a stable envelope, a versioned schema, an MCP server, and
   an exit code that says <em>rewrite the command</em> rather than <em>something went wrong</em>.
-  Nine packages, one repository, one supply chain to audit — and no dependency outside it in
-  any of them. Six take nothing at all; the other three take only each other.
+  Nine packages, one repository, one supply chain to audit — and no dependency outside the burgee
+  family in any of them. Six take nothing at all; the other three take only each other.
 </p>
 
 <p align="center">
   <strong>⭐ <a href="https://github.com/ofri-peretz/burgee">Star the repo</a></strong> &nbsp;·&nbsp;
   <a href="https://github.com/ofri-peretz/burgee/subscription">👀 Watch releases</a> &nbsp;·&nbsp;
   <a href="https://github.com/ofri-peretz/burgee/issues">🐛 Report a bug</a>
+</p>
+
+<p align="center">
+  <strong>📖 Docs: <a href="https://burgee.interlace.tools">burgee.interlace.tools</a></strong>
+  &nbsp;·&nbsp; <a href="https://burgee.interlace.tools/llms.txt">llms.txt</a>
 </p>
 
 <p align="center">
@@ -71,6 +76,7 @@ run(defineCommand({
   name: 'greet',
   description: 'Greet someone by name',
   options: { name: { type: 'string', required: true, description: 'who to greet' } },
+  effects: 'read_only', // what running it does to the world; required, and what --mcp reads
   run: ({ options }) => ({ greeting: `hello, ${options.name}` }),
 }));
 ```
@@ -80,7 +86,7 @@ $ node cli.mjs --name ada
 greeting: hello, ada
 
 $ node cli.mjs --name ada --json
-{"ok":true,"data":{"greeting":"hello, ada"}}
+{"ok":true,"data":{"greeting":"hello, ada"},"meta":{"provenance":{"name":{"source":"flag","location":"--name"}}}}
 
 $ node cli.mjs                                    # exit 2, not 1
 error: missing required option --name
@@ -152,12 +158,53 @@ labelled as such rather than estimated.
 
 ---
 
+## 🔌 Extend every layer
+
+Every package in the family takes plugins, and all nine take them the same way. A plugin is a
+plain object. Each package validates it against **one published schema** — the same
+`schema.json` ships in every package — and each has a `check` command that shows what a plugin
+contributes, or refuses it with a code and the fix, before it ships.
+
+Each package reads its own key and ignores the rest, so **one object can extend every layer at
+once**: brand colours, a spinner, a terminal quirk, a config source, where the company's tools
+live, what to flush on exit, a prompt of its own, and a command every one of its CLIs gets.
+
+<!-- plugins:start -->
+
+| Package | A plugin adds | Check it |
+| :--- | :--- | :--- |
+| [`bellpull`](./packages/bellpull/) | `resolvers` | `npx bellpull check ./plugin.mjs` |
+| [`burgee`](./packages/burgee/) | `commands`, `hooks` | `npx burgee check ./plugin.mjs` |
+| [`caique`](./packages/caique/) | `widgets` | `npx caique check ./plugin.mjs` |
+| [`closeout`](./packages/closeout/) | `handlers` | `npx closeout check ./plugin.mjs` |
+| [`flagstaff`](./packages/flagstaff/) | `tokens`, `glyphs`, `spinners`, `borders`, `components` | `npx flagstaff check ./plugin.mjs` |
+| [`linegauge`](./packages/linegauge/) | `widths` | `npx linegauge check ./plugin.mjs` |
+| [`paratext`](./packages/paratext/) | `capabilities` | `npx paratext check ./plugin.mjs` |
+| [`roundel`](./packages/roundel/) | `tokens` | `npx roundel check ./plugin.mjs` |
+| [`seniority`](./packages/seniority/) | `sources` | `npx seniority check ./plugin.mjs` |
+
+<!-- plugins:end -->
+
+Where an incumbent has an extension point — commander's `.hook()`, yargs middleware,
+cosmiconfig's loaders, inquirer's `createPrompt` — it lives in one program or one call. A
+plugin here is written once and shared: across programs, across layers, and across commander,
+yargs and native syntax alike. The [plugins page](./apps/docs/content/docs/plugins.mdx) has the
+whole nine-layer example, which every package's `check` accepts in CI, each incumbent's own
+extension point beside ours, and what a plugin cannot do yet.
+
+---
+
 ## 🔁 Already on commander? Change one import
 
 ```diff
 - import { Command } from 'commander';
 + import { Command } from 'burgee/commander';
 ```
+
+Or `npx burgee migrate`, which makes that change — and the same one for chalk, ora,
+string-width, cross-spawn, signal-exit and every other incumbent the family replaces at full
+grade — then prints the install command to run next
+([Migrate](./apps/docs/content/docs/migrate.mdx)).
 
 Your code and your tests are unchanged. Compatibility is not asserted here, it is graded —
 each host's own suite, vendored unmodified apart from the import specifier, pointed at
@@ -176,7 +223,8 @@ test instead of its twenty and would flatter a partial implementation.
 
 And you immediately gain something commander cannot sell you at any price: **plugins**. Its
 plugin RFC ([#2505](https://github.com/tj/commander.js/issues/2505)) has been open and
-unanswered for years; yargs has none at all.
+unanswered for years; yargs offers middleware on one program, not a plugin shared across
+programs.
 
 A plugin contributes to the manifest, and the manifest never records which façade filled
 it — so one plugin works on commander syntax, yargs syntax and native alike.
@@ -203,9 +251,9 @@ published figure taken on another machine, not reproduced here.
 
 | | **burgee** | commander | yargs | @oclif/core | cac |
 | :--- | ---: | ---: | ---: | ---: | ---: |
-| Runtime dependencies | **0** | 0 | 6 | **18** | 0 |
+| Runtime dependencies | **5**, none outside the burgee family | 0 | 6 | **18** | 0 |
 | Full CLI run over bare node | **+14.0 ms** | +15.3 ms | +78.5 ms | +131 ms † | +4.0 ms |
-| Installed size | 1098 KB | 203 KB | 515 KB | 912 KB † | 40 KB |
+| Installed size | 1276 KB | 203 KB | 515 KB | 912 KB † | 40 KB |
 
 The speed comes from `node:util.parseArgs` being in the standard library, not from a faster
 language: burgee is TypeScript, like both incumbents.
@@ -274,8 +322,8 @@ The last one has never run. B1 spawns 50 agent runs and refuses to start without
 and nothing in the suite can turn a run that did not happen into a number — `emit.test.ts`
 enforces that. It is [D-103](./.sdlc/DECISIONS.md).
 
-Installed size is our largest number and it is larger than commander's. It buys zero runtime
-dependencies and six drop-in front ends, and it stays on the page either way: *not met* and
+Installed size is our largest number and it is larger than commander's. It buys no dependency
+outside the burgee family and six drop-in front ends, and it stays on the page either way: *not met* and
 *unmeasured* are different outcomes and neither collapses into the other. Every figure here,
 including the ones that go against us, comes from
 [`benchmarks.mdx`](./apps/docs/content/docs/benchmarks.mdx) and
@@ -288,7 +336,7 @@ including the ones that go against us, comes from
 
 | You are… | What burgee gives you |
 | :--- | :--- |
-| **Shipping your first CLI** | One file, zero dependencies, help and `--json` for free |
+| **Shipping your first CLI** | One file, no dependency outside the burgee family, help and `--json` for free |
 | **Maintaining a commander CLI** | A one-line import swap, graded against commander's own suite |
 | **Building for agents** | `--schema`, `--mcp` and a stable envelope, projected — never hand-written |
 | **On a platform team** | Plugins that work across commander, yargs and native syntax alike |
@@ -307,47 +355,53 @@ including the ones that go against us, comes from
   <img src="./brand-assets/seniority-flag-alive.svg" alt="seniority" width="70" />
   <img src="./brand-assets/bellpull-flag-alive.svg" alt="bellpull" width="70" />
   <img src="./brand-assets/closeout-flag-alive.svg" alt="closeout" width="70" />
+  <img src="./brand-assets/paratext-flag-alive.svg" alt="paratext" width="70" />
 </p>
 
 <p align="center">
   <sub>One family, cut from one ink, with the Interlace mark on every one of them and one
-  light crossing all eight. Only burgee flies the swallowtail: a roundel is rings, a
+  light crossing all nine. Only burgee flies the swallowtail: a roundel is rings, a
   flagstaff is a flag hoisted on a pole, a caique is a parrot, a line gauge is the printer's
   rule with its ticks cut through it, seniority is rank chevrons, a bellpull is the cord and
-  its pull, and a closeout is the double rule an accountant draws under a settled total. The
+  its pull, a closeout is the double rule an accountant draws under a settled total, and a
+  paratext is a page with its text cut away — only the margins are left. The
   light sweeps where a page can afford motion and parks itself under prefers-reduced-motion;
   the favicon and the npm READMEs take the still one. Every mark is burgee/brand output —
-  eight shapes, one declaration — regenerated by npm run brand and drift-checked in CI.</sub>
+  nine shapes, one declaration — regenerated by npm run brand and drift-checked in CI.</sub>
 </p>
 
 **burgee** declares; the **output stack** is what a CLI shows; the **foundation** is what it
 stands on. Every one is an independent product with its own README and its own incumbents, and
-every one is zero-dependency.
+none has a dependency outside the burgee family.
 
 A complete CLI on the incumbents is a dozen packages under a handful of accounts. This is
-eight packages, one repository, one release pipeline and one supply chain to audit, with a
+nine packages, one repository, one release pipeline and one supply chain to audit, with a
 single schema byte-identical in every tarball. That is the argument for one codebase here:
 not convenience, but the number of things a user has to trust — and the dependency bill is
 the number, 0 against the dozen.
 
 | | Layer | Package | What the layer owns | Replaces | Status |
 | :-- | :-- | :-- | :-- | :-- | :-- |
-| **Engine** | argv, dispatch, manifest | [`burgee`](./packages/burgee/) | one declaration projected to help, `--json`, `--schema`, MCP, completions, types | commander · yargs | released — `burgee@0.8.0` |
-| **Output stack** | colour | [`roundel`](./packages/roundel/) | one output policy, nine semantic tokens, a contrast-checked theme, and chalk's API over them | chalk · picocolors | released — `roundel@0.3.1` |
-| | render | [`flagstaff`](./packages/flagstaff/) | frame loop with a static projection; plugin host for spinners, progress, boxes, tables | ora · log-update · boxen · cli-table3 | released — `flagstaff@0.3.3` |
-| | prompt | [`caique`](./packages/caique/) | prompts that are flags first, and never hang | inquirer · clack · prompts | pre-release — `caique@0.3.1` |
-| **Foundation** | text | [`linegauge`](./packages/linegauge/) | measure, wrap, truncate and slice styled text without the edge fraying | string-width · wrap-ansi · strip-ansi · slice-ansi | planned · F1 |
-| | config | [`seniority`](./packages/seniority/) | precedence across flag, env, project file, home file and default — with provenance | cosmiconfig · dotenv · rc | planned · F3 |
-| | process | [`bellpull`](./packages/bellpull/) | run a subprocess; resolve the executable; return a result every caller can read | execa · cross-spawn · which | planned · F4 |
-| | lifecycle | [`closeout`](./packages/closeout/) | exit handlers that run once on every path, terminal restore, bounded deadline | signal-exit · exit-hook · restore-cursor | planned · F2 |
+| **Engine** | argv, dispatch, manifest | [`burgee`](./packages/burgee/) | one declaration projected to help, `--json`, `--schema`, MCP, completions, types | commander · yargs | released — `burgee@0.11.1` |
+| **Output stack** | colour | [`roundel`](./packages/roundel/) | one output policy, nine semantic tokens, a contrast-checked theme, and chalk's API over them | chalk · picocolors | released — `roundel@0.5.1` |
+| | render | [`flagstaff`](./packages/flagstaff/) | frame loop with a static projection; plugin host for spinners, progress, boxes, tables | ora · log-update · boxen · cli-table3 | released — `flagstaff@0.4.1` |
+| | prompt | [`caique`](./packages/caique/) | prompts that are flags first, and never hang | inquirer · clack · prompts | released — `caique@0.5.1` |
+| **Foundation** | text | [`linegauge`](./packages/linegauge/) | measure, wrap, truncate and slice styled text without the edge fraying | string-width · wrap-ansi · strip-ansi · slice-ansi | released — `linegauge@0.5.1` |
+| | config | [`seniority`](./packages/seniority/) | precedence across flag, env, project file, home file and default — with provenance | cosmiconfig · dotenv · rc | released — `seniority@0.5.1` |
+| | process | [`bellpull`](./packages/bellpull/) | run a subprocess; resolve the executable; return a result every caller can read | execa · cross-spawn · which | released — `bellpull@0.3.1` |
+| | lifecycle | [`closeout`](./packages/closeout/) | exit handlers that run once on every path, terminal restore, bounded deadline | signal-exit · exit-hook · restore-cursor | released — `closeout@0.5.1` |
+| | terminal | [`paratext`](./packages/paratext/) | hyperlinks, images, window title, clipboard, notifications, bell — each with a static fallback | ansi-escapes (OSC half) · terminal-link · term-img | released — `paratext@0.6.1` |
 
-The four foundation packages are published as `0.0.1` reservation stubs and are **planned, not
-released**: each has an intent and a design under
-[`.sdlc/intents/cli-foundation-stack/`](./.sdlc/intents/cli-foundation-stack/), all at `draft` —
-the human gate has not run — and none ships a working release before the commander scoreboard is
-public. Waves F1–F4 are ordered by what unblocks work already scheduled, not by layer size; the
-`bellpull` intent carries a kill gate, because a zero-dependency rival already holds the weight
-pitch in that layer. The measurements are in
+All nine are released on npm. Where an incumbent's own test suite has been vendored, the
+compat oracle grades the drop-in path against it and publishes the rate — including the ones
+not yet at 100% — on the [compatibility page](https://burgee.interlace.tools/docs/compatibility).
+Released is not the same as accepted: the four
+foundation packages began as `0.0.1` name reservations, were built out in waves F1–F4, and
+their intents under [`.sdlc/intents/cli-foundation-stack/`](./.sdlc/intents/cli-foundation-stack/)
+are still at `draft` — the human gate on the design has not run, and all nine are pre-1.0, so
+an API can still move. The `bellpull` intent carries a kill gate, because a zero-dependency
+rival already holds the weight pitch in that layer, and its spec says plainly that the package
+was built before that gate was evaluated. The measurements behind the layers are in
 [`candidate-layers.md`](./.sdlc/research/candidate-layers.md) and
 [`replacement-map.md`](./.sdlc/research/replacement-map.md).
 
@@ -359,15 +413,16 @@ pitch in that layer. The measurements are in
 | :-- | :-- |
 | [`packages/burgee/`](./packages/burgee/) | The framework. `burgee` is the engine, `burgee/commander` the compat façade, `burgee/testing` the in-process harness (T1). |
 | [`packages/roundel/`](./packages/roundel/) | **roundel** — the colours a CLI carries: `roundel/policy` (`outputMode`, `colorLevel`), `roundel/tokens` (nine semantic tokens), `roundel/theme` (`fly()`, contrast-checked), `roundel/contrast`, and `roundel/chalk` — chalk 6's API over the tokens, graded by chalk's own suite (58 / 58, against a 58 / 58 control). Intent in [`.sdlc/intents/roundel/`](./.sdlc/intents/roundel/). |
-| [`packages/flagstaff/`](./packages/flagstaff/) | **flagstaff** — the staff the flag flies from: a frame loop with a static projection for agents, and the plugin host for spinners, progress, boxes and tables. Released `0.1.0`; its one dependency is roundel. Intent in [`.sdlc/intents/flagstaff/`](./.sdlc/intents/flagstaff/). |
-| [`packages/caique/`](./packages/caique/) | **caique** — the parrot that always answers back: prompts that are flags first and never hang. Pre-release `0.1.0`: `decide()` is in, the rest follows [`.sdlc/intents/caique/`](./.sdlc/intents/caique/). |
-| [`packages/linegauge/`](./packages/linegauge/) | **linegauge** — a printer's rule for text: width, wrap, truncate and slice, grapheme-correct over `Intl.Segmenter`. Planned, not released; intent in [`.sdlc/intents/linegauge/`](./.sdlc/intents/linegauge/). |
-| [`packages/seniority/`](./packages/seniority/) | **seniority** — which source outranks which, with provenance for every resolved value. Planned, not released; intent in [`.sdlc/intents/seniority/`](./.sdlc/intents/seniority/). |
-| [`packages/bellpull/`](./packages/bellpull/) | **bellpull** — pull here, work happens there: subprocesses with a structured result and a static projection. Planned, not released; intent in [`.sdlc/intents/bellpull/`](./.sdlc/intents/bellpull/). |
-| [`packages/closeout/`](./packages/closeout/) | **closeout** — settle and finish: exit handlers that run once, terminal restore, and a deadline so shutdown cannot hang. Planned, not released; intent in [`.sdlc/intents/closeout/`](./.sdlc/intents/closeout/). |
+| [`packages/flagstaff/`](./packages/flagstaff/) | **flagstaff** — the staff the flag flies from: a frame loop with a static projection for agents, and the plugin host for spinners, progress, boxes and tables. Released; its one dependency is roundel. Intent in [`.sdlc/intents/flagstaff/`](./.sdlc/intents/flagstaff/). |
+| [`packages/caique/`](./packages/caique/) | **caique** — the parrot that always answers back: prompts that are flags first and never hang. Released, with graded `caique/inquirer` and `caique/clack` paths; intent in [`.sdlc/intents/caique/`](./.sdlc/intents/caique/). |
+| [`packages/linegauge/`](./packages/linegauge/) | **linegauge** — a printer's rule for text: width, wrap, truncate and slice, grapheme-correct over `Intl.Segmenter`. Released; intent in [`.sdlc/intents/linegauge/`](./.sdlc/intents/linegauge/). |
+| [`packages/seniority/`](./packages/seniority/) | **seniority** — which source outranks which, with provenance for every resolved value. Released; intent in [`.sdlc/intents/seniority/`](./.sdlc/intents/seniority/). |
+| [`packages/bellpull/`](./packages/bellpull/) | **bellpull** — pull here, work happens there: subprocesses with a structured result and a static projection. Released; intent in [`.sdlc/intents/bellpull/`](./.sdlc/intents/bellpull/). |
+| [`packages/closeout/`](./packages/closeout/) | **closeout** — settle and finish: exit handlers that run once, terminal restore, and a deadline so shutdown cannot hang. Released; intent in [`.sdlc/intents/closeout/`](./.sdlc/intents/closeout/). |
+| [`packages/paratext/`](./packages/paratext/) | **paratext** — everything around the output that is not the output: hyperlinks, images, window title, clipboard, notifications and the bell, each with a static fallback. Released; intent in [`.sdlc/intents/paratext/`](./.sdlc/intents/paratext/). |
 | [`packages/compat-oracle/`](./packages/compat-oracle/) | Internal, never published. Grades compatibility using the hosts' own suites, plus reference drivers that run the real incumbents for byte-for-byte comparison. |
 | [`examples/`](./examples/) | Demo CLIs and the conformance suite that runs every floor case on every host. |
-| [`apps/docs/`](./apps/docs/) | Documentation site (Next.js + fumadocs). |
+| [`apps/docs/`](./apps/docs/) | The front-door documentation site (Next.js + fumadocs), deployed at [burgee.interlace.tools](https://burgee.interlace.tools) with [`llms.txt`](https://burgee.interlace.tools/llms.txt) and a Markdown twin of every page. Every other package has its own site at `https://<package>.interlace.tools` — `apps/docs-<package>/`, on the shared chassis `apps/docs-chassis/` — named once in [`.github/vercel-apps.json`](./.github/vercel-apps.json). |
 | [`.sdlc/intents/`](./.sdlc/intents/) | Stage 1 + 2 artifacts of the AI-native SDLC: `intent.md` + `spec.md` per change, and the wave plan. |
 | [`.sdlc/research/`](./.sdlc/research/) | The evidence everything above rests on. |
 | [`.sdlc/brand/`](./.sdlc/brand/) | What each package is and what its mark has to say ([identity model](./.sdlc/brand/identity-model.md)), and the [brief](./.sdlc/brand/commission.md) a designer would work from. |
@@ -405,7 +460,7 @@ determine as well as what it found.
 Four locks — shape, process-reference, weight per entry point, and the adoption ladder — are
 each proven to fail before they passed. A compat façade does not reach 1.0 until its host's
 own suite passes **100%** (`C7`): both do today, which clears that gate and not the rest —
-1.0 waits on the [floor](./apps/docs/content/docs/the-floor.mdx), 101 requirements of which
+1.0 waits on the [floor](./apps/docs/content/docs/the-floor.mdx), 114 requirements of which
 the surfaces, the env/config/schema families and both façades are built. Until then the rate
 is published rather than the word "compatible" claimed.
 

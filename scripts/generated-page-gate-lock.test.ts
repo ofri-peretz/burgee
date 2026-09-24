@@ -93,7 +93,11 @@ function contextOf(job: Job, key: string): string {
 /** Every job reachable from `from` through `needs`, transitively. */
 function needsClosure(from: Job, jobs: Record<string, Job>): Set<string> {
   const seen = new Set<string>();
-  const queue = needsOf(from);
+  // A copy. `needsOf` hands back the job's own array, and popping it emptied the aggregate's
+  // `needs` in place — so the first page gate in a job consumed the list and every later gate
+  // in the same job read as not blocking. Invisible while each job carried one page gate;
+  // found on 2026-09-23 when `plugins:page` joined `bench:page` in `generated-pages`.
+  const queue = [...needsOf(from)];
   while (queue.length > 0) {
     const n = queue.pop()!;
     if (seen.has(n)) continue;
@@ -188,18 +192,18 @@ describe('a generated page is gated by a check that can block a merge', () => {
 
   it('finds the page gates at all', () => {
     // A regex that matches nothing passes the assertion below vacuously, and this repo
-    // has two pages. If a rename drops the `*:page --check` convention, fail HERE — with
+    // has three pages. If a rename drops the `*:page --check` convention, fail HERE — with
     // the reason — rather than reporting full coverage of an empty set.
-    // Named, not counted: this repo has exactly two generated pages, and a lock that
+    // Named, not counted: this repo has exactly three generated pages, and a lock that
     // only counted would keep passing if one gate were deleted and another added.
     const scripts = gates.map((g) => g.script);
     const raw = gates.map((g) => `${g.file}:${g.job}`);
     expect(
       [...new Set(scripts)].sort(),
-      `no \`*:page ... --check\` step found for both pages (saw ${raw.join(', ') || 'nothing'}). ` +
+      `no \`*:page ... --check\` step found for every page (saw ${raw.join(', ') || 'nothing'}). ` +
         'Either a page gate is gone or it no longer follows the naming this lock matches ' +
         'on — in which case this file reports coverage of an empty set.',
-    ).toEqual(['bench:page', 'compat:page']);
+    ).toEqual(['bench:page', 'compat:page', 'plugins:page']);
   });
 
   it.each(gates.map((g) => [`${g.file} › ${g.job}`, g] as const))(

@@ -98,6 +98,10 @@ export const host = {
   get exitCode(): number | string | null | undefined {
     return process.exitCode;
   },
+  /** The code the process leaves with once its work is done — set, never `exit()`, so stdout drains first. */
+  set exitCode(code: ExitCode) {
+    process.exitCode = code;
+  },
   get platform(): string {
     return process.platform;
   },

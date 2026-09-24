@@ -43,7 +43,7 @@ const deploy = defineCommand({
 const program = defineProgram({ name: 'app', envPrefix: 'APP', commands: [deploy] });
 const run = (argv: string[], env: Record<string, string> = {}) => runBurgee(program, { argv: ['deploy', '--json', ...argv], env });
 const data = async (argv: string[], env?: Record<string, string>): Promise<Record<string, unknown>> => ((await run(argv, env)).json as { data: Record<string, unknown> }).data;
-/** The E3 envelope's message, which under --json is on stderr. */
+/** The E3 envelope's message, which under --json is on stdout (D-140). */
 async function failure(argv: string[], env?: Record<string, string>): Promise<{ code: number; message: string; hint?: string }> {
   const r = await run(argv, env);
   const { error } = r.json as { error: { message: string; hint?: string } };

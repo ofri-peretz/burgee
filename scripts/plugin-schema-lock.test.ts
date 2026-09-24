@@ -96,31 +96,16 @@ describe('the plugin schema', () => {
    * half that makes the shared file worth sharing.
    */
   /**
-   * Keys a host validates that the shared schema does not describe — and why the obvious fix
-   * is not one.
+   * There was an allow-list here until 2026-09-23 — seven keys the schema did not describe, with
+   * the measurement that kept them out: describing `widgets` in a byte-identical file made
+   * *flagstaff* validate `widgets` too, and flagstaff's own suite, which proves a host ignores
+   * keys it does not own, went red. The prerequisite it recorded was per-host validation scoping.
    *
-   * Adding them is a two-line edit, and it **breaks the family**: the schema is byte-identical
-   * across all seven hosts by design, so the moment it describes `widgets`, *flagstaff* starts
-   * validating `widgets` too. Measured — flagstaff's own suite caught it immediately:
-   *
-   *     PluginError: plugin.widgets.later: expected object, got boolean
-   *
-   * That case exists to prove a host **ignores** keys it does not own, which is what lets one
-   * plugin object contribute to several hosts at once. So describing every key requires each
-   * host to validate only its own first — a change across seven packages and the plugin
-   * contract's semantics, not a schema edit. Recorded here so the next attempt starts from the
-   * measurement rather than repeating it.
+   * That is what the fragments below are. flagstaff was the one host validating a plugin against
+   * the whole file; it now validates against its own slice (`plugin.schema.json`), so the shared
+   * schema can describe every host's keys without any host enforcing another's. The list emptied,
+   * and a list that can only be empty is deleted rather than kept.
    */
-  const UNDESCRIBED: Record<string, string> = {
-    widgets: "caique's; needs per-host validation scoping before the shared schema can name it",
-    handlers: "closeout's; same",
-    sources: "seniority's; same",
-    resolvers: "bellpull's; same",
-    commands: "burgee's; same — and burgee is the framework the shared shape is declared *by*, which makes it the oddest of the five to leave undescribed",
-    hooks: "burgee's; same",
-    enforce: "burgee's, and not a contribution key at all — it orders hooks, so describing it would need the schema to say that",
-  };
-
   it.each(found.map((h) => h.name))('%s: the schema describes the key that package hosts', (name) => {
     const host = found.find((h) => h.name === name) as Host;
     const declared = [...(/^export interface Plugin \{$([\s\S]*?)^\}$/m.exec(readFileSync(join(host.dir, 'src/plugin.ts'), 'utf8'))?.[1] ?? '').matchAll(/^ {2}([a-zA-Z]+)\??:/gm)]
@@ -128,12 +113,7 @@ describe('the plugin schema', () => {
       .filter((k) => k !== 'name' && k !== 'contract');
     const described = Object.keys((JSON.parse(readFileSync(host.schema, 'utf8')) as { properties: Record<string, unknown> }).properties);
     const missing = declared.filter((k) => !described.includes(k));
-    expect(missing.filter((k) => UNDESCRIBED[k] === undefined), `${name} validates these keys and its schema does not mention them`).toEqual([]);
-  });
-
-  it('keeps that list honest — a key the schema now describes must leave it', () => {
-    const described = new Set(Object.keys((JSON.parse(readFileSync(found[0]?.schema ?? '', 'utf8')) as { properties: Record<string, unknown> }).properties));
-    expect(Object.keys(UNDESCRIBED).filter((k) => described.has(k)), 'these are described now — delete them from UNDESCRIBED').toEqual([]);
+    expect(missing, `${name} validates these keys and its schema does not mention them — describe them in packages/flagstaff/src/schema.json and run \`node scripts/schema-sync.mjs\``).toEqual([]);
   });
 
   it('is byte-identical everywhere it is hosted', () => {
@@ -173,20 +153,38 @@ function firstDifference(a: string, b: string): number {
  * identical, so there is one place a definition changes.
  */
 describe('schema fragments', () => {
-  const FRAGMENTS = [{ at: 'paratext/src/capability.schema.json', def: 'capability' }];
-  const source = JSON.parse(readFileSync(join(resolve(fileURLToPath(new URL('..', import.meta.url))), 'packages/flagstaff/src/schema.json'), 'utf8')) as {
+  const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
+  const source = JSON.parse(readFileSync(join(root, 'packages/flagstaff/src/schema.json'), 'utf8')) as {
+    type: unknown;
+    required: unknown;
+    additionalProperties: unknown;
+    properties: Record<string, unknown>;
     $defs: Record<string, unknown>;
   };
+  /** Each fragment, the module that imports it, and what it must equal in the source. */
+  const FRAGMENTS = [
+    { at: 'paratext/src/capability.schema.json', importer: 'paratext/src/capability.ts', want: source.$defs['capability'] },
+    {
+      at: 'flagstaff/src/plugin.schema.json',
+      importer: 'flagstaff/src/plugin.ts',
+      want: {
+        type: source.type,
+        required: source.required,
+        additionalProperties: source.additionalProperties,
+        properties: Object.fromEntries(['name', 'contract', 'tokens', 'glyphs', 'spinners', 'borders', 'components'].map((k) => [k, source.properties[k]])),
+        $defs: Object.fromEntries(['spinner', 'component', 'border'].map((d) => [d, source.$defs[d]])),
+      },
+    },
+  ];
 
-  it.each(FRAGMENTS)('$at is exactly $def from the family schema', ({ at, def }) => {
-    const path = join(resolve(fileURLToPath(new URL('..', import.meta.url))), 'packages', at);
+  it.each(FRAGMENTS)('$at is exactly its slice of the family schema', ({ at, want }) => {
+    const path = join(root, 'packages', at);
     expect(existsSync(path), `${at} is missing — run \`node scripts/schema-sync.mjs\``).toBe(true);
-    expect(JSON.parse(readFileSync(path, 'utf8')), `${at} drifted from $defs.${def} — run \`node scripts/schema-sync.mjs\``).toEqual(source.$defs[def]);
+    expect(JSON.parse(readFileSync(path, 'utf8')), `${at} drifted from the family schema — run \`node scripts/schema-sync.mjs\``).toEqual(want);
   });
 
-  it.each(FRAGMENTS)('$at is imported instead of the whole schema', ({ at }) => {
-    const [pkg] = at.split('/');
-    const host = readFileSync(join(resolve(fileURLToPath(new URL('..', import.meta.url))), 'packages', pkg ?? '', 'src/capability.ts'), 'utf8');
-    expect(host, `${pkg} still imports the whole family schema, so its users pay for every host's definitions`).not.toMatch(/from '\.\/schema\.json'/);
+  it.each(FRAGMENTS)('$importer imports $at instead of the whole schema', ({ importer }) => {
+    const host = readFileSync(join(root, 'packages', importer), 'utf8');
+    expect(host, `${importer} still imports the whole family schema, so its users pay for every host's definitions`).not.toMatch(/from '\.\/schema\.json'/);
   });
 });

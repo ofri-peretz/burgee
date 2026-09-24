@@ -34,10 +34,13 @@ function strip(at) {
       jsonFiles += 1;
       continue;
     }
-    if (!entry.name.endsWith('.js')) continue;
+    // `.cjs` too: closeout's `signal-exit` façade is CommonJS on purpose, and skipping it
+    // shipped the façade with every doc comment in it.
+    const cjs = entry.name.endsWith('.cjs');
+    if (!cjs && !entry.name.endsWith('.js')) continue;
     const { outputText } = ts.transpileModule(readFileSync(full, 'utf8'), {
       fileName: full,
-      compilerOptions: { removeComments: true, target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext },
+      compilerOptions: { removeComments: true, target: ts.ScriptTarget.ESNext, module: cjs ? ts.ModuleKind.CommonJS : ts.ModuleKind.ESNext },
     });
     writeFileSync(full, outputText);
     files += 1;

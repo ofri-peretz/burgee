@@ -211,7 +211,7 @@ is also the point of them, and `perf.ts` says so in its own method line.
 
 **The filename carries the distinction.** `YYYY-MM-DD.json` is a published measurement,
 committed by a person. `YYYY-MM-DD-<sha>-<ci|local>.json` is an observation from a run at
-that commit (the suffix since 2026-09-22, D-110). The bands read both, CI runs only; `bench-page.ts` and `docs.test.ts` go
+that commit (the suffix since 2026-09-22, D-142). The bands read both, CI runs only; `bench-page.ts` and `docs.test.ts` go
 through `publishedResults()` and read only the first. The recorder `mv`s its output aside
 and restores the published file, so a CI run cannot change a public number without somebody
 choosing to.
