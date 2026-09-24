@@ -274,7 +274,8 @@ const RULES: Record<string, EntryRule> = {
     // 42,777 on 2026-09-24 for U5: the failure path (`describeFailure`, the classification table and the envelope) moved to `failure.js`, imported only from the `catch`. Measured 42,697.
     // 40,848 on 2026-09-24 for U5: relation checking moved to `relations.js`, imported only for a command that declares a relation. Measured 40,768.
     // 36,392 on 2026-09-24 for U5: every surface the engine answers without running a command — help, `--version`, `help [command…]`, `completion`, `__complete`, `config explain`, `--schema`, `--mcp` — routed from `surfaces.js`, imported only when argv could ask for one. Measured 36,312.
-    budget: 36_392,
+    // 35,561 on 2026-09-24 for U5: the config and package.json layers moved to `config-layers.js`, imported only for a program that opted into config discovery (V6). Measured 35,481.
+    budget: 35_561,
     // 45,400 with D-140 and #521 on top of S4. Measured 45,361.
     // 45,250 with D-140 (the `--json` failure classification) on top of D-122 and #521. Measured 45,227.
     // 43,500 on 2026-09-23 for P2/P3: a thrown refusal names its exit code by string (`USAGE`, `CANCELLED`, …), which is how caique's prompt verdicts reach an exit status with no dependency edge — the four-row table and its lookup sit in `describeFailure`, where every failure is read. Measured 43,450.
@@ -366,7 +367,8 @@ const RULES: Record<string, EntryRule> = {
   // 46,296 on 2026-09-24 for U5 — the same failure path as `.`. Measured 46,216.
   // 44,367 on 2026-09-24 for U5 — the same relation checking as `.`. Measured 44,287.
   // 39,911 on 2026-09-24 for U5 — the same surfaces as `.`. Measured 39,831.
-  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 39_911, denied: ["dev.js", "migrate.js"] },
+  // 39,080 on 2026-09-24 for U5 — the same config layers as `.`. Measured 39,000.
+  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 39_080, denied: ["dev.js", "migrate.js"] },
   // 48,900 with D-140 and #521 on top of S4 — the same engine bytes as `.`. Measured 48,880.
   // 48,750 with D-140 on top of D-122 and #521 — the same engine bytes as `.`. Measured 48,746.
   // 48,200 on 2026-09-23 for P2/P3 — the same engine bytes as `.`. Measured 48,161.
