@@ -402,7 +402,11 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // (`scripts/schema-sync.mjs`, locked by `plugin-schema-lock.test.ts`) and ships the full
   // contract as data it does not import. **6,736 measured** — below the 11,122 it read before
   // tonight, not just below the regression. D-108.
-  paratext: 6_800,
+  //
+  // 8,450 on 2026-09-23 for **1,630 bytes**, D-138: paratext took `ansi-escapes`' CSI half, so
+  // the entry now carries what the incumbent carries. The ceiling below it was set against an
+  // entry with none of it. Measured 8,430.
+  paratext: 8_450,
 };
 
 /**
@@ -524,7 +528,11 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // ratchet exists so the bundled half cannot grow while it is being dealt with.
   // 1.55 from 2.56 — see the byte ceiling above for why this is the largest single fall a
   // foundation row has had.
-  paratext: 1.55,
+  // 1.94 on 2026-09-23, D-138: until today this ratio set paratext *without* CSI against
+  // `ansi-escapes` *with* it. Both sides now carry the same thirty-one members, so 1.937 is the
+  // first like-for-like figure — what is left over is the capability registry that makes the
+  // OSC half degrade on a pipe. Measured 1.937.
+  paratext: 1.94,
 };
 
 /**
