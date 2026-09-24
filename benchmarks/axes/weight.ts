@@ -334,11 +334,16 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // `parse-hooks.js`, imported only when a plugin declares one) and the shutdown registration
   // behind `declares('shutdown')`. Measured 29,116.
   //
+  // 29,250 on 2026-09-23 for **93 bytes**, D-113 (S4): `-` on a `type: 'file'` positional is
+  // stdin. The check itself is `stdin-dash.js`, imported only when a positional is `-`; what
+  // stays on the startup path is that test and the spread into the handler's context.
+  // Measured 29,209.
   // 29,450 on 2026-09-23 for **303 bytes**, D-117 (V8): `config explain`. The command is
   // `config-explain.js`, imported only on that path; what stays on the startup path is the
   // test that recognises it and the `resolution` step a run and the command share.
   // Measured 29,419.
-  burgee: 29_450,
+  // 29,550 with V8 on top of S4, after merging main. Measured 29,512.
+  burgee: 29_550,
   // 59,250 on 2026-09-22 for **61 bytes**: the `.catch` that fires `onError`. A plugin's
   // lifecycle closes on every front end now — `preRun` opens and exactly one of `postRun` or
   // `onError` closes — where before a handler that threw left a plugin with no closing hook.

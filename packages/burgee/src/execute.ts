@@ -774,7 +774,9 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   await manifest.fire('preRun', name, values);
   const detection = detectAgent(io.env, io.tty);
   const onExit = (handler: () => void | Promise<void>, label?: string): (() => void) => io.teardown.add(handler, label);
-  const data = await node.run({ options: values, positionals, passthrough, env: io.env, exit: ctxExit, onExit, actionRequired, ...detection });
+  // S4's check is imported only when a `-` was typed (M2).
+  const stdin = positionals.includes('-') ? (await import('./stdin-dash.js')).stdinFor(node, positionals, io.stdin) : {};
+  const data = await node.run({ options: values, positionals, passthrough, ...stdin, env: io.env, exit: ctxExit, onExit, actionRequired, ...detection });
   await manifest.fire('postRun', name, values);
   const changed = changedOf(node, data);
   const selected = fields === undefined || select === undefined ? data : select.selectFields(data, fields);
