@@ -25,6 +25,14 @@ export interface Runtime {
    * reference in the package and break R5.
    */
   cwd?: string;
+  /**
+   * The command line and the OS, for `paratext/terminal-link` alone: `supports-hyperlinks`
+   * reads `--no-hyperlink` / `--color` flags and refuses win32 outside Windows Terminal, and
+   * a drop-in that ignored them would link where the incumbent did not. Optional for the
+   * reason `cwd` is.
+   */
+  argv?: readonly string[];
+  platform?: string;
 }
 
 /** What a real process looks like. Callers that have not got one pass their own. */
@@ -33,3 +41,6 @@ export const processRuntime = (): Runtime => ({
   isTTY: { stdout: process.stdout.isTTY === true, stderr: process.stderr.isTTY === true },
   cwd: process.cwd(),
 });
+
+/** Plus `argv` and `platform`, for `./terminal-link` alone — apart, so the root never pays. */
+export const commandLineRuntime = (): Runtime => ({ ...processRuntime(), argv: process.argv, platform: process.platform });

@@ -912,6 +912,8 @@ yargsParser.camelCase = camelCase;
 yargsParser.decamelize = decamelize;
 yargsParser.looksLikeNumber = looksLikeNumber;
 
-export { yargsParser as Parser };
+// yargs-parser's CommonJS build is `module.exports = yargsParser`, so `const parse = require('yargs-parser')`
+// gets the function; `'module.exports'` is what Node hands the same `require()` of this module (A29).
+export { yargsParser as 'module.exports', yargsParser as Parser };
 /** `burgee/yargs/parser`: what `import parser from 'yargs-parser'` gives, the same object the front-end parses with. */
 export default yargsParser;

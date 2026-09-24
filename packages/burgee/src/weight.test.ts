@@ -482,7 +482,8 @@ const RULES: Record<string, EntryRule> = {
    */
   "./meow": {
     allow: [],
-    budget: 59_900,
+    // 60,000 on 2026-09-23 with D-140 and #521 on top of main's A29 exports. Measured 59,931.
+    budget: 60_000,
     denied: ["index.js", "execute.js", "help.js", "mcp.js", "schema.js", "completions.js", "plugin.js"],
   },
   "./contrast": {
@@ -668,7 +669,8 @@ const RULES: Record<string, EntryRule> = {
     // 215,500 on 2026-09-23 for D-122, through the engine and the manifest. Measured 215,422.
     // 215,350 with D-122 on top of N14 and E7, after merging main. Measured 215,309.
     // 217,100 with D-140 on top of D-122, N14 and E7, after merging #521. Measured 217,090.
-    budget: 217_100,
+    // 217,150 with A29's CommonJS export on top. Measured 217,123.
+    budget: 217_150,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   "./yargs/helpers": {
@@ -687,6 +689,9 @@ const RULES: Record<string, EntryRule> = {
   // the captured one was a stale read waiting for a test to expose it. The parser entry pays
   // for a seam it uses two members of, which is the honest cost of one file per package
   // rather than one per caller. Ceiling is the next hundred above the measurement, as above.
+  // 41,900 → 42,000 under A29: `export { yargsParser as 'module.exports' }`, so a CommonJS
+  // `require('burgee/yargs/parser')` gets the function, as `require('yargs-parser')` does.
+  // Measured 41,914.
   //
   // 42,000 on 2026-09-23 for 65 bytes of the same seam: `host.exitCode` gained a setter (D-140),
   // so a façade can leave a failed `--json` run with its E1 code without calling `exit()` over
