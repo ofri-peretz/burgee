@@ -135,9 +135,20 @@ export function packageOf(specifier: string): string {
   return specifier.startsWith('@') ? parts.slice(0, 2).join('/') : (parts[0] as string);
 }
 
-/** esbuild's own binary, wherever npm hoisted it — never a `.bin` shim that may not exist. */
+/**
+ * esbuild's own binary, wherever npm hoisted it — never a `.bin` shim that may not exist.
+ *
+ * On Windows `esbuild/bin/esbuild` is not something `execFileSync` can start: there is no
+ * `.exe` on it, so the spawn is `ENOENT`. The native binary is `esbuild.exe` in the
+ * `@esbuild/win32-<arch>` package esbuild installed beside itself, resolved from esbuild's own
+ * directory so it is the build that matches. Nothing called this on Windows until
+ * `readme-gates-lock.test.ts` put B4's bundle half in the root suite, and the first Windows
+ * leg said so.
+ */
 function esbuildBin(): string {
-  return join(resolvePackage('esbuild').dir, 'bin', 'esbuild');
+  const { dir } = resolvePackage('esbuild');
+  if (process.platform !== 'win32') return join(dir, 'bin', 'esbuild');
+  return join(packageDir(`@esbuild/win32-${process.arch}`, dir).dir, 'esbuild.exe');
 }
 
 /**
