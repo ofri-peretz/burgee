@@ -36,7 +36,7 @@ would flatter a partial implementation; measuring against the control's total do
 | **inquirer-core** | `caique/inquirer` | 41 / 41 | 100.0% | 41 / 41 | 100.0% | — | — |
 | **meow** | `burgee/meow` | 132 / 148 | 89.2% | 146 / 148 | 98.6% | — | — |
 | **ansi-escapes** | `paratext` | 4 / 4 | 100.0% | 4 / 4 | 100.0% | — | — |
-| **terminal-link** | `paratext/terminal-link` | 8 / 10 | 80.0% | 10 / 10 | 100.0% | — | — |
+| **terminal-link** | `paratext/terminal-link` | 8 / 8 | 100.0% | 8 / 8 | 100.0% | — | — |
 | **term-img** | `paratext/term-img` | 12 / 18 | 66.7% | 18 / 18 | 100.0% | — | — |
 | **restore-cursor** | `closeout` | 6 / 6 | 100.0% | 6 / 6 | 100.0% | — | — |
 | **exit-hook** | `closeout` | 21 / 21 | 100.0% | 21 / 21 | 100.0% | — | — |
@@ -80,6 +80,8 @@ rate. These are excluded by name — they still run, and they still appear in th
 | **clack** | `test/spinner.test.ts >` | 60 cases, 28 snapshot assertions — spinner frames, drawn. |
 | **clack** | `test/task-log.test.ts >` | 64 cases, 27 snapshot assertions — the task log drawn as it fills and clears. |
 | **clack** | `test/text.test.ts >` | 28 cases, 14 snapshot assertions — the text prompt drawn. |
+| **terminal-link** | `main` | Sets `supportsHyperlinks.stdout = true` on the incumbent's detection module and expects OSC 8 on a headless runner. paratext takes no runtime dependency, so it cannot see an assignment to another package's module object; it answers from the same detection that module computes — graded environment by environment against supports-hyperlinks 4.5.0 in `paratext/src/hyperlinks.test.ts` (A27) — and on that runner the answer is no. The six cases that assign `false` stay graded and pass. |
+| **terminal-link** | `stderr` | Sets `supportsHyperlinks.stderr = true` on the incumbent's detection module and expects OSC 8 on a headless runner. paratext takes no runtime dependency, so it cannot see an assignment to another package's module object; it answers from the same detection that module computes — graded environment by environment against supports-hyperlinks 4.5.0 in `paratext/src/hyperlinks.test.ts` (A27) — and on that runner the answer is no. The six cases that assign `false` stay graded and pass. |
 
 ### Control failures allowed
 

@@ -152,8 +152,12 @@ export function parseNodeTest(output: string): { tests: number; passed: number; 
  * counts have to be read off the lines themselves. (`--reporter=tap` is nested, which is
  * worse: the counts are then per file rather than per test.)
  */
+/** A flat TAP case line's title: `not ok 3 - stderr # SKIP` is `stderr`. */
+const titleOf = (line: string): string | undefined => /^(?:not )?ok \d+ - (.*?)(?: # .*)?$/.exec(line)?.[1];
+const excludedBy = (line: string, e: Exclusion): boolean => (e.exact === true ? titleOf(line) === e.match : line.includes(e.match));
+
 export function parseFlatTap(output: string, excludes: Exclusion[] = []): { tests: number; passed: number; failed: number; skipped: number } {
-  const lines = output.split('\n').filter((l) => !excludes.some((e) => l.includes(e.match)));
+  const lines = output.split('\n').filter((l) => !excludes.some((e) => excludedBy(l, e)));
   const ok = lines.filter((l) => FLAT_OK.test(l));
   const skipped = ok.filter((l) => FLAT_SKIP.test(l)).length;
   const passed = ok.length - skipped;
@@ -170,10 +174,30 @@ export function parseFlatTap(output: string, excludes: Exclusion[] = []): { test
  */
 export function unmatchedExclusions(output: string, excludes: Exclusion[]): string[] {
   const cases = output.split('\n').filter((l) => FLAT_OK.test(l) || FLAT_NOT_OK.test(l));
-  return excludes.filter((e) => !cases.some((l) => l.includes(e.match))).map((e) => e.match);
+  return excludes.filter((e) => !cases.some((l) => excludedBy(l, e))).map((e) => e.match);
 }
 
 type Summary = Pick<Grade, 'files' | 'tests' | 'passed' | 'failed' | 'skipped' | 'exceeded' | 'reference' | 'rate' | 'error'>;
+
+/**
+ * A counted summary less the declared exclusions. The summary is counts, not names, so an
+ * exclusion is subtracted by the case lines it matches — ava prints one per case (A27). A run
+ * with no case lines has nothing to exclude *by*, and an exclusion that silently does nothing
+ * is worse than a refusal.
+ */
+function summaryExcluding(output: string, files: number, reference: number, gate: Gate): Summary {
+  const excludes = gate.excludes ?? [];
+  const cases = output.split('\n').filter((l) => FLAT_OK.test(l) || FLAT_NOT_OK.test(l));
+  const broken = (error: string): Summary => ({ files, tests: 0, passed: 0, failed: 0, skipped: 0, reference, rate: 0, error });
+  if (cases.length === 0) return broken(`${excludes.length} exclusion(s) declared, but this runner's TAP carries no per-case names to exclude by`);
+  const missed = gate.requireMatch === true ? unmatchedExclusions(output, excludes) : [];
+  if (missed.length > 0) return broken(`exclusion matched no case: ${missed.join(', ')}`);
+  const out = cases.filter((l) => excludes.some((e) => excludedBy(l, e)));
+  const passedOut = out.filter((l) => FLAT_OK.test(l) && !FLAT_SKIP.test(l)).length;
+  const failedOut = out.filter((l) => FLAT_NOT_OK.test(l)).length;
+  const counted = parseNodeTest(output);
+  return rate(files, { ...counted, tests: counted.tests - passedOut - failedOut, passed: counted.passed - passedOut, failed: counted.failed - failedOut }, reference);
+}
 
 /**
  * Turn a runner's stdout into a grade. Pure, so the one case that has silently read as
@@ -196,10 +220,8 @@ export function summarize(output: string, files: number, reference: number, gate
   // Summary lines win where they exist: node:test prints a plan *and* a summary, and the
   // summary is the runner's own count rather than one inferred from its lines.
   if (TAP_TESTS.test(output)) {
-    // Those three lines are counts, not names: there is nothing here to exclude *by*, and
-    // an exclusion that silently does nothing is worse than one that refuses to run.
-    if (excludes.length > 0) return broken(`${excludes.length} exclusion(s) declared, but this runner's TAP carries no per-case names to exclude by`);
-    return rate(files, parseNodeTest(output), reference);
+    if (excludes.length === 0) return rate(files, parseNodeTest(output), reference);
+    return summaryExcluding(output, files, reference, gate);
   }
   // A plan and no summary is vitest's dialect. Without either, the runner was killed
   // mid-run — and its `ok` lines must not be counted, or a suite that died at test 72

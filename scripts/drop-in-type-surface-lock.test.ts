@@ -44,6 +44,7 @@ const PAIRS: readonly (readonly [string, string])[] = [
   ['signal-exit', 'closeout/signal-exit'],
   ['signal-exit/signals', 'closeout/signal-exit/signals'],
   ['yargs-parser', 'burgee/yargs/parser'],
+  ['terminal-link', 'paratext/terminal-link'],
 ];
 
 /** Names a drop-in does not export yet, each with the reason — the list only shrinks. */
