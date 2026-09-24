@@ -86,6 +86,20 @@ our errors carry a `hint` naming the fix. That is a trade — bytes per failure 
 turns — and only B1 proper can settle it. It is on this page precisely so the trade is
 visible rather than quietly omitted.
 
+## N10 — the floor, graded by someone else's checklist
+
+Every other number on this page comes from an instrument this repository wrote, and an
+instrument its authors wrote can only find the faults they thought of. This one hands the
+same demo program to two published, third-party checkers and records what they say:
+[clispec](https://clispec.dev) 0.3.0, the scorer for The CLI Spec v0.3 (six principles, 24
+points), and [cli-agent-lint](https://github.com/Camil-H/cli-agent-lint) 0.3.5 (34 checks,
+graded A–F). Both are pinned by version and archive digest in `benchmarks/floor-tools.ts`,
+run offline, and are never re-scored here — a check they fail is listed as failed, even where
+we would argue with it.
+
+> **This axis has not been published.** No measurement of the `external-floor` suite has been published.
+> No table is drawn, because every cell would be a number nobody measured.
+
 ## B3 — compatibility
 
 Read from `compat-oracle` and never recomputed here: two implementations of a
