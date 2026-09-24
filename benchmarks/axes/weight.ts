@@ -369,7 +369,10 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // on CI's ubuntu and macOS runners, which read 32 bytes more; the ceiling covers both.
   // 29,950 with D3 on top of S4, V8, F1 and D-140, after merging main. Measured 29,841.
   // 30,200 on 2026-09-23: P2/P3 on top of D3 (#478) and D-140. Measured 30,107.
-  burgee: 30_200,
+  // 28,076 on 2026-09-24 for U5: the failure path — `describeFailure`, the classification
+  // table, the named-refusal lookup and the envelope — moved to `failure.js`, imported only from
+  // the `catch`. Measured 27,996.
+  burgee: 28_076,
   // 29,650 on 2026-09-23: D-140 and #521 on top of V8 (#481). Measured 29,634.
   // 29,200 on 2026-09-23 for **56 bytes**, the MCP stdout capture (#521): measured 29,172 on
   // top of D-122's 29,116. The capture lives in the lazily loaded MCP chunk; what reaches the
