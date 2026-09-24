@@ -1,5 +1,18 @@
 # benchmarks
 
+## 0.0.3
+
+### Patch Changes
+
+- Updated dependencies [[`866b972`](https://github.com/ofri-peretz/burgee/commit/866b9724652bebea867a730b8f2ea5e0ca63f5ab), [`8a02d68`](https://github.com/ofri-peretz/burgee/commit/8a02d68fbf30e7837efc7f38899b1f4beb4cee69), [`3a7131f`](https://github.com/ofri-peretz/burgee/commit/3a7131fc279b5964b5d193af68bc0fe81d37821f), [`c992bf2`](https://github.com/ofri-peretz/burgee/commit/c992bf2536ba3ad0c55f45a41167cc9b4be026ec), [`4e5054c`](https://github.com/ofri-peretz/burgee/commit/4e5054cb97ddf6a2838ffc2205ce76d8508feb0b), [`3e56073`](https://github.com/ofri-peretz/burgee/commit/3e560731b386be3429afc7ad0396bcd1c48ad9dd), [`91f46ee`](https://github.com/ofri-peretz/burgee/commit/91f46ee83c839863eecd7d63fd01174087fbb815), [`635eb8c`](https://github.com/ofri-peretz/burgee/commit/635eb8cd2dfc6954c500a67fd8f76c69fcb1031a), [`1955419`](https://github.com/ofri-peretz/burgee/commit/19554194342b55f8893161f894a8c2a4df1b0f21), [`72a8103`](https://github.com/ofri-peretz/burgee/commit/72a810352e9197fdeeb278d283c0f6ae4669d909), [`8a7f387`](https://github.com/ofri-peretz/burgee/commit/8a7f3877936fed75121b325d66b1a78c11f737ac), [`f4be6a8`](https://github.com/ofri-peretz/burgee/commit/f4be6a8733e338bea4483992edeaa72fcddd36fd), [`31efa5b`](https://github.com/ofri-peretz/burgee/commit/31efa5b5e6120eb0d7bcc70778bc38d3dd9a3d7c), [`77ff1cb`](https://github.com/ofri-peretz/burgee/commit/77ff1cb8e595d32bb8bddf441ae21fc61e6f247d), [`91f46ee`](https://github.com/ofri-peretz/burgee/commit/91f46ee83c839863eecd7d63fd01174087fbb815), [`d5a1b02`](https://github.com/ofri-peretz/burgee/commit/d5a1b02792e7109a9ce6c2056683a98f622b2310), [`ef512ea`](https://github.com/ofri-peretz/burgee/commit/ef512ea6052747390b37077e2ea3e1aa3b196e48), [`0d65c75`](https://github.com/ofri-peretz/burgee/commit/0d65c754d3b8cbb46349acb272a62e03caa27236), [`dc1b1a7`](https://github.com/ofri-peretz/burgee/commit/dc1b1a7156f7548d7229b54b9f3d367bfda0af08), [`0592441`](https://github.com/ofri-peretz/burgee/commit/0592441c9ca8f81098a4aff48f15cfb141a0bece)]:
+  - paratext@0.7.0
+  - caique@0.5.2
+  - bellpull@0.4.0
+  - burgee@0.12.0
+  - flagstaff@0.4.2
+  - linegauge@0.5.2
+  - roundel@0.5.2
+
 ## 0.0.2
 
 ### Patch Changes
