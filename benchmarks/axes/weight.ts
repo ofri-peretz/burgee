@@ -353,7 +353,8 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // 29,800 with D3 on top of S4, V8 and F1, after merging main. Measured 29,719 here and 29,751
   // on CI's ubuntu and macOS runners, which read 32 bytes more; the ceiling covers both.
   // 29,950 with D3 on top of S4, V8, F1 and D-140, after merging main. Measured 29,841.
-  burgee: 29_950,
+  // 30,200 on 2026-09-23: P2/P3 on top of D3 (#478) and D-140. Measured 30,107.
+  burgee: 30_200,
   // 29,650 on 2026-09-23: D-140 and #521 on top of V8 (#481). Measured 29,634.
   // 29,200 on 2026-09-23 for **56 bytes**, the MCP stdout capture (#521): measured 29,172 on
   // top of D-122's 29,116. The capture lives in the lazily loaded MCP chunk; what reaches the
@@ -388,7 +389,8 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // `AuthError`/`UsageError` (which the façade never reached before) and the one
   // classification both façades share. None of it is on a path a passing command takes.
   // Merged 2026-09-23: D-140's 897 bytes on top of D-122 and #521 measure 60,713.
-  'burgee/commander': 60_750,
+  // 60,850 on 2026-09-23: P2/P3 on top of D3 (#478) and D-140, with 80 B for CI reading ~32 B over local. Measured 60,738.
+  'burgee/commander': 60_850,
   'burgee/yargs': 107_700,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
@@ -510,7 +512,8 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // bundled ceiling above (D-134): measured 1.524. 1.54 on 2026-09-23 for F1 (D-123), the
   // exit-code table the façade's `--schema` now carries: measured 1.531.
   // 1.555 on 2026-09-23: D-140 and #521 on top of main (72a810352e). Measured 1.554.
-  'burgee/commander': 1.555,
+  // 1.56 on 2026-09-23: P2/P3 on top of D3 (#478) and D-140. Measured 1.554 locally, ~1.555 in CI.
+  'burgee/commander': 1.56,
   // bundled ceiling above (D-134): measured 1.524.
   // 1.535 on 2026-09-23: D-122 left the façade at 59,808 (1.530, on the ceiling) and the MCP
   // stdout capture (#521) adds 15 bytes of cross-chunk names — 59,823, measured 1.531.
