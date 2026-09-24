@@ -398,7 +398,8 @@ const RULES: Record<string, EntryRule> = {
     // 20,600 on 2026-09-23 for F1: `--schema` carries the exit-code table, so `schema.js` reaches `exit-code.js`. Measured 20,594.
     // 21,000 with F1 on top of D-122, N14 and E7, after merging main. Measured 20,897.
     // 25,250 on 2026-09-23: D-140 and #521 on top of main (72a810352e). Measured 25,229.
-    budget: 25_250,
+    // 25,900 on 2026-09-24: the MCP session hold on top of P2/P3 (#484). Measured 25,806.
+    budget: 25_900,
     // 24,850 with the MCP stdout capture (#521) on top of D-122's 20,568. Measured 24,835.
     // 24,950 with D-140's MCP error classification on top of #521. Measured 24,900.
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],

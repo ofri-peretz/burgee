@@ -177,6 +177,31 @@ let framing = false;
  * the next line, so two calls never overlap. `framing` covers the one write that can land
  * mid-call — `swap`'s notification from `burgee dev`.
  */
+let sessions = 0;
+let release = (): void => undefined;
+
+/**
+ * Hold stdout for as long as a server runs, not only for one call: a timer or a stream a
+ * handler left behind prints after its reply went out, and stdout is still the transport.
+ * Outside a call, and outside a frame, a write goes to stderr. A call's capture wraps this
+ * one and hands its frames through it. Counted, so servers that overlap release in any order.
+ */
+function holdStdout(): () => void {
+  if (sessions++ === 0) {
+    const stdout = host.stdout;
+    const write = stdout.write;
+    stdout.write = function (...args: unknown[]): boolean {
+      return Reflect.apply(framing ? write : host.stderr.write, framing ? stdout : host.stderr, args) as boolean;
+    } as typeof stdout.write;
+    release = () => void (stdout.write = write);
+  }
+  let held = true;
+  return () => {
+    if (held && --sessions === 0) release();
+    held = false;
+  };
+}
+
 async function printedBy<T>(run: () => Promise<T>): Promise<{ settled: PromiseSettledResult<T>; printed: string }> {
   const chunks: string[] = [];
   const decoder = new TextDecoder();
@@ -297,7 +322,8 @@ export function startMcp(manifest: Manifest, opts: ServeOptions): McpServer {
     if (invoke !== undefined) session.invoke = invoke;
     reply({ method: 'notifications/tools/list_changed' });
   };
-  const done = serve(session, opts.input, reply);
+  const unhold = holdStdout();
+  const done = serve(session, opts.input, reply).finally(unhold);
   return { done, swap };
 }
 
