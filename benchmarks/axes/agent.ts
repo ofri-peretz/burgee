@@ -2,9 +2,10 @@
  * B1 — what an agent spends to get a task done, on a CLI that meets the floor versus one
  * that does not.
  *
- * **This axis does not run in this repository today, and it says so rather than
- * estimating.** It needs `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` and the `claude`
- * binary; without either it returns a reason and `run.ts` marks the axis `skipped`, which
+ * **This axis does not run without a credential, and it says so rather than estimating.**
+ * It needs `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` (or a stored `claude` login
+ * opted into with `BURGEE_USE_CLAUDE_LOGIN=1`) and the `claude` binary. It first ran on
+ * 2026-09-24 (D-147); without a credential it returns a reason and `run.ts` marks the axis `skipped`, which
  * `emit.ts` turns into a band entry carrying that reason instead of a number. Nothing in
  * this file can produce a plausible-looking figure from a run that did not happen — that
  * is deliberate, and `emit.test.ts` proves it: the roadmap's headline claim ("≥40% fewer
@@ -19,6 +20,9 @@
  * axis, but not that the axis produced that record by measuring anything — a `run()`
  * returning a table of plausible numbers would pass every other check in the repository.
  * What remains untested is the model's behaviour, which is the thing the credential buys.
+ *
+ * The first run (`results/agent-cli-bench/2026-09-24-2a51440-local.json`): tokens ratio
+ * 0.601 against the ≤ 0.6 claim — not met, by 0.001 — and turns 0.600 against ≤ 0.7, met.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';

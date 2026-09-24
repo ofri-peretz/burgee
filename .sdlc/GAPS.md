@@ -83,8 +83,8 @@ built moved to A15–A25.
 
 | # | Gap | Source | What it needs |
 | :-- | :-- | :-- | :-- |
-| C1 | agent-tokens-40pct unmeasured | burgee B1 | `CLAUDE_CODE_OAUTH_TOKEN`, or an API key and ~$5–15 |
-| C2 | the one-turn plugin-authoring eval has never run | burgee U9 | the same credential |
+| C1 | agent-tokens-40pct measured once (2026-09-24, D-147): **0.601 against ≤ 0.6, not met**; turns 0.600, met. The bands read CI only (D-142), so the series is still empty | burgee B1 | `CLAUDE_CODE_OAUTH_TOKEN` as a repository secret, so the weekly job measures on CI; and the owner's call on the public ≥40% sentence |
+| C2 | the one-turn plugin-authoring eval ran once (2026-09-24, D-147) and passed **1 of 9** — every failure was the 3-turn cap, not a wrong plugin | burgee U9 | a turn budget the prompt can fit (a decision about what "one turn" means, not a harness tweak), then three consecutive weekly runs at the stated rate |
 | C3 | the first outside adopter | burgee U12 | a CLI we did not write, installing one layer alone |
 | C5 | the lint half of F3, O3, P1 | burgee F3, O3, P1, D-124 | a rule set in the Interlace ESLint monorepo, not here |
 | C4 | clispec.dev and cli-agent-lint have no axis | burgee N10 | both tools to exist and be runnable offline — unverified |
