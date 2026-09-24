@@ -365,6 +365,12 @@ const textOf = (result: { content: { text: string }[] } | undefined): string => 
 /** Everything a tool call's capture replaces, to prove it was put back. */
 const snapshot = (): unknown[] => [process.stdout.write, console.log, console.info, console.debug, console.dir, console.table];
 
+/** A tool call that answers at once and prints 5 ms later, after its reply has gone out. */
+async function printsLater(): Promise<{ stdout: string; stderr: string; code: number }> {
+  setTimeout(() => process.stdout.write('late\n'), 5);
+  return { stdout: '{"ok":true}', stderr: '', code: 0 };
+}
+
 describe('a tool call that prints', () => {
   it('returns what a commander action console.logs as the tool result', async () => {
     const program = new Command('hello');
@@ -409,6 +415,35 @@ describe('a tool call that prints', () => {
     expect(textOf(results.get(1))).not.toContain('from fast');
     expect(textOf(results.get(2))).toContain('from fast');
     expect(textOf(results.get(2))).not.toContain('from slow');
+  });
+
+  /**
+   * The capture ends with the call, but the session does not: a timer or a stream a handler
+   * left behind prints after its reply went out, while stdout is still the transport. Red
+   * before the session hold — `late` sat between frame 1 and frame 2.
+   */
+  it('keeps what a handler prints after its call returned off the stream', async () => {
+    const lines: string[] = [];
+    const errs: string[] = [];
+    const originalOut = process.stdout.write;
+    const originalErr = process.stderr.write;
+    process.stdout.write = ((s: string | Uint8Array) => lines.push(String(s)) > 0) as typeof process.stdout.write;
+    process.stderr.write = ((s: string | Uint8Array) => errs.push(String(s)) > 0) as typeof process.stderr.write;
+    const input = new PassThrough();
+    try {
+      const done = serveMcp(program, { input, output: { write: (s: string) => process.stdout.write(s) }, invoke: printsLater });
+      input.write(`${JSON.stringify(callOf(1, 'greet'))}\n`);
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      input.end(`${JSON.stringify(callOf(2, 'greet'))}\n`);
+      await done;
+    } finally {
+      process.stdout.write = originalOut;
+      process.stderr.write = originalErr;
+    }
+    const stream = lines.join('').split('\n').filter((l) => l !== '');
+    expect(stream.map((l) => (JSON.parse(l) as { id: number }).id)).toEqual([1, 2]);
+    expect(errs.join('')).toContain('late');
+    expect(process.stdout.write).toBe(originalOut);
   });
 
   describe('puts stdout and the console back after the call', () => {
