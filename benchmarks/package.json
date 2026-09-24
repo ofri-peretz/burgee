@@ -32,7 +32,7 @@
   },
   "devDependencies": {
     "ansi-escapes": "7.3.0",
-    "boxen": "^8.0.1",
+    "boxen": "^9.0.0",
     "cac": "^7.0.0",
     "chalk": "^6.0.0",
     "cli-table3": "0.6.5",
