@@ -349,8 +349,9 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // 29,300 on 2026-09-23 for **135 bytes**, D-119 (D3): dynamic completion. The callback is
   // `complete-dynamic.js`, imported only when argv starts with `__complete`; what stays on the
   // startup path is that one test. Measured 29,251.
-  // 29,750 with D3 on top of S4, V8 and F1, after merging main. Measured 29,719.
-  burgee: 29_750,
+  // 29,800 with D3 on top of S4, V8 and F1, after merging main. Measured 29,719 here and 29,751
+  // on CI's ubuntu and macOS runners, which read 32 bytes more; the ceiling covers both.
+  burgee: 29_800,
   // 59,250 on 2026-09-22 for **61 bytes**: the `.catch` that fires `onError`. A plugin's
   // lifecycle closes on every front end now — `preRun` opens and exactly one of `postRun` or
   // `onError` closes — where before a handler that threw left a plugin with no closing hook.
