@@ -55,7 +55,8 @@ describe('a prompt refusal reaches an exit code by name (P2, P3)', () => {
 
   it('carries the code into the JSON envelope an agent reads', async () => {
     const r = await runCommand(program({ env: {}, isTTY: { stdin: false } }, []), ['new', '--json']);
-    expect(JSON.parse(r.stderr)).toMatchObject({ ok: false, error: { code: 2 } });
+    // D-140: a failing `--json` run writes its one envelope to stdout.
+    expect(JSON.parse(r.stdout)).toMatchObject({ ok: false, error: { code: 2 } });
   });
 
   it('a string code outside the contract is not a claim: it stays a runtime failure', async () => {

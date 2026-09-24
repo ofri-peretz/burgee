@@ -86,6 +86,10 @@ export interface LogUpdateOptions {
   defaultHeight?: number;
 }
 
+// log-update's own type names, so a typed program migrates by its import alone — `burgee migrate`
+// checks every imported name against this module and would otherwise leave the import on log-update.
+export type Options = LogUpdateOptions;
+
 export interface LogUpdate {
   (...text: unknown[]): void;
   /** Erase the current frame, leaving nothing behind. */

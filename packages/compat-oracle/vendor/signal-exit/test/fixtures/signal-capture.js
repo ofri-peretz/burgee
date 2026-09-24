@@ -1,4 +1,4 @@
-const { onExit } = require('../../shim.mjs')
+const { onExit } = require('../../shim.cjs')
 
 const codeOrSignal = process.argv[2] || 'null'
 const [code, signal] = !isNaN(+codeOrSignal)

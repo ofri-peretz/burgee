@@ -24,26 +24,60 @@ mytool --mcp
 ```
 
 Serves the same manifest as [MCP](https://modelcontextprotocol.io) tools over stdio —
-JSON-RPC 2.0, three methods, zero dependencies. A tool call runs the command exactly as a
+JSON-RPC 2.0, three methods, no dependency outside the burgee family. A tool call runs the command exactly as a
 `--json` caller would; the result is that envelope, byte for byte, so an agent reading
 your CLI over MCP and one shelling out with `--json` see one payload.
 
-### Only what you publish
+### What becomes a tool
 
-A command is a tool **only when it declares what it does**:
+Every command that runs and is not hidden, named by its path — `config get` is
+`config_get`, and a program whose root command runs (a single `run(defineCommand(…))`, or
+a commander program with a root `.action()`) is named after the program. What keeps a
+command out is a word its author wrote, never silence:
 
 ```ts
 defineCommand({
   name: 'deploy',
-  effects: 'non_idempotent', // read_only | idempotent | non_idempotent
+  effects: 'non_idempotent', // read_only | idempotent | non_idempotent | withheld
   // …
 });
 ```
 
-`effects` generates MCP's `readOnlyHint`, `idempotentHint` and `destructiveHint`. The
-protocol defaults `destructiveHint` to *true*, so a command that says nothing is not
-served at all rather than served with the dangerous reading. On a commander-syntax
-program the same declaration is `.effects('read_only')`.
+- **On burgee's own API, `effects` is required.** `defineCommand` refuses a runnable
+  command without it, so every tool carries MCP's `readOnlyHint`, `idempotentHint` and
+  `destructiveHint`, generated from the declaration. `'withheld'` serves the command to
+  people and keeps it out of `tools/list`.
+- **On `burgee/commander` and `burgee/yargs`, a command that declared nothing is still a
+  tool.** Neither incumbent has a notion of effects, so it is listed with
+  `annotations: { effects: 'undeclared' }` and no hints — and MCP's defaults for absent
+  hints (not read-only, destructive) are the reading a client applies. Declare it with
+  `.effects('read_only')`, or keep it out with `.effects('withheld')`.
+
+### Arguments
+
+A tool's `inputSchema` has one property per argument and option. An option's property is
+its declared key and names the flag it becomes — `"dryRun": { "type": "boolean", "flag":
+"--dry-run" }` — and a tool call is turned back into exactly that flag. A boolean sent as
+`false` is passed as `--no-<name>` when the option would otherwise be on (a `true` default
+or an environment variable) and left out otherwise, so an agent that spells out every
+`false` trips no relation. Under `burgee/commander`, a `--no-color` declared without a
+`--color` is the property `noColor`.
+
+### Results
+
+The `--json` envelope, byte for byte. Under `burgee/commander`, `data` is what the action
+**returned**: an action that prints instead gives `data: null`, because commander actions
+return nothing. Return the value — `.action(() => ({ lines }))` — and it is `data`.
+Printed output becomes the tool result: whatever a handler writes to stdout during a call
+(`console.log`, `process.stdout.write`) is captured and follows the envelope as a second
+text item, never a stray line on the JSON-RPC stream, and what it writes to stderr stays on
+stderr.
+
+A handler that throws, rejects or throws something that is not an `Error` is an error
+result, not a crashed server: `isError: true`, and the text is the `{ "ok": false, "error":
+… }` envelope a `--json` caller gets on stdout. An `AuthError` carries `code` 5 (`"auth"` on
+the commander and yargs front ends) with its `hint` and `fix`, and the server answers the
+next call.
 
 ### Client configuration
 

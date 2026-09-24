@@ -19,7 +19,17 @@ const fixtures = resolve(pkgRoot, '.dev-fixtures');
 /** The framework, as the temp CLI imports it: the source entry, one path this test knows. */
 const burgee = JSON.stringify(resolve(pkgRoot, 'src/index.ts'));
 
+/**
+ * W6's budget: save-to-callable under 500 ms, *or* under five imports of the same entry on the
+ * same machine, whichever is larger (A30). The absolute number alone graded the host: 1,035 ms
+ * on a Windows CI runner and 4,098 ms in a loaded local pre-push battery, for no change to the
+ * code. The floor is comparable work, not a CPU loop — `migrate-bench.test.ts` records why a
+ * regex yardstick does not cancel a contended runner. Calibrated on an Apple M4 Pro: the reload
+ * measured 0.45-1.57 floors idle and 0.83-2.62 with four copies of this case running at once,
+ * so five still fires on a reload that does several times the work of one import.
+ */
 const RELOAD_BUDGET_MS = 500;
+const RELOAD_FLOORS = 5;
 const WAIT_MS = 4000;
 
 function cli(commands: string): string {
@@ -162,7 +172,7 @@ describe('burgee dev: reload, serve, notify (W1–W3, W5)', () => {
 const thirty = (word: string): string =>
   Array.from({ length: 30 }, (_, i) => `defineCommand({ name: 'c${i}', description: 'command ${i}', effects: 'read_only', options: { a: { type: 'string' }, b: { type: 'boolean' } }, run: () => '${word} ${i}' })`).join(', ');
 
-describe('burgee dev: save-to-callable under 500 ms on a 30-command CLI (W6)', () => {
+describe('burgee dev: save-to-callable under 500 ms, or five imports of the entry, on a 30-command CLI (W6)', () => {
   it('reloads thirty commands within the budget', async () => {
     const at = scratch('bench');
     const entry = join(at, 'cli.ts');
@@ -170,7 +180,13 @@ describe('burgee dev: save-to-callable under 500 ms on a 30-command CLI (W6)', (
     const io = rpc();
     const handle = dev({ entry, input: io.input, output: io.output, log: { write: () => undefined }, watch: false });
     await handle.ready;
+    // One call first: the first call of a session imports `seniority/config` lazily
+    // (execute.ts), a one-off cost that is not a reload's. A cold disk put it at 1,538 ms.
+    io.send({ id: 0, method: 'tools/call', params: { name: 'c29', arguments: {} } });
+    await io.next((m) => m['id'] === 0);
     writeFileSync(entry, cli(thirty('two')));
+    // The floor: one fresh import of the very file the reload is about to import.
+    const floor = (await load(entry, 1_000)).ms;
     const started = performance.now();
     const loaded = await handle.reload();
     io.send({ id: 1, method: 'tools/call', params: { name: 'c29', arguments: {} } });
@@ -178,7 +194,8 @@ describe('burgee dev: save-to-callable under 500 ms on a 30-command CLI (W6)', (
     const elapsed = performance.now() - started;
     expect(loaded.manifest.commands).toHaveLength(31);
     expect(answer.data).toBe('two 29');
-    expect(elapsed).toBeLessThan(RELOAD_BUDGET_MS);
+    const budget = Math.max(RELOAD_BUDGET_MS, RELOAD_FLOORS * floor);
+    expect(elapsed, `${elapsed.toFixed(1)} ms — ${(elapsed / floor).toFixed(2)} imports of the entry (${floor.toFixed(1)} ms each here)`).toBeLessThan(budget);
     io.input.end();
     await handle.done;
   });

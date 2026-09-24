@@ -1,0 +1,92 @@
+---
+title: Migrate
+description: "One command moves a project from commander, yargs, chalk, ora and a dozen more incumbents to the family's drop-ins — every import the compatibility oracle grades level, and nothing it does not."
+---
+
+```bash
+npx burgee migrate --dry-run
+npx burgee migrate
+```
+
+`burgee migrate` rewrites import specifiers, and only specifiers: `'chalk'` becomes
+`'roundel/chalk'`, `'commander'` becomes `'burgee/commander'`, and the code around them is
+left exactly as it was. It then prints what it changed, what it would not change and why,
+the family packages to add, and the one command that adds them and removes the incumbents —
+for the package manager your lockfile names:
+
+```text
+next: npm install burgee flagstaff roundel && npm uninstall commander chalk ora
+```
+
+`--json` gives the same report as data, and the command exits 1 when anything was refused,
+so an agent can run it unattended and branch on the result.
+
+## What it rewrites
+
+Every drop-in the [compatibility oracle](/docs/compatibility) grades **level** with its
+incumbent: the incumbent's own test suite passes at least as many cases against the family's
+replacement as against the incumbent itself, run in the same harness. The grades live on that
+page and move as it moves; this list is the codemod's own table, and a lock holds the two
+equal.
+
+| incumbent | becomes |
+| :-- | :-- |
+| `commander` | `burgee/commander` |
+| `yargs` | `burgee/yargs` |
+| `yargs/yargs` | `burgee/yargs` |
+| `yargs/helpers` | `burgee/yargs/helpers` |
+| `yargs-parser` | `burgee/yargs/parser` |
+| `chalk` | `roundel/chalk` |
+| `ora` | `flagstaff/ora` |
+| `log-update` | `flagstaff/log-update` |
+| `boxen` | `flagstaff/boxen` |
+| `cli-table3` | `flagstaff/cli-table3` |
+| `string-width` | `linegauge` |
+| `strip-ansi` | `linegauge/strip` |
+| `wrap-ansi` | `linegauge/wrap` |
+| `slice-ansi` | `linegauge/slice` |
+| `cross-spawn` | `bellpull/cross-spawn` |
+| `ansi-escapes` | `paratext` |
+| `which` | `bellpull/node-which` |
+| `rc` | `seniority/rc` |
+| `lilconfig` | `seniority/lilconfig` |
+| `@inquirer/core` | `caique/inquirer` |
+| `terminal-link` | `paratext/terminal-link` |
+| `restore-cursor` | `closeout/restore-cursor` |
+| `exit-hook` | `closeout/exit-hook` |
+| `signal-exit` | `closeout/signal-exit` |
+| `signal-exit/signals` | `closeout/signal-exit/signals` |
+
+## What it leaves alone, and says so
+
+- **A drop-in that is not level yet.** dotenv, cosmiconfig, clack, meow
+  and term-img each have a graded replacement that passes fewer of the
+  incumbent's cases than the incumbent does. The report lists them under `partial` with the
+  grade, and never rewrites them: a codemod that breaks your CLI is worse than none.
+- **A name the replacement does not export.** Every imported name is checked against the
+  replacement's exports. A type-only import of a missing name stays on the incumbent, with a
+  note to keep its types installed; a value import of one refuses the file.
+- **An incumbent on a major the oracle did not grade.** The grade is for one major:
+  `signal-exit` 3 exports a function where 4 exports `onExit`, and `chalk` 4 is CommonJS where
+  6 is not. A project whose installed version — or, with nothing installed, whose declared
+  range — is on another major is listed under `offMajor` with both versions, and not
+  rewritten. Upgrade it first, and run the command again.
+- **A `require()` whose two sides return different kinds of value.** `require()` of an ES
+  module returns its namespace. The incumbents that ship ESM only (chalk 6, ora 9, boxen 8 and
+  nine more) already hand `require()` a namespace, and so do their replacements, so
+  `const chalk = require('chalk')` moves. Where the incumbent hands back its export itself — a
+  function or a class — and the replacement would hand back a namespace, the file is refused
+  with `require-of-default`. No current replacement is in that position: each one whose
+  incumbent returns a function exports it as `'module.exports'`, which is what Node hands a
+  CommonJS caller. `const { Command } = require('commander')` moves, because it reads names.
+- **A deep import** (`commander/lib/command.js`) or **a specifier that is not a literal**
+  (`require(name)`). The file is refused by name and line, and left exactly as it was — a
+  file is rewritten whole or not at all.
+- **A dirty git tree**, unless you pass `--force`, so the rewrite is one reviewable diff.
+
+## Why an import, not `overrides`
+
+An npm `overrides` entry points an incumbent's name at a package's **root**, and each family
+package's root is its own API, not any one incumbent's. The replacements are subpaths, which
+an override cannot reach, so the swap is the import — which is also the change your reviewers
+can see.

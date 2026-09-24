@@ -7,7 +7,9 @@
  */
  
 import { ExitCode } from '../exit-code.js';
+import { type HandlerFailure, handlerFailure } from '../facade-failure.js';
 import { type DeclaredEffects, Manifest, type Plugin } from '../manifest.js';
+import { host } from '../runtime.js';
 import { machineJson, schemaOf } from '../schema.js';
 import { tokenizeArgString } from '../yargs-parser.js';
 
@@ -91,6 +93,8 @@ interface BurgeeState extends BurgeeSeam {
   json: boolean;
   /** Whether the injected exit has been called for this parse; a run that never exits reports OK. */
   exited?: boolean;
+  /** Whether this parse's failure envelope is written: one failure, one envelope (D-140). */
+  reported?: boolean;
   /** The last line yargs printed as an error, kept for the failure envelope under --json. */
   lastError: string;
 }
@@ -458,14 +462,17 @@ export class YargsInstance {
     this.#hasOutput = true;
     this.#exitError = err;
     const burgee = this.#burgee;
+    // burgee: through the seam, or under --json, a failure leaves with the E1 code its error
+    // names — USAGE for yargs' own, `handlerFailure`'s for anything a handler raised (D-140).
+    const e1 = code === 0 ? ExitCode.OK : this.#failureOf(err).exit;
     if (burgee !== undefined && code !== 0 && burgee.json) this.#failureEnvelope(err);
     if (burgee?.exit !== undefined) {
       if (burgee.exited) return;
       burgee.exited = true;
-      burgee.exit(code === 0 ? ExitCode.OK : err instanceof YError || err === undefined || typeof err === 'string' ? ExitCode.USAGE : ExitCode.RUNTIME);
+      burgee.exit(e1);
       return;
     }
-    if (this.#exitProcess) this.#shim.process.exit(code);
+    if (this.#exitProcess) this.#shim.process.exit(burgee?.json === true ? e1 : code);
   }
 
   exitProcess(enabled = true): this {
@@ -707,19 +714,29 @@ export class YargsInstance {
     };
     const seam = this.#burgee?.exit === undefined ? undefined : this.#burgee;
     if (seam === undefined) {
+      // Nothing injected: yargs' own contract, except that a handler failure under --json
+      // settles to one envelope and its E1 code instead of escaping as a stack (D-140). --json
+      // is taken inside the parse, so it is read here, after the failure, not before.
+      const escape = (err: unknown): any => {
+        const json = this.#burgee?.json === true && !(err instanceof YError);
+        if (json) this.#failJson(err);
+        restore();
+        if (!json) throw err;
+        return undefined;
+      };
       try {
         const result = this.#parse(args, shortCircuit, _parseFn);
-        if (isPromise(result)) return result.finally(restore);
+        if (isPromise(result)) return result.then((argv: any) => (restore(), argv), escape);
         restore();
         return result;
       } catch (err) {
-        restore();
-        throw err;
+        return escape(err);
       }
     }
     // The seam: the whole run settles to one E1 exit. yargs reports its own failures
     // through exit(); a handler that throws synchronously is the one thing that escapes it.
     seam.exited = false;
+    seam.reported = false;
     const finish = (argv: any): any => {
       if (!this.#burgee?.exited) seam.exit?.(ExitCode.OK);
       restore();
@@ -730,10 +747,10 @@ export class YargsInstance {
         restore();
         throw err;
       }
-      const message = err instanceof Error ? err.message : String(err);
-      if (this.#burgee?.json) this.#failureEnvelope(err instanceof Error ? (err as YError) : message);
-      else this.#logger.error(message);
-      if (!this.#burgee?.exited) seam.exit?.(ExitCode.RUNTIME);
+      const failure = this.#failureOf(err);
+      if (this.#burgee?.json) this.#failureEnvelope(err);
+      else this.#logger.error(failure.error.message);
+      if (!this.#burgee?.exited) seam.exit?.(failure.exit);
       restore();
       return undefined;
     };
@@ -1387,7 +1404,7 @@ export class YargsInstance {
     const index = list.indexOf('--json');
     if (index === -1 || (terminator !== -1 && index > terminator)) return args;
     if (this.#declares('json')) return args;
-    this.#burgee = { ...(this.#burgee ?? { lastError: '' }), json: true };
+    this.#burgee = { ...(this.#burgee ?? { lastError: '' }), json: true, reported: false };
     return [...list.slice(0, index), ...list.slice(index + 1)];
   }
 
@@ -1511,11 +1528,31 @@ export class YargsInstance {
     if (text !== '') this.#logger.log(text.replace(/\n$/, ''));
   }
 
-  #failureEnvelope(err: YError | string | undefined): void {
+  /**
+   * A failure as burgee reports it. yargs' own — a `YError`, or none at all — is a usage error;
+   * anything else reached here from a handler or middleware, and `handlerFailure` names its
+   * code. That includes a thrown string, which this filed as `usage` (exit 2, *rewrite the
+   * command*) when it is a handler that failed (D-140).
+   */
+  #failureOf(err: unknown): HandlerFailure {
+    if (err instanceof YError || err === undefined) return { exit: ExitCode.USAGE, error: { code: 'usage', message: err?.message ?? (this.#burgee?.lastError ?? '') } };
+    return handlerFailure(err);
+  }
+
+  /** The failure envelope, once per parse: yargs' own catch and the parse's rejection both see an async failure. */
+  #failureEnvelope(err: unknown): void {
     const burgee = this.#burgee as BurgeeState;
-    const message = err instanceof Error ? err.message : typeof err === 'string' ? err : burgee.lastError;
-    const code = err instanceof YError || err === undefined || typeof err === 'string' ? 'usage' : 'runtime';
-    this.#logger.log(JSON.stringify({ ok: false, error: { code, message } }));
+    if (burgee.reported === true) return;
+    burgee.reported = true;
+    this.#logger.log(JSON.stringify({ ok: false, error: this.#failureOf(err).error }));
+  }
+
+  /** Nothing injected, --json, a handler failed: the envelope, then its E1 code — as the exit, or as the exit code when yargs may not exit. */
+  #failJson(err: unknown): void {
+    this.#failureEnvelope(err);
+    const { exit } = this.#failureOf(err);
+    if (this.#exitProcess) this.#shim.process.exit(exit);
+    else host.exitCode = exit;
   }
 
   /** burgee: where every option value came from (V3), from yargs-parser's own bookkeeping where it keeps any. */

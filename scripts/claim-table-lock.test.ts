@@ -69,14 +69,25 @@ interface Record_ {
   median: number;
 }
 
+type Doc = { records: Record_[]; measured: string };
+
+/**
+ * The document measured last, by its own `measured` timestamp. File names are
+ * `<date>-<sha7>.json`, so a name sort orders a day's runs by commit hash, not by time — the
+ * gate could read a morning run as "newest" over the evening one that superseded it.
+ */
+export function newestOf(docs: readonly Doc[]): Doc | undefined {
+  return docs.reduce<Doc | undefined>((best, d) => (best === undefined || Date.parse(d.measured) > Date.parse(best.measured) ? d : best), undefined);
+}
+
 /** The newest results document, published or observation — the most recent thing measured. */
-function newest(): { records: Record_[]; measured: string } {
-  const files = readdirSync(RESULTS)
+function newest(): Doc {
+  const docs = readdirSync(RESULTS)
     .filter((f) => f.endsWith('.json'))
-    .sort();
-  const last = files.at(-1);
+    .map((f) => JSON.parse(readFileSync(join(RESULTS, f), 'utf8')) as Doc);
+  const last = newestOf(docs);
   if (last === undefined) throw new Error(`no results in ${RESULTS} — a claim gate with nothing to read is not a gate`);
-  return JSON.parse(readFileSync(join(RESULTS, last), 'utf8')) as { records: Record_[]; measured: string };
+  return last;
 }
 
 const MET = /✅/;
@@ -109,6 +120,14 @@ describe('the README claim table', () => {
     const { measured } = newest();
     const ageDays = (Date.now() - Date.parse(measured)) / MS_PER_DAY;
     expect(ageDays, `the newest benchmark results are ${ageDays.toFixed(1)} days old (${measured}). Every verdict in the README claim table is read from them, so a ledger that has stopped updating turns this gate into a gate on history. Find out why bench.yml is not publishing.`).toBeLessThanOrEqual(MAX_RESULTS_AGE_DAYS);
+  });
+
+  it('reads "newest" by the measured timestamp, not the file name', () => {
+    // Same day, and the later run has the lower hash — a name sort picks the earlier one.
+    const morning = { records: [], measured: '2026-09-22T05:37:52.758Z' };
+    const evening = { records: [], measured: '2026-09-22T21:10:00.000Z' };
+    expect(newestOf([evening, morning])).toBe(evening);
+    expect(newestOf([morning, evening])).toBe(evening);
   });
 
   it('never marks a claim met that the newest measurement does not satisfy', () => {

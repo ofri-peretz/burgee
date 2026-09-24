@@ -195,8 +195,10 @@ export function finish(rt: FakeRuntime, code: ExitCode, startedAt: number): RunR
   const stderr = rt.err.join('');
   const result: RunResult = { code, stdout, stderr, durationMs: performance.now() - startedAt };
   if (beforeTerminator(rt.argv).includes('--json')) {
-    // Success prints the envelope on stdout; a reported failure prints the E3 envelope on
-    // stderr (E2) with nothing on stdout. Either way the run's own code stands.
+    // Success and a reported failure both print their envelope on stdout (O1, D-140). The
+    // stderr fallback stays for a run whose envelope a program wrote there itself — before
+    // D-140 the engine did, and a harness is the last place to break a test that relied on it.
+    // Either way the run's own code stands.
     const source = stdout.trim() === '' && code !== ExitCode.OK ? stderr.split('\n')[0] ?? '' : stdout;
     try {
       result.json = JSON.parse(source);

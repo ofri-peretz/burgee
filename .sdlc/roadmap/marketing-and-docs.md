@@ -23,20 +23,20 @@ A phase is done when its exit criterion is met, not when its tasks are ticked.
 | Dependents (npm `dependencies`) | `scripts/rank-dependents.ts` | 0 known | monthly, into this file |
 | AI citation rate | the weekly probe (M4 below) | not measured | this file |
 | Agent task success, B1 | `bench.yml` | never run | README "Measured" |
-| Docs traffic and `llms.txt` hits | Vercel Analytics (M3) | not measured | the Vercel dashboard |
+| Docs traffic and `llms.txt` hits | Vercel Web Analytics (page views); request logs and Observability (`llms.txt`, `.md` twins) | not measured | the Vercel dashboard |
 
 ## Phase 0: ship what is built (this week)
 
 | # | Item | PR | State |
 | :-- | :-- | :-- | :-- |
-| 0.1 | The release queue unblocks itself; publishing waits for the gate | [#450](https://github.com/ofri-peretz/burgee/pull/450) | green, merging |
-| 0.2 | Package pages, every package has a mark, the mark floor | [#448](https://github.com/ofri-peretz/burgee/pull/448) | rebased onto main |
-| 0.3 | Docs SEO/AEO: sitemap, canonical, JSON-LD, llms package map, `.md` twins, vs-pages, FAQ, `AGENTS.md`, homepages and keywords | lane B | in progress |
-| 0.4 | Release: the Version PR publishes the READMEs, homepages and keywords to npm | #437 → next Version PR | after 0.1 |
-| 0.5 | Blog: sitemap, `llms-full.txt`, JSON-LD, intent-status lock, three burgee intents | lane D (blog-public) | in progress |
-| 0.6 | Track all nine packages and the repo's stars | impact-ingest [#14](https://github.com/ofri-peretz/impact-ingest/pull/14), agents [#164](https://github.com/ofri-peretz/agents/pull/164) | green |
+| 0.1 | The release queue unblocks itself; publishing waits for the gate | [#450](https://github.com/ofri-peretz/burgee/pull/450) | **done** — first self-released Version PR (#437) merged with no hand close/reopen |
+| 0.2 | Package pages, every package has a mark, the mark floor | [#448](https://github.com/ofri-peretz/burgee/pull/448) | **done** |
+| 0.3 | Docs SEO/AEO: sitemap, canonical, JSON-LD, llms package map, `.md` twins, vs-pages, FAQ, `AGENTS.md`, homepages and keywords | [#454](https://github.com/ofri-peretz/burgee/pull/454) | **done** |
+| 0.4 | Release: the Version PR publishes the READMEs, homepages and keywords to npm | #437, #479, #509 | **done** — nine packages on npm with lockups, docs homepages and keywords; 0.11.0 / 0.5.0 line accepts Node 20.19+ and 22.13+ |
+| 0.5 | Blog: sitemap, `llms-full.txt`, JSON-LD, intent-status lock, three burgee intents | [blog#305](https://github.com/ofri-peretz/blog/pull/305) | **done** |
+| 0.6 | Track all nine packages and the repo's stars | impact-ingest [#14](https://github.com/ofri-peretz/impact-ingest/pull/14), agents [#164](https://github.com/ofri-peretz/agents/pull/164) | **done** |
 
-**Exit:** npm shows the nine READMEs with lockups and docs links. `burgee.interlace.tools`
+**Exit — met 2026-09-23.** npm shows the nine READMEs with lockups and docs links. `burgee.interlace.tools`
 serves `/sitemap.xml`, `/llms.txt` with a package map, and `/docs/packages/*`. The scorecard
 shows nine download series.
 
@@ -59,8 +59,8 @@ recorded here.
 | # | Item | Owner | Done when |
 | :-- | :-- | :-- | :-- |
 | 2.1 | Run B1 (agent tokens and turns) | **you**: set `CLAUDE_CODE_OAUTH_TOKEN` for `bench.yml` | the README's `agent-tokens-40pct` row has a number, met or not |
-| 2.2 | Commit eval results (`evals/results` is gitignored) so they have a history | agent | a weekly run appends one JSON |
-| 2.3 | Vercel Analytics on the docs app, with a `llms.txt` / `.md` twin hit counter | agent, plus **you** to enable it on the project | a week of data |
+| 2.2 | Commit eval results (`evals/results` is gitignored) so they have a history | agent | a weekly run appends one JSON. **Built in [#464](https://github.com/ofri-peretz/burgee/pull/464)**: `evals.yml` records every run on `main` to `evals/history/<date>-<sha7>.json` and lands it by PR. Layer 2 records `skipped` until `CLAUDE_CODE_OAUTH_TOKEN` is set (as for 2.1), and the PR auto-merges only with the release App or PAT (C5) |
+| 2.3 | Docs analytics | agent | **done** — PostHog (project 428927, same as the blog) in the shared docs chassis ([#494](https://github.com/ofri-peretz/burgee/pull/494)) replaced Vercel Analytics; every page view carries `site`/`host`, verified for all nine hosts 2026-09-23. The `llms.txt` / `.md` routes are static — their hits come from Vercel request logs |
 | 2.4 | AI citation probe: 5 fixed questions × 3 assistants, weekly, logging whether burgee is named and which URL is cited | agent, plus **you** for API keys | 4 weeks of data in this file |
 
 The five probe questions are fixed so the series stays comparable:
@@ -80,8 +80,8 @@ which evidence exists today.
 
 | # | Article | Tier | Evidence | Blocked on |
 | :-- | :-- | :-- | :-- | :-- |
-| 3.1 | Change one import: a commander CLI gets `--json`, `--schema`, `--mcp` and completions | Tutorial | compat 1360 / 1360 (README) | nothing |
-| 3.2 | The zero-dependency CLI stack, measured the way `eslint-plugin-dependency-weight` measured plugins | Measured | README "Measured" stack table | nothing |
+| 3.1 | Change one import: a commander CLI gets `--json`, `--schema`, `--mcp` and completions | Tutorial | compat 1360 / 1360 (README) | reviewed at 9.6 ([blog#309](https://github.com/ofri-peretz/blog/pull/309)); held for the release of [#508](https://github.com/ofri-peretz/burgee/pull/508) — writing it found a missing bin shebang, `--help` crashes, MCP option names and completions defects |
+| 3.2 | The zero-dependency CLI stack, measured the way `eslint-plugin-dependency-weight` measured plugins | Measured | README "Measured" stack table | **published 2026-09-23** — [dev.to](https://dev.to/ofri-peretz/a-commander-stack-installs-70-packages-burgees-family-9-like-for-like-the-family-weighs-24x-aed) (devto_id 4722817) |
 | 3.3 | Where agents fail on CLIs: help-text parsing against a declared schema | T3 | B1 | 2.1 |
 | 3.4 | Why our first bundle claim failed, and what "at parity" means (the three ❌ rows) | Essay | README "The three that are not met" | nothing |
 
@@ -94,22 +94,23 @@ tutorial rather than a README. **You post them**; nothing in this repo posts on 
 
 **Exit:** 3.1, 3.2 and 3.4 published at 9.5 or higher, and the launch posted.
 
-## Phase 4: a site per incumbent family
+## Phase 4: a site per package
 
-Execute [`docs-per-package`](../intents/docs-per-package/intent.md) as written:
-`.github/vercel-apps.json` as the single table, five hosts, and one shared chassis. It
-starts only after Phase 2's analytics show which `/docs/packages/*` pages are visited. The
-intent's own rule applies: a package earns its app, and traffic is the evidence.
-
-**Exit:** a new app is one row in `vercel-apps.json`, and the locks prove it.
+**Done 2026-09-23** — [#494](https://github.com/ofri-peretz/burgee/pull/494). The owner overrode the
+five-site grouping (D-131): every published package has its own host, `<pkg>.interlace.tools`,
+nine rows in `.github/vercel-apps.json`, one shared chassis (`apps/docs-chassis`), per-host
+`llms.txt` / sitemap / `.md` twins / JSON-LD / PostHog, and burgee's old `/docs/packages/*` and
+coming-from URLs 301 to their package's host. Adding package ten is one row plus one app
+directory — no workflow edit (criterion 6, locked).
 
 ## Phase 5: adoption
 
 | # | Item | Owner |
 | :-- | :-- | :-- |
 | 5.1 | [`first-adopter`](../intents/first-adopter/spec.md): one real CLI migrated, with its maintainer's consent | **you** approve each outreach |
-| 5.2 | Rank commander and yargs dependents (`npm run rank:dependents`); open issues offering a migration PR on the top 10 by fit, never unsolicited PRs | agent drafts, **you** send |
+| 5.2 | Rank commander and yargs dependents (`npm run rank:dependents`); open issues offering a migration PR on the top 10 by fit, never unsolicited PRs. **Status: drafted — owner sends.** Ten targets and ten drafts in [`adoption-targets.md`](../research/adoption-targets.md) (2026-09-23) | agent drafts, **you** send |
 | 5.3 | A "used by" row in the README, once there is a dependent to list | agent |
+| 5.4 | Remove the adoption blockers the ranking found: facade types (`Argv`, `CommandModule`, …) and a Node 24-only engines range. **Done** — [#506](https://github.com/ofri-peretz/burgee/pull/506), [#507](https://github.com/ofri-peretz/burgee/pull/507): engines `^20.19.0 \|\| >=22.13.0`, floor-tested in CI | agent |
 
 **Exit:** one external dependent on npm.
 

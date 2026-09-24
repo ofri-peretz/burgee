@@ -4,12 +4,13 @@
  * an MCP mapping fails), opt-in exposure proven by absence, and tool results identical to
  * the --json envelope.
  */
-import { PassThrough } from 'node:stream';
+import { PassThrough, Readable } from 'node:stream';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
+import { Command } from './commander.js';
 import { renderCompletion, renderFigSpec } from './completions.js';
-import { defineCommand, defineProgram, execute } from './index.js';
+import { defineCommand, defineProgram, execute, run } from './index.js';
 import { annotationsOf, MCP_PROTOCOL_VERSION, serveMcp, toolsOf } from './mcp-entry.js';
 import { inputSchemaOf, Manifest, schemaOf } from './schema-entry.js';
 import { runBurgee } from './testing.js';
@@ -232,5 +233,220 @@ describe('a runnable command declares its effects, or declines out loud (N6)', (
     }
     expect(thrown.code).toBe('E_PLUGIN_SCHEMA');
     expect(thrown.message).toMatch(/declares no effects/);
+  });
+});
+
+/** One `tools/call` through the engine's own `--mcp`; the tool result's text and error flag. */
+async function call(manifest: Manifest, name: string, args: Record<string, unknown>): Promise<{ text: string; isError: boolean; printed: string }> {
+  const input = new PassThrough();
+  const out: string[] = [];
+  const running = execute(manifest, { argv: ['--mcp'], env: {}, stdin: input, stdout: { write: (s: string) => out.push(s) }, stderr: { write: () => true }, exit: () => undefined });
+  input.write(`${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } })}\n`);
+  input.end();
+  await running;
+  const reply = JSON.parse(out.join('').trim()) as { result: { content: { text: string }[]; isError: boolean } };
+  const [envelope, ...printed] = reply.result.content;
+  return { text: envelope?.text ?? '', isError: reply.result.isError, printed: printed.map((c) => c.text).join('\n') };
+}
+
+/**
+ * The arguments an agent sends are the names `tools/list` advertised, and each one has to reach
+ * the handler. `argvOf` wrote `--${name}` from the canonical key, so `dryRun` became
+ * `--dryRun` — which the engine refuses, because the command line is kebab-case (S5) — and a
+ * boolean sent as `false` was dropped, so an option that defaults on could not be turned off.
+ */
+describe('tools/call — multi-word options and negations', () => {
+  const tidy = defineProgram({
+    name: 'tidy',
+    commands: [
+      defineCommand({
+        name: 'run',
+        effects: 'read_only',
+        options: { dryRun: { type: 'boolean' }, maxLines: { type: 'string' }, color: { type: 'boolean', default: true } },
+        run: ({ options }) => ({ dryRun: options.dryRun, maxLines: options.maxLines, color: options.color }),
+      }),
+    ],
+  });
+
+  it('sends a camelCase property as the kebab-case flag the schema names', async () => {
+    const r = await call(tidy, 'run', { dryRun: true, maxLines: '3' });
+    expect(r.isError, r.text).toBe(false);
+    expect(JSON.parse(r.text)).toMatchObject({ ok: true, data: { dryRun: true, maxLines: '3' } });
+  });
+
+  it('turns a boolean that defaults on off, when the agent says false', async () => {
+    const r = await call(tidy, 'run', { color: false });
+    expect(JSON.parse(r.text)).toMatchObject({ ok: true, data: { color: false } });
+  });
+
+  it('says nothing for a false it does not need to, so a relation is not tripped by it', async () => {
+    const r = await call(tidy, 'run', { dryRun: false });
+    expect(JSON.parse(r.text)).toMatchObject({ ok: true, data: { color: true } });
+    expect((JSON.parse(r.text) as { data: { dryRun?: boolean } }).data.dryRun).not.toBe(true);
+  });
+});
+
+/**
+ * The README's one-file CLI, served over `--mcp`. `run(defineCommand(…))` built its manifest
+ * from the name, the description and the options alone, so the `effects` that `defineCommand`
+ * had just insisted on never reached `tools/list` — the tool said `effects: 'undeclared'` — and
+ * the tool was named `""`, the command's path with the program's own name taken off, which
+ * for a single command is everything. MCP tool names are one character or more.
+ */
+describe('a single-command program over --mcp', () => {
+  it('is one tool, named after the program, carrying the effects it declared', async () => {
+    const input = new PassThrough();
+    const out: string[] = [];
+    const greet = defineCommand({
+      name: 'greet',
+      options: { name: { type: 'string', required: true } },
+      effects: 'read_only',
+      run: ({ options }) => ({ greeting: `hello, ${options.name ?? ''}` }),
+    });
+    const running = run(greet, { argv: ['--mcp'], env: {}, stdin: input, stdout: { write: (s: string) => out.push(s) }, stderr: { write: () => true }, exit: () => undefined });
+    input.write(`${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' })}\n`);
+    input.write(`${JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'greet', arguments: { name: 'ada' } } })}\n`);
+    input.end();
+    await running;
+    const [list, called] = out.join('').trim().split('\n').map((l) => JSON.parse(l) as { result: Record<string, unknown> });
+    expect(list?.result['tools']).toMatchObject([{ name: 'greet', annotations: { readOnlyHint: true, idempotentHint: true, destructiveHint: false } }]);
+    expect(called?.result).toMatchObject({ isError: false });
+  });
+});
+
+/**
+ * A handler that prints. The JSON-RPC frames go out on stdout, so anything else a tool call
+ * writes there — `console.log` in a commander action, the common case in a migrated program,
+ * or `process.stdout.write` — landed between two frames and the client read `hello` as a
+ * malformed message. Before this, the stream a real `--mcp` program sent was:
+ *
+ *     {"jsonrpc":"2.0","id":1,"result":{…"serverInfo":{"name":"hello"…}}}
+ *     hello
+ *     {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"{\"ok\":true,\"data\":null,…}"}],"isError":false}}
+ *
+ * — a parse error, and a tool result that says nothing, because what the action had to say it
+ * printed. Now the frames are the only thing on the stream and the printed text is the result.
+ *
+ * Proved red against the unfixed tree (the text never reached the result, and the raw write
+ * reached the stream), and the restore tests against the capture with its `finally` taken out.
+ */
+/**
+ * `--mcp` on a `burgee/commander` program with the transport on the real `process.stdout`,
+ * as a spawned server's is: every line the client would read, and the tool results by id.
+ */
+async function serveCommander(program: Command, calls: object[]): Promise<{ lines: string[]; results: Map<number, { content: { text: string }[]; isError: boolean }>; stderr: string }> {
+  const lines: string[] = [];
+  const errs: string[] = [];
+  const input = Readable.from([`${calls.map((c) => JSON.stringify(c)).join('\n')}\n`]);
+  vi.spyOn(process, 'stdin', 'get').mockReturnValue(input as unknown as typeof process.stdin);
+  const originalOut = process.stdout.write;
+  const originalErr = process.stderr.write;
+  process.stdout.write = ((s: string | Uint8Array) => lines.push(String(s)) > 0) as typeof process.stdout.write;
+  process.stderr.write = ((s: string | Uint8Array) => errs.push(String(s)) > 0) as typeof process.stderr.write;
+  try {
+    await program.parseAsync(['--mcp'], { from: 'user' });
+  } finally {
+    process.stdout.write = originalOut;
+    process.stderr.write = originalErr;
+    vi.restoreAllMocks();
+  }
+  const stream = lines.join('').split('\n').filter((l) => l !== '');
+  const results = new Map<number, { content: { text: string }[]; isError: boolean }>();
+  for (const line of stream) {
+    const frame = JSON.parse(line) as { id: number; result: { content: { text: string }[]; isError: boolean } };
+    results.set(frame.id, frame.result);
+  }
+  return { lines: stream, results, stderr: errs.join('') };
+}
+
+const callOf = (id: number, name: string): object => ({ jsonrpc: '2.0', id, method: 'tools/call', params: { name, arguments: {} } });
+const textOf = (result: { content: { text: string }[] } | undefined): string => (result?.content ?? []).map((c) => c.text).join('\n');
+
+/** Everything a tool call's capture replaces, to prove it was put back. */
+const snapshot = (): unknown[] => [process.stdout.write, console.log, console.info, console.debug, console.dir, console.table];
+
+describe('a tool call that prints', () => {
+  it('returns what a commander action console.logs as the tool result', async () => {
+    const program = new Command('hello');
+    program.command('greet').action(() => {
+      console.log('hello');
+    });
+    const { results } = await serveCommander(program, [callOf(1, 'greet')]);
+    expect(results.get(1)?.isError).toBe(false);
+    expect(results.get(1)?.content).toContainEqual({ type: 'text', text: 'hello' });
+  });
+
+  it('keeps a direct process.stdout.write off the stream, and leaves stderr on stderr', async () => {
+    const program = new Command('raw');
+    program.command('dump').action(() => {
+      process.stdout.write('raw line\n');
+      process.stderr.write('a warning\n');
+    });
+    // `serveCommander` parses every line as a frame, so a stray write fails it here.
+    const { lines, results, stderr } = await serveCommander(program, [callOf(1, 'dump')]);
+    expect(lines).toHaveLength(1);
+    expect(textOf(results.get(1))).toContain('raw line');
+    expect(textOf(results.get(1))).not.toContain('a warning');
+    expect(stderr).toContain('a warning');
+  });
+
+  /**
+   * The transport answers one request at a time — `serve` awaits each before it reads the
+   * next line — so two calls cannot overlap. Pipelined anyway, with the first one printing
+   * only after it has yielded: each result carries its own output and nothing of the other's.
+   */
+  it('keeps two pipelined calls from reading each other’s output', async () => {
+    const program = new Command('two');
+    program.command('slow').action(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      console.log('from slow');
+    });
+    program.command('fast').action(() => {
+      console.log('from fast');
+    });
+    const { results } = await serveCommander(program, [callOf(1, 'slow'), callOf(2, 'fast')]);
+    expect(textOf(results.get(1))).toContain('from slow');
+    expect(textOf(results.get(1))).not.toContain('from fast');
+    expect(textOf(results.get(2))).toContain('from fast');
+    expect(textOf(results.get(2))).not.toContain('from slow');
+  });
+
+  describe('puts stdout and the console back after the call', () => {
+    it('when the handler throws after printing', async () => {
+      const before = snapshot();
+      const loud = defineProgram({
+        name: 'loud',
+        commands: [defineCommand({ name: 'boom', effects: 'read_only', run: () => { console.log('about to fail'); throw new Error('boom'); } })],
+      });
+      const r = await call(loud, 'boom', {});
+      expect(r.isError).toBe(true);
+      expect(JSON.parse(r.text)).toMatchObject({ ok: false, error: { message: 'boom' } });
+      expect(r.printed).toBe('about to fail');
+      expect(snapshot()).toEqual(before);
+    });
+
+    it('when the invoke itself rejects, and the server answers the next request', async () => {
+      const before = snapshot();
+      const input = new PassThrough();
+      const written: string[] = [];
+      let calls = 0;
+      const invoke = async (): Promise<{ stdout: string; stderr: string; code: number }> => {
+        calls += 1;
+        console.log('printed first');
+        if (calls === 1) throw new Error('the runner fell over');
+        return { stdout: '{"ok":true}', stderr: '', code: 0 };
+      };
+      const done = serveMcp(program, { input, output: { write: (s: string) => written.push(s) }, invoke });
+      input.write(`${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'greet', arguments: { name: 'ada' } } })}\n`);
+      input.write(`${JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'greet', arguments: { name: 'ada' } } })}\n`);
+      input.end();
+      await done;
+      expect(snapshot()).toEqual(before);
+      const [first, second] = written.join('').trim().split('\n').map((l) => JSON.parse(l) as { id: number; result: { content: { text: string }[]; isError: boolean } });
+      expect(first?.result.isError).toBe(true);
+      expect(textOf(first?.result)).toContain('the runner fell over');
+      expect(textOf(first?.result)).toContain('printed first');
+      expect(second).toMatchObject({ id: 2, result: { isError: false } });
+    });
   });
 });
