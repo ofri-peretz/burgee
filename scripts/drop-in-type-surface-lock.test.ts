@@ -30,6 +30,7 @@ const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 /** Incumbent → drop-in, for every drop-in `burgee migrate` rewrites to (A12). */
 const PAIRS: readonly (readonly [string, string])[] = [
   ['chalk', 'roundel/chalk'],
+  ['ansi-escapes', 'paratext'],
   ['ora', 'flagstaff/ora'],
   ['log-update', 'flagstaff/log-update'],
   ['boxen', 'flagstaff/boxen'],
@@ -69,6 +70,11 @@ const GAPS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
       "chalk's deprecated arrays, kept for chalk 4 callers; they cost 142 B against `./chalk`'s budget, which is chalk's own source size, and `burgee migrate` refuses a value import it cannot satisfy rather than break it",
     ]),
   ),
+  paratext: {
+    AnnotationOptions: "the options of `iTerm.annotation`, and `iTerm` is declared and empty (NotImplemented) until paratext has a capability for it",
+    LiteralUnion: "a helper inside ansi-escapes' declaration file, exported only because a `.d.ts` exports every top-level declaration — not API",
+    Primitive: "a helper inside ansi-escapes' declaration file, exported only because a `.d.ts` exports every top-level declaration — not API",
+  },
   'closeout/signal-exit': { Handler: "a type on a CommonJS `export =` object, which cannot carry a type export beside it without a namespace merge in the `.cts` source" },
   'burgee/yargs/parser': { detailed: "a property of yargs-parser's default function, reached as `parser.detailed(...)`; ours has it there too, and a named import of it does not run against yargs-parser either" },
 };

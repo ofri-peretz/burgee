@@ -28,6 +28,7 @@ const require = createRequire(new URL('../package.json', import.meta.url));
 const PAIRS: readonly (readonly [string, string])[] = [
   ['yargs', 'burgee/yargs'],
   ['chalk', 'roundel/chalk'],
+  ['ansi-escapes', 'paratext'],
   ['ora', 'flagstaff/ora'],
   ['log-update', 'flagstaff/log-update'],
   ['boxen', 'flagstaff/boxen'],

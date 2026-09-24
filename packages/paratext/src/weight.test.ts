@@ -93,10 +93,12 @@ const RULES: Record<string, EntryRule> = {
   // definition — `capability.schema.json`, written by `scripts/schema-sync.mjs` and held to the
   // source by `plugin-schema-lock.test.ts` — and publishes the whole contract as data it does not
   // import. Measured 16,002 and 13,328: both entries are lighter than they were this morning.
-  // 16,100 → 16,200 under A27: `runtime.js` gained `commandLineRuntime()` for `./terminal-link`
+  // 17,700 on 2026-09-23, D-138: the CSI half of `ansi-escapes` (`csi.js`) on the root, which the default
+  // export carries as the incumbent's does. Measured 17,698.
+  // 17,700 → 17,900 under A27: `runtime.js` gained `commandLineRuntime()` for `./terminal-link`
   // (R5 keeps every `process` read in that one file). A bundler drops it from this entry; this
-  // walk counts the whole file. Measured 16,117.
-  '.': { allow: [], budget: 16_200, denied: ['plugin.js'] },
+  // walk counts the whole file. Measured 17,813.
+  '.': { allow: [], budget: 17_900, denied: ['plugin.js'] },
   /**
    * OSC 8 alone, for a host that wants one clickable URL and not a plugin contract.
    * Measured **2,337 B**: `link.js` 768, `template.js` 774, `supports.js` 652,
