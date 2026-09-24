@@ -33,6 +33,10 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    env:
+      # `secrets` cannot be read in a step's `if:`; a job-level env of the boolean can.
+      HAS_APP_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY != '' }}
+      HAS_PAT: ${{ secrets.RELEASE_BOT_PAT != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -53,10 +57,23 @@ jobs:
         run: |
           { echo '## Control bands'; echo; echo '```'; cat bands.log || echo '(no output)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
+      # A PR opened with `github.token` raises no workflow runs, so it never gets its required
+      # checks and `--auto` never fires. Same credential chain as changesets-pr.yml and evals.yml.
+      - name: Mint the release App's token
+        id: app
+        if: vars.RELEASE_APP_ID != '' && env.HAS_APP_KEY == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
       - name: Open a PR with the new observations, and the intent if a band breached
         if: github.event_name != 'workflow_dispatch' || inputs.write-intent
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.app.outputs.token || secrets.RELEASE_BOT_PAT || github.token }}
+          SOURCE: ${{ steps.app.outputs.token != '' && 'app' || (env.HAS_PAT == 'true' && 'pat' || 'github-token') }}
           BREACHED: ${{ steps.bands.outcome == 'failure' }}
         run: |
           set -euo pipefail
@@ -76,8 +93,13 @@ jobs:
           git checkout -b "$BRANCH"
           git add .sdlc/intents/ .sdlc/bands/control-bands.history.json
           git commit -m "$TITLE"
-          git push -u origin "$BRANCH"
+          # checkout persisted `github.token` as an auth header, which would win over the URL.
+          git config --unset-all http.https://github.com/.extraheader || true
+          git push -u "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$BRANCH"
           gh pr create --base main --head "$BRANCH" --label skip-changeset --title "$TITLE" --body "$(printf '%s\n\n```\n%s\n```\n' "$BODY" "$(cat bands.log)")"
+          if [ "$SOURCE" = "github-token" ]; then
+            echo "::warning title=PR opened with GITHUB_TOKEN::It raises no checks, so it will not auto-merge. Set RELEASE_APP_ID + RELEASE_APP_PRIVATE_KEY, or RELEASE_BOT_PAT — see .sdlc/GAPS.md C5."
+          fi
           [ "$BREACHED" = "true" ] || gh pr merge --auto --squash "$BRANCH" || true
 
       - name: Open an issue if the watcher itself broke
