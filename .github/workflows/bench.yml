@@ -18,6 +18,8 @@ name: Benchmarks
 #            reports a number it did not measure. On a scheduled run that skips,
 #            it opens an issue, because a weekly benchmark that has never run is
 #            the kind of thing a green tick hides for a year.
+#   floor  — N10, the demo graded by clispec and cli-agent-lint. Free, every PR,
+#            its own suite (`external-floor`); see the job.
 #
 # The perf axis reports absolute milliseconds that are a property of the runner.
 # Nothing gates on them: the gated number is a ratio between two spawns
@@ -64,6 +66,10 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    env:
+      # `secrets` cannot be read in a step's `if:`; a job-level env of the boolean can.
+      HAS_APP_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY != '' }}
+      HAS_PAT: ${{ secrets.RELEASE_BOT_PAT != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
@@ -96,6 +102,18 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
+      # A PR opened with `github.token` raises no workflow runs, so it never gets its required
+      # checks and `--auto` never fires. Same credential chain as changesets-pr.yml and evals.yml.
+      - name: Mint the release App's token
+        id: app
+        if: vars.RELEASE_APP_ID != '' && env.HAS_APP_KEY == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
       # A band with no committed observations is a band that never computes. The Stage 6
       # watcher reads dated files out of the checkout, so a run that only uploads an
       # artifact feeds it nothing — which is how the two agent bands sat at 0 of 8 from
@@ -103,7 +121,8 @@ jobs:
       - name: Land the day's observations, so the bands have a series to watch
         if: github.event_name == 'push'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.app.outputs.token || secrets.RELEASE_BOT_PAT || github.token }}
+          SOURCE: ${{ steps.app.outputs.token != '' && 'app' || (env.HAS_PAT == 'true' && 'pat' || 'github-token') }}
           BODY: "Observations from `npm run bench`, landed so the Stage 6 bands in `.sdlc/bands/control-bands.json` have a series to read. A series that stops updating looks perfectly healthy, which is why these landing is what keeps the bands honest."
         run: |
           set -euo pipefail
@@ -148,26 +167,54 @@ jobs:
           git checkout -b "$BRANCH"
           git add benchmarks/results/
           git commit -m "$TITLE"
-          git push -u origin "$BRANCH"
+          # checkout persisted `github.token` as an auth header, which would win over the URL.
+          git config --unset-all http.https://github.com/.extraheader || true
+          git push -u "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$BRANCH"
           gh pr create --base main --head "$BRANCH" --label skip-changeset --title "$TITLE" --body "$BODY"
-          # This `--auto` has never once merged anything, and it cannot.
-          #
-          # `GH_TOKEN` above is `github.token`, and GitHub deliberately does not trigger
-          # workflows from events created by the default token — the rule exists to stop a
-          # workflow from recursively triggering itself. So the pull request this line opens
-          # never receives `Quality Gate`, `Quality (Full) Gate` or `review`, which are the three
-          # required checks; it sits at BLOCKED with **zero failures** forever, which reads
-          # exactly like a check still running.
-          #
-          # Measured cost: five of these have now been landed by hand, by cherry-picking the
-          # results onto a human branch and opening a second pull request (#315, #323, and the
-          # ones before them). The nightly has never landed its own data.
-          #
-          # The fix needs a credential and is therefore the owner's: either push with a PAT so
-          # the pull request is attributed to a real actor and the workflows fire, or add this
-          # workflow to branch protection's bypass list and commit the results straight to main.
-          # These are observations, not code — there is nothing in them for a review to catch.
+          if [ "$SOURCE" = "github-token" ]; then
+            echo "::warning title=PR opened with GITHUB_TOKEN::It raises no checks, so it will not auto-merge. Set RELEASE_APP_ID + RELEASE_APP_PRIVATE_KEY, or RELEASE_BOT_PAT — see .sdlc/GAPS.md C5."
+          fi
+          # With the App token or RELEASE_BOT_PAT this PR gets its required checks and `--auto`
+          # merges it. With only `github.token` it sits at BLOCKED with zero failures forever;
+          # 65 of them were landed by hand as #570.
           gh pr merge --auto --squash "$BRANCH" || true
+
+  # N10 — the floor, graded by two published checklists we did not write: clispec.dev v0.3
+  # and cli-agent-lint's 34 checks. Its own job and its own suite (`external-floor`),
+  # because two `npm run bench` commands in one checkout write the same
+  # `<date>-<sha>-ci.json` name for every suite, and the second would overwrite the first's
+  # measurements with `not-run`. Free and deterministic, so it runs on every PR; the one
+  # network step is the download, which `floor-tools.ts` refuses unless the archive's
+  # SHA-256 is the pinned one.
+  floor:
+    name: N10 external floor (clispec · cli-agent-lint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - name: Build (the checkers grade the built demo, never the source)
+        run: npx turbo run build
+      - name: Install the two checkers, pinned by version and digest
+        run: npx tsx benchmarks/floor-tools.ts
+      - name: Grade the floor and check burgee's ratchet
+        shell: bash
+        run: npm run bench -- --axis floor --check 2>&1 | tee floor.log
+      - name: Summary
+        if: always()
+        run: |
+          { echo '## N10 external floor'; echo; echo '```'; cat floor.log || echo '(no output)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      # What `--publish` would have written, kept so a person can promote a CI run to the
+      # published measurement the way #129 did for `cli-benchmarks` — the runner, not a laptop.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: floor-results
+          path: benchmarks/results/external-floor/*.json
+          if-no-files-found: ignore
+          retention-days: 30
 
   agent:
     name: B1 agent cost (skips loudly without a credential)

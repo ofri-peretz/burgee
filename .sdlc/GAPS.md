@@ -38,7 +38,7 @@ Three kinds, because they close three different ways:
 | ~~A19~~ | ~~`defineError({ name, code })`~~ — **closed**: the class leaves with its code, rendered like `UsageError`; a reused or reserved code throws at definition | burgee E7, D-118 | done |
 | ~~A20~~ | ~~`dynamic: true` completion marker~~ — **closed**: an option's `complete` function is the opt-in; four shells call back for it alone | burgee D3, D-119 | done |
 | ~~A21~~ | ~~non-TTY prompt exits 2, cancelled prompt exits 4~~ — **closed**: a thrown `code: 'USAGE' / 'CANCELLED'` maps by name; caique's real refusals proven end to end | burgee P2, P3, D-120 | done |
-| A22 | `.burgee({ floor: true })` on façades | burgee J3, J4, D-121 | one call turns the behavioural floor on; `--schema` names the flags the program shadows |
+| ~~A22~~ | ~~`.burgee({ floor: true })` on façades~~ — **closed**: both façades take it — a usage failure exits 2, a failing handler is one line and its E1 code with no stack and no help screen, and nothing else changes; `--schema` publishes `shadows`, validated against `program-schema.json` from each façade. The core bundle is unchanged; the façades carry the three checks | burgee J3, J4, D-121 | done |
 | ~~A23~~ | ~~plugin hooks `parse` and `shutdown`~~ — **closed**: `parse` rewrites argv before resolution, chained in `enforce` order; `shutdown` fires once through the run's teardown; both in the schema, and the plugins page's limit now reads help and config only | plugin surface, D-122 | done |
 | ~~A24~~ | ~~`burgee/program-schema.json`~~ — **closed**: published; real `--schema` output validated against it in a test; `--schema` gains `exitCodes` | burgee F1, schema-is-validated, D-123 | done |
 | ~~A25~~ | ~~`.effects()` on commander façade commands~~ — **already built**, found 2026-09-23: both façades have `.effects()`, `facade-surface.test.ts` covers declared, undeclared and withheld; the spec row was stale | agent-surface-declared R6, D-127 | done |
@@ -78,6 +78,7 @@ built moved to A15–A25.
 | ~~B20~~ | ~~Accept the requirement restatements already written in the specs — compat-oracle R1, R3, C4 and the rest of its "Requirements restated" table; burgee U1, U10, Z3/K1; flagstaff R10's dependency sentence~~ | each spec's restatement table | **decided — D-130** |
 | ~~B19~~ | ~~design acceptance for linegauge, closeout, bellpull, seniority (draft) and caique, paratext (review)~~ | each intent | **decided — D-129** |
 | ~~B21~~ | ~~Does paratext take ansi-escapes' CSI surface?~~ | paratext scope | **decided — D-138** |
+| B22 | burgee scores 6 / 24 on clispec.dev v0.3 and 78% on cli-agent-lint (N10, 2026-09-24). 15 of clispec's 18 failed checks follow from its scorer probing `<tool> schema` while burgee answers `--schema` (ten test that command, five more are two principles that fail outright without it); the other three are the output principle — piped-output declaration, the error envelope as stderr's last line, and an explicit format beating TTY detection. Answering a `schema` subcommand is public API, so it is decided before it is built | burgee N10, D-149 | **open** — accept `schema` as an alias of `--schema` (and name it in root `--help`), then re-measure; argue any remaining check upstream rather than in the parser |
 
 ## C — outside the repo
 
@@ -87,7 +88,7 @@ built moved to A15–A25.
 | C2 | the one-turn plugin-authoring eval ran once (2026-09-24, D-147) and passed **1 of 9** — every failure was the 3-turn cap, not a wrong plugin | burgee U9 | a turn budget the prompt can fit (a decision about what "one turn" means, not a harness tweak), then three consecutive weekly runs at the stated rate |
 | C3 | the first outside adopter | burgee U12 | a CLI we did not write, installing one layer alone |
 | C5 | the lint half of F3, O3, P1 | burgee F3, O3, P1, D-124 | a rule set in the Interlace ESLint monorepo, not here |
-| C4 | clispec.dev and cli-agent-lint have no axis | burgee N10 | both tools to exist and be runnable offline — unverified |
+| ~~C4~~ | ~~clispec.dev and cli-agent-lint have no axis~~ | burgee N10 | **verified 2026-09-24 and built — D-149**: both exist, both run offline, neither is on npm; measured and published. What they found is B22 |
 
 ## Release queue — owner actions
 

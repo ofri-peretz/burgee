@@ -266,12 +266,12 @@ has never been measured**:
 | Claim | Gate | Measured | |
 | :--- | :--- | ---: | :--- |
 | the core entry point is under 52 KB bundled | `core-under-52kb-bundled` | 30,107 bytes | ✅ met |
-| `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 0.958× | ✅ met |
+| `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 0.961× | ✅ met |
 | `burgee` is lighter than `cac` **plus what a cac user installs to match it** | `lighter-than-cac-at-parity` | 0.308× | ✅ met |
-| `burgee/commander` is lighter than `commander` **plus the same** | `lighter-than-commander-at-parity` | 0.481× | ✅ met |
-| `burgee/yargs` is lighter than `yargs` **plus the same** | `lighter-than-yargs-at-parity` | 0.537× | ✅ met |
+| `burgee/commander` is lighter than `commander` **plus the same** | `lighter-than-commander-at-parity` | 0.483× | ✅ met |
+| `burgee/yargs` is lighter than `yargs` **plus the same** | `lighter-than-yargs-at-parity` | 0.539× | ✅ met |
 | `burgee` starts at or below `cac`, the lightest framework in the landscape | `cold-start-at-or-below-cac` | 1.443× | ❌ **not met** |
-| `burgee/commander` is lighter in a user's bundle than `commander` alone | `lighter-than-commander` | 1.554× | ❌ **not met** |
+| `burgee/commander` is lighter in a user's bundle than `commander` alone | `lighter-than-commander` | 1.561× | ❌ **not met** |
 | `burgee` is lighter in a user's bundle than `cac` alone | `lighter-than-cac` | 2.881× | ❌ **not met** |
 | an agent spends ≥40% fewer tokens and ≥30% fewer turns | `agent-tokens-40pct` | — | **unmeasured** |
 
@@ -286,8 +286,8 @@ with:
 | | the incumbent alone | + what you add to match burgee | ours |
 | :--- | ---: | ---: | ---: |
 | `cac` | 10,452 B | **97,711 B** | 30,107 B |
-| `commander` | 39,084 B | **126,354 B** | 60,738 B |
-| `yargs` | 111,152 B | **198,269 B** | 106,523 B |
+| `commander` | 39,084 B | **126,354 B** | 61,014 B |
+| `yargs` | 111,152 B | **198,269 B** | 106,868 B |
 
 The additions are `cosmiconfig` (find and load a config file), `exit-hook` (run cleanup on
 every path out, including a signal) and `restore-cursor` (hand the terminal back), bundled

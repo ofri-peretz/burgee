@@ -8,10 +8,11 @@
  *   npm run bench -- --no-write        do not touch results/
  *   npm run bench -- --no-oracle       B3 reads results.json or skips; never runs the oracle
  *
- * Two documents come out, because the axes run on two cadences: `cli-benchmarks` (perf,
- * compat, weight — free, deterministic, gate every PR) and `agent-cli-bench` (B1 — costs
- * money, weekly). Both are written even when an axis inside them was skipped: a results
- * file recording that B1 could not run is the point, not a gap.
+ * Three documents come out, because the axes run on three cadences: `cli-benchmarks` (perf,
+ * compat, weight — free, deterministic, gate every PR), `agent-cli-bench` (B1 — costs
+ * money, weekly) and `external-floor` (N10 — two outside checkers, which move when they
+ * release rather than when we change). All are written even when an axis inside them was
+ * skipped: a results file recording that B1 could not run is the point, not a gap.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -19,6 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 import { method as agentMethod, run as runAgent } from './axes/agent.js';
 import { method as compatMethod, run as runCompat } from './axes/compat.js';
+import { method as floorMethod, run as runFloor } from './axes/floor.js';
 import { method as perfMethod, run as runPerf } from './axes/perf.js';
 import { method as reliabilityMethod, run as runReliability } from './axes/reliability.js';
 import { method as weightMethod, run as runWeight } from './axes/weight.js';
@@ -30,7 +32,7 @@ import { type AxisName, type BenchRecord, describeFailure, gateFailures } from '
 const BENCH_ROOT = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(BENCH_ROOT, '..');
 const RESULTS_DIR = join(BENCH_ROOT, 'results');
-const ALL_AXES: AxisName[] = ['perf', 'compat', 'weight', 'reliability', 'agent'];
+const ALL_AXES: AxisName[] = ['perf', 'compat', 'weight', 'reliability', 'agent', 'floor'];
 const ISO_DATE = 10;
 /** Matches `${GITHUB_SHA::7}` in `bench.yml`, so one run cannot produce two spellings. */
 const SHORT_SHA = 7;
@@ -72,6 +74,8 @@ function runAxis(axis: AxisName, args: Args): AxisOutcome {
       return { records: runWeight() };
     case 'reliability':
       return runReliability();
+    case 'floor':
+      return runFloor();
     default:
       return runAgent();
   }
@@ -83,6 +87,7 @@ const METHOD = new Map<AxisName, string>([
   ['weight', weightMethod],
   ['reliability', reliabilityMethod],
   ['agent', agentMethod],
+  ['floor', floorMethod],
 ]);
 
 function collect(args: Args): { axes: Map<AxisName, AxisState>; records: BenchRecord[] } {
@@ -190,7 +195,7 @@ export function resultsName(doc: ResultsDoc, publish = false): string {
 
 function documents(args: Args): { docs: ResultsDoc[]; axes: Map<AxisName, AxisState> } {
   const { axes, records } = collect(args);
-  const docs = [SUITE.cheap, SUITE.agent].map((suite: SuiteName) => {
+  const docs = Object.values(SUITE).map((suite: SuiteName) => {
     const mine = ALL_AXES.filter((a) => suiteOf(a) === suite);
     const subset = Object.fromEntries(mine.map((a) => [a, axes.get(a) as AxisState]));
     return buildDocument({ suite, commit: commit(REPO_ROOT), machine: machine(), axes: subset, records: records.filter((r) => mine.includes(r.axis)) });

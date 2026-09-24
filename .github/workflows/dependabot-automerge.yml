@@ -1,0 +1,127 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Dependabot auto-merge
+
+run-name: Dependabot auto-merge · PR #${{ github.event.pull_request.number }}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Turns on auto-merge for a Dependabot PR only when every dependency it moves is a
+# semver patch or minor AND none of them is a direct production dependency. A
+# GitHub Actions bump is always `direct:production`, so the `github_actions`
+# ecosystem is exempt from that second test. A patch or minor bump is still held
+# to that test.
+#
+# This workflow merges nothing itself. `--auto` hands the PR to branch protection,
+# so the required checks (`Quality Gate`, `Quality (Full) Gate`, `review`) are the
+# gate here as they are for every other PR. A grouped PR with a single major bump,
+# or a single runtime dependency, is left for a person.
+#
+# `pull_request_target`, because Dependabot's `pull_request` runs get a read-only
+# token. This workflow never checks out or runs the PR's code. It reads the PR's
+# metadata and calls `gh` against its URL, which is the one shape this trigger is
+# safe for. fetch-metadata also refuses a PR with commits Dependabot did not make.
+#
+# A push can change what a Dependabot PR contains: it recreates a grouped PR when a
+# new release lands, and a person can push onto its branch. So on `synchronize` a PR
+# that no longer qualifies has its auto-merge turned off again, not left enabled from
+# an earlier, smaller diff.
+#
+# Credential: the same chain as changesets-pr.yml and the data-PR workflows (#577).
+# A merge that GITHUB_TOKEN's auto-merge performs raises no runs on main (#393 landed
+# that way and neither `release.yml` nor `quality.yml` ran), so the release App's
+# token is preferred, then RELEASE_BOT_PAT, then `github.token` with a warning.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: dependabot-automerge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  automerge:
+    name: Auto-merge patch and minor non-production bumps
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      # `secrets` cannot be read in a step's `if:`; a job-level env can, and a boolean of
+      # it carries nothing secret.
+      HAS_APP_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY != '' }}
+      HAS_PAT: ${{ secrets.RELEASE_BOT_PAT != '' }}
+    steps:
+      - name: Read Dependabot's metadata
+        id: meta
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+
+      # Every entry, not the PR's headline: `update-type` is the *highest* change in the
+      # PR and `dependency-type` is only the first entry's, so a grouped PR can read
+      # "semver-patch, direct:development" while one of its entries is a runtime dep.
+      # An entry with no `updateType` (fetch-metadata could not work one out) does not
+      # qualify, and nor does an empty or unreadable list.
+      - name: Does every update qualify?
+        id: decide
+        env:
+          UPDATES: ${{ steps.meta.outputs.updated-dependencies-json }}
+        run: |
+          set -euo pipefail
+          if printf '%s' "$UPDATES" | jq -e '
+            type == "array" and length > 0 and all(.[];
+              (.updateType == "version-update:semver-patch" or .updateType == "version-update:semver-minor")
+              and (.dependencyType != "direct:production" or .packageEcosystem == "github_actions"))
+          ' > /dev/null 2>&1; then
+            echo "merge=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "merge=false" >> "$GITHUB_OUTPUT"
+          fi
+          {
+            echo "| Dependency | Ecosystem | Type | Update |"
+            echo "| :-- | :-- | :-- | :-- |"
+            printf '%s' "$UPDATES" | jq -r '.[]? | "| `\(.dependencyName)` | \(.packageEcosystem) | \(.dependencyType) | \(.updateType) |"' 2>/dev/null || true
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Mint the release App's token
+        id: app
+        if: vars.RELEASE_APP_ID != '' && env.HAS_APP_KEY == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Enable auto-merge
+        if: steps.decide.outputs.merge == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || secrets.RELEASE_BOT_PAT || github.token }}
+          SOURCE: ${{ steps.app.outputs.token != '' && 'app' || (env.HAS_PAT == 'true' && 'pat' || 'github-token') }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          set -euo pipefail
+          gh pr merge --auto --squash "$PR_URL"
+          echo "Auto-merge enabled with the $SOURCE credential; the required checks decide when it lands." >> "$GITHUB_STEP_SUMMARY"
+          if [ "$SOURCE" = "github-token" ]; then
+            echo "::warning title=Auto-merge enabled with GITHUB_TOKEN::No release credential is configured. The merge will raise no workflow runs on main, so quality.yml and release.yml will not run on it. Set RELEASE_APP_ID (repo variable) + RELEASE_APP_PRIVATE_KEY (repo secret), or RELEASE_BOT_PAT, to fix that for this workflow and the others that share the chain."
+          fi
+
+      # Only auto-merge a bot turned on, meaning this workflow on an earlier push. A person
+      # who enables auto-merge on a major bump has made that call, and it stays theirs.
+      - name: Turn auto-merge off if an earlier push had turned it on
+        if: steps.decide.outputs.merge != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          set -euo pipefail
+          if [ "$(gh pr view "$PR_URL" --json autoMergeRequest --jq '.autoMergeRequest.enabledBy.is_bot == true')" = "true" ]; then
+            gh pr merge --disable-auto "$PR_URL"
+            echo "::notice title=Auto-merge turned off::This PR no longer moves only patch and minor, non-production dependencies. It needs a person."
+          else
+            echo "Not every update is a patch or minor non-production bump, so this PR is left for a person." >> "$GITHUB_STEP_SUMMARY"
+          fi

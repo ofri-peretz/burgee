@@ -44,9 +44,10 @@ From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `
 oracle's last run; that page is the authority. One slice-ansi case is one the incumbent marks
 as failing in its own suite, and linegauge passes it.
 
-What differs, by design: ambiguous-width characters count narrow, which is what a terminal
-does unless it is rendering an East Asian locale. string-width makes that an option;
-linegauge does not.
+string-width's options carry over under their own names and defaults. Ambiguous-width
+characters count narrow unless you pass `ambiguousIsNarrow: false`, which counts them two
+columns wide for a terminal rendering with a CJK font; `countAnsiEscapeCodes: true` measures
+escape sequences instead of removing them.
 
 ## What you gain over string-width
 

@@ -4,7 +4,7 @@
   "method": "benchmarks/axes/weight.ts installedBytes(name, dir), tree-inclusive, one count per realpath — `dir` a fresh `npm i <incumbent>@latest` in an empty directory, one per incumbent, never the workspace install (whose hoisted copies lag the registry)",
   "layers": {
     "linegauge": {
-      "ours": 85762,
+      "ours": 86081,
       "incumbents": {
         "string-width": 36801,
         "wrap-ansi": 80185,
@@ -12,35 +12,35 @@
         "slice-ansi": 66999
       },
       "ceiling": 194329,
-      "ratio": 0.4413,
+      "ratio": 0.443,
       "lightestIncumbent": {
         "name": "strip-ansi",
         "bytes": 10344
       }
     },
     "paratext": {
-      "ours": 105620,
+      "ours": 105848,
       "incumbents": {
         "ansi-escapes": 30912,
         "terminal-link": 61152,
         "term-img": 2143923
       },
       "ceiling": 2235987,
-      "ratio": 0.0472,
+      "ratio": 0.0473,
       "lightestIncumbent": {
         "name": "ansi-escapes",
         "bytes": 30912
       }
     },
     "seniority": {
-      "ours": 155728,
+      "ours": 156361,
       "incumbents": {
         "cosmiconfig": 1832269,
         "dotenv": 44951,
         "rc": 95287
       },
       "ceiling": 1972507,
-      "ratio": 0.0789,
+      "ratio": 0.0793,
       "lightestIncumbent": {
         "name": "dotenv",
         "bytes": 44951
@@ -83,14 +83,14 @@
       }
     },
     "bellpull": {
-      "ours": 103803,
+      "ours": 104308,
       "incumbents": {
         "execa": 647091,
         "cross-spawn": 46962,
         "which": 71500
       },
       "ceiling": 765553,
-      "ratio": 0.1356,
+      "ratio": 0.1363,
       "lightestIncumbent": {
         "name": "cross-spawn",
         "bytes": 46962
