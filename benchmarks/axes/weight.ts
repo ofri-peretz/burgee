@@ -343,7 +343,8 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // startup graph is the `host` seam it shares with the entry.
   // 29,250 on 2026-09-23 for **66 bytes**, D-140: the `--json` failure path classifies a
   // thrown error once for every front end. Measured 29,238 on top of #521's 29,172.
-  burgee: 29_250,
+  // 29,350 on 2026-09-23: D-140's 66 bytes and #521 on top of S4's 93 (29,238 + 93). Measured 29,331.
+  burgee: 29_350,
   // 59,250 on 2026-09-22 for **61 bytes**: the `.catch` that fires `onError`. A plugin's
   // lifecycle closes on every front end now — `preRun` opens and exactly one of `postRun` or
   // `onError` closes — where before a handler that threw left a plugin with no closing hook.
