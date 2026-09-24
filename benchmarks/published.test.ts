@@ -140,11 +140,11 @@ describe('a document names itself', () => {
   });
 
   it('is an observation when an axis was not selected — the `--axis weight` case', () => {
-    expect(resultsName(doc({ perf: { status: 'not-run' }, weight: { status: 'measured' } }))).toBe('2026-09-16-abcdef1.json');
+    expect(resultsName(doc({ perf: { status: 'not-run' }, weight: { status: 'measured' } }))).toBe('2026-09-16-abcdef1-local.json');
   });
 
   it('is an observation when a selected axis produced nothing', () => {
-    expect(resultsName(doc({ perf: { status: 'skipped' }, weight: { status: 'measured' } }))).toBe('2026-09-16-abcdef1.json');
+    expect(resultsName(doc({ perf: { status: 'skipped' }, weight: { status: 'measured' } }))).toBe('2026-09-16-abcdef1-local.json');
   });
 
   /**
@@ -160,8 +160,8 @@ describe('a document names itself', () => {
    */
   it('does not publish a complete run the caller did not ask to publish', () => {
     const complete = doc({ perf: { status: 'measured' }, weight: { status: 'measured' } });
-    expect(resultsName(complete)).toBe('2026-09-16-abcdef1.json');
-    expect(resultsName(complete, false)).toBe('2026-09-16-abcdef1.json');
+    expect(resultsName(complete)).toBe('2026-09-16-abcdef1-local.json');
+    expect(resultsName(complete, false)).toBe('2026-09-16-abcdef1-local.json');
   });
 
   it('and the observation name is one `publishedResults` refuses', () => {
@@ -173,5 +173,55 @@ describe('a document names itself', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+/**
+ * The fourth half, added 2026-09-22: **two runs of one commit on two machines are two
+ * observations, and the name has to say so.**
+ *
+ * `<date>-<sha>.json` named a commit, not a run. On 2026-09-22 a local `npm run bench` of
+ * `c0fa8a3` (an M4 Pro, `ci: false`) landed in #420 under the exact path the nightly's run of
+ * the same commit (a four-core EPYC, `ci: true`) was about to land at in #419 — so #419 could
+ * only have landed by deleting #420's file, and was closed instead. One of two observations
+ * of the same code was lost to a filename. D-142.
+ */
+const SUITES = ['cli-benchmarks', 'agent-cli-bench'] as const;
+const SUFFIX = /-(ci|local)\.json$/;
+
+describe('two runs of one commit', () => {
+  const complete = { perf: { status: 'measured' }, weight: { status: 'measured' } };
+  const on = (ci: boolean): Parameters<typeof resultsName>[0] => ({ ...doc(complete), machine: { ci } }) as unknown as Parameters<typeof resultsName>[0];
+
+  it('a CI observation and a local one of the same commit on the same day never share a name', () => {
+    expect(resultsName(on(true))).not.toBe(resultsName(on(false)));
+  });
+
+  it('the name is derived from where it ran, so it cannot be asserted wrongly', () => {
+    expect(resultsName(on(true))).toBe('2026-09-16-abcdef1-ci.json');
+    expect(resultsName(on(false))).toBe('2026-09-16-abcdef1-local.json');
+  });
+
+  it('and publishing stays one name, chosen by a person, wherever it ran', () => {
+    expect(resultsName(on(true), true)).toBe('2026-09-16.json');
+    expect(resultsName(on(false), true)).toBe('2026-09-16.json');
+  });
+
+  /**
+   * The committed directories, not a fixture. Observations named before the suffix existed
+   * are all CI runs — the eleven local ones were renamed when it arrived — so an unsuffixed
+   * observation may only be CI, and a suffixed one must agree with its own `machine.ci`.
+   */
+  it.each(SUITES)('every committed %s observation names the machine class it ran on', (suite) => {
+    const dir = join(REPO_ROOT, 'benchmarks', 'results', suite);
+    const wrong = observations(dir)
+      .filter((f) => f !== publishedResults(dir))
+      .filter((f) => {
+        const ci = (JSON.parse(readFileSync(join(dir, f), 'utf8')) as { machine: { ci: boolean } }).machine.ci;
+        const tag = SUFFIX.exec(f)?.[1];
+        const where = ci ? 'ci' : 'local';
+        return tag === undefined ? !ci : tag !== where;
+      });
+    expect(wrong).toEqual([]);
   });
 });

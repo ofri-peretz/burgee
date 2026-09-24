@@ -57,7 +57,7 @@ the un-run state *and* passes on a correct answer.
 
 ## What comes out
 
-`results/<suite>/<YYYY-MM-DD>-<sha>.json`, shaped by
+`results/<suite>/<YYYY-MM-DD>-<sha>-<ci|local>.json`, shaped by
 [`results.schema.json`](./results.schema.json):
 
 - **records** — every measurement in one shape, `{ axis, variant, metric, unit, samples,
@@ -74,9 +74,15 @@ free and deterministic, gate every PR) and `agent-cli-bench` (B1 — costs money
 
 ### Observations and the published measurement
 
-Every run writes an **observation**, `<date>-<sha>.json`. The bands glob the directory and
-read all of them, because a series that stops updating looks perfectly healthy and landing
-every run is what keeps that honest.
+Every run writes an **observation**, `<date>-<sha>-ci.json` on a CI runner and
+`<date>-<sha>-local.json` anywhere else. A sha names a commit, not a run: before the suffix a
+laptop's run and the nightly's run of the same commit had one path, and landing either deleted
+the other (D-142). Observations named before 2026-09-22 have no suffix and are all CI runs.
+
+The bands read **CI observations only**, chosen by `machine.ci` inside the document rather
+than by the name — a series that stops updating looks perfectly healthy and landing every CI
+run is what keeps that honest, and a series that mixes two machine classes is not one series.
+Local observations are still worth landing; they are data for a person, not for a σ.
 
 Exactly one file per suite is the **published measurement**, `<date>.json` with no sha. It is
 what `/docs/benchmarks` is generated from and what `docs.test.ts` pins `comparison.mdx`
@@ -98,9 +104,14 @@ Now it is a flag, and republishing is a decision with a commit message attached 
 
 B2's milliseconds are a property of whatever ran them; every results file carries the
 machine, and the tables say so. What is *banded* and *gated* is a ratio between two spawns
-interleaved in the same run — which cancels the machine out, and is the only reason a
+interleaved in the same run — which cancels most of the machine out, and is the only reason a
 cold-start number is bandable at all. Issue #27 is why: an absolute millisecond ceiling
 red-lit two PRs that had touched none of the code.
+
+*Most*, not all, and that is why the bands read CI runs only. Over the committed observations
+`cold-start-ratio` read, on 2026-09-22, a mean of 1.076 with σ 0.014 across 109 CI runs, and 1.303 across four
+M4 Pro runs — every local point more than ten CI σ above the CI mean. The ratio is fine for a
+gate, which has headroom; it is not fine for a band whose job is to notice 2σ (D-142).
 
 ## Reproducing, from a clean checkout
 

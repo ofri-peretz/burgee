@@ -20,11 +20,11 @@ import { describe, expect, it } from 'vitest';
 import { type BandConfig, collectBenchmark, DATED_JSON, mergeObservations } from './control-bands';
 
 describe('which files are a suite’s series', () => {
-  it.each(['2026-09-09.json', '2026-09-09-5bc506c.json', '2026-09-10-abc1234.json'])('%s is one', (f) => {
+  it.each(['2026-09-09.json', '2026-09-09-5bc506c.json', '2026-09-10-abc1234.json', '2026-09-22-c0fa8a3-ci.json', '2026-09-22-c0fa8a3-local.json'])('%s is one', (f) => {
     expect(DATED_JSON.test(f)).toBe(true);
   });
 
-  it.each(['latest.json', 'results.json', '2026-09.json', '2026-09-09-nothex.json', '2026-09-09-5bc506c.txt'])('%s is not', (f) => {
+  it.each(['latest.json', 'results.json', '2026-09.json', '2026-09-09-nothex.json', '2026-09-09-5bc506c.txt', '2026-09-09-5bc506c-5bc506c.json', '2026-09-09-ci.json'])('%s is not', (f) => {
     expect(DATED_JSON.test(f)).toBe(false);
   });
 });
@@ -35,14 +35,18 @@ describe('collectBenchmark', () => {
     const dir = join(root, 'benchmarks', 'results', 'cli-benchmarks');
     try {
       mkdirSync(dir, { recursive: true });
-      const put = (name: string, value: number): void => void writeFileSync(join(dir, name), JSON.stringify({ bands: { r: { value } } }));
+      const put = (name: string, value: number, ci = true): void => void writeFileSync(join(dir, name), JSON.stringify({ machine: { ci }, bands: { r: { value } } }));
       put('2026-09-09.json', 1.1);
       put('2026-09-09-5bc506c.json', 1.2);
-      put('2026-09-10-abc1234.json', 1.3);
+      put('2026-09-10-abc1234-ci.json', 1.3);
       put('notes.json', 9.9);
+      // D-142: the same commit on a laptop is a different machine, and not this series.
+      put('2026-09-10-abc1234-local.json', 1.7, false);
+      put('2026-09-11.json', 1.8, false);
       const cfg = { id: 'r', collector: 'benchmark-json', suite: 'cli-benchmarks', jsonPath: 'bands.r.value', worse: 'higher' } as unknown as BandConfig;
       // Sorted by filename, so the same-day observation precedes its measurement — see the
-      // ASCII note in `benchmarks/published.ts`. What matters is that all three are here.
+      // ASCII note in `benchmarks/published.ts`. What matters is that all three CI runs are here
+      // and neither local one is — a published measurement included, when a laptop made it.
       expect(collectBenchmark(cfg, root).map((o) => o.value)).toEqual([1.2, 1.1, 1.3]);
     } finally {
       rmSync(root, { recursive: true, force: true });
