@@ -265,7 +265,8 @@ const RULES: Record<string, EntryRule> = {
     // 43,500 on 2026-09-23 for V8, `config explain`: the command lives in `config-explain.js`, loaded only on that path; what stays is recognising it and the `resolution` step it shares with a run. Measured 43,472.
     // 45,600 with V8 on top of D-122, N14 and E7, after merging main. Measured 45,495.
     // 45,700 with V8 on top of S4, after merging main. Measured 45,629.
-    budget: 45_700,
+    // 45,900 on 2026-09-23: D-140 and #521 on top of V8 (#481). Measured 45,883.
+    budget: 45_900,
     // 45,400 with D-140 and #521 on top of S4. Measured 45,361.
     // 45,250 with D-140 (the `--json` failure classification) on top of D-122 and #521. Measured 45,227.
     denied: [
@@ -347,7 +348,8 @@ const RULES: Record<string, EntryRule> = {
   // 48,200 on 2026-09-23 for V8 — the same engine bytes as `.`. Measured 48,183.
   // 49,100 with V8 on top of D-122, N14 and E7, after merging main. Measured 49,014.
   // 49,200 with V8 on top of S4, after merging main. Measured 49,148.
-  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 49_200, denied: ["dev.js", "migrate.js"] },
+  // 49,450 on 2026-09-23: D-140 and #521 on top of V8 (#481). Measured 49,402.
+  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 49_450, denied: ["dev.js", "migrate.js"] },
   // 48,900 with D-140 and #521 on top of S4 — the same engine bytes as `.`. Measured 48,880.
   // 48,750 with D-140 on top of D-122 and #521 — the same engine bytes as `.`. Measured 48,746.
   /**
