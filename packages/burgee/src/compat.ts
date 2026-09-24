@@ -59,7 +59,7 @@ export const GRADED: Readonly<Record<string, Row>> = {
   'wrap-ansi': { reference: 80, passed: 80, rate: 1, control: 80 },
   'slice-ansi': { reference: 15, passed: 15, rate: 1, control: 15 },
   cosmiconfig: { reference: 243, passed: 186, rate: 0.7654320987654321, control: 240 },
-  lilconfig: { reference: 77, passed: 67, rate: 0.8701298701298701, control: 67 },
+  lilconfig: { reference: 77, passed: 77, rate: 1, control: 77 },
   dotenv: { reference: 141, passed: 106, rate: 0.75177304964539, control: 141 },
   clack: { reference: 17, passed: 14, rate: 0.8235294117647058, control: 17 },
   'inquirer-core': { reference: 41, passed: 41, rate: 1, control: 41 },

@@ -330,18 +330,23 @@ async function configLayers(name: string, values: Values, io: Io): Promise<Pick<
   return out;
 }
 
-async function resolveValues(manifest: Manifest, specs: Record<string, OptionSpec>, values: Values, io: Io): Promise<Resolved2> {
+/** Every layer, read and resolved (V1) — what a run uses and what `config explain` prints. */
+async function resolution(manifest: Manifest, specs: Record<string, OptionSpec>, values: Values, io: Io): Promise<ReturnType<typeof resolveLayers>> {
   const layers: Layers = { flags: values, env: io.env };
   if (manifest.envPrefix !== undefined) layers.envPrefix = manifest.envPrefix;
   if (manifest.config !== undefined) Object.assign(layers, await configLayers(manifest.config.name, values, io));
-  const resolution = resolveLayers(specs, layers);
-  const out: Resolved2 = { values: resolution.values as Values, provenance: resolution.provenance };
+  return resolveLayers(specs, layers);
+}
+
+async function resolveValues(manifest: Manifest, specs: Record<string, OptionSpec>, values: Values, io: Io): Promise<Resolved2> {
+  const resolved = await resolution(manifest, specs, values, io);
+  const out: Resolved2 = { values: resolved.values as Values, provenance: resolved.provenance };
   const asked = values['explain'];
   // `--explain` is 1,018 bundled bytes and one more module that a program which never explains
   // its configuration should not carry. Lazy here, and at `seniority/explain` rather than in
   // `seniority/precedence`, because a re-export from a module the engine imports statically
   // would have kept it on the startup path however this line were written.
-  if (typeof asked === 'string') out.explainText = (await import('seniority/explain')).explain(asked, resolution);
+  if (typeof asked === 'string') out.explainText = (await import('seniority/explain')).explain(asked, resolved);
   for (const [name, spec] of Object.entries(specs)) {
     if (out.values[name] === undefined && spec.required === true && out.explainText === undefined) {
       throw new UsageError(`missing required option --${kebab(name)}`, `pass --${kebab(name)} <value>`);
@@ -613,6 +618,14 @@ async function completion(manifest: Manifest, argv: string[], io: Io): Promise<b
 
 async function surface(manifest: Manifest, argv: string[], io: Io): Promise<boolean> {
   const head = beforeTerminator(argv);
+  // V8 / D-117 — `config explain`, synthesised for a program that reads config and does not
+  // define the command itself. Imported only on this path (M2).
+  const root = manifest.rootPath;
+  if (head[0] === 'config' && head[1] === 'explain' && manifest.config !== undefined && manifest.find([...root, 'config', 'explain']) === undefined) {
+    const { explainConfig } = await import('./config-explain.js');
+    io.out.write(await explainConfig(manifest, head.slice(2), (specs, flags) => resolution(manifest, specs, flags, io)));
+    return true;
+  }
   if (await completion(manifest, argv, io)) return true;
   if (argv[0] === 'help') {
     io.out.write(await helpCommand(manifest, argv.slice(1), manifest.rootPath, io));
@@ -761,7 +774,9 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   await manifest.fire('preRun', name, values);
   const detection = detectAgent(io.env, io.tty);
   const onExit = (handler: () => void | Promise<void>, label?: string): (() => void) => io.teardown.add(handler, label);
-  const data = await node.run({ options: values, positionals, passthrough, env: io.env, exit: ctxExit, onExit, actionRequired, ...detection });
+  // S4's check is imported only when a `-` was typed (M2).
+  const stdin = positionals.includes('-') ? (await import('./stdin-dash.js')).stdinFor(node, positionals, io.stdin) : {};
+  const data = await node.run({ options: values, positionals, passthrough, ...stdin, env: io.env, exit: ctxExit, onExit, actionRequired, ...detection });
   await manifest.fire('postRun', name, values);
   const changed = changedOf(node, data);
   const selected = fields === undefined || select === undefined ? data : select.selectFields(data, fields);

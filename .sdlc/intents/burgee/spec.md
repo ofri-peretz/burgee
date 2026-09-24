@@ -598,7 +598,7 @@ was quietly met.
 **The count.** 114 requirements, in seventeen families — `Z F O E V S P D T H M K J C B N U`.
 The prose above says *92* and *"Ninety-two requirements"*; both are wrong, and wrong the same
 way, because `E6 E7 V8 N11–N15` were added after the arithmetic was last done and `C1–C8`
-names two rows that do not exist. **Built: 96. Not built: 18**, and the count moves as rows are
+names two rows that do not exist. **Built: 98. Not built: 16**, and the count moves as rows are
 built rather than as the prose is rewritten — T1 moved on 2026-09-22 and the tally moved with
 it. An audit whose total disagrees with its own rows is the failure this paragraph is a record
 of; `spec-tally-lock.test.ts` now derives the two numbers from the tables instead of trusting
@@ -673,7 +673,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | V5 | **Built** | `definition.ts`'s `RESERVED` refuses `json help schema mcp version explain`, at `defineCommand` **and** at `Manifest.use()`. The `Holds` column says `L`; it is held by `R`. Restated below | `env.test.ts`: *"reserves version and explain like the other surfaces"*; `plugin.test.ts` |
 | V6 | **Built** | `seniority/config`'s `discover` with the fixed order, loaded lazily for a program that opted in; the chain is reported through `--explain` | `env.test.ts`; seniority's `discovery.test.ts` |
 | V7 | **Built** | `seniority/src/config.ts`'s `loadWithExtends` — deep merge, outermost first, cycle rejection, resolution from the extending file | seniority's `config.test.ts` |
-| V8 | Not built | there is no `config explain` command and no generated precedence table. `--explain <option>` exists and is a different surface | — |
+| V8 | **Built** | `config explain [command…]` is synthesised for a program that reads config and does not define the command itself (D-117). It prints the precedence from `seniority`'s own `ORDER` — so the table cannot disagree with what a run does — then every option with its value and the source that won, file and line included; `--json` answers as data; `--config <path>` and `--no-config` choose what is read, as on a run. `--explain <option>` remains the per-option view | `config-explain.test.ts` |
 
 ### Validation
 
@@ -682,7 +682,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | S1 | **Built** | `OptionSpec.schema` accepts any `StandardSchemaV1`; `InferOptions` derives the handler's type from the same declaration | `schema-dsl.test.ts` |
 | S2 | **Built** | `Relation` carries `exactlyOneOf`, `atLeastOneOf`, `atMostOneOf`, `conflicts` and a value-aware `implies`; `dependsOn`/`exclusive` compile into it through `optionRelations` | `option-relations.test.ts`, `relations-schema.test.ts` |
 | S3 | **Built** | `toNumber` refuses `NaN` and `Infinity`; `checkDefinition` refuses an unknown `type` at definition time | `schema-dsl.test.ts` |
-| S4 | Not built | the `--` half is built: `splitPositionals` hands everything after the terminator to the handler as `passthrough`. `-` meaning stdin is not, and `ArgumentSpec` has no `type` field, so no positional can be file-typed in the first place | `parsing-edges.test.ts` for the `--` half |
+| S4 | **Built** | `ArgumentSpec.type: 'file'` (D-113): a `-` there hands the handler the injected stdin as `ctx.stdin`, and the positional still reads `-`. A variadic file argument covers every position it takes; `-` for two file arguments is a usage error, because stdin can be read once; `-` on any other argument is just a string. The `--` half was already built: `splitPositionals` hands everything after the terminator to the handler as `passthrough` | `stdin-dash.test.ts`, `parsing-edges.test.ts` |
 | S5 | **Built** | `names.ts` — one canonical camelCase key, kebab derived; `checkDefinition` refuses two keys that meet on the command line | `schema-dsl.test.ts` |
 | S6 | **Built** | `dispatch()` calls `checkRelations` before `coerce`, and `coerce` checks choices before the Standard Schema | `option-relations.test.ts` |
 | S7 | **Built** | `toParseConfig` maps `boolean` to parseArgs' `type: 'boolean'`, which never consumes a value | `negation.test.ts`, `parsing-edges.test.ts` |
