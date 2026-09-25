@@ -1,5 +1,11 @@
 # linegauge
 
+## 0.5.3
+
+### Patch Changes
+
+- [#588](https://github.com/ofri-peretz/burgee/pull/588) [`073037a`](https://github.com/ofri-peretz/burgee/commit/073037ab38b13490ab119c84122a46c7c605be14) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - READMEs and package descriptions now match what each drop-in path is graded at. bellpull names `bellpull/node-which` as the drop-in for npm `which` (5 / 5) and no longer lists execa as a drop-in. paratext's ansi-escapes row is 4 / 4, with the CSI half implemented. seniority's rc row is 1 / 1, dotenv's `config()` defaults to `process.env`, and lilconfig is 77 / 77. linegauge documents `ambiguousIsNarrow` and `strip` as shipped. No code changes.
+
 ## 0.5.2
 
 ### Patch Changes
