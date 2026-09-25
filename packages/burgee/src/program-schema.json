@@ -39,6 +39,15 @@
       "items": {
         "$ref": "#/$defs/command"
       }
+    },
+    "shadows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^(--json|--mcp|completion)$"
+      },
+      "description": "The reserved surfaces a commander- or yargs-syntax program declares for itself, which burgee therefore withholds (J4): the program wins, and the document says so. Absent when it shadows none; a native program cannot shadow them (V5)."
     }
   },
   "$defs": {
@@ -219,6 +228,10 @@
         },
         "hidden": {
           "type": "boolean"
+        },
+        "negatable": {
+          "type": "boolean",
+          "description": "Booleans only: whether `--no-<name>` is accepted. Absent means yes; a commander-syntax program's option says `false` where commander would refuse the negation (D-134)."
         },
         "sharedFrom": {
           "type": "string"

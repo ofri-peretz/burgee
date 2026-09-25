@@ -138,8 +138,8 @@ function isThenable(value: unknown): value is PromiseLike<unknown> {
   return typeof (value as { then?: unknown } | null)?.then === 'function';
 }
 
-/** commander's exit codes, read through burgee's taxonomy when the exit is injected (E1). */
-function e1(err: CommanderError): number {
+/** commander's exit codes, read through burgee's taxonomy when the exit is injected or the floor is on (E1). */
+function e1(err: { code: string; exitCode: number }): number {
   switch (err.code) {
     case 'commander.helpDisplayed':
     case 'commander.version':
@@ -227,6 +227,8 @@ export class Command extends EventEmitter {
   _deprecationWarned = false;
   /** burgee: set for the duration of a parse that injected the streams or the exit. */
   _burgee: Burgee | undefined = undefined;
+  /** burgee: the behavioural floor, read on the root and turned on by `.burgee({ floor: true })` (J3). */
+  _floor = false;
 
   constructor(name?: string) {
     super();
@@ -455,7 +457,8 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
       this._exitCallback(new CommanderError(exitCode, code, message));
       // Expecting this line is not reached.
     }
-    return host.exit(exitCode);
+    // J3 (D-121): under the floor commander's own exits read through E1, so a usage error is 2.
+    return host.exit(this._root()._floor ? e1({ code, exitCode }) : exitCode);
   }
 
   // commander's contract: the positional args, then the options, then the command itself.
@@ -1807,7 +1810,10 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
       // Making this an `await import()` saved 2.2 KB and returned a Promise nobody awaited,
       // so the document never printed. The MCP branch below is different: `--mcp` already
       // returns a Promise, so loading its server on demand costs no contract.
-      root._outputConfiguration.writeOut(`${machineJson(schemaOf(this.manifest), head)}\n`);
+      // J4: the reserved surfaces this program declares for itself — withheld, and named here
+      // rather than silently missing. Absent when it shadows none.
+      const shadows = ['--json', '--mcp', 'completion'].filter((name) => root._declares(name) || root._findCommand(name) !== undefined);
+      root._outputConfiguration.writeOut(`${machineJson({ ...schemaOf(this.manifest), ...(shadows.length > 0 && { shadows }) }, head)}\n`);
       return true;
     }
     if (head[0] === '--mcp' && !root._declares('--mcp')) {
@@ -1823,6 +1829,18 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
       return import('../mcp.js').then(async ({ serveMcp }) => serveMcp(this.manifest, { input: host.stdin, output: { write: writeOut }, invoke })).then(() => true);
     }
     return false;
+  }
+
+  /**
+   * burgee: turn on what changes commander's observable behaviour, in one call (J3, D-121). Off
+   * by default, because commander's own suite asserts the old behaviour. With `floor: true` a
+   * usage error exits 2 (E1) rather than 1, and an action that throws or rejects prints one
+   * `error:` line and sets its E1 exit code rather than escaping as a stack. A program that
+   * called `exitOverride()` took its exits over and keeps them.
+   */
+  burgee(options: { floor?: boolean }): this {
+    this._root()._floor = options.floor === true;
+    return this;
   }
 
   /** Additive, and the point of the whole exercise: plugins commander has never had (#2505, unlanded). */
@@ -1899,10 +1917,11 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
       this._burgee = undefined;
     };
     const fail = (err: unknown): void => {
-      const json = this._burgee?.json === true && !(err instanceof CommanderError);
-      if (json) host.exitCode = this._reportHandlerFailure(err);
+      // Under --json, or under the floor (J3) unless the program overrode its exits.
+      const report = (this._burgee?.json === true || (this._floor && this._exitCallback === null)) && !(err instanceof CommanderError);
+      if (report) host.exitCode = this._reportHandlerFailure(err);
       done();
-      if (!json) throw err;
+      if (!report) throw err;
     };
     try {
       const result = run();
