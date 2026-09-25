@@ -1,5 +1,17 @@
 # burgee
 
+## 0.13.1
+
+### Patch Changes
+
+- [#604](https://github.com/ofri-peretz/burgee/pull/604) [`0e7b1e8`](https://github.com/ofri-peretz/burgee/commit/0e7b1e88a7021350cf689f109c7728f799be1589) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Each README links to its migration guides under the docs link: "Migrating from: chalk", "ora · log-update · boxen · cli-table3", and so on. That puts a path from the npm page to the guide for the library you are replacing. No code changes.
+- Updated dependencies [[`0e7b1e8`](https://github.com/ofri-peretz/burgee/commit/0e7b1e88a7021350cf689f109c7728f799be1589)]:
+  - roundel@0.5.3
+  - linegauge@0.5.4
+  - seniority@0.6.2
+  - bellpull@0.4.2
+  - closeout@0.5.3
+
 ## 0.13.0
 
 ### Minor Changes
