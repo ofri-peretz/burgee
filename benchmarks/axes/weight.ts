@@ -372,7 +372,21 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // 30,260 on 2026-09-24 for N15: `--format=agent` rides the lazy `fields.js` load `--json=` already had, so the startup path gains one alternative in the test that loads it (`readsLazily`) and a `lines?.()` in `emit` — 71 B; the formatter is its own chunk. Measured 30,178.
   // 30,300: CI's ubuntu runner read 30,261 against 30,260 — the ~32 B CI adds over a local
   // build ate an 82 B margin. Measured 30,178 here, 30,261 on CI.
-  burgee: 30_300,
+  // 28,076 on 2026-09-24 for U5: the failure path — `describeFailure`, the classification
+  // table, the named-refusal lookup and the envelope — moved to `failure.js`, imported only from
+  // the `catch`. Measured 27,996.
+  // 27,018 on 2026-09-24 for U5: relation checking (`exactlyOneOf` … `implies`) moved to
+  // `relations.js`, imported only for a command that declares a relation. Measured 26,938.
+  // 24,631 on 2026-09-24 for U5: every surface answered without running a command — help,
+  // `--version`, `help [command…]`, `completion`, `__complete`, `config explain`, `--schema`,
+  // `--mcp` — routed from `surfaces.js`, imported only when argv could ask for one; what stays
+  // is `mayServe`, the test that decides. Measured 24,551.
+  // 24,211 on 2026-09-24 for U5: the config-file and package.json layers moved to
+  // `config-layers.js`, imported only for a program that opted into config discovery (V6).
+  // Measured 24,131.
+  // 24,282 on 2026-09-24 for U5 merged with N15 (#586) and the rest of main: 30,178 -> 24,202,
+  // the same 5,976 B the four moves took before the merge. Measured 24,202.
+  burgee: 24_282,
   // 29,650 on 2026-09-23: D-140 and #521 on top of V8 (#481). Measured 29,634.
   // 29,200 on 2026-09-23 for **56 bytes**, the MCP stdout capture (#521): measured 29,172 on
   // top of D-122's 29,116. The capture lives in the lazily loaded MCP chunk; what reaches the
