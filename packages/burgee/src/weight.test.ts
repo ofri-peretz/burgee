@@ -700,7 +700,10 @@ const RULES: Record<string, EntryRule> = {
     // 215,350 with D-122 on top of N14 and E7, after merging main. Measured 215,309.
     // 215,500 with F1 on top of D-122, N14 and E7, after merging main — the exit-code table, through the schema. Measured 215,406.
     // 217,200 on 2026-09-23: D-140 and #521 on top of main (72a810352e). Measured 217,187.
-    budget: 217_200,
+    // 218,000 on 2026-09-24 for J3/J4: `.burgee({ floor: true })` — a usage failure exits
+    // through E1 and a failing handler is reported once, before yargs' help screen — and
+    // `--schema` naming what the program shadows. Measured 217,901.
+    budget: 218_000,
     // 217,100 with D-140 on top of D-122, N14 and E7, after merging #521. Measured 217,090.
     // 217,150 with A29's CommonJS export on top. Measured 217,123.
     denied: ["testing.js", "testing-helpers.js", "dev.js"],

@@ -17,9 +17,11 @@ title, the cover, the margins, the notes. This package owns the terminal equival
 character grid. Hyperlinks, inline images, the window title, the clipboard, desktop
 notifications, the working directory, and the bell.
 
-It covers the OSC half of **ansi-escapes**, **terminal-link** and **term-img**; a drop-in
-path is not claimed until the compat oracle grades one. Every capability has a static projection, so a
-pipe or an agent gets `Docs (https://x.dev)`, never raw escape bytes.
+It replaces **ansi-escapes** (the package root, 4 / 4), **terminal-link**
+(`paratext/terminal-link`, 8 / 8) and **term-img** (`paratext/term-img`, 12 / 18 — it takes
+image bytes, not file paths), each graded by the incumbent's own suite. Every OSC capability
+has a static projection, so a pipe or an agent gets `Docs (https://x.dev)`, never raw escape
+bytes.
 
 Zero dependencies. The intent and design live at
 [`.sdlc/intents/paratext/`](https://github.com/ofri-peretz/burgee/tree/main/.sdlc/intents/paratext).
@@ -78,26 +80,30 @@ the file tomorrow would be. Until 0.3 this was presence-checking only, and `when
 object'` was therefore accepted — a string destructures to four empty clauses, so the support
 guess said *yes* and the sequence went into the pipe. That is now a refusal.
 
-## The `ansi-escapes` members it replaces
+## The `ansi-escapes` surface it replaces
 
-The root is call-compatible with `ansi-escapes` for the four OSC members of its surface, so
-the bytes are the incumbent's where the terminal understands them and the projection
-everywhere else:
+The root is `ansi-escapes`' surface, both halves of it:
 
 ```js
-import ansiEscapes, { link, image, setCwd, beep } from 'paratext';
+import ansiEscapes, { cursorTo, eraseLines, link, image, setCwd, beep } from 'paratext';
 ```
 
-**Its CSI half is out of scope** — the cursor, erasing, scroll regions, the alternate
-screen. That is the character grid, which `flagstaff` draws and `closeout` puts back; a
-second implementation here is the copy this family exists to avoid. Those names are still
-*declared*, as `undefined`, so a drop-in module loads rather than dying on an ESM named
-import — and TypeScript types them such that calling one is a compile error, not a surprise
-at run time.
+**The CSI half** — the cursor, erasing, scroll regions, the alternate screen, synchronized
+output — is byte-exact with `ansi-escapes@7.3.0`. It does not degrade, because the
+incumbent's does not: a cursor move silently dropped would corrupt the screen of a program
+that relied on it.
 
-Graded by the compat oracle against `ansi-escapes@7.3.0`'s own suite. Three of its four
-cases assert CSI, so **the ceiling on that row is 1 / 4**: paratext scores it, and 25% there
-means complete rather than a quarter.
+**The OSC half** — `link`, `image`, `setCwd`, `beep` — gives the incumbent's bytes where the
+terminal understands them and the static projection everywhere else. That is the one
+deliberate difference.
+
+`iTerm` and `ConEmu` are still *declared*, as `undefined`, so a drop-in module loads rather
+than dying on an ESM named import — and TypeScript types them such that calling one is a
+compile error, not a surprise at run time. `iTerm.annotation` has no equivalent yet.
+
+Graded by the compat oracle against `ansi-escapes@7.3.0`'s own suite: **4 / 4**, level with
+the control. Three of its four cases assert CSI; until the CSI half landed, that row was
+1 / 4.
 
 MIT © Ofri Peretz
 
@@ -113,7 +119,7 @@ Graded by the incumbent's own test suite:
 | `term-img` | 12 / 18 |
 | `terminal-link` | 8 / 8 |
 
-Weight, installed and tree-inclusive: **105,620 bytes** against **2,235,987** for the incumbents it replaces — a ratio of **0.0472**.
+Weight, installed and tree-inclusive: **105,848 bytes** against **2,235,987** for the incumbents it replaces — a ratio of **0.0473**.
 ## Where it sits
 
 Plugins register under the `capabilities` key, against the one schema the whole family shares.

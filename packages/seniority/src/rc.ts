@@ -25,9 +25,9 @@
  * for YAML, for the same reason, and `parse` is rc's own fourth parameter so supplying one
  * costs a caller one argument.
  *
- * ## The measured ceiling, and it is not in this file
+ * ## The grade: 1 / 1, by exit code
  *
- * rc's graded file (`test/test.js`) is three `assert` calls deep on ambient state:
+ * rc's graded file (`test/test.js`) is bare `assert` calls on ambient state:
  *
  * ```js
  * process.env[n + '_envOption'] = 42
@@ -35,19 +35,18 @@
  * assert.equal(config.envOption, 42)
  * ```
  *
- * `rc(name, defaults, argv)` has a slot for argv — rc's own third parameter, which the second
- * half of that file uses — and **no slot at all for the environment**. Nothing in seniority
- * reads `process.*` (R11), and the repository-wide lock
- * (`packages/burgee/src/process-reference-lock.test.ts`) allows exactly one file per package
- * to, named `<pkg>/src/runtime.ts`; seniority has no entry, which is a claim its design makes
- * about itself. So the environment arrives here as an argument, like `env`, `cwd` and `argv`
- * everywhere else in this package, and the one graded assertion above fails.
+ * `rc(name, defaults, argv)` has a slot for argv and **none for the environment**, so a
+ * drop-in has to read the process's own when the caller passes none, as rc does. That read
+ * goes through `runtime.ts` (D-135), the one file per package the repository-wide lock
+ * (`packages/burgee/src/process-reference-lock.test.ts`) allows to name `process`, and only
+ * when `options.env` is absent. With it the file passes: the row is **1 / 1** on the
+ * Compatibility page. It was 0 / 1 — failing on exactly the assertion above — until that seam
+ * existed. The row is one bit, not one case: rc's suite has no reporter, so the grade is that
+ * the script exited 0.
  *
- * That is why this row is **0 / 1 with the façade built** rather than `target not built yet`:
- * the difference is a measurement versus an absence, and what the measurement says is that
- * the gap is R11 and not rc. It moves the day `seniority/src/runtime.ts` exists and is on
- * that allow-list — the arrangement burgee's own commander and yargs façades already run on,
- * for exactly this reason: an incumbent whose suite grades a process contract.
+ * The command line is **not** read ambiently. rc 1.2.8 fills a falsy `argv` with
+ * `minimist(process.argv.slice(2))`; this treats an omitted `argv` as empty, and nothing the
+ * graded file asserts depends on the difference.
  */
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
