@@ -1,32 +1,38 @@
 ---
 title: Coming from signal-exit
-description: "A signal-exit alternative with zero dependencies: closeout's onExit runs once on every exit path with a bounded deadline, and reports as --json or an agent event. No signal-exit drop-in yet — its compatibility row is planned, not graded."
+description: "A signal-exit alternative with a drop-in path: import { onExit } from closeout/signal-exit, graded 134 / 135 by signal-exit's own test suite, level with signal-exit itself — then an onExit that runs once on every exit path under a bounded deadline, and reports as --json or an agent event."
 ---
 
-**closeout** is a **signal-exit alternative**: exit handlers that run exactly once on every
-path, terminal restore, and a bounded deadline so shutdown cannot hang. It is **not yet** a
-signal-exit drop-in, and this page says why.
+**closeout** is a **signal-exit alternative** you adopt by changing one import.
+`closeout/signal-exit` is signal-exit 4's API, and signal-exit's own test suite is the grade.
 
-## Migrate from signal-exit: rename the callback's arguments
-
-There is no `closeout/signal-exit` subpath. Both packages export `onExit`, and both return
-the function that unregisters the handler, but the callback is handed a different shape —
-signal-exit passes `(code, signal)`, closeout passes one record:
+## Migrate from signal-exit in one import
 
 ```diff
 - import { onExit } from 'signal-exit';
-- const off = onExit((code, signal) => {
-+ import { onExit } from 'closeout';
-+ const off = onExit(({ path, code, signal, error }) => {
-    releaseTheLock();
-  });
++ import { onExit } from 'closeout/signal-exit';
 ```
 
-`path` is `'exit' | 'beforeExit' | 'signal' | 'uncaught' | 'rejection'`, and `error` is what
-was thrown or rejected on the two paths that have one.
+Everything else stays: `onExit(handler, { alwaysLast })` returns the function that removes
+the handler, the handler is called with `(code, signal)`, and returning `true` from it
+claims the signal so the process lives on. `load()`, `unload()` and `signals` are exported
+beside it, and `closeout/signal-exit/signals` is signal-exit's `signal-exit/signals`. So are
+its semantics:
 
-The two neighbours in this layer **do** have one-import paths, each graded by its
-incumbent's own suite:
+- **A fatal signal still kills.** When the only listeners for a signal are signal-exit's,
+  the handlers run and the signal is re-raised, so a parent sees `signal: 'SIGHUP'`, not an
+  exit code.
+- **Every exit path is seen**, `process.exit()` and `process.reallyExit()` included.
+- **One emitter per process**, under the key signal-exit itself uses, so a program with
+  this façade and a transitive copy of real signal-exit runs every handler once and
+  re-raises once.
+
+The façade is CommonJS, as signal-exit is, so `require('closeout/signal-exit')` works too.
+It is graded against signal-exit 4: version 3's callable default,
+`require('signal-exit')(handler)`, is not reproduced.
+
+The two neighbours in this layer have one-import paths too, each graded by its incumbent's
+own suite:
 
 ```diff
 - import exitHook, { asyncExitHook, gracefulExit } from 'exit-hook';
@@ -37,22 +43,50 @@ incumbent's own suite:
 
 ## Is closeout compatible with signal-exit?
 
-**There is no graded signal-exit row.** On the [Compatibility](https://burgee.interlace.tools/docs/compatibility) page,
-which `npm run compat:page` generates from the oracle's last run, signal-exit is listed as
-**planned**: its suite is vendored and runs, but the control does not yet clear its own
-reference, and a control that cannot must not publish a rate. Until it is graded, closeout
-does not claim signal-exit compatibility. The rows that are graded:
+Graded, not claimed. signal-exit's own suite, vendored at 4.1.0 and unmodified apart from
+the import specifier, runs against `closeout/signal-exit` beside a control that runs it
+against real signal-exit:
 
-| | closeout | control |
+| | passing | rate |
 | :-- | --: | --: |
-| `closeout/exit-hook` | 21 / 21 | 21 / 21 |
-| `closeout/restore-cursor` | 6 / 6 | 6 / 6 |
+| `closeout/signal-exit` | 134 / 135 | 99.3% |
+| signal-exit itself (control) | 134 / 135 | 99.3% |
+
+From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
+oracle's last run; that page is the authority, and its front-end column reads `closeout`
+because the row's import is composed onto the package root as `closeout/signal-exit`.
+
+**The one case short fails against signal-exit itself.** It is `signal-exit-test.ts` >
+`does not exit if user handles signal`: its fixture re-sends `SIGTERM` from a `setTimeout`
+inside the listener and expects the fourth to kill the process, and on current Node the
+process exits cleanly after the first. That was measured on Node 22, 24 and 26 on macOS and
+on Node 24 in a Linux container, with the fixture requiring signal-exit directly; signal-exit's
+last release, 2023-07-29, predates all of them. The Compatibility page lists it as a declared
+control failure of exactly one.
+
+The suite registers 135 cases on Linux and 127 on macOS, because Linux adds four signals —
+`SIGIO`, `SIGPOLL`, `SIGPWR`, `SIGSTKFLT` — to two loops over the signal list. The reference
+is Linux's 135, and all eight extra cases pass against signal-exit and against closeout.
 
 ## What you gain over signal-exit
 
+`closeout/signal-exit` is deliberately signal-exit's behaviour, so the façade alone changes
+the package name and not what your process does. The gain is closeout's own `onExit`, which
+you adopt a handler at a time:
+
+```diff
+- import { onExit } from 'closeout/signal-exit';
+- const off = onExit((code, signal) => {
++ import { onExit } from 'closeout';
++ const off = onExit(({ path, code, signal, error }) => {
+    releaseTheLock();
+  });
+```
+
 - **Exactly once, on every door.** A normal exit, an emptied event loop, Ctrl-C, `SIGTERM`,
   `SIGHUP`, `SIGQUIT`, an uncaught throw and an unhandled rejection all reach the same
-  handler, once, even when two fire at the same moment.
+  handler, once, even when two fire at the same moment. `path` says which door it was, and
+  `error` is what was thrown or rejected on the two paths that have one.
 - **Shutdown cannot hang.** A bounded deadline — `DEFAULT_DEADLINE` is 2000 ms — ends a
   shutdown whose handlers do not return, and the result names the ones that had not.
 - **Phases, not registration order.** Handlers run in `flush`, `release`, `restore` order, so
@@ -60,13 +94,13 @@ does not claim signal-exit compatibility. The rows that are graded:
 - **One record, three readers.** The record your handler receives is what
   `reportToJson()` and `reportToEvent()` project, so a `--json` line and an agent event
   cannot disagree with what the handler was told.
-- **Terminal restore is built in.** `hideCursor(stream)` registers its own restore.
 
-SIGKILL is not deliverable to a listener, by design, and closeout does not claim it.
+SIGKILL is not deliverable to a listener, by design, and neither package claims it.
 
 ## When to switch from signal-exit
 
-- Ctrl-C leaves a hidden cursor, a half-written file or a held lock.
+- You want signal-exit's behaviour, and exit-hook's and restore-cursor's, from one package.
 - A shutdown handler that never returns has hung your CLI or your CI job.
+- An uncaught throw or an unhandled rejection has to reach your cleanup.
 
 The API, the phases and the deadline are on [closeout](/docs).

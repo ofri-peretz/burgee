@@ -15,6 +15,10 @@ A **bellpull** is the cord in one room wired to a bell in another. You pull it h
 
 That is a subprocess. Request work at a distance, work happens elsewhere, a result returns. **That last clause is the package.**
 
+Coming from **cross-spawn** or npm's **which**? Change one import: `bellpull/cross-spawn` and
+`bellpull/node-which` are drop-ins, each graded by the incumbent's own test suite. Coming from
+**execa**? There is no drop-in — `run()` below is the alternative.
+
 ```ts
 import { run, format } from 'bellpull';
 
@@ -57,7 +61,8 @@ shape, not bytes.
 | Import | What it gives you | Replaces |
 | :-- | :-- | :-- |
 | `bellpull` | `run()` and the `Result`, plus resolution and the three projections | `execa`, `tinyexec`, `nano-spawn` |
-| `bellpull/which` | resolution alone, and the `PATH` entry that answered | `which`, `isexe`, `path-key`, `npm-run-path` |
+| `bellpull/which` | bellpull's own resolver, not a drop-in: resolution alone, and the `PATH` entry that answered | `isexe`, `path-key`, `npm-run-path` |
+| `bellpull/node-which` | the drop-in for npm's `which` — same `which()` and `.sync`, same options; graded 5 / 5 by node-which's own suite | `which` |
 | `bellpull/cross-spawn` | the drop-in — same callable default, same `.sync` | `cross-spawn` |
 | `bellpull/plugin` | the `resolvers` plugin host | *nothing in the ecosystem* |
 
@@ -130,7 +135,7 @@ Graded by the incumbent's own test suite:
 | `cross-spawn` | 68 / 68 |
 | `which` | 5 / 5 |
 
-Weight, installed and tree-inclusive: **103,803 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1356**.
+Weight, installed and tree-inclusive: **104,308 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1363**.
 ## Where it sits
 
 Plugins register under the `resolvers` key, against the one schema the whole family shares.

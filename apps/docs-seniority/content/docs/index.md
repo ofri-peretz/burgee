@@ -248,18 +248,27 @@ works, and every fixture it is tested with is `.yml`.
 
 ### `seniority/dotenv`
 
-`parse` and `populate` are dotenv 17's, grammar included. `config` takes the environment to
-populate as an argument:
+`config`, `parse` and `populate` are dotenv 17's, grammar included, so a migration is the
+import line:
 
 ```js
-import { config } from "seniority/dotenv";
-
-config({ path: ".env", processEnv: process.env });
+- import dotenv from "dotenv";
++ import dotenv from "seniority/dotenv";
 ```
 
-That one word is the whole difference, and it is deliberate: nothing in this package reads or
-writes `process` on its own. It is also why `parse` is usable in a test, in a browser build,
-or on a string you already have.
+`config()` behaves as dotenv's does when told nothing: it reads `./.env` from the working
+directory into `process.env`. Pass `processEnv` to populate another object, and `path` for
+another file (or several, a `URL`, a leading `~`). There is no `dotenv/config` preload entry —
+call `config()` once at your entry point — and `decrypt` and the `.env.vault` format, which
+dotenv deprecated in favour of dotenvx, are not built.
+
+The process is read in one place, `src/runtime.ts`, and only by the drop-in paths whose
+incumbents read it by default. `resolve` never reads it, and `parse` works on a string you
+already have — in a test, in a browser build, anywhere.
+
+**Graded by dotenv 17.4.2's own test suite: 106 of 141.** The 35 not passing are 27 in the
+`.env.vault` / `decrypt` path and 2 dotenvx tips, both declined above, and 6 that load
+dotenv's private `lib/*` modules by path.
 
 ### `seniority/lilconfig`
 
@@ -272,10 +281,10 @@ its caches, and its disagreements with cosmiconfig kept rather than smoothed ove
 + import { lilconfigSync } from "seniority/lilconfig";
 ```
 
-**Graded by lilconfig 3.1.3's own test suite: 67 of 77 cases — the same score the real
-`lilconfig` gets here.** The ten neither of us passes assert which files were read by mocking
-`fs` with `jest.mock`, which cannot reach a CommonJS `require('fs')` under vitest. No case in
-that suite separates this from the package it replaces.
+**Graded by lilconfig 3.1.3's own test suite: 77 of 77 cases, the same as the real
+`lilconfig` gets here.** Ten of them assert which files were read by mocking `fs` with
+`jest.mock`; since #549 the oracle applies that mock the way jest does, so they run and pass
+instead of failing for both.
 
 Its own entry point, not the root: lilconfig's last test reads the *keys* of the module it is
 given and compares them with cosmiconfig's, so one module cannot honestly be both.
@@ -289,18 +298,19 @@ report of which files were actually read — with none of rc's four dependencies
 ```js
 - const config = require("rc")("mytool", defaults);
 + import rc from "seniority/rc";
-+ const config = rc("mytool", defaults, argv, undefined, { env: process.env });
++ const config = rc("mytool", defaults, argv);
 ```
 
-Two differences, both on purpose. The environment is an argument, for the same reason
-`config` takes one. And an INI-shaped file is refused by name rather than parsed — pass
-`ini.parse` in rc's own fourth position and you have rc's behaviour, with the parser as
+Like rc, it reads the process's environment when you pass none; a fifth argument,
+`{ env, cwd, home, win }`, supplies the world instead. Two differences, both on purpose. The
+command line is an argument: rc fills a missing `argv` with `minimist(process.argv.slice(2))`,
+and this treats it as empty. And an INI-shaped file is refused by name rather than parsed —
+pass `ini.parse` in rc's own fourth position and you have rc's behaviour, with the parser as
 *your* dependency.
 
-**Graded by rc 1.2.8's own test: 0 of 1.** That suite is one script of bare assertions, and
-it sets `process.env` before calling `rc(name, defaults)` — a signature with no slot for an
-environment. It gets past the first assertion and fails on the second. The same script with
-the environment passed in is `src/rc.test.ts`, and it passes.
+**Graded by rc 1.2.8's own test: 1 of 1 — by exit code.** That suite is one script of bare
+assertions with no reporter, so the grade is one bit: the script ran against this package and
+exited 0. It is not 100% of anything.
 
 ### `seniority/find-up`
 
@@ -321,7 +331,7 @@ Graded by the incumbent's own test suite:
 | `lilconfig` | 77 / 77 |
 | `rc` | 1 / 1 |
 
-Weight, installed and tree-inclusive: **155,728 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.0789**.
+Weight, installed and tree-inclusive: **156,361 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.0793**.
 ## Where it sits
 
 Plugins register under the `sources` key, against the one schema the whole family shares.

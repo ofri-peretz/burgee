@@ -2,8 +2,8 @@
  * R7 — the width function replaces `string-width`, so `string-width` grades it: every case
  * below is checked against the installed package as well as against a literal, and the
  * literal is there so a wrong answer names itself rather than agreeing with a moved
- * dependency. (The one deliberate divergence is the `ambiguousIsNarrow` option, which we
- * do not have; every case here is unambiguous.)
+ * dependency. (`ambiguousIsNarrow` is supported under string-width's name and default;
+ * every case here is unambiguous, so it does not change them.)
  */
 import stringWidth from 'string-width';
 import { describe, expect, it } from 'vitest';

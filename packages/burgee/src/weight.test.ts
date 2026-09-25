@@ -271,11 +271,13 @@ const RULES: Record<string, EntryRule> = {
     // 45,900 with D3 on top of S4, V8 and F1, after merging main. Measured 45,812.
     // 46,100 with D3 on top of S4, V8, F1 and D-140, after merging main. Measured 46,066.
     // 46,650 on 2026-09-23: P2/P3 on top of D3 (#478) and D-140. Measured 46,566.
+    // 46,770 on 2026-09-24 for N15: `--format=agent` is read in `fields.js` and printed by `agent-format.js`, both loaded only when a flag they own is typed; what stays is `readsLazily` and the `lines?.()` in `emit`. Measured 46,686.
     // 42,777 on 2026-09-24 for U5: the failure path (`describeFailure`, the classification table and the envelope) moved to `failure.js`, imported only from the `catch`. Measured 42,697.
     // 40,848 on 2026-09-24 for U5: relation checking moved to `relations.js`, imported only for a command that declares a relation. Measured 40,768.
     // 36,392 on 2026-09-24 for U5: every surface the engine answers without running a command — help, `--version`, `help [command…]`, `completion`, `__complete`, `config explain`, `--schema`, `--mcp` — routed from `surfaces.js`, imported only when argv could ask for one. Measured 36,312.
     // 35,561 on 2026-09-24 for U5: the config and package.json layers moved to `config-layers.js`, imported only for a program that opted into config discovery (V6). Measured 35,481.
-    budget: 35_561,
+    // 35,681 on 2026-09-24 for U5 merged with N15 (#586): the four U5 moves on top of `--format=agent`. Measured 35,601.
+    budget: 35_681,
     // 45,400 with D-140 and #521 on top of S4. Measured 45,361.
     // 45,250 with D-140 (the `--json` failure classification) on top of D-122 and #521. Measured 45,227.
     // 43,500 on 2026-09-23 for P2/P3: a thrown refusal names its exit code by string (`USAGE`, `CANCELLED`, …), which is how caique's prompt verdicts reach an exit status with no dependency edge — the four-row table and its lookup sit in `describeFailure`, where every failure is read. Measured 43,450.
@@ -364,11 +366,13 @@ const RULES: Record<string, EntryRule> = {
   // 49,400 with D3 on top of S4, V8 and F1, after merging main. Measured 49,331.
   // 49,700 with D3 on top of S4, V8, F1 and D-140, after merging main. Measured 49,585.
   // 50,200 on 2026-09-23: P2/P3 on top of D3 (#478) and D-140. Measured 50,085.
+  // 50,290 on 2026-09-24 for N15 — the same engine bytes as `.`. Measured 50,205.
   // 46,296 on 2026-09-24 for U5 — the same failure path as `.`. Measured 46,216.
   // 44,367 on 2026-09-24 for U5 — the same relation checking as `.`. Measured 44,287.
   // 39,911 on 2026-09-24 for U5 — the same surfaces as `.`. Measured 39,831.
   // 39,080 on 2026-09-24 for U5 — the same config layers as `.`. Measured 39,000.
-  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 39_080, denied: ["dev.js", "migrate.js"] },
+  // 39,200 on 2026-09-24 for U5 merged with N15 (#586) — the same engine bytes as `.`. Measured 39,120.
+  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 39_200, denied: ["dev.js", "migrate.js"] },
   // 48,900 with D-140 and #521 on top of S4 — the same engine bytes as `.`. Measured 48,880.
   // 48,750 with D-140 on top of D-122 and #521 — the same engine bytes as `.`. Measured 48,746.
   // 48,200 on 2026-09-23 for P2/P3 — the same engine bytes as `.`. Measured 48,161.
@@ -708,7 +712,10 @@ const RULES: Record<string, EntryRule> = {
     // 215,350 with D-122 on top of N14 and E7, after merging main. Measured 215,309.
     // 215,500 with F1 on top of D-122, N14 and E7, after merging main — the exit-code table, through the schema. Measured 215,406.
     // 217,200 on 2026-09-23: D-140 and #521 on top of main (72a810352e). Measured 217,187.
-    budget: 217_200,
+    // 218,000 on 2026-09-24 for J3/J4: `.burgee({ floor: true })` — a usage failure exits
+    // through E1 and a failing handler is reported once, before yargs' help screen — and
+    // `--schema` naming what the program shadows. Measured 217,901.
+    budget: 218_000,
     // 217,100 with D-140 on top of D-122, N14 and E7, after merging #521. Measured 217,090.
     // 217,150 with A29's CommonJS export on top. Measured 217,123.
     denied: ["testing.js", "testing-helpers.js", "dev.js"],

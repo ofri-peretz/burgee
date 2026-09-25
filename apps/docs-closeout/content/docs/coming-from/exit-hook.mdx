@@ -1,0 +1,85 @@
+---
+title: Coming from exit-hook
+description: "An exit-hook alternative with a drop-in path: import exitHook from closeout/exit-hook, graded 21 / 21 by exit-hook's own test suite — then phases that hand the terminal back last, and an onExit that reaches every exit path under one bounded deadline."
+---
+
+**closeout** is an **exit-hook alternative** you adopt by changing one import.
+`closeout/exit-hook` is exit-hook 5's API, and exit-hook's own test suite is the grade.
+
+## Migrate from exit-hook in one import
+
+```diff
+- import exitHook, { asyncExitHook, gracefulExit } from 'exit-hook';
++ import exitHook, { asyncExitHook, gracefulExit } from 'closeout/exit-hook';
+```
+
+Everything else stays: `exitHook(fn)` and `asyncExitHook(fn, { wait })` return the function
+that unregisters the hook, `gracefulExit(code?)` exits after the asynchronous hooks have run,
+and the `Options` type is exported under exit-hook's name. So do its semantics:
+
+- **The bound is yours, per hook.** `wait` is required and positive, and the effective bound
+  is the largest `wait` registered. closeout's own 2000 ms deadline is *not* imposed — a
+  drop-in that silently tightens your timeout is not a drop-in.
+- **The signals are exit-hook's.** `SIGINT` and `SIGTERM`, exiting `128 + n` — 130 and 143 —
+  plus `beforeExit`, `process.exit()` and PM2's `shutdown` message. There is no `SIGHUP`
+  here, because there is none in exit-hook.
+- **A synchronous exit abandons async hooks** and prints exit-hook's
+  `SYNCHRONOUS TERMINATION NOTICE`, word for word.
+
+## Is closeout compatible with exit-hook?
+
+Graded, not claimed. exit-hook's own suite, vendored at 5.1.0 and unmodified apart from the
+import specifier, runs against `closeout/exit-hook` beside a control that runs it against real
+exit-hook:
+
+| | passing | rate |
+| :-- | --: | --: |
+| `closeout/exit-hook` | 21 / 21 | 100.0% |
+| exit-hook itself (control) | 21 / 21 | 100.0% |
+
+From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
+oracle's last run; that page is the authority, and its front-end column reads `closeout`
+because the row's import is composed onto the package root as `closeout/exit-hook`. Eighteen
+of the 21 cases spawn a real process and assert what it did: the exit code it left with, and
+the bytes that made it out — 20,000 lines of stdout under backpressure among them.
+
+Four of those cases kill their child after a fixed 1000 ms. On a heavily loaded machine the
+child can lose that race before its hooks are installed, against real exit-hook as much as
+against closeout, so a run that reads 17 / 21 is upstream's clock, not a regression.
+
+## What you gain over exit-hook
+
+The façade is exit-hook's behaviour; what it runs on is closeout's registry, and that is the
+gain:
+
+- **The terminal comes back last.** Synchronous hooks run in closeout's `flush` phase and
+  asynchronous ones in `release`, so every sync hook finishes before the first async one
+  starts, by sequence rather than by bookkeeping. `restore` runs after both, so a program
+  that also calls `hideCursor(stream)` gets its cursor back after every hook.
+- **`onExit` when you want every door.** closeout's own API reaches `SIGHUP`, `SIGQUIT`, an
+  uncaught throw and an unhandled rejection too, under one deadline for the whole shutdown
+  that names the handlers that had not returned — and, when no other listener owns the
+  signal, re-raises it so the process really dies of it rather than exiting `128 + n`.
+- **One record, three readers.** `onExit`'s handler receives the record that
+  `reportToJson()` and `reportToEvent()` project, so a `--json` line and an agent event
+  cannot disagree with what the handler was told.
+
+```diff
+- import exitHook from 'closeout/exit-hook';
+- exitHook(() => releaseTheLock());
++ import { onExit } from 'closeout';
++ onExit(() => releaseTheLock());
+```
+
+What it does not gain you is size. exit-hook has no dependencies and is 4,458 B in one file;
+`closeout/exit-hook` is 11,841 B, because it carries the phase ordering and the bounded
+runner. Startup is level: p50 over 21 spawns, importing it costs 4.5 ms over a bare `node`
+against exit-hook's 4.6 ms, as measured in closeout's README.
+
+## When to switch from exit-hook
+
+- A closing terminal (`SIGHUP`) or an uncaught error has to reach your cleanup.
+- You also restore a cursor, and the order your hooks run in has to be a decision.
+
+If one exit hook on `SIGINT` and `SIGTERM` is all you need, exit-hook is already a good
+package. The API, the phases and the deadline are on [closeout](/docs).

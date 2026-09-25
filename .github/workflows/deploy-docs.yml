@@ -322,19 +322,30 @@ jobs:
           # attempts`. Keep the status and the exit code apart.
           CODE=000
           RC=0
-          for attempt in 1 2 3 4 5; do
+          # A 200 is not the end of the wait: the alias can keep answering with the previous
+          # build for a minute after the upload. Nine apps deployed together on 2026-09-24 and
+          # three failed here with "the alias did not move" — all three were serving the new
+          # build when checked a few minutes later. So a 200 carrying another build is retried
+          # like a 503, and only the last attempt's answer is judged.
+          SERVED=""
+          for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
             RC=0
             CODE=$(curl -sS -o /tmp/home.html -w '%{http_code}' --max-time 20 "$TARGET") || RC=$?
             case "$CODE" in '' | *[!0-9]*) CODE=000 ;; esac
-            [ "$CODE" = "200" ] && break
-            # 6 = could not resolve host. No number of retries creates a DNS
-            # record, so go straight to the soft-warn instead of burning 5×10s.
-            if [ "$RC" -eq 6 ]; then
-              CODE=000
-              break
+            if [ "$CODE" = "200" ]; then
+              SERVED=$(grep -o 'name="x-build-sha" content="[^"]*"' /tmp/home.html | head -1 | sed 's/.*content="//;s/"$//') || SERVED=""
+              [ "$SERVED" = "$EXPECTED_SHA" ] && break
+              echo "attempt $attempt: HTTP 200 serving ${SERVED:-no build sha}, waiting for $EXPECTED_SHA"
+            else
+              # 6 = could not resolve host. No number of retries creates a DNS
+              # record, so go straight to the soft-warn instead of burning the retries.
+              if [ "$RC" -eq 6 ]; then
+                CODE=000
+                break
+              fi
+              echo "attempt $attempt: HTTP $CODE (curl exit $RC) — retrying"
             fi
-            echo "attempt $attempt: HTTP $CODE (curl exit $RC) — retrying"
-            [ "$attempt" -eq 5 ] || sleep 10
+            [ "$attempt" -eq 12 ] || sleep 10
           done
 
           case "$CODE" in
@@ -365,18 +376,17 @@ jobs:
               exit 0
               ;;
             *)
-              echo "::error::$TARGET returned HTTP $CODE after 5 attempts."
+              echo "::error::$TARGET returned HTTP $CODE after 12 attempts."
               exit 1
               ;;
           esac
 
-          SERVED=$(grep -o 'name="x-build-sha" content="[^"]*"' /tmp/home.html | head -1 | sed 's/.*content="//;s/"$//')
           if [ -z "$SERVED" ]; then
             echo "::error::$TARGET returned 200 but carries no <meta name=\"x-build-sha\"> — it is not serving a build of this app."
             exit 1
           fi
           if [ "$SERVED" != "$EXPECTED_SHA" ]; then
-            echo "::error::$TARGET is serving build $SERVED, not $EXPECTED_SHA. The deploy uploaded but the alias did not move."
+            echo "::error::$TARGET is serving build $SERVED, not $EXPECTED_SHA. The deploy uploaded but the alias did not move within 2 minutes."
             exit 1
           fi
           echo "✅ $TARGET serves $SERVED"

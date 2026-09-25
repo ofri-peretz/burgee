@@ -29,7 +29,7 @@ const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const WORKFLOW = readFileSync(join(REPO_ROOT, '.github', 'workflows', 'bench.yml'), 'utf8');
 
 /** Every axis the type declares. Kept here rather than imported: `run.ts` runs on import. */
-const ALL_AXES: AxisName[] = ['perf', 'compat', 'weight', 'reliability', 'agent'];
+const ALL_AXES: AxisName[] = ['perf', 'compat', 'weight', 'reliability', 'agent', 'floor'];
 
 /** The `--axis <name>` arguments of a `npm run bench` line in the workflow. */
 function axesOf(line: string): AxisName[] {
@@ -44,16 +44,16 @@ function axesOf(line: string): AxisName[] {
 }
 
 const benchLines = WORKFLOW.split('\n').filter((l) => l.includes('npm run bench --') && l.includes('--axis'));
-/** Two jobs select axes, on the two cadences the intent sets, and each owns a suite. */
+/** One job per suite selects axes, on the cadence the suite exists for, and owns it. */
 const selections = benchLines.map((l) => axesOf(l));
 const forSuite = (suite: string): AxisName[] => ALL_AXES.filter((a) => suiteOf(a) === suite).toSorted();
 
 describe('each CI job runs its whole suite', () => {
   it('has one axis-selecting command per suite, so there is one thing to check for each', () => {
-    expect(selections).toHaveLength(2);
+    expect(selections).toHaveLength(Object.values(SUITE).length);
   });
 
-  it.each([SUITE.cheap, SUITE.agent])('%s', (suite) => {
+  it.each(Object.values(SUITE))('%s', (suite) => {
     const wanted = forSuite(suite);
     const found = selections.find((axes) => axes.some((a) => suiteOf(a) === suite));
     expect(found?.toSorted(), `the job running ${suite} does not select exactly its axes`).toEqual(wanted);

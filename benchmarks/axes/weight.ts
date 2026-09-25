@@ -369,6 +369,9 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // on CI's ubuntu and macOS runners, which read 32 bytes more; the ceiling covers both.
   // 29,950 with D3 on top of S4, V8, F1 and D-140, after merging main. Measured 29,841.
   // 30,200 on 2026-09-23: P2/P3 on top of D3 (#478) and D-140. Measured 30,107.
+  // 30,260 on 2026-09-24 for N15: `--format=agent` rides the lazy `fields.js` load `--json=` already had, so the startup path gains one alternative in the test that loads it (`readsLazily`) and a `lines?.()` in `emit` — 71 B; the formatter is its own chunk. Measured 30,178.
+  // 30,300: CI's ubuntu runner read 30,261 against 30,260 — the ~32 B CI adds over a local
+  // build ate an 82 B margin. Measured 30,178 here, 30,261 on CI.
   // 28,076 on 2026-09-24 for U5: the failure path — `describeFailure`, the classification
   // table, the named-refusal lookup and the envelope — moved to `failure.js`, imported only from
   // the `catch`. Measured 27,996.
@@ -381,7 +384,9 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // 24,211 on 2026-09-24 for U5: the config-file and package.json layers moved to
   // `config-layers.js`, imported only for a program that opted into config discovery (V6).
   // Measured 24,131.
-  burgee: 24_211,
+  // 24,282 on 2026-09-24 for U5 merged with N15 (#586) and the rest of main: 30,178 -> 24,202,
+  // the same 5,976 B the four moves took before the merge. Measured 24,202.
+  burgee: 24_282,
   // 29,650 on 2026-09-23: D-140 and #521 on top of V8 (#481). Measured 29,634.
   // 29,200 on 2026-09-23 for **56 bytes**, the MCP stdout capture (#521): measured 29,172 on
   // top of D-122's 29,116. The capture lives in the lazily loaded MCP chunk; what reaches the
@@ -417,7 +422,11 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // classification both façades share. None of it is on a path a passing command takes.
   // Merged 2026-09-23: D-140's 897 bytes on top of D-122 and #521 measure 60,713.
   // 60,850 on 2026-09-23: P2/P3 on top of D3 (#478) and D-140, with 80 B for CI reading ~32 B over local. Measured 60,738.
-  'burgee/commander': 60_850,
+  // 61,100 on 2026-09-24 for J3/J4: `.burgee({ floor: true })` routes commander's own exits
+  // through E1 and a failing action to the one-line report D-140 already carries, and
+  // `--schema` names the reserved surfaces the program shadows. No module is added — the floor
+  // is three checks in front of code already on this path. Measured 61,014 (+276).
+  'burgee/commander': 61_100,
   'burgee/yargs': 107_700,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
@@ -540,7 +549,8 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // exit-code table the façade's `--schema` now carries: measured 1.531.
   // 1.555 on 2026-09-23: D-140 and #521 on top of main (72a810352e). Measured 1.554.
   // 1.56 on 2026-09-23: P2/P3 on top of D3 (#478) and D-140. Measured 1.554 locally, ~1.555 in CI.
-  'burgee/commander': 1.56,
+  // 1.565 on 2026-09-24 for J3/J4: the same 276 bytes as the bundled ceiling above. Measured 1.561.
+  'burgee/commander': 1.565,
   // bundled ceiling above (D-134): measured 1.524.
   // 1.535 on 2026-09-23: D-122 left the façade at 59,808 (1.530, on the ceiling) and the MCP
   // stdout capture (#521) adds 15 bytes of cross-chunk names — 59,823, measured 1.531.
