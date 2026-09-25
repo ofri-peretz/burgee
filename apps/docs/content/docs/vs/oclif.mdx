@@ -1,0 +1,132 @@
+---
+title: burgee vs oclif
+description: "An oclif alternative, measured against it rather than dropped in: there is no burgee/oclif, so moving means rewriting each command class. When oclif is the better choice, when burgee is, and what the rewrite looks like."
+---
+
+burgee is **not** a drop-in for oclif. There is no `burgee/oclif`, `burgee migrate` does not
+rewrite an oclif import, and none is planned: [Compatibility](/docs/compatibility) lists oclif
+as **rejected**, because its API is inseparable from its shape — a project layout, a build
+step and a generator — and a façade could not be adopted without adopting that shape. Moving
+an oclif CLI to burgee is a rewrite, one command at a time. This page is here to help you
+decide whether that rewrite is worth it, and it says so where it is not.
+
+## Is there a drop-in?
+
+No. burgee's `package.json` exports front ends for commander (`burgee/commander`), yargs
+(`burgee/yargs`) and meow (`burgee/meow`), each graded by that host's own test suite.
+Nothing is exported for oclif and nothing is graded against it, so no oclif program runs on
+burgee unchanged, and this page never calls burgee oclif-compatible.
+
+## When oclif is the better choice
+
+- **You want its ecosystem.** oclif has plugins — the comparison marks them ✅ — and a set of
+  published ones around them. The `@oclif/core` 4.8.0 read for this page configures
+  `jitPlugins` (installed on first use), an `update` block with `autoupdate` and S3 hosting,
+  and `macos` signing settings; the Salesforce CLI it was read from installs
+  `@oclif/plugin-plugins`, `@oclif/plugin-update` and `@oclif/plugin-autocomplete` beside it.
+  burgee has [plugins](/docs/plugins), but no installer or self-update configuration, and no
+  published plugins with oclif's years of use behind them.
+- **You are already at scale on it.** The research snapshot records `@oclif/core` as what the
+  Salesforce and Heroku CLIs are built on. A large CLI that already works, with a team that
+  knows oclif, gains less from a rewrite than a new one does.
+- **You want completions and derived types today, from a mature project.** The comparison
+  marks both ✅ for oclif, as it does for burgee; oclif has had them far longer.
+
+## When burgee is the better choice
+
+- **You want one file and no build step.** burgee's is enforced by a test that installs the
+  tarball, writes one file and runs it. The comparison marks oclif's as *scaffold*. That is
+  not a hard wall: `@oclif/core` 4.8.0 can also load commands from an explicit export or a
+  single class, rather than a directory it globs.
+- **You want an agent to drive it.** burgee projects `--json`, `--schema` and `--mcp` from the
+  same declaration as help. The comparison marks oclif's JSON envelope and exit-code
+  contract as *partial* — `static enableJsonFlag` is opt-in per command — its `--schema`
+  equivalent as a *manifest*, and `--mcp` as not there. See
+  [Your CLI is an agent tool](/docs/agent-surfaces).
+- **You want fewer dependencies.** `@oclif/core` brings eighteen runtime dependencies (the
+  comparison's figure, and the count in the 4.8.0 manifest read for this page); burgee brings
+  five, none outside the burgee family. oclif's own tracker raises it: oclif/core
+  [#1627](https://github.com/oclif/core/issues/1627) (2026-07) notes that several of them now
+  have native Node equivalents.
+
+The same research read every open issue on oclif/core and oclif/oclif. Two of them are the
+layer burgee is built around: oclif/core [#854](https://github.com/oclif/core/issues/854)
+finds it "hard to tell whether a user really typed that flag or is just a default", which
+burgee's `--json` answers in `meta.provenance` — each option with a value says whether it
+came from a flag or its default — and oclif/oclif
+[#958](https://github.com/oclif/oclif/issues/958) is Ctrl+C and raw-mode handling. The full
+reading is on [Research](/docs/research).
+
+## Weight against oclif
+
+burgee's cells are from [burgee vs the alternatives](/docs/comparison), measured by
+`npm run bench` (2026-09-09, one machine). oclif's download count is from the research
+snapshot of 2026-09-06, and its dependency count is the one in the 4.8.0 manifest. The
+benchmark suite does not run oclif, so its startup and installed size are **not measured
+here**, and this page states no figure for them:
+
+| | burgee | @oclif/core |
+| :-- | --: | --: |
+| Downloads / week | new | 10.9M |
+| Runtime dependencies | 5, none outside the burgee family | 18 |
+| Full CLI run over bare node | +14.0 ms | not measured here |
+| Installed size | 1304 KB | not measured here |
+
+With no measured oclif figure, this page claims no speed or size result either way. And
+oclif has users; burgee is new.
+
+## Moving a command across
+
+There is no import to swap, so each command class becomes a `defineCommand`. The flags and
+arguments move nearly one for one; what is new is `effects`, which says what running the
+command does to the world, and which `--mcp` reads.
+
+Before, with `@oclif/core` 4.8.0:
+
+```ts
+// src/commands/greet.ts, found through the oclif.commands setting in package.json
+import { Args, Command, Flags } from '@oclif/core';
+
+export default class Greet extends Command {
+  static description = 'Greet someone';
+  static args = { name: Args.string({ required: true }) };
+  static flags = { shout: Flags.boolean({ description: 'uppercase it' }) };
+
+  async run() {
+    const { args, flags } = await this.parse(Greet);
+    const line = `Hello, ${args.name}`;
+    this.log(flags.shout ? line.toUpperCase() : line);
+  }
+}
+```
+
+After, with burgee:
+
+```ts
+// cli.ts, the whole CLI
+import { defineCommand, defineProgram, run } from 'burgee';
+
+const program = defineProgram({
+  name: 'hello',
+  commands: [
+    defineCommand({
+      name: 'greet',
+      description: 'Greet someone',
+      effects: 'read_only',
+      arguments: [{ name: 'name', required: true }],
+      options: { shout: { type: 'boolean', description: 'uppercase it' } },
+      run: ({ positionals, options }) => {
+        const line = `Hello, ${positionals[0]}`;
+        return options.shout ? line.toUpperCase() : line;
+      },
+    }),
+  ],
+});
+
+await run(program);
+```
+
+The handler returns its result instead of logging it, so `greet ada --json` answers
+`{"ok":true,"data":"Hello, ada",…}` and a missing name exits `2`. oclif's plugins, hooks and
+installer configuration have no one-for-one equivalent, and moving them is design work,
+not a rewrite of syntax.
