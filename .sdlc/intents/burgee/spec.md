@@ -598,7 +598,7 @@ was quietly met.
 **The count.** 114 requirements, in seventeen families — `Z F O E V S P D T H M K J C B N U`.
 The prose above says *92* and *"Ninety-two requirements"*; both are wrong, and wrong the same
 way, because `E6 E7 V8 N11–N15` were added after the arithmetic was last done and `C1–C8`
-names two rows that do not exist. **Built: 109. Not built: 5**, and the count moves as rows are
+names two rows that do not exist. **Built: 112. Not built: 2**, and the count moves as rows are
 built rather than as the prose is rewritten — T1 moved on 2026-09-22 and the tally moved with
 it. An audit whose total disagrees with its own rows is the failure this paragraph is a record
 of; `spec-tally-lock.test.ts` now derives the two numbers from the tables instead of trusting
@@ -637,7 +637,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | :-- | :-- | :-- | :-- |
 | F1 | **Built** | `--schema` prints the tree with `schemaVersion: 1`, and now the exit-code table (`exitCodes`, the contract's seven) so a caller branches on the number without prose. It validates against `burgee/program-schema.json`, published with the package; `scripts/program-schema.test.ts` validates real output against it on every run with the family's one walker, and no runtime validator ships (D-123) | `schema.test.ts`, `scripts/program-schema.test.ts` |
 | F2 | **Built** | `--help --json` prints the help *document*: `{ schemaVersion, name, arguments, options, examples, inputSchema, commands }`, which is `commandSchemaOf` for the node plus its immediate children — the same shape `--schema` publishes, scoped to one command, so there is one document shape in the package rather than a second one invented for help. This row read `Not built` until 2026-09-22 and was stale, not wrong when written: `dispatch` and `unresolved` both grew the branch afterwards and nothing moved the audit | `help-json.test.ts`, and the three call sites carry `// F2 — help as data` in `execute.ts` |
-| F3 | Not built | **The lint half lives in the Interlace ESLint monorepo (D-124).** held by `L` only; `eslint-plugin-cli-floor` is not a package | — |
+| F3 | **Built** | **The lint half is `eslint-plugin-cli-floor` in the Interlace ESLint monorepo (D-124), merged in ofri-peretz/eslint#1137 (464385ff73) on 2026-09-24**: `require-command-description` and `require-command-example` (an example spanning more than one line is flagged for yargs and burgee; commander has no structured examples, so any `.addHelpText()` counts). Hosts are recognised by import, never by name; a command declared in another file is not read. Not yet on npm — the new name needs its first manual publish | ofri-peretz/eslint `packages/eslint-plugin-cli-floor` — 226 tests, 100% coverage, each check shown to fail its tests when removed |
 | F4 | **Built** | `help.ts`'s `commandSections` groups children by `group`; `hidden` is filtered by `runnable()`; `commandSchemaOf` carries `group` into `--schema` | `help.test.ts`, `schema.test.ts` |
 
 ### Output
@@ -646,7 +646,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | :-- | :-- | :-- | :-- |
 | O1 | **Built** | `emit()` writes `{ ok: true, data, meta }`; `report()` writes `{ ok: false, error: { code, message, hint } }` | `machine-json.test.ts`, `shape.test.ts` |
 | O2 | **Built** | `execute.ts`'s `lookOf` is the one decision every help path takes: `FORCE_COLOR` decides when set (`0`/`false` off, anything else on, over a pipe and over `NO_COLOR`, as Node's `getColorDepth` does); otherwise colour needs an interactive terminal — a detected agent is not one (N12) — no non-empty `NO_COLOR`, and `TERM` not `dumb`. Spinners, redraws and prompts are not the engine's to draw; the row holds for what it draws | `color.test.ts`: *"FORCE_COLOR overrides a pipe and NO_COLOR, and FORCE_COLOR=0 overrides a terminal"* — three of its four cases red on the engine before `lookOf` |
-| O3 | Not built | **The lint half lives in the Interlace ESLint monorepo (D-124).** held by `L` only | — |
+| O3 | **Built** | **The lint half is `eslint-plugin-cli-floor/no-console-in-command` (D-124, ofri-peretz/eslint#1137, 464385ff73)**: `console.*` inside a commander `.action`, a yargs handler or a burgee `run`, traced from the host import. A helper called from the handler is not followed. The runtime half (O1/O2) stays burgee's | ofri-peretz/eslint `packages/eslint-plugin-cli-floor` |
 | O4 | **Built** | `help.ts` imports `styleText` from `node:util`; no colour package anywhere in the family | `scripts/layer-boundaries-lock.test.ts`: *"holds zero external runtime dependencies across the family"* |
 | O5 | **Built** 2026-09-16 | `shutdown.ts` registers `flushStreams` in closeout's `flush` phase over `[host.stdout, host.stderr]`, which runs before `release` and before `restore`; every `io.exit` in `execute.ts` goes through `leave()` | `shutdown.test.ts`, and `pty-signal.test.ts` on the signal path. Caveat: `detachedTeardown()` is built with **no** streams, so an injected `stdout` is still never drained — it is a synchronous `{ write }` with nothing buffered |
 
@@ -692,7 +692,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 
 | # | Status | Evidence | The check |
 | :-- | :-- | :-- | :-- |
-| P1 | Not built | **The lint half lives in the Interlace ESLint monorepo (D-124).** held by `L` only | — |
+| P1 | **Built** | **The lint half is `eslint-plugin-cli-floor/no-prompt-without-flag` (D-124, ofri-peretz/eslint#1137, 464385ff73), in the plugin's `strict` config only**: a prompt call (clack, inquirer, prompts, enquirer, caique) inside a handler with no read of the command's own options before it. It checks that the options are read first, not that the specific flag answering that prompt is; it has not yet been measured on real code that prompts. The runtime half (P2, P3) is burgee's and is built | ofri-peretz/eslint `packages/eslint-plugin-cli-floor` |
 | P2 | **Built** | a thrown refusal carrying `code: 'USAGE'` leaves with exit 2, its message and `fix` rendered as E3 (D-120) — which is how caique's non-TTY verdict, `{ code: 'USAGE', message, fix }` naming the flag, reaches an exit status. burgee does not import caique: the contract is the shape, and `scripts/prompt-exit-codes.test.ts` proves it with each package's real code | `scripts/prompt-exit-codes.test.ts` |
 | P3 | **Built** | caique's cancelled prompt, `{ code: 'CANCELLED', message, fix }`, thrown from a handler exits 4 — never `RUNTIME` — with the fix line saying how to skip the question (D-120). The same rule maps `CONFIG` and `AUTH` by name; any other string code (`ENOENT`) is not a claim and stays `RUNTIME` | `scripts/prompt-exit-codes.test.ts` |
 
