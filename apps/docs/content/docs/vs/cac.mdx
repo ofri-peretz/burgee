@@ -1,0 +1,124 @@
+---
+title: burgee vs cac
+description: "A cac alternative, measured against it rather than dropped in: there is no burgee/cac, so moving means rewriting each command. cac is far smaller and starts faster; this is when that matters and when --json, --schema and --mcp matter more."
+---
+
+burgee is **not** a drop-in for cac. There is no `burgee/cac` and `burgee migrate` does not
+rewrite a cac import. [Compatibility](/docs/compatibility) lists a cac front end as
+**planned** and deferred: cac's downloads are almost entirely vite and vitest bundling it,
+not developers choosing it, so a façade would convert few people. Until one exists and is
+graded by cac's own tests, moving a cac CLI to burgee is a rewrite, and this page is here to
+help you decide whether it is worth one.
+
+## Is there a drop-in?
+
+No. burgee's `package.json` exports front ends for commander (`burgee/commander`), yargs
+(`burgee/yargs`) and meow (`burgee/meow`), each graded by that host's own test suite.
+Nothing is exported for cac, so no cac program runs on burgee unchanged, and this page never
+calls burgee cac-compatible.
+
+## When cac is the better choice
+
+cac is the lightest framework in the landscape, and burgee's own gates say it is lighter
+than burgee. Measured against `cac@7.0.0`, the version the benchmark suite resolves, with
+each ratio taken between the two in the same run:
+
+- **Bundle size.** The `lighter-than-cac` gate — burgee lighter in a bundle than cac alone —
+  is **not met** (2.881×): burgee's core bundles to 30,107 bytes and cac to 10,452.
+- **Cold start.** cac starts faster in every run on record. Across the 178 runs committed
+  under `benchmarks/results/cli-benchmarks/`, burgee's full-run cold start is 1.29×–2.13×
+  cac's and never at or below 1. The 174 CI runs fall between 1.29× and 1.55×; the four
+  higher figures are from a developer laptop. The latest CI run,
+  `2026-09-24-866b972-ci.json` (2026-09-24), measured **1.48×**. The published target of
+  at or below cac is recorded as **not met**.
+- **Installed size.** 1276 KB for burgee against 40 KB for cac.
+
+Those gaps are not scheduled to close. The README says why: cac's bytes are a parser and a
+help renderer, and burgee's are that plus coercion, choices, option relations, Standard
+Schema, config precedence, bounded shutdown, terminal restore and agent detection, so
+closing them would mean deleting the product. If your CLI needs none of that and every
+byte counts, choose cac.
+
+## When burgee is the better choice
+
+- **You would otherwise add the rest yourself.** A cac program that wants its config file
+  read, its shutdown bounded on every path out and its cursor handed back on Ctrl-C
+  installs `cosmiconfig`, `exit-hook` and `restore-cursor`. Against that stack burgee's
+  `lighter-than-cac-at-parity` gate is met (0.308×): 30,107 bytes against 97,711. Both
+  gates are the README's, and every bundle figure on this page is rewritten from a fresh
+  build by `npm run readme:gates`, so it cannot drift from what the build measures.
+- **You want an agent to drive it.** The comparison marks cac without a `--json` envelope,
+  an exit-code contract, `--schema`, `--mcp` or shell completions. burgee projects all five
+  from one declaration; see [Your CLI is an agent tool](/docs/agent-surfaces).
+- **You want plugins.** The comparison marks cac without them; burgee's
+  [plugins](/docs/plugins) are shared across programs.
+
+## Weight against cac
+
+From [burgee vs the alternatives](/docs/comparison), where both sides are measured by
+`npm run bench` in one run on one machine (2026-09-09), with downloads from the research
+snapshot of 2026-09-06. Milliseconds are a property of the machine that measured them; the
+ratios above are the figures that cancel it out:
+
+| | burgee | cac |
+| :-- | --: | --: |
+| Downloads / week | new | 49.4M |
+| Runtime dependencies | 5, none outside the burgee family | 0 |
+| Full CLI run over bare node | +14.0 ms | +4.0 ms |
+| Installed size | 1276 KB | 40 KB |
+
+cac wins every row, and every row stays on the page. The case for burgee is the capability
+list above, not weight.
+
+## Moving a command across
+
+There is no import to swap, so each `cli.command()` chain becomes a `defineCommand`. The
+shapes are close: cac's `<name>` in the command string becomes an entry in `arguments`,
+each `.option()` becomes a key in `options`, and `.action()` becomes `run`. What is new is
+`effects`, which says what running the command does to the world, and which `--mcp` reads.
+
+Before, with `cac` 7.0.0:
+
+```js
+import cac from 'cac';
+
+const cli = cac('hello');
+cli
+  .command('greet <name>', 'Greet someone')
+  .option('--shout', 'uppercase it')
+  .action((name, options) => {
+    const line = `Hello, ${name}`;
+    console.log(options.shout ? line.toUpperCase() : line);
+  });
+cli.help();
+cli.parse();
+```
+
+After, with burgee:
+
+```js
+import { defineCommand, defineProgram, run } from 'burgee';
+
+const program = defineProgram({
+  name: 'hello',
+  commands: [
+    defineCommand({
+      name: 'greet',
+      description: 'Greet someone',
+      effects: 'read_only',
+      arguments: [{ name: 'name', required: true }],
+      options: { shout: { type: 'boolean', description: 'uppercase it' } },
+      run: ({ positionals, options }) => {
+        const line = `Hello, ${positionals[0]}`;
+        return options.shout ? line.toUpperCase() : line;
+      },
+    }),
+  ],
+});
+
+await run(program);
+```
+
+The handler returns its result instead of printing it, so `greet ada --json` answers
+`{"ok":true,"data":"Hello, ada",…}` and a missing name exits `2`. Help needs no
+`cli.help()`: every burgee program has it.

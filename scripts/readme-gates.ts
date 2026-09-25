@@ -123,6 +123,8 @@ export const QUOTES: readonly Quote[] = [
   q('apps/docs/content/docs/vs/commander.mdx', /alone — is \*\*not met\*\* \(([\d,.]+)×\)/dg, ratio('burgee/commander', 'commander')),
   q('apps/docs/content/docs/vs/commander.mdx', /cursor handling, it is met \(([\d,.]+)×\)/dg, parity('burgee/commander', 'commander')),
   q('apps/docs/content/docs/vs/yargs.mdx', /lighter in a bundle than yargs — is met\s+\(([\d,.]+)×\)/dg, ratio('burgee/yargs', 'yargs')),
+  q('apps/docs/content/docs/vs/cac.mdx', /cac alone —\s+is \*\*not met\*\* \(([\d,.]+)×\): burgee's core bundles to ([\d,.]+) bytes and cac to ([\d,.]+)\./dg, ratio('burgee', 'cac'), bytes('burgee'), bytes('cac')),
+  q('apps/docs/content/docs/vs/cac.mdx', /`lighter-than-cac-at-parity` gate is met \(([\d,.]+)×\): ([\d,.]+) bytes against ([\d,.]+)\./dg, parity('burgee', 'cac'), bytes('burgee'), stack('cac')),
   q('.sdlc/roadmap/launch-kit.md', /`burgee\/commander` is\s+([\d,.]+)× the bundle; against commander alone it is ([\d,.]+)×/dg, parity('burgee/commander', 'commander'), ratio('burgee/commander', 'commander')),
 ];
 

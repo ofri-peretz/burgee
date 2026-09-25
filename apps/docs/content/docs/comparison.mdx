@@ -19,8 +19,8 @@ do, and every cell here now says where it comes from.
 
 ## Measured
 
-⚙️ rows: 2026-09-09, Apple M4 Pro, darwin/arm64, Node 24, 42 interleaved spawns per
-variant. Milliseconds are a property of that machine, so the deltas below are for reading,
+⚙️ rows: 2026-09-09, a GitHub Actions runner (AMD EPYC 7763, 4 cores), linux/x64, Node
+24.13, 42 interleaved spawns per variant. Milliseconds are a property of that machine, so the deltas below are for reading,
 never for gating; the machine-independent figure is the ratio on
 [Benchmarks](/docs/benchmarks).
 
@@ -92,7 +92,7 @@ comparison this table exists for. Treat it as the survey's, not as ours.
 | | **burgee** | commander | yargs | oclif | cac | citty |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | One file, no build step | ✅ *(enforced by test)* | ✅ | ✅ | ❌ scaffold | ✅ | ✅ |
-| **Plugins** | ✅ **built** | ❌ *(RFC #2505, unlanded)* | ❌ | ✅ | ❌ | ❌ |
+| **Plugins** that add commands | ✅ **built** | ❌ *(RFC #2505, unlanded)* | ❌ | ✅ | ❌ | ❌ |
 | Plugins on *commander* syntax | ✅ **built** | — | — | — | — | — |
 | `--json` envelope | ✅ **built** | ❌ | ❌ | partial | ❌ | ❌ |
 | Exit-code contract | ✅ **built** | ❌ | ❌ | partial | ❌ | ❌ |
@@ -106,6 +106,11 @@ comparison this table exists for. Treat it as the survey's, not as ours.
 | Types derived from one schema | ✅ **built** | partial | partial | ✅ | partial | ✅ |
 
 ✅ built · 🔨 in progress
+
+**Plugins** means a package that adds commands to a program it did not write, which is what
+oclif's plugins and burgee's do. citty 0.2.2 has a `plugins` option, but each one is a pair
+of `setup` and `cleanup` hooks run around a command and adds no command, so its cell stays
+❌.
 
 ## The three that matter
 
