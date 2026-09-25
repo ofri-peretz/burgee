@@ -15,7 +15,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { blockers, installTool, isPosix, parseClaudeJson, POSIX_ONLY, run, runOne, type Task, type Variant } from './axes/agent.js';
+import { blockers, installTool, ISOLATION, isPosix, parseClaudeJson, POSIX_ONLY, run, runOne, STORED_LOGIN_OPT_IN, storedLogin, type Task, type Variant } from './axes/agent.js';
 import { type BenchRecord } from './record.js';
 
 const EXECUTABLE = 0o755;
@@ -124,6 +124,60 @@ describe('blockers', () => {
   it('is satisfied on the credential when one is present', () => {
     const reasons = blockers({ ...process.env, CLAUDE_CODE_OAUTH_TOKEN: 'not-a-real-token' });
     expect(reasons.join('; ')).not.toContain('ANTHROPIC_API_KEY');
+  });
+});
+
+/** A `claude` whose `auth status` reports `loggedIn`, the way the real CLI does. */
+function stubAuth(loggedIn: boolean): string {
+  const dir = mkdtempSync(join(tmpdir(), 'stub-claude-auth-'));
+  const bin = join(dir, 'claude');
+  const body = JSON.stringify({ loggedIn, authMethod: loggedIn ? 'claude.ai' : 'none' });
+  writeFileSync(bin, `#!/bin/sh\nif [ "$1" = auth ]; then cat <<'JSON'\n${body}\nJSON\n[ ${loggedIn ? '0' : '1'} = 0 ]; exit $?; fi\nexit 0\n`);
+  chmodSync(bin, EXECUTABLE);
+  return bin;
+}
+
+const noCredential = (reasons: string[]): boolean => reasons.join('; ').includes('no CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY');
+
+describe.skipIf(!isPosix())('a stored claude login', () => {
+  const bare = { PATH: process.env['PATH'] as string };
+
+  it('satisfies the credential when opted into and `claude auth status` says it is logged in', () => {
+    expect(storedLogin({ ...bare, [STORED_LOGIN_OPT_IN]: '1' }, stubAuth(true))).toBe(true);
+    expect(noCredential(blockers({ ...bare, [STORED_LOGIN_OPT_IN]: '1' }, stubAuth(true)))).toBe(false);
+  });
+
+  // A logged-in `claude` on PATH is the normal state of a developer's machine; spending on
+  // it without being asked would make every `npm run bench` a paid run.
+  it('is never used unless opted into, however logged in `claude` is', () => {
+    expect(storedLogin(bare, stubAuth(true))).toBe(false);
+    expect(noCredential(blockers(bare, stubAuth(true)))).toBe(true);
+  });
+
+  // The #276 shape from the other side: an expired login must stop the axis before it
+  // spends 50 runs failing to authenticate.
+  it('is refused when `claude auth status` says the login is gone', () => {
+    expect(storedLogin({ ...bare, [STORED_LOGIN_OPT_IN]: '1' }, stubAuth(false))).toBe(false);
+    expect(noCredential(blockers({ ...bare, [STORED_LOGIN_OPT_IN]: '1' }, stubAuth(false)))).toBe(true);
+  });
+
+  it('is refused when `auth status` does not answer in JSON', () => {
+    expect(storedLogin({ ...bare, [STORED_LOGIN_OPT_IN]: '1' }, stubClaude('not an auth document'))).toBe(false);
+  });
+});
+
+describe.skipIf(!isPosix())('isolation from the machine it runs on', () => {
+  // The owner's ~/.claude measured at 10,228 tokens a turn; without these flags a local run
+  // measures that configuration as much as it measures the CLI.
+  it('spawns claude with only the configuration this repository controls', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'stub-claude-argv-'));
+    const bin = join(dir, 'claude');
+    // Answers with its own argv, so the assertion reads what was actually spawned.
+    writeFileSync(bin, `#!/bin/sh\nprintf '{"type":"result","is_error":false,"num_turns":1,"usage":{},"result":"%s"}' "$*"\n`);
+    chmodSync(bin, EXECUTABLE);
+    const argv = attempt(bin).result;
+    expect(argv).toContain(ISOLATION.join(' '));
+    expect(argv).toContain('--setting-sources project,local');
   });
 });
 

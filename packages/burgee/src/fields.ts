@@ -7,8 +7,10 @@
 /**
  * N14 — what `--json=<fields>` does once it is typed: list the declared fields, refuse an
  * unknown one naming the valid set, select the named fields of a result. Its own chunk,
- * imported by `execute.ts` only when `--json=` is on the command line (M2).
+ * imported by `execute.ts` only when `--json=` or `--format=agent` is on the command line
+ * (M2) — N15's flag is read off argv here too, so the startup path carries one test for both.
  */
+import { agentLines } from './agent-format.js';
 import { type CommandNode } from './manifest.js';
 import { UsageError } from './validate.js';
 
@@ -56,17 +58,27 @@ export function selectFields(data: unknown, fields: readonly string[]): unknown 
   return Array.isArray(data) ? data.map(pick) : pick(data);
 }
 
+const AGENT = '--format=agent';
+
 /**
  * N14 — `--json=a,b` becomes `--json` plus the fields it names; `--json=` alone is an empty
  * list, which asks for the valid set. Only the `=` form takes fields, so `cmd --json name`
  * keeps `name` a positional (D-114). Nothing after `--` is read (G5).
+ *
+ * N15 — `--format=agent` is taken out before the parser sees it and hands back the formatter.
+ * A command that declares its own `format` option keeps the flag, because the program wins;
+ * and after `--` it is the command's, like everything else there.
  */
-export function jsonFields(args: readonly string[]): { args: string[]; fields?: string[] } {
+export function jsonFields(args: readonly string[], node: CommandNode): { args: string[]; fields?: string[]; lines?: (data: unknown) => string } {
   const end = args.indexOf('--');
-  const head = end === -1 ? args : args.slice(0, end);
+  const all = end === -1 ? args : args.slice(0, end);
+  const agent = node.options['format'] === undefined && all.includes(AGENT);
+  const head = agent ? all.filter((a) => a !== AGENT) : all;
+  const lines = agent ? { lines: agentLines } : {};
+  const tail = end === -1 ? [] : args.slice(end);
   const given = head.findLast((a) => a.startsWith('--json='));
-  if (given === undefined) return { args: [...args] };
+  if (given === undefined) return { args: [...head, ...tail], ...lines };
   const fields = given.slice('--json='.length).split(',').map((f) => f.trim()).filter((f) => f !== '');
   const kept = head.map((a) => (a.startsWith('--json=') ? '--json' : a));
-  return { args: end === -1 ? kept : [...kept, ...args.slice(end)], fields };
+  return { args: [...kept, ...tail], fields, ...lines };
 }
