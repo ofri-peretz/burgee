@@ -24,7 +24,7 @@ than burgee. Measured against `cac@7.0.0`, the version the benchmark suite resol
 each ratio taken between the two in the same run:
 
 - **Bundle size.** The `lighter-than-cac` gate — burgee lighter in a bundle than cac alone —
-  is **not met** (2.881×): burgee's core bundles to 30,107 bytes and cac to 10,452.
+  is **not met** (2.316×): burgee's core bundles to 24,202 bytes and cac to 10,452.
 - **Cold start.** cac starts faster in every run on record. Across the 178 runs committed
   under `benchmarks/results/cli-benchmarks/`, burgee's full-run cold start is 1.29×–2.13×
   cac's and never at or below 1. The 174 CI runs fall between 1.29× and 1.55×; the four
@@ -44,7 +44,7 @@ byte counts, choose cac.
 - **You would otherwise add the rest yourself.** A cac program that wants its config file
   read, its shutdown bounded on every path out and its cursor handed back on Ctrl-C
   installs `cosmiconfig`, `exit-hook` and `restore-cursor`. Against that stack burgee's
-  `lighter-than-cac-at-parity` gate is met (0.308×): 30,107 bytes against 97,711. Both
+  `lighter-than-cac-at-parity` gate is met (0.248×): 24,202 bytes against 97,711. Both
   gates are the README's, and every bundle figure on this page is rewritten from a fresh
   build by `npm run readme:gates`, so it cannot drift from what the build measures.
 - **You want an agent to drive it.** The comparison marks cac without a `--json` envelope,
