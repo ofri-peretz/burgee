@@ -8,7 +8,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
@@ -457,8 +457,9 @@ describe("a jest suite sees jest's execArgv, not vitest's (C1)", () => {
     try {
       const setup = join(dir, 'vitest.setup.mjs');
       writeFileSync(setup, jestGlobals());
+      // `--import` takes a URL: a bare `D:\\…` path fails on Windows as an unsupported URL scheme.
       // eslint-disable-next-line node-security/detect-child-process -- already the form the rule's own fix names: `execFileSync` with an argument array and `shell: false`. Node's own execPath, literal flags, a literal `-e` program, and `setup`, a path this test just wrote inside its own mkdtemp.
-      const seen = execFileSync(process.execPath, ['--conditions', 'development', '--import', setup, '-e', 'process.stdout.write(JSON.stringify(process.execArgv))'], { encoding: 'utf8', shell: false });
+      const seen = execFileSync(process.execPath, ['--conditions', 'development', '--import', pathToFileURL(setup).href, '-e', 'process.stdout.write(JSON.stringify(process.execArgv))'], { encoding: 'utf8', shell: false });
       expect(JSON.parse(seen)).toEqual([]);
     } finally {
       rmSync(dir, { recursive: true, force: true });
