@@ -38,7 +38,7 @@ function oracle(host: string): Graded {
  */
 const PAGE = resolve(fileURLToPath(new URL('..', import.meta.url)), '../../apps/docs/content/docs/compatibility.mdx');
 const CONTROL = new Map(
-  [...readFileSync(PAGE, 'utf8').matchAll(/^\| \*\*([\w@/-]+)\*\* \| `[^`]+` \| [^|]+ \| [\d.]+% \| (\d+) \/ \d+ \|/gmu)].map(([, host, control]) => [host!, Number(control)]),
+  [...readFileSync(PAGE, 'utf8').matchAll(/^\| \[?\*\*([\w@/-]+)\*\*(?:\]\([^)]*\))? \| `[^`]+` \| [^|]+ \| [\d.]+% \| (\d+) \/ \d+ \|/gmu)].map(([, host, control]) => [host!, Number(control)]),
 );
 
 describe('the graded numbers migrate reports', () => {
