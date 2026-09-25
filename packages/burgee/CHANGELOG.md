@@ -1,5 +1,30 @@
 # burgee
 
+## 0.13.0
+
+### Minor Changes
+
+- [#586](https://github.com/ofri-peretz/burgee/pull/586) [`a0c691a`](https://github.com/ofri-peretz/burgee/commit/a0c691ae6b5d3e244ddf6177238c239ece71485c) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `--format=agent` prints a command's result the way an agent wants to read it: one compact logfmt line per record — `key=value` pairs, nested keys dotted, lists of scalars comma-joined, a value quoted only when it holds a space, `=`, `"` or `,` — with no envelope, no `meta`, no summary and whitespace collapsed. A list result is one line per element; a scalar is itself. It is not JSON on purpose (oxlint's and vitest's agent reporters converged on the same shape), and it is smaller than `--json` on the same result: 31% over a representative set, from 20% on a twelve-row list to 96% on a bare count. `--json` wins when both are typed, so the envelope and D-140's failure contract are unchanged; a failure without `--json` is still prose on stderr; the exit code is the one the result names. A command that declares its own `format` option keeps the flag. The formatter loads only when the flag is typed.
+
+- [#582](https://github.com/ofri-peretz/burgee/pull/582) [`120ba7b`](https://github.com/ofri-peretz/burgee/commit/120ba7bfb026395e691e9c50174e61741659f732) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `.burgee({ floor: true })` on the commander and yargs façades turns on the behavioural floor in one call (J3, D-121): a usage error exits 2 rather than the host's 1, and a handler that throws or rejects prints one line and exits with its E1 code rather than a stack trace (and, on yargs, the help screen). Off by default, so the hosts' own suites still pass, and it changes nothing else — a returned value is not printed, `--json` keeps its envelope, and a commander program that called `exitOverride()` keeps its exits. `--schema` from a façade program now names the reserved surfaces the program shadows, as `shadows` (J4), and `burgee/program-schema.json` describes it — and the option `negatable` flag the commander façade already printed, which the file had left out.
+
+### Patch Changes
+
+- [#589](https://github.com/ofri-peretz/burgee/pull/589) [`d7d9e75`](https://github.com/ofri-peretz/burgee/commit/d7d9e757d967def8a63c879b65343ca147783287) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `import 'burgee'` loads less at startup. Four things now load only when they are needed:
+
+  - What a failed run prints (the exit-code classification, the `--json` failure envelope and the stderr message) loads only when a run fails.
+  - The checks between options (`exactlyOneOf`, `conflicts`, `implies`, `dependsOn`, `exclusive`) load only for a command that declares one.
+  - Everything answered without running a command (help, `--version`, `help [command]`, `completion`, `config explain`, `--schema`, `--mcp`) loads only when it is asked for.
+  - Reading a config file and the `package.json` field loads only for a program that turned on config discovery.
+
+  Output and exit codes are unchanged.
+
+- [#594](https://github.com/ofri-peretz/burgee/pull/594) [`60c4603`](https://github.com/ofri-peretz/burgee/commit/60c46034a25fe8ca630976f6879a29e32c93884e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` decides whether a project's commander, yargs or other incumbent is on a major it may rewrite from a declared range per drop-in (`SUPPORTED_MAJORS`), rather than from the one graded version alone. Every range is the current major today, so what `migrate` rewrites is unchanged: commander 14 and yargs 17 are now graded by their own suites (1329 / 1331 and 191 / 794) and neither grades level, so neither is claimed. The compatibility page publishes both rows.
+- Updated dependencies [[`073037a`](https://github.com/ofri-peretz/burgee/commit/073037ab38b13490ab119c84122a46c7c605be14)]:
+  - bellpull@0.4.1
+  - linegauge@0.5.3
+  - seniority@0.6.1
+
 ## 0.12.1
 
 ### Patch Changes
