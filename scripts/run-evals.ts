@@ -16,6 +16,8 @@
  *
  * Credentials: prefer CLAUDE_CODE_OAUTH_TOKEN (subscription, no per-token charge).
  * ANTHROPIC_API_KEY outranks it in Claude Code's precedence, so set one, not both.
+ * On a machine where `claude` is already logged in, BURGEE_USE_CLAUDE_LOGIN=1 uses that
+ * login instead — checked with `claude auth status`, never assumed.
  *
  * Usage:
  *   tsx scripts/run-evals.ts             # both layers
@@ -230,15 +232,48 @@ const BILLING_LABEL: Record<Billing, string> = {
   console: 'the Console API key',
 };
 
-/** GitHub Actions writes an absent secret as an empty variable, so test for non-empty. */
-export function billingFor(env: NodeJS.ProcessEnv): { billing: Billing; bothSet: boolean; hasCredential: boolean } {
+/**
+ * The opt-in for the login `claude` already holds (a `claude.ai` login in the keychain),
+ * the same variable `benchmarks/axes/agent.ts` reads. Opt-in, because a logged-in `claude`
+ * is the normal state of a developer's machine and `npm run evals` must not start spending
+ * on it unasked.
+ */
+export const STORED_LOGIN_OPT_IN = 'BURGEE_USE_CLAUDE_LOGIN';
+
+/** What `claude auth status` says about the stored login, when it was opted into. */
+export function storedLogin(env: NodeJS.ProcessEnv, claudeBin = 'claude'): Billing {
+  if (env[STORED_LOGIN_OPT_IN] !== '1') return 'none';
+  const r = spawnSync(claudeBin, ['auth', 'status'], { encoding: 'utf8', env });
+  try {
+    const status = JSON.parse(r.stdout) as { loggedIn?: unknown; authMethod?: unknown };
+    if (r.status !== 0 || status.loggedIn !== true) return 'none';
+    return status.authMethod === 'claude.ai' ? 'subscription' : 'console';
+  } catch {
+    return 'none';
+  }
+}
+
+/**
+ * GitHub Actions writes an absent secret as an empty variable, so test for non-empty.
+ * `stored` is `storedLogin`'s answer, passed in so this stays a pure function of its inputs;
+ * a variable outranks it, as it does inside `claude`.
+ */
+export function billingFor(env: NodeJS.ProcessEnv, stored: Billing = 'none'): { billing: Billing; bothSet: boolean; hasCredential: boolean } {
   const key = Boolean(env.ANTHROPIC_API_KEY);
   const token = Boolean(env.CLAUDE_CODE_OAUTH_TOKEN);
-  let billing: Billing = 'none';
+  let billing: Billing = stored;
   if (key) billing = 'console';
   else if (token) billing = 'subscription';
-  return { billing, bothSet: key && token, hasCredential: key || token };
+  return { billing, bothSet: key && token, hasCredential: billing !== 'none' };
 }
+
+/**
+ * Only the configuration this repository controls: the repository's own CLAUDE.md is part
+ * of what these evals measure; the owner's `~/.claude` — its CLAUDE.md, hooks, plugins and
+ * MCP servers — is not, and a CI runner never has one. See `ISOLATION` in
+ * `benchmarks/axes/agent.ts` for what it cost when it leaked in.
+ */
+export const ISOLATION = ['--setting-sources', 'project,local', '--strict-mcp-config'] as const;
 
 export function evalEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const out = { ...env };
@@ -265,7 +300,7 @@ const NO_USAGE: CaseUsage = { turns: null, tokens: null, model: null };
  * The grade reads the document's `result`, which is exactly what text mode prints.
  */
 function runCase(c: EvalCase): CaseResult {
-  const args = ['-p', c.prompt, '--allowedTools', c.allowedTools ?? 'Read,Grep,Glob', '--max-turns', process.env.EVAL_MAX_TURNS ?? '3', '--output-format', 'json'];
+  const args = ['-p', c.prompt, '--allowedTools', c.allowedTools ?? 'Read,Grep,Glob', '--max-turns', process.env.EVAL_MAX_TURNS ?? '3', '--output-format', 'json', ...ISOLATION];
   if (process.env.EVAL_MODEL) args.push('--model', process.env.EVAL_MODEL);
   const r = spawnSync('claude', args, { cwd: REPO_ROOT, encoding: 'utf8', env: evalEnv(process.env), timeout: CASE_TIMEOUT_MS, maxBuffer: OUTPUT_BUFFER });
   if (r.error || typeof r.stdout !== 'string') return { id: c.id, status: 'error', failed: [String(r.error ?? 'no output')], ...NO_USAGE };
@@ -274,8 +309,8 @@ function runCase(c: EvalCase): CaseResult {
   return { id: c.id, status: ok ? 'pass' : 'fail', failed, ...usage };
 }
 
-function runTaskLayer(cases: EvalCase[]): CaseResult[] {
-  const { billing, bothSet } = billingFor(process.env);
+function runTaskLayer(cases: EvalCase[], credential: ReturnType<typeof billingFor>): CaseResult[] {
+  const { billing, bothSet } = credential;
   console.warn(`\n🧪 Layer 2 — ${cases.length} task eval(s), billing to ${BILLING_LABEL[billing]}\n`);
   if (bothSet) console.warn('  ⚠️ Both credentials are set; ANTHROPIC_API_KEY wins and bills per token. Unset one.\n');
   const results = cases.map(runCase);
@@ -312,13 +347,16 @@ function main(): void {
   }
 
   const cases = loadCases();
+  // Asked once: `storedLogin` spawns `claude auth status`, and the answer must not change
+  // between deciding to run and recording what the run billed to.
+  const credential = configOnly ? billingFor(process.env) : billingFor(process.env, storedLogin(process.env));
   let ran: CaseResult[] | null = null;
   if (configOnly) {
     console.warn('\n🧪 Layer 2 — skipped (--config)\n');
-  } else if (!billingFor(process.env).hasCredential) {
+  } else if (!credential.hasCredential) {
     console.warn(`\n🧪 Layer 2 — skipped: no credential (${cases.length} case(s) not run).\n`);
   } else {
-    ran = runTaskLayer(cases);
+    ran = runTaskLayer(cases, credential);
     failures += ran.filter((r) => r.status !== 'pass').length;
   }
 
@@ -326,7 +364,7 @@ function main(): void {
     const line = historyLine({
       date: new Date().toISOString().slice(0, 'YYYY-MM-DD'.length),
       commit: currentCommit(),
-      billing: billingFor(process.env).billing,
+      billing: credential.billing,
       pinnedModel: process.env.EVAL_MODEL,
       config: { passed: config.filter((r) => r.passed).length, total: config.length },
       cases: ran,

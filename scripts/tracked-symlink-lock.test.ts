@@ -75,6 +75,9 @@ describe("tracked symlinks stay inside the repository", () => {
     // two are worth telling apart before trusting the rest of this file.
     expect(links.map(([path]) => path)).toMatchInlineSnapshot(`
       [
+        "packages/compat-oracle/vendor/commander-14/tests/fixtures/another-dir/pm",
+        "packages/compat-oracle/vendor/commander-14/tests/fixtures/other-dir/pm",
+        "packages/compat-oracle/vendor/commander-14/tests/fixtures/pmlink",
         "packages/compat-oracle/vendor/commander/tests/fixtures/another-dir/pm",
         "packages/compat-oracle/vendor/commander/tests/fixtures/other-dir/pm",
         "packages/compat-oracle/vendor/commander/tests/fixtures/pmlink",

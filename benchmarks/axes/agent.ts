@@ -2,9 +2,10 @@
  * B1 — what an agent spends to get a task done, on a CLI that meets the floor versus one
  * that does not.
  *
- * **This axis does not run in this repository today, and it says so rather than
- * estimating.** It needs `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` and the `claude`
- * binary; without either it returns a reason and `run.ts` marks the axis `skipped`, which
+ * **This axis does not run without a credential, and it says so rather than estimating.**
+ * It needs `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` (or a stored `claude` login
+ * opted into with `BURGEE_USE_CLAUDE_LOGIN=1`) and the `claude` binary. It first ran on
+ * 2026-09-24 (D-147); without a credential it returns a reason and `run.ts` marks the axis `skipped`, which
  * `emit.ts` turns into a band entry carrying that reason instead of a number. Nothing in
  * this file can produce a plausible-looking figure from a run that did not happen — that
  * is deliberate, and `emit.test.ts` proves it: the roadmap's headline claim ("≥40% fewer
@@ -19,6 +20,9 @@
  * axis, but not that the axis produced that record by measuring anything — a `run()`
  * returning a table of plausible numbers would pass every other check in the repository.
  * What remains untested is the model's behaviour, which is the thing the credential buys.
+ *
+ * The first run (`results/agent-cli-bench/2026-09-24-2a51440-local.json`): tokens ratio
+ * 0.601 against the ≤ 0.6 claim — not met, by 0.001 — and turns 0.600 against ≤ 0.7, met.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -147,7 +151,7 @@ export const isPosix = (platform: string = process.platform): boolean => platfor
 export function runOne(opts: RunOne): Attempt {
   const { claudeBin, task, toolDir, workdir, model, timeoutMs } = opts;
   for (const cmd of task.setup) execFileSync(SHELL, ['-c', cmd], { cwd: workdir, stdio: 'ignore' });
-  const argv = ['-p', task.prompt, '--allowedTools', 'Bash(mytool:*)', '--max-turns', String(task.maxTurns), '--output-format', 'json', '--model', model];
+  const argv = ['-p', task.prompt, '--allowedTools', 'Bash(mytool:*)', '--max-turns', String(task.maxTurns), '--output-format', 'json', '--model', model, ...ISOLATION];
   const r = spawnSync(claudeBin, argv, {
     cwd: workdir,
     encoding: 'utf8',
@@ -182,6 +186,40 @@ export function runOne(opts: RunOne): Attempt {
 /** Present and non-blank. An unset GitHub secret arrives as `''`, not as absent. */
 const hasCredential = (value: string | undefined): boolean => (value ?? '').trim() !== '';
 
+/**
+ * The opt-in for the login `claude` already holds — a `claude.ai` login in the keychain on a
+ * developer's machine, which bills the same subscription `CLAUDE_CODE_OAUTH_TOKEN` does but
+ * lives in no variable. Opt-in rather than automatic, because a logged-in `claude` on PATH
+ * is the normal state of the machine this repository is written on, and a suite that
+ * started spending on it unasked would spend on every `npm run bench`.
+ */
+export const STORED_LOGIN_OPT_IN = 'BURGEE_USE_CLAUDE_LOGIN';
+
+/**
+ * Asked, never assumed: `claude auth status` is the CLI's own answer to whether its stored
+ * login works, and a login that has expired says `"loggedIn": false` — the axis then
+ * reports the missing credential instead of spending 50 runs failing to authenticate
+ * (the #276 shape, reached from the other side).
+ */
+export function storedLogin(env: NodeJS.ProcessEnv, claudeBin: string): boolean {
+  if (env[STORED_LOGIN_OPT_IN] !== '1') return false;
+  const r = spawnSync(claudeBin, ['auth', 'status'], { encoding: 'utf8', env });
+  try {
+    return r.status === 0 && (JSON.parse(r.stdout) as { loggedIn?: unknown }).loggedIn === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Only the configuration this repository controls. On a developer's machine `claude` would
+ * otherwise load the owner's `~/.claude` — its CLAUDE.md, hooks, plugins and MCP servers —
+ * into every turn: measured on 2026-09-24 at 10,228 tokens a turn (35,597 → 25,369 for the
+ * same one-word reply), a constant added to both builds that drags the ratio toward 1 and
+ * that a CI runner, having no `~/.claude`, never pays. On CI both flags change nothing.
+ */
+export const ISOLATION = ['--setting-sources', 'project,local', '--strict-mcp-config'] as const;
+
 export function blockers(env: NodeJS.ProcessEnv = process.env, claudeBin = 'claude', variants: readonly Variant[] = VARIANTS): string[] {
   const reasons: string[] = [];
   if (!isPosix()) reasons.push(POSIX_ONLY);
@@ -191,8 +229,8 @@ export function blockers(env: NodeJS.ProcessEnv = process.env, claudeBin = 'clau
   // present and a test against undefined was false. The guard never fired, the axis ran,
   // `claude` failed to authenticate on all 25 runs, and the skip blamed the prompts
   // (#276). A credential that is the empty string is not a credential.
-  if (!hasCredential(env['ANTHROPIC_API_KEY']) && !hasCredential(env['CLAUDE_CODE_OAUTH_TOKEN'])) {
-    reasons.push('no CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY in the environment');
+  if (!hasCredential(env['ANTHROPIC_API_KEY']) && !hasCredential(env['CLAUDE_CODE_OAUTH_TOKEN']) && !storedLogin(env, claudeBin)) {
+    reasons.push(`no CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY in the environment, and no stored \`claude\` login opted into with ${STORED_LOGIN_OPT_IN}=1`);
   }
   if (spawnSync(claudeBin, ['--version'], { stdio: 'ignore' }).status !== 0) reasons.push(`the \`${claudeBin}\` binary is not on PATH`);
   for (const v of variants) {
@@ -344,4 +382,4 @@ export function run(options: AgentOptions = {}): { records: BenchRecord[] } | { 
   return { records };
 }
 
-export const method = `For each of the ${String(readTasks().length)} tasks and each of the two builds, \`claude -p <prompt> --allowedTools 'Bash(mytool:*)' --max-turns <n> --output-format json\` is spawned in a scratch directory with the build installed as \`mytool\`, ${String(RUNS_PER_TASK)} times; the task's own \`check\` decides success. Tokens are input + cache + output as the CLI reports them; turns is its \`num_turns\`. The model is pinned per results file and a change starts a new band history.`;
+export const method = `For each of the ${String(readTasks().length)} tasks and each of the two builds, \`claude -p <prompt> --allowedTools 'Bash(mytool:*)' --max-turns <n> --output-format json --setting-sources project,local --strict-mcp-config\` is spawned in a scratch directory with the build installed as \`mytool\`, ${String(RUNS_PER_TASK)} times; the task's own \`check\` decides success. Tokens are input + cache + output as the CLI reports them; turns is its \`num_turns\`. The model is pinned per results file and a change starts a new band history.`;

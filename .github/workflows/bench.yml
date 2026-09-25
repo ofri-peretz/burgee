@@ -18,6 +18,8 @@ name: Benchmarks
 #            reports a number it did not measure. On a scheduled run that skips,
 #            it opens an issue, because a weekly benchmark that has never run is
 #            the kind of thing a green tick hides for a year.
+#   floor  — N10, the demo graded by clispec and cli-agent-lint. Free, every PR,
+#            its own suite (`external-floor`); see the job.
 #
 # The perf axis reports absolute milliseconds that are a property of the runner.
 # Nothing gates on them: the gated number is a ratio between two spawns
@@ -176,6 +178,43 @@ jobs:
           # merges it. With only `github.token` it sits at BLOCKED with zero failures forever;
           # 65 of them were landed by hand as #570.
           gh pr merge --auto --squash "$BRANCH" || true
+
+  # N10 — the floor, graded by two published checklists we did not write: clispec.dev v0.3
+  # and cli-agent-lint's 34 checks. Its own job and its own suite (`external-floor`),
+  # because two `npm run bench` commands in one checkout write the same
+  # `<date>-<sha>-ci.json` name for every suite, and the second would overwrite the first's
+  # measurements with `not-run`. Free and deterministic, so it runs on every PR; the one
+  # network step is the download, which `floor-tools.ts` refuses unless the archive's
+  # SHA-256 is the pinned one.
+  floor:
+    name: N10 external floor (clispec · cli-agent-lint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - name: Build (the checkers grade the built demo, never the source)
+        run: npx turbo run build
+      - name: Install the two checkers, pinned by version and digest
+        run: npx tsx benchmarks/floor-tools.ts
+      - name: Grade the floor and check burgee's ratchet
+        shell: bash
+        run: npm run bench -- --axis floor --check 2>&1 | tee floor.log
+      - name: Summary
+        if: always()
+        run: |
+          { echo '## N10 external floor'; echo; echo '```'; cat floor.log || echo '(no output)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      # What `--publish` would have written, kept so a person can promote a CI run to the
+      # published measurement the way #129 did for `cli-benchmarks` — the runner, not a laptop.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: floor-results
+          path: benchmarks/results/external-floor/*.json
+          if-no-files-found: ignore
+          retention-days: 30
 
   agent:
     name: B1 agent cost (skips loudly without a credential)
