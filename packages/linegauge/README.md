@@ -8,7 +8,8 @@
 </p>
 
 <p align="center">
-  Docs: <a href="https://linegauge.interlace.tools">https://linegauge.interlace.tools</a>
+  Docs: <a href="https://linegauge.interlace.tools">https://linegauge.interlace.tools</a><br />
+  Migrating from: <a href="https://linegauge.interlace.tools/docs/coming-from/string-width">string-width</a> · <a href="https://linegauge.interlace.tools/docs/coming-from/wrap-ansi">wrap-ansi</a> · <a href="https://linegauge.interlace.tools/docs/coming-from/strip-ansi">strip-ansi</a> · <a href="https://linegauge.interlace.tools/docs/coming-from/slice-ansi">slice-ansi</a>
 </p>
 
 **Measuring, wrapping, truncating and slicing styled terminal text — without the edge
@@ -173,7 +174,7 @@ its own suite — which this package passes. The runner reports that as a failur
 to the incumbent an unexpected pass means a stale annotation; it is counted here as the
 pass it is, and marked rather than left to look like the ones beside it.
 
-Weight, installed and tree-inclusive: **86,081 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.4430**.
+Weight, installed and tree-inclusive: **86,464 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.4449**.
 ## Where it sits
 
 Plugins register under the `widths` key, against the one schema the whole family shares.

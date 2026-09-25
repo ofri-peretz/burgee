@@ -20,7 +20,8 @@
 </p>
 
 <p align="center">
-  Docs: <a href="https://roundel.interlace.tools">https://roundel.interlace.tools</a>
+  Docs: <a href="https://roundel.interlace.tools">https://roundel.interlace.tools</a><br />
+  Migrating from: <a href="https://roundel.interlace.tools/docs/coming-from/chalk">chalk</a>
 </p>
 
 chalk gives you `red`; picocolors gives you `red` for fewer bytes. Neither gives you
