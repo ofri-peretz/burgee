@@ -62,7 +62,7 @@ import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: a bare `compat-oracle/*` resolves from another checkout's dist/ in an uninstalled worktree (compat-oracle R6, scripts/oracle-import-lock.test.ts)
-import { HOSTS, type Host } from '../packages/compat-oracle/src/hosts.js';
+import { type Host, hostNamed, HOSTS, PREVIOUS_MAJORS } from '../packages/compat-oracle/src/hosts.js';
 // eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: a bare `compat-oracle/*` resolves from another checkout's dist/ in an uninstalled worktree (compat-oracle R6, scripts/oracle-import-lock.test.ts)
 import { fieldsFromRecord, PROVENANCE_FILE, type ProvenanceFields, renderProvenance, UNKNOWN } from '../packages/compat-oracle/src/provenance.js';
 // eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: a bare `compat-oracle/*` resolves from another checkout's dist/ in an uninstalled worktree (compat-oracle R6, scripts/oracle-import-lock.test.ts)
@@ -263,16 +263,19 @@ function main(argv: string[]): number {
     process.stderr.write(
       `usage: vendor-suite <pkg> [--version <v>] [--into <dir>] [--verify] [--vendored <date>]\n` +
         `       vendor-suite --backfill [--into <dir>] [--verify]\n\n` +
-        `hosts: ${HOSTS.map((h) => h.name).join(', ')}\n`,
+        `hosts: ${[...HOSTS, ...PREVIOUS_MAJORS].map((h) => h.name).join(', ')}\n`,
     );
     return 1;
   }
-  const host = HOSTS.find((h) => h.name === options.pkg);
+  // A previous major (C1) is a host too — `commander-14` — so the lookup is the oracle's own.
+  const host = hostNamed(options.pkg);
   if (host === undefined) {
     process.stderr.write(`no host named "${options.pkg}" in hosts.ts — add it there first\n`);
     return 1;
   }
-  return one(host, options.into, options.version ?? latestVersion(host.name), options);
+  // A pin before "latest", and the npm name before the key: `yargs-17` is pinned at 17.7.3 and
+  // names no package, and `clack` is `@clack/prompts` on npm.
+  return one(host, options.into, options.version ?? host.pinnedVersion ?? latestVersion(host.npmName ?? host.name), options);
 }
 
 process.exitCode = main(process.argv.slice(2));

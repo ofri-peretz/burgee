@@ -7,10 +7,12 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and scripts read the app table through its one typed reader rather than re-parsing it
-import { familyApp } from '../apps/docs-chassis/src/config';
+import { appForPackage, familyApp } from '../apps/docs-chassis/src/config';
 
+// eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: a bare `burgee/*` resolves from another checkout's dist/ in an uninstalled worktree, and `compat.ts` is not an export
+import { GRADED_VERSIONS, SUPPORTED_MAJORS } from '../packages/burgee/src/compat.js';
 // eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: a bare `compat-oracle/*` resolves from another checkout's dist/ in an uninstalled worktree (compat-oracle R6, scripts/oracle-import-lock.test.ts)
-import { HOSTS } from '../packages/compat-oracle/src/hosts.js';
+import { HOSTS, PREVIOUS_MAJORS } from '../packages/compat-oracle/src/hosts.js';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const oracle = join(root, 'packages', 'compat-oracle');
@@ -62,11 +64,33 @@ const cell = (g: Grade | undefined): string => {
 };
 
 const internals = (g: Grade | undefined): string => (g?.internals === undefined ? '—' : `${g.internals.passed} / ${g.internals.tests}`);
-const rows = HOSTS.filter((h) => h.status === 'active').map((h) => {
+/**
+ * The page that walks a user of this host's package across: the package app's
+ * `coming-from/<host>` guide, or the family app's `vs/<host>` page for burgee's own
+ * front-ends. Linked only when the page exists, so a host without one stays plain text.
+ */
+function guideUrl(h: (typeof HOSTS)[number]): string | undefined {
+  const app = appForPackage(h.target.split('/')[0] ?? '');
+  if (app === undefined) return undefined;
+  const section = app.familyPages ? 'vs' : 'coming-from';
+  // `inquirer-core` is graded by @inquirer/core's suite; its guide is the one for inquirer.
+  for (const slug of [h.name, h.name.replace(/-core$/u, '')]) {
+    if (existsSync(join(root, app.dir, 'content', 'docs', section, `${slug}.mdx`))) return `${app.productionUrl}/docs/${section}/${slug}`;
+  }
+  return undefined;
+}
+
+/** One results row, in the eight columns both tables share — which is what `normaliseControls` reads. */
+const row = (h: (typeof HOSTS)[number]): string => {
   const b = burgee?.grades.find((g) => g.host === h.name);
   const c = control?.grades.find((g) => g.host === h.name);
-  return `| **${h.name}** | \`${h.target}\` | ${cell(b)} | ${pct(b)} | ${cell(c)} | ${pct(c)} | ${internals(b)} | ${internals(c)} |`;
-});
+  const url = guideUrl(h);
+  const name = url === undefined ? `**${h.name}**` : `[**${h.name}**](${url})`;
+  return `| ${name} | \`${h.target}\` | ${cell(b)} | ${pct(b)} | ${cell(c)} | ${pct(c)} | ${internals(b)} | ${internals(c)} |`;
+};
+const rows = HOSTS.filter((h) => h.status === 'active').map(row);
+/** C1 — each older major's own suite against the same front-end, graded by `compat --majors`. */
+const previousRows = PREVIOUS_MAJORS.map(row);
 const others = HOSTS.filter((h) => h.status !== 'active').map((h) => `| ${h.name} | ${h.status} | ${h.note ?? ''} |`);
 
 /**
@@ -81,7 +105,9 @@ const excluded = HOSTS.filter((h) => (h.excludes ?? []).length > 0).flatMap((h) 
  * declared in `hosts.ts` with a mandatory reason; until 2026-09-23 only `excludes` reached this
  * page, so a reader saw the named cases and none of the allowances behind the other rates.
  */
-const active = HOSTS.filter((h) => h.status === 'active');
+// The previous majors' declarations are published beside the current ones: an allowance on
+// `yargs-17` subtracts from a number on this page exactly as one on `yargs` does.
+const active = [...HOSTS.filter((h) => h.status === 'active'), ...PREVIOUS_MAJORS];
 const allowances = active.flatMap((h) =>
   h.controlFailures === undefined ? [] : [`| **${h.name}** | ${h.controlFailures.count} | ${h.controlFailures.why} |`],
 );
@@ -91,6 +117,22 @@ const conditional = active.flatMap((h) =>
   h.conditionalCases === undefined ? [] : [`| **${h.name}** | ${h.conditionalCases.count} | ${platformOnly(h.conditionalCases)} | ${h.conditionalCases.why} |`],
 );
 const ungraded = active.flatMap((h) => (h.ungradedDirs ?? []).map((d) => `| **${h.name}** | \`${d.dir}/\` | ${d.why} |`));
+
+/**
+ * C1 — the declared range per host, from `SUPPORTED_MAJORS`, and the older majors graded for
+ * it. Claimed or not is read off the declaration rather than off this run's numbers, so the
+ * row says what `migrate` does and cannot vary with the machine the control ran on; the lock
+ * in `scripts/supported-majors-lock.test.ts` is what keeps a declaration level.
+ */
+const supported = HOSTS.filter((h) => h.status === 'active').map((h) => {
+  const pkg = h.npmName ?? h.name;
+  const claimed = SUPPORTED_MAJORS[pkg] ?? [];
+  const older = PREVIOUS_MAJORS.filter((p) => p.majorOf === h.name).map((p) => {
+    const major = Number(/\d+/.exec(p.pinnedVersion ?? '')?.[0]);
+    return `**${p.name}** (${p.pinnedVersion ?? '?'}) — ${claimed.includes(major) ? 'claimed' : 'graded, not claimed'}`;
+  });
+  return `| ${h.name} | ${claimed.map((m) => `**${m}**`).join(', ') || '—'} | ${GRADED_VERSIONS[pkg] ?? '—'} | ${older.join('; ') || '—'} |`;
+});
 
 const page = `---
 title: Compatibility
@@ -171,21 +213,23 @@ ${ungraded.join('\n')}
 }
 ## Supported majors
 
-Compatibility is claimed only where it is graded, and it is graded against the host's
-**current major** — the suite is vendored at the tag of the latest npm release, so the
-number above always names a release, never a branch.
+A major is claimed only where the host's **own suite at that major** grades the front-end
+level with the host itself — every case the host passes in this harness, passed. The current
+major is the release the table above grades. An older major is its own suite, vendored at that
+major's last tag and graded in CI beside the current one; the claim is
+\`SUPPORTED_MAJORS\` in \`burgee/src/compat.ts\`, which \`burgee migrate\` reads, and a lock holds it
+to these rows (C1).
 
-| Host | Major graded | Release | Older majors |
+| Host | Majors claimed | Release graded | Older majors graded |
 | :-- | :-- | :-- | :-- |
-| commander | **15** (current) | 15.0.0 | Programs written for 12–14 run unchanged wherever 15 kept their API; each earlier major's own suite is vendored at its last tag and graded before it is listed here (C1) |
-| yargs | **18** (current) | 18.1.0 | Programs written for 17 run unchanged wherever 18 kept their API; 17's own suite is vendored at its last tag and graded before it is listed here (C1) |
-| chalk | **6** (current) | 6.0.0 | Programs written for 5 run unchanged: 6 added underline styles and colours and made a numeric \`FORCE_COLOR\` an exact level; 5's own suite is vendored at its last tag and graded before it is listed here (C1) |
-| ora | **9** (current) | 9.4.1 | Programs written for 8 run unchanged wherever 9 kept their API; 8's own suite is vendored at its last tag and graded before it is listed here (C1) |
-| log-update | **8** (current) | 8.0.0 | Programs written for 7 run unchanged wherever 8 kept their API; 7's own suite is vendored at its last tag and graded before it is listed here (C1) |
-| cli-table3 | **0.6** (current) | 0.6.5 | Its only major; 0.6's suite is what is graded here |
+${supported.join('\n')}
 
-A new major of a host is a new line here, opened by the daily release watch the day it
-ships; the previous major stays listed for as long as its suite is still graded.
+| Host | Front-end | burgee | rate | control | rate | internals (burgee) | internals (control) |
+| :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+${previousRows.join('\n')}
+
+An older major that grades below level is published here and not claimed: a program on it is
+left alone by \`burgee migrate\`, and the note in \`hosts.ts\` names the cases that differ.
 
 A front-end does not reach 1.0 until its rate is **100%** (C7). Below that it ships pre-1.0
 and is never described as compatible. The rate ratchets: a pull request that lowers it fails
@@ -202,6 +246,8 @@ ${others.join('\n')}
 \`\`\`bash
 npm run compat -- --vendor --control   # vendor both suites, grade the real hosts
 npm run compat                          # grade burgee
+npm run compat -- --majors --control    # the older majors, against the real hosts (C1)
+npm run compat -- --majors              # the older majors, against burgee
 \`\`\`
 `;
 

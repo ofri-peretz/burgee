@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 name: Dependabot auto-merge
 
-run-name: Dependabot auto-merge · PR #${{ github.event.pull_request.number }}
+run-name: "Dependabot auto-merge · PR #${{ github.event.pull_request.number }}"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Turns on auto-merge for a Dependabot PR only when every dependency it moves is a

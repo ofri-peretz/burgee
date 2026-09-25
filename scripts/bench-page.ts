@@ -76,6 +76,7 @@ function latest(suite: string): Doc | undefined {
 
 const cheap = latest('cli-benchmarks');
 const agent = latest('agent-cli-bench');
+const floor = latest('external-floor');
 if (cheap === undefined) throw new Error('no results under benchmarks/results/cli-benchmarks — run `npm run bench` first');
 
 const pick = (doc: Doc, metric: string): Record_[] => doc.records.filter((r) => r.metric === metric);
@@ -128,6 +129,50 @@ visible rather than quietly omitted.`
 > No table is drawn, because every cell of it would be a zero nobody measured — and zero is
 > a *plausible* answer to each of these questions. It will read this way until the axis runs
 > and the result is published.`;
+
+/**
+ * N10 — the floor graded by two outside checklists, read from its own published suite.
+ *
+ * Same discipline as the reliability table above: a table is drawn only from a document whose
+ * axis says `measured`, and every failed check is listed by the tool's own name for it, burgee's
+ * included — the section exists to show where someone else's bar says we fall short.
+ */
+const FLOOR_VARIANTS = ['burgee', 'commander', 'yargs'] as const;
+type FloorRecord = Record_ & { detail?: Record<string, string | number> };
+function floorUnpublished(doc: Doc | undefined): string {
+  const axis = doc?.axes['floor'];
+  const reason = axis?.reason === undefined ? '' : `: ${axis.reason}`;
+  const why = doc === undefined ? 'No measurement of the `external-floor` suite has been published' : `It reports **${axis?.status ?? 'absent'}**${reason}`;
+  return `> **This axis has not been published.** ${why}.
+> No table is drawn, because every cell would be a number nobody measured.`;
+}
+
+const specCell = (r: FloorRecord | undefined): string => (r === undefined ? '—' : `${String(r.median)} / ${String(r.detail?.['max'] ?? '?')} (${String(r.detail?.['grade'] ?? '?')})`);
+const lintCell = (r: FloorRecord | undefined): string => (r === undefined ? '—' : `${r.median.toFixed(1)}% (${String(r.detail?.['grade'] ?? '?')})`);
+
+function floorSection(doc: Doc | undefined): string {
+  if (doc === undefined || doc.axes['floor']?.status !== 'measured') return floorUnpublished(doc);
+  const at = (variant: string, metric: string): FloorRecord | undefined => doc.records.find((r) => r.axis === 'floor' && r.variant === variant && r.metric === metric);
+  const rows = FLOOR_VARIANTS.map((variant) => `| \`${variant}\` | ${specCell(at(variant, 'clispec-score'))} | ${lintCell(at(variant, 'cli-agent-lint-score'))} |`);
+  const failures = (metric: string): string => {
+    const failed = String(at('burgee', metric)?.detail?.['failed'] ?? '');
+    return failed === '' ? '- none' : failed.split('; ').map((f) => `- ${f}`).join('\n');
+  };
+  const tool = (metric: string): string => String(at('burgee', metric)?.detail?.['tool'] ?? metric);
+  return `Measured at commit \`${doc.commit.slice(0, SHORT_SHA)}\` on ${doc.measured.slice(0, ISO_DATE)}.
+
+| Variant | clispec | cli-agent-lint |
+| :--- | ---: | ---: |
+${rows.join('\n')}
+
+What ${tool('clispec-score')} failed on burgee's demo:
+
+${failures('clispec-score')}
+
+What ${tool('cli-agent-lint-score')} did not pass on burgee's demo (\`warn\` and \`info\` included; \`skip\` is not):
+
+${failures('cli-agent-lint-score')}`;
+}
 
 const compatRows = pick(cheap, 'pass-rate').map((r) => {
   const passing = pick(cheap, 'passing-tests').find((p) => p.variant === r.variant);
@@ -208,6 +253,19 @@ per variant, one spawn each, non-TTY with **stdin closed** — the only environm
 gets. The same demo program, built on each engine.
 
 ${reliabilitySection}
+
+## N10 — the floor, graded by someone else's checklist
+
+Every other number on this page comes from an instrument this repository wrote, and an
+instrument its authors wrote can only find the faults they thought of. This one hands the
+same demo program to two published, third-party checkers and records what they say:
+[clispec](https://clispec.dev) 0.3.0, the scorer for The CLI Spec v0.3 (six principles, 24
+points), and [cli-agent-lint](https://github.com/Camil-H/cli-agent-lint) 0.3.5 (34 checks,
+graded A–F). Both are pinned by version and archive digest in \`benchmarks/floor-tools.ts\`,
+run offline, and are never re-scored here — a check they fail is listed as failed, even where
+we would argue with it.
+
+${floorSection(floor)}
 
 ## B3 — compatibility
 
