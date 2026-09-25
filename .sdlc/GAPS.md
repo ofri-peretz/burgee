@@ -60,7 +60,7 @@ built moved to A15–A25.
 | ~~B1~~ | ~~Every command must carry a group~~ | burgee M1 | **decided — D-112** |
 | ~~B2~~ | ~~`-` means stdin for a file-typed positional~~ | burgee S4 | **decided — D-113** |
 | ~~B3~~ | ~~`--json <fields>` selects fields; bare `--json` unchanged~~ | burgee N14 | **decided — D-114** |
-| ~~B4~~ | ~~a compact non-JSON `agent` format~~ | burgee N15 | **decided — D-115** |
+| ~~B4~~ | ~~a compact non-JSON `agent` format~~ | burgee N15 | **decided — D-115; built — D-146** (`--format=agent`) |
 | ~~B5~~ | ~~`--schema` drill below command path~~ | burgee N13 | **decided — D-116** |
 | ~~B6~~ | ~~a generated `config explain` command~~ | burgee V8 | **decided — D-117** |
 | ~~B7~~ | ~~author-declared error classes; a reused code fails at startup~~ | burgee E7 | **decided — D-118** |

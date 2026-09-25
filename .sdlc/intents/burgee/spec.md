@@ -598,7 +598,7 @@ was quietly met.
 **The count.** 114 requirements, in seventeen families — `Z F O E V S P D T H M K J C B N U`.
 The prose above says *92* and *"Ninety-two requirements"*; both are wrong, and wrong the same
 way, because `E6 E7 V8 N11–N15` were added after the arithmetic was last done and `C1–C8`
-names two rows that do not exist. **Built: 107. Not built: 7**, and the count moves as rows are
+names two rows that do not exist. **Built: 108. Not built: 6**, and the count moves as rows are
 built rather than as the prose is rewritten — T1 moved on 2026-09-22 and the tally moved with
 it. An audit whose total disagrees with its own rows is the failure this paragraph is a record
 of; `spec-tally-lock.test.ts` now derives the two numbers from the tables instead of trusting
@@ -800,7 +800,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | N12 | **Built** | `agent.ts` — `AGENT_PROBES`, `FORCE_TTY=1`, and `interactive = forced \|\| (tty && agent === undefined)`, which is the load-bearing clause. The probe list is **5** variables, not the 13 the requirement names; restated below | `agent.test.ts` |
 | N13 | **Built** | the budget half: `Manifest.schemaBudget`, `SCHEMA_BUDGET = 48_000`, `summaryOf`. The drilling half: by command path (`--schema <command>`), and below it by field path (D-116) — `--schema <command> --field options.region` returns that one value, a step that does not exist is refused with the steps that do, and the walk lives in `schema-surface.js`, loaded only when `--field` is typed | `schema.test.ts`, `schema-field.test.ts` |
 | N14 | **Built** | `--json=<a,b>` selects the result's top-level fields — of the object, or of each object in a list — and only the `=` form takes them, so `cmd --json name` keeps `name` a positional (D-114). A command may declare `fields`: then `--json=` lists them without running the handler, `--json=a,x` is refused before it runs with `valid fields: …` as the hint, and `--schema` publishes them. Undeclared, the selection is checked against the keys the result has. | `src/json-fields.test.ts` |
-| N15 | Not built | **Deferred past 1.0 (D-115)** — not a 1.0 gate. there is no non-JSON `agent` format. The only format flag in the package is `--format=json-pretty`, and it makes the output *larger* | `machine-json.test.ts` |
+| N15 | **Built** | `--format=agent` (D-146, which supersedes D-115's deferral): one logfmt line per record — a list is one line per element, an object `key=value` pairs with nested keys dotted and scalar lists comma-joined, a value quoted only when splitting would break it, whitespace collapsed; no envelope, no `meta`, no summary. `agent-format.js` is its own chunk; the flag is read in the lazily imported `fields.js`, before `--` only and not for a command that declares its own `format` (the program wins), so the startup path paid 71 B. `--json` wins when both are typed, so O1 and D-140 are unchanged. **Measured smaller than `--json`**: 1,294 bytes against 1,882 on six representative results, 31.2% — and every one of the six is smaller on its own. Not on the façades, and not yet listed by help or `--schema` | `src/agent-format.test.ts` — *"is smaller over the whole set by a margin, not a rounding error"* and one *"fewer bytes than the --json envelope"* per result; 19 of its 26 fail on the unfixed engine |
 
 ### The output stack
 
@@ -954,8 +954,10 @@ does not do.
 - **N13** — drilling is by command path only; there is no field-path selector.
 - **N14** — `--json` is a plain boolean. It takes no argument, so nothing lists valid fields
   or rejects an invalid one.
-- **N15** — there is no non-JSON `agent` format. The only format flag in the package is
-  `--format=json-pretty` on the schema surface.
+- **N15** — ~~there is no non-JSON `agent` format. The only format flag in the package is
+  `--format=json-pretty` on the schema surface.~~ **Closed 2026-09-24 (D-146).**
+  `--format=agent` prints one logfmt line per record, measured 31.2% smaller than `--json`
+  over six representative results.
 - **J3** — there is no single explicit opt-in call that turns on behaviour-changing
   guarantees for a façade user.
 - **J4** — "the program wins" is built and tested; "burgee's surface is withheld, reported by
