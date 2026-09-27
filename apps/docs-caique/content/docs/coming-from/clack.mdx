@@ -1,15 +1,65 @@
 ---
 title: Coming from clack
-description: "A clack (@clack/prompts) alternative you move to prompt by prompt, not by one import: each clack prompt mapped to its caique equivalent, or to none — and prompts that are flags first, so a non-TTY caller gets an error naming the flag instead of a hang."
+description: "A clack (@clack/prompts) alternative with two ways across: caique/clack, clack's prompts under clack's names on caique's own engine, graded by clack's own suite; or caique's flag-first prompts, where a non-TTY caller gets an error naming the flag instead of a hang."
 ---
 
-**caique** is a **clack alternative** built on one rule: a prompt is a flag first. It is not
-a drop-in for `@clack/prompts`. caique takes a prompt as a spec rather than clack's call
-signature and deliberately does not draw clack's frames, so you move a CLI across one prompt
-at a time. This page maps each clack export to its caique counterpart, or says there is
-none.
+**caique** is a **clack alternative** built on one rule: a prompt is a flag first. There are
+two ways across, and you can use both in one program:
 
-## Migrate from clack prompt by prompt
+1. **Change the import.** `caique/clack` exports `@clack/prompts`' prompts, writers, glyphs
+   and settings under clack's own names and call signatures, built on caique's keypress loop
+   with no dependency outside the burgee family. Your prompts keep working.
+2. **Move a prompt to a flag.** caique's own API takes a prompt as a spec attached to a flag,
+   so an agent answers it on the command line and a non-TTY run fails naming the flag instead
+   of waiting. That is a rewrite, one prompt at a time, and it is what the rest of caique is for.
+
+## Change the import
+
+```js
+// before
+import { cancel, confirm, group, intro, isCancel, outro, select, spinner, text } from '@clack/prompts';
+// after
+import { cancel, confirm, group, intro, isCancel, outro, select, spinner, text } from 'caique/clack';
+```
+
+| clack (`@clack/prompts`) | `caique/clack` |
+| :-- | :-- |
+| `text`, `password`, `confirm`, `multiline`, `date`, `path` | the same, same options and answers |
+| `select`, `selectKey`, `multiselect`, `groupMultiselect` | the same |
+| `autocomplete`, `autocompleteMultiselect` | the same |
+| `intro`, `outro`, `cancel`, `note`, `log`, `stream` | the same |
+| `spinner`, `tasks`, `group` | the same — the spinner animates only on a terminal outside CI, and prints each message once anywhere else |
+| `isCancel`, `CANCEL_SYMBOL`, `limitOptions` | the same |
+| `settings`, `updateSettings` | caique's own: they govern `caique/clack`'s prompts, not `@clack/core`'s |
+| `S_*`, `symbol`, `symbolBar`, `unicode`, `unicodeOr`, `isTTY`, `isCI`, `formatInstructionFooter`, `SELECT_INSTRUCTIONS`, `MULTISELECT_INSTRUCTIONS` | the same |
+| `box`, `progress`, `taskLog` | not built — no graded case reaches them |
+
+**Two things differ, on purpose.** The frames are clack's layout — the guide, the state
+glyph, the dimmed answer — and not its exact bytes, so a test of yours that snapshots
+clack's output will see different escape sequences. And `updateSettings` must be imported
+from `caique/clack`: one imported from `@clack/core` changes a package caique does not
+depend on, and our prompts cannot see it.
+
+## Is caique compatible with clack?
+
+`caique/clack` is graded against `@clack/prompts`' own suite, vendored at 1.8.1 and unmodified
+apart from the import specifier. 17 of its 19 files — 289 of its 444 assertions — are
+snapshots of clack's exact frames and are subtracted by name; what is left grades behaviour:
+
+| | passing | rate |
+| :-- | --: | --: |
+| `caique/clack` | 16 / 17 | 94.1% |
+| `@clack/prompts` itself (control) | 17 / 17 | 100.0% |
+
+From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
+oracle's last run; that page is the authority. The 16 are all of `limit-options.test.ts` and
+two of `guide.test.ts`, which render all twelve prompts and check the guide with and without
+`withGuide`. The one that fails sets `updateSettings({ withGuide: false })` from
+`@clack/core` and asserts our prompts obey it — the case above, and no implementation passes
+it without depending on `@clack/core`. Because 16 is not 17, `burgee migrate` reports
+`@clack/prompts` rather than rewriting it; changing the import is yours to make.
+
+## Move a prompt to a flag
 
 | clack (`@clack/prompts`) | caique |
 | :-- | :-- |
@@ -18,16 +68,6 @@ none.
 | `select`, `multiselect` | `ask({ kind: 'select' \| 'multiselect', message, choices: [{ value, label, hint }] }, io)` asks by number. `askList(spec, io, multi)` from `caique/raw` adds arrow keys where there is a terminal |
 | `group` | `resolvePrompts({ options, values, runtime, flags, io })` from `caique/binding`, which asks in declaration order and stops at the first refusal |
 | `isCancel` | check the result: `ask()` returns `{ ok: false, reason: 'cancelled' }`, and `resolvePrompts()` returns a `failure` with code `CANCELLED` |
-| `cancel`, `intro`, `outro`, `note`, `log`, `box` | no equivalent |
-| `spinner`, `progress`, `tasks`, `taskLog`, `stream` | no equivalent |
-| `date`, `multiline`, `selectKey`, `groupMultiselect`, `autocomplete`, `autocompleteMultiselect` | no equivalent |
-| `limitOptions` | `limitOptions` from `caique/clack`, the only clack function carried under its own name |
-| `settings`, `updateSettings` | no equivalent |
-| `isTTY`, `isCI` | no equivalent. `decide()` reads the terminal and `CI` from the runtime you pass it |
-
-clack's `S_*` symbols, `symbol`, `symbolBar`, `unicode`, `unicodeOr`,
-`formatInstructionFooter`, `SELECT_INSTRUCTIONS`, `MULTISELECT_INSTRUCTIONS` and
-`CANCEL_SYMBOL` are pieces of its drawing, and none of them has an equivalent.
 
 ### A `text` and a `confirm`, before and after
 
@@ -72,28 +112,6 @@ With no terminal, or under `CI`, the first unanswered option comes back as a fai
 over deliberately: caique asks only for options marked `required`, unless the run passed
 `--interactive`.
 
-## Is caique compatible with clack?
-
-For the prompts, no — moving them is a rewrite, as above. `caique/clack` is **only the
-`limitOptions` helper**: the sliding window that decides which options a list shows when it
-is taller than the terminal. It is graded against the slice of `@clack/prompts`' own suite
-that is not a drawing. The suite is vendored at 1.8.1 and unmodified apart from the import
-specifier, and 17 of its 19 files — 289 of its 444 assertions — are snapshots of clack's
-exact frames, subtracted by name:
-
-| | passing | rate |
-| :-- | --: | --: |
-| `caique/clack` | 14 / 17 | 82.4% |
-| `@clack/prompts` itself (control) | 17 / 17 | 100.0% |
-
-From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
-oracle's last run; that page is the authority. The 14 are all of `limit-options.test.ts`.
-The 3 that fail are all of `guide.test.ts`. Two need every clack prompt to draw a frame
-whose first line is clack's grey bar, which is the drawing caique does not reproduce. The
-third sets `updateSettings({ withGuide: false })` in `@clack/prompts`' sibling package
-`@clack/core` and asserts that our prompts obey it. No implementation can pass it without
-depending on `@clack/core`.
-
 ## What you gain over clack
 
 A prompt that waits for a human who is not there is a hang, and a hung agent is a failed
@@ -113,16 +131,16 @@ task. caique's `decide()` rules on every prompt before anything is drawn:
   cancellation, not an empty answer, and invalid input is re-asked five times, then given
   up.
 
-All of caique fits a 15,000 B budget that its `weight.test.ts` asserts. `@clack/prompts` is
-101,684 B across six packages, and caique reaches no package outside the burgee family.
+`caique/clack` is 61,884 B against `@clack/prompts`' 101,684 B across six packages, and a
+program that uses caique's own API never loads a byte of it; caique reaches no package
+outside the burgee family.
 
 ## When to switch from clack
 
 - Your CLI runs in CI, in a container or under an agent, and a prompt there must fail fast
-  with the flag that fixes it.
-- You want every prompt answerable from the command line, and you can rewrite each prompt
-  call to get it.
-- Stay on clack for its drawing — spinners, notes, boxes and task logs have no caique
-  equivalent.
+  with the flag that fixes it — move those prompts to flags.
+- You want off clack's dependency tree today without touching your prompts — change the
+  import to `caique/clack`.
+- Stay on clack if you snapshot its exact frames, or need `box`, `progress` or `taskLog`.
 
 The rule, the widgets and the inquirer path are on [caique](/docs).
