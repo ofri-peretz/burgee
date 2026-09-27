@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { type CompatRecord, diffRecords, isEmptyDiff, renderDiff, surfaceNames, testNames } from './upstream.js';
+import { type CompatRecord, diffRecords, isEmptyDiff, renderDiff, renderMissingExtras, surfaceNames, testNames } from './upstream.js';
 
 const record = (over: Partial<CompatRecord>): CompatRecord => ({
   repo: 'r',
@@ -62,5 +62,20 @@ describe('diffing two records', () => {
     expect(body).toMatch(/## commander: 1\.0\.0 → 1\.1\.0/);
     expect(body).toMatch(/### Surface names added \(1\)/);
     expect(body).toMatch(/Command\.helpGroup/);
+  });
+});
+
+describe('a fixture the release stopped shipping', () => {
+  it('adds nothing to the issue body when every extraDirs entry was shipped', () => {
+    expect(renderMissingExtras('18.0.4', [])).toBe('');
+  });
+
+  it('names the skipped fixture in the issue body, so the re-vendor prunes it', () => {
+    // dotenv 18 removed `tests/.env.vault`; the upstream issue has to carry that, because
+    // the vendor step now skips it rather than throwing and nothing else would say so.
+    const body = renderMissingExtras('18.0.4', ['tests/.env.vault']);
+    expect(body).toMatch(/### Fixtures `extraDirs` names that 18\.0\.4 does not ship \(1\)/);
+    expect(body).toContain('tests/.env.vault');
+    expect(body).toMatch(/pruning it from the host's `extraDirs`/);
   });
 });

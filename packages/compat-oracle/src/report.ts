@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 import { active, gradable, type Host, hostNamed, HOSTS, PREVIOUS_MAJORS } from './hosts.js';
 import { type Baseline, controlName, type Grade, grade, readBaseline, regressed } from './run.js';
-import { diffRecords, isEmptyDiff, latestVersion, readRecord, renderDiff } from './upstream.js';
+import { diffRecords, isEmptyDiff, latestVersion, readRecord, renderDiff, renderMissingExtras } from './upstream.js';
 import { vendor } from './vendor.js';
 import { check as checkCompetitors, fingerprint as writeFingerprints } from './watch.js';
 
@@ -112,8 +112,14 @@ function checkUpstream(host: Host, write: Write): Update | undefined {
     const summary = isEmptyDiff(diff)
       ? 'no test or surface changes'
       : `+${diff.tests.added.length}/-${diff.tests.removed.length} tests, +${diff.surface.added.length}/-${diff.surface.removed.length} surface names, ${diff.files.changed.length} file(s) changed`;
-    write(`  ${host.name.padEnd(HOST_COL)} ${record.version} → ${latest}: ${summary}\n`);
-    return { host: host.name, from: record.version, to: latest, report: renderDiff(host.name, record, fresh.record, diff) };
+    const gone = fresh.missingExtras.length === 0 ? '' : `; extraDirs not shipped: ${fresh.missingExtras.join(', ')}`;
+    write(`  ${host.name.padEnd(HOST_COL)} ${record.version} → ${latest}: ${summary}${gone}\n`);
+    return {
+      host: host.name,
+      from: record.version,
+      to: latest,
+      report: `${renderDiff(host.name, record, fresh.record, diff)}${renderMissingExtras(latest, fresh.missingExtras)}`,
+    };
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
@@ -138,6 +144,7 @@ function vendorAll(hosts: Host[], write: Write): void {
     write(
       `vendored ${result.host} ${result.version} (${result.tag ?? 'untagged'} @ ${result.commit.slice(0, SHORT_SHA)}) — ${result.files} files (${result.internalFiles.length} internal-only), ${result.internals.length} internal module(s) shimmed\n`,
     );
+    if (result.missingExtras.length > 0) write(`  extraDirs not shipped at ${result.version}, skipped: ${result.missingExtras.join(', ')}\n`);
     if (result.previous !== undefined && result.diff !== undefined && !isEmptyDiff(result.diff)) {
       write(`  moved from ${result.previous.version}: +${result.diff.tests.added.length}/-${result.diff.tests.removed.length} tests, +${result.diff.surface.added.length}/-${result.diff.surface.removed.length} surface names\n`);
       diffs.push(renderDiff(result.host, result.previous, result.record, result.diff));
