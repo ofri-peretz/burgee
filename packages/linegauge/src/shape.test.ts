@@ -68,7 +68,7 @@ describe('R12 — every published entry is requirable from CommonJS', () => {
   });
 
   it.each(ENTRIES)('linegauge$subpath: require() returns its namespace, so nothing in it awaits at the top level', ({ file, named }) => {
-    // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- requiring is the assertion. R12 says a CommonJS caller can reach this package; a static import cannot express that, and the path comes from the package’s own exports map, not from an input.
+    // eslint-disable-next-line node-security/no-dynamic-dependency-loading, node-security/no-dynamic-require -- requiring is the assertion. R12 says a CommonJS caller can reach this package; a static import cannot express that, and the path comes from the package’s own exports map, not from an input.
     const required: unknown = loadFromCjs(file);
     expect(typeof required).toBe('object');
     expect(typeof (required as Record<string, unknown>)[named]).toBe('function');
@@ -79,7 +79,7 @@ describe('R12 — every published entry is requirable from CommonJS', () => {
    * CommonJS caller reaches it as `require('string-width')`, which is this.
    */
   it('the root default is `width` under require, which is what the string-width override resolves', () => {
-    // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- requiring is the assertion. R12 says a CommonJS caller can reach this package; a static import cannot express that, and the path comes from the package’s own exports map, not from an input.
+    // eslint-disable-next-line node-security/no-dynamic-dependency-loading, node-security/no-dynamic-require -- requiring is the assertion. R12 says a CommonJS caller can reach this package; a static import cannot express that, and the path comes from the package’s own exports map, not from an input.
     const root = loadFromCjs(resolve(pkgRoot, 'dist/index.js')) as { default?: unknown; width?: unknown };
     // The same function object as the named export, not merely one that agrees — `dist/`'s
     // `width` is a different object from the source `width` this file imports, so identity

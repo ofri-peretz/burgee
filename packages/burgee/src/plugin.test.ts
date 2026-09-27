@@ -186,16 +186,16 @@ describe('the plugin object itself', () => {
   });
 });
 
-describe('what the guards prevent (characterisation: true before the fix and after)', () => {
-  /** Built through `add()`, the unguarded path, because `use()` now refuses to build it. */
-  function shadowed(): Manifest {
-    const manifest = new Manifest();
-    manifest.rootPath = ['app'];
-    manifest.add({ path: ['app'], options: {} });
-    manifest.add({ path: ['app', 'audit'], options: { json: { type: 'string' } }, run: () => ({ ok: 1 }), plugin: 'acme' });
-    return manifest;
-  }
+/** Built through `add()`, the unguarded path, because `use()` now refuses to build it. */
+function shadowed(): Manifest {
+  const manifest = new Manifest();
+  manifest.rootPath = ['app'];
+  manifest.add({ path: ['app'], options: {} });
+  manifest.add({ path: ['app', 'audit'], options: { json: { type: 'string' } }, run: () => ({ ok: 1 }), plugin: 'acme' });
+  return manifest;
+}
 
+describe('what the guards prevent (characterisation: true before the fix and after)', () => {
   it('an option named json takes --json away from the caller', async () => {
     const { stdout } = await runCommand(shadowed(), ['audit', '--json', 'x']);
     // The envelope would be `{"ok":true,…}`; instead `--json` consumed "x" as a plugin value.

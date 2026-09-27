@@ -46,9 +46,10 @@ function suffix(state: ProgressState): string {
   return `${state.done}/${state.total}${label}`;
 }
 
+const percentage = (state: ProgressState): string => `${Math.round(ratio(state) * PERCENT)}%`;
+
 /** A progress bar: `12/30 files · 40%` off a terminal, a drawn bar on one. */
 export function progress({ width = DEFAULT_WIDTH, glyphs = { filled: FILLED, empty: EMPTY } }: ProgressOptions = {}): Component<ProgressState> {
-  const percentage = (state: ProgressState): string => `${Math.round(ratio(state) * PERCENT)}%`;
   return {
     name: 'progress',
     static: (state) => `${suffix(state)} · ${percentage(state)}`,

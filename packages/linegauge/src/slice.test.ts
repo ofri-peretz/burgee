@@ -54,6 +54,8 @@ describe('slice agrees with slice-ansi', () => {
   }
 });
 
+const resets = (value: string): number => value.split(`${ESC}[39m`).length - 1;
+
 /**
  * The one divergence, argued rather than smoothed.
  *
@@ -79,7 +81,6 @@ describe('an empty range', () => {
     // Counted, not pattern-matched: `red('a') + red('b')` already contains a reset next to
     // an opener, so "does not contain ESC[39mESC[31m" would pass whatever the slice returned.
     // The discriminating question is how many resets the joined string ends up with.
-    const resets = (value: string): number => value.split(`${ESC}[39m`).length - 1;
     const baseline = resets(`${red('a')}${red('b')}`);
     expect(resets(`${red('a')}${slice(red('hi'), 2, 2)}${red('b')}`)).toBe(baseline);
     expect(resets(`${red('a')}${sliceAnsi(red('hi'), 2, 2)}${red('b')}`)).toBe(baseline + 1);

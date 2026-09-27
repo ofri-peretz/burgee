@@ -921,7 +921,7 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
     this.registeredArguments.forEach((arg, i) => {
       if (arg.required && this.args[i] == null) this.missingArgument(arg.name());
     });
-    const last = this.registeredArguments[this.registeredArguments.length - 1];
+    const last = this.registeredArguments.at(-1);
     if (this.registeredArguments.length > 0 && last?.variadic) return;
     if (this.args.length > this.registeredArguments.length) this._excessArguments(this.args);
   }
@@ -1458,7 +1458,7 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
     if (alias === undefined) return this._aliases[0];
 
     let command: Command = this;
-    const last = this.commands[this.commands.length - 1];
+    const last = this.commands.at(-1);
     if (this.commands.length !== 0 && last?._executableHandler) {
       // assume adding an alias for the last added executable subcommand, rather than this
       command = last;

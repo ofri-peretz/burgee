@@ -458,7 +458,6 @@ describe("a jest suite sees jest's execArgv, not vitest's (C1)", () => {
       const setup = join(dir, 'vitest.setup.mjs');
       writeFileSync(setup, jestGlobals());
       // `--import` takes a URL: a bare `D:\\…` path fails on Windows as an unsupported URL scheme.
-      // eslint-disable-next-line node-security/detect-child-process -- already the form the rule's own fix names: `execFileSync` with an argument array and `shell: false`. Node's own execPath, literal flags, a literal `-e` program, and `setup`, a path this test just wrote inside its own mkdtemp.
       const seen = execFileSync(process.execPath, ['--conditions', 'development', '--import', pathToFileURL(setup).href, '-e', 'process.stdout.write(JSON.stringify(process.execArgv))'], { encoding: 'utf8', shell: false });
       expect(JSON.parse(seen)).toEqual([]);
     } finally {
@@ -496,7 +495,6 @@ describe('a CommonJS shim busts the incumbent only when the suite busted the shi
         "const second = require('./shim.cjs');",
         'process.stdout.write(JSON.stringify([first === held, second === held]));',
       ].join('\n');
-      // eslint-disable-next-line node-security/detect-child-process -- `execFileSync` with an argument array and `shell: false`: Node's own execPath and `probe`, a program assembled above from literal lines. Nothing reaches a command line.
       const seen = execFileSync(process.execPath, ['-e', probe], { cwd: dir, encoding: 'utf8', shell: false });
       // yargs 17's `parser.cjs` needs the first; signal-exit's `process-gone.js` the second.
       expect(JSON.parse(seen)).toEqual([true, false]);

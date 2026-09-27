@@ -202,6 +202,43 @@ describe('the lock grows with the package', () => {
 });
 
 /**
+ * `npm pack`, spawned through this package's own `parse`.
+ *
+ * This line used to be `execFileSync('npm', …)`, and on Windows it was **the exact defect
+ * bellpull exists to fix**: `npm` is `npm.cmd`, and since the fix for CVE-2024-27980 Node
+ * refuses to spawn a `.cmd` or `.bat` without `shell: true`. So the weight lock of the
+ * package whose README opens with that sentence was the thing it broke on, and both cases
+ * below died before they measured anything — which is why the Windows run reported a
+ * thrown error rather than an assertion.
+ *
+ * The two fixes already written in this repository are the wrong two. `shape.test.ts` takes
+ * `WINDOWS ? 'npm.cmd' : 'npm'` with `shell: WINDOWS`, which is the injection surface
+ * `escape.ts`'s header is about; `ambient-colour.test.ts` sidesteps it by spawning the
+ * built `bin.js` with `process.execPath`, which works only when there is a `.js` entry to
+ * aim at. `npm pack` has neither. `parse` is the third option and the one this package is:
+ * it resolves `npm.CMD` through `PATHEXT`, builds the `cmd.exe /d /s /c` line itself, and
+ * escapes every argument, so nothing is handed to a shell as text.
+ *
+ * It is also the only place in the suite where the Windows spawn path is driven by
+ * something other than a test fixture, which makes it the closest thing here to a real
+ * consumer.
+ */
+const measured = (): number => {
+  const parsed = parse('npm', ['pack', '--dry-run', '--json'], { cwd: pkgRoot }, ambientRuntime());
+  const result = spawnSync(parsed.command, parsed.args, { ...parsed.options, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] } as never);
+  if (result.error !== undefined) throw result.error;
+  if (result.status !== 0) throw new Error(`npm pack exited ${String(result.status)}: ${String(result.stderr)}`);
+  return (JSON.parse(result.stdout as unknown as string) as { unpackedSize: number }[])[0]?.unpackedSize ?? 0;
+};
+
+const band = (): { ours: number; ceiling: number; ratio: number } =>
+  (JSON.parse(readFileSync(resolve(pkgRoot, '../../.sdlc/bands/foundation-ceilings.json'), 'utf8')) as { layers: Record<string, { ours: number; ceiling: number; ratio: number }> }).layers['bellpull'] as {
+    ours: number;
+    ceiling: number;
+    ratio: number;
+  };
+
+/**
  * What the integrator lane has to change, asserted rather than written in a report.
  *
  * `.sdlc/bands/foundation-ceilings.json` is forbidden to every lane but `integrator`
@@ -210,42 +247,7 @@ describe('the lock grows with the package', () => {
  * sentence in a commit message nobody reads.
  */
 describe('the ceilings file', () => {
-  /**
-   * `npm pack`, spawned through this package's own `parse`.
-   *
-   * This line used to be `execFileSync('npm', …)`, and on Windows it was **the exact defect
-   * bellpull exists to fix**: `npm` is `npm.cmd`, and since the fix for CVE-2024-27980 Node
-   * refuses to spawn a `.cmd` or `.bat` without `shell: true`. So the weight lock of the
-   * package whose README opens with that sentence was the thing it broke on, and both cases
-   * below died before they measured anything — which is why the Windows run reported a
-   * thrown error rather than an assertion.
-   *
-   * The two fixes already written in this repository are the wrong two. `shape.test.ts` takes
-   * `WINDOWS ? 'npm.cmd' : 'npm'` with `shell: WINDOWS`, which is the injection surface
-   * `escape.ts`'s header is about; `ambient-colour.test.ts` sidesteps it by spawning the
-   * built `bin.js` with `process.execPath`, which works only when there is a `.js` entry to
-   * aim at. `npm pack` has neither. `parse` is the third option and the one this package is:
-   * it resolves `npm.CMD` through `PATHEXT`, builds the `cmd.exe /d /s /c` line itself, and
-   * escapes every argument, so nothing is handed to a shell as text.
-   *
-   * It is also the only place in the suite where the Windows spawn path is driven by
-   * something other than a test fixture, which makes it the closest thing here to a real
-   * consumer.
-   */
-  const measured = (): number => {
-    const parsed = parse('npm', ['pack', '--dry-run', '--json'], { cwd: pkgRoot }, ambientRuntime());
-    const result = spawnSync(parsed.command, parsed.args, { ...parsed.options, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] } as never);
-    if (result.error !== undefined) throw result.error;
-    if (result.status !== 0) throw new Error(`npm pack exited ${String(result.status)}: ${String(result.stderr)}`);
-    return (JSON.parse(result.stdout as unknown as string) as { unpackedSize: number }[])[0]?.unpackedSize ?? 0;
-  };
   const PACK_TIMEOUT_MS = 120_000;
-  const band = (): { ours: number; ceiling: number; ratio: number } =>
-    (JSON.parse(readFileSync(resolve(pkgRoot, '../../.sdlc/bands/foundation-ceilings.json'), 'utf8')) as { layers: Record<string, { ours: number; ceiling: number; ratio: number }> }).layers['bellpull'] as {
-      ours: number;
-      ceiling: number;
-      ratio: number;
-    };
 
   it(
     'is the claim that is true: this package is under the ceiling it is measured against',

@@ -155,22 +155,35 @@ jobs:
             esac
           done
           git checkout -- benchmarks/results/
-          # The commit, not just the date: two pushes to main on one day both
-          # produce observations worth landing, and a date-only name makes the
-          # second `git checkout -b` collide with the branch the first one pushed
-          # — which under `set -euo pipefail` reds a job on main for doing exactly
-          # what it was asked to do.
-          BRANCH="chore/bench-series-$(date -u +%Y%m%d)-${GITHUB_SHA::7}"
+          # One rolling branch and PR, not one per push. Every file here is named by its
+          # commit, so observations never collide and each run just adds commits on top.
+          # A per-commit branch opened a PR on every merge to main — 21 of them sat
+          # unmergeable at once, because a GITHUB_TOKEN PR raises no checks (C5).
+          BRANCH="chore/bench-series"
           TITLE="chore(benchmarks): record benchmark observations"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH"
-          git add benchmarks/results/
-          git commit -m "$TITLE"
           # checkout persisted `github.token` as an auth header, which would win over the URL.
           git config --unset-all http.https://github.com/.extraheader || true
-          git push -u "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$BRANCH"
-          gh pr create --base main --head "$BRANCH" --label skip-changeset --title "$TITLE" --body "$BODY"
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          # While the rolling PR is open, add to it; once it has merged or closed, start
+          # the branch again from this main so it never carries already-landed commits.
+          if gh pr view "$BRANCH" --json state --jq .state 2>/dev/null | grep -qx OPEN; then
+            git fetch "$REMOTE" "$BRANCH"
+            git checkout -B "$BRANCH" FETCH_HEAD
+            OPEN=1
+          else
+            git checkout -B "$BRANCH"
+            OPEN=0
+          fi
+          git add benchmarks/results/
+          git commit -m "$TITLE"
+          if [ "$OPEN" = 1 ]; then
+            git push "$REMOTE" "HEAD:refs/heads/$BRANCH"
+          else
+            git push --force "$REMOTE" "HEAD:refs/heads/$BRANCH"
+            gh pr create --base main --head "$BRANCH" --label skip-changeset --title "$TITLE" --body "$BODY"
+          fi
           if [ "$SOURCE" = "github-token" ]; then
             echo "::warning title=PR opened with GITHUB_TOKEN::It raises no checks, so it will not auto-merge. Set RELEASE_APP_ID + RELEASE_APP_PRIVATE_KEY, or RELEASE_BOT_PAT — see .sdlc/GAPS.md C5."
           fi

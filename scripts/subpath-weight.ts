@@ -105,7 +105,6 @@ const IMPORT_BUDGET = 30_000;
  * stdout by then either way.
  */
 function exportsOf(specifier: string): string[] {
-  // eslint-disable-next-line node-security/detect-child-process -- already the form the rule's own fix names: `spawnSync` with an argument array and no shell, so nothing is parsed as a command line. Every argument is a constant — Node's own `execPath`, two literal flags and `READ_EXPORTS`, which is a fixed program. The only varying value is `SUBPATH_SPECIFIER`, which travels in the environment precisely so that it is never part of a command line, and which comes from this repository's own `package.json` exports rather than from a caller.
   const run = spawnSync(process.execPath, ['--input-type=module', '-e', READ_EXPORTS], {
     cwd: BENCH_ROOT,
     encoding: 'utf8',

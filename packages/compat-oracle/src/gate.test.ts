@@ -111,6 +111,8 @@ describe('the control verdict', () => {
   });
 });
 
+const coarse = (host: string): Grade => grade(host, { files: 1, tests: 1, passed: 1, failed: 0, reference: 1, rate: 1, mode: 'exit-code' });
+
 /**
  * `mode: "exit-code"` — the coarse grade, and the gate that keeps it from spreading.
  *
@@ -127,7 +129,6 @@ describe('the control verdict', () => {
  */
 describe('a row graded as one pass/fail bit', () => {
   const declared: Baseline = { rc: { reference: 1, passed: 1, rate: 1, mode: 'exit-code' } };
-  const coarse = (host: string): Grade => grade(host, { files: 1, tests: 1, passed: 1, failed: 0, reference: 1, rate: 1, mode: 'exit-code' });
 
   it('is allowed when its own baseline declares the mode', () => {
     expect(silentDowngrades([coarse('rc')], declared)).toEqual([]);

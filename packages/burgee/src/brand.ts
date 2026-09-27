@@ -296,11 +296,12 @@ export function placeCharge(markup: string, scale: number = CHARGE.scale): strin
   return `<g transform="${chargeTransform(scale)}">${markup}</g>`;
 }
 
+const bar = (at: { x: number; y: number }, fill: string): string =>
+  `<rect x="${at.x}" y="${at.y}" width="${BAR.width}" height="${BAR.height}"` +
+  ` rx="${BAR.radius}" fill="${fill}"/>`;
+
 /** The two Interlace bars, rotated and placed as the charge. */
 export function chargeGroup(colors: BurgeeColors, scale: number = CHARGE.scale): string {
-  const bar = (at: { x: number; y: number }, fill: string): string =>
-    `<rect x="${at.x}" y="${at.y}" width="${BAR.width}" height="${BAR.height}"` +
-    ` rx="${BAR.radius}" fill="${fill}"/>`;
   return (
     `<g transform="${chargeTransform(scale)}">` +
     `<g transform="${chargeRotation()}">` +

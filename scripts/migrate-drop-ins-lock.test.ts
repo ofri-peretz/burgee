@@ -62,17 +62,17 @@ describe('the Migrate page lists exactly what the codemod rewrites', () => {
   });
 });
 
-describe('the graded versions are the oracle\'s', () => {
-  /** What the oracle vendored for each host, and — for an import whose incumbent is its own package — what its control resolves. */
-  const vendored = (host: string, from: string): string => {
-    const own = HOSTS.find((h) => h.name === host);
-    const pkg = from.startsWith('@') ? from.split('/').slice(0, 2).join('/') : from.split('/')[0]!;
-    if (own !== undefined && (own.npmName ?? own.name) === pkg) {
-      return (JSON.parse(readFileSync(join(ROOT, 'packages/compat-oracle/vendor', host, '.source.json'), 'utf8')) as { version: string }).version;
-    }
-    return (JSON.parse(readFileSync(join(ROOT, 'node_modules', pkg, 'package.json'), 'utf8')) as { version: string }).version;
-  };
+/** What the oracle vendored for each host, and — for an import whose incumbent is its own package — what its control resolves. */
+const vendored = (host: string, from: string): string => {
+  const own = HOSTS.find((h) => h.name === host);
+  const pkg = from.startsWith('@') ? from.split('/').slice(0, 2).join('/') : from.split('/')[0]!;
+  if (own !== undefined && (own.npmName ?? own.name) === pkg) {
+    return (JSON.parse(readFileSync(join(ROOT, 'packages/compat-oracle/vendor', host, '.source.json'), 'utf8')) as { version: string }).version;
+  }
+  return (JSON.parse(readFileSync(join(ROOT, 'node_modules', pkg, 'package.json'), 'utf8')) as { version: string }).version;
+};
 
+describe('the graded versions are the oracle\'s', () => {
   it.each(DROP_INS.map((d) => [d.from, d.host] as const))('%s is graded at the version the oracle ran', (from, host) => {
     const pkg = from.startsWith('@') ? from.split('/').slice(0, 2).join('/') : from.split('/')[0]!;
     expect(GRADED_VERSIONS[pkg]).toBe(vendored(host, from));

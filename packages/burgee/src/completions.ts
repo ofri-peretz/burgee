@@ -100,7 +100,7 @@ const fname = (program: string, path: string[]): string => `_${[program, ...path
 
 function bashCase(program: string, node: Node): string {
   const opts = Object.entries(node.options).flatMap(([n, s]) => flags(n, s));
-  const subs = node.children.map((c) => c.path[c.path.length - 1] ?? '');
+  const subs = node.children.map((c) => c.path.at(-1) ?? '');
   const valued = Object.entries(node.options)
     .filter(([, s]) => takesValue(s))
     .map(([n, s]) =>
@@ -167,8 +167,8 @@ function zshFunction(program: string, node: Node): string {
   if (node.children.length === 0) {
     return `${fname(program, node.path)}() {\n  _arguments -s ${options.join(' ')} '*: :_files'\n}`;
   }
-  const subs = node.children.map((c) => sq(`${c.path[c.path.length - 1] ?? ''}[${c.description.replaceAll(/[[\]:]/g, ' ')}]`)).join(' ');
-  const dispatch = node.children.map((c) => `      ${c.path[c.path.length - 1] ?? ''}) ${fname(program, c.path)} ;;`).join('\n');
+  const subs = node.children.map((c) => sq(`${c.path.at(-1) ?? ''}[${c.description.replaceAll(/[[\]:]/g, ' ')}]`)).join(' ');
+  const dispatch = node.children.map((c) => `      ${c.path.at(-1) ?? ''}) ${fname(program, c.path)} ;;`).join('\n');
   return `${fname(program, node.path)}() {
   local context state state_descr line
   typeset -A opt_args
@@ -217,7 +217,7 @@ function fish(program: string, root: Node): string {
   const lines: string[] = [];
   for (const node of walk(root)) {
     const cond = sq(fishCondition(node));
-    for (const c of node.children) lines.push(`complete -c ${program} -n ${cond} -f -a ${c.path[c.path.length - 1] ?? ''} -d ${sq(c.description)}`);
+    for (const c of node.children) lines.push(`complete -c ${program} -n ${cond} -f -a ${c.path.at(-1) ?? ''} -d ${sq(c.description)}`);
     for (const [name, spec] of Object.entries(node.options)) {
       // `kebab`, which fish alone was missing: it emitted `-l dryRun` where the CLI form is
       // `--dry-run`, so every camelCase option was completed as a flag the parser refuses.
@@ -239,7 +239,7 @@ ${lines.join('\n')}
 // ───── PowerShell ───────────────────────────────────────────────────────────────────────
 
 function pwshEntry(node: Node): string {
-  const subs = node.children.map((c) => `@('${c.path[c.path.length - 1] ?? ''}', 'Command', '${c.description.replaceAll("'", "''")}')`);
+  const subs = node.children.map((c) => `@('${c.path.at(-1) ?? ''}', 'Command', '${c.description.replaceAll("'", "''")}')`);
   const opts = Object.entries(node.options).flatMap(([n, s]) =>
     flags(n, s).map((f) => `@('${f}', 'ParameterName', '${(s.description ?? '').replaceAll("'", "''")}')`),
   );
@@ -327,7 +327,7 @@ export function renderFigSpec(manifest: Manifest): FigSubcommand {
   const { program, root } = completionTree(manifest);
   const entries = new Map<string, FigSubcommand>();
   for (const node of walk(root)) {
-    const entry: FigSubcommand = { name: node.path[node.path.length - 1] ?? program, options: figOptions(node) };
+    const entry: FigSubcommand = { name: node.path.at(-1) ?? program, options: figOptions(node) };
     if (node.description !== '') entry.description = node.description;
     entries.set(node.path.join(' '), entry);
     if (node.path.length === 0) continue;

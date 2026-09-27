@@ -33,6 +33,8 @@ export interface SgrPair {
 
 const LINE_BREAK = /\r?\n/g;
 
+const code = (p: string): string => `${CSI}${p}m`;
+
 /**
  * Wrap `s` in a chain of SGR pairs, outermost first, as chalk does: a close already inside
  * `s` is followed by a re-open so a nested style survives it, and every line break closes
@@ -40,7 +42,6 @@ const LINE_BREAK = /\r?\n/g;
  * escape itself is emitted here and nowhere else (R3, R6).
  */
 export function sgr(chain: readonly SgrPair[], s: string): string {
-  const code = (p: string): string => `${CSI}${p}m`;
   const openAll = chain.map((p) => code(p.open)).join('');
   const closeAll = chain.map((p) => code(p.close)).reverse().join('');
   let out = s;

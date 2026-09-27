@@ -86,9 +86,10 @@ const coldStart = pick(cheap, 'cold-start-ms').map((r) => `| \`${r.variant}\` | 
 const ratios = pick(cheap, 'cold-start-ratio').map((r) => `| ${r.variant} | **${r.median.toFixed(RATIO_PLACES)}×** | ${r.p95.toFixed(RATIO_PLACES)}× | ${r.gate === undefined ? '—' : `≤ ${String(r.gate.max)}`} |`);
 
 const RELIABILITY = ['hangs-per-100', 'exit-code-accuracy', 'structured-output-rate', 'recovery-bytes'] as const;
+const pct = (v: number): string => `${(v * PERCENT).toFixed(1)}%`;
+
 const reliabilityRows = ['burgee', 'commander', 'yargs'].map((variant) => {
   const at = (metric: string): number => cheap.records.find((r) => r.axis === 'reliability' && r.variant === variant && r.metric === metric)?.median ?? 0;
-  const pct = (v: number): string => `${(v * PERCENT).toFixed(1)}%`;
   return `| \`${variant}\` | ${String(at('hangs-per-100'))} | ${pct(at('exit-code-accuracy'))} | ${pct(at('structured-output-rate'))} | ${num(at('recovery-bytes'))} |`;
 });
 
@@ -181,10 +182,11 @@ const compatRows = pick(cheap, 'pass-rate').map((r) => {
 
 const bundled = pick(cheap, 'bundled-bytes');
 const installed = pick(cheap, 'installed-bytes');
+const b = (v: string): string => num(bundled.find((x) => x.variant === v)?.median ?? 0);
+const i = (v: string): string => num(installed.find((x) => x.variant === v)?.median ?? 0);
+
 const weightRows = pick(cheap, 'bundled-bytes-ratio').map((r) => {
   const [ours, theirs] = r.variant.split(' ÷ ') as [string, string];
-  const b = (v: string): string => num(bundled.find((x) => x.variant === v)?.median ?? 0);
-  const i = (v: string): string => num(installed.find((x) => x.variant === v)?.median ?? 0);
   return `| \`${ours}\` | \`${theirs}\` | ${b(ours)} | ${b(theirs)} | **${r.median.toFixed(RATIO_PLACES)}×** | ${i(ours)} | ${i(theirs)} |`;
 });
 

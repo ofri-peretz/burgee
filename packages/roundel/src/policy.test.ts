@@ -243,11 +243,12 @@ describe('colorLevel — an explicit “colour off” is never overridden into c
   });
 });
 
+const acc = (env: Runtime['env'] = {}, argv: string[] = []): Runtime => flags(argv, { CLI_ACCESSIBLE: '1', ...env }, true);
+
 describe('colorLevel — accessible mode is a pipe, not a terminal (R2)', () => {
   // `CLI_ACCESSIBLE` is an explicit instruction from a human, and ANSI colour is noise to a
   // screen reader — so the default is 0 with the same shape as a pipe's, not the terminal's
   // level. An explicit ask still wins; NO_COLOR still beats everything.
-  const acc = (env: Runtime['env'] = {}, argv: string[] = []): Runtime => flags(argv, { CLI_ACCESSIBLE: '1', ...env }, true);
 
   it('defaults to 0 on the most colour-capable terminal there is', () => {
     expect(colorLevel(acc({ COLORTERM: 'truecolor', TERM: 'xterm-256color' }))).toBe(0);

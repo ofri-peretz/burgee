@@ -74,9 +74,10 @@ describe('bytes in, OSC 1337 out', () => {
   });
 });
 
+const call = () => terminalImageFor(unsupported)(bytes);
+
 describe('the unsupported branch is upstream`s, including the throw', () => {
   it('throws UnsupportedTerminalError by name and by type', () => {
-    const call = () => terminalImageFor(unsupported)(bytes);
     expect(call).toThrow(UnsupportedTerminalError);
     expect(call).toThrow(/Supported terminals/);
   });

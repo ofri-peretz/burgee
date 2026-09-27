@@ -129,22 +129,22 @@ describe('every signal runs the handlers exactly once and is re-raised at the pr
   });
 });
 
-describe('a handler that never returns', () => {
-  /**
-   * The cell the package exists for. Each case registers a handler that never settles and
-   * asserts the process leaves anyway, inside the deadline, naming the handler.
-   */
-  const hangingInstall = (proc: FakeProcess): ShutdownReport[] => {
-    const reports: ShutdownReport[] = [];
-    const closeout = install({
-      process: proc,
-      deadline: 10,
-      onTimeout: (report) => reports.push(report),
-    });
-    closeout.onExit(neverReturns, { label: 'the-socket-that-will-not-close' });
-    return reports;
-  };
+/**
+ * The cell the package exists for. Each case registers a handler that never settles and
+ * asserts the process leaves anyway, inside the deadline, naming the handler.
+ */
+const hangingInstall = (proc: FakeProcess): ShutdownReport[] => {
+  const reports: ShutdownReport[] = [];
+  const closeout = install({
+    process: proc,
+    deadline: 10,
+    onTimeout: (report) => reports.push(report),
+  });
+  closeout.onExit(neverReturns, { label: 'the-socket-that-will-not-close' });
+  return reports;
+};
 
+describe('a handler that never returns', () => {
   it('does not stop a signal from ending the process, and is named in the report', async () => {
     const proc = fakeProcess();
     const reports = hangingInstall(proc);

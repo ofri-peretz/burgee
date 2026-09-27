@@ -198,7 +198,7 @@ function commandSections(manifest: Manifest, node: CommandNode): Section[] {
   for (const c of children) {
     const heading = c.group ?? 'Commands:';
     const rows = groups.get(heading) ?? [];
-    rows.push({ term: c.path[c.path.length - 1] ?? '', text: `${c.summary ?? c.description ?? ''}${deprecation(c.deprecated)}`.trim(), kind: 'command' });
+    rows.push({ term: c.path.at(-1) ?? '', text: `${c.summary ?? c.description ?? ''}${deprecation(c.deprecated)}`.trim(), kind: 'command' });
     groups.set(heading, rows);
   }
   return [...groups].map(([title, rows]) => ({ title, rows }));
