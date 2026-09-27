@@ -86,7 +86,7 @@ function statusFor(env: Record<string, string>, cwd = mkdtempSync(join(tmpdir(),
   return { status: (/^status=(.*)$/m.exec(readFileSync(out, 'utf8'))?.[1] ?? '').trim(), trace: `${exit}\n${run.stderr}` };
 }
 
-/** Git's own view of the scratch repository, rerun beside the step with stderr kept. */
+/** Git's own view of the scratch repository, rerun beside the step with stderr kept. Only on a wrong answer: it is five more spawns. */
 function gitFacts(cwd: string, { BASE_SHA, HEAD_SHA }: { BASE_SHA: string; HEAD_SHA: string }): string {
   const manifest = 'packages/flagstaff/package.json';
   return [
@@ -132,11 +132,11 @@ function pullRequest(change: (manifest: typeof MANIFEST) => object, extra: Recor
   return { BASE_SHA, HEAD_SHA: git('rev-parse', 'HEAD'), cwd };
 }
 
-/** The step's answer for a pull request opened by `author` that makes `change`. */
-function statusOf(author: string, change: (manifest: typeof MANIFEST) => object, extra?: Record<string, string>): Answer {
+/** Assert the step's answer for a pull request opened by `author` that makes `change`. */
+function expectStatusOf(expected: string, author: string, change: (manifest: typeof MANIFEST) => object, extra?: Record<string, string>): void {
   const { cwd, ...shas } = pullRequest(change, extra);
-  const answer = statusFor({ ...shas, HEAD_REF: 'dependabot/npm_and_yarn/all-packages-0', LABELS: 'dependencies,npm', PR_AUTHOR: author }, cwd);
-  return { ...answer, trace: `${answer.trace}\n${gitFacts(cwd, shas)}` };
+  const { status, trace } = statusFor({ ...shas, HEAD_REF: 'dependabot/npm_and_yarn/all-packages-0', LABELS: 'dependencies,npm', PR_AUTHOR: author }, cwd);
+  expect(status, status === expected ? undefined : `${trace}\n${gitFacts(cwd, shas)}`).toBe(expected);
 }
 
 const bumpDev = (m: typeof MANIFEST): object => ({ ...m, devDependencies: { 'fast-check': '^4.10.2' } });
@@ -169,24 +169,28 @@ describe('the changeset check and the Version PR', () => {
  * The exemption is for exactly that shape and nothing wider: a runtime dependency reaches
  * the package's users, and so does anything under `src/`.
  */
-describe('the changeset check and Dependabot', () => {
+//
+// Each case builds a repository (seven `git` runs) and then runs the step (five more
+// processes). Idle, that takes about 20 ms per process. In the root suite on 2026-09-27, with
+// a load average of 54–72 on 14 cores and endpoint security scanning every exec, a single
+// `git init` took 5.0 s and a single `git commit` took 15.8 s. One case took 52 s. At the
+// 30 s default, two cases timed out in one pre-push run and one timed out in a run by hand.
+// That matches the flake of 2026-09-24. The step itself stayed under 0.7 s every time, and
+// every answer was right. The time went into building the repositories, so the budget covers that.
+describe('the changeset check and Dependabot', { timeout: 120_000 }, () => {
   it('answers `dev-dependencies` when Dependabot moves only devDependencies', () => {
-    const { status, trace } = statusOf('dependabot[bot]', bumpDev);
-    expect(status, trace).toBe('dev-dependencies');
+    expectStatusOf('dev-dependencies', 'dependabot[bot]', bumpDev);
   });
 
   it('still answers `missing` when Dependabot moves a runtime dependency', () => {
-    const { status, trace } = statusOf('dependabot[bot]', (m) => ({ ...m, dependencies: { roundel: '^0.6.0' } }));
-    expect(status, trace).toBe('missing');
+    expectStatusOf('missing', 'dependabot[bot]', (m) => ({ ...m, dependencies: { roundel: '^0.6.0' } }));
   });
 
   it('still answers `missing` when a src/ change rides on a Dependabot branch', () => {
-    const { status, trace } = statusOf('dependabot[bot]', bumpDev, { 'packages/flagstaff/src/index.ts': 'export {};\n' });
-    expect(status, trace).toBe('missing');
+    expectStatusOf('missing', 'dependabot[bot]', bumpDev, { 'packages/flagstaff/src/index.ts': 'export {};\n' });
   });
 
   it('does not extend the exemption to a person — the label is their signed decision', () => {
-    const { status, trace } = statusOf('ofri-peretz', bumpDev);
-    expect(status, trace).toBe('missing');
+    expectStatusOf('missing', 'ofri-peretz', bumpDev);
   });
 });
