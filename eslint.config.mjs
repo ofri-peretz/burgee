@@ -120,7 +120,7 @@ const OFF = {
   "react-features": {},
   "browser-security": {},
   "lambda-security": {
-    // Documented FPs, fixed on eslint main by the 2026-09-27 FP/FN sweep: the
+    // Documented FPs, fixed upstream in ofri-peretz/eslint#1150: the
     // plugin's Lambda gate read `handler = handler || noop` in
     // packages/burgee/src/yargs/command.ts as a handler export, and
     // no-missing-authorization-check read `Object.create` as a data operation.
