@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "suite": "external-floor",
+  "measured": "2026-09-25T00:17:59.088Z",
+  "commit": "14c1ffd860944a021abb5adb55b2a1725d0f6272-dirty",
+  "machine": {
+    "os": "linux",
+    "release": "6.17.0-1022-azure",
+    "arch": "x64",
+    "cpu": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+    "cores": 4,
+    "memoryGb": 16,
+    "node": "v24.13.0",
+    "ci": true
+  },
+  "axes": {
+    "floor": {
+      "status": "not-run",
+      "reason": "not selected by --axis"
+    }
+  },
+  "records": [],
+  "bands": {},
+  "claims": {}
+}
