@@ -525,7 +525,14 @@ const RULES: Record<string, EntryRule> = {
   "./meow": {
     allow: [],
     // 60,000 on 2026-09-23 with D-140 and #521 on top of main's A29 exports. Measured 59,931.
-    budget: 60_000,
+    // 61,300 on 2026-09-27 for **1,345 bytes**: meow's suite 132 → 146 / 148, level with its
+    // control. Unknown flags checked as tokens (`help`/`version as an unknown flag`, `commands do
+    // not report child flags`), help built as meow builds it (`help as a known flag`, `spawn cli
+    // and show help screen`), `--help`/`--version` answered only alone (`help`/`version with custom
+    // config`, `disabled autoVersion and autoHelp`), and the declaration checks meow makes first
+    // (`choices must be of the same type`, `throws if flags option is null`, `throws if default
+    // is null`), plus `-F` casing, an empty required string, and lazy `pkg`. Measured 61,276.
+    budget: 61_300,
     denied: ["index.js", "execute.js", "help.js", "mcp.js", "schema.js", "completions.js", "plugin.js"],
   },
   "./contrast": {
