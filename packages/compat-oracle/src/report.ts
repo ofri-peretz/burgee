@@ -81,11 +81,17 @@ function gradeLines(g: Grade, baseline: Baseline): string {
   return `${line(g, baseline)}\n${internals}`;
 }
 
-interface Update {
+export interface Update {
   host: string;
   from: string;
   to: string;
   report: string;
+}
+
+/** A host whose upstream check threw: named, with the message, and never silently dropped. */
+export interface UpstreamFailure {
+  host: string;
+  message: string;
 }
 
 /**
@@ -125,14 +131,41 @@ function checkUpstream(host: Host, write: Write): Update | undefined {
   }
 }
 
-function upstreamMode(write: Write): number {
+export interface UpstreamRun {
+  hosts?: Host[];
+  check?: (host: Host, write: Write) => Update | undefined;
+  out?: string;
+}
+
+/**
+ * **One host's throw is that host's failure, not the run's.** Until 2026-09-27 an error in
+ * any host ended the whole check: dotenv 18 dropped a fixture its `extraDirs` named, the
+ * `cpSync` threw, and the nine hosts after it were never looked at — while the seven
+ * releases already found were never written, so the workflow opened no issue for any of
+ * them. Now every host is checked, `upstream.json` carries every release found *and* every
+ * failure, and the exit is still non-zero, so the job goes red and nothing is hidden: the
+ * difference is only in how much a single broken host is allowed to take down with it.
+ */
+export function upstreamMode(write: Write, { hosts = active(), check = checkUpstream, out = UPSTREAM }: UpstreamRun = {}): number {
   write('\nupstream releases\n\n');
-  const updates = active()
-    .map((host) => checkUpstream(host, write))
-    .filter((u): u is Update => u !== undefined);
-  writeFileSync(UPSTREAM, `${JSON.stringify({ checked: new Date().toISOString(), updates }, null, 2)}\n`);
-  write(updates.length === 0 ? '\n  every host is at its latest release\n' : `\n  ${updates.length} host(s) have a newer release — see upstream.json\n`);
-  return 0;
+  const updates: Update[] = [];
+  const failures: UpstreamFailure[] = [];
+  for (const host of hosts) {
+    try {
+      const update = check(host, write);
+      if (update !== undefined) updates.push(update);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      failures.push({ host: host.name, message });
+      write(`  ${host.name.padEnd(HOST_COL)} \u2716 check failed: ${message}\n`);
+    }
+  }
+  writeFileSync(out, `${JSON.stringify({ checked: new Date().toISOString(), updates, failures }, null, 2)}\n`);
+  write(updates.length === 0 ? '\n  every host checked is at its latest release\n' : `\n  ${updates.length} host(s) have a newer release — see upstream.json\n`);
+  if (failures.length === 0) return 0;
+  write(`\n\u2716 ${failures.length} host(s) could not be checked:\n`);
+  for (const f of failures) write(`    ${f.host}: ${f.message}\n`);
+  return 1;
 }
 
 /** Re-vendor each host at its latest release, reporting what moved since the last record. */

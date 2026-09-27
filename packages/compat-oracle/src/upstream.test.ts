@@ -1,4 +1,11 @@
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
+
+import { HOSTS, type Host } from './hosts.js';
+import { type Update, upstreamMode } from './report.js';
 
 import { type CompatRecord, diffRecords, isEmptyDiff, renderDiff, renderMissingExtras, surfaceNames, testNames } from './upstream.js';
 
@@ -77,5 +84,51 @@ describe('a fixture the release stopped shipping', () => {
     expect(body).toMatch(/### Fixtures `extraDirs` names that 18\.0\.4 does not ship \(1\)/);
     expect(body).toContain('tests/.env.vault');
     expect(body).toMatch(/pruning it from the host's `extraDirs`/);
+  });
+});
+
+describe('one host that throws, in --upstream', () => {
+  // dotenv's ENOENT on 2026-09-27 ended the check for every host after it and wrote no
+  // `upstream.json`, so no issue opened for the seven releases already found. The check is
+  // injected here: this is about the loop, not about cloning anything.
+  const [first, broken, last] = HOSTS.slice(0, 3) as [Host, Host, Host];
+  const run = (): { code: number; checked: string[]; log: string; written: { updates: Update[]; failures: { host: string; message: string }[] } } => {
+    const dir = mkdtempSync(join(tmpdir(), 'upstream-mode-'));
+    const out = join(dir, 'upstream.json');
+    const checked: string[] = [];
+    let log = '';
+    const code = upstreamMode((s) => (log += s), {
+      hosts: [first, broken, last],
+      out,
+      check: (host) => {
+        checked.push(host.name);
+        if (host === broken) throw new Error("ENOENT: no such file or directory, lstat 'tests/.env.vault'");
+        return { host: host.name, from: '1.0.0', to: '2.0.0', report: `## ${host.name}` };
+      },
+    });
+    const written = JSON.parse(readFileSync(out, 'utf8')) as { updates: Update[]; failures: { host: string; message: string }[] };
+    rmSync(dir, { recursive: true, force: true });
+    return { code, checked, log, written };
+  };
+
+  it('still checks every host after it, and writes the releases the others found', () => {
+    const { checked, written } = run();
+    expect(checked).toEqual([first.name, broken.name, last.name]);
+    expect(written.updates.map((u) => u.host)).toEqual([first.name, last.name]);
+  });
+
+  it('records the failure by host and message, and exits non-zero so the job stays red', () => {
+    const { code, written, log } = run();
+    expect(code).toBe(1);
+    expect(written.failures).toEqual([{ host: broken.name, message: "ENOENT: no such file or directory, lstat 'tests/.env.vault'" }]);
+    expect(log).toMatch(/1 host\(s\) could not be checked/);
+    expect(log).toContain(`${broken.name}: ENOENT`);
+  });
+
+  it('exits zero when no host throws', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'upstream-mode-'));
+    const code = upstreamMode(() => undefined, { hosts: [first, last], out: join(dir, 'upstream.json'), check: () => undefined });
+    rmSync(dir, { recursive: true, force: true });
+    expect(code).toBe(0);
   });
 });
