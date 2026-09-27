@@ -10,8 +10,12 @@
  * So each axis's record builder — the real one, the same function `run()` calls — is fed
  * a synthetic measurement one step worse than its gate, and the run's exit code must be
  * non-zero; then the same measurement exactly at the gate, and it must be zero.
+ *
+ * `verdict()` explains each failure on stderr, which is right for `--check` and wrong here:
+ * those lines are fixtures, and in a CI log they read as measurements. They are captured,
+ * so a case can assert what was said, and nothing reaches the log (`no-gate-lines-setup.ts`).
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
 
 import { type Baseline, type Grade, gradeRecords, hostRecords } from './axes/compat.js';
 import { ratioRecord, RATIO_CEILING as PERF_CEILING, type Variant, VARIANTS } from './axes/perf.js';
@@ -20,6 +24,17 @@ import { type AxisState } from './emit.js';
 import { PAIRS } from './fixtures/entry-points.js';
 import { type AxisName, gateFailures } from './record.js';
 import { verdict } from './run.js';
+
+let stderr: MockInstance<typeof console.error>;
+beforeEach(() => {
+  stderr = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+});
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+/** What `verdict()` said on stderr in this case. */
+const said = (): string => stderr.mock.calls.flat().join('\n');
 
 const measuredAt = (bundled: number): Measured => ({ bundled, whole: bundled, installed: 1, version: '0.0.0-test', dir: '<repo>/packages/test' });
 
@@ -34,6 +49,7 @@ describe('B4 weight — the bundled-bytes ratchet', () => {
   it('exits non-zero one byte over', () => {
     const records = pairRecords(pair, measuredAt(ceiling + 1), measuredAt(ceiling));
     expect(verdict(records)).toBe(1);
+    expect(said()).toContain('burgee bundled-bytes');
   });
 
   it('exits zero exactly at the ceiling', () => {
@@ -50,6 +66,7 @@ describe('B4 weight — the "lighter than what it replaces" ratio gate', () => {
     const failed = gateFailures(records).map((f) => f.record.metric);
     expect(failed).toContain('bundled-bytes-ratio');
     expect(verdict(records)).toBe(1);
+    expect(said()).toContain('flagstaff/boxen ÷ boxen bundled-bytes-ratio');
   });
 
   it('exits zero at parity', () => {
@@ -65,6 +82,7 @@ describe('B2 cold start — the paired-ratio gate', () => {
   it('exits non-zero when the front-end drifts past its ceiling over its host', () => {
     const ours = host.map((ms) => ms * (ceiling + 0.1));
     expect(verdict([ratioRecord({ v: variant, ours, host, gateMax: ceiling })])).toBe(1);
+    expect(said()).toContain('burgee/commander ÷ commander cold-start-ratio');
   });
 
   it('exits zero exactly at the ceiling', () => {
@@ -89,6 +107,7 @@ describe("B3 compatibility — the ratchet on the oracle's own numbers", () => {
     const records = hostRecords(grade(1359, 1359 / 1360), baseline);
     expect(verdict(records)).toBe(1);
     expect(gateFailures(records).map((f) => f.record.metric)).toContain('passing-tests');
+    expect(said()).toContain('commander passing-tests: 1359 tests is below its floor of 1360');
   });
 
   it('exits zero at the baseline', () => {
@@ -129,6 +148,7 @@ describe('a selected axis that produced nothing', () => {
   it('exits non-zero, with no failing record anywhere', () => {
     expect(gateFailures([])).toHaveLength(0);
     expect(verdict([], skipped)).toBe(1);
+    expect(said()).toContain('axis compat was selected and produced no measurement');
   });
 
   it('leaves an axis nobody asked for alone — `--axis weight` must not fail on the other four', () => {

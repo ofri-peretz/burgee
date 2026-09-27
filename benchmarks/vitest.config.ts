@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     include: ["**/*.test.ts"],
     exclude: ["node_modules/**", ".fixtures/**"],
+    setupFiles: ["./no-gate-lines-setup.ts"],
     /*
      * Every test in this package spawns something and waits for it — a stub `claude` per
      * variant, a published tarball, a tool installed into a temp dir. `vitest-coverage.config.ts`
