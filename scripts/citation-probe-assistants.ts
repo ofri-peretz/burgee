@@ -111,7 +111,7 @@ function readMessage(item: Json, keep: (annotation: Json) => boolean): { text: s
 
 // ── Claude ──────────────────────────────────────────────────────────────────────────
 
-const CLAUDE_MODEL = 'claude-opus-5';
+const CLAUDE_MODEL = 'claude-opus-5-5';
 
 /** Text blocks' text, and every `web_search_result_location` citation's URL. */
 export function readClaude(content: unknown[]): { text: string; citedUrls: string[] } {

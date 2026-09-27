@@ -96,7 +96,7 @@ describe('runProbe with a key', () => {
   it('scores a Claude answer: model, named, cited URLs and ours', async () => {
     const fetchImpl = vi.fn<typeof fetch>(async () =>
       json({
-        model: 'claude-opus-5',
+        model: 'claude-opus-5-5',
         stop_reason: 'end_turn',
         content: [
           { type: 'server_tool_use', id: 'srvtoolu_1', name: 'web_search', input: { query: 'commander alternative' } },
@@ -114,7 +114,7 @@ describe('runProbe with a key', () => {
     const first = run.observations.find((o) => o.assistant === 'claude' && o.question === 1);
     expect(first).toMatchObject({
       status: 'ok',
-      model: 'claude-opus-5',
+      model: 'claude-opus-5-5',
       named: true,
       mentions: ['burgee'],
       citedUrls: ['https://burgee.interlace.tools/', 'https://github.com/tj/commander.js'],
@@ -122,15 +122,15 @@ describe('runProbe with a key', () => {
     });
     const [url, init] = fetchImpl.mock.calls[0]!;
     expect(url).toBe('https://api.anthropic.com/v1/messages');
-    expect(JSON.parse(String(init?.body))).toMatchObject({ model: 'claude-opus-5', tools: [{ type: 'web_search_20260209', name: 'web_search' }] });
+    expect(JSON.parse(String(init?.body))).toMatchObject({ model: 'claude-opus-5-5', tools: [{ type: 'web_search_20260209', name: 'web_search' }] });
     expect(probeProblems(run)).toEqual([]);
   });
 
   it('resumes a paused Claude turn and keeps both halves of the answer', async () => {
     const fetchImpl = vi
       .fn<typeof fetch>()
-      .mockResolvedValueOnce(json({ model: 'claude-opus-5', stop_reason: 'pause_turn', content: [{ type: 'text', text: 'Searching. ' }] }))
-      .mockImplementation(async () => json({ model: 'claude-opus-5', stop_reason: 'end_turn', content: [{ type: 'text', text: 'Use `closeout`.' }] }));
+      .mockResolvedValueOnce(json({ model: 'claude-opus-5-5', stop_reason: 'pause_turn', content: [{ type: 'text', text: 'Searching. ' }] }))
+      .mockImplementation(async () => json({ model: 'claude-opus-5-5', stop_reason: 'end_turn', content: [{ type: 'text', text: 'Use `closeout`.' }] }));
     const run = await runProbe({ env: { ANTHROPIC_API_KEY: 'sk-ant' }, date: DATE, commit: SHA, fetchImpl, notice: () => {} });
     const first = run.observations.find((o) => o.assistant === 'claude' && o.question === 1);
     expect(first).toMatchObject({ status: 'ok', named: true, mentions: ['closeout'] });
@@ -139,7 +139,7 @@ describe('runProbe with a key', () => {
   });
 
   it('records a Claude refusal as an error, not an unnamed answer', async () => {
-    const fetchImpl = vi.fn<typeof fetch>(async () => json({ model: 'claude-opus-5', stop_reason: 'refusal', content: [] }));
+    const fetchImpl = vi.fn<typeof fetch>(async () => json({ model: 'claude-opus-5-5', stop_reason: 'refusal', content: [] }));
     const run = await runProbe({ env: { ANTHROPIC_API_KEY: 'sk-ant' }, date: DATE, commit: SHA, fetchImpl, notice: () => {} });
     expect(run.observations.find((o) => o.assistant === 'claude')).toMatchObject({ status: 'error', httpStatus: 200, error: 'stop_reason: refusal' });
   });

@@ -107,6 +107,10 @@ jobs:
           if [ -z "$(git status --porcelain .sdlc/research/citation-probe/)" ]; then
             echo "Nothing new to record."; exit 0
           fi
+          # Until a key exists every observation is `skipped`; a PR a week saying so is noise.
+          if node -e 'const fs=require("fs"),d=".sdlc/research/citation-probe/";const f=fs.readdirSync(d).filter(n=>n.endsWith(".json")).sort().pop();const r=JSON.parse(fs.readFileSync(d+f,"utf8"));process.exit(r.observations.every(o=>o.status==="skipped")?0:1)'; then
+            echo "::notice::Every assistant was skipped (no ANTHROPIC_API_KEY, OPENAI_API_KEY or PERPLEXITY_API_KEY); nothing to record."; exit 0
+          fi
           # The run id, not the date: a dispatch and the schedule on one day would otherwise
           # collide on the branch name.
           BRANCH="chore/citation-probe-${GITHUB_RUN_ID}"
