@@ -9,7 +9,9 @@
  * wrong value cannot pass. Colour is off here (`vitest-colour-setup.ts`), so frames are
  * compared as text.
  */
+import { sep } from 'node:path';
 import { Readable, Writable } from 'node:stream';
+import { fileURLToPath } from 'node:url';
 
 import { SHOW_CURSOR } from 'closeout/cursor';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -230,9 +232,18 @@ describe('what the prompts answer', () => {
     expect(writes.join('')).toContain('Date must be on or after 2030-01-01');
   });
 
+  // `fileURLToPath`, not the URL's `pathname`: on Windows that is `/D:/a/…`, which no
+  // filesystem call can read, so the prompt listed nothing and waited forever.
   it('path lists the entries under what was typed', async () => {
-    const root = new URL('.', import.meta.url).pathname;
+    const root = fileURLToPath(new URL('.', import.meta.url));
     const { answer } = await drive((io) => clack.path({ message: MESSAGE, initialValue: `${root}clack-core`, ...io }), ['return']);
+    expect(answer).toBe(`${root}clack-core.ts`);
+  });
+
+  it('path lists the entries under a path typed with forward slashes, in the separator the platform writes', async () => {
+    const root = fileURLToPath(new URL('.', import.meta.url));
+    const typed = `${root.split(sep).join('/')}clack-core`;
+    const { answer } = await drive((io) => clack.path({ message: MESSAGE, initialValue: typed, ...io }), ['return']);
     expect(answer).toBe(`${root}clack-core.ts`);
   });
 

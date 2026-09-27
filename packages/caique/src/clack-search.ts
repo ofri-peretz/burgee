@@ -5,11 +5,9 @@
  * the arrows are in use. `path` is an autocomplete whose options are the directory entries
  * under what has been typed.
  */
-import { existsSync, lstatSync, readdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-
 import { type CommonOptions, formatInstructionFooter, frame, guided, type Keypress, type Option, paint, placeholderOf, type Prompt, run, runValidation, type Validate, withCursor } from './clack-core.js';
 import { boxLook, checkbox, type Choice, findCursor, labelOf, radio, radioLook, REQUIRED, toggled, windowOf } from './clack-list.js';
+import { entriesUnder } from './clack-path.js';
 import { type Answer } from './clack-prompts.js';
 import { processFacts } from './runtime.js';
 
@@ -224,22 +222,6 @@ export const autocomplete = <Value>(opts: AutocompleteOptions<Value>): Answer<Va
 /** `autocompleteMultiselect` — `multiselect` with a search box over the list. */
 export const autocompleteMultiselect = <Value>(opts: AutocompleteMultiSelectOptions<Value>): Answer<Value[]> =>
   searchable(opts, { multiple: true, initial: opts.initialValues ?? [], required: opts.required }) as Answer<Value[]>;
-
-/** The entries under what has been typed, as path options; a path that cannot be read lists nothing. */
-function entriesUnder(typed: string, directoriesOnly: boolean): Option<string>[] {
-  if (typed === '') return [];
-  try {
-    const isDirectory = (at: string): boolean => lstatSync(at).isDirectory();
-    const base = existsSync(typed) && isDirectory(typed) && (!directoriesOnly || typed.endsWith('/')) ? typed : dirname(typed);
-    const prefix = typed.length > 1 && typed.endsWith('/') ? typed.slice(0, -1) : typed;
-    return readdirSync(base)
-      .map((name) => join(base, name))
-      .filter((at) => at.startsWith(prefix) && (!directoriesOnly || isDirectory(at)))
-      .map((value) => ({ value }));
-  } catch {
-    return [];
-  }
-}
 
 /** `path` — an autocomplete over the filesystem, starting at `root` or the working directory. */
 export const path = (opts: PathOptions): Answer<string> =>
