@@ -77,6 +77,8 @@ Generated files each have a writer and a `--check` twin — run the writer, neve
   (`.changeset/<slug>.md`); internal-only work takes the `skip-changeset` label instead.
 - Editing a package README changes its packed size: the foundation weight band
   (`.sdlc/bands/foundation-ceilings.json`) must be re-measured, or the weight locks fail.
+  `npm run weight:converge` does it — it writes the band and regenerates the READMEs, and the
+  band is the only copy: nothing else records a foundation package's `ours`.
 - `git push` runs a 3–4 minute pre-push battery. It is not a hang. **Never `--no-verify`.**
 - Every number in prose comes from a file in this repository — a generated page, a baseline,
   a band — and a claim that cannot be measured is written as *unmeasured*, not estimated.
