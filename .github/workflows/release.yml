@@ -26,8 +26,12 @@ run-name: >-
 # publishing matrix, a second publishing job, or an order that is not the computed plan.
 #
 # Every step is idempotent, so re-running after a partial failure is safe.
-# Auth: Trusted Publishing (OIDC) once configured on npm; NPM_TOKEN fallback
-# for first releases.
+#
+# Auth: npm trusted publishing (OIDC) only — no npm token exists in this workflow (D-154).
+# The publish job's `id-token: write` lets npm swap GitHub's OIDC token for a short-lived
+# publish token scoped to one package, and npm attaches provenance. Every public package
+# names this repository and `release.yml` as its trusted publisher on npmjs.com; a new
+# package needs that entry (Settings → Trusted publishing) before its first release publishes.
 # ─────────────────────────────────────────────────────────────────────────────
 
 on:
@@ -224,11 +228,27 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
+      # No `registry-url`: it would write `_authToken=${NODE_AUTH_TOKEN}` to an .npmrc and export
+      # a placeholder NODE_AUTH_TOKEN. Trusted publishing needs neither, and npm's default
+      # registry is npmjs.org.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
           node-version-file: .nvmrc
-          registry-url: https://registry.npmjs.org/
           cache: npm
+      # docs.npmjs.com/trusted-publishers: "requires npm CLI version 11.5.1 or later and Node
+      # version 22.14.0 or higher". The .nvmrc Node bundles a new enough npm today; this
+      # upgrades npm only if a later pin does not.
+      - name: npm CLI can publish with OIDC (npm ≥ 11.5.1, Node ≥ 22.14.0)
+        run: |
+          set -euo pipefail
+          meets() { [ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -n 1)" = "$2" ]; }
+          node_v=$(node -p 'process.versions.node')
+          meets "$node_v" 22.14.0 || { echo "::error::Node $node_v is older than 22.14.0, which npm trusted publishing requires. Raise .nvmrc."; exit 1; }
+          if ! meets "$(npm -v)" 11.5.1; then
+            echo "npm $(npm -v) predates trusted publishing — installing npm@11.6.2."
+            npm install -g npm@11.6.2
+          fi
+          echo "Publishing with Node $node_v and npm $(npm -v)."
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: dist
@@ -238,8 +258,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
       - name: Publish, tag and release each package, dependencies first
+        # No NODE_AUTH_TOKEN, by design: npm authenticates each publish through OIDC (the job's
+        # `id-token: write`). `trusted-publishing-lock.test.ts` fails if an npm token returns.
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: "true"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DRY_RUN: ${{ inputs.dry-run || false }}
@@ -254,6 +275,14 @@ jobs:
 
           # installable NAME VERSION — the registry serves NAME@VERSION.
           installable() { npm view "$1@$2" version >/dev/null 2>&1; }
+
+          # oidc_said LOGS_DIR — npm's last word on the OIDC token exchange. npm writes every log
+          # level to its debug log, so the exchange's verbose line is there without --loglevel.
+          oidc_said() {
+            local line
+            line=$(grep -h ' oidc ' "$1"/*.log 2>/dev/null | tail -n 1 | sed -E 's/^[0-9]+ [a-z]+ oidc //')
+            echo "${line:-npm logged nothing about OIDC}"
+          }
 
           # Scoreboard gate (cli-output-stack R13) — the stack ships no working release before
           # the engine's row is public.
@@ -282,7 +311,12 @@ jobs:
             if installable "$PKG_NAME" "$PKG_VER"; then
               echo "✅ $PKG_NAME@$PKG_VER already on npm — skipping publish."
             else
-              (cd "$PKG_DIR" && npm publish --tag "$DIST_TAG" --access public --provenance) || return 1
+              local logs="$RUNNER_TEMP/npm-logs-$1"
+              if ! (cd "$PKG_DIR" && npm publish --tag "$DIST_TAG" --access public --provenance --logs-dir "$logs"); then
+                echo "::error::npm publish $PKG_NAME@$PKG_VER failed. OIDC exchange: $(oidc_said "$logs"). If that is an auth failure, check npmjs.com → $PKG_NAME → Settings → Trusted publishing names ofri-peretz/burgee and release.yml (environment production, if one is set) with npm publish allowed."
+                return 1
+              fi
+              echo "🔐 $PKG_NAME@$PKG_VER published with npm trusted publishing (OIDC) — this job holds no npm token. npm: $(oidc_said "$logs")."
             fi
             git rev-parse -q --verify "refs/tags/$tag_name" >/dev/null || git tag -a "$tag_name" -m "Release $tag_name" || return 1
             git push origin "$tag_name" || echo "(tag already on remote)"
@@ -300,6 +334,7 @@ jobs:
             fi
           }
 
+          echo "Credential: npm trusted publishing (OIDC) through this job's id-token: write — no npm token (D-154)."
           # Read up front: nothing inside the loop may consume the plan from stdin.
           rows=()
           while IFS= read -r row; do rows+=("$row"); done < <(jq -c '.[]' <<<"$PLAN")
