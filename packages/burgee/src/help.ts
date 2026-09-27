@@ -125,6 +125,13 @@ const GLOBAL: Row[] = [
   { term: '--help', text: 'show this help', kind: 'flag' },
 ];
 
+/**
+ * D-151 — the root's help names the schema, so a reader who has only `--help` finds the
+ * program as data (clispec.dev's `help-mentions-schema`). The root only: a command's own help
+ * is one command, and `--schema` there drills into it without needing to be advertised.
+ */
+const ROOT_GLOBAL: Row[] = [...GLOBAL, { term: '--schema', text: 'the program as data', kind: 'flag' }];
+
 function deprecation(d: boolean | string | undefined): string {
   if (d === undefined || d === false) return '';
   return d === true ? ' (deprecated)' : ` (deprecated: use ${d})`;
@@ -319,12 +326,13 @@ export function renderHelp(manifest: Manifest, node: CommandNode, opts: HelpOpti
   const args = argumentRows(node.arguments ?? []);
   const options = optionRows(node.options, verbose);
   const env = environmentRows(node.options);
-  const column = termColumn([...args, ...options, ...GLOBAL, ...commands.flatMap((s) => s.rows), ...env], width);
+  const global = node.path.length === root.length ? ROOT_GLOBAL : GLOBAL;
+  const column = termColumn([...args, ...options, ...global, ...commands.flatMap((s) => s.rows), ...env], width);
   const lines: string[] = [usageLine(node, root, commands.length > 0, paint), ''];
   if (node.description !== undefined) lines.push(...wrap(`${node.description}${deprecation(node.deprecated)}`, width), '');
   lines.push(...section('Arguments:', layout(args, width, column, paint), paint));
   lines.push(...section('Options:', layout(options, width, column, paint), paint));
-  lines.push(...section('Global options:', layout(GLOBAL, width, column, paint), paint));
+  lines.push(...section('Global options:', layout(global, width, column, paint), paint));
   for (const s of commands) lines.push(...section(s.title, layout(s.rows, width, column, paint), paint));
   lines.push(...section('Examples:', exampleLines(node.examples ?? [], width), paint));
   lines.push(...section('Environment:', layout(env, width, column, paint), paint));
