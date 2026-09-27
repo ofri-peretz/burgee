@@ -252,7 +252,7 @@ jobs:
       # since this job landed skipped for "the `claude` binary is not on PATH" and opened
       # issue #146 saying so — the credential was there the whole time.
       - name: Install the agent the axis measures
-        run: npm install --global @anthropic-ai/claude-code
+        run: npm ci --prefix .github/tools/claude-code --no-audit --no-fund && echo "$PWD/.github/tools/claude-code/node_modules/.bin" >> "$GITHUB_PATH"
       - name: Run B1
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

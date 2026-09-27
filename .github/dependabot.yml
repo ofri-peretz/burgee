@@ -80,6 +80,19 @@ updates:
       # lets the resolver in. The whole family moves together, by hand, in the PR that fixes the
       # findings, the way #398 did. Drop this entry in that PR.
       - dependency-name: "eslint-plugin-*"
+  # The `claude` binary bench.yml (B1) and evals.yml install with `npm ci`. It was
+  # `npm install --global` with no version, which Scorecard flags as unpinned (#34, #81);
+  # the lockfile pins it, and this entry is what keeps the pin from going stale.
+  - package-ecosystem: "npm"
+    directory: "/.github/tools/claude-code"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 1
+    labels: ["dependencies", "ci"]
+    commit-message:
+      prefix: "chore(ci)"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
