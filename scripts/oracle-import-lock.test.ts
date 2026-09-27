@@ -20,10 +20,16 @@ import { describe, expect, it } from 'vitest';
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const SCANNED = ['scripts', 'benchmarks'];
 
+/**
+ * Dot-directories are skipped: none is tracked, and `benchmarks/.fixtures-*` are scratch that
+ * `bundledRecords` (weight.ts) creates and deletes while this suite runs in parallel — reading
+ * one mid-delete was an ENOENT flake. They cannot live in `os.tmpdir()`: the fixtures' bare
+ * imports must resolve from `benchmarks/node_modules`.
+ */
 function sources(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
     const at = join(dir, e.name);
-    if (e.isDirectory()) return e.name === 'node_modules' || e.name === 'results' ? [] : sources(at);
+    if (e.isDirectory()) return e.name.startsWith('.') || e.name === 'node_modules' || e.name === 'results' ? [] : sources(at);
     return /\.(?:ts|mts|mjs)$/.test(e.name) ? [at] : [];
   });
 }
