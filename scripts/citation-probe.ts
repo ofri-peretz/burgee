@@ -7,16 +7,20 @@
 
 /**
  * The AI citation probe (roadmap `marketing-and-docs` 2.4): five fixed questions, put to
- * three assistants with web search on, once a week. Each answer is scored for whether it
- * names burgee (or presents a family package as the answer) and which URLs it cites, and
- * the run is written to one file:
+ * Claude through the Claude Code CLI with web search on, once a week. Each answer is scored
+ * for whether it names burgee (or presents a family package as the answer) and which URLs it
+ * cites, and the run is written to one file:
  *
  *   .sdlc/research/citation-probe/<YYYY-MM-DD>.json
  *
- * An assistant whose secret is missing is skipped, loudly (a `::notice::`), and recorded
- * as `skipped`; with no secret at all the run still exits 0 and writes a file saying so, so
- * the series shows the weeks nothing was measured. A secret that is present but whose call
- * fails is recorded as `error` with the HTTP status. The exit code is 0 in every case the
+ * One assistant, by the owner's decision on 2026-09-27: the probe runs on
+ * `CLAUDE_CODE_OAUTH_TOKEN` and no provider API keys are added for others
+ * (`citation-probe-claude.ts` has the invocation). Without the token — or, locally, a
+ * stored `claude` login opted into with `BURGEE_USE_CLAUDE_LOGIN=1` — the run is recorded as
+ * `skipped`, loudly (a `::notice::`), nothing is spawned, and it still exits 0 and writes a
+ * file saying so, so the series shows the weeks nothing was measured. A question whose
+ * `claude` run fails — no binary, a timeout, a non-zero exit, output that is not JSON, or
+ * `is_error` — is recorded as `error` with the reason. The exit code is 0 in every case the
  * probe could record; it is non-zero only when the run fails its own validator or the file
  * cannot be written.
  *
@@ -31,13 +35,17 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { ASSISTANTS, type Assistant, type AssistantId } from './citation-probe-assistants';
-import { ourUrls, scoreAnswer, unique, urlsInText } from './citation-probe-score';
+import { askClaude, type AskResult, hasClaudeCredential, MODEL, SECRET } from './citation-probe-claude';
+import { ourUrls, scoreAnswer, urlsInText } from './citation-probe-score';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 export const PROBE_DIR = '.sdlc/research/citation-probe';
-export const PROBE_VERSION = 1;
+/**
+ * v2 (2026-09-27): one assistant, Claude via Claude Code, so five observations a run; an
+ * observation records the CLI's `exitCode`, `turns` and `costUsd` where v1 had `httpStatus`.
+ */
+export const PROBE_VERSION = 2;
 
 /**
  * The five questions, verbatim from `.sdlc/roadmap/marketing-and-docs.md`. Fixed so the
@@ -52,25 +60,30 @@ export const QUESTIONS = [
   'How do I stop an interactive CLI prompt from hanging in CI?',
 ] as const;
 
+export type AssistantId = 'claude';
 export type ObservationStatus = 'ok' | 'error' | 'skipped';
 
-/** One question put to one assistant. A run always holds one per (assistant, question). */
+/** One question put to the assistant. A run always holds one per (assistant, question). */
 export interface Observation {
   date: string;
   commit: string;
   assistant: AssistantId;
-  /** The model id the provider reported answering with; `null` when it reported none. */
+  /** The model id Claude Code reported answering with; `null` when it reported none. */
   model: string | null;
   /** 1-based, into `QUESTIONS`. */
   question: number;
   status: ObservationStatus;
-  /** The HTTP status of a failed call; `null` for a network error, a timeout, or no call. */
-  httpStatus: number | null;
+  /** `claude`'s exit code; `null` when it was not run, could not start, or was killed. */
+  exitCode: number | null;
+  /** `num_turns` as the CLI reports it; `null` when it reported none. */
+  turns: number | null;
+  /** `total_cost_usd` as the CLI reports it; `null` when it reported none. */
+  costUsd: number | null;
   error: string | null;
   named: boolean;
   /** Which of burgee and the family packages the answer names. */
   mentions: string[];
-  /** Every URL the answer text or the provider's citation metadata cites. */
+  /** Every URL the answer text cites. */
   citedUrls: string[];
   /** The subset of `citedUrls` on our hosts. */
   ours: string[];
@@ -81,8 +94,8 @@ export interface Observation {
 export interface AssistantSummary {
   status: 'ran' | 'skipped';
   /** The secret that gates this assistant. */
-  secret: Assistant['secret'];
-  /** The model or preset the probe asked for; each observation records what answered. */
+  secret: typeof SECRET;
+  /** The model the probe asked for; each observation records what answered. */
   requested: string;
 }
 
@@ -99,15 +112,17 @@ export interface ProbeRun {
 
 type Env = Record<string, string | undefined>;
 
-function blank(date: string, commit: string, assistant: AssistantId, question: number): Observation {
+function blank(date: string, commit: string, question: number): Observation {
   return {
     date,
     commit,
-    assistant,
+    assistant: 'claude',
     model: null,
     question,
     status: 'skipped',
-    httpStatus: null,
+    exitCode: null,
+    turns: null,
+    costUsd: null,
     error: null,
     named: false,
     mentions: [],
@@ -117,29 +132,11 @@ function blank(date: string, commit: string, assistant: AssistantId, question: n
   };
 }
 
-interface AssistantRun {
-  assistant: Assistant;
-  key: string;
-  date: string;
-  commit: string;
-  fetchImpl: typeof fetch;
-}
-
-async function probeAssistant({ assistant: a, key, date, commit, fetchImpl }: AssistantRun): Promise<Observation[]> {
-  const out: Observation[] = [];
-  for (const [i, question] of QUESTIONS.entries()) {
-    const base = blank(date, commit, a.id, i + 1);
-    // One question at a time per assistant: a weekly probe has no reason to race a rate limit.
-    // eslint-disable-next-line reliability/no-await-in-loop
-    const res = await a.ask(question, key, fetchImpl);
-    if (!res.ok) {
-      out.push({ ...base, status: 'error', model: res.model, httpStatus: res.httpStatus, error: res.error });
-      continue;
-    }
-    const cited = unique([...res.citedUrls, ...urlsInText(res.text)]);
-    out.push({ ...base, status: 'ok', model: res.model, ...scoreAnswer(res.text), citedUrls: cited, ours: ourUrls(cited) });
-  }
-  return out;
+/** One answer, scored. `citedUrls` is every URL written in the answer text. */
+export function observe(base: Observation, res: AskResult): Observation {
+  if (!res.ok) return { ...base, status: 'error', model: res.model, exitCode: res.exitCode, turns: res.turns, costUsd: res.costUsd, error: res.error };
+  const cited = urlsInText(res.text);
+  return { ...base, status: 'ok', model: res.model, exitCode: 0, turns: res.turns, costUsd: res.costUsd, ...scoreAnswer(res.text), citedUrls: cited, ours: ourUrls(cited) };
 }
 
 const printLine = (line: string): void => console.log(line);
@@ -148,30 +145,29 @@ export interface ProbeOptions {
   env: Env;
   date: string;
   commit: string;
-  fetchImpl?: typeof fetch;
-  /** Where a skipped assistant is announced. Defaults to stdout. */
+  /** The `claude` binary. Defaults to `claude` on PATH; tests pass a stub. */
+  claudeBin?: string;
+  timeoutMs?: number;
+  /** Where a skip is announced. Defaults to stdout. */
   notice?: (line: string) => void;
-  assistants?: readonly Assistant[];
 }
 
-export async function runProbe(opts: ProbeOptions): Promise<ProbeRun> {
+export function runProbe(opts: ProbeOptions): ProbeRun {
   const { env, date, commit } = opts;
-  const fetchImpl = opts.fetchImpl ?? fetch;
+  const claudeBin = opts.claudeBin ?? 'claude';
   const notice = opts.notice ?? printLine;
-  const assistants = opts.assistants ?? ASSISTANTS;
-  const summaries = {} as Record<AssistantId, AssistantSummary>;
-  const runs = assistants.map(async (a) => {
-    const key = env[a.secret]?.trim() ?? '';
-    if (key === '') {
-      notice(`::notice title=Citation probe::${a.secret} is not set; ${a.id} is recorded as skipped.`);
-      summaries[a.id] = { status: 'skipped', secret: a.secret, requested: a.requested };
-      return QUESTIONS.map((_, i) => blank(date, commit, a.id, i + 1));
-    }
-    summaries[a.id] = { status: 'ran', secret: a.secret, requested: a.requested };
-    return probeAssistant({ assistant: a, key, date, commit, fetchImpl });
-  });
-  const observations = (await Promise.all(runs)).flat();
-  return { v: PROBE_VERSION, date, commit, questions: [...QUESTIONS], assistants: summaries, observations };
+  const common = { v: PROBE_VERSION, date, commit, questions: [...QUESTIONS] } as const;
+  if (!hasClaudeCredential(env, claudeBin)) {
+    notice(`::notice title=Citation probe::${SECRET} is not set; claude is recorded as skipped.`);
+    return {
+      ...common,
+      assistants: { claude: { status: 'skipped', secret: SECRET, requested: MODEL } },
+      observations: QUESTIONS.map((_, i) => blank(date, commit, i + 1)),
+    };
+  }
+  // One question at a time: a weekly probe has no reason to race a rate limit.
+  const observations = QUESTIONS.map((question, i) => observe(blank(date, commit, i + 1), askClaude(question, { claudeBin, env, timeoutMs: opts.timeoutMs })));
+  return { ...common, assistants: { claude: { status: 'ran', secret: SECRET, requested: MODEL } }, observations };
 }
 
 // ── The file ────────────────────────────────────────────────────────────────────────
@@ -204,20 +200,29 @@ const DATE_CHARS = 10;
 /** `git`'s default abbreviation. */
 const SHORT_SHA = 7;
 const SHA = /^[0-9a-f]{40}$/;
-const ASSISTANT_IDS: readonly AssistantId[] = ['claude', 'openai', 'perplexity'];
+const ASSISTANT_IDS: readonly AssistantId[] = ['claude'];
 const STATUSES: readonly ObservationStatus[] = ['ok', 'error', 'skipped'];
+
+/** The fields `claude`'s own output fills: exit code, turns, cost. */
+function runCostProblems(o: Json, where: string): string[] {
+  const out: string[] = [];
+  if (o.exitCode !== null && !Number.isInteger(o.exitCode)) out.push(`${where}.exitCode is not an integer or null`);
+  if (o.turns !== null && !Number.isInteger(o.turns)) out.push(`${where}.turns is not an integer or null`);
+  if (o.costUsd !== null && typeof o.costUsd !== 'number') out.push(`${where}.costUsd is not a number or null`);
+  return out;
+}
 
 /** Field types of one observation. */
 function observationShapeProblems(o: Json, where: string, run: Json): string[] {
   const out: string[] = [];
   if (o.date !== run.date) out.push(`${where}.date is not the run's date`);
   if (o.commit !== run.commit) out.push(`${where}.commit is not the run's commit`);
-  if (!ASSISTANT_IDS.includes(o.assistant as AssistantId)) out.push(`${where}.assistant is not claude | openai | perplexity`);
+  if (!ASSISTANT_IDS.includes(o.assistant as AssistantId)) out.push(`${where}.assistant is not claude`);
   if (!isNullableString(o.model)) out.push(`${where}.model is not a string or null`);
   const q = o.question;
   if (typeof q !== 'number' || !Number.isInteger(q) || q < 1 || q > QUESTIONS.length) out.push(`${where}.question is not 1..${QUESTIONS.length}`);
   if (!STATUSES.includes(o.status as ObservationStatus)) out.push(`${where}.status is not ok | error | skipped`);
-  if (o.httpStatus !== null && !Number.isInteger(o.httpStatus)) out.push(`${where}.httpStatus is not an integer or null`);
+  out.push(...runCostProblems(o, where));
   if (!isNullableString(o.error)) out.push(`${where}.error is not a string or null`);
   if (typeof o.named !== 'boolean') out.push(`${where}.named is not a boolean`);
   for (const k of ['mentions', 'citedUrls', 'ours'] as const) if (!isStringArray(o[k])) out.push(`${where}.${k} is not a string array`);
@@ -259,7 +264,7 @@ function assistantsProblems(a: unknown, observations: unknown[]): string[] {
   return out;
 }
 
-/** Every way `doc` is not a v1 probe run. Empty means it is one. */
+/** Every way `doc` is not a v2 probe run. Empty means it is one. */
 export function probeProblems(doc: unknown): string[] {
   if (!isObject(doc)) return ['not a JSON object'];
   const out: string[] = [];
@@ -295,16 +300,19 @@ function summarize(run: ProbeRun): string {
     const errors = mine.length - ok.length;
     const named = ok.filter((o) => o.named).length;
     const cited = ok.filter((o) => o.ours.length > 0).length;
-    lines.push(`  ${id}: named in ${named}/${ok.length}, cited ours in ${cited}/${ok.length}${errors > 0 ? `, ${errors} error(s)` : ''}`);
+    const models = [...new Set(mine.flatMap((o) => (o.model ? [o.model] : [])))].join(', ') || 'no model reported';
+    const cost = mine.reduce((sum, o) => sum + (o.costUsd ?? 0), 0);
+    lines.push(`  ${id} (${models}): named in ${named}/${ok.length}, cited ours in ${cited}/${ok.length}${errors > 0 ? `, ${errors} error(s)` : ''}; $${cost.toFixed(2)} reported`);
+    for (const o of mine) if (o.status === 'error') lines.push(`    Q${o.question}: ${o.error ?? ''}`);
   }
   return lines.join('\n');
 }
 
-async function main(): Promise<void> {
-  const run = await runProbe({ env: process.env, date: new Date().toISOString().slice(0, DATE_CHARS), commit: headCommit() });
+function main(): void {
+  const run = runProbe({ env: process.env, date: new Date().toISOString().slice(0, DATE_CHARS), commit: headCommit() });
   const problems = probeProblems(run);
   if (problems.length > 0) {
-    console.error(`citation-probe: the run is not a valid v1 record:\n  ${problems.join('\n  ')}`);
+    console.error(`citation-probe: the run is not a valid v${PROBE_VERSION} record:\n  ${problems.join('\n  ')}`);
     process.exit(1);
   }
   const rel = writeProbe(run, REPO_ROOT);
@@ -313,8 +321,10 @@ async function main(): Promise<void> {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch((error: unknown) => {
+  try {
+    main();
+  } catch (error: unknown) {
     console.error(error);
     process.exit(1);
-  });
+  }
 }
