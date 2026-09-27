@@ -1,5 +1,11 @@
 # burgee
 
+## 0.14.0
+
+### Minor Changes
+
+- [#631](https://github.com/ofri-peretz/burgee/pull/631) [`478cb96`](https://github.com/ofri-peretz/burgee/commit/478cb968212fdd814c796530155918d7e2e16fb2) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `schema` answers as an alias of `--schema` (D-151, GAPS B22). `mytool schema`, `mytool schema deploy` and `mytool schema deploy --field options.region` print exactly what the flag forms print, because `<tool> schema` is where clispec.dev and the agents that follow it look for a program's schema. A program's own meaning of the word wins: a declared `schema` command runs as written, and a root command that takes arguments receives `schema` as one. The root `--help` now lists `--schema  the program as data` among its global options. Loaded through the existing lazy `surfaces.js`; the core entry grows 14 bundled bytes.
+
 ## 0.13.2
 
 ### Patch Changes

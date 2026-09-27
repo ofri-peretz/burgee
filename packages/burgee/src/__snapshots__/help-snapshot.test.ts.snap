@@ -9,16 +9,18 @@ enough to wrap at two of the
 three widths.
 
 Global options:
-  --json  machine-readable output
-  --help  show this help
+  --json    machine-readable
+            output
+  --help    show this help
+  --schema  the program as data
 
 Release commands:
-  deploy  Ship a build
-  status  Show status
+  deploy    Ship a build
+  status    Show status
 
 Commands:
-  login   Sign in
-  old     Legacy (deprecated)
+  login     Sign in
+  old       Legacy (deprecated)
 "
 `;
 
@@ -29,16 +31,17 @@ A fixture with every kind of help data, whose description is long enough to wrap
 at two of the three widths.
 
 Global options:
-  --json  machine-readable output
-  --help  show this help
+  --json    machine-readable output
+  --help    show this help
+  --schema  the program as data
 
 Release commands:
-  deploy  Ship a build
-  status  Show status
+  deploy    Ship a build
+  status    Show status
 
 Commands:
-  login   Sign in
-  old     Legacy (deprecated)
+  login     Sign in
+  old       Legacy (deprecated)
 "
 `;
 
@@ -48,16 +51,17 @@ exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > a group: gr
 A fixture with every kind of help data, whose description is long enough to wrap at two of the three widths.
 
 Global options:
-  --json  machine-readable output
-  --help  show this help
+  --json    machine-readable output
+  --help    show this help
+  --schema  the program as data
 
 Release commands:
-  deploy  Ship a build
-  status  Show status
+  deploy    Ship a build
+  status    Show status
 
 Commands:
-  login   Sign in
-  old     Legacy (deprecated)
+  login     Sign in
+  old       Legacy (deprecated)
 "
 `;
 
@@ -316,6 +320,8 @@ Global options:
   --json         machine-readable
                  output
   --help         show this help
+  --schema       the program as
+                 data
 
 Commands:
   deploy-service
@@ -339,6 +345,7 @@ exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > terms wider
 Global options:
   --json          machine-readable output
   --help          show this help
+  --schema        the program as data
 
 Commands:
   deploy-service  ASCII: code units and columns agree
@@ -355,6 +362,7 @@ exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > terms wider
 Global options:
   --json          machine-readable output
   --help          show this help
+  --schema        the program as data
 
 Commands:
   deploy-service  ASCII: code units and columns agree
