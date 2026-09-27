@@ -66,6 +66,8 @@ recorded here.
 | 2.3 | Docs analytics | agent | **done** — PostHog (project 428927, same as the blog) in the shared docs chassis ([#494](https://github.com/ofri-peretz/burgee/pull/494)) replaced Vercel Analytics; every page view carries `site`/`host`, verified for all nine hosts 2026-09-23. The `llms.txt` / `.md` routes are static — their hits come from Vercel request logs |
 | 2.4 | AI citation probe: 5 fixed questions × 3 assistants, weekly, logging whether burgee is named and which URL is cited | agent, plus **you** for API keys | 4 weeks of data in this file |
 
+2.4 is built, not done: `scripts/citation-probe.ts` runs weekly in `.github/workflows/citation-probe.yml` and lands each run by PR in `.sdlc/research/citation-probe/`; each assistant is `skipped` until **you** add its secret: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `PERPLEXITY_API_KEY`.
+
 The five probe questions are fixed so the series stays comparable:
 
 1. What is a good alternative to commander.js?
