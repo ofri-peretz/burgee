@@ -308,6 +308,7 @@ it survives the two paths it exists for. Both are now asserted: a handler that *
 `flush` does not keep the cursor hidden (the deadline stops waiting for a phase, it never
 skips one), and a handler that *threw* does not either. Raw mode and the alternate screen are
 still `cursor.ts`'s to grow — the README says so rather than implying a restore it does not do.
+*Grown 2026-09-27: see "R4 finished" below.*
 
 **R5** `once(fn)` is 441 B and reaches nothing: `onetime` (162.3 M/wk) plus `mimic-fn`
 (99.7 M/wk) in one function with no dependency. `name`, `length` and `this` are all asserted,
@@ -481,6 +482,68 @@ each handler once.
 root is ESM and carries the phase registry, and making it CommonJS for the override is a
 decision about the whole package, not a detail of this one.
 
+## What shipped (R4 finished — raw mode and the alternate screen — 2026-09-27)
+
+R4 promised three things and until today delivered one. `hideCursor` paired a change with its
+undo; raw mode and the alternate screen had no pairing, and the README said "still to come".
+`interactive-screens/intent.md` (D-158) names this as the one closeout change a full-screen
+package needs, so the screen package never writes a terminal restore of its own.
+
+- **`alternateScreen(stream)` and `rawMode(input)`, beside `hideCursor(stream)`.** Each makes
+  the change and registers its undo in the `restore` phase in the same call, returns the undo,
+  runs it at most once whoever asks first, and unregisters on an early call. One helper,
+  `paired()`, does that for all three, so there is one once-flag rather than three. The leaves
+  in `closeout/cursor` take the registrar as a second argument, as `hideCursor` did. Labels in a
+  breach report: `closeout:leave-alternate-screen`, `closeout:raw-mode-off`.
+- **Only what closeout turned on is turned off.** An input already raw belongs to a prompt
+  library or the program; `rawMode` changes nothing and registers nothing for it. A non-TTY
+  stream gets no escape in either direction, and a non-TTY input or one without `setRawMode`
+  gets no mode change. D-163.
+- **A defect the spawned test found, fixed in `registry.ts`.** A real process whose shutdown was
+  parked on a `flush` handler that holds nothing in the event loop drains the loop before the
+  deadline fires — the deadline's timer is `unref`'d — and leaves through `'exit'`. `runSync`
+  read that as a second trigger and did nothing, so `restore` was never invoked. `run` and
+  `runSync` now share one cursor over `PHASES`, and `'exit'` invokes every phase not yet
+  invoked, synchronously, each still exactly once.
+
+**Every exit path R4 names, asserted twice.** `restore.test.ts` drives `install({ process })`
+with a fake terminal for every signal in `SIGNALS`, `'exit'`, `'beforeExit'`,
+`uncaughtException`, `unhandledRejection`, a handler that threw (async and sync paths), a
+deadline that fired, and `'exit'` arriving while the run waits on `flush`. In every cell a
+release handler is registered *after* the terminal was taken, so only phase order can put the
+undos last. `terminal-restore.test.ts` spawns node and reads the child's fd 2 byte for byte:
+falling off the end, `process.exit(3)`, an uncaught throw, a handler that throws, a deadline
+that fired, a hang that holds nothing, and real SIGINT, SIGTERM and SIGHUP. Each ends
+`raw-off, leave-alt, show` after `raw-on, enter-alt, hide`, once.
+
+**The terminal in the spawned test is not a PTY, on purpose.** Node resets its own stdio's
+TTY mode as it exits, so a raw-mode assertion made through a real PTY passes on a closeout that
+never turns raw mode off. The child's keyboard writes a marker from `setRawMode`, which is the
+one call closeout makes, so the assertion can fail for the reason the package would be broken.
+
+**Proven red before green.** Against `main` all 35 new cases fail and the 124 existing ones pass (the API did not exist).
+Then each mutation below was applied to the finished code and the suite re-run:
+
+| Mutation | Result |
+| :-- | :-- |
+| `registry.ts` as on `main` — `runSync` a no-op once a run has started | 2 red: the in-process `'exit'`-while-parked cell and the spawned hang-that-holds-nothing, each `['raw-on', 'enter-alt', 'hide']` and nothing after |
+| alternate screen and raw mode registered in the default phase | 15 red: every in-process ordering cell, the undos landing before `release` |
+| `rawMode` without the `isRaw` check | 2 red: the leaf case and the install-level case, raw mode turned off under its owner |
+| `paired()` without its once-flag | 3 red, one per pairing, including the old `hideCursor` case |
+| `alternateScreen` without the TTY check | 2 red: escape bytes written into a pipe |
+| the undo returned but never registered | 9 red: every spawned case |
+
+**Weight.** Measured with `weight.test.ts`'s walker: `.` 12,171 → 13,875 B (budget 13,000 →
+14,500), `./cursor` 666 → 1,271 B (inside its 1,500), `./restore-cursor` 11,686 → 13,242 B
+(budget 12,500 → 14,000), `./plugin` 10,631 → 11,127 B and `./exit-hook` 11,910 → 12,406 B
+(both inside their budgets). Zero dependencies still, on every entry.
+
+**Left open, and not pinned by a test.** The same drained-loop path *leaves* wrongly: a process
+that received SIGTERM and then drained its loop with a handler parked exits 0 through `'exit'`
+instead of dying of the signal, because the leave in `install.ts` waits on a `run()` that never
+settles. That is R1/R10's contract rather than R4's, so the spawned case asserts the terminal
+and nothing about the exit status — a test asserting status 0 would pin the defect.
+
 ## The surface a consumer gets, derived from the tree (2026-09-15)
 
 R12 and its shipped entry already say everything about the plugin host. What is missing is
@@ -494,9 +557,9 @@ and `grep '^export' packages/closeout/src/<file>.ts`.
 
 | Subpath | What a consumer gets | What it is for |
 | :-- | :-- | :-- |
-| `closeout` | `install`, `onExit`, `createRegistry`, `once`, `hideCursor`, `showCursor`, `HIDE_CURSOR`, `SHOW_CURSOR`, `assertDeadline`, `DEFAULT_DEADLINE`, `DEFAULT_PHASE`, `PHASES`, `SIGNALS`, `EXIT_PATHS`, `DeadlineError`, `DEADLINE_ERROR_CODE`, `timeoutMessage`, `reportToJson`, `reportToEvent`; types `Closeout`, `Registry`, `RegistryOptions`, `ExitHandler`, `HandlerOptions`, `HandlerSpec`, `ExitInfo`, `ExitPath`, `ExitEvent`, `ExitReport`, `ShutdownReport`, `Phase`, `InstallOptions`, `OutputStream`, `ProcessLike` | register cleanup, bound it, and read what happened |
+| `closeout` | `install`, `onExit`, `createRegistry`, `once`, `hideCursor`, `showCursor`, `alternateScreen`, `rawMode`, `HIDE_CURSOR`, `SHOW_CURSOR`, `ENTER_ALTERNATE_SCREEN`, `LEAVE_ALTERNATE_SCREEN`, `assertDeadline`, `DEFAULT_DEADLINE`, `DEFAULT_PHASE`, `PHASES`, `SIGNALS`, `EXIT_PATHS`, `DeadlineError`, `DEADLINE_ERROR_CODE`, `timeoutMessage`, `reportToJson`, `reportToEvent`; types `Closeout`, `Registry`, `RegistryOptions`, `ExitHandler`, `HandlerOptions`, `HandlerSpec`, `ExitInfo`, `ExitPath`, `ExitEvent`, `ExitReport`, `ShutdownReport`, `Phase`, `InstallOptions`, `InputStream`, `OutputStream`, `ProcessLike` | register cleanup, bound it, and read what happened |
 | `closeout/once` | `once` | the `onetime` + `mimic-fn` contract in one function, `name`/`length`/`this` preserved (R5) |
-| `closeout/cursor` | `showCursor`, `hideCursor`, `HIDE_CURSOR`, `SHOW_CURSOR`; `OutputStream` | the escape bytes and the two calls, against a stream the caller passes |
+| `closeout/cursor` | `showCursor`, `hideCursor`, `alternateScreen`, `rawMode`, `HIDE_CURSOR`, `SHOW_CURSOR`, `ENTER_ALTERNATE_SCREEN`, `LEAVE_ALTERNATE_SCREEN`; `OutputStream`, `InputStream`, `Registrar` | the escape bytes and R4's three pairings, against a stream and a registrar the caller passes |
 | `closeout/plugin` | `register`, `validate`, `reset`, `registered`, `contributions`, `attach`, `CONTRACT`, `PLUGIN_PHASES`, `PluginError`; `Plugin`, `PluginHandler`, `Contribution`, `HandlerHost`, `PluginErrorCode` | the extension point (R12) |
 | `closeout/restore-cursor` | a default export, and nothing else | the drop-in path for `restore-cursor` — the stream is chosen from the process, which is why this is its own entry |
 | `closeout/exit-hook` | `asyncExitHook`, `gracefulExit`; `ExitHookCallback`, `AsyncExitHookOptions` | the drop-in path for `exit-hook` |

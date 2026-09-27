@@ -16,7 +16,15 @@
  * that two files needed it.
  */
 import { ambientProcess, type ProcessLike } from './ambient.js';
-import { hideCursor as hide, showCursor as show, type OutputStream } from './cursor.js';
+import {
+  alternateScreen as enterAlternate,
+  hideCursor as hide,
+  rawMode as raw,
+  showCursor as show,
+  type InputStream,
+  type OutputStream,
+  type Registrar,
+} from './cursor.js';
 import { createRegistry, type ExitHandler, type HandlerSpec, type Registry, type RegistryOptions } from './registry.js';
 
 /**
@@ -76,6 +84,13 @@ export interface Closeout {
   hideCursor(stream: OutputStream): () => void;
   /** Show the cursor now. Idempotent, and a no-op on a non-TTY. */
   showCursor(stream: OutputStream): void;
+  /** Enter the alternate screen and register leaving it; the returned function leaves it. */
+  alternateScreen(stream: OutputStream): () => void;
+  /**
+   * Turn raw mode on and register turning it off; the returned function turns it off. An
+   * input that was already raw is left alone, now and at exit.
+   */
+  rawMode(input: InputStream): () => void;
   /** The registry, for a caller that wants to drive shutdown itself. */
   readonly registry: Registry;
 }
@@ -256,18 +271,27 @@ export function install(options: InstallOptions = {}): Closeout {
   crash('uncaughtException', 'uncaught');
   crash('unhandledRejection', 'rejection');
 
+  /*
+   * Every terminal undo goes in the `restore` phase, not wherever the caller happened to draw.
+   *
+   * This is the line that makes the guarantee real. Before it, the cursor's restore sat
+   * at whatever position in one flat set the first `hideCursor()` call gave it — usually
+   * early, because a renderer hides the cursor the moment it starts drawing — and every
+   * handler registered afterwards ran *after* the terminal had already been handed back.
+   * The alternate screen and raw mode are entered at the same moment for the same reason,
+   * so they take the same phase through the same function.
+   */
+  const restoring =
+    (label: string): Registrar =>
+    (handler) =>
+      registry.add(handler, { phase: 'restore', label });
+
   return {
     onExit: (handler, spec) => registry.add(handler, spec),
-    /*
-     * The restore goes in the `restore` phase, not wherever the caller happened to draw.
-     *
-     * This is the line that makes the guarantee real. Before it, the cursor's restore sat
-     * at whatever position in one flat set the first `hideCursor()` call gave it — usually
-     * early, because a renderer hides the cursor the moment it starts drawing — and every
-     * handler registered afterwards ran *after* the terminal had already been handed back.
-     */
-    hideCursor: (stream) => hide(stream, (handler) => registry.add(handler, { phase: 'restore', label: 'closeout:restore-cursor' })),
+    hideCursor: (stream) => hide(stream, restoring('closeout:restore-cursor')),
     showCursor: show,
+    alternateScreen: (stream) => enterAlternate(stream, restoring('closeout:leave-alternate-screen')),
+    rawMode: (input) => raw(input, restoring('closeout:raw-mode-off')),
     registry,
   };
 }
@@ -294,4 +318,17 @@ export function hideCursor(stream: OutputStream): () => void {
 /** Show the cursor. Idempotent, and a no-op on a non-TTY. */
 export function showCursor(stream: OutputStream): void {
   show(stream);
+}
+
+/** Enter the alternate screen and register leaving it; the returned function leaves it. */
+export function alternateScreen(stream: OutputStream): () => void {
+  return sharedCloseout().alternateScreen(stream);
+}
+
+/**
+ * Turn raw mode on and register turning it off; the returned function turns it off. An input
+ * that was already raw belongs to somebody else and is left alone, now and at exit.
+ */
+export function rawMode(input: InputStream): () => void {
+  return sharedCloseout().rawMode(input);
 }

@@ -82,6 +82,28 @@ shown once either way.
 Nothing is written to a non-TTY. Escape sequences in a pipe corrupt the output the pipe
 exists to carry.
 
+### The alternate screen and raw mode, the same way
+
+```js
+import { alternateScreen, hideCursor, rawMode } from 'closeout';
+
+const undo = [rawMode(process.stdin), alternateScreen(process.stdout), hideCursor(process.stdout)];
+try {
+  await runTheFullScreenApp();
+} finally {
+  for (const back of undo) back();
+}
+```
+
+Each call makes the change and registers its undo in the `restore` phase, so a full-screen
+program that dies — Ctrl-C, SIGTERM, SIGHUP, a throw, a handler that threw, a deadline that
+fired — still hands back a terminal with raw mode off, the alternate screen left and the
+cursor shown, after every other handler has run. Each undo runs once, whoever asks first.
+
+`rawMode(input)` turns off only what it turned on. If the input is already raw, somebody else
+owns that state and the call changes nothing, now or at exit. An input that is not a terminal
+gets no mode change, and a stream that is not a terminal gets no escape, in either direction.
+
 ## The deadline
 
 ```js
@@ -126,7 +148,7 @@ inside it.
 ```js
 onExit(flushTheLog, 'flush');    // get the data out
 onExit(releaseTheLock);          // let go — the default, `release`
-// `restore` is closeout's own: cursor shown, raw mode off, last, always
+// `restore` is closeout's own: raw mode off, alternate screen left, cursor shown — last, always
 ```
 
 Registration order is the wrong order for a shutdown, and it is the order every incumbent
@@ -226,6 +248,8 @@ that could quietly skip it is how the missing re-raise survived two incumbent su
 | `once(fn)` | run at most once, first result thereafter — `name`, `length` and `this` kept |
 | `hideCursor(stream)` | hide and register the restore (in `restore`); returns the show function |
 | `showCursor(stream)` | show now — idempotent, no-op on a non-TTY |
+| `alternateScreen(stream)` | enter the alternate screen and register leaving it (in `restore`); returns the leave function |
+| `rawMode(input)` | turn raw mode on and register turning it off (in `restore`); an input already raw is left alone |
 | `install(options)` | wire a registry to a process; `{ deadline, onError, onTimeout, process }` |
 | `createRegistry(options)` | the registry alone, with no process |
 | `reportToJson(report)` / `reportToEvent(report)` | the two projections of the one record |
@@ -243,7 +267,7 @@ And the two leaves, for a program that wants one of them and none of the rest:
 | | |
 | :-- | :-- |
 | `closeout/once` | `once(fn)` — 441 B, reaching nothing |
-| `closeout/cursor` | `showCursor`, `hideCursor`, `HIDE_CURSOR`, `SHOW_CURSOR` — 666 B, no registry |
+| `closeout/cursor` | `showCursor`, `hideCursor`, `alternateScreen`, `rawMode` (each taking the registrar as a second argument), `HIDE_CURSOR`, `SHOW_CURSOR`, `ENTER_ALTERNATE_SCREEN`, `LEAVE_ALTERNATE_SCREEN` — 1,271 B, no registry |
 
 And from `closeout/plugin`:
 
@@ -308,8 +332,6 @@ product. Startup cost is the half that matches: p50 over 21 spawns, importing
 `closeout/exit-hook` costs **4.5 ms** over a bare `node`, and importing `exit-hook` itself
 costs **4.6 ms**.
 
-**Still to come:** raw mode and alternate-screen restore.
-
 ## Benchmarks
 
 Every number here is produced by `npm run bench` and published at [/docs/benchmarks](https://burgee.interlace.tools/docs/benchmarks).
@@ -322,7 +344,7 @@ Graded by the incumbent's own test suite:
 | `restore-cursor` | 6 / 6 |
 | `signal-exit` | 134 / 135 |
 
-Weight, installed and tree-inclusive: **103,646 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.5639**.
+Weight, installed and tree-inclusive: **109,370 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.5950**.
 ## Where it sits
 
 Plugins register under the `handlers` key, against the one schema the whole family shares.
