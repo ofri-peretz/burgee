@@ -13,7 +13,7 @@
  * - **`.sdlc/gaps/<id>.md`** — one gap. Front matter carries `id`, `section`, `status` and the
  *   section's two remaining columns; the body is the gap.
  *
- * **Ids.** The sequential ones already written — D-001..D-150, A1..A30, B1..B22, C1..C7 — keep
+ * **Ids.** The sequential ones already written — D-001..D-151, A1..A30, B1..B22, C1..C7 — keep
  * their names forever, because commits, specs, PR titles and workflow messages cite them. The
  * sequence itself is frozen: a new entry is `D-YYYYMMDD-slug` (or `A-`, `B-`, `C-` for a gap),
  * which two branches can only collide on by choosing the same slug on the same day — and then
@@ -42,7 +42,7 @@ export const GAPS_DIR = '.sdlc/gaps';
  * per entry. Every id at or under these exists (except the holes below) and none above them
  * may be written.
  */
-export const LEGACY = { D: 150, A: 30, B: 22, C: 7 } as const;
+export const LEGACY = { D: 151, A: 30, B: 22, C: 7 } as const;
 /** Sequential gap ids that were never written: GAPS.md went from A1 to A3 on the day it opened. */
 export const LEGACY_HOLES: readonly string[] = ['A2'];
 /** A slug long enough to say what the entry is and short enough to cite in a commit subject. */
@@ -234,7 +234,7 @@ function slugProblem(id: string, slug: string | undefined): string | undefined {
  * The sequence is frozen and new ids are dated.
  *
  * This is the check that turns "an agent following the old instructions" into a red build:
- * the old instructions say *the next number*, and the next number is D-151.
+ * the old instructions say *the next number*, and the next number is D-152.
  */
 export function decisionIdProblems(entries: readonly Decision[]): string[] {
   const out: string[] = [];

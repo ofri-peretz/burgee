@@ -15,7 +15,7 @@ governs it, and holds no decisions itself.
 checks: the repo-wide open-question count stays at or under the ceiling in
 `.sdlc/bands/open-questions.json`; no decision is half-written; no id is used twice; every
 `superseded_by` names a decision that exists; every file in `.sdlc/decisions/` is read as a
-decision, so none is skipped silently; every sequential id D-001..D-150 is still there; no new
+decision, so none is skipped silently; every sequential id D-001..D-151 is still there; no new
 id continues that sequence; and this file holds no decision rows. It does **not** verify that
 a question closed here was struck from the intent that raised it — that is step 3 below and it
 is on the author, because matching a decision to a prose bullet is a guess and a gate that
@@ -41,7 +41,7 @@ superseded_by: —
 empty, so it fails the lock until it is filled in. `npm run ledger -- decisions` prints the
 whole ledger as one table.
 
-**Ids.** D-001 to D-150 were numbered in sequence and keep those names forever — commits,
+**Ids.** D-001 to D-151 were numbered in sequence and keep those names forever — commits,
 specs, READMEs and PR titles cite them, and `.sdlc/decisions/D-102.md` is where `D-102`
 resolves. The sequence stopped there on 2026-09-27
 ([D-20260927-per-entry-ledgers](./decisions/D-20260927-per-entry-ledgers.md)): two branches

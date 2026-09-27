@@ -30,7 +30,7 @@
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { extname, join } from 'node:path';
+import { join } from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
@@ -73,20 +73,29 @@ const good = (over: Partial<Decision> = {}): Decision => ({
 /** A path to an entry, assembled so this file does not itself cite an entry that does not exist. */
 const to = (dir: string, id: string): string => `.sdlc/${dir}/${id}.md`;
 
-/** Tracked text files, read with git's view of the tree — and none of the caller's GIT_* variables. */
-function trackedText(): [string, string][] {
+/**
+ * Tracked files that name an entry path, as `[path, text]` — `git grep` picks them, so the check
+ * reads a few dozen files rather than every file in the tree (the first version read all of them
+ * and timed out at 30 s on a loaded pre-push). None of the caller's GIT_* variables leak in.
+ */
+function citingFiles(): [string, string][] {
   const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('GIT_')));
-  const TEXT = new Set(['.md', '.mdx', '.ts', '.tsx', '.mts', '.mjs', '.yml', '.yaml', '.json', '.sh']);
-  return execFileSync('git', ['ls-files', '-z'], { cwd: REPO_ROOT, env, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
-    .split('\0')
-    .filter((p) => TEXT.has(extname(p)) && p !== 'package-lock.json' && !p.startsWith('.sdlc/research/issues/') && !p.includes('/vendor/'))
-    .map((p): [string, string] => {
-      try {
-        return [p, readFileSync(join(REPO_ROOT, p), 'utf8')];
-      } catch {
-        return [p, '']; // deleted in the working tree and not yet staged
-      }
+  let listed = '';
+  try {
+    listed = execFileSync('git', ['grep', '-l', '-z', '-E', String.raw`(decisions|gaps)/[A-Z][A-Za-z0-9-]*\.md`, '--', '.', ':!package-lock.json', ':!.sdlc/research/issues', ':!**/vendor/**'], {
+      cwd: REPO_ROOT,
+      env,
+      encoding: 'utf8',
+      maxBuffer: 16 * 1024 * 1024,
     });
+  } catch (error) {
+    // `git grep` exits 1 when nothing matches; anything else is a real failure.
+    if ((error as { status?: number }).status !== 1) throw error;
+  }
+  return listed
+    .split('\0')
+    .filter(Boolean)
+    .map((p): [string, string] => [p, readFileSync(join(REPO_ROOT, p), 'utf8')]);
 }
 
 describe('decisions ledger', () => {
@@ -113,7 +122,7 @@ describe('decisions ledger', () => {
     expect(danglingSupersessions(entries)).toEqual([]);
   });
 
-  it('keeps every sequential id, D-001 to D-150 — they are cited in commits, specs and PR titles', () => {
+  it('keeps every sequential id, D-001 to D-151 — they are cited in commits, specs and PR titles', () => {
     expect(missingLegacy(entries.map((d) => d.id), legacyDecisionIds(), 'decision')).toEqual([]);
   });
 
@@ -126,7 +135,9 @@ describe('decisions ledger', () => {
   });
 
   it('resolves every path to a decision or a gap, wherever the tree cites one', () => {
-    expect(danglingLinks(trackedText())).toEqual([]);
+    const files = citingFiles();
+    expect(files.map(([p]) => p), 'git grep found no file citing an entry — the reader is broken, not the tree').toContain('README.md');
+    expect(danglingLinks(files)).toEqual([]);
   });
 
   it('renders every decision as one row of the old six-column shape', () => {
@@ -194,8 +205,8 @@ describe('each decisions check fails on a broken fixture', () => {
     expect(read.problems).toEqual([expect.stringMatching(/notes.txt is in .* and is not an entry/)]);
   });
 
-  it('the frozen sequence: D-151, a mis-dated id, an upper-case slug, an overlong slug', () => {
-    expect(decisionIdProblems([good({ id: 'D-151' })])[0]).toMatch(/continues the sequential numbering, which stopped at D-150/);
+  it('the frozen sequence: D-152, a mis-dated id, an upper-case slug, an overlong slug', () => {
+    expect(decisionIdProblems([good({ id: 'D-152' })])[0]).toMatch(/continues the sequential numbering, which stopped at D-151/);
     expect(decisionIdProblems([good({ id: 'D-20260926-x', date: '2026-09-27' })])[0]).toMatch(/is dated 2026-09-27/);
     expect(decisionIdProblems([good({ id: 'D-20260927-Per-Entry', date: '2026-09-27' })])[0]).toMatch(/is not a decision id/);
     expect(decisionIdProblems([good({ id: `D-20260927-${'a'.repeat(41)}`, date: '2026-09-27' })])[0]).toMatch(/slug is 41 characters/);
