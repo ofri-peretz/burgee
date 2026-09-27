@@ -15,9 +15,9 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { type BandConfig, collectBenchmark, DATED_JSON, mergeObservations } from './control-bands';
+import { type BandConfig, chronological, collectBenchmark, DATED_JSON, evaluate, mergeObservations, type Observation } from './control-bands';
 
 describe('which files are a suite’s series', () => {
   it.each(['2026-09-09.json', '2026-09-09-5bc506c.json', '2026-09-10-abc1234.json', '2026-09-22-c0fa8a3-ci.json', '2026-09-22-c0fa8a3-local.json'])('%s is one', (f) => {
@@ -51,6 +51,74 @@ describe('collectBenchmark', () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+});
+
+/**
+ * #636 — a day holds a dozen CI runs, named `<day>-<sha>-ci.json`, and the series was ordered by
+ * that name: within a day, by commit hash. Rules 2–4 read the LAST 3, 5 and 8 points, so they
+ * were evaluated over whichever hashes sorted last. Every results document carries its own
+ * `measured` timestamp; that is the order, and the name only breaks a tie.
+ */
+describe('a series is in the order it was measured, not the order its hashes sort', () => {
+  const cfg = { id: 'r', collector: 'benchmark-json', suite: 'cli-benchmarks', jsonPath: 'bands.r.value', window: 20, minPoints: 8, worse: 'higher' } as unknown as BandConfig;
+
+  /**
+   * Sixteen runs on one day alternating 100/101 in time — ordinary variation, no band breached.
+   * The 101s were given the hashes that sort last, so by name the last eight are all 101.
+   * Written once: on a machine that scans every new file, a fixture per test costs seconds.
+   */
+  const RUNS = 16;
+  let root = '';
+  beforeAll(() => {
+    root = mkdtempSync(join(tmpdir(), 'bands-'));
+    const dir = join(root, 'benchmarks', 'results', 'cli-benchmarks');
+    mkdirSync(dir, { recursive: true });
+    for (let i = 0; i < RUNS; i++) {
+      const high = i % 2 === 1;
+      const sha = `${high ? 'f' : '0'}${String(i).padStart(6, '0')}`;
+      const measured = `2026-09-24T${String(i).padStart(2, '0')}:00:00.000Z`;
+      writeFileSync(join(dir, `2026-09-24-${sha}-ci.json`), JSON.stringify({ measured, machine: { ci: true }, bands: { r: { value: high ? 101 : 100 } } }));
+    }
+  });
+  afterAll(() => rmSync(root, { recursive: true, force: true }));
+
+  it('collectBenchmark returns the day in measured order', () => {
+    const got = collectBenchmark(cfg, root);
+    expect(got.map((o) => o.value)).toEqual(Array.from({ length: RUNS }, (_, i) => (i % 2 === 1 ? 101 : 100)));
+    expect(got.every((o) => typeof o.measured === 'string')).toBe(true);
+  });
+
+  it('so an alternating day is inside its band — by hash order it was "8 consecutive above"', () => {
+    const series = mergeObservations([], collectBenchmark(cfg, root)).series;
+    expect(evaluate(cfg, series)).toBeNull();
+    // The same points in name order are what #636 evaluated.
+    const byName = [...series].sort((a, b) => a.date.localeCompare(b.date));
+    expect(evaluate(cfg, byName)?.rule).toBeDefined();
+  });
+
+  it('a stored series recorded without timestamps learns them and is re-ordered', () => {
+    // What the committed history holds today: hash order, no `measured`.
+    const stored: Observation[] = [
+      { date: '2026-09-24-0aaaaaa-ci', value: 2 },
+      { date: '2026-09-24-faaaaaa-ci', value: 1 },
+    ];
+    const collected: Observation[] = [
+      { date: '2026-09-24-faaaaaa-ci', value: 1, measured: '2026-09-24T01:00:00.000Z' },
+      { date: '2026-09-24-0aaaaaa-ci', value: 2, measured: '2026-09-24T02:00:00.000Z' },
+    ];
+    const got = mergeObservations(stored, collected);
+    expect(got.added).toBe(0);
+    expect(got.series.map((o) => o.value)).toEqual([1, 2]);
+    expect(got.series.map((o) => o.measured)).toEqual(['2026-09-24T01:00:00.000Z', '2026-09-24T02:00:00.000Z']);
+  });
+
+  it('breaks a tie on the name, and keeps an untimed point inside its own day', () => {
+    const a: Observation = { date: '2026-09-24-aaaaaaa-ci', value: 0, measured: '2026-09-24T05:00:00.000Z' };
+    const b: Observation = { date: '2026-09-24-bbbbbbb-ci', value: 0, measured: '2026-09-24T05:00:00.000Z' };
+    const untimed: Observation = { date: '2026-09-24', value: 0 };
+    const nextDay: Observation = { date: '2026-09-25-0000000-ci', value: 0, measured: '2026-09-25T00:00:00.000Z' };
+    expect([nextDay, b, untimed, a].sort(chronological)).toEqual([untimed, a, b, nextDay]);
   });
 });
 

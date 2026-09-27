@@ -46,6 +46,34 @@ export type Tier = '1σ' | '2σ' | '3σ';
 export interface Observation {
   date: string;
   value: number;
+  /**
+   * When the run was measured — the results document's own ISO `measured`. It is what orders
+   * points inside one day: `date` for an observation is `<day>-<sha>`, and a commit hash says
+   * nothing about when the commit ran. Absent for collectors that are one point per day.
+   */
+  measured?: string;
+}
+
+/** The file an observation was read from, and what orders two points no timestamp separates. */
+const sourceName = (o: Observation): string => `${o.date}.json`;
+
+/**
+ * Time order for a series: the document's `measured` timestamp, then the file name.
+ *
+ * Until 2026-09-27 a series was ordered by name alone, and a name is `YYYY-MM-DD-<sha>`, so
+ * the dozen CI runs of one day sat in the order of their commit hashes. Rules 2–4 read the
+ * *last* 3, 5 and 8 points; over an arbitrary order they fire on whichever hashes happen to sort
+ * last. #636 opened three breach intents off exactly that. A point with no timestamp keys on its
+ * file name, so it still lands inside its own day (`-` and `.` both sort before the `T` of an
+ * ISO time) and a series of day-dated points orders as it always did.
+ */
+export function chronological(a: Observation, b: Observation): number {
+  const ka = a.measured ?? sourceName(a);
+  const kb = b.measured ?? sourceName(b);
+  if (ka !== kb) return ka < kb ? -1 : 1;
+  const na = sourceName(a);
+  const nb = sourceName(b);
+  return na === nb ? 0 : na < nb ? -1 : 1;
 }
 
 export interface BandConfig {
@@ -162,6 +190,14 @@ function rule4(z: number[], bad: IsBad): Hit | null {
 }
 
 /**
+ * How close to the mean, relative to it, a point is *on* the mean. Floating-point noise, not a
+ * tolerance anyone chose: 20 copies of 0.8235294117647058 sum and divide back to a mean a few ulps
+ * away, which made σ ≈ 1e-16 instead of 0 and every point exactly −1σ — eight of them "below
+ * the mean", a rule 4 breach on a series that never moved (#636, compat-clack-pass-rate).
+ */
+const ON_THE_MEAN = 1e-9;
+
+/**
  * Western Electric rules over a window, evaluated at its most recent point.
  * Returns the highest-severity rule that fires, or null.
  */
@@ -169,9 +205,12 @@ export function detect(values: number[], worse: BandConfig['worse']): Hit | null
   if (values.length < MIN_POINTS_TO_DETECT) return null;
   const m = mean(values);
   const s = stdev(values);
-  // A flat series has σ=0. Nothing has moved, so nothing has drifted.
-  if (s === 0) return null;
-  const z = values.map((v) => (v - m) / s);
+  const tolerance = ON_THE_MEAN * Math.abs(m);
+  // A flat series has σ=0 — or, in floating point, a σ that is only rounding. Nothing has
+  // moved, so nothing has drifted, and no rule gets to divide by it.
+  if (s <= tolerance) return null;
+  // A point within rounding of the mean is on neither side of it: rule 4 counts sides.
+  const z = values.map((v) => (Math.abs(v - m) <= tolerance ? 0 : (v - m) / s));
   const bad: IsBad = (d) => worse === 'both' || (worse === 'lower' ? d === 'below' : d === 'above');
   return (
     rule1(z, bad) ??
@@ -244,26 +283,44 @@ export function onCi(doc: unknown): boolean {
   return (doc as { machine?: { ci?: unknown } } | null)?.machine?.ci === true;
 }
 
-/** Every dated result file in a benchmark suite, and the metric read out of each. */
-export function collectBenchmark(cfg: BandConfig, root = REPO_ROOT): Observation[] {
-  if (!cfg.jsonPath) return [];
-  const dir = path.join(root, 'benchmarks/results', cfg.suite ?? '');
+/** Every dated, parseable results document in a suite, oldest first by `chronological`. */
+function readDated(dir: string): { name: string; doc: unknown; measured?: string }[] {
   let files: string[];
   try {
-    files = fs.readdirSync(dir).filter((f) => DATED_JSON.test(f)).sort();
+    files = fs.readdirSync(dir).filter((f) => DATED_JSON.test(f));
   } catch {
     return [];
   }
-  const out: Observation[] = [];
+  const docs: { name: string; doc: unknown; measured?: string }[] = [];
   for (const file of files) {
-    let value: number | null;
     try {
       const doc: unknown = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf-8'));
-      value = onCi(doc) ? pick(doc, cfg.jsonPath) : null;
+      docs.push({ name: file.replace('.json', ''), doc, measured: measuredAt(doc) });
     } catch {
       continue; // a malformed historical run is not a reason to lose the rest
     }
-    if (value !== null) out.push({ date: file.replace('.json', ''), value });
+  }
+  return docs.sort((a, b) => chronological({ date: a.name, value: 0, measured: a.measured }, { date: b.name, value: 0, measured: b.measured }));
+}
+
+/** The document's own `measured` timestamp, when it has one. */
+function measuredAt(doc: unknown): string | undefined {
+  const m = (doc as { measured?: unknown } | null)?.measured;
+  return typeof m === 'string' ? m : undefined;
+}
+
+/** One observation, carrying `measured` only when the document has it. */
+function observation(date: string, value: number, measured: string | undefined): Observation {
+  return measured === undefined ? { date, value } : { date, value, measured };
+}
+
+/** Every dated result file in a benchmark suite, and the metric read out of each — in time order. */
+export function collectBenchmark(cfg: BandConfig, root = REPO_ROOT): Observation[] {
+  if (!cfg.jsonPath) return [];
+  const out: Observation[] = [];
+  for (const { name, doc, measured } of readDated(path.join(root, 'benchmarks/results', cfg.suite ?? ''))) {
+    const value = onCi(doc) ? pick(doc, cfg.jsonPath) : null;
+    if (value !== null) out.push(observation(name, value, measured));
   }
   return out;
 }
@@ -290,27 +347,16 @@ export function collectBenchmark(cfg: BandConfig, root = REPO_ROOT): Observation
  */
 export function unmeasured(cfg: BandConfig, root = REPO_ROOT): { newest: string; reason: string } | undefined {
   if (cfg.collector !== 'benchmark-json' || !cfg.jsonPath) return undefined;
-  const dir = path.join(root, 'benchmarks/results', cfg.suite ?? '');
-  // The newest *CI* document: a local run feeds no band, so it cannot be the one that did not measure it.
-  let newest: string | undefined;
-  let doc: unknown;
-  try {
-    for (const f of fs.readdirSync(dir).filter((f) => DATED_JSON.test(f)).sort().reverse()) {
-      doc = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf-8'));
-      if (onCi(doc)) {
-        newest = f;
-        break;
-      }
-    }
-  } catch {
-    return undefined;
-  }
-  if (newest === undefined) return undefined;
+  // The newest *CI* document: a local run feeds no band, so it cannot be the one that did not
+  // measure it. Newest by `measured`, as the series is — a name only orders by day.
+  const latest = readDated(path.join(root, 'benchmarks/results', cfg.suite ?? '')).filter((d) => onCi(d.doc)).at(-1);
+  if (latest === undefined) return undefined;
+  const { doc } = latest;
   if (pick(doc, cfg.jsonPath) !== null) return undefined;
   // The path is `bands.<id>.value`; the entry beside it says why there is no value.
   const entry = cfg.jsonPath.split('.').slice(0, -1).reduce<unknown>((a, k) => (a === null || typeof a !== 'object' ? null : Reflect.get(a, k)), doc);
   const reason = entry !== null && typeof entry === 'object' && 'reason' in entry ? String(Reflect.get(entry, 'reason')) : 'the metric is absent from the document';
-  return { newest: newest.replace('.json', ''), reason };
+  return { newest: latest.name, reason };
 }
 
 /** 32 MiB — a long `git log --all` in a busy repo. */
@@ -346,7 +392,7 @@ function collectFromGit(cfg: BandConfig): Observation[] {
       const blob = execFileSync('git', ['show', `${revs.at(-1)}:${rel}`], { cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: GIT_BUFFER });
       const doc: unknown = JSON.parse(blob);
       const value = onCi(doc) ? pick(doc, cfg.jsonPath) : null;
-      if (value !== null) out.push({ date: path.basename(rel).replace('.json', ''), value });
+      if (value !== null) out.push(observation(path.basename(rel).replace('.json', ''), value, measuredAt(doc)));
     } catch {
       continue; // a historical run in a different shape is not a reason to lose the rest
     }
@@ -484,21 +530,26 @@ async function collect(cfg: BandConfig, fromGit: boolean): Promise<Observation[]
  * is returned rather than silently resolved to whichever came first.
  */
 export function mergeObservations(existing: readonly Observation[], collected: readonly Observation[]): { series: Observation[]; added: number; conflicts: string[] } {
-  const series = [...existing];
-  const known = new Map(existing.map((o) => [o.date, o.value]));
+  const series = existing.map((o) => ({ ...o }));
+  const known = new Map(series.map((o) => [o.date, o]));
   const conflicts: string[] = [];
   let added = 0;
   for (const obs of collected) {
     const seen = known.get(obs.date);
     if (seen === undefined) {
-      series.push(obs);
-      known.set(obs.date, obs.value);
+      const copy = { ...obs };
+      series.push(copy);
+      known.set(obs.date, copy);
       added++;
-    } else if (seen !== obs.value) {
-      conflicts.push(`${obs.date}: ${String(seen)} then ${String(obs.value)}`);
+    } else if (seen.value !== obs.value) {
+      conflicts.push(`${obs.date}: ${String(seen.value)} then ${String(obs.value)}`);
+    } else if (seen.measured === undefined && obs.measured !== undefined) {
+      // A point recorded before the series carried timestamps learns its own, so a stored
+      // series can be put in time order without being thrown away and re-read.
+      seen.measured = obs.measured;
     }
   }
-  series.sort((a, b) => a.date.localeCompare(b.date));
+  series.sort(chronological);
   return { series, added, conflicts };
 }
 
