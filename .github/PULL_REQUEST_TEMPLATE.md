@@ -14,6 +14,8 @@
 - [ ] `npm test` — every lock and unit test
 - [ ] If this fixes a bug: the new test fails on the unfixed code (name the file)
 - [ ] If this touches `packages/*/src`: a changeset is included, or `skip-changeset` is applied
+- [ ] Every decision or gap is a new file under `.sdlc/decisions/` or `.sdlc/gaps/`
+      (`npm run ledger -- new …`), never a row in `DECISIONS.md` / `GAPS.md` or the next number
 
 ## After merge
 

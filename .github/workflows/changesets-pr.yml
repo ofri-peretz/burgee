@@ -107,7 +107,7 @@ jobs:
           else
             echo "source=github-token" >> "$GITHUB_OUTPUT"
             missing="vars.RELEASE_APP_ID=$([ "$HAS_APP_ID" = "true" ] && echo set || echo MISSING), secrets.RELEASE_APP_PRIVATE_KEY=$([ "$HAS_APP_KEY" = "true" ] && echo set || echo MISSING), secrets.RELEASE_BOT_PAT=MISSING"
-            echo "::warning title=Version PR opened with GITHUB_TOKEN::No release credential is configured ($missing). A PR opened with GITHUB_TOKEN raises no workflow runs, so this workflow will dispatch the required checks itself, mirror them onto the PR, and merge it itself. Set RELEASE_APP_ID (repo variable) + RELEASE_APP_PRIVATE_KEY (repo secret), or RELEASE_BOT_PAT, to retire the fallback — see .sdlc/GAPS.md C5."
+            echo "::warning title=Version PR opened with GITHUB_TOKEN::No release credential is configured ($missing). A PR opened with GITHUB_TOKEN raises no workflow runs, so this workflow will dispatch the required checks itself, mirror them onto the PR, and merge it itself. Set RELEASE_APP_ID (repo variable) + RELEASE_APP_PRIVATE_KEY (repo secret), or RELEASE_BOT_PAT, to retire the fallback — see .sdlc/gaps/C5.md."
           fi
 
       - name: Open / refresh Version PR

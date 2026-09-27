@@ -121,7 +121,7 @@ directory — no workflow edit (criterion 6, locked).
 
 ## Needs you (cannot be done by an agent)
 
-- Release token: GitHub App (`RELEASE_APP_ID` / `RELEASE_APP_PRIVATE_KEY`) or `RELEASE_BOT_PAT`. See `GAPS.md` C5.
+- Release token: GitHub App (`RELEASE_APP_ID` / `RELEASE_APP_PRIVATE_KEY`) or `RELEASE_BOT_PAT`. See gap C5, `.sdlc/gaps/C5.md`.
 - Merge-queue ruleset on `main` (C6), and npm Trusted Publishing for the nine packages (C7).
 - Search Console and Bing verification (1.1); Vercel Analytics (2.3); API keys for B1 and the probe (2.1, 2.4).
 - Approving the three burgee intents in `blog-public` (3.1–3.3) and posting the launch.

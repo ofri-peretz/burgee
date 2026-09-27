@@ -15,6 +15,11 @@
   can take **3–4 minutes**. That is not a hang. If a push is killed mid-flight, check
   `git log origin/<branch> -1` before retrying — a timed-out push may still have landed.
 - IMPORTANT: never `--no-verify`. The hooks are the gate.
+- **Recording a decision or a gap is one new file**, never a row in `.sdlc/DECISIONS.md` or
+  `.sdlc/GAPS.md` — those hold the policy only, and a row written there fails a lock.
+  `npm run ledger -- new decision <slug>` → `.sdlc/decisions/D-YYYYMMDD-<slug>.md`;
+  `npm run ledger -- new gap <A|B|C|release> <slug>` → `.sdlc/gaps/<letter>-YYYYMMDD-<slug>.md`.
+  Never "the next number": the sequential ids are frozen, so parallel PRs stop colliding.
 - Waiting on CI? `gh pr checks <PR> --watch`. Never hand-roll `until … gh pr view … sleep` —
   those loops get killed by the harness timeout and end knowing nothing.
 

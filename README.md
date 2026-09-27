@@ -317,11 +317,11 @@ Our `commander/command.js` is 33,487 bundled against commander's 27,226, and the
 carries a cross-platform spawn that cannot go lazy without giving up `parse()`'s synchronous
 contract and the 1360 / 1360 compat row that rests on it. And `import 'cac'` is one file in
 4.2 ms where `import 'burgee'` is twenty-one in 20 ms. Closing them means deleting the product,
-not optimising it; the decision is [D-102](./.sdlc/DECISIONS.md).
+not optimising it; the decision is [D-102](./.sdlc/decisions/D-102.md).
 
 The last one has never run. B1 spawns 50 agent runs and refuses to start without a credential,
 and nothing in the suite can turn a run that did not happen into a number — `emit.test.ts`
-enforces that. It is [D-103](./.sdlc/DECISIONS.md).
+enforces that. It is [D-103](./.sdlc/decisions/D-103.md).
 
 Installed size is our largest number and it is larger than commander's. It buys no dependency
 outside the burgee family and six drop-in front ends, and it stays on the page either way: *not met* and
