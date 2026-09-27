@@ -72,5 +72,5 @@ it deliberately.
 
 ## Open questions
 
-- Is this a real regression, a change in what we measure, or a change in the corpus?
-- Which commit is the first one outside the band?
+- Decided 2026-09-27 → D-153: a deliberate feature, not a regression — #483 put `exitCodes` in `--schema`, exactly 90 bytes. Is this a real regression, a change in what we measure, or a change in the corpus?
+- Decided 2026-09-27 → D-065: answered by the bisect in D-153. Which commit is the first one outside the band?

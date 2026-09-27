@@ -167,10 +167,11 @@ function rule4(z: number[], bad: IsBad): Hit | null {
  */
 export function detect(values: number[], worse: BandConfig['worse']): Hit | null {
   if (values.length < MIN_POINTS_TO_DETECT) return null;
+  // A flat series has not moved, so it has not drifted. Asked of the values, not of σ: a
+  // ratio like 14/17 sums to a mean one ulp off every point, σ ≈ 3e-16, and every z is -1.
+  if (values.every((v) => v === values[0])) return null;
   const m = mean(values);
   const s = stdev(values);
-  // A flat series has σ=0. Nothing has moved, so nothing has drifted.
-  if (s === 0) return null;
   const z = values.map((v) => (v - m) / s);
   const bad: IsBad = (d) => worse === 'both' || (worse === 'lower' ? d === 'below' : d === 'above');
   return (

@@ -35,6 +35,13 @@ describe('statistics', () => {
     // has not drifted; it is the healthiest series there is.
     expect(detect([100, 100, 100, 100, 100, 100, 100, 100, 100], 'lower')).toBeNull();
   });
+
+  it('treats a flat series of a non-representable ratio as flat, not as a run below its own mean', () => {
+    // 14/17 summed twenty times rounds to a mean one ulp above every point, σ ≈ 3e-16, and
+    // every z-score is -1: rule 4 read that as eight consecutive below the mean and opened
+    // control-band-compat-clack-pass-rate on 2026-09-27 for a series that never moved.
+    expect(detect(Array.from({ length: 20 }, () => 14 / 17), 'lower')).toBeNull();
+  });
 });
 
 describe('Western Electric rules', () => {
