@@ -1,0 +1,78 @@
+---
+title: Coming from cli-table3
+description: "A cli-table3 alternative with a drop-in path: import Table from flagstaff/cli-table3, graded 29 / 29 by cli-table3's own test suite — then a table component whose static projection gives a pipe and an agent one line of header: value pairs per row."
+---
+
+**flagstaff** is a **cli-table3 alternative** you adopt by changing one import.
+`flagstaff/cli-table3` is cli-table3 0.6.5's API, and cli-table3's own test suite is the
+grade.
+
+## Migrate from cli-table3 in one import
+
+```diff
+- const Table = require('cli-table3');
++ import Table from 'flagstaff/cli-table3';
+```
+
+From CommonJS, `require('flagstaff/cli-table3')` hands back the class, as
+`require('cli-table3')` does, on Node 20.19+ and 22.13+.
+
+Everything else stays: `new Table({ head, chars, style, colWidths, rowHeights, colAligns,
+rowAligns, truncate, wordWrap, wrapOnWordBoundary })`, with `style`'s `padding-left`,
+`padding-right`, `head`, `border` and `compact`; per-cell `colSpan`, `rowSpan`, `hAlign`,
+`vAlign` and `href`; `.toString()` and `.width`; and the `debug` channel with
+`table.messages` and `Table.reset()`. It extends `Array`, because cli-table3 does and its
+callers `push` rows onto it.
+
+## Is flagstaff compatible with cli-table3?
+
+Graded, not claimed. cli-table3's own suite, vendored at 0.6.5 and unmodified apart from the
+import specifier, runs against `flagstaff/cli-table3` beside a control that runs it against
+real cli-table3. The gate is the cases that go through the public surface, less nine that
+call `commonTests(require('cli-table'))` — the *legacy* package, which pass whatever the
+target is and are excluded by name:
+
+| | passing | rate |
+| :-- | --: | --: |
+| `flagstaff/cli-table3` | 29 / 29 | 100.0% |
+| cli-table3 itself (control) | 29 / 29 | 100.0% |
+
+From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
+oracle's last run; that page is the authority. The rest of the suite `require`s cli-table3's
+internal modules directly; those are reported in an informational column — 103 / 104, equal
+to the control's 103 / 104 — and never gate the number, because passing them would mean
+copying cli-table3's file layout rather than matching its behaviour. The same page grades
+flagstaff's `ora`, `log-update` and `boxen` paths.
+
+## What you gain over cli-table3
+
+For a table the drawing **is** the contract — column-width negotiation, span fill-in and ANSI
+state across wrapped lines are all upstream's — so the façade alone changes the dependency
+tree and not the output. cli-table3 0.6.5 resolves to seven packages; this subpath reaches
+`linegauge`, `paratext/link` and `roundel/chalk`, all from the burgee family.
+
+The gain beyond that is `flagstaff/table`, a smaller API you adopt a file at a time — no
+spans, and column widths that are measured rather than negotiated: `table(rows, { head,
+width, align })` for the string, and `tableComponent()` to put the table on the frame loop:
+
+| mode | what `hoist(tableComponent(), …)` writes |
+| :-- | :-- |
+| `tty` | the grid |
+| `pipe`, `ci`, `accessible` | one line per row of `header: value` pairs |
+| `json` | one NDJSON event per transition, on stderr |
+
+A grid of box characters is unreadable in a log and worse to a screen reader; pairs are what
+an agent parses without knowing anything about the drawing. That **static projection** is
+required of every flagstaff component, and which mode runs is decided once by roundel's
+output policy. A linked cell, `{ text, href }`, is a terminal hyperlink where the terminal is
+believed to support OSC 8 and `text (url)` everywhere else — cli-table3's `href` emits the
+sequence unconditionally, and the façade keeps that because it is the incumbent's behaviour.
+
+## When to switch from cli-table3
+
+- Your tables are read by an agent, parsed from CI logs or read by a screen reader.
+- You want cli-table3's exact drawing without its dependency tree — the import swap alone
+  does that.
+
+The loop, the built-ins and the other drop-in paths are on
+[flagstaff](/docs).

@@ -8,7 +8,7 @@
   "additionalProperties": false,
   "properties": {
     "schema": { "const": 1 },
-    "suite": { "enum": ["cli-benchmarks", "agent-cli-bench"] },
+    "suite": { "enum": ["cli-benchmarks", "agent-cli-bench", "external-floor"] },
     "measured": { "type": "string", "format": "date-time" },
     "commit": { "type": "string", "description": "The commit the numbers describe, or `unknown` outside a checkout — never a guess." },
     "machine": {
@@ -36,7 +36,7 @@
         "type": "object",
         "required": ["axis", "variant", "metric", "unit", "samples", "median", "p95"],
         "properties": {
-          "axis": { "enum": ["agent", "perf", "compat", "weight"] },
+          "axis": { "enum": ["agent", "perf", "compat", "weight", "reliability", "floor"] },
           "variant": { "type": "string", "description": "What was measured: a CLI variant, a host, an entry point, or a ratio of two of those, written `a ÷ b`." },
           "metric": { "type": "string" },
           "unit": { "type": "string" },

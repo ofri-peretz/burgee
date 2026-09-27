@@ -346,6 +346,12 @@ export interface Host {
   status: 'active' | 'planned' | 'rejected';
   /** Why, for anything not active. */
   note?: string;
+  /**
+   * C1 — set on a row in {@link PREVIOUS_MAJORS} only: the key of the {@link HOSTS} row whose
+   * incumbent this grades at an older major. The same package, the same façade, the suite of
+   * another release — so the row's `pinnedVersion` names the major and this names the host.
+   */
+  majorOf?: string;
 }
 
 export const HOSTS: Host[] = [
@@ -1266,3 +1272,127 @@ export const HOSTS: Host[] = [
 ];
 
 export const active = (): Host[] => HOSTS.filter((h) => h.status === 'active');
+
+/**
+ * C1 — each façade's claim at a major **other than the current one**, graded by that major's
+ * own suite.
+ *
+ * `HOSTS` pins one release per incumbent, and a pin is one major: `burgee/commander` was
+ * graded against commander 15's suite and against nothing a commander 14 program was written
+ * to. A drop-in that says which majors it serves has to be graded at each of them, or the
+ * range is an argument rather than a measurement — the same rule the rest of this file keeps.
+ *
+ * A separate list and not rows of `HOSTS`, because `HOSTS` is read as *one row per incumbent*
+ * by the compat page, the benchmark bands, `burgee migrate`'s drop-in list and a dozen locks;
+ * a second commander row there would be a second commander everywhere. Here each row is a
+ * full `Host` — its own key, vendor directory and baseline fragment under `baseline/majors/`
+ * — whose `majorOf` names the host it is an older release of, and whose `pinnedVersion` is
+ * the last release of that major. The incumbent is installed beside the suite through
+ * `suiteDeps`, so the control is the real older package and never the workspace's hoisted
+ * current one.
+ *
+ * `npm run compat -- --majors` grades exactly these; `--majors --control` grades the
+ * incumbents. `packages/burgee/src/compat.ts`'s `SUPPORTED_MAJORS` is the published half of
+ * the claim, and `scripts/supported-majors-lock.test.ts` holds the two together.
+ */
+export const PREVIOUS_MAJORS: Host[] = [
+  {
+    name: 'commander-14',
+    npmName: 'commander',
+    majorOf: 'commander',
+    repo: 'https://github.com/tj/commander.js',
+    testDir: 'tests',
+    // jest's own default `testMatch`, which is what commander 14's `jest.config.js` leaves in
+    // force: `.test.js` and the one `.test.ts`. 15 moved to node:test and to three extensions.
+    testGlob: '*.test.{js,ts}',
+    // Every other file writes `require('../')`, which reaches the vendored root's `main` —
+    // the shim — the way rc's and yargs' CJS fixtures already do. One file names the file.
+    imports: [{ upstream: '../index.js', subpath: '', reexportDefault: false }],
+    surfaceFiles: ['typings/index.d.ts', 'index.js'],
+    // jest 30 upstream. The oracle runs a jest suite under vitest with jest's globals mapped
+    // (`run.ts`, `jestGlobals`), as it runs cli-table3's and lilconfig's.
+    runner: 'vitest',
+    pinnedVersion: '14.0.3',
+    suiteDeps: ['commander@14.0.3'],
+    target: 'burgee/commander',
+    status: 'active',
+    note: "**Measured 2026-09-24: 1329 / 1331 against a control of 1331 / 1331 — not level, so 14 is graded and not claimed** (`SUPPORTED_MAJORS.commander` is `[15]`). The two that fail are one change between the majors, named from the raw TAP: `command.exitOverride.test.js > .exitOverride and error details > when specify excess argument then throw CommanderError` and `… > when specify command with excess argument then throw CommanderError`. Commander 15 names the surplus argument in the message — `error: too many arguments. Expected 0 arguments but got 1: excess.` — and 14 stops at `got 1.`; the façade speaks 15. The control reached 1331 only once the runner stopped handing a jest suite vitest's own worker flags (`jestGlobals`, `process.execArgv`): ten `executableSubcommand.search` cases assert the spawned argv, and before that fix they failed against commander 14 itself.",
+  },
+  {
+    name: 'yargs-17',
+    npmName: 'yargs',
+    majorOf: 'yargs',
+    repo: 'https://github.com/yargs/yargs',
+    testDir: 'test',
+    // 17's suite is CommonJS (`c8 mocha ./test/*.cjs`); 18 moved it to `.mjs`.
+    testGlob: '*.cjs',
+    // Every file in it requires the CommonJS build, and that build is the *singleton*:
+    // `require('yargs')` in 17 is `Argv`, callable and already bound to `process.argv`. An
+    // ESM shim would hand the suite `index.mjs` — the factory — and grade the wrong entry of
+    // the incumbent, so the shim is CommonJS and the control really is `require('yargs')`.
+    shim: 'cjs',
+    imports: [
+      // Not unwrapped: the singleton carries every instance method, `.default(key, value)`
+      // among them, so `loaded.default ?? loaded` handed the suite a method bound to
+      // `process.argv` — mocha's — and every `yargs([...])` parsed mocha's own command line.
+      // `require()` of the façade already returns the callable (its `'module.exports'` export).
+      { upstream: '../index.cjs', subpath: '', reexportDefault: false },
+      // `yargs/yargs`, 17's non-singleton factory and the form its README teaches for
+      // CommonJS. yargs 18's own exports map points `./yargs` at its main entry, so the
+      // façade's main is what the name means one major on, and it is graded as that.
+      { upstream: '../yargs.cjs', subpath: '', reexportDefault: true, control: 'yargs/yargs' },
+      { upstream: 'yargs-parser', subpath: '/parser', reexportDefault: true, control: 'yargs-parser' },
+    ],
+    // `../build/index.cjs`, the compiled bundle 17 exports its helpers from (`argsert`,
+    // `YError`, `parseCommand`). 18 reaches the same classes through `build/lib/`.
+    internalDir: 'build',
+    runner: 'mocha',
+    // `fixtures/`, `esm/` and `deno/` are copied too and hold no `*.cjs`, so the walk grades
+    // nothing in them and there is nothing to declare: 17's ESM suite (`test:esm` upstream)
+    // and its Deno suite are `.mjs` and `.ts`, never run by this mocha.
+    ungradedDirs: [
+      {
+        dir: 'helpers',
+        why: '`utils.cjs`, the output-capture helper the top-level tests require. A helper, never a test.',
+      },
+    ],
+    preamble: 'before.cjs',
+    timeoutMs: 12_000,
+    extraDirs: ['locales'],
+    surfaceFiles: ['lib/yargs-factory.ts', 'lib/typings/yargs-parser-types.ts', 'helpers/index.js'],
+    pinnedVersion: '17.7.3',
+    // Upstream's devDependencies the suite requires by name, at the newest release inside the
+    // range 17.7.3 declares — chai 4 is CommonJS where the workspace's 6 is not, and mocha 9 is
+    // what the suite was written against. The incumbent itself, for the control.
+    suiteDeps: [
+      'yargs@17.7.3',
+      // Named so it is the top-level copy. mocha 9 brings yargs-parser 20 through its own
+      // yargs 16, npm hoisted that one, and yargs 17's 21 went nested under it — so the
+      // suite's `require('yargs-parser')` and the incumbent's were two packages, and
+      // `yargs.Parser.should.equal(Parser)` failed against yargs itself.
+      'yargs-parser@21.1.1',
+      'chai@4.5.0',
+      'chalk@4.1.2',
+      'cpr@3.0.1',
+      'cross-spawn@7.0.6',
+      'hashish@0.0.4',
+      'mocha@9.2.2',
+      'rimraf@3.0.2',
+      'which@2.0.2',
+      'yargs-test-extends@1.0.1',
+    ],
+    controlFailures: {
+      count: 1,
+      why: "`helpers > applyExtends > exposes applyExtends helper` extends `./package.json` from the cwd and asserts its `name` is `yargs`. The cwd is the vendored root, whose manifest is deliberately `@vendored/yargs-17-suite` (`rootPackage()` — upstream's name would let Node's self-reference resolve `yargs` to a file that is not here). The current-major row's two allowed failures are the same lookup reading the same file.",
+    },
+    target: 'burgee/yargs',
+    status: 'active',
+    note: "**Measured 2026-09-24: 191 / 794, 24.1%, against a control of 793 / 794 — 17 is graded and not claimed** (`SUPPORTED_MAJORS.yargs` is `[18]`). It is one decision of 18's, not 603 gaps: **17's `require('yargs')` is a singleton** — an instance already bound to `process.argv`, with every method on the required object — and 18 removed it, so the façade, which speaks 18, hands a `require()` caller the factory. Every file but three opens with `yargs.getInternalMethods().reset()` or `require('../../').help(…)` on that object, so the `beforeEach` of `Command`, `Completion`, `usage tests` and `validation tests` throws `yargs.getInternalMethods is not a function` and mocha abandons the rest of each block: **274 of the 794 register at all**, and the 520 that never run are counted against the row, not dropped. Of the 83 that register and fail, the named groups are the same cause seen from the inside: the 14 `integration tests` spawn fixtures that call `require('../../').help('help')`; `helpers` wants 17's `yargs/yargs` statics (`applyExtends`, `Parser`, `hideBin`) on the factory, where 18 moved them to `yargs/helpers`; `should expose yargs-parser as Parser` reads `Parser` off 17's build bundle; and the `yargs dsl tests` failures (`$0` from the bin name, electron argv, `locale`, `env`, `terminalWidth`, the minimum-Node check) each drive the singleton or its module-scope state. Three harness fixes were needed before the control read 793 and none moved an assertion: the mocha 9 CLI path (`mochaCli`), a top-level `yargs-parser@21.1.1` in `suiteDeps`, and a CommonJS shim that evicts the incumbent only when the suite busted the shim (`cjsLoad`) with the internal `build/index.cjs` a link to the incumbent's own on a control run (`linksInternal`).",
+  },
+];
+
+/** Every host the oracle grades: the current majors, then the previous ones (C1). */
+export const gradable = (): Host[] => [...active(), ...PREVIOUS_MAJORS];
+
+/** A host by key, current major or previous. */
+export const hostNamed = (name: string): Host | undefined => [...HOSTS, ...PREVIOUS_MAJORS].find((h) => h.name === name);

@@ -39,9 +39,19 @@ The bytes figure is the one that does not flatter us: commander reads fewer, bec
 errors carry a `hint` naming the fix. That is a trade of bytes per failure against failed
 turns, and only B1 proper can settle it. It is measured and published anyway.
 
-## B1 does not run here, and says so
+## B1 does not run without a credential, and says so
 
-It needs `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY`. Without one the axis reports
+It needs `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` — or, on a machine where `claude`
+is already logged in, `BURGEE_USE_CLAUDE_LOGIN=1`, which the harness checks with
+`claude auth status` rather than assuming. Either way `claude` is spawned with
+`--setting-sources project,local --strict-mcp-config`, so a developer's own `~/.claude`
+(measured at 10,228 tokens a turn) is not part of the measurement.
+
+**First run, 2026-09-24** (`results/agent-cli-bench/2026-09-24-2a51440-local.json`, D-147):
+burgee 78,225 tokens / 3 turns per task, commander 130,165 / 5; tokens ratio **0.601 — the
+≥40% claim is not met**, by 0.001 on n = 25 a side; turns ratio 0.600 — the ≥30% claim is met.
+
+Without a credential the axis reports
 `skipped` with the reason, its two bands carry that reason instead of a number, and the
 claims it would settle — the roadmap's *≥40% fewer tokens, ≥30% fewer turns* — read
 `unmeasured`, never `false`.

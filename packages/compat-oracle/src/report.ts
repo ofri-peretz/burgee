@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { active, type Host, HOSTS } from './hosts.js';
+import { active, gradable, type Host, hostNamed, HOSTS, PREVIOUS_MAJORS } from './hosts.js';
 import { type Baseline, controlName, type Grade, grade, readBaseline, regressed } from './run.js';
 import { diffRecords, isEmptyDiff, latestVersion, readRecord, renderDiff } from './upstream.js';
 import { vendor } from './vendor.js';
@@ -18,6 +18,8 @@ import { check as checkCompetitors, fingerprint as writeFingerprints } from './w
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const VENDOR_DIR = resolve(root, 'vendor');
 const BASELINE = resolve(root, 'baseline');
+/** C1 — the previous majors' fragments, one directory down so nothing reading `baseline/` as one row per incumbent sees them. */
+const MAJORS_BASELINE = resolve(BASELINE, 'majors');
 const RESULTS = resolve(root, 'results.json');
 const CONTROL_RESULTS = resolve(root, 'results.control.json');
 const VENDOR_DIFF = resolve(root, 'vendor-diff.md');
@@ -146,7 +148,7 @@ function vendorAll(hosts: Host[], write: Write): void {
 }
 
 /** What a host is allowed to fail against its own package, and nothing more. */
-const allowedFailures = (host: string): number => HOSTS.find((h) => h.name === host)?.controlFailures?.count ?? 0;
+const allowedFailures = (host: string): number => hostNamed(host)?.controlFailures?.count ?? 0;
 
 /**
  * Cases *this* machine's copy of the suite does not contain, because the suite guards them
@@ -160,7 +162,7 @@ const allowedFailures = (host: string): number => HOSTS.find((h) => h.name === h
  * different rates for one commit.
  */
 export function absentHere(host: string, platform: NodeJS.Platform = process.platform): number {
-  const declared = HOSTS.find((h) => h.name === host)?.conditionalCases;
+  const declared = hostNamed(host)?.conditionalCases;
   if (declared === undefined) return 0;
   const absent = declared.only === undefined ? (declared.notOn ?? []).includes(platform) : !declared.only.includes(platform);
   return absent ? declared.count : 0;
@@ -172,7 +174,7 @@ export function absentHere(host: string, platform: NodeJS.Platform = process.pla
  */
 export function absentPassing(host: string, platform: NodeJS.Platform = process.platform): number {
   if (absentHere(host, platform) === 0) return 0;
-  return HOSTS.find((h) => h.name === host)?.conditionalCases?.passing ?? 0;
+  return hostNamed(host)?.conditionalCases?.passing ?? 0;
 }
 
 /** Did this row fall — a control short of its reference, or a target below its baseline? */
@@ -342,7 +344,7 @@ function writeResults(path: string, graded: Grade[]): void {
   const previous: Grade[] = existsSync(path) ? (JSON.parse(readFileSync(path, 'utf8')) as Results).grades : [];
   const names = new Set(graded.map((g) => g.host));
   const grades = [...previous.filter((g) => !names.has(g.host)), ...graded];
-  const order = new Map(active().map((h, i) => [h.name, i]));
+  const order = new Map(gradable().map((h, i) => [h.name, i]));
   grades.sort((a, b) => (order.get(a.host) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.host) ?? Number.MAX_SAFE_INTEGER));
   const planned = HOSTS.filter((h) => h.status === 'planned').map((h) => h.name);
   writeFileSync(path, `${JSON.stringify({ measured: new Date().toISOString(), planned, grades }, null, 2)}\n`);
@@ -398,18 +400,22 @@ export async function main(argv: string[], write: Write): Promise<number> {
     return target === '' ? host.target : target;
   };
   // Hosts named bare on the command line (`compat chalk --control`) select a subset;
-  // none named means every active host, which is what CI runs.
+  // none named means every active host, which is what CI runs. `--majors` means every
+  // previous major instead (C1), which CI runs as its own step: the current majors stay the
+  // default everywhere they already run, the six-cell matrix included.
+  const majors = argv.includes('--majors');
   const named = argv.filter((a) => !a.startsWith('--'));
-  const unknown = named.filter((n) => !active().some((h) => h.name === n));
+  const unknown = named.filter((n) => !gradable().some((h) => h.name === n));
   if (unknown.length > 0) {
     write(`\n✖ not an active host: ${unknown.join(', ')}\n`);
     return 1;
   }
-  const hosts = named.length === 0 ? active() : active().filter((h) => named.includes(h.name));
+  const pool = majors ? PREVIOUS_MAJORS : active();
+  const hosts = named.length === 0 ? pool : gradable().filter((h) => named.includes(h.name));
 
   if (wantsVendor) vendorAll(hosts, write);
 
-  const baseline = readBaseline(BASELINE);
+  const baseline = { ...readBaseline(BASELINE), ...readBaseline(MAJORS_BASELINE) };
   const gradeOf = (host: Host): Grade => grade(host, VENDOR_DIR, targetFor(host), baseline[host.name]?.reference ?? 0);
   const grades = repeatAndAgree(hosts.map(gradeOf), { fell: fellFor(control, baseline), regrade: (g) => gradeOf(hosts.find((h) => h.name === g.host) as Host), write });
 

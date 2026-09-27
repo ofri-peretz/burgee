@@ -1,0 +1,79 @@
+---
+title: Coming from cross-spawn
+description: "A cross-spawn alternative with a drop-in path: import spawn from bellpull/cross-spawn, graded 68 / 68 by cross-spawn's own test suite — then zero dependencies, and a run() whose result says which binary ran and treats a non-zero exit as a value."
+---
+
+**bellpull** is a **cross-spawn alternative** you adopt by changing one import.
+`bellpull/cross-spawn` is cross-spawn's API — the callable default and `.sync` — and
+cross-spawn's own test suite is the grade.
+
+## Migrate from cross-spawn in one import
+
+```diff
+- import spawn from 'cross-spawn';
++ import spawn from 'bellpull/cross-spawn';
+```
+
+Everything else stays: `spawn(command, args?, options?)` returns a `ChildProcess`,
+`spawn.sync(command, args?, options?)` returns what `spawnSync` returns, and `_parse` and
+`_enoent` hang off the default as they do on cross-spawn. A missing command is reported the
+way cross-spawn reports it — an `ENOENT` error event, or `result.error` from `.sync`. The
+CommonJS form works too, on the Node versions bellpull supports:
+
+```diff
+- const spawn = require('cross-spawn');
++ const spawn = require('bellpull/cross-spawn');
+```
+
+## Is bellpull compatible with cross-spawn?
+
+Graded, not claimed. cross-spawn's own suite, vendored at 7.0.6 and unmodified apart from the
+import specifier, runs against `bellpull/cross-spawn` beside a control that runs it against
+real cross-spawn:
+
+| | passing | rate |
+| :-- | --: | --: |
+| `bellpull/cross-spawn` | 68 / 68 | 100.0% |
+| cross-spawn itself (control) | 68 / 68 | 100.0% |
+
+From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
+oracle's last run; that page is the authority. The suite runs each case four ways — `spawn`,
+`spawn` with a forced shell, `sync`, and `sync` with a forced shell — so a divergence in one
+path cannot hide behind the other three.
+
+What 68 / 68 does not cover: on POSIX cross-spawn is a pass-through, so its suite never
+reaches the Windows escaping or the `cmd.exe` branch. That half is covered by bellpull's own
+tests, which round-trip a 37-vector injection corpus through simulations of both Windows
+parsers.
+
+## What you gain over cross-spawn
+
+`bellpull/cross-spawn` is deliberately cross-spawn's behaviour — on POSIX, being identical
+is the product. The façade changes the dependency tree; the gain is the rest of the package,
+which you adopt a call site at a time:
+
+- **Zero dependencies.** cross-spawn 7.0.6 pulls `path-key`, `shebang-command` and `which`.
+- **A non-zero exit is a value.** `run()` from `bellpull` resolves with `result.ok === false`
+  and the code; it rejects only when no process ran.
+- **It says which binary ran.** `result.executable` is the path *and* the `PATH` entry it
+  came from — the first question of every "works on my machine" investigation.
+- **Bounded by default.** `timeout` is finite, the kill is a ladder (`SIGTERM`, then
+  `SIGKILL`), and the output written before the kill is kept.
+- **One result, three readers.** `format()` for a person, `toJson()` for `--json`,
+  `toEvent()` for an agent stream, all derived from one record.
+
+```js
+import { run } from 'bellpull';
+
+const runtime = { platform: process.platform, env: process.env, cwd: process.cwd() };
+const result = await run('npm', ['test'], { runtime });
+// result.ok, result.code, result.executable — no try/catch
+```
+
+## When to switch from cross-spawn
+
+- You want cross-spawn's Windows handling without its dependency tree.
+- Your callers, human or agent, need a subprocess's outcome as text and as JSON.
+
+If you need a raw `ChildProcess` and nothing more, the one-import swap is the whole
+migration. The entry points and the `resolvers` plugin host are on [bellpull](/docs).

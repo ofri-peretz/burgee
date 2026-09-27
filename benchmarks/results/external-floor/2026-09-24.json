@@ -1,0 +1,148 @@
+{
+  "schema": 1,
+  "suite": "external-floor",
+  "measured": "2026-09-24T22:05:08.888Z",
+  "commit": "ddb3eaf64ecdada12efc3c337fe592f4c26e7a4e-dirty",
+  "machine": {
+    "os": "linux",
+    "release": "6.17.0-1022-azure",
+    "arch": "x64",
+    "cpu": "AMD EPYC 7763 64-Core Processor",
+    "cores": 4,
+    "memoryGb": 16,
+    "node": "v24.13.0",
+    "ci": true
+  },
+  "axes": {
+    "floor": {
+      "status": "measured",
+      "method": "The same demo program built on burgee, commander and yargs, handed to two third-party checkers pinned by version and archive digest (`benchmarks/floor-tools.ts`): clispec 0.3.0, the scorer for clispec.dev v0.3 (six principles, 24 points), and cli-agent-lint 0.3.5 (34 checks, weighted percentage). Each tool runs once per variant with active probing on, in an environment of PATH and an empty HOME only. Verdicts are recorded as the tools print them; nothing is re-scored. Burgee’s two scores are gated at their landing values as a ratchet."
+    }
+  },
+  "records": [
+    {
+      "axis": "floor",
+      "variant": "burgee",
+      "metric": "clispec-score",
+      "unit": "points",
+      "samples": 1,
+      "median": 6,
+      "p95": 6,
+      "gate": {
+        "min": 0,
+        "why": "N10: a change that loses a point on clispec.dev’s published checklist regresses the floor against someone else’s bar"
+      },
+      "note": "clispec 0.3.0 (clispec.dev v0.3): points out of 24, graded Needs Work",
+      "detail": {
+        "tool": "clispec 0.3.0",
+        "max": 24,
+        "percentage": 25,
+        "grade": "Needs Work",
+        "failed": "Structured or declared piped output [structured-output]; Structured errors [error-envelope]; Explicit format wins [structured-output]; schema command exists [schema-validates]; Valid JSON schema [schema-validates]; Validates against clispec v0.3 [schema-validates]; Error kinds documented [schema-validates]; Output fields declared [schema-validates]; Global args declared [schema-validates]; Exit codes on error kinds [schema-validates]; Effects on all commands [schema-validates]; schema mentioned in --help [help-mentions-schema]; schema works without config [schema-offline]; Effects declarations [idempotent-repeats]; Idempotent conflict contract [idempotent-repeats]; Cardinality declarations [bounded-lists]; Unbounded pagination declarations [bounded-lists]; Unbounded field selection [bounded-lists]"
+      }
+    },
+    {
+      "axis": "floor",
+      "variant": "burgee",
+      "metric": "cli-agent-lint-score",
+      "unit": "percent",
+      "samples": 1,
+      "median": 78,
+      "p95": 78,
+      "gate": {
+        "min": 0,
+        "why": "N10: a change that loses a check on cli-agent-lint’s 34 regresses the floor against someone else’s bar"
+      },
+      "note": "cli-agent-lint 0.3.5: weighted percentage over 34 checks, graded B",
+      "detail": {
+        "tool": "cli-agent-lint 0.3.5",
+        "grade": "B",
+        "checks": 34,
+        "pass": 24,
+        "warn": 4,
+        "fail": 5,
+        "skip": 1,
+        "error": 0,
+        "failed": "TE-3 --no-color flag (warn); TE-4 --quiet / --silent flag (info); SD-1 Error format is structured (warn); SD-3 Shell completions available (info); SD-4 Schema / describe introspection (warn); SD-5 Skill / context files (info); SD-6 Help text with usage examples (warn); PV-1 Timeout flag (info); PV-4 Distinct exit codes for error classes (info)"
+      }
+    },
+    {
+      "axis": "floor",
+      "variant": "commander",
+      "metric": "clispec-score",
+      "unit": "points",
+      "samples": 1,
+      "median": 2,
+      "p95": 2,
+      "note": "clispec 0.3.0 (clispec.dev v0.3): points out of 24, graded Needs Work",
+      "detail": {
+        "tool": "clispec 0.3.0",
+        "max": 24,
+        "percentage": 8,
+        "grade": "Needs Work",
+        "failed": "JSON output flag [structured-output]; Valid JSON output [structured-output]; Structured or declared piped output [structured-output]; Structured errors [error-envelope]; Explicit format wins [structured-output]; schema command exists [schema-validates]; Valid JSON schema [schema-validates]; Validates against clispec v0.3 [schema-validates]; Error kinds documented [schema-validates]; Output fields declared [schema-validates]; Global args declared [schema-validates]; Exit codes on error kinds [schema-validates]; Effects on all commands [schema-validates]; schema mentioned in --help [help-mentions-schema]; schema works without config [schema-offline]; Clean stdout when piped [stream-separation]; Messages on stderr only [stream-separation]; Effects declarations [idempotent-repeats]; Idempotent conflict contract [idempotent-repeats]; Cardinality declarations [bounded-lists]; Unbounded pagination declarations [bounded-lists]; Unbounded field selection [bounded-lists]"
+      }
+    },
+    {
+      "axis": "floor",
+      "variant": "commander",
+      "metric": "cli-agent-lint-score",
+      "unit": "percent",
+      "samples": 1,
+      "median": 71.2,
+      "p95": 71.2,
+      "note": "cli-agent-lint 0.3.5: weighted percentage over 34 checks, graded B",
+      "detail": {
+        "tool": "cli-agent-lint 0.3.5",
+        "grade": "B",
+        "checks": 34,
+        "pass": 22,
+        "warn": 6,
+        "fail": 5,
+        "skip": 1,
+        "error": 0,
+        "failed": "TE-3 --no-color flag (warn); TE-4 --quiet / --silent flag (info); SD-1 Error format is structured (warn); SD-3 Shell completions available (info); SD-4 Schema / describe introspection (warn); SD-5 Skill / context files (info); SD-6 Help text with usage examples (warn); SD-7 Actionable error messages (warn); SA-3 Rejects control characters (warn); PV-1 Timeout flag (info); PV-4 Distinct exit codes for error classes (info)"
+      }
+    },
+    {
+      "axis": "floor",
+      "variant": "yargs",
+      "metric": "clispec-score",
+      "unit": "points",
+      "samples": 1,
+      "median": 2,
+      "p95": 2,
+      "note": "clispec 0.3.0 (clispec.dev v0.3): points out of 24, graded Needs Work",
+      "detail": {
+        "tool": "clispec 0.3.0",
+        "max": 24,
+        "percentage": 8,
+        "grade": "Needs Work",
+        "failed": "JSON output flag [structured-output]; Valid JSON output [structured-output]; Structured or declared piped output [structured-output]; Structured errors [error-envelope]; Explicit format wins [structured-output]; schema command exists [schema-validates]; Valid JSON schema [schema-validates]; Validates against clispec v0.3 [schema-validates]; Error kinds documented [schema-validates]; Output fields declared [schema-validates]; Global args declared [schema-validates]; Exit codes on error kinds [schema-validates]; Effects on all commands [schema-validates]; schema mentioned in --help [help-mentions-schema]; schema works without config [schema-offline]; Clean stdout when piped [stream-separation]; Messages on stderr only [stream-separation]; Effects declarations [idempotent-repeats]; Idempotent conflict contract [idempotent-repeats]; Cardinality declarations [bounded-lists]; Unbounded pagination declarations [bounded-lists]; Unbounded field selection [bounded-lists]"
+      }
+    },
+    {
+      "axis": "floor",
+      "variant": "yargs",
+      "metric": "cli-agent-lint-score",
+      "unit": "percent",
+      "samples": 1,
+      "median": 70.9,
+      "p95": 70.9,
+      "note": "cli-agent-lint 0.3.5: weighted percentage over 34 checks, graded B",
+      "detail": {
+        "tool": "cli-agent-lint 0.3.5",
+        "grade": "B",
+        "checks": 34,
+        "pass": 21,
+        "warn": 4,
+        "fail": 6,
+        "skip": 3,
+        "error": 0,
+        "failed": "TE-1 JSON output support (fail); TE-3 --no-color flag (warn); TE-4 --quiet / --silent flag (info); SD-3 Shell completions available (info); SD-4 Schema / describe introspection (warn); SD-5 Skill / context files (info); SD-6 Help text with usage examples (warn); SD-7 Actionable error messages (warn); PV-1 Timeout flag (info); PV-4 Distinct exit codes for error classes (info)"
+      }
+    }
+  ],
+  "bands": {},
+  "claims": {}
+}

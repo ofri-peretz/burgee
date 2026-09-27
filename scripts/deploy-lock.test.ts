@@ -165,7 +165,19 @@ function runStep(body: string, env: Record<string, string>): Result {
   mkdirSync(bin);
   writeFileSync(
     join(bin, 'curl'),
-    ['#!/usr/bin/env bash', 'out=""; prev=""', 'for a in "$@"; do [ "$prev" = "-o" ] && out="$a"; prev="$a"; done', '[ -n "$out" ] && printf \'%s\' "${SHIM_BODY-}" > "$out"', 'printf \'%s\' "${SHIM_CODE-000}"', 'exit "${SHIM_RC-0}"', ''].join('\n'),
+    [
+      '#!/usr/bin/env bash',
+      'out=""; prev=""',
+      'for a in "$@"; do [ "$prev" = "-o" ] && out="$a"; prev="$a"; done',
+      // `$SHIM_LATE_BODY` replaces the body once `$SHIM_LATE_AFTER` calls have been made: an
+      // alias that moves while the step is still retrying.
+      `n=$(( $(cat "${dir}/calls" 2>/dev/null || echo 0) + 1 )); echo "$n" > "${dir}/calls"`,
+      'body="${SHIM_BODY-}"; [ -n "${SHIM_LATE_AFTER-}" ] && [ "$n" -gt "$SHIM_LATE_AFTER" ] && body="${SHIM_LATE_BODY-}"',
+      '[ -n "$out" ] && printf \'%s\' "$body" > "$out"',
+      'printf \'%s\' "${SHIM_CODE-000}"',
+      'exit "${SHIM_RC-0}"',
+      '',
+    ].join('\n'),
   );
   writeFileSync(join(bin, 'sleep'), '#!/usr/bin/env bash\nexit 0\n');
   chmodSync(join(bin, 'curl'), 0o755);
@@ -318,6 +330,11 @@ describe('deploy-docs.yml', () => {
     // did not move, and the host still answers with the previous build.
     const stale = runStep(body, { ...base, SHIM_CODE: '200', SHIM_RC: '0', SHIM_BODY: page('cafebabe') });
     expect(stale.status, `a stale alias exited ${stale.status}; it must fail\n${stale.output}`).not.toBe(0);
+
+    // The alias moves while the step is retrying: the first three answers are the previous
+    // build, the fourth is this one. That is a deploy that worked, and it must pass.
+    const late = runStep(body, { ...base, SHIM_CODE: '200', SHIM_RC: '0', SHIM_BODY: page('cafebabe'), SHIM_LATE_AFTER: '3', SHIM_LATE_BODY: page(SHA) });
+    expect(late.status, `an alias that moved on the 4th attempt exited ${late.status}; it must pass\n${late.output}`).toBe(0);
 
     // 200 from something that is not this app at all.
     const foreign = runStep(body, { ...base, SHIM_CODE: '200', SHIM_RC: '0', SHIM_BODY: '<html>parked domain</html>' });

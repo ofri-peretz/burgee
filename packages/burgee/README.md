@@ -20,7 +20,8 @@
 </p>
 
 <p align="center">
-  Docs: <a href="https://burgee.interlace.tools/docs/packages/burgee">https://burgee.interlace.tools/docs/packages/burgee</a>
+  Docs: <a href="https://burgee.interlace.tools/docs/packages/burgee">https://burgee.interlace.tools/docs/packages/burgee</a><br />
+  Migrating from: <a href="https://burgee.interlace.tools/docs/vs/commander">commander</a> · <a href="https://burgee.interlace.tools/docs/vs/yargs">yargs</a>
 </p>
 
 A **burgee** is the small swallowtail flag a boat flies to say which club or fleet it

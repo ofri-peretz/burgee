@@ -1,0 +1,131 @@
+---
+title: burgee vs citty
+description: "A citty alternative, measured against it rather than dropped in: there is no burgee/citty, but both declare a command as one object, so the rewrite is short. When citty is the better choice, when burgee is, and what moving looks like."
+---
+
+burgee is **not** a drop-in for citty. There is no `burgee/citty` and `burgee migrate` does
+not rewrite a citty import. [Compatibility](/docs/compatibility) lists a citty front end as
+**planned** and deferred, for the same reason as cac: nitro and unjs bundle citty, so most of
+its downloads are not developers choosing it. Until a front end exists and is graded by
+citty's own tests, moving a citty CLI to burgee is a rewrite. It is a short one: both declare
+a command as a single object with a `run` function.
+
+## Is there a drop-in?
+
+No. burgee's `package.json` exports front ends for commander (`burgee/commander`), yargs
+(`burgee/yargs`) and meow (`burgee/meow`), each graded by that host's own test suite.
+Nothing is exported for citty, so no citty program runs on burgee unchanged, and this page
+never calls burgee citty-compatible.
+
+## When citty is the better choice
+
+- **You want it tiny.** The comparison records citty's manifest as declaring none, against
+  burgee's five, and the research survey timed its startup at +6 ms over bare node, on
+  its own machine (the figures are below).
+- **You are building inside unjs.** The research snapshot records citty as bundled in nitro
+  and the unjs tools. If your CLI lives next to them, matching their conventions is worth
+  more than anything on this page.
+- **You want lifecycle hooks on the command itself.** citty 0.2.2, the version read for this
+  page, declares `setup` and `cleanup` on a command and a `plugins` list of the same two
+  hooks. Those plugins run around a command and add none, which is why the comparison's
+  *Plugins that add commands* row still marks citty ❌.
+
+## When burgee is the better choice
+
+- **You want an agent to drive it.** citty's own tracker asks for this: citty
+  [#187](https://github.com/unjs/citty/issues/187) wants a command's output returned so it
+  can be fed back to an LLM, and [#117](https://github.com/unjs/citty/issues/117) wants usage
+  returned as data rather than a string (both open at the research snapshot). The comparison
+  marks citty without a `--json` envelope, an exit-code contract, `--schema` or `--mcp`;
+  burgee projects all four from one declaration. See
+  [Your CLI is an agent tool](/docs/agent-surfaces).
+- **You want completions for four shells.** The comparison marks citty's completions as
+  *partial*, and the research lists citty [#217](https://github.com/unjs/citty/issues/217),
+  [#168](https://github.com/unjs/citty/issues/168) and
+  [#59](https://github.com/unjs/citty/issues/59) among the completion requests. burgee
+  generates static scripts for bash, zsh, fish and PowerShell.
+- **You want validation beyond the parser.** citty [#84](https://github.com/unjs/citty/issues/84),
+  [#103](https://github.com/unjs/citty/issues/103) and
+  [#138](https://github.com/unjs/citty/issues/138) asked for a validator, a normaliser and a
+  `number` type (0.2.2's argument types are still `boolean`, `string`, `enum` and
+  `positional`); burgee has `number`, `choices`, option relations and Standard Schema.
+
+Both derive the handler's types from the declaration; the comparison marks it ✅ for each.
+The full reading of citty's tracker is on [Research](/docs/research).
+
+## Weight against citty
+
+burgee's cells are from [burgee vs the alternatives](/docs/comparison), measured by
+`npm run bench` (2026-09-09, one machine). citty's download count and startup are from the
+research snapshot of 2026-09-06 (`competitor-landscape.md` §1 and §2), timed on a different
+machine at a different time and not reproduced by the suite, so the two startup cells are
+not a like-for-like measurement. The suite does not install citty, so its installed size is
+**not measured here**:
+
+| | burgee | citty |
+| :-- | --: | --: |
+| Downloads / week | new | 30.5M |
+| Runtime dependencies | 5, none outside the burgee family | 0 |
+| Full CLI run over bare node | +14.0 ms | +6 ms (surveyed, another machine) |
+| Installed size | 1304 KB | not measured here |
+
+citty wins on dependencies and downloads, and its surveyed startup is lower too. The case
+for burgee is the capability list above, not weight.
+
+## Moving a command across
+
+There is no import to swap, but the shapes line up: `meta.name` and `meta.description`
+move to the top level, a `positional` arg becomes an entry in `arguments`, every other arg
+becomes a key in `options`, and `run` stays `run`. What is new is `effects`, which says what
+running the command does to the world, and which `--mcp` reads.
+
+Before, with `citty` 0.2.2:
+
+```js
+import { defineCommand, runMain } from 'citty';
+
+const greet = defineCommand({
+  meta: { name: 'greet', description: 'Greet someone' },
+  args: {
+    name: { type: 'positional', required: true },
+    shout: { type: 'boolean', description: 'uppercase it' },
+  },
+  run({ args }) {
+    const line = `Hello, ${args.name}`;
+    console.log(args.shout ? line.toUpperCase() : line);
+  },
+});
+
+runMain(defineCommand({ meta: { name: 'hello' }, subCommands: { greet } }));
+```
+
+After, with burgee:
+
+```js
+import { defineCommand, defineProgram, run } from 'burgee';
+
+const program = defineProgram({
+  name: 'hello',
+  commands: [
+    defineCommand({
+      name: 'greet',
+      description: 'Greet someone',
+      effects: 'read_only',
+      arguments: [{ name: 'name', required: true }],
+      options: { shout: { type: 'boolean', description: 'uppercase it' } },
+      run: ({ positionals, options }) => {
+        const line = `Hello, ${positionals[0]}`;
+        return options.shout ? line.toUpperCase() : line;
+      },
+    }),
+  ],
+});
+
+await run(program);
+```
+
+The handler returns its result instead of printing it, so `greet ada --json` answers
+`{"ok":true,"data":"Hello, ada",…}` and a missing name exits `2`. citty's `setup`, `cleanup`
+and plugins have no one-for-one equivalent. The nearest for `cleanup` is `ctx.onExit()`,
+called inside `run`, which runs on every path out, Ctrl-C and an uncaught throw included;
+the rest is a design decision per command, not a rewrite of syntax.

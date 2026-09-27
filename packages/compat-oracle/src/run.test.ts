@@ -3,15 +3,17 @@
  * baseline must count as a regression; at or above it must not. A gate that has never
  * been shown to fail is not a gate.
  */
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
 import { type Host, HOSTS } from './hosts.js';
-import { type Baseline, type Grade, hoistJestMocks, internalShimBody, internalShimFrom, parseFlatTap, parseNodeTest, regressed, summarize, tsLoaderArgs, unsatisfiedPins } from './run.js';
+import { type Baseline, cjsLoad, type Grade, hoistJestMocks, internalShimBody, jestGlobals, mochaCli, internalShimFrom, parseFlatTap, parseNodeTest, regressed, summarize, tsLoaderArgs, unsatisfiedPins } from './run.js';
 
 const grade = (passed: number): Grade => ({
   host: 'commander',
@@ -442,5 +444,64 @@ describe('jest.mock is hoisted as jest hoists it (A12)', () => {
 
   it('returns a file with no jest.mock unchanged', () => {
     expect(hoistJestMocks("require('x');\n")).toBe("require('x');\n");
+  });
+});
+
+describe("a jest suite sees jest's execArgv, not vitest's (C1)", () => {
+  it('empties process.execArgv before the suite loads, so a spawn does not inherit the runner flags', () => {
+    // Written inside this package so the setup's own `import { vi } from 'vitest'` resolves,
+    // and run under one of the flags vitest adds to its workers. commander hands
+    // `process.execArgv` to an executable subcommand, and commander 14's suite asserts that
+    // argv exactly: ten of its cases failed against commander 14 itself before this.
+    const dir = mkdtempSync(join(resolve(fileURLToPath(new URL('..', import.meta.url))), '.setup-probe-'));
+    try {
+      const setup = join(dir, 'vitest.setup.mjs');
+      writeFileSync(setup, jestGlobals());
+      // `--import` takes a URL: a bare `D:\\…` path fails on Windows as an unsupported URL scheme.
+      // eslint-disable-next-line node-security/detect-child-process -- already the form the rule's own fix names: `execFileSync` with an argument array and `shell: false`. Node's own execPath, literal flags, a literal `-e` program, and `setup`, a path this test just wrote inside its own mkdtemp.
+      const seen = execFileSync(process.execPath, ['--conditions', 'development', '--import', pathToFileURL(setup).href, '-e', 'process.stdout.write(JSON.stringify(process.execArgv))'], { encoding: 'utf8', shell: false });
+      expect(JSON.parse(seen)).toEqual([]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("mocha's entry across its majors (C1)", () => {
+  it('finds bin/mocha.js where it exists and bin/mocha where it does not', () => {
+    const at = mkdtempSync(join(tmpdir(), 'mocha-cli-'));
+    try {
+      mkdirSync(join(at, 'bin'));
+      writeFileSync(join(at, 'bin', 'mocha'), '');
+      expect(mochaCli(at)).toBe(join(at, 'bin', 'mocha'));
+      writeFileSync(join(at, 'bin', 'mocha.js'), '');
+      expect(mochaCli(at)).toBe(join(at, 'bin', 'mocha.js'));
+    } finally {
+      rmSync(at, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('a CommonJS shim busts the incumbent only when the suite busted the shim (C1)', () => {
+  it('hands out the cached instance on a first load, and a fresh one after the suite deletes the shim', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'cjs-shim-'));
+    try {
+      writeFileSync(join(dir, 'impl.cjs'), 'module.exports = { at: Symbol() };\n');
+      writeFileSync(join(dir, 'shim.cjs'), `${cjsLoad(join(dir, 'impl.cjs'))}\nmodule.exports = loaded;\n`);
+      // One process per probe, as one per suite: the shim's record is process-wide.
+      const probe = [
+        "const held = require('./impl.cjs');",
+        "const first = require('./shim.cjs');",
+        "delete require.cache[require.resolve('./shim.cjs')];",
+        "const second = require('./shim.cjs');",
+        'process.stdout.write(JSON.stringify([first === held, second === held]));',
+      ].join('\n');
+      // eslint-disable-next-line node-security/detect-child-process -- `execFileSync` with an argument array and `shell: false`: Node's own execPath and `probe`, a program assembled above from literal lines. Nothing reaches a command line.
+      const seen = execFileSync(process.execPath, ['-e', probe], { cwd: dir, encoding: 'utf8', shell: false });
+      // yargs 17's `parser.cjs` needs the first; signal-exit's `process-gone.js` the second.
+      expect(JSON.parse(seen)).toEqual([true, false]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

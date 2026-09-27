@@ -1,45 +1,54 @@
 ---
 title: Coming from ansi-escapes
-description: "An ansi-escapes alternative for the OSC half — hyperlinks, images, title, clipboard, notifications, bell — where every capability has a static projection for pipes and agents. Graded 1 / 4 by ansi-escapes' own suite, the ceiling for an OSC-only package; no drop-in is claimed."
+description: "An ansi-escapes alternative with a drop-in path: import ansiEscapes from paratext, graded 4 / 4 by ansi-escapes' own test suite — then hyperlinks, images and the working directory that project to plain text for pipes and agents instead of raw escape bytes."
 ---
 
-**paratext** is an **ansi-escapes alternative** for its OSC half: the escapes that address
-the terminal *program* — hyperlinks, inline images, the window title, the clipboard, desktop
-notifications, the working directory and the bell. The CSI half — the cursor, erasing,
-scrolling, the alternate screen — is out of scope. paratext does **not** claim to be an
-ansi-escapes drop-in.
+**paratext** is an **ansi-escapes alternative** you adopt by changing one import. The
+package root is ansi-escapes 7's surface — the CSI half that moves the cursor and erases the
+screen, and the OSC half that talks to the terminal *program* — and ansi-escapes' own test
+suite is the grade.
 
-## Migrate from ansi-escapes: the OSC members only
-
-The root is call-compatible with ansi-escapes for the four OSC members of its surface:
+## Migrate from ansi-escapes in one import
 
 ```diff
-- import ansiEscapes, { link, image, setCwd, beep } from 'ansi-escapes';
-+ import ansiEscapes, { link, image, setCwd, beep } from 'paratext';
+- import ansiEscapes, { cursorTo, eraseLines, link, image, beep } from 'ansi-escapes';
++ import ansiEscapes, { cursorTo, eraseLines, link, image, beep } from 'paratext';
 ```
 
-The CSI names are still *declared*, as `undefined`, so a module that imports them loads
-rather than dying on an ESM named import — and TypeScript types them so that calling one is
-a compile error. If your program moves the cursor or erases lines with ansi-escapes, keep
-ansi-escapes for those calls; in the burgee family that half belongs to flagstaff, which
-draws the grid, and closeout, which puts it back.
+Everything else stays. **The CSI half** — `cursorTo`, `cursorMove`, the cursor, erase and
+scroll members, `clearScreen`, `clearTerminal`, the alternate screen and synchronized output
+— is byte-exact with ansi-escapes 7.3.0, including the Terminal.app spelling of save and
+restore. It does not degrade, because the incumbent's does not: a cursor move silently
+dropped would corrupt the screen of a program that relied on it.
+
+**The OSC half** — `link`, `image`, `setCwd` and `beep` — gives the incumbent's exact bytes
+on a terminal believed to understand them, and a static projection everywhere else. That is
+the one deliberate difference, and it is covered under what you gain.
+
+Two names are declared and empty: `iTerm` and `ConEmu`. ansi-escapes hangs
+`iTerm.setCwd`, `iTerm.annotation` and `ConEmu.setCwd` off them, and paratext does not yet;
+importing them loads, and calling a member is a TypeScript compile error rather than a
+surprise at run time. The top-level `setCwd` carries both terminals' working-directory
+sequences, so only `iTerm.annotation` has no replacement — keep ansi-escapes for that call.
 
 ## Is paratext compatible with ansi-escapes?
 
-For the OSC half only, and the grade shows the boundary. ansi-escapes' own suite, vendored
-and unmodified apart from the import specifier, runs against `paratext` beside a control that
-runs it against the real package:
+Graded, not claimed. ansi-escapes' own suite, vendored at 7.3.0 and unmodified apart from the
+import specifier, runs against `paratext` beside a control that runs it against real
+ansi-escapes:
 
 | | passing | rate |
 | :-- | --: | --: |
-| `paratext` | 1 / 4 | 25.0% |
+| `paratext` | 4 / 4 | 100.0% |
 | ansi-escapes itself (control) | 4 / 4 | 100.0% |
 
 From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
-oracle's last run; that page is the authority. Three of the suite's four cases assert CSI,
-which paratext does not implement, so **1 / 4 is the ceiling on this row** — complete for the
-OSC half, and not a compatibility claim. The same page grades the `paratext/terminal-link`
-and `paratext/term-img` paths against those packages' suites.
+oracle's last run; that page is the authority. The suite is small — four cases — and three
+of them assert CSI: `default export` and `clearTerminal` check the cursor and clear
+sequences, and `synchronized output` checks `ESC [ ? 2026 h` and `l`. The fourth, `named
+export(s)`, checks that a named export and the default's member are the same object. Until
+paratext implemented the CSI half, this row was 1 / 4. The same page grades the
+`paratext/terminal-link` and `paratext/term-img` paths against those packages' suites.
 
 ## What you gain over ansi-escapes
 
@@ -70,4 +79,5 @@ emit(processRuntime(), 'link', { text: 'Docs', url: 'https://x.dev' });
   read by an agent.
 - You want new terminal capabilities registered as data rather than waiting for a release.
 
-The registry, the schema and the plugin host are on [paratext](/docs).
+If your program depends on an OSC sequence reaching a pipe byte for byte, keep ansi-escapes
+for that call. The registry, the schema and the plugin host are on [paratext](/docs).

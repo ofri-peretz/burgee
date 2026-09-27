@@ -44,6 +44,15 @@ updates:
       - dependency-name: "cpr"
       - dependency-name: "hashish"
       - dependency-name: "yargs-test-extends"
+      # Hosts vendored after the list above was written. Each one is declared at the release
+      # compat-oracle vendors and grades (vendor/<name>/.source.json), and nothing ignored them.
+      # #593 then proposed boxen 8.0.1 → 9.0.0, which would have moved the flagstaff/boxen ÷
+      # boxen weight gate onto a release whose suite compat-oracle does not grade.
+      - dependency-name: "boxen"
+      - dependency-name: "cosmiconfig"
+      - dependency-name: "exit-hook"
+      - dependency-name: "restore-cursor"
+      - dependency-name: "terminal-link"
       # B4's incumbents, pinned *exactly* in benchmarks/package.json by PLAN 3.5/3.1 (#339).
       # A weight ratio only means something if the release we weigh against is the release
       # whose own suite we pass — `slice-ansi` is 7.1.2 here and 9.0.0 on npm for that reason.

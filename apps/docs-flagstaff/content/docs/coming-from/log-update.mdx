@@ -1,0 +1,72 @@
+---
+title: Coming from log-update
+description: "A log-update alternative with a drop-in path: import logUpdate from flagstaff/log-update, graded 99 / 99 by log-update's own test suite — then a frame loop whose static projection gives pipes one line per state and --json one event per transition."
+---
+
+**flagstaff** is a **log-update alternative** you adopt by changing one import.
+`flagstaff/log-update` is log-update 8's public API, and log-update's own test suite is the
+grade.
+
+## Migrate from log-update in one import
+
+```diff
+- import logUpdate, { createLogUpdate, logUpdateStderr } from 'log-update';
++ import logUpdate, { createLogUpdate, logUpdateStderr } from 'flagstaff/log-update';
+```
+
+Everything else stays: `logUpdate(...text)`, `.clear()`, `.done()`, `.persist()`,
+`logUpdateStderr`, and `createLogUpdate(stream, { showCursor, defaultWidth, defaultHeight })`.
+Frames wrap to the stream's width and clip to its height, and the row-level diffing is
+intact: a five-row frame whose last row is a counter costs one row of output per tick, not
+five. Ctrl+C mid-frame puts the cursor back and still terminates.
+
+## Is flagstaff compatible with log-update?
+
+Graded, not claimed. log-update's own suite, vendored at 8.0.0 and unmodified apart from the
+import specifier, runs against `flagstaff/log-update` beside a control that runs it against
+real log-update. It renders every frame through a real terminal emulator and asserts the
+screen, not the bytes:
+
+| | passing | rate |
+| :-- | --: | --: |
+| `flagstaff/log-update` | 99 / 99 | 100.0% |
+| log-update itself (control) | 99 / 99 | 100.0% |
+
+From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
+oracle's last run; that page is the authority. The same page grades flagstaff's `ora`,
+`boxen` and `cli-table3` paths.
+
+## What you gain over log-update
+
+`flagstaff/log-update` is deliberately log-update's behaviour, so the façade alone changes
+the dependency tree and not the output: log-update 8 resolves to sixteen packages, and this
+subpath reaches two, `linegauge/wrap` and `closeout`, both from the burgee family.
+
+It is also the one flagstaff façade that keeps a cursor escape off a terminal, and it says
+so: log-update's suite asserts erase sequences on a plain non-TTY stream, so suppressing
+them would fail the grade. What it does hold is that nothing it writes is ever a `\r` or an
+absolute cursor-home — every move is a relative row move — so a captured transcript stays
+parseable.
+
+The whole guarantee is the frame loop underneath it, `hoist()`, which you adopt a file at a
+time:
+
+| mode | what `hoist()` writes for the same three calls |
+| :-- | :-- |
+| `tty` | the frame, repainted in place, then the final state left on screen |
+| `pipe`, `ci` | one line per state change — no `\r`, no escape |
+| `json` | one NDJSON event per transition, on stderr |
+| `accessible` | the static text, never a redraw |
+
+Every flagstaff component has a required `static(state)`, and that **static projection** is
+what a pipe, an agent and a screen reader get. Which mode runs is decided once by roundel's
+output policy, never by the component.
+
+## When to switch from log-update
+
+- Your CLI's output is read by an agent or captured in CI logs.
+- You redraw status, progress or a task list and want it on one loop with the spinners,
+  boxes and tables — `flagstaff/progress` and `flagstaff/tasks` are built for it.
+
+The loop, the built-ins and the other drop-in paths are on
+[flagstaff](/docs).

@@ -87,6 +87,13 @@ export interface BurgeeSeam {
   stdout?: Writer;
   stderr?: Writer;
   exit?: (code: number) => void;
+  /**
+   * The behavioural floor (J3, D-121), off by default because yargs' own suite asserts the old
+   * behaviour: a usage failure exits 2 (E1) rather than 1, and a handler that throws or rejects
+   * prints one line and exits with its E1 code, never the help screen and a stack. On its own
+   * it injects nothing — the program's output stays yargs' own.
+   */
+  floor?: boolean;
 }
 
 interface BurgeeState extends BurgeeSeam {
@@ -156,6 +163,7 @@ export class YargsInstance {
   #validation: ValidationInstance;
   // ───── burgee: the manifest projection, plugins, --json, the surfaces and the seam ─────
   #burgee: BurgeeState | undefined = undefined;
+  #floor = false;
   #effects: DeclaredEffects | undefined = undefined;
   #manifest: Manifest | undefined = undefined;
 
@@ -472,7 +480,7 @@ export class YargsInstance {
       burgee.exit(e1);
       return;
     }
-    if (this.#exitProcess) this.#shim.process.exit(burgee?.json === true ? e1 : code);
+    if (this.#exitProcess) this.#shim.process.exit(burgee?.json === true || this.#floor ? e1 : code);
   }
 
   exitProcess(enabled = true): this {
@@ -715,13 +723,14 @@ export class YargsInstance {
     const seam = this.#burgee?.exit === undefined ? undefined : this.#burgee;
     if (seam === undefined) {
       // Nothing injected: yargs' own contract, except that a handler failure under --json
-      // settles to one envelope and its E1 code instead of escaping as a stack (D-140). --json
-      // is taken inside the parse, so it is read here, after the failure, not before.
+      // settles to one envelope and its E1 code instead of escaping as a stack (D-140), and
+      // under the floor to one line and its code (J3). --json is taken inside the parse, so it
+      // is read here, after the failure, not before.
       const escape = (err: unknown): any => {
-        const json = this.#burgee?.json === true && !(err instanceof YError);
-        if (json) this.#failJson(err);
+        const report = (this.#burgee?.json === true || this.#floor) && !(err instanceof YError);
+        if (report) this.#failHandler(err);
         restore();
-        if (!json) throw err;
+        if (!report) throw err;
         return undefined;
       };
       try {
@@ -1315,8 +1324,10 @@ export class YargsInstance {
    * instead of the console, and `exit` receives an E1 code: OK for help and version, USAGE
    * for a validation failure, RUNTIME for a handler that threw.
    */
-  burgee(seam: BurgeeSeam): this {
-    this.#burgee = { ...(this.#burgee ?? { json: false, lastError: '' }), ...seam };
+  burgee({ floor, ...seam }: BurgeeSeam): this {
+    if (floor !== undefined) this.#floor = floor;
+    // `{ floor }` alone injects nothing, so it must not switch on the seam's rendering.
+    if (Object.keys(seam).length > 0) this.#burgee = { ...(this.#burgee ?? { json: false, lastError: '' }), ...seam };
     return this;
   }
 
@@ -1449,7 +1460,11 @@ export class YargsInstance {
       // see `--format=json-pretty`, and emitted a different document from the other two for
       // the same CLI. `--schema` is burgee's surface, not yargs', so it answers to burgee's
       // byte discipline.
-      this.#logger.log(machineJson(schemaOf(this.manifest), head));
+      // J4: the reserved surfaces this program declares for itself — withheld, and named here
+      // rather than silently missing. Absent when it shadows none. yargs' own `.completion()`,
+      // under any name, withholds burgee's as the branch above does.
+      const shadows = ['--json', '--mcp', 'completion'].filter((name) => (name === 'completion' && this.#completionCommand !== null) || this.#declares(name.replace(/^--/, '')));
+      this.#logger.log(machineJson({ ...schemaOf(this.manifest), ...(shadows.length > 0 && { shadows }) }, head));
       this.exit(0);
       return true;
     }
@@ -1493,9 +1508,15 @@ export class YargsInstance {
       this.#settle(value, argv);
       return value;
     };
+    // J3: under the floor, with nothing injected, a rejection is reported here — before yargs'
+    // own catch prints the help screen and a stack for it. A synchronous throw reaches `parse`.
+    const failed = (cause: unknown): unknown => {
+      if (!this.#floor || this.#burgee?.exit) throw cause;
+      return this.#failHandler(cause);
+    };
     if (manifest === undefined || manifest.plugins.length === 0) {
       const result = handler(argv);
-      return isPromise(result) ? result.then(settle) : settle(result);
+      return isPromise(result) ? result.then(settle, failed) : settle(result);
     }
     const name = original.replace(/^\$0 ?/, '').split(' ')[0] ?? '';
     const options: Record<string, unknown> = {};
@@ -1513,7 +1534,7 @@ export class YargsInstance {
       })
       .catch(async (cause: unknown) => {
         await manifest.fire('onError', name, options);
-        throw cause;
+        return failed(cause);
       });
   }
 
@@ -1547,10 +1568,14 @@ export class YargsInstance {
     this.#logger.log(JSON.stringify({ ok: false, error: this.#failureOf(err).error }));
   }
 
-  /** Nothing injected, --json, a handler failed: the envelope, then its E1 code — as the exit, or as the exit code when yargs may not exit. */
-  #failJson(err: unknown): void {
-    this.#failureEnvelope(err);
-    const { exit } = this.#failureOf(err);
+  /**
+   * Nothing injected, a handler failed, under --json or the floor (J3): the envelope or one line,
+   * then its E1 code — as the exit, or as the exit code when yargs may not exit.
+   */
+  #failHandler(err: unknown): void {
+    const { exit, error } = this.#failureOf(err);
+    if (this.#burgee?.json) this.#failureEnvelope(err);
+    else this.#logger.error(error.message);
     if (this.#exitProcess) this.#shim.process.exit(exit);
     else host.exitCode = exit;
   }

@@ -1,0 +1,184 @@
+{
+  "schema": 1,
+  "suite": "agent-cli-bench",
+  "measured": "2026-09-24T22:52:06.972Z",
+  "commit": "2a51440fb9fa946459085b88473078aeca3e5b44-dirty",
+  "machine": {
+    "os": "darwin",
+    "release": "25.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M4 Pro",
+    "cores": 14,
+    "memoryGb": 48,
+    "node": "v24.13.0",
+    "ci": false
+  },
+  "axes": {
+    "agent": {
+      "status": "measured",
+      "method": "For each of the 5 tasks and each of the two builds, `claude -p <prompt> --allowedTools 'Bash(mytool:*)' --max-turns <n> --output-format json --setting-sources project,local --strict-mcp-config` is spawned in a scratch directory with the build installed as `mytool`, 5 times; the task's own `check` decides success. Tokens are input + cache + output as the CLI reports them; turns is its `num_turns`. The model is pinned per results file and a change starts a new band history."
+    }
+  },
+  "records": [
+    {
+      "axis": "agent",
+      "variant": "burgee",
+      "samples": 25,
+      "detail": {
+        "model": "claude-sonnet-4-5"
+      },
+      "metric": "tokens-per-task",
+      "unit": "tokens",
+      "median": 78225,
+      "p95": 249800,
+      "note": "median over 25 task-runs on model claude-sonnet-4-5"
+    },
+    {
+      "axis": "agent",
+      "variant": "burgee",
+      "samples": 25,
+      "detail": {
+        "model": "claude-sonnet-4-5"
+      },
+      "metric": "turns-per-task",
+      "unit": "turns",
+      "median": 3,
+      "p95": 10,
+      "note": "`num_turns` as `claude -p --output-format json` reports it"
+    },
+    {
+      "axis": "agent",
+      "variant": "burgee",
+      "samples": 25,
+      "detail": {
+        "model": "claude-sonnet-4-5",
+        "failed": 5
+      },
+      "metric": "success-rate",
+      "unit": "ratio",
+      "median": 0.8,
+      "p95": 0.8,
+      "gate": {
+        "min": 0.8,
+        "why": "below this the tokens and turns medians are taken over whichever task-runs happened to survive, which is a different measurement from the one the band is watching"
+      },
+      "note": "20 of 25 task-runs passed their own check"
+    },
+    {
+      "axis": "agent",
+      "variant": "commander",
+      "samples": 25,
+      "detail": {
+        "model": "claude-sonnet-4-5"
+      },
+      "metric": "tokens-per-task",
+      "unit": "tokens",
+      "median": 130165,
+      "p95": 290697,
+      "note": "median over 25 task-runs on model claude-sonnet-4-5"
+    },
+    {
+      "axis": "agent",
+      "variant": "commander",
+      "samples": 25,
+      "detail": {
+        "model": "claude-sonnet-4-5"
+      },
+      "metric": "turns-per-task",
+      "unit": "turns",
+      "median": 5,
+      "p95": 12,
+      "note": "`num_turns` as `claude -p --output-format json` reports it"
+    },
+    {
+      "axis": "agent",
+      "variant": "commander",
+      "samples": 25,
+      "detail": {
+        "model": "claude-sonnet-4-5",
+        "failed": 4
+      },
+      "metric": "success-rate",
+      "unit": "ratio",
+      "median": 0.84,
+      "p95": 0.84,
+      "gate": {
+        "min": 0.8,
+        "why": "below this the tokens and turns medians are taken over whichever task-runs happened to survive, which is a different measurement from the one the band is watching"
+      },
+      "note": "21 of 25 task-runs passed their own check"
+    },
+    {
+      "axis": "agent",
+      "variant": "burgee ÷ commander",
+      "unit": "ratio",
+      "samples": 25,
+      "detail": {
+        "model": "claude-sonnet-4-5"
+      },
+      "metric": "tokens-per-task-ratio",
+      "median": 0.601,
+      "p95": 0.601,
+      "note": "median tokens on the floor-meeting build over median tokens on the plain one; 0.6 or below confirms the ≥40% claim"
+    },
+    {
+      "axis": "agent",
+      "variant": "burgee ÷ commander",
+      "unit": "ratio",
+      "samples": 25,
+      "detail": {
+        "model": "claude-sonnet-4-5"
+      },
+      "metric": "turns-per-task-ratio",
+      "median": 0.6,
+      "p95": 0.6,
+      "note": "median turns on the floor-meeting build over median turns on the plain one; 0.7 or below confirms the ≥30% claim"
+    }
+  ],
+  "bands": {
+    "agent-tokens-per-task": {
+      "value": 78225,
+      "from": {
+        "axis": "agent",
+        "variant": "burgee",
+        "metric": "tokens-per-task"
+      }
+    },
+    "agent-turns-per-task": {
+      "value": 3,
+      "from": {
+        "axis": "agent",
+        "variant": "burgee",
+        "metric": "turns-per-task"
+      }
+    }
+  },
+  "claims": {
+    "agent-tokens-40pct": {
+      "claim": "an agent spends at least 40% fewer tokens per task against a CLI that meets the floor",
+      "source": ".sdlc/intents/burgee/intent.md — the roadmap headline",
+      "target": "<= 0.6",
+      "measured": 0.601,
+      "unit": "ratio",
+      "met": false,
+      "from": {
+        "axis": "agent",
+        "variant": "burgee ÷ commander",
+        "metric": "tokens-per-task-ratio"
+      }
+    },
+    "agent-turns-30pct": {
+      "claim": "an agent takes at least 30% fewer turns per task against a CLI that meets the floor",
+      "source": ".sdlc/intents/burgee/intent.md — the roadmap headline",
+      "target": "<= 0.7",
+      "measured": 0.6,
+      "unit": "ratio",
+      "met": true,
+      "from": {
+        "axis": "agent",
+        "variant": "burgee ÷ commander",
+        "metric": "turns-per-task-ratio"
+      }
+    }
+  }
+}

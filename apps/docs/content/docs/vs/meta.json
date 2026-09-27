@@ -1,4 +1,4 @@
 {
   "title": "Comparisons",
-  "pages": ["commander", "yargs"]
+  "pages": ["commander", "yargs", "oclif", "cac", "citty"]
 }

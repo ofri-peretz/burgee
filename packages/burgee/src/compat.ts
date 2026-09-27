@@ -157,6 +157,59 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
 };
 /* eslint-enable conventions/prefer-dependency-version-strategy */
 
+/**
+ * C1 — the majors of each incumbent its drop-in claims, per incumbent package, highest last.
+ *
+ * A major is on this list only when the incumbent's **own suite at that major** grades the
+ * drop-in level with the incumbent itself (D-137), so the list is a measurement and not a
+ * range somebody believed. The current major is the one in `GRADED_VERSIONS`. An older one
+ * needs a row in `compat-oracle`'s `PREVIOUS_MAJORS` — the suite vendored at that major's last
+ * tag and graded in CI by `compat.yml`'s ratchet job — whose baseline passes as many cases as
+ * its control does.
+ *
+ * Two older majors are graded today and **neither is claimed**, because neither is level:
+ * commander 14 grades 1329 / 1331 (15 names the surplus argument in the excess-arguments
+ * message, 14 does not) and yargs 17 grades 191 / 794 (17's `require('yargs')` is a
+ * singleton, which 18 removed). The measurements are on the compatibility page; the claim
+ * waits for the number.
+ *
+ * `migrate` reads this, and not `GRADED_VERSIONS`, to decide a project is on a major it may
+ * rewrite — so a major that becomes level here is a major `migrate` serves, with no second
+ * edit. `scripts/supported-majors-lock.test.ts` holds every entry to `GRADED_VERSIONS` and to
+ * the oracle's graded rows.
+ */
+/* eslint-disable conventions/no-magic-numbers -- these are major versions of other packages, data `migrate` reads and a lock holds to the oracle's grades; naming each would be twenty-seven constants that say `15` */
+export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
+  '@clack/prompts': [1],
+  '@inquirer/core': [12],
+  'ansi-escapes': [7],
+  boxen: [8],
+  chalk: [6],
+  'cli-table3': [0],
+  commander: [15],
+  cosmiconfig: [10],
+  'cross-spawn': [7],
+  dotenv: [17],
+  'exit-hook': [5],
+  lilconfig: [3],
+  'log-update': [8],
+  meow: [14],
+  ora: [9],
+  rc: [1],
+  'restore-cursor': [5],
+  'signal-exit': [4],
+  'slice-ansi': [7],
+  'string-width': [8],
+  'strip-ansi': [7],
+  'term-img': [7],
+  'terminal-link': [5],
+  which: [7],
+  'wrap-ansi': [10],
+  yargs: [18],
+  'yargs-parser': [22],
+};
+/* eslint-enable conventions/no-magic-numbers */
+
 /** Level: the drop-in passes every case the incumbent passes against its own suite (D-137). */
 export const isLevel = (host: string): boolean => {
   const row = GRADED[host];

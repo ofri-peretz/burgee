@@ -25,3 +25,7 @@ packages/compat-oracle/competitors-upstream.json
 # ripgrep having to be told twice. `launch.json` beside them is local dev-server
 # config, not something another machine wants.
 .claude/
+
+# The two outside checkers the floor axis runs (N10), downloaded and digest-checked by
+# `benchmarks/floor-tools.ts`. Pinned there; a binary is not source.
+benchmarks/.tools/

@@ -28,7 +28,7 @@ import { join } from 'node:path';
 
 import { ambientRuntime, run } from 'bellpull';
 
-import { DROP_INS, GRADED, GRADED_VERSIONS, isLevel, type Row } from './compat.js';
+import { DROP_INS, GRADED, GRADED_VERSIONS, isLevel, type Row, SUPPORTED_MAJORS } from './compat.js';
 import { ExitCode } from './exit-code.js';
 
 /** The npm package a specifier names: `@scope/name/x` → `@scope/name`, `name/x` → `name`. */
@@ -996,14 +996,18 @@ async function installedVersion(dir: string, name: string): Promise<string | und
   }
 }
 
-/** Incumbents this project has on a major other than the graded one (A12). */
+/**
+ * Incumbents this project has on a major its drop-in does not claim (A12, C1). The claim is
+ * `SUPPORTED_MAJORS` — every major graded level by that major's own suite — so an older major
+ * that reaches level is served here without another edit.
+ */
 async function offMajorOf(dir: string, dependencies: Map<string, string>): Promise<OffMajor[]> {
   const found = await Promise.all(HOSTS.map(async (from) => ({ from, found: (await installedVersion(dir, from)) ?? dependencies.get(from) })));
   return found.flatMap(({ from, found: version }) => {
     const graded = GRADED_VERSIONS[from];
     if (version === undefined || graded === undefined) return [];
     const major = majorOf(version);
-    return major === undefined || major === majorOf(graded) ? [] : [{ from, found: version, graded }];
+    return major === undefined || (SUPPORTED_MAJORS[from] ?? []).includes(major) ? [] : [{ from, found: version, graded }];
   });
 }
 

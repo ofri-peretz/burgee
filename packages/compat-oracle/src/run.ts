@@ -7,9 +7,9 @@
  * would be graded by our reading of the host's behaviour, which is the thing under test.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join, relative, sep } from 'node:path';
+import { dirname, isAbsolute, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { testFiles } from './discover.js';
@@ -328,17 +328,14 @@ function shimSource(entry: HostImport, host: Host, target: string): string {
   // different build: signal-exit's suite is written against `dist/cjs`, whose behaviour
   // differs from `dist/mjs` in exactly what `no-process.js` checks.
   //
-  // It also evicts the implementation from the require cache each time *it* is loaded. A
-  // suite that busts the cache — `delete require.cache[require.resolve('../../')]` in
-  // `process-gone.js`, `t.mock('../dist/cjs/signals.js')` in `signals.js` — busts the path it
-  // names, which is now the shim; without this the re-required shim hands back the cached
-  // implementation and the test measures the harness. A cached shim still returns one instance.
+  // It also evicts the implementation from the require cache when the suite busts the shim —
+  // see `cjsLoad`, which both kinds of CommonJS shim share.
   if (host.shim === 'cjs') {
     // `reexportDefault` means the suite calls the module itself — node-which's `which(cmd)`.
     // `require()` of an ES module returns its namespace, so the default is unwrapped; a CJS
     // incumbent has none and is handed over whole, which is what it already was.
     const exported = entry.reexportDefault ? 'loaded?.default ?? loaded' : 'loaded';
-    return `${header}\nconst target = require.resolve('${from}');\ndelete require.cache[target];\nconst loaded = require(target);\nmodule.exports = ${exported};\n`;
+    return `${header}\n${cjsLoad(from)}\nmodule.exports = ${exported};\n`;
   }
   // `export *` never carries a default; yargs' entry has one and its tests use it.
   //
@@ -351,6 +348,32 @@ function shimSource(entry: HostImport, host: Host, target: string): string {
   // `scripts/drop-in-require-shape-lock.test.ts` checks that from outside the oracle.
   const withDefault = entry.reexportDefault ? `export { default } from '${from}';\n` : '';
   return `${header}\nexport * from '${from}';\n${withDefault}`;
+}
+
+/**
+ * The load half of a public CommonJS shim (`shim: 'cjs'`): resolve the implementation, evict
+ * it when the suite has busted this shim, require it.
+ *
+ * A suite that busts the cache — `delete require.cache[require.resolve('../../')]` in
+ * signal-exit's `process-gone.js`, yargs 17's `clearRequireCache()` — busts the path it names,
+ * which is now the shim; without the eviction the re-required shim hands back the cached
+ * implementation and the test measures the harness.
+ *
+ * **On a re-evaluation only, never the first.** A first evaluation stands where the suite's
+ * first `require()` stood, and that returned whatever was cached — the instance the rest of
+ * the process already holds. Evicting there too handed yargs 17's `parser.cjs` a second
+ * `yargs-parser` beside the one the incumbent had loaded, and `yargs.Parser.should.equal(Parser)`
+ * failed against yargs itself. The shim counts its own evaluations in a process-wide set, so
+ * only the reload a suite asked for by busting the shim reaches the implementation.
+ */
+export function cjsLoad(from: string): string {
+  return [
+    `const target = require.resolve(${JSON.stringify(from)});`,
+    "const seen = (globalThis[Symbol.for('compat-oracle.shim-loads')] ??= new Set());",
+    'if (seen.has(__filename)) delete require.cache[target];',
+    'seen.add(__filename);',
+    'const loaded = require(target);',
+  ].join('\n');
 }
 
 /**
@@ -432,7 +455,51 @@ function writeInternalShims(host: Host, { hostDir, target, internals, packageTyp
     // Only when the shim points at the target package: a control's `from` is the host's own
     // file, which already exports what the suite expects.
     const named = from === target ? host.internalExports?.[rel] : undefined;
-    writeFileSync(at, `// generated per run — COMPAT_TARGET=${target}\n${internalShimBody(from, packageType, named)}`);
+    // The path's own extension outranks the package's type: yargs 17 is `type: module` and its
+    // suite requires `../build/index.cjs`, which Node parses as CommonJS whatever the manifest
+    // says — an `export *` written there is a syntax error that fails every file reaching it.
+    const language = rel.endsWith('.cjs') ? 'commonjs' : packageType;
+    // Unlinked first, never written through: on a control run of a `shim: 'cjs'` host this
+    // path is a symlink into the installed incumbent, and `writeFileSync` on it would replace
+    // the incumbent's own file with a shim that requires itself.
+    rmSync(at, { force: true });
+    if (linksInternal(host, { from, target, at })) continue;
+    writeFileSync(at, `// generated per run — COMPAT_TARGET=${target}\n${internalShimBody(from, language, named)}`);
+  }
+}
+
+/**
+ * On a control run of a host whose suite busts `require.cache` (`shim: 'cjs'`), the internal
+ * path is a **symlink to the incumbent's own file** rather than a shim that requires it.
+ *
+ * A shim is a second module standing in front of the first, and a suite that busts the cache
+ * busts the one it names. yargs 17's `clearRequireCache()` deletes `../index.cjs` and
+ * `../build/index.cjs` and then requires only the first, expecting it to load a fresh build:
+ * the build's module scope holds the minimum-Node check and the detected locale. With a shim
+ * at `build/index.cjs` the delete removed the shim and left the real build cached, and two
+ * cases failed against yargs itself. Node's CommonJS loader keys its cache by real path, so
+ * through a link `require.resolve('../build/index.cjs')` *is* the incumbent's build, and the
+ * suite's own `delete` does exactly what it does upstream — the same instance `index.cjs`
+ * holds, evicted by the same line.
+ *
+ * Returns false, and the caller writes the ordinary shim, on a target run, for a file the
+ * package does not ship, and where the platform refuses the link (Windows without the
+ * privilege), where the control is informational anyway.
+ */
+function linksInternal(host: Host, { from, target, at }: { from: string; target: string; at: string }): boolean {
+  // `from` is an absolute path exactly when `internalShimFrom` found the file the package ships.
+  if (host.shim !== 'cjs' || target !== controlName(host) || !isAbsolute(from)) return false;
+  let file: string;
+  try {
+    file = resolverAt(dirname(from)).resolve(from);
+  } catch {
+    return false;
+  }
+  try {
+    symlinkSync(file, at);
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -499,7 +566,7 @@ function command(host: Host, hostDir: string, dir: string, paths: string[]): { b
   const timeout = String(host.timeoutMs ?? DEFAULT_TIMEOUT_MS);
   return {
     bin: process.execPath,
-    args: [join(packageRoot('mocha', runnerFrom(host, hostDir)), 'bin', 'mocha.js'), '--reporter', 'tap', '--timeout', timeout, ...preamble, ...paths],
+    args: [mochaCli(packageRoot('mocha', runnerFrom(host, hostDir))), '--reporter', 'tap', '--timeout', timeout, ...preamble, ...paths],
   };
 }
 
@@ -524,6 +591,17 @@ function avaCli(root: string): string {
 }
 
 /**
+ * mocha's CLI entry, which is the same kind of moving target: 10 and later ship
+ * `bin/mocha.js`, 9 ships `bin/mocha` with no extension. yargs 17's suite pins mocha 9
+ * (`suiteDeps`), and the hardcoded `mocha.js` died with `MODULE_NOT_FOUND` before one case
+ * ran — the row read as an oracle that could not grade it rather than as a number.
+ */
+export function mochaCli(root: string): string {
+  const entry = join(root, 'bin', 'mocha.js');
+  return existsSync(entry) ? entry : join(root, 'bin', 'mocha');
+}
+
+/**
  * vitest reads its file list from a config, so the run writes one — the exact files,
  * relative to the root, and `globals: true` because a jest suite calls `describe`, `it`
  * and `expect` without importing them. Generated per run beside the shims, and gitignored
@@ -539,7 +617,7 @@ function avaCli(root: string): string {
  * failure when it is a runner mismatch — the whole class of error the oracle exists to keep
  * out of the number.
  */
-const jestGlobals = (): string => `// generated per run
+export const jestGlobals = (): string => `// generated per run
 import { createRequire, isBuiltin, syncBuiltinESMExports } from 'node:module';
 import { vi } from 'vitest';
 
@@ -597,6 +675,16 @@ globalThis.jest = {
   // rule as the rest: vitest's own equivalent, and no assertion touched.
   clearAllMocks: () => vi.clearAllMocks(),
 };
+
+// jest forks its workers with the runner's own \`execArgv\`, which is empty: the oracle starts
+// the runner with no flags. vitest forks its with four of its own — \`--experimental-import-
+// meta-resolve\`, \`--require …/suppress-warnings.cjs\` and two \`--conditions\` pairs — and a
+// library that spawns \`node\` with \`process.execArgv\` passes them on. commander does exactly
+// that for an executable subcommand, and commander 14's suite asserts the spawn's argv: ten
+// cases failed against commander 14 itself, on four flags neither jest nor a user's shell
+// would ever have put there. Reset here, before any suite module loads, to what jest hands a
+// test — the runner's, which is none.
+process.execArgv = [];
 `;
 
 /**

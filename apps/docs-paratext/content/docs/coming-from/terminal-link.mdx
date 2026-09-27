@@ -1,0 +1,81 @@
+---
+title: Coming from terminal-link
+description: "A terminal-link alternative with a drop-in path: import terminalLink from paratext/terminal-link, graded 8 / 8 by terminal-link's own test suite, with two cases excluded by name — then zero dependencies, and hyperlinks that project to plain text for pipes and agents."
+---
+
+**paratext** is a **terminal-link alternative** you adopt by changing one import.
+`paratext/terminal-link` is terminal-link 5's API, and terminal-link's own test suite is the
+grade — with two of its cases excluded by name, for the reason below.
+
+## Migrate from terminal-link in one import
+
+```diff
+- import terminalLink from 'terminal-link';
++ import terminalLink from 'paratext/terminal-link';
+```
+
+Everything else stays: `terminalLink(text, url, { target, fallback })`,
+`terminalLink.isSupported`, `terminalLink.stderr(text, url, options?)` and
+`terminalLink.stderr.isSupported`, and the `Options` type under terminal-link's name. The
+fallback is terminal-link's: `text url` by default, the text alone with `fallback: false`,
+or whatever your function returns. `isSupported` is a snapshot taken at import, as it is
+upstream.
+
+Whether a terminal links is decided by the incumbent's detection, carried in-package:
+`supports-hyperlinks` 4.5.0's table, checked against the real package in 55 environments.
+`FORCE_HYPERLINK`, `--no-hyperlink` and the version floors behave as they do in
+terminal-link. The one thing that does not carry is assigning `supportsHyperlinks.stdout`
+on the `supports-hyperlinks` module object — paratext takes no runtime dependency, so it
+never sees that object. Set `FORCE_HYPERLINK=1` instead.
+
+## Is paratext compatible with terminal-link?
+
+Graded, not claimed. terminal-link's own suite, vendored at 5.0.0 and unmodified apart from
+the import specifier, runs against `paratext/terminal-link` beside a control that runs it
+against real terminal-link:
+
+| | passing | rate |
+| :-- | --: | --: |
+| `paratext/terminal-link` | 8 / 8 | 100.0% |
+| terminal-link itself (control) | 8 / 8 | 100.0% |
+
+From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
+oracle's last run; that page is the authority. **The suite has ten cases, and two are
+excluded from the gate by exact title** — `main` and `stderr`. Both set
+`supportsHyperlinks.stdout` (or `.stderr`) to `true` on that module object and expect an
+OSC 8 link on a headless runner. paratext cannot see the assignment, answers from the
+detection that module would have computed, and on that runner the answer is no. Reading
+`supports-hyperlinks` whenever it happens to be installed would turn them green and would
+change what a caller gets based on what else is in `node_modules`, so it does not. Counted
+against it, the row is 8 / 10; the six cases that set the flag to `false`, and the two
+`isSupported` cases, pass.
+
+## What you gain over terminal-link
+
+- **Zero dependencies.** terminal-link 5.0.0 depends on `ansi-escapes` and
+  `supports-hyperlinks`.
+- **A testable detection.** `terminalLinkFor(runtime)` is the same function bound to an
+  environment you hand it, so a test asks "would this terminal link?" without mutating
+  `process.env` or another package's module object.
+- **The rest of the OSC layer, as data.** Beyond the façade, paratext's `emit()` gives every
+  capability — hyperlinks, images, the title, the clipboard, notifications — a required
+  static projection, so a pipe or an agent reads `Docs (https://x.dev)`, never raw escape
+  bytes.
+
+```js
+import { emit, processRuntime } from 'paratext';
+
+emit(processRuntime(), 'link', { text: 'Docs', url: 'https://x.dev' });
+// a terminal that supports it: the OSC 8 hyperlink
+// a pipe:                      Docs (https://x.dev)
+```
+
+## When to switch from terminal-link
+
+- You print hyperlinks and want them without two more packages in the tree.
+- Your output is also piped, logged or read by an agent, and you want the fallback to be a
+  rule rather than a per-call option.
+
+If your tests force links by assigning `supportsHyperlinks.stdout`, move them to
+`FORCE_HYPERLINK` or to `terminalLinkFor(runtime)` first. The registry, the schema and the
+plugin host are on [paratext](/docs).

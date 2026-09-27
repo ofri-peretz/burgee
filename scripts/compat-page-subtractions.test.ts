@@ -17,13 +17,14 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 // eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: a bare `compat-oracle/*` resolves from another checkout's dist/ in an uninstalled worktree (compat-oracle R6)
-import { HOSTS } from '../packages/compat-oracle/src/hosts.js';
+import { HOSTS, PREVIOUS_MAJORS } from '../packages/compat-oracle/src/hosts.js';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const PAGE = readFileSync(join(root, 'apps/docs/content/docs/compatibility.mdx'), 'utf8');
 
 /** Every declared subtraction, as the kind, the host, and the reason the page must carry. */
-const SUBTRACTIONS = HOSTS.filter((h) => h.status === 'active').flatMap((h) => [
+// The previous majors (C1) publish rows too, so their subtractions are held to the same page.
+const SUBTRACTIONS = [...HOSTS.filter((h) => h.status === 'active'), ...PREVIOUS_MAJORS].flatMap((h) => [
   ...(h.excludes ?? []).map((e) => ({ kind: 'excludes', host: h.name, why: e.why })),
   ...(h.controlFailures === undefined ? [] : [{ kind: 'controlFailures', host: h.name, why: h.controlFailures.why }]),
   ...(h.conditionalCases === undefined ? [] : [{ kind: 'conditionalCases', host: h.name, why: h.conditionalCases.why }]),

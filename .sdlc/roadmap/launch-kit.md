@@ -18,7 +18,7 @@
   measured. The README says which.
 - **Weight.** Zero runtime dependencies across nine packages. Against commander **plus** the
   config, exit-hook and cursor-restore packages a user adds to match it, `burgee/commander` is
-  0.481× the bundle; against commander alone it is 1.554× — both rows are published.
+  0.483× the bundle; against commander alone it is 1.561× — both rows are published.
 
 ## Show HN
 

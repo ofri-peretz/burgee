@@ -17,6 +17,9 @@ two ways:
    | chalk | 6.0.0 | ava | `roundel/chalk` | 58 / 58 | 58 / 58 (2026-09-08) |
 
    `npm run compat -- chalk --control` grades one host; bare `npm run compat` grades all.
+   `npm run compat -- --majors` grades each drop-in against its incumbent's **previous**
+   major instead (C1: `PREVIOUS_MAJORS` in `src/hosts.ts` — commander 14, yargs 17), with
+   baselines under `baseline/majors/`; add `--control` for the real older packages.
 
    **The number has to be the number a stranger gets.** Vendored suites run unedited, so
    whatever they `require` is a dependency of this package, pinned. cli-table3's suite

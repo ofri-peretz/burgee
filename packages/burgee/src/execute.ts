@@ -8,9 +8,10 @@
 import { dirname } from 'node:path';
 import { parseArgs } from 'node:util';
 
-import { ConfigError, type Layers, type Provenance, resolve as resolveLayers } from 'seniority/precedence';
+import { type Layers, type Provenance, resolve as resolveLayers } from 'seniority/precedence';
 
 import { detectAgent } from './agent.js';
+import { beforeTerminator, isJsonFlag, mayServe } from './argv.js';
 import { checkCommand } from './definition.js';
 import { ExitCode, isExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
 import { type ActionRequiredSpec, type ArgumentSpec, type CommandNode, type DeclaredEffects, type Example, type LazyModule, Manifest, type OptionSpec, type Relation, relationsOf, type RunContext } from './manifest.js';
@@ -18,7 +19,7 @@ import { camel, kebab } from './names.js';
 import { nearestPackage, type Package } from './pkg.js';
 import { host } from './runtime.js';
 import { detachedTeardown, processTeardown, type Teardown } from './shutdown.js';
-import { AuthError, checkRelations, coerce, UsageError } from './validate.js';
+import { coerce, UsageError } from './validate.js';
 
 export interface CommandContext<O> extends Omit<RunContext, 'options'> {
   options: O;
@@ -304,37 +305,16 @@ interface Resolved2 {
   explainText?: string;
 }
 
-/** The owning package.json's field named after the program, as a layer below config. */
-function packageLayer(pkg: Package | undefined, name: string | undefined): Layers['pkg'] {
-  if (pkg === undefined || name === undefined) return undefined;
-  const field = pkg.data[name];
-  return typeof field === 'object' && field !== null && !Array.isArray(field) ? { path: pkg.path, data: field as Record<string, unknown> } : undefined;
-}
-
 /**
- * Precedence flag > env > config > package.json > default (V1), then fail on anything still
- * missing and required. Config is loaded here, lazily, only for a program that opted in.
+ * Every layer, read and resolved (V1) — what a run uses and what `config explain` prints.
+ * Precedence is flag > env > config > package.json > default. Config is loaded lazily, only for
+ * a program that opted in: the layers come from `config-layers.js` (U5), which reaches
+ * `seniority/config` the same way.
  */
-/** The config file and the package.json field, for a program that opted in; loaded lazily (K6). */
-async function configLayers(name: string, values: Values, io: Io): Promise<Pick<Layers, 'config' | 'pkg'>> {
-  const { discover } = await import('seniority/config');
-  const explicit = values['config'];
-  // Flags are canonical (camelCase) by now: `--no-config` reads as `noConfig`.
-  const disabled = values['noConfig'] === true;
-  const loaded = await discover({ name, cwd: io.cwd, env: io.env, ...(typeof explicit === 'string' ? { explicit } : {}), disabled });
-  const out: Pick<Layers, 'config' | 'pkg'> = {};
-  if (loaded !== undefined) out.config = { path: loaded.chain.join(' ← '), data: loaded.data };
-  // --no-config turns off every discovered source, the package.json field included.
-  const pkg = disabled ? undefined : packageLayer(io.pkg, name);
-  if (pkg !== undefined) out.pkg = pkg;
-  return out;
-}
-
-/** Every layer, read and resolved (V1) — what a run uses and what `config explain` prints. */
 async function resolution(manifest: Manifest, specs: Record<string, OptionSpec>, values: Values, io: Io): Promise<ReturnType<typeof resolveLayers>> {
   const layers: Layers = { flags: values, env: io.env };
   if (manifest.envPrefix !== undefined) layers.envPrefix = manifest.envPrefix;
-  if (manifest.config !== undefined) Object.assign(layers, await configLayers(manifest.config.name, values, io));
+  if (manifest.config !== undefined) Object.assign(layers, await (await import('./config-layers.js')).configLayers(manifest.config.name, values, io));
   return resolveLayers(specs, layers);
 }
 
@@ -375,166 +355,6 @@ function splitPositionals(tokens: readonly Token[]): { positionals: string[]; pa
   return { positionals, passthrough };
 }
 
-/**
- * parseArgs reports every malformed-argv case with an ERR_PARSE_ARGS_* code. Each one is
- * the caller mistyping something, which is USAGE (2) — never RUNTIME (1), because 1 is
- * the code an agent reads as "the command ran and failed".
- */
-function isParseArgsFailure(cause: unknown): boolean {
-  if (!(cause instanceof Error)) return false;
-  const { code } = cause as Error & { code?: unknown };
-  return typeof code === 'string' && code.startsWith('ERR_PARSE_ARGS_');
-}
-
-/** `ctx.exit(code)` or a harness exit: an E1 code to honour, with nothing to print. */
-function exitSignal(cause: unknown): ExitCodeType | undefined {
-  const code = (cause as { code?: unknown } | null)?.code;
-  return typeof code === 'number' && isExitCode(code) ? code : undefined;
-}
-
-interface Failure {
-  code: ExitCodeType;
-  message: string;
-  hint?: string;
-  /** E3 — the exact command or flag to run next, where one exists. Never a guess. */
-  fix?: string;
-  /** An exit signal: honour the code, print nothing. */
-  silent?: boolean;
-  /** N11: the caller must act; carried into the envelope with the runnable `next[]`. */
-  action?: ActionRequiredSpec;
-}
-
-/**
- * The error classes that name their own exit code — a table rather than a chain of
- * `instanceof`, which is the shape E7 asks for: an author classifies an error and the
- * framework maps it to a stable code.
- *
- * Order is the answer when a class extends another; none of these do today, and `find` takes
- * the first match so the list is the precedence if one ever does. **`AuthError` sits apart from
- * `ConfigError` on purpose**: a missing credential is not a broken config file. `CONFIG` says
- * *fix the runner* and `AUTH` says *get a credential*, which are different actions, and
- * collapsing them is what having one code for everything looks like.
- */
-const CLASSIFIED: readonly (readonly [new (...args: never[]) => Error, ExitCodeType])[] = [
-  [UsageError, ExitCode.USAGE],
-  [AuthError, ExitCode.AUTH],
-  [ConfigError, ExitCode.CONFIG],
-];
-
-/** The refusals a thrown value may name by string; `RUNTIME` is the default, never a claim. */
-// A Map, not an object: `'toString' in {…}` is true, and a thrown `{ code: 'toString' }` must not claim anything.
-const NAMED: ReadonlyMap<unknown, ExitCodeType> = new Map([
-  ['USAGE', ExitCode.USAGE],
-  ['CONFIG', ExitCode.CONFIG],
-  ['CANCELLED', ExitCode.CANCELLED],
-  ['AUTH', ExitCode.AUTH],
-]);
-
-function namedCode(cause: unknown): ExitCodeType | undefined {
-  return NAMED.get((cause as { code?: unknown } | null | undefined)?.code);
-}
-
-/** What went wrong, in words: an Error's message, a refusal object's `message`, or the value itself. */
-function messageOf(cause: unknown): string {
-  if (cause instanceof Error) return cause.message;
-  const said = (cause as { message?: unknown } | null | undefined)?.message;
-  return typeof said === 'string' ? said : String(cause);
-}
-
-/** `hint` and `fix` off an error that carries them, and nothing when it does not (E3). */
-function carried(cause: unknown): { hint?: string; fix?: string } {
-  const { hint, fix } = (cause ?? {}) as { hint?: unknown; fix?: unknown };
-  return {
-    ...(typeof hint === 'string' ? { hint } : {}),
-    ...(typeof fix === 'string' ? { fix } : {}),
-  };
-}
-
-/** E2/E3 — a usage error never prints a stack, a runtime failure never prints help. */
-async function describeFailure(cause: unknown, argv: string[], node?: CommandNode): Promise<Failure> {
-  const signal = exitSignal(cause);
-  if (signal !== undefined) return { code: signal, message: '', silent: true };
-  const message = messageOf(cause);
-  if (cause instanceof ActionRequired) return { code: ExitCode.CANCELLED, message, action: cause.spec, ...(cause.spec.hint === undefined ? {} : { hint: cause.spec.hint }) };
-  const named = CLASSIFIED.find(([Class]) => cause instanceof Class);
-  if (named !== undefined) return { code: named[1], message, ...carried(cause) };
-  // E7 — an author's own class, from `defineError`: its declared code, read off
-  // `Symbol.for('burgee.exitCode')` on the instance's class (or a parent — statics inherit), and
-  // rendered like the built-in ones. By symbol, not by import: the engine never loads
-  // `define-error.js`, so a program that defines no error pays for this read and nothing else.
-  const own = (cause as { constructor?: Record<symbol, unknown> } | null | undefined)?.constructor?.[Symbol.for('burgee.exitCode')];
-  if (typeof own === 'number') return { code: own as ExitCodeType, message, ...carried(cause) };
-  // P2 / P3 / D-120 — a refusal that names its contract code by string (`code: 'USAGE'`,
-  // `'CANCELLED'`, …) leaves with that code. It is how caique's prompt verdicts reach an exit
-  // status with no dependency edge between the two packages: caique returns
-  // `{ code, message, fix }`, the handler throws it, and nothing here imports caique.
-  const byName = namedCode(cause);
-  if (byName !== undefined) return { code: byName, message, ...carried(cause) };
-  if (isParseArgsFailure(cause)) {
-    // Loaded only here: see unknown-option.ts for why none of this is imported.
-    const explain = await import('./unknown-option.js');
-    const dash = explain.singleDashHint(argv);
-    if (dash !== undefined) return { code: ExitCode.USAGE, message, hint: dash };
-    // The flags as typed, not the canonical keys: `fix` is run verbatim, and `--dryRun` is refused.
-    const better = explain.unknownOption(cause, Object.keys(node?.options ?? {}).map(kebab));
-    return { code: ExitCode.USAGE, message, hint: 'run --help to see the available options', ...better };
-  }
-  return { code: ExitCode.RUNTIME, message };
-}
-
-function textFailure(failure: Failure): string {
-  const hint = failure.hint === undefined ? '' : `hint: ${failure.hint}\n`;
-  const fix = failure.fix === undefined ? '' : `fix: ${failure.fix}\n`;
-  if (failure.action !== undefined) {
-    const next = (failure.action.next ?? []).map((n) => `  ${n.command}    ${n.when}\n`).join('');
-    return `action required (${failure.action.reason}): ${failure.message}\n${next === '' ? '' : `next:\n${next}`}${hint}`;
-  }
-  return `error: ${failure.message}\n${hint}${fix}`;
-}
-
-/** The `next[]` commands as the caller can run them: the program in front, the caller's own `--json` carried (N11). */
-function runnableNext(manifest: Manifest, spec: ActionRequiredSpec, json: boolean): { command: string; when: string }[] {
-  const program = manifest.rootPath.join(' ');
-  return (spec.next ?? []).map((n) => ({ command: `${program} ${n.command}${json && !n.command.includes('--json') ? ' --json' : ''}`, when: n.when }));
-}
-
-const HELP_FLAGS = new Set(['--help', '-h']);
-
-/**
- * F2 — help as data: one command, its options and arguments, and the names of its children.
- *
- * The same `CommandSchema` shape `--schema` publishes, scoped to the node the reader asked
- * about, so there is one document shape in the package rather than a second one invented for
- * help. Children are names only: `--help` on a group is a menu, and a reader who wants a
- * child's detail asks for that child.
- */
-async function helpDocumentOf(manifest: Manifest, node: CommandNode): Promise<Record<string, unknown>> {
-  const { commandSchemaOf, typedName } = await import('./schema.js');
-  const root = manifest.rootPath;
-  const children = manifest.commands
-    .filter((c) => c.path.length === node.path.length + 1 && c.path.slice(0, node.path.length).join(' ') === node.path.join(' '))
-    .map((c) => typedName(c, root));
-  return {
-    schemaVersion: 1,
-    ...commandSchemaOf(node, root),
-    ...(children.length === 0 ? {} : { commands: children }),
-  };
-}
-/**
- * The same courtesy `--help` gets, for the flag people type first.
- *
- * `dispatch` has always answered `--version`, but only once a command resolved. A program
- * that is a pure command group resolves nothing for `burgee --version`, so it fell through
- * to `unknown command "--version"` and **exit 2** — which under E1 means *rewrite the
- * command*, so an agent asked for the version would rewrite it until it gave up. Real
- * commander and real yargs both print the version and exit 0 for the identical program.
- *
- * `-V` is commander's spelling, and `commander-command.ts` already defaults to
- * `-V, --version`. Like `HELP_FLAGS` above, this does not check whether the root declares
- * an option of the same name: a root that is not runnable has no path that would answer it.
- */
-
-
 /** Help width: the terminal's columns when the stream has them, else 100 (H3). */
 const HELP_WIDTH = 100;
 
@@ -555,148 +375,6 @@ const processExit = (code: number): void => host.exit(code);
 async function leave(io: Io, code: number): Promise<void> {
   await io.teardown.run(code);
   io.exit(code);
-}
-
-/** The part of argv the parser will read as options: everything before `--`. */
-export function beforeTerminator(argv: readonly string[]): readonly string[] {
-  const at = argv.indexOf('--');
-  return at === -1 ? argv : argv.slice(0, at);
-}
-
-/** The node help is rendered for when nothing more specific resolves: the root's own. */
-function rootNode(manifest: Manifest, root: string[]): CommandNode {
-  return manifest.find(root) ?? { path: root, options: {} };
-}
-
-/** What to do when argv resolves to no runnable command: help, or a usage error naming it. */
-interface Resolving {
-  manifest: Manifest;
-  root: string[];
-  io: Io;
-}
-
-/**
- * Loaded where it is printed, not at the top of the file.
- *
- * `help.js` is 4.1 KB and it reaches `linegauge` for column measurement, another 6.1 KB —
- * together a third of the core entry, on a path a program takes when someone asks for help
- * and never otherwise. Reached through `await import()`, a bundler with code splitting
- * leaves all of it off the startup path.
- */
-const renderHelp = async (manifest: Manifest, node: CommandNode, io: Io): Promise<string> => {
-  const help = await import('./help.js');
-  return help.renderHelp(manifest, node, { width: io.width, color: help.colorFor(io.env, detectAgent(io.env, io.tty).interactive) });
-};
-
-/**
- * `schema.ts` on demand, for the same reason help is: nothing in it runs unless a reader asks
- * for a document.
- *
- * Every call site — `--help --json`, `--schema`, and the `help` command — is a branch a normal
- * run never takes, and the module is 2,640 bundled bytes plus the `plugin.ts` and `manifest.ts`
- * it drags into the same chunk. It was static because `schemaSurface` and `helpDocumentOf` were
- * synchronous; both are only ever called from `async` functions, so making them `async` costs a
- * microtask on a path that is about to write to stdout and print nothing else.
- */
-const machineJson = async (...args: Parameters<typeof import('./schema.js')['machineJson']>): Promise<string> =>
-  (await import('./schema.js')).machineJson(...args);
-
-async function unresolved({ manifest, root, io }: Resolving, argv: string[], at: CommandNode | undefined): Promise<{ text: string; code: ExitCodeType }> {
-  const node = at ?? rootNode(manifest, root);
-  const typed = argv.slice(node.path.length - root.length);
-  const first = typed[0] ?? '';
-  if (typed.length > 0 && HELP_FLAGS.has(first)) {
-    // F2 — `--help --json` is help *as data*. Before this it printed the same prose as
-    // `--help`, so a caller who asked for a machine-readable answer got one they had to
-    // parse, which is the failure the whole `--json` surface exists to avoid. The document is
-    // `commandSchemaOf` for this node plus its immediate children, so the shape a reader
-    // already knows from `--schema` is the shape they get here, scoped to one command.
-    if (beforeTerminator(typed).some(isJsonFlag)) return { text: `${await machineJson(await helpDocumentOf(manifest, node), beforeTerminator(argv))}\n`, code: ExitCode.OK };
-    return { text: await renderHelp(manifest, node, io), code: ExitCode.OK };
-  }
-  if (first === '--version' || first === '-V') return { text: `${versionOf(manifest, io)}\n`, code: ExitCode.OK };
-  if (typed.length === 0) return { text: await renderHelp(manifest, node, io), code: ExitCode.USAGE };
-  throw new UsageError(`unknown command "${typed[0] ?? ''}"`, 'run --help to see the available commands');
-}
-
-/**
- * `--schema` (F1, N8) and `--mcp` (N1) are served for every program from the manifest
- * alone, before any command resolves: no config, no network, no handler runs.
- */
-/**
- * `completion <shell>` is synthesised unless the program defines its own `completion`
- * command (D2). The templates are loaded only here, on that command (K6): a program pays
- * for them when it prints a completion script, never at startup.
- */
-async function completion(manifest: Manifest, argv: string[], io: Io): Promise<boolean> {
-  if (argv[0] !== 'completion' || manifest.find([...manifest.rootPath, 'completion']) !== undefined) return false;
-  const { renderCompletion, renderFigSpec, SHELLS } = await import('./completions.js');
-  const shell = argv[1] ?? '';
-  if (shell === 'fig') {
-    io.out.write(`${JSON.stringify(renderFigSpec(manifest), null, 2)}\n`);
-    return true;
-  }
-  const known = SHELLS.find((s) => s === shell);
-  if (known === undefined) throw new UsageError(`unknown shell "${shell}"`, `completion ${SHELLS.join('|')}|fig`);
-  io.out.write(renderCompletion(manifest, known));
-  return true;
-}
-
-async function surface(manifest: Manifest, argv: string[], io: Io): Promise<boolean> {
-  const head = beforeTerminator(argv);
-  if (argv[0] === '__complete') {
-    await (await import('./complete-dynamic.js')).completeDynamic(manifest, argv.slice(1), (t) => io.out.write(t));
-    return true;
-  }
-  // V8 / D-117 — `config explain`, synthesised for a program that reads config and does not
-  // define the command itself. Imported only on this path (M2).
-  const root = manifest.rootPath;
-  if (head[0] === 'config' && head[1] === 'explain' && manifest.config !== undefined && manifest.find([...root, 'config', 'explain']) === undefined) {
-    const { explainConfig } = await import('./config-explain.js');
-    io.out.write(await explainConfig(manifest, head.slice(2), (specs, flags) => resolution(manifest, specs, flags, io)));
-    return true;
-  }
-  if (await completion(manifest, argv, io)) return true;
-  if (argv[0] === 'help') {
-    io.out.write(await helpCommand(manifest, argv.slice(1), manifest.rootPath, io));
-    return true;
-  }
-  if (head.includes('--schema')) {
-    // The whole surface is its own chunk (M2): only `--schema` loads it, or the schema it serves.
-    const { schemaSurface } = await import('./schema-surface.js');
-    io.out.write(`${await machineJson(await schemaSurface(manifest, argv), head)}\n`);
-    return true;
-  }
-  if (head[0] === '--mcp') {
-    const invoke = async (args: string[]): Promise<{ stdout: string; stderr: string; code: number }> => {
-      const out: string[] = [];
-      const err: string[] = [];
-      let code = 0;
-      await execute(manifest, {
-        argv: args,
-        env: io.env,
-        stdout: { write: (s: string) => out.push(s) },
-        stderr: { write: (s: string) => err.push(s) },
-        exit: (c: number) => {
-          code = c;
-        },
-      });
-      return { stdout: out.join(''), stderr: err.join(''), code };
-    };
-    // Loaded on the branch that uses it: `--mcp` serves a protocol until stdin closes, and
-    // a program that never speaks it should not carry the server. A bundler with code
-    // splitting leaves `mcp.js` off the startup path once it is reached this way.
-    const { serveMcp } = await import('./mcp.js');
-    await serveMcp(manifest, { input: io.stdin, output: io.out, invoke });
-    return true;
-  }
-  return false;
-}
-
-/** `help [command…]` is synthesised for every program (yargs #1020): the named node's help, or the root's. */
-async function helpCommand(manifest: Manifest, argv: string[], root: string[], io: Io): Promise<string> {
-  const { node } = manifest.resolve(argv, root);
-  return renderHelp(manifest, node ?? rootNode(manifest, root), io);
 }
 
 type Runnable = CommandNode & { run: NonNullable<CommandNode['run']> };
@@ -722,6 +400,8 @@ interface Io {
 }
 interface Outcome {
   json: boolean;
+  /** How `--format=agent` prints the data (N15), when it was typed and is burgee's. */
+  lines?: ((data: unknown) => string) | undefined;
   data?: unknown;
   /** Text to print and leave OK: help, a version, an explanation. */
   text?: string;
@@ -760,23 +440,14 @@ function exitCodeOf(data: unknown): ExitCodeType {
   return isExitCode(code) ? code : ExitCode.OK;
 }
 
-/** `--json`, or `--json=<fields>` (N14). */
-function isJsonFlag(arg: string): boolean {
-  return arg === '--json' || arg.startsWith('--json=');
-}
-
-
-/** `--version`: the declared version, else the owning package.json's (V4). */
-function versionOf(manifest: Manifest, io: Io): string {
-  const declared = manifest.version ?? (typeof io.pkg?.data['version'] === 'string' ? io.pkg.data['version'] : undefined);
-  if (declared === undefined) throw new ConfigError('no version declared', 'pass version to defineProgram, or set "version" in the owning package.json');
-  return declared;
-}
+/** A flag `fields.js` reads off argv: N14's `--json=<fields>` and N15's `--format=agent`. */
+const readsLazily = (arg: string): boolean => arg.startsWith('--json=') || arg === '--format=agent';
 
 async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolved, io: Io): Promise<Outcome> {
-  // N14's selection is imported only when a caller typed `--json=` (M2): every other run pays nothing for it.
-  const select = typed.some((a) => a.startsWith('--json=')) ? await import('./fields.js') : undefined;
-  const { args: rest, fields } = select?.jsonFields(typed) ?? { args: typed };
+  // N14's selection and N15's format are imported only when a caller typed `--json=` or
+  // `--format=agent` (M2): every other run pays nothing for either.
+  const select = typed.some(readsLazily) ? await import('./fields.js') : undefined;
+  const { args: rest, fields, lines } = select?.jsonFields(typed, node) ?? { args: typed };
   if (fields?.length === 0) return { json: true, text: `${JSON.stringify(select?.listFields(node))}\n` };
   if (fields !== undefined) select?.checkFields(fields, node);
   const parsed = parseArgs({ args: rest, options: toParseConfig(node.options, manifest.config !== undefined), allowPositionals: true, strict: true, tokens: true });
@@ -785,9 +456,9 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   // F2 — help as data when both flags are given. It printed the same prose as `--help`, so a
   // caller who asked for a machine-readable answer got one they had to parse: the exact
   // failure the `--json` surface exists to avoid, on the flag people type first.
-  if (flags.help === true && json) return { json, text: `${await machineJson(await helpDocumentOf(manifest, node), json ? ['--json'] : [])}\n` };
-  if (flags.help === true) return { json, text: await renderHelp(manifest, node, io) };
-  if (flags.version === true) return { json, text: `${versionOf(manifest, io)}\n` };
+  // Help and the version are surfaces (U5): `surfaces.js` is imported only when one is asked for.
+  if (flags.help === true) return { json, text: await (await import('./surfaces.js')).helpFor(manifest, node, io, json) };
+  if (flags.version === true) return { json, text: `${(await import('./surfaces.js')).versionOf(manifest, io)}\n` };
 
   const resolved = await resolveValues(manifest, node.options, flags, io);
   if (resolved.explainText !== undefined) return { json, text: resolved.explainText };
@@ -795,8 +466,10 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   // S6: relations, then each value — numbers, choices, its Standard Schema — then the handler.
   // `relationsOf` is what makes `dependsOn`/`exclusive` enforced rather than documented: the
   // command's own `relations` and the ones its options spell on themselves are one list here,
-  // and `schema.ts` publishes that same list.
-  checkRelations(relationsOf(node), resolved.values, provenance);
+  // and `schema.ts` publishes that same list. The check is its own chunk (U5), loaded only
+  // for a command that declares a relation.
+  const relations = relationsOf(node);
+  if (relations.length > 0) (await import('./relations.js')).checkRelations(relations, resolved.values, provenance);
   const values = await coerce(node.options, resolved.values);
   const { positionals, passthrough } = splitPositionals(parsed.tokens);
   requirePositionals(node, positionals);
@@ -810,7 +483,7 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   await manifest.fire('postRun', name, values);
   const changed = changedOf(node, data);
   const selected = fields === undefined || select === undefined ? data : select.selectFields(data, fields);
-  return { json, data: selected, provenance, ...(changed === undefined ? {} : { changed }) };
+  return { json, lines, data: selected, provenance, ...(changed === undefined ? {} : { changed }) };
 }
 
 /** A declared, required positional that argv did not supply is a usage error naming it, as on both hosts. */
@@ -844,7 +517,7 @@ async function emit(io: Io, outcome: Outcome): Promise<void> {
   // `meta.provenance` says where every option value came from (V3) — the difference between one call and five for an agent.
   const meta = { provenance: outcome.provenance ?? {}, ...(outcome.changed === undefined ? {} : { changed: outcome.changed }) };
   const envelope = { ok: true, data: outcome.data, meta };
-  io.out.write(outcome.json ? `${JSON.stringify(envelope)}\n` : `${render(outcome.data)}\n`);
+  io.out.write(outcome.json ? `${JSON.stringify(envelope)}\n` : (outcome.lines?.(outcome.data) ?? `${render(outcome.data)}\n`));
   return await leave(io, exitCodeOf(outcome.data));
 }
 
@@ -866,21 +539,12 @@ interface FailureContext {
  * its reader fell back to stderr. Without `--json` it is prose on stderr, as it was.
  */
 async function report(cause: unknown, { manifest, io, argv, json, name }: FailureContext): Promise<void> {
-  const failure = await describeFailure(cause, argv, resolveCommand(manifest, argv) ?? undefined);
+  // U5 — the whole failure vocabulary is its own chunk: a run that succeeds never loads it.
+  const { describeFailure, failureText } = await import('./failure.js');
+  const failure = await describeFailure(cause, argv, resolveCommand(manifest, argv) ?? undefined, cause instanceof ActionRequired ? cause.spec : undefined);
   if (failure.silent === true) return await leave(io, failure.code);
   await manifest.fire('onError', name, {});
-  if (failure.action !== undefined) {
-    const next = runnableNext(manifest, failure.action, json);
-    const rendered: Failure = { ...failure, action: { ...failure.action, next } };
-    const body = { ok: false, status: 'action_required', reason: failure.action.reason, message: failure.message, next, hint: failure.hint, error: { code: failure.code, message: failure.message } };
-    if (json) io.out.write(`${JSON.stringify(body)}\n`);
-    else io.err.write(textFailure(rendered));
-    return await leave(io, failure.code);
-  }
-  // E3 — `fix` beside `hint`: the exact flag or command, omitted rather than guessed.
-  const body = { code: failure.code, message: failure.message, hint: failure.hint, ...(failure.fix === undefined ? {} : { fix: failure.fix }) };
-  if (json) io.out.write(`${JSON.stringify({ ok: false, error: body })}\n`);
-  else io.err.write(textFailure(failure));
+  (json ? io.out : io.err).write(failureText(failure, manifest, json));
   return await leave(io, failure.code);
 }
 
@@ -926,10 +590,11 @@ export async function execute(manifest: Manifest, opts: RunOptions & { root?: st
   try {
     argv = manifest.declares('parse') ? await manifest.parse([...typed]) : typed;
     json = beforeTerminator(argv).some(isJsonFlag);
-    if (await surface(manifest, argv, io)) return await leave(io, ExitCode.OK);
+    // U5 — every surface lives in `surfaces.js`, imported only when argv could be asking for one.
+    if (mayServe(argv) && (await (await import('./surfaces.js')).serve(manifest, argv, io, { resolution: (specs, flags) => resolution(manifest, specs, flags, io), execute }))) return await leave(io, ExitCode.OK);
     const { node, rest } = manifest.resolve(argv, root);
     if (node?.run === undefined) {
-      const { text, code } = await unresolved({ manifest, root, io }, argv, node);
+      const { text, code } = await (await import('./surfaces.js')).unresolved({ manifest, root, io }, argv, node);
       (code === ExitCode.OK ? io.out : io.err).write(text);
       return await leave(io, code);
     }
@@ -985,3 +650,5 @@ export async function run<S extends OptionSpecs>(target: Command<S> | Manifest, 
   });
   return await execute(manifest, opts);
 }
+
+export { beforeTerminator } from './argv.js';

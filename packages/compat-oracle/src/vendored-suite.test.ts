@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { testFiles } from './discover.js';
-import { active, type Host, HOSTS } from './hosts.js';
+import { active, type Host, HOSTS, PREVIOUS_MAJORS } from './hosts.js';
 import { readBaseline } from './run.js';
 import { shimName } from './vendor.js';
 
@@ -28,8 +28,11 @@ const vendored = (host: Host): string | undefined => {
   return existsSync(dir) ? dir : undefined;
 };
 
-/** Hosts whose suite is on disk — every active one in CI, and whatever a contributor has. */
-const onDisk = HOSTS.filter((h) => vendored(h) !== undefined);
+/**
+ * Hosts whose suite is on disk — every active one in CI, and whatever a contributor has. The
+ * previous majors (C1) are vendored suites like any other, so every lock here holds them too.
+ */
+const onDisk = [...HOSTS, ...PREVIOUS_MAJORS].filter((h) => vendored(h) !== undefined);
 
 /**
  * An independent recursive walk, written out rather than reusing `walkFiles`, because the
@@ -295,9 +298,10 @@ describe('the oracle installs what its vendored suites require', () => {
 });
 
 describe('an active host is a measured host', () => {
-  const baseline = readBaseline(join(root, 'baseline'));
+  // The previous majors' fragments live one directory down (C1), read the way `report.ts` does.
+  const baseline = { ...readBaseline(join(root, 'baseline')), ...readBaseline(join(root, 'baseline', 'majors')) };
 
-  it.each(active().map((h) => [h.name] as const))('%s has a recorded baseline, so the ratchet is live', (name) => {
+  it.each([...active(), ...PREVIOUS_MAJORS].map((h) => [h.name] as const))('%s has a recorded baseline, so the ratchet is live', (name) => {
     // Without an entry `regressed()` returns false for anything, and `rate()`'s denominator
     // collapses to whatever registered — 15 / 16 rather than 15 / 33.
     expect(baseline[name], `${name} is active with no baseline entry: nothing ratchets and the denominator is whatever ran`).toBeDefined();

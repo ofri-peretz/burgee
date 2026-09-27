@@ -1,0 +1,80 @@
+---
+title: Coming from wrap-ansi
+description: "A wrap-ansi alternative with a drop-in path: import wrapAnsi from linegauge/wrap, graded 80 / 80 by wrap-ansi's own test suite — then zero dependencies, one style stack shared with slice, and the same grapheme-correct width string-width is graded on, so a wrapped row measures the way a terminal draws it."
+---
+
+**linegauge** is a **wrap-ansi alternative** you adopt by changing one import.
+`linegauge/wrap` is a port of wrap-ansi 10, its default export is call-compatible with
+wrap-ansi's default, and wrap-ansi's own test suite is the grade.
+
+## Migrate from wrap-ansi in one import
+
+```diff
+- import wrapAnsi from 'wrap-ansi';
++ import wrapAnsi from 'linegauge/wrap';
+```
+
+The call is wrap-ansi's — `wrapAnsi(string, columns, options)` — with its three options,
+`hard`, `trim` and `wordWrap`, at wrap-ansi's defaults. The options type is exported under
+wrap-ansi's name, so `import { type Options } from 'wrap-ansi'` moves with the same edit. The
+same function is also the named export `wrap`, from `linegauge/wrap` or from `linegauge`.
+
+It also answers the questions wrap-ansi's neighbours do, one subpath each:
+
+| Incumbent | linegauge path |
+| :-- | :-- |
+| `string-width` | `linegauge` (the default export) |
+| `strip-ansi` | `linegauge/strip` |
+| `wrap-ansi` | `linegauge/wrap` |
+| `slice-ansi` | `linegauge/slice` |
+
+## Is linegauge compatible with wrap-ansi?
+
+Graded, not claimed. wrap-ansi's own suite, vendored at 10.0.1 and unmodified apart from the
+import specifier, runs against `linegauge/wrap` beside a control that runs it against the
+real wrap-ansi:
+
+| | passing | rate |
+| :-- | --: | --: |
+| `linegauge/wrap` | 80 / 80 | 100.0% |
+| wrap-ansi itself (control) | 80 / 80 | 100.0% |
+
+From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
+oracle's last run; that page is the authority. No case in that suite separates
+`linegauge/wrap` from wrap-ansi 10, and the port is also graded differentially against the
+real package in linegauge's own tests.
+
+What the port keeps from wrap-ansi 10: a style or `OSC 8` hyperlink open at a
+break is closed at the end of the row and reopened on the next, so every row stands on its
+own — flagstaff's log-update front-end drops leading rows with no ANSI state tracking because
+of it.
+
+The same page grades `linegauge` against string-width (229 / 229), `linegauge/strip` against
+strip-ansi (8 / 8) and `linegauge/slice` against slice-ansi (15 / 15).
+
+## What you gain over wrap-ansi
+
+wrap-ansi 10.0.1 depends on `ansi-styles` and `string-width`. `linegauge/wrap` depends on
+nothing, and it is pure: nothing in linegauge reads `process`, so the width to wrap at — and
+whether there is a terminal at all — is the caller's to pass, and the same input wraps the
+same way on a pipe, under `--json` and in a test.
+
+- **One style stack, not two.** wrap-ansi and slice-ansi each carry their own copy of
+  open/close/reopen, and they disagree at the edges. `linegauge/wrap` and `linegauge/slice`
+  share one, so wrapping and slicing the same styled string agree.
+- **Measured by the graded width.** Rows are measured with the same `width` that passes
+  string-width's suite 229 / 229, with cluster boundaries from the platform's own
+  `Intl.Segmenter`, so a family emoji or a CJK run is never counted differently by the
+  wrapper than by the code that lays out the box around it.
+- **The family measures with it.** burgee, caique and flagstaff build on linegauge, so what
+  they write for a pipe or an agent is wrapped the same way.
+
+## When to switch from wrap-ansi
+
+- Your dependency tree carries wrap-ansi beside string-width, strip-ansi or slice-ansi, and
+  you would rather it carried one package with no dependencies.
+- You wrap styled text and then slice or truncate it, and the two disagree about where a
+  colour starts or stops.
+
+The API and the design notes are on [linegauge](/docs); the width path is on
+[Coming from string-width](/docs/coming-from/string-width).

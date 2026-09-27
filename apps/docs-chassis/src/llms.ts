@@ -29,7 +29,8 @@ function row(site: Site, page: DocsPage): string {
  * commander?" is the question the map is there to answer, then its npm description.
  */
 function packageRow(pkg: PublicPackage): string {
-  return `- [${pkg.name}](${pkg.url}) — replaces ${pkg.replaces}. ${pkg.description}`;
+  const guides = pkg.guides.map((g) => `  - [${g.title}](${g.url})${g.description === '' ? '' : `: ${g.description}`}`);
+  return [`- [${pkg.name}](${pkg.url}) — replaces ${pkg.replaces}. ${pkg.description}`, ...guides].join('\n');
 }
 
 export interface LlmsIndexOptions {

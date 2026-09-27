@@ -1,0 +1,76 @@
+---
+title: Coming from which
+description: "A which alternative with a drop-in path: import which from bellpull/node-which, graded 5 / 5 by node-which's own test suite — then zero dependencies, and a resolver that returns the PATH entry the binary came from."
+---
+
+**bellpull** is a **which alternative** — for npm's `which` package, node-which — that you
+adopt by changing one import. `bellpull/node-which` is node-which 7's API, and node-which's
+own test suite is the grade.
+
+## Migrate from which in one import
+
+```diff
+- import which from 'which';
++ import which from 'bellpull/node-which';
+```
+
+Everything else stays: `which(cmd, options?)` returns a promise, `which.sync(cmd, options?)`
+returns the answer, and the options are node-which's — `all`, `nothrow`, `path`, `pathExt`,
+`delimiter`. A miss throws node-which's error, `not found: <cmd>` with `code: 'ENOENT'`, or
+returns `null` under `nothrow`. So do its search rules: a command with a slash is checked as
+given, Windows searches the working directory first and tries `PATHEXT`'s extensions, and a
+quoted `PATH` part is unquoted.
+
+Two things are not carried. node-which's `which` command-line binary is not shipped — this is
+the library. And `which()` runs the same search as `which.sync()` and hands it back as a
+promise, rather than walking the filesystem asynchronously.
+
+Mind the neighbouring subpath: **`bellpull/which` is not the drop-in.** It is bellpull's own
+resolver, with a different shape — see below.
+
+## Is bellpull compatible with which?
+
+Graded, not claimed. node-which's own suite, vendored at 7.0.0 and unmodified apart from the
+import specifier, runs against `bellpull/node-which` beside a control that runs it against
+real node-which:
+
+| | passing | rate |
+| :-- | --: | --: |
+| `bellpull/node-which` | 5 / 5 | 100.0% |
+| which itself (control) | 5 / 5 | 100.0% |
+
+From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
+oracle's last run; that page is the authority, and its front-end column reads `bellpull`
+because the row's import is composed onto the package root as `bellpull/node-which`. Five is
+the suite's count of top-level tests; each runs its assertions under both `posix` and `win32`
+and through both `which()` and `which.sync()`. The suite's `test/bin.js`, which spawns
+node-which's CLI, is not graded, because the CLI is not shipped.
+
+## What you gain over which
+
+- **Zero dependencies.** which 7.0.0 depends on `isexe`.
+- **The PATH entry that answered.** `bellpull/which` returns where the binary is *and* which
+  `PATH` entry found it — the fact every "two `node`s on this machine" investigation starts
+  by reconstructing with `echo $PATH`.
+- **An empty `PATH` entry is not the current directory.** POSIX reads `/usr/bin:` as
+  including `.`; bellpull's resolver skips empty and relative entries, and `searchPath()`
+  lists each one with the reason. The drop-in keeps node-which's behaviour here, so this is
+  a reason to move to the resolver.
+- **The answer is always absolute**, and the resolver reads no global: the environment is an
+  argument, so a test hands it a `PATH` rather than mutating `process.env`.
+
+```js
+import { whichSync, whichAllSync } from 'bellpull/which';
+
+const runtime = { platform: process.platform, env: process.env, cwd: process.cwd() };
+whichSync('node', { runtime });
+// { path: '/opt/homebrew/bin/node', from: '/opt/homebrew/bin', ext: '' }
+whichAllSync('node', { runtime }); // every match, best first
+```
+
+## When to switch from which
+
+- You want node-which's answers without its dependency.
+- A build differs between two machines and you need to know which binary each one found.
+
+The resolver, the `run()` it feeds and the `resolvers` plugin host are on [bellpull](/docs).

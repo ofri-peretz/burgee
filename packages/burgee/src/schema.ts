@@ -113,6 +113,13 @@ export interface ProgramSchema {
    */
   exitCodes: Readonly<Record<string, number>>;
   commands: CommandSchema[];
+  /**
+   * J4 — the reserved surfaces a façade program declares for itself, which burgee therefore
+   * withholds: the program wins, and this says so rather than leaving a caller to find the
+   * surface missing. Absent when it shadows none. A native program cannot shadow them —
+   * `defineProgram` refuses the names (V5) — so only the commander and yargs façades set it.
+   */
+  shadows?: ('--json' | '--mcp' | 'completion')[];
 }
 
 /** Positionals go under their own names; a variadic one is an array. */

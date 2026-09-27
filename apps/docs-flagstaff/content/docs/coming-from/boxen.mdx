@@ -1,0 +1,70 @@
+---
+title: Coming from boxen
+description: "A boxen alternative with a drop-in path: import boxen from flagstaff/boxen, graded 84 / 84 by boxen's own test suite — then a box component whose static projection gives a pipe, an agent and a screen reader the text and title, not the border."
+---
+
+**flagstaff** is a **boxen alternative** you adopt by changing one import. `flagstaff/boxen`
+is boxen 8's API, and boxen's own test suite is the grade.
+
+## Migrate from boxen in one import
+
+```diff
+- import boxen from 'boxen';
++ import boxen from 'flagstaff/boxen';
+```
+
+Everything else stays: `boxen(text, options)` with `borderStyle` (all eight of cli-boxes'
+styles, a style object of your own, or `none`), `borderColor`, `backgroundColor`,
+`dimBorder`, `title`, `titleAlignment`, `textAlignment`, `padding`, `margin`, `width`,
+`height`, `float` and `fullscreen`, plus `_borderStyles` and the `Options`,
+`CustomBorderStyle` and `Spacing` types. An invalid `borderColor` or `backgroundColor` throws,
+as boxen's does.
+
+## Is flagstaff compatible with boxen?
+
+Graded, not claimed. boxen's own suite, vendored at 8.0.1 and unmodified apart from the
+import specifier, runs against `flagstaff/boxen` beside a control that runs it against real
+boxen. Every one of its cases is a snapshot of the exact characters the box comes out as:
+
+| | passing | rate |
+| :-- | --: | --: |
+| `flagstaff/boxen` | 84 / 84 | 100.0% |
+| boxen itself (control) | 84 / 84 | 100.0% |
+
+From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
+oracle's last run; that page is the authority. The same page grades flagstaff's `ora`,
+`log-update` and `cli-table3` paths.
+
+## What you gain over boxen
+
+For a box the drawing **is** the contract, so `flagstaff/boxen` matches it byte for byte and
+the façade alone changes the dependency tree, not the output. boxen 8.0.1 resolves to
+nineteen packages; its eight direct dependencies — `string-width`, `wrap-ansi`, `cli-boxes`,
+`ansi-align`, `widest-line`, `camelcase`, `chalk` and `type-fest` — are folded in here, and
+the subpath reaches only `linegauge` and `roundel/chalk`, both from the burgee family.
+
+The gain beyond that is `flagstaff/box`, a separate API you adopt a file at a time:
+`box(text, { border, padding, title, width, href })` for the string, and `boxComponent()` to
+put the box on the frame loop:
+
+| mode | what `hoist(boxComponent(), …)` writes |
+| :-- | :-- |
+| `tty` | the border, padding and title |
+| `pipe`, `ci`, `accessible` | `title: text` — no border characters |
+| `json` | one NDJSON event per transition, on stderr |
+
+A border is noise to a screen reader and to a log an agent parses; the title and the text
+are not. That **static projection** is required of every flagstaff component, and which mode
+runs is decided once by roundel's output policy, never by the component. A box with an
+`href` draws its text as a terminal hyperlink where the terminal is believed to support
+OSC 8, and as `text (url)` everywhere else. Named borders come from the plugin registry, and
+`fromCliBoxes()` brings the cli-boxes set with you.
+
+## When to switch from boxen
+
+- Your boxes end up in CI logs, in an agent's context or in front of a screen reader.
+- You want boxen's exact drawing without its nineteen-package tree — the import swap alone
+  does that.
+
+The loop, the built-ins and the other drop-in paths are on
+[flagstaff](/docs).

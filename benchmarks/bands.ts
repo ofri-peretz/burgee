@@ -20,10 +20,18 @@ import { type AxisName } from './record.js';
  * Suites are cadence, not subject matter: B1 costs money and runs weekly, the other
  * three are free and gate every PR (intent, open questions). Two directories keep one
  * cadence from writing dated files the other's band then reads as its own history.
+ *
+ * `external-floor` (N10) runs on every PR too, and is still its own suite, for the reason
+ * suites exist: what moves its numbers. The cheap suite moves when this repository's code
+ * or the runner does; the floor moves when either of two outside checkers releases. It is
+ * also *published* on its own — a document is publishable only when every axis in it
+ * measured, and folding the floor into `cli-benchmarks` would have made publishing its
+ * first result republish every machine-dependent millisecond with it (D-149).
  */
 export const SUITE = {
   cheap: 'cli-benchmarks',
   agent: 'agent-cli-bench',
+  floor: 'external-floor',
 } as const;
 
 export type SuiteName = (typeof SUITE)[keyof typeof SUITE];
@@ -173,7 +181,8 @@ export const BANDS: readonly BandSpec[] = [
 export const bandsForAxis = (axis: AxisName): readonly BandSpec[] => BANDS.filter((b) => b.axis === axis);
 
 export function suiteOf(axis: AxisName): SuiteName {
-  return axis === 'agent' ? SUITE.agent : SUITE.cheap;
+  if (axis === 'agent') return SUITE.agent;
+  return axis === 'floor' ? SUITE.floor : SUITE.cheap;
 }
 
 /** One band as `.sdlc/bands/control-bands.json` declares it. */

@@ -1,0 +1,16 @@
+{
+  "name": "@vendored/commander-14-suite",
+  "private": true,
+  "type": "commonjs",
+  "main": "./shim.mjs",
+  "version": "14.0.3",
+  "license": "MIT",
+  "description": "the complete solution for node.js command-line programs",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tj/commander.js.git"
+  },
+  "devDependencies": {
+    "commander": "14.0.3"
+  }
+}

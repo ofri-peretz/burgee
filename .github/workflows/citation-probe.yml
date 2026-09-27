@@ -1,0 +1,129 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: AI Citation Probe
+
+# Roadmap `marketing-and-docs` 2.4: five fixed questions, put to Claude, OpenAI and
+# Perplexity with web search on, once a week. `scripts/citation-probe.ts` records whether
+# each answer names burgee and which URLs it cites, in
+# `.sdlc/research/citation-probe/<date>.json`, and the `record` job lands that file on main
+# through a pull request.
+#
+# Each assistant is gated on its own secret — ANTHROPIC_API_KEY, OPENAI_API_KEY,
+# PERPLEXITY_API_KEY. A missing one is a `::notice::` and a `skipped` entry, never a
+# failure, so the file is written and landed every week, and the series shows the weeks
+# nothing was measured.
+
+on:
+  schedule:
+    # Mondays 06:40 UTC: off the hour, and clear of evals.yml (Thursday) and bench.yml.
+    - cron: "40 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: citation-probe-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Ask the five questions
+    runs-on: ubuntu-latest
+    # Fifteen questions, five per assistant run one after another, the assistants in
+    # parallel; each question has a four-minute budget in the script.
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          turbo-cache: "false"
+      - name: Run the probe
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+        shell: bash
+        run: |
+          set -o pipefail
+          npx tsx scripts/citation-probe.ts 2>&1 | tee probe.log
+      - name: Summary
+        if: always()
+        run: |
+          { echo '## AI citation probe'; echo; echo '```'; cat probe.log || echo '(no output)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: citation-probe
+          path: .sdlc/research/citation-probe/*.json
+          if-no-files-found: error
+          retention-days: 7
+
+  # ── Land the run file on main ──────────────────────────────────────────────────────
+  #
+  # The shape and credential order of `evals.yml`'s `record` job, which explains them:
+  # the release App's token, then RELEASE_BOT_PAT, then GITHUB_TOKEN with a warning (a pull
+  # request GITHUB_TOKEN opens raises no checks, so it waits for a human). A separate job so
+  # the one holding the provider keys never holds a write token.
+  record:
+    name: Record the run in .sdlc/research/citation-probe
+    needs: probe
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      # `secrets` cannot be read in a step's `if:`; a job-level env of the boolean can.
+      HAS_APP_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY != '' }}
+      HAS_PAT: ${{ secrets.RELEASE_BOT_PAT != '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: citation-probe
+          path: .sdlc/research/citation-probe/
+      - name: Mint the release App's token
+        id: app
+        if: vars.RELEASE_APP_ID != '' && env.HAS_APP_KEY == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Open a pull request with the run file
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || secrets.RELEASE_BOT_PAT || github.token }}
+          SOURCE: ${{ steps.app.outputs.token != '' && 'app' || (env.HAS_PAT == 'true' && 'pat' || 'github-token') }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          if [ -z "$(git status --porcelain .sdlc/research/citation-probe/)" ]; then
+            echo "Nothing new to record."; exit 0
+          fi
+          # Until a key exists every observation is `skipped`; a PR a week saying so is noise.
+          if node -e 'const fs=require("fs"),d=".sdlc/research/citation-probe/";const f=fs.readdirSync(d).filter(n=>n.endsWith(".json")).sort().pop();const r=JSON.parse(fs.readFileSync(d+f,"utf8"));process.exit(r.observations.every(o=>o.status==="skipped")?0:1)'; then
+            echo "::notice::Every assistant was skipped (no ANTHROPIC_API_KEY, OPENAI_API_KEY or PERPLEXITY_API_KEY); nothing to record."; exit 0
+          fi
+          # The run id, not the date: a dispatch and the schedule on one day would otherwise
+          # collide on the branch name.
+          BRANCH="chore/citation-probe-${GITHUB_RUN_ID}"
+          TITLE="chore(workspace): record AI citation probe"
+          BODY=$(printf 'One week of the AI citation probe (roadmap `marketing-and-docs` 2.4), landed so `.sdlc/research/citation-probe/` has a series (`scripts/citation-probe.ts` has the format). Data only: nothing here for a review to catch.\n\nCredential: `%s`.\n\n[Run](%s)\n' "$SOURCE" "$RUN_URL")
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add .sdlc/research/citation-probe/
+          git commit -m "$TITLE"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/$BRANCH"
+          gh pr create --base main --head "$BRANCH" --label skip-changeset --title "$TITLE" --body "$BODY"
+          if [ "$SOURCE" = "github-token" ]; then
+            echo "::warning title=Citation probe opened with GITHUB_TOKEN::The pull request raises no checks, so it will not auto-merge; merge it by hand, or set RELEASE_APP_ID + RELEASE_APP_PRIVATE_KEY (or RELEASE_BOT_PAT) — see .sdlc/GAPS.md C5."
+          fi
+          gh pr merge --auto --squash "$BRANCH" || echo "::warning::gh pr merge --auto returned non-zero; the pull request is open for a human."

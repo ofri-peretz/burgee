@@ -186,7 +186,7 @@ describe('a document names itself', () => {
  * only have landed by deleting #420's file, and was closed instead. One of two observations
  * of the same code was lost to a filename. D-142.
  */
-const SUITES = ['cli-benchmarks', 'agent-cli-bench'] as const;
+const SUITES = ['cli-benchmarks', 'agent-cli-bench', 'external-floor'] as const;
 const SUFFIX = /-(ci|local)\.json$/;
 
 describe('two runs of one commit', () => {

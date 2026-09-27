@@ -165,6 +165,10 @@ const INTERNAL_PATTERNS: Record<string, RegExp> = {
   // really does ship, which is the case `internalShimFrom`'s fallback exists for the
   // opposite of.
   dist: /(?:from|require\()\s*['"](?:\.\.\/)+((?:build\/)?dist\/[^'"]+)['"]/g,
+  // A host whose tests reach its compiled bundle directly. yargs 17's suite requires
+  // `../build/index.cjs` for `argsert`, `YError` and `parseCommand`, where 18's reaches the
+  // same classes one level down in `build/lib/` — which the `lib` pattern already reads.
+  build: /(?:from|require\()\s*['"](?:\.\.\/)+(build\/[^'"]+)['"]/g,
 };
 
 /** Every internal module path a source imports, relative to the host's root. */
