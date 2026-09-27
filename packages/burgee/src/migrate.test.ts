@@ -85,6 +85,7 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
       'terminal-link': 'paratext/terminal-link',
       lilconfig: 'seniority/lilconfig',
       '@inquirer/core': 'caique/inquirer',
+      meow: 'burgee/meow',
       'restore-cursor': 'closeout/restore-cursor',
       'exit-hook': 'closeout/exit-hook',
       'signal-exit': 'closeout/signal-exit',

@@ -63,7 +63,7 @@ export const GRADED: Readonly<Record<string, Row>> = {
   dotenv: { reference: 141, passed: 106, rate: 0.75177304964539, control: 141 },
   clack: { reference: 17, passed: 14, rate: 0.8235294117647058, control: 17 },
   'inquirer-core': { reference: 41, passed: 41, rate: 1, control: 41 },
-  meow: { reference: 148, passed: 132, rate: 0.8918918918918919, control: 146 },
+  meow: { reference: 148, passed: 146, rate: 0.9864864864864865, control: 146 },
   'ansi-escapes': { reference: 4, passed: 4, rate: 1, control: 4 },
   'terminal-link': { reference: 8, passed: 8, rate: 1, control: 8 },
   'term-img': { reference: 18, passed: 12, rate: 0.6666666666666666, control: 18 },

@@ -131,6 +131,12 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
     'program',
     'useColor',
   ],
+  'burgee/meow': [
+    'AnyFlag',
+    'Options',
+    'Result',
+    'default',
+  ],
   'burgee/yargs': [
     'Arguments',
     'ArgumentsCamelCase',

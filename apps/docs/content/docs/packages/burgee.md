@@ -183,7 +183,7 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `commander` | 1360 / 1360 |
-| `meow` | 132 / 148 |
+| `meow` | 146 / 148 |
 | `yargs` | 804 / 804 |
 ## Where it sits
 
