@@ -91,7 +91,6 @@ Object.defineProperty(process, 'platform', { value: p });
 process.argv = [process.execPath, 'cli.js', ...argv];
 const { createSupportsHyperlinks } = await import(url);
 process.stdout.write(String(createSupportsHyperlinks({ isTTY: tty })));`;
-  // eslint-disable-next-line node-security/detect-child-process -- `spawn` with an argument array and no shell: Node's own execPath, a script literal above and a JSON argument built from this file's table. Nothing reaches a command line.
   const run = spawnSync(process.execPath, ['--input-type=module', '-e', script, JSON.stringify([platform, argv, tty, incumbentUrl])], { env, encoding: 'utf8' });
   expect(run.stderr, 'the incumbent did not answer').toBe('');
   return run.stdout === 'true';

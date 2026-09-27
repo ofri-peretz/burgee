@@ -129,6 +129,8 @@ function deepMerge(...objects: Record<string, unknown>[]): Record<string, unknow
   const output: Record<string, unknown> = {};
   for (const object of objects) {
     for (const [key, value] of Object.entries(object)) {
+      // A theme is caller data: a `__proto__` key would swap the prototype of `output`.
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
       const previous = output[key];
       output[key] = isPlainObject(previous) && isPlainObject(value) ? deepMerge(previous, value) : value;
     }

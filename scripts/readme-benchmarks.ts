@@ -129,14 +129,15 @@ export function pluginKeys(pkg: string): string[] {
   return [...body.matchAll(/^ {2}([a-zA-Z]+)\??:/gm)].map((m) => m[1] as string).filter((k) => !NOT_A_CONTRIBUTION.has(k));
 }
 
+const deps = (p: string): string[] => {
+  const at = join(PACKAGES, p, 'package.json');
+  if (!existsSync(at)) return [];
+  const m = JSON.parse(readFileSync(at, 'utf8')) as { dependencies?: Record<string, string>; peerDependencies?: Record<string, string> };
+  return Object.keys({ ...m.dependencies, ...m.peerDependencies }).filter((d) => FAMILY.includes(d));
+};
+
 /** Which packages of the family this one depends on, and which depend on it — from the manifests. */
 function edges(pkg: string): { below: string[]; above: string[] } {
-  const deps = (p: string): string[] => {
-    const at = join(PACKAGES, p, 'package.json');
-    if (!existsSync(at)) return [];
-    const m = JSON.parse(readFileSync(at, 'utf8')) as { dependencies?: Record<string, string>; peerDependencies?: Record<string, string> };
-    return Object.keys({ ...m.dependencies, ...m.peerDependencies }).filter((d) => FAMILY.includes(d));
-  };
   return { below: deps(pkg).sort(), above: FAMILY.filter((other) => other !== pkg && deps(other).includes(pkg)).sort() };
 }
 

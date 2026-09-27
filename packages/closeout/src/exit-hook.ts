@@ -233,6 +233,11 @@ function shutdown(shouldManuallyExit: boolean, isSynchronous: boolean, signal: n
   runner.run({ code: typeof code === 'number' ? code : null, signal: signal > 0 ? String(signal) : null }).then(finish, finish);
 }
 
+/** PM2's cluster shutdown message, which `listen` wires to the same path as a signal. */
+const onPm2Message = (message: unknown): void => {
+  if (message === 'shutdown') shutdown(true, true, NO_SIGNAL);
+};
+
 /**
  * Attach the process listeners, once, on the first registration.
  *
@@ -244,6 +249,7 @@ function shutdown(shouldManuallyExit: boolean, isSynchronous: boolean, signal: n
 function listen(): void {
   if (listening || proc === undefined) return;
   listening = true;
+  // eslint-disable-next-line maintainability/consistent-function-scoping -- it reads the module's process through the guard at the top of listen, which narrows it to defined; hoisted, that narrowing is lost and the call no longer type-checks without an assertion
   const once = (event: string, run: () => void): void => {
     let fired = false;
     proc.on(event, ((): void => {
@@ -263,9 +269,7 @@ function listen(): void {
    * this a pm2-managed process would skip every hook; upstream carries it for that reason and
    * a drop-in that dropped it would break exactly the deployments that need it most.
    */
-  proc.on('message', ((message: unknown): void => {
-    if (message === 'shutdown') shutdown(true, true, NO_SIGNAL);
-  }) as (...args: never[]) => void);
+  proc.on('message', onPm2Message as (...args: never[]) => void);
 }
 
 /**

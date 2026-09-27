@@ -49,8 +49,10 @@ export interface FromCliSpinnersOptions {
   staticFor?: (name: string, spinner: CliSpinner) => string;
 }
 
+const defaultStatic = (): string => DEFAULT_STATIC;
+
 /** Turn cli-spinners' `spinners.json` into a plugin. The corpus stays the caller's. */
-export function fromCliSpinners(corpus: Record<string, CliSpinner>, { name = 'cli-spinners', staticFor = () => DEFAULT_STATIC }: FromCliSpinnersOptions = {}): Plugin {
+export function fromCliSpinners(corpus: Record<string, CliSpinner>, { name = 'cli-spinners', staticFor = defaultStatic }: FromCliSpinnersOptions = {}): Plugin {
   // `fromEntries` rather than a loop assigning `spinners[style]`: the corpus is the caller's
   // JSON and JSON can carry the key `__proto__`, which plain assignment hands to the
   // prototype setter — the entry then vanishes from the map *and* whatever it held becomes

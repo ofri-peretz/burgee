@@ -136,7 +136,7 @@ export class UI {
         })),
       );
     });
-    return this.rows[this.rows.length - 1] as ColumnArray;
+    return this.rows.at(-1) as ColumnArray;
   }
 
   private colFromString(text: string): Column {

@@ -125,7 +125,6 @@ export const DROP_INS: readonly DropIn[] = [
  * 6 is not — so `migrate` leaves a project on another major alone and says so.
  * `scripts/migrate-drop-ins-lock.test.ts` holds each equal to the oracle's.
  */
-/* eslint-disable conventions/prefer-dependency-version-strategy -- these are the exact versions the oracle graded, not dependency ranges: this object is data read by `migrate`, never a manifest npm installs from */
 export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
   '@clack/prompts': '1.8.1',
   '@inquirer/core': '12.0.3',
@@ -155,7 +154,6 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
   yargs: '18.1.0',
   'yargs-parser': '22.0.0',
 };
-/* eslint-enable conventions/prefer-dependency-version-strategy */
 
 /**
  * C1 — the majors of each incumbent its drop-in claims, per incumbent package, highest last.

@@ -27,6 +27,8 @@ function refusal(plugin: unknown): PluginError {
 // own projection could be shadowed by the glyph and every lock still passed.
 const nyan = { frames: ['≋', '≈', '~'], interval: 80, static: '~nyan~' };
 
+const source = (file: string): string => readFileSync(resolve(src, file), 'utf8').replaceAll('\r\n', '\n');
+
 describe('R3 · the built-ins are a plugin like any other', () => {
   it('registered through register(), visible in the registry', () => {
     expect(registered().plugins).toContain('flagstaff');
@@ -37,7 +39,6 @@ describe('R3 · the built-ins are a plugin like any other', () => {
 
   it('R4 · builtins.ts is data with a type-only import, and plugin.ts registers it through the public door', () => {
     // A Windows checkout may carry CRLF; the lock reads the source, not the line endings.
-    const source = (file: string): string => readFileSync(resolve(src, file), 'utf8').replaceAll('\r\n', '\n');
     expect(source('builtins.ts').match(/^import .*$/gm)).toEqual(["import { type Plugin } from './plugin.js';"]);
     expect(source('plugin.ts')).toContain('\nregister(builtins);\n');
   });
@@ -83,6 +84,8 @@ describe('R2 · a contribution without a static projection is refused', () => {
   });
 });
 
+const read = (p: string): unknown => JSON.parse(readFileSync(resolve(src, p), 'utf8'));
+
 describe('R3 · validated against schema.json', () => {
   it.each([
     [{ name: '' }, 'plugin.name: must not be empty'],
@@ -108,7 +111,6 @@ describe('R3 · validated against schema.json', () => {
   });
 
   it('the shipped schema is the source schema (tsc re-indents it; the content is identical)', () => {
-    const read = (p: string): unknown => JSON.parse(readFileSync(resolve(src, p), 'utf8'));
     expect(read('../dist/schema.json')).toEqual(read('schema.json'));
   });
 });

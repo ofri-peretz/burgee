@@ -132,7 +132,7 @@ const jsonLoader: LoaderSync = (_filepath, content) => JSON.parse(content) as un
  * wrapper, because nothing catches it on the way out.
  */
 const requireLoader: LoaderSync = (filepath) =>
-  // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- The caller's own config file, by the absolute path `load`/`search` resolved: the feature, not a dependency resolved by name. `cosmiconfig-defaults.ts` carries the same exemption for the same load.
+  // eslint-disable-next-line node-security/no-dynamic-dependency-loading, node-security/no-dynamic-require -- The caller's own config file, by the absolute path `load`/`search` resolved: the feature, not a dependency resolved by name. `cosmiconfig-defaults.ts` carries the same exemption for the same load.
   requireFrom(filepath) as unknown;
 
 const isEsmComplaint = (error: unknown): boolean => {

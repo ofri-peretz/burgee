@@ -301,9 +301,10 @@ function normaliseControls(line: string): string {
   return cells.map((cell, i) => (CONTROL_COLUMNS.has(i) ? ' … ' : cell)).join('|');
 }
 
+const strip = (s: string): string[] => s.replace(MEASURED_ON, '$1.').split('\n').map(normaliseControls);
+
 /** The first line where the two pages disagree about something measured. */
 export function drift(committed: string, generated: string): { line: number; committed: string; generated: string } | undefined {
-  const strip = (s: string): string[] => s.replace(MEASURED_ON, '$1.').split('\n').map(normaliseControls);
   const a = strip(committed);
   const b = strip(generated);
   for (let i = 0; i < Math.max(a.length, b.length); i += 1) {

@@ -360,7 +360,6 @@ describe('the argv array is the boundary, and a shell removes it', () => {
     // `&` separates commands for `cmd.exe` as `;` does for `sh`, and `type nul >` is how a
     // batch line creates an empty file where POSIX would reach for `touch`.
     const injected = WINDOWS ? `x & type nul > "${marker}"` : `x; touch ${marker}`;
-    // eslint-disable-next-line node-security/detect-child-process -- the vulnerable call IS the assertion: this line exists to demonstrate that `shell: true` executes an injected command, which is the behaviour bellpull declines by default
     execFileSync(`"${process.execPath}" "${echo}"`, [injected], { shell: true, encoding: 'utf8' });
     expect(existsSync(marker), 'shell: true executed the injected command — this is the behaviour bellpull declines').toBe(true);
   });

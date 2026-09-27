@@ -40,18 +40,19 @@ const program = defineProgram({
   ],
 });
 
+// Capture through execute, as the engine's own --mcp does; the harness would add a human note.
+const invoke = async (argv: string[]): Promise<{ stdout: string; stderr: string; code: number }> => {
+  const out: string[] = [];
+  const err: string[] = [];
+  let code = 0;
+  await execute(program, { argv, env: {}, stdout: { write: (s: string) => out.push(s) }, stderr: { write: (s: string) => err.push(s) }, exit: (c) => { code = c; } });
+  return { stdout: out.join(''), stderr: err.join(''), code };
+};
+
 /** Drive the server over an in-memory stdio pair; returns replies by id. */
 async function session(requests: object[]): Promise<Map<number | string | null, Record<string, unknown>>> {
   const input = new PassThrough();
   const written: string[] = [];
-  // Capture through execute, as the engine's own --mcp does; the harness would add a human note.
-  const invoke = async (argv: string[]): Promise<{ stdout: string; stderr: string; code: number }> => {
-    const out: string[] = [];
-    const err: string[] = [];
-    let code = 0;
-    await execute(program, { argv, env: {}, stdout: { write: (s: string) => out.push(s) }, stderr: { write: (s: string) => err.push(s) }, exit: (c) => { code = c; } });
-    return { stdout: out.join(''), stderr: err.join(''), code };
-  };
   const done = serveMcp(program, { input, output: { write: (s: string) => written.push(s) }, invoke });
   for (const r of requests) input.write(`${JSON.stringify(r)}\n`);
   input.end();

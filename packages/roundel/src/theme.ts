@@ -88,6 +88,8 @@ const SGR_RGB = 2;
 const TRUECOLOR: ColorLevel = 3;
 const COLORS_256: ColorLevel = 2;
 
+const step = (v: number): number => Math.round((v / SRGB_MAX) * CUBE_STEPS);
+
 /** Nearest of the 256 xterm colours, as ansi-styles computes it. */
 function ansi256(r: number, g: number, b: number): number {
   if (r === g && g === b) {
@@ -95,9 +97,10 @@ function ansi256(r: number, g: number, b: number): number {
     if (r > GREY_HIGH) return CUBE_WHITE;
     return Math.round(((r - GREY_LOW) / GREY_SPAN) * GREY_STEPS) + GREY_START;
   }
-  const step = (v: number): number => Math.round((v / SRGB_MAX) * CUBE_STEPS);
   return CUBE_START + CUBE_ROW * step(r) + CUBE_COL * step(g) + step(b);
 }
+
+const on = (v: number): number => Math.round(v / SRGB_MAX);
 
 /**
  * Nearest of the 16 basic colours, as a `styleText` name: each channel on or off at half,
@@ -105,7 +108,6 @@ function ansi256(r: number, g: number, b: number): number {
  * ponytail: ansi-styles' rounding, minus its trip through the 256-colour cube.
  */
 function ansi16(r: number, g: number, b: number): Format {
-  const on = (v: number): number => Math.round(v / SRGB_MAX);
   const index = (on(b) << BLUE_BIT) | (on(g) << GREEN_BIT) | on(r);
   const name = BASIC_NAMES[index] ?? 'white';
   if (index === 0) return name;
@@ -113,6 +115,10 @@ function ansi16(r: number, g: number, b: number): Format {
   // Node spells bright black `gray`; `blackBright` is a runtime alias the types do not carry.
   return name === 'black' ? 'gray' : `${name}Bright`;
 }
+
+const hex = (r: number, g: number, b: number): Hex => `#${[r, g, b].map((v) => v.toString(HEX_BASE).padStart(2, '0')).join('')}`;
+
+const at = (i: number): number => CUBE_LEVELS[i] as number;
 
 /**
  * The sRGB of a 256-palette index, which is `ansi256` run backwards. Defined for 16–255 only,
@@ -125,10 +131,8 @@ function ansi16(r: number, g: number, b: number): Format {
  * the basic sixteen. `ansi256` never returns below 16, so every paint it produces is knowable.
  */
 export function rgb256(index: number): Hex {
-  const hex = (r: number, g: number, b: number): Hex => `#${[r, g, b].map((v) => v.toString(HEX_BASE).padStart(2, '0')).join('')}`;
   if (index >= GREY_START) return hex(...(Array(RGB_PARTS).fill(GREY_LOW + (index - GREY_START) * GREY_STEP) as [number, number, number]));
   const n = index - CUBE_START;
-  const at = (i: number): number => CUBE_LEVELS[i] as number;
   return hex(at(Math.floor(n / CUBE_ROW)), at(Math.floor((n % CUBE_ROW) / CUBE_COL)), at(n % CUBE_COL));
 }
 
@@ -159,6 +163,11 @@ const LINEAR_DIVISOR = 12.92;
 const GAMMA_OFFSET = 0.055;
 const GAMMA_EXPONENT = 2.4;
 
+const lin = (v: number): number => {
+  const c = v / SRGB_MAX;
+  return c <= LINEAR_THRESHOLD ? c / LINEAR_DIVISOR : ((c + GAMMA_OFFSET) / (1 + GAMMA_OFFSET)) ** GAMMA_EXPONENT;
+};
+
 /**
  * sRGB 0–255 to OKLab. Björn Ottosson's matrices, written as straight-line arithmetic.
  *
@@ -175,10 +184,6 @@ const GAMMA_EXPONENT = 2.4;
  * `theme.test.ts` holds it to the five published reference values.
  */
 export function toOklab(r: number, g: number, b: number): [number, number, number] {
-  const lin = (v: number): number => {
-    const c = v / SRGB_MAX;
-    return c <= LINEAR_THRESHOLD ? c / LINEAR_DIVISOR : ((c + GAMMA_OFFSET) / (1 + GAMMA_OFFSET)) ** GAMMA_EXPONENT;
-  };
   const R = lin(r);
   const G = lin(g);
   const B = lin(b);
