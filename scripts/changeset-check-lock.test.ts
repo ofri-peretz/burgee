@@ -20,7 +20,7 @@
  * what the script decided, not in how it was spelled. The release case returns before the
  * script touches git, which is what makes it runnable outside a PR.
  */
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -61,15 +61,46 @@ function withoutGit(): NodeJS.ProcessEnv {
   return Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
 }
 
-/** Run the step with a given environment and return what it wrote to `$GITHUB_OUTPUT`. */
-function statusFor(env: Record<string, string>, cwd = mkdtempSync(join(tmpdir(), 'changeset-check-'))): string {
+/** What the step wrote to `$GITHUB_OUTPUT`, and how it got there. */
+interface Answer {
+  status: string;
+  /** The step's exit and its `bash -x` trace, for the assertion message. */
+  trace: string;
+}
+
+/**
+ * Run the step with a given environment. Under `bash -x`, so a wrong answer arrives with the
+ * path that produced it. This lock went red once in a pre-push hook and passed on retry, and
+ * all that was left was the wrong status. The step discards `git show`'s stderr, and it maps
+ * an empty result to `missing`. The trace shows each argument after expansion, so an empty
+ * `git show` is visible in it.
+ */
+function statusFor(env: Record<string, string>, cwd = mkdtempSync(join(tmpdir(), 'changeset-check-'))): Answer {
   const scratch = mkdtempSync(join(tmpdir(), 'changeset-check-'));
   const script = join(scratch, 'check.sh');
   const out = join(scratch, 'output');
   writeFileSync(script, checkScript());
   writeFileSync(out, '');
-  execFileSync('bash', [script], { cwd, env: { ...withoutGit(), ...env, GITHUB_OUTPUT: out }, stdio: 'pipe' });
-  return (/^status=(.*)$/m.exec(readFileSync(out, 'utf8'))?.[1] ?? '').trim();
+  const run = spawnSync('bash', ['-x', script], { cwd, env: { ...withoutGit(), ...env, GITHUB_OUTPUT: out }, encoding: 'utf8' });
+  const exit = `exit ${run.status ?? run.signal}${run.error ? ` (${run.error.message})` : ''}`;
+  return { status: (/^status=(.*)$/m.exec(readFileSync(out, 'utf8'))?.[1] ?? '').trim(), trace: `${exit}\n${run.stderr}` };
+}
+
+/** Git's own view of the scratch repository, rerun beside the step with stderr kept. */
+function gitFacts(cwd: string, { BASE_SHA, HEAD_SHA }: { BASE_SHA: string; HEAD_SHA: string }): string {
+  const manifest = 'packages/flagstaff/package.json';
+  return [
+    ['log', '--format=%H %cI %s'],
+    ['merge-base', BASE_SHA, HEAD_SHA],
+    ['diff', '--name-only', `${BASE_SHA}...${HEAD_SHA}`],
+    ['show', `${BASE_SHA}:${manifest}`],
+    ['show', `${HEAD_SHA}:${manifest}`],
+  ]
+    .map((args) => {
+      const run = spawnSync('git', args, { cwd, env: withoutGit(), encoding: 'utf8' });
+      return `$ git ${args.join(' ')}  (exit ${run.status ?? run.signal})\n${run.stdout}${run.stderr}`;
+    })
+    .join('\n');
 }
 
 const MANIFEST = { name: 'flagstaff', version: '1.0.0', dependencies: { roundel: '^0.5.2' }, devDependencies: { 'fast-check': '^4.10.1' } };
@@ -102,9 +133,10 @@ function pullRequest(change: (manifest: typeof MANIFEST) => object, extra: Recor
 }
 
 /** The step's answer for a pull request opened by `author` that makes `change`. */
-function statusOf(author: string, change: (manifest: typeof MANIFEST) => object, extra?: Record<string, string>): string {
+function statusOf(author: string, change: (manifest: typeof MANIFEST) => object, extra?: Record<string, string>): Answer {
   const { cwd, ...shas } = pullRequest(change, extra);
-  return statusFor({ ...shas, HEAD_REF: 'dependabot/npm_and_yarn/all-packages-0', LABELS: 'dependencies,npm', PR_AUTHOR: author }, cwd);
+  const answer = statusFor({ ...shas, HEAD_REF: 'dependabot/npm_and_yarn/all-packages-0', LABELS: 'dependencies,npm', PR_AUTHOR: author }, cwd);
+  return { ...answer, trace: `${answer.trace}\n${gitFacts(cwd, shas)}` };
 }
 
 const bumpDev = (m: typeof MANIFEST): object => ({ ...m, devDependencies: { 'fast-check': '^4.10.2' } });
@@ -115,11 +147,13 @@ describe('the changeset check and the Version PR', () => {
     // is what this assertion catches, and on a real Version PR — where the SHAs are set and
     // a `package.json` moved per bump — reaching the diff answers `missing` and goes red.
     // Either way the wrong branch was taken, and `release` can only come from the guard.
-    expect(statusFor({ HEAD_REF: 'changeset-release/main', LABELS: '' })).toBe('release');
+    const { status, trace } = statusFor({ HEAD_REF: 'changeset-release/main', LABELS: '' });
+    expect(status, trace).toBe('release');
   });
 
   it('still answers `skipped` for the label, which the release case must not have displaced', () => {
-    expect(statusFor({ HEAD_REF: 'fix/whatever', LABELS: 'skip-changeset,other' })).toBe('skipped');
+    const { status, trace } = statusFor({ HEAD_REF: 'fix/whatever', LABELS: 'skip-changeset,other' });
+    expect(status, trace).toBe('skipped');
   });
 
   it('fails only on `missing`, so `release` cannot go red however it is reached', () => {
@@ -137,18 +171,22 @@ describe('the changeset check and the Version PR', () => {
  */
 describe('the changeset check and Dependabot', () => {
   it('answers `dev-dependencies` when Dependabot moves only devDependencies', () => {
-    expect(statusOf('dependabot[bot]', bumpDev)).toBe('dev-dependencies');
+    const { status, trace } = statusOf('dependabot[bot]', bumpDev);
+    expect(status, trace).toBe('dev-dependencies');
   });
 
   it('still answers `missing` when Dependabot moves a runtime dependency', () => {
-    expect(statusOf('dependabot[bot]', (m) => ({ ...m, dependencies: { roundel: '^0.6.0' } }))).toBe('missing');
+    const { status, trace } = statusOf('dependabot[bot]', (m) => ({ ...m, dependencies: { roundel: '^0.6.0' } }));
+    expect(status, trace).toBe('missing');
   });
 
   it('still answers `missing` when a src/ change rides on a Dependabot branch', () => {
-    expect(statusOf('dependabot[bot]', bumpDev, { 'packages/flagstaff/src/index.ts': 'export {};\n' })).toBe('missing');
+    const { status, trace } = statusOf('dependabot[bot]', bumpDev, { 'packages/flagstaff/src/index.ts': 'export {};\n' });
+    expect(status, trace).toBe('missing');
   });
 
   it('does not extend the exemption to a person — the label is their signed decision', () => {
-    expect(statusOf('ofri-peretz', bumpDev)).toBe('missing');
+    const { status, trace } = statusOf('ofri-peretz', bumpDev);
+    expect(status, trace).toBe('missing');
   });
 });
