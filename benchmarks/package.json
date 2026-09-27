@@ -6,6 +6,7 @@
   "type": "module",
   "exports": {
     "./axes/weight.js": "./axes/weight.ts",
+    "./claim-ratchets.js": "./claim-ratchets.ts",
     "./claims.js": "./claims.ts",
     "./fixtures/entry-points.js": "./fixtures/entry-points.ts",
     "./published.js": "./published.ts",

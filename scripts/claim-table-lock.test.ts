@@ -13,8 +13,9 @@
  *      publishes a *subset* — the full ledger is the benchmarks page — so the reverse is
  *      not asserted: a declared claim with no row here is a summary decision, not a defect.
  *      A row with no claim behind it is a promise nobody measures.
- *   2. A row marked **met** must be satisfied by the newest results document. A row marked
- *      **not met** needs no backing at all.
+ *   2. A row marked **met** must be satisfied by the newest *CI* results document that
+ *      measures it — a CI observation or a promoted one, never a laptop's (D-150, D-157) — and
+ *      that document must not be stale either. A row marked **not met** needs no backing at all.
  *   3. That newest document must not be stale.
  *
  * **What this lock cannot do, stated so nobody trusts it further than it goes.** It checks
@@ -80,14 +81,33 @@ export function newestOf(docs: readonly Doc[]): Doc | undefined {
   return docs.reduce<Doc | undefined>((best, d) => (best === undefined || Date.parse(d.measured) > Date.parse(best.measured) ? d : best), undefined);
 }
 
+const readDoc = (f: string): Doc => JSON.parse(readFileSync(join(RESULTS, f), 'utf8')) as Doc;
+
 /** The newest results document, published or observation — the most recent thing measured. */
 function newest(): Doc {
-  const docs = readdirSync(RESULTS)
-    .filter((f) => f.endsWith('.json'))
-    .map((f) => JSON.parse(readFileSync(join(RESULTS, f), 'utf8')) as Doc);
-  const last = newestOf(docs);
+  const last = newestOf(readdirSync(RESULTS).filter((f) => f.endsWith('.json')).map(readDoc));
   if (last === undefined) throw new Error(`no results in ${RESULTS} — a claim gate with nothing to read is not a gate`);
   return last;
+}
+
+/**
+ * A CI observation (`<date>-<sha7>-ci.json`) or a published one (`<date>.json`, a promoted CI
+ * run) — never `-local.json`. D-150 states the rule this enforces: a ✅ is backed by a CI
+ * document. Until D-157 no ✅ row read the perf axis, so a laptop's `--axis weight` run landing
+ * as the newest document could not break a row it did not measure; once `cold-start-at-or-below-cac`
+ * could be ✅, it did, and a laptop's cold start is not what that ceiling was derived from.
+ */
+const CI_BACKED = /^\d{4}-\d{2}-\d{2}(?:-[0-9a-f]{7}-ci)?\.json$/;
+
+/** The newest CI-backed document that measures this claim's record at all. */
+function backing(claim: (typeof CLAIMS)[number]): Doc | undefined {
+  const measures = (d: Doc): boolean => d.records.some((r) => r.axis === claim.from.axis && r.variant === claim.from.variant && r.metric === claim.from.metric);
+  return newestOf(
+    readdirSync(RESULTS)
+      .filter((f) => CI_BACKED.test(f))
+      .map(readDoc)
+      .filter(measures),
+  );
 }
 
 const MET = /✅/;
@@ -130,11 +150,10 @@ describe('the README claim table', () => {
     expect(newestOf([morning, evening])).toBe(evening);
   });
 
-  it('never marks a claim met that the newest measurement does not satisfy', () => {
-    const records = newest().records;
+  it('never marks a claim met that the newest CI measurement of it does not satisfy', () => {
     for (const claim of CLAIMS) {
       const row = rows.find((r) => r[2] === claim.id);
-      if (row !== undefined && MET.test(row[4] ?? '')) checkMet(claim, records);
+      if (row !== undefined && MET.test(row[4] ?? '')) checkMet(claim, backing(claim));
     }
   });
 });
@@ -148,9 +167,12 @@ describe('the README claim table', () => {
  * while reporting success is the precise defect this file exists to stop, and it committed
  * it on the first draft.
  */
-function checkMet(claim: (typeof CLAIMS)[number], records: readonly Record_[]): void {
-  const record = records.find((r) => r.axis === claim.from.axis && r.variant === claim.from.variant && r.metric === claim.from.metric);
-  expect(record, `${claim.id} is marked met and nothing in the newest results measures it`).toBeDefined();
+function checkMet(claim: (typeof CLAIMS)[number], doc: Doc | undefined): void {
+  expect(doc, `${claim.id} is marked met and no CI results document measures it`).toBeDefined();
+  if (doc === undefined) return;
+  const ageDays = (Date.now() - Date.parse(doc.measured)) / MS_PER_DAY;
+  expect(ageDays, `${claim.id} is marked met on a CI measurement ${ageDays.toFixed(1)} days old (${doc.measured})`).toBeLessThanOrEqual(MAX_RESULTS_AGE_DAYS);
+  const record = doc.records.find((r) => r.axis === claim.from.axis && r.variant === claim.from.variant && r.metric === claim.from.metric);
   if (record === undefined) return;
   const { max, min } = claim.test;
   if (max !== undefined) expect(record.median, `${claim.id} is marked met, but the newest results say ${String(record.median)} against max ${String(max)}`).toBeLessThanOrEqual(max);
