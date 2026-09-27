@@ -299,9 +299,22 @@ const NO_USAGE: CaseUsage = { turns: null, tokens: null, model: null };
  * `--output-format json` so the run reports its turns and tokens for the history line.
  * The grade reads the document's `result`, which is exactly what text mode prints.
  */
+/**
+ * D-143: "one turn" is one user prompt, not one model step. The authoring prompt asks for four
+ * tool steps (read the schema, read the README, write, run `check`) plus a fix-and-rerun, so a
+ * cap of 3 failed 8 of 9 on `error_max_turns` before a plugin was written. 8 fits the prompt
+ * with one repair; `EVAL_MAX_TURNS` still overrides it.
+ */
+export const DEFAULT_MAX_TURNS = 8;
+
+export function claudeArgs(c: EvalCase, env: NodeJS.ProcessEnv = process.env): string[] {
+  const args = ['-p', c.prompt, '--allowedTools', c.allowedTools ?? 'Read,Grep,Glob', '--max-turns', env.EVAL_MAX_TURNS ?? String(DEFAULT_MAX_TURNS), '--output-format', 'json', ...ISOLATION];
+  if (env.EVAL_MODEL) args.push('--model', env.EVAL_MODEL);
+  return args;
+}
+
 function runCase(c: EvalCase): CaseResult {
-  const args = ['-p', c.prompt, '--allowedTools', c.allowedTools ?? 'Read,Grep,Glob', '--max-turns', process.env.EVAL_MAX_TURNS ?? '3', '--output-format', 'json', ...ISOLATION];
-  if (process.env.EVAL_MODEL) args.push('--model', process.env.EVAL_MODEL);
+  const args = claudeArgs(c);
   const r = spawnSync('claude', args, { cwd: REPO_ROOT, encoding: 'utf8', env: evalEnv(process.env), timeout: CASE_TIMEOUT_MS, maxBuffer: OUTPUT_BUFFER });
   if (r.error || typeof r.stdout !== 'string') return { id: c.id, status: 'error', failed: [String(r.error ?? 'no output')], ...NO_USAGE };
   const { text, usage } = parseClaudeJson(r.stdout);
