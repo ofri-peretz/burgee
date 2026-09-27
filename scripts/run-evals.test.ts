@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { brokenLinks, grade, missingScripts, billingFor, STORED_LOGIN_OPT_IN, storedLogin, unknownFloorIds } from './run-evals';
+import { brokenLinks, claudeArgs, DEFAULT_MAX_TURNS, grade, missingScripts, billingFor, STORED_LOGIN_OPT_IN, storedLogin, unknownFloorIds } from './run-evals';
 
 /** A throwaway repo root with one doc, so each checker is exercised on a known tree. */
 function repo(files: Record<string, string>): string {
@@ -100,5 +100,19 @@ describe.skipIf(process.platform === 'win32')('layer 2 — a stored claude login
   it('is refused when the login has expired or the answer is not JSON', () => {
     expect(storedLogin(on, stubAuth(JSON.stringify({ loggedIn: false, authMethod: 'none' }), 1))).toBe('none');
     expect(storedLogin(on, stubAuth('not json', 0))).toBe('none');
+  });
+});
+
+describe('turn budget — D-143', () => {
+  const authoring = { id: 'x', why: '', prompt: 'p', allowedTools: 'Read,Write,Edit,Bash', expect: [] };
+  const cap = (env: NodeJS.ProcessEnv) => Number(claudeArgs(authoring, env)[claudeArgs(authoring, env).indexOf('--max-turns') + 1]);
+
+  it('gives the authoring prompt its four tool steps plus one repair', () => {
+    expect(DEFAULT_MAX_TURNS).toBe(8);
+    expect(cap({})).toBe(8);
+  });
+
+  it('still lets EVAL_MAX_TURNS override it', () => {
+    expect(cap({ EVAL_MAX_TURNS: '12' })).toBe(12);
   });
 });
