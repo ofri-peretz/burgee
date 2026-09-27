@@ -79,7 +79,7 @@ export function loadJsSync(filepath: string): unknown {
   // path, so the computed member access is safe, but a reader should not have to work that
   // out and the reflective form says it without a suppression.
   Reflect.deleteProperty(requireFrom.cache, requireFrom.resolve(filepath));
-  // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- The user's own config file, by the absolute path discovery found: the feature (R6, V6), not a dependency resolved by name. It is the same exemption `packages/seniority/src/config.ts` already carries in eslint.config.mjs, for the same load moved here.
+  // eslint-disable-next-line node-security/no-dynamic-dependency-loading, node-security/no-dynamic-require -- The user's own config file, by the absolute path discovery found: the feature (R6, V6), not a dependency resolved by name. It is the same exemption `packages/seniority/src/config.ts` already carries in eslint.config.mjs, for the same load moved here.
   return requireFrom(filepath) as unknown;
 }
 

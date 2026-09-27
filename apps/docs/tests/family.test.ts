@@ -34,6 +34,11 @@ const publicPackages = readdirSync(join(REPO, 'packages'), { withFileTypes: true
   .map((entry) => JSON.parse(readFileSync(join(REPO, 'packages', entry.name, 'package.json'), 'utf8')) as { name: string; private?: boolean })
   .filter((manifest) => manifest.private !== true);
 
+const where = (name: string): string => {
+  const own = rows.find((row) => row.package === name && !row.familyPages);
+  return own === undefined ? `${app.row.productionUrl}/docs/packages/${name}` : `${own.productionUrl}/docs`;
+};
+
 describe('the front door maps the family', () => {
   it('maps every public package to what it replaces and the page it lives on', () => {
     // The package map is the most quotable line on the site for "what is the alternative to
@@ -41,10 +46,6 @@ describe('the front door maps the family', () => {
     // package pointed at the front door when it has a host of its own is a stale answer.
     expect(publicPackages.length).toBeGreaterThan(0);
     const map = section(app.built('llms.txt.body'), 'Packages');
-    const where = (name: string): string => {
-      const own = rows.find((row) => row.package === name && !row.familyPages);
-      return own === undefined ? `${app.row.productionUrl}/docs/packages/${name}` : `${own.productionUrl}/docs`;
-    };
     const missing = publicPackages.filter(({ name }) => !map.includes(`- [${name}](${where(name)}) — replaces `));
     expect(missing.map(({ name }) => name), `llms.txt's package map is missing or misplaces ${missing.length} public package(s)`).toEqual([]);
     expect(map).not.toMatch(/compat-oracle/u);

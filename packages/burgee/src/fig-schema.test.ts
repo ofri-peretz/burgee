@@ -250,6 +250,7 @@ describe('the emitted spec uses Fig’s own vocabulary', () => {
  * `fig-spec.test.ts`'s own doc comment names as the mistake a snapshot blesses.
  */
 describe('and refuses a spec that does not', () => {
+  /* eslint-disable maintainability/consistent-function-scoping -- table-entry thunks for it.each: the rule reports any arrow inside an array literal, even with the table hoisted to module scope, so the only way to satisfy it is nine named one-line functions */
   const broken: [string, () => unknown, string][] = [
     ['a misspelled container key', () => ({ ...spec, subCommands: spec['subcommands'] }), "'subCommands' is not a key Fig declares"],
     ['a key borrowed from another node type', () => ({ ...spec, isVariadic: true }), "'isVariadic' is not a key Fig declares on a subcommand"],
@@ -261,6 +262,7 @@ describe('and refuses a spec that does not', () => {
     ['a container that is not a list', () => ({ ...spec, options: { '--x': true } }), "'options' is an array"],
     ['a node that is not an object at all', () => ({ ...spec, subcommands: ['greet'] }), 'expected a subcommand object, got string'],
   ];
+  /* eslint-enable maintainability/consistent-function-scoping */
 
   it.each(broken)('refuses %s, and says which node and which key', (_label, breakIt, expected) => {
     expect(figViolations(breakIt(), 'subcommand').join('\n')).toContain(expected);

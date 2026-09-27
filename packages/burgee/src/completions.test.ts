@@ -100,8 +100,16 @@ describe('completions are generated from the manifest (D2) and pinned (D4)', () 
   });
 });
 
+const bash = (line: string): string[] => lines(execFileSync('bash', [join(repo, 'scripts/complete-bash.sh'), scriptFor('bash'), ...line.split(' ')], { encoding: 'utf8' }));
+
+// A pty zsh under a loaded pre-push battery: up to 40 s to start and 30 s to list, per call.
+const zsh = (line: string): string => execFileSync('zsh', [join(repo, 'scripts/complete-zsh.zsh'), scriptFor('zsh'), line], { encoding: 'utf8' });
+
+const fish = (line: string): string[] => lines(execFileSync('fish', [join(repo, 'scripts/complete-fish.fish'), scriptFor('fish'), line], { encoding: 'utf8' })).map((l) => l.split('\t')[0] ?? '');
+
+const pwsh = (line: string): string[] => lines(execFileSync('pwsh', ['-NoProfile', '-File', join(repo, 'scripts/complete-pwsh.ps1'), '-Script', scriptFor('pwsh'), '-Line', line], { encoding: 'utf8' }));
+
 describe('each shell exercises its script (D4)', () => {
-  const bash = (line: string): string[] => lines(execFileSync('bash', [join(repo, 'scripts/complete-bash.sh'), scriptFor('bash'), ...line.split(' ')], { encoding: 'utf8' }));
   // The three shells below carry a 30 s allowance and this one did not, which
   // is the whole difference: it spawns bash six times, and a process spawn on
   // a Windows runner costs an order of magnitude more than on Linux. It timed
@@ -120,8 +128,6 @@ describe('each shell exercises its script (D4)', () => {
     expect(bash('demo greet ada --')).not.toContain(SENTINEL);
   });
 
-  // A pty zsh under a loaded pre-push battery: up to 40 s to start and 30 s to list, per call.
-  const zsh = (line: string): string => execFileSync('zsh', [join(repo, 'scripts/complete-zsh.zsh'), scriptFor('zsh'), line], { encoding: 'utf8' });
   it.runIf(has('zsh'))('zsh: a real TAB in a pseudo-terminal completes the command and lists options with descriptions', { timeout: 120_000 }, () => {
     expect(zsh('demo con')).toContain('demo config');
     const options = zsh('demo greet --');
@@ -130,14 +136,12 @@ describe('each shell exercises its script (D4)', () => {
     expect(options).not.toContain(SENTINEL);
   });
 
-  const fish = (line: string): string[] => lines(execFileSync('fish', [join(repo, 'scripts/complete-fish.fish'), scriptFor('fish'), line], { encoding: 'utf8' })).map((l) => l.split('\t')[0] ?? '');
   it.runIf(has('fish'))('fish: subcommands and options, with --no execution', { timeout: 30_000 }, () => {
     expect(fish('demo con')).toEqual(['config']);
     expect(fish('demo greet --')).toEqual(expect.arrayContaining(['--shout', '--greeting', '--json', '--help']));
     expect(fish('demo greet --greeting ')).toEqual(expect.arrayContaining(['Hello', 'Hi']));
   });
 
-  const pwsh = (line: string): string[] => lines(execFileSync('pwsh', ['-NoProfile', '-File', join(repo, 'scripts/complete-pwsh.ps1'), '-Script', scriptFor('pwsh'), '-Line', line], { encoding: 'utf8' }));
   // pwsh starts cold in about two seconds on a runner, three times here — and a Windows runner
   // took 33.6 s for the three against the old 30 s (#484, #433), so the ceiling is 120 s.
   it.runIf(has('pwsh'))('PowerShell: subcommands, options and choice values with tooltips', { timeout: 120_000 }, () => {

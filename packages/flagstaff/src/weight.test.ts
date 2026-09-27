@@ -244,7 +244,7 @@ const RULES: Record<string, EntryRule> = {
   // types, which `verbatimModuleSyntax` erases, so the file that turns ~80 spinners into a
   // plugin costs less than one of them. The corpora themselves are the caller's (U5), and
   // the last case in `import.test.ts` asserts neither became a dependency.
-  './import': { allow: [], budget: 2_000, measured: 758, denied: ['plugin.js', 'builtins.js', 'schema.json', 'loop.js', 'projection.js', 'box.js', 'spinner.js', 'cli.js', 'index.js'] },
+  './import': { allow: [], budget: 2_000, measured: 795, denied: ['plugin.js', 'builtins.js', 'schema.json', 'loop.js', 'projection.js', 'box.js', 'spinner.js', 'cli.js', 'index.js'] },
   './progress': { allow: ['roundel/tokens'], budget: 2_000, measured: 971, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'cli.js', 'index.js'] },
   './tasks': { allow: ['roundel/tokens'], budget: 13_500, measured: 13_003, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
   // `box` reads its named borders from the registry, the way `tasks` reads its glyphs, so

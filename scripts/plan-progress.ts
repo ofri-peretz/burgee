@@ -215,6 +215,14 @@ const MANUAL: { id: string; why: string }[] = [
   { id: 'D3', why: 'the grep below proves the wording landed; it cannot prove a human meant it' },
 ];
 
+// The step is about the published family. `compat-oracle` is `private: true` tooling and
+// its three entries are each the job of owning a process rather than a lapse into one —
+// `shim.ts` in particular is copied into the vendored package's own module graph, where
+// an import of anything in this repository would not resolve, so it cannot go behind a
+// seam at all. Read from the manifest rather than keyed on the name, so a package that
+// becomes published stops being exempt on the day it does.
+const published = (pkg: string): boolean => existsSync(join(ROOT, 'packages', pkg, 'package.json')) && pkgJson(pkg).private !== true;
+
 const STEPS: Step[] = [
   // The rename broke its own check: 0.1 replaced `agent-native-cli-layer` with `burgee` in
   // 132 files, this one included, so the condition became "the burgee intent does not exist"
@@ -354,13 +362,6 @@ const STEPS: Step[] = [
         const pkg = entry.split('/')[0] as string;
         byPackage.set(pkg, [...(byPackage.get(pkg) ?? []), entry]);
       }
-      // The step is about the published family. `compat-oracle` is `private: true` tooling and
-      // its three entries are each the job of owning a process rather than a lapse into one —
-      // `shim.ts` in particular is copied into the vendored package's own module graph, where
-      // an import of anything in this repository would not resolve, so it cannot go behind a
-      // seam at all. Read from the manifest rather than keyed on the name, so a package that
-      // becomes published stops being exempt on the day it does.
-      const published = (pkg: string): boolean => existsSync(join(ROOT, 'packages', pkg, 'package.json')) && pkgJson(pkg).private !== true;
       return [...byPackage.entries()]
         .filter(([pkg]) => published(pkg))
         .every(([, entries]) => entries.length === 1 && /\/(runtime|install)\.ts$/.test(entries[0] as string));

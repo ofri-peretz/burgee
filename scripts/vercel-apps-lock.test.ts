@@ -290,10 +290,10 @@ describe('criterion 3: one copy of every family-wide page', () => {
 
 // ─── Criterion 4 ──────────────────────────────────────────────────────────────────────
 
-describe('criterion 4: each app resolves its own row’s host', () => {
-  /** The module an app states its site in: `src/site.ts`, or the front door's `src/lib/site.ts`. */
-  const siteModule = (row: Row): string => [join(row.dir, 'src', 'site.ts'), join(row.dir, 'src', 'lib', 'site.ts')].find((f) => existsSync(join(REPO_ROOT, f))) ?? `${row.dir}/src/site.ts`;
+/** The module an app states its site in: `src/site.ts`, or the front door's `src/lib/site.ts`. */
+const siteModule = (row: Row): string => [join(row.dir, 'src', 'site.ts'), join(row.dir, 'src', 'lib', 'site.ts')].find((f) => existsSync(join(REPO_ROOT, f))) ?? `${row.dir}/src/site.ts`;
 
+describe('criterion 4: each app resolves its own row’s host', () => {
   it.each(ROWS)('%s', async (key, row) => {
     // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- one module per row of a table; the path is the app's own site module, resolved from the repo, never from input
     const { site } = (await import(pathToFileURL(join(REPO_ROOT, siteModule(row))).href)) as { site?: { key: string; url: string } };

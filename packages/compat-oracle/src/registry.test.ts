@@ -57,13 +57,11 @@ describe('the tar reader', () => {
     // Nothing here writes to disk, but these paths become keys a caller may join to a
     // directory, and a `../` that only becomes dangerous two files away is found late.
     const escaping = Buffer.concat([tarEntry('package/../../etc/passwd', 'x'), tarEntry('package/ok.js', 'y'), Buffer.alloc(BLOCK * 2)]);
-    // eslint-disable-next-line node-security/no-zip-slip -- this asserts the rejection: nothing is extracted
     expect(untar(escaping).map((e) => e.path)).toEqual(['package/ok.js']);
   });
 
   it('stops at the end-of-archive blocks rather than reading trailing bytes', () => {
     const withTrailer = Buffer.concat([tarEntry('package/a.js', 'a'), Buffer.alloc(BLOCK * 2), tarEntry('package/never.js', 'z')]);
-    // eslint-disable-next-line node-security/no-zip-slip -- reads an in-memory buffer; no filesystem write
     expect(untar(withTrailer).map((e) => e.path)).toEqual(['package/a.js']);
   });
 });

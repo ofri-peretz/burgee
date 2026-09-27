@@ -99,7 +99,6 @@ export function unpack(archive: Buffer): Map<string, Buffer> {
   // Nothing here is written to disk. `untar` has already dropped every path that is
   // absolute, drive-qualified or contains a `..` segment (see `safe`), and the result is a
   // Map keyed by path rather than an extraction.
-  // eslint-disable-next-line node-security/no-zip-slip -- validated in `safe`; no filesystem write
   for (const entry of untar(archive)) {
     const slash = entry.path.indexOf('/');
     if (slash === -1) continue;

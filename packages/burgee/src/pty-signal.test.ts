@@ -170,7 +170,6 @@ async function pressCtrlC(python: string): Promise<Outcome> {
   writeFileSync(program, fixture(marker));
 
   return await new Promise<Outcome>((settle, fail) => {
-    // eslint-disable-next-line node-security/detect-child-process -- already the form the rule's own fix names: `spawn` with an argument array and no shell, so nothing is parsed as a command line. Every argument is built here — `python` is a literal probed above, `PTY_HOST` is a constant, `process.execPath` is Node's own, and `program` is a path this function just wrote inside its own mkdtemp. None of it is reachable from a caller.
     const host = spawn(python, ['-c', PTY_HOST, process.execPath, program], { stdio: ['pipe', 'pipe', 'pipe'] });
     let output = '';
     let status = '';

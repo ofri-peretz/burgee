@@ -86,9 +86,10 @@ const docsDir = (name: string): string | undefined => {
   return Object.values(table.apps).find((a) => a.package === name)?.dir;
 };
 
+const read = (file: string): Surface[] => (existsSync(join(ROOT, file)) ? [{ file, text: readFileSync(join(ROOT, file), 'utf8') }] : []);
+
 /** Everything published about `name`: its README, its description, its docs site — and, for burgee, the root README. */
 const surfaces = (name: string): Surface[] => {
-  const read = (file: string): Surface[] => (existsSync(join(ROOT, file)) ? [{ file, text: readFileSync(join(ROOT, file), 'utf8') }] : []);
   const { description = '' } = JSON.parse(readFileSync(join(PACKAGES, name, 'package.json'), 'utf8')) as { description?: string };
   const site = docsDir(name);
   return [

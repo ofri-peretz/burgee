@@ -302,6 +302,7 @@ describe('U12 — each published package installs and loads alone', () => {
     const workspaces = [...manifests.keys()].map((name) => `--workspace=packages/${name}`);
     mkdirSync(packs);
     const { stdout } = await npm(['pack', '--json', '--pack-destination', packs, ...workspaces], root);
+    // eslint-disable-next-line node-security/no-zip-slip -- `p.filename` is the tarball name `npm pack` reports for our own workspaces, not an entry read from an archive; npm does the extracting. The rule takes archive context from the name `tarballs` (logged as a docs gap in the eslint FP/FN sweep).
     const tarballs = new Map((JSON.parse(stdout) as { name: string; filename: string }[]).map((p) => [p.name, join(packs, p.filename)]));
     const done = await Promise.all([...manifests.keys()].map((pkg) => installAlone(pkg, manifests, tarballs, base)));
     for (const r of done) results.set(r.pkg, r);

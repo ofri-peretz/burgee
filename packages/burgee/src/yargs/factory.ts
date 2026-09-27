@@ -860,7 +860,7 @@ export class YargsInstance {
       if (k === 'type' && !['string', 'number', 'boolean'].includes(v)) return false;
       return supportedOpts.includes(k);
     });
-    const fullCommand = this.#context.fullCommands[this.#context.fullCommands.length - 1];
+    const fullCommand = this.#context.fullCommands.at(-1);
     const parseOptions: Record<string, any> = fullCommand ? this.#command.cmdToParseOptions(fullCommand) : { array: [], alias: {}, default: {}, demand: {} };
     objectKeys(parseOptions).forEach((pk) => {
       const parseOption = parseOptions[pk];
@@ -1717,7 +1717,7 @@ export class YargsInstance {
       if (shortCircuit) return this.#postProcess(argv, populateDoubleDash, !!calledFromCommand, false);
       if (this.#helpOpt) {
         const helpCmds = [this.#helpOpt].concat(aliases[this.#helpOpt] || []).filter((k) => k.length > 1);
-        if (helpCmds.includes(`${argv._[argv._.length - 1]}`)) {
+        if (helpCmds.includes(`${argv._.at(-1)}`)) {
           argv._.pop();
           helpOptSet = true;
         }

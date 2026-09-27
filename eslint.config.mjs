@@ -10,18 +10,62 @@
  */
 import tsPlugin from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
+import anthropicSecurity from "eslint-plugin-anthropic-security";
 import browserSecurity from "eslint-plugin-browser-security";
 import conventions from "eslint-plugin-conventions";
+import drizzleSecurity from "eslint-plugin-drizzle-security";
+import expressSecurity from "eslint-plugin-express-security";
+import geminiSecurity from "eslint-plugin-gemini-security";
 import importNext from "eslint-plugin-import-next";
+import jwtSecurity from "eslint-plugin-jwt-security";
+import knexSecurity from "eslint-plugin-knex-security";
+import lambdaSecurity from "eslint-plugin-lambda-security";
 import maintainability from "eslint-plugin-maintainability";
+import mcpSdkSecurity from "eslint-plugin-mcp-sdk-security";
 import modernization from "eslint-plugin-modernization";
 import modularity from "eslint-plugin-modularity";
+import mongodbSecurity from "eslint-plugin-mongodb-security";
+import mysqlSecurity from "eslint-plugin-mysql-security";
+import nestjsSecurity from "eslint-plugin-nestjs-security";
 import nodeSecurity from "eslint-plugin-node-security";
+import openaiSecurity from "eslint-plugin-openai-security";
 import operability from "eslint-plugin-operability";
+import postgresqlSecurity from "eslint-plugin-postgresql-security";
+import prismaSecurity from "eslint-plugin-prisma-security";
 import reactA11y from "eslint-plugin-react-a11y";
 import reactFeatures from "eslint-plugin-react-features";
 import reliability from "eslint-plugin-reliability";
 import secureCoding from "eslint-plugin-secure-coding";
+import sequelizeSecurity from "eslint-plugin-sequelize-security";
+import sqliteSecurity from "eslint-plugin-sqlite-security";
+import supabaseSecurity from "eslint-plugin-supabase-security";
+import typeormSecurity from "eslint-plugin-typeorm-security";
+import vercelAiSecurity from "eslint-plugin-vercel-ai-security";
+
+// Library-surface plugins. burgee imports none of these libraries, so each one
+// should stay silent here — a finding from one is a false positive to fix in the
+// eslint monorepo, which is why they are on rather than skipped.
+const SURFACE = {
+  "anthropic-security": anthropicSecurity,
+  "drizzle-security": drizzleSecurity,
+  "express-security": expressSecurity,
+  "gemini-security": geminiSecurity,
+  "jwt-security": jwtSecurity,
+  "knex-security": knexSecurity,
+  "lambda-security": lambdaSecurity,
+  "mcp-sdk-security": mcpSdkSecurity,
+  "mongodb-security": mongodbSecurity,
+  "mysql-security": mysqlSecurity,
+  "nestjs-security": nestjsSecurity,
+  "openai-security": openaiSecurity,
+  "postgresql-security": postgresqlSecurity,
+  "prisma-security": prismaSecurity,
+  "sequelize-security": sequelizeSecurity,
+  "sqlite-security": sqliteSecurity,
+  "supabase-security": supabaseSecurity,
+  "typeorm-security": typeormSecurity,
+  "vercel-ai-security": vercelAiSecurity,
+};
 
 const TSX_FILES = ["apps/**/*.tsx"];
 /** Everything that ships to a browser: the docs app's components and routes. */
@@ -75,6 +119,17 @@ const OFF = {
   "react-a11y": {},
   "react-features": {},
   "browser-security": {},
+  "lambda-security": {
+    // Documented FPs, fixed on eslint main by the 2026-09-27 FP/FN sweep: the
+    // plugin's Lambda gate read `handler = handler || noop` in
+    // packages/burgee/src/yargs/command.ts as a handler export, and
+    // no-missing-authorization-check read `Object.create` as a data operation.
+    // Remove both on the next eslint-plugin-lambda-security release.
+    "no-missing-authorization-check":
+      "FP: gate + Object.create, fixed upstream, awaiting release",
+    "no-error-swallowing":
+      "FP: gate admits a file with no Lambda code, fixed upstream, awaiting release",
+  },
 };
 
 const OPTIONS = {
@@ -159,6 +214,7 @@ export default [
       modularity,
       operability,
       reliability,
+      ...SURFACE,
     },
     rules: {
       ...everyRule("secure-coding", secureCoding, {
@@ -182,12 +238,19 @@ export default [
       ...everyRule("modularity", modularity, { off: OFF.modularity }),
       ...everyRule("operability", operability, { off: OFF.operability }),
       ...everyRule("reliability", reliability, { off: OFF.reliability }),
+      ...Object.assign(
+        {},
+        ...Object.entries(SURFACE).map(([ns, plugin]) =>
+          everyRule(ns, plugin, { off: OFF[ns] }),
+        ),
+      ),
     },
   },
 
   // ── React, docs app only ──────────────────────────────────────────────────
+  // .ts as well as .tsx: custom hooks live in plain .ts files.
   {
-    files: TSX_FILES,
+    files: BROWSER_FILES,
     plugins: { "react-a11y": reactA11y, "react-features": reactFeatures },
     rules: {
       ...everyRule("react-a11y", reactA11y, { off: OFF["react-a11y"] }),
@@ -425,7 +488,10 @@ export default [
     // The watcher imports eslint.config.mjs to count rules; the evals runner runs
     // shell checks written in committed case files. Both are repo-owned inputs.
     files: ["scripts/control-bands.ts"],
-    rules: { "node-security/no-dynamic-dependency-loading": "off" },
+    rules: {
+      "node-security/no-dynamic-dependency-loading": "off",
+      "node-security/no-dynamic-require": "off",
+    },
   },
   {
     files: ["scripts/run-evals.ts"],
@@ -467,8 +533,8 @@ export default [
     // the ground and the floor all have to arrive somewhere.
     files: ['packages/roundel/src/theme.ts'],
     rules: {
-      'conventions/no-magic-numbers': 'off',
-      'maintainability/max-parameters': 'off',
+      "conventions/no-magic-numbers": "off",
+      "maintainability/max-parameters": "off",
     },
   },
 
@@ -518,7 +584,10 @@ export default [
       "packages/burgee/src/yargs-parser.ts",
       "packages/burgee/src/yargs/utils.ts",
     ],
-    rules: { "node-security/no-dynamic-dependency-loading": "off" },
+    rules: {
+      "node-security/no-dynamic-dependency-loading": "off",
+      "node-security/no-dynamic-require": "off",
+    },
   },
   {
     // The one line the compatibility gate turns on. `COMPAT_TARGET` is not ambient input:
@@ -582,6 +651,7 @@ export default [
     ],
     rules: {
       "node-security/no-dynamic-dependency-loading": "off",
+      "node-security/no-dynamic-require": "off",
       "performance/no-await-in-loop": "off",
       "reliability/no-await-in-loop": "off",
       "maintainability/no-missing-error-context": "off",
@@ -641,7 +711,10 @@ export default [
     // the default export is the contract, not a style choice. And a plugin is data — a rank,
     // an interval, a code-point range — so its numbers are values, not magic.
     files: ["examples/plugins/**"],
-    rules: { "import-next/no-default-export": "off", "conventions/no-magic-numbers": "off" },
+    rules: {
+      "import-next/no-default-export": "off",
+      "conventions/no-magic-numbers": "off",
+    },
   },
   {
     // FP 8 (also seen in scripts/run-evals.ts): no-unhandled-promise fires on every call
@@ -693,6 +766,7 @@ export default [
     files: ["packages/compat-oracle/src/shim.ts"],
     rules: {
       "node-security/no-dynamic-dependency-loading": "off",
+      "node-security/no-dynamic-require": "off",
       "import-next/no-default-export": "off",
     },
   },

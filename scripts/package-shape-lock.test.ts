@@ -182,6 +182,11 @@ describe.each(published)('published package $pkg.name', ({ dir, pkg }) => {
   });
 });
 
+const manifestOf = (name: string): { dependencies?: Record<string, string> } | undefined => {
+  const file = join(root, 'packages', name, 'package.json');
+  return existsSync(file) ? (JSON.parse(readFileSync(file, 'utf-8')) as { dependencies?: Record<string, string> }) : undefined;
+};
+
 /**
  * Y1's other half, which the per-package check above cannot state: a foundation package
  * depends on nothing at all, and `burgee` never depends on one. Asserted over the manifests
@@ -189,11 +194,6 @@ describe.each(published)('published package $pkg.name', ({ dir, pkg }) => {
  * `private` flag or publish state changes.
  */
 describe('the foundation tier (Y1)', () => {
-  const manifestOf = (name: string): { dependencies?: Record<string, string> } | undefined => {
-    const file = join(root, 'packages', name, 'package.json');
-    return existsSync(file) ? (JSON.parse(readFileSync(file, 'utf-8')) as { dependencies?: Record<string, string> }) : undefined;
-  };
-
   it('is not empty — otherwise every assertion below passes by having nothing to check', () => {
     expect(FOUNDATION.filter((n) => manifestOf(n) !== undefined).length).toBeGreaterThan(0);
   });

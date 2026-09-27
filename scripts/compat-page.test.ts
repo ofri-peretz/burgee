@@ -30,6 +30,8 @@ const page = (date: string, commander: string): string =>
     '',
   ].join('\n');
 
+const withOtherDate = (d: string) => `${page('2026-09-09', '1360 / 1360')}\nvendored at 17.7.2 on ${d}.\n`;
+
 describe('drift', () => {
   it('is not drift when only the run date moved', () => {
     expect(drift(page('2026-09-09', '1360 / 1360'), page('2026-09-10', '1360 / 1360'))).toBeUndefined();
@@ -48,7 +50,6 @@ describe('drift', () => {
   });
 
   it('normalises only the generated-on sentence, not every date on the page', () => {
-    const withOtherDate = (d: string) => `${page('2026-09-09', '1360 / 1360')}\nvendored at 17.7.2 on ${d}.\n`;
     expect(drift(withOtherDate('2026-01-01'), withOtherDate('2026-02-02'))).toBeDefined();
   });
 

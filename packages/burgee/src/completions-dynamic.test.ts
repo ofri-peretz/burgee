@@ -103,6 +103,15 @@ describe('the program side: `__complete` (D3)', () => {
   });
 });
 
+const bash = (line: string): string[] => lines(execFileSync('bash', [join(repo, 'scripts/complete-bash.sh'), scriptFor('bash'), ...line.split(' ')], { encoding: 'utf8', env }));
+
+// A pty zsh under a loaded pre-push battery: up to 40 s to start and 30 s to list, per call.
+const zsh = (line: string): string => execFileSync('zsh', [join(repo, 'scripts/complete-zsh.zsh'), scriptFor('zsh'), line], { encoding: 'utf8', env });
+
+const fish = (line: string): string[] => lines(execFileSync('fish', [join(repo, 'scripts/complete-fish.fish'), scriptFor('fish'), line], { encoding: 'utf8', env })).map((l) => l.split('\t')[0] ?? '');
+
+const pwsh = (line: string): string[] => lines(execFileSync('pwsh', ['-NoProfile', '-File', join(repo, 'scripts/complete-pwsh.ps1'), '-Script', scriptFor('pwsh'), '-Line', line], { encoding: 'utf8', env }));
+
 describe('the script side: only a declared completer calls back (D3)', () => {
   it.each(SHELLS)('%s: says so in its header, and calls back for --region alone', (shell) => {
     const script = renderCompletion(program, shell);
@@ -114,26 +123,21 @@ describe('the script side: only a declared completer calls back (D3)', () => {
     expect(script).not.toContain(tier);
   });
 
-  const bash = (line: string): string[] => lines(execFileSync('bash', [join(repo, 'scripts/complete-bash.sh'), scriptFor('bash'), ...line.split(' ')], { encoding: 'utf8', env }));
   it.runIf(POSIX && has('bash'))('bash: TAB after --region asks the program', { timeout: 30_000 }, () => {
     expect(bash('dyn deploy --region ')).toEqual(['eu-west', 'eu-north', 'us-east']);
     expect(bash('dyn deploy --region eu')).toEqual(['eu-west', 'eu-north']);
     expect(bash('dyn deploy --tier ')).toEqual(['free', 'pro']);
   });
 
-  // A pty zsh under a loaded pre-push battery: up to 40 s to start and 30 s to list, per call.
-  const zsh = (line: string): string => execFileSync('zsh', [join(repo, 'scripts/complete-zsh.zsh'), scriptFor('zsh'), line], { encoding: 'utf8', env });
   it.runIf(POSIX && has('zsh'))('zsh: TAB after --region lists what the program returned', { timeout: 120_000 }, () => {
     const out = zsh('dyn deploy --region ');
     for (const r of ['eu-west', 'eu-north', 'us-east']) expect(out).toContain(r);
   });
 
-  const fish = (line: string): string[] => lines(execFileSync('fish', [join(repo, 'scripts/complete-fish.fish'), scriptFor('fish'), line], { encoding: 'utf8', env })).map((l) => l.split('\t')[0] ?? '');
   it.runIf(POSIX && has('fish'))('fish: TAB after --region lists what the program returned', { timeout: 30_000 }, () => {
     expect(fish('dyn deploy --region ')).toEqual(expect.arrayContaining(['eu-west', 'eu-north', 'us-east']));
   });
 
-  const pwsh = (line: string): string[] => lines(execFileSync('pwsh', ['-NoProfile', '-File', join(repo, 'scripts/complete-pwsh.ps1'), '-Script', scriptFor('pwsh'), '-Line', line], { encoding: 'utf8', env }));
   it.runIf(POSIX && has('pwsh'))('PowerShell: TAB after --region lists what the program returned', { timeout: 120_000 }, () => {
     expect(pwsh('dyn deploy --region ')).toEqual(['eu-west', 'eu-north', 'us-east']);
   });

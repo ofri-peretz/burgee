@@ -71,6 +71,20 @@ describe.each(SHELLS)('%s completions', (shell) => {
   });
 });
 
+function lines(): Command {
+  const program = new Command();
+  program.name('lines').version('1.0.0').exitOverride();
+  program
+    .command('count')
+    .option('--skip-blank', 'ignore blank lines')
+    .option('--max-lines <n>', 'stop after n')
+    .option('--no-color', 'plain output')
+    .option('--trim', 'trim each line')
+    .option('--no-trim', 'keep whitespace')
+    .action(() => undefined);
+  return program;
+}
+
 /**
  * The same promise through `burgee/commander`, whose parser is commander's and negates nothing
  * it was not told to. The engine registers `--no-<name>` for every boolean; commander accepts
@@ -79,20 +93,6 @@ describe.each(SHELLS)('%s completions', (shell) => {
  * and `--no-version` were each a TAB away and each `error: unknown option`.
  */
 describe('through burgee/commander', () => {
-  function lines(): Command {
-    const program = new Command();
-    program.name('lines').version('1.0.0').exitOverride();
-    program
-      .command('count')
-      .option('--skip-blank', 'ignore blank lines')
-      .option('--max-lines <n>', 'stop after n')
-      .option('--no-color', 'plain output')
-      .option('--trim', 'trim each line')
-      .option('--no-trim', 'keep whitespace')
-      .action(() => undefined);
-    return program;
-  }
-
   describe.each(SHELLS)('%s completions', (shell) => {
     const script = renderCompletion(lines().manifest, shell);
     const flags = offered(script).filter((f) => !RESERVED.has(f));
