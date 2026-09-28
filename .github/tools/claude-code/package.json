@@ -1,0 +1,8 @@
+{
+  "name": "ci-tool-claude-code",
+  "private": true,
+  "description": "The `claude` binary that bench.yml's B1 axis and evals.yml's layer 2 spawn. CI installs it from this lockfile with `npm ci`, so the version and every tarball's hash are fixed here and not resolved on the runner (Scorecard Pinned-Dependencies).",
+  "devDependencies": {
+    "@anthropic-ai/claude-code": "2.1.283"
+  }
+}

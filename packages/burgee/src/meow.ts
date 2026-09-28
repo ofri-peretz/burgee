@@ -23,7 +23,9 @@ function meow(helpText: string | Options, options: Options = {}): Result {
   const opts: Options = typeof helpText === 'string' ? { help: helpText, ...options } : helpText;
   if (typeof helpText !== 'string' && Object.keys(options).length > 0) Object.assign(opts, options);
 
-  if (opts.input !== undefined && typeof opts.input !== 'string' && !Array.isArray(opts.input) && typeof opts.input !== 'object') {
+  // meow accepts a string or a plain object here and nothing else, by the object's toString tag:
+  // `null` and an array are refused, as upstream refuses them, rather than read as no `input`.
+  if (opts.input !== undefined && typeof opts.input !== 'string' && Object.prototype.toString.call(opts.input) !== '[object Object]') {
     throw new TypeError('The `input` option must be a string or an object.');
   }
   const flagSpecs = (opts.flags ?? {}) as Record<string, AnyFlag>;
