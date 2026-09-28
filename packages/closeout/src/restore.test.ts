@@ -198,9 +198,10 @@ describe('the two paths R4 names by name', () => {
   });
 
   it("'exit' arriving before the deadline, while the shutdown still waits on flush", async () => {
-    // The real-process shape of a hang that holds nothing in the loop: the deadline's timer
-    // is unref'd, so the loop drains and Node leaves through 'exit' first. The run is still
-    // parked on `flush`; the phases it has not reached must be invoked now or never.
+    // The real-process shape: a `process.exit()` from elsewhere while the shutdown is parked,
+    // or a 'beforeExit' run whose unref'd clock lets the loop drain (a signal run's clock holds
+    // it, D-164). The run is still parked on `flush`; the phases it has not reached must be
+    // invoked now or never.
     const { proc, log, closeout } = fullScreenProgram();
     closeout.onExit(() => new Promise<void>(() => undefined), 'flush');
 

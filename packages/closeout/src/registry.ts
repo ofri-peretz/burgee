@@ -248,8 +248,11 @@ export function createRegistry(options: RegistryOptions = {}): Registry {
        * One clock for the whole shutdown, started before the first phase — not one per
        * phase, which would let three slow phases add up to three deadlines and give back
        * the hang the number exists to bound.
+       *
+       * It holds the loop on every path but `'beforeExit'` (D-164): a signal, a throw, a
+       * rejection or a caller driving `run` itself all leave once it settles, so it has to.
        */
-      const clock = startDeadline(deadline);
+      const clock = startDeadline(deadline, report.path !== 'beforeExit');
       const tracking: InFlight[] = [];
       // One cursor over PHASES, shared with `rest`, so no phase is invoked twice whichever
       // of the two reaches it first.
@@ -293,9 +296,10 @@ export function createRegistry(options: RegistryOptions = {}): Registry {
       if (state.started) {
         /*
          * `'exit'` arriving while an asynchronous shutdown still waits on an earlier phase.
-         * On a real process this happens whenever the handler being waited on holds nothing
-         * in the event loop: the deadline's timer is `unref`'d, so the loop drains, Node
-         * leaves, and the `restore` phase the run had not reached would never be invoked.
+         * On a real process this happens when a `'beforeExit'` run waits on a handler that
+         * holds nothing in the event loop — that clock is `unref`'d, so the loop drains and
+         * Node leaves — or when something calls `process.exit()` while any run is parked.
+         * Either way the `restore` phase the run had not reached would never be invoked.
          */
         rest?.();
         return alreadyRun(state.finished, info);

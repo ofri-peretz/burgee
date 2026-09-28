@@ -176,14 +176,16 @@ describe.skipIf(process.platform === 'win32')('the terminal a real process leave
 
   /**
    * The hang that holds nothing: a handler awaiting an event that will never come, in a
-   * program with no other work. The deadline's timer is `unref`'d, so the loop drains
-   * before it fires and Node leaves through `'exit'` while the shutdown is still waiting on
-   * `flush`. Found by this file: on the first build of it the terminal was never restored
-   * on this path at all — `runSync` saw a shutdown already started and did nothing, and the
-   * `restore` phase the run had not reached was never invoked.
+   * program with no other work. Found by this file: on the first build of it the terminal
+   * was never restored on this path at all — `runSync` saw a shutdown already started and
+   * did nothing, and the `restore` phase the run had not reached was never invoked.
    *
-   * How the process *leaves* on this path is not asserted here: it is R1/R10's question,
-   * and it is recorded as open in the design rather than pinned by a test.
+   * **The shutdown here is `'beforeExit'`'s, not the signal's** (measured while deciding
+   * D-164). Nothing holds the loop after the timer that sends SIGTERM, and Node's signal
+   * watcher does not hold it either, so the loop drains, `'beforeExit'` starts the run, and
+   * the SIGTERM is never delivered to a listener at all. That run's clock is `unref`'d, so
+   * Node leaves through `'exit'` while it waits on `flush`. The signal-started shape — the
+   * loop held until the signal lands — is `signal.test.ts`'s, which asserts how it dies.
    */
   it(
     'a hang that holds nothing, so Node leaves before the deadline',

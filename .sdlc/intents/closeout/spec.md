@@ -547,11 +547,50 @@ and `./exit-hook` 11,910 → 12,174 B (both inside their budgets). Zero dependen
 every entry. What a bundler keeps is the number that matters to a consumer: burgee's core
 +46 B, all of it the registry fix, measured with `benchmarks/run.ts --axis weight --check`.
 
-**Left open, and not pinned by a test.** The same drained-loop path *leaves* wrongly: a process
+**Left open, and not pinned by a test** — closed the same day by D-164, next section. The same drained-loop path *leaves* wrongly: a process
 that received SIGTERM and then drained its loop with a handler parked exits 0 through `'exit'`
 instead of dying of the signal, because the leave in `install.ts` waits on a `run()` that never
 settles. That is R1/R10's contract rather than R4's, so the spawned case asserts the terminal
 and nothing about the exit status — a test asserting status 0 would pin the defect.
+
+## What shipped (R1, R10 — a hang that holds nothing no longer turns a signal into a success — 2026-09-27)
+
+The status half of the path R4's entry left open. A shutdown parked on a handler that holds
+nothing in the event loop let the loop drain, because the deadline's timer was `unref`'d, and
+Node left through `'exit'` with code 0 before the caller's leave was ever reached. Measured
+before deciding, on real children: **three paths, not one.**
+
+| Program (hang registered in `flush`, loop held until the trigger) | Before | After |
+| :-- | :-- | :-- |
+| SIGTERM, through `install()` | exit 0 | dies of SIGTERM after the deadline, breach report names the handler |
+| uncaught throw, through `install()` | exit 0, error never printed | exit 1, error on stderr |
+| SIGTERM, through `closeout/exit-hook` (`wait: 300`) | exit 0 | exit 143 — what `exit-hook@5.1.0` exits on the same program |
+
+- **The fix is the bound doing its job.** `startDeadline(ms, hold)` keeps the timer `ref`'d
+  when `hold` is true, and `run()` holds on every path but `'beforeExit'`. `cancel()` still
+  lets go the moment the run settles, so a shutdown that finishes pays nothing. The incumbent
+  already behaved this way: `exit-hook`'s force-exit timer is not `unref`'d.
+- **`'beforeExit'` does not hold, and that is measured.** Holding there makes a pending
+  signal a second trigger: its `run()` resolves at once, `install()` raises, and the process
+  dies before `restore` is invoked — `terminal-restore.test.ts`'s drained-loop case fails.
+- **Rejected: re-raise from the `'exit'` listener.** It fixes `install()`'s signal path only,
+  and it leaves before the deadline, so the breach report is never printed on the one path
+  where a handler hung. D-164.
+- **Weight: burgee 24,262 → 24,277 B, ceiling 24,282 unchanged.** `hold` costs 27 B, and 12 of
+  them are paid by deleting `cancel()`'s `undefined` guard — the timer is assigned
+  synchronously, and `clearTimeout(undefined)` is a no-op.
+- **Correction to the R4 entry above.** Its drained-loop spawned case never exercised a
+  signal. Nothing holds that child's loop after the timer that sends SIGTERM, and Node's
+  signal watcher is `unref`'d, so `'beforeExit'` starts the shutdown and the SIGTERM is never
+  delivered to a listener. The case still grades `runSync`'s restore; its comment says which
+  trigger it is. The signal-started shape lives in `signal.test.ts`.
+- **Still open, and not fixed here.** A signal that lands in the last callback before a loop
+  drains is never delivered to closeout's listener, so that process exits 0. That is Node's
+  behaviour for any program with a listener on the signal; closing it would mean holding the
+  loop for the life of the program.
+- **Proven red before green:** the three spawned cases fail on the unfixed build (status 0
+  each) and pass on the fix. `exit-hook` 21 / 21 and `restore-cursor` 6 / 6 unchanged;
+  `signal-exit` 126 / 135 on darwin both before and after.
 
 ## The surface a consumer gets, derived from the tree (2026-09-15)
 
