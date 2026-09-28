@@ -97,7 +97,9 @@ describe('the committed lockfile resolves', () => {
     // last four green-but-blind gates got here. Prunes the exact entry from the incident.
     const lock = committed();
     expect(Object.keys(lock.packages)).toContain('node_modules/@emnapi/core');
-    delete lock.packages['node_modules/@emnapi/core'];
+    // Every copy, not just the hoisted one: npm prunes them all, and a dedupe can nest one
+    // under oxide-wasm32-wasi, which would still resolve if only the root entry went.
+    for (const p of Object.keys(lock.packages)) if (p === 'node_modules/@emnapi/core' || p.endsWith('/node_modules/@emnapi/core')) delete lock.packages[p];
     expect(unresolved(lock)).toContain('node_modules/@tailwindcss/oxide-wasm32-wasi -> @emnapi/core');
   });
 });

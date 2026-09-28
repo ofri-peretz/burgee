@@ -185,6 +185,16 @@ export function renderDiff(host: string, before: CompatRecord, after: CompatReco
   );
 }
 
+/**
+ * The section an upstream issue gains when the release no longer ships a fixture the host's
+ * `extraDirs` names — empty when it ships all of them. It is work the re-vendor has to do,
+ * so it goes in the issue body and not only in a log line nobody opens.
+ */
+export function renderMissingExtras(version: string, missing: string[]): string {
+  if (missing.length === 0) return '';
+  return `${list(`Fixtures \`extraDirs\` names that ${version} does not ship`, missing)}\nSkipped, not copied. Re-vendoring at ${version} means pruning ${missing.length === 1 ? 'it' : 'them'} from the host's \`extraDirs\`, and checking the control still loads without ${missing.length === 1 ? 'it' : 'them'}.\n`;
+}
+
 /** The newest release on npm. */
 export function latestVersion(pkg: string): string {
   return execFileSync('npm', ['view', pkg, 'version'], { encoding: 'utf8' }).trim();
