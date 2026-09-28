@@ -37,6 +37,33 @@ describe('statistics', () => {
   });
 });
 
+/**
+ * #636 — `compat-clack-pass-rate` read 0.8235294117647058 on every CI run and the watcher
+ * still opened a "below the mean" intent for it. Twenty equal floats sum and divide back to a
+ * mean a few ulps off their own value, so σ came out ≈ 3e-16 instead of 0, the σ=0 guard
+ * never tripped, and every point sat at exactly −1σ: eight in a row on one side, rule 4.
+ */
+describe('floating-point noise is not a side of the mean', () => {
+  it('a series of one repeated float never breaches, though its computed σ is not 0', () => {
+    const clack = Array.from({ length: 20 }, () => 0.8235294117647058);
+    expect(stdev(clack)).toBeGreaterThan(0); // the premise: rounding, not a real spread
+    expect(detect(clack, 'lower')).toBeNull();
+    expect(detect(clack, 'both')).toBeNull();
+  });
+
+  it('a point within rounding of the mean is on neither side, so it cannot make a run', () => {
+    // mean([0.1, 0.3, 0.2 ×8]) is 0.19999999999999998, so each 0.2 is "above" it by 6e-16σ.
+    // Eight of them was a rule 4 drift on a series whose last eight points ARE the mean.
+    expect(detect([0.1, 0.3, ...Array.from({ length: 8 }, () => 0.2)], 'higher')).toBeNull();
+  });
+
+  it('still sees a real run a hair above the mean', () => {
+    // The tolerance is rounding, not a band: 1e-6 of the value is a million times larger.
+    const series = [...Array.from({ length: 12 }, () => 1), ...Array.from({ length: 8 }, () => 1.000001)];
+    expect(detect(series, 'higher')?.direction).toBe('above');
+  });
+});
+
 describe('Western Electric rules', () => {
   it('rule 1 — a single point beyond 3σ', () => {
     const hit = detect([...flatish(10, 100), 60], 'lower');

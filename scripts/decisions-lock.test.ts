@@ -44,6 +44,7 @@ import {
   DECISIONS_DIR,
   duplicateIds,
   halfWrittenDecisions,
+  LEGACY_LATE,
   legacyDecisionIds,
   missingLegacy,
   parseDecision,
@@ -122,7 +123,7 @@ describe('decisions ledger', () => {
     expect(danglingSupersessions(entries)).toEqual([]);
   });
 
-  it('keeps every sequential id, D-001 to D-151 — they are cited in commits, specs and PR titles', () => {
+  it('keeps every sequential id, D-001 to D-151 and D-161, D-163, D-164 — they are cited in commits, specs and PR titles', () => {
     expect(missingLegacy(entries.map((d) => d.id), legacyDecisionIds(), 'decision')).toEqual([]);
   });
 
@@ -211,6 +212,13 @@ describe('each decisions check fails on a broken fixture', () => {
     expect(decisionIdProblems([good({ id: 'D-20260927-Per-Entry', date: '2026-09-27' })])[0]).toMatch(/is not a decision id/);
     expect(decisionIdProblems([good({ id: `D-20260927-${'a'.repeat(41)}`, date: '2026-09-27' })])[0]).toMatch(/slug is 41 characters/);
     expect(decisionIdProblems([good({ id: 'D-20260927-per-entry-ledgers', date: '2026-09-27' })])).toEqual([]);
+  });
+
+  it('the frozen sequence admits exactly the three late ids: D-161, D-163, D-164, and not the numbers around them', () => {
+    for (const id of LEGACY_LATE) expect(decisionIdProblems([good({ id })])).toEqual([]);
+    for (const id of ['D-160', 'D-162', 'D-165']) expect(decisionIdProblems([good({ id })])[0]).toMatch(/continues the sequential numbering, which stopped at D-151/);
+    const ids = legacyDecisionIds().filter((id) => id !== 'D-163');
+    expect(missingLegacy(ids, legacyDecisionIds(), 'decision')).toEqual([expect.stringMatching(/^decision D-163 is gone/)]);
   });
 
   it('a sequential id deleted', () => {

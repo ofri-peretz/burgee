@@ -64,7 +64,7 @@ jobs:
       # without one layer 2 skips and the install is 30 seconds of nothing.
       - name: Install the agent the task evals run
         if: env.HAS_CREDENTIAL == 'true'
-        run: npm install --global @anthropic-ai/claude-code
+        run: npm ci --prefix .github/tools/claude-code --no-audit --no-fund && echo "$PWD/.github/tools/claude-code/node_modules/.bin" >> "$GITHUB_PATH"
       - name: Run evals
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

@@ -79,13 +79,15 @@ Generated files each have a writer and a `--check` twin — run the writer, neve
   (`.changeset/<slug>.md`); internal-only work takes the `skip-changeset` label instead.
 - Editing a package README changes its packed size: the foundation weight band
   (`.sdlc/bands/foundation-ceilings.json`) must be re-measured, or the weight locks fail.
+  `npm run weight:converge` does it — it writes the band and regenerates the READMEs, and the
+  band is the only copy: nothing else records a foundation package's `ours`.
 - A decision or a gap is **one new file**, never a row appended to `.sdlc/DECISIONS.md` or
   `.sdlc/GAPS.md` (both hold prose only, and a lock fails on a row there):
   `npm run ledger -- new decision <slug>` or `npm run ledger -- new gap <A|B|C|release> <slug>`
   writes `.sdlc/decisions/D-YYYYMMDD-<slug>.md` / `.sdlc/gaps/<letter>-YYYYMMDD-<slug>.md` to
-  fill in. Never take "the next number" — D-001..D-151, A1..A30, B1..B22, C1..C7 are frozen,
-  and a new sequential id fails `decisions-lock` / `gaps-lock`. Striking a gap is
-  `status: closed` in its file. `npm run ledger -- decisions` / `gaps` prints the tables.
+  fill in. Never take "the next number" — D-001..D-151 (plus D-161, D-163, D-164), A1..A30,
+  B1..B22, C1..C7 are frozen, and a new sequential id fails `decisions-lock` / `gaps-lock`.
+  Striking a gap is `status: closed` in its file. `npm run ledger -- decisions` / `gaps` prints the tables.
 - `git push` runs a 3–4 minute pre-push battery. It is not a hang. **Never `--no-verify`.**
 - Every number in prose comes from a file in this repository — a generated page, a baseline,
   a band — and a claim that cannot be measured is written as *unmeasured*, not estimated.

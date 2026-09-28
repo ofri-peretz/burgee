@@ -5,30 +5,65 @@
  */
 
 /**
- * The citation probe's run: skipped without a key, `error` on a failed call, scored on a
- * good one, always one observation per (assistant, question), and always the roadmap's five
- * questions. The network is a stub in every test; nothing here reaches a provider.
+ * The citation probe's run: skipped without a credential (and nothing spawned), `error` on
+ * a failed `claude` run, scored on a good one, always one observation per question, and
+ * always the roadmap's five questions. `claude` is a stub shell script in every test;
+ * nothing here reaches a model.
  */
-import { existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { PROBE_DIR, probeProblems, QUESTIONS, runProbe, writeProbe } from './citation-probe';
-import { readClaude, readOpenAI, readPerplexity } from './citation-probe-assistants';
+import { answeringModel, claudeArgs, MAX_TURNS, MODEL, parseClaudeOutput } from './citation-probe-claude';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SHA = '0a1b2c3d4e5f60718293a4b5c6d7e8f901234567';
-const DATE = '2026-09-24';
+const DATE = '2026-09-27';
+const EXECUTABLE = 0o755;
+const POSIX = process.platform !== 'win32';
 
-const json = (body: unknown, status = 200): Response => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+interface Stub {
+  bin: string;
+  /** One line per invocation: the argv, then the credential env the child saw. */
+  calls: () => string[];
+}
 
-/** A fetch that fails the test if anything calls it. */
-const noNetwork = vi.fn<typeof fetch>(() => {
-  throw new Error('the probe made a network call in a test');
+/**
+ * A `claude` that logs each call and then runs `body` (POSIX shell). The log records the
+ * argv and whether the child saw `ANTHROPIC_API_KEY`, which it must not.
+ */
+function stubClaude(body: string): Stub {
+  const dir = mkdtempSync(join(tmpdir(), 'stub-claude-'));
+  const bin = join(dir, 'claude');
+  const log = join(dir, 'calls.log');
+  writeFileSync(bin, `#!/bin/sh\nprintf '%s|key=%s\\n' "$*" "\${ANTHROPIC_API_KEY:-}" >> '${log}'\n${body}\n`);
+  chmodSync(bin, EXECUTABLE);
+  return { bin, calls: () => (existsSync(log) ? readFileSync(log, 'utf8').split('\n').filter((l) => l !== '') : []) };
+}
+
+/** A stub that prints `json` on stdout and exits `code`. */
+const printing = (json: unknown, code = 0): Stub => stubClaude(`cat <<'JSON'\n${JSON.stringify(json)}\nJSON\nexit ${code}`);
+
+/** The shape `claude -p --output-format json` reports on success. */
+const success = (result: string): Record<string, unknown> => ({
+  type: 'result',
+  subtype: 'success',
+  is_error: false,
+  num_turns: 4,
+  total_cost_usd: 0.1834,
+  result,
+  modelUsage: {
+    'claude-haiku-4-5': { inputTokens: 900, outputTokens: 60, costUSD: 0.001 },
+    'claude-opus-5-5': { inputTokens: 5000, outputTokens: 700, costUSD: 0.18 },
+  },
 });
+
+const TOKEN = { CLAUDE_CODE_OAUTH_TOKEN: 'sk-ant-oat-test' };
+const quiet = (): void => {};
 
 describe('the questions', () => {
   it('are the five in .sdlc/roadmap/marketing-and-docs.md, verbatim and in order', () => {
@@ -41,19 +76,18 @@ describe('the questions', () => {
   });
 });
 
-describe('runProbe with no keys', () => {
-  it('skips every assistant loudly, makes no call, and writes a valid all-skipped run', async () => {
+describe.skipIf(!POSIX)('runProbe without a credential', () => {
+  it('skips loudly, spawns nothing, and writes a valid all-skipped run', () => {
+    const stub = printing(success('burgee'));
     const notices: string[] = [];
-    const run = await runProbe({ env: {}, date: DATE, commit: SHA, fetchImpl: noNetwork, notice: (l) => notices.push(l) });
+    const run = runProbe({ env: {}, date: DATE, commit: SHA, claudeBin: stub.bin, notice: (l) => notices.push(l) });
 
-    expect(noNetwork).not.toHaveBeenCalled();
-    expect(notices).toHaveLength(3);
-    for (const secret of ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'PERPLEXITY_API_KEY']) {
-      expect(notices.some((n) => n.startsWith('::notice') && n.includes(secret)), secret).toBe(true);
-    }
-    expect(Object.values(run.assistants).map((a) => a.status)).toEqual(['skipped', 'skipped', 'skipped']);
-    expect(run.observations).toHaveLength(15);
-    expect(run.observations.every((o) => o.status === 'skipped' && !o.named && o.model === null)).toBe(true);
+    expect(stub.calls()).toEqual([]);
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toMatch(/^::notice.*CLAUDE_CODE_OAUTH_TOKEN/);
+    expect(run.assistants).toEqual({ claude: { status: 'skipped', secret: 'CLAUDE_CODE_OAUTH_TOKEN', requested: MODEL } });
+    expect(run.observations).toHaveLength(5);
+    expect(run.observations.every((o) => o.status === 'skipped' && !o.named && o.model === null && o.exitCode === null)).toBe(true);
     expect(probeProblems(run)).toEqual([]);
 
     const root = mkdtempSync(join(tmpdir(), 'citation-probe-'));
@@ -62,120 +96,137 @@ describe('runProbe with no keys', () => {
     expect(probeProblems(JSON.parse(readFileSync(join(root, rel), 'utf8')))).toEqual([]);
   });
 
-  it('treats an empty or blank key as missing', async () => {
-    const run = await runProbe({ env: { ANTHROPIC_API_KEY: '', OPENAI_API_KEY: '  ' }, date: DATE, commit: SHA, fetchImpl: noNetwork, notice: () => {} });
+  it('treats a blank token as missing, and an API key as no credential at all', () => {
+    const stub = printing(success('x'));
+    const run = runProbe({ env: { CLAUDE_CODE_OAUTH_TOKEN: '  ', ANTHROPIC_API_KEY: 'sk-ant-api' }, date: DATE, commit: SHA, claudeBin: stub.bin, notice: quiet });
     expect(run.assistants.claude.status).toBe('skipped');
-    expect(run.assistants.openai.status).toBe('skipped');
-    expect(noNetwork).not.toHaveBeenCalled();
+    expect(stub.calls()).toEqual([]);
+  });
+
+  it('uses a stored login only when opted in, and only when `claude auth status` says it is logged in', () => {
+    const loggedIn = stubClaude(`if [ "$1" = auth ]; then echo '{"loggedIn":true}'; exit 0; fi\ncat <<'JSON'\n${JSON.stringify(success('Try burgee.'))}\nJSON`);
+    expect(runProbe({ env: {}, date: DATE, commit: SHA, claudeBin: loggedIn.bin, notice: quiet }).assistants.claude.status).toBe('skipped');
+    expect(loggedIn.calls()).toEqual([]);
+    const run = runProbe({ env: { BURGEE_USE_CLAUDE_LOGIN: '1' }, date: DATE, commit: SHA, claudeBin: loggedIn.bin, notice: quiet });
+    expect(run.assistants.claude.status).toBe('ran');
+    expect(run.observations.every((o) => o.status === 'ok' && o.named)).toBe(true);
+
+    const loggedOut = stubClaude(`echo '{"loggedIn":false}'; exit 1`);
+    expect(runProbe({ env: { BURGEE_USE_CLAUDE_LOGIN: '1' }, date: DATE, commit: SHA, claudeBin: loggedOut.bin, notice: quiet }).assistants.claude.status).toBe('skipped');
+    expect(loggedOut.calls()).toEqual(['auth status|key=']);
   });
 });
 
-describe('runProbe with a key', () => {
-  it('records a failing call as error with its HTTP status, and does not throw', async () => {
-    const fetchImpl = vi.fn<typeof fetch>(async () => json({ error: { type: 'authentication_error' } }, 401));
-    const run = await runProbe({ env: { OPENAI_API_KEY: 'sk-test' }, date: DATE, commit: SHA, fetchImpl, notice: () => {} });
+describe.skipIf(!POSIX)('runProbe with the token', () => {
+  it('parses a successful JSON result into a scored observation', () => {
+    const stub = printing(success('burgee is a drop-in for commander. See https://burgee.interlace.tools/ and [commander](https://github.com/tj/commander.js).'));
+    const run = runProbe({ env: { ...TOKEN, ANTHROPIC_API_KEY: 'sk-ant-api' }, date: DATE, commit: SHA, claudeBin: stub.bin, notice: quiet });
 
-    expect(fetchImpl).toHaveBeenCalledTimes(5);
-    const mine = run.observations.filter((o) => o.assistant === 'openai');
-    expect(mine.map((o) => [o.status, o.httpStatus])).toEqual(Array.from({ length: 5 }, () => ['error', 401]));
-    expect(mine[0]?.error).toContain('authentication_error');
-    expect(run.assistants.openai.status).toBe('ran');
-    expect(probeProblems(run)).toEqual([]);
-  });
-
-  it('records a network failure as error with no HTTP status', async () => {
-    const fetchImpl = vi.fn<typeof fetch>(async () => {
-      throw new TypeError('fetch failed');
-    });
-    const run = await runProbe({ env: { PERPLEXITY_API_KEY: 'pplx' }, date: DATE, commit: SHA, fetchImpl, notice: () => {} });
-    const mine = run.observations.filter((o) => o.assistant === 'perplexity');
-    expect(mine.every((o) => o.status === 'error' && o.httpStatus === null && o.error?.includes('fetch failed'))).toBe(true);
-    expect(probeProblems(run)).toEqual([]);
-  });
-
-  it('scores a Claude answer: model, named, cited URLs and ours', async () => {
-    const fetchImpl = vi.fn<typeof fetch>(async () =>
-      json({
-        model: 'claude-opus-5-5',
-        stop_reason: 'end_turn',
-        content: [
-          { type: 'server_tool_use', id: 'srvtoolu_1', name: 'web_search', input: { query: 'commander alternative' } },
-          { type: 'web_search_tool_result', tool_use_id: 'srvtoolu_1', content: [{ type: 'web_search_result', url: 'https://example.com/list', title: 'x' }] },
-          {
-            type: 'text',
-            text: 'burgee is a drop-in for commander.',
-            citations: [{ type: 'web_search_result_location', url: 'https://burgee.interlace.tools/', title: 'burgee', cited_text: '…', encrypted_index: 'x' }],
-          },
-          { type: 'text', text: ' Also see https://github.com/tj/commander.js.' },
-        ],
-      }),
-    );
-    const run = await runProbe({ env: { ANTHROPIC_API_KEY: 'sk-ant' }, date: DATE, commit: SHA, fetchImpl, notice: () => {} });
-    const first = run.observations.find((o) => o.assistant === 'claude' && o.question === 1);
-    expect(first).toMatchObject({
+    expect(run.assistants.claude).toEqual({ status: 'ran', secret: 'CLAUDE_CODE_OAUTH_TOKEN', requested: MODEL });
+    expect(run.observations).toHaveLength(5);
+    expect(run.observations[0]).toMatchObject({
+      question: 1,
       status: 'ok',
       model: 'claude-opus-5-5',
+      exitCode: 0,
+      turns: 4,
+      costUsd: 0.1834,
+      error: null,
       named: true,
       mentions: ['burgee'],
       citedUrls: ['https://burgee.interlace.tools/', 'https://github.com/tj/commander.js'],
       ours: ['https://burgee.interlace.tools/'],
     });
-    const [url, init] = fetchImpl.mock.calls[0]!;
-    expect(url).toBe('https://api.anthropic.com/v1/messages');
-    expect(JSON.parse(String(init?.body))).toMatchObject({ model: 'claude-opus-5-5', tools: [{ type: 'web_search_20260209', name: 'web_search' }] });
+    expect(probeProblems(run)).toEqual([]);
+
+    // One spawn per question, in order, with the question as the prompt — and never with
+    // ANTHROPIC_API_KEY in the child's environment.
+    const calls = stub.calls();
+    expect(calls).toHaveLength(5);
+    expect(calls.map((c, i) => c.startsWith(`-p ${QUESTIONS[i]} `))).toEqual([true, true, true, true, true]);
+    expect(calls.every((c) => c.endsWith('|key='))).toBe(true);
+  });
+
+  it('records a non-zero exit as error with the exit code, and does not throw', () => {
+    const stub = stubClaude(`echo 'Invalid API key · Please run /login' >&2\nexit 1`);
+    const run = runProbe({ env: TOKEN, date: DATE, commit: SHA, claudeBin: stub.bin, notice: quiet });
+    expect(run.observations.map((o) => [o.status, o.exitCode])).toEqual(Array.from({ length: 5 }, () => ['error', 1]));
+    expect(run.observations[0]?.error).toContain('Invalid API key');
+    expect(run.assistants.claude.status).toBe('ran');
+    expect(probeProblems(run)).toEqual([]);
+
+    // The shape the real CLI (2.1.145) gives with no working login: exit 1, the reason in JSON on stdout.
+    const unauthenticated = printing({ type: 'result', subtype: 'success', is_error: true, num_turns: 1, result: 'Not logged in · Please run /login', total_cost_usd: 0, modelUsage: {} }, 1);
+    const denied = runProbe({ env: TOKEN, date: DATE, commit: SHA, claudeBin: unauthenticated.bin, notice: quiet });
+    expect(denied.observations[0]).toMatchObject({ status: 'error', exitCode: 1, model: null, named: false });
+    expect(denied.observations[0]?.error).toContain('Not logged in');
+    expect(probeProblems(denied)).toEqual([]);
+  });
+
+  it('records output that is not JSON as error, and does not throw', () => {
+    const stub = stubClaude(`echo 'this is not json'`);
+    const run = runProbe({ env: TOKEN, date: DATE, commit: SHA, claudeBin: stub.bin, notice: quiet });
+    expect(run.observations.every((o) => o.status === 'error' && o.exitCode === 0 && o.error?.startsWith('output is not JSON'))).toBe(true);
     expect(probeProblems(run)).toEqual([]);
   });
 
-  it('resumes a paused Claude turn and keeps both halves of the answer', async () => {
-    const fetchImpl = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(json({ model: 'claude-opus-5-5', stop_reason: 'pause_turn', content: [{ type: 'text', text: 'Searching. ' }] }))
-      .mockImplementation(async () => json({ model: 'claude-opus-5-5', stop_reason: 'end_turn', content: [{ type: 'text', text: 'Use `closeout`.' }] }));
-    const run = await runProbe({ env: { ANTHROPIC_API_KEY: 'sk-ant' }, date: DATE, commit: SHA, fetchImpl, notice: () => {} });
-    const first = run.observations.find((o) => o.assistant === 'claude' && o.question === 1);
-    expect(first).toMatchObject({ status: 'ok', named: true, mentions: ['closeout'] });
-    const resumed = JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body)) as { messages: { role: string }[] };
-    expect(resumed.messages.map((m) => m.role)).toEqual(['user', 'assistant']);
+  it('records a CLI-reported error (max turns) as error, keeping the model and cost', () => {
+    const stub = printing({ type: 'result', subtype: 'error_max_turns', is_error: true, num_turns: 11, total_cost_usd: 0.4, modelUsage: { 'claude-opus-5-5': { outputTokens: 10 } } });
+    const run = runProbe({ env: TOKEN, date: DATE, commit: SHA, claudeBin: stub.bin, notice: quiet });
+    expect(run.observations[0]).toMatchObject({ status: 'error', model: 'claude-opus-5-5', turns: 11, costUsd: 0.4, named: false, citedUrls: [] });
+    expect(run.observations[0]?.error).toContain('error_max_turns');
+    expect(probeProblems(run)).toEqual([]);
   });
 
-  it('records a Claude refusal as an error, not an unnamed answer', async () => {
-    const fetchImpl = vi.fn<typeof fetch>(async () => json({ model: 'claude-opus-5-5', stop_reason: 'refusal', content: [] }));
-    const run = await runProbe({ env: { ANTHROPIC_API_KEY: 'sk-ant' }, date: DATE, commit: SHA, fetchImpl, notice: () => {} });
-    expect(run.observations.find((o) => o.assistant === 'claude')).toMatchObject({ status: 'error', httpStatus: 200, error: 'stop_reason: refusal' });
+  it('records a missing binary and a timeout as error with no exit code', () => {
+    const missing = runProbe({ env: TOKEN, date: DATE, commit: SHA, claudeBin: join(tmpdir(), 'no-such-claude-binary'), notice: quiet });
+    expect(missing.observations.every((o) => o.status === 'error' && o.exitCode === null && o.error?.includes('ENOENT'))).toBe(true);
+
+    const slow = stubClaude('sleep 5');
+    const timedOut = runProbe({ env: TOKEN, date: DATE, commit: SHA, claudeBin: slow.bin, timeoutMs: 200, notice: quiet });
+    expect(timedOut.observations.every((o) => o.status === 'error' && o.exitCode === null && o.error?.includes('ETIMEDOUT'))).toBe(true);
+    expect(probeProblems(timedOut)).toEqual([]);
   });
 });
 
-describe('the response readers', () => {
-  it('readOpenAI takes output_text and url_citation annotations from message items', () => {
-    expect(
-      readOpenAI([
-        { type: 'web_search_call', id: 'ws_1', status: 'completed', action: { type: 'search', query: 'q' } },
-        {
-          type: 'message',
-          role: 'assistant',
-          content: [{ type: 'output_text', text: 'Try burgee.', annotations: [{ type: 'url_citation', start_index: 4, end_index: 10, url: 'https://www.npmjs.com/package/burgee', title: 't' }] }],
-        },
-      ]),
-    ).toEqual({ text: 'Try burgee.', citedUrls: ['https://www.npmjs.com/package/burgee'] });
+describe('the claude invocation', () => {
+  it('asks the question in print mode, JSON out, pinned model, web tools only, capped turns, isolated', () => {
+    expect(claudeArgs('Q?')).toEqual([
+      '-p',
+      'Q?',
+      '--output-format',
+      'json',
+      '--model',
+      MODEL,
+      '--tools',
+      'WebSearch,WebFetch',
+      '--allowedTools',
+      'WebSearch,WebFetch',
+      '--max-turns',
+      String(MAX_TURNS),
+      '--no-session-persistence',
+      '--setting-sources',
+      'project,local',
+      '--strict-mcp-config',
+    ]);
   });
 
-  it('readPerplexity takes search_results URLs and message text', () => {
-    expect(
-      readPerplexity([
-        { type: 'search_results', results: [{ id: 1, url: 'https://ofriperetz.dev/x', title: 't', snippet: 's', date: 'd', source: 'web' }] },
-        { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Use yargs [1].', annotations: [] }] },
-      ]),
-    ).toEqual({ text: 'Use yargs [1].', citedUrls: ['https://ofriperetz.dev/x'] });
+  it('parseClaudeOutput treats a result with no text as an error, not an empty answer', () => {
+    expect(parseClaudeOutput(JSON.stringify({ is_error: false, num_turns: 1 }), 0)).toMatchObject({ ok: false, turns: 1 });
+    expect(parseClaudeOutput('[1,2]', 0)).toMatchObject({ ok: false, error: expect.stringContaining('not a JSON object') });
   });
 
-  it('readClaude ignores blocks that are not text and tolerates a missing citations array', () => {
-    expect(readClaude([{ type: 'server_tool_use' }, { type: 'text', text: 'a' }, null, 'junk'])).toEqual({ text: 'a', citedUrls: [] });
+  it('answeringModel picks the model that wrote the most, and tolerates junk', () => {
+    expect(answeringModel(success('x').modelUsage)).toBe('claude-opus-5-5');
+    expect(answeringModel({})).toBeNull();
+    expect(answeringModel(null)).toBeNull();
+    expect(answeringModel({ a: 'junk' })).toBe('a');
   });
 });
 
 describe('probeProblems', () => {
-  it('rejects a run that is missing observations, has the wrong questions, or claims an answer it skipped', async () => {
-    const run = await runProbe({ env: {}, date: DATE, commit: SHA, fetchImpl: noNetwork, notice: () => {} });
+  it('rejects a run that is missing observations, has the wrong questions, or claims an answer it skipped', () => {
+    const run = runProbe({ env: {}, date: DATE, commit: SHA, notice: quiet });
     expect(probeProblems({ ...run, observations: run.observations.slice(1) })).not.toEqual([]);
     expect(probeProblems({ ...run, questions: [...QUESTIONS].reverse() })).toContain('questions are not the five fixed questions');
     expect(probeProblems({ ...run, commit: 'abc' })).toContain('commit is not a full 40-character sha');
@@ -183,7 +234,14 @@ describe('probeProblems', () => {
     expect(probeProblems({ ...run, observations: lying }).join('\n')).toContain('is skipped but records an answer');
   });
 
-  it('holds every committed run file to the v1 shape and names it for its date', () => {
+  it('rejects a v1 run: three assistants and an httpStatus', () => {
+    const run = runProbe({ env: {}, date: DATE, commit: SHA, notice: quiet });
+    expect(probeProblems({ ...run, v: 1 })).toContain('v is not 2');
+    const v1 = run.observations.map((o) => ({ ...o, assistant: 'openai' }));
+    expect(probeProblems({ ...run, observations: v1 }).join('\n')).toContain('assistant is not claude');
+  });
+
+  it('holds every committed run file to the current shape and names it for its date', () => {
     const dir = join(REPO_ROOT, PROBE_DIR);
     if (!existsSync(dir)) return;
     for (const file of readdirSync(dir).filter((f) => f.endsWith('.json'))) {
@@ -197,11 +255,14 @@ describe('probeProblems', () => {
 describe('.github/workflows/citation-probe.yml', () => {
   const workflow = readFileSync(join(REPO_ROOT, '.github/workflows/citation-probe.yml'), 'utf8');
 
-  it('runs weekly and on dispatch, and hands the probe all three secrets', () => {
+  it('runs weekly and on dispatch, installs Claude Code, and hands the probe only CLAUDE_CODE_OAUTH_TOKEN', () => {
     expect(workflow).toContain('schedule:');
     expect(workflow).toMatch(/- cron: "[^"]+"/);
     expect(workflow).toContain('workflow_dispatch:');
-    for (const secret of ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'PERPLEXITY_API_KEY']) expect(workflow).toContain(`\${{ secrets.${secret} }}`);
+    expect(workflow).toContain('npm install --global @anthropic-ai/claude-code');
+    expect(workflow).toContain('CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}');
+    expect([...workflow.matchAll(/\$\{\{ secrets\.([A-Z_]+)/g)].map((m) => m[1]).filter((s) => !s?.startsWith('RELEASE_'))).toEqual(['CLAUDE_CODE_OAUTH_TOKEN']);
+    for (const removed of ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'PERPLEXITY_API_KEY']) expect(workflow).not.toContain(removed);
     expect(workflow).toContain('npx tsx scripts/citation-probe.ts');
   });
 

@@ -75,7 +75,7 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Build (the axes measure what is built, never what is written)
         run: npx turbo run build
-      # `bench:page --check` moved to quality.yml's `generated-pages` job. It was
+      # `bench:page --check` moved to quality.yml's `fast` job. It was
       # correct here and it ran here — but this job reports
       # `B2 cold start · B3 compatibility · B4 weight`, which is not a required
       # context, so a red page check did not stop a merge. Its sibling proved the
@@ -252,7 +252,7 @@ jobs:
       # since this job landed skipped for "the `claude` binary is not on PATH" and opened
       # issue #146 saying so — the credential was there the whole time.
       - name: Install the agent the axis measures
-        run: npm install --global @anthropic-ai/claude-code
+        run: npm ci --prefix .github/tools/claude-code --no-audit --no-fund && echo "$PWD/.github/tools/claude-code/node_modules/.bin" >> "$GITHUB_PATH"
       - name: Run B1
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -280,7 +280,10 @@ jobs:
           set -euo pipefail
           # Newest by mtime, not by name: the file this run just wrote. By name, any committed
           # observation of the same day with a later sha sorts after it and is read instead.
-          FILE=$(ls -1t benchmarks/results/agent-cli-bench/*.json | head -n 1)
+          # `sed -n 1p`, not `head -n 1`: head exits after one line, `ls` takes SIGPIPE writing
+          # the rest of 200+ names, and pipefail turns that into "ls: write error: Broken pipe",
+          # exit 2 — which is how run 36352045743 lost its status, reason and summary.
+          FILE=$(ls -1t benchmarks/results/agent-cli-bench/*.json | sed -n 1p)
           STATUS=$(node -p "JSON.parse(require('fs').readFileSync('$FILE','utf8')).axes.agent.status")
           REASON=$(node -p "JSON.parse(require('fs').readFileSync('$FILE','utf8')).axes.agent.reason || ''")
           echo "status=$STATUS" >> "$GITHUB_OUTPUT"

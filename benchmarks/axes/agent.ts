@@ -131,6 +131,181 @@ export interface RunOne {
 export interface Attempt extends ClaudeUsage {
   success: boolean;
   transcript: string;
+  /** Why a failed run failed, in a shape a skip reason can carry. Absent on success. */
+  failure?: Failure;
+}
+
+/**
+ * What went wrong, sorted by where it went wrong. The first CI run with a credential
+ * (run 36352045743) failed all 25 burgee runs in about 2.4 s each and said only that
+ * nothing passed a check — which could have been a rejected token, a model the account
+ * cannot use, a permission denial or a wrong answer, and each of those is fixed somewhere
+ * different. `claude -p --output-format json` says which in its own fields; this keeps them.
+ */
+export type FailureKind =
+  | 'timeout'
+  | 'no-output'
+  | 'unparseable-output'
+  | 'auth'
+  | 'rate-limit'
+  | 'max-turns'
+  | 'api-error'
+  | 'permission-denied'
+  | 'cli-error'
+  | 'exit-nonzero'
+  | 'check-failed';
+
+export interface Failure {
+  task: string;
+  kind: FailureKind;
+  /** The process exit status, or the signal that ended it. */
+  exit: string;
+  /** `claude`'s own fields, when it produced a JSON result at all. */
+  subtype?: string;
+  isError?: boolean;
+  apiErrorStatus?: number;
+  terminalReason?: string;
+  permissionDenials?: number;
+  /** The first ~200 characters of `result`, or of stderr when there is no result — redacted. */
+  excerpt: string;
+}
+
+const EXCERPT_CHARS = 200;
+
+/**
+ * Anything shaped like an Anthropic credential, and the literal values of the two
+ * credential variables. A skip reason lands in a results file, a job summary and a public
+ * issue body, and `claude`'s output is text this repository does not control: an error
+ * that ever echoed a token would publish it three times. Over-redacting a diagnostic costs
+ * nothing; under-redacting one costs a credential.
+ */
+const TOKEN_SHAPES = [/sk-ant-[\w-]+/g, /\boat\d*[-_][\w-]{6,}/g];
+const CREDENTIAL_VARS = ['CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_API_KEY'] as const;
+const MIN_SECRET_CHARS = 8;
+const REDACTED = '[REDACTED]';
+
+export function redact(text: string, env: NodeJS.ProcessEnv = process.env): string {
+  let out = text;
+  for (const name of CREDENTIAL_VARS) {
+    const value = (env[name] ?? '').trim();
+    if (value.length >= MIN_SECRET_CHARS) out = out.split(value).join(REDACTED);
+  }
+  for (const shape of TOKEN_SHAPES) out = out.replace(shape, REDACTED);
+  return out;
+}
+
+const excerptOf = (text: string): string => {
+  const flat = text.replace(/\s+/g, ' ').trim();
+  return flat.length > EXCERPT_CHARS ? `${flat.slice(0, EXCERPT_CHARS)}…` : flat;
+};
+
+const HTTP_UNAUTHORIZED = 401;
+const HTTP_FORBIDDEN = 403;
+const HTTP_TOO_MANY = 429;
+const AUTH_TEXT = /authenticat|not logged in|\/login|oauth|api key|invalid.*token|token.*(invalid|expired|revoked)/i;
+const RATE_TEXT = /rate.?limit|usage limit|quota|overloaded/i;
+
+function tryParse(stdout: string): Record<string, unknown> | undefined {
+  try {
+    const raw = JSON.parse(stdout) as unknown;
+    return typeof raw === 'object' && raw !== null && !Array.isArray(raw) ? (raw as Record<string, unknown>) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+interface Outcome {
+  task: string;
+  status: number | null;
+  signal: string | null;
+  timedOut: boolean;
+  stdout: string;
+  stderr: string;
+}
+
+/** Sorts one failed run. Only called for a run that did not succeed. */
+type ClaudeFields = Omit<Failure, 'task' | 'kind' | 'exit' | 'excerpt'>;
+
+/** `claude`'s own fields off its JSON result, each kept only when it is there. */
+function claudeFields(raw: Record<string, unknown>): ClaudeFields {
+  const denials = Array.isArray(raw['permission_denials']) ? raw['permission_denials'].length : 0;
+  return {
+    ...(typeof raw['subtype'] === 'string' ? { subtype: raw['subtype'] } : {}),
+    isError: raw['is_error'] === true,
+    ...(typeof raw['api_error_status'] === 'number' ? { apiErrorStatus: raw['api_error_status'] } : {}),
+    ...(typeof raw['terminal_reason'] === 'string' ? { terminalReason: raw['terminal_reason'] } : {}),
+    ...(denials > 0 ? { permissionDenials: denials } : {}),
+  };
+}
+
+const isAuth = (f: ClaudeFields, result: string): boolean =>
+  f.apiErrorStatus === HTTP_UNAUTHORIZED || f.apiErrorStatus === HTTP_FORBIDDEN || (f.isError === true && AUTH_TEXT.test(result));
+const isRateLimit = (f: ClaudeFields, result: string): boolean => f.apiErrorStatus === HTTP_TOO_MANY || (f.isError === true && RATE_TEXT.test(result));
+const isApiError = (f: ClaudeFields): boolean => f.apiErrorStatus !== undefined || f.terminalReason === 'api_error';
+
+/** Most specific first: a 401 is an auth failure before it is an API error or an `is_error`. */
+function kindOf(f: ClaudeFields, result: string, status: number | null): FailureKind {
+  if (isAuth(f, result)) return 'auth';
+  if (isRateLimit(f, result)) return 'rate-limit';
+  if (f.subtype === 'error_max_turns') return 'max-turns';
+  if (isApiError(f)) return 'api-error';
+  if (f.permissionDenials !== undefined) return 'permission-denied';
+  if (f.isError === true) return 'cli-error';
+  return status === 0 ? 'check-failed' : 'exit-nonzero';
+}
+
+/** The text worth quoting: `result`, else stderr, else stdout when it was not JSON. */
+function quotable(o: Outcome, raw: Record<string, unknown> | undefined, result: string): string {
+  if (result !== '') return result;
+  if (o.stderr !== '') return o.stderr;
+  return raw === undefined ? o.stdout : '';
+}
+
+/** Sorts one failed run. Only called for a run that did not succeed. */
+export function classifyFailure(o: Outcome, env: NodeJS.ProcessEnv = process.env): Failure {
+  const exit = o.status === null ? `signal ${o.signal ?? '?'}` : String(o.status);
+  const raw = tryParse(o.stdout);
+  const result = typeof raw?.['result'] === 'string' ? raw['result'] : '';
+  const base = { task: o.task, exit, excerpt: redact(excerptOf(quotable(o, raw, result)), env) };
+  if (o.timedOut) return { ...base, kind: 'timeout' };
+  if (raw === undefined) return { ...base, kind: o.stdout.trim() === '' ? 'no-output' : 'unparseable-output' };
+  const fields = claudeFields(raw);
+  return { ...base, ...fields, kind: kindOf(fields, result, o.status) };
+}
+
+const describeFailure = (f: Failure): string => {
+  const parts = [`exit ${f.exit}`];
+  if (f.isError !== undefined) parts.push(`is_error ${String(f.isError)}`);
+  if (f.subtype !== undefined) parts.push(`subtype ${f.subtype}`);
+  if (f.apiErrorStatus !== undefined) parts.push(`api ${String(f.apiErrorStatus)}`);
+  if (f.terminalReason !== undefined) parts.push(`terminal_reason ${f.terminalReason}`);
+  if (f.permissionDenials !== undefined) parts.push(`${String(f.permissionDenials)} permission denial(s)`);
+  return `[${f.task}] ${f.kind} (${parts.join(', ')})${f.excerpt === '' ? '' : `: "${f.excerpt}"`}`;
+};
+
+const DISTINCT_EXAMPLES = 3;
+
+/**
+ * One line — it is written to `$GITHUB_OUTPUT` as `reason=…`, where a newline would end
+ * the value — saying how many runs failed in each way and the first run of each distinct
+ * way, so the next CI log names the cause instead of the symptom.
+ */
+export function summariseFailures(attempts: readonly Attempt[]): string {
+  const failures = attempts.flatMap((a) => (a.failure === undefined ? [] : [a.failure]));
+  if (failures.length === 0) return '';
+  const counts = new Map<FailureKind, number>();
+  for (const f of failures) counts.set(f.kind, (counts.get(f.kind) ?? 0) + 1);
+  const byKind = [...counts].map(([kind, n]) => `${kind}×${String(n)}`).join(', ');
+  const seen = new Set<string>();
+  const examples: string[] = [];
+  for (const f of failures) {
+    const key = `${f.kind}|${f.excerpt}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    examples.push(describeFailure(f));
+    if (examples.length === DISTINCT_EXAMPLES) break;
+  }
+  return `failures by kind: ${byKind}; first: ${examples.join(' | ')}`;
 }
 
 const SHELL = '/bin/sh';
@@ -159,10 +334,20 @@ export function runOne(opts: RunOne): Attempt {
     env: { ...process.env, PATH: `${toolDir}:${process.env['PATH'] ?? ''}` },
   });
   const transcript = r.stdout ?? '';
+  const outcome: Outcome = {
+    task: task.id,
+    status: r.status,
+    signal: r.signal,
+    timedOut: (r.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT',
+    stdout: transcript,
+    stderr: r.stderr ?? '',
+  };
   // A run that timed out or died has no usage to report and is a failed task, not a
   // zero-token success: `success: false` with no numbers is the honest record of it.
-  if (r.status !== 0 || transcript === '') {
-    return { tokensIn: 0, tokensOut: 0, turns: 0, isError: true, result: '', success: false, transcript };
+  // `claude` still prints its JSON result when it exits 1 on an API error, so the
+  // classification reads that rather than giving up on the run.
+  if (r.status !== 0 || transcript === '' || tryParse(transcript) === undefined) {
+    return { tokensIn: 0, tokensOut: 0, turns: 0, isError: true, result: '', success: false, transcript, failure: classifyFailure(outcome) };
   }
   const usage = parseClaudeJson(transcript);
   const resultFile = join(workdir, '.bench-result');
@@ -172,7 +357,8 @@ export function runOne(opts: RunOne): Attempt {
     env: { ...process.env, BENCH_RESULT: resultFile, BENCH_EXIT: String(r.status) },
     stdio: 'ignore',
   });
-  return { ...usage, success: !usage.isError && check.status === 0, transcript };
+  const success = !usage.isError && check.status === 0;
+  return { ...usage, success, transcript, ...(success ? {} : { failure: classifyFailure(outcome) }) };
 }
 
 /**
@@ -360,8 +546,24 @@ function sweep({ variant, tasks, runs, claudeBin, model, timeoutMs }: Sweep): At
  * and it was zero"; nothing came back, so nothing was measured, and the axis says so the
  * same way a missing credential does.
  */
-const nothingCameBack = (variant: Variant, attempts: readonly Attempt[]): string =>
-  `every one of the ${String(attempts.length)} ${variant.id} task-runs failed; \`claude\` answered but nothing it produced passed a task's own check, so this axis measured nothing`;
+export function nothingCameBack(variant: Variant, attempts: readonly Attempt[], claudeVersion = ''): string {
+  const onlyChecks = attempts.every((a) => a.failure?.kind === 'check-failed');
+  // "`claude` answered but nothing passed a check" was the sentence for every failure,
+  // including 25 runs `claude` rejected before the model saw a prompt — which sent the
+  // reader after the prompts. It is now said only when it is what happened.
+  const what = onlyChecks
+    ? "`claude` answered but nothing it produced passed a task's own check"
+    : '`claude` did not complete them';
+  const version = claudeVersion === '' ? '' : ` — ${claudeVersion}`;
+  const summary = summariseFailures(attempts);
+  return `every one of the ${String(attempts.length)} ${variant.id} task-runs failed; ${what}, so this axis measured nothing${version}${summary === '' ? '' : `; ${summary}`}`;
+}
+
+/** Which `claude` ran: an unpinned global install moves under the harness between runs. */
+function claudeVersionOf(claudeBin: string): string {
+  const r = spawnSync(claudeBin, ['--version'], { encoding: 'utf8' });
+  return r.status === 0 ? `claude ${redact(excerptOf(r.stdout ?? ''))}` : '';
+}
 
 export function run(options: AgentOptions = {}): { records: BenchRecord[] } | { reason: string } {
   const variants = options.variants ?? VARIANTS;
@@ -374,7 +576,7 @@ export function run(options: AgentOptions = {}): { records: BenchRecord[] } | { 
   const byVariant = new Map<VariantId, Attempt[]>();
   for (const variant of variants) {
     const attempts = sweep({ variant, ...common });
-    if (!attempts.some((a) => a.success)) return { reason: nothingCameBack(variant, attempts) };
+    if (!attempts.some((a) => a.success)) return { reason: nothingCameBack(variant, attempts, claudeVersionOf(claudeBin)) };
     byVariant.set(variant.id, attempts);
     records.push(...variantRecords(variant.id, attempts, model));
   }

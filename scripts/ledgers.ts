@@ -13,7 +13,8 @@
  * - **`.sdlc/gaps/<id>.md`** — one gap. Front matter carries `id`, `section`, `status` and the
  *   section's two remaining columns; the body is the gap.
  *
- * **Ids.** The sequential ones already written — D-001..D-151, A1..A30, B1..B22, C1..C7 — keep
+ * **Ids.** The sequential ones already written — D-001..D-151 (and D-161, D-163, D-164, which
+ * main wrote while this change was in flight), A1..A30, B1..B22, C1..C7 — keep
  * their names forever, because commits, specs, PR titles and workflow messages cite them. The
  * sequence itself is frozen: a new entry is `D-YYYYMMDD-slug` (or `A-`, `B-`, `C-` for a gap),
  * which two branches can only collide on by choosing the same slug on the same day — and then
@@ -43,6 +44,13 @@ export const GAPS_DIR = '.sdlc/gaps';
  * may be written.
  */
 export const LEGACY = { D: 151, A: 30, B: 22, C: 7 } as const;
+/**
+ * Sequential decision ids above the frozen line that main wrote while this layout was in flight:
+ * D-161 (#646) and D-163, D-164 (#662). Commits and specs cite them, so they keep their names.
+ * They are the only ones: every other number past D-151 — the gaps between them included — still
+ * continues the sequence and fails.
+ */
+export const LEGACY_LATE: readonly string[] = ['D-161', 'D-163', 'D-164'];
 /** Sequential gap ids that were never written: GAPS.md went from A1 to A3 on the day it opened. */
 export const LEGACY_HOLES: readonly string[] = ['A2'];
 /** A slug long enough to say what the entry is and short enough to cite in a commit subject. */
@@ -246,7 +254,7 @@ export function decisionIdProblems(entries: readonly Decision[]): string[] {
     }
     const [, legacy, y, mo, day, slug] = m;
     if (legacy !== undefined) {
-      if (Number(legacy) > LEGACY.D) out.push(`${d.id} continues the sequential numbering, which stopped at D-${String(LEGACY.D)} because two branches computing "the next number" is exactly how they collide. Name it D-YYYYMMDD-slug: \`npm run ledger -- new decision <slug>\``);
+      if (Number(legacy) > LEGACY.D && !LEGACY_LATE.includes(d.id)) out.push(`${d.id} continues the sequential numbering, which stopped at D-${String(LEGACY.D)} because two branches computing "the next number" is exactly how they collide. Name it D-YYYYMMDD-slug: \`npm run ledger -- new decision <slug>\``);
       continue;
     }
     if (`${y ?? ''}-${mo ?? ''}-${day ?? ''}` !== d.date.trim()) out.push(`${d.id} is dated ${d.date} — the date in a decision's id is the date it was taken`);
@@ -262,7 +270,7 @@ export function missingLegacy(ids: readonly string[], expected: readonly string[
   return expected.filter((id) => !have.has(id)).map((id) => `${noun} ${id} is gone — ids cited in commits, specs and PR titles must keep resolving; reverse a decision with superseded_by, strike a gap with status: closed`);
 }
 
-export const legacyDecisionIds = (): string[] => Array.from({ length: LEGACY.D }, (_, i) => `D-${String(i + 1).padStart(LEGACY_WIDTH, '0')}`);
+export const legacyDecisionIds = (): string[] => [...Array.from({ length: LEGACY.D }, (_, i) => `D-${String(i + 1).padStart(LEGACY_WIDTH, '0')}`), ...LEGACY_LATE];
 export const legacyGapIds = (): string[] =>
   (['A', 'B', 'C'] as const).flatMap((l) => Array.from({ length: LEGACY[l] }, (_, i) => `${l}${String(i + 1)}`)).filter((id) => !LEGACY_HOLES.includes(id));
 
