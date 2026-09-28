@@ -220,6 +220,13 @@ export function createRegistry(options: RegistryOptions = {}): Registry {
   const bucket = (phase: Phase): Set<Entry> => handlers.get(phase) ?? new Set<Entry>();
   /** The two halves of "has this happened": started, and finished with a report to show. */
   const state: { started: boolean; finished: ShutdownReport | undefined } = { started: false, finished: undefined };
+  /**
+   * Invoke, synchronously, every phase an asynchronous `run` has not reached yet — set while
+   * a run is in progress, and a no-op once it has invoked all three. `runSync` calls it when
+   * `'exit'` arrives mid-run (see there): the one path where a shutdown that started cannot
+   * be trusted to finish, and where `restore` must still be invoked (R4).
+   */
+  let rest: (() => void) | undefined;
 
   return {
     add(handler, spec) {
@@ -241,13 +248,23 @@ export function createRegistry(options: RegistryOptions = {}): Registry {
        * One clock for the whole shutdown, started before the first phase — not one per
        * phase, which would let three slow phases add up to three deadlines and give back
        * the hang the number exists to bound.
+       *
+       * It holds the loop on every path but `'beforeExit'` (D-164): a signal, a throw, a
+       * rejection or a caller driving `run` itself all leave once it settles, so it has to.
        */
-      const clock = startDeadline(deadline);
+      const clock = startDeadline(deadline, report.path !== 'beforeExit');
       const tracking: InFlight[] = [];
+      // One cursor over PHASES, shared with `rest`, so no phase is invoked twice whichever
+      // of the two reaches it first.
+      let next = 0;
+      const invokeNext = (): Promise<void>[] => invokePhase(bucket(PHASES[next++] as Phase), report, onError, tracking);
+      rest = () => {
+        while (next < PHASES.length) invokeNext();
+      };
 
       try {
-        for (const phase of PHASES) {
-          const pending = invokePhase(bucket(phase), report, onError, tracking);
+        while (next < PHASES.length) {
+          const pending = invokeNext();
 
           /*
            * Past the deadline the later phases are still **invoked**; they are only no
@@ -276,7 +293,17 @@ export function createRegistry(options: RegistryOptions = {}): Registry {
     },
 
     runSync(info) {
-      if (state.started) return alreadyRun(state.finished, info);
+      if (state.started) {
+        /*
+         * `'exit'` arriving while an asynchronous shutdown still waits on an earlier phase.
+         * On a real process this happens when a `'beforeExit'` run waits on a handler that
+         * holds nothing in the event loop — that clock is `unref`'d, so the loop drains and
+         * Node leaves — or when something calls `process.exit()` while any run is parked.
+         * Either way the `restore` phase the run had not reached would never be invoked.
+         */
+        rest?.();
+        return alreadyRun(state.finished, info);
+      }
       state.started = true;
       const report = toReport(info);
       /*
