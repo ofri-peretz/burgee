@@ -10,11 +10,21 @@ name: CodeQL
 # checked" — the four it could not see are the ones that reached main without a
 # PR run it could attribute (alert #28). The `gate` job below already lets a
 # non-`pull_request` event through, so this trigger needs nothing else.
+#
+# That reasoning was half right. Scorecard (checks/raw/sast.go) takes each of the last
+# 30 commits' *merged PR* and looks for a code-scanning check run on the PR's head SHA;
+# a squash merge's commit on main is never a PR head, so this run keeps main's alerts
+# current but moves the score not at all. What did move it was missing here: `opened`
+# and `reopened`. Without them a PR opened ready for review, with every commit already
+# pushed and no label added, raised no CodeQL run: #624, #629 and #632 merged that way,
+# unanalysed (21 of 30 on 2026-09-27). quality-full.yml has listed both from the start.
+# The other six of the nine were PRs opened with GITHUB_TOKEN (Version PRs, the bench
+# series), which raise no runs of any kind until a release App or PAT is set (GAPS C5).
 
 on:
   pull_request:
     branches: [main]
-    types: [ready_for_review, labeled, synchronize]
+    types: [opened, reopened, ready_for_review, labeled, synchronize]
   push:
     branches: [main]
   workflow_dispatch:
