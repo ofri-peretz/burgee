@@ -179,9 +179,11 @@ jobs:
     if: needs.preflight.outputs.ready == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # `contents: read` only. The deployment record and its URL come from the `environment:`
+    # key below, which GitHub Actions writes itself; no step here calls the Deployments API
+    # with this token, so the `deployments: write` that sat here granted nothing it used (#91).
     permissions:
       contents: read
-      deployments: write # GitHub Deployments API records the deploy URL
     environment:
       # One per app (D-060): a reviewer approving a deploy sees which site it is.
       # Auto-created on first use. Add required reviewers here to make a

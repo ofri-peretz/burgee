@@ -13,3 +13,8 @@ paths-ignore:
   - "**/.turbo/**"
   # Raw issue snapshots from other projects' trackers — data, not code.
   - .sdlc/research/issues/**
+  # The incumbents' own test suites (cross-spawn, wrap-ansi, signal-exit, …), vendored
+  # byte-identical at a pinned release and run verbatim by compat-oracle to grade the
+  # façades. Their code is not ours to fix: editing one line changes what the grade
+  # measures. 38 alerts (#40–#61, #65–#80) were findings in those suites.
+  - packages/compat-oracle/vendor/**
