@@ -173,7 +173,7 @@ counted whole across its own resolved tree.
 
 The two drop-in subpaths are priced on their own, because a program that imports caique
 never loads either. **`caique/clack`** — clack's twelve prompts, its writers, glyphs and
-settings — is **61,884 B** against clack's 101,684 B (measured 2026-09-27, budget 64,000 in
+settings — is **62,238 B** against clack's 101,684 B (measured 2026-09-27, budget 64,000 in
 `weight.test.ts`); `caique/inquirer` is priced beside it.
 
 ## What it will be
@@ -255,7 +255,7 @@ Graded by the incumbent's own test suite:
 | `clack` | 16 / 17 |
 | `inquirer-core` | 41 / 41 |
 
-Weight, installed and tree-inclusive: **208,563 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.5361**.
+Weight, installed and tree-inclusive: **210,232 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.5404**.
 ## Where it sits
 
 Plugins register under the `widgets` key, against the one schema the whole family shares.

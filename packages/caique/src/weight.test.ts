@@ -100,7 +100,7 @@ const RULES: Record<string, EntryRule> = {
   // the budget moved from 5,500 because the surface did, and that is the decision this
   // comment records rather than a ratchet let slip.
   //
-  // Measured **61,884 B** on 2026-09-27 against `@clack/prompts` 1.8.1's own 101,684 B across
+  // Measured **62,238 B** on 2026-09-27 against `@clack/prompts` 1.8.1's own 101,684 B across
   // six packages — 0.61 of the U5 ceiling this file's header names — reaching the same three
   // family subpaths `./inquirer` does: `closeout/cursor` and `closeout/exit-hook`, because a
   // prompt hides the cursor and owes its return on every exit path, and `linegauge/wrap`.
