@@ -204,7 +204,9 @@ const RULES: Record<string, EntryRule> = {
   //
   // It reaches nothing in the core: an ora migration does not drag the frame loop in, and
   // a program that hoists does not pay for the corpus.
-  './ora': { allow: ['closeout/cursor', 'closeout/restore-cursor', 'linegauge', 'roundel/chalk'], budget: 43_000, measured: 41_036, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
+  // 40,472 (-564) on 2026-09-28: is-unicode-supported is `roundel/terminal`'s `unicode`, not
+  // a copy here; that subpath is 878 B of roundel's and reaches nothing.
+  './ora': { allow: ['closeout/cursor', 'closeout/restore-cursor', 'linegauge', 'roundel/chalk', 'roundel/terminal'], budget: 43_000, measured: 40_472, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
   // The log-update façade: the port, the ANSI-aware wrapper and the width function, against
   // log-update's own 113,368 B across sixteen packages (slice-ansi 27,630 · signal-exit 21,983
   // · wrap-ansi 20,004 · the rest) — 2026-09-09 figures, when slice-ansi resolved to 9.0.0; it

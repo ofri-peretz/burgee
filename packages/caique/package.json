@@ -99,7 +99,8 @@
   ],
   "dependencies": {
     "closeout": "^0.5.4",
-    "linegauge": "^0.5.4"
+    "linegauge": "^0.5.4",
+    "roundel": "^0.5.4"
   },
   "devDependencies": {
     "vitest": "^5.0.1"

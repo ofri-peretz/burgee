@@ -11,9 +11,14 @@
  * The glyphs are stated here rather than taken from a figures package: caique reaches only
  * this repository (U6), and the two characters involved are a tick and a box-drawing dash.
  * The ASCII fallbacks are the ones `figures` uses, applied under the same condition it
- * applies them — a Windows console that is neither Terminal nor VS Code.
+ * applies them: is-unicode-supported's, which is roundel's `unicode()`. This file carried a
+ * four-condition subset of it, which drew `✔` on the Linux console and `√` in ConEmu,
+ * Alacritty, rxvt-unicode, JetBrains' terminal and Terminus on Windows — each the opposite
+ * of what `figures` draws there.
  */
 import { styleText } from 'node:util';
+
+import { unicode } from 'roundel/terminal';
 
 import { getDefaultKeybindings, type Keybinding } from './inquirer-keys.js';
 import { processRuntime } from './runtime.js';
@@ -27,7 +32,7 @@ import { processRuntime } from './runtime.js';
  */
 const env = processRuntime().env;
 
-const UNICODE = process.platform !== 'win32' || env['WT_SESSION'] !== undefined || env['TERM_PROGRAM'] === 'vscode' || env['TERM'] === 'xterm-256color';
+const UNICODE = unicode({ env, platform: process.platform });
 
 /** `figures.tick`. */
 export const TICK = UNICODE ? '✔' : '√';

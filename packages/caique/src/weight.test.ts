@@ -86,14 +86,19 @@ const RULES: Record<string, EntryRule> = {
   // clack's 101,684 B across six packages, and the only packages caique reaches are ones
   // this repo publishes. Neither façade is reachable from here: a program that imports
   // `caique` gets caique, and pays nothing for the two compatibility subpaths.
-  '.': { allow: CLOSEOUT, budget: 15_000, denied: ['clack.js', 'inquirer.js'] },
+  //
+  // `roundel/terminal` joined on 2026-09-28 (+65): whether anybody is there to type is
+  // roundel's `interactive()`, which knows an agent from a person. Measured 14,181.
+  '.': { allow: [...CLOSEOUT, 'roundel/terminal'], budget: 15_000, denied: ['clack.js', 'inquirer.js'] },
   // The shape and its validator. The floor every other subpath stands on, and a leaf: a
   // program that only declares prompts pays 739 B and never loads a widget.
   './spec': { allow: [], budget: 1_000, denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
   // The rule that decides whether a person can be asked at all — the file that keeps a CLI
   // from hanging under an agent. It reaches only the spec, never a widget: deciding not to
   // ask must not cost the machinery of asking. Measured 2,133 B.
-  './decide': { allow: [], budget: 2_500, denied: ['ask.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
+  // 2,198 B (+65) on 2026-09-28, reaching `roundel/terminal` (878 B, reaching nothing): the
+  // question "is anybody there" is roundel's, and asking it by hand prompted an agent.
+  './decide': { allow: ['roundel/terminal'], budget: 2_500, denied: ['ask.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
   // The drop-in subpath for `@clack/prompts`, and the smallest façade in the family — one
   // exported function, because one function is what clack's suite grades that is not a
   // drawing. See `clack.ts`'s own header and D-001: 289 of that suite's 444 assertions are
@@ -126,7 +131,9 @@ const RULES: Record<string, EntryRule> = {
   // rather than weight; U5's ceiling for caique is clack, and it is the root entry above
   // that carries it.
   './inquirer': {
-    allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap'],
+    // `roundel/terminal` on 2026-09-28 (-47): the tick's unicode test is is-unicode-supported
+    // whole, from roundel, rather than a four-condition subset of it here. Measured 20,755.
+    allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap', 'roundel/terminal'],
     budget: 23_000,
     denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js', 'spec.js', 'plugin.js', 'clack.js'],
   },
@@ -146,8 +153,9 @@ const RULES: Record<string, EntryRule> = {
   './raw': { allow: CLOSEOUT, budget: 4_500, denied: ['decide.js', 'binding.js', 'terminal.js', 'index.js'] },
   // Resolving a whole command's prompts in one pass: the decision plus the widgets it may
   // reach for. Never the terminal, and never the raw renderer — a framework hands caique an
-  // `Io`, and which one is the caller's business. Measured 8,123 B.
-  './binding': { allow: [], budget: 9_500, denied: ['raw.js', 'terminal.js', 'index.js'] },
+  // `Io`, and which one is the caller's business. Measured 8,123 B; 8,362 B on 2026-09-28,
+  // with `decide`'s `roundel/terminal`.
+  './binding': { allow: ['roundel/terminal'], budget: 9_500, denied: ['raw.js', 'terminal.js', 'index.js'] },
   // The only file that touches a stream, and the only one that knows what echo is. It
   // carries `ask.js` for the `Io` shape it implements. Measured 1,947 B.
   './terminal': { allow: [], budget: 2_500, denied: ['decide.js', 'raw.js', 'binding.js', 'index.js'] },

@@ -21,11 +21,12 @@
 import { styleText } from 'node:util';
 
 import { width as displayWidth, widest } from 'linegauge';
+import { colorLevel } from 'roundel/policy';
 
 import type { ArgumentSpec, CommandNode, Example, Manifest, OptionSpec } from './manifest.js';
 import { flagsOf, kebab } from './names.js';
 
-/** The token names of `roundel`'s R3, typed structurally: burgee never imports them (U13). */
+/** The token names of `roundel`'s R3, typed structurally: help never imports the tokens (U13). */
 export type HelpToken = 'error' | 'warn' | 'ok' | 'hint' | 'muted' | 'command' | 'flag' | 'value' | 'heading';
 
 /**
@@ -68,20 +69,20 @@ type Paint = Record<'heading' | Kind, (s: string) => string>;
 const identity = (s: string): string => s;
 const PLAIN: Paint = { heading: identity, command: identity, flag: identity, value: identity };
 /**
- * Whether the engine colours help (O2). `FORCE_COLOR` decides when set — `0` and `false`
- * off, anything else, the empty string included, on — so it overrides a pipe and
- * `NO_COLOR` both, as Node's own `getColorDepth` does. Otherwise colour needs someone to
- * see it: an interactive terminal (the caller's answer, in which a detected agent is not
- * one, N12), no non-empty `NO_COLOR`, and a `TERM` other than `dumb`.
+ * Whether the engine colours help (O2): roundel's `colorLevel`, above 0.
+ *
+ * `interactive` stands in for the stream's TTY — the caller's answer, in which a detected
+ * agent is not a terminal (N12). Everything else is the family's one colour policy, so help
+ * agrees with every other surface about the same run: `NO_COLOR` wins outright, `FORCE_COLOR`
+ * and the `--color` flags in `argv` are the user's instruction, `CLI_ACCESSIBLE` is off, and
+ * with no instruction a terminal colours only when `TERM`/`COLORTERM` say it can. This used
+ * to be a rule of its own that let `FORCE_COLOR` beat `NO_COLOR`, ignored `--no-color`, and
+ * coloured a terminal with no `TERM` at all.
  *
  * It lives here, not in the engine, so the startup path pays for none of it (W4).
- * Not `tty.WriteStream.prototype.hasColors(env)`, which gives the same answers: with
- * both variables set it calls `process.emitWarning`, and this runs under an injected env.
  */
-export function colorFor(env: Record<string, string | undefined>, interactive: boolean): boolean {
-  const force = env['FORCE_COLOR'];
-  if (force !== undefined) return force !== '0' && force !== 'false';
-  return interactive && !env['NO_COLOR'] && env['TERM'] !== 'dumb';
+export function colorFor(env: Record<string, string | undefined>, interactive: boolean, argv: readonly string[] = []): boolean {
+  return colorLevel({ env, isTTY: { stdout: interactive }, argv }) > 0;
 }
 
 /** The defaults, over `util.styleText`. The stream check is off: `color` is the one gate (R7). */

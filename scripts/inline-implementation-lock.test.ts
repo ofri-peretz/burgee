@@ -56,6 +56,7 @@ const JOBS: Job[] = [
   { owner: 'bellpull', what: 'resolving an executable across platforms', shape: /PATHEXT|['"]npm\.cmd['"]/ },
   { owner: 'closeout', what: 'registering a signal handler', shape: /\.on\(\s*['"]SIG[A-Z]+['"]/ },
   { owner: 'closeout', what: 'hiding or showing the cursor', shape: /\?25[lh]/ },
+  { owner: 'roundel', what: 'reading a colour variable', shape: /\[\s*['"](?:NO_COLOR|FORCE_COLOR|COLORTERM|CLICOLOR(?:_FORCE)?)['"]\s*\]/ },
 ];
 
 /**
@@ -67,6 +68,10 @@ const KNOWN: Record<string, string> = {
     "`cursorHide` and `cursorShow` are two members of `ansi-escapes`' public surface, which the drop-in has to export as constants (D-138). `closeout/cursor` owns *doing* it; importing closeout here would add its whole installed tree (~103 KB) to paratext's, against paratext's own weight ceiling, for two string literals.",
   'compat-oracle/src/run.ts': 'runs each vendored suite in a child process. Internal tooling, never published — but it is still bellpull\'s job, and it is where the executable-resolution bug would bite CI first.',
   'compat-oracle/src/vendor.ts': '`git clone` and `git rev-parse`. Same as above.',
+  'burgee/src/commander/command.ts':
+    "`useColor()` is commander 14's own colour rule, ported as commander has it — `NO_COLOR` and `FORCE_COLOR=0|false` off, `FORCE_COLOR` or `CLICOLOR_FORCE` on, otherwise the stream decides. It is the façade's graded behaviour (1360 / 1360), not a mechanism: roundel's policy answers a different question (a level, with `--color` flags and CI vendors) and routing commander through it would change what a migrated program prints.",
+  'paratext/src/hyperlinks.ts':
+    "a declared fork of supports-color 10.2.2, the version supports-hyperlinks 4.5.0 depends on, graded against the real package case by case. paratext is a leaf and may not import roundel (PLAN's architecture rule: no leaf-to-leaf edge), and roundel follows chalk 6's newer vendored copy, which differs from 10.2.2 on purpose in three rows. `scripts/colour-fork-parity.test.ts` holds the two to agreement everywhere else.",
   'compat-oracle/src/upstream.ts':
     "`execFileSync('npm', …)` with no Windows guard — the exact bug bellpull exists to prevent, and the one `burgee/src/shape.test.ts` already works around with `shell: true`, which is the spelling cross-spawn refuses because it reopens command injection.",
 };
@@ -139,7 +144,9 @@ describe('no package keeps an inline implementation of a layer’s job', () => {
 
   it('only goes down', () => {
     // Recorded rather than derived, so adding a fifth site is a deliberate edit someone reviews.
-    expect(Object.keys(KNOWN).length, 'a new inline implementation was added — use the layer instead').toBeLessThanOrEqual(4);
+    // 4 -> 6 on 2026-09-28 (D-181): the colour-variable shape above found two, and neither can
+    // move — a leaf may not import roundel, and a façade ports its incumbent's own rule.
+    expect(Object.keys(KNOWN).length, 'a new inline implementation was added — use the layer instead').toBeLessThanOrEqual(6);
   });
 
   it('every shape it looks for is owned by a package that exists', () => {

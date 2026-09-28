@@ -65,11 +65,12 @@ too when the user said so with `FORCE_COLOR` or `--color`.
 
 | Subpath | Gives you |
 | :-- | :-- |
-| `roundel/policy` | `outputMode(rt, { json })` → `tty \| pipe \| json \| accessible \| ci` and `colorLevel(rt)` → `0 \| 1 \| 2 \| 3`. Pure over `{ env, isTTY: { stdout }, argv? }`; the only place in the package that reads `NO_COLOR`, `FORCE_COLOR`, `TERM`, `COLORTERM`, `CI`, `CLI_ACCESSIBLE`, the CI vendor variables or a `--color` flag. |
+| `roundel/policy` | `outputMode(rt, { json })` → `tty \| pipe \| json \| accessible \| ci` and `colorLevel(rt)` → `0 \| 1 \| 2 \| 3`. Pure over `{ env, isTTY: { stdout }, argv? }`; the only place in the package that reads `NO_COLOR`, `FORCE_COLOR`, `COLORTERM`, `CLI_ACCESSIBLE`, the CI vendor variables or a `--color` flag. |
 | `roundel/tokens` | `error warn ok hint muted command flag value heading` — each `(s: string) => string`, the identity until `fly()` has decided a level above 0. |
 | `roundel/plugin` | `register(plugin)`, `theme()`, `contributions()`. A plugin is the family's one plain object; roundel keeps its `tokens` and ignores every key it does not understand, so the same object works on any subset of the family that is installed. |
 | `roundel/theme` | `fly(theme, rt)`. A theme maps tokens to `styleText` format names (`['bold', 'underline']`) or a `#rrggbb`, and declares the `ground` it will be read on. Hex is truecolor at level 3 and falls back to the nearest of 256 or 16 colours below it. |
 | `roundel/contrast` | `contrast(a, b)`, `luminance(hex)`, `AA` — the WCAG 2.2 maths `fly()` checks with. |
+| `roundel/terminal` | `interactive(rt)` — whether anybody is there to type: a terminal on stdin, no `CI` and no agent variable (`CLAUDECODE`, `AI_AGENT`, `CURSOR_AGENT`, `CODEX_THREAD_ID`, `GEMINI_CLI`), with `FORCE_TTY=1` as the override — and `unicode(rt)`, is-unicode-supported's answer over `{ env, platform }`. Not re-exported from `roundel`. |
 | `roundel/chalk` | chalk 6's API — `chalk.red.bold(s)`, `chalk.hex('#…')`, `new Chalk({ level })`, `chalkStderr`, `supportsColor`, the name lists — over the tokens' emitter and the policy's level. Graded by chalk's own suite; see below. |
 
 ### The policy
@@ -163,7 +164,7 @@ suite scoring 58 / 58 against real chalk in the same run.
 Every subpath is a lock, not a convention. `roundel/tokens` reaches 3,258 bytes on disk
 (its ceiling is picocolors, 3.3 KB); `roundel/policy` 1,972; `roundel/theme` 6,271;
 `roundel/plugin` 2,812 and reaching no module at all;
-`roundel/contrast` 1,250; `roundel/chalk` 9,311 (its ceiling is chalk 6.0.0's own 9,370,
+`roundel/contrast` 1,250; `roundel/terminal` 878 and reaching no module; `roundel/chalk` 9,311 (its ceiling is chalk 6.0.0's own 9,370,
 before the ansi-styles and supports-color chalk also ships). Importing one never loads
 another — the tokens never carry the theme, the theme never carries the tokens, chalk
 carries neither — and `sideEffects: false` lets a bundler drop what a program does not use.
@@ -198,4 +199,4 @@ Graded by the incumbent's own test suite:
 
 Plugins register under the `tokens` key, against the one schema the whole family shares.
 
-`burgee` and `flagstaff` build on it, and it builds on nothing in this family.
+`burgee`, `caique`, `flagstaff` build on it, and it builds on nothing in this family.
