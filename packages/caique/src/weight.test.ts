@@ -99,16 +99,21 @@ const RULES: Record<string, EntryRule> = {
   // 2,198 B (+65) on 2026-09-28, reaching `roundel/terminal` (878 B, reaching nothing): the
   // question "is anybody there" is roundel's, and asking it by hand prompted an agent.
   './decide': { allow: ['roundel/terminal'], budget: 2_500, denied: ['ask.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
-  // The drop-in subpath for `@clack/prompts`, and the smallest façade in the family — one
-  // exported function, because one function is what clack's suite grades that is not a
-  // drawing. See `clack.ts`'s own header and D-001: 289 of that suite's 444 assertions are
-  // snapshots of clack's frames, subtracted from the row as a declared subset, and
-  // `limitOptions` plus the three `guide` cases are the whole behavioural remainder.
-  // Measured 4,564 B on 2026-09-20 against `@clack/prompts` 1.8.1's own 101,684 B across
-  // six packages, which is the U5 ceiling this file's header names.
+  // The drop-in subpath for `@clack/prompts`: its twelve prompts, its writers, its symbols and
+  // its settings, on caique's own keypress loop (D-152). It was one function — `limitOptions`,
+  // 4,564 B — until 2026-09-27, when the twelve prompts `guide.test.ts` renders were built;
+  // the budget moved from 5,500 because the surface did, and that is the decision this
+  // comment records rather than a ratchet let slip.
+  //
+  // Measured **62,238 B** on 2026-09-27 against `@clack/prompts` 1.8.1's own 101,684 B across
+  // six packages — 0.61 of the U5 ceiling this file's header names — reaching the same three
+  // family subpaths `./inquirer` does: `closeout/cursor` and `closeout/exit-hook`, because a
+  // prompt hides the cursor and owes its return on every exit path, and `linegauge/wrap`.
+  // It is still a leaf away from the rest of caique: a program migrating off clack loads none
+  // of caique's own API, and a program written against caique never loads a byte of this.
   './clack': {
-    allow: ['linegauge/wrap'],
-    budget: 5_500,
+    allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap'],
+    budget: 64_000,
     denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js', 'spec.js', 'plugin.js', 'inquirer.js'],
   },
   // The drop-in subpath for `@inquirer/core` — graded 41 / 41 by the incumbent's own suite

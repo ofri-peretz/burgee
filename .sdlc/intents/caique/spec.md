@@ -447,7 +447,7 @@ match an incumbent's, and a façade may not be named in a host row before it exi
 | Suite | Control | Target, before | Target, after |
 | :-- | --: | --: | --: |
 | `@inquirer/core` 12.0.3 | **41 / 41** | `caique` 0 / 41 | **`caique/inquirer` 41 / 41, 100.0%** |
-| `@clack/prompts` 1.8.1 | **17 / 17** (was 576 / 606) | `caique` 0 / 606 | **`caique/clack` 14 / 17, 82.4%** |
+| `@clack/prompts` 1.8.1 | **17 / 17** (was 576 / 606) | `caique` 0 / 606 | **`caique/clack` 16 / 17, 94.1%** (14 / 17 until D-152) |
 
 ### R8 — `caique/inquirer`
 
@@ -493,20 +493,30 @@ per-case names — which is why `ansi-escapes`' ceiling is written in prose inst
 entries were written. `requireMatch` on the control means a file renamed upstream turns the
 control red rather than quietly shrinking the denominator.
 
-**The ceiling is 14 of 17, and the missing three are all of `guide.test.ts`:**
+**The ceiling is 16 of 17 (D-152, 2026-09-27), and the missing one is in `guide.test.ts`:**
 
 - `every prompt renders the same guide` and `no prompt renders a guide when withGuide is
-  false` require all twelve of clack's prompts to render a frame whose first line is its
-  grey bar. That is the drawing this row subtracts by decision — building it to pass two
-  cases would be building the thing U3 says caique will not build.
+  false` **pass.** This section used to call them "the drawing this row subtracts by
+  decision" and stop at 14 / 17, which was wrong: they are not snapshots. They assert that
+  all twelve of clack's prompts exist, take clack's options and streams, cancel on escape,
+  and open on the grey guide — or, with `withGuide: false`, on none. That is the drop-in,
+  not clack's renderer, and `caique/clack` now carries the twelve prompts, the writers
+  (`intro`, `outro`, `cancel`, `note`, `log`, `stream`, `spinner`, `tasks`, `group`), the
+  glyphs and `settings`/`updateSettings` on caique's own keypress loop — `node:readline`'s
+  decoder, `closeout`'s cursor restore, `linegauge/wrap` — with no external dependency. The
+  frames are clack's shape and not its bytes, so the seventeen snapshot files stay
+  subtracted exactly as D-001 decided.
 - `no prompt renders a guide when withGuide is globally false` calls
-  `updateSettings({ withGuide: false })` **imported from `@clack/core`** and asserts our
-  prompts obey it. That is module-level state inside a package caique does not depend on and
-  cannot read. No implementation of ours passes it without taking the dependency U6 forbids,
-  so it is structurally out of reach rather than unfinished.
+  `updateSettings({ withGuide: false })` **imported from `@clack/core`** — the test imports
+  it, not our code — and asserts our prompts obey it. That is module-level state inside a
+  package caique does not depend on and cannot read. No implementation of ours passes it
+  without taking the dependency U6 forbids, so it is structurally out of reach rather than
+  unfinished. `caique/clack`'s own `updateSettings` does the same job, and
+  `packages/caique/src/clack.test.ts` holds all twelve prompts to it.
 
-14 / 17 with that paragraph beside it is the honest number. 0 / 606 was also honest and said
-less; 606 / 606 would have required being clack.
+16 / 17 with that paragraph beside it is the honest number. It is not level with the
+control, so `burgee migrate` reports `@clack/prompts` and does not rewrite it (D-137).
+Not built, because no graded case reaches them: `box`, `progress`, `taskLog`.
 
 Still open, and named so it is a decision rather than a silence:
 `packages/caique/competitors.json` still fingerprints `inquirer` at the `./ask` subpath.
