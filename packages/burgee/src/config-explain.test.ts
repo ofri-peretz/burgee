@@ -12,6 +12,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { width } from 'linegauge';
 import { ORDER } from 'seniority/precedence';
 import { describe, expect, it } from 'vitest';
 
@@ -52,6 +53,19 @@ describe('config explain (V8)', () => {
     expect(byOption['--replicas']).toMatch(/3\s+\(config /);
     expect(byOption['--tier']).toMatch(/pro\s+\(env APP_TIER\)/);
     expect(byOption['--dry']).toMatch(/false\s+\(default\)/);
+  });
+
+  it('lines every value up in terminal columns, whatever the option is named in', async () => {
+    // `--地域` is four code units and six columns. Padded with `.padEnd`, its value started
+    // two columns right of every ASCII option's.
+    const wide = defineCommand({ name: 'deploy', options: { region: { type: 'string', default: 'us' }, 地域: { type: 'string', default: 'eu' } }, effects: 'withheld', run: () => 'ok' });
+    const app = defineProgram({ name: 'app', version: '1.0.0', config: true, commands: [wide] });
+    const r = await runBurgee(app, { argv: ['config', 'explain', 'deploy', '--no-config'], env, cwd });
+    expect(r.code).toBe(0);
+    const rows = r.stdout.trimEnd().split('\n').slice(1);
+    const starts = rows.map((l) => width(l.slice(0, l.search(/(?:us|eu) {2}\(/))));
+    expect(starts).toHaveLength(2);
+    expect(new Set(starts).size).toBe(1);
   });
 
   it('answers as data with --json', async () => {
