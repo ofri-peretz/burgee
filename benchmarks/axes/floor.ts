@@ -91,11 +91,11 @@ export function agentLintFailures(report: AgentLintReport): string[] {
  * raising either number is a decision recorded here, and lowering one is the failure.
  */
 // Landed 2026-09-24 from the first CI measurement (run 36064855115, ddb3eaf): 6 of 24 on
-// clispec, 78% on cli-agent-lint. Both are low, and gating at them is not endorsing them —
-// it is what stops the next change making them lower while the gap is being closed (B22).
+// clispec, 78% on cli-agent-lint. Raised 2026-09-27 (D-151) to what `4b8ef1c` measures once
+// `schema` answers as `--schema`: 14 of 24 and 81.4% — 81, so one lost check still fails.
 export const BURGEE_FLOOR = {
-  clispec: { min: 6, why: 'N10: a change that loses a point on clispec.dev’s published checklist regresses the floor against someone else’s bar' },
-  agentLint: { min: 78, why: 'N10: a change that loses a check on cli-agent-lint’s 34 regresses the floor against someone else’s bar' },
+  clispec: { min: 14, why: 'N10: a change that loses a point on clispec.dev’s published checklist regresses the floor against someone else’s bar' },
+  agentLint: { min: 81, why: 'N10: a change that loses a check on cli-agent-lint’s 34 regresses the floor against someone else’s bar' },
 } as const;
 
 export function clispecRecord(variant: string, report: ClispecScore, tool: Tool): BenchRecord {
