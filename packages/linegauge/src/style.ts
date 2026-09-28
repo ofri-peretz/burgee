@@ -159,6 +159,14 @@ export interface ActiveStyle {
   family: string;
   open: string;
   close: number;
+  /**
+   * The introducer the opener arrived with, when it was not `ESC [`. Only `slice` sets and
+   * reads it — a C1 `CSI` (`U+009B`) opener is reopened as it was written, which is what
+   * `slice-ansi` 9 does and grades (`keeps C1 SGR CSI behavior`) — so it is a field here and
+   * a branch in `slice.ts`, not in `openingSequence`: every entry reaches this file, and
+   * the branch would have cost `plugin.js` 81 bytes for a case only `slice` meets.
+   */
+  prefix?: string;
 }
 
 const isDigits = (value: string): boolean => /^\d+$/.test(value);

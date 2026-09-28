@@ -648,24 +648,33 @@ export const HOSTS: Host[] = [
     // `slice-ansi` and `wrap-ansi` each carry their own copy of open/close/reopen and
     // disagree at the edges.
     //
-    // **Vendored at 7.1.2, not at the 9.0.0 on npm, and that is a deliberate pin.** The
-    // control run grades the suite against the *installed* `slice-ansi`, and this workspace
-    // resolves `^7.1.0` from the root manifest. Vendoring 9.0.0's suite against a 7.1.2
-    // control would measure the gap between two of the incumbent's own majors and publish it
-    // as ours. Moving this row to 9 is a root-manifest bump, which belongs to the integrator
-    // lane; `--upstream` reports the gap every day until it happens.
+    // **The pin is the installed version, and the two move together.** The control run
+    // grades the suite against the *installed* `slice-ansi`, so the vendored suite has to be
+    // the same release's: vendoring a newer major's suite against an older control would
+    // measure the gap between two of the incumbent's own majors and publish it as ours. The
+    // row sat at 7.1.2 while npm had 9 for exactly that reason (burgee#317), and moved on
+    // 2026-09-27 as one change — root manifest `^9.0.1`, `benchmarks/package.json` `9.0.1`,
+    // this pin — which is the only order that keeps control and suite on one release.
+    // `vendor.test.ts` holds the pin to the installed version, so a bump of either alone fails.
     name: 'slice-ansi',
     repo: 'https://github.com/chalk/slice-ansi',
     // The pin the paragraph above describes, in a form `vendor()` can read.
-    pinnedVersion: '7.1.2',
+    pinnedVersion: '9.0.1',
     testDir: '.',
     testGlob: 'test.js',
     imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
     surfaceFiles: ['index.d.ts', 'index.js'],
     runner: 'ava',
+    // Declared, not committed — the move wrap-ansi's `has-ansi` made on 2026-09-21, for the
+    // same reason: the 9.0.1 re-vendor deleted the committed `node_modules/random-item` and
+    // the control read 0 / 15. 9's suite also gained `tokenize-ansi.js`, a helper that
+    // imports `ansi-styles` and `is-fullwidth-code-point` by name; the workspace hoists
+    // `is-fullwidth-code-point` at 3.0.0, so it is pinned to the 5.1.0 slice-ansi 9 itself
+    // depends on rather than left to whichever copy the hoist picks.
+    suiteDeps: ['random-item@4.0.1', 'is-fullwidth-code-point@5.1.0', 'ansi-styles@6.2.3'],
     target: 'linegauge/slice',
     status: 'active',
-    note: "15 / 15 control, 15 / 15 target, measured 2026-09-15 — up from 13 / 15 via two separate findings. (1) `can slice a string with unknown ANSI color` **was** a real gap and is now closed: slice-ansi re-emits *any* SGR parameter it saw and closes with a reset, so `ESC[1001m` survives a cut, while `linegauge`'s style stack tracked only the codes in its own close-code table and dropped the rest, returning a bare `TES`. Ours was the wrong answer — the sequence is the caller's, not the library's to vet, and a stack that discards what it cannot name fails in the worst direction: the text survives and its style does not, silently. `style.ts` now carries an unrecognised parameter through as its own family and closes it with `ESC[0m`, which is the only closer correct for a parameter whose meaning is unknown. (2) `slice links` is `test.failing()` in slice-ansi's *own* suite: the incumbent cannot round-trip an `OSC 8` hyperlink and says so. `linegauge` can, so the assertion passes — and ava reports a passing `test.failing` as `not ok`, because from its side an unexpected pass is a stale annotation to clean up. That `not ok` is a statement about the incumbent's expectation, not about us, and counting it as our failure held this row at 14 / 15 on the strength of a case we do **better**. The grader now reads ava's own diagnostic and counts it as a pass, reported as `exceeded` on every line that has one so the judgement is never silent; it cannot misfire on a control run, where the incumbent really does fail the case and ava prints a plain `ok`. Its suite imports `random-item`, committed under `vendor/slice-ansi/node_modules/`.",
+    note: "**Moved to 9.0.1 on 2026-09-27 (burgee#317): 104 / 104 against a control of 104 / 104, level.** The suite grew from 15 cases to 104, and `linegauge/slice` first graded **53 / 104** against it. `slice.ts` was rewritten over slice-ansi 9's own token grammar and walk — `tokenize-ansi.js` is in the vendored suite, and its rules are what the suite grades — keeping `linegauge`'s style stack and `measure` for the columns. What moved the 49: (1) **escapes it did not read** — `OSC 8` ended by `ESC \\` or `U+009C`, the C1 `OSC` introducer, `DCS`/`SOS`/`PM`/`APC` strings, a lone `ST`, a truncated or malformed `CSI` (which now ends at the first byte no `CSI` can hold, so `ESC[31ĀA` keeps its `ĀA`), and a private `ESC[?25m` that is not an SGR; (2) **a cluster interrupted by an escape** — `ESC[31me ESC[39m U+0301` is one `é`, so the visible text is segmented with the escapes set aside; (3) **hyperlinks** — no nesting (a second open replaces the first, closed with its own introducer and terminator), an empty link removed rather than emitted, the open code kept with its parameters; (4) **SGR at the edges** — a close just after `end` kept as written rather than synthesised, an opener with no text after it dropped, a C1 `CSI` opener reopened as C1; and (5) **rounding inward at a wide character**, where `linegauge` used to round outward. That last one was a documented divergence and it was wrong: `truncate` is a slice plus an ellipsis and returned `あい…`, five columns, for a budget of four. **The last two were a position rule, and they moved too.** `treats CRLF as a single grapheme cluster` wants `\\r\\n` to take one position, and `counts emoji-style graphemes as fullwidth` wants a lone regional indicator `🇦` to take two. `string-width`, graded 229 / 229 in the row above, measures those as 0 and 1, and so do `measure` and `width`. At 102 / 104 the row was not level, which took slice-ansi out of `burgee migrate`'s `MAPPING` (only level drop-ins are rewritten, D-137). So `slice` counts **positions** for a cut, not rendered columns: every cluster is at least one, and a lone indicator is two (`positions()` in `slice.ts`). `width` is unchanged. The two differ only on clusters that draw nothing, and the difference can only shorten a `truncate`, never widen it. `slice.test.ts` states both cases, and the `truncate` bound, against the real slice-ansi. The suite imports `random-item` and, through `tokenize-ansi.js`, `ansi-styles` and `is-fullwidth-code-point` — all three in `suiteDeps`, the committed `node_modules/random-item` having been deleted by this re-vendor exactly as wrap-ansi's `has-ansi` was. `slice links`, the case 7 marked `test.failing()` and `linegauge` passed, is an ordinary passing case in 9: the incumbent learned to round-trip `OSC 8`.",
   },
   {
     // seniority's two incumbents (PLAN 2.2–2.13, `seniority/spec.md` R10).
@@ -1388,6 +1397,27 @@ export const PREVIOUS_MAJORS: Host[] = [
     target: 'burgee/yargs',
     status: 'active',
     note: "**Measured 2026-09-24: 191 / 794, 24.1%, against a control of 793 / 794 — 17 is graded and not claimed** (`SUPPORTED_MAJORS.yargs` is `[18]`). It is one decision of 18's, not 603 gaps: **17's `require('yargs')` is a singleton** — an instance already bound to `process.argv`, with every method on the required object — and 18 removed it, so the façade, which speaks 18, hands a `require()` caller the factory. Every file but three opens with `yargs.getInternalMethods().reset()` or `require('../../').help(…)` on that object, so the `beforeEach` of `Command`, `Completion`, `usage tests` and `validation tests` throws `yargs.getInternalMethods is not a function` and mocha abandons the rest of each block: **274 of the 794 register at all**, and the 520 that never run are counted against the row, not dropped. Of the 83 that register and fail, the named groups are the same cause seen from the inside: the 14 `integration tests` spawn fixtures that call `require('../../').help('help')`; `helpers` wants 17's `yargs/yargs` statics (`applyExtends`, `Parser`, `hideBin`) on the factory, where 18 moved them to `yargs/helpers`; `should expose yargs-parser as Parser` reads `Parser` off 17's build bundle; and the `yargs dsl tests` failures (`$0` from the bin name, electron argv, `locale`, `env`, `terminalWidth`, the minimum-Node check) each drive the singleton or its module-scope state. Three harness fixes were needed before the control read 793 and none moved an assertion: the mocha 9 CLI path (`mochaCli`), a top-level `yargs-parser@21.1.1` in `suiteDeps`, and a CommonJS shim that evicts the incumbent only when the suite busted the shim (`cjsLoad`) with the internal `build/index.cjs` a link to the incumbent's own on a control run (`linksInternal`).",
+  },
+  {
+    // slice-ansi 7, kept graded when the current row moved to 9 (burgee#317), because 7 is
+    // the major `SUPPORTED_MAJORS` claimed until then and a claim does not lapse by a bump:
+    // it is either graded level here or withdrawn. The suite is the one the current row
+    // graded until 2026-09-27, re-vendored at the same tag, and the incumbent is installed
+    // beside it so the control is 7.1.2 itself and not the workspace's 9.
+    name: 'slice-ansi-7',
+    npmName: 'slice-ansi',
+    majorOf: 'slice-ansi',
+    repo: 'https://github.com/chalk/slice-ansi',
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'ava',
+    pinnedVersion: '7.1.2',
+    suiteDeps: ['slice-ansi@7.1.2', 'random-item@4.0.1'],
+    target: 'linegauge/slice',
+    status: 'active',
+    note: "**Measured 2026-09-27: 14 / 15 against a control of 15 / 15 — 7 is graded and not claimed** (`SUPPORTED_MAJORS['slice-ansi']` is `[9]`). The one that fails is `supports unicode surrogate pairs`, and it is the same assertion as 9's with the opposite answer: 7's suite wants `slice('a🈀BC', 0, 2)` to be `a🈀` — the wide `U+1F200` included although it runs one column past the end — and 9's wants `a`. `linegauge/slice` rounds inward, as 9 does and as `truncate` needs, so it cannot pass both majors' version of that case, and it passes 9's. Until 2026-09-27 this suite *was* the current row and read 15 / 15, the rounding then being outward. `slice links` is still `test.failing()` in 7 and still passes here, counted as `exceeded`.",
   },
 ];
 
