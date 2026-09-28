@@ -96,7 +96,7 @@ its signal handling → B4 rows → the `signal-exit` override recipe, behind it
 **The state machine, stated once.** A handler is in one of three states: `pending`,
 `running`, `settled`. A trigger moves every `pending` handler to `running` and starts the
 deadline. Subsequent triggers of any kind run nothing and wait on the shutdown already in
-flight, so each one's leave comes after `restore`, never before it (D-166).
+flight, so each one's leave comes after `restore`, never before it (D-190).
 The deadline moves anything still `running` to `settled('timeout')`, records its label, and
 lets the exit proceed. Nothing in that description mentions a signal, which is why the
 guarantee holds across all of them.
@@ -606,7 +606,7 @@ the alternate screen, cursor hidden.
   waits for the one bounded shutdown, so the deadline still ends it and `restore` is invoked
   first. The process dies of the *first* signal: both leaves are queued on the same promise
   and the first one queued raises. After `runSync` nothing is in flight and its report is
-  returned as before. D-166.
+  returned as before. D-190.
 - **`closeout/exit-hook` is unaffected.** It checks `runner.settled` and returns without
   leaving, so it never waited on a second `run()`. `exit-hook` 21 / 21.
 - **Weight: burgee 24,277 → 24,261 B, ceiling 24,282 unchanged.** The in-flight promise

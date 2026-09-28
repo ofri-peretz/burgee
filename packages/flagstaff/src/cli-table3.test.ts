@@ -171,3 +171,12 @@ describe('cli-table3 internals hang off the default export', () => {
     expect(typeof table.toString()).toBe('string');
   });
 });
+
+describe('a style name that cannot be read draws the cell plain', () => {
+  // cli-table3 resolves style names inside a try/catch and falls back to the plain string.
+  // The port walked `roundel/chalk` without one, and reading `caller` or `arguments` off a
+  // function throws in strict mode, so this threw out of `toString()` instead.
+  it.each(['caller', 'arguments'])('style.head: [%j]', (name) => {
+    expect(render({ head: ['h'], style: { head: [name], border: [] } }, [['x']])).toBe(render({ head: ['h'], style: { head: [], border: [] } }, [['x']]));
+  });
+});
