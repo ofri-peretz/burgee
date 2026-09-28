@@ -29,3 +29,11 @@ export const processRuntime = (): Runtime => ({
   stdout: process.stdout,
   isTTY: { stdin: process.stdin.isTTY === true, stdout: process.stdout.isTTY === true },
 });
+
+/**
+ * The two facts about the process that are not streams: where it was started, and on what.
+ * `caique/clack`'s `path` prompt starts from the working directory and its glyphs depend on
+ * the platform, and this file is the only one allowed to ask. A function for the same reason
+ * `processRuntime` is one — read when asked, never frozen at import.
+ */
+export const processFacts = (): { cwd: string; platform: string } => ({ cwd: process.cwd(), platform: process.platform });
