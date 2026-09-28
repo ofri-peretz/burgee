@@ -226,25 +226,30 @@ let previouslyVisitedConfigs: string[] = [];
  */
 export function applyExtends(config: Record<string, any>, cwd: string, mergeExtends?: boolean): Record<string, any> {
   let defaultConfig: Record<string, any> = {};
+  let own = config;
   if (Object.prototype.hasOwnProperty.call(config, 'extends')) {
     if (typeof config.extends !== 'string') return defaultConfig;
-    const isPath = isConfigPath(config.extends);
+    // A copy without `extends`, never a `delete` on the caller's object: the config is read from
+    // a file, and a write through a `__proto__` key would reach Object.prototype (CodeQL #27).
+    // Object rest copies own properties by definition, so `__proto__` stays a plain key.
+    const { extends: from, ...rest } = config as { extends: string };
+    own = rest;
+    const isPath = isConfigPath(from);
     let pathToDefault: string;
     if (!isPath) {
       try {
-        pathToDefault = import.meta.resolve(config.extends);
+        pathToDefault = import.meta.resolve(from);
       } catch {
         return config;
       }
-    } else pathToDefault = resolve(cwd, config.extends);
+    } else pathToDefault = resolve(cwd, from);
     checkForCircularExtends(pathToDefault);
     previouslyVisitedConfigs.push(pathToDefault);
-    defaultConfig = isPath ? JSON.parse(readFileSync(pathToDefault, 'utf8')) : nodeRequire(config.extends);
-    delete config.extends;
+    defaultConfig = isPath ? JSON.parse(readFileSync(pathToDefault, 'utf8')) : nodeRequire(from);
     defaultConfig = applyExtends(defaultConfig, dirname(pathToDefault), mergeExtends);
   }
   previouslyVisitedConfigs = [];
-  return mergeExtends ? mergeDeep(defaultConfig, config) : Object.assign({}, defaultConfig, config);
+  return mergeExtends ? mergeDeep(defaultConfig, own) : Object.assign({}, defaultConfig, own);
 }
 
 /**
