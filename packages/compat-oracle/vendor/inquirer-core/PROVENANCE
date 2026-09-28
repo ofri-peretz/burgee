@@ -1,15 +1,15 @@
 package:  inquirer-core
 repo:     https://github.com/SBoudrias/Inquirer.js
 version:  12.0.3
-tag:      @inquirer/core@12.0.3
-commit:   cbdb34bfc6c245941d80ef88493c50b3d6dbfce6
-vendored: 2026-09-14
+tag:      (none — release was not tagged; HEAD was used)
+commit:   60bd0c3024e23e7e7c9a09a7b5dea0c026f4269f
+vendored: 2026-09-28
 files:    1
 tool:     scripts/vendor-suite.ts
 
 How this directory was made
 ---------------------------
-A shallow clone of https://github.com/SBoudrias/Inquirer.js at @inquirer/core@12.0.3, then that repository's own test directory and
+A shallow clone of https://github.com/SBoudrias/Inquirer.js at HEAD, then that repository's own test directory and
 its fixtures copied here. The only edit is to the import specifiers that reach the library:
 each is rewritten to a generated shim, so one unedited suite can grade any implementation.
 Everything else — assertions, fixtures, helpers — is upstream's, byte for byte.

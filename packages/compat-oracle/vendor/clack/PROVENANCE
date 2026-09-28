@@ -1,15 +1,15 @@
 package:  clack
 repo:     https://github.com/bombshell-dev/clack
 version:  1.8.1
-tag:      @clack/prompts@1.8.1
-commit:   da44e23128c2f6a64f908224683e22d1190a576b
-vendored: 2026-09-14
+tag:      (none — release was not tagged; HEAD was used)
+commit:   f2bc46b5a3a83139d75099caacdb07c3d8b77b97
+vendored: 2026-09-28
 files:    19
 tool:     scripts/vendor-suite.ts
 
 How this directory was made
 ---------------------------
-A shallow clone of https://github.com/bombshell-dev/clack at @clack/prompts@1.8.1, then that repository's own test directory and
+A shallow clone of https://github.com/bombshell-dev/clack at HEAD, then that repository's own test directory and
 its fixtures copied here. The only edit is to the import specifiers that reach the library:
 each is rewritten to a generated shim, so one unedited suite can grade any implementation.
 Everything else — assertions, fixtures, helpers — is upstream's, byte for byte.

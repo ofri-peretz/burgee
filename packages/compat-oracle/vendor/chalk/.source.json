@@ -1,23 +1,23 @@
 {
   "repo": "https://github.com/chalk/chalk",
-  "version": "6.0.0",
-  "tag": "v6.0.0",
-  "commit": "661317e6f91fe7c90306c2c48ea9354562ee9146",
-  "vendored": "2026-09-08",
+  "version": "6.0.1",
+  "tag": "v6.0.1",
+  "commit": "47fc05abd46171b235e24174cd2dba83d25bf037",
+  "vendored": "2026-09-28",
   "files": 8,
   "internalFiles": [],
   "internals": [],
   "hashes": {
     "test/_fixture.js": "9164bf73ed9f7f5d41768b6bce7c6a790982106ae51f5252ccd5d32a09185aa8",
     "test/_force-color-fixture.js": "0f38cd7eebc5e68bb0a6af01cb89823ceb11d658ecefc82e36df6e7a8572c0a3",
-    "test/chalk.js": "1688abce772134a38503d85dbe51e7f6745cf57ee8f7d46a2405ba6197703b4c",
+    "test/chalk.js": "5c216a5e4c2ed141ea570ea72daa1def211fb13cabd08d49145d0f6b2862ebf0",
     "test/force-color.js": "c42461070015a458774310c3e34439099cf5c31822951bb2e2f1c1241e6523f6",
     "test/instance.js": "1d7f2112217e762681a327f4dfb2be227673e6ede6209394aa205c1ed0737f64",
     "test/level.js": "661d69baec222b1cde59271e90ca83296f7f607e6521bd314c04e439caa6c849",
     "test/no-color-support.js": "b8ae0e4409f7b1e305a785e4ee5ae1514b9e3b3929b96237d840ef3d7146854a",
     "test/visible.js": "71b01d1f4b073fab873b6f58416f26855c73014becb4921db761125d179c88af",
     "source/index.d.ts": "d6ef4d0e2407eef316586745bfac66d5280fc7b2ad7cdde75fcb24c44ff2252c",
-    "source/index.js": "08e92f2330a34d232f8aa987da4d953893094be5b2aa8cc39ddb4313743f206e"
+    "source/index.js": "02abae0091d42e077f06e10c0918cf671707d1c73235bcb5d486ed66084ec7b4"
   },
   "tests": {
     "test/_fixture.js": [],
@@ -34,6 +34,7 @@
       "support caching multiple styles",
       "alias gray to grey",
       "support variable number of arguments",
+      "convert multiple arguments the same way regardless of their count",
       "support falsy values",
       "don\\'t output escape codes if the input is empty",
       "keep Function.prototype methods",

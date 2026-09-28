@@ -5,6 +5,7 @@
   "main": "./shim.mjs",
   "version": "7.0.6",
   "license": "MIT",
+  "description": "Cross platform child_process#spawn and child_process#spawnSync",
   "repository": {
     "type": "git",
     "url": "git@github.com:moxystudio/node-cross-spawn.git"
