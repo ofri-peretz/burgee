@@ -1,0 +1,106 @@
+{
+  "v": 2,
+  "date": "2026-09-28",
+  "commit": "e1f9335f506458167145a34dd726293ee9c96a27",
+  "questions": [
+    "What is a good alternative to commander.js?",
+    "How do I make my Node CLI output JSON for AI agents?",
+    "How do I expose a command-line tool over MCP?",
+    "What is a zero-dependency replacement for yargs?",
+    "How do I stop an interactive CLI prompt from hanging in CI?"
+  ],
+  "assistants": {
+    "claude": {
+      "status": "ran",
+      "secret": "CLAUDE_CODE_OAUTH_TOKEN",
+      "requested": "claude-opus-5-5"
+    }
+  },
+  "observations": [
+    {
+      "date": "2026-09-28",
+      "commit": "e1f9335f506458167145a34dd726293ee9c96a27",
+      "assistant": "claude",
+      "model": null,
+      "question": 1,
+      "status": "error",
+      "exitCode": 1,
+      "turns": 1,
+      "costUsd": 0,
+      "error": "claude exited 1: claude reported is_error (subtype success): Failed to authenticate. API Error: 401 OAuth access token is invalid.",
+      "named": false,
+      "mentions": [],
+      "citedUrls": [],
+      "ours": [],
+      "excerpt": null
+    },
+    {
+      "date": "2026-09-28",
+      "commit": "e1f9335f506458167145a34dd726293ee9c96a27",
+      "assistant": "claude",
+      "model": null,
+      "question": 2,
+      "status": "error",
+      "exitCode": 1,
+      "turns": 1,
+      "costUsd": 0,
+      "error": "claude exited 1: claude reported is_error (subtype success): Failed to authenticate. API Error: 401 OAuth access token is invalid.",
+      "named": false,
+      "mentions": [],
+      "citedUrls": [],
+      "ours": [],
+      "excerpt": null
+    },
+    {
+      "date": "2026-09-28",
+      "commit": "e1f9335f506458167145a34dd726293ee9c96a27",
+      "assistant": "claude",
+      "model": null,
+      "question": 3,
+      "status": "error",
+      "exitCode": 1,
+      "turns": 1,
+      "costUsd": 0,
+      "error": "claude exited 1: claude reported is_error (subtype success): Failed to authenticate. API Error: 401 OAuth access token is invalid.",
+      "named": false,
+      "mentions": [],
+      "citedUrls": [],
+      "ours": [],
+      "excerpt": null
+    },
+    {
+      "date": "2026-09-28",
+      "commit": "e1f9335f506458167145a34dd726293ee9c96a27",
+      "assistant": "claude",
+      "model": null,
+      "question": 4,
+      "status": "error",
+      "exitCode": 1,
+      "turns": 1,
+      "costUsd": 0,
+      "error": "claude exited 1: claude reported is_error (subtype success): Failed to authenticate. API Error: 401 OAuth access token is invalid.",
+      "named": false,
+      "mentions": [],
+      "citedUrls": [],
+      "ours": [],
+      "excerpt": null
+    },
+    {
+      "date": "2026-09-28",
+      "commit": "e1f9335f506458167145a34dd726293ee9c96a27",
+      "assistant": "claude",
+      "model": null,
+      "question": 5,
+      "status": "error",
+      "exitCode": 1,
+      "turns": 1,
+      "costUsd": 0,
+      "error": "claude exited 1: claude reported is_error (subtype success): Failed to authenticate. API Error: 401 OAuth access token is invalid.",
+      "named": false,
+      "mentions": [],
+      "citedUrls": [],
+      "ours": [],
+      "excerpt": null
+    }
+  ]
+}
