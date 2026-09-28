@@ -404,12 +404,19 @@ type ChalkFn = (s: string) => string;
  */
 function styled(names: string[] | undefined, content: string): string {
   if (!names || names.length === 0) return content;
-  let fn: unknown = chalk;
-  for (let i = names.length - 1; i >= 0; i -= 1) {
-    fn = typeof fn === 'function' || typeof fn === 'object' ? Reflect.get(fn as object, names[i] ?? '') : undefined;
-    if (fn === undefined) return content;
+  // Upstream's try/catch, kept: a name is the caller's string, and reading `caller` or
+  // `arguments` off a function throws, so `style: { head: ['caller'] }` threw out of
+  // `toString()` where cli-table3 draws the cell plain.
+  try {
+    let fn: unknown = chalk;
+    for (let i = names.length - 1; i >= 0; i -= 1) {
+      fn = typeof fn === 'function' || (typeof fn === 'object' && fn !== null) ? Reflect.get(fn as object, names[i] ?? '') : undefined;
+      if (fn === undefined) return content;
+    }
+    return typeof fn === 'function' ? (fn as ChalkFn)(content) : content;
+  } catch {
+    return content;
   }
-  return typeof fn === 'function' ? (fn as ChalkFn)(content) : content;
 }
 
 interface Drawable {
