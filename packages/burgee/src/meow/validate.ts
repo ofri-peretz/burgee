@@ -39,7 +39,7 @@ export function validateFlags(flags: Record<string, AnyFlag>): void {
 
 /** meow refuses to guess where the caller's `package.json` is. */
 export function requireImportMeta(importMeta: ImportMeta | undefined): void {
-  if (importMeta === undefined || typeof importMeta !== 'object' || typeof importMeta.url !== 'string') {
+  if (importMeta === undefined || importMeta === null || typeof importMeta !== 'object' || typeof importMeta.url !== 'string') {
     throw new TypeError('The `importMeta` option is required. Its value must be `import.meta`.');
   }
   try {
