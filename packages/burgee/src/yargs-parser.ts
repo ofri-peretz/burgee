@@ -10,6 +10,7 @@ import { normalize, resolve } from 'node:path';
 import { format } from 'node:util';
 
 import { host } from './runtime.js';
+import { flagEndingInDigits, flagEndingInHyphen, flagEndingInNonWordCharacters, flagWithEquals, normalFlag } from './yargs/flag-shapes.js';
 
 export interface ParserMixin {
   cwd: () => string;
@@ -667,7 +668,10 @@ export class YargsParser {
       if (!configuration['dot-notation']) keys = [keys.join('.')];
       keys.slice(0, -1).forEach((key) => {
         key = sanitizeKey(key);
-        if (typeof o === 'object' && o[key] === undefined) o[key] = {};
+        // A `null` parent — `{ "a": null }` in a config, then `a.b` from a default or a second
+        // config — is an absent one, as `hasKey` already reads it; upstream descended into it
+        // and threw "Cannot read properties of null".
+        if (typeof o === 'object' && (o[key] === undefined || o[key] === null)) o[key] = {};
         if (typeof o[key] !== 'object' || Array.isArray(o[key])) {
           if (Array.isArray(o[key])) o[key].push({});
           else o[key] = [o[key], {}];
@@ -738,13 +742,6 @@ export class YargsParser {
       return toCheck.some((flag) => (Array.isArray(flag) ? flag.includes(key) : flag[key]));
     }
 
-    function hasFlagsMatching(arg: string, ...patterns: RegExp[][]): boolean {
-      const toCheck = ([] as RegExp[]).concat(...patterns);
-      return toCheck.some((pattern) => {
-        const match = pattern.exec(arg);
-        return match && hasAnyFlag(match[1] as string);
-      });
-    }
 
     function hasAllShortFlags(arg: string): boolean {
       if (negative.exec(arg) || !/^-[^-]+/.exec(arg)) return false;
@@ -777,12 +774,13 @@ export class YargsParser {
       arg = arg.replace(/^-{3,}/, '--');
       if (negative.exec(arg)) return false;
       if (hasAllShortFlags(arg)) return false;
-      const flagWithEquals = /^-+([^=]+?)=[\s\S]*$/;
-      const normalFlag = /^-+([^=]+?)$/;
-      const flagEndingInHyphen = /^-+([^=]+?)-$/;
-      const flagEndingInDigits = /^-+([^=]+?\d+)$/;
-      const flagEndingInNonWordCharacters = /^-+([^=]+?)\W+.*$/;
-      return !hasFlagsMatching(arg, [flagWithEquals, negatedBoolean, normalFlag, flagEndingInHyphen, flagEndingInDigits, flagEndingInNonWordCharacters]);
+      // Upstream's five flag regexes, each read through its first group; they backtracked
+      // quadratically or worse on one long argument, so each is a linear scan now (flag-shapes.ts).
+      const shapes = [flagWithEquals, (a: string) => negatedBoolean.exec(a)?.[1], normalFlag, flagEndingInHyphen, flagEndingInDigits, flagEndingInNonWordCharacters];
+      return !shapes.some((shape) => {
+        const key = shape(arg);
+        return key !== undefined && hasAnyFlag(key);
+      });
     }
 
     function defaultValue(key: string): any {
