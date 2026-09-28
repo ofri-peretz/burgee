@@ -440,7 +440,10 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // builder's rejection to `fail` instead of leaving it unhandled.
   // 108,300 the same day: merging main under it moved CI's reading to 108,242, 42 B over the
   // local-only headroom above; CI reads above local, as the 60,850 entry notes.
-  'burgee/yargs': 108_300,
+  // 108,420 on 2026-09-28 for the two linegauge fixes it bundles: `width()` no longer
+  // backtracks exponentially on a run of combining joiners, and `wrap()` no longer normalizes
+  // an escape sequence into its neighbour. Measured 108,334 locally, with 80 B for CI.
+  'burgee/yargs': 108_420,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
   // bundle grows by, set where the number actually is, so the next byte is a decision.
@@ -482,9 +485,13 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // joiners took 2.4 s and 1,000 did not finish — and string-width 8.3.0's suite added the
   // case. A code-point loop replaced both zero-width regexes, which costs +32, +30 and +29.
   // Measured 6,448, 11,418 and 11,575 by this axis; each ceiling keeps the 80 B CI margin.
+  // `linegauge/wrap` 11,560 the same day: `wrap()` normalized the whole string to NFC, so a
+  // combining mark after an escape composed with its final byte (`ESC[31m` + U+0301 became
+  // `ESC[31ḿ`) and an OSC payload was rewritten. It normalizes only the text between
+  // sequences now, as wrap-ansi 10.0.2 does; +62, measured 11,480.
   linegauge: 6_530,
 
-  'linegauge/wrap': 11_500,
+  'linegauge/wrap': 11_560,
 
   'linegauge/slice': 11_660,
 
