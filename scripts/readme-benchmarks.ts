@@ -41,8 +41,8 @@ const PAGE = '/docs/benchmarks';
 const RATIO_DIGITS = 4;
 const HEADING = '## Benchmarks';
 const PLACE_HEADING = '## Where it sits';
-/** The nine published layers. `compat-oracle` is internal tooling and is not one of them. */
-const FAMILY = ['burgee', 'roundel', 'flagstaff', 'caique', 'linegauge', 'paratext', 'seniority', 'closeout', 'bellpull'];
+/** The ten published layers. `compat-oracle` is internal tooling and is not one of them. */
+const FAMILY = ['burgee', 'roundel', 'flagstaff', 'caique', 'linegauge', 'paratext', 'seniority', 'closeout', 'bellpull', 'controlroom'];
 
 interface Ceiling {
   ours: number;

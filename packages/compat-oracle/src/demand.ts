@@ -40,7 +40,7 @@ export interface Layer {
 }
 
 /**
- * The nine layers and their twenty-five incumbents, as the plan's own table names them.
+ * The ten layers and their twenty-seven incumbents, as the plan's own table names them.
  *
  * Written out rather than derived: four packages declare a `competitors.json` and five do
  * not, so deriving would silently mine four layers and call it nine. `burgee`'s intent is
@@ -56,6 +56,9 @@ export const LAYERS: Layer[] = [
   { pkg: 'seniority', intent: 'seniority', incumbents: ['cosmiconfig', 'dotenv', 'rc'] },
   { pkg: 'closeout', intent: 'closeout', incumbents: ['signal-exit', 'exit-hook', 'restore-cursor'] },
   { pkg: 'bellpull', intent: 'bellpull', incumbents: ['execa', 'cross-spawn', 'which'] },
+  // Reserved at 0.0.1 with no API yet (D-158). Ink and `@inkjs/ui` are the pair it replaces;
+  // blessed, neo-blessed and terminal-kit are migrated off by guide, not replaced (D-164, R18).
+  { pkg: 'controlroom', intent: 'controlroom', incumbents: ['ink', '@inkjs/ui'] },
 ];
 
 /**
@@ -158,8 +161,12 @@ export function citations(sources: string[]): Set<string> {
 export const isCovered = (incumbent: string, issue: MinedIssue, cited: Set<string>): boolean =>
   cited.has(`${incumbent}#${issue.number}`);
 
-/** Pipes inside an upstream title would end the table cell they sit in. */
-const cell = (text: string): string => text.replaceAll('|', '\\|').replaceAll('\n', ' ').trim();
+/**
+ * Pipes inside an upstream title would end the table cell they sit in, and a `<` would open an
+ * HTML element: Ink's titles name components, and `<Static> commit taller than the viewport`
+ * rendered as a tag and failed `lint:md` (MD033) on the first controlroom mine.
+ */
+export const cell = (text: string): string => text.replaceAll('|', '\\|').replaceAll('<', '\\<').replaceAll('\n', ' ').trim();
 
 const closedAs = (issue: MinedIssue): string =>
   issue.state === 'open' ? '—' : (issue.closeReason ?? 'closed, no reason recorded');

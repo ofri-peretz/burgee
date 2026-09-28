@@ -1,7 +1,7 @@
 /**
  * U12 — every layer installs and works alone.
  *
- * The family splits nine ways so a program can adopt one layer without the other eight. The
+ * The family splits ten ways so a program can adopt one layer without the other nine. The
  * design names the check that makes that a fact rather than a layout: *"locks when the
  * independence install test passes for every layer"*. This is that test.
  *
@@ -40,9 +40,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const run = promisify(execFile);
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const PUBLISHED = ['bellpull', 'burgee', 'caique', 'closeout', 'flagstaff', 'linegauge', 'paratext', 'roundel', 'seniority'];
+const PUBLISHED = ['bellpull', 'burgee', 'caique', 'closeout', 'controlroom', 'flagstaff', 'linegauge', 'paratext', 'roundel', 'seniority'];
 
-/** One pack of nine packages, then nine installs and their probes side by side. */
+/** One pack of ten packages, then ten installs and their probes side by side. */
 const SETUP_TIMEOUT_MS = 240_000;
 
 interface Manifest {

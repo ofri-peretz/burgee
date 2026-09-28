@@ -1,6 +1,8 @@
 # Design — controlroom
 
-Intent: [`intent.md`](./intent.md). **Status:** approved (2026-09-27, by the owner, D-158).
+Intent: [`intent.md`](./intent.md). **Status:** approved (2026-09-27, by the owner, D-158;
+amended the same day by D-164: R15–R18, compatibility and migration from the leading
+competitors). **Skeleton:** `packages/controlroom` exists at `0.0.1`, with no API yet.
 The package is named `controlroom`, reserved as `controlroom@0.0.1`. The earlier picks were
 `chartroom`, which clashes with `chart-room`, and `conning`, which npm refused as too similar
 to `config` (see the intent's Naming section).
@@ -69,6 +71,27 @@ it records every change here.
   `benchmarks/fixtures/entry-points.ts`, and each is gated at ≤ 1.0×. The root entry is
   `denied` both peers in the weight lock.
 
+**Compatibility and migration** (D-164). The owner's rule, 2026-09-27: _"controlroom should
+be compatible and allow easy migration to it from the leading competitors."_
+
+- **R15 · one render engine.** controlroom never paints on its own. Every frame goes
+  through flagstaff's repaint loop, and each widget through its static projection;
+  controlroom only lays out regions and routes keys. A lock fails if anything under
+  `packages/controlroom/src` writes to stdout or stderr outside the flagstaff path.
+- **R16 · the widget contract.** The flagstaff surface controlroom consumes (the widget and
+  region interface, and R3's frame-writing seam) is pinned by a lock on both sides, in
+  flagstaff and in controlroom, so neither changes it silently.
+- **R17 · the Ink ecosystem runs unchanged.** `@inkjs/ui`, `ink-spinner`, `ink-text-input`
+  and `ink-select-input` import from `'ink'`. Resolving `'ink'` to `controlroom/ink`, through
+  a documented `package.json` alias or `overrides`, runs them unmodified. `@inkjs/ui`'s own
+  suite is graded through the drop-in in `compat-oracle`, with a `--control` run, as in
+  R13. There is no separate `@inkjs/ui` façade.
+- **R18 · migrating off blessed, neo-blessed and terminal-kit.** No drop-in: their API
+  surfaces are too large to reproduce honestly. Instead, a coming-from guide for each, and
+  `burgee migrate` codemod rules for the common screen, box, list and key patterns, as the
+  existing coming-from guides have. The docs gain a **"Which one do I need?"** section:
+  flagstaff for inline output in a scrolling terminal, controlroom for a full screen.
+
 ## Design
 
 ```text
@@ -85,8 +108,9 @@ packages/controlroom/src/
 
 **Order.** The phases are the intent's: 0 (R1–R3), then 1 (R13 vendoring and its control
 run, in parallel with 0), then 2 (R4–R7), then 3 (R11–R12, with R14's W1, W2 and W4), then 4
-(R8–R10, the reference demo, the Gallery, and W3). v1 publishes when phase 3's row and phase
-4's demo both exist.
+(R8–R10, the reference demo, the Gallery, and W3). R15 and R16 bind from phase 2, R17's
+grading lands with phase 3, and R18's guides and codemods with phase 4. v1 publishes when
+phase 3's rows (Ink and `@inkjs/ui`) and phase 4's demo all exist.
 
 **Registration in the family** happens when the package directory is created, and not
 before:
@@ -112,6 +136,15 @@ Each item names the command that exits non-zero when it is wrong:
   entries.
 - **Boundaries** — `scripts/layer-boundaries-lock.test.ts` at ten layers, the
   subpath-isolation test, and `scripts/composition-lock.test.ts`.
+- **R15** — a controlroom lock that greps `src/` for a write to `process.stdout`, `process.stderr`
+  or a runtime stream that does not go through flagstaff, and fails on the first.
+- **R16** — a contract lock in each of flagstaff and controlroom over the same exported
+  types; changing one side alone turns the other red.
+- **R17** — `npm run compat -- --control` grades `@inkjs/ui`'s suite through the alias, and
+  a fixture installs `ink-spinner`, `ink-text-input` and `ink-select-input` with `'ink'`
+  resolved to `controlroom/ink` and runs each unmodified.
+- **R18** — `scripts/migrate-drop-ins-lock.test.ts`-style fixtures for each codemod rule, and
+  the coming-from pages built by the docs app.
 
 The check that would have caught the original gap is R1's PTY case. It is red today,
 because `cursor.ts` never leaves the alternate screen.
@@ -137,5 +170,7 @@ because `cursor.ts` never leaves the alternate screen.
 
 ## Out of scope
 
-The intent's list applies: mouse, the `@inkjs/ui` drop-in in v1, text editing in panes, the
-wizard's application tabs, legacy Windows consoles, and the burgee plugin until phase 4.
+The intent's list applies: mouse, text editing in panes, the wizard's application tabs,
+legacy Windows consoles, the burgee plugin until phase 4, and a drop-in for blessed,
+neo-blessed or terminal-kit (R18 migrates them instead). `@inkjs/ui` is no longer out of
+scope: R17 puts it in v1 through the `'ink'` alias, with no façade of its own (D-164).

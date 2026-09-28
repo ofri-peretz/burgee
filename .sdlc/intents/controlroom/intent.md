@@ -7,7 +7,7 @@
 > and D-158 records the answers: a new package, named `controlroom`, with an Ink drop-in in
 > v1, and the nine-package ceiling restated. The design is [`spec.md`](./spec.md).
 
-**Status:** approved · **Opened:** 2026-09-27 · **Owner:** @ofri-peretz · **Approved:** 2026-09-27 by the owner, in session (D-158: a new package named `controlroom`, `controlroom/ink` in v1, the ceiling restated)
+**Status:** approved · **Opened:** 2026-09-27 · **Owner:** @ofri-peretz · **Approved:** 2026-09-27 by the owner, in session (D-158: a new package named `controlroom`, `controlroom/ink` in v1, the ceiling restated) · **Amended:** 2026-09-27 (D-164: compatibility with, and migration from, the leading competitors; `spec.md` R15–R18) · **Skeleton:** `packages/controlroom` at `0.0.1`, with no API yet
 
 ---
 
@@ -58,6 +58,21 @@ pass rate is published and ratchets.
 4. **The cap is restated.** `.sdlc/intents/README.md`'s nine-package ceiling becomes ten,
    and `cli-output-stack`'s "Not planned: Ink" becomes planned. Both are restated in the same
    change that approves this intent, with the reason.
+
+### Amended: migration from the leading competitors (D-164, 2026-09-27)
+
+The owner added: _"controlroom should be compatible and allow easy migration to it from the
+leading competitors."_ `spec.md` carries it as R15–R18:
+
+- **One render engine.** controlroom never paints on its own. Every frame goes through
+  flagstaff's repaint loop, and controlroom only lays out regions and routes keys. The
+  widget contract between the two is locked on both sides.
+- **The Ink ecosystem runs unchanged.** `@inkjs/ui`, `ink-spinner`, `ink-text-input` and
+  `ink-select-input` run unmodified when `'ink'` resolves to `controlroom/ink`. `@inkjs/ui`'s
+  own suite is graded through that alias, so `@inkjs/ui` is in v1 with no façade of its own.
+- **blessed, neo-blessed and terminal-kit** get a coming-from guide each and `burgee migrate`
+  codemod rules, not a drop-in. The docs say which package a reader needs: flagstaff or
+  controlroom.
 
 Two supporting pieces live in the packages that already own their concern:
 
@@ -359,8 +374,9 @@ per screen feature.
 
 - **Mouse** reporting of clicks, the wheel or drags. It is reopened only by an adopter's
   measured need.
-- **A `controlroom/ink-ui` drop-in for `@inkjs/ui`.** It follows by the same method once the
-  `controlroom/ink` row stands, but it does not gate v1.
+- **A drop-in for blessed, neo-blessed or terminal-kit.** Their surfaces are too large to
+  reproduce honestly, so they get guides and codemods instead (R18, D-164). `@inkjs/ui` is
+  no longer out of scope: R17 grades it through the `'ink'` alias in v1.
 - **Yoga, and flexbox outside `controlroom/ink`.**
 - **Our own React runtime**, which is option B above.
 - **Text editing inside a pane.** Prompts stay with caique.
@@ -395,8 +411,11 @@ reservation, not by reading the registry.
 **Reservation** followed the index's "How we take a layer", step 5: a four-file `0.0.1`
 stub whose README says what the package is not, pointing at this intent. The owner published
 it. The next owner step is the npm trusted publisher: `ofri-peretz/burgee`, `release.yml`,
-environment `production`. No `packages/controlroom` directory exists yet. It is created in
-phase 0 and 1 work, together with the family registration listed in `spec.md`.
+environment `production`, which the owner has configured. `packages/controlroom` now exists
+as a skeleton at `0.0.1`, the published version, with no changeset, so nothing new publishes.
+Its root export is only `status = 'reserved'`. The family registration listed in `spec.md`
+landed with it, except the docs site, whose Vercel project and DNS are the owner's to create;
+until then it is under `excluded` in `.github/vercel-apps.json` (GAPS).
 
 ## Open questions
 

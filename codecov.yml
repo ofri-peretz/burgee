@@ -59,6 +59,9 @@ component_management:
     - component_id: seniority
       name: seniority
       paths: [packages/seniority/**]
+    - component_id: controlroom
+      name: controlroom
+      paths: [packages/controlroom/**]
     - component_id: compat-oracle
       name: compat-oracle
       paths: [packages/compat-oracle/**]
