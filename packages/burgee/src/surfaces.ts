@@ -175,6 +175,24 @@ async function helpCommand(manifest: Manifest, argv: string[], root: string[], i
 }
 
 /**
+ * D-151 — `schema` is `--schema` spelled as a subcommand: `schema [command…] [--field <path>]`
+ * is the same request as `--schema [command…] [--field <path>]`, answered by the same surface,
+ * byte for byte. clispec.dev discovers a program's schema by running `<tool> schema`, and a
+ * program that answered only the flag was invisible to every check that followed from it.
+ *
+ * **The program's own meaning of the word wins.** A declared `schema` command runs as written,
+ * and so does a runnable root that takes positionals, where `schema` is an argument. Either
+ * way burgee answers nothing, the way `completion` stands aside for a program's own (D2).
+ * Returns the argv the `--schema` surface reads, or `undefined` when this is not the alias.
+ */
+function schemaAlias(manifest: Manifest, argv: string[]): string[] | undefined {
+  const top = manifest.find(manifest.rootPath);
+  const takesWords = (top?.run ?? top?.load) !== undefined && (top?.arguments?.length ?? 0) > 0;
+  if (argv[0] !== 'schema' || takesWords || manifest.find([...manifest.rootPath, 'schema']) !== undefined) return undefined;
+  return ['--schema', ...argv.slice(1)];
+}
+
+/**
  * `--schema` (F1, N8) and `--mcp` (N1) are served for every program from the manifest
  * alone, before any command resolves: no config, no network, no handler runs.
  */
@@ -197,10 +215,12 @@ export async function serve(manifest: Manifest, argv: string[], io: SurfaceIo, e
     io.out.write(await helpCommand(manifest, argv.slice(1), manifest.rootPath, io));
     return true;
   }
-  if (head.includes('--schema')) {
+  const asked = schemaAlias(manifest, argv) ?? argv;
+  const askedHead = beforeTerminator(asked);
+  if (askedHead.includes('--schema')) {
     // The whole surface is its own chunk (M2): only `--schema` loads it, or the schema it serves.
     const { schemaSurface } = await import('./schema-surface.js');
-    io.out.write(`${await machineJson(await schemaSurface(manifest, argv), head)}\n`);
+    io.out.write(`${await machineJson(await schemaSurface(manifest, asked), askedHead)}\n`);
     return true;
   }
   if (head[0] === '--mcp') {
