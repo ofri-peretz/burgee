@@ -51,7 +51,9 @@ function meow(helpText: string | Settings, options: Settings = {}): Result<AnyFl
   // `flags: null` is refused rather than read as "no flags" — only an absent key means that.
   const flagSpecs = (opts.flags === undefined ? {} : opts.flags) as Record<string, FlagSpec>;
   if (!isPlainObject(flagSpecs)) throw new TypeError('The `flags` option must be an object.');
-  if (opts.input !== undefined && typeof opts.input !== 'string' && !Array.isArray(opts.input) && typeof opts.input !== 'object') {
+  // meow accepts a string or a plain object here and nothing else, by the object's toString tag:
+  // `null` and an array are refused, as upstream refuses them, rather than read as no `input`.
+  if (opts.input !== undefined && typeof opts.input !== 'string' && Object.prototype.toString.call(opts.input) !== '[object Object]') {
     throw new TypeError('The `input` option must be a string or an object.');
   }
   if (typeof opts.input === 'object' && opts.input !== null) {

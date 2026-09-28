@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { once, showCursor, SHOW_CURSOR } from './index.js';
+import { alternateScreen, ENTER_ALTERNATE_SCREEN, LEAVE_ALTERNATE_SCREEN, once, rawMode, showCursor, SHOW_CURSOR } from './index.js';
 
 const pkgRoot = fileURLToPath(new URL('..', import.meta.url));
 const src = resolve(pkgRoot, 'src');
@@ -107,5 +107,19 @@ describe('the exports added today, called the way the README calls them', () => 
     const written: string[] = [];
     showCursor({ write: (chunk: string) => written.push(chunk), isTTY: true });
     expect(written).toEqual([SHOW_CURSOR]);
+  });
+
+  it('alternateScreen(stream), against the real process', () => {
+    const written: string[] = [];
+    const leave = alternateScreen({ write: (chunk: string) => written.push(chunk), isTTY: true });
+    leave();
+    expect(written).toEqual([ENTER_ALTERNATE_SCREEN, LEAVE_ALTERNATE_SCREEN]);
+  });
+
+  it('rawMode(input), against the real process', () => {
+    const modes: boolean[] = [];
+    const off = rawMode({ isTTY: true, isRaw: false, setRawMode: (mode: boolean) => modes.push(mode) });
+    off();
+    expect(modes).toEqual([true, false]);
   });
 });

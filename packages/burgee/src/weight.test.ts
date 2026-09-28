@@ -534,7 +534,12 @@ const RULES: Record<string, EntryRule> = {
     // config`, `disabled autoVersion and autoHelp`), and the declaration checks meow makes first
     // (`choices must be of the same type`, `throws if flags option is null`, `throws if default
     // is null`), plus `-F` casing, an empty required string, and lazy `pkg`. Measured 61,276.
-    budget: 61_300,
+    // 61,700 on 2026-09-27 for the parser's flag shapes in linear time (`yargs/flag-shapes.js`,
+    // 1,880 B, replacing five regexes one of which was cubic) and meow refusing `input: null`
+    // as meow does. Measured 61,592.
+    // 63,000 on 2026-09-28: both of the above together, #665's 61,592 plus meow's 1,345 — the two
+    // landed in parallel. Measured 62,937.
+    budget: 63_000,
     denied: ["index.js", "execute.js", "help.js", "mcp.js", "schema.js", "completions.js", "plugin.js"],
   },
   "./contrast": {
@@ -727,7 +732,11 @@ const RULES: Record<string, EntryRule> = {
     // 219,150 on 2026-09-27 for CodeQL #17–#27: parse-command and apply-extends in linear
     // time instead of three quadratic regexes, `pkgConf` reading own keys only, and zsh
     // completions escaping `\`. Measured 219,066.
-    budget: 219_150,
+    // 220,900 on 2026-09-27: `unknown-options-as-args` classifies an argument in linear time
+    // (`yargs/flag-shapes.js`, 1,880 B, for five regexes one of which was cubic), and an async
+    // builder's rejection under `showHelp()` reaches `fail` instead of going unhandled.
+    // Measured 220,848.
+    budget: 220_900,
     // 217,100 with D-140 on top of D-122, N14 and E7, after merging #521. Measured 217,090.
     // 217,150 with A29's CommonJS export on top. Measured 217,123.
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
@@ -755,9 +764,14 @@ const RULES: Record<string, EntryRule> = {
   // 42,000 on 2026-09-23 for 65 bytes of the same seam: `host.exitCode` gained a setter (D-140),
   // so a façade can leave a failed `--json` run with its E1 code without calling `exit()` over
   // an undrained stdout. Measured 41,946; this entry never sets it, and pays for the file.
+  //
+  // 43,700 on 2026-09-27 for `yargs/flag-shapes.js` (1,880 B): the five flag regexes
+  // `isUnknownOption` runs on every `-`-prefixed argument under `unknown-options-as-args`, as
+  // linear scans. One of them was cubic — a 4,000-character argument took ten seconds.
+  // Measured 43,613.
   "./yargs/parser": {
     allow: [],
-    budget: 42_000,
+    budget: 43_700,
     denied: [
       "testing.js",
       "testing-helpers.js",

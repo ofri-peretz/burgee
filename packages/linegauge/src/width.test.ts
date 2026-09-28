@@ -5,6 +5,9 @@
  * dependency. (`ambiguousIsNarrow` is supported under string-width's name and default;
  * every case here is unambiguous, so it does not change them.)
  */
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
 import stringWidth from 'string-width';
 import { describe, expect, it } from 'vitest';
 
@@ -226,5 +229,29 @@ describe('the Unicode classes survive being built from strings', () => {
 
   it('extended pictographic: a lone pictograph is two columns', () => {
     expect(width('\u{1F600}')).toBe(2);
+  });
+});
+
+/**
+ * The two East Asian Width tables are generated, and this is what keeps them generated.
+ *
+ * `WIDE` was transcribed by hand and its comment said Unicode 17 while it held less: 1,147
+ * code points in 19 runs that `get-east-asian-width` 1.7.0 — and so `string-width` — calls
+ * two columns, this called one, and no test noticed, because the graded suite has no case in
+ * those blocks. `--check` compares the committed tables with a sweep of the pinned package,
+ * so the next Unicode bump fails here instead of drifting.
+ */
+describe('the width tables are the ones the pinned get-east-asian-width publishes', () => {
+  it('generate-width-tables.mjs --check passes', () => {
+    const script = fileURLToPath(new URL('../scripts/generate-width-tables.mjs', import.meta.url));
+    const run = spawnSync(process.execPath, [script, '--check'], { encoding: 'utf8' });
+    expect(run.status, `${run.stdout}${run.stderr}`).toBe(0);
+  });
+
+  it('measures a Unicode 17 wide code point as two columns, as string-width does', () => {
+    // U+18D80, the first of the 115 in the U+18D80 run the hand-written table was missing.
+    // Node 24's regex data is Unicode 16, so nothing else in this file can see it.
+    expect(width('\u{18D80}')).toBe(2);
+    expect(stringWidth('\u{18D80}')).toBe(2);
   });
 });
