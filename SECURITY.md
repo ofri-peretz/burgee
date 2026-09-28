@@ -13,9 +13,10 @@ otherwise.
 
 ## Supported versions
 
-Every published package is pre-1.0 and only the latest release of each is supported. There
-are no long-term support branches yet; when a 1.0 exists, this section will say what it
-promises.
+`linegauge` and `flagstaff` are 1.0. Their public API is under semver, so a fix, a security
+fix included, ships in a release that a `^1` range installs without a breaking change. Every
+other published package is pre-1.0, and its API can still move between minors. For all of
+them only the latest release is supported, and there are no long-term support branches.
 
 ## What reduces the attack surface here
 

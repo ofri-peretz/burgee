@@ -401,8 +401,10 @@ not yet at 100% — on the [compatibility page](https://burgee.interlace.tools/d
 Released is not the same as accepted: the four
 foundation packages began as `0.0.1` name reservations, were built out in waves F1–F4, and
 their intents under [`.sdlc/intents/cli-foundation-stack/`](./.sdlc/intents/cli-foundation-stack/)
-are still at `draft` — the human gate on the design has not run, and all nine are pre-1.0, so
-an API can still move. The `bellpull` intent carries a kill gate, because a zero-dependency
+are still at `draft` — the human gate on the design has not run. Seven of the nine are
+pre-1.0, so their APIs can still move. `linegauge` and `flagstaff` are 1.0: their public API is
+under semver, and every drop-in path each publishes is graded 100% by its incumbent's own
+suite (D-170). The `bellpull` intent carries a kill gate, because a zero-dependency
 rival already holds the weight pitch in that layer, and its spec says plainly that the package
 was built before that gate was evaluated. The measurements behind the layers are in
 [`candidate-layers.md`](./.sdlc/research/candidate-layers.md) and
@@ -463,9 +465,12 @@ determine as well as what it found.
 Four locks — shape, process-reference, weight per entry point, and the adoption ladder — are
 each proven to fail before they passed. A compat façade does not reach 1.0 until its host's
 own suite passes **100%** (`C7`): both do today, which clears that gate and not the rest —
-1.0 waits on the [floor](./apps/docs/content/docs/the-floor.mdx), 114 requirements of which
-the surfaces, the env/config/schema families and both façades are built. Until then the rate
-is published rather than the word "compatible" claimed.
+burgee's 1.0 waits on the [floor](./apps/docs/content/docs/the-floor.mdx), 114 requirements of
+which the surfaces, the env/config/schema families and both façades are built. Until then the
+rate is published rather than the word "compatible" claimed. `linegauge` and `flagstaff` have
+already met every written 1.0 criterion and are 1.0: every requirement in each spec is built
+(13 of 13 and 12 of 12), and each drop-in path passes its incumbent's own suite in full
+(D-170).
 
 ---
 
