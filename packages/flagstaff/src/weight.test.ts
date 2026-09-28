@@ -176,8 +176,9 @@ const RULES: Record<string, EntryRule> = {
   // after every erase. It now counts with `lineCount`, the measurement `./ora` already clears
   // by — reached by a bare specifier, so the width tables it carries are linegauge's and not
   // in this figure (the 2026-09-09 note's boundary artifact). **The real cost is the bundled
-  // one:** `hoist` alone, by /docs/weight's method, goes 5,946 -> 12,560 B, and all of the
-  // difference is the width function a wrapped row has to be measured with. The budget here
+  // one:** /docs/weight, regenerated the same day, prices `hoist` at 12,593 B against 5,885 on
+  // its previous run, and nearly all of the difference is the width function a wrapped row
+  // has to be measured with (the same fixture, fix alone: 5,946 -> 12,560). The budget here
   // did not move; that page is where the rise shows.
   './loop': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'roundel/policy'], budget: 7_000, measured: 5_140, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
   // The registry, the validator, the built-ins and the schema they are checked against.
