@@ -72,10 +72,10 @@
     "holds": true,
     "bar": "foundation-ceilings.json — D1's tree-inclusive ceiling",
     "measured": {
-      "ours": 94389,
+      "ours": 95176,
       "ceiling": 194329,
-      "ratio": 0.4857,
-      "on": "2026-09-27"
+      "ratio": 0.4898,
+      "on": "2026-09-28"
     },
     "why": [
       "R9's bar is restated as D1's, and this is the restatement. Decided in the integrator",

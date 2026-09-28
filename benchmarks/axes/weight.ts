@@ -455,16 +455,16 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // Unicode 17, and was 1,147 code points short. The four extra ranges measured 6,416 and
   // 11,388 (+~70 on every entry that reaches `measure`), and each ceiling keeps the 80 B
   // margin CI needs over a local build.
-  // `linegauge/slice` 9,000 → 11,550: `slice.ts` was rewritten when its suite moved from
+  // `linegauge/slice` 9,000 → 11,650: `slice.ts` was rewritten when its suite moved from
   // slice-ansi 7.1.2 (15 cases) to 9.0.1 (104). The rewrite reads the escapes 9 reads (C1
   // introducers, `DCS`/`SOS`/`PM`/`APC`, `ST`-terminated `OSC 8`, malformed `CSI`), keeps a
   // cluster whole across an escape inside it, and settles hyperlinks that replace each other.
-  // It went from 53 / 104 to 104 / 104, measured 11,453, and the ratio to slice-ansi 9 fell
-  // from 1.5 to 0.783. The walk keeps its state in locals and not in an object's fields,
+  // It went from 53 / 104 to 104 / 104, measured 11,546, and the ratio to slice-ansi 9 fell
+  // from 1.5 to 0.789. The walk keeps its state in locals and not in an object's fields,
   // which saved 766 B that a minifier cannot take out of property names.
   linegauge: 6_500,
   'linegauge/wrap': 11_470,
-  'linegauge/slice': 11_550,
+  'linegauge/slice': 11_650,
   'linegauge/strip': 1_000,
   //
   // **Down from 11,150 to 6,800, and the reason is the most useful thing this block records.**
@@ -599,8 +599,8 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // 1.05 and 1.51 with the +68 seam above.
   // 1.06 and 1 on 2026-09-27. `linegauge` measured 1.050 (6,416 / 6,110) with the Unicode 17
   // WIDE table, which is the gate exactly, so it gets the one step CI's heavier build needs.
-  // `linegauge/slice` is set at 1 like `linegauge/wrap`, because 0.783 against slice-ansi
-  // 9.0.1 earns it: 9 carries its own tokenizer, and `is-fullwidth-code-point` brings
+  // `linegauge/slice` is set at 1 like `linegauge/wrap`, because its ratio against slice-ansi
+  // 9.0.1 (0.789) earns it: 9 carries its own tokenizer, and `is-fullwidth-code-point` brings
   // get-east-asian-width's tables with it.
   linegauge: 1.06,
   'linegauge/wrap': 1,

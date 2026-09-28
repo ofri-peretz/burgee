@@ -837,6 +837,12 @@ export default [
       // The style stack, extracted from `wrap.ts` when `slice` needed it. Same code, same
       // port, same grader — the exemption follows the lines, not the filename.
       "packages/linegauge/src/style.ts",
+      // slice-ansi 9's tokenizer and walk, ported when its suite moved from 15 cases to 104
+      // (burgee#317) and graded by all 104. The walk is one loop over tokens with the state
+      // those cases read (pending openers, an open link and where it was written), and the
+      // state is locals rather than an object because property names survive minification
+      // and cost the bundle 766 B. The exemption follows the port, as it does for `wrap.ts`.
+      "packages/linegauge/src/slice.ts",
       "packages/flagstaff/src/boxen.ts",
       "packages/flagstaff/src/cli-table3.ts",
     ],

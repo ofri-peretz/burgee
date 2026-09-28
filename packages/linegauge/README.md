@@ -164,12 +164,12 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
-| `slice-ansi` | 102 / 104 |
+| `slice-ansi` | 104 / 104 |
 | `string-width` | 229 / 229 |
 | `strip-ansi` | 8 / 8 |
 | `wrap-ansi` | 80 / 80 |
 
-Weight, installed and tree-inclusive: **94,389 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.4857**.
+Weight, installed and tree-inclusive: **95,176 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.4898**.
 ## Where it sits
 
 Plugins register under the `widths` key, against the one schema the whole family shares.

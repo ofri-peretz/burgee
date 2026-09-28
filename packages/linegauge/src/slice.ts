@@ -199,7 +199,7 @@ function tokenize(string: string): Token[] {
   let index = 0;
   while (index < string.length) {
     const escape = INTRODUCERS.has(string[index] ?? '') ? parseEscape(string, index) : undefined;
-    if (escape !== undefined) {
+    if (escape) {
       tokens.push(escape);
       index += escape.code.length;
       continue;
@@ -311,7 +311,8 @@ export function slice(string: string, start = 0, end = Number.POSITIVE_INFINITY)
     }
     const before = new Set(active);
     applyParameters(token.parameters, active);
-    if (token.prefix !== ESC_CSI) {
+    // A one-character introducer is the C1 `CSI`; `ESC [` is two.
+    if (token.prefix.length === 1) {
       for (const style of active) if (!before.has(style)) style.prefix = token.prefix;
     }
     if (started) body += token.code;

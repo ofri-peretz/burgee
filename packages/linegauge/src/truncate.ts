@@ -36,26 +36,20 @@ export interface TruncateOptions {
  * came back one column over its budget. Both ends therefore search for the widest cut that
  * fits by `width`. For text without zero-width clusters that is the cut `keep` names.
  */
-function head(string: string, keep: number): string {
-  let low = keep;
+function fit(string: string, keep: number, end: 'head' | 'tail', total: number): string {
+  const head = end === 'head';
+  // A head grows with its end position, a tail shrinks as its start moves right, so each
+  // searches for the boundary between the cuts that fit and the ones that do not.
+  const cut = (at: number): string => (head ? slice(string, 0, at) : slice(string, at));
+  let low = head ? keep : total - keep;
   let high = string.length * 2;
   while (low < high) {
-    const mid = (low + high + 1) >> 1;
-    if (width(slice(string, 0, mid)) <= keep) low = mid;
-    else high = mid - 1;
+    const mid = (low + high + (head ? 1 : 0)) >> 1;
+    const fits = width(cut(mid)) <= keep;
+    if (head === fits) low = head ? mid : mid + 1;
+    else high = head ? mid - 1 : mid;
   }
-  return slice(string, 0, low);
-}
-
-function tail(string: string, keep: number, total: number): string {
-  let low = total - keep;
-  let high = string.length * 2;
-  while (low < high) {
-    const mid = (low + high) >> 1;
-    if (width(slice(string, mid)) <= keep) high = mid;
-    else low = mid + 1;
-  }
-  return slice(string, low);
+  return cut(low);
 }
 
 export function truncate(string: string, columns: number, options: TruncateOptions = {}): string {
@@ -71,11 +65,11 @@ export function truncate(string: string, columns: number, options: TruncateOptio
   if (mark >= columns) return mark === columns ? ellipsis : '';
 
   const keep = columns - mark;
-  if (position === 'start') return ellipsis + tail(string, keep, total);
-  if (position === 'end') return head(string, keep) + ellipsis;
+  if (position === 'start') return ellipsis + fit(string, keep, 'tail', total);
+  if (position === 'end') return fit(string, keep, 'head', total) + ellipsis;
 
   // Middle: the left half rounds up, so an odd budget spends its extra column on the text
   // the reader meets first.
   const left = Math.ceil(keep / 2);
-  return head(string, left) + ellipsis + tail(string, keep - left, total);
+  return fit(string, left, 'head', total) + ellipsis + fit(string, keep - left, 'tail', total);
 }
