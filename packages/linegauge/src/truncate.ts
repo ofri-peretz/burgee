@@ -26,6 +26,38 @@ export interface TruncateOptions {
   ellipsis?: string;
 }
 
+/**
+ * The longest head of `string` that draws in `keep` columns, and the longest tail.
+ *
+ * `slice` counts **positions** (every cluster at least one, a lone regional indicator two, as
+ * slice-ansi does), and a position is never fewer than the columns it draws, so cutting at
+ * `keep` positions can only come up short. It also means a tail cannot start at
+ * `total - keep`: with CRLF before it, that position lies one column too early, and the tail
+ * came back one column over its budget. Both ends therefore search for the widest cut that
+ * fits by `width`. For text without zero-width clusters that is the cut `keep` names.
+ */
+function head(string: string, keep: number): string {
+  let low = keep;
+  let high = string.length * 2;
+  while (low < high) {
+    const mid = (low + high + 1) >> 1;
+    if (width(slice(string, 0, mid)) <= keep) low = mid;
+    else high = mid - 1;
+  }
+  return slice(string, 0, low);
+}
+
+function tail(string: string, keep: number, total: number): string {
+  let low = total - keep;
+  let high = string.length * 2;
+  while (low < high) {
+    const mid = (low + high) >> 1;
+    if (width(slice(string, mid)) <= keep) high = mid;
+    else low = mid + 1;
+  }
+  return slice(string, low);
+}
+
 export function truncate(string: string, columns: number, options: TruncateOptions = {}): string {
   const { position = 'end', ellipsis = '\u2026' } = options;
   if (columns <= 0) return '';
@@ -39,11 +71,11 @@ export function truncate(string: string, columns: number, options: TruncateOptio
   if (mark >= columns) return mark === columns ? ellipsis : '';
 
   const keep = columns - mark;
-  if (position === 'start') return ellipsis + slice(string, total - keep);
-  if (position === 'end') return slice(string, 0, keep) + ellipsis;
+  if (position === 'start') return ellipsis + tail(string, keep, total);
+  if (position === 'end') return head(string, keep) + ellipsis;
 
   // Middle: the left half rounds up, so an odd budget spends its extra column on the text
   // the reader meets first.
   const left = Math.ceil(keep / 2);
-  return slice(string, 0, left) + ellipsis + slice(string, total - (keep - left));
+  return head(string, left) + ellipsis + tail(string, keep - left, total);
 }

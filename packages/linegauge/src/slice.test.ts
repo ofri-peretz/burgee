@@ -16,6 +16,7 @@ import sliceAnsi from 'slice-ansi';
 import { describe, expect, it } from 'vitest';
 
 import { slice } from './slice.js';
+import { truncate } from './truncate.js';
 import { width } from './width.js';
 
 const ESC = String.fromCodePoint(27);
@@ -34,10 +35,17 @@ const CORPUS: [name: string, value: string][] = [
   ['ascii only', 'the quick brown fox'],
 ];
 
-/** The three shapes where we deliberately differ, each argued at the bottom of this file. */
+/**
+ * Wide characters, a ZWJ family, a combining mark, a hyperlink. Each of the first three was
+ * a place slice-ansi 7 and this module disagreed, argued at the bottom of this file under
+ * slice-ansi 7; slice-ansi 9 changed its answer on all three, and on the first this module
+ * moved to meet it (see `rounds inward`). They are graded for equality now.
+ */
 const WIDE = 'ab\u4F60\u597Dcd';
 const FAMILY = 'a\u{1F468}\u200D\u{1F469}\u200D\u{1F467}b';
 const COMBINING = 'cafe\u0301 latte';
+const LINK = `x${ESC}]8;;https://example.com${ESC}\\link${ESC}]8;;${ESC}\\y`;
+CORPUS.push(['wide', WIDE], ['family', FAMILY], ['combining', COMBINING], ['styled wide', red(WIDE)], ['hyperlink', LINK]);
 
 describe('slice agrees with slice-ansi', () => {
   for (const [name, value] of CORPUS) {
@@ -57,33 +65,30 @@ describe('slice agrees with slice-ansi', () => {
 const resets = (value: string): number => value.split(`${ESC}[39m`).length - 1;
 
 /**
- * The one divergence, argued rather than smoothed.
+ * An empty range is empty — and now the incumbent agrees.
  *
- * Asked for zero columns of a styled string, `slice-ansi` returns the *closing* sequence for
- * whatever was open — `ESC[39m` with no opener and no text — because it closes the stack
- * unconditionally on the way out. Printing that is not neutral: it resets the caller's own
- * foreground colour, so `red('a' + sliceAnsi(red('hi'), 2, 2) + 'b')` prints `b` uncoloured.
- *
- * An empty slice has nothing to style, so ours is the empty string. This is a deliberate
- * incompatibility and the only one; every non-empty range above is graded for equality.
+ * slice-ansi 7 answered zero columns of a styled string with the *closing* sequence for
+ * whatever was open, `ESC[39m` alone, which reset the caller's own colour when printed. This
+ * was the one deliberate incompatibility and it was argued here at length. slice-ansi 9
+ * returns the empty string too, so it is asserted as agreement rather than as a divergence.
  */
 describe('an empty range', () => {
-  it('is empty here and a bare reset in slice-ansi', () => {
+  it('is empty here and in slice-ansi 9', () => {
     expect(slice(red('hello world'), 2, 2)).toBe('');
-    expect(sliceAnsi(red('hello world'), 2, 2)).toBe(`${ESC}[39m`);
+    expect(sliceAnsi(red('hello world'), 2, 2)).toBe('');
   });
 
   it('agrees when there was no style to close', () => {
     expect(slice('hello', 2, 2)).toBe(sliceAnsi('hello', 2, 2));
   });
 
-  it('adds no sequence the caller did not write; slice-ansi adds one', () => {
+  it('adds no sequence the caller did not write', () => {
     // Counted, not pattern-matched: `red('a') + red('b')` already contains a reset next to
     // an opener, so "does not contain ESC[39mESC[31m" would pass whatever the slice returned.
     // The discriminating question is how many resets the joined string ends up with.
     const baseline = resets(`${red('a')}${red('b')}`);
     expect(resets(`${red('a')}${slice(red('hi'), 2, 2)}${red('b')}`)).toBe(baseline);
-    expect(resets(`${red('a')}${sliceAnsi(red('hi'), 2, 2)}${red('b')}`)).toBe(baseline + 1);
+    expect(resets(`${red('a')}${sliceAnsi(red('hi'), 2, 2)}${red('b')}`)).toBe(baseline);
   });
 });
 
@@ -117,10 +122,13 @@ describe('the rules a code-unit slice cannot honour', () => {
     }
   });
 
-  it('rounds outward at a wide character, never inward', () => {
-    // The cluster occupies columns 0 and 1; asking for one column gets both, because half a
-    // wide character is not a thing a terminal can print.
-    expect(slice('\u4F60x', 0, 1)).toBe('\u4F60');
+  it('rounds inward at a wide character, never outward', () => {
+    // The cluster occupies columns 0 and 1. Half a wide character is not a thing a terminal
+    // can print, so asked for one column it is left out rather than returned whole: a slice
+    // is how a caller makes text fit, and one column too many is the overflow it came to avoid.
+    expect(slice('\u4F60x', 0, 1)).toBe('');
+    expect(slice('\u4F60x', 0, 2)).toBe('\u4F60');
+    expect(slice('x\u4F60', 2)).toBe('');
   });
 
   it('is empty for an empty or reversed range rather than throwing', () => {
@@ -165,41 +173,74 @@ describe('an SGR parameter the stack does not recognise', () => {
 });
 
 /**
- * The two places `slice-ansi` and this module disagree, each stated with the case that
- * decides it. Neither is an oversight in the corpus above: they are the reason R4 says
- * "never splits a grapheme cluster" and "rounds outward, never inward", and a suite that
- * dropped these inputs would be grading only the easy half.
+ * Where slice-ansi 7 and this module disagreed, and what became of it.
+ *
+ * Three divergences were argued here under slice-ansi 7. slice-ansi 9 moved on all three:
+ * it keeps a ZWJ family and a combining mark whole, which is what this module already did,
+ * and it rounds inward at a wide character, which is what this module did *not* do. That one
+ * was ours to move, and the reason is `truncate`: a slice plus an ellipsis, it returned
+ * `あい…` — five columns — for a budget of four, because the slice under it rounded outward.
  */
-describe('where slice-ansi is not the specification', () => {
-  it('keeps a ZWJ family whole where slice-ansi returns the man alone', () => {
-    // The severed grapheme, which is the original problem this package exists for: the
-    // terminal receives half a cluster and prints whatever it makes of the pieces.
-    expect(sliceAnsi(FAMILY, 1, 2)).toBe('\u{1F468}');
-    expect(slice(FAMILY, 1, 2)).toBe('\u{1F468}\u200D\u{1F469}\u200D\u{1F467}');
+describe('where slice-ansi 7 was not the specification, and 9 is', () => {
+  it('keeps a ZWJ family whole, and so does slice-ansi 9', () => {
+    expect(slice(FAMILY, 1, 3)).toBe('\u{1F468}\u200D\u{1F469}\u200D\u{1F467}');
+    expect(sliceAnsi(FAMILY, 1, 3)).toBe(slice(FAMILY, 1, 3));
   });
 
-  it('keeps a combining mark with its base letter, where slice-ansi loses it', () => {
-    // Not a cosmetic split: `slice-ansi` returns `cafe` for the first four columns of
-    // `cafe` + U+0301, so the acute is *gone* from the output. A caller truncating a name
-    // for a table has silently changed it.
-    expect(sliceAnsi(COMBINING, 0, 4)).toBe('cafe');
+  it('keeps a combining mark with its base letter, and so does slice-ansi 9', () => {
     expect(slice(COMBINING, 0, 4)).toBe('cafe\u0301');
-    expect([...slice(COMBINING, 0, 4)]).toHaveLength(5);
+    expect(sliceAnsi(COMBINING, 0, 4)).toBe(slice(COMBINING, 0, 4));
   });
 
-  it('rounds outward at a wide character where slice-ansi drops it', () => {
-    // `\u4F60` occupies columns 2 and 3. Asked for column 3 alone, slice-ansi returns
-    // nothing at all; half a wide character is not printable, so the whole one is the only
-    // answer that keeps the caller's column arithmetic true.
+  it('drops a wide character the range only half covers, as slice-ansi does', () => {
+    // `\u4F60` occupies columns 2 and 3. Asked for column 3 alone, both return nothing.
+    expect(slice(WIDE, 3, 4)).toBe('');
     expect(sliceAnsi(WIDE, 3, 4)).toBe('');
-    expect(slice(WIDE, 3, 4)).toBe('\u4F60');
   });
 
-  it('and so never loses a column the caller counted', () => {
-    // The consequence, which is why the direction was chosen: a table cell built from
-    // `slice` is never narrower than the width it was asked for.
-    for (let start = 0; start < width(WIDE); start++) {
-      expect(width(slice(WIDE, start, start + 1)), `column ${String(start)} vanished`).toBeGreaterThan(0);
+  it('and so never returns more columns than were asked for', () => {
+    for (let start = 0; start <= width(WIDE); start++) {
+      for (let end = start; end <= width(WIDE); end++) {
+        expect(width(slice(WIDE, start, end)), `[${String(start)}, ${String(end)})`).toBeLessThanOrEqual(end - start);
+      }
+    }
+  });
+});
+
+/**
+ * Two clusters `width` and `slice` count differently, and why.
+ *
+ * `width` gives string-width's answer: CRLF is no column and a lone regional indicator is
+ * one. A cut needs somewhere to land, though, so `slice` gives every cluster at least one
+ * position and a lone indicator two, as slice-ansi does. An earlier cut of this module used
+ * `width`'s numbers for both and failed exactly these two cases of slice-ansi 9's suite
+ * (102 / 104), which also took slice-ansi out of `burgee migrate`, since only a level
+ * drop-in is rewritten.
+ */
+describe('where slice counts positions, not rendered columns', () => {
+  it('gives CRLF a position of its own, as slice-ansi does', () => {
+    expect(width('\r\n')).toBe(0);
+    expect(slice('A\r\nB', 1, 2)).toBe('\r\n');
+    expect(sliceAnsi('A\r\nB', 1, 2)).toBe(slice('A\r\nB', 1, 2));
+  });
+
+  it('gives a lone regional indicator two positions, as slice-ansi does', () => {
+    expect(width('\u{1F1E6}')).toBe(1);
+    expect(slice('A\u{1F1E6}B', 1, 3)).toBe('\u{1F1E6}');
+    expect(sliceAnsi('A\u{1F1E6}B', 1, 3)).toBe(slice('A\u{1F1E6}B', 1, 3));
+  });
+
+  it('keeps truncate inside its budget, which positions alone did not', () => {
+    // `truncate` measures with `width` and cuts with `slice`. Cutting a tail at `total - keep`
+    // positions returned `ef` plus the ellipsis — three columns — for `a` CRLF `bcdef` at two,
+    // because the CRLF before the cut is a position and not a column. `truncate.ts` searches
+    // for the widest cut that fits instead.
+    for (const value of ['a\r\nbcdef', 'a\u{1F1E6}bcdef', '\u200Babcdef']) {
+      for (let columns = 1; columns <= 6; columns++) {
+        for (const position of ['start', 'middle', 'end'] as const) {
+          expect(width(truncate(value, columns, { position })), `${JSON.stringify(value)} ${position} @ ${String(columns)}`).toBeLessThanOrEqual(columns);
+        }
+      }
     }
   });
 });

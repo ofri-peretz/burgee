@@ -391,7 +391,7 @@ export default [
     rules: { "react-features/void-dom-elements-no-children": "off" },
   },
   // The root `scripts/**` glob above predates per-package scripts, and this is the first
-  // one: a generator spawned as a program (`node scripts/generate-ambiguous.mjs`), so it
+  // one: a generator spawned as a program (`node scripts/generate-width-tables.mjs`), so it
   // exports nothing and is never imported, and it reads the incumbent it grades against
   // from the root's pins rather than declaring one of its own (R7/#217).
   {
