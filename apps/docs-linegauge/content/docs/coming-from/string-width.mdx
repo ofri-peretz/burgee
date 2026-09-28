@@ -38,11 +38,10 @@ real package:
 | `string-width` → `linegauge` | 229 / 229 | 229 / 229 |
 | `strip-ansi` → `linegauge/strip` | 8 / 8 | 8 / 8 |
 | `wrap-ansi` → `linegauge/wrap` | 80 / 80 | 80 / 80 |
-| `slice-ansi` → `linegauge/slice` | 15 / 15 | 15 / 15 |
+| `slice-ansi` → `linegauge/slice` | 104 / 104 | 104 / 104 |
 
 From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
-oracle's last run; that page is the authority. One slice-ansi case is one the incumbent marks
-as failing in its own suite, and linegauge passes it.
+oracle's last run; that page is the authority.
 
 string-width's options carry over under their own names and defaults. Ambiguous-width
 characters count narrow unless you pass `ambiguousIsNarrow: false`, which counts them two

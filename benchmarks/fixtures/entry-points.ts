@@ -123,8 +123,8 @@ export const PAIRS: readonly EntryPair[] = [
   //
   // The incumbents are pinned to the **exact versions compat-oracle grades** rather than to
   // a range, which is the only pairing that means anything: the weight we compare against
-  // has to be the weight of the release whose own suite we pass. `slice-ansi` is 7.1.2 here
-  // and 9.0.0 on npm for that reason.
+  // has to be the weight of the release whose own suite we pass. `slice-ansi` sat at 7.1.2
+  // here while npm had 9 for that reason, and moved to 9.0.1 with its suite (burgee#317).
   {
     id: 'linegauge',
     ours: { specifier: 'linegauge', symbol: DEFAULT_EXPORT },
@@ -141,7 +141,7 @@ export const PAIRS: readonly EntryPair[] = [
     id: 'linegauge/slice',
     ours: { specifier: 'linegauge/slice', symbol: DEFAULT_EXPORT },
     incumbent: { specifier: 'slice-ansi', symbol: DEFAULT_EXPORT },
-    why: 'the slice façade against slice-ansi, 15 / 15',
+    why: 'the slice façade against slice-ansi, 104 / 104',
   },
   {
     id: 'linegauge/strip',

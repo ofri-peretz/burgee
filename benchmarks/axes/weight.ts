@@ -455,11 +455,25 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // which was true of runtime and false of bytes, and B4 said so on the first CI run. The table
   // moved into `plugin.ts`; `width.ts` keeps one nullable slot and one optional call, which is
   // the 68. That is the floor for an override that has to be consulted inside `measure`.
-  linegauge: 6_400,
+  //
+  // **2026-09-27, burgee#317 and #363: all three move, for two reasons.**
+  // `linegauge` 6,400 → 6,500 and `linegauge/wrap` 11,350 → 11,470: the WIDE table is now
+  // generated from get-east-asian-width 1.7.0 (Unicode 17). It was hand-written, said it was
+  // Unicode 17, and was 1,147 code points short. The four extra ranges measured 6,416 and
+  // 11,388 (+~70 on every entry that reaches `measure`), and each ceiling keeps the 80 B
+  // margin CI needs over a local build.
+  // `linegauge/slice` 9,000 → 11,650: `slice.ts` was rewritten when its suite moved from
+  // slice-ansi 7.1.2 (15 cases) to 9.0.1 (104). The rewrite reads the escapes 9 reads (C1
+  // introducers, `DCS`/`SOS`/`PM`/`APC`, `ST`-terminated `OSC 8`, malformed `CSI`), keeps a
+  // cluster whole across an escape inside it, and settles hyperlinks that replace each other.
+  // It went from 53 / 104 to 104 / 104, measured 11,546, and the ratio to slice-ansi 9 fell
+  // from 1.5 to 0.789. The walk keeps its state in locals and not in an object's fields,
+  // which saved 766 B that a minifier cannot take out of property names.
+  linegauge: 6_500,
 
-  'linegauge/wrap': 11_350,
+  'linegauge/wrap': 11_470,
 
-  'linegauge/slice': 9_000,
+  'linegauge/slice': 11_650,
 
   'linegauge/strip': 1_000,
   //
@@ -603,11 +617,16 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // (D-096): 111 bytes an entry that measurement says are not recoverable, against 9 ms of
   // import time.
   // 1.05 and 1.51 with the +68 seam above.
-  linegauge: 1.05,
+  // 1.06 and 1 on 2026-09-27. `linegauge` measured 1.050 (6,416 / 6,110) with the Unicode 17
+  // WIDE table, which is the gate exactly, so it gets the one step CI's heavier build needs.
+  // `linegauge/slice` is set at 1 like `linegauge/wrap`, because its ratio against slice-ansi
+  // 9.0.1 (0.789) earns it: 9 carries its own tokenizer, and `is-fullwidth-code-point` brings
+  // get-east-asian-width's tables with it.
+  linegauge: 1.06,
 
   'linegauge/wrap': 1,
 
-  'linegauge/slice': 1.51,
+  'linegauge/slice': 1,
 
   'linegauge/strip': 2.25,
   // The layer that is over its D1 ceiling too — 66,305 against ansi-escapes' tree at 30,912,

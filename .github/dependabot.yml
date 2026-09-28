@@ -55,9 +55,10 @@ updates:
       - dependency-name: "terminal-link"
       # B4's incumbents, pinned *exactly* in benchmarks/package.json by PLAN 3.5/3.1 (#339).
       # A weight ratio only means something if the release we weigh against is the release
-      # whose own suite we pass — `slice-ansi` is 7.1.2 here and 9.0.0 on npm for that reason.
-      # #333 bumped it to 9.0.0 in a grouped PR, which would have silently re-pointed the
-      # comparison at a version compat-oracle does not grade. Like the hosts above, these move
+      # whose own suite we pass — `slice-ansi` sat at 7.1.2 while npm had 9 for that reason, and
+      # moved to 9.0.1 with its re-vendored suite (#317). #333 bumped it to 9.0.0 in a grouped
+      # PR, which would have silently re-pointed the comparison at a version compat-oracle
+      # did not grade. Like the hosts above, these move
       # only through the re-vendor flow, and the two sides move together.
       - dependency-name: "string-width"
       - dependency-name: "wrap-ansi"
@@ -71,6 +72,19 @@ updates:
       # against its `x`. No suite of its is graded, so the pin is the release the ceiling was
       # measured against, and it moves only when somebody re-measures the pair on purpose.
       - dependency-name: "tinyexec"
+  # The `claude` binary bench.yml (B1) and evals.yml install with `npm ci`. It was
+  # `npm install --global` with no version, which Scorecard flags as unpinned (#34, #81);
+  # the lockfile pins it, and this entry is what keeps the pin from going stale.
+  - package-ecosystem: "npm"
+    directory: "/.github/tools/claude-code"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 1
+    labels: ["dependencies", "ci"]
+    commit-message:
+      prefix: "chore(ci)"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

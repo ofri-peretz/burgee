@@ -44,7 +44,7 @@
     "ora": "9.4.1",
     "picocolors": "^1.1.1",
     "restore-cursor": "^5.1.0",
-    "slice-ansi": "7.1.2",
+    "slice-ansi": "9.0.1",
     "string-width": "8.2.2",
     "strip-ansi": "7.2.0",
     "tinyexec": "1.3.1",
