@@ -127,7 +127,15 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci --ignore-scripts
-      - run: npm run build
+      # Same `turbo run build`, the same 24 tasks with the same hashes, on every cell. On
+      # macOS it runs two tasks at a time instead of turbo's default ten. macos-latest has
+      # three cores, and ten concurrent `next build`s (every docs app) oversubscribe them:
+      # each app's Turbopack compile took 14–24 minutes instead of ~20 s, the step took
+      # ~16 minutes at the median and 25 on a bad run, and this job sat at its 30-minute
+      # timeout. Measured on one commit, one runner type, 2026-09-27 (run 36354199521):
+      # concurrency 10 → 1503 s, 4 → 220 s, 2 → 152 s, the task list and hashes identical
+      # across all three. Linux and Windows (four cores) keep the default.
+      - run: npm run build -- ${{ matrix.os == 'macos-latest' && '--concurrency=2' || '' }}
       - name: Our suite (hard gate on every cell)
         run: npm test
       - name: Controls (informational off Linux)

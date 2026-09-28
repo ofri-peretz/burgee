@@ -24,5 +24,5 @@ export function isJsonFlag(arg: string): boolean {
 export function mayServe(argv: readonly string[]): boolean {
   const head = beforeTerminator(argv);
   const first = argv[0];
-  return first === '__complete' || first === 'completion' || first === 'help' || head[0] === '--mcp' || (head[0] === 'config' && head[1] === 'explain') || head.includes('--schema');
+  return first === '__complete' || first === 'completion' || first === 'help' || first === 'schema' || head[0] === '--mcp' || (head[0] === 'config' && head[1] === 'explain') || head.includes('--schema');
 }
