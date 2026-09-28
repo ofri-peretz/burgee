@@ -5,8 +5,10 @@
  * All four are one concern: what the CLI says about itself before it does anything.
  */
 import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { findUpMultipleSync } from 'seniority/find-up';
 
 import { host } from '../runtime.js';
 
@@ -16,19 +18,21 @@ import { type Options } from './types.js';
 const indent = (text: string, spaces: number): string =>
   text.replace(/^(?!\s*$)/gmu, ' '.repeat(spaces));
 
-/** The nearest `package.json` above the caller's module, which is what `importMeta` is for. */
-
-/** The nearest `package.json` above the caller's module, which is what `importMeta` is for. */
+/**
+ * The nearest `package.json` above the caller's module, which is what `importMeta` is for.
+ *
+ * The walk is seniority's (`seniority/find-up`): bounded, and a symlink ring ends it. What stays
+ * here is meow's reading of what it finds — the nearest one that parses, so a broken
+ * `package.json` in a fixture directory is stepped over rather than fatal, as it was when this
+ * file walked by hand.
+ */
 export function readPackageUp(importMeta: ImportMeta | undefined): Record<string, unknown> {
   if (importMeta?.url === undefined) return {};
-  let dir = dirname(fileURLToPath(importMeta.url));
-  for (let depth = 0; depth < 64; depth += 1) {
+  for (const at of findUpMultipleSync('package.json', { cwd: dirname(fileURLToPath(importMeta.url)) })) {
     try {
-      return JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as Record<string, unknown>;
+      return JSON.parse(readFileSync(at, 'utf8')) as Record<string, unknown>;
     } catch {
-      const up = dirname(dir);
-      if (up === dir) break;
-      dir = up;
+      // Not JSON: keep walking, as the hand-written loop did.
     }
   }
   return {};

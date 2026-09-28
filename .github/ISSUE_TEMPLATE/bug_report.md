@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Report a bug in a commander-* / yargs-* extension or eslint-plugin-cli-floor
+about: Report a bug in burgee or one of its sibling packages
 title: '[BUG] '
 labels: 'bug'
 assignees: ''
@@ -26,7 +26,7 @@ assignees: ''
 
 ## Environment
 
-- **Package**: <!-- e.g. commander-agent, yargs-agent, eslint-plugin-cli-floor -->
+- **Package**: <!-- and the entry point, e.g. burgee/commander, roundel, flagstaff/ora, seniority -->
 - **Version**:
 - **Host parser + version**: <!-- commander@x / yargs@y -->
 - **Node.js**: <!-- node --version -->

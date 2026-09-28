@@ -259,7 +259,9 @@ describe('.github/workflows/citation-probe.yml', () => {
     expect(workflow).toContain('schedule:');
     expect(workflow).toMatch(/- cron: "[^"]+"/);
     expect(workflow).toContain('workflow_dispatch:');
-    expect(workflow).toContain('npm install --global @anthropic-ai/claude-code');
+    // Pinned by .github/tools/claude-code's lockfile, as bench.yml's B1 is (Scorecard Pinned-Dependencies).
+    expect(workflow).toContain('npm ci --prefix .github/tools/claude-code');
+    expect(workflow).not.toMatch(/npm install (--global|-g) @anthropic-ai\/claude-code/);
     expect(workflow).toContain('CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}');
     expect([...workflow.matchAll(/\$\{\{ secrets\.([A-Z_]+)/g)].map((m) => m[1]).filter((s) => !s?.startsWith('RELEASE_'))).toEqual(['CLAUDE_CODE_OAUTH_TOKEN']);
     for (const removed of ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'PERPLEXITY_API_KEY']) expect(workflow).not.toContain(removed);
