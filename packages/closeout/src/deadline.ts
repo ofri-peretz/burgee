@@ -116,10 +116,19 @@ export interface Deadline {
 /**
  * Start the clock.
  *
- * `unref` so the deadline itself never holds the loop open: a timer that keeps a process
- * alive in order to police how long the process takes to die would be its own bug.
+ * **`hold` decides whether the clock keeps the event loop alive (D-164).** A shutdown whose
+ * caller leaves once it settles — `install()` re-raising a signal or exiting 1 for a throw,
+ * `closeout/exit-hook` exiting with its code — has to reach that leave. With an `unref`'d
+ * clock it need not: a handler awaiting something that holds nothing lets the loop drain,
+ * Node leaves through `'exit'` with code 0, and a SIGTERM'd process reports success. Holding
+ * the loop until the deadline is the bound doing its job, not a longer one, and `cancel()`
+ * lets go the moment the run settles. `exit-hook`'s own force-exit timer is not `unref`'d
+ * either, which is why its version of that program exits 143.
+ *
+ * `'beforeExit'`'s shutdown does not hold. The process was leaving on its own and nothing
+ * leaves after that run but Node, so there is no status for it to get wrong.
  */
-export function startDeadline(ms: number): Deadline {
+export function startDeadline(ms: number, hold: boolean): Deadline {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const self = {
     expired: false,
@@ -128,10 +137,12 @@ export function startDeadline(ms: number): Deadline {
         self.expired = true;
         resolve();
       }, ms);
-      timer.unref?.();
+      if (!hold) timer.unref?.();
     }),
+    // No `undefined` guard: the executor above has already run, and `clearTimeout(undefined)`
+    // is a no-op anyway. Its 12 bundled bytes paid for `hold` (D-164).
     cancel(): void {
-      if (timer !== undefined) clearTimeout(timer);
+      clearTimeout(timer);
     },
   };
   return self;
