@@ -269,7 +269,7 @@ has never been measured**:
 | `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 0.966× | ✅ met |
 | `burgee` is lighter than `cac` **plus what a cac user installs to match it** | `lighter-than-cac-at-parity` | 0.248× | ✅ met |
 | `burgee/commander` is lighter than `commander` **plus the same** | `lighter-than-commander-at-parity` | 0.483× | ✅ met |
-| `burgee/yargs` is lighter than `yargs` **plus the same** | `lighter-than-yargs-at-parity` | 0.542× | ✅ met |
+| `burgee/yargs` is lighter than `yargs` **plus the same** | `lighter-than-yargs-at-parity` | 0.541× | ✅ met |
 | `burgee` starts at or below `cac`, the lightest framework in the landscape | `cold-start-at-or-below-cac` | 1.443× | ❌ **not met** |
 | `burgee/commander` is lighter in a user's bundle than `commander` alone | `lighter-than-commander` | 1.560× | ❌ **not met** |
 | `burgee` is lighter in a user's bundle than `cac` alone | `lighter-than-cac` | 2.323× | ❌ **not met** |
@@ -288,7 +288,7 @@ with:
 | :--- | ---: | ---: | ---: |
 | `cac` | 10,452 B | **97,711 B** | 24,277 B |
 | `commander` | 39,084 B | **126,354 B** | 60,969 B |
-| `yargs` | 111,194 B | **198,311 B** | 107,395 B |
+| `yargs` | 111,213 B | **198,330 B** | 107,395 B |
 
 The additions are `cosmiconfig` (find and load a config file), `exit-hook` (run cleanup on
 every path out, including a signal) and `restore-cursor` (hand the terminal back), bundled
