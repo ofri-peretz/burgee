@@ -41,8 +41,9 @@ jobs:
         with:
           turbo-cache: "false"
       # The same install as bench.yml's B1 job: the probe spawns `claude -p`.
+      # Pinned by the lockfile, as bench.yml's B1 install is (Scorecard Pinned-Dependencies).
       - name: Install Claude Code
-        run: npm install --global @anthropic-ai/claude-code
+        run: npm ci --prefix .github/tools/claude-code --no-audit --no-fund && echo "$PWD/.github/tools/claude-code/node_modules/.bin" >> "$GITHUB_PATH"
       - name: Run the probe
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
