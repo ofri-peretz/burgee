@@ -21,7 +21,7 @@ on:
   pull_request:
     branches: [main]
     types: [opened, reopened, ready_for_review, labeled, synchronize]
-  # Required check — see the note in quality.yml. The `gate` job already answers `run=true`
+  # Required check — see the note in quality.yml. Every job's `if:` already answers true
   # for any event that is not a pull request, so a queue entry runs the full set.
   merge_group:
   workflow_dispatch:
@@ -39,31 +39,21 @@ env:
   TURBO_TELEMETRY_DISABLED: "1"
 
 jobs:
-  gate:
-    name: Gate
-    runs-on: ubuntu-latest
-    timeout-minutes: 1
-    outputs:
-      run: ${{ steps.decide.outputs.run }}
-    steps:
-      - id: decide
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          IS_DRAFT: ${{ github.event.pull_request.draft }}
-          HAS_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'run-full-ci') }}
-        run: |
-          set -euo pipefail
-          if [[ "$EVENT_NAME" != "pull_request" ]] || [[ "$IS_DRAFT" == "false" ]] || [[ "$HAS_LABEL" == "true" ]]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Draft PR without \`run-full-ci\` label — skipping heavy quality gates."
-          fi
-
+  # There is no separate `Gate` job deciding whether the heavy jobs run. It used to be one —
+  # a three-second job whose only output was `run=true|false` — and every job below `needs:`
+  # it, so each of them was only *queued* once it finished. On a saturated account (20
+  # concurrent jobs shared with ofri-peretz/eslint) that one hop cost a full runner-queue
+  # wait before test/build/typecheck even entered the queue: 112 s median, 584 s p90 across
+  # 20 PR runs (2026-09-24 → 27). The decision is the same expression evaluated on each job
+  # instead, so the jobs queue at push time:
+  #
+  #   run  ⇔  event is not a pull request  ∨  the PR is not a draft  ∨  it carries `run-full-ci`
+  #
+  # Draft PRs without the label still skip every heavy job and the gate below, exactly as
+  # before. Keep the four copies of the condition identical.
   test:
     name: Unit Tests (Turbo)
-    needs: gate
-    if: needs.gate.outputs.run == 'true'
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false || contains(github.event.pull_request.labels.*.name, 'run-full-ci')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -79,8 +69,7 @@ jobs:
 
   build:
     name: Build (Turbo)
-    needs: gate
-    if: needs.gate.outputs.run == 'true'
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false || contains(github.event.pull_request.labels.*.name, 'run-full-ci')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -92,8 +81,7 @@ jobs:
 
   typecheck:
     name: Typecheck (Turbo)
-    needs: gate
-    if: needs.gate.outputs.run == 'true'
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false || contains(github.event.pull_request.labels.*.name, 'run-full-ci')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -105,8 +93,8 @@ jobs:
     name: Quality (Full) Gate
     runs-on: ubuntu-latest
     timeout-minutes: 2
-    needs: [gate, test, build, typecheck]
-    if: always() && needs.gate.outputs.run == 'true'
+    needs: [test, build, typecheck]
+    if: always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false || contains(github.event.pull_request.labels.*.name, 'run-full-ci'))
     steps:
       - name: Render gate report
         env:
