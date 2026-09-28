@@ -95,7 +95,8 @@ its signal handling → B4 rows → the `signal-exit` override recipe, behind it
 
 **The state machine, stated once.** A handler is in one of three states: `pending`,
 `running`, `settled`. A trigger moves every `pending` handler to `running` and starts the
-deadline. Subsequent triggers of any kind do nothing but record their path in the report.
+deadline. Subsequent triggers of any kind run nothing and wait on the shutdown already in
+flight, so each one's leave comes after `restore`, never before it (D-166).
 The deadline moves anything still `running` to `settled('timeout')`, records its label, and
 lets the exit proceed. Nothing in that description mentions a signal, which is why the
 guarantee holds across all of them.
@@ -592,6 +593,34 @@ before deciding, on real children: **three paths, not one.**
   each) and pass on the fix. `exit-hook` 21 / 21 and `restore-cursor` 6 / 6 unchanged;
   `signal-exit` 126 / 135 on darwin both before and after.
 
+## What shipped (R4 — a second signal waits for the first shutdown — 2026-09-27)
+
+A defect measured while deciding D-164, on the path that decision kept `'beforeExit'` off.
+`run()` returned a synthetic report at once whenever a shutdown had already started, and each
+signal listener in `install.ts` leaves — re-raises — when its own `run()` settles. So a second
+Ctrl-C, or a SIGTERM landing while a run is parked on a `flush` handler, re-raised before the
+first run had reached `restore`, and the process died of it with the terminal still raw, on
+the alternate screen, cursor hidden.
+
+- **The fix: a second `run()` returns the first run's promise.** Every trigger's leave now
+  waits for the one bounded shutdown, so the deadline still ends it and `restore` is invoked
+  first. The process dies of the *first* signal: both leaves are queued on the same promise
+  and the first one queued raises. After `runSync` nothing is in flight and its report is
+  returned as before. D-166.
+- **`closeout/exit-hook` is unaffected.** It checks `runner.settled` and returns without
+  leaving, so it never waited on a second `run()`. `exit-hook` 21 / 21.
+- **Weight: burgee 24,277 → 24,261 B, ceiling 24,282 unchanged.** The in-flight promise
+  costs 22 B, measured on `registry.ts` minified alone, and two deletions in that file pay for
+  it: `state` no longer initialises `finished: undefined` (16 B), and the async path builds
+  its report in a local instead of reading `state.finished` four times (23 B).
+- **Proven red before green:** two spawned cases in `terminal-restore.test.ts` (loop held,
+  `flush` parked, deadline 400 ms, SIGINT then SIGINT or SIGTERM) end at
+  `['raw-on', 'enter-alt', 'hide']` on the unfixed build and pass on the fix, dying of SIGINT
+  with the breach report on stderr.
+- **`'beforeExit'` still does not hold the loop.** D-164's measured reason for that is gone
+  now, but its first reason stands: that process was leaving on its own. Changing it would be
+  a new decision, not part of this fix.
+
 ## The surface a consumer gets, derived from the tree (2026-09-15)
 
 R12 and its shipped entry already say everything about the plugin host. What is missing is
@@ -650,8 +679,8 @@ Beyond "Out of scope" below:
 - **It does not accept `Infinity` or `0` as a deadline.** Both are rejected at registration.
   An unbounded deadline is the failure this package exists to remove, and a zero one is a
   shutdown that never runs.
-- **It does not run handlers twice.** A second trigger of any kind records its path in the
-  report and runs nothing.
+- **It does not run handlers twice.** A second trigger of any kind runs nothing and resolves
+  with the first shutdown's report, once that shutdown has finished.
 - **It does not end a process it did not start, and does not supervise children.** That is
   `bellpull`, one layer over, and the edge between them is a structural parameter rather than
   a dependency.
