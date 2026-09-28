@@ -409,9 +409,16 @@ function links(file: string): string[] {
 }
 
 /**
+ * A path the app serves from a route handler rather than a content page — `/llms.txt` is
+ * `src/app/llms.txt/route.ts`, which every package README's *For agents* section links.
+ */
+const routed = (row: Row, path: string): boolean => path !== '' && existsSync(join(REPO_ROOT, row.dir, 'src', 'app', ...path.split('/').filter(Boolean), 'route.ts'));
+
+/**
  * Whether `href`, written in `row`'s content, lands on a page: a root-relative `/docs` link
- * against the app it is in, an absolute link to any row's host against that row's app. Links
- * anywhere else — GitHub, npm, a site's home page — are not this lock's to judge.
+ * against the app it is in, an absolute link to any row's host against that row's app — its
+ * content pages, or a route handler. Links anywhere else — GitHub, npm, a site's home page —
+ * are not this lock's to judge.
  */
 function lands(row: Row, href: string): boolean {
   const target = href.replace(/[#?].*$/u, '').replace(/\/$/u, '');
@@ -420,10 +427,17 @@ function lands(row: Row, href: string): boolean {
   const url = new URL(target);
   const owner = BY_HOST.get(url.host);
   const path = url.pathname.replace(/\/$/u, '');
-  return owner === undefined || path === '' || pagesOf(owner).has(path.replace(/\.md$/u, ''));
+  return owner === undefined || path === '' || pagesOf(owner).has(path.replace(/\.md$/u, '')) || routed(owner, path);
 }
 
 describe('every link in every app’s content lands on a page', () => {
+  it('counts a route handler as a page, and only one that exists', () => {
+    const [, row] = ROWS.find(([, r]) => !r.familyPages)!;
+    const host = row.productionUrl;
+    expect(lands(row, `${host}/llms.txt`)).toBe(true);
+    expect(lands(row, `${host}/llms-nowhere.txt`)).toBe(false);
+  });
+
   it.each(ROWS)('%s', (_key, row) => {
     const broken = walk(join(REPO_ROOT, row.dir, 'content'))
       .filter((f) => /\.mdx?$/u.test(f))
