@@ -201,6 +201,31 @@ describe.skipIf(process.platform === 'win32')('the terminal a real process leave
     CASE_TIMEOUT_MS,
   );
 
+  /**
+   * A second signal while the first shutdown is parked on `flush`: the second Ctrl-C of an
+   * impatient user, or a supervisor's SIGTERM behind it. Each signal listener leaves when
+   * its own `run` settles, and a second `run` used to settle at once with a synthetic
+   * report — so the second signal was re-raised, and the process died of it, before the
+   * first run had reached `restore`. The terminal stayed raw, on the alternate screen, with
+   * the cursor hidden.
+   */
+  it.each(['SIGINT', 'SIGTERM'])(
+    'a second signal (%s) while a handler holds the first shutdown',
+    (second) => {
+      const observed = runChild([
+        ...prelude({ deadline: 400, held: true }),
+        "closeout.onExit(() => new Promise(() => {}), { phase: 'flush', label: 'still-flushing' });",
+        `setTimeout(() => process.kill(process.pid, 'SIGINT'), ${String(SIGNAL_AFTER_MS)});`,
+        `setTimeout(() => process.kill(process.pid, '${second}'), ${String(SIGNAL_AFTER_MS * 2)});`,
+      ]);
+
+      expect(observed.tokens).toEqual([...ENTERED, ...RESTORED]);
+      expect(observed.killedBy, 'and it dies of the first signal, once the deadline has run').toBe('SIGINT');
+      expect(observed.stderr).toContain('still-flushing');
+    },
+    CASE_TIMEOUT_MS,
+  );
+
   it.each(['SIGINT', 'SIGTERM', 'SIGHUP'])(
     '%s',
     (signal) => {
