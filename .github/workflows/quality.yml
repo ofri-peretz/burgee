@@ -57,39 +57,39 @@ jobs:
           node-modules-cache: "false"
       - run: npx eslint . --max-warnings 0
 
-  markdown:
-    name: Markdown Lint
+  # The four cheap checks share one job. Each used to be its own job, and each spent more
+  # time waiting for a runner than running: on the saturated account (20 concurrent jobs,
+  # shared with ofri-peretz/eslint) the required `Quality Gate` waited for the LAST of five
+  # feeders to be scheduled, and a 20-second Markdown Lint could draw a 14-minute queue
+  # slot. One job is one draw instead of four.
+  #
+  # Nothing about what runs changed: the same four commands, on the same runner image, with
+  # the same Node and the same install. Lockfile Sync runs first, before anything is
+  # installed, because that is what it saw in its own job — `npm ci --dry-run` against a
+  # bare checkout. Every later check runs whatever happened to the ones before it
+  # (`!cancelled()`), so a red markdown lint still leaves the workflow and page checks
+  # reporting, as four jobs did. Each check's own outcome is a job output, and the gate
+  # below prints it per row; the gate's pass/fail reads the job's result.
+  #
+  # `lint` stays its own job — it is the deliberately uncached install (see above).
+  fast:
+    name: Fast checks (markdown · workflows · lockfile · generated pages)
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: ./.github/actions/setup
-        with:
-          turbo-cache: "false"
-      - run: npm run lint:md
-
-  workflows:
-    name: Workflow Conventions
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: ./.github/actions/setup
-        with:
-          turbo-cache: "false"
-      - run: npm run lint:workflows
-
-  lockfile:
-    name: Lockfile Sync
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 10
+    outputs:
+      markdown: ${{ steps.markdown.outcome }}
+      workflows: ${{ steps.workflows.outcome }}
+      lockfile: ${{ steps.lockfile.outcome }}
+      bench_page: ${{ steps.bench_page.outcome }}
+      plugins_page: ${{ steps.plugins_page.outcome }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
           node-version-file: .nvmrc
           cache: npm
-      - name: Verify package-lock.json is in sync
+      - name: Lockfile Sync (package-lock.json matches every package.json)
+        id: lockfile
         # `npm ci --dry-run` validates the manifests against the lock without rewriting it.
         # The previous check re-ran `npm install --package-lock-only` and diffed, but npm
         # records the wasm32 optional's dependencies (@emnapi/*) only on some platforms, so
@@ -102,68 +102,85 @@ jobs:
             exit 1
           fi
           echo "✅ Lockfile is in sync."
+      - id: setup
+        if: ${{ !cancelled() }}
+        uses: ./.github/actions/setup
+        with:
+          turbo-cache: "false"
+      - name: Markdown Lint
+        id: markdown
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: npm run lint:md
+      - name: Workflow Conventions
+        id: workflows
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: npm run lint:workflows
 
-  # A page whose gate is not REQUIRED is a page with no gate.
-  #
-  # `bench:page --check` already existed and already worked — it sat in bench.yml's
-  # `cheap` job, which reports `B2 cold start · B3 compatibility · B4 weight` and is not a
-  # required context. Its sibling on the other generated page proved what that is worth:
-  # `compat:page --check` went RED on PR #197 at 14:44:16 and the PR merged at 14:44:45,
-  # 29 seconds later, because nothing was stopping it. main was red until #199.
-  #
-  # It lives here, in the fast lane the required `Quality Gate` aggregates, rather than
-  # beside the benchmark run, for two reasons: it belongs to a required check, and it is
-  # 0.4s of `tsx` over committed JSON — it has no business waiting behind a 30-minute
-  # benchmark job whose perf gates are the flaky part (issue #27). Comparing the committed
-  # page against the COMMITTED results is the whole point, so nothing needs measuring
-  # first.
-  #
-  # `compat:page --check` cannot move here: its inputs (`results.json`,
-  # `results.control.json`) are produced by grading and are not committed. It stays in
-  # compat.yml's `ratchet` job, which this change makes a required context instead.
-  generated-pages:
-    name: Generated Pages
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: ./.github/actions/setup
+      # A page whose gate is not REQUIRED is a page with no gate.
+      #
+      # `bench:page --check` already existed and already worked — it sat in bench.yml's
+      # `cheap` job, which reports `B2 cold start · B3 compatibility · B4 weight` and is not a
+      # required context. Its sibling on the other generated page proved what that is worth:
+      # `compat:page --check` went RED on PR #197 at 14:44:16 and the PR merged at 14:44:45,
+      # 29 seconds later, because nothing was stopping it. main was red until #199.
+      #
+      # It lives here, in the fast lane the required `Quality Gate` aggregates, rather than
+      # beside the benchmark run, for two reasons: it belongs to a required check, and it is
+      # 0.4s of `tsx` over committed JSON — it has no business waiting behind a 30-minute
+      # benchmark job whose perf gates are the flaky part (issue #27). Comparing the committed
+      # page against the COMMITTED results is the whole point, so nothing needs measuring
+      # first.
+      #
+      # `compat:page --check` cannot move here: its inputs (`results.json`,
+      # `results.control.json`) are produced by grading and are not committed. It stays in
+      # compat.yml's `ratchet` job, which this change makes a required context instead.
       - name: The published benchmarks page is the one the committed results generate
+        id: bench_page
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: npm run bench:page -- --check
       # Its inputs — each package's Plugin type, the schema, the manifests, the oracle's host
       # table and the example — are all committed, so it belongs in this fast required lane.
       - name: The published plugins page is the one the packages generate
+        id: plugins_page
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: npm run plugins:page -- --check
 
   quality-gate:
     name: Quality Gate
     runs-on: ubuntu-latest
     timeout-minutes: 2
-    needs: [lint, markdown, workflows, lockfile, generated-pages]
+    needs: [lint, fast]
     if: always()
     steps:
       - name: Render gate report
         env:
           R_LINT: ${{ needs.lint.result }}
-          R_MARKDOWN: ${{ needs.markdown.result }}
-          R_WORKFLOWS: ${{ needs.workflows.result }}
-          R_LOCKFILE: ${{ needs.lockfile.result }}
-          R_PAGES: ${{ needs['generated-pages'].result }}
+          R_FAST: ${{ needs.fast.result }}
+          # Per-check outcomes, for the table. A check that never ran (the job was cancelled
+          # or never started) has no outcome; its row falls back to the job's result.
+          O_MARKDOWN: ${{ needs.fast.outputs.markdown || needs.fast.result }}
+          O_WORKFLOWS: ${{ needs.fast.outputs.workflows || needs.fast.result }}
+          O_LOCKFILE: ${{ needs.fast.outputs.lockfile || needs.fast.result }}
+          O_BENCH_PAGE: ${{ needs.fast.outputs.bench_page || needs.fast.result }}
+          O_PLUGINS_PAGE: ${{ needs.fast.outputs.plugins_page || needs.fast.result }}
         run: |
           set -euo pipefail
           icon() { case "$1" in success) echo "✅";; failure) echo "❌";; cancelled) echo "⏹";; skipped) echo "⏭";; *) echo "⚠️";; esac; }
+          # Pass/fail reads the two JOB results: `fast` is green only if every one of its
+          # checks was. The per-check outcomes below are the report, not the verdict.
           all_pass=true
-          for r in "$R_LINT" "$R_MARKDOWN" "$R_WORKFLOWS" "$R_LOCKFILE" "$R_PAGES"; do [ "$r" = "success" ] || all_pass=false; done
+          for r in "$R_LINT" "$R_FAST"; do [ "$r" = "success" ] || all_pass=false; done
           {
             if $all_pass; then echo "# ✅ Fast quality gates passed"; else echo "# ❌ One or more fast quality gates failed"; fi
             echo ""
             echo "| Gate | Result |"
             echo "|---|---|"
             echo "| Lint (11 Interlace plugins, 0 warnings) | $(icon "$R_LINT") $R_LINT |"
-            echo "| Markdown lint | $(icon "$R_MARKDOWN") $R_MARKDOWN |"
-            echo "| Workflow conventions | $(icon "$R_WORKFLOWS") $R_WORKFLOWS |"
-            echo "| Lockfile sync | $(icon "$R_LOCKFILE") $R_LOCKFILE |"
-            echo "| Generated pages match their sources | $(icon "$R_PAGES") $R_PAGES |"
+            echo "| Markdown lint | $(icon "$O_MARKDOWN") $O_MARKDOWN |"
+            echo "| Workflow conventions | $(icon "$O_WORKFLOWS") $O_WORKFLOWS |"
+            echo "| Lockfile sync | $(icon "$O_LOCKFILE") $O_LOCKFILE |"
+            echo "| Generated pages match their sources (benchmarks) | $(icon "$O_BENCH_PAGE") $O_BENCH_PAGE |"
+            echo "| Generated pages match their sources (plugins) | $(icon "$O_PLUGINS_PAGE") $O_PLUGINS_PAGE |"
             echo ""
             echo "_Heavy gates (test / build / typecheck) run in \`quality-full.yml\` once the PR is ready for review or labelled \`run-full-ci\`._"
           } >> "$GITHUB_STEP_SUMMARY"

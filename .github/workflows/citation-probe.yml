@@ -1,16 +1,16 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 name: AI Citation Probe
 
-# Roadmap `marketing-and-docs` 2.4: five fixed questions, put to Claude, OpenAI and
-# Perplexity with web search on, once a week. `scripts/citation-probe.ts` records whether
+# Roadmap `marketing-and-docs` 2.4: five fixed questions, put to Claude through the Claude
+# Code CLI with web search on, once a week. `scripts/citation-probe.ts` records whether
 # each answer names burgee and which URLs it cites, in
 # `.sdlc/research/citation-probe/<date>.json`, and the `record` job lands that file on main
 # through a pull request.
 #
-# Each assistant is gated on its own secret — ANTHROPIC_API_KEY, OPENAI_API_KEY,
-# PERPLEXITY_API_KEY. A missing one is a `::notice::` and a `skipped` entry, never a
-# failure, so the file is written and landed every week, and the series shows the weeks
-# nothing was measured.
+# One assistant, one secret: CLAUDE_CODE_OAUTH_TOKEN, the one bench.yml and evals.yml use.
+# The owner decided on 2026-09-27 not to add provider API keys for other assistants. A
+# missing token is a `::notice::` and a `skipped` run, never a failure; an all-skipped run
+# is not landed (see the `record` job).
 
 on:
   schedule:
@@ -29,8 +29,7 @@ jobs:
   probe:
     name: Ask the five questions
     runs-on: ubuntu-latest
-    # Fifteen questions, five per assistant run one after another, the assistants in
-    # parallel; each question has a four-minute budget in the script.
+    # Five questions, one after another, each with a four-minute budget in the script.
     timeout-minutes: 30
     permissions:
       contents: read
@@ -41,11 +40,12 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           turbo-cache: "false"
+      # The same install as bench.yml's B1 job: the probe spawns `claude -p`.
+      - name: Install Claude Code
+        run: npm install --global @anthropic-ai/claude-code
       - name: Run the probe
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         shell: bash
         run: |
           set -o pipefail
@@ -66,7 +66,7 @@ jobs:
   # The shape and credential order of `evals.yml`'s `record` job, which explains them:
   # the release App's token, then RELEASE_BOT_PAT, then GITHUB_TOKEN with a warning (a pull
   # request GITHUB_TOKEN opens raises no checks, so it waits for a human). A separate job so
-  # the one holding the provider keys never holds a write token.
+  # the one holding CLAUDE_CODE_OAUTH_TOKEN never holds a write token.
   record:
     name: Record the run in .sdlc/research/citation-probe
     needs: probe
@@ -107,9 +107,9 @@ jobs:
           if [ -z "$(git status --porcelain .sdlc/research/citation-probe/)" ]; then
             echo "Nothing new to record."; exit 0
           fi
-          # Until a key exists every observation is `skipped`; a PR a week saying so is noise.
+          # Until the token exists every observation is `skipped`; a PR a week saying so is noise.
           if node -e 'const fs=require("fs"),d=".sdlc/research/citation-probe/";const f=fs.readdirSync(d).filter(n=>n.endsWith(".json")).sort().pop();const r=JSON.parse(fs.readFileSync(d+f,"utf8"));process.exit(r.observations.every(o=>o.status==="skipped")?0:1)'; then
-            echo "::notice::Every assistant was skipped (no ANTHROPIC_API_KEY, OPENAI_API_KEY or PERPLEXITY_API_KEY); nothing to record."; exit 0
+            echo "::notice::The probe was skipped (no CLAUDE_CODE_OAUTH_TOKEN); nothing to record."; exit 0
           fi
           # The run id, not the date: a dispatch and the schedule on one day would otherwise
           # collide on the branch name.
