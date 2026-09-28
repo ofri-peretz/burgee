@@ -29,6 +29,13 @@ export interface VendorResult {
   internalFiles: string[];
   /** Internal module paths the suite imports, shimmed per run (e.g. `lib/command.js`). */
   internals: string[];
+  /**
+   * `extraDirs` entries this release does not ship, skipped rather than copied. Empty when
+   * every one was there. A non-empty list is a stale declaration to prune when the host is
+   * re-vendored at this release — not an error, because the list is written for the pinned
+   * version and the upstream check vendors a newer one.
+   */
+  missingExtras: string[];
   /** The record written, and how it differs from the one it replaced. */
   record: CompatRecord;
   previous?: CompatRecord;
@@ -401,7 +408,19 @@ export function vendor(host: Host, into: string, version = host.pinnedVersion ??
     const dest = join(staging, host.testDir);
     mkdirSync(dest, { recursive: true });
 
+    // **A fixture the release no longer ships is skipped and named, not fatal.** `extraDirs`
+    // is written for the version the host is vendored at, and `--upstream` vendors the
+    // *latest* one into scratch to diff it. dotenv 18 deleted `tests/.env.vault` together
+    // with the vault tests that read it (upstream 4bb2dbd), so the 17.4.2 declaration was
+    // right and `cpSync` threw ENOENT anyway — and one host's throw ended the daily check
+    // for every host after it, before any issue was opened. A test that still reads a
+    // skipped fixture fails in the control run, which is where that belongs.
+    const missingExtras: string[] = [];
     for (const extra of host.extraDirs ?? []) {
+      if (!existsSync(join(clone, extra))) {
+        missingExtras.push(extra);
+        continue;
+      }
       cpSync(join(clone, extra), join(staging, extra), { recursive: true, verbatimSymlinks: true });
     }
 
@@ -449,7 +468,7 @@ export function vendor(host: Host, into: string, version = host.pinnedVersion ??
     rmSync(live, { recursive: true, force: true });
     renameSync(staging, live);
 
-    const result: VendorResult = { host: host.name, commit, version, tag, files, internalFiles, internals: [...internals].sort(), record };
+    const result: VendorResult = { host: host.name, commit, version, tag, files, internalFiles, internals: [...internals].sort(), missingExtras, record };
     if (previous !== undefined) {
       result.previous = previous;
       result.diff = diffRecords(previous, record);
