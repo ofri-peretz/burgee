@@ -12,7 +12,8 @@
  *    backtracking regex still does.
  * 2. apply-extends' `/\.json|\..*rc$/` is the same shape on a run of dots (#22).
  * 3. `pkgConf('__proto__')` read `obj[key]` bare, handed Object.prototype to applyExtends,
- *    and applyExtends deletes `extends` from the object it is given (#27).
+ *    and applyExtends deletes `extends` from the object it is given (#27). Both halves are
+ *    closed: pkgConf reads own keys only, and applyExtends copies instead of deleting.
  * 4. zsh completions escaped `:` and not `\` (#23–#26), so `_describe`, which strips one
  *    level of backslashes, completed `a\b` as `ab`.
  *
@@ -146,6 +147,19 @@ describe("pkgConf('__proto__') never reaches Object.prototype (#27)", () => {
         delete (Object.prototype as { extends?: unknown }).extends;
       }
       expect(configObjects(y)).toEqual([]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('applyExtends never writes to the object it is given, and returns it without `extends`', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'burgee-extends-'));
+    try {
+      writeFileSync(join(dir, 'base.json'), '{"level":1,"base":true}');
+      const config = { extends: './base.json', level: 2 };
+      const frozen = Object.freeze({ ...config });
+      expect(applyExtends(frozen, dir)).toEqual({ level: 2, base: true });
+      expect(frozen).toEqual(config);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

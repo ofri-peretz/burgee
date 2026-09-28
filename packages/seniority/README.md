@@ -8,15 +8,37 @@
 </p>
 
 <p align="center">
+  Which source outranks the others — one resolution for flags, environment, config files and defaults, with provenance, so every value can say where it came from.
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/seniority"><img src="https://img.shields.io/npm/v/seniority?style=flat-square&color=0a6b47" alt="seniority on npm: the latest version" /></a>
+  <a href="https://www.npmjs.com/package/seniority"><img src="https://img.shields.io/npm/dm/seniority?style=flat-square" alt="seniority downloads per month on npm" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/actions/workflows/quality.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/ofri-peretz/burgee/quality.yml?branch=main&style=flat-square&label=Quality%20Gate" alt="Quality Gate: the CI status of main" /></a>
+  <a href="https://app.codecov.io/gh/ofri-peretz/burgee/components"><img src="https://img.shields.io/codecov/c/github/ofri-peretz/burgee/main?component=seniority&style=flat-square" alt="seniority line coverage: its Codecov component" /></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/ofri-peretz/burgee"><img src="https://img.shields.io/ossf-scorecard/github.com/ofri-peretz/burgee?style=flat-square&label=OpenSSF%20Scorecard" alt="OpenSSF Scorecard for the repository" /></a>
+  <a href="https://www.npmjs.com/package/seniority?activeTab=code"><img src="https://img.shields.io/npm/unpacked-size/seniority?style=flat-square" alt="Unpacked size of the latest seniority release on npm" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/seniority/package.json"><img src="https://img.shields.io/badge/dependencies-0-0a6b47?style=flat-square" alt="Zero dependencies" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/seniority/package.json"><img src="https://img.shields.io/badge/types-included-blue?style=flat-square" alt="TypeScript types included for every entry point" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/seniority/package.json"><img src="https://img.shields.io/badge/Node.js-20.19%2B%20%7C%2022.13%2B-green?style=flat-square" alt="Node.js 20.19+ or 22.13+" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/seniority/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License: MIT" /></a>
+  <a href="https://www.npmjs.com/package/seniority#provenance"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fregistry.npmjs.org%2Fseniority%2Flatest&query=%24.dist.attestations.provenance~&label=npm&style=flat-square&color=0a6b47" alt="Published to npm with provenance, read live from the registry attestation of the latest release" /></a>
+</p>
+
+<p align="center">
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/cosmiconfig%20suite-186%2F243-b45309?style=flat-square" alt="seniority passes 186 of 243 cases of the cosmiconfig test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/dotenv%20suite-106%2F141-b45309?style=flat-square" alt="seniority passes 106 of 141 cases of the dotenv test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/lilconfig%20suite-77%2F77-0a6b47?style=flat-square" alt="seniority passes 77 of 77 cases of the lilconfig test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/rc%20suite-1%2F1-0a6b47?style=flat-square" alt="seniority/rc passes 1 of 1 cases of the rc test suite" /></a>
+</p>
+
+<p align="center">
   Docs: <a href="https://seniority.interlace.tools">https://seniority.interlace.tools</a><br />
   Migrating from: <a href="https://seniority.interlace.tools/docs/coming-from/cosmiconfig">cosmiconfig</a> · <a href="https://seniority.interlace.tools/docs/coming-from/dotenv">dotenv</a> · <a href="https://seniority.interlace.tools/docs/coming-from/rc">rc</a>
 </p>
 
-**Which source outranks the others.**
-
 One resolution for flags, environment variables, config files, a `package.json` field and
-declared defaults — in a fixed order, with **provenance**, so every value can say where it
-came from.
+declared defaults — in a fixed order, with **provenance**.
 
 It replaces **cosmiconfig**, **dotenv** and **rc**, each through a drop-in path graded by that
 incumbent's own suite. The provenance is data too: `explanationJson()` is the `--json` record
@@ -29,21 +51,16 @@ flag  >  env  >  config file  >  package.json field  >  default
 
 Zero dependencies. Node builtins only. Works with any option type you already have.
 
+## Install
+
 ```bash
-npm i seniority
+npm install seniority
+pnpm add seniority
+yarn add seniority
+bun add seniority
 ```
 
-## The problem
-
-Every CLI grows the same tangle. A flag overrides an env var, which overrides a config
-file, which overrides a default — except in the one place somebody wrote the checks in a
-different order, and now `--verbose` loses to `VERBOSE=0` on Tuesdays. Then a user asks
-"why is this set to `us-east-1`?" and nobody can answer without reading the source.
-
-`seniority` makes the order a property of the library rather than of each call site, and
-makes the answer to "where did this come from" a return value.
-
-## Use
+## Quick start
 
 ```js
 import { resolve, explain } from "seniority";
@@ -82,6 +99,16 @@ region = "eu-2"   from config file ./app.config.json
 Every candidate, including the ones that were unset and the ones that lost. That output is
 generated by the same code that picked the value, so it cannot drift from the truth.
 
+## The problem
+
+Every CLI grows the same tangle. A flag overrides an env var, which overrides a config
+file, which overrides a default — except in the one place somebody wrote the checks in a
+different order, and now `--verbose` loses to `VERBOSE=0` on Tuesdays. Then a user asks
+"why is this set to `us-east-1`?" and nobody can answer without reading the source.
+
+`seniority` makes the order a property of the library rather than of each call site, and
+makes the answer to "where did this come from" a return value.
+
 ## The order is not configurable
 
 Deliberately. A precedence a program can rearrange is a precedence nobody can reason about
@@ -95,36 +122,6 @@ import { ORDER, RANK } from 'seniority';
 //  ['flag', 'env', 'config', 'package', 'default']
 //     0       10       20        30         40
 ```
-
-## Plugins
-
-A plugin can **add** a source — a vault, a CI variable set, a remote config — under the
-family's one plugin key, `sources`. It cannot reorder the five above it.
-
-```js
-import { register, sources } from 'seniority/plugin';
-import { explain, RANK, resolve } from 'seniority';
-
-register({
-  name: 'acme-vault',
-  sources: {
-    vault: {
-      rank: RANK.env + 1, // between the environment and the config file
-      read: (rt) => ({ location: 'acme://vault/ci', values: { region: rt.env.CI_REGION } }),
-    },
-  },
-});
-
-const r = resolve(specs, { flags, env, sources: sources({ env, cwd }) });
-explain('region', r); // region = "eu-1"   from vault acme://vault/ci
-```
-
-- **`rank`** must be an integer strictly between `RANK.flag` and `RANK.default`. A plugin
-  may never beat the flag the user typed, nor sink below the declared default.
-- **A source is data or a reader, and exactly one.** `values: { … }` for a constant source,
-  which a tool can read without running it; `read(runtime)` for one that has to go and look.
-  `read` gets the `{ env, cwd }` you pass it — this package still touches no globals.
-- **Every other key is ignored**, so one plugin object works across the whole family.
 
 ## `resolve` is pure
 
@@ -184,6 +181,193 @@ to exist for it to be useful to you.
   how a config becomes unreadable.
 - Env applies only to options the running command declares — never to a sibling command's.
 
+## Plugins
+
+A plugin can **add** a source — a vault, a CI variable set, a remote config — under the
+family's one plugin key, `sources`. It cannot reorder the five above it.
+
+```js
+import { register, sources } from 'seniority/plugin';
+import { explain, RANK, resolve } from 'seniority';
+
+register({
+  name: 'acme-vault',
+  sources: {
+    vault: {
+      rank: RANK.env + 1, // between the environment and the config file
+      read: (rt) => ({ location: 'acme://vault/ci', values: { region: rt.env.CI_REGION } }),
+    },
+  },
+});
+
+const r = resolve(specs, { flags, env, sources: sources({ env, cwd }) });
+explain('region', r); // region = "eu-1"   from vault acme://vault/ci
+```
+
+- **`rank`** must be an integer strictly between `RANK.flag` and `RANK.default`. A plugin
+  may never beat the flag the user typed, nor sink below the declared default.
+- **A source is data or a reader, and exactly one.** `values: { … }` for a constant source,
+  which a tool can read without running it; `read(runtime)` for one that has to go and look.
+  `read` gets the `{ env, cwd }` you pass it — this package still touches no globals.
+- **Every other key is ignored**, so one plugin object works across the whole family.
+
+## Migrating
+
+Each path starts with one import change. `npx burgee migrate --dry-run` lists the imports the
+codemod would rewrite — only drop-ins graded level with their incumbent — and
+`npx burgee migrate` makes the change ([Migrate](https://burgee.interlace.tools/docs/migrate)).
+
+### `cosmiconfig`
+
+The root export carries cosmiconfig's own surface, so a migration is the import line:
+
+```diff
+- import { cosmiconfig } from "cosmiconfig";
++ import { cosmiconfig } from "seniority";
+```
+
+`cosmiconfig`, `cosmiconfigSync`, `Explorer`, `ExplorerSync`, `defaultLoaders`,
+`defaultLoadersSync`, `getDefaultSearchPlaces`, `globalConfigSearchPlaces`, `metaSearchPlaces`
+— all three search strategies, both caches, `$import`, and the meta-config merge.
+
+### `seniority/dotenv`
+
+`config`, `parse` and `populate` are dotenv 17's, grammar included, so a migration is the
+import line:
+
+```diff
+- import dotenv from "dotenv";
++ import dotenv from "seniority/dotenv";
+```
+
+`config()` behaves as dotenv's does when told nothing: it reads `./.env` from the working
+directory into `process.env`. Pass `processEnv` to populate another object, and `path` for
+another file (or several, a `URL`, a leading `~`). There is no `dotenv/config` preload entry —
+call `config()` once at your entry point — and `decrypt` and the `.env.vault` format, which
+dotenv deprecated in favour of dotenvx, are not built.
+
+The process is read in one place, `src/runtime.ts`, and only by the drop-in paths whose
+incumbents read it by default. `resolve` never reads it, and `parse` works on a string you
+already have — in a test, in a browser build, anywhere.
+
+### `seniority/lilconfig`
+
+`lilconfig`, `lilconfigSync`, `defaultLoaders`, `defaultLoadersSync` — lilconfig's search
+places, its loader tables (`.json` through `require` in the sync one, exactly as upstream),
+its caches, and its disagreements with cosmiconfig kept rather than smoothed over:
+
+```diff
+- import { lilconfigSync } from "lilconfig";
++ import { lilconfigSync } from "seniority/lilconfig";
+```
+
+Its own entry point, not the root: lilconfig's last test reads the *keys* of the module it is
+given and compares them with cosmiconfig's, so one module cannot honestly be both.
+
+### `seniority/rc`
+
+rc's merge — the `/etc`, `$HOME` and upward-walk file stack in rc's own order, `__` nesting
+for environment keys, JSON with comments, `deep-extend`'s merge, and the `configs` / `config`
+report of which files were actually read — with none of rc's four dependencies.
+
+```diff
+- const config = require("rc")("mytool", defaults);
++ import rc from "seniority/rc";
++ const config = rc("mytool", defaults, argv);
+```
+
+Like rc, it reads the process's environment when you pass none; a fifth argument,
+`{ env, cwd, home, win }`, supplies the world instead. Two differences, both on purpose. The
+command line is an argument: rc fills a missing `argv` with `minimist(process.argv.slice(2))`,
+and this treats it as empty. And an INI-shaped file is refused by name rather than parsed —
+pass `ini.parse` in rc's own fourth position and you have rc's behaviour, with the parser as
+*your* dependency.
+
+### `seniority/find-up`
+
+`findUp`, `findUpSync`, `findUpMultiple`, `findUpMultipleSync` over the same bounded walk —
+`stopAt`, a depth limit, and a symlink ring that ends the walk instead of spinning it.
+`find-up` → `locate-path` → `p-locate` → `path-exists` is four packages for that.
+
+## Compatibility
+
+What `cosmiconfig`, `dotenv`, `rc` and `find-up` do between them — discovery, `extends`, env
+loading, precedence, the upward walk — is one problem. This is one package with no
+dependencies rather than four with a tree.
+
+Each path is graded by its incumbent's own suite, run unmodified through `compat-oracle`; the
+current grades are generated under *Benchmarks* below and published on the
+[compatibility page](https://burgee.interlace.tools/docs/compatibility).
+
+### `cosmiconfig`
+
+**Graded by cosmiconfig 10.0.1's own test suite: 186 of 243 cases.** Not "compatible" — a
+number, from the incumbent's tests, run unmodified. Where it stops is one thing:
+
+> **YAML.** cosmiconfig reads `.yaml`, `.yml` and extensionless files through `js-yaml`.
+> This package bundles no format parser, so `loadYaml` here reads the subset of YAML that is
+> also JSON — which is every JSON document — and **refuses the rest by name**, telling you to
+> pass `loaders: { '.yaml': yaml.load }`. Do that and you have cosmiconfig's behaviour
+> exactly, with the parser as *your* dependency rather than everyone's.
+
+Every one of the 55 cases not passing is that, bar one that is the test harness reaching for a
+file path the vendored copy does not have. None of them is a difference in how a config is
+found, merged or reported — and that is counted rather than claimed: every failing entry in
+the raw output was matched against its own diagnostic, and 54 of the 55 carry the "no YAML
+parser" refusal above. The largest block is the whole of `import.test.ts`, 22 cases: `$import`
+works, and every fixture it is tested with is `.yml`.
+
+### `seniority/dotenv`
+
+**Graded by dotenv 17.4.2's own test suite: 106 of 141.** The 35 not passing are 27 in the
+`.env.vault` / `decrypt` path and 2 dotenvx tips, both declined above, and 6 that load
+dotenv's private `lib/*` modules by path.
+
+### `seniority/lilconfig`
+
+**Graded by lilconfig 3.1.3's own test suite: 77 of 77 cases, the same as the real
+`lilconfig` gets here.** Ten of them assert which files were read by mocking `fs` with
+`jest.mock`; since #549 the oracle applies that mock the way jest does, so they run and pass
+instead of failing for both.
+
+### `seniority/rc`
+
+**Graded by rc 1.2.8's own test: 1 of 1 — by exit code.** That suite is one script of bare
+assertions with no reporter, so the grade is one bit: the script ran against this package and
+exited 0. It is not 100% of anything.
+
+## Benchmarks
+
+Every number here is produced by `npm run bench` and published at [burgee.interlace.tools/docs/benchmarks](https://burgee.interlace.tools/docs/benchmarks).
+
+Graded by the incumbent's own test suite:
+
+| suite | passing |
+| :-- | --: |
+| `cosmiconfig` | 186 / 243 |
+| `dotenv` | 106 / 141 |
+| `lilconfig` | 77 / 77 |
+| `rc` | 1 / 1 |
+
+Weight, installed and tree-inclusive: **164,456 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.0834**.
+
+## For agents
+
+- **"Why is this set?" has a machine answer.** `explanation(name, res)` is `--explain` as a
+  record; `explanationJson()` is the same record as `--json` data and `explanationEvent()` as an
+  agent event, so an agent gets the answer a person does — every candidate, including the ones
+  that were unset and the ones that lost.
+- **The order is data.** `ORDER` and `RANK` are exported, so a tool reading your `--schema` can
+  state the precedence without guessing it.
+- **`resolve` touches nothing.** No filesystem, no `process.env`, no globals: pass the
+  environment in and the same inputs give the same answer anywhere.
+- **A source plugin can be checked before it ships.** `npx seniority check ./vault.mjs`
+  validates it against the family schema and exits 0, 1 with a code and a fix, or 2 on a usage
+  error.
+- **The docs are machine-readable** at
+  [seniority.interlace.tools/llms.txt](https://seniority.interlace.tools/llms.txt) and
+  [llms-full.txt](https://seniority.interlace.tools/llms-full.txt).
+
 ## API
 
 |                               |                                                                              |
@@ -220,132 +404,42 @@ From `seniority/plugin`:
 | `registered()`       | the plugins registered, in order                                  |
 | `PluginError`        | `E_PLUGIN_SCHEMA` or `E_PLUGIN_CONTRACT`, with a `fix`            |
 
-## Replaces
+Every export, with its types, is on [seniority.interlace.tools](https://seniority.interlace.tools/docs).
 
-What `cosmiconfig`, `dotenv`, `rc` and `find-up` do between them — discovery, `extends`, env
-loading, precedence, the upward walk — is one problem. This is one package with no
-dependencies rather than four with a tree.
-
-### `cosmiconfig`
-
-The root export carries cosmiconfig's own surface, so a migration is the import line:
-
-```js
-- import { cosmiconfig } from "cosmiconfig";
-+ import { cosmiconfig } from "seniority";
-```
-
-`cosmiconfig`, `cosmiconfigSync`, `Explorer`, `ExplorerSync`, `defaultLoaders`,
-`defaultLoadersSync`, `getDefaultSearchPlaces`, `globalConfigSearchPlaces`, `metaSearchPlaces`
-— all three search strategies, both caches, `$import`, and the meta-config merge.
-
-**Graded by cosmiconfig 10.0.1's own test suite: 186 of 243 cases.** Not "compatible" — a
-number, from the incumbent's tests, run unmodified. Where it stops is one thing:
-
-> **YAML.** cosmiconfig reads `.yaml`, `.yml` and extensionless files through `js-yaml`.
-> This package bundles no format parser, so `loadYaml` here reads the subset of YAML that is
-> also JSON — which is every JSON document — and **refuses the rest by name**, telling you to
-> pass `loaders: { '.yaml': yaml.load }`. Do that and you have cosmiconfig's behaviour
-> exactly, with the parser as *your* dependency rather than everyone's.
-
-Every one of the 55 cases not passing is that, bar one that is the test harness reaching for a
-file path the vendored copy does not have. None of them is a difference in how a config is
-found, merged or reported — and that is counted rather than claimed: every failing entry in
-the raw output was matched against its own diagnostic, and 54 of the 55 carry the "no YAML
-parser" refusal above. The largest block is the whole of `import.test.ts`, 22 cases: `$import`
-works, and every fixture it is tested with is `.yml`.
-
-### `seniority/dotenv`
-
-`config`, `parse` and `populate` are dotenv 17's, grammar included, so a migration is the
-import line:
-
-```js
-- import dotenv from "dotenv";
-+ import dotenv from "seniority/dotenv";
-```
-
-`config()` behaves as dotenv's does when told nothing: it reads `./.env` from the working
-directory into `process.env`. Pass `processEnv` to populate another object, and `path` for
-another file (or several, a `URL`, a leading `~`). There is no `dotenv/config` preload entry —
-call `config()` once at your entry point — and `decrypt` and the `.env.vault` format, which
-dotenv deprecated in favour of dotenvx, are not built.
-
-The process is read in one place, `src/runtime.ts`, and only by the drop-in paths whose
-incumbents read it by default. `resolve` never reads it, and `parse` works on a string you
-already have — in a test, in a browser build, anywhere.
-
-**Graded by dotenv 17.4.2's own test suite: 106 of 141.** The 35 not passing are 27 in the
-`.env.vault` / `decrypt` path and 2 dotenvx tips, both declined above, and 6 that load
-dotenv's private `lib/*` modules by path.
-
-### `seniority/lilconfig`
-
-`lilconfig`, `lilconfigSync`, `defaultLoaders`, `defaultLoadersSync` — lilconfig's search
-places, its loader tables (`.json` through `require` in the sync one, exactly as upstream),
-its caches, and its disagreements with cosmiconfig kept rather than smoothed over:
-
-```js
-- import { lilconfigSync } from "lilconfig";
-+ import { lilconfigSync } from "seniority/lilconfig";
-```
-
-**Graded by lilconfig 3.1.3's own test suite: 77 of 77 cases, the same as the real
-`lilconfig` gets here.** Ten of them assert which files were read by mocking `fs` with
-`jest.mock`; since #549 the oracle applies that mock the way jest does, so they run and pass
-instead of failing for both.
-
-Its own entry point, not the root: lilconfig's last test reads the *keys* of the module it is
-given and compares them with cosmiconfig's, so one module cannot honestly be both.
-
-### `seniority/rc`
-
-rc's merge — the `/etc`, `$HOME` and upward-walk file stack in rc's own order, `__` nesting
-for environment keys, JSON with comments, `deep-extend`'s merge, and the `configs` / `config`
-report of which files were actually read — with none of rc's four dependencies.
-
-```js
-- const config = require("rc")("mytool", defaults);
-+ import rc from "seniority/rc";
-+ const config = rc("mytool", defaults, argv);
-```
-
-Like rc, it reads the process's environment when you pass none; a fifth argument,
-`{ env, cwd, home, win }`, supplies the world instead. Two differences, both on purpose. The
-command line is an argument: rc fills a missing `argv` with `minimist(process.argv.slice(2))`,
-and this treats it as empty. And an INI-shaped file is refused by name rather than parsed —
-pass `ini.parse` in rc's own fourth position and you have rc's behaviour, with the parser as
-*your* dependency.
-
-**Graded by rc 1.2.8's own test: 1 of 1 — by exit code.** That suite is one script of bare
-assertions with no reporter, so the grade is one bit: the script ran against this package and
-exited 0. It is not 100% of anything.
-
-### `seniority/find-up`
-
-`findUp`, `findUpSync`, `findUpMultiple`, `findUpMultipleSync` over the same bounded walk —
-`stopAt`, a depth limit, and a symlink ring that ends the walk instead of spinning it.
-`find-up` → `locate-path` → `p-locate` → `path-exists` is four packages for that.
-
-## Benchmarks
-
-Every number here is produced by `npm run bench` and published at [/docs/benchmarks](/docs/benchmarks).
-
-Graded by the incumbent's own test suite:
-
-| suite | passing |
-| :-- | --: |
-| `cosmiconfig` | 186 / 243 |
-| `dotenv` | 106 / 141 |
-| `lilconfig` | 77 / 77 |
-| `rc` | 1 / 1 |
-
-Weight, installed and tree-inclusive: **156,630 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.0794**.
 ## Where it sits
 
 Plugins register under the `sources` key, against the one schema the whole family shares.
 
 `burgee` builds on it, and it builds on nothing in this family.
+
+## The family
+
+Nine packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
+carries its colours, flagstaff flies it and caique answers back; each installs on its own, and none
+takes a dependency from outside the family.
+
+| Package | What it is | Replaces |
+| :-- | :-- | :-- |
+| [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander and yargs |
+| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk |
+| [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
+| [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | inquirer and clack |
+| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi and slice-ansi |
+| [paratext](https://paratext.interlace.tools/docs) | Hyperlinks, images, title, clipboard and notifications | ansi-escapes, terminal-link and term-img |
+| **seniority** (this package) | Configuration precedence and discovery, with provenance | cosmiconfig, dotenv and rc |
+| [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook and restore-cursor |
+| [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
+
+Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
+and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on
+[burgee.interlace.tools](https://burgee.interlace.tools/docs/packages).
+
+## Contributing
+
+Issues and pull requests are welcome at [ofri-peretz/burgee](https://github.com/ofri-peretz/burgee/issues); read
+[CONTRIBUTING.md](https://github.com/ofri-peretz/burgee/blob/main/CONTRIBUTING.md) first. Report a vulnerability privately, as
+[SECURITY.md](https://github.com/ofri-peretz/burgee/blob/main/SECURITY.md) describes — never in a public issue.
+
 ## Licence
 
-MIT
+MIT © Ofri Peretz — see [LICENSE](https://github.com/ofri-peretz/burgee/blob/main/packages/seniority/LICENSE).
