@@ -6,10 +6,10 @@
  */
 import { decamelize } from '../yargs-parser.js';
 
-import { type AnyFlag } from './types.js';
+import { type FlagSpec } from './types.js';
 
 /** Every flag name a caller may write, and the canonical name each maps to. */
-export function aliasMap(flags: Record<string, AnyFlag>): Record<string, string[]> {
+export function aliasMap(flags: Record<string, FlagSpec>): Record<string, string[]> {
   const out: Record<string, string[]> = {};
   for (const [name, spec] of Object.entries(flags)) {
     const names: string[] = [];

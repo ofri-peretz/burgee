@@ -383,6 +383,16 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     expect(rewriteSource("import { modifiers } from 'chalk';\n").refused.map((r) => r.specifier)).toEqual(['chalk']);
   });
 
+  it("moves meow's type imports with it: burgee/meow exports every type meow 14 does", () => {
+    // Before 2026-09-27 burgee/meow exported three of meow's ten types, so the first line
+    // below was refused (a mixed import cannot be split) and the second kept on meow.
+    const both = "import meow, { type Result, type TypedFlags } from 'meow';\nimport type { AnyFlags, Flag, FlagType, InputOption, InputOptionType, IsRequiredPredicate, Options } from 'meow';\n";
+    const moved = rewriteSource(both);
+    expect(moved.source).toBe(both.replaceAll("from 'meow'", "from 'burgee/meow'"));
+    expect(moved.refused).toEqual([]);
+    expect(moved.kept).toEqual([]);
+  });
+
   it('moves a require() whose two sides return the same kind of value (A29)', () => {
     // Restated 2026-09-23 (A29). This expected `require('chalk')` refused, reasoning from chalk
     // 4, whose CommonJS `require()` returned the function. The chalk migrate rewrites is 6

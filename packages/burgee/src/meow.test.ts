@@ -8,9 +8,9 @@
  * none is a burgee opinion. In-process with `argv`, `process.exit` stubbed to throw so a run
  * that would end stops where meow's would.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 
-import meow from './meow.js';
+import meow, { type AnyFlags, type Flag, type Result, type TypedFlags } from './meow.js';
 
 const importMeta = import.meta;
 const pkg = { name: 'demo', version: '1.2.3' };
@@ -123,14 +123,16 @@ describe('declarations meow refuses before it parses', () => {
   });
 
   it('refuses choices of another type than their flag', () => {
-    const flags = { number: { type: 'number' as const, choices: [1, '2'] }, boolean: { type: 'boolean' as const, choices: [true, 'false'] } };
+    // Typed `never` because meow's own types refuse this declaration too; the check is for the
+    // JavaScript caller the compiler cannot see.
+    const flags = { number: { type: 'number', choices: [1, '2'] }, boolean: { type: 'boolean', choices: [true, 'false'] } } as never;
     expect(() => meow({ importMeta, pkg, argv: [], flags })).toThrow(
       "Each value of the option `choices` must be of the same type as its flag. Invalid flags: (`--number`, type: 'number'), (`--boolean`, type: 'boolean')",
     );
   });
 
   it('refuses `booleanDefault: null` for a boolean flag with no default of its own', () => {
-    expect(() => meow({ importMeta, pkg, argv: ['--foo'], booleanDefault: null, flags: { foo: { type: 'boolean' } } })).toThrow(
+    expect(() => meow({ importMeta, pkg, argv: ['--foo'], booleanDefault: null as never, flags: { foo: { type: 'boolean' } } })).toThrow(
       new TypeError('Expected "foo" default value to be of type "boolean", got "null"'),
     );
   });
@@ -167,5 +169,24 @@ describe('pkg is normalized lazily, in place', () => {
     expect((cli?.pkg['bin'] as Record<string, string>)['browser-sync']).toBe('./bin/browser-sync.js');
     expect(cli?.pkg).toBe(own);
     expect(own['version']).toBe('');
+  });
+});
+
+describe('meow’s own types, so a type-only import migrates', () => {
+  it('types a declared flag as meow does: required or defaulted is never undefined', () => {
+    const { cli } = run({
+      importMeta,
+      pkg,
+      argv: ['-r', '--name', 'x'],
+      flags: { rainbow: { type: 'boolean', shortFlag: 'r' }, name: { type: 'string', isRequired: true }, sizes: { type: 'number', isMultiple: true, default: [1] } },
+    });
+    expect(cli?.flags).toMatchObject({ rainbow: true, name: 'x', sizes: [1] });
+    const typed = meow({ importMeta, pkg, argv: ['--name', 'x'], flags: { rainbow: { type: 'boolean' }, name: { type: 'string', isRequired: true }, sizes: { type: 'number', isMultiple: true, default: [1] } } });
+    expectTypeOf(typed.flags.rainbow).toEqualTypeOf<boolean | undefined>();
+    expectTypeOf(typed.flags.name).toEqualTypeOf<string>();
+    expectTypeOf(typed.flags.sizes).toEqualTypeOf<number[]>();
+    expectTypeOf(typed).toMatchTypeOf<Result<{ rainbow: Flag<'boolean', boolean> }>>();
+    expectTypeOf<TypedFlags<{ n: { type: 'number' }; m: { type: 'string'; default: 'a' } }>>().toEqualTypeOf<{ n: number | undefined; m: string }>();
+    expectTypeOf<AnyFlags>().toEqualTypeOf<Record<string, import('./meow.js').AnyFlag>>();
   });
 });

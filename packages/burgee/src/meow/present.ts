@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 import { host } from '../runtime.js';
 
-import { type Options } from './types.js';
+import { type Settings } from './types.js';
 
 /** The nearest `package.json` above the caller's module, which is what `importMeta` is for. */
 export function readPackageUp(importMeta: ImportMeta | undefined): Record<string, unknown> {
@@ -53,7 +53,7 @@ const redent = (text: string, spaces: number): string => stripIndent(text).repla
  * it. It is the blank line meow prints after the help — the one `spawn cli and show help
  * screen` asserts, and the one trimming the whole block used to lose.
  */
-export function buildHelp(options: Options, pkg: Record<string, unknown>): string {
+export function buildHelp(options: Settings, pkg: Record<string, unknown>): string {
   const width = options.helpIndent ?? 2;
   let help = '';
   if (typeof options.help === 'string' && options.help !== '') {

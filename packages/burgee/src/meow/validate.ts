@@ -12,7 +12,7 @@ import { ExitCode } from '../exit-code.js';
 import { host } from '../runtime.js';
 import { decamelize } from '../yargs-parser.js';
 
-import { type AnyFlag, type Options } from './types.js';
+import { type FlagSpec, type Settings } from './types.js';
 
 /** meow's own `isObject`: a plain object, which rules out `null` and arrays. */
 export const isPlainObject = (value: unknown): value is Record<string, unknown> =>
@@ -24,9 +24,9 @@ const listed = (names: string[]): string => names.map((n) => `\`--${n}\``).join(
  * The declaration mistakes meow collects before it parses anything, in meow's order and
  * joined into one error — `options.js`'s `invalidOptionFilters`, filter for filter.
  */
-export function validateFlags(flags: Record<string, AnyFlag>): void {
+export function validateFlags(flags: Record<string, FlagSpec>): void {
   const entries = Object.entries(flags);
-  const pick = (filter: (spec: AnyFlag, name: string) => boolean): string[] =>
+  const pick = (filter: (spec: FlagSpec, name: string) => boolean): string[] =>
     entries.filter(([name, spec]) => filter(spec, name)).map(([name]) => name);
   const errors: string[] = [];
 
@@ -58,7 +58,7 @@ const kindOf = (value: unknown): string => (value === null ? 'null' : Array.isAr
  * The default each flag ends up with, `booleanDefault` included — which is how
  * `booleanDefault: null` reaches the type check below and is refused there.
  */
-export function effectiveDefault(spec: AnyFlag, opts: Options): { value: unknown } | undefined {
+export function effectiveDefault(spec: FlagSpec, opts: Settings): { value: unknown } | undefined {
   if (Object.hasOwn(spec, 'default')) return { value: spec.default };
   const booleanDefault = 'booleanDefault' in opts ? opts.booleanDefault : false;
   if (spec.type === 'boolean' && booleanDefault !== undefined) return { value: spec.isMultiple === true ? [booleanDefault] : booleanDefault };
@@ -71,7 +71,7 @@ export function effectiveDefault(spec: AnyFlag, opts: Options): { value: unknown
  * as a `TypeError`, under the decamelized key the parser is handed. An array is typed by its
  * first element, and an empty one matches any array type.
  */
-export function checkDefaultTypes(flags: Record<string, AnyFlag>, opts: Options): void {
+export function checkDefaultTypes(flags: Record<string, FlagSpec>, opts: Settings): void {
   for (const [name, spec] of Object.entries(flags)) {
     const found = effectiveDefault(spec, opts);
     if (found === undefined || name === '--') continue;
@@ -98,7 +98,7 @@ export function requireImportMeta(importMeta: ImportMeta | undefined): void {
 }
 
 /** `commands` is an array of bare words, and meow says so in three different sentences. */
-export function validateCommands(commands: string[] | undefined): void {
+export function validateCommands(commands: readonly string[] | undefined): void {
   if (commands === undefined) return;
   if (!Array.isArray(commands)) throw new TypeError('The `commands` option must be an array of strings.');
   if (commands.length === 0) throw new TypeError('The `commands` option must contain at least one command.');
@@ -110,7 +110,7 @@ export function validateCommands(commands: string[] | undefined): void {
  * A value outside a flag's `choices`. Only an absent value counts as "no value": an empty
  * string is a value the user typed, and it is judged against `choices` like any other.
  */
-export function checkChoices(specs: Record<string, AnyFlag>, flags: Record<string, unknown>): void {
+export function checkChoices(specs: Record<string, FlagSpec>, flags: Record<string, unknown>): void {
   const errors: string[] = [];
   for (const [name, spec] of Object.entries(specs)) {
     if (!Array.isArray(spec.choices)) continue;
@@ -134,7 +134,7 @@ export function checkChoices(specs: Record<string, AnyFlag>, flags: Record<strin
  * Required flags nobody passed. Missing means *absent* — `--test ''` supplied a value, and
  * meow's own `is-required.js` says so — or, for an `isMultiple` flag, an empty list.
  */
-export function checkRequired(specs: Record<string, AnyFlag>, flags: Record<string, unknown>, input: string[]): void {
+export function checkRequired(specs: Record<string, FlagSpec>, flags: Record<string, unknown>, input: string[]): void {
   const missing: string[] = [];
   for (const [name, spec] of Object.entries(specs)) {
     let required: unknown = spec.isRequired;
@@ -179,7 +179,7 @@ export function checkUnknownFlags(tokens: readonly unknown[]): void {
  * is handed the input alone — `(input) => boolean` in meow's own types, unlike a flag's
  * `isRequired`, which also gets the flags.
  */
-export function checkInput(opts: Options, input: string[]): void {
+export function checkInput(opts: Settings, input: string[]): void {
   if (!isPlainObject(opts.input)) return;
   const { isRequired } = opts.input as { isRequired?: boolean | ((input: string[]) => unknown) };
   if (isRequired === undefined || isRequired === false) return;
@@ -194,7 +194,7 @@ export function checkInput(opts: Options, input: string[]): void {
 }
 
 /** A flag declared once may be given once — the parser collects repeats into an array. */
-export function checkSetOnce(specs: Record<string, AnyFlag>, parsed: Record<string, unknown>): void {
+export function checkSetOnce(specs: Record<string, FlagSpec>, parsed: Record<string, unknown>): void {
   for (const [name, spec] of Object.entries(specs)) {
     if (spec.isMultiple === true || name === '--') continue;
     // By the key as declared, not decamelized: meow's message names the flag the way the

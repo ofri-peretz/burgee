@@ -11,7 +11,7 @@
 import { type ExitCode as ExitCodeType, ExitCode } from './exit-code.js';
 import { aliasMap, typeofDefault } from './meow/parse.js';
 import { buildHelp, normalizePackage, readPackageUp, setProcessTitle } from './meow/present.js';
-import { type AnyFlag, type Options, own, type Result } from './meow/types.js';
+import { type AnyFlags, type FlagSpec, type Options, own, type Result, type Settings } from './meow/types.js';
 import {
   checkChoices,
   checkDefaultTypes,
@@ -28,15 +28,28 @@ import {
 import { host } from './runtime.js';
 import parser, { camelCase } from './yargs-parser.js';
 
-export { type AnyFlag, type Options, type Result } from './meow/types.js';
+export {
+  type AnyFlag,
+  type AnyFlags,
+  type Flag,
+  type FlagType,
+  type InputOption,
+  type InputOptionType,
+  type IsRequiredPredicate,
+  type Options,
+  type Result,
+  type TypedFlags,
+} from './meow/types.js';
 
 /** meow, over burgee's parser. */
-function meow(helpText: string | Options, options: Options = {}): Result {
-  const opts: Options = typeof helpText === 'string' ? { help: helpText, ...options } : helpText;
+function meow<Flags extends AnyFlags>(helpMessage: string, options: Options<Flags>): Result<Flags>;
+function meow<Flags extends AnyFlags>(options: Options<Flags>): Result<Flags>;
+function meow(helpText: string | Settings, options: Settings = {}): Result<AnyFlags> {
+  const opts: Settings = typeof helpText === 'string' ? { help: helpText, ...options } : helpText;
   if (typeof helpText !== 'string' && Object.keys(options).length > 0) Object.assign(opts, options);
 
   // `flags: null` is refused rather than read as "no flags" — only an absent key means that.
-  const flagSpecs = (opts.flags === undefined ? {} : opts.flags) as Record<string, AnyFlag>;
+  const flagSpecs = (opts.flags === undefined ? {} : opts.flags) as Record<string, FlagSpec>;
   if (!isPlainObject(flagSpecs)) throw new TypeError('The `flags` option must be an object.');
   if (opts.input !== undefined && typeof opts.input !== 'string' && !Array.isArray(opts.input) && typeof opts.input !== 'object') {
     throw new TypeError('The `input` option must be a string or an object.');
@@ -210,7 +223,7 @@ function meow(helpText: string | Options, options: Options = {}): Result {
     version,
     showHelp,
     showVersion,
-  } as Result;
+  } as unknown as Result<AnyFlags>;
   if (command !== undefined) result.command = command;
 
   checkSetOnce(flagSpecs, rest);

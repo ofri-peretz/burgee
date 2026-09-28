@@ -133,8 +133,15 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
   ],
   'burgee/meow': [
     'AnyFlag',
+    'AnyFlags',
+    'Flag',
+    'FlagType',
+    'InputOption',
+    'InputOptionType',
+    'IsRequiredPredicate',
     'Options',
     'Result',
+    'TypedFlags',
     'default',
   ],
   'burgee/yargs': [
