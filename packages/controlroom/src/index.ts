@@ -8,7 +8,7 @@
  *
  * What it will be, in what order, and what it must prove before it ships, is the approved
  * intent: `.sdlc/intents/controlroom/intent.md` and `spec.md` in
- * https://github.com/ofri-peretz/burgee (D-158, amended by D-164).
+ * https://github.com/ofri-peretz/burgee (D-158, amended by D-168).
  */
 
 /** Where the package stands. It changes when the first requirement ships, not before. */

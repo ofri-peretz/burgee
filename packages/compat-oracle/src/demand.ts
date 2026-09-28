@@ -57,7 +57,7 @@ export const LAYERS: Layer[] = [
   { pkg: 'closeout', intent: 'closeout', incumbents: ['signal-exit', 'exit-hook', 'restore-cursor'] },
   { pkg: 'bellpull', intent: 'bellpull', incumbents: ['execa', 'cross-spawn', 'which'] },
   // Reserved at 0.0.1 with no API yet (D-158). Ink and `@inkjs/ui` are the pair it replaces;
-  // blessed, neo-blessed and terminal-kit are migrated off by guide, not replaced (D-164, R18).
+  // blessed, neo-blessed and terminal-kit are migrated off by guide, not replaced (D-168, R18).
   { pkg: 'controlroom', intent: 'controlroom', incumbents: ['ink', '@inkjs/ui'] },
 ];
 

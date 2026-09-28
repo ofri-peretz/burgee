@@ -391,7 +391,7 @@ export default [
     rules: { "react-features/void-dom-elements-no-children": "off" },
   },
   // The root `scripts/**` glob above predates per-package scripts, and this is the first
-  // one: a generator spawned as a program (`node scripts/generate-ambiguous.mjs`), so it
+  // one: a generator spawned as a program (`node scripts/generate-width-tables.mjs`), so it
   // exports nothing and is never imported, and it reads the incumbent it grades against
   // from the root's pins rather than declaring one of its own (R7/#217).
   {
@@ -837,6 +837,12 @@ export default [
       // The style stack, extracted from `wrap.ts` when `slice` needed it. Same code, same
       // port, same grader — the exemption follows the lines, not the filename.
       "packages/linegauge/src/style.ts",
+      // slice-ansi 9's tokenizer and walk, ported when its suite moved from 15 cases to 104
+      // (burgee#317) and graded by all 104. The walk is one loop over tokens with the state
+      // those cases read (pending openers, an open link and where it was written), and the
+      // state is locals rather than an object because property names survive minification
+      // and cost the bundle 766 B. The exemption follows the port, as it does for `wrap.ts`.
+      "packages/linegauge/src/slice.ts",
       "packages/flagstaff/src/boxen.ts",
       "packages/flagstaff/src/cli-table3.ts",
     ],

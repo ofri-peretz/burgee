@@ -21,9 +21,9 @@
  */
 
 import { type ProcessLike } from './ambient.js';
-import { HIDE_CURSOR, SHOW_CURSOR, type OutputStream } from './cursor.js';
+import { ENTER_ALTERNATE_SCREEN, HIDE_CURSOR, LEAVE_ALTERNATE_SCREEN, SHOW_CURSOR, type InputStream, type OutputStream } from './cursor.js';
 import { assertDeadline, DEADLINE_ERROR_CODE, DeadlineError } from './deadline.js';
-import { hideCursor, install, onExit, showCursor, SIGNALS, type Closeout, type InstallOptions } from './install.js';
+import { alternateScreen, hideCursor, install, onExit, rawMode, showCursor, SIGNALS, type Closeout, type InstallOptions } from './install.js';
 import { once } from './once.js';
 import {
   createRegistry,
@@ -55,19 +55,23 @@ import {
  * statements are four places for one to be forgotten when a module moves.
  */
 export {
+  alternateScreen,
   assertDeadline,
   createRegistry,
   DEADLINE_ERROR_CODE,
   DeadlineError,
   DEFAULT_DEADLINE,
   DEFAULT_PHASE,
+  ENTER_ALTERNATE_SCREEN,
   EXIT_PATHS,
   hideCursor,
   HIDE_CURSOR,
   install,
+  LEAVE_ALTERNATE_SCREEN,
   onExit,
   once,
   PHASES,
+  rawMode,
   reportToEvent,
   reportToJson,
   SHOW_CURSOR,
@@ -82,6 +86,7 @@ export {
   type ExitReport,
   type HandlerOptions,
   type HandlerSpec,
+  type InputStream,
   type InstallOptions,
   type OutputStream,
   type Phase,

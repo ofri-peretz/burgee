@@ -7,7 +7,7 @@
 > and D-158 records the answers: a new package, named `controlroom`, with an Ink drop-in in
 > v1, and the nine-package ceiling restated. The design is [`spec.md`](./spec.md).
 
-**Status:** approved · **Opened:** 2026-09-27 · **Owner:** @ofri-peretz · **Approved:** 2026-09-27 by the owner, in session (D-158: a new package named `controlroom`, `controlroom/ink` in v1, the ceiling restated) · **Amended:** 2026-09-27 (D-164: compatibility with, and migration from, the leading competitors; `spec.md` R15–R18) · **Skeleton:** `packages/controlroom` at `0.0.1`, with no API yet
+**Status:** approved · **Opened:** 2026-09-27 · **Owner:** @ofri-peretz · **Approved:** 2026-09-27 by the owner, in session (D-158: a new package named `controlroom`, `controlroom/ink` in v1, the ceiling restated) · **Amended:** 2026-09-27 (D-168: compatibility with, and migration from, the leading competitors; `spec.md` R15–R18) · **Skeleton:** `packages/controlroom` at `0.0.1`, with no API yet
 
 ---
 
@@ -59,7 +59,7 @@ pass rate is published and ratchets.
    and `cli-output-stack`'s "Not planned: Ink" becomes planned. Both are restated in the same
    change that approves this intent, with the reason.
 
-### Amended: migration from the leading competitors (D-164, 2026-09-27)
+### Amended: migration from the leading competitors (D-168, 2026-09-27)
 
 The owner added: _"controlroom should be compatible and allow easy migration to it from the
 leading competitors."_ `spec.md` carries it as R15–R18:
@@ -375,7 +375,7 @@ per screen feature.
 - **Mouse** reporting of clicks, the wheel or drags. It is reopened only by an adopter's
   measured need.
 - **A drop-in for blessed, neo-blessed or terminal-kit.** Their surfaces are too large to
-  reproduce honestly, so they get guides and codemods instead (R18, D-164). `@inkjs/ui` is
+  reproduce honestly, so they get guides and codemods instead (R18, D-168). `@inkjs/ui` is
   no longer out of scope: R17 grades it through the `'ink'` alias in v1.
 - **Yoga, and flexbox outside `controlroom/ink`.**
 - **Our own React runtime**, which is option B above.

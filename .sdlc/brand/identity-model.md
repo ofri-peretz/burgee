@@ -15,7 +15,7 @@ competitors, and the family is a claim about *layers of a CLI*, not about a bund
 | **Colour** | `roundel` | One output policy decided once from the runtime, nine semantic tokens, a contrast-checked theme | chalk, picocolors |
 | **Motion** | `flagstaff` | The repaint loop, and plugins as data — every animation carrying a static projection for pipes, `--json` and screen readers | ora, log-update, boxen, cli-table3, Ink |
 | **Dialogue** | `caique` | Prompts that are flags first: a caller who passed the flag is never asked, and a non-TTY caller gets an error naming the flag rather than a hang | inquirer, clack |
-| **Screen** | `controlroom` | Full-screen, keyboard-driven screens (panes, tabs, focus, collapse) laid out over flagstaff's loop, each with a static projection. **Reserved, not usable yet** (D-158, D-164) | Ink, `@inkjs/ui`; blessed, neo-blessed and terminal-kit by migration guide |
+| **Screen** | `controlroom` | Full-screen, keyboard-driven screens (panes, tabs, focus, collapse) laid out over flagstaff's loop, each with a static projection. **Reserved, not usable yet** (D-158, D-168) | Ink, `@inkjs/ui`; blessed, neo-blessed and terminal-kit by migration guide |
 
 Under those five sits the **foundation tier** — the loop's own plumbing:
 

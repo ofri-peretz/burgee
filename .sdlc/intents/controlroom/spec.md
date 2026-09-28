@@ -1,7 +1,7 @@
 # Design — controlroom
 
 Intent: [`intent.md`](./intent.md). **Status:** approved (2026-09-27, by the owner, D-158;
-amended the same day by D-164: R15–R18, compatibility and migration from the leading
+amended the same day by D-168: R15–R18, compatibility and migration from the leading
 competitors; and by D-167: R19–R22, Claude-Code-class apps and boilerplates). **Skeleton:** `packages/controlroom` exists at `0.0.1`, with no API yet.
 The package is named `controlroom`, reserved as `controlroom@0.0.1`. The earlier picks were
 `chartroom`, which clashes with `chart-room`, and `conning`, which npm refused as too similar
@@ -72,7 +72,7 @@ it records every change here.
   `benchmarks/fixtures/entry-points.ts`, and each is gated at ≤ 1.0×. The root entry is
   `denied` both peers in the weight lock.
 
-**Compatibility and migration** (D-164). The owner's rule, 2026-09-27: _"controlroom should
+**Compatibility and migration** (D-168). The owner's rule, 2026-09-27: _"controlroom should
 be compatible and allow easy migration to it from the leading competitors."_
 
 - **R15 · one render engine.** controlroom never paints on its own. Every frame goes
@@ -223,4 +223,4 @@ because `cursor.ts` never leaves the alternate screen.
 The intent's list applies: mouse, text editing in panes, the wizard's application tabs,
 legacy Windows consoles, the burgee plugin until phase 4, and a drop-in for blessed,
 neo-blessed or terminal-kit (R18 migrates them instead). `@inkjs/ui` is no longer out of
-scope: R17 puts it in v1 through the `'ink'` alias, with no façade of its own (D-164).
+scope: R17 puts it in v1 through the `'ink'` alias, with no façade of its own (D-168).
