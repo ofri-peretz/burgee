@@ -636,7 +636,11 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // `linegauge/slice` is set at 1 like `linegauge/wrap`, because its ratio against slice-ansi
   // 9.0.1 (0.789) earns it: 9 carries its own tokenizer, and `is-fullwidth-code-point` brings
   // get-east-asian-width's tables with it.
-  linegauge: 1.06,
+  // 1.08 on 2026-09-28, and most of the move is the denominator. string-width 8.3.0 bundles
+  // 6,013 against 8.2.2's 6,110, so `linegauge` at the same size read 1.067 on the bump alone;
+  // the ReDoS fix in `width()` (+32, see the byte ceiling above) takes it to 6,448 / 6,013 =
+  // 1.072, and the one step is CI's heavier build.
+  linegauge: 1.08,
 
   'linegauge/wrap': 1,
 

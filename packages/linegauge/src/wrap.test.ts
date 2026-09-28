@@ -146,4 +146,15 @@ describe('NFC reaches the text between escape sequences and never a sequence', (
   it('still composes the text around the sequences', () => {
     expect(wrap(`A${RING}${ESC}[31me${ACUTE}${ESC}[39m`, 10)).toBe(`\u00C5${ESC}[31m\u00E9${ESC}[39m`);
   });
+
+  it('agrees with wrap-ansi 10.0.2 when combining marks follow sequences', () => {
+    const pieces = ['a', 'bc', ' ', ACUTE, RING, `${ESC}[31m`, `${ESC}[39m`, `${ESC}[6n`, '\u009B31m', `${ESC}]0;t\u0007`, `${ESC}]8;;https://x.example\u0007`, `${ESC}]8;;\u0007`];
+    const random = makeRandom(20_260_928);
+    for (let index = 0; index < SWEEP_INPUTS; index += 1) {
+      let input = '';
+      const count = 1 + Math.floor(random() * MAX_PIECES);
+      for (let piece = 0; piece < count; piece += 1) input += pieces[Math.floor(random() * pieces.length)] ?? '';
+      for (const options of OPTION_SETS) bothAgree(input, 1 + Math.floor(random() * MAX_COLUMNS), options);
+    }
+  });
 });

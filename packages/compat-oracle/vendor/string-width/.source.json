@@ -1,19 +1,19 @@
 {
   "repo": "https://github.com/sindresorhus/string-width",
-  "version": "8.2.2",
-  "tag": "v8.2.2",
-  "commit": "64dc20cddd374df0ff43ba3469491ae98cf0cdfc",
-  "vendored": "2026-09-10",
+  "version": "8.3.0",
+  "tag": "v8.3.0",
+  "commit": "ffa1de3894af8f0471a86b60a624a3fd7a44580d",
+  "vendored": "2026-09-28",
   "files": 1,
   "internalFiles": [],
   "internals": [],
   "hashes": {
     "./index.d.ts": "2386b50ac5929c1a1374725e6b4b9dcbf06a5843c107713fbc54c652bcf59290",
-    "./index.js": "60c197f20cc966a2ede2dfec1ad4b764aa4095a43d225792b2652bca6afeb21b",
+    "./index.js": "abc20775da6b552188b098688ebec671e29f5416d6339d3534bb7b016174003e",
     "./index.test-d.ts": "7a4244f1e1b47255c1792ceab58f60bad219c9f5cac66c2b5ccc3d717189930a",
-    "./test.js": "be821688c982ecbd1b469ffdd422e2b6996e1f652ee0da71ac92f93e969dfb08",
+    "./test.js": "1b413e51eed910ee2d756a058241dd4f4363b03f690246901702aed871b868b4",
     "index.d.ts": "2386b50ac5929c1a1374725e6b4b9dcbf06a5843c107713fbc54c652bcf59290",
-    "index.js": "60c197f20cc966a2ede2dfec1ad4b764aa4095a43d225792b2652bca6afeb21b"
+    "index.js": "abc20775da6b552188b098688ebec671e29f5416d6339d3534bb7b016174003e"
   },
   "tests": {
     "./index.d.ts": [],
@@ -248,7 +248,11 @@
       "ambiguous mixed with CJK",
       "ambiguous mixed with CJK (wide)",
       "non-ASCII without ANSI escapes",
-      "Latin1 without ANSI escapes"
+      "Latin1 without ANSI escapes",
+      "many combining grapheme joiners + spacing mark",
+      "many combining grapheme joiners + emoji modifier",
+      "huge cluster of combining grapheme joiners + spacing mark",
+      "huge cluster of only combining grapheme joiners"
     ]
   },
   "surface": {
