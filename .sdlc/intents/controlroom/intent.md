@@ -379,7 +379,11 @@ per screen feature.
   no longer out of scope: R17 grades it through the `'ink'` alias in v1.
 - **Yoga, and flexbox outside `controlroom/ink`.**
 - **Our own React runtime**, which is option B above.
-- **Text editing inside a pane.** Prompts stay with caique.
+- **Text editing inside a pane.** Prompts stay with caique. The one exception is R20 (D-167):
+  caique's line editor, hosted as the input line of a chat-shaped screen. A text-editor pane
+  stays out.
+- **Syntax highlighting** inside R21's fenced code, until an adopter asks for it.
+- **A `create-*` scaffolding package.** R22's boilerplates are copied from `examples/`.
 - **The content of the wizard's `Visualizer` and `HN` tabs.** That is application content.
 - **Windows legacy console quirks** beyond what `node:readline` already handles.
 - **The wizard's other dependencies**, `yargs ^16.2.0` and `inquirer ^6.2.0`. This intent
