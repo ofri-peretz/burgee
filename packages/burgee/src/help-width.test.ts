@@ -122,4 +122,24 @@ describe('help sizes its columns in display width, not code units', () => {
     expect(lines[term]?.trim()).toBe('部署到生产环境');
     expect(lines[term + 1]?.trim()).toBe('to prod');
   });
+
+  /**
+   * The fold is `linegauge/wrap`'s. The loop help used to carry split at single spaces and
+   * knew nothing of escape sequences, so a styled description's colour ran on past the end
+   * of its row into the next row's indent, and a run of spaces at a break stayed behind as
+   * trailing whitespace. Each row now opens and closes its own styles.
+   */
+  it('keeps each wrapped row of a styled description self-contained', () => {
+    const rows = wrap('\u001B[31mone two three four five six\u001B[39m', 10);
+    expect(rows.length).toBeGreaterThan(1);
+    for (const row of rows) {
+      expect(row.startsWith('\u001B[31m'), JSON.stringify(row)).toBe(true);
+      expect(row.endsWith('\u001B[39m'), JSON.stringify(row)).toBe(true);
+      expect(width(row)).toBeLessThanOrEqual(10);
+    }
+  });
+
+  it('leaves no trailing whitespace where a run of spaces was broken', () => {
+    expect(wrap('one two  three   four', 7)).toEqual(['one two', 'three', 'four']);
+  });
 });

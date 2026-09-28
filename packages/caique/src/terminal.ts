@@ -19,7 +19,7 @@ import { processRuntime, type Runtime } from './runtime.js';
 /** The stream pair a terminal Io is built over: a `Runtime`'s `stdin` and its `stdout`. */
 export interface Streams {
   input: NodeJS.ReadableStream & { isTTY?: boolean };
-  output: NodeJS.WritableStream & { isTTY?: boolean };
+  output: NodeJS.WritableStream & { isTTY?: boolean; columns?: number };
 }
 
 /** A runtime's two streams as the pair `createIo` takes — the mapping, written down once. */
@@ -90,6 +90,10 @@ export function createIo(streams: Streams = streamsOf(processRuntime())): Io & {
   const writer: Writer = {
     write: (text: string) => {
       streams.output.write(text);
+    },
+    // Read through, not copied: a terminal that is resized between two repaints has a new width.
+    get columns() {
+      return streams.output.columns;
     },
   };
 
