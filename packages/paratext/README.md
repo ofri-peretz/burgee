@@ -8,6 +8,30 @@
 </p>
 
 <p align="center">
+  Everything around your terminal output that is not the output: hyperlinks, images, title, clipboard, notifications and the bell — each with a static fallback.
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/paratext"><img src="https://img.shields.io/npm/v/paratext?style=flat-square&color=0a6b47" alt="paratext on npm: the latest version" /></a>
+  <a href="https://www.npmjs.com/package/paratext"><img src="https://img.shields.io/npm/dm/paratext?style=flat-square" alt="paratext downloads per month on npm" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/actions/workflows/quality.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/ofri-peretz/burgee/quality.yml?branch=main&style=flat-square&label=Quality%20Gate" alt="Quality Gate: the CI status of main" /></a>
+  <a href="https://app.codecov.io/gh/ofri-peretz/burgee/components"><img src="https://img.shields.io/codecov/c/github/ofri-peretz/burgee/main?component=paratext&style=flat-square" alt="paratext line coverage: its Codecov component" /></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/ofri-peretz/burgee"><img src="https://img.shields.io/ossf-scorecard/github.com/ofri-peretz/burgee?style=flat-square&label=OpenSSF%20Scorecard" alt="OpenSSF Scorecard for the repository" /></a>
+  <a href="https://www.npmjs.com/package/paratext?activeTab=code"><img src="https://img.shields.io/npm/unpacked-size/paratext?style=flat-square" alt="Unpacked size of the latest paratext release on npm" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/paratext/package.json"><img src="https://img.shields.io/badge/dependencies-0-0a6b47?style=flat-square" alt="Zero dependencies" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/paratext/package.json"><img src="https://img.shields.io/badge/types-included-blue?style=flat-square" alt="TypeScript types included for every entry point" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/paratext/package.json"><img src="https://img.shields.io/badge/Node.js-20.19%2B%20%7C%2022.13%2B-green?style=flat-square" alt="Node.js 20.19+ or 22.13+" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/paratext/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License: MIT" /></a>
+  <a href="https://www.npmjs.com/package/paratext#provenance"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fregistry.npmjs.org%2Fparatext%2Flatest&query=%24.dist.attestations.provenance~&label=npm&style=flat-square&color=0a6b47" alt="Published to npm with provenance, read live from the registry attestation of the latest release" /></a>
+</p>
+
+<p align="center">
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/ansi--escapes%20suite-4%2F4-0a6b47?style=flat-square" alt="paratext passes 4 of 4 cases of the ansi-escapes test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/term--img%20suite-12%2F18-b45309?style=flat-square" alt="paratext/term-img passes 12 of 18 cases of the term-img test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/terminal--link%20suite-8%2F8-0a6b47?style=flat-square" alt="paratext/terminal-link passes 8 of 8 cases of the terminal-link test suite" /></a>
+</p>
+
+<p align="center">
   Docs: <a href="https://paratext.interlace.tools">https://paratext.interlace.tools</a><br />
   Migrating from: <a href="https://paratext.interlace.tools/docs/coming-from/ansi-escapes">ansi-escapes</a> · <a href="https://paratext.interlace.tools/docs/coming-from/terminal-link">terminal-link</a> · <a href="https://paratext.interlace.tools/docs/coming-from/term-img">term-img</a>
 </p>
@@ -27,13 +51,16 @@ bytes.
 Zero dependencies. The intent and design live at
 [`.sdlc/intents/paratext/`](https://github.com/ofri-peretz/burgee/tree/main/.sdlc/intents/paratext).
 
-## Nothing in this layer is detectable
+## Install
 
-No terminal answers *"do you do OSC 1337"*. So every capability carries a **static
-projection**, and `emit` returns it whenever support is absent or unknown: an image becomes
-its caption, a notification a printed line, a hyperlink `text (url)`. Emitting the bytes and
-hoping is what puts `\u001B]1337;File=inline=1;…` across the screen of anyone who piped your
-output to a file, and it is what every incumbent does.
+```bash
+npm install paratext
+pnpm add paratext
+yarn add paratext
+bun add paratext
+```
+
+## Quick start
 
 ```js
 import { emit, processRuntime } from 'paratext';
@@ -43,6 +70,17 @@ emit(runtime, 'link', { text: 'Docs', url: 'https://x.dev' });
 // iTerm2:  \e]8;;https://x.dev\aDocs\e]8;;\a
 // a pipe:  Docs (https://x.dev)
 ```
+
+The same call gives the terminal's bytes where it understands them and the static projection
+everywhere else; the next section is why that is the only safe default.
+
+## Nothing in this layer is detectable
+
+No terminal answers *"do you do OSC 1337"*. So every capability carries a **static
+projection**, and `emit` returns it whenever support is absent or unknown: an image becomes
+its caption, a notification a printed line, a hyperlink `text (url)`. Emitting the bytes and
+hoping is what puts `\u001B]1337;File=inline=1;…` across the screen of anyone who piped your
+output to a file, and it is what every incumbent does.
 
 ## A capability is data
 
@@ -81,13 +119,30 @@ the file tomorrow would be. Until 0.3 this was presence-checking only, and `when
 object'` was therefore accepted — a string destructures to four empty clauses, so the support
 guess said *yes* and the sequence went into the pipe. That is now a refusal.
 
-## The `ansi-escapes` surface it replaces
+## Migrating
 
-The root is `ansi-escapes`' surface, both halves of it:
+One import per incumbent:
 
-```js
-import ansiEscapes, { cursorTo, eraseLines, link, image, setCwd, beep } from 'paratext';
+```diff
+- import ansiEscapes, { cursorTo, eraseLines, link, image, beep } from 'ansi-escapes';
++ import ansiEscapes, { cursorTo, eraseLines, link, image, beep } from 'paratext';
 ```
+
+```diff
+- import terminalLink from 'terminal-link';
++ import terminalLink from 'paratext/terminal-link';
+```
+
+```diff
+- import terminalImage, { UnsupportedTerminalError } from 'term-img';
++ import terminalImage, { UnsupportedTerminalError } from 'paratext/term-img';
+```
+
+`paratext/term-img` takes image bytes rather than a file path —
+[Coming from term-img](https://paratext.interlace.tools/docs/coming-from/term-img) shows the
+`readFile` that bridges it.
+
+The root is `ansi-escapes`' surface, both halves of it — `setCwd` included.
 
 **The CSI half** — the cursor, erasing, scroll regions, the alternate screen, synchronized
 output — is byte-exact with `ansi-escapes@7.3.0`. It does not degrade, because the
@@ -110,15 +165,28 @@ deliberate difference.
 than dying on an ESM named import — and TypeScript types them such that calling one is a
 compile error, not a surprise at run time. `iTerm.annotation` has no equivalent yet.
 
+Or let the codemod make the change: `npx burgee migrate --dry-run` lists every import it would
+rewrite — only drop-ins graded level with their incumbent — and `npx burgee migrate` makes it
+([Migrate](https://burgee.interlace.tools/docs/migrate)).
+
+## Compatibility
+
+Each drop-in path is graded by its incumbent's own suite, unedited, through `compat-oracle`.
+
 Graded by the compat oracle against `ansi-escapes@7.3.0`'s own suite: **4 / 4**, level with
 the control. Three of its four cases assert CSI; until the CSI half landed, that row was
 1 / 4.
 
-MIT © Ofri Peretz
+`paratext/terminal-link` is graded by terminal-link's suite and `paratext/term-img` by
+term-img's. term-img's 12 / 18 is a ceiling rather than a gap: each of the six cases that stay
+red hands a file *path* to a terminal the suite has just declared supported, and
+`paratext/term-img` takes image bytes, so the caller owns the file read. The current grades are
+generated under *Benchmarks* below and published on the
+[compatibility page](https://burgee.interlace.tools/docs/compatibility).
 
 ## Benchmarks
 
-Every number here is produced by `npm run bench` and published at [/docs/benchmarks](/docs/benchmarks).
+Every number here is produced by `npm run bench` and published at [burgee.interlace.tools/docs/benchmarks](https://burgee.interlace.tools/docs/benchmarks).
 
 Graded by the incumbent's own test suite:
 
@@ -128,9 +196,63 @@ Graded by the incumbent's own test suite:
 | `term-img` | 12 / 18 |
 | `terminal-link` | 8 / 8 |
 
-Weight, installed and tree-inclusive: **106,142 bytes** against **2,235,987** for the incumbents it replaces — a ratio of **0.0475**.
+Weight, installed and tree-inclusive: **114,845 bytes** against **2,235,987** for the incumbents it replaces — a ratio of **0.0514**.
+
+## For agents
+
+- **A pipe or an agent never sees raw escape bytes.** Every capability has a static projection,
+  and `emit` returns it whenever support is absent or unknown: `Docs (https://x.dev)`, not
+  `\u001B]8;;…`.
+- **A capability is data.** No functions, so a capability travels through JSON, is diffable,
+  and `check(document)` grades it against
+  [`paratext/schema.json`](https://github.com/ofri-peretz/burgee/blob/main/packages/paratext/src/schema.json)
+  without running its author's code; each refusal names the path and the family's error code.
+- **A plugin can be checked before it ships.** `npx paratext check ./kitty.mjs` validates it
+  and exits 0, 1 with a code and a fix, or 2 on a usage error.
+- **The docs are machine-readable** at
+  [paratext.interlace.tools/llms.txt](https://paratext.interlace.tools/llms.txt) and
+  [llms-full.txt](https://paratext.interlace.tools/llms-full.txt).
+
+## API
+
+`emit`, `register`, `check` and `processRuntime` from the root, beside the whole `ansi-escapes`
+surface; `paratext/plugin` for the host. Every export, with its types, is on
+[paratext.interlace.tools](https://paratext.interlace.tools/docs).
+
 ## Where it sits
 
 Plugins register under the `capabilities` key, against the one schema the whole family shares.
 
 `caique` and `flagstaff` build on it, and it builds on nothing in this family.
+
+## The family
+
+Nine packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
+carries its colours, flagstaff flies it and caique answers back; each installs on its own, and none
+takes a dependency from outside the family.
+
+| Package | What it is | Replaces |
+| :-- | :-- | :-- |
+| [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander and yargs |
+| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk |
+| [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
+| [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | inquirer and clack |
+| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi and slice-ansi |
+| **paratext** (this package) | Hyperlinks, images, title, clipboard and notifications | ansi-escapes, terminal-link and term-img |
+| [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, dotenv and rc |
+| [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook and restore-cursor |
+| [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
+
+Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
+and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on
+[burgee.interlace.tools](https://burgee.interlace.tools/docs/packages).
+
+## Contributing
+
+Issues and pull requests are welcome at [ofri-peretz/burgee](https://github.com/ofri-peretz/burgee/issues); read
+[CONTRIBUTING.md](https://github.com/ofri-peretz/burgee/blob/main/CONTRIBUTING.md) first. Report a vulnerability privately, as
+[SECURITY.md](https://github.com/ofri-peretz/burgee/blob/main/SECURITY.md) describes — never in a public issue.
+
+## Licence
+
+MIT © Ofri Peretz — see [LICENSE](https://github.com/ofri-peretz/burgee/blob/main/packages/paratext/LICENSE).

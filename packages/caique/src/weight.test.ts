@@ -153,7 +153,8 @@ const RULES: Record<string, EntryRule> = {
   // The raw-mode renderer sits *on top of* line mode and answers the same questions, so it
   // carries `ask.js` by design — that shared answer is the arrangement, not an accident.
   // It never reaches the terminal: a caller supplies its own streams. Measured 3,656 B.
-  // 3,726 B (+70) on 2026-09-28, the repaint in `paratext/csi`'s spelling.
+  // 3,659 B (+3) on 2026-09-28: raw mode is `closeout/cursor`'s `rawMode`, paired with its undo.
+  // 3,729 B (+70) on 2026-09-28, the repaint in `paratext/csi`'s spelling.
   './raw': { allow: [...CLOSEOUT, 'paratext/csi'], budget: 4_500, denied: ['decide.js', 'binding.js', 'terminal.js', 'index.js'] },
   // Resolving a whole command's prompts in one pass: the decision plus the widgets it may
   // reach for. Never the terminal, and never the raw renderer — a framework hands caique an

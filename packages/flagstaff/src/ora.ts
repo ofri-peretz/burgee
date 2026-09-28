@@ -16,7 +16,7 @@
  */
 import { Buffer } from 'node:buffer';
 
-import { HIDE_CURSOR, SHOW_CURSOR } from 'closeout/cursor';
+import { HIDE_CURSOR, type InputStream, rawMode, type Registrar, SHOW_CURSOR } from 'closeout/cursor';
 import restoreCursor from 'closeout/restore-cursor';
 import { lineCount } from 'linegauge';
 import { beginSynchronizedOutput, endSynchronizedOutput } from 'paratext/csi';
@@ -83,22 +83,31 @@ const logSymbols = {
 /** Ctrl+C, which raw mode would otherwise swallow while a spinner owns the terminal. */
 const ASCII_ETX_CODE = 0x03;
 
-interface RawStdin {
-  isTTY?: boolean;
-  isRaw?: boolean;
+interface RawStdin extends InputStream {
   isPaused(): boolean;
-  setRawMode?(raw: boolean): unknown;
   prependListener(event: string, listener: (chunk: unknown) => void): unknown;
   off(event: string, listener: (chunk: unknown) => void): unknown;
   resume(): unknown;
   pause(): unknown;
 }
 
+/**
+ * No exit handler, as stdin-discarder registers none: the process's own stdin is the only
+ * stream this ever touches, and Node puts that back in cooked mode as it exits.
+ */
+const atExitNothing: Registrar = () => () => undefined;
+
+/**
+ * stdin-discarder's lifecycle, with raw mode through `closeout/cursor`'s `rawMode`. The pairing
+ * is what the incumbent did by hand — note `isRaw` on the way in, write it back on the way out —
+ * with the ownership rule stated once in closeout: a stream somebody else put into raw mode is
+ * left in it.
+ */
 class StdinDiscarder {
   #activeCount = 0;
   #stdin: RawStdin | undefined;
   #stdinWasPaused = false;
-  #stdinWasRaw = false;
+  #unraw: () => void = () => undefined;
 
   readonly #handleInput = (chunk: unknown): void => {
     const length = (chunk as { length?: number } | undefined)?.length;
@@ -128,8 +137,7 @@ class StdinDiscarder {
     }
     this.#stdin = stdin;
     this.#stdinWasPaused = stdin.isPaused();
-    this.#stdinWasRaw = Boolean(stdin.isRaw);
-    stdin.setRawMode(true);
+    this.#unraw = rawMode(stdin, atExitNothing);
     stdin.prependListener('data', this.#handleInput);
     if (this.#stdinWasPaused) stdin.resume();
   }
@@ -138,11 +146,10 @@ class StdinDiscarder {
     const stdin = this.#stdin;
     if (stdin === undefined) return;
     stdin.off('data', this.#handleInput);
-    if (stdin.isTTY === true) stdin.setRawMode?.(this.#stdinWasRaw);
+    this.#unraw();
     if (this.#stdinWasPaused) stdin.pause();
     this.#stdin = undefined;
     this.#stdinWasPaused = false;
-    this.#stdinWasRaw = false;
   }
 }
 

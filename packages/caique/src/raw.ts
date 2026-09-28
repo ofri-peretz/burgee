@@ -18,7 +18,7 @@
  * against `dist/raw.js`, 2026-09-15: hide 1, show 0). `hideCursor()` registers the restore
  * in the call that hides, so the two cannot drift.
  */
-import { hideCursor, type OutputStream } from 'closeout/cursor';
+import { hideCursor, type OutputStream, rawMode } from 'closeout/cursor';
 import exitHook from 'closeout/exit-hook';
 import { cursorTo, cursorUp, eraseDown } from 'paratext/csi';
 
@@ -37,6 +37,11 @@ const erase = (lines: number): string => `${cursorTo(0)}${lines > 1 ? cursorUp(l
 /** A stream that can be put into raw mode and read a key at a time. */
 export interface KeyStream {
   isTTY?: boolean;
+  /**
+   * Node's record of the mode. Read so that a stream somebody else already put into raw
+   * mode — a prompt library, the program itself — is left raw when this prompt ends.
+   */
+  isRaw?: boolean;
   setRawMode?(raw: boolean): unknown;
   on(event: 'data', listener: (chunk: Buffer | string) => void): unknown;
   off(event: 'data', listener: (chunk: Buffer | string) => void): unknown;
@@ -153,7 +158,11 @@ export async function askList(spec: PromptSpec, io: RawIo, multi = false): Promi
     painted = frame.split('\n').length;
   };
 
-  io.keys.setRawMode?.(true);
+  // Raw mode through `closeout`, paired with its undo like the cursor below: turned off at the
+  // end only if this call turned it on, and on every path the process can die by. This used to
+  // be `setRawMode(true)` here and `setRawMode(false)` in the `finally`, unconditionally —
+  // which took raw mode away from a caller that already had it — and nothing on a signal.
+  const unraw = rawMode(io.keys, exitHook);
   io.keys.resume?.();
   // Hide and register the restore together. `restore()` shows the cursor and unregisters,
   // so a prompt that ends normally leaves nothing behind for exit to do.
@@ -187,7 +196,7 @@ export async function askList(spec: PromptSpec, io: RawIo, multi = false): Promi
     });
   } finally {
     restore();
-    io.keys.setRawMode?.(false);
+    unraw();
     io.keys.pause?.();
   }
 }

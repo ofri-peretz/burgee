@@ -7,7 +7,7 @@ Please report privately through
 rather than opening a public issue. Include the affected package and version, the Node
 version, and the smallest program that demonstrates the problem.
 
-You will get an acknowledgement, and a fix or an explanation of why it is not one. If a
+You will get an acknowledgement within 7 days, and a fix or an explanation of why it is not one. If a
 report turns out to be a real vulnerability, the advisory credits you unless you ask
 otherwise.
 
@@ -27,7 +27,8 @@ promises.
 - **CodeQL** runs on every push, and `secure-coding` and `node-security` lint rules run at
   `error` on every file — those rules caught a prototype-pollution vector in our own option
   parsing during development.
-- **Dependabot** watches the development dependencies, which are the only dependencies.
+- **Dependabot** keeps the development dependencies current, and they are the only
+  dependencies: no published package depends on anything outside this repository.
 
 ## Where this repo stands against OpenSSF Scorecard
 

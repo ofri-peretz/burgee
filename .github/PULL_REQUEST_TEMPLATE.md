@@ -12,6 +12,7 @@
 
 - [ ] `npm run lint` — 11 Interlace plugins, zero warnings
 - [ ] `npm test` — every lock and unit test
+- [ ] New or changed behaviour has tests in `npm test` (name the file)
 - [ ] If this fixes a bug: the new test fails on the unfixed code (name the file)
 - [ ] If this touches `packages/*/src`: a changeset is included, or `skip-changeset` is applied
 
