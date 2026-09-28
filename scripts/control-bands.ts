@@ -73,7 +73,8 @@ export function chronological(a: Observation, b: Observation): number {
   if (ka !== kb) return ka < kb ? -1 : 1;
   const na = sourceName(a);
   const nb = sourceName(b);
-  return na === nb ? 0 : na < nb ? -1 : 1;
+  if (na === nb) return 0;
+  return na < nb ? -1 : 1;
 }
 
 export interface BandConfig {
