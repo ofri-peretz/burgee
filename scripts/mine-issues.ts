@@ -88,7 +88,7 @@ const OWNER_REPO = /github\.com[/:]([^/]+)\/([^/]+?)(?:\.git)?$/;
 
 /**
  * `owner/name` from the package's own registry metadata, so the repo behind an incumbent is
- * read rather than kept in a table here that would rot. All twenty-five resolve; a name
+ * read rather than kept in a table here that would rot. All thirty-eight resolve; a name
  * that stops resolving becomes a `Not measured:` row instead of a silent omission.
  */
 function repoOf(incumbent: string): string | undefined {

@@ -129,7 +129,7 @@ describe('the page', () => {
 describe('every layer has a measured demand file', () => {
   it('covers the nine layers of the plan', () => {
     expect(LAYERS).toHaveLength(9);
-    expect(new Set(LAYERS.flatMap((l) => l.incumbents)).size).toBe(25);
+    expect(new Set(LAYERS.flatMap((l) => l.incumbents)).size).toBe(38);
   });
 
   it('has an issues.md beside every layer intent', () => {
