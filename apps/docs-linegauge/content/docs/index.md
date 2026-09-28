@@ -173,17 +173,12 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
-| `slice-ansi` | 15 / 15 ¹ |
+| `slice-ansi` | 104 / 104 |
 | `string-width` | 229 / 229 |
 | `strip-ansi` | 8 / 8 |
 | `wrap-ansi` | 80 / 80 |
 
-¹ A case the incumbent marks `test.failing()` — it cannot do the thing and says so in
-its own suite — which this package passes. The runner reports that as a failure, because
-to the incumbent an unexpected pass means a stale annotation; it is counted here as the
-pass it is, and marked rather than left to look like the ones beside it.
-
-Weight, installed and tree-inclusive: **93,794 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.4827**.
+Weight, installed and tree-inclusive: **102,495 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5274**.
 
 ## For agents
 

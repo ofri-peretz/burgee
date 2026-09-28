@@ -73,6 +73,32 @@ shown once either way.
 Nothing is written to a non-TTY. Escape sequences in a pipe corrupt the output the pipe
 exists to carry.
 
+### The alternate screen and raw mode, the same way
+
+```js
+import { alternateScreen, hideCursor, rawMode } from 'closeout';
+
+const undo = [rawMode(process.stdin), alternateScreen(process.stdout), hideCursor(process.stdout)];
+try {
+  await runTheFullScreenApp();
+} finally {
+  for (const back of undo) back();
+}
+```
+
+Each call makes the change and registers its undo in the `restore` phase, so a full-screen
+program that dies — Ctrl-C, SIGTERM, SIGHUP, a throw, a handler that threw, a deadline that
+fired — still hands back a terminal with raw mode off, the alternate screen left and the
+cursor shown, after every other handler has run. Each undo runs once, whoever asks first.
+
+Both register on the process-wide instance; pass the object `install()` returned as a second
+argument to register on that one instead. They are functions rather than methods on that
+object so that a program which never enters a screen does not bundle them.
+
+`rawMode(input)` turns off only what it turned on. If the input is already raw, somebody else
+owns that state and the call changes nothing, now or at exit. An input that is not a terminal
+gets no mode change, and a stream that is not a terminal gets no escape, in either direction.
+
 ## The problem
 
 A program leaves by several doors: returning from `main`, `process.exit`, Ctrl-C, SIGTERM
@@ -128,7 +154,7 @@ inside it.
 ```js
 onExit(flushTheLog, 'flush');    // get the data out
 onExit(releaseTheLock);          // let go — the default, `release`
-// `restore` is closeout's own: cursor shown, raw mode off, last, always
+// `restore` is closeout's own: raw mode off, alternate screen left, cursor shown — last, always
 ```
 
 Registration order is the wrong order for a shutdown, and it is the order every incumbent
@@ -294,7 +320,7 @@ Graded by the incumbent's own test suite:
 | `restore-cursor` | 6 / 6 |
 | `signal-exit` | 134 / 135 |
 
-Weight, installed and tree-inclusive: **110,998 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.6039**.
+Weight, installed and tree-inclusive: **117,538 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.6395**.
 
 ## For agents
 
@@ -311,10 +337,6 @@ Weight, installed and tree-inclusive: **110,998 bytes** against **183,804** for 
   [closeout.interlace.tools/llms.txt](https://closeout.interlace.tools/llms.txt) and
   [llms-full.txt](https://closeout.interlace.tools/llms-full.txt).
 
-## What is next
-
-Still to come: raw mode and alternate-screen restore.
-
 ## API
 
 | | |
@@ -323,6 +345,8 @@ Still to come: raw mode and alternate-screen restore.
 | `once(fn)` | run at most once, first result thereafter — `name`, `length` and `this` kept |
 | `hideCursor(stream)` | hide and register the restore (in `restore`); returns the show function |
 | `showCursor(stream)` | show now — idempotent, no-op on a non-TTY |
+| `alternateScreen(stream, closeout?)` | enter the alternate screen and register leaving it (in `restore`); returns the leave function |
+| `rawMode(input, closeout?)` | turn raw mode on and register turning it off (in `restore`); an input already raw is left alone |
 | `install(options)` | wire a registry to a process; `{ deadline, onError, onTimeout, process }` |
 | `createRegistry(options)` | the registry alone, with no process |
 | `reportToJson(report)` / `reportToEvent(report)` | the two projections of the one record |
@@ -340,7 +364,7 @@ And the two leaves, for a program that wants one of them and none of the rest:
 | | |
 | :-- | :-- |
 | `closeout/once` | `once(fn)` — 441 B, reaching nothing |
-| `closeout/cursor` | `showCursor`, `hideCursor`, `HIDE_CURSOR`, `SHOW_CURSOR` — 666 B, no registry |
+| `closeout/cursor` | `showCursor`, `hideCursor`, `alternateScreen`, `rawMode` (each taking the registrar as a second argument), `HIDE_CURSOR`, `SHOW_CURSOR`, `ENTER_ALTERNATE_SCREEN`, `LEAVE_ALTERNATE_SCREEN` — 1,458 B, no registry |
 
 And from `closeout/plugin`:
 

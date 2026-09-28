@@ -26,7 +26,7 @@
 </p>
 
 <p align="center">
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/slice--ansi%20suite-15%2F15-0a6b47?style=flat-square" alt="linegauge/slice passes 15 of 15 cases of the slice-ansi test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/slice--ansi%20suite-104%2F104-0a6b47?style=flat-square" alt="linegauge/slice passes 104 of 104 cases of the slice-ansi test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/string--width%20suite-229%2F229-0a6b47?style=flat-square" alt="linegauge passes 229 of 229 cases of the string-width test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/strip--ansi%20suite-8%2F8-0a6b47?style=flat-square" alt="linegauge/strip passes 8 of 8 cases of the strip-ansi test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/wrap--ansi%20suite-80%2F80-0a6b47?style=flat-square" alt="linegauge/wrap passes 80 of 80 cases of the wrap-ansi test suite" /></a>
@@ -207,17 +207,12 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
-| `slice-ansi` | 15 / 15 ¹ |
+| `slice-ansi` | 104 / 104 |
 | `string-width` | 229 / 229 |
 | `strip-ansi` | 8 / 8 |
 | `wrap-ansi` | 80 / 80 |
 
-¹ A case the incumbent marks `test.failing()` — it cannot do the thing and says so in
-its own suite — which this package passes. The runner reports that as a failure, because
-to the incumbent an unexpected pass means a stale annotation; it is counted here as the
-pass it is, and marked rather than left to look like the ones beside it.
-
-Weight, installed and tree-inclusive: **93,794 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.4827**.
+Weight, installed and tree-inclusive: **102,495 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5274**.
 
 ## For agents
 

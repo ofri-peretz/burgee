@@ -1,15 +1,14 @@
 {
-  "name": "@vendored/slice-ansi-suite",
+  "name": "@vendored/slice-ansi-7-suite",
   "private": true,
   "type": "module",
   "main": "./shim.js",
-  "version": "9.0.1",
+  "version": "7.1.2",
   "license": "MIT",
   "description": "Slice a string with ANSI escape codes",
   "repository": "chalk/slice-ansi",
   "devDependencies": {
-    "random-item": "4.0.1",
-    "is-fullwidth-code-point": "5.1.0",
-    "ansi-styles": "6.2.3"
+    "slice-ansi": "7.1.2",
+    "random-item": "4.0.1"
   }
 }

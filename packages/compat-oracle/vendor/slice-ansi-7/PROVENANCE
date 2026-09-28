@@ -1,15 +1,15 @@
-package:  slice-ansi
+package:  slice-ansi-7
 repo:     https://github.com/chalk/slice-ansi
-version:  9.0.1
-tag:      v9.0.1
-commit:   1196f5f5f8dab9727dcfc3f32c1be9d0ec83c6ac
+version:  7.1.2
+tag:      v7.1.2
+commit:   70f0071c9fe137a62505e3290226f904073aed6e
 vendored: 2026-09-27
 files:    1
 tool:     scripts/vendor-suite.ts
 
 How this directory was made
 ---------------------------
-A shallow clone of https://github.com/chalk/slice-ansi at v9.0.1, then that repository's own test directory and
+A shallow clone of https://github.com/chalk/slice-ansi at v7.1.2, then that repository's own test directory and
 its fixtures copied here. The only edit is to the import specifiers that reach the library:
 each is rewritten to a generated shim, so one unedited suite can grade any implementation.
 Everything else — assertions, fixtures, helpers — is upstream's, byte for byte.
@@ -28,12 +28,12 @@ The shim is not in here
 There is deliberately no shim committed beside these tests. `shim.js` — or `shim.mjs`
 under a `type: commonjs` package, because the extension has to say the file is ESM — is
 written per run by packages/compat-oracle/src/run.ts, since its body names COMPAT_TARGET:
-the control run re-exports slice-ansi itself, a target run re-exports ours. The
+the control run re-exports slice-ansi-7 itself, a target run re-exports ours. The
 vendor step deletes any shim it finds, so a stale one can never grade the wrong thing.
 
 Reproduce
 ---------
-    npx tsx scripts/vendor-suite.ts slice-ansi --version 9.0.1
+    npx tsx scripts/vendor-suite.ts slice-ansi-7 --version 7.1.2
 
 Every field above is reproduced exactly, with one exception that is a date and not a
 defect: `vendored` is the day the copy was taken, so a fresh run writes today's.

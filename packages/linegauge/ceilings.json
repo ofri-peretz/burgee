@@ -62,9 +62,10 @@
       "replaces": "strip-ansi"
     },
     "plugin.js": {
-      "distBytes": 25988,
+      "distBytes": 26100,
       "bundledBytes": 3045,
-      "replaces": null
+      "replaces": null,
+      "//": "26,100 from 25,988 on 2026-09-27: plugin.js reaches width.js, whose WIDE table is now generated from get-east-asian-width 1.7.0 (Unicode 17), four ranges longer than the hand-written one (burgee#363). Measured 26,064."
     }
   },
   "y8": {
