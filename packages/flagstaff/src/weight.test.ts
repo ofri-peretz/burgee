@@ -169,7 +169,17 @@ const RULES: Record<string, EntryRule> = {
   // terminal. Since 2026-09-15 that net is `closeout`'s, reached by a bare specifier, so the
   // measurement no longer carries it and the budget has more headroom than it needs. Left
   // where it is: what the entry may weigh did not change because a dependency edge moved.
-  './loop': { allow: ['closeout', 'closeout/cursor', 'roundel/policy'], budget: 7_000, measured: 4_972, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
+  //
+  // `linegauge` joined the allow list on 2026-09-28, and the measurement rose 168 B (4,972 ->
+  // 5,140). The tty projection counted the rows it had painted with `split('\n')`, which
+  // ignores wrap: a frame wider than the terminal left the rows it wrapped onto on screen
+  // after every erase. It now counts with `lineCount`, the measurement `./ora` already clears
+  // by — reached by a bare specifier, so the width tables it carries are linegauge's and not
+  // in this figure (the 2026-09-09 note's boundary artifact). **The real cost is the bundled
+  // one:** `hoist` alone, by /docs/weight's method, goes 5,946 -> 12,560 B, and all of the
+  // difference is the width function a wrapped row has to be measured with. The budget here
+  // did not move; that page is where the rise shows.
+  './loop': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'roundel/policy'], budget: 7_000, measured: 5_140, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
   // The registry, the validator, the built-ins and the schema they are checked against.
   // The registry, the validator, the built-ins and the schema they are checked against —
   // which now carries `borders` too, so both this and `./spinner` are larger than before.
