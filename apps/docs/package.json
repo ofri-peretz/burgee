@@ -16,14 +16,14 @@
     "@tailwindcss/postcss": "^4.3.3",
     "@types/three": "^0.186.0",
     "docs-chassis": "*",
-    "fumadocs-core": "^16.15.11",
-    "fumadocs-mdx": "^15.4.3",
-    "fumadocs-ui": "^16.15.11",
-    "next": "^16.3.5",
+    "fumadocs-core": "^16.15.14",
+    "fumadocs-mdx": "^15.4.4",
+    "fumadocs-ui": "^16.15.14",
+    "next": "^16.3.6",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "tailwindcss": "^4.3.3",
-    "three": "^0.186.0"
+    "three": "^0.186.1"
   },
   "devDependencies": {
     "@types/mdx": "^2.0.14",
