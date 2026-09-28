@@ -67,6 +67,8 @@ interface Outcome {
   ownHandlerRuns: number;
   /** Whether a hook registered through `closeout/exit-hook` ran at all. */
   hookRuns: number;
+  /** Everything the child wrote to fd 2. */
+  stderr: string;
 }
 
 /**
@@ -107,6 +109,7 @@ function runChild(source: string): Outcome {
     status,
     ownHandlerRuns: count('OWN-HANDLER-RAN'),
     hookRuns: count('HOOK-RAN'),
+    stderr: written,
   };
 }
 
@@ -189,6 +192,77 @@ describe.skipIf(process.platform === 'win32')('a signal that nobody else claimed
       expect(observed.show, 'cleanup still runs — that is not what is being deferred').toBe(1);
       expect(observed.killedBy, 'the program owns the signal, so nothing re-raises it').toBeNull();
       expect(observed.status, 'and the program decides the code').toBe(OWN_EXIT_CODE);
+    },
+    CASE_TIMEOUT_MS,
+  );
+});
+
+/**
+ * A handler that hangs on something holding nothing in the event loop (D-164).
+ *
+ * The give-up timer is what holds the loop until the trigger lands, and the handler clears
+ * it — the shape of a `flush` that closes the socket keeping the process alive and then
+ * awaits a callback that never comes. From there nothing is left in the loop but the
+ * deadline. On the unfixed state that clock was `unref`'d, so the loop drained, Node left
+ * through `'exit'`, and a SIGTERM'd process — or one that threw — exited **0**.
+ */
+const GIVE_UP = `const giveUp = setTimeout(() => process.exit(0), ${CHILD_GIVE_UP_MS});`;
+const HANG = '() => { clearTimeout(giveUp); return new Promise(() => {}); }';
+
+describe.skipIf(process.platform === 'win32')('a hang that holds nothing does not turn a signal into a success', () => {
+  it(
+    'SIGTERM through install(): the deadline fires, names the handler, and the process dies of the signal',
+    () => {
+      const observed = runChild(
+        [
+          `const { onExit } = await import(${JSON.stringify(distIndex)});`,
+          GIVE_UP,
+          `onExit(${HANG}, { phase: 'flush', label: 'waits-on-nothing' });`,
+          `setTimeout(() => process.kill(process.pid, 'SIGTERM'), ${SIGNAL_AFTER_MS});`,
+        ].join('\n'),
+      );
+
+      expect(observed.killedBy, 'a signalled process must die of the signal').toBe('SIGTERM');
+      expect(observed.status).toBeNull();
+      expect(observed.stderr, 'the breach is reported, which needs the deadline to fire').toContain('waits-on-nothing');
+    },
+    CASE_TIMEOUT_MS,
+  );
+
+  it(
+    'an uncaught throw through install(): still exit 1, and the error still reaches stderr',
+    () => {
+      const observed = runChild(
+        [
+          `const { onExit } = await import(${JSON.stringify(distIndex)});`,
+          GIVE_UP,
+          `onExit(${HANG}, { phase: 'flush', label: 'waits-on-nothing' });`,
+          `setTimeout(() => { throw new Error('mid-render'); }, ${SIGNAL_AFTER_MS});`,
+        ].join('\n'),
+      );
+
+      expect(observed.status, 'the code decided at the throw (R10)').toBe(1);
+      expect(observed.stderr).toContain('mid-render');
+    },
+    CASE_TIMEOUT_MS,
+  );
+
+  it(
+    'SIGTERM through closeout/exit-hook: 143 after `wait`, as exit-hook@5.1.0 leaves on the same program',
+    () => {
+      // Upstream's force-exit timer is not unref'd, so it holds the loop for `wait` and then
+      // exits 128 + 15 — measured on the vendored copy, 2026-09-27. The façade exited 0.
+      const observed = runChild(
+        [
+          `const { asyncExitHook } = await import(${JSON.stringify(distExitHook)});`,
+          GIVE_UP,
+          `asyncExitHook(${HANG}, { wait: 300 });`,
+          `setTimeout(() => process.kill(process.pid, 'SIGTERM'), ${SIGNAL_AFTER_MS});`,
+        ].join('\n'),
+      );
+
+      expect(observed.status).toBe(143);
+      expect(observed.killedBy).toBeNull();
     },
     CASE_TIMEOUT_MS,
   );

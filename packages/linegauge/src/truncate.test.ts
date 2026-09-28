@@ -23,8 +23,11 @@ const count = (haystack: string, needle: string): number => haystack.split(needl
 
 describe('truncate keeps the ellipsis inside the budget', () => {
   // The off-by-one the module exists for, stated first and checked over every budget.
-  it.each([1, 2, 3, 5, 8, 13, 20])('is never wider than %i columns', (columns) => {
-    for (const value of ['the quick brown fox jumps', red('the quick brown fox jumps'), 'ab\u4F60\u597Dcd efgh']) {
+  // `\u3042\u3044\u3046\u3048\u304A` and `a\u3042\u3044\u3046` are here because the mixed string beside them never put a wide
+  // character across a cut at these budgets, so the loop passed while `truncate('\u3042\u3044\u3046', 4)`
+  // returned `\u3042\u3044\u2026` \u2014 five columns. `slice` rounded outward then; it rounds inward now.
+  it.each([1, 2, 3, 4, 5, 8, 13, 20])('is never wider than %i columns', (columns) => {
+    for (const value of ['the quick brown fox jumps', red('the quick brown fox jumps'), 'ab\u4F60\u597Dcd efgh', '\u3042\u3044\u3046\u3048\u304A', 'a\u3042\u3044\u3046']) {
       for (const position of ['start', 'middle', 'end'] as const) {
         expect(width(truncate(value, columns, { position })), `${position} @ ${String(columns)}`).toBeLessThanOrEqual(columns);
       }
