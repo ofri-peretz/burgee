@@ -528,7 +528,10 @@ const RULES: Record<string, EntryRule> = {
    * itself rather than its meow-shaped door.
    */
   "./meow": {
-    allow: [],
+    // `seniority/find-up` on 2026-09-28: the package.json walk is seniority's, bounded and
+    // cycle-safe, instead of a loop here. Measured 61,513 (-79) on disk; the bundled door
+    // grows 25,044 -> 25,744 B, the walk's symlink and depth guards it did not have.
+    allow: ["seniority/find-up"],
     // 60,000 on 2026-09-23 with D-140 and #521 on top of main's A29 exports. Measured 59,931.
     // 61,700 on 2026-09-27 for the parser's flag shapes in linear time (`yargs/flag-shapes.js`,
     // 1,880 B, replacing five regexes one of which was cubic) and meow refusing `input: null`
