@@ -241,3 +241,48 @@ describe.skipIf(process.platform === 'win32')('a cursor hidden mid-spin comes ba
     30_000,
   );
 });
+
+/** Start and stop an enabled spinner over a fake stdin; returns what was done to its mode. */
+function withStdin(isRaw: boolean): string[] {
+  const calls: string[] = [];
+  const fake = {
+    isTTY: true,
+    isRaw,
+    isPaused: () => false,
+    setRawMode(mode: boolean) {
+      calls.push(`raw:${String(mode)}`);
+      fake.isRaw = mode;
+      return fake;
+    },
+    prependListener: () => fake,
+    off: () => fake,
+    resume: () => fake,
+    pause: () => fake,
+  };
+  const saved = Object.getOwnPropertyDescriptor(process, 'stdin');
+  Object.defineProperty(process, 'stdin', { value: fake, configurable: true });
+  try {
+    const spinner = ora({ stream: { ...pipe(), isTTY: true }, isEnabled: true, hideCursor: false, text: 'probe' });
+    spinner.start();
+    spinner.stop();
+  } finally {
+    if (saved !== undefined) Object.defineProperty(process, 'stdin', saved);
+  }
+  calls.push(`isRaw:${String(fake.isRaw)}`);
+  return calls;
+}
+
+/**
+ * stdin-discarder's raw mode, through `closeout/cursor`'s `rawMode`: on while a spinner owns
+ * the terminal, off again afterwards — and left alone on a stdin somebody else already made
+ * raw, where the incumbent wrote `isRaw` back by hand.
+ */
+describe('discardStdin leaves stdin in the mode it found it', () => {
+  it.skipIf(process.platform === 'win32')('turns raw mode on for the spinner and off after it', () => {
+    expect(withStdin(false)).toEqual(['raw:true', 'raw:false', 'isRaw:false']);
+  });
+
+  it.skipIf(process.platform === 'win32')('leaves an already-raw stdin raw, without touching it', () => {
+    expect(withStdin(true)).toEqual(['isRaw:true']);
+  });
+});
