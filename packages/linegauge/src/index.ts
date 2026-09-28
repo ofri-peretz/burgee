@@ -29,7 +29,12 @@
 // `Options` is string-width's name for `WidthOptions`: the root is string-width's drop-in, so a
 // typed program's `import { type Options } from 'string-width'` migrates by its import alone.
 export { lineCount, measure, width, width as default, type WidthOptions, type WidthOptions as Options } from './width.js';
-export { slice } from './slice.js';
+// A star and not `export { slice }`, measured: esbuild counts a named re-export as one more use
+// of `slice` when it hands out short names, so `import { slice } from 'linegauge'` minified to
+// one byte more than the same import from `linegauge/slice` did, and the tree-shake fixture
+// (U10) requires the two to be equal. `slice.js` exports `slice` and a default, and a star
+// never re-exports a default, so the root's surface is the same.
+export * from './slice.js';
 export { strip } from './strip.js';
 export { truncate, type TruncateOptions } from './truncate.js';
 export { widest } from './widest.js';

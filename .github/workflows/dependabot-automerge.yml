@@ -40,9 +40,11 @@ concurrency:
   group: dependabot-automerge-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
+# Read-only at the top, write on the one job that enables auto-merge. A top-level
+# `contents: write` handed it to every job this file will ever grow, and Scorecard's
+# Token-Permissions scored the whole repo 0 for it (#94).
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   automerge:
@@ -50,6 +52,9 @@ jobs:
     if: github.event.pull_request.user.login == 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: write # `gh pr merge --auto` under the github.token fallback
+      pull-requests: write
     env:
       # `secrets` cannot be read in a step's `if:`; a job-level env can, and a boolean of
       # it carries nothing secret.
