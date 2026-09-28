@@ -69,6 +69,20 @@ describe('a band the newest results document did not measure', () => {
     expect(unmeasured(band('core-bundled-bytes'), root)?.newest).toBe('2026-09-21-bbbbbbb');
   });
 
+  it('means newest by when it was measured, not by which hash sorts last', () => {
+    // Two CI runs on one day. The later one has the hash that sorts first and skipped the band;
+    // by name the earlier, complete run looked newest and the gap went unreported (#636).
+    const r = mkdtempSync(join(tmpdir(), 'bands-'));
+    const d = join(r, 'benchmarks/results', SUITE);
+    mkdirSync(d, { recursive: true });
+    writeFileSync(join(d, '2026-09-24-fffffff-ci.json'), JSON.stringify({ measured: '2026-09-24T01:00:00.000Z', machine: { ci: true }, bands: { 'core-bundled-bytes': { value: 58027 } } }));
+    writeFileSync(
+      join(d, '2026-09-24-0000000-ci.json'),
+      JSON.stringify({ measured: '2026-09-24T09:00:00.000Z', machine: { ci: true }, bands: { 'core-bundled-bytes': { status: 'not-run', reason: 'not selected by --axis' } } }),
+    );
+    expect(unmeasured(band('core-bundled-bytes'), r)).toEqual({ newest: '2026-09-24-0000000-ci', reason: 'not selected by --axis' });
+  });
+
   it('says nothing about a band that document did measure', () => {
     expect(unmeasured(band('cold-start-ratio'), root)).toBeUndefined();
   });

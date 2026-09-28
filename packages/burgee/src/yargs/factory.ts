@@ -846,7 +846,10 @@ export class YargsInstance {
     argsert('<string> [string]', [key, rootPath], arguments.length);
     let conf: Record<string, any> | null = null;
     const obj = this.#pkgUp(rootPath || this.#cwd);
-    if (obj[key] && typeof obj[key] === 'object') {
+    // Own keys only. Upstream reads `obj[key]` bare, so `pkgConf('__proto__')` handed
+    // Object.prototype to applyExtends, which deletes `extends` from the object it is given.
+    // A package.json that really has the key still parses it as an own property.
+    if (Object.prototype.hasOwnProperty.call(obj, key) && obj[key] && typeof obj[key] === 'object') {
       conf = applyExtends(obj[key], rootPath || this.#cwd, this.#getParserConfiguration()['deep-merge-config'] || false);
       this.#options.configObjects = (this.#options.configObjects || []).concat(conf);
     }
