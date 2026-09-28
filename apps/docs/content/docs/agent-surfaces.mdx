@@ -17,6 +17,12 @@ required), each command's `effects`, its examples, and a JSON Schema per command
 the manifest and nothing else: no config file, no network, no handler runs (N8), so it is
 safe to call first.
 
+`mytool schema` is the same request spelled as a subcommand — `schema deploy` and
+`schema deploy --field options.region` print exactly what the flag forms print — because
+that is where [clispec.dev](https://clispec.dev) and the agents that follow it look. A
+program whose own `schema` command exists, or whose root command takes arguments, keeps the
+word: burgee answers only the flag there. The root `--help` names `--schema`.
+
 ## `--mcp` — the program as MCP tools
 
 ```bash

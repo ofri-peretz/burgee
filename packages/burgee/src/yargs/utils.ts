@@ -30,19 +30,62 @@ export interface ParsedCommand {
   optional: Positional[];
 }
 
+/*
+ * Upstream's parse-command is three regexes that backtrack quadratically on a long run of
+ * whitespace or dots: 20,000 of them took 0.7 s, and the time grows with the square of the
+ * length. Each helper below gives the same answer as the regex it replaces, in one pass.
+ */
+
+/** `s.split(/\s+(?![^[]*]|[^<]*>)/)`: a whitespace run splits unless it sits inside `[…]` or `<…>`. */
+function splitOutsideBrackets(s: string): string[] {
+  // inside[i]: the nearest `[`/`]` at or after i is `]`, or the nearest `<`/`>` is `>`.
+  const inside: boolean[] = [];
+  for (let i = s.length, square = false, angle = false; i >= 0; i--) {
+    const c = s[i];
+    if (c === ']' || c === '[') square = c === ']';
+    else if (c === '>' || c === '<') angle = c === '>';
+    inside[i] = square || angle;
+  }
+  const parts: string[] = [];
+  let start = 0;
+  for (const m of s.matchAll(/\s+/g)) {
+    const end = m.index + m[0].length;
+    if (!inside[end]) {
+      parts.push(s.slice(start, m.index));
+      start = end;
+    }
+  }
+  parts.push(s.slice(start));
+  return parts;
+}
+
+/** `s.replace(/\.*[\][<>]/g, '')`: drop every bracket along with the dots right before it. */
+function stripBrackets(s: string): string {
+  let out = '';
+  let dots = '';
+  for (const c of s) {
+    if (c === '.') dots += c;
+    else {
+      if (!'[]<>'.includes(c)) out += dots + c;
+      dots = '';
+    }
+  }
+  return out + dots;
+}
+
 export function parseCommand(cmd: string): ParsedCommand {
   const extraSpacesStrippedCommand = cmd.replace(/\s{2,}/g, ' ');
-  const splitCommand = extraSpacesStrippedCommand.split(/\s+(?![^[]*]|[^<]*>)/);
-  const bregex = /\.*[\][<>]/g;
+  const splitCommand = splitOutsideBrackets(extraSpacesStrippedCommand);
   const firstCommand = splitCommand.shift();
   if (!firstCommand) throw new Error(`No command found in: ${cmd}`);
-  const parsedCommand: ParsedCommand = { cmd: firstCommand.replace(bregex, ''), demanded: [], optional: [] };
+  const parsedCommand: ParsedCommand = { cmd: stripBrackets(firstCommand), demanded: [], optional: [] };
   splitCommand.forEach((c, i) => {
     let variadic = false;
     c = c.replace(/\s/g, '');
-    if (/\.+[\]>]/.test(c) && i === splitCommand.length - 1) variadic = true;
-    if (/^\[/.test(c)) parsedCommand.optional.push({ cmd: c.replace(bregex, '').split('|'), variadic });
-    else parsedCommand.demanded.push({ cmd: c.replace(bregex, '').split('|'), variadic });
+    // `/\.+[\]>]/.test(c)`
+    if ((c.includes('.]') || c.includes('.>')) && i === splitCommand.length - 1) variadic = true;
+    if (/^\[/.test(c)) parsedCommand.optional.push({ cmd: stripBrackets(c).split('|'), variadic });
+    else parsedCommand.demanded.push({ cmd: stripBrackets(c).split('|'), variadic });
   });
   return parsedCommand;
 }
@@ -185,7 +228,7 @@ export function applyExtends(config: Record<string, any>, cwd: string, mergeExte
   let defaultConfig: Record<string, any> = {};
   if (Object.prototype.hasOwnProperty.call(config, 'extends')) {
     if (typeof config.extends !== 'string') return defaultConfig;
-    const isPath = /\.json|\..*rc$/.test(config.extends);
+    const isPath = isConfigPath(config.extends);
     let pathToDefault: string;
     if (!isPath) {
       try {
@@ -202,6 +245,18 @@ export function applyExtends(config: Record<string, any>, cwd: string, mergeExte
   }
   previouslyVisitedConfigs = [];
   return mergeExtends ? mergeDeep(defaultConfig, config) : Object.assign({}, defaultConfig, config);
+}
+
+/**
+ * `/\.json|\..*rc$/.test(s)` in linear time (the regex is quadratic on a run of dots).
+ * `.*` stops at a line terminator, so the `.` it starts from must come after the last one,
+ * and the last `.` before the closing `rc` is the one with the shortest span to check.
+ */
+export function isConfigPath(s: string): boolean {
+  if (s.includes('.json')) return true;
+  if (!s.endsWith('rc')) return false;
+  const dot = s.lastIndexOf('.', s.length - 3);
+  return dot !== -1 && !/[\n\r\u2028\u2029]/.test(s.slice(dot + 1, -2));
 }
 
 function checkForCircularExtends(cfgPath: string): void {

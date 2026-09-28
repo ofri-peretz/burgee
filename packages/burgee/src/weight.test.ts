@@ -387,9 +387,11 @@ const RULES: Record<string, EntryRule> = {
   // 8,950 for O2's `colorFor`, which lives here so the startup path does not pay for it; it
   // takes `interactive` as a boolean because importing `detectAgent` cost this entry 1,160
   // bytes of vendor table. Measured 8,911.
+  // 9,130 on 2026-09-27 for D-151: the root's help names `--schema` (clispec.dev's
+  // `help-mentions-schema`), one row and the root-or-not choice. Measured 9,085 (+174).
   "./help": {
     allow: ["linegauge"],
-    budget: 8_950,
+    budget: 9_130,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
   },
   // The MCP server. It reaches the schema and the manifest, because a tool list *is* the
@@ -715,7 +717,10 @@ const RULES: Record<string, EntryRule> = {
     // 218,000 on 2026-09-24 for J3/J4: `.burgee({ floor: true })` — a usage failure exits
     // through E1 and a failing handler is reported once, before yargs' help screen — and
     // `--schema` naming what the program shadows. Measured 217,901.
-    budget: 218_000,
+    // 219,150 on 2026-09-27 for CodeQL #17–#27: parse-command and apply-extends in linear
+    // time instead of three quadratic regexes, `pkgConf` reading own keys only, and zsh
+    // completions escaping `\`. Measured 219,066.
+    budget: 219_150,
     // 217,100 with D-140 on top of D-122, N14 and E7, after merging #521. Measured 217,090.
     // 217,150 with A29's CommonJS export on top. Measured 217,123.
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
