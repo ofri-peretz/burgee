@@ -67,6 +67,19 @@ updates:
       # cli-table3 0.6.5 is the release compat-oracle vendors and grades (vendor/cli-table3/.source.json),
       # and since 2026-09-23 the one B4 weighs flagstaff/table and flagstaff/cli-table3 against.
       - dependency-name: "cli-table3"
+  # The `claude` binary bench.yml (B1) and evals.yml install with `npm ci`. It was
+  # `npm install --global` with no version, which Scorecard flags as unpinned (#34, #81);
+  # the lockfile pins it, and this entry is what keeps the pin from going stale.
+  - package-ecosystem: "npm"
+    directory: "/.github/tools/claude-code"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 1
+    labels: ["dependencies", "ci"]
+    commit-message:
+      prefix: "chore(ci)"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
