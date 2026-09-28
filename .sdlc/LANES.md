@@ -7,7 +7,7 @@ textually. This file is the contract; `scripts/lane-boundaries-lock.test.ts` enf
 **Ten lanes, not nine.** The first count missed that `roundel` and `flagstaff` are a
 layer of their own — the output stack sits between the foundation six and the engine,
 and `chalk` (wave 0.4, the red ratchet) is roundel's incumbent, not anyone else's.
-`controlroom` made it eleven on 2026-09-27, when its skeleton landed (D-158, D-165).
+`controlroom` made it eleven on 2026-09-27, when its skeleton landed (D-158, D-166).
 
 ## The lanes
 
