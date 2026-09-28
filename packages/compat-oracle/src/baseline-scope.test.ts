@@ -26,7 +26,7 @@ const BASELINE = resolve(fileURLToPath(new URL('..', import.meta.url)), 'baselin
 
 const fragments = readdirSync(BASELINE)
   .filter((f) => f.endsWith('.json'))
-  .map((f) => [f.slice(0, -'.json'.length), JSON.parse(readFileSync(join(BASELINE, f), 'utf8')) as { planned?: boolean }] as const);
+  .map((f) => [f.slice(0, -'.json'.length), JSON.parse(readFileSync(join(BASELINE, f), 'utf8')) as { planned?: boolean; ceiling?: boolean }] as const);
 
 const statusOf = (host: string): string | undefined => HOSTS.find((h) => h.name === host)?.status;
 
@@ -40,5 +40,14 @@ describe('baseline fragments and host status', () => {
     // rather than silently treated as active.
     expect(statusOf(host), `baseline/${host}.json records a host hosts.ts does not declare`).toBeDefined();
     expect(fragment.planned === true, `baseline/${host}.json planned=${String(fragment.planned === true)} against hosts.ts status '${String(statusOf(host))}'`).toBe(statusOf(host) === 'planned');
+  });
+
+  // The same agreement for `ceiling` (D-160). The locks on the published side — burgee's
+  // `compat-baseline-lock` — read the directory as text and cannot import `hosts.ts`, so the
+  // flag in the fragment is what they see; a fragment that loses it puts a non-drop-in back
+  // into `migrate`'s list, and one that keeps it after the row became a drop-in hides one.
+  it.each(fragments)('%s: the ceiling flag says exactly what hosts.ts says', (host, fragment) => {
+    const declared = HOSTS.find((h) => h.name === host)?.ceiling !== undefined;
+    expect(fragment.ceiling === true, `baseline/${host}.json ceiling=${String(fragment.ceiling === true)} against hosts.ts ceiling ${declared ? 'set' : 'unset'}`).toBe(declared);
   });
 });

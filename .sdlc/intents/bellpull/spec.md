@@ -12,6 +12,9 @@ see.** The package is built — `run`, resolution, the three projections, a grad
 is recorded anywhere in this repository**. `intent.md`'s gate asks for `tinyexec`'s weekly
 downloads, its last publish date and a reading of its current API, re-measured before F4
 opens; `tinyexec` is not installed in this workspace and no measurement of it exists here.
+*(2026-09-27, D-160: `tinyexec` 1.3.1 is now a pinned `benchmarks/` devDependency and B4 weighs
+it — `run` bundles to 5,901 B against `x`'s 5,969, 0.989. The downloads-and-API half of the
+gate is still not recorded.)*
 So the condition this design set for itself is outstanding, and it is not a thing a lane can
 close by reasoning: it needs a number taken on the day it is taken. Recorded here rather
 than left for a reader to notice, because accepting a conditional design whose condition was
@@ -83,7 +86,10 @@ not accepted**, and the Design→Build acceptance line is a human's to write
     native `run` **resolves** on a non-zero exit, which is the product; `execa` throws. A
     consumer who redirected `execa` to this package would have every one of their error
     paths silently stop firing. The one place execa's semantics may be honoured is a façade
-    graded by execa's own suite, and R9's execa suite is not vendored. (Whether modern
+    graded by execa's own suite, and R9's execa suite is not vendored. *(Vendored since
+    2026-09-27, D-160: execa 10.0.1's suite grades `bellpull` **0 / 1047** — every file dies at
+    link time on `export named 'execa'` — and the row is declared a `ceiling`, so neither this
+    recipe nor `burgee migrate` can name bellpull as execa's replacement.)* (Whether modern
     `execa` even has a default export to match is *not checked here*: it is not installed in
     this workspace, so nothing in this repository can measure it.)
   - **"separately graded" is true of one subpath, not three.** Only `./cross-spawn` has a
@@ -94,7 +100,9 @@ not accepted**, and the Design→Build acceptance line is a human's to write
   `tinyexec` is not installed in this workspace, so no number is claimed against it; the
   ceiling actually in force is D1's tree-inclusive one. Swapping the ceiling into the
   requirement would hide that substitution, which is the thing the requirement was guarding
-  against.)*
+  against.)* *(**Bytes half measured 2026-09-27, D-160:** B4's `bellpull ÷ tinyexec` pair,
+  `run` against `x`, reads **0.989** — 5,901 / 5,969 B — under a gate of 1. The spawn-delta
+  half is still unmeasured, so the row stays `Not built`.)*
 - **R9 (Y7)** `execa`, `cross-spawn` and `which` suites vendored into `compat-oracle`,
   `--control` first, ratcheting. `execa`'s is the largest compatibility surface in the
   family; a partial pass rate is published as a partial number, never rounded up.
@@ -145,7 +153,7 @@ not accepted**, and the Design→Build acceptance line is a human's to write
 `scripts/plan-progress.ts` reads it — the table shape `seniority` uses. Before this table
 existed the checker said of this design: *"the design records no per-requirement status, in
 either shape"*, which is not a verdict on the package, it is a verdict on the document. A
-`Not built` here is a real answer and two rows carry it.
+`Not built` here is a real answer and one row carries it (two until R9 closed, 2026-09-27).
 
 | R | Status | Where | The check |
 | :-- | :-- | :-- | :-- |
@@ -156,15 +164,15 @@ either shape"*, which is not a verdict on the package, it is a verdict on the do
 | R5 | **Built** | `src/project.ts` — `outcomeOf` is the one verdict; `format`, `toJson`, `toEvent` are its three renderings | `matrix.test.ts`: *"every rendering comes from one value — none of them can report something the others cannot"* |
 | R6 | **Built** | `src/spawn-args.ts`, `escape.ts`, `shebang.ts`, `enoent.ts`, and the façade at `src/cross-spawn.ts`. `shell` is off by default | `cross-spawn`'s own suite through `compat-oracle`: **68 / 68**, control 68 / 68. Plus `escape.test.ts` and `cross-spawn.test.ts` |
 | R7 | **Built** | as **restated** above, not as first written: subpath isolation, and one override target — `bellpull/cross-spawn`. There is no root default export and no `./run-path` | `weight.test.ts`: `./which` reaches `runtime.js` and `which.js` and nothing else; every entry declares a budget; no entry reaches a package |
-| R8 | **Not built** | The ceiling as written is `tinyexec`, and **`tinyexec` is not installed in this workspace**, so no number is claimed against it — which also means the requirement cannot be evaluated as written. The **spawn-delta** half has no row at all: `benchmarks/` has no bellpull task. What *is* measured is the substituted ceiling (D1's `execa` + `cross-spawn` + `which`) and zero dependencies | `weight.test.ts`: under the band's `ceiling`, and `external` empty for every entry. Neither is R8's comparison, and the gap is named rather than papered over |
-| R9 | **Not built** | Two of three suites. `cross-spawn` is graded 68 / 68; **`which` is graded 5 / 5 since 2026-09-23** — node-which 7's own `test/index.js` against `bellpull/node-which`, a drop-in entry of its own so `bellpull/which` stays resolution alone (`test/bin.js` grades node-which's CLI, which bellpull does not ship). **`execa` is not vendored**: its surface is the largest in the family and its shape depends on the intent's open streaming question | `npm run compat -- cross-spawn which`. `execa` has no baseline fragment, which is the honest state |
+| R8 | **Not built** | Half of it. **Bytes: met, 2026-09-27 (D-160)** — `tinyexec` 1.3.1 is a pinned `benchmarks/` devDependency and B4's `bellpull` pair bundles `run` at **5,901 B** against tinyexec's `x` at **5,969 B**, **0.989**, gated at ≤ 1 (`lighter-than-tinyexec` in `benchmarks/claims.ts`) with a byte ratchet of 6,000 beside it. **Spawn delta: no row at all** — `benchmarks/` has no bellpull task, and that is the half that keeps this row `Not built`. Also measured: D1's tree-inclusive ceiling (`execa` + `cross-spawn` + `which`) and zero dependencies | `cd benchmarks && npx tsx run.ts --axis weight --check`; `weight.test.ts`: under the band's `ceiling`, and `external` empty for every entry |
+| R9 | **Built** | All three suites, each `--control` first and ratcheting. `cross-spawn` 68 / 68; `which` 5 / 5 since 2026-09-23 — node-which 7's own `test/index.js` against `bellpull/node-which`, a drop-in entry of its own so `bellpull/which` stays resolution alone (`test/bin.js` grades node-which's CLI, which bellpull does not ship). **`execa` since 2026-09-27 (D-160): 0 / 1047 against `bellpull`, control 1047 / 1047** — execa 10.0.1's suite vendored whole, `arguments/`, `methods/` and `return/` graded, the other nine directories named in `ungradedDirs` because the whole suite is 647 s of control; over all 149 files the target also passed 0. Published as the partial number R9 asks for, and declared a **ceiling**, not a drop-in: bellpull ships no execa API (R7) | `npm run compat -- cross-spawn which execa`; `baseline/execa.json` carries `"ceiling": true`, held to `hosts.ts` by `baseline-scope.test.ts` |
 | R10 | **Built** | as **restated** above: `src/ambient.ts` is the one seam, the core takes a `Runtime` | `weight.test.ts`, *"no module but `ambient` reads the ambient world (Y9)"*, asserted over the built `dist`; plus `./which` and `./plugin` locked not to reach `ambient.js` at all |
 | R11 | **Built** | `src/run.ts` — the caveat is in `Result.duration`'s doc comment, where a consumer reads it, and `strip-comments.mjs` keeps it in the `.d.ts` | the type ships the sentence; `weight.test.ts` measures the `.d.ts` bytes that carry it |
 | R12 | **Built** | `src/plugin.ts` + `src/schema.json`, exported at `bellpull/plugin` and `bellpull/schema.json` | `plugin.test.ts`; `scripts/plugin-schema-lock.test.ts` (byte-identical across every host); `scripts/plugin-contract-lock.test.ts`; PLAN step 1.5 reads green |
 
-**The two `Not built` rows are not a request to build them here.** R9's missing suites are
-real work with a design question in front of them, and R8's comparison is one the
-Reconciliations section argues is the wrong one. Recording them as unmet is the point: a
+**The `Not built` row is not a request to build it here.** R8's bytes half is measured and
+met; its spawn-delta half needs a bellpull task in `benchmarks/`, and its comparison is one the
+Reconciliations section argues is the wrong one. (R9 was the second row until 2026-09-27.) Recording them as unmet is the point: a
 requirement that is quietly dropped and a requirement that is met are indistinguishable from
 the outside, and this gate is where that difference is supposed to be visible.
 
@@ -239,6 +247,8 @@ done** — see "Where that order stopped" above.
 - `npm run compat -- cross-spawn` — **68 / 68**, `--control` first, ratcheting. The line this
   replaces asked for `execa cross-spawn which`: three rows. Two of the three do not exist
   (R9), and a verification step naming a command that cannot run is not a verification step.
+  *(All three exist since 2026-09-27: `npm run compat -- cross-spawn which execa` — 68 / 68,
+  5 / 5, and execa's **0 / 1047** ceiling, each with its control.)*
 - `npm run compat` and `npm run bench` themselves, **after** the switch, unchanged — the
   dogfooding loop is the acceptance test.
 - **The check that would have caught the original problem.** The original problem is a
@@ -274,7 +284,8 @@ two on bytes compares a package that can answer "which binary ran" against one t
 and the smaller number wins by not doing the job. Measured instead against the `ceiling`
 `.sdlc/bands/foundation-ceilings.json` already holds (`execa` + `cross-spawn` + `which`,
 714,984 B), where the ratio was **0.0067** when this package was seven lines and is an order
-of magnitude higher now that it has an implementation. `tinyexec` is not installed in this
+of magnitude higher now that it has an implementation. *(Since 2026-09-27 B4 does weigh
+`tinyexec` too — 0.989 of it, bundled — D-160.)* `tinyexec` is not installed in this
 workspace, so no number is claimed against it.
 
 **The live figure is the band file, not this sentence.** `layers.bellpull.ours` in
@@ -457,6 +468,8 @@ Beyond "Out of scope" below:
 - **`shell` is off by default** and is documented as the injection surface it is. It is never
   switched on to solve a Windows problem.
 - **It claims no number against `tinyexec`**, which is not installed in this workspace.
+  *(Superseded 2026-09-27, D-160: it claims one — bundled bytes 0.989 of tinyexec's `x`,
+  measured by B4 — and still none on spawn time.)*
 
 ## Where this document and the code disagreed (2026-09-15) — reconciled 2026-09-16
 

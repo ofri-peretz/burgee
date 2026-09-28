@@ -1079,6 +1079,12 @@ export interface Baseline {
      * oracle never grades — which took the whole compat axis down to zero published rows.
      */
     planned?: boolean;
+    /**
+     * The row publishes a ceiling, not a drop-in: `hosts.ts` declares `ceiling` beside it with
+     * the reason, and `baseline-scope.test.ts` holds the two in step. Here because burgee's
+     * `compat-baseline-lock` reads this directory as text and cannot see `hosts.ts` (D-160).
+     */
+    ceiling?: boolean;
   };
 }
 

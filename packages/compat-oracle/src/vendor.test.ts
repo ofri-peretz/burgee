@@ -40,6 +40,16 @@ describe('rewriting public specifiers', () => {
     // The path computation is a path, not an import: rewriting it failed a case against node-which itself.
     expect(out).toContain("join('..', dir, name)");
   });
+
+  it('rewrites a `namedOnly` bare specifier where a module is named, and leaves the same word as a value alone (execa)', () => {
+    const execa = HOSTS.find((h) => h.name === 'execa') as Host;
+    const source = ["import {getCancelSignal, sendMessage} from 'execa';", "const {all} = await execaMethod('verbose-script.js', {env: {NODE_DEBUG: 'execa'}, all: true});", "const again = await import('execa');"].join('\n');
+    const out = rewriteAt(source, execa, { fileDir: '/v/execa/test/fixtures', hostDir: '/v/execa' });
+    expect(out).toContain("from '../../shim-1.js';");
+    expect(out).toContain("import('../../shim-1.js')");
+    // A value, not an import: rewriting it set NODE_DEBUG to a shim path and failed three of info.js's fifteen cases against execa itself.
+    expect(out).toContain("NODE_DEBUG: 'execa'");
+  });
 });
 
 describe('the vendored root package', () => {
