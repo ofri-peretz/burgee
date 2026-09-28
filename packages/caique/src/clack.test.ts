@@ -283,6 +283,18 @@ describe('the writers', () => {
     expect(text).toBe(`${clack.S_BAR}\n◒  working...\n◒  still working...\n${clack.S_STEP_SUBMIT}  done\n`);
   });
 
+  it('spinner drops a message\'s own trailing dots before adding its three, in time linear in the dots', () => {
+    const dots = '.'.repeat(100_000);
+    const text = capture((output) => {
+      const spin = clack.spinner({ output });
+      spin.start('loading..');
+      spin.message(`many${dots}`);
+      spin.message(dots);
+      spin.stop('done');
+    });
+    expect(text).toBe(`${clack.S_BAR}\n◒  loading...\n◒  many...\n◒  ...\n${clack.S_STEP_SUBMIT}  done\n`);
+  });
+
   it('group asks in order, hands each prompt the answers so far, and reports a cancel', async () => {
     const seen: unknown[] = [];
     let cancelled: unknown;

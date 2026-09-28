@@ -196,7 +196,12 @@ const DOT_LIMIT = 4;
 const DOT_STEP = 0.125;
 
 const magenta = (glyph: string): string => paint('magenta', glyph);
-const withoutDots = (msg: string): string => msg.replace(/\.+$/, '');
+/** The message without its trailing dots — a scan from the end, not `/\.+$/`, which is quadratic on a run of dots. */
+const withoutDots = (msg: string): string => {
+  let end = msg.length;
+  while (end > 0 && msg[end - 1] === '.') end -= 1;
+  return msg.slice(0, end);
+};
 const noop = (): void => undefined;
 
 /** How a spinner ends: answered, cancelled, or failed. */
