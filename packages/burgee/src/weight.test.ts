@@ -537,9 +537,10 @@ const RULES: Record<string, EntryRule> = {
     // 61,700 on 2026-09-27 for the parser's flag shapes in linear time (`yargs/flag-shapes.js`,
     // 1,880 B, replacing five regexes one of which was cubic) and meow refusing `input: null`
     // as meow does. Measured 61,592.
-    // 63,100 on 2026-09-28: both of the above together, #665's 61,592 plus meow's 1,345 — the two
-    // landed in parallel. Measured 62,937 locally; 163 B clear of the ~32 B CI reads heavier.
-    budget: 63_100,
+    // 63,000 on 2026-09-28: both of the above together, #665's 61,592 plus meow's 1,345 — the two
+    // landed in parallel, so the budget is #665's 61,700 plus this change's own 1,300 and no more.
+    // Measured 62,937 locally; 63 B clear of the ~32 B CI reads heavier.
+    budget: 63_000,
     denied: ["index.js", "execute.js", "help.js", "mcp.js", "schema.js", "completions.js", "plugin.js"],
   },
   "./contrast": {
