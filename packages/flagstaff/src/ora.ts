@@ -19,6 +19,7 @@ import { Buffer } from 'node:buffer';
 import { HIDE_CURSOR, SHOW_CURSOR } from 'closeout/cursor';
 import restoreCursor from 'closeout/restore-cursor';
 import { lineCount } from 'linegauge';
+import { beginSynchronizedOutput, endSynchronizedOutput } from 'paratext/csi';
 import chalk from 'roundel/chalk';
 
 import { processRuntime } from './runtime.js';
@@ -151,8 +152,6 @@ const stdinDiscarder = new StdinDiscarder();
 
 /** Milliseconds to wait before re-rendering after a partial chunk was written. */
 const RENDER_DEFERRAL_TIMEOUT = 200;
-const SYNCHRONIZED_OUTPUT_ENABLE = '\u001B[?2026h';
-const SYNCHRONIZED_OUTPUT_DISABLE = '\u001B[?2026l';
 /** A spinner with no interval of its own, and no `interval` option. */
 const FALLBACK_INTERVAL = 100;
 const DEFAULT_COLUMNS = 80;
@@ -444,7 +443,7 @@ export class Ora {
 
     try {
       if (useSynchronizedOutput) {
-        this.#internalWrite(() => this.#stream.write(SYNCHRONIZED_OUTPUT_ENABLE));
+        this.#internalWrite(() => this.#stream.write(beginSynchronizedOutput));
         shouldDisableSynchronizedOutput = true;
       }
 
@@ -476,7 +475,7 @@ export class Ora {
 
       this.#linesToClear = lineCount(frameContent, columns);
     } finally {
-      if (shouldDisableSynchronizedOutput) this.#internalWrite(() => this.#stream.write(SYNCHRONIZED_OUTPUT_DISABLE));
+      if (shouldDisableSynchronizedOutput) this.#internalWrite(() => this.#stream.write(endSynchronizedOutput));
     }
 
     return this;

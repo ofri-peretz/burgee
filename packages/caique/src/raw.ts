@@ -20,14 +20,19 @@
  */
 import { hideCursor, type OutputStream } from 'closeout/cursor';
 import exitHook from 'closeout/exit-hook';
+import { cursorTo, cursorUp, eraseDown } from 'paratext/csi';
 
 import { type Answer, type Asked, type Io } from './ask.js';
 import { type Choice, type PromptSpec } from './spec.js';
 
 const ESC = '\u001B';
 const CSI = `${ESC}[`;
-/** Column 1, up `n` lines, clear to the end of the screen — the only repaint this needs. */
-const erase = (lines: number): string => `${CSI}1G${lines > 1 ? `${CSI}${lines - 1}A` : ''}${CSI}0J`;
+/**
+ * Column 1, up `n - 1` rows, clear to the end of the screen — the only repaint this needs,
+ * in `paratext/csi`'s spelling. The climb is guarded: `cursorUp(0)` is `ESC[0A`, which a
+ * terminal reads as one row, and a one-row frame must not climb at all.
+ */
+const erase = (lines: number): string => `${cursorTo(0)}${lines > 1 ? cursorUp(lines - 1) : ''}${eraseDown}`;
 
 /** A stream that can be put into raw mode and read a key at a time. */
 export interface KeyStream {

@@ -1,7 +1,7 @@
 {
   "$comment": "PLAN rule 14 as a number. A layer nothing else uses has never been proven to fit the stack — the split into nine packages is only real if the packages actually compose. `edges` is the count of dependency edges inside the family and it may only go up, the same ratchet the compat rates use. `awaiting` names the packages that have no consumer yet; a package must leave the list the moment it gains one, and the list may only shrink. `burgee` is never on it: it is the top of the stack, and nothing using it is correct.",
   "target": "every package except burgee is used by at least one other package in the family",
-  "edges": 10,
+  "edges": 12,
   "awaiting": [
     "caique",
     "flagstaff"
@@ -11,5 +11,6 @@
     "caique": "0 of 606 clack cases; burgee reaching it needs the guarded optional-surface mechanism U13 describes, which does not exist yet.",
     "flagstaff": "burgee renders no spinner, box or table anywhere; `weight.test.ts` denies it by name. The honest edge does not exist yet, and manufacturing one would defeat this ratchet."
   },
-  "$bellpull": "bellpull left `awaiting` on 2026-09-17: `burgee/commander` spawns its `executableSubcommand` through `bellpull/cross-spawn`. The entry had sat in `inline-implementation-lock`'s KNOWN table with the condition written into it — \"the engine lane adopts it once bellpull grades against cross-spawn's suite\" — and bellpull grades 68 / 68. commander stayed 1360 / 1360 through the change. burgee no longer imports `node:child_process` at all; `ChildProcess` comes from bellpull, which re-exports it for exactly this consumer."
+  "$bellpull": "bellpull left `awaiting` on 2026-09-17: `burgee/commander` spawns its `executableSubcommand` through `bellpull/cross-spawn`. The entry had sat in `inline-implementation-lock`'s KNOWN table with the condition written into it — \"the engine lane adopts it once bellpull grades against cross-spawn's suite\" — and bellpull grades 68 / 68. commander stayed 1360 / 1360 through the change. burgee no longer imports `node:child_process` at all; `ChildProcess` comes from bellpull, which re-exports it for exactly this consumer.",
+  "$edges": "10 -> 12 on 2026-09-28. The band had recorded 10 while the manifests declared 11 (burgee 5, caique 2, flagstaff 4), a ratchet left below its own floor; caique -> paratext is the twelfth, for `paratext/csi`'s cursor moves in `caique/raw` and `caique/inquirer`. A caique -> roundel edge proposed alongside it (roundel/terminal) makes thirteen when both have landed."
 }

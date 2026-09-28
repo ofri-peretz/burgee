@@ -13,7 +13,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/caique"><img src="https://img.shields.io/npm/v/caique?style=flat-square&color=0a6b47" alt="npm version" /></a>
-  <img src="https://img.shields.io/badge/dependencies-2%20in--family-0a6b47?style=flat-square" alt="Two dependencies, both in this repository: closeout, linegauge" />
+  <img src="https://img.shields.io/badge/dependencies-3%20in--family-0a6b47?style=flat-square" alt="Three dependencies, all in this repository: closeout, linegauge, paratext" />
   <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT" />
 </p>
 
@@ -274,4 +274,4 @@ Weight, installed and tree-inclusive: **123,767 bytes** against **389,049** for 
 
 Plugins register under the `widgets` key, against the one schema the whole family shares.
 
-Nothing in this family builds on it yet, and it builds on `closeout` and `linegauge`.
+Nothing in this family builds on it yet, and it builds on `closeout`, `linegauge`, `paratext`.

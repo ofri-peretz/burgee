@@ -255,4 +255,4 @@ Weight, installed and tree-inclusive: **123,767 bytes** against **389,049** for 
 
 Plugins register under the `widgets` key, against the one schema the whole family shares.
 
-Nothing in this family builds on it yet, and it builds on `closeout` and `linegauge`.
+Nothing in this family builds on it yet, and it builds on `closeout`, `linegauge`, `paratext`.
