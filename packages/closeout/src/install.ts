@@ -84,13 +84,6 @@ export interface Closeout {
   hideCursor(stream: OutputStream): () => void;
   /** Show the cursor now. Idempotent, and a no-op on a non-TTY. */
   showCursor(stream: OutputStream): void;
-  /** Enter the alternate screen and register leaving it; the returned function leaves it. */
-  alternateScreen(stream: OutputStream): () => void;
-  /**
-   * Turn raw mode on and register turning it off; the returned function turns it off. An
-   * input that was already raw is left alone, now and at exit.
-   */
-  rawMode(input: InputStream): () => void;
   /** The registry, for a caller that wants to drive shutdown itself. */
   readonly registry: Registry;
 }
@@ -278,23 +271,22 @@ export function install(options: InstallOptions = {}): Closeout {
    * at whatever position in one flat set the first `hideCursor()` call gave it — usually
    * early, because a renderer hides the cursor the moment it starts drawing — and every
    * handler registered afterwards ran *after* the terminal had already been handed back.
-   * The alternate screen and raw mode are entered at the same moment for the same reason,
-   * so they take the same phase through the same function.
+   * The alternate screen and raw mode go in the same phase through {@link restoring}, which
+   * is kept off this object so that it tree-shakes (D-163).
    */
-  const restoring =
-    (label: string): Registrar =>
-    (handler) =>
-      registry.add(handler, { phase: 'restore', label });
-
   return {
     onExit: (handler, spec) => registry.add(handler, spec),
-    hideCursor: (stream) => hide(stream, restoring('closeout:restore-cursor')),
+    hideCursor: (stream) => hide(stream, (handler) => registry.add(handler, { phase: 'restore', label: 'closeout:restore-cursor' })),
     showCursor: show,
-    alternateScreen: (stream) => enterAlternate(stream, restoring('closeout:leave-alternate-screen')),
-    rawMode: (input) => raw(input, restoring('closeout:raw-mode-off')),
     registry,
   };
 }
+
+/** A registrar that puts an undo in `restore`, under a label a breach report can name. */
+const restoring =
+  (registry: Registry, label: string): Registrar =>
+  (handler) =>
+    registry.add(handler, { phase: 'restore', label });
 
 /**
  * The process-wide instance, installed on first use.
@@ -320,15 +312,28 @@ export function showCursor(stream: OutputStream): void {
   show(stream);
 }
 
-/** Enter the alternate screen and register leaving it; the returned function leaves it. */
-export function alternateScreen(stream: OutputStream): () => void {
-  return sharedCloseout().alternateScreen(stream);
+/*
+ * The alternate screen and raw mode are free functions taking an optional instance, not
+ * methods on `install()`'s object (D-163). A method is reachable from every caller of
+ * `install()` whether it is used or not, so a bundler keeps it: putting these two on the
+ * object cost burgee — which calls `install()` and never enters a screen — 575 bundled bytes
+ * for code it cannot reach. As free functions they tree-shake away from anyone who does not
+ * import them by name.
+ */
+
+/**
+ * Enter the alternate screen and register leaving it in `restore`; the returned function
+ * leaves it. Registers on the process-wide instance unless `closeout` names another.
+ */
+export function alternateScreen(stream: OutputStream, closeout: Closeout = sharedCloseout()): () => void {
+  return enterAlternate(stream, restoring(closeout.registry, 'closeout:leave-alternate-screen'));
 }
 
 /**
- * Turn raw mode on and register turning it off; the returned function turns it off. An input
- * that was already raw belongs to somebody else and is left alone, now and at exit.
+ * Turn raw mode on and register turning it off in `restore`; the returned function turns it
+ * off. An input that was already raw belongs to somebody else and is left alone, now and at
+ * exit. Registers on the process-wide instance unless `closeout` names another.
  */
-export function rawMode(input: InputStream): () => void {
-  return sharedCloseout().rawMode(input);
+export function rawMode(input: InputStream, closeout: Closeout = sharedCloseout()): () => void {
+  return raw(input, restoring(closeout.registry, 'closeout:raw-mode-off'));
 }

@@ -74,10 +74,10 @@ interface Outcome {
 const prelude = ({ deadline = 2_000, held = false }: { deadline?: number; held?: boolean } = {}): string[] => [
   'process.stderr.isTTY = true;',
   'const keys = { isTTY: true, isRaw: false, setRawMode(on) { process.stderr.write(on ? "RAW-ON" : "RAW-OFF"); this.isRaw = on; return this; } };',
-  `const { install } = await import(${JSON.stringify(distIndex)});`,
+  `const { alternateScreen, install, rawMode } = await import(${JSON.stringify(distIndex)});`,
   `const closeout = install({ deadline: ${String(deadline)} });`,
-  'closeout.rawMode(keys);',
-  'closeout.alternateScreen(process.stderr);',
+  'rawMode(keys, closeout);',
+  'alternateScreen(process.stderr, closeout);',
   'closeout.hideCursor(process.stderr);',
   held ? `setTimeout(() => process.exit(0), ${String(CHILD_GIVE_UP_MS)});` : '',
 ];

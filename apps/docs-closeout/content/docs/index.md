@@ -100,6 +100,10 @@ program that dies — Ctrl-C, SIGTERM, SIGHUP, a throw, a handler that threw, a 
 fired — still hands back a terminal with raw mode off, the alternate screen left and the
 cursor shown, after every other handler has run. Each undo runs once, whoever asks first.
 
+Both register on the process-wide instance; pass the object `install()` returned as a second
+argument to register on that one instead. They are functions rather than methods on that
+object so that a program which never enters a screen does not bundle them.
+
 `rawMode(input)` turns off only what it turned on. If the input is already raw, somebody else
 owns that state and the call changes nothing, now or at exit. An input that is not a terminal
 gets no mode change, and a stream that is not a terminal gets no escape, in either direction.
@@ -248,8 +252,8 @@ that could quietly skip it is how the missing re-raise survived two incumbent su
 | `once(fn)` | run at most once, first result thereafter — `name`, `length` and `this` kept |
 | `hideCursor(stream)` | hide and register the restore (in `restore`); returns the show function |
 | `showCursor(stream)` | show now — idempotent, no-op on a non-TTY |
-| `alternateScreen(stream)` | enter the alternate screen and register leaving it (in `restore`); returns the leave function |
-| `rawMode(input)` | turn raw mode on and register turning it off (in `restore`); an input already raw is left alone |
+| `alternateScreen(stream, closeout?)` | enter the alternate screen and register leaving it (in `restore`); returns the leave function |
+| `rawMode(input, closeout?)` | turn raw mode on and register turning it off (in `restore`); an input already raw is left alone |
 | `install(options)` | wire a registry to a process; `{ deadline, onError, onTimeout, process }` |
 | `createRegistry(options)` | the registry alone, with no process |
 | `reportToJson(report)` / `reportToEvent(report)` | the two projections of the one record |
@@ -267,7 +271,7 @@ And the two leaves, for a program that wants one of them and none of the rest:
 | | |
 | :-- | :-- |
 | `closeout/once` | `once(fn)` — 441 B, reaching nothing |
-| `closeout/cursor` | `showCursor`, `hideCursor`, `alternateScreen`, `rawMode` (each taking the registrar as a second argument), `HIDE_CURSOR`, `SHOW_CURSOR`, `ENTER_ALTERNATE_SCREEN`, `LEAVE_ALTERNATE_SCREEN` — 1,271 B, no registry |
+| `closeout/cursor` | `showCursor`, `hideCursor`, `alternateScreen`, `rawMode` (each taking the registrar as a second argument), `HIDE_CURSOR`, `SHOW_CURSOR`, `ENTER_ALTERNATE_SCREEN`, `LEAVE_ALTERNATE_SCREEN` — 1,458 B, no registry |
 
 And from `closeout/plugin`:
 
@@ -344,7 +348,7 @@ Graded by the incumbent's own test suite:
 | `restore-cursor` | 6 / 6 |
 | `signal-exit` | 134 / 135 |
 
-Weight, installed and tree-inclusive: **109,370 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.5950**.
+Weight, installed and tree-inclusive: **109,473 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.5956**.
 ## Where it sits
 
 Plugins register under the `handlers` key, against the one schema the whole family shares.

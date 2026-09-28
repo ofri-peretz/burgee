@@ -25,7 +25,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { install, SIGNALS, type InputStream, type OutputStream, type ProcessLike } from './index.js';
+import { alternateScreen, install, rawMode, SIGNALS, type InputStream, type OutputStream, type ProcessLike } from './index.js';
 
 type Listener = (...args: never[]) => void;
 
@@ -109,8 +109,8 @@ function fullScreenProgram(options: Parameters<typeof install>[0] & { isTTY?: bo
   const log: string[] = [];
   const closeout = install({ process: proc, onError: () => undefined, onTimeout: () => undefined, ...installOptions });
   const { out, keys } = terminal(log, { isTTY, alreadyRaw });
-  closeout.rawMode(keys);
-  closeout.alternateScreen(out);
+  rawMode(keys, closeout);
+  alternateScreen(out, closeout);
   closeout.hideCursor(out);
   // Registered after the terminal was taken, in the default phase — see the header.
   closeout.onExit(() => {
@@ -229,7 +229,7 @@ describe('idempotent, and only what closeout turned on', () => {
     const log: string[] = [];
     const closeout = install({ process: proc });
     const { out, keys } = terminal(log);
-    const undo = [closeout.rawMode(keys), closeout.alternateScreen(out), closeout.hideCursor(out)];
+    const undo = [rawMode(keys, closeout), alternateScreen(out, closeout), closeout.hideCursor(out)];
 
     for (const back of undo) back();
     expect(closeout.registry.size, 'each undo came off the registry as it ran').toBe(0);

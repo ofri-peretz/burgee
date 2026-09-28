@@ -489,12 +489,17 @@ undo; raw mode and the alternate screen had no pairing, and the README said "sti
 `interactive-screens/intent.md` (D-158) names this as the one closeout change a full-screen
 package needs, so the screen package never writes a terminal restore of its own.
 
-- **`alternateScreen(stream)` and `rawMode(input)`, beside `hideCursor(stream)`.** Each makes
-  the change and registers its undo in the `restore` phase in the same call, returns the undo,
-  runs it at most once whoever asks first, and unregisters on an early call. One helper,
-  `paired()`, does that for all three, so there is one once-flag rather than three. The leaves
-  in `closeout/cursor` take the registrar as a second argument, as `hideCursor` did. Labels in a
-  breach report: `closeout:leave-alternate-screen`, `closeout:raw-mode-off`.
+- **`alternateScreen(stream, closeout?)` and `rawMode(input, closeout?)`, beside
+  `hideCursor(stream)`.** Each makes the change and registers its undo in the `restore` phase
+  in the same call, returns the undo, runs it at most once whoever asks first, and unregisters
+  on an early call. The two share one helper, `paired()`. They register on the process-wide
+  instance, or on the one `install()` returned when it is passed. **They are free functions,
+  not methods on `install()`'s object:** the first build put them there, and a method is kept by
+  a bundler for every caller of `install()` — burgee's core, which never enters a screen, grew
+  24,216 → 24,791 B and broke its bundled ceiling (24,282) and the cac ratio. As free functions
+  they tree-shake. `hideCursor` keeps its own inline once-flag for the same reason. The leaves
+  in `closeout/cursor` take the registrar as a second argument, as `hideCursor` did. Labels in
+  a breach report: `closeout:leave-alternate-screen`, `closeout:raw-mode-off`.
 - **Only what closeout turned on is turned off.** An input already raw belongs to a prompt
   library or the program; `rawMode` changes nothing and registers nothing for it. A non-TTY
   stream gets no escape in either direction, and a non-TTY input or one without `setRawMode`
@@ -502,9 +507,11 @@ package needs, so the screen package never writes a terminal restore of its own.
 - **A defect the spawned test found, fixed in `registry.ts`.** A real process whose shutdown was
   parked on a `flush` handler that holds nothing in the event loop drains the loop before the
   deadline fires — the deadline's timer is `unref`'d — and leaves through `'exit'`. `runSync`
-  read that as a second trigger and did nothing, so `restore` was never invoked. `run` and
-  `runSync` now share one cursor over `PHASES`, and `'exit'` invokes every phase not yet
-  invoked, synchronously, each still exactly once.
+  read that as a second trigger and did nothing, so `restore` was never invoked. A run now
+  keeps one cursor over `PHASES` and exposes the rest of it to `runSync`, so `'exit'` invokes
+  every phase not yet invoked, synchronously, each still exactly once. This is the one part
+  of R4 every `install()` caller pays for: **+46 B** in burgee's bundle (24,216 → 24,262,
+  under the 24,282 ceiling; burgee ÷ cac 2.317 → 2.321).
 
 **Every exit path R4 names, asserted twice.** `restore.test.ts` drives `install({ process })`
 with a fake terminal for every signal in `SIGNALS`, `'exit'`, `'beforeExit'`,
@@ -529,14 +536,16 @@ Then each mutation below was applied to the finished code and the suite re-run:
 | `registry.ts` as on `main` — `runSync` a no-op once a run has started | 2 red: the in-process `'exit'`-while-parked cell and the spawned hang-that-holds-nothing, each `['raw-on', 'enter-alt', 'hide']` and nothing after |
 | alternate screen and raw mode registered in the default phase | 15 red: every in-process ordering cell, the undos landing before `release` |
 | `rawMode` without the `isRaw` check | 2 red: the leaf case and the install-level case, raw mode turned off under its owner |
-| `paired()` without its once-flag | 3 red, one per pairing, including the old `hideCursor` case |
+| `paired()` without its once-flag | 2 red, one per new pairing |
 | `alternateScreen` without the TTY check | 2 red: escape bytes written into a pipe |
 | the undo returned but never registered | 9 red: every spawned case |
 
-**Weight.** Measured with `weight.test.ts`'s walker: `.` 12,171 → 13,875 B (budget 13,000 →
-14,500), `./cursor` 666 → 1,271 B (inside its 1,500), `./restore-cursor` 11,686 → 13,242 B
-(budget 12,500 → 14,000), `./plugin` 10,631 → 11,127 B and `./exit-hook` 11,910 → 12,406 B
-(both inside their budgets). Zero dependencies still, on every entry.
+**Weight.** Measured with `weight.test.ts`'s walker (unminified `dist/`): `.` 12,171 →
+13,846 B (budget 13,000 → 14,500), `./cursor` 666 → 1,458 B (inside its 1,500),
+`./restore-cursor` 11,686 → 13,213 B (budget 12,500 → 14,000), `./plugin` 10,631 → 10,895 B
+and `./exit-hook` 11,910 → 12,174 B (both inside their budgets). Zero dependencies still, on
+every entry. What a bundler keeps is the number that matters to a consumer: burgee's core
++46 B, all of it the registry fix, measured with `benchmarks/run.ts --axis weight --check`.
 
 **Left open, and not pinned by a test.** The same drained-loop path *leaves* wrongly: a process
 that received SIGTERM and then drained its loop with a handler parked exits 0 through `'exit'`

@@ -218,25 +218,15 @@ export function createRegistry(options: RegistryOptions = {}): Registry {
    */
   const handlers = new Map<Phase, Set<Entry>>(PHASES.map((phase) => [phase, new Set<Entry>()]));
   const bucket = (phase: Phase): Set<Entry> => handlers.get(phase) ?? new Set<Entry>();
+  /** The two halves of "has this happened": started, and finished with a report to show. */
+  const state: { started: boolean; finished: ShutdownReport | undefined } = { started: false, finished: undefined };
   /**
-   * The two halves of "has this happened": started, and finished with a report to show —
-   * plus how far the shutdown has got, so that `run` and `runSync` share one cursor over
-   * `PHASES` and no phase is ever invoked twice, whichever of them reaches it.
+   * Invoke, synchronously, every phase an asynchronous `run` has not reached yet — set while
+   * a run is in progress, and a no-op once it has invoked all three. `runSync` calls it when
+   * `'exit'` arrives mid-run (see there): the one path where a shutdown that started cannot
+   * be trusted to finish, and where `restore` must still be invoked (R4).
    */
-  const state: { started: boolean; finished: ShutdownReport | undefined; next: number; current: ExitReport | undefined; tracking: InFlight[] } = {
-    started: false,
-    finished: undefined,
-    next: 0,
-    current: undefined,
-    tracking: [],
-  };
-  /** Invoke the next phase nobody has invoked yet; `undefined` once all of them have been. */
-  const invokeNext = (report: ExitReport): Promise<void>[] | undefined => {
-    const phase = PHASES[state.next];
-    if (phase === undefined) return undefined;
-    state.next += 1;
-    return invokePhase(bucket(phase), report, onError, state.tracking);
-  };
+  let rest: (() => void) | undefined;
 
   return {
     add(handler, spec) {
@@ -253,7 +243,6 @@ export function createRegistry(options: RegistryOptions = {}): Registry {
       if (state.started) return alreadyRun(state.finished, info);
       state.started = true;
       const report = toReport(info);
-      state.current = report;
 
       /*
        * One clock for the whole shutdown, started before the first phase — not one per
@@ -261,9 +250,19 @@ export function createRegistry(options: RegistryOptions = {}): Registry {
        * the hang the number exists to bound.
        */
       const clock = startDeadline(deadline);
+      const tracking: InFlight[] = [];
+      // One cursor over PHASES, shared with `rest`, so no phase is invoked twice whichever
+      // of the two reaches it first.
+      let next = 0;
+      const invokeNext = (): Promise<void>[] => invokePhase(bucket(PHASES[next++] as Phase), report, onError, tracking);
+      rest = () => {
+        while (next < PHASES.length) invokeNext();
+      };
 
       try {
-        for (let pending = invokeNext(report); pending !== undefined; pending = invokeNext(report)) {
+        while (next < PHASES.length) {
+          const pending = invokeNext();
+
           /*
            * Past the deadline the later phases are still **invoked**; they are only no
            * longer awaited. Skipping them would let a handler that hung in `flush` decide
@@ -284,7 +283,7 @@ export function createRegistry(options: RegistryOptions = {}): Registry {
         clock.cancel();
       }
 
-      const unfinished = state.tracking.filter((f) => !f.settled).map((f) => f.label);
+      const unfinished = tracking.filter((f) => !f.settled).map((f) => f.label);
       state.finished = { ...report, timedOut: clock.expired, unfinished };
       if (state.finished.timedOut) onTimeout(state.finished);
       return state.finished;
@@ -293,25 +292,16 @@ export function createRegistry(options: RegistryOptions = {}): Registry {
     runSync(info) {
       if (state.started) {
         /*
-         * `'exit'` arriving while an asynchronous shutdown is still waiting on an earlier
-         * phase. It happens on a real process whenever the handler being waited on holds
-         * nothing in the event loop — a promise pending on an event that will never come —
-         * because the deadline's own timer is `unref`'d: the loop drains, Node leaves, and the
-         * `restore` phase the run had not reached yet was never invoked. So every phase not
-         * yet invoked is invoked now, synchronously, with the report the shutdown started
-         * with (R4: the terminal comes back on every path). The shared cursor keeps each
-         * phase to one invocation even if the run is later resumed.
+         * `'exit'` arriving while an asynchronous shutdown still waits on an earlier phase.
+         * On a real process this happens whenever the handler being waited on holds nothing
+         * in the event loop: the deadline's timer is `unref`'d, so the loop drains, Node
+         * leaves, and the `restore` phase the run had not reached would never be invoked.
          */
-        if (state.finished === undefined && state.current !== undefined) {
-          while (invokeNext(state.current) !== undefined) {
-            // each call invokes one phase; the loop ends when none is left
-          }
-        }
+        rest?.();
         return alreadyRun(state.finished, info);
       }
       state.started = true;
       const report = toReport(info);
-      state.current = report;
       /*
        * A promise returned on this path is abandoned, and saying so is the honest answer:
        * `'exit'` is the one trigger Node gives no time at all, so an asynchronous handler
@@ -319,10 +309,9 @@ export function createRegistry(options: RegistryOptions = {}): Registry {
        * reason — the caller asked for work that could not happen, and a silent no-op is how
        * a half-written file gets blamed on the disk.
        */
-      while (invokeNext(report) !== undefined) {
-        // each call invokes one phase, in PHASES order
-      }
-      const unfinished = state.tracking.map((f) => f.label);
+      const tracking: InFlight[] = [];
+      for (const phase of PHASES) invokePhase(bucket(phase), report, onError, tracking);
+      const unfinished = tracking.map((f) => f.label);
       state.finished = { ...report, timedOut: false, unfinished };
       return state.finished;
     },

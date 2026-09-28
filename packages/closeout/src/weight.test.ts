@@ -63,14 +63,16 @@ const RULES: Record<string, EntryRule> = {
   // Everything: the registry, the wiring, the cursor, the deadline, the report, `once`.
   // Measured 11,644 B on 2026-09-14 and 12,171 B on 2026-09-27 before R4 was finished.
   // Raised 13,000 -> 14,500 that day: raw mode and the alternate screen paired with their
-  // undos (cursor.js 666 -> 1,271 B), and the registry finishing the phases a drained loop
-  // left behind (registry.js +496 B). Measured 13,875 B after.
+  // undos (cursor.js 666 -> 1,458 B), and the registry finishing the phases a drained loop
+  // left behind (registry.js +264 B). Measured 13,846 B after. These are unminified dist
+  // bytes; what a bundler keeps is `benchmarks/axes/weight.ts`'s number, and the two new
+  // pairings tree-shake out of it (D-163).
   '.': { allow: [], budget: 14_500, denied: ['plugin.js', 'exit-hook.js', 'restore-cursor.js'] },
   // `onetime` + `mimic-fn` are 262 M downloads a week between them and this is the whole of
   // what they do: 441 B, reaching nothing at all. Measured 2026-09-14.
   './once': { allow: [], budget: 1_000, denied: ['index.js', 'registry.js', 'install.js', 'report.js', 'deadline.js'] },
   // The escape sequences and the TTY rule, and a leaf by construction: a program that only
-  // needs to put a cursor back does not load a registry to do it. Measured 666 B; 1,271 B
+  // needs to put a cursor back does not load a registry to do it. Measured 666 B; 1,458 B
   // on 2026-09-27 once it carried all three of R4's pairings — cursor, alternate screen,
   // raw mode — inside the same budget.
   './cursor': { allow: [], budget: 1_500, denied: ['index.js', 'registry.js', 'install.js'] },
@@ -80,7 +82,7 @@ const RULES: Record<string, EntryRule> = {
   // The drop-in for `restore-cursor` (107.5 M/wk), graded 6 / 6 by its own suite. Measured
   // 11,159 B — see the header for what that number is and is not. 11,686 B on 2026-09-27,
   // raised 12,500 -> 14,000 the same day: it reaches `install.js` and so carries R4's two
-  // new pairings and the registry's drained-loop fix (+1,556 B). Measured 13,242 B after.
+  // new pairings and the registry's drained-loop fix (+1,527 B). Measured 13,213 B after.
   './restore-cursor': { allow: [], budget: 14_000, denied: ['plugin.js', 'exit-hook.js'] },
   // The drop-in for `exit-hook` (8.8 M/wk), graded 21 / 21 by its own suite. Measured
   // 11,841 B against the incumbent's 4,458 B in one file.

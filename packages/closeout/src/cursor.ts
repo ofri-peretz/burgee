@@ -63,21 +63,24 @@ export type Registrar = (handler: () => void) => () => void;
  *
  * The undo runs **at most once** whoever asks — the caller, the exit path, or both — and the
  * early call unregisters it too, so a program that cleans up normally leaves nothing behind
- * for exit to do. One function for all three pairings, because three copies of a once-flag
- * is how one of them ends up without it.
+ * for exit to do. Shared by the two newer pairings; `hideCursor` keeps its own copy of the
+ * same contract for a byte reason given there.
+ *
+ * The undo is *taken* rather than flagged: once it has run, nothing holds it any more.
  */
 function paired(undo: () => void, onExit: Registrar): () => void {
-  let done = false;
+  let pending: (() => void) | undefined = undo;
+  let unregister: (() => void) | undefined;
+  // One function for both callers: whether the program or the exit path runs it, it comes
+  // off the registry and the undo happens, once.
   const run = (): void => {
-    if (done) return;
-    done = true;
-    undo();
+    const next = pending;
+    pending = undefined;
+    unregister?.();
+    next?.();
   };
-  const unregister = onExit(run);
-  return () => {
-    run();
-    unregister();
-  };
+  unregister = onExit(run);
+  return run;
 }
 
 /**
@@ -101,8 +104,24 @@ export function showCursor(stream: OutputStream): void {
  */
 export function hideCursor(stream: OutputStream, onExit: Registrar): () => void {
   if (stream.isTTY !== true) return noop;
+  /*
+   * Written out rather than through {@link paired}: every program that calls `install()`
+   * reaches this function, and routing it through the shared helper cost burgee's bundle
+   * 30 bytes for no behaviour change (D-163). The two newer pairings, which tree-shake away
+   * from anyone who does not import them, share the helper.
+   */
   stream.write(HIDE_CURSOR);
-  return paired(() => stream.write(SHOW_CURSOR), onExit);
+  let shown = false;
+  const show = (): void => {
+    if (shown) return;
+    shown = true;
+    stream.write(SHOW_CURSOR);
+  };
+  const unregister = onExit(show);
+  return () => {
+    show();
+    unregister();
+  };
 }
 
 /**
