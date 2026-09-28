@@ -309,6 +309,12 @@ const symbolNote = (side: { symbol: string }): string => (side.symbol === DEFAUL
  * Ceilings for the three banded entry points. They are ratchets in the same spirit as
  * `packages/burgee/src/weight.test.ts`: raising one is a decision written in a PR, and
  * `ratchet.test.ts` proves each fails one byte over.
+ *
+ * **Keep a blank line between two entries**, here and in `RATIO_CEILING`. Git treats edits to
+ * adjacent lines as one conflict, so two PRs that moved `linegauge` and `linegauge/wrap`
+ * conflicted and one of them had to rebase and run CI again. Two PRs that move the *same*
+ * ceiling still conflict, and they should: the second has to measure the combined tree.
+ * `ceiling-layout.test.ts` checks both with a real `git merge-file`.
  */
 export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // The published target is 52 KB (`replacement-parser` #3). Measured 34,841 on
@@ -427,6 +433,7 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // `--schema` names the reserved surfaces the program shadows. No module is added — the floor
   // is three checks in front of code already on this path. Measured 61,014 (+276).
   'burgee/commander': 61_100,
+
   'burgee/yargs': 107_700,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
@@ -463,8 +470,11 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // from 1.5 to 0.789. The walk keeps its state in locals and not in an object's fields,
   // which saved 766 B that a minifier cannot take out of property names.
   linegauge: 6_500,
+
   'linegauge/wrap': 11_470,
+
   'linegauge/slice': 11_650,
+
   'linegauge/strip': 1_000,
   //
   // **Down from 11,150 to 6,800, and the reason is the most useful thing this block records.**
@@ -572,9 +582,13 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // D-140 beside it: measured 1.548.
   // Merged 2026-09-23 with D-122 and #521: measured 1.553.
   'burgee/yargs': 1,
+
   'roundel/chalk': 1,
+
   'flagstaff/ora': 1,
+
   'flagstaff/boxen': 1,
+
   'flagstaff/log-update': 1,
   // ── the foundation layers ─────────────────────────────────────────────────────────────
   //
@@ -603,8 +617,11 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // 9.0.1 (0.789) earns it: 9 carries its own tokenizer, and `is-fullwidth-code-point` brings
   // get-east-asian-width's tables with it.
   linegauge: 1.06,
+
   'linegauge/wrap': 1,
+
   'linegauge/slice': 1,
+
   'linegauge/strip': 2.25,
   // The layer that is over its D1 ceiling too — 66,305 against ansi-escapes' tree at 30,912,
   // a ratio of 2.145. That breach is real, it is recorded in the ceilings file, and this

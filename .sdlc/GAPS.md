@@ -78,7 +78,7 @@ built moved to A15–A25.
 | ~~B20~~ | ~~Accept the requirement restatements already written in the specs — compat-oracle R1, R3, C4 and the rest of its "Requirements restated" table; burgee U1, U10, Z3/K1; flagstaff R10's dependency sentence~~ | each spec's restatement table | **decided — D-130** |
 | ~~B19~~ | ~~design acceptance for linegauge, closeout, bellpull, seniority (draft) and caique, paratext (review)~~ | each intent | **decided — D-129** |
 | ~~B21~~ | ~~Does paratext take ansi-escapes' CSI surface?~~ | paratext scope | **decided — D-138** |
-| B22 | burgee scores 6 / 24 on clispec.dev v0.3 and 78% on cli-agent-lint (N10, 2026-09-24). 15 of clispec's 18 failed checks follow from its scorer probing `<tool> schema` while burgee answers `--schema` (ten test that command, five more are two principles that fail outright without it); the other three are the output principle — piped-output declaration, the error envelope as stderr's last line, and an explicit format beating TTY detection. Answering a `schema` subcommand is public API, so it is decided before it is built | burgee N10, D-149 | **open** — accept `schema` as an alias of `--schema` (and name it in root `--help`), then re-measure; argue any remaining check upstream rather than in the parser |
+| ~~B22~~ | ~~burgee scores 6 / 24 on clispec.dev and 78% on cli-agent-lint because clispec probes `<tool> schema`~~ | burgee N10, D-149 | **decided and built — D-151** (#631): `schema` is an alias of `--schema`, a program's own wins; re-measured 14 / 24 and 81.4%, the N10 ratchet raised to match |
 
 ## C — outside the repo
 

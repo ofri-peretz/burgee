@@ -47,7 +47,6 @@ interface Ceilings {
     holds: boolean;
     why: string[];
     notBuilt: string[];
-    measured: { ours: number; ceiling: number; ratio: number; on: string };
     supersededBar: { name: string; bundledBytes: number; entriesClearing: number; entriesTotal: number };
   };
   growth: { beforeBundledBytes: Record<string, number>; deltaBundledBytes: Record<string, number> };
@@ -106,6 +105,27 @@ describe('the ceiling covers what is published', () => {
   });
 });
 
+/** What this package weighs against D1's ceiling — `layers.linegauge` in the band, and nowhere else. */
+interface BandLayer {
+  ours: number;
+  ceiling: number;
+  ratio: number;
+}
+
+const band = (): BandLayer =>
+  (JSON.parse(readFileSync(resolve(pkgRoot, '../../.sdlc/bands/foundation-ceilings.json'), 'utf8')) as { layers: Record<string, BandLayer> }).layers['linegauge'] as BandLayer;
+
+/**
+ * Where `y8.holds` and the band disagree, as sentences — empty when they agree. Pure, so the
+ * test below can feed it a regressed band and watch it object.
+ */
+function disagreements(holds: boolean, { ours, ceiling, ratio }: BandLayer): string[] {
+  const wrong: string[] = [];
+  if (holds !== ours <= ceiling) wrong.push(`y8.holds says ${String(holds)} while ${String(ours)} <= ${String(ceiling)} is ${String(ours <= ceiling)}`);
+  if (Number((ours / ceiling).toFixed(RATIO_PLACES)) !== ratio) wrong.push(`the band's ratio ${String(ratio)} is not ours ÷ ceiling`);
+  return wrong;
+}
+
 /**
  * The claim, asserted against the numbers rather than against a flag.
  *
@@ -114,24 +134,33 @@ describe('the ceiling covers what is published', () => {
  * restated as D1's, in the integrator lane, on the reasoning §R9 of the design had already
  * written out; so the flag is now `true` and pinning it would assert the opposite tautology.
  *
- * What is pinned instead is the arithmetic. `holds` has to agree with `ours <= ceiling` from
- * the same file that `.sdlc/bands/foundation-ceilings.json` records, and the superseded bar
- * has to still be there with its one-of-six count — a bar that is restated and then vanishes
- * is indistinguishable from one that was quietly met.
+ * What is pinned instead is the arithmetic. `holds` has to agree with `ours <= ceiling` as
+ * `.sdlc/bands/foundation-ceilings.json` records them, and the superseded bar has to still be
+ * there with its one-of-six count — a bar that is restated and then vanishes is
+ * indistinguishable from one that was quietly met.
+ *
+ * The numbers are read from the band, not from a copy here. `ceilings.json` used to carry
+ * `y8.measured`, a mirror of `layers.linegauge` that a test held equal to the band — so every
+ * re-measure edited the same three lines in two files, and two branches that each moved
+ * linegauge's weight conflicted in both. A copy that must equal its source checks nothing the
+ * source does not; the last test here keeps it from coming back.
  */
 describe('R9 holds against the bar D1 sets, and still records the one it replaced', () => {
   it('agrees with its own arithmetic rather than asserting a flag', () => {
-    const { ours, ceiling, ratio } = ceilings.y8.measured;
-    expect(ceilings.y8.holds, `y8.holds says ${String(ceilings.y8.holds)} while ${String(ours)} <= ${String(ceiling)} is ${String(ours <= ceiling)}`).toBe(ours <= ceiling);
-    expect(Number((ours / ceiling).toFixed(RATIO_PLACES)), 'the recorded ratio is not ours ÷ ceiling').toBe(ratio);
+    expect(disagreements(ceilings.y8.holds, band())).toEqual([]);
   });
 
-  it('agrees with the band the integrator lane records', () => {
-    const band = (JSON.parse(readFileSync(resolve(pkgRoot, '../../.sdlc/bands/foundation-ceilings.json'), 'utf8')) as { layers: Record<string, { ours: number; ceiling: number }> }).layers['linegauge'] as { ours: number; ceiling: number };
-    expect(
-      { ours: ceilings.y8.measured.ours, ceiling: ceilings.y8.measured.ceiling },
-      'this file and foundation-ceilings.json disagree about what this package weighs',
-    ).toEqual({ ours: band.ours, ceiling: band.ceiling });
+  it('objects when the band says the package went over its ceiling and the flag did not follow', () => {
+    const { ceiling } = band();
+    const over = { ours: ceiling + 1, ceiling, ratio: Number(((ceiling + 1) / ceiling).toFixed(RATIO_PLACES)) };
+    expect(disagreements(true, over)).toEqual([`y8.holds says true while ${String(ceiling + 1)} <= ${String(ceiling)} is false`]);
+    const recorded = band();
+    const offByOnePlace = { ...recorded, ratio: recorded.ratio + 0.0001 };
+    expect(disagreements(recorded.ours <= recorded.ceiling, offByOnePlace), 'a ratio one place off is still wrong').toEqual([`the band's ratio ${String(offByOnePlace.ratio)} is not ours ÷ ceiling`]);
+  });
+
+  it('keeps no copy of the band, so there is one number to move and one line to conflict on', () => {
+    expect(Object.keys(ceilings.y8), 'y8.measured is the band again — read `layers.linegauge` instead').not.toContain('measured');
   });
 
   it('still records the bar it replaced, and that one of six entries cleared it', () => {
