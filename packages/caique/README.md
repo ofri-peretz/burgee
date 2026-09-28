@@ -26,7 +26,7 @@
 </p>
 
 <p align="center">
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/%40clack%2Fprompts%20suite-14%2F17-b45309?style=flat-square" alt="caique/clack passes 14 of 17 cases of the @clack/prompts test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/%40clack%2Fprompts%20suite-16%2F17-b45309?style=flat-square" alt="caique/clack passes 16 of 17 cases of the @clack/prompts test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/%40inquirer%2Fcore%20suite-41%2F41-0a6b47?style=flat-square" alt="caique/inquirer passes 41 of 41 cases of the @inquirer/core test suite" /></a>
 </p>
 
@@ -246,7 +246,7 @@ measured. **The ceiling is clack**: `@clack/prompts`
 | `caique/binding` | 8,123 | the decision and the widgets |
 | `caique/terminal` | 1,947 | the one file that touches a stream |
 | `caique/plugin` | 9,788 | the widgets, and the family schema |
-| `caique/clack` | 4,564 | `linegauge/wrap` |
+| `caique/clack` | 62,336 | `closeout/cursor`, `closeout/exit-hook` and `linegauge/wrap` |
 | `caique/inquirer` | 20,623 | `closeout/cursor`, `closeout/exit-hook` and `linegauge/wrap` |
 
 The root entry is **a seventh of the lightest incumbent**, and nothing reaches outside this
@@ -265,6 +265,11 @@ implementation of that; and `linegauge/wrap`, because the two façades' lists wr
 incumbent's own line-breaking — which this repository publishes as a graded port. Nothing
 outside this repository is installed.
 
+The two drop-in subpaths are priced on their own, because a program that imports caique
+never loads either. **`caique/clack`** — clack's twelve prompts, its writers, glyphs and
+settings — is **62,238 B** against clack's 101,684 B (measured 2026-09-27, budget 64,000 in
+`weight.test.ts`); `caique/inquirer` is priced beside it.
+
 ## Benchmarks
 
 Every number here is produced by `npm run bench` and published at [burgee.interlace.tools/docs/benchmarks](https://burgee.interlace.tools/docs/benchmarks).
@@ -273,10 +278,10 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
-| `clack` | 14 / 17 |
+| `clack` | 16 / 17 |
 | `inquirer-core` | 41 / 41 |
 
-Weight, installed and tree-inclusive: **130,540 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.3355**.
+Weight, installed and tree-inclusive: **217,148 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.5582**.
 
 ## For agents
 

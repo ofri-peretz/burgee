@@ -214,7 +214,7 @@ measured. **The ceiling is clack**: `@clack/prompts`
 | `caique/binding` | 8,123 | the decision and the widgets |
 | `caique/terminal` | 1,947 | the one file that touches a stream |
 | `caique/plugin` | 9,788 | the widgets, and the family schema |
-| `caique/clack` | 4,564 | `linegauge/wrap` |
+| `caique/clack` | 62,336 | `closeout/cursor`, `closeout/exit-hook` and `linegauge/wrap` |
 | `caique/inquirer` | 20,623 | `closeout/cursor`, `closeout/exit-hook` and `linegauge/wrap` |
 
 The root entry is **a seventh of the lightest incumbent**, and nothing reaches outside this
@@ -233,6 +233,11 @@ implementation of that; and `linegauge/wrap`, because the two façades' lists wr
 incumbent's own line-breaking — which this repository publishes as a graded port. Nothing
 outside this repository is installed.
 
+The two drop-in subpaths are priced on their own, because a program that imports caique
+never loads either. **`caique/clack`** — clack's twelve prompts, its writers, glyphs and
+settings — is **62,238 B** against clack's 101,684 B (measured 2026-09-27, budget 64,000 in
+`weight.test.ts`); `caique/inquirer` is priced beside it.
+
 ## Benchmarks
 
 Every number here is produced by `npm run bench` and published at [burgee.interlace.tools/docs/benchmarks](https://burgee.interlace.tools/docs/benchmarks).
@@ -241,10 +246,10 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
-| `clack` | 14 / 17 |
+| `clack` | 16 / 17 |
 | `inquirer-core` | 41 / 41 |
 
-Weight, installed and tree-inclusive: **130,540 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.3355**.
+Weight, installed and tree-inclusive: **217,148 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.5582**.
 
 ## For agents
 
