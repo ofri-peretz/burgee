@@ -267,11 +267,11 @@ single local run and unconfirmed**:
 | Claim | Gate | Measured | |
 | :--- | :--- | ---: | :--- |
 | the core entry point is under 52 KB bundled | `core-under-52kb-bundled` | 24,216 bytes | ✅ met |
-| `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 0.961× | ✅ met |
+| `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 0.966× | ✅ met |
 | `burgee` is lighter than `cac` **plus what a cac user installs to match it** | `lighter-than-cac-at-parity` | 0.248× | ✅ met |
 | `burgee/commander` is lighter than `commander` **plus the same** | `lighter-than-commander-at-parity` | 0.483× | ✅ met |
-| `burgee/yargs` is lighter than `yargs` **plus the same** | `lighter-than-yargs-at-parity` | 0.539× | ✅ met |
-| `burgee` starts within 1.6× of `cac`, the lightest framework in the landscape (ratchet; lowered as it speeds up) | `cold-start-at-or-below-cac` | 1.512× | ✅ met |
+| `burgee/yargs` is lighter than `yargs` **plus the same** | `lighter-than-yargs-at-parity` | 0.541× | ✅ met |
+| `burgee` starts within 1.6× of `cac`, the lightest framework in the landscape (ratchet; lowered as it speeds up) | `cold-start-at-or-below-cac` | 1.443× | ✅ met |
 | `burgee/commander` stays within 1.565× of `commander` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-commander` | 1.560× | ✅ met |
 | `burgee` stays within 2.35× of `cac` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-cac` | 2.317× | ✅ met |
 | an agent spends ≥40% fewer tokens per task | `agent-tokens-40pct` | 0.601× (one local run, D-147) | ❌ **not met** |
@@ -289,7 +289,7 @@ with:
 | :--- | ---: | ---: | ---: |
 | `cac` | 10,452 B | **97,711 B** | 24,216 B |
 | `commander` | 39,084 B | **126,354 B** | 60,969 B |
-| `yargs` | 111,152 B | **198,269 B** | 106,824 B |
+| `yargs` | 111,152 B | **198,269 B** | 107,339 B |
 
 The additions are `cosmiconfig` (find and load a config file), `exit-hook` (run cleanup on
 every path out, including a signal) and `restore-cursor` (hand the terminal back), bundled
