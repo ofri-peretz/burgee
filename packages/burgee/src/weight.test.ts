@@ -387,9 +387,11 @@ const RULES: Record<string, EntryRule> = {
   // 8,950 for O2's `colorFor`, which lives here so the startup path does not pay for it; it
   // takes `interactive` as a boolean because importing `detectAgent` cost this entry 1,160
   // bytes of vendor table. Measured 8,911.
+  // 9,130 on 2026-09-27 for D-151: the root's help names `--schema` (clispec.dev's
+  // `help-mentions-schema`), one row and the root-or-not choice. Measured 9,085 (+174).
   "./help": {
     allow: ["linegauge"],
-    budget: 8_950,
+    budget: 9_130,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
   },
   // The MCP server. It reaches the schema and the manifest, because a tool list *is* the
