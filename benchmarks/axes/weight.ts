@@ -438,7 +438,9 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // ran five flag regexes over every `-`-prefixed argument and one was cubic (a 4,000-character
   // argument took ten seconds); they are linear scans now. Plus `showHelp()` handing an async
   // builder's rejection to `fail` instead of leaving it unhandled.
-  'burgee/yargs': 108_200,
+  // 108,300 the same day: merging main under it moved CI's reading to 108,242, 42 B over the
+  // local-only headroom above; CI reads above local, as the 60,850 entry notes.
+  'burgee/yargs': 108_300,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
   // bundle grows by, set where the number actually is, so the next byte is a decision.
