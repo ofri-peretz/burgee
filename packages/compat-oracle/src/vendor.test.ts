@@ -266,7 +266,8 @@ describe('a vendor run that cannot finish', () => {
     const host = localSliceAnsi({ 'tests/.env': 'BASIC=basic\n' });
     const result = vendor({ ...host, extraDirs: ['tests/.env', 'tests/.env.vault'] }, into);
     const live = join(into, host.name);
-    expect(readFileSync(join(live, 'tests', '.env'), 'utf8'), 'the fixture that is still shipped was dropped too').toBe('BASIC=basic\n');
+    // Windows runners check out with core.autocrlf, so the clone may carry CRLF; presence is the point.
+    expect(readFileSync(join(live, 'tests', '.env'), 'utf8').replaceAll('\r\n', '\n'), 'the fixture that is still shipped was dropped too').toBe('BASIC=basic\n');
     expect(existsSync(join(live, 'tests', '.env.vault'))).toBe(false);
     expect(result.missingExtras, 'a skipped fixture has to be named, or a stale extraDirs entry is invisible').toEqual(['tests/.env.vault']);
     rmSync(into, { recursive: true, force: true });
