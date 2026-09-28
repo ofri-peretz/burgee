@@ -1,6 +1,8 @@
-# Design — chartroom
+# Design — conning
 
 Intent: [`intent.md`](./intent.md). **Status:** approved (2026-09-27, by the owner, D-158).
+The package is named `conning`. The first pick, `chartroom`, was dropped because it clashes
+with `chart-room` on npm (see the intent's Naming section).
 This design is the first cut. Each phase refines its own requirements before it builds, and
 it records every change here.
 
@@ -52,12 +54,12 @@ it records every change here.
 
 **The Ink drop-in.**
 
-- **R11 · `chartroom/ink`.** A `react-reconciler` host config that renders onto R4–R6.
+- **R11 · `conning/ink`.** A `react-reconciler` host config that renders onto R4–R6.
   `react` and `react-reconciler` are **optional peers** (`peerDependenciesMeta`), and
   nothing else in the package imports them. If a peer is missing on first import, the error
   carries a `fix` naming the install line.
 - **R12 · Ink's layout.** A TypeScript flexbox subset that covers the `Box` props Ink's
-  suite exercises. It lives under `chartroom/ink` only. Every uncovered case is a
+  suite exercises. It lives under `conning/ink` only. Every uncovered case is a
   conditional case with its reason.
 - **R13 · grading.** Ink's suite is vendored into `compat-oracle` at a pinned release. It
   runs on the ava runner, with a `--control` run against real Ink, and with a baseline that
@@ -69,7 +71,7 @@ it records every change here.
 ## Design
 
 ```text
-packages/chartroom/src/
+packages/conning/src/
   screen.ts      R4 — lifecycle; the only file that asks roundel for the mode
   compose.ts     R5 — frame composition, resize, writes only through flagstaff's seam
   project.ts     R6 — the static and NDJSON projections of a screen
@@ -100,7 +102,7 @@ Each item names the command that exits non-zero when it is wrong:
 
 - **R1** — closeout's `matrix.test.ts`, extended with raw mode and the alternate screen, and
   driven through a real PTY.
-- **R6 and R7** — a `chartroom` conformance test that spawns the demo in every mode. It
+- **R6 and R7** — a `conning` conformance test that spawns the demo in every mode. It
   greps for `0x1B` and `\r`, parses stderr as NDJSON, and fails on a timeout with stdin at
   `/dev/null` or a pipe.
 - **R11–R13** — `npm run compat -- --control`, then `npm run compat`. The ratchet fails CI
