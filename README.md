@@ -288,7 +288,7 @@ with:
 | :--- | ---: | ---: | ---: |
 | `cac` | 10,452 B | **97,711 B** | 24,216 B |
 | `commander` | 39,084 B | **126,354 B** | 60,969 B |
-| `yargs` | 111,152 B | **198,269 B** | 107,339 B |
+| `yargs` | 111,171 B | **198,288 B** | 107,339 B |
 
 The additions are `cosmiconfig` (find and load a config file), `exit-hook` (run cleanup on
 every path out, including a signal) and `restore-cursor` (hand the terminal back), bundled
