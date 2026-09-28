@@ -15,7 +15,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { blockers, installTool, ISOLATION, isPosix, parseClaudeJson, POSIX_ONLY, run, runOne, STORED_LOGIN_OPT_IN, storedLogin, type Task, type Variant } from './axes/agent.js';
+import { type Attempt, blockers, classifyFailure, installTool, ISOLATION, isPosix, nothingCameBack, parseClaudeJson, POSIX_ONLY, redact, run, runOne, STORED_LOGIN_OPT_IN, storedLogin, summariseFailures, type Task, type Variant } from './axes/agent.js';
 import { type BenchRecord } from './record.js';
 
 const EXECUTABLE = 0o755;
@@ -228,5 +228,120 @@ describe.skipIf(!isPosix())('run(), end to end, against a stub claude', () => {
     // passes. Reporting `measured` with a median of 0 would put a zero into a band.
     const out = run({ ...options, claudeBin: stubClaude('the value is bob') });
     expect(out).toMatchObject({ reason: expect.stringContaining('measured nothing') as unknown as string });
+  });
+});
+
+/**
+ * A `claude` that fails the way the CLI fails on an API error: it still prints its JSON
+ * result, with `is_error` set and the reason in `result`, and exits 1. The payload is the
+ * shape 2.1.283 printed for a rejected OAuth token, captured with a fake one.
+ */
+function failingClaude(fields: Record<string, unknown>, exitCode = 1): string {
+  const dir = mkdtempSync(join(tmpdir(), 'stub-claude-fail-'));
+  const bin = join(dir, 'claude');
+  const body = JSON.stringify({ type: 'result', subtype: 'success', is_error: true, num_turns: 1, total_cost_usd: 0, modelUsage: {}, usage: {}, permission_denials: [], ...fields });
+  writeFileSync(bin, `#!/bin/sh\nif [ "$1" = --version ]; then echo '9.9.9 (Claude Code)'; exit 0; fi\ncat <<'JSON'\n${body}\nJSON\nexit ${String(exitCode)}\n`);
+  chmodSync(bin, EXECUTABLE);
+  return bin;
+}
+
+// Assembled at runtime so no token-shaped literal sits in the repository for a scanner.
+const FAKE_OAUTH = ['sk', 'ant', 'oat01', 'AAAAbbbbCCCCdddd1234'].join('-');
+
+describe.skipIf(!isPosix())('a failed run says why it failed (run 36352045743)', () => {
+  const variants: Variant[] = [
+    { id: 'burgee', bin: stubBin(), floor: true },
+    { id: 'commander', bin: stubBin(), floor: false },
+  ];
+  const env = { ...process.env, CLAUDE_CODE_OAUTH_TOKEN: 'stub' };
+  const options = { variants, env, runs: 2, model: 'test-model', timeoutMs: 30_000, tasks: [task] };
+
+  it('names a rejected credential, with the task, exit code and the CLI\'s own fields', () => {
+    const out = run({ ...options, claudeBin: failingClaude({ api_error_status: 401, terminal_reason: 'api_error', result: 'Failed to authenticate. API Error: 401 OAuth access token is invalid.' }) });
+    if (!('reason' in out)) throw new Error('expected a skip');
+    expect(out.reason).toContain('measured nothing');
+    expect(out.reason).toContain('failures by kind: auth×2');
+    expect(out.reason).toContain('[stub] auth (exit 1, is_error true, subtype success, api 401, terminal_reason api_error)');
+    expect(out.reason).toContain('OAuth access token is invalid');
+    expect(out.reason).toContain('claude 9.9.9 (Claude Code)');
+    // Only said when it is what happened: here the model never saw the prompt.
+    expect(out.reason).not.toContain('answered but');
+    // One line, because it is written to $GITHUB_OUTPUT as `reason=…`.
+    expect(out.reason).not.toMatch(/\n/);
+    // Two identical failures are one example, not two.
+    expect(out.reason.match(/\[stub\]/g)).toHaveLength(1);
+  });
+
+  it('never prints a credential, even when claude echoes one', () => {
+    const secretEnv = { ...process.env, CLAUDE_CODE_OAUTH_TOKEN: 'plain-secret-value-42' };
+    const out = run({ ...options, env: secretEnv, claudeBin: failingClaude({ api_error_status: 401, result: `bad token ${FAKE_OAUTH} and oat01-zzzzzzzzzz` }) });
+    if (!('reason' in out)) throw new Error('expected a skip');
+    expect(out.reason).not.toContain(FAKE_OAUTH);
+    expect(out.reason).not.toContain('oat01-zzzz');
+    expect(out.reason).toContain('[REDACTED]');
+    expect(redact('x plain-secret-value-42 y', secretEnv)).toBe('x [REDACTED] y');
+  });
+
+  it('truncates the excerpt at about 200 characters', () => {
+    const out = run({ ...options, claudeBin: failingClaude({ result: 'x'.repeat(1000) }) });
+    if (!('reason' in out)) throw new Error('expected a skip');
+    expect(out.reason).toContain(`"${'x'.repeat(200)}…"`);
+    expect(out.reason).not.toContain('x'.repeat(201));
+  });
+
+  it('keeps the old sentence for runs that completed and gave a wrong answer', () => {
+    const out = run({ ...options, claudeBin: stubClaude('the value is bob') });
+    if (!('reason' in out)) throw new Error('expected a skip');
+    expect(out.reason).toContain("answered but nothing it produced passed a task's own check");
+    expect(out.reason).toContain('check-failed×2');
+    expect(out.reason).toContain('"the value is bob"');
+  });
+
+  it('reads stderr when claude printed no JSON at all', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'stub-claude-'));
+    const bin = join(dir, 'claude');
+    writeFileSync(bin, `#!/bin/sh\necho "error: unknown option '--strict-mcp-config'" >&2\nexit 2\n`);
+    chmodSync(bin, EXECUTABLE);
+    const r = attempt(bin);
+    expect(r.failure).toMatchObject({ task: 'stub', kind: 'no-output', exit: '2', excerpt: "error: unknown option '--strict-mcp-config'" });
+  });
+});
+
+const json = (fields: Record<string, unknown>): string => JSON.stringify({ type: 'result', usage: {}, ...fields });
+
+describe('classifyFailure', () => {
+  const base = { task: 't', status: 1, signal: null, timedOut: false, stderr: '' };
+
+  it.each([
+    ['auth', { is_error: true, result: 'Invalid API key · Please run /login' }],
+    ['auth', { is_error: true, api_error_status: 403, result: 'forbidden' }],
+    ['rate-limit', { is_error: true, api_error_status: 429, result: 'slow down' }],
+    ['rate-limit', { is_error: true, result: 'Claude AI usage limit reached|1790000000' }],
+    ['max-turns', { is_error: true, subtype: 'error_max_turns', result: '' }],
+    ['api-error', { is_error: true, api_error_status: 404, terminal_reason: 'api_error', result: 'model not found' }],
+    ['permission-denied', { is_error: false, permission_denials: [{ tool_name: 'Bash' }], result: 'I was not allowed' }],
+    ['cli-error', { is_error: true, result: 'something else' }],
+  ] as const)('sorts %s', (kind, fields) => {
+    expect(classifyFailure({ ...base, stdout: json(fields) }).kind).toBe(kind);
+  });
+
+  it('sorts a clean exit whose answer failed the check as check-failed', () => {
+    expect(classifyFailure({ ...base, status: 0, stdout: json({ is_error: false, result: 'bob' }) })).toMatchObject({ kind: 'check-failed', excerpt: 'bob' });
+  });
+
+  it('sorts a timeout before anything it printed', () => {
+    expect(classifyFailure({ ...base, status: null, signal: 'SIGTERM', timedOut: true, stdout: '' })).toMatchObject({ kind: 'timeout', exit: 'signal SIGTERM' });
+  });
+
+  it('sorts output that is not JSON as unparseable, and quotes it', () => {
+    expect(classifyFailure({ ...base, stdout: 'Error: boom' })).toMatchObject({ kind: 'unparseable-output', excerpt: 'Error: boom' });
+  });
+});
+
+describe('summariseFailures', () => {
+  it('is empty when nothing failed', () => {
+    const ok: Attempt = { tokensIn: 1, tokensOut: 1, turns: 1, isError: false, result: 'ada', success: true, transcript: '{}' };
+    expect(summariseFailures([ok])).toBe('');
+    expect(nothingCameBack({ id: 'v', bin: 'x', floor: true }, [])).toContain('measured nothing');
   });
 });

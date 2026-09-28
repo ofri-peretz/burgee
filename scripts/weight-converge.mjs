@@ -5,8 +5,8 @@
 //
 // It takes rounds because each package's README prints these weights and the README is in
 // the tarball: rewriting the band changes the README, which changes the size. Usually one.
-// linegauge keeps a second copy (`ceilings.json` → `y8.measured`) with a ratio its test
-// recomputes, so both are written together.
+// The band is the only file it writes besides the READMEs: linegauge's `ceilings.json` used to
+// mirror `layers.linegauge` under `y8.measured`, and its test now reads the band instead.
 //
 // It clears every package's `dist/` and rebuilds before measuring, because the measurement
 // is `npm pack --dry-run` and `tsc` never deletes an output whose source is gone: on its
@@ -19,12 +19,8 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const BAND = join(root, '.sdlc/bands/foundation-ceilings.json');
-const LINEGAUGE = join(root, 'packages/linegauge/ceilings.json');
 const PLACES = 4;
 const ROUNDS = 6;
-/** `YYYY-MM-DD`: the date half of an ISO timestamp. */
-const DATE_LENGTH = 10;
-const today = new Date().toISOString().slice(0, DATE_LENGTH);
 
 const read = (file) => JSON.parse(readFileSync(file, 'utf8'));
 const write = (file, value) => writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
@@ -55,10 +51,6 @@ for (let round = 1; round <= ROUNDS; round += 1) {
     process.exit(0);
   }
   write(BAND, band);
-  const line = band.layers.linegauge;
-  const mirror = read(LINEGAUGE);
-  mirror.y8.measured = { ...mirror.y8.measured, ours: line.ours, ceiling: line.ceiling, ratio: line.ratio, on: today };
-  write(LINEGAUGE, mirror);
   process.stdout.write(`round ${round}: ${moved} moved, regenerating READMEs\n`);
   execFileSync('npx', ['tsx', 'scripts/readme-benchmarks.ts'], { cwd: root, stdio: 'ignore' });
 }
