@@ -1,0 +1,129 @@
+import test from 'ava';
+import {execa} from '../../shim.js';
+import {setFixtureDirectory} from '../helpers/fixtures-directory.js';
+import {foobarString} from '../helpers/input.js';
+import {PARALLEL_COUNT} from '../helpers/parallel.js';
+
+setFixtureDirectory();
+
+const testReference = async (t, fixtureName) => {
+	const {timedOut} = await t.throwsAsync(execa(fixtureName, {ipc: true, timeout: 1e3}));
+	t.true(timedOut);
+};
+
+test('exports.getOneMessage() keeps the subprocess alive', testReference, 'ipc-get-ref.js');
+test('exports.getEachMessage() keeps the subprocess alive', testReference, 'ipc-iterate-ref.js');
+
+const testUnreference = async (t, fixtureName) => {
+	const {ipcOutput} = await execa(fixtureName, {ipc: true});
+	t.deepEqual(ipcOutput, []);
+};
+
+test('exports.getOneMessage() does not keep the subprocess alive, reference false', testUnreference, 'ipc-get-unref.js');
+test('exports.getEachMessage() does not keep the subprocess alive, reference false', testUnreference, 'ipc-iterate-unref.js');
+
+test('exports.sendMessage() keeps the subprocess alive', async t => {
+	const {ipcOutput} = await execa('ipc-send-repeat.js', [`${PARALLEL_COUNT}`], {ipc: true});
+	const expectedOutput = Array.from({length: PARALLEL_COUNT}, (_, index) => index);
+	t.deepEqual(ipcOutput, expectedOutput);
+});
+
+test('process.send() keeps the subprocess alive', async t => {
+	const {ipcOutput, stdout} = await execa('ipc-process-send.js', {ipc: true});
+	t.deepEqual(ipcOutput, [foobarString]);
+	t.is(stdout, '.');
+});
+
+test('process.send() keeps the subprocess alive, after getOneMessage()', async t => {
+	const {ipcOutput, stdout} = await execa('ipc-process-send-get.js', {ipcInput: 0});
+	t.deepEqual(ipcOutput, [foobarString]);
+	t.is(stdout, '.');
+});
+
+test('process.send() keeps the subprocess alive, after sendMessage()', async t => {
+	const {ipcOutput, stdout} = await execa('ipc-process-send-send.js', {ipc: true});
+	t.deepEqual(ipcOutput, ['.', foobarString]);
+	t.is(stdout, '.');
+});
+
+test('process.once("message") keeps the subprocess alive', async t => {
+	const subprocess = execa('ipc-once-message.js', {ipc: true});
+	t.is(await subprocess.getOneMessage(), '.');
+	await subprocess.sendMessage(foobarString);
+
+	const {ipcOutput, stdout} = await subprocess;
+	t.deepEqual(ipcOutput, ['.']);
+	t.is(stdout, foobarString);
+});
+
+test('process.once("message") keeps the subprocess alive, after sendMessage()', async t => {
+	const subprocess = execa('ipc-once-message-send.js', {ipc: true});
+	t.is(await subprocess.getOneMessage(), '.');
+	await subprocess.sendMessage(foobarString);
+
+	const {ipcOutput, stdout} = await subprocess;
+	t.deepEqual(ipcOutput, ['.']);
+	t.is(stdout, foobarString);
+});
+
+test('process.once("message") keeps the subprocess alive, after getOneMessage()', async t => {
+	const subprocess = execa('ipc-once-message-get.js', {ipc: true});
+	await subprocess.sendMessage('.');
+	t.is(await subprocess.getOneMessage(), '.');
+	await subprocess.sendMessage(foobarString);
+
+	const {ipcOutput, stdout} = await subprocess;
+	t.deepEqual(ipcOutput, ['.']);
+	t.is(stdout, foobarString);
+});
+
+test('process.once("disconnect") keeps the subprocess alive', async t => {
+	const subprocess = execa('ipc-once-disconnect.js', {ipc: true});
+	t.is(await subprocess.getOneMessage(), '.');
+	subprocess.nodeChildProcess.disconnect();
+
+	const {ipcOutput, stdout} = await subprocess;
+	t.deepEqual(ipcOutput, ['.']);
+	t.is(stdout, '.');
+});
+
+test('process.once("disconnect") keeps the subprocess alive, after sendMessage()', async t => {
+	const subprocess = execa('ipc-once-disconnect-send.js', {ipc: true});
+	t.is(await subprocess.getOneMessage(), '.');
+	t.is(await subprocess.getOneMessage(), '.');
+	subprocess.nodeChildProcess.disconnect();
+
+	const {ipcOutput, stdout} = await subprocess;
+	t.deepEqual(ipcOutput, ['.', '.']);
+	t.is(stdout, '.');
+});
+
+test('process.once("disconnect") does not keep the subprocess alive, after getOneMessage()', async t => {
+	const subprocess = execa('ipc-once-disconnect-get.js', {ipc: true});
+	await subprocess.sendMessage('.');
+	t.is(await subprocess.getOneMessage(), '.');
+	subprocess.nodeChildProcess.disconnect();
+
+	const {ipcOutput, stdout} = await subprocess;
+	t.deepEqual(ipcOutput, ['.']);
+	t.is(stdout, '.');
+});
+
+test('Can call subprocess.disconnect() right away', async t => {
+	const subprocess = execa('ipc-send.js', {ipc: true});
+	subprocess.nodeChildProcess.disconnect();
+	t.is(subprocess.nodeChildProcess.channel, null);
+
+	await t.throwsAsync(subprocess.getOneMessage(), {
+		message: /subprocess.getOneMessage\(\) could not complete/,
+	});
+	await t.throwsAsync(subprocess, {
+		message: /Error: sendMessage\(\) cannot be used/,
+	});
+});
+
+test('Can call process.disconnect() right away', async t => {
+	const {stdout, stderr} = await t.throwsAsync(execa('ipc-disconnect-get.js', {ipc: true}));
+	t.is(stdout, 'null');
+	t.true(stderr.includes('Error: getOneMessage() cannot be used'));
+});
