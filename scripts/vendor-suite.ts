@@ -246,6 +246,9 @@ function one(host: Host, into: string, version: string, { verify, vendored }: Pi
     `  tag ${result.tag ?? '(none — HEAD)'} · commit ${result.commit} · ${result.files} test file(s)\n` +
       `  wrote ${join(dir, PROVENANCE_FILE)}\n`,
   );
+  if (result.missingExtras.length > 0) {
+    process.stderr.write(`  extraDirs not shipped at ${version}, skipped: ${result.missingExtras.join(', ')} — prune them from hosts.ts\n`);
+  }
   if (result.diff !== undefined && result.previous !== undefined) {
     const { files, tests, surface } = result.diff;
     process.stdout.write(
