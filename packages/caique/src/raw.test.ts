@@ -226,7 +226,9 @@ describe('a frame wider than the terminal', () => {
 
   it('climbs one row per line when the writer does not know its width', async () => {
     const { written } = await run(select, [DOWN, ENTER]);
-    expect(written()).toContain(`${ESC}[1G${ESC}[3A${ESC}[0J`);
+    const shown = screen(written(), Number.MAX_SAFE_INTEGER);
+    expect(shown.filter((r) => r === 'Which host?')).toHaveLength(1);
+    expect(shown).toEqual(screen(`${renderList(select, select.choices ?? [], { cursor: 1, selected: new Set() }, false)}\n`, Number.MAX_SAFE_INTEGER));
   });
 });
 
