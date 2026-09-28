@@ -191,7 +191,7 @@ describe('a host whose repository is a monorepo', () => {
  *      how `dotenv` lost 141 graded cases and reported "no test files vendored".
  */
 /**
- * slice-ansi's shape at a `v7.1.2` tag, in a throwaway local repo. `vendor()` is what these
+ * slice-ansi's shape at its pinned tag, in a throwaway local repo. `vendor()` is what these
  * cases test, not GitHub: cloning the real upstream made the required gate fail whenever the
  * network did (run 35962708764, `git clone` exit 128 after ~40 s). `host.repo` is the URL the
  * clone reads, so a `file://` one exercises the same `git clone --depth 1 --branch` path.
@@ -200,7 +200,8 @@ function localSliceAnsi(): Host {
   const host = HOSTS.find((h) => h.name === 'slice-ansi');
   if (host === undefined) throw new Error('slice-ansi is not a host');
   const repo = mkdtempSync(join(tmpdir(), 'vendor-upstream-'));
-  writeFileSync(join(repo, 'package.json'), '{"name":"slice-ansi","version":"7.1.2","type":"module","license":"MIT"}\n');
+  const version = host.pinnedVersion ?? '';
+  writeFileSync(join(repo, 'package.json'), `{"name":"slice-ansi","version":"${version}","type":"module","license":"MIT"}\n`);
   writeFileSync(join(repo, 'index.js'), 'export default function sliceAnsi(s, a, b) { return s.slice(a, b); }\n');
   writeFileSync(join(repo, 'index.d.ts'), 'export default function sliceAnsi(s: string, a: number, b?: number): string;\n');
   writeFileSync(join(repo, 'test.js'), "import test from 'ava';\nimport sliceAnsi from './index.js';\n\ntest('slices', (t) => {\n  t.is(sliceAnsi('abc', 1), 'bc');\n});\n");
@@ -210,14 +211,24 @@ function localSliceAnsi(): Host {
   git('init', '-q');
   git('add', '.');
   git('commit', '-q', '-m', 'fixture');
-  git('tag', 'v7.1.2');
+  git('tag', `v${version}`);
   return { ...host, repo: pathToFileURL(repo).href };
 }
 
 describe('a vendor run that cannot finish', () => {
   it('takes its version from the host pin rather than from npm', () => {
     const sliceAnsi = HOSTS.find((h) => h.name === 'slice-ansi');
-    expect(sliceAnsi?.pinnedVersion, 'slice-ansi is pinned in prose; the pin has to be a field vendor() can read').toBe('7.1.2');
+    expect(sliceAnsi?.pinnedVersion, 'slice-ansi is pinned in prose; the pin has to be a field vendor() can read').toBeDefined();
+  });
+
+  it('pins slice-ansi to the release the workspace installs, which is the one its control grades', () => {
+    // The pin is only right while it names the installed release: the control run grades
+    // the vendored suite against `node_modules/slice-ansi`. burgee#317 moved both, 7.1.2 to
+    // 9.0.1; bumping the root manifest without the pin — or the pin without the manifest —
+    // grades one major's suite against another's package, and this is what says so.
+    const sliceAnsi = HOSTS.find((h) => h.name === 'slice-ansi');
+    const installed = JSON.parse(readFileSync(resolve(VENDOR_DIR, '..', '..', '..', 'node_modules', 'slice-ansi', 'package.json'), 'utf8')) as { version: string };
+    expect(sliceAnsi?.pinnedVersion).toBe(installed.version);
   });
 
   it('writes PROVENANCE beside the record, so `compat --vendor` cannot delete it', () => {
@@ -231,7 +242,7 @@ describe('a vendor run that cannot finish', () => {
     const live = join(into, host.name);
     expect(existsSync(join(live, '.source.json'))).toBe(true);
     expect(existsSync(join(live, 'PROVENANCE')), 'vendor() wrote the record and not the provenance').toBe(true);
-    expect(readFileSync(join(live, 'PROVENANCE'), 'utf8')).toContain('7.1.2');
+    expect(readFileSync(join(live, 'PROVENANCE'), 'utf8')).toContain(host.pinnedVersion ?? '?');
     rmSync(into, { recursive: true, force: true });
     rmSync(fileURLToPath(host.repo), { recursive: true, force: true });
   });
@@ -241,7 +252,7 @@ describe('a vendor run that cannot finish', () => {
     const host = localSliceAnsi();
     const live = join(into, host.name);
     mkdirSync(live, { recursive: true });
-    writeFileSync(join(live, '.source.json'), '{"version":"7.1.2"}');
+    writeFileSync(join(live, '.source.json'), `{"version":"${host.pinnedVersion ?? ''}"}`);
     writeFileSync(join(live, 'test.js'), '// the suite that was already here');
 
     // A glob that matches nothing — the shape `dotenv` hit, where the clone succeeds and
