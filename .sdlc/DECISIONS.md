@@ -15,8 +15,8 @@ governs it, and holds no decisions itself.
 checks: the repo-wide open-question count stays at or under the ceiling in
 `.sdlc/bands/open-questions.json`; no decision is half-written; no id is used twice; every
 `superseded_by` names a decision that exists; every file in `.sdlc/decisions/` is read as a
-decision, so none is skipped silently; every sequential id D-001..D-151, and D-161, D-163 and
-D-164, is still there; no new id continues that sequence; and this file holds no decision rows. It does **not** verify that
+decision, so none is skipped silently; every sequential id D-001..D-151, and the late ones
+listed below, is still there; no new id continues that sequence; and this file holds no decision rows. It does **not** verify that
 a question closed here was struck from the intent that raised it — that is step 3 below and it
 is on the author, because matching a decision to a prose bullet is a guess and a gate that
 guesses is worse than none.
@@ -43,8 +43,8 @@ whole ledger as one table.
 
 **Ids.** D-001 to D-151 were numbered in sequence and keep those names forever — commits,
 specs, READMEs and PR titles cite them, and `.sdlc/decisions/D-102.md` is where `D-102`
-resolves. D-161, D-163 and D-164 were written on main while the change below was in flight
-and keep their names too; they are the only sequential ids past D-151. The sequence stopped
+resolves. D-152, D-161, D-163, D-164, D-165 and D-190 were written on main while the change
+below was in flight and keep their names too; they are the only sequential ids past D-151. The sequence stopped
 on 2026-09-27 ([D-20260927-per-entry-ledgers](./decisions/D-20260927-per-entry-ledgers.md)): two branches
 that each take "the next number" take the same one, and every such pair was a rebase, a
 renumber and another CI run. A new id is **`D-YYYYMMDD-slug`** — the date it was taken and a

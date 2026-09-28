@@ -13,8 +13,8 @@
  * - **`.sdlc/gaps/<id>.md`** — one gap. Front matter carries `id`, `section`, `status` and the
  *   section's two remaining columns; the body is the gap.
  *
- * **Ids.** The sequential ones already written — D-001..D-151 (and D-161, D-163, D-164, which
- * main wrote while this change was in flight), A1..A30, B1..B22, C1..C7 — keep
+ * **Ids.** The sequential ones already written — D-001..D-151 (and the `LEGACY_LATE` ids,
+ * which main wrote while this change was in flight), A1..A30, B1..B22, C1..C7 — keep
  * their names forever, because commits, specs, PR titles and workflow messages cite them. The
  * sequence itself is frozen: a new entry is `D-YYYYMMDD-slug` (or `A-`, `B-`, `C-` for a gap),
  * which two branches can only collide on by choosing the same slug on the same day — and then
@@ -46,11 +46,11 @@ export const GAPS_DIR = '.sdlc/gaps';
 export const LEGACY = { D: 151, A: 30, B: 22, C: 7 } as const;
 /**
  * Sequential decision ids above the frozen line that main wrote while this layout was in flight:
- * D-161 (#646) and D-163, D-164 (#662). Commits and specs cite them, so they keep their names.
- * They are the only ones: every other number past D-151 — the gaps between them included — still
- * continues the sequence and fails.
+ * D-161 (#646), D-163 and D-164 (#662), D-165 (#667), D-152 (#638) and D-190 (#670). Commits and
+ * specs cite them, so they keep their names. They are the only ones: every other number past
+ * D-151 — the gaps between them included — still continues the sequence and fails.
  */
-export const LEGACY_LATE: readonly string[] = ['D-161', 'D-163', 'D-164'];
+export const LEGACY_LATE: readonly string[] = ['D-152', 'D-161', 'D-163', 'D-164', 'D-165', 'D-190'];
 /** Sequential gap ids that were never written: GAPS.md went from A1 to A3 on the day it opened. */
 export const LEGACY_HOLES: readonly string[] = ['A2'];
 /** A slug long enough to say what the entry is and short enough to cite in a commit subject. */
@@ -238,11 +238,14 @@ function slugProblem(id: string, slug: string | undefined): string | undefined {
   return undefined;
 }
 
+/** A sequential decision id past the frozen line that is not one of the late ids main already holds. */
+const continuesSequence = (id: string, legacy: string): boolean => Number(legacy) > LEGACY.D && !LEGACY_LATE.includes(id);
+
 /**
  * The sequence is frozen and new ids are dated.
  *
  * This is the check that turns "an agent following the old instructions" into a red build:
- * the old instructions say *the next number*, and the next number is D-152.
+ * the old instructions say *the next number*, and the next number is D-191.
  */
 export function decisionIdProblems(entries: readonly Decision[]): string[] {
   const out: string[] = [];
@@ -254,7 +257,7 @@ export function decisionIdProblems(entries: readonly Decision[]): string[] {
     }
     const [, legacy, y, mo, day, slug] = m;
     if (legacy !== undefined) {
-      if (Number(legacy) > LEGACY.D && !LEGACY_LATE.includes(d.id)) out.push(`${d.id} continues the sequential numbering, which stopped at D-${String(LEGACY.D)} because two branches computing "the next number" is exactly how they collide. Name it D-YYYYMMDD-slug: \`npm run ledger -- new decision <slug>\``);
+      if (continuesSequence(d.id, legacy)) out.push(`${d.id} continues the sequential numbering, which stopped at D-${String(LEGACY.D)} because two branches computing "the next number" is exactly how they collide. Name it D-YYYYMMDD-slug: \`npm run ledger -- new decision <slug>\``);
       continue;
     }
     if (`${y ?? ''}-${mo ?? ''}-${day ?? ''}` !== d.date.trim()) out.push(`${d.id} is dated ${d.date} — the date in a decision's id is the date it was taken`);
