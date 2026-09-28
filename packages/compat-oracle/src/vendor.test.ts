@@ -7,7 +7,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
@@ -196,10 +196,14 @@ describe('a host whose repository is a monorepo', () => {
  * network did (run 35962708764, `git clone` exit 128 after ~40 s). `host.repo` is the URL the
  * clone reads, so a `file://` one exercises the same `git clone --depth 1 --branch` path.
  */
-function localSliceAnsi(): Host {
+function localSliceAnsi(files: Record<string, string> = {}): Host {
   const host = HOSTS.find((h) => h.name === 'slice-ansi');
   if (host === undefined) throw new Error('slice-ansi is not a host');
   const repo = mkdtempSync(join(tmpdir(), 'vendor-upstream-'));
+  for (const [path, body] of Object.entries(files)) {
+    mkdirSync(join(repo, dirname(path)), { recursive: true });
+    writeFileSync(join(repo, path), body);
+  }
   const version = host.pinnedVersion ?? '';
   writeFileSync(join(repo, 'package.json'), `{"name":"slice-ansi","version":"${version}","type":"module","license":"MIT"}\n`);
   writeFileSync(join(repo, 'index.js'), 'export default function sliceAnsi(s, a, b) { return s.slice(a, b); }\n');
@@ -260,6 +264,33 @@ describe('a vendor run that cannot finish', () => {
     expect(() => vendor({ ...host, testGlob: 'no-such-file-*.js' }, into)).toThrow(/produced no test files/u);
     expect(existsSync(join(live, '.source.json')), 'the previous record was deleted by a failed run').toBe(true);
     expect(readFileSync(join(live, 'test.js'), 'utf8')).toContain('already here');
+    rmSync(into, { recursive: true, force: true });
+    rmSync(fileURLToPath(host.repo), { recursive: true, force: true });
+  });
+
+  it('skips an `extraDirs` fixture the release no longer ships, and says which', () => {
+    // dotenv 18 deleted `tests/.env.vault` with the vault support that read it (upstream
+    // 4bb2dbd). The host still names it, correctly, because the vendored 17.4.2 suite needs
+    // it — so the upstream check's scratch vendor of 18.x hit `cpSync` ENOENT and took the
+    // whole daily job down with it (run 36317870604), before a single issue was opened.
+    const into = mkdtempSync(join(tmpdir(), 'vendor-missing-extra-'));
+    const host = localSliceAnsi({ 'tests/.env': 'BASIC=basic\n' });
+    const result = vendor({ ...host, extraDirs: ['tests/.env', 'tests/.env.vault'] }, into);
+    const live = join(into, host.name);
+    // Windows runners check out with core.autocrlf, so the clone may carry CRLF; presence is the point.
+    expect(readFileSync(join(live, 'tests', '.env'), 'utf8').replaceAll('\r\n', '\n'), 'the fixture that is still shipped was dropped too').toBe('BASIC=basic\n');
+    expect(existsSync(join(live, 'tests', '.env.vault'))).toBe(false);
+    expect(result.missingExtras, 'a skipped fixture has to be named, or a stale extraDirs entry is invisible').toEqual(['tests/.env.vault']);
+    rmSync(into, { recursive: true, force: true });
+    rmSync(fileURLToPath(host.repo), { recursive: true, force: true });
+  });
+
+  it('reports no missing fixture when every `extraDirs` entry is shipped', () => {
+    const into = mkdtempSync(join(tmpdir(), 'vendor-all-extras-'));
+    const host = localSliceAnsi({ 'fixture.jpg': 'jpeg' });
+    const result = vendor({ ...host, extraDirs: ['fixture.jpg'] }, into);
+    expect(result.missingExtras).toEqual([]);
+    expect(existsSync(join(into, host.name, 'fixture.jpg'))).toBe(true);
     rmSync(into, { recursive: true, force: true });
     rmSync(fileURLToPath(host.repo), { recursive: true, force: true });
   });

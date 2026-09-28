@@ -853,6 +853,11 @@ export const HOSTS: Host[] = [
     //                vendoring the file is enough to point it at whatever is being graded.
     //                Measured: without it that file scores 0 / 3, with it 3 / 3.
     //   `tests/.env…` the five fixtures the suite parses.
+    //
+    // Right for 17.4.2 and not for 18: dotenv 18 deleted `tests/.env.vault` with the vault
+    // tests that read it (upstream 4bb2dbd) and added `tests/.env.bom`. `vendor()` skips and
+    // names a listed fixture a release does not ship, so the upstream check survives it;
+    // whoever re-vendors at 18 swaps the one for the other here.
     extraDirs: ['config.js', 'tests/.env', 'tests/.env-multiline', 'tests/.env.local', 'tests/.env.multiline', 'tests/.env.vault'],
     surfaceFiles: ['lib/main.d.ts', 'lib/main.js'],
     runner: 'tap',
