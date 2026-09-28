@@ -40,8 +40,12 @@ jobs:
       - uses: ./.github/actions/setup
 
       - name: Build
+        id: build
         run: npx turbo run build --filter='./packages/*'
 
+      # A host whose check throws is recorded and the rest are still checked; the step then
+      # exits non-zero so the job is red. `upstream.json` is written either way, which is why
+      # the steps below run on the build's success rather than on this step's.
       - name: Check upstream releases
         shell: bash
         run: node packages/compat-oracle/dist/bin.js --upstream 2>&1 | tee upstream.log
@@ -49,6 +53,7 @@ jobs:
       # Read-only against the registry. A competitor that cannot be fetched exits non-zero:
       # a rename or an unpublish is a hole in the watch, not a quietly shorter report.
       - name: Check competitor releases
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         shell: bash
         run: node packages/compat-oracle/dist/bin.js --competitors 2>&1 | tee competitors.log
 
@@ -58,7 +63,9 @@ jobs:
           { echo '## Upstream releases'; echo; echo '```'; cat upstream.log || echo '(no output)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           { echo '## Competitor releases'; echo; echo '```'; cat competitors.log || echo '(no output)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
+      # Runs when the check above went red too: the releases it did find are still issues.
       - name: Open one issue per new release
+        if: ${{ !cancelled() && hashFiles('packages/compat-oracle/upstream.json') != '' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
