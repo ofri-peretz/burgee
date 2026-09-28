@@ -717,7 +717,10 @@ const RULES: Record<string, EntryRule> = {
     // 218,000 on 2026-09-24 for J3/J4: `.burgee({ floor: true })` — a usage failure exits
     // through E1 and a failing handler is reported once, before yargs' help screen — and
     // `--schema` naming what the program shadows. Measured 217,901.
-    budget: 218_000,
+    // 219,150 on 2026-09-27 for CodeQL #17–#27: parse-command and apply-extends in linear
+    // time instead of three quadratic regexes, `pkgConf` reading own keys only, and zsh
+    // completions escaping `\`. Measured 219,066.
+    budget: 219_150,
     // 217,100 with D-140 on top of D-122, N14 and E7, after merging #521. Measured 217,090.
     // 217,150 with A29's CommonJS export on top. Measured 217,123.
     denied: ["testing.js", "testing-helpers.js", "dev.js"],

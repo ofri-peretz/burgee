@@ -68,6 +68,17 @@ fi
 `;
 
 type Done = (err: Error | null, completions: string[] | undefined) => void;
+
+/**
+ * zsh's `_describe` reads `value:description`, splits at the first colon no backslash
+ * escapes, then strips one level of backslashes. So a colon in the value is written `\:`,
+ * and a backslash has to be written `\\` too, or it is lost (`a\b` completes as `ab`) and
+ * a value ending in one swallows the separator. Upstream escapes the colon only.
+ */
+function escapeDescribe(s: string): string {
+  return s.replace(/[\\:]/g, '\\$&');
+}
+
 export type CompletionFunction = (current: string, argv: any, ...rest: any[]) => any;
 
 export class Completion {
@@ -120,7 +131,7 @@ export class Completion {
           if (!this.zshShell) completions.push(commandName);
           else {
             const desc = usageCommand[1] || '';
-            completions.push(`${commandName.replace(/:/g, '\\:')}:${desc}`);
+            completions.push(`${escapeDescribe(commandName)}:${desc}`);
           }
         }
       });
@@ -144,7 +155,7 @@ export class Completion {
   private choicesFromOptionsCompletions(completions: string[], args: string[], _argv: any, _current: string): void {
     if (this.previousArgHasChoices(args)) {
       const choices = this.getPreviousArgChoices(args);
-      if (choices && choices.length > 0) completions.push(...choices.map((c) => c.replace(/:/g, '\\:')));
+      if (choices && choices.length > 0) completions.push(...choices.map(escapeDescribe));
     }
   }
 
@@ -156,7 +167,7 @@ export class Completion {
     if (!positionalKey) return;
     const choices: string[] = this.yargs.getOptions().choices[positionalKey] || [];
     for (const choice of choices) {
-      if (choice.startsWith(current)) completions.push(choice.replace(/:/g, '\\:'));
+      if (choice.startsWith(current)) completions.push(escapeDescribe(choice));
     }
   }
 
@@ -210,7 +221,7 @@ export class Completion {
       });
       const descFromAlias = aliasKey ? descs[aliasKey] : undefined;
       const desc = descs[key] ?? descFromAlias ?? '';
-      keyWithDesc = `${key.replace(/:/g, '\\:')}:${desc.replace('__yargsString__:', '').replace(/(\r\n|\n|\r)/gm, ' ')}`;
+      keyWithDesc = `${escapeDescribe(key)}:${desc.replace('__yargsString__:', '').replace(/(\r\n|\n|\r)/gm, ' ')}`;
     }
     const startsByTwoDashes = (s: string): boolean => /^--/.test(s);
     const isShortOption = (s: string): boolean => /^[^0-9]$/.test(s);

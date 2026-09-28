@@ -280,7 +280,10 @@ jobs:
           set -euo pipefail
           # Newest by mtime, not by name: the file this run just wrote. By name, any committed
           # observation of the same day with a later sha sorts after it and is read instead.
-          FILE=$(ls -1t benchmarks/results/agent-cli-bench/*.json | head -n 1)
+          # `sed -n 1p`, not `head -n 1`: head exits after one line, `ls` takes SIGPIPE writing
+          # the rest of 200+ names, and pipefail turns that into "ls: write error: Broken pipe",
+          # exit 2 — which is how run 36352045743 lost its status, reason and summary.
+          FILE=$(ls -1t benchmarks/results/agent-cli-bench/*.json | sed -n 1p)
           STATUS=$(node -p "JSON.parse(require('fs').readFileSync('$FILE','utf8')).axes.agent.status")
           REASON=$(node -p "JSON.parse(require('fs').readFileSync('$FILE','utf8')).axes.agent.reason || ''")
           echo "status=$STATUS" >> "$GITHUB_OUTPUT"
