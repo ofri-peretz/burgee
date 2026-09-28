@@ -11,6 +11,7 @@
 import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 
 import meow, { type AnyFlags, type Flag, type Result, type TypedFlags } from './meow.js';
+import { cutTrailingTabs, trimNewlines } from './meow/present.js';
 
 const importMeta = import.meta;
 const pkg = { name: 'demo', version: '1.2.3' };
@@ -188,5 +189,33 @@ describe('meow’s own types, so a type-only import migrates', () => {
     expectTypeOf(typed).toMatchTypeOf<Result<{ rainbow: Flag<'boolean', boolean> }>>();
     expectTypeOf<TypedFlags<{ n: { type: 'number' }; m: { type: 'string'; default: 'a' } }>>().toEqualTypeOf<{ n: number | undefined; m: string }>();
     expectTypeOf<AnyFlags>().toEqualTypeOf<Record<string, import('./meow.js').AnyFlag>>();
+  });
+});
+
+/** Every string over `alphabet` up to `max` characters long. */
+function strings(alphabet: string, max: number): string[] {
+  const out = [''];
+  for (let n = 1; n <= max; n += 1) {
+    const prev = out.filter((x) => x.length === n - 1);
+    for (const p of prev) for (const c of alphabet) out.push(p + c);
+  }
+  return out;
+}
+
+describe('help trimming answers as meow\'s regexes did, in linear time (CodeQL #99, #100)', () => {
+  it('matches the upstream regexes on every short string of tabs, newlines, spaces and text', () => {
+    for (const s of strings('\t\n\r a', 6)) {
+      expect(trimNewlines(s), JSON.stringify(s)).toBe(s.replace(/^[\r\n]+|[\r\n]+$/gu, ''));
+      expect(cutTrailingTabs(s), JSON.stringify(s)).toBe(s.replace(/\t+\n*$/u, ''));
+    }
+  });
+
+  it('trims 200,000 newlines and tabs that never reach the end well under the quadratic cost', () => {
+    const newlines = `a${'\n'.repeat(200_000)}b`;
+    const tabs = `a${'\t'.repeat(200_000)}b`;
+    const started = performance.now();
+    expect(trimNewlines(newlines)).toBe(newlines);
+    expect(cutTrailingTabs(tabs)).toBe(tabs);
+    expect(performance.now() - started).toBeLessThan(200);
   });
 });

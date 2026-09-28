@@ -28,8 +28,29 @@ export function readPackageUp(importMeta: ImportMeta | undefined): Record<string
   return {};
 }
 
-/** `trim-newlines`: leading and trailing `\r`/`\n` only — trailing spaces survive it. */
-const trimNewlines = (text: string): string => text.replace(/^[\r\n]+|[\r\n]+$/gu, '');
+const isNewline = (c: string | undefined): boolean => c === '\n' || c === '\r';
+
+/**
+ * `trim-newlines`: leading and trailing `\r`/`\n` only — trailing spaces survive it. Index
+ * scans, not `/^[\r\n]+|[\r\n]+$/`, which is quadratic on a long run of newlines that does
+ * not reach the end (CodeQL #99).
+ */
+export function trimNewlines(text: string): string {
+  let start = 0;
+  let end = text.length;
+  while (start < end && isNewline(text[start])) start += 1;
+  while (end > start && isNewline(text[end - 1])) end -= 1;
+  return text.slice(start, end);
+}
+
+/** `help.replace(/\t+\n*$/, '')` — trailing tabs and the newlines after them — in linear time (CodeQL #100). */
+export function cutTrailingTabs(text: string): string {
+  let end = text.length;
+  while (end > 0 && text[end - 1] === '\n') end -= 1;
+  let tabs = end;
+  while (tabs > 0 && text[tabs - 1] === '\t') tabs -= 1;
+  return tabs < end ? text.slice(0, tabs) : text;
+}
 
 /** `strip-indent`: the smallest indent of any line with content, removed from every line. */
 function stripIndent(text: string): string {
@@ -57,7 +78,7 @@ export function buildHelp(options: Settings, pkg: Record<string, unknown>): stri
   const width = options.helpIndent ?? 2;
   let help = '';
   if (typeof options.help === 'string' && options.help !== '') {
-    help = trimNewlines(options.help.replace(/\t+\n*$/u, ''));
+    help = trimNewlines(cutTrailingTabs(options.help));
     if (help.includes('\n')) help = redent(help, width);
     help = `\n${help}`;
   }

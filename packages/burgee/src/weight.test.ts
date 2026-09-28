@@ -539,7 +539,9 @@ const RULES: Record<string, EntryRule> = {
     // as meow does. Measured 61,592.
     // 63,100 on 2026-09-28: both of the above together, #665's 61,592 plus meow's 1,345 — the two
     // landed in parallel. Measured 62,937 locally; 163 B clear of the ~32 B CI reads heavier.
-    budget: 63_100,
+    // 63,600 the same day for **504 bytes**: help trimming as index scans instead of two regexes
+    // CodeQL flags as polynomial on a run of newlines or tabs (#99, #100). Measured 63,441.
+    budget: 63_600,
     denied: ["index.js", "execute.js", "help.js", "mcp.js", "schema.js", "completions.js", "plugin.js"],
   },
   "./contrast": {
