@@ -910,22 +910,42 @@ export class YargsInstance {
       if (!this.parsed) {
         const parse = this.#runYargsParserAndExecuteCommands(this.#processArgs, undefined, undefined, 0, true);
         if (isPromise(parse)) {
-          parse.then(() => {
-            this.#usage.showHelp(level);
-          });
+          this.#showHelpAfter(parse, level);
           return this;
         }
       }
       const builderResponse = this.#command.runDefaultBuilderOn(this);
       if (isPromise(builderResponse)) {
-        builderResponse.then(() => {
-          this.#usage.showHelp(level);
-        });
+        this.#showHelpAfter(builderResponse, level);
         return this;
       }
     }
     this.#usage.showHelp(level);
     return this;
+  }
+
+  /**
+   * `showHelp()` returns `this`, so when an async builder has to run first nobody holds the
+   * promise, and upstream chained `.then` with no rejection handler: a builder that rejected
+   * became an unhandled rejection and took the process down with a bare stack, help unprinted.
+   * The failure goes where yargs sends every other one no caller owns — `fail`, as a command
+   * handler's rejection does in `command.ts` — so a `.fail()` handler sees it and
+   * `exitProcess` decides the exit.
+   */
+  #showHelpAfter(pending: Promise<unknown>, level: Parameters<YargsInstance['showHelp']>[0]): void {
+    pending.then(
+      () => {
+        this.#usage.showHelp(level);
+      },
+      (error: Error) => {
+        try {
+          this.#usage.fail(null, error);
+        } catch {
+          // fail has reported it (or a `.fail()` handler ran) and rethrew for a synchronous
+          // caller; there is none here, and command.ts drops the rethrow the same way
+        }
+      },
+    );
   }
 
   scriptName(scriptName: string): this {
