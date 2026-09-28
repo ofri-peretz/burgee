@@ -54,7 +54,7 @@ describe('a deadline that cannot bound anything is refused where it is written',
 
 describe('the clock itself', () => {
   it('reports expiry and resolves when it does', async () => {
-    const clock = startDeadline(5);
+    const clock = startDeadline(5, false);
     expect(clock.expired).toBe(false);
     await clock.reached;
     expect(clock.expired).toBe(true);
@@ -62,7 +62,7 @@ describe('the clock itself', () => {
   });
 
   it('cancels without firing, so a clean shutdown pays nothing for the bound', async () => {
-    const clock = startDeadline(5);
+    const clock = startDeadline(5, false);
     clock.cancel();
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(clock.expired).toBe(false);

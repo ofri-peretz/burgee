@@ -233,7 +233,8 @@ describe('the oracle installs what its vendored suites require', () => {
     // stays refused is the case the lock was written for — a package that resolves on one
     // machine and nowhere else, which is why `committedBeside` reads the index and not the
     // disk. Proven 2026-09-14 by un-staging both directories: the row goes red naming them.
-    // See the `.gitignore` in each of those two vendor directories.
+    // See the `.gitignore` in `vendor/wrap-ansi/`. slice-ansi's `random-item` left this route
+    // on 2026-09-27 for `suiteDeps`, when the 9.0.1 re-vendor deleted the committed copy.
     const declared = declaredPackages();
     // Resolution is not the test: `cli-table` resolved on the author's machine from a
     // stray `~/node_modules` and the suite scored 33/33, while `npm ci` gave 15/16. What

@@ -197,6 +197,8 @@ const RULES: Record<string, EntryRule> = {
   // and string-width 8.2.2, not whatever is hoisted — each counted whole (ora 17,891 ·
   // cli-spinners 27,841 · signal-exit 21,983 · chalk 16,727 · get-east-asian-width 8,785 ·
   // string-width 6,194 · yoctocolors 4,466 · mimic-function 3,038 · the other nine 6,652).
+  // Those are the 2026-09-09 figures the total was taken from. get-east-asian-width is 8,917
+  // at 1.7.0 (2026-09-27, burgee#363) — +132, which does not move the 49% below.
   // Counting ora the stricter way — only the 27 files its graph reaches, whole packages
   // ignored — gives 101,809 B, and ours is still 55% of that.
   //
@@ -205,7 +207,8 @@ const RULES: Record<string, EntryRule> = {
   './ora': { allow: ['closeout/cursor', 'closeout/restore-cursor', 'linegauge', 'roundel/chalk'], budget: 43_000, measured: 41_036, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
   // The log-update façade: the port, the ANSI-aware wrapper and the width function, against
   // log-update's own 113,368 B across sixteen packages (slice-ansi 27,630 · signal-exit 21,983
-  // · wrap-ansi 20,004 · the rest). signal-exit's 21,983 B is what `closeout` replaces, shared
+  // · wrap-ansi 20,004 · the rest) — 2026-09-09 figures, when slice-ansi resolved to 9.0.0; it
+  // is 26,813 at 9.0.1 (2026-09-27). signal-exit's 21,983 B is what `closeout` replaces, shared
   // with `./ora` rather than ported twice — and, since 2026-09-15, owned one package over
   // rather than here.
   //
