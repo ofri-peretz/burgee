@@ -88,7 +88,7 @@ const RULES: Record<string, EntryRule> = {
   // `caique` gets caique, and pays nothing for the two compatibility subpaths.
   //
   // `linegauge` joined on 2026-09-28 with the raw renderer's row count (`lineCount`): a frame
-  // wider than the terminal occupies more rows than it has lines. Measured 14,381 (+265).
+  // wider than the terminal occupies more rows than it has lines. Measured 14,472 after main's #680 (+265).
   '.': { allow: [...CLOSEOUT, 'linegauge'], budget: 15_000, denied: ['clack.js', 'inquirer.js'] },
   // The shape and its validator. The floor every other subpath stands on, and a leaf: a
   // program that only declares prompts pays 739 B and never loads a widget.
@@ -97,16 +97,21 @@ const RULES: Record<string, EntryRule> = {
   // from hanging under an agent. It reaches only the spec, never a widget: deciding not to
   // ask must not cost the machinery of asking. Measured 2,133 B.
   './decide': { allow: [], budget: 2_500, denied: ['ask.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
-  // The drop-in subpath for `@clack/prompts`, and the smallest façade in the family — one
-  // exported function, because one function is what clack's suite grades that is not a
-  // drawing. See `clack.ts`'s own header and D-001: 289 of that suite's 444 assertions are
-  // snapshots of clack's frames, subtracted from the row as a declared subset, and
-  // `limitOptions` plus the three `guide` cases are the whole behavioural remainder.
-  // Measured 4,564 B on 2026-09-20 against `@clack/prompts` 1.8.1's own 101,684 B across
-  // six packages, which is the U5 ceiling this file's header names.
+  // The drop-in subpath for `@clack/prompts`: its twelve prompts, its writers, its symbols and
+  // its settings, on caique's own keypress loop (D-152). It was one function — `limitOptions`,
+  // 4,564 B — until 2026-09-27, when the twelve prompts `guide.test.ts` renders were built;
+  // the budget moved from 5,500 because the surface did, and that is the decision this
+  // comment records rather than a ratchet let slip.
+  //
+  // Measured **62,238 B** on 2026-09-27 against `@clack/prompts` 1.8.1's own 101,684 B across
+  // six packages — 0.61 of the U5 ceiling this file's header names — reaching the same three
+  // family subpaths `./inquirer` does: `closeout/cursor` and `closeout/exit-hook`, because a
+  // prompt hides the cursor and owes its return on every exit path, and `linegauge/wrap`.
+  // It is still a leaf away from the rest of caique: a program migrating off clack loads none
+  // of caique's own API, and a program written against caique never loads a byte of this.
   './clack': {
-    allow: ['linegauge/wrap'],
-    budget: 5_500,
+    allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap'],
+    budget: 64_000,
     denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js', 'spec.js', 'plugin.js', 'inquirer.js'],
   },
   // The drop-in subpath for `@inquirer/core` — graded 41 / 41 by the incumbent's own suite
@@ -146,7 +151,8 @@ const RULES: Record<string, EntryRule> = {
   // The raw-mode renderer sits *on top of* line mode and answers the same questions, so it
   // carries `ask.js` by design — that shared answer is the arrangement, not an accident.
   // It never reaches the terminal: a caller supplies its own streams. Measured 3,656 B.
-  // 3,843 B (+187) on 2026-09-28: the repaint counts rows with linegauge's `lineCount`
+  // 3,659 B (+3) on 2026-09-28: raw mode is `closeout/cursor`'s `rawMode`, paired with its undo.
+  // 3,846 B (+187): the repaint counts rows with linegauge's `lineCount`
   // against the writer's `columns`, instead of counting `\n`s and ignoring wrap.
   './raw': { allow: [...CLOSEOUT, 'linegauge'], budget: 4_500, denied: ['decide.js', 'binding.js', 'terminal.js', 'index.js'] },
   // Resolving a whole command's prompts in one pass: the decision plus the widgets it may
@@ -154,7 +160,7 @@ const RULES: Record<string, EntryRule> = {
   // `Io`, and which one is the caller's business. Measured 8,123 B.
   './binding': { allow: [], budget: 9_500, denied: ['raw.js', 'terminal.js', 'index.js'] },
   // The only file that touches a stream, and the only one that knows what echo is. It
-  // carries `ask.js` for the `Io` shape it implements. Measured 1,947 B; 2,025 B (+78) on
+  // carries `ask.js` for the `Io` shape it implements. Measured 1,947 B; +78 on
   // 2026-09-28 for the writer's `columns`, read through to the output stream.
   './terminal': { allow: [], budget: 2_500, denied: ['decide.js', 'raw.js', 'binding.js', 'index.js'] },
 };

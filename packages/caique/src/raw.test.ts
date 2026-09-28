@@ -148,6 +148,17 @@ describe('the terminal is left as it was found', () => {
     expect(written().endsWith(`${ESC}[?25h`)).toBe(true);
   });
 
+  // The caller already had raw mode — a prompt library, or the program itself. This used to end
+  // with an unconditional `setRawMode(false)`, which took the keyboard from its owner.
+  it('leaves raw mode on for a caller that already had it', async () => {
+    const k = keyboard([DOWN, ENTER]);
+    k.io.keys.isRaw = true;
+    const answer = askList(select, k.io);
+    k.play();
+    expect(await answer).toEqual({ ok: true, value: 'log-update' });
+    expect(k.rawCalls).toEqual([]);
+  });
+
   it('Ctrl-C cancels, and still restores the terminal', async () => {
     const { answer, written, rawCalls } = await run(select, [DOWN, CTRL_C]);
     expect(answer).toEqual({ ok: false, reason: 'cancelled' });
@@ -302,6 +313,9 @@ const distRaw = new URL('../dist/raw.js', import.meta.url).href;
 interface SignalOutcome {
   hide: number;
   show: number;
+  /** `setRawMode(true)` and `setRawMode(false)` calls, recorded on fd 2 beside the cursor. */
+  rawOn: number;
+  rawOff: number;
   status: number | null;
 }
 
@@ -328,7 +342,7 @@ function promptThenSignal(signal: string, answerFirst = false): SignalOutcome {
       'const listeners = [];',
       'const keys = {',
       '  isTTY: true,',
-      '  setRawMode: () => true,',
+      "  setRawMode: (mode) => process.stderr.write(mode ? '<raw-on>' : '<raw-off>'),",
       '  on: (_e, l) => listeners.push(l),',
       '  off: (_e, l) => listeners.splice(listeners.indexOf(l), 1),',
       '  resume: () => undefined,',
@@ -363,7 +377,7 @@ function promptThenSignal(signal: string, answerFirst = false): SignalOutcome {
 
   const written = readFileSync(log, 'utf8');
   const count = (needle: string): number => written.split(needle).length - 1;
-  return { hide: count(HIDE_CURSOR), show: count(SHOW_CURSOR), status };
+  return { hide: count(HIDE_CURSOR), show: count(SHOW_CURSOR), rawOn: count('<raw-on>'), rawOff: count('<raw-off>'), status };
 }
 
 describe.skipIf(process.platform === 'win32')('a cursor hidden mid-prompt comes back when the process is signalled', () => {
@@ -376,10 +390,19 @@ describe.skipIf(process.platform === 'win32')('a cursor hidden mid-prompt comes 
     expect(observed.status).toBe(signal === 'SIGINT' ? 130 : 143);
   });
 
+  // Raw mode is paired through closeout like the cursor: turned off on the signal path too.
+  // By hand it was turned off only in the prompt's own `finally`, which a signal never reaches.
+  it.each(['SIGINT', 'SIGTERM'])('%s turns raw mode off again', (signal) => {
+    const observed = promptThenSignal(signal);
+    expect(observed.rawOn).toBe(1);
+    expect(observed.rawOff).toBe(1);
+  });
+
   it('a prompt that already ended leaves nothing for exit to do', () => {
     const observed = promptThenSignal('SIGTERM', true);
     expect(observed.hide).toBe(1);
     // One show, not two: `restore()` unregistered the hook when the prompt was answered.
     expect(observed.show).toBe(1);
+    expect(observed.rawOff).toBe(1);
   });
 });

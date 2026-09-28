@@ -20,11 +20,16 @@ not a flag. That is what this package is for a command-line program: not `red` a
 but `error`, `hint`, `command` and `flag`, the colours that mean *you*, carried onto the
 terminal as a theme.
 
-## Start here
+## Install
 
 ```bash
 npm install roundel
+pnpm add roundel
+yarn add roundel
+bun add roundel
 ```
+
+## Quick start
 
 ```js
 import { fly } from 'roundel/theme';
@@ -102,7 +107,7 @@ terminals, so a theme that would not read fails in CI rather than on one laptop.
 and 256-colour fallbacks are the user's terminal palette and are not checked: a number
 there would be invented.
 
-## Migrating from chalk
+## Migrating
 
 ```diff
 - import chalk from 'chalk';
@@ -133,9 +138,19 @@ validated), `new Chalk({ level })`, `chalkStderr`, `supportsColor` / `supportsCo
   kitty, ghostty, wezterm, TeamCity, the Windows build number) is not reproduced; a program
   on one of those terminals that wants colour asks for it with `FORCE_COLOR` or `--color`.
 
+Or let the codemod make the change: `npx burgee migrate --dry-run` lists every import it would
+rewrite — only drop-ins graded level with their incumbent — and `npx burgee migrate` makes it.
+See [Migrate](https://burgee.interlace.tools/docs/migrate).
+
+## Compatibility
+
 **Graded by chalk's own suite**, vendored at 6.0.0 into `compat-oracle` and run unedited
 through a generated shim: **58 of 58 tests (100.0%) on 2026-09-08**, alongside the same
 suite scoring 58 / 58 against real chalk in the same run.
+
+The grade is re-run on every change to `roundel/chalk`; the current figure is generated under
+*Benchmarks* below and published with every other drop-in on the
+[compatibility page](https://burgee.interlace.tools/docs/compatibility).
 
 ## Weight
 
@@ -149,32 +164,75 @@ carries neither — and `sideEffects: false` lets a bundler drop what a program 
 ESM with a `default` condition, so `require('roundel/tokens')` works from CommonJS on
 Node 20.19+ and 22.13+.
 
-## What is next
-
-- **`roundel/import`** — `fromBase16(scheme)` and `fromITerm(plist)`: a theme from the two
-  largest corpora of terminal palettes, contrast-checked on the way in.
-
----
-
-Part of the [burgee](https://github.com/ofri-peretz/burgee) family: a CLI on
-[burgee](https://www.npmjs.com/package/burgee) declares what it is, roundel carries its
-colours, [flagstaff](https://www.npmjs.com/package/flagstaff) flies it, and
-[caique](https://www.npmjs.com/package/caique) answers back. Each is an independent package;
-none requires the others.
-
-MIT © Ofri Peretz — see [LICENSE](https://github.com/ofri-peretz/burgee/blob/main/packages/roundel/LICENSE).
-
 ## Benchmarks
 
-Every number here is produced by `npm run bench` and published at [/docs/benchmarks](https://burgee.interlace.tools/docs/benchmarks).
+Every number here is produced by `npm run bench` and published at [burgee.interlace.tools/docs/benchmarks](https://burgee.interlace.tools/docs/benchmarks).
 
 Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
 | `chalk` | 58 / 58 |
+
+## For agents
+
+- **Captured output is plain.** `outputMode(rt, { json })` answers `json` under `--json`, and
+  under `NO_COLOR` or on a pipe nobody asked to colour the level is 0 — every token returns
+  its input unchanged, so a transcript an agent reads back never carries an escape.
+- **The decision is a function, not a side effect.** `roundel/policy` is pure over
+  `{ env, isTTY, argv }`, so a harness can ask the question the program asked and get the same
+  answer.
+- **A theme plugin can be checked before it ships.** `npx roundel check ./theme.mjs` validates
+  a plugin against the family schema, prints what it contributes, and exits 0, 1 with a code
+  and a fix, or 2 on a usage error.
+- **The docs are machine-readable** at
+  [roundel.interlace.tools/llms.txt](https://roundel.interlace.tools/llms.txt) and
+  [llms-full.txt](https://roundel.interlace.tools/llms-full.txt).
+
+## What is next
+
+- **`roundel/import`** — `fromBase16(scheme)` and `fromITerm(plist)`: a theme from the two
+  largest corpora of terminal palettes, contrast-checked on the way in.
+
+## API
+
+The subpaths are listed under [What is here](#what-is-here); every export, with its types, is
+on [roundel.interlace.tools](https://roundel.interlace.tools/docs).
+
 ## Where it sits
 
 Plugins register under the `tokens` key, against the one schema the whole family shares.
 
 `burgee` and `flagstaff` build on it, and it builds on nothing in this family.
+
+## The family
+
+Nine packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
+carries its colours, flagstaff flies it and caique answers back; each installs on its own, and none
+takes a dependency from outside the family.
+
+| Package | What it is | Replaces |
+| :-- | :-- | :-- |
+| [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander and yargs |
+| **roundel** (this package) | Colour: one output policy, semantic tokens, a theme | chalk |
+| [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
+| [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | inquirer and clack |
+| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi and slice-ansi |
+| [paratext](https://paratext.interlace.tools/docs) | Hyperlinks, images, title, clipboard and notifications | ansi-escapes, terminal-link and term-img |
+| [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, dotenv and rc |
+| [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook and restore-cursor |
+| [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
+
+Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
+and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on
+[burgee.interlace.tools](https://burgee.interlace.tools/docs/packages).
+
+## Contributing
+
+Issues and pull requests are welcome at [ofri-peretz/burgee](https://github.com/ofri-peretz/burgee/issues); read
+[CONTRIBUTING.md](https://github.com/ofri-peretz/burgee/blob/main/CONTRIBUTING.md) first. Report a vulnerability privately, as
+[SECURITY.md](https://github.com/ofri-peretz/burgee/blob/main/SECURITY.md) describes — never in a public issue.
+
+## Licence
+
+MIT © Ofri Peretz — see [LICENSE](https://github.com/ofri-peretz/burgee/blob/main/packages/roundel/LICENSE).
