@@ -5,9 +5,6 @@ description: "Close everything out. Exit handlers that run exactly once on every
 
 **Close everything out.**
 
-Exit handlers that run exactly once on every path, terminal restore, and a bounded deadline
-so shutdown cannot hang.
-
 It replaces **signal-exit**, **exit-hook** and **restore-cursor**, each through a drop-in
 subpath graded by the incumbent's own suite. Every handler gets one record, and `reportToJson()` and `reportToEvent()` project
 that record as a `--json` line or an agent event.
@@ -18,22 +15,16 @@ way out, and mostly does not.
 
 Zero dependencies. Node builtins only.
 
+## Install
+
 ```bash
-npm i closeout
+npm install closeout
+pnpm add closeout
+yarn add closeout
+bun add closeout
 ```
 
-## The problem
-
-A program leaves by several doors: returning from `main`, `process.exit`, Ctrl-C, SIGTERM
-from an orchestrator, SIGHUP when the terminal closes, an uncaught throw, a rejected
-promise nobody awaited. A handler registered on `'exit'` alone catches one of them.
-
-That is why Ctrl-C so often leaves a hidden cursor in your shell, a half-written file, or a
-lock nobody released. Registering on all the doors is easy. Registering on all of them and
-running the handlers **exactly once** when two fire at the same moment is where the bugs
-are, and that is what this package is.
-
-## Use
+## Quick start
 
 ```js
 import { onExit } from 'closeout';
@@ -81,6 +72,17 @@ shown once either way.
 
 Nothing is written to a non-TTY. Escape sequences in a pipe corrupt the output the pipe
 exists to carry.
+
+## The problem
+
+A program leaves by several doors: returning from `main`, `process.exit`, Ctrl-C, SIGTERM
+from an orchestrator, SIGHUP when the terminal closes, an uncaught throw, a rejected
+promise nobody awaited. A handler registered on `'exit'` alone catches one of them.
+
+That is why Ctrl-C so often leaves a hidden cursor in your shell, a half-written file, or a
+lock nobody released. Registering on all the doors is easy. Registering on all of them and
+running the handlers **exactly once** when two fire at the same moment is where the bugs
+are, and that is what this package is.
 
 ## The deadline
 
@@ -218,6 +220,101 @@ a test or for a runner hosting other programs. A `ProcessLike` owes `kill` and `
 as the listener methods, because re-raising a signal is part of the contract above and a fake
 that could quietly skip it is how the missing re-raise survived two incumbent suites.
 
+## Migrating
+
+One import per incumbent:
+
+```diff
+- import exitHook, { asyncExitHook, gracefulExit } from 'exit-hook';
++ import exitHook, { asyncExitHook, gracefulExit } from 'closeout/exit-hook';
+```
+
+```diff
+- import restoreCursor from 'restore-cursor';
++ import restoreCursor from 'closeout/restore-cursor';
+```
+
+```diff
+- import { onExit } from 'signal-exit';
++ import { onExit } from 'closeout/signal-exit';
+```
+
+The swap is an import change, not an `overrides` entry. An override points the incumbent's
+name at closeout's *root*, and the root is closeout's own API — it has one default to give,
+and three incumbents would each need it. An override for a transitive copy has nowhere to
+land, so this package does not print one.
+
+One thing to know before you swap `exit-hook`: its bound is per hook (`{ wait }`) and the
+façade keeps that bound rather than imposing closeout's own 2 000 ms deadline, because a
+drop-in that silently tightens your timeout is not a drop-in. `onExit()` — closeout's own
+API — is where the bounded shutdown lives.
+
+Or let the codemod make the change: `npx burgee migrate --dry-run` lists every import it would
+rewrite — only drop-ins graded level with their incumbent — and `npx burgee migrate` makes it
+([Migrate](https://burgee.interlace.tools/docs/migrate)).
+
+## Compatibility
+
+What `signal-exit`, `exit-hook`, `restore-cursor`, `cli-cursor`, `onetime` and `mimic-fn` do
+between them is one problem — leaving cleanly — and this is one package with no dependencies
+rather than six with a tree.
+
+Three of those paths are built and **graded by the incumbent's own test suite**, unedited apart
+from the import specifier, through `compat-oracle`. The control column is that suite run
+against the incumbent itself, which is what says the gate works before it grades us:
+
+| subpath | replaces | control | closeout |
+| :-- | :-- | --: | --: |
+| `closeout/exit-hook` | `exit-hook@5.1.0` (8.8 M/wk) | 21 / 21 | 21 / 21 |
+| `closeout/restore-cursor` | `restore-cursor@5.1.0` (107.5 M/wk) | 6 / 6 | 6 / 6 |
+| `closeout/signal-exit` | `signal-exit@4` (198.9 M/wk) | 134 / 135 | 134 / 135 |
+
+The one `signal-exit` case short fails against `signal-exit` itself as well, which is what the
+control column is for.
+
+## Weight
+
+Measured rather than claimed. The whole package is 20,417 B of published
+JavaScript and reaches no other package. `closeout/exit-hook` is 11,841 B of that, against
+`exit-hook@5.1.0`'s 4,458 B in one file — *over*, because the drop-in shares the phase
+ordering, the bounded runner and the report with the rest of the package, and those are the
+product. Startup cost is the half that matches: p50 over 21 spawns, importing
+`closeout/exit-hook` costs **4.5 ms** over a bare `node`, and importing `exit-hook` itself
+costs **4.6 ms**.
+
+## Benchmarks
+
+Every number here is produced by `npm run bench` and published at [burgee.interlace.tools/docs/benchmarks](https://burgee.interlace.tools/docs/benchmarks).
+
+Graded by the incumbent's own test suite:
+
+| suite | passing |
+| :-- | --: |
+| `exit-hook` | 21 / 21 |
+| `restore-cursor` | 6 / 6 |
+| `signal-exit` | 134 / 135 |
+
+Weight, installed and tree-inclusive: **110,998 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.6039**.
+
+## For agents
+
+- **One record, two projections.** Every handler is handed `{ path, signal, code, error }`, and
+  `reportToJson()` and `reportToEvent()` project that same record as a `--json` line or an agent
+  event — they cannot disagree with what the handler was told.
+- **A hang names itself.** A breached deadline prints which handlers had not returned, and exits
+  with the code the process was already leaving with.
+- **The shutdown is readable as data.** `contributions()` from `closeout/plugin` lists every
+  contributed handler in the order it will run, without running any of it.
+- **A plugin can be checked before it ships.** `npx closeout check ./unlock.mjs` validates it
+  against the family schema and exits 0, 1 with a code and a fix, or 2 on a usage error.
+- **The docs are machine-readable** at
+  [closeout.interlace.tools/llms.txt](https://closeout.interlace.tools/llms.txt) and
+  [llms-full.txt](https://closeout.interlace.tools/llms-full.txt).
+
+## What is next
+
+Still to come: raw mode and alternate-screen restore.
+
 ## API
 
 | | |
@@ -265,69 +362,42 @@ And the drop-in subpaths, which reproduce their incumbent's API rather than this
 Importing this package attaches nothing. The process-wide instance installs on first use,
 so a library that imports `closeout` for its types pays nothing.
 
-## Replaces
+Every export, with its types, is on [closeout.interlace.tools](https://closeout.interlace.tools/docs).
 
-What `signal-exit`, `exit-hook`, `restore-cursor`, `cli-cursor`, `onetime` and `mimic-fn` do
-between them is one problem — leaving cleanly — and this is one package with no dependencies
-rather than six with a tree.
-
-Three of those paths are built and **graded by the incumbent's own test suite**, unedited apart
-from the import specifier, through `compat-oracle`. The control column is that suite run
-against the incumbent itself, which is what says the gate works before it grades us:
-
-| subpath | replaces | control | closeout |
-| :-- | :-- | --: | --: |
-| `closeout/exit-hook` | `exit-hook@5.1.0` (8.8 M/wk) | 21 / 21 | 21 / 21 |
-| `closeout/restore-cursor` | `restore-cursor@5.1.0` (107.5 M/wk) | 6 / 6 | 6 / 6 |
-| `closeout/signal-exit` | `signal-exit@4` (198.9 M/wk) | 134 / 135 | 134 / 135 |
-
-The one `signal-exit` case short fails against `signal-exit` itself as well, which is what the
-control column is for.
-
-```js
-import exitHook, {asyncExitHook, gracefulExit} from 'closeout/exit-hook';
-import restoreCursor from 'closeout/restore-cursor';
-import {onExit} from 'closeout/signal-exit';
-```
-
-The swap is an import change, not an `overrides` entry. An override points the incumbent's
-name at closeout's *root*, and the root is closeout's own API — it has one default to give,
-and three incumbents would each need it. An override for a transitive copy has nowhere to
-land, so this package does not print one.
-
-One thing to know before you swap `exit-hook`: its bound is per hook (`{ wait }`) and the
-façade keeps that bound rather than imposing closeout's own 2 000 ms deadline, because a
-drop-in that silently tightens your timeout is not a drop-in. `onExit()` — closeout's own
-API — is where the bounded shutdown lives.
-
-**Weight, measured rather than claimed.** The whole package is 20,417 B of published
-JavaScript and reaches no other package. `closeout/exit-hook` is 11,841 B of that, against
-`exit-hook@5.1.0`'s 4,458 B in one file — *over*, because the drop-in shares the phase
-ordering, the bounded runner and the report with the rest of the package, and those are the
-product. Startup cost is the half that matches: p50 over 21 spawns, importing
-`closeout/exit-hook` costs **4.5 ms** over a bare `node`, and importing `exit-hook` itself
-costs **4.6 ms**.
-
-**Still to come:** raw mode and alternate-screen restore.
-
-## Benchmarks
-
-Every number here is produced by `npm run bench` and published at [/docs/benchmarks](https://burgee.interlace.tools/docs/benchmarks).
-
-Graded by the incumbent's own test suite:
-
-| suite | passing |
-| :-- | --: |
-| `exit-hook` | 21 / 21 |
-| `restore-cursor` | 6 / 6 |
-| `signal-exit` | 134 / 135 |
-
-Weight, installed and tree-inclusive: **103,646 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.5639**.
 ## Where it sits
 
 Plugins register under the `handlers` key, against the one schema the whole family shares.
 
 `burgee`, `caique`, `flagstaff` build on it, and it builds on nothing in this family.
+
+## The family
+
+Nine packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
+carries its colours, flagstaff flies it and caique answers back; each installs on its own, and none
+takes a dependency from outside the family.
+
+| Package | What it is | Replaces |
+| :-- | :-- | :-- |
+| [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander and yargs |
+| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk |
+| [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
+| [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | inquirer and clack |
+| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi and slice-ansi |
+| [paratext](https://paratext.interlace.tools/docs) | Hyperlinks, images, title, clipboard and notifications | ansi-escapes, terminal-link and term-img |
+| [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, dotenv and rc |
+| **closeout** (this package) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook and restore-cursor |
+| [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
+
+Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
+and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on
+[burgee.interlace.tools](https://burgee.interlace.tools/docs/packages).
+
+## Contributing
+
+Issues and pull requests are welcome at [ofri-peretz/burgee](https://github.com/ofri-peretz/burgee/issues); read
+[CONTRIBUTING.md](https://github.com/ofri-peretz/burgee/blob/main/CONTRIBUTING.md) first. Report a vulnerability privately, as
+[SECURITY.md](https://github.com/ofri-peretz/burgee/blob/main/SECURITY.md) describes — never in a public issue.
+
 ## Licence
 
-MIT
+MIT © Ofri Peretz — see [LICENSE](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/LICENSE).

@@ -8,12 +8,34 @@
 </p>
 
 <p align="center">
+  Measuring, wrapping, truncating and slicing styled terminal text — without the edge fraying.
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/linegauge"><img src="https://img.shields.io/npm/v/linegauge?style=flat-square&color=0a6b47" alt="linegauge on npm: the latest version" /></a>
+  <a href="https://www.npmjs.com/package/linegauge"><img src="https://img.shields.io/npm/dm/linegauge?style=flat-square" alt="linegauge downloads per month on npm" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/actions/workflows/quality.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/ofri-peretz/burgee/quality.yml?branch=main&style=flat-square&label=Quality%20Gate" alt="Quality Gate: the CI status of main" /></a>
+  <a href="https://app.codecov.io/gh/ofri-peretz/burgee/components"><img src="https://img.shields.io/codecov/c/github/ofri-peretz/burgee/main?component=linegauge&style=flat-square" alt="linegauge line coverage: its Codecov component" /></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/ofri-peretz/burgee"><img src="https://img.shields.io/ossf-scorecard/github.com/ofri-peretz/burgee?style=flat-square&label=OpenSSF%20Scorecard" alt="OpenSSF Scorecard for the repository" /></a>
+  <a href="https://www.npmjs.com/package/linegauge?activeTab=code"><img src="https://img.shields.io/npm/unpacked-size/linegauge?style=flat-square" alt="Unpacked size of the latest linegauge release on npm" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/linegauge/package.json"><img src="https://img.shields.io/badge/dependencies-0-0a6b47?style=flat-square" alt="Zero dependencies" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/linegauge/package.json"><img src="https://img.shields.io/badge/types-included-blue?style=flat-square" alt="TypeScript types included for every entry point" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/linegauge/package.json"><img src="https://img.shields.io/badge/Node.js-20.19%2B%20%7C%2022.13%2B-green?style=flat-square" alt="Node.js 20.19+ or 22.13+" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/linegauge/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License: MIT" /></a>
+  <a href="https://www.npmjs.com/package/linegauge#provenance"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fregistry.npmjs.org%2Flinegauge%2Flatest&query=%24.dist.attestations.provenance~&label=npm&style=flat-square&color=0a6b47" alt="Published to npm with provenance, read live from the registry attestation of the latest release" /></a>
+</p>
+
+<p align="center">
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/slice--ansi%20suite-15%2F15-0a6b47?style=flat-square" alt="linegauge/slice passes 15 of 15 cases of the slice-ansi test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/string--width%20suite-229%2F229-0a6b47?style=flat-square" alt="linegauge passes 229 of 229 cases of the string-width test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/strip--ansi%20suite-8%2F8-0a6b47?style=flat-square" alt="linegauge/strip passes 8 of 8 cases of the strip-ansi test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/wrap--ansi%20suite-80%2F80-0a6b47?style=flat-square" alt="linegauge/wrap passes 80 of 80 cases of the wrap-ansi test suite" /></a>
+</p>
+
+<p align="center">
   Docs: <a href="https://linegauge.interlace.tools">https://linegauge.interlace.tools</a><br />
   Migrating from: <a href="https://linegauge.interlace.tools/docs/coming-from/string-width">string-width</a> · <a href="https://linegauge.interlace.tools/docs/coming-from/wrap-ansi">wrap-ansi</a> · <a href="https://linegauge.interlace.tools/docs/coming-from/strip-ansi">strip-ansi</a> · <a href="https://linegauge.interlace.tools/docs/coming-from/slice-ansi">slice-ansi</a>
 </p>
-
-**Measuring, wrapping, truncating and slicing styled terminal text — without the edge
-fraying.**
 
 A printer's line gauge is the steel rule marked in picas and points: a compositor holds it
 against a line of type and checks it fits the measure it was set to.
@@ -24,8 +46,27 @@ Drop-in paths for **string-width** (the default export), **wrap-ansi**, **strip-
 **slice-ansi**. Nothing here reads `process`, so a pipe, `--json` and an agent get the same
 columns a terminal does — burgee, caique and flagstaff measure their output with it.
 
+## Install
+
 ```bash
-npm i linegauge
+npm install linegauge
+pnpm add linegauge
+yarn add linegauge
+bun add linegauge
+```
+
+## Quick start
+
+```js
+import { width, wrap, truncate, slice, widest } from 'linegauge';
+
+width('古代'); // 4 — East Asian wide, two columns each
+width('👨‍👩‍👧‍👦'); // 2 — one cluster, not four people
+
+wrap('a long sentence that needs folding', 12);
+truncate('the quick brown fox', 10); // 'the quick…'
+slice(styled, 2, 4); // columns 2 and 3, styles intact
+widest(['a', 'bbb', 'cc']); // 3
 ```
 
 ## One problem wearing five names
@@ -41,28 +82,6 @@ The ecosystem splits it across twelve packages — `strip-ansi`, `string-width`,
 `ansi-regex`, `wrap-ansi`, `emoji-regex`, `slice-ansi`, `get-east-asian-width`,
 `eastasianwidth`, `string-length`, `wcwidth`, `cli-truncate` and `widest-line` — which
 between them sit under most of the terminal ecosystem.
-
-## Use
-
-```js
-import { width, wrap, truncate, slice, widest } from 'linegauge';
-
-width('古代'); // 4 — East Asian wide, two columns each
-width('👨‍👩‍👧‍👦'); // 2 — one cluster, not four people
-
-wrap('a long sentence that needs folding', 12);
-truncate('the quick brown fox', 10); // 'the quick…'
-slice(styled, 2, 4); // columns 2 and 3, styles intact
-widest(['a', 'bbb', 'cc']); // 3
-```
-
-### The default export is `string-width`
-
-Byte-for-byte call-compatible, so this resolves without a code change:
-
-```json
-{ "overrides": { "string-width": "npm:linegauge@^0.5" } }
-```
 
 ## What "without the edge fraying" means
 
@@ -80,27 +99,6 @@ it wrong is how a layout gains a phantom column under one input.
 
 **`widest` takes lines, not a blob.** It accepts any iterable of strings, so the caller says
 where the boundaries are rather than having a newline convention assumed for them.
-
-## Graded by the packages it replaces
-
-The incumbent is the specification. `width` runs against `string-width`, `wrap` against
-`wrap-ansi`, `slice` against `slice-ansi` and `truncate` against `cli-truncate`.
-
-## API
-
-| | |
-| :-- | :-- |
-| `width(text, { ambiguousIsNarrow, countAnsiEscapeCodes })` | terminal columns the text occupies |
-| `wrap(text, columns, options)` | fold to a width, styles preserved across rows |
-| `truncate(text, columns, { position, ellipsis })` | cut to a budget, ellipsis counted inside it |
-| `slice(text, start, end)` | the columns `[start, end)`, self-contained |
-| `strip(text)` | the text with its escape sequences removed (`linegauge/strip`) |
-| `widest(lines)` | the width of the widest line of any iterable |
-| `lineCount(text, columns)` | rows the text occupies at that width |
-| `measure(text)` | columns of plain text, no escape scan |
-
-Non-strings answer `0` rather than throwing, because a width function is usually reached
-with whatever a template produced.
 
 ## Design notes
 
@@ -122,43 +120,88 @@ so the segmenter is reached only when it earns its cost.
 
 ## Plugins
 
-**linegauge hosts no plugin key, and that is a decision rather than an omission.** Every
-other package in the family hosts one — `tokens` in roundel, `spinners` and `borders` and
-`glyphs` and `components` in flagstaff, `capabilities` in paratext, `sources` in seniority,
-`handlers` in closeout, `resolvers` in bellpull, `widgets` in caique. Each of those keys sits
-over a question with more than one right answer: which colour, which glyph, which terminal,
-where configuration lives, how an executable is found. A plugin settles it for one program
-without making anybody else wrong.
+linegauge hosts one key, **`widths`**, and it answers one question: how many columns a code
+point occupies *on this terminal*, when that terminal disagrees with Unicode.
 
-These six functions are not that kind of question. `width('古代')` is 4 because Unicode
-classes those code points East Asian Wide and a terminal gives each of them two columns;
-`slice` returns the columns it was asked for or it returns the wrong string. A plugin key
-here would not extend what linegauge does — it would let a caller redefine what the terminal
-does, silently, for everything above it. The failure would not even surface as an error: a
-box comes out a column short, a table gains a phantom column, and nothing throws.
+```js
+import { register } from 'linegauge/plugin';
 
-There is a second reason, and it is the one that decides it. This package's correctness is
-differential — `width` is graded against `string-width`, `wrap` against `wrap-ansi`, `slice`
-against `slice-ansi`, `truncate` against `cli-truncate`. A registered contribution would put
-answers under the published pass rate that no grader ever saw, so the number would stop
-meaning what it says.
+register({
+  name: 'nerd-font',
+  widths: {
+    icons: { ranges: [[0xe000, 0xf8ff]], columns: 2, why: 'this Nerd Font draws Private Use icons two columns wide' },
+  },
+});
+```
 
-The two things that genuinely vary are already handled without a registry:
+The disagreements it exists for are real and local: a Nerd Font that put a two-column icon in
+the Private Use Area, a code point newer than the table compiled into this release, a font that
+draws box-drawing characters wide. Each is a fact about one terminal, so the honest shape for it
+is data the user supplies rather than a constant somebody argues about upstream.
 
-- **The Unicode data.** The Wide and Fullwidth table is Unicode's, and cluster boundaries
-  come from the platform's `Intl.Segmenter`. When Unicode ships a version the table changes —
-  that is a release of this package, re-graded, not a registration a caller can make.
-- **The environment.** How wide the terminal is, and whether there is one, are the caller's
-  to pass; nothing here reads `process`. That is a parameter, not a plugin.
+- **Plain data, no functions.** `{ ranges, columns, why }` — inclusive code-point pairs, a
+  column count of 0, 1 or 2, and a sentence — so a plugin can arrive as JSON, be diffed, and be
+  printed by `npx linegauge check` without running its author's code.
+- **`why` is required**, which no other key in the family asks for: a width table with no
+  provenance cannot be audited when it turns out wrong, and for ambiguous width, wrong is the
+  normal outcome.
+- **Later registrations win**, over earlier ones and over the built-in table — the user is the
+  authority on their terminal. A reversed range or a column count of 3 is refused at
+  `register()` with a code and a fix.
+- **Nothing is registered by default**, and the seam is installed only while something is, so
+  what the incumbent suites grade is Unicode's answer, and a program with no plugin pays nothing.
 
-The family's plugin contract records this refusal next to the other layers' keys (R5a), so
-"no key" is one of the contract's answers rather than a hole in it. The one real second
-answer so far — the ambiguous-width policy a CJK terminal needs — landed that way: as
-`ambiguousIsNarrow`, an option with tests behind it, not a registration.
+The ambiguous-width policy a CJK terminal needs is not a plugin: it is `ambiguousIsNarrow`, an
+option with tests behind it.
+
+## Migrating
+
+One import per incumbent — each default export is the incumbent's:
+
+```diff
+- import stringWidth from 'string-width';
++ import stringWidth from 'linegauge';
+```
+
+```diff
+- import wrapAnsi from 'wrap-ansi';
++ import wrapAnsi from 'linegauge/wrap';
+```
+
+```diff
+- import stripAnsi from 'strip-ansi';
++ import stripAnsi from 'linegauge/strip';
+```
+
+```diff
+- import sliceAnsi from 'slice-ansi';
++ import sliceAnsi from 'linegauge/slice';
+```
+
+The default export is `string-width`, byte-for-byte call-compatible, so a transitive copy
+resolves without a code change too:
+
+```json
+{ "overrides": { "string-width": "npm:linegauge@^0.5" } }
+```
+
+Or let the codemod make the import change: `npx burgee migrate --dry-run` lists every import it
+would rewrite — only drop-ins graded level with their incumbent — and `npx burgee migrate` makes
+it ([Migrate](https://burgee.interlace.tools/docs/migrate)).
+
+## Compatibility
+
+The incumbent is the specification. `width` runs against `string-width`, `wrap` against
+`wrap-ansi`, `slice` against `slice-ansi` and `truncate` against `cli-truncate`.
+
+The four drop-in paths are graded by each incumbent's own suite, unedited, through
+`compat-oracle`; the grades are generated under *Benchmarks* below and published on the
+[compatibility page](https://burgee.interlace.tools/docs/compatibility). `truncate`, which has no
+drop-in path, is checked case by case against `cli-truncate` in `truncate.test.ts`.
 
 ## Benchmarks
 
-Every number here is produced by `npm run bench` and published at [/docs/benchmarks](/docs/benchmarks).
+Every number here is produced by `npm run bench` and published at [burgee.interlace.tools/docs/benchmarks](https://burgee.interlace.tools/docs/benchmarks).
 
 Graded by the incumbent's own test suite:
 
@@ -174,12 +217,74 @@ its own suite — which this package passes. The runner reports that as a failur
 to the incumbent an unexpected pass means a stale annotation; it is counted here as the
 pass it is, and marked rather than left to look like the ones beside it.
 
-Weight, installed and tree-inclusive: **86,464 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.4449**.
+Weight, installed and tree-inclusive: **93,794 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.4827**.
+
+## For agents
+
+- **The same columns everywhere.** Nothing here reads `process`, so a pipe, `--json` and an agent
+  get the columns a terminal does — which is why burgee, caique and flagstaff measure their
+  output with it.
+- **Non-strings answer `0`** rather than throwing, so a width call reached with whatever a
+  template produced never takes a program down.
+- **A width plugin can be checked before it ships.** `npx linegauge check ./widths.mjs`
+  validates it against the family schema and exits 0, 1 with a code and a fix, or 2 on a usage
+  error.
+- **The docs are machine-readable** at
+  [linegauge.interlace.tools/llms.txt](https://linegauge.interlace.tools/llms.txt) and
+  [llms-full.txt](https://linegauge.interlace.tools/llms-full.txt).
+
+## API
+
+| | |
+| :-- | :-- |
+| `width(text, { ambiguousIsNarrow, countAnsiEscapeCodes })` | terminal columns the text occupies |
+| `wrap(text, columns, options)` | fold to a width, styles preserved across rows |
+| `truncate(text, columns, { position, ellipsis })` | cut to a budget, ellipsis counted inside it |
+| `slice(text, start, end)` | the columns `[start, end)`, self-contained |
+| `strip(text)` | the text with its escape sequences removed (`linegauge/strip`) |
+| `widest(lines)` | the width of the widest line of any iterable |
+| `lineCount(text, columns)` | rows the text occupies at that width |
+| `measure(text)` | columns of plain text, no escape scan |
+
+Non-strings answer `0` rather than throwing, because a width function is usually reached
+with whatever a template produced.
+
+Every export, with its types, is on [linegauge.interlace.tools](https://linegauge.interlace.tools/docs).
+
 ## Where it sits
 
 Plugins register under the `widths` key, against the one schema the whole family shares.
 
 `burgee`, `caique`, `flagstaff` build on it, and it builds on nothing in this family.
+
+## The family
+
+Nine packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
+carries its colours, flagstaff flies it and caique answers back; each installs on its own, and none
+takes a dependency from outside the family.
+
+| Package | What it is | Replaces |
+| :-- | :-- | :-- |
+| [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander and yargs |
+| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk |
+| [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
+| [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | inquirer and clack |
+| **linegauge** (this package) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi and slice-ansi |
+| [paratext](https://paratext.interlace.tools/docs) | Hyperlinks, images, title, clipboard and notifications | ansi-escapes, terminal-link and term-img |
+| [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, dotenv and rc |
+| [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook and restore-cursor |
+| [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
+
+Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
+and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on
+[burgee.interlace.tools](https://burgee.interlace.tools/docs/packages).
+
+## Contributing
+
+Issues and pull requests are welcome at [ofri-peretz/burgee](https://github.com/ofri-peretz/burgee/issues); read
+[CONTRIBUTING.md](https://github.com/ofri-peretz/burgee/blob/main/CONTRIBUTING.md) first. Report a vulnerability privately, as
+[SECURITY.md](https://github.com/ofri-peretz/burgee/blob/main/SECURITY.md) describes — never in a public issue.
+
 ## Licence
 
-MIT
+MIT © Ofri Peretz — see [LICENSE](https://github.com/ofri-peretz/burgee/blob/main/packages/linegauge/LICENSE).
