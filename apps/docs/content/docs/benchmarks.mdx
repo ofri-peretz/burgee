@@ -97,34 +97,26 @@ graded A–F). Both are pinned by version and archive digest in `benchmarks/floo
 run offline, and are never re-scored here — a check they fail is listed as failed, even where
 we would argue with it.
 
-Measured at commit `ddb3eaf` on 2026-09-24.
+Measured at commit `4b8ef1c` on 2026-09-27.
 
 | Variant | clispec | cli-agent-lint |
 | :--- | ---: | ---: |
-| `burgee` | 6 / 24 (Needs Work) | 78.0% (B) |
+| `burgee` | 14 / 24 (Fair) | 81.4% (B) |
 | `commander` | 2 / 24 (Needs Work) | 71.2% (B) |
-| `yargs` | 2 / 24 (Needs Work) | 70.9% (B) |
+| `yargs` | 2 / 24 (Needs Work) | 71.9% (B) |
 
 What clispec 0.3.0 failed on burgee's demo:
 
+- Valid JSON output [structured-output]
 - Structured or declared piped output [structured-output]
 - Structured errors [error-envelope]
 - Explicit format wins [structured-output]
-- schema command exists [schema-validates]
-- Valid JSON schema [schema-validates]
 - Validates against clispec v0.3 [schema-validates]
 - Error kinds documented [schema-validates]
 - Output fields declared [schema-validates]
 - Global args declared [schema-validates]
 - Exit codes on error kinds [schema-validates]
-- Effects on all commands [schema-validates]
-- schema mentioned in --help [help-mentions-schema]
-- schema works without config [schema-offline]
-- Effects declarations [idempotent-repeats]
-- Idempotent conflict contract [idempotent-repeats]
 - Cardinality declarations [bounded-lists]
-- Unbounded pagination declarations [bounded-lists]
-- Unbounded field selection [bounded-lists]
 
 What cli-agent-lint 0.3.5 did not pass on burgee's demo (`warn` and `info` included; `skip` is not):
 
@@ -132,7 +124,6 @@ What cli-agent-lint 0.3.5 did not pass on burgee's demo (`warn` and `info` inclu
 - TE-4 --quiet / --silent flag (info)
 - SD-1 Error format is structured (warn)
 - SD-3 Shell completions available (info)
-- SD-4 Schema / describe introspection (warn)
 - SD-5 Skill / context files (info)
 - SD-6 Help text with usage examples (warn)
 - PV-1 Timeout flag (info)
