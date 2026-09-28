@@ -16,8 +16,9 @@
  * is a second, long-lived way to publish that nobody sees being used. This keeps it out.
  *
  * Static half: no workflow or composite action names an npm token; the publish job holds
- * `id-token: write` at job level, has no `registry-url` (which exports a placeholder
- * NODE_AUTH_TOKEN and writes `_authToken=${NODE_AUTH_TOKEN}`), reads no secret but
+ * `id-token: write` at job level, sets `registry-url` to exactly `https://registry.npmjs.org`
+ * (npm's own trusted-publishing example, and the value OpenSSF Scorecard's Packaging check
+ * matches; setup-node's `_authToken` there is a placeholder, not a credential), reads no secret but
  * `GITHUB_TOKEN`, and keeps `--provenance`. Executed half: the publish loop and the npm-version
  * guard are lifted out of the parsed workflow and run under `bash` with `npm` stubbed.
  *
@@ -26,7 +27,7 @@
  * | mutation | fails |
  * | :-- | :-- |
  * | restore `NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}` on the publish step | names no npm token in any workflow; reads no secret but GITHUB_TOKEN |
- * | restore `registry-url` on the publish job's setup-node | has no registry-url |
+ * | drop `registry-url`, or add a trailing slash | sets registry-url to exactly npmjs.org |
  * | drop `id-token: write` from the publish job | holds id-token: write at job level |
  * | drop `--provenance` from the publish command | keeps provenance on |
  * | drop `--logs-dir "$logs"` from the publish command | says OIDC published it; names npm's OIDC failure |
@@ -139,13 +140,20 @@ describe("no long-lived npm token", () => {
     expect(secrets.filter((name) => name !== "GITHUB_TOKEN")).toEqual([]);
   });
 
-  it("the publish job has no registry-url on setup-node", () => {
+  it("the publish job sets registry-url to exactly npmjs.org (Scorecard Packaging)", () => {
     const setups = (publishJob().steps ?? []).filter((s) =>
       s.uses?.startsWith("actions/setup-node@"),
     );
     expect(setups.length).toBe(1);
     for (const s of setups)
-      expect(s.with ?? {}).not.toHaveProperty("registry-url");
+      expect((s.with ?? {})["registry-url"]).toBe("https://registry.npmjs.org");
+  });
+
+  it("attaches npm's signed provenance to every GitHub Release (Scorecard Signed-Releases)", () => {
+    const run = String(loopStep().run);
+    expect(run).toMatch(/attach_provenance "\$PKG_NAME" "\$PKG_VER" "\$tag_name"/);
+    expect(run).toMatch(/\.intoto\.jsonl/);
+    expect(run).toMatch(/\.sigstore\.json/);
   });
 });
 

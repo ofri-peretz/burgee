@@ -228,13 +228,16 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
-      # No `registry-url`: it would write `_authToken=${NODE_AUTH_TOKEN}` to an .npmrc and export
-      # a placeholder NODE_AUTH_TOKEN. Trusted publishing needs neither, and npm's default
-      # registry is npmjs.org.
+      # `registry-url` is exactly npm's own trusted-publishing example, and exactly what OpenSSF
+      # Scorecard's Packaging check matches (no trailing slash). setup-node writes
+      # `_authToken=${NODE_AUTH_TOKEN}` with a placeholder value, which is not a credential: npm
+      # authenticates through OIDC first, and no workflow names an npm token
+      # (`trusted-publishing-lock.test.ts`).
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
           node-version-file: .nvmrc
           cache: npm
+          registry-url: https://registry.npmjs.org
       # docs.npmjs.com/trusted-publishers: "requires npm CLI version 11.5.1 or later and Node
       # version 22.14.0 or higher". The .nvmrc Node bundles a new enough npm today; this
       # upgrades npm only if a later pin does not.
@@ -332,6 +335,28 @@ jobs:
             else
               gh release create "$tag_name" --title "$PKG_NAME@$PKG_VER" --generate-notes --latest=false ${extra[@]+"${extra[@]}"} || return 1
             fi
+            attach_provenance "$PKG_NAME" "$PKG_VER" "$tag_name" || echo "::warning::$tag_name: provenance not attached to the GitHub Release (the npm publish itself is unaffected)."
+          }
+
+          # attach_provenance NAME VERSION TAG — the tarball npm serves, and the SLSA provenance npm
+          # signed with Sigstore at publish (`--provenance`), on the GitHub Release. Nothing new is
+          # signed: this republishes the registry's own attestation where release tooling and
+          # OpenSSF Scorecard's Signed-Releases check look for it. Verify with
+          # `npm audit signatures` or `cosign verify-blob-attestation --bundle <tgz>.sigstore.json`.
+          attach_provenance() {
+            local name="$1" ver="$2" tag="$3" dir url tries=0
+            dir=$(mktemp -d)
+            until url=$(npm view "$name@$ver" dist.attestations.url 2>/dev/null) && [ -n "$url" ]; do
+              tries=$((tries + 1)); [ "$tries" -ge 12 ] && return 1; sleep 10
+            done
+            (cd "$dir" && npm pack "$name@$ver" --silent >/dev/null) || return 1
+            local tgz
+            tgz=$(ls "$dir"/*.tgz) || return 1
+            curl -fsSL "$url" -o "$dir/attestations.json" || return 1
+            jq -e '.attestations[] | select(.predicateType | startswith("https://slsa.dev/provenance/")) | .bundle' "$dir/attestations.json" > "$tgz.sigstore.json" || return 1
+            jq -c '.dsseEnvelope' "$tgz.sigstore.json" > "$tgz.intoto.jsonl" || return 1
+            gh release upload "$tag" "$tgz" "$tgz.sigstore.json" "$tgz.intoto.jsonl" --clobber || return 1
+            echo "🔏 $tag: tarball, Sigstore bundle and in-toto provenance attached."
           }
 
           echo "Credential: npm trusted publishing (OIDC) through this job's id-token: write — no npm token (D-154)."
