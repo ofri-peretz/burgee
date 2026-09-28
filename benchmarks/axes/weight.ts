@@ -475,11 +475,18 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // It went from 53 / 104 to 104 / 104, measured 11,546, and the ratio to slice-ansi 9 fell
   // from 1.5 to 0.789. The walk keeps its state in locals and not in an object's fields,
   // which saved 766 B that a minifier cannot take out of property names.
-  linegauge: 6_500,
+  //
+  // **2026-09-28: all three +30, for a security fix.** `width.ts` asked whether a cluster was
+  // zero-width with `^(?:DI|Control|Format|Mn|Me|Surrogate)+$`. `U+034F` is in two of those
+  // classes, so a run of them before one visible character backtracked exponentially — 26
+  // joiners took 2.4 s and 1,000 did not finish — and string-width 8.3.0's suite added the
+  // case. A code-point loop replaced both zero-width regexes, which costs +32, +30 and +29.
+  // Measured 6,448, 11,418 and 11,575 by this axis; each ceiling keeps the 80 B CI margin.
+  linegauge: 6_530,
 
-  'linegauge/wrap': 11_470,
+  'linegauge/wrap': 11_500,
 
-  'linegauge/slice': 11_650,
+  'linegauge/slice': 11_660,
 
   'linegauge/strip': 1_000,
   //
