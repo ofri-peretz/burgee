@@ -105,7 +105,10 @@ export interface Registry {
    * order within it — ahead of `restore`, which is the part that was not true before.
    */
   add(handler: ExitHandler, spec?: HandlerSpec): () => void;
-  /** Run every handler, once, phase by phase, inside the deadline. Later calls are no-ops. */
+  /**
+   * Run every handler, once, phase by phase, inside the deadline. A later call runs nothing
+   * and resolves with the first: it waits on a shutdown still in flight.
+   */
   run(info: ExitInfo): Promise<ShutdownReport>;
   /** Run every handler synchronously, in phase order; a returned promise is abandoned. */
   runSync(info: ExitInfo): ShutdownReport;
@@ -219,7 +222,7 @@ export function createRegistry(options: RegistryOptions = {}): Registry {
   const handlers = new Map<Phase, Set<Entry>>(PHASES.map((phase) => [phase, new Set<Entry>()]));
   const bucket = (phase: Phase): Set<Entry> => handlers.get(phase) ?? new Set<Entry>();
   /** The two halves of "has this happened": started, and finished with a report to show. */
-  const state: { started: boolean; finished: ShutdownReport | undefined } = { started: false, finished: undefined };
+  const state: { started: boolean; finished?: ShutdownReport } = { started: false };
   /**
    * Invoke, synchronously, every phase an asynchronous `run` has not reached yet — set while
    * a run is in progress, and a no-op once it has invoked all three. `runSync` calls it when
@@ -227,6 +230,62 @@ export function createRegistry(options: RegistryOptions = {}): Registry {
    * be trusted to finish, and where `restore` must still be invoked (R4).
    */
   let rest: (() => void) | undefined;
+
+  /** The asynchronous shutdown, once one has started — what every later `run` waits on. */
+  let flight: Promise<ShutdownReport> | undefined;
+
+  const shutdown = async (info: ExitInfo): Promise<ShutdownReport> => {
+    state.started = true;
+    const report = toReport(info);
+
+    /*
+     * One clock for the whole shutdown, started before the first phase — not one per
+     * phase, which would let three slow phases add up to three deadlines and give back
+     * the hang the number exists to bound.
+     *
+     * It holds the loop on every path but `'beforeExit'` (D-164): a signal, a throw, a
+     * rejection or a caller driving `run` itself all leave once it settles, so it has to.
+     */
+    const clock = startDeadline(deadline, report.path !== 'beforeExit');
+    const tracking: InFlight[] = [];
+    // One cursor over PHASES, shared with `rest`, so no phase is invoked twice whichever
+    // of the two reaches it first.
+    let next = 0;
+    const invokeNext = (): Promise<void>[] => invokePhase(bucket(PHASES[next++] as Phase), report, onError, tracking);
+    rest = () => {
+      while (next < PHASES.length) invokeNext();
+    };
+
+    try {
+      while (next < PHASES.length) {
+        const pending = invokeNext();
+
+        /*
+         * Past the deadline the later phases are still **invoked**; they are only no
+         * longer awaited. Skipping them would let a handler that hung in `flush` decide
+         * that the cursor stays hidden — the exact failure this package exists to remove,
+         * arrived at through the machinery meant to prevent it.
+         */
+        if (pending.length === 0 || clock.expired) continue;
+
+        /*
+         * `allSettled`, not `all`: a rejected handler has already been reported by
+         * `invoke` or the handlers above, and one rejection must not skip the wait for
+         * the others.
+         */
+        // eslint-disable-next-line reliability/no-await-in-loop -- sequencing the phases IS the guarantee: `Promise.all` over all three would start `restore` while `flush` was still awaiting, which is the bug phases exist to remove
+        await Promise.race([Promise.allSettled(pending).then(() => undefined), clock.reached]);
+      }
+    } finally {
+      clock.cancel();
+    }
+
+    const unfinished = tracking.filter((f) => !f.settled).map((f) => f.label);
+    const finished: ShutdownReport = { ...report, timedOut: clock.expired, unfinished };
+    state.finished = finished;
+    if (finished.timedOut) onTimeout(finished);
+    return finished;
+  };
 
   return {
     add(handler, spec) {
@@ -240,56 +299,14 @@ export function createRegistry(options: RegistryOptions = {}): Registry {
     },
 
     async run(info) {
-      if (state.started) return alreadyRun(state.finished, info);
-      state.started = true;
-      const report = toReport(info);
-
       /*
-       * One clock for the whole shutdown, started before the first phase — not one per
-       * phase, which would let three slow phases add up to three deadlines and give back
-       * the hang the number exists to bound.
-       *
-       * It holds the loop on every path but `'beforeExit'` (D-164): a signal, a throw, a
-       * rejection or a caller driving `run` itself all leave once it settles, so it has to.
+       * A second trigger waits on the shutdown already in flight rather than getting a report
+       * of its own. Each signal listener leaves when its `run` settles, so a second Ctrl-C —
+       * or a SIGTERM landing while a run is parked on `flush` — used to resolve at once and
+       * re-raise before `restore` was invoked (R4). Now every trigger leaves when the one
+       * bounded shutdown does. After `runSync` nothing is in flight and its report is final.
        */
-      const clock = startDeadline(deadline, report.path !== 'beforeExit');
-      const tracking: InFlight[] = [];
-      // One cursor over PHASES, shared with `rest`, so no phase is invoked twice whichever
-      // of the two reaches it first.
-      let next = 0;
-      const invokeNext = (): Promise<void>[] => invokePhase(bucket(PHASES[next++] as Phase), report, onError, tracking);
-      rest = () => {
-        while (next < PHASES.length) invokeNext();
-      };
-
-      try {
-        while (next < PHASES.length) {
-          const pending = invokeNext();
-
-          /*
-           * Past the deadline the later phases are still **invoked**; they are only no
-           * longer awaited. Skipping them would let a handler that hung in `flush` decide
-           * that the cursor stays hidden — the exact failure this package exists to remove,
-           * arrived at through the machinery meant to prevent it.
-           */
-          if (pending.length === 0 || clock.expired) continue;
-
-          /*
-           * `allSettled`, not `all`: a rejected handler has already been reported by
-           * `invoke` or the handlers above, and one rejection must not skip the wait for
-           * the others.
-           */
-          // eslint-disable-next-line reliability/no-await-in-loop -- sequencing the phases IS the guarantee: `Promise.all` over all three would start `restore` while `flush` was still awaiting, which is the bug phases exist to remove
-          await Promise.race([Promise.allSettled(pending).then(() => undefined), clock.reached]);
-        }
-      } finally {
-        clock.cancel();
-      }
-
-      const unfinished = tracking.filter((f) => !f.settled).map((f) => f.label);
-      state.finished = { ...report, timedOut: clock.expired, unfinished };
-      if (state.finished.timedOut) onTimeout(state.finished);
-      return state.finished;
+      return state.started ? (flight ?? alreadyRun(state.finished, info)) : (flight = shutdown(info));
     },
 
     runSync(info) {
