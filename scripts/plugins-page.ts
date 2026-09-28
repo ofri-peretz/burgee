@@ -13,7 +13,7 @@
  * stops this script, because a comparison that silently drops a row is the one a reader
  * should distrust.
  *
- * `--check` regenerates and compares, and runs in the required `Generated Pages` job.
+ * `--check` regenerates and compares, and runs in the `fast` job the required `Quality Gate` reads.
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
