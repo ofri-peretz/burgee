@@ -89,7 +89,9 @@ const RULES: Record<string, EntryRule> = {
   //
   // `linegauge` joined on 2026-09-28 with the raw renderer's row count (`lineCount`): a frame
   // wider than the terminal occupies more rows than it has lines. Measured 14,472 after main's #680 (+265).
-  '.': { allow: [...CLOSEOUT, 'linegauge'], budget: 15_000, denied: ['clack.js', 'inquirer.js'] },
+  // `paratext/csi` joined the same day (+70): the raw renderer's repaint is spelled with
+  // ansi-escapes' cursor moves from paratext rather than by hand. Measured 14,542.
+  '.': { allow: [...CLOSEOUT, 'linegauge', 'paratext/csi'], budget: 15_000, denied: ['clack.js', 'inquirer.js'] },
   // The shape and its validator. The floor every other subpath stands on, and a leaf: a
   // program that only declares prompts pays 739 B and never loads a widget.
   './spec': { allow: [], budget: 1_000, denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
@@ -136,7 +138,9 @@ const RULES: Record<string, EntryRule> = {
   // rather than weight; U5's ceiling for caique is clack, and it is the root entry above
   // that carries it.
   './inquirer': {
-    allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap'],
+    // `paratext/csi` on 2026-09-28 (-61): the cursor moves and erases `@inquirer/ansi` supplies
+    // are ansi-escapes' from paratext, with `@inquirer/ansi`'s zero-row guard kept. Measured 20,829 after merging main (20,890 there).
+    allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap', 'paratext/csi'],
     budget: 23_000,
     denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js', 'spec.js', 'plugin.js', 'clack.js'],
   },
@@ -156,7 +160,8 @@ const RULES: Record<string, EntryRule> = {
   // 3,659 B (+3) on 2026-09-28: raw mode is `closeout/cursor`'s `rawMode`, paired with its undo.
   // 3,846 B (+187): the repaint counts rows with linegauge's `lineCount`
   // against the writer's `columns`, instead of counting `\n`s and ignoring wrap.
-  './raw': { allow: [...CLOSEOUT, 'linegauge'], budget: 4_500, denied: ['decide.js', 'binding.js', 'terminal.js', 'index.js'] },
+  // 3,916 B (+70) on 2026-09-28, the repaint in `paratext/csi`'s spelling.
+  './raw': { allow: [...CLOSEOUT, 'linegauge', 'paratext/csi'], budget: 4_500, denied: ['decide.js', 'binding.js', 'terminal.js', 'index.js'] },
   // Resolving a whole command's prompts in one pass: the decision plus the widgets it may
   // reach for. Never the terminal, and never the raw renderer — a framework hands caique an
   // `Io`, and which one is the caller's business. Measured 8,123 B.
