@@ -7,7 +7,7 @@
  * between them by asking whether the terminal is one. Anything this can do that line mode
  * cannot is decoration; anything line mode can do that this cannot would be a bug.
  *
- * **On its one dependency.** The design said "spinner from flagstaff"; this imports
+ * **On its dependencies.** The design said "spinner from flagstaff"; this imports
  * `closeout` instead, and the difference is the point. A repaint is one escape sequence
  * and belongs here. Hiding the cursor is a global side effect on someone else's terminal,
  * and the obligation it creates — put it back however the process dies — is not a repaint.
@@ -16,10 +16,12 @@
  * byte. A `SIGINT` from a parent, a `SIGTERM`, a crash or a `process.exit()` elsewhere
  * never reached it, and left the cursor invisible until the user typed `reset` (measured
  * against `dist/raw.js`, 2026-09-15: hide 1, show 0). `hideCursor()` registers the restore
- * in the call that hides, so the two cannot drift.
+ * in the call that hides, so the two cannot drift. How many rows a frame occupies is
+ * `linegauge`'s `lineCount`, for the same reason: it is a measurement against a terminal.
  */
-import { hideCursor, type OutputStream } from 'closeout/cursor';
+import { hideCursor, type OutputStream, rawMode } from 'closeout/cursor';
 import exitHook from 'closeout/exit-hook';
+import { lineCount } from 'linegauge';
 
 import { type Answer, type Asked, type Io } from './ask.js';
 import { type Choice, type PromptSpec } from './spec.js';
@@ -32,6 +34,11 @@ const erase = (lines: number): string => `${CSI}1G${lines > 1 ? `${CSI}${lines -
 /** A stream that can be put into raw mode and read a key at a time. */
 export interface KeyStream {
   isTTY?: boolean;
+  /**
+   * Node's record of the mode. Read so that a stream somebody else already put into raw
+   * mode — a prompt library, the program itself — is left raw when this prompt ends.
+   */
+  isRaw?: boolean;
   setRawMode?(raw: boolean): unknown;
   on(event: 'data', listener: (chunk: Buffer | string) => void): unknown;
   off(event: 'data', listener: (chunk: Buffer | string) => void): unknown;
@@ -128,6 +135,15 @@ function chosen(choices: Choice[], state: ListState, multi: boolean): Answer {
 const asTerminal = (writer: Io['writer']): OutputStream => ({ write: (text: string) => writer.write(text), isTTY: true });
 
 /**
+ * The rows a frame occupies on screen, which is what the next repaint climbs. Not
+ * `frame.split('\n').length`: a choice whose hint is wider than the terminal wraps onto a
+ * second row, the repaint climbed one row too few for it, and every keypress left a stale
+ * copy of the question above the list. Measuring text against a terminal is linegauge's job.
+ * A writer that does not know its width is treated as one no line can wrap in.
+ */
+const rowsOf = (frame: string, writer: Io['writer']): number => lineCount(frame, writer.columns !== undefined && writer.columns > 0 ? writer.columns : Number.POSITIVE_INFINITY);
+
+/**
  * Drive a list prompt with the arrow keys, repainting in place.
  *
  * Returns the same `Asked` shape `ask()` does, so a caller can swap the two without
@@ -145,10 +161,14 @@ export async function askList(spec: PromptSpec, io: RawIo, multi = false): Promi
   const paint = (): void => {
     const frame = renderList(spec, choices, state, multi);
     io.writer.write((painted === 0 ? '' : erase(painted)) + frame);
-    painted = frame.split('\n').length;
+    painted = rowsOf(frame, io.writer);
   };
 
-  io.keys.setRawMode?.(true);
+  // Raw mode through `closeout`, paired with its undo like the cursor below: turned off at the
+  // end only if this call turned it on, and on every path the process can die by. This used to
+  // be `setRawMode(true)` here and `setRawMode(false)` in the `finally`, unconditionally —
+  // which took raw mode away from a caller that already had it — and nothing on a signal.
+  const unraw = rawMode(io.keys, exitHook);
   io.keys.resume?.();
   // Hide and register the restore together. `restore()` shows the cursor and unregisters,
   // so a prompt that ends normally leaves nothing behind for exit to do.
@@ -182,7 +202,7 @@ export async function askList(spec: PromptSpec, io: RawIo, multi = false): Promi
     });
   } finally {
     restore();
-    io.keys.setRawMode?.(false);
+    unraw();
     io.keys.pause?.();
   }
 }

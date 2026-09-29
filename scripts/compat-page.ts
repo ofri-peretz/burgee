@@ -117,6 +117,12 @@ const conditional = active.flatMap((h) =>
   h.conditionalCases === undefined ? [] : [`| **${h.name}** | ${h.conditionalCases.count} | ${platformOnly(h.conditionalCases)} | ${h.conditionalCases.why} |`],
 );
 const ungraded = active.flatMap((h) => (h.ungradedDirs ?? []).map((d) => `| **${h.name}** | \`${d.dir}/\` | ${d.why} |`));
+/**
+ * Rows graded against a package that is deliberately not a drop-in (`Host.ceiling`, D-160). A
+ * 0.0% in the table above reads as a façade not finished yet, and this is the one place a
+ * reader is told it is a distance being measured instead.
+ */
+const ceilings = active.flatMap((h) => (h.ceiling === undefined ? [] : [`| **${h.name}** | \`${h.target}\` | ${h.ceiling} |`]));
 
 /**
  * C1 — the declared range per host, from `SUPPORTED_MAJORS`, and the older majors graded for
@@ -204,11 +210,27 @@ ${conditional.join('\n')}
     : `
 ### Directories vendored and not graded
 
-Copied with the suite because its tests need them, and never run as tests themselves.
+Copied with the suite because its tests need them, and never run as tests themselves — or,
+where the reason says so, vendored whole and left out of the grade for what it costs to run.
 
 | Host | Directory | Why |
 | :--- | :--- | :--- |
 ${ungraded.join('\n')}
+`
+}${
+  ceilings.length === 0
+    ? ''
+    : `
+### Graded as a ceiling, not a drop-in
+
+The incumbent's own suite, run against a package that deliberately does not implement the
+incumbent's API. The rate is the distance between the two, published so it is measured rather
+than asserted — it is not a façade on its way to 100%, and \`burgee migrate\` neither rewrites to
+it nor reports it as a path.
+
+| Host | Graded against | Why |
+| :--- | :--- | :--- |
+${ceilings.join('\n')}
 `
 }
 ## Supported majors

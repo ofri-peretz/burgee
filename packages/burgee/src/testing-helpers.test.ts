@@ -180,4 +180,13 @@ describe('codeOf and stripAnsi', () => {
   it('strips colour sequences and nothing else', () => {
     expect(stripAnsi('[31mred[0m plain')).toBe('red plain');
   });
+
+  // The regex this used to be, `ESC[[0-9;]*[A-Za-z]`, left each of these in the text.
+  it.each([
+    ['a private mode', '\u001B[?25lspinning\u001B[?25h', 'spinning'],
+    ['the colon form of a truecolor SGR', '\u001B[38:2::255:0:0mred\u001B[39m', 'red'],
+    ['an OSC 8 hyperlink', '\u001B]8;;https://example.com\u0007docs\u001B]8;;\u0007', 'docs'],
+  ])('strips %s', (_what, input, expected) => {
+    expect(stripAnsi(input)).toBe(expected);
+  });
 });

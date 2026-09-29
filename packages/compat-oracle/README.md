@@ -43,6 +43,6 @@ See `.sdlc/intents/compat-oracle/`.
 
 ## Benchmarks
 
-Every number here is produced by `npm run bench` and published at [/docs/benchmarks](/docs/benchmarks).
+Every number here is produced by `npm run bench` and published at [burgee.interlace.tools/docs/benchmarks](https://burgee.interlace.tools/docs/benchmarks).
 
 No suite is graded against this package yet, so there is no compatibility number to quote.

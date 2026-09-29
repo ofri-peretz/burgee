@@ -29,8 +29,8 @@
  * It reads `dist/`, so it needs the packages built — which the pre-push battery and CI's
  * `npm test` both do before the root suite runs.
  */
-import { execFile } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { execFile, spawn } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -44,6 +44,20 @@ const PUBLISHED = ['bellpull', 'burgee', 'caique', 'closeout', 'controlroom', 'f
 
 /** One pack of ten packages, then ten installs and their probes side by side. */
 const SETUP_TIMEOUT_MS = 240_000;
+
+/**
+ * The nine installs are scaffolding once every assertion has run, so deleting them goes to a
+ * detached process instead of holding the suite. A synchronous `rmSync` of nine
+ * `node_modules` trees outran SETUP_TIMEOUT_MS on a machine whose endpoint scanner inspects
+ * every unlink, which failed the whole file after all 42 assertions had passed.
+ * ponytail: the OS temp dir is the backstop if that process dies; nothing here reads it again.
+ */
+function discard(dir: string): void {
+  spawn(process.execPath, ['-e', 'require("node:fs").rmSync(process.argv[1], { recursive: true, force: true })', dir], {
+    detached: true,
+    stdio: 'ignore',
+  }).unref();
+}
 
 interface Manifest {
   name: string;
@@ -308,7 +322,7 @@ describe('U12 — each published package installs and loads alone', () => {
     for (const r of done) results.set(r.pkg, r);
   }, SETUP_TIMEOUT_MS);
 
-  afterAll(() => rmSync(base, { recursive: true, force: true }), SETUP_TIMEOUT_MS);
+  afterAll(() => discard(base));
 
   it('grades exactly the nine published packages', () => {
     expect([...manifests.keys()].toSorted()).toEqual(PUBLISHED);

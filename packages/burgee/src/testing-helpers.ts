@@ -7,6 +7,8 @@
  */
 import { Readable } from 'node:stream';
 
+import { strip } from 'linegauge/strip';
+
 import { beforeTerminator, execute } from './execute.js';
 import { ExitCode, isExitCode } from './exit-code.js';
 import { type Manifest } from './manifest.js';
@@ -180,9 +182,16 @@ export function captureConsole(rt: FakeRuntime): () => void {
   };
 }
 
-/** Strip ANSI escape sequences — the decision from the intent: `stdout` stays raw. */
+/**
+ * Strip ANSI escape sequences — the decision from the intent: `stdout` stays raw.
+ *
+ * linegauge's `strip`, not a regex of this file's own. The one this used to carry,
+ * `ESC[[0-9;]*[A-Za-z]`, left the private modes (`ESC[?25l`, which every spinner writes),
+ * the colon form of an extended colour (`ESC[38:2::255:0:0m`, which chalk emits for
+ * truecolor) and every OSC 8 hyperlink in the text a test asserted against.
+ */
 export function stripAnsi(text: string): string {
-  return text.replace(/\u001b\[[0-9;]*[A-Za-z]/g, '');
+  return strip(text);
 }
 
 /**
