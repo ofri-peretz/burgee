@@ -96,7 +96,7 @@ export function usePrefix({ status = 'idle', theme }: { status?: Status; theme?:
     };
   }, [status]);
 
-  if (showLoader === true) return spinner.frames[tick ?? 0] ?? '';
+  if (showLoader === true) return spinner.frames[tick] ?? '';
   // Before the loader shows there is nothing to draw for `loading`, so it borrows `idle` —
   // which is why a prompt that settles inside 300 ms never shows a spinner frame at all.
   const iconName = status === 'loading' ? 'idle' : status;
