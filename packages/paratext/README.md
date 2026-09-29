@@ -149,6 +149,14 @@ output — is byte-exact with `ansi-escapes@7.3.0`. It does not degrade, because
 incumbent's does not: a cursor move silently dropped would corrupt the screen of a program
 that relied on it.
 
+The CSI half is also published on its own, as `paratext/csi` — 2,700 bytes, and it
+registers none of the built-ins the root does. It is where `flagstaff` and `caique` take their
+cursor moves from:
+
+```js
+import { cursorUp, eraseLines, synchronizedOutput } from 'paratext/csi';
+```
+
 **The OSC half** — `link`, `image`, `setCwd`, `beep` — gives the incumbent's bytes where the
 terminal understands them and the static projection everywhere else. That is the one
 deliberate difference.
@@ -215,7 +223,7 @@ surface; `paratext/plugin` for the host. Every export, with its types, is on
 
 Plugins register under the `capabilities` key, against the one schema the whole family shares.
 
-`flagstaff` builds on it, and it builds on nothing in this family.
+`caique` and `flagstaff` build on it, and it builds on nothing in this family.
 
 ## The family
 

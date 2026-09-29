@@ -14,8 +14,9 @@
  *   - it says **what it found**. The schema allows unknown keys on purpose, so the same object
  *     registers into every host in the family — which means a misspelled key is silent. `0 widths`
  *     is how that typo tells on itself, and it is a refusal here rather than an `ok`.
- *   - it says **what each contribution replaced**, because later registrations win and "why did
- *     my value not apply" is the question the second plugin always gets.
+ *   - it says **what each range measured before and after**: `built-in 1 → 2`. Not which plugin
+ *     it replaced — `check` loads one plugin into an emptied registry, so there is none, and
+ *     `plugin.test.ts` pins a later registration winning where more than one can be registered.
  *   - `ok` is **the last line**, after everything that would justify it.
  *
  * Pure: it takes argv and a writer and returns an exit code. `cli.ts` is the ten lines that own
@@ -99,9 +100,6 @@ const overridesOf = (plugin: unknown): [string, Override][] => {
 /** The first code point of every range the plugin names — what each row measures before and after. */
 const firstOf = (plugin: unknown): number[] => overridesOf(plugin).flatMap(([, o]) => (o.ranges ?? []).map(([low]) => low));
 
-/** What a contribution replaced, when it replaced anything. */
-const shadows = (names: readonly string[]): string => (names.length === 0 ? '' : ` (replaces ${names.join(', ')})`);
-
 /**
  * Every refusal leaves through here, wherever it was raised: `register()`, or a plugin file that
  * registers itself on import — which throws inside the `import()`, before any line of `inspect`
@@ -128,10 +126,12 @@ async function inspect(argv: readonly string[], write: (s: string) => void): Pro
   validate(plugin);
   register(plugin);
   const name = (plugin as { name: string }).name;
+  // `validate` has proved every override has its ranges, and `builtIn` was filled from those
+  // same ranges, so neither lookup below can come back empty.
   const rows = overridesOf(plugin).flatMap(([label, o]) =>
-    (o.ranges ?? []).map(([low, high]) => {
+    (o.ranges as [number, number][]).map(([low, high]) => {
       const span = low === high ? codePoint(low) : `${codePoint(low)}..${codePoint(high)}`;
-      return `${label}  ${span}  built-in ${String(builtIn.get(low) ?? '?')} → ${String(width(String.fromCodePoint(low)))}  — ${o.why}`;
+      return `${label}  ${span}  built-in ${String(builtIn.get(low))} → ${String(width(String.fromCodePoint(low)))}  — ${o.why}`;
     }),
   );
   write(`${name} — ${String(rows.length)} widths\n`);

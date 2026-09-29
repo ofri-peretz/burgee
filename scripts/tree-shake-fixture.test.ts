@@ -9,9 +9,12 @@
  * binding* a subpath does, and requires the two to be equal to the byte.
  *
  * Subpaths a package lists in `sideEffects` are skipped: a `bin` runs when imported, which is
- * the point of listing it (`side-effects-lock.test.ts`). paratext contributes no pair: its root
- * `link` is a different function from `paratext/link`, the lightweight one, so there is no
- * same-binding pair to compare, and comparing different functions would measure nothing.
+ * the point of listing it (`side-effects-lock.test.ts`). So is a package whose **root** is listed:
+ * paratext's root registers its seven built-ins at import, by design and declared, so a root
+ * import carries that registry and no bundler may drop it — which is the whole reason
+ * `paratext/link` and `paratext/csi` exist. Its root `link` is also a different function from
+ * `paratext/link`'s, but since 2026-09-28 `paratext/csi` shares every one of its bindings with
+ * the root, and the pair would measure the registry, not a tree-shaking failure.
  * controlroom contributes none either: it is reserved, with a root and no subpath.
  */
 import { readFileSync } from 'node:fs';
@@ -44,6 +47,8 @@ async function pairsOf(pkg: string): Promise<Pair[]> {
     sideEffects?: boolean | string[];
   };
   const effectful = new Set(Array.isArray(manifest.sideEffects) ? manifest.sideEffects : []);
+  const rootEntry = manifest.exports['.'];
+  if (typeof rootEntry === 'object' && rootEntry.import !== undefined && effectful.has(rootEntry.import)) return [];
   // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the specifier is one of this repository's own package names, from a constant list
   const rootModule = (await import(pkg)) as Record<string, unknown>;
   const subpaths = Object.entries(manifest.exports).filter(

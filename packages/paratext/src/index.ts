@@ -25,11 +25,10 @@
  * use that same call, and a caller whose terminal we mis-detect can correct us without
  * forking. See `capability.ts`.
  */
-import { registerBuiltins } from './builtins.js';
-
-// Importing the package registers what it ships. A caller that wants an empty registry calls
-// `reset()`; a caller that wants ours plus theirs just registers theirs on top.
-registerBuiltins();
+// Importing the package registers what it ships: `ansi-escapes.js`, re-exported below, runs
+// `registerBuiltins()` as it loads, which is before this module's body could, so the root does
+// not call it a second time. A caller that wants an empty registry calls `reset()`; a caller
+// that wants ours plus theirs just registers theirs on top.
 
 /**
  * **R8: the root is `ansi-escapes`' surface.** `link` and `image` here are its *functions*,

@@ -32,7 +32,7 @@ against it.
 | ~~terminal-link~~ | `paratext/terminal-link` | **8 / 10** | 0 | **built 2026-09-20 — 8 is the ceiling** |
 | ~~ansi-escapes~~ | `paratext` | 1 / 4 | **0** | **already at its ceiling** |
 | rc | `seniority/rc` | 0 / 1 | 1 | target not built |
-| ~~meow~~ | `burgee/meow` | **132 / 148** | 16 | **built 2026-09-21 — control 146 / 148** |
+| ~~meow~~ | `burgee/meow` | **146 / 148** | 0 | **level 2026-09-27 — equals the control; the 2 are the vendored root's `name`** |
 | cac / citty | `burgee/*` | planned | — | two unbuilt front-ends |
 | signal-exit | `closeout` | planned | — | control below its own reference |
 
@@ -182,6 +182,25 @@ half-finished one is a liability on npm today.
    assert the string “CLI app helper”. Without it they failed for the control exactly as for
    the target — a ceiling the harness had put there rather than one either implementation
    earned.
+
+   **2026-09-27: 132 → 146 / 148, level with the control.** The paragraph above had the
+   largest group's cause wrong. burgee's parser negating `--no-auto-version` to `auto-version`
+   is what upstream yargs-parser does too; meow never looks at that key, because with
+   `allowUnknownFlags: false` it parses with `unknown-options-as-args` and reports the
+   *tokens* the parser set aside. The façade had been checking parsed keys. With that, the
+   fourteen were all meow's own rules, each read off its `build/`: unknown flags as tokens
+   (three cases, one of them the commands case), `--help`/`--version` answered only for a
+   one-argument command line and even when declared (three), the help block built as
+   trim-newlines-then-redent, which keeps the blank line a template literal leaves (two), the
+   declaration checks meow makes before parsing — choices of the wrong type, `flags: null`,
+   `booleanDefault: null` (three) — `-F` keeping its case, `''` counting as a value for a
+   required flag, and `pkg` normalized lazily in the caller's own object (one each). The last
+   needed no `normalize-package-data`: the mutation is the behaviour, and the half of it
+   callers can see was already here. The two left fail for real meow as well — `build › main`
+   and `test › return object` both assert `pkg.name` is `meow`, and the vendored root is named
+   `@vendored/meow-suite` on purpose. `hosts.ts`' `controlFailures` had named
+   `pkg normalization is lazy` as the second; the control passes it. The entry grew 1,345
+   bytes, to 61,276. `burgee migrate` now rewrites `meow` (D-137).
 7. **closeout** — `signal-exit`, once its control clears its own reference.
 
 ## Extensibility, measured 2026-09-21
