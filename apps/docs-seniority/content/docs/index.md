@@ -315,7 +315,7 @@ Graded by the incumbent's own test suite:
 | `lilconfig` | 77 / 77 |
 | `rc` | 1 / 1 |
 
-Weight, installed and tree-inclusive: **164,456 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.0834**.
+Weight, installed and tree-inclusive: **164,614 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.0835**.
 
 ## For agents
 
@@ -380,7 +380,7 @@ Plugins register under the `sources` key, against the one schema the whole famil
 
 ## The family
 
-Nine packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
+Ten packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
 carries its colours, flagstaff flies it and caique answers back; each installs on its own, and none
 takes a dependency from outside the family.
 
@@ -395,6 +395,7 @@ takes a dependency from outside the family.
 | **seniority** (this package) | Configuration precedence and discovery, with provenance | cosmiconfig, dotenv and rc |
 | [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook and restore-cursor |
 | [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
+| [controlroom](https://burgee.interlace.tools/docs/packages/controlroom) | Reserved, not usable yet — planned: full-screen, keyboard-driven terminal screens | ink, planned |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

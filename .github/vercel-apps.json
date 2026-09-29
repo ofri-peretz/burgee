@@ -103,5 +103,7 @@
       "familyPages": false
     }
   },
-  "excluded": {}
+  "excluded": {
+    "controlroom": "docs site pending: Vercel project + DNS (owner)"
+  }
 }
