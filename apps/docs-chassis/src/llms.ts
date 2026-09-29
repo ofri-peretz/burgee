@@ -11,6 +11,7 @@
  * the site's own origin — its row's `productionUrl` — except the family links, which point
  * at the front door on purpose: one scoreboard, one gallery, on one host.
  */
+import { expandCapabilityMatrices } from './capabilities';
 import { type PublicPackage } from './packages';
 import { familyLinks, type Site } from './site';
 import { type DocsPage } from './source';
@@ -60,7 +61,9 @@ export function llmsIndex({ site, pages, intro = [`> ${site.description}`], pack
  * the corpus and the per-page file cannot disagree about what a page says.
  */
 export async function markdownOf(site: Site, page: DocsPage): Promise<string> {
-  const raw = await page.data.getText('raw');
+  // A component is only a tag in the raw source; the matrix is spelled out as Markdown so an
+  // agent reads the same claims, and the same evidence links, as the rendered page shows.
+  const raw = expandCapabilityMatrices(await page.data.getText('raw'));
   const description = page.data.description ?? '';
   return [`# ${page.data.title}`, '', ...(description === '' ? [] : [`> ${description}`, '']), `Source: ${site.url}${page.url}`, '', raw.replace(FRONTMATTER, '').trim(), ''].join('\n');
 }

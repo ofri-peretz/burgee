@@ -3,6 +3,11 @@
   "extends": ["//"],
   "tasks": {
     "build": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/*/capabilities.json",
+        "$TURBO_ROOT$/packages/compat-oracle/baseline/*.json"
+      ],
       "outputs": []
     }
   }
