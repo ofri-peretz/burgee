@@ -52,12 +52,13 @@ const has = (env: Env, name: string): boolean => env[name] !== undefined;
 /** Present and non-empty — upstream's `if (X)`. */
 const set = (value: string | undefined): value is string => value !== undefined && value !== '';
 
-/** `has-flag`, as both incumbents inline it: the flag counts only before a `--`. */
+/**
+ * `has-flag`, as both incumbents inline it: the flag counts only before a `--`. Every flag in
+ * the tables above is a long one, so its prefix is always `--`; `has-flag`'s `-x` and bare
+ * forms are for flags neither incumbent asks about.
+ */
 function hasFlag(argv: readonly string[], flag: string): boolean {
-  let prefix = '--';
-  if (flag.startsWith('-')) prefix = '';
-  else if (flag.length === 1) prefix = '-';
-  const at = argv.indexOf(prefix + flag);
+  const at = argv.indexOf(`--${flag}`);
   const end = argv.indexOf('--');
   return at !== -1 && (end === -1 || at < end);
 }
@@ -90,19 +91,24 @@ function colorByTerminal(env: Env, platform: string): boolean | undefined {
   return undefined;
 }
 
-/** Whether `supports-color` reports any level at all — the only thing hyperlinks asks of it. */
-export function hasColor(env: Env, argv: readonly string[], platform: string, isTTY: boolean): boolean {
+/**
+ * Whether `supports-color` reports any level at all — the only thing hyperlinks asks of it.
+ *
+ * For a tty only: `supportsHyperlinks` refuses a pipe before it asks, so `supports-color`'s
+ * "not a tty and not forced" answer is never the one that decides.
+ */
+export function hasColor(env: Env, argv: readonly string[], platform: string): boolean {
   const force = forcedColor(env, argv);
   if (force === 0) return false;
   if (anyFlag(argv, DEEP_COLOR_FLAGS) || (has(env, 'TF_BUILD') && has(env, 'AGENT_NAME'))) return true;
-  if (!isTTY && force === undefined) return false;
   return colorByTerminal(env, platform) ?? force !== undefined;
 }
 
 /** Upstream's version reader: `4601` is 46.1.0, anything else splits on dots. */
 function version(text = ''): { major: number; minor: number } {
   const packed = /^\d{3,4}$/.test(text) ? /(\d{1,2})(\d{2})/.exec(text) : null;
-  if (packed !== null) return { major: 0, minor: Number.parseInt(packed[1] ?? '', DECIMAL) };
+  // Both groups are mandatory, so a match always has the first.
+  if (packed !== null) return { major: 0, minor: Number.parseInt(packed[1] as string, DECIMAL) };
   const [major = '', minor = ''] = text.split('.');
   return { major: Number.parseInt(major, DECIMAL), minor: Number.parseInt(minor, DECIMAL) };
 }
@@ -149,7 +155,7 @@ export function supportsHyperlinks(runtime: Runtime, target: 'stdout' | 'stderr'
   if (forced !== undefined) return forced;
   const platform = runtime.platform ?? '';
   const isTTY = target === 'stderr' ? (runtime.isTTY.stderr ?? runtime.isTTY.stdout) : runtime.isTTY.stdout;
-  if (!isTTY || !hasColor(env, argv, platform, isTTY)) return false;
+  if (!isTTY || !hasColor(env, argv, platform)) return false;
   if (has(env, 'WT_SESSION')) return true;
   if (platform === 'win32' || set(env['CI']) || set(env['TEAMCITY_VERSION'])) return false;
   return byTerminal(env);
