@@ -1,0 +1,113 @@
+---
+title: Width plugins
+description: "When a terminal or font disagrees with Unicode about a code point, a plugin says so as data — ranges, columns and why — and npx linegauge check validates it before it ships."
+---
+
+linegauge hosts one plugin key, **`widths`**, and it answers one question: how many columns a
+code point occupies *on this terminal*, when that terminal disagrees with Unicode. A Nerd Font
+that draws Private Use icons two columns wide, a code point newer than the table in this
+release, a font that draws box-drawing characters wide — each is a fact about one terminal,
+so it is data the user supplies rather than a constant argued about upstream.
+
+## Writing one
+
+A plugin is plain data: a `name`, and under `widths` one entry per rule, each with inclusive
+code-point `ranges`, a `columns` count of 0, 1 or 2, and **`why`**.
+
+```js title="nerd-font.mjs"
+export default {
+  name: 'nerd-font',
+  widths: {
+    icons: { ranges: [[0xe000, 0xf8ff]], columns: 2, why: 'this Nerd Font draws Private Use icons two columns wide' },
+  },
+};
+```
+
+`why` is required, which no other plugin key in the family asks for. A width table with no
+provenance cannot be audited when it turns out to be wrong, and for ambiguous width, wrong is
+the normal outcome.
+
+## Registering it
+
+```js title="branch.mjs"
+import { width } from 'linegauge';
+import { register } from 'linegauge/plugin';
+
+import nerdFont from './nerd-font.mjs';
+
+const icon = '\u{E0A0}';
+console.log(width(`${icon} main`));
+register(nerdFont);
+console.log(width(`${icon} main`));
+```
+
+```text title="node branch.mjs"
+6
+7
+```
+
+U+E0A0 is Powerline's branch glyph. Unicode calls it narrow, so `width` says six until the
+plugin says two columns, and every `wrap`, `slice`, `truncate` and `widest` measured after
+that agrees.
+
+- **Later registrations win**, over earlier ones and over the built-in table: the user is the
+  authority on their terminal.
+- **Nothing is registered by default**, and the override is consulted only while something
+  is, so what the incumbent suites grade is Unicode's answer and a program with no plugin pays
+  nothing.
+- **Keys other packages read are ignored**, so one plugin file can carry roundel tokens or
+  flagstaff spinners beside its widths.
+
+## Refusals
+
+A plugin that would be wrong is refused at `register()`, with a code and a fix:
+
+```js title="refused.mjs"
+import { register } from 'linegauge/plugin';
+
+try {
+  register({ name: 'no-why', widths: { icons: { ranges: [[0xe000, 0xf8ff]], columns: 2 } } });
+} catch (error) {
+  console.log(error.code);
+  console.log(error.message);
+  console.log(error.fix);
+}
+```
+
+```text title="node refused.mjs"
+E_PLUGIN_SCHEMA
+widths.icons.why is required
+say which terminal or font disagrees, and how you measured it — ambiguous width is wrong often enough that the next reader needs the provenance
+```
+
+A range that runs backwards is refused rather than tolerated: it would match nothing, register
+cleanly and never fire, which is the failure that takes longest to find. So is a column count
+outside 0 to 2.
+
+## Checking before it ships
+
+`npx linegauge check` loads the file without registering it, validates it against the family's
+plugin schema, and prints what each rule changes:
+
+```text title="npx linegauge check nerd-font.mjs"
+nerd-font — 1 widths
+  icons  U+E000..U+F8FF  built-in 1 → 2  — this Nerd Font draws Private Use icons two columns wide
+nerd-font: ok
+```
+
+A refusal exits 1 with the code and the fix, and running it with no file is a usage error,
+exit 2:
+
+```js title="backwards.mjs"
+export default { name: 'backwards', widths: { icons: { ranges: [[0xf8ff, 0xe000]], columns: 2, why: 'a test' } } };
+```
+
+```text title="npx linegauge check backwards.mjs" exit="1"
+E_PLUGIN_SCHEMA: widths.icons.ranges[0] runs backwards: [63743, 57344]
+  fix: each range is [low, high], both integers in U+0000..U+10FFFF, low first
+```
+
+## Not a plugin: ambiguous width
+
+The ambiguous-width policy a CJK terminal needs is `width(text, { ambiguousIsNarrow: false })`,
+an option with tests behind it, not a plugin ([Measuring](/docs/guides/measuring#options)).
