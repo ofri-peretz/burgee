@@ -15,10 +15,11 @@
 import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { BLOCK, type FakePackage, fakeRegistry, sha1, tarEntry, tarball } from './__fixtures__/fake-registry.js';
 import {
+  liveRegistry,
   type Packument,
   type RegistryClient,
   type RegistryManifest,
@@ -201,5 +202,141 @@ describe('export forms a published .d.ts uses that a cloned source does not', ()
 
   it('finds nothing in a file that exports nothing', () => {
     expect(reexportedNames('const internal = 1;\n')).toEqual([]);
+  });
+});
+
+/** One raw tar header block, patched field by field — the shapes `tarEntry` never writes. */
+function rawEntry(fields: { name?: string; prefix?: string; type?: string; size?: string }, body = ''): Buffer {
+  const entry = tarEntry(fields.name ?? 'package/x.js', body);
+  if (fields.type !== undefined) entry.write(fields.type, 156, 1, 'utf8');
+  if (fields.prefix !== undefined) entry.write(fields.prefix, 345, 155, 'utf8');
+  if (fields.size !== undefined) entry.fill(0, 124, 136).write(fields.size, 124, 12, 'utf8');
+  return entry;
+}
+const archive = (...entries: Buffer[]): Buffer => Buffer.concat([...entries, Buffer.alloc(BLOCK * 2)]);
+
+describe('the tar reader, on the shapes npm tarballs can carry', () => {
+  it('names the next file from a GNU long-name entry, once', () => {
+    const long = `package/${'deep/'.repeat(30)}file.js`;
+    const entries = untar(archive(rawEntry({ name: '././@LongLink', type: 'L' }, `${long}\0`), tarEntry('package/truncated', 'a'), tarEntry('package/next.js', 'b')));
+    expect(entries.map((e) => e.path)).toEqual([long, 'package/next.js']);
+    expect(entries[0]?.body.toString('utf8')).toBe('a');
+  });
+
+  it('joins a ustar prefix onto the name', () => {
+    expect(untar(archive(rawEntry({ name: 'file.js', prefix: 'package/lib' }, 'x'))).map((e) => e.path)).toEqual(['package/lib/file.js']);
+  });
+
+  it('keeps regular files only — a NUL type is one, a directory and a symlink are not', () => {
+    const entries = untar(archive(rawEntry({ name: 'package/old.js', type: '\0' }, 'o'), rawEntry({ name: 'package/dir/', type: '5' }), rawEntry({ name: 'package/link', type: '2' }), tarEntry('package/new.js', 'n')));
+    expect(entries.map((e) => e.path)).toEqual(['package/old.js', 'package/new.js']);
+  });
+
+  it('refuses an absolute, a drive-qualified and an empty path', () => {
+    const entries = untar(archive(tarEntry('/etc/passwd', 'x'), tarEntry('C:/Windows/x', 'x'), rawEntry({ name: '\0' }, 'x'), tarEntry('package/ok.js', 'y')));
+    expect(entries.map((e) => e.path)).toEqual(['package/ok.js']);
+  });
+
+  it('reads an empty size field as zero bytes rather than NaN', () => {
+    const entries = untar(archive(rawEntry({ name: 'package/empty.js', size: '' }), tarEntry('package/after.js', 'z')));
+    expect(entries.map((e) => [e.path, e.body.length])).toEqual([
+      ['package/empty.js', 0],
+      ['package/after.js', 1],
+    ]);
+  });
+
+  it('drops a file at the archive root, which has no wrapper directory to strip', () => {
+    expect([...unpack(archive(tarEntry('stray.js', 's'), tarEntry('package/kept.js', 'k'))).keys()]).toEqual(['kept.js']);
+  });
+});
+
+describe('the live registry client', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('asks for a packument as JSON, one path segment per scoped name, with a timeout', async () => {
+    const fetched = vi.fn(async () => new Response(JSON.stringify({ name: '@clack/prompts' }), { status: 200 }));
+    vi.stubGlobal('fetch', fetched);
+    expect(await liveRegistry.packument('@clack/prompts')).toEqual({ name: '@clack/prompts' });
+    const [url, init] = fetched.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('https://registry.npmjs.org/@clack%2fprompts');
+    expect(init.headers).toEqual({ accept: 'application/json' });
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('downloads a tarball as bytes', async () => {
+    const fetched = vi.fn(async (_url: string) => new Response(new Uint8Array([1, 2, 3]), { status: 200 }));
+    vi.stubGlobal('fetch', fetched);
+    expect(await liveRegistry.download('https://fake/x.tgz')).toEqual(Buffer.from([1, 2, 3]));
+    expect(fetched.mock.calls[0]?.[0]).toBe('https://fake/x.tgz');
+  });
+
+  it('throws on an HTTP failure rather than parsing an error page', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 404 })));
+    await expect(liveRegistry.packument('ora')).rejects.toThrow('registry: ora → HTTP 404');
+    await expect(liveRegistry.download('https://fake/x.tgz')).rejects.toThrow('registry: https://fake/x.tgz → HTTP 404');
+  });
+});
+
+describe('a release the registry describes wrongly', () => {
+  it('refuses a dist-tag that names a version the packument does not list', async () => {
+    const dangling: RegistryClient = { ...REGISTRY, packument: async () => ({ name: 'ora', 'dist-tags': { latest: '9.9.9' }, versions: {} }) };
+    await expect(fetchPackage('ora', 'latest', dangling)).rejects.toThrow('ora@9.9.9 is in dist-tags but not in versions');
+  });
+
+  it('refuses a tarball with no package.json to check the name against', async () => {
+    const bare = gzipSync(tarball({ 'index.js': 'x' }));
+    const client: RegistryClient = {
+      packument: async () => ({ name: 'ora', 'dist-tags': { latest: '1.0.0' }, versions: { '1.0.0': { name: 'ora', version: '1.0.0', dist: { tarball: 'u', shasum: sha1(bare) } } } }),
+      download: async () => bare,
+    };
+    await expect(fetchPackage('ora', 'latest', client)).rejects.toThrow('ora@1.0.0: tarball has no package.json');
+  });
+
+  it('records a repository written as a bare string, as older manifests write it', async () => {
+    const client: RegistryClient = {
+      ...REGISTRY,
+      packument: async (name) => {
+        const packument = await REGISTRY.packument(name);
+        const versions = Object.fromEntries(Object.entries(packument.versions).map(([v, m]) => [v, { ...m, repository: 'github:chalk/chalk' }]));
+        return { ...packument, versions };
+      },
+    };
+    expect((await fromRegistry('chalk', '5.6.2', client)).record.repo).toBe('github:chalk/chalk');
+    expect((await fromRegistry('chalk', '5.6.2', REGISTRY)).record.repo).toBe('npm:chalk');
+  });
+});
+
+describe('the tree walk, on a tree that shares and misses', () => {
+  const SHARED = fakeRegistry({
+    app: { '1.0.0': { files: { 'index.js': 'aaaa' }, dependencies: { left: '1.0.0', right: '1.0.0', gone: '^1.0.0' } } },
+    left: { '1.0.0': { files: { 'index.js': 'll' }, dependencies: { shared: '1.0.0' } } },
+    right: { '1.0.0': { files: { 'index.js': 'rr' }, dependencies: { shared: '^1.0.0', left: '1.0.0' } } },
+    shared: { '1.0.0': { files: { 'index.js': 's' } } },
+  });
+
+  it('counts a package reached twice once, whether by the same range or another that resolves the same', async () => {
+    const counted: string[] = [];
+    const client: RegistryClient = {
+      packument: SHARED.packument,
+      download: async (url) => {
+        counted.push(url);
+        return SHARED.download(url);
+      },
+    };
+    const weight = await treeWeight('app', '1.0.0', client);
+    expect(weight.packages).toEqual({ 'app@1.0.0': 4, 'left@1.0.0': 2, 'shared@1.0.0': 1, 'right@1.0.0': 2, 'gone@?': 0 });
+    expect(weight).toMatchObject({ self: 4, total: 9 });
+    // `shared` is requested at two ranges and downloaded once: the client is memoised.
+    expect(counted.filter((u) => u.includes('/shared/'))).toHaveLength(1);
+  });
+
+  it('ends on a dependency cycle, counting each package once', async () => {
+    const cycle = fakeRegistry({
+      a: { '1.0.0': { files: { 'index.js': 'aa' }, dependencies: { b: '^1.0.0' } } },
+      b: { '1.0.0': { files: { 'index.js': 'b' }, dependencies: { a: '^1.0.0' } } },
+    });
+    expect(await treeWeight('a', '1.0.0', cycle)).toEqual({ self: 2, total: 3, packages: { 'a@1.0.0': 2, 'b@1.0.0': 1 } });
   });
 });

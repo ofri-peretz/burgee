@@ -15,6 +15,7 @@ export default defineConfig({
     // measurements. 60s is above the largest ceiling any subject sets for itself.
     testTimeout: 60_000,
     hookTimeout: 60_000,
-    include: ['src/**/*.test.ts'], setupFiles: ['../../vitest-colour-setup.ts'], coverage,
+    include: ['src/**/*.test.ts'], setupFiles: ['../../vitest-colour-setup.ts'],
+    coverage: { ...coverage, thresholds: { lines: 100, branches: 100, functions: 100, statements: 100 } },
   },
 });

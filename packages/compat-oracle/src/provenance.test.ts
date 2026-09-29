@@ -6,7 +6,8 @@
  * ora, string-width, yargs`. It is the check that would have caught the defect it fixes —
  * a suite whose origin lives only in someone's memory.
  */
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -17,6 +18,7 @@ import {
   fieldsFromRecord,
   parseProvenance,
   PROVENANCE_FILE,
+  readProvenance,
   renderProvenance,
   UNTAGGED,
 } from './provenance.js';
@@ -84,6 +86,29 @@ describe('the provenance header', () => {
     expect(disagreements({ ...parsed, commit: 'cafe' }, sample)).toEqual([
       { field: 'commit', provenance: 'cafe', source: sample.commit },
     ]);
+  });
+
+  it('skips a header line with no key, or a key that is not lower-case words', () => {
+    // `orphan` has no colon; read as one, its first five letters would pass for a key.
+    expect(parseProvenance('package: chalk\n: orphan\norphan\nno colon here\nNotAKey: x\nnote-2: y\ntag: v1\n')).toEqual({ package: 'chalk', tag: 'v1' });
+  });
+
+  it('renders a note last, and aligns every value one column past the longest key', () => {
+    const header = renderProvenance({ ...fieldsFromRecord('chalk', sample, '2026-09-14'), note: 'hand-checked' }).split('\n\n')[0] as string;
+    expect(header.split('\n').slice(-3)).toEqual(['tool:     scripts/vendor-suite.ts', 'verified: 2026-09-14', 'note:     hand-checked']);
+  });
+
+  it('reads a directory’s header, and nothing from one without the file', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'provenance-'));
+    expect(readProvenance(dir)).toBeUndefined();
+    writeFileSync(join(dir, PROVENANCE_FILE), renderProvenance(fieldsFromRecord('chalk', sample)));
+    expect(readProvenance(dir)).toMatchObject({ package: 'chalk', version: '6.0.0' });
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('names a field the header lacks as absent', () => {
+    const { commit: _, ...parsed } = parseProvenance(renderProvenance(fieldsFromRecord('chalk', sample)));
+    expect(disagreements(parsed, sample)).toEqual([{ field: 'commit', provenance: '(absent)', source: sample.commit }]);
   });
 
   it('prints the command that remakes the directory', () => {
