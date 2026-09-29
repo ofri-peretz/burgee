@@ -67,7 +67,7 @@
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.2",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^26.6.2",
+    "@types/node": "^26.6.3",
     "@types/yargs": "^17.0.33",
     "@typescript-eslint/eslint-plugin": "^8.70.1",
     "@typescript-eslint/parser": "^8.61.1",
