@@ -11,7 +11,7 @@
  * is. `ask()` says which prompts are hidden; nothing above has to remember to mute anything,
  * and a widget cannot leak a secret by writing it, since no widget writes what it read.
  */
-import { createInterface, type Interface } from 'node:readline';
+import { createInterface } from 'node:readline';
 
 import { type Io, type Reader, type ReadOptions, type Writer } from './ask.js';
 import { processRuntime, type Runtime } from './runtime.js';
@@ -33,8 +33,7 @@ const swallow = (): boolean => true;
  * intercepting the interface's own output for the duration of the question — not by
  * turning the terminal's echo off, which would leave it off if the process died mid-prompt.
  */
-function mute(rl: Interface & { output?: NodeJS.WritableStream }, streams: Streams): () => void {
-  const target = rl.output ?? streams.output;
+function mute(target: Streams['output']): () => void {
   const original = target.write.bind(target);
   // `readline` writes the prompt through the same stream it echoes through, so the prompt
   // has already been written by the time this is installed: everything after it is input.
@@ -64,7 +63,7 @@ export function createIo(streams: Streams = streamsOf(processRuntime())): Io & {
   const reader: Reader = {
     line: async ({ hidden = false }: ReadOptions = {}) => {
       if (ended) return undefined;
-      const unmute = hidden ? mute(rl, streams) : undefined;
+      const unmute = hidden ? mute(streams.output) : undefined;
       try {
         return await new Promise<string | undefined>((resolve) => {
           const onLine = (value: string): void => {
