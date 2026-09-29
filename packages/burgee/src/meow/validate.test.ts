@@ -20,11 +20,13 @@ describe('meow refuses null the way upstream does', () => {
     expect(() => meow({ importMeta: null as unknown as ImportMeta, argv: [] })).toThrow(new TypeError('The `importMeta` option is required. Its value must be `import.meta`.'));
   });
 
+  // `as never`: meow's own types refuse these, as `burgee/meow`'s now do; the checks are for the
+  // JavaScript caller the compiler cannot see.
   it.each([{ input: null }, { input: [] }, { input: ['a'] }])('input: $input is refused', ({ input }) => {
-    expect(() => meow({ importMeta, argv: [], input })).toThrow(new TypeError('The `input` option must be a string or an object.'));
+    expect(() => meow({ importMeta, argv: [], input: input as never })).toThrow(new TypeError('The `input` option must be a string or an object.'));
   });
 
   it.each([{ input: 'string' }, { input: { isRequired: false } }])('input: $input is still accepted', ({ input }) => {
-    expect(() => meow({ importMeta, argv: [], input })).not.toThrow();
+    expect(() => meow({ importMeta, argv: [], input: input as never })).not.toThrow();
   });
 });
