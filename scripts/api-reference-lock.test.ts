@@ -116,4 +116,8 @@ describe('doc-comment prose is valid Markdown', () => {
     expect(prose('the template literal (`chalk\\`{red x}\\``) went')).toBe('the template literal (`` chalk`{red x}` ``) went');
     expect(prose('`plain` and `other` stay as they are')).toBe('`plain` and `other` stay as they are');
   });
+
+  it('moves a bulleted list the comment indents to the margin, continuation lines and all', () => {
+    expect(prose('Two questions:\n\n  - **one**, which\n    wraps\n  - **two**\n\nAfter.')).toBe('Two questions:\n\n- **one**, which\n  wraps\n- **two**\n\nAfter.');
+  });
 });

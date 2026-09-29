@@ -219,12 +219,30 @@ function moduleDoc(sf: ts.SourceFile): string {
 }
 
 /**
+ * A bulleted list a doc comment indents under its paragraph — `  - **Is anybody there?**` — is
+ * a nested list with no parent to Markdown (MD007). Each such item, continuation lines
+ * included, is moved to the margin; everything else is left as written.
+ */
+function dedentLists(text: string): string {
+  let indent = 0;
+  return text
+    .split('\n')
+    .map((line) => {
+      const bullet = /^( {1,3})[-*] /u.exec(line);
+      if (bullet !== null) indent = bullet[1]?.length ?? 0;
+      else if (line.trim() === '' || !line.startsWith(' '.repeat(indent + 1))) indent = 0;
+      return indent > 0 ? line.slice(indent) : line;
+    })
+    .join('\n');
+}
+
+/**
  * Doc-comment prose as Markdown. A JSDoc code span that holds a backtick escapes it —
  * `` `chalk\`{red x}\`` `` — which Markdown does not read as an escape: the span closes early
  * and a stray backtick is left behind. Such a span is rewritten with a double-backtick fence,
  * the form Markdown gives a span that contains one.
  */
-export const prose = (text: string): string => text.replace(/`((?:[^`\\\n]|\\.)*\\`(?:[^`\\\n]|\\.)*)`/gu, (_span, inner: string) => `\`\` ${inner.replaceAll('\\`', '`')} \`\``);
+export const prose = (text: string): string => dedentLists(text).replace(/`((?:[^`\\\n]|\\.)*\\`(?:[^`\\\n]|\\.)*)`/gu, (_span, inner: string) => `\`\` ${inner.replaceAll('\\`', '`')} \`\``);
 
 /** A Markdown table cell: pipes escaped, one line. */
 const cell = (text: string): string => text.replaceAll('|', '\\|').replace(/\s*\n\s*/gu, ' ');
