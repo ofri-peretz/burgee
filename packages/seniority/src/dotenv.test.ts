@@ -1,5 +1,5 @@
 /** R8 — `seniority/dotenv`: dotenv 17's parse and populate, byte for byte, with its env as an argument (R11). */
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import fs, { mkdtempSync, writeFileSync } from 'node:fs';
 import os, { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -247,7 +247,12 @@ describe('dotenv with no process', () => {
 
   it('reads `./.env` relative to wherever it is, when there is no working directory to ask', async () => {
     const { config: bare } = await fresh(undefined);
-    const result = bare({ processEnv: {} });
-    expect((result.error as NodeJS.ErrnoException | undefined)?.path).toBe('.env');
+    // Asked of `fs` rather than read off the error: Windows reports the path it resolved, and a
+    // stub keeps a stray `.env` in the checkout from answering.
+    const read = vi.spyOn(fs, 'readFileSync').mockImplementation(() => {
+      throw Object.assign(new Error('ENOENT: forced'), { code: 'ENOENT' });
+    });
+    expect(bare({ processEnv: {} }).error?.message).toBe('ENOENT: forced');
+    expect(read.mock.calls.map((call) => call[0])).toEqual(['.env']);
   });
 });
