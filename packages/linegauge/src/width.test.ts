@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import stringWidth from 'string-width';
 import { describe, expect, it } from 'vitest';
 
-import { lineCount, width } from './width.js';
+import { INVISIBLE_CLASSES, leadingInvisible, lineCount, width } from './width.js';
 
 const ESC = '\u001B';
 const ZWSP = '\u200B';
@@ -201,9 +201,9 @@ describe('ambiguousIsNarrow', () => {
 });
 
 /**
- * The five `\p{…}` classes are built from source strings (see `width.ts`), which trades the
+ * The four `\p{…}` classes are built from source strings (see `width.ts`), which trades the
  * syntax checking a literal gets at build time for ~10 ms of import cost nobody was using.
- * This is the other half of that trade: a typo in any of the five fails here rather than in
+ * This is the other half of that trade: a typo in any of the four fails here rather than in
  * a user's terminal.
  *
  * Each case is chosen so that **only the class under test can produce the number**. The
@@ -211,11 +211,11 @@ describe('ambiguousIsNarrow', () => {
  * the regex did — a test that could not fail is the thing this file exists to catch.
  */
 describe('the Unicode classes survive being built from strings', () => {
-  it('zero-width cluster: an invisible character occupies no column', () => {
+  it('invisible: an invisible character occupies no column', () => {
     expect(width('\u200B')).toBe(0);
   });
 
-  it('leading non-printing: an invisible prefix does not add to its cluster', () => {
+  it('invisible: an invisible prefix does not add to its cluster', () => {
     expect(width('\u200B\u0915')).toBe(width('\u0915'));
   });
 
@@ -253,5 +253,80 @@ describe('the width tables are the ones the pinned get-east-asian-width publishe
     // Node 24's regex data is Unicode 16, so nothing else in this file can see it.
     expect(width('\u{18D80}')).toBe(2);
     expect(stringWidth('\u{18D80}')).toBe(2);
+  });
+});
+
+/** Every string of length 0 to `max` over `alphabet`. */
+function* strings(alphabet: readonly string[], max: number): Generator<string> {
+  let layer = [''];
+  yield '';
+  for (let length = 1; length <= max; length += 1) {
+    const next: string[] = [];
+    for (const prefix of layer) for (const character of alphabet) next.push(prefix + character);
+    yield* next;
+    layer = next;
+  }
+}
+
+function elapsed(fn: () => unknown): number {
+  const t = performance.now();
+  fn();
+  return performance.now() - t;
+}
+
+/**
+ * A run of combining grapheme joiners could hang `width()`. The zero-width test was
+ * `^(?:DI|Control|Format|Mn|Me|Surrogate)+$`, and `U+034F` is both Default_Ignorable and a
+ * nonspacing mark, so a run of them before one visible character backtracked exponentially.
+ * Measured on the unfixed code, Node 24.21, macOS, under load: 20 / 22 / 24 / 26 joiners
+ * before `U+0903` took 39 / 154 / 614 / 2,381 ms — two more joiners, four times the time — and
+ * 1,000 did not finish in ten minutes. string-width 8.3.0's suite added 1,000 and 3,000,000.
+ * The fix measured 0.6 ms and 203 ms for those on the same machine. The budgets sit 5-10x
+ * over that linear cost, so a slow runner stays green, and unimaginably far under the
+ * exponential one, so a reintroduced backtracking pattern cannot.
+ */
+describe('zero-width clusters are measured in linear time, and as the regexes measured them', () => {
+  /** The two regexes `leadingInvisible` replaced, exactly as `width.ts` used to build them. */
+  const zeroWidthCluster = new RegExp(`^(?:${INVISIBLE_CLASSES.join('|')})+$`, 'v');
+  const leadingNonPrinting = new RegExp(`^[${INVISIBLE_CLASSES.join('')}]+`, 'v');
+
+  it('matches both regexes on every short string of the six classes and the characters beside them', () => {
+    const alphabet = [
+      '\u034F', // COMBINING GRAPHEME JOINER: Default_Ignorable *and* Nonspacing_Mark — the overlap
+      '\u200B', // ZERO WIDTH SPACE: Format and Default_Ignorable
+      '\u0007', // BEL: Control
+      '\u0600', // ARABIC NUMBER SIGN: Format, not Default_Ignorable
+      '\u0301', // COMBINING ACUTE ACCENT: Nonspacing_Mark
+      '\u20DD', // COMBINING ENCLOSING CIRCLE: Enclosing_Mark
+      '\uD83D', // a lone high surrogate, which pairs with the next one into U+1F600
+      '\uDE00', // a lone low surrogate
+      '\u0903', // DEVANAGARI SIGN VISARGA: a spacing mark, which is visible
+      'a',
+      '\u{E0001}', // LANGUAGE TAG: Format and Default_Ignorable, outside the BMP
+    ];
+    const mismatches: string[] = [];
+    let checked = 0;
+    for (const s of strings(alphabet, 5)) {
+      const skipped = leadingInvisible(s);
+      const zero = s !== '' && skipped === s.length;
+      if (zero !== zeroWidthCluster.test(s) || s.slice(skipped) !== s.replace(leadingNonPrinting, '')) mismatches.push(JSON.stringify(s));
+      checked += 1;
+    }
+    expect(mismatches.slice(0, 10)).toEqual([]);
+    expect(checked).toBeGreaterThan(170_000);
+  });
+
+  it('measures 1,000 joiners before a visible character in well under the exponential cost', () => {
+    width('\u034F\u0903'); // the property classes are built on first use; that is not the cost under test
+    expect(elapsed(() => expect(width(`${'\u034F'.repeat(1000)}\u0903`)).toBe(1))).toBeLessThan(100);
+    expect(elapsed(() => expect(width(`${'\u034F'.repeat(1000)}\u{1F3FB}`)).toBe(2))).toBeLessThan(100);
+  });
+
+  // About 0.2 s on a laptop and 2–3 s on a shared CI runner (2,100 ms on ubuntu, 3,108 ms on
+  // macos, 2026-09-29). The regex this replaced did not finish 1,000 joiners in ten minutes, so
+  // 15 s still fails any return of the backtracking by orders of magnitude.
+  it('measures 3,000,000 joiners without backtracking or a RangeError', { timeout: 60_000 }, () => {
+    expect(elapsed(() => expect(width(`${'\u034F'.repeat(3_000_000)}\u0903`)).toBe(1))).toBeLessThan(15_000);
+    expect(elapsed(() => expect(width('\u034F'.repeat(3_000_000))).toBe(0))).toBeLessThan(15_000);
   });
 });

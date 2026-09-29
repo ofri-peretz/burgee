@@ -21,7 +21,8 @@ const OPTIONAL = /\[([^[\]]*)\]/g;
 /** Every field a template reads, so `check` can say what a capability needs. */
 export function fieldsUsed(template: string): string[] {
   const names = new Set<string>();
-  for (const [, name] of template.matchAll(FIELD)) if (name !== undefined) names.add(name);
+  // The name group is not optional, so every match carries one.
+  for (const [, name] of template.matchAll(FIELD)) names.add(name as string);
   return [...names].toSorted();
 }
 

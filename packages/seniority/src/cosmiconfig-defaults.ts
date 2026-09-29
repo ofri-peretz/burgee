@@ -113,13 +113,16 @@ export async function loadJs(filepath: string): Promise<unknown> {
   }
 }
 
-/** `JSON.parse`, with cosmiconfig's own message shape so a caller matching on it still matches. */
+/**
+ * `JSON.parse`, with cosmiconfig's own message shape so a caller matching on it still matches.
+ * `JSON.parse` of a string throws a `SyntaxError` and nothing else, so the error is written
+ * onto as caught — upstream does exactly this.
+ */
 export function loadJson(filepath: string, content: string): unknown {
   try {
     return JSON.parse(content);
-  } catch (cause) {
-    const error = cause instanceof Error ? cause : new Error(String(cause));
-    error.message = `JSON Error in ${filepath}:\n${error.message}`;
+  } catch (error) {
+    (error as SyntaxError).message = `JSON Error in ${filepath}:\n${(error as SyntaxError).message}`;
     throw error;
   }
 }

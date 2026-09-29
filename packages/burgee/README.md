@@ -27,7 +27,7 @@
 
 <p align="center">
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/commander%20suite-1360%2F1360-0a6b47?style=flat-square" alt="burgee/commander passes 1360 of 1360 cases of the commander test suite" /></a>
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/meow%20suite-132%2F148-b45309?style=flat-square" alt="burgee/meow passes 132 of 148 cases of the meow test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/meow%20suite-146%2F148-b45309?style=flat-square" alt="burgee/meow passes 146 of 148 cases of the meow test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/yargs%20suite-804%2F804-0a6b47?style=flat-square" alt="burgee/yargs passes 804 of 804 cases of the yargs test suite" /></a>
 </p>
 
@@ -171,7 +171,7 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `commander` | 1360 / 1360 |
-| `meow` | 132 / 148 |
+| `meow` | 146 / 148 |
 | `yargs` | 804 / 804 |
 
 ## For agents

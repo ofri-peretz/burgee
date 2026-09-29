@@ -11,7 +11,7 @@ import { PassThrough } from 'node:stream';
 import { describe, expect, it } from 'vitest';
 
 import { ask } from './ask.js';
-import { createIo } from './terminal.js';
+import { createIo, streamsOf } from './terminal.js';
 
 /**
  * `readline` only echoes what it reads when `terminal: true` — on a plain PassThrough it
@@ -58,6 +58,22 @@ describe('createIo', () => {
     const io = createIo({ input: s.input, output: s.output });
     io.writer.write('Where should it go? ');
     expect(s.written()).toBe('Where should it go? ');
+    io.close();
+  });
+
+  it("maps a runtime's stdin and stdout to the pair it reads and writes", () => {
+    const s = streams();
+    expect(streamsOf({ env: {}, stdin: s.input, stdout: s.output, isTTY: { stdin: true, stdout: true } })).toEqual({ input: s.input, output: s.output });
+  });
+
+  it("reports the output's width as it is now, not as it was when the pair was made", () => {
+    // The raw renderer measures every repaint against this; a copy would go stale on a resize.
+    const s = streams();
+    const output = Object.assign(s.output, { columns: 80 });
+    const io = createIo({ input: s.input, output });
+    expect(io.writer.columns).toBe(80);
+    output.columns = 40;
+    expect(io.writer.columns).toBe(40);
     io.close();
   });
 });

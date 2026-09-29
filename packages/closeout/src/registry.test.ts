@@ -161,3 +161,69 @@ describe('bounded', () => {
     expect(Date.now() - started).toBeLessThan(1000);
   });
 });
+
+describe('a failure with nowhere else to go', () => {
+  // `onError` defaults to stderr through `console.error`, not `process.stderr`: a registry
+  // built by hand has no process seam, and a failed handler must still be said out loud.
+  it.each([
+    ['an Error, by its stack', Object.assign(new Error('lock held'), { stack: 'Error: lock held\n    at unlock (lock.js:1:1)' }), 'Error: lock held\n    at unlock (lock.js:1:1)'],
+    ['an Error with no stack, by its message', Object.assign(new Error('lock held'), { stack: undefined }), 'lock held'],
+    ['anything else, as a string', 'a string somebody threw', 'a string somebody threw'],
+  ])('reports %s on stderr and still runs the rest', (_, thrown, rendered) => {
+    const stderr = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      const after = vi.fn();
+      const registry = createRegistry();
+      registry.add(() => {
+        throw thrown;
+      });
+      registry.add(after);
+
+      registry.runSync(EXITED);
+      expect(stderr).toHaveBeenCalledExactlyOnceWith(`closeout: a handler failed during shutdown\n${rendered}`);
+      expect(after).toHaveBeenCalledTimes(1);
+    } finally {
+      stderr.mockRestore();
+    }
+  });
+});
+
+describe('a phase that does not exist', () => {
+  it('is refused at registration, rather than accepted and never run', () => {
+    // From untyped code this used to return an unsubscribe, count nowhere, and never run —
+    // `size` 0 and an empty `unfinished`, so nothing at all said the lock was not released.
+    const registry = createRegistry();
+    const unlock = vi.fn();
+    expect(() => registry.add(unlock, 'Restore' as never)).toThrow(new TypeError('closeout: no phase Restore'));
+    expect(() => registry.add(unlock, { phase: 'teardown' as never })).toThrow(new TypeError('closeout: no phase teardown'));
+    expect(registry.size).toBe(0);
+    registry.runSync(EXITED);
+    expect(unlock).not.toHaveBeenCalled();
+  });
+
+  it('is refused by count too, while the real phases count what they hold', () => {
+    const registry = createRegistry();
+    registry.add(() => undefined, 'flush');
+    registry.add(() => undefined, 'flush');
+    registry.add(() => undefined);
+    expect([registry.count('flush'), registry.count('release'), registry.count('restore')]).toEqual([2, 1, 0]);
+    // Not 0: a count of a phase that does not exist is the same misspelling `add` refuses, and
+    // answering it would tell the caller their handler is merely not registered yet.
+    expect(() => registry.count('teardown' as never)).toThrow(new TypeError('closeout: no phase teardown'));
+  });
+});
+
+describe('an asynchronous trigger after the synchronous one', () => {
+  it('runs nothing and resolves with the report the synchronous run left', async () => {
+    const handler = vi.fn();
+    const registry = createRegistry();
+    registry.add(handler);
+
+    const first = registry.runSync({ code: 3, signal: null });
+    // Nothing is in flight after `runSync`, so there is no shutdown to wait on — the answer
+    // is the one that already happened, code 3 and path `exit`, not a report of this trigger.
+    await expect(registry.run(INTERRUPTED)).resolves.toBe(first);
+    expect(first).toMatchObject({ path: 'exit', code: 3, signal: null });
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+});

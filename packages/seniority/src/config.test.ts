@@ -1,5 +1,5 @@
 /** commander-env V6, V7 — discovery order, --no-config, explicit misses, extends with deep merge and cycles, on real temp files. */
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 
@@ -79,5 +79,39 @@ describe('extends (V7)', () => {
   it('names an unresolvable extends target', async () => {
     const f = write('u/app.config.json', { extends: 'no-such-package-xyz' });
     await expect(loadWithExtends(f)).rejects.toThrow(/cannot be resolved/);
+  });
+});
+
+describe('the user config directory (V6)', () => {
+  it('is `$HOME/.config` when `XDG_CONFIG_HOME` is unset, and absent when neither is', () => {
+    const home = resolve('/home/u');
+    expect(candidates({ name: 'app', cwd: resolve('/w'), env: { HOME: home } }).at(-1)).toEqual({ path: join(home, '.config', 'app', 'config.json'), reason: 'user config directory' });
+    expect(candidates({ name: 'app', cwd: resolve('/w'), env: {} }).map((c) => c.reason)).not.toContain('user config directory');
+  });
+});
+
+describe('the lines a JSON layer records (R3)', () => {
+  it('records only the keys it can find written as `"key":`, and none at all when it finds none', async () => {
+    const mixed = write('lines-mixed/app.config.json', '{\n  "\\u0061": 1,\n  "b": 2\n}');
+    expect(await loadWithExtends(mixed)).toMatchObject({ data: { a: 1, b: 2 }, lines: { b: 3 } });
+    const escaped = write('lines-none/app.config.json', '{ "\\u0061": 1 }');
+    const loaded = await loadWithExtends(escaped);
+    expect(loaded.data).toEqual({ a: 1 });
+    // eslint-disable-next-line conventions/consistent-existence-index-check -- The claim is that the key is absent, not merely undefined.
+    expect(Object.hasOwn(loaded, 'lines')).toBe(false);
+  });
+
+  it('still loads a file that is gone by the time its lines are read, with no lines to cite', async () => {
+    const at = write('vanishing/app.config.json', { region: 'eu' });
+    // A loader that reads and then removes: the scan for line numbers runs after it, on nothing.
+    const loaders = {
+      '.json': (filepath: string, content: string): unknown => {
+        rmSync(filepath);
+        return JSON.parse(content) as unknown;
+      },
+    };
+    const loaded = await loadWithExtends(at, { loaders });
+    expect(loaded.data).toEqual({ region: 'eu' });
+    expect(loaded.lines).toBeUndefined();
   });
 });

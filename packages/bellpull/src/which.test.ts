@@ -243,6 +243,10 @@ describe('Windows policy, from a Mac, because the platform is an argument', () =
     expect(extensionCandidates('npm', { runtime: win({}) })).toEqual(['.EXE', '.CMD', '.BAT', '.COM']);
   });
 
+  it('skips an empty PATHEXT entry, so a stray `;` does not add the bare name as an extension', () => {
+    expect(extensionCandidates('npm', { runtime: win({ PATHEXT: '.EXE;;.CMD;' }) })).toEqual(['.EXE', '.CMD']);
+  });
+
   it('tries a command that already carries a dot as written, first', () => {
     expect(extensionCandidates('whoami.cmd', { runtime: win({ PATHEXT: '.EXE;.CMD' }) })).toEqual(['', '.EXE', '.CMD']);
   });
@@ -323,6 +327,11 @@ describe('resolveExecutable — the walk a spawner needs, not the walk a shell n
 });
 
 describe('the throwing form', () => {
+  it('returns the same resolution the non-throwing form does, when there is one', () => {
+    const runtime = host({ env: { PATH: hostPath(binA, binB) } });
+    expect(whichOrThrowSync('tool', { runtime })).toEqual({ path: join(binA, `tool${EXE}`), from: binA, ext: EXE });
+  });
+
   it('throws ENOENT naming the command', () => {
     expect(() => whichOrThrowSync('nothinghere', { runtime: host({ env: { PATH: binA } }) })).toThrow(NotFoundError);
     try {

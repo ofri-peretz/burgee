@@ -21,6 +21,7 @@
 import { HIDE_CURSOR, SHOW_CURSOR } from 'closeout/cursor';
 import restoreCursor from 'closeout/restore-cursor';
 import { wrap } from 'linegauge/wrap';
+import { beginSynchronizedOutput, cursorDown, cursorLeft, cursorUp, endSynchronizedOutput, eraseEndLine, eraseLine, eraseLines } from 'paratext/csi';
 
 import { processRuntime } from './runtime.js';
 
@@ -32,24 +33,11 @@ import { processRuntime } from './runtime.js';
  */
 const rt = processRuntime();
 
-const CSI = '\u001B[';
-const SYNCHRONIZED_OUTPUT_ENABLE = `${CSI}?2026h`;
-const SYNCHRONIZED_OUTPUT_DISABLE = `${CSI}?2026l`;
-const CURSOR_LEFT = `${CSI}G`;
-const ERASE_LINE = `${CSI}2K`;
-const ERASE_END_LINE = `${CSI}K`;
-
 const DEFAULT_WIDTH = 80;
 const DEFAULT_HEIGHT = 24;
 
-const cursorUp = (count = 1): string => `${CSI}${count}A`;
-const cursorDown = (count = 1): string => `${CSI}${count}B`;
-/** Erase `count` rows upward and leave the cursor at the start of the first of them. */
-const eraseLines = (count: number): string => {
-  let sequence = '';
-  for (let index = 0; index < count; index += 1) sequence += ERASE_LINE + (index < count - 1 ? cursorUp() : '');
-  return count > 0 ? sequence + CURSOR_LEFT : sequence;
-};
+// The cursor moves and erases are `ansi-escapes`' own, from `paratext/csi` — the package that
+// ports ansi-escapes byte for byte, which is where log-update itself takes them from.
 
 /**
  * cli-cursor's `hide()`/`show()`, which is what log-update calls: the cursor belongs to the
@@ -156,13 +144,13 @@ function moveToRow(from: number, to: number): string {
 
 /** One escape sequence that turns the previous frame into the next one. */
 function buildPatch({ previousCount, start, endPrevious, endNext, nextLines, endsWithNewline }: Patch): string {
-  let sequence = moveToRow(previousCount - 1, start) + CURSOR_LEFT;
+  let sequence = moveToRow(previousCount - 1, start) + cursorLeft;
 
   // Clear the changed block of the previous frame.
   const linesToClear = Math.max(0, endPrevious - start + 1);
-  for (let index = 0; index < linesToClear; index += 1) sequence += ERASE_LINE + (index < linesToClear - 1 ? cursorDown() : '');
+  for (let index = 0; index < linesToClear; index += 1) sequence += eraseLine + (index < linesToClear - 1 ? cursorDown() : '');
   if (linesToClear > 1) sequence += cursorUp(linesToClear - 1);
-  sequence += CURSOR_LEFT;
+  sequence += cursorLeft;
 
   // Write the new changed block.
   const wrote = nextLines.slice(start, endNext + 1);
@@ -173,7 +161,7 @@ function buildPatch({ previousCount, start, endPrevious, endNext, nextLines, end
     sequence += chunk;
     writtenLineBreaks = countLines(chunk) - 1;
     // Nothing of the old row may survive past the end of the new one.
-    sequence += ERASE_END_LINE;
+    sequence += eraseEndLine;
     if (trailingNewline) {
       sequence += '\n';
       writtenLineBreaks += 1;
@@ -197,7 +185,7 @@ export function createLogUpdate(stream: LogUpdateStream, { showCursor: keepCurso
   const write = (output: string): void => {
     if (output === '') return;
     // One atomic update, so a terminal that supports it never paints a half-drawn frame.
-    stream.write(useSynchronizedOutput ? SYNCHRONIZED_OUTPUT_ENABLE + output + SYNCHRONIZED_OUTPUT_DISABLE : output);
+    stream.write(useSynchronizedOutput ? beginSynchronizedOutput + output + endSynchronizedOutput : output);
   };
 
   /** Normalise, wrap and height-clip into a concrete frame; `lines.length === 0` is empty. */

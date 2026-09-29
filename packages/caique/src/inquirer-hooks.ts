@@ -236,7 +236,7 @@ export function useEffect(cb: (rl: PromptReadline) => Cleanup, depArray: readonl
 export function useMemo<Value>(fn: () => Value, dependencies: readonly unknown[]): Value {
   return withPointer<{ value: Value; dependencies: readonly unknown[] } | undefined, Value>((pointer) => {
     const previous = pointer.get();
-    if (previous === undefined || !pointer.initialized || previous.dependencies.length !== dependencies.length || previous.dependencies.some((dep, i) => dep !== dependencies[i])) {
+    if (previous === undefined || previous.dependencies.length !== dependencies.length || previous.dependencies.some((dep, i) => dep !== dependencies[i])) {
       const value = fn();
       pointer.set({ value, dependencies });
       return value;

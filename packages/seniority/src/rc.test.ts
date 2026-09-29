@@ -9,11 +9,11 @@
  * as a zero is measured here as a pass, and the difference between the two numbers is R11 and
  * nothing else.
  */
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
 import { LoaderError } from './load.js';
 import { parse, rc } from './rc.js';
@@ -122,5 +122,103 @@ describe('the parts of rc that are seniority rather than the process', () => {
   it('reads no file when there is none, and then reports no `config`', () => {
     const empty = rc(NAME, { only: 'default' }, undefined, parse, { cwd: join(dir, 'nowhere'), home: join(dir, 'nowhere'), win: true });
     expect(empty).toEqual({ only: 'default' });
+  });
+
+  it('keeps an escaped quote inside a string, so what follows it is still the string', () => {
+    expect(parse('{"a": "say \\"hi\\" // not a comment", "b": "back\\\\"} // a comment')).toEqual({ a: 'say "hi" // not a comment', b: 'back\\' });
+    // One escaped quote, unbalanced: read as a closing quote, the `//` after it would start a comment.
+    expect(parse('{"a": "q\\" // kept"}')).toEqual({ a: 'q" // kept' });
+  });
+});
+
+describe('the places rc reads, and the ones it may not', () => {
+  const isolated = { env: {}, home: '', win: true };
+
+  it('reads a file named by `<name>_config` in the environment, and one named by `argv.config`, the latter last', () => {
+    const fromEnv = join(dir, 'from-env.json');
+    const fromArgv = join(dir, 'from-argv.json');
+    writeFileSync(fromEnv, '{"who": "env file", "envOnly": 1}');
+    writeFileSync(fromArgv, '{"who": "argv file"}');
+    const config = rc(NAME, {}, { config: fromArgv }, parse, { ...isolated, cwd: join(dir, 'nowhere'), env: { [`${NAME}_config`]: fromEnv } });
+    expect(config).toMatchObject({ who: 'argv file', envOnly: 1, configs: [fromEnv, fromArgv], config: fromArgv });
+  });
+
+  it('skips the four home places when there is no home directory', () => {
+    const home = join(dir, 'home-skipped');
+    mkdirSync(home, { recursive: true });
+    writeFileSync(join(home, `.${NAME}rc`), '{"fromHome": true}');
+    // Run from inside that directory: a home of `''` joined onto `.rctestrc` is a relative path,
+    // and it would resolve right here if the empty home were not skipped outright.
+    const previous = process.cwd();
+    process.chdir(home);
+    try {
+      expect(rc(NAME, {}, undefined, parse, { ...isolated, cwd: join(dir, 'nowhere') })).toEqual({});
+    } finally {
+      process.chdir(previous);
+    }
+    expect(rc(NAME, {}, undefined, parse, { ...isolated, cwd: join(dir, 'nowhere'), home })).toMatchObject({ fromHome: true });
+  });
+
+  it('merges two variables under one parent, and ignores one that is the prefix alone', () => {
+    const env = { [`${NAME}_db__host`]: 'h', [`${NAME}_db__port`]: '5', [`${NAME}_`]: 'nothing', [`${NAME}___`]: 'nothing either' };
+    expect(rc(NAME, {}, undefined, parse, { ...isolated, cwd: join(dir, 'nowhere'), env })).toEqual({ db: { host: 'h', port: '5' } });
+  });
+
+  it('stops the upward walk at sixty-four directories, so a file further up is never read', () => {
+    writeFileSync(join(dir, `.${NAME}rc`), '{"tooFar": true}');
+    const deep = join(dir, ...Array.from({ length: 70 }, (_, i) => `d${String(i)}`));
+    mkdirSync(deep, { recursive: true });
+    try {
+      expect(rc(NAME, {}, undefined, parse, { ...isolated, cwd: deep })).toEqual({});
+      expect(rc(NAME, {}, undefined, parse, { ...isolated, cwd: join(dir, 'd0') })).toMatchObject({ tooFar: true });
+    } finally {
+      rmSync(join(dir, `.${NAME}rc`));
+    }
+  });
+
+  it('defaults the defaults, the argv, the directory and the home, and reads the process environment (D-135)', () => {
+    const key = `seniority_rc_${String(process.pid)}`;
+    process.env[`${key}_fromProcess`] = 'yes';
+    try {
+      expect(rc(key)).toEqual({ fromProcess: 'yes' });
+    } finally {
+      delete process.env[`${key}_fromProcess`];
+    }
+  });
+});
+
+describe('rc with no process, and a file it cannot read', () => {
+  afterEach(() => {
+    vi.doUnmock('./runtime.js');
+    vi.doUnmock('node:fs');
+    vi.resetModules();
+  });
+
+  it('reads no environment on a runtime with no process', async () => {
+    vi.resetModules();
+    vi.doMock('./runtime.js', () => ({ ambientEnv: () => undefined, ambientCwd: () => undefined }));
+    const fresh = await import('./rc.js');
+    expect(fresh.rc(NAME, { d: 1 }, undefined, fresh.parse, { cwd: join(dir, 'nowhere'), home: '', win: true })).toEqual({ d: 1 });
+  });
+
+  it('swallows a file that exists but cannot be read, as rc does, and reads the rest', async () => {
+    const unreadable = join(dir, 'unreadable.json');
+    const readable = join(dir, 'readable.json');
+    writeFileSync(unreadable, '{"never": true}');
+    writeFileSync(readable, '{"read": true}');
+    vi.resetModules();
+    vi.doMock('node:fs', async (importOriginal) => {
+      const real = await importOriginal<typeof import('node:fs')>();
+      return {
+        ...real,
+        readFileSync: (path: string, encoding: BufferEncoding) => {
+          if (path === unreadable) throw Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' });
+          return real.readFileSync(path, encoding);
+        },
+      };
+    });
+    const fresh = await import('./rc.js');
+    const config = fresh.rc(NAME, {}, { config: readable }, fresh.parse, { cwd: join(dir, 'nowhere'), home: '', win: true, env: { [`${NAME}_config`]: unreadable } });
+    expect(config).toEqual({ read: true, configs: [readable], config: readable });
   });
 });

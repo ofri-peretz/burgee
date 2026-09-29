@@ -22,20 +22,20 @@ would flatter a partial implementation; measuring against the control's total do
 | [**log-update**](https://flagstaff.interlace.tools/docs/coming-from/log-update) | `flagstaff/log-update` | 99 / 99 | 100.0% | 99 / 99 | 100.0% | — | — |
 | [**boxen**](https://flagstaff.interlace.tools/docs/coming-from/boxen) | `flagstaff/boxen` | 84 / 84 | 100.0% | 84 / 84 | 100.0% | — | — |
 | [**cli-table3**](https://flagstaff.interlace.tools/docs/coming-from/cli-table3) | `flagstaff/cli-table3` | 29 / 29 | 100.0% | 29 / 29 | 100.0% | 103 / 104 | 103 / 104 |
-| [**string-width**](https://linegauge.interlace.tools/docs/coming-from/string-width) | `linegauge` | 229 / 229 | 100.0% | 229 / 229 | 100.0% | — | — |
+| [**string-width**](https://linegauge.interlace.tools/docs/coming-from/string-width) | `linegauge` | 233 / 233 | 100.0% | 233 / 233 | 100.0% | — | — |
 | [**strip-ansi**](https://linegauge.interlace.tools/docs/coming-from/strip-ansi) | `linegauge/strip` | 8 / 8 | 100.0% | 8 / 8 | 100.0% | — | — |
 | [**cross-spawn**](https://bellpull.interlace.tools/docs/coming-from/cross-spawn) | `bellpull/cross-spawn` | 68 / 68 | 100.0% | 68 / 68 | 100.0% | — | — |
 | [**which**](https://bellpull.interlace.tools/docs/coming-from/which) | `bellpull` | 5 / 5 | 100.0% | 5 / 5 | 100.0% | — | — |
 | [**execa**](https://bellpull.interlace.tools/docs/coming-from/execa) | `bellpull` | 0 / 1048 | 0.0% | 1048 / 1048 | 100.0% | — | — |
 | [**rc**](https://seniority.interlace.tools/docs/coming-from/rc) | `seniority/rc` | 1 / 1 | 100.0% | 1 / 1 | 100.0% | — | — |
-| [**wrap-ansi**](https://linegauge.interlace.tools/docs/coming-from/wrap-ansi) | `linegauge/wrap` | 80 / 80 | 100.0% | 80 / 80 | 100.0% | — | — |
+| [**wrap-ansi**](https://linegauge.interlace.tools/docs/coming-from/wrap-ansi) | `linegauge/wrap` | 85 / 85 | 100.0% | 85 / 85 | 100.0% | — | — |
 | [**slice-ansi**](https://linegauge.interlace.tools/docs/coming-from/slice-ansi) | `linegauge/slice` | 104 / 104 | 100.0% | 104 / 104 | 100.0% | — | — |
 | [**cosmiconfig**](https://seniority.interlace.tools/docs/coming-from/cosmiconfig) | `seniority` | 186 / 243 | 76.5% | 240 / 243 | 98.8% | 10 / 10 | 0 / 10 |
 | **lilconfig** | `seniority` | 77 / 77 | 100.0% | 77 / 77 | 100.0% | — | — |
 | [**dotenv**](https://seniority.interlace.tools/docs/coming-from/dotenv) | `seniority` | 106 / 141 | 75.2% | 141 / 141 | 100.0% | 0 / 0 | 7 / 13 |
 | [**clack**](https://caique.interlace.tools/docs/coming-from/clack) | `caique/clack` | 16 / 17 | 94.1% | 17 / 17 | 100.0% | — | — |
 | [**inquirer-core**](https://caique.interlace.tools/docs/coming-from/inquirer) | `caique/inquirer` | 41 / 41 | 100.0% | 41 / 41 | 100.0% | — | — |
-| **meow** | `burgee/meow` | 132 / 148 | 89.2% | 146 / 148 | 98.6% | — | — |
+| **meow** | `burgee/meow` | 146 / 148 | 98.6% | 146 / 148 | 98.6% | — | — |
 | [**ansi-escapes**](https://paratext.interlace.tools/docs/coming-from/ansi-escapes) | `paratext` | 4 / 4 | 100.0% | 4 / 4 | 100.0% | — | — |
 | [**terminal-link**](https://paratext.interlace.tools/docs/coming-from/terminal-link) | `paratext/terminal-link` | 8 / 8 | 100.0% | 8 / 8 | 100.0% | — | — |
 | [**term-img**](https://paratext.interlace.tools/docs/coming-from/term-img) | `paratext/term-img` | 12 / 18 | 66.7% | 18 / 18 | 100.0% | — | — |
@@ -94,7 +94,7 @@ different one — so it can neither hide a regression nor grow quietly.
 | :--- | ---: | :--- |
 | **yargs** | 2 | Real yargs reports its own version by reading the nearest package.json, and from inside a vendored copy that lookup finds ours. Two usage tests assert the version string; burgee scores 804 where yargs itself scores 802. Documented since the host was activated. |
 | **cosmiconfig** | 1 | `index.test.ts` imports `'../src/index.js'` — cosmiconfig's own entry module, by path — in addition to the public entry, and `vi.mock`s `../src/Explorer` and `../src/ExplorerSync` to assert the CONSTRUCTOR ARGUMENTS the entry passes them. The vendor step generates a shim for every internal specifier the suite names, but `../src/index.js` is the host's public entry reached by an internal path, so no shim is written and the file fails to load. That is one graded case, and it fails identically for the control and for the target: it is the harness's file-layout assumption, not a property of either implementation. This is the C4 shape `seniority/spec.md` finding 4 left open, decided here — the fix is in `vendor.ts`'s internal-shim discovery, which is the harness lane's file, and until it lands the honest form is a named allowance of exactly one rather than an unexplained 240. |
-| **meow** | 2 | Two cases real meow cannot pass from a vendored copy of its tests. `build › main` imports `../build/index.js`, the rollup bundle meow publishes — it is built by `npm run build` in meow's own repo and the vendor step takes only `test/`, so the file is not there for either side. `pkg normalization is lazy` asserts that reading `cli.pkg` mutates the caller's own object, which is `normalize-package-data` doing it in place; meow gets that from a dependency and the vendored root does not install it. Neither is a divergence and neither is reachable: the first needs a build the oracle does not run, the second a package this repo will not take (U6). Measured 2026-09-21 — the control is 146 / 148 with these two named and 148 / 148 without them. |
+| **meow** | 2 | Two cases no implementation can pass from a vendored copy of meow's tests, and they are one assertion made twice: `build › main` and `test › return object` each `t.like` the result against `pkg: {name: 'meow'}`. `pkg` is the nearest package.json, which is the vendored root, and that root is deliberately `@vendored/meow-suite` (`rootPackage()` — upstream's name would let Node's self-reference resolve `meow` to the root rather than the installed package). It carries upstream's `description` and `version`, which the suite also reads; the name is the one field it cannot. Re-measured 2026-09-27: the control is 146 / 148 and `burgee/meow` fails these two and nothing else. The version of this paragraph from 2026-09-21 named `pkg normalization is lazy` as the second and said `build/index.js` was absent; the control passes the first, and the shim serves the second. |
 | **signal-exit** | 1 | `signal-exit-test.ts` > `does not exit if user handles signal` fails for signal-exit 4.1.0 itself. Its fixture, `signal-listener.js`, re-sends SIGTERM from a `setTimeout` inside the listener and expects the fourth to kill the process; on current Node the process exits cleanly after the first (`calledListener=1, code=0, signal=null`). Measured 2026-09-23 with the fixture requiring `signal-exit` directly — no shim — on Node 22.22, 24.13 and 26.10 on macOS, and on Node 24 in a Linux container. signal-exit's last release was 2023-07-29, before any of those Nodes. |
 | **yargs-17** | 1 | `helpers > applyExtends > exposes applyExtends helper` extends `./package.json` from the cwd and asserts its `name` is `yargs`. The cwd is the vendored root, whose manifest is deliberately `@vendored/yargs-17-suite` (`rootPackage()` — upstream's name would let Node's self-reference resolve `yargs` to a file that is not here). The current-major row's two allowed failures are the same lookup reading the same file. |
 
@@ -163,13 +163,13 @@ to these rows (C1).
 | log-update | **8** | 8.0.0 | — |
 | boxen | **8** | 8.0.1 | — |
 | cli-table3 | **0** | 0.6.5 | — |
-| string-width | **8** | 8.2.2 | — |
+| string-width | **8** | 8.3.0 | — |
 | strip-ansi | **7** | 7.2.0 | — |
 | cross-spawn | **7** | 7.0.6 | — |
 | which | **7** | 7.0.0 | — |
 | execa | — | — | — |
 | rc | **1** | 1.2.8 | — |
-| wrap-ansi | **10** | 10.0.1 | — |
+| wrap-ansi | **10** | 10.0.2 | — |
 | slice-ansi | **9** | 9.0.1 | **slice-ansi-7** (7.1.2) — graded, not claimed |
 | cosmiconfig | **10** | 10.0.1 | — |
 | lilconfig | **3** | 3.1.3 | — |

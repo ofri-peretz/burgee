@@ -88,6 +88,16 @@ same agent line that wrote the code, which rule 3 does not let stand as its own 
   token map) from the two largest existing corpora of terminal palettes, contrast-checked on
   import (R5). The docs gallery is generated from them; hundreds of themes on day one, none
   hand-written. Data in, data out; no network, no bundled corpus — the user supplies the file.
+- **R12** `roundel/terminal` (added 2026-09-28, D-181): `interactive(rt)` over
+  `{ env, isTTY: { stdin } }` — `FORCE_TTY=1` is yes outright; otherwise a terminal on stdin, no
+  non-empty `CI`, and none of the agent variables burgee's `detectAgent` probes (`AI_AGENT`,
+  `CLAUDECODE`, `CURSOR_AGENT`, `CODEX_THREAD_ID`, `GEMINI_CLI`, exported as `AGENTS`) — and
+  `unicode(rt)` over `{ env, platform? }`, is-unicode-supported 2.1.0 condition for condition.
+  Its own subpath, reaching nothing and not re-exported from the root: `./chalk` stands on
+  `policy.js` with 7 B left under R8, so neither function can live there. The unicode table
+  reads `TERM_PROGRAM` and the platform, which R2 refuses for *colour*; a glyph table is not a
+  colour level, and the refusal below is restated to say so. Locked by `src/terminal.test.ts`,
+  `src/weight.test.ts` and `src/subpath-isolation.test.ts`.
 
 ### Evidence
 
@@ -166,6 +176,7 @@ commands, the row is wrong.
 | `roundel/theme` | `fly`, `audit`, `rgb256`, `toOklab`; `Hex`, `Style`, `Theme` | set the process theme once, and downsample a hex to what the level can show (R4) |
 | `roundel/contrast` | `contrast`, `luminance`, `channels`, `reportTheme`, `AA`, `AAA`, `floors`, `round2`; `Conformance`, `ThemeFinding` | the WCAG maths, and the gate `fly()` runs a truecolor theme through (R5) |
 | `roundel/chalk` | `Chalk`, `chalkStderr`, `supportsColor`, `supportsColorStderr`, `modifierNames`, `foregroundColorNames`, `backgroundColorNames`, `underlineColorNames`, `colorNames`, and chalk's type names | the drop-in path, graded by chalk's own suite (R6) |
+| `roundel/terminal` | `interactive`, `unicode`, `AGENTS`; `Terminal`, `Glyphs` | "is anybody there to type, and can the terminal draw a tick" — the two questions that are not colour (R12) |
 | `roundel/plugin` | `register`, `validate`, `reset`, `theme`, `contributions`, `registered`, `CONTRACT`, `PluginError`; `Plugin`, `Contribution`, `PluginErrorCode` | the extension point — see below |
 | `roundel/schema.json` | the family plugin schema, as a file | what a plugin author or an agent validates against before shipping |
 
@@ -235,9 +246,11 @@ knowing before they go looking:
 - **It has no CLI and no `bin`.** `burgee brand` owns the brand tooling; this is a library.
 - **It claims nothing about contrast at levels 1 and 2.** The 16- and 256-colour palettes are
   the user's terminal theme, so a ratio computed against them would be invented (R5).
-- **It does not detect a terminal emulator by name.** supports-color's emulator allow-list,
-  `TEAMCITY_VERSION`, `TERM_PROGRAM` and the platform check are refused outright, which is
-  why the chalk differential sweep excludes them.
+- **It does not detect a terminal emulator by name for colour.** supports-color's emulator
+  allow-list, `TEAMCITY_VERSION`, `TERM_PROGRAM` and the platform check are refused outright
+  for the colour level, which is why the chalk differential sweep excludes them. The one
+  place a name is read is `roundel/terminal`'s `unicode()` (R12), which is a glyph table and
+  not a level.
 
 ## Where this document and the code disagree (2026-09-15)
 

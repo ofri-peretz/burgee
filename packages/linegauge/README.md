@@ -27,9 +27,9 @@
 
 <p align="center">
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/slice--ansi%20suite-104%2F104-0a6b47?style=flat-square" alt="linegauge/slice passes 104 of 104 cases of the slice-ansi test suite" /></a>
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/string--width%20suite-229%2F229-0a6b47?style=flat-square" alt="linegauge passes 229 of 229 cases of the string-width test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/string--width%20suite-233%2F233-0a6b47?style=flat-square" alt="linegauge passes 233 of 233 cases of the string-width test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/strip--ansi%20suite-8%2F8-0a6b47?style=flat-square" alt="linegauge/strip passes 8 of 8 cases of the strip-ansi test suite" /></a>
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/wrap--ansi%20suite-80%2F80-0a6b47?style=flat-square" alt="linegauge/wrap passes 80 of 80 cases of the wrap-ansi test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/wrap--ansi%20suite-85%2F85-0a6b47?style=flat-square" alt="linegauge/wrap passes 85 of 85 cases of the wrap-ansi test suite" /></a>
 </p>
 
 <p align="center">
@@ -208,9 +208,9 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `slice-ansi` | 104 / 104 |
-| `string-width` | 229 / 229 |
+| `string-width` | 233 / 233 |
 | `strip-ansi` | 8 / 8 |
-| `wrap-ansi` | 80 / 80 |
+| `wrap-ansi` | 85 / 85 |
 
 Weight, installed and tree-inclusive: **102,653 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5282**.
 
