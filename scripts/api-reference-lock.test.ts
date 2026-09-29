@@ -33,7 +33,7 @@ import { describe, expect, it } from 'vitest';
 // eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and scripts read the app table through its one typed reader rather than re-parsing it
 import { appForPackage } from '../apps/docs-chassis/src/config';
 
-import { entriesOf, orphans, pages, prose, renderEntry, STANDARD_SITES, stale } from './api-reference.js';
+import { entriesOf, orphans, pages, prose, renderEntry, spacedSpan, STANDARD_SITES, stale } from './api-reference.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -115,5 +115,10 @@ describe('doc-comment prose is valid Markdown', () => {
   it('writes a code span holding an escaped backtick with a double-backtick fence', () => {
     expect(prose('the template literal (`chalk\\`{red x}\\``) went')).toBe('the template literal (`` chalk`{red x}` ``) went');
     expect(prose('`plain` and `other` stay as they are')).toBe('`plain` and `other` stay as they are');
+  });
+
+  it('says when a doc comment quotes a code span that opens or closes on a space', () => {
+    expect(spacedSpan('because `Done: ` reads worse than `Done`')).toBe(true);
+    expect(spacedSpan('`plain` and `` chalk`{red x}` `` are not')).toBe(false);
   });
 });
