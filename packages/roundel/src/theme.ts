@@ -109,11 +109,12 @@ const on = (v: number): number => Math.round(v / SRGB_MAX);
  */
 function ansi16(r: number, g: number, b: number): Format {
   const index = (on(b) << BLUE_BIT) | (on(g) << GREEN_BIT) | on(r);
-  const name = BASIC_NAMES[index] ?? 'white';
+  // Three bits index eight names, so the lookup cannot miss.
+  const name = BASIC_NAMES[index] as Format;
+  // Index 0 is black and returns here, so no bright black is ever built below.
   if (index === 0) return name;
   if (Math.round((Math.max(r, g, b) / SRGB_MAX) * CUBE_STEPS) !== CUBE_STEPS) return name;
-  // Node spells bright black `gray`; `blackBright` is a runtime alias the types do not carry.
-  return name === 'black' ? 'gray' : `${name}Bright`;
+  return `${name}Bright` as Format;
 }
 
 const hex = (r: number, g: number, b: number): Hex => `#${[r, g, b].map((v) => v.toString(HEX_BASE).padStart(2, '0')).join('')}`;
