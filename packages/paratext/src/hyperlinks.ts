@@ -94,6 +94,9 @@ function colorByTerminal(env: Env, platform: string): boolean | undefined {
 /**
  * Whether `supports-color` reports any level at all — the only thing hyperlinks asks of it.
  *
+ * Exported for `scripts/colour-fork-parity.test.ts`, which holds this fork to roundel's policy
+ * everywhere the two incumbents agree; `paratext/terminal-link` does not re-export it.
+ *
  * For a tty only: `supportsHyperlinks` refuses a pipe before it asks, so `supports-color`'s
  * "not a tty and not forced" answer is never the one that decides.
  */

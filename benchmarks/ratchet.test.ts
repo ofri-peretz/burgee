@@ -19,7 +19,9 @@ import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } fr
 
 import { type Baseline, type Grade, gradeRecords, hostRecords } from './axes/compat.js';
 import { ratioRecord, RATIO_CEILING as PERF_CEILING, type Variant, VARIANTS } from './axes/perf.js';
-import { BUNDLED_CEILING, type Measured, pairRecords } from './axes/weight.js';
+import { BUNDLED_CEILING, type Measured, pairRecords, RATIO_CEILING as WEIGHT_CEILING } from './axes/weight.js';
+import { claimRatchet } from './claim-ratchets.js';
+import { CLAIMS } from './claims.js';
 import { type AxisState } from './emit.js';
 import { PAIRS } from './fixtures/entry-points.js';
 import { type AxisName, gateFailures } from './record.js';
@@ -95,6 +97,45 @@ describe('B2 cold start — the paired-ratio gate', () => {
     const record = ratioRecord({ v: variant, ours, host, gateMax: ceiling });
     expect(record.p95).toBeGreaterThan(ceiling);
     expect(verdict([record])).toBe(0);
+  });
+});
+
+/**
+ * D-157: three published claims are downward-only ratchets, and the ceiling has to be what
+ * `--check` enforces — a claim at 2.35 beside a gate at 2.9 would publish a ceiling nothing holds.
+ * So each gate reads `.sdlc/bands/claim-ratchets.json`, and each is seen to go red one step over.
+ */
+describe('D-157 claim ratchets — the gate is the claim', () => {
+  const weight = [
+    ['lighter-than-cac', 'burgee'],
+    ['lighter-than-commander', 'burgee/commander'],
+  ] as const;
+
+  it.each(weight)('%s: the claim and the B4 gate read the same ceiling', (id, pairId) => {
+    const ceiling = claimRatchet(id);
+    expect(CLAIMS.find((c) => c.id === id)?.test.max).toBe(ceiling);
+    expect(WEIGHT_CEILING[pairId]).toBe(ceiling);
+  });
+
+  it.each(weight)('%s: exits non-zero one step over, zero at the ceiling', (id, pairId) => {
+    const pair = PAIRS.find((p) => p.id === pairId) as (typeof PAIRS)[number];
+    const ceiling = claimRatchet(id);
+    const theirs = 10_000;
+    const over = pairRecords(pair, measuredAt(Math.round(ceiling * theirs) + 10), measuredAt(theirs));
+    expect(gateFailures(over).map((f) => f.record.metric)).toContain('bundled-bytes-ratio');
+    expect(verdict(over)).toBe(1);
+    expect(verdict(pairRecords(pair, measuredAt(Math.round(ceiling * theirs)), measuredAt(theirs)))).toBe(0);
+  });
+
+  it('cold-start-at-or-below-cac: the claim and the B2 gate read the same ceiling, and it fires over it', () => {
+    const ceiling = claimRatchet('cold-start-at-or-below-cac');
+    expect(CLAIMS.find((c) => c.id === 'cold-start-at-or-below-cac')?.test.max).toBe(ceiling);
+    expect(PERF_CEILING['burgee']).toBe(ceiling);
+    const variant = VARIANTS.find((v) => v.id === 'burgee') as Variant;
+    const host = Array.from({ length: 40 }, () => 100);
+    expect(verdict([ratioRecord({ v: variant, ours: host.map((ms) => ms * (ceiling + 0.01)), host, gateMax: ceiling })])).toBe(1);
+    expect(said()).toContain('burgee ÷ cac cold-start-ratio');
+    expect(verdict([ratioRecord({ v: variant, ours: host.map((ms) => ms * ceiling), host, gateMax: ceiling })])).toBe(0);
   });
 });
 

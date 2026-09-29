@@ -44,6 +44,11 @@
       "types": "./dist/chalk.d.ts",
       "import": "./dist/chalk.js",
       "default": "./dist/chalk.js"
+    },
+    "./terminal": {
+      "types": "./dist/terminal.d.ts",
+      "import": "./dist/terminal.js",
+      "default": "./dist/terminal.js"
     }
   },
   "files": [

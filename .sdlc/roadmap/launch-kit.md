@@ -14,11 +14,13 @@
   gains `--json`, `--schema`, an MCP server and shell completions.
 - **Proof.** `burgee/commander` passes 1360 / 1360 of commander's own test suite;
   `burgee/yargs` passes 804 / 804 of yargs'.
-- **Honesty.** Nine size and speed gates are public: five met, three not, one never
-  measured. The README says which.
+- **Honesty.** Ten size and speed gates are public: eight met, three of them as
+  downward-only ratchets because their original bar is out of reach (D-157); one not met;
+  one unconfirmed. The README says which.
 - **Weight.** Zero runtime dependencies across nine packages. Against commander **plus** the
   config, exit-hook and cursor-restore packages a user adds to match it, `burgee/commander` is
-  0.482× the bundle; against commander alone it is 1.559× — both rows are published.
+  0.482× the bundle; against commander alone it is 1.559×, held by a ratchet that only
+  goes down — both rows are published.
 
 ## Show HN
 
@@ -34,10 +36,11 @@
 > `yargs` to `burgee/yargs`). The compatibility is graded by running the incumbents' own test
 > suites against it — 1360/1360 for commander, 804/804 for yargs.
 >
-> What it costs, stated plainly: against commander alone the bundle is 1.51× larger; against
+> What it costs, stated plainly: against commander alone the bundle is 1.56× larger; against
 > commander plus what you'd install to match burgee (config loading, exit hooks, cursor
-> restore) it is 0.47×. Of nine public gates, five are met, three are not, and the agent
-> benchmark has not run yet — the README lists all nine.
+> restore) it is 0.48×. Of ten public gates, eight are met (three as ratchets that only go
+> down, because the original bar is out of reach), one is not, and one waits on a CI run —
+> the README lists all ten.
 >
 > Nine packages, zero runtime dependencies, MIT. Docs: https://burgee.interlace.tools
 > Repo: https://github.com/ofri-peretz/burgee

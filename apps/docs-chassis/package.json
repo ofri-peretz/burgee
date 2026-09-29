@@ -12,6 +12,8 @@
   },
   "exports": {
     "./brand-logo": "./src/brand-logo.tsx",
+    "./capabilities": "./src/capabilities.ts",
+    "./capability-matrix": "./src/capability-matrix.tsx",
     "./config": "./src/config.ts",
     "./docs-page": "./src/docs-page.tsx",
     "./docs-shell": "./src/docs-shell.tsx",

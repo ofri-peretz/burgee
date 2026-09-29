@@ -165,7 +165,7 @@ export function breakLines(content: string, width: number): string {
 
 const height = (content: string): number => content.split('\n').length;
 
-const lastLine = (content: string): string => content.split('\n').pop() ?? '';
+const lastLine = (content: string): string => content.slice(content.lastIndexOf('\n') + 1);
 
 /** The readline interface the screen manager drives, narrowed to what it touches. */
 export interface ScreenReadline {

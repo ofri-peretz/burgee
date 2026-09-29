@@ -74,7 +74,7 @@ built moved to A15–A25.
 | ~~B15~~ | ~~`fromBase16` / `fromITerm` theme import~~ | roundel R11 | **decided — D-126** |
 | ~~B16~~ | ~~façade commands are withheld from MCP and cannot say otherwise~~ | agent-surface-declared R6 | **decided — D-127** |
 | ~~B17~~ | ~~"zero runtime dependencies" vs "none outside this repo"~~ — **accepted by the owner 2026-09-23 (D-111): every production dependency is in-family**, as a dependency, peer or optional dependency; Z3 and K1 Built | burgee Z3, K1 | done |
-| ~~B18~~ | ~~`lighter-than-commander` 1.52, `lighter-than-cac` 2.65, cold start 1.44 × cac~~ | claims, u5-weight-claim | **decided — D-128** |
+| ~~B18~~ | ~~`lighter-than-commander` 1.52, `lighter-than-cac` 2.65, cold start 1.44 × cac~~ — kept as not met by D-128, then **restated by the owner as downward-only ratchets (D-157)**: 1.565×, 2.35× and 1.6× cac, each just above its measurement, lowered with `npm run ratchets:propose`, and raised only by a new D-row (`claim-ratchets-lock.test.ts`) | claims, u5-weight-claim | **decided — D-157** |
 | ~~B20~~ | ~~Accept the requirement restatements already written in the specs — compat-oracle R1, R3, C4 and the rest of its "Requirements restated" table; burgee U1, U10, Z3/K1; flagstaff R10's dependency sentence~~ | each spec's restatement table | **decided — D-130** |
 | ~~B19~~ | ~~design acceptance for linegauge, closeout, bellpull, seniority (draft) and caique, paratext (review)~~ | each intent | **decided — D-129** |
 | ~~B21~~ | ~~Does paratext take ansi-escapes' CSI surface?~~ | paratext scope | **decided — D-138** |

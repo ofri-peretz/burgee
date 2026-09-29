@@ -1,0 +1,381 @@
+{
+  "$comment": "burgee's capability matrix against commander, yargs and meow, with the evidence for every cell. Rendered by <CapabilityMatrix pkg=\"burgee\" />; scripts/capabilities-lock.test.ts holds every cell to its test, grade or source.",
+  "package": "burgee",
+  "incumbents": [
+    "commander",
+    "yargs",
+    "meow"
+  ],
+  "themes": [
+    {
+      "theme": "Agents and automation",
+      "rows": [
+        {
+          "capability": "`--json` envelope",
+          "why": "Every command answers `--json` with one `{ ok, data }` or `{ ok, error }` document on stdout, from the same declaration as its text output.",
+          "ours": {
+            "status": "yes",
+            "test": "packages/burgee/src/shape.test.ts",
+            "title": "serves --json from the same declaration, with the envelope"
+          },
+          "incumbents": {
+            "commander": {
+              "status": "no",
+              "source": "node_modules/commander/lib/command.js",
+              "lacks": "--json"
+            },
+            "yargs": {
+              "status": "no",
+              "source": "node_modules/yargs/build/lib/yargs-factory.js",
+              "lacks": "--json"
+            },
+            "meow": {
+              "status": "no",
+              "source": "https://github.com/sindresorhus/meow/blob/v14.1.0/source/index.js",
+              "note": "meow returns the parsed flags to the program; it writes no output format of its own."
+            }
+          }
+        },
+        {
+          "capability": "`--schema` (the CLI as data)",
+          "why": "Any program prints its commands, arguments, options, choices, defaults and effects as JSON, without running a handler.",
+          "ours": {
+            "status": "yes",
+            "test": "packages/burgee/src/schema.test.ts",
+            "title": "is the manifest as data: name, version, commands with arguments"
+          },
+          "incumbents": {
+            "commander": {
+              "status": "no",
+              "source": "node_modules/commander/lib/command.js",
+              "lacks": "--schema"
+            },
+            "yargs": {
+              "status": "no",
+              "source": "node_modules/yargs/build/lib/yargs-factory.js",
+              "lacks": "--schema"
+            },
+            "meow": {
+              "status": "no",
+              "source": "https://github.com/sindresorhus/meow/blob/v14.1.0/source/index.js"
+            }
+          }
+        },
+        {
+          "capability": "`--mcp` (an MCP server)",
+          "why": "Any program serves its commands as MCP tools over stdio, so an agent can call them without a wrapper.",
+          "ours": {
+            "status": "yes",
+            "test": "packages/burgee/src/mcp.test.ts",
+            "title": "completes the handshake and names the program"
+          },
+          "incumbents": {
+            "commander": {
+              "status": "no",
+              "source": "node_modules/commander/lib/command.js",
+              "lacks": "mcp"
+            },
+            "yargs": {
+              "status": "no",
+              "source": "node_modules/yargs/build/lib/yargs-factory.js",
+              "lacks": "mcp"
+            },
+            "meow": {
+              "status": "no",
+              "source": "https://github.com/sindresorhus/meow/blob/v14.1.0/source/index.js"
+            }
+          }
+        },
+        {
+          "capability": "Agent detection",
+          "why": "A program run by a coding agent knows which agent it is and turns interaction off, even when a terminal is attached.",
+          "ours": {
+            "status": "yes",
+            "test": "packages/burgee/src/agent.test.ts",
+            "title": "names the agent from the environment and turns interaction off"
+          },
+          "incumbents": {
+            "commander": {
+              "status": "no",
+              "source": "node_modules/commander/lib/command.js",
+              "lacks": "AI_AGENT",
+              "note": "No agent variable is read anywhere in the installed package."
+            },
+            "yargs": {
+              "status": "no",
+              "source": "node_modules/yargs/build/lib/yargs-factory.js",
+              "lacks": "AI_AGENT",
+              "note": "No agent variable is read anywhere in the installed package."
+            },
+            "meow": {
+              "status": "no",
+              "source": "https://github.com/sindresorhus/meow/blob/v14.1.0/source/index.js"
+            }
+          }
+        },
+        {
+          "capability": "Exit-code contract",
+          "why": "Usage, config, auth, cancellation and runtime failures each exit with their own fixed code, so a script can branch on the code instead of the message.",
+          "ours": {
+            "status": "yes",
+            "test": "packages/burgee/src/exit-code.test.ts",
+            "title": "matches the design contract exactly"
+          },
+          "incumbents": {
+            "commander": {
+              "status": "no",
+              "source": "node_modules/commander/lib/command.js",
+              "quote": "const exitCode = config.exitCode || 1;",
+              "note": "Every error commander raises, an unknown option included, exits 1; a program can pass its own code to error(), but there is no set of named codes."
+            },
+            "yargs": {
+              "status": "no",
+              "source": "node_modules/yargs/build/lib/usage.js",
+              "quote": "return yargs.exit(1);",
+              "note": "Every failure yargs reports, usage or handler, exits 1."
+            },
+            "meow": {
+              "status": "partial",
+              "source": "https://github.com/sindresorhus/meow/blob/v14.1.0/source/index.js",
+              "missing": "only incorrect usage has its own code (2); there is none for config, auth or cancellation"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Shell and terminal",
+      "rows": [
+        {
+          "capability": "Completions for bash, zsh, fish and PowerShell",
+          "why": "Every program prints a completion script for each of the four shells, generated from the same declaration as its help.",
+          "ours": {
+            "status": "yes",
+            "test": "packages/burgee/src/completions.test.ts",
+            "title": "each shell exercises its script (D4)"
+          },
+          "incumbents": {
+            "commander": {
+              "status": "no",
+              "source": "node_modules/commander/lib/command.js",
+              "lacks": "completion"
+            },
+            "yargs": {
+              "status": "partial",
+              "source": "node_modules/yargs/build/lib/completion-templates.js",
+              "quote": "completionZshTemplate",
+              "lacks": "fish",
+              "missing": "bash and zsh only; no fish or PowerShell script"
+            },
+            "meow": {
+              "status": "no",
+              "source": "https://github.com/sindresorhus/meow/blob/v14.1.0/readme.md"
+            }
+          }
+        },
+        {
+          "capability": "Cleanup on Ctrl+C",
+          "why": "A cleanup a command registered runs when the user presses Ctrl+C, and the process then ends by the signal, which a shell reports as 130.",
+          "ours": {
+            "status": "yes",
+            "test": "packages/burgee/src/pty-signal.test.ts",
+            "title": "runs the handler the program registered before the process goes"
+          },
+          "incumbents": {
+            "commander": {
+              "status": "no",
+              "source": "node_modules/commander/lib/command.js",
+              "quote": "proc.kill(signal);",
+              "note": "commander's only signal listeners forward the signal to an executable subcommand's child process."
+            },
+            "yargs": {
+              "status": "no",
+              "source": "node_modules/yargs/build/lib/yargs-factory.js",
+              "lacks": "SIGINT",
+              "note": "No signal is handled anywhere in the installed package."
+            },
+            "meow": {
+              "status": "n/a",
+              "source": "https://github.com/sindresorhus/meow/blob/v14.1.0/source/index.js",
+              "note": "meow parses and returns; it runs no command, so there is nothing of its own to clean up."
+            }
+          }
+        },
+        {
+          "capability": "No help screen on a runtime error",
+          "why": "A command that fails prints its error, not the usage text, so the message is not buried under help it did not ask for.",
+          "ours": {
+            "status": "yes",
+            "test": "packages/burgee/src/define-error.test.ts",
+            "title": "leaves with the declared code and renders the message, hint and fix"
+          },
+          "incumbents": {
+            "commander": {
+              "status": "yes",
+              "source": "node_modules/commander/lib/command.js",
+              "quote": "this._showHelpAfterError = false;",
+              "note": "Help after an error is opt-in and covers commander's own usage errors; an action's error is not caught at all and escapes with its stack."
+            },
+            "yargs": {
+              "status": "partial",
+              "source": "node_modules/yargs/build/lib/usage.js",
+              "quote": "let showHelpOnFail = true;",
+              "missing": "a rejected handler prints the help screen by default; showHelpOnFail(false) stops that only by stopping it for usage errors too"
+            },
+            "meow": {
+              "status": "n/a",
+              "source": "https://github.com/sindresorhus/meow/blob/v14.1.0/source/index.js",
+              "note": "meow parses and returns; it runs no command, so a runtime error never passes through it."
+            }
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Configuration",
+      "rows": [
+        {
+          "capability": "Config, env and flag layers with the winning source named",
+          "why": "Values resolve flag over env over config file over package.json over default, and `config explain` or `--explain <option>` says which layer won.",
+          "ours": {
+            "status": "yes",
+            "test": "packages/burgee/src/config-explain.test.ts",
+            "title": "then each option and the source that won"
+          },
+          "incumbents": {
+            "commander": {
+              "status": "partial",
+              "source": "node_modules/commander/lib/command.js",
+              "quote": "getOptionValueSource(key) {",
+              "missing": "reads no config file; a program loads one itself and sets each value with the 'config' source"
+            },
+            "yargs": {
+              "status": "partial",
+              "source": "node_modules/yargs/build/lib/yargs-factory.js",
+              "quote": "pkgConf(key, rootPath) {",
+              "missing": "no record of which layer (flag, env, config) supplied a value"
+            },
+            "meow": {
+              "status": "no",
+              "source": "https://github.com/sindresorhus/meow/blob/v14.1.0/readme.md",
+              "note": "meow reads package.json for the version and description only; it has no env or config-file layer."
+            }
+          }
+        },
+        {
+          "capability": "`--version` from package.json",
+          "why": "`--version` prints the version from the package.json that owns the entry file, unless the program declares its own.",
+          "ours": {
+            "status": "yes",
+            "test": "packages/burgee/src/env.test.ts",
+            "title": "--version reads the package.json that owns the entry file"
+          },
+          "incumbents": {
+            "commander": {
+              "status": "no",
+              "source": "node_modules/commander/lib/command.js",
+              "lacks": "package.json",
+              "note": "The program passes the version string to .version() itself."
+            },
+            "yargs": {
+              "status": "yes",
+              "source": "node_modules/yargs/build/lib/yargs-factory.js",
+              "quote": "return obj.version || 'unknown';"
+            },
+            "meow": {
+              "status": "yes",
+              "source": "https://github.com/sindresorhus/meow/blob/v14.1.0/readme.md"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Compatibility",
+      "rows": [
+        {
+          "capability": "Passes commander's own test suite",
+          "why": "`burgee/commander` runs commander's own tests at v15.0.0, unedited apart from the import, so a commander program keeps working after the import changes.",
+          "ours": {
+            "status": "yes",
+            "grade": "packages/compat-oracle/baseline/commander.json"
+          },
+          "incumbents": {
+            "commander": {
+              "status": "yes",
+              "source": "packages/compat-oracle/vendor/commander/tests/command.action.test.js",
+              "quote": "describe('Command.action()'"
+            },
+            "yargs": {
+              "status": "n/a",
+              "source": "node_modules/yargs/build/lib/yargs-factory.js",
+              "quote": "export function YargsFactory(_shim)",
+              "note": "A different API; commander's suite does not apply to it."
+            },
+            "meow": {
+              "status": "n/a",
+              "source": "https://github.com/sindresorhus/meow/blob/v14.1.0/readme.md",
+              "note": "A different API; commander's suite does not apply to it."
+            }
+          }
+        },
+        {
+          "capability": "Passes yargs' own test suite",
+          "why": "`burgee/yargs` runs yargs' own tests at v18.1.0, unedited apart from the import, so a yargs program keeps working after the import changes.",
+          "ours": {
+            "status": "yes",
+            "grade": "packages/compat-oracle/baseline/yargs.json"
+          },
+          "incumbents": {
+            "commander": {
+              "status": "n/a",
+              "source": "node_modules/commander/lib/command.js",
+              "quote": "export class Command extends EventEmitter",
+              "note": "A different API; yargs' suite does not apply to it."
+            },
+            "yargs": {
+              "status": "yes",
+              "source": "packages/compat-oracle/vendor/yargs/test/yargs.mjs",
+              "quote": "describe('yargs dsl tests'",
+              "note": "its own suite; the oracle's control run is 802 / 804, because two usage tests read the version from the nearest package.json, which inside a vendored copy is not yargs'"
+            },
+            "meow": {
+              "status": "n/a",
+              "source": "https://github.com/sindresorhus/meow/blob/v14.1.0/readme.md",
+              "note": "A different API; yargs' suite does not apply to it."
+            }
+          }
+        },
+        {
+          "capability": "Passes meow's own test suite",
+          "why": "`burgee/meow` runs meow's own tests at v14.1.0, unedited apart from the import, and the count it passes is published.",
+          "ours": {
+            "status": "partial",
+            "grade": "packages/compat-oracle/baseline/meow.json",
+            "missing": "16 of meow's 148 tests fail"
+          },
+          "incumbents": {
+            "commander": {
+              "status": "n/a",
+              "source": "node_modules/commander/lib/command.js",
+              "quote": "export class Command extends EventEmitter",
+              "note": "A different API; meow's suite does not apply to it."
+            },
+            "yargs": {
+              "status": "n/a",
+              "source": "node_modules/yargs/build/lib/yargs-factory.js",
+              "quote": "export function YargsFactory(_shim)",
+              "note": "A different API; meow's suite does not apply to it."
+            },
+            "meow": {
+              "status": "yes",
+              "source": "packages/compat-oracle/vendor/meow/test/test.js",
+              "quote": "test('return object'",
+              "note": "The oracle's control run is 146 / 148: one case imports meow's rollup build and one needs normalize-package-data, neither present in the vendored copy."
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

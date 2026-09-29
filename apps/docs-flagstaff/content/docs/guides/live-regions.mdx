@@ -1,0 +1,79 @@
+---
+title: Live regions
+description: "Redraw a block of lines in place with flagstaff/log-update, or with a component that also has a text form for pipes."
+---
+
+A live region is a block of lines redrawn in place: a dashboard of workers, a download list, a
+status panel. flagstaff has two ways to write one, and the choice is about what happens when
+the output is not a terminal.
+
+## `flagstaff/log-update`: log-update's API
+
+`flagstaff/log-update` is log-update 8's API, graded by log-update's own test suite — which
+renders every frame through a terminal emulator and asserts the screen.
+
+```js
+import logUpdate from 'flagstaff/log-update';
+
+logUpdate('worker 1: idle\nworker 2: fetching');
+logUpdate('worker 1: parsing\nworker 2: fetching'); // redraws only the row that changed
+logUpdate.done(); // keep the last frame, start a new region below it
+```
+
+`logUpdate()`, `.clear()`, `.done()`, `.persist()`, `createLogUpdate(stream, options)` and
+`logUpdateStderr` are all there, with log-update's row-level diffing: a frame whose last row is
+a counter costs one row of output per tick. Text too wide for the terminal is wrapped and every
+wrapped row closes its colour and reopens it on the next, so a region never bleeds.
+
+Because it is log-update's behaviour, it is log-update's behaviour off a terminal too: the
+erase sequences are written to a pipe as well, since log-update's own suite asserts them there
+and a drop-in that suppressed them would fail it. Two things this façade guarantees that the
+suite does not ask for, and
+[`log-update.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/log-update.test.ts)
+holds: it never writes a carriage return, and never an absolute cursor-home — every move is a
+relative row move, so a captured transcript stays parseable. The cursor it hides comes back on
+`SIGINT`, `SIGTERM` and `SIGHUP`, through [closeout](https://closeout.interlace.tools/docs).
+
+## A component: the same region, with a text form
+
+When the output may be a log or an agent, write the region as a component. The frame is the
+panel; the static text is what a reader off a terminal needs from it:
+
+```js title="workers.mjs"
+import { hoist } from 'flagstaff/loop';
+
+import { json, rt } from './rt.mjs';
+
+const workers = {
+  name: 'workers',
+  frame: (_t, s) => s.workers.map((w) => `${w.name.padEnd(9)} ${w.job}`).join('\n'),
+  static: (s) => `${s.workers.filter((w) => w.job === 'idle').length} of ${s.workers.length} workers idle`,
+};
+
+const flag = hoist(workers, rt, { workers: [{ name: 'worker 1', job: 'fetching' }, { name: 'worker 2', job: 'fetching' }] }, { json });
+flag.update({ workers: [{ name: 'worker 1', job: 'parsing' }, { name: 'worker 2', job: 'fetching' }] });
+flag.update({ workers: [{ name: 'worker 1', job: 'idle' }, { name: 'worker 2', job: 'parsing' }] });
+flag.lower({ workers: [{ name: 'worker 1', job: 'idle' }, { name: 'worker 2', job: 'idle' }] });
+```
+
+On a terminal that is a two-row panel repainted in place, erased from its first line. In a pipe
+the first update changed nothing a reader needs, and was not written:
+
+```text title="node workers.mjs"
+0 of 2 workers idle
+1 of 2 workers idle
+2 of 2 workers idle
+```
+
+## Which to use
+
+| | `flagstaff/log-update` | a component on `hoist()` |
+| :-- | :-- | :-- |
+| API | log-update's, unchanged | `hoist` / `update` / `lower` |
+| on a terminal | row-diffed redraws | the frame, repainted |
+| in a pipe or CI | log-update's erase sequences | the static text, once per change |
+| under `--json` | not applicable | one event per transition |
+| with `CLI_ACCESSIBLE=1` | redraws, as log-update does | the static text, never a redraw |
+
+Keep the façade for code that already uses log-update; write a component for anything whose
+output is read back.

@@ -65,7 +65,7 @@ describe('no layer reaches past a sibling to the thing that sibling replaces', (
   it('reads the ten layers from the file that declares them', () => {
     const found = layers();
     expect(found, 'LAYERS moved or changed shape — this lock is reading nothing').toHaveLength(10);
-    expect(new Set(found.flatMap((l) => l.incumbents)).size).toBe(27);
+    expect(new Set(found.flatMap((l) => l.incumbents)).size).toBe(40);
   });
 
   it.each(layers().map((l) => l.pkg))('%s depends on no incumbent another layer replaces', (pkg) => {
