@@ -108,6 +108,18 @@ describe('what it refuses, and with which code', () => {
     expect(refusal({ capabilities: {} }).code).toBe('E_PLUGIN_SCHEMA');
   });
 
+  it('refuses a `capabilities` that is not a map, with the fix that says how to key one', () => {
+    for (const section of [[kitty], 'kitty-image', null]) {
+      const error = refusal(plugin({ capabilities: section }));
+      expect(error).toMatchObject({ code: 'E_PLUGIN_SCHEMA', message: 'plugin "acme-terminal": capabilities must be an object of capabilities by name', fix: 'key each capability by its own `name`' });
+    }
+  });
+
+  it('refuses an entry that is not an object, naming where it sits', () => {
+    const error = refusal(plugin({ capabilities: { 'kitty-image': 'kitty' } }));
+    expect(error).toMatchObject({ code: 'E_PLUGIN_SCHEMA', message: 'plugin "acme-terminal": capabilities.kitty-image is not an object' });
+  });
+
   it('refuses a contract this paratext does not know (R6)', () => {
     const error = refusal(plugin({ contract: CONTRACT + 1 }));
     expect(error.code).toBe('E_PLUGIN_CONTRACT');

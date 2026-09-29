@@ -131,6 +131,19 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
     'program',
     'useColor',
   ],
+  'burgee/meow': [
+    'AnyFlag',
+    'AnyFlags',
+    'Flag',
+    'FlagType',
+    'InputOption',
+    'InputOptionType',
+    'IsRequiredPredicate',
+    'Options',
+    'Result',
+    'TypedFlags',
+    'default',
+  ],
   'burgee/yargs': [
     'Arguments',
     'ArgumentsCamelCase',
@@ -497,7 +510,7 @@ export type RefusalReason = 'deep-import' | 'non-literal-specifier' | 'unknown-e
  * Node's own `require()` returns for every installed incumbent in `MAPPING`, so a name here
  * is a measurement and an incumbent that is not installed is left out, and refused as before.
  */
-export const REQUIRE_NAMESPACE: readonly string[] = ['ansi-escapes', 'chalk', 'ora', 'log-update', 'boxen', 'string-width', 'strip-ansi', 'wrap-ansi', 'slice-ansi', 'restore-cursor', 'exit-hook', 'terminal-link'];
+export const REQUIRE_NAMESPACE: readonly string[] = ['ansi-escapes', 'chalk', 'ora', 'log-update', 'boxen', 'string-width', 'strip-ansi', 'wrap-ansi', 'slice-ansi', 'restore-cursor', 'exit-hook', 'terminal-link', 'meow'];
 
 /** Whether `require(from)` and `require(to)` hand a CommonJS caller different kinds of value. */
 function requireShapesDiffer(from: string, to: string): boolean {

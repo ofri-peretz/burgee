@@ -53,6 +53,12 @@ describe('the terminal table is term-img`s, read from the environment alone', ()
     ['VSCode, one minor early', { TERM_PROGRAM: 'vscode', TERM_PROGRAM_VERSION: '1.79.0' }, false],
     ['a terminal that says nothing', {}, false],
     ['a version that does not parse', { TERM_PROGRAM: 'vscode', TERM_PROGRAM_VERSION: 'nightly' }, false],
+    ['iTerm2 with no version', { TERM_PROGRAM: 'iTerm.app' }, false],
+    ['WezTerm with no version', { TERM_PROGRAM: 'WezTerm' }, false],
+    ['Rio with no version', { TERM_PROGRAM: 'rio' }, false],
+    ['Rio, a major past the floor with a lower minor', { TERM_PROGRAM: 'rio', TERM_PROGRAM_VERSION: '1.0.0' }, true],
+    ['VSCode, a major past the floor with a lower minor', { TERM_PROGRAM: 'vscode', TERM_PROGRAM_VERSION: '2.0.0' }, true],
+    ['VSCode, a major under the floor with a higher minor', { TERM_PROGRAM: 'vscode', TERM_PROGRAM_VERSION: '0.99.0' }, false],
   ])('%s', (_name, env, expected) => {
     expect(supportsInlineImage(at(env))).toBe(expected);
   });
