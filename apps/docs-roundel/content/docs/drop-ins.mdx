@@ -1,0 +1,53 @@
+---
+title: Compatibility
+description: "How roundel/chalk is graded — chalk 6.0.0's own test suite, unedited — the current grade, and the differences that remain."
+---
+
+`roundel/chalk` is graded, not described as compatible. It is run against **chalk's own test
+suite**, by
+[compat-oracle](https://github.com/ofri-peretz/burgee/blob/main/packages/compat-oracle/README.md),
+in CI.
+
+<CapabilityMatrix pkg="roundel" theme="Compatibility" />
+
+The count is compat-oracle's baseline, the pass count the drop-in is held to. The family's
+[compatibility page](https://burgee.interlace.tools/docs/compatibility) is generated from the
+oracle's last run and is the authority for the current figure.
+
+## How the suite is graded
+
+1. chalk's repository is cloned at `v6.0.0` and its `test/` directory — eight files, fixtures
+   included — copied into `packages/compat-oracle/vendor/chalk/`. chalk does not ship its tests
+   to npm. The `PROVENANCE` file names the tag, the commit and the command that reproduces it.
+2. The only edit is the import that reaches the library: it is rewritten to a shim generated per
+   run. Assertions and fixtures are chalk's, byte for byte.
+3. A **control run** points the shim at chalk itself first, which proves the harness and sets
+   the total every rate is measured against.
+4. The **target run** points the same shim at `roundel/chalk`.
+
+The suite covers the chain, every modifier and colour, `rgb`/`hex`/`ansi256` and their
+downsampling, nesting and line breaks, `chalk.level`, `new Chalk({ level })`, `chalkStderr`,
+`visible`, and `FORCE_COLOR` in a child process.
+
+## Known differences
+
+- **`NO_COLOR` turns `roundel/chalk` off.** chalk 6.0.0 does not read it; the policy does, and
+  the façade's level comes from the policy.
+- **A `--color` flag beats an ambient `FORCE_COLOR`.** In chalk, `--no-color` under
+  `FORCE_COLOR=3` still colours; here it does not. `FORCE_COLOR=0` still beats every flag, as in
+  chalk ([Colour levels](/docs/guides/colour-levels#where-it-differs-from-chalk)).
+- **No terminal allow-list.** chalk's detection of particular terminal programs is not
+  reproduced; such a terminal that reports nothing through `TERM` or `COLORTERM` gets colour by
+  `FORCE_COLOR` or `--color`.
+- **The level is per façade.** `chalk.level = 0` silences `roundel/chalk` and nothing else.
+- **No template literal.** chalk removed ``chalk`{red x}` `` in version 5, and it is not brought
+  back.
+
+None of these is exercised by chalk's suite, which is why the grade is 58 of 58.
+
+## Types and CommonJS
+
+`roundel/chalk` exports chalk 6's names — the default instance, `Chalk`, `chalkStderr`,
+`supportsColor`, `supportsColorStderr` and the name lists — and its types. It is ESM with a
+`default` condition, so `require('roundel/chalk')` returns the module whose `default` is the
+chalk instance.

@@ -1,0 +1,121 @@
+---
+title: Getting started
+description: "Install roundel, fly a theme once at startup, and see the same tokens in a pipe, under FORCE_COLOR, under --json, in CI and in screen-reader mode."
+---
+
+roundel is colour with one rule behind it. You write **tokens** — `error`, `hint`, `command` —
+instead of colour names, you **fly** a theme once at startup with a description of the
+process, and one **output policy** decides from that description whether anything is
+coloured, and how much.
+
+## Install
+
+```bash
+npm install roundel
+```
+
+It is ESM with a `default` condition, so `require('roundel/tokens')` also works from CommonJS
+on Node 20.19+ and 22.13+. It has no dependencies
+([`shape.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/roundel/src/shape.test.ts)
+installs the packed tarball and checks).
+
+## The runtime
+
+roundel never reads `process` itself. The policy takes a runtime — the environment, the
+arguments and whether stdout is a terminal — so a test can pass a literal and a program passes
+its own process. Every example on this site imports this file:
+
+```js title="rt.mjs"
+import process from 'node:process';
+
+/** The real process as roundel reads it: the environment, the arguments and whether stdout is a terminal. */
+export const rt = {
+  env: process.env,
+  argv: process.argv.slice(2),
+  isTTY: { stdout: process.stdout.isTTY === true },
+};
+
+/** `--json` on the command line. */
+export const json = process.argv.includes('--json');
+```
+
+`argv` is optional: without it the policy reads no `--color` flags. A CLI built on
+[burgee](https://burgee.interlace.tools/docs) already has a runtime of this shape.
+
+## A first program
+
+```js title="hello.mjs"
+import { colorLevel, outputMode } from 'roundel/policy';
+import { fly } from 'roundel/theme';
+import { command, error, hint } from 'roundel/tokens';
+
+import { json, rt } from './rt.mjs';
+
+fly({}, rt, { json });
+
+console.log(`mode ${outputMode(rt, { json })}, level ${colorLevel(rt, { json })}`);
+console.log(JSON.stringify(`${error('missing --name')}  ${hint('try')} ${command('greet --name ada')}`));
+```
+
+`JSON.stringify` makes the escape codes visible. Piped, with nothing asked, nothing is
+coloured — a pipe nobody asked to colour is a file or another program's input:
+
+```text title="node hello.mjs"
+mode pipe, level 0
+"missing --name  try greet --name ada"
+```
+
+Ask for colour and it comes, at the level asked for — the default theme's `error` in
+truecolor, `hint` dimmed, `command` bold:
+
+```text title="FORCE_COLOR=3 node hello.mjs"
+mode pipe, level 3
+"\u001b[38;2;244;121;74mmissing --name\u001b[39m  \u001b[2mtry\u001b[22m \u001b[1mgreet --name ada\u001b[22m"
+```
+
+```text title="node hello.mjs --color=256"
+mode pipe, level 2
+"\u001b[38;5;209mmissing --name\u001b[39m  \u001b[2mtry\u001b[22m \u001b[1mgreet --name ada\u001b[22m"
+```
+
+Under `--json` nothing is coloured even when forced, because structured output carries no
+escapes:
+
+```text title="FORCE_COLOR=3 node hello.mjs --json"
+mode json, level 0
+"missing --name  try greet --name ada"
+```
+
+A CI log and a screen reader each get their own mode, and plain text:
+
+```text title="CI=true node hello.mjs"
+mode ci, level 0
+"missing --name  try greet --name ada"
+```
+
+```text title="CLI_ACCESSIBLE=1 node hello.mjs"
+mode accessible, level 0
+"missing --name  try greet --name ada"
+```
+
+Every output block on this site is checked: `tests/examples.test.ts` writes each titled file,
+runs the command in the block's title, and compares.
+
+## Two answers
+
+| | answers | used for |
+| :-- | :-- | :-- |
+| `outputMode(rt, { json })` | `json`, `accessible`, `ci`, `pipe` or `tty` | whether to redraw — spinners, progress, prompts |
+| `colorLevel(rt, { json })` | `0`, `1`, `2` or `3` | how much colour, if any |
+
+The mode never decides the colour level, and the level never decides the mode. The
+[output policy](/docs/guides/output-policy) guide has both rules in full.
+
+## Where next
+
+- [Guides](/docs/guides/output-policy): the output policy, colour levels, tokens, themes and
+  contrast, plugins.
+- [Why roundel](/docs/why-roundel): what it does that chalk does not, cell by cell, with the
+  evidence.
+- [Coming from chalk](/docs/coming-from/chalk): change one import.
+- [API reference](/docs/api): every export of every entry point.

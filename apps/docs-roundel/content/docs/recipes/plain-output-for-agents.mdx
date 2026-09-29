@@ -1,0 +1,51 @@
+---
+title: Plain output for agents and CI
+description: "Wire --json and --no-color through the runtime so an agent, a CI log and a user who opts out all get plain text, from one fly() at startup."
+---
+
+An agent reading your CLI's output, a CI log and a user who typed `--no-color` all want the
+same thing: no escape codes. Hand the policy what it needs — the environment, the arguments and
+whether stdout is a terminal — and pass `{ json }` when the run asked for structured output.
+Nothing else in the program has to check.
+
+```js title="status.mjs"
+import process from 'node:process';
+
+import { fly } from 'roundel/theme';
+import { error, ok } from 'roundel/tokens';
+
+const argv = process.argv.slice(2);
+const json = argv.includes('--json');
+fly({}, { env: process.env, argv, isTTY: { stdout: process.stdout.isTTY === true } }, { json });
+
+const results = [
+  ['api', true],
+  ['web', false],
+];
+
+if (json) console.log(JSON.stringify(Object.fromEntries(results)));
+else for (const [name, passed] of results) console.log(JSON.stringify(`${name} ${passed ? ok('passed') : error('failed')}`));
+```
+
+```text title="FORCE_COLOR=1 node status.mjs"
+"api \u001b[32mpassed\u001b[39m"
+"web \u001b[91mfailed\u001b[39m"
+```
+
+```text title="FORCE_COLOR=1 node status.mjs --no-color"
+"api passed"
+"web failed"
+```
+
+```text title="FORCE_COLOR=1 node status.mjs --json"
+{"api":true,"web":false}
+```
+
+(`JSON.stringify` around each line only makes the escape codes visible here.)
+
+`--no-color` wins over the `FORCE_COLOR=1` a CI configuration exported, because it was typed
+for this run. `--json` would be plain even if a token slipped into the structured output,
+because the level under `--json` is always 0.
+
+A program built on [burgee](https://burgee.interlace.tools/docs) gets all of this without the
+wiring: burgee hands roundel its runtime and its `--json` flag.

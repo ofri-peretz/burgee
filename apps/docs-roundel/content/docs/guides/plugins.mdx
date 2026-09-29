@@ -1,0 +1,109 @@
+---
+title: Theme plugins
+description: "A plugin contributes tokens as #rrggbb colours under the family's one plugin shape; register() validates it, theme() merges it, later wins, and fly() holds it to the same contrast gate."
+---
+
+roundel hosts one plugin key, **`tokens`**. A plugin is the family's one plain object — a
+`name` and whatever keys the packages it targets read — so a brand plugin can carry roundel's
+tokens beside flagstaff's spinners, and each package keeps the key it understands and ignores
+the rest.
+
+## Writing one
+
+```js title="brand.mjs"
+export default {
+  name: 'acme-brand',
+  tokens: { ground: '#ffffff', error: '#b3261e', ok: '#1b6e3a' },
+};
+```
+
+A token in a plugin is a `#rrggbb` colour, and `ground` says what the colours will be read on.
+
+## Registering and flying it
+
+`register()` validates the plugin; `theme()` merges everything registered into one theme; and
+`fly()` flies it, contrast gate and all. Registering never flies: a plugin cannot decide when
+colour is decided.
+
+```js title="brand-app.mjs"
+import { contributions, register, theme } from 'roundel/plugin';
+import { fly } from 'roundel/theme';
+import { ok } from 'roundel/tokens';
+
+import brand from './brand.mjs';
+import { rt } from './rt.mjs';
+
+register(brand);
+register({ name: 'team-override', tokens: { ok: '#0a6b47' } });
+fly(theme(), rt);
+
+console.log(JSON.stringify(ok('passed')));
+for (const { token, value, from, shadowed } of contributions()) {
+  console.log(`${token} ${value} from ${from}${shadowed.length > 0 ? `, over ${shadowed.join(', ')}` : ''}`);
+}
+```
+
+```text title="FORCE_COLOR=3 node brand-app.mjs"
+"\u001b[38;2;10;107;71mpassed\u001b[39m"
+ground #ffffff from acme-brand
+error #b3261e from acme-brand
+ok #0a6b47 from team-override, over acme-brand
+```
+
+**Later wins**, like flat config, and `contributions()` says who won each token and whom it
+shadowed, so an override is never invisible. A plugin cannot smuggle an unreadable colour past
+the gate: `fly()` refuses a plugin's token below 4.5:1 exactly as it refuses a hand-written one.
+
+## Refusals
+
+A plugin that would be wrong is refused at `register()` with a code and a fix, and a refused
+plugin does not half-register:
+
+```js title="refusals.mjs"
+import { register } from 'roundel/plugin';
+
+for (const plugin of [{ name: 'typo', tokens: { eror: '#b3261e' } }, { name: 'named', tokens: { ok: 'green' } }, { tokens: { ok: '#0a6b47' } }]) {
+  try {
+    register(plugin);
+  } catch (error) {
+    console.log(`${error.code}: ${error.message}`);
+  }
+}
+```
+
+```text title="node refusals.mjs"
+E_PLUGIN_SCHEMA: plugin "typo": "eror" is not a token
+E_PLUGIN_SCHEMA: plugin "named": token "ok" is "green"
+E_PLUGIN_SCHEMA: a plugin needs a name
+```
+
+A misspelt token is refused rather than silently dropped, and a plugin needs a name because a
+shadowed token has to be attributable. A plugin that declares a newer `contract` than this
+roundel knows is refused with `E_PLUGIN_CONTRACT` and the upgrade named.
+
+## Checking before it ships
+
+`npx roundel check` loads a plugin file without registering it, validates it against the
+family's plugin schema, and lists what it contributes:
+
+```text title="npx roundel check brand.mjs"
+acme-brand — 3 tokens
+  ground  #ffffff
+  error  #b3261e
+  ok  #1b6e3a
+acme-brand: ok
+```
+
+```js title="typo.mjs"
+export default { name: 'typo', tokens: { eror: '#b3261e' } };
+```
+
+```text title="npx roundel check typo.mjs" exit="1"
+E_PLUGIN_SCHEMA: plugin "typo": "eror" is not a token
+  fix: use one of error, warn, ok, hint, muted, command, flag, value, heading, ground
+```
+
+`check` is the schema, not the contrast gate. Contrast is judged by `fly()`, against the ground
+of the theme every registered plugin merges into, so a plugin with an unreadable colour passes
+`check` and is refused when the theme is flown. To see that verdict first, pass the plugin's
+tokens to `audit()` ([Themes and contrast](/docs/guides/themes#seeing-the-verdict)).

@@ -1,0 +1,70 @@
+---
+title: The output policy
+description: "outputMode() answers json, accessible, tty, ci or pipe from a runtime, first match wins — the one rule every package in the family asks before it redraws."
+---
+
+`roundel/policy` answers two questions about a process, from a description of it you pass in:
+**which mode** it is in, and **how much colour** it may use. This page is the first; the second
+is [Colour levels](/docs/guides/colour-levels).
+
+## `outputMode(rt, { json })`
+
+| mode | chosen when | what a well-behaved component does |
+| :-- | :-- | :-- |
+| `json` | the program passed `{ json: true }` | writes structured events, never escapes |
+| `accessible` | `CLI_ACCESSIBLE` is set, terminal or not | writes the text form once per state, never redraws |
+| `tty` | stdout is a terminal | animates and repaints in place |
+| `ci` | `CI` is set and stdout is not a terminal | writes the text form once per state |
+| `pipe` | anything else | writes the text form once per state |
+
+The first row that matches wins, so a CI job that attaches a terminal is `tty`, and
+`--json` beats everything. An empty variable is not set — `CI=` and `CLI_ACCESSIBLE=` are the
+same as leaving them out, the convention `NO_COLOR` established.
+
+```js title="modes.mjs"
+import { outputMode } from 'roundel/policy';
+
+const terminal = { isTTY: { stdout: true } };
+const pipe = { isTTY: { stdout: false } };
+
+console.log(outputMode({ ...terminal, env: {} }));
+console.log(outputMode({ ...pipe, env: {} }));
+console.log(outputMode({ ...pipe, env: { CI: 'true' } }));
+console.log(outputMode({ ...terminal, env: { CI: 'true' } }));
+console.log(outputMode({ ...terminal, env: { CLI_ACCESSIBLE: '1' } }));
+console.log(outputMode({ ...terminal, env: { CLI_ACCESSIBLE: '1' } }, { json: true }));
+console.log(outputMode({ ...pipe, env: { CI: '' } }));
+```
+
+```text title="node modes.mjs"
+tty
+pipe
+ci
+tty
+accessible
+json
+pipe
+```
+
+## Why one rule
+
+A spinner, a prompt and the help text each have to decide whether the terminal is a
+terminal. When each asks its own way, they disagree: one package animates into a CI log while
+another has already gone plain. flagstaff, caique and burgee all ask `outputMode`, so a
+program built from them makes the decision once.
+
+`--json` is passed in rather than read from `process.argv`, because whether a run asked for
+structured output is the argument parser's knowledge, not the environment's.
+
+## A pure function
+
+The policy reads only the runtime it is handed — `env`, `isTTY.stdout` and, for colour,
+`argv` — and never `process`. The same input always gives the same answer, so a test passes a
+literal and a harness driving your CLI can ask the question your program asked.
+
+## The mode is not the colour
+
+The mode decides **redraws**. It never decides the colour level: a pipe may be coloured when
+the user says so with `FORCE_COLOR`, and a terminal may be plain under `NO_COLOR`. The one
+place they touch is `json`, where the level is always 0. [Colour levels](/docs/guides/colour-levels)
+has the rule.
