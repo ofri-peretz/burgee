@@ -35,6 +35,19 @@ dropped would corrupt the screen of a program that relied on it. A program that 
 the cursor on a pipe decides that itself — roundel's [`outputMode`](https://roundel.interlace.tools/docs)
 is the question to ask.
 
+The CSI half is also published on its own, as `paratext/csi`: it registers none of the
+built-ins the root does, and it is where flagstaff and caique take their cursor moves from.
+
+```js title="csi-only.mjs"
+import { cursorUp, eraseLines } from 'paratext/csi';
+
+console.log(JSON.stringify(cursorUp(2) + eraseLines(1)));
+```
+
+```text title="node csi-only.mjs"
+"\u001b[2A\u001b[2K\u001b[G"
+```
+
 ## The OSC half: the incumbent's bytes, or the projection
 
 `link`, `image`, `setCwd` and `beep` go through `emit()` over the real process, so on a terminal
