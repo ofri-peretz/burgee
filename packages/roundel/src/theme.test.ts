@@ -183,6 +183,20 @@ describe('the 256-colour substitution is checked, and chosen to pass', () => {
   });
 
   /**
+   * At AAA the fallback is reachable, and this is where. 7:1 against pure white needs a ground
+   * darker than 0.1 in relative luminance, and against pure black one lighter than 0.3 — a
+   * mid-grey sits between the two — so no entry clears the floor, and `degrade` returns `ansi256`'s
+   * per-channel answer instead of an arbitrary one. `#050505` is a grey below the ramp's first
+   * step, so that answer is cube entry 16, and `fly()` names it when it refuses the theme.
+   */
+  it('at AAA on mid-grey nothing clears, so it falls back to per-channel rounding and fly() says so', () => {
+    const theme: Theme = { ok: '#050505', ground: '#777777', conformance: 'AAA' };
+    for (let i = 16; i <= 255; i++) expect(contrast(rgb256(i), '#777777')).toBeLessThan(AAA.TEXT);
+    expect(audit(theme).find((f) => f.token === 'ok' && f.at === '256')).toMatchObject({ colour: '#000000', passes: false });
+    expect(() => fly(theme, colors256)).toThrow(/; ok #050505 at 256 colours is #000000 on #777777, 4\.\d\d:1/);
+  });
+
+  /**
    * Level 1 is absent and stays absent. The basic sixteen *are* the user's terminal theme, so
    * there is no RGB to measure — `contrast.ts` says so, and inventing a number there would be
    * worse than declining to. `ansi16` keeps its per-channel rounding for the same reason:
