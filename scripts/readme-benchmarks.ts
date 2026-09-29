@@ -57,8 +57,8 @@ const PAGE_TEXT = 'burgee.interlace.tools/docs/benchmarks';
 const RATIO_DIGITS = 4;
 const HEADING = '## Benchmarks';
 const PLACE_HEADING = '## Where it sits';
-/** The ten published layers. `compat-oracle` is internal tooling and is not one of them. */
-const FAMILY = ['burgee', 'roundel', 'flagstaff', 'caique', 'linegauge', 'paratext', 'seniority', 'closeout', 'bellpull', 'controlroom'];
+/** The published layers. `compat-oracle` is internal tooling and is not one of them. */
+export const FAMILY = ['burgee', 'roundel', 'flagstaff', 'caique', 'linegauge', 'paratext', 'seniority', 'closeout', 'bellpull', 'controlroom'];
 
 interface Ceiling {
   ours: number;
@@ -233,6 +233,15 @@ interface Manifest {
 
 const manifest = (pkg: string): Manifest => JSON.parse(readFileSync(join(PACKAGES, pkg, 'package.json'), 'utf8')) as Manifest;
 
+/** The colour the reserved status was already drawn in, before this generator owned the row. */
+const RESERVED_COLOUR = 'a84c17';
+
+/**
+ * A package published only to hold its name: its description opens "Reserved". Read from the
+ * manifest, so the day the description stops saying so, every README stops saying so too.
+ */
+export const reserved = (pkg: string): boolean => /^Reserved\b/u.test(manifest(pkg).description ?? '');
+
 /** A shields static-badge path segment: `-` and `_` doubled, as shields reads them, then percent-encoded. */
 const seg = (text: string): string => encodeURIComponent(text.replaceAll('-', '--').replaceAll('_', '__'));
 
@@ -268,13 +277,17 @@ function dependencyBadge(pkg: string, m: Manifest): string {
 }
 
 /**
- * The badge row every published README carries, in one order — so the nine read as one family,
+ * The badge row every published README carries, in one order — so the family reads as one,
  * and a figure on a badge is the manifest's or a live service's, never one typed in a README.
  *
  * Kinds, in order: npm version · downloads · Quality Gate · this package's coverage (its Codecov
  * component) · OpenSSF Scorecard · unpacked size · dependencies · types · Node · licence · npm
  * provenance (read live from the registry's attestation, so it says "no result" the day a
- * release ships without one).
+ * release ships without one — as the reserved `controlroom@0.0.1` does).
+ *
+ * A **reserved** package — one whose description opens "Reserved" — carries a `status: reserved`
+ * badge in the coverage slot instead. Its coverage would be the coverage of a placeholder, and
+ * the one fact a reader needs from its row is that there is nothing to use yet.
  */
 export function badges(pkg: string): string {
   const m = manifest(pkg);
@@ -287,14 +300,16 @@ export function badges(pkg: string): string {
     badge(npm, `${SHIELDS}/npm/v/${pkg}?${STYLE}&color=${BRAND}`, `${pkg} on npm: the latest version`),
     badge(npm, `${SHIELDS}/npm/dm/${pkg}?${STYLE}`, `${pkg} downloads per month on npm`),
     badge(`https://github.com/${REPO}/actions/workflows/quality.yml?query=branch%3Amain`, `${SHIELDS}/github/actions/workflow/status/${REPO}/quality.yml?branch=main&${STYLE}&label=Quality%20Gate`, 'Quality Gate: the CI status of main'),
-    badge(`https://app.codecov.io/gh/${REPO}/components`, `${SHIELDS}/codecov/c/github/${REPO}/main?component=${pkg}&${STYLE}`, `${pkg} line coverage: its Codecov component`),
+    reserved(pkg)
+      ? badge(`https://github.com/${REPO}/tree/main/.sdlc/intents/${pkg}`, `${SHIELDS}/badge/status-reserved-${RESERVED_COLOUR}?${STYLE}`, 'Status: reserved, not usable yet')
+      : badge(`https://app.codecov.io/gh/${REPO}/components`, `${SHIELDS}/codecov/c/github/${REPO}/main?component=${pkg}&${STYLE}`, `${pkg} line coverage: its Codecov component`),
     badge(`https://scorecard.dev/viewer/?uri=github.com/${REPO}`, `${SHIELDS}/ossf-scorecard/github.com/${REPO}?${STYLE}&label=OpenSSF%20Scorecard`, 'OpenSSF Scorecard for the repository'),
     badge(`${npm}?activeTab=code`, `${SHIELDS}/npm/unpacked-size/${pkg}?${STYLE}`, `Unpacked size of the latest ${pkg} release on npm`),
     dependencyBadge(pkg, m),
     badge(`${BLOB}/packages/${pkg}/package.json`, `${SHIELDS}/badge/types-included-blue?${STYLE}`, 'TypeScript types included for every entry point'),
     badge(`${BLOB}/packages/${pkg}/package.json`, `${SHIELDS}/badge/Node.js-${seg(nodeClaim(node))}-green?${STYLE}`, `Node.js ${nodeClaim(node).replaceAll(' | ', ' or ')}`),
     badge(`${BLOB}/packages/${pkg}/LICENSE`, `${SHIELDS}/badge/License-${seg(m.license ?? 'UNLICENSED')}-blue?${STYLE}`, `License: ${m.license ?? 'UNLICENSED'}`),
-    badge(`${npm}#provenance`, `${SHIELDS}/badge/dynamic/json?url=${registry}&query=${encodeURIComponent('$.dist.attestations.provenance~')}&label=npm&${STYLE}&color=${BRAND}`, 'Published to npm with provenance, read live from the registry attestation of the latest release'),
+    badge(`${npm}#provenance`, `${SHIELDS}/badge/dynamic/json?url=${registry}&query=${encodeURIComponent('$.dist.attestations.provenance~')}&label=npm&${STYLE}&color=${BRAND}`, 'npm provenance of the latest release, read live from its registry attestation'),
   ];
   const suites = grades(pkg).map((g) => {
     const whole = g.passed >= g.reference;
@@ -351,7 +366,7 @@ const LICENCE_HEADING = '## Licence';
 
 /**
  * What each package is, in a few words — the one hand-kept column of the family table, kept once
- * here rather than nine times in nine READMEs. What each replaces is not kept at all: it is read
+ * here rather than once per README. What each replaces is not kept at all: it is read
  * out of the package's own description, as the docs site's package map reads it.
  */
 const ROLE: Readonly<Record<string, string>> = {
@@ -364,9 +379,13 @@ const ROLE: Readonly<Record<string, string>> = {
   seniority: 'Configuration precedence and discovery, with provenance',
   closeout: 'Exit handlers, terminal restore and a bounded shutdown',
   bellpull: 'Subprocesses, and which executable actually ran',
+  controlroom: 'Full-screen, keyboard-driven terminal screens',
 };
 
-/** `## The family` — every sibling, one row each, generated so nine copies cannot disagree. */
+/**
+ * `## The family` — every sibling, one row each, generated so the copies cannot disagree. A
+ * reserved package says so in both columns: what it will be is not what it is.
+ */
 export function family(pkg: string): string {
   if (!FAMILY.includes(pkg)) return '';
   const rows = FAMILY.map((name) => {
@@ -376,7 +395,8 @@ export function family(pkg: string): string {
     const outside = Object.keys(m.dependencies ?? {}).filter((d) => !FAMILY.includes(d));
     if (outside.length > 0) throw new Error(`${name} depends on ${outside.join(', ')}, outside the family — the family table's opening sentence would be false`);
     const cell = name === pkg ? `**${name}** (this package)` : `[${name}](${packageDocsUrl(name)})`;
-    return `| ${cell} | ${role} | ${replacesOf(name, m.description ?? '')} |`;
+    const replaces = replacesOf(name, m.description ?? '');
+    return reserved(name) ? `| ${cell} | Reserved, not usable yet — planned: ${role.toLowerCase()} | ${replaces}, planned |` : `| ${cell} | ${role} | ${replaces} |`;
   });
   const count = WORDS[FAMILY.length] ?? String(FAMILY.length);
   return [
