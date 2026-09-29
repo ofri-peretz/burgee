@@ -8,7 +8,7 @@
  * SIGINT handler keeps it, and every one of those cases failed the moment flagstaff tried
  * to consume us.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { install, type ProcessLike } from './index.js';
 
@@ -16,7 +16,7 @@ type Listener = (...args: never[]) => void;
 
 /** A process that records rather than acts, so a signal is a function call. */
 function fakeProcess(options: { canRaise?: boolean } = {}): ProcessLike & {
-  raise(event: string): void;
+  raise(event: string, ...args: unknown[]): void;
   exited: number | undefined;
   raised: Array<{ pid: number; signal: string }>;
   written: string;
@@ -63,8 +63,8 @@ function fakeProcess(options: { canRaise?: boolean } = {}): ProcessLike & {
       },
       isTTY: true,
     },
-    raise(event: string): void {
-      for (const listener of [...(listeners.get(event) ?? [])]) (listener as () => void)();
+    raise(event: string, ...args: unknown[]): void {
+      for (const listener of [...(listeners.get(event) ?? [])]) (listener as (...a: unknown[]) => void)(...args);
     },
   };
   return self;
@@ -168,5 +168,53 @@ describe('a signal the program installed its own handler for', () => {
     // One listener left, and it is the program's: ours comes off so a second Ctrl-C reaches
     // the program directly rather than replaying a shutdown that already happened.
     expect(proc.listenerCount('SIGINT')).toBe(1);
+  });
+});
+
+describe('a crash the program handles itself', () => {
+  it.each([
+    ['uncaughtException', new Error('mid-render')],
+    ['unhandledRejection', 'a string nobody caught'],
+  ])('%s: runs the handlers, then leaves the error and the exit to the program', async (event, error) => {
+    // The same guard as the signal path, on the two paths node would otherwise end with exit 1:
+    // a program with its own listener asked to decide, and closeout printing the error or
+    // exiting would overrule it.
+    const proc = fakeProcess();
+    const closeout = install({ process: proc });
+    const seen: unknown[] = [];
+    closeout.onExit((report) => void seen.push(report.error));
+    let programSaw: unknown;
+    proc.on(event, ((e: unknown) => {
+      programSaw = e;
+    }) as Listener);
+    const stderr = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      proc.raise(event, error);
+      await settle();
+
+      expect(seen, 'cleanup is not what is deferred').toEqual([error]);
+      expect(programSaw).toBe(error);
+      expect(stderr, 'the program’s handler owns the error; closeout does not print it').not.toHaveBeenCalled();
+      expect(proc.exited, 'nor the exit').toBeUndefined();
+      expect(proc.listenerCount(event), 'ours came off; the program’s stays').toBe(1);
+    } finally {
+      stderr.mockRestore();
+    }
+  });
+
+  it('prints the error and exits 1 when nobody else is listening, as node would have', async () => {
+    const proc = fakeProcess();
+    install({ process: proc });
+    const boom = new Error('mid-render');
+    const stderr = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      proc.raise('uncaughtException', boom);
+      await settle();
+
+      expect(stderr).toHaveBeenCalledExactlyOnceWith(boom);
+      expect(proc.exited).toBe(1);
+    } finally {
+      stderr.mockRestore();
+    }
   });
 });

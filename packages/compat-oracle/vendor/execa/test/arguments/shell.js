@@ -1,0 +1,27 @@
+import process from 'node:process';
+import {pathToFileURL} from 'node:url';
+import test from 'ava';
+import {whichCommand} from 'which-command';
+import {execa} from '../../shim.js';
+import {setFixtureDirectory} from '../helpers/fixtures-directory.js';
+import {identity} from '../helpers/stdio.js';
+
+setFixtureDirectory();
+process.env.FOO = 'foo';
+
+const isWindows = process.platform === 'win32';
+
+test('can use `options.shell: true`', async t => {
+	const {stdout} = await execa('node test/fixtures/noop.js foo', {shell: true});
+	t.is(stdout, 'foo');
+});
+
+const testShellPath = async (t, mapPath) => {
+	const shellPath = isWindows ? 'cmd.exe' : 'bash';
+	const shell = mapPath(await whichCommand(shellPath));
+	const {stdout} = await execa('node test/fixtures/noop.js foo', {shell});
+	t.is(stdout, 'foo');
+};
+
+test('can use `options.shell: string`', testShellPath, identity);
+test('can use `options.shell: file URL`', testShellPath, pathToFileURL);

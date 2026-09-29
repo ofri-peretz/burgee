@@ -1,0 +1,53 @@
+---
+title: Build steps as a task list
+description: "Run a list of async steps under a task list that animates on a terminal, prints each step once as it settles in CI, and stops at the first failure."
+---
+
+A build script runs steps in order and should say which one failed. On a terminal the list is
+drawn with the running step animated; in CI each step is one line, written when it finishes.
+
+```js title="steps.mjs"
+import { setTimeout as sleep } from 'node:timers/promises';
+
+import { hoist } from 'flagstaff/loop';
+import { tasks } from 'flagstaff/tasks';
+
+import { json, rt } from './rt.mjs';
+
+const steps = [
+  { title: 'install', run: () => sleep(100) },
+  { title: 'build', run: () => sleep(100) },
+  { title: 'test', run: () => Promise.reject(new Error('2 failing')) },
+  { title: 'publish', run: () => sleep(100) },
+];
+
+const list = steps.map(({ title }) => ({ title, status: 'pending' }));
+const flag = hoist(tasks(), rt, { tasks: list }, { json });
+
+for (const [i, step] of steps.entries()) {
+  list[i] = { title: step.title, status: 'running' };
+  flag.update({ tasks: [...list] });
+  try {
+    await step.run();
+    list[i] = { title: step.title, status: 'ok' };
+  } catch (error) {
+    list[i] = { title: step.title, status: 'fail', detail: error.message };
+    process.exitCode = 1;
+    break;
+  }
+}
+flag.lower({ tasks: [...list] });
+```
+
+```text title="node steps.mjs" exit="1"
+✔ install
+✔ build
+✖ test
+```
+
+`publish` never ran and never settled, so nothing is printed for it. Pass a new array to each
+`update()` rather than mutating the one you hoisted with: the loop compares text, and a list you
+changed in place is the list it already printed.
+
+The script sets exit code 1, as a failing build should. Under `--json` an agent gets every transition, pending and running
+included, with the error message in `detail`.

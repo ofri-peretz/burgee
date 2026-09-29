@@ -62,10 +62,10 @@
       "replaces": "strip-ansi"
     },
     "plugin.js": {
-      "distBytes": 26100,
+      "distBytes": 26200,
       "bundledBytes": 3045,
       "replaces": null,
-      "//": "26,100 from 25,988 on 2026-09-27: plugin.js reaches width.js, whose WIDE table is now generated from get-east-asian-width 1.7.0 (Unicode 17), four ranges longer than the hand-written one (burgee#363). Measured 26,064."
+      "//": "26,200 from 26,100 on 2026-09-28: width.js replaced the two zero-width regexes with a code-point loop, because `^(?:DI|Control|Format|Mn|Me|Surrogate)+$` backtracked exponentially on a run of U+034F (both Default_Ignorable and Nonspacing_Mark) and could hang width(). Measured 26,110 (+46). Before that, 26,100 from 25,988 on 2026-09-27: plugin.js reaches width.js, whose WIDE table is now generated from get-east-asian-width 1.7.0 (Unicode 17), four ranges longer than the hand-written one (burgee#363). Measured 26,064."
     }
   },
   "y8": {

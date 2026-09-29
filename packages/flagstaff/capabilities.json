@@ -1,0 +1,224 @@
+{
+  "$comment": "flagstaff's capability matrix against the four packages it replaces (compat-oracle's LAYERS). Rendered by <CapabilityMatrix pkg=\"flagstaff\" /> from apps/docs-chassis and held by scripts/capabilities-lock.test.ts: every `ours` yes/partial names a test file and a title substring it contains, or a compat-oracle grade; every incumbent cell names a source at the version compat-oracle grades, and a local source is checked for the text it `quote`s or `lacks`. `n/a` means the row does not apply to that package, and says why. A row that could not be proved for every column is not here.",
+  "package": "flagstaff",
+  "incumbents": ["ora", "log-update", "boxen", "cli-table3"],
+  "themes": [
+    {
+      "theme": "Output in every environment",
+      "rows": [
+        {
+          "capability": "One line per state change on a pipe",
+          "why": "A log file or an agent reading a pipe gets each state once, as text, instead of repainted frames or erase sequences.",
+          "ours": { "status": "yes", "test": "packages/flagstaff/src/loop.test.ts", "title": "the static projection once per state change, no repaint" },
+          "incumbents": {
+            "ora": { "status": "partial", "source": "node_modules/ora/index.js", "quote": "const symbol = this.text ? '-' : '';", "missing": "off an interactive terminal it writes the start line and the final line; text set in between is not written" },
+            "log-update": { "status": "no", "source": "node_modules/log-update/index.js", "quote": "write(ansiEscapes.eraseLines(previousLineCount) + wrapped);", "note": "writes erase sequences on every stream; its only isTTY check chooses synchronized output" },
+            "boxen": { "status": "n/a", "source": "node_modules/boxen/index.js", "quote": "export default function boxen(", "note": "returns one string; it has no states to change" },
+            "cli-table3": { "status": "n/a", "source": "node_modules/cli-table3/src/table.js", "quote": "toString()", "note": "returns one string; it has no states to change" }
+          }
+        },
+        {
+          "capability": "A box that prints its text off a terminal",
+          "why": "Off a terminal the box component writes `title: text`, so a log or an agent reads the message rather than border characters.",
+          "ours": { "status": "yes", "test": "packages/flagstaff/src/builtins.test.ts", "title": "the component says the text off a terminal, and draws only on one" },
+          "incumbents": {
+            "ora": { "status": "n/a", "source": "node_modules/ora/index.js", "lacks": "borderStyle", "note": "draws no boxes" },
+            "log-update": { "status": "n/a", "source": "node_modules/log-update/index.js", "lacks": "borderStyle", "note": "draws no boxes" },
+            "boxen": { "status": "no", "source": "node_modules/boxen/index.js", "lacks": "isTTY", "note": "never checks the stream, so a pipe gets the same bordered drawing" },
+            "cli-table3": { "status": "n/a", "source": "node_modules/cli-table3/src/table.js", "lacks": "borderStyle", "note": "draws tables, not boxes" }
+          }
+        },
+        {
+          "capability": "A table that prints header-and-value pairs off a terminal",
+          "why": "Off a terminal each row is written as `header: value` pairs, which a log, an agent or a screen reader can read without the grid.",
+          "ours": { "status": "yes", "test": "packages/flagstaff/src/builtins.test.ts", "title": "the component emits header-and-value pairs off a terminal, not the grid" },
+          "incumbents": {
+            "ora": { "status": "n/a", "source": "node_modules/ora/index.js", "lacks": "colWidths", "note": "draws no tables" },
+            "log-update": { "status": "n/a", "source": "node_modules/log-update/index.js", "lacks": "colWidths", "note": "draws no tables" },
+            "boxen": { "status": "n/a", "source": "node_modules/boxen/index.js", "lacks": "colWidths", "note": "draws no tables" },
+            "cli-table3": { "status": "no", "source": "node_modules/cli-table3/src/table.js", "lacks": "isTTY", "note": "never checks the stream, so a pipe gets the same grid" }
+          }
+        },
+        {
+          "capability": "A screen-reader mode, on a terminal too",
+          "why": "With `CLI_ACCESSIBLE=1` the output policy chooses the accessible mode ahead of the terminal check, so a component hoisted with `hoist()` prints its plain text once per state and never redraws; the `flagstaff/ora` drop-in keeps ora's behaviour instead.",
+          "ours": { "status": "yes", "test": "packages/roundel/src/policy.test.ts", "title": "the mode is unchanged: accessible still decides redraws" },
+          "incumbents": {
+            "ora": { "status": "no", "source": "node_modules/ora/index.js", "lacks": "ACCESSIBLE", "note": "animates on any interactive terminal" },
+            "log-update": { "status": "no", "source": "node_modules/log-update/index.js", "lacks": "ACCESSIBLE", "note": "redraws on any stream" },
+            "boxen": { "status": "no", "source": "node_modules/boxen/index.js", "lacks": "ACCESSIBLE", "note": "draws the border for every reader" },
+            "cli-table3": { "status": "no", "source": "node_modules/cli-table3/src/table.js", "lacks": "ACCESSIBLE", "note": "draws the grid for every reader" }
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Agents and automation",
+      "rows": [
+        {
+          "capability": "`--json`: one NDJSON event per state transition",
+          "why": "A component hoisted with `{ json: true }` writes each transition as a JSON object on stderr and leaves stdout for the result, so an agent parses state instead of scraping a terminal.",
+          "ours": { "status": "yes", "test": "packages/flagstaff/src/loop.test.ts", "title": "json: one NDJSON event per transition on stderr, stdout untouched" },
+          "incumbents": {
+            "ora": { "status": "no", "source": "node_modules/ora/index.js", "lacks": "JSON" },
+            "log-update": { "status": "no", "source": "node_modules/log-update/index.js", "lacks": "JSON" },
+            "boxen": { "status": "no", "source": "node_modules/boxen/index.js", "lacks": "JSON" },
+            "cli-table3": { "status": "no", "source": "node_modules/cli-table3/src/table.js", "lacks": "JSON" }
+          }
+        },
+        {
+          "capability": "An injectable clock for animation",
+          "why": "A test drives frames with `manualClock()` instead of patching global timers, so a spinner's terminal output is the same bytes on every run.",
+          "ours": { "status": "yes", "test": "packages/flagstaff/src/loop.test.ts", "title": "the tty transcript is the same bytes twenty runs over" },
+          "incumbents": {
+            "ora": { "status": "no", "source": "node_modules/ora/index.js", "quote": "this.#id = setInterval(this.render.bind(this), this.interval);", "note": "frames are scheduled on the global timer" },
+            "log-update": { "status": "n/a", "source": "node_modules/log-update/index.js", "lacks": "setInterval", "note": "draws only when called; the caller owns the timing" },
+            "boxen": { "status": "n/a", "source": "node_modules/boxen/index.js", "lacks": "setInterval", "note": "does not animate" },
+            "cli-table3": { "status": "n/a", "source": "node_modules/cli-table3/src/table.js", "lacks": "setInterval", "note": "does not animate" }
+          }
+        },
+        {
+          "capability": "A checker for plugins before they ship",
+          "why": "`npx flagstaff check ./plugin.mjs` renders every contribution in all five modes side by side, and exits 1 with a code and a fix on a refusal.",
+          "ours": { "status": "yes", "test": "packages/flagstaff/src/cli.test.ts", "title": "prints the plugin in all five modes side by side and exits 0" },
+          "incumbents": {
+            "ora": { "status": "no", "source": "node_modules/ora/package.json", "lacks": "\"bin\"", "note": "ships no command" },
+            "log-update": { "status": "n/a", "source": "node_modules/log-update/package.json", "lacks": "\"bin\"", "note": "takes no styles or plugins" },
+            "boxen": { "status": "no", "source": "node_modules/boxen/package.json", "lacks": "\"bin\"", "note": "ships no command" },
+            "cli-table3": { "status": "no", "source": "node_modules/cli-table3/package.json", "lacks": "\"bin\"", "note": "ships no command" }
+          }
+        }
+      ]
+    },
+    {
+      "theme": "One render engine",
+      "rows": [
+        {
+          "capability": "Spinner, progress, tasks, box and table on one loop",
+          "why": "Every component is hoisted, updated and lowered the same way, and every one gets the same five output modes.",
+          "ours": { "status": "yes", "test": "packages/flagstaff/src/builtins.test.ts", "title": "writes no carriage return and no escape on a pipe" },
+          "incumbents": {
+            "ora": { "status": "no", "source": "node_modules/ora/index.js", "lacks": "progress", "note": "a spinner only" },
+            "log-update": { "status": "no", "source": "node_modules/log-update/index.js", "lacks": "progress", "note": "repaints whatever string it is given; it has no components" },
+            "boxen": { "status": "no", "source": "node_modules/boxen/index.js", "lacks": "progress", "note": "a box only" },
+            "cli-table3": { "status": "no", "source": "node_modules/cli-table3/src/table.js", "lacks": "progress", "note": "a table only" }
+          }
+        },
+        {
+          "capability": "Custom styles through a validated plugin registry",
+          "why": "A spinner or border style is registered once, validated against the published JSON schema, and every component that draws one can use it by name.",
+          "ours": { "status": "yes", "test": "packages/flagstaff/src/plugin.test.ts", "title": "R3 · validated against schema.json" },
+          "incumbents": {
+            "ora": { "status": "partial", "source": "node_modules/ora/index.js", "quote": "if (typeof spinner === 'object') {", "missing": "a custom spinner object is passed to each instance; there is no registry and no schema" },
+            "log-update": { "status": "n/a", "source": "node_modules/log-update/index.js", "lacks": "spinner", "note": "has no styles to register" },
+            "boxen": { "status": "partial", "source": "node_modules/boxen/index.js", "quote": "throw new TypeError(`Invalid border style: ${side}`);", "missing": "a custom border object is passed to each call; there is no registry" },
+            "cli-table3": { "status": "partial", "source": "node_modules/cli-table3/src/utils.js", "quote": "ret.chars = Object.assign({}, defaults.chars, options.chars);", "missing": "custom border characters are passed to each table; there is no registry and no validation" }
+          }
+        },
+        {
+          "capability": "Every style must carry a text form",
+          "why": "A spinner or component without a static projection is refused at registration with `E_NO_STATIC_PROJECTION`, so nothing registered can only animate.",
+          "ours": { "status": "yes", "test": "packages/flagstaff/src/plugin.test.ts", "title": "a spinner without static: E_NO_STATIC_PROJECTION, with the fix" },
+          "incumbents": {
+            "ora": { "status": "no", "source": "node_modules/ora/index.d.ts", "quote": "readonly frames: string[];", "note": "a spinner is frames and an interval; nothing carries a text form" },
+            "log-update": { "status": "n/a", "source": "node_modules/log-update/index.js", "lacks": "spinner", "note": "has no styles" },
+            "boxen": { "status": "n/a", "source": "node_modules/boxen/index.js", "lacks": "setInterval", "note": "a box does not animate" },
+            "cli-table3": { "status": "n/a", "source": "node_modules/cli-table3/src/table.js", "lacks": "setInterval", "note": "a table does not animate" }
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Safety and correctness",
+      "rows": [
+        {
+          "capability": "Cursor restored on SIGINT, SIGTERM and SIGHUP",
+          "why": "A spinner killed with Ctrl+C gives the cursor back and the process still terminates.",
+          "ours": { "status": "yes", "test": "packages/flagstaff/src/loop-signal.test.ts", "title": "puts the cursor back, and still terminates" },
+          "incumbents": {
+            "ora": { "status": "yes", "source": "node_modules/cli-cursor/index.js", "quote": "restoreCursor();", "note": "through cli-cursor, restore-cursor and signal-exit" },
+            "log-update": { "status": "yes", "source": "node_modules/cli-cursor/index.js", "quote": "restoreCursor();", "note": "through cli-cursor, restore-cursor and signal-exit" },
+            "boxen": { "status": "n/a", "source": "node_modules/boxen/index.js", "lacks": "?25l", "note": "never hides the cursor" },
+            "cli-table3": { "status": "n/a", "source": "node_modules/cli-table3/src/table.js", "lacks": "?25l", "note": "never hides the cursor" }
+          }
+        },
+        {
+          "capability": "Borders stay aligned around wide (CJK) characters",
+          "why": "Rows are measured in terminal columns, so a double-width character does not push a border out of line.",
+          "ours": { "status": "yes", "test": "packages/flagstaff/src/builtins.test.ts", "title": "a wide-character body still fits exactly" },
+          "incumbents": {
+            "ora": { "status": "n/a", "source": "node_modules/ora/index.js", "lacks": "borderStyle", "note": "draws no borders" },
+            "log-update": { "status": "n/a", "source": "node_modules/log-update/index.js", "lacks": "borderStyle", "note": "draws no borders" },
+            "boxen": { "status": "yes", "source": "node_modules/boxen/index.js", "quote": "const textWidth = stringWidth(text);" },
+            "cli-table3": { "status": "yes", "source": "node_modules/cli-table3/src/utils.js", "quote": "const stringWidth = require('string-width');" }
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Weight",
+      "rows": [
+        {
+          "capability": "Every runtime dependency from the same repository",
+          "why": "Installing it adds closeout, linegauge, paratext and roundel, released from this repository through one pipeline, and nothing else.",
+          "ours": { "status": "yes", "test": "packages/flagstaff/src/shape.test.ts", "title": "depends on closeout, linegauge, paratext and roundel and on nothing else" },
+          "incumbents": {
+            "ora": { "status": "no", "source": "node_modules/ora/package.json", "quote": "\"cli-cursor\": \"^5.0.0\",", "note": "eight dependencies from other repositories" },
+            "log-update": { "status": "no", "source": "node_modules/log-update/package.json", "quote": "\"ansi-escapes\": \"^7.3.0\",", "note": "six dependencies from other repositories" },
+            "boxen": { "status": "no", "source": "node_modules/boxen/package.json", "quote": "\"ansi-align\": \"^3.0.1\",", "note": "eight dependencies from other repositories" },
+            "cli-table3": { "status": "no", "source": "node_modules/cli-table3/package.json", "quote": "\"string-width\": \"^4.2.0\"", "note": "string-width, and @colors/colors as an optional dependency" }
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Compatibility",
+      "rows": [
+        {
+          "capability": "Passes ora's own test suite",
+          "why": "`flagstaff/ora` is graded by ora 9.4.1's own tests, unedited, so changing the import keeps ora's behaviour.",
+          "ours": { "status": "yes", "grade": "packages/compat-oracle/baseline/ora.json" },
+          "incumbents": {
+            "ora": { "status": "yes", "source": "packages/compat-oracle/vendor/ora/test.js", "quote": "import ora, {oraPromise, spinners} from './shim.js';", "note": "its own suite, the control run" },
+            "log-update": { "status": "n/a", "source": "packages/compat-oracle/vendor/log-update/test.js", "quote": "import {createLogUpdate} from './shim.js';", "note": "a different API" },
+            "boxen": { "status": "n/a", "source": "packages/compat-oracle/vendor/boxen/tests/main.js", "quote": "import boxen from '../shim.js';", "note": "a different API" },
+            "cli-table3": { "status": "n/a", "source": "packages/compat-oracle/vendor/cli-table3/test/table-test.js", "quote": "const Table = require('..');", "note": "a different API" }
+          }
+        },
+        {
+          "capability": "Passes log-update's own test suite",
+          "why": "`flagstaff/log-update` is graded by log-update 8.0.0's own tests, which render every frame through a terminal emulator and assert the screen.",
+          "ours": { "status": "yes", "grade": "packages/compat-oracle/baseline/log-update.json" },
+          "incumbents": {
+            "ora": { "status": "n/a", "source": "packages/compat-oracle/vendor/ora/test.js", "quote": "import ora, {oraPromise, spinners} from './shim.js';", "note": "a different API" },
+            "log-update": { "status": "yes", "source": "packages/compat-oracle/vendor/log-update/test.js", "quote": "import {createLogUpdate} from './shim.js';", "note": "its own suite, the control run" },
+            "boxen": { "status": "n/a", "source": "packages/compat-oracle/vendor/boxen/tests/main.js", "quote": "import boxen from '../shim.js';", "note": "a different API" },
+            "cli-table3": { "status": "n/a", "source": "packages/compat-oracle/vendor/cli-table3/test/table-test.js", "quote": "const Table = require('..');", "note": "a different API" }
+          }
+        },
+        {
+          "capability": "Passes boxen's own test suite",
+          "why": "`flagstaff/boxen` is graded by boxen 8.0.1's own tests, each a snapshot of the exact characters the box comes out as.",
+          "ours": { "status": "yes", "grade": "packages/compat-oracle/baseline/boxen.json" },
+          "incumbents": {
+            "ora": { "status": "n/a", "source": "packages/compat-oracle/vendor/ora/test.js", "quote": "import ora, {oraPromise, spinners} from './shim.js';", "note": "a different API" },
+            "log-update": { "status": "n/a", "source": "packages/compat-oracle/vendor/log-update/test.js", "quote": "import {createLogUpdate} from './shim.js';", "note": "a different API" },
+            "boxen": { "status": "yes", "source": "packages/compat-oracle/vendor/boxen/tests/main.js", "quote": "import boxen from '../shim.js';", "note": "its own suite, the control run" },
+            "cli-table3": { "status": "n/a", "source": "packages/compat-oracle/vendor/cli-table3/test/table-test.js", "quote": "const Table = require('..');", "note": "a different API" }
+          }
+        },
+        {
+          "capability": "Passes cli-table3's own test suite",
+          "why": "`flagstaff/cli-table3` is graded by the cases of cli-table3 0.6.5's own suite that go through its public API.",
+          "ours": { "status": "yes", "grade": "packages/compat-oracle/baseline/cli-table3.json" },
+          "incumbents": {
+            "ora": { "status": "n/a", "source": "packages/compat-oracle/vendor/ora/test.js", "quote": "import ora, {oraPromise, spinners} from './shim.js';", "note": "a different API" },
+            "log-update": { "status": "n/a", "source": "packages/compat-oracle/vendor/log-update/test.js", "quote": "import {createLogUpdate} from './shim.js';", "note": "a different API" },
+            "boxen": { "status": "n/a", "source": "packages/compat-oracle/vendor/boxen/tests/main.js", "quote": "import boxen from '../shim.js';", "note": "a different API" },
+            "cli-table3": { "status": "yes", "source": "packages/compat-oracle/vendor/cli-table3/test/table-test.js", "quote": "const Table = require('..');", "note": "its own suite, the control run" }
+          }
+        }
+      ]
+    }
+  ]
+}

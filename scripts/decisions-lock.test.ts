@@ -216,7 +216,7 @@ describe('each decisions check fails on a broken fixture', () => {
 
   it('the frozen sequence admits exactly the late ids main already holds, and not the numbers around them', () => {
     for (const id of LEGACY_LATE) expect(decisionIdProblems([good({ id })])).toEqual([]);
-    for (const id of ['D-153', 'D-160', 'D-162', 'D-166', 'D-189', 'D-191']) expect(decisionIdProblems([good({ id })])[0]).toMatch(/continues the sequential numbering, which stopped at D-151/);
+    for (const id of ['D-153', 'D-155', 'D-156', 'D-159', 'D-162', 'D-169', 'D-172', 'D-189', 'D-191']) expect(decisionIdProblems([good({ id })])[0]).toMatch(/continues the sequential numbering, which stopped at D-151/);
     const ids = legacyDecisionIds().filter((id) => id !== 'D-163');
     expect(missingLegacy(ids, legacyDecisionIds(), 'decision')).toEqual([expect.stringMatching(/^decision D-163 is gone/)]);
   });

@@ -13,7 +13,8 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { citationsFor } from './facts.js';
+import { type Declaration } from './competitors.js';
+import { citationsFor, claimSite } from './facts.js';
 
 function packageWith(weightTest: string): { dir: string; root: string } {
   const root = mkdtempSync(join(tmpdir(), 'facts-'));
@@ -59,6 +60,36 @@ describe('a figure elsewhere on the line is not', () => {
 
   it('ignores prose with no figure at all', () => {
     expect(linesOf('// chalk and ora disagree about the same terminal\n', 'chalk')).toEqual([]);
+  });
+});
+
+/** A declaring package with this manifest (or none) and these files on disk. */
+function owner(manifest: unknown, files: string[]): { declaration: Declaration; root: string } {
+  const root = mkdtempSync(join(tmpdir(), 'facts-site-'));
+  const dir = join(root, 'packages', 'flagstaff');
+  mkdirSync(join(dir, 'src'), { recursive: true });
+  if (manifest !== undefined) writeFileSync(join(dir, 'package.json'), JSON.stringify(manifest));
+  for (const f of files) writeFileSync(join(dir, f), '');
+  return { declaration: { owner: 'flagstaff', dir, file: join(dir, 'competitors.json'), subpaths: {} }, root };
+}
+
+describe('the source behind a declared claim', () => {
+  const entry = { package: 'ora', claim: 'compat' as const, seen: null };
+
+  it('maps an import condition, or a bare string export, from dist back to the source and its test', () => {
+    const { declaration, root } = owner({ exports: { './ora': { import: './dist/ora.js' }, './box': './dist/box.js' } }, ['src/ora.ts', 'src/ora.test.ts', 'src/box.ts']);
+    expect(claimSite(declaration, './ora', entry, root)).toEqual({ owner: 'flagstaff', subpath: './ora', claim: 'compat', targets: ['packages/flagstaff/src/ora.ts', 'packages/flagstaff/src/ora.test.ts'], citations: [] });
+    expect(claimSite(declaration, './box', entry, root).targets).toEqual(['packages/flagstaff/src/box.ts']);
+  });
+
+  it('derives nothing for a subpath the manifest does not export, an export with no import condition, or no manifest', () => {
+    const { declaration, root } = owner({ exports: { './req': { require: './dist/req.cjs' } } }, ['src/req.ts']);
+    expect(claimSite(declaration, './gone', entry, root).targets).toEqual([]);
+    expect(claimSite(declaration, './req', entry, root).targets).toEqual([]);
+    const bare = owner(undefined, ['src/ora.ts']);
+    expect(claimSite(bare.declaration, './ora', entry, bare.root).targets).toEqual([]);
+    const noExports = owner({ name: 'flagstaff' }, []);
+    expect(claimSite(noExports.declaration, './ora', entry, noExports.root).targets).toEqual([]);
   });
 });
 

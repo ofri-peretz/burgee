@@ -16,8 +16,8 @@ together conflicted
   its body the way a struck row always carried it (`~~…~~ — **closed**: …`).
 - **Opening a gap** is `npm run ledger -- new gap <A|B|C|release> <slug>`, which writes
   `.sdlc/gaps/<letter>-YYYYMMDD-<slug>.md` with every field empty; `scripts/gaps-lock.test.ts`
-  fails until it is filled in. The sequential ids already written — A1..A30, B1..B22, C1..C7 —
-  keep their names, and the sequence stopped there: two branches each taking "the next
+  fails until it is filled in. The sequential ids already written — A1..A30, B1..B22, C1..C7,
+  and C8 (#669) — keep their names, and the sequence stopped there: two branches each taking "the next
   number" take the same one, which is how the ledger came to hold **two C5s**. The release
   queue's C5 (opened in #450, cited by six workflows) kept the id; section C's struck lint
   row, added later in #463, is now `C-20260922-cli-floor-lint`.

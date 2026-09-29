@@ -2,6 +2,14 @@
   "title": "flagstaff",
   "pages": [
     "index",
-    "coming-from"
+    "getting-started",
+    "guides",
+    "why-flagstaff",
+    "drop-ins",
+    "coming-from",
+    "recipes",
+    "api",
+    "faq",
+    "changelog"
   ]
 }

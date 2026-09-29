@@ -25,6 +25,7 @@ import { join, resolve } from 'node:path';
 
 import { sync as crossSpawnSync } from 'bellpull/cross-spawn';
 
+import { claimRatchet, RATCHETED } from '../claim-ratchets.js';
 import { DEFAULT_EXPORT, fixtureSource, PAIRS, PARITY, stackFixtureSource, type EntryPair, type ParityStack } from '../fixtures/entry-points.js';
 import { type BenchRecord } from '../record.js';
 import { BENCH_ROOT, packageDir, relativeToRepo, resolvePackage } from '../resolve.js';
@@ -440,7 +441,10 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // builder's rejection to `fail` instead of leaving it unhandled.
   // 108,300 the same day: merging main under it moved CI's reading to 108,242, 42 B over the
   // local-only headroom above; CI reads above local, as the 60,850 entry notes.
-  'burgee/yargs': 108_300,
+  // 108,420 on 2026-09-28 for the two linegauge fixes it bundles: `width()` no longer
+  // backtracks exponentially on a run of combining joiners, and `wrap()` no longer normalizes
+  // an escape sequence into its neighbour. Measured 108,334 locally, with 80 B for CI.
+  'burgee/yargs': 108_420,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
   // bundle grows by, set where the number actually is, so the next byte is a decision.
@@ -475,11 +479,22 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // It went from 53 / 104 to 104 / 104, measured 11,546, and the ratio to slice-ansi 9 fell
   // from 1.5 to 0.789. The walk keeps its state in locals and not in an object's fields,
   // which saved 766 B that a minifier cannot take out of property names.
-  linegauge: 6_500,
+  //
+  // **2026-09-28: all three +30, for a security fix.** `width.ts` asked whether a cluster was
+  // zero-width with `^(?:DI|Control|Format|Mn|Me|Surrogate)+$`. `U+034F` is in two of those
+  // classes, so a run of them before one visible character backtracked exponentially — 26
+  // joiners took 2.4 s and 1,000 did not finish — and string-width 8.3.0's suite added the
+  // case. A code-point loop replaced both zero-width regexes, which costs +32, +30 and +29.
+  // Measured 6,448, 11,418 and 11,575 by this axis; each ceiling keeps the 80 B CI margin.
+  // `linegauge/wrap` 11,560 the same day: `wrap()` normalized the whole string to NFC, so a
+  // combining mark after an escape composed with its final byte (`ESC[31m` + U+0301 became
+  // `ESC[31ḿ`) and an OSC payload was rewritten. It normalizes only the text between
+  // sequences now, as wrap-ansi 10.0.2 does; +62, measured 11,480.
+  linegauge: 6_530,
 
-  'linegauge/wrap': 11_470,
+  'linegauge/wrap': 11_560,
 
-  'linegauge/slice': 11_650,
+  'linegauge/slice': 11_660,
 
   'linegauge/strip': 1_000,
   //
@@ -496,6 +511,12 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // the entry now carries what the incumbent carries. The ceiling below it was set against an
   // entry with none of it. Measured 8,430.
   paratext: 8_450,
+  // bellpull R8, first measured 2026-09-27 (GAPS A10, D-160): `run` bundles to **5,901** bytes
+  // against tinyexec 1.3.1's `x` at **5,969** — 0.989, so the ratio gate stays at the default 1
+  // and it is R8's bytes half, met. This ceiling is the ratchet beside it: the measurement plus
+  // the 80 B CI reads over local, rounded up to the next fifty. It sits above tinyexec on
+  // purpose — the ratio is the bar, and it is the tighter of the two.
+  bellpull: 6_000,
 };
 
 /**
@@ -567,7 +588,13 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // followed the last commit. It is now 3.7, derived from `core-bundled-bytes` at mean + 3
   // sigma over 41 observations, and `scripts/release-budget-lock.test.ts` refuses to let it
   // move unless the release moves with it in the same commit.
-  burgee: releaseBudget('bundled-bytes-ratio:burgee\u00F7cac'),
+  //
+  // **And below the budget since D-157**, which made the published `lighter-than-cac` claim a
+  // downward-only ratchet at 2.35 (measured 2.317, 24,216 / 10,452 B, plus 80 B for CI). The gate
+  // is the lower of the two: the budget stays the release's outer limit on what a new D-row may
+  // raise the ratchet to, and the ratchet is what a PR is held to. A gate at 2.9 beside a claim at
+  // 2.35 would publish a ceiling nothing enforces.
+  burgee: Math.min(releaseBudget('bundled-bytes-ratio:burgee\u00F7cac'), claimRatchet('lighter-than-cac')),
   // 1.52 from 1.6 on 2026-09-21: measured 1.514 under the corrected metric (D-100). The
   // front-end's residual over commander is `commander/command.js` at 33,487 bundled against
   // commander's 27,226, plus `bellpull/cross-spawn` at 5,060 — and the spawn cannot go lazy
@@ -580,7 +607,10 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // 1.555 on 2026-09-23: D-140 and #521 on top of main (72a810352e). Measured 1.554.
   // 1.56 on 2026-09-23: P2/P3 on top of D3 (#478) and D-140. Measured 1.554 locally, ~1.555 in CI.
   // 1.565 on 2026-09-24 for J3/J4: the same 276 bytes as the bundled ceiling above. Measured 1.561.
-  'burgee/commander': 1.565,
+  // Since D-157 this is the published `lighter-than-commander` claim's downward-only ratchet,
+  // read from `.sdlc/bands/claim-ratchets.json` so the claim and the gate cannot disagree. It
+  // carried over at 1.565 (measured 1.560, plus 80 B for CI, is 1.562); from here it only falls.
+  'burgee/commander': claimRatchet('lighter-than-commander'),
   // bundled ceiling above (D-134): measured 1.524.
   // 1.535 on 2026-09-23: D-122 left the façade at 59,808 (1.530, on the ceiling) and the MCP
   // stdout capture (#521) adds 15 bytes of cross-chunk names — 59,823, measured 1.531.
@@ -622,7 +652,11 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // `linegauge/slice` is set at 1 like `linegauge/wrap`, because its ratio against slice-ansi
   // 9.0.1 (0.789) earns it: 9 carries its own tokenizer, and `is-fullwidth-code-point` brings
   // get-east-asian-width's tables with it.
-  linegauge: 1.06,
+  // 1.08 on 2026-09-28, and most of the move is the denominator. string-width 8.3.0 bundles
+  // 6,013 against 8.2.2's 6,110, so `linegauge` at the same size read 1.067 on the bump alone;
+  // the ReDoS fix in `width()` (+32, see the byte ceiling above) takes it to 6,448 / 6,013 =
+  // 1.072, and the one step is CI's heavier build.
+  linegauge: 1.08,
 
   'linegauge/wrap': 1,
 
@@ -640,6 +674,15 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // OSC half degrade on a pipe. Measured 1.937.
   paratext: 1.94,
 };
+
+/** Why a pair's ratio gate sits where it does: the claim's own ratchet, U5 at 1, or a B4 ratchet. */
+function ratioWhy(pair: EntryPair, ratioMax: number): string {
+  if (RATCHETED.has(pair.claim ?? `lighter-than-${pair.incumbent.specifier}`)) {
+    return 'the published claim itself, a downward-only ratchet (D-157): .sdlc/bands/claim-ratchets.json sets it just above the measurement, and it may only be lowered';
+  }
+  if (ratioMax <= 1) return "U5, stated as a check: this entry point is no heavier in a user's bundle than the package it replaces";
+  return 'a ratchet at the measured value, not the claim: this entry point is currently heavier than what it replaces on a bundled basis, and the gate exists to stop that growing';
+}
 
 /**
  * Pure, given two measurements: this is where a gate is attached to a number, so
@@ -691,10 +734,7 @@ export function pairRecords(pair: EntryPair, ours: Measured, theirs: Measured): 
       p95: ratio,
       gate: {
         max: ratioMax,
-        why:
-          ratioMax <= 1
-            ? "U5, stated as a check: this entry point is no heavier in a user's bundle than the package it replaces"
-            : 'a ratchet at the measured value, not the claim: this entry point is currently heavier than what it replaces on a bundled basis, and the gate exists to stop that growing',
+        why: ratioWhy(pair, ratioMax),
       },
       note: `${pair.why}; both sides bundled by the same command, both resolved from benchmarks/`,
       detail: { ours: `${pair.ours.specifier}@${ours.version}`, incumbent: `${pair.incumbent.specifier}@${theirs.version}` },

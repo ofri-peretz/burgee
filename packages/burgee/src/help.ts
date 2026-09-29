@@ -20,12 +20,13 @@
  */
 import { styleText } from 'node:util';
 
-import { width as displayWidth, widest } from 'linegauge';
+import { width as displayWidth, widest, wrap as fold } from 'linegauge';
+import { colorLevel } from 'roundel/policy';
 
 import type { ArgumentSpec, CommandNode, Example, Manifest, OptionSpec } from './manifest.js';
 import { flagsOf, kebab } from './names.js';
 
-/** The token names of `roundel`'s R3, typed structurally: burgee never imports them (U13). */
+/** The token names of `roundel`'s R3, typed structurally: help never imports the tokens (U13). */
 export type HelpToken = 'error' | 'warn' | 'ok' | 'hint' | 'muted' | 'command' | 'flag' | 'value' | 'heading';
 
 /**
@@ -68,20 +69,20 @@ type Paint = Record<'heading' | Kind, (s: string) => string>;
 const identity = (s: string): string => s;
 const PLAIN: Paint = { heading: identity, command: identity, flag: identity, value: identity };
 /**
- * Whether the engine colours help (O2). `FORCE_COLOR` decides when set — `0` and `false`
- * off, anything else, the empty string included, on — so it overrides a pipe and
- * `NO_COLOR` both, as Node's own `getColorDepth` does. Otherwise colour needs someone to
- * see it: an interactive terminal (the caller's answer, in which a detected agent is not
- * one, N12), no non-empty `NO_COLOR`, and a `TERM` other than `dumb`.
+ * Whether the engine colours help (O2): roundel's `colorLevel`, above 0.
+ *
+ * `interactive` stands in for the stream's TTY — the caller's answer, in which a detected
+ * agent is not a terminal (N12). Everything else is the family's one colour policy, so help
+ * agrees with every other surface about the same run: `NO_COLOR` wins outright, `FORCE_COLOR`
+ * and the `--color` flags in `argv` are the user's instruction, `CLI_ACCESSIBLE` is off, and
+ * with no instruction a terminal colours only when `TERM`/`COLORTERM` say it can. This used
+ * to be a rule of its own that let `FORCE_COLOR` beat `NO_COLOR`, ignored `--no-color`, and
+ * coloured a terminal with no `TERM` at all.
  *
  * It lives here, not in the engine, so the startup path pays for none of it (W4).
- * Not `tty.WriteStream.prototype.hasColors(env)`, which gives the same answers: with
- * both variables set it calls `process.emitWarning`, and this runs under an injected env.
  */
-export function colorFor(env: Record<string, string | undefined>, interactive: boolean): boolean {
-  const force = env['FORCE_COLOR'];
-  if (force !== undefined) return force !== '0' && force !== 'false';
-  return interactive && !env['NO_COLOR'] && env['TERM'] !== 'dumb';
+export function colorFor(env: Record<string, string | undefined>, interactive: boolean, argv: readonly string[] = []): boolean {
+  return colorLevel({ env, isTTY: { stdout: interactive }, argv }) > 0;
 }
 
 /** The defaults, over `util.styleText`. The stream check is off: `color` is the one gate (R7). */
@@ -198,7 +199,7 @@ function commandSections(manifest: Manifest, node: CommandNode): Section[] {
   for (const c of children) {
     const heading = c.group ?? 'Commands:';
     const rows = groups.get(heading) ?? [];
-    rows.push({ term: c.path.at(-1) ?? '', text: `${c.summary ?? c.description ?? ''}${deprecation(c.deprecated)}`.trim(), kind: 'command' });
+    rows.push({ term: c.path.at(-1) as string, text: `${c.summary ?? c.description ?? ''}${deprecation(c.deprecated)}`.trim(), kind: 'command' });
     groups.set(heading, rows);
   }
   return [...groups].map(([title, rows]) => ({ title, rows }));
@@ -207,7 +208,7 @@ function commandSections(manifest: Manifest, node: CommandNode): Section[] {
 function environmentRows(options: Record<string, OptionSpec>): Row[] {
   return Object.entries(options)
     .filter(([, spec]) => spec.env !== undefined && spec.hidden !== true)
-    .map(([name, spec]) => ({ term: spec.env ?? '', text: `--${kebab(name)}`, kind: 'value' as const }));
+    .map(([name, spec]) => ({ term: spec.env as string, text: `--${kebab(name)}`, kind: 'value' as const }));
 }
 
 function usageLine(node: CommandNode, root: string[], hasChildren: boolean, paint: Paint): string {
@@ -222,44 +223,20 @@ function usageLine(node: CommandNode, root: string[], hasChildren: boolean, pain
 /**
  * Word-wrap one paragraph; lines the author indented are kept verbatim (yargs #2120).
  *
- * The running `used` is the width of `current` in columns, carried rather than recomputed:
- * measuring the accumulated line once per word would make a long paragraph quadratic.
+ * The folding is `linegauge`'s `wrap`, not a loop of this file's own: this used to carry a
+ * greedy fold at single spaces, measured with linegauge's `width`, which is the job
+ * `linegauge/wrap` exists for — and which it does across styled text and hyperlinks too.
+ * `hard: false` because a word wider than the row is left to overflow rather than broken: a
+ * help epilogue is mostly URLs. Rows are trimmed, which is what the fold at spaces did.
  */
 export function wrap(text: string, width: number): string[] {
   const out: string[] = [];
   for (const line of text.split('\n')) {
     // Kept verbatim: a line the author indented, and a line that already fits.
     if (/^\s/.test(line) || displayWidth(line) <= width) out.push(line);
-    else out.push(...wrapLine(line, width));
+    else out.push(...fold(line, width, { hard: false }).split('\n'));
   }
   return out;
-}
-
-/**
- * Greedily fold one over-long line at its spaces. A word wider than the row is left to
- * overflow rather than broken — `linegauge`'s own `wrap` defaults to `hard: false` for the
- * same reason, and a help epilogue is mostly URLs.
- */
-function wrapLine(line: string, width: number): string[] {
-  const rows: string[] = [];
-  let current = '';
-  let used = 0;
-  for (const word of line.split(' ')) {
-    const w = displayWidth(word);
-    if (current === '') {
-      current = word;
-      used = w;
-    } else if (used + 1 + w > width) {
-      rows.push(current);
-      current = word;
-      used = w;
-    } else {
-      current = `${current} ${word}`;
-      used += 1 + w;
-    }
-  }
-  rows.push(current);
-  return rows;
 }
 
 /** One term column for the whole help, sized to the longest term up to 40% of the width (R3). */
@@ -293,7 +270,7 @@ function layout(rows: Row[], width: number, column: number, paint: Paint): strin
       continue;
     }
     const pad = ' '.repeat(column + GUTTER - termWidth);
-    lines.push(`${INDENT}${cell}${pad}${wrapped[0] ?? ''}`, ...wrapped.slice(1).map((l) => `${continuation}${l}`));
+    lines.push(`${INDENT}${cell}${pad}${wrapped[0] as string}`, ...wrapped.slice(1).map((l) => `${continuation}${l}`));
   }
   return lines;
 }

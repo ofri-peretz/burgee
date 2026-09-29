@@ -8,9 +8,9 @@ where the two differ.
 
 **burgee** is a CLI framework that replaces commander and yargs, is drop-in compatible with
 both, and projects help, `--json`, `--schema`, an MCP server and completions from one
-declaration. The repository is a turbo monorepo of nine public, independently released
-packages and one private grader. None of the nine depends on anything outside this
-repository.
+declaration. The repository is a turbo monorepo of ten public, independently released
+packages and one private grader. None of the ten depends on anything outside this
+repository. The tenth is the reservation `controlroom@0.0.1`, with no API yet.
 
 ## Package map
 
@@ -25,6 +25,7 @@ repository.
 | [`bellpull`](./packages/bellpull/) | subprocesses and executable resolution | execa · cross-spawn · which |
 | [`closeout`](./packages/closeout/) | exit handlers, terminal restore, bounded shutdown | signal-exit · exit-hook · restore-cursor |
 | [`paratext`](./packages/paratext/) | hyperlinks, images, title, clipboard, notifications, bell | ansi-escapes (OSC half) · terminal-link · term-img |
+| [`controlroom`](./packages/controlroom/) | full-screen screens over flagstaff's loop, each with a static projection; **reserved, not usable yet** | ink · @inkjs/ui |
 | [`compat-oracle`](./packages/compat-oracle/) | private: grades each drop-in path with the incumbent's own test suite | — |
 
 Each package's `package.json` `description` is the canonical one-liner, and its README is
@@ -85,8 +86,8 @@ Generated files each have a writer and a `--check` twin — run the writer, neve
   `.sdlc/GAPS.md` (both hold prose only, and a lock fails on a row there):
   `npm run ledger -- new decision <slug>` or `npm run ledger -- new gap <A|B|C|release> <slug>`
   writes `.sdlc/decisions/D-YYYYMMDD-<slug>.md` / `.sdlc/gaps/<letter>-YYYYMMDD-<slug>.md` to
-  fill in. Never take "the next number" — D-001..D-151 (plus D-152, D-154, D-161, D-163..D-165,
-  D-182 and D-190, written on main before the switch), A1..A30, B1..B22, C1..C7 are frozen, and
+  fill in. Never take "the next number" — D-001..D-151, A1..A30, B1..B22, C1..C7 and the few
+  written on main before the switch (`LEGACY_LATE` in `scripts/ledgers.ts`) are frozen, and
   a new sequential id fails `decisions-lock` / `gaps-lock`. Striking a gap is `status: closed` in
   its file. `npm run ledger -- decisions` / `gaps` prints the tables.
 - `git push` runs a 3–4 minute pre-push battery. It is not a hang. **Never `--no-verify`.**

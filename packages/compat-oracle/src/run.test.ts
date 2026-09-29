@@ -299,6 +299,16 @@ describe('a case the incumbent expects to fail, and we pass', () => {
     expect(parseNodeTest(avaOutput).exceeded).toBe(1);
   });
 
+  it('rates a run that registered nothing, against no reference, as 0 and never NaN', () => {
+    expect(summarize('# tests 0\n# pass 0\n# fail 0\n', 1, 0).rate).toBe(0);
+  });
+
+  it('carries the count onto the grade, and leaves the key off a grade with none', () => {
+    expect(summarize(avaOutput, 1, 15)).toEqual({ files: 1, tests: 15, passed: 15, failed: 0, skipped: 0, exceeded: 1, reference: 15, rate: 1 });
+    // Absent rather than `undefined`, so a row with nothing to report keeps its baseline fragment byte for byte.
+    expect(Object.keys(summarize('# tests 1\n# pass 1\n# fail 0\n', 1, 1))).not.toContain('exceeded');
+  });
+
   it('leaves an ordinary failure alone', () => {
     const ordinary = ['not ok 2 - slices a string', '# tests 3', '# pass 2', '# fail 1'].join('\n');
     expect(parseNodeTest(ordinary)).toMatchObject({ passed: 2, failed: 1, exceeded: 0 });
@@ -444,6 +454,12 @@ describe('jest.mock is hoisted as jest hoists it (A12)', () => {
 
   it('returns a file with no jest.mock unchanged', () => {
     expect(hoistJestMocks("require('x');\n")).toBe("require('x');\n");
+  });
+
+  it('moves a call written without its semicolon, and leaves an unclosed one where it is', () => {
+    expect(hoistJestMocks("require('x');\njest.mock('a')\n")).toBe("jest.mock('a')\nrequire('x');\n\n");
+    const unclosed = "require('x');\njest.mock('a', () => {\n";
+    expect(hoistJestMocks(unclosed)).toBe(unclosed);
   });
 });
 

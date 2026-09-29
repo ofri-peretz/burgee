@@ -86,14 +86,23 @@ const RULES: Record<string, EntryRule> = {
   // clack's 101,684 B across six packages, and the only packages caique reaches are ones
   // this repo publishes. Neither façade is reachable from here: a program that imports
   // `caique` gets caique, and pays nothing for the two compatibility subpaths.
-  '.': { allow: CLOSEOUT, budget: 15_000, denied: ['clack.js', 'inquirer.js'] },
+  //
+  // `linegauge` joined on 2026-09-28 with the raw renderer's row count (`lineCount`): a frame
+  // wider than the terminal occupies more rows than it has lines. Measured 14,472 after main's #680 (+265).
+  // `paratext/csi` joined the same day (+70): the raw renderer's repaint is spelled with
+  // ansi-escapes' cursor moves from paratext rather than by hand. Measured 14,542.
+  // `roundel/terminal` joined the same day (+98): whether anybody is there to type is
+  // roundel's `interactive()`, which knows an agent from a person. Measured 14,640.
+  '.': { allow: [...CLOSEOUT, 'linegauge', 'paratext/csi', 'roundel/terminal'], budget: 15_000, denied: ['clack.js', 'inquirer.js'] },
   // The shape and its validator. The floor every other subpath stands on, and a leaf: a
   // program that only declares prompts pays 739 B and never loads a widget.
   './spec': { allow: [], budget: 1_000, denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
   // The rule that decides whether a person can be asked at all — the file that keeps a CLI
   // from hanging under an agent. It reaches only the spec, never a widget: deciding not to
   // ask must not cost the machinery of asking. Measured 2,133 B.
-  './decide': { allow: [], budget: 2_500, denied: ['ask.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
+  // 2,231 B (+98) on 2026-09-28, reaching `roundel/terminal` (878 B, reaching nothing): the
+  // question "is anybody there" is roundel's, and asking it by hand prompted an agent.
+  './decide': { allow: ['roundel/terminal'], budget: 2_500, denied: ['ask.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
   // The drop-in subpath for `@clack/prompts`: its twelve prompts, its writers, its symbols and
   // its settings, on caique's own keypress loop (D-152). It was one function — `limitOptions`,
   // 4,564 B — until 2026-09-27, when the twelve prompts `guide.test.ts` renders were built;
@@ -106,6 +115,8 @@ const RULES: Record<string, EntryRule> = {
   // prompt hides the cursor and owes its return on every exit path, and `linegauge/wrap`.
   // It is still a leaf away from the rest of caique: a program migrating off clack loads none
   // of caique's own API, and a program written against caique never loads a byte of this.
+  // 62,336 B on 2026-09-28; 62,229 B (−107) once raw mode went through `closeout/cursor`'s
+  // `rawMode()` instead of a hand-rolled toggle — an import the allow list already named.
   './clack': {
     allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap'],
     budget: 64_000,
@@ -131,7 +142,11 @@ const RULES: Record<string, EntryRule> = {
   // rather than weight; U5's ceiling for caique is clack, and it is the root entry above
   // that carries it.
   './inquirer': {
-    allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap'],
+    // `paratext/csi` on 2026-09-28 (-61): the cursor moves and erases `@inquirer/ansi` supplies
+    // are ansi-escapes' from paratext, with `@inquirer/ansi`'s zero-row guard kept. Measured 20,829 after merging main (20,890 there).
+    // `roundel/terminal` the same day: the tick's unicode test is is-unicode-supported whole,
+    // from roundel, rather than a four-condition subset of it here. Measured 20,782 (-47).
+    allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap', 'paratext/csi', 'roundel/terminal'],
     budget: 23_000,
     denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js', 'spec.js', 'plugin.js', 'clack.js'],
   },
@@ -149,13 +164,18 @@ const RULES: Record<string, EntryRule> = {
   // carries `ask.js` by design — that shared answer is the arrangement, not an accident.
   // It never reaches the terminal: a caller supplies its own streams. Measured 3,656 B.
   // 3,659 B (+3) on 2026-09-28: raw mode is `closeout/cursor`'s `rawMode`, paired with its undo.
-  './raw': { allow: CLOSEOUT, budget: 4_500, denied: ['decide.js', 'binding.js', 'terminal.js', 'index.js'] },
+  // 3,846 B (+187): the repaint counts rows with linegauge's `lineCount`
+  // against the writer's `columns`, instead of counting `\n`s and ignoring wrap.
+  // 3,916 B (+70) on 2026-09-28, the repaint in `paratext/csi`'s spelling.
+  './raw': { allow: [...CLOSEOUT, 'linegauge', 'paratext/csi'], budget: 4_500, denied: ['decide.js', 'binding.js', 'terminal.js', 'index.js'] },
   // Resolving a whole command's prompts in one pass: the decision plus the widgets it may
   // reach for. Never the terminal, and never the raw renderer — a framework hands caique an
-  // `Io`, and which one is the caller's business. Measured 8,123 B.
-  './binding': { allow: [], budget: 9_500, denied: ['raw.js', 'terminal.js', 'index.js'] },
+  // `Io`, and which one is the caller's business. Measured 8,123 B; 8,395 B on 2026-09-28,
+  // with `decide`'s `roundel/terminal`.
+  './binding': { allow: ['roundel/terminal'], budget: 9_500, denied: ['raw.js', 'terminal.js', 'index.js'] },
   // The only file that touches a stream, and the only one that knows what echo is. It
-  // carries `ask.js` for the `Io` shape it implements. Measured 1,947 B.
+  // carries `ask.js` for the `Io` shape it implements. Measured 1,947 B; +78 on
+  // 2026-09-28 for the writer's `columns`, read through to the output stream.
   './terminal': { allow: [], budget: 2_500, denied: ['decide.js', 'raw.js', 'binding.js', 'index.js'] },
 };
 

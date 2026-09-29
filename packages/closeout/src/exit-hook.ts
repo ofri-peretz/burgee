@@ -162,17 +162,25 @@ function codeFor(signal: number): number | string {
  * async hooks, and the last of those may be registered long after this module loaded. One
  * registry per process, so `Registry.settled` *is* upstream's `isCalled` guard: a second
  * trigger of any kind runs nothing and is not an error.
+ *
+ * **A synchronous first trigger gets no `release` phase at all.** `runSync` invokes every
+ * phase and abandons the promises, which would still *call* every async hook and run it up to
+ * its first `await` — after printing a notice that says they "will not run". `exit-hook` does
+ * not call them on that path, and neither may its drop-in: a hook that writes a file before
+ * its first `await` wrote it under closeout and did not under the incumbent.
  */
-function shutdownRegistry(code: number | string): Registry {
+function shutdownRegistry(code: number | string, isSynchronous: boolean): Registry {
   if (registry !== undefined) return registry;
   const waits = [...asyncHooks.values()];
   const built = createRegistry({ deadline: waits.length === 0 ? DEFAULT_DEADLINE : Math.max(...waits) });
   built.add(() => {
     for (const hook of syncHooks) hook(code);
   }, 'flush');
-  built.add(async () => {
-    await Promise.all([...asyncHooks.keys()].map(async (hook) => hook(code)));
-  }, 'release');
+  if (!isSynchronous) {
+    built.add(async () => {
+      await Promise.all([...asyncHooks.keys()].map(async (hook) => hook(code)));
+    }, 'release');
+  }
   registry = built;
   return built;
 }
@@ -204,20 +212,20 @@ function leave(shouldManuallyExit: boolean, code: number | string): void {
 }
 
 /**
- * One shutdown. Synchronous paths abandon the async phase; every other path awaits it and
- * then drains stdio before leaving.
+ * One shutdown. Synchronous paths never start the async hooks; every other path awaits them
+ * and then drains stdio before leaving.
  */
 function shutdown(shouldManuallyExit: boolean, isSynchronous: boolean, signal: number): void {
   const code = codeFor(signal);
-  const runner = shutdownRegistry(code);
+  const runner = shutdownRegistry(code, isSynchronous);
   if (runner.settled) return;
 
   if (isSynchronous) {
     if (asyncHooks.size > 0) console.error(SYNC_NOTICE);
-    // `runSync` invokes every phase and abandons whatever returns a promise — which is
-    // exactly what `'exit'` can offer, since Node is already tearing down and no microtask
-    // queued here will ever be drained.
-    runner.runSync({ code: typeof code === 'number' ? code : null, signal: null });
+    // The registry was built without the async phase (see `shutdownRegistry`), so `runSync`
+    // runs the synchronous hooks and nothing else — which is exactly what `'exit'` can offer,
+    // since Node is already tearing down and no microtask queued here will ever be drained.
+    runner.runSync({ code: null, signal: null });
     leave(shouldManuallyExit, code);
     return;
   }
@@ -230,7 +238,10 @@ function shutdown(shouldManuallyExit: boolean, isSynchronous: boolean, signal: n
   };
   // Both arms leave. `run` is written not to reject; if that ever changes, a shutdown that
   // hangs because its own error handling threw is the failure this package exists to prevent.
-  runner.run({ code: typeof code === 'number' ? code : null, signal: signal > 0 ? String(signal) : null }).then(finish, finish);
+  // The record handed to `run` is `{ code: null, signal: null }` on every path: the registry's
+  // handlers are this file's own and read `code` from the closure, and the record is not
+  // visible anywhere else — a hook is handed the code, never the record.
+  runner.run({ code: null, signal: null }).then(finish, finish);
 }
 
 /** PM2's cluster shutdown message, which `listen` wires to the same path as a signal. */
@@ -249,21 +260,17 @@ const onPm2Message = (message: unknown): void => {
 function listen(): void {
   if (listening || proc === undefined) return;
   listening = true;
-  // eslint-disable-next-line maintainability/consistent-function-scoping -- it reads the module's process through the guard at the top of listen, which narrows it to defined; hoisted, that narrowing is lost and the call no longer type-checks without an assertion
-  const once = (event: string, run: () => void): void => {
-    let fired = false;
-    proc.on(event, ((): void => {
-      if (fired) return;
-      fired = true;
-      run();
-    }) as (...args: never[]) => void);
-  };
+  /*
+   * No per-event once-guard: `shutdown` already returns at `runner.settled`, which flips the
+   * moment the first trigger of *any* kind starts, so a second SIGINT, a re-fired
+   * `'beforeExit'` or an `'exit'` behind a signal all run nothing.
+   */
   // Paths that can await: there is still an event loop to come back to.
-  once('beforeExit', () => shutdown(true, false, NO_SIGNAL));
-  once('SIGINT', () => shutdown(true, false, SIGINT_NUMBER));
-  once('SIGTERM', () => shutdown(true, false, SIGTERM_NUMBER));
+  proc.on('beforeExit', () => shutdown(true, false, NO_SIGNAL));
+  proc.on('SIGINT', () => shutdown(true, false, SIGINT_NUMBER));
+  proc.on('SIGTERM', () => shutdown(true, false, SIGTERM_NUMBER));
   // The explicit exit. Synchronous hooks only, and no manual exit: we are already leaving.
-  once('exit', () => shutdown(false, true, 0));
+  proc.on('exit', () => shutdown(false, true, 0));
   /*
    * PM2's cluster shutdown message. `process.exit()` does not fire `beforeExit`, so without
    * this a pm2-managed process would skip every hook; upstream carries it for that reason and

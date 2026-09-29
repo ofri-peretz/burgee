@@ -14,7 +14,7 @@
  *   section's two remaining columns; the body is the gap.
  *
  * **Ids.** The sequential ones already written — D-001..D-151 (and the `LEGACY_LATE` ids,
- * which main wrote while this change was in flight), A1..A30, B1..B22, C1..C7 — keep
+ * which main wrote while this change was in flight), A1..A30, B1..B22, C1..C7 (and C8) — keep
  * their names forever, because commits, specs, PR titles and workflow messages cite them. The
  * sequence itself is frozen: a new entry is `D-YYYYMMDD-slug` (or `A-`, `B-`, `C-` for a gap),
  * which two branches can only collide on by choosing the same slug on the same day — and then
@@ -45,13 +45,19 @@ export const GAPS_DIR = '.sdlc/gaps';
  */
 export const LEGACY = { D: 151, A: 30, B: 22, C: 7 } as const;
 /**
- * Sequential decision ids above the frozen line that main wrote while this layout was in flight:
- * D-161 (#646), D-163 and D-164 (#662), D-165 (#667), D-152 (#638), D-190 (#670), D-182 (#683)
- * and D-154 (#648). Commits and specs cite them, so they keep their names. They are the only
- * ones: every other number past D-151 — the gaps between them included — still continues the
- * sequence and fails.
+ * Sequential decision ids above the frozen line that main wrote while this layout was in flight.
+ * Commits and specs cite them, so they keep their names, and they are the only ones: every other
+ * number past D-151 — the gaps between them included — still continues the sequence and fails.
+ * D-152 (#638), D-154 (#648), D-157 (#660), D-158 and D-166..D-168 (#669), D-160 (#650), D-161
+ * (#646), D-163 and D-164 (#662), D-165 (#667), D-170 and D-171 (#685), D-180 (#686), D-181
+ * (#678), D-182 (#683), D-190 (#670).
  */
-export const LEGACY_LATE: readonly string[] = ['D-152', 'D-154', 'D-161', 'D-163', 'D-164', 'D-165', 'D-182', 'D-190'];
+export const LEGACY_LATE: readonly string[] = [
+  'D-152', 'D-154', 'D-157', 'D-158', 'D-160', 'D-161', 'D-163', 'D-164', 'D-165',
+  'D-166', 'D-167', 'D-168', 'D-170', 'D-171', 'D-180', 'D-181', 'D-182', 'D-190',
+];
+/** The same for gaps: C8 (#669). */
+export const LEGACY_LATE_GAPS: readonly string[] = ['C8'];
 /** Sequential gap ids that were never written: GAPS.md went from A1 to A3 on the day it opened. */
 export const LEGACY_HOLES: readonly string[] = ['A2'];
 /** A slug long enough to say what the entry is and short enough to cite in a commit subject. */
@@ -276,7 +282,10 @@ export function missingLegacy(ids: readonly string[], expected: readonly string[
 
 export const legacyDecisionIds = (): string[] => [...Array.from({ length: LEGACY.D }, (_, i) => `D-${String(i + 1).padStart(LEGACY_WIDTH, '0')}`), ...LEGACY_LATE];
 export const legacyGapIds = (): string[] =>
-  (['A', 'B', 'C'] as const).flatMap((l) => Array.from({ length: LEGACY[l] }, (_, i) => `${l}${String(i + 1)}`)).filter((id) => !LEGACY_HOLES.includes(id));
+  [...(['A', 'B', 'C'] as const).flatMap((l) => Array.from({ length: LEGACY[l] }, (_, i) => `${l}${String(i + 1)}`)).filter((id) => !LEGACY_HOLES.includes(id)), ...LEGACY_LATE_GAPS];
+
+/** A sequential gap id past its section's frozen line (and not a late one main holds), or a hole. */
+const gapContinuesSequence = (id: string, legacy: string, max: number): boolean => (Number(legacy) > max && !LEGACY_LATE_GAPS.includes(id)) || LEGACY_HOLES.includes(id);
 
 /** Every gap names its section's letter, and new ones are dated. */
 export function gapIdProblems(entries: readonly Gap[]): string[] {
@@ -292,7 +301,7 @@ export function gapIdProblems(entries: readonly Gap[]): string[] {
     if (letter !== want) out.push(`${g.id} is in section ${g.section}, whose ids start with ${want}`);
     if (legacy !== undefined) {
       const max = LEGACY[letter as 'A' | 'B' | 'C'];
-      if (Number(legacy) > max || LEGACY_HOLES.includes(g.id)) out.push(`${g.id} continues the sequential numbering, which stopped at ${letter ?? ''}${String(max)}. Name it ${letter ?? ''}-YYYYMMDD-slug: \`npm run ledger -- new gap ${g.section} <slug>\``);
+      if (gapContinuesSequence(g.id, legacy, max)) out.push(`${g.id} continues the sequential numbering, which stopped at ${letter ?? ''}${String(max)}. Name it ${letter ?? ''}-YYYYMMDD-slug: \`npm run ledger -- new gap ${g.section} <slug>\``);
       continue;
     }
     const slugIssue = slugProblem(g.id, slug);

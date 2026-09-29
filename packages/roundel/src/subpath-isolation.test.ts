@@ -40,6 +40,9 @@ const ALLOWED: Record<string, string[]> = {
   // The plugin host reaches nothing at run time: its only import is `Theme`, a type, which
   // `verbatimModuleSyntax` erases. Collecting a theme costs no module.
   'plugin.js': [],
+  // Interactivity and the unicode probe (R12). Environment reads over a runtime passed in;
+  // it reaches nothing, so a caller asking "is anybody there" pays for nothing else.
+  'terminal.js': [],
 };
 
 /**

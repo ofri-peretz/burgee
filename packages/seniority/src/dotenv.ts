@@ -54,10 +54,9 @@ export function parse(src: string | Buffer): Record<string, string> {
   // `matchAll` rather than a re-entrant `exec` loop: the pattern is module-level and `g`, so
   // an `exec` loop leaves `lastIndex` behind and the second call to `parse` starts halfway
   // through the file.
-  for (const match of lines.matchAll(LINE)) {
-    const key = match[1];
-    if (key !== undefined) out.set(key, unwrap(match[2] ?? ''));
-  }
+  // Group 1 is not optional in `LINE`, so every match carries a key; group 2 is, so a bare
+  // `KEY=` at the end of the file has no value to unwrap.
+  for (const match of lines.matchAll(LINE)) out.set(match[1] as string, unwrap(match[2] ?? ''));
   return Object.fromEntries(out);
 }
 

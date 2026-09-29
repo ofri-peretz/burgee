@@ -1,0 +1,79 @@
+---
+title: NO_COLOR and accessibility
+description: "How flagstaff decides colour and redraws — NO_COLOR, FORCE_COLOR, --color, CLI_ACCESSIBLE — and what a screen-reader user gets."
+---
+
+flagstaff decides nothing about the terminal itself. Two questions — may I redraw, and may I
+colour — are answered by [roundel](https://roundel.interlace.tools/docs)'s output policy, the
+one every package in the family asks. Its rules are in
+[`policy.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/roundel/src/policy.ts)
+and pinned by `policy.test.ts`.
+
+## Redraws: `CLI_ACCESSIBLE`
+
+A screen reader reads a redraw as a stream of fragments. Set `CLI_ACCESSIBLE=1` and the policy
+chooses the **accessible** mode ahead of the terminal check: every component hoisted with
+`hoist()` prints its [static projection](/docs/guides/static-projection) once per state and never
+redraws — on a terminal as well as off one. A box is its title and text, a table is
+`header: value` lines, a progress bar is `12/30 files · 40%`.
+
+```text title="CLI_ACCESSIBLE=1 node build.mjs"
+… building
+… linking
+✔ built
+```
+
+`--json` still wins over it: a program asked for structured output gets structured output.
+An empty `CLI_ACCESSIBLE=` counts as unset, the way `NO_COLOR` does.
+
+The drop-ins are the exception, on purpose: they behave as their incumbents do.
+`flagstaff/ora` imports roundel's chalk and never the policy, because a façade that
+reinterpreted its host would fail the host's own suite — so on a terminal `CLI_ACCESSIBLE=1`
+does not stop it animating, where `CI=true` does, because that is ora's own rule. `hoist()` is
+what honours the switch.
+
+## Colour: `NO_COLOR` wins
+
+flagstaff paints its glyphs through roundel's tokens, and a token is plain text until the
+program calls `fly()` from `roundel/theme` to decide a colour level. Once it has, the level is,
+first match wins:
+
+1. **none** under `--json`, when `NO_COLOR` is set to anything but empty, or in accessible
+   mode unless colour was asked for;
+2. **what was asked**, when `FORCE_COLOR`, `--color` or `--no-color` asked — the level named,
+   or the terminal's own level and never less than basic colour when none was named;
+3. **none** in a pipe nobody asked to colour;
+4. **the terminal's own**, from `TERM` and `COLORTERM`, or a known CI runner's.
+
+The full order, edge cases included (`TERM=dumb`, Azure Pipelines), is `colorLevel` in the
+same file.
+
+So `NO_COLOR` beats an explicit `--color`:
+
+```js title="colour.mjs"
+import { hoist } from 'flagstaff/loop';
+import { spinner } from 'flagstaff/spinner';
+import { fly } from 'roundel/theme';
+
+import { json, rt } from './rt.mjs';
+
+fly({}, { ...rt, argv: process.argv }, { json });
+hoist(spinner(), rt, { text: 'building' }, { json }).lower({ text: 'built', status: 'ok' });
+```
+
+```text title="NO_COLOR=1 node colour.mjs --color"
+… building
+✔ built
+```
+
+Colour is never how a state is told apart: `ok` and `fail` are `✔` and `✖` before they are
+green and red, so the text form carries the whole meaning with colour off.
+
+## What a screen-reader user can rely on
+
+- No redraws with `CLI_ACCESSIBLE=1`, from anything hoisted on the loop.
+- No cursor movement, erase or carriage return from `hoist()` off a terminal, in any mode
+  ([`loop.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/loop.test.ts)).
+- A text form for every component: a plugin without one is refused at registration
+  ([Plugins](/docs/guides/plugins)).
+- The cursor is shown again after `lower()`, and after `SIGINT`, `SIGTERM` or `SIGHUP`.

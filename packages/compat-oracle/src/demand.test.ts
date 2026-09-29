@@ -18,6 +18,8 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import {
+  capNotes,
+  cell,
   citations,
   fromSearchItem,
   isCovered,
@@ -29,6 +31,7 @@ import {
   renderIssuesPage,
   searchQuery,
   type Section,
+  TOP_N,
 } from './demand.js';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
@@ -126,10 +129,51 @@ describe('the page', () => {
   });
 });
 
+describe('the rows of a page', () => {
+  const meta = { measured: '2026-09-14', citationCount: 3 };
+  const layer = { pkg: 'seniority', intent: 'seniority', incumbents: ['dotenv'] };
+
+  it('reads an open search item as open and a missing reaction count as zero', () => {
+    const item = { number: 7, title: 't', html_url: 'u', state: 'open', created_at: '2020-01-02T03:04:05Z' };
+    expect(fromSearchItem(item)).toEqual({ number: 7, title: 't', url: 'u', state: 'open', reactions: 0, closeReason: null, created: '2020-01-02' });
+    expect(fromSearchItem({ ...item, state: 'closed', state_reason: 'not_planned', reactions: { total_count: 12 } })).toMatchObject({ state: 'closed', reactions: 12, closeReason: 'not_planned' });
+  });
+
+  it('orders rows by reactions, shows no close reason on an open issue, and says so when a closed one has none', () => {
+    const page = renderIssuesPage(layer, [section({ open: [issue({ number: 1, state: 'open', reactions: 50, closeReason: null })], closed: [issue({ number: 2, reactions: 12, closeReason: null })] })], meta, new Set());
+    const rows = page.split('\n').filter((l) => l.startsWith('| open') || l.startsWith('| closed'));
+    expect(rows).toEqual([
+      '| open | 50 | [#1](https://github.com/motdotla/dotenv/issues/89) | Importing dotenv in ES6 | — | 2016-11-14 | no |',
+      '| closed | 12 | [#2](https://github.com/motdotla/dotenv/issues/89) | Importing dotenv in ES6 | closed, no reason recorded | 2016-11-14 | no |',
+    ]);
+    expect(page).toContain('**1 incumbent(s) · 1 open · 1 closed at >=10 reactions.**');
+    expect(page).toContain('today seniority carries\n3 such citation(s) in total.');
+  });
+
+  it('calls a full page a floor, naming which half hit the cap', () => {
+    const full = Array.from({ length: TOP_N }, (_, i) => issue({ number: i }));
+    expect(capNotes(section({ closed: full }))).toEqual([`*Top ${TOP_N} by reactions; the closed count is a floor, not a total.*`, '']);
+    expect(capNotes(section({ open: full, closed: full }))[0]).toBe(`*Top ${TOP_N} by reactions; the open and closed count is a floor, not a total.*`);
+    expect(renderIssuesPage(layer, [section({ closed: full })], meta, new Set())).toContain('is a floor, not a total.*');
+  });
+
+  it('titles a section by its incumbent alone when the package declares no repository', () => {
+    const page = renderIssuesPage(layer, [section({ repo: null })], meta, new Set());
+    expect(page).toContain('\n## dotenv\n');
+    expect(renderIssuesPage(layer, [section()], meta, new Set())).toContain('\n## dotenv — `motdotla/dotenv`\n');
+  });
+});
+
+describe('a title in a table cell', () => {
+  it('cannot end the cell or open an HTML element', () => {
+    expect(cell('<Static> a | b\nc')).toBe(String.raw`\<Static> a \| b c`);
+  });
+});
+
 describe('every layer has a measured demand file', () => {
-  it('covers the nine layers of the plan', () => {
-    expect(LAYERS).toHaveLength(9);
-    expect(new Set(LAYERS.flatMap((l) => l.incumbents)).size).toBe(25);
+  it('covers the ten layers of the plan', () => {
+    expect(LAYERS).toHaveLength(10);
+    expect(new Set(LAYERS.flatMap((l) => l.incumbents)).size).toBe(40);
   });
 
   it('has an issues.md beside every layer intent', () => {

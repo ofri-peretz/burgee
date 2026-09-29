@@ -40,3 +40,15 @@ describe('the compatibility page names every subtraction (C4)', () => {
     expect(PAGE, 'run `npm run compat:page` — the page is generated from hosts.ts').toContain(why);
   });
 });
+
+describe('the compatibility page says which rows are ceilings, and why (D-160)', () => {
+  const ceilings = HOSTS.filter((h) => h.status === 'active' && h.ceiling !== undefined);
+
+  it('has a ceiling row to check, so this cannot pass by finding none', () => {
+    expect(ceilings.length).toBeGreaterThan(0);
+  });
+
+  it.each(ceilings.map((h) => [h.name, h.ceiling ?? ''] as const))('%s: its ceiling is on the page with its reason', (_name, why) => {
+    expect(PAGE, 'run `npm run compat:page` — the page is generated from hosts.ts').toContain(why);
+  });
+});

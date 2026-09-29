@@ -63,7 +63,7 @@ describe('gap ledger', () => {
     expect(duplicateIds(entries.map((g) => g.id), 'gap')).toEqual([]);
   });
 
-  it('keeps every sequential id — A1..A30 (A2 was never written), B1..B22, C1..C7', () => {
+  it('keeps every sequential id — A1..A30 (A2 was never written), B1..B22, C1..C7, and C8 from main', () => {
     expect(missingLegacy(entries.map((g) => g.id), legacyGapIds(), 'gap')).toEqual([]);
   });
 
@@ -111,7 +111,9 @@ describe('each gaps check fails on a broken fixture', () => {
     expect(gapIdProblems([good({ id: 'A31' })])[0]).toMatch(/continues the sequential numbering, which stopped at A30/);
     expect(gapIdProblems([good({ id: 'A2' })])[0]).toMatch(/continues the sequential numbering/);
     expect(gapIdProblems([good({ id: 'B-20260927-x' })])).toEqual(['B-20260927-x is in section A, whose ids start with A']);
-    expect(gapIdProblems([good({ id: 'C8', section: 'release' })])[0]).toMatch(/stopped at C7/);
+    expect(gapIdProblems([good({ id: 'C9', section: 'release' })])[0]).toMatch(/stopped at C7/);
+    expect(gapIdProblems([good({ id: 'C8', section: 'C' })]), 'C8 is the one late gap id main holds').toEqual([]);
+    expect(gapIdProblems([good({ id: 'A31' })])[0]).toMatch(/stopped at A30/);
     expect(gapIdProblems([good({ id: 'A-2026-09-27-x' })])[0]).toMatch(/is not a gap id/);
     expect(gapIdProblems([good({ id: 'C-20260927-merge-queue', section: 'release' })])).toEqual([]);
   });

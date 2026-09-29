@@ -43,9 +43,8 @@ whole ledger as one table.
 
 **Ids.** D-001 to D-151 were numbered in sequence and keep those names forever — commits,
 specs, READMEs and PR titles cite them, and `.sdlc/decisions/D-102.md` is where `D-102`
-resolves. D-152, D-154, D-161, D-163, D-164, D-165, D-182 and D-190 were written on main while
-the change below was in flight and keep their names too; they are the only sequential ids past
-D-151. The sequence stopped
+resolves. The sequential ids main wrote while the change below was in flight keep their names
+too; `LEGACY_LATE` in `scripts/ledgers.ts` lists them, and they are the only ones past D-151. The sequence stopped
 on 2026-09-27 ([D-20260927-per-entry-ledgers](./decisions/D-20260927-per-entry-ledgers.md)): two branches
 that each take "the next number" take the same one, and every such pair was a rebase, a
 renumber and another CI run. A new id is **`D-YYYYMMDD-slug`** — the date it was taken and a

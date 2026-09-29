@@ -1,15 +1,15 @@
 package:  wrap-ansi
 repo:     https://github.com/chalk/wrap-ansi
-version:  10.0.1
-tag:      v10.0.1
-commit:   c6b6259a58843e491e8703c5010a2a517b5f5738
-vendored: 2026-09-14
+version:  10.0.2
+tag:      v10.0.2
+commit:   4e44ec236852ac3ca28a554dbc3b5fc396346f1d
+vendored: 2026-09-28
 files:    1
 tool:     scripts/vendor-suite.ts
 
 How this directory was made
 ---------------------------
-A shallow clone of https://github.com/chalk/wrap-ansi at v10.0.1, then that repository's own test directory and
+A shallow clone of https://github.com/chalk/wrap-ansi at v10.0.2, then that repository's own test directory and
 its fixtures copied here. The only edit is to the import specifiers that reach the library:
 each is rewritten to a generated shim, so one unedited suite can grade any implementation.
 Everything else — assertions, fixtures, helpers — is upstream's, byte for byte.
@@ -33,7 +33,7 @@ vendor step deletes any shim it finds, so a stale one can never grade the wrong 
 
 Reproduce
 ---------
-    npx tsx scripts/vendor-suite.ts wrap-ansi --version 10.0.1
+    npx tsx scripts/vendor-suite.ts wrap-ansi --version 10.0.2
 
 Every field above is reproduced exactly, with one exception that is a date and not a
 defect: `vendored` is the day the copy was taken, so a fresh run writes today's.

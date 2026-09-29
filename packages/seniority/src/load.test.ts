@@ -71,6 +71,20 @@ describe('injected loaders (R6, constraint 3)', () => {
 
   it('reports a file that does not parse with the path and the parser’s own words, as CONFIG', async () => {
     await expect(loadPath(write('e.json', '{not json'))).rejects.toThrow(/e\.json is not valid JSON/u);
+    let parserWords = '';
+    try {
+      JSON.parse('{not json');
+    } catch (error) {
+      parserWords = (error as Error).message;
+    }
+    await expect(loadPath(write('e2.json', '{not json'))).rejects.toMatchObject({ hint: parserWords });
+  });
+
+  it('refuses a loader that hands back something other than an object, whichever loader it was', async () => {
+    const at = write('f.cfg', 'x');
+    const refusals = [[1], null, 'text', 42].map(async (value) => await expect(loadPath(at, { loaders: { '.cfg': () => value } })).rejects.toThrow(/f\.cfg must contain an object/u));
+    await Promise.all(refusals);
+    await expect(loadPath(write('g.json', '[1, 2]'))).rejects.toThrow(/g\.json must contain an object/u);
   });
 });
 

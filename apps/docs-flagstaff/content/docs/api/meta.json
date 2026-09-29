@@ -1,0 +1,18 @@
+{
+  "title": "API reference",
+  "pages": [
+    "index",
+    "ora",
+    "boxen",
+    "cli-table3",
+    "log-update",
+    "loop",
+    "plugin",
+    "import",
+    "spinner",
+    "progress",
+    "tasks",
+    "box",
+    "table"
+  ]
+}

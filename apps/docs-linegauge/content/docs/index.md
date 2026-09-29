@@ -174,11 +174,11 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `slice-ansi` | 104 / 104 |
-| `string-width` | 229 / 229 |
+| `string-width` | 233 / 233 |
 | `strip-ansi` | 8 / 8 |
-| `wrap-ansi` | 80 / 80 |
+| `wrap-ansi` | 85 / 85 |
 
-Weight, installed and tree-inclusive: **102,495 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5274**.
+Weight, installed and tree-inclusive: **102,653 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5282**.
 
 ## For agents
 
@@ -220,7 +220,7 @@ Plugins register under the `widths` key, against the one schema the whole family
 
 ## The family
 
-Nine packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
+Ten packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
 carries its colours, flagstaff flies it and caique answers back; each installs on its own, and none
 takes a dependency from outside the family.
 
@@ -235,6 +235,7 @@ takes a dependency from outside the family.
 | [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, dotenv and rc |
 | [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook and restore-cursor |
 | [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
+| [controlroom](https://burgee.interlace.tools/docs/packages/controlroom) | Reserved, not usable yet — planned: full-screen, keyboard-driven terminal screens | ink, planned |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

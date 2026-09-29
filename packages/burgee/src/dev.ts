@@ -73,7 +73,7 @@ interface YargsLike {
   burgee: (seam: Seam) => { parseAsync: (argv: string[]) => Promise<unknown> };
 }
 
-const isObject = (x: unknown): x is Record<string, unknown> => x !== null && x !== undefined && typeof x === 'object' && !Array.isArray(x);
+const isObject = (x: unknown): x is Record<string, unknown> => x !== null && typeof x === 'object' && !Array.isArray(x);
 
 function isManifest(x: unknown): x is Manifest {
   return x instanceof Manifest || (isObject(x) && Array.isArray(x['commands']) && Array.isArray(x['rootPath']));
@@ -83,8 +83,14 @@ function isYargs(x: unknown): x is YargsLike {
   return isObject(x) && typeof x['burgee'] === 'function' && isObject(x['manifest']);
 }
 
+/**
+ * `action`, commander's own verb, and asked **before** `isYargs`: a burgee `Command` has a
+ * `burgee()` too (the floor opt-in), and both façades have `parseAsync`. Asked the other way
+ * round, a commander program was served as yargs — its streams never injected, so a tool call
+ * wrote to the MCP channel, and its argv read `from: 'node'`, which drops the first two words.
+ */
 function isCommander(x: unknown): x is CommanderLike {
-  return isObject(x) && typeof x['parseAsync'] === 'function' && isObject(x['manifest']);
+  return isObject(x) && typeof x['action'] === 'function' && isObject(x['manifest']);
 }
 
 /** A tool call is the same run a `--json` caller gets, with the streams captured (N4). */
@@ -114,8 +120,8 @@ export async function load(entry: string, generation: number): Promise<Loaded> {
   const mod = (await import(url.href)) as Record<string, unknown>;
   const exported = mod['program'] ?? mod['default'];
   if (isManifest(exported)) return { manifest: exported, invoke: invokeOn(exported, 'burgee', entry), kind: 'burgee', ms: performance.now() - started };
-  if (isYargs(exported)) return { manifest: exported.manifest, invoke: invokeOn(exported, 'yargs', entry), kind: 'yargs', ms: performance.now() - started };
   if (isCommander(exported)) return { manifest: exported.manifest, invoke: invokeOn(exported, 'commander', entry), kind: 'commander', ms: performance.now() - started };
+  if (isYargs(exported)) return { manifest: exported.manifest, invoke: invokeOn(exported, 'yargs', entry), kind: 'yargs', ms: performance.now() - started };
   throw new Error(`${entry} exports no program: export a burgee manifest, a commander Command or a yargs instance as \`program\` or default`);
 }
 

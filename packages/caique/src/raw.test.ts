@@ -33,7 +33,7 @@ const select: PromptSpec = { kind: 'select', message: 'Which host?', choices: [{
 const multi: PromptSpec = { kind: 'multiselect', message: 'Which hosts?', choices: [{ value: 'ora' }, { value: 'chalk' }, { value: 'yargs' }] };
 
 /** A key stream that replays a script, and remembers what was done to the terminal. */
-function keyboard(script: string[]) {
+function keyboard(script: string[], columns?: number) {
   const listeners: ((c: string) => void)[] = [];
   const rawCalls: boolean[] = [];
   const out: string[] = [];
@@ -45,7 +45,7 @@ function keyboard(script: string[]) {
     resume: () => undefined,
     pause: () => undefined,
   };
-  const writer: Writer = { write: (t: string) => out.push(t) };
+  const writer: Writer = { write: (t: string) => out.push(t), columns };
   // Nothing reads lines in raw mode; a reader is present only to satisfy the shape.
   const reader: Reader = { line: () => Promise.resolve(undefined) };
   const play = (): void => {
@@ -60,8 +60,8 @@ function lineIo(lines: string[]) {
   return { reader: { line: () => Promise.resolve(lines[at++]) }, writer: { write: () => undefined } };
 }
 
-async function run(spec: PromptSpec, script: string[], multiselect = false) {
-  const k = keyboard(script);
+async function run(spec: PromptSpec, script: string[], multiselect = false, columns?: number) {
+  const k = keyboard(script, columns);
   const answer = askList(spec, k.io, multiselect);
   k.play();
   return { answer: await answer, ...k };
@@ -164,6 +164,108 @@ describe('the terminal is left as it was found', () => {
     expect(answer).toEqual({ ok: false, reason: 'cancelled' });
     expect(rawCalls).toEqual([true, false]);
     expect(written()).toContain(`${ESC}[?25h`);
+  });
+});
+
+/** A terminal's screen and cursor, as far as `screen()` below needs one. */
+interface Tty {
+  rows: string[][];
+  row: number;
+  col: number;
+}
+
+/** One CSI sequence: `G` column, `A` up, `J` clear below. Anything else moves nothing. */
+function csi(tty: Tty, parameter: string, final: string): void {
+  const n = parameter === '' ? 1 : Number(parameter);
+  if (final === 'G') tty.col = n - 1;
+  else if (final === 'A') tty.row = Math.max(0, tty.row - n);
+  else if (final === 'J') {
+    (tty.rows[tty.row] ??= []).length = tty.col;
+    tty.rows.length = tty.row + 1;
+  }
+}
+
+/** One printable character or newline, with deferred autowrap at `columns`. */
+function put(tty: Tty, ch: string, columns: number): void {
+  if (ch === '\n' || tty.col === columns) {
+    tty.row += 1;
+    tty.col = 0;
+    tty.rows[tty.row] ??= [];
+    if (ch === '\n') return;
+  }
+  (tty.rows[tty.row] ??= [])[tty.col] = ch;
+  tty.col += 1;
+}
+
+/**
+ * What a terminal `columns` wide shows after `bytes` — only as much of one as the renderer
+ * uses: printable text with deferred autowrap, `\n` as a new row (raw mode keeps `ONLCR`),
+ * and the three CSI finals `erase()` writes. Any other sequence — the cursor's `?25l` and
+ * `?25h` — moves nothing and draws nothing.
+ */
+function screen(bytes: string, columns: number): string[] {
+  const tty: Tty = { rows: [[]], row: 0, col: 0 };
+  for (let i = 0; i < bytes.length; i++) {
+    const sequence = bytes[i] === ESC ? /^\[([?\d;]*)([A-Za-z])/.exec(bytes.slice(i + 1)) : null;
+    if (sequence === null) put(tty, bytes[i] as string, columns);
+    else {
+      csi(tty, sequence[1] ?? '', sequence[2] ?? '');
+      i += sequence[0].length;
+    }
+  }
+  return tty.rows.map((r) => Array.from(r, (c) => c ?? ' ').join('').trimEnd()).filter((r) => r !== '');
+}
+
+describe('a frame wider than the terminal', () => {
+  // The hint is longer than the terminal is wide, so its row wraps onto a second one. The
+  // repaint has to climb every row the frame took on screen, not every line in the string.
+  const wide: PromptSpec = {
+    kind: 'select',
+    message: 'Which host?',
+    choices: [{ value: 'ora' }, { value: 'log-update', hint: 'ninety-nine graded tests, and a hint that does not fit' }, { value: 'chalk' }],
+  };
+  const COLUMNS = 24;
+
+  it('repaints in place: one copy of the question on screen after every keypress', async () => {
+    const { written, answer } = await run(wide, [DOWN, DOWN, UP, ENTER], false, COLUMNS);
+    expect(answer).toEqual({ ok: true, value: 'log-update' });
+    const shown = screen(written(), COLUMNS);
+    expect(shown.filter((r) => r === 'Which host?')).toHaveLength(1);
+    const last = renderList(wide, wide.choices ?? [], { cursor: 1, selected: new Set() }, false);
+    expect(shown).toEqual(screen(`${last}\n`, COLUMNS));
+  });
+
+  it('climbs one row per line when the writer does not know its width', async () => {
+    const { written } = await run(select, [DOWN, ENTER]);
+    const shown = screen(written(), Number.MAX_SAFE_INTEGER);
+    expect(shown.filter((r) => r === 'Which host?')).toHaveLength(1);
+    expect(shown).toEqual(screen(`${renderList(select, select.choices ?? [], { cursor: 1, selected: new Set() }, false)}\n`, Number.MAX_SAFE_INTEGER));
+  });
+
+  it('treats a writer that reports zero columns as one that does not know its width', async () => {
+    // A pipe can report `columns: 0`; measuring against it would make every row infinitely tall.
+    const unknown = await run(select, [DOWN, ENTER]);
+    const zero = await run(select, [DOWN, ENTER], false, 0);
+    expect(zero.written()).toBe(unknown.written());
+  });
+});
+
+describe('a list with no choices', () => {
+  // The spec validator refuses an empty list before it reaches here, but `askList` is its
+  // own export: called directly, it must still answer and leave the terminal as it found it.
+  const empty: PromptSpec = { kind: 'select', message: 'Nothing to pick', choices: [] };
+
+  it('answers the empty string, and repaints its one-row frame without climbing', async () => {
+    const { answer, written } = await run(empty, [ENTER]);
+    expect(answer).toEqual({ ok: true, value: '' });
+    // `cursorUp(0)` would climb a row a terminal reads as one: above the question.
+    expect(written()).not.toContain(`${ESC}[0A`);
+    expect(screen(written(), 80)).toEqual(['Nothing to pick']);
+  });
+
+  it('a multiselect with no choices at all answers an empty list, even after space', async () => {
+    const { answer } = await run({ kind: 'multiselect', message: 'Nothing to pick' }, [SPACE, ENTER], true);
+    expect(answer).toEqual({ ok: true, value: [] });
   });
 });
 

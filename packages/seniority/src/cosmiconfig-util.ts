@@ -26,8 +26,6 @@ export function decodeFileContent(buffer: Buffer): string {
   return buffer.toString('utf-8');
 }
 
-const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
-
 /**
  * A property name, or a period-delimited path, or an array of names.
  *
@@ -35,12 +33,18 @@ const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
  * `source['ant.beetle.cootie']` when that key exists, and only otherwise splits on periods.
  * A name with a period *inside* a path can therefore only be expressed as an array, which is
  * what the array form is for.
+ *
+ * **The walk guards `undefined` and nothing else**, as 10.0.1's does. A path through a string
+ * reads the string's own properties (`packageProp: 'name.length'` is a number), and a path
+ * through a `null` — `"foo": null` under `packageProp: 'foo.bar'` — throws the `TypeError`
+ * upstream throws, which the loader then annotates with the file. `lilconfig.ts` reproduces
+ * the same throw on purpose; a guard here would make the two façades disagree about one file.
  */
 export function getPropertyByPath(source: unknown, path: string | readonly string[]): unknown {
   // eslint-disable-next-line conventions/consistent-existence-index-check -- `in` is a different function: it walks the prototype chain, so `getPropertyByPath(source, 'toString')` would answer with `Object.prototype.toString` for every object. cosmiconfig uses `Object.prototype.hasOwnProperty.call` here and the own-property question is the one being asked.
-  if (typeof path === 'string' && isRecord(source) && Object.hasOwn(source, path)) return source[path];
+  if (typeof path === 'string' && Object.hasOwn(source as object, path)) return (source as Record<string, unknown>)[path];
   const parsed = typeof path === 'string' ? path.split('.') : path;
-  return parsed.reduce<unknown>((previous, key) => (isRecord(previous) ? previous[key] : undefined), source);
+  return parsed.reduce<unknown>((previous, key) => (previous === undefined ? previous : (previous as Record<string, unknown>)[key]), source);
 }
 
 /**

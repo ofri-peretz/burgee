@@ -85,6 +85,7 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
       'terminal-link': 'paratext/terminal-link',
       lilconfig: 'seniority/lilconfig',
       '@inquirer/core': 'caique/inquirer',
+      meow: 'burgee/meow',
       'restore-cursor': 'closeout/restore-cursor',
       'exit-hook': 'closeout/exit-hook',
       'signal-exit': 'closeout/signal-exit',
@@ -380,6 +381,16 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     expect(kept.source).toBe("import Table from 'flagstaff/cli-table3';\nimport type { HorizontalAlignment } from 'cli-table3';\n");
     expect(kept.kept.map((k) => k.names)).toEqual([['HorizontalAlignment']]);
     expect(rewriteSource("import { modifiers } from 'chalk';\n").refused.map((r) => r.specifier)).toEqual(['chalk']);
+  });
+
+  it("moves meow's type imports with it: burgee/meow exports every type meow 14 does", () => {
+    // Before 2026-09-27 burgee/meow exported three of meow's ten types, so the first line
+    // below was refused (a mixed import cannot be split) and the second kept on meow.
+    const both = "import meow, { type Result, type TypedFlags } from 'meow';\nimport type { AnyFlags, Flag, FlagType, InputOption, InputOptionType, IsRequiredPredicate, Options } from 'meow';\n";
+    const moved = rewriteSource(both);
+    expect(moved.source).toBe(both.replaceAll("from 'meow'", "from 'burgee/meow'"));
+    expect(moved.refused).toEqual([]);
+    expect(moved.kept).toEqual([]);
   });
 
   it('moves a require() whose two sides return the same kind of value (A29)', () => {

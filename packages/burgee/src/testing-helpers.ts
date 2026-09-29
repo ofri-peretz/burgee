@@ -7,6 +7,8 @@
  */
 import { Readable } from 'node:stream';
 
+import { strip } from 'linegauge/strip';
+
 import { beforeTerminator, execute } from './execute.js';
 import { ExitCode, isExitCode } from './exit-code.js';
 import { type Manifest } from './manifest.js';
@@ -180,9 +182,16 @@ export function captureConsole(rt: FakeRuntime): () => void {
   };
 }
 
-/** Strip ANSI escape sequences — the decision from the intent: `stdout` stays raw. */
+/**
+ * Strip ANSI escape sequences — the decision from the intent: `stdout` stays raw.
+ *
+ * linegauge's `strip`, not a regex of this file's own. The one this used to carry,
+ * `ESC[[0-9;]*[A-Za-z]`, left the private modes (`ESC[?25l`, which every spinner writes),
+ * the colon form of an extended colour (`ESC[38:2::255:0:0m`, which chalk emits for
+ * truecolor) and every OSC 8 hyperlink in the text a test asserted against.
+ */
 export function stripAnsi(text: string): string {
-  return text.replace(/\u001b\[[0-9;]*[A-Za-z]/g, '');
+  return strip(text);
 }
 
 /**
@@ -199,7 +208,7 @@ export function finish(rt: FakeRuntime, code: ExitCode, startedAt: number): RunR
     // stderr fallback stays for a run whose envelope a program wrote there itself — before
     // D-140 the engine did, and a harness is the last place to break a test that relied on it.
     // Either way the run's own code stands.
-    const source = stdout.trim() === '' && code !== ExitCode.OK ? stderr.split('\n')[0] ?? '' : stdout;
+    const source = stdout.trim() === '' && code !== ExitCode.OK ? stderr.split('\n')[0] as string : stdout;
     try {
       result.json = JSON.parse(source);
     } catch (e) {

@@ -129,13 +129,13 @@ export const PAIRS: readonly EntryPair[] = [
     id: 'linegauge',
     ours: { specifier: 'linegauge', symbol: DEFAULT_EXPORT },
     incumbent: { specifier: 'string-width', symbol: DEFAULT_EXPORT },
-    why: 'the width layer against string-width, whose own suite grades it 229 / 229',
+    why: 'the width layer against string-width, whose own suite grades it 233 / 233',
   },
   {
     id: 'linegauge/wrap',
     ours: { specifier: 'linegauge/wrap', symbol: DEFAULT_EXPORT },
     incumbent: { specifier: 'wrap-ansi', symbol: DEFAULT_EXPORT },
-    why: 'the wrap façade against wrap-ansi, 80 / 80',
+    why: 'the wrap façade against wrap-ansi, 85 / 85',
   },
   {
     id: 'linegauge/slice',
@@ -157,6 +157,17 @@ export const PAIRS: readonly EntryPair[] = [
     ours: { specifier: 'paratext', symbol: DEFAULT_EXPORT },
     incumbent: { specifier: 'ansi-escapes', symbol: DEFAULT_EXPORT },
     why: 'the OSC layer against ansi-escapes — R11\'s B4 row, and the layer that is over its D1 ceiling',
+  },
+  {
+    // bellpull R8's ceiling, measured rather than named (GAPS A10, D-160). `tinyexec` is the
+    // zero-dependency rival the requirement sets the bar at — not `execa`, which would be a free
+    // pass. Not a drop-in pair: `run` resolves a record on every outcome where `x` returns a
+    // process that rejects on a non-zero exit, so each side is entered by the one call a
+    // program makes to spawn something, and the ratio is what that costs on each.
+    id: 'bellpull',
+    ours: { specifier: 'bellpull', symbol: 'run' },
+    incumbent: { specifier: 'tinyexec', symbol: 'x' },
+    why: "bellpull R8: `run` against tinyexec's `x`, the zero-dependency rival the ceiling names",
   },
 ];
 

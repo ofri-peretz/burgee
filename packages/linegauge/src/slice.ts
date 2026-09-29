@@ -112,7 +112,7 @@ function parseLink(string: string, index: number): Escape | undefined {
 
 /** `OSC`, `DCS`, `SOS`, `PM`, `APC` and a lone `ST`: opaque, zero columns, ended by `ST`. */
 function parseControlString(string: string, index: number): Escape | undefined {
-  const first = string[index] ?? '';
+  const first = string[index] as string;
   let body: number;
   let bell = false;
   if (first === ESC) {
@@ -144,7 +144,7 @@ function parseCsi(string: string, index: number): Escape | undefined {
   else return undefined;
   let canonical = true;
   for (let at = index + prefix.length; at < string.length; at += 1) {
-    const character = string[at] ?? '';
+    const character = string[at] as string;
     if (CSI_FINAL.test(character)) {
       const code = string.slice(index, at + 1);
       if (character !== 'm' || !canonical) return control(code);
@@ -198,13 +198,13 @@ function tokenize(string: string): Token[] {
   let text = '';
   let index = 0;
   while (index < string.length) {
-    const escape = INTRODUCERS.has(string[index] ?? '') ? parseEscape(string, index) : undefined;
+    const escape = INTRODUCERS.has(string[index] as string) ? parseEscape(string, index) : undefined;
     if (escape) {
       tokens.push(escape);
       index += escape.code.length;
       continue;
     }
-    const value = String.fromCodePoint(string.codePointAt(index) ?? 0);
+    const value = String.fromCodePoint(string.codePointAt(index) as number);
     const token: Text = { kind: 'text', value, columns: 1, continuation: false };
     tokens.push(token);
     visible.push(token);
@@ -219,8 +219,8 @@ function tokenize(string: string): Token[] {
     const points = [...segment].length;
     const columns = positions(segment);
     for (let offset = 0; offset < points; offset += 1) {
-      const token = visible[at + offset];
-      if (token === undefined) break;
+      // The segments partition `text`, which is the visible tokens joined, so one is always there.
+      const token = visible[at + offset] as Text;
       token.columns = offset === 0 ? columns : 0;
       token.continuation = offset > 0;
     }
@@ -275,7 +275,7 @@ export function slice(string: string, start = 0, end = Number.POSITIVE_INFINITY)
   // `body` when it was emitted — an empty link is taken back out (rule 4).
   let link: Link | undefined;
   let linked = false;
-  let linkAt: number | undefined;
+  let linkAt = 0;
   // Where the latest run of openers with no text after it began, and the stack before it.
   let pendingAt: number | undefined;
   let pendingActive = active;
@@ -286,19 +286,18 @@ export function slice(string: string, start = 0, end = Number.POSITIVE_INFINITY)
   const forgetLink = (): void => {
     link = undefined;
     linked = false;
-    linkAt = undefined;
   };
-  const discardLink = (): void => {
-    if (link !== undefined && !linked && linkAt !== undefined) {
-      const length = link.code.length;
-      body = body.slice(0, linkAt) + body.slice(linkAt + length);
-      if (pendingAt !== undefined && pendingAt > linkAt) pendingAt -= length;
-    }
+  // Only ever handed the open link, and only when it has wrapped nothing. Before the slice
+  // starts `body` is empty and `linkAt` is 0, so there it removes nothing, without a branch.
+  const discardLink = (open: Link): void => {
+    const length = open.code.length;
+    body = body.slice(0, linkAt) + body.slice(linkAt + length);
+    if (pendingAt !== undefined && pendingAt > linkAt) pendingAt -= length;
     forgetLink();
   };
   const settleLink = (open: Link): void => {
     if (linked) body += open.close;
-    else discardLink();
+    else discardLink(open);
   };
 
   const takeSgr = (token: Sgr, pastEnd: boolean): void => {
@@ -325,9 +324,9 @@ export function slice(string: string, start = 0, end = Number.POSITIVE_INFINITY)
       if (link !== undefined) settleLink(link);
       link = token;
       linked = false;
-      linkAt = started ? body.length : undefined;
+      linkAt = body.length;
     } else if (started && link !== undefined && !linked) {
-      discardLink();
+      discardLink(link);
       return;
     } else {
       forgetLink();
@@ -358,9 +357,9 @@ export function slice(string: string, start = 0, end = Number.POSITIVE_INFINITY)
     // An escape inside a cluster that is still being emitted belongs to that cluster.
     if (pastEnd && token.kind !== 'text' && ahead[index] === true) pastEnd = false;
     if (pastEnd && cluster) {
-      // Rule 1: stop at the first cluster that would overrun. A link that wrapped nothing and
-      // openers that styled nothing are taken back out, so the fragment ends on its text.
-      if (link !== undefined && !linked) discardLink();
+      // Rule 1: stop at the first cluster that would overrun. Openers that styled nothing are
+      // taken back out here, and a link that wrapped nothing by `settleLink` below, so the
+      // fragment ends on its text.
       if (pendingAt !== undefined) {
         body = body.slice(0, pendingAt);
         active = pendingActive;

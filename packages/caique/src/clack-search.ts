@@ -124,12 +124,14 @@ class Search<Value> {
     const { filter } = this;
     const fits = (search: string): boolean => this.all().some((option) => option.disabled !== true && (filter === undefined || filter(search, option)));
     if (typed === '' && placeholder !== undefined && placeholder !== '' && fits(placeholder)) return placeholder;
-    if (this.mode.completeOnTab === true && !this.mode.multiple && this.focused !== undefined) return String(this.focused);
+    // `completeOnTab` is a single search's option; a multiple one never sets it, since tab toggles there.
+    if (this.mode.completeOnTab === true && this.focused !== undefined) return String(this.focused);
     return undefined;
   }
 
   toggleFocused(): void {
-    if (this.focused !== undefined && this.filtered.length > 0) this.selected = toggled(this.selected, this.focused);
+    // A search that matches nothing has nothing focused: `refilter` and `navigate` both see to it.
+    if (this.focused !== undefined) this.selected = toggled(this.selected, this.focused);
   }
 
   /** Whether space is a command here rather than a character: in a multiple search, once the arrows are in use. */
@@ -230,8 +232,8 @@ export const path = (opts: PathOptions): Answer<string> =>
       ...opts,
       maxItems: 5,
       validate: (value) => {
-        if (Array.isArray(value)) return undefined;
-        if (value === undefined || value === '') return 'Please select a path';
+        // A single search: the answer is the focused path or nothing, never a list.
+        if (typeof value !== 'string' || value === '') return 'Please select a path';
         return opts.validate === undefined ? undefined : runValidation(opts.validate, value);
       },
       options(this: { readonly userInput: string }) {

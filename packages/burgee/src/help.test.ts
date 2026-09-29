@@ -214,10 +214,11 @@ describe('theme seam (R7; roundel used without being imported)', () => {
   // for exactly that decision, so the invariant it protected is what remains: the engine's
   // colour adds ANSI and nothing else, and NO_COLOR gives back the plain render byte for byte.
   it('the engine colours help by O2 alone: ANSI is all it adds, and NO_COLOR removes it', async () => {
-    const coloured = await runBurgee(program, { argv: ['deploy', '--help'], tty: true, env: {} });
+    // A terminal that names itself: with no `TERM` and nothing asked, roundel's policy is plain.
+    const coloured = await runBurgee(program, { argv: ['deploy', '--help'], tty: true, env: { TERM: 'xterm-256color' } });
     expect(coloured.stdout).toMatch(ANSI);
     expect(coloured.stdout.replace(ANSI, '')).toBe(renderHelp(program, deploy, { width: 100 }));
-    const plain = await runBurgee(program, { argv: ['deploy', '--help'], tty: true, env: { NO_COLOR: '1' } });
+    const plain = await runBurgee(program, { argv: ['deploy', '--help'], tty: true, env: { TERM: 'xterm-256color', NO_COLOR: '1' } });
     expect(plain.stdout).toBe(renderHelp(program, deploy, { width: 100 }));
   });
 });

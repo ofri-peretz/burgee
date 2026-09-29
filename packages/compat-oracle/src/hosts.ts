@@ -23,6 +23,17 @@ export interface HostImport {
    * object from `burgee/yargs/parser`.
    */
   control?: string;
+  /**
+   * Rewrite a **bare** specifier only where a module is named — `from 'x'`, `import('x')`,
+   * `require('x')` — as a dots-only one always is, rather than every quoted occurrence.
+   *
+   * A bare name that is also an ordinary string in the suite needs it. execa's
+   * `graceful-*.js` fixtures `import … from 'execa'` (a self-reference upstream, the installed
+   * incumbent here), and `test/verbose/info.js` sets `env: {NODE_DEBUG: 'execa'}` and asserts
+   * what that value does. The literal replace reached both, set `NODE_DEBUG` to a shim path,
+   * and failed three of its fifteen cases against execa itself (measured 2026-09-27).
+   */
+  namedOnly?: boolean;
 }
 
 /**
@@ -91,18 +102,29 @@ export interface ControlAllowance {
  * narrows and never widens — it is spent only on the platforms outside `only`, and only up
  * to `count`.
  */
-export interface ConditionalCases {
+export type ConditionalCases = ConditionalCount &
+  (
+    | {
+        /**
+         * The platforms that register them, for a suite written `if (process.platform === 'x')`.
+         * Exactly one of `only` and `notOn` is given — the type holds that, not a reader — and
+         * which one is not a style choice: each mirrors how the guard is actually spelled, so
+         * the declaration can be checked against the line it describes instead of being a list
+         * somebody derived.
+         */
+        only: NodeJS.Platform[];
+        notOn?: never;
+      }
+    | {
+        /** The platforms that do not, for a suite written `if (process.platform !== 'x')`. */
+        notOn: NodeJS.Platform[];
+        only?: never;
+      }
+  );
+
+interface ConditionalCount {
   /** How many cases the platforms that lack them do not register. Exact, not a ceiling. */
   count: number;
-  /**
-   * The platforms that register them, for a suite written `if (process.platform === 'x')`.
-   * Exactly one of `only` and `notOn` is given, and which one is not a style choice: each
-   * mirrors how the guard is actually spelled, so the declaration can be checked against the
-   * line it describes instead of being a list somebody derived.
-   */
-  only?: NodeJS.Platform[];
-  /** The platforms that do not, for a suite written `if (process.platform !== 'x')`. */
-  notOn?: NodeJS.Platform[];
   /**
    * How many of them the target passes on the platforms that run them. The ratchet credits
    * exactly this many on a platform that lacks them, so a machine cannot regress cases it
@@ -343,6 +365,18 @@ export interface Host {
   shim?: 'cjs';
   /** Our entry point graded against it. */
   target: string;
+  /**
+   * Set when the target is **not a drop-in** for the incumbent and never will be, and the row
+   * is graded to publish how far apart they are: a ceiling, with its reason here.
+   *
+   * Every other graded row is a drop-in pair, level or not yet — `burgee migrate` rewrites the
+   * level ones and reports the rest as a path that exists, and `migrate-drop-ins-lock.test.ts`
+   * holds `DROP_INS` equal to every row with a baseline. A row like this one is left out of
+   * both, because reporting it would name a path that does not exist. The baseline fragment
+   * carries `"ceiling": true` so the locks that read the directory as text can tell, and
+   * `baseline-scope.test.ts` holds the two in step. execa is the one (bellpull spec R7).
+   */
+  ceiling?: string;
   status: 'active' | 'planned' | 'rejected';
   /** Why, for anything not active. */
   note?: string;
@@ -353,6 +387,15 @@ export interface Host {
    */
   majorOf?: string;
 }
+
+/**
+ * execa's suite directories that are vendored and deliberately not graded (D-160). One reason
+ * for all nine, because it is one reason: the suite is too large to run here, and the target
+ * could not pass a case in any of them.
+ */
+const EXECA_UNGRADED = ['convert', 'io', 'ipc', 'pipe', 'resolve', 'stdio', 'terminate', 'transform', 'verbose'];
+const EXECA_UNGRADED_WHY =
+  "Vendored and not graded, for cost. execa's suite is 5,125 cases run one file at a time (upstream's own `concurrency: 1`), and the control measured **647 s** across the twelve directories on 2026-09-27 — past the oracle's 300 s cap on one suite run, and more than half of the ratchet job's 20 minutes on its own. The graded slice is `arguments/`, `methods/` and `return/`: how a command is built, the entry points, and the result and error a caller reads, which is the whole of what bellpull's `run` overlaps with execa (bellpull R1, R6). Nothing is hidden by leaving these out: graded over all 149 files the same day, `bellpull` passed **0** — every file imports `execa`, which bellpull does not export, and fails at link time. D-160.";
 
 export const HOSTS: Host[] = [
   {
@@ -506,7 +549,7 @@ export const HOSTS: Host[] = [
     runner: 'ava',
     target: 'linegauge',
     status: 'active',
-    note: "229 / 229 control and 229 / 229 target, measured 2026-09-15 — up from 201 / 229, and the 28 that moved were four defects rather than twenty-eight, categorised in `.sdlc/intents/linegauge/spec.md` § R10 before any of them was touched. (A) `Intl.Segmenter` joins a run of conjoining Hangul jamo into one cluster, and measuring that cluster by its first code point answered 2 where a terminal draws 12; modern Hangul composes L + V (+ T) into one two-column syllable and leaves the rest additive — 10 cases. (B) the zero-width class matched `\\p{Mark}`, which is the spacing marks as well as the non-spacing ones, so Devanagari vowel sign AA measured 0 — 3 cases. (C) a prepended concatenation mark is `Format` but not `Default_Ignorable`, so it missed the zero-width class, was then stripped as leading non-printing, and was charged a column for the code point 0 that remained — 3 cases. (D) `\\p{RGI_Emoji}` matches only the fully-qualified spelling, so the same sequence without its `U+FE0F` fell through to the East Asian Width of its base scalar — 12 cases. Every one of the four was linegauge wrong and the incumbent right; none is a judgement call, which is why the row is now exact rather than argued. linegauge exports `width` as its default, which is the shape string-width's own tests import.",
+    note: "**Moved to 8.3.0 on 2026-09-28: 233 / 233 against a control of 233 / 233.** The four new cases are runs of `U+034F` COMBINING GRAPHEME JOINER (1,000 and 3,000,000) before a spacing mark, an emoji modifier or nothing, and they found a hang: `width()` tested a cluster for zero width with `^(?:DI|Control|Format|Mn|Me|Surrogate)+$`, `U+034F` is in two of those classes, and the regex backtracked exponentially — the suite never reached its summary. A code-point loop replaced it (`leadingInvisible` in `width.ts`). Before that: 229 / 229 control and 229 / 229 target, measured 2026-09-15 — up from 201 / 229, and the 28 that moved were four defects rather than twenty-eight, categorised in `.sdlc/intents/linegauge/spec.md` § R10 before any of them was touched. (A) `Intl.Segmenter` joins a run of conjoining Hangul jamo into one cluster, and measuring that cluster by its first code point answered 2 where a terminal draws 12; modern Hangul composes L + V (+ T) into one two-column syllable and leaves the rest additive — 10 cases. (B) the zero-width class matched `\\p{Mark}`, which is the spacing marks as well as the non-spacing ones, so Devanagari vowel sign AA measured 0 — 3 cases. (C) a prepended concatenation mark is `Format` but not `Default_Ignorable`, so it missed the zero-width class, was then stripped as leading non-printing, and was charged a column for the code point 0 that remained — 3 cases. (D) `\\p{RGI_Emoji}` matches only the fully-qualified spelling, so the same sequence without its `U+FE0F` fell through to the East Asian Width of its base scalar — 12 cases. Every one of the four was linegauge wrong and the incumbent right; none is a judgement call, which is why the row is now exact rather than argued. linegauge exports `width` as its default, which is the shape string-width's own tests import.",
   },
   {
     // R3's grader. `strip-ansi` is 464 M/wk and ships one dependency (`ansi-regex`, 345 M/wk)
@@ -578,6 +621,66 @@ export const HOSTS: Host[] = [
     note: "Vendored 2026-09-23 at 7.0.0. The row grades `bellpull/node-which`, node-which's own API as its own entry beside `bellpull/which`'s `whichSync` family: `all`, `nothrow`, `path`, `pathExt`, `delimiter`, Windows' working-directory-first search and its extension list, quoted `PATH` parts, and the `ENOENT` error. The platform is read per call rather than at load, which is what lets one ESM module answer a suite that flips `process.platform` between cases.",
   },
   {
+    // execa — the third of bellpull's R9 suites (GAPS A10, D-160). Graded against the package
+    // root `bellpull`, because there is no execa façade and a row may not name one before it
+    // exists (D-006, D-007): bellpull's `run` *resolves* on a non-zero exit where execa throws,
+    // which is the product, so an `execa` override would silently stop every caller's error
+    // path firing (bellpull spec R7). The number this row carries is therefore a ceiling with
+    // its reason, not a target somebody is working towards.
+    name: 'execa',
+    repo: 'https://github.com/sindresorhus/execa',
+    testDir: 'test',
+    testGlob: '*.js',
+    imports: [
+      // Every test file, one or two directories down, reaches `../../index.js`.
+      { upstream: '../index.js', subpath: '', reexportDefault: false },
+      // The `graceful-*.js` fixtures import execa by its own name, which upstream is a
+      // self-reference and here would be the installed incumbent on a *target* run too.
+      { upstream: 'execa', subpath: '', reexportDefault: false, namedOnly: true },
+    ],
+    // Upstream's devDependencies at the release's ranges, pinned exactly, plus the incumbent
+    // for the control and the runner its suite is written for — and five of execa's own
+    // dependencies the tests import by name (`figures`, `get-stream`, `is-plain-obj`,
+    // `is-stream`, `which-command`), pinned here rather than left to whatever the hoist supplies.
+    suiteDeps: [
+      'execa@10.0.1',
+      'ava@8.0.1',
+      'figures@6.1.0',
+      'get-stream@9.0.1',
+      'is-plain-obj@4.1.0',
+      'is-stream@4.0.1',
+      'which-command@0.1.0',
+      'get-node@15.0.4',
+      'is-in-ci@2.0.0',
+      'is-running@2.1.0',
+      'log-process-errors@12.0.1',
+      'path-exists@5.0.0',
+      'path-key@4.0.0',
+      'tempfile@6.0.1',
+    ],
+    // Upstream's own `ava` block: one file at a time, in a child process, and the long timeout
+    // its subprocess-heavy cases were written against.
+    avaConfig: { timeout: '240s', concurrency: 1, workerThreads: false },
+    ungradedDirs: [
+      {
+        dir: 'fixtures',
+        why: 'The programs the tests spawn — `noop.js`, `forever.js`, `ipc-echo.js` and a hundred and forty more. ava excludes a `fixtures` directory by convention; running one as a test grades nothing, and several never exit.',
+      },
+      {
+        dir: 'helpers',
+        why: 'Modules the tests import (`fixtures-directory.js`, `stdio.js`, `verbose.js` …). ava excludes a `helpers` directory by convention; each one declares no case of its own.',
+      },
+      ...EXECA_UNGRADED.map((dir) => ({ dir, why: EXECA_UNGRADED_WHY })),
+    ],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'ava',
+    target: 'bellpull',
+    ceiling:
+      "bellpull ships no execa API and will not: `run` resolves a record on a non-zero exit where execa throws, so an execa façade would silently stop every caller's error path firing (bellpull spec R7). The row is graded to publish that distance as a number rather than as a sentence — every graded file imports `execa`, which `bellpull` does not export, and fails at link time.",
+    status: 'active',
+    note: "Vendored 2026-09-27 at 10.0.1 (GAPS A10, D-160). **Target `bellpull` 0 / 1048, control 1048 / 1048** over `arguments/`, `methods/` and `return/`; the other nine directories are vendored and named in `ungradedDirs` with the cost that keeps them out. Every graded file fails at link time against the target — `The requested module '../../shim.js' does not provide an export named 'execa'` — and the same was measured over all 149 files, so the zero is the whole suite's and not the slice's. This is a ceiling by design, not a façade in progress: see `ceiling`. The one rewrite this row needed was `namedOnly` on the bare `execa` import, because `test/verbose/info.js` also uses the word as a `NODE_DEBUG` value.",
+  },
+  {
     // The host with no parseable output, and the reason `mode: "exit-code"` exists.
     //
     // `npm view rc scripts.test` is `set -e; node test/test.js; node test/ini.js; node
@@ -641,7 +744,7 @@ export const HOSTS: Host[] = [
     suiteDeps: ['has-ansi@6.0.2'],
     target: 'linegauge/wrap',
     status: 'active',
-    note: "80 / 80 control and 80 / 80 target, measured 2026-09-14 — the port reproduces wrap-ansi 10 exactly, which is what `wrap.test.ts` already asserted in-package and this makes public. Its suite imports `has-ansi`, declared in `suiteDeps` since 2026-09-21: it was a committed `vendor/wrap-ansi/node_modules/` directory, the `.gitignore` beside it named the hazard that a re-vendor would delete it, and a re-vendor then deleted it and took the row to 0 / 80.",
+    note: "**Moved to 10.0.2 on 2026-09-28: 85 / 85 against a control of 85 / 85.** The five new cases keep an escape sequence whole when a combining mark follows it and leave OSC payloads un-normalized; `linegauge/wrap` failed four of them, because `wrap()` ran NFC over the whole string and `ESC[31m` + `U+0301` composed into `ESC[31ḿ`. It normalizes only the text between sequences now, as 10.0.2 does. Before that: 80 / 80 control and 80 / 80 target, measured 2026-09-14 — the port reproduces wrap-ansi 10 exactly, which is what `wrap.test.ts` already asserted in-package and this makes public. Its suite imports `has-ansi`, declared in `suiteDeps` since 2026-09-21: it was a committed `vendor/wrap-ansi/node_modules/` directory, the `.gitignore` beside it named the hazard that a re-vendor would delete it, and a re-vendor then deleted it and took the row to 0 / 80.",
   },
   {
     // R4's grader, and the reason the style stack was extracted from `wrap.ts` at all:
@@ -1000,7 +1103,7 @@ export const HOSTS: Host[] = [
     suiteDeps: ['meow@14.1.0', 'ava@6.4.1', 'common-tags@2.0.0-alpha.1', 'execa@9.6.1', 'indent-string@5.0.0', 'read-pkg@10.1.0', 'stack-utils@2.0.6'],
     controlFailures: {
       count: 2,
-      why: "Two cases real meow cannot pass from a vendored copy of its tests. `build › main` imports `../build/index.js`, the rollup bundle meow publishes — it is built by `npm run build` in meow's own repo and the vendor step takes only `test/`, so the file is not there for either side. `pkg normalization is lazy` asserts that reading `cli.pkg` mutates the caller's own object, which is `normalize-package-data` doing it in place; meow gets that from a dependency and the vendored root does not install it. Neither is a divergence and neither is reachable: the first needs a build the oracle does not run, the second a package this repo will not take (U6). Measured 2026-09-21 — the control is 146 / 148 with these two named and 148 / 148 without them.",
+      why: "Two cases no implementation can pass from a vendored copy of meow's tests, and they are one assertion made twice: `build › main` and `test › return object` each `t.like` the result against `pkg: {name: 'meow'}`. `pkg` is the nearest package.json, which is the vendored root, and that root is deliberately `@vendored/meow-suite` (`rootPackage()` — upstream's name would let Node's self-reference resolve `meow` to the root rather than the installed package). It carries upstream's `description` and `version`, which the suite also reads; the name is the one field it cannot. Re-measured 2026-09-27: the control is 146 / 148 and `burgee/meow` fails these two and nothing else. The version of this paragraph from 2026-09-21 named `pkg normalization is lazy` as the second and said `build/index.js` was absent; the control passes the first, and the shim serves the second.",
     },
     ungradedDirs: [
       {
@@ -1015,7 +1118,7 @@ export const HOSTS: Host[] = [
       // Kept short on purpose: a `planned` row's note is published verbatim in the
       // compatibility page's table. This row is active now, so the number does the talking
       // and the full account lives in `.sdlc/FINISH-ALL.md` under "meow".
-      "Vendored 2026-09-21 at 14.1.0 and built the same day. **Target `burgee/meow` 132 / 148, 89.2%**, against a control of **146 / 148**. 148 cases across 18 graded files; the other 24 files under `test/` are the `fixtures/` CLI programs the tests spawn, pruned by `ungradedDirs`. meow is one function over `yargs-parser`, and burgee already ships its own for `burgee/yargs`, so the façade took nothing new into the tree — it costs 59,820 bundled bytes, of which the option contract is about 16 K and the parser is the rest. The control's two are `build › main`, which wants meow's rollup bundle, and `pkg normalization is lazy`, which wants `normalize-package-data`'s mutation of the caller's own object. Of our sixteen, the largest group is `--no-`-prefixed boolean flags: a fixture declares `noAutoVersion` and burgee's parser negates `autoVersion` before it matches the declared name, which is a parser question rather than a meow one.",
+      "Vendored 2026-09-21 at 14.1.0 and built the same day at 132 / 148. **2026-09-27: target `burgee/meow` 146 / 148, 98.6%, level with a control of 146 / 148** — the two left are the control's own, both `pkg.name` read off the vendored root. 148 cases across 18 graded files; the other 24 files under `test/` are the `fixtures/` CLI programs the tests spawn, pruned by `ungradedDirs`. meow is one function over `yargs-parser`, and burgee already ships its own for `burgee/yargs`, so the façade took nothing new into the tree. The fourteen it closed were meow's own rules read off its `build/`, not the parser: unknown flags are *tokens* the parser sets aside under `unknown-options-as-args`, not parsed keys (so `--no-auto-help` against a declared `noAutoHelp` is known, though the parser also sets `auto-help`); `--help`/`--version` answer only a one-argument command line, declared or not; the help block is meow's trim-newlines-then-redent, which keeps the blank last line a template literal leaves; and the declaration checks it makes before parsing — choices of the wrong type, `flags: null`, `booleanDefault: null`. The rest are `-F` keeping its case, `''` counting as a value for a required flag, and `pkg` normalized lazily in the caller's own object, which needs no `normalize-package-data`.",
 
   },
   {
