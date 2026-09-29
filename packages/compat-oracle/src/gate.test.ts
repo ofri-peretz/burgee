@@ -213,6 +213,17 @@ describe('excluding a case that cannot fail for any target', () => {
     expect(summarize('# tests 4\n# pass 4\n# fail 0\n', 1, 4, { excludes: both }).error).toContain('no per-case names');
   });
 
+  it('subtracts an excluded skip from nothing, and holds only the control to matching every exclusion', () => {
+    // ava prints a skip as `ok … # SKIP` and counts it in `# skip`, never in `# pass`.
+    const ava = ['ok 1 - main', 'ok 2 - platform only # SKIP', 'not ok 3 - other', '1..3', '# tests 3', '# pass 1', '# fail 1', '# skip 1', ''].join('\n');
+    const declared = [
+      { match: 'platform only', why: 'x' },
+      { match: 'reworded upstream', why: 'x' },
+    ];
+    expect(summarize(ava, 1, 2, { excludes: declared })).toEqual({ files: 1, tests: 2, passed: 1, failed: 1, skipped: 1, reference: 2, rate: 0.5 });
+    expect(summarize(ava, 1, 2, { excludes: declared, requireMatch: true }).error).toBe('exclusion matched no case: reworded upstream');
+  });
+
   it('lets a target run register nothing from a file that failed to import', () => {
     // The façade does not exist yet: every file fails to load, so no excluded case appears.
     // That is not a stale exclusion, and it must not read as a broken oracle.
