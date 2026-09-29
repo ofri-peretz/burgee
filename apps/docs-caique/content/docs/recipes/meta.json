@@ -1,0 +1,4 @@
+{
+  "title": "Recipes",
+  "pages": ["answers-for-agents", "confirm-in-ci", "testing-prompts", "incremental-migration"]
+}
