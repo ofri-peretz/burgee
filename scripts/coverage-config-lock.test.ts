@@ -25,9 +25,11 @@
  * an object literal.
  *
  * The check is on the **evaluated** config, not the text: each config is imported and its
- * `test.coverage` must be the shared object itself. That fails the unused import, a config
- * with no import at all, a `coverage: {}` placeholder, and an inlined copy — the last one
- * because a copy is how the exclusion list silently drifts, which is why it is shared.
+ * `test.coverage` must carry the shared object's own values — every key, by reference — and may
+ * add only `thresholds`, which is how a package holds itself at 100% (`{ ...coverage, thresholds }`,
+ * #710 onward). That still fails the unused import, a config with no import at all, a
+ * `coverage: {}` placeholder, and an inlined copy — the last one because a copied `exclude`
+ * array is a different array, and a copy is how the exclusion list silently drifts.
  */
 import { existsSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -80,11 +82,13 @@ describe('package vitest configs pass the shared coverage policy', () => {
   it.each(packageDirs)('%s passes `coverage` into test: { … }', async (name) => {
     const config = await loadConfig(name);
 
-    expect(
-      config.test?.coverage,
+    const given = (config.test?.coverage ?? {}) as Record<string, unknown>;
+    const why =
       `packages/${name}/vitest.config.ts does not pass the shared \`coverage\` — its run has ` +
-        `no lcov reporter, so codecov.yml's merge step silently leaves it out of the family ` +
-        `number. Add \`coverage\` to \`test: { … }\`, as packages/roundel/vitest.config.ts does.`,
-    ).toBe(coverage);
+      `no lcov reporter, so codecov.yml's merge step silently leaves it out of the family ` +
+      `number. Pass \`coverage\` (or \`{ ...coverage, thresholds }\`) in \`test: { … }\`.`;
+    // `thresholds` is the one key a package may replace — raising its own floor is the point.
+    for (const [key, value] of Object.entries(coverage)) if (key !== 'thresholds') expect(given[key], `${why} (\`${key}\`)`).toBe(value);
+    expect(Object.keys(given).filter((k) => !(k in coverage) && k !== 'thresholds'), `${why} — only \`thresholds\` may be added`).toEqual([]);
   });
 });
