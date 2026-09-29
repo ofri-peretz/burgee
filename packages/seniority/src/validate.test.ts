@@ -1,7 +1,7 @@
 /** R12 — a violation is reported with its provenance, so the message says which file set the bad value. */
 import { describe, expect, it } from 'vitest';
 
-import { resolve, type Layers } from './precedence.js';
+import { resolve, type Layers, type Resolution } from './precedence.js';
 import { check, validate, type Shape } from './validate.js';
 
 const shape: Record<string, Shape> = {
@@ -69,5 +69,32 @@ describe('`check` is the throwing form, for a caller that wants one error (R12)'
   it('returns the values when there is nothing to say', () => {
     const resolution = resolve({ out: shape['out'] as Shape }, base);
     expect(check({ out: shape['out'] as Shape }, resolution)).toEqual({ out: 'dist' });
+  });
+});
+
+/** A resolution built by hand: `validate` reads `values` and `provenance`, and a caller may hand it either without the other. */
+const by = (values: Record<string, unknown>, provenance: Resolution['provenance']): Resolution => ({ values, provenance, candidates: {} });
+
+describe('the parts of the sentence a resolution may not have (R12)', () => {
+  it('names the source when the provenance has no location to point at', () => {
+    expect(validate({ out: { type: 'string' } }, by({ out: 4 }, { out: { source: 'default' } }))[0]?.message).toBe('`out` must be a string; `default` set it to `4`');
+  });
+
+  it('drops the origin clause, and the provenance field, when nothing recorded one', () => {
+    const [violation] = validate({ out: { type: 'string' } }, by({ out: 4 }, {}));
+    expect(violation?.message).toBe('`out` must be a string');
+    // eslint-disable-next-line conventions/consistent-existence-index-check -- The claim is that the key is absent, not merely undefined.
+    expect(violation !== undefined && Object.hasOwn(violation, 'provenance')).toBe(false);
+  });
+
+  it('checks `type: "array"`, which `typeof` cannot answer', () => {
+    expect(validate({ list: { type: 'array' } }, by({ list: 'a,b' }, { list: { source: 'flag', location: '--list' } }))[0]?.message).toBe('`list` must be an array; `--list` set it to `"a,b"`');
+    expect(validate({ list: { type: 'array' } }, by({ list: ['a'] }, {}))).toEqual([]);
+  });
+
+  it('renders a value JSON cannot, rather than throwing while reporting', () => {
+    const at = { source: 'flag' as const, location: '--n' };
+    expect(validate({ n: { type: 'number' } }, by({ n: 10n }, { n: at }))[0]?.message).toBe('`n` must be a number; `--n` set it to `10`');
+    expect(validate({ n: { type: 'number' } }, by({ n: undefined }, { n: at }))[0]?.message).toBe('`n` must be a number; `--n` set it to `undefined`');
   });
 });

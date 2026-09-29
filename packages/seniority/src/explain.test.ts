@@ -84,3 +84,28 @@ suite('the three renderings are renderings, not three implementations (R4)', () 
     expect(explanationJson(explanation('region', withVault)).source).toBe('vault');
   });
 });
+
+suite('the renderings of an option nobody set, and of one only the winner speaks for', () => {
+  const unset = explanation('token', resolve(specs, { flags: {}, env: {} }));
+
+  it('says `is unset` and lists every candidate as unset', () => {
+    expect(renderExplanation(unset)).toBe('token is unset\n         candidates: flag --token (unset), env MY_TOKEN (unset), default (unset)\n');
+  });
+
+  it('gives --json no winner fields at all, rather than `value: undefined`', () => {
+    const json = explanationJson(unset);
+    expect(Object.keys(json)).toEqual(['option', 'candidates']);
+    expect(json.candidates.every((c) => !c.set)).toBe(true);
+  });
+
+  it('prints no candidates line when the winner was the only candidate', () => {
+    const alone = explanation('k', { candidates: { k: [{ source: 'flag', location: '--k', value: 1 }] } });
+    expect(renderExplanation(alone)).toBe('k = 1   from flag --k\n');
+  });
+
+  it('carries the winner’s line into --json when the winning layer recorded one', () => {
+    const fromFile = explanation('region', resolve(specs, { flags: {}, env: {}, config: { path: './app.config.json', data: { region: 'cfg' }, lines: { region: 7 } } }));
+    expect(explanationJson(fromFile)).toMatchObject({ value: 'cfg', source: 'config', location: './app.config.json', line: 7 });
+    expect(renderExplanation(fromFile)).toMatch(/^region = "cfg" {3}from config file \.\/app\.config\.json:7\n/);
+  });
+});

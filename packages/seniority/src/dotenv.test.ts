@@ -1,13 +1,18 @@
 /** R8 — `seniority/dotenv`: dotenv 17's parse and populate, byte for byte, with its env as an argument (R11). */
 import { mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import os, { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { config, parse, populate } from './dotenv.js';
+import dotenv, { config, parse, populate } from './dotenv.js';
 
 const dir = mkdtempSync(join(tmpdir(), 'seniority-dotenv-'));
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('parse (dotenv 17.4.2)', () => {
   it('reads the plain case', () => {
@@ -49,6 +54,14 @@ describe('parse (dotenv 17.4.2)', () => {
 
   it('handles CRLF, because a .env written on Windows is still a .env', () => {
     expect(parse('A=1\r\nB=2\r\n')).toEqual({ A: '1', B: '2' });
+  });
+
+  it('gives a key with nothing after it at the end of the file the empty string', () => {
+    expect(parse('A=1\nB=')).toEqual({ A: '1', B: '' });
+  });
+
+  it('leaves a lone quote character as it is rather than unwrapping it', () => {
+    expect(parse('A="\nB=`')).toMatchObject({ B: '`' });
   });
 });
 
@@ -128,5 +141,113 @@ describe('config takes its environment as an argument (R8 divergence, R11)', () 
     } finally {
       delete process.env[key];
     }
+  });
+
+  it('expands a leading `~` to the home directory, and reads a URL as a path', () => {
+    const home = mkdtempSync(join(tmpdir(), 'seniority-dotenv-home-'));
+    writeFileSync(join(home, '.env.home'), 'H=home\n');
+    vi.spyOn(os, 'homedir').mockReturnValue(home);
+    expect(config({ path: '~/.env.home', processEnv: {} }).parsed).toEqual({ H: 'home' });
+    expect(config({ path: pathToFileURL(join(home, '.env.home')), processEnv: {} }).parsed).toEqual({ H: 'home' });
+  });
+
+  it('reads `.env` in the working directory when given no path', () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'seniority-dotenv-cwd-'));
+    writeFileSync(join(cwd, '.env'), 'W=cwd\n');
+    vi.spyOn(process, 'cwd').mockReturnValue(cwd);
+    expect(config({ processEnv: {} }).parsed).toEqual({ W: 'cwd' });
+  });
+
+  it('turns a non-Error thrown while reading into an Error, and keeps going', () => {
+    const good = join(dir, '.env.after-throw');
+    writeFileSync(good, 'G=1\n');
+    let first = true;
+    vi.spyOn(dotenv, 'parse').mockImplementation((src) => {
+      if (first) {
+        first = false;
+        throw 'not an error';
+      }
+      return parse(src);
+    });
+    const result = config({ path: [good, good], processEnv: {} });
+    expect(result.error).toBeInstanceOf(Error);
+    expect(result.error?.message).toBe('not an error');
+    expect(result.parsed).toEqual({ G: '1' });
+  });
+});
+
+/** What `console.log` was handed, while it is spied on. */
+const logged = (): string[] => (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.map((c) => String(c[0]));
+
+/** A fresh copy of the module over a runtime with no process, whose working directory is `cwd`. */
+async function fresh(cwd: string | undefined): Promise<typeof import('./dotenv.js')> {
+  vi.resetModules();
+  vi.doMock('./runtime.js', () => ({ ambientEnv: () => undefined, ambientCwd: () => cwd }));
+  return await import('./dotenv.js');
+}
+
+describe('debug output (dotenv’s `_debug`)', () => {
+  beforeEach(() => {
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+  });
+
+  it('says whether an already-defined key was overwritten, only when asked', () => {
+    populate({ A: 'held' }, { A: 'file' }, { debug: true });
+    populate({ A: 'held' }, { A: 'file' }, { debug: true, override: true });
+    populate({ A: 'held' }, { A: 'file' });
+    populate({}, { A: 'file' }, { debug: true });
+    expect(logged()).toEqual(['[seniority/dotenv][DEBUG] "A" is already defined and was NOT overwritten', '[seniority/dotenv][DEBUG] "A" is already defined and WAS overwritten']);
+  });
+
+  it('notes the default encoding, and each file that failed, when `debug` is on', () => {
+    const missing = join(dir, 'missing.env');
+    config({ path: missing, processEnv: {}, debug: true });
+    const lines = logged();
+    expect(lines[0]).toBe('[seniority/dotenv][DEBUG] no encoding is specified (UTF-8 is used by default)');
+    expect(lines[1]).toMatch(new RegExp(`^\\[seniority/dotenv\\]\\[DEBUG\\] failed to load ${missing.replaceAll('\\', '\\\\')} ENOENT`));
+    expect(lines).toHaveLength(2);
+  });
+
+  it('says nothing about encoding when one was given', () => {
+    const path = join(dir, '.env.enc');
+    writeFileSync(path, 'E=1\n');
+    config({ path, processEnv: {}, debug: true, encoding: 'utf8' });
+    expect(logged()).toEqual([]);
+  });
+
+  it('reads `DOTENV_CONFIG_DEBUG` from the environment first, as dotenv parses a boolean', () => {
+    const missing = join(dir, 'missing.env');
+    config({ path: missing, processEnv: { DOTENV_CONFIG_DEBUG: 'true' } });
+    expect(logged()).toHaveLength(2);
+    for (const off of ['false', '0', 'no', 'OFF', '']) config({ path: missing, processEnv: { DOTENV_CONFIG_DEBUG: off }, debug: true });
+    expect(logged()).toHaveLength(2);
+    config({ path: missing, processEnv: {}, debug: 'yes' });
+    expect(logged()).toHaveLength(4);
+  });
+});
+
+describe('dotenv with no process', () => {
+  afterEach(() => {
+    vi.doUnmock('./runtime.js');
+    vi.resetModules();
+  });
+
+  it('refuses a bare `config()` by name, since there is no environment to write into', async () => {
+    const { config: bare } = await fresh(undefined);
+    let caught: unknown;
+    try {
+      bare();
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(Error);
+    expect((caught as Error).message).toBe('seniority/dotenv has no environment to populate');
+    expect((caught as { hint?: string }).hint).toMatch(/^pass processEnv/);
+  });
+
+  it('reads `./.env` relative to wherever it is, when there is no working directory to ask', async () => {
+    const { config: bare } = await fresh(undefined);
+    const result = bare({ processEnv: {} });
+    expect((result.error as NodeJS.ErrnoException | undefined)?.path).toBe('.env');
   });
 });
