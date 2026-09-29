@@ -1,0 +1,79 @@
+---
+title: Detecting support
+description: "A capability's when clause says which terminals are believed to understand it — tty, TERM, TERM_PROGRAM or an announcing variable — and supports() answers from a runtime, never from process."
+---
+
+Whether a terminal understands a sequence is a **guess**, and paratext keeps the guess as data
+on the capability — its `when` clause — so it can be read, replaced and tested.
+
+## The `when` clause
+
+| clause | means |
+| :-- | :-- |
+| `tty: true` | stdout must be a terminal. Almost always set: a file that receives OSC gets control bytes in it. |
+| `term` | `TERM` must be exactly this — for terminals that identify that way, like `xterm-kitty`. |
+| `termProgram` | `TERM_PROGRAM` must be one of these. |
+| `envAny` | any one of these variables merely being set, as VTE announces itself with `VTE_VERSION`. |
+
+`termProgram` and `envAny` are alternatives: either one matching is enough. `TERM=dumb` is
+always no, and a `when` that is not an object is always no.
+
+```js title="supports.mjs"
+import { capability, supports } from 'paratext';
+
+const link = capability('link');
+const at = (env, tty = true) => supports({ env, isTTY: { stdout: tty } }, link);
+
+console.log(JSON.stringify(link.when));
+console.log(at({ TERM_PROGRAM: 'iTerm.app' }));
+console.log(at({ VTE_VERSION: '7600' }));
+console.log(at({ WT_SESSION: 'x' }));
+console.log(at({ TERM_PROGRAM: 'iTerm.app' }, false));
+console.log(at({ TERM_PROGRAM: 'iTerm.app', TERM: 'dumb' }));
+console.log(at({}));
+```
+
+```text title="node supports.mjs"
+{"tty":true,"termProgram":["iTerm.app","WezTerm","ghostty","vscode","Hyper","Apple_Terminal"],"envAny":["VTE_VERSION","WT_SESSION"]}
+true
+true
+true
+false
+false
+false
+```
+
+## A pure answer
+
+`supports(runtime, capability)` and `emit(runtime, …)` read only the runtime they are handed —
+`env` and `isTTY.stdout` — never `process`. A test passes a two-line literal, and a host can
+render for a terminal other than its own. `processRuntime()` builds one from the real process.
+
+## When the guess is wrong
+
+A terminal that understands a sequence without announcing it, or one that announces it and
+does not, is the caller's to fix: register the capability again under the same name with a
+different `when`, and every later `emit` uses it.
+
+```js title="override.mjs"
+import { capability, emit, register } from 'paratext';
+
+const tmux = { env: { TERM: 'tmux-256color' }, isTTY: { stdout: true } };
+const args = { text: 'Docs', url: 'https://x.dev' };
+
+console.log(JSON.stringify(emit(tmux, 'link', args)));
+register({ ...capability('link'), when: { tty: true, term: 'tmux-256color' } });
+console.log(JSON.stringify(emit(tmux, 'link', args)));
+```
+
+```text title="node override.mjs"
+"Docs (https://x.dev)"
+"\u001b]8;;https://x.dev\u0007Docs\u001b]8;;\u0007"
+```
+
+## `paratext/terminal-link` detects differently, on purpose
+
+The terminal-link drop-in keeps its incumbent's detection: it links where supports-hyperlinks
+4.5.0 says a terminal does, including `FORCE_HYPERLINK`, the `--no-hyperlink` flag and the
+stderr stream when the link is bound for stderr. `hyperlinks.test.ts` grades the port against
+supports-hyperlinks case by case ([Links and images](/docs/guides/links-and-images)).
