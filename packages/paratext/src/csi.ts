@@ -6,9 +6,12 @@
  * does not, and a drop-in that silently dropped a cursor move would corrupt the screen of a
  * program that relied on it.
  *
- * `flagstaff` and `closeout` still emit the few sequences they need privately, and stay
- * dependency-free of this package; what moved here is the *public* surface a program imports
- * from `ansi-escapes`, which had no home in the family before.
+ * Published on its own as `paratext/csi` (2026-09-28), with no `registerBuiltins()` behind it,
+ * so a package that only moves a cursor pays for this file and the runtime seam and nothing
+ * else. `flagstaff/log-update`, `flagstaff/ora`, `caique/raw` and `caique/inquirer` take their
+ * sequences from it rather than spelling them again. `closeout` still owns *hiding* the
+ * cursor, because the obligation to show it again is closeout's; `cursorHide` and `cursorShow`
+ * are here only as `ansi-escapes`' constants.
  */
 import { processRuntime } from './runtime.js';
 
@@ -38,6 +41,12 @@ export const cursorMove = (x: number, y?: number): string => {
   return out;
 };
 
+/**
+ * `ansi-escapes`' spelling exactly, zero included: `cursorUp(0)` is `ESC[0A`, and a terminal
+ * reads a zero count as one, so it **moves up a row**. A caller that can ask for zero guards
+ * it — `@inquirer/ansi` returns `''` there, and `caique/inquirer` keeps that answer by guarding
+ * before it calls this, rather than this changing and breaking the drop-in's byte-for-byte grade.
+ */
 export const cursorUp = (count = 1): string => `${ESC}${count}A`;
 export const cursorDown = (count = 1): string => `${ESC}${count}B`;
 export const cursorForward = (count = 1): string => `${ESC}${count}C`;

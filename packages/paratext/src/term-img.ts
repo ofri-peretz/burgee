@@ -64,7 +64,8 @@ const RIO_MIN: readonly [number, number, number] = [0, 1, 13];
 const VSCODE_MIN: readonly [number, number, number] = [1, 80, 0];
 
 /** `20220319-123456-abcdefgh` → `20220319`. `NaN` for anything that is not a date stamp. */
-const stamp = (version: string | undefined): number => Number.parseInt((version ?? '').split('-')[0] ?? '', DECIMAL);
+// `split` always returns at least one element, so the first is always there.
+const stamp = (version: string | undefined): number => Number.parseInt((version ?? '').split('-')[0] as string, DECIMAL);
 
 /**
  * `major.minor.patch` against a minimum, upstream's comparison.

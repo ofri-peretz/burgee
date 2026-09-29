@@ -14,6 +14,8 @@
  *   terminal it is being driven as — the arrangement `raw.ts` already makes — and the restore
  *   is registered on `closeout/exit-hook` in the same call, so a prompt that dies by a signal
  *   still gives the cursor back. clack registers nothing and does not.
+ * - **Raw mode is closeout's too.** clack switches it on and off whoever held it; `rawMode()`
+ *   turns it off only when this prompt turned it on, so a program that went raw first keeps it.
  * - **Keys come from `node:readline`'s keypress decoder**, the same one clack's `readline`
  *   interface installs, so a person and a test that emits `keypress` drive the same loop.
  *
@@ -23,7 +25,7 @@
 import { emitKeypressEvents } from 'node:readline';
 import { styleText } from 'node:util';
 
-import { hideCursor } from 'closeout/cursor';
+import { hideCursor, rawMode } from 'closeout/cursor';
 import exitHook from 'closeout/exit-hook';
 import { wrap } from 'linegauge/wrap';
 
@@ -135,7 +137,11 @@ function unicodeSupported(): boolean {
 
 /** Whether the terminal can draw clack's box characters; read once, as the incumbent reads it. */
 export const unicode = unicodeSupported();
-/** Whether `CI` is the string `true`, which is the test clack makes. */
+/**
+ * Whether `CI` is the string `true`, which is the test clack makes. This and the glyph table
+ * above stay clack's rules rather than roundel's: `interactive()` asks whether a person can
+ * answer, which clack never asks, and clack's table counts `CI` where roundel's `unicode()` does not.
+ */
 export const isCI = (): boolean => processRuntime().env['CI'] === 'true';
 /** Whether a stream is a terminal. */
 export const isTTY = (output: { isTTY?: boolean }): boolean => output.isTTY === true;
@@ -307,12 +313,8 @@ function edit<T>(prompt: Prompt<T>, char: string | undefined, key: Keypress): bo
   return printable(char, key) && set(line.slice(0, cursor) + char + line.slice(cursor), cursor + char.length);
 }
 
-type Raw = NodeJS.ReadableStream & { isTTY?: boolean; setRawMode?: (raw: boolean) => unknown };
+type Raw = NodeJS.ReadableStream & { isTTY?: boolean; isRaw?: boolean; setRawMode?: (raw: boolean) => unknown };
 type Output = NodeJS.WritableStream & SizedOutput;
-
-const setRaw = (input: Raw, raw: boolean): void => {
-  if (input.isTTY === true && typeof input.setRawMode === 'function') input.setRawMode(raw);
-};
 
 const noop = (): void => undefined;
 
@@ -331,6 +333,7 @@ class Session<T> {
   readonly prompt: Prompt<T>;
   private previous = '';
   private restore = noop;
+  private unraw = noop;
   private closed = false;
 
   constructor(
@@ -358,7 +361,7 @@ class Session<T> {
     signal?.addEventListener('abort', this.onAbort, { once: true });
     emitKeypressEvents(this.input, DECODER);
     this.input.on('keypress', this.onKeypress);
-    setRaw(this.input, true);
+    this.unraw = rawMode(this.input, exitHook);
     this.input.resume();
     this.draw();
   }
@@ -383,7 +386,7 @@ class Session<T> {
     this.input.removeListener('keypress', this.onKeypress);
     this.definition.signal?.removeEventListener('abort', this.onAbort);
     this.output.write('\n');
-    setRaw(this.input, false);
+    this.unraw();
     this.input.pause();
     this.restore();
     this.settle(this.prompt.state === 'submit' ? (this.prompt.value as T) : CANCEL_SYMBOL);

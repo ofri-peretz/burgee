@@ -114,7 +114,8 @@ export const hyperlink = (url: string, parameters = ''): string => `${ESC}${OSC}
 
 /** The complete escape sequence starting at `index`, or nothing when none starts there. */
 export function matchEscape(string: string, index: number): RegExpExecArray | undefined {
-  if (!ESCAPES.has(string[index] ?? '')) return undefined;
+  // Every caller asks at an index inside the string, so there is always a character there.
+  if (!ESCAPES.has(string[index] as string)) return undefined;
   ANSI_ESCAPE.lastIndex = index;
   return ANSI_ESCAPE.exec(string) ?? undefined;
 }
@@ -173,12 +174,13 @@ const isDigits = (value: string): boolean => /^\d+$/.test(value);
 
 /** `38:5:9` and `38:2::r:g:b` — the colon form, which carries its arguments in one parameter. */
 function colonColorToken(parameter: string): SgrToken | undefined {
-  const parts = parameter.split(':');
-  const code = Number.parseInt(parts[0] ?? '', 10);
-  const mode = Number.parseInt(parts[1] ?? '', 10);
+  // Only a parameter with a colon arrives here, so the split has at least two parts.
+  const parts = parameter.split(':') as [string, string, ...string[]];
+  const code = Number.parseInt(parts[0], 10);
+  const mode = Number.parseInt(parts[1], 10);
   if (![SGR_FOREGROUND_EXTENDED, SGR_BACKGROUND_EXTENDED, SGR_UNDERLINE_COLOR_EXTENDED].includes(code)) return undefined;
 
-  if (mode === SGR_COLOR_MODE_256 && parts.length === COLOR_256_PARTS && isDigits(parts[2] ?? '')) {
+  if (mode === SGR_COLOR_MODE_256 && parts.length === COLOR_256_PARTS && isDigits(parts[2] as string)) {
     return { code, open: parameter, hasArguments: true };
   }
   if (mode !== SGR_COLOR_MODE_RGB) return undefined;
@@ -214,7 +216,7 @@ export function sgrTokens(parameters: string): SgrToken[] {
   const tokens: SgrToken[] = [];
 
   for (let index = 0; index < parts.length; index += 1) {
-    const parameter = parts[index] ?? '';
+    const parameter = parts[index] as string;
     if (parameter.includes(':')) {
       const token = colonColorToken(parameter);
       if (token !== undefined) tokens.push(token);
@@ -225,7 +227,6 @@ export function sgrTokens(parameters: string): SgrToken[] {
     if (!Number.isFinite(code)) continue;
 
     if (isExtendedColor(code)) {
-      if (index + 1 >= parts.length) break;
       const extended = extendedColorToken(code, parts, index);
       if (extended === undefined) break;
       tokens.push(extended.token);

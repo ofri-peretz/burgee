@@ -97,8 +97,7 @@ export const brandCommand = defineCommand({
     },
   },
   run: ({ options }) => {
-    const lead = options.lead ?? '';
-    const follow = options.follow ?? '';
+    const { lead, follow } = options;
     const colors = { lead, follow };
 
     const charge =
@@ -111,14 +110,14 @@ export const brandCommand = defineCommand({
         : {
             bordure: {
               color: options.bordure,
-              width: Number(options.bordureWidth ?? DEFAULT_BORDURE_WIDTH),
+              width: Number(options.bordureWidth),
             },
           };
 
     const brand: BurgeeBrand = {
       ...(options.name === undefined ? {} : { name: options.name }),
       mark: colors,
-      field: opposedField(colors, options.ground ?? DEFAULT_GROUND),
+      field: opposedField(colors, options.ground),
       ...charge,
       ...bordure,
     };
@@ -169,8 +168,8 @@ export const devCommand = defineCommand({
    */
   effects: 'withheld',
   run: async ({ positionals, options }) => {
-    const [entry] = positionals;
-    if (entry === undefined) throw new Error('an entry file is required');
+    // Declared required, so the engine has refused a run without it before this handler.
+    const entry = positionals[0] as string;
     const [{ dev }, { processRuntime }] = await Promise.all([import('./dev.js'), import('./runtime.js')]);
     const handle = dev({ entry, input: processRuntime.stdin, output: processRuntime.stdout, log: processRuntime.stderr, watch: options.noWatch !== true });
     await handle.done;
@@ -231,7 +230,7 @@ export const pluginCheckCommand = defineCommand({
     { command: 'burgee check ./my-plugin.mjs', description: 'what the plugin contributes, or why it was refused' },
     { command: 'burgee check ./my-plugin.mjs --json', description: 'the same, as data; exit 1 on a refusal' },
   ],
-  run: async ({ positionals }) => (await import('./check.js')).checkPlugin(positionals[0] ?? ''),
+  run: async ({ positionals }) => (await import('./check.js')).checkPlugin(positionals[0] as string),
 });
 
 export const program = defineProgram({
