@@ -178,7 +178,8 @@ let framing = false;
  * mid-call — `swap`'s notification from `burgee dev`.
  */
 let sessions = 0;
-let release = (): void => undefined;
+/** Put back by the last server to stop; assigned by the first to start. */
+let release: () => void;
 
 /**
  * Hold stdout for as long as a server runs, not only for one call: a timer or a stream a
@@ -195,11 +196,12 @@ function holdStdout(): () => void {
     } as typeof stdout.write;
     release = () => void (stdout.write = write);
   }
-  let held = true;
-  return () => {
-    if (held && --sessions === 0) release();
-    held = false;
-  };
+  return unhold;
+}
+
+/** Called once per server: `startMcp` hands it to its own `done.finally`. */
+function unhold(): void {
+  if (--sessions === 0) release();
 }
 
 async function printedBy<T>(run: () => Promise<T>): Promise<{ settled: PromiseSettledResult<T>; printed: string }> {

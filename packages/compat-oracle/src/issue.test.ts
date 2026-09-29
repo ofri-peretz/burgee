@@ -140,6 +140,67 @@ describe('a release that stops shipping a file', () => {
   });
 });
 
+describe('each cell and sentence, in its other form', () => {
+  const quiet = { added: [], removed: [], filesChanged: [], filesAdded: [], filesRemoved: [] };
+
+  it('says a weight is unchanged, a fall carries no plus sign, and a moved package count shows both ends', () => {
+    expect(renderIssue({ ...ORA_MOVED, weight: { before: 113_577, after: 113_577, packagesBefore: 17, packagesAfter: 17 } })).toContain('| weight | 113,577 B — unchanged |');
+    expect(renderIssue({ ...ORA_MOVED, weight: { before: 118_204, after: 113_577, packagesBefore: 17, packagesAfter: 16 } })).toContain('| weight | 118,204 → 113,577 B (-3.9%) across 17 → 16 packages |');
+    // Held before package counts were recorded: today's count, not `null → 16`.
+    expect(renderIssue({ ...ORA_MOVED, weight: { before: 118_204, after: 113_577, packagesBefore: null, packagesAfter: 16 } })).toContain('(-3.9%) across 16 packages |');
+  });
+
+  it('cuts a list longer than twelve names with a count', () => {
+    const names = Array.from({ length: 14 }, (_, i) => `n${String(i)}`);
+    const body = renderIssue({ ...ORA_MOVED, surface: { ...quiet, added: names } });
+    expect(body).toContain(`| exports added | ${names.slice(0, 12).map((n) => `\`${n}\``).join(', ')} … and 2 more |`);
+  });
+
+  it('speaks of several names in the plural', () => {
+    const body = renderIssue({ ...ORA_MOVED, surface: { ...quiet, added: ['a', 'b'], removed: ['c', 'd'] } });
+    expect(body).toContain('`a`, `b` are new upstream');
+    expect(body).toContain('`c`, `d` are gone upstream. Dropping them from a façade is a decision, not a follow.');
+  });
+
+  it('cites a figure without a line by its file, and lists several stale figures as such', () => {
+    const site = ORA_MOVED.claims[0] as IssueInput['claims'][number];
+    const body = renderIssue({
+      ...ORA_MOVED,
+      claims: [{ ...site, citations: [{ file: 'README.md', line: null, text: '  ora is 113,577 B ' }, ...site.citations] }],
+    });
+    expect(body).toContain('These published figures are now stale:\n- `README.md` — ora is 113,577 B\n- `packages/flagstaff/src/weight.test.ts:75`');
+    // A file with no line numbers is one checklist item with none.
+    expect(body).toContain('- [ ] `README.md` — the ora figure');
+  });
+
+  it('describes a weight claim, and proposes a patch for an export added under one', () => {
+    const weight: IssueInput = {
+      ...ORA_MOVED,
+      surface: { ...quiet, added: ['oraStream'] },
+      weight: { before: 113_577, after: 113_577, packagesBefore: 17, packagesAfter: 17 },
+      claims: [{ owner: 'flagstaff', subpath: './ora', claim: 'weight', targets: [], citations: [] }],
+    };
+    expect(proposeBump(weight)).toBe('patch');
+    const body = renderIssue(weight);
+    expect(body).toContain('`flagstaff/ora` claims a **weight ceiling** against ora.');
+    // The weight did not move, so the changeset carries no weight sentence.
+    expect(body).toContain("'flagstaff': patch\n---\n\n`flagstaff/ora` follows ora 9.5.0: adds `oraStream`.\n```");
+  });
+
+  it('restates a comparison when only the weight moved, naming the last fingerprint when there is no version', () => {
+    const body = renderIssue({ ...ORA_MOVED, from: null, surface: quiet });
+    expect(body).toContain('`flagstaff/ora` restates its ora comparison against ora 9.5.0.');
+    expect(body).toContain('against 113,577 B at the last fingerprint.');
+  });
+
+  it('says nobody claims anything, and proposes nothing, for a package no one declares', () => {
+    const body = renderIssue({ ...ORA_MOVED, claims: [] });
+    expect(proposeBump({ ...ORA_MOVED, claims: [] })).toBeNull();
+    expect(body).toContain('### What it costs us\n\nNothing in the family claims anything against this package.\n');
+    expect(body).toContain('_No file in the tree could be derived for this change._');
+  });
+});
+
 describe('what the issue refuses to say', () => {
   it('invents no file when none could be derived', () => {
     const noTargets: IssueInput = {

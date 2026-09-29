@@ -1,0 +1,71 @@
+---
+title: Wrapping
+description: "wrap() folds styled text to a column width, closing every style and hyperlink at the end of a row and reopening it on the next — wrap-ansi's API and options, graded by its suite."
+---
+
+`wrap(text, columns, options)` folds text so no row is wider than `columns`. It is a port of
+wrap-ansi 10: the named export `wrap` from `linegauge` and `linegauge/wrap`, and the default
+export of `linegauge/wrap`, which wrap-ansi's own suite grades
+([Compatibility](/docs/drop-ins)).
+
+## Styles stay whole on every row
+
+```js title="wrap-styles.mjs"
+import { wrap } from 'linegauge/wrap';
+
+const red = (s) => `\u001B[31m${s}\u001B[39m`;
+const link = (url, s) => `\u001B]8;;${url}\u0007${s}\u001B]8;;\u0007`;
+
+console.log(JSON.stringify(wrap(red('hello world again'), 7)));
+console.log(JSON.stringify(wrap(link('https://example.com', 'a link across rows'), 8)));
+```
+
+```text title="node wrap-styles.mjs"
+"\u001b[31mhello\u001b[39m\n\u001b[31mworld\u001b[39m\n\u001b[31magain\u001b[39m"
+"\u001b]8;;https://example.com\u0007a link\u001b]8;;\u0007\n\u001b]8;;https://example.com\u0007across\u001b]8;;\u0007\n\u001b]8;;https://example.com\u0007rows\u001b]8;;\u0007"
+```
+
+A colour open at a break is closed at the end of the row and reopened at the start of the
+next; so is an `OSC 8` hyperlink. Every row therefore stands on its own: a caller can print
+row 3 alone, drop the first two, or put a border character between rows, and no colour leaks
+into it or goes missing. `flagstaff/log-update` depends on this to drop the rows that have
+scrolled off the screen without tracking any escape state.
+
+## Options
+
+```js title="wrap-options.mjs"
+import { wrap } from 'linegauge/wrap';
+
+console.log(JSON.stringify(wrap('supercalifragilistic', 8)));
+console.log(JSON.stringify(wrap('supercalifragilistic', 8, { hard: true })));
+console.log(JSON.stringify(wrap('   padded   ', 8)));
+console.log(JSON.stringify(wrap('   padded   ', 8, { trim: false })));
+console.log(JSON.stringify(wrap('古池や蛙飛び込む水の音', 8, { hard: true })));
+```
+
+```text title="node wrap-options.mjs"
+"supercalifragilistic"
+"supercal\nifragili\nstic"
+"padded"
+"   \npadded  \n "
+"古池や蛙\n飛び込む\n水の音"
+```
+
+| option | default | |
+| :-- | :-- | :-- |
+| `hard` | `false` | Break a word longer than the row. Without it a long word overflows its row rather than being split. |
+| `trim` | `true` | Remove the whitespace at the start and end of each row. |
+| `wordWrap` | `true` | Break at spaces. `false` fills every row to the width and breaks wherever that lands. |
+
+CJK text has no spaces between words, so wrapping it needs `hard: true` — and a hard break
+lands between grapheme clusters, never inside one, measured in columns: four two-column
+characters to an eight-column row.
+
+The options type is exported as `WrapOptions` and, from `linegauge/wrap`, as `Options` — the
+name wrap-ansi gives it — so `import { type Options } from 'wrap-ansi'` moves with the same
+edit as the import.
+
+## Measured with the graded width
+
+Every row is measured with the same `width` that passes string-width's suite, so a wrapped
+row is exactly as wide as the code laying out a box around it thinks it is.

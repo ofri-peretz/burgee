@@ -217,15 +217,10 @@ export interface TreeWeight {
  */
 export async function treeWeight(name: string, version: string, client: RegistryClient = liveRegistry): Promise<TreeWeight> {
   const packages = new Map<string, number>();
-  const visited = new Set<string>();
   const shared = cached(client);
   let self = 0;
 
   const visit = async (pkg: string, range: string, depth: number): Promise<void> => {
-    // Keyed by the *request*, so a range already walked is not re-resolved; `packages` is
-    // keyed by the resolved version, which is what two majors of one package must not share.
-    if (visited.has(`${pkg}@${range}`)) return;
-    visited.add(`${pkg}@${range}`);
     let resolved: Fetched;
     try {
       resolved = await fetchPackage(pkg, range, shared);
@@ -233,6 +228,8 @@ export async function treeWeight(name: string, version: string, client: Registry
       packages.set(`${pkg}@?`, 0);
       return;
     }
+    // Keyed by the resolved version, which is what two majors of one package must not share —
+    // and what stops a cycle. A request already made costs nothing twice: `shared` answers it.
     const key = `${resolved.name}@${resolved.version}`;
     if (packages.has(key)) return;
     const bytes = shippedBytes(resolved.files);
@@ -286,12 +283,11 @@ function clauseNames(clause: string): string[] {
 
 export function reexportedNames(source: string): string[] {
   const names = new Set<string>();
+  // Both groups are required by their patterns, so every match carries one.
   for (const m of source.matchAll(REEXPORT_CLAUSE)) {
-    for (const name of clauseNames(m[1] ?? '')) names.add(name);
+    for (const name of clauseNames(m[1] as string)) names.add(name);
   }
-  for (const m of source.matchAll(NAMESPACE)) {
-    if (m[1] !== undefined) names.add(m[1]);
-  }
+  for (const m of source.matchAll(NAMESPACE)) names.add(m[1] as string);
   if (EXPORT_ASSIGN.test(source) || EXPORT_DEFAULT.test(source)) names.add('default');
   return [...names].sort();
 }
@@ -326,7 +322,8 @@ function registryRecord(fetched: Fetched, weight: TreeWeight): CompatRecord {
   }
   const surface = new Map<string, string[]>();
   for (const path of surfaceFilesOf(fetched.files, fetched.manifest)) {
-    const source = fetched.files.get(path)?.toString('utf8') ?? '';
+    // `surfaceFilesOf` returns only paths the archive holds.
+    const source = (fetched.files.get(path) as Buffer).toString('utf8');
     surface.set(path, [...new Set([...surfaceNames(source), ...reexportedNames(source)])].sort());
   }
   const repo = fetched.manifest.repository;

@@ -48,7 +48,8 @@ const TEST_OPENER = /\b(?:test|it|describe)\(\s*(['"`])/g;
 function literalAt(source: string, from: number, quote: string): string {
   let out = '';
   for (let i = from; i < source.length && source[i] !== quote; i++) {
-    const ch = source[i] ?? '';
+    // In range: the loop stops at the end of the source.
+    const ch = source[i] as string;
     if (ch === '\\') {
       out += ch + (source[i + 1] ?? '');
       i++;
@@ -62,12 +63,8 @@ function literalAt(source: string, from: number, quote: string): string {
 /** Every `test('…')`, `it('…')` and `describe('…')` title in a file, in order. */
 export function testNames(source: string): string[] {
   const names: string[] = [];
-  for (const m of source.matchAll(TEST_OPENER)) {
-    const quote = m[1];
-    const start = m.index;
-    if (quote === undefined || start === undefined) continue;
-    names.push(literalAt(source, start + m[0].length, quote));
-  }
+  // The quote group is required by the pattern, and `matchAll` always sets `index`.
+  for (const m of source.matchAll(TEST_OPENER)) names.push(literalAt(source, m.index + m[0].length, m[1] as string));
   return names;
 }
 

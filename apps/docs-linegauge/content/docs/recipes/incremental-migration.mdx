@@ -1,0 +1,50 @@
+---
+title: Incremental migration
+description: "Move from string-width, wrap-ansi, strip-ansi and slice-ansi one import at a time, or move a transitive copy with npm overrides, checking each step."
+---
+
+Each drop-in is graded on its own, so a program can move one import at a time and ship in
+between. Nothing about moving one path depends on the others.
+
+## One import at a time
+
+```diff
+- import stringWidth from 'string-width';
++ import stringWidth from 'linegauge';
+- import wrapAnsi from 'wrap-ansi';
++ import wrapAnsi from 'linegauge/wrap';
+- import stripAnsi from 'strip-ansi';
++ import stripAnsi from 'linegauge/strip';
+- import sliceAnsi from 'slice-ansi';
++ import sliceAnsi from 'linegauge/slice';
+```
+
+Or let the codemod do it: `npx burgee migrate --dry-run` lists every import it would rewrite —
+only drop-ins graded level with their incumbent — and `npx burgee migrate` rewrites them
+([Migrate](https://burgee.interlace.tools/docs/migrate)).
+
+## A copy you do not import yourself
+
+string-width sits under most of the terminal ecosystem, so your tree probably carries copies
+your code never imports. The root default export is call-compatible with string-width's, so an
+`overrides` entry moves those too, without a code change:
+
+```json
+{ "overrides": { "string-width": "npm:linegauge@^0.5" } }
+```
+
+Only string-width can be moved this way. The other three are subpaths, and an override
+replaces a whole package, so `wrap-ansi` pointed at linegauge would resolve to `width`.
+
+## Checking each step
+
+Once the imports have moved, the dependencies can go:
+
+```bash
+npm uninstall string-width wrap-ansi strip-ansi slice-ansi
+npm ls string-width
+```
+
+`npm ls` shows whatever still pulls a copy in transitively; that is what the override above is
+for. The behaviour each step keeps is the incumbent's own suite's, as
+[Compatibility](/docs/drop-ins) shows — to the case, not to a description.

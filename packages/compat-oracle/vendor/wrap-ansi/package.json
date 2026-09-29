@@ -3,8 +3,9 @@
   "private": true,
   "type": "module",
   "main": "./shim.js",
-  "version": "10.0.1",
+  "version": "10.0.2",
   "license": "MIT",
+  "description": "Wordwrap a string with ANSI escape codes",
   "repository": "chalk/wrap-ansi",
   "devDependencies": {
     "has-ansi": "6.0.2"

@@ -83,4 +83,28 @@ describe('the line the deadline prints', () => {
     expect(line).toContain('2000ms');
     expect(line).toContain('acme:unlock');
   });
+
+  it('says so when the deadline fired with nothing left running, rather than printing an empty list', () => {
+    expect(timeoutMessage(report({ timedOut: true, unfinished: [] }), 2000)).toBe(
+      'closeout: shutdown deadline of 2000ms expired; exiting anyway. Handlers that had not returned: none — the handlers had all returned',
+    );
+  });
+
+  it('lists every handler that had not returned, in order, comma-separated', () => {
+    expect(timeoutMessage(report({ timedOut: true, unfinished: ['acme:unlock', 'flush-log'] }), 50)).toBe(
+      'closeout: shutdown deadline of 50ms expired; exiting anyway. Handlers that had not returned: acme:unlock, flush-log',
+    );
+  });
+});
+
+describe('an error with no stack', () => {
+  it('is rendered as its name and message, never as undefined', () => {
+    // A stack is not guaranteed — `Object.create(Error.prototype)` has none, and code that
+    // scrubs one before rethrowing deletes it — and the projection must still say what went wrong.
+    const error = new RangeError('out of disk');
+    Reflect.deleteProperty(error, 'stack');
+    const line = JSON.parse(reportToJson(report({ path: 'uncaught', error }))) as { error: string };
+    expect(line.error).toBe('RangeError: out of disk');
+    expect(reportToEvent(report({ path: 'uncaught', error })).error).toBe('RangeError: out of disk');
+  });
 });

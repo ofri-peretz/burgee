@@ -241,6 +241,32 @@ describe('a frame wider than the terminal', () => {
     expect(shown.filter((r) => r === 'Which host?')).toHaveLength(1);
     expect(shown).toEqual(screen(`${renderList(select, select.choices ?? [], { cursor: 1, selected: new Set() }, false)}\n`, Number.MAX_SAFE_INTEGER));
   });
+
+  it('treats a writer that reports zero columns as one that does not know its width', async () => {
+    // A pipe can report `columns: 0`; measuring against it would make every row infinitely tall.
+    const unknown = await run(select, [DOWN, ENTER]);
+    const zero = await run(select, [DOWN, ENTER], false, 0);
+    expect(zero.written()).toBe(unknown.written());
+  });
+});
+
+describe('a list with no choices', () => {
+  // The spec validator refuses an empty list before it reaches here, but `askList` is its
+  // own export: called directly, it must still answer and leave the terminal as it found it.
+  const empty: PromptSpec = { kind: 'select', message: 'Nothing to pick', choices: [] };
+
+  it('answers the empty string, and repaints its one-row frame without climbing', async () => {
+    const { answer, written } = await run(empty, [ENTER]);
+    expect(answer).toEqual({ ok: true, value: '' });
+    // `cursorUp(0)` would climb a row a terminal reads as one: above the question.
+    expect(written()).not.toContain(`${ESC}[0A`);
+    expect(screen(written(), 80)).toEqual(['Nothing to pick']);
+  });
+
+  it('a multiselect with no choices at all answers an empty list, even after space', async () => {
+    const { answer } = await run({ kind: 'multiselect', message: 'Nothing to pick' }, [SPACE, ENTER], true);
+    expect(answer).toEqual({ ok: true, value: [] });
+  });
 });
 
 describe('renderList', () => {
