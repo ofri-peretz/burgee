@@ -22,7 +22,7 @@
   <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/caique/package.json"><img src="https://img.shields.io/badge/types-included-blue?style=flat-square" alt="TypeScript types included for every entry point" /></a>
   <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/caique/package.json"><img src="https://img.shields.io/badge/Node.js-20.19%2B%20%7C%2022.13%2B-green?style=flat-square" alt="Node.js 20.19+ or 22.13+" /></a>
   <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/caique/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License: MIT" /></a>
-  <a href="https://www.npmjs.com/package/caique#provenance"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fregistry.npmjs.org%2Fcaique%2Flatest&query=%24.dist.attestations.provenance~&label=npm&style=flat-square&color=0a6b47" alt="Published to npm with provenance, read live from the registry attestation of the latest release" /></a>
+  <a href="https://www.npmjs.com/package/caique#provenance"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fregistry.npmjs.org%2Fcaique%2Flatest&query=%24.dist.attestations.provenance~&label=npm&style=flat-square&color=0a6b47" alt="npm provenance of the latest release, read live from its registry attestation" /></a>
 </p>
 
 <p align="center">
@@ -281,7 +281,7 @@ Graded by the incumbent's own test suite:
 | `clack` | 16 / 17 |
 | `inquirer-core` | 41 / 41 |
 
-Weight, installed and tree-inclusive: **217,148 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.5582**.
+Weight, installed and tree-inclusive: **218,134 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.5607**.
 
 ## For agents
 
@@ -334,7 +334,7 @@ Nothing in this family builds on it yet, and it builds on `closeout`, `linegauge
 
 ## The family
 
-Nine packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
+Ten packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
 carries its colours, flagstaff flies it and caique answers back; each installs on its own, and none
 takes a dependency from outside the family.
 
@@ -349,6 +349,7 @@ takes a dependency from outside the family.
 | [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, dotenv and rc |
 | [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook and restore-cursor |
 | [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
+| [controlroom](https://burgee.interlace.tools/docs/packages/controlroom) | Reserved, not usable yet — planned: full-screen, keyboard-driven terminal screens | ink, planned |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on
