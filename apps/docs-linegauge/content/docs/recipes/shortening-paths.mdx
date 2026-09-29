@@ -1,0 +1,28 @@
+---
+title: Shortening paths
+description: "Fit a file path into a fixed-width column with truncate(), keeping both ends — the directory it starts in and the file it names."
+---
+
+A path's two ends carry the information: where it starts and what file it names. Cut from
+the middle, and give the column a fixed width, and every path fits it exactly:
+
+```js title="paths.mjs"
+import { truncate } from 'linegauge';
+
+const files = ['README.md', 'packages/linegauge/src/truncate.test.ts', 'apps/docs-linegauge/content/docs/recipes/shortening-paths.mdx'];
+
+for (const file of files) console.log(`[${truncate(file, 24, { position: 'middle' })}]`);
+```
+
+```text title="node paths.mjs"
+[README.md]
+[packages/lin…ate.test.ts]
+[apps/docs-li…g-paths.mdx]
+```
+
+The ellipsis is inside the 24 columns, so the bracket never moves. A path that already fits
+comes back as it was. For a log line where the file name matters most, cut from the start
+instead: `truncate(file, 24, { position: 'start' })` keeps the end.
+
+A path with a wide character in it is cut by columns, not characters, so a Japanese directory
+name spends two of the 24 per character and the result is still no wider than 24.

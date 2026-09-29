@@ -1,0 +1,12 @@
+{
+  "title": "API reference",
+  "pages": [
+    "index",
+    "wrap",
+    "slice",
+    "truncate",
+    "widest",
+    "strip",
+    "plugin"
+  ]
+}

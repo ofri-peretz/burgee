@@ -501,7 +501,7 @@ now, for three reasons:
   `Quality (Full) Gate` pass on the merge commit.
 
 Hold a release only by not merging a changeset — never by holding the Version PR. With the
-merge queue on (`.sdlc/GAPS.md` C6) nothing here changes: the Version PR is one more queue
+merge queue on (gap C6, `.sdlc/gaps/C6.md`) nothing here changes: the Version PR is one more queue
 entry.
 Done when: `ls .changeset/*.md` is non-empty on every lane branch that changed a
 published package, and `git log --oneline -- packages/*/package.json` shows no

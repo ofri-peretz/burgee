@@ -52,7 +52,9 @@ own docs app (`apps/docs-<name>/content/docs/index.md`; burgee's into
   package → incumbent table), [`/llms-full.txt`](https://burgee.interlace.tools/llms-full.txt)
   (the whole corpus), and a Markdown twin of every page at its URL plus `.md`.
 - **Evidence and decisions:** `.sdlc/research/` (the research every claim traces to),
-  `.sdlc/intents/<name>/` (intent and spec per change), `.sdlc/DECISIONS.md`.
+  `.sdlc/intents/<name>/` (intent and spec per change), `.sdlc/decisions/` (one file per
+  decision; the policy is `.sdlc/DECISIONS.md`) and `.sdlc/gaps/` (one file per gap; the
+  policy is `.sdlc/GAPS.md`).
 
 ## Commands
 
@@ -80,6 +82,14 @@ Generated files each have a writer and a `--check` twin — run the writer, neve
   (`.sdlc/bands/foundation-ceilings.json`) must be re-measured, or the weight locks fail.
   `npm run weight:converge` does it — it writes the band and regenerates the READMEs, and the
   band is the only copy: nothing else records a foundation package's `ours`.
+- A decision or a gap is **one new file**, never a row appended to `.sdlc/DECISIONS.md` or
+  `.sdlc/GAPS.md` (both hold prose only, and a lock fails on a row there):
+  `npm run ledger -- new decision <slug>` or `npm run ledger -- new gap <A|B|C|release> <slug>`
+  writes `.sdlc/decisions/D-YYYYMMDD-<slug>.md` / `.sdlc/gaps/<letter>-YYYYMMDD-<slug>.md` to
+  fill in. Never take "the next number" — D-001..D-151, A1..A30, B1..B22, C1..C7 and the few
+  written on main before the switch (`LEGACY_LATE` in `scripts/ledgers.ts`) are frozen, and
+  a new sequential id fails `decisions-lock` / `gaps-lock`. Striking a gap is `status: closed` in
+  its file. `npm run ledger -- decisions` / `gaps` prints the tables.
 - `git push` runs a 3–4 minute pre-push battery. It is not a hang. **Never `--no-verify`.**
 - Every number in prose comes from a file in this repository — a generated page, a baseline,
   a band — and a claim that cannot be measured is written as *unmeasured*, not estimated.

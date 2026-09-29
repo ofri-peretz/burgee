@@ -34,4 +34,6 @@ Stage 6 measures against, and what a control-band breach compares to.
 
 ## Open questions
 
-What we do not know yet. An empty section is a claim that nothing is unknown.
+What we do not know yet. An empty section is a claim that nothing is unknown. Each one
+closes as a new file in `.sdlc/decisions/` (`npm run ledger -- new decision <slug>`; the
+policy is `.sdlc/DECISIONS.md`) and is then struck here.

@@ -4,7 +4,8 @@
  *
  * 102 questions had accumulated across 48 intents before this existed, because an intent's
  * `## Open questions` section is a place to *raise* one and nothing in the repository could
- * ever *close* one. `.sdlc/DECISIONS.md` is where they end; this is what counts them.
+ * ever *close* one. `.sdlc/decisions/` is where they end (one file each, policy in
+ * `.sdlc/DECISIONS.md`); this is what counts them.
  *
  * The ceiling is a ratchet in the repository's usual sense: raising it is a decision, taken
  * in `.sdlc/bands/open-questions.json` with the reason written beside it, never a drift.
@@ -100,6 +101,6 @@ if (import.meta.url === `file://${process.argv[1] ?? ''}`) {
   const max = ceiling();
   for (const r of rows) console.log(`${String(r.count).padStart(COUNT_WIDTH)}  ${r.slug}`);
   console.log(`\n${String(sum)} open across ${String(rows.length)} intents, against a ceiling of ${String(max)}.`);
-  console.log(sum > max ? '✖ over the ceiling — close one, or raise it deliberately in .sdlc/bands/open-questions.json' : '✓ at or under the ceiling');
+  console.log(sum > max ? '✖ over the ceiling — close one (`npm run ledger -- new decision <slug>`), or raise it deliberately in .sdlc/bands/open-questions.json' : '✓ at or under the ceiling');
   process.exitCode = sum > max ? 1 : 0;
 }
