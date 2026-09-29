@@ -116,7 +116,7 @@
       "rows": [
         {
           "capability": "Passes string-width's own test suite",
-          "why": "linegauge's default export is graded by string-width 8.2.2's own tests, unedited, so changing the import keeps string-width's answers.",
+          "why": "linegauge's default export is graded by string-width 8.3.0's own tests, unedited, so changing the import keeps string-width's answers.",
           "ours": { "status": "yes", "grade": "packages/compat-oracle/baseline/string-width.json" },
           "incumbents": {
             "string-width": { "status": "yes", "source": "packages/compat-oracle/vendor/string-width/test.js", "quote": "import stringWidth from './shim.js';", "note": "its own suite, the control run" },
@@ -127,7 +127,7 @@
         },
         {
           "capability": "Passes wrap-ansi's own test suite",
-          "why": "`linegauge/wrap` is graded by wrap-ansi 10.0.1's own tests, unedited.",
+          "why": "`linegauge/wrap` is graded by wrap-ansi 10.0.2's own tests, unedited.",
           "ours": { "status": "yes", "grade": "packages/compat-oracle/baseline/wrap-ansi.json" },
           "incumbents": {
             "string-width": { "status": "n/a", "source": "packages/compat-oracle/vendor/string-width/test.js", "quote": "import stringWidth from './shim.js';", "note": "a different API" },
