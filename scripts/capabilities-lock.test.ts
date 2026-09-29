@@ -24,9 +24,11 @@
  *      contain what it says it `lacks`, and a `yes` must quote. An installed file must be the
  *      version compat-oracle grades (its vendored suite's PROVENANCE), or a direct dependency
  *      of it that resolves from its directory — not whatever else happens to be hoisted.
- *   3. **the columns.** The incumbents are the ones the package replaces — compat-oracle's
- *      `LAYERS`, all of them — plus any other package the oracle actually grades (a baseline
- *      exists). Every row fills every column and no other.
+ *   3. **the columns.** The incumbents are the ones the package replaces as a drop-in: every
+ *      package compat-oracle's `LAYERS` names for it **and grades** (a baseline exists), plus
+ *      any other package the oracle grades. `LAYERS` also names packages a sibling may merely
+ *      not depend on (cli-spinners, supports-color, D-180); nothing grades those, so they are
+ *      not columns. Every row fills every column and no other.
  *   4. `partial` says what is missing; `n/a` says why the row does not apply.
  *
  * The validator is a pure function of the file and the tree, so the cases at the bottom can
@@ -190,8 +192,13 @@ function sourceProblems(at: string, incumbent: string, cell: Cell): Found {
 /** Everything wrong with one incumbent's cell. */
 const cellProblems = (at: string, incumbent: string, cell: Cell): Found => [...statusProblems(at, cell), ...sourceProblems(at, incumbent, cell)];
 
-/** The incumbents a package's matrix must carry: compat-oracle's LAYERS row for it. */
-const replaced = (pkg: string): readonly string[] | undefined => LAYERS.find((layer) => layer.pkg === pkg)?.incumbents;
+const graded = (inc: string): boolean => existsSync(join(ROOT, BASELINE, `${inc}.json`));
+
+/**
+ * The incumbents a package's matrix must carry: the ones compat-oracle's LAYERS row names for
+ * it and grades. A LAYERS name with no baseline is one the package only forbids depending on.
+ */
+const replaced = (pkg: string): readonly string[] | undefined => LAYERS.find((layer) => layer.pkg === pkg)?.incumbents.filter(graded);
 
 /** The columns: every incumbent LAYERS names for the package, and only graded extras. */
 function columnProblems(dir: string, caps: Capabilities): Found {
@@ -199,7 +206,7 @@ function columnProblems(dir: string, caps: Capabilities): Found {
   if (required === undefined) return [`${dir}: compat-oracle's LAYERS has no row for ${caps.package}`];
   const dropped = required.filter((inc) => !caps.incumbents.includes(inc)).map((inc) => `${dir}: ${inc} is in LAYERS for ${caps.package} and missing from "incumbents"`);
   const ungraded = caps.incumbents
-    .filter((inc) => !required.includes(inc) && !existsSync(join(ROOT, BASELINE, `${inc}.json`)))
+    .filter((inc) => !graded(inc))
     .map((inc) => `${dir}: ${inc} is neither in LAYERS for ${caps.package} nor graded by compat-oracle (no ${BASELINE}${inc}.json)`);
   return [...dropped, ...ungraded];
 }
@@ -395,6 +402,10 @@ describe('the lock refuses what it exists to refuse', () => {
     const caps = clone();
     (caps as { incumbents: string[] }).incumbents = caps.incumbents.filter((i) => i !== 'boxen');
     refused(caps, /boxen is in LAYERS for flagstaff and missing/u);
+  });
+
+  it('a LAYERS name nothing grades is not a column (cli-spinners is forbidden, not replaced)', () => {
+    expect(problems('flagstaff', clone()).filter((p) => p.includes('cli-spinners'))).toEqual([]);
   });
 
   it('an incumbent nothing grades, added', () => {

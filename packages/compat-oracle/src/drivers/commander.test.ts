@@ -32,6 +32,40 @@ describe('runCommander', () => {
     expect(bad.stderr).toMatch(/unknown option/);
   });
 
+  it('sends commander’s own output — help, for one — to the fake stdout of every subcommand too', async () => {
+    const program = new Command('t');
+    program.command('sub').description('a subcommand');
+    const r = await runCommander(program, { argv: ['sub', '--help'] });
+    expect(r.code).toBe(ExitCode.OK);
+    expect(r.stdout).toContain('Usage: t sub');
+    expect(r.stderr).toBe('');
+  });
+
+  it('keeps an E1 code a thrown error carries, and says nothing extra for it', async () => {
+    const program = new Command('t').action(() => {
+      throw Object.assign(new Error('bad config'), { exitCode: ExitCode.CONFIG });
+    });
+    const r = await runCommander(program, { argv: [] });
+    expect(r).toMatchObject({ code: ExitCode.CONFIG, stderr: '' });
+  });
+
+  it('reports anything else thrown as RUNTIME, with its message — or itself, when it is not an Error', async () => {
+    const r = await runCommander(
+      new Command('t').action(() => {
+        throw new Error('kaboom');
+      }),
+      { argv: [] },
+    );
+    expect(r).toMatchObject({ code: ExitCode.RUNTIME, stderr: 'kaboom\n' });
+    const bare = await runCommander(
+      new Command('t').action(() => {
+        throw 'plain string';
+      }),
+      { argv: [] },
+    );
+    expect(bare).toMatchObject({ code: ExitCode.RUNTIME, stderr: 'plain string\n' });
+  });
+
   it('builds the program against the fake runtime when given a factory', async () => {
     const r = await runCommander(
       (rt) =>

@@ -45,6 +45,9 @@ const PAIRS: readonly (readonly [string, string])[] = [
   ['signal-exit/signals', 'closeout/signal-exit/signals'],
   ['yargs-parser', 'burgee/yargs/parser'],
   ['terminal-link', 'paratext/terminal-link'],
+  // Joined 2026-09-27, when meow went level and `migrate` began rewriting it. meow 14.1.0 is a
+  // root devDependency for this comparison alone: its types ship inside the package.
+  ['meow', 'burgee/meow'],
 ];
 
 /** Names a drop-in does not export yet, each with the reason — the list only shrinks. */

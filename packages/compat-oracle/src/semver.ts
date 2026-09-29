@@ -23,8 +23,8 @@ const VERSION = /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+
 export function parseVersion(text: string): Version | null {
   const m = VERSION.exec(text.trim());
   if (m === null) return null;
+  // The three numeric groups are not optional, so a match always carries them.
   const [, major, minor, patch, prerelease] = m;
-  if (major === undefined || minor === undefined || patch === undefined) return null;
   return { major: Number(major), minor: Number(minor), patch: Number(patch), prerelease: prerelease ?? null };
 }
 
@@ -60,8 +60,8 @@ function precisionOf(minor: string | undefined, patch: string | undefined): Prec
 function parseComparator(text: string): Comparator | null {
   const m = COMPARATOR.exec(text.trim());
   if (m === null) return null;
+  // The major group is not optional, so a match always carries it.
   const [, operator, major, minor, patch] = m;
-  if (major === undefined) return null;
   const precision: Precision = precisionOf(minor, patch);
   return {
     operator: operator ?? '=',
@@ -143,13 +143,8 @@ export function satisfies(version: string, range: string): boolean {
 export function maxSatisfying(versions: string[], range: string): string | null {
   const matching = versions.filter((v) => satisfies(v, range));
   if (matching.length === 0) return null;
-  return matching.reduce((best, v) => {
-    const a = parseVersion(v);
-    const b = parseVersion(best);
-    if (a === null) return best;
-    if (b === null) return v;
-    return compareVersions(a, b) > 0 ? v : best;
-  });
+  // Every one of them parsed already: `satisfies` is false for a string that does not.
+  return matching.reduce((best, v) => (compareVersions(parseVersion(v) as Version, parseVersion(best) as Version) > 0 ? v : best));
 }
 
 /** The bump between two releases, for deciding what a change is worth reporting as. */

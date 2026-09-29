@@ -95,3 +95,54 @@ describe('a refused plugin says what is wrong and what to do (R6)', () => {
     expect(problems({ name: 'x', spinners: { dots: {} }, tokens: { error: 'red' }, capabilities: {} })).toEqual([]);
   });
 });
+
+describe('an override applies only inside its own ranges', () => {
+  it('leaves every code point outside them to the built-in answer', () => {
+    register({ name: 'hide-one', widths: { gone: { ranges: [[0xe0_a0, 0xe0_a0]] as const, columns: 0, why: 'this terminal draws nothing there' } } });
+    expect(width(NERD)).toBe(0);
+    expect(width('é'), 'a code point no range names took the override anyway').toBe(1);
+    expect(width('日')).toBe(2);
+  });
+
+  it('takes a plugin down when it registers again with no `widths`', () => {
+    register(nerdFont);
+    register({ name: 'nerd-font' });
+    expect(overrides().has('nerd-font')).toBe(false);
+    expect(width(NERD)).toBe(1);
+  });
+});
+
+describe('the document shape is checked before anything inside it (R6)', () => {
+  it.each([[null], [[]], ['nerd-font'], [42]])('refuses %j as a plugin, and says what one looks like', (plugin) => {
+    expect(problems(plugin)).toEqual([{ code: 'E_PLUGIN_SCHEMA', line: 'a plugin is an object', fix: 'export default { name: "my-widths", widths: { … } }' }]);
+  });
+
+  it.each([[null], [[]], ['wide']])('refuses `widths: %j`, and reports the header problems beside it', (widths) => {
+    expect(problems({ widths }).map((p) => p.line)).toEqual(['a plugin needs a non-empty `name`', '`widths` is an object keyed by name']);
+  });
+
+  it.each([[2], [null], [[[0, 1]]]])('refuses an override that is %j rather than an object', (value) => {
+    expect(problems({ name: 'x', widths: { icons: value } })).toEqual([{ code: 'E_PLUGIN_SCHEMA', line: 'widths.icons is not an object', fix: 'each override is { ranges, columns, why }' }]);
+  });
+
+  it.each([[[]], [undefined], ['0xE000-0xF8FF']])('refuses `ranges: %j`, which could never fire', (ranges) => {
+    expect(problems({ name: 'x', widths: { icons: { ranges, columns: 2, why: 'x' } } }).map((p) => p.line)).toEqual(['widths.icons.ranges is a non-empty array of [low, high] pairs']);
+  });
+});
+
+/** The problem lines for one override carrying `ranges`, everything else about it valid. */
+const lines = (...ranges: unknown[]): string[] => problems({ name: 'x', widths: { r: { ranges, columns: 1, why: 'x' } } }).map((p) => p.line);
+
+describe('each range is checked on its own, and named by its index', () => {
+  it('refuses anything but a [low, high] pair', () => {
+    expect(lines([1], [1, 2, 3], 5, [0, 1])).toEqual(['widths.r.ranges[0] is not a [low, high] pair', 'widths.r.ranges[1] is not a [low, high] pair', 'widths.r.ranges[2] is not a [low, high] pair']);
+  });
+
+  it('refuses a bound that is not an integer, on either side', () => {
+    expect(lines([1.5, 2], [1, '2'], [1, 2])).toEqual(['widths.r.ranges[0] has a non-integer bound', 'widths.r.ranges[1] has a non-integer bound']);
+  });
+
+  it('refuses a bound outside U+0000..U+10FFFF, and accepts both ends of it', () => {
+    expect(lines([-1, 2], [0, 0x11_00_00], [0, 0x10_ff_ff])).toEqual(['widths.r.ranges[0] is outside U+0000..U+10FFFF', 'widths.r.ranges[1] is outside U+0000..U+10FFFF']);
+  });
+});

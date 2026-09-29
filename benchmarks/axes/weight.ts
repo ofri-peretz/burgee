@@ -25,6 +25,7 @@ import { join, resolve } from 'node:path';
 
 import { sync as crossSpawnSync } from 'bellpull/cross-spawn';
 
+import { claimRatchet, RATCHETED } from '../claim-ratchets.js';
 import { DEFAULT_EXPORT, fixtureSource, PAIRS, PARITY, stackFixtureSource, type EntryPair, type ParityStack } from '../fixtures/entry-points.js';
 import { type BenchRecord } from '../record.js';
 import { BENCH_ROOT, packageDir, relativeToRepo, resolvePackage } from '../resolve.js';
@@ -573,7 +574,13 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // followed the last commit. It is now 3.7, derived from `core-bundled-bytes` at mean + 3
   // sigma over 41 observations, and `scripts/release-budget-lock.test.ts` refuses to let it
   // move unless the release moves with it in the same commit.
-  burgee: releaseBudget('bundled-bytes-ratio:burgee\u00F7cac'),
+  //
+  // **And below the budget since D-157**, which made the published `lighter-than-cac` claim a
+  // downward-only ratchet at 2.35 (measured 2.317, 24,216 / 10,452 B, plus 80 B for CI). The gate
+  // is the lower of the two: the budget stays the release's outer limit on what a new D-row may
+  // raise the ratchet to, and the ratchet is what a PR is held to. A gate at 2.9 beside a claim at
+  // 2.35 would publish a ceiling nothing enforces.
+  burgee: Math.min(releaseBudget('bundled-bytes-ratio:burgee\u00F7cac'), claimRatchet('lighter-than-cac')),
   // 1.52 from 1.6 on 2026-09-21: measured 1.514 under the corrected metric (D-100). The
   // front-end's residual over commander is `commander/command.js` at 33,487 bundled against
   // commander's 27,226, plus `bellpull/cross-spawn` at 5,060 — and the spawn cannot go lazy
@@ -586,7 +593,10 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // 1.555 on 2026-09-23: D-140 and #521 on top of main (72a810352e). Measured 1.554.
   // 1.56 on 2026-09-23: P2/P3 on top of D3 (#478) and D-140. Measured 1.554 locally, ~1.555 in CI.
   // 1.565 on 2026-09-24 for J3/J4: the same 276 bytes as the bundled ceiling above. Measured 1.561.
-  'burgee/commander': 1.565,
+  // Since D-157 this is the published `lighter-than-commander` claim's downward-only ratchet,
+  // read from `.sdlc/bands/claim-ratchets.json` so the claim and the gate cannot disagree. It
+  // carried over at 1.565 (measured 1.560, plus 80 B for CI, is 1.562); from here it only falls.
+  'burgee/commander': claimRatchet('lighter-than-commander'),
   // bundled ceiling above (D-134): measured 1.524.
   // 1.535 on 2026-09-23: D-122 left the façade at 59,808 (1.530, on the ceiling) and the MCP
   // stdout capture (#521) adds 15 bytes of cross-chunk names — 59,823, measured 1.531.
@@ -647,6 +657,15 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   paratext: 1.94,
 };
 
+/** Why a pair's ratio gate sits where it does: the claim's own ratchet, U5 at 1, or a B4 ratchet. */
+function ratioWhy(pair: EntryPair, ratioMax: number): string {
+  if (RATCHETED.has(pair.claim ?? `lighter-than-${pair.incumbent.specifier}`)) {
+    return 'the published claim itself, a downward-only ratchet (D-157): .sdlc/bands/claim-ratchets.json sets it just above the measurement, and it may only be lowered';
+  }
+  if (ratioMax <= 1) return "U5, stated as a check: this entry point is no heavier in a user's bundle than the package it replaces";
+  return 'a ratchet at the measured value, not the claim: this entry point is currently heavier than what it replaces on a bundled basis, and the gate exists to stop that growing';
+}
+
 /**
  * Pure, given two measurements: this is where a gate is attached to a number, so
  * `ratchet.test.ts` drives it directly with synthetic bytes and proves each gate fires
@@ -697,10 +716,7 @@ export function pairRecords(pair: EntryPair, ours: Measured, theirs: Measured): 
       p95: ratio,
       gate: {
         max: ratioMax,
-        why:
-          ratioMax <= 1
-            ? "U5, stated as a check: this entry point is no heavier in a user's bundle than the package it replaces"
-            : 'a ratchet at the measured value, not the claim: this entry point is currently heavier than what it replaces on a bundled basis, and the gate exists to stop that growing',
+        why: ratioWhy(pair, ratioMax),
       },
       note: `${pair.why}; both sides bundled by the same command, both resolved from benchmarks/`,
       detail: { ours: `${pair.ours.specifier}@${ours.version}`, incumbent: `${pair.incumbent.specifier}@${theirs.version}` },

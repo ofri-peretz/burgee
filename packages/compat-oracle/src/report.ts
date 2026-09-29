@@ -16,17 +16,38 @@ import { vendor } from './vendor.js';
 import { check as checkCompetitors, fingerprint as writeFingerprints } from './watch.js';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const VENDOR_DIR = resolve(root, 'vendor');
-const BASELINE = resolve(root, 'baseline');
-/** C1 — the previous majors' fragments, one directory down so nothing reading `baseline/` as one row per incumbent sees them. */
-const MAJORS_BASELINE = resolve(BASELINE, 'majors');
-const RESULTS = resolve(root, 'results.json');
-const CONTROL_RESULTS = resolve(root, 'results.control.json');
-const VENDOR_DIFF = resolve(root, 'vendor-diff.md');
-const UPSTREAM = resolve(root, 'upstream.json');
-const COMPETITORS = resolve(root, 'competitors-upstream.json');
-const PACKAGES_DIR = resolve(root, '..');
-const REPO_ROOT = resolve(root, '..', '..');
+
+/**
+ * Where a run reads and writes. This package's own files unless a caller says otherwise —
+ * which only a test does, so that grading a make-believe host never overwrites the
+ * `results.json` the benchmarks page is generated from.
+ */
+export interface Paths {
+  vendor: string;
+  baseline: string;
+  /** C1 — the previous majors' fragments, one directory down so nothing reading `baseline/` as one row per incumbent sees them. */
+  majors: string;
+  results: string;
+  controlResults: string;
+  vendorDiff: string;
+  upstream: string;
+  competitors: string;
+  packages: string;
+  repoRoot: string;
+}
+
+const PATHS: Paths = {
+  vendor: resolve(root, 'vendor'),
+  baseline: resolve(root, 'baseline'),
+  majors: resolve(root, 'baseline', 'majors'),
+  results: resolve(root, 'results.json'),
+  controlResults: resolve(root, 'results.control.json'),
+  vendorDiff: resolve(root, 'vendor-diff.md'),
+  upstream: resolve(root, 'upstream.json'),
+  competitors: resolve(root, 'competitors-upstream.json'),
+  packages: resolve(root, '..'),
+  repoRoot: resolve(root, '..', '..'),
+};
 
 const PERCENT = 100;
 const BAR_WIDTH = 24;
@@ -100,8 +121,8 @@ export interface UpstreamFailure {
  * under vendor/ changes; the result is `upstream.json`, which the daily workflow turns
  * into an issue carrying the exact list of new and changed tests and surface names.
  */
-function checkUpstream(host: Host, write: Write): Update | undefined {
-  const record = readRecord(join(VENDOR_DIR, host.name));
+function checkUpstream(host: Host, write: Write, vendorDir = PATHS.vendor): Update | undefined {
+  const record = readRecord(join(vendorDir, host.name));
   if (record === undefined) {
     write(`  ${host.name.padEnd(HOST_COL)} not vendored\n`);
     return undefined;
@@ -146,7 +167,7 @@ export interface UpstreamRun {
  * failure, and the exit is still non-zero, so the job goes red and nothing is hidden: the
  * difference is only in how much a single broken host is allowed to take down with it.
  */
-export function upstreamMode(write: Write, { hosts = active(), check = checkUpstream, out = UPSTREAM }: UpstreamRun = {}): number {
+export function upstreamMode(write: Write, { hosts = active(), check = checkUpstream, out = PATHS.upstream }: UpstreamRun = {}): number {
   write('\nupstream releases\n\n');
   const updates: Update[] = [];
   const failures: UpstreamFailure[] = [];
@@ -169,11 +190,11 @@ export function upstreamMode(write: Write, { hosts = active(), check = checkUpst
 }
 
 /** Re-vendor each host at its latest release, reporting what moved since the last record. */
-function vendorAll(hosts: Host[], write: Write): void {
-  mkdirSync(VENDOR_DIR, { recursive: true });
+function vendorAll(hosts: Host[], write: Write, paths: Paths): void {
+  mkdirSync(paths.vendor, { recursive: true });
   const diffs: string[] = [];
   for (const host of hosts) {
-    const result = vendor(host, VENDOR_DIR);
+    const result = vendor(host, paths.vendor);
     write(
       `vendored ${result.host} ${result.version} (${result.tag ?? 'untagged'} @ ${result.commit.slice(0, SHORT_SHA)}) — ${result.files} files (${result.internalFiles.length} internal-only), ${result.internals.length} internal module(s) shimmed\n`,
     );
@@ -183,8 +204,8 @@ function vendorAll(hosts: Host[], write: Write): void {
       diffs.push(renderDiff(result.host, result.previous, result.record, result.diff));
     }
   }
-  if (diffs.length > 0) writeFileSync(VENDOR_DIFF, `${diffs.join('\n')}\n`);
-  else rmSync(VENDOR_DIFF, { force: true });
+  if (diffs.length > 0) writeFileSync(paths.vendorDiff, `${diffs.join('\n')}\n`);
+  else rmSync(paths.vendorDiff, { force: true });
 }
 
 /** What a host is allowed to fail against its own package, and nothing more. */
@@ -204,7 +225,7 @@ const allowedFailures = (host: string): number => hostNamed(host)?.controlFailur
 export function absentHere(host: string, platform: NodeJS.Platform = process.platform): number {
   const declared = hostNamed(host)?.conditionalCases;
   if (declared === undefined) return 0;
-  const absent = declared.only === undefined ? (declared.notOn ?? []).includes(platform) : !declared.only.includes(platform);
+  const absent = declared.only === undefined ? declared.notOn.includes(platform) : !declared.only.includes(platform);
   return absent ? declared.count : 0;
 }
 
@@ -345,9 +366,11 @@ export function silentDowngrades(grades: Grade[], baseline: Baseline): string[] 
 export function verdict(grades: Grade[], baseline: Baseline, write: Write, control = false): number {
   const broken = grades.filter((g) => g.error !== undefined);
   const fell = control ? controlFell(grades) : grades.filter((g) => regressed(g, baseline, absentPassing(g.host)));
+  // Both lookups are defined for every row in `fell`: `controlFell` keeps only rows with a
+  // shortfall, and `regressed` is false for a host with no baseline.
   for (const g of fell) {
-    if (control) write(`\n✖ ${g.host}: ${controlShortfall(g) ?? ''} — the control proves the gate, so it has to pass\n`);
-    else write(`\n✖ ${g.host}: ${g.passed} passing, baseline was ${baseline[g.host]?.passed ?? 0}\n`);
+    if (control) write(`\n✖ ${g.host}: ${controlShortfall(g) as string} — the control proves the gate, so it has to pass\n`);
+    else write(`\n✖ ${g.host}: ${g.passed} passing, baseline was ${(baseline[g.host] as Baseline[string]).passed}\n`);
   }
   // Checked on the control run as well as the ratchet: the control is where a reference is
   // set, and a reference of 1 is exactly what a silent downgrade would leave behind.
@@ -398,10 +421,10 @@ function writeResults(path: string, graded: Grade[]): void {
  * is `competitors-upstream.json`, which the daily workflow turns into one issue per
  * (competitor, version), each carrying the proposed changeset.
  */
-async function competitorMode(write: Write): Promise<number> {
+async function competitorMode(write: Write, paths: Paths): Promise<number> {
   write('\ncompetitor releases\n\n');
-  const result = await checkCompetitors(PACKAGES_DIR, REPO_ROOT, write);
-  writeFileSync(COMPETITORS, `${JSON.stringify({ checked: new Date().toISOString(), updates: result.updates }, null, 2)}\n`);
+  const result = await checkCompetitors(paths.packages, paths.repoRoot, write);
+  writeFileSync(paths.competitors,`${JSON.stringify({ checked: new Date().toISOString(), updates: result.updates }, null, 2)}\n`);
   if (result.unfingerprinted.length > 0) {
     write(`\n  ${result.unfingerprinted.length} competitor(s) hold no fingerprint yet: ${result.unfingerprinted.join(', ')}\n`);
   }
@@ -416,17 +439,17 @@ async function competitorMode(write: Write): Promise<number> {
 }
 
 /** `--fingerprint`: record every competitor's current release into `competitors.json`. */
-async function fingerprintMode(write: Write): Promise<number> {
+async function fingerprintMode(write: Write, paths: Paths): Promise<number> {
   write('\nfingerprinting competitors\n\n');
-  const failures = await writeFingerprints(PACKAGES_DIR, write);
+  const failures = await writeFingerprints(paths.packages, write);
   write(failures === 0 ? '\n  every competitor fingerprinted\n' : `\n\u2716 ${failures} competitor(s) failed\n`);
   return failures === 0 ? 0 : 1;
 }
 
-export async function main(argv: string[], write: Write): Promise<number> {
-  if (argv.includes('--upstream')) return upstreamMode(write);
-  if (argv.includes('--competitors')) return competitorMode(write);
-  if (argv.includes('--fingerprint')) return fingerprintMode(write);
+export async function main(argv: string[], write: Write, paths: Paths = PATHS): Promise<number> {
+  if (argv.includes('--upstream')) return upstreamMode(write, { check: (host, w) => checkUpstream(host, w, paths.vendor), out: paths.upstream });
+  if (argv.includes('--competitors')) return competitorMode(write, paths);
+  if (argv.includes('--fingerprint')) return fingerprintMode(write, paths);
 
   const wantsVendor = argv.includes('--vendor');
   // --control grades each host against its own real package: the proof that the gate
@@ -453,10 +476,10 @@ export async function main(argv: string[], write: Write): Promise<number> {
   const pool = majors ? PREVIOUS_MAJORS : active();
   const hosts = named.length === 0 ? pool : gradable().filter((h) => named.includes(h.name));
 
-  if (wantsVendor) vendorAll(hosts, write);
+  if (wantsVendor) vendorAll(hosts, write, paths);
 
-  const baseline = { ...readBaseline(BASELINE), ...readBaseline(MAJORS_BASELINE) };
-  const gradeOf = (host: Host): Grade => grade(host, VENDOR_DIR, targetFor(host), baseline[host.name]?.reference ?? 0);
+  const baseline = { ...readBaseline(paths.baseline), ...readBaseline(paths.majors) };
+  const gradeOf = (host: Host): Grade => grade(host, paths.vendor, targetFor(host), baseline[host.name]?.reference ?? 0);
   const grades = repeatAndAgree(hosts.map(gradeOf), { fell: fellFor(control, baseline), regrade: (g) => gradeOf(hosts.find((h) => h.name === g.host) as Host), write });
 
   write(control ? '\ncontrol — each host graded against its real package\n\n' : '\ncompatibility\n\n');
@@ -465,6 +488,6 @@ export async function main(argv: string[], write: Write): Promise<number> {
   const planned = HOSTS.filter((h) => h.status === 'planned').map((h) => h.name);
   if (planned.length > 0) write(`\n  planned: ${planned.join(', ')}\n`);
 
-  writeResults(control ? CONTROL_RESULTS : RESULTS, grades);
+  writeResults(control ? paths.controlResults : paths.results, grades);
   return verdict(grades, baseline, write, control);
 }

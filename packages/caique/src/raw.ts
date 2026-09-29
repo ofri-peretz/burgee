@@ -22,14 +22,19 @@
 import { hideCursor, type OutputStream, rawMode } from 'closeout/cursor';
 import exitHook from 'closeout/exit-hook';
 import { lineCount } from 'linegauge';
+import { cursorTo, cursorUp, eraseDown } from 'paratext/csi';
 
 import { type Answer, type Asked, type Io } from './ask.js';
 import { type Choice, type PromptSpec } from './spec.js';
 
 const ESC = '\u001B';
 const CSI = `${ESC}[`;
-/** Column 1, up `n` lines, clear to the end of the screen — the only repaint this needs. */
-const erase = (lines: number): string => `${CSI}1G${lines > 1 ? `${CSI}${lines - 1}A` : ''}${CSI}0J`;
+/**
+ * Column 1, up `n - 1` rows, clear to the end of the screen — the only repaint this needs,
+ * in `paratext/csi`'s spelling. The climb is guarded: `cursorUp(0)` is `ESC[0A`, which a
+ * terminal reads as one row, and a one-row frame must not climb at all.
+ */
+const erase = (lines: number): string => `${cursorTo(0)}${lines > 1 ? cursorUp(lines - 1) : ''}${eraseDown}`;
 
 /** A stream that can be put into raw mode and read a key at a time. */
 export interface KeyStream {
@@ -123,7 +128,7 @@ function moved(key: Key, state: ListState, length: number, multi: boolean): bool
 /** What enter answers with. List order, not press order: a set of choices has no sequence. */
 function chosen(choices: Choice[], state: ListState, multi: boolean): Answer {
   if (!multi) return choices[state.cursor]?.value ?? '';
-  return [...state.selected].sort((a, b) => a - b).map((index) => choices[index]?.value ?? '');
+  return choices.filter((_, index) => state.selected.has(index)).map((choice) => choice.value);
 }
 
 /**

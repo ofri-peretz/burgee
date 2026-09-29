@@ -96,6 +96,10 @@ describe('the examples on this site', () => {
       const { env, argv } = parse(run.command);
       const childEnv: NodeJS.ProcessEnv = { ...process.env, ...env };
       for (const key of POLICY) if (!(key in env)) delete childEnv[key];
+      // The pages show Unicode symbols. On Windows, ora (via is-unicode-supported) and flagstaff
+      // both fall back to `√` unless the terminal says it is Unicode, so the examples run as they
+      // would in Windows Terminal. Elsewhere this variable is ignored.
+      if (process.platform === 'win32') childEnv['WT_SESSION'] ??= 'examples';
       const result = spawnSync(process.execPath, argv, { cwd: dir, env: childEnv, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
       expect(result.status, result.stderr).toBe(run.exit);
       // Both streams. Every example writes to one of them per run — a `--json` run to stderr,

@@ -34,12 +34,18 @@ export function isExecutable(file: string, runtime: Runtime, pathExt: string[]):
   return isWindows(runtime) ? executableByName(file, stat, pathExt) : executableByMode(stat, runtime);
 }
 
-/** Windows: the extension decides, because the filesystem carries no execute bit. */
+/**
+ * Windows: the extension decides, because the filesystem carries no execute bit.
+ *
+ * `isFile()` alone, where `isexe` also accepts `isSymbolicLink()`: the stat is `statSync`'s,
+ * which follows the link, so it describes the target and never answers `true` to that.
+ */
 function executableByName(file: string, stat: Stats, pathExt: string[]): boolean {
-  if (!stat.isFile() && !stat.isSymbolicLink()) return false;
+  if (!stat.isFile()) return false;
   if (pathExt.length === 0) return true;
   const lower = file.toLowerCase();
-  return pathExt.some((ext) => ext === '' || lower.endsWith(ext.toLowerCase()));
+  // An empty entry means the name as written, and needs no case of its own: every name ends with ''.
+  return pathExt.some((ext) => lower.endsWith(ext.toLowerCase()));
 }
 
 /**
@@ -59,7 +65,8 @@ function executableByMode(stat: Stats, runtime: Runtime): boolean {
   if (!stat.isFile()) return false;
   const { mode, uid, gid } = stat;
   if ((mode & OTHER) !== 0) return true;
-  if ((mode & GROUP) !== 0 && runtime.gid !== undefined && gid === runtime.gid) return true;
-  if ((mode & OWNER) !== 0 && runtime.uid !== undefined && uid === runtime.uid) return true;
+  // A stat's uid and gid are numbers, so an unknown caller (`undefined`) matches neither.
+  if ((mode & GROUP) !== 0 && gid === runtime.gid) return true;
+  if ((mode & OWNER) !== 0 && uid === runtime.uid) return true;
   return (mode & (OWNER | GROUP)) !== 0 && runtime.uid === 0;
 }

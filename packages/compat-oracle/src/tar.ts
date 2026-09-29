@@ -69,7 +69,8 @@ export function untar(archive: Buffer): TarEntry[] {
     const prefix = field(header, PREFIX.at, PREFIX.len);
     const name = field(header, NAME.at, NAME.len);
     const size = octal(header, SIZE.at, SIZE.len);
-    const type = String.fromCodePoint(header[TYPE] ?? 0);
+    // `header` is a full block, so the type byte is always inside it.
+    const type = String.fromCodePoint(header[TYPE] as number);
     offset += BLOCK;
     const body = archive.subarray(offset, offset + size);
     offset += Math.ceil(size / BLOCK) * BLOCK;

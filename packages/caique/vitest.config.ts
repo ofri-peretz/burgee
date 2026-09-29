@@ -5,8 +5,16 @@ import { defineConfig } from 'vitest/config';
 import { coverage } from '../../vitest-coverage.config.js';
 import { timeouts } from '../../vitest-timeouts.config.js';
 
+/**
+ * The shared policy decides what is measured; this package gates the result. Every line and
+ * branch in the denominator has a test that fails when it is broken, and code no input could
+ * reach was deleted rather than excused — so a new line without a test is a red run, not a
+ * quiet slip. There is no `v8 ignore` in `src/`, and no exception to hold open.
+ */
+const FULL = { lines: 100, branches: 100, functions: 100, statements: 100 };
+
 export default defineConfig({
   // The colour environment is pinned before anything imports: `roundel/chalk` detects the
   // terminal at import, so a developer's `FORCE_COLOR` would otherwise decide ten assertions.
-  test: { ...timeouts, include: ['src/**/*.test.ts'], setupFiles: ['../../vitest-colour-setup.ts'], coverage },
+  test: { ...timeouts, include: ['src/**/*.test.ts'], setupFiles: ['../../vitest-colour-setup.ts'], coverage: { ...coverage, thresholds: FULL } },
 });

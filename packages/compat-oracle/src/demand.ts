@@ -40,7 +40,14 @@ export interface Layer {
 }
 
 /**
- * The ten layers and their twenty-seven incumbents, as the plan's own table names them.
+ * The ten layers and their forty incumbents: the twenty-seven the plan's own table names,
+ * and — since 2026-09-28 (D-180) — the thirteen smaller packages those incumbents are built on,
+ * whose jobs a layer also owns: supports-color and ansi-styles under chalk, cli-cursor,
+ * cli-spinners, is-unicode-supported, is-interactive and stdin-discarder under ora,
+ * supports-hyperlinks under terminal-link, `@inquirer/ansi` under inquirer, find-up, escalade and
+ * read-package-up under yargs and meow, get-east-asian-width under string-width. Listing them is
+ * what makes `layer-boundaries-lock` forbid depending on one; the demand mining reads the same
+ * list, and a sub-package with no issue tracker of its own simply mines empty.
  *
  * Written out rather than derived: four packages declare a `competitors.json` and five do
  * not, so deriving would silently mine four layers and call it nine. `burgee`'s intent is
@@ -48,13 +55,13 @@ export interface Layer {
  */
 export const LAYERS: Layer[] = [
   { pkg: 'burgee', intent: 'burgee', incumbents: ['commander', 'yargs'] },
-  { pkg: 'roundel', intent: 'roundel', incumbents: ['chalk'] },
-  { pkg: 'flagstaff', intent: 'flagstaff', incumbents: ['ora', 'log-update', 'boxen', 'cli-table3'] },
+  { pkg: 'roundel', intent: 'roundel', incumbents: ['chalk', 'supports-color', 'ansi-styles', 'is-unicode-supported', 'is-interactive'] },
+  { pkg: 'flagstaff', intent: 'flagstaff', incumbents: ['ora', 'log-update', 'boxen', 'cli-table3', 'cli-spinners'] },
   { pkg: 'caique', intent: 'caique', incumbents: ['inquirer', 'clack'] },
-  { pkg: 'linegauge', intent: 'linegauge', incumbents: ['string-width', 'wrap-ansi', 'strip-ansi', 'slice-ansi'] },
-  { pkg: 'paratext', intent: 'paratext', incumbents: ['ansi-escapes', 'terminal-link', 'term-img'] },
-  { pkg: 'seniority', intent: 'seniority', incumbents: ['cosmiconfig', 'dotenv', 'rc'] },
-  { pkg: 'closeout', intent: 'closeout', incumbents: ['signal-exit', 'exit-hook', 'restore-cursor'] },
+  { pkg: 'linegauge', intent: 'linegauge', incumbents: ['string-width', 'wrap-ansi', 'strip-ansi', 'slice-ansi', 'get-east-asian-width'] },
+  { pkg: 'paratext', intent: 'paratext', incumbents: ['ansi-escapes', 'terminal-link', 'term-img', 'supports-hyperlinks', '@inquirer/ansi'] },
+  { pkg: 'seniority', intent: 'seniority', incumbents: ['cosmiconfig', 'dotenv', 'rc', 'find-up', 'escalade', 'read-package-up'] },
+  { pkg: 'closeout', intent: 'closeout', incumbents: ['signal-exit', 'exit-hook', 'restore-cursor', 'cli-cursor', 'stdin-discarder'] },
   { pkg: 'bellpull', intent: 'bellpull', incumbents: ['execa', 'cross-spawn', 'which'] },
   // Reserved at 0.0.1 with no API yet (D-158). Ink and `@inkjs/ui` are the pair it replaces;
   // blessed, neo-blessed and terminal-kit are migrated off by guide, not replaced (D-168, R18).
