@@ -1,0 +1,50 @@
+---
+title: Incremental migration
+description: "Move from ansi-escapes, terminal-link and term-img one import at a time, and from term-img's paths to bytes with one readFile."
+---
+
+Each drop-in is graded on its own, so a program can move one import at a time and ship in
+between.
+
+## One import at a time
+
+```diff
+- import ansiEscapes, { cursorTo, eraseLines, link } from 'ansi-escapes';
++ import ansiEscapes, { cursorTo, eraseLines, link } from 'paratext';
+- import terminalLink from 'terminal-link';
++ import terminalLink from 'paratext/terminal-link';
+- import terminalImage from 'term-img';
++ import terminalImage from 'paratext/term-img';
+```
+
+Or let the codemod do it: `npx burgee migrate --dry-run` lists every import it would rewrite —
+only drop-ins graded level with their incumbent, so ansi-escapes and terminal-link and not
+term-img — and `npx burgee migrate` rewrites them
+([Migrate](https://burgee.interlace.tools/docs/migrate)).
+
+## term-img: bytes instead of a path
+
+`paratext/term-img` takes bytes. Where you passed a path, read it first:
+
+```diff
++ import { readFile } from 'node:fs/promises';
+- terminalImage('logo.png');
++ terminalImage(await readFile('logo.png'));
+```
+
+## What changes after the move
+
+The ansi-escapes CSI calls are byte-for-byte what they were. `link`, `image` and `setCwd` now
+write their text form on a pipe instead of escape bytes, which is the reason to move
+([Compatibility](/docs/drop-ins#known-differences)). terminal-link and term-img keep their
+incumbents' detection and fallbacks.
+
+## Checking each step
+
+```bash
+npm uninstall ansi-escapes terminal-link term-img
+npm ls ansi-escapes
+```
+
+`npm ls` shows what still pulls ansi-escapes in transitively — log-update and terminal-link
+both depend on it.

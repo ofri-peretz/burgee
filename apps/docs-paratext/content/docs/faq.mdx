@@ -1,0 +1,46 @@
+---
+title: FAQ
+description: "Short answers about paratext — why a pipe gets text, detecting support, tmux, adding a capability, images from files, and the drop-ins — each with where to read more."
+---
+
+## Why does my link print as `Docs (https://…)`?
+
+Because stdout is not a terminal, or the terminal is not one paratext believes understands
+OSC 8. That is the static projection, and it is the default whenever support is absent or
+unknown ([The static projection](/docs/guides/static-projection)).
+
+## My terminal supports hyperlinks, and paratext does not think so.
+
+Register the `link` capability again with a `when` that matches your terminal; every later
+`emit` uses it ([Detecting support](/docs/guides/detection#when-the-guess-is-wrong)).
+
+## Can I ask the terminal whether it supports something?
+
+Not for most OSC sequences: no terminal answers "do you do OSC 1337". The guess is data on the
+capability — `TERM`, `TERM_PROGRAM`, an announcing variable — which is why it can be replaced.
+
+## How do I add a capability paratext does not ship?
+
+Register a plain object with `name`, `osc`, `when`, `encode` and `fallback`, or ship it as a
+plugin and check it with `npx paratext check` ([Capabilities as data](/docs/guides/registry)).
+
+## Why must every capability have a fallback?
+
+So nothing registered can put raw bytes into a pipe. `fallback: ''` is allowed — a window title
+has nothing to say in a log — but a missing one is refused at registration.
+
+## Why does `paratext/term-img` not take a file path?
+
+paratext has no `node:fs` dependency (D-030): the caller reads the file. It costs six of the
+eighteen cases in term-img's suite, all of which pass a path ([Compatibility](/docs/drop-ins)).
+
+## Does it move the cursor on a pipe?
+
+If you ask it to: the CSI half — `cursorTo`, `eraseLines` and the rest — is ansi-escapes' bytes
+and never degrades. Whether to redraw is a decision for your program, and roundel's
+`outputMode` is the question to ask.
+
+## Can I use it from CommonJS?
+
+Yes, on Node 20.19+ and 22.13+: every entry is ESM with a `default` condition, so
+`require('paratext')` loads it through `require(esm)`.
