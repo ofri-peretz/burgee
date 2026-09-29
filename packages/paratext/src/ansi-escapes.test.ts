@@ -74,6 +74,11 @@ describe('the ansi-escapes surface (R8)', () => {
     expect(ansiEscapesFor(iterm).setCwd()).toBe(`${OSC}50;CurrentDir=/work${BEL}${OSC}9;9;/work${BEL}`);
   });
 
+  it('with neither an argument nor a runtime cwd, names no directory rather than the string `undefined`', () => {
+    const { cwd: _none, ...nowhere } = iterm;
+    expect(ansiEscapesFor(nowhere).setCwd()).toBe(`${OSC}50;CurrentDir=${BEL}${OSC}9;9;${BEL}`);
+  });
+
   it('beeps with the one byte the incumbent beeps with', () => {
     expect(beep).toBe(BEL);
   });

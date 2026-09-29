@@ -56,7 +56,7 @@ function kindOf(v: unknown): string {
 function describe(s: Schema): string {
   if ('const' in s) return JSON.stringify(s['const']);
   const type = String(s['type']);
-  return `${'aeiou'.includes(type[0] ?? '') ? 'an' : 'a'} ${type}${s['minimum'] === undefined ? '' : ` ≥ ${String(s['minimum'])}`}`;
+  return `${'aeiou'.includes(type.charAt(0)) ? 'an' : 'a'} ${type}${s['minimum'] === undefined ? '' : ` ≥ ${String(s['minimum'])}`}`;
 }
 
 /**

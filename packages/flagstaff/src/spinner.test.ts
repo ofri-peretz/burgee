@@ -25,6 +25,18 @@ describe('spinner()', () => {
     expect(spinner('loud').static({ text: 'go' })).toBe('!!!DISTINCTIVE!!! go');
   });
 
+  it('a style that ships an empty static falls back to the running glyph, not a bare space', () => {
+    // The schema admits `static: ''`, and a line that opens with nothing reads as a blank.
+    register({ name: 'mute', spinners: { mute: { frames: ['x'], interval: 80, static: '' } } });
+    expect(spinner('mute').static({ text: 'go' })).toBe('… go');
+  });
+
+  it('a clock that steps backwards draws a blank frame, never `undefined`', () => {
+    // `t` is the caller's clock minus the hoist time; a wall clock corrected backwards makes it
+    // negative, and a negative index has no frame.
+    expect(spinner().frame?.(-1, { text: 'x' })).toBe(' x');
+  });
+
   it('a finished status is the same line in every mode', () => {
     const s = spinner('line');
     expect(s.interval).toBe(130);

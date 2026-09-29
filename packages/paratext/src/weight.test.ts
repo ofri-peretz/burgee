@@ -105,6 +105,14 @@ const RULES: Record<string, EntryRule> = {
    * `runtime.js` 143. The budget is deliberately close — this entry exists *because* of its
    * size, so a change that doubles it should have to say so here.
    */
+  /**
+   * The CSI half of `ansi-escapes` alone (2026-09-28): cursor moves, erases, the alternate and
+   * synchronized-output switches — what flagstaff and caique each spelled out by hand. It must
+   * never reach `index.js`: a program that moves a cursor is not asking for seven built-ins to
+   * be registered. Measured **2,700 B**: `csi.js` 2,403 and `runtime.js` 297, which it reads
+   * once for Terminal.app's save/restore spelling.
+   */
+  './csi': { allow: [], budget: 3_000, denied: ['index.js', 'capability.js', 'builtins.js', 'plugin.js', 'ansi-escapes.js', 'schema.json', 'link.js', 'template.js'] },
   './link': { allow: [], budget: 3_000, denied: ['index.js', 'capability.js', 'builtins.js', 'plugin.js', 'ansi-escapes.js', 'schema.json'] },
   /**
    * The `terminal-link` façade. It reaches `link.js` for the `LINK` record and `supports`,

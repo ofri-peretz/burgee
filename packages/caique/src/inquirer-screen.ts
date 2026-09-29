@@ -10,9 +10,11 @@
  * are not ours to choose. The one case that compares a raw frame byte for byte (`allow
  * cleaning the prompt after completion`) is what proves they are right.
  *
- * The cursor-visibility sequence is the exception and comes from `closeout`, which owns it
- * across the family. The rest are CSI, which `paratext` states as out of scope, so there is
- * no family subpath to take them from and they are stated here.
+ * The cursor-visibility sequence comes from `closeout`, which owns it across the family. The
+ * rest are CSI, and come from `paratext/csi`, the family's byte-exact port of `ansi-escapes`.
+ * `@inquirer/ansi` differs from `ansi-escapes` in one respect that matters: it writes nothing
+ * for a zero-row move, where `ansi-escapes` writes `ESC[0A` — which a terminal reads as one
+ * row. So `cursorUp` and `cursorDown` below guard zero before they call paratext.
  *
  * ## Why there is a stream class here
  *
@@ -29,13 +31,12 @@ import { stripVTControlCharacters } from 'node:util';
 
 import { SHOW_CURSOR } from 'closeout/cursor';
 import { wrap } from 'linegauge/wrap';
+import { cursorDown as down, cursorLeft as csiLeft, cursorTo as to, cursorUp as up, eraseLines as erase } from 'paratext/csi';
 
 import { processRuntime } from './runtime.js';
 
-const ESC = '[';
-
 /** Move the cursor to the first column. */
-export const cursorLeft = `${ESC}G`;
+export const cursorLeft = csiLeft;
 
 /**
  * Show the cursor — taken from `closeout`, not spelled again here.
@@ -48,18 +49,16 @@ export const cursorLeft = `${ESC}G`;
 export const cursorShow = SHOW_CURSOR;
 
 /** Move the cursor up `rows` rows. Zero is no sequence at all, not a zero-length move. */
-export const cursorUp = (rows = 1): string => (rows > 0 ? `${ESC}${String(rows)}A` : '');
+export const cursorUp = (rows = 1): string => (rows > 0 ? up(rows) : '');
 
-/** Move the cursor down `rows` rows. */
-export const cursorDown = (rows = 1): string => (rows > 0 ? `${ESC}${String(rows)}B` : '');
+/** Move the cursor down `rows` rows. Zero, likewise, is nothing. */
+export const cursorDown = (rows = 1): string => (rows > 0 ? down(rows) : '');
 
-/** Move the cursor to column `x` (zero-based), or to `(x, y)` when a row is given. */
-export const cursorTo = (x: number, y?: number): string => (typeof y === 'number' && !Number.isNaN(y) ? `${ESC}${String(y + 1)};${String(x + 1)}H` : `${ESC}${String(x + 1)}G`);
+/** Move the cursor to column `x` (zero-based), or to `(x, y)` when a row is given. A `NaN` row is no row. */
+export const cursorTo = (x: number, y?: number): string => to(x, typeof y === 'number' && !Number.isNaN(y) ? y : undefined);
 
-const eraseLine = `${ESC}2K`;
-
-/** Erase `lines` lines, ending on the first column of the topmost one. */
-export const eraseLines = (lines: number): string => (lines > 0 ? (eraseLine + cursorUp(1)).repeat(lines - 1) + eraseLine + cursorLeft : '');
+/** Erase `lines` lines, ending on the first column of the topmost one. None for zero or fewer. */
+export const eraseLines = (lines: number): string => (lines > 0 ? erase(lines) : '');
 
 const DEFAULT_WIDTH = 80;
 
