@@ -3,6 +3,33 @@ title: Changelog
 description: "Every release of closeout, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 0.6.0
+
+### Minor Changes
+
+- [#662](https://github.com/ofri-peretz/burgee/pull/662) [`ff4159d`](https://github.com/ofri-peretz/burgee/commit/ff4159d25544fd45257f145e40ff0c5f8dfc4b3a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Terminal restore now covers all three things design R4 promises: raw mode off, alternate screen left, cursor shown — last, on every exit path.
+
+  - `alternateScreen(stream)` enters the alternate screen (`ESC[?1049h`) and registers leaving it in the `restore` phase; the returned function leaves it early. `rawMode(input)` turns raw mode on and registers turning it off; an input that was already raw belongs to somebody else and is left alone, now and at exit. Both sit beside `hideCursor`, run their undo at most once, and write nothing to a non-TTY. They register on the process-wide instance, or on one `install()` returned when passed as a second argument, and tree-shake away from programs that do not import them. `closeout/cursor` exports the leaf forms and `ENTER_ALTERNATE_SCREEN` / `LEAVE_ALTERNATE_SCREEN`.
+  - Fixed: a process whose shutdown was waiting on a handler that holds nothing in the event loop could leave through `'exit'` before the deadline without ever running the `restore` phase. Node's `'exit'` now invokes every phase the shutdown had not reached yet, each still exactly once.
+
+### Patch Changes
+
+- [#729](https://github.com/ofri-peretz/burgee/pull/729) [`6d8aadf`](https://github.com/ofri-peretz/burgee/commit/6d8aadff01a4c65ef3be16fe2082b0abd0c00b90) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Two fixes, and some code no input could reach is removed.
+
+  `closeout/exit-hook` no longer calls asynchronous hooks on a synchronous exit. On `process.exit()` or PM2's `shutdown` message it printed exit-hook's notice that asynchronous tasks "will not run", then called every `asyncExitHook` callback anyway and abandoned the promise. Any code a hook ran before its first `await` therefore ran under closeout and not under exit-hook. Only the synchronous hooks run on that path now, as they do upstream.
+
+  A handler registered with a phase that is not `flush`, `release` or `restore` is refused with `TypeError: closeout: no phase <name>`. Before, a misspelled phase from untyped code, such as `onExit(unlock, 'Restore')`, was accepted, never counted and never run. `count()` refuses the same names.
+
+  `closeout check` no longer carries a "(replaces …)" helper it never called, or a filter that could never drop a row, because it loads one plugin into an emptied registry. A fallback exit code for a signal outside the five closeout listens on is gone, because there is no such signal. `closeout/exit-hook` also drops a per-event once-guard that duplicated the registry's own, plus two fields of a record no code read.
+
+- [#670](https://github.com/ofri-peretz/burgee/pull/670) [`5e635b0`](https://github.com/ofri-peretz/burgee/commit/5e635b0a79c16ff2b459a4d00c80d334d5d945d1) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Fixed: a second signal during shutdown killed the process before the terminal was restored. A second Ctrl-C, or a SIGTERM that arrived while a handler was still running, left the terminal in raw mode, on the alternate screen, with the cursor hidden. A second trigger now waits for the shutdown already running, so the terminal is restored first and the process dies of the first signal. The deadline still bounds the wait.
+
+- [#662](https://github.com/ofri-peretz/burgee/pull/662) [`ff4159d`](https://github.com/ofri-peretz/burgee/commit/ff4159d25544fd45257f145e40ff0c5f8dfc4b3a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Fixed: a process whose shutdown was waiting on a handler that holds nothing in the event loop exited 0 instead of leaving the way its trigger decided. SIGTERM through `install()` now dies of SIGTERM, an uncaught throw exits 1 and prints the error, and `closeout/exit-hook` exits 143 on SIGTERM, as `exit-hook` does. The deadline now keeps the event loop alive until the shutdown finishes or times out, on every trigger except `'beforeExit'`. When it times out, the breach report names the handler that hung.
+
+- [#674](https://github.com/ofri-peretz/burgee/pull/674) [`e9f45d8`](https://github.com/ofri-peretz/burgee/commit/e9f45d85d9db5b2e3dcaa1e43f292a1281a6952a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - README: family header, badges, install, migrating, the family table.
+
+  Every package README now opens the same way — lockup, tagline, one badge row in one order (npm version, downloads, Quality Gate, the package's own coverage, OpenSSF Scorecard, unpacked size, dependencies, types, Node, licence, npm provenance), a row of compatibility badges read from the graded baseline — and carries the same sections in the same order: Install for npm, pnpm, yarn and bun, Quick start, Migrating as a before/after diff, Compatibility, Benchmarks, For agents, API, and a generated table of the nine packages. Links are absolute, so they work on npm as well as GitHub.
+
 ## 0.5.4
 
 ### Patch Changes

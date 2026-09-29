@@ -1,5 +1,22 @@
 # compat-oracle
 
+## 0.1.1
+
+### Patch Changes
+
+- [#638](https://github.com/ofri-peretz/burgee/pull/638) [`e4c1f69`](https://github.com/ofri-peretz/burgee/commit/e4c1f6951dcbc73d581ce1edce4cf3f9ae183058) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `caique/clack` now carries `@clack/prompts`' prompts, not only `limitOptions`: `text`, `password`, `confirm`, `multiline`, `date`, `path`, `select`, `selectKey`, `multiselect`, `groupMultiselect`, `autocomplete` and `autocompleteMultiselect`, with `intro`, `outro`, `cancel`, `note`, `log`, `stream`, `spinner`, `tasks`, `group`, the `S_*` glyphs, `settings`/`updateSettings` and `isCancel`, under clack's names and options. They run on caique's own keypress loop and reach nothing outside this repository. Graded by clack's own suite at 16 / 17 (was 14 / 17; the control is 17 / 17): the one case left imports `updateSettings` from `@clack/core`, which caique does not depend on (D-152). The spinner animates only on a terminal outside CI and prints each message once anywhere else. `box`, `progress` and `taskLog` are not built. `burgee migrate` reports the new grade and, since it is not level with the control, still does not rewrite `@clack/prompts`.
+
+- [#650](https://github.com/ofri-peretz/burgee/pull/650) [`9a72329`](https://github.com/ofri-peretz/burgee/commit/9a723299803d10d784bf20fa63425e741f750368) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Grade execa 10.0.1's own suite against `bellpull` as a ceiling: 0 / 1048, control 1048 / 1048
+  (GAPS A10, D-160). A host may now declare `ceiling` — graded to publish a distance, never a
+  drop-in `burgee migrate` rewrites to or reports — and an import may declare `namedOnly`, so a
+  bare specifier is rewritten only where a module is named and not where the same word is a value.
+
+- [#686](https://github.com/ofri-peretz/burgee/pull/686) [`fa0ff53`](https://github.com/ofri-peretz/burgee/commit/fa0ff53bb461e8c58a9085d8697ebc12d8709ab1) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `LAYERS` names thirteen more incumbents — the packages chalk, ora, terminal-link, inquirer, yargs, meow and string-width are built on (supports-color, ansi-styles, is-unicode-supported, is-interactive, cli-spinners, get-east-asian-width, supports-hyperlinks, `@inquirer/ansi`, find-up, escalade, read-package-up, cli-cursor, stdin-discarder) — so `layer-boundaries-lock` refuses a family package that depends on one.
+- Updated dependencies [[`3e837cb`](https://github.com/ofri-peretz/burgee/commit/3e837cbd557735dd8823a54bd9f5cd03c8852221), [`1f9ad70`](https://github.com/ofri-peretz/burgee/commit/1f9ad70189396c701b17034a98fcd8f59fb700de), [`063025e`](https://github.com/ofri-peretz/burgee/commit/063025e5f9ca5ae30d4987989b23ee3248ce523e), [`8b6b1e0`](https://github.com/ofri-peretz/burgee/commit/8b6b1e04109c8dfb1bf7d623750dd3d415c996d3), [`e4c1f69`](https://github.com/ofri-peretz/burgee/commit/e4c1f6951dcbc73d581ce1edce4cf3f9ae183058), [`7f59bc2`](https://github.com/ofri-peretz/burgee/commit/7f59bc2a612aa71925d5eca1db96d44d9f488c9a), [`6ef8227`](https://github.com/ofri-peretz/burgee/commit/6ef822762f5ad19564215945d7e76aa329614585), [`d26728b`](https://github.com/ofri-peretz/burgee/commit/d26728b26b44cbcc5edafca6bf1a91acbd1e1d35), [`6ef8227`](https://github.com/ofri-peretz/burgee/commit/6ef822762f5ad19564215945d7e76aa329614585), [`8bc14e6`](https://github.com/ofri-peretz/burgee/commit/8bc14e644f02a28ce54333d683742f2fca027917), [`12fea8e`](https://github.com/ofri-peretz/burgee/commit/12fea8eae4d556b11dc693581cca73e16c2b633c), [`5b3dafa`](https://github.com/ofri-peretz/burgee/commit/5b3dafa8c94096d59a286d13ebc06ac30d75bfa5), [`e9f45d8`](https://github.com/ofri-peretz/burgee/commit/e9f45d85d9db5b2e3dcaa1e43f292a1281a6952a), [`6c7b55a`](https://github.com/ofri-peretz/burgee/commit/6c7b55a01ea2e3aa1993419f78fbf6858ade5f8b), [`620fc74`](https://github.com/ofri-peretz/burgee/commit/620fc74af013834ca6b15faa2772aeb94c5013b1), [`088cecc`](https://github.com/ofri-peretz/burgee/commit/088ceccb7dda1cbe878950c631f49f48980dd2e2), [`5052d67`](https://github.com/ofri-peretz/burgee/commit/5052d67489c4c58f610cf161f5cc50a0c8ef2263), [`4319563`](https://github.com/ofri-peretz/burgee/commit/4319563b902c9d968786196f495cf47e7d4d9d39), [`b74a24d`](https://github.com/ofri-peretz/burgee/commit/b74a24de9fa747b25aa1b405cff8958f7c42d0db), [`deffcc6`](https://github.com/ofri-peretz/burgee/commit/deffcc679cf3e97e0d2f538bc09c6810e478b80e)]:
+  - burgee@0.14.1
+  - flagstaff@1.0.0
+  - roundel@0.5.5
+
 ## 0.1.0
 
 ### Minor Changes

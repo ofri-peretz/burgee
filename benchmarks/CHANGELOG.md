@@ -1,5 +1,19 @@
 # benchmarks
 
+## 0.0.4
+
+### Patch Changes
+
+- Updated dependencies [[`3250edf`](https://github.com/ofri-peretz/burgee/commit/3250edf439a45ccfd203213eddec0d9fb091e8cd), [`3e837cb`](https://github.com/ofri-peretz/burgee/commit/3e837cbd557735dd8823a54bd9f5cd03c8852221), [`1f9ad70`](https://github.com/ofri-peretz/burgee/commit/1f9ad70189396c701b17034a98fcd8f59fb700de), [`063025e`](https://github.com/ofri-peretz/burgee/commit/063025e5f9ca5ae30d4987989b23ee3248ce523e), [`8b6b1e0`](https://github.com/ofri-peretz/burgee/commit/8b6b1e04109c8dfb1bf7d623750dd3d415c996d3), [`b52659f`](https://github.com/ofri-peretz/burgee/commit/b52659fbb7da12fa5fe372962af3bcdac0d022e6), [`e4c1f69`](https://github.com/ofri-peretz/burgee/commit/e4c1f6951dcbc73d581ce1edce4cf3f9ae183058), [`2c631cb`](https://github.com/ofri-peretz/burgee/commit/2c631cb820ec181dd7615864cc6ce7412ee7cafe), [`b9de3f3`](https://github.com/ofri-peretz/burgee/commit/b9de3f341bb59b9a2139bb094809176af5a65bee), [`9a65722`](https://github.com/ofri-peretz/burgee/commit/9a657220fe9c877ca475e7be1f3a575a0e88a76a), [`7f59bc2`](https://github.com/ofri-peretz/burgee/commit/7f59bc2a612aa71925d5eca1db96d44d9f488c9a), [`9a72329`](https://github.com/ofri-peretz/burgee/commit/9a723299803d10d784bf20fa63425e741f750368), [`6ef8227`](https://github.com/ofri-peretz/burgee/commit/6ef822762f5ad19564215945d7e76aa329614585), [`d26728b`](https://github.com/ofri-peretz/burgee/commit/d26728b26b44cbcc5edafca6bf1a91acbd1e1d35), [`6ef8227`](https://github.com/ofri-peretz/burgee/commit/6ef822762f5ad19564215945d7e76aa329614585), [`fa0ff53`](https://github.com/ofri-peretz/burgee/commit/fa0ff53bb461e8c58a9085d8697ebc12d8709ab1), [`6ef8227`](https://github.com/ofri-peretz/burgee/commit/6ef822762f5ad19564215945d7e76aa329614585), [`7c77cd2`](https://github.com/ofri-peretz/burgee/commit/7c77cd25c8fbeea4199c38c135e3a8937907f849), [`8bc14e6`](https://github.com/ofri-peretz/burgee/commit/8bc14e644f02a28ce54333d683742f2fca027917), [`6ef8227`](https://github.com/ofri-peretz/burgee/commit/6ef822762f5ad19564215945d7e76aa329614585), [`6ef8227`](https://github.com/ofri-peretz/burgee/commit/6ef822762f5ad19564215945d7e76aa329614585), [`12fea8e`](https://github.com/ofri-peretz/burgee/commit/12fea8eae4d556b11dc693581cca73e16c2b633c), [`5b3dafa`](https://github.com/ofri-peretz/burgee/commit/5b3dafa8c94096d59a286d13ebc06ac30d75bfa5), [`e9f45d8`](https://github.com/ofri-peretz/burgee/commit/e9f45d85d9db5b2e3dcaa1e43f292a1281a6952a), [`8a338ba`](https://github.com/ofri-peretz/burgee/commit/8a338baa50bb754051b18c00dbd0972976cccba1), [`6c7b55a`](https://github.com/ofri-peretz/burgee/commit/6c7b55a01ea2e3aa1993419f78fbf6858ade5f8b), [`620fc74`](https://github.com/ofri-peretz/burgee/commit/620fc74af013834ca6b15faa2772aeb94c5013b1), [`088cecc`](https://github.com/ofri-peretz/burgee/commit/088ceccb7dda1cbe878950c631f49f48980dd2e2), [`5052d67`](https://github.com/ofri-peretz/burgee/commit/5052d67489c4c58f610cf161f5cc50a0c8ef2263), [`4319563`](https://github.com/ofri-peretz/burgee/commit/4319563b902c9d968786196f495cf47e7d4d9d39), [`b74a24d`](https://github.com/ofri-peretz/burgee/commit/b74a24de9fa747b25aa1b405cff8958f7c42d0db), [`deffcc6`](https://github.com/ofri-peretz/burgee/commit/deffcc679cf3e97e0d2f538bc09c6810e478b80e)]:
+  - bellpull@0.4.3
+  - burgee@0.14.1
+  - caique@0.6.0
+  - compat-oracle@0.1.1
+  - flagstaff@1.0.0
+  - linegauge@1.0.0
+  - paratext@0.7.3
+  - roundel@0.5.5
+
 ## 0.0.3
 
 ### Patch Changes

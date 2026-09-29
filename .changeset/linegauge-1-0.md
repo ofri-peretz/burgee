@@ -1,5 +1,0 @@
----
-"linegauge": major
----
-
-linegauge 1.0.0. No API changes from 0.5: this release makes a promise. Every published entry point is now under semver and can change incompatibly only in a new major: `linegauge`, `linegauge/wrap`, `linegauge/slice`, `linegauge/truncate`, `linegauge/widest`, `linegauge/strip`, `linegauge/plugin`, the `schema.json` plugin contract and the `linegauge` bin. Each drop-in path is graded at 100% by its incumbent's own test suite, vendored at the release tag and run unmodified: string-width 8.3.0 by 233 of 233 cases (`linegauge`), wrap-ansi 10.0.2 by 85 of 85 (`linegauge/wrap`), strip-ansi 7.2.0 by 8 of 8 (`linegauge/strip`) and slice-ansi 9.0.1 by 104 of 104 (`linegauge/slice`). Grading the newest string-width and wrap-ansi before release found two defects, fixed here: `width()` could hang on a run of combining joiners, and `wrap()` normalized escape sequences. Out of scope: `truncate` and `widest` are linegauge's own API and are not graded against an incumbent's suite, and earlier majors of the four incumbents are not claimed.
