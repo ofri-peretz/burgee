@@ -1,0 +1,42 @@
+---
+title: Incremental migration
+description: "Move from chalk to roundel/chalk with one import, then to semantic tokens a file at a time, with both reading the same policy throughout."
+---
+
+## Step one: the import
+
+```diff
+- import chalk from 'chalk';
++ import chalk from 'roundel/chalk';
+```
+
+`roundel/chalk` passes chalk 6.0.0's own suite, so every call keeps its output. What changes is
+underneath: the level now comes from the policy, so `NO_COLOR` is honoured and `--no-color`
+beats an ambient `FORCE_COLOR` ([Compatibility](/docs/drop-ins#known-differences)).
+
+`npx burgee migrate --dry-run` lists every import it would rewrite, and `npx burgee migrate`
+rewrites them ([Migrate](https://burgee.interlace.tools/docs/migrate)).
+
+## Step two: meanings, a file at a time
+
+```diff
+- import chalk from 'roundel/chalk';
+- console.error(chalk.red(`missing ${chalk.bold('--name')}`));
++ import { error, flag } from 'roundel/tokens';
++ console.error(error(`missing ${flag('--name')}`));
+```
+
+Tokens are plain until the program calls `fly()` once at startup; add that before the first
+file moves. From then on both styles read the same policy, so a file on `roundel/chalk` and a
+file on tokens never disagree about whether this terminal gets colour.
+
+## Step three: drop chalk
+
+```bash
+npm uninstall chalk
+npm ls chalk
+```
+
+`npm ls` shows what still pulls chalk in transitively. An `overrides` entry pointing `chalk` at
+`roundel` would resolve to the package root, not to `roundel/chalk`, so it cannot move those
+copies; they move when the packages that depend on chalk do.

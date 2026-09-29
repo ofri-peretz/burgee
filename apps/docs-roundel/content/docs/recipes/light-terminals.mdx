@@ -1,0 +1,32 @@
+---
+title: A theme for light terminals
+description: "Declare the background your users read on, let roundel pick the brand shade that reads on it, and check the result before it ships."
+---
+
+The default ground is near-black. On a light terminal, say so, and every hex token is checked —
+and the default brand tokens chosen — against white instead:
+
+```js title="light-check.mjs"
+import { reportTheme } from 'roundel/contrast';
+import { audit } from 'roundel/theme';
+
+const theme = { ground: '#fdfdfd', warn: '#9a6700' };
+console.log(reportTheme(audit(theme)));
+```
+
+```text title="node light-check.mjs"
+pass  error  truecolor  #a84c17 on #fdfdfd  5.56:1 (needs 4.5:1)
+pass  error  256        #af5f00 on #fdfdfd  4.63:1 (needs 4.5:1)
+pass  warn   truecolor  #9a6700 on #fdfdfd  4.79:1 (needs 4.5:1)
+pass  warn   256        #af5f00 on #fdfdfd  4.63:1 (needs 4.5:1)
+pass  ok     truecolor  #0a6b47 on #fdfdfd  6.44:1 (needs 4.5:1)
+pass  ok     256        #005f5f on #fdfdfd  7.37:1 (needs 4.5:1)
+```
+
+`error` and `ok` were not given, so they are the brand's deep shades, the ones that read on a
+light ground. `warn` was given as a hex, so it is checked too; the default `yellow` would not
+have been, because a format name is the user's own palette.
+
+There is no way to ask a terminal what its background is, so the choice is yours. A program
+that serves both can read a setting of its own and fly the matching theme; the check runs on
+whichever it flies.

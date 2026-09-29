@@ -40,7 +40,7 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
  * joins by being added here once its hand-written pages exist, and the lock then holds its
  * reference and changelog in sync.
  */
-export const STANDARD_SITES: readonly string[] = ['flagstaff', 'linegauge', 'closeout', 'paratext', 'caique'];
+export const STANDARD_SITES: readonly string[] = ['flagstaff', 'linegauge', 'closeout', 'paratext', 'caique', 'roundel'];
 
 type ExportTarget = string | { types?: string; import?: string; default?: string };
 interface Manifest {
@@ -251,7 +251,7 @@ function moduleDoc(sf: ts.SourceFile): string {
  * and a stray backtick is left behind. Such a span is rewritten with a double-backtick fence,
  * the form Markdown gives a span that contains one.
  */
-export const prose = (text: string): string => text.replace(/`((?:[^`\\\n]|\\.)*\\`(?:[^`\\\n]|\\.)*)`/gu, (_span, inner: string) => `\`\` ${inner.replaceAll('\\`', '`')} \`\``);
+export const prose = (text: string): string => flushLists(text).replace(/`((?:[^`\\\n]|\\.)*\\`(?:[^`\\\n]|\\.)*)`/gu, (_span, inner: string) => `\`\` ${inner.replaceAll('\\`', '`')} \`\``);
 
 /**
  * A single-backtick code span that opens or closes on a space — `` `Done: ` `` in paratext's
