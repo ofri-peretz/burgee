@@ -208,7 +208,7 @@ export function finish(rt: FakeRuntime, code: ExitCode, startedAt: number): RunR
     // stderr fallback stays for a run whose envelope a program wrote there itself — before
     // D-140 the engine did, and a harness is the last place to break a test that relied on it.
     // Either way the run's own code stands.
-    const source = stdout.trim() === '' && code !== ExitCode.OK ? stderr.split('\n')[0] ?? '' : stdout;
+    const source = stdout.trim() === '' && code !== ExitCode.OK ? stderr.split('\n')[0] as string : stdout;
     try {
       result.json = JSON.parse(source);
     } catch (e) {

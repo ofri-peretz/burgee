@@ -72,14 +72,15 @@ function walk(root: Node): Node[] {
   const out: Node[] = [];
   const stack = [root];
   while (stack.length > 0) {
-    const node = stack.pop();
-    if (node !== undefined) {
-      out.push(node);
-      stack.push(...[...node.children].reverse());
-    }
+    const node = stack.pop() as Node;
+    out.push(node);
+    stack.push(...[...node.children].reverse());
   }
   return out;
 }
+
+/** The word a user types for a child: the last of its path, which a child always has. */
+const word = (child: Node): string => child.path.at(-1) as string;
 
 const sq = (s: string): string => `'${s.replaceAll("'", "'\\''")}'`;
 const flags = (name: string, spec: OptionSpec): string[] => {
@@ -100,7 +101,7 @@ const fname = (program: string, path: string[]): string => `_${[program, ...path
 
 function bashCase(program: string, node: Node): string {
   const opts = Object.entries(node.options).flatMap(([n, s]) => flags(n, s));
-  const subs = node.children.map((c) => c.path.at(-1) ?? '');
+  const subs = node.children.map(word);
   const valued = Object.entries(node.options)
     .filter(([, s]) => takesValue(s))
     .map(([n, s]) =>
@@ -167,8 +168,8 @@ function zshFunction(program: string, node: Node): string {
   if (node.children.length === 0) {
     return `${fname(program, node.path)}() {\n  _arguments -s ${options.join(' ')} '*: :_files'\n}`;
   }
-  const subs = node.children.map((c) => sq(`${c.path.at(-1) ?? ''}[${c.description.replaceAll(/[[\]:]/g, ' ')}]`)).join(' ');
-  const dispatch = node.children.map((c) => `      ${c.path.at(-1) ?? ''}) ${fname(program, c.path)} ;;`).join('\n');
+  const subs = node.children.map((c) => sq(`${word(c)}[${c.description.replaceAll(/[[\]:]/g, ' ')}]`)).join(' ');
+  const dispatch = node.children.map((c) => `      ${word(c)}) ${fname(program, c.path)} ;;`).join('\n');
   return `${fname(program, node.path)}() {
   local context state state_descr line
   typeset -A opt_args
@@ -217,7 +218,7 @@ function fish(program: string, root: Node): string {
   const lines: string[] = [];
   for (const node of walk(root)) {
     const cond = sq(fishCondition(node));
-    for (const c of node.children) lines.push(`complete -c ${program} -n ${cond} -f -a ${c.path.at(-1) ?? ''} -d ${sq(c.description)}`);
+    for (const c of node.children) lines.push(`complete -c ${program} -n ${cond} -f -a ${word(c)} -d ${sq(c.description)}`);
     for (const [name, spec] of Object.entries(node.options)) {
       // `kebab`, which fish alone was missing: it emitted `-l dryRun` where the CLI form is
       // `--dry-run`, so every camelCase option was completed as a flag the parser refuses.
@@ -239,13 +240,13 @@ ${lines.join('\n')}
 // ───── PowerShell ───────────────────────────────────────────────────────────────────────
 
 function pwshEntry(node: Node): string {
-  const subs = node.children.map((c) => `@('${c.path.at(-1) ?? ''}', 'Command', '${c.description.replaceAll("'", "''")}')`);
+  const subs = node.children.map((c) => `@('${word(c)}', 'Command', '${c.description.replaceAll("'", "''")}')`);
   const opts = Object.entries(node.options).flatMap(([n, s]) =>
     flags(n, s).map((f) => `@('${f}', 'ParameterName', '${(s.description ?? '').replaceAll("'", "''")}')`),
   );
   const values = Object.entries(node.options)
     .filter(([, s]) => s.choices !== undefined)
-    .map(([n, s]) => `'--${n}' = @(${(s.choices ?? []).map((c) => `'${c}'`).join(', ')})`);
+    .map(([n, s]) => `'--${kebab(n)}' = @(${(s.choices as readonly string[]).map((c) => `'${c}'`).join(', ')})`);
   const dynamic = Object.entries(node.options)
     .filter(([, s]) => isDynamic(s))
     .map(([n]) => `'--${kebab(n)}' = $true`);
@@ -331,10 +332,11 @@ export function renderFigSpec(manifest: Manifest): FigSubcommand {
     if (node.description !== '') entry.description = node.description;
     entries.set(node.path.join(' '), entry);
     if (node.path.length === 0) continue;
-    const parent = entries.get(node.path.slice(0, -1).join(' '));
-    if (parent !== undefined) (parent.subcommands ??= []).push(entry);
+    // Root first and depth first, so a node's parent is always entered before it.
+    const parent = entries.get(node.path.slice(0, -1).join(' ')) as FigSubcommand;
+    (parent.subcommands ??= []).push(entry);
   }
-  return entries.get('') ?? { name: program, options: [] };
+  return entries.get('') as FigSubcommand;
 }
 
 export function renderCompletion(manifest: Manifest, shell: Shell): string {
