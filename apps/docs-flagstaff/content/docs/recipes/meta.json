@@ -1,0 +1,4 @@
+{
+  "title": "Recipes",
+  "pages": ["build-steps", "progress-in-logs", "results-for-agents", "testing-output", "incremental-migration"]
+}

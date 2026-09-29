@@ -1,0 +1,64 @@
+---
+title: Moving off ora a file at a time
+description: "Change ora's import to flagstaff/ora today, keep its behaviour to the byte, and move each spinner onto hoist() when that file is next touched."
+---
+
+`flagstaff/ora` is ora 9's API, graded by ora's own test suite. Changing the import changes the
+dependency tree and nothing about the output:
+
+```diff
+-import ora from 'ora';
++import ora from 'flagstaff/ora';
+```
+
+```js title="legacy.mjs"
+import { setTimeout as sleep } from 'node:timers/promises';
+
+import ora from 'flagstaff/ora';
+
+const spinner = ora('building').start();
+await sleep(100);
+spinner.text = 'linking';
+await sleep(100);
+spinner.succeed('built');
+```
+
+In a pipe it does what ora does: a start line and a final line on stderr, and the `linking`
+in between is not written.
+
+```text title="node legacy.mjs"
+- building
+✔ built
+```
+
+When the file is next touched, move the spinner onto the loop. The calls map one to one —
+`start()` is `hoist()`, setting `text` is `update()`, `succeed()` and `fail()` are `lower()`
+with a status:
+
+```js title="migrated.mjs"
+import { setTimeout as sleep } from 'node:timers/promises';
+
+import { hoist } from 'flagstaff/loop';
+import { spinner } from 'flagstaff/spinner';
+
+import { json, rt } from './rt.mjs';
+
+const flag = hoist(spinner(), rt, { text: 'building' }, { json });
+await sleep(100);
+flag.update({ text: 'linking' });
+await sleep(100);
+flag.lower({ text: 'built', status: 'ok' });
+```
+
+```text title="node migrated.mjs"
+… building
+… linking
+✔ built
+```
+
+Now every state reaches the log, `--json` gives an agent one event per transition, and
+`CLI_ACCESSIBLE=1` stops the animation on a terminal too. The loop writes to stdout where ora
+writes to stderr, so check anything that captured the old stream.
+
+`npx burgee migrate --dry-run` lists the imports the codemod would rewrite to a drop-in, and
+`npx burgee migrate` makes the change ([Migrate](https://burgee.interlace.tools/docs/migrate)).
