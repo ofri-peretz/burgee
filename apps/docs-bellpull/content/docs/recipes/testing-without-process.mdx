@@ -1,0 +1,42 @@
+---
+title: Testing resolution without process.env
+description: "Test what your program would run — on Linux, on Windows, with a hostile PATH — by passing a literal runtime instead of mutating process.env."
+---
+
+Every bellpull function takes the environment as an argument, so a test states the world it
+is about instead of editing the one it runs in. Nothing to restore afterwards, nothing that
+leaks between tests, and Windows rules run on a Mac:
+
+```js title="resolution-test.mjs"
+import assert from 'node:assert/strict';
+
+import { searchPath, whichSync } from 'bellpull/which';
+
+import { install } from './tools.mjs';
+
+install();
+const cwd = process.cwd();
+const linux = (PATH) => ({ runtime: { platform: 'linux', env: { PATH }, cwd } });
+
+// The PATH order decides, and the answer says which entry won.
+assert.equal(whichSync('greet', linux(`${cwd}/vendor/bin:${cwd}/bin`))?.from, `${cwd}/vendor/bin`);
+assert.equal(whichSync('greet', linux(`${cwd}/bin:${cwd}/vendor/bin`))?.from, `${cwd}/bin`);
+
+// A relative entry is never searched, even when the tool is right there.
+assert.equal(whichSync('greet', linux('bin')), undefined);
+assert.deepEqual(searchPath(linux('bin')), [{ raw: 'bin', skipped: 'relative' }]);
+
+// Windows reads PATH under whatever case it was spelled, and splits it on `;`.
+const windows = { runtime: { platform: 'win32', env: { Path: 'C:\\a;C:\\b' }, cwd: 'C:\\work' } };
+assert.deepEqual(searchPath(windows).map((e) => e.dir), ['C:\\work', 'C:\\a', 'C:\\b']);
+
+console.log('ok');
+```
+
+```text title="node resolution-test.mjs"
+ok
+```
+
+For the spawning half, `run()` takes the same runtime: the child is spawned with its `env` and
+`cwd`, so a test that controls `PATH` controls which binary runs. bellpull's own suite drives
+the Windows branch of `bellpull/cross-spawn` from a Mac the same way.

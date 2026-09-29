@@ -41,8 +41,14 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 function exportedNames(types: string): string[] {
   const program = ts.createProgram([types], { module: ts.ModuleKind.NodeNext, moduleResolution: ts.ModuleResolutionKind.NodeNext, skipLibCheck: true, noEmit: true, types: ['node'] });
   const sf = program.getSourceFile(types);
-  const symbol = sf === undefined ? undefined : program.getTypeChecker().getSymbolAtLocation(sf);
-  return symbol === undefined ? [] : program.getTypeChecker().getExportsOfModule(symbol).map((s) => s.name);
+  const checker = program.getTypeChecker();
+  const symbol = sf === undefined ? undefined : checker.getSymbolAtLocation(sf);
+  if (sf === undefined || symbol === undefined) return [];
+  const named = checker.getExportsOfModule(symbol).map((s) => s.name);
+  // CommonJS `export = { … }`: an ES module importing it gets each property as a named export.
+  const assigned = symbol.exports?.get(ts.InternalSymbolName.ExportEquals);
+  if (named.length > 0 || assigned === undefined) return named;
+  return checker.getPropertiesOfType(checker.getTypeOfSymbolAtLocation(assigned, sf)).map((s) => s.name);
 }
 
 describe.each(STANDARD_SITES.map((pkg) => [pkg] as const))('%s: the API reference', (pkg) => {
@@ -52,7 +58,7 @@ describe.each(STANDARD_SITES.map((pkg) => [pkg] as const))('%s: the API referenc
   const entries = entriesOf(pkg);
 
   it('is what the generator writes from the built declarations, with nothing left over', () => {
-    expect(stale(owned), 'run `npx tsx scripts/api-reference.ts` after building the packages').toEqual([]);
+    expect(stale(owned, [pkg]), 'run `npx tsx scripts/api-reference.ts` after building the packages').toEqual([]);
   });
 
   it.each(entries.map((e) => [e.specifier, e] as const))('%s has a page naming every export', (_specifier, entry) => {

@@ -40,7 +40,7 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
  * joins by being added here once its hand-written pages exist, and the lock then holds its
  * reference and changelog in sync.
  */
-export const STANDARD_SITES: readonly string[] = ['flagstaff'];
+export const STANDARD_SITES: readonly string[] = ['flagstaff', 'bellpull'];
 
 type ExportTarget = string | { types?: string; import?: string; default?: string };
 interface Manifest {
@@ -101,6 +101,8 @@ function kindOf(decl: ts.Declaration): Kind | undefined {
   if (ts.isTypeAliasDeclaration(decl)) return 'type';
   if (ts.isEnumDeclaration(decl)) return 'enum';
   if (ts.isModuleDeclaration(decl)) return 'namespace';
+  // A member of a CommonJS `export = { … }` object, which is what a named import reaches.
+  if (ts.isPropertySignature(decl)) return decl.type !== undefined && ts.isFunctionTypeNode(decl.type) ? 'function' : 'const';
   return undefined;
 }
 
@@ -127,7 +129,12 @@ const resolveExport = (checker: ts.TypeChecker, exported: ts.Symbol): ts.Symbol 
 /** Every export of an entry's declaration file, unresolved, in the checker's order. */
 function exportsOf(checker: ts.TypeChecker, sf: ts.SourceFile): ts.Symbol[] {
   const moduleSymbol = checker.getSymbolAtLocation(sf);
-  return moduleSymbol === undefined ? [] : checker.getExportsOfModule(moduleSymbol);
+  if (moduleSymbol === undefined) return [];
+  const named = checker.getExportsOfModule(moduleSymbol);
+  // A CommonJS `export = { … }` has no named exports to the checker, but Node's CommonJS lexer
+  // hands an ES module each property as one, so the properties are the surface.
+  const assigned = moduleSymbol.exports?.get(ts.InternalSymbolName.ExportEquals);
+  return named.length > 0 || assigned === undefined ? named : checker.getPropertiesOfType(checker.getTypeOfSymbolAtLocation(assigned, sf));
 }
 
 /**
@@ -146,7 +153,7 @@ function documentModule(checker: ts.TypeChecker, sf: ts.SourceFile, self: string
     const local = name === 'default' && declared !== undefined ? { local: declared } : {};
     const owner = owners.get(target);
     if (owner !== undefined && owner !== self) return [{ name, ...local, kind, owner, signatures: [], summary: '', params: [], examples: [] }];
-    const summary = ts.displayPartsToString(target.getDocumentationComment(checker)).trim();
+    const summary = flushLists(ts.displayPartsToString(target.getDocumentationComment(checker)).trim());
     const tags = target.getJsDocTags(checker);
     const paramDocs = new Map(
       tags
@@ -189,24 +196,48 @@ function returnsOf(fn: ts.FunctionDeclaration | undefined, tag: ts.JSDocTagInfo 
   return { returns: { type, doc: tag === undefined ? '' : tagText(tag) } };
 }
 
+/**
+ * A list a doc comment indents under its paragraph (`  - a`), moved flush left: after a blank
+ * line it is a top-level list, and Markdown — and the docs' markdownlint — read it as one only
+ * at column 0. A list nested under a bullet is left where it is.
+ */
+function flushLists(text: string): string {
+  const lines = text.split('\n');
+  let indent = 0;
+  return lines
+    .map((line, i) => {
+      const bullet = /^( +)[-*] /u.exec(line);
+      if (bullet !== null && (lines[i - 1] ?? '').trim() === '') indent = bullet[1]?.length ?? 0;
+      else if (line.trim() === '') indent = 0;
+      return indent > 0 && line.startsWith(' '.repeat(indent)) ? line.slice(indent) : line;
+    })
+    .join('\n');
+}
+
 /** The file's own doc comment: the one before its first statement when that is an import or re-export. */
 function moduleDoc(sf: ts.SourceFile): string {
   const [first] = sf.statements;
   if (first === undefined) return '';
   const docs = ts.getLeadingCommentRanges(sf.text, 0) ?? [];
-  const blocks = docs.filter((r) => sf.text.startsWith('/**', r.pos)).map((r) => sf.text.slice(r.pos, r.end));
+  // A licence header is the file's legal notice, not its documentation, so it is skipped.
+  const blocks = docs
+    .filter((r) => sf.text.startsWith('/**', r.pos))
+    .map((r) => sf.text.slice(r.pos, r.end))
+    .filter((block) => !/^\/\*\*\n \* Copyright /u.test(block));
   // The file's own comment is the first one when the first statement is an import or a
   // re-export (which carry no doc of their own), or when a second comment follows it.
   const opensWithImport = ts.isImportDeclaration(first) || ts.isExportDeclaration(first);
   const own = opensWithImport || blocks.length > 1 ? blocks[0] : undefined;
   if (own === undefined) return '';
-  return own
-    .replace(/^\/\*\*\s?/u, '')
-    .replace(/\s*\*\/$/u, '')
-    .split('\n')
-    .map((line) => line.replace(/^\s*\* ?/u, ''))
-    .join('\n')
-    .trim();
+  return flushLists(
+    own
+      .replace(/^\/\*\*\s?/u, '')
+      .replace(/\s*\*\/$/u, '')
+      .split('\n')
+      .map((line) => line.replace(/^\s*\* ?/u, ''))
+      .join('\n')
+      .trim(),
+  );
 }
 
 /** A Markdown table cell: pipes escaped, one line. */
@@ -389,12 +420,12 @@ export function orphans(owned: ReadonlyMap<string, string>, packages: readonly s
 }
 
 /** The files that differ from what this script would write, and the orphans. */
-export function stale(owned: ReadonlyMap<string, string>): string[] {
+export function stale(owned: ReadonlyMap<string, string>, packages: readonly string[] = STANDARD_SITES): string[] {
   const differ = [...owned].filter(([file, text]) => {
     const path = join(REPO_ROOT, file);
     return !existsSync(path) || readFileSync(path, 'utf8') !== text;
   });
-  return [...differ.map(([file]) => file), ...orphans(owned).map((o) => `${o} (no longer owned)`)];
+  return [...differ.map(([file]) => file), ...orphans(owned, packages).map((o) => `${o} (no longer owned)`)];
 }
 
 if (process.argv[1] !== undefined && import.meta.url.endsWith(process.argv[1].split('/').pop() ?? '')) {
