@@ -136,7 +136,7 @@ describe('a title in a table cell', () => {
 describe('every layer has a measured demand file', () => {
   it('covers the ten layers of the plan', () => {
     expect(LAYERS).toHaveLength(10);
-    expect(new Set(LAYERS.flatMap((l) => l.incumbents)).size).toBe(27);
+    expect(new Set(LAYERS.flatMap((l) => l.incumbents)).size).toBe(40);
   });
 
   it('has an issues.md beside every layer intent', () => {
