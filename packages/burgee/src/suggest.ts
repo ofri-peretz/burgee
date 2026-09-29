@@ -6,18 +6,20 @@ function editDistance(a: string, b: string): number {
   const d: number[][] = [];
   for (let i = 0; i <= a.length; i++) d[i] = [i];
   for (let j = 0; j <= b.length; j++) (d[0] ??= [])[j] = j;
+  // Every cell read below is filled before it is read: row 0 and column 0 above, and each
+  // other cell by an earlier step of these loops (j outer, i inner, both ascending).
   for (let j = 1; j <= b.length; j++) {
     for (let i = 1; i <= a.length; i++) {
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      const row = d[i] ?? [];
-      const prev = d[i - 1] ?? [];
-      row[j] = Math.min((prev[j] ?? 0) + 1, (row[j - 1] ?? 0) + 1, (prev[j - 1] ?? 0) + cost);
+      const row = d[i] as number[];
+      const prev = d[i - 1] as number[];
+      row[j] = Math.min((prev[j] as number) + 1, (row[j - 1] as number) + 1, (prev[j - 1] as number) + cost);
       if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
-        row[j] = Math.min(row[j] ?? 0, (d[i - 2]?.[j - 2] ?? 0) + 1);
+        row[j] = Math.min(row[j] as number, ((d[i - 2] as number[])[j - 2] as number) + 1);
       }
     }
   }
-  return d[a.length]?.[b.length] ?? 0;
+  return (d[a.length] as number[])[b.length] as number;
 }
 
 /** Close matches, restricted to the same number of edits, as `\n(Did you mean …?)`. */

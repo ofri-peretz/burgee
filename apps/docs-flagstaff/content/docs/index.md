@@ -3,8 +3,8 @@ title: flagstaff
 description: "The staff the flag flies from. A terminal frame loop with a static projection for agents and screen readers, and a plugin host for spinners, progress, boxes and tables. Drop-in paths for ora, log-update, boxen and cli-table3. No dependency outside the burgee family."
 ---
 
-ora animates a spinner and, off a terminal, prints frames anyway — `\r` after `\r` into the
-log an agent reads back. Ink fixes the terminal by shipping React and a layout engine.
+ora animates a spinner on a terminal and, off one, writes the line it started with and the
+line it stopped with — every state in between is lost to the log an agent reads back. Ink fixes the terminal by shipping React and a layout engine.
 **flagstaff** is the staff the flag flies from: a frame loop that hoists a component, holds
 it, changes it and lowers it, and a **static projection** that is what every mode but the
 terminal gets — one line per state on a pipe, one event per transition under `--json`,

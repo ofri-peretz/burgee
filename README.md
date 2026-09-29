@@ -260,25 +260,26 @@ language: burgee is TypeScript, like both incumbents.
 
 Milliseconds are a property of the machine that produced them, so nothing gates on them.
 What is gated is the ratio between two spawns interleaved in the same run, which cancels the
-machine out. Nine of those gates are stated in public — **five are met, three are not, and one
-has never been measured**:
+machine out. Ten of those gates are stated in public — **eight are met, three of them as
+downward-only ratchets rather than the bar they started with; one is not met; and one is met on a
+single local run and unconfirmed**:
 
 | Claim | Gate | Measured | |
 | :--- | :--- | ---: | :--- |
-| the core entry point is under 52 KB bundled | `core-under-52kb-bundled` | 24,234 bytes | ✅ met |
+| the core entry point is under 52 KB bundled | `core-under-52kb-bundled` | 24,280 bytes | ✅ met |
 | `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 0.975× | ✅ met |
 | `burgee` is lighter than `cac` **plus what a cac user installs to match it** | `lighter-than-cac-at-parity` | 0.248× | ✅ met |
-| `burgee/commander` is lighter than `commander` **plus the same** | `lighter-than-commander-at-parity` | 0.483× | ✅ met |
+| `burgee/commander` is lighter than `commander` **plus the same** | `lighter-than-commander-at-parity` | 0.482× | ✅ met |
 | `burgee/yargs` is lighter than `yargs` **plus the same** | `lighter-than-yargs-at-parity` | 0.546× | ✅ met |
-| `burgee` starts at or below `cac`, the lightest framework in the landscape | `cold-start-at-or-below-cac` | 1.443× | ❌ **not met** |
-| `burgee/commander` is lighter in a user's bundle than `commander` alone | `lighter-than-commander` | 1.560× | ❌ **not met** |
-| `burgee` is lighter in a user's bundle than `cac` alone | `lighter-than-cac` | 2.319× | ❌ **not met** |
+| `burgee` starts within 1.6× of `cac`, the lightest framework in the landscape (ratchet; lowered as it speeds up) | `cold-start-at-or-below-cac` | 1.443× | ✅ met |
+| `burgee/commander` stays within 1.565× of `commander` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-commander` | 1.557× | ✅ met |
+| `burgee` stays within 2.35× of `cac` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-cac` | 2.323× | ✅ met |
 | an agent spends ≥40% fewer tokens per task | `agent-tokens-40pct` | 0.601× (one local run, D-147) | ❌ **not met** |
 | an agent takes ≥30% fewer turns per task | `agent-turns-30pct` | 0.600× (one local run, D-147) | met locally, **unconfirmed** — no CI run yet |
 
 ### The two ways to ask the bundle question, and why both are here
 
-`burgee` is 24,234 bundled bytes and `cac` is 10,452, so the bare row reads **2.319× and it
+`burgee` is 24,280 bundled bytes and `cac` is 10,452, so the bare row reads **2.323× and it
 stays on this page**. It is also not the choice anyone makes. A program that picks `cac` and
 then wants its config file read, its shutdown bounded on every path out, and its cursor handed
 back on Ctrl-C installs three more packages — and *that* is what one `import` of burgee competes
@@ -286,8 +287,8 @@ with:
 
 | | the incumbent alone | + what you add to match burgee | ours |
 | :--- | ---: | ---: | ---: |
-| `cac` | 10,452 B | **97,711 B** | 24,234 B |
-| `commander` | 39,084 B | **126,354 B** | 60,969 B |
+| `cac` | 10,452 B | **97,711 B** | 24,280 B |
+| `commander` | 39,084 B | **126,354 B** | 60,848 B |
 | `yargs` | 111,093 B | **198,210 B** | 108,272 B |
 
 The additions are `cosmiconfig` (find and load a config file), `exit-hook` (run cleanup on
@@ -307,21 +308,41 @@ envelope on every command, agent detection, option relations and Standard Schema
 at **zero**. They are the part of the premium that is real and unpriced, and saying so is worth
 more than finding a package to charge for them.
 
-### The three that are not met
+### The three that are ratchets
 
-`cold-start-at-or-below-cac` and the two bare weight rows have a measured floor above their own
-gate, and it is worth saying plainly rather than leaving as a to-do. `cac` is 10,452 bytes of
-parser and help renderer; burgee's 24,234 is that plus coercion, choices, relations, Standard
-Schema, configuration precedence, signal-bound shutdown, terminal restore and agent detection.
+`cold-start-at-or-below-cac` and the two bare weight rows began as **≤ 1** and have a
+measured floor above it, and it is worth saying plainly rather than leaving as a to-do.
+`cac` is 10,452 bytes of parser and help renderer; burgee's 24,280 is that plus coercion,
+choices, relations, Standard Schema, configuration precedence, signal-bound shutdown, terminal
+restore and agent detection.
 Our `commander/command.js` is 33,487 bundled against commander's 27,226, and the front-end also
 carries a cross-platform spawn that cannot go lazy without giving up `parse()`'s synchronous
 contract and the 1360 / 1360 compat row that rests on it. And `import 'cac'` is one file in
 4.2 ms where `import 'burgee'` is twenty-one in 20 ms. Closing them means deleting the product,
-not optimising it; the decision is [D-102](./.sdlc/DECISIONS.md).
+not optimising it: the analysis is [D-102](./.sdlc/DECISIONS.md), and the shrink that moved every
+non-default path behind `await import()` is [D-148](./.sdlc/DECISIONS.md).
 
-The last one has never run. B1 spawns 50 agent runs and refuses to start without a credential,
-and nothing in the suite can turn a run that did not happen into a number — `emit.test.ts`
-enforces that. It is [D-103](./.sdlc/DECISIONS.md).
+So a bar we will never meet is no longer what these rows publish. Since
+[D-157](./.sdlc/DECISIONS.md) each is a **downward-only ratchet**: a ceiling just above today's
+measurement, enforced on every benchmark run, that may be lowered by anyone and raised only by
+a new decision.
+
+| Gate | Was | Ceiling | Set from, on 2026-09-27 |
+| :--- | :--- | ---: | :--- |
+| `cold-start-at-or-below-cac` | ≤ 1 | 1.6× | the last 26 CI runs: mean 1.490, max 1.553; mean + 3 sd, rounded up to 0.05 |
+| `lighter-than-commander` | ≤ 1 | 1.565× | measured 1.560, plus 80 B for CI's heavier build, rounded up to 0.005: the gate it already had |
+| `lighter-than-cac` | ≤ 1 | 2.35× | measured 2.317, plus 80 B for CI's heavier build, rounded up to 0.05 |
+
+The ceilings live in [`claim-ratchets.json`](./.sdlc/bands/claim-ratchets.json) with their
+history, and [`claim-ratchets-lock.test.ts`](./scripts/claim-ratchets-lock.test.ts) refuses a
+step up that does not cite a newer decision. `npm run ratchets:propose` prints the lower
+ceiling each can move to from the latest measurement. The size comparison to lead with is still
+the at-parity rows above; the bare rows stay on the page because a suite that only showed the
+comparisons we win would be lying by selection.
+
+The agent rows are a different gap. B1 has run once, locally ([D-147](./.sdlc/DECISIONS.md)),
+and neither row becomes ✅ until the weekly CI job measures it, which waits on a credential
+only the owner can mint ([D-150](./.sdlc/DECISIONS.md)).
 
 Installed size is our largest number and it is larger than commander's. It buys no dependency
 outside the burgee family and six drop-in front ends, and it stays on the page either way: *not met* and

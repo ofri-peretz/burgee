@@ -69,6 +69,11 @@ describe('the walk is bounded (Y10)', () => {
     expect(directories({ cwd: deep })).toHaveLength(WALK_LIMIT);
   });
 
+  it('passes through a directory that does not exist on its way to one that does', () => {
+    // `realpath` of a missing directory throws; the default reads that as "use the path as written".
+    expect(search(['app.config.json'], { cwd: at('a', 'missing', 'deeper') })).toEqual({ path: at('a', 'app.config.json'), dir: at('a'), depth: 2 });
+  });
+
   it('takes an explicit smaller limit', () => {
     expect(directories({ cwd: at('a', 'b', 'c'), limit: 2 })).toEqual([at('a', 'b', 'c'), at('a', 'b')]);
   });

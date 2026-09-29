@@ -1,0 +1,100 @@
+---
+title: Boxes
+description: "Draw a box as a string with box(), or hoist boxComponent() so a pipe gets \"title: text\" instead of a border."
+---
+
+`flagstaff/box` has two exports: `box()`, which returns the drawing as a string, and
+`boxComponent()`, which hoists on the loop like any other component. Most callers want the
+string.
+
+## `box(text, options)`
+
+```js title="banner.mjs"
+import { box } from 'flagstaff/box';
+
+console.log(box('Ready on :3000', { title: 'dev', width: 30 }));
+console.log(box('Ready on :3000', { border: 'double', padding: { x: 2, y: 1 }, width: 30 }));
+```
+
+```text title="node banner.mjs"
+╭─ dev ──────────────────────╮
+│ Ready on :3000             │
+╰────────────────────────────╯
+╔════════════════════════════╗
+║                            ║
+║  Ready on :3000            ║
+║                            ║
+╚════════════════════════════╝
+```
+
+| option | default | |
+| :-- | :-- | :-- |
+| `border` | `round` | a registered border's name, or a `BorderStyle` object of your own |
+| `padding` | `{ x: 1, y: 0 }` | cells left and right of the text, rows above and below |
+| `title` | — | written into the top border, cut with `…` when the box is too narrow |
+| `width` | 80 | columns for the whole box, borders included; the text wraps to fit |
+| `href` | — | a URL, or a `file://` path, that the text links to |
+| `terminal` | the real process | the terminal `href` is rendered for; pass one to make the call pure |
+
+The built-in borders are `round`, `single`, `double`, `bold`, `classic` and `none`, registered
+through the same `register()` a plugin uses. cli-boxes' eight sets are not bundled; if you
+depend on [cli-boxes](https://www.npmjs.com/package/cli-boxes), `fromCliBoxes()` turns it into a
+plugin, after which `box('…', { border: 'arrow' })` draws with one. A name nobody registered is
+refused with `E_UNKNOWN_BORDER` and the names that exist.
+
+## Width is measured, not counted
+
+Every row is measured in terminal columns with [linegauge](https://linegauge.interlace.tools/docs),
+so a double-width character takes two columns and the border stays in line. A box with a CJK
+body fits exactly the width it was given at 10, 16, 24 and 40 columns — that is a test,
+[`builtins.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/builtins.test.ts).
+There is no layout engine: `box` measures, wraps and joins strings.
+
+## Links
+
+With `href`, the text becomes an OSC 8 hyperlink on a terminal that supports one, through
+[paratext](https://paratext.interlace.tools/docs). Where the link cannot be emitted — and in
+every static projection — the destination is written out after the text instead, so it is not
+lost:
+
+```js title="docs-link.mjs"
+import { box } from 'flagstaff/box';
+
+const pipe = { env: {}, isTTY: { stdout: false } };
+console.log(box('docs', { width: 20, href: 'https://example.com', terminal: pipe }));
+```
+
+```text title="node docs-link.mjs"
+╭──────────────────╮
+│ docs (https://ex │
+│ ample.com)       │
+╰──────────────────╯
+```
+
+## `boxComponent()`: a box with a text form
+
+A box printed with `console.log` is a drawing everywhere, including in a log file and in front
+of a screen reader. Hoisted as a component, the drawing is only for a terminal; everywhere
+else the box is its title and its text:
+
+```js title="done.mjs"
+import { boxComponent } from 'flagstaff/box';
+import { hoist } from 'flagstaff/loop';
+
+import { json, rt } from './rt.mjs';
+
+hoist(boxComponent({ width: 40 }), rt, { title: 'deploy', text: 'Live at https://example.com' }, { json }).lower();
+```
+
+```text title="node done.mjs"
+deploy: Live at https://example.com
+```
+
+The state is `{ text, title?, href? }`; an `href` in the state overrides the component's.
+
+## Coming from boxen
+
+`flagstaff/boxen` is boxen 8's API, graded by boxen's own test suite, every case of which is a
+snapshot of the exact characters. It carries cli-boxes' table itself rather than reading the
+plugin registry, so registering a plugin never changes what a boxen caller draws. See
+[Coming from boxen](/docs/coming-from/boxen).

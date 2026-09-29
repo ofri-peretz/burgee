@@ -1,0 +1,120 @@
+---
+title: Spinners, progress and task lists
+description: "The three components that show work in motion — spinner, progress and tasks — and what each prints off a terminal."
+---
+
+Three built-in components show work that is still going. Each is a factory on its own subpath,
+so a program that only wants a spinner pays for a spinner.
+
+## Spinners
+
+```js
+import { spinner } from 'flagstaff/spinner';
+
+spinner(); // the `dots` style
+spinner('line'); // any registered style, by name
+```
+
+The state is `{ text, status }`. `status` is `running` when omitted, and one of `ok`, `fail`,
+`warn` or `info` when the work is done. A finished status draws its glyph — `✔`, `✖`, `⚠`,
+`ℹ` — the same in every mode; a running one is the style's frames on a terminal and its static
+text (`…` for the built-ins) everywhere else.
+
+```js title="deploy.mjs"
+import { hoist } from 'flagstaff/loop';
+import { spinner } from 'flagstaff/spinner';
+
+import { json, rt } from './rt.mjs';
+
+const flag = hoist(spinner('line'), rt, { text: 'uploading' }, { json });
+flag.update({ text: 'uploading: retrying once', status: 'warn' });
+flag.lower({ text: 'upload failed', status: 'fail' });
+```
+
+```text title="node deploy.mjs"
+… uploading
+⚠ uploading: retrying once
+✖ upload failed
+```
+
+Two styles ship built in, `dots` and `line`, and they are registered through the same
+`register()` a third-party plugin uses. The ~80 styles of
+[cli-spinners](https://www.npmjs.com/package/cli-spinners) are not bundled; if you already
+depend on it, `fromCliSpinners()` turns it into a plugin — see [Plugins](/docs/guides/plugins).
+An unknown name is refused with `E_UNKNOWN_SPINNER` and the list of names that exist.
+
+## Progress
+
+```js
+import { progress } from 'flagstaff/progress';
+
+progress(); // a 24-cell bar of █ and ░
+progress({ width: 40, glyphs: { filled: '#', empty: '.' } });
+```
+
+The state is `{ done, total, label? }`, and `done` is clamped into `[0, total]`. A terminal
+gets a drawn bar with the count; everything else gets the count and the percentage, because a
+bar of blocks in a log tells a reader nothing:
+
+```js title="copy.mjs"
+import { hoist } from 'flagstaff/loop';
+import { progress } from 'flagstaff/progress';
+
+import { json, rt } from './rt.mjs';
+
+const flag = hoist(progress(), rt, { done: 0, total: 30, label: 'files' }, { json });
+flag.update({ done: 12, total: 30, label: 'files' });
+flag.lower({ done: 30, total: 30, label: 'files' });
+```
+
+```text title="node copy.mjs"
+0/30 files · 0%
+12/30 files · 40%
+30/30 files · 100%
+```
+
+Off a terminal every state that changes the text is a line, so a loop that updates on every
+item writes a line per item. [Progress in logs](/docs/recipes/progress-in-logs) shows how to
+update in steps instead.
+
+## Task lists
+
+```js
+import { tasks } from 'flagstaff/tasks';
+
+tasks(); // the running task drawn with the `dots` spinner
+tasks({ spinner: 'line' });
+```
+
+The state is `{ tasks: [{ title, status?, detail? }] }`. `status` is `pending` when omitted,
+then `running`, then one of `ok`, `fail`, `warn` or `info`. A terminal draws every task, the
+running one animated and its `detail` under it. Off a terminal a task is printed **once, when
+it settles** — a pending or running task is not news yet, and a finished one is never printed
+twice:
+
+```js title="release.mjs"
+import { hoist } from 'flagstaff/loop';
+import { tasks } from 'flagstaff/tasks';
+
+import { json, rt } from './rt.mjs';
+
+const flag = hoist(tasks(), rt, { tasks: [{ title: 'install', status: 'running' }, { title: 'build' }, { title: 'test' }] }, { json });
+flag.update({ tasks: [{ title: 'install', status: 'ok' }, { title: 'build', status: 'running', detail: 'tsc' }, { title: 'test' }] });
+flag.update({ tasks: [{ title: 'install', status: 'ok' }, { title: 'build', status: 'ok' }, { title: 'test', status: 'running' }] });
+flag.lower({ tasks: [{ title: 'install', status: 'ok' }, { title: 'build', status: 'ok' }, { title: 'test', status: 'fail' }] });
+```
+
+```text title="node release.mjs"
+✔ install
+✔ build
+✖ test
+```
+
+[Build steps](/docs/recipes/build-steps) runs a real list of steps this way.
+
+## Coming from ora
+
+`flagstaff/ora` is ora 9's API, graded by ora's own test suite, and it behaves as ora does —
+including in a pipe, where ora writes a start line and a final line and nothing in between. The
+spinner above is the loop underneath it; [Coming from ora](/docs/coming-from/ora) and
+[Incremental migration](/docs/recipes/incremental-migration) cover moving from one to the other.

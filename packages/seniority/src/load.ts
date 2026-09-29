@@ -52,7 +52,8 @@ const loadJson: Loader = (filepath, content) => {
   try {
     return JSON.parse(content);
   } catch (cause) {
-    throw new ConfigError(`${filepath} is not valid JSON`, cause instanceof Error ? cause.message : undefined);
+    // `JSON.parse` of a string throws a `SyntaxError` and nothing else, so its message is always there to quote.
+    throw new ConfigError(`${filepath} is not valid JSON`, (cause as SyntaxError).message);
   }
 };
 

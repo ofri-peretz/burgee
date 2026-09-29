@@ -102,18 +102,29 @@ export interface ControlAllowance {
  * narrows and never widens — it is spent only on the platforms outside `only`, and only up
  * to `count`.
  */
-export interface ConditionalCases {
+export type ConditionalCases = ConditionalCount &
+  (
+    | {
+        /**
+         * The platforms that register them, for a suite written `if (process.platform === 'x')`.
+         * Exactly one of `only` and `notOn` is given — the type holds that, not a reader — and
+         * which one is not a style choice: each mirrors how the guard is actually spelled, so
+         * the declaration can be checked against the line it describes instead of being a list
+         * somebody derived.
+         */
+        only: NodeJS.Platform[];
+        notOn?: never;
+      }
+    | {
+        /** The platforms that do not, for a suite written `if (process.platform !== 'x')`. */
+        notOn: NodeJS.Platform[];
+        only?: never;
+      }
+  );
+
+interface ConditionalCount {
   /** How many cases the platforms that lack them do not register. Exact, not a ceiling. */
   count: number;
-  /**
-   * The platforms that register them, for a suite written `if (process.platform === 'x')`.
-   * Exactly one of `only` and `notOn` is given, and which one is not a style choice: each
-   * mirrors how the guard is actually spelled, so the declaration can be checked against the
-   * line it describes instead of being a list somebody derived.
-   */
-  only?: NodeJS.Platform[];
-  /** The platforms that do not, for a suite written `if (process.platform !== 'x')`. */
-  notOn?: NodeJS.Platform[];
   /**
    * How many of them the target passes on the platforms that run them. The ratchet credits
    * exactly this many on a platform that lacks them, so a machine cannot regress cases it

@@ -12,9 +12,13 @@
  * dependency bill, where chalk is 5.6.2, and roundel is graded against chalk's latest,
  * 6.0.0. Collapsing those into one watch would make one of the two numbers wrong.
  */
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
-import { type Declaration, assertResolvable, npmNameOf, watchList } from './competitors.js';
+import { type Declaration, assertResolvable, npmNameOf, readDeclarations, watchList } from './competitors.js';
 
 const declaration = (owner: string, subpaths: Declaration['subpaths']): Declaration => ({
   owner,
@@ -67,6 +71,57 @@ describe('the watch list', () => {
     ]);
     expect(list).toHaveLength(1);
     expect(list[0]?.npm).toBe('@clack/prompts');
+  });
+});
+
+describe('the strongest claim and the order of the list', () => {
+  it('raises a watch to the strongest claim whichever order the claims arrive in', () => {
+    const list = watchList([
+      declaration('flagstaff', { './box': [{ package: 'chalk', claim: 'surface', seen: null }] }),
+      declaration('flagstaff', { './ora': [{ package: 'chalk', claim: 'weight', seen: null }] }),
+      declaration('roundel', { './chalk': [{ package: 'chalk', claim: 'compat', seen: null }] }),
+    ]);
+    expect(list[0]?.strongest).toBe('compat');
+  });
+
+  it('sorts by npm package, then by the parent a figure is read through', () => {
+    const list = watchList([
+      declaration('a', { './x': [{ package: 'chalk', claim: 'weight', via: 'ora', seen: null }] }),
+      declaration('b', { './x': [{ package: 'chalk', claim: 'weight', via: 'boxen', seen: null }] }),
+      declaration('c', { './x': [{ package: 'ansi-styles', claim: 'weight', seen: null }] }),
+      declaration('d', { './x': [{ package: 'chalk', claim: 'compat', seen: null }] }),
+    ]);
+    expect(list.map((w) => `${w.npm}<${w.via ?? ''}`)).toEqual(['ansi-styles<', 'chalk<', 'chalk<boxen', 'chalk<ora']);
+    // Declared the other way round, the standalone watch still sorts first.
+    const reversed = watchList([
+      declaration('d', { './x': [{ package: 'chalk', claim: 'compat', seen: null }] }),
+      declaration('a', { './x': [{ package: 'chalk', claim: 'weight', via: 'ora', seen: null }] }),
+    ]);
+    expect(reversed.map((w) => w.via)).toEqual([undefined, 'ora']);
+  });
+});
+
+describe('reading the declarations off disk', () => {
+  it('reads only `./` subpaths holding a list, from the packages that declare, in owner order', () => {
+    const root = mkdtempSync(join(tmpdir(), 'competitors-'));
+    const write = (owner: string, body: unknown): void => {
+      mkdirSync(join(root, owner), { recursive: true });
+      writeFileSync(join(root, owner, 'competitors.json'), JSON.stringify(body));
+    };
+    write('roundel', { $schema: './schema.json', notes: [{ package: 'not-a-subpath', claim: 'weight', seen: null }], './chalk': [{ package: 'chalk', claim: 'compat', seen: null }, { note: 'not an entry' }], './odd': { package: 'x' } });
+    write('Zebra', { './ora': [{ package: 'ora', claim: 'weight', seen: null }] });
+    mkdirSync(join(root, 'burgee'));
+    writeFileSync(join(root, 'README.md'), '');
+    const declarations = readDeclarations(root);
+    // Locale order, not byte order: an upper-case owner does not jump the queue.
+    expect(declarations.map((d) => d.owner)).toEqual(['roundel', 'Zebra']);
+    expect(declarations[0]).toEqual({
+      owner: 'roundel',
+      dir: join(root, 'roundel'),
+      file: join(root, 'roundel', 'competitors.json'),
+      subpaths: { './chalk': [{ package: 'chalk', claim: 'compat', seen: null }] },
+    });
+    rmSync(root, { recursive: true, force: true });
   });
 });
 

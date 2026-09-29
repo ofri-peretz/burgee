@@ -24,6 +24,7 @@ const pkgRoot = fileURLToPath(new URL('..', import.meta.url));
 const closeoutRoot = resolve(pkgRoot, '../closeout');
 const linegaugeRoot = resolve(pkgRoot, '../linegauge');
 const paratextRoot = resolve(pkgRoot, '../paratext');
+const roundelRoot = resolve(pkgRoot, '../roundel');
 
 /**
  * The whole program: the decision a CLI makes before it prompts. With no terminal a missing
@@ -51,7 +52,7 @@ function node(file: string, ...argv: string[]): string {
 
 beforeAll(() => {
   dir = mkdtempSync(join(tmpdir(), 'caique-shape-'));
-  const tarballs = [closeoutRoot, linegaugeRoot, paratextRoot, pkgRoot].map((root) => join(dir, npm(['pack', '--silent', '--pack-destination', dir], { cwd: root, encoding: 'utf8' }).trim()));
+  const tarballs = [closeoutRoot, linegaugeRoot, paratextRoot, roundelRoot, pkgRoot].map((root) => join(dir, npm(['pack', '--silent', '--pack-destination', dir], { cwd: root, encoding: 'utf8' }).trim()));
   npm(['install', '--no-audit', '--no-fund', '--silent', ...tarballs], { cwd: dir, stdio: 'ignore' });
   writeFileSync(join(dir, 'cli.mjs'), ONE_FILE);
 }, 120_000);
@@ -98,12 +99,13 @@ describe('Z1 — one file, npm i, no build step', { timeout: SPAWN }, () => {
     }
   });
 
-  it('the package it installed depends on closeout, linegauge and paratext and on nothing else (U6: 0 external, 3 same-repo)', () => {
+  it('the package it installed depends on closeout, linegauge, paratext and roundel and on nothing else (U6: 0 external, 4 same-repo)', () => {
     const installed = JSON.parse(readFileSync(join(dir, 'node_modules/caique/package.json'), 'utf8')) as { dependencies?: Record<string, string> };
-    expect(Object.keys(installed.dependencies ?? {}).toSorted()).toEqual(['closeout', 'linegauge', 'paratext']);
+    expect(Object.keys(installed.dependencies ?? {}).toSorted()).toEqual(['closeout', 'linegauge', 'paratext', 'roundel']);
     expect(existsSync(join(dir, 'node_modules/closeout/package.json'))).toBe(true);
     expect(existsSync(join(dir, 'node_modules/linegauge/package.json'))).toBe(true);
     expect(existsSync(join(dir, 'node_modules/paratext/package.json'))).toBe(true);
+    expect(existsSync(join(dir, 'node_modules/roundel/package.json'))).toBe(true);
     expect(existsSync(join(dir, 'node_modules/caique/node_modules'))).toBe(false);
   });
 });

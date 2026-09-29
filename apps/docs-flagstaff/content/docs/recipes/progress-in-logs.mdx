@@ -1,0 +1,48 @@
+---
+title: Progress in logs
+description: "Keep a progress bar readable in a CI log by updating it in steps — one line per tenth of the work instead of one per item."
+---
+
+Off a terminal every state that changes the text is a line. `12/200 items · 6%` changes on
+every item, so a loop that updates on every item writes two hundred lines. The bar on a
+terminal does not need every item either: update when the work has moved by a step.
+
+```js title="count.mjs"
+import { hoist } from 'flagstaff/loop';
+import { progress } from 'flagstaff/progress';
+
+import { json, rt } from './rt.mjs';
+
+const items = Array.from({ length: 200 }, (_, i) => i);
+const total = items.length;
+const step = total / 10;
+const flag = hoist(progress(), rt, { done: 0, total, label: 'items' }, { json });
+
+let reported = 0;
+for (const [i] of items.entries()) {
+  // ... the work for one item ...
+  const done = i + 1;
+  if (done === total || done - reported >= step) {
+    flag.update({ done, total, label: 'items' });
+    reported = done;
+  }
+}
+flag.lower();
+```
+
+```text title="node count.mjs"
+0/200 items · 0%
+20/200 items · 10%
+40/200 items · 20%
+60/200 items · 30%
+80/200 items · 40%
+100/200 items · 50%
+120/200 items · 60%
+140/200 items · 70%
+160/200 items · 80%
+180/200 items · 90%
+200/200 items · 100%
+```
+
+The final `update` is always sent, so the last line is the whole count. `lower()` without a
+state keeps the last one and, off a terminal, writes nothing more.

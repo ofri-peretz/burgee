@@ -78,4 +78,43 @@ describe('the bump between two releases', () => {
   ])('%s → %s is %s', (from, to, expected) => {
     expect(bumpKind(from, to)).toBe(expected);
   });
+
+  it('is none between two strings that are not both versions', () => {
+    expect(bumpKind('latest', '1.0.0')).toBe('none');
+    expect(bumpKind('1.0.0', 'next')).toBe('none');
+  });
+});
+
+describe('the partial and bare forms, case by case', () => {
+  it('bounds `^0.2` through the minor, and `^0` by the major alone', () => {
+    expect(satisfies('0.2.9', '^0.2')).toBe(true);
+    expect(satisfies('0.3.0', '^0.2')).toBe(false);
+    expect(satisfies('0.9.0', '^0')).toBe(true);
+    expect(satisfies('1.0.0', '^0')).toBe(false);
+  });
+
+  it('bounds `~1` by the major alone, where `~1.2.3` bounds the minor', () => {
+    expect(satisfies('1.9.0', '~1')).toBe(true);
+    expect(satisfies('2.0.0', '~1')).toBe(false);
+  });
+
+  it('reads an operator-less `1.2` as any 1.2.x', () => {
+    expect(satisfies('1.2.7', '1.2')).toBe(true);
+    expect(satisfies('1.3.0', '1.2')).toBe(false);
+  });
+
+  it('reads `>` as strictly above, and `<=` as at or below', () => {
+    expect(satisfies('1.0.1', '>1.0.0')).toBe(true);
+    expect(satisfies('1.0.0', '>1.0.0')).toBe(false);
+    expect(satisfies('1.0.0', '<=1.0.0')).toBe(true);
+  });
+
+  it('reads an empty branch of a union as any version, as npm does', () => {
+    expect(satisfies('7.0.0', '|| 2.0.0')).toBe(true);
+  });
+
+  it('keeps the highest however the published list is ordered', () => {
+    expect(maxSatisfying(['6.0.0', '5.6.2', '4.0.0'], '*')).toBe('6.0.0');
+    expect(maxSatisfying(['4.0.0', '6.0.0', '5.6.2'], '>=4')).toBe('6.0.0');
+  });
 });

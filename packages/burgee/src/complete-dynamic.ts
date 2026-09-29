@@ -22,7 +22,7 @@ export async function completeDynamic(manifest: Manifest, argv: readonly string[
   const flag = argv.findIndex((a) => a.startsWith('--'));
   if (flag === -1) return;
   const { node } = manifest.resolve(argv.slice(0, flag), manifest.rootPath);
-  const name = argv[flag]?.slice(2);
+  const name = (argv[flag] as string).slice(2);
   const spec = Object.entries(node?.options ?? {}).find(([key]) => kebab(key) === name)?.[1];
   if (spec?.complete === undefined) return;
   const partial = argv[flag + 1] ?? '';

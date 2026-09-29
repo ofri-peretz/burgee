@@ -76,9 +76,18 @@ interface Surface {
   text: string;
 }
 
-/** Markdown and MDX pages under `dir`, recursively. */
+/**
+ * Markdown and MDX pages under `dir`, recursively — except a site's `changelog.md`. That page is
+ * `CHANGELOG.md` projected by `sync-package-docs.ts`: a record of what each release said when
+ * it shipped, which this lock does not read in the package either. A release note from before
+ * a dependency was added is history, not a claim about the manifest today.
+ */
 const pages = (dir: string): string[] =>
-  existsSync(dir) ? readdirSync(dir, { recursive: true, encoding: 'utf8' }).filter((f) => /\.mdx?$/u.test(f)).map((f) => join(dir, f)) : [];
+  existsSync(dir)
+    ? readdirSync(dir, { recursive: true, encoding: 'utf8' })
+        .filter((f) => /\.mdx?$/u.test(f) && !/(?:^|[\\/])changelog\.md$/u.test(f))
+        .map((f) => join(dir, f))
+    : [];
 
 /** The docs app a package owns, from `.github/vercel-apps.json`. */
 const docsDir = (name: string): string | undefined => {
