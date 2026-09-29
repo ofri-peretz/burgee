@@ -1,0 +1,41 @@
+---
+title: Wrapping help text
+description: "Wrap a paragraph to the terminal's width with an indent, and to a fixed width in a pipe or a test, so help output never runs off the right edge."
+---
+
+linegauge never reads the terminal's width — the caller passes it. That makes the same code
+right in a terminal, in a pipe and in a test: ask the terminal when there is one, and pick a
+width when there is not.
+
+```js title="help.mjs"
+import { wrap } from 'linegauge';
+
+/** The terminal's width when there is one; a fixed width for a pipe, a log or a test. */
+const columns = process.stdout.isTTY ? process.stdout.columns : 40;
+
+const text = 'Measures, wraps, truncates and slices styled terminal text without splitting a grapheme cluster or leaking a colour.';
+const indent = '  ';
+console.log('Usage: gauge [options] <file>\n');
+console.log(
+  wrap(text, columns - indent.length)
+    .split('\n')
+    .map((line) => indent + line)
+    .join('\n'),
+);
+```
+
+```text title="node help.mjs"
+Usage: gauge [options] <file>
+
+  Measures, wraps, truncates and slices
+  styled terminal text without splitting
+  a grapheme cluster or leaking a
+  colour.
+```
+
+Wrap to the width *less the indent*, then indent each row: indenting first would count the
+spaces as text and let `trim` remove them. Because `wrap` closes every style at the end of a
+row, putting the indent in front of a row never puts it inside a colour.
+
+A CLI built on [burgee](https://burgee.interlace.tools/docs) gets this for its help already:
+burgee measures and wraps its help with linegauge.

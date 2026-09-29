@@ -117,3 +117,44 @@ describe('wrap() agrees with wrap-ansi on generated input', () => {
     }
   });
 });
+
+/**
+ * `wrap()` normalized the whole string to NFC, escape sequences included, so a combining mark
+ * right after a sequence composed with its final byte: `ESC[31m` + `U+0301` became `ESC[31` +
+ * `U+1E3F`, which is no longer an SGR — the colour was lost and its bytes were wrapped as
+ * text. An OSC payload (a window title, a link target) was rewritten as well. Only the text
+ * between sequences is normalized now, as wrap-ansi 10.0.2 does.
+ */
+describe('NFC reaches the text between escape sequences and never a sequence', () => {
+  const ACUTE = '\u0301';
+  const RING = '\u030A';
+
+  it('keeps an SGR whole when a combining mark follows it', () => {
+    const out = wrap(`${ESC}[31m${ACUTE}xyzw`, 3, { hard: true });
+    expect(out.startsWith(`${ESC}[31m${ACUTE}`)).toBe(true);
+    expect(out).not.toContain('\u1E3F'); // the composed m-acute that destroyed the sequence
+    expect(out).toBe(`${ESC}[31m${ACUTE}xyz${ESC}[39m\n${ESC}[31mw`);
+  });
+
+  it('leaves an OSC payload byte for byte, decomposed text included', () => {
+    const title = `${ESC}]0;A${RING}\u0007`;
+    expect(wrap(`${title}text`, 10)).toBe(`${title}text`);
+    const link = `${ESC}]8;;https://x.example/e${ACUTE}\u0007`;
+    expect(wrap(`${link}go${ESC}]8;;\u0007`, 10)).toBe(`${link}go${ESC}]8;;\u0007`);
+  });
+
+  it('still composes the text around the sequences', () => {
+    expect(wrap(`A${RING}${ESC}[31me${ACUTE}${ESC}[39m`, 10)).toBe(`\u00C5${ESC}[31m\u00E9${ESC}[39m`);
+  });
+
+  it('agrees with wrap-ansi 10.0.2 when combining marks follow sequences', () => {
+    const pieces = ['a', 'bc', ' ', ACUTE, RING, `${ESC}[31m`, `${ESC}[39m`, `${ESC}[6n`, '\u009B31m', `${ESC}]0;t\u0007`, `${ESC}]8;;https://x.example\u0007`, `${ESC}]8;;\u0007`];
+    const random = makeRandom(20_260_928);
+    for (let index = 0; index < SWEEP_INPUTS; index += 1) {
+      let input = '';
+      const count = 1 + Math.floor(random() * MAX_PIECES);
+      for (let piece = 0; piece < count; piece += 1) input += pieces[Math.floor(random() * pieces.length)] ?? '';
+      for (const options of OPTION_SETS) bothAgree(input, 1 + Math.floor(random() * MAX_COLUMNS), options);
+    }
+  });
+});

@@ -113,7 +113,8 @@ const AVA_UNEXPECTED_PASS = /Test was expected to fail, but succeeded/g;
 
 function count(pattern: RegExp, output: string): number {
   const found = pattern.exec(output);
-  return found === null ? 0 : Number(found[1] ?? 0);
+  // Every pattern passed here has one capture group, so a match always carries it.
+  return found === null ? 0 : Number(found[1]);
 }
 
 /**
@@ -185,12 +186,11 @@ type Summary = Pick<Grade, 'files' | 'tests' | 'passed' | 'failed' | 'skipped' |
  * with no case lines has nothing to exclude *by*, and an exclusion that silently does nothing
  * is worse than a refusal.
  */
-function summaryExcluding(output: string, files: number, reference: number, gate: Gate): Summary {
-  const excludes = gate.excludes ?? [];
+function summaryExcluding(output: string, files: number, reference: number, { excludes, requireMatch }: { excludes: Exclusion[]; requireMatch: boolean | undefined }): Summary {
   const cases = output.split('\n').filter((l) => FLAT_OK.test(l) || FLAT_NOT_OK.test(l));
   const broken = (error: string): Summary => ({ files, tests: 0, passed: 0, failed: 0, skipped: 0, reference, rate: 0, error });
   if (cases.length === 0) return broken(`${excludes.length} exclusion(s) declared, but this runner's TAP carries no per-case names to exclude by`);
-  const missed = gate.requireMatch === true ? unmatchedExclusions(output, excludes) : [];
+  const missed = requireMatch === true ? unmatchedExclusions(output, excludes) : [];
   if (missed.length > 0) return broken(`exclusion matched no case: ${missed.join(', ')}`);
   const out = cases.filter((l) => excludes.some((e) => excludedBy(l, e)));
   const passedOut = out.filter((l) => FLAT_OK.test(l) && !FLAT_SKIP.test(l)).length;
@@ -221,7 +221,7 @@ export function summarize(output: string, files: number, reference: number, gate
   // summary is the runner's own count rather than one inferred from its lines.
   if (TAP_TESTS.test(output)) {
     if (excludes.length === 0) return rate(files, parseNodeTest(output), reference);
-    return summaryExcluding(output, files, reference, gate);
+    return summaryExcluding(output, files, reference, { excludes, requireMatch: gate.requireMatch });
   }
   // A plan and no summary is vitest's dialect. Without either, the runner was killed
   // mid-run — and its `ok` lines must not be counted, or a suite that died at test 72
@@ -444,7 +444,6 @@ function writeInternalShims(host: Host, { hostDir, target, internals, packageTyp
   // the incumbent installed — and when it was not, the oracle threw MODULE_NOT_FOUND out of
   // the middle of `grade()` and killed the whole run instead of reporting one graded error.
   const installed = internals.length > 0 && target === controlName(host) ? packageRoot(controlName(host), resolveFrom) : undefined;
-  if (internals.length === 0) return;
   // Anchored at the sub-package, not the vendored root: `../src/common.js` from
   // `packages/prompts/test/` names `packages/prompts/src/common.js`.
   const anchor = packageDirOf(host, hostDir);
@@ -463,7 +462,7 @@ function writeInternalShims(host: Host, { hostDir, target, internals, packageTyp
     // path is a symlink into the installed incumbent, and `writeFileSync` on it would replace
     // the incumbent's own file with a shim that requires itself.
     rmSync(at, { force: true });
-    if (linksInternal(host, { from, target, at })) continue;
+    if (linksInternal(host, { from, at })) continue;
     writeFileSync(at, `// generated per run — COMPAT_TARGET=${target}\n${internalShimBody(from, language, named)}`);
   }
 }
@@ -486,15 +485,13 @@ function writeInternalShims(host: Host, { hostDir, target, internals, packageTyp
  * package does not ship, and where the platform refuses the link (Windows without the
  * privilege), where the control is informational anyway.
  */
-function linksInternal(host: Host, { from, target, at }: { from: string; target: string; at: string }): boolean {
-  // `from` is an absolute path exactly when `internalShimFrom` found the file the package ships.
-  if (host.shim !== 'cjs' || target !== controlName(host) || !isAbsolute(from)) return false;
-  let file: string;
-  try {
-    file = resolverAt(dirname(from)).resolve(from);
-  } catch {
-    return false;
-  }
+function linksInternal(host: Host, { from, at }: { from: string; at: string }): boolean {
+  // `from` is an absolute path exactly when `internalShimFrom` found the file the package ships,
+  // which it looks for on a control run only — so this is the target-run test as well.
+  if (host.shim !== 'cjs' || !isAbsolute(from)) return false;
+  // Cannot throw: `internalShimFrom` already resolved this same absolute path, and an absolute
+  // specifier resolves the same from any anchor.
+  const file = resolverAt(dirname(from)).resolve(from);
   try {
     symlinkSync(file, at);
     return true;

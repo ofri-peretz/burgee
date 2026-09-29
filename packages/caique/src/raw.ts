@@ -128,7 +128,7 @@ function moved(key: Key, state: ListState, length: number, multi: boolean): bool
 /** What enter answers with. List order, not press order: a set of choices has no sequence. */
 function chosen(choices: Choice[], state: ListState, multi: boolean): Answer {
   if (!multi) return choices[state.cursor]?.value ?? '';
-  return [...state.selected].sort((a, b) => a - b).map((index) => choices[index]?.value ?? '');
+  return choices.filter((_, index) => state.selected.has(index)).map((choice) => choice.value);
 }
 
 /**

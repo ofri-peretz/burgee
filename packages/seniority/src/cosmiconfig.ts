@@ -458,19 +458,29 @@ function annotate(error: unknown, filepath: string): void {
   if (typeof error === 'object' && error !== null) (error as { filepath?: string }).filepath = filepath;
 }
 
+/**
+ * A directory that is not there is skipped; any other `stat` failure is the caller's to see.
+ * 10.0.1 swallows `ENOENT` alone, so on Linux and macOS `search('<file>/sub')` rejects with
+ * `ENOTDIR` and a directory the process may not enter with `EACCES`, rather than both reading
+ * as "no config here". Windows reports `<file>\sub` as `ENOENT`, which is skipped, as upstream.
+ */
+const missing = (error: unknown): boolean => (error as { code?: string } | null)?.code === 'ENOENT';
+
 async function isDirectoryAsync(path: string): Promise<boolean> {
   try {
     return (await fsPromises.stat(path)).isDirectory();
-  } catch {
-    return false;
+  } catch (error) {
+    if (missing(error)) return false;
+    throw error;
   }
 }
 
 function isDirectorySync(path: string): boolean {
   try {
     return fs.statSync(path).isDirectory();
-  } catch {
-    return false;
+  } catch (error) {
+    if (missing(error)) return false;
+    throw error;
   }
 }
 
@@ -574,7 +584,8 @@ function defaultsFor(moduleName: string, options: Partial<Options>, sync: boolea
     metaConfigFilePath: null,
     mergeImportArrays: true,
     mergeSearchPlaces: true,
-    searchStrategy: options.stopDir === undefined ? 'none' : 'global',
+    // Truthiness, as 10.0.1 has it: `stopDir: ''` names no directory and searches only the start.
+    searchStrategy: options.stopDir === undefined || options.stopDir === '' ? 'none' : 'global',
   };
 }
 

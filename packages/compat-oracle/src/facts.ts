@@ -75,7 +75,7 @@ const VERSIONED = (name: string): RegExp => new RegExp(`\\b${name}\\s+v?\\d`);
 /** Whether some figure on this line sits within `NEAR` characters of the competitor's name. */
 function citesNear(line: string, name: string): boolean {
   for (const match of line.matchAll(NAME_AT(name))) {
-    const at = (match.index ?? 0) + match[0].length;
+    const at = match.index + match[0].length;
     const window = line.slice(Math.max(0, at - name.length - NEAR), at + NEAR);
     if (FIGURE.test(window) || VERSIONED(name).test(window)) return true;
   }

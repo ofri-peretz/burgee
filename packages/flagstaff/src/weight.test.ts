@@ -169,7 +169,18 @@ const RULES: Record<string, EntryRule> = {
   // terminal. Since 2026-09-15 that net is `closeout`'s, reached by a bare specifier, so the
   // measurement no longer carries it and the budget has more headroom than it needs. Left
   // where it is: what the entry may weigh did not change because a dependency edge moved.
-  './loop': { allow: ['closeout', 'closeout/cursor', 'roundel/policy'], budget: 7_000, measured: 4_893, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
+  //
+  // `linegauge` joined the allow list on 2026-09-28, and the measurement rose 168 B (4,972 ->
+  // 5,140). The tty projection counted the rows it had painted with `split('\n')`, which
+  // ignores wrap: a frame wider than the terminal left the rows it wrapped onto on screen
+  // after every erase. It now counts with `lineCount`, the measurement `./ora` already clears
+  // by — reached by a bare specifier, so the width tables it carries are linegauge's and not
+  // in this figure (the 2026-09-09 note's boundary artifact). **The real cost is the bundled
+  // one:** /docs/weight, regenerated the same day, prices `hoist` at 12,593 B against 5,885 on
+  // its previous run, and nearly all of the difference is the width function a wrapped row
+  // has to be measured with (the same fixture, fix alone: 5,946 -> 12,560). The budget here
+  // did not move; that page is where the rise shows.
+  './loop': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'roundel/policy'], budget: 7_000, measured: 5_140, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
   // The registry, the validator, the built-ins and the schema they are checked against.
   // The registry, the validator, the built-ins and the schema they are checked against —
   // which now carries `borders` too, so both this and `./spinner` are larger than before.
@@ -206,7 +217,9 @@ const RULES: Record<string, EntryRule> = {
   // a program that hoists does not pay for the corpus.
   // 40,968 (-68) on 2026-09-28: stdin-discarder's raw mode is `closeout/cursor`'s `rawMode`.
   // 40,933 (-35) on 2026-09-28: the synchronized-output pair is `paratext/csi`'s.
-  './ora': { allow: ['closeout/cursor', 'closeout/restore-cursor', 'linegauge', 'paratext/csi', 'roundel/chalk'], budget: 43_000, measured: 40_933, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
+  // 40,369 (-564) on 2026-09-28: is-unicode-supported is `roundel/terminal`'s `unicode`, not
+  // a copy here; that subpath is 878 B of roundel's and reaches nothing.
+  './ora': { allow: ['closeout/cursor', 'closeout/restore-cursor', 'linegauge', 'paratext/csi', 'roundel/chalk', 'roundel/terminal'], budget: 43_000, measured: 40_369, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
   // The log-update façade: the port, the ANSI-aware wrapper and the width function, against
   // log-update's own 113,368 B across sixteen packages (slice-ansi 27,630 · signal-exit 21,983
   // · wrap-ansi 20,004 · the rest) — 2026-09-09 figures, when slice-ansi resolved to 9.0.0; it

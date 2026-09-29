@@ -14,7 +14,6 @@ export function aliasMap(flags: Record<string, FlagSpec>): Record<string, string
   for (const [name, spec] of Object.entries(flags)) {
     const names: string[] = [];
     if (typeof spec.shortFlag === 'string') names.push(spec.shortFlag);
-    if (typeof spec.alias === 'string') names.push(spec.alias);
     for (const extra of spec.aliases ?? []) names.push(extra);
     const decamelized = decamelize(name, '-');
     if (decamelized !== name) names.push(decamelized);

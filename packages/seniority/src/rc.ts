@@ -112,8 +112,10 @@ function stripJsonComments(text: string): string {
   let inLine = false;
   let inBlock = false;
   for (let i = 0; i < text.length; i += 1) {
-    const ch = text[i] ?? '';
-    const next = text[i + 1] ?? '';
+    // `charAt`, not `text[i] ?? ''`: past the end it is `''` by definition, which is the one
+    // case the lookahead needs, and `i` itself is always in range.
+    const ch = text.charAt(i);
+    const next = text.charAt(i + 1);
     if (inLine) {
       if (ch === '\n') {
         inLine = false;

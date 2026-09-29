@@ -381,7 +381,6 @@ class Session<T> {
   }
 
   private close(): void {
-    if (this.closed) return;
     this.closed = true;
     this.input.removeListener('keypress', this.onKeypress);
     this.definition.signal?.removeEventListener('abort', this.onAbort);
@@ -431,12 +430,15 @@ class Session<T> {
 
   private readonly onKeypress = async (char: string | undefined, key: Keypress = {}): Promise<void> => {
     const { definition, prompt } = this;
-    if (this.closed || prompt.state === 'validating') return;
+    if (prompt.state === 'validating') return;
     this.type(char, key);
     if (prompt.state === 'error') prompt.state = 'active';
     definition.onKey?.(prompt, char, key, actionOf(key, definition.track === true));
     const submits = key.name === 'return' && prompt.state !== 'submit' && (definition.shouldSubmit?.(prompt) ?? true);
     if (submits) await this.submit();
+    // An abort while the validator was out has already closed the prompt and given the cursor
+    // back; the late verdict must not draw a frame under whatever the program writes next.
+    if (this.closed) return;
     if (cancels(char, key)) prompt.state = 'cancel';
     if (prompt.state === 'submit' || prompt.state === 'cancel') this.finish();
     else this.draw();
@@ -517,7 +519,8 @@ const cancelled = (pen: Pen, summary: string): string => {
 };
 
 const failing = (pen: Pen, look: Look): string => {
-  const problem = prefixed(paint('yellow', look.error ?? ''), pen.guide ? `${paint('yellow', S_BAR_END)}  ` : '', '   ');
+  // Only a prompt with a validator reaches the error state, and every one of them passes its error.
+  const problem = prefixed(paint('yellow', look.error as string), pen.guide ? `${paint('yellow', S_BAR_END)}  ` : '', '   ');
   return `${look.body.map((line) => pen.bar('yellow') + line).join('\n')}\n${problem}\n`;
 };
 

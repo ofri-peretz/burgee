@@ -25,16 +25,21 @@ const HEADER_BYTES = 150;
  * `#!/usr/bin/env node` is `node`: `env` is a launcher, so its *argument* is the interpreter
  * and the path in front of it is discarded. `#!/bin/sh -e` is `sh -e` — the flag is kept,
  * because dropping it changes what the script does.
+ *
+ * An empty argument is no argument, as it is to `shebang-command`, which tests it for truth:
+ * `#!/bin/sh ` (a trailing space) is `sh`, not `sh ` — a name nothing on `PATH` answers to —
+ * and `#!/usr/bin/env  node` (two spaces) names no interpreter rather than an empty one.
  */
 export function shebangCommand(source: string): string | undefined {
   const line = /^#!(.*)/.exec(source);
   if (line === null) return undefined;
-  const [path, argument] = line[0].replace(/#! ?/, '').split(' ');
-  if (path === undefined) return undefined;
-  const binary = path.split('/').pop();
-  if (binary === 'env') return argument;
-  if (binary === undefined || binary === '') return undefined;
-  return argument === undefined ? binary : `${binary} ${argument}`;
+  // `split` always returns at least one element, and so does the `split` of that element.
+  const [path, argument] = line[0].replace(/#! ?/, '').split(' ') as [string, string | undefined];
+  const binary = path.split('/').pop() as string;
+  const given = argument === '' ? undefined : argument;
+  if (binary === 'env') return given;
+  if (binary === '') return undefined;
+  return given === undefined ? binary : `${binary} ${given}`;
 }
 
 /**

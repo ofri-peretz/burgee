@@ -49,6 +49,6 @@ function checkRelation(rel: Relation, values: Record<string, unknown>, sources: 
 }
 
 /** Relations before anything else (S6, yargs #1186); `--no-x` counts as set, because it was typed (yargs #898). */
-export function checkRelations(relations: readonly Relation[] | undefined, values: Record<string, unknown>, sources: Sources): void {
-  for (const rel of relations ?? []) checkRelation(rel, values, sources);
+export function checkRelations(relations: readonly Relation[], values: Record<string, unknown>, sources: Sources): void {
+  for (const rel of relations) checkRelation(rel, values, sources);
 }

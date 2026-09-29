@@ -320,10 +320,32 @@ function wrapLine(string: string, columns: number, options: WrapOptions): string
   return restoreStylesAcrossRows(rows.join('\n'));
 }
 
+/**
+ * NFC over the text between escape sequences, and never over a sequence itself.
+ *
+ * Normalizing the whole string composed a combining mark with the last character of the
+ * sequence in front of it: `ESC[31m` + `U+0301` became `ESC[31` + `ḿ`, which is no longer an
+ * SGR, so the colour was lost and its bytes were wrapped as text. An OSC payload was
+ * rewritten too, which changes a window title or a link target. wrap-ansi 10.0.2 made the
+ * same change, and its suite grades both.
+ */
+function normalizeText(string: string): string {
+  let normalized = '';
+  forEachSegment(
+    string,
+    (text) => {
+      normalized += text.normalize();
+    },
+    (escape) => {
+      normalized += escape;
+    },
+  );
+  return normalized;
+}
+
 /** Wrap `string` to `columns`, keeping its ANSI intact and each row self-contained. */
 export function wrap(string: string, columns: number, options: WrapOptions = {}): string {
-  return String(string)
-    .normalize()
+  return normalizeText(String(string))
     .replaceAll('\r\n', '\n')
     .split('\n')
     .map((line) => wrapLine(expandTabs(line), columns, options))

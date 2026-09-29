@@ -35,7 +35,7 @@ const isKeybinding = (value: string): value is Keybinding => KEYBINDINGS.has(val
  */
 export function getDefaultKeybindings(): Keybinding[] {
   const env = processRuntime().env['INQUIRER_KEYBINDINGS'];
-  if (env === undefined || env === '') return [];
+  if (env === undefined) return [];
   return [
     ...new Set(
       env

@@ -150,7 +150,7 @@ interface Entry {
  * string, because a report reading `handlers that had not returned: , ` is worse than one
  * that admits it does not know.
  */
-const labelOf = (handler: ExitHandler, given: string | undefined): string => (given ?? '') || handler.name || '(anonymous)';
+const labelOf = (handler: ExitHandler, given: string | undefined): string => given || handler.name || '(anonymous)';
 
 const specOf = (spec: HandlerSpec | undefined): HandlerOptions => (typeof spec === 'string' ? { phase: spec } : (spec ?? {}));
 
@@ -220,7 +220,17 @@ export function createRegistry(options: RegistryOptions = {}): Registry {
    * place rather than a list to keep in step with a loop.
    */
   const handlers = new Map<Phase, Set<Entry>>(PHASES.map((phase) => [phase, new Set<Entry>()]));
-  const bucket = (phase: Phase): Set<Entry> => handlers.get(phase) ?? new Set<Entry>();
+  /*
+   * A phase that is not one of PHASES is refused wherever it is named — `add` and `count`. It
+   * used to be handed a fresh set that nothing ever read: `onExit(unlock, 'Restore')` from
+   * untyped code returned an unsubscribe, counted nowhere, and never ran — a lock that was
+   * never released, with nothing to say so. Refused at registration, like the deadline.
+   */
+  const bucket = (phase: Phase): Set<Entry> => {
+    const set = handlers.get(phase);
+    if (!set) throw new TypeError(`closeout: no phase ${phase}`);
+    return set;
+  };
   /** The two halves of "has this happened": started, and finished with a report to show. */
   const state: { started: boolean; finished?: ShutdownReport } = { started: false };
   /**
