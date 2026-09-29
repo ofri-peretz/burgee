@@ -1,0 +1,26 @@
+---
+title: A notification when a long task ends
+description: "Send an OSC 9 desktop notification on terminals that show one, and print the same message as a line everywhere else — with no native binaries."
+---
+
+A build that takes ten minutes should say when it is done. On iTerm2, WezTerm and Ghostty,
+OSC 9 raises a desktop notification with no native helper installed; everywhere else the same
+call prints the message as a line, which is what a CI log wants anyway.
+
+```js title="done.mjs"
+import { emit, processRuntime } from 'paratext';
+
+const started = Date.now();
+// … the long task …
+const seconds = Math.round((Date.now() - started) / 1000);
+
+process.stdout.write(`${emit(processRuntime(), 'notify', { title: 'Build finished', body: `${seconds}s` })}\n`);
+```
+
+```text title="node done.mjs"
+Build finished: 0s
+```
+
+On a supporting terminal the line is the notification's bytes instead, and the terminal shows
+the notification rather than the text. `body` is optional: `{title}[: {body}]` prints the title
+alone when there is no body.

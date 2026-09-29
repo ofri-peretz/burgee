@@ -1,0 +1,85 @@
+---
+title: The ansi-escapes surface
+description: "paratext's root is ansi-escapes 7.3.0's API: the CSI half byte-exact, the four OSC members through emit(), so a link or an image on a pipe is its text rather than raw bytes."
+---
+
+paratext's root exports ansi-escapes' surface — the default export with every member on it, and
+each member by name — so `import ansiEscapes from 'paratext'` is the migration. ansi-escapes'
+own suite grades it, 4 of 4 ([Compatibility](/docs/drop-ins)).
+
+ansi-escapes is one module with two unrelated jobs, and paratext treats them differently.
+
+## The CSI half: byte-exact, never degraded
+
+Cursor movement, erasing, scrolling, the alternate screen and synchronized output are the
+incumbent's bytes exactly:
+
+```js title="csi.mjs"
+import ansiEscapes, { cursorTo, eraseLines, synchronizedOutput } from 'paratext';
+
+console.log(JSON.stringify(cursorTo(2, 2)));
+console.log(JSON.stringify(eraseLines(2)));
+console.log(JSON.stringify(synchronizedOutput('frame')));
+console.log(ansiEscapes.cursorTo === cursorTo);
+```
+
+```text title="node csi.mjs"
+"\u001b[3;3H"
+"\u001b[2K\u001b[1A\u001b[2K\u001b[G"
+"\u001b[?2026hframe\u001b[?2026l"
+true
+```
+
+They do not degrade on a pipe, because the incumbent's do not, and a cursor move silently
+dropped would corrupt the screen of a program that relied on it. A program that should not move
+the cursor on a pipe decides that itself — roundel's [`outputMode`](https://roundel.interlace.tools/docs)
+is the question to ask.
+
+The CSI half is also published on its own, as `paratext/csi`: it registers none of the
+built-ins the root does, and it is where flagstaff and caique take their cursor moves from.
+
+```js title="csi-only.mjs"
+import { cursorUp, eraseLines } from 'paratext/csi';
+
+console.log(JSON.stringify(cursorUp(2) + eraseLines(1)));
+```
+
+```text title="node csi-only.mjs"
+"\u001b[2A\u001b[2K\u001b[G"
+```
+
+## The OSC half: the incumbent's bytes, or the projection
+
+`link`, `image`, `setCwd` and `beep` go through `emit()` over the real process, so on a terminal
+believed to understand them they are ansi-escapes' exact bytes, and everywhere else the static
+projection:
+
+```js title="osc.mjs"
+import { beep, image, link, setCwd } from 'paratext';
+
+console.log(JSON.stringify(link('Docs', 'https://x.dev')));
+console.log(JSON.stringify(image(Buffer.from('iVBORw0KGgo=', 'base64'), { caption: '[logo]' })));
+console.log(JSON.stringify(setCwd('/tmp')));
+console.log(JSON.stringify(beep));
+```
+
+```text title="node osc.mjs"
+"Docs (https://x.dev)"
+"[logo]"
+""
+"\u0007"
+```
+
+That is the one deliberate difference from ansi-escapes, and the reason to prefer this: through
+ansi-escapes the first three would be escape bytes in the pipe. `image` takes a `caption`
+option on top of ansi-escapes' own, which is what it projects to. `beep` is a value, as it is
+upstream.
+
+For a runtime other than the process — a test, or rendering for somebody else's terminal —
+`ansiEscapesFor(runtime)` returns the same four bound to it.
+
+## What is declared and empty
+
+`iTerm` and `ConEmu` — `iTerm.annotation`, ConEmu's progress bar — are capabilities paratext
+does not ship yet. They are exported as `undefined`, so a program that imports them by name still
+loads, and typed so that calling one is a compile error rather than a surprise at run time.

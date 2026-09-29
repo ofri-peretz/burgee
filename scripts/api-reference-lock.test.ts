@@ -33,7 +33,7 @@ import { describe, expect, it } from 'vitest';
 // eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and scripts read the app table through its one typed reader rather than re-parsing it
 import { appForPackage } from '../apps/docs-chassis/src/config';
 
-import { entriesOf, orphans, pages, prose, renderEntry, STANDARD_SITES, stale } from './api-reference.js';
+import { entriesOf, orphans, pages, prose, renderEntry, spacedSpan, STANDARD_SITES, stale } from './api-reference.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -125,5 +125,10 @@ describe('doc-comment prose is valid Markdown', () => {
 
   it('moves a bulleted list the comment indents to the margin, continuation lines and all', () => {
     expect(prose('Two questions:\n\n  - **one**, which\n    wraps\n  - **two**\n\nAfter.')).toBe('Two questions:\n\n- **one**, which\n  wraps\n- **two**\n\nAfter.');
+  });
+
+  it('says when a doc comment quotes a code span that opens or closes on a space', () => {
+    expect(spacedSpan('because `Done: ` reads worse than `Done`')).toBe(true);
+    expect(spacedSpan('`plain` and `` chalk`{red x}` `` are not')).toBe(false);
   });
 });

@@ -1,0 +1,66 @@
+---
+title: Compatibility
+description: "How paratext's three drop-ins are graded — each incumbent's own test suite, unedited — the current grades, and the differences that remain, term-img's six path cases included."
+---
+
+`paratext` (the ansi-escapes surface), `paratext/terminal-link` and `paratext/term-img` are
+graded, not described as compatible. Each is run against its incumbent's **own test suite**, by
+[compat-oracle](https://github.com/ofri-peretz/burgee/blob/main/packages/compat-oracle/README.md),
+in CI.
+
+<CapabilityMatrix pkg="paratext" theme="Compatibility" />
+
+The counts are compat-oracle's baselines, the pass count each drop-in is held to. The family's
+[compatibility page](https://burgee.interlace.tools/docs/compatibility) is generated from the
+oracle's last run and is the authority for the current figures.
+
+| incumbent | graded version | drop-in | cases |
+| :-- | :-- | :-- | --: |
+| ansi-escapes | 7.3.0 | `import ansiEscapes from 'paratext'` | 4 / 4 |
+| terminal-link | 5.0.0 | `import terminalLink from 'paratext/terminal-link'` | 8 / 8 |
+| term-img | 7.1.0 | `import terminalImage from 'paratext/term-img'` | 12 / 18 |
+
+## How a suite is graded
+
+1. The incumbent's repository is cloned at the release tag of the graded version and its test
+   file copied into `packages/compat-oracle/vendor/`. No incumbent ships its tests to npm. Each
+   copy's `PROVENANCE` file names the tag, the commit and the command that reproduces it.
+2. The only edit is the import that reaches the library: it is rewritten to a shim generated
+   per run. Assertions and fixtures are upstream's, byte for byte.
+3. A **control run** points the shim at the real incumbent first, which proves the harness and
+   sets the total every rate is measured against.
+4. The **target run** points the same shim at paratext's path.
+
+## term-img: 12 of 18, and why that is the ceiling
+
+The six cases that fail are the same six every run — `iTerm2 support`, `WezTerm support`,
+`Konsole support`, `Rio support`, `VSCode support` and `handles options parameter correctly` —
+and each hands a file **path** to a terminal the suite has just declared supported.
+`paratext/term-img` takes image bytes, so that `node:fs` stays out of a package that otherwise
+touches nothing but strings (decision D-030). Passing them would mean reading a file, which is
+the dependency the package declines. A caller that passes paths makes one edit:
+
+```diff
+- terminalImage('unicorn.jpg', { width: '50%' });
++ terminalImage(await readFile('unicorn.jpg'), { width: '50%' });
+```
+
+## Known differences
+
+- **The root's OSC members project off a terminal.** `link`, `image` and `setCwd` from `paratext`
+  return the incumbent's bytes where the terminal is believed to understand them, and the static
+  projection everywhere else; ansi-escapes returns the bytes everywhere. The CSI half is
+  byte-exact and never degrades ([The ansi-escapes surface](/docs/guides/ansi-escapes)).
+- **`iTerm` and `ConEmu` are declared and `undefined`.** A program that imports them loads; one
+  that calls them is a compile error in TypeScript.
+- **`paratext/term-img` takes bytes, not a path** (above).
+- **`paratext/term-img` reads iTerm2's whole version number.** term-img takes the first
+  character, which would read iTerm2 10 as 1; nothing in the suite tells the two apart.
+- **`paratext/terminal-link` needs `argv` and `platform` for two of supports-hyperlinks' rules**
+  — the `--no-hyperlink` flag and the Windows check — and reads them from the process, as the
+  incumbent does.
+
+## Types and CommonJS
+
+Each path exports its incumbent's names and types. Every entry is ESM with a `default`
+condition, so `require('paratext/terminal-link')` works from CommonJS on Node 20.19+ and 22.13+.
