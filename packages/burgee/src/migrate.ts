@@ -514,7 +514,8 @@ export const REQUIRE_NAMESPACE: readonly string[] = ['ansi-escapes', 'chalk', 'o
 
 /** Whether `require(from)` and `require(to)` hand a CommonJS caller different kinds of value. */
 function requireShapesDiffer(from: string, to: string): boolean {
-  const exported = FACADE_EXPORTS[to] ?? [];
+  // Every target has a table: `migrate.test.ts` holds the keys equal to `MAPPING`'s targets.
+  const exported = FACADE_EXPORTS[to] as readonly string[];
   const toGivesDefault = exported.includes('module.exports');
   // An incumbent that returns its namespace needs a target that returns one too.
   if (REQUIRE_NAMESPACE.includes(from)) return toGivesDefault;
@@ -1020,7 +1021,8 @@ async function offMajorOf(dir: string, dependencies: Map<string, string>): Promi
     const graded = GRADED_VERSIONS[from];
     if (version === undefined || graded === undefined) return [];
     const major = majorOf(version);
-    return major === undefined || (SUPPORTED_MAJORS[from] ?? []).includes(major) ? [] : [{ from, found: version, graded }];
+    // A graded host always has its majors: `supported-majors-lock.test.ts` holds one list per graded host.
+    return major === undefined || (SUPPORTED_MAJORS[from] as readonly number[]).includes(major) ? [] : [{ from, found: version, graded }];
   });
 }
 

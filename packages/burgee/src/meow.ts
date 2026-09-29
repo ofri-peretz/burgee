@@ -190,13 +190,13 @@ function meow(helpText: string | Settings, options: Settings = {}): Result<AnyFl
   }
 
   // `flags` is the normalized object and `unnormalizedFlags` is everything the parser
-  // produced. A `shortFlag` or a deprecated `alias` is a second spelling of one flag and is
-  // dropped from `flags`; an entry in `aliases` is not — the suite states both, one test
-  // apart, and they are the reason this split exists at all.
+  // produced. A `shortFlag` or an entry in `aliases` is a second spelling of one flag and is
+  // dropped from `flags`, as meow deletes both; `unnormalizedFlags` keeps every spelling, which
+  // is what `aliases.js`'s `unnormalized flags` reads. (A deprecated `alias` never gets here:
+  // `validateFlags` refuses it.)
   const dropped = new Set<string>();
   for (const spec of Object.values(flagSpecs)) {
     if (typeof spec.shortFlag === 'string') dropped.add(spec.shortFlag);
-    if (typeof spec.alias === 'string') dropped.add(spec.alias);
     for (const extra of spec.aliases ?? []) dropped.add(extra);
   }
   const flags: Record<string, unknown> = {};
