@@ -1,5 +1,29 @@
 # seniority
 
+## 0.6.4
+
+### Patch Changes
+
+- [#674](https://github.com/ofri-peretz/burgee/pull/674) [`e9f45d8`](https://github.com/ofri-peretz/burgee/commit/e9f45d85d9db5b2e3dcaa1e43f292a1281a6952a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - README: family header, badges, install, migrating, the family table.
+
+  Every package README now opens the same way — lockup, tagline, one badge row in one order (npm version, downloads, Quality Gate, the package's own coverage, OpenSSF Scorecard, unpacked size, dependencies, types, Node, licence, npm provenance), a row of compatibility badges read from the graded baseline — and carries the same sections in the same order: Install for npm, pnpm, yarn and bun, Quick start, Migrating as a before/after diff, Compatibility, Benchmarks, For agents, API, and a generated table of the nine packages. Links are absolute, so they work on npm as well as GitHub.
+
+- [#731](https://github.com/ofri-peretz/burgee/pull/731) [`bc68493`](https://github.com/ofri-peretz/burgee/commit/bc684935589d3f3d8d5d297f292ae4ccdbb48c32) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `seniority/cosmiconfig` now matches cosmiconfig 10.0.1 in three places where it did not.
+
+  - `stopDir: ''` searches the start directory alone, as upstream's truthiness check does. Before, an empty `stopDir` switched the search to `global` and walked up to the working directory and then into the global config directory.
+  - `packageProp` walks a path the way upstream does. A path through a string reads the string's own properties, so `'name.length'` is a number. A path through a `null`, such as `"foo": null` under `packageProp: 'foo.bar'`, throws the `TypeError` upstream throws, annotated with the file. Before, both answered "not found", and the search moved on to the next file.
+  - A start directory that cannot be `stat`ed for any reason but absence rejects the search with the `stat` error, as upstream's `isDirectory` does. Before, every such failure read as "no config here". Which paths fail that way is the platform's call: on Linux and macOS, `search('<file>/sub')` rejects with `ENOTDIR` and a directory the process may not enter with `EACCES`; Windows reports `<file>\sub` as not found, so there it is still "no config here", as it is upstream.
+
+  `loadJson` no longer wraps a non-`Error` in an `Error`, because `JSON.parse` of a string throws nothing else.
+
+- [#732](https://github.com/ofri-peretz/burgee/pull/732) [`ee6780b`](https://github.com/ofri-peretz/burgee/commit/ee6780b4c9558de1143ff7e5983c16a71973b529) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Code no input could reach is removed. There is no behaviour change.
+
+  - `seniority check` loses a "(replaces …)" helper it never called, and a map that returned each source name unchanged. It loads one plugin into an emptied registry, so there is nothing for a source to replace. The header now says that.
+  - `seniority/lilconfig` no longer writes `dirname(p) || sep`, because Node's `dirname` never returns `''`.
+  - `seniority/dotenv`'s parser no longer checks that a match has a key, because the key group in its pattern is not optional.
+  - `seniority/rc`'s comment stripper reads characters with `charAt`, so there is no fallback for an index that is always in range.
+  - The JSON loader behind `seniority/config` quotes the parser's own message without first checking that it threw an `Error`, because `JSON.parse` of a string throws nothing else.
+
 ## 0.6.3
 
 ### Patch Changes

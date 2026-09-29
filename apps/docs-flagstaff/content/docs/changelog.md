@@ -3,6 +3,57 @@ title: Changelog
 description: "Every release of flagstaff, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.0.0
+
+### Major Changes
+
+- [#685](https://github.com/ofri-peretz/burgee/pull/685) [`6ef8227`](https://github.com/ofri-peretz/burgee/commit/6ef822762f5ad19564215945d7e76aa329614585) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - flagstaff 1.0.0. No API changes from 0.4: this release makes a promise. Every published entry point is now under semver and can change incompatibly only in a new major: `flagstaff` and `flagstaff/loop`, `plugin`, `import`, `spinner`, `progress`, `tasks`, `box` and `table`, the four drop-in subpaths, the `schema.json` plugin contract and the `flagstaff` bin. Each drop-in path is graded at 100% by its incumbent's own test suite, vendored at the release tag and run unmodified: ora 9.4.1 by 99 of 99 cases (`flagstaff/ora`), log-update 8.0.0 by 99 of 99 (`flagstaff/log-update`), boxen 8.0.1 by 84 of 84 (`flagstaff/boxen`) and cli-table3 0.6.5 by 29 of 29 (`flagstaff/cli-table3`). Out of scope: `flagstaff/boxen` is a boxen 8 drop-in. boxen 9 is released but is not graded or claimed, and a program on it is left alone by `burgee migrate`. Earlier majors of the four incumbents are not claimed either.
+
+### Patch Changes
+
+- [#680](https://github.com/ofri-peretz/burgee/pull/680) [`7f59bc2`](https://github.com/ofri-peretz/burgee/commit/7f59bc2a612aa71925d5eca1db96d44d9f488c9a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Raw mode is paired with its undo through `closeout/cursor`'s `rawMode`, the way the cursor already was.
+
+  - `caique/raw`: a list prompt on a stream that was already in raw mode — a prompt library's, or the program's own — no longer switches raw mode off when it ends; it used to call `setRawMode(false)` unconditionally and take the keyboard from its owner. Raw mode the prompt did turn on is now turned off on `SIGINT` and `SIGTERM` too, not only in the prompt's own `finally`. `KeyStream` gains an optional `isRaw`.
+  - `flagstaff/ora`: stdin-discarder's raw mode goes through the same pairing. Behaviour is unchanged except that an already-raw stdin is no longer written to at all.
+
+- [#711](https://github.com/ofri-peretz/burgee/pull/711) [`d26728b`](https://github.com/ofri-peretz/burgee/commit/d26728b26b44cbcc5edafca6bf1a91acbd1e1d35) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Code no test could reach is gone, and nothing a caller can observe changes.
+
+  - `table()`: the column-shrinking loop no longer checks for a column already at the three-cell minimum — `table()` never offers less than that per column, so while the table is too wide its widest column is always wider than the minimum. The widths are found with `Math.max`/`indexOf` instead of an indexed loop with `?? 0` fallbacks that could not fire. Ties still go to the leftmost column. `flagstaff/table` is 342 B lighter.
+  - The terminal projection no longer keeps a placeholder cursor net for a `close()` without an `open()`, or for a second `close()`: `hoist()` opens first and lowers at most once, so neither can happen.
+
+- [#685](https://github.com/ofri-peretz/burgee/pull/685) [`6ef8227`](https://github.com/ofri-peretz/burgee/commit/6ef822762f5ad19564215945d7e76aa329614585) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Fixed: `hoist()` on a terminal left stale rows behind when a frame was wider than the terminal. The tty projection counted the rows it had painted as lines of text, so a line that wrapped onto the next row was erased as one and the rows it wrapped onto stayed on screen under every repaint. It now counts painted rows with `linegauge`'s `lineCount` at the writer's `columns` (80 when the writer does not say), the measurement `flagstaff/ora` already clears by. `Writer` gains an optional `columns`, which `process.stdout` already carries.
+
+- [#665](https://github.com/ofri-peretz/burgee/pull/665) [`12fea8e`](https://github.com/ofri-peretz/burgee/commit/12fea8eae4d556b11dc693581cca73e16c2b633c) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Three defects carried over from the incumbents, and three places where a port answered differently from the incumbent on a bad value.
+
+  - `burgee/yargs/parser`: with `unknown-options-as-args`, every `-`-prefixed argument ran through five flag regexes, and two of them backtracked — one quadratically, one cubically (a 4,000-character argument took ten seconds). They are linear scans now, and give the same answer as the regexes for every input, checked against them over every short string of the characters involved. yargs' own suite still passes 804 of 804.
+  - `burgee/yargs/parser`: `{ "a": null }` in one config and `a.b` from a default or a second config threw "Cannot read properties of null". A `null` parent is now an absent one, as the parser's own key lookup already treated it.
+  - `burgee/yargs`: `showHelp()` with an async default-command builder that rejected left an unhandled rejection that ended the process. The rejection now goes to `fail`, where yargs sends a command handler's rejection, so a `.fail()` handler receives it.
+  - `burgee/meow`: `importMeta: null` throws meow's own "The `importMeta` option is required" TypeError instead of a null dereference, and `input: null` or an array is refused as meow refuses it.
+  - `flagstaff/cli-table3`: a style name that cannot be read off a colour function (`caller`, `arguments`) draws the cell plain, as cli-table3 does, instead of throwing out of `toString()`.
+
+- [#674](https://github.com/ofri-peretz/burgee/pull/674) [`e9f45d8`](https://github.com/ofri-peretz/burgee/commit/e9f45d85d9db5b2e3dcaa1e43f292a1281a6952a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - README: family header, badges, install, migrating, the family table.
+
+  Every package README now opens the same way — lockup, tagline, one badge row in one order (npm version, downloads, Quality Gate, the package's own coverage, OpenSSF Scorecard, unpacked size, dependencies, types, Node, licence, npm provenance), a row of compatibility badges read from the graded baseline — and carries the same sections in the same order: Install for npm, pnpm, yarn and bun, Quick start, Migrating as a before/after diff, Compatibility, Benchmarks, For agents, API, and a generated table of the nine packages. Links are absolute, so they work on npm as well as GitHub.
+
+- [#684](https://github.com/ofri-peretz/burgee/pull/684) [`6c7b55a`](https://github.com/ofri-peretz/burgee/commit/6c7b55a01ea2e3aa1993419f78fbf6858ade5f8b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `paratext/csi`: the CSI half of `ansi-escapes` as a subpath of its own — cursor moves, erases, scrolling, the alternate screen and synchronized output, byte-exact with `ansi-escapes` 7.3.0. It is 2,700 bytes and, unlike the package root, registers no built-ins when imported.
+
+  `flagstaff/log-update`, `flagstaff/ora`, `caique/raw` and `caique/inquirer` take their cursor sequences from it instead of carrying their own copies; caique now depends on paratext. Output is unchanged, with one spelling difference: `caique/raw`'s repaint clears with `ESC[J` rather than the equivalent `ESC[0J`. `caique/inquirer` keeps `@inquirer/ansi`'s answer of nothing for a zero-row move, where `ansi-escapes`' `cursorUp(0)` is `ESC[0A`.
+
+- [#678](https://github.com/ofri-peretz/burgee/pull/678) [`088cecc`](https://github.com/ofri-peretz/burgee/commit/088ceccb7dda1cbe878950c631f49f48980dd2e2) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Whether anybody is there, whether to colour, and whether a tick can be drawn are roundel's questions, and three packages answered them by hand.
+
+  - `roundel/terminal` (new subpath, 878 B, reaching nothing): `interactive(rt)` — a terminal on stdin, no `CI`, and no agent variable (`CLAUDECODE`, `AI_AGENT`, `CURSOR_AGENT`, `CODEX_THREAD_ID`, `GEMINI_CLI`, exported as `AGENTS`), with `FORCE_TTY=1` as the override — and `unicode(rt)`, is-unicode-supported 2.1.0's table over `{ env, platform }`.
+  - `caique/decide` now depends on `roundel` and asks `interactive()`. **Behaviour change:** under an agent that has a terminal — `CLAUDECODE=1` and a TTY on stdin — a missing required value is refused with a usage error naming the flag (`--x is required when nobody is there to answer`) instead of prompting and hanging the agent. `FORCE_TTY=1` now prompts even without a terminal on stdin, as it does for burgee.
+  - `caique/inquirer`'s tick and `flagstaff/ora`'s log symbols and spinner fallback use roundel's `unicode()`. caique's copy was a four-condition subset: the Linux console (`TERM=linux`) now gets `√` rather than `✔`, and ConEmu/Cmder, Terminus, Alacritty, rxvt-unicode and JetBrains' terminal on Windows now get `✔`, as `figures` draws them.
+  - `burgee` help colour is roundel's `colorLevel(rt) > 0`. **Behaviour changes:** `NO_COLOR` now beats `FORCE_COLOR`; `--no-color` and `--color=…` on the command line are honoured; `CLI_ACCESSIBLE` turns help colour off; and a terminal that sets no `TERM` (Windows' conhost) gets plain help unless `FORCE_COLOR`, `--color` or `COLORTERM` asks for colour.
+  - `burgee/contrast` rounds with roundel's `round2`; no output changes.
+  - `paratext`: the supports-color fork behind `paratext/terminal-link` is unchanged, and now held to roundel's policy by a parity test everywhere their two incumbents agree.
+
+- Updated dependencies [[`6d8aadf`](https://github.com/ofri-peretz/burgee/commit/6d8aadff01a4c65ef3be16fe2082b0abd0c00b90), [`ff4159d`](https://github.com/ofri-peretz/burgee/commit/ff4159d25544fd45257f145e40ff0c5f8dfc4b3a), [`5e635b0`](https://github.com/ofri-peretz/burgee/commit/5e635b0a79c16ff2b459a4d00c80d334d5d945d1), [`ff4159d`](https://github.com/ofri-peretz/burgee/commit/ff4159d25544fd45257f145e40ff0c5f8dfc4b3a), [`6ef8227`](https://github.com/ofri-peretz/burgee/commit/6ef822762f5ad19564215945d7e76aa329614585), [`7c77cd2`](https://github.com/ofri-peretz/burgee/commit/7c77cd25c8fbeea4199c38c135e3a8937907f849), [`6ef8227`](https://github.com/ofri-peretz/burgee/commit/6ef822762f5ad19564215945d7e76aa329614585), [`6ef8227`](https://github.com/ofri-peretz/burgee/commit/6ef822762f5ad19564215945d7e76aa329614585), [`e9f45d8`](https://github.com/ofri-peretz/burgee/commit/e9f45d85d9db5b2e3dcaa1e43f292a1281a6952a), [`8a338ba`](https://github.com/ofri-peretz/burgee/commit/8a338baa50bb754051b18c00dbd0972976cccba1), [`6c7b55a`](https://github.com/ofri-peretz/burgee/commit/6c7b55a01ea2e3aa1993419f78fbf6858ade5f8b), [`620fc74`](https://github.com/ofri-peretz/burgee/commit/620fc74af013834ca6b15faa2772aeb94c5013b1), [`088cecc`](https://github.com/ofri-peretz/burgee/commit/088ceccb7dda1cbe878950c631f49f48980dd2e2), [`4319563`](https://github.com/ofri-peretz/burgee/commit/4319563b902c9d968786196f495cf47e7d4d9d39)]:
+  - closeout@0.6.0
+  - linegauge@1.0.0
+  - paratext@0.7.3
+  - roundel@0.5.5
+
 ## 0.4.4
 
 ### Patch Changes

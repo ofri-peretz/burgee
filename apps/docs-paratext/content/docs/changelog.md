@@ -3,6 +3,29 @@ title: Changelog
 description: "Every release of paratext, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 0.7.3
+
+### Patch Changes
+
+- [#674](https://github.com/ofri-peretz/burgee/pull/674) [`e9f45d8`](https://github.com/ofri-peretz/burgee/commit/e9f45d85d9db5b2e3dcaa1e43f292a1281a6952a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - README: family header, badges, install, migrating, the family table.
+
+  Every package README now opens the same way — lockup, tagline, one badge row in one order (npm version, downloads, Quality Gate, the package's own coverage, OpenSSF Scorecard, unpacked size, dependencies, types, Node, licence, npm provenance), a row of compatibility badges read from the graded baseline — and carries the same sections in the same order: Install for npm, pnpm, yarn and bun, Quick start, Migrating as a before/after diff, Compatibility, Benchmarks, For agents, API, and a generated table of the nine packages. Links are absolute, so they work on npm as well as GitHub.
+
+- [#713](https://github.com/ofri-peretz/burgee/pull/713) [`8a338ba`](https://github.com/ofri-peretz/burgee/commit/8a338baa50bb754051b18c00dbd0972976cccba1) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Code paths no input could reach are removed; behaviour is unchanged. `paratext check` no longer carries a "(replaces …)" suffix it could never print, because it loads one plugin into an emptied registry. `paratext/terminal-link`'s detection no longer carries `has-flag`'s short and bare flag forms, since every flag it asks about is a long one, nor a "not a tty" answer inside its colour check, which it only reaches for a tty. The root entry no longer registers the built-ins a second time after `ansi-escapes.js` has already done it at load. Three fallbacks for a regex group or a `split` element that is always there are gone, and the schema walk reads a type's first letter with `charAt`, which gives the same answer.
+
+- [#684](https://github.com/ofri-peretz/burgee/pull/684) [`6c7b55a`](https://github.com/ofri-peretz/burgee/commit/6c7b55a01ea2e3aa1993419f78fbf6858ade5f8b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `paratext/csi`: the CSI half of `ansi-escapes` as a subpath of its own — cursor moves, erases, scrolling, the alternate screen and synchronized output, byte-exact with `ansi-escapes` 7.3.0. It is 2,700 bytes and, unlike the package root, registers no built-ins when imported.
+
+  `flagstaff/log-update`, `flagstaff/ora`, `caique/raw` and `caique/inquirer` take their cursor sequences from it instead of carrying their own copies; caique now depends on paratext. Output is unchanged, with one spelling difference: `caique/raw`'s repaint clears with `ESC[J` rather than the equivalent `ESC[0J`. `caique/inquirer` keeps `@inquirer/ansi`'s answer of nothing for a zero-row move, where `ansi-escapes`' `cursorUp(0)` is `ESC[0A`.
+
+- [#678](https://github.com/ofri-peretz/burgee/pull/678) [`088cecc`](https://github.com/ofri-peretz/burgee/commit/088ceccb7dda1cbe878950c631f49f48980dd2e2) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Whether anybody is there, whether to colour, and whether a tick can be drawn are roundel's questions, and three packages answered them by hand.
+
+  - `roundel/terminal` (new subpath, 878 B, reaching nothing): `interactive(rt)` — a terminal on stdin, no `CI`, and no agent variable (`CLAUDECODE`, `AI_AGENT`, `CURSOR_AGENT`, `CODEX_THREAD_ID`, `GEMINI_CLI`, exported as `AGENTS`), with `FORCE_TTY=1` as the override — and `unicode(rt)`, is-unicode-supported 2.1.0's table over `{ env, platform }`.
+  - `caique/decide` now depends on `roundel` and asks `interactive()`. **Behaviour change:** under an agent that has a terminal — `CLAUDECODE=1` and a TTY on stdin — a missing required value is refused with a usage error naming the flag (`--x is required when nobody is there to answer`) instead of prompting and hanging the agent. `FORCE_TTY=1` now prompts even without a terminal on stdin, as it does for burgee.
+  - `caique/inquirer`'s tick and `flagstaff/ora`'s log symbols and spinner fallback use roundel's `unicode()`. caique's copy was a four-condition subset: the Linux console (`TERM=linux`) now gets `√` rather than `✔`, and ConEmu/Cmder, Terminus, Alacritty, rxvt-unicode and JetBrains' terminal on Windows now get `✔`, as `figures` draws them.
+  - `burgee` help colour is roundel's `colorLevel(rt) > 0`. **Behaviour changes:** `NO_COLOR` now beats `FORCE_COLOR`; `--no-color` and `--color=…` on the command line are honoured; `CLI_ACCESSIBLE` turns help colour off; and a terminal that sets no `TERM` (Windows' conhost) gets plain help unless `FORCE_COLOR`, `--color` or `COLORTERM` asks for colour.
+  - `burgee/contrast` rounds with roundel's `round2`; no output changes.
+  - `paratext`: the supports-color fork behind `paratext/terminal-link` is unchanged, and now held to roundel's policy by a parity test everywhere their two incumbents agree.
+
 ## 0.7.2
 
 ### Patch Changes
