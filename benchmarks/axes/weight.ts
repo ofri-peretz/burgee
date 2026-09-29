@@ -496,6 +496,12 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // the entry now carries what the incumbent carries. The ceiling below it was set against an
   // entry with none of it. Measured 8,430.
   paratext: 8_450,
+  // bellpull R8, first measured 2026-09-27 (GAPS A10, D-160): `run` bundles to **5,901** bytes
+  // against tinyexec 1.3.1's `x` at **5,969** — 0.989, so the ratio gate stays at the default 1
+  // and it is R8's bytes half, met. This ceiling is the ratchet beside it: the measurement plus
+  // the 80 B CI reads over local, rounded up to the next fifty. It sits above tinyexec on
+  // purpose — the ratio is the bar, and it is the tighter of the two.
+  bellpull: 6_000,
 };
 
 /**

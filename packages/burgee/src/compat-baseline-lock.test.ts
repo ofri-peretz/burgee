@@ -57,7 +57,12 @@ describe('the graded numbers migrate reports', () => {
     // Restated 2026-09-23 (A12): it was commander and yargs, the two hosts `migrate`
     // rewrote. It now rewrites every level drop-in and reports the rest, so every graded
     // host needs its row — a mapping without one would print a blank where the grade goes.
-    const baselines = readdirSync(BASELINE).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -'.json'.length));
+    // Less a fragment marked `"ceiling": true` (D-160): its target is not a drop-in, so
+    // `migrate` has nothing to rewrite or report for it and no row to print a grade beside.
+    const baselines = readdirSync(BASELINE)
+      .filter((f) => f.endsWith('.json'))
+      .filter((f) => (JSON.parse(readFileSync(resolve(BASELINE, f), 'utf8')) as { ceiling?: boolean }).ceiling !== true)
+      .map((f) => f.slice(0, -'.json'.length));
     expect(Object.keys(GRADED).sort()).toEqual(baselines.sort());
   });
 

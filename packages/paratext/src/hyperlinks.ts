@@ -91,7 +91,7 @@ function colorByTerminal(env: Env, platform: string): boolean | undefined {
 }
 
 /** Whether `supports-color` reports any level at all — the only thing hyperlinks asks of it. */
-function hasColor(env: Env, argv: readonly string[], platform: string, isTTY: boolean): boolean {
+export function hasColor(env: Env, argv: readonly string[], platform: string, isTTY: boolean): boolean {
   const force = forcedColor(env, argv);
   if (force === 0) return false;
   if (anyFlag(argv, DEEP_COLOR_FLAGS) || (has(env, 'TF_BUILD') && has(env, 'AGENT_NAME'))) return true;

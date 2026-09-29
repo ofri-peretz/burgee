@@ -23,6 +23,17 @@ export interface HostImport {
    * object from `burgee/yargs/parser`.
    */
   control?: string;
+  /**
+   * Rewrite a **bare** specifier only where a module is named — `from 'x'`, `import('x')`,
+   * `require('x')` — as a dots-only one always is, rather than every quoted occurrence.
+   *
+   * A bare name that is also an ordinary string in the suite needs it. execa's
+   * `graceful-*.js` fixtures `import … from 'execa'` (a self-reference upstream, the installed
+   * incumbent here), and `test/verbose/info.js` sets `env: {NODE_DEBUG: 'execa'}` and asserts
+   * what that value does. The literal replace reached both, set `NODE_DEBUG` to a shim path,
+   * and failed three of its fifteen cases against execa itself (measured 2026-09-27).
+   */
+  namedOnly?: boolean;
 }
 
 /**
@@ -343,6 +354,18 @@ export interface Host {
   shim?: 'cjs';
   /** Our entry point graded against it. */
   target: string;
+  /**
+   * Set when the target is **not a drop-in** for the incumbent and never will be, and the row
+   * is graded to publish how far apart they are: a ceiling, with its reason here.
+   *
+   * Every other graded row is a drop-in pair, level or not yet — `burgee migrate` rewrites the
+   * level ones and reports the rest as a path that exists, and `migrate-drop-ins-lock.test.ts`
+   * holds `DROP_INS` equal to every row with a baseline. A row like this one is left out of
+   * both, because reporting it would name a path that does not exist. The baseline fragment
+   * carries `"ceiling": true` so the locks that read the directory as text can tell, and
+   * `baseline-scope.test.ts` holds the two in step. execa is the one (bellpull spec R7).
+   */
+  ceiling?: string;
   status: 'active' | 'planned' | 'rejected';
   /** Why, for anything not active. */
   note?: string;
@@ -353,6 +376,15 @@ export interface Host {
    */
   majorOf?: string;
 }
+
+/**
+ * execa's suite directories that are vendored and deliberately not graded (D-160). One reason
+ * for all nine, because it is one reason: the suite is too large to run here, and the target
+ * could not pass a case in any of them.
+ */
+const EXECA_UNGRADED = ['convert', 'io', 'ipc', 'pipe', 'resolve', 'stdio', 'terminate', 'transform', 'verbose'];
+const EXECA_UNGRADED_WHY =
+  "Vendored and not graded, for cost. execa's suite is 5,125 cases run one file at a time (upstream's own `concurrency: 1`), and the control measured **647 s** across the twelve directories on 2026-09-27 — past the oracle's 300 s cap on one suite run, and more than half of the ratchet job's 20 minutes on its own. The graded slice is `arguments/`, `methods/` and `return/`: how a command is built, the entry points, and the result and error a caller reads, which is the whole of what bellpull's `run` overlaps with execa (bellpull R1, R6). Nothing is hidden by leaving these out: graded over all 149 files the same day, `bellpull` passed **0** — every file imports `execa`, which bellpull does not export, and fails at link time. D-160.";
 
 export const HOSTS: Host[] = [
   {
@@ -576,6 +608,66 @@ export const HOSTS: Host[] = [
     target: 'bellpull',
     status: 'active',
     note: "Vendored 2026-09-23 at 7.0.0. The row grades `bellpull/node-which`, node-which's own API as its own entry beside `bellpull/which`'s `whichSync` family: `all`, `nothrow`, `path`, `pathExt`, `delimiter`, Windows' working-directory-first search and its extension list, quoted `PATH` parts, and the `ENOENT` error. The platform is read per call rather than at load, which is what lets one ESM module answer a suite that flips `process.platform` between cases.",
+  },
+  {
+    // execa — the third of bellpull's R9 suites (GAPS A10, D-160). Graded against the package
+    // root `bellpull`, because there is no execa façade and a row may not name one before it
+    // exists (D-006, D-007): bellpull's `run` *resolves* on a non-zero exit where execa throws,
+    // which is the product, so an `execa` override would silently stop every caller's error
+    // path firing (bellpull spec R7). The number this row carries is therefore a ceiling with
+    // its reason, not a target somebody is working towards.
+    name: 'execa',
+    repo: 'https://github.com/sindresorhus/execa',
+    testDir: 'test',
+    testGlob: '*.js',
+    imports: [
+      // Every test file, one or two directories down, reaches `../../index.js`.
+      { upstream: '../index.js', subpath: '', reexportDefault: false },
+      // The `graceful-*.js` fixtures import execa by its own name, which upstream is a
+      // self-reference and here would be the installed incumbent on a *target* run too.
+      { upstream: 'execa', subpath: '', reexportDefault: false, namedOnly: true },
+    ],
+    // Upstream's devDependencies at the release's ranges, pinned exactly, plus the incumbent
+    // for the control and the runner its suite is written for — and five of execa's own
+    // dependencies the tests import by name (`figures`, `get-stream`, `is-plain-obj`,
+    // `is-stream`, `which-command`), pinned here rather than left to whatever the hoist supplies.
+    suiteDeps: [
+      'execa@10.0.1',
+      'ava@8.0.1',
+      'figures@6.1.0',
+      'get-stream@9.0.1',
+      'is-plain-obj@4.1.0',
+      'is-stream@4.0.1',
+      'which-command@0.1.0',
+      'get-node@15.0.4',
+      'is-in-ci@2.0.0',
+      'is-running@2.1.0',
+      'log-process-errors@12.0.1',
+      'path-exists@5.0.0',
+      'path-key@4.0.0',
+      'tempfile@6.0.1',
+    ],
+    // Upstream's own `ava` block: one file at a time, in a child process, and the long timeout
+    // its subprocess-heavy cases were written against.
+    avaConfig: { timeout: '240s', concurrency: 1, workerThreads: false },
+    ungradedDirs: [
+      {
+        dir: 'fixtures',
+        why: 'The programs the tests spawn — `noop.js`, `forever.js`, `ipc-echo.js` and a hundred and forty more. ava excludes a `fixtures` directory by convention; running one as a test grades nothing, and several never exit.',
+      },
+      {
+        dir: 'helpers',
+        why: 'Modules the tests import (`fixtures-directory.js`, `stdio.js`, `verbose.js` …). ava excludes a `helpers` directory by convention; each one declares no case of its own.',
+      },
+      ...EXECA_UNGRADED.map((dir) => ({ dir, why: EXECA_UNGRADED_WHY })),
+    ],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'ava',
+    target: 'bellpull',
+    ceiling:
+      "bellpull ships no execa API and will not: `run` resolves a record on a non-zero exit where execa throws, so an execa façade would silently stop every caller's error path firing (bellpull spec R7). The row is graded to publish that distance as a number rather than as a sentence — every graded file imports `execa`, which `bellpull` does not export, and fails at link time.",
+    status: 'active',
+    note: "Vendored 2026-09-27 at 10.0.1 (GAPS A10, D-160). **Target `bellpull` 0 / 1048, control 1048 / 1048** over `arguments/`, `methods/` and `return/`; the other nine directories are vendored and named in `ungradedDirs` with the cost that keeps them out. Every graded file fails at link time against the target — `The requested module '../../shim.js' does not provide an export named 'execa'` — and the same was measured over all 149 files, so the zero is the whole suite's and not the slice's. This is a ceiling by design, not a façade in progress: see `ceiling`. The one rewrite this row needed was `namedOnly` on the bare `execa` import, because `test/verbose/info.js` also uses the word as a `NODE_DEBUG` value.",
   },
   {
     // The host with no parseable output, and the reason `mode: "exit-code"` exists.
@@ -949,7 +1041,7 @@ export const HOSTS: Host[] = [
     runner: 'vitest',
     target: 'caique/clack',
     status: 'active',
-    note: "**Read the denominator before the number: this row publishes 17, not 606, and the subtraction is declared above.** Measured 2026-09-08 at 1.8.0 and re-counted 2026-09-20: 289 of the suite's 444 assertions are `toMatchSnapshot()`, in 17 of its 19 files. Those seventeen grade clack's exact drawing, and a façade matching them frame for frame would *be* clack — which caique's design rejects for a stated reason, that clack \"has no static projection to give\" (U3). D-001 chose the `cli-table3` shape over publishing 0 / 606: subtract the drawings as a declared subset with the reason written in. **A named subtraction was possible here and is not possible everywhere** — vitest's `tap-flat` prints one named line per case, so `summarize()` can name what it removes and `requireMatch` makes the control red if a file is renamed upstream; ava's TAP prints counts and no names, which is why `ansi-escapes`' ceiling is prose instead. Control **17 / 17** after the subtraction (576 / 606 before it, the 30 being `path.test.ts`, now excluded as a drawing rather than allowed as a control failure). Target `caique/clack` **14 / 17, 82.4%**, and the missing three are a **ceiling, not a shortfall**: they are all of `guide.test.ts`. Two of them require every one of clack's twelve prompts to render a frame whose first line is its grey bar, which is the drawing this row subtracts by decision. The third calls `updateSettings({ withGuide: false })` **imported from `@clack/core`** and asserts our prompts obey it — module-level state inside a package caique does not depend on and cannot read, so no implementation of ours passes it without taking the dependency U6 forbids. The row named `caique`, the package root, and measured 0 / 606 until `caique/clack` was built on 2026-09-20; it moved the same day, which is D-007 (never name a façade before it exists) and D-006 (a root can never match an incumbent) in one edit.",
+    note: "**Read the denominator before the number: this row publishes 17, not 606, and the subtraction is declared above.** Measured 2026-09-08 at 1.8.0 and re-counted 2026-09-20: 289 of the suite's 444 assertions are `toMatchSnapshot()`, in 17 of its 19 files. Those seventeen grade clack's exact drawing, and a façade matching them frame for frame would *be* clack — which caique's design rejects for a stated reason, that clack \"has no static projection to give\" (U3). D-001 chose the `cli-table3` shape over publishing 0 / 606: subtract the drawings as a declared subset with the reason written in. **A named subtraction was possible here and is not possible everywhere** — vitest's `tap-flat` prints one named line per case, so `summarize()` can name what it removes and `requireMatch` makes the control red if a file is renamed upstream; ava's TAP prints counts and no names, which is why `ansi-escapes`' ceiling is prose instead. Control **17 / 17** after the subtraction (576 / 606 before it, the 30 being `path.test.ts`, now excluded as a drawing rather than allowed as a control failure). Target `caique/clack` **16 / 17, 94.1%** since D-152 (2026-09-27; 14 / 17 before it). The two `guide.test.ts` cases that render all twelve of clack's prompts were written off here as \"the drawing\" while `caique/clack` exported only `limitOptions`; they grade that the twelve prompts exist, take clack's options and streams, cancel on escape and draw clack's layout with and without `withGuide`, which is the drop-in, and they pass now that the twelve are built on caique's own keypress loop. **The one case left is a ceiling, not a shortfall:** `no prompt renders a guide when withGuide is globally false` calls `updateSettings({ withGuide: false })` **imported from `@clack/core`** and asserts our prompts obey it — module-level state inside a package caique does not depend on and cannot read, so no implementation of ours passes it without taking the dependency U6 forbids. `caique/clack` exports its own `updateSettings`, which its prompts do obey. The row named `caique`, the package root, and measured 0 / 606 until `caique/clack` was built on 2026-09-20; it moved the same day, which is D-007 (never name a façade before it exists) and D-006 (a root can never match an incumbent) in one edit.",
   },
   {
     // 2.16: the testable unit of the inquirer monorepo, and the decision that came with it.

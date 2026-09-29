@@ -12,11 +12,16 @@ It replaces **commander** and **yargs**: `burgee/commander` and `burgee/yargs` a
 graded by each one's own test suite. Change one import and the same program answers agents
 too — `--json` for results, `--schema` for the command tree, `--mcp` for an MCP server.
 
-## Start here
+## Install
 
 ```bash
 npm install burgee
+pnpm add burgee
+yarn add burgee
+bun add burgee
 ```
+
+## Quick start
 
 ```js
 // cli.mjs — the whole CLI
@@ -60,33 +65,6 @@ defineCommand()  ──▶  manifest  ──┬──▶  human help
 
 Nothing here needs keeping in sync, because nothing is written twice.
 
-## Already on commander?
-
-Drop-in compatible with both incumbents, graded by **their own test suites** — 1,360 / 1,360
-of commander's tests and 804 / 804 of yargs' on the
-[compatibility page](https://burgee.interlace.tools/docs/compatibility) — with the pass rate
-published and ratcheting:
-
-```diff
-- import { Command } from 'commander';
-+ import { Command } from 'burgee/commander';
-```
-
-Your code and your tests are unchanged. A façade is never called "compatible" until its
-host's own suite passes 100%; below that the rate is published instead of claimed.
-
-Or let the codemod make that change, and the same one for chalk, ora, string-width,
-cross-spawn, signal-exit and every other incumbent the family replaces at full grade:
-
-```bash
-npx burgee migrate --dry-run
-npx burgee migrate
-```
-
-It rewrites import specifiers and nothing else, leaves a replacement that is not level yet
-alone with its grade, refuses a file it cannot rewrite whole, and prints the install command
-to run next — [Migrate](https://burgee.interlace.tools/docs/migrate).
-
 ## What is in the box
 
 | Import | Gives you |
@@ -114,6 +92,70 @@ declared — and `effects`, which every runnable command declares. `definePlugin
 `contract` this burgee was compiled against; an object that reaches `use()` without one is
 refused rather than accepted on trust, because burgee's extension point shipped before it
 validated anything.
+
+## Migrating
+
+Already on commander or yargs? Change one import:
+
+```diff
+- import { Command } from 'commander';
++ import { Command } from 'burgee/commander';
+```
+
+```diff
+- import yargs from 'yargs';
++ import yargs from 'burgee/yargs';
+```
+
+Your code and your tests are unchanged.
+
+Or let the codemod make that change, and the same one for chalk, ora, string-width,
+cross-spawn, signal-exit and every other incumbent the family replaces at full grade:
+
+```bash
+npx burgee migrate --dry-run
+npx burgee migrate
+```
+
+It rewrites import specifiers and nothing else, leaves a replacement that is not level yet
+alone with its grade, refuses a file it cannot rewrite whole, and prints the install command
+to run next — [Migrate](https://burgee.interlace.tools/docs/migrate).
+
+## Compatibility
+
+Drop-in compatible with both incumbents, graded by **their own test suites** — 1,360 / 1,360
+of commander's tests and 804 / 804 of yargs' on the
+[compatibility page](https://burgee.interlace.tools/docs/compatibility) — with the pass rate
+published and ratcheting. A façade is never called "compatible" until its host's own suite
+passes 100%; below that the rate is published instead of claimed.
+
+## Benchmarks
+
+Every number here is produced by `npm run bench` and published at [burgee.interlace.tools/docs/benchmarks](https://burgee.interlace.tools/docs/benchmarks).
+
+Graded by the incumbent's own test suite:
+
+| suite | passing |
+| :-- | --: |
+| `commander` | 1360 / 1360 |
+| `meow` | 146 / 148 |
+| `yargs` | 804 / 804 |
+
+## For agents
+
+Every command answers the same declaration four more ways, with nothing written by hand:
+
+- `--json` — one stable envelope, `{ ok, data, meta }`, with the provenance of every option.
+- `--schema` — the whole command tree as data, versioned, one document per surface.
+- `--mcp` — the same manifest served as MCP tools over stdio; each tool's `effects` becomes its
+  MCP hints, and `withheld` keeps a command out of the list.
+- **Exit `2`** when the *command* was wrong, with a `hint:` — so an agent rewrites the command
+  rather than retrying it.
+
+[Your CLI is an agent tool](https://burgee.interlace.tools/docs/agent-surfaces) has each
+surface; the docs themselves are at
+[burgee.interlace.tools/llms.txt](https://burgee.interlace.tools/llms.txt) and
+[llms-full.txt](https://burgee.interlace.tools/llms-full.txt).
 
 ## Status
 
@@ -164,29 +206,45 @@ None outside the burgee family. `burgee` installs five packages from that family
 nothing from outside it either: one repository, one release pipeline, one supply chain to
 audit.
 
----
+## API
 
-Part of the [burgee](https://github.com/ofri-peretz/burgee) family: a CLI on burgee declares
-what it is, [roundel](https://www.npmjs.com/package/roundel) carries its colours,
-[flagstaff](https://www.npmjs.com/package/flagstaff) flies it, and
-[caique](https://www.npmjs.com/package/caique) answers back. Each is an independent package;
-none requires the others.
+The entry points are under [What is in the box](#what-is-in-the-box); the reference, with every
+option and type, is at [burgee.interlace.tools](https://burgee.interlace.tools/docs/packages/burgee).
 
-MIT © Ofri Peretz — see [LICENSE](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/LICENSE).
-
-## Benchmarks
-
-Every number here is produced by `npm run bench` and published at [/docs/benchmarks](/docs/benchmarks).
-
-Graded by the incumbent's own test suite:
-
-| suite | passing |
-| :-- | --: |
-| `commander` | 1360 / 1360 |
-| `meow` | 146 / 148 |
-| `yargs` | 804 / 804 |
 ## Where it sits
 
 Plugins register under the `commands` and `hooks` keys, against the one schema the whole family shares.
 
 Nothing in this family builds on it yet, and it builds on `bellpull`, `closeout`, `linegauge`, `roundel`, `seniority`.
+
+## The family
+
+Nine packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
+carries its colours, flagstaff flies it and caique answers back; each installs on its own, and none
+takes a dependency from outside the family.
+
+| Package | What it is | Replaces |
+| :-- | :-- | :-- |
+| **burgee** (this package) | The CLI framework: one declaration, every surface | commander and yargs |
+| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk |
+| [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
+| [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | inquirer and clack |
+| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi and slice-ansi |
+| [paratext](https://paratext.interlace.tools/docs) | Hyperlinks, images, title, clipboard and notifications | ansi-escapes, terminal-link and term-img |
+| [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, dotenv and rc |
+| [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook and restore-cursor |
+| [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
+
+Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
+and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on
+[burgee.interlace.tools](https://burgee.interlace.tools/docs/packages).
+
+## Contributing
+
+Issues and pull requests are welcome at [ofri-peretz/burgee](https://github.com/ofri-peretz/burgee/issues); read
+[CONTRIBUTING.md](https://github.com/ofri-peretz/burgee/blob/main/CONTRIBUTING.md) first. Report a vulnerability privately, as
+[SECURITY.md](https://github.com/ofri-peretz/burgee/blob/main/SECURITY.md) describes — never in a public issue.
+
+## Licence
+
+MIT © Ofri Peretz — see [LICENSE](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/LICENSE).

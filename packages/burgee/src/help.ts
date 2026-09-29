@@ -20,7 +20,7 @@
  */
 import { styleText } from 'node:util';
 
-import { width as displayWidth, widest } from 'linegauge';
+import { width as displayWidth, widest, wrap as fold } from 'linegauge';
 
 import type { ArgumentSpec, CommandNode, Example, Manifest, OptionSpec } from './manifest.js';
 import { flagsOf, kebab } from './names.js';
@@ -222,44 +222,20 @@ function usageLine(node: CommandNode, root: string[], hasChildren: boolean, pain
 /**
  * Word-wrap one paragraph; lines the author indented are kept verbatim (yargs #2120).
  *
- * The running `used` is the width of `current` in columns, carried rather than recomputed:
- * measuring the accumulated line once per word would make a long paragraph quadratic.
+ * The folding is `linegauge`'s `wrap`, not a loop of this file's own: this used to carry a
+ * greedy fold at single spaces, measured with linegauge's `width`, which is the job
+ * `linegauge/wrap` exists for — and which it does across styled text and hyperlinks too.
+ * `hard: false` because a word wider than the row is left to overflow rather than broken: a
+ * help epilogue is mostly URLs. Rows are trimmed, which is what the fold at spaces did.
  */
 export function wrap(text: string, width: number): string[] {
   const out: string[] = [];
   for (const line of text.split('\n')) {
     // Kept verbatim: a line the author indented, and a line that already fits.
     if (/^\s/.test(line) || displayWidth(line) <= width) out.push(line);
-    else out.push(...wrapLine(line, width));
+    else out.push(...fold(line, width, { hard: false }).split('\n'));
   }
   return out;
-}
-
-/**
- * Greedily fold one over-long line at its spaces. A word wider than the row is left to
- * overflow rather than broken — `linegauge`'s own `wrap` defaults to `hard: false` for the
- * same reason, and a help epilogue is mostly URLs.
- */
-function wrapLine(line: string, width: number): string[] {
-  const rows: string[] = [];
-  let current = '';
-  let used = 0;
-  for (const word of line.split(' ')) {
-    const w = displayWidth(word);
-    if (current === '') {
-      current = word;
-      used = w;
-    } else if (used + 1 + w > width) {
-      rows.push(current);
-      current = word;
-      used = w;
-    } else {
-      current = `${current} ${word}`;
-      used += 1 + w;
-    }
-  }
-  rows.push(current);
-  return rows;
 }
 
 /** One term column for the whole help, sized to the longest term up to 40% of the width (R3). */

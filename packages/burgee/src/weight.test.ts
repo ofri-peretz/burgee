@@ -372,7 +372,9 @@ const RULES: Record<string, EntryRule> = {
   // 39,911 on 2026-09-24 for U5 — the same surfaces as `.`. Measured 39,831.
   // 39,080 on 2026-09-24 for U5 — the same config layers as `.`. Measured 39,000.
   // 39,200 on 2026-09-24 for U5 merged with N15 (#586) — the same engine bytes as `.`. Measured 39,120.
-  "./testing": { allow: ["closeout", "seniority/precedence"], budget: 39_200, denied: ["dev.js", "migrate.js"] },
+  // `linegauge/strip` on 2026-09-28: `stripAnsi` is linegauge's `strip` rather than a regex
+  // that missed private modes, the colon SGR form and OSC 8. Measured 39,150 (+8).
+  "./testing": { allow: ["closeout", "linegauge/strip", "seniority/precedence"], budget: 39_200, denied: ["dev.js", "migrate.js"] },
   // 48,900 with D-140 and #521 on top of S4 — the same engine bytes as `.`. Measured 48,880.
   // 48,750 with D-140 on top of D-122 and #521 — the same engine bytes as `.`. Measured 48,746.
   // 48,200 on 2026-09-23 for P2/P3 — the same engine bytes as `.`. Measured 48,161.
@@ -389,6 +391,7 @@ const RULES: Record<string, EntryRule> = {
   // bytes of vendor table. Measured 8,911.
   // 9,130 on 2026-09-27 for D-151: the root's help names `--schema` (clispec.dev's
   // `help-mentions-schema`), one row and the root-or-not choice. Measured 9,085 (+174).
+  // Measured 8,570 (-503) on 2026-09-28: the word wrap is `linegauge`'s `wrap`, not a loop here.
   "./help": {
     allow: ["linegauge"],
     budget: 9_130,
@@ -525,7 +528,10 @@ const RULES: Record<string, EntryRule> = {
    * itself rather than its meow-shaped door.
    */
   "./meow": {
-    allow: [],
+    // `seniority/find-up` on 2026-09-28: the package.json walk is seniority's, bounded and
+    // cycle-safe, instead of a loop here. Measured 61,513 (-79) on disk; the bundled door
+    // grows 25,044 -> 25,744 B, the walk's symlink and depth guards it did not have.
+    allow: ["seniority/find-up"],
     // 60,000 on 2026-09-23 with D-140 and #521 on top of main's A29 exports. Measured 59,931.
     // 61,300 on 2026-09-27 for **1,345 bytes**: meow's suite 132 → 146 / 148, level with its
     // control. Unknown flags checked as tokens (`help`/`version as an unknown flag`, `commands do

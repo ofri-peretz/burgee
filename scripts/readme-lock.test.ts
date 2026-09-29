@@ -9,7 +9,10 @@
  *
  * Two sections are written by `scripts/readme-benchmarks.ts` rather than by hand: `##
  * Benchmarks`, which quotes what was measured, and `## Where it sits`, which says which key
- * plugins register under and what is above and below the package in the family. Both are
+ * plugins register under and what is above and below the package in the family. (Since
+ * 2026-09-27 it also writes the badge rows, `## The family`, `## Contributing` and `## Licence`;
+ * the drift check below covers them the same way, and `package-readme-header-lock.test.ts`
+ * holds the shape.) Both are
  * derived — from `baseline/`, from `.sdlc/bands/foundation-ceilings.json`, from each
  * package's `export interface Plugin`, and from the manifests' own dependency edges.
  *
