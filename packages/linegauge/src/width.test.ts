@@ -322,8 +322,11 @@ describe('zero-width clusters are measured in linear time, and as the regexes me
     expect(elapsed(() => expect(width(`${'\u034F'.repeat(1000)}\u{1F3FB}`)).toBe(2))).toBeLessThan(100);
   });
 
-  it('measures 3,000,000 joiners without backtracking or a RangeError', () => {
-    expect(elapsed(() => expect(width(`${'\u034F'.repeat(3_000_000)}\u0903`)).toBe(1))).toBeLessThan(2000);
-    expect(elapsed(() => expect(width('\u034F'.repeat(3_000_000))).toBe(0))).toBeLessThan(2000);
+  // About 0.2 s on a laptop and 2–3 s on a shared CI runner (2,100 ms on ubuntu, 3,108 ms on
+  // macos, 2026-09-29). The regex this replaced did not finish 1,000 joiners in ten minutes, so
+  // 15 s still fails any return of the backtracking by orders of magnitude.
+  it('measures 3,000,000 joiners without backtracking or a RangeError', { timeout: 60_000 }, () => {
+    expect(elapsed(() => expect(width(`${'\u034F'.repeat(3_000_000)}\u0903`)).toBe(1))).toBeLessThan(15_000);
+    expect(elapsed(() => expect(width('\u034F'.repeat(3_000_000))).toBe(0))).toBeLessThan(15_000);
   });
 });
