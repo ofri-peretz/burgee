@@ -1,0 +1,97 @@
+---
+title: Slicing and truncating
+description: "slice() cuts a column range that closes its own styles and never splits a grapheme cluster; truncate() shortens to a budget with the ellipsis counted inside it, from the end, the start or the middle."
+---
+
+Both cut styled text at a column, and both keep the same three promises: a cut never lands
+inside a grapheme cluster, a style open at the cut is reopened and closed so the result stands
+on its own, and the result is never wider than you asked for.
+
+## `slice(text, start, end)`
+
+The columns `[start, end)` of `text`. It is the default export of `linegauge/slice`, which
+slice-ansi's own suite grades, and the named export `slice` from both paths.
+
+```js title="slice.mjs"
+import { slice } from 'linegauge';
+
+const red = (s) => `\u001B[31m${s}\u001B[39m`;
+
+console.log(JSON.stringify(slice(`plain ${red('red')} plain`, 4, 8)));
+console.log(JSON.stringify(slice('a👨‍👩‍👧b', 1, 3)));
+console.log(JSON.stringify(slice('a👨‍👩‍👧b', 1, 2)));
+console.log(JSON.stringify(slice('a古b', 0, 2)));
+console.log(JSON.stringify(slice('abc', 2, 1)));
+```
+
+```text title="node slice.mjs"
+"n \u001b[31mre\u001b[39m"
+"👨‍👩‍👧"
+""
+"a"
+""
+```
+
+- **The style comes back closed.** Columns 4 to 8 start in plain text and end inside the red;
+  the red is opened where it was and closed at the cut, so the fragment printed anywhere leaves
+  no colour behind it.
+- **A cluster is atomic.** The family emoji is one cluster two columns wide. `[1, 3)` covers
+  it and returns it whole; `[1, 2)` covers half of it and returns nothing, because half an emoji
+  is not a narrower emoji.
+- **Rounded inward.** A wide character the range only half covers is dropped, as slice-ansi
+  drops it, so a slice is never wider than `end - start`.
+- **A reversed or empty range is empty**, not an error.
+
+## `truncate(text, columns, options)`
+
+`text` shortened to at most `columns` columns, **with the ellipsis counted inside the budget**.
+That is the property a table column depends on, and the one a hand-rolled truncator gets
+wrong: `truncate(s, 10)` is ten columns or fewer, never ten plus an ellipsis.
+
+```js title="truncate.mjs"
+import { truncate } from 'linegauge';
+
+const path = 'packages/linegauge/src/truncate.ts';
+const red = (s) => `\u001B[31m${s}\u001B[39m`;
+
+console.log(truncate(path, 20));
+console.log(truncate(path, 20, { position: 'start' }));
+console.log(truncate(path, 20, { position: 'middle' }));
+console.log(truncate(path, 20, { ellipsis: '...' }));
+console.log(JSON.stringify(truncate(red('a red sentence'), 8)));
+console.log(JSON.stringify(truncate('hello', 1)));
+console.log(JSON.stringify(truncate('hello', 1, { ellipsis: '...' })));
+```
+
+```text title="node truncate.mjs"
+packages/linegauge/…
+…uge/src/truncate.ts
+packages/l…uncate.ts
+packages/linegaug...
+"\u001b[31ma red s\u001b[39m…"
+"…"
+""
+```
+
+| option | default | |
+| :-- | :-- | :-- |
+| `position` | `'end'` | Which part is removed: `'end'`, `'start'` or `'middle'`. In the middle, an odd budget gives its extra column to the left. |
+| `ellipsis` | `'…'` | The mark that says something was removed. It is **measured**, not assumed to be one column: `'...'` spends three. |
+
+- Text that already fits comes back untouched.
+- When only the ellipsis fits, you get the ellipsis; when not even that fits, you get `''`
+  rather than a cut-up ellipsis.
+- The ellipsis is never painted in the caller's colour: it goes after the closing sequence, so
+  a red sentence does not end in a red `…`. cli-truncate styles it at two of its three
+  positions and not the third; `truncate.test.ts` asserts that disagreement, which is why
+  this one does not follow it.
+
+`truncate` is checked case by case against cli-truncate in `truncate.test.ts`, but it is not a
+drop-in path for it — there is no `linegauge/cli-truncate`.
+
+## Positions, not columns, at the edges
+
+`slice` counts **positions**, as slice-ansi does: every cluster is at least one, so a CRLF is a
+position of its own and a lone regional indicator is two. That keeps `linegauge/slice`
+identical to slice-ansi. `truncate` measures what it keeps with `width` instead, so it stays
+inside its budget even where positions and columns differ.

@@ -1,0 +1,50 @@
+---
+title: A server that stops gracefully
+description: "Stop accepting connections on SIGTERM, flush the access log first, and still die of the signal so the orchestrator sees a clean stop — with a deadline that bounds a connection that will not close."
+---
+
+An orchestrator sends SIGTERM and waits a grace period before SIGKILL. In that window a
+server should flush what it has buffered, stop accepting connections, and leave.
+
+```js title="server.mjs"
+import { createServer } from 'node:http';
+
+import { install } from 'closeout';
+
+const { onExit } = install({ deadline: 5000 });
+const server = createServer((_req, res) => res.end('ok'));
+const log = [];
+
+onExit(() => console.log(`flushed ${log.length} log lines`), 'flush');
+onExit(
+  () =>
+    new Promise((resolve) => {
+      server.close(() => {
+        console.log('stopped accepting connections');
+        resolve();
+      });
+    }),
+  { label: 'close-the-server' },
+);
+
+server.listen(0, () => {
+  log.push('listening');
+  console.log('listening');
+  process.kill(process.pid, 'SIGTERM'); // the orchestrator
+});
+```
+
+```text title="node server.mjs" signal="SIGTERM"
+listening
+flushed 1 log lines
+stopped accepting connections
+```
+
+- **`flush` before `release`.** The log is written while the server is still up, and the close
+  starts only after the flush has settled.
+- **Set the deadline inside the grace period.** Kubernetes waits 30 seconds by default; a
+  deadline of 5 seconds leaves the rest for the process to actually leave. A keep-alive
+  connection that holds `server.close()` open is then named on stderr —
+  `close-the-server` — instead of eating the grace period and ending in SIGKILL.
+- **It still dies of SIGTERM.** The orchestrator, and anything reading its status, sees a
+  process that stopped on request rather than one that exited with a code.

@@ -54,6 +54,7 @@
     "check:artifacts": "tsx scripts/check-published-artifacts.ts",
     "mark-lab": "node scripts/mark-lab.mts",
     "decisions": "tsx scripts/decisions.ts",
+    "ledger": "tsx scripts/ledgers.ts",
     "weight:page": "tsx scripts/subpath-weight.ts",
     "weight:converge": "node scripts/weight-converge.mjs",
     "plugins:page": "tsx scripts/plugins-page.ts"
@@ -138,7 +139,7 @@
     "roundel": "workspace:*",
     "semver": "^7.7.0",
     "slice-ansi": "^9.0.1",
-    "string-width": "^8.2.2",
+    "string-width": "^8.3.0",
     "strip-ansi": "^7.1.2",
     "supports-hyperlinks": "4.5.0",
     "terminal-link": "5.0.0",
@@ -149,7 +150,7 @@
     "vitest": "^5.0.1",
     "wcwidth": "^1.0.1",
     "which": "^2.0.2",
-    "wrap-ansi": "^10.0.1",
+    "wrap-ansi": "^10.0.2",
     "yargs": "^18.0.0",
     "yargs-parser": "^22.0.0",
     "yargs-test-extends": "^1.0.1"

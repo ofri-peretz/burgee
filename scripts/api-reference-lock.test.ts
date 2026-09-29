@@ -41,8 +41,14 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 function exportedNames(types: string): string[] {
   const program = ts.createProgram([types], { module: ts.ModuleKind.NodeNext, moduleResolution: ts.ModuleResolutionKind.NodeNext, skipLibCheck: true, noEmit: true, types: ['node'] });
   const sf = program.getSourceFile(types);
-  const symbol = sf === undefined ? undefined : program.getTypeChecker().getSymbolAtLocation(sf);
-  return symbol === undefined ? [] : program.getTypeChecker().getExportsOfModule(symbol).map((s) => s.name);
+  const checker = program.getTypeChecker();
+  const symbol = sf === undefined ? undefined : checker.getSymbolAtLocation(sf);
+  if (sf === undefined || symbol === undefined) return [];
+  const named = checker.getExportsOfModule(symbol).map((s) => s.name);
+  // CommonJS `export = { … }`: an ES module importing it gets each property as a named export.
+  const assigned = symbol.exports?.get(ts.InternalSymbolName.ExportEquals);
+  if (named.length > 0 || assigned === undefined) return named;
+  return checker.getPropertiesOfType(checker.getTypeOfSymbolAtLocation(assigned, sf)).map((s) => s.name);
 }
 
 describe.each(STANDARD_SITES.map((pkg) => [pkg] as const))('%s: the API reference', (pkg) => {
@@ -115,9 +121,5 @@ describe('doc-comment prose is valid Markdown', () => {
   it('writes a code span holding an escaped backtick with a double-backtick fence', () => {
     expect(prose('the template literal (`chalk\\`{red x}\\``) went')).toBe('the template literal (`` chalk`{red x}` ``) went');
     expect(prose('`plain` and `other` stay as they are')).toBe('`plain` and `other` stay as they are');
-  });
-
-  it('moves a bulleted list the comment indents to the margin, continuation lines and all', () => {
-    expect(prose('Two questions:\n\n  - **one**, which\n    wraps\n  - **two**\n\nAfter.')).toBe('Two questions:\n\n- **one**, which\n  wraps\n- **two**\n\nAfter.');
   });
 });

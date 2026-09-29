@@ -267,10 +267,10 @@ single local run and unconfirmed**:
 | Claim | Gate | Measured | |
 | :--- | :--- | ---: | :--- |
 | the core entry point is under 52 KB bundled | `core-under-52kb-bundled` | 24,280 bytes | ✅ met |
-| `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 0.973× | ✅ met |
+| `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 0.975× | ✅ met |
 | `burgee` is lighter than `cac` **plus what a cac user installs to match it** | `lighter-than-cac-at-parity` | 0.248× | ✅ met |
 | `burgee/commander` is lighter than `commander` **plus the same** | `lighter-than-commander-at-parity` | 0.482× | ✅ met |
-| `burgee/yargs` is lighter than `yargs` **plus the same** | `lighter-than-yargs-at-parity` | 0.545× | ✅ met |
+| `burgee/yargs` is lighter than `yargs` **plus the same** | `lighter-than-yargs-at-parity` | 0.546× | ✅ met |
 | `burgee` starts within 1.6× of `cac`, the lightest framework in the landscape (ratchet; lowered as it speeds up) | `cold-start-at-or-below-cac` | 1.443× | ✅ met |
 | `burgee/commander` stays within 1.565× of `commander` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-commander` | 1.557× | ✅ met |
 | `burgee` stays within 2.35× of `cac` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-cac` | 2.323× | ✅ met |
@@ -289,7 +289,7 @@ with:
 | :--- | ---: | ---: | ---: |
 | `cac` | 10,452 B | **97,711 B** | 24,280 B |
 | `commander` | 39,084 B | **126,354 B** | 60,848 B |
-| `yargs` | 111,213 B | **198,330 B** | 108,180 B |
+| `yargs` | 111,093 B | **198,210 B** | 108,272 B |
 
 The additions are `cosmiconfig` (find and load a config file), `exit-hook` (run cleanup on
 every path out, including a signal) and `restore-cursor` (hand the terminal back), bundled
@@ -319,11 +319,11 @@ Our `commander/command.js` is 33,487 bundled against commander's 27,226, and the
 carries a cross-platform spawn that cannot go lazy without giving up `parse()`'s synchronous
 contract and the 1360 / 1360 compat row that rests on it. And `import 'cac'` is one file in
 4.2 ms where `import 'burgee'` is twenty-one in 20 ms. Closing them means deleting the product,
-not optimising it: the analysis is [D-102](./.sdlc/DECISIONS.md), and the shrink that moved every
-non-default path behind `await import()` is [D-148](./.sdlc/DECISIONS.md).
+not optimising it: the analysis is [D-102](./.sdlc/decisions/D-102.md), and the shrink that moved every
+non-default path behind `await import()` is [D-148](./.sdlc/decisions/D-148.md).
 
 So a bar we will never meet is no longer what these rows publish. Since
-[D-157](./.sdlc/DECISIONS.md) each is a **downward-only ratchet**: a ceiling just above today's
+[D-157](./.sdlc/decisions/D-157.md) each is a **downward-only ratchet**: a ceiling just above today's
 measurement, enforced on every benchmark run, that may be lowered by anyone and raised only by
 a new decision.
 
@@ -340,9 +340,9 @@ ceiling each can move to from the latest measurement. The size comparison to lea
 the at-parity rows above; the bare rows stay on the page because a suite that only showed the
 comparisons we win would be lying by selection.
 
-The agent rows are a different gap. B1 has run once, locally ([D-147](./.sdlc/DECISIONS.md)),
+The agent rows are a different gap. B1 has run once, locally ([D-147](./.sdlc/decisions/D-147.md)),
 and neither row becomes ✅ until the weekly CI job measures it, which waits on a credential
-only the owner can mint ([D-150](./.sdlc/DECISIONS.md)).
+only the owner can mint ([D-150](./.sdlc/decisions/D-150.md)).
 
 Installed size is our largest number and it is larger than commander's. It buys no dependency
 outside the burgee family and six drop-in front ends, and it stays on the page either way: *not met* and
@@ -427,8 +427,10 @@ not yet at 100% — on the [compatibility page](https://burgee.interlace.tools/d
 Released is not the same as accepted: the four
 foundation packages began as `0.0.1` name reservations, were built out in waves F1–F4, and
 their intents under [`.sdlc/intents/cli-foundation-stack/`](./.sdlc/intents/cli-foundation-stack/)
-are still at `draft` — the human gate on the design has not run, and all ten are pre-1.0, so
-an API can still move. The `bellpull` intent carries a kill gate, because a zero-dependency
+are still at `draft` — the human gate on the design has not run. Eight of the ten are
+pre-1.0, so their APIs can still move. `linegauge` and `flagstaff` are 1.0: their public API is
+under semver, and every drop-in path each publishes is graded 100% by its incumbent's own
+suite (D-170). The `bellpull` intent carries a kill gate, because a zero-dependency
 rival already holds the weight pitch in that layer, and its spec says plainly that the package
 was built before that gate was evaluated. The measurements behind the layers are in
 [`candidate-layers.md`](./.sdlc/research/candidate-layers.md) and
@@ -490,9 +492,12 @@ determine as well as what it found.
 Four locks — shape, process-reference, weight per entry point, and the adoption ladder — are
 each proven to fail before they passed. A compat façade does not reach 1.0 until its host's
 own suite passes **100%** (`C7`): both do today, which clears that gate and not the rest —
-1.0 waits on the [floor](./apps/docs/content/docs/the-floor.mdx), 114 requirements of which
-the surfaces, the env/config/schema families and both façades are built. Until then the rate
-is published rather than the word "compatible" claimed.
+burgee's 1.0 waits on the [floor](./apps/docs/content/docs/the-floor.mdx), 114 requirements of
+which the surfaces, the env/config/schema families and both façades are built. Until then the
+rate is published rather than the word "compatible" claimed. `linegauge` and `flagstaff` have
+already met every written 1.0 criterion and are 1.0: every requirement in each spec is built
+(13 of 13 and 12 of 12), and each drop-in path passes its incumbent's own suite in full
+(D-170).
 
 ---
 

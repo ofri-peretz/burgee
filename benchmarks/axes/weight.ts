@@ -441,7 +441,10 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // builder's rejection to `fail` instead of leaving it unhandled.
   // 108,300 the same day: merging main under it moved CI's reading to 108,242, 42 B over the
   // local-only headroom above; CI reads above local, as the 60,850 entry notes.
-  'burgee/yargs': 108_300,
+  // 108,420 on 2026-09-28 for the two linegauge fixes it bundles: `width()` no longer
+  // backtracks exponentially on a run of combining joiners, and `wrap()` no longer normalizes
+  // an escape sequence into its neighbour. Measured 108,334 locally, with 80 B for CI.
+  'burgee/yargs': 108_420,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
   // bundle grows by, set where the number actually is, so the next byte is a decision.
@@ -476,11 +479,22 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // It went from 53 / 104 to 104 / 104, measured 11,546, and the ratio to slice-ansi 9 fell
   // from 1.5 to 0.789. The walk keeps its state in locals and not in an object's fields,
   // which saved 766 B that a minifier cannot take out of property names.
-  linegauge: 6_500,
+  //
+  // **2026-09-28: all three +30, for a security fix.** `width.ts` asked whether a cluster was
+  // zero-width with `^(?:DI|Control|Format|Mn|Me|Surrogate)+$`. `U+034F` is in two of those
+  // classes, so a run of them before one visible character backtracked exponentially — 26
+  // joiners took 2.4 s and 1,000 did not finish — and string-width 8.3.0's suite added the
+  // case. A code-point loop replaced both zero-width regexes, which costs +32, +30 and +29.
+  // Measured 6,448, 11,418 and 11,575 by this axis; each ceiling keeps the 80 B CI margin.
+  // `linegauge/wrap` 11,560 the same day: `wrap()` normalized the whole string to NFC, so a
+  // combining mark after an escape composed with its final byte (`ESC[31m` + U+0301 became
+  // `ESC[31ḿ`) and an OSC payload was rewritten. It normalizes only the text between
+  // sequences now, as wrap-ansi 10.0.2 does; +62, measured 11,480.
+  linegauge: 6_530,
 
-  'linegauge/wrap': 11_470,
+  'linegauge/wrap': 11_560,
 
-  'linegauge/slice': 11_650,
+  'linegauge/slice': 11_660,
 
   'linegauge/strip': 1_000,
   //
@@ -638,7 +652,11 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // `linegauge/slice` is set at 1 like `linegauge/wrap`, because its ratio against slice-ansi
   // 9.0.1 (0.789) earns it: 9 carries its own tokenizer, and `is-fullwidth-code-point` brings
   // get-east-asian-width's tables with it.
-  linegauge: 1.06,
+  // 1.08 on 2026-09-28, and most of the move is the denominator. string-width 8.3.0 bundles
+  // 6,013 against 8.2.2's 6,110, so `linegauge` at the same size read 1.067 on the bump alone;
+  // the ReDoS fix in `width()` (+32, see the byte ceiling above) takes it to 6,448 / 6,013 =
+  // 1.072, and the one step is CI's heavier build.
+  linegauge: 1.08,
 
   'linegauge/wrap': 1,
 

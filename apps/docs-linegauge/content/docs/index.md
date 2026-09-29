@@ -174,9 +174,9 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `slice-ansi` | 104 / 104 |
-| `string-width` | 229 / 229 |
+| `string-width` | 233 / 233 |
 | `strip-ansi` | 8 / 8 |
-| `wrap-ansi` | 80 / 80 |
+| `wrap-ansi` | 85 / 85 |
 
 Weight, installed and tree-inclusive: **102,653 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5282**.
 

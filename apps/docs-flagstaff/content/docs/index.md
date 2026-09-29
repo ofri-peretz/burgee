@@ -289,7 +289,8 @@ guarantee.
 ### The boxen path
 
 `flagstaff/boxen` is boxen 8's API, graded **84 / 84 by boxen's own test suite** — every one
-of whose cases is a snapshot of the exact characters the box comes out as.
+of whose cases is a snapshot of the exact characters the box comes out as. boxen 9 is out of
+scope for 1.0: it is not graded or claimed, and `burgee migrate` leaves a program on it alone.
 
 ```diff
 -import boxen from 'boxen';
