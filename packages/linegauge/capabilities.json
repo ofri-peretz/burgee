@@ -38,7 +38,7 @@
           "why": "A column range re-emits the styles active at its start and closes them at its end, so the fragment neither loses its colour nor leaks it into what follows.",
           "ours": { "status": "yes", "test": "packages/linegauge/src/slice.test.ts", "title": "closes what it opened, so the fragment is self-contained" },
           "incumbents": {
-            "string-width": { "status": "n/a", "source": "node_modules/string-width/index.js", "lacks": "slice", "note": "measures; it does not cut" },
+            "string-width": { "status": "n/a", "source": "node_modules/string-width/index.js", "lacks": "sliceAnsi", "note": "measures; it does not cut" },
             "wrap-ansi": { "status": "n/a", "source": "node_modules/wrap-ansi/index.js", "lacks": "sliceAnsi", "note": "folds text into rows; it takes no column range" },
             "strip-ansi": { "status": "n/a", "source": "node_modules/strip-ansi/index.js", "lacks": "slice", "note": "removes escape sequences; it does not cut" },
             "slice-ansi": { "status": "yes", "source": "node_modules/slice-ansi/index.js", "quote": "function undoAnsiCodes(activeStyles) {" }
