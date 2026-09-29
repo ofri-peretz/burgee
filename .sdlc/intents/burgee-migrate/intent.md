@@ -74,4 +74,4 @@ whether anything was left undone.
 ## Open questions
 
 - None. Decided 2026-09-20: the shape is settled in `spec.md`, and every scope choice is
-  closed as D-050 … D-054 in `.sdlc/DECISIONS.md`.
+  closed as D-050 … D-054 in `.sdlc/decisions/`.

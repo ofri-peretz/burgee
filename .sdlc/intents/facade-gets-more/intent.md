@@ -77,4 +77,4 @@ weight entry is 27 bytes under its ceiling and has to move; `.` must not get hea
 
 ## Open questions
 
-None. The two this raised are closed in `.sdlc/DECISIONS.md` as D-076 and D-077.
+None. The two this raised are closed in `.sdlc/decisions/` as D-076 and D-077.
