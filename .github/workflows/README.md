@@ -17,7 +17,7 @@ Node from `.nvmrc`, npm cache).
 | Workflow | Role |
 | :-- | :-- |
 | [`changesets-pr.yml`](./changesets-pr.yml) | PR: `Changeset present` — a hard gate: a PR that changes `packages/*/src` or a `package.json` and adds no changeset fails, unless labelled `skip-changeset` — or opened by Dependabot and moving only `devDependencies` in each package manifest. Main: opens / refreshes the "Version Packages" PR with the release App's token, else `RELEASE_BOT_PAT`, else `GITHUB_TOKEN` — and under `GITHUB_TOKEN` it dispatches every required-check workflow on the PR branch, mirrors each result onto the head commit as a status, then merges and dispatches the post-merge runs itself (`checks`, `land`) |
-| [`release.yml`](./release.yml) | Push to main (or dispatched by `land`): detect version diff vs npm, ordered dependencies-first by `scripts/release-order.mts` → build, and wait for `Quality Gate` + `Quality (Full) Gate` to pass on the same commit → one job publishes in that order (each package waits until its in-family dependencies are on npm) with provenance, tag, GitHub Release whose notes are that version's CHANGELOG section |
+| [`release.yml`](./release.yml) | Push to main (or dispatched by `land`): detect version diff vs npm, ordered dependencies-first by `scripts/release-order.mts` → build, and wait for `Quality Gate` + `Quality (Full) Gate` to pass on the same commit → one job publishes in that order (each package waits until its in-family dependencies are on npm) through npm trusted publishing (OIDC, no npm token — D-154) with provenance, tag, GitHub Release whose notes are that version's CHANGELOG section |
 
 The Version PR loop is continuous: every push to main that carries a changeset refreshes the one
 open Version PR, and it merges as soon as its required checks are green. Each workflow that reports
@@ -50,8 +50,8 @@ if `changesets-pr.yml`'s `checks` matrix has no row for it.
 | :-- | :-- |
 | [`codecov.yml`](./codecov.yml) | Monday 06:00 UTC and on demand — never in CI: one workspace-wide `vitest --coverage` run, uploaded once and split per package by root `codecov.yml`'s components. Reports; does not gate |
 
-Secrets: `NPM_TOKEN` (until Trusted Publishing is configured per package),
-`CLAUDE_CODE_OAUTH_TOKEN` (optional), `RELEASE_APP_PRIVATE_KEY` with the repo *variable*
+Secrets: none for npm — `release.yml` publishes through each package's npm trusted publisher (OIDC),
+and `trusted-publishing-lock.test.ts` refuses an npm token in any workflow. `CLAUDE_CODE_OAUTH_TOKEN` (optional), `RELEASE_APP_PRIVATE_KEY` with the repo *variable*
 `RELEASE_APP_ID` (preferred release credential: a GitHub App installation token, so the Version
 PR raises its own checks), `RELEASE_BOT_PAT` (the older alternative; also lets the Version PR
 self-approve) — with neither, the `GITHUB_TOKEN` fallback above runs and warns, `CODECOV_TOKEN` (required by the weekly coverage run — without it that

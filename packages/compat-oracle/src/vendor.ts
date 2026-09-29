@@ -107,6 +107,8 @@ const dotted = (p: string): string => {
 
 /** A dots-only specifier (`'..'`, `'../..'`) where a module is named; see `rewriteAt`. */
 const NAMED_DOTS = /((?:require(?:\.resolve)?|import|mock)\(\s*|from\s+|import\s+)(['"])([./]+)\2/g;
+/** Any specifier where a module is named, for an import declared `namedOnly`; see `rewriteAt`. */
+const NAMED_ANY = /((?:require(?:\.resolve)?|import|mock)\(\s*|from\s+|import\s+)(['"])([^'"\n]+)\2/g;
 
 export function rewriteAt(source: string, host: Host, { fileDir, hostDir, packageType = 'module' }: { fileDir: string; hostDir: string; packageType?: string }): string {
   const testDir = join(hostDir, host.testDir);
@@ -120,9 +122,11 @@ export function rewriteAt(source: string, host: Host, { fileDir, hostDir, packag
     // So those are rewritten only where a module is named: `require(…)`, `require.resolve(…)`,
     // `import(…)`, `*.mock(…)`, `from …`, a bare `import …`. Any other specifier is distinctive
     // enough that the literal replace, which reaches the forms nobody lists, is the safer one.
-    if (/^[./]+$/.test(upstreamHere)) {
-      return acc.replace(NAMED_DOTS, (whole: string, lead: string, quote: string, spec: string) => (spec === upstreamHere ? `${lead}${quote}${shimHere}${quote}` : whole));
-    }
+    const named = (whole: string, lead: string, quote: string, spec: string): string => (spec === upstreamHere ? `${lead}${quote}${shimHere}${quote}` : whole);
+    if (/^[./]+$/.test(upstreamHere)) return acc.replace(NAMED_DOTS, named);
+    // A bare name that is also a string value in the suite (`NODE_DEBUG: 'execa'`) opts into
+    // the same restriction; `HostImport.namedOnly` says why.
+    if (entry.namedOnly === true) return acc.replace(NAMED_ANY, named);
     return acc.replaceAll(`'${upstreamHere}'`, `'${shimHere}'`).replaceAll(`"${upstreamHere}"`, `"${shimHere}"`);
   }, source);
 }

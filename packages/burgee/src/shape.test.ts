@@ -37,10 +37,15 @@ interface Session {
   output: string;
 }
 
-/** A README's "Start here": the file it tells a stranger to write, and the transcript it promises. */
+/**
+ * A README's quick start — "Start here" on the repository's page, "Quick start" on the package's,
+ * which shares its section names with the other eight — the file it tells a stranger to write,
+ * and the transcript it promises.
+ */
 function quickstart(readme: string): { source: string; transcript: Session[] } {
   const text = readFileSync(readme, 'utf8');
-  const at = text.search(/\n## [^\n]*Start here\n/);
+  const at = text.search(/\n## [^\n]*(?:Start here|Quick start)\n/);
+  if (at === -1) throw new Error(`${readme} has no "## Start here" or "## Quick start" section to run`);
   const section = text.slice(at, text.indexOf('\n## ', at + 1));
   const transcript = (/```console\n([\s\S]*?)```/.exec(section)?.[1] ?? '')
     .trim()
@@ -58,7 +63,7 @@ function quickstart(readme: string): { source: string; transcript: Session[] } {
 }
 
 /**
- * The whole CLI. Every character a user has to write — **read from the README's "Start here"**,
+ * The whole CLI. Every character a user has to write — **read from the README's quick start**,
  * not copied from it.
  *
  * It used to be a copy, and the copy is how burgee@0.10.0 shipped a quickstart that threw: the

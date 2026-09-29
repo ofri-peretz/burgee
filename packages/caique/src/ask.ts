@@ -33,6 +33,12 @@ export interface Reader {
 
 export interface Writer {
   write(text: string): void;
+  /**
+   * How many columns the terminal behind this writer is, when it knows. Line mode never
+   * reads it; the raw renderer does, because a row wider than the terminal occupies more
+   * than one row of screen and the repaint has to climb all of them.
+   */
+  readonly columns?: number | undefined;
 }
 
 export interface Io {

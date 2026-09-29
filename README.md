@@ -253,7 +253,7 @@ published figure taken on another machine, not reproduced here.
 | :--- | ---: | ---: | ---: | ---: | ---: |
 | Runtime dependencies | **5**, none outside the burgee family | 0 | 6 | **18** | 0 |
 | Full CLI run over bare node | **+14.0 ms** | +15.3 ms | +78.5 ms | +131 ms † | +4.0 ms |
-| Installed size | 1332 KB | 203 KB | 515 KB | 912 KB † | 40 KB |
+| Installed size | 1376 KB | 203 KB | 515 KB | 912 KB † | 40 KB |
 
 The speed comes from `node:util.parseArgs` being in the standard library, not from a faster
 language: burgee is TypeScript, like both incumbents.
@@ -269,7 +269,7 @@ has never been measured**:
 | `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 0.975× | ✅ met |
 | `burgee` is lighter than `cac` **plus what a cac user installs to match it** | `lighter-than-cac-at-parity` | 0.248× | ✅ met |
 | `burgee/commander` is lighter than `commander` **plus the same** | `lighter-than-commander-at-parity` | 0.483× | ✅ met |
-| `burgee/yargs` is lighter than `yargs` **plus the same** | `lighter-than-yargs-at-parity` | 0.547× | ✅ met |
+| `burgee/yargs` is lighter than `yargs` **plus the same** | `lighter-than-yargs-at-parity` | 0.546× | ✅ met |
 | `burgee` starts at or below `cac`, the lightest framework in the landscape | `cold-start-at-or-below-cac` | 1.443× | ❌ **not met** |
 | `burgee/commander` is lighter in a user's bundle than `commander` alone | `lighter-than-commander` | 1.560× | ❌ **not met** |
 | `burgee` is lighter in a user's bundle than `cac` alone | `lighter-than-cac` | 2.321× | ❌ **not met** |
@@ -288,7 +288,7 @@ with:
 | :--- | ---: | ---: | ---: |
 | `cac` | 10,452 B | **97,711 B** | 24,261 B |
 | `commander` | 39,084 B | **126,354 B** | 60,969 B |
-| `yargs` | 111,093 B | **198,210 B** | 108,334 B |
+| `yargs` | 111,093 B | **198,210 B** | 108,315 B |
 
 The additions are `cosmiconfig` (find and load a config file), `exit-hook` (run cleanup on
 every path out, including a signal) and `restore-cursor` (hand the terminal back), bundled

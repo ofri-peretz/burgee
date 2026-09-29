@@ -12,10 +12,24 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/flagstaff"><img src="https://img.shields.io/npm/v/flagstaff?style=flat-square&color=0a6b47" alt="npm version" /></a>
-  <img src="https://img.shields.io/badge/dependencies-4%20in--family-0a6b47?style=flat-square" alt="Four dependencies, all in this repository: closeout, linegauge, paratext, roundel" />
-  <img src="https://img.shields.io/badge/Node.js-20.19%2B%20%7C%2022.13%2B-green.svg?style=flat-square" alt="Node.js 20.19+ or 22.13+" />
-  <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT" />
+  <a href="https://www.npmjs.com/package/flagstaff"><img src="https://img.shields.io/npm/v/flagstaff?style=flat-square&color=0a6b47" alt="flagstaff on npm: the latest version" /></a>
+  <a href="https://www.npmjs.com/package/flagstaff"><img src="https://img.shields.io/npm/dm/flagstaff?style=flat-square" alt="flagstaff downloads per month on npm" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/actions/workflows/quality.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/ofri-peretz/burgee/quality.yml?branch=main&style=flat-square&label=Quality%20Gate" alt="Quality Gate: the CI status of main" /></a>
+  <a href="https://app.codecov.io/gh/ofri-peretz/burgee/components"><img src="https://img.shields.io/codecov/c/github/ofri-peretz/burgee/main?component=flagstaff&style=flat-square" alt="flagstaff line coverage: its Codecov component" /></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/ofri-peretz/burgee"><img src="https://img.shields.io/ossf-scorecard/github.com/ofri-peretz/burgee?style=flat-square&label=OpenSSF%20Scorecard" alt="OpenSSF Scorecard for the repository" /></a>
+  <a href="https://www.npmjs.com/package/flagstaff?activeTab=code"><img src="https://img.shields.io/npm/unpacked-size/flagstaff?style=flat-square" alt="Unpacked size of the latest flagstaff release on npm" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/package.json"><img src="https://img.shields.io/badge/dependencies-4%20in%20family%2C%200%20outside-0a6b47?style=flat-square" alt="Four dependencies, all in the burgee family (closeout, linegauge, paratext, roundel), none outside it" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/package.json"><img src="https://img.shields.io/badge/types-included-blue?style=flat-square" alt="TypeScript types included for every entry point" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/package.json"><img src="https://img.shields.io/badge/Node.js-20.19%2B%20%7C%2022.13%2B-green?style=flat-square" alt="Node.js 20.19+ or 22.13+" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License: MIT" /></a>
+  <a href="https://www.npmjs.com/package/flagstaff#provenance"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fregistry.npmjs.org%2Fflagstaff%2Flatest&query=%24.dist.attestations.provenance~&label=npm&style=flat-square&color=0a6b47" alt="Published to npm with provenance, read live from the registry attestation of the latest release" /></a>
+</p>
+
+<p align="center">
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/boxen%20suite-84%2F84-0a6b47?style=flat-square" alt="flagstaff/boxen passes 84 of 84 cases of the boxen test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/cli--table3%20suite-29%2F29-0a6b47?style=flat-square" alt="flagstaff/cli-table3 passes 29 of 29 cases of the cli-table3 test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/log--update%20suite-99%2F99-0a6b47?style=flat-square" alt="flagstaff/log-update passes 99 of 99 cases of the log-update test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/ora%20suite-99%2F99-0a6b47?style=flat-square" alt="flagstaff/ora passes 99 of 99 cases of the ora test suite" /></a>
 </p>
 
 <p align="center">
@@ -29,15 +43,27 @@ log an agent reads back. Ink fixes the terminal by shipping React and a layout e
 it, changes it and lowers it, and a **static projection** that is what every mode but the
 terminal gets — one line per state on a pipe, one event per transition under `--json`,
 plain text for a screen reader. Plugins are data. No layout engine. Four dependencies, all
-from this repository: [roundel](../roundel/README.md), [paratext](../paratext/README.md),
-[linegauge](../linegauge/README.md) and [closeout](../closeout/README.md).
+from this repository: [roundel](https://github.com/ofri-peretz/burgee/blob/main/packages/roundel/README.md), [paratext](https://github.com/ofri-peretz/burgee/blob/main/packages/paratext/README.md),
+[linegauge](https://github.com/ofri-peretz/burgee/blob/main/packages/linegauge/README.md) and [closeout](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/README.md).
+
+It replaces **ora**, **log-update**, **boxen** and **cli-table3**, each through a drop-in path
+graded by the incumbent's own suite — see [Migrating](#migrating).
 
 A **flagstaff** is the simplest part of the whole apparatus and the only one that is always
 in view: a flag is hoisted on it, held there, changed, and lowered when it is done. That is a
 terminal render loop — the place frames are hoisted, held, changed and lowered, in view of
 whoever is reading.
 
-## Use
+## Install
+
+```bash
+npm install flagstaff
+pnpm add flagstaff
+yarn add flagstaff
+bun add flagstaff
+```
+
+## Quick start
 
 ```js
 import { hoist } from 'flagstaff/loop';
@@ -73,7 +99,7 @@ can assert byte for byte.
 
 ### The plugin host
 
-A plugin is one plain object, validated against [`schema.json`](./src/schema.json) — the
+A plugin is one plain object, validated against [`schema.json`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/schema.json) — the
 same file that ships in the tarball — and registered once:
 
 ```js
@@ -141,133 +167,6 @@ table([['ora', '99'], ['log-update', '99']], { head: ['host', 'tests'] });
 No layout engine, and there will not be one: these measure with `width()`, wrap with
 `wrap()`, and join strings.
 
-### The ora path
-
-`flagstaff/ora` is ora 9's whole API, graded **99 / 99 by ora's own test suite** through
-[`compat-oracle`](../compat-oracle/README.md). One import changes:
-
-```diff
--import ora from 'ora';
-+import ora from 'flagstaff/ora';
-```
-
-Everything else stays: `ora({ text, spinner, color, indent, prefixText, suffixText })`,
-`.start() .stop() .succeed() .fail() .warn() .info() .stopAndPersist()`, `oraPromise()`,
-the `spinners` corpus, the stream hooks that keep a `console.log` above the frame, the
-synchronized-output sequences, the render deferral, the stdin discarder.
-
-What changes is the bill. ora 9.4.1 ships 113,577 B of JavaScript across **seventeen
-packages** — ora, chalk, cli-spinners, string-width, log-symbols, cli-cursor,
-restore-cursor, onetime, mimic-function, signal-exit, is-interactive, is-unicode-supported,
-stdin-discarder, yoctocolors, strip-ansi, ansi-regex, get-east-asian-width. `flagstaff/ora`
-is 55,641 B across **two** — itself and roundel — **49% of ora's**, and 20,250 B of that is
-the spinner corpus ora's API re-exports. Nothing in it reaches the frame loop, so a program
-that migrates its spinner today can adopt `hoist()` a file at a time, or never.
-
-Both sides are counted the same way, so the number reproduces: shipped code and data —
-`.js`/`.mjs`/`.cjs` plus the `.json` a module imports, `package.json` never counted. Ours is
-the import graph walked from `dist/` by `weight.test.ts`; ora's is every package that graph
-touches in ora's own resolved tree, counted whole. Counting ora the stricter way — only the
-27 files its graph actually reaches — gives 101,809 B, and `flagstaff/ora` is still 55% of
-that.
-
-The cursor comes back the way ora's does. A spinner that hid the cursor restores it on a
-clean exit **and** on `SIGINT`, `SIGTERM` and `SIGHUP` — node does not run `'exit'`
-listeners for a signalled process, and Ctrl+C is how a spinner usually dies — then re-raises
-the signal so the process still terminates, unless the program installed its own handler for
-it. That is what ora buys with `restore-cursor` → `signal-exit`; here it is twenty lines and
-no dependency. ora's own 99 never kill a process, so `ora.test.ts` grades it instead.
-
-**The repo's accessible switch does not reach this surface.** `CLI_ACCESSIBLE=1` changes
-what `roundel/policy` decides for every other entry point in the stack, but `flagstaff/ora`
-imports `roundel/chalk` and never the policy, because a façade that reinterpreted its host
-would fail the host's suite — so on a terminal `CLI_ACCESSIBLE=1` still animates and still
-writes cursor escapes (measured: 4 escapes, cursor hidden), where `CI=true` disables the
-spinner outright (0 escapes) because that is ora's own rule. Off a terminal it is moot. Use
-`hoist()` when you want the switch to be honoured.
-
-The static projection is the reason to move on eventually, not the reason to move:
-`hoist()` is what gives a pipe one line per state instead of frames. `flagstaff/ora` is the
-door, and it is deliberately ora's behaviour to the byte.
-
-### The boxen path
-
-`flagstaff/boxen` is boxen 8's API, graded **84 / 84 by boxen's own test suite** — every one
-of whose cases is a snapshot of the exact characters the box comes out as. boxen 9 is out of
-scope for 1.0: it is not graded or claimed, and `burgee migrate` leaves a program on it alone.
-
-```diff
--import boxen from 'boxen';
-+import boxen from 'flagstaff/boxen';
-```
-
-`borderStyle` (all eight of cli-boxes', a style object, or `none`), `borderColor`,
-`backgroundColor`, `dimBorder`, `title` and `titleAlignment`, `textAlignment`, `padding`,
-`margin`, `width`, `height`, `float`, `fullscreen`, and `_borderStyles`.
-
-The drawing **is** the contract here, and matching it byte for byte is the compatibility
-claim rather than a way of avoiding one: a user leaving boxen cares about one thing, whether
-the box still looks the same. It carries cli-boxes' table itself rather than reading the
-plugin registry — a façade whose drawing changed when somebody registered a plugin would be
-reinterpreting its host. Named borders through the registry are `flagstaff/box`'s job.
-
-### The cli-table3 path
-
-`flagstaff/cli-table3` is cli-table3 0.6.5's API, graded **29 / 29 by cli-table3's own test
-suite** — the 38 of its cases that go through the public surface, less the nine that grade
-`cli-table`, the *legacy* incumbent, and so pass whatever the target is. The other 197
-`require('../src/…')` and test its four internal modules directly; those are reported beside
-the number and never gate it, because passing them would mean copying cli-table3's file
-layout rather than matching its behaviour.
-
-```diff
--const Table = require('cli-table3');
-+import Table from 'flagstaff/cli-table3';
-```
-
-`head`, `chars`, `style` (padding, `head`, `border`, `compact`), `colWidths`, `rowHeights`,
-`colAligns`, `rowAligns`, `truncate`, `wordWrap`, `wrapOnWordBoundary`, per-cell `colSpan`,
-`rowSpan`, `hAlign`, `vAlign`, `href`, and the `debug` channel with `table.messages` and
-`Table.reset()`. It extends `Array`, because cli-table3 does and its callers push rows onto
-it.
-
-Four dependencies folded into one module rather than four: cli-table3's `table.js`,
-`layout-manager.js`, `cell.js` and `utils.js` become one file, because the architecture is
-not the contract — the drawing is.
-
-### The log-update path
-
-`flagstaff/log-update` is log-update 8's API, graded **99 / 99 by log-update's own test
-suite** — which renders every frame through a real terminal emulator and asserts the
-screen, not the bytes.
-
-```diff
--import logUpdate from 'log-update';
-+import logUpdate from 'flagstaff/log-update';
-```
-
-`logUpdate()`, `.clear()`, `.done()`, `.persist()`, `createLogUpdate(stream, options)` and
-`logUpdateStderr`, with the row-level diffing intact: a five-row frame whose last row is a
-counter costs one row of output per tick, not five.
-
-log-update ships 113.4 KB across **sixteen** packages. This subpath reaches two, both from
-this repository: `linegauge/wrap` for the wrapper, and `closeout` for the cursor.
-It carries no port of `slice-ansi` — the wrapper already makes every row self-contained,
-so clipping a frame to the terminal's height is an array slice. `signal-exit`, 22.0 KB of
-those sixteen, is `closeout`'s to own, shared with the ora façade because both
-incumbents port the same `cli-cursor` → `restore-cursor` → `signal-exit` chain. Ctrl+C
-mid-frame puts your cursor back, and still terminates — unless your program installed its
-own `SIGINT` handler, in which case it is delivered once, to you, and this stays out of it.
-
-**This is the one façade that lowers a layer guarantee, and it says so.** R5 — no cursor
-escape off a terminal — cannot survive here: log-update's own suite asserts erase sequences
-on a plain non-TTY stream, so a façade that suppressed them would fail the suite that is
-the whole claim. What survives is the half the complaint behind R5 was actually about:
-nothing this writes is ever a `\r`, **and never an absolute cursor-home** — every move is
-a relative row move — on a terminal or off one, so a captured transcript stays parseable.
-`log-update.test.ts` asserts both halves, and `hoist()` is what gives you the whole
-guarantee.
-
 ### Bringing a corpus with you
 
 The ecosystem already has ~80 spinner styles and eight border sets, as plain JSON. Neither
@@ -333,6 +232,149 @@ E_COMPONENT_THREW: g threw in tty, pipe, ci, accessible
   fix: `static(state)` must return a string for the state it is rendered with; …
 ```
 
+## Migrating
+
+Four drop-in paths, one import each. `npx burgee migrate --dry-run` lists the imports the codemod
+would rewrite — only drop-ins graded level with their incumbent — and `npx burgee migrate` makes
+the change ([Migrate](https://burgee.interlace.tools/docs/migrate)).
+
+### The ora path
+
+`flagstaff/ora` is ora 9's whole API, graded **99 / 99 by ora's own test suite** through
+[`compat-oracle`](https://github.com/ofri-peretz/burgee/blob/main/packages/compat-oracle/README.md). One import changes:
+
+```diff
+-import ora from 'ora';
++import ora from 'flagstaff/ora';
+```
+
+Everything else stays: `ora({ text, spinner, color, indent, prefixText, suffixText })`,
+`.start() .stop() .succeed() .fail() .warn() .info() .stopAndPersist()`, `oraPromise()`,
+the `spinners` corpus, the stream hooks that keep a `console.log` above the frame, the
+synchronized-output sequences, the render deferral, the stdin discarder.
+
+What changes is the bill. ora 9.4.1 ships 113,577 B of JavaScript across **seventeen
+packages** — ora, chalk, cli-spinners, string-width, log-symbols, cli-cursor,
+restore-cursor, onetime, mimic-function, signal-exit, is-interactive, is-unicode-supported,
+stdin-discarder, yoctocolors, strip-ansi, ansi-regex, get-east-asian-width. `flagstaff/ora`
+is 55,641 B across **two** — itself and roundel — **49% of ora's**, and 20,250 B of that is
+the spinner corpus ora's API re-exports. Nothing in it reaches the frame loop, so a program
+that migrates its spinner today can adopt `hoist()` a file at a time, or never.
+
+Both sides are counted the same way, so the number reproduces: shipped code and data —
+`.js`/`.mjs`/`.cjs` plus the `.json` a module imports, `package.json` never counted. Ours is
+the import graph walked from `dist/` by `weight.test.ts`; ora's is every package that graph
+touches in ora's own resolved tree, counted whole. Counting ora the stricter way — only the
+27 files its graph actually reaches — gives 101,809 B, and `flagstaff/ora` is still 55% of
+that.
+
+The cursor comes back the way ora's does. A spinner that hid the cursor restores it on a
+clean exit **and** on `SIGINT`, `SIGTERM` and `SIGHUP` — node does not run `'exit'`
+listeners for a signalled process, and Ctrl+C is how a spinner usually dies — then re-raises
+the signal so the process still terminates, unless the program installed its own handler for
+it. That is what ora buys with `restore-cursor` → `signal-exit`; here it is twenty lines and
+no dependency. ora's own 99 never kill a process, so `ora.test.ts` grades it instead.
+
+**The repo's accessible switch does not reach this surface.** `CLI_ACCESSIBLE=1` changes
+what `roundel/policy` decides for every other entry point in the stack, but `flagstaff/ora`
+imports `roundel/chalk` and never the policy, because a façade that reinterpreted its host
+would fail the host's suite — so on a terminal `CLI_ACCESSIBLE=1` still animates and still
+writes cursor escapes (measured: 4 escapes, cursor hidden), where `CI=true` disables the
+spinner outright (0 escapes) because that is ora's own rule. Off a terminal it is moot. Use
+`hoist()` when you want the switch to be honoured.
+
+The static projection is the reason to move on eventually, not the reason to move:
+`hoist()` is what gives a pipe one line per state instead of frames. `flagstaff/ora` is the
+door, and it is deliberately ora's behaviour to the byte.
+
+### The log-update path
+
+`flagstaff/log-update` is log-update 8's API, graded **99 / 99 by log-update's own test
+suite** — which renders every frame through a real terminal emulator and asserts the
+screen, not the bytes.
+
+```diff
+-import logUpdate from 'log-update';
++import logUpdate from 'flagstaff/log-update';
+```
+
+`logUpdate()`, `.clear()`, `.done()`, `.persist()`, `createLogUpdate(stream, options)` and
+`logUpdateStderr`, with the row-level diffing intact: a five-row frame whose last row is a
+counter costs one row of output per tick, not five.
+
+log-update ships 113.4 KB across **sixteen** packages. This subpath reaches two, both from
+this repository: `linegauge/wrap` for the wrapper, and `closeout` for the cursor.
+It carries no port of `slice-ansi` — the wrapper already makes every row self-contained,
+so clipping a frame to the terminal's height is an array slice. `signal-exit`, 22.0 KB of
+those sixteen, is `closeout`'s to own, shared with the ora façade because both
+incumbents port the same `cli-cursor` → `restore-cursor` → `signal-exit` chain. Ctrl+C
+mid-frame puts your cursor back, and still terminates — unless your program installed its
+own `SIGINT` handler, in which case it is delivered once, to you, and this stays out of it.
+
+**This is the one façade that lowers a layer guarantee, and it says so.** R5 — no cursor
+escape off a terminal — cannot survive here: log-update's own suite asserts erase sequences
+on a plain non-TTY stream, so a façade that suppressed them would fail the suite that is
+the whole claim. What survives is the half the complaint behind R5 was actually about:
+nothing this writes is ever a `\r`, **and never an absolute cursor-home** — every move is
+a relative row move — on a terminal or off one, so a captured transcript stays parseable.
+`log-update.test.ts` asserts both halves, and `hoist()` is what gives you the whole
+guarantee.
+
+### The boxen path
+
+`flagstaff/boxen` is boxen 8's API, graded **84 / 84 by boxen's own test suite** — every one
+of whose cases is a snapshot of the exact characters the box comes out as. boxen 9 is out of
+scope for 1.0: it is not graded or claimed, and `burgee migrate` leaves a program on it alone.
+
+```diff
+-import boxen from 'boxen';
++import boxen from 'flagstaff/boxen';
+```
+
+`borderStyle` (all eight of cli-boxes', a style object, or `none`), `borderColor`,
+`backgroundColor`, `dimBorder`, `title` and `titleAlignment`, `textAlignment`, `padding`,
+`margin`, `width`, `height`, `float`, `fullscreen`, and `_borderStyles`.
+
+The drawing **is** the contract here, and matching it byte for byte is the compatibility
+claim rather than a way of avoiding one: a user leaving boxen cares about one thing, whether
+the box still looks the same. It carries cli-boxes' table itself rather than reading the
+plugin registry — a façade whose drawing changed when somebody registered a plugin would be
+reinterpreting its host. Named borders through the registry are `flagstaff/box`'s job.
+
+### The cli-table3 path
+
+`flagstaff/cli-table3` is cli-table3 0.6.5's API, graded **29 / 29 by cli-table3's own test
+suite** — the 38 of its cases that go through the public surface, less the nine that grade
+`cli-table`, the *legacy* incumbent, and so pass whatever the target is. The other 197
+`require('../src/…')` and test its four internal modules directly; those are reported beside
+the number and never gate it, because passing them would mean copying cli-table3's file
+layout rather than matching its behaviour.
+
+```diff
+-const Table = require('cli-table3');
++import Table from 'flagstaff/cli-table3';
+```
+
+`head`, `chars`, `style` (padding, `head`, `border`, `compact`), `colWidths`, `rowHeights`,
+`colAligns`, `rowAligns`, `truncate`, `wordWrap`, `wrapOnWordBoundary`, per-cell `colSpan`,
+`rowSpan`, `hAlign`, `vAlign`, `href`, and the `debug` channel with `table.messages` and
+`Table.reset()`. It extends `Array`, because cli-table3 does and its callers push rows onto
+it.
+
+Four dependencies folded into one module rather than four: cli-table3's `table.js`,
+`layout-manager.js`, `cell.js` and `utils.js` become one file, because the architecture is
+not the contract — the drawing is.
+
+## Compatibility
+
+Each façade is graded by its incumbent's own suite, unedited, through
+[`compat-oracle`](https://github.com/ofri-peretz/burgee/blob/main/packages/compat-oracle/README.md),
+beside a control run of the same suite against the incumbent itself. What each suite does and
+does not reach is under its path above — cli-table3's number counts only the cases that go
+through its public surface, and ora's never kills a process, so `ora.test.ts` grades the signal
+path instead. The current grades are generated under *Benchmarks* below and published on the
+[compatibility page](https://burgee.interlace.tools/docs/compatibility).
+
 ## Weight
 
 Every subpath is a lock, not a convention, and the numbers below are asserted by
@@ -348,13 +390,38 @@ reaches the core. `sideEffects: false` lets a
 bundler drop what a program does not use. ESM with a `default` condition, so
 `require('flagstaff/spinner')` works from CommonJS on Node 20.19+ and 22.13+.
 
-## What is next
+## Benchmarks
 
-- **Drop-in paths** for boxen and cli-table3, graded by their own suites through
-  `compat-oracle` the way ora and log-update already are.
+Every number here is produced by `npm run bench` and published at [burgee.interlace.tools/docs/benchmarks](https://burgee.interlace.tools/docs/benchmarks).
+
+Graded by the incumbent's own test suite:
+
+| suite | passing |
+| :-- | --: |
+| `boxen` | 84 / 84 |
+| `cli-table3` | 29 / 29 |
+| `log-update` | 99 / 99 |
+| `ora` | 99 / 99 |
+
+## For agents
+
+- **Off a terminal, frames become facts.** Every component has a required `static` projection:
+  one line per state on a pipe, one NDJSON event per transition under `--json`, plain text for a
+  screen reader — never `\r` after `\r` into the log an agent reads back.
+- **The mode is decided once, by roundel's output policy**, never by this package, so the
+  spinner, the prompt and the help cannot disagree about the terminal.
+- **A plugin can be checked before it ships.** `npx flagstaff check ./nyan.mjs` prints every
+  contribution in all five modes side by side, escapes made visible, and exits 1 with the code
+  and the fix on a refusal — so an agent that just wrote one sees the static projection before
+  anything ships.
+- **The docs are machine-readable** at
+  [flagstaff.interlace.tools/llms.txt](https://flagstaff.interlace.tools/llms.txt) and
+  [llms-full.txt](https://flagstaff.interlace.tools/llms-full.txt).
+
+## Gallery
 
 Every component, every registered plugin and every border is on the
-[gallery](https://github.com/ofri-peretz/burgee/blob/main/apps/docs/content/docs/gallery.mdx),
+[gallery](https://burgee.interlace.tools/docs/gallery),
 which is generated by running them — the static projection beside the animation, in all
 five modes.
 
@@ -368,30 +435,45 @@ and argue with it — before it exists:
 - [Open an issue](https://github.com/ofri-peretz/burgee/issues) if your CLI needs something
   this list does not cover. That is the cheapest time to say so.
 
----
+## API
 
-Part of the [burgee](https://github.com/ofri-peretz/burgee) family: a CLI on
-[burgee](https://www.npmjs.com/package/burgee) declares what it is,
-[roundel](https://www.npmjs.com/package/roundel) carries its colours, flagstaff flies it, and
-[caique](https://www.npmjs.com/package/caique) answers back. Each is an independent package;
-none requires the others.
+The loop, the plugin host and the built-ins are under [What is here](#what-is-here); every
+export, with its types, is on [flagstaff.interlace.tools](https://flagstaff.interlace.tools/docs).
 
-MIT © Ofri Peretz — see [LICENSE](./LICENSE).
-
-## Benchmarks
-
-Every number here is produced by `npm run bench` and published at [/docs/benchmarks](/docs/benchmarks).
-
-Graded by the incumbent's own test suite:
-
-| suite | passing |
-| :-- | --: |
-| `boxen` | 84 / 84 |
-| `cli-table3` | 29 / 29 |
-| `log-update` | 99 / 99 |
-| `ora` | 99 / 99 |
 ## Where it sits
 
 Plugins register under the `tokens`, `glyphs`, `spinners`, `borders`, `components` keys, against the one schema the whole family shares.
 
 Nothing in this family builds on it yet, and it builds on `closeout`, `linegauge`, `paratext`, `roundel`.
+
+## The family
+
+Nine packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
+carries its colours, flagstaff flies it and caique answers back; each installs on its own, and none
+takes a dependency from outside the family.
+
+| Package | What it is | Replaces |
+| :-- | :-- | :-- |
+| [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander and yargs |
+| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk |
+| **flagstaff** (this package) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
+| [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | inquirer and clack |
+| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi and slice-ansi |
+| [paratext](https://paratext.interlace.tools/docs) | Hyperlinks, images, title, clipboard and notifications | ansi-escapes, terminal-link and term-img |
+| [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, dotenv and rc |
+| [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook and restore-cursor |
+| [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
+
+Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
+and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on
+[burgee.interlace.tools](https://burgee.interlace.tools/docs/packages).
+
+## Contributing
+
+Issues and pull requests are welcome at [ofri-peretz/burgee](https://github.com/ofri-peretz/burgee/issues); read
+[CONTRIBUTING.md](https://github.com/ofri-peretz/burgee/blob/main/CONTRIBUTING.md) first. Report a vulnerability privately, as
+[SECURITY.md](https://github.com/ofri-peretz/burgee/blob/main/SECURITY.md) describes — never in a public issue.
+
+## Licence
+
+MIT © Ofri Peretz — see [LICENSE](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/LICENSE).
