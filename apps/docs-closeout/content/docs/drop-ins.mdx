@@ -1,0 +1,85 @@
+---
+title: Compatibility
+description: "How closeout's three drop-ins are graded — each incumbent's own test suite, unedited — the current grades, including signal-exit's 134 / 135 level with signal-exit itself, and the differences that remain."
+---
+
+`closeout/signal-exit`, `closeout/exit-hook` and `closeout/restore-cursor` are graded, not
+described as compatible. Each is run against its incumbent's **own test suite**, by
+[compat-oracle](https://github.com/ofri-peretz/burgee/blob/main/packages/compat-oracle/README.md),
+in CI.
+
+<CapabilityMatrix pkg="closeout" theme="Compatibility" />
+
+The counts are compat-oracle's baselines, the pass count each drop-in is held to. The family's
+[compatibility page](https://burgee.interlace.tools/docs/compatibility) is generated from the
+oracle's last run and is the authority for the current figures, beside every other drop-in in
+the family.
+
+## How a suite is graded
+
+1. The incumbent's repository is cloned at the release tag of the graded version —
+   signal-exit 4.1.0, exit-hook 5.1.0, restore-cursor 5.1.0 — and its test directory copied
+   into `packages/compat-oracle/vendor/`. No incumbent ships its tests to npm, so a tarball
+   could not be used. Each copy's `PROVENANCE` file names the tag, the commit and the command
+   that reproduces it.
+2. The only edit is the import that reaches the library: it is rewritten to a shim generated
+   per run. Assertions, fixtures and helpers are upstream's, byte for byte.
+3. A **control run** points the shim at the real incumbent first. That proves the harness
+   before it grades anything of ours, and the control's total is what every rate is measured
+   against.
+4. The **target run** points the same shim at closeout's drop-in.
+
+## What each grade covers
+
+- **exit-hook — 21 of 21.** Eighteen cases spawn a real process and assert what it did: the
+  code it left with and the bytes that made it out, 20,000 lines of stdout under backpressure
+  among them. Four kill their child after a fixed 1000 ms, and on a heavily loaded machine the
+  child can lose that race against real exit-hook as much as against closeout.
+- **restore-cursor — 6 of 6.** Four cases spawn a child with stdout and stderr forced to each
+  TTY combination and assert which stream the sequence came out on, or that nothing did.
+- **signal-exit — 134 of 135, level with signal-exit.** The control run, signal-exit 4.1.0
+  against its own suite, also passes 134. The case both fail is `signal-exit-test.ts` >
+  `does not exit if user handles signal`: its fixture re-sends SIGTERM from a timer inside the
+  listener and expects the fourth to kill the process, and on current Node the process exits
+  cleanly after the first. That was measured on Node 22, 24 and 26 with the fixture requiring
+  signal-exit directly; signal-exit's last release, 2023-07-29, predates all three. The suite
+  registers 135 cases on Linux and 127 on macOS, because Linux has four more signals; all eight
+  extra cases pass for both.
+
+## Known differences
+
+These are deliberate, and each is written down where the code is:
+
+- **`closeout/exit-hook` keeps exit-hook's signals and codes.** It listens on SIGINT and
+  SIGTERM and not SIGHUP, and exits `128 + n` rather than dying of the signal, because
+  exit-hook does both and its suite grades them. `signal.test.ts` pins both so nobody closes
+  the gap by accident. closeout's own `onExit` is where SIGHUP and the re-raise live.
+- **`closeout/exit-hook` keeps exit-hook's bound.** The per-hook `wait` is honoured and
+  closeout's 2000 ms deadline is not imposed. Hooks run in closeout's phases — synchronous
+  hooks in `flush`, asynchronous ones in `release` — so a cursor hidden with `hideCursor()`
+  comes back after all of them.
+- **`closeout/signal-exit` is CommonJS**, the one CommonJS file in the family. signal-exit's
+  suite swaps the global `process` and re-requires the module, and an ES module is evaluated
+  once per process however the cache is edited. `import { onExit } from 'closeout/signal-exit'`
+  works from ESM too. It is graded against signal-exit 4: version 3's callable default,
+  `require('signal-exit')(handler)`, is not reproduced.
+- **`closeout/signal-exit` shares signal-exit's emitter**, under the global key signal-exit
+  itself uses, so a program with the drop-in and a transitive copy of real signal-exit runs
+  each handler once.
+- **`closeout/restore-cursor` has no dependencies.** restore-cursor depends on `onetime` and
+  signal-exit; the drop-in registers its restore in closeout's `restore` phase instead of
+  signal-exit's `alwaysLast`.
+
+## Moving one import
+
+```diff
+- import { onExit } from 'signal-exit';
++ import { onExit } from 'closeout/signal-exit';
+```
+
+`npx burgee migrate --dry-run` lists every import it would rewrite — only drop-ins graded level
+with their incumbent — and `npx burgee migrate` makes the change
+([Migrate](https://burgee.interlace.tools/docs/migrate)). An `overrides` entry is not the
+route: it would point the incumbent's name at closeout's root, which is closeout's own API.
+[Incremental migration](/docs/recipes/incremental-migration) moves from a drop-in to `onExit`
+a handler at a time.

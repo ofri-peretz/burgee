@@ -14,7 +14,7 @@
 Every **published** package in this repo has its own documentation site, on its own
 `interlace.tools` subdomain, deployed by the same workflow from the same table:
 
-> **Revised 2026-09-23 — the owner's override, [D-131](../../DECISIONS.md).** Every published
+> **Revised 2026-09-23 — the owner's override, [D-131](../../decisions/D-131.md).** Every published
 > package gets its own app and its own host: nine rows, no "section on another host". It
 > supersedes D-057 (caique as a section on seniority — whose premise is stale: caique now
 > grades 14 / 17 against clack and 41 / 41 against inquirer-core on the live compatibility

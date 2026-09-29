@@ -185,7 +185,7 @@ jobs:
             gh pr create --base main --head "$BRANCH" --label skip-changeset --title "$TITLE" --body "$BODY"
           fi
           if [ "$SOURCE" = "github-token" ]; then
-            echo "::warning title=PR opened with GITHUB_TOKEN::It raises no checks, so it will not auto-merge. Set RELEASE_APP_ID + RELEASE_APP_PRIVATE_KEY, or RELEASE_BOT_PAT — see .sdlc/GAPS.md C5."
+            echo "::warning title=PR opened with GITHUB_TOKEN::It raises no checks, so it will not auto-merge. Set RELEASE_APP_ID + RELEASE_APP_PRIVATE_KEY, or RELEASE_BOT_PAT — see .sdlc/gaps/C5.md."
           fi
           # With the App token or RELEASE_BOT_PAT this PR gets its required checks and `--auto`
           # merges it. With only `github.token` it sits at BLOCKED with zero failures forever;

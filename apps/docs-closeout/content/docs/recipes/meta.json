@@ -1,0 +1,4 @@
+{
+  "title": "Recipes",
+  "pages": ["full-screen-app", "keep-evidence-on-crash", "graceful-server", "testing-shutdown", "incremental-migration"]
+}

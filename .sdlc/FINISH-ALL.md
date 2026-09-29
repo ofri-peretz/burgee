@@ -248,12 +248,12 @@ drift, and a package that grows a `check` must grow an eval in the same commit.
   claim is restated at the measurement. A bands decision; not a ratchet raise.
 - **Four packages are public and not ready**: paratext 0.5.0, caique 0.4.0 and seniority
   0.4.0 (versions from `packages/*/package.json`, 2026-09-22) still trail their incumbents'
-  suites — the current scores are rows A11–A13 of `.sdlc/GAPS.md`. Each README leads with the
+  suites — the current scores are gaps A11–A13 (`.sdlc/gaps/A11.md`, `A12.md`, `A13.md`). Each README leads with the
   gap until the row is green.
 - ~~**`changesets-pr.yml` states the wrong cause.**~~ — **closed**: the comment was corrected
   in #396, and the deadlock itself no longer needs a human. With no release credential the
   workflow dispatches the required checks, mirrors them onto the Version PR and merges it
-  itself; the credential that retires that fallback is `.sdlc/GAPS.md` C5.
+  itself; the credential that retires that fallback is gap C5 (`.sdlc/gaps/C5.md`).
 
 ## Sellable, per package
 

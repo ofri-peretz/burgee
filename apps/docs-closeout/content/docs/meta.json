@@ -2,6 +2,14 @@
   "title": "closeout",
   "pages": [
     "index",
-    "coming-from"
+    "getting-started",
+    "guides",
+    "why-closeout",
+    "drop-ins",
+    "coming-from",
+    "recipes",
+    "api",
+    "faq",
+    "changelog"
   ]
 }

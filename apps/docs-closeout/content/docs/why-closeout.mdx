@@ -1,0 +1,57 @@
+---
+title: Why closeout
+description: "closeout against signal-exit, exit-hook and restore-cursor, one capability per row, every cell linked to the test, grade or source that proves it."
+---
+
+signal-exit runs a handler when a process ends, exit-hook lets that handler be async, and
+restore-cursor shows the cursor again. closeout does all three — through drop-in paths graded
+by each one's own test suite — and adds what none of them has: one handler on every exit path
+told which one it was, phases that put the terminal back last, raw mode and the alternate
+screen restored as well as the cursor, and a deadline that ends a hung shutdown and names the
+handler that hung.
+
+The table below is the whole comparison. Every mark links to its evidence: a test in this
+repository for ours, and for theirs the source file of the exact version compat-oracle grades,
+or that package's own test suite. `scripts/capabilities-lock.test.ts` fails the build when a
+cited test no longer contains the title it is cited for, when a source no longer contains the
+line it is quoted for, or when a source we say lacks something has gained it.
+
+<CapabilityMatrix pkg="closeout" />
+
+## Reading it
+
+- **"ours" means closeout's own API**, `onExit` and `install()`. The three drop-ins keep their
+  incumbents' behaviour, which is what their grades measure: `closeout/exit-hook` exits
+  `128 + n` and ignores SIGHUP because exit-hook does. [Compatibility](/docs/drop-ins) lists
+  what each drop-in keeps.
+- **Parity rows are here too.** signal-exit and exit-hook both run a handler once when two
+  doors fire together, and signal-exit re-raises a signal as closeout does. A row where they
+  match us is a row a reader would otherwise have to go and check.
+- **— does not apply** is not a soft ✗. restore-cursor takes no handler of yours, so rows about
+  your handlers do not apply to it; the cell says why.
+- **signal-exit's grade is level with signal-exit.** `closeout/signal-exit` passes 134 of the
+  135 cases of signal-exit's own suite, and signal-exit passes the same 134. The one case both
+  fail, `does not exit if user handles signal`, fails for signal-exit itself on every Node
+  released since its last version.
+
+## What is not in the table
+
+A row goes in only when every cell of it can be proved. These were left out:
+
+- **"The exit code is the program's."** On a signal, a throw and a rejection, closeout decides
+  how the process leaves before any handler runs, and `matrix.test.ts` proves it for the
+  deadline. On `process.exit()` a handler that assigns `process.exitCode` still changes the
+  code, because Node reads it after the `exit` listeners — see
+  [Signals and exit status](/docs/guides/signals#the-exit-code). The row would not be true on
+  every path, so it is not a row.
+- **`npx closeout check`.** The plugin checker ships and is shown on
+  [Plugins](/docs/guides/plugins), where the example is run by this site's tests; closeout has
+  no unit test of the command itself yet.
+- **Weight.** Zero dependencies is a fact of the manifest, and the per-entry byte budgets are
+  asserted by
+  [`weight.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/weight.test.ts)
+  and published on [Benchmarks](https://burgee.interlace.tools/docs/benchmarks), measured the
+  same way on both sides. They are not a yes-or-no capability. `closeout/exit-hook` is larger
+  than exit-hook, and closeout's README says so.
+- **SIGKILL.** No package can run a handler on it, closeout included; a row would be four ✗s
+  that say nothing about any of them.
