@@ -319,11 +319,11 @@ Our `commander/command.js` is 33,487 bundled against commander's 27,226, and the
 carries a cross-platform spawn that cannot go lazy without giving up `parse()`'s synchronous
 contract and the 1360 / 1360 compat row that rests on it. And `import 'cac'` is one file in
 4.2 ms where `import 'burgee'` is twenty-one in 20 ms. Closing them means deleting the product,
-not optimising it: the analysis is [D-102](./.sdlc/DECISIONS.md), and the shrink that moved every
-non-default path behind `await import()` is [D-148](./.sdlc/DECISIONS.md).
+not optimising it: the analysis is [D-102](./.sdlc/decisions/D-102.md), and the shrink that moved every
+non-default path behind `await import()` is [D-148](./.sdlc/decisions/D-148.md).
 
 So a bar we will never meet is no longer what these rows publish. Since
-[D-157](./.sdlc/DECISIONS.md) each is a **downward-only ratchet**: a ceiling just above today's
+[D-157](./.sdlc/decisions/D-157.md) each is a **downward-only ratchet**: a ceiling just above today's
 measurement, enforced on every benchmark run, that may be lowered by anyone and raised only by
 a new decision.
 
@@ -340,9 +340,9 @@ ceiling each can move to from the latest measurement. The size comparison to lea
 the at-parity rows above; the bare rows stay on the page because a suite that only showed the
 comparisons we win would be lying by selection.
 
-The agent rows are a different gap. B1 has run once, locally ([D-147](./.sdlc/DECISIONS.md)),
+The agent rows are a different gap. B1 has run once, locally ([D-147](./.sdlc/decisions/D-147.md)),
 and neither row becomes ✅ until the weekly CI job measures it, which waits on a credential
-only the owner can mint ([D-150](./.sdlc/DECISIONS.md)).
+only the owner can mint ([D-150](./.sdlc/decisions/D-150.md)).
 
 Installed size is our largest number and it is larger than commander's. It buys no dependency
 outside the burgee family and six drop-in front ends, and it stays on the page either way: *not met* and

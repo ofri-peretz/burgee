@@ -20,7 +20,7 @@
  *      the number the history ends on;
  *   2. a step above the one before it, unless it cites a D-row **newer** than the step it raises
  *      — a raise is a decision, written down, not an edit;
- *   3. a D-row the ledger does not have;
+ *   3. a decision the ledger does not have (one file per decision in `.sdlc/decisions/`);
  *   4. a history that rewrites or drops what is committed — the history is append-only, so the
  *      last value cannot be lowered in the file's memory to make a raise look like a fall.
  *
@@ -41,15 +41,28 @@ import { RATCHETS_FILE, type RatchetsDoc, readRatchets } from 'benchmarks/claim-
 import { CLAIMS } from 'benchmarks/claims.js';
 import { describe, expect, it } from 'vitest';
 
+import { DECISION_ID, readDecisions } from './ledgers.js';
+
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const current = readRatchets(REPO_ROOT);
-const ledger = readFileSync(resolve(REPO_ROOT, '.sdlc/DECISIONS.md'), 'utf8');
+const ledger: ReadonlySet<string> = new Set(readDecisions(REPO_ROOT).entries.map((d) => d.id));
 const readme = readFileSync(resolve(REPO_ROOT, 'README.md'), 'utf8');
 
 /** The three D-157 names. Asserted present, so an emptied file cannot pass every rule vacuously. */
 const D157 = ['cold-start-at-or-below-cac', 'lighter-than-cac', 'lighter-than-commander'];
 
-const decisionNumber = (id: string): number => Number(/^D-(\d{3})$/.exec(id)?.[1] ?? Number.NaN);
+/**
+ * Which of two decisions is newer. A sequential id (`D-157`) orders by its number; a dated one
+ * (`D-20260928-slug`, the only kind written since the ledger went one file per entry) orders by
+ * its date, after every sequential id. Two dated ids from the same day are not ordered, so one
+ * cannot raise a ceiling the other set — stricter, never looser.
+ */
+const DATED_AFTER_SEQUENTIAL = 1e9;
+function decisionNumber(id: string): number {
+  const m = DECISION_ID.exec(id);
+  if (m === null) return Number.NaN;
+  return m[1] === undefined ? DATED_AFTER_SEQUENTIAL + Number(`${m[2] ?? ''}${m[3] ?? ''}${m[4] ?? ''}`) : Number(m[1]);
+}
 
 /** The committed version, or nothing when the file is new in this commit. */
 function committed(): RatchetsDoc | undefined {
@@ -61,22 +74,22 @@ function committed(): RatchetsDoc | undefined {
 }
 
 /** Rules 1–3 on one ratchet, as the list of what is wrong with it — driven directly by the cases at the bottom. */
-function stepProblems(id: string, ratchet: RatchetsDoc['ratchets'][string], decisions: string): string[] {
+function stepProblems(id: string, ratchet: RatchetsDoc['ratchets'][string], decisions: ReadonlySet<string>): string[] {
   const problems: string[] = [];
   const { history } = ratchet;
   if (history.length === 0) return [`${id} has no history — a ceiling with no record of how it got there`];
   const last = history.at(-1);
   if (last?.ceiling !== ratchet.ceiling) problems.push(`${id}: ceiling ${String(ratchet.ceiling)} is not its last history step (${String(last?.ceiling)}). Move the ceiling by appending a step, never by editing the number`);
   history.forEach((step, i) => {
-    if (!/^D-\d{3}$/.test(step.decision)) problems.push(`${id} step ${String(i)}: "${step.decision}" is not a D-NNN id`);
-    else if (!decisions.includes(`| ${step.decision} |`)) problems.push(`${id} step ${String(i)} cites ${step.decision}, which .sdlc/DECISIONS.md has no row for`);
+    if (!DECISION_ID.test(step.decision)) problems.push(`${id} step ${String(i)}: "${step.decision}" is not a decision id (D-NNN, or D-YYYYMMDD-slug)`);
+    else if (!decisions.has(step.decision)) problems.push(`${id} step ${String(i)} cites ${step.decision}, which .sdlc/decisions/ has no row for`);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(step.setOn)) problems.push(`${id} step ${String(i)}: setOn "${step.setOn}" is not a date`);
     if (step.why.trim().length < 20) problems.push(`${id} step ${String(i)} gives no reason`);
     const before = history[i - 1];
     if (before === undefined) return;
     if (step.setOn < before.setOn) problems.push(`${id} step ${String(i)} is dated before the step it follows`);
     if (step.ceiling > before.ceiling && !(decisionNumber(step.decision) > decisionNumber(before.decision))) {
-      problems.push(`${id}: ${String(before.ceiling)} -> ${String(step.ceiling)} is a raise, and it cites ${step.decision}, no newer than ${before.decision}. A ratchet goes down; raising one takes a new decision row in .sdlc/DECISIONS.md, cited here.`);
+      problems.push(`${id}: ${String(before.ceiling)} -> ${String(step.ceiling)} is a raise, and it cites ${step.decision}, no newer than ${before.decision}. A ratchet goes down; raising one takes a new decision in .sdlc/decisions/, cited here.`);
     }
   });
   return problems;
@@ -135,7 +148,7 @@ const ratchet = (ceilings: [number, string][]): RatchetsDoc['ratchets'][string] 
 });
 
 describe('the rules themselves', () => {
-  const decisions = '| D-157 | x |\n| D-158 | y |';
+  const decisions: ReadonlySet<string> = new Set(['D-157', 'D-158', 'D-20260928-a', 'D-20260928-b', 'D-20260929-c']);
 
   it('lets a ceiling fall under the same decision', () => {
     expect(stepProblems('x', ratchet([[2.35, 'D-157'], [2.3, 'D-157']]), decisions)).toEqual([]);
@@ -147,6 +160,13 @@ describe('the rules themselves', () => {
 
   it('allows a raise that cites a newer decision the ledger has', () => {
     expect(stepProblems('x', ratchet([[2.35, 'D-157'], [2.4, 'D-158']]), decisions)).toEqual([]);
+  });
+
+  it('orders a dated decision after every sequential one, and by its date', () => {
+    expect(stepProblems('x', ratchet([[2.35, 'D-158'], [2.4, 'D-20260928-a']]), decisions)).toEqual([]);
+    expect(stepProblems('x', ratchet([[2.35, 'D-20260928-a'], [2.4, 'D-20260929-c']]), decisions)).toEqual([]);
+    expect(stepProblems('x', ratchet([[2.35, 'D-20260928-a'], [2.4, 'D-20260928-b']]), decisions).join()).toContain('is a raise');
+    expect(stepProblems('x', ratchet([[2.35, 'D-20260928-a'], [2.4, 'D-158']]), decisions).join()).toContain('is a raise');
   });
 
   it('refuses a decision the ledger does not have', () => {

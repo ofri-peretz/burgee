@@ -1,0 +1,83 @@
+---
+title: Reports for logs and agents
+description: "The shutdown as data: one record per shutdown, projected as a --json line by reportToJson and as an agent event by reportToEvent, with timedOut and the handlers that hung."
+---
+
+A shutdown produces one record. Handlers receive its first four fields while it runs; when it
+is over, the registry's `report` — and the value `registry.run()` resolves with — adds what
+the deadline found:
+
+| field | what it is |
+| :-- | :-- |
+| `path` | `'exit'`, `'beforeExit'`, `'signal'`, `'uncaught'` or `'rejection'` |
+| `signal` | the signal, or `null` |
+| `code` | the exit code, or `null` for a signal |
+| `error` | what was thrown or rejected, or `null` |
+| `timedOut` | whether the deadline fired before the handlers were done |
+| `unfinished` | the handlers that had not returned, by label or name |
+
+`unfinished` is non-empty in two cases: the deadline fired, or the path was `exit`, where Node
+gives no time at all and an async handler never had a turn.
+
+## Two projections of the one record
+
+`reportToJson(report)` is one line of JSON for a program's `--json` mode, with `error`
+flattened to text — `JSON.stringify` of an `Error` is `{}`, which looks like a report and
+carries nothing. `reportToEvent(report)` is the same values under the family's event key,
+`type: 'closeout.shutdown'`, for an agent's event stream. Both come from the record the
+handlers were given, so a log line and an agent event cannot disagree with it.
+
+Hand either to `onTimeout`, and a breached deadline is reported as data instead of a sentence:
+
+```js title="breach.mjs"
+import { install, reportToJson } from 'closeout';
+
+const { onExit } = install({
+  deadline: 100,
+  onTimeout: (report) => console.error(reportToJson(report)),
+});
+
+onExit(() => new Promise(() => {}), { phase: 'flush', label: 'upload-the-trace' });
+
+setTimeout(() => {}, 10_000);
+process.kill(process.pid, 'SIGTERM');
+```
+
+```text title="node breach.mjs" signal="SIGTERM"
+{"path":"signal","signal":"SIGTERM","code":null,"error":null,"timedOut":true,"unfinished":["upload-the-trace"]}
+```
+
+## Reading the report after a clean shutdown
+
+A registry you drive yourself resolves `run()` with the report, and keeps it on
+`registry.report` for a later caller — including after `runSync`, which cannot return a
+promise:
+
+```js title="report.mjs"
+import { createRegistry, reportToEvent } from 'closeout';
+
+const registry = createRegistry({ onError: (error) => console.log(`a handler failed: ${error.message}`) });
+registry.add(() => {
+  throw new Error('disk full');
+}, 'flush');
+
+const report = await registry.run({ code: 1, signal: null, path: 'uncaught', error: new Error('mid-render') });
+const event = reportToEvent(report);
+console.log(event.type, event.path, event.code, event.timedOut, event.error.split('\n')[0]);
+```
+
+```text title="node report.mjs"
+a handler failed: disk full
+closeout.shutdown uncaught 1 false Error: mid-render
+```
+
+A handler's own failure is not in the report. It goes to `onError` — stderr unless you pass
+one — because the report says how the program left, and a failed handler is a separate fact
+about one handler.
+
+## What is tested
+
+- [`report.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/report.test.ts):
+  the path is inferred only when unstated; an `Error` and a non-`Error` rejection both become
+  text; the JSON is one line naming every handler that hung; the event is the same values under
+  the family's key.

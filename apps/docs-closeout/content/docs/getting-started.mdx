@@ -1,0 +1,118 @@
+---
+title: Getting started
+description: "Install closeout, register one exit handler, and watch it run once on every way a Node.js program can end: exit, an emptied loop, a signal, a throw and a rejection."
+---
+
+closeout is one registry for everything a program has to do on the way out. You register a
+handler with `onExit`, and it runs **exactly once**, whichever way the program ends, with a
+record of how it ended.
+
+## Install
+
+```bash
+npm install closeout
+```
+
+It has no dependencies: Node builtins only. It is ESM with a `default` condition, so
+`require('closeout')` also works from CommonJS on Node 20.19+ and 22.13+, and
+`closeout/signal-exit` is CommonJS itself, as signal-exit is.
+
+Importing the package attaches nothing to the process. The process-wide instance installs
+on the first `onExit`, so a library that imports closeout only for its types pays nothing.
+
+## A first handler
+
+```js title="doors.mjs"
+import { onExit } from 'closeout';
+
+onExit(({ path, code, signal, error }) => {
+  console.log(`leaving by ${path}: code ${code}, signal ${signal}, error ${error}`);
+});
+
+const door = process.argv[2];
+if (door === 'exit') process.exit(3);
+if (door === 'throw') throw new Error('mid-render');
+if (door === 'reject') Promise.reject(new Error('never awaited'));
+if (door === 'signal') {
+  setTimeout(() => {}, 10_000);
+  process.kill(process.pid, 'SIGTERM');
+}
+console.log('work done');
+```
+
+Let the program finish, and the handler runs when the event loop empties (`beforeExit`),
+where an async handler still has time to finish:
+
+```text title="node doors.mjs"
+work done
+leaving by beforeExit: code 0, signal null, error null
+```
+
+Call `process.exit(3)`, and the handler runs on `exit` with the code you chose. Nothing a
+handler does afterwards can change that code:
+
+```text title="node doors.mjs exit" exit="3"
+leaving by exit: code 3, signal null, error null
+```
+
+Send a signal — it arrives once the synchronous work is done — and the handler runs before
+the process dies **of that signal**. A parent
+sees `SIGTERM`, not an exit code, which is how a shell, `make` or a CI runner tells a
+cancelled job from a failed one:
+
+```text title="node doors.mjs signal" signal="SIGTERM"
+work done
+leaving by signal: code null, signal SIGTERM, error null
+```
+
+Throw, and the handler is told what was thrown; then the error is printed and the process
+exits 1, as Node would have done. (The stack trace is turned off here so this page can be
+checked byte for byte.)
+
+```text title="node --stack-trace-limit=0 doors.mjs throw" exit="1"
+leaving by uncaught: code 1, signal null, error Error: mid-render
+[Error: mid-render]
+```
+
+A promise nobody awaited is the fifth way out:
+
+```text title="node --stack-trace-limit=0 doors.mjs reject" exit="1"
+work done
+leaving by rejection: code 1, signal null, error Error: never awaited
+[Error: never awaited]
+```
+
+Every output block on this site is checked: `tests/examples.test.ts` writes each titled file,
+runs the command in the block's title, and compares both what it printed and how it ended.
+
+## The record
+
+Every handler is handed one record:
+
+| field | what it is |
+| :-- | :-- |
+| `path` | `'exit'`, `'beforeExit'`, `'signal'`, `'uncaught'` or `'rejection'` |
+| `signal` | the signal that ended the program, or `null` |
+| `code` | the exit code it is leaving with, or `null` for a signal |
+| `error` | what was thrown or rejected, on those two paths; `null` otherwise |
+
+The same record is what `reportToJson()` and `reportToEvent()` project, so a `--json` line
+and an agent event cannot disagree with what the handler was told
+([Reports for logs and agents](/docs/guides/reports)).
+
+`onExit` returns a function that takes the handler back out. A program that cleans up
+normally can remove its handler and leave nothing for exit to do.
+
+**SIGKILL cannot be handled**, by closeout or by anything else: the operating system does not
+deliver it to a listener. The signals closeout listens for are `SIGINT`, `SIGTERM`, `SIGHUP`,
+`SIGQUIT` and, on Windows, `SIGBREAK`.
+
+## Where next
+
+- [Guides](/docs/guides/exit-paths): exit paths, phases, the deadline, the terminal, signals
+  and exit status, reports, plugins.
+- [Why closeout](/docs/why-closeout): what it does that signal-exit, exit-hook and
+  restore-cursor do not, cell by cell, with the evidence.
+- [Coming from signal-exit](/docs/coming-from/signal-exit) and the other two: change one
+  import.
+- [API reference](/docs/api): every export of every entry point.
