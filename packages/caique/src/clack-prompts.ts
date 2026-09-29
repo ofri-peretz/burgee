@@ -10,7 +10,7 @@
  * of clack's suite would grade, and they are subtracted from the row by D-001: matching them
  * would be copying clack's renderer, not offering its API.
  */
-import { type CommonOptions, frame, MULTISELECT_INSTRUCTIONS, type Option, paint, placeholderOf, type Prompt, run, S_CHECKBOX_INACTIVE, S_CHECKBOX_SELECTED, S_PASSWORD_MASK, S_RADIO_ACTIVE, S_RADIO_INACTIVE, SELECT_INSTRUCTIONS, type State, type Validate, withCursor } from './clack-core.js';
+import { type CommonOptions, frame, MULTISELECT_INSTRUCTIONS, type Option, paint, placeholderOf, type Prompt, run, S_CHECKBOX_INACTIVE, S_CHECKBOX_SELECTED, S_PASSWORD_MASK, S_RADIO_ACTIVE, S_RADIO_INACTIVE, SELECT_INSTRUCTIONS, type Validate, withCursor } from './clack-core.js';
 import { boxLook, checkbox, type Choice, findCursor, footerOf, labelOf, radio, radioLook, requiredCheck, stepOf, summaryOf, toggled, windowOf, wrapIndex } from './clack-list.js';
 
 export type Answer<T> = Promise<T | symbol>;
@@ -219,7 +219,7 @@ function multiFrame<T extends Choice>(opts: CommonOptions & { message: string; m
   const footer = prompt.state === 'error' ? undefined : footerOf(opts, MULTISELECT_INSTRUCTIONS);
   const body = windowOf({ opts, options: list.rows, cursor: list.cursor, style: list.style, footer: footer?.length ?? 2 });
   const empty = prompt.state === 'cancel' ? '' : 'none';
-  return frame(opts, prompt.state, opts.message, { body, summary: summaryOf(list.answered, prompt.value ?? [], empty), footer, error: prompt.error });
+  return frame(opts, prompt.state, opts.message, { body, summary: summaryOf(list.answered, prompt.value as unknown[], empty), footer, error: prompt.error });
 }
 
 /** `multiselect` — any number of options: space toggles, `a` toggles all, `i` inverts. */
@@ -240,17 +240,18 @@ export const multiselect = <Value>(opts: MultiSelectOptions<Value>): Answer<Valu
   };
   return run<Value[]>({
     ...opts,
+    // Always an array: it starts as one and every key replaces it with another.
     initialValue: [...(opts.initialValues ?? [])],
     validate: requiredCheck(opts.required ?? true),
     onKey: (prompt, _char, key, action) => {
-      const chosen = prompt.value ?? [];
+      const chosen = prompt.value as Value[];
       const all = keyed(chosen, key.name);
       if (all !== undefined) prompt.value = all;
       else if (action === 'space') prompt.value = toggled(chosen, options[cursor]?.value as Value);
       else if (stepOf(action) !== 0) cursor = findCursor(cursor, stepOf(action), options);
     },
     render: (prompt) => {
-      const chosen = prompt.value ?? [];
+      const chosen = prompt.value as Value[];
       return multiFrame(opts, prompt as Prompt<unknown[]>, { rows: options, cursor, style: (option, on) => checkbox(option, boxLook(option, on, chosen)), answered: options });
     },
   });
@@ -333,11 +334,11 @@ export const groupMultiselect = <Value>(opts: GroupMultiSelectOptions<Value>): A
     initialValue: [...(opts.initialValues ?? [])],
     validate: requiredCheck(opts.required ?? true),
     onKey: (prompt, _char, _key, action) => {
-      if (action === 'space') prompt.value = list.toggle(prompt.value ?? []) as Value[];
+      if (action === 'space') prompt.value = list.toggle(prompt.value as Value[]) as Value[];
       else if (stepOf(action) !== 0) list.move(stepOf(action));
     },
     render: (prompt) => {
-      const chosen = prompt.value ?? [];
+      const chosen = prompt.value as Value[];
       return multiFrame(opts, prompt as Prompt<unknown[]>, { rows: list.rows, cursor: list.cursor, style: (row, on) => list.draw(row, on, chosen), answered: list.members });
     },
   });
@@ -354,7 +355,7 @@ function moveTextCursor(at: number, dy: number, value: string): number {
     row++;
   }
   row = Math.max(0, Math.min(rows.length - 1, row + dy));
-  column = Math.min(column, rows[row]?.length ?? 0);
+  column = Math.min(column, (rows[row] as string).length);
   return rows.slice(0, row).reduce((total, line) => total + line.length + 1, 0) + column;
 }
 
@@ -390,11 +391,11 @@ function enter(prompt: Prompt<string>, editor: Editor, showSubmit: boolean): boo
     insert(prompt, '\n');
     return false;
   }
-  if (prompt.userInput.endsWith('\n')) {
-    prompt.userInput = prompt.userInput.slice(0, -1);
-    prompt.cursor--;
-    prompt.value = prompt.userInput;
-  }
+  // The first enter put a newline at the cursor, and nothing else has been pressed since: the
+  // text ends with that newline, and it is not part of the answer.
+  prompt.userInput = prompt.userInput.slice(0, -1);
+  prompt.cursor--;
+  prompt.value = prompt.userInput;
   return true;
 }
 
@@ -415,7 +416,8 @@ export const multiline = (opts: MultiLineOptions): Answer<string> => {
       if (key.name === 'return') return;
       editor.armed = false;
       if (key.name === 'up' || key.name === 'down') prompt.cursor = moveTextCursor(prompt.cursor, key.name === 'up' ? -1 : 1, prompt.userInput);
-      else if (key.name === 'tab' && showSubmit) editor.focus = editor.focus === 'editor' ? 'submit' : 'editor';
+      // Without the button, focus is never read: enter decides by the text alone.
+      else if (key.name === 'tab') editor.focus = editor.focus === 'editor' ? 'submit' : 'editor';
     },
     shouldSubmit: (prompt) => enter(prompt, editor, showSubmit),
     finalize: defaulted(opts.defaultValue),
@@ -423,9 +425,7 @@ export const multiline = (opts: MultiLineOptions): Answer<string> => {
       const typed = prompt.userInput === '' ? placeholderOf(opts.placeholder) : multilineCursor(prompt.userInput, prompt.cursor);
       const colour = editor.focus === 'submit' ? 'cyan' : 'dim';
       const button = showSubmit ? [paint(colour, '[ submit ]')] : [];
-      return frame(opts, prompt.state, opts.message, { body: [...typed.split('\n'), ...button], summary: answered(prompt.state) ? (prompt.value ?? '') : '', error: prompt.error });
+      return frame(opts, prompt.state, opts.message, { body: [...typed.split('\n'), ...button], summary: prompt.value ?? '', error: prompt.error });
     },
   });
 };
-
-const answered = (state: State): boolean => state === 'submit' || state === 'cancel';
