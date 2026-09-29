@@ -36,7 +36,7 @@
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
-import { dirname, extname, join, parse as parsePath, resolve as resolvePath, sep } from 'node:path';
+import { dirname, extname, join, parse as parsePath, resolve as resolvePath } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export type LilconfigResult = null | { filepath: string; config: unknown; isEmpty?: boolean };
@@ -108,12 +108,14 @@ function defaultSearchPlaces(name: string, sync: boolean): string[] {
 }
 
 /**
- * lilconfig's own comment on this, kept because the case it refers to is graded: on a *nix
- * box whose cwd is not under the home directory, `dirname` of a top-level path is `''` and
- * the walk would never terminate. `'/'` is what it should have been.
+ * lilconfig writes `path.dirname(p) || path.sep`, for a `dirname` that returned `''` on a
+ * top-level path. Node's never does — it is `'.'` for a relative name and the root itself for
+ * the root, on both platforms — so the fallback could not be reached and is not reproduced. The
+ * graded case it was written for, a search from the filesystem root, ends on
+ * `dir === parentDir(dir)` either way.
  */
 function parentDir(p: string): string {
-  return dirname(p) || sep;
+  return dirname(p);
 }
 
 /** The directory the walk starts from when the caller names none — see the header on R11. */
@@ -321,7 +323,7 @@ export function lilconfig(name: string, options?: Options): AsyncSearcher {
         dir = parentDir(dir);
       }
 
-      const transformed = result.filepath === '' && result.config === null ? await transform(null) : await transform(result);
+      const transformed = await transform(result.filepath === '' && result.config === null ? null : result);
       if (cache) for (const p of visited) searchCache.set(p, transformed);
       return transformed;
     },

@@ -1,0 +1,5 @@
+---
+"bellpull": patch
+---
+
+A `#!` line with a trailing space, or with two spaces after `env`, is read the way `shebang-command` reads it. `#!/usr/local/bin/node` followed by a space used to name the interpreter `node` with the space kept, a name that resolves nowhere, so on Windows `bellpull/cross-spawn` and `run()` sent that script to `cmd.exe` under a command that does not exist. `#!/usr/bin/env  node` used to name an empty interpreter, which then replaced the command. Code paths no input could reach are removed, and behaviour is otherwise unchanged. `bellpull check` no longer carries a "(replaces …)" suffix it could never print, because it loads one plugin into an emptied registry. The Windows executability check no longer accepts a symbolic link from a `statSync`, which follows links and never reports one, and no longer special-cases an empty `PATHEXT` entry that `endsWith('')` already accepts. The POSIX check no longer tests the caller's uid and gid for `undefined` before comparing them with a stat's, which are always numbers.
