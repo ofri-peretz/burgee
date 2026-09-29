@@ -225,6 +225,63 @@ describe('U3, U4 · register() is the only way into the registry', () => {
   });
 });
 
+/**
+ * A component's `sample` is the one nested object a plugin may hold, so `register()` copies it
+ * to its full depth and freezes every level. These cases register a component in-process —
+ * `cli.test.ts` does too, but through `dist/cli.js` in a child, where nothing here can see it.
+ */
+type Sample = Record<string, unknown>;
+
+/** The sample the registry holds for a component, which is the copy — never the author's. */
+function sampleOf(name: string): { running: Sample; done: Sample } {
+  const sample = registered().components.get(name)?.sample as { running: Sample; done: Sample } | undefined;
+  if (sample === undefined) throw new Error(`no sample on ${name}`);
+  return sample;
+}
+
+describe('a component sample is copied and frozen to its depth', () => {
+  it('editing the sample you registered, at any depth, does not reach the registry', () => {
+    const steps: unknown[] = ['fetch', { n: 1 }];
+    const sample = { running: { phase: 'running', steps, note: null, pct: 0 }, done: { phase: 'done', pct: 100 } };
+    register({ name: 'sampled', components: { gauge: { sample, static: (s: { phase: string }) => s.phase } } });
+    sample.running.phase = 'edited';
+    steps.push('late');
+    (steps[1] as { n: number }).n = 2;
+
+    const got = sampleOf('gauge');
+    expect(got).toEqual({ running: { phase: 'running', steps: ['fetch', { n: 1 }], note: null, pct: 0 }, done: { phase: 'done', pct: 100 } });
+    // An array stays an array: the copy is the same shape, not an object with index keys.
+    expect(Array.isArray(got.running['steps'])).toBe(true);
+    for (const level of [got, got.running, got.running['steps'], (got.running['steps'] as unknown[])[1]]) expect(Object.isFrozen(level)).toBe(true);
+  });
+
+  it('a circular sample is copied with its cycle, instead of overflowing the stack', () => {
+    const running: Sample = { phase: 'running' };
+    running['self'] = running;
+    register({ name: 'loopy', components: { ring: { sample: { running, done: { phase: 'done' } }, static: () => 'ring' } } });
+    const copy = sampleOf('ring').running;
+    expect(copy).not.toBe(running);
+    // The copy points at its own copy, not back into the author's object.
+    expect(copy['self']).toBe(copy);
+  });
+
+  it('a `__proto__` key in a sample is copied as data, never handed to the prototype setter', () => {
+    const sample = JSON.parse('{"running":{"__proto__":{"polluted":true},"phase":"running"},"done":{}}') as { running: Sample; done: Sample };
+    register({ name: 'protoish', components: { proto: { sample, static: () => 'proto' } } });
+    const copy = sampleOf('proto').running;
+    expect(Object.getPrototypeOf(copy)).toBe(Object.prototype);
+    // An own key, not an inherited one: the copy kept it as the author's data.
+    expect(Object.getOwnPropertyNames(copy)).toContain('__proto__');
+    expect((copy as { polluted?: unknown }).polluted).toBeUndefined();
+  });
+});
+
+describe('glyph()', () => {
+  it('a meaning nobody registered is the empty string, never `undefined` in the output', () => {
+    expect(glyph('no-plugin-defines-this')).toBe('');
+  });
+});
+
 describe('R7 · no layout engine', () => {
   it('src/ has no layout module', () => {
     expect(readdirSync(src).filter((f) => /^layout/i.test(f))).toEqual([]);

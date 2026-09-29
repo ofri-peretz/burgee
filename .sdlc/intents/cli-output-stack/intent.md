@@ -124,8 +124,7 @@ until the bench workspace carries that incumbent; a number typed from memory is 
 Two axes no incumbent can score on, reported beside the table: the static-projection
 conformance cases (U3) and the one-turn agent authoring eval (U9).
 
-Not planned, on purpose: **Ink** (a React reconciler; compatibility would mean shipping
-React, which is the opposite of U6 and U8) and **listr2** (a task framework whose surface
+~~Not planned, on purpose: **Ink**~~ **Ink is planned, restated 2026-09-27 by the owner (D-158):** a tenth package, [`controlroom`](../controlroom/intent.md), whose native API has no React and no layout engine, plus `controlroom/ink`, a drop-in graded by Ink's own suite. The reason recorded here still holds — compatibility means React — which is why React stays the user's optional peer, reached only by that subpath, and never a dependency (U6); U8 stays flagstaff's ceiling. Not planned, on purpose: **listr2** (a task framework whose surface
 is larger than the rest of this table combined; `flagstaff`'s task list covers the common
 case and a listr2 façade is its own intent if an adopter asks).
 
