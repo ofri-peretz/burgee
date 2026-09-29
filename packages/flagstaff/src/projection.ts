@@ -30,9 +30,6 @@ export interface Projection<S> {
 export const DEFAULT_INTERVAL = 80;
 const CSI = '\u001B[';
 
-/** No cursor safety net standing: before `open()`, and again once `close()` has taken it down. */
-const NO_NET = (): void => undefined;
-
 /** Column 1, up to the first of `lines`, and clear from there to the end of the screen. */
 function erase(lines: number): string {
   if (lines === 0) return '';
@@ -49,7 +46,9 @@ class TtyProjection<S> implements Projection<S> {
   #current!: S;
   #lines = 0;
   #cancel: () => void = () => undefined;
-  #dropCursorNet: () => void = NO_NET;
+  // Set by `open()`. `hoist()` is the only caller, and it opens before anything else and
+  // closes at most once, so `close()` never runs without a net standing.
+  #dropCursorNet!: () => void;
 
   constructor(component: Component<S>, out: Writer, clock: Clock) {
     this.#component = component;
@@ -84,7 +83,6 @@ class TtyProjection<S> implements Projection<S> {
     // The frame put the cursor back itself, so the net comes down with it — otherwise it
     // would fire again at exit and write a second, pointless show.
     this.#dropCursorNet();
-    this.#dropCursorNet = NO_NET;
     this.#lines = 0;
   }
 
