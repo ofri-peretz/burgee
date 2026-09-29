@@ -52,7 +52,7 @@ describe.each(STANDARD_SITES.map((pkg) => [pkg] as const))('%s: the API referenc
   const entries = entriesOf(pkg);
 
   it('is what the generator writes from the built declarations, with nothing left over', () => {
-    expect(stale(owned), 'run `npx tsx scripts/api-reference.ts` after building the packages').toEqual([]);
+    expect(stale(owned, [pkg]), 'run `npx tsx scripts/api-reference.ts` after building the packages').toEqual([]);
   });
 
   it.each(entries.map((e) => [e.specifier, e] as const))('%s has a page naming every export', (_specifier, entry) => {
@@ -63,6 +63,13 @@ describe.each(STANDARD_SITES.map((pkg) => [pkg] as const))('%s: the API referenc
     expect(names.length, `${entry.specifier} exports nothing the checker can see — is dist/ built?`).toBeGreaterThan(0);
     const unlisted = names.filter((name) => !page.includes(`### ${name}\n`) && !page.includes(`| \`${name}\` |`));
     expect(unlisted, `${entry.specifier} exports these and its page does not name them`).toEqual([]);
+  });
+
+  // `tsc` keeps a source file's licence header in its `.d.ts`, where it reads as the module's
+  // doc, or as the doc of a first declaration that has none; neither is documentation.
+  it('never prints a licence banner as a module intro or an export summary', () => {
+    const leaked = [...owned].filter(([, text]) => text.includes('Copyright (c)')).map(([file]) => file);
+    expect(leaked).toEqual([]);
   });
 
   it('lists the reference in the site nav, and every page of it in its own', () => {
@@ -87,7 +94,7 @@ describe('the lock refuses what it exists to refuse', () => {
     // output that differs from the committed file and it must name that file.
     const committed = readFileSync(join(ROOT, path), 'utf8');
     expect(committed).toBe(text);
-    expect(stale(edited)).toContain(path);
+    expect(stale(edited, [pkg])).toContain(path);
   });
 
   it('a page under api/ the generator does not write is an orphan', () => {
