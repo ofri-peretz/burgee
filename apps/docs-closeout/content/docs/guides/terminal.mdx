@@ -1,0 +1,105 @@
+---
+title: The terminal
+description: "hideCursor, rawMode and alternateScreen: change the terminal and register the undo in one call, so a program that dies by any door — even mid-shutdown — hands back a usable terminal."
+---
+
+A program that hides the cursor, switches the terminal to raw mode or enters the alternate
+screen has to put each back before it goes, on every way out. Forget one on Ctrl-C and the
+user's shell is left without a cursor, not echoing what they type, or showing a screen that
+is not their scrollback.
+
+closeout makes each change and registers its undo **in the same call**:
+
+```js
+import { alternateScreen, hideCursor, rawMode } from 'closeout';
+
+const undo = [rawMode(process.stdin), alternateScreen(process.stdout), hideCursor(process.stdout)];
+try {
+  await runTheFullScreenApp();
+} finally {
+  for (const back of undo) back();
+}
+```
+
+| call | does now | undoes at exit, in `restore` |
+| :-- | :-- | :-- |
+| `hideCursor(stream)` | hides the cursor | shows it |
+| `rawMode(input)` | turns raw mode on | turns it off |
+| `alternateScreen(stream)` | enters the alternate screen | leaves it |
+| `showCursor(stream)` | shows the cursor now | — |
+
+Each returns the function that undoes it now and unregisters the exit undo, so a program that
+cleans up after itself leaves nothing for exit to do. Each undo runs **once**, whoever asks
+first — the program's `finally`, or the shutdown.
+
+## Every door, last
+
+The undos go in the [`restore` phase](/docs/guides/phases), which runs after every `flush` and
+`release` handler. So the terminal comes back:
+
+- on every exit path: `exit`, `beforeExit`, every signal, a throw, a rejection;
+- after a handler that **threw**, because one handler's failure is its own;
+- after a handler that **hung**, because the deadline stops waiting but still runs `restore`;
+- after a **second signal**: a second Ctrl-C, or a SIGTERM behind it, while a handler still
+  holds the first shutdown, waits for that shutdown instead of killing the process before the
+  terminal is restored.
+
+`terminal-restore.test.ts` checks each of those on a real process: it spawns a child that
+enters raw mode and the alternate screen and hides the cursor, ends it by that path, and
+reads back the escape sequences and mode changes it actually made.
+
+## Only what closeout turned on
+
+`rawMode(input)` turns off only what it turned on. If the input is already raw, somebody else
+owns that state: the call changes nothing, now or at exit.
+
+## Nothing into a pipe
+
+A stream that is not a terminal gets no escape sequence, in either direction, and an input
+that is not a terminal gets no mode change. Escape sequences in a pipe corrupt the output the
+pipe exists to carry.
+
+```js title="draw.mjs"
+import { alternateScreen, hideCursor, rawMode } from 'closeout';
+
+rawMode(process.stdin);
+alternateScreen(process.stdout);
+hideCursor(process.stdout);
+console.log('drawing');
+process.exit(0);
+```
+
+Piped, the only bytes out are the program's own:
+
+```text title="node draw.mjs"
+drawing
+```
+
+## Registering on your own instance
+
+The three calls register on the process-wide instance. `alternateScreen` and `rawMode` take
+the object `install()` returned as a second argument, to register on that one instead; the
+object's own `hideCursor` method does the same for the cursor:
+
+```js
+import { alternateScreen, install } from 'closeout';
+
+const closeout = install({ deadline: 5000 });
+closeout.hideCursor(process.stdout);
+alternateScreen(process.stdout, closeout);
+```
+
+`closeout/cursor` is the same four functions without a registry: each takes, as its second
+argument, the function that registers its undo — `(undo) => unregister` — so a renderer with
+its own shutdown bookkeeping can use them without closeout's. It also exports the sequences:
+`HIDE_CURSOR`, `SHOW_CURSOR`, `ENTER_ALTERNATE_SCREEN` and `LEAVE_ALTERNATE_SCREEN`.
+
+## What is tested
+
+- [`restore.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/restore.test.ts):
+  every door leaves the terminal as it was found, last; a handler that threw or a deadline that
+  fired does not keep it; nothing is undone twice; raw mode somebody else turned on stays on.
+- [`terminal-restore.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/terminal-restore.test.ts):
+  the same on a real process, including the second signal.
+- [`cursor.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/cursor.test.ts):
+  the pairing, the idempotence and the pipe.

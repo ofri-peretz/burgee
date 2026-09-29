@@ -1,0 +1,136 @@
+---
+title: Signals and exit status
+description: "How closeout leaves after a signal: it re-raises it so the process dies of SIGINT or SIGTERM rather than exiting 128 + n, keeps a crash's exit code, and stands aside when the program owns the signal."
+---
+
+A process that was interrupted and a process that exited 130 are two different events to
+everything above it. `WIFSIGNALED` is true for one and false for the other: a shell prints
+`^C` and stops a script, `make` stops a parallel build, a CI runner marks the job cancelled
+rather than failed, and a supervisor decides whether to restart. `128 + n` is the number a
+shell *reports* afterwards; it is not a status a process can give itself.
+
+## Dies of the signal
+
+Once the handlers have run, closeout removes its own listener and raises the signal again at
+its own process, which then dies of it:
+
+```js title="interrupted.mjs"
+import { onExit } from 'closeout';
+
+onExit(({ signal }) => console.log(`cleaned up after ${signal}`));
+
+setTimeout(() => {}, 10_000);
+process.kill(process.pid, 'SIGINT');
+```
+
+```text title="node interrupted.mjs" signal="SIGINT"
+cleaned up after SIGINT
+```
+
+On a runtime that refuses to raise a given signal at itself — SIGHUP on Windows — closeout
+falls back to the `128 + n` code rather than staying alive.
+
+## The exit code
+
+On a signal, a throw or a rejection, how the process leaves is decided when shutdown starts,
+before any handler runs. A handler that tidies `process.exitCode` on its way past cannot turn
+a crash into a success, and a breached [deadline](/docs/guides/deadline) leaves the same way:
+
+```js title="crash.mjs"
+import { onExit } from 'closeout';
+
+onExit(() => {
+  process.exitCode = 0;
+});
+
+setTimeout(() => {
+  throw new Error('mid-render');
+}, 10);
+```
+
+```text title="node --stack-trace-limit=0 crash.mjs" exit="1"
+[Error: mid-render]
+```
+
+On `process.exit()` and on a program that simply finished, the process is leaving on its own,
+and **Node** reads `process.exitCode` after the `exit` listeners have run. Every handler is
+told the code in `report.code`, but one that assigns `process.exitCode` there changes what the
+process exits with:
+
+```js title="code.mjs"
+import { onExit } from 'closeout';
+
+onExit(() => {
+  process.exitCode = 0;
+});
+
+process.exit(3);
+```
+
+```text title="node code.mjs"
+```
+
+So read the code from the report, and leave `process.exitCode` alone in a handler.
+
+## A program that owns the signal keeps it
+
+If the program has its own listener for the signal, it asked to decide what a Ctrl-C means:
+finish the request and exit 7, or ignore it. closeout runs the handlers and then stands aside,
+with one delivery for one signal:
+
+```js title="owned.mjs"
+import { onExit } from 'closeout';
+
+onExit(() => console.log('cleanup ran'));
+
+process.on('SIGTERM', () => {
+  console.log('the program decides: finish the request, then exit 7');
+  setTimeout(() => process.exit(7), 20);
+});
+
+setTimeout(() => {}, 10_000);
+process.kill(process.pid, 'SIGTERM');
+```
+
+```text title="node owned.mjs" exit="7"
+cleanup ran
+the program decides: finish the request, then exit 7
+```
+
+The same holds for `uncaughtException` and `unhandledRejection`: with a listener of the
+program's own there, closeout runs the handlers and does not exit.
+
+## The drop-ins keep their incumbents' behaviour
+
+- `closeout/signal-exit` re-raises, as signal-exit does.
+- `closeout/exit-hook` exits `128 + n` — 130 for SIGINT, 143 for SIGTERM — and listens on
+  SIGINT and SIGTERM only, not SIGHUP, because exit-hook does both and its own suite grades
+  them:
+
+```js title="hook.mjs"
+import exitHook from 'closeout/exit-hook';
+
+exitHook((code) => console.log(`exit-hook ran, leaving with ${code}`));
+
+setTimeout(() => {}, 10_000);
+process.kill(process.pid, 'SIGTERM');
+```
+
+```text title="node hook.mjs" exit="143"
+exit-hook ran, leaving with 143
+```
+
+Use closeout's own `onExit` rather than the drop-in when a closing terminal (SIGHUP) has to
+reach your cleanup, or when the parent should see the signal.
+
+## What is tested
+
+- [`signal.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/signal.test.ts):
+  SIGINT, SIGTERM, SIGHUP and SIGQUIT each kill a real process after the cursor comes back; a
+  program with its own handler gets one delivery; `closeout/exit-hook` keeps exit-hook's
+  signal list and codes.
+- [`install.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/install.test.ts):
+  the re-raise, the stand-down, and the fallback code on a runtime that cannot raise.
+- [`matrix.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/matrix.test.ts):
+  every handler is told the code the program is leaving with; a breached deadline exits with
+  the signal's code, not one a handler set.
