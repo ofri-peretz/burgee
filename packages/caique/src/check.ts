@@ -9,14 +9,16 @@
  * by running a program that used it. A surface nobody can check is a surface nobody outside this
  * repository can write against.
  *
- * Three things this owes an author, learned by `flagstaff check` in #59 and kept here:
+ * Two things this owes an author, learned by `flagstaff check` in #59 and kept here:
  *
  *   - it says **what it found**. The schema allows unknown keys on purpose, so the same object
  *     registers into every host in the family — which means a misspelled key is silent. `0 widgets`
  *     is how that typo tells on itself, and it is a refusal here rather than an `ok`.
- *   - it says **what each contribution replaced**, because later registrations win and "why did
- *     my value not apply" is the question the second plugin always gets.
  *   - `ok` is **the last line**, after everything that would justify it.
+ *
+ * `flagstaff check` also says what each contribution replaced. This does not: it registers one
+ * plugin into a registry it has just reset, so there is nothing for it to replace. The helper
+ * that would have said so was never called, and was removed with the coverage pass.
  *
  * Pure: it takes argv and a writer and returns an exit code. `cli.ts` is the ten lines that own
  * the process, so this file can be driven by a test without spawning anything.
@@ -77,9 +79,6 @@ function refuse(code: PluginErrorCode, message: string, fix: string, write: (s: 
   write(`${code}: ${message}\n  fix: ${fix}\n`);
   return EXIT_RUNTIME;
 }
-
-/** What a contribution replaced, when it replaced anything. */
-const shadows = (names: readonly string[]): string => (names.length === 0 ? '' : ` (replaces ${names.join(', ')})`);
 
 /**
  * Every refusal leaves through here, wherever it was raised: `register()`, or a plugin file that
