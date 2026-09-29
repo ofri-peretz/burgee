@@ -20,6 +20,11 @@
  * gets `packages/index.md`, the family map — every package, what it replaces, where it lives.
  * Regrouping a package is a table edit; this script follows it.
  *
+ * A package whose site carries the standard page set (`STANDARD_SITES` in
+ * `api-reference.ts`) also gets its `CHANGELOG.md` as `content/docs/changelog.md`: changesets
+ * writes the file on every release, `changeset:version` runs this script right after, and the
+ * page is never a second copy anybody edits.
+ *
  * Output is `.md`, not `.mdx`: README prose is full of `{`, `<name>` and autolinks that MDX
  * would parse as JSX. The centred HTML header (logo, badges) and the `# name` heading are
  * dropped — the page renders its own title — and relative links point at GitHub, because
@@ -35,6 +40,8 @@ import { fileURLToPath } from "node:url";
 import { appForPackage, familyApp } from "../apps/docs-chassis/src/config";
 // eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and scripts read the app table through its one typed reader rather than re-parsing it
 import { publicPackages } from "../apps/docs-chassis/src/packages";
+
+import { STANDARD_SITES } from "./api-reference.js";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PACKAGES = join(REPO_ROOT, "packages");
@@ -60,6 +67,16 @@ export function render(dir: string, manifest: Manifest, readme: string, familyOr
     .replace(/\]\((\/docs[^)\s]*)\)/g, (link, path: string) => (familyOrigin === undefined ? link : `](${familyOrigin}${path})`))
     .trimStart();
   return `---\ntitle: ${manifest.name}\ndescription: ${JSON.stringify(manifest.description)}\n---\n\n${body}`;
+}
+
+/**
+ * CHANGELOG.md text → the docs page body. The `# name` heading goes (the page renders its
+ * title); every `## x.y.z` and everything under it stays, links and all.
+ */
+export function renderChangelog(manifest: Manifest, changelog: string): string {
+  const body = changelog.replace(/^# .*\n+/, "").trimStart();
+  const description = `Every release of ${manifest.name}, newest first, from its CHANGELOG.md — what changed and the pull request it came from.`;
+  return `---\ntitle: Changelog\ndescription: ${JSON.stringify(description)}\n---\n\n${body.trimEnd()}\n`;
 }
 
 /** The family map: every public package, what it replaces, and the site its docs are on. */
@@ -100,6 +117,8 @@ export function pages(): Map<string, string> {
     const own = appForPackage(manifest.name);
     if (own !== undefined && !own.familyPages) {
       out.set(`${own.dir}/content/docs/index.md`, render(e.name, manifest, readme, family.productionUrl));
+      const changelogPath = join(PACKAGES, e.name, "CHANGELOG.md");
+      if (STANDARD_SITES.includes(manifest.name) && existsSync(changelogPath)) out.set(`${own.dir}/content/docs/changelog.md`, renderChangelog(manifest, readFileSync(changelogPath, "utf8")));
     } else {
       out.set(`${family.dir}/content/docs/packages/${e.name}.md`, render(e.name, manifest, readme));
       sections.push(e.name);

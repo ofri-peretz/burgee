@@ -2,6 +2,8 @@
   "title": "flagstaff",
   "pages": [
     "index",
-    "coming-from"
+    "coming-from",
+    "api",
+    "changelog"
   ]
 }
