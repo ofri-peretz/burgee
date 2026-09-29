@@ -5,7 +5,7 @@ Intent: [`intent.md`](./intent.md). **Status:** approved (2026-09-23, D-131) —
 > **As built — where the build departs from the text below, and why.** Every departure is
 > also in the PR that built it.
 >
-> - **Nine rows, not three** — [D-131](../../DECISIONS.md), the owner's override. R11's
+> - **Nine rows, not three** — [D-131](../../decisions/D-131.md), the owner's override. R11's
 >   "caique: not built" and R12's four-page bar are retired; `excluded` stays in the table as
 >   the regrouping lever (an excluded package renders as a section of the front door).
 > - **The chassis is `apps/docs-chassis`, not `packages/docs-kit`.** Intent constraint 5 says

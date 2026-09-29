@@ -159,8 +159,7 @@ one is SIGKILL, which runs no handlers at all. Abandoning a slow handler is the 
 handler did not come back:**
 
 ```text
-closeout: shutdown deadline of 2000ms expired; exiting anyway.
-Handlers that had not returned: acme:unlock, closeTheDatabase
+closeout: shutdown deadline of 2000ms expired; exiting anyway. Handlers that had not returned: acme:unlock, closeTheDatabase
 ```
 
 Names come from the function's own `name`, or from a label you give it —
@@ -239,9 +238,13 @@ the handler that restores the terminal is usually registered last.
 **Bounded.** Shutdown returns on the handlers or on the clock, whichever comes first — and
 on the handlers when they are all synchronous, not on the clock.
 
-**The exit code is yours.** A handler running after `process.exit(3)` cannot turn it into a 0:
-the code is captured at the trigger, before a single handler runs, and a breached deadline
-exits with that same code rather than one invented by the fact that something hung.
+**The exit code is yours.** On a signal, a throw or a rejection, how the process leaves is
+decided at the trigger, before a single handler runs: a handler that sets `process.exitCode = 0`
+on its way past cannot turn a crash into a success, and a breached deadline leaves the same way
+rather than with a code invented by the fact that something hung. Every handler is told the
+code in `report.code`. On `process.exit()` and a normal finish the process is leaving on its
+own, and Node reads `process.exitCode` *after* the handlers, so a handler must not assign it
+there.
 
 **A signalled process dies of the signal.** Once the handlers have run, closeout removes its
 own listener and re-raises — so a program killed by Ctrl-C really dies of SIGINT rather than

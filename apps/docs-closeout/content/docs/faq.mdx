@@ -1,0 +1,78 @@
+---
+title: FAQ
+description: "Short answers about closeout — SIGKILL, process.exit, async handlers, the deadline, exit codes, owning a signal, Windows, CommonJS and the drop-ins — each with where to read more."
+---
+
+## Does it run on SIGKILL?
+
+No, and nothing can: the operating system never delivers SIGKILL to a listener. closeout
+listens for `SIGINT`, `SIGTERM`, `SIGHUP`, `SIGQUIT` and, on Windows, `SIGBREAK`. The
+[deadline](/docs/guides/deadline) exists so that a user or an orchestrator never *needs* to
+send SIGKILL to get past a hung cleanup.
+
+## My async handler did not finish after `process.exit()`.
+
+`process.exit()` gives no time to await anything: Node is already leaving. On that path
+closeout calls every handler synchronously and lists an async one as unfinished in the
+report. Make work that must happen there synchronous, or leave by returning from `main`, by a
+signal or by a throw, where handlers are awaited.
+[Every exit path](/docs/guides/exit-paths#synchronous-and-asynchronous-handlers).
+
+## Can a handler change the exit code?
+
+On a signal, a throw or a rejection, no: how the process leaves is decided before any handler
+runs. On `process.exit()` and a normal finish, Node reads `process.exitCode` after the
+handlers, so a handler that assigns it does change the code — read the code from
+`report.code` instead of setting it. [Signals and exit status](/docs/guides/signals#the-exit-code).
+
+## Why does my process die of SIGINT instead of exiting 130?
+
+Because it was interrupted, and that is what a parent needs to know: a shell prints `^C`,
+`make` stops, a CI runner marks the job cancelled. closeout re-raises the signal after the
+handlers run. `closeout/exit-hook` exits `130` instead, because exit-hook does.
+[Signals and exit status](/docs/guides/signals).
+
+## My program has its own SIGINT handler. Will closeout exit under it?
+
+No. When the program has its own listener, closeout runs the handlers and stands aside; the
+program decides what happens next, with one delivery for one Ctrl-C.
+
+## What is the default deadline, and can I turn it off?
+
+2000 ms, provisional. `install({ deadline })` sets another; `Infinity` and `0` are refused
+with a `USAGE` error, because each brings back the hang or the abandoned cleanup the deadline
+exists to prevent. [The deadline](/docs/guides/deadline).
+
+## In what order do handlers run?
+
+By phase: `flush`, then `release` (the default), then `restore`, each awaited before the
+next; within a phase, in registration order. [Phases](/docs/guides/phases).
+
+## Does it work on Windows?
+
+The registry, the phases and the deadline do. SIGHUP cannot be raised at a process on
+Windows, so after a SIGHUP there closeout exits `129` instead of re-raising. closeout's
+real-process signal tests are POSIX-only and skipped on Windows.
+
+## Can I use it from CommonJS?
+
+Yes, on Node 20.19+ and 22.13+: the package is ESM with a `default` condition, so
+`require('closeout')` loads it through `require(esm)`. `closeout/signal-exit` is CommonJS
+itself, as signal-exit is.
+
+## Does importing it attach listeners?
+
+No. The process-wide instance installs on the first `onExit`, `hideCursor`, `rawMode` or
+`alternateScreen` call. A library that imports closeout for its types pays nothing.
+
+## Is `closeout/signal-exit` exactly signal-exit?
+
+It passes 134 of the 135 cases of signal-exit 4.1.0's own suite, and signal-exit itself
+passes the same 134; the case both fail is signal-exit's, on current Node. The differences
+that remain are on [Compatibility](/docs/drop-ins#known-differences).
+
+## Why is `closeout/exit-hook` bigger than exit-hook?
+
+It carries the phase ordering and the bounded runner the rest of closeout uses: 11,841 B
+against exit-hook's 4,458 B. Startup is level, 4.5 ms against 4.6 ms, as closeout's README
+measures.

@@ -1,0 +1,77 @@
+---
+title: Incremental migration
+description: "Move from exit-hook, signal-exit or restore-cursor to closeout's own onExit a handler at a time: swap the import first, then move handlers, and know what changes when the last one moves."
+---
+
+The drop-ins and `onExit` share one registry, so a program can use both while it moves.
+
+## 1. Change the import
+
+```diff
+- import exitHook from 'exit-hook';
++ import exitHook from 'closeout/exit-hook';
+```
+
+Nothing else changes: `closeout/exit-hook` passes exit-hook's own suite, 21 of 21. Or let the
+codemod do it: `npx burgee migrate --dry-run` lists the rewrites, `npx burgee migrate` makes
+them.
+
+## 2. Move handlers one at a time
+
+```js title="mixed.mjs"
+import { onExit } from 'closeout';
+import exitHook from 'closeout/exit-hook';
+
+exitHook(() => console.log('old hook: flushed the log'));
+onExit(() => console.log('new handler: released the lock'));
+
+setTimeout(() => {}, 10_000);
+process.kill(process.pid, 'SIGTERM');
+```
+
+Both run, once each, on the same shutdown. While any exit-hook hook is registered, the process
+leaves the way exit-hook does — `128 + n`, here 143:
+
+```text title="node mixed.mjs" exit="143"
+old hook: flushed the log
+new handler: released the lock
+```
+
+## 3. Move the last one
+
+```js title="moved.mjs"
+import { onExit } from 'closeout';
+
+onExit(() => console.log('flushed the log'), 'flush');
+onExit(() => console.log('released the lock'));
+
+setTimeout(() => {}, 10_000);
+process.kill(process.pid, 'SIGTERM');
+```
+
+With no exit-hook hook left, the process dies of the signal, which is what a parent, a shell
+or a CI runner should see:
+
+```text title="node moved.mjs" signal="SIGTERM"
+flushed the log
+released the lock
+```
+
+What else changes when the last hook moves:
+
+- **SIGHUP and SIGQUIT** reach your cleanup; exit-hook listens on neither.
+- **A throw and a rejection** reach async handlers too, with the error in the record.
+- **One deadline for the whole shutdown**, 2000 ms unless you `install({ deadline })`,
+  replaces each hook's `wait`.
+- **`gracefulExit()`** has no `onExit` counterpart: return from `main`, or call
+  `process.exit()` and keep the handlers that must run there synchronous.
+
+## From signal-exit and restore-cursor
+
+`closeout/signal-exit` keeps signal-exit's handler signature, `(code, signal)`; `onExit` gets
+the record, `({ path, code, signal, error })`. Returning `true` to claim a signal has no
+`onExit` equivalent: a program that wants to keep running after Ctrl-C installs its own
+listener, and closeout stands aside ([Signals](/docs/guides/signals)).
+
+`closeout/restore-cursor` becomes `hideCursor(stream)`, which hides and registers the restore
+in one call ([The terminal](/docs/guides/terminal)).
