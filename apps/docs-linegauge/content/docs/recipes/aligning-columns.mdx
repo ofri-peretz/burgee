@@ -1,0 +1,39 @@
+---
+title: Aligning columns
+description: "Pad text to a column count with width() and widest(), so CJK names and emoji do not push a column out of line the way padEnd does."
+---
+
+`String.prototype.padEnd` counts UTF-16 code units. A CJK character is one code unit and two
+columns; a ZWJ emoji is several code units and two columns. Pad by `width` instead, and size
+the column with `widest`:
+
+```js title="columns.mjs"
+import { widest, width } from 'linegauge';
+
+const rows = [
+  ['name', 'city'],
+  ['Ofri', 'Tel Aviv'],
+  ['山田太郎', '東京'],
+  ['Zoë 👩‍💻', 'Zürich'],
+];
+
+/** Pad to a column count, not a length: `padEnd` counts code units. */
+const pad = (text, columns) => text + ' '.repeat(columns - width(text));
+
+const first = widest(rows.map(([name]) => name));
+for (const [name, city] of rows) console.log(`${pad(name, first)} | ${city}`);
+```
+
+```text title="node columns.mjs"
+name     | city
+Ofri     | Tel Aviv
+山田太郎 | 東京
+Zoë 👩‍💻   | Zürich
+```
+
+In a terminal the bars line up. (In a browser font the CJK and emoji rows may not, because a
+web font does not draw them at exactly two columns — a terminal does.) The same padding is
+what flagstaff's tables and boxes do on top of linegauge.
+
+A styled cell pads the same way: `width` removes escape sequences before it counts, so
+`pad(red('Ofri'), first)` adds the same four spaces as the plain one.

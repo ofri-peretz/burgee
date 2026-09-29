@@ -1,0 +1,47 @@
+---
+title: Stripping escapes
+description: "strip() removes every escape sequence width, wrap and slice count as zero columns — SGR in every dialect, OSC 8 hyperlinks, cursor and erase commands — with one scanner shared by all of them."
+---
+
+`strip(text)` returns `text` with its escape sequences removed. It is the named export
+`strip` of `linegauge` and `linegauge/strip`, and the default export of `linegauge/strip`,
+which strip-ansi's own suite grades ([Compatibility](/docs/drop-ins)). It is a subpath
+rather than the root's default because the root's default is `width`, the string-width
+drop-in.
+
+```js title="strip.mjs"
+import stripAnsi from 'linegauge/strip';
+
+console.log(stripAnsi('\u001B[1m\u001B[31mbold red\u001B[39m\u001B[22m'));
+console.log(stripAnsi('\u001B[38:2::255:0:0mcolon-form truecolour\u001B[39m'));
+console.log(stripAnsi('\u001B]8;;https://example.com\u001B\\docs\u001B]8;;\u001B\\'));
+console.log(stripAnsi('\u001B[2K\u001B[1Gredrawn'));
+console.log(JSON.stringify(stripAnsi('a trailing escape\u001B')));
+```
+
+```text title="node strip.mjs"
+bold red
+colon-form truecolour
+docs
+redrawn
+"a trailing escape\u001b"
+```
+
+What it removes: SGR styling with semicolon or colon parameters, every other CSI command
+(cursor movement, erase), OSC commands including `OSC 8` hyperlinks under either terminator,
+DCS strings, the charset selections and the single-character escapes. An `ESC` that nothing
+parses after — a trailing one, above — is text and is kept, which is also strip-ansi's answer.
+
+## One scanner
+
+`width` measures what `strip` leaves, and `wrap` and `slice` find escapes with the same
+scanner `strip` is built on. A string measured, wrapped, sliced and stripped therefore never
+disagrees with itself about where the escapes were.
+
+## Why not Node's `stripVTControlCharacters`?
+
+`node:util` has a stripper, and on most input it gives the same answer. Before Node 24.21 it
+stops at the first `:` and leaves the colon form of a truecolour code behind as text —
+`:2::255:0:0mred` — so a three-column word measured after it comes out fifteen. `strip` removes the colon
+form itself before handing the rest to Node, and `strip.test.ts` asserts the colon form is
+stripped, and measured at its real width, on every Node the package supports.

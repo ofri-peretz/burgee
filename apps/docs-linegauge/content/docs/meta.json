@@ -2,6 +2,14 @@
   "title": "linegauge",
   "pages": [
     "index",
-    "coming-from"
+    "getting-started",
+    "guides",
+    "why-linegauge",
+    "drop-ins",
+    "coming-from",
+    "recipes",
+    "api",
+    "faq",
+    "changelog"
   ]
 }

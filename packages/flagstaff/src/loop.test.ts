@@ -37,12 +37,79 @@ const painted: Component<Count> = {
 type Mode = 'tty' | 'pipe' | 'ci' | 'json' | 'accessible';
 const ENV: Record<Mode, Record<string, string>> = { tty: {}, pipe: {}, ci: { CI: 'true' }, json: {}, accessible: { CLI_ACCESSIBLE: '1' } };
 
-function world(mode: Mode) {
+function world(mode: Mode, columns?: number) {
   const out: string[] = [];
   const err: string[] = [];
   const clock = manualClock();
-  const rt: Runtime = { env: ENV[mode], isTTY: { stdout: mode === 'tty' }, stdout: { write: (s: string) => out.push(s) }, stderr: { write: (s: string) => err.push(s) }, clock };
+  const rt: Runtime = { env: ENV[mode], isTTY: { stdout: mode === 'tty' }, stdout: { write: (s: string) => out.push(s), columns }, stderr: { write: (s: string) => err.push(s) }, clock };
   return { rt, clock, json: mode === 'json', stdout: () => out.join(''), stderr: () => err.join('') };
+}
+
+/**
+ * Just enough of a terminal to grade a repaint: autowrap with a pending wrap at the last
+ * column, `\n` as a newline, and the CSI forms the tty projection writes (`nG`, `nA`, `0J`,
+ * and the cursor's `?25l`/`?25h`, which move nothing).
+ */
+class Terminal {
+  readonly #columns: number;
+  readonly #rows: string[][] = [[]];
+  #row = 0;
+  #col = 0;
+
+  constructor(columns: number) {
+    this.#columns = columns;
+  }
+
+  csi(privateMode: string, n: number, op: string): void {
+    if (privateMode !== '') return;
+    if (op === 'G') this.#col = n - 1;
+    else if (op === 'A') this.#row = Math.max(0, this.#row - n);
+    else if (op === 'J') {
+      this.#rows[this.#row] = (this.#rows[this.#row] ?? []).slice(0, this.#col);
+      this.#rows.length = this.#row + 1;
+    }
+  }
+
+  print(ch: string): void {
+    if (ch === '\n' || this.#col >= this.#columns) {
+      this.#row += 1;
+      this.#col = 0;
+      while (this.#rows.length <= this.#row) this.#rows.push([]);
+      if (ch === '\n') return;
+    }
+    (this.#rows[this.#row] ??= [])[this.#col] = ch;
+    this.#col += 1;
+  }
+
+  get screen(): string[] {
+    return this.#rows.map((r) => r.join(''));
+  }
+}
+
+const CSI_FORM = new RegExp(`^${ESC}\\[(\\??)(\\d*)([A-Za-z])`);
+
+/** What a terminal `columns` wide shows after `bytes`: the rows on screen, top to bottom. */
+function screen(bytes: string, columns: number): string[] {
+  const term = new Terminal(columns);
+  for (let i = 0; i < bytes.length; ) {
+    const escape = CSI_FORM.exec(bytes.slice(i));
+    if (escape === null) {
+      term.print(bytes[i] ?? '');
+      i += 1;
+      continue;
+    }
+    const [whole, privateMode = '', arg = '', op = ''] = escape;
+    term.csi(privateMode, arg === '' ? 1 : Number(arg), op);
+    i += whole.length;
+  }
+  return term.screen;
+}
+
+/** Hoist a 100-column static at `columns` and lower it: the bytes written. */
+function wideAt(columns: number | undefined): string {
+  const w = world('tty', columns);
+  hoist({ name: 'wide', static: () => 'x'.repeat(100) }, w.rt, undefined).lower();
+  return w.stdout();
 }
 
 /** Hoist at 0, let two frames pass, change once, one more frame, lower with a final state. */
@@ -107,6 +174,24 @@ describe('R1 · one component, five modes', () => {
     const flag = hoist({ name: 'two', static: () => 'a\nb' }, w.rt, undefined);
     flag.lower();
     expect(w.stdout()).toBe(`${HIDE_CURSOR}a\nb${ESC}[1G${ESC}[1A${ESC}[0Ja\nb\n${SHOW_CURSOR}`);
+  });
+
+  it('a frame wider than the terminal repaints without leaving stale wrapped rows', () => {
+    // 25 columns on a 10-column terminal paints three rows. Counting it as one line erased
+    // only the last of them, and the first two stayed on screen under every repaint.
+    const w = world('tty', 10);
+    const flag = hoist({ name: 'wide', static: (s: Count) => String(s.n).repeat(25) }, w.rt, { n: 1 });
+    expect(screen(w.stdout(), 10)).toEqual(['1111111111', '1111111111', '11111']);
+    flag.update({ n: 2 });
+    expect(screen(w.stdout(), 10)).toEqual(['2222222222', '2222222222', '22222']);
+    flag.lower({ n: 3 });
+    expect(screen(w.stdout(), 10)).toEqual(['3333333333', '3333333333', '33333', '']);
+  });
+
+  it('a frame that wraps is erased at the width the writer reports, and at 80 when it reports none', () => {
+    // 100 columns is two rows at 80 and four at 30: the erase goes up one row and three.
+    expect(wideAt(undefined)).toContain(`${ESC}[1G${ESC}[1A${ESC}[0J`);
+    expect(wideAt(30)).toContain(`${ESC}[1G${ESC}[3A${ESC}[0J`);
   });
 
   it('after lower, update and lower are no-ops and the clock is released', () => {

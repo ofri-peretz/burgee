@@ -145,11 +145,11 @@ function isAmbiguous(codePoint: number): boolean {
 }
 
 /**
- * The five Unicode property classes, **built from source strings on first use**.
+ * The four Unicode property classes, **built from source strings on first use**.
  *
  * A `\p{…}` class under the `v` flag is not free to have in a file. V8 builds the set when
- * it *compiles the literal*, not when the literal is evaluated — so a module carrying these
- * five pays for all of them at import even if nothing ever calls them. Measured on Node 24,
+ * it *compiles the literal*, not when the literal is evaluated — so a module carrying such
+ * classes pays for all of them at import even if nothing ever calls them. Measured on Node 24,
  * five literals alone in a module: **12.0 ms against 2.0 for the same module with the
  * regexes replaced by numbers.**
  *
@@ -162,7 +162,7 @@ function isAmbiguous(codePoint: number): boolean {
  * non-ASCII cluster pays the 10 ms once, on the first call, which is where it belongs — a
  * CLI printing help, flags and paths never touches any of them.
  *
- * **A probe once blamed one of these five for 10.61 ms and it was measuring its own
+ * **A probe once blamed one of these classes for 10.61 ms and it was measuring its own
  * ordering.** `new RegExp('^\\p{RGI_Emoji}$', 'v')` ran first in a cold process, so it paid
  * a one-time Unicode-data initialisation that whichever regex ran first would have paid; in
  * a warm process the same constructor costs 0.01 ms. The number was real, the attribution
@@ -171,32 +171,28 @@ function isAmbiguous(codePoint: number): boolean {
  * will find it expensive.
  *
  * What this costs: a string loses the syntax checking a literal gets at build time.
- * `width.test.ts` constructs all five and exercises each, so a typo fails the suite rather
- * than a user's terminal.
+ * `width.test.ts` exercises all four, so a typo fails the suite rather than a user's terminal.
  *
- * Five bindings rather than one keyed object, and that is a measured 141 bytes per bundled
+ * One binding per class rather than one keyed object, and that is a measured 141 bytes per bundled
  * entry point: a minifier renames a module-level `let` to one character and cannot touch a
  * property name, so `classes['zeroWidth']` survives minification at full length in three
  * places each. Those 141 bytes were what put `linegauge`, `linegauge/wrap` and
  * `linegauge/slice` over their B4 ceilings the day this laziness landed.
  */
-let zeroWidthClass: RegExp | undefined;
-let leadingClass: RegExp | undefined;
+let invisibleClass: RegExp | undefined;
 let rgiClass: RegExp | undefined;
 let spacingClass: RegExp | undefined;
 let pictographicClass: RegExp | undefined;
 
 /**
- * The ignorable/control/format/mark/surrogate set, written once and spelled two ways.
+ * The ignorable/control/format/mark/surrogate set: the code points that occupy no column.
  *
- * Sharing one string between the alternation and the character class was tried and is
- * wrong: `|` is an alternation operator in `(?:…)` and a literal pipe inside `[…]`, so the
- * class form silently began matching `|` and stopped matching most of the set. `width()`
- * answered **15 for a three-column string** and the suite said so immediately. Two
- * constants, one list.
+ * Exported for `width.test.ts`, which grades `leadingInvisible` against the two regexes this
+ * set used to be spelled as. Joined with nothing, because it goes inside `[…]`: joined with
+ * `|` it once made the class match a literal pipe, and `width()` answered 15 for a
+ * three-column string.
  */
-const INVISIBLE_CLASSES = ['\\p{Default_Ignorable_Code_Point}', '\\p{Control}', '\\p{Format}', '\\p{Nonspacing_Mark}', '\\p{Enclosing_Mark}', '\\p{Surrogate}'] as const;
-const INVISIBLE_ALTERNATION = INVISIBLE_CLASSES.join('|');
+export const INVISIBLE_CLASSES = ['\\p{Default_Ignorable_Code_Point}', '\\p{Control}', '\\p{Format}', '\\p{Nonspacing_Mark}', '\\p{Enclosing_Mark}', '\\p{Surrogate}'] as const;
 const INVISIBLE_SET = INVISIBLE_CLASSES.join('');
 
 /**
@@ -208,13 +204,37 @@ const INVISIBLE_SET = INVISIBLE_CLASSES.join('');
  * right, the fix is three more lines, and it is worth noting that the rule caught it in the
  * repository that ships the rule.
  */
-/** A cluster that occupies no column: ignorables, controls, formats, marks, lone surrogates. */
-const ZERO_WIDTH_CLUSTER = (): RegExp => (zeroWidthClass ??= new RegExp(`^(?:${INVISIBLE_ALTERNATION})+$`, 'v'));
-/** The same set, anchored at the start, for stripping a cluster's invisible prefix. */
-const LEADING_NON_PRINTING = (): RegExp => (leadingClass ??= new RegExp(`^[${INVISIBLE_SET}]+`, 'v'));
+/** One code point of the set. No quantifier: it is asked about one character at a time. */
+const INVISIBLE = (): RegExp => (invisibleClass ??= new RegExp(`^[${INVISIBLE_SET}]$`, 'v'));
 const RGI_EMOJI = (): RegExp => (rgiClass ??= new RegExp('^\\p{RGI_Emoji}$', 'v'));
 const SPACING_MARK = (): RegExp => (spacingClass ??= new RegExp('^\\p{Spacing_Mark}$', 'v'));
 const EXTENDED_PICTOGRAPHIC = (): RegExp => (pictographicClass ??= new RegExp('^\\p{Extended_Pictographic}$', 'u'));
+
+/**
+ * How many code units at the start of `text` are invisible — a code point loop, linear in the
+ * length, where this used to be two regexes.
+ *
+ * **The regexes could hang `width()`.** A cluster was zero-width when it matched
+ * `^(?:DI|Control|Format|Mn|Me|Surrogate)+$`, and the six classes overlap: `U+034F`
+ * COMBINING GRAPHEME JOINER is both Default_Ignorable and Nonspacing_Mark, so a run of them
+ * followed by one visible character made the engine try every way of assigning each joiner
+ * to one of its two alternatives before failing. Measured on Node 24: 24 joiners took 0.6 s,
+ * 26 took 2.4 s, 1,000 did not finish in ten minutes. `Intl.Segmenter` hands the whole run
+ * to this function as one cluster, because every joiner extends it. string-width 8.3.0's
+ * suite added the case (1,000 and 3,000,000 joiners), which is how it was found. The
+ * character-class spelling, `^[…]+`, does not backtrack like that but grows V8's backtrack
+ * stack by one entry per code point and threw `RangeError` at three million. Asking about one
+ * code point at a time has neither problem, and answers the same on every input either regex
+ * finishes on — `width.test.ts` compares them exhaustively over short strings.
+ */
+export function leadingInvisible(text: string): number {
+  let index = 0;
+  for (const character of text) {
+    if (!INVISIBLE().test(character)) break;
+    index += character.length;
+  }
+  return index;
+}
 
 /**
  * An **unqualified keycap**: the base, then `U+20E3`, with the `U+FE0F` that would have made
@@ -339,7 +359,7 @@ function isJamo(codePoint: number): boolean {
 function hangulColumns(visible: string, ambiguousIsWide: boolean): number | undefined {
   const codePoints: number[] = [];
   for (const character of visible) {
-    if (ZERO_WIDTH_CLUSTER().test(character)) continue;
+    if (INVISIBLE().test(character)) continue;
     codePoints.push(character.codePointAt(0) ?? 0);
   }
   if (codePoints.length === 0 || !isJamo(codePoints[0] ?? 0)) return undefined;
@@ -399,12 +419,15 @@ export function measure(text: string, ambiguousIsWide = false): number {
       columns += claimed;
       continue;
     }
-    if (ZERO_WIDTH_CLUSTER().test(segment)) continue;
+    // All of it invisible: ignorables, controls, formats, marks, lone surrogates. A segment
+    // is never empty, so this is exactly the old `^(?:…)+$`.
+    const skipped = leadingInvisible(segment);
+    if (skipped === segment.length) continue;
     if (RGI_EMOJI().test(segment) || isUnqualifiedEmojiSequence(segment)) {
       columns += WIDE_COLUMNS;
       continue;
     }
-    const visible = segment.replace(LEADING_NON_PRINTING(), '');
+    const visible = segment.slice(skipped);
     const hangul = hangulColumns(visible, ambiguousIsWide);
     if (hangul !== undefined) {
       columns += hangul;
