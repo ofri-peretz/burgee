@@ -5,7 +5,7 @@
  * keeps `--color` state in a module global that an earlier case's `FORCE_COLOR` overwrites,
  * so one process asked sixty questions would answer some of them from history — and of the
  * façade through `terminalLinkFor`, which is the path a caller takes. The façade that read
- * `LINK.when` failed 30 of these 56. The incumbent says yes to 29 of the 55 environments,
+ * `LINK.when` failed 30 of the first 56. The incumbent says yes to 34 of the 62 environments,
  * so agreement cannot come from both sides answering the same thing everywhere.
  */
 import { spawnSync } from 'node:child_process';
@@ -79,6 +79,15 @@ const CASES: Record<string, Case> = {
   'TERM=dumb under Windows Terminal': { env: { TERM: 'dumb', WT_SESSION: 'x' } },
   'TERM=dumb under Windows Terminal, FORCE_COLOR=1': { env: { TERM: 'dumb', WT_SESSION: 'x', FORCE_COLOR: '1' } },
   'Azure Pipelines, piped': { env: { ...iterm, TF_BUILD: 'True', AGENT_NAME: 'a' }, tty: false },
+  // On a terminal whose colour the environment does not settle — `TERM=dumb`, which leaves
+  // `supports-color` at its forced level — so each of these is the one clause deciding.
+  'TERM=dumb under Windows Terminal, FORCE_COLOR=true': { env: { TERM: 'dumb', WT_SESSION: 'x', FORCE_COLOR: 'true' } },
+  'TERM=dumb under Windows Terminal, FORCE_COLOR empty': { env: { TERM: 'dumb', WT_SESSION: 'x', FORCE_COLOR: '' } },
+  'TERM=dumb under Windows Terminal, --color': { env: { TERM: 'dumb', WT_SESSION: 'x' }, argv: ['--color'] },
+  'TERM=dumb under Windows Terminal, --color=256': { env: { TERM: 'dumb', WT_SESSION: 'x' }, argv: ['--color=256'] },
+  'TERM=dumb under Windows Terminal, Azure Pipelines': { env: { TERM: 'dumb', WT_SESSION: 'x', TF_BUILD: 'True', AGENT_NAME: 'a' } },
+  'TERM=dumb under Windows Terminal, TF_BUILD without AGENT_NAME': { env: { TERM: 'dumb', WT_SESSION: 'x', TF_BUILD: 'True' } },
+  'truecolor with no TERM and no TERM_PROGRAM': { env: { COLORTERM: 'truecolor' } },
   'no environment at all': { env: {} },
 };
 
@@ -111,5 +120,18 @@ describe('paratext/terminal-link links where supports-hyperlinks 4.5.0 does (A27
     const runtime = { env: iterm, isTTY: { stdout: false, stderr: true }, argv: [], platform: 'linux' };
     expect(terminalLinkFor(runtime)('a', 'b', { target: 'stderr' })).toContain('\u001B]8;;');
     expect(terminalLinkFor(runtime)('a', 'b')).toBe('a b');
+  });
+
+  it('takes stderr to be stdout when the runtime says nothing about stderr', () => {
+    const on = { env: iterm, isTTY: { stdout: true }, argv: [], platform: 'linux' };
+    const off = { ...on, isTTY: { stdout: false } };
+    expect(terminalLinkFor(on)('a', 'b', { target: 'stderr' })).toContain('\u001B]8;;');
+    expect(terminalLinkFor(off)('a', 'b', { target: 'stderr' })).toBe('a b');
+  });
+
+  it('reads a runtime with no argv or platform as no flags on a platform that is not win32', () => {
+    // `Runtime.argv` and `.platform` are optional, and every other caller of the type leaves
+    // them out: a runtime built for the root must not lose its links here, or throw.
+    expect(terminalLinkFor({ env: iterm, isTTY: { stdout: true } })('a', 'b')).toContain('\u001B]8;;');
   });
 });
