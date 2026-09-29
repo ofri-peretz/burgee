@@ -235,6 +235,12 @@ describe('the door', () => {
     expect(() => { validate({ name: 'acme', handlers: [{ run: () => undefined }] }); }).toThrow(/has no name/);
   });
 
+  it.each([null, 42, 'unlock', [{ name: 'unlock' }]])('refuses a handler entry that is not an object (%s), naming its index', (entry) => {
+    expect(() => { validate({ name: 'acme', handlers: [{ name: 'ok', run: () => undefined }, entry] }); }).toThrow(
+      new PluginError('E_PLUGIN_SCHEMA', 'plugin "acme": handlers[1] is not an object', 'each handler is `{ name, phase?, run }`'),
+    );
+  });
+
   it('refuses handlers that are not an array', () => {
     expect(() => { validate({ name: 'acme', handlers: { unlock: () => undefined } }); }).toThrow(/must be an array/);
   });

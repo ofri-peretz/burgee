@@ -10,7 +10,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { builtins, link, registerBuiltins } from './builtins.js';
-import { type Capability, capabilities, capability, check, emit, isDeprecation, refusals, register, reset, schemaFields } from './capability.js';
+import { type Capability, capabilities, capability, check, emit, isDeprecation, refusals, register, reset, schemaFields, supports } from './capability.js';
 import { type Runtime } from './runtime.js';
 import schema from './schema.json' with { type: 'json' };
 import { fieldsUsed, render } from './template.js';
@@ -113,6 +113,42 @@ describe('a capability is data, not code', () => {
 
   it('falls back to the caller’s text for a name nobody registered, rather than throwing at 3am', () => {
     expect(emit(iterm, 'not-a-capability', { text: 'plain text' })).toBe('plain text');
+    // An image's text is its caption, so an unknown image-shaped call still prints something…
+    expect(emit(iterm, 'not-a-capability', { caption: 'a chart' })).toBe('a chart');
+    // …and a call with neither prints nothing, rather than `undefined`.
+    expect(emit(iterm, 'not-a-capability')).toBe('');
+  });
+});
+
+/** A terminal, with nothing but `env` to say which one. */
+const tty = (env: Record<string, string>): Runtime => ({ env, isTTY: { stdout: true } });
+
+/**
+ * The support guess on a terminal, not a pipe. Every clause in `when` must hold, and
+ * `termProgram` and `envAny` are ORs within themselves — the pipe cases above all stop at
+ * `tty`, so these are the ones that reach the rest.
+ */
+describe('the support guess, past the tty', () => {
+  it('says no on TERM=dumb, even in a terminal the guess would otherwise name', () => {
+    expect(supports(tty({ TERM_PROGRAM: 'iTerm.app' }), link)).toBe(true);
+    expect(supports(tty({ TERM_PROGRAM: 'iTerm.app', TERM: 'dumb' }), link)).toBe(false);
+  });
+
+  it('holds an exact TERM to the letter', () => {
+    const kitty = { when: { tty: true, term: 'xterm-kitty' } };
+    expect(supports(tty({ TERM: 'xterm-kitty' }), kitty)).toBe(true);
+    expect(supports(tty({ TERM: 'xterm-256color' }), kitty)).toBe(false);
+  });
+
+  it('reads a terminal that names no TERM_PROGRAM by its environment alone', () => {
+    expect(supports(tty({ VTE_VERSION: '6003' }), link)).toBe(true);
+    expect(emit(tty({}), 'link', { text: 'Docs', url: 'https://x.dev' })).toBe('Docs (https://x.dev)');
+  });
+
+  it('an `envAny` with no `termProgram` beside it is the whole of the guess', () => {
+    const vte = { when: { tty: true, envAny: ['VTE_VERSION'] } };
+    expect(supports(tty({ VTE_VERSION: '6003', TERM_PROGRAM: 'iTerm.app' }), vte)).toBe(true);
+    expect(supports(tty({ TERM_PROGRAM: 'iTerm.app' }), vte)).toBe(false);
   });
 });
 
@@ -124,6 +160,11 @@ describe('the template language', () => {
     expect(render('x[ {b}]', {})).toBe('x');
     // An empty value counts as absent: `Done: ` reads worse than `Done`.
     expect(render('x[: {b}]', { b: '' })).toBe('x');
+  });
+
+  it('renders an absent field outside a group as nothing, never as `undefined`', () => {
+    expect(render('{a}-{b}', { a: '1' })).toBe('1-');
+    expect(render('{a|base64}', {})).toBe('');
   });
 
   it('reports the fields a capability needs, so a check can say what is missing', () => {
@@ -214,6 +255,20 @@ describe('the fold into the family schema', () => {
   it('wants the plugin named, the way every other host does', () => {
     const { name: _dropped, ...unnamed } = plugin;
     expect(check(unnamed)).toEqual(['a plugin needs a name']);
+  });
+
+  it('names a missing field the schema requires even where no sentence was written for it', () => {
+    const { encode: _dropped, ...noEncode } = link;
+    expect(check({ name: 'terminal-extras', capabilities: { link: noEncode } })).toEqual(['capabilities.link: encode is required']);
+  });
+
+  it('calls a bare capability with no name `<unnamed>`, and still lists what else is wrong with it', () => {
+    const { name: _unnamed, fallback: _dropped, ...anonymous } = link;
+    expect(check(anonymous)).toEqual([
+      expect.stringMatching(/^deprecated: <unnamed>: a capability written as the whole document/),
+      'a capability needs a name',
+      '<unnamed>: fallback must be a template, even if it is empty — rule 6 has no opt-out',
+    ]);
   });
 
   it('still validates the pre-0.3 bare shape, and says that it is deprecated', () => {

@@ -20,18 +20,20 @@ export interface DateOptions extends CommonOptions {
 type Segment = 'year' | 'month' | 'day';
 
 /** Each field's width, and what it shows while empty. */
-const SHAPE = new Map<Segment, { width: number; label: string }>([
-  ['year', { width: 4, label: 'yyyy' }],
-  ['month', { width: 2, label: 'mm' }],
-  ['day', { width: 2, label: 'dd' }],
-]);
-const LETTERS = new Map<string, Segment>([
-  ['Y', 'year'],
-  ['M', 'month'],
-  ['D', 'day'],
-]);
+const SHAPE: Record<Segment, { width: number; label: string }> = {
+  year: { width: 4, label: 'yyyy' },
+  month: { width: 2, label: 'mm' },
+  day: { width: 2, label: 'dd' },
+};
+/** The field order each format names. */
+const ORDER: Record<DateFormat, readonly Segment[]> = {
+  YMD: ['year', 'month', 'day'],
+  MDY: ['month', 'day', 'year'],
+  DMY: ['day', 'month', 'year'],
+};
 
-const widthOf = (segment: Segment): number => SHAPE.get(segment)?.width ?? 2;
+const isSegment = (type: string): type is Segment => type === 'year' || type === 'month' || type === 'day';
+const widthOf = (segment: Segment): number => SHAPE[segment].width;
 const blankOf = (segment: Segment): string => '_'.repeat(widthOf(segment));
 
 /** Any date whose day is past twelve, so a locale's parts cannot be read ambiguously. */
@@ -47,10 +49,13 @@ const ISO_DATE = 10;
 
 /** The field order and separator for a format, or the locale's own when there is none. */
 function layoutOf(format: DateFormat | undefined, locale: string | undefined): { segments: Segment[]; separator: string } {
-  if (format !== undefined) return { segments: [...format].map((letter) => LETTERS.get(letter) ?? 'day'), separator: '/' };
+  if (format !== undefined) return { segments: [...ORDER[format]], separator: '/' };
   const parts = new Intl.DateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'UTC' }).formatToParts(PROBE);
-  const segments = parts.map((part) => part.type).filter((type): type is Segment => type === 'year' || type === 'month' || type === 'day');
-  const literal = parts.find((part) => part.type === 'literal')?.value ?? '/';
+  const segments = parts.map((part) => part.type).filter(isSegment);
+  // The literal right after the first field. Not the first literal, which in `ps` is the space
+  // after the era, and not the last, which in `bg` is the ` г.` after the year.
+  const after = parts[parts.findIndex((part) => isSegment(part.type)) + 1];
+  const literal = after?.type === 'literal' ? after.value : '/';
   return { segments, separator: literal.trim() === '' ? literal : literal.trim() };
 }
 
@@ -77,11 +82,13 @@ class Fields {
   }
 
   get(segment: Segment): string {
-    return this.values.get(segment) ?? blankOf(segment);
+    // Every segment is set in the constructor.
+    return this.values.get(segment) as string;
   }
 
   private get segment(): Segment {
-    return this.segments[this.active] ?? 'day';
+    // `active` is clamped to the segments by `moveBy`.
+    return this.segments[this.active] as Segment;
   }
 
   /** The date the fields name, or nothing while one is incomplete or the day is past the month's end. */
@@ -151,7 +158,7 @@ class Fields {
       .map((segment, i) => {
         const value = this.get(segment);
         const blank = value.replaceAll('_', '') === '';
-        const shown = blank ? (SHAPE.get(segment)?.label ?? '') : value.replaceAll('_', ' ');
+        const shown = blank ? SHAPE[segment].label : value.replaceAll('_', ' ');
         if (i === this.active) return paint('inverse', shown);
         return blank ? paint('dim', shown) : shown;
       })

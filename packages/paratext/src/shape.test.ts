@@ -25,6 +25,7 @@ import { registerBuiltins } from './builtins.js';
 import { type Capability, capabilities, CapabilityError, check, emit, refusals, register, reset as resetRegistry } from './capability.js';
 import { attach, type CapabilityHost, PluginError, register as registerPlugin, reset as resetPlugins, validate } from './plugin.js';
 import { type Runtime } from './runtime.js';
+import { violations } from './shape.js';
 import { supports } from './supports.js';
 
 /**
@@ -89,6 +90,14 @@ describe('check() reads the schema rather than one array out of it', () => {
 
   it('refuses a name that is present but empty — `minLength: 1` is declared and was unread', () => {
     expect(refusals(check({ name: 'acme', capabilities: { '': { ...MALFORMED, name: '', osc: 8, when: {}, extra: undefined } } })).join('\n')).toContain('must not be empty');
+  });
+
+  it('refuses an `osc` below the declared minimum, and names the bound in the line', () => {
+    expect(refusals(check(asDocument({ ...MALFORMED, osc: -1, when: {}, extra: undefined })))).toEqual(['capabilities.x.osc: must be an integer ≥ 0 or "BEL"']);
+  });
+
+  it('calls `null` null, not an object — JSON writes it and `typeof` would let it through', () => {
+    expect(refusals(check(asDocument({ ...MALFORMED, osc: 8, when: null, extra: undefined })))).toEqual(['capabilities.x.when: must be an object, not null']);
   });
 
   it('still accepts every capability the package itself ships, and the schema’s own example', () => {
@@ -179,5 +188,35 @@ describe('no door puts a non-object `when` in front of supports()', () => {
   it('supports() answers false for a `when` it cannot read, rather than four undefined clauses', () => {
     expect(supports(piped, { when: 'not an object' } as unknown as Capability)).toBe(false);
     expect(supports({ env: {}, isTTY: { stdout: true } }, { when: 'not an object' } as unknown as Capability)).toBe(false);
+  });
+});
+
+/**
+ * The walk is the schema's, not `$defs/capability`'s: nothing in `shape.ts` names a field, so
+ * what it does with a keyword the capability entry happens not to write today is behaviour a
+ * schema edit tomorrow would rely on. Each case below is a node shape the file could grow.
+ */
+describe('violations() over nodes the capability entry does not write yet', () => {
+  it('a `number` takes an integer too — integer is the narrower name for the same value', () => {
+    expect(violations({ type: 'number' }, 2, 'n')).toEqual([]);
+    expect(violations({ type: 'number' }, 2.5, 'n')).toEqual([]);
+    expect(violations({ type: 'integer' }, 2.5, 'n')).toEqual(['n: must be an integer, not number']);
+  });
+
+  it('a node with no `type` checks only the keywords it does write', () => {
+    expect(violations({ minLength: 2 }, 5, 'n')).toEqual([]);
+    expect(violations({ minLength: 2 }, 'a', 'n')).toEqual(['n: must not be empty']);
+  });
+
+  it('a number with no `minimum` is unbounded below', () => {
+    expect(violations({ type: 'integer' }, -5, 'n')).toEqual([]);
+  });
+
+  it('an object with no `properties` has no rule for any key, so `additionalProperties: false` refuses each', () => {
+    expect(violations({ type: 'object', additionalProperties: false }, { a: 1 }, 'n')).toEqual(['n.a: is not a field the schema declares']);
+  });
+
+  it('without `additionalProperties: false`, a key with no rule is allowed — refusing it is opt-in, as in JSON Schema', () => {
+    expect(violations({ type: 'object', properties: {} }, { a: 1 }, 'n')).toEqual([]);
   });
 });

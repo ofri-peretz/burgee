@@ -131,6 +131,19 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
     'program',
     'useColor',
   ],
+  'burgee/meow': [
+    'AnyFlag',
+    'AnyFlags',
+    'Flag',
+    'FlagType',
+    'InputOption',
+    'InputOptionType',
+    'IsRequiredPredicate',
+    'Options',
+    'Result',
+    'TypedFlags',
+    'default',
+  ],
   'burgee/yargs': [
     'Arguments',
     'ArgumentsCamelCase',
@@ -497,11 +510,12 @@ export type RefusalReason = 'deep-import' | 'non-literal-specifier' | 'unknown-e
  * Node's own `require()` returns for every installed incumbent in `MAPPING`, so a name here
  * is a measurement and an incumbent that is not installed is left out, and refused as before.
  */
-export const REQUIRE_NAMESPACE: readonly string[] = ['ansi-escapes', 'chalk', 'ora', 'log-update', 'boxen', 'string-width', 'strip-ansi', 'wrap-ansi', 'slice-ansi', 'restore-cursor', 'exit-hook', 'terminal-link'];
+export const REQUIRE_NAMESPACE: readonly string[] = ['ansi-escapes', 'chalk', 'ora', 'log-update', 'boxen', 'string-width', 'strip-ansi', 'wrap-ansi', 'slice-ansi', 'restore-cursor', 'exit-hook', 'terminal-link', 'meow'];
 
 /** Whether `require(from)` and `require(to)` hand a CommonJS caller different kinds of value. */
 function requireShapesDiffer(from: string, to: string): boolean {
-  const exported = FACADE_EXPORTS[to] ?? [];
+  // Every target has a table: `migrate.test.ts` holds the keys equal to `MAPPING`'s targets.
+  const exported = FACADE_EXPORTS[to] as readonly string[];
   const toGivesDefault = exported.includes('module.exports');
   // An incumbent that returns its namespace needs a target that returns one too.
   if (REQUIRE_NAMESPACE.includes(from)) return toGivesDefault;
@@ -1007,7 +1021,8 @@ async function offMajorOf(dir: string, dependencies: Map<string, string>): Promi
     const graded = GRADED_VERSIONS[from];
     if (version === undefined || graded === undefined) return [];
     const major = majorOf(version);
-    return major === undefined || (SUPPORTED_MAJORS[from] ?? []).includes(major) ? [] : [{ from, found: version, graded }];
+    // A graded host always has its majors: `supported-majors-lock.test.ts` holds one list per graded host.
+    return major === undefined || (SUPPORTED_MAJORS[from] as readonly number[]).includes(major) ? [] : [{ from, found: version, graded }];
   });
 }
 
