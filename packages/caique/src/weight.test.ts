@@ -109,6 +109,8 @@ const RULES: Record<string, EntryRule> = {
   // prompt hides the cursor and owes its return on every exit path, and `linegauge/wrap`.
   // It is still a leaf away from the rest of caique: a program migrating off clack loads none
   // of caique's own API, and a program written against caique never loads a byte of this.
+  // 62,336 B on 2026-09-28; 62,229 B (−107) once raw mode went through `closeout/cursor`'s
+  // `rawMode()` instead of a hand-rolled toggle — an import the allow list already named.
   './clack': {
     allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap'],
     budget: 64_000,

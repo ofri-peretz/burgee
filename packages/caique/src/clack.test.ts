@@ -80,6 +80,16 @@ const sayOk = (value: string | undefined): string | undefined => (value === 'ok'
 const OPTIONS = [{ value: 'a' }, { value: 'b' }];
 const MESSAGE = 'message';
 
+/** Answer a text prompt on a terminal input whose raw mode starts as `isRaw`; returns every `setRawMode` call. */
+async function rawModesOn(isRaw: boolean): Promise<boolean[]> {
+  const modes: boolean[] = [];
+  const input = Object.assign(new Input(), { isTTY: true, isRaw, setRawMode: (mode: boolean) => modes.push(mode) });
+  const answer = clack.text({ message: MESSAGE, input, output: new Output() });
+  input.emit('keypress', '\r', { name: 'return', sequence: '\r' });
+  await answer;
+  return modes;
+}
+
 const PROMPTS: Record<string, (opts: clack.CommonOptions) => Promise<unknown>> = {
   text: (opts) => clack.text({ message: MESSAGE, ...opts }),
   password: (opts) => clack.password({ message: MESSAGE, ...opts }),
@@ -253,6 +263,11 @@ describe('what the prompts answer', () => {
     const { answer, writes } = await drive((io) => clack.text({ message: MESSAGE, signal: controller.signal, ...io }), []);
     expect(clack.isCancel(answer)).toBe(true);
     expect(writes).toEqual(['\n']);
+  });
+
+  it('turns raw mode off only when the prompt turned it on', async () => {
+    expect(await rawModesOn(false)).toEqual([true, false]);
+    expect(await rawModesOn(true)).toEqual([]);
   });
 });
 
