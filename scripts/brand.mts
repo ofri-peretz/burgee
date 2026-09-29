@@ -125,6 +125,7 @@ const MARK_SHARE = {
   bellpull: 0.8,
   closeout: 0.9,
   paratext: 0.95,
+  controlroom: 0.9,
 } as const;
 
 /**
@@ -312,6 +313,27 @@ const PARATEXT =
 /** In the head margin, where the title goes. */
 const HEAD = { x: 50, y: 24 } as const;
 
+/**
+ * Controlroom: the room a system is watched and run from, drawn as the one thing every
+ * control room is built around — a console screen on its stand, showing the layout the
+ * package draws. Two panes are cut through it, a window at the top right and a log strip
+ * along the bottom, so the glass is absence as linegauge's ticks are. The left pane is the
+ * one left solid: the panel the room is run from, and where the mark rides. Landscape, two
+ * cuts and a stand keep it clear of paratext's single-hole portrait page.
+ */
+const CONSOLE = { left: 4, right: 96, top: 10, bottom: 70 } as const;
+const STAND = { neck: 6, base: 24, foot: 80, floor: 90 } as const;
+const PANE = { left: 56, right: 88, top: 18, bottom: 44 } as const;
+const LOG = { left: 12, right: 88, top: 52, bottom: 62 } as const;
+const CONTROLROOM =
+  `M${CONSOLE.left} ${CONSOLE.top} H${CONSOLE.right} V${CONSOLE.bottom}` +
+  ` H${MARK_CENTRE + STAND.neck} V${STAND.foot} H${MARK_CENTRE + STAND.base} V${STAND.floor}` +
+  ` H${MARK_CENTRE - STAND.base} V${STAND.foot} H${MARK_CENTRE - STAND.neck} V${CONSOLE.bottom} H${CONSOLE.left} Z` +
+  ` M${PANE.left} ${PANE.top} H${PANE.right} V${PANE.bottom} H${PANE.left} Z` +
+  ` M${LOG.left} ${LOG.top} H${LOG.right} V${LOG.bottom} H${LOG.left} Z`;
+/** In the solid left pane, level with the cut one beside it. */
+const PANEL = { x: 31, y: (PANE.top + PANE.bottom) / 2 } as const;
+
 type Sibling = {
   name: keyof typeof MARK_SHARE;
   tagline: string;
@@ -330,6 +352,7 @@ const SIBLINGS: readonly Sibling[] = [
   { name: 'bellpull', tagline: 'Pull here, work happens there.', shape: BELLPULL, at: PULL },
   { name: 'closeout', tagline: 'Settle, and finish.', shape: CLOSEOUT, at: TOTAL },
   { name: 'paratext', tagline: 'Everything around the output.', shape: PARATEXT, at: HEAD },
+  { name: 'controlroom', tagline: 'Where a system is run from.', shape: CONTROLROOM, at: PANEL },
 ];
 
 const siblings = SIBLINGS.map(({ name, tagline, shape, at, markings }) => ({

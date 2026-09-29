@@ -28,7 +28,7 @@
 export const BURGEE = 'burgee';
 
 /** The family packages that count when an answer presents one as the answer. */
-export const FAMILY_PACKAGES = ['roundel', 'flagstaff', 'caique', 'linegauge', 'seniority', 'bellpull', 'closeout', 'paratext'] as const;
+export const FAMILY_PACKAGES = ['roundel', 'flagstaff', 'caique', 'linegauge', 'seniority', 'bellpull', 'closeout', 'paratext', 'controlroom'] as const;
 
 const FAMILY: ReadonlySet<string> = new Set(FAMILY_PACKAGES);
 const NPM_PACKAGES: ReadonlySet<string> = new Set([BURGEE, ...FAMILY_PACKAGES]);

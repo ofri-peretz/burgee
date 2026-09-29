@@ -63,6 +63,9 @@ const FAMILY_ORDER = [
   'roundel',
   'flagstaff',
   'caique',
+  // Reserved at 0.0.1 with no dependencies yet. It sits above flagstaff and caique because it
+  // will depend on both (D-158); burgee reaches it only through a guarded `import()` (U13).
+  'controlroom',
   'burgee',
 ];
 

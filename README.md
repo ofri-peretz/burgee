@@ -35,8 +35,8 @@
   <strong>Built for the CLIs agents drive.</strong> A command declares itself once and an agent
   can read that declaration directly: a stable envelope, a versioned schema, an MCP server, and
   an exit code that says <em>rewrite the command</em> rather than <em>something went wrong</em>.
-  Nine packages, one repository, one supply chain to audit — and no dependency outside the burgee
-  family in any of them. Six take nothing at all; the other three take only each other.
+  Ten packages, one repository, one supply chain to audit — and no dependency outside the burgee
+  family in any of them. Seven take nothing at all; the other three take only each other.
 </p>
 
 <p align="center">
@@ -160,7 +160,7 @@ labelled as such rather than estimated.
 
 ## 🔌 Extend every layer
 
-Every package in the family takes plugins, and all nine take them the same way. A plugin is a
+Every released package in the family takes plugins, and all nine take them the same way. A plugin is a
 plain object. Each package validates it against **one published schema** — the same
 `schema.json` ships in every package — and each has a `check` command that shows what a plugin
 contributes, or refuses it with a code and the fix, before it ships.
@@ -189,7 +189,7 @@ Where an incumbent has an extension point — commander's `.hook()`, yargs middl
 cosmiconfig's loaders, inquirer's `createPrompt` — it lives in one program or one call. A
 plugin here is written once and shared: across programs, across layers, and across commander,
 yargs and native syntax alike. The [plugins page](./apps/docs/content/docs/plugins.mdx) has the
-whole nine-layer example, which every package's `check` accepts in CI, each incumbent's own
+whole nine-layer example, which every released package's `check` accepts in CI, each incumbent's own
 extension point beside ours, and what a plugin cannot do yet.
 
 ---
@@ -265,20 +265,20 @@ has never been measured**:
 
 | Claim | Gate | Measured | |
 | :--- | :--- | ---: | :--- |
-| the core entry point is under 52 KB bundled | `core-under-52kb-bundled` | 24,261 bytes | ✅ met |
+| the core entry point is under 52 KB bundled | `core-under-52kb-bundled` | 24,234 bytes | ✅ met |
 | `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 0.975× | ✅ met |
 | `burgee` is lighter than `cac` **plus what a cac user installs to match it** | `lighter-than-cac-at-parity` | 0.248× | ✅ met |
 | `burgee/commander` is lighter than `commander` **plus the same** | `lighter-than-commander-at-parity` | 0.483× | ✅ met |
 | `burgee/yargs` is lighter than `yargs` **plus the same** | `lighter-than-yargs-at-parity` | 0.546× | ✅ met |
 | `burgee` starts at or below `cac`, the lightest framework in the landscape | `cold-start-at-or-below-cac` | 1.443× | ❌ **not met** |
 | `burgee/commander` is lighter in a user's bundle than `commander` alone | `lighter-than-commander` | 1.560× | ❌ **not met** |
-| `burgee` is lighter in a user's bundle than `cac` alone | `lighter-than-cac` | 2.321× | ❌ **not met** |
+| `burgee` is lighter in a user's bundle than `cac` alone | `lighter-than-cac` | 2.319× | ❌ **not met** |
 | an agent spends ≥40% fewer tokens per task | `agent-tokens-40pct` | 0.601× (one local run, D-147) | ❌ **not met** |
 | an agent takes ≥30% fewer turns per task | `agent-turns-30pct` | 0.600× (one local run, D-147) | met locally, **unconfirmed** — no CI run yet |
 
 ### The two ways to ask the bundle question, and why both are here
 
-`burgee` is 24,261 bundled bytes and `cac` is 10,452, so the bare row reads **2.321× and it
+`burgee` is 24,234 bundled bytes and `cac` is 10,452, so the bare row reads **2.319× and it
 stays on this page**. It is also not the choice anyone makes. A program that picks `cac` and
 then wants its config file read, its shutdown bounded on every path out, and its cursor handed
 back on Ctrl-C installs three more packages — and *that* is what one `import` of burgee competes
@@ -286,9 +286,9 @@ with:
 
 | | the incumbent alone | + what you add to match burgee | ours |
 | :--- | ---: | ---: | ---: |
-| `cac` | 10,452 B | **97,711 B** | 24,261 B |
+| `cac` | 10,452 B | **97,711 B** | 24,234 B |
 | `commander` | 39,084 B | **126,354 B** | 60,969 B |
-| `yargs` | 111,093 B | **198,210 B** | 108,315 B |
+| `yargs` | 111,093 B | **198,210 B** | 108,272 B |
 
 The additions are `cosmiconfig` (find and load a config file), `exit-hook` (run cleanup on
 every path out, including a signal) and `restore-cursor` (hand the terminal back), bundled
@@ -311,7 +311,7 @@ more than finding a package to charge for them.
 
 `cold-start-at-or-below-cac` and the two bare weight rows have a measured floor above their own
 gate, and it is worth saying plainly rather than leaving as a to-do. `cac` is 10,452 bytes of
-parser and help renderer; burgee's 24,261 is that plus coercion, choices, relations, Standard
+parser and help renderer; burgee's 24,234 is that plus coercion, choices, relations, Standard
 Schema, configuration precedence, signal-bound shutdown, terminal restore and agent detection.
 Our `commander/command.js` is 33,487 bundled against commander's 27,226, and the front-end also
 carries a cross-platform spawn that cannot go lazy without giving up `parse()`'s synchronous
@@ -359,18 +359,20 @@ installed-size figures come from the measurement published in
   <img src="./brand-assets/bellpull-flag-alive.svg" alt="bellpull" width="70" />
   <img src="./brand-assets/closeout-flag-alive.svg" alt="closeout" width="70" />
   <img src="./brand-assets/paratext-flag-alive.svg" alt="paratext" width="70" />
+  <img src="./brand-assets/controlroom-flag-alive.svg" alt="controlroom" width="70" />
 </p>
 
 <p align="center">
   <sub>One family, cut from one ink, with the Interlace mark on every one of them and one
-  light crossing all nine. Only burgee flies the swallowtail: a roundel is rings, a
+  light crossing all ten. Only burgee flies the swallowtail: a roundel is rings, a
   flagstaff is a flag hoisted on a pole, a caique is a parrot, a line gauge is the printer's
   rule with its ticks cut through it, seniority is rank chevrons, a bellpull is the cord and
   its pull, a closeout is the double rule an accountant draws under a settled total, and a
-  paratext is a page with its text cut away — only the margins are left. The
+  paratext is a page with its text cut away — only the margins are left — and a control room is
+  a console screen with its panes cut through it. The
   light sweeps where a page can afford motion and parks itself under prefers-reduced-motion;
   the favicon and the npm READMEs take the still one. Every mark is burgee/brand output —
-  nine shapes, one declaration — regenerated by npm run brand and drift-checked in CI.</sub>
+  ten shapes, one declaration — regenerated by npm run brand and drift-checked in CI.</sub>
 </p>
 
 **burgee** declares; the **output stack** is what a CLI shows; the **foundation** is what it
@@ -378,7 +380,7 @@ stands on. Every one is an independent product with its own README and its own i
 none has a dependency outside the burgee family.
 
 A complete CLI on the incumbents is a dozen packages under a handful of accounts. This is
-nine packages, one repository, one release pipeline and one supply chain to audit, with a
+ten packages, one repository, one release pipeline and one supply chain to audit, with a
 single schema byte-identical in every tarball. That is the argument for one codebase here:
 not convenience, but the number of things a user has to trust — and the dependency bill is
 the number, 0 against the dozen.
@@ -389,19 +391,22 @@ the number, 0 against the dozen.
 | **Output stack** | colour | [`roundel`](./packages/roundel/) | one output policy, nine semantic tokens, a contrast-checked theme, and chalk's API over them | chalk · picocolors | released — `roundel@0.5.4` |
 | | render | [`flagstaff`](./packages/flagstaff/) | frame loop with a static projection; plugin host for spinners, progress, boxes, tables | ora · log-update · boxen · cli-table3 | released — `flagstaff@0.4.4` |
 | | prompt | [`caique`](./packages/caique/) | prompts that are flags first, and never hang | inquirer · clack · prompts | released — `caique@0.5.4` |
+| | screen | [`controlroom`](./packages/controlroom/) | full-screen, keyboard-driven screens over flagstaff's loop, each with a static projection | ink · @inkjs/ui | reserved — `controlroom@0.0.1`, not usable yet |
 | **Foundation** | text | [`linegauge`](./packages/linegauge/) | measure, wrap, truncate and slice styled text without the edge fraying | string-width · wrap-ansi · strip-ansi · slice-ansi | released — `linegauge@0.5.4` |
 | | config | [`seniority`](./packages/seniority/) | precedence across flag, env, project file, home file and default — with provenance | cosmiconfig · dotenv · rc | released — `seniority@0.6.3` |
 | | process | [`bellpull`](./packages/bellpull/) | run a subprocess; resolve the executable; return a result every caller can read | execa · cross-spawn · which | released — `bellpull@0.4.2` |
 | | lifecycle | [`closeout`](./packages/closeout/) | exit handlers that run once on every path, terminal restore, bounded deadline | signal-exit · exit-hook · restore-cursor | released — `closeout@0.5.4` |
 | | terminal | [`paratext`](./packages/paratext/) | hyperlinks, images, window title, clipboard, notifications, bell — each with a static fallback | ansi-escapes (OSC half) · terminal-link · term-img | released — `paratext@0.7.2` |
 
-All nine are released on npm. Where an incumbent's own test suite has been vendored, the
+Nine are released on npm. The tenth is the reservation `controlroom@0.0.1`, which exports
+only `status = 'reserved'`; its approved design is in
+[`.sdlc/intents/controlroom/`](./.sdlc/intents/controlroom/). Where an incumbent's own test suite has been vendored, the
 compat oracle grades the drop-in path against it and publishes the rate — including the ones
 not yet at 100% — on the [compatibility page](https://burgee.interlace.tools/docs/compatibility).
 Released is not the same as accepted: the four
 foundation packages began as `0.0.1` name reservations, were built out in waves F1–F4, and
 their intents under [`.sdlc/intents/cli-foundation-stack/`](./.sdlc/intents/cli-foundation-stack/)
-are still at `draft` — the human gate on the design has not run. Seven of the nine are
+are still at `draft` — the human gate on the design has not run. Eight of the ten are
 pre-1.0, so their APIs can still move. `linegauge` and `flagstaff` are 1.0: their public API is
 under semver, and every drop-in path each publishes is graded 100% by its incumbent's own
 suite (D-170). The `bellpull` intent carries a kill gate, because a zero-dependency
@@ -425,6 +430,7 @@ was built before that gate was evaluated. The measurements behind the layers are
 | [`packages/bellpull/`](./packages/bellpull/) | **bellpull** — pull here, work happens there: subprocesses with a structured result and a static projection. Released; intent in [`.sdlc/intents/bellpull/`](./.sdlc/intents/bellpull/). |
 | [`packages/closeout/`](./packages/closeout/) | **closeout** — settle and finish: exit handlers that run once, terminal restore, and a deadline so shutdown cannot hang. Released; intent in [`.sdlc/intents/closeout/`](./.sdlc/intents/closeout/). |
 | [`packages/paratext/`](./packages/paratext/) | **paratext** — everything around the output that is not the output: hyperlinks, images, window title, clipboard, notifications and the bell, each with a static fallback. Released; intent in [`.sdlc/intents/paratext/`](./.sdlc/intents/paratext/). |
+| [`packages/controlroom/`](./packages/controlroom/) | **controlroom** — where a system is run from: full-screen, keyboard-driven terminal screens with a static projection for every other caller, and a planned `controlroom/ink` drop-in. **Reserved as `controlroom@0.0.1`, not usable yet**: its only export is `status = 'reserved'`. Intent in [`.sdlc/intents/controlroom/`](./.sdlc/intents/controlroom/). |
 | [`packages/compat-oracle/`](./packages/compat-oracle/) | Internal, never published. Grades compatibility using the hosts' own suites, plus reference drivers that run the real incumbents for byte-for-byte comparison. |
 | [`examples/`](./examples/) | Demo CLIs and the conformance suite that runs every floor case on every host. |
 | [`apps/docs/`](./apps/docs/) | The front-door documentation site (Next.js + fumadocs), deployed at [burgee.interlace.tools](https://burgee.interlace.tools) with [`llms.txt`](https://burgee.interlace.tools/llms.txt) and a Markdown twin of every page. Every other package has its own site at `https://<package>.interlace.tools` — `apps/docs-<package>/`, on the shared chassis `apps/docs-chassis/` — named once in [`.github/vercel-apps.json`](./.github/vercel-apps.json). |

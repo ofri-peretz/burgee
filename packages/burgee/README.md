@@ -22,12 +22,12 @@
   <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/package.json"><img src="https://img.shields.io/badge/types-included-blue?style=flat-square" alt="TypeScript types included for every entry point" /></a>
   <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/package.json"><img src="https://img.shields.io/badge/Node.js-20.19%2B%20%7C%2022.13%2B-green?style=flat-square" alt="Node.js 20.19+ or 22.13+" /></a>
   <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License: MIT" /></a>
-  <a href="https://www.npmjs.com/package/burgee#provenance"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fregistry.npmjs.org%2Fburgee%2Flatest&query=%24.dist.attestations.provenance~&label=npm&style=flat-square&color=0a6b47" alt="Published to npm with provenance, read live from the registry attestation of the latest release" /></a>
+  <a href="https://www.npmjs.com/package/burgee#provenance"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fregistry.npmjs.org%2Fburgee%2Flatest&query=%24.dist.attestations.provenance~&label=npm&style=flat-square&color=0a6b47" alt="npm provenance of the latest release, read live from its registry attestation" /></a>
 </p>
 
 <p align="center">
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/commander%20suite-1360%2F1360-0a6b47?style=flat-square" alt="burgee/commander passes 1360 of 1360 cases of the commander test suite" /></a>
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/meow%20suite-132%2F148-b45309?style=flat-square" alt="burgee/meow passes 132 of 148 cases of the meow test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/meow%20suite-146%2F148-b45309?style=flat-square" alt="burgee/meow passes 146 of 148 cases of the meow test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/yargs%20suite-804%2F804-0a6b47?style=flat-square" alt="burgee/yargs passes 804 of 804 cases of the yargs test suite" /></a>
 </p>
 
@@ -171,7 +171,7 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `commander` | 1360 / 1360 |
-| `meow` | 132 / 148 |
+| `meow` | 146 / 148 |
 | `yargs` | 804 / 804 |
 
 ## For agents
@@ -252,7 +252,7 @@ Nothing in this family builds on it yet, and it builds on `bellpull`, `closeout`
 
 ## The family
 
-Nine packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
+Ten packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
 carries its colours, flagstaff flies it and caique answers back; each installs on its own, and none
 takes a dependency from outside the family.
 
@@ -267,6 +267,7 @@ takes a dependency from outside the family.
 | [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, dotenv and rc |
 | [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook and restore-cursor |
 | [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
+| [controlroom](https://burgee.interlace.tools/docs/packages/controlroom) | Reserved, not usable yet — planned: full-screen, keyboard-driven terminal screens | ink, planned |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on
