@@ -149,7 +149,7 @@ export async function unresolved({ manifest, root, io }: Resolving, argv: string
   }
   if (first === '--version' || first === '-V') return { text: `${versionOf(manifest, io)}\n`, code: ExitCode.OK };
   if (typed.length === 0) return { text: await renderHelp(manifest, node, io, argv), code: ExitCode.USAGE };
-  throw new UsageError(`unknown command "${typed[0] ?? ''}"`, 'run --help to see the available commands');
+  throw new UsageError(`unknown command "${first}"`, 'run --help to see the available commands');
 }
 
 /**

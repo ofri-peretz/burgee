@@ -199,7 +199,7 @@ function commandSections(manifest: Manifest, node: CommandNode): Section[] {
   for (const c of children) {
     const heading = c.group ?? 'Commands:';
     const rows = groups.get(heading) ?? [];
-    rows.push({ term: c.path.at(-1) ?? '', text: `${c.summary ?? c.description ?? ''}${deprecation(c.deprecated)}`.trim(), kind: 'command' });
+    rows.push({ term: c.path.at(-1) as string, text: `${c.summary ?? c.description ?? ''}${deprecation(c.deprecated)}`.trim(), kind: 'command' });
     groups.set(heading, rows);
   }
   return [...groups].map(([title, rows]) => ({ title, rows }));
@@ -208,7 +208,7 @@ function commandSections(manifest: Manifest, node: CommandNode): Section[] {
 function environmentRows(options: Record<string, OptionSpec>): Row[] {
   return Object.entries(options)
     .filter(([, spec]) => spec.env !== undefined && spec.hidden !== true)
-    .map(([name, spec]) => ({ term: spec.env ?? '', text: `--${kebab(name)}`, kind: 'value' as const }));
+    .map(([name, spec]) => ({ term: spec.env as string, text: `--${kebab(name)}`, kind: 'value' as const }));
 }
 
 function usageLine(node: CommandNode, root: string[], hasChildren: boolean, paint: Paint): string {
@@ -270,7 +270,7 @@ function layout(rows: Row[], width: number, column: number, paint: Paint): strin
       continue;
     }
     const pad = ' '.repeat(column + GUTTER - termWidth);
-    lines.push(`${INDENT}${cell}${pad}${wrapped[0] ?? ''}`, ...wrapped.slice(1).map((l) => `${continuation}${l}`));
+    lines.push(`${INDENT}${cell}${pad}${wrapped[0] as string}`, ...wrapped.slice(1).map((l) => `${continuation}${l}`));
   }
   return lines;
 }

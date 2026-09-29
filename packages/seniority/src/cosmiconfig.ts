@@ -460,8 +460,9 @@ function annotate(error: unknown, filepath: string): void {
 
 /**
  * A directory that is not there is skipped; any other `stat` failure is the caller's to see.
- * 10.0.1 swallows `ENOENT` alone, so `search('<file>/sub')` rejects with `ENOTDIR` and an
- * unreadable directory with `EACCES`, rather than both reading as "no config here".
+ * 10.0.1 swallows `ENOENT` alone, so on Linux and macOS `search('<file>/sub')` rejects with
+ * `ENOTDIR` and a directory the process may not enter with `EACCES`, rather than both reading
+ * as "no config here". Windows reports `<file>\sub` as `ENOENT`, which is skipped, as upstream.
  */
 const missing = (error: unknown): boolean => (error as { code?: string } | null)?.code === 'ENOENT';
 
