@@ -14,8 +14,10 @@
  *   - it says **what it found**. The schema allows unknown keys on purpose, so the same object
  *     registers into every host in the family — which means a misspelled key is silent. `0 resolvers`
  *     is how that typo tells on itself, and it is a refusal here rather than an `ok`.
- *   - it says **what each contribution replaced**, because later registrations win and "why did
- *     my value not apply" is the question the second plugin always gets.
+ *   - it says **which resolvers it contributes**, in the order they are searched. Not what each
+ *     replaced: `check` loads one plugin into an emptied registry, so there is nothing for it
+ *     to replace — `plugin.test.ts` pins the shadowing report where more than one plugin can be
+ *     registered.
  *   - `ok` is **the last line**, after everything that would justify it.
  *
  * Pure: it takes argv and a writer and returns an exit code. `cli.ts` is the ten lines that own
@@ -78,9 +80,6 @@ function refuse(code: PluginErrorCode, message: string, fix: string, write: (s: 
   return EXIT_RUNTIME;
 }
 
-/** What a contribution replaced, when it replaced anything. */
-const shadows = (names: readonly string[]): string => (names.length === 0 ? '' : ` (replaces ${names.join(', ')})`);
-
 /**
  * Every refusal leaves through here, wherever it was raised: `register()`, or a plugin file that
  * registers itself on import — which throws inside the `import()`, before any line of `inspect`
@@ -107,7 +106,7 @@ async function inspect(argv: readonly string[], write: (s: string) => void): Pro
   const name = (plugin as { name: string }).name;
   const rows = contributions()
     .filter((c) => c.from === (plugin as { name: string }).name)
-    .map((c) => `${c.name}${shadows(c.shadowed)}`);
+    .map((c) => c.name);
   write(`${name} — ${String(rows.length)} resolvers\n`);
   if (rows.length === 0) {
     return refuse(
