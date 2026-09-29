@@ -1,0 +1,38 @@
+---
+title: Links in help output
+description: "Print a clickable command name where the terminal understands OSC 8, and a separate URL column only where it does not, deciding the layout with supportsLink()."
+---
+
+A help screen with a documentation link per command wants two layouts: on a terminal that
+understands hyperlinks, the command name itself is the link; everywhere else, the URL has to be
+printed. `supportsLink(runtime)` decides the layout, and `linkFor(runtime)` writes the link.
+
+```js title="help.mjs"
+import { linkFor, supportsLink } from 'paratext/link';
+
+const commands = [
+  ['build', 'https://example.dev/docs/build'],
+  ['deploy', 'https://example.dev/docs/deploy'],
+];
+
+function help(runtime) {
+  const link = linkFor(runtime);
+  return supportsLink(runtime)
+    ? commands.map(([name, url]) => `  ${link(name, url)}`).join('\n')
+    : commands.map(([name, url]) => `  ${name.padEnd(8)}${url}`).join('\n');
+}
+
+console.log(JSON.stringify(help({ env: { TERM_PROGRAM: 'ghostty' }, isTTY: { stdout: true } })));
+console.log(help({ env: {}, isTTY: { stdout: false } }));
+```
+
+```text title="node help.mjs"
+"  \u001b]8;;https://example.dev/docs/build\u0007build\u001b]8;;\u0007\n  \u001b]8;;https://example.dev/docs/deploy\u0007deploy\u001b]8;;\u0007"
+  build   https://example.dev/docs/build
+  deploy  https://example.dev/docs/deploy
+```
+
+Without `supportsLink`, the pipe would get `build (https://…)` from the projection, which is
+correct but reads worse in a column. `paratext/link` loads neither the registry nor the schema,
+so a CLI pays for one capability. flagstaff's boxes and tables render their linked cells
+through the same capability.
