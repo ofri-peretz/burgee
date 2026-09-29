@@ -244,3 +244,131 @@ describe('where slice counts positions, not rendered columns', () => {
     }
   });
 });
+
+/**
+ * The escape grammar — every sequence `slice` carries without interpreting it.
+ *
+ * The corpus above sends SGR and one `ST`-terminated link; slice-ansi 9's suite, which grades
+ * this file in `compat-oracle`, sends the rest, but in another process. These are the shapes
+ * that decide where a sequence *ends*: which terminator closes which introducer, what a
+ * malformed or unterminated one swallows, and when an introducer is only a character. A
+ * sequence that ends one byte late eats text; one byte early prints half an escape. Each
+ * case is graded against slice-ansi and against a literal, so a wrong answer names itself
+ * rather than agreeing with a moved dependency.
+ */
+const BEL = '\u0007';
+const ST = `${ESC}\\`;
+const C1_ST = '\u009C';
+const OPEN_A = `${ESC}]8;;https://a.example${BEL}`;
+const OPEN_B = `${ESC}]8;;https://b.example${BEL}`;
+const CLOSE = `${ESC}]8;;${BEL}`;
+const RED = `${ESC}[31m`;
+
+describe('an escape slice does not interpret is carried whole, and ends where slice-ansi ends it', () => {
+  // Each sequence sits between `a` and `bc`. Cut at [0, 2) it is carried whole between the two
+  // letters; cut at [1, 2) it is dropped with the `a` before it and occupies no column, so the
+  // cut is exactly `b`. A sequence that ended late would have eaten the `b`; one that ended early
+  // would leave its tail as text, and the tail would be what [1, 2) returned.
+  it.each([
+    ['a lone ST', ST],
+    ['a lone C1 ST', C1_ST],
+    ['an OSC ended by BEL', `${ESC}]0;title${BEL}`],
+    ['an OSC ended by ST', `${ESC}]0;title${ST}`],
+    ['an OSC ended by the C1 ST', `${ESC}]0;title${C1_ST}`],
+    ['a DCS, which BEL does not end', `${ESC}Pq${BEL}x${ST}`],
+    ['a C1 OSC ended by BEL', `\u009D0;t${BEL}`],
+    ['a C1 DCS ended by the C1 ST', `\u0090q${C1_ST}`],
+    ['a C1 DCS, which BEL does not end', `\u0090q${BEL}x${C1_ST}`],
+    ['a CSI with another final byte', `${ESC}[2K`],
+    ['a private CSI ending in m, which is not an SGR', `${ESC}[?25m`],
+    // xterm's modifyOtherKeys. Read as an SGR its `1` would be bold, and the cut would reopen it.
+    ['a CSI with a private parameter byte ending in m, which is not an SGR', `${ESC}[>4;1m`],
+    ['a CSI with an intermediate byte', `${ESC}[1 q`],
+    ['a CSI ending in m after an intermediate, which is not an SGR', `${ESC}[1 m`],
+  ])('%s', (_name, sequence) => {
+    const input = `a${sequence}bc`;
+    for (const [start, end, expected] of [[0, 2, `a${sequence}b`], [1, 2, 'b']] as const) {
+      expect(slice(input, start, end), `[${String(start)}, ${String(end)})`).toBe(expected);
+      expect(sliceAnsi(input, start, end), `slice-ansi [${String(start)}, ${String(end)})`).toBe(expected);
+    }
+  });
+
+  // With no terminator where one is needed, the rest of the string is the sequence: [0, 2) is
+  // the whole input, and there is no column 1 left to cut.
+  it.each([
+    ['a link with no URI separator, even past a BEL', `${ESC}]8;params${BEL}`],
+    ['a link with no terminator', `${ESC}]8;;https://x.example`],
+    ['an unterminated OSC', `${ESC}]0;title`],
+    ['an unterminated DCS', `${ESC}Pqx`],
+  ])('%s', (_name, sequence) => {
+    const input = `a${sequence}bc`;
+    for (const [start, end, expected] of [[0, 2, input], [1, 2, '']] as const) {
+      expect(slice(input, start, end), `[${String(start)}, ${String(end)})`).toBe(expected);
+      expect(sliceAnsi(input, start, end), `slice-ansi [${String(start)}, ${String(end)})`).toBe(expected);
+    }
+  });
+
+  it.each([
+    ['a link ended by the C1 ST, which closes with its own terminator', `a${ESC}]8;;https://x.example${C1_ST}bc`, [1, 2], `${ESC}]8;;https://x.example${C1_ST}b${ESC}]8;;${C1_ST}`],
+    ['a CSI broken by a byte no CSI contains ends before that byte', `a${ESC}[31\u0100bc`, [1, 3], '\u0100b'],
+    ['an unterminated CSI at the end is the rest of the string', `ab${ESC}[31`, [0, 5], `ab${ESC}[31`],
+    ['… and occupies no column', `ab${ESC}[31`, [2, 3], ''],
+    // An introducer that starts nothing this reads is a character, with a position of its own.
+    ['ESC before a byte that introduces nothing', `a${ESC}7b`, [1, 2], ESC],
+    ['… and the byte after it is text', `a${ESC}7b`, [2, 3], '7'],
+    ['ESC as the last character', `ab${ESC}`, [2, 3], ESC],
+  ])('%s', (_name, input, [start = 0, end], expected) => {
+    expect(slice(input, start, end)).toBe(expected);
+    expect(sliceAnsi(input, start, end)).toBe(expected);
+  });
+
+  it('drops an opaque sequence before the range starts and after it ends', () => {
+    const input = `a${ESC}[2Kb${ESC}[2Kc`;
+    expect(slice(input, 1, 2)).toBe('b');
+    expect(sliceAnsi(input, 1, 2)).toBe('b');
+  });
+
+  it('reads a C1 CSI as an SGR, and reopens it with the introducer it came with', () => {
+    const input = `\u009B31mabc\u009B39m`;
+    expect(slice(input, 1, 2)).toBe(`\u009B31mb${ESC}[39m`);
+    expect(sliceAnsi(input, 1, 2)).toBe(slice(input, 1, 2));
+  });
+
+  it('gives the C1 introducer only to what that sequence opened, not to a style already open', () => {
+    const input = `${ESC}[31m\u009B1mabc`;
+    expect(slice(input, 1, 2)).toBe(`${ESC}[31m\u009B1mb${ESC}[22m${ESC}[39m`);
+    expect(sliceAnsi(input, 1, 2)).toBe(slice(input, 1, 2));
+  });
+});
+
+describe('a link or a style that ends up around no text is taken back out', () => {
+  it.each([
+    ['a link closed before any text', `a${OPEN_A}${CLOSE}b`, [0, 2], 'ab'],
+    ['a link the cut leaves empty', `a${OPEN_A}古`, [0, 2], 'a'],
+    ['an opener the cut leaves empty', `a${RED}古`, [0, 2], 'a'],
+    ['a link at the very end', `ab${OPEN_A}`, [0, undefined], 'ab'],
+    ['a link replaced by another before any text', `a${OPEN_A}${OPEN_B}b${CLOSE}`, [0, undefined], `a${OPEN_B}b${CLOSE}`],
+    // The opener is recorded after the link; taking the link out has to move that record back
+    // by the link's length, or the cut lands inside the SGR and prints half of it.
+    ['a link removed from in front of an opener the cut then removes', `a${OPEN_A}${RED}${CLOSE}古`, [0, 2], 'a'],
+  ])('%s', (_name, input, [start = 0, end], expected) => {
+    expect(slice(input, start, end)).toBe(expected);
+    expect(sliceAnsi(input, start, end)).toBe(expected);
+  });
+
+  it('closes a link that wrapped text before the next one opens, since OSC 8 does not nest', () => {
+    const input = `${OPEN_A}a${OPEN_B}b${CLOSE}`;
+    expect(slice(input)).toBe(`${OPEN_A}a${CLOSE}${OPEN_B}b${CLOSE}`);
+    expect(sliceAnsi(input, 0)).toBe(slice(input));
+  });
+});
+
+describe('an escape inside a cluster belongs to the cluster', () => {
+  it('keeps a style written between a base and its mark, even at the end of the range', () => {
+    // `e` fills the one column asked for; the SGR after it is past the end by position, but the
+    // mark that follows is still `é`, so the style rides with it rather than being dropped.
+    const input = `e${RED}\u0301x`;
+    expect(slice(input, 0, 1)).toBe(`e${RED}\u0301${ESC}[39m`);
+    expect(sliceAnsi(input, 0, 1)).toBe(slice(input, 0, 1));
+  });
+});
