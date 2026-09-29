@@ -15,6 +15,11 @@ export default defineConfig({
     // measurements. 60s is above the largest ceiling any subject sets for itself.
     testTimeout: 60_000,
     hookTimeout: 60_000,
-    include: ['src/**/*.test.ts'], setupFiles: ['../../vitest-colour-setup.ts'], coverage,
+    include: ['src/**/*.test.ts'], setupFiles: ['../../vitest-colour-setup.ts'],
+    // The shared policy decides what is measured; this package gates the result at 100 on all
+    // four. Every line in the denominator has a test that fails when the line is broken, and
+    // code no test could reach was deleted rather than excused — so a new line without a test
+    // is a red run, not a quiet percentage slip.
+    coverage: { ...coverage, thresholds: { lines: 100, branches: 100, functions: 100, statements: 100 } },
   },
 });
