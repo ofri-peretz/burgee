@@ -97,5 +97,11 @@ interface Runtime extends PolicyRuntime {
 ```ts
 interface Writer {
     write(chunk: string): unknown;
+    /**
+     * How wide the terminal is, read at every paint so a resize is honoured. A frame wider than
+     * this wraps on screen, and the rows it wraps onto have to be erased with the rest; a Node
+     * TTY stream carries it, and a writer without it is taken to be `DEFAULT_COLUMNS` wide.
+     */
+    readonly columns?: number | undefined;
 }
 ```
