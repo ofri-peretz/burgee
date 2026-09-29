@@ -4,9 +4,11 @@
  * one answers. Every case checks the answer, because a prompt that draws the right frame and
  * returns the wrong value is the defect a frame comparison cannot see.
  *
- * Colour is off (`vitest-colour-setup.ts`), so frames are compared as text.
+ * Colour is off (`vitest-colour-setup.ts`), but `styleText` on Node 20 and 22 styles regardless,
+ * so a frame read for its text has its escape sequences stripped first.
  */
 import { Readable, Writable } from 'node:stream';
+import { stripVTControlCharacters } from 'node:util';
 
 import { describe, expect, it } from 'vitest';
 
@@ -63,7 +65,7 @@ async function drive<T>(start: (io: { input: Input; output: Output }) => Promise
 /** The frame a prompt shows after `keys`, while it is still open: the last write before `escape`. */
 async function frameAfter(start: (io: { input: Input; output: Output }) => Promise<unknown>, keys: string[]): Promise<string> {
   const { writes } = await drive(start, [...keys, 'escape']);
-  return writes.at(-4) ?? '';
+  return stripVTControlCharacters(writes.at(-4) ?? '');
 }
 
 const OPTIONS = [{ value: 'a' }, { value: 'b' }, { value: 'c' }];
