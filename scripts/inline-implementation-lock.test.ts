@@ -154,22 +154,24 @@ const KNOWN: Record<string, string> = {
     "`nearestPackage` runs on every start-up (V4), and burgee's core bundle is 24,277 B against a 24,282 B ceiling. `findUpSync` from `seniority/find-up` measured 24,924 B (+647: the symlink-cycle guard, the depth limit and the generator), and `search` from the `seniority` root 29,639 B. Neither nets out, so the eighteen-line walk stays until the core finds the bytes.",
   'burgee/src/yargs/shim.ts':
     "escalade's `findUp(start, callback)`, ported for the yargs façade: the callback receives each directory and its `readdir` listing and returns a name, and a `start` that is a file begins at its directory. seniority's spec (R5, and its rejected alternative on publishing the discovery plumbing) keeps the walk an override target for `find-up` only, not a second plumbing product with escalade's shape, so there is nothing of seniority's for it to call.",
+  'burgee/src/commander/command.ts':
+    "`useColor()` is commander 14's own colour rule, ported as commander has it — `NO_COLOR` and `FORCE_COLOR=0|false` off, `FORCE_COLOR` or `CLICOLOR_FORCE` on, otherwise the stream decides. It is the façade's graded behaviour (1360 / 1360), not a mechanism: roundel's policy answers a different question (a level, with `--color` flags and CI vendors) and routing commander through it would change what a migrated program prints.",
+  'paratext/src/hyperlinks.ts':
+    "a declared fork of supports-color 10.2.2, the version supports-hyperlinks 4.5.0 depends on, graded against the real package case by case. paratext is a leaf and may not import roundel (PLAN's architecture rule: no leaf-to-leaf edge), and roundel follows chalk 6's newer vendored copy, which differs from 10.2.2 on purpose in three rows. `scripts/colour-fork-parity.test.ts` holds the two to agreement everywhere else.",
   'compat-oracle/src/upstream.ts':
     "`execFileSync('npm', …)` with no Windows guard — the exact bug bellpull exists to prevent, and the one `burgee/src/shape.test.ts` already works around with `shell: true`, which is the spelling cross-spawn refuses because it reopens command injection.",
   // ── Moving: an open PR takes each of these onto its owner.
-  'burgee/src/help.ts': "`colorFor` reads `FORCE_COLOR`/`NO_COLOR` itself, letting FORCE_COLOR beat NO_COLOR and ignoring `--no-color`. Moves in #678, to roundel's `colorLevel`.",
-  'caique/src/decide.ts': "asks `isTTY.stdin && !CI`, which prompts an agent that has a terminal. Moves in #678, to roundel's `interactive()`.",
 };
 
 /**
  * The ceiling on KNOWN, re-baselined on 2026-09-28 (D-180). The rule used to be "at most 4",
  * written when the lock knew four shapes; it now knows seventeen, and they found eighteen more
  * files. It was 22 on the day the shapes were written; #683 moved meow's walk, #677
- * testing-helpers' regex and #684 the CSI in inquirer-screen and log-update before they landed,
- * and #678 removes two more, which would leave sixteen. Like every
+ * testing-helpers' regex and #684 the CSI in inquirer-screen and log-update, and #678 help's
+ * colour policy and caique's `decide`, all before this landed: sixteen. Like every
  * ratchet here it only goes down: lower it when an entry leaves, never raise it to admit one.
  */
-const CEILING = 18;
+const CEILING = 16;
 
 const sources = (dir: string, out: string[] = []): string[] => {
   for (const e of readdirSync(dir, { withFileTypes: true })) {

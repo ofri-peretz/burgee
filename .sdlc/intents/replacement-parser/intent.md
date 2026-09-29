@@ -88,7 +88,9 @@ Checked criterion by criterion on `61bd11b9`. **Three of five met.** The status 
   branch it is not. B2 measures it, `claims.ts` names this criterion's line as the source
   file for `cold-start-at-or-below-cac`, and the measured ratio is on the generated
   benchmarks page. The criterion is unmet because the number says so — `burgee ÷ cac` is
-  above 1 — not because nobody has looked.
+  above 1 — not because nobody has looked. Since D-157 (2026-09-27) the owner has restated the
+  gate as a downward-only ratchet at 1.6× cac, set from 26 CI runs; ≤ 1 stays this
+  criterion's target, and the claim now publishes what is gated.
 - **B4 shows the core entry point under 52 KB bundled** — met, though by a lock rather than by
   the benchmark axis the criterion names. `packages/burgee/src/weight.test.ts:80` budgets `'.'`
   at 52,000 B; the measured graph is **51,921 B** and the test passes.

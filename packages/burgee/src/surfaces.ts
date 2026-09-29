@@ -76,14 +76,17 @@ function rootNode(manifest: Manifest, root: string[]): CommandNode {
 /**
  * Loaded where it is printed, not at the top of the file.
  *
- * `help.js` is 4.1 KB and it reaches `linegauge` for column measurement, another 6.1 KB —
- * together a third of the core entry, on a path a program takes when someone asks for help
+ * `help.js` is 4.1 KB and it reaches `linegauge` for column measurement, another 6.1 KB, and
+ * `roundel/policy` for whether to colour — together a third of the core entry, on a path a program takes when someone asks for help
  * and never otherwise. Reached through `await import()`, a bundler with code splitting
  * leaves all of it off the startup path.
  */
-const renderHelp = async (manifest: Manifest, node: CommandNode, io: SurfaceIo): Promise<string> => {
+// `argv` is what the colour policy reads `--color`/`--no-color` from. The one caller without it
+// is `--help` on a runnable command, whose strict parse has already refused a flag it does not
+// declare, so a `--no-color` never reaches it there.
+const renderHelp = async (manifest: Manifest, node: CommandNode, io: SurfaceIo, argv: readonly string[] = []): Promise<string> => {
   const help = await import('./help.js');
-  return help.renderHelp(manifest, node, { width: io.width, color: help.colorFor(io.env, detectAgent(io.env, io.tty).interactive) });
+  return help.renderHelp(manifest, node, { width: io.width, color: help.colorFor(io.env, detectAgent(io.env, io.tty).interactive, argv) });
 };
 
 /**
@@ -142,10 +145,10 @@ export async function unresolved({ manifest, root, io }: Resolving, argv: string
     // `commandSchemaOf` for this node plus its immediate children, so the shape a reader
     // already knows from `--schema` is the shape they get here, scoped to one command.
     if (beforeTerminator(typed).some(isJsonFlag)) return { text: `${await machineJson(await helpDocumentOf(manifest, node), beforeTerminator(argv))}\n`, code: ExitCode.OK };
-    return { text: await renderHelp(manifest, node, io), code: ExitCode.OK };
+    return { text: await renderHelp(manifest, node, io, argv), code: ExitCode.OK };
   }
   if (first === '--version' || first === '-V') return { text: `${versionOf(manifest, io)}\n`, code: ExitCode.OK };
-  if (typed.length === 0) return { text: await renderHelp(manifest, node, io), code: ExitCode.USAGE };
+  if (typed.length === 0) return { text: await renderHelp(manifest, node, io, argv), code: ExitCode.USAGE };
   throw new UsageError(`unknown command "${typed[0] ?? ''}"`, 'run --help to see the available commands');
 }
 
@@ -171,7 +174,7 @@ async function completion(manifest: Manifest, argv: string[], io: SurfaceIo): Pr
 /** `help [command…]` is synthesised for every program (yargs #1020): the named node's help, or the root's. */
 async function helpCommand(manifest: Manifest, argv: string[], root: string[], io: SurfaceIo): Promise<string> {
   const { node } = manifest.resolve(argv, root);
-  return renderHelp(manifest, node ?? rootNode(manifest, root), io);
+  return renderHelp(manifest, node ?? rootNode(manifest, root), io, argv);
 }
 
 /**

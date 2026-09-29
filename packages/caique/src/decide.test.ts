@@ -83,6 +83,19 @@ describe('R2 · with nobody there, a missing value is an error and never a wait'
     expect(d.fix).toContain('Where should it go?');
   });
 
+  // The row that hung an agent: Claude Code runs a command on a terminal, so `isTTY.stdin`
+  // is true, and nobody is there to type. Asked `isTTY.stdin && !CI`, caique prompted.
+  it.each(['CLAUDECODE', 'AI_AGENT', 'CURSOR_AGENT', 'CODEX_THREAD_ID', 'GEMINI_CLI'])('refuses under %s even on a terminal', (agent) => {
+    const d = decide({ value: undefined, spec: text, option: 'output-dir', runtime: { env: { [agent]: '1' }, isTTY: { stdin: true } }, required: true });
+    expect(d.action).toBe('error');
+    expect(d.message).toBe('--output-dir is required when nobody is there to answer');
+  });
+
+  it('FORCE_TTY=1 is the one override, as it is for burgee', () => {
+    const runtime = { env: { CLAUDECODE: '1', FORCE_TTY: '1' }, isTTY: { stdin: true } };
+    expect(decide({ value: undefined, spec: text, option: 'out', runtime, required: true }).action).toBe('prompt');
+  });
+
   it('says so when --interactive was asked for, rather than looking ignored', () => {
     const d = decide({ value: undefined, spec: text, option: 'out', runtime: rt(false), flags: { interactive: true }, required: true });
     expect(d.action).toBe('error');

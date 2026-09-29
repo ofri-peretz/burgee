@@ -1,0 +1,44 @@
+---
+title: Results an agent can read
+description: "Print a results table that is a grid on a terminal, header-and-value lines in a log, and plain JSON rows under --json."
+---
+
+A coding agent that runs your CLI reads its output back. A grid of box characters costs it
+tokens and parsing; `--json` should hand it the data. One component does all three.
+
+```js title="report.mjs"
+import { hoist } from 'flagstaff/loop';
+import { tableComponent } from 'flagstaff/table';
+
+import { json, rt } from './rt.mjs';
+
+const results = [
+  { suite: 'api', result: 'passed', tests: 112 },
+  { suite: 'web', result: 'failed', tests: 3 },
+];
+
+const rows = results.map((r) => [r.suite, r.result, String(r.tests)]);
+const report = tableComponent({ head: ['suite', 'result', 'tests'], align: ['left', 'left', 'right'] });
+hoist(report, rt, { rows }, { json }).lower();
+
+if (json) process.stdout.write(`${JSON.stringify({ ok: true, data: results })}\n`);
+```
+
+In a log, each row is a line a person can grep and an agent can read:
+
+```text title="node report.mjs"
+suite: api, result: passed, tests: 112
+suite: web, result: failed, tests: 3
+```
+
+Under `--json` the table's events go to stderr and stdout carries only the program's own
+result, so `node report.mjs --json | jq .data` gets exactly the data:
+
+```text title="node report.mjs --json"
+{"ok":true,"data":[{"suite":"api","result":"passed","tests":112},{"suite":"web","result":"failed","tests":3}]}
+{"event":"table","state":{"rows":[["api","passed","112"],["web","failed","3"]]}}
+{"event":"table","state":{"rows":[["api","passed","112"],["web","failed","3"]]}}
+```
+
+(The page shows stdout, then stderr.) A CLI built on [burgee](https://burgee.interlace.tools/docs)
+writes that `{ ok, data }` envelope for you.

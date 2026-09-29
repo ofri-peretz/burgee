@@ -18,7 +18,7 @@
  * own colours have to clear the floor, and how to say so to a person running `burgee brand`.
  */
 
-import { AA, channels, contrast, luminance } from 'roundel/contrast';
+import { AA, channels, contrast, luminance, round2 } from 'roundel/contrast';
 
 /** `mix` writes a hex string back out, which is the one direction `roundel/contrast` does not. */
 const SRGB_MAX = 255;
@@ -44,10 +44,9 @@ export interface ContrastFinding {
   passes: boolean;
 }
 
-/** Round to 2dp for reporting, without pretending to more precision than that. */
-const CENTS = 100;
+/** Round to 2dp for reporting, without pretending to more precision than that — roundel's `round2`. */
 export function ratio(a: string, b: string): number {
-  return Math.round(contrast(a, b) * CENTS) / CENTS;
+  return round2(contrast(a, b));
 }
 
 export function check(what: string, a: string, b: string, required = AA.GRAPHIC): ContrastFinding {

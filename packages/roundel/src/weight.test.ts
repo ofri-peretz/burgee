@@ -106,6 +106,10 @@ const RULES: Record<string, EntryRule> = {
   // answer then is to find the bytes — the ceiling is chalk 6.0.0's own source and a raise
   // would be the claim getting weaker, not the package getting better.
   './chalk': { allow: [], budget: 9_370, denied: ['theme.js', 'contrast.js', 'index.js'] },
+  // R12, on 2026-09-28: `interactive(rt)` and the is-unicode-supported probe, which caique
+  // and flagstaff each carried by hand. Its own subpath because `./chalk` above has 7 B left
+  // and `./policy` 28. Reaches nothing, and the root does not re-export it: `.` has 58 B left. Measured 878.
+  './terminal': { allow: [], budget: 1_000, denied: ['policy.js', 'tokens.js', 'theme.js', 'contrast.js', 'chalk.js', 'index.js'] },
 };
 
 const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;

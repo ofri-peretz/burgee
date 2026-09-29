@@ -23,14 +23,16 @@ cac is the lightest framework in the landscape, and burgee's own gates say it is
 than burgee. Measured against `cac@7.0.0`, the version the benchmark suite resolves, with
 each ratio taken between the two in the same run:
 
-- **Bundle size.** The `lighter-than-cac` gate — burgee lighter in a bundle than cac alone —
-  is **not met** (2.319×): burgee's core bundles to 24,234 bytes and cac to 10,452.
+- **Bundle size.** cac alone is the lighter bundle, and burgee is 2.319× it: burgee's
+  core bundles to 24,234 bytes and cac to 10,452. The `lighter-than-cac` gate is a
+  downward-only ratchet that holds the ratio within 2.35× and may only be lowered (D-157).
 - **Cold start.** cac starts faster in every run on record. Across the 178 runs committed
   under `benchmarks/results/cli-benchmarks/`, burgee's full-run cold start is 1.29×–2.13×
   cac's and never at or below 1. The 174 CI runs fall between 1.29× and 1.55×; the four
   higher figures are from a developer laptop. The latest CI run,
-  `2026-09-24-866b972-ci.json` (2026-09-24), measured **1.48×**. The published target of
-  at or below cac is recorded as **not met**.
+  `2026-09-28-d5bd4e6-ci.json` (2026-09-28), measured **1.481×**. At or below cac is not
+  reachable, so the gate is a downward-only ratchet at 1.6×, set from CI's own spread
+  (D-157).
 - **Installed size.** 1376 KB for burgee against 40 KB for cac.
 
 Those gaps are not scheduled to close. The README says why: cac's bytes are a parser and a
