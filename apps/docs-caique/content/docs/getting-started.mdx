@@ -1,0 +1,107 @@
+---
+title: Getting started
+description: "Install caique, bind two prompts to flags, and see the same program ask a person on a terminal and refuse — naming the flag — when nobody is there."
+---
+
+caique asks questions a CLI needs answered, with one rule first: **a prompt is a flag**. A
+value that arrived any other way — a flag, an environment variable, a config file — is never
+asked for, and when there is nobody at the terminal to ask, a missing value is an error that
+names the flag to pass, never a prompt waiting for a person who is not there.
+
+## Install
+
+```bash
+npm install caique
+```
+
+It is ESM with a `default` condition, so `require('caique')` also works from CommonJS on Node
+20.19+ and 22.13+. It depends on closeout and linegauge, both from this repository, and on
+nothing else.
+
+## A first program
+
+`resolvePrompts()` takes the command's options — each may carry a prompt — and the values every
+other source already resolved, and asks only what is still missing:
+
+```js title="deploy.mjs"
+import process from 'node:process';
+
+import { processRuntime } from 'caique';
+import { resolvePrompts } from 'caique/binding';
+import { createIo } from 'caique/terminal';
+
+const argv = process.argv.slice(2);
+const supplied = {};
+for (const arg of argv) {
+  const [, name, value] = /^--([a-z-]+)=(.*)$/u.exec(arg) ?? [];
+  if (name !== undefined) supplied[name] = value;
+}
+
+const io = createIo();
+const { values, failure } = await resolvePrompts({
+  options: {
+    env: { required: true, prompt: { kind: 'select', message: 'Deploy to?', choices: [{ value: 'staging' }, { value: 'production' }] } },
+    tag: { required: true, prompt: { kind: 'text', message: 'Which tag?' } },
+  },
+  values: supplied,
+  runtime: processRuntime(),
+  flags: { json: argv.includes('--json'), yes: argv.includes('--yes') },
+  io,
+});
+io.close();
+
+if (failure) {
+  console.error(`${failure.message}\n  fix: ${failure.fix}`);
+  process.exitCode = 2;
+} else {
+  console.log(`deploying ${values.tag} to ${values.env}`);
+}
+```
+
+(A real CLI gets `supplied` from its argument parser; a CLI on
+[burgee](https://burgee.interlace.tools/docs) gets this whole pass from its `preAction` hook.)
+
+In a terminal, it asks both questions. With no terminal on stdin — an agent, a CI job, a
+pipe — it asks nothing, and the first missing value is an error naming the flag:
+
+```text title="node deploy.mjs" exit="2"
+--env is required when there is no terminal
+  fix: pass --env; it would have been asked as "Deploy to?"
+```
+
+```text title="node deploy.mjs --env=staging" exit="2"
+--tag is required when there is no terminal
+  fix: pass --tag; it would have been asked as "Which tag?"
+```
+
+```text title="node deploy.mjs --env=staging --tag=v1.2.0"
+deploying v1.2.0 to staging
+```
+
+Every output block on this site is checked: `tests/examples.test.ts` writes each titled file,
+runs the command in the block's title with nothing on stdin, and compares.
+
+## The rule
+
+`decide()` rules on every prompt before anything is drawn. First match wins:
+
+| situation | verdict |
+| :-- | :-- |
+| a value came from any source | not asked |
+| `--json` | an error naming the flag: a machine is reading |
+| `--yes`, and the prompt is a `confirm` | answered `true`, even with no terminal |
+| no terminal on stdin, or `CI` set | an error naming the flag |
+| `required`, or the run passed `--interactive` | asked |
+| anything else | not asked |
+
+[Never hangs](/docs/guides/never-hangs) has the rule in full, and why each row is where it is.
+
+## Where next
+
+- [Guides](/docs/guides/never-hangs): the rule, the six kinds of question, binding prompts to
+  a CLI, the terminal, and widget plugins.
+- [Why caique](/docs/why-caique): what it does that inquirer and clack do not, cell by cell,
+  with the evidence.
+- [Coming from inquirer](/docs/coming-from/inquirer) and
+  [Coming from clack](/docs/coming-from/clack).
+- [API reference](/docs/api): every export of every entry point.

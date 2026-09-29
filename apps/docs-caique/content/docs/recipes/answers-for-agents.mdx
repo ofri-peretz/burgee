@@ -1,0 +1,52 @@
+---
+title: Prompts an agent can answer
+description: "Declare each prompt on the option it fills, so an agent answers on the command line, --json refuses instead of asking, and the refusal tells the agent exactly what to pass."
+---
+
+An agent driving your CLI cannot type into a prompt. It can pass a flag, and it can act on an
+error that names one. Declaring the prompt on the option it fills gives it both:
+
+```js title="init.mjs"
+import process from 'node:process';
+
+import { processRuntime } from 'caique';
+import { resolvePrompts } from 'caique/binding';
+import { createIo } from 'caique/terminal';
+
+const argv = process.argv.slice(2);
+const json = argv.includes('--json');
+const name = argv.find((a) => a.startsWith('--name='))?.slice('--name='.length);
+
+const io = createIo();
+const { values, failure } = await resolvePrompts({
+  options: { name: { required: true, prompt: { kind: 'text', message: 'Project name?' } } },
+  values: { name },
+  runtime: processRuntime(),
+  flags: { json },
+  io,
+});
+io.close();
+
+if (failure) {
+  if (json) console.log(JSON.stringify({ ok: false, error: { code: failure.code, message: failure.message, fix: failure.fix } }));
+  else console.error(`${failure.message}\n  fix: ${failure.fix}`);
+  process.exitCode = 2;
+} else {
+  console.log(json ? JSON.stringify({ ok: true, name: values.name }) : `created ${values.name}`);
+}
+```
+
+```text title="node init.mjs --json" exit="2"
+{"ok":false,"error":{"code":"USAGE","message":"--name is required under --json","fix":"pass --name; --json means no one is here to answer \"Project name?\""}}
+```
+
+```text title="node init.mjs --json --name=demo"
+{"ok":true,"name":"demo"}
+```
+
+The refusal is structured, carries the flag and quotes the question, and the second call is the
+one an agent makes after reading it. The same program asks a person on a terminal, and under
+`--json` never does, terminal or not.
+
+A CLI on [burgee](https://burgee.interlace.tools/docs) gets this without the wiring: its
+`--json` envelope already carries `code`, `message` and `fix`.

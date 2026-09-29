@@ -1,0 +1,48 @@
+---
+title: Why caique
+description: "caique against inquirer and clack, one capability per row, every cell linked to the test, grade or source that proves it."
+---
+
+inquirer and clack draw good prompts for a person at a terminal. Neither asks whether a person
+is there. A CLI run by an agent, in CI or with its input piped either waits on a stream nobody
+will write to, or fails without saying what to pass instead. caique decides that first: a
+prompt is a flag, a value from anywhere is never asked for, and with nobody to ask, a missing
+value is an error that names the flag. Its two drop-in paths, `caique/inquirer` and
+`caique/clack`, are graded by each incumbent's own suite.
+
+The table below is the whole comparison. Every mark links to its evidence: a test in this
+repository for ours, and for theirs the source of the exact version compat-oracle grades, or
+that package's own test suite. `scripts/capabilities-lock.test.ts` fails the build when a cited
+test no longer contains the title it is cited for.
+
+<CapabilityMatrix pkg="caique" />
+
+## Reading it
+
+- **The inquirer column is `@inquirer/core` 12.0.3**, the loop every inquirer prompt runs on
+  and the package compat-oracle grades for that column. The legacy `inquirer.prompt([...])` API
+  is out of scope, and its tarball ships no tests to grade.
+- **The clack column is `@clack/prompts` 1.8.1 and the `@clack/core` 1.5.1 it depends on.**
+- **Neither is installed in this repository under its column's name**, so their cells link to
+  the graded version's source on jsDelivr (and, for inquirer's raw mode, to Node's `readline`,
+  which it runs on). The lock does not re-read a URL cell; each was checked against that file
+  by hand. clack's compatibility row cites its vendored suite, which the lock reads every run.
+- **clack's compatibility is partial on purpose.** One case sets `updateSettings({ withGuide:
+  false })` imported from `@clack/core` and asserts caique's prompts obey it — module state in a
+  package caique does not depend on ([Compatibility](/docs/drop-ins)).
+
+## What is not in the table
+
+A row goes in only when every cell of it can be proved. These were left out:
+
+- **A cursor restored when the process is signalled mid-prompt.** caique's `raw.test.ts` proves
+  it for `SIGINT` and `SIGTERM`. inquirer registers a signal-exit handler whose cleanup runs in a
+  promise's `finally`; whether that runs before the process exits was not established, so there
+  is no row rather than a guessed cell.
+- **An accessible rendering.** caique's line mode is its accessible mode; clack 1.8 also has an
+  `accessible` option and reads `ACCESSIBLE`. No test here compares them.
+- **`interactive()` in roundel's policy**, which would let every package in the family ask the
+  same "is anyone there" question, is not on this branch's base yet, so it is not claimed.
+- **Weight in bytes.** The per-subpath figures are asserted by
+  [`weight.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/caique/src/weight.test.ts)
+  and published on [Benchmarks](https://burgee.interlace.tools/docs/benchmarks).

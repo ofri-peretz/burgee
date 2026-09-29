@@ -1,0 +1,113 @@
+{
+  "$comment": "caique's capability matrix against the two packages it replaces (compat-oracle's LAYERS). Rendered by <CapabilityMatrix pkg=\"caique\" /> from apps/docs-chassis and held by scripts/capabilities-lock.test.ts: every `ours` yes/partial names a test file and a title substring it contains, or a compat-oracle grade. Neither incumbent is installed in this repository under its column's name, so their cells cite the versions compat-oracle grades by URL — @inquirer/core 12.0.3, the loop inquirer's prompts run on and the package the oracle grades for that column, and @clack/core 1.5.1 under @clack/prompts 1.8.1 — or clack's vendored suite. `n/a` means the row does not apply, and says why. A row that could not be proved for every column is not here.",
+  "package": "caique",
+  "incumbents": ["inquirer", "clack"],
+  "themes": [
+    {
+      "theme": "Never hangs",
+      "rows": [
+        {
+          "capability": "No terminal and no value is a refusal, not a wait",
+          "why": "`decide()` rules on every prompt before anything is drawn, and with nobody on stdin a missing value is a usage error rather than a prompt waiting for a person who is not there.",
+          "ours": { "status": "yes", "test": "packages/caique/src/decide.test.ts", "title": "never prompts without a terminal — the one that would be a bug report" },
+          "incumbents": {
+            "inquirer": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/@inquirer/core@12.0.3/dist/lib/create-prompt.js", "note": "reads whatever input stream it is given; nothing checks whether a person is on it" },
+            "clack": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/@clack/core@1.5.1/dist/index.mjs", "note": "a prompt reads its input stream whether or not it is a terminal; only raw mode is conditional" }
+          }
+        },
+        {
+          "capability": "The refusal names the flag to pass",
+          "why": "A prompt is bound to a flag, so the error says `--name is required when there is no terminal` and how to answer it, which an agent can act on.",
+          "ours": { "status": "yes", "test": "packages/caique/src/shape.test.ts", "title": "with no terminal, a missing required value is a usage error that names the flag" },
+          "incumbents": {
+            "inquirer": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/@inquirer/core@12.0.3/dist/lib/create-prompt.js", "note": "a prompt has no flag behind it to name" },
+            "clack": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/@clack/core@1.5.1/dist/index.mjs", "note": "a prompt has no flag behind it to name" }
+          }
+        },
+        {
+          "capability": "`--json` and `CI` never prompt",
+          "why": "Under `--json`, or with `CI` set, a missing value is refused even on a terminal, because a machine is reading and nobody is there to type.",
+          "ours": { "status": "yes", "test": "packages/caique/src/decide.test.ts", "title": "never prompts under --json, and never under CI" },
+          "incumbents": {
+            "inquirer": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/@inquirer/core@12.0.3/dist/lib/create-prompt.js", "note": "reads no CI variable and knows no --json" },
+            "clack": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/@clack/prompts@1.8.1/dist/index.mjs", "note": "reads CI to stop its spinner and progress animating, not to stop a prompt" }
+          }
+        }
+      ]
+    },
+    {
+      "theme": "The terminal as it was found",
+      "rows": [
+        {
+          "capability": "Raw mode is turned off only if the prompt turned it on",
+          "why": "A program that already had its terminal in raw mode keeps it when a prompt ends, and a signal mid-prompt still turns off the raw mode the prompt did turn on, through closeout.",
+          "ours": { "status": "yes", "test": "packages/caique/src/raw.test.ts", "title": "leaves raw mode on for a caller that already had it" },
+          "incumbents": {
+            "inquirer": { "status": "no", "source": "https://github.com/nodejs/node/blob/v24.12.0/lib/internal/readline/interface.js", "note": "runs on node:readline with terminal: true, whose close() turns raw mode off whatever it was before" },
+            "clack": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/@clack/core@1.5.1/dist/index.mjs", "note": "close() calls setRawMode(input, false) unconditionally" }
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Extending it",
+      "rows": [
+        {
+          "capability": "Custom prompt kinds through a validated plugin registry",
+          "why": "A widget for a kind outside the six built-ins is registered by name, and one without a static projection is refused with the code flagstaff and paratext use.",
+          "ours": { "status": "yes", "test": "packages/caique/src/plugin.test.ts", "title": "a widget without `static` is E_NO_STATIC_PROJECTION, the same code flagstaff uses (R5)" },
+          "incumbents": {
+            "inquirer": { "status": "partial", "source": "https://cdn.jsdelivr.net/npm/@inquirer/core@12.0.3/dist/lib/create-prompt.js", "missing": "a custom prompt is a function built with createPrompt; there is no registry, and nothing asks it for a text form" },
+            "clack": { "status": "partial", "source": "https://cdn.jsdelivr.net/npm/@clack/core@1.5.1/dist/index.mjs", "missing": "a custom prompt subclasses Prompt; there is no registry, and nothing asks it for a text form" }
+          }
+        },
+        {
+          "capability": "A checker for widget plugins before they ship",
+          "why": "`npx caique check ./rating.mjs` validates a plugin against the family schema and exits 1 with a code and a fix when it is refused.",
+          "ours": { "status": "yes", "test": "scripts/plugin-check-lock.test.ts", "title": "refuses a malformed plugin with a code and a fix" },
+          "incumbents": {
+            "inquirer": { "status": "n/a", "source": "https://cdn.jsdelivr.net/npm/@inquirer/core@12.0.3/package.json", "note": "takes no plugins, so has nothing to check" },
+            "clack": { "status": "n/a", "source": "https://cdn.jsdelivr.net/npm/@clack/prompts@1.8.1/package.json", "note": "takes no plugins, so has nothing to check" }
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Weight",
+      "rows": [
+        {
+          "capability": "Every runtime dependency from the same repository",
+          "why": "Installing it adds closeout and linegauge, released from this repository through one pipeline, and nothing else.",
+          "ours": { "status": "yes", "test": "scripts/package-shape-lock.test.ts", "title": "installs nothing from outside this repository — dependencies, peers or optional (D-111)" },
+          "incumbents": {
+            "inquirer": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/@inquirer/core@12.0.3/package.json", "note": "seven dependencies, among them signal-exit, mute-stream and cli-width" },
+            "clack": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/@clack/prompts@1.8.1/package.json", "note": "@clack/core, fast-string-width, fast-wrap-ansi and sisteransi" }
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Compatibility",
+      "rows": [
+        {
+          "capability": "Passes @inquirer/core's own test suite",
+          "why": "`caique/inquirer` — `createPrompt`, the hooks and the keypress helpers — is graded by @inquirer/core 12.0.3's own tests, unedited, rendered through a headless terminal.",
+          "ours": { "status": "yes", "grade": "packages/compat-oracle/baseline/inquirer-core.json" },
+          "incumbents": {
+            "inquirer": { "status": "yes", "source": "https://github.com/SBoudrias/Inquirer.js/blob/%40inquirer/core%4012.0.3/packages/core/core.test.ts", "note": "its own suite, the control run" },
+            "clack": { "status": "n/a", "source": "packages/compat-oracle/vendor/clack/packages/prompts/test/limit-options.test.ts", "quote": "import { type LimitOptionsParams, limitOptions } from '../../../shim.js';", "note": "a different API" }
+          }
+        },
+        {
+          "capability": "Passes clack's own test suite",
+          "why": "`caique/clack` is graded by the behavioural cases of @clack/prompts 1.8.1's own suite, with the snapshots of clack's exact frames subtracted by name.",
+          "ours": { "status": "partial", "grade": "packages/compat-oracle/baseline/clack.json", "missing": "the one case left sets updateSettings({ withGuide: false }) imported from @clack/core, module state in a package caique does not depend on" },
+          "incumbents": {
+            "inquirer": { "status": "n/a", "source": "https://github.com/SBoudrias/Inquirer.js/blob/%40inquirer/core%4012.0.3/packages/core/core.test.ts", "note": "a different API" },
+            "clack": { "status": "yes", "source": "packages/compat-oracle/vendor/clack/packages/prompts/test/limit-options.test.ts", "quote": "import { type LimitOptionsParams, limitOptions } from '../../../shim.js';", "note": "its own suite, the control run" }
+          }
+        }
+      ]
+    }
+  ]
+}

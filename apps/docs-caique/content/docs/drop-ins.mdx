@@ -1,0 +1,63 @@
+---
+title: Compatibility
+description: "How caique's two drop-ins are graded — @inquirer/core's own suite at 41 / 41, and @clack/prompts' behavioural cases at 16 / 17 — and the differences that remain."
+---
+
+`caique/inquirer` and `caique/clack` are graded, not described as compatible. Each is run
+against its incumbent's **own test suite**, by
+[compat-oracle](https://github.com/ofri-peretz/burgee/blob/main/packages/compat-oracle/README.md),
+in CI.
+
+<CapabilityMatrix pkg="caique" theme="Compatibility" />
+
+The counts are compat-oracle's baselines, the pass count each drop-in is held to. The family's
+[compatibility page](https://burgee.interlace.tools/docs/compatibility) is generated from the
+oracle's last run and is the authority for the current figures.
+
+| incumbent | graded version | drop-in | cases |
+| :-- | :-- | :-- | --: |
+| `@inquirer/core` | 12.0.3 | `caique/inquirer` | 41 / 41 |
+| `@clack/prompts` | 1.8.1 | `caique/clack` | 16 / 17 |
+
+## How a suite is graded
+
+1. The incumbent's repository is cloned at the release tag and its test directory copied into
+   `packages/compat-oracle/vendor/`. `PROVENANCE` names the tag, the commit and the command that
+   reproduces it.
+2. The only edit is the import that reaches the library, rewritten to a shim generated per run.
+   Assertions and fixtures are upstream's, byte for byte.
+3. A **control run** points the shim at the real incumbent first, which proves the harness and
+   sets the total every rate is measured against.
+4. The **target run** points the same shim at caique's path.
+
+## `@inquirer/core`: the loop, not the drawing
+
+`@inquirer/testing` renders through a headless terminal and asserts the screen, so the 41 grade
+hooks keeping their place across re-renders, keypresses that stop the instant a prompt settles,
+an effect cleanup that throws superseding the answer, and an aborted signal still restoring the
+cursor — behaviour a second implementation can share. `usePagination` is not implemented, and
+no case in the suite reaches it.
+
+## `@clack/prompts`: 17 behavioural cases
+
+289 of clack's 444 assertions are snapshots of clack's exact frames, in 17 of its 19 files.
+Matching them frame for frame would make `caique/clack` clack, so they are subtracted by name,
+as a declared subset, and the row publishes 17 rather than 606. `caique/clack` passes all of
+`limit-options.test.ts` and the two `guide.test.ts` cases that render all twelve prompts with
+and without the guide.
+
+**The one case left is a ceiling:** it calls `updateSettings({ withGuide: false })` **imported
+from `@clack/core`** and asserts the prompts obey it. That is module-level state inside a package
+caique does not depend on and cannot read. `caique/clack` exports its own `updateSettings`,
+which its prompts do obey. Because 16 is not 17, `burgee migrate` reports `@clack/prompts`
+rather than rewriting it; changing that import is yours to make.
+
+## Known differences
+
+- **`caique/clack`'s frames are clack's layout, not its bytes.** A test of yours that snapshots
+  clack's output will see different escape sequences.
+- **`updateSettings` must come from `caique/clack`**, as above.
+- **`caique/clack` does not build `box`, `progress` or `taskLog`**; no graded case reaches them.
+- **`caique/inquirer` has no `usePagination`.**
+- **The legacy `inquirer` package is not a drop-in**: its object API is out of scope, and
+  `caique/inquirer` is `@inquirer/core`'s surface.
