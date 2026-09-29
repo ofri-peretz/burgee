@@ -47,6 +47,14 @@
           }
         },
         {
+          "capability": "An agent on a terminal is not someone to prompt",
+          "why": "`interactive()` answers no under `CLAUDECODE`, `CURSOR_AGENT` and the other agent variables even with a terminal on stdin, so a prompt asks the one question that tells an agent from a person.",
+          "ours": { "status": "yes", "test": "packages/roundel/src/terminal.test.ts", "title": "is not interactive under %s, even on a terminal" },
+          "incumbents": {
+            "chalk": { "status": "n/a", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.0/source/vendor/supports-color/index.js", "note": "decides a colour level, not whether a person can answer" }
+          }
+        },
+        {
           "capability": "A screen-reader mode with no colour",
           "why": "With `CLI_ACCESSIBLE=1` the level is 0 even on a truecolor terminal, because escape codes are noise to a screen reader; an explicit ask still colours it.",
           "ours": { "status": "yes", "test": "packages/roundel/src/policy.test.ts", "title": "defaults to 0 on the most colour-capable terminal there is" },

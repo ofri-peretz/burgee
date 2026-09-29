@@ -62,6 +62,38 @@ The policy reads only the runtime it is handed — `env`, `isTTY.stdout` and, fo
 `argv` — and never `process`. The same input always gives the same answer, so a test passes a
 literal and a harness driving your CLI can ask the question your program asked.
 
+## Is anybody there to type?
+
+`roundel/terminal` answers the question a prompt has to ask before it waits: `interactive(rt)`
+is true only with a terminal on stdin, no `CI`, and no agent variable (`AI_AGENT`,
+`CLAUDECODE`, `CURSOR_AGENT`, `CODEX_THREAD_ID`, `GEMINI_CLI`). An agent may well have a
+terminal; what it does not have is a person. `FORCE_TTY=1` is the one override.
+
+```js title="interactive.mjs"
+import { interactive } from 'roundel/terminal';
+
+const tty = { stdin: true };
+
+console.log(interactive({ env: {}, isTTY: tty }));
+console.log(interactive({ env: { CLAUDECODE: '1' }, isTTY: tty }));
+console.log(interactive({ env: { CI: 'true' }, isTTY: tty }));
+console.log(interactive({ env: {}, isTTY: { stdin: false } }));
+console.log(interactive({ env: { CLAUDECODE: '1', FORCE_TTY: '1' }, isTTY: tty }));
+```
+
+```text title="node interactive.mjs"
+true
+false
+false
+false
+true
+```
+
+caique's prompts ask exactly this before they draw, so a prompt run by an agent is refused,
+naming the flag to pass, instead of waiting. The same subpath has `unicode(rt)`, whether the
+terminal can be expected to draw non-ASCII glyphs, which flagstaff and caique read before they
+draw a tick.
+
 ## The mode is not the colour
 
 The mode decides **redraws**. It never decides the colour level: a pipe may be coloured when

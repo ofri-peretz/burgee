@@ -7,6 +7,7 @@
     "plugin",
     "theme",
     "contrast",
-    "chalk"
+    "chalk",
+    "terminal"
   ]
 }
