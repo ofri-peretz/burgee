@@ -1,0 +1,30 @@
+---
+title: Testing escape output
+description: "Assert what your CLI writes on a supporting terminal and on a pipe by passing a literal runtime to emit() — no environment patching."
+---
+
+`emit` reads only the runtime it is handed, so a test asserts both outputs, on any machine and
+in any CI, with two literals:
+
+```js title="escapes-check.mjs"
+import assert from 'node:assert/strict';
+
+import { emit } from 'paratext';
+
+const iterm = { env: { TERM_PROGRAM: 'iTerm.app' }, isTTY: { stdout: true } };
+const pipe = { env: { TERM_PROGRAM: 'iTerm.app' }, isTTY: { stdout: false } };
+const args = { text: 'Docs', url: 'https://x.dev' };
+
+assert.equal(emit(iterm, 'link', args), '\u001B]8;;https://x.dev\u0007Docs\u001B]8;;\u0007');
+assert.equal(emit(pipe, 'link', args), 'Docs (https://x.dev)');
+assert.doesNotMatch(emit(pipe, 'notify', { title: 'Done' }), /[\u0000-\u001F]/u);
+
+console.log('ok');
+```
+
+```text title="node escapes-check.mjs"
+ok
+```
+
+The second runtime is iTerm2 with its output piped — a user redirecting to a file — and it gets
+the projection, because `when: { tty: true }` refuses a pipe whatever the terminal program is.

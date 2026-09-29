@@ -1,0 +1,11 @@
+{
+  "title": "API reference",
+  "pages": [
+    "index",
+    "csi",
+    "link",
+    "plugin",
+    "term-img",
+    "terminal-link"
+  ]
+}

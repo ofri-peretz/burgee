@@ -1,0 +1,98 @@
+---
+title: Getting started
+description: "Install paratext, emit a hyperlink, a notification, a title and an image, and see what a supporting terminal gets and what a pipe gets instead."
+---
+
+paratext writes the escape sequences that go around the text — hyperlinks, inline images, the
+window title, the clipboard, notifications — and, for every one of them, says what to print
+instead when the terminal cannot show it. No terminal answers "do you do OSC 1337", so that
+second answer is not an extra: it is what a pipe, a log and an agent get, and it is the
+default whenever support is absent or unknown.
+
+## Install
+
+```bash
+npm install paratext
+```
+
+It is ESM with a `default` condition, so `require('paratext')` also works from CommonJS on
+Node 20.19+ and 22.13+. It depends on nothing
+([`package-shape-lock.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/package-shape-lock.test.ts)
+holds it at zero).
+
+## A first program
+
+`emit(runtime, name, fields)` renders a capability for a runtime — the environment and whether
+stdout is a terminal. Here the same four calls go to a pipe and to iTerm2:
+
+```js title="first.mjs"
+import { emit } from 'paratext';
+
+const pipe = { env: {}, isTTY: { stdout: false } };
+const iterm = { env: { TERM_PROGRAM: 'iTerm.app' }, isTTY: { stdout: true } };
+
+for (const [name, runtime] of [['pipe', pipe], ['iTerm2', iterm]]) {
+  console.log(name);
+  console.log(' ', JSON.stringify(emit(runtime, 'link', { text: 'Docs', url: 'https://paratext.interlace.tools' })));
+  console.log(' ', JSON.stringify(emit(runtime, 'notify', { title: 'Build finished', body: '3 warnings' })));
+  console.log(' ', JSON.stringify(emit(runtime, 'title', { text: 'building' })));
+  console.log(' ', JSON.stringify(emit(runtime, 'image', { base64: 'iVBORw0KGgo=', caption: '[chart: build times]' })));
+}
+```
+
+```text title="node first.mjs"
+pipe
+  "Docs (https://paratext.interlace.tools)"
+  "Build finished: 3 warnings"
+  ""
+  "[chart: build times]"
+iTerm2
+  "\u001b]8;;https://paratext.interlace.tools\u0007Docs\u001b]8;;\u0007"
+  "\u001b]9;Build finished: 3 warnings\u0007"
+  "\u001b]0;building\u0007"
+  "\u001b]1337;File=inline=1:iVBORw0KGgo=\u0007"
+```
+
+On the pipe, the link keeps its address, the notification becomes a line, the image becomes
+its caption, and the window title — chrome, not content — becomes nothing. On iTerm2 each is
+the sequence iTerm2 understands. `JSON.stringify` only makes the escape bytes visible here.
+
+For the real process, pass `processRuntime()`:
+
+```js title="hello.mjs"
+import { emit, processRuntime } from 'paratext';
+
+console.log(emit(processRuntime(), 'link', { text: 'Docs', url: 'https://paratext.interlace.tools' }));
+```
+
+```text title="node hello.mjs"
+Docs (https://paratext.interlace.tools)
+```
+
+Every output block on this site is checked: `tests/examples.test.ts` writes each titled file,
+runs the command in the block's title, and compares.
+
+## The seven built-ins
+
+| name | sequence | fields | on a pipe |
+| :-- | :-- | :-- | :-- |
+| `link` | OSC 8 | `text`, `url` | `text (url)` |
+| `image` | OSC 1337 | `base64`, `caption`, optional `width`, `height`, `preserveAspectRatio`, `size` | the caption |
+| `notify` | OSC 9 | `title`, optional `body` | `title: body` |
+| `title` | OSC 0 | `text` | nothing |
+| `clipboard` | OSC 52 | `text` | nothing |
+| `cwd` | OSC 50 and OSC 9;9 | `path` | nothing |
+| `bell` | BEL | — | nothing |
+
+A capability the package never heard of is a plain object away:
+[Capabilities as data](/docs/guides/registry).
+
+## Where next
+
+- [Guides](/docs/guides/static-projection): the static projection, detecting support, the
+  registry and plugins, the ansi-escapes surface, and images.
+- [Why paratext](/docs/why-paratext): what it does that ansi-escapes, terminal-link and
+  term-img do not, cell by cell, with the evidence.
+- [Coming from ansi-escapes](/docs/coming-from/ansi-escapes) and the other two: change one
+  import.
+- [API reference](/docs/api): every export of every entry point.
