@@ -49,7 +49,7 @@ interface Band {
 
 const band = (): Band => JSON.parse(readFileSync(BAND, 'utf8')) as Band;
 
-/** The nine layers, read from the file that already declares them. */
+/** The ten layers, read from the file that already declares them. */
 function family(): string[] {
   const src = readFileSync(join(ROOT, 'packages/compat-oracle/src/demand.ts'), 'utf8');
   const body = /export const LAYERS: Layer\[\] = \[([\s\S]*?)\n\];/.exec(src)?.[1] ?? '';
@@ -69,8 +69,8 @@ const consumers = (pkg: string): string[] => family().filter((other) => other !=
 const edges = (): number => family().reduce((n, p) => n + uses(p).length, 0);
 
 describe('the family composes', () => {
-  it('reads nine layers, or says so instead of passing on nothing', () => {
-    expect(family(), 'LAYERS moved or changed shape — this lock is measuring nothing').toHaveLength(9);
+  it('reads ten layers, or says so instead of passing on nothing', () => {
+    expect(family(), 'LAYERS moved or changed shape — this lock is measuring nothing').toHaveLength(10);
   });
 
   it('has at least as many edges as the last time this was recorded', () => {

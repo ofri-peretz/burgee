@@ -1,0 +1,104 @@
+import {platform} from 'node:process';
+import {stripVTControlCharacters} from 'node:util';
+import {replaceSymbols} from 'figures';
+import {foobarString} from './input.js';
+import {nestedSubprocess} from './nested.js';
+import {fullStdio} from './stdio.js';
+
+const isWindows = platform === 'win32';
+export const QUOTE = isWindows ? '"' : '\'';
+
+export const runErrorSubprocess = async (t, verbose, isSync = false, options = {}) => {
+	const {expectExitCode = true, ...subprocessOptions} = options;
+	const {stderr, nestedResult} = await nestedSubprocess('noop-fail.js', ['1', foobarString], {verbose, isSync, ...subprocessOptions});
+	t.true(nestedResult instanceof Error);
+	if (expectExitCode) {
+		t.true(stderr.includes('exit code 2'));
+	}
+
+	return stderr;
+};
+
+export const runWarningSubprocess = async (t, isSync) => {
+	const {stderr, nestedResult} = await nestedSubprocess('noop-fail.js', ['1', foobarString], {verbose: 'short', reject: false, isSync});
+	t.true(nestedResult instanceof Error);
+	t.true(stderr.includes('exit code 2'));
+	return stderr;
+};
+
+export const runEarlyErrorSubprocess = async (t, isSync) => {
+	const {stderr, nestedResult} = await nestedSubprocess('noop.js', [foobarString], {verbose: 'short', cwd: true, isSync});
+	t.true(nestedResult instanceof Error);
+	t.true(nestedResult.message.startsWith('The "cwd" option must'));
+	return stderr;
+};
+
+export const runVerboseSubprocess = ({
+	isSync = false,
+	type,
+	eventProperty,
+	optionName,
+	errorMessage,
+	fdNumber,
+	secondFdNumber,
+	optionsFixture = 'custom-event.js',
+	output = '. .',
+	...options
+}) => nestedSubprocess('noop-verbose.js', [output], {
+	ipc: !isSync,
+	...getStdioForFd3Option(fdNumber, secondFdNumber),
+	optionsFixture,
+	optionsInput: {
+		type,
+		eventProperty,
+		optionName,
+		errorMessage,
+		fdNumber,
+		secondFdNumber,
+	},
+	isSync,
+	...options,
+});
+
+export const getStdioForFd3Option = (...values) => values.some(value => hasFd3Option(value)) ? fullStdio : {};
+
+const hasFd3Option = value => value === 'fd3' || (typeof value === 'object' && value !== null && Object.hasOwn(value, 'fd3'));
+
+export const getCommandLine = stderr => getCommandLines(stderr)[0];
+export const getCommandLines = stderr => getNormalizedLines(stderr).filter(line => isCommandLine(line));
+const isCommandLine = line => line.includes(' $ ') || line.includes(' | ');
+export const getOutputLine = stderr => getOutputLines(stderr)[0];
+export const getOutputLines = stderr => getNormalizedLines(stderr).filter(line => isOutputLine(line));
+const isOutputLine = line => line.includes(']   ');
+export const getIpcLine = stderr => getIpcLines(stderr)[0];
+export const getIpcLines = stderr => getNormalizedLines(stderr).filter(line => isIpcLine(line));
+const isIpcLine = line => line.includes(' * ');
+export const getErrorLine = stderr => getErrorLines(stderr)[0];
+export const getErrorLines = stderr => getNormalizedLines(stderr).filter(line => isErrorLine(line));
+const isErrorLine = line => (line.includes(' × ') || line.includes(' ‼ ')) && !isCompletionLine(line);
+export const getCompletionLine = stderr => getCompletionLines(stderr)[0];
+export const getCompletionLines = stderr => getNormalizedLines(stderr).filter(line => isCompletionLine(line));
+const isCompletionLine = line => line.includes('(done in');
+export const getNormalizedLine = stderr => getNormalizedLines(stderr)[0];
+export const getNormalizedLines = stderr => splitLines(normalizeStderr(stderr));
+const splitLines = stderr => stderr.split('\n');
+
+const normalizeStderr = stderr => replaceSymbols(normalizeDuration(normalizeTimestamp(stripVTControlCharacters(stderr))), {useFallback: true});
+export const testTimestamp = '[00:00:00.000]';
+const normalizeTimestamp = stderr => stderr.replaceAll(/^\[\d{2}:\d{2}:\d{2}.\d{3}\]/gm, () => testTimestamp);
+const normalizeDuration = stderr => stderr.replaceAll(/\(done in [^)]+\)/g, '(done in 0ms)');
+
+export const getVerboseOption = (isVerbose, verbose = 'short') => ({verbose: isVerbose ? verbose : 'none'});
+
+export const stdoutNoneOption = {stdout: 'none'};
+export const stdoutShortOption = {stdout: 'short'};
+export const stdoutFullOption = {stdout: 'full'};
+export const stderrNoneOption = {stderr: 'none'};
+export const stderrShortOption = {stderr: 'short'};
+export const stderrFullOption = {stderr: 'full'};
+export const fd3NoneOption = {fd3: 'none'};
+export const fd3ShortOption = {fd3: 'short'};
+export const fd3FullOption = {fd3: 'full'};
+export const ipcNoneOption = {ipc: 'none'};
+export const ipcShortOption = {ipc: 'short'};
+export const ipcFullOption = {ipc: 'full'};

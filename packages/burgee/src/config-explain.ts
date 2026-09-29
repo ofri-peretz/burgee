@@ -16,6 +16,7 @@
  *
  * Imported by `execute.ts` only for `config explain` (M2).
  */
+import { widest, width } from 'linegauge';
 import { ORDER, type Provenance, type Resolution } from 'seniority/precedence';
 
 import { type Manifest, type OptionSpec } from './manifest.js';
@@ -60,7 +61,9 @@ export async function explainConfig(manifest: Manifest, argv: readonly string[],
   });
   const precedence = ORDER.map(label);
   if (json) return `${JSON.stringify({ ok: true, data: { precedence, options: rows }, meta: {} })}\n`;
-  const width = Math.max(0, ...rows.map((r) => r.option.length));
-  const lines = rows.map((r) => `  ${r.option.padEnd(width)}  ${shown(r.value)}  (${r.source}${r.location === undefined ? '' : ` ${r.location}`})`);
+  // Terminal columns, not code units: an option named in CJK is two code units a character
+  // and four columns, and `.padEnd` lined its value up two columns right of everyone else's.
+  const column = widest(rows.map((r) => r.option));
+  const lines = rows.map((r) => `  ${r.option}${' '.repeat(column - width(r.option))}  ${shown(r.value)}  (${r.source}${r.location === undefined ? '' : ` ${r.location}`})`);
   return `precedence: ${precedence.join(' > ')} — the first that sets a value wins\n${lines.length === 0 ? '  (this command takes no options)' : lines.join('\n')}\n`;
 }

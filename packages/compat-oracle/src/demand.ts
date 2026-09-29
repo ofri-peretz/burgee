@@ -40,7 +40,7 @@ export interface Layer {
 }
 
 /**
- * The nine layers and their thirty-eight incumbents: the twenty-five the plan's own table names,
+ * The ten layers and their forty incumbents: the twenty-seven the plan's own table names,
  * and — since 2026-09-28 (D-180) — the thirteen smaller packages those incumbents are built on,
  * whose jobs a layer also owns: supports-color and ansi-styles under chalk, cli-cursor,
  * cli-spinners, is-unicode-supported, is-interactive and stdin-discarder under ora,
@@ -63,6 +63,9 @@ export const LAYERS: Layer[] = [
   { pkg: 'seniority', intent: 'seniority', incumbents: ['cosmiconfig', 'dotenv', 'rc', 'find-up', 'escalade', 'read-package-up'] },
   { pkg: 'closeout', intent: 'closeout', incumbents: ['signal-exit', 'exit-hook', 'restore-cursor', 'cli-cursor', 'stdin-discarder'] },
   { pkg: 'bellpull', intent: 'bellpull', incumbents: ['execa', 'cross-spawn', 'which'] },
+  // Reserved at 0.0.1 with no API yet (D-158). Ink and `@inkjs/ui` are the pair it replaces;
+  // blessed, neo-blessed and terminal-kit are migrated off by guide, not replaced (D-168, R18).
+  { pkg: 'controlroom', intent: 'controlroom', incumbents: ['ink', '@inkjs/ui'] },
 ];
 
 /**
@@ -165,8 +168,12 @@ export function citations(sources: string[]): Set<string> {
 export const isCovered = (incumbent: string, issue: MinedIssue, cited: Set<string>): boolean =>
   cited.has(`${incumbent}#${issue.number}`);
 
-/** Pipes inside an upstream title would end the table cell they sit in. */
-const cell = (text: string): string => text.replaceAll('|', '\\|').replaceAll('\n', ' ').trim();
+/**
+ * Pipes inside an upstream title would end the table cell they sit in, and a `<` would open an
+ * HTML element: Ink's titles name components, and `<Static> commit taller than the viewport`
+ * rendered as a tag and failed `lint:md` (MD033) on the first controlroom mine.
+ */
+export const cell = (text: string): string => text.replaceAll('|', '\\|').replaceAll('<', '\\<').replaceAll('\n', ' ').trim();
 
 const closedAs = (issue: MinedIssue): string =>
   issue.state === 'open' ? '—' : (issue.closeReason ?? 'closed, no reason recorded');
