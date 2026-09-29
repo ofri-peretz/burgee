@@ -1,0 +1,32 @@
+---
+title: Confirmations in CI
+description: "Let --yes answer a destructive confirm in CI and scripts, while a required text or select with no value still refuses — --yes never invents an answer to a question with more than two."
+---
+
+A destructive command asks "are you sure?". In CI there is nobody to say yes, and a command
+that waits is a hung job. `--yes` answers every `confirm` with `true`, with or without a
+terminal — and nothing else:
+
+```js title="reset.mjs"
+import { resolvePrompts } from 'caique/binding';
+
+const options = {
+  force: { required: true, prompt: { kind: 'confirm', message: 'Delete every cached build?' } },
+  scope: { required: true, prompt: { kind: 'select', message: 'Which scope?', choices: [{ value: 'local' }, { value: 'remote' }] } },
+};
+const ci = { env: { CI: 'true' }, isTTY: { stdin: false, stdout: false } };
+const io = { reader: { line: async () => undefined }, writer: { write: () => {} } };
+
+for (const [label, values] of [['--yes', {}], ['--yes --scope=local', { scope: 'local' }]]) {
+  const { values: out, failure } = await resolvePrompts({ options, values, runtime: ci, flags: { yes: true }, io });
+  console.log(`${label}: ${failure ? failure.message : JSON.stringify(out)}`);
+}
+```
+
+```text title="node reset.mjs"
+--yes: --scope is required when there is no terminal
+--yes --scope=local: {"scope":"local","force":true}
+```
+
+`--yes` answered the confirmation both times. It did not answer `scope`, because there is no
+"yes" to a question with two options that are not yes and no; the run has to say which.

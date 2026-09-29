@@ -1,0 +1,59 @@
+---
+title: FAQ
+description: "Short answers about caique — why it refused, --yes, --interactive, CI, closed stdin, passwords, raw mode, the drop-ins and CommonJS — each with where to read more."
+---
+
+## Why did it refuse instead of asking?
+
+Because nobody was there to ask: stdin is not a terminal, `CI` is set, an agent is driving the
+process, or the run passed
+`--json`. The error names the flag to pass and quotes the question it would have asked
+([Never hangs](/docs/guides/never-hangs)).
+
+## How do I make it ask anyway?
+
+Run it on a terminal. `--interactive` asks for optional values it would otherwise skip, but it
+cannot conjure a person: with no terminal it still refuses, and says that `--interactive` needs
+one.
+
+## What does `--yes` answer?
+
+Every `confirm`, with `true`, terminal or not. Nothing else: a `text` or a `select` has no
+"yes" ([Confirmations in CI](/docs/recipes/confirm-in-ci)).
+
+## My CI job has a terminal attached. Does it prompt?
+
+No. `CI` set means nobody is there to type, whatever stdin is.
+
+## An agent runs my CLI in a terminal. Does it prompt?
+
+No. Under `CLAUDECODE`, `CURSOR_AGENT`, `CODEX_THREAD_ID`, `GEMINI_CLI` or `AI_AGENT` the
+prompt is refused, naming the flag, even with a terminal on stdin: the agent has the terminal
+but not a person. `FORCE_TTY=1` overrides it, for a caller that pipes answers on purpose.
+
+## What happens when stdin closes mid-question?
+
+The question is cancelled — `{ ok: false, reason: 'cancelled' }`, or a `CANCELLED` failure from
+`resolvePrompts()` — and never read as an empty answer.
+
+## Is a password ever echoed?
+
+No. `createIo()` suppresses the echo for the one question by intercepting readline's output,
+not by turning the terminal's echo off, so a process that dies mid-prompt does not leave the
+terminal silent ([The terminal](/docs/guides/terminal)).
+
+## I put the terminal in raw mode myself. Will a prompt take it away?
+
+Not caique's own: `askList()` turns raw mode off only if it turned it on. clack and inquirer
+turn it off when a prompt closes whatever it was before ([Why caique](/docs/why-caique)).
+
+## Can I keep my clack or inquirer code?
+
+Yes: `caique/clack` and `caique/inquirer` carry their APIs, graded by their own suites
+([Compatibility](/docs/drop-ins)). Moving a prompt to a flag is what makes it answerable
+without a person.
+
+## Can I use it from CommonJS?
+
+Yes, on Node 20.19+ and 22.13+: every entry is ESM with a `default` condition, so
+`require('caique')` loads it through `require(esm)`.
