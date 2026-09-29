@@ -1,0 +1,164 @@
+{
+  "$comment": "linegauge's capability matrix against the four packages it replaces (compat-oracle's LAYERS). Rendered by <CapabilityMatrix pkg=\"linegauge\" /> from apps/docs-chassis and held by scripts/capabilities-lock.test.ts: every `ours` yes/partial names a test file and a title substring it contains, or a compat-oracle grade; every incumbent cell names a source at the version compat-oracle grades, and a local source is checked for the text it `quote`s or `lacks`. `n/a` means the row does not apply to that package, and says why. A row that could not be proved for every column is not here.",
+  "package": "linegauge",
+  "incumbents": ["string-width", "wrap-ansi", "strip-ansi", "slice-ansi"],
+  "themes": [
+    {
+      "theme": "Measuring text",
+      "rows": [
+        {
+          "capability": "Unicode 17 East Asian Width",
+          "why": "A code point Unicode 17 made wide, such as U+18D80, measures two columns, so a layout built on the width does not drift on new text.",
+          "ours": { "status": "yes", "test": "packages/linegauge/src/width.test.ts", "title": "measures a Unicode 17 wide code point as two columns, as string-width does" },
+          "incumbents": {
+            "string-width": { "status": "yes", "source": "node_modules/string-width/index.js", "quote": "import {eastAsianWidth} from 'get-east-asian-width';", "note": "through get-east-asian-width 1.7.0" },
+            "wrap-ansi": { "status": "yes", "source": "node_modules/wrap-ansi/index.js", "quote": "import stringWidth from 'string-width';", "note": "measures through string-width" },
+            "strip-ansi": { "status": "n/a", "source": "node_modules/strip-ansi/index.js", "lacks": "eastAsianWidth", "note": "removes escape sequences; measures nothing" },
+            "slice-ansi": { "status": "yes", "source": "node_modules/slice-ansi/node_modules/is-fullwidth-code-point/index.js", "quote": "_isWide as isWide,", "note": "through is-fullwidth-code-point and get-east-asian-width" }
+          }
+        },
+        {
+          "capability": "A ZWJ emoji sequence is one two-column cluster",
+          "why": "Text is measured by grapheme cluster over `Intl.Segmenter`, so a family emoji built from four people and three joiners is two columns, not eight.",
+          "ours": { "status": "yes", "test": "packages/linegauge/src/width.test.ts", "title": "RGI emoji: a ZWJ sequence is one two-column cluster, not four" },
+          "incumbents": {
+            "string-width": { "status": "yes", "source": "node_modules/string-width/index.js", "quote": "const segmenter = new Intl.Segmenter();" },
+            "wrap-ansi": { "status": "yes", "source": "node_modules/wrap-ansi/index.js", "quote": "const segmenter = new Intl.Segmenter();" },
+            "strip-ansi": { "status": "n/a", "source": "node_modules/strip-ansi/index.js", "lacks": "Segmenter", "note": "removes escape sequences; measures nothing" },
+            "slice-ansi": { "status": "yes", "source": "node_modules/slice-ansi/tokenize-ansi.js", "quote": "const GRAPHEME_SEGMENTER = new Intl.Segmenter(undefined, {granularity: 'grapheme'});" }
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Cutting styled text",
+      "rows": [
+        {
+          "capability": "A slice closes the styles it opened",
+          "why": "A column range re-emits the styles active at its start and closes them at its end, so the fragment neither loses its colour nor leaks it into what follows.",
+          "ours": { "status": "yes", "test": "packages/linegauge/src/slice.test.ts", "title": "closes what it opened, so the fragment is self-contained" },
+          "incumbents": {
+            "string-width": { "status": "n/a", "source": "node_modules/string-width/index.js", "quote": "export default function stringWidth(", "note": "measures; its one export is the width, and it does not cut" },
+            "wrap-ansi": { "status": "n/a", "source": "node_modules/wrap-ansi/index.js", "lacks": "sliceAnsi", "note": "folds text into rows; it takes no column range" },
+            "strip-ansi": { "status": "n/a", "source": "node_modules/strip-ansi/index.js", "lacks": "slice", "note": "removes escape sequences; it does not cut" },
+            "slice-ansi": { "status": "yes", "source": "node_modules/slice-ansi/index.js", "quote": "function undoAnsiCodes(activeStyles) {" }
+          }
+        },
+        {
+          "capability": "Truncation with the ellipsis inside the budget",
+          "why": "`truncate(text, 10)` occupies ten columns or fewer with its ellipsis counted, cutting from the end, the start or the middle, which is what a table column depends on.",
+          "ours": { "status": "yes", "test": "packages/linegauge/src/truncate.test.ts", "title": "is never wider than %i columns" },
+          "incumbents": {
+            "string-width": { "status": "no", "source": "node_modules/string-width/index.js", "lacks": "ellipsis", "note": "measures only; truncation is cli-truncate, another package" },
+            "wrap-ansi": { "status": "no", "source": "node_modules/wrap-ansi/index.js", "lacks": "ellipsis", "note": "folds text into rows; it never shortens it" },
+            "strip-ansi": { "status": "n/a", "source": "node_modules/strip-ansi/index.js", "lacks": "ellipsis", "note": "removes escape sequences; it does not cut" },
+            "slice-ansi": { "status": "partial", "source": "node_modules/slice-ansi/index.js", "lacks": "ellipsis", "missing": "cuts a column range, but adds no ellipsis and keeps no room for one" }
+          }
+        },
+        {
+          "capability": "The widest of many lines, from any iterable",
+          "why": "`widest(lines)` measures an array, a `Set` or a generator in one pass, so the lines never have to be spread into an argument list.",
+          "ours": { "status": "yes", "test": "packages/linegauge/src/truncate.test.ts", "title": "takes any iterable, so a generator never has to be spread" },
+          "incumbents": {
+            "string-width": { "status": "no", "source": "node_modules/string-width/index.js", "lacks": "widest", "note": "measures one string; the widest of many is widest-line, another package" },
+            "wrap-ansi": { "status": "no", "source": "node_modules/wrap-ansi/index.js", "lacks": "widest", "note": "folds one string" },
+            "strip-ansi": { "status": "n/a", "source": "node_modules/strip-ansi/index.js", "lacks": "widest", "note": "removes escape sequences; measures nothing" },
+            "slice-ansi": { "status": "no", "source": "node_modules/slice-ansi/index.js", "lacks": "widest", "note": "cuts one string" }
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Terminals that disagree with Unicode",
+      "rows": [
+        {
+          "capability": "Width overrides through a plugin, with provenance",
+          "why": "A plugin registers `{ ranges, columns, why }` for a font that draws Private Use icons two columns wide, and a width table without a `why` is refused.",
+          "ours": { "status": "yes", "test": "packages/linegauge/src/plugin.test.ts", "title": "counts a Private Use code point narrow until a plugin says otherwise" },
+          "incumbents": {
+            "string-width": { "status": "no", "source": "node_modules/string-width/index.js", "lacks": "register", "note": "the Unicode table is fixed; only ambiguous width is an option" },
+            "wrap-ansi": { "status": "no", "source": "node_modules/wrap-ansi/index.js", "lacks": "register", "note": "measures through string-width, which takes no overrides" },
+            "strip-ansi": { "status": "n/a", "source": "node_modules/strip-ansi/index.js", "lacks": "register", "note": "removes escape sequences; measures nothing" },
+            "slice-ansi": { "status": "no", "source": "node_modules/slice-ansi/index.js", "lacks": "register", "note": "the width of each code point is fixed" }
+          }
+        },
+        {
+          "capability": "A checker for width plugins before they ship",
+          "why": "`npx linegauge check ./widths.mjs` validates a plugin against the family schema and exits 1 with a code and a fix when it is refused.",
+          "ours": { "status": "yes", "test": "scripts/plugin-check-lock.test.ts", "title": "refuses a malformed plugin with a code and a fix" },
+          "incumbents": {
+            "string-width": { "status": "n/a", "source": "node_modules/string-width/package.json", "lacks": "\"bin\"", "note": "takes no plugins, so has nothing to check" },
+            "wrap-ansi": { "status": "n/a", "source": "node_modules/wrap-ansi/package.json", "lacks": "\"bin\"", "note": "takes no plugins, so has nothing to check" },
+            "strip-ansi": { "status": "n/a", "source": "node_modules/strip-ansi/package.json", "lacks": "\"bin\"", "note": "takes no plugins, so has nothing to check" },
+            "slice-ansi": { "status": "n/a", "source": "node_modules/slice-ansi/package.json", "lacks": "\"bin\"", "note": "takes no plugins, so has nothing to check" }
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Weight",
+      "rows": [
+        {
+          "capability": "No runtime dependencies",
+          "why": "Measuring, wrapping, slicing, stripping and truncating install as one package that depends on nothing.",
+          "ours": { "status": "yes", "test": "scripts/package-shape-lock.test.ts", "title": "depends on nothing: it is the floor" },
+          "incumbents": {
+            "string-width": { "status": "no", "source": "node_modules/string-width/package.json", "quote": "\"get-east-asian-width\": \"^1.5.0\",", "note": "get-east-asian-width and strip-ansi" },
+            "wrap-ansi": { "status": "no", "source": "node_modules/wrap-ansi/package.json", "quote": "\"ansi-styles\": \"^6.2.3\",", "note": "ansi-styles and string-width" },
+            "strip-ansi": { "status": "no", "source": "node_modules/strip-ansi/package.json", "quote": "\"ansi-regex\": \"^6.2.2\"", "note": "ansi-regex" },
+            "slice-ansi": { "status": "no", "source": "node_modules/slice-ansi/package.json", "quote": "\"is-fullwidth-code-point\": \"^5.1.0\"", "note": "ansi-styles and is-fullwidth-code-point" }
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Compatibility",
+      "rows": [
+        {
+          "capability": "Passes string-width's own test suite",
+          "why": "linegauge's default export is graded by string-width 8.2.2's own tests, unedited, so changing the import keeps string-width's answers.",
+          "ours": { "status": "yes", "grade": "packages/compat-oracle/baseline/string-width.json" },
+          "incumbents": {
+            "string-width": { "status": "yes", "source": "packages/compat-oracle/vendor/string-width/test.js", "quote": "import stringWidth from './shim.js';", "note": "its own suite, the control run" },
+            "wrap-ansi": { "status": "n/a", "source": "packages/compat-oracle/vendor/wrap-ansi/test.js", "quote": "import wrapAnsi from './shim.js';", "note": "a different API" },
+            "strip-ansi": { "status": "n/a", "source": "packages/compat-oracle/vendor/strip-ansi/test.js", "quote": "import stripAnsi from './shim.js';", "note": "a different API" },
+            "slice-ansi": { "status": "n/a", "source": "packages/compat-oracle/vendor/slice-ansi/test.js", "quote": "import sliceAnsi from './shim.js';", "note": "a different API" }
+          }
+        },
+        {
+          "capability": "Passes wrap-ansi's own test suite",
+          "why": "`linegauge/wrap` is graded by wrap-ansi 10.0.1's own tests, unedited.",
+          "ours": { "status": "yes", "grade": "packages/compat-oracle/baseline/wrap-ansi.json" },
+          "incumbents": {
+            "string-width": { "status": "n/a", "source": "packages/compat-oracle/vendor/string-width/test.js", "quote": "import stringWidth from './shim.js';", "note": "a different API" },
+            "wrap-ansi": { "status": "yes", "source": "packages/compat-oracle/vendor/wrap-ansi/test.js", "quote": "import wrapAnsi from './shim.js';", "note": "its own suite, the control run" },
+            "strip-ansi": { "status": "n/a", "source": "packages/compat-oracle/vendor/strip-ansi/test.js", "quote": "import stripAnsi from './shim.js';", "note": "a different API" },
+            "slice-ansi": { "status": "n/a", "source": "packages/compat-oracle/vendor/slice-ansi/test.js", "quote": "import sliceAnsi from './shim.js';", "note": "a different API" }
+          }
+        },
+        {
+          "capability": "Passes strip-ansi's own test suite",
+          "why": "`linegauge/strip` is graded by strip-ansi 7.2.0's own tests, unedited.",
+          "ours": { "status": "yes", "grade": "packages/compat-oracle/baseline/strip-ansi.json" },
+          "incumbents": {
+            "string-width": { "status": "n/a", "source": "packages/compat-oracle/vendor/string-width/test.js", "quote": "import stringWidth from './shim.js';", "note": "a different API" },
+            "wrap-ansi": { "status": "n/a", "source": "packages/compat-oracle/vendor/wrap-ansi/test.js", "quote": "import wrapAnsi from './shim.js';", "note": "a different API" },
+            "strip-ansi": { "status": "yes", "source": "packages/compat-oracle/vendor/strip-ansi/test.js", "quote": "import stripAnsi from './shim.js';", "note": "its own suite, the control run" },
+            "slice-ansi": { "status": "n/a", "source": "packages/compat-oracle/vendor/slice-ansi/test.js", "quote": "import sliceAnsi from './shim.js';", "note": "a different API" }
+          }
+        },
+        {
+          "capability": "Passes slice-ansi's own test suite",
+          "why": "`linegauge/slice` is graded by slice-ansi 9.0.1's own tests, unedited.",
+          "ours": { "status": "yes", "grade": "packages/compat-oracle/baseline/slice-ansi.json" },
+          "incumbents": {
+            "string-width": { "status": "n/a", "source": "packages/compat-oracle/vendor/string-width/test.js", "quote": "import stringWidth from './shim.js';", "note": "a different API" },
+            "wrap-ansi": { "status": "n/a", "source": "packages/compat-oracle/vendor/wrap-ansi/test.js", "quote": "import wrapAnsi from './shim.js';", "note": "a different API" },
+            "strip-ansi": { "status": "n/a", "source": "packages/compat-oracle/vendor/strip-ansi/test.js", "quote": "import stripAnsi from './shim.js';", "note": "a different API" },
+            "slice-ansi": { "status": "yes", "source": "packages/compat-oracle/vendor/slice-ansi/test.js", "quote": "import sliceAnsi from './shim.js';", "note": "its own suite, the control run" }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -40,7 +40,7 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
  * joins by being added here once its hand-written pages exist, and the lock then holds its
  * reference and changelog in sync.
  */
-export const STANDARD_SITES: readonly string[] = ['flagstaff', 'closeout'];
+export const STANDARD_SITES: readonly string[] = ['flagstaff', 'linegauge', 'closeout'];
 
 type ExportTarget = string | { types?: string; import?: string; default?: string };
 interface Manifest {
@@ -153,7 +153,9 @@ function documentModule(checker: ts.TypeChecker, sf: ts.SourceFile, self: string
     const local = name === 'default' && declared !== undefined ? { local: declared } : {};
     const owner = owners.get(target);
     if (owner !== undefined && owner !== self) return [{ name, ...local, kind, owner, signatures: [], summary: '', params: [], examples: [] }];
-    const summary = flushLists(ts.displayPartsToString(target.getDocumentationComment(checker)).trim());
+    // A declaration with no doc of its own, first in its file, inherits the licence banner.
+    const written = ts.displayPartsToString(target.getDocumentationComment(checker)).trim();
+    const summary = /^Copyright \(c\)/u.test(written) ? '' : flushLists(written);
     const tags = target.getJsDocTags(checker);
     const paramDocs = new Map(
       tags
@@ -214,16 +216,19 @@ function flushLists(text: string): string {
     .join('\n');
 }
 
+/** The `Copyright (c) … Licensed under` header a source file opens with, which `tsc` keeps in `.d.ts`. */
+const LICENCE_BANNER = /^\/\*\*\s*\*\s*Copyright \(c\)/u;
+
 /** The file's own doc comment: the one before its first statement when that is an import or re-export. */
 function moduleDoc(sf: ts.SourceFile): string {
   const [first] = sf.statements;
   if (first === undefined) return '';
   const docs = ts.getLeadingCommentRanges(sf.text, 0) ?? [];
-  // A licence header is the file's legal notice, not its documentation, so it is skipped.
+  // A licence banner is a comment about the file's copyright, not about the module.
   const blocks = docs
     .filter((r) => sf.text.startsWith('/**', r.pos))
     .map((r) => sf.text.slice(r.pos, r.end))
-    .filter((block) => !/^\/\*\*\n \* Copyright /u.test(block));
+    .filter((block) => !LICENCE_BANNER.test(block));
   // The file's own comment is the first one when the first statement is an import or a
   // re-export (which carry no doc of their own), or when a second comment follows it.
   const opensWithImport = ts.isImportDeclaration(first) || ts.isExportDeclaration(first);
@@ -419,7 +424,11 @@ export function orphans(owned: ReadonlyMap<string, string>, packages: readonly s
   });
 }
 
-/** The files that differ from what this script would write, and the orphans. */
+/**
+ * The files that differ from what this script would write, and the orphans — of `packages`,
+ * which must be the packages `owned` was generated for, or every other site's pages read as
+ * orphans.
+ */
 export function stale(owned: ReadonlyMap<string, string>, packages: readonly string[] = STANDARD_SITES): string[] {
   const differ = [...owned].filter(([file, text]) => {
     const path = join(REPO_ROOT, file);
