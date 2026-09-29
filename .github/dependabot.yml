@@ -92,6 +92,13 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 1
+    # CodeQL refuses to run when init, autobuild and analyze are on different releases
+    # ("Loaded a configuration file for version X, but running version Y"). Bumped one PR per
+    # sub-action, #592 and #690 each moved `init` alone and broke Analyze on main; one group
+    # moves all three together.
+    groups:
+      codeql-action:
+        patterns: ["github/codeql-action*"]
     labels: ["dependencies", "ci"]
     commit-message:
       prefix: "chore(ci)"
