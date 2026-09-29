@@ -159,7 +159,7 @@ interface EntryRule {
 const RULES: Record<string, EntryRule> = {
   // Everything: the loop, the registry, and all five built-ins. `box` and `table` bring the
   // wrapper and the width function with them, which is most of it. A program that wants one component should import its subpath (U5, R10).
-  '.': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'linegauge/wrap', 'paratext/link', 'roundel/policy', 'roundel/tokens'], budget: 29_300, measured: 28_893, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
+  '.': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'linegauge/wrap', 'paratext/link', 'roundel/policy', 'roundel/tokens'], budget: 29_300, measured: 28_505, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
   // The loop and its four projections; never the registry — a program that hoists its own
   // component pays nothing for the plugin host.
   //
@@ -169,7 +169,7 @@ const RULES: Record<string, EntryRule> = {
   // terminal. Since 2026-09-15 that net is `closeout`'s, reached by a bare specifier, so the
   // measurement no longer carries it and the budget has more headroom than it needs. Left
   // where it is: what the entry may weigh did not change because a dependency edge moved.
-  './loop': { allow: ['closeout', 'closeout/cursor', 'roundel/policy'], budget: 7_000, measured: 4_972, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
+  './loop': { allow: ['closeout', 'closeout/cursor', 'roundel/policy'], budget: 7_000, measured: 4_893, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
   // The registry, the validator, the built-ins and the schema they are checked against.
   // The registry, the validator, the built-ins and the schema they are checked against —
   // which now carries `borders` too, so both this and `./spinner` are larger than before.
@@ -259,7 +259,7 @@ const RULES: Record<string, EntryRule> = {
   // plugin, and `box('…', { border: 'arrow' })` then draws with it without knowing it
   // exists. A caller who wants neither passes a style object and a bundler drops the rest.
   './box': { allow: ['linegauge', 'linegauge/wrap', 'paratext/link', 'roundel/tokens'], budget: 16_300, measured: 15_825, denied: ['loop.js', 'projection.js', 'table.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
-  './table': { allow: ['linegauge', 'linegauge/wrap', 'paratext/link', 'roundel/tokens'], budget: 6_000, measured: 4_991, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'box.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
+  './table': { allow: ['linegauge', 'linegauge/wrap', 'paratext/link', 'roundel/tokens'], budget: 6_000, measured: 4_649, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'box.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
 };
 
 const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;
