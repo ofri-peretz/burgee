@@ -15,6 +15,7 @@
  * `paratext/link` and `paratext/csi` exist. Its root `link` is also a different function from
  * `paratext/link`'s, but since 2026-09-28 `paratext/csi` shares every one of its bindings with
  * the root, and the pair would measure the registry, not a tree-shaking failure.
+ * controlroom contributes none either: it is reserved, with a root and no subpath.
  */
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -24,7 +25,7 @@ import { build } from 'esbuild';
 import { describe, expect, it } from 'vitest';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const PUBLISHED = ['bellpull', 'burgee', 'caique', 'closeout', 'flagstaff', 'linegauge', 'paratext', 'roundel', 'seniority'];
+const PUBLISHED = ['bellpull', 'burgee', 'caique', 'closeout', 'controlroom', 'flagstaff', 'linegauge', 'paratext', 'roundel', 'seniority'];
 /** Fewer than this means the discovery broke, not that the packages got smaller. */
 const MIN_PAIRS = 25;
 
