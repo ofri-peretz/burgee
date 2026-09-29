@@ -8,9 +8,9 @@ where the two differ.
 
 **burgee** is a CLI framework that replaces commander and yargs, is drop-in compatible with
 both, and projects help, `--json`, `--schema`, an MCP server and completions from one
-declaration. The repository is a turbo monorepo of nine public, independently released
-packages and one private grader. None of the nine depends on anything outside this
-repository.
+declaration. The repository is a turbo monorepo of ten public, independently released
+packages and one private grader. None of the ten depends on anything outside this
+repository. The tenth is the reservation `controlroom@0.0.1`, with no API yet.
 
 ## Package map
 
@@ -25,6 +25,7 @@ repository.
 | [`bellpull`](./packages/bellpull/) | subprocesses and executable resolution | execa · cross-spawn · which |
 | [`closeout`](./packages/closeout/) | exit handlers, terminal restore, bounded shutdown | signal-exit · exit-hook · restore-cursor |
 | [`paratext`](./packages/paratext/) | hyperlinks, images, title, clipboard, notifications, bell | ansi-escapes (OSC half) · terminal-link · term-img |
+| [`controlroom`](./packages/controlroom/) | full-screen screens over flagstaff's loop, each with a static projection; **reserved, not usable yet** | ink · @inkjs/ui |
 | [`compat-oracle`](./packages/compat-oracle/) | private: grades each drop-in path with the incumbent's own test suite | — |
 
 Each package's `package.json` `description` is the canonical one-liner, and its README is

@@ -4,7 +4,7 @@
 > of the intents in [`.sdlc/intents/`](../intents/), not invented: if a line below and an
 > intent disagree, the intent wins and this file is wrong.
 
-## The stack, as four layers
+## The stack, as five layers
 
 The packages are not a suite that ships together. Each is a standalone product with its own
 competitors, and the family is a claim about *layers of a CLI*, not about a bundle.
@@ -15,8 +15,9 @@ competitors, and the family is a claim about *layers of a CLI*, not about a bund
 | **Colour** | `roundel` | One output policy decided once from the runtime, nine semantic tokens, a contrast-checked theme | chalk, picocolors |
 | **Motion** | `flagstaff` | The repaint loop, and plugins as data — every animation carrying a static projection for pipes, `--json` and screen readers | ora, log-update, boxen, cli-table3, Ink |
 | **Dialogue** | `caique` | Prompts that are flags first: a caller who passed the flag is never asked, and a non-TTY caller gets an error naming the flag rather than a hang | inquirer, clack |
+| **Screen** | `controlroom` | Full-screen, keyboard-driven screens (panes, tabs, focus, collapse) laid out over flagstaff's loop, each with a static projection. **Reserved, not usable yet** (D-158, D-168) | Ink, `@inkjs/ui`; blessed, neo-blessed and terminal-kit by migration guide |
 
-Under those four sits the **foundation tier** — the loop's own plumbing:
+Under those five sits the **foundation tier** — the loop's own plumbing:
 
 | Layer | Package | What it owns | Named for |
 | :-- | :-- | :-- | :-- |
@@ -78,6 +79,26 @@ than design is already close to the Interlace palette. The cap is the body showi
 every other patch is a marking clipped to the silhouette, so each is drawn generously and the
 outline decides where it ends. The Interlace mark rides on the wing, in paper and ink,
 because the lifted pair on a green wing is 1.42:1 and disappears.
+
+### controlroom — where a system is run from
+
+1. **The metaphor.** A control room is where a system is watched and run from, and every one
+   is built around the same object: a console screen, divided into panes. The mark draws
+   that screen on its stand, showing the layout the package draws: a window at the top
+   right and a log strip along the bottom, both **cut through** the body, so the glass is
+   absence, as linegauge's ticks are.
+2. **Must read as** a console screen showing a split layout. **Must not read as** a stock
+   desktop-monitor icon, which an empty screen would be, or paratext's page, which is also a
+   rectangle with a hole. The two cuts, the landscape frame and the stand keep it from both.
+3. **Where the mark rides:** the left pane, the one pane left solid, because that is the
+   panel the room is run from. It sits level with the cut pane beside it, at share 0.9.
+
+The criteria did not settle one choice, so it took the default they imply. Three layouts
+were open: panes as holes around a solid panel, a solid screen with markings, or a bank of
+several monitors. **Holes around a solid panel** was taken, because the floor allows three
+elements at most (silhouette, charge, markings), and cutting the panes needs no markings.
+It is the same grammar as linegauge and paratext, so the charge stays on ink, where its
+contrast is measured.
 
 ### The foundation five
 
