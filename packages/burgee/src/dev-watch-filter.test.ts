@@ -45,6 +45,13 @@ async function started(debounceMs?: number): Promise<{ loads: () => number; clos
   return { loads: () => logged.filter((l) => /^(re)?loaded /.test(l)).length, close: handle.close };
 }
 
+/**
+ * How long a scheduled reload may take to land. A reload is a fresh import of the entry and of
+ * burgee under it, which takes tens of milliseconds idle and seconds inside a loaded pre-push
+ * battery; the wait is on the event, so an idle run pays nothing for the margin.
+ */
+const SETTLE = { timeout: 20_000, interval: 10 };
+
 const fire = (filename: string | null): void => (watched.listener as Listener)('change', filename);
 
 describe('the watcher reloads on source files only (W5)', () => {
@@ -60,7 +67,7 @@ describe('the watcher reloads on source files only (W5)', () => {
     fire('cli.ts');
     expect(vi.getTimerCount()).toBe(1);
     await vi.advanceTimersByTimeAsync(50);
-    await vi.waitFor(() => expect(loads()).toBe(2));
+    await vi.waitFor(() => expect(loads()).toBe(2), SETTLE);
     close();
   });
 
@@ -70,7 +77,7 @@ describe('the watcher reloads on source files only (W5)', () => {
     fire(null);
     expect(vi.getTimerCount()).toBe(1);
     await vi.advanceTimersByTimeAsync(50);
-    await vi.waitFor(() => expect(loads()).toBe(2));
+    await vi.waitFor(() => expect(loads()).toBe(2), SETTLE);
     close();
   });
 
@@ -85,7 +92,7 @@ describe('the watcher reloads on source files only (W5)', () => {
     expect(vi.getTimerCount()).toBe(1);
     expect(loads()).toBe(1);
     await vi.advanceTimersByTimeAsync(20);
-    await vi.waitFor(() => expect(loads()).toBe(2));
+    await vi.waitFor(() => expect(loads()).toBe(2), SETTLE);
     close();
     expect(watched.closed).toBeGreaterThan(0);
   });
