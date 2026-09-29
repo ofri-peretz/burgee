@@ -13,6 +13,11 @@
  * different event from any exit code and the one closeout exists to preserve. A fence with
  * neither promises exit 0.
  *
+ * The examples raise signals at their own process — Ctrl-C, SIGTERM from an orchestrator —
+ * and Windows has no signal a process can deliver to itself: `process.kill(process.pid,
+ * 'SIGTERM')` there is `TerminateProcess`, exit 1, no handler run. So, like closeout's own
+ * real-process signal tests, this suite runs on POSIX only.
+ *
  * Getting started's files are written beside every page's, so a page can run them without
  * repeating them; a page that defines a file of the same name wins.
  */
@@ -95,7 +100,7 @@ function parse(command: string): { env: Record<string, string>; argv: string[] }
   return { env, argv: words.slice(1) };
 }
 
-describe('the examples on this site', () => {
+describe.skipIf(process.platform === 'win32')('the examples on this site', () => {
   it('has examples to run — otherwise every case below asserts nothing', () => {
     expect(all.length).toBeGreaterThan(0);
     expect(shared.size, 'getting-started.mdx no longer defines a file the other pages can run').toBeGreaterThan(0);
@@ -113,6 +118,6 @@ describe('the examples on this site', () => {
       const result = spawnSync(process.execPath, argv, { cwd: dir, env: { ...process.env, ...env }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 20_000, killSignal: 'SIGKILL' });
       expect({ status: result.status, signal: result.signal }, result.stderr).toEqual({ status: run.exit, signal: run.signal });
       expect(result.stdout + result.stderr).toBe(run.expected);
-    });
+    }, 30_000);
   });
 });
