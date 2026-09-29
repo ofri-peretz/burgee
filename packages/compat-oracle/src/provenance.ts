@@ -70,7 +70,8 @@ export function parseProvenance(text: string): Record<string, string> {
   for (const line of text.split('\n')) {
     if (line.trim() === '') break;
     const at = line.indexOf(':');
-    if (at <= 0) continue;
+    // No colon at all. A colon in column 0 needs no case of its own: `KEY` refuses the empty key.
+    if (at === -1) continue;
     const key = line.slice(0, at);
     if (KEY.test(key)) out.set(key, line.slice(at + 1).trim());
   }

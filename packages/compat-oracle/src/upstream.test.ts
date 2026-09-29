@@ -1,13 +1,17 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { HOSTS, type Host } from './hosts.js';
 import { type Update, upstreamMode } from './report.js';
 
-import { type CompatRecord, diffRecords, isEmptyDiff, renderDiff, renderMissingExtras, surfaceNames, testNames } from './upstream.js';
+import { type CompatRecord, diffRecords, isEmptyDiff, latestVersion, renderDiff, renderMissingExtras, sha256, snapshot, surfaceNames, testNames } from './upstream.js';
+
+// `npm view` is the one network call in this file, so it is the one call faked.
+vi.mock('node:child_process', async (importOriginal) => ({ ...(await importOriginal<typeof import('node:child_process')>()), execFileSync: vi.fn() }));
 
 const record = (over: Partial<CompatRecord>): CompatRecord => ({
   repo: 'r',
@@ -72,7 +76,50 @@ describe('diffing two records', () => {
   });
 });
 
+describe('the edges of a record', () => {
+  it('keeps a backslash that ends the file inside the title rather than reading past it', () => {
+    expect(testNames("test('ends in \\")).toEqual(['ends in \\']);
+  });
+
+  it('fingerprints the graded files and whichever declared surface files exist', () => {
+    const clone = mkdtempSync(join(tmpdir(), 'snapshot-'));
+    mkdirSync(join(clone, 'test', 'issues'), { recursive: true });
+    writeFileSync(join(clone, 'test', 'a.test.js'), "test('a', () => {});\n");
+    writeFileSync(join(clone, 'test', 'issues', 'b.test.js'), "it('b', () => {});\n");
+    writeFileSync(join(clone, 'index.d.ts'), 'export declare function run(): void;\n');
+    const host = { ...(HOSTS[0] as Host), testDir: 'test', testGlob: '*.test.js', surfaceFiles: ['index.d.ts', 'gone.d.ts'] };
+    const meta = { version: '1.0.0', tag: null, commit: 'c', vendored: 'd', files: 2, internalFiles: [], internals: [] };
+    const record = snapshot(clone, host, meta);
+    expect(record.tests).toEqual({ 'test/a.test.js': ['a'], 'test/issues/b.test.js': ['b'] });
+    expect(record.surface).toEqual({ 'index.d.ts': ['run'] });
+    expect(record.hashes['index.d.ts']).toBe(sha256('export declare function run(): void;\n'));
+    // A host that declares no surface files fingerprints its tests alone.
+    const { surfaceFiles: _, ...bare } = host;
+    expect(snapshot(clone, bare, meta).surface).toEqual({});
+    rmSync(clone, { recursive: true, force: true });
+  });
+
+  it('prints an untagged release as a dash, and points the re-vendor at its commit', () => {
+    const before = record({ tag: null });
+    const after = record({ version: '1.1.0', tag: null, commit: 'b'.repeat(40), tests: { 'tests/a.test.js': ['one'] } });
+    const body = renderDiff('h', before, after, diffRecords(before, after));
+    expect(body).toContain('| tag | — | — |');
+    expect(body).toContain(`re-vendors at ${'b'.repeat(8)};`);
+  });
+
+  it('asks npm for the newest release, and trims what it prints', () => {
+    vi.mocked(execFileSync).mockReturnValueOnce('6.0.0\n');
+    expect(latestVersion('chalk')).toBe('6.0.0');
+    expect(vi.mocked(execFileSync)).toHaveBeenCalledWith('npm', ['view', 'chalk', 'version'], { encoding: 'utf8' });
+  });
+});
+
 describe('a fixture the release stopped shipping', () => {
+  it('says "them" when it skipped more than one', () => {
+    const body = renderMissingExtras('18.0.4', ['tests/.env.vault', 'tests/.env.me']);
+    expect(body).toContain("pruning them from the host's `extraDirs`, and checking the control still loads without them.");
+  });
+
   it('adds nothing to the issue body when every extraDirs entry was shipped', () => {
     expect(renderMissingExtras('18.0.4', [])).toBe('');
   });

@@ -20,7 +20,6 @@ import { type Declaration, type Entry, type Seen, type Watched, npmNameOf, readD
 import { claimSite } from './facts.js';
 import { type IssueInput, issueTitle, renderIssue } from './issue.js';
 import { type RegistryClient, cached, fromRegistry, liveRegistry } from './registry.js';
-import { sha256 } from './upstream.js';
 
 /** The fingerprint of one release, as it is recorded and as it is compared. */
 export interface Fingerprint {
@@ -150,18 +149,19 @@ export interface CheckResult {
   errors: { npm: string; error: string }[];
 }
 
-function buildInput(watched: Watched, before: Seen | null, after: Fingerprint, claims: IssueInput['claims']): IssueInput {
+/** Only ever for a release `moved()` said yes to, which it never does with nothing held. */
+function buildInput(watched: Watched, before: Seen, after: Fingerprint, claims: IssueInput['claims']): IssueInput {
   return {
     name: watched.name,
     npm: watched.npm,
-    from: before?.version ?? null,
+    from: before.version,
     to: after.version,
     shasum: after.shasum,
     surface: compare(before, after),
     weight: {
-      before: before?.weight ?? null,
+      before: before.weight,
       after: after.weight,
-      packagesBefore: before?.packages ?? null,
+      packagesBefore: before.packages ?? null,
       packagesAfter: after.packages,
     },
     claims,
@@ -211,14 +211,15 @@ export async function check(packagesDir: string, root: string, write: Write, cli
         }
         continue;
       }
-      const input = buildInput(watched, before, after, claimsFor(watched, declarations, root));
+      // `moved()` is false with nothing held, so there is a held fingerprint from here on.
+      const input = buildInput(watched, before as Seen, after, claimsFor(watched, declarations, root));
       write(
-        `  ${label(watched).padEnd(COL)} ${String(before?.version)} → ${after.version}: +${input.surface.added.length}/-${input.surface.removed.length} exports, ${input.surface.filesChanged.length} changed / +${input.surface.filesAdded.length} / -${input.surface.filesRemoved.length} files, weight ${String(before?.weight)} → ${after.weight}\n`,
+        `  ${label(watched).padEnd(COL)} ${String(input.from)} → ${after.version}: +${input.surface.added.length}/-${input.surface.removed.length} exports, ${input.surface.filesChanged.length} changed / +${input.surface.filesAdded.length} / -${input.surface.filesRemoved.length} files, weight ${String(input.weight.before)} → ${after.weight}\n`,
       );
       updates.push({
         name: watched.name,
         npm: watched.npm,
-        from: before?.version ?? null,
+        from: input.from,
         to: after.version,
         title: issueTitle(watched.name, after.version),
         report: renderIssue(input),
@@ -289,6 +290,3 @@ export async function fingerprint(packagesDir: string, write: Write, client: Reg
   }
   return failures;
 }
-
-/** Exposed so the fingerprint of a surface can be compared without the whole file map. */
-export const surfaceHash = (exports: string[]): string => sha256(exports.join('\n'));

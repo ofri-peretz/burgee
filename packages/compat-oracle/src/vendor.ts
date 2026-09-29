@@ -151,7 +151,8 @@ const SIBLING = /(?:from|require\()\s*['"]\.\/([^'"/]+)['"]/g;
 
 /** Every same-directory module a source imports: vendored beside the tests, never run. */
 export function siblingImports(source: string): string[] {
-  return [...source.matchAll(SIBLING)].map((m) => m[1] ?? '').filter((p) => p !== '');
+  // The group is one or more characters, so every match carries a non-empty name.
+  return [...source.matchAll(SIBLING)].map((m) => m[1] as string);
 }
 
 /**
@@ -186,7 +187,8 @@ const INTERNAL_PATTERNS: Record<string, RegExp> = {
 export function internalImports(source: string, internalDir = 'lib'): string[] {
   const pattern = INTERNAL_PATTERNS[internalDir];
   if (pattern === undefined) throw new Error(`no internal-import pattern for "${internalDir}" — add one to INTERNAL_PATTERNS`);
-  return [...source.matchAll(pattern)].map((m) => m[1] ?? '').filter((p) => p !== '');
+  // Every pattern's group is one or more characters, so every match carries a non-empty path.
+  return [...source.matchAll(pattern)].map((m) => m[1] as string);
 }
 
 /**
@@ -371,7 +373,8 @@ function countNested(host: Host, from: string, dest: string, into: { internalFil
 function copySiblings(siblings: Set<string>, host: Host, { from, dest, hostDir }: Paths, packageType: string): void {
   for (const name of siblings) {
     const at = siblingFile(from, name);
-    if (matchesGlob(name, host.testGlob) || at === undefined) continue;
+    // A sibling the glob calls a test was already written, identically, by `copyTests`.
+    if (at === undefined) continue;
     writeFileSync(join(dest, at.name), rewriteAt(readFileSync(at.path, 'utf8'), host, { fileDir: dest, hostDir, packageType }));
   }
 }
