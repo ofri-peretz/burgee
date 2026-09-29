@@ -90,6 +90,8 @@ interface Flavour {
   make: (moduleName: string, options?: Partial<Options>) => Explorer;
   /** Spy on the one read call this explorer makes, passing through unless `fail` answers for a path. */
   spyReads: (fail?: (path: string) => Error | undefined) => { calls: () => string[] };
+  /** Make this explorer's `stat` of one path fail with `error`, passing every other path through. */
+  failStat: (path: string, error: Error) => void;
 }
 
 const failWith = (code: string): Error => Object.assign(new Error(`${code}: forced`), { code });
@@ -106,6 +108,13 @@ const flavours: Flavour[] = [
         return await real(path);
       }) as typeof fsPromises.readFile);
       return { calls: () => spy.mock.calls.map((c) => String(c[0])) };
+    },
+    failStat: (at, error) => {
+      const real = fsPromises.stat.bind(fsPromises) as (path: string) => Promise<fs.Stats>;
+      vi.spyOn(fsPromises, 'stat').mockImplementation((async (path: string) => {
+        if (String(path) === at) throw error;
+        return await real(path);
+      }) as typeof fsPromises.stat);
     },
   },
   {
@@ -128,6 +137,13 @@ const flavours: Flavour[] = [
         return real(path);
       }) as typeof fs.readFileSync);
       return { calls: () => spy.mock.calls.map((c) => String(c[0])) };
+    },
+    failStat: (at, error) => {
+      const real = fs.statSync.bind(fs) as (path: string) => fs.Stats;
+      vi.spyOn(fs, 'statSync').mockImplementation(((path: string) => {
+        if (String(path) === at) throw error;
+        return real(path);
+      }) as typeof fs.statSync);
     },
   },
 ];
@@ -167,7 +183,7 @@ describe('the published shape', () => {
   });
 });
 
-describe.each(flavours)('$name', ({ make, spyReads }) => {
+describe.each(flavours)('$name', ({ make, spyReads, failStat }) => {
   describe('one directory', () => {
     it('takes the first search place that holds a config, in the declared order', async () => {
       const root = tree({ '.apprc.json': '{"from":"json"}', 'app.config.cjs': 'module.exports = { from: "cjs" };' });
@@ -292,8 +308,12 @@ describe.each(flavours)('$name', ({ make, spyReads }) => {
     });
 
     it('rejects when the start directory cannot be `stat`ed for any reason but absence (10.0.1)', async () => {
-      const root = tree({ 'file.txt': 'x' });
-      await expect(make('app').search(join(root, 'file.txt', 'sub'))).rejects.toThrow(/ENOTDIR/);
+      // Forced through the module object, because the real-world routes are per platform:
+      // `stat('<file>/sub')` is `ENOTDIR` on POSIX but `ENOENT` on Windows.
+      const root = tree({ '.apprc.json': '{"a":1}' });
+      const explorer = make('app');
+      failStat(root, failWith('EACCES'));
+      await expect(explorer.search(root)).rejects.toThrow('EACCES: forced');
     });
   });
 
