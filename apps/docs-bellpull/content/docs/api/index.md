@@ -211,6 +211,11 @@ The interpreter a `#!` line names, or `undefined`.
 and the path in front of it is discarded. `#!/bin/sh -e` is `sh -e` — the flag is kept,
 because dropping it changes what the script does.
 
+An empty argument is no argument, as it is to `shebang-command`, which tests it for truth:
+`#!/bin/sh` followed by a trailing space is `sh`, not `sh` plus a space — a name nothing on
+`PATH` answers to — and `#!/usr/bin/env` followed by two spaces and `node` names no
+interpreter rather than an empty one.
+
 ```ts
 function shebangCommand(source: string): string | undefined;
 ```
