@@ -1,0 +1,100 @@
+---
+title: Testing shutdown
+description: "Test exit handlers without killing the test runner: drive a createRegistry directly, or install closeout against a fake process and assert how it was asked to leave."
+---
+
+Everything that decides what a shutdown does lives in a registry with no process attached, so
+most of it can be tested with no signal at all.
+
+## The registry alone
+
+`createRegistry()` takes the same options as `install()`. `registry.run(info)` runs every
+handler, phase by phase, inside the deadline, and resolves with the report:
+
+```js title="registry.mjs"
+import assert from 'node:assert/strict';
+
+import { createRegistry } from 'closeout';
+
+const order = [];
+const registry = createRegistry({ deadline: 50, onTimeout: () => {} });
+registry.add(() => order.push('restore'), 'restore');
+registry.add(() => new Promise(() => {}), { phase: 'flush', label: 'stuck' });
+registry.add(() => order.push('release'));
+
+const report = await registry.run({ code: null, signal: 'SIGTERM' });
+
+assert.deepEqual(order, ['release', 'restore']);
+assert.equal(report.timedOut, true);
+assert.deepEqual(report.unfinished, ['stuck']);
+assert.equal(report.path, 'signal');
+console.log('ok');
+```
+
+```text title="node registry.mjs"
+ok
+```
+
+Keep the deadline short in a test: it is the longest a hung handler can make the test wait.
+
+## Against a fake process
+
+`install({ process })` wires the same registry to anything that looks enough like a process:
+`on`, `removeListener`, `listenerCount`, `exit`, `kill`, `pid` and `stderr`. An
+`EventEmitter` supplies the first three. `kill` is required, not optional, because re-raising
+the signal is part of the contract, and a fake that could quietly skip it would hide exactly
+the bug it should catch.
+
+```js title="shutdown-test.mjs"
+import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
+import { setTimeout as sleep } from 'node:timers/promises';
+
+import { install } from 'closeout';
+
+/** A process that records how it was asked to leave instead of leaving. */
+function fakeProcess() {
+  const proc = Object.assign(new EventEmitter(), {
+    pid: 4242,
+    stderr: { write: () => true },
+    left: [],
+    exit: (code) => proc.left.push(`exit ${code}`),
+    kill: (_pid, signal) => proc.left.push(`died of ${signal}`),
+  });
+  return proc;
+}
+
+const proc = fakeProcess();
+const seen = [];
+const closeout = install({ process: proc, deadline: 50, onTimeout: (report) => seen.push(`hung: ${report.unfinished}`) });
+closeout.onExit(({ path, signal }) => seen.push(`${path} ${signal}`));
+closeout.onExit(() => new Promise(() => {}), { phase: 'flush', label: 'upload' });
+
+proc.emit('SIGTERM');
+await sleep(100);
+
+assert.deepEqual(seen, ['signal SIGTERM', 'hung: upload']);
+assert.deepEqual(proc.left, ['died of SIGTERM', 'exit 143']);
+console.log('ok');
+```
+
+```text title="node shutdown-test.mjs"
+ok
+```
+
+Two things to read off that:
+
+- The `release` handler ran while the `flush` handler was still hung, and the breach was
+  reported after it: past the deadline, the later phases are run before closeout leaves.
+- The fake's `kill` returns, where a real one would have ended the process, so closeout falls
+  through to `exit(143)`. That fallback is what keeps a runtime that cannot raise the signal
+  from staying alive.
+
+## On a real process
+
+What only a real process can show — that it dies of the signal, and what reached the terminal
+— closeout's own suite checks by spawning a child: see
+[`signal.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/signal.test.ts)
+and
+[`terminal-restore.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/terminal-restore.test.ts).
+Every example on this site is run the same way.

@@ -1,104 +1,51 @@
 # Gaps — every open one, and what closes it
 
 Opened 2026-09-23 on the owner's instruction *"close all small and big gaps"*. The living tracker:
-a row is struck when its PR merges, and a row that needs a decision says so rather than being
+a gap is struck when its PR merges, and a gap that needs a decision says so rather than being
 built on a guess. Sources: every `Not built` row in `.sdlc/intents/*/spec.md`, the compat
 baselines in `packages/compat-oracle/baseline/`, and the claims in `benchmarks/claims.ts`.
+
+**Every gap is one file, `.sdlc/gaps/<id>.md`; this file holds the policy and no gaps.**
+`npm run ledger -- gaps` prints them as the tables this file used to hold, and
+`npm run ledger -- gaps --open` prints only the open ones. Until 2026-09-27 they were four
+tables here, and every PR that opened or struck a row edited this one file — so two in flight
+together conflicted
+([D-20260927-per-entry-ledgers](./decisions/D-20260927-per-entry-ledgers.md)).
+
+- **Striking a gap** is `status: closed` in its file, with the closing evidence written into
+  its body the way a struck row always carried it (`~~…~~ — **closed**: …`).
+- **Opening a gap** is `npm run ledger -- new gap <A|B|C|release> <slug>`, which writes
+  `.sdlc/gaps/<letter>-YYYYMMDD-<slug>.md` with every field empty; `scripts/gaps-lock.test.ts`
+  fails until it is filled in. The sequential ids already written — A1..A30, B1..B22, C1..C7,
+  and C8 (#669) — keep their names, and the sequence stopped there: two branches each taking "the next
+  number" take the same one, which is how the ledger came to hold **two C5s**. The release
+  queue's C5 (opened in #450, cited by six workflows) kept the id; section C's struck lint
+  row, added later in #463, is now `C-20260922-cli-floor-lint`.
+
+Each file's front matter carries `id`, `section` (`A`, `B`, `C` or `release`), `status`
+(`open` or `closed`) and its section's two remaining columns; the body is the gap itself.
 
 Three kinds, because they close three different ways:
 
 - **A — build it.** The design is accepted; what is missing is code, a suite, or a sentence
   that states a measured fact. One PR each, every one with a check proven to fail first.
+  Columns: `source`, `done_when`.
 - **B — decide, then build.** The requirement asks for public API or restates what the
   package promises. AI_NATIVE_SDLC rule 3: a human accepts at Design→Build. Each row carries
-  the recommended answer, so accepting is one word.
+  the recommended answer, so accepting is one word. Columns: `source`, `recommendation`.
 - **C — needs something from outside the repo.** A credential, a spend, or an adopter.
-
-## A — build it
-
-| # | Gap | Source | Done when |
-| :-- | :-- | :-- | :-- |
-| ~~A1~~ | ~~vendor scripts resolve the oracle through bare specifiers~~ — **closed**: four scripts, seven specifiers, `oracle-import-lock.test.ts` | compat-oracle R6 | done |
-| ~~A3~~ | ~~only one of four declared subtractions reaches the published compatibility page~~ — **closed**: `compatibility.mdx` renders all four subtraction kinds; `scripts/compat-page-subtractions.test.ts` | compat-oracle C4 | done |
-| ~~A4~~ | ~~three rows are load-sensitive and nothing in the gate knows~~ — **closed**: `repeatAndAgree` re-grades a fallen row up to twice; red only if every attempt agrees, a recovery is named with its counts | compat-oracle R7 | done |
-| ~~A5~~ | ~~the dependency arrows in the layer table are wrong in three rows of four~~ — **closed**: layer table restated from the manifests (burgee U1 Built) | burgee U1 | done |
-| ~~A6~~ | ~~`sideEffects` declared by three of nine packages; no tree-shake fixture~~ — **closed**: all nine declare `sideEffects` truthfully; `side-effects-lock.test.ts`, `tree-shake-fixture.test.ts` (burgee U10 Built) | burgee U10 | done |
-| ~~A7~~ | ~~CI grades Node 24 only while `engines` says `>=24`~~ — **closed**: `compat.yml` matrix runs Node 24 and 26 on three OSes (compat-oracle C3 Built) | burgee C3, compat-oracle C3 | done |
-| ~~A8~~ | ~~"depends on roundel only" is false, and two ceilings are ratchets on history rather than the incumbent~~ — **closed**: ceilings gated in B4 (#449), dependency sentence restated under D-130 (#463); flagstaff R10 Built | flagstaff R10 | done |
-| ~~A9~~ | ~~`signal-exit` is not graded at all~~ — **closed**: `closeout/signal-exit` graded 134 / 135 by signal-exit's own suite, level with its control; the root-export half of R6 stays open (A26) | closeout, PLAN 3.3 | done |
-| ~~A10~~ | ~~`execa`'s suite not vendored; `tinyexec` not installed so no ceiling~~ — **closed (D-160)**: execa 10.0.1 vendored and graded **0 / 1048** against `bellpull`, control 1048 / 1048, published as a `ceiling` not a drop-in; `tinyexec` 1.3.1 a pinned `benchmarks/` devDependency, B4 `bellpull ÷ tinyexec` **0.989** (5,901 / 5,969 B). `which` closed 2026-09-23 at 5 / 5. bellpull R9 Built; R8's spawn-delta half stays open | bellpull R8, R9 | done |
-| ~~A11~~ | ~~paratext's three rows at recorded ceilings~~ — **closed by restatement (D-144)**: ansi-escapes 4 / 4, terminal-link 8 / 8, term-img 12 / 18 under D-030 | compat baselines | done |
-| ~~A12~~ | ~~seniority's rows short of their reference~~ — **closed by restatement (D-144)**: lilconfig 77 / 77, rc 1 / 1; cosmiconfig's 57 and dotenv's 35 each named with its decision | compat baselines | done |
-| ~~A13~~ | ~~caique: clack 14/17 — the 3 are `guide.test.ts`, which renders all twelve clack prompts; `caique/clack` exports only `limitOptions`, so closing it is a clack prompt façade, not a fix~~ — **closed** (D-152): the twelve prompts, the writers, the glyphs and `updateSettings` built on caique's own keypress loop, zero external dependencies; clack **16 / 17** (control 17 / 17). The one left is a ceiling by construction — it imports `updateSettings` from `@clack/core`, which U6 forbids depending on | compat baselines | done |
-| ~~A14~~ | ~~the foundation layers are static imports of the engine~~ — **closed by restatement (D-136)**: two in-family specifiers are static and declared, the output stack is dynamic; the `.` weight rule asserts exactly that | burgee U13 | done |
-| ~~A15~~ | ~~`-` means stdin for a file positional~~ — **closed**: `type: 'file'` arguments hand `-` over as `ctx.stdin`; two `-` refused | burgee S4, D-113 | done |
-| ~~A16~~ | ~~`--json=<a,b>` selects fields~~ — **closed**: `--json=a,b` selects, `--json=` lists declared `fields`, an unknown field refuses naming the valid set | burgee N14, D-114 | done |
-| ~~A17~~ | ~~`--schema <path> --field <name>`~~ — **closed**: dotted field paths below a command; an unknown step names the valid ones | burgee N13, D-116 | done |
-| ~~A18~~ | ~~a generated `config explain`~~ — **closed**: synthesised from the resolver's order and provenance; `--json`; gives way to a program's own | burgee V8, D-117 | done |
-| ~~A19~~ | ~~`defineError({ name, code })`~~ — **closed**: the class leaves with its code, rendered like `UsageError`; a reused or reserved code throws at definition | burgee E7, D-118 | done |
-| ~~A20~~ | ~~`dynamic: true` completion marker~~ — **closed**: an option's `complete` function is the opt-in; four shells call back for it alone | burgee D3, D-119 | done |
-| ~~A21~~ | ~~non-TTY prompt exits 2, cancelled prompt exits 4~~ — **closed**: a thrown `code: 'USAGE' / 'CANCELLED'` maps by name; caique's real refusals proven end to end | burgee P2, P3, D-120 | done |
-| ~~A22~~ | ~~`.burgee({ floor: true })` on façades~~ — **closed**: both façades take it — a usage failure exits 2, a failing handler is one line and its E1 code with no stack and no help screen, and nothing else changes; `--schema` publishes `shadows`, validated against `program-schema.json` from each façade. The core bundle is unchanged; the façades carry the three checks | burgee J3, J4, D-121 | done |
-| ~~A23~~ | ~~plugin hooks `parse` and `shutdown`~~ — **closed**: `parse` rewrites argv before resolution, chained in `enforce` order; `shutdown` fires once through the run's teardown; both in the schema, and the plugins page's limit now reads help and config only | plugin surface, D-122 | done |
-| ~~A24~~ | ~~`burgee/program-schema.json`~~ — **closed**: published; real `--schema` output validated against it in a test; `--schema` gains `exitCodes` | burgee F1, schema-is-validated, D-123 | done |
-| ~~A25~~ | ~~`.effects()` on commander façade commands~~ — **already built**, found 2026-09-23: both façades have `.effects()`, `facade-surface.test.ts` covers declared, undeclared and withheld; the spec row was stale | agent-surface-declared R6, D-127 | done |
-| ~~A26~~ | ~~`signal-exit`'s API at closeout's root, so the `overrides` recipe resolves~~ — **closed by restatement** (D-133): R6 restated to the three subpaths; the README's two-incumbent `overrides` recipe never linked and is withdrawn; `scripts/override-recipe-lock.test.ts` | closeout R6 | done |
-| ~~A27~~ | ~~terminal-link sits at 8 / 10 because two cases (`main`, `stderr`) set `supportsHyperlinks.stdout` on another package's module object~~ — **closed**: the façade carries `supports-hyperlinks` 4.5.0's own detection, graded against the real package in 55 environments (`paratext/src/hyperlinks.test.ts`; `LINK.when` failed 30); `main` and `stderr` excluded by exact title (`Exclusion.exact`); **8 / 8**, level, and `burgee migrate` rewrites it | compat-oracle `excludes`, burgee-migrate A12 | done |
-| ~~A28~~ | ~~ansi-escapes is capped at 1 / 4 because paratext states CSI out of scope~~ — **closed (D-138)**: `csi.ts`, byte-exact with 7.3.0; 4 / 4, and `burgee migrate` rewrites it | paratext scope, burgee-migrate A12 | done |
-| ~~A29~~ | ~~`require-of-default` refuses a `require()` of an ESM-only incumbent (chalk 6, ora 9, …) whose own `require()` already returns a namespace~~ — **closed**: migrate refuses only where the two `require()` results differ in kind; `REQUIRE_NAMESPACE` (twelve incumbents, with ansi-escapes and terminal-link) is held to Node's own `require()` by `migrate-require.test.ts`, which failed 11 ways on the old rule. It also found `burgee/yargs/parser` handing `require()` a namespace where yargs-parser hands the function; it now exports `'module.exports'` and joins the require-shape lock | burgee-migrate A12 | done |
-| ~~A30~~ | ~~`dev.test.ts` "reloads thirty commands within the budget" measured 1,035 ms against 500 on a Windows CI runner and 4,098 ms in a loaded local pre-push battery~~ — **closed**: the budget is 500 ms or five imports of the same entry on the same machine, whichever is larger; the first call's lazy `seniority/config` import is paid before the clock; a reload slowed by 600 ms fails it | burgee W6 | done |
+  Columns: `source`, `needs`.
 
 ## B — decide, then build
 
 All taken 2026-09-23 under the owner's delegation ("you should be able to close the open
-decisions yourself"). The ruling is the D-row in `.sdlc/DECISIONS.md`; for B12 and B13
+decisions yourself"). The ruling is the decision in `.sdlc/decisions/`; for B12 and B13
 it differs from the recommendation this table carried. What each one asks to be
 built moved to A15–A25.
-
-| # | Decision | Source | Recommendation |
-| :-- | :-- | :-- | :-- |
-| ~~B1~~ | ~~Every command must carry a group~~ | burgee M1 | **decided — D-112** |
-| ~~B2~~ | ~~`-` means stdin for a file-typed positional~~ | burgee S4 | **decided — D-113** |
-| ~~B3~~ | ~~`--json <fields>` selects fields; bare `--json` unchanged~~ | burgee N14 | **decided — D-114** |
-| ~~B4~~ | ~~a compact non-JSON `agent` format~~ | burgee N15 | **decided — D-115; built — D-146** (`--format=agent`) |
-| ~~B5~~ | ~~`--schema` drill below command path~~ | burgee N13 | **decided — D-116** |
-| ~~B6~~ | ~~a generated `config explain` command~~ | burgee V8 | **decided — D-117** |
-| ~~B7~~ | ~~author-declared error classes; a reused code fails at startup~~ | burgee E7 | **decided — D-118** |
-| ~~B8~~ | ~~a `dynamic` marker for runtime-completed options~~ | burgee D3 | **decided — D-119** |
-| ~~B9~~ | ~~a prompt in a non-TTY exits 2; a cancelled prompt exits 4~~ | burgee P2, P3 | **decided — D-120** |
-| ~~B10~~ | ~~one call that turns on the behavioural floor for façade programs~~ | burgee J3, J4 | **decided — D-121** |
-| ~~B11~~ | ~~burgee plugin hooks beyond preRun/postRun/onError~~ | plugin surface | **decided — D-122** |
-| ~~B12~~ | ~~the validator for `--schema` output~~ | schema-is-validated, burgee F1 | **decided — D-123** |
-| ~~B13~~ | ~~the lint half of F3, O3, P1: `eslint-plugin-cli-floor`~~ | burgee F3, O3, P1 | **decided — D-124** |
-| ~~B14~~ | ~~built-in components as plugin contributions~~ | flagstaff R4 | **decided — D-125** |
-| ~~B15~~ | ~~`fromBase16` / `fromITerm` theme import~~ | roundel R11 | **decided — D-126** |
-| ~~B16~~ | ~~façade commands are withheld from MCP and cannot say otherwise~~ | agent-surface-declared R6 | **decided — D-127** |
-| ~~B17~~ | ~~"zero runtime dependencies" vs "none outside this repo"~~ — **accepted by the owner 2026-09-23 (D-111): every production dependency is in-family**, as a dependency, peer or optional dependency; Z3 and K1 Built | burgee Z3, K1 | done |
-| ~~B18~~ | ~~`lighter-than-commander` 1.52, `lighter-than-cac` 2.65, cold start 1.44 × cac~~ — kept as not met by D-128, then **restated by the owner as downward-only ratchets (D-157)**: 1.565×, 2.35× and 1.6× cac, each just above its measurement, lowered with `npm run ratchets:propose`, and raised only by a new D-row (`claim-ratchets-lock.test.ts`) | claims, u5-weight-claim | **decided — D-157** |
-| ~~B20~~ | ~~Accept the requirement restatements already written in the specs — compat-oracle R1, R3, C4 and the rest of its "Requirements restated" table; burgee U1, U10, Z3/K1; flagstaff R10's dependency sentence~~ | each spec's restatement table | **decided — D-130** |
-| ~~B19~~ | ~~design acceptance for linegauge, closeout, bellpull, seniority (draft) and caique, paratext (review)~~ | each intent | **decided — D-129** |
-| ~~B21~~ | ~~Does paratext take ansi-escapes' CSI surface?~~ | paratext scope | **decided — D-138** |
-| ~~B22~~ | ~~burgee scores 6 / 24 on clispec.dev and 78% on cli-agent-lint because clispec probes `<tool> schema`~~ | burgee N10, D-149 | **decided and built — D-151** (#631): `schema` is an alias of `--schema`, a program's own wins; re-measured 14 / 24 and 81.4%, the N10 ratchet raised to match |
-
-## C — outside the repo
-
-| # | Gap | Source | What it needs |
-| :-- | :-- | :-- | :-- |
-| C1 | agent-tokens-40pct measured once (2026-09-24, D-147): **0.601 against ≤ 0.6, not met**; turns 0.600, met. The bands read CI only (D-142), so the series is still empty | burgee B1 | `CLAUDE_CODE_OAUTH_TOKEN` as a repository secret, so the weekly job measures on CI; the public sentence is decided (D-150): the README carries 0.601×, not met |
-| C2 | the one-turn plugin-authoring eval ran once (2026-09-24, D-147) and passed **1 of 9** — every failure was the 3-turn cap, not a wrong plugin | burgee U9 | turn budget decided (D-143: one user prompt, tool loop capped at 8); three consecutive weekly CI runs at the stated rate, which wait on `CLAUDE_CODE_OAUTH_TOKEN` |
-| C3 | the first outside adopter | burgee U12 | a CLI we did not write, installing one layer alone |
-| C8 | `controlroom` has no docs site: the skeleton (2026-09-27, `0.0.1`, D-158) sits under `excluded` in `.github/vercel-apps.json` ("docs site pending: Vercel project + DNS (owner)"), so its README renders as the front door's `/docs/packages/controlroom` section | controlroom intent, "What the tenth package costs"; D-166 | the owner creates (1) a Vercel project for `apps/docs-controlroom` in the team `orgId` names, with an Environment `production`, and (2) the DNS record for `controlroom.interlace.tools`; then one PR adds `apps/docs-controlroom` on the chassis, moves `controlroom` from `excluded` to an app row carrying that `projectId`, and runs `npm run brand` and `npx tsx scripts/sync-package-docs.ts` so the favicon and `content/docs/index.md` follow |
-| ~~C5~~ | ~~the lint half of F3, O3, P1~~ — **closed**: `eslint-plugin-cli-floor`, four rules, merged in ofri-peretz/eslint#1137 (464385ff73); its first npm publish is the owner's | burgee F3, O3, P1, D-124 | done |
-| ~~C4~~ | ~~clispec.dev and cli-agent-lint have no axis~~ | burgee N10 | **verified 2026-09-24 and built — D-149**: both exist, both run offline, neither is on npm; measured and published. What they found is B22 |
 
 ## Release queue — owner actions
 
 Settings only the repository owner can change. The release loop runs without them — the Version
 PR falls back to `GITHUB_TOKEN` and unblocks itself (D-110) — but each one removes a workaround.
-Numbered on from C, because each needs something from outside the repo.
-
-| # | Gap | Exact setting | Done when |
-| :-- | :-- | :-- | :-- |
-| C5 | The Version PR is opened with `GITHUB_TOKEN`, so its checks are dispatched and mirrored as statuses, and it merges itself | **Preferred — a GitHub App.** github.com → Settings → Developer settings → GitHub Apps → *New GitHub App*: no webhook; Repository permissions **Contents: Read and write**, **Pull requests: Read and write**; install it on `ofri-peretz/burgee` only. Then repo → Settings → Secrets and variables → Actions → **Variables** → `RELEASE_APP_ID` (the App ID or Client ID), and **Secrets** → `RELEASE_APP_PRIVATE_KEY` (the whole generated `.pem`). **Alternative:** Settings → Developer settings → Personal access tokens → Fine-grained → repo `ofri-peretz/burgee`, Contents + Pull requests read/write, saved as the repo secret `RELEASE_BOT_PAT` | the next push to main's `Changesets` run has no *Version PR opened with GITHUB_TOKEN* warning and no `Version PR · … (dispatched)` jobs, and the Version PR shows its checks as `pull_request` runs |
-| ~~C6~~ | ~~No merge queue: strict protection makes every PR behind `main` update and re-run by hand~~ | PLAN 0.3 | **closed by restatement — D-165**: merge queues need an organization-owned repo (this one is user-owned); `strict` is already off, and Ratchet is now a required check |
-| ~~C7~~ | ~~Publishing authenticates with the long-lived `NPM_TOKEN`~~ — **closed 2026-09-27 (D-154)**: it already did not. `NPM_TOKEN` exists in neither the repo nor any environment; run 36093911201 (2026-09-25) and run 36350488671 (2026-09-27) logged `NODE_AUTH_TOKEN:` empty and published through OIDC — every package's current version (bellpull 0.4.2, burgee 0.13.2, caique 0.5.4, closeout 0.5.4, flagstaff 0.4.4, linegauge 0.5.4, paratext 0.7.2, roundel 0.5.4, seniority 0.6.3) has `_npmUser` *GitHub Actions* (`npm-oidc-no-reply@github.com`) and SLSA provenance naming `.github/workflows/release.yml`. The dead fallback is gone: `release.yml` carries no npm token and no `registry-url`, keeps `id-token: write` on the publish job and `--provenance`, guards npm ≥ 11.5.1 / Node ≥ 22.14.0, and logs per package that OIDC published it (or npm's OIDC error when it did not); `scripts/trusted-publishing-lock.test.ts` fails if a token returns. | **Owner — nothing required.** Optional hardening per docs.npmjs.com/trusted-publishers: on each of the nine packages, npmjs.com → package → Settings → confirm *Trusted publishing* lists GitHub Actions `ofri-peretz` / `burgee` / `release.yml` (environment `production` if one is set) with **npm publish** allowed, then *Publishing access* → **Require two-factor authentication and disallow tokens**, and revoke any npm automation token that is left. A **new** public package needs that trusted-publisher entry before its first release — a connection created after 2026-09-03 allows only `npm stage publish` until **npm publish** is ticked | done — a release publishes with no npm token in the workflow, and each package's npm page shows provenance from `release.yml` |
+Numbered on from C, because each needs something from outside the repo; `section: release`,
+columns `setting` and `done_when`.

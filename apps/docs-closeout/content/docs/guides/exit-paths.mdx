@@ -1,0 +1,95 @@
+---
+title: Every exit path, exactly once
+description: "The five ways a Node.js process ends, which ones can await, and how closeout runs each handler once when two fire together — and keeps going when one throws."
+---
+
+A program leaves by one of five doors, and closeout listens on all of them:
+
+| path | what triggers it | can a handler await? |
+| :-- | :-- | :-- |
+| `beforeExit` | the event loop emptied: the program simply finished | yes |
+| `signal` | `SIGINT` (Ctrl-C), `SIGTERM`, `SIGHUP`, `SIGQUIT`, `SIGBREAK` | yes, up to the deadline |
+| `uncaught` | an exception nobody caught | yes, up to the deadline |
+| `rejection` | a rejected promise nobody awaited | yes, up to the deadline |
+| `exit` | `process.exit()`, or the end after any of the above | no — Node is already leaving |
+
+A handler registered on `process.on('exit')` alone sees only the last row, and cannot await
+anything there. That is why a Ctrl-C so often leaves a lock file behind: the one event the
+handler listened for was never the one that fired.
+
+## Exactly once
+
+Two doors often open together. Ctrl-C twice, or a signal and the `exit` that follows it, or a
+throw inside a shutdown that was already running. closeout treats every arrival after the
+first as the same shutdown: each handler runs once, and a later trigger waits for the first
+run instead of starting a second one.
+
+```js title="once.mjs"
+import { onExit } from 'closeout';
+
+let runs = 0;
+onExit(() => {
+  runs += 1;
+  console.log(`cleanup run ${runs}`);
+});
+
+setTimeout(() => {}, 10_000);
+process.kill(process.pid, 'SIGTERM');
+process.kill(process.pid, 'SIGTERM');
+```
+
+```text title="node once.mjs" signal="SIGTERM"
+cleanup run 1
+```
+
+A handler that ran twice would release a lock that another process has taken since.
+
+## One handler's failure is its own
+
+A handler that throws is reported on stderr, and every handler after it still runs. Shutdown
+is the worst place for an exception to end a loop early, because the handler that restores
+the terminal is often the last one registered.
+
+```js title="throws.mjs"
+import { install } from 'closeout';
+
+const { onExit } = install({ onError: (error) => console.log(`reported: ${error.message}`) });
+
+onExit(() => {
+  throw new Error('the lock file was already gone');
+});
+onExit(() => console.log('the next handler still ran'));
+```
+
+```text title="node throws.mjs"
+reported: the lock file was already gone
+the next handler still ran
+```
+
+`onError` defaults to printing the error on stderr. A program that owns a logger passes its
+own, as above.
+
+## Synchronous and asynchronous handlers
+
+A handler may return a promise, and on every path but `exit` it is awaited — within the
+[deadline](/docs/guides/deadline). On `exit` there is no time left: closeout calls every
+handler synchronously, abandons any promise one returns, and names it as unfinished in the
+[report](/docs/guides/reports). So work that has to happen on `process.exit()` should be
+synchronous (`writeFileSync`, not `writeFile`), and work that needs to await belongs in a
+program that leaves by returning, by a signal or by a throw.
+
+## Handlers the program owns
+
+closeout never takes a decision away from a program that made one. If the program has its
+own listener for a signal, or for `uncaughtException`, closeout runs the handlers and then
+stands aside: the program's listener decides whether and how to exit. See
+[Signals and exit status](/docs/guides/signals).
+
+## What is tested
+
+- [`registry.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/registry.test.ts):
+  a handler runs once however many times shutdown is asked for; the rest run after one throws.
+- [`restore.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/restore.test.ts):
+  every door — five signals, `exit`, `beforeExit`, a throw and a rejection — runs the handlers.
+- [`matrix.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/matrix.test.ts):
+  a handler that never returns does not stop any of those doors from ending the process.

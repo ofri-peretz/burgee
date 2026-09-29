@@ -40,7 +40,7 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
  * joins by being added here once its hand-written pages exist, and the lock then holds its
  * reference and changelog in sync.
  */
-export const STANDARD_SITES: readonly string[] = ['flagstaff', 'roundel'];
+export const STANDARD_SITES: readonly string[] = ['flagstaff', 'linegauge', 'closeout', 'roundel'];
 
 type ExportTarget = string | { types?: string; import?: string; default?: string };
 interface Manifest {
@@ -101,6 +101,8 @@ function kindOf(decl: ts.Declaration): Kind | undefined {
   if (ts.isTypeAliasDeclaration(decl)) return 'type';
   if (ts.isEnumDeclaration(decl)) return 'enum';
   if (ts.isModuleDeclaration(decl)) return 'namespace';
+  // A member of a CommonJS `export = { … }` object, which is what a named import reaches.
+  if (ts.isPropertySignature(decl)) return decl.type !== undefined && ts.isFunctionTypeNode(decl.type) ? 'function' : 'const';
   return undefined;
 }
 
@@ -127,7 +129,12 @@ const resolveExport = (checker: ts.TypeChecker, exported: ts.Symbol): ts.Symbol 
 /** Every export of an entry's declaration file, unresolved, in the checker's order. */
 function exportsOf(checker: ts.TypeChecker, sf: ts.SourceFile): ts.Symbol[] {
   const moduleSymbol = checker.getSymbolAtLocation(sf);
-  return moduleSymbol === undefined ? [] : checker.getExportsOfModule(moduleSymbol);
+  if (moduleSymbol === undefined) return [];
+  const named = checker.getExportsOfModule(moduleSymbol);
+  // A CommonJS `export = { … }` has no named exports to the checker, but Node's CommonJS lexer
+  // hands an ES module each property as one, so the properties are the surface.
+  const assigned = moduleSymbol.exports?.get(ts.InternalSymbolName.ExportEquals);
+  return named.length > 0 || assigned === undefined ? named : checker.getPropertiesOfType(checker.getTypeOfSymbolAtLocation(assigned, sf));
 }
 
 /**
@@ -148,7 +155,7 @@ function documentModule(checker: ts.TypeChecker, sf: ts.SourceFile, self: string
     if (owner !== undefined && owner !== self) return [{ name, ...local, kind, owner, signatures: [], summary: '', params: [], examples: [] }];
     // A declaration with no doc of its own, first in its file, inherits the licence banner.
     const written = ts.displayPartsToString(target.getDocumentationComment(checker)).trim();
-    const summary = /^Copyright \(c\)/u.test(written) ? '' : written;
+    const summary = /^Copyright \(c\)/u.test(written) ? '' : flushLists(written);
     const tags = target.getJsDocTags(checker);
     const paramDocs = new Map(
       tags
@@ -191,6 +198,24 @@ function returnsOf(fn: ts.FunctionDeclaration | undefined, tag: ts.JSDocTagInfo 
   return { returns: { type, doc: tag === undefined ? '' : tagText(tag) } };
 }
 
+/**
+ * A list a doc comment indents under its paragraph (`  - a`), moved flush left: after a blank
+ * line it is a top-level list, and Markdown — and the docs' markdownlint — read it as one only
+ * at column 0. A list nested under a bullet is left where it is.
+ */
+function flushLists(text: string): string {
+  const lines = text.split('\n');
+  let indent = 0;
+  return lines
+    .map((line, i) => {
+      const bullet = /^( +)[-*] /u.exec(line);
+      if (bullet !== null && (lines[i - 1] ?? '').trim() === '') indent = bullet[1]?.length ?? 0;
+      else if (line.trim() === '') indent = 0;
+      return indent > 0 && line.startsWith(' '.repeat(indent)) ? line.slice(indent) : line;
+    })
+    .join('\n');
+}
+
 /** The `Copyright (c) … Licensed under` header a source file opens with, which `tsc` keeps in `.d.ts`. */
 const LICENCE_BANNER = /^\/\*\*\s*\*\s*Copyright \(c\)/u;
 
@@ -209,31 +234,15 @@ function moduleDoc(sf: ts.SourceFile): string {
   const opensWithImport = ts.isImportDeclaration(first) || ts.isExportDeclaration(first);
   const own = opensWithImport || blocks.length > 1 ? blocks[0] : undefined;
   if (own === undefined) return '';
-  return own
-    .replace(/^\/\*\*\s?/u, '')
-    .replace(/\s*\*\/$/u, '')
-    .split('\n')
-    .map((line) => line.replace(/^\s*\* ?/u, ''))
-    .join('\n')
-    .trim();
-}
-
-/**
- * A bulleted list a doc comment indents under its paragraph — `  - **Is anybody there?**` — is
- * a nested list with no parent to Markdown (MD007). Each such item, continuation lines
- * included, is moved to the margin; everything else is left as written.
- */
-function dedentLists(text: string): string {
-  let indent = 0;
-  return text
-    .split('\n')
-    .map((line) => {
-      const bullet = /^( {1,3})[-*] /u.exec(line);
-      if (bullet !== null) indent = bullet[1]?.length ?? 0;
-      else if (line.trim() === '' || !line.startsWith(' '.repeat(indent + 1))) indent = 0;
-      return indent > 0 ? line.slice(indent) : line;
-    })
-    .join('\n');
+  return flushLists(
+    own
+      .replace(/^\/\*\*\s?/u, '')
+      .replace(/\s*\*\/$/u, '')
+      .split('\n')
+      .map((line) => line.replace(/^\s*\* ?/u, ''))
+      .join('\n')
+      .trim(),
+  );
 }
 
 /**
@@ -242,7 +251,7 @@ function dedentLists(text: string): string {
  * and a stray backtick is left behind. Such a span is rewritten with a double-backtick fence,
  * the form Markdown gives a span that contains one.
  */
-export const prose = (text: string): string => dedentLists(text).replace(/`((?:[^`\\\n]|\\.)*\\`(?:[^`\\\n]|\\.)*)`/gu, (_span, inner: string) => `\`\` ${inner.replaceAll('\\`', '`')} \`\``);
+export const prose = (text: string): string => flushLists(text).replace(/`((?:[^`\\\n]|\\.)*\\`(?:[^`\\\n]|\\.)*)`/gu, (_span, inner: string) => `\`\` ${inner.replaceAll('\\`', '`')} \`\``);
 
 /** A Markdown table cell: pipes escaped, one line. */
 const cell = (text: string): string => text.replaceAll('|', '\\|').replace(/\s*\n\s*/gu, ' ');
