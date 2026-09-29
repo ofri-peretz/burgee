@@ -1,0 +1,66 @@
+{
+  "$comment": "Downward-only ratchets for the three published claims whose measured floor sits above their original <= 1 bar. D-102 says why the floor is structural and D-148 records the shrink to 24,202 B; on 2026-09-27 the owner decided (D-157) that each becomes 'something acceptable and realistic, while we consistently keep them as low as we can': a ceiling just above today's measurement, gated on every run, that may only ever be lowered. `ceiling` is the one number `benchmarks/claims.ts` and the B2/B4 gates read (`benchmarks/claim-ratchets.ts`). `history` is append-only and never rises: `scripts/claim-ratchets-lock.test.ts` refuses a `ceiling` that is not the last entry, an entry above the one before it unless it cites a newer D-row that exists in .sdlc/DECISIONS.md, and a history that rewrites the committed one. `npm run ratchets:propose` prints the lower ceiling each can move to from the latest measurement, by the `derive` rule written beside it.",
+  "ratchets": {
+    "cold-start-at-or-below-cac": {
+      "ceiling": 1.6,
+      "unit": "ratio",
+      "was": "<= 1: burgee starts at or below cac, the lightest framework in the landscape",
+      "derive": {
+        "source": "ci",
+        "observations": 26,
+        "sigmas": 3,
+        "step": 0.05,
+        "rule": "The median `burgee ÷ cac` cold-start ratio of the last 26 CI observations in benchmarks/results/cli-benchmarks/*-ci.json (2026-09-22 c0fa8a3 to 2026-09-27 7b694f7): mean 1.490, sd 0.034, p95 1.540, max 1.553. The larger of mean + 3 sd (1.590) and the max, rounded up to the next 0.05: 1.6. The p95 rounded up would be 1.55, and c938fbf's 1.553 sits above that: one run in 26 red for nothing, the flake #27 already made twice. Absolute milliseconds are the runner's; the ratio of two interleaved spawns is what the gate reads."
+      },
+      "history": [
+        {
+          "ceiling": 1.6,
+          "setOn": "2026-09-27",
+          "decision": "D-157",
+          "measured": 1.512,
+          "why": "First ceiling. Replaces B2's `burgee` gate of 1.7 and the claim's <= 1. Measured 1.512 on the newest CI observation (7b694f7)."
+        }
+      ]
+    },
+    "lighter-than-commander": {
+      "ceiling": 1.565,
+      "unit": "ratio",
+      "was": "<= 1: burgee/commander is lighter in a user's bundle than commander alone",
+      "derive": {
+        "source": "bundle",
+        "headroomBytes": 80,
+        "step": 0.005,
+        "rule": "Bundle ratios are deterministic, so this is the build's own measurement: burgee/commander 60,969 B over commander's 39,084 B = 1.560 (CI reads 1.560 at 7b694f7). CI measures about 32 B heavier than a local build, so 80 B go on our side before rounding: 61,049 / 39,084 = 1.562, rounded up to the next 0.005 — the step this row's B4 ceiling has moved in since D-100 — is 1.565, B4's existing ceiling, carried over unchanged. The next 0.05 would be 1.6, a raise dressed as a first ceiling."
+      },
+      "history": [
+        {
+          "ceiling": 1.565,
+          "setOn": "2026-09-27",
+          "decision": "D-157",
+          "measured": 1.56,
+          "why": "First ceiling, and B4's `burgee/commander` ratio ceiling from J3/J4 (2026-09-24) carried over, not raised. Replaces the claim's <= 1."
+        }
+      ]
+    },
+    "lighter-than-cac": {
+      "ceiling": 2.35,
+      "unit": "ratio",
+      "was": "<= 1: burgee is lighter in a user's bundle than cac alone",
+      "derive": {
+        "source": "bundle",
+        "headroomBytes": 80,
+        "step": 0.05,
+        "rule": "Bundle ratios are deterministic, so this is the build's own measurement on main after #631: burgee 24,216 B over cac's 10,452 B = 2.317. CI measures about 32 B heavier than a local build, so 80 B go on our side before rounding: 24,296 / 10,452 = 2.324, rounded up to the next 0.05 is 2.35, which holds 24,562 B. B4's byte ceiling (24,282) still binds first; this is the ceiling on the published ratio."
+      },
+      "history": [
+        {
+          "ceiling": 2.35,
+          "setOn": "2026-09-27",
+          "decision": "D-157",
+          "measured": 2.317,
+          "why": "First ceiling. Replaces the claim's <= 1, and binds B4's `burgee ÷ cac` gate below the wave-5 release budget of 2.9, which stays the release's outer limit."
+        }
+      ]
+    }
+  }
+}

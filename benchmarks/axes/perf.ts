@@ -33,6 +33,7 @@
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
+import { claimRatchet } from '../claim-ratchets.js';
 import { type BenchRecord } from '../record.js';
 import { relativeToRepo, type Resolved, resolvePackage } from '../resolve.js';
 import { median, p95, round } from '../stats.js';
@@ -225,7 +226,12 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // a 2% excursion, which is the mistake #27 already made twice. The claim itself is
   // settled in the `claims` block of the results document, where it reads `met: false`
   // with the measured number beside it and nothing hides it.
-  burgee: 1.7,
+  //
+  // 1.6 from 1.7 on 2026-09-27, D-157: the claim itself became a downward-only ratchet, and this
+  // gate reads the same number. It is mean + 3 sd of the last 26 CI observations (mean 1.490,
+  // sd 0.034, max 1.553) rounded up to the next 0.05 — the p95 rounded the same way is 1.55, which
+  // one of those 26 runs exceeds. `npm run ratchets:propose` says when the series allows lower.
+  burgee: claimRatchet('cold-start-at-or-below-cac'),
 };
 
 export function run(rounds = ROUNDS): BenchRecord[] {
