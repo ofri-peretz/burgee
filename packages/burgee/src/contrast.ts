@@ -78,8 +78,10 @@ export function fieldColorAt(stops: ReadonlyArray<{ offset: number; color: strin
     const lo = ordered[i - 1]!;
     const hi = ordered[i]!;
     if (at <= hi.offset) {
+      // Never zero: the loop has already returned for any point at or below `lo`, so a
+      // second stop at `lo`'s offset is stepped past before it can be `hi` here.
       const span = hi.offset - lo.offset;
-      return span === 0 ? hi.color : mix(lo.color, hi.color, (at - lo.offset) / span);
+      return mix(lo.color, hi.color, (at - lo.offset) / span);
     }
   }
   return last.color;
