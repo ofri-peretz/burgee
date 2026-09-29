@@ -9,7 +9,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { explain } from './explain-entry.js';
-import { register, reset, sources, CONTRACT, PluginError, type Plugin, type SourceRuntime } from './plugin.js';
+import { register, registered, reset, sources, CONTRACT, PluginError, type Plugin, type SourceRuntime } from './plugin.js';
 import { ORDER, RANK, resolve, type Layers } from './precedence.js';
 
 const specs = { region: { type: 'string' as const, default: 'us-1' } };
@@ -141,6 +141,36 @@ describe('the family vocabulary (R6, R8)', () => {
 
   it('refuses a source that is both, because one source gives one answer', () => {
     expect(caught(() => { register({ name: 'p', sources: { fleet: { rank: 5, values: {}, read: () => undefined } } }); }).code).toBe('E_PLUGIN_SCHEMA');
+  });
+
+  it.each([
+    ['`sources` is not an object', { sources: [] }, 'plugin "p": sources must be an object'],
+    ['a source is not an object', { sources: { fleet: 5 } }, 'plugin "p": source "fleet" is not an object'],
+    ['`values` is not an object', { sources: { fleet: { rank: 5, values: 'region=eu' } } }, 'plugin "p": source "fleet": values must be an object'],
+    ['`read` is not a function', { sources: { fleet: { rank: 5, read: 'vault://x' } } }, 'plugin "p": source "fleet": read must be a function'],
+    ['`location` is not a string', { sources: { fleet: { rank: 5, values: {}, location: 7 } } }, 'plugin "p": source "fleet": location must be a string'],
+  ])('refuses a plugin whose %s, naming where', (_what, rest, message) => {
+    const e = caught(() => {
+      register({ name: 'p', ...rest });
+    });
+    expect(e.code).toBe('E_PLUGIN_SCHEMA');
+    expect(e.message).toBe(message);
+  });
+
+  it('lists what it registered, in registration order', () => {
+    const first: Plugin = { name: 'first' };
+    const second: Plugin = { name: 'second', sources: { fleet: { rank: 5, values: {} } } };
+    register(first);
+    register(second);
+    expect(registered()).toEqual([first, second]);
+    reset();
+    expect(registered()).toEqual([]);
+  });
+
+  it('hands `resolve` its layers by rank, and in registration order within a rank', () => {
+    register({ name: 'late', sources: { low: { rank: RANK.config + 1, values: {} }, tieA: { rank: RANK.env + 2, values: {} } } });
+    register({ name: 'early', sources: { high: { rank: RANK.env + 1, values: {} }, tieB: { rank: RANK.env + 2, values: {} } } });
+    expect(sources(runtime).map((layer) => layer.source)).toEqual(['high', 'tieA', 'tieB', 'low']);
   });
 
   it('ignores a key it does not host, so one object serves the whole family (R1)', () => {

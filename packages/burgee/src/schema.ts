@@ -221,11 +221,13 @@ export function summaryOf(manifest: Manifest, budget: number): SchemaSummary {
     name: root.join(' '),
     summarised: true,
     budget,
-    commands: runnable(manifest).map((c) => ({
-      name: typedName(c, root),
-      ...(c.summary ?? c.description === undefined ? {} : { summary: c.summary ?? c.description ?? '' }),
-      ...(c.effects === undefined ? {} : { effects: c.effects }),
-    })),
+    commands: runnable(manifest).map((c) => {
+      // One name for the fallback, compared once. Written inline, the comparison bound tighter
+      // than the `??` it followed, so a declared summary read as truthy and was dropped — the
+      // one field a command declares *for* lists like this one.
+      const summary = c.summary ?? c.description;
+      return { name: typedName(c, root), ...(summary === undefined ? {} : { summary }), ...(c.effects === undefined ? {} : { effects: c.effects }) };
+    }),
     hint: `run \`${root.join(' ')} <command> --schema\` for one command in full`,
   };
   if (manifest.version !== undefined) out.version = manifest.version;

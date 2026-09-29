@@ -489,8 +489,9 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
 /** A declared, required positional that argv did not supply is a usage error naming it, as on both hosts. */
 function requirePositionals(node: CommandNode, positionals: string[]): void {
   const required = (node.arguments ?? []).filter((a) => a.required !== false && a.variadic !== true);
+  // Defined exactly when fewer positionals were typed than are required: the first one missing.
   const missing = required[positionals.length];
-  if (positionals.length < required.length && missing !== undefined) {
+  if (missing !== undefined) {
     throw new UsageError(`missing required argument "${missing.name}"`, `run --help to see what "${node.path.slice(1).join(' ')}" takes`);
   }
 }
@@ -515,7 +516,7 @@ async function emit(io: Io, outcome: Outcome): Promise<void> {
     return await leave(io, ExitCode.OK);
   }
   // `meta.provenance` says where every option value came from (V3) — the difference between one call and five for an agent.
-  const meta = { provenance: outcome.provenance ?? {}, ...(outcome.changed === undefined ? {} : { changed: outcome.changed }) };
+  const meta = { provenance: outcome.provenance, ...(outcome.changed === undefined ? {} : { changed: outcome.changed }) };
   const envelope = { ok: true, data: outcome.data, meta };
   io.out.write(outcome.json ? `${JSON.stringify(envelope)}\n` : (outcome.lines?.(outcome.data) ?? `${render(outcome.data)}\n`));
   return await leave(io, exitCodeOf(outcome.data));

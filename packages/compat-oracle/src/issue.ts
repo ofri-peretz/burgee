@@ -95,7 +95,9 @@ function weightCell(w: WeightChange): string {
   if (w.before === w.after) return `${thousands(w.after)} B — unchanged`;
   const delta = ((w.after - w.before) / w.before) * PERCENT;
   const sign = delta > 0 ? '+' : '';
-  const packages = w.packagesBefore === w.packagesAfter ? `${w.packagesAfter}` : `${String(w.packagesBefore)} → ${w.packagesAfter}`;
+  // A fingerprint held from before package counts were recorded has none to compare: show
+  // today's count rather than `null → 17`.
+  const packages = w.packagesBefore === null || w.packagesBefore === w.packagesAfter ? `${w.packagesAfter}` : `${String(w.packagesBefore)} → ${w.packagesAfter}`;
   return `${thousands(w.before)} → ${thousands(w.after)} B (${sign}${delta.toFixed(ONE_DP)}%) across ${packages} packages`;
 }
 

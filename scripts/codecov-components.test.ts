@@ -115,9 +115,12 @@ describe('codecov components', () => {
  * `compat-oracle` — twelve and two test files respectively — were simply absent. Nothing was
  * red, and the number on the badge was measured over less than half the tree.
  *
- * The criterion is owning tests, not being publishable: `bellpull`, `closeout` and
- * `seniority` are seven-line name reservations with no suite yet, and a script there would
+ * The criterion is owning tests, not being publishable: a package with no suite yet would
  * only add an empty report.
+ *
+ * A script is necessary, not sufficient — it produces lcov only if the package's config
+ * passes the shared `coverage`. `bellpull`, `closeout` and `seniority` had the script and
+ * not the config line, and reported nothing; `coverage-config-lock.test.ts` holds that half.
  */
 describe('codecov reporting reaches every package that has tests', () => {
   it('a package with test files declares a coverage script', () => {

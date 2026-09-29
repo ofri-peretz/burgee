@@ -11,6 +11,8 @@
  * It is pure — a value, a runtime slice and the flags in, a verdict out — so the whole
  * truth table is a unit test rather than a PTY. `decide.test.ts` walks all of it.
  */
+import { interactive } from 'roundel/terminal';
+
 import { flagOf, type PromptSpec } from './spec.js';
 
 /** The slice of a runtime this needs. burgee's satisfies it; so does a literal in a test. */
@@ -45,9 +47,6 @@ export interface Decision {
 const SKIP: Decision = { action: 'skip' };
 const PROMPT: Decision = { action: 'prompt' };
 
-/** Present and not empty — the same convention roundel's policy applies to every switch. */
-const set = (value: string | undefined): boolean => value !== undefined && value !== '';
-
 /** A value from any source at all: a flag, an env var, a config file, a default. */
 function alreadyAnswered(value: unknown): boolean {
   // `false` and `0` and `''` are answers. Only "nothing was supplied" is not.
@@ -75,7 +74,11 @@ export interface DecideInput {
  *     answer a machine can type.
  *  3. `--yes` answers a `confirm`, and only a `confirm` — it is not a licence to invent
  *     a path or a password.
- *  4. No terminal on stdin, or `CI` set, means nobody is there: refuse, naming the flag.
+ *  4. Nobody there — no terminal on stdin, `CI` set, or an agent driving the process —
+ *     means refuse, naming the flag. That is roundel's `interactive()`, so `CLAUDECODE=1`
+ *     on a terminal refuses here exactly as burgee's own agent detection does; asking
+ *     `isTTY.stdin && !CI` alone prompted an agent that has a terminal and no person, and
+ *     hung it. `FORCE_TTY=1` is the one override, as it is everywhere in the family.
  *  5. `--interactive` reaches past 4 only when there *is* a terminal; it is an override
  *     for "you would not have asked", never for "there is no one to ask".
  *  6. Otherwise, if it is required or `--interactive` was asked for, prompt.
@@ -84,7 +87,7 @@ export function decide({ value, spec, option, runtime, flags = {}, required = fa
   if (alreadyAnswered(value)) return SKIP;
 
   const flag = flagOf(option);
-  const interactive = flags.interactive === true || flags.interactiveAll === true;
+  const asked = flags.interactive === true || flags.interactiveAll === true;
 
   if (flags.json === true) {
     return {
@@ -97,19 +100,20 @@ export function decide({ value, spec, option, runtime, flags = {}, required = fa
 
   if (flags.yes === true && spec.kind === 'confirm') return { action: 'answer', value: true };
 
-  const nobodyThere = !runtime.isTTY.stdin || set(runtime.env['CI']);
-  if (nobodyThere) {
+  if (!interactive(runtime)) {
     // `--interactive` cannot conjure a person. Saying so is the difference between a
     // useful refusal and a flag that looks like it did nothing.
-    const because = interactive ? ' (--interactive needs a terminal on stdin)' : '';
+    const terminal = runtime.isTTY.stdin;
+    const missing = terminal ? 'a person, and CI or an agent is driving this' : 'a terminal on stdin';
+    const because = asked ? ` (--interactive needs ${missing})` : '';
     return {
       action: 'error',
       code: 'USAGE',
-      message: `${flag} is required when there is no terminal${because}`,
+      message: `${flag} is required when ${terminal ? 'nobody is there to answer' : 'there is no terminal'}${because}`,
       fix: `pass ${flag}; it would have been asked as "${spec.message}"`,
     };
   }
 
-  if (required || interactive) return PROMPT;
+  if (required || asked) return PROMPT;
   return SKIP;
 }

@@ -83,7 +83,8 @@ function messageOf(cause: unknown): string {
 
 /** `hint` and `fix` off an error that carries them, and nothing when it does not (E3). */
 function carried(cause: unknown): { hint?: string; fix?: string } {
-  const { hint, fix } = (cause ?? {}) as { hint?: unknown; fix?: unknown };
+  // Never nullish here: each caller has already matched `cause` by its class or its `code`.
+  const { hint, fix } = cause as { hint?: unknown; fix?: unknown };
   return {
     ...(typeof hint === 'string' ? { hint } : {}),
     ...(typeof fix === 'string' ? { fix } : {}),
@@ -132,7 +133,8 @@ function textFailure(failure: Failure): string {
   const hint = failure.hint === undefined ? '' : `hint: ${failure.hint}\n`;
   const fix = failure.fix === undefined ? '' : `fix: ${failure.fix}\n`;
   if (failure.action !== undefined) {
-    const next = (failure.action.next ?? []).map((n) => `  ${n.command}    ${n.when}\n`).join('');
+    // Always a list by here: `failureText` has already made each one runnable.
+    const next = (failure.action.next as NonNullable<ActionRequiredSpec['next']>).map((n) => `  ${n.command}    ${n.when}\n`).join('');
     return `action required (${failure.action.reason}): ${failure.message}\n${next === '' ? '' : `next:\n${next}`}${hint}`;
   }
   return `error: ${failure.message}\n${hint}${fix}`;

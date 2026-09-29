@@ -69,7 +69,8 @@ function verdictFor({ option, prompt, required, value, runtime, flags }: OneOpti
   if (malformed !== undefined) return { option, code: 'USAGE', message: `--${option} has a prompt that cannot be drawn: ${malformed}`, fix: 'fix the prompt spec where the option is declared' };
 
   const verdict = decide({ value, spec: prompt, option, runtime, ...(flags === undefined ? {} : { flags }), required });
-  if (verdict.action === 'error') return { option, code: 'USAGE', message: verdict.message ?? '', ...(verdict.fix === undefined ? {} : { fix: verdict.fix }) };
+  // `decide` gives every refusal both a message and a fix: the fix is the point of refusing.
+  if (verdict.action === 'error') return { option, code: 'USAGE', message: verdict.message as string, fix: verdict.fix as string };
   return verdict;
 }
 

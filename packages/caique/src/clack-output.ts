@@ -203,6 +203,8 @@ const withoutDots = (msg: string): string => {
   return msg.slice(0, end);
 };
 const noop = (): void => undefined;
+/** POSIX: a process ended by a signal leaves with 128 plus its number. */
+const SIGNAL_EXIT = 128;
 
 /** How a spinner ends: answered, cancelled, or failed. */
 type Ending = 'stop' | 'cancel' | 'error';
@@ -246,13 +248,22 @@ class Spinner implements SpinnerResult {
     this.interrupt('cancel');
   };
 
+  /**
+   * The process leaving while spinning. clack's split: a failing code the program chose ends on
+   * the error message; a signal (`128 + n`, as `closeout/exit-hook` reports one), `1` or `0`
+   * ends as a cancel. Before this every exit was a cancel, and `errorMessage` was never shown.
+   */
+  private readonly onExit = (code: number | string): void => {
+    const exitCode = Number(code);
+    this.interrupt(exitCode > 1 && exitCode < SIGNAL_EXIT ? 'error' : 'cancel');
+  };
+
   /** A signal or an exit while spinning: end on the configured message, and tell `onCancel`. */
   private interrupt(ending: 'cancel' | 'error'): void {
     const msg = ending === 'error' ? (this.opts.errorMessage ?? settings.messages.error) : (this.opts.cancelMessage ?? settings.messages.cancel);
-    const wasSpinning = this.spinning;
     this.cancelled = ending === 'cancel';
     this.end(msg, ending);
-    if (wasSpinning && this.cancelled) this.opts.onCancel?.();
+    if (this.cancelled) this.opts.onCancel?.();
   }
 
   private animate(): void {
@@ -277,7 +288,7 @@ class Spinner implements SpinnerResult {
     this.since = performance.now();
     if (guided(this.opts)) this.output.write(`${paint('gray', S_BAR)}\n`);
     this.opts.signal?.addEventListener('abort', this.onAbort, { once: true });
-    this.unhook = exitHook(this.onAbort);
+    this.unhook = exitHook(this.onExit);
     if (this.live) this.animate();
     else this.output.write(`${this.style(this.frames[0] ?? '')}  ${this.text}...\n`);
   }
@@ -287,7 +298,7 @@ class Spinner implements SpinnerResult {
     this.spinning = false;
     clearInterval(this.timer);
     this.opts.signal?.removeEventListener('abort', this.onAbort);
-    if (this.live && this.drawn !== '') this.output.write(eraseLines(this.drawn.split('\n').length));
+    if (this.live) this.output.write(eraseLines(this.drawn.split('\n').length));
     this.text = msg === '' ? this.text : msg;
     const glyph = endGlyph(ending);
     const timer = this.opts.indicator === 'timer' ? ` ${elapsed(this.since)}` : '';
