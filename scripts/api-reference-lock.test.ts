@@ -33,7 +33,7 @@ import { describe, expect, it } from 'vitest';
 // eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and scripts read the app table through its one typed reader rather than re-parsing it
 import { appForPackage } from '../apps/docs-chassis/src/config';
 
-import { entriesOf, orphans, pages, renderEntry, STANDARD_SITES, stale } from './api-reference.js';
+import { entriesOf, orphans, pages, prose, renderEntry, STANDARD_SITES, stale } from './api-reference.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -108,5 +108,12 @@ describe('the lock refuses what it exists to refuse', () => {
     const page = renderEntry({ pkg, entry, docs: [], intro: '', entries: entriesOf(pkg) });
     const names = exportedNames(entry.types);
     expect(names.filter((name) => !page.includes(`### ${name}\n`) && !page.includes(`| \`${name}\` |`))).toContain('hoist');
+  });
+});
+
+describe('doc-comment prose is valid Markdown', () => {
+  it('writes a code span holding an escaped backtick with a double-backtick fence', () => {
+    expect(prose('the template literal (`chalk\\`{red x}\\``) went')).toBe('the template literal (`` chalk`{red x}` ``) went');
+    expect(prose('`plain` and `other` stay as they are')).toBe('`plain` and `other` stay as they are');
   });
 });
