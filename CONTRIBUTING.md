@@ -39,6 +39,9 @@ that bind every session are worth reading before opening a pull request:
   then the output stack, then the engine — so the arrows point one way and burgee consumes
   the layers beneath it rather than reimplementing them. Nothing from outside gets in. That
   is not negotiable; it is the reason the numbers in the README are what they are.
+- **Behaviour lands with its tests.** New or changed behaviour comes with tests that `npm test`
+  runs, and a bug fix with a test that fails on the unfixed code. A PR that changes what a
+  package does without a test that would notice is not ready.
 - **Every ESLint rule at `error`**, across 11 Interlace plugins, with no warnings allowed.
   Exceptions are named in `eslint.config.mjs` with a reason.
 - **The shape lock (`Z1`)**: the published tarball must still work from one file, with no
