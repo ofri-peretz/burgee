@@ -1,0 +1,74 @@
+---
+title: Compatibility
+description: "How seniority's four drop-ins are graded by their incumbents' own suites — lilconfig 77 / 77, rc 1 / 1 (one bit), cosmiconfig 186 / 243 (YAML), dotenv 106 / 141 (the vault) — and the differences that remain."
+---
+
+`seniority` (cosmiconfig's API at the root), `seniority/lilconfig`, `seniority/dotenv` and
+`seniority/rc` are graded, not described as compatible. Each is run against its incumbent's
+**own test suite**, by
+[compat-oracle](https://github.com/ofri-peretz/burgee/blob/main/packages/compat-oracle/README.md),
+in CI.
+
+<CapabilityMatrix pkg="seniority" theme="Compatibility" />
+
+The family's [compatibility page](https://burgee.interlace.tools/docs/compatibility) is
+generated from the oracle's last run and is the authority for the current figures.
+
+## How a suite is graded
+
+1. The incumbent's repository is cloned at the graded version, and its test directory is copied
+   into `packages/compat-oracle/vendor/`. The versions are cosmiconfig 10.0.1, lilconfig
+   3.1.3, dotenv 17.4.2, and rc 1.2.8 (rc's release was never tagged, so its commit is pinned).
+   Each copy has a `PROVENANCE` file.
+2. The only edit is the import that reaches the library, rewritten to a shim generated per run.
+3. A **control run** points the shim at the real incumbent first. Its total is what every rate
+   is measured against.
+4. The **target run** points the same shim at seniority.
+
+## What each grade covers
+
+- **lilconfig: 77 of 77**, the same count the real lilconfig gets here. Ten of the cases mock
+  `fs` with `jest.mock` to assert which files were read, and the oracle applies that mock the
+  way jest does.
+- **rc: 1 of 1, by exit code.** rc's suite is one script of bare assertions with no reporter,
+  so the grade is one bit: the script ran against seniority and exited 0. It is not 100% of
+  anything.
+- **cosmiconfig: 186 of 243.** Of the 57 not passing:
+  - 54 carry the "no YAML parser" refusal (all 22 cases of `import.test.ts` among them, because
+    `$import` is tested only over `.yml` fixtures);
+  - 1 is `index.test.ts`, which imports cosmiconfig's entry by a file path and fails for the
+    control too;
+  - 2 are an XDG pair that registers only on Linux. seniority resolves the global directory
+    differently, and those two are counted against it on every platform.
+- **dotenv: 106 of 141.** The suite runs under node-tap, which counts assertions, so 141 is
+  assertions. Of the 35 not passing:
+  - 27 are the `.env.vault` and `decrypt` path, declined;
+  - 2 are dotenvx tips, declined;
+  - 6 load dotenv's private `lib/*` modules by path.
+
+## Known differences
+
+- **No YAML, and no INI.** The cosmiconfig and rc drop-ins read JSON (rc's with comments) and
+  refuse YAML and INI by name, with a hint naming the argument that supplies a parser.
+- **`seniority/dotenv` writes `process.env` only when you give it nothing else.** Pass
+  `processEnv` and it fills that object instead.
+- **The vault is declined.** `.env.vault`, `DOTENV_KEY` and `decrypt` are not implemented.
+- **seniority's own API is stricter than the drop-ins.** `resolve` reads only declared options
+  from the environment and refuses unclear booleans. `seniority/rc` keeps rc's behaviour, which
+  is to take every `<name>_` variable.
+
+## Moving one import
+
+```diff
+- import { cosmiconfig } from 'cosmiconfig';
++ import { cosmiconfig } from 'seniority';
+```
+
+```diff
+- import { lilconfig } from 'lilconfig';
++ import { lilconfig } from 'seniority/lilconfig';
+```
+
+`npx burgee migrate --dry-run` lists every import it would rewrite, and rewrites only drop-ins
+graded level with their incumbent, which here means lilconfig and rc.
+[Incremental migration](/docs/recipes/incremental-migration) moves from a drop-in to `resolve`.

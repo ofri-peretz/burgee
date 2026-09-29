@@ -276,12 +276,13 @@ number, from the incumbent's tests, run unmodified. Where it stops is one thing:
 > pass `loaders: { '.yaml': yaml.load }`. Do that and you have cosmiconfig's behaviour
 > exactly, with the parser as *your* dependency rather than everyone's.
 
-Every one of the 55 cases not passing is that, bar one that is the test harness reaching for a
-file path the vendored copy does not have. None of them is a difference in how a config is
-found, merged or reported — and that is counted rather than claimed: every failing entry in
-the raw output was matched against its own diagnostic, and 54 of the 55 carry the "no YAML
-parser" refusal above. The largest block is the whole of `import.test.ts`, 22 cases: `$import`
-works, and every fixture it is tested with is `.yml`.
+Of the 57 cases not passing, 54 are that — counted rather than claimed: every failing entry in
+the raw output was matched against its own diagnostic, and those 54 carry the "no YAML parser"
+refusal above. The largest block is the whole of `import.test.ts`, 22 cases: `$import` works,
+and every fixture it is tested with is `.yml`. One more is the test harness reaching for a file
+path the vendored copy does not have, and it fails for cosmiconfig too. The last two are the
+suite's XDG global-directory pair, which registers only on Linux: the drop-in resolves the
+global directory differently, and the pair is counted against it on every platform.
 
 ### `seniority/dotenv`
 

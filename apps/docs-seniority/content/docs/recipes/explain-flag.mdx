@@ -1,0 +1,53 @@
+---
+title: Add --explain to a CLI
+description: "Give a CLI a --explain <option> flag that prints where a value came from and what it beat, and --explain --json for scripts and agents — from the record resolve() already keeps."
+---
+
+Every CLI with a config file eventually gets the question "why is this set to that?". With
+seniority the answer is already in the result, so the flag takes a few lines:
+
+```js title="mytool.mjs"
+import { explain, explanation, explanationJson, resolve } from 'seniority';
+
+const specs = {
+  region: { type: 'string', default: 'us-1' },
+  retries: { type: 'number', default: 2 },
+};
+
+const argv = process.argv.slice(2);
+const flags = {};
+const target = argv.includes('--explain') ? argv[argv.indexOf('--explain') + 1] : undefined;
+if (argv.includes('--region')) flags.region = argv[argv.indexOf('--region') + 1];
+
+const result = resolve(specs, {
+  flags,
+  env: { MYTOOL_RETRIES: '5' }, // process.env in a real program
+  envPrefix: 'MYTOOL',
+  config: { path: 'mytool.config.json', data: { region: 'eu-2' }, lines: { region: 2 } },
+});
+
+if (target === undefined) console.log(result.values);
+else if (argv.includes('--json')) console.log(JSON.stringify(explanationJson(explanation(target, result))));
+else process.stdout.write(explain(target, result));
+```
+
+```text title="node mytool.mjs --explain region"
+region = "eu-2"   from config file mytool.config.json:2
+         candidates: flag --region (unset), env MYTOOL_REGION (unset), default "us-1"
+```
+
+```text title="node mytool.mjs --region ap-1 --explain region"
+region = "ap-1"   from flag --region
+         candidates: env MYTOOL_REGION (unset), config file mytool.config.json:2 "eu-2", default "us-1"
+```
+
+```text title="node mytool.mjs --explain retries --json"
+{"option":"retries","value":"5","source":"env","location":"MYTOOL_RETRIES","candidates":[{"source":"flag","location":"--retries","set":false},{"source":"env","location":"MYTOOL_RETRIES","set":true,"value":"5"},{"source":"config","location":"mytool.config.json","set":false},{"source":"default","location":"default","set":true,"value":2}]}
+```
+
+`retries` is the string `"5"`: the environment is text, and `resolve` converts only booleans
+from it. [Validation](/docs/guides/validation) reports a number that arrived as a string, naming
+the variable.
+
+A CLI built on [burgee](https://burgee.interlace.tools/docs) gets `config explain` for free,
+from the same resolver.

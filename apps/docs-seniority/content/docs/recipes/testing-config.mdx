@@ -1,0 +1,43 @@
+---
+title: Testing configuration
+description: "Test precedence, environment handling and validation without touching process.env or the disk, because resolve() takes every layer as an argument."
+---
+
+`resolve` reads nothing ambient, so a test states the world it is about: the flags typed, the
+environment, the config file's contents. There is nothing to restore afterwards, and nothing
+leaks between tests.
+
+```js title="config-test.mjs"
+import assert from 'node:assert/strict';
+
+import { resolve, validate } from 'seniority';
+
+const specs = { region: { type: 'string', default: 'us-1' }, verbose: { type: 'boolean' } };
+const world = (over = {}) => ({ flags: {}, env: {}, envPrefix: 'APP', ...over });
+
+// The default, when nothing else speaks.
+assert.equal(resolve(specs, world()).values.region, 'us-1');
+
+// The environment beats the config file, and says so.
+const r = resolve(specs, world({ env: { APP_REGION: 'eu-3' }, config: { path: 'c.json', data: { region: 'eu-2' } } }));
+assert.deepEqual(r.provenance.region, { source: 'env', location: 'APP_REGION' });
+
+// A variable for an option nobody declared is ignored.
+assert.deepEqual(resolve(specs, world({ env: { APP_DEBUG: '1' } })).values, { region: 'us-1' });
+
+// An unclear boolean is an error, not a truthy string.
+assert.throws(() => resolve(specs, world({ env: { APP_VERBOSE: 'maybe' } })), /is not a boolean/);
+
+// Validation points at the source.
+const bad = resolve({ port: { type: 'number' } }, world({ config: { path: 'c.json', data: { port: 'eighty' }, lines: { port: 4 } } }));
+assert.deepEqual(validate({ port: { type: 'number' } }, bad).map((v) => v.message), ['`port` must be a number; `c.json:4` set it to `"eighty"`']);
+
+console.log('ok');
+```
+
+```text title="node config-test.mjs"
+ok
+```
+
+For discovery, `search` takes injected `exists` and `realpath` functions, so even the upward
+walk can be tested over an imaginary tree.
