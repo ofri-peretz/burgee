@@ -89,9 +89,11 @@ const RULES: Record<string, EntryRule> = {
   //
   // `linegauge` joined on 2026-09-28 with the raw renderer's row count (`lineCount`): a frame
   // wider than the terminal occupies more rows than it has lines. Measured 14,472 after main's #680 (+265).
+  // `paratext/csi` joined the same day (+70): the raw renderer's repaint is spelled with
+  // ansi-escapes' cursor moves from paratext rather than by hand. Measured 14,542.
   // `roundel/terminal` joined the same day (+98): whether anybody is there to type is
-  // roundel's `interactive()`, which knows an agent from a person. Measured 14,570.
-  '.': { allow: [...CLOSEOUT, 'linegauge', 'roundel/terminal'], budget: 15_000, denied: ['clack.js', 'inquirer.js'] },
+  // roundel's `interactive()`, which knows an agent from a person. Measured 14,640.
+  '.': { allow: [...CLOSEOUT, 'linegauge', 'paratext/csi', 'roundel/terminal'], budget: 15_000, denied: ['clack.js', 'inquirer.js'] },
   // The shape and its validator. The floor every other subpath stands on, and a leaf: a
   // program that only declares prompts pays 739 B and never loads a widget.
   './spec': { allow: [], budget: 1_000, denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
@@ -113,6 +115,8 @@ const RULES: Record<string, EntryRule> = {
   // prompt hides the cursor and owes its return on every exit path, and `linegauge/wrap`.
   // It is still a leaf away from the rest of caique: a program migrating off clack loads none
   // of caique's own API, and a program written against caique never loads a byte of this.
+  // 62,336 B on 2026-09-28; 62,229 B (−107) once raw mode went through `closeout/cursor`'s
+  // `rawMode()` instead of a hand-rolled toggle — an import the allow list already named.
   './clack': {
     allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap'],
     budget: 64_000,
@@ -138,9 +142,11 @@ const RULES: Record<string, EntryRule> = {
   // rather than weight; U5's ceiling for caique is clack, and it is the root entry above
   // that carries it.
   './inquirer': {
-    // `roundel/terminal` on 2026-09-28 (-47): the tick's unicode test is is-unicode-supported
-    // whole, from roundel, rather than a four-condition subset of it here. Measured 20,843 against main's 20,890.
-    allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap', 'roundel/terminal'],
+    // `paratext/csi` on 2026-09-28 (-61): the cursor moves and erases `@inquirer/ansi` supplies
+    // are ansi-escapes' from paratext, with `@inquirer/ansi`'s zero-row guard kept. Measured 20,829 after merging main (20,890 there).
+    // `roundel/terminal` the same day: the tick's unicode test is is-unicode-supported whole,
+    // from roundel, rather than a four-condition subset of it here. Measured 20,782 (-47).
+    allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap', 'paratext/csi', 'roundel/terminal'],
     budget: 23_000,
     denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js', 'spec.js', 'plugin.js', 'clack.js'],
   },
@@ -160,7 +166,8 @@ const RULES: Record<string, EntryRule> = {
   // 3,659 B (+3) on 2026-09-28: raw mode is `closeout/cursor`'s `rawMode`, paired with its undo.
   // 3,846 B (+187): the repaint counts rows with linegauge's `lineCount`
   // against the writer's `columns`, instead of counting `\n`s and ignoring wrap.
-  './raw': { allow: [...CLOSEOUT, 'linegauge'], budget: 4_500, denied: ['decide.js', 'binding.js', 'terminal.js', 'index.js'] },
+  // 3,916 B (+70) on 2026-09-28, the repaint in `paratext/csi`'s spelling.
+  './raw': { allow: [...CLOSEOUT, 'linegauge', 'paratext/csi'], budget: 4_500, denied: ['decide.js', 'binding.js', 'terminal.js', 'index.js'] },
   // Resolving a whole command's prompts in one pass: the decision plus the widgets it may
   // reach for. Never the terminal, and never the raw renderer — a framework hands caique an
   // `Io`, and which one is the caller's business. Measured 8,123 B; 8,395 B on 2026-09-28,

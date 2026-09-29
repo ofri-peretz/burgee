@@ -20,6 +20,10 @@
  * different from roundel in exactly the declared classes below. So nothing was fixed: every
  * difference is one of the forks being faithful. A row that differs for any other reason fails
  * here, and names itself.
+ *
+ * Every row is a terminal: the fork's `hasColor` is asked only once `supportsHyperlinks` has
+ * already refused a pipe (#713 took the pipe branch out of it), so a pipe row would compare
+ * roundel's answer with a question the fork is never asked.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -31,7 +35,6 @@ import { colorLevel } from '../packages/roundel/src/policy.js';
 interface Row {
   env: Record<string, string>;
   argv: string[];
-  tty: boolean;
   platform: string;
 }
 
@@ -60,18 +63,18 @@ const RUNS: Record<string, string>[] = [{}, { CI: 'true', GITHUB_ACTIONS: 'true'
 const product = <T>(axes: readonly (readonly T[])[]): T[][] => axes.reduce<T[][]>((acc, axis) => acc.flatMap((prefix) => axis.map((v) => [...prefix, v])), [[]]);
 
 function rows(): Row[] {
-  const grid = product<unknown>([['linux', 'win32'], [true, false], FORCE, NO_COLOR, TERMS, RUNS, FLAGS]);
-  return grid.map(([platform, tty, force, noColor, term, run, argv]) => {
+  const grid = product<unknown>([['linux', 'win32'], FORCE, NO_COLOR, TERMS, RUNS, FLAGS]);
+  return grid.map(([platform, force, noColor, term, run, argv]) => {
     const env: Record<string, string> = { ...(run as Record<string, string>) };
     if (typeof force === 'string') env['FORCE_COLOR'] = force;
     if (typeof noColor === 'string') env['NO_COLOR'] = noColor;
     if (typeof term === 'string') env['TERM'] = term;
-    return { env, argv: argv as string[], tty: tty as boolean, platform: platform as string };
+    return { env, argv: argv as string[], platform: platform as string };
   });
 }
 
-const paratext = ({ env, argv, tty, platform }: Row): boolean => hasColor(env, argv, platform, tty);
-const roundel = ({ env, argv, tty }: Row): boolean => colorLevel({ env, argv, isTTY: { stdout: tty } }) > 0;
+const paratext = ({ env, argv, platform }: Row): boolean => hasColor(env, argv, platform);
+const roundel = ({ env, argv }: Row): boolean => colorLevel({ env, argv, isTTY: { stdout: true } }) > 0;
 
 describe('paratext’s supports-color fork and roundel’s policy', () => {
   const all = rows();

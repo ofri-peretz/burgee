@@ -298,7 +298,7 @@ on its own subpath (see [Weight](#weight)); every export, with its types, is on
 
 Plugins register under the `widgets` key, against the one schema the whole family shares.
 
-Nothing in this family builds on it yet, and it builds on `closeout`, `linegauge`, `roundel`.
+Nothing in this family builds on it yet, and it builds on `closeout`, `linegauge`, `paratext`, `roundel`.
 
 ## The family
 
