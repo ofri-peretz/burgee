@@ -1,0 +1,80 @@
+---
+title: Phases
+description: "flush, release, restore: closeout runs exit handlers in declared phases, each awaited before the next, so the terminal is handed back last whatever order things registered in."
+---
+
+Registration order is the wrong order for a shutdown. The handler that shows the cursor again
+is registered by whichever renderer hid it, at the moment it first drew — usually early — so
+anything registered afterwards runs after the terminal has been handed back. closeout orders
+a shutdown by **phase** instead:
+
+| phase | what goes in it |
+| :-- | :-- |
+| `flush` | get the data out: write the file, drain the log, post the last event |
+| `release` | let go: locks, sockets, child processes, temp directories — **the default** |
+| `restore` | hand the terminal back: raw mode off, alternate screen left, cursor shown |
+
+Phases run in that order, and each is **awaited** before the next begins: an async handler in
+`flush` has settled before the first `release` handler starts. Handlers inside one phase start
+together, in registration order.
+
+```js title="phases.mjs"
+import { onExit } from 'closeout';
+
+onExit(() => console.log('restore: the terminal is handed back'), 'restore');
+onExit(() => console.log('release: the lock file is removed'));
+onExit(async () => {
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  console.log('flush: the log is written');
+}, 'flush');
+
+console.log('working');
+```
+
+Registered backwards, run in order — and the `flush` handler's 50 ms wait is finished before
+`release` starts:
+
+```text title="node phases.mjs"
+working
+flush: the log is written
+release: the lock file is removed
+restore: the terminal is handed back
+```
+
+## Choosing a phase
+
+The second argument to `onExit` is the phase, or an options object when the handler also
+wants a name for the [deadline's report](/docs/guides/deadline):
+
+```js
+onExit(flushTheLog, 'flush');
+onExit(releaseTheLock); // 'release'
+onExit(async () => closeTheSocket(), { phase: 'release', label: 'close-the-socket' });
+```
+
+`restore` is where closeout's own terminal undos go — `hideCursor`, `rawMode` and
+`alternateScreen` register there ([The terminal](/docs/guides/terminal)). Your own handler may
+use it too, when it is restoring terminal state closeout does not know about. A
+[plugin](/docs/guides/plugins) may not: a plugin handler in `restore` is refused, because
+"restore runs last" has to be enforced somewhere.
+
+## Past the deadline
+
+When the deadline fires, closeout stops **waiting** for the phase that hung, and still
+**runs** the phases after it. A handler hung in `flush` does not get to decide that the
+cursor stays hidden. [The deadline](/docs/guides/deadline) shows it.
+
+## On `exit`
+
+`process.exit()` gives no time to await anything, so on the `exit` path the phases run
+synchronously, still in order: every `flush` handler is called, then every `release`, then
+every `restore`. A promise returned there is abandoned and reported as unfinished.
+
+## What is tested
+
+- [`plugin.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/plugin.test.ts):
+  a handler runs before the restore though the restore was registered first; an async handler
+  is awaited before the restore, not merely started first; the order holds on the synchronous
+  path too.
+- [`deadline.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/deadline.test.ts):
+  restore still runs after a handler hung in `flush`.

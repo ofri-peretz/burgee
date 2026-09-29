@@ -1,0 +1,45 @@
+---
+title: Keep the evidence on a crash
+description: "Remove a scratch directory on a clean exit and keep it when the program crashed, by reading which door the program left by."
+---
+
+A handler is told how the program ended, so it can clean up differently for a crash than for
+a clean exit — remove a scratch directory normally, and keep it for the bug report when
+something was thrown.
+
+```js title="scratch.mjs"
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { onExit } from 'closeout';
+
+const scratch = mkdtempSync(join(tmpdir(), 'build-'));
+
+onExit(({ path, error }) => {
+  if (path === 'uncaught' || path === 'rejection') {
+    console.log(`kept the scratch directory: the build failed with "${error.message}"`);
+    return;
+  }
+  rmSync(scratch, { recursive: true, force: true });
+  console.log('removed the scratch directory');
+});
+
+if (process.argv[2] === 'fail') throw new Error('the compiler crashed');
+console.log('built');
+```
+
+```text title="node scratch.mjs"
+built
+removed the scratch directory
+```
+
+```text title="node --stack-trace-limit=0 scratch.mjs fail" exit="1"
+kept the scratch directory: the build failed with "the compiler crashed"
+[Error: the compiler crashed]
+```
+
+The handler runs on the throw path before the error is printed, and the process still exits 1
+as Node would have. On `exit` — a `process.exit()` somewhere in the program — `rmSync` is the
+right call, because nothing can be awaited there: see
+[Every exit path](/docs/guides/exit-paths#synchronous-and-asynchronous-handlers).
