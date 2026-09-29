@@ -31,8 +31,12 @@ import { HOSTS } from '../packages/compat-oracle/src/hosts.js';
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const BASELINE = join(ROOT, 'packages/compat-oracle/baseline');
 
-/** Every graded pair, from the oracle: hosts with a baseline and a family target. */
-const derived = HOSTS.filter((h) => existsSync(join(BASELINE, `${h.name}.json`)) && h.target !== '—').flatMap((h) =>
+/**
+ * Every graded pair, from the oracle: hosts with a baseline and a family target — less a row
+ * graded to publish a `ceiling`, whose target is not a drop-in and which `migrate` must neither
+ * rewrite to nor report as a path (execa against `bellpull`, bellpull spec R7, D-160).
+ */
+const derived = HOSTS.filter((h) => existsSync(join(BASELINE, `${h.name}.json`)) && h.target !== '—' && h.ceiling === undefined).flatMap((h) =>
   h.imports.map((i) => ({ host: h.name, from: i.control ?? `${h.npmName ?? h.name}${i.subpath}`, to: `${h.target}${i.subpath}` })),
 );
 const unique = [...new Map(derived.map((d) => [`${d.from} ${d.to}`, d])).values()];

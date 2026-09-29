@@ -152,9 +152,10 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `cross-spawn` | 68 / 68 |
+| `execa` | 0 / 1048 |
 | `which` | 5 / 5 |
 
-Weight, installed and tree-inclusive: **111,586 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1458**.
+Weight, installed and tree-inclusive: **111,828 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1461**.
 
 ## For agents
 

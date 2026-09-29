@@ -97,7 +97,9 @@ const hosts = readdirSync(packages, { withFileTypes: true })
   .filter((e) => e.isDirectory() && existsSync(join(packages, e.name, 'src/plugin.ts')))
   .map((e) => {
     const manifest = JSON.parse(readFileSync(join(packages, e.name, 'package.json'), 'utf8')) as { bin?: Record<string, string> };
-    const incumbents = HOSTS.filter((h) => h.status !== 'rejected' && h.target.split('/')[0] === e.name).map((h) => h.name);
+    // A `ceiling` row is graded against the package without the package replacing it — execa
+    // against bellpull (D-160) — so it names no incumbent here.
+    const incumbents = HOSTS.filter((h) => h.status !== 'rejected' && h.ceiling === undefined && h.target.split('/')[0] === e.name).map((h) => h.name);
     return {
       name: e.name,
       bin: Object.keys(manifest.bin ?? {})[0] ?? e.name,
