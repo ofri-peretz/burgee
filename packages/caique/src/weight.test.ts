@@ -87,9 +87,11 @@ const RULES: Record<string, EntryRule> = {
   // this repo publishes. Neither façade is reachable from here: a program that imports
   // `caique` gets caique, and pays nothing for the two compatibility subpaths.
   //
-  // `paratext/csi` joined on 2026-09-28 (+70): the raw renderer's repaint is spelled with
-  // ansi-escapes' cursor moves from paratext rather than by hand. Measured 14,186.
-  '.': { allow: [...CLOSEOUT, 'paratext/csi'], budget: 15_000, denied: ['clack.js', 'inquirer.js'] },
+  // `linegauge` joined on 2026-09-28 with the raw renderer's row count (`lineCount`): a frame
+  // wider than the terminal occupies more rows than it has lines. Measured 14,472 after main's #680 (+265).
+  // `paratext/csi` joined the same day (+70): the raw renderer's repaint is spelled with
+  // ansi-escapes' cursor moves from paratext rather than by hand. Measured 14,542.
+  '.': { allow: [...CLOSEOUT, 'linegauge', 'paratext/csi'], budget: 15_000, denied: ['clack.js', 'inquirer.js'] },
   // The shape and its validator. The floor every other subpath stands on, and a leaf: a
   // program that only declares prompts pays 739 B and never loads a widget.
   './spec': { allow: [], budget: 1_000, denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
@@ -135,7 +137,7 @@ const RULES: Record<string, EntryRule> = {
   // that carries it.
   './inquirer': {
     // `paratext/csi` on 2026-09-28 (-61): the cursor moves and erases `@inquirer/ansi` supplies
-    // are ansi-escapes' from paratext, with `@inquirer/ansi`'s zero-row guard kept. Measured 20,741.
+    // are ansi-escapes' from paratext, with `@inquirer/ansi`'s zero-row guard kept. Measured 20,829 after merging main (20,890 there).
     allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap', 'paratext/csi'],
     budget: 23_000,
     denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js', 'spec.js', 'plugin.js', 'clack.js'],
@@ -154,14 +156,17 @@ const RULES: Record<string, EntryRule> = {
   // carries `ask.js` by design — that shared answer is the arrangement, not an accident.
   // It never reaches the terminal: a caller supplies its own streams. Measured 3,656 B.
   // 3,659 B (+3) on 2026-09-28: raw mode is `closeout/cursor`'s `rawMode`, paired with its undo.
-  // 3,729 B (+70) on 2026-09-28, the repaint in `paratext/csi`'s spelling.
-  './raw': { allow: [...CLOSEOUT, 'paratext/csi'], budget: 4_500, denied: ['decide.js', 'binding.js', 'terminal.js', 'index.js'] },
+  // 3,846 B (+187): the repaint counts rows with linegauge's `lineCount`
+  // against the writer's `columns`, instead of counting `\n`s and ignoring wrap.
+  // 3,916 B (+70) on 2026-09-28, the repaint in `paratext/csi`'s spelling.
+  './raw': { allow: [...CLOSEOUT, 'linegauge', 'paratext/csi'], budget: 4_500, denied: ['decide.js', 'binding.js', 'terminal.js', 'index.js'] },
   // Resolving a whole command's prompts in one pass: the decision plus the widgets it may
   // reach for. Never the terminal, and never the raw renderer — a framework hands caique an
   // `Io`, and which one is the caller's business. Measured 8,123 B.
   './binding': { allow: [], budget: 9_500, denied: ['raw.js', 'terminal.js', 'index.js'] },
   // The only file that touches a stream, and the only one that knows what echo is. It
-  // carries `ask.js` for the `Io` shape it implements. Measured 1,947 B.
+  // carries `ask.js` for the `Io` shape it implements. Measured 1,947 B; +78 on
+  // 2026-09-28 for the writer's `columns`, read through to the output stream.
   './terminal': { allow: [], budget: 2_500, denied: ['decide.js', 'raw.js', 'binding.js', 'index.js'] },
 };
 
