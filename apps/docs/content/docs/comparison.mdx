@@ -89,7 +89,22 @@ with commander, not a lead over cac.
 carried here rather than dropped because eighteen runtime dependencies against none outside the burgee family is the
 comparison this table exists for. Treat it as the survey's, not as ours.
 
-## Capabilities
+## Capabilities, with evidence
+
+burgee against the two frameworks it replaces and meow, the third one compat-oracle grades.
+Every mark links to its evidence — a test in this repository for burgee, and for the others the
+source file at the version the oracle grades, or that framework's own test suite — and
+`scripts/capabilities-lock.test.ts` fails the build when a cited test or quoted source stops
+saying what the cell claims. A row is here only when every cell of it can be proved.
+
+<CapabilityMatrix pkg="burgee" />
+
+## Capabilities across six frameworks
+
+This table is older and hand-maintained, and covers oclif, cac and citty, which the table above
+does not grade. Where the two disagree, the one above is the one with evidence: this table said
+commander dumps its help on a runtime error, and commander's own source says help after an error
+is off by default.
 
 | | **burgee** | commander | yargs | oclif | cac | citty |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -98,7 +113,7 @@ comparison this table exists for. Treat it as the survey's, not as ours.
 | Plugins on *commander* syntax | ✅ **built** | — | — | — | — | — |
 | `--json` envelope | ✅ **built** | ❌ | ❌ | partial | ❌ | ❌ |
 | Exit-code contract | ✅ **built** | ❌ | ❌ | partial | ❌ | ❌ |
-| No help dumped on a runtime error | ✅ **built** | ❌ | ❌ | ❌ | ❌ | ❌ |
+| No help dumped on a runtime error | ✅ **built** | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Weight budget per entry point | ✅ **built** | ❌ | ❌ | ❌ | ❌ | ❌ |
 | commander compatibility | ✅ 1,360 / 1,360 of commander's own tests | — | ❌ | ❌ | ❌ | ❌ |
 | yargs compatibility | ✅ 804 / 804 of yargs' own tests | ❌ | — | ❌ | ❌ | ❌ |
