@@ -12,6 +12,7 @@
  * the point of listing it (`side-effects-lock.test.ts`). paratext contributes no pair: its root
  * `link` is a different function from `paratext/link`, the lightweight one, so there is no
  * same-binding pair to compare, and comparing different functions would measure nothing.
+ * controlroom contributes none either: it is reserved, with a root and no subpath.
  */
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -21,7 +22,7 @@ import { build } from 'esbuild';
 import { describe, expect, it } from 'vitest';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const PUBLISHED = ['bellpull', 'burgee', 'caique', 'closeout', 'flagstaff', 'linegauge', 'paratext', 'roundel', 'seniority'];
+const PUBLISHED = ['bellpull', 'burgee', 'caique', 'closeout', 'controlroom', 'flagstaff', 'linegauge', 'paratext', 'roundel', 'seniority'];
 /** Fewer than this means the discovery broke, not that the packages got smaller. */
 const MIN_PAIRS = 25;
 

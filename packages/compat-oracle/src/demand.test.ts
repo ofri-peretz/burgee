@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import {
+  cell,
   citations,
   fromSearchItem,
   isCovered,
@@ -126,10 +127,16 @@ describe('the page', () => {
   });
 });
 
+describe('a title in a table cell', () => {
+  it('cannot end the cell or open an HTML element', () => {
+    expect(cell('<Static> a | b\nc')).toBe(String.raw`\<Static> a \| b c`);
+  });
+});
+
 describe('every layer has a measured demand file', () => {
-  it('covers the nine layers of the plan', () => {
-    expect(LAYERS).toHaveLength(9);
-    expect(new Set(LAYERS.flatMap((l) => l.incumbents)).size).toBe(25);
+  it('covers the ten layers of the plan', () => {
+    expect(LAYERS).toHaveLength(10);
+    expect(new Set(LAYERS.flatMap((l) => l.incumbents)).size).toBe(27);
   });
 
   it('has an issues.md beside every layer intent', () => {

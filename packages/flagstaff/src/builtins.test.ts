@@ -15,6 +15,7 @@ import { width } from 'linegauge';
 import { describe, expect, it } from 'vitest';
 
 import { box, boxComponent } from './box.js';
+import { STATIC } from './link.js';
 import { hoist, manualClock, type Runtime } from './loop.js';
 import { type Component } from './plugin.js';
 import { progress } from './progress.js';
@@ -84,6 +85,12 @@ describe('tasks', () => {
     expect(tasks().frame?.(0, { tasks: [{ title: 'x', status: 'ok', detail: 'hidden' }] })).not.toContain('hidden');
   });
 
+  it('a clock that steps backwards draws a blank frame for the running task, never `undefined`', () => {
+    // `t` is the caller's clock minus the hoist time; a wall clock corrected backwards makes it
+    // negative, and a negative index has no frame.
+    expect(tasks().frame?.(-1, { tasks: [{ title: 'build', status: 'running' }] })).toBe(' build');
+  });
+
   it('hoisted on a pipe, each settling prints one line and nothing is printed twice', () => {
     const w = piped();
     const flag = hoist(tasks(), w.rt, { tasks: [{ title: 'a' }, { title: 'b' }] });
@@ -148,6 +155,34 @@ describe('box', () => {
     expect(component.static({ text: 'done' })).toBe('done');
     expect(component.frame?.(0, { text: 'done' })).toContain('╭');
   });
+
+  it('draws with a style object passed inline, and a style with no run on a side draws no border there', () => {
+    // No top or bottom run, no sides: corners alone are not a border, so neither row is drawn,
+    // and with no side cells the whole width is the text and its padding.
+    const open = { topLeft: '┌', top: '', topRight: '┐', left: '', right: '', bottomLeft: '└', bottom: '', bottomRight: '┘' };
+    expect(box('hi', { width: 6, border: open })).toBe(' hi   ');
+    expect(box('hi', { width: 6, border: { ...open, top: '─', bottom: '─' } })).toBe(['┌──────┐', ' hi   ', '└──────┘'].join('\n'));
+  });
+
+  it('a title with no room for even one character is left out, not drawn as a lone ellipsis', () => {
+    // Four inner cells leave 0 for the title once its spaces and border run are paid; five leave 1.
+    expect(box('x', { width: 6, title: 'abc' }).split('\n')[0]).toBe('╭────╮');
+    expect(box('x', { width: 7, title: 'abc' }).split('\n')[0]).toBe('╭─────╮');
+    // Two cells is the first room a cut title has: one character and the ellipsis.
+    expect(box('x', { width: 8, title: 'abc' }).split('\n')[0]).toBe('╭─ a… ─╮');
+  });
+
+  it('vertical padding is blank rows inside the border, the full width', () => {
+    expect(box('hi', { width: 10, padding: { y: 1 } })).toBe(['╭────────╮', '│        │', '│ hi     │', '│        │', '╰────────╯'].join('\n'));
+  });
+
+  it('the drawn frame takes the title and the destination from the state', () => {
+    const component = boxComponent({ width: 30, terminal: STATIC });
+    expect(component.frame?.(0, { text: 'done', title: 'build' }).split('\n')[0]).toContain('╭─ build ─');
+    // Off OSC 8 the destination is written out after the text, so the frame carries it.
+    expect(component.frame?.(0, { text: 'doc', href: 'https://x.y' })).toContain('doc (https://x.y)');
+    expect(component.frame?.(0, { text: 'doc' })).not.toContain('https://x.y');
+  });
 });
 
 describe('table', () => {
@@ -187,6 +222,29 @@ describe('table', () => {
 
   it('with no header at all, the pairs fall back to tab-separated values', () => {
     expect(tableComponent().static({ rows })).toBe('ora\t99\nlog-update\t99');
+  });
+
+  it('too wide, the widest column gives way wherever it sits — not only the first', () => {
+    // Natural widths 1 and 30 in 20 columns: only the second can shrink, and it must.
+    const drawn = table([['a', 'b'.repeat(30)]], { width: 20 });
+    for (const line of drawn.split('\n')) expect(width(line)).toBe(20);
+    expect(drawn.split('\n')[1]).toBe(`│ a │ ${'b'.repeat(12)} │`);
+  });
+
+  it('a row shorter than the others draws blank cells, not `undefined`', () => {
+    const drawn = table([['a', 'b'], ['c']], { width: 20 });
+    expect(drawn).not.toContain('undefined');
+    expect(drawn.split('\n')[2]).toBe('│ c │   │');
+  });
+
+  it('a column past the last header is labelled by its index off a terminal', () => {
+    expect(tableComponent({ head: ['k'] }).static({ rows: [['a', 'b']] })).toBe('k: a, 1: b');
+  });
+
+  it('the drawn frame takes its header from the state when the state has one', () => {
+    const frame = tableComponent({ head: ['from-options'] }).frame?.(0, { head: ['from-state'], rows: [['x']] }) ?? '';
+    expect(frame).toContain('from-state');
+    expect(frame).not.toContain('from-options');
   });
 });
 
