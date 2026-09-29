@@ -1,0 +1,40 @@
+---
+title: Subprocess results for --json and agents
+description: "Give a CLI's --json mode and an agent's event stream the same facts about a subprocess the terminal shows, from one bellpull Result."
+---
+
+A CLI that shells out usually prints something for a person and, under `--json`, builds a
+second report by hand — and the two drift. With bellpull the report is the result, rendered:
+
+```js title="ship.mjs"
+import { format, run, toEvent, toJson } from 'bellpull';
+
+import { install, runtimeWith } from './tools.mjs';
+
+install();
+const runtime = runtimeWith('bin');
+const mode = process.argv[2] ?? 'human';
+
+const result = await run('greet', ['1'], { runtime });
+const steady = { ...result, duration: 0, executable: { path: 'bin/greet', from: 'bin' } }; // pinned for this page
+
+if (mode === '--json') console.log(JSON.stringify(toJson(steady)));
+else if (mode === '--events') console.log(JSON.stringify(toEvent(steady)));
+else console.log(format(steady));
+process.exitCode = result.ok ? 0 : 1;
+```
+
+```text title="node ship.mjs" exit="1"
+failed  greet exited 1 after 0 ms
+     bin/greet (from bin)
+     hello from bin
+```
+
+```text title="node ship.mjs --events" exit="1"
+{"type":"run","outcome":"failed","command":"greet","args":["1"],"code":1,"signal":null,"durationMs":0,"executable":"bin/greet","from":"bin"}
+```
+
+An agent branches on `outcome` — `ok`, `failed`, `timedOut` or `signalled` — rather than
+re-deriving it from `code`, `signal` and `timedOut`, and gets the binary that ran without
+asking a second question. The duration and paths are pinned above only so this page can be
+checked byte for byte; a real program passes `result` straight through.

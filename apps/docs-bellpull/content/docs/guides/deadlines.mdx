@@ -1,0 +1,84 @@
+---
+title: Deadlines and the kill ladder
+description: "Every run is bounded: 30 s by default, SIGTERM then SIGKILL after a grace window, and the output written before the kill is kept — plus killing the child when the parent shuts down."
+---
+
+A child that never exits strands whatever is waiting for it — a CI job until its own timeout,
+an agent forever. So every `run()` has a deadline unless the caller turns it off.
+
+| option | default | meaning |
+| :-- | :-- | :-- |
+| `timeout` | `DEFAULT_TIMEOUT`, 30 000 ms | how long before the child is asked to stop; `0` turns the deadline off |
+| `grace` | `DEFAULT_GRACE`, 5 000 ms | how long after `SIGTERM` before `SIGKILL` |
+
+## The ladder, and what survives it
+
+On a breach the child gets `SIGTERM`. A child that ignores it gets `SIGKILL` once `grace` has
+passed. Either way the promise resolves, with `timedOut: true` — and **with the output the
+child wrote before it was killed**. A CI timeout with the output thrown away cannot be
+diagnosed.
+
+```js title="stubborn.mjs"
+import { run } from 'bellpull';
+
+import { runtimeWith } from './tools.mjs';
+
+// A child that ignores SIGTERM, says one thing, and then never finishes.
+const stubborn = "process.on('SIGTERM', () => {}); console.log('partial output'); setInterval(() => {}, 1000);";
+const result = await run(process.execPath, ['-e', stubborn], { runtime: runtimeWith(), timeout: 5000, grace: 200 });
+
+console.log(result.ok, result.timedOut, result.signal, JSON.stringify(result.stdout));
+```
+
+```text title="node stubborn.mjs"
+false true SIGKILL "partial output\n"
+```
+
+A child that leaves when asked ends on the first rung: `timedOut` is still `true` and `ok` is
+still `false`, because a run that was cut short did not succeed.
+
+On Windows there is no deliverable `SIGTERM`: Node maps it to `TerminateProcess`, so the first
+rung already ends the child, and `signal` reads `SIGTERM`.
+
+## Turning it off
+
+`timeout: 0` arms nothing. That is for a caller who means it — a watch process, a server the
+program supervises — and it is spelled out so it cannot happen by accident.
+
+## When the parent shuts down
+
+A child still running when its parent exits is orphaned: it keeps its ports, its files and
+its CPU. bellpull does not claim the process's signals itself, because a library that
+installs signal handlers changes how every program that imports it dies. Instead, `run()`
+takes an **exit host** — anything with closeout's `add(handler) => unregister` — and while the
+child is alive, the host's shutdown kills it:
+
+```js title="host.mjs"
+import { run } from 'bellpull';
+import { install } from 'closeout';
+
+import { runtimeWith } from './tools.mjs';
+
+const { registry } = install();
+const forever = "console.log('serving'); setInterval(() => {}, 1000);";
+const pending = run(process.execPath, ['-e', forever], { runtime: runtimeWith(), exitHost: registry, timeout: 0 });
+
+setTimeout(() => registry.run({ code: null, signal: 'SIGTERM' }), 3000); // the parent is told to stop
+const result = await pending;
+console.log(result.signal, JSON.stringify(result.stdout));
+```
+
+```text title="node host.mjs"
+SIGKILL "serving\n"
+```
+
+The handler is registered when the child starts and removed when it ends, so a long-lived
+parent does not collect one per run. Without an `exitHost`, nothing is registered.
+
+## What is tested
+
+- [`matrix.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/bellpull/src/matrix.test.ts):
+  the ladder on a fake clock — nothing before the deadline, `SIGTERM` on it, `SIGKILL` after
+  grace, both rungs stood down when the child settles; end to end, a child that ignores
+  `SIGTERM` still settles with its partial output; `timeout: 0` opts out; with a host the
+  child is killed on shutdown, and without one nothing is registered.

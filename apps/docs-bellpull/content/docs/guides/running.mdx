@@ -1,0 +1,101 @@
+---
+title: Running a program
+description: "run(command, args, { runtime }): an argv array, no shell, output collected, and a result that resolves on a non-zero exit — rejecting only when no process ran."
+---
+
+```js
+import { ambientRuntime, run } from 'bellpull';
+
+const result = await run('git', ['rev-parse', 'HEAD'], { runtime: ambientRuntime() });
+```
+
+`run` resolves the command on `PATH`, spawns the file it found with the arguments as an
+**argv array** — never through a shell — collects `stdout` and `stderr`, and resolves when the
+child has exited and its output is drained.
+
+## A failure is a value
+
+A child that exits non-zero is a result with `ok: false`, not a thrown error. The caller reads
+it instead of catching it, and the output is right there:
+
+```js title="failing.mjs"
+import { run } from 'bellpull';
+
+import { install, runtimeWith } from './tools.mjs';
+
+install();
+const runtime = runtimeWith('bin');
+
+const passed = await run('greet', [], { runtime });
+const failed = await run('greet', ['1'], { runtime });
+console.log(passed.ok, passed.code);
+console.log(failed.ok, failed.code, failed.stdout.trim());
+```
+
+```text title="node failing.mjs"
+true 0
+false 1 hello from bin
+```
+
+## When it rejects
+
+Only when there is no process to report on:
+
+```js title="missing.mjs"
+import { run } from 'bellpull';
+
+import { runtimeWith } from './tools.mjs';
+
+try {
+  await run('no-such-tool', [], { runtime: runtimeWith() });
+} catch (error) {
+  console.log(error.name, error.code, error.message);
+}
+```
+
+```text title="node missing.mjs"
+NotFoundError ENOENT not found: no-such-tool
+```
+
+A spawn that fails for another reason rejects with `SpawnError`, `code: 'ERR_SPAWN_FAILED'`.
+
+## Arguments are data
+
+Each argument arrives in the child exactly as written — a `;`, a `$(…)` or a `&` in caller
+data is a character, not a command:
+
+```js title="argv.mjs"
+import { run } from 'bellpull';
+
+import { runtimeWith } from './tools.mjs';
+
+const hostile = 'a; echo injected $(whoami)';
+const result = await run(process.execPath, ['-e', 'console.log(JSON.stringify(process.argv[1]))', hostile], { runtime: runtimeWith() });
+console.log(result.stdout.trim());
+```
+
+```text title="node argv.mjs"
+"a; echo injected $(whoami)"
+```
+
+`shell: true` is accepted, off by default, and is the one way to lose that property: with a
+shell, an argument is text in a command line. `escape.test.ts` runs the same hostile argument
+both ways and asserts the shell executes it. On Windows, where `.cmd` files need `cmd.exe`,
+bellpull quotes and escapes for it rather than reaching for a shell — see
+[Windows without a shell](/docs/guides/windows).
+
+## The runtime is the child's world too
+
+The runtime's `env` and `cwd` are what the child is spawned with, unless the call passes its
+own `env` or `cwd`. So the `PATH` that resolved the command is the `PATH` the child sees, and
+the `executable` field names the binary that actually ran. Every other option is Node's
+`spawn` option — `stdio: 'inherit'` for a pass-through subcommand, `signal` for an `AbortSignal`, and the rest.
+
+## What is tested
+
+- [`matrix.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/bellpull/src/matrix.test.ts):
+  resolves on success and on a non-zero exit; keeps stderr separate; passes arguments as an
+  argv array; rejects when the executable does not resolve; does not mutate the caller's
+  arguments.
+- [`escape.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/bellpull/src/escape.test.ts):
+  the argv array is the boundary, and a shell removes it.

@@ -83,14 +83,14 @@
       }
     },
     "bellpull": {
-      "ours": 112027,
+      "ours": 112066,
       "incumbents": {
         "execa": 647091,
         "cross-spawn": 46962,
         "which": 71500
       },
       "ceiling": 765553,
-      "ratio": 0.1463,
+      "ratio": 0.1464,
       "lightestIncumbent": {
         "name": "cross-spawn",
         "bytes": 46962

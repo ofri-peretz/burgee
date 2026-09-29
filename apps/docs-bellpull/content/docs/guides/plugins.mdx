@@ -1,0 +1,87 @@
+---
+title: Resolver plugins
+description: "bellpull/plugin: a plugin contributes a search order — asdf or nvm shims, a devcontainer's tools — as plain data with no function, validated at register() and checked by npx bellpull check."
+---
+
+`PATH` is the part every environment does differently: `nvm` and `asdf` put shims in a
+directory computed from an environment variable, `pnpm` places binaries where `npm` does not,
+a devcontainer mounts tools outside every `PATH` the host had. Each is the same search with a
+different list of directories, so a plugin contributes the list — as **data**.
+
+```js title="asdf-plugin.mjs"
+import { contributions, directories, register } from 'bellpull/plugin';
+
+register({
+  name: 'asdf',
+  contract: 1,
+  resolvers: {
+    asdf: { rank: -10, paths: ['{ASDF_DATA_DIR}/shims'], when: { envAny: ['ASDF_DATA_DIR'] } },
+  },
+});
+
+console.log(JSON.stringify(contributions()));
+const runtime = { platform: 'linux', env: { ASDF_DATA_DIR: '/home/me/.asdf' }, cwd: '/home/me' };
+console.log(JSON.stringify(directories(runtime)));
+console.log(JSON.stringify(directories({ ...runtime, env: {} })));
+```
+
+```text title="node asdf-plugin.mjs"
+[{"name":"asdf","from":"asdf","resolver":{"rank":-10,"paths":["{ASDF_DATA_DIR}/shims"],"when":{"envAny":["ASDF_DATA_DIR"]}},"shadowed":[]}]
+[{"dir":"/home/me/.asdf/shims","resolver":"asdf","rank":-10}]
+[]
+```
+
+| field | meaning |
+| :-- | :-- |
+| `rank` | where it sits relative to `PATH`: negative searches before it |
+| `paths` | absolute directories; `{VAR}` is substituted from the runtime's environment |
+| `when` | `platform` and `envAny` conditions; a resolver whose condition fails contributes nothing |
+
+A resolver with no function in it survives JSON, so an agent can write one and a tool can
+print the search order it contributes without running anything. A later plugin with the same
+resolver name wins, and `contributions()` says whom it shadowed.
+
+## Using the directories
+
+`directories(runtime)` is the list, in search order; nothing in it searches. The caller splices
+it around `PATH` — for example as the `path` option of `whichSync`, or the child's `PATH` in
+the runtime passed to `run()`. `whichSync` and `run()` do not read the plugin registry on their
+own, so `bellpull/which` stays a leaf that loads nothing else.
+
+## Refused at the door
+
+A resolver's directories are searched before `PATH`, which is real privilege, so `register()`
+refuses what could point somewhere unintended:
+
+- **a relative path** — it would mean a different directory every time the program ran from
+  somewhere else, including one somebody else can write to;
+- a `{VAR}` that expands to a relative path, carries a `PATH` separator, or is unset is
+  **dropped** at search time rather than guessed at;
+- a resolver with no `paths`, no `rank`, or a malformed `when`;
+- a plugin with no name, or a newer `contract` than this bellpull knows.
+
+Each refusal is a `PluginError` with a code and a fix. `npx bellpull check <file>` runs the
+same validation on a plugin module's default export before it ships, and exits 0, 1 with the
+code and the fix, or 2 on a usage error:
+
+```js title="relative.mjs"
+export default {
+  name: 'asdf',
+  contract: 1,
+  resolvers: {
+    asdf: { rank: -10, paths: ['shims'] },
+  },
+};
+```
+
+```text title="npx bellpull check relative.mjs" exit="1"
+E_PLUGIN_SCHEMA: plugin "asdf": resolver "asdf": "shims" is not an absolute path
+  fix: use an absolute path, or start it with a `{VAR}` that holds one — a relative entry means a different directory every time the program is run from somewhere else, including one somebody else can write to
+```
+
+## What is tested
+
+- [`plugin.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/bellpull/src/plugin.test.ts):
+  a plugin is one plain object shared by the family; a resolver is data and survives JSON;
+  `when` decides whether it applies; only absolute directories are contributed; every refusal
+  carries a code and a fix.

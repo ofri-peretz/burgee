@@ -1,0 +1,60 @@
+---
+title: FAQ
+description: "Short answers about bellpull — execa, non-zero exits, the default timeout, shells, Windows, which binary ran, plugins, CommonJS and what is not built — each with where to read more."
+---
+
+## Is bellpull a drop-in for execa?
+
+No. execa's own suite grades it 0 of 1,048, and the row is declared a ceiling so no tool
+rewrites an execa import to bellpull. `run()` is the alternative, and moving to it is a rewrite
+of each call site: [Coming from execa](/docs/coming-from/execa).
+
+## Why doesn't `run()` throw when the command fails?
+
+Because a failed command is an outcome, not an error in your program. `run()` resolves with
+`ok: false`, the code and the output, and rejects only when no process ran — the command did
+not resolve, or the spawn failed. [Running a program](/docs/guides/running).
+
+## My long-running child was killed after 30 seconds.
+
+That is the default deadline. Pass `timeout` with a longer bound, or `timeout: 0` for a child
+that is meant to run until you stop it. [Deadlines](/docs/guides/deadlines).
+
+## Does it use a shell?
+
+Not unless you pass `shell: true`, which is documented as the injection surface it is. On
+Windows, `.cmd` files are run through `cmd.exe` invoked by bellpull itself with every argument
+escaped. [Windows without a shell](/docs/guides/windows).
+
+## How do I find out which binary ran?
+
+`result.executable` is `{ path, from }`: the file, and the `PATH` entry that found it.
+`whichAllSync` lists every match, best first. [Which binary ran?](/docs/recipes/which-binary-ran)
+
+## Why does bellpull skip an empty entry in my PATH?
+
+Because to a POSIX shell it means the current directory, which changes with wherever the
+program is run from. `searchPath()` shows each skipped entry and why. The drop-in,
+`bellpull/node-which`, keeps node-which's behaviour and searches it.
+
+## Are children killed when my program exits?
+
+Only if you pass an `exitHost` — closeout's registry, or anything with the same
+`add(handler)` shape. bellpull does not install signal handlers on its own. execa does this by
+default; this is one place it is ahead. [Deadlines](/docs/guides/deadlines#when-the-parent-shuts-down).
+
+## Do resolver plugins change what `run()` finds?
+
+Not on their own. `directories(runtime)` gives the contributed search order as data, and you
+splice it into `PATH` for the call. [Resolver plugins](/docs/guides/plugins#using-the-directories).
+
+## Can I use it from CommonJS?
+
+Yes, on Node 20.19+ and 22.13+ through `require(esm)`; `shape.test.ts` installs the packed
+tarball and does exactly that. `require('bellpull/cross-spawn')` returns the callable default,
+as `require('cross-spawn')` does.
+
+## Is bellpull faster than tinyexec?
+
+Nobody knows yet: the spawn-time comparison has no benchmark, and this site makes no speed
+claim. The bytes comparison is measured: `run` bundles to 5,901 B against tinyexec's 5,969 B.
