@@ -1,0 +1,23 @@
+name: DIAGNOSTIC claude auth (do not merge)
+
+# Throwaway: prints only the Claude CLI's own reply/error for a one-word prompt, using the
+# same secret the required `review` check uses. No repo code runs; the token is masked.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ask Claude for one word with CLAUDE_CODE_OAUTH_TOKEN
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          echo "token length: ${#CLAUDE_CODE_OAUTH_TOKEN}; has whitespace: $([[ "$CLAUDE_CODE_OAUTH_TOKEN" =~ [[:space:]] ]] && echo yes || echo no)"
+          npm install --global --silent @anthropic-ai/claude-code >/dev/null 2>&1
+          claude --version
+          claude -p "Reply with the single word ok" --model claude-sonnet-4-6 --output-format json 2>&1 | head -c 4000 || true
