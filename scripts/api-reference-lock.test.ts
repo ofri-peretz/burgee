@@ -123,6 +123,10 @@ describe('doc-comment prose is valid Markdown', () => {
     expect(prose('`plain` and `other` stay as they are')).toBe('`plain` and `other` stay as they are');
   });
 
+  it('moves a bulleted list the comment indents to the margin, continuation lines and all', () => {
+    expect(prose('Two questions:\n\n  - **one**, which\n    wraps\n  - **two**\n\nAfter.')).toBe('Two questions:\n\n- **one**, which\n  wraps\n- **two**\n\nAfter.');
+  });
+
   it('says when a doc comment quotes a code span that opens or closes on a space', () => {
     expect(spacedSpan('because `Done: ` reads worse than `Done`')).toBe(true);
     expect(spacedSpan('`plain` and `` chalk`{red x}` `` are not')).toBe(false);

@@ -1,0 +1,41 @@
+---
+title: Testing coloured output
+description: "Assert what your CLI prints at each colour level by flying a literal runtime — no environment patching, no fake terminal."
+---
+
+The policy reads only the runtime it is given, so a test flies a literal and asserts the exact
+bytes, at any level, on any machine, in any CI:
+
+```js title="colours.mjs"
+import assert from 'node:assert/strict';
+
+import { fly } from 'roundel/theme';
+import { error } from 'roundel/tokens';
+
+const at = (env, tty = false) => fly({ ground: '#ffffff', error: '#b3261e' }, { env, isTTY: { stdout: tty } });
+
+at({ FORCE_COLOR: '3' });
+assert.equal(error('x'), '\u001B[38;2;179;38;30mx\u001B[39m');
+
+at({ FORCE_COLOR: '2' });
+assert.equal(error('x'), '\u001B[38;5;124mx\u001B[39m');
+
+at({ TERM: 'xterm-256color' });
+assert.equal(error('x'), 'x');
+
+at({ TERM: 'xterm-256color' }, true);
+assert.equal(error('x'), '\u001B[38;5;124mx\u001B[39m');
+
+at({ NO_COLOR: '1', COLORTERM: 'truecolor' }, true);
+assert.equal(error('x'), 'x');
+
+console.log('ok');
+```
+
+```text title="node colours.mjs"
+ok
+```
+
+Each `fly()` replaces the last, so the order of the cases does not matter. The same literal
+runtime answers `outputMode()` too, which is how a test checks that a component redraws on a
+terminal and writes plain lines everywhere else.
