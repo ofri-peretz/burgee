@@ -1,0 +1,97 @@
+---
+title: Links and images
+description: "paratext/link for one hyperlink without the registry, paratext/terminal-link for terminal-link's API and detection, and paratext/term-img for term-img's API over image bytes."
+---
+
+Three subpaths cover the two capabilities most programs want, without loading the registry or
+the schema.
+
+## `paratext/link`
+
+`link(text, url)` over the real process, `linkFor(runtime)` for any other, and
+`supportsLink(runtime)` for a renderer deciding **layout** — a help screen that prints a
+separate `Docs` column only where the URL would otherwise be repeated in parentheses.
+
+```js title="link.mjs"
+import { linkFor, supportsLink } from 'paratext/link';
+
+const pipe = { env: {}, isTTY: { stdout: false } };
+const wezterm = { env: { TERM_PROGRAM: 'WezTerm' }, isTTY: { stdout: true } };
+
+console.log(JSON.stringify(linkFor(pipe)('Docs', 'https://x.dev')), supportsLink(pipe));
+console.log(JSON.stringify(linkFor(wezterm)('Docs', 'https://x.dev')), supportsLink(wezterm));
+```
+
+```text title="node link.mjs"
+"Docs (https://x.dev)" false
+"\u001b]8;;https://x.dev\u0007Docs\u001b]8;;\u0007" true
+```
+
+The subpath registers nothing: it emits through the same `link` record the registry ships.
+
+## `paratext/terminal-link`
+
+terminal-link 5's API — `terminalLink(text, url, options)`, `terminalLink.stderr`,
+`isSupported` — with terminal-link's detection, which is supports-hyperlinks'. Its fallback is
+terminal-link's too: the text, a space and the URL, or your `fallback` function, or the text
+alone with `fallback: false`.
+
+```js title="terminal-link.mjs"
+import terminalLink from 'paratext/terminal-link';
+
+console.log(terminalLink('Docs', 'https://x.dev'));
+console.log(terminalLink('Docs', 'https://x.dev', { fallback: (text, url) => `${text} <${url}>` }));
+console.log(terminalLink('Docs', 'https://x.dev', { fallback: false }));
+console.log(terminalLink.isSupported);
+```
+
+```text title="node terminal-link.mjs"
+Docs https://x.dev
+Docs <https://x.dev>
+Docs
+false
+```
+
+`FORCE_HYPERLINK=1` forces a link, as it does with terminal-link:
+
+```js title="forced.mjs"
+import terminalLink from 'paratext/terminal-link';
+
+console.log(JSON.stringify(terminalLink('Docs', 'https://x.dev')));
+```
+
+```text title="FORCE_HYPERLINK=1 node forced.mjs"
+"\u001b]8;;https://x.dev\u0007Docs\u001b]8;;\u0007"
+```
+
+## `paratext/term-img`
+
+term-img 7's API for image **bytes**: `terminalImage(bytes, { width, height,
+preserveAspectRatio, fallback })` and `UnsupportedTerminalError`. Support is term-img's own table
+— iTerm2 3+, WezTerm 20220319+, Konsole 22.04+, Rio 0.1.13+ and VS Code 1.80+ — read from the
+environment, as term-img reads it. An unsupported terminal calls your `fallback`, or throws:
+
+```js title="image.mjs"
+import terminalImage, { UnsupportedTerminalError } from 'paratext/term-img';
+
+const png = Buffer.from('iVBORw0KGgo=', 'base64');
+console.log(terminalImage(png, { fallback: () => '[an image your terminal cannot show]' }));
+try {
+  terminalImage(png);
+} catch (error) {
+  console.log(error instanceof UnsupportedTerminalError, error.name);
+}
+```
+
+```text title="node image.mjs"
+[an image your terminal cannot show]
+true UnsupportedTerminalError
+```
+
+It takes bytes, not a path: paratext has no `node:fs` dependency (D-030), so the caller reads
+the file — `terminalImage(await readFile(path))`. A path handed to a supported terminal throws a
+`TypeError` that says so, at the point term-img would have read the file.
+
+Like term-img, `paratext/term-img` reads the environment and not the terminal: a program run
+inside iTerm2 with its output piped still gets the image bytes. `image()` from the root is the
+form that projects to a caption off a terminal ([The ansi-escapes surface](/docs/guides/ansi-escapes#the-osc-half-the-incumbents-bytes-or-the-projection)).
