@@ -22,7 +22,7 @@ import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import crossSpawn, { spawn, sync } from './cross-spawn.js';
 import { type Runtime } from './runtime.js';
@@ -143,6 +143,27 @@ describe('the Windows branch, driven from a Mac', () => {
     expect(parsed.command).toBe('npm');
     expect(parsed.args).toEqual(['a & calc']);
     expect(parsed.options.windowsVerbatimArguments).toBeUndefined();
+  });
+
+  /*
+   * `_parse` is the façade's own, and it reads the platform the way `cross-spawn`'s does: off
+   * the ambient `process`, at the call. Swapping the global for the length of one call is what
+   * `cross-spawn`'s suite does by reassigning `process.platform`, and it lets the Windows
+   * answer be asked for here.
+   */
+  it('`_parse` reads the ambient process, so a caller passes no runtime', () => {
+    const windows = { platform: 'win32', env: { PATH: '', PATHEXT: '.EXE', COMSPEC: 'X:\\cmd.exe' }, cwd: () => 'X:\\nowhere' };
+    vi.stubGlobal('process', windows);
+    let parsed;
+    try {
+      parsed = crossSpawn._parse('npm', ['a & calc']);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(parsed.command).toBe('X:\\cmd.exe');
+    expect(parsed.args).toEqual(['/d', '/s', '/c', '"npm ^"a^ ^&^ calc^""']);
+    // And the same call with the real process back is this machine's answer.
+    expect(crossSpawn.parse('npm', ['x'])).toEqual(parse('npm', ['x'], undefined, { platform: process.platform, env: process.env, cwd: process.cwd(), uid: process.getuid?.(), gid: process.getgid?.() }));
   });
 
   it('does not touch anything when the caller asked for a shell themselves', () => {
