@@ -1,0 +1,13 @@
+{
+  "title": "API reference",
+  "pages": [
+    "index",
+    "once",
+    "cursor",
+    "plugin",
+    "restore-cursor",
+    "exit-hook",
+    "signal-exit",
+    "signal-exit/signals"
+  ]
+}

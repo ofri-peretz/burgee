@@ -40,7 +40,7 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
  * joins by being added here once its hand-written pages exist, and the lock then holds its
  * reference and changelog in sync.
  */
-export const STANDARD_SITES: readonly string[] = ['flagstaff', 'linegauge', 'seniority'];
+export const STANDARD_SITES: readonly string[] = ['flagstaff', 'linegauge', 'closeout', 'seniority'];
 
 type ExportTarget = string | { types?: string; import?: string; default?: string };
 interface Manifest {

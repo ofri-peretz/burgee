@@ -1,0 +1,102 @@
+---
+title: The deadline
+description: "A bounded shutdown: closeout stops waiting for exit handlers after a deadline (2000 ms by default), leaves with the code it was leaving with, and names the handler that hung."
+---
+
+A handler that awaits something that never resolves — a socket that will not close, a lock
+nobody releases — turns Ctrl-C into a process the user has to kill twice. The second time is
+SIGKILL, which runs no handlers at all. closeout bounds the shutdown instead: after the
+deadline it stops waiting, and says which handler it stopped waiting for.
+
+```js title="hang.mjs"
+import { install } from 'closeout';
+
+const { onExit } = install({ deadline: 200 });
+
+onExit(() => console.log('flushed the log'), 'flush');
+onExit(() => new Promise(() => {}), { label: 'close-the-socket' });
+onExit(() => console.log('terminal handed back'), 'restore');
+
+setTimeout(() => {}, 10_000);
+process.kill(process.pid, 'SIGTERM');
+```
+
+```text title="node hang.mjs" signal="SIGTERM"
+flushed the log
+terminal handed back
+closeout: shutdown deadline of 200ms expired; exiting anyway. Handlers that had not returned: close-the-socket
+```
+
+Three things happened there:
+
+1. **The hang was named.** The line on stderr says which handler had not returned, by its
+   `label` — or by the function's own name, or `(anonymous)`. An anonymous arrow is exactly
+   the shape that hangs, so give the ones that can hang a label.
+2. **The restore still ran.** The deadline stops waiting for the phase that hung; it does not
+   skip the phases after it.
+3. **The process left the way it was leaving.** It still died of `SIGTERM`. A breach never
+   invents an exit code: a program that called `process.exit(3)` leaves with 3.
+
+## Setting it
+
+```js
+import { install } from 'closeout';
+
+const closeout = install({ deadline: 5000 });
+closeout.onExit(releaseTheLock);
+```
+
+`install()` wires a registry of its own to the process. The process-wide `onExit` uses the
+default, `DEFAULT_DEADLINE`, which is **2000 ms**. That figure is provisional: measured on
+five cleanup shapes, four finished inside 70 ms and the fifth (removing a directory of 100
+files) depended entirely on the disk it was queued behind. closeout's README has the
+measurement.
+
+`Infinity` and `0` are refused where they are written, with a `DeadlineError` whose `code` is
+`USAGE`:
+
+```js title="refused.mjs"
+import { install } from 'closeout';
+
+try {
+  install({ deadline: Infinity });
+} catch (error) {
+  console.log(error.code);
+}
+```
+
+```text title="node refused.mjs"
+USAGE
+```
+
+Both reintroduce the failure the deadline removes: one waits forever, and the other gives no
+asynchronous handler a turn at all.
+
+## Reporting the breach yourself
+
+`onTimeout` replaces the stderr line. It is handed the whole report, so a program with a
+`--json` mode can print the breach as JSON instead ([Reports](/docs/guides/reports)):
+
+```js
+install({ deadline: 2000, onTimeout: (report) => logger.warn({ unfinished: report.unfinished }) });
+```
+
+## When the deadline does not apply
+
+- **Nothing hangs.** When every handler settles, shutdown returns at once. A clean shutdown
+  never pays for the bound, and one whose handlers are all synchronous returns without waiting on the clock at all.
+- **`exit`.** On `process.exit()` Node gives no time at all, so there is nothing to bound:
+  async handlers are abandoned and listed as unfinished.
+- **`closeout/exit-hook`.** The drop-in keeps exit-hook's own bound, the per-hook `wait`,
+  because a drop-in that silently tightened your timeout would not be a drop-in.
+
+## What is tested
+
+- [`matrix.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/matrix.test.ts):
+  a handler that never returns does not stop a signal, a throw, a rejection or `beforeExit`
+  from ending the process, and is named in the report; a breached deadline exits with the
+  signal's code, not one a handler set on its way past.
+- [`deadline.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/deadline.test.ts):
+  `Infinity` and `0` are refused; restore runs after a hang in `flush`.
+- [`signal.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/signal.test.ts):
+  a hang that holds nothing in the event loop does not turn a signal into exit 0.
