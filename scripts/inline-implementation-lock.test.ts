@@ -59,6 +59,7 @@ const JOBS: Job[] = [
   // An upward directory walk: `x = dirname(y)`, then `x` compared, which is how every such loop
   // knows it reached the root. seniority's `search` is that walk, bounded and cycle-safe.
   { owner: 'seniority', what: 'walking up the directory tree', shape: /(\w+)\s*=\s*dirname\(\s*\w+\s*\)[\s\S]{0,200}?(?:\b\1\s*===|===\s*\1\b)/ },
+  { owner: 'roundel', what: 'reading a colour variable', shape: /\[\s*['"](?:NO_COLOR|FORCE_COLOR|COLORTERM|CLICOLOR(?:_FORCE)?)['"]\s*\]/ },
 ];
 
 /**
@@ -74,6 +75,10 @@ const KNOWN: Record<string, string> = {
     "`nearestPackage` runs on every start-up (V4), and burgee's core bundle is 24,277 B against a 24,282 B ceiling. `findUpSync` from `seniority/find-up` measured 24,924 B (+647: the symlink-cycle guard, the depth limit and the generator), and `search` from the `seniority` root 29,639 B. Neither nets out, so the eighteen-line walk stays until the core finds the bytes.",
   'burgee/src/yargs/shim.ts':
     "escalade's `findUp(start, callback)`, ported for the yargs façade: the callback receives each directory and its `readdir` listing and returns a name, and a `start` that is a file begins at its directory. seniority's spec (R5, and its rejected alternative on publishing the discovery plumbing) keeps the walk an override target for `find-up` only, not a second plumbing product with escalade's shape, so there is nothing of seniority's for it to call.",
+  'burgee/src/commander/command.ts':
+    "`useColor()` is commander 14's own colour rule, ported as commander has it — `NO_COLOR` and `FORCE_COLOR=0|false` off, `FORCE_COLOR` or `CLICOLOR_FORCE` on, otherwise the stream decides. It is the façade's graded behaviour (1360 / 1360), not a mechanism: roundel's policy answers a different question (a level, with `--color` flags and CI vendors) and routing commander through it would change what a migrated program prints.",
+  'paratext/src/hyperlinks.ts':
+    "a declared fork of supports-color 10.2.2, the version supports-hyperlinks 4.5.0 depends on, graded against the real package case by case. paratext is a leaf and may not import roundel (PLAN's architecture rule: no leaf-to-leaf edge), and roundel follows chalk 6's newer vendored copy, which differs from 10.2.2 on purpose in three rows. `scripts/colour-fork-parity.test.ts` holds the two to agreement everywhere else.",
   'compat-oracle/src/upstream.ts':
     "`execFileSync('npm', …)` with no Windows guard — the exact bug bellpull exists to prevent, and the one `burgee/src/shape.test.ts` already works around with `shell: true`, which is the spelling cross-spawn refuses because it reopens command injection.",
 };
@@ -149,7 +154,9 @@ describe('no package keeps an inline implementation of a layer’s job', () => {
     // 4 -> 6 on 2026-09-28 (D-182): the upward-walk shape above found two walks that cannot move
     // yet — one on burgee's start-up path, which the core's byte ceiling holds, and one that is
     // escalade's own shape, which seniority's spec declines to publish.
-    expect(Object.keys(KNOWN).length, 'a new inline implementation was added — use the layer instead').toBeLessThanOrEqual(6);
+    // 6 -> 8 on 2026-09-28 (D-181): the colour-variable shape above found two, and neither can
+    // move — a leaf may not import roundel, and a façade ports its incumbent's own rule.
+    expect(Object.keys(KNOWN).length, 'a new inline implementation was added — use the layer instead').toBeLessThanOrEqual(8);
   });
 
   it('every shape it looks for is owned by a package that exists', () => {

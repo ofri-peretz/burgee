@@ -392,10 +392,13 @@ const RULES: Record<string, EntryRule> = {
   // 9,130 on 2026-09-27 for D-151: the root's help names `--schema` (clispec.dev's
   // `help-mentions-schema`), one row and the root-or-not choice. Measured 9,085 (+174).
   // Measured 8,570 (-503) on 2026-09-28: the word wrap is `linegauge`'s `wrap`, not a loop here.
+  // 2026-09-28: `colorFor` is roundel's `colorLevel`, so `roundel/policy` (1,972 B, reaching
+  // nothing) leaves the denied list for this entry alone. It is the lazy help chunk: the core
+  // path, which still denies `roundel` by name, does not move. Measured 8,512 (-58).
   "./help": {
-    allow: ["linegauge"],
+    allow: ["linegauge", "roundel/policy"],
     budget: 9_130,
-    denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
+    denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel/tokens", "roundel/theme", "roundel/chalk", "flagstaff", "caique"],
   },
   // The MCP server. It reaches the schema and the manifest, because a tool list *is* the
   // schema, and nothing outside the package. `invoke` is injected, which is what keeps the

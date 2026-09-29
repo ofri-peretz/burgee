@@ -361,8 +361,10 @@ and most of what follows is small; one item is a note that has been overtaken by
 - **R1's closed union is still the requirement text.** R7 widens it and says so, and the code
   follows R7 — but a reader who stops at R1 sees six kinds and no extension point.
 - **The design describes tokens from roundel and a spinner from flagstaff.** `package.json`
-  declares one dependency, `closeout`. Nothing in `packages/caique/src/` imports `roundel` or
-  `flagstaff`; the widgets draw their own text.
+  declares `closeout`, `linegauge` and — since 2026-09-28 (D-181) — `roundel`, for
+  `roundel/terminal` only: `decide()` asks its `interactive()` whether anybody is there, and
+  `caique/inquirer` its unicode probe. Nothing imports roundel's tokens or `flagstaff`; the
+  widgets still draw their own text.
 
 ## Rejected alternatives
 
