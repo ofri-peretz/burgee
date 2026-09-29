@@ -132,13 +132,13 @@ const KNOWN: Record<string, string> = {
   'flagstaff/src/cli-table3.ts':
     "cli-table3's own `utils` — its SGR regex and the escape codes it re-opens across a wrapped cell — ported for the façade and graded by cli-table3's suite. Measurement itself is linegauge's (`measure`); what stays is the incumbent's cell-colour bookkeeping.",
   'flagstaff/src/ora.ts':
-    "is-interactive as ora inlines it — the *stream's* TTY, `TERM=dumb`, `'CI' in env` — which is ora's own definition of an animated spinner and differs from roundel's `interactive()` (stdin, agents), so it stays ora's. Its raw mode moved in #680; the synchronized-output pair moves in #684.",
+    "is-interactive as ora inlines it — the *stream's* TTY, `TERM=dumb`, `'CI' in env` — which is ora's own definition of an animated spinner and differs from roundel's `interactive()` (stdin, agents), so it stays ora's. Its raw mode moved in #680 and the synchronized-output pair in #684.",
   'flagstaff/src/projection.ts':
     "a release branch is fixing this file's row count now; it is left alone here until that lands, and then its repaint belongs to linegauge's `lineCount` and paratext's CSI like every other one.",
   'caique/src/inquirer-theme.ts':
     "`@inquirer/core`'s default theme carries its own spinner frames and interval, which `usePrefix` reads and the incumbent's suite asserts; they are theme data of a façade, not a spinner flagstaff could draw.",
   'caique/src/clack-core.ts':
-    "caique/clack's port of `@clack/core` (#638, after this audit): its raw-mode toggle, `isCI()` and cursor sequences are the incumbent's, graded 16 / 17. Moving them onto closeout, roundel and paratext is the same work #680 (merged), #678 and #684 do for the rest of caique, and has not been done for this file yet.",
+    "caique/clack's port of `@clack/core` (#638, after this audit): its raw-mode toggle, `isCI()` and cursor sequences are the incumbent's, graded 16 / 17. Moving them onto closeout, roundel and paratext is the same work #680, #684 and #678 do for the rest of caique, and has not been done for this file yet.",
   'caique/src/clack-output.ts': "caique/clack's spinner and progress output (#638), with `@clack/prompts`' cursor sequences; the same follow-up as `clack-core.ts`.",
   'burgee/src/brand.ts':
     "wraps the subtitle of an SVG brand card, set in a monospace face where one character is one advance by construction. It is layout on a drawing, not text measured against a terminal, and has nothing of linegauge's to call.",
@@ -147,7 +147,7 @@ const KNOWN: Record<string, string> = {
   'burgee/src/yargs/shim.ts':
     "escalade's `findUp(start, callback)` for the yargs façade: a callback handed each directory's `readdir` listing. seniority's spec keeps its walk an override target for `find-up` only and declines to publish a second discovery product in escalade's shape (R5, D-182).",
   'caique/src/raw.ts':
-    "the arrow keys a terminal *sends* (`ESC[A`, `ESC[B`) are decoded here — input, which is caique's own keypress job, not an escape it writes. Its raw mode moved in #680 and its row count in #677; its repaint's sequences move in #684; the key table is what stays.",
+    "the arrow keys a terminal *sends* (`ESC[A`, `ESC[B`) are decoded here — input, which is caique's own keypress job, not an escape it writes. Its raw mode moved in #680, its row count in #677 and its repaint's sequences in #684; the key table is what stays.",
   'compat-oracle/src/run.ts': 'runs each vendored suite in a child process. Internal tooling, never published — but it is still bellpull\'s job, and it is where the executable-resolution bug would bite CI first.',
   'compat-oracle/src/vendor.ts': '`git clone` and `git rev-parse`. Same as above.',
   'burgee/src/pkg.ts':
@@ -159,19 +159,17 @@ const KNOWN: Record<string, string> = {
   // ── Moving: an open PR takes each of these onto its owner.
   'burgee/src/help.ts': "`colorFor` reads `FORCE_COLOR`/`NO_COLOR` itself, letting FORCE_COLOR beat NO_COLOR and ignoring `--no-color`. Moves in #678, to roundel's `colorLevel`.",
   'caique/src/decide.ts': "asks `isTTY.stdin && !CI`, which prompts an agent that has a terminal. Moves in #678, to roundel's `interactive()`.",
-  'caique/src/inquirer-screen.ts': "`@inquirer/ansi`'s cursor sequences, spelled by hand. Moves in #684, to `paratext/csi`.",
-  'flagstaff/src/log-update.ts': "ansi-escapes' cursor moves and erases, spelled by hand. Moves in #684, to `paratext/csi`.",
 };
 
 /**
  * The ceiling on KNOWN, re-baselined on 2026-09-28 (D-180). The rule used to be "at most 4",
  * written when the lock knew four shapes; it now knows seventeen, and they found eighteen more
- * files. It was 22 on the day the shapes were written; #683 moved meow's walk and #677
- * testing-helpers' regex before they landed, and four more have an open PR removing them,
- * which would leave sixteen. Like every
+ * files. It was 22 on the day the shapes were written; #683 moved meow's walk, #677
+ * testing-helpers' regex and #684 the CSI in inquirer-screen and log-update before they landed,
+ * and #678 removes two more, which would leave sixteen. Like every
  * ratchet here it only goes down: lower it when an entry leaves, never raise it to admit one.
  */
-const CEILING = 20;
+const CEILING = 18;
 
 const sources = (dir: string, out: string[] = []): string[] => {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
