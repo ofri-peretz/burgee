@@ -90,7 +90,7 @@ runs the command in the block's title with nothing on stdin, and compares.
 | a value came from any source | not asked |
 | `--json` | an error naming the flag: a machine is reading |
 | `--yes`, and the prompt is a `confirm` | answered `true`, even with no terminal |
-| no terminal on stdin, or `CI` set | an error naming the flag |
+| no terminal on stdin, `CI` set, or an agent (`CLAUDECODE` and the like) | an error naming the flag |
 | `required`, or the run passed `--interactive` | asked |
 | anything else | not asked |
 

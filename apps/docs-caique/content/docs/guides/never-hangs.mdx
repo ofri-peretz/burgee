@@ -1,6 +1,6 @@
 ---
 title: Never hangs
-description: "decide() is the rule: a supplied value is never asked for, --json and CI never prompt, --yes answers a confirm, and with nobody on stdin a missing value is an error naming the flag."
+description: "decide() is the rule: a supplied value is never asked for, --json, CI and agents never prompt, --yes answers a confirm, and with nobody on stdin a missing value is an error naming the flag."
 ---
 
 A prompt that waits for a person who is not there is a hang, and a hung agent is a failed
@@ -15,6 +15,7 @@ const spec = { kind: 'confirm', message: 'Overwrite the existing config?' };
 const terminal = { env: {}, isTTY: { stdin: true } };
 const pipe = { env: {}, isTTY: { stdin: false } };
 const ci = { env: { CI: 'true' }, isTTY: { stdin: true } };
+const agent = { env: { CLAUDECODE: '1' }, isTTY: { stdin: true } };
 
 const cases = [
   ['a value was passed', { value: false, runtime: pipe }],
@@ -23,6 +24,7 @@ const cases = [
   ['a terminal, optional, --interactive', { value: undefined, runtime: terminal, flags: { interactive: true } }],
   ['no terminal, required', { value: undefined, runtime: pipe, required: true }],
   ['CI on a terminal, required', { value: undefined, runtime: ci, required: true }],
+  ['an agent on a terminal, required', { value: undefined, runtime: agent, required: true }],
   ['--json on a terminal', { value: undefined, runtime: terminal, required: true, flags: { json: true } }],
   ['--yes, no terminal', { value: undefined, runtime: pipe, required: true, flags: { yes: true } }],
 ];
@@ -39,7 +41,8 @@ a terminal, required                 prompt
 a terminal, optional                 skip
 a terminal, optional, --interactive  prompt
 no terminal, required                error — --force is required when there is no terminal
-CI on a terminal, required           error — --force is required when there is no terminal
+CI on a terminal, required           error — --force is required when nobody is there to answer
+an agent on a terminal, required     error — --force is required when nobody is there to answer
 --json on a terminal                 error — --force is required under --json
 --yes, no terminal                   answer true
 ```
@@ -53,7 +56,11 @@ CI on a terminal, required           error — --force is required when there is
 - **`--yes` answers a `confirm`, and only a `confirm`.** Nothing has to be typed, so it works
   with no terminal too. It never answers a `text` or a `select`, because there is no "yes" to
   a question with more than two answers.
-- **No terminal on stdin, or `CI` set, is nobody there.** Then a missing value is an error
+- **No terminal on stdin, `CI` set, or an agent driving the process is nobody there.** An
+  agent — `CLAUDECODE`, `CURSOR_AGENT`, `CODEX_THREAD_ID`, `GEMINI_CLI`, `AI_AGENT` — may well
+  have a terminal; what it does not have is a person. This is roundel's
+  [`interactive()`](https://roundel.interlace.tools/docs), and `FORCE_TTY=1`
+  is its one override. Then a missing value is an error
   whose `fix` names the flag and quotes the question it would have asked. `--interactive`
   cannot conjure a person, and the error says so when it was passed, rather than looking as if
   the flag was ignored.
@@ -67,5 +74,5 @@ terminal and no value is never a prompt.
 
 ## The runtime
 
-`decide()` reads `env.CI` and `isTTY.stdin` from the runtime it is handed, and never `process`.
+`decide()` reads `env` — `CI`, the agent variables, `FORCE_TTY` — and `isTTY.stdin` from the runtime it is handed, and never `process`.
 `processRuntime()` from `caique` builds one from the real process; a test passes a literal.

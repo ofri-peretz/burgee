@@ -13,9 +13,10 @@
  * `scripted.mjs`, a person whose answers are a list, the same way: it is defined on Asking
  * and written beside every page that does not define its own.
  *
- * The environment is cleared of what `decide()` and the output policy read (`CI`,
- * `CLI_ACCESSIBLE`, `NO_COLOR`, `FORCE_COLOR`, `TERM`) unless the command sets it, so a CI
- * runner — which exports `CI` — and a laptop run the same example.
+ * The environment is cleared of what `decide()`, roundel's `interactive()` and the output
+ * policy read — `CI`, the agent variables, `FORCE_TTY` and the colour switches — unless the
+ * command sets it, so a CI runner (which exports `CI`), an agent's shell (which exports
+ * `CLAUDECODE` or the like) and a laptop run the same example.
  */
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -65,8 +66,8 @@ afterAll(() => {
   for (const dir of scratch) rmSync(dir, { recursive: true, force: true });
 });
 
-/** What `decide()` and the output policy read; cleared unless a command sets it. */
-const POLICY = ['CI', 'CLI_ACCESSIBLE', 'NO_COLOR', 'FORCE_COLOR', 'TERM'];
+/** What `decide()`, roundel's `interactive()` and the output policy read; cleared unless a command sets it. */
+const POLICY = ['CI', 'CLI_ACCESSIBLE', 'NO_COLOR', 'FORCE_COLOR', 'TERM', 'FORCE_TTY', 'AI_AGENT', 'CLAUDECODE', 'CURSOR_AGENT', 'CODEX_THREAD_ID', 'GEMINI_CLI'];
 
 /** The `caique` bin, as `npx caique` finds it in an install. */
 const BIN = join(APP, '..', '..', 'node_modules', 'caique', 'dist', 'cli.js');

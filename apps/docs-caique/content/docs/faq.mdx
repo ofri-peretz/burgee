@@ -5,7 +5,8 @@ description: "Short answers about caique — why it refused, --yes, --interactiv
 
 ## Why did it refuse instead of asking?
 
-Because nobody was there to ask: stdin is not a terminal, `CI` is set, or the run passed
+Because nobody was there to ask: stdin is not a terminal, `CI` is set, an agent is driving the
+process, or the run passed
 `--json`. The error names the flag to pass and quotes the question it would have asked
 ([Never hangs](/docs/guides/never-hangs)).
 
@@ -23,6 +24,12 @@ Every `confirm`, with `true`, terminal or not. Nothing else: a `text` or a `sele
 ## My CI job has a terminal attached. Does it prompt?
 
 No. `CI` set means nobody is there to type, whatever stdin is.
+
+## An agent runs my CLI in a terminal. Does it prompt?
+
+No. Under `CLAUDECODE`, `CURSOR_AGENT`, `CODEX_THREAD_ID`, `GEMINI_CLI` or `AI_AGENT` the
+prompt is refused, naming the flag, even with a terminal on stdin: the agent has the terminal
+but not a person. `FORCE_TTY=1` overrides it, for a caller that pipes answers on purpose.
 
 ## What happens when stdin closes mid-question?
 
