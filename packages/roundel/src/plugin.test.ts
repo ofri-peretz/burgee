@@ -28,6 +28,9 @@ const acme = {
   components: { bar: { static: () => 'bar' } },
 };
 
+/** A plugin factory, exported by mistake in place of the object it returns. */
+const factory = (): { name: string } => ({ name: 'f' });
+
 const tty: Runtime = { env: { FORCE_COLOR: '3' }, isTTY: { stdout: true } };
 
 beforeEach(reset);
@@ -47,6 +50,12 @@ describe('one object, four readers', () => {
     register({ name: 'spinners-only', spinners: {} });
     expect(theme()).toEqual({});
     expect(registered()).toHaveLength(1);
+  });
+
+  it('a plugin with no tokens contributes no row, beside one that does', () => {
+    register({ name: 'spinners-only', spinners: {} });
+    register({ name: 'only', tokens: { hint: '#5a5a5a' } });
+    expect(contributions()).toEqual([{ token: 'hint', value: '#5a5a5a', from: 'only', shadowed: [] }]);
   });
 
   it('accepts a ground, so a plugin can theme for a light terminal', () => {
@@ -98,6 +107,26 @@ describe('refusals', () => {
     expect(() => register({ tokens: { error: '#b00020' } })).toThrow(/needs a name/);
   });
 
+  it.each([
+    ['an array', [{ name: 'a' }]],
+    ['null', null],
+    ['a function', factory],
+    ['a string', 'acme'],
+  ])('%s is not a plugin, and is refused at the door', (_, value) => {
+    expect(() => register(value)).toThrow(expect.objectContaining({ code: 'E_PLUGIN_SCHEMA', message: 'a plugin is a plain object' }));
+    expect(registered()).toHaveLength(0);
+  });
+
+  it.each([
+    ['an array', ['#b00020']],
+    ['a string', '#b00020'],
+    ['null', null],
+  ])('tokens given as %s are refused, with the shape they should have', (_, tokens) => {
+    expect(() => register({ name: 'flat', tokens })).toThrow(
+      expect.objectContaining({ code: 'E_PLUGIN_SCHEMA', message: 'plugin "flat": tokens must be an object', fix: 'map a token name to a #rrggbb colour' }),
+    );
+  });
+
   it('a refused plugin does not half-register', () => {
     expect(() => register({ name: 'bad', tokens: { error: '#b00020', nope: '#000000' } })).toThrow();
     expect(registered()).toHaveLength(0);
@@ -122,6 +151,20 @@ describe('order', () => {
   it('a token only one plugin sets shadows nobody', () => {
     register({ name: 'only', tokens: { hint: '#5a5a5a' } });
     expect(contributions()).toEqual([{ token: 'hint', value: '#5a5a5a', from: 'only', shadowed: [] }]);
+  });
+});
+
+describe('theme() does not trust what validate() already checked', () => {
+  /**
+   * `validate()` runs at `register()`, and the object stays the caller's afterwards. A key added
+   * to it later has never been checked, so `theme()` filters against the ten names again rather
+   * than copying whatever it finds onto the theme `fly()` will read.
+   */
+  it('drops a key added to a plugin after it registered', () => {
+    const tokens: Record<string, string> = { error: '#ff6b6b' };
+    register({ name: 'mutable', tokens });
+    tokens['bogus'] = '#000000';
+    expect(theme()).toEqual({ error: '#ff6b6b' });
   });
 });
 
