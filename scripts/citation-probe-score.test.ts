@@ -74,8 +74,8 @@ describe('scoreAnswer: family packages', () => {
     expect(scoreAnswer('Use `commander` or `npm install yargs`.').named).toBe(false);
   });
 
-  it('knows eight family packages', () => {
-    expect(FAMILY_PACKAGES).toHaveLength(8);
+  it('knows nine family packages', () => {
+    expect(FAMILY_PACKAGES).toHaveLength(9);
   });
 });
 

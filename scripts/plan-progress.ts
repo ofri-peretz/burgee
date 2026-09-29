@@ -64,7 +64,7 @@ const gated = (): number =>
 const SUITES_NOW = 8;
 const SUITES_AFTER_SUPPORTED_RUNNERS = 20;
 const SUITES_ALL = 23;
-const PUBLISHED_PACKAGES = 9;
+const PUBLISHED_PACKAGES = 10;
 const GATED_DESIGNS = 6;
 const ID_WIDTH = 10;
 
