@@ -8,8 +8,8 @@
  * No package does a job another package in the family exists to do.
  *
  * This is PRINCIPLES rule 14 — each package an independent product, SOLID for packages — as a
- * check rather than an intention. The family splits nine ways precisely so a program can adopt
- * one layer without the other eight; the moment `burgee` measures a string's width itself, or
+ * check rather than an intention. The family splits ten ways precisely so a program can adopt
+ * one layer without the other nine; the moment `burgee` measures a string's width itself, or
  * reaches for `chalk` instead of `roundel`, that split stops being real and the layers become
  * a directory layout.
  *
@@ -43,7 +43,7 @@ interface Layer {
   incumbents: string[];
 }
 
-/** The nine layers and what each replaces, read from the file that already declares them. */
+/** The ten layers and what each replaces, read from the file that already declares them. */
 function layers(): Layer[] {
   const src = readFileSync(join(ROOT, 'packages/compat-oracle/src/demand.ts'), 'utf8');
   const body = /export const LAYERS: Layer\[\] = \[([\s\S]*?)\n\];/.exec(src)?.[1] ?? '';
@@ -62,10 +62,10 @@ const declared = (pkg: string): string[] => {
 };
 
 describe('no layer reaches past a sibling to the thing that sibling replaces', () => {
-  it('reads the nine layers from the file that declares them', () => {
+  it('reads the ten layers from the file that declares them', () => {
     const found = layers();
-    expect(found, 'LAYERS moved or changed shape — this lock is reading nothing').toHaveLength(9);
-    expect(new Set(found.flatMap((l) => l.incumbents)).size).toBe(25);
+    expect(found, 'LAYERS moved or changed shape — this lock is reading nothing').toHaveLength(10);
+    expect(new Set(found.flatMap((l) => l.incumbents)).size).toBe(27);
   });
 
   it.each(layers().map((l) => l.pkg))('%s depends on no incumbent another layer replaces', (pkg) => {
