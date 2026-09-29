@@ -186,7 +186,9 @@ const isCancel: (value: unknown) => value is symbol;
 
 ### isCI
 
-Whether `CI` is the string `true`, which is the test clack makes.
+Whether `CI` is the string `true`, which is the test clack makes. This and the glyph table
+above stay clack's rules rather than roundel's: `interactive()` asks whether a person can
+answer, which clack never asks, and clack's table counts `CI` where roundel's `unicode()` does not.
 
 ```ts
 const isCI: () => boolean;

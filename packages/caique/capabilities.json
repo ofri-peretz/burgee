@@ -77,7 +77,7 @@
       "rows": [
         {
           "capability": "Every runtime dependency from the same repository",
-          "why": "Installing it adds closeout and linegauge, released from this repository through one pipeline, and nothing else.",
+          "why": "Installing it adds closeout, linegauge and paratext, released from this repository through one pipeline, and nothing else.",
           "ours": { "status": "yes", "test": "scripts/package-shape-lock.test.ts", "title": "installs nothing from outside this repository — dependencies, peers or optional (D-111)" },
           "incumbents": {
             "inquirer": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/@inquirer/core@12.0.3/package.json", "note": "seven dependencies, among them signal-exit, mute-stream and cli-width" },
