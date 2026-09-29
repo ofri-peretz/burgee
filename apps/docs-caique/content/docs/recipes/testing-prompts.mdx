@@ -1,0 +1,40 @@
+---
+title: Testing prompts
+description: "Drive ask() and resolvePrompts() with a scripted reader and writer — no PTY, no fake stdin — and assert both the answers and exactly what was written."
+---
+
+Nothing above `caique/terminal` touches a stream: `ask()` takes a reader of lines and a writer
+of text. A test hands it both and asserts the conversation.
+
+```js title="prompt-check.mjs"
+import assert from 'node:assert/strict';
+
+import { ask } from 'caique/ask';
+
+function conversation(answers) {
+  const lines = [...answers];
+  let written = '';
+  return {
+    io: { reader: { line: async () => lines.shift() }, writer: { write: (text) => void (written += text) } },
+    written: () => written,
+  };
+}
+
+const port = conversation(['eighty', '80']);
+const answer = await ask({ kind: 'text', message: 'Port?', validate: (v) => (/^\d+$/u.test(v) ? undefined : 'a port is a number') }, port.io);
+assert.deepEqual(answer, { ok: true, value: '80' });
+assert.equal(port.written(), 'Port?   a port is a number\nPort? ');
+
+const closed = conversation([]);
+assert.deepEqual(await ask({ kind: 'confirm', message: 'Continue?' }, closed.io), { ok: false, reason: 'cancelled' });
+
+console.log('ok');
+```
+
+```text title="node prompt-check.mjs"
+ok
+```
+
+The second case is the one that matters most: a stream that ends — `Ctrl-D`, a closed pipe, an
+empty script — is a cancellation, never an empty answer. `decide()` needs no stream at all; it
+is a pure function of a literal runtime ([Never hangs](/docs/guides/never-hangs)).

@@ -1,0 +1,63 @@
+---
+title: The terminal
+description: "createIo() reads lines from a real terminal and hides a password without turning echo off; askList() adds arrow keys where there is a terminal, and puts raw mode back exactly as it found it."
+---
+
+Everything above this page is strings in and strings out. `caique/terminal` and `caique/raw`
+are the two files that touch a real terminal.
+
+## `createIo()`
+
+```js
+import { ask } from 'caique/ask';
+import { createIo } from 'caique/terminal';
+
+const io = createIo(); // the terminal the program was started in
+const token = await ask({ kind: 'password', message: 'Token?' }, io);
+io.close();
+```
+
+It reads lines through `node:readline`, so line editing, backspace and `Ctrl-D` behave as a
+person expects, and it resolves `undefined` when the stream ends, which `ask()` reads as a
+cancellation.
+
+**A password is never echoed**, and the way it is hidden matters: the echo is suppressed by
+intercepting the interface's own output for the duration of the one question, not by turning
+the terminal's echo off — which would leave it off if the process died mid-prompt. Hiding is
+per question: the next question echoes again. `terminal.test.ts` asserts that a plain read on
+the same streams does echo, so the assertion that the password did not can fail.
+
+## Arrow keys
+
+`askList(spec, io)` from `caique/raw` draws a `select` or `multiselect` with a moving highlight
+and repaints in place. It answers the same question `ask()` does and returns the same value,
+so it is a swap, not a second implementation — the suite runs the same spec through both and
+compares the answers.
+
+```js
+import { processRuntime } from 'caique';
+import { ask } from 'caique/ask';
+import { askList, canRender } from 'caique/raw';
+import { createIo, streamsOf } from 'caique/terminal';
+
+const rt = processRuntime();
+const io = { ...createIo(streamsOf(rt)), keys: rt.stdin };
+const spec = { kind: 'select', message: 'Which host?', choices: [{ value: 'ora' }, { value: 'chalk' }] };
+const answer = canRender(io.keys) ? await askList(spec, io) : await ask(spec, io);
+```
+
+## The terminal as it was found
+
+Raw mode and a hidden cursor are borrowed, and `caique/raw` gives both back:
+
+- **Raw mode is turned off only if the prompt turned it on.** A program that already had its
+  terminal in raw mode keeps it when the prompt ends (`raw.test.ts`, "leaves raw mode on for a
+  caller that already had it").
+- **The cursor is hidden once and shown again**, whatever the answer.
+- **`Ctrl-C` cancels** — in raw mode it arrives as a byte, not a signal — and still restores the
+  terminal.
+- **`SIGINT` and `SIGTERM` mid-prompt** turn raw mode off and put the cursor back, and the
+  process still ends: the undo is registered with [closeout](https://closeout.interlace.tools/docs),
+  which runs it on the way out.
+- **A frame wider than the terminal** is repainted in place: the repaint climbs every row the
+  wrapped frame occupies, so there is one copy of the question on screen after every keypress.

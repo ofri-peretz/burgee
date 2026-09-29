@@ -1,0 +1,78 @@
+---
+title: Never hangs
+description: "decide() is the rule: a supplied value is never asked for, --json, CI and agents never prompt, --yes answers a confirm, and with nobody on stdin a missing value is an error naming the flag."
+---
+
+A prompt that waits for a person who is not there is a hang, and a hung agent is a failed
+task. `decide()` from `caique/decide` rules on each prompt **before** anything is drawn, as a
+pure function: a value, a prompt spec, the option's name, a runtime and the run's flags in, a
+verdict out.
+
+```js title="decisions.mjs"
+import { decide } from 'caique/decide';
+
+const spec = { kind: 'confirm', message: 'Overwrite the existing config?' };
+const terminal = { env: {}, isTTY: { stdin: true } };
+const pipe = { env: {}, isTTY: { stdin: false } };
+const ci = { env: { CI: 'true' }, isTTY: { stdin: true } };
+const agent = { env: { CLAUDECODE: '1' }, isTTY: { stdin: true } };
+
+const cases = [
+  ['a value was passed', { value: false, runtime: pipe }],
+  ['a terminal, required', { value: undefined, runtime: terminal, required: true }],
+  ['a terminal, optional', { value: undefined, runtime: terminal }],
+  ['a terminal, optional, --interactive', { value: undefined, runtime: terminal, flags: { interactive: true } }],
+  ['no terminal, required', { value: undefined, runtime: pipe, required: true }],
+  ['CI on a terminal, required', { value: undefined, runtime: ci, required: true }],
+  ['an agent on a terminal, required', { value: undefined, runtime: agent, required: true }],
+  ['--json on a terminal', { value: undefined, runtime: terminal, required: true, flags: { json: true } }],
+  ['--yes, no terminal', { value: undefined, runtime: pipe, required: true, flags: { yes: true } }],
+];
+
+for (const [name, input] of cases) {
+  const { action, value, message } = decide({ spec, option: 'force', ...input });
+  console.log(`${name.padEnd(36)} ${action}${value === undefined ? '' : ` ${value}`}${message === undefined ? '' : ` — ${message}`}`);
+}
+```
+
+```text title="node decisions.mjs"
+a value was passed                   skip
+a terminal, required                 prompt
+a terminal, optional                 skip
+a terminal, optional, --interactive  prompt
+no terminal, required                error — --force is required when there is no terminal
+CI on a terminal, required           error — --force is required when nobody is there to answer
+an agent on a terminal, required     error — --force is required when nobody is there to answer
+--json on a terminal                 error — --force is required under --json
+--yes, no terminal                   answer true
+```
+
+## Why each row is where it is
+
+- **A value from any source is never asked for** — `false`, `0` and `''` included. Only
+  "nothing was supplied" is not an answer.
+- **`--json` comes before everything else**, `--yes` and `--interactive` included: they cannot
+  make a machine type.
+- **`--yes` answers a `confirm`, and only a `confirm`.** Nothing has to be typed, so it works
+  with no terminal too. It never answers a `text` or a `select`, because there is no "yes" to
+  a question with more than two answers.
+- **No terminal on stdin, `CI` set, or an agent driving the process is nobody there.** An
+  agent — `CLAUDECODE`, `CURSOR_AGENT`, `CODEX_THREAD_ID`, `GEMINI_CLI`, `AI_AGENT` — may well
+  have a terminal; what it does not have is a person. This is roundel's
+  [`interactive()`](https://roundel.interlace.tools/docs), and `FORCE_TTY=1`
+  is its one override. Then a missing value is an error
+  whose `fix` names the flag and quotes the question it would have asked. `--interactive`
+  cannot conjure a person, and the error says so when it was passed, rather than looking as if
+  the flag was ignored.
+- **Otherwise, only what is required is asked**, unless the run passed `--interactive`, which
+  asks for optional values too.
+
+`decide.test.ts` enumerates every one of the 256 combinations of value, kind, terminal, `CI`,
+`--json`, `--yes`, `--interactive` and required, against the rule written a second time,
+independently. The case that would be a bug report if it broke is named on its own: no
+terminal and no value is never a prompt.
+
+## The runtime
+
+`decide()` reads `env` — `CI`, the agent variables, `FORCE_TTY` — and `isTTY.stdin` from the runtime it is handed, and never `process`.
+`processRuntime()` from `caique` builds one from the real process; a test passes a literal.

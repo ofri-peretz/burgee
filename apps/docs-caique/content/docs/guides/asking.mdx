@@ -1,0 +1,111 @@
+---
+title: Asking
+description: "ask() is the six kinds — text, confirm, select, multiselect, password and path — each a question written and a line read back, with no raw mode and no escape sequence: the accessible rendering is the only one."
+---
+
+`ask(spec, io)` from `caique/ask` asks one question and returns `{ ok: true, value }` or
+`{ ok: false, reason: 'cancelled' }`. `io` is a reader of lines and a writer of text; on a real
+terminal it is [`createIo()`](/docs/guides/terminal), and in the examples on this site it is a
+scripted person:
+
+```js title="scripted.mjs"
+import process from 'node:process';
+
+/**
+ * A person, scripted: each answer is "typed" and echoed the way a terminal shows it — unless
+ * the prompt asked for it hidden — and running out of answers is Ctrl-D.
+ */
+export function scripted(answers) {
+  const lines = [...answers];
+  return {
+    reader: {
+      async line({ hidden = false } = {}) {
+        const line = lines.shift();
+        process.stdout.write(line === undefined ? '^D\n' : `${hidden ? '' : line}\n`);
+        return line;
+      },
+    },
+    writer: { write: (text) => void process.stdout.write(text) },
+  };
+}
+```
+
+## A conversation
+
+```js title="conversation.mjs"
+import { ask } from 'caique/ask';
+
+import { scripted } from './scripted.mjs';
+
+const io = scripted(['', 'nope', '2', 'y']);
+
+const name = await ask({ kind: 'text', message: 'Project name?', initial: 'my-cli' }, io);
+const host = await ask({ kind: 'select', message: 'Which host?', choices: [{ value: 'ora' }, { value: 'log-update', hint: 'repaints in place' }] }, io);
+const git = await ask({ kind: 'confirm', message: 'Initialise git?' }, io);
+const more = await ask({ kind: 'text', message: 'Anything else?' }, io);
+
+console.log(JSON.stringify([name, host, git, more]));
+```
+
+```text title="node conversation.mjs"
+Project name? (my-cli) 
+Which host?
+  1) ora
+  2) log-update — repaints in place
+  enter a number (1-2): nope
+  enter a number from 1 to 2
+Which host?
+  1) ora
+  2) log-update — repaints in place
+  enter a number (1-2): 2
+Initialise git? (y/N) y
+Anything else? ^D
+[{"ok":true,"value":"my-cli"},{"ok":true,"value":"log-update"},{"ok":true,"value":true},{"ok":false,"reason":"cancelled"}]
+```
+
+- A blank line takes the `initial`.
+- An answer that is not one is re-asked, saying why — five times, then it gives up, because a
+  loop against a stream that keeps answering wrongly is the same hang wearing a hat.
+- **A stream that ends is a cancellation, not an empty answer.** `Ctrl-D` and a closed pipe both
+  mean nobody is going to type, and reading that as `''` is how a program writes to a path
+  nobody chose.
+
+## The six kinds
+
+| kind | asks | answer |
+| :-- | :-- | :-- |
+| `text` | the message, with `initial` in parentheses | the line, or `initial` for a blank one |
+| `confirm` | the message, `(y/N)` or `(Y/n)` | `true` or `false` |
+| `select` | a numbered list, with hints | the chosen `value`; the number, the value or the label typed out all count |
+| `multiselect` | a numbered list | the chosen values in list order; a blank line is none |
+| `password` | the message | the line, read without echo by `createIo()` |
+| `path` | the message | the line |
+
+`validate(answer)` on a spec returns a string to reject an answer with that reason.
+
+## Line mode is the floor
+
+Every question is written and a line is read back: no raw mode, no cursor movement, no escape
+sequence and no redraw (`ask.test.ts` asserts a `select` writes no escape and no carriage
+return). That is not a fallback for poor terminals — it is the accessible rendering, and the
+only one `ask()` has, so a screen reader gets the same bytes a terminal does. Arrow-key
+selection sits on top of it where there is a terminal to take keys
+([The terminal](/docs/guides/terminal#arrow-keys)).
+
+## The question without the conversation
+
+`projection(spec)` returns what `ask()` would write, without reading anything — for `--help`, a
+docs gallery or a transcript in an issue.
+
+```js title="projection.mjs"
+import { projection } from 'caique/ask';
+
+console.log(projection({ kind: 'multiselect', message: 'Which checks?', choices: [{ value: 'lint' }, { value: 'test', hint: 'slow' }] }));
+```
+
+```text title="node projection.mjs"
+Which checks?
+  1) lint
+  2) test — slow
+  enter numbers separated by commas, or blank for none:
+```
