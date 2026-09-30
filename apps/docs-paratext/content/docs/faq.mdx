@@ -29,10 +29,11 @@ plugin and check it with `npx paratext check` ([Capabilities as data](/docs/guid
 So nothing registered can put raw bytes into a pipe. `fallback: ''` is allowed — a window title
 has nothing to say in a log — but a missing one is refused at registration.
 
-## Why does `paratext/term-img` not take a file path?
+## Does `paratext/term-img` take a file path?
 
-paratext has no `node:fs` dependency (D-030): the caller reads the file. It costs six of the
-eighteen cases in term-img's suite, all of which pass a path ([Compatibility](/docs/drop-ins)).
+Yes, as term-img does: a path, a file `URL` or image bytes. It reads the path with `node:fs`,
+and it is the only entry in paratext that imports it. The root `image()` takes bytes and never
+opens a file (D-20260930-paratext-term-img-path, [Compatibility](/docs/drop-ins)).
 
 ## Does it move the cursor on a pipe?
 

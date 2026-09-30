@@ -27,7 +27,7 @@ against it.
 | dotenv | `seniority` | 74 / 141 | 67 | gap |
 | cosmiconfig | `seniority` | 186 / 243 | 57 | gap |
 | inquirer-core | `caique` | 0 / 41 | 41 | gap |
-| term-img | `paratext` | 0 / 18 | 18 | gap |
+| ~~term-img~~ | `paratext/term-img` | **18 / 18** | 0 | **level 2026-09-30 — equals the control (D-20260930-paratext-term-img-path)** |
 | clack | `caique` | 0 / 606 | **17** | design disagreement |
 | ~~terminal-link~~ | `paratext/terminal-link` | **8 / 10** | 0 | **built 2026-09-20 — 8 is the ceiling** |
 | ~~ansi-escapes~~ | `paratext` | 1 / 4 | **0** | **already at its ceiling** |

@@ -101,6 +101,7 @@ Concretely:
 
 - Whether `image` should accept a path as well as a buffer **Decided 2026-09-20 → D-030.** — `term-img` does, and it means
   `node:fs` in a package that otherwise touches nothing. Leaning: no; the caller reads the
-  file and owns the I/O.
+  file and owns the I/O. *Superseded 2026-09-30 for `paratext/term-img` only →
+  D-20260930-paratext-term-img-path: that subpath reads a path, and the root stays bytes-only.*
 - Whether the `Support` table for known terminals lives in the package **Decided 2026-09-20 → D-031.** or in a data file a
   plugin can replace wholesale. Leaning: data file, because that is the thing that rots.
