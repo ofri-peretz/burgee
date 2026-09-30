@@ -1,5 +1,31 @@
 # benchmarks
 
+## 0.0.7
+
+### Patch Changes
+
+- [#760](https://github.com/ofri-peretz/burgee/pull/760) [`a115799`](https://github.com/ofri-peretz/burgee/commit/a1157991a5defddadfbea49ba8ea3bf161d4a832) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - chalk's graded release is 6.0.1: compat-oracle's vendored suite is re-vendored at `v6.0.1` (59 tests, one added), and `burgee migrate` names 6.0.1 as the chalk release `roundel/chalk` was graded at.
+
+  B2 cold start also spawns `picocolors`, `roundel/tokens` and `roundel/chalk`, and gates roundel's R8 time bar — each colour entry within picocolors + 10 ms — as `cold-start-delta-ms`, the median of per-round differences.
+
+- Updated dependencies [[`a115799`](https://github.com/ofri-peretz/burgee/commit/a1157991a5defddadfbea49ba8ea3bf161d4a832), [`a115799`](https://github.com/ofri-peretz/burgee/commit/a1157991a5defddadfbea49ba8ea3bf161d4a832)]:
+  - burgee@0.14.2
+  - compat-oracle@0.1.2
+  - roundel@0.6.0
+  - caique@0.6.2
+  - flagstaff@1.0.1
+
+## 0.0.6
+
+### Patch Changes
+
+- [#756](https://github.com/ofri-peretz/burgee/pull/756) [`5881db0`](https://github.com/ofri-peretz/burgee/commit/5881db06176716a7f9bc42011a4bb2a2c9e0dd7a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - B5 gains `bellpull ÷ tinyexec`, bellpull R8's spawn half: `run('node', ['--version'])` against tinyexec's `x`, each awaited to the child's close with its stdout read. Gated at 1.0 — R8's own bar, not a ratchet above a measurement. Reads 0.933 on an M4 Pro.
+- Updated dependencies [[`12bac9c`](https://github.com/ofri-peretz/burgee/commit/12bac9c99cb87ec2b67a56b4afc38de2c21687c7), [`22e6dae`](https://github.com/ofri-peretz/burgee/commit/22e6dae1b71bfa478265829a1b98d20a6f9de4f7)]:
+  - paratext@0.7.4
+  - bellpull@0.4.5
+  - caique@0.6.1
+  - roundel@0.5.6
+
 ## 0.0.5
 
 ### Patch Changes

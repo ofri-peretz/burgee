@@ -11,7 +11,7 @@
           "why": "`outputMode()` answers `json`, `accessible`, `ci`, `pipe` or `tty` from the runtime it is given, first match wins, so a spinner, a prompt and the help ask one question and get one answer.",
           "ours": { "status": "yes", "test": "packages/roundel/src/policy.test.ts", "title": "outputMode — R1, first match wins" },
           "incumbents": {
-            "chalk": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.0/source/vendor/supports-color/index.js", "note": "decides a colour level and nothing else; whether to redraw is left to each package" }
+            "chalk": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.1/source/vendor/supports-color/index.js", "note": "decides a colour level and nothing else; whether to redraw is left to each package" }
           }
         },
         {
@@ -19,7 +19,7 @@
           "why": "A user who sets `NO_COLOR` gets no colour, whatever else the environment or the command line asks for.",
           "ours": { "status": "yes", "test": "packages/roundel/src/policy.test.ts", "title": "NO_COLOR still beats everything, and an empty CLI_ACCESSIBLE is not set" },
           "incumbents": {
-            "chalk": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.0/source/vendor/supports-color/index.js", "note": "its colour detection never reads NO_COLOR" }
+            "chalk": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.1/source/vendor/supports-color/index.js", "note": "its colour detection never reads NO_COLOR" }
           }
         },
         {
@@ -27,7 +27,7 @@
           "why": "An explicit \"colour off\" in the environment wins over `--color=256` or `--color=16m` on the command line, so off never turns into on.",
           "ours": { "status": "yes", "test": "packages/roundel/src/policy.test.ts", "title": "is never overridden into colour on" },
           "incumbents": {
-            "chalk": { "status": "yes", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.0/source/vendor/supports-color/index.js", "note": "an environment FORCE_COLOR replaces the flag's answer before any --color level is read" }
+            "chalk": { "status": "yes", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.1/source/vendor/supports-color/index.js", "note": "an environment FORCE_COLOR replaces the flag's answer before any --color level is read" }
           }
         },
         {
@@ -35,7 +35,7 @@
           "why": "The flags chalk reads are read under the same spellings, from the argv the program hands the policy.",
           "ours": { "status": "yes", "test": "packages/roundel/src/policy.test.ts", "title": "colorLevel — the --color flags, when the caller hands over argv" },
           "incumbents": {
-            "chalk": { "status": "yes", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.0/source/vendor/supports-color/index.js", "note": "read from process.argv at import" }
+            "chalk": { "status": "yes", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.1/source/vendor/supports-color/index.js", "note": "read from process.argv at import" }
           }
         },
         {
@@ -43,7 +43,7 @@
           "why": "A flag typed for this run outranks a `FORCE_COLOR` the machine exports, so `--no-color` under `FORCE_COLOR=3` is no colour.",
           "ours": { "status": "yes", "test": "packages/roundel/src/policy.test.ts", "title": "the one place roundel and chalk disagree, on purpose" },
           "incumbents": {
-            "chalk": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.0/source/vendor/supports-color/index.js", "note": "a set FORCE_COLOR replaces the flag's answer, so --no-color under FORCE_COLOR=3 is level 3" }
+            "chalk": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.1/source/vendor/supports-color/index.js", "note": "a set FORCE_COLOR replaces the flag's answer, so --no-color under FORCE_COLOR=3 is level 3" }
           }
         },
         {
@@ -51,7 +51,7 @@
           "why": "`interactive()` answers no under `CLAUDECODE`, `CURSOR_AGENT` and the other agent variables even with a terminal on stdin, so a prompt asks the one question that tells an agent from a person.",
           "ours": { "status": "yes", "test": "packages/roundel/src/terminal.test.ts", "title": "is not interactive under %s, even on a terminal" },
           "incumbents": {
-            "chalk": { "status": "n/a", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.0/source/vendor/supports-color/index.js", "note": "decides a colour level, not whether a person can answer" }
+            "chalk": { "status": "n/a", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.1/source/vendor/supports-color/index.js", "note": "decides a colour level, not whether a person can answer" }
           }
         },
         {
@@ -59,7 +59,7 @@
           "why": "With `CLI_ACCESSIBLE=1` the level is 0 even on a truecolor terminal, because escape codes are noise to a screen reader; an explicit ask still colours it.",
           "ours": { "status": "yes", "test": "packages/roundel/src/policy.test.ts", "title": "defaults to 0 on the most colour-capable terminal there is" },
           "incumbents": {
-            "chalk": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.0/source/vendor/supports-color/index.js", "note": "reads no accessibility switch" }
+            "chalk": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.1/source/vendor/supports-color/index.js", "note": "reads no accessibility switch" }
           }
         },
         {
@@ -67,7 +67,7 @@
           "why": "Under `--json` the level is 0 even when `FORCE_COLOR` asks for colour, so structured output never carries an escape.",
           "ours": { "status": "yes", "test": "packages/roundel/src/policy.test.ts", "title": "json is 0, even on a truecolor terminal, even when forced" },
           "incumbents": {
-            "chalk": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.0/source/index.js", "note": "has no notion of structured output; the program sets chalk.level = 0 itself" }
+            "chalk": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.1/source/index.js", "note": "has no notion of structured output; the program sets chalk.level = 0 itself" }
           }
         },
         {
@@ -75,7 +75,7 @@
           "why": "The policy reads only the environment, arguments and terminal flag it is handed, so a test or an agent harness asks the program's question and gets the program's answer.",
           "ours": { "status": "yes", "test": "packages/roundel/src/policy.test.ts", "title": "reads only what the runtime carries — the same input always gives the same answer" },
           "incumbents": {
-            "chalk": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.0/source/vendor/supports-color/index.js", "note": "reads process.env, process.argv and the file descriptors' TTY state once, at import" }
+            "chalk": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.1/source/vendor/supports-color/index.js", "note": "reads process.env, process.argv and the file descriptors' TTY state once, at import" }
           }
         }
       ]
@@ -88,7 +88,7 @@
           "why": "A hex colour is sent as truecolor at level 3 and as the nearest of 256 or 16 colours below it.",
           "ours": { "status": "yes", "test": "packages/roundel/src/chalk.test.ts", "title": "fall to the nearest of 256 at level 2" },
           "incumbents": {
-            "chalk": { "status": "yes", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.0/source/index.js", "note": "through its vendored ansi-styles" }
+            "chalk": { "status": "yes", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.1/source/index.js", "note": "through its vendored ansi-styles" }
           }
         },
         {
@@ -96,7 +96,7 @@
           "why": "GitHub Actions, Gitea Actions and CircleCI get truecolor and the other known vendors 16 colours, while a CI pipe nobody asked to colour stays plain.",
           "ours": { "status": "yes", "test": "packages/roundel/src/policy.test.ts", "title": "colorLevel — the CI vendor table, once the run has asked for colour" },
           "incumbents": {
-            "chalk": { "status": "yes", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.0/source/vendor/supports-color/index.js", "note": "the same vendor table" }
+            "chalk": { "status": "yes", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.1/source/vendor/supports-color/index.js", "note": "the same vendor table" }
           }
         }
       ]
@@ -109,7 +109,7 @@
           "why": "A program writes `error()`, `hint()` and `command()`, and the theme decides what each looks like, so the colours mean something and change together.",
           "ours": { "status": "yes", "test": "packages/roundel/src/tokens.test.ts", "title": "level 3: the brand in truecolor, lifted for the near-black default ground" },
           "incumbents": {
-            "chalk": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.0/source/index.js", "note": "every colour is named at the call site" }
+            "chalk": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.1/source/index.js", "note": "every colour is named at the call site" }
           }
         },
         {
@@ -117,7 +117,7 @@
           "why": "`fly()` refuses a hex token below 4.5:1 against the declared background, at every colour level, and names the token and its ratio.",
           "ours": { "status": "yes", "test": "packages/roundel/src/theme.test.ts", "title": "refuses a truecolor token below 4.5:1 against the ground, naming token and ratio" },
           "incumbents": {
-            "chalk": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.0/source/index.js", "note": "draws any colour it is given" }
+            "chalk": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.1/source/index.js", "note": "draws any colour it is given" }
           }
         },
         {
@@ -125,7 +125,7 @@
           "why": "A plugin's tokens are validated at `register()`, a misspelt token is refused rather than dropped, and the contrast gate applies to them as to a hand-written theme.",
           "ours": { "status": "yes", "test": "packages/roundel/src/plugin.test.ts", "title": "a misspelt token is refused, not silently dropped" },
           "incumbents": {
-            "chalk": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.0/source/index.js", "note": "has no themes to register" }
+            "chalk": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.1/source/index.js", "note": "has no themes to register" }
           }
         }
       ]
@@ -138,7 +138,7 @@
           "why": "Installing it adds one package and nothing else.",
           "ours": { "status": "yes", "test": "packages/roundel/src/shape.test.ts", "title": "the package it installed has zero runtime dependencies (U6)" },
           "incumbents": {
-            "chalk": { "status": "yes", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.0/package.json", "note": "ansi-styles and supports-color are copied inside it" }
+            "chalk": { "status": "yes", "source": "https://cdn.jsdelivr.net/npm/chalk@6.0.1/package.json", "note": "ansi-styles and supports-color are copied inside it" }
           }
         }
       ]
@@ -148,7 +148,7 @@
       "rows": [
         {
           "capability": "Passes chalk's own test suite",
-          "why": "`roundel/chalk` is graded by chalk 6.0.0's own tests, unedited, so changing the import keeps chalk's output.",
+          "why": "`roundel/chalk` is graded by chalk 6.0.1's own tests, unedited, so changing the import keeps chalk's output.",
           "ours": { "status": "yes", "grade": "packages/compat-oracle/baseline/chalk.json" },
           "incumbents": {
             "chalk": { "status": "yes", "source": "packages/compat-oracle/vendor/chalk/test/chalk.js", "quote": "} from '../shim.js';", "note": "its own suite, the control run" }

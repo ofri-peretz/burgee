@@ -3,6 +3,14 @@ title: Changelog
 description: "Every release of seniority, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 0.6.5
+
+### Patch Changes
+
+- [#752](https://github.com/ofri-peretz/burgee/pull/752) [`22e6dae`](https://github.com/ofri-peretz/burgee/commit/22e6dae1b71bfa478265829a1b98d20a6f9de4f7) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A plugin that declares `contract: 0` or a negative contract is now refused with `E_PLUGIN_CONTRACT`, as `schema.json`'s minimum of 1 always said. These hosts checked only that a contract was not newer than the one they know, so 0 and below registered.
+
+- [#749](https://github.com/ofri-peretz/burgee/pull/749) [`bc59cab`](https://github.com/ofri-peretz/burgee/commit/bc59cabea92366de1a4a48d7b5153046d8546794) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - At an equal rank the plugin registered later now wins, as the docs and `register()` always said. `sources()` returned tied plugins oldest first and `resolve` takes the first candidate with a value, so the earlier registration won the tie.
+
 ## 0.6.4
 
 ### Patch Changes

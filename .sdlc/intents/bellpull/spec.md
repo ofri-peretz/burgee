@@ -102,7 +102,11 @@ not accepted**, and the Design→Build acceptance line is a human's to write
   requirement would hide that substitution, which is the thing the requirement was guarding
   against.)* *(**Bytes half measured 2026-09-27, D-160:** B4's `bellpull ÷ tinyexec` pair,
   `run` against `x`, reads **0.989** — 5,901 / 5,969 B — under a gate of 1. The spawn-delta
-  half is still unmeasured, so the row stays `Not built`.)*
+  half is still unmeasured, so the row stays `Not built`.)* *(**Spawn half measured
+  2026-09-30, D-20260930-bellpull-spawn-vs-tinyexec:** B5's `bellpull ÷ tinyexec` pair spawns
+  `node --version` by name and reads its stdout through each — `run` against `x` — and reads
+  **0.933** on an M4 Pro, gated at **1.0**, R8's own bar, with no ratchet above it. Both
+  halves are met, so the row reads `Built`.)*
 - **R9 (Y7)** `execa`, `cross-spawn` and `which` suites vendored into `compat-oracle`,
   `--control` first, ratcheting. `execa`'s is the largest compatibility surface in the
   family; a partial pass rate is published as a partial number, never rounded up.
@@ -153,7 +157,8 @@ not accepted**, and the Design→Build acceptance line is a human's to write
 `scripts/plan-progress.ts` reads it — the table shape `seniority` uses. Before this table
 existed the checker said of this design: *"the design records no per-requirement status, in
 either shape"*, which is not a verdict on the package, it is a verdict on the document. A
-`Not built` here is a real answer and one row carries it (two until R9 closed, 2026-09-27).
+`Not built` here is a real answer, and since 2026-09-30 no row carries it — **12 of 12
+built**. R9 closed on 2026-09-27 and R8 on 2026-09-30, when its spawn half got a row.
 
 | R | Status | Where | The check |
 | :-- | :-- | :-- | :-- |
@@ -164,17 +169,23 @@ either shape"*, which is not a verdict on the package, it is a verdict on the do
 | R5 | **Built** | `src/project.ts` — `outcomeOf` is the one verdict; `format`, `toJson`, `toEvent` are its three renderings | `matrix.test.ts`: *"every rendering comes from one value — none of them can report something the others cannot"* |
 | R6 | **Built** | `src/spawn-args.ts`, `escape.ts`, `shebang.ts`, `enoent.ts`, and the façade at `src/cross-spawn.ts`. `shell` is off by default | `cross-spawn`'s own suite through `compat-oracle`: **68 / 68**, control 68 / 68. Plus `escape.test.ts` and `cross-spawn.test.ts` |
 | R7 | **Built** | as **restated** above, not as first written: subpath isolation, and one override target — `bellpull/cross-spawn`. There is no root default export and no `./run-path` | `weight.test.ts`: `./which` reaches `runtime.js` and `which.js` and nothing else; every entry declares a budget; no entry reaches a package |
-| R8 | **Not built** | Half of it. **Bytes: met, 2026-09-27 (D-160)** — `tinyexec` 1.3.1 is a pinned `benchmarks/` devDependency and B4's `bellpull` pair bundles `run` at **5,901 B** against tinyexec's `x` at **5,969 B**, **0.989**, gated at ≤ 1 (`lighter-than-tinyexec` in `benchmarks/claims.ts`) with a byte ratchet of 6,000 beside it. **Spawn delta: no row at all** — `benchmarks/` has no bellpull task, and that is the half that keeps this row `Not built`. Also measured: D1's tree-inclusive ceiling (`execa` + `cross-spawn` + `which`) and zero dependencies | `cd benchmarks && npx tsx run.ts --axis weight --check`; `weight.test.ts`: under the band's `ceiling`, and `external` empty for every entry |
+| R8 | **Built** | Both halves, each against `tinyexec` 1.3.1 (a pinned `benchmarks/` devDependency). **Bytes: met, 2026-09-27 (D-160)** — B4's `bellpull` pair bundles `run` at **5,901 B** against tinyexec's `x` at **5,969 B**, **0.989**, gated at ≤ 1 (`lighter-than-tinyexec` in `benchmarks/claims.ts`) with a byte ratchet of 6,000 beside it. **Spawn: met, 2026-09-30 (D-20260930-bellpull-spawn-vs-tinyexec)** — B5's `bellpull ÷ tinyexec` pair (`benchmarks/fixtures/runtime/bellpull-tinyexec.mjs`) spawns `node --version` by name through `run` and through `x`, awaits the close and reads stdout, after proving both print the running node's version; median of 11 interleaved per-round ratios, 20 spawns a side a round: **0.933** on an M4 Pro (0.922–0.949 over five runs), gated at **1.0** — R8's bar is the ratchet's ceiling *and* its target in `.sdlc/bands/runtime-ratchets.json`, never a derived ceiling above it. Also measured: D1's tree-inclusive ceiling (`execa` + `cross-spawn` + `which`) and zero dependencies | `cd benchmarks && npx tsx run.ts --axis weight --axis runtime --check`; `runtime.test.ts`, *"bellpull R8: spawn time at or under tinyexec"* (the pair names tinyexec, the ceiling is ≤ 1.0, and 1.01 exits non-zero); `weight.test.ts`: under the band's `ceiling`, and `external` empty for every entry |
 | R9 | **Built** | All three suites, each `--control` first and ratcheting. `cross-spawn` 68 / 68; `which` 5 / 5 since 2026-09-23 — node-which 7's own `test/index.js` against `bellpull/node-which`, a drop-in entry of its own so `bellpull/which` stays resolution alone (`test/bin.js` grades node-which's CLI, which bellpull does not ship). **`execa` since 2026-09-27 (D-160): 0 / 1048 against `bellpull`, control 1048 / 1048** — execa 10.0.1's suite vendored whole, `arguments/`, `methods/` and `return/` graded, the other nine directories named in `ungradedDirs` because the whole suite is 647 s of control; over all 149 files the target also passed 0. Published as the partial number R9 asks for, and declared a **ceiling**, not a drop-in: bellpull ships no execa API (R7) | `npm run compat -- cross-spawn which execa`; `baseline/execa.json` carries `"ceiling": true`, held to `hosts.ts` by `baseline-scope.test.ts` |
 | R10 | **Built** | as **restated** above: `src/ambient.ts` is the one seam, the core takes a `Runtime` | `weight.test.ts`, *"no module but `ambient` reads the ambient world (Y9)"*, asserted over the built `dist`; plus `./which` and `./plugin` locked not to reach `ambient.js` at all |
 | R11 | **Built** | `src/run.ts` — the caveat is in `Result.duration`'s doc comment, where a consumer reads it, and `strip-comments.mjs` keeps it in the `.d.ts` | the type ships the sentence; `weight.test.ts` measures the `.d.ts` bytes that carry it |
 | R12 | **Built** | `src/plugin.ts` + `src/schema.json`, exported at `bellpull/plugin` and `bellpull/schema.json` | `plugin.test.ts`; `scripts/plugin-schema-lock.test.ts` (byte-identical across every host); `scripts/plugin-contract-lock.test.ts`; PLAN step 1.5 reads green |
 
-**The `Not built` row is not a request to build it here.** R8's bytes half is measured and
-met; its spawn-delta half needs a bellpull task in `benchmarks/`, and its comparison is one the
-Reconciliations section argues is the wrong one. (R9 was the second row until 2026-09-27.) Recording them as unmet is the point: a
+**There is no `Not built` row left, and the last one closed by being measured, not by being
+re-read.** R8 stayed `Not built` from 2026-09-15 to 2026-09-30 because half of it had no row —
+R9 was the second such row until 2026-09-27. Recording them as unmet was the point: a
 requirement that is quietly dropped and a requirement that is met are indistinguishable from
-the outside, and this gate is where that difference is supposed to be visible.
+the outside, and this gate is where that difference is supposed to be visible. The
+Reconciliations section still argues `tinyexec` is the wrong comparison for a package that
+resolves; the spawn row answers R8 as written anyway, and bellpull pays for its own `PATH`
+walk inside the number it is gated on — the workload spawns a bare name, never a path. Why
+tinyexec is the slower of the two is **not measured here**: against a bare `child_process`
+spawn collecting the same stdout, bellpull read 1.026–1.036 and tinyexec 1.051–1.153 on the
+same machine, and the difference was not taken apart further.
 
 ## Design
 
@@ -249,6 +260,11 @@ done** — see "Where that order stopped" above.
   (R9), and a verification step naming a command that cannot run is not a verification step.
   *(All three exist since 2026-09-27: `npm run compat -- cross-spawn which execa` — 68 / 68,
   5 / 5, and execa's **0 / 1048** ceiling, each with its control.)*
+  *(Re-graded 2026-09-30 at each incumbent's **latest** release — `npm view` reads
+  `cross-spawn` 7.0.6 and `which` 7.0.0, the versions already vendored, so nothing was
+  re-vendored: **68 / 68** and **5 / 5**, control 68 / 68 and 5 / 5, ▲ 0 on both.)*
+- `cd benchmarks && npx tsx run.ts --axis runtime --check` — R8's spawn half: `bellpull ÷
+  tinyexec` at or under 1.0, and exit 1 above it.
 - `npm run compat` and `npm run bench` themselves, **after** the switch, unchanged — the
   dogfooding loop is the acceptance test.
 - **The check that would have caught the original problem.** The original problem is a
@@ -469,7 +485,9 @@ Beyond "Out of scope" below:
   switched on to solve a Windows problem.
 - **It claims no number against `tinyexec`**, which is not installed in this workspace.
   *(Superseded 2026-09-27, D-160: it claims one — bundled bytes 0.989 of tinyexec's `x`,
-  measured by B4 — and still none on spawn time.)*
+  measured by B4 — and still none on spawn time.)* *(And since 2026-09-30,
+  D-20260930-bellpull-spawn-vs-tinyexec, one on spawn time: B5's `bellpull ÷ tinyexec`, 0.933,
+  gated at 1.0.)*
 
 ## Where this document and the code disagreed (2026-09-15) — reconciled 2026-09-16
 

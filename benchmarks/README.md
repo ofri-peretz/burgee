@@ -20,6 +20,16 @@ npm run bench -- --no-oracle     # B3 reads results.json or skips; never runs th
 | **B4** weight | are we lighter than what we replace? | every PR |
 | **B5** runtime | are we faster than what we replace, doing the same job? | every PR |
 
+## B2 — roundel's colour entries against picocolors
+
+Besides the parsers, B2 spawns three colour fixtures — `picocolors`, `roundel/tokens` and
+`roundel/chalk` — each importing its package and painting the line every fixture prints, under
+`NO_COLOR` so a CI runner's environment cannot turn the paint on (picocolors colours whenever
+`CI` is set). They carry roundel's R8 time bar: **a colour entry may cost no more than
+picocolors + 10 ms to start**, gated as `cold-start-delta-ms`, the median of the per-round
+differences — round *i* of the entry less round *i* of picocolors — so the machine's own
+startup cancels, as it does in a ratio. Measured 2026-09-30 on an M4 Pro: +1.26 ms and +2.97 ms.
+
 ## B5 — runtime against the incumbent
 
 `--axis runtime`. One realistic workload per (package, incumbent) pair, in
