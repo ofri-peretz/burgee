@@ -8,6 +8,8 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { LINK } from './link.js';
+import { render } from './template.js';
 import { terminalLinkFor } from './terminal-link.js';
 
 const OSC8 = '\u001B]8;;https://x.dev\u0007docs\u001B]8;;\u0007';
@@ -40,6 +42,24 @@ function restore(stream: NodeJS.WriteStream, descriptor: PropertyDescriptor | un
   if (descriptor === undefined) Reflect.deleteProperty(stream, 'isTTY');
   else Object.defineProperty(stream, 'isTTY', descriptor);
 }
+
+describe('where the terminal can link', () => {
+  const linking = { env: { FORCE_HYPERLINK: '1' }, isTTY: { stdout: true }, argv: [], platform: 'linux' };
+
+  it('emits exactly what the LINK record renders — the split taken once at load is the template', () => {
+    expect(terminalLinkFor(linking)('docs', 'https://x.dev')).toBe(render(LINK.encode, { text: 'docs', url: 'https://x.dev' }));
+    expect(terminalLinkFor(linking)('docs', 'https://x.dev')).toBe(OSC8);
+  });
+
+  it('decides once per stream, as upstream reads supports-hyperlinks once at import (B5)', () => {
+    const env: Record<string, string | undefined> = { FORCE_HYPERLINK: '1' };
+    const link = terminalLinkFor({ ...linking, env });
+    expect(link('a', 'b')).toContain('\u001B]8;;');
+    env['FORCE_HYPERLINK'] = '0';
+    expect(link('a', 'b'), 'a bound link re-read the environment on its second call').toContain('\u001B]8;;');
+    expect(terminalLinkFor({ ...linking, env })('a', 'b'), 'a fresh binding is a fresh answer').toBe('a b');
+  });
+});
 
 describe('the default export, over the real process', () => {
   const saved = {

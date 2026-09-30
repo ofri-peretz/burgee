@@ -401,7 +401,7 @@ const reset: () => void;
 
 ### setCwd
 
-OSC 50 + OSC 9;9 — `setCwd(cwd)`, defaulting to the runtime's own, projecting to nothing.
+OSC 50 + OSC 9;9 — `setCwd(cwd)`, defaulting to the runtime's own, projecting to nothing. Read per call: the working directory moves.
 
 ```ts
 const setCwd: (cwd?: string) => string;

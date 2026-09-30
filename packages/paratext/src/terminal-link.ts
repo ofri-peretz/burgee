@@ -20,9 +20,8 @@
  * turn them green and change what a caller gets based on what else is in `node_modules`.
  */
 import { supportsHyperlinks } from './hyperlinks.js';
-import { LINK } from './link.js';
+import { LINK } from './osc8.js';
 import { commandLineRuntime, type Runtime } from './runtime.js';
-import { render } from './template.js';
 
 /** Which stream a call is bound for. Upstream's `target` option, spelled the same way. */
 export type Target = 'stdout' | 'stderr';
@@ -42,10 +41,18 @@ export interface LinkOptions {
   fallback?: boolean | ((text: string, url: string) => string);
 }
 
+/** `LINK.encode` around its `{url}` and `{text}`, split once: a link is one concatenation (B5). */
+const [head, middle, tail] = LINK.encode.split(/\{url\}|\{text\}/) as [string, string, string];
+
 /** `terminalLink` bound to a runtime you supply — the pure form, and what the export wraps. */
 export function terminalLinkFor(runtime: Runtime) {
-  const call = (text: string, url: string, { target = 'stdout', ...options }: LinkOptions = {}): string => {
-    if (supportsHyperlinks(runtime, target)) return render(LINK.encode, { text, url });
+  // Detected once per stream, as upstream reads `supportsHyperlinks.stdout` once at import:
+  // detecting per call made a link 28× terminal-link's (B5). A fresh answer is a fresh binding.
+  let stdout: boolean | undefined;
+  let stderr: boolean | undefined;
+  const call = (text: string, url: string, options: LinkOptions = {}): string => {
+    const linked = options.target === 'stderr' ? (stderr ??= supportsHyperlinks(runtime, 'stderr')) : (stdout ??= supportsHyperlinks(runtime, 'stdout'));
+    if (linked) return head + url + middle + text + tail;
     if (options.fallback === false) return text;
     if (typeof options.fallback === 'function') return options.fallback(text, url);
     return `${text} ${url}`;

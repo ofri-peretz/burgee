@@ -88,13 +88,26 @@ export function ansiEscapesFor(runtime: Runtime): AnsiEscapes {
  */
 export const beep = BEL;
 
+/**
+ * The surface over the real process, built on first use and kept: what the process looks like
+ * is read **once**, as `ansi-escapes` and `supports-hyperlinks` read theirs once at import, and
+ * `env` is copied into a plain object — `process.env` is not one, and each of the three or four
+ * reads a support guess makes is a call into the host. Until 2026-09-30 every `link()` rebuilt
+ * the runtime and read the live environment, which made it ~90× the incumbent's (B5). The
+ * registry is still consulted per call, so a capability re-registered to correct our guess
+ * changes what these return; a caller that needs the terminal re-read uses {@link ansiEscapesFor}.
+ */
+let current: AnsiEscapes | undefined;
+const snapshot = ({ env, ...runtime }: Runtime): Runtime => ({ ...runtime, env: { ...env } });
+const forProcess = (): AnsiEscapes => (current ??= ansiEscapesFor(snapshot(processRuntime())));
+
 /** OSC 8 — `link(text, url)`, projecting to `text (url)` where hyperlinks are not understood. */
-export const link = (text: string, url: string): string => ansiEscapesFor(processRuntime()).link(text, url);
+export const link = (text: string, url: string): string => forProcess().link(text, url);
 
 /** OSC 1337 — `image(data, options)`, projecting to `options.caption`. */
-export const image = (data: Uint8Array | string, options: ImageOptions = {}): string => ansiEscapesFor(processRuntime()).image(data, options);
+export const image = (data: Uint8Array | string, options: ImageOptions = {}): string => forProcess().image(data, options);
 
-/** OSC 50 + OSC 9;9 — `setCwd(cwd)`, defaulting to the runtime's own, projecting to nothing. */
+/** OSC 50 + OSC 9;9 — `setCwd(cwd)`, defaulting to the runtime's own, projecting to nothing. Read per call: the working directory moves. */
 export const setCwd = (cwd?: string): string => ansiEscapesFor(processRuntime()).setCwd(cwd);
 
 /**

@@ -162,6 +162,12 @@ describe('the template language', () => {
     expect(render('x[: {b}]', { b: '' })).toBe('x');
   });
 
+  it('renders the same after its parsed templates are dropped — the cache is bounded, never load-bearing', () => {
+    // More distinct templates than the cache keeps, so it clears at least once mid-run (B5).
+    for (let i = 0; i < 600; i += 1) expect(render(`${String(i)}:{a}[ {b}]`, { a: 'x', b: i % 2 ? 'y' : '' })).toBe(`${String(i)}:x${i % 2 ? ' y' : ''}`);
+    expect(render('{a}-{b}', { a: '1', b: '2' })).toBe('1-2');
+  });
+
   it('renders an absent field outside a group as nothing, never as `undefined`', () => {
     expect(render('{a}-{b}', { a: '1' })).toBe('1-');
     expect(render('{a|base64}', {})).toBe('');
