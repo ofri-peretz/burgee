@@ -23,6 +23,9 @@
  *
  * The first run (`results/agent-cli-bench/2026-09-24-2a51440-local.json`): tokens ratio
  * 0.601 against the ≤ 0.6 claim — not met, by 0.001 — and turns 0.600 against ≤ 0.7, met.
+ * It ran `claude` 2.1.145; CI runs the pinned 2.1.283, and its first reading (burgee 6 turns
+ * to the local 3) is a different agent's, not a regression (D-20260930-b1-ci-environment).
+ * Every record now names the `claude` version and the environment it ran in.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -75,6 +78,8 @@ export interface ClaudeUsage {
   turns: number;
   isError: boolean;
   result: string;
+  /** `permission_denials` as the CLI counts them: tool calls it refused, each one a turn spent. */
+  denials: number;
 }
 
 const NUMBER_FIELDS = ['input_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens'] as const;
@@ -83,7 +88,23 @@ const NUMBER_FIELDS = ['input_tokens', 'cache_creation_input_tokens', 'cache_rea
 const num = (v: unknown): number => (typeof v === 'number' ? v : 0);
 
 /**
- * `claude -p --output-format json` reports usage in its own shape. Cache reads are input
+ * The run's result object out of what `claude -p` printed. `--output-format json` prints it
+ * alone; `--output-format stream-json --verbose`, which the harness uses so that every turn
+ * is on the record, prints one JSON event per line and the result last. Either is read.
+ */
+export function resultObject(stdout: string): Record<string, unknown> | undefined {
+  const whole = tryParse(stdout);
+  if (whole !== undefined) return whole;
+  const lines = stdout.split('\n').filter((l) => l.trim() !== '');
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const event = tryParse(lines[i] ?? '');
+    if (event?.['type'] === 'result') return event;
+  }
+  return undefined;
+}
+
+/**
+ * `claude -p` reports usage in its own shape. Cache reads are input
  * tokens the run actually consumed, so they are counted: leaving them out would make a
  * cached run look free, and a benchmark that rewards caching is measuring the cache.
  *
@@ -91,7 +112,7 @@ const num = (v: unknown): number => (typeof v === 'number' ? v : 0);
  * `results.schema.json`, so nobody has to guess later what the number counted.
  */
 export function parseClaudeJson(stdout: string): ClaudeUsage {
-  const raw = JSON.parse(stdout) as Record<string, unknown>;
+  const raw = resultObject(stdout) ?? (JSON.parse(stdout) as Record<string, unknown>);
   const usage = (raw['usage'] ?? {}) as Record<string, unknown>;
   const tokensIn = NUMBER_FIELDS.reduce((sum, f) => sum + num(usage[f]), 0);
   return {
@@ -100,6 +121,7 @@ export function parseClaudeJson(stdout: string): ClaudeUsage {
     turns: num(raw['num_turns']),
     isError: raw['is_error'] === true,
     result: typeof raw['result'] === 'string' ? raw['result'] : '',
+    denials: Array.isArray(raw['permission_denials']) ? raw['permission_denials'].length : 0,
   };
 }
 
@@ -121,6 +143,8 @@ export function installTool(binPath: string): string {
 
 export interface RunOne {
   claudeBin: string;
+  /** The caller's environment, before `agentEnv` controls it. Defaults to `process.env`. */
+  env?: NodeJS.ProcessEnv;
   task: Task;
   toolDir: string;
   workdir: string;
@@ -129,7 +153,11 @@ export interface RunOne {
 }
 
 export interface Attempt extends ClaudeUsage {
+  /** The task's id, so a per-task breakdown can be read off the attempts. */
+  task: string;
   success: boolean;
+  /** Whether `claude` reported usage at all. A run that did not is excluded from the medians. */
+  usage: boolean;
   transcript: string;
   /** Why a failed run failed, in a shape a skip reason can carry. Absent on success. */
   failure?: Failure;
@@ -264,7 +292,7 @@ function quotable(o: Outcome, raw: Record<string, unknown> | undefined, result: 
 /** Sorts one failed run. Only called for a run that did not succeed. */
 export function classifyFailure(o: Outcome, env: NodeJS.ProcessEnv = process.env): Failure {
   const exit = o.status === null ? `signal ${o.signal ?? '?'}` : String(o.status);
-  const raw = tryParse(o.stdout);
+  const raw = resultObject(o.stdout);
   const result = typeof raw?.['result'] === 'string' ? raw['result'] : '';
   const base = { task: o.task, exit, excerpt: redact(excerptOf(quotable(o, raw, result)), env) };
   if (o.timedOut) return { ...base, kind: 'timeout' };
@@ -319,6 +347,23 @@ export const POSIX_ONLY = 'the B1 harness runs task checks through /bin/sh; this
 export const isPosix = (platform: string = process.platform): boolean => platform !== 'win32';
 
 /**
+ * The environment `claude` — and through its Bash tool, the CLI under test — runs in. It is
+ * the caller's, minus every variable a CI runner sets and a laptop does not: `CI` and the
+ * `GITHUB_*`, `RUNNER_*` and `ACTIONS_*` families. A CLI is entitled to behave differently
+ * on CI (burgee's output policy reads `CI`), and a benchmark whose measured tool saw
+ * `CI=true` on the runner and not on the laptop would be comparing two environments, not
+ * two CLIs. Credentials, `HOME` and `PATH` pass through, the tool's directory goes first
+ * on `PATH`. The rule is recorded in every record's `detail.env`.
+ */
+const RUNNER_ONLY = /^(CI|GITHUB_\w*|RUNNER_\w*|ACTIONS_\w*)$/;
+export const AGENT_ENV_RULE = 'caller env minus CI, GITHUB_*, RUNNER_*, ACTIONS_*; mytool first on PATH';
+
+export function agentEnv(env: NodeJS.ProcessEnv, toolDir: string): NodeJS.ProcessEnv {
+  const kept = Object.entries(env).filter(([k]) => !RUNNER_ONLY.test(k));
+  return { ...Object.fromEntries(kept), PATH: `${toolDir}:${env['PATH'] ?? ''}` };
+}
+
+/**
  * One task, once. The agent sees Bash on `mytool` and nothing else (intent constraint 2):
  * no file reads, so the CLI's own output is the only channel through which it can learn
  * anything — which is the whole hypothesis under test.
@@ -326,12 +371,12 @@ export const isPosix = (platform: string = process.platform): boolean => platfor
 export function runOne(opts: RunOne): Attempt {
   const { claudeBin, task, toolDir, workdir, model, timeoutMs } = opts;
   for (const cmd of task.setup) execFileSync(SHELL, ['-c', cmd], { cwd: workdir, stdio: 'ignore' });
-  const argv = ['-p', task.prompt, '--allowedTools', 'Bash(mytool:*)', '--max-turns', String(task.maxTurns), '--output-format', 'json', '--model', model, ...ISOLATION];
+  const argv = ['-p', task.prompt, '--allowedTools', 'Bash(mytool:*)', '--max-turns', String(task.maxTurns), ...OUTPUT_FORMAT, '--model', model, ...ISOLATION];
   const r = spawnSync(claudeBin, argv, {
     cwd: workdir,
     encoding: 'utf8',
     timeout: timeoutMs,
-    env: { ...process.env, PATH: `${toolDir}:${process.env['PATH'] ?? ''}` },
+    env: agentEnv(opts.env ?? process.env, toolDir),
   });
   const transcript = r.stdout ?? '';
   const outcome: Outcome = {
@@ -342,12 +387,17 @@ export function runOne(opts: RunOne): Attempt {
     stdout: transcript,
     stderr: r.stderr ?? '',
   };
-  // A run that timed out or died has no usage to report and is a failed task, not a
-  // zero-token success: `success: false` with no numbers is the honest record of it.
-  // `claude` still prints its JSON result when it exits 1 on an API error, so the
-  // classification reads that rather than giving up on the run.
-  if (r.status !== 0 || transcript === '' || tryParse(transcript) === undefined) {
-    return { tokensIn: 0, tokensOut: 0, turns: 0, isError: true, result: '', success: false, transcript, failure: classifyFailure(outcome) };
+  // A run that timed out or died without a result has no usage to report and is a failed
+  // task, not a zero-token success: `usage: false` keeps it out of the medians, and
+  // `success: false` counts it against the success rate.
+  //
+  // A run that printed its result and exited non-zero is different: `claude` exits 1 on
+  // `error_max_turns`, after spending every turn it was allowed. Its usage used to be
+  // discarded and counted as 0 tokens and 0 turns, so a variant's medians went *down* for
+  // each run it failed by exhausting its turns — the opposite of what those runs cost.
+  const raw = outcome.timedOut ? undefined : resultObject(transcript);
+  if (raw === undefined) {
+    return { task: task.id, tokensIn: 0, tokensOut: 0, turns: 0, denials: 0, isError: true, result: '', success: false, usage: false, transcript, failure: classifyFailure(outcome) };
   }
   const usage = parseClaudeJson(transcript);
   const resultFile = join(workdir, '.bench-result');
@@ -357,8 +407,8 @@ export function runOne(opts: RunOne): Attempt {
     env: { ...process.env, BENCH_RESULT: resultFile, BENCH_EXIT: String(r.status) },
     stdio: 'ignore',
   });
-  const success = !usage.isError && check.status === 0;
-  return { ...usage, success, transcript, ...(success ? {} : { failure: classifyFailure(outcome) }) };
+  const success = r.status === 0 && !usage.isError && check.status === 0;
+  return { task: task.id, ...usage, success, usage: true, transcript, ...(success ? {} : { failure: classifyFailure(outcome) }) };
 }
 
 /**
@@ -406,7 +456,35 @@ export function storedLogin(env: NodeJS.ProcessEnv, claudeBin: string): boolean 
  */
 export const ISOLATION = ['--setting-sources', 'project,local', '--strict-mcp-config'] as const;
 
-export function blockers(env: NodeJS.ProcessEnv = process.env, claudeBin = 'claude', variants: readonly Variant[] = VARIANTS): string[] {
+/**
+ * Every event of the run, one JSON object a line, the result last: the per-turn record of
+ * what the agent ran and what the CLI answered, which `--output-format json` does not keep.
+ * The usage fields are the same object either way (`resultObject`).
+ */
+export const OUTPUT_FORMAT = ['--output-format', 'stream-json', '--verbose'] as const;
+
+/**
+ * The `claude` CI runs is the one `.github/tools/claude-code` pins, and a local run uses the
+ * same one when it is installed there (`npm ci --prefix .github/tools/claude-code`). The
+ * first local run (D-147) used whatever `claude` was on PATH — 2.1.145 — and the first CI run
+ * used the pinned 2.1.283: the same tasks, the same CLIs and a different agent, which is
+ * why their turn counts could not be compared (D-20260930-b1-ci-environment).
+ */
+export const PINNED_CLAUDE = join(REPO_ROOT, '.github/tools/claude-code/node_modules/.bin/claude');
+const PINNED_MANIFEST = join(REPO_ROOT, '.github/tools/claude-code/package.json');
+export const defaultClaudeBin = (): string => (existsSync(PINNED_CLAUDE) ? PINNED_CLAUDE : 'claude');
+
+/** The version `.github/tools/claude-code/package.json` pins, or '' when it cannot be read. */
+export function pinnedClaudeVersion(): string {
+  try {
+    const pkg = JSON.parse(readFileSync(PINNED_MANIFEST, 'utf8')) as { devDependencies?: Record<string, string> };
+    return pkg.devDependencies?.['@anthropic-ai/claude-code'] ?? '';
+  } catch {
+    return '';
+  }
+}
+
+export function blockers(env: NodeJS.ProcessEnv = process.env, claudeBin = defaultClaudeBin(), variants: readonly Variant[] = VARIANTS): string[] {
   const reasons: string[] = [];
   if (!isPosix()) reasons.push(POSIX_ONLY);
   // Empty counts as absent, which is the only reading that matches how this runs.
@@ -439,6 +517,11 @@ const RATIO_PLACES = 3;
 const SUCCESS_FLOOR = 0.8;
 const tokensOf = (a: Attempt): number => a.tokensIn + a.tokensOut;
 const turnsOf = (a: Attempt): number => a.turns;
+/** The runs that reported usage: a run that died without a result has no numbers, not zero. */
+const measured = (attempts: readonly Attempt[]): Attempt[] => attempts.filter((a) => a.usage);
+
+/** What every record of one invocation shares: the model, the agent and its environment. */
+type Detail = Record<string, string | number | boolean>;
 
 /**
  * The before/after the article is: the layered build's median against the plain build's,
@@ -447,33 +530,62 @@ const turnsOf = (a: Attempt): number => a.turns;
  * a ratio between two numbers measured on different days by different model versions
  * would not be a comparison of the CLIs.
  */
-function ratioRecords(byVariant: Map<VariantId, Attempt[]>, model: string): BenchRecord[] {
-  const ours = byVariant.get('burgee') ?? [];
-  const theirs = byVariant.get('commander') ?? [];
+function ratioRecords(byVariant: Map<VariantId, Attempt[]>, detail: Detail): BenchRecord[] {
+  const ours = measured(byVariant.get('burgee') ?? []);
+  const theirs = measured(byVariant.get('commander') ?? []);
   if (ours.length === 0 || theirs.length === 0) return [];
   const ratio = (pick: (a: Attempt) => number): number => round(median(ours.map(pick)) / median(theirs.map(pick)), RATIO_PLACES);
-  const common = { axis: 'agent', variant: 'burgee ÷ commander', unit: 'ratio', samples: Math.min(ours.length, theirs.length), detail: { model } } as const;
+  const common = { axis: 'agent', variant: 'burgee ÷ commander', unit: 'ratio', samples: Math.min(ours.length, theirs.length), detail } as const;
   return [
     { ...common, metric: 'tokens-per-task-ratio', median: ratio(tokensOf), p95: ratio(tokensOf), note: 'median tokens on the floor-meeting build over median tokens on the plain one; 0.6 or below confirms the ≥40% claim' },
     { ...common, metric: 'turns-per-task-ratio', median: ratio(turnsOf), p95: ratio(turnsOf), note: 'median turns on the floor-meeting build over median turns on the plain one; 0.7 or below confirms the ≥30% claim' },
   ];
 }
 
-function variantRecords(variant: VariantId, attempts: Attempt[], model: string): BenchRecord[] {
-  const tokens = attempts.map(tokensOf);
-  const turns = attempts.map(turnsOf);
+/**
+ * Per task, the raw numbers behind a variant's medians, flattened into `detail` (which holds
+ * scalars only): `<task>.turns` and `<task>.tokens` list every run in order, `-` for one
+ * that reported no usage; `<task>.passed` is `k/n`; `<task>.denials` sums the tool calls
+ * `claude` refused; `<task>.failures` counts the failed runs by kind. The first CI run
+ * (36740119305) reported burgee at 6 turns against a local 3 and said nothing a reader
+ * could use to find out which task moved — this is what that reader needed.
+ */
+export function perTaskDetail(attempts: readonly Attempt[]): Detail {
+  const out: Detail = {};
+  const ids = [...new Set(attempts.map((a) => a.task))];
+  for (const id of ids) {
+    const runs = attempts.filter((a) => a.task === id);
+    const list = (pick: (a: Attempt) => number): string => runs.map((a) => (a.usage ? String(pick(a)) : '-')).join(',');
+    out[`${id}.turns`] = list(turnsOf);
+    out[`${id}.tokens`] = list(tokensOf);
+    out[`${id}.passed`] = `${String(runs.filter((a) => a.success).length)}/${String(runs.length)}`;
+    out[`${id}.denials`] = runs.reduce((sum, a) => sum + a.denials, 0);
+    const kinds = new Map<string, number>();
+    for (const a of runs) if (a.failure !== undefined) kinds.set(a.failure.kind, (kinds.get(a.failure.kind) ?? 0) + 1);
+    if (kinds.size > 0) out[`${id}.failures`] = [...kinds].map(([k, n]) => `${k}×${String(n)}`).join(', ');
+  }
+  return out;
+}
+
+function variantRecords(variant: VariantId, attempts: Attempt[], detail: Detail): BenchRecord[] {
+  const withUsage = measured(attempts);
+  const tokens = withUsage.map(tokensOf);
+  const turns = withUsage.map(turnsOf);
   const successes = attempts.filter((a) => a.success).length;
   const rate = round(successes / attempts.length, RATIO_PLACES);
-  const common = { axis: 'agent', variant, samples: attempts.length, detail: { model } } as const;
+  const common = { axis: 'agent', variant, detail } as const;
+  const model = String(detail['model']);
+  const noUsage = attempts.length - withUsage.length;
   return [
     // p95 is the 95th percentile, not a second copy of the median. It was the latter, so
     // the field labelled p95 in a banded results document carried the median — and the
     // one thing a tail statistic is for, showing that a median is hiding a long tail,
     // was structurally impossible to see.
-    { ...common, metric: 'tokens-per-task', unit: 'tokens', median: median(tokens), p95: p95(tokens), note: `median over ${String(attempts.length)} task-runs on model ${model}` },
-    { ...common, metric: 'turns-per-task', unit: 'turns', median: median(turns), p95: p95(turns), note: "`num_turns` as `claude -p --output-format json` reports it" },
+    { ...common, samples: withUsage.length, metric: 'tokens-per-task', unit: 'tokens', median: median(tokens), p95: p95(tokens), note: `median over ${String(withUsage.length)} task-runs on model ${model}${noUsage > 0 ? `; ${String(noUsage)} run(s) reported no usage and are not in it` : ''}` },
+    { ...common, samples: withUsage.length, metric: 'turns-per-task', unit: 'turns', median: median(turns), p95: p95(turns), note: "`num_turns` as `claude -p` reports it, including runs that ended at --max-turns" },
     {
       ...common,
+      samples: attempts.length,
       metric: 'success-rate',
       unit: 'ratio',
       median: rate,
@@ -487,7 +599,7 @@ function variantRecords(variant: VariantId, attempts: Attempt[], model: string):
       // run is where it gets set from data.
       gate: { min: SUCCESS_FLOOR, why: 'below this the tokens and turns medians are taken over whichever task-runs happened to survive, which is a different measurement from the one the band is watching' },
       note: `${String(successes)} of ${String(attempts.length)} task-runs passed their own check`,
-      detail: { model, failed: attempts.length - successes },
+      detail: { ...detail, failed: attempts.length - successes, ...perTaskDetail(attempts) },
     },
   ];
 }
@@ -501,6 +613,12 @@ export interface AgentOptions {
   variants?: readonly Variant[];
   env?: NodeJS.ProcessEnv;
   tasks?: readonly Task[];
+  /**
+   * Where each run's full event stream is written, one `<variant>-<task>-<n>.jsonl` a run,
+   * redacted. Defaults to `$BENCH_AGENT_TRANSCRIPTS`; unset, nothing is written. CI sets it
+   * and uploads the directory, so the last run's every turn can be read after the fact.
+   */
+  transcriptDir?: string;
 }
 
 /**
@@ -521,17 +639,22 @@ interface Sweep {
   claudeBin: string;
   model: string;
   timeoutMs: number;
+  env: NodeJS.ProcessEnv;
+  transcriptDir: string | undefined;
 }
 
 /** Every task, `runs` times, on one build. */
-function sweep({ variant, tasks, runs, claudeBin, model, timeoutMs }: Sweep): Attempt[] {
+function sweep({ variant, tasks, runs, claudeBin, model, timeoutMs, env, transcriptDir }: Sweep): Attempt[] {
   const toolDir = installTool(resolve(REPO_ROOT, variant.bin));
   const attempts: Attempt[] = [];
+  if (transcriptDir !== undefined) mkdirSync(transcriptDir, { recursive: true });
   for (const task of tasks) {
     for (let i = 0; i < runs; i++) {
       const workdir = mkdtempSync(join(tmpdir(), `bench-${task.id}-`));
       mkdirSync(workdir, { recursive: true });
-      attempts.push(runOne({ claudeBin, task, toolDir, workdir, model, timeoutMs }));
+      const attempt = runOne({ claudeBin, task, toolDir, workdir, model, timeoutMs, env });
+      if (transcriptDir !== undefined) writeFileSync(join(transcriptDir, `${variant.id}-${task.id}-${String(i)}.jsonl`), redact(attempt.transcript, env));
+      attempts.push(attempt);
     }
   }
   return attempts;
@@ -565,23 +688,36 @@ function claudeVersionOf(claudeBin: string): string {
   return r.status === 0 ? `claude ${redact(excerptOf(r.stdout ?? ''))}` : '';
 }
 
+/**
+ * What every record carries so two results files can be compared, or told apart: the model,
+ * the agent's exact version, whether that is the version CI pins, and the environment rule.
+ */
+function invocationDetail(model: string, claudeBin: string): Detail {
+  const version = claudeVersionOf(claudeBin);
+  const pinned = pinnedClaudeVersion();
+  return { model, claude: version, claudePinned: pinned !== '' && version.includes(pinned), env: AGENT_ENV_RULE };
+}
+
 export function run(options: AgentOptions = {}): { records: BenchRecord[] } | { reason: string } {
   const variants = options.variants ?? VARIANTS;
-  const claudeBin = options.claudeBin ?? 'claude';
-  const stopped = blockers(options.env ?? process.env, claudeBin, variants);
+  const claudeBin = options.claudeBin ?? defaultClaudeBin();
+  const env = options.env ?? process.env;
+  const stopped = blockers(env, claudeBin, variants);
   if (stopped.length > 0) return { reason: stopped.join('; ') };
   const model = options.model ?? DEFAULT_MODEL;
-  const common = { tasks: options.tasks ?? readTasks(), runs: options.runs ?? RUNS_PER_TASK, claudeBin, model, timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS };
+  const transcriptDir = options.transcriptDir ?? (env['BENCH_AGENT_TRANSCRIPTS'] || undefined);
+  const common = { tasks: options.tasks ?? readTasks(), runs: options.runs ?? RUNS_PER_TASK, claudeBin, model, timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS, env, transcriptDir };
+  const detail = invocationDetail(model, claudeBin);
   const records: BenchRecord[] = [];
   const byVariant = new Map<VariantId, Attempt[]>();
   for (const variant of variants) {
     const attempts = sweep({ variant, ...common });
-    if (!attempts.some((a) => a.success)) return { reason: nothingCameBack(variant, attempts, claudeVersionOf(claudeBin)) };
+    if (!attempts.some((a) => a.success)) return { reason: nothingCameBack(variant, attempts, String(detail['claude'])) };
     byVariant.set(variant.id, attempts);
-    records.push(...variantRecords(variant.id, attempts, model));
+    records.push(...variantRecords(variant.id, attempts, detail));
   }
-  records.push(...ratioRecords(byVariant, model));
+  records.push(...ratioRecords(byVariant, detail));
   return { records };
 }
 
-export const method = `For each of the ${String(readTasks().length)} tasks and each of the two builds, \`claude -p <prompt> --allowedTools 'Bash(mytool:*)' --max-turns <n> --output-format json --setting-sources project,local --strict-mcp-config\` is spawned in a scratch directory with the build installed as \`mytool\`, ${String(RUNS_PER_TASK)} times; the task's own \`check\` decides success. Tokens are input + cache + output as the CLI reports them; turns is its \`num_turns\`. The model is pinned per results file and a change starts a new band history.`;
+export const method = `For each of the ${String(readTasks().length)} tasks and each of the two builds, \`claude -p <prompt> --allowedTools 'Bash(mytool:*)' --max-turns <n> --output-format stream-json --verbose --setting-sources project,local --strict-mcp-config\` — the \`claude\` pinned in \`.github/tools/claude-code\` when it is installed there — is spawned in a scratch directory with the build installed as \`mytool\`, ${String(RUNS_PER_TASK)} times, in the caller's environment minus \`CI\`, \`GITHUB_*\`, \`RUNNER_*\` and \`ACTIONS_*\`; the task's own \`check\` decides success. Tokens are input + cache + output as the CLI reports them; turns is its \`num_turns\`, including runs that ended at the turn limit; a run that reported no usage is left out of the medians and counted as a failure. The model and the \`claude\` version are recorded per results file, and a change of either starts a new band history.`;
