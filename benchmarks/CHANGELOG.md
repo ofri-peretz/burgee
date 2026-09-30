@@ -1,5 +1,11 @@
 # benchmarks
 
+## 0.0.5
+
+### Patch Changes
+
+- [#744](https://github.com/ofri-peretz/burgee/pull/744) [`e60303c`](https://github.com/ofri-peretz/burgee/commit/e60303ce839e4342b86963d6cbd6faa97d7ee921) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - B5, runtime against the incumbent: `npm run bench -- --axis runtime` times each entry point doing one realistic job against the package it replaces, in-process and interleaved, and gates every pair with a downward-only ratchet in `.sdlc/bands/runtime-ratchets.json` toward ≤ 1.0.
+
 ## 0.0.4
 
 ### Patch Changes

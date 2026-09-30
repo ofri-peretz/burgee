@@ -1,6 +1,6 @@
 {
   "name": "benchmarks",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "private": true,
   "description": "One suite: agent cost, cold start, compatibility, weight, and runtime against the incumbent. Emits one JSON document per run under results/, which the Stage 6 control bands read. Internal; never published.",
   "type": "module",
