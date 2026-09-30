@@ -272,7 +272,7 @@ single local run and unconfirmed**:
 | `burgee/commander` is lighter than `commander` **plus the same** | `lighter-than-commander-at-parity` | 0.482× | ✅ met |
 | `burgee/yargs` is lighter than `yargs` **plus the same** | `lighter-than-yargs-at-parity` | 0.546× | ✅ met |
 | `burgee` starts within 1.6× of `cac`, the lightest framework in the landscape (ratchet; lowered as it speeds up) | `cold-start-at-or-below-cac` | 1.443× | ✅ met |
-| `burgee/commander` stays within 1.565× of `commander` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-commander` | 1.557× | ✅ met |
+| `burgee/commander` stays within 1.565× of `commander` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-commander` | 1.559× | ✅ met |
 | `burgee` stays within 2.35× of `cac` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-cac` | 2.323× | ✅ met |
 | an agent spends ≥40% fewer tokens per task | `agent-tokens-40pct` | 0.601× (one local run, D-147) | ❌ **not met** |
 | an agent takes ≥30% fewer turns per task | `agent-turns-30pct` | 0.600× (one local run, D-147) | met locally, **unconfirmed** — no CI run yet |
@@ -288,7 +288,7 @@ with:
 | | the incumbent alone | + what you add to match burgee | ours |
 | :--- | ---: | ---: | ---: |
 | `cac` | 10,452 B | **97,711 B** | 24,280 B |
-| `commander` | 39,084 B | **126,354 B** | 60,848 B |
+| `commander` | 39,084 B | **126,354 B** | 60,916 B |
 | `yargs` | 111,093 B | **198,210 B** | 108,302 B |
 
 The additions are `cosmiconfig` (find and load a config file), `exit-hook` (run cleanup on
