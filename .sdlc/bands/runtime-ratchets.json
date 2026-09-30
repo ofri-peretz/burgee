@@ -1,5 +1,5 @@
 {
-  "$comment": "B5 runtime vs incumbent (D-20260929-b5-runtime-ratchets): one downward-only ratchet per (package, incumbent) pair, ours ÷ theirs in-process. `ceiling` is what benchmarks/axes/runtime.ts gates each pair on; `target` is the bar every pair is held to in the end, at or below the incumbent. `history` is append-only and never rises: scripts/runtime-ratchets-lock.test.ts refuses a `ceiling` that is not the last entry, an entry above the one before it unless it cites a newer decision in .sdlc/decisions/, a history that rewrites the committed one, and a pair the axis measures with no ratchet (or a ratchet for no pair). A PR that makes a pair faster appends a lower step in the same commit; `npm run ratchets:propose` prints how far each can come down from the CI observations on main.",
+  "$comment": "B5 runtime vs incumbent (D-20260929-b5-runtime-ratchets): one downward-only ratchet per (package, incumbent) pair, ours \u00f7 theirs in-process. `ceiling` is what benchmarks/axes/runtime.ts gates each pair on; `target` is the bar every pair is held to in the end, at or below the incumbent. `history` is append-only and never rises: scripts/runtime-ratchets-lock.test.ts refuses a `ceiling` that is not the last entry, an entry above the one before it unless it cites a newer decision in .sdlc/decisions/, a history that rewrites the committed one, and a pair the axis measures with no ratchet (or a ratchet for no pair). A PR that makes a pair faster appends a lower step in the same commit; `npm run ratchets:propose` prints how far each can come down from the CI observations on main.",
   "ratchets": {
     "paratext": {
       "ceiling": 1.25,
@@ -88,7 +88,7 @@
           "setOn": "2026-09-30",
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 0.698,
-          "why": "linegauge's fast paths — one-regex strip, lazily-segmented slice, cluster widths without re-segmenting, emoji and ASCII guards — measured locally: 0.698 (1.342 on PR #744 CI). No CI run has measured it yet: 1.25x local; the next PR lowers it from this one's CI run."
+          "why": "linegauge's fast paths \u2014 one-regex strip, lazily-segmented slice, cluster widths without re-segmenting, emoji and ASCII guards \u2014 measured locally: 0.698 (1.342 on PR #744 CI). No CI run has measured it yet: 1.25x local; the next PR lowers it from this one's CI run."
         }
       ]
     },
@@ -123,7 +123,7 @@
           "setOn": "2026-09-30",
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 1.01,
-          "why": "linegauge's fast paths — one-regex strip, lazily-segmented slice, cluster widths without re-segmenting, emoji and ASCII guards — measured locally: 1.01 (4.343 on PR #744 CI) — the incumbent's own grammar in one pass, so parity is the floor. 1.25x local until CI measures it."
+          "why": "linegauge's fast paths \u2014 one-regex strip, lazily-segmented slice, cluster widths without re-segmenting, emoji and ASCII guards \u2014 measured locally: 1.01 (4.343 on PR #744 CI) \u2014 the incumbent's own grammar in one pass, so parity is the floor. 1.25x local until CI measures it."
         }
       ]
     },
@@ -158,12 +158,12 @@
           "setOn": "2026-09-30",
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 0.725,
-          "why": "linegauge's fast paths — one-regex strip, lazily-segmented slice, cluster widths without re-segmenting, emoji and ASCII guards — measured locally: 0.725 (1.819 on PR #744 CI). 1.25x local until CI measures it."
+          "why": "linegauge's fast paths \u2014 one-regex strip, lazily-segmented slice, cluster widths without re-segmenting, emoji and ASCII guards \u2014 measured locally: 0.725 (1.819 on PR #744 CI). 1.25x local until CI measures it."
         }
       ]
     },
     "linegauge/slice": {
-      "ceiling": 0.95,
+      "ceiling": 1.2,
       "unit": "ratio",
       "target": 1,
       "derive": {
@@ -193,7 +193,14 @@
           "setOn": "2026-09-30",
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 0.756,
-          "why": "linegauge's fast paths — one-regex strip, lazily-segmented slice, cluster widths without re-segmenting, emoji and ASCII guards — measured locally: 0.756 (8.678 on PR #744 CI). 1.25x local until CI measures it."
+          "why": "linegauge's fast paths \u2014 one-regex strip, lazily-segmented slice, cluster widths without re-segmenting, emoji and ASCII guards \u2014 measured locally: 0.756 (8.678 on PR #744 CI). 1.25x local until CI measures it."
+        },
+        {
+          "ceiling": 1.2,
+          "setOn": "2026-09-30",
+          "decision": "D-20260930-b5-ceilings-from-ci",
+          "measured": 0.933,
+          "why": "Re-derived from CI by the derive rule (D-20260930-b5-ceilings-from-ci): the 0.95 step was 1.25x a laptop's 0.756, and CI read 0.933 (run 36728129986) and 0.787 (run 36738177076) \u2014 2% under the gate on one runner. 0.933 x 1.25 = 1.166, up to 1.2; still an eighth of the 10.85 it had before the fix."
         }
       ]
     },
@@ -277,7 +284,7 @@
           "setOn": "2026-09-30",
           "decision": "D-20260930-bellpull-spawn-vs-tinyexec",
           "measured": 0.933,
-          "why": "R8's bar, set at the target on the first step: bellpull ÷ tinyexec read 0.922, 0.932, 0.933, 0.940 and 0.949 across five runs on an M4 Pro at load 55-60 (median 0.933), so the pair is under 1.0 before any ceiling is derived for it. Gating at the bar rather than at 1.25x a measurement keeps R8 a requirement instead of a ratchet that starts above it."
+          "why": "R8's bar, set at the target on the first step: bellpull \u00f7 tinyexec read 0.922, 0.932, 0.933, 0.940 and 0.949 across five runs on an M4 Pro at load 55-60 (median 0.933), so the pair is under 1.0 before any ceiling is derived for it. Gating at the bar rather than at 1.25x a measurement keeps R8 a requirement instead of a ratchet that starts above it."
         }
       ]
     },
@@ -436,7 +443,7 @@
       ]
     },
     "caique/clack": {
-      "ceiling": 1.9,
+      "ceiling": 1.4,
       "unit": "ratio",
       "target": 1,
       "derive": {
@@ -467,6 +474,13 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 1.496,
           "why": "caique/clack on the faster linegauge: 1.496 locally (2.544 on PR #744 CI). 1.25x local until CI measures it."
+        },
+        {
+          "ceiling": 1.4,
+          "setOn": "2026-09-30",
+          "decision": "D-20260929-b5-runtime-ratchets",
+          "measured": 1.089,
+          "why": "measure() answers a one-unit string without building a segmenter, and a prompt frame's glyphs arrive as words of their own: 1.089 locally (1.451 on CI run 36738177076 before it). 1.25x local until CI measures it."
         }
       ]
     },
@@ -499,7 +513,7 @@
       ]
     },
     "burgee/yargs": {
-      "ceiling": 1.4,
+      "ceiling": 1.35,
       "unit": "ratio",
       "target": 1,
       "derive": {
@@ -523,6 +537,13 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 1.092,
           "why": "PR #744 CI (bench run 36671525047, ubuntu-latest): 1.092 x 1.25, rounded up to 0.05."
+        },
+        {
+          "ceiling": 1.35,
+          "setOn": "2026-09-30",
+          "decision": "D-20260929-b5-runtime-ratchets",
+          "measured": 1.065,
+          "why": "From CI: 1.051 (run 36728129986) and 1.065 (run 36738177076); 1.065 x 1.25 = 1.33, up to 1.35."
         }
       ]
     }
