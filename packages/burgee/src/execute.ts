@@ -302,7 +302,7 @@ function canonical(values: Values, specs: Record<string, OptionSpec>, tokens: re
 interface Resolved2 {
   values: Values;
   provenance: Record<string, Provenance>;
-  explainText?: string;
+  explainText?: string | undefined;
 }
 
 /**
@@ -318,7 +318,8 @@ async function resolution(manifest: Manifest, specs: Record<string, OptionSpec>,
   return resolveLayers(specs, layers);
 }
 
-async function resolveValues(manifest: Manifest, specs: Record<string, OptionSpec>, values: Values, io: Io): Promise<Resolved2> {
+// eslint-disable-next-line maintainability/max-parameters -- the fifth is the token list `as-typed.js` needs to name a flag as typed; an options object would cost the startup path bytes that `weight.test.ts`'s budget for `.` does not have.
+async function resolveValues(manifest: Manifest, specs: Record<string, OptionSpec>, values: Values, io: Io, tokens: readonly Token[]): Promise<Resolved2> {
   const resolved = await resolution(manifest, specs, values, io);
   const out: Resolved2 = { values: resolved.values as Values, provenance: resolved.provenance };
   const asked = values['explain'];
@@ -326,7 +327,10 @@ async function resolveValues(manifest: Manifest, specs: Record<string, OptionSpe
   // its configuration should not carry. Lazy here, and at `seniority/explain` rather than in
   // `seniority/precedence`, because a re-export from a module the engine imports statically
   // would have kept it on the startup path however this line were written.
-  if (typeof asked === 'string') out.explainText = (await import('seniority/explain')).explain(asked, resolved);
+  // `as-typed.js` rides the same import: the two places a flag's provenance is read — the
+  // `--json` envelope and `--explain` — are the two that load it, and it names each flag as
+  // it was typed before either reads it (see that file).
+  if (values.json === true || asked !== undefined) out.explainText = (await import('./as-typed.js')).asTyped(resolved, specs, tokens, asked);
   for (const [name, spec] of Object.entries(specs)) {
     if (out.values[name] === undefined && spec.required === true && out.explainText === undefined) {
       throw new UsageError(`missing required option --${kebab(name)}`, `pass --${kebab(name)} <value>`);
@@ -340,7 +344,7 @@ async function resolveValues(manifest: Manifest, specs: Record<string, OptionSpe
  * `passthrough`, so a CLI can forward it to a child process untouched (G5; commander
  * #2530, yargs #1527, #1821, #2423). parseArgs keeps the boundary only in `tokens`.
  */
-type Token = NonNullable<ReturnType<typeof parseArgs>['tokens']>[number];
+export type Token = NonNullable<ReturnType<typeof parseArgs>['tokens']>[number];
 
 function splitPositionals(tokens: readonly Token[]): { positionals: string[]; passthrough: string[] } {
   const positionals: string[] = [];
@@ -460,7 +464,7 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   if (flags.help === true) return { json, text: await (await import('./surfaces.js')).helpFor(manifest, node, io, json) };
   if (flags.version === true) return { json, text: `${(await import('./surfaces.js')).versionOf(manifest, io)}\n` };
 
-  const resolved = await resolveValues(manifest, node.options, flags, io);
+  const resolved = await resolveValues(manifest, node.options, flags, io, parsed.tokens);
   if (resolved.explainText !== undefined) return { json, text: resolved.explainText };
   const { provenance } = resolved;
   // S6: relations, then each value — numbers, choices, its Standard Schema — then the handler.
