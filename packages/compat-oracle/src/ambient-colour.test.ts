@@ -17,6 +17,7 @@
  * in `run.ts` takes it back to 57, which is the assertion's whole point.
  */
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -38,5 +39,7 @@ it('grades chalk the same under a shell that forces colour', () => {
     env: { ...clean, FORCE_COLOR: '1', COLORTERM: 'truecolor', TERM: 'xterm-256color' },
     stdio: ['ignore', 'pipe', 'ignore'],
   });
-  expect(out, 'the operator’s terminal is not an input to a published number').toContain('58 / 58');
+  // The baseline, not a typed count: a re-vendor (58 at chalk 6.0.0, 59 at 6.0.1) moves both.
+  const { passed, reference } = JSON.parse(readFileSync(resolve(REPO_ROOT, 'packages/compat-oracle/baseline/chalk.json'), 'utf8')) as { passed: number; reference: number };
+  expect(out, 'the operator’s terminal is not an input to a published number').toContain(`${String(passed)} / ${String(reference)}`);
 }, 120_000);

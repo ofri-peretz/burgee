@@ -3,7 +3,7 @@ title: Why roundel
 description: "roundel against chalk, one capability per row, every cell linked to the test, grade or source that proves it."
 ---
 
-chalk styles a string, and does it well: `roundel/chalk` passes all 58 cases of chalk 6.0.0's
+chalk styles a string, and does it well: `roundel/chalk` passes all 59 cases of chalk 6.0.1's
 own suite, and roundel's colour-level rule agrees with chalk's across a differential sweep
 except where this page says it does not. What chalk leaves to every package that uses it is the
 decision around the colour — whether this output is going to a terminal, a CI log, a screen
@@ -11,7 +11,7 @@ reader or an agent, and what the colours mean. roundel makes that decision once,
 function, and gives the colours names.
 
 The table below is the whole comparison. Every mark links to its evidence: a test in this
-repository for ours, and for chalk the source file of chalk 6.0.0 — the version compat-oracle
+repository for ours, and for chalk the source file of chalk 6.0.1 — the version compat-oracle
 grades — or chalk's own test suite. `scripts/capabilities-lock.test.ts` fails the build when a
 cited test no longer contains the title it is cited for.
 
@@ -22,10 +22,10 @@ cited test no longer contains the title it is cited for.
 - **Parity rows are here on purpose.** chalk reads the `--color` flags, keeps an explicit
   `FORCE_COLOR=0` off, downsamples to 256 and 16 colours, knows the CI vendors and has no
   dependencies. A reader would otherwise have to go and check; the cells say they match.
-- **chalk's cells link to chalk 6.0.0 on jsDelivr**, not to the copy installed in this
-  repository, which is 6.0.1: the lock only accepts an installed file at the graded version.
-  A URL cell is not re-read by the lock, so each was checked against that file by hand; the
-  compatibility row, whose source is chalk's vendored suite, is checked on every run.
+- **chalk's cells link to chalk 6.0.1 on jsDelivr**, the release compat-oracle grades. A URL
+  cell is not re-read by the lock, so each was checked against that file by hand — 6.0.1
+  changed `source/index.js` in how it joins several arguments and touched nothing a cell
+  cites; the compatibility row, whose source is chalk's vendored suite, is checked on every run.
 
 ## What is not in the table
 

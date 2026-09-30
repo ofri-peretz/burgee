@@ -1,5 +1,13 @@
 # paratext
 
+## 0.7.4
+
+### Patch Changes
+
+- [#754](https://github.com/ofri-peretz/burgee/pull/754) [`12bac9c`](https://github.com/ofri-peretz/burgee/commit/12bac9c99cb87ec2b67a56b4afc38de2c21687c7) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A capability now renders its fallback when the runtime says the output mode is not `tty` (`Runtime.mode`, the value of roundel's `outputMode`). A host that has decided this run is `accessible`, `ci`, `pipe` or `json` gets the text form even on a terminal that supports the sequence, as flagstaff's components do. Without `mode`, nothing changes.
+
+- [#752](https://github.com/ofri-peretz/burgee/pull/752) [`22e6dae`](https://github.com/ofri-peretz/burgee/commit/22e6dae1b71bfa478265829a1b98d20a6f9de4f7) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A plugin that declares `contract: 0` or a negative contract is now refused with `E_PLUGIN_CONTRACT`, as `schema.json`'s minimum of 1 always said. These hosts checked only that a contract was not newer than the one they know, so 0 and below registered.
+
 ## 0.7.3
 
 ### Patch Changes
