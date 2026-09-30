@@ -1,5 +1,12 @@
 # caique
 
+## 0.6.2
+
+### Patch Changes
+
+- Updated dependencies [[`a115799`](https://github.com/ofri-peretz/burgee/commit/a1157991a5defddadfbea49ba8ea3bf161d4a832)]:
+  - roundel@0.6.0
+
 ## 0.6.1
 
 ### Patch Changes

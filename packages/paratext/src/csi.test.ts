@@ -4,7 +4,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { cursorMove } from './csi.js';
+import { cursorLeft, cursorMove, cursorUp, eraseLine, eraseLines } from './csi.js';
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -39,5 +39,30 @@ describe('cursor save and restore, decided at load', () => {
   it('is the CSI pair everywhere else', async () => {
     const csi = await load('iTerm.app');
     expect([csi.cursorSavePosition, csi.cursorRestorePosition]).toEqual(['\u001B[s', '\u001B[u']);
+  });
+});
+
+/** `ansi-escapes`' own loop, the bytes a cached `eraseLines` must keep returning. */
+const upstream = (count: number): string => {
+  let clear = '';
+  for (let i = 0; i < count; i += 1) clear += eraseLine + (i < count - 1 ? cursorUp() : '');
+  return count ? clear + cursorLeft : clear;
+};
+
+/**
+ * `log-update` erases the previous frame on every frame, so `eraseLines` keeps the strings for
+ * the small counts a redraw uses (B5). A cache is only an optimisation if it never answers
+ * differently: the second call must equal the first, and every count it refuses to keep — a
+ * fraction, a negative, a large one — still takes upstream's loop.
+ */
+describe('eraseLines, kept per count', () => {
+  it.each([0, 1, 3, 5, 63])('returns the same bytes for %i the first time and every time after', (count) => {
+    expect(eraseLines(count)).toBe(upstream(count));
+    expect(eraseLines(count)).toBe(upstream(count));
+  });
+
+  it.each([2.5, -1, 64, 200])('computes %d afresh rather than keeping it', (count) => {
+    expect(eraseLines(count)).toBe(upstream(count));
+    expect(eraseLines(count)).toBe(upstream(count));
   });
 });

@@ -24,43 +24,39 @@
  * where `string-width` answers **3** — and every caller that measures went with it: `wrap`,
  * `slice`, `truncate`, `widest`, and in `flagstaff` the box, the table and the spinner.
  *
- * So the local scan is the whole implementation, over `style.ts`'s `ANSI_ESCAPE` — which has
- * always handled the colon form, because `wrap` needs to reopen those colours across a row.
- * The package understood the syntax in one module and mis-stripped it in another, which is
- * precisely the duplication the consolidation exists to remove.
+ * So Node's stripper is not used at all. Since 2026-09-30 the implementation is the incumbent's
+ * own grammar in one regex (below), which strips the colon form and is `strip-ansi` by
+ * construction rather than by a second pass patching the first.
  */
 
-import { stripVTControlCharacters as nodeStrip } from 'node:util';
-
-import { forEachSegment } from './style.js';
+/**
+ * `strip-ansi` 7.2.0's own grammar — `ansi-regex` 6.4.0's pattern, the one its suite grades — in
+ * one pass. Until 2026-09-30 this was two: `style.ts`'s scanner and then Node's
+ * `stripVTControlCharacters` over what was left, 3.7× strip-ansi's time (B5), and the scanner's
+ * whole style stack in `linegauge/strip`'s bundle. The pattern:
+ *
+ *   OSC   `ESC ]` or `0x9D`, a payload that stops at the first terminator character — so an
+ *         unterminated one cannot rescan the rest of the input — then `BEL`, `ESC \` or `0x9C`;
+ *   CSI   `ESC` or `0x9B`, intermediates, `;`/`:` parameters, a final byte. The colon form of an
+ *         extended colour (`ESC[38:2::255:0:0m`) is in it, which is the shape Node's stripper
+ *         got wrong before v24.21 and the reason this module was written.
+ *
+ * Linear: every quantifier is over a class the next token cannot also match. `strip.test.ts`
+ * holds it to `strip-ansi` shape by shape.
+ */
+const ANSI = /(?:(?:\u001B\]|\u009D)[^\u0007\u001B\u009C\u009D]*(?:\u0007|\u001B\\|\u009C))|[\u001B\u009B][[\]()#;?]*(?:\d{1,4}(?:[;:]\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~]/g;
 
 /**
  * Everything a terminal would print, with the escape sequences removed: CSI (SGR and the
- * cursor and erase forms), OSC including `OSC 8` hyperlinks under both terminators, DCS, the
- * charset selections, and the single-character escapes. A lone `ESC` with nothing that parses
- * after it is text and is kept — the same answer `strip-ansi` gives.
- *
- * Two passes, which is the design's prescription taken literally: *"using
- * `util.stripVTControlCharacters` where it is exact and a local scan where it is not."*
- *
- *   1. The local scan, over `style.ts`'s `ANSI_ESCAPE`. It removes CSI and OSC **including
- *      the colon form** of an extended colour, which is the one shape Node gets wrong.
- *   2. Node's stripper on what is left — the single-character escapes (`ESC c`), the charset
- *      selections (`ESC ( B`) and a truncated sequence at the end of a string. `ANSI_ESCAPE`
- *      matches none of those, because `wrap` never needed them: it was built to find the
- *      sequences it has to *reopen*, and a charset selection is not one.
- *
- * Order is load-bearing. Ours runs first so the colon form is already gone by the time Node
- * sees the string; reversed, pass 2 would leave `:2::255:0:0m` behind as text and pass 1
- * would have nothing left to match.
+ * cursor and erase forms), OSC including `OSC 8` hyperlinks under all three terminators, the
+ * C1 introducers, and the single-character escapes. A lone `ESC` with nothing that parses
+ * after it is text and is kept — the same answer `strip-ansi` gives, because it is the same
+ * pattern. A string with neither `ESC` nor `0x9B` is returned as it is, without a replace —
+ * strip-ansi's own fast path, including what it leaves alone: a C1 OSC (`0x9D`) with no `ESC`
+ * or `0x9B` beside it is kept by the incumbent, and so it is kept here.
  */
 export function strip(string: string): string {
-  if (string === '') return '';
-  let out = '';
-  forEachSegment(string, (text) => {
-    out += text;
-  });
-  return nodeStrip(out);
+  return string.includes('\u001B') || string.includes('\u009B') ? string.replace(ANSI, '') : string;
 }
 
 /**
