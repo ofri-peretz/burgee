@@ -3,7 +3,7 @@
  * `facade-gets-more`, requirements G1–G5.
  *
  * Compatibility is the floor and it is measured elsewhere: `npm run compat -- commander`
- * and `npm run compat -- yargs`, 1360 / 1360 and 804 / 804. This file measures the part
+ * and `npm run compat -- yargs`, 1360 / 1360 and 816 / 816. This file measures the part
  * above the floor, on a program written entirely in the incumbent's own syntax —
  * `new Command()`, `.command()`, `.option()`, `.action()`, `parseAsync` — and nothing else.
  *

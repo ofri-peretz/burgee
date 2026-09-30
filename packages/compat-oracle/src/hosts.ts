@@ -438,7 +438,7 @@ export const HOSTS: Host[] = [
     ],
     controlFailures: {
       count: 2,
-      why: "Real yargs reports its own version by reading the nearest package.json, and from inside a vendored copy that lookup finds ours. Two usage tests assert the version string; burgee scores 804 where yargs itself scores 802. Documented since the host was activated.",
+      why: "Real yargs reports its own version by reading the nearest package.json, and from inside a vendored copy that lookup finds ours. Two usage tests assert the version string; burgee scores 816 where yargs itself scores 814. Documented since the host was activated.",
     },
     preamble: 'before.mjs',
     timeoutMs: 24_000,

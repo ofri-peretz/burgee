@@ -18,7 +18,7 @@
  *    level of backslashes, completed `a\b` as `ab`.
  *
  * The rewrites must answer exactly as the regexes did — yargs' own suite grades this façade
- * (804 of 804) — so the first two are also checked against the original regexes over every
+ * (816 of 816) — so the first two are also checked against the original regexes over every
  * short string of the characters that matter.
  */
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
