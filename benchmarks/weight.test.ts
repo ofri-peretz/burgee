@@ -61,7 +61,7 @@ describe('the entry-point table', () => {
 
   it('pins the incumbents to the majors the oracle grades against', () => {
     expect(declared['commander']).toBe('^15.0.0');
-    expect(declared['yargs']).toBe('^18.0.0');
+    expect(declared['yargs']).toBe('^18.2.0');
   });
 });
 

@@ -108,9 +108,9 @@ describe('demo-cli-yargs — the second case', () => {
   it('reports the real counts and the oracle’s yargs row', async () => {
     const r = await report;
     expect(r).toMatchObject({ files: 2, imports: 2, refused: [], exitCode: 0 });
-    // `add` and `control` joined the report with A12 (D-137); `add` is empty because the demo already declares burgee. yargs' control is 802, two
+    // `add` and `control` joined the report with A12 (D-137); `add` is empty because the demo already declares burgee. yargs' control is 814, two
     // cases real yargs cannot pass from a vendored copy.
-    expect(r.graded).toEqual([{ host: 'yargs', reference: 804, passed: 804, rate: 1, control: 802 }]);
+    expect(r.graded).toEqual([{ host: 'yargs', reference: 816, passed: 816, rate: 1, control: 814 }]);
     expect(r.dependencies).toEqual({ before: ['yargs'], removable: ['yargs'], after: 0, add: [] });
   });
 });

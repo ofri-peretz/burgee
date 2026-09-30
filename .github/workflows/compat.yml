@@ -45,7 +45,7 @@ jobs:
         run: node packages/compat-oracle/dist/bin.js 2>&1 | tee compat.log
       # Both halves, in the one job that can hold them: `results.json` from the grade
       # above and `results.control.json` from here. The control's numbers are the Linux
-      # ones — yargs scores 802 / 804 here and 804 / 804 on the other runners — so this is
+      # ones — yargs scores 814 / 816 here and 816 / 816 on the other runners — so this is
       # the only place the committed page can be compared against a measurement.
       - name: Grade the real packages, so the page has its control column
         shell: bash

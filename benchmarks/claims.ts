@@ -41,7 +41,7 @@ const CORE_BUNDLE_TARGET = 52 * KB;
 
 const COMPAT_TARGETS = [
   ['commander', 1360],
-  ['yargs', 804],
+  ['yargs', 816],
   ['chalk', 58],
   ['ora', 99],
   ['log-update', 99],

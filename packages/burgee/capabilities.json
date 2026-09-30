@@ -163,9 +163,9 @@
             "yargs": {
               "status": "partial",
               "source": "node_modules/yargs/build/lib/completion-templates.js",
-              "quote": "completionZshTemplate",
-              "lacks": "fish",
-              "missing": "bash and zsh only; no fish or PowerShell script"
+              "quote": "completionFishTemplate",
+              "lacks": "PowerShell",
+              "missing": "bash, zsh and fish only; no PowerShell script"
             },
             "meow": {
               "status": "no",
@@ -321,7 +321,7 @@
         },
         {
           "capability": "Passes yargs' own test suite",
-          "why": "`burgee/yargs` runs yargs' own tests at v18.1.0, unedited apart from the import, so a yargs program keeps working after the import changes.",
+          "why": "`burgee/yargs` runs yargs' own tests at v18.2.0, unedited apart from the import, so a yargs program keeps working after the import changes.",
           "ours": {
             "status": "yes",
             "grade": "packages/compat-oracle/baseline/yargs.json"
@@ -337,7 +337,7 @@
               "status": "yes",
               "source": "packages/compat-oracle/vendor/yargs/test/yargs.mjs",
               "quote": "describe('yargs dsl tests'",
-              "note": "its own suite; the oracle's control run is 802 / 804, because two usage tests read the version from the nearest package.json, which inside a vendored copy is not yargs'"
+              "note": "its own suite; the oracle's control run is 814 / 816, because two usage tests read the version from the nearest package.json, which inside a vendored copy is not yargs'"
             },
             "meow": {
               "status": "n/a",
