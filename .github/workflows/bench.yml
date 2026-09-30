@@ -258,6 +258,11 @@ jobs:
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Every run's full event stream, one file a run — what the agent ran and what the
+          # CLI answered, turn by turn. Outside benchmarks/results/ so the landing step never
+          # commits it; uploaded below. The first CI reading (run 36740119305) disagreed
+          # with the local one and had nothing a reader could open to see why.
+          BENCH_AGENT_TRANSCRIPTS: ${{ runner.temp }}/b1-transcripts
         shell: bash
         # `--check` so the one gated record on this axis can fire. `success-rate`
         # is a floor on the harness, not on the model: a run where a third of the
@@ -295,11 +300,32 @@ jobs:
             echo "::warning title=B1 SKIPPED — the roadmap's headline claim is still unmeasured::$REASON"
           fi
           { echo "## B1 agent cost — **$STATUS**"; echo; [ -n "$REASON" ] && echo "> $REASON"; echo; echo '```'; cat agent.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          # Per task, per variant: the runs behind each median (`perTaskDetail` in agent.ts).
+          FILE="$FILE" node -e '
+            const d = JSON.parse(require("fs").readFileSync(process.env.FILE, "utf8"));
+            for (const r of d.records ?? []) {
+              if (r.axis !== "agent" || r.metric !== "success-rate") continue;
+              const t = r.detail ?? {};
+              console.log(`\n### ${r.variant} — ${t.claude ?? "claude ?"} (pinned: ${t.claudePinned}), env: ${t.env}\n`);
+              console.log("| task | turns | tokens | passed | denials | failures |\n|---|---|---|---|---|---|");
+              for (const id of new Set(Object.keys(t).filter((k) => k.endsWith(".turns")).map((k) => k.slice(0, -6))))
+                console.log(`| ${id} | ${t[id + ".turns"]} | ${t[id + ".tokens"]} | ${t[id + ".passed"]} | ${t[id + ".denials"]} | ${t[id + ".failures"] ?? ""} |`);
+            }' >> "$GITHUB_STEP_SUMMARY" || true
 
       # Scheduled AND push-to-main: between Tuesdays, every push reported this
       # job green while it measured nothing, which is the exact shape of thing
       # a green tick hides for a year. A PR run stays quiet — the summary and
       # the ::warning:: are enough there, and one issue per labelled PR is noise.
+      # Redacted by the harness before they are written. Kept 14 days: long enough to read
+      # the last run's transcripts, short enough that nobody treats them as the record.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: b1-transcripts
+          path: ${{ runner.temp }}/b1-transcripts/
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Say so, where someone will see it
         if: >-
           (github.event_name == 'schedule' || github.event_name == 'push') &&
