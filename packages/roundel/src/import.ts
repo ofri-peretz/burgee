@@ -120,13 +120,16 @@ function checked(colours: Record<ImportedToken, Hex>, slots: Readonly<Record<Imp
   return theme;
 }
 
-const slotError = (slot: string, detail: string, fix: string): ImportError => new ImportError('E_IMPORT_SLOT', `roundel/import: ${slot} ${detail}`, fix);
+/** Refuse one slot. A statement rather than a value, so every caller reads as a guard. */
+function refuseSlot(slot: string, detail: string, fix: string): never {
+  throw new ImportError('E_IMPORT_SLOT', `roundel/import: ${slot} ${detail}`, fix);
+}
 
 /** `#rrggbb`, `rrggbb`, quoted or not — Base16 files are written every way. */
 function base16Colour(slot: string, raw: unknown): Hex {
   const value = typeof raw === 'string' ? raw.trim().replace(/^#/, '') : '';
   if (!HEX6.test(value)) {
-    throw slotError(
+    refuseSlot(
       slot,
       `is ${JSON.stringify(raw) ?? 'missing'}, not a six-digit hex colour`,
       raw === '' || raw === null ? 'quote the value: YAML reads an unquoted # as the start of a comment' : `give ${slot} a value like "1d2021"`,
@@ -143,21 +146,29 @@ function base16Colour(slot: string, raw: unknown): Hex {
  * keeps is the reader's choice, and a theme should not depend on it.
  */
 function base16Lines(text: string): Record<string, string> {
-  const slots: Record<string, string> = {};
+  const slots = new Map<string, string>();
   // `\r?\n`, not `\n`: `.` stops at a carriage return, so a Windows-saved file would match
   // only its last line — and be refused for missing slots it plainly has.
   for (const line of text.split(/\r?\n/)) {
-    const match = /^\s*(base[0-9a-f]{2})\s*:\s*(.*)$/i.exec(line);
+    const match = /^\s*(base[0-9a-f]{2})\s*:(.*)$/i.exec(line);
     if (match === null) continue;
     const key = (match[1] as string).toLowerCase();
-    const rest = (match[2] as string).trim();
-    const quoted = /^(["'])(.*?)\1/.exec(rest);
-    if (key in slots) throw new ImportError('E_IMPORT_FORMAT', `roundel/import: ${key} is written twice`, 'keep one of the two lines');
-    // Unquoted, ` #` starts a comment — and so does a leading `#`, which is why an unquoted
-    // `base00: #1d2021` is null to every YAML reader, and is refused here the same way.
-    slots[key] = quoted !== null ? (quoted[2] as string) : rest.startsWith('#') ? '' : (rest.split(/\s#/)[0] as string).trim();
+    if (slots.has(key)) throw new ImportError('E_IMPORT_FORMAT', `roundel/import: ${key} is written twice`, 'keep one of the two lines');
+    slots.set(key, yamlValue((match[2] as string).trim()));
   }
-  return slots;
+  return Object.fromEntries(slots);
+}
+
+/**
+ * A YAML scalar as these files write one. Quoted, the text inside the quotes. Unquoted, ` #`
+ * starts a comment — and so does a leading `#`, which is why an unquoted `base00: #1d2021` is
+ * null to every YAML reader, and is refused here the same way.
+ */
+function yamlValue(rest: string): string {
+  const quoted = /^(["'])(.*?)\1/.exec(rest);
+  if (quoted !== null) return quoted[2] as string;
+  if (rest.startsWith('#')) return '';
+  return (rest.split(/\s#/)[0] as string).trim();
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -208,13 +219,13 @@ function itermColour(plist: string, slot: string): Hex {
   const rest = at === -1 ? '' : plist.slice(at + key.length);
   const open = /^\s*<dict>/.exec(rest);
   const close = rest.indexOf('</dict>');
-  if (open === null || close === -1) throw slotError(slot, 'is not in the file', 'export the whole colour preset, not a single colour');
+  if (open === null || close === -1) throw new ImportError('E_IMPORT_SLOT', `roundel/import: ${slot} is not in the file`, 'export the whole colour preset, not a single colour');
   const dict = rest.slice(open[0].length, close);
-  if (P3.test(dict)) throw slotError(slot, 'is in Display P3, and roundel reads sRGB', 'set the profile to sRGB in iTerm2 and export it again');
+  if (P3.test(dict)) refuseSlot(slot, 'is in Display P3, and roundel reads sRGB', 'set the profile to sRGB in iTerm2 and export it again');
   const found = new Map([...dict.matchAll(COMPONENT)].map((m) => [m[1], (m[3] as string).trim() === '' ? Number.NaN : Number(m[3])]));
   const rgb = CHANNELS.map((channel) => {
     const n = found.get(channel) ?? Number.NaN;
-    if (!(n >= 0 && n <= 1)) throw slotError(slot, `has no ${channel} Component between 0 and 1`, 're-export the preset from iTerm2: Settings → Profiles → Colors → Color Presets → Export');
+    if (!(n >= 0 && n <= 1)) refuseSlot(slot, `has no ${channel} Component between 0 and 1`, 're-export the preset from iTerm2: Settings → Profiles → Colors → Color Presets → Export');
     return Math.round(n * SRGB_MAX);
   });
   return `#${rgb.map((v) => v.toString(HEX_BASE).padStart(2, '0')).join('')}`;

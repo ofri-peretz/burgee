@@ -46,7 +46,7 @@ export interface Row extends Graded {
 export const GRADED: Readonly<Record<string, Row>> = {
   commander: { reference: 1360, passed: 1360, rate: 1, control: 1360 },
   yargs: { reference: 804, passed: 804, rate: 1, control: 802 },
-  chalk: { reference: 58, passed: 58, rate: 1, control: 58 },
+  chalk: { reference: 59, passed: 59, rate: 1, control: 59 },
   ora: { reference: 99, passed: 99, rate: 1, control: 99 },
   'log-update': { reference: 99, passed: 99, rate: 1, control: 99 },
   boxen: { reference: 84, passed: 84, rate: 1, control: 84 },

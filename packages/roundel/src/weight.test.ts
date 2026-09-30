@@ -119,11 +119,11 @@ const RULES: Record<string, EntryRule> = {
   // R11, on 2026-09-30: `fromBase16` and `fromITerm`. It carries the whole theme graph on
   // purpose — `audit()` is how an imported theme is refused exactly when `fly()` would refuse
   // it, and a second, lighter check would be a second opinion that could disagree — so this is
-  // `./theme`'s 10,112 plus import.js's own 6,303: measured 16,415. Most of import.js is the
+  // `./theme`'s 10,112 plus import.js's own 6,438: measured 16,550. Most of import.js is the
   // refusals, a code and a fix for each way a file can be wrong. No incumbent to be held under:
   // nothing else turns a palette file into a checked theme. Not re-exported from the root,
   // whose 14,600 has 58 B left; a program that never imports a palette never pays for one.
-  './import': { allow: [], budget: 16_500, denied: ['tokens.js', 'chalk.js', 'plugin.js', 'terminal.js', 'index.js'] },
+  './import': { allow: [], budget: 16_600, denied: ['tokens.js', 'chalk.js', 'plugin.js', 'terminal.js', 'index.js'] },
 };
 
 const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;

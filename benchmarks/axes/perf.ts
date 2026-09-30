@@ -168,6 +168,12 @@ function timings(rounds: number): Map<string, number[]> {
   return samples;
 }
 
+/** The command a row spawned, and the environment it added, as the record's note says it. */
+function spawned(v: Variant): string {
+  const command = `\`node ${v.file}${v.parses ? ' greet ada' : ''}\``;
+  return v.env === undefined ? command : `${command} with ${Object.keys(v.env).join(', ')}`;
+}
+
 /**
  * `detail` carries the version and the resolved path, the way B4's rows always have.
  * Without them a row records only which file was spawned, and the question a reader of a
@@ -183,10 +189,7 @@ export function msRecord(v: Variant, xs: number[], floor: number, resolved?: Res
     samples: xs.length,
     median: round(median(xs), MS_PLACES),
     p95: round(p95(xs), MS_PLACES),
-    note:
-      v.pkg === undefined
-        ? 'the floor: Node starting and writing one line, no parser'
-        : `spawned \`node ${v.file}${v.parses ? ' greet ada' : ''}\`${v.env === undefined ? '' : ` with ${Object.keys(v.env).join(', ')}`}; ${round(median(xs) - floor, MS_PLACES)} ms of this is above the bare-node floor`,
+    note: v.pkg === undefined ? 'the floor: Node starting and writing one line, no parser' : `spawned ${spawned(v)}; ${round(median(xs) - floor, MS_PLACES)} ms of this is above the bare-node floor`,
     detail: {
       fixture: v.file,
       ...(v.pkg === undefined || resolved === undefined ? {} : { package: v.pkg, version: resolved.version, resolvedFrom: relativeToRepo(resolved.dir) }),

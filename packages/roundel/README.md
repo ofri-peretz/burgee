@@ -160,9 +160,10 @@ red, `warn` yellow, `ok` green, `flag` cyan, `value` magenta, and `ground` the b
 scheme's comment grey is built to recede, 2.50:1 in Default Dark.
 
 The result is checked before it is returned, by `audit()` — so whatever an importer returns,
-`fly()` accepts. A scheme that does not read is refused with an `ImportError` naming the slot:
-Tomorrow Night's red is `roundel/import: below 4.5:1 (WCAG AA) — error (base08) #cc6666 on
-#1d1f21, 4.46:1`. Every refusal carries a `code` — `E_IMPORT_FORMAT`, `E_IMPORT_SLOT` or
+`fly()` accepts. A scheme that does not read is refused with an `ImportError` naming the slot;
+for Tomorrow Night it reads
+`roundel/import: below 4.5:1 (WCAG AA) — error (base08) #cc6666 on #1d1f21, 4.46:1`.
+Every refusal carries a `code` — `E_IMPORT_FORMAT`, `E_IMPORT_SLOT` or
 `E_IMPORT_CONTRAST` — and a `fix`. Pass `{ conformance: 'AAA' }` to check at 7:1. No network
 and no bundled corpus: the file is yours to supply.
 
@@ -217,7 +218,7 @@ Every subpath is a lock, not a convention. `roundel/tokens` reaches 3,258 bytes 
 (its ceiling is picocolors, 3.3 KB); `roundel/policy` 1,972; `roundel/theme` 6,271;
 `roundel/plugin` 2,812 and reaching no module at all;
 `roundel/contrast` 1,250; `roundel/terminal` 878 and reaching no module; `roundel/import`
-16,415, most of it the theme and contrast check it runs; `roundel/chalk` 9,311 (its ceiling is
+16,550, most of it the theme and contrast check it runs; `roundel/chalk` 9,311 (its ceiling is
 chalk 6.0.0's own 9,370 — 6.0.1 is 9,521 — before the ansi-styles and supports-color chalk
 also ships). Importing one never loads
 another — the tokens never carry the theme, the theme never carries the tokens, chalk
