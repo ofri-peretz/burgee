@@ -49,9 +49,10 @@ A plugin handler is named `"<plugin>:<handler>"`, which is what the
 
 `restore` is closeout's own last phase. A plugin handler admitted to it could run after the
 terminal was handed back depending on nothing but which registered first, which is the
-coincidence phases exist to replace. A refusal throws with a code — `E_PLUGIN_SCHEMA`,
-`E_PLUGIN_CONTRACT` or `E_NO_CONTRIBUTION` — and a message that says what to use instead, and
-the refused plugin is not kept.
+coincidence phases exist to replace. A refusal throws with a code — `E_PLUGIN_SCHEMA` or
+`E_PLUGIN_CONTRACT` — and a message that says what to use instead, and the refused plugin is
+not kept. `closeout check` adds a third, `E_NO_CONTRIBUTION`, for a plugin that registers but
+contributes no handler.
 
 ## Checking a plugin before it ships
 

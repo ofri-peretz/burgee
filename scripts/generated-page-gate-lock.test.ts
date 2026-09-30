@@ -203,7 +203,7 @@ describe('a generated page is gated by a check that can block a merge', () => {
       `no \`*:page ... --check\` step found for every page (saw ${raw.join(', ') || 'nothing'}). ` +
         'Either a page gate is gone or it no longer follows the naming this lock matches ' +
         'on — in which case this file reports coverage of an empty set.',
-    ).toEqual(['bench:page', 'compat:page', 'plugins:page']);
+    ).toEqual(['bench:page', 'compat:page', 'layers:page', 'plugins:page']);
   });
 
   it.each(gates.map((g) => [`${g.file} › ${g.job}`, g] as const))(

@@ -1,0 +1,176 @@
+---
+title: The plugin system
+description: "One plain object, one published schema, one set of refusal codes, and a check command in every package: how a plugin is written, validated and published across the family."
+---
+
+## What it is
+
+A plugin is a **plain object** with a `name`. Each package in the family reads its own key of
+that object and ignores the rest, so one object can extend any subset of the family that is
+installed, including all of it: `tokens` for roundel, `widths` for linegauge, `sources` for
+seniority, `commands` and `hooks` for burgee, and so on.
+[Plugins](/docs/plugins) has the full key-by-key table, generated from the packages.
+
+## Why it exists
+
+Every incumbent extends differently, when it extends at all: a spinner object per ora instance,
+a border object per boxen call, middleware on one yargs program, nothing for chalk. A company
+that wants the same colours, glyphs and config source in every CLI it ships has to repeat them
+per program and per library. One object shape across the family means a convention is written
+once and shared by every CLI and every layer.
+
+## How it works
+
+**One schema.** The shape is one JSON Schema (draft 2020-12). Its source is
+`packages/flagstaff/src/schema.json`; `npm run schema:sync` copies it byte for byte into every
+package that hosts plugins, and each publishes it as `<package>/schema.json`, so an editor, a
+validator or a model can read it without running anything. `name` is required,
+`additionalProperties` is `true` — which is what lets a package ignore another package's key —
+and `contract` is the revision of the object the plugin was written for, currently `1`. Pinned
+by `is byte-identical everywhere it is hosted` in
+[`plugin-schema-lock.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/plugin-schema-lock.test.ts).
+
+**One way in.** Eight packages export `register(plugin)` from `<package>/plugin`: bellpull,
+caique, closeout, flagstaff, linegauge, paratext, roundel and seniority. burgee takes the same
+object through `use(plugin)` on a program — `Manifest#use`, and `.use()` on `burgee/commander`
+and `burgee/yargs` — and `definePlugin` from `burgee/plugin` stamps the contract. Each validates
+the whole object before it keeps anything, so a refused plugin contributes nothing. That the
+same object registers into every host is `one object registers into every host` in
+[`plugin-contract-lock.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/plugin-contract-lock.test.ts).
+
+**One refusal shape.** A refusal is a `PluginError` with a `code`, a `message` and a `fix` — the
+sentence that turns a refusal into a next step. The codes every host uses are
+`E_PLUGIN_SCHEMA` (the object does not match the schema), `E_PLUGIN_CONTRACT` (a contract newer
+than the host knows) and `E_NO_CONTRIBUTION` (it registers, but contributes nothing the host
+reads). Packages that draw add `E_NO_STATIC_PROJECTION` — the [static
+projection](/docs/concepts/static-projection) rule. flagstaff holds the whole vocabulary, and
+[`plugin-error-vocabulary-lock.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/plugin-error-vocabulary-lock.test.ts)
+fails on a code no host's union declares.
+
+## The rules
+
+- **A later registration of the same name wins** in roundel, caique, paratext, bellpull,
+  flagstaff and linegauge, and the hosts that report contributions say which one it shadowed.
+  closeout's handlers accumulate, ordered by phase. seniority's sources are ordered by rank.
+  burgee refuses a contributed command whose path is already declared.
+- **A plugin cannot replace what the host guarantees.** caique's six built-in prompt kinds cannot
+  be replaced; closeout refuses a handler in the `restore` phase; a seniority source's rank must
+  sit strictly between the flag (0) and the default (40); a burgee plugin's commands pass every
+  check a first-party command does, `effects` included.
+- **burgee requires `contract`.** An object that reaches `use()` without one is refused, because
+  burgee's extension point shipped before it validated anything.
+- **A plugin file does not register itself on import.** It exports the object, and the program
+  (or `check`) registers it: `refuses a plugin file that registers itself on import, with the
+  code and the fix (R8)` in
+  [`plugin-check-lock.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/plugin-check-lock.test.ts).
+- **The schema cannot say "function".** `static`, `run` and `read` are required and described;
+  that each is a function is checked by the package, not the schema.
+
+## Validating: `<package> check`
+
+Every package ships a `check` command: `npx roundel check ./plugin.mjs`, and the same for each
+package. It loads the file, validates and registers the plugin, and prints what that package
+does with it, ending in `<name>: ok`. A refusal prints the code and the fix. It exits 0 when
+the plugin contributes, 1 on a refusal and 2 on a usage error. `E_NO_CONTRIBUTION` is what
+catches a misspelled key: `token` instead of `tokens` is a plugin that contributes nothing.
+flagstaff's check also renders each spinner and component in all five output modes, and
+`burgee check` returns its report as data, so `--json` gives an envelope. Pinned for seven hosts
+by the `$name check` block of `plugin-check-lock.test.ts`.
+
+## Publishing
+
+A plugin is an ES module whose default export is the object, published like any npm package.
+There is no plugin registry and no required name prefix: decision
+[D-067](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/decisions/D-067.md) chose a
+`keywords` convention over an npm namespace. The object should be plain data wherever the schema
+allows it, so the published `schema.json` can describe it without running it.
+
+## Run it
+
+One object for three layers:
+
+```js title="acme.mjs"
+export default {
+  name: 'acme',
+  contract: 1,
+  tokens: { ok: '#1a7f37', error: '#cf222e' },
+  widths: { powerline: { ranges: [[0xe0b0, 0xe0b3]], columns: 2, why: 'powerline glyphs render wide in the company terminal profile' } },
+  sources: { vault: { rank: 25, read: () => ({ region: 'eu-1' }), location: 'vault://acme/cli' } },
+};
+```
+
+Each package's `check` shows only its own part:
+
+```text title="npx roundel check acme.mjs"
+acme — 2 tokens
+  ok  #1a7f37
+  error  #cf222e
+acme: ok
+```
+
+```text title="npx linegauge check acme.mjs"
+acme — 1 widths
+  powerline  U+E0B0..U+E0B3  built-in 1 → 2  — powerline glyphs render wide in the company terminal profile
+acme: ok
+```
+
+A misspelled key, and a contract from the future:
+
+```js title="typo.mjs"
+export default { name: 'typo', contract: 1, token: { ok: '#1a7f37' } };
+```
+
+```text title="npx roundel check typo.mjs" exit="1"
+typo — 0 tokens
+E_NO_CONTRIBUTION: typo registers, but contributes nothing roundel reads
+  fix: add a `tokens` section — a key another package in the family reads is allowed in the same object, but `roundel check` cannot show it
+```
+
+```js title="future.mjs"
+export default { name: 'future', contract: 2, tokens: { ok: '#1a7f37' } };
+```
+
+```text title="npx roundel check future.mjs" exit="1"
+E_PLUGIN_CONTRACT: plugin "future" declares contract 2; this roundel knows 1
+  fix: upgrade roundel, or lower the plugin’s contract
+```
+
+Registered in code, the same object changes what linegauge measures, and a malformed one is
+refused whole:
+
+```js title="widths.mjs"
+import { width } from 'linegauge';
+import { register } from 'linegauge/plugin';
+
+import acme from './acme.mjs';
+
+console.log(width(' main'));
+register(acme);
+console.log(width(' main'));
+
+try {
+  register({ contract: 1, widths: {} });
+} catch (error) {
+  console.log(`${error.code}: ${error.message}`);
+  console.log(`fix: ${error.fix}`);
+}
+```
+
+```text title="node widths.mjs"
+6
+7
+E_PLUGIN_SCHEMA: a plugin needs a non-empty `name`
+fix: add `name: "my-widths"` — it is what `linegauge check` and a later registration call it
+```
+
+## Where the rules live
+
+- [Plugins](/docs/plugins) — every key every package reads, the incumbents' extension points,
+  and a nine-layer example, generated from the packages.
+- [Fly your own burgee](/docs/your-own-burgee) — the other thing a CLI built on burgee makes its
+  own: its flag, from `burgee/brand`.
+- Spec: [plugin-contract](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/plugin-contract/spec.md).
+- API: each package's `plugin` page, such as
+  [`roundel/plugin`](https://roundel.interlace.tools/docs/api/plugin) and
+  [`flagstaff/plugin`](https://flagstaff.interlace.tools/docs/api/plugin); guides such as
+  [Plugins](https://flagstaff.interlace.tools/docs/guides/plugins) on flagstaff's site.

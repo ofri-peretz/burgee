@@ -68,7 +68,7 @@ export function validate(plugin: unknown): asserts plugin is Plugin {
     throw new PluginError('E_PLUGIN_SCHEMA', 'a plugin needs a name', 'add `name: "…"` — it is how a shadowed token is reported');
   }
   const contract = plugin['contract'];
-  if (contract !== undefined && (!Number.isInteger(contract) || (contract as number) > CONTRACT)) {
+  if (contract !== undefined && (!Number.isInteger(contract) || (contract as number) < 1 || (contract as number) > CONTRACT)) {
     throw new PluginError('E_PLUGIN_CONTRACT', `plugin "${plugin['name']}" declares contract ${String(contract)}; this roundel knows ${CONTRACT}`, 'upgrade roundel, or lower the plugin’s contract');
   }
   validateTokens(plugin['tokens'], plugin['name']);

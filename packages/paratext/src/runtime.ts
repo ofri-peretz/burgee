@@ -33,6 +33,20 @@ export interface Runtime {
    */
   argv?: readonly string[];
   platform?: string;
+  /**
+   * The output mode a host that composes has already decided — roundel's `outputMode(rt)`:
+   * `tty`, `pipe`, `ci`, `accessible` or `json`. Anything but `tty` is a static projection,
+   * so every capability renders its `fallback`, the rule flagstaff's `hoist()` follows.
+   *
+   * Handed in rather than worked out, for two reasons that are both rules. paratext is a leaf
+   * and may not import roundel (no leaf-to-leaf edge), and the variables the mode is read
+   * from, `CI` and `CLI_ACCESSIBLE`, have one reader in the family (`cli-output-stack` R2).
+   * It is the same seam `json` uses: the caller passes what it knows (R14). Optional, and
+   * absent means what it meant before 2026-09-30 — support is decided from `when` alone —
+   * because `processRuntime()` cannot know it; D-20260930-paratext-standalone-mode is the
+   * owner's call on that default.
+   */
+  mode?: string;
 }
 
 /** What a real process looks like. Callers that have not got one pass their own. */
