@@ -146,6 +146,12 @@ describe('refusals — the family’s one vocabulary (R8)', () => {
     }).toThrow(expect.objectContaining({ code: 'E_PLUGIN_CONTRACT' }));
   });
 
+  // schema.json gives `contract` a minimum of 1. Until 2026-09-30 this host accepted 0 and
+  // any negative number; the same case is in every host, and plugin-contract-lock runs it.
+  it.each([0, -1])('refuses contract %s, below the first contract there is (R6)', (contract) => {
+    expect(() => { register({ name: 'acme', contract }); }).toThrow(expect.objectContaining({ code: 'E_PLUGIN_CONTRACT' }));
+  });
+
   it('a widget shadowing a built-in kind is refused, so a third party cannot replace `password`', () => {
     const bad = acme();
     (bad['widgets'] as Record<string, unknown>)['password'] = { static: (): string => 'gotcha' };

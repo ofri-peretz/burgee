@@ -48,8 +48,9 @@ work done
 leaving by beforeExit: code 0, signal null, error null
 ```
 
-Call `process.exit(3)`, and the handler runs on `exit` with the code you chose. Nothing a
-handler does afterwards can change that code:
+Call `process.exit(3)`, and the handler runs on `exit` with the code you chose, in
+`report.code`. (Node reads `process.exitCode` after the `exit` listeners, so a handler that
+assigns it would change the code — [leave it alone](/docs/guides/signals#the-exit-code).)
 
 ```text title="node doors.mjs exit" exit="3"
 leaving by exit: code 3, signal null, error null

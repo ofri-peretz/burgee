@@ -1,0 +1,198 @@
+---
+title: The static projection
+description: "Every live widget and every terminal capability in the family has a plain-text form for pipes, CI and screen readers — and one without it is refused when it is registered, not discovered when it prints."
+---
+
+## What it is
+
+Anything the family draws for a terminal — a spinner, a progress bar, a prompt, a hyperlink, an
+image — has two forms: the **live** one a terminal sees, and a **static projection**, plain
+text that says the same thing to a reader who cannot see the drawing. A pipe, a CI log, a
+screen reader and an agent get the static form. The [output policy](/docs/concepts/output-policy)
+decides which form a run gets; this page is about what each form must be.
+
+The static form is **required**. The live form is optional.
+
+## Why it exists
+
+Stripping the escapes out of a drawing does not make it text. A progress bar with its colour
+removed is still a row of blocks; a box is still a border; a hyperlink with its OSC 8 sequence
+removed has lost its destination. The static form is written for a reader, which is why a
+built-in says `12/30 files · 40%` rather than `████░░░░`. And a rule every contributor has to
+remember is a rule some contribution breaks, so the family checks it at registration: a
+component, a widget or a capability without a text form is refused with one code,
+`E_NO_STATIC_PROJECTION`, before it can print anything.
+
+## How each package implements it
+
+### flagstaff: components
+
+A component is `{ name, static(state), frame?(t, state), interval? }`. `hoist()` asks
+`outputMode` once and picks a projection:
+
+| Mode | What is written | Where |
+| :-- | :-- | :-- |
+| `tty` | `frame(t, state)` repainted every `interval` ms (80 by default), the cursor hidden; on `lower()`, the final static line | stdout |
+| `pipe`, `ci`, `accessible` | `static(state)`, once per change of the text: no carriage return, no cursor escape, and a growing list appended rather than reprinted | stdout |
+| `json` | one NDJSON event per transition, `{"event":<name>,"state":<state>}` | stderr |
+
+Under `--json` stdout stays free for the program's own result. Pinned by `R1 · one component,
+five modes` and `R5 · off a terminal, no carriage return and no cursor escape` in
+[`loop.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/loop.test.ts),
+and the refusal by `R2 · a contribution without a static projection is refused` in
+[`plugin.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/plugin.test.ts).
+The same applies to a spinner: its `static` string is what a pipe prints instead of the frames.
+
+### paratext: capabilities
+
+A terminal capability is `{ name, osc, when, encode, fallback }`. `emit(runtime, name, fields)`
+writes `encode` where `when` says the terminal supports it and `fallback` everywhere else: a
+link is `the report (https://…)` in a pipe, never raw OSC and never the text with its
+destination dropped. `fallback` is required; an empty string is a legal answer (the bell has
+nothing to say in a pipe), absence is not (`refuses a capability with no projection, at
+registration rather than at output` in
+[`paratext.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/paratext/src/paratext.test.ts)).
+
+paratext is a leaf, so it cannot ask roundel's `outputMode`. Its built-in capabilities declare
+`when: { tty: true }`, which is what sends a pipe to the fallback; `TERM=dumb` always does.
+
+### caique: prompts
+
+A prompt is flags first. When an answer is missing and nobody can type it — `--json`, no
+terminal on stdin, `CI`, or an [agent](/docs/concepts/agent-surfaces) — caique does not wait:
+it refuses with a `USAGE` verdict that names the flag to pass, which burgee turns into
+[exit 2](/docs/concepts/exit-codes). A plugin widget must carry `static(spec)`, the line a pipe,
+an agent or a screen reader gets instead of the prompt (``a widget without `static` is
+E_NO_STATIC_PROJECTION, the same code flagstaff uses (R5)`` in
+[`plugin.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/caique/src/plugin.test.ts);
+`R2 · with nobody there, a missing value is an error and never a wait` in
+[`decide.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/caique/src/decide.test.ts)).
+
+### controlroom
+
+Reserved, with no API yet. Its spec plans the same rule for full-screen screens: each pane's
+static projection in pane order, and NDJSON events on stderr under `--json`.
+
+## What is not the same everywhere
+
+Only flagstaff emits NDJSON under `--json`. caique's answer to `--json` is to refuse the
+prompt, which is an envelope rather than an event stream, and paratext has no `--json` form: it
+writes the fallback wherever `when` does not match. And paratext decides support from `when`
+alone, so a capability whose `when` matches a terminal is emitted in the `accessible` and `ci`
+modes too when stdout is that terminal.
+
+## Run it
+
+One component and one capability, in a pipe and under `--json`:
+
+```js title="project.mjs"
+import process from 'node:process';
+
+import { hoist } from 'flagstaff/loop';
+import { emit } from 'paratext';
+
+const rt = {
+  env: process.env,
+  isTTY: { stdout: process.stdout.isTTY === true },
+  stdout: process.stdout,
+  stderr: process.stderr,
+  clock: {
+    now: () => Date.now(),
+    schedule(fn, ms) {
+      const id = setTimeout(fn, ms);
+      return () => clearTimeout(id);
+    },
+  },
+};
+const json = process.argv.includes('--json');
+
+const upload = {
+  name: 'upload',
+  static: (s) => `${s.sent} of ${s.total} files uploaded`,
+  frame: (t, s) => `${'|/-\\'[Math.floor(t / 80) % 4]} ${s.sent}/${s.total}`,
+};
+
+const flag = hoist(upload, rt, { sent: 0, total: 2 }, { json });
+flag.update({ sent: 1, total: 2 });
+flag.lower({ sent: 2, total: 2 });
+
+if (!json) console.log(emit(rt, 'link', { text: 'the report', url: 'https://example.com/r/42' }));
+```
+
+```text title="node project.mjs"
+0 of 2 files uploaded
+1 of 2 files uploaded
+2 of 2 files uploaded
+the report (https://example.com/r/42)
+```
+
+```text title="CLI_ACCESSIBLE=1 node project.mjs"
+0 of 2 files uploaded
+1 of 2 files uploaded
+2 of 2 files uploaded
+the report (https://example.com/r/42)
+```
+
+```text title="node project.mjs --json"
+{"event":"upload","state":{"sent":0,"total":2}}
+{"event":"upload","state":{"sent":1,"total":2}}
+{"event":"upload","state":{"sent":2,"total":2}}
+```
+
+A contribution without a text form, in each of the three packages that draw or emit, and a
+prompt with nobody to answer it:
+
+```js title="refuse.mjs"
+import process from 'node:process';
+
+import { decide } from 'caique/decide';
+import { register as registerWidget } from 'caique/plugin';
+import { register as registerComponent } from 'flagstaff/plugin';
+import { register as registerCapability } from 'paratext';
+
+const attempts = {
+  flagstaff: () => registerComponent({ name: 'acme', spinners: { dots: { frames: ['.', '..'], interval: 100 } } }),
+  caique: () => registerWidget({ name: 'acme', widgets: { rating: {} } }),
+  paratext: () => registerCapability({ name: 'beep', osc: 'BEL', when: { tty: true }, encode: '\u0007' }),
+};
+for (const [pkg, attempt] of Object.entries(attempts)) {
+  try {
+    attempt();
+  } catch (error) {
+    console.log(`${pkg}: ${error.code}`);
+  }
+}
+
+const verdict = decide({
+  value: undefined,
+  spec: { kind: 'text', message: 'Project name?' },
+  option: 'name',
+  runtime: { env: process.env, isTTY: { stdin: process.stdin.isTTY === true } },
+  required: true,
+});
+console.log(verdict);
+```
+
+```text title="node refuse.mjs"
+flagstaff: E_NO_STATIC_PROJECTION
+caique: E_NO_STATIC_PROJECTION
+paratext: E_NO_STATIC_PROJECTION
+{
+  action: 'error',
+  code: 'USAGE',
+  message: '--name is required when there is no terminal',
+  fix: 'pass --name; it would have been asked as "Project name?"'
+}
+```
+
+## Where the rules live
+
+- The rule: cli-output-stack
+  [U3 and R3](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/cli-output-stack/spec.md).
+- Guides: [The static projection](https://flagstaff.interlace.tools/docs/guides/static-projection)
+  and [Accessibility](https://flagstaff.interlace.tools/docs/guides/accessibility) on flagstaff's
+  site; [The static projection](https://paratext.interlace.tools/docs/guides/static-projection) on
+  paratext's; [Never hangs](https://caique.interlace.tools/docs/guides/never-hangs) on caique's.
+- API: [`flagstaff/loop`](https://flagstaff.interlace.tools/docs/api/loop),
+  [`paratext`](https://paratext.interlace.tools/docs/api),
+  [`caique/decide`](https://caique.interlace.tools/docs/api/decide).

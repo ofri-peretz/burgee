@@ -24,6 +24,13 @@ waiting on. The `## What shipped` sections below carry the detail.
   believed to understand it**. **Built** — and the requirement's second clause, "it never
   returns an empty string", is **withdrawn as false**: five of the seven built-ins project
   to `''` on purpose. See *What the design claimed and the code does not do*.
+  **The output mode, 2026-09-30.** "Not believed to understand it" now includes a run that the
+  family's policy sends to the static projection. A host that asked roundel's `outputMode`
+  passes the answer as `Runtime.mode`, and anything but `tty` renders the fallback, as
+  flagstaff's `hoist()` does for `pipe`, `ci` and `accessible`. paratext may not read
+  `CLI_ACCESSIBLE` or import roundel, so `processRuntime()` leaves `mode` out.
+  [D-20260930-paratext-standalone-mode](../../decisions/D-20260930-paratext-standalone-mode.md)
+  is the owner's decision on that standalone default.
 - **R3** `register(capability)` adds or replaces by name; `reset()` clears; `capabilities()`
   lists. The seven built-ins register through the same call at import. **Built**.
 - **R4** `check(candidate)` validates a plugin document against `schema.json` and returns the
