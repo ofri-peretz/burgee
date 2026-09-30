@@ -1,16 +1,16 @@
 {
-  "$comment": "B5 runtime vs incumbent (D-20260929-b5-runtime-ratchets): one downward-only ratchet per (package, incumbent) pair, ours ÷ theirs in-process. `ceiling` is what benchmarks/axes/runtime.ts gates each pair on; `target` is the bar every pair is held to in the end, at or below the incumbent. `history` is append-only and never rises: scripts/runtime-ratchets-lock.test.ts refuses a `ceiling` that is not the last entry, an entry above the one before it unless it cites a newer decision in .sdlc/decisions/, a history that rewrites the committed one, and a pair the axis measures with no ratchet (or a ratchet for no pair). A PR that makes a pair faster appends a lower step in the same commit; `npm run ratchets:propose` prints how far each can come down from the CI observations on main.",
+  "$comment": "B5 runtime vs incumbent (D-20260929-b5-runtime-ratchets): one downward-only ratchet per (package, incumbent) pair, ours ÷ theirs in-process. `ceiling` is what benchmarks/axes/runtime.ts gates each pair on; `target` is the bar every pair is held to in the end, at or below the incumbent. `history` is append-only and never rises: scripts/runtime-ratchets-lock.test.ts refuses a `ceiling` that is not the last entry, an entry above the one before it unless it cites a newer decision in .sdlc/decisions/, a history that rewrites the committed one, and a pair the axis measures with no ratchet (or a ratchet for no pair). A PR that makes a pair faster appends a lower step in the same commit; `npm run ratchets:propose` prints how far each can come down from the CI observations on main. Since D-20260930-b5-ceilings-from-spread each ceiling is max(mean + 3 sd, max) of the pair's CI series, written in its `derive.rule`; a pair with `bar` holds a spec's value and is never raised.",
   "ratchets": {
     "paratext": {
-      "ceiling": 1.25,
+      "ceiling": 1.15,
       "unit": "ratio",
       "target": 1,
       "derive": {
         "source": "ci",
-        "observations": 10,
-        "headroom": 1.25,
+        "observations": 30,
+        "sigmas": 3,
         "step": 0.05,
-        "rule": "The largest median `runtime-ratio` of the last 10 CI observations in benchmarks/results/cli-benchmarks/*-ci.json (or the PR run that lowers it, cited in the step), times 1.25 for a shared runner's noise on an in-process ratio, rounded up to the next 0.05. Target 1.0: at or below the incumbent."
+        "rule": "max(mean + 3 sd, max) over the CI runs carrying #763 (paratext read-once), every attempt, 2026-09-30 (D-20260930-b5-ceilings-from-spread): n 23, mean 1.005, sd 0.044, max 1.099; mean + 3 sd = 1.137; up to 0.05 = 1.15. Lowered as the series grows: npm run ratchets:propose."
       },
       "history": [
         {
@@ -26,19 +26,26 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 0.974,
           "why": "paratext reads the process once, keeps a parsed template and eraseLines per count: measured 0.974 locally (8.913 on PR #744 CI before the fix). No CI run has measured the fix yet, so 1.25x the local figure; the next PR lowers it from this one's CI run."
+        },
+        {
+          "ceiling": 1.15,
+          "setOn": "2026-09-30",
+          "decision": "D-20260930-b5-ceilings-from-spread",
+          "measured": 1.005,
+          "why": "From CI spread, not one run: n 23, mean 1.005, sd 0.044, max 1.099 -> 1.15 (was 1.25, which was 1.25x a single reading)."
         }
       ]
     },
     "paratext/terminal-link": {
-      "ceiling": 1,
+      "ceiling": 0.95,
       "unit": "ratio",
       "target": 1,
       "derive": {
         "source": "ci",
-        "observations": 10,
-        "headroom": 1.25,
+        "observations": 30,
+        "sigmas": 3,
         "step": 0.05,
-        "rule": "The largest median `runtime-ratio` of the last 10 CI observations in benchmarks/results/cli-benchmarks/*-ci.json (or the PR run that lowers it, cited in the step), times 1.25 for a shared runner's noise on an in-process ratio, rounded up to the next 0.05. Target 1.0: at or below the incumbent."
+        "rule": "max(mean + 3 sd, max) over the CI runs carrying #763, every attempt, 2026-09-30 (D-20260930-b5-ceilings-from-spread): n 23, mean 0.758, sd 0.062, max 0.833; mean + 3 sd = 0.944; up to 0.05 = 0.95. Lowered as the series grows: npm run ratchets:propose."
       },
       "history": [
         {
@@ -54,19 +61,26 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 0.778,
           "why": "terminal-link decides once per stream and splits the OSC 8 record once at load: measured 0.778 locally (20.852 on PR #744 CI before the fix). No CI run has measured the fix yet, so 1.25x the local figure; the next PR lowers it from this one's CI run."
+        },
+        {
+          "ceiling": 0.95,
+          "setOn": "2026-09-30",
+          "decision": "D-20260930-b5-ceilings-from-spread",
+          "measured": 0.758,
+          "why": "From CI spread, not one run: n 23, mean 0.758, sd 0.062, max 0.833 -> 0.95 (was 1, which was 1.25x a single reading)."
         }
       ]
     },
     "linegauge": {
-      "ceiling": 0.9,
+      "ceiling": 0.85,
       "unit": "ratio",
       "target": 1,
       "derive": {
         "source": "ci",
-        "observations": 10,
-        "headroom": 1.25,
+        "observations": 30,
+        "sigmas": 3,
         "step": 0.05,
-        "rule": "The largest median `runtime-ratio` of the last 10 CI observations in benchmarks/results/cli-benchmarks/*-ci.json (or the PR run that lowers it, cited in the step), times 1.25 for a shared runner's noise on an in-process ratio, rounded up to the next 0.05. Target 1.0: at or below the incumbent."
+        "rule": "max(mean + 3 sd, max) over the CI runs carrying #763 (linegauge fast paths), every attempt, 2026-09-30 (D-20260930-b5-ceilings-from-spread): n 21, mean 0.675, sd 0.051, max 0.741; mean + 3 sd = 0.828; up to 0.05 = 0.85. Lowered as the series grows: npm run ratchets:propose."
       },
       "history": [
         {
@@ -89,19 +103,26 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 0.698,
           "why": "linegauge's fast paths — one-regex strip, lazily-segmented slice, cluster widths without re-segmenting, emoji and ASCII guards — measured locally: 0.698 (1.342 on PR #744 CI). No CI run has measured it yet: 1.25x local; the next PR lowers it from this one's CI run."
+        },
+        {
+          "ceiling": 0.85,
+          "setOn": "2026-09-30",
+          "decision": "D-20260930-b5-ceilings-from-spread",
+          "measured": 0.675,
+          "why": "From CI spread, not one run: n 21, mean 0.675, sd 0.051, max 0.741 -> 0.85 (was 0.9, which was 1.25x a single reading)."
         }
       ]
     },
     "linegauge/strip": {
-      "ceiling": 1.3,
+      "ceiling": 1.1,
       "unit": "ratio",
       "target": 1,
       "derive": {
         "source": "ci",
-        "observations": 10,
-        "headroom": 1.25,
+        "observations": 30,
+        "sigmas": 3,
         "step": 0.05,
-        "rule": "The largest median `runtime-ratio` of the last 10 CI observations in benchmarks/results/cli-benchmarks/*-ci.json (or the PR run that lowers it, cited in the step), times 1.25 for a shared runner's noise on an in-process ratio, rounded up to the next 0.05. Target 1.0: at or below the incumbent."
+        "rule": "max(mean + 3 sd, max) over the CI runs carrying #763, every attempt, 2026-09-30 (D-20260930-b5-ceilings-from-spread): n 21, mean 1.015, sd 0.012, max 1.037; mean + 3 sd = 1.051; up to 0.05 = 1.1. Lowered as the series grows: npm run ratchets:propose."
       },
       "history": [
         {
@@ -124,19 +145,26 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 1.01,
           "why": "linegauge's fast paths — one-regex strip, lazily-segmented slice, cluster widths without re-segmenting, emoji and ASCII guards — measured locally: 1.01 (4.343 on PR #744 CI) — the incumbent's own grammar in one pass, so parity is the floor. 1.25x local until CI measures it."
+        },
+        {
+          "ceiling": 1.1,
+          "setOn": "2026-09-30",
+          "decision": "D-20260930-b5-ceilings-from-spread",
+          "measured": 1.015,
+          "why": "From CI spread, not one run: n 21, mean 1.015, sd 0.012, max 1.037 -> 1.1 (was 1.3, which was 1.25x a single reading)."
         }
       ]
     },
     "linegauge/wrap": {
-      "ceiling": 0.95,
+      "ceiling": 0.85,
       "unit": "ratio",
       "target": 1,
       "derive": {
         "source": "ci",
-        "observations": 10,
-        "headroom": 1.25,
+        "observations": 30,
+        "sigmas": 3,
         "step": 0.05,
-        "rule": "The largest median `runtime-ratio` of the last 10 CI observations in benchmarks/results/cli-benchmarks/*-ci.json (or the PR run that lowers it, cited in the step), times 1.25 for a shared runner's noise on an in-process ratio, rounded up to the next 0.05. Target 1.0: at or below the incumbent."
+        "rule": "max(mean + 3 sd, max) over the CI runs carrying #763, every attempt, 2026-09-30 (D-20260930-b5-ceilings-from-spread): n 21, mean 0.716, sd 0.034, max 0.769; mean + 3 sd = 0.818; up to 0.05 = 0.85. Lowered as the series grows: npm run ratchets:propose."
       },
       "history": [
         {
@@ -159,19 +187,26 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 0.725,
           "why": "linegauge's fast paths — one-regex strip, lazily-segmented slice, cluster widths without re-segmenting, emoji and ASCII guards — measured locally: 0.725 (1.819 on PR #744 CI). 1.25x local until CI measures it."
+        },
+        {
+          "ceiling": 0.85,
+          "setOn": "2026-09-30",
+          "decision": "D-20260930-b5-ceilings-from-spread",
+          "measured": 0.716,
+          "why": "From CI spread, not one run: n 21, mean 0.716, sd 0.034, max 0.769 -> 0.85 (was 0.95, which was 1.25x a single reading)."
         }
       ]
     },
     "linegauge/slice": {
-      "ceiling": 0.95,
+      "ceiling": 1.05,
       "unit": "ratio",
       "target": 1,
       "derive": {
         "source": "ci",
-        "observations": 10,
-        "headroom": 1.25,
+        "observations": 30,
+        "sigmas": 3,
         "step": 0.05,
-        "rule": "The largest median `runtime-ratio` of the last 10 CI observations in benchmarks/results/cli-benchmarks/*-ci.json (or the PR run that lowers it, cited in the step), times 1.25 for a shared runner's noise on an in-process ratio, rounded up to the next 0.05. Target 1.0: at or below the incumbent."
+        "rule": "max(mean + 3 sd, max) over the CI runs carrying #763, #774's failed attempt included, every attempt, 2026-09-30 (D-20260930-b5-ceilings-from-spread): n 21, mean 0.856, sd 0.061, max 1.028; mean + 3 sd = 1.039; up to 0.05 = 1.05. Lowered as the series grows: npm run ratchets:propose."
       },
       "history": [
         {
@@ -194,19 +229,26 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 0.756,
           "why": "linegauge's fast paths — one-regex strip, lazily-segmented slice, cluster widths without re-segmenting, emoji and ASCII guards — measured locally: 0.756 (8.678 on PR #744 CI). 1.25x local until CI measures it."
+        },
+        {
+          "ceiling": 1.05,
+          "setOn": "2026-09-30",
+          "decision": "D-20260930-b5-ceilings-from-spread",
+          "measured": 0.856,
+          "why": "From CI spread, not one run: n 21, mean 0.856, sd 0.061, max 1.028 -> 1.05 (was 0.95, which was 1.25x a single reading)."
         }
       ]
     },
     "roundel/chalk": {
-      "ceiling": 1.5,
+      "ceiling": 1.35,
       "unit": "ratio",
       "target": 1,
       "derive": {
         "source": "ci",
-        "observations": 10,
-        "headroom": 1.25,
+        "observations": 30,
+        "sigmas": 3,
         "step": 0.05,
-        "rule": "The largest median `runtime-ratio` of the last 10 CI observations in benchmarks/results/cli-benchmarks/*-ci.json (or the PR run that lowers it, cited in the step), times 1.25 for a shared runner's noise on an in-process ratio, rounded up to the next 0.05. Target 1.0: at or below the incumbent."
+        "rule": "max(mean + 3 sd, max) over the CI runs carrying #770 (four; sd from the series itself, 2.2% of the mean, above the 1% the pre-fix series shows), every attempt, 2026-09-30 (D-20260930-b5-ceilings-from-spread): n 4, mean 1.239, sd 0.027, max 1.255; mean + 3 sd = 1.320; up to 0.05 = 1.35. Lowered as the series grows: npm run ratchets:propose."
       },
       "history": [
         {
@@ -229,19 +271,26 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 1.172,
           "why": "roundel/chalk keeps its escapes per builder (a painter grown one pair at a time), reads its links as kept properties instead of through a Proxy, and skips the passes a string does not need: 1.172 locally (3.554 on PR #744 CI). 1.25x local until CI measures it."
+        },
+        {
+          "ceiling": 1.35,
+          "setOn": "2026-09-30",
+          "decision": "D-20260930-b5-ceilings-from-spread",
+          "measured": 1.239,
+          "why": "From CI spread, not one run: n 4, mean 1.239, sd 0.027, max 1.255 -> 1.35 (was 1.5, which was 1.25x a single reading)."
         }
       ]
     },
     "bellpull/node-which": {
-      "ceiling": 1.3,
+      "ceiling": 0.5,
       "unit": "ratio",
       "target": 1,
       "derive": {
         "source": "ci",
-        "observations": 10,
-        "headroom": 1.25,
+        "observations": 30,
+        "sigmas": 3,
         "step": 0.05,
-        "rule": "The largest median `runtime-ratio` of the last 10 CI observations in benchmarks/results/cli-benchmarks/*-ci.json (or the PR run that lowers it, cited in the step), times 1.25 for a shared runner's noise on an in-process ratio, rounded up to the next 0.05. Target 1.0: at or below the incumbent."
+        "rule": "max(mean + 3 sd, max) over the CI runs carrying #766 or #770, every attempt, 2026-09-30 (D-20260930-b5-ceilings-from-spread): n 10, mean 0.397, sd 0.034, max 0.433; mean + 3 sd = 0.499; up to 0.05 = 0.5. Lowered as the series grows: npm run ratchets:propose."
       },
       "history": [
         {
@@ -257,6 +306,13 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 1.023,
           "why": "PR #744 CI (bench run 36671525047, ubuntu-latest): 1.023 x 1.25, rounded up to 0.05."
+        },
+        {
+          "ceiling": 0.5,
+          "setOn": "2026-09-30",
+          "decision": "D-20260930-b5-ceilings-from-spread",
+          "measured": 0.397,
+          "why": "From CI spread, not one run: n 10, mean 0.397, sd 0.034, max 0.433 -> 0.5 (was 1.3, which was 1.25x a single reading)."
         }
       ]
     },
@@ -266,10 +322,10 @@
       "target": 1,
       "derive": {
         "source": "ci",
-        "observations": 10,
-        "headroom": 1.25,
+        "observations": 30,
+        "sigmas": 3,
         "step": 0.05,
-        "rule": "bellpull R8's bar, not a derived ceiling: spawn time at or under tinyexec, so the ceiling IS the target and never rises above it. The derive rule the other pairs use (the largest median of the last 10 CI observations times 1.25) would put it above 1.0 and turn R8 into a ratchet it never asked to be. It may still come down: the largest median of the last 10 CI observations times 1.25, rounded up to the next 0.05, once that is under 1.0."
+        "rule": "A spec bar, not a ratchet from spread: bellpull R8's 1.0 (D-20260930-bellpull-spawn-vs-tinyexec). CI since #766: n 10, mean 0.989, sd 0.008, max 0.998 — mean + 3 sd would be 1.013, so the pair runs 31 rounds instead of 11 to narrow its median (D-20260930-b5-ceilings-from-spread); the ceiling is never re-derived upward."
       },
       "history": [
         {
@@ -279,18 +335,19 @@
           "measured": 0.933,
           "why": "R8's bar, set at the target on the first step: bellpull ÷ tinyexec read 0.922, 0.932, 0.933, 0.940 and 0.949 across five runs on an M4 Pro at load 55-60 (median 0.933), so the pair is under 1.0 before any ceiling is derived for it. Gating at the bar rather than at 1.25x a measurement keeps R8 a requirement instead of a ratchet that starts above it."
         }
-      ]
+      ],
+      "bar": "bellpull R8 — not slower than tinyexec (D-20260930-bellpull-spawn-vs-tinyexec)"
     },
     "flagstaff/ora": {
-      "ceiling": 1.2,
+      "ceiling": 1.05,
       "unit": "ratio",
       "target": 1,
       "derive": {
         "source": "ci",
-        "observations": 10,
-        "headroom": 1.25,
+        "observations": 30,
+        "sigmas": 3,
         "step": 0.05,
-        "rule": "The largest median `runtime-ratio` of the last 10 CI observations in benchmarks/results/cli-benchmarks/*-ci.json (or the PR run that lowers it, cited in the step), times 1.25 for a shared runner's noise on an in-process ratio, rounded up to the next 0.05. Target 1.0: at or below the incumbent."
+        "rule": "max(mean + 3 sd, max) over the CI runs carrying #770 (four; sd 3.0% of the mean, taken from the 21 runs carrying #763), every attempt, 2026-09-30 (D-20260930-b5-ceilings-from-spread): n 4, mean 0.955, sd 0.029, max 0.967; mean + 3 sd = 1.042; up to 0.05 = 1.05. Lowered as the series grows: npm run ratchets:propose."
       },
       "history": [
         {
@@ -320,19 +377,26 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 0.945,
           "why": "flagstaff/ora on roundel/chalk without the Proxy: 0.945 locally. 1.25x local until CI measures it."
+        },
+        {
+          "ceiling": 1.05,
+          "setOn": "2026-09-30",
+          "decision": "D-20260930-b5-ceilings-from-spread",
+          "measured": 0.955,
+          "why": "From CI spread, not one run: n 4, mean 0.955, sd 0.029, max 0.967 -> 1.05 (was 1.2, which was 1.25x a single reading)."
         }
       ]
     },
     "flagstaff/log-update": {
-      "ceiling": 0.95,
+      "ceiling": 1.05,
       "unit": "ratio",
       "target": 1,
       "derive": {
         "source": "ci",
-        "observations": 10,
-        "headroom": 1.25,
+        "observations": 30,
+        "sigmas": 3,
         "step": 0.05,
-        "rule": "The largest median `runtime-ratio` of the last 10 CI observations in benchmarks/results/cli-benchmarks/*-ci.json (or the PR run that lowers it, cited in the step), times 1.25 for a shared runner's noise on an in-process ratio, rounded up to the next 0.05. Target 1.0: at or below the incumbent."
+        "rule": "max(mean + 3 sd, max) over the CI runs carrying #763, every attempt, 2026-09-30 (D-20260930-b5-ceilings-from-spread): n 21, mean 0.790, sd 0.085, max 0.998; mean + 3 sd = 1.045; up to 0.05 = 1.05. Lowered as the series grows: npm run ratchets:propose."
       },
       "history": [
         {
@@ -355,19 +419,26 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 0.724,
           "why": "flagstaff/log-update on the faster linegauge: 0.724 locally (2.699 on PR #744 CI). 1.25x local until CI measures it."
+        },
+        {
+          "ceiling": 1.05,
+          "setOn": "2026-09-30",
+          "decision": "D-20260930-b5-ceilings-from-spread",
+          "measured": 0.79,
+          "why": "From CI spread, not one run: n 21, mean 0.790, sd 0.085, max 0.998 -> 1.05 (was 0.95, which was 1.25x a single reading)."
         }
       ]
     },
     "flagstaff/boxen": {
-      "ceiling": 0.65,
+      "ceiling": 0.6,
       "unit": "ratio",
       "target": 1,
       "derive": {
         "source": "ci",
-        "observations": 10,
-        "headroom": 1.25,
+        "observations": 30,
+        "sigmas": 3,
         "step": 0.05,
-        "rule": "The largest median `runtime-ratio` of the last 10 CI observations in benchmarks/results/cli-benchmarks/*-ci.json (or the PR run that lowers it, cited in the step), times 1.25 for a shared runner's noise on an in-process ratio, rounded up to the next 0.05. Target 1.0: at or below the incumbent."
+        "rule": "max(mean + 3 sd, max) over the CI runs carrying #763, every attempt, 2026-09-30 (D-20260930-b5-ceilings-from-spread): n 21, mean 0.505, sd 0.028, max 0.552; mean + 3 sd = 0.589; up to 0.05 = 0.6. Lowered as the series grows: npm run ratchets:propose."
       },
       "history": [
         {
@@ -390,6 +461,13 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 0.49,
           "why": "flagstaff/boxen on the faster linegauge: 0.49 locally (0.878 on PR #744 CI). 1.25x local until CI measures it."
+        },
+        {
+          "ceiling": 0.6,
+          "setOn": "2026-09-30",
+          "decision": "D-20260930-b5-ceilings-from-spread",
+          "measured": 0.505,
+          "why": "From CI spread, not one run: n 21, mean 0.505, sd 0.028, max 0.552 -> 0.6 (was 0.65, which was 1.25x a single reading)."
         }
       ]
     },
@@ -399,10 +477,10 @@
       "target": 1,
       "derive": {
         "source": "ci",
-        "observations": 10,
-        "headroom": 1.25,
+        "observations": 30,
+        "sigmas": 3,
         "step": 0.05,
-        "rule": "The largest median `runtime-ratio` of the last 10 CI observations in benchmarks/results/cli-benchmarks/*-ci.json (or the PR run that lowers it, cited in the step), times 1.25 for a shared runner's noise on an in-process ratio, rounded up to the next 0.05. Target 1.0: at or below the incumbent."
+        "rule": "max(mean + 3 sd, max) over the CI runs carrying #770 (four; sd 6.4% of the mean, taken from the 21 runs carrying #763), every attempt, 2026-09-30 (D-20260930-b5-ceilings-from-spread): n 4, mean 0.378, sd 0.024, max 0.401; mean + 3 sd = 0.450; up to 0.05 = 0.45. Lowered as the series grows: npm run ratchets:propose."
       },
       "history": [
         {
@@ -436,15 +514,15 @@
       ]
     },
     "caique/clack": {
-      "ceiling": 1.9,
+      "ceiling": 1.7,
       "unit": "ratio",
       "target": 1,
       "derive": {
         "source": "ci",
-        "observations": 10,
-        "headroom": 1.25,
+        "observations": 30,
+        "sigmas": 3,
         "step": 0.05,
-        "rule": "The largest median `runtime-ratio` of the last 10 CI observations in benchmarks/results/cli-benchmarks/*-ci.json (or the PR run that lowers it, cited in the step), times 1.25 for a shared runner's noise on an in-process ratio, rounded up to the next 0.05. Target 1.0: at or below the incumbent."
+        "rule": "max(mean + 3 sd, max) over the CI runs carrying #763, every attempt, 2026-09-30 (D-20260930-b5-ceilings-from-spread): n 21, mean 1.498, sd 0.056, max 1.594; mean + 3 sd = 1.666; up to 0.05 = 1.7. Lowered as the series grows: npm run ratchets:propose."
       },
       "history": [
         {
@@ -467,19 +545,26 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 1.496,
           "why": "caique/clack on the faster linegauge: 1.496 locally (2.544 on PR #744 CI). 1.25x local until CI measures it."
+        },
+        {
+          "ceiling": 1.7,
+          "setOn": "2026-09-30",
+          "decision": "D-20260930-b5-ceilings-from-spread",
+          "measured": 1.498,
+          "why": "From CI spread, not one run: n 21, mean 1.498, sd 0.056, max 1.594 -> 1.7 (was 1.9, which was 1.25x a single reading)."
         }
       ]
     },
     "burgee/commander": {
-      "ceiling": 1.4,
+      "ceiling": 1.2,
       "unit": "ratio",
       "target": 1,
       "derive": {
         "source": "ci",
-        "observations": 10,
-        "headroom": 1.25,
+        "observations": 30,
+        "sigmas": 3,
         "step": 0.05,
-        "rule": "The largest median `runtime-ratio` of the last 10 CI observations in benchmarks/results/cli-benchmarks/*-ci.json (or the PR run that lowers it, cited in the step), times 1.25 for a shared runner's noise on an in-process ratio, rounded up to the next 0.05. Target 1.0: at or below the incumbent."
+        "rule": "max(mean + 3 sd, max) over the every CI run since B5 landed (#744), every attempt, 2026-09-30 (D-20260930-b5-ceilings-from-spread): n 48, mean 1.074, sd 0.027, max 1.115; mean + 3 sd = 1.155; up to 0.05 = 1.2. Lowered as the series grows: npm run ratchets:propose."
       },
       "history": [
         {
@@ -495,19 +580,26 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 1.114,
           "why": "PR #744 CI (bench run 36671525047, ubuntu-latest): 1.114 x 1.25, rounded up to 0.05."
+        },
+        {
+          "ceiling": 1.2,
+          "setOn": "2026-09-30",
+          "decision": "D-20260930-b5-ceilings-from-spread",
+          "measured": 1.074,
+          "why": "From CI spread, not one run: n 48, mean 1.074, sd 0.027, max 1.115 -> 1.2 (was 1.4, which was 1.25x a single reading)."
         }
       ]
     },
     "burgee/yargs": {
-      "ceiling": 1.4,
+      "ceiling": 1.1,
       "unit": "ratio",
       "target": 1,
       "derive": {
         "source": "ci",
-        "observations": 10,
-        "headroom": 1.25,
+        "observations": 30,
+        "sigmas": 3,
         "step": 0.05,
-        "rule": "The largest median `runtime-ratio` of the last 10 CI observations in benchmarks/results/cli-benchmarks/*-ci.json (or the PR run that lowers it, cited in the step), times 1.25 for a shared runner's noise on an in-process ratio, rounded up to the next 0.05. Target 1.0: at or below the incumbent."
+        "rule": "max(mean + 3 sd, max) over the every CI run since B5 landed (#744), every attempt, 2026-09-30 (D-20260930-b5-ceilings-from-spread): n 48, mean 1.061, sd 0.013, max 1.092; mean + 3 sd = 1.100; up to 0.05 = 1.1. Lowered as the series grows: npm run ratchets:propose."
       },
       "history": [
         {
@@ -523,6 +615,13 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 1.092,
           "why": "PR #744 CI (bench run 36671525047, ubuntu-latest): 1.092 x 1.25, rounded up to 0.05."
+        },
+        {
+          "ceiling": 1.1,
+          "setOn": "2026-09-30",
+          "decision": "D-20260930-b5-ceilings-from-spread",
+          "measured": 1.061,
+          "why": "From CI spread, not one run: n 48, mean 1.061, sd 0.013, max 1.092 -> 1.1 (was 1.4, which was 1.25x a single reading)."
         }
       ]
     }

@@ -53,8 +53,11 @@ describe('the B5 runtime ratchets', () => {
 
   it.each(Object.entries(current.ratchets))('%s aims at or below the incumbent', (_id, ratchet) => {
     expect(ratchet.target).toBeLessThanOrEqual(1);
-    expect(ratchet.derive.headroom).toBeGreaterThanOrEqual(1);
+    expect(ratchet.derive.sigmas).toBeGreaterThanOrEqual(1);
     expect(ratchet.derive.step).toBeGreaterThan(0);
+    expect(ratchet.derive.rule.length, 'a ceiling with no derivation written beside it').toBeGreaterThan(40);
+    // A spec bar is the target itself: re-deriving it upward would re-open the requirement.
+    if (ratchet.bar !== undefined) expect(ratchet.ceiling).toBeLessThanOrEqual(ratchet.target);
   });
 
   it.each(Object.entries(current.ratchets))('%s only goes down, or cites a newer decision to go up', (id, ratchet) => {
