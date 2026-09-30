@@ -66,7 +66,7 @@ export const GRADED: Readonly<Record<string, Row>> = {
   meow: { reference: 148, passed: 146, rate: 0.9864864864864865, control: 146 },
   'ansi-escapes': { reference: 4, passed: 4, rate: 1, control: 4 },
   'terminal-link': { reference: 8, passed: 8, rate: 1, control: 8 },
-  'term-img': { reference: 18, passed: 12, rate: 0.6666666666666666, control: 18 },
+  'term-img': { reference: 18, passed: 18, rate: 1, control: 18 },
   'restore-cursor': { reference: 6, passed: 6, rate: 1, control: 6 },
   'exit-hook': { reference: 21, passed: 21, rate: 1, control: 21 },
   'signal-exit': { reference: 135, passed: 134, rate: 0.9925925925925926, control: 134 },

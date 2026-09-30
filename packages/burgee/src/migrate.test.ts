@@ -83,6 +83,7 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
       which: 'bellpull/node-which',
       rc: 'seniority/rc',
       'terminal-link': 'paratext/terminal-link',
+      'term-img': 'paratext/term-img',
       lilconfig: 'seniority/lilconfig',
       '@clack/prompts': 'caique/clack',
       '@inquirer/core': 'caique/inquirer',

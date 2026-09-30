@@ -26,9 +26,10 @@ line it is quoted for, or when a source we say lacks something has gained it.
   repository, so there is no local copy for the lock to read. Each URL cell was checked against
   that file by hand; the compatibility row, whose source is term-img's vendored suite, is
   checked on every run.
-- **term-img is partial on purpose.** Six of its eighteen cases hand `paratext/term-img` a file
-  path, and paratext takes bytes so that it never touches the filesystem (D-030). The fix for a
-  caller is one `readFile` ([Coming from term-img](/docs/coming-from/term-img)).
+- **term-img is level, file paths included.** `paratext/term-img` reads a path with `node:fs`,
+  as term-img does, and it is the only entry that touches the filesystem; the root `image()`
+  takes bytes (D-20260930-paratext-term-img-path,
+  [Coming from term-img](/docs/coming-from/term-img)).
 
 ## What is not in the table
 

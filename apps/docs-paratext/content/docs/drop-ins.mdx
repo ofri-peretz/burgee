@@ -1,6 +1,6 @@
 ---
 title: Compatibility
-description: "How paratext's three drop-ins are graded — each incumbent's own test suite, unedited — the current grades, and the differences that remain, term-img's six path cases included."
+description: "How paratext's three drop-ins are graded — each incumbent's own test suite, unedited — the current grades, and the differences that remain."
 ---
 
 `paratext` (the ansi-escapes surface), `paratext/terminal-link` and `paratext/term-img` are
@@ -18,7 +18,7 @@ oracle's last run and is the authority for the current figures.
 | :-- | :-- | :-- | --: |
 | ansi-escapes | 7.3.0 | `import ansiEscapes from 'paratext'` | 4 / 4 |
 | terminal-link | 5.0.0 | `import terminalLink from 'paratext/terminal-link'` | 8 / 8 |
-| term-img | 7.1.0 | `import terminalImage from 'paratext/term-img'` | 12 / 18 |
+| term-img | 7.1.0 | `import terminalImage from 'paratext/term-img'` | 18 / 18 |
 
 ## How a suite is graded
 
@@ -31,19 +31,15 @@ oracle's last run and is the authority for the current figures.
    sets the total every rate is measured against.
 4. The **target run** points the same shim at paratext's path.
 
-## term-img: 12 of 18, and why that is the ceiling
+## term-img: 18 of 18, file paths included
 
-The six cases that fail are the same six every run — `iTerm2 support`, `WezTerm support`,
-`Konsole support`, `Rio support`, `VSCode support` and `handles options parameter correctly` —
-and each hands a file **path** to a terminal the suite has just declared supported.
-`paratext/term-img` takes image bytes, so that `node:fs` stays out of a package that otherwise
-touches nothing but strings (decision D-030). Passing them would mean reading a file, which is
-the dependency the package declines. A caller that passes paths makes one edit:
-
-```diff
-- terminalImage('unicorn.jpg', { width: '50%' });
-+ terminalImage(await readFile('unicorn.jpg'), { width: '50%' });
-```
+Until 2026-09-30 this row read 12 / 18. The six cases that failed — `iTerm2 support`,
+`WezTerm support`, `Konsole support`, `Rio support`, `VSCode support` and `handles options
+parameter correctly` — each hand a file **path** to a terminal the suite has just declared
+supported, and `paratext/term-img` took image bytes only (decision D-030). It now reads a path
+with `node:fs`, at the point term-img calls `fs.readFileSync` (decision
+D-20260930-paratext-term-img-path). It is the one entry that imports `node:fs`: the root and
+every other subpath touch nothing but strings, and `weight.test.ts` fails if that changes.
 
 ## Known differences
 
@@ -53,7 +49,7 @@ the dependency the package declines. A caller that passes paths makes one edit:
   byte-exact and never degrades ([The ansi-escapes surface](/docs/guides/ansi-escapes)).
 - **`iTerm` and `ConEmu` are declared and `undefined`.** A program that imports them loads; one
   that calls them is a compile error in TypeScript.
-- **`paratext/term-img` takes bytes, not a path** (above).
+- **`paratext/term-img` also reads a file `URL`.** term-img answers `Image required` to one.
 - **`paratext/term-img` reads iTerm2's whole version number.** term-img takes the first
   character, which would read iTerm2 10 as 1; nothing in the suite tells the two apart.
 - **`paratext/terminal-link` needs `argv` and `platform` for two of supports-hyperlinks' rules**

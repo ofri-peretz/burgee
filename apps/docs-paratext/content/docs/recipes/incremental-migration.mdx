@@ -1,6 +1,6 @@
 ---
 title: Incremental migration
-description: "Move from ansi-escapes, terminal-link and term-img one import at a time, and from term-img's paths to bytes with one readFile."
+description: "Move from ansi-escapes, terminal-link and term-img one import at a time — each is one changed specifier, file paths included."
 ---
 
 Each drop-in is graded on its own, so a program can move one import at a time and ship in
@@ -18,19 +18,14 @@ between.
 ```
 
 Or let the codemod do it: `npx burgee migrate --dry-run` lists every import it would rewrite —
-only drop-ins graded level with their incumbent, so ansi-escapes and terminal-link and not
-term-img — and `npx burgee migrate` rewrites them
+only drop-ins graded level with their incumbent, which all three are — and
+`npx burgee migrate` rewrites them
 ([Migrate](https://burgee.interlace.tools/docs/migrate)).
 
-## term-img: bytes instead of a path
+## term-img: paths stay paths
 
-`paratext/term-img` takes bytes. Where you passed a path, read it first:
-
-```diff
-+ import { readFile } from 'node:fs/promises';
-- terminalImage('logo.png');
-+ terminalImage(await readFile('logo.png'));
-```
+`paratext/term-img` reads a file path as term-img does, so `terminalImage('logo.png')` needs no
+change. Bytes work as before.
 
 ## What changes after the move
 

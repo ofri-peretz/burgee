@@ -512,6 +512,15 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
     'synchronizedOutput',
     'title',
   ],
+  'paratext/term-img': [
+    'Options',
+    'TerminalImageInput',
+    'TerminalImageOptions',
+    'UnsupportedTerminalError',
+    'default',
+    'supportsInlineImage',
+    'terminalImageFor',
+  ],
   'paratext/terminal-link': [
     'LinkOptions',
     'Options',

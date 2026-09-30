@@ -128,8 +128,8 @@
         },
         {
           "capability": "Passes term-img's own test suite",
-          "why": "`paratext/term-img` is graded by term-img 7.1.0's own tests, unedited, and passes every case that hands it image bytes.",
-          "ours": { "status": "partial", "grade": "packages/compat-oracle/baseline/term-img.json", "missing": "6 of 18 cases pass a file path, and paratext/term-img takes image bytes so that node:fs stays out of paratext (D-030)" },
+          "why": "`paratext/term-img` is graded by term-img 7.1.0's own tests, unedited, and passes all 18, file paths included.",
+          "ours": { "status": "yes", "grade": "packages/compat-oracle/baseline/term-img.json" },
           "incumbents": {
             "ansi-escapes": { "status": "n/a", "source": "packages/compat-oracle/vendor/ansi-escapes/test.js", "quote": "import ansiEscapes, {cursorTo, setCwd, clearTerminal} from './shim.js';", "note": "a different API" },
             "terminal-link": { "status": "n/a", "source": "packages/compat-oracle/vendor/terminal-link/test.js", "quote": "import terminalLink from './shim.js';", "note": "a different API" },
