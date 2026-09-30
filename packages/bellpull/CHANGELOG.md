@@ -1,5 +1,11 @@
 # bellpull
 
+## 0.4.4
+
+### Patch Changes
+
+- [#738](https://github.com/ofri-peretz/burgee/pull/738) [`3db5125`](https://github.com/ofri-peretz/burgee/commit/3db512576725fb460c8d998484918220c6b6ffb5) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `shebangCommand`'s doc comment describes its trailing-space cases in words, so the generated API reference renders them without a code span that ends in a space.
+
 ## 0.4.3
 
 ### Patch Changes
