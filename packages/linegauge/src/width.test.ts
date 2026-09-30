@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import stringWidth from 'string-width';
 import { describe, expect, it } from 'vitest';
 
-import { INVISIBLE_CLASSES, leadingInvisible, lineCount, width } from './width.js';
+import { INVISIBLE_CLASSES, leadingInvisible, lineCount, measure, width } from './width.js';
 
 const ESC = '\u001B';
 const ZWSP = '\u200B';
@@ -330,5 +330,34 @@ describe('zero-width clusters are measured in linear time, and as the regexes me
   it('measures 3,000,000 joiners without backtracking or a RangeError', { timeout: 60_000 }, () => {
     expect(elapsed(() => expect(width(`${'\u034F'.repeat(3_000_000)}\u0903`)).toBe(1))).toBeLessThan(15_000);
     expect(elapsed(() => expect(width('\u034F'.repeat(3_000_000))).toBe(0))).toBeLessThan(15_000);
+  });
+});
+
+/**
+ * B5's fast paths answer without the rules, so each is held to what the rules — and
+ * string-width — say, over every input it can take.
+ */
+describe('the fast paths agree with the full rules', () => {
+  const RGI = /^\p{RGI_Emoji}$/v;
+
+  it('no emoji hides outside the guard class, so a cluster there skips the emoji regexes and loses nothing', () => {
+    const emoji: string[] = [];
+    const outside = [
+      [0, 0x1fff],
+      [0x2500, 0x25fc],
+      [0x3000, 0xd7ff],
+    ] as const;
+    for (const [from, to] of outside) {
+      for (let code = from; code <= to; code += 1) {
+        const character = String.fromCodePoint(code);
+        if (RGI.test(character) || RGI.test(`${character}\u0301`) || RGI.test(`${character}\u0308\u0301`)) emoji.push(code.toString(16));
+      }
+    }
+    expect(emoji).toEqual([]);
+    for (const cluster of ['e\u0301', 'Z\u0324\u0354\u0367', '\u0915\u094D\u0937', '\u0600a', 'の', '〰', '〰\uFE0F', '㊗\uFE0F']) expect(measure(cluster)).toBe(stringWidth(cluster));
+  });
+
+  it('measures styled ASCII by its length once the escapes are gone', () => {
+    expect(width('\u001B[31mred\u001B[39m and \u001B]8;;https://x.dev\u0007link\u001B]8;;\u0007')).toBe(12);
   });
 });

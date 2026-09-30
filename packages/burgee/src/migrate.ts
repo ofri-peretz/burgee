@@ -933,6 +933,12 @@ export interface Rewrite {
   kept: Omit<Kept, 'file'>[];
   /** Whether this file references a host at all. A file that does not is not "untouched", it is unrelated. */
   relevant: boolean;
+  /**
+   * On a refused file only: every host it still imports. The file is left exactly as it was,
+   * so `chalk` beside a refused `commander/lib/help.js` is still imported, although only the
+   * refused specifier is in `refused`.
+   */
+  retained?: string[];
 }
 
 /**
@@ -1045,7 +1051,7 @@ export function rewriteSource(source: string, skip: ReadonlySet<string> = NONE):
     ...nonLiteral.map((line) => ({ line, specifier: '', reason: 'non-literal-specifier' as const })),
     ...unknown,
   ].sort((a, b) => a.line - b.line);
-  if (refused.length > 0) return { source, mapped: [], refused, kept: [], relevant: true };
+  if (refused.length > 0) return { source, mapped: [], refused, kept: [], relevant: true, retained: [...new Set(hits.map((s) => packageOf(s.specifier)))] };
 
   let out = source;
   const mapped: { from: string; to: string }[] = [];
@@ -1150,8 +1156,19 @@ export async function workingTree(dir: string): Promise<string[] | undefined> {
   return result.stdout.split('\n').filter((line) => line !== '');
 }
 
-/** A6 — a dirty tree has no reviewable diff to add to, so the command declines rather than writes. */
+/** The symbol `failure.ts` reads a class's own exit code from, spelled here so this lazy module imports nothing for it. */
+const EXIT_CODE = Symbol.for('burgee.exitCode');
+
+/**
+ * A6 — a dirty tree has no reviewable diff to add to, so the command declines rather than writes.
+ *
+ * It declares its exit code the way `defineError` does (E7), on the class under
+ * `Symbol.for('burgee.exitCode')`. That read is what makes the engine carry `fix` to stderr
+ * and the `--json` envelope; a plain `Error` falls through to a bare RUNTIME, which is how
+ * this `fix` went unprinted until 2026-09-30.
+ */
 export class DirtyTreeError extends Error {
+  static readonly [EXIT_CODE] = ExitCode.RUNTIME;
   readonly fix = 'commit or stash your changes, or pass --force';
   constructor(readonly entries: string[]) {
     super(`the git tree has ${entries.length} uncommitted change${entries.length === 1 ? '' : 's'}`);
@@ -1255,8 +1272,11 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
   const declared = HOSTS.filter((host) => dependencies.has(host));
   // A dependency is removable only when nothing still imports it — a file that was refused
   // still imports commander, and so does a kept type-only import, so the maintainer's
-  // `npm rm` would break their own build.
-  const stillUsed = new Set([...refused, ...kept].map((r) => packageOf(r.specifier)));
+  // `npm rm` would break their own build. A refused file is left whole, so every host in it
+  // counts, not only the specifier that was refused: until 2026-09-30 a `chalk` imported
+  // only beside a refused `commander/lib/help.js` was called removable, and `next` said
+  // `npm uninstall chalk`.
+  const stillUsed = new Set([...refused, ...kept].map((r) => packageOf(r.specifier)).concat(results.flatMap(({ result }) => result.retained ?? [])));
   const removable = declared.filter((host) => !stillUsed.has(host) && !skip.has(host));
   const touched = [...new Set(all.map((m) => m.file))];
   const add = [...new Set(all.map((m) => packageOf(m.to)))].filter((p) => !dependencies.has(p)).sort();

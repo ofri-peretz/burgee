@@ -18,28 +18,12 @@
  * `weight.test.ts` pins the reachability and the budget; `link.test.ts` pins the bytes and
  * the absent side effect.
  */
-import { type Capability } from './capability.js';
+import { LINK } from './osc8.js';
 import { processRuntime, type Runtime } from './runtime.js';
 import { supports } from './supports.js';
 import { render } from './template.js';
 
-const BEL = '';
-const OSC = ']';
-
-/**
- * OSC 8 — a hyperlink. The widest support in this layer, and unusually semi-detectable: VTE
- * publishes its version and Windows Terminal sets a session variable.
- *
- * The fallback is `text (url)`, not bare text: a link whose destination vanishes in a pipe
- * has lost the half that mattered. The optional group makes a link with no url just its text.
- */
-export const LINK: Capability = {
-  name: 'link',
-  osc: 8,
-  when: { tty: true, termProgram: ['iTerm.app', 'WezTerm', 'ghostty', 'vscode', 'Hyper', 'Apple_Terminal'], envAny: ['VTE_VERSION', 'WT_SESSION'] },
-  encode: `${OSC}8;;{url}${BEL}{text}${OSC}8;;${BEL}`,
-  fallback: '{text}[ ({url})]',
-};
+export { LINK };
 
 /**
  * Whether `runtime` is believed to render OSC 8.

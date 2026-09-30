@@ -218,6 +218,20 @@ describe('A5 — the unit of success is the file', () => {
     // project does not declare yet.
     expect(report.dependencies).toEqual({ before: ['commander', 'yargs'], removable: ['yargs'], after: 1, add: ['burgee'] });
   });
+
+  it('keeps an incumbent imported only in a refused file out of removable, and out of `npm uninstall`', async () => {
+    // The refused file is left whole, so its `chalk` is still imported although only the deep
+    // commander import was refused. Until 2026-09-30 chalk was called removable here.
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { commander: '^15.0.0', chalk: '^6.0.0' } }),
+      'src/legacy.ts': "import 'commander/lib/help.js';\nimport chalk from 'chalk';\n",
+      'src/cli.ts': "import { Command } from 'commander';\n",
+    });
+    const report = await migrate({ dir, status: clean });
+    expect(read(dir, 'src/legacy.ts')).toBe("import 'commander/lib/help.js';\nimport chalk from 'chalk';\n");
+    expect(report.dependencies.removable).toEqual([]);
+    expect(report.next).toBe('npm install burgee');
+  });
 });
 
 describe('A6 — never silently', () => {
@@ -483,6 +497,7 @@ describe('A11 — a rewrite moves only names the target exports', () => {
       refused: [{ line: 2, specifier: 'commander', reason: 'unknown-export', names: ['NotACommanderExport'] }],
       kept: [],
       relevant: true,
+      retained: ['commander'],
     });
   });
 
