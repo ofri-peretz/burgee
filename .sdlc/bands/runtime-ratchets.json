@@ -58,7 +58,7 @@
       ]
     },
     "linegauge": {
-      "ceiling": 1.7,
+      "ceiling": 0.9,
       "unit": "ratio",
       "target": 1,
       "derive": {
@@ -82,11 +82,18 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 1.342,
           "why": "PR #744 CI (bench run 36671525047, ubuntu-latest): 1.342 x 1.25, rounded up to 0.05."
+        },
+        {
+          "ceiling": 0.9,
+          "setOn": "2026-09-30",
+          "decision": "D-20260929-b5-runtime-ratchets",
+          "measured": 0.698,
+          "why": "linegauge's fast paths — one-regex strip, lazily-segmented slice, cluster widths without re-segmenting, emoji and ASCII guards — measured locally: 0.698 (1.342 on PR #744 CI). No CI run has measured it yet: 1.25x local; the next PR lowers it from this one's CI run."
         }
       ]
     },
     "linegauge/strip": {
-      "ceiling": 5.45,
+      "ceiling": 1.3,
       "unit": "ratio",
       "target": 1,
       "derive": {
@@ -110,11 +117,18 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 4.343,
           "why": "PR #744 CI (bench run 36671525047, ubuntu-latest): 4.343 x 1.25, rounded up to 0.05."
+        },
+        {
+          "ceiling": 1.3,
+          "setOn": "2026-09-30",
+          "decision": "D-20260929-b5-runtime-ratchets",
+          "measured": 1.01,
+          "why": "linegauge's fast paths — one-regex strip, lazily-segmented slice, cluster widths without re-segmenting, emoji and ASCII guards — measured locally: 1.01 (4.343 on PR #744 CI) — the incumbent's own grammar in one pass, so parity is the floor. 1.25x local until CI measures it."
         }
       ]
     },
     "linegauge/wrap": {
-      "ceiling": 2.3,
+      "ceiling": 0.95,
       "unit": "ratio",
       "target": 1,
       "derive": {
@@ -138,11 +152,18 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 1.819,
           "why": "PR #744 CI (bench run 36671525047, ubuntu-latest): 1.819 x 1.25, rounded up to 0.05."
+        },
+        {
+          "ceiling": 0.95,
+          "setOn": "2026-09-30",
+          "decision": "D-20260929-b5-runtime-ratchets",
+          "measured": 0.725,
+          "why": "linegauge's fast paths — one-regex strip, lazily-segmented slice, cluster widths without re-segmenting, emoji and ASCII guards — measured locally: 0.725 (1.819 on PR #744 CI). 1.25x local until CI measures it."
         }
       ]
     },
     "linegauge/slice": {
-      "ceiling": 10.85,
+      "ceiling": 0.95,
       "unit": "ratio",
       "target": 1,
       "derive": {
@@ -166,6 +187,13 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 8.678,
           "why": "PR #744 CI (bench run 36671525047, ubuntu-latest): 8.678 x 1.25, rounded up to 0.05."
+        },
+        {
+          "ceiling": 0.95,
+          "setOn": "2026-09-30",
+          "decision": "D-20260929-b5-runtime-ratchets",
+          "measured": 0.756,
+          "why": "linegauge's fast paths — one-regex strip, lazily-segmented slice, cluster widths without re-segmenting, emoji and ASCII guards — measured locally: 0.756 (8.678 on PR #744 CI). 1.25x local until CI measures it."
         }
       ]
     },
@@ -247,7 +275,7 @@
       ]
     },
     "flagstaff/ora": {
-      "ceiling": 1.5,
+      "ceiling": 1.25,
       "unit": "ratio",
       "target": 1,
       "derive": {
@@ -271,11 +299,18 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 1.172,
           "why": "PR #744 CI (bench run 36671525047, ubuntu-latest): 1.172 x 1.25, rounded up to 0.05."
+        },
+        {
+          "ceiling": 1.25,
+          "setOn": "2026-09-30",
+          "decision": "D-20260929-b5-runtime-ratchets",
+          "measured": 0.985,
+          "why": "flagstaff/ora on the faster linegauge: 0.985 locally (1.172 on PR #744 CI). 1.25x local until CI measures it."
         }
       ]
     },
     "flagstaff/log-update": {
-      "ceiling": 3.4,
+      "ceiling": 0.95,
       "unit": "ratio",
       "target": 1,
       "derive": {
@@ -299,11 +334,18 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 2.699,
           "why": "PR #744 CI (bench run 36671525047, ubuntu-latest): 2.699 x 1.25, rounded up to 0.05."
+        },
+        {
+          "ceiling": 0.95,
+          "setOn": "2026-09-30",
+          "decision": "D-20260929-b5-runtime-ratchets",
+          "measured": 0.724,
+          "why": "flagstaff/log-update on the faster linegauge: 0.724 locally (2.699 on PR #744 CI). 1.25x local until CI measures it."
         }
       ]
     },
     "flagstaff/boxen": {
-      "ceiling": 1.1,
+      "ceiling": 0.65,
       "unit": "ratio",
       "target": 1,
       "derive": {
@@ -327,11 +369,18 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 0.878,
           "why": "PR #744 CI (bench run 36671525047, ubuntu-latest): 0.878 x 1.25, rounded up to 0.05."
+        },
+        {
+          "ceiling": 0.65,
+          "setOn": "2026-09-30",
+          "decision": "D-20260929-b5-runtime-ratchets",
+          "measured": 0.49,
+          "why": "flagstaff/boxen on the faster linegauge: 0.49 locally (0.878 on PR #744 CI). 1.25x local until CI measures it."
         }
       ]
     },
     "flagstaff/cli-table3": {
-      "ceiling": 1.95,
+      "ceiling": 0.5,
       "unit": "ratio",
       "target": 1,
       "derive": {
@@ -355,11 +404,18 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 1.548,
           "why": "PR #744 CI (bench run 36671525047, ubuntu-latest): 1.548 x 1.25, rounded up to 0.05."
+        },
+        {
+          "ceiling": 0.5,
+          "setOn": "2026-09-30",
+          "decision": "D-20260929-b5-runtime-ratchets",
+          "measured": 0.393,
+          "why": "flagstaff/cli-table3 on the faster linegauge: 0.393 locally (1.548 on PR #744 CI). 1.25x local until CI measures it."
         }
       ]
     },
     "caique/clack": {
-      "ceiling": 3.2,
+      "ceiling": 1.9,
       "unit": "ratio",
       "target": 1,
       "derive": {
@@ -383,6 +439,13 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 2.544,
           "why": "PR #744 CI (bench run 36671525047, ubuntu-latest): 2.544 x 1.25, rounded up to 0.05."
+        },
+        {
+          "ceiling": 1.9,
+          "setOn": "2026-09-30",
+          "decision": "D-20260929-b5-runtime-ratchets",
+          "measured": 1.496,
+          "why": "caique/clack on the faster linegauge: 1.496 locally (2.544 on PR #744 CI). 1.25x local until CI measures it."
         }
       ]
     },
