@@ -1,5 +1,28 @@
 # burgee
 
+## 0.15.0
+
+### Minor Changes
+
+- [#778](https://github.com/ofri-peretz/burgee/pull/778) [`24300f4`](https://github.com/ofri-peretz/burgee/commit/24300f42455836e73ba36daaf400c4ab2f8d1893) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `seniority`'s cosmiconfig drop-in now reads YAML the way cosmiconfig does. `.yaml`, `.yml` and extensionless rc files go through `seniority/yaml`, the package's own parser, which is loaded the first time a YAML file is read and never before. The loader used to read only the JSON subset of YAML and throw a `LoaderError` (`no YAML parser for <file>`) for the rest. It now returns what `js-yaml` 5 returns. A malformed file throws cosmiconfig's own message, `YAML Error in <file>:` followed by the reason and `(line:column)`. cosmiconfig 10.0.1's own suite grades `seniority` at 240 / 243, up from 186 / 243, level with the control's 240 / 243.
+
+  `burgee migrate` now rewrites `cosmiconfig` to `seniority`, because the row is level. A file that imports a name `seniority` does not export, such as the type `LoaderSync`, is refused as `unknown-export` and stays on cosmiconfig. On Linux, the global config directory is still resolved from the home directory rather than from `XDG_CONFIG_HOME` (D-20260930-seniority-yaml).
+
+### Patch Changes
+
+- [#768](https://github.com/ofri-peretz/burgee/pull/768) [`d901bcb`](https://github.com/ofri-peretz/burgee/commit/d901bcb082af3ce748aba39dd18944b3efa769ea) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee migrate` now refuses a file that imports `@clack/prompts` and also imports, `import()`s or `require()`s `@clack/core`. Until now the file's prompts moved to `caique/clack` while its `updateSettings` from `@clack/core` kept configuring clack, which caique's prompts never read, and nothing said so. The refusal's reason is `sibling-state`, and it carries a `fix`: `import { updateSettings } from 'caique/clack' instead of '@clack/core', then re-run burgee migrate`. The file is left whole and the run exits 1. A type-only import of `@clack/core` does not refuse, and a file that imports `@clack/core` without `@clack/prompts` is left alone (D-20260930-migrate-refuses-clack-core).
+
+- [#774](https://github.com/ofri-peretz/burgee/pull/774) [`b44f426`](https://github.com/ofri-peretz/burgee/commit/b44f426621ed799700cceda8c979de8f759f56b7) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `paratext/term-img` now takes a file path, as `term-img` does. `terminalImage('unicorn.jpg')` reads the file with `node:fs` and draws it, and a file `URL` works too. The read happens after the terminal check, so a path handed to a terminal that cannot draw it reaches your `fallback` (or `UnsupportedTerminalError`) without the file being opened. A missing file on a supported terminal throws `node:fs`'s `ENOENT`, as `term-img` does. The `Options` type is exported under term-img's name and is generic over what `fallback` returns, so a `fallback` that returns nothing type-checks.
+
+  `paratext/term-img` now grades 18 / 18 against term-img 7.1.0's own suite, level with term-img itself. It was 12 / 18: the six cases that pass a path were refused under D-030. This supersedes D-030 for this subpath only (D-20260930-paratext-term-img-path). It is the only paratext entry that imports `node:fs`. The root `image()` still takes bytes, and a lock fails if `node:fs` reaches the root or any other entry.
+
+  Because the row is level, `burgee migrate` now rewrites `term-img` to `paratext/term-img`.
+
+- [#757](https://github.com/ofri-peretz/burgee/pull/757) [`b69d513`](https://github.com/ofri-peretz/burgee/commit/b69d5136ac6a49e6bf39178f73fbd89f3f4c2653) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A flag's provenance now names the flag as it was typed: `--dry-run`, `-n` or `--no-color` in `meta.provenance` and in `--explain`, instead of the camelCase key (`--dryRun`, which burgee itself refuses). A flag that was not typed is listed in kebab-case.
+- Updated dependencies [[`6195b99`](https://github.com/ofri-peretz/burgee/commit/6195b99344a21b4a05ab100fc38358deab229ce8), [`24300f4`](https://github.com/ofri-peretz/burgee/commit/24300f42455836e73ba36daaf400c4ab2f8d1893), [`8ba7c33`](https://github.com/ofri-peretz/burgee/commit/8ba7c33b8196ee9324b129a6eb25ca9daa4eeeab)]:
+  - roundel@0.6.1
+  - seniority@0.7.0
+
 ## 0.14.3
 
 ### Patch Changes

@@ -1,5 +1,17 @@
 # benchmarks
 
+## 0.0.9
+
+### Patch Changes
+
+- Updated dependencies [[`d901bcb`](https://github.com/ofri-peretz/burgee/commit/d901bcb082af3ce748aba39dd18944b3efa769ea), [`b44f426`](https://github.com/ofri-peretz/burgee/commit/b44f426621ed799700cceda8c979de8f759f56b7), [`b69d513`](https://github.com/ofri-peretz/burgee/commit/b69d5136ac6a49e6bf39178f73fbd89f3f4c2653), [`6195b99`](https://github.com/ofri-peretz/burgee/commit/6195b99344a21b4a05ab100fc38358deab229ce8), [`24300f4`](https://github.com/ofri-peretz/burgee/commit/24300f42455836e73ba36daaf400c4ab2f8d1893)]:
+  - burgee@0.15.0
+  - paratext@0.8.0
+  - compat-oracle@0.1.4
+  - roundel@0.6.1
+  - caique@0.6.4
+  - flagstaff@1.0.3
+
 ## 0.0.8
 
 ### Patch Changes
