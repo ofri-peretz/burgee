@@ -54,7 +54,7 @@ function register(plugin: unknown): void;
 
 ### registered
 
-The plugins registered, in registration order.
+The plugins registered, in registration order — oldest first, which is the order a reader reads them in.
 
 ```ts
 function registered(): readonly Plugin[];
@@ -80,6 +80,13 @@ Every registered source, read against this runtime and sorted by rank — the ar
 A source whose `read` returns `undefined` had nothing for this run and contributes no
 candidate at all, which is different from contributing an empty one: `--explain` should
 not list a vault that was never reachable as a source that was consulted and lost.
+
+**At an equal rank the later plugin comes first**, because `resolve` takes the first
+candidate with a value: that is what makes "later wins" (`register`) true of the answer and
+not only of the registry. Plugins are read newest first and the sort is stable, so within
+one rank the order is newest plugin first, and each plugin's own sources keep the order it
+declared them in. Until 2026-09-30 the plugins were read oldest first, and the earlier
+registration won the tie the spec, this file and the guide all gave to the later one.
 
 ```ts
 function sources(runtime: SourceRuntime): SourceLayer[];
