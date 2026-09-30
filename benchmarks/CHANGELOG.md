@@ -1,5 +1,16 @@
 # benchmarks
 
+## 0.0.6
+
+### Patch Changes
+
+- [#756](https://github.com/ofri-peretz/burgee/pull/756) [`5881db0`](https://github.com/ofri-peretz/burgee/commit/5881db06176716a7f9bc42011a4bb2a2c9e0dd7a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - B5 gains `bellpull ÷ tinyexec`, bellpull R8's spawn half: `run('node', ['--version'])` against tinyexec's `x`, each awaited to the child's close with its stdout read. Gated at 1.0 — R8's own bar, not a ratchet above a measurement. Reads 0.933 on an M4 Pro.
+- Updated dependencies [[`12bac9c`](https://github.com/ofri-peretz/burgee/commit/12bac9c99cb87ec2b67a56b4afc38de2c21687c7), [`22e6dae`](https://github.com/ofri-peretz/burgee/commit/22e6dae1b71bfa478265829a1b98d20a6f9de4f7)]:
+  - paratext@0.7.4
+  - bellpull@0.4.5
+  - caique@0.6.1
+  - roundel@0.5.6
+
 ## 0.0.5
 
 ### Patch Changes
