@@ -78,6 +78,19 @@ test('support variable number of arguments', t => {
 	t.is(chalk.red('foo', 'bar'), '\u{1B}[31mfoo bar\u{1B}[39m');
 });
 
+test('convert multiple arguments the same way regardless of their count', t => {
+	const object = {
+		valueOf: () => 42,
+		toString: () => 'string',
+	};
+
+	t.is(chalk.red(null, 'foo'), '\u{1B}[31m foo\u{1B}[39m');
+	t.is(chalk.red('foo', undefined), '\u{1B}[31mfoo \u{1B}[39m');
+	t.is(chalk.red('foo', object), '\u{1B}[31mfoo string\u{1B}[39m');
+	t.is(chalk.red(null, 'foo', 'bar'), '\u{1B}[31m foo bar\u{1B}[39m');
+	t.is(chalk.red('foo', object, 'bar'), '\u{1B}[31mfoo string bar\u{1B}[39m');
+});
+
 test('support falsy values', t => {
 	t.is(chalk.red(0), '\u{1B}[31m0\u{1B}[39m');
 });

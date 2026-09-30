@@ -3,10 +3,9 @@ repo:     https://github.com/sindresorhus/log-update
 version:  8.0.0
 tag:      v8.0.0
 commit:   4f7a1460893a7557aee8f7202956218c3e770a5a
-vendored: 2026-09-08
+vendored: 2026-09-28
 files:    1
 tool:     scripts/vendor-suite.ts
-verified: 2026-09-14 — v8.0.0 resolves to this commit at the host
 
 How this directory was made
 ---------------------------

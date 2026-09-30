@@ -3,8 +3,9 @@
   "private": true,
   "type": "commonjs",
   "main": "./shim.mjs",
-  "version": "17.4.2",
+  "version": "18.0.4",
   "license": "BSD-2-Clause",
+  "description": "Loads environment variables from .env file",
   "repository": {
     "type": "git",
     "url": "git://github.com/motdotla/dotenv.git"

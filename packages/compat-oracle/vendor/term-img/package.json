@@ -5,6 +5,7 @@
   "main": "./shim.js",
   "version": "7.1.0",
   "license": "MIT",
+  "description": "Display images in terminals using the iTerm inline image protocol",
   "repository": "sindresorhus/term-img",
   "devDependencies": {
     "term-img": "7.1.0"

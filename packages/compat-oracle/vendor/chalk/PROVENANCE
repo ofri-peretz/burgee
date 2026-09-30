@@ -1,16 +1,15 @@
 package:  chalk
 repo:     https://github.com/chalk/chalk
-version:  6.0.0
-tag:      v6.0.0
-commit:   661317e6f91fe7c90306c2c48ea9354562ee9146
-vendored: 2026-09-08
+version:  6.0.1
+tag:      v6.0.1
+commit:   47fc05abd46171b235e24174cd2dba83d25bf037
+vendored: 2026-09-28
 files:    8
 tool:     scripts/vendor-suite.ts
-verified: 2026-09-14 — v6.0.0 resolves to this commit at the host
 
 How this directory was made
 ---------------------------
-A shallow clone of https://github.com/chalk/chalk at v6.0.0, then that repository's own test directory and
+A shallow clone of https://github.com/chalk/chalk at v6.0.1, then that repository's own test directory and
 its fixtures copied here. The only edit is to the import specifiers that reach the library:
 each is rewritten to a generated shim, so one unedited suite can grade any implementation.
 Everything else — assertions, fixtures, helpers — is upstream's, byte for byte.
@@ -34,7 +33,7 @@ vendor step deletes any shim it finds, so a stale one can never grade the wrong 
 
 Reproduce
 ---------
-    npx tsx scripts/vendor-suite.ts chalk --version 6.0.0
+    npx tsx scripts/vendor-suite.ts chalk --version 6.0.1
 
 Every field above is reproduced exactly, with one exception that is a date and not a
 defect: `vendored` is the day the copy was taken, so a fresh run writes today's.

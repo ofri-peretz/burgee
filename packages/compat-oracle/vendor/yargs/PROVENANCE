@@ -1,16 +1,15 @@
 package:  yargs
 repo:     https://github.com/yargs/yargs
-version:  18.1.0
-tag:      v18.1.0
-commit:   8878a894111e3fe7c98d84af546c0f34fa017492
-vendored: 2026-09-08
+version:  18.2.0
+tag:      v18.2.0
+commit:   e49b60aa1ab2bfe061a9ecd5d61f4c5130fe3e14
+vendored: 2026-09-28
 files:    14
 tool:     scripts/vendor-suite.ts
-verified: 2026-09-14 — v18.1.0 resolves to this commit at the host
 
 How this directory was made
 ---------------------------
-A shallow clone of https://github.com/yargs/yargs at v18.1.0, then that repository's own test directory and
+A shallow clone of https://github.com/yargs/yargs at v18.2.0, then that repository's own test directory and
 its fixtures copied here. The only edit is to the import specifiers that reach the library:
 each is rewritten to a generated shim, so one unedited suite can grade any implementation.
 Everything else — assertions, fixtures, helpers — is upstream's, byte for byte.
@@ -34,7 +33,7 @@ vendor step deletes any shim it finds, so a stale one can never grade the wrong 
 
 Reproduce
 ---------
-    npx tsx scripts/vendor-suite.ts yargs --version 18.1.0
+    npx tsx scripts/vendor-suite.ts yargs --version 18.2.0
 
 Every field above is reproduced exactly, with one exception that is a date and not a
 defect: `vendored` is the day the copy was taken, so a fresh run writes today's.
