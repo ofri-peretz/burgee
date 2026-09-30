@@ -50,6 +50,23 @@ describe('what it ships', () => {
 });
 
 describe('the projection, which is the point', () => {
+  /*
+   * The family's static-projection rule: `pipe`, `ci` and `accessible` get the text form, as
+   * flagstaff's `hoist()` gives them. Until 2026-09-30 paratext decided from `when` alone, so
+   * a screen-reader user on a terminal (`CLI_ACCESSIBLE`) got raw OSC. paratext may not read
+   * that variable or import roundel, so the host that asked `outputMode` passes the answer.
+   */
+  it.each(['accessible', 'ci', 'pipe', 'json'])('prints the fallback in %s mode, even on a terminal that supports the sequence', (mode) => {
+    const told: Runtime = { ...iterm, mode };
+    expect(emit(told, 'link', { text: 'Docs', url: 'https://x.dev' })).toBe('Docs (https://x.dev)');
+    expect(emit(told, 'title', { text: 'build' })).toBe('');
+    expect(supports(told, { when: {} })).toBe(false);
+  });
+
+  it('emits in tty mode exactly as without a mode', () => {
+    expect(emit({ ...iterm, mode: 'tty' }, 'link', { text: 'Docs', url: 'https://x.dev' })).toBe(emit(iterm, 'link', { text: 'Docs', url: 'https://x.dev' }));
+  });
+
   it('prints something a human can read instead of bytes a pipe cannot', () => {
     expect(emit(pipe, 'link', { text: 'Docs', url: 'https://x.dev' })).toBe('Docs (https://x.dev)');
     expect(emit(pipe, 'link', { text: 'Docs' })).toBe('Docs');
