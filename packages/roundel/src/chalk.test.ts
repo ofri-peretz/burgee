@@ -21,7 +21,7 @@ import chalk, {
   underlineColorNames,
 } from './chalk.js';
 import { colorLevel, flown, type ColorLevel } from './policy.js';
-import { error } from './tokens.js';
+import { error, sgr } from './tokens.js';
 
 /** Escape sequences spelled out, so a reader can check them against ECMA-48 by eye. */
 const E = '\u001B[';
@@ -180,5 +180,33 @@ describe('R3 — only tokens emits an escape', () => {
   it('the façade source carries no ESC: it computes parameters and hands them to `sgr()`', () => {
     const source = readFileSync(fileURLToPath(new URL('chalk.ts', import.meta.url)), 'utf8');
     expect(source).not.toMatch(/\\u001[bB]|\\x1[bB]|\\e\[|\u001B/);
+  });
+});
+
+/**
+ * B5: a builder keeps its escapes (a painter, built one pair at a time) and its links (a
+ * getter that defines the next link on the builder it was asked of) instead of a Proxy that
+ * rebuilt both per access. These hold the behaviour those shortcuts must not change.
+ */
+describe('a builder keeps what it built, and answers exactly as before', () => {
+  const E = '\u001B[';
+  const at3 = new Chalk({ level: 3 });
+
+  it('keeps a link: the second read is the same builder, as chalk\u2019s own are', () => {
+    expect(at3.red).toBe(at3.red);
+    expect(at3.red.bold).toBe(at3.red.bold);
+    expect(Object.hasOwn(at3, 'red')).toBe(true);
+  });
+
+  it('closes and re-opens around every line break, and re-opens after a nested close', () => {
+    expect(at3.red.bold('a\nb')).toBe(`${E}31m${E}1ma${E}22m${E}39m\n${E}31m${E}1mb${E}22m${E}39m`);
+    expect(at3.red.bold('a\r\nb')).toBe(`${E}31m${E}1ma${E}22m${E}39m\r\n${E}31m${E}1mb${E}22m${E}39m`);
+    expect(at3.red(`x ${at3.blue('y')} z`)).toBe(`${E}31mx ${E}34my${E}39m${E}31m z${E}39m`);
+    expect(at3.red(`x ${E}1my${E}22m`)).toBe(`${E}31mx ${E}1my${E}22m${E}39m`);
+  });
+
+  it('keeps sgr() as it was for a caller that hands it a chain', () => {
+    expect(sgr([], 'a\nb')).toBe('a\nb');
+    expect(sgr([{ open: '31', close: '39' }, { open: '1', close: '22' }], 'a\nb')).toBe(at3.red.bold('a\nb'));
   });
 });
