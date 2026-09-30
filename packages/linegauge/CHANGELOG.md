@@ -1,5 +1,13 @@
 # linegauge
 
+## 1.0.2
+
+### Patch Changes
+
+- [#777](https://github.com/ofri-peretz/burgee/pull/777) [`1857ff6`](https://github.com/ofri-peretz/burgee/commit/1857ff65ca0e1b0b5686480c1a37dc8834bf688b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `measure` answers a one-unit string without building a grapheme segmenter.
+
+  A prompt frame's glyphs (`│`, `●`, `◆`) arrive at `wrap` as words of their own, and segmenting each one was most of what `caique/clack` spent measuring. In B5, `caique/clack` ÷ @clack/prompts went from 1.45× on CI to 1.09× locally.
+
 ## 1.0.1
 
 ### Patch Changes

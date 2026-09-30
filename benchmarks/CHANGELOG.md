@@ -1,5 +1,16 @@
 # benchmarks
 
+## 0.0.10
+
+### Patch Changes
+
+- [#780](https://github.com/ofri-peretz/burgee/pull/780) [`c901047`](https://github.com/ofri-peretz/burgee/commit/c90104751a84e46b8bfd4d007a90c40d3f88658c) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - B5 ceilings are derived from each pair's CI spread, max(mean + 3σ, largest reading), and the derivation is written beside each ceiling. Spec bars keep their value and run more rounds.
+- Updated dependencies [[`1857ff6`](https://github.com/ofri-peretz/burgee/commit/1857ff65ca0e1b0b5686480c1a37dc8834bf688b), [`1857ff6`](https://github.com/ofri-peretz/burgee/commit/1857ff65ca0e1b0b5686480c1a37dc8834bf688b), [`08976ae`](https://github.com/ofri-peretz/burgee/commit/08976ae734f0494720e0dce06dd850bf7177766f)]:
+  - bellpull@0.5.1
+  - linegauge@1.0.2
+  - burgee@0.16.0
+  - roundel@0.6.2
+
 ## 0.0.9
 
 ### Patch Changes
