@@ -7,17 +7,14 @@
   "properties": {
     "name": {
       "type": "string",
-      "minLength": 1,
-      "description": "The plugin's name; also the prefix a host may use when two plugins contribute the same key."
+      "minLength": 1
     },
     "contract": {
       "type": "integer",
-      "minimum": 1,
-      "description": "The plugin contract this object follows. A host refuses a newer contract than it knows."
+      "minimum": 1
     },
     "tokens": {
       "type": "object",
-      "description": "A roundel theme: semantic token name to a hex colour, contrast-checked when flown.",
       "additionalProperties": {
         "type": "string",
         "pattern": "^#[0-9a-fA-F]{6}$"
@@ -34,13 +31,11 @@
           "value",
           "heading",
           "ground"
-        ],
-        "description": "roundel's ten semantic tokens, and nothing else — `roundel`'s own validate() refuses any other name."
+        ]
       }
     },
     "glyphs": {
       "type": "object",
-      "description": "Symbols by meaning: `ok`, `fail`, `warn`, `info`, `running`. A plugin that ships glyphs changes every built-in that draws one.",
       "additionalProperties": {
         "type": "string",
         "minLength": 1
@@ -48,21 +43,18 @@
     },
     "spinners": {
       "type": "object",
-      "description": "Spinner styles by name, in cli-spinners' shape plus the static projection.",
       "additionalProperties": {
         "$ref": "#/$defs/spinner"
       }
     },
     "borders": {
       "type": "object",
-      "description": "Border styles a box can be drawn with, by name.",
       "additionalProperties": {
         "$ref": "#/$defs/border"
       }
     },
     "components": {
       "type": "object",
-      "description": "Components by name: `static(state)` returns the text a pipe, an agent or a screen reader gets; `frame(t, state)` is the optional animated form.",
       "additionalProperties": {
         "$ref": "#/$defs/component"
       }
@@ -86,12 +78,10 @@
         },
         "interval": {
           "type": "integer",
-          "minimum": 1,
-          "description": "Milliseconds between frames on a terminal."
+          "minimum": 1
         },
         "static": {
-          "type": "string",
-          "description": "What a pipe prints instead of the animation."
+          "type": "string"
         }
       }
     },
@@ -101,32 +91,22 @@
         "static"
       ],
       "properties": {
-        "static": {
-          "description": "(state) => string. Required: the projection every non-terminal mode prints."
-        },
-        "frame": {
-          "description": "(t, state) => string. Optional: the frame at t milliseconds since hoisting."
-        },
+        "static": {},
+        "frame": {},
         "sample": {
           "type": "object",
           "required": [
             "running",
             "done"
           ],
-          "description": "Two states to *show* this component with: `flagstaff check` and the docs gallery render `running` then `done`. Omitted, they assume `{ phase: 'running' }` and `{ phase: 'done' }` and say so in the output. The loop never reads it — a running program's state comes from the program.",
           "properties": {
-            "running": {
-              "description": "The state to open with."
-            },
-            "done": {
-              "description": "The state to close with."
-            }
+            "running": {},
+            "done": {}
           }
         },
         "interval": {
           "type": "integer",
-          "minimum": 1,
-          "description": "Milliseconds between repaints when `frame` is given; 80 when omitted."
+          "minimum": 1
         }
       }
     },
@@ -142,7 +122,6 @@
         "bottom",
         "bottomRight"
       ],
-      "description": "cli-boxes' shape exactly, so that corpus imports unchanged.",
       "properties": {
         "topLeft": {
           "type": "string"

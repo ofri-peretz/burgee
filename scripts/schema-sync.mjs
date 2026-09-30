@@ -15,6 +15,8 @@ import { join } from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
+import { withoutAnnotations } from './schema-annotations.mjs';
+
 const root = fileURLToPath(new URL('..', import.meta.url));
 const packages = join(root, 'packages');
 const SOURCE = join(packages, 'flagstaff/src/schema.json');
@@ -55,6 +57,9 @@ for (const target of hosts) {
  *
  * Generated rather than hand-copied, and `plugin-schema-lock.test.ts` asserts each fragment
  * deep-equals its definition in the source, so a fragment can go stale in neither direction.
+ *
+ * Without its annotations (`schema-annotations.mjs`): validation reads no prose, and a fragment is
+ * imported, so its descriptions were ~1.3 KB of every paratext user's bundle (2026-09-30, B5).
  */
 const FRAGMENTS = [
   { target: 'paratext/src/capability.schema.json', def: 'capability' },
@@ -76,7 +81,7 @@ const fragmentOf = (entry) =>
       };
 for (const entry of FRAGMENTS) {
   const { target } = entry;
-  const want = `${JSON.stringify(fragmentOf(entry), null, 2)}\n`;
+  const want = `${JSON.stringify(withoutAnnotations(fragmentOf(entry)), null, 2)}\n`;
   const at = join(packages, target);
   const current = existsSync(at) ? readFileSync(at, 'utf8') : undefined;
   if (current === want) continue;

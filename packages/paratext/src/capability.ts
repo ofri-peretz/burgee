@@ -202,7 +202,7 @@ export function check(candidate: object): string[] {
   const record: Record<string, unknown> = Object.fromEntries(Object.entries(candidate));
   const section = record['capabilities'];
   if (section === undefined) {
-    const named = typeof record['name'] === 'string' && record['name'] !== '' ? String(record['name']) : '<unnamed>';
+    const named = typeof record['name'] === 'string' && record['name'] !== '' ? record['name'] : '<unnamed>';
     return [
       `${DEPRECATED}${named}: a capability written as the whole document is the shape paratext had before the family schema absorbed it — move it under \`capabilities\`, keyed by its name; 1.0 stops accepting this`,
       ...capabilityProblems(record).map(({ line }) => line),

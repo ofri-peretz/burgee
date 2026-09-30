@@ -98,7 +98,10 @@ const RULES: Record<string, EntryRule> = {
   // 17,700 → 17,900 under A27: `runtime.js` gained `commandLineRuntime()` for `./terminal-link`
   // (R5 keeps every `process` read in that one file). A bundler drops it from this entry; this
   // walk counts the whole file. Measured 17,813.
-  '.': { allow: [], budget: 17_900, denied: ['plugin.js'] },
+  // 17,900 → 16,800 on 2026-09-30 (B5): the capability fragment ships without its schema prose
+  // (`scripts/schema-annotations.mjs`, −1.6 KB), which pays for a cached renderer, a kept
+  // `eraseLines` and the root reading the process once. Measured 16,741.
+  '.': { allow: [], budget: 16_800, denied: ['plugin.js'] },
   /**
    * OSC 8 alone, for a host that wants one clickable URL and not a plugin contract.
    * Measured **2,337 B**: `link.js` 768, `template.js` 774, `supports.js` 652,
@@ -123,8 +126,12 @@ const RULES: Record<string, EntryRule> = {
    *
    * 6,000 → 9,300 under A27: `hyperlinks.js` is `supports-hyperlinks`' own detection table,
    * carried so the façade links exactly where the incumbent does. Measured 9,222.
+   *
+   * 9,300 → 7,300 on 2026-09-30 (B5): the OSC 8 record moved to `osc8.ts`, and the façade splits
+   * its `encode` once at load, so the template renderer `./link` needs is no longer reached.
+   * Measured 7,212.
    */
-  './terminal-link': { allow: [], budget: 9_300, denied: ['index.js', 'capability.js', 'builtins.js', 'plugin.js', 'ansi-escapes.js', 'schema.json'] },
+  './terminal-link': { allow: [], budget: 7_300, denied: ['index.js', 'capability.js', 'builtins.js', 'plugin.js', 'ansi-escapes.js', 'schema.json'] },
   /**
    * The `term-img` façade. It reaches `image.js` for the `IMAGE` record and the field
    * arithmetic, `runtime.js` for the process seam and `template.js` to render — and, unlike
@@ -154,7 +161,12 @@ const RULES: Record<string, EntryRule> = {
   // 13,500 for **96 bytes**: `FIX` is a runtime table keyed by `PluginErrorCode`, so the
   // `E_NO_CONTRIBUTION` code `paratext check` refuses with has to carry its fix text here, where
   // every refusal's fix lives. Measured 13,496.
-  './plugin': { allow: [], budget: 13_500, denied: ['index.js', 'builtins.js', 'ansi-escapes.js'] },
+  // 13,550 for **16 bytes** (2026-09-30): #752 made `validate` refuse a `contract` below 1, the
+  // family-wide floor the shared schema already stated — `|| contract < 1` in `plugin.js`.
+  // Measured 13,512 on main after it merged: 12 B over, with every pre-push battery on it red.
+  // 13,550 → 12,200 the same day (B5): the capability fragment without its prose. Measured
+  // 12,099 with #752's floor and #754's output-mode check.
+  './plugin': { allow: [], budget: 12_200, denied: ['index.js', 'builtins.js', 'ansi-escapes.js'] },
 };
 
 const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;

@@ -13,7 +13,7 @@ import { ASCII_PRINTABLE, ROW_BOUNDARY, TAB_SIZE, applyLeadingResets, applyParam
  * Graded differentially against the real `wrap-ansi` in `wrap.test.ts`, the way `width.ts`
  * is graded against `string-width`: the incumbent is the specification.
  */
-import { measure } from './width.js';
+import { clusterColumns, measure } from './width.js';
 
 /** The visible width of a string, escape sequences ignored. */
 export function visibleWidth(string: string): number {
@@ -44,7 +44,7 @@ function tokenize(string: string): Token[] {
         for (const character of plainText) tokens.push({ value: character, width: 1 });
         return;
       }
-      for (const { segment } of segmenter().segment(plainText)) tokens.push({ value: segment, width: measure(segment) });
+      for (const { segment } of segmenter().segment(plainText)) tokens.push({ value: segment, width: clusterColumns(segment) });
     },
     (escape) => tokens.push({ value: escape, width: 0 }),
   );

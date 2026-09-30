@@ -14,7 +14,7 @@
  * the byte assertions run against an injected `Runtime` — and then `the way a caller
  * actually calls it` calls the exported function with no injection at all.
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import ansiEscapes, {
   ansiEscapesFor,
@@ -154,5 +154,34 @@ describe('the CSI half, byte-exact with the incumbent (D-138)', () => {
   it('declares the OSC members it has no capability for yet', () => {
     expect(iTerm).toBeUndefined();
     expect(ConEmu).toBeUndefined();
+  });
+});
+
+/**
+ * The root's `link` reads the process once, on its first call, as `ansi-escapes` and
+ * `supports-hyperlinks` read theirs once at import: rebuilding the runtime and reading the live
+ * `process.env` on every call made a link ~90× the incumbent's (B5). The registry is still read
+ * per call, so re-registering `link` to correct our guess still changes what it returns.
+ */
+describe('the root surface over the real process', () => {
+  const tty = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY');
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    if (tty === undefined) Reflect.deleteProperty(process.stdout, 'isTTY');
+    else Object.defineProperty(process.stdout, 'isTTY', tty);
+    vi.resetModules();
+  });
+
+  it('decides on the first call and keeps the answer, and still honours a re-registered capability', async () => {
+    Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true });
+    vi.stubEnv('TERM_PROGRAM', 'iTerm.app');
+    vi.resetModules();
+    const fresh = await import('./ansi-escapes.js');
+    const { capability, register } = await import('./capability.js');
+    expect(fresh.link('Docs', 'https://x.dev')).toBe('\u001B]8;;https://x.dev\u0007Docs\u001B]8;;\u0007');
+    vi.stubEnv('TERM_PROGRAM', 'nothing-we-know');
+    expect(fresh.link('Docs', 'https://x.dev'), 'the environment was re-read after the first call').toContain('\u001B]8;;');
+    register({ ...(capability('link') as NonNullable<ReturnType<typeof capability>>), when: { tty: true, term: 'no-such-term' } });
+    expect(fresh.link('Docs', 'https://x.dev')).toBe('Docs (https://x.dev)');
   });
 });

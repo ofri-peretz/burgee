@@ -17,23 +17,12 @@ import { strip } from 'linegauge/strip';
 The default export, declared as `strip`.
 
 Everything a terminal would print, with the escape sequences removed: CSI (SGR and the
-cursor and erase forms), OSC including `OSC 8` hyperlinks under both terminators, DCS, the
-charset selections, and the single-character escapes. A lone `ESC` with nothing that parses
-after it is text and is kept — the same answer `strip-ansi` gives.
-
-Two passes, which is the design's prescription taken literally: *"using
-`util.stripVTControlCharacters` where it is exact and a local scan where it is not."*
-
-  1. The local scan, over `style.ts`'s `ANSI_ESCAPE`. It removes CSI and OSC **including
-     the colon form** of an extended colour, which is the one shape Node gets wrong.
-  2. Node's stripper on what is left — the single-character escapes (`ESC c`), the charset
-     selections (`ESC ( B`) and a truncated sequence at the end of a string. `ANSI_ESCAPE`
-     matches none of those, because `wrap` never needed them: it was built to find the
-     sequences it has to *reopen*, and a charset selection is not one.
-
-Order is load-bearing. Ours runs first so the colon form is already gone by the time Node
-sees the string; reversed, pass 2 would leave `:2::255:0:0m` behind as text and pass 1
-would have nothing left to match.
+cursor and erase forms), OSC including `OSC 8` hyperlinks under all three terminators, the
+C1 introducers, and the single-character escapes. A lone `ESC` with nothing that parses
+after it is text and is kept — the same answer `strip-ansi` gives, because it is the same
+pattern. A string with neither `ESC` nor `0x9B` is returned as it is, without a replace —
+strip-ansi's own fast path, including what it leaves alone: a C1 OSC (`0x9D`) with no `ESC`
+or `0x9B` beside it is kept by the incumbent, and so it is kept here.
 
 ```ts
 function strip(string: string): string;
@@ -48,23 +37,12 @@ function strip(string: string): string;
 ### strip
 
 Everything a terminal would print, with the escape sequences removed: CSI (SGR and the
-cursor and erase forms), OSC including `OSC 8` hyperlinks under both terminators, DCS, the
-charset selections, and the single-character escapes. A lone `ESC` with nothing that parses
-after it is text and is kept — the same answer `strip-ansi` gives.
-
-Two passes, which is the design's prescription taken literally: *"using
-`util.stripVTControlCharacters` where it is exact and a local scan where it is not."*
-
-  1. The local scan, over `style.ts`'s `ANSI_ESCAPE`. It removes CSI and OSC **including
-     the colon form** of an extended colour, which is the one shape Node gets wrong.
-  2. Node's stripper on what is left — the single-character escapes (`ESC c`), the charset
-     selections (`ESC ( B`) and a truncated sequence at the end of a string. `ANSI_ESCAPE`
-     matches none of those, because `wrap` never needed them: it was built to find the
-     sequences it has to *reopen*, and a charset selection is not one.
-
-Order is load-bearing. Ours runs first so the colon form is already gone by the time Node
-sees the string; reversed, pass 2 would leave `:2::255:0:0m` behind as text and pass 1
-would have nothing left to match.
+cursor and erase forms), OSC including `OSC 8` hyperlinks under all three terminators, the
+C1 introducers, and the single-character escapes. A lone `ESC` with nothing that parses
+after it is text and is kept — the same answer `strip-ansi` gives, because it is the same
+pattern. A string with neither `ESC` nor `0x9B` is returned as it is, without a replace —
+strip-ansi's own fast path, including what it leaves alone: a C1 OSC (`0x9D`) with no `ESC`
+or `0x9B` beside it is kept by the incumbent, and so it is kept here.
 
 ```ts
 function strip(string: string): string;

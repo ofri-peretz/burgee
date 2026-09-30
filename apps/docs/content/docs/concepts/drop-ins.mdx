@@ -84,13 +84,18 @@ byte for byte. Its safety rules:
 - **A file is rewritten whole or not at all.** One refused specifier leaves the whole file as it
   was. The refusals are `deep-import` (`commander/lib/command.js`), `non-literal-specifier`
   (`require(name)`), `unknown-export` (a value import of a name the drop-in does not export) and
-  `require-of-default` (a `require()` whose two sides would return different kinds of value). A
+  `require-of-default` (a `require()` whose two sides would return different kinds of value), and
+  `sibling-state` (a clack file that also imports `@clack/core`, whose settings `caique/clack`
+  never reads; it carries a `fix`). A
   type-only import of a missing name is `kept` on the incumbent, not refused.
 - **No dirty tree.** Without `--force`, uncommitted changes stop the run before anything is
-  written, so the rewrite is one reviewable diff. `--dry-run` writes nothing, so it skips that
-  check.
+  written, so the rewrite is one reviewable diff, and the refusal prints its fix: `commit or
+  stash your changes, or pass --force`. `--dry-run` writes nothing, so it skips that check.
 - **It never edits `package.json`.** It prints the one command that adds the family packages and
   removes the incumbents that are no longer imported, for the package manager the lockfile names.
+  A refused file still imports everything in it, so no incumbent it names is called removable or
+  uninstalled (`keeps an incumbent imported only in a refused file out of removable, and out of
+  npm uninstall`).
 - **It exits 1 when anything was refused**, with the whole report still printed, so an agent can
   run it unattended and branch on the result.
 
@@ -132,7 +137,7 @@ refused: [{"file":"legacy.mjs","line":1,"specifier":"commander/lib/help.js","rea
 kept: []
 detected: {"declared":["commander","chalk"],"imported":["chalk","commander"]}
 dependencies: {"before":["commander","chalk"],"removable":["chalk"],"after":1,"add":["burgee","roundel"]}
-graded: [{"host":"chalk","reference":58,"passed":58,"rate":1,"control":58},{"host":"commander","reference":1360,"passed":1360,"rate":1,"control":1360}]
+graded: [{"host":"chalk","reference":59,"passed":59,"rate":1,"control":59},{"host":"commander","reference":1360,"passed":1360,"rate":1,"control":1360}]
 partial: []
 offMajor: []
 next: npm install burgee roundel && npm uninstall chalk
