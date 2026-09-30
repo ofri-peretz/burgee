@@ -157,6 +157,32 @@ describe('the executable bit is checked, not just existence', () => {
   it('passes over a directory with the right name', () => {
     expect(whichSync('tooldir', { runtime: host({ env: { PATH: root } }) })).toBeUndefined();
   });
+
+  // A miss is answered without a thrown ENOENT since B5 (`throwIfNoEntry: false`, which also
+  // covers an entry that is a file). A stat that still throws — a directory this user may not
+  // search — is still a miss rather than an error. POSIX only: Windows has no search bit.
+  it('passes over a PATH entry that is a file, not a directory', () => {
+    expect(whichSync('tool', { runtime: host({ env: { PATH: join(binA, 'notexec') } }) })).toBeUndefined();
+  });
+
+  it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)('passes over a PATH entry this user may not search', () => {
+    const shut = join(root, 'shut');
+    mkdirSync(shut);
+    writeFileSync(join(shut, 'tool'), '#!/bin/sh\n');
+    chmodSync(join(shut, 'tool'), 0o755);
+    chmodSync(shut, 0o000);
+    try {
+      expect(whichSync('tool', { runtime: host({ env: { PATH: shut } }) })).toBeUndefined();
+    } finally {
+      chmodSync(shut, 0o755);
+    }
+  });
+
+  it('stops at the first hit, and whichAllSync still finds every one', () => {
+    const runtime = host({ env: { PATH: hostPath(binA, binB) } });
+    expect(whichSync('tool', { runtime })?.from).toBe(binA);
+    expect(whichAllSync('tool', { runtime }).map((hit) => hit.from)).toEqual([binA, binB]);
+  });
 });
 
 /**

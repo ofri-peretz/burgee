@@ -26,11 +26,14 @@ import { isWindows, type Runtime } from './runtime.js';
 export function isExecutable(file: string, runtime: Runtime, pathExt: string[]): boolean {
   let stat;
   try {
-    stat = statSync(file);
+    // `throwIfNoEntry: false`: a `PATH` walk misses in almost every directory it tries, and a
+    // thrown `ENOENT` per miss — an Error with a stack — was most of what a lookup cost (B5).
+    stat = statSync(file, { throwIfNoEntry: false });
   } catch {
-    // Absent, or a directory component of it is. Either way: not this one.
+    // A directory component of it is not a directory, or it cannot be read: not this one.
     return false;
   }
+  if (stat === undefined) return false;
   return isWindows(runtime) ? executableByName(file, stat, pathExt) : executableByMode(stat, runtime);
 }
 

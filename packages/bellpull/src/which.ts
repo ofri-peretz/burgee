@@ -196,6 +196,11 @@ export function searchPath(options: WhichOptions): SearchEntry[] {
  * throwing away everything after the first is what stops it being available.
  */
 export function whichAllSync(command: string, options: WhichOptions): Resolution[] {
+  return search(command, options, false);
+}
+
+/** The walk both answers share; `first` ends it at the first hit rather than every one. */
+function search(command: string, options: WhichOptions, first: boolean): Resolution[] {
   const { runtime } = options;
   const p = pathOps(runtime);
   const windows = isWindows(runtime);
@@ -204,21 +209,23 @@ export function whichAllSync(command: string, options: WhichOptions): Resolution
   const candidates = extensionCandidates(command, options);
   const found: Resolution[] = [];
 
-  const consider = (file: string, from: string, ext: string): void => {
-    if (!isExecutable(file, runtime, exts)) return;
+  /** Whether the walk is done: this file was a hit and one was all that was asked for. */
+  const consider = (file: string, from: string, ext: string): boolean => {
+    if (!isExecutable(file, runtime, exts)) return false;
     found.push({ path: p.resolve(against, file), from, ext });
+    return first;
   };
 
   if (carriesPath(command, windows)) {
     // Rule 1: the caller named a file. `PATH` is not consulted, and `from` is empty to say
     // so — a reader must be able to tell "found in /usr/bin" from "you told me where it is".
-    for (const ext of candidates) consider(p.resolve(against, command + ext), '', ext);
+    for (const ext of candidates) if (consider(p.resolve(against, command + ext), '', ext)) return found;
     return found;
   }
 
   for (const entry of searchPath(options)) {
     if (entry.dir === undefined) continue;
-    for (const ext of candidates) consider(p.join(entry.dir, command + ext), entry.dir, ext);
+    for (const ext of candidates) if (consider(p.join(entry.dir, command + ext), entry.dir, ext)) return found;
   }
   return found;
 }
@@ -230,7 +237,9 @@ export function whichAllSync(command: string, options: WhichOptions): Resolution
  * branches on — the same argument the `Result` in `run.ts` makes about a non-zero exit.
  */
 export function whichSync(command: string, options: WhichOptions): Resolution | undefined {
-  return whichAllSync(command, options)[0];
+  // The first hit ends the walk: `whichAllSync()[0]` stat-ed every directory on `PATH` to throw
+  // all but one answer away, 3.3× `which.sync` (B5).
+  return search(command, options, true)[0];
 }
 
 /**
