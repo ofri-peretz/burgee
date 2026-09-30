@@ -73,7 +73,7 @@ equal.
   rewritten. Upgrade it first, and run the command again.
 - **A `require()` whose two sides return different kinds of value.** `require()` of an ES
   module returns its namespace. The incumbents that ship ESM only (chalk 6, ora 9, boxen 8 and
-  nine more) already hand `require()` a namespace, and so do their replacements, so
+  ten more) already hand `require()` a namespace, and so do their replacements, so
   `const chalk = require('chalk')` moves. Where the incumbent hands back its export itself — a
   function or a class — and the replacement would hand back a namespace, the file is refused
   with `require-of-default`. No current replacement is in that position: each one whose
@@ -82,7 +82,9 @@ equal.
 - **A deep import** (`commander/lib/command.js`) or **a specifier that is not a literal**
   (`require(name)`). The file is refused by name and line, and left exactly as it was — a
   file is rewritten whole or not at all.
-- **A dirty git tree**, unless you pass `--force`, so the rewrite is one reviewable diff.
+- **A dirty git tree**, unless you pass `--force`, so the rewrite is one reviewable diff. The
+  command exits 1 and writes nothing. `--dry-run` writes nothing either way, so it skips the
+  check, and a directory that is not a git repository has nothing to be dirty.
 
 ## Why an import, not `overrides`
 

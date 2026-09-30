@@ -45,8 +45,9 @@ A row goes in only when every cell of it can be proved. These were left out:
   [Signals and exit status](/docs/guides/signals#the-exit-code). The row would not be true on
   every path, so it is not a row.
 - **`npx closeout check`.** The plugin checker ships and is shown on
-  [Plugins](/docs/guides/plugins), where the example is run by this site's tests; closeout has
-  no unit test of the command itself yet.
+  [Plugins](/docs/guides/plugins), where the example is run by this site's tests, and
+  [`check.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/check.test.ts)
+  tests the command itself: its arguments, its report and its refusals.
 - **Weight.** Zero dependencies is a fact of the manifest, and the per-entry byte budgets are
   asserted by
   [`weight.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/weight.test.ts)
