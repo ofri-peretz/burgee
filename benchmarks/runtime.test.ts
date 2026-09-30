@@ -23,7 +23,7 @@ import { readRuntimeRatchets } from './runtime-ratchets.js';
 
 const declared: Record<string, string> = { ...manifest.dependencies, ...manifest.devDependencies };
 const FIXTURES = fileURLToPath(new URL('fixtures/runtime/', import.meta.url));
-/** Fifteen processes, each loading two packages and proving one workload: generous on purpose. */
+/** Sixteen processes, each loading two packages and proving one workload: generous on purpose. */
 const PARITY_TIMEOUT_MS = 180_000;
 
 describe('the pairs', () => {
@@ -109,5 +109,39 @@ describe('the gate', () => {
     const ceiling = readRuntimeRatchets().ratchets[id]?.ceiling as number;
     expect(verdict([runtimeRecord(p, at(ceiling + 0.01))])).toBe(1);
     expect(verdict([runtimeRecord(p, at(ceiling))])).toBe(0);
+  });
+});
+
+/**
+ * bellpull R8's spawn half — "bytes and spawn delta at or under `tinyexec`". The bytes half is
+ * B4's `bellpull` row (D-160); this is the other one (D-20260930-bellpull-spawn-vs-tinyexec).
+ * R8 states its bar, so the pair's ratchet is that bar and not a ceiling derived above a
+ * measurement: a ratchet started at 1.25× today's number would call a bellpull slower than
+ * tinyexec green, which is the outcome R8 exists to refuse.
+ */
+describe('bellpull R8: spawn time at or under tinyexec', () => {
+  const pair = PAIRS.find((p) => p.id === 'bellpull') as (typeof PAIRS)[number];
+
+  beforeEach(() => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('is measured against tinyexec, the rival R8 names — not execa, which would be a free pass', () => {
+    expect(pair).toMatchObject({ host: 'tinyexec', pkg: 'bellpull', hostPkg: 'tinyexec', file: 'bellpull-tinyexec.mjs' });
+  });
+
+  it("is gated at R8's bar: the ceiling is the target, 1.0, never a ratchet above it", () => {
+    const ratchet = readRuntimeRatchets().ratchets['bellpull'];
+    expect(ratchet?.target).toBe(1);
+    expect(ratchet?.ceiling).toBeLessThanOrEqual(1);
+  });
+
+  it('goes red the moment bellpull spawns slower than tinyexec', () => {
+    expect(verdict([runtimeRecord(pair, at(1.01))])).toBe(1);
+    expect(runtimeRecord(pair, at(1.01)).detail?.['met']).toBe(false);
   });
 });
