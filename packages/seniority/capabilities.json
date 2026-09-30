@@ -68,8 +68,8 @@
         },
         {
           "capability": "YAML with no parser supplied",
-          "why": "seniority bundles no format parser: its own loaders have no `.yaml` entry, and the cosmiconfig drop-in reads only the YAML that is also JSON and refuses the rest by name, so a YAML config needs `loaders: { '.yaml': yaml.load }`.",
-          "ours": {"status": "no", "test": "packages/seniority/src/load.test.ts", "title": "names the four formats deliberately not bundled, each of which is a caller-supplied loader", "missing": "a product decision, not a gap: no parser dependency for everyone, and cosmiconfig's behaviour exactly with one line"},
+          "why": "seniority reads YAML with its own parser, `seniority/yaml`, and no dependency: the cosmiconfig drop-in loads it on the first YAML file, and `discover` and `loadPath` take it as a loader.",
+          "ours": {"status": "yes", "test": "packages/seniority/src/cosmiconfig.test.ts", "title": "reads a file with no extension as YAML — JSON included, YAML being its superset"},
           "incumbents": {
             "cosmiconfig": {"status": "yes", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/package.json", "note": "through its js-yaml dependency"},
             "lilconfig": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "note": "JavaScript and JSON only, unless a loader is given"},
@@ -170,9 +170,9 @@
           }
         },
         {
-          "capability": "Passes cosmiconfig's own test suite, bar YAML",
-          "why": "`seniority` passes 186 of the 243 cases of cosmiconfig 10.0.1's own suite; 54 of the rest are YAML, which seniority deliberately does not parse without a loader.",
-          "ours": {"status": "partial", "grade": "packages/compat-oracle/baseline/cosmiconfig.json", "missing": "57 cases: 54 need a YAML parser (a product decision; pass one in `loaders`), 1 imports cosmiconfig's entry by a file path and fails for cosmiconfig too, and 2 are a Linux-only XDG pair"},
+          "capability": "Passes cosmiconfig's own test suite",
+          "why": "`seniority` passes 240 of the 243 cases of cosmiconfig 10.0.1's own suite, the count the published control run passes too.",
+          "ours": {"status": "partial", "grade": "packages/compat-oracle/baseline/cosmiconfig.json", "missing": "3 cases: 1 imports cosmiconfig's entry by a file path the harness cannot load, which fails for cosmiconfig too, and 2 are a Linux-only XDG pair that cosmiconfig passes there by reading XDG_CONFIG_HOME, which seniority does not read (R11)"},
           "incumbents": {
             "cosmiconfig": {"status": "yes", "source": "packages/compat-oracle/vendor/cosmiconfig/test/successful-files.test.ts", "quote": "import { cosmiconfig, cosmiconfigSync } from '../shim.mjs';", "note": "its own suite, the control run; the case the harness cannot load fails for it too"},
             "lilconfig": {"status": "n/a", "source": "packages/compat-oracle/vendor/lilconfig/src/spec/index.spec.js", "quote": "const {lilconfig, lilconfigSync} = require('../../shim.mjs');", "note": "a different API"},

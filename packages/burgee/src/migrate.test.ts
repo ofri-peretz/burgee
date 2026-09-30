@@ -85,6 +85,7 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
       'terminal-link': 'paratext/terminal-link',
       'term-img': 'paratext/term-img',
       lilconfig: 'seniority/lilconfig',
+      cosmiconfig: 'seniority',
       '@clack/prompts': 'caique/clack',
       '@inquirer/core': 'caique/inquirer',
       meow: 'burgee/meow',
@@ -509,6 +510,15 @@ describe('A11 — a rewrite moves only names the target exports', () => {
     expect(rewriteSource("import { intro, text, isCancel } from '@clack/prompts';\n").source).toBe("import { intro, text, isCancel } from 'caique/clack';\n");
     const source = "import { box, progress, taskLog, text } from '@clack/prompts';\n";
     expect(rewriteSource(source)).toMatchObject({ source, mapped: [], refused: [{ line: 1, specifier: '@clack/prompts', reason: 'unknown-export', names: ['box', 'progress', 'taskLog'] }] });
+  });
+
+  it('moves a cosmiconfig program to seniority, and refuses a file that names a type seniority does not export', () => {
+    // cosmiconfig went level on 2026-09-30 (D-20260930-seniority-yaml): its 54 YAML cases pass
+    // since `seniority/yaml`. `LoaderSync` is one of the names cosmiconfig exports that the
+    // root of `seniority` does not, and a file that imports it has to stay on cosmiconfig whole.
+    expect(rewriteSource("import { cosmiconfig, cosmiconfigSync } from 'cosmiconfig';\n").source).toBe("import { cosmiconfig, cosmiconfigSync } from 'seniority';\n");
+    const source = "import { cosmiconfig, type LoaderSync } from 'cosmiconfig';\n";
+    expect(rewriteSource(source)).toMatchObject({ source, mapped: [], refused: [{ line: 1, specifier: 'cosmiconfig', reason: 'unknown-export', names: ['LoaderSync'] }] });
   });
 
   it('refuses a mixed import with a missing type — a scan cannot split the statement', () => {
