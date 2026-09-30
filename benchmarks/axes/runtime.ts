@@ -47,25 +47,36 @@ export interface RuntimePair {
   hostPkg: string;
   /** The workload under `fixtures/runtime/`. */
   file: string;
+  /**
+   * Rounds for this pair, where `ROUNDS` leaves its median too loose for its gate: a spec bar
+   * held at 1.0 (`bellpull ÷ tinyexec`), or a pair whose CI spread sat close to its ceiling
+   * (D-20260930-b5-ceilings-from-spread). More rounds narrow the median within a run; the
+   * ceiling covers what they cannot, one runner's CPU against another's.
+   */
+  rounds?: number;
 }
 
-const pair = (id: string, host: string, file: string, hostPkg: string = host): RuntimePair => ({ id, host, pkg: id.split('/')[0] as string, hostPkg, file });
+const pair = (id: string, host: string, file: string, { hostPkg = host, rounds }: { hostPkg?: string; rounds?: number } = {}): RuntimePair => ({ id, host, pkg: id.split('/')[0] as string, hostPkg, file, ...(rounds === undefined ? {} : { rounds }) });
+
+/** For the pairs whose median needs narrowing; odd, like `ROUNDS`, for the reason given there. */
+const MORE_ROUNDS = 21;
+const SPEC_BAR_ROUNDS = 31;
 
 export const PAIRS: readonly RuntimePair[] = [
-  pair('paratext', 'ansi-escapes', 'paratext-ansi-escapes.mjs'),
+  pair('paratext', 'ansi-escapes', 'paratext-ansi-escapes.mjs', { rounds: MORE_ROUNDS }),
   pair('paratext/terminal-link', 'terminal-link', 'paratext-terminal-link.mjs'),
   pair('linegauge', 'string-width', 'linegauge-string-width.mjs'),
   pair('linegauge/strip', 'strip-ansi', 'linegauge-strip-ansi.mjs'),
   pair('linegauge/wrap', 'wrap-ansi', 'linegauge-wrap-ansi.mjs'),
-  pair('linegauge/slice', 'slice-ansi', 'linegauge-slice-ansi.mjs'),
+  pair('linegauge/slice', 'slice-ansi', 'linegauge-slice-ansi.mjs', { rounds: MORE_ROUNDS }),
   pair('roundel/chalk', 'chalk', 'roundel-chalk.mjs'),
   pair('bellpull/node-which', 'which', 'bellpull-which.mjs'),
   // bellpull R8's spawn half: `run` against tinyexec's `x`, the zero-dependency rival R8 names.
   // Not a drop-in pair — the weight axis weighs the same two calls (B4's `bellpull` row) — and
   // its ratchet is R8's bar itself, 1.0, rather than a ceiling above a measurement.
-  pair('bellpull', 'tinyexec', 'bellpull-tinyexec.mjs'),
+  pair('bellpull', 'tinyexec', 'bellpull-tinyexec.mjs', { rounds: SPEC_BAR_ROUNDS }),
   pair('flagstaff/ora', 'ora', 'flagstaff-ora.mjs'),
-  pair('flagstaff/log-update', 'log-update', 'flagstaff-log-update.mjs'),
+  pair('flagstaff/log-update', 'log-update', 'flagstaff-log-update.mjs', { rounds: MORE_ROUNDS }),
   pair('flagstaff/boxen', 'boxen', 'flagstaff-boxen.mjs'),
   pair('flagstaff/cli-table3', 'cli-table3', 'flagstaff-cli-table3.mjs'),
   pair('caique/clack', '@clack/prompts', 'caique-clack.mjs'),
@@ -157,7 +168,8 @@ export function runtimeRecord(p: RuntimePair, s: Sample, resolved?: Resolution):
 
 export function run(rounds: number = ROUNDS, pairs: readonly RuntimePair[] = PAIRS): BenchRecord[] {
   const resolved = resolvePairs();
-  return pairs.map((p) => runtimeRecord(p, sample(p, rounds), resolved.get(p.id)));
+  // A pair's own `rounds` apply to the full run; a caller asking for fewer (a test) gets fewer.
+  return pairs.map((p) => runtimeRecord(p, sample(p, rounds === ROUNDS ? (p.rounds ?? rounds) : rounds), resolved.get(p.id)));
 }
 
-export const method = `One realistic workload per (package, incumbent) pair, in a fresh Node process per pair with a TTY, iTerm2, FORCE_COLOR=3 and FORCE_HYPERLINK=1; each workload first proves both sides produce the same output. Then three warm-up rounds and ${String(ROUNDS)} interleaved rounds, each timing ours and the incumbent back to back (alternating which goes first, a full GC before each block). The gated number is the median of the per-round ratio ours ÷ incumbent; the target is ≤ 1.0 and the gate is each pair's downward-only ratchet. Both packages are resolved against the ranges benchmarks/package.json declares before any timing.`;
+export const method = `One realistic workload per (package, incumbent) pair, in a fresh Node process per pair with a TTY, iTerm2, FORCE_COLOR=3 and FORCE_HYPERLINK=1; each workload first proves both sides produce the same output. Then three warm-up rounds and ${String(ROUNDS)} interleaved rounds (${String(MORE_ROUNDS)} or ${String(SPEC_BAR_ROUNDS)} for the pairs whose gate needs a tighter median), each timing ours and the incumbent back to back (alternating which goes first, a full GC before each block). The gated number is the median of the per-round ratio ours ÷ incumbent; the target is ≤ 1.0 and the gate is each pair's downward-only ratchet, derived from its CI spread (max of mean + 3 sd and the largest reading), or a spec bar where one is written. Both packages are resolved against the ranges benchmarks/package.json declares before any timing.`;

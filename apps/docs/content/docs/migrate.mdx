@@ -50,6 +50,7 @@ equal.
 | `which` | `bellpull/node-which` |
 | `rc` | `seniority/rc` |
 | `lilconfig` | `seniority/lilconfig` |
+| `cosmiconfig` | `seniority` |
 | `@clack/prompts` | `caique/clack` |
 | `@inquirer/core` | `caique/inquirer` |
 | `meow` | `burgee/meow` |
@@ -62,9 +63,9 @@ equal.
 
 ## What it leaves alone, and says so
 
-- **A drop-in that is not level yet.** dotenv and cosmiconfig each have a
-  graded replacement that passes fewer of the incumbent's cases than the incumbent does. The report lists them under `partial` with the
-  grade, and never rewrites them: a codemod that breaks your CLI is worse than none.
+- **A drop-in that is not level yet.** dotenv has a
+  graded replacement that passes fewer of the incumbent's cases than the incumbent does. The report lists it under `partial` with the
+  grade, and never rewrites it: a codemod that breaks your CLI is worse than none.
 - **A name the replacement does not export.** Every imported name is checked against the
   replacement's exports. A type-only import of a missing name stays on the incumbent, with a
   note to keep its types installed; a value import of one refuses the file.

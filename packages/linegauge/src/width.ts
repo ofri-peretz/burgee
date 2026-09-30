@@ -418,6 +418,8 @@ export function measure(text: string, ambiguousIsWide = false): number {
   // Printable ASCII is its length, as in `width` — unless a plugin claims code points, which
   // may include ASCII ones, and must be asked per cluster.
   if (claim === undefined && ASCII.test(text)) return text.length;
+  // One code unit is one cluster: nothing to segment (B5 — a prompt frame's glyphs are words).
+  if (text.length === 1) return clusterColumns(text, ambiguousIsWide);
   let columns = 0;
   for (const { segment } of segmenter().segment(text)) columns += clusterColumns(segment, ambiguousIsWide);
   return columns;

@@ -1,5 +1,13 @@
 # caique
 
+## 0.6.4
+
+### Patch Changes
+
+- Updated dependencies [[`b44f426`](https://github.com/ofri-peretz/burgee/commit/b44f426621ed799700cceda8c979de8f759f56b7), [`6195b99`](https://github.com/ofri-peretz/burgee/commit/6195b99344a21b4a05ab100fc38358deab229ce8)]:
+  - paratext@0.8.0
+  - roundel@0.6.1
+
 ## 0.6.3
 
 ### Patch Changes

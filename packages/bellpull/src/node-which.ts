@@ -23,6 +23,7 @@ import { delimiter, join, posix, sep } from 'node:path';
 
 import { ambientRuntime } from './ambient.js';
 import { isExecutable } from './executable.js';
+import { type Runtime } from './runtime.js';
 
 export interface NodeWhichOptions {
   /** Return every match rather than the first. */
@@ -64,8 +65,7 @@ interface Plan {
   judge: string[] | undefined;
 }
 
-function plan(cmd: string, opt: NodeWhichOptions): Plan {
-  const runtime = ambientRuntime();
+function plan(cmd: string, opt: NodeWhichOptions, runtime: Runtime): Plan {
   const windows = runtime.platform === 'win32';
   const split = opt.delimiter ?? delimiter;
   const pathEnv = opt.path ?? runtime.env['PATH'] ?? '';
@@ -78,15 +78,11 @@ function plan(cmd: string, opt: NodeWhichOptions): Plan {
   return { dirs, exts, judge };
 }
 
-function candidates(cmd: string, opt: NodeWhichOptions): { paths: string[]; judge: string[] | undefined } {
-  const { dirs, exts, judge } = plan(cmd, opt);
-  const paths = dirs.flatMap((raw) => {
-    const part = /^".*"$/.test(raw) ? raw.slice(1, -1) : raw;
-    const prefix = part === '' && RELATIVE.test(cmd) ? cmd.slice(0, 2) : '';
-    const base = prefix + join(part, cmd);
-    return exts.map((ext) => base + ext);
-  });
-  return { paths, judge };
+/** The candidate files, in upstream's order: each `PATH` entry with each extension. */
+function candidate(cmd: string, raw: string, ext: string): string {
+  const part = /^".*"$/.test(raw) ? raw.slice(1, -1) : raw;
+  const prefix = part === '' && RELATIVE.test(cmd) ? cmd.slice(0, 2) : '';
+  return prefix + join(part, cmd) + ext;
 }
 
 function settle(cmd: string, opt: NodeWhichOptions, found: string[]): Found {
@@ -105,13 +101,21 @@ function settle(cmd: string, opt: NodeWhichOptions, found: string[]): Found {
 const LOADED_ON = ambientRuntime().platform;
 
 function whichSync(cmd: string, opt: NodeWhichOptions = {}): Found {
-  const { paths, judge } = candidates(cmd, opt);
-  const runtime = { ...ambientRuntime(), platform: LOADED_ON };
+  // The ambient world read once per lookup, not once per helper (B5).
+  const ambient = ambientRuntime();
+  const { dirs, exts, judge } = plan(cmd, opt, ambient);
+  const runtime = { ...ambient, platform: LOADED_ON };
   const found: string[] = [];
-  for (const p of paths) {
-    if (!isExecutable(p, runtime, judge ?? [])) continue;
-    if (opt.all !== true) return p;
-    found.push(p);
+  // Built as they are tried, so the first hit ends the walk before the rest of `PATH` is
+  // joined: `node` is in the first directory of most `PATH`s, and joining all sixty was most of
+  // what a lookup cost (B5).
+  for (const raw of dirs) {
+    for (const ext of exts) {
+      const p = candidate(cmd, raw, ext);
+      if (!isExecutable(p, runtime, judge ?? [])) continue;
+      if (opt.all !== true) return p;
+      found.push(p);
+    }
   }
   return settle(cmd, opt, found);
 }

@@ -286,22 +286,21 @@ current grades are generated under *Benchmarks* below and published on the
 
 ### `cosmiconfig`
 
-**Graded by cosmiconfig 10.0.1's own test suite: 186 of 243 cases.** Not "compatible" — a
-number, from the incumbent's tests, run unmodified. Where it stops is one thing:
+**Graded by cosmiconfig 10.0.1's own test suite: 240 of 243 cases, the same as the real
+`cosmiconfig` gets here.** Not "compatible" — a number, from the incumbent's tests, run
+unmodified.
 
-> **YAML.** cosmiconfig reads `.yaml`, `.yml` and extensionless files through `js-yaml`.
-> This package bundles no format parser, so `loadYaml` here reads the subset of YAML that is
-> also JSON — which is every JSON document — and **refuses the rest by name**, telling you to
-> pass `loaders: { '.yaml': yaml.load }`. Do that and you have cosmiconfig's behaviour
-> exactly, with the parser as *your* dependency rather than everyone's.
+YAML is read the way cosmiconfig reads it. cosmiconfig takes `js-yaml` for `.yaml`, `.yml`
+and extensionless files; this package reads them with `seniority/yaml`, its own parser, loaded
+the first time a YAML file is — so a program whose configs are JSON or JavaScript never loads
+it. It returns what `js-yaml` 5 returns, and its errors carry js-yaml's reason and position,
+which cosmiconfig's suite asserts word for word.
 
-Of the 57 cases not passing, 54 are that — counted rather than claimed: every failing entry in
-the raw output was matched against its own diagnostic, and those 54 carry the "no YAML parser"
-refusal above. The largest block is the whole of `import.test.ts`, 22 cases: `$import` works,
-and every fixture it is tested with is `.yml`. One more is the test harness reaching for a file
-path the vendored copy does not have, and it fails for cosmiconfig too. The last two are the
-suite's XDG global-directory pair, which registers only on Linux: the drop-in resolves the
-global directory differently, and the pair is counted against it on every platform.
+Of the three cases not passing, one fails for cosmiconfig too: the test harness reaching for
+a file path the vendored copy does not have. The other two are the suite's XDG global-directory pair, which registers only on Linux.
+There real cosmiconfig passes it and this package does not: it resolves the global directory
+from the home directory and the platform rather than reading `XDG_CONFIG_HOME` (R11), and the
+pair is counted against it on every platform.
 
 ### `seniority/dotenv`
 
@@ -330,7 +329,7 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
-| `cosmiconfig` | 186 / 243 |
+| `cosmiconfig` | 240 / 243 |
 | `dotenv` | 106 / 141 |
 | `lilconfig` | 77 / 77 |
 | `rc` | 1 / 1 |
