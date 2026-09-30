@@ -45,6 +45,10 @@ describe('fromCliSpinners', () => {
     expect(out.spinners?.['dots']).toBeDefined();
   });
 
+  it('a style with no interval still gets one — 80 ms, the loop’s own default — since the schema requires it', () => {
+    expect(fromCliSpinners({ bare: { frames: ['a', 'b'] } }).spinners?.['bare']?.interval).toBe(80);
+  });
+
   it('takes the projection from the caller when they have an opinion', () => {
     const out = fromCliSpinners({ moon: { frames: ['🌑', '🌒'], interval: 80 } }, { name: 'mine', staticFor: (name) => `${name}…` });
     expect(out.spinners?.['moon']?.static).toBe('moon…');

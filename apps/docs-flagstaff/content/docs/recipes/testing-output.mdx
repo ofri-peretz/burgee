@@ -1,0 +1,44 @@
+---
+title: Testing terminal output
+description: "Assert a spinner's terminal output byte for byte with manualClock and a literal runtime — no fake timers, no terminal."
+---
+
+The loop takes its clock and its streams from the runtime, so a test can hand it a clock that
+only moves when told and streams that collect what is written. The terminal transcript is then
+a fixed string.
+
+```js title="spinner-output.mjs"
+import assert from 'node:assert/strict';
+
+import { hoist, manualClock } from 'flagstaff/loop';
+import { spinner } from 'flagstaff/spinner';
+
+function world({ tty }) {
+  const out = [];
+  const clock = manualClock();
+  const rt = { env: {}, isTTY: { stdout: tty }, stdout: { write: (s) => out.push(s) }, stderr: { write: () => {} }, clock };
+  return { rt, clock, text: () => out.join('') };
+}
+
+const terminal = world({ tty: true });
+const flag = hoist(spinner(), terminal.rt, { text: 'building' });
+terminal.clock.tick(170);
+flag.lower({ text: 'built', status: 'ok' });
+assert.equal(terminal.text(), '\u001B[?25l⠋ building\u001B[1G\u001B[0J⠙ building\u001B[1G\u001B[0J⠹ building\u001B[1G\u001B[0J✔ built\n\u001B[?25h');
+
+const pipe = world({ tty: false });
+hoist(spinner(), pipe.rt, { text: 'building' }).lower({ text: 'built', status: 'ok' });
+assert.equal(pipe.text(), '… building\n✔ built\n');
+
+console.log('ok');
+```
+
+```text title="node spinner-output.mjs"
+ok
+```
+
+`tick(170)` runs every frame due by 170 ms — the dots style repaints every 80 — and nothing
+else. flagstaff's own suite asserts the same transcript twenty runs over
+([`loop.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/loop.test.ts)).
+Set `env: { CI: 'true' }` or `{ CLI_ACCESSIBLE: '1' }` to test the other modes, or pass
+`{ json: true }` to `hoist()` and read stderr.

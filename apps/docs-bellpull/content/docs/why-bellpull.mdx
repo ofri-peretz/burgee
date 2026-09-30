@@ -1,0 +1,57 @@
+---
+title: Why bellpull
+description: "bellpull against execa, cross-spawn and which, one capability per row — including the rows where execa is ahead — every cell linked to the test, grade or source that proves it."
+---
+
+cross-spawn makes `spawn` work on Windows, which finds a binary on `PATH`, and execa wraps
+both in a promise with a result. bellpull does the first two through drop-in paths graded by
+each one's own suite, and builds `run()` on them with what none of the three has: the `PATH`
+entry the binary came from, a deadline on every run by default with the output before the
+kill kept, one result rendered for a person, `--json` and an agent, and resolver plugins as
+data. It has no dependencies.
+
+It is **not** an execa replacement, and the table says where execa is ahead.
+
+Every mark links to its evidence: a test in this repository for ours, and for theirs the
+source file of the exact version compat-oracle grades, or that package's own test suite.
+`scripts/capabilities-lock.test.ts` fails the build when a cited test no longer contains the
+title it is cited for, or a local source no longer contains the line it is quoted for or has
+gained what we say it lacks. which 7.0.0 is not installed in this repository — cross-spawn's
+which 2 is — so its cells link the v7.0.0 tag on GitHub, and those are the cells the lock can
+only check are pinned.
+
+<CapabilityMatrix pkg="bellpull" />
+
+## Reading it
+
+- **"ours" is `run()` and `bellpull/which`.** The drop-ins, `bellpull/cross-spawn` and
+  `bellpull/node-which`, keep their incumbents' behaviour, which is what their grades measure:
+  `bellpull/node-which` still searches an empty `PATH` entry, because node-which does.
+- **Where execa is ahead, it says so.** execa kills its children when the parent exits by
+  default; bellpull does only when handed an exit host such as closeout's registry. execa
+  refuses CR and LF in a Windows argument; bellpull records that as an unverified gap.
+- **Parity rows are here too.** execa and cross-spawn both run `.cmd` files without a shell
+  and escape for `cmd.exe`; so does bellpull.
+
+## What is not built
+
+bellpull's spec states two gaps, and this page does too:
+
+- **No execa API.** execa 10.0.1's own suite grades `bellpull` **0 of 1,048**: every file
+  imports `execa`, which bellpull does not export. The row is declared a *ceiling* in
+  compat-oracle, so neither `burgee migrate` nor any recipe names bellpull as execa's
+  replacement. `run()` resolving on a non-zero exit is the product, and an execa façade would
+  have to throw. The streaming API and the `` $`cmd` `` template are out of scope.
+- **The spawn-cost half of the performance ceiling (R8).** The bytes half is measured and met:
+  `run` bundles to 5,901 B against tinyexec's `x` at 5,969 B. The time to spawn a child against
+  tinyexec's has no benchmark yet, so no speed claim is made anywhere on this site.
+
+## What is not in the table
+
+- **Weight in bytes.** Zero dependencies is a row; the installed and bundled sizes are on
+  [Benchmarks](https://burgee.interlace.tools/docs/benchmarks), measured the same way on both
+  sides, because they are figures rather than a yes or no.
+- **Windows on a real runner.** The escaping is proven by simulating both parsers from any
+  platform, plus a Windows-only suite that drives a real cmd-shim; cross-spawn's own suite
+  never reaches that branch. A row for it would rest on the simulation, and the
+  [Windows](/docs/guides/windows) guide says exactly what is and is not covered instead.

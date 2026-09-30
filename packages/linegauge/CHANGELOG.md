@@ -1,5 +1,42 @@
 # linegauge
 
+## 1.0.0
+
+### Major Changes
+
+- [#685](https://github.com/ofri-peretz/burgee/pull/685) [`6ef8227`](https://github.com/ofri-peretz/burgee/commit/6ef822762f5ad19564215945d7e76aa329614585) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - linegauge 1.0.0. No API changes from 0.5: this release makes a promise. Every published entry point is now under semver and can change incompatibly only in a new major: `linegauge`, `linegauge/wrap`, `linegauge/slice`, `linegauge/truncate`, `linegauge/widest`, `linegauge/strip`, `linegauge/plugin`, the `schema.json` plugin contract and the `linegauge` bin. Each drop-in path is graded at 100% by its incumbent's own test suite, vendored at the release tag and run unmodified: string-width 8.3.0 by 233 of 233 cases (`linegauge`), wrap-ansi 10.0.2 by 85 of 85 (`linegauge/wrap`), strip-ansi 7.2.0 by 8 of 8 (`linegauge/strip`) and slice-ansi 9.0.1 by 104 of 104 (`linegauge/slice`). Grading the newest string-width and wrap-ansi before release found two defects, fixed here: `width()` could hang on a run of combining joiners, and `wrap()` normalized escape sequences. Out of scope: `truncate` and `widest` are linegauge's own API and are not graded against an incumbent's suite, and earlier majors of the four incumbents are not claimed.
+
+### Minor Changes
+
+- [#655](https://github.com/ofri-peretz/burgee/pull/655) [`4319563`](https://github.com/ofri-peretz/burgee/commit/4319563b902c9d968786196f495cf47e7d4d9d39) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - linegauge: `linegauge/slice` is graded against slice-ansi 9.0.1's own suite (104 cases, up from 15 at 7.1.2) and passes all 104; East Asian Width is Unicode 17.
+
+  - `slice` rounds **inward** at a wide character, as slice-ansi does: a cluster the range only half covers is left out instead of returned whole. Before, `slice('あいう', 0, 3)` returned `あい` (four columns), and `truncate('あいう', 4)` returned `あい…` (five columns, over its budget). Both now stay inside the columns asked for.
+  - `slice` reads the escapes slice-ansi 9 reads: `OSC 8` links ended by `ESC \` or `U+009C`, the C1 `OSC` introducer, `DCS`, `SOS`, `PM` and `APC` strings, a lone `ST`, and truncated or malformed `CSI`. A malformed `CSI` ends at the first byte that cannot belong to it, so the text after it is kept.
+  - An escape inside a grapheme cluster (`e`, a style, then a combining mark) no longer splits the cluster.
+  - Hyperlinks don't nest: a second open replaces the first, and the first is closed with its own introducer and terminator. A link around no visible text is removed. A close just past the end of the range is kept as written, and an opener with no text after it is dropped.
+  - Where a cut lands, `slice` gives every cluster at least one position (so CRLF and zero-width characters can start or end a range) and a lone regional indicator two, as slice-ansi does. `width` is unchanged and still answers as string-width does.
+  - The Wide/Fullwidth table is generated from get-east-asian-width 1.7.0 (Unicode 17), like the Ambiguous table next to it. The hand-written table was missing 1,147 code points, which `width` measured as one column where string-width measures two.
+
+  burgee: `burgee migrate` serves slice-ansi 9 (its compatibility row moved from 7.1.2 to 9.0.1). slice-ansi 7 is still graded, at 14 of 15, but no longer claimed, so a project on slice-ansi 7 is left on it.
+
+### Patch Changes
+
+- [#717](https://github.com/ofri-peretz/burgee/pull/717) [`7c77cd2`](https://github.com/ofri-peretz/burgee/commit/7c77cd25c8fbeea4199c38c135e3a8937907f849) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Code no test could reach is gone, and nothing a caller can observe changes.
+
+  - `slice()`: the fallbacks for a character or code point read at an index that is always inside the string, and the check for a visible token the segmenter could not have skipped, are removed. The hyperlink bookkeeping no longer tracks "no position yet" before the slice starts — nothing has been emitted then, so taking an empty link back out removes nothing — and an empty link at the cut is taken out once, at the end, rather than twice.
+  - The SGR reader shared by `slice`, `wrap` and `truncate` drops the same kind of fallback, and a bounds check that a malformed-colour check after it already covered.
+  - `linegauge check`: an unused helper and an unreachable `?` in the report are removed.
+
+  The published entries that cut styled text are a little lighter; `linegauge`'s unpacked size goes from 102,495 to 102,004 bytes.
+
+- [#685](https://github.com/ofri-peretz/burgee/pull/685) [`6ef8227`](https://github.com/ofri-peretz/burgee/commit/6ef822762f5ad19564215945d7e76aa329614585) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Security: a string of combining grapheme joiners could hang `width()`. Deciding whether a cluster occupies no column used the regex `^(?:DI|Control|Format|Mn|Me|Surrogate)+$`, and `U+034F` COMBINING GRAPHEME JOINER belongs to two of those classes, so a run of them followed by one visible character backtracked exponentially: 26 joiners took 2.4 seconds and 1,000 did not finish in ten minutes. Any caller measuring untrusted text, and everything that measures through `width()` (`wrap`, `slice`, `truncate`, `widest`, `lineCount`), could be stalled by a few dozen invisible characters. The check is now a loop over code points, linear in the input: 1,000 joiners measure in under a millisecond and 3,000,000 in about 200 ms, with the answer unchanged on every input the regex finished on. Found by string-width 8.3.0's suite, which added these cases.
+
+- [#685](https://github.com/ofri-peretz/burgee/pull/685) [`6ef8227`](https://github.com/ofri-peretz/burgee/commit/6ef822762f5ad19564215945d7e76aa329614585) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Fixed: `wrap()` normalized the whole string to NFC, escape sequences included. A combining mark right after a sequence composed with the sequence's last character, so `ESC[31m` followed by `U+0301` became `ESC[31ḿ`. That is no longer an SGR: the colour was lost and its bytes were wrapped as visible text. OSC payloads such as window titles and hyperlink targets were rewritten as well. Only the text between sequences is normalized now, as wrap-ansi 10.0.2 does. `flagstaff/log-update` and `flagstaff/boxen` wrap through it.
+
+- [#674](https://github.com/ofri-peretz/burgee/pull/674) [`e9f45d8`](https://github.com/ofri-peretz/burgee/commit/e9f45d85d9db5b2e3dcaa1e43f292a1281a6952a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - README: family header, badges, install, migrating, the family table.
+
+  Every package README now opens the same way — lockup, tagline, one badge row in one order (npm version, downloads, Quality Gate, the package's own coverage, OpenSSF Scorecard, unpacked size, dependencies, types, Node, licence, npm provenance), a row of compatibility badges read from the graded baseline — and carries the same sections in the same order: Install for npm, pnpm, yarn and bun, Quick start, Migrating as a before/after diff, Compatibility, Benchmarks, For agents, API, and a generated table of the nine packages. Links are absolute, so they work on npm as well as GitHub.
+
 ## 0.5.4
 
 ### Patch Changes

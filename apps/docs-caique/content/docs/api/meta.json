@@ -1,0 +1,15 @@
+{
+  "title": "API reference",
+  "pages": [
+    "index",
+    "ask",
+    "binding",
+    "clack",
+    "decide",
+    "inquirer",
+    "plugin",
+    "raw",
+    "spec",
+    "terminal"
+  ]
+}

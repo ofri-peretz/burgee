@@ -1,0 +1,65 @@
+---
+title: A full-screen program
+description: "Raw mode, the alternate screen and a hidden cursor, set up so a Ctrl-C, a crash or a hung cleanup still hands the user their terminal back."
+---
+
+A full-screen program changes three things about the terminal and has to change all three
+back on every way out. With closeout each change registers its own undo:
+
+```js title="screen.mjs"
+import { alternateScreen, hideCursor, onExit, rawMode } from 'closeout';
+
+const undo = [rawMode(process.stdin), alternateScreen(process.stdout), hideCursor(process.stdout)];
+
+onExit(() => console.log('session saved'), 'flush');
+
+let frame = 0;
+const timer = setInterval(() => {
+  frame += 1;
+  console.log(`frame ${frame}`);
+  if (frame === 2) process.kill(process.pid, 'SIGINT'); // the user presses Ctrl-C
+}, 10);
+
+export function quit() {
+  clearInterval(timer);
+  for (const back of undo) back();
+}
+```
+
+```text title="node screen.mjs" signal="SIGINT"
+frame 1
+frame 2
+session saved
+```
+
+On a terminal, after `session saved` is written, the `restore` phase turns raw mode off,
+leaves the alternate screen and shows the cursor; then the process dies of SIGINT. In a pipe,
+as here, there is no terminal to restore and nothing but the program's own lines is written.
+
+Three details carry the weight:
+
+- **Order of the undos does not matter.** They all go in `restore`, which runs after every
+  `flush` and `release` handler, so saving the session happens on the alternate screen and the
+  terminal comes back last.
+- **Calling the undos yourself is fine.** `quit()` restores the terminal now and unregisters
+  the exit undos, so a program that quits normally leaves nothing for exit to do. Each undo
+  runs once, whoever asks first.
+- **Raw mode is only undone if closeout turned it on.** If the program's input was already
+  raw when `rawMode()` was called, somebody else owns that state and it is left alone.
+
+## A second Ctrl-C
+
+A user who presses Ctrl-C again while `session saved` is still being written does not get a
+broken terminal: the second signal waits for the first shutdown, and the process dies of the
+first signal once `restore` has run. `terminal-restore.test.ts` checks this on a real process
+for a second SIGINT and for a SIGTERM behind it.
+
+## A save that hangs
+
+If saving the session never returns, the [deadline](/docs/guides/deadline) stops waiting for
+it, names it, and still runs `restore`. Give the handler a label so the line on stderr says
+what hung:
+
+```js
+onExit(saveTheSession, { phase: 'flush', label: 'save-the-session' });
+```

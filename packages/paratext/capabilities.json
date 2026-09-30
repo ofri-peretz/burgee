@@ -1,0 +1,142 @@
+{
+  "$comment": "paratext's capability matrix against the three packages it replaces (compat-oracle's LAYERS). Rendered by <CapabilityMatrix pkg=\"paratext\" /> from apps/docs-chassis and held by scripts/capabilities-lock.test.ts: every `ours` yes/partial names a test file and a title substring it contains, or a compat-oracle grade; every incumbent cell names a source at the version compat-oracle grades, and a local source is checked for the text it `quote`s or `lacks`. term-img is not installed in this repository, so its cells cite term-img 7.1.0, the graded version, by URL or through its vendored suite. `n/a` means the row does not apply to that package, and says why. A row that could not be proved for every column is not here.",
+  "package": "paratext",
+  "incumbents": ["ansi-escapes", "terminal-link", "term-img"],
+  "themes": [
+    {
+      "theme": "Off a terminal",
+      "rows": [
+        {
+          "capability": "A hyperlink on a pipe is its text and its URL",
+          "why": "Where OSC 8 is not understood, a link is written as `Docs (https://x.dev)`, so a log, an agent or a redirected file reads the address instead of escape bytes.",
+          "ours": { "status": "yes", "test": "packages/paratext/src/link.test.ts", "title": "projects to `text (url)` on a pipe, and carries no escape at all" },
+          "incumbents": {
+            "ansi-escapes": { "status": "no", "source": "node_modules/ansi-escapes/base.js", "quote": "export const link = (text, url) => {", "note": "writes the OSC 8 bytes on every stream; it never checks" },
+            "terminal-link": { "status": "yes", "source": "node_modules/terminal-link/index.js", "quote": "return `${text} ${url}`;", "note": "the text, a space and the URL" },
+            "term-img": { "status": "n/a", "source": "https://cdn.jsdelivr.net/npm/term-img@7.1.0/index.js", "note": "draws images, not links" }
+          }
+        },
+        {
+          "capability": "Every OSC capability has a text form",
+          "why": "An image becomes its caption, a notification a printed line and a link its text and URL whenever support is absent or unknown, so no OSC byte reaches a pipe.",
+          "ours": { "status": "yes", "test": "packages/paratext/src/paratext.test.ts", "title": "prints something a human can read instead of bytes a pipe cannot" },
+          "incumbents": {
+            "ansi-escapes": { "status": "no", "source": "node_modules/ansi-escapes/base.js", "quote": "export const image = (data, options = {}) => {", "note": "every OSC helper returns its bytes, whatever the stream" },
+            "terminal-link": { "status": "partial", "source": "node_modules/terminal-link/index.js", "quote": "if (!supportsHyperlinks[target]) {", "missing": "a text form for links only; it has no other capability" },
+            "term-img": { "status": "partial", "source": "https://cdn.jsdelivr.net/npm/term-img@7.1.0/index.js", "missing": "an unsupported terminal throws UnsupportedTerminalError unless the caller passes a fallback function" }
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Knowing the terminal",
+      "rows": [
+        {
+          "capability": "Hyperlink support detected as supports-hyperlinks detects it",
+          "why": "`paratext/terminal-link` links on exactly the terminals supports-hyperlinks 4.5.0 says understand OSC 8, and asks about stderr when the link is bound for stderr.",
+          "ours": { "status": "yes", "test": "packages/paratext/src/hyperlinks.test.ts", "title": "paratext/terminal-link links where supports-hyperlinks 4.5.0 does (A27)" },
+          "incumbents": {
+            "ansi-escapes": { "status": "no", "source": "node_modules/ansi-escapes/base.js", "lacks": "supportsHyperlinks", "note": "detects nothing; the caller decides" },
+            "terminal-link": { "status": "yes", "source": "node_modules/terminal-link/index.js", "quote": "import supportsHyperlinks from 'supports-hyperlinks';" },
+            "term-img": { "status": "n/a", "source": "https://cdn.jsdelivr.net/npm/term-img@7.1.0/index.js", "note": "draws images, not links" }
+          }
+        },
+        {
+          "capability": "Inline-image support detected by terminal",
+          "why": "`paratext/term-img` draws on iTerm2, WezTerm, Konsole, Rio and VS Code at the versions term-img names, read from the environment alone.",
+          "ours": { "status": "yes", "test": "packages/paratext/src/term-img.test.ts", "title": "the terminal table is term-img`s, read from the environment alone" },
+          "incumbents": {
+            "ansi-escapes": { "status": "no", "source": "node_modules/ansi-escapes/base.js", "quote": "const imageBuffer = Buffer.from(data);", "note": "encodes the image for any terminal it is given" },
+            "terminal-link": { "status": "n/a", "source": "node_modules/terminal-link/index.js", "lacks": "image", "note": "links only" },
+            "term-img": { "status": "yes", "source": "https://cdn.jsdelivr.net/npm/term-img@7.1.0/index.js", "note": "the same table" }
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Capabilities as data",
+      "rows": [
+        {
+          "capability": "A registry of capabilities, extensible by plain objects",
+          "why": "A capability the package never heard of — a Kitty image, a WezTerm user variable — is registered as an object with an encoding and a fallback, survives a round trip through JSON, and emits through the same call as the built-ins.",
+          "ours": { "status": "yes", "test": "packages/paratext/src/paratext.test.ts", "title": "adds one the package never heard of, written as an object" },
+          "incumbents": {
+            "ansi-escapes": { "status": "no", "source": "node_modules/ansi-escapes/base.js", "lacks": "register", "note": "a fixed set of functions" },
+            "terminal-link": { "status": "no", "source": "node_modules/terminal-link/index.js", "lacks": "register", "note": "one function" },
+            "term-img": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/term-img@7.1.0/index.js", "note": "one function" }
+          }
+        },
+        {
+          "capability": "A capability without a text form is refused",
+          "why": "A capability with no static projection is refused at registration, with the family's code and a fix, so nothing registered can put raw bytes into a pipe.",
+          "ours": { "status": "yes", "test": "packages/paratext/src/plugin.test.ts", "title": "refuses a capability with no static projection — the one rule 6 has no opt-out for" },
+          "incumbents": {
+            "ansi-escapes": { "status": "no", "source": "node_modules/ansi-escapes/base.js", "lacks": "fallback", "note": "no helper has a text form to require" },
+            "terminal-link": { "status": "partial", "source": "node_modules/terminal-link/index.js", "quote": "if (options.fallback === false) {", "missing": "its one link has a text form, and a caller can switch it off" },
+            "term-img": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/term-img@7.1.0/index.js", "note": "the fallback is optional, and the default is to throw" }
+          }
+        },
+        {
+          "capability": "A checker for capability plugins before they ship",
+          "why": "`npx paratext check ./kitty.mjs` validates a plugin against the family schema without running its author's code, and exits 1 with a code and a fix when it is refused.",
+          "ours": { "status": "yes", "test": "scripts/plugin-check-lock.test.ts", "title": "refuses a malformed plugin with a code and a fix" },
+          "incumbents": {
+            "ansi-escapes": { "status": "n/a", "source": "node_modules/ansi-escapes/package.json", "lacks": "\"bin\"", "note": "takes no plugins, so has nothing to check" },
+            "terminal-link": { "status": "n/a", "source": "node_modules/terminal-link/package.json", "lacks": "\"bin\"", "note": "takes no plugins, so has nothing to check" },
+            "term-img": { "status": "n/a", "source": "https://cdn.jsdelivr.net/npm/term-img@7.1.0/package.json", "note": "takes no plugins, so has nothing to check" }
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Weight",
+      "rows": [
+        {
+          "capability": "No runtime dependencies",
+          "why": "The escape sequences, the hyperlink detection, the image table and the registry install as one package that depends on nothing.",
+          "ours": { "status": "yes", "test": "scripts/package-shape-lock.test.ts", "title": "depends on nothing: it is the floor" },
+          "incumbents": {
+            "ansi-escapes": { "status": "no", "source": "node_modules/ansi-escapes/package.json", "quote": "\"environment\": \"^1.0.0\"", "note": "environment" },
+            "terminal-link": { "status": "no", "source": "node_modules/terminal-link/package.json", "quote": "\"supports-hyperlinks\": \"^4.1.0\"", "note": "ansi-escapes and supports-hyperlinks" },
+            "term-img": { "status": "no", "source": "https://cdn.jsdelivr.net/npm/term-img@7.1.0/package.json", "note": "ansi-escapes and iterm2-version" }
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Compatibility",
+      "rows": [
+        {
+          "capability": "Passes ansi-escapes' own test suite",
+          "why": "paratext's root is graded by ansi-escapes 7.3.0's own tests, unedited, and its CSI half is byte-exact with it.",
+          "ours": { "status": "yes", "grade": "packages/compat-oracle/baseline/ansi-escapes.json" },
+          "incumbents": {
+            "ansi-escapes": { "status": "yes", "source": "packages/compat-oracle/vendor/ansi-escapes/test.js", "quote": "import ansiEscapes, {cursorTo, setCwd, clearTerminal} from './shim.js';", "note": "its own suite, the control run" },
+            "terminal-link": { "status": "n/a", "source": "packages/compat-oracle/vendor/terminal-link/test.js", "quote": "import terminalLink from './shim.js';", "note": "a different API" },
+            "term-img": { "status": "n/a", "source": "packages/compat-oracle/vendor/term-img/test.js", "quote": "import terminalImage, {UnsupportedTerminalError} from './shim.js';", "note": "a different API" }
+          }
+        },
+        {
+          "capability": "Passes terminal-link's own test suite",
+          "why": "`paratext/terminal-link` is graded by terminal-link 5.0.0's own tests, unedited.",
+          "ours": { "status": "yes", "grade": "packages/compat-oracle/baseline/terminal-link.json" },
+          "incumbents": {
+            "ansi-escapes": { "status": "n/a", "source": "packages/compat-oracle/vendor/ansi-escapes/test.js", "quote": "import ansiEscapes, {cursorTo, setCwd, clearTerminal} from './shim.js';", "note": "a different API" },
+            "terminal-link": { "status": "yes", "source": "packages/compat-oracle/vendor/terminal-link/test.js", "quote": "import terminalLink from './shim.js';", "note": "its own suite, the control run" },
+            "term-img": { "status": "n/a", "source": "packages/compat-oracle/vendor/term-img/test.js", "quote": "import terminalImage, {UnsupportedTerminalError} from './shim.js';", "note": "a different API" }
+          }
+        },
+        {
+          "capability": "Passes term-img's own test suite",
+          "why": "`paratext/term-img` is graded by term-img 7.1.0's own tests, unedited, and passes every case that hands it image bytes.",
+          "ours": { "status": "partial", "grade": "packages/compat-oracle/baseline/term-img.json", "missing": "6 of 18 cases pass a file path, and paratext/term-img takes image bytes so that node:fs stays out of paratext (D-030)" },
+          "incumbents": {
+            "ansi-escapes": { "status": "n/a", "source": "packages/compat-oracle/vendor/ansi-escapes/test.js", "quote": "import ansiEscapes, {cursorTo, setCwd, clearTerminal} from './shim.js';", "note": "a different API" },
+            "terminal-link": { "status": "n/a", "source": "packages/compat-oracle/vendor/terminal-link/test.js", "quote": "import terminalLink from './shim.js';", "note": "a different API" },
+            "term-img": { "status": "yes", "source": "packages/compat-oracle/vendor/term-img/test.js", "quote": "import terminalImage, {UnsupportedTerminalError} from './shim.js';", "note": "its own suite, the control run" }
+          }
+        }
+      ]
+    }
+  ]
+}

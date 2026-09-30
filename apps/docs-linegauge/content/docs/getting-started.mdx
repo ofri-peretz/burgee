@@ -1,0 +1,88 @@
+---
+title: Getting started
+description: "Install linegauge, measure a string in terminal columns, and wrap, truncate and slice styled text without cutting a grapheme cluster or leaking a colour."
+---
+
+linegauge answers one question five ways: how many terminal columns a piece of styled text
+occupies, and where it can be cut. `width` measures, `wrap` folds, `truncate` shortens,
+`slice` cuts out a column range, and `widest` measures many lines at once. Each one knows
+where the escape sequences are and where the grapheme clusters begin and end, so none of them
+splits an emoji or leaves a colour open.
+
+## Install
+
+```bash
+npm install linegauge
+```
+
+It is ESM with a `default` condition, so `require('linegauge')` also works from CommonJS on
+Node 20.19+ and 22.13+. It depends on nothing
+([`package-shape-lock.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/package-shape-lock.test.ts)
+holds it at zero).
+
+## A first program
+
+```js title="measure.mjs"
+import { slice, truncate, widest, width, wrap } from 'linegauge';
+
+const red = (s) => `\u001B[31m${s}\u001B[39m`;
+
+console.log(width('hello'));
+console.log(width('古池や'));
+console.log(width('👨‍👩‍👧‍👦'));
+console.log(width(red('hello')));
+console.log(JSON.stringify(wrap('the quick brown fox jumps', 10)));
+console.log(truncate('the quick brown fox', 10));
+console.log(JSON.stringify(slice(red('hello world'), 0, 5)));
+console.log(widest(['a', '古池や', 'bb']));
+```
+
+```text title="node measure.mjs"
+5
+6
+2
+5
+"the quick\nbrown fox\njumps"
+the quick…
+"\u001b[31mhello\u001b[39m"
+6
+```
+
+Line by line: ASCII is one column a character; each of the three CJK characters is two; the
+family emoji is four people and three joiners, one grapheme cluster, two columns; the colour
+codes take no columns at all. `wrap` breaks between words at ten columns. `truncate` spends one
+of its ten columns on the ellipsis, so the result is ten wide, not eleven. `slice` takes columns
+0 to 5 of a red string and closes the red it reopened. `widest` is the width of the widest line.
+
+Every output block on this site is checked: `tests/examples.test.ts` writes each titled file,
+runs the command in the block's title, and compares.
+
+## The five answers
+
+| function | answers | guide |
+| :-- | :-- | :-- |
+| `width(text, options)` | the columns the text occupies | [Measuring](/docs/guides/measuring) |
+| `wrap(text, columns, options)` | the text folded to a width, styles carried across rows | [Wrapping](/docs/guides/wrapping) |
+| `truncate(text, columns, options)` | the text shortened, ellipsis inside the budget | [Slicing and truncating](/docs/guides/cutting) |
+| `slice(text, start, end)` | the columns `[start, end)`, self-contained | [Slicing and truncating](/docs/guides/cutting) |
+| `widest(lines)` | the width of the widest line of any iterable | [Measuring](/docs/guides/measuring#many-lines-widest) |
+
+`strip(text)` removes the escape sequences, and is the fifth drop-in's
+([Stripping escapes](/docs/guides/stripping)).
+
+## Pure, on purpose
+
+Nothing in linegauge reads `process`. It does not know how wide your terminal is or whether
+there is one, so the width to wrap or truncate at is always yours to pass, and the same input
+gives the same answer on a terminal, in a pipe, under `--json` and in a test. That is why
+burgee, caique and flagstaff measure their own output with it.
+
+## Where next
+
+- [Guides](/docs/guides/measuring): measuring, wrapping, slicing and truncating, stripping,
+  and width plugins.
+- [Why linegauge](/docs/why-linegauge): what it does that string-width, wrap-ansi, strip-ansi
+  and slice-ansi do not, cell by cell, with the evidence.
+- [Coming from string-width](/docs/coming-from/string-width) and the other three: change one
+  import.
+- [API reference](/docs/api): every export of every entry point.

@@ -22,7 +22,7 @@
   <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/package.json"><img src="https://img.shields.io/badge/types-included-blue?style=flat-square" alt="TypeScript types included for every entry point" /></a>
   <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/package.json"><img src="https://img.shields.io/badge/Node.js-20.19%2B%20%7C%2022.13%2B-green?style=flat-square" alt="Node.js 20.19+ or 22.13+" /></a>
   <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License: MIT" /></a>
-  <a href="https://www.npmjs.com/package/flagstaff#provenance"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fregistry.npmjs.org%2Fflagstaff%2Flatest&query=%24.dist.attestations.provenance~&label=npm&style=flat-square&color=0a6b47" alt="Published to npm with provenance, read live from the registry attestation of the latest release" /></a>
+  <a href="https://www.npmjs.com/package/flagstaff#provenance"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fregistry.npmjs.org%2Fflagstaff%2Flatest&query=%24.dist.attestations.provenance~&label=npm&style=flat-square&color=0a6b47" alt="npm provenance of the latest release, read live from its registry attestation" /></a>
 </p>
 
 <p align="center">
@@ -37,8 +37,8 @@
   Migrating from: <a href="https://flagstaff.interlace.tools/docs/coming-from/ora">ora</a> · <a href="https://flagstaff.interlace.tools/docs/coming-from/log-update">log-update</a> · <a href="https://flagstaff.interlace.tools/docs/coming-from/boxen">boxen</a> · <a href="https://flagstaff.interlace.tools/docs/coming-from/cli-table3">cli-table3</a>
 </p>
 
-ora animates a spinner and, off a terminal, prints frames anyway — `\r` after `\r` into the
-log an agent reads back. Ink fixes the terminal by shipping React and a layout engine.
+ora animates a spinner on a terminal and, off one, writes the line it started with and the
+line it stopped with — every state in between is lost to the log an agent reads back. Ink fixes the terminal by shipping React and a layout engine.
 **flagstaff** is the staff the flag flies from: a frame loop that hoists a component, holds
 it, changes it and lowers it, and a **static projection** that is what every mode but the
 terminal gets — one line per state on a pipe, one event per transition under `--json`,
@@ -323,7 +323,8 @@ guarantee.
 ### The boxen path
 
 `flagstaff/boxen` is boxen 8's API, graded **84 / 84 by boxen's own test suite** — every one
-of whose cases is a snapshot of the exact characters the box comes out as.
+of whose cases is a snapshot of the exact characters the box comes out as. boxen 9 is out of
+scope for 1.0: it is not graded or claimed, and `burgee migrate` leaves a program on it alone.
 
 ```diff
 -import boxen from 'boxen';
@@ -447,7 +448,7 @@ Nothing in this family builds on it yet, and it builds on `closeout`, `linegauge
 
 ## The family
 
-Nine packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
+Ten packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
 carries its colours, flagstaff flies it and caique answers back; each installs on its own, and none
 takes a dependency from outside the family.
 
@@ -462,6 +463,7 @@ takes a dependency from outside the family.
 | [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, dotenv and rc |
 | [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook and restore-cursor |
 | [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
+| [controlroom](https://burgee.interlace.tools/docs/packages/controlroom) | Reserved, not usable yet — planned: full-screen, keyboard-driven terminal screens | ink, planned |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

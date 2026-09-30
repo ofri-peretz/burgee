@@ -66,26 +66,24 @@ const padTo = (line: string, cells: number, align: 'left' | 'right', measured = 
 
 /** The natural width of each column: the widest cell in it, header included. */
 function naturalWidths(rows: Row[], columns: number, paint: Painter): number[] {
-  const widths = Array.from({ length: columns }, () => 0);
-  for (const row of rows) {
-    for (let index = 0; index < columns; index += 1) widths[index] = Math.max(widths[index] ?? 0, width(laid(cellText(row[index]), cellHref(row[index]), paint)));
-  }
-  return widths;
+  return Array.from({ length: columns }, (_, index) => Math.max(0, ...rows.map((row) => width(laid(cellText(row[index]), cellHref(row[index]), paint)))));
 }
 
 /**
  * Shrink the widest column, one cell at a time, until the table fits. Simple on purpose —
  * proportional shrinking looks cleverer and reads worse, because it narrows the columns
  * that were already narrow.
+ *
+ * No column is narrowed below `MIN_COLUMN`, and that needs no check here: `table()` never
+ * offers less than `MIN_COLUMN` per column, so while the total is over what is available the
+ * widest column is over `MIN_COLUMN` too. Ties go to the leftmost column.
  */
 function fitWidths(natural: number[], available: number): number[] {
   const widths = [...natural];
   let total = widths.reduce((sum, w) => sum + w, 0);
   while (total > available) {
-    let widest = 0;
-    for (let index = 1; index < widths.length; index += 1) if ((widths[index] ?? 0) > (widths[widest] ?? 0)) widest = index;
-    if ((widths[widest] ?? 0) <= MIN_COLUMN) break;
-    widths[widest] = (widths[widest] ?? 0) - 1;
+    const widest = Math.max(...widths);
+    widths[widths.indexOf(widest)] = widest - 1;
     total -= 1;
   }
   return widths;

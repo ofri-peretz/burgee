@@ -1,0 +1,31 @@
+{
+  "name": "@vendored/execa-suite",
+  "private": true,
+  "type": "module",
+  "main": "./shim.js",
+  "version": "10.0.1",
+  "license": "MIT",
+  "description": "Process execution for humans",
+  "repository": "sindresorhus/execa",
+  "devDependencies": {
+    "execa": "10.0.1",
+    "ava": "8.0.1",
+    "figures": "6.1.0",
+    "get-stream": "9.0.1",
+    "is-plain-obj": "4.1.0",
+    "is-stream": "4.0.1",
+    "which-command": "0.1.0",
+    "get-node": "15.0.4",
+    "is-in-ci": "2.0.0",
+    "is-running": "2.1.0",
+    "log-process-errors": "12.0.1",
+    "path-exists": "5.0.0",
+    "path-key": "4.0.0",
+    "tempfile": "6.0.1"
+  },
+  "ava": {
+    "timeout": "240s",
+    "concurrency": 1,
+    "workerThreads": false
+  }
+}

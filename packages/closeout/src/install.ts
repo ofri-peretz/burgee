@@ -62,8 +62,7 @@ export const SIGNALS = ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGQUIT', 'SIGBREAK'] as
  * cannot raise a given signal at themselves, where a number a parent can read beats a
  * process that will not go.
  */
-const SIGNAL_EXIT_CODE: Record<string, number> = { SIGINT: 130, SIGTERM: 143, SIGHUP: 129, SIGQUIT: 131, SIGBREAK: 149 };
-const UNKNOWN_SIGNAL_EXIT = 1;
+const SIGNAL_EXIT_CODE: Record<(typeof SIGNALS)[number], number> = { SIGINT: 130, SIGTERM: 143, SIGHUP: 129, SIGQUIT: 131, SIGBREAK: 149 };
 /** What a program leaves with when it dies of something it threw. Node's own answer. */
 const THROWN_EXIT_CODE = 1;
 
@@ -222,7 +221,7 @@ export function install(options: InstallOptions = {}): Closeout {
       const leave = (): void => {
         if (leaving) return;
         leaving = true;
-        raiseAfter(proc, signal, handler, SIGNAL_EXIT_CODE[signal] ?? UNKNOWN_SIGNAL_EXIT);
+        raiseAfter(proc, signal, handler, SIGNAL_EXIT_CODE[signal]);
       };
       registry.run({ code: null, signal, path: 'signal' }).then(leave, leave);
     }) as (...args: never[]) => void;

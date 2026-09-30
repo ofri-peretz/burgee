@@ -7,6 +7,7 @@ textually. This file is the contract; `scripts/lane-boundaries-lock.test.ts` enf
 **Ten lanes, not nine.** The first count missed that `roundel` and `flagstaff` are a
 layer of their own — the output stack sits between the foundation six and the engine,
 and `chalk` (wave 0.4, the red ratchet) is roundel's incumbent, not anyone else's.
+`controlroom` made it eleven on 2026-09-27, when its skeleton landed (D-158, D-166).
 
 ## The lanes
 
@@ -19,6 +20,7 @@ and `chalk` (wave 0.4, the red ratchet) is roundel's incumbent, not anyone else'
 | `seniority` | `lane/seniority` | `packages/seniority/**`, `.sdlc/intents/seniority/**` | harness 2.0 |
 | `closeout` | `lane/closeout` | `packages/closeout/**`, `.sdlc/intents/closeout/**` | harness 2.0 |
 | `bellpull` | `lane/bellpull` | `packages/bellpull/**`, `.sdlc/intents/bellpull/**` | harness 2.0 |
+| `controlroom` | `lane/controlroom` | `packages/controlroom/**`, `.sdlc/intents/controlroom/**` | closeout R4 (controlroom spec R1); caique `./keys` and flagstaff's seam (R2, R3) |
 | `output` | `lane/output` | `packages/roundel/**`, `packages/flagstaff/**`, `.sdlc/intents/roundel/**`, `.sdlc/intents/flagstaff/**` | — (0.4 is urgent) |
 | `engine` | `lane/engine` | `packages/burgee/**`, `packages/commander-harness/**`, `packages/yargs-harness/**`, `.sdlc/intents/commander-*/**`, `.sdlc/intents/yargs-*/**` | — |
 | `integrator` | `lane/integrator` | everything else: `.sdlc/PLAN.md`, `.sdlc/intents/README.md`, `.github/**`, root `README.md`, `scripts/*-lock.test.ts` | all lanes |
@@ -98,7 +100,7 @@ work at all.
 
 ## Why the shared files get sharded first
 
-Six single files carry writes from every lane. Until they are sharded, "ten parallel
+Eight single files carry writes from every lane. Until they are sharded, "ten parallel
 lanes" means ten merge conflicts:
 
 | file | today | after |
@@ -109,19 +111,22 @@ lanes" means ten merge conflicts:
 | `.sdlc/intents/README.md` | 214 hand-kept rows | generated (0.2), integrator only |
 | `scripts/plan-progress.ts` | one condition array | `scripts/plan-progress/<wave>.ts` |
 | `packages/*/src/schema.json` | one family schema | 1.1 then 1.7, serialized on purpose |
+| `.sdlc/DECISIONS.md` | one table, every PR appending "the next id" | `.sdlc/decisions/D-YYYYMMDD-<slug>.md`, one file per decision (D-20260927-per-entry-ledgers) |
+| `.sdlc/GAPS.md` | four tables, every PR adding or striking a row | `.sdlc/gaps/<letter>-YYYYMMDD-<slug>.md`, one file per gap |
 
-`.changeset/*.md` needs no sharding — a changeset is already one new file with a unique
-name, which is why no lane may hand-edit a `version` field. **Every lane may add one**, and
-that is the single exception to the globs above: the integrator does not own `.changeset/**`,
-because a lane that changes a published package is the only one that knows what to write in
-it. The first run of these lanes caught the contradiction — the table said integrator, the
+`.changeset/*.md`, `.sdlc/decisions/*.md` and `.sdlc/gaps/*.md` need no sharding — each is
+already one new file with a unique name, which is why no lane may hand-edit a `version` field
+or take "the next" decision id. **Every lane may add one**, and those are the only exceptions
+to the globs above: the integrator does not own `.changeset/**`, because a lane that changes a
+published package is the only one that knows what to write in it — and a lane that takes a
+decision or closes a gap is likewise the only one that knows what to write in that. The first run of these lanes caught the contradiction — the table said integrator, the
 briefs said write one, and `lanes.ts --check` would have called every lane's changeset a
 stray.
 
 ## Running
 
 The merge queue is still **off** (checked 2026-09-22: `gh api repos/ofri-peretz/burgee/rulesets`
-returns none; step 0.3 is the owner's, tracked as `.sdlc/GAPS.md` C6). In practice every lane
+returns none; step 0.3 is the owner's, tracked as gap C6, `.sdlc/gaps/C6.md`). In practice every lane
 already opens its own PR against `main` and lands it on its own — the `wave/<n>` batching this
 section used to prescribe is not how the tree moves — and strict branch protection serialises the
 merges: a PR behind `main` updates and re-runs before it can land. Releases are continuous

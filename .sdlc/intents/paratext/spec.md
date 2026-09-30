@@ -132,6 +132,17 @@ file; nothing else is importable.
 | The guess, asked without emitting | `supportsLink(runtime): boolean` |
 | The record itself, for a host that wants to read or replace it | `LINK: Capability` — the same object `builtins.link` is |
 
+### `paratext/csi` — the CSI half alone (2,700 B, registers nothing)
+
+The 31 CSI members of the root (`cursorTo`, `cursorMove`, `cursorUp`/`Down`/`Forward`/`Backward`,
+`cursorLeft`, `cursorSavePosition`/`RestorePosition`, `cursorGetPosition`, `cursorNextLine`/
+`PrevLine`, `cursorHide`/`Show`, the `erase*` family, `scrollUp`/`Down`, `clearScreen`/
+`Viewport`/`Terminal`, `enter`/`exitAlternativeScreen`, `begin`/`endSynchronizedOutput`,
+`synchronizedOutput`), byte-exact with `ansi-escapes` 7.3.0, reaching only `runtime.js` for
+Terminal.app's save/restore spelling. Never `index.js`: moving a cursor is not a reason to
+register seven built-ins. Added 2026-09-28 so the family's two drawing packages stop carrying
+their own copies.
+
 ### `paratext/plugin` — the host (17,710 B)
 
 `CONTRACT` (`1`), `Plugin`, `validate`, `register`, `reset`, `registered`, `contributions`,
@@ -626,6 +637,12 @@ done yet".
   they need privately and stay free of this package; what had no home in the family was the
   public surface a program imports from `ansi-escapes`, so the row could never pass and
   `burgee migrate` could never move a program off it. `csi.ts` is that surface, 4 / 4.
+  *Extended 2026-09-28: `paratext/csi`.* The CSI half is published on its own, and
+  `flagstaff/log-update`, `flagstaff/ora`, `caique/raw` and `caique/inquirer` take their cursor
+  moves and erases from it instead of spelling them again. `closeout` keeps the cursor's
+  visibility, which is an obligation and not a string. `cursorUp(0)` stays `ESC[0A`, as
+  `ansi-escapes` has it; a caller that can ask for zero guards it (`caique/inquirer` does, to
+  keep `@inquirer/ansi`'s empty answer).
 - **Reading files for `image`.** `term-img` accepts a path, which means `node:fs` in a
   package that otherwise touches nothing but strings. The caller reads the file and owns the
   I/O; this package owns bytes-to-escape.

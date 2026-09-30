@@ -49,13 +49,16 @@ const MARKS = [
   'bellpull',
   'closeout',
   'paratext',
+  'controlroom',
 ] as const;
 
 /** Extrusion, in the marks' own 100-unit space. */
 const SOLID = { depth: 10, bevel: 1.6, bevelSegments: 4, curveSegments: 28 } as const;
 
 /** Where the marks stand, and where the camera watches them from. */
-const STAGE = { gap: 112, floorDrop: 80, cameraY: 14, cameraZ: 860, fov: 30 } as const;
+// cameraZ moves with the row: 860 framed nine marks (996 units wide); ten are 1,108, so the
+// camera steps back by the same factor and every mark keeps the margin it had.
+const STAGE = { gap: 112, floorDrop: 80, cameraY: 14, cameraZ: 956, fov: 30 } as const;
 
 /** Coplanar fills z-fight; each successive layer sits this much proud of the last. */
 const LAYER_STEP = 0.6;

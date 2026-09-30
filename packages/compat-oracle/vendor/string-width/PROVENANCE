@@ -1,16 +1,15 @@
 package:  string-width
 repo:     https://github.com/sindresorhus/string-width
-version:  8.2.2
-tag:      v8.2.2
-commit:   64dc20cddd374df0ff43ba3469491ae98cf0cdfc
-vendored: 2026-09-10
+version:  8.3.0
+tag:      v8.3.0
+commit:   ffa1de3894af8f0471a86b60a624a3fd7a44580d
+vendored: 2026-09-28
 files:    1
 tool:     scripts/vendor-suite.ts
-verified: 2026-09-14 — v8.2.2 resolves to this commit at the host
 
 How this directory was made
 ---------------------------
-A shallow clone of https://github.com/sindresorhus/string-width at v8.2.2, then that repository's own test directory and
+A shallow clone of https://github.com/sindresorhus/string-width at v8.3.0, then that repository's own test directory and
 its fixtures copied here. The only edit is to the import specifiers that reach the library:
 each is rewritten to a generated shim, so one unedited suite can grade any implementation.
 Everything else — assertions, fixtures, helpers — is upstream's, byte for byte.
@@ -34,7 +33,7 @@ vendor step deletes any shim it finds, so a stale one can never grade the wrong 
 
 Reproduce
 ---------
-    npx tsx scripts/vendor-suite.ts string-width --version 8.2.2
+    npx tsx scripts/vendor-suite.ts string-width --version 8.3.0
 
 Every field above is reproduced exactly, with one exception that is a date and not a
 defect: `vendored` is the day the copy was taken, so a fresh run writes today's.

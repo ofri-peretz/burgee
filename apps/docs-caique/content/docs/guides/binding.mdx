@@ -1,0 +1,63 @@
+---
+title: Binding prompts to a CLI
+description: "resolvePrompts() is the pass a framework runs once flags, environment and config have had their turn: it asks in declaration order, only what is missing, and stops at the first refusal."
+---
+
+`resolvePrompts()` from `caique/binding` is the pass a CLI framework calls after every other
+source of a value — flags, environment, config, defaults — has had its turn. A CLI on
+[burgee](https://burgee.interlace.tools/docs) runs it from its `preAction` hook; any other
+framework calls it with the same four things.
+
+```js title="binding.mjs"
+import { resolvePrompts } from 'caique/binding';
+
+import { scripted } from './scripted.mjs';
+
+const options = {
+  name: { required: true, prompt: { kind: 'text', message: 'Project name?' } },
+  force: { required: true, prompt: { kind: 'confirm', message: 'Overwrite?' } },
+  template: { required: true, prompt: { kind: 'select', message: 'Template?', choices: [{ value: 'cli' }, { value: 'lib' }] } },
+  description: { prompt: { kind: 'text', message: 'Description?' } },
+};
+const terminal = { env: {}, isTTY: { stdin: true, stdout: true } };
+
+const asked = await resolvePrompts({ options, values: { name: 'demo' }, runtime: terminal, flags: { yes: true }, io: scripted(['2']) });
+console.log(JSON.stringify(asked));
+
+const agent = { env: {}, isTTY: { stdin: false, stdout: false } };
+const refused = await resolvePrompts({ options, values: { name: 'demo' }, runtime: agent, flags: { yes: true }, io: scripted([]) });
+console.log(JSON.stringify(refused));
+```
+
+```text title="node binding.mjs"
+Template?
+  1) cli
+  2) lib
+  enter a number (1-2): 2
+{"values":{"name":"demo","force":true,"template":"lib"}}
+{"values":{"name":"demo","force":true},"failure":{"option":"template","code":"USAGE","message":"--template is required when there is no terminal","fix":"pass --template; it would have been asked as \"Template?\""}}
+```
+
+On the terminal, `name` was supplied so it was not asked, `--yes` answered the `confirm`, the
+`select` was asked, and the optional `description` was left alone. (`--yes` answers every
+`confirm`, optional ones included.) For the agent, the same pass
+refused at `template` — the first option it would have had to ask about.
+
+## What it guarantees
+
+- **Declaration order.** Options are asked in the order they were declared, which is the order
+  the help lists them.
+- **Only what has to be asked.** Every option goes through [`decide()`](/docs/guides/never-hangs)
+  first.
+- **The first refusal stops it.** A caller about to exit is better served by one actionable
+  message than by six; `failure` is that one, with a `code` of `USAGE` or `CANCELLED`, a
+  `message` and a `fix`.
+- **A spec that cannot be drawn is a usage error** — a `select` with no choices is refused
+  before anything is asked, rather than drawn as an empty list and waited on.
+- **The input is not mutated.** `values` comes back as a new object with the answers written in.
+
+## One binding, not one per framework
+
+What the pass needs is a record of options, the values so far, a runtime and an `io`. None of
+it is any framework's types, so `caique` imports none, and the same pass serves commander,
+yargs, burgee or a hand-rolled parser.

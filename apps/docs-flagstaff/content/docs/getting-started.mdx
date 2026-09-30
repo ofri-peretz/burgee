@@ -1,0 +1,116 @@
+---
+title: Getting started
+description: "Install flagstaff, hoist a spinner, and see the same three calls in a terminal, in a pipe and under --json."
+---
+
+flagstaff is a frame loop. You **hoist** a component with an initial state, **update** it as
+work moves, and **lower** it with the final state, which is the line left behind. Which of the
+five output modes runs is decided once, when you hoist, from the environment you pass in.
+
+## Install
+
+```bash
+npm install flagstaff
+```
+
+It is ESM with a `default` condition, so `require('flagstaff/spinner')` also works from
+CommonJS on Node 20.19+ and 22.13+. It installs four packages from this repository —
+[closeout](https://closeout.interlace.tools/docs), [linegauge](https://linegauge.interlace.tools/docs),
+[paratext](https://paratext.interlace.tools/docs) and [roundel](https://roundel.interlace.tools/docs) —
+and nothing else ([`shape.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/shape.test.ts)
+installs the packed tarballs and checks).
+
+## The runtime
+
+The loop never reads `process` itself. It takes a runtime: the environment, whether stdout is
+a terminal, the two streams, and a clock. For a real process that is a few lines, and every
+example on this site imports it from this file:
+
+```js title="rt.mjs"
+import process from 'node:process';
+
+/** The real process as flagstaff's loop reads it: environment, terminal, streams and a clock. */
+export const rt = {
+  env: process.env,
+  isTTY: { stdout: process.stdout.isTTY === true },
+  stdout: process.stdout,
+  stderr: process.stderr,
+  clock: {
+    now: () => Date.now(),
+    schedule(fn, ms) {
+      const id = setTimeout(fn, ms);
+      return () => clearTimeout(id);
+    },
+  },
+};
+
+/** `--json` on the command line: the loop writes events to stderr instead of drawing. */
+export const json = process.argv.includes('--json');
+```
+
+A CLI built on [burgee](https://burgee.interlace.tools/docs) already has one: burgee's runtime
+satisfies the same shape. In a test, use a literal with `manualClock()` from `flagstaff/loop`,
+and the terminal output becomes a fixed string (see [Testing terminal output](/docs/recipes/testing-output)).
+
+## A first program
+
+```js title="build.mjs"
+import { setTimeout as sleep } from 'node:timers/promises';
+
+import { hoist } from 'flagstaff/loop';
+import { spinner } from 'flagstaff/spinner';
+
+import { json, rt } from './rt.mjs';
+
+const flag = hoist(spinner(), rt, { text: 'building' }, { json });
+await sleep(400);
+flag.update({ text: 'linking' });
+await sleep(400);
+flag.lower({ text: 'built', status: 'ok' });
+```
+
+Run it in a terminal and the spinner animates in place, hiding the cursor while it runs, then
+leaves `✔ built` on screen and shows the cursor again. Pipe it, and the same three calls write one line per state:
+
+```text title="node build.mjs"
+… building
+… linking
+✔ built
+```
+
+Ask for `--json`, and stdout stays empty while stderr carries one event per transition — the
+form an agent parses:
+
+```text title="node build.mjs --json"
+{"event":"spinner","state":{"text":"building"}}
+{"event":"spinner","state":{"text":"linking"}}
+{"event":"spinner","state":{"text":"built","status":"ok"}}
+```
+
+Every output block on this site is checked: `tests/examples.test.ts` writes each titled file,
+runs the command in the block's title, and compares.
+
+## The five modes
+
+| mode | chosen when | what is written |
+| :-- | :-- | :-- |
+| `json` | the program passed `{ json: true }` | one NDJSON event per transition, on stderr |
+| `accessible` | `CLI_ACCESSIBLE` is set, terminal or not | the text form once per state, never a redraw |
+| `tty` | stdout is a terminal | frames repainted in place, the final text left behind |
+| `ci` | `CI` is set and stdout is not a terminal | the text form once per state |
+| `pipe` | anything else | the text form once per state |
+
+The first row that matches wins. The rule is roundel's
+[`outputMode`](https://github.com/ofri-peretz/burgee/blob/main/packages/roundel/src/policy.ts), the
+same one every package in the family asks, so a spinner and a prompt cannot disagree about the
+terminal. The [static projection](/docs/guides/static-projection) guide covers what "the text
+form" is and how a component declares it.
+
+## Where next
+
+- [Guides](/docs/guides/static-projection): the loop, spinners, live regions, boxes, tables,
+  accessibility, plugins.
+- [Why flagstaff](/docs/why-flagstaff): what it does that ora, log-update, boxen and cli-table3
+  do not, cell by cell, with the evidence.
+- [Coming from ora](/docs/coming-from/ora) and the other three: change one import.
+- [API reference](/docs/api): every export of every entry point.

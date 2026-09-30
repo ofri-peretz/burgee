@@ -1,0 +1,42 @@
+---
+title: Run a project's local tools
+description: "Run the tools a project installed in node_modules/.bin by name, from any directory inside it, with runPath — npm-run-path's contract, without the dependency."
+---
+
+`npm run` puts every `node_modules/.bin` from the working directory up in front of `PATH`, which
+is why a script can say `lint` rather than `./node_modules/.bin/lint`. `runPath()` builds the
+same `PATH`, so a program can run a project's tools the way its scripts do:
+
+```js title="local.mjs"
+import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';
+import { relative } from 'node:path';
+
+import { run } from 'bellpull';
+import { runPath } from 'bellpull/which';
+
+import { runtimeWith } from './tools.mjs';
+
+// A project with a locally installed tool, and a script one directory down.
+mkdirSync('node_modules/.bin', { recursive: true });
+writeFileSync('node_modules/.bin/lint', "#!/usr/bin/env node\nconsole.log('lint: 0 problems');\n");
+chmodSync('node_modules/.bin/lint', 0o755);
+mkdirSync('packages/app', { recursive: true });
+
+const base = runtimeWith();
+const runtime = { ...base, cwd: `${base.cwd}/packages/app` };
+const local = { ...runtime, env: { ...runtime.env, PATH: runPath({ runtime }) } };
+
+const result = await run('lint', [], { runtime: local });
+console.log(result.stdout.trim());
+console.log('from', relative(base.cwd, result.executable.from));
+```
+
+```text title="node local.mjs"
+lint: 0 problems
+from node_modules/.bin
+```
+
+The walk starts at the runtime's working directory, goes up one directory at a time, and stops
+at the filesystem root — or the drive root on Windows, where the walk is in Windows dialect.
+The nearest `node_modules/.bin` comes first, so a workspace package's own install wins over
+the root's. `which.test.ts` checks all three.

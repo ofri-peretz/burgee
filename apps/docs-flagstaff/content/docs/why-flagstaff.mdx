@@ -1,0 +1,45 @@
+---
+title: Why flagstaff
+description: "flagstaff against ora, log-update, boxen and cli-table3, one capability per row, every cell linked to the test, grade or source that proves it."
+---
+
+ora, log-update, boxen and cli-table3 each draw one thing well on a terminal. flagstaff draws
+the same four things — through drop-in paths graded by each one's own test suite — on one
+frame loop, and adds what a terminal-only library has no reason to have: a text form of every
+component for pipes, CI logs and screen readers, and one event per state change for an agent
+reading `--json`.
+
+The table below is the whole comparison. Every mark links to its evidence: a test in this
+repository for ours, and for theirs the source file of the exact version compat-oracle grades,
+or that package's own test suite. `scripts/capabilities-lock.test.ts` fails the build when a
+cited test no longer contains the title it is cited for, when a source no longer contains the
+line it is quoted for, or when a source we say lacks something has gained it.
+
+<CapabilityMatrix pkg="flagstaff" />
+
+## Reading it
+
+- **"on a pipe", "off a terminal"** mean the loop, `hoist()`. The four drop-ins keep their
+  incumbents' behaviour to the byte, including off a terminal, because that is what their
+  grade measures. [Incremental migration](/docs/recipes/incremental-migration) moves a program
+  from one to the other a file at a time.
+- **Parity rows are here too.** ora and log-update restore the cursor on a signal; boxen and
+  cli-table3 measure wide characters correctly. A row where they match us is a row a reader
+  would otherwise have to go and check.
+- **— does not apply** is not a soft ✗. A table library that never hides the cursor has
+  nothing to restore; the cell says why.
+
+## What is not in the table
+
+A row goes in only when every cell of it can be proved. These were left out:
+
+- **Weight.** The per-subpath byte figures are asserted by
+  [`weight.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/weight.test.ts)
+  and published on [Benchmarks](https://burgee.interlace.tools/docs/benchmarks), measured the
+  same way on both sides. They are not a yes-or-no capability, so they are not a row.
+- **`NO_COLOR`.** flagstaff honours it through roundel's tokens, and roundel's tests prove the
+  rule; no flagstaff test renders a component under it yet. ora's colour comes from chalk 5.6.2,
+  whose [colour detection](https://cdn.jsdelivr.net/npm/chalk@5.6.2/source/vendor/supports-color/index.js)
+  does not read `NO_COLOR`. See
+  [NO_COLOR and accessibility](/docs/guides/accessibility).
+- **Emoji width.** The width tests use CJK text; none uses emoji, so the row says CJK.

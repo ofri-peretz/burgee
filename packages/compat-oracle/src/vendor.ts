@@ -107,6 +107,8 @@ const dotted = (p: string): string => {
 
 /** A dots-only specifier (`'..'`, `'../..'`) where a module is named; see `rewriteAt`. */
 const NAMED_DOTS = /((?:require(?:\.resolve)?|import|mock)\(\s*|from\s+|import\s+)(['"])([./]+)\2/g;
+/** Any specifier where a module is named, for an import declared `namedOnly`; see `rewriteAt`. */
+const NAMED_ANY = /((?:require(?:\.resolve)?|import|mock)\(\s*|from\s+|import\s+)(['"])([^'"\n]+)\2/g;
 
 export function rewriteAt(source: string, host: Host, { fileDir, hostDir, packageType = 'module' }: { fileDir: string; hostDir: string; packageType?: string }): string {
   const testDir = join(hostDir, host.testDir);
@@ -120,9 +122,11 @@ export function rewriteAt(source: string, host: Host, { fileDir, hostDir, packag
     // So those are rewritten only where a module is named: `require(…)`, `require.resolve(…)`,
     // `import(…)`, `*.mock(…)`, `from …`, a bare `import …`. Any other specifier is distinctive
     // enough that the literal replace, which reaches the forms nobody lists, is the safer one.
-    if (/^[./]+$/.test(upstreamHere)) {
-      return acc.replace(NAMED_DOTS, (whole: string, lead: string, quote: string, spec: string) => (spec === upstreamHere ? `${lead}${quote}${shimHere}${quote}` : whole));
-    }
+    const named = (whole: string, lead: string, quote: string, spec: string): string => (spec === upstreamHere ? `${lead}${quote}${shimHere}${quote}` : whole);
+    if (/^[./]+$/.test(upstreamHere)) return acc.replace(NAMED_DOTS, named);
+    // A bare name that is also a string value in the suite (`NODE_DEBUG: 'execa'`) opts into
+    // the same restriction; `HostImport.namedOnly` says why.
+    if (entry.namedOnly === true) return acc.replace(NAMED_ANY, named);
     return acc.replaceAll(`'${upstreamHere}'`, `'${shimHere}'`).replaceAll(`"${upstreamHere}"`, `"${shimHere}"`);
   }, source);
 }
@@ -147,7 +151,8 @@ const SIBLING = /(?:from|require\()\s*['"]\.\/([^'"/]+)['"]/g;
 
 /** Every same-directory module a source imports: vendored beside the tests, never run. */
 export function siblingImports(source: string): string[] {
-  return [...source.matchAll(SIBLING)].map((m) => m[1] ?? '').filter((p) => p !== '');
+  // The group is one or more characters, so every match carries a non-empty name.
+  return [...source.matchAll(SIBLING)].map((m) => m[1] as string);
 }
 
 /**
@@ -182,7 +187,8 @@ const INTERNAL_PATTERNS: Record<string, RegExp> = {
 export function internalImports(source: string, internalDir = 'lib'): string[] {
   const pattern = INTERNAL_PATTERNS[internalDir];
   if (pattern === undefined) throw new Error(`no internal-import pattern for "${internalDir}" — add one to INTERNAL_PATTERNS`);
-  return [...source.matchAll(pattern)].map((m) => m[1] ?? '').filter((p) => p !== '');
+  // Every pattern's group is one or more characters, so every match carries a non-empty path.
+  return [...source.matchAll(pattern)].map((m) => m[1] as string);
 }
 
 /**
@@ -367,7 +373,8 @@ function countNested(host: Host, from: string, dest: string, into: { internalFil
 function copySiblings(siblings: Set<string>, host: Host, { from, dest, hostDir }: Paths, packageType: string): void {
   for (const name of siblings) {
     const at = siblingFile(from, name);
-    if (matchesGlob(name, host.testGlob) || at === undefined) continue;
+    // A sibling the glob calls a test was already written, identically, by `copyTests`.
+    if (at === undefined) continue;
     writeFileSync(join(dest, at.name), rewriteAt(readFileSync(at.path, 'utf8'), host, { fileDir: dest, hostDir, packageType }));
   }
 }

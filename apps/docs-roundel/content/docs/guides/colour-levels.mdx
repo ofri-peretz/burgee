@@ -1,0 +1,80 @@
+---
+title: Colour levels
+description: "colorLevel() decides 0, 16, 256 or truecolor: NO_COLOR first, then FORCE_COLOR=0, the --color flags and FORCE_COLOR, then what the terminal or the CI vendor reports."
+---
+
+`colorLevel(rt, { json })` is chalk's level — `0` none, `1` sixteen colours, `2` 256,
+`3` truecolor — decided by the rule below, which is chalk's own apart from the places this page
+names.
+
+## The rule, in order
+
+1. **`--json`** — always 0. Structured output carries no escapes, even when forced.
+2. **`NO_COLOR`** — set and not empty: 0, whatever else is set.
+3. **`FORCE_COLOR=0`** or **`FORCE_COLOR=false`** — 0. An explicit "off" is settled before any
+   flag is read, so `--color=256` cannot turn it back on.
+4. **The `--color` flags**, when the runtime carries `argv`; a flag beats any `FORCE_COLOR`
+   but 0: `--no-color`, `--no-colors`,
+   `--color=false` and `--color=never` are 0; `--color=16m`, `--color=full` and
+   `--color=truecolor` are 3; `--color=256` is 2; `--color` and `--colors` turn colour on and
+   let the terminal decide how much. Flags after `--` are the program's, not these.
+5. **`FORCE_COLOR`** — a number is an exact level, clamped to 3 (`FORCE_COLOR=2` is 2, not
+   "2 or better"); `true` or empty turns colour on and lets the terminal decide.
+6. **No instruction at all:** a pipe is 0, and so is `CLI_ACCESSIBLE`, because escape codes
+   are noise to a screen reader. Azure Pipelines (`TF_BUILD` and `AGENT_NAME`) is the one pipe
+   chalk colours, and so does this.
+7. **Once colour is on**, by a terminal or by an instruction: `TERM=dumb` is the floor; a
+   `CI` run gets its vendor's level — GitHub Actions, Gitea Actions and CircleCI truecolor,
+   Travis, AppVeyor, GitLab, Buildkite, Drone and Codeship 16 colours; otherwise
+   `COLORTERM=truecolor` is 3, a `TERM` ending in `-256color` is 2, and a colour-capable `TERM`
+   is 1.
+
+```js title="levels.mjs"
+import { colorLevel, outputMode } from 'roundel/policy';
+
+const cases = [
+  ['a terminal, TERM=xterm-256color', { env: { TERM: 'xterm-256color' }, isTTY: { stdout: true } }],
+  ['a pipe, TERM=xterm-256color', { env: { TERM: 'xterm-256color' }, isTTY: { stdout: false } }],
+  ['a pipe, FORCE_COLOR=true, COLORTERM=truecolor', { env: { FORCE_COLOR: 'true', COLORTERM: 'truecolor' }, isTTY: { stdout: false } }],
+  ['a terminal, NO_COLOR=1, --color=16m', { env: { NO_COLOR: '1' }, argv: ['--color=16m'], isTTY: { stdout: true } }],
+  ['a terminal, FORCE_COLOR=0, --color=256', { env: { FORCE_COLOR: '0' }, argv: ['--color=256'], isTTY: { stdout: true } }],
+  ['a terminal, --no-color', { env: { COLORTERM: 'truecolor' }, argv: ['--no-color'], isTTY: { stdout: true } }],
+  ['GitHub Actions log, FORCE_COLOR=true', { env: { CI: 'true', GITHUB_ACTIONS: 'true', FORCE_COLOR: 'true' }, isTTY: { stdout: false } }],
+  ['a terminal, CLI_ACCESSIBLE=1', { env: { CLI_ACCESSIBLE: '1', COLORTERM: 'truecolor' }, isTTY: { stdout: true } }],
+];
+
+for (const [name, rt] of cases) console.log(`${outputMode(rt).padEnd(10)} ${colorLevel(rt)}  ${name}`);
+const forced = { env: { FORCE_COLOR: '3' }, isTTY: { stdout: true } };
+console.log(`${outputMode(forced, { json: true }).padEnd(10)} ${colorLevel(forced, { json: true })}  --json, even with FORCE_COLOR=3`);
+```
+
+```text title="node levels.mjs"
+tty        2  a terminal, TERM=xterm-256color
+pipe       0  a pipe, TERM=xterm-256color
+pipe       3  a pipe, FORCE_COLOR=true, COLORTERM=truecolor
+tty        0  a terminal, NO_COLOR=1, --color=16m
+tty        0  a terminal, FORCE_COLOR=0, --color=256
+tty        0  a terminal, --no-color
+ci         3  GitHub Actions log, FORCE_COLOR=true
+accessible 0  a terminal, CLI_ACCESSIBLE=1
+json       0  --json, even with FORCE_COLOR=3
+```
+
+## Where it differs from chalk
+
+- **`NO_COLOR`.** chalk 6.0.0's colour detection does not read it; here it outranks everything.
+- **A flag beats an ambient `FORCE_COLOR`.** In chalk a set `FORCE_COLOR` overwrites the flag's
+  answer, so `--no-color` on a machine that exports `FORCE_COLOR=3` still colours. Here the flag
+  typed for this run wins — except that `FORCE_COLOR=0` is an "off", and off always wins.
+- **`CLI_ACCESSIBLE` and `--json`.** chalk has neither; here each is level 0 without an explicit
+  ask, and `--json` even with one.
+- **No emulator allow-list.** chalk also recognises particular terminal programs — `TERM_PROGRAM`,
+  kitty, ghostty, wezterm, TeamCity and the Windows build number. This does not: a program on
+  one of those terminals that reports nothing through `TERM` or `COLORTERM` asks for colour
+  with `FORCE_COLOR` or `--color`.
+- **The level is per façade.** Setting `chalk.level` on `roundel/chalk` changes `roundel/chalk`
+  and nothing else; the tokens keep reading the policy.
+
+Apart from the allow-list, a differential sweep of 3,000 random environments per partition
+against chalk 6.0.0's own colour detection found no divergence except where a `--color` flag
+and `FORCE_COLOR` are both set, which is the second point above; `policy.test.ts` records it.

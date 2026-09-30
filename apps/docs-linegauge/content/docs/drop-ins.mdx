@@ -1,0 +1,67 @@
+---
+title: Compatibility
+description: "How linegauge's four drop-ins are graded — each incumbent's own test suite, unedited — the current grades, and the differences that remain."
+---
+
+`linegauge` (its default export), `linegauge/wrap`, `linegauge/strip` and `linegauge/slice`
+are graded, not described as compatible. Each is run against its incumbent's **own test
+suite**, by
+[compat-oracle](https://github.com/ofri-peretz/burgee/blob/main/packages/compat-oracle/README.md),
+in CI.
+
+<CapabilityMatrix pkg="linegauge" theme="Compatibility" />
+
+The counts are compat-oracle's baselines, the pass count each drop-in is held to. The family's
+[compatibility page](https://burgee.interlace.tools/docs/compatibility) is generated from the
+oracle's last run and is the authority for the current figures, beside every other drop-in in
+the family.
+
+| incumbent | graded version | drop-in | cases |
+| :-- | :-- | :-- | --: |
+| string-width | 8.3.0 | `import stringWidth from 'linegauge'` | 233 / 233 |
+| wrap-ansi | 10.0.2 | `import wrapAnsi from 'linegauge/wrap'` | 85 / 85 |
+| strip-ansi | 7.2.0 | `import stripAnsi from 'linegauge/strip'` | 8 / 8 |
+| slice-ansi | 9.0.1 | `import sliceAnsi from 'linegauge/slice'` | 104 / 104 |
+
+## How a suite is graded
+
+1. The incumbent's repository is cloned at the release tag of the graded version and its test
+   file copied into `packages/compat-oracle/vendor/`. No incumbent ships its tests to npm, so
+   a tarball could not be used. Each copy's `PROVENANCE` file names the tag, the commit and the
+   command that reproduces it.
+2. The only edit is the import that reaches the library: it is rewritten to a shim generated
+   per run. Assertions, fixtures and helpers are upstream's, byte for byte.
+3. A **control run** points the shim at the real incumbent first. That proves the harness
+   before it grades anything of ours, and the control's total is what every rate is measured
+   against.
+4. The **target run** points the same shim at linegauge's path.
+
+## Beyond the suites
+
+Each path is also graded **differentially** in linegauge's own tests, against the real
+incumbent installed beside it: `wrap.test.ts` compares `wrap` with wrap-ansi on thirty named
+inputs under six option sets and on two hundred generated ones, `slice.test.ts` compares every
+`[start, end)` of its corpus with slice-ansi, and `strip.test.ts` compares sixteen sequence
+shapes with strip-ansi. `truncate`, which has no drop-in path, is compared case by case with
+cli-truncate.
+
+## Known differences
+
+- **The ellipsis of `truncate` is never styled.** cli-truncate paints it in the text's colour
+  at two of its three positions and not the third; `truncate` puts it after the closing
+  sequence at all three. There is no `linegauge/cli-truncate`, so no import moves onto this by
+  accident ([Slicing and truncating](/docs/guides/cutting)).
+- **A width plugin changes every answer.** With nothing registered — the default — every path
+  gives Unicode's answer, which is what the suites grade. Registering a `widths` plugin is how
+  you ask for a different one ([Width plugins](/docs/guides/plugins)).
+
+## Types and CommonJS
+
+Each path's default export is the incumbent's default, and its options type is exported under
+the incumbent's name — `Options` from `linegauge` and from `linegauge/wrap` — so a TypeScript
+program migrates by its import alone. `require('linegauge')` returns the namespace, whose
+`default` is `width`, and an `overrides` entry can move a transitive string-width onto it:
+
+```json
+{ "overrides": { "string-width": "npm:linegauge@^0.5" } }
+```

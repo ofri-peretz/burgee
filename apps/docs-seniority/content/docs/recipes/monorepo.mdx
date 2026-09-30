@@ -1,0 +1,44 @@
+---
+title: Config in a monorepo
+description: "Let a workspace package find its own config file, or the repository root's, without ever reading a config from above the repository — with search() and stopAt."
+---
+
+In a monorepo a package may have its own config file, or rely on the root's. Walking upward
+finds either. Walking without a bound could also find one in a parent directory you have never
+seen, such as a home-directory file or another checkout. `stopAt` sets the ceiling:
+
+```js title="monorepo.mjs"
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { relative } from 'node:path';
+
+import { discover, search } from 'seniority';
+
+// A stray config above the repository, the repository's own, and two packages.
+mkdirSync('work/repo/packages/api', { recursive: true });
+mkdirSync('work/repo/packages/web', { recursive: true });
+writeFileSync('work/mytool.config.json', '{ "region": "somebody-else" }');
+writeFileSync('work/repo/mytool.config.json', '{ "region": "eu-2" }');
+writeFileSync('work/repo/packages/web/mytool.config.json', '{ "extends": "../../mytool.config.json", "port": 8080 }');
+
+for (const pkg of ['api', 'web']) {
+  const found = search('mytool.config.json', { cwd: `work/repo/packages/${pkg}`, stopAt: 'work/repo' });
+  const loaded = await discover({ name: 'mytool', cwd: found.dir, env: {} });
+  console.log(pkg, relative('.', found.path), JSON.stringify(loaded.data));
+}
+
+const unbounded = search('mytool.config.json', { cwd: 'work/repo/packages/api', stopAt: 'work/repo/packages' });
+console.log('stopped below the root:', unbounded === undefined);
+```
+
+```text title="node monorepo.mjs"
+api work/repo/mytool.config.json {"region":"eu-2"}
+web work/repo/packages/web/mytool.config.json {"region":"eu-2","port":8080}
+stopped below the root: true
+```
+
+- **`api`** has no file of its own, so it gets the repository's config. The stray file in
+  `work/` is never read, because the walk stops at `work/repo`.
+- **`web`** has its own config, which `extends` the root's, so both are merged.
+- Pass the repository root as `stopAt`, and a start-up never depends on what happens to be in
+  a parent directory. `discover({ upward: true, stopAt })` does the same walk in one call, for
+  `<name>.config.*` files.

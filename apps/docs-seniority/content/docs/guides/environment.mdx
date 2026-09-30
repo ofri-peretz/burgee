@@ -1,0 +1,92 @@
+---
+title: Environment variables
+description: "How seniority reads the environment: only declared options, named PREFIX_OPTION_NAME in SCREAMING_SNAKE, one boolean spelling each way, PREFIX_NO_X refused — and the environment always an argument."
+---
+
+The environment is a layer like any other, and it is passed in: `resolve(specs, { env })`.
+Nothing in `resolve` reads `process.env`, so a test hands it an object and a program hands it
+`process.env`.
+
+## The rules
+
+```js title="envrules.mjs"
+import { resolve } from 'seniority';
+
+const specs = { dryRun: { type: 'boolean' }, logLevel: { type: 'string' } };
+const run = (env) => {
+  try {
+    return JSON.stringify(resolve(specs, { flags: {}, env, envPrefix: 'APP' }).values);
+  } catch (error) {
+    return `${error.message} (${error.hint})`;
+  }
+};
+
+console.log(run({ APP_DRY_RUN: 'yes', APP_LOG_LEVEL: 'debug' }));
+console.log(run({ APP_DRY_RUN: 'false' }));
+console.log(run({ APP_DRY_RUN: 'maybe' }));
+console.log(run({ APP_NO_DRY_RUN: '1' }));
+console.log(run({ APP_SECRET_FLAG: 'x', APP_LOGLEVEL: 'debug' }));
+```
+
+```text title="node envrules.mjs"
+{"dryRun":true,"logLevel":"debug"}
+{"dryRun":false}
+APP_DRY_RUN="maybe" is not a boolean (use APP_DRY_RUN=true or APP_DRY_RUN=false)
+APP_NO_DRY_RUN is not supported (set APP_DRY_RUN=false instead)
+{}
+```
+
+Line by line:
+
+1. **Names.** With `envPrefix: 'APP'`, an option reads `APP_` plus its name in SCREAMING_SNAKE.
+   `dryRun` is `APP_DRY_RUN`, and `logLevel` and `log-level` are both `APP_LOG_LEVEL`. A name
+   is never camel-cased back from a variable.
+   - An option with an explicit `env: 'MY_TOKEN'` reads that variable instead, prefix or not.
+   - With no prefix and no `env:`, an option reads no variable at all.
+2. **Booleans.** `1`, `true` and `yes`, or `0`, `false` and `no`, in any case. The string
+   `"false"` is never silently truthy.
+3. **Anything else is a CONFIG error** naming the variable, the value and the spelling to use.
+4. **`APP_NO_X` is refused**, pointing at `APP_X=false`. Two spellings of one fact is how a
+   configuration becomes unreadable.
+5. **Only declared options.** `APP_SECRET_FLAG` sets nothing, because no option declares it,
+   and `APP_LOGLEVEL` is not `APP_LOG_LEVEL`. The environment cannot inject a key the running
+   command did not ask for, including a sibling command's option.
+
+## dotenv files
+
+`seniority/dotenv` is dotenv's API (`config`, `parse`, `populate`), graded by dotenv's own
+suite. Give `config` the object to fill as `processEnv`, and the `.env` file joins the
+environment layer without touching `process.env`:
+
+```js title="dotenv.mjs"
+import { writeFileSync } from 'node:fs';
+
+import { resolve } from 'seniority';
+import dotenv from 'seniority/dotenv';
+
+writeFileSync('.env', 'APP_REGION=eu-2\nAPP_DRY_RUN=yes\n');
+
+const env = { APP_REGION: 'us-9' }; // already set: dotenv does not override it
+dotenv.config({ path: '.env', processEnv: env, quiet: true });
+
+const { values, provenance } = resolve({ region: { type: 'string' }, dryRun: { type: 'boolean' } }, { flags: {}, env, envPrefix: 'APP' });
+console.log(values, provenance.region.location);
+```
+
+```text title="node dotenv.mjs"
+{ region: 'us-9', dryRun: true } APP_REGION
+```
+
+Called with no `processEnv`, `config()` populates `process.env`, as dotenv does. The encrypted
+`.env.vault` and dotenvx's features are declined: see [Compatibility](/docs/drop-ins).
+
+## What is tested
+
+- [`precedence.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/seniority/src/precedence.test.ts):
+  - env applies only to declared options, by their own names;
+  - the six boolean spellings;
+  - anything else is a CONFIG error naming the fix;
+  - `PREFIX_NO_X` is rejected.
+- [`dotenv.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/seniority/src/dotenv.test.ts):
+  - parsing as dotenv 17.4.2 does;
+  - `config` populates the object it was given.

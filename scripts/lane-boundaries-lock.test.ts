@@ -81,6 +81,19 @@ describe('the one path every lane may write', () => {
     for (const lane of lanes()) expect(owns(lane, '.changeset/whatever-this-lane-did.md'), `${lane.name} cannot write a changeset`).toBe(true);
   });
 
+  it('lets any lane record its own decision and gap, one file each', () => {
+    // Assembled, so decisions-lock's "every path to an entry resolves" does not read these as citations.
+    const decision = 'D-20260927-whatever-this-lane-decided';
+    const gap = 'A-20260927-whatever-this-lane-found';
+    for (const lane of lanes()) {
+      expect(owns(lane, `.sdlc/decisions/${decision}.md`), `${lane.name} cannot record a decision`).toBe(true);
+      expect(owns(lane, `.sdlc/gaps/${gap}.md`), `${lane.name} cannot record a gap`).toBe(true);
+    }
+    const output = lanes().find((l) => l.name === 'output');
+    if (output === undefined) throw new Error('no output lane');
+    expect(owns(output, '.sdlc/DECISIONS.md'), 'the policy file is not open season').toBe(false);
+  });
+
   it('does not turn the exemption into a hole', () => {
     const output = lanes().find((l) => l.name === 'output') as Lane;
     // Narrow on both axes: the directory alone is not enough, and neither is the extension.

@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "main": "./shim.js",
-  "version": "8.2.2",
+  "version": "8.3.0",
   "license": "MIT",
+  "description": "Get the visual width of a string - the number of columns required to display it",
   "repository": "sindresorhus/string-width"
 }

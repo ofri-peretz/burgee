@@ -1,0 +1,88 @@
+---
+title: Tables
+description: "Draw a table as a string with table(), or hoist tableComponent() so a pipe gets header-and-value pairs and --json gets the rows."
+---
+
+`flagstaff/table` has `table()`, which returns the grid as a string, and `tableComponent()`,
+which hoists on the loop.
+
+## `table(rows, options)`
+
+```js title="grid.mjs"
+import { table } from 'flagstaff/table';
+
+console.log(table([['ora', '99'], ['log-update', '99']], { head: ['host', 'tests'], align: ['left', 'right'], width: 30 }));
+console.log(table([['古池や', 'Bashō'], ['a very long cell that wraps', 'x']], { head: ['poem', 'poet'], width: 26 }));
+```
+
+```text title="node grid.mjs"
+┌────────────┬───────┐
+│ host       │ tests │
+├────────────┼───────┤
+│ ora        │    99 │
+│ log-update │    99 │
+└────────────┴───────┘
+┌────────────────┬───────┐
+│ poem           │ poet  │
+├────────────────┼───────┤
+│ 古池や         │ Bashō │
+│ a very long    │ x     │
+│ cell that      │       │
+│ wraps          │       │
+└────────────────┴───────┘
+```
+
+| option | default | |
+| :-- | :-- | :-- |
+| `head` | — | column headers; without them there is no header row |
+| `width` | 80 | the most columns the whole table may take |
+| `align` | `left` | `'left'` or `'right'` per column |
+| `terminal` | the real process | the terminal a linked cell is rendered for |
+
+A row is an array of cells, and a cell is a string or `{ text, href }` — a link, rendered the way
+[box links](/docs/guides/boxes#links) are. Every row is measured in terminal columns, so a wide
+character never pushes the grid out, and a cell too wide for its column wraps inside it rather
+than widening the table. The table never overruns the width it was given
+([`builtins.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/builtins.test.ts)
+checks 20, 40 and 80 columns with a wide cell).
+
+## `tableComponent()`: rows a reader can use
+
+A grid in a log file is box-drawing characters around the data. Hoisted as a component, a table
+is drawn only on a terminal. Everywhere else each row is one line of `header: value` pairs:
+
+```js title="results.mjs"
+import { hoist } from 'flagstaff/loop';
+import { tableComponent } from 'flagstaff/table';
+
+import { json, rt } from './rt.mjs';
+
+const rows = [
+  ['api', 'passed', '112'],
+  ['web', 'failed', '3'],
+];
+hoist(tableComponent({ head: ['suite', 'result', 'tests'] }), rt, { rows }, { json }).lower();
+```
+
+```text title="node results.mjs"
+suite: api, result: passed, tests: 112
+suite: web, result: failed, tests: 3
+```
+
+Without `head`, the pairs fall back to tab-separated values. Under `--json` the rows are the
+state, so an agent gets them as data:
+
+```text title="node results.mjs --json"
+{"event":"table","state":{"rows":[["api","passed","112"],["web","failed","3"]]}}
+{"event":"table","state":{"rows":[["api","passed","112"],["web","failed","3"]]}}
+```
+
+Two events, because hoisting is one transition and lowering is another.
+
+## Coming from cli-table3
+
+`flagstaff/cli-table3` is cli-table3 0.6.5's API — `head`, `chars`, `style`, `colWidths`,
+`rowHeights`, alignment, `wordWrap`, `colSpan` and `rowSpan`, `href` — graded by the cases of
+cli-table3's own suite that go through its public API. It extends `Array`, as cli-table3 does.
+See [Coming from cli-table3](/docs/coming-from/cli-table3) and
+[Compatibility](/docs/drop-ins) for what that grade covers.

@@ -1,0 +1,96 @@
+---
+title: The static projection
+description: "What a component prints in a pipe, in CI, for a screen reader and under --json — and how to write one."
+---
+
+Every flagstaff component has a **static projection**: `static(state)`, a function from the
+component's state to plain text. It is required. The animation, `frame(t, state)`, is optional
+and only a terminal sees it. Everything else — a pipe, a CI log, a screen reader, the docs
+gallery — gets the static text.
+
+## A component
+
+A component is a plain object:
+
+| key | required | what it is |
+| :-- | :-- | :-- |
+| `name` | yes | the event name under `--json` |
+| `static(state)` | yes | the text form of a state |
+| `frame(t, state)` | no | what a terminal shows at time `t`, in milliseconds since hoisting |
+| `interval` | no | milliseconds between repaints when there is a `frame`; 80 by default |
+
+Here is one written from scratch, with a frame for the terminal and a count for everyone else:
+
+```js title="checks.mjs"
+import { setTimeout as sleep } from 'node:timers/promises';
+
+import { hoist } from 'flagstaff/loop';
+
+import { json, rt } from './rt.mjs';
+
+const checks = {
+  name: 'checks',
+  interval: 100,
+  static: (s) => `${s.done} of ${s.total} checked`,
+  frame: (t, s) => `${'|/-\\'[Math.floor(t / 100) % 4]} ${s.done} of ${s.total} checked`,
+};
+
+const flag = hoist(checks, rt, { done: 0, total: 3 }, { json });
+for (let done = 1; done <= 3; done += 1) {
+  await sleep(150);
+  flag.update({ done, total: 3 });
+}
+flag.update({ done: 3, total: 3 });
+flag.lower();
+```
+
+In a pipe, each state that changes the text is one line. The last `update` changed nothing, so
+it printed nothing, and `lower()` without a state keeps the one it has:
+
+```text title="node checks.mjs"
+0 of 3 checked
+1 of 3 checked
+2 of 3 checked
+3 of 3 checked
+```
+
+## The rules off a terminal
+
+These hold in the `pipe`, `ci` and `accessible` modes, and each is a test in
+[`loop.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/loop.test.ts)
+or [`builtins.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/builtins.test.ts):
+
+- **Once per change.** A state whose text is the same as the last one written prints nothing.
+- **No carriage return and no cursor escape.** Colour is allowed when the user explicitly
+  asked for it (`FORCE_COLOR`, `--color`); a cursor move or an erase never is.
+- **A growing list is appended to, not reprinted.** When the new text starts with the lines
+  already written, only the lines past them are written. That is how
+  [`tasks`](/docs/guides/spinners#task-lists) prints each task once, as it settles.
+- **Nothing to say costs nothing.** An empty static text writes no blank line.
+
+## Under `--json`
+
+Pass `{ json: true }` to `hoist()` when your program was run with `--json`. The loop then
+writes one NDJSON event per transition to **stderr** — `{"event": <name>, "state": <state>}` —
+and leaves stdout alone for your program's own result. An agent parses the state instead of
+scraping text:
+
+```text title="node checks.mjs --json"
+{"event":"checks","state":{"done":0,"total":3}}
+{"event":"checks","state":{"done":1,"total":3}}
+{"event":"checks","state":{"done":2,"total":3}}
+{"event":"checks","state":{"done":3,"total":3}}
+{"event":"checks","state":{"done":3,"total":3}}
+{"event":"checks","state":{"done":3,"total":3}}
+```
+
+Every `update` is a transition here, including one that changes nothing, and `lower()` is one
+more: an agent sees when the component was lowered, not just its last state. The state is
+serialised as you passed it, so keep it plain data.
+
+## Why a projection, not a stripped frame
+
+Stripping the escapes out of a frame does not make it text. A bar of blocks with the colour
+removed is still a bar of blocks; a box with its border is still a drawing. The static text is
+written for a reader who cannot see the drawing, which is why the built-ins say
+`12/30 files · 40%` rather than `████░░░░`, and `title: text` rather than a border.

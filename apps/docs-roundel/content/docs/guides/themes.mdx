@@ -1,0 +1,114 @@
+---
+title: Themes and contrast
+description: "fly() sets what each token paints: format names from the terminal's palette, or a hex checked against WCAG 4.5:1 on the declared background, at every colour level."
+---
+
+`fly(theme, rt, { json })` decides the colour level from the runtime once, checks the theme,
+and sets what the tokens paint from then on. Call it at startup; a later call replaces the
+theme, and a refused one leaves the previous theme flying.
+
+## A theme
+
+A theme maps any of the nine tokens to a **style**, plus a `ground` and, optionally, a
+`conformance` level:
+
+- **Format names** — `['bold', 'underline']`, `['yellow']` — are `node:util`'s `styleText`
+  names. They are the user's own terminal palette, so they are never checked and never claimed
+  to pass anything.
+- **A hex colour** — `'#b3261e'` — is sent as truecolor at level 3, and as the nearest readable
+  of 256 or the nearest of 16 below that.
+- **`ground`** is the background the theme will be read on: near-black, `#0a0a0a`, unless you
+  say otherwise. The default `error` and `ok` pick whichever of their two brand shades reads
+  better on it.
+
+```js title="light.mjs"
+import { fly } from 'roundel/theme';
+import { error, heading, ok } from 'roundel/tokens';
+
+import { rt } from './rt.mjs';
+
+fly({ ground: '#ffffff', error: '#b3261e', heading: ['bold', 'underline'] }, rt);
+console.log(JSON.stringify([error('failed'), ok('passed'), heading('Summary')]));
+```
+
+```text title="FORCE_COLOR=3 node light.mjs"
+["\u001b[38;2;179;38;30mfailed\u001b[39m","\u001b[38;2;10;107;71mpassed\u001b[39m","\u001b[1m\u001b[4mSummary\u001b[24m\u001b[22m"]
+```
+
+```text title="FORCE_COLOR=2 node light.mjs"
+["\u001b[38;5;124mfailed\u001b[39m","\u001b[38;5;23mpassed\u001b[39m","\u001b[1m\u001b[4mSummary\u001b[24m\u001b[22m"]
+```
+
+`ok` was not given, so it kept its default — the deep juniper, because that one reads on white.
+
+## The contrast gate
+
+Every hex token is checked against the ground at **WCAG 2.2 AA, 4.5:1**, and so is the
+256-colour colour it will become. A theme that would not read is refused, naming each token and
+its ratio:
+
+```js title="unreadable.mjs"
+import { fly } from 'roundel/theme';
+
+import { rt } from './rt.mjs';
+
+try {
+  fly({ ground: '#ffffff', warn: '#ffd400' }, rt);
+} catch (error) {
+  console.log(error.message);
+}
+```
+
+```text title="node unreadable.mjs"
+roundel: below 4.5:1 (WCAG AA) — warn #ffd400 on #ffffff is 1.43:1
+```
+
+The check runs at **every** level, level 0 included: it is about what the theme declares, not
+about this terminal, so an unreadable theme fails in CI rather than on the one laptop that has
+truecolor. The 256-colour substitute is chosen to pass — the nearest palette entry that still
+clears the floor, not simply the nearest.
+
+`{ conformance: 'AAA' }` raises the floor to 7:1. It is not the default because at 7:1 many
+reasonable brand colours have no readable 256-colour substitute left.
+
+## Seeing the verdict
+
+`audit(theme)` returns the same judgement as data, without throwing — two rows per hex token,
+truecolor and 256 — and `reportTheme()` from `roundel/contrast` prints it:
+
+```js title="report.mjs"
+import { reportTheme } from 'roundel/contrast';
+import { audit } from 'roundel/theme';
+
+console.log(reportTheme(audit({ ground: '#ffffff', error: '#b3261e', warn: '#ffd400' })));
+```
+
+```text title="node report.mjs"
+pass  error  truecolor  #b3261e on #ffffff  6.54:1 (needs 4.5:1)
+pass  error  256        #af0000 on #ffffff  7.44:1 (needs 4.5:1)
+FAIL  warn   truecolor  #ffd400 on #ffffff  1.43:1 (needs 4.5:1)
+pass  warn   256        #af5f00 on #ffffff  4.71:1 (needs 4.5:1)
+pass  ok     truecolor  #0a6b47 on #ffffff  6.55:1 (needs 4.5:1)
+pass  ok     256        #005f5f on #ffffff  7.49:1 (needs 4.5:1)
+```
+
+There is no row for sixteen colours: those are the user's terminal theme, and a ratio there
+would be invented. `fly()` and `audit()` share one judgement, so the report and the refusal
+can never disagree.
+
+## The maths
+
+`roundel/contrast` exports what the gate uses: `contrast(a, b)`, `luminance(hex)`, and the
+floors `AA` and `AAA`.
+
+```js title="ratio.mjs"
+import { AA, contrast } from 'roundel/contrast';
+
+console.log(contrast('#767676', '#ffffff').toFixed(2));
+console.log(JSON.stringify(AA));
+```
+
+```text title="node ratio.mjs"
+4.54
+{"TEXT":4.5,"GRAPHIC":3}
+```

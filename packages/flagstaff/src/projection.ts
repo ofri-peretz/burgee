@@ -7,11 +7,18 @@
  */
 import { onExit } from 'closeout';
 import { HIDE_CURSOR, SHOW_CURSOR } from 'closeout/cursor';
+import { lineCount } from 'linegauge';
 
 import { type Component } from './plugin.js';
 
 export interface Writer {
   write(chunk: string): unknown;
+  /**
+   * How wide the terminal is, read at every paint so a resize is honoured. A frame wider than
+   * this wraps on screen, and the rows it wraps onto have to be erased with the rest; a Node
+   * TTY stream carries it, and a writer without it is taken to be `DEFAULT_COLUMNS` wide.
+   */
+  readonly columns?: number | undefined;
 }
 
 /** Time as the loop sees it: burgee's `Runtime.clock` satisfies it, so does `manualClock()`. */
@@ -28,10 +35,9 @@ export interface Projection<S> {
 }
 
 export const DEFAULT_INTERVAL = 80;
+/** The width assumed when the writer does not say, which is ora's fallback too. */
+const DEFAULT_COLUMNS = 80;
 const CSI = '\u001B[';
-
-/** No cursor safety net standing: before `open()`, and again once `close()` has taken it down. */
-const NO_NET = (): void => undefined;
 
 /** Column 1, up to the first of `lines`, and clear from there to the end of the screen. */
 function erase(lines: number): string {
@@ -49,7 +55,9 @@ class TtyProjection<S> implements Projection<S> {
   #current!: S;
   #lines = 0;
   #cancel: () => void = () => undefined;
-  #dropCursorNet: () => void = NO_NET;
+  // Set by `open()`. `hoist()` is the only caller, and it opens before anything else and
+  // closes at most once, so `close()` never runs without a net standing.
+  #dropCursorNet!: () => void;
 
   constructor(component: Component<S>, out: Writer, clock: Clock) {
     this.#component = component;
@@ -84,7 +92,6 @@ class TtyProjection<S> implements Projection<S> {
     // The frame put the cursor back itself, so the net comes down with it — otherwise it
     // would fire again at exit and write a second, pointless show.
     this.#dropCursorNet();
-    this.#dropCursorNet = NO_NET;
     this.#lines = 0;
   }
 
@@ -92,7 +99,11 @@ class TtyProjection<S> implements Projection<S> {
     const { frame } = this.#component;
     const text = frame === undefined ? this.#component.static(this.#current) : frame(this.#clock.now() - this.#started, this.#current);
     this.#out.write(erase(this.#lines) + text);
-    this.#lines = text.split('\n').length;
+    // Rows *painted*, not lines written: a line wider than the terminal wraps, and counting it
+    // once left the rows it wrapped onto on screen after the next erase. `lineCount` is the
+    // same measurement `flagstaff/ora` clears by.
+    const columns = this.#out.columns;
+    this.#lines = lineCount(text, columns !== undefined && columns > 0 ? columns : DEFAULT_COLUMNS);
   }
 
   #repaint(): void {

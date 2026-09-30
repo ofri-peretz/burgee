@@ -300,4 +300,69 @@ describe('check and fingerprint, over a workspace', () => {
     const ora = written['./index'].find((e) => e.package === 'ora');
     expect(ora?.seen?.version).toBe('9.0.0');
   });
+
+  /** chalk twice: its own latest (6.0.0) and the 5.6.2 inside ora's tree. */
+  const TREE = fakeRegistry({
+    chalk: {
+      '5.6.2': { files: { 'index.js': 'export const a = 1;\n' } },
+      '6.0.0': { files: { 'index.js': 'export const a = 1;\nexport const b = 2;\n' } },
+    },
+    ora: { '9.0.0': { files: { 'index.js': 'export default 1;\n' }, dependencies: { chalk: '5.6.2' } } },
+  });
+  const behind = { version: '5.0.0', weight: 1, shasum: 'old', files: {}, exports: [], measured: '2026-01-01' };
+
+  it('gives each resolution its own issue, naming only the claims made at that resolution', async () => {
+    const { root, packagesDir } = workspace({
+      roundel: { './chalk': [{ package: 'chalk', claim: 'compat', seen: behind }] },
+      flagstaff: { './ora': [{ package: 'chalk', claim: 'weight', via: 'ora', seen: behind }] },
+    });
+    const sink = lines();
+    const result = await check(packagesDir, root, sink.write, TREE);
+    expect(result.updates.map((u) => [u.npm, u.from, u.to])).toEqual([
+      ['chalk', '5.0.0', '6.0.0'],
+      ['chalk', '5.0.0', '5.6.2'],
+    ]);
+    const [own, inOra] = result.updates.map((u) => u.report) as [string, string];
+    expect(own).toContain('`roundel/chalk` claims **compat**');
+    expect(own).not.toContain('flagstaff');
+    expect(inOra).toContain('`flagstaff/ora` claims a **weight ceiling**');
+    expect(inOra).not.toContain('roundel');
+    // A held fingerprint recorded before package counts were: the count shown is today's, never `null → 1`.
+    expect(inOra).toContain('| weight | 1 → 20 B (+1900.0%) across 1 packages |');
+    expect(sink.out).toContain(`  ${'chalk<ora'.padEnd(26)} 5.0.0 → 5.6.2: +1/-0 exports, 0 changed / +2 / -0 files, weight 1 → 20\n`);
+  });
+
+  it('refuses a figure read through a parent when the registry hands back another release than the parent resolves', async () => {
+    // Dist-tags spelled like versions are the one way a request for one release can come back
+    // as another; the byte count and the hashes would then describe two different releases.
+    const tagged: typeof TREE = {
+      ...TREE,
+      packument: async (name) => {
+        const p = await TREE.packument(name);
+        return name === 'chalk' ? { ...p, 'dist-tags': { ...p['dist-tags'], '5.6.2': '6.0.0', '6.0.0': '5.6.2' } } : p;
+      },
+    };
+    await expect(takeFingerprint({ npm: 'chalk', via: 'ora' }, tagged)).rejects.toThrow('chalk: asked for 6.0.0 inside ora, got 5.6.2');
+  });
+
+  it('reports a thrown non-Error by its string, in check and in fingerprint', async () => {
+    const { root, packagesDir } = workspace({ roundel: { './chalk': [{ package: 'chalk', claim: 'compat' }] } });
+    const throwing = { packument: async (): Promise<never> => Promise.reject('registry down'), download: async (): Promise<never> => Promise.reject('registry down') };
+    const sink = lines();
+    // treeWeight swallows a failed fetch as `name@?`, so the throw has to come from the first fetch.
+    expect((await check(packagesDir, root, sink.write, throwing)).errors).toEqual([{ npm: 'chalk', error: 'registry down' }]);
+    expect(sink.out).toContain('✖ registry down');
+    const again = lines();
+    expect(await fingerprint(packagesDir, again.write, throwing)).toBe(1);
+    expect(again.out).toContain('✖ registry down');
+  });
+
+  it('keeps the citations a person wrote into a seen block when it re-fingerprints', async () => {
+    const { packagesDir } = workspace({
+      roundel: { './chalk': [{ package: 'chalk', claim: 'compat', seen: { ...behind, cited: ['README.md:12'] } }] },
+    });
+    await fingerprint(packagesDir, () => {}, TREE);
+    const written = JSON.parse(readFileSync(join(packagesDir, 'roundel', 'competitors.json'), 'utf8')) as { './chalk': { seen: Seen }[] };
+    expect(written['./chalk'][0]?.seen).toMatchObject({ version: '6.0.0', registry: 'chalk', cited: ['README.md:12'] });
+  });
 });

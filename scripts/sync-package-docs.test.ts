@@ -18,11 +18,21 @@ import { describe, expect, it } from "vitest";
 // eslint-disable-next-line import-next/no-relative-packages -- by path: the docs chassis is a private workspace under apps/, and scripts read the app table through its one typed reader rather than re-parsing it
 import { APPS, familyApp } from "../apps/docs-chassis/src/config";
 
-import { orphans, pages, render } from "./sync-package-docs.js";
+import { STANDARD_SITES } from "./api-reference.js";
+import { orphans, pages, render, renderChangelog } from "./sync-package-docs.js";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 describe("package docs pages are projected from the READMEs", () => {
+  it("gives every standard site its CHANGELOG as changelog.md, and no other site one", () => {
+    const changelogs = [...pages().keys()].filter((f) => f.endsWith("/content/docs/changelog.md"));
+    expect(changelogs.toSorted()).toEqual(STANDARD_SITES.map((pkg) => `${APPS.find((a) => a.package === pkg)?.dir}/content/docs/changelog.md`).toSorted());
+    const page = renderChangelog({ name: "x", description: "" }, "# x\n\n## 1.0.0\n\n- a change\n");
+    expect(page).toContain("title: Changelog");
+    expect(page).not.toContain("# x\n");
+    expect(page.endsWith("## 1.0.0\n\n- a change\n")).toBe(true);
+  });
+
   it("gives every app with a package of its own that package's README as its index", () => {
     const files = [...pages().keys()];
     for (const app of APPS.filter((a) => !a.familyPages)) expect(files).toContain(`${app.dir}/content/docs/index.md`);

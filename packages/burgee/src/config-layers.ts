@@ -11,8 +11,8 @@ import { type Layers } from 'seniority/precedence';
 import { type Package } from './pkg.js';
 
 /** The owning package.json's field named after the program, as a layer below config. */
-function packageLayer(pkg: Package | undefined, name: string | undefined): Layers['pkg'] {
-  if (pkg === undefined || name === undefined) return undefined;
+function packageLayer(pkg: Package | undefined, name: string): Layers['pkg'] {
+  if (pkg === undefined) return undefined;
   const field = pkg.data[name];
   return typeof field === 'object' && field !== null && !Array.isArray(field) ? { path: pkg.path, data: field as Record<string, unknown> } : undefined;
 }

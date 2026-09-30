@@ -1,0 +1,207 @@
+{
+  "$comment": "closeout's capability matrix against the three packages it replaces (compat-oracle's LAYERS). Rendered by <CapabilityMatrix pkg=\"closeout\" /> from apps/docs-chassis and held by scripts/capabilities-lock.test.ts: every `ours` yes/partial names a test file and a title substring it contains, or a compat-oracle grade; every incumbent cell names a source at the version compat-oracle grades, and a local source is checked for the text it `quote`s or `lacks`. `n/a` means the row does not apply to that package, and says why. A row that could not be proved for every column is not here.",
+  "package": "closeout",
+  "incumbents": ["signal-exit", "exit-hook", "restore-cursor"],
+  "themes": [
+    {
+      "theme": "Every way out",
+      "rows": [
+        {
+          "capability": "One registry for every exit path",
+          "why": "A handler registered once runs on a signal, an uncaught throw, an unhandled rejection, an emptied event loop (`beforeExit`) and `process.exit()`, so no door out skips the cleanup.",
+          "ours": {"status": "yes", "test": "packages/closeout/src/restore.test.ts", "title": "every door out leaves the terminal as it was found, last"},
+          "incumbents": {
+            "signal-exit": {"status": "partial", "source": "node_modules/signal-exit/dist/mjs/index.js", "quote": "this.#emitter.emit('exit', this.#process.exitCode, null);", "lacks": "beforeExit", "missing": "no `beforeExit` trigger, so an async handler never gets the emptied loop's time; a throw or a rejection reaches handlers only through the `exit` event behind it"},
+            "exit-hook": {"status": "partial", "source": "node_modules/exit-hook/index.js", "quote": "process.once('beforeExit', exit.bind(undefined, true, false, -128));", "lacks": "SIGHUP", "missing": "no SIGHUP, SIGQUIT, uncaughtException or unhandledRejection listener; a throw reaches only the synchronous hooks, through `exit`"},
+            "restore-cursor": {"status": "n/a", "source": "node_modules/restore-cursor/index.js", "quote": "const restoreCursor = terminal ? onetime(() => {", "note": "registers one handler of its own, the cursor restore, and takes none of yours"}
+          }
+        },
+        {
+          "capability": "The handler is told which door, and what was thrown",
+          "why": "Every handler gets `{ path, signal, code, error }`, so it can tell Ctrl-C from a crash and keep the temp directory for a bug report.",
+          "ours": {"status": "yes", "test": "packages/closeout/src/registry.test.ts", "title": "tells a handler which door the program left by"},
+          "incumbents": {
+            "signal-exit": {"status": "no", "source": "node_modules/signal-exit/dist/mjs/index.js", "quote": "ret = fn(code, signal) === true || ret;", "note": "a handler gets `(code, signal)`; a throw arrives as code 1 with no error"},
+            "exit-hook": {"status": "no", "source": "node_modules/exit-hook/index.js", "quote": "callback(exitCode);", "note": "a hook gets the exit code alone"},
+            "restore-cursor": {"status": "n/a", "source": "node_modules/restore-cursor/index.js", "quote": "onExit(() => {", "note": "takes no handler of yours"}
+          }
+        },
+        {
+          "capability": "Exactly once when two doors fire together",
+          "why": "Ctrl-C twice, or a signal and the `exit` behind it, is one shutdown, so a lock is never released twice.",
+          "ours": {"status": "yes", "test": "packages/closeout/src/registry.test.ts", "title": "runs a handler once however many times shutdown is asked for"},
+          "incumbents": {
+            "signal-exit": {"status": "yes", "source": "node_modules/signal-exit/dist/mjs/index.js", "quote": "if (this.emitted[ev]) {"},
+            "exit-hook": {"status": "yes", "source": "node_modules/exit-hook/index.js", "quote": "if (isCalled) {"},
+            "restore-cursor": {"status": "yes", "source": "node_modules/restore-cursor/index.js", "quote": "const restoreCursor = terminal ? onetime(() => {", "note": "registers once, and signal-exit's emitter runs the handler once"}
+          }
+        },
+        {
+          "capability": "One handler's throw does not skip the rest",
+          "why": "A handler that throws is reported and the handlers after it still run, so the one that restores the terminal is not the one that gets skipped.",
+          "ours": {"status": "yes", "test": "packages/closeout/src/registry.test.ts", "title": "runs the rest after one throws, and reports it"},
+          "incumbents": {
+            "signal-exit": {"status": "no", "source": "node_modules/signal-exit/dist/mjs/index.js", "quote": "for (const fn of this.listeners[ev]) {", "note": "calls each handler in a plain loop; a throw ends the loop, and the handlers after it do not run"},
+            "exit-hook": {"status": "no", "source": "node_modules/exit-hook/index.js", "quote": "for (const callback of callbacks) {", "note": "calls each synchronous hook in a plain loop; a throw ends the loop"},
+            "restore-cursor": {"status": "n/a", "source": "node_modules/restore-cursor/index.js", "quote": "onExit(() => {", "note": "runs one handler of its own"}
+          }
+        }
+      ]
+    },
+    {
+      "theme": "A shutdown that ends",
+      "rows": [
+        {
+          "capability": "A deadline that names the handler that hung",
+          "why": "A handler that never returns cannot hold Ctrl-C hostage: after the deadline (2000 ms by default) the process leaves with the code it was leaving with and prints which handlers had not returned.",
+          "ours": {"status": "yes", "test": "packages/closeout/src/matrix.test.ts", "title": "does not stop a signal from ending the process, and is named in the report"},
+          "incumbents": {
+            "signal-exit": {"status": "no", "source": "node_modules/signal-exit/dist/mjs/index.js", "lacks": "setTimeout", "note": "awaits nothing a handler returns, so an async cleanup is abandoned rather than bounded"},
+            "exit-hook": {"status": "partial", "source": "node_modules/exit-hook/index.js", "quote": "forceAfter = Math.max(forceAfter, wait);", "missing": "each async hook carries its own `wait`, the longest one bounds the rest, and the forced exit names no hook"},
+            "restore-cursor": {"status": "n/a", "source": "node_modules/restore-cursor/index.js", "lacks": "setTimeout", "note": "one synchronous write; nothing to bound"}
+          }
+        },
+        {
+          "capability": "Phases: flush, release, then restore last",
+          "why": "Handlers run in `flush`, `release`, `restore` order, each phase awaited before the next, so the terminal comes back after the log is written whichever registered first.",
+          "ours": {"status": "yes", "test": "packages/closeout/src/plugin.test.ts", "title": "runs the handler before the restore, though the restore was registered first"},
+          "incumbents": {
+            "signal-exit": {"status": "partial", "source": "node_modules/signal-exit/dist/mjs/index.js", "quote": "const ev = opts?.alwaysLast ? 'afterExit' : 'exit';", "missing": "two tiers, `exit` then `afterExit`, in registration order within each; nothing is awaited between them"},
+            "exit-hook": {"status": "no", "source": "node_modules/exit-hook/index.js", "quote": "for (const callback of callbacks) {", "note": "registration order, every synchronous hook before any asynchronous one"},
+            "restore-cursor": {"status": "partial", "source": "node_modules/restore-cursor/index.js", "quote": "}, {alwaysLast: true});", "missing": "its one restore goes last through signal-exit's `alwaysLast`; there are no phases for anything else"}
+          }
+        },
+        {
+          "capability": "The restore still runs after a handler hung",
+          "why": "Past the deadline the later phases are still run, just no longer waited for, so a hung `flush` does not decide that the cursor stays hidden.",
+          "ours": {"status": "yes", "test": "packages/closeout/src/deadline.test.ts", "title": "still runs restore after a handler hung in flush"},
+          "incumbents": {
+            "signal-exit": {"status": "n/a", "source": "node_modules/signal-exit/dist/mjs/index.js", "lacks": "setTimeout", "note": "has no deadline to run past"},
+            "exit-hook": {"status": "partial", "source": "node_modules/exit-hook/index.js", "quote": "promises.push(Promise.resolve(callback(exitCode)));", "missing": "every async hook is started at once, so a restore hook does run, but beside the hung one rather than after it"},
+            "restore-cursor": {"status": "n/a", "source": "node_modules/restore-cursor/index.js", "lacks": "setTimeout", "note": "has no deadline to run past"}
+          }
+        }
+      ]
+    },
+    {
+      "theme": "The terminal",
+      "rows": [
+        {
+          "capability": "Cursor, raw mode and the alternate screen restored",
+          "why": "`hideCursor`, `rawMode` and `alternateScreen` make the change and register its undo in the `restore` phase, so a full-screen program that dies by any door hands back a usable terminal.",
+          "ours": {"status": "yes", "test": "packages/closeout/src/cursor.test.ts", "title": "turns raw mode off when the program exits without turning it off"},
+          "incumbents": {
+            "signal-exit": {"status": "no", "source": "node_modules/signal-exit/dist/mjs/index.js", "lacks": "isTTY", "note": "writes nothing to a terminal; the restore is a handler you write"},
+            "exit-hook": {"status": "no", "source": "node_modules/exit-hook/index.js", "lacks": "isTTY", "note": "writes nothing to a terminal; the restore is a hook you write"},
+            "restore-cursor": {"status": "partial", "source": "node_modules/restore-cursor/index.js", "quote": "terminal.write('\\u001B[?25h');", "lacks": "setRawMode", "missing": "the cursor only; raw mode and the alternate screen are left as they were"}
+          }
+        },
+        {
+          "capability": "A second signal waits for the first shutdown",
+          "why": "A second Ctrl-C, or a SIGTERM behind it, while a handler still holds the first shutdown waits for that shutdown, so the restore runs before the process dies.",
+          "ours": {"status": "yes", "test": "packages/closeout/src/terminal-restore.test.ts", "title": "the terminal a real process leaves behind (R4)"},
+          "incumbents": {
+            "signal-exit": {"status": "n/a", "source": "node_modules/signal-exit/dist/mjs/index.js", "quote": "const ret = this.#emitter.emit('exit', null, sig);", "note": "handlers run synchronously inside the first signal's listener, so no second signal arrives mid-shutdown"},
+            "exit-hook": {"status": "no", "source": "node_modules/exit-hook/index.js", "quote": "process.once('SIGINT', exit.bind(undefined, true, false, 2));", "note": "the listener is `once`: a second SIGINT while an async hook runs finds none, and the process dies there"},
+            "restore-cursor": {"status": "n/a", "source": "node_modules/restore-cursor/index.js", "quote": "onExit(() => {", "note": "one synchronous write inside signal-exit's handler"}
+          }
+        },
+        {
+          "capability": "No escape sequences into a pipe",
+          "why": "A stream that is not a terminal gets no cursor or screen sequence on the way in or out, so a log carries only what the program wrote.",
+          "ours": {"status": "yes", "test": "packages/closeout/src/cursor.test.ts", "title": "writes nothing to a pipe, in either direction"},
+          "incumbents": {
+            "signal-exit": {"status": "n/a", "source": "node_modules/signal-exit/dist/mjs/index.js", "lacks": "isTTY", "note": "writes nothing to any stream"},
+            "exit-hook": {"status": "n/a", "source": "node_modules/exit-hook/index.js", "lacks": "isTTY", "note": "writes nothing to a terminal"},
+            "restore-cursor": {"status": "yes", "source": "node_modules/restore-cursor/index.js", "quote": "const terminal = process.stderr.isTTY"}
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Exit status",
+      "rows": [
+        {
+          "capability": "A signalled process dies of the signal",
+          "why": "After the handlers run, the signal is re-raised, so a shell prints `^C`, `make` stops, and a CI runner marks the job cancelled rather than failed.",
+          "ours": {"status": "yes", "test": "packages/closeout/src/signal.test.ts", "title": "a signal that nobody else claimed still kills the process"},
+          "incumbents": {
+            "signal-exit": {"status": "yes", "source": "node_modules/signal-exit/dist/mjs/index.js", "quote": "process.kill(process.pid, s);"},
+            "exit-hook": {"status": "no", "source": "node_modules/exit-hook/index.js", "quote": "exitCode = 128 + signal;", "note": "exits 128 + n, so a parent sees an exit code, not a signal; `closeout/exit-hook` keeps that, as exit-hook's suite requires"},
+            "restore-cursor": {"status": "yes", "source": "node_modules/signal-exit/dist/mjs/index.js", "quote": "process.kill(process.pid, s);", "note": "through signal-exit, which it depends on"}
+          }
+        },
+        {
+          "capability": "A program that owns the signal keeps it",
+          "why": "When the program has its own listener for the signal, the handlers run and the program still decides what happens next, with one delivery for one Ctrl-C.",
+          "ours": {"status": "yes", "test": "packages/closeout/src/install.test.ts", "title": "runs the handlers and then stands down, leaving the exit to the program"},
+          "incumbents": {
+            "signal-exit": {"status": "yes", "source": "node_modules/signal-exit/dist/mjs/index.js", "quote": "if (listeners.length === count) {"},
+            "exit-hook": {"status": "no", "source": "node_modules/exit-hook/index.js", "quote": "process.exit(exitCode); // eslint-disable-line unicorn/no-process-exit", "note": "exits after the hooks, whatever other listeners the program has"},
+            "restore-cursor": {"status": "yes", "source": "node_modules/signal-exit/dist/mjs/index.js", "quote": "if (listeners.length === count) {", "note": "through signal-exit, which it depends on"}
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Agents and plugins",
+      "rows": [
+        {
+          "capability": "The shutdown as one `--json` line or an agent event",
+          "why": "`reportToJson()` and `reportToEvent()` project the record the handlers were given, with `timedOut` and the handlers that hung, so a log and an agent read the same facts.",
+          "ours": {"status": "yes", "test": "packages/closeout/src/report.test.ts", "title": "is one line and names every handler that hung"},
+          "incumbents": {
+            "signal-exit": {"status": "no", "source": "node_modules/signal-exit/dist/mjs/index.js", "lacks": "JSON"},
+            "exit-hook": {"status": "no", "source": "node_modules/exit-hook/index.js", "lacks": "JSON"},
+            "restore-cursor": {"status": "no", "source": "node_modules/restore-cursor/index.js", "lacks": "JSON"}
+          }
+        },
+        {
+          "capability": "Plugins: named handlers in a phase, readable as data",
+          "why": "A plugin contributes named handlers to `flush` or `release`, is validated against the family schema, and `contributions()` lists the whole shutdown in order without running it.",
+          "ours": {"status": "yes", "test": "packages/closeout/src/plugin.test.ts", "title": "projects the shutdown sequence as data"},
+          "incumbents": {
+            "signal-exit": {"status": "no", "source": "node_modules/signal-exit/dist/mjs/index.js", "lacks": "plugin"},
+            "exit-hook": {"status": "no", "source": "node_modules/exit-hook/index.js", "lacks": "plugin"},
+            "restore-cursor": {"status": "no", "source": "node_modules/restore-cursor/index.js", "lacks": "plugin"}
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Compatibility",
+      "rows": [
+        {
+          "capability": "Passes exit-hook's own test suite",
+          "why": "`closeout/exit-hook` is graded by exit-hook 5.1.0's own tests, unedited, so changing the import keeps exit-hook's behaviour, 128 + n exit codes included.",
+          "ours": {"status": "yes", "grade": "packages/compat-oracle/baseline/exit-hook.json"},
+          "incumbents": {
+            "signal-exit": {"status": "n/a", "source": "packages/compat-oracle/vendor/signal-exit/test/signal-exit-test.ts", "quote": "t.test('does not exit if user handles signal', t => {", "note": "a different API"},
+            "exit-hook": {"status": "yes", "source": "packages/compat-oracle/vendor/exit-hook/test.js", "quote": "import exitHook, {asyncExitHook} from './shim.js';", "note": "its own suite, the control run"},
+            "restore-cursor": {"status": "n/a", "source": "packages/compat-oracle/vendor/restore-cursor/index.test.js", "quote": "const modulePath = getResourcePath('./shim.js');", "note": "a different API"}
+          }
+        },
+        {
+          "capability": "Passes restore-cursor's own test suite",
+          "why": "`closeout/restore-cursor` is graded by restore-cursor 5.1.0's own tests, which spawn a child per case and check which stream the cursor comes back on.",
+          "ours": {"status": "yes", "grade": "packages/compat-oracle/baseline/restore-cursor.json"},
+          "incumbents": {
+            "signal-exit": {"status": "n/a", "source": "packages/compat-oracle/vendor/signal-exit/test/signal-exit-test.ts", "quote": "t.test('does not exit if user handles signal', t => {", "note": "a different API"},
+            "exit-hook": {"status": "n/a", "source": "packages/compat-oracle/vendor/exit-hook/test.js", "quote": "import exitHook, {asyncExitHook} from './shim.js';", "note": "a different API"},
+            "restore-cursor": {"status": "yes", "source": "packages/compat-oracle/vendor/restore-cursor/index.test.js", "quote": "const modulePath = getResourcePath('./shim.js');", "note": "its own suite, the control run"}
+          }
+        },
+        {
+          "capability": "Passes signal-exit's own test suite, level with signal-exit",
+          "why": "`closeout/signal-exit` passes 134 of the 135 cases of signal-exit 4.1.0's own suite, and signal-exit itself passes the same 134: the one case short fails for both on current Node.",
+          "ours": {"status": "partial", "grade": "packages/compat-oracle/baseline/signal-exit.json", "missing": "one case of 135, `does not exit if user handles signal`, which signal-exit 4.1.0 fails too (the control run)"},
+          "incumbents": {
+            "signal-exit": {"status": "partial", "source": "packages/compat-oracle/vendor/signal-exit/test/signal-exit-test.ts", "quote": "t.test('does not exit if user handles signal', t => {", "missing": "its own suite, the control run, passes 134 of 135: this case fails on Node 22, 24 and 26, all released after signal-exit's last release"},
+            "exit-hook": {"status": "n/a", "source": "packages/compat-oracle/vendor/exit-hook/test.js", "quote": "import exitHook, {asyncExitHook} from './shim.js';", "note": "a different API"},
+            "restore-cursor": {"status": "n/a", "source": "packages/compat-oracle/vendor/restore-cursor/index.test.js", "quote": "const modulePath = getResourcePath('./shim.js');", "note": "a different API"}
+          }
+        }
+      ]
+    }
+  ]
+}

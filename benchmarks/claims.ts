@@ -20,6 +20,7 @@
  * project, and a suite that printed the same thing for both would be hiding the more
  * important one.
  */
+import { claimRatchet, RATCHETED } from './claim-ratchets.js';
 import { PAIRS, PARITY } from './fixtures/entry-points.js';
 import { type AxisName } from './record.js';
 
@@ -62,12 +63,19 @@ export const CLAIMS: readonly ClaimSpec[] = [
     from: { axis: 'agent', variant: 'burgee ÷ commander', metric: 'turns-per-task-ratio' },
     test: { max: 0.7 },
   },
+  /**
+   * This and the two bare weight rows for `burgee` and `burgee/commander` were ≤ 1 and have a
+   * measured floor above it (D-102, D-148). Since D-157 each is a **downward-only ratchet**: the
+   * claim is the ceiling in `.sdlc/bands/claim-ratchets.json`, set just above the measurement,
+   * and it says so in its own words rather than keeping a sentence it cannot meet. The ids stay,
+   * because they key every results document and D-row that has ever settled them.
+   */
   {
     id: 'cold-start-at-or-below-cac',
-    claim: 'the engine starts at or below cac, the lightest framework in the landscape',
-    source: '.sdlc/intents/replacement-parser/intent.md #2, the scoreboard row in .sdlc/intents/README.md, and the speed row of apps/docs/content/docs/comparison.mdx',
+    claim: `the engine's cold start stays within ${String(claimRatchet('cold-start-at-or-below-cac'))}× of cac's, the lightest framework in the landscape (a downward-only ratchet; the ≤ 1 bar is not reachable, D-102)`,
+    source: '.sdlc/intents/replacement-parser/intent.md #2, the scoreboard row in .sdlc/intents/README.md, and the speed row of apps/docs/content/docs/comparison.mdx; the ceiling is .sdlc/bands/claim-ratchets.json (D-157)',
     from: { axis: 'perf', variant: 'burgee ÷ cac', metric: 'cold-start-ratio' },
-    test: { max: 1 },
+    test: { max: claimRatchet('cold-start-at-or-below-cac') },
   },
   {
     id: 'core-under-52kb-bundled',
@@ -76,20 +84,33 @@ export const CLAIMS: readonly ClaimSpec[] = [
     from: { axis: 'weight', variant: 'burgee', metric: 'bundled-bytes' },
     test: { max: CORE_BUNDLE_TARGET },
   },
-  ...PAIRS.map((pair) => ({
-    id: pair.claim ?? `lighter-than-${pair.incumbent.specifier}`,
-    claim: `\`${pair.ours.specifier}\` is lighter in a user's bundle than \`${pair.incumbent.specifier}\`, the package it replaces`,
-    source: 'U5 in .sdlc/intents/README.md — "lighter per subpath than the incumbent it replaces"',
-    from: { axis: 'weight' as const, variant: `${pair.id} ÷ ${pair.incumbent.specifier}`, metric: 'bundled-bytes-ratio' },
-    test: { max: 1 },
-  })),
+  ...PAIRS.map((pair) => {
+    const id = pair.claim ?? `lighter-than-${pair.incumbent.specifier}`;
+    const base = { id, from: { axis: 'weight' as const, variant: `${pair.id} ÷ ${pair.incumbent.specifier}`, metric: 'bundled-bytes-ratio' } };
+    if (!RATCHETED.has(id)) {
+      return {
+        ...base,
+        claim: `\`${pair.ours.specifier}\` is lighter in a user's bundle than \`${pair.incumbent.specifier}\`, the package it replaces`,
+        source: 'U5 in .sdlc/intents/README.md — "lighter per subpath than the incumbent it replaces"',
+        test: { max: 1 },
+      };
+    }
+    const ceiling = claimRatchet(id);
+    return {
+      ...base,
+      claim: `\`${pair.ours.specifier}\` stays within ${String(ceiling)}× of \`${pair.incumbent.specifier}\` alone in a user's bundle (a downward-only ratchet, lowered as it shrinks; ≤ 1 is not reachable, D-102)`,
+      source: 'U5 in .sdlc/intents/README.md, restated as a ratchet by D-157; the ceiling is .sdlc/bands/claim-ratchets.json',
+      test: { max: ceiling },
+    };
+  }),
   /**
    * The same claim as `lighter-than-*`, asked the way a reader actually chooses.
    *
-   * `lighter-than-cac` compares a framework against a parser and reads 2.636. That is a true
-   * number and it stays on the page, but it is not the decision anybody makes: a program that
-   * picks `cac` and then wants its config file read, its shutdown bounded and its cursor handed
-   * back installs three more packages, and *that* is what our one import is competing with.
+   * `lighter-than-cac` compares a framework against a parser and reads 2.317, gated since D-157
+   * as a ratchet rather than at 1. That is a true number and it stays on the page, but it is not
+   * the decision anybody makes: a program that picks `cac` and then wants its config file read,
+   * its shutdown bounded and its cursor handed back installs three more packages, and *that* is
+   * what our one import is competing with.
    *
    * These rows are gated at 1 rather than ratcheted, because unlike the bare ratio there is no
    * structural reason we should ever lose them — and if we do, the right response is to find

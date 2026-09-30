@@ -160,6 +160,81 @@ describe('a resolver may only contribute absolute directories', () => {
   });
 });
 
+/**
+ * Every other shape `validate` refuses, each with the message that names it — a refusal that
+ * read the same for all of them would send the author looking in the wrong place.
+ */
+/** The message `register` refuses `plugin` with, which must be a schema refusal. */
+function refusal(plugin: unknown): string {
+  try {
+    register(plugin);
+  } catch (error) {
+    expect((error as PluginError).code).toBe('E_PLUGIN_SCHEMA');
+    return (error as PluginError).message;
+  }
+  return expect.unreachable();
+}
+
+describe('the rest of the shape, refused at the door', () => {
+
+  it('a resolver with an empty name, which nothing could report it under', () => {
+    expect(refusal({ name: 'a', resolvers: { '': { rank: 0, paths: ['/o'] } } })).toBe('plugin "a": a resolver’s name is empty');
+  });
+
+  it('a resolver that is not an object', () => {
+    expect(refusal({ name: 'a', resolvers: { r: '/opt/bin' } })).toBe('plugin "a": resolver "r" is not an object');
+    expect(refusal({ name: 'a', resolvers: { r: ['/opt/bin'] } })).toBe('plugin "a": resolver "r" is not an object');
+  });
+
+  it('a path that is not a string, or is an empty one', () => {
+    expect(refusal({ name: 'a', resolvers: { r: { rank: 0, paths: [42] } } })).toBe('plugin "a": resolver "r" has a path that is not a string');
+    expect(refusal({ name: 'a', resolvers: { r: { rank: 0, paths: ['/o', ''] } } })).toBe('plugin "a": resolver "r" has a path that is not a string');
+  });
+
+  it('a `when` that is not an object at all', () => {
+    expect(refusal({ name: 'a', resolvers: { r: { rank: 0, paths: ['/o'], when: 'win32' } } })).toBe('plugin "a": resolver "r" has a `when` that is not an object');
+  });
+
+  it('accepts every absolute spelling a template can start with', () => {
+    expect(() => register({ name: 'ok', resolvers: { r: { rank: 0, paths: ['/opt/bin', '{HOME}/bin', 'C:\\tools', 'd:/tools', '\\\\server\\share'] } } })).not.toThrow();
+  });
+});
+
+/**
+ * A rooted path with no drive — `\tools` — is absolute on Windows, where it means the current
+ * drive's root, and relative everywhere else, where the backslash is an ordinary character.
+ */
+const windows = (env: Record<string, string | undefined>): Runtime => ({ platform: 'win32', env, cwd: 'C:\\w' });
+
+describe('substitute, per platform', () => {
+
+  it('keeps a drive-rooted expansion on Windows', () => {
+    expect(substitute('{TOOLS}\\bin', windows({ TOOLS: '\\tools' }))).toBe('\\tools\\bin');
+  });
+
+  it('drops the same expansion off Windows', () => {
+    expect(substitute('{TOOLS}\\bin', linux({ TOOLS: '\\tools' }))).toBeUndefined();
+  });
+
+  it('drops a relative expansion on Windows too', () => {
+    expect(substitute('{TOOLS}\\bin', windows({ TOOLS: 'tools' }))).toBeUndefined();
+  });
+
+  it('keeps a drive letter on Windows, and a UNC share anywhere', () => {
+    expect(substitute('{TOOLS}\\bin', windows({ TOOLS: 'C:\\tools' }))).toBe('C:\\tools\\bin');
+    expect(substitute('{TOOLS}\\bin', linux({ TOOLS: '\\\\server\\share' }))).toBe('\\\\server\\share\\bin');
+  });
+
+  it('drops a variable that is set but empty', () => {
+    expect(substitute('{HOME}/bin', linux({ HOME: '' }))).toBeUndefined();
+  });
+
+  it('splits on `;` on Windows, so a `:` in a drive letter is not a separator there', () => {
+    expect(substitute('{TOOLS}', windows({ TOOLS: 'C:\\a;D:\\b' }))).toBeUndefined();
+    expect(substitute('{TOOLS}', windows({ TOOLS: 'C:\\a' }))).toBe('C:\\a');
+  });
+});
+
 describe('the error vocabulary is the family’s (R8)', () => {
   it('carries a code and a fix on every refusal', () => {
     const refusals: unknown[] = [null, { name: '' }, { name: 'a', resolvers: 1 }, { name: 'a', resolvers: { r: { rank: 0, paths: ['x'] } } }];

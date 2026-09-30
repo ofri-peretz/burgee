@@ -356,16 +356,16 @@ check is a claim, so every row names one.
 
 | R | Status | Where | The check |
 | :-- | :-- | :-- | :-- |
-| R1 | **Built** | `src/width.ts` — `measure()` over `Intl.Segmenter`: the Unicode W/F table, the Hangul jamo walk, the ZWJ and keycap rules | `width.test.ts` grades every case against the real `string-width`; `compat string-width` **229 / 229** |
+| R1 | **Built** | `src/width.ts` — `measure()` over `Intl.Segmenter`: the Unicode W/F table, the Hangul jamo walk, the ZWJ and keycap rules | `width.test.ts` grades every case against the real `string-width`; `compat string-width` **233 / 233** (8.3.0) |
 | R2 | **Built** | `src/width.ts` — `asciiColumns`, the 0x20–0x7E scan `width()` short-circuits to | `differential.test.ts`: `width(s) === measure(strip(s))` over the six-row table, 24 boundary fixtures and 2 000 inputs from a recorded seed |
 | R3 | **Built** | `src/strip.ts` — CSI, OSC 8 and the single-char escapes, with Node's own scanner measured rather than assumed | `strip.test.ts`, including the divergence from `util.stripVTControlCharacters`; `compat strip-ansi` **8 / 8** |
 | R4 | **Built** | `src/slice.ts` over `src/style.ts` — the style stack: open, close at the cut, reopen | `slice.test.ts`; `compat slice-ansi` **15 / 15** |
-| R5 | **Built** | `src/wrap.ts` — the wrap-ansi 10 port, moved out of `flagstaff` with its grader | `wrap.test.ts`; `compat wrap-ansi` **80 / 80** |
+| R5 | **Built** | `src/wrap.ts` — the wrap-ansi 10 port, moved out of `flagstaff` with its grader | `wrap.test.ts`; `compat wrap-ansi` **85 / 85** (10.0.2) |
 | R6 | **Built** | `src/truncate.ts` over `slice`, ellipsis measured with R1 and counted *inside* `cols` | `truncate.test.ts` — the ellipsis-fits arithmetic, all three positions |
 | R7 | **Built** | `src/widest.ts` — one pass, nothing allocated per line | `truncate.test.ts`'s 200 000-line case, which is where `Math.max(...lines)` throws and `widest` does not |
 | R8 | **Built** | `package.json` `exports`; `index.js` default is `width`; five subpaths carry the rest | `facade-defaults.test.ts` (each graded subpath publishes the default its suite links against) + `subpath-isolation.test.ts`, which reads `dist/` so it measures what is published |
 | R9 | **Built** | the bar is restated as D1's, in the integrator lane on 2026-09-16, on the reasoning [§ R9](#r9--the-bar-is-restated-as-d1s) already set out. **83,538 against a ceiling of 170,342, ratio 0.4904**; the bundled half is ratcheted per entry in `RATIO_CEILING` now that `entry-points.ts` has the four pairs | `weight.test.ts` pins `y8.holds` to the arithmetic `ours <= ceiling` rather than to a flag, checks this file against `.sdlc/bands/foundation-ceilings.json`, and asserts the superseded `get-east-asian-width` bar is still recorded with its one-of-six count |
-| R10 | **Built** | four suites vendored under `packages/compat-oracle/vendor/`, graded through generated shims | `node packages/compat-oracle/dist/bin.js string-width wrap-ansi strip-ansi slice-ansi` — 229/229, 80/80, 8/8, 15/15, `--control` first |
+| R10 | **Built** | four suites vendored under `packages/compat-oracle/vendor/`, graded through generated shims | `node packages/compat-oracle/dist/bin.js string-width wrap-ansi strip-ansi slice-ansi` — 233/233, 85/85, 8/8, 104/104, `--control` first |
 | R11 | **Built** | no file in `src/` names `process` | `packages/burgee/src/process-reference-lock.test.ts` repo-wide — linegauge has **no allow-list entry at all**, which is the claim |
 | R12 | **Built** | ESM with a `default` condition per entry, no top-level await | `shape.test.ts`: every published entry is `require()`d from CommonJS. Node refuses a graph with a top-level `await` (`ERR_REQUIRE_ASYNC_MODULE`), so one check proves both clauses |
 | R13 | **Built** | `packages/linegauge/README.md` `## Plugins`, and [§ Extending](#extending-linegauge--there-is-no-key-and-that-is-the-answer) below | `plan-progress.ts` 1.6 greps the README for the section; the family's `plugin-contract` R5a records the refusal beside the other layers' keys |
@@ -415,7 +415,7 @@ Three properties hold across all of it, and each is locked rather than intended:
   `subpath-isolation.test.ts` reads `dist/` and fails the moment one entry reaches for a
   sibling.
 - **Every answer is graded against the incumbent's own suite**, not against a fixture we
-  wrote: 229/229, 80/80, 8/8, 15/15.
+  wrote: 233/233, 85/85, 8/8, 104/104.
 
 ## Extending linegauge — there is no key, and that is the answer
 

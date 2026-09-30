@@ -1,0 +1,70 @@
+---
+title: The static projection
+description: "Every capability carries a fallback template, and emit() returns it whenever support is absent or unknown — so a pipe gets Docs (url), a caption or a line, never OSC bytes."
+---
+
+A **static projection** is what a capability prints where its escape sequence would not be
+understood. Every capability has one — `fallback` is required, and a capability without it is
+refused at registration — and `emit` returns it whenever support is absent **or unknown**.
+
+## Why unknown means no
+
+No terminal answers "do you do OSC 1337", and most OSC sequences cannot be asked about at all.
+A package that emits the bytes and hopes is what puts `]1337;File=inline=1;…` across the screen
+of anyone who piped the output to a file, or into the transcript an agent reads back. So the
+safe default is the projection, and a capability says, as data, which terminals it believes
+understand it ([Detecting support](/docs/guides/detection)).
+
+```js title="projections.mjs"
+import { emit } from 'paratext';
+
+const pipe = { env: {}, isTTY: { stdout: false } };
+
+console.log(JSON.stringify(emit(pipe, 'link', { text: 'Docs', url: 'https://x.dev' })));
+console.log(JSON.stringify(emit(pipe, 'link', { text: 'Docs' })));
+console.log(JSON.stringify(emit(pipe, 'notify', { title: 'Done' })));
+console.log(JSON.stringify(emit(pipe, 'notify', { title: 'Done', body: '3 files' })));
+console.log(JSON.stringify(emit(pipe, 'image', { base64: 'iVBORw0KGgo=', caption: '[logo]' })));
+console.log(JSON.stringify(emit(pipe, 'clipboard', { text: 'copied' })));
+console.log(JSON.stringify(emit(pipe, 'not-registered', { text: 'plain text' })));
+```
+
+```text title="node projections.mjs"
+"Docs (https://x.dev)"
+"Docs"
+"Done"
+"Done: 3 files"
+"[logo]"
+""
+"plain text"
+```
+
+- **A link keeps its address.** `text (url)`, not bare text: a link whose destination vanishes
+  in a pipe has lost the half that mattered. With no URL it is just the text.
+- **Chrome projects to nothing.** The window title, the clipboard, the working directory and the
+  bell are about the terminal, not the content, so a log gets nothing rather than noise.
+- **A name nobody registered** prints the caller's `text` rather than throwing.
+
+## Templates
+
+`encode` and `fallback` are strings, not functions, so a capability can travel as JSON. They
+are written in a three-rule language:
+
+| rule | means |
+| :-- | :-- |
+| `{field}` | the field's value, empty when absent |
+| `{field\|base64}` | the value, base64-encoded (OSC 52 needs it) |
+| `[ … {a} … ]` | emitted only when every field named inside it has a value |
+
+The third rule is what lets `notify` be `{title}[: {body}]` and print `Done` or
+`Done: 3 files` without a branch. An empty string counts as absent, because `Done: ` with
+nothing after it is worse than `Done`. `render(template, fields)` and `fieldsUsed(template)`
+are exported for a caller writing its own.
+
+## Where the projection is not used
+
+The CSI half of the ansi-escapes surface — cursor movement, erasing, scroll regions — does not
+degrade, because a cursor move silently dropped would corrupt the screen of a program that
+relied on it, and ansi-escapes' own does not degrade either. The two drop-ins that keep their
+incumbent's behaviour, `paratext/terminal-link` and `paratext/term-img`, project where their
+incumbents do ([Links and images](/docs/guides/links-and-images)).

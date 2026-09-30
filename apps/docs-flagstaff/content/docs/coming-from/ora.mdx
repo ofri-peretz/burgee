@@ -45,8 +45,9 @@ which you adopt a file at a time:
 | `json` | one NDJSON event per transition, on stderr |
 | `accessible` | the static text, never a redraw |
 
-ora, off a terminal, still prints frames — `\r` after `\r` into the log an agent reads back.
-Every flagstaff component has a required `static(state)`, and that **static projection** is
+ora, off a terminal, writes its start line and its final line and nothing in between, so a
+log never sees `linking` between `building` and `built` (`ora.test.ts` asserts exactly that of
+`flagstaff/ora`, which behaves as ora does). Every flagstaff component has a required `static(state)`, and that **static projection** is
 what a pipe, an agent and a screen reader get. Which mode runs is decided once by roundel's
 output policy, never by the component.
 

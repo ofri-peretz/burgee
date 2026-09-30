@@ -1,0 +1,60 @@
+---
+title: Validation
+description: "validate() returns every violation at once, each naming the rule, the value and the source that set it — file and line, flag or variable — and check() throws them as one CONFIG error."
+---
+
+A value can be the wrong type wherever it came from. seniority's validation knows where it
+came from, so the message points at the place to fix it: the file and line, the flag the user
+typed, or the variable.
+
+```js title="validate.mjs"
+import { check, resolve, validate } from 'seniority';
+
+const specs = { out: { type: 'string' }, mode: { type: 'string' }, retries: { type: 'number' }, token: { type: 'string' } };
+const shape = { out: { type: 'string' }, mode: { choices: ['fast', 'safe'] }, retries: { type: 'number' }, token: { required: true } };
+
+const result = resolve(specs, {
+  flags: { mode: 'quick' },
+  env: { APP_RETRIES: 'three' },
+  envPrefix: 'APP',
+  config: { path: 'mytool.config.json', data: { out: 4 }, lines: { out: 3 } },
+});
+
+for (const violation of validate(shape, result)) console.log(violation.message);
+
+try {
+  check(shape, result);
+} catch (error) {
+  console.log(`${error.constructor.name}, ${error.message.split('\n').length} lines`);
+}
+```
+
+```text title="node validate.mjs"
+`out` must be a string; `mytool.config.json:3` set it to `4`
+`mode` must be one of fast, safe; `--mode` set it to `"quick"`
+`retries` must be a number; `APP_RETRIES` set it to `"three"`
+`token` is required, and no source set it
+ConfigError, 4 lines
+```
+
+- **Every violation, not just the first.** A config with four mistakes is fixed in one pass.
+- **`validate` never throws.** No violations is an empty array. `check` is the throwing form:
+  one `ConfigError` listing them all, or the values when there is nothing to say.
+- **A shape reads `type`, `choices`, `required` and `default`.** An option with no declared
+  type is not type-checked: a shape that says nothing asserts nothing.
+- **Each violation is data too:** `{ key, message, expected, value, provenance }`, so `--json`
+  can carry it without parsing the sentence.
+
+The line comes from the layer. `discover` records the line of each top-level key in a JSON
+config. A JavaScript config has no line to give, so its violations name the file alone.
+
+## What is tested
+
+- [`validate.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/seniority/src/validate.test.ts):
+  - the sentence, line and all;
+  - no line when the source has none;
+  - a flag named as the user typed it;
+  - choices listed;
+  - a required option with no provenance;
+  - every violation reported;
+  - `check` throws one CONFIG error.

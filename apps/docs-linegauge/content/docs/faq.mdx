@@ -1,0 +1,63 @@
+---
+title: FAQ
+description: "Short answers about linegauge — terminal width, emoji, CJK, ambiguous characters, Nerd Fonts, non-strings, CommonJS and overrides — each with where to read more."
+---
+
+## How do I get the terminal's width?
+
+From the terminal, not from linegauge: `process.stdout.columns` when `process.stdout.isTTY`,
+and a width of your choosing otherwise. linegauge never reads `process`, so the same call gives
+the same answer in a terminal, a pipe and a test. [Wrapping help text](/docs/recipes/wrapping-help)
+shows the pattern.
+
+## Why is an emoji two columns and not one per code point?
+
+Because a terminal draws it in two. A family emoji is four people joined by three zero-width
+joiners — seven code points, one grapheme cluster — and `width` counts clusters
+([Measuring](/docs/guides/measuring)).
+
+## My table's CJK column is off by one or two.
+
+Measure with `width`, not `.length` or `padEnd`, which count code units: `古` is one code unit
+and two columns. [Aligning columns](/docs/recipes/aligning-columns) pads by columns.
+
+## Some characters are one column in my terminal and two in my colleague's.
+
+Those are East Asian **ambiguous** characters — `±`, `×`, Greek, Cyrillic, box drawing — which
+a CJK font draws wide. `width` counts them narrow unless you pass
+`{ ambiguousIsNarrow: false }`. No terminal reports which it does, so it is the caller's
+choice ([Measuring](/docs/guides/measuring#options)).
+
+## My Nerd Font icons measure one column and draw two.
+
+They are in the Private Use Area, which Unicode leaves to the font. Register a
+[width plugin](/docs/guides/plugins) that says so, with a `why`, and every measurement
+after that agrees with your font.
+
+## What does `width(undefined)` do?
+
+Returns `0`, as string-width does, rather than throwing. A width call is usually reached with
+whatever a template produced.
+
+## Can I use it from CommonJS?
+
+Yes, on Node 20.19+ and 22.13+: the package is ESM with a `default` condition, so
+`require('linegauge')` loads it through `require(esm)`, and `.default` is `width`. Every entry
+point is checked to load that way.
+
+## Can I replace a string-width I do not import myself?
+
+Yes, with an npm `overrides` entry, because the root default export is string-width's call.
+The other three are subpaths, which an override cannot point at
+([Incremental migration](/docs/recipes/incremental-migration)).
+
+## Where is truncation from the left, or in the middle?
+
+`truncate(text, columns, { position: 'start' })` and `{ position: 'middle' }`. The ellipsis
+is inside the budget in all three positions ([Slicing and truncating](/docs/guides/cutting)).
+
+## Is `linegauge/wrap` exactly wrap-ansi?
+
+It passes all 85 cases of wrap-ansi 10.0.2's own suite, and agrees with wrap-ansi on two
+hundred generated inputs under six option sets in linegauge's own tests. The differences that
+remain across all four paths are on [Compatibility](/docs/drop-ins#known-differences).

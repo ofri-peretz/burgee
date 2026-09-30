@@ -1,0 +1,48 @@
+---
+title: Why linegauge
+description: "linegauge against string-width, wrap-ansi, strip-ansi and slice-ansi, one capability per row, every cell linked to the test, grade or source that proves it."
+---
+
+string-width, wrap-ansi, strip-ansi and slice-ansi are good at what they do, and linegauge
+matches them where they are right: each of its four drop-in paths is graded by the incumbent's
+own test suite, 100% on all four. What it adds is what four separate packages cannot share —
+one package with no dependencies, the pieces that live in yet more packages (truncation with
+the ellipsis inside the budget, the widest of many lines), and a way to tell it that your
+terminal disagrees with Unicode.
+
+The table below is the whole comparison. Every mark links to its evidence: a test in this
+repository for ours, and for theirs the source file of the exact version compat-oracle grades,
+or that package's own test suite. `scripts/capabilities-lock.test.ts` fails the build when a
+cited test no longer contains the title it is cited for, when a source no longer contains the
+line it is quoted for, or when a source we say lacks something has gained it.
+
+<CapabilityMatrix pkg="linegauge" />
+
+## Reading it
+
+- **Parity rows are here on purpose.** All three measuring incumbents are at Unicode 17 and
+  measure a ZWJ sequence as one cluster, and slice-ansi 9 closes the styles it opens. A reader
+  would otherwise have to go and check; the cells say they match.
+- **— does not apply** is not a soft ✗. strip-ansi removes escape sequences and measures
+  nothing, so a measuring row does not apply to it; the cell says why.
+- **Truncation and `widest` are not in the four incumbents** — they are cli-truncate and
+  widest-line, two more packages. The row shows what you would install on top of the four to
+  get them.
+
+## What is not in the table
+
+A row goes in only when every cell of it can be proved. These were left out:
+
+- **`OSC 8` hyperlinks.** `wrap` and `slice` carry a hyperlink across a break and close it at
+  a cut, and their differential tests include hyperlink cases — but wrap-ansi and slice-ansi do
+  too, and no test of ours names the case on its own.
+- **Linear time on adversarial input.** There is no regression test for it in this repository
+  yet, so there is no row.
+- **Ambiguous width.** `width(text, { ambiguousIsNarrow: false })` counts ambiguous characters
+  wide, exactly as string-width's option does. `wrap` and `slice` do not take the option, and
+  neither do wrap-ansi and slice-ansi, so the row would say nothing either way
+  ([Measuring](/docs/guides/measuring#options)).
+- **Weight in bytes.** The per-entry figures are asserted by
+  [`weight.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/linegauge/src/weight.test.ts)
+  and published on [Benchmarks](https://burgee.interlace.tools/docs/benchmarks), measured the
+  same way on both sides. They are a number, not a yes-or-no capability.

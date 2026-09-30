@@ -1,0 +1,112 @@
+---
+title: Getting started
+description: "Install bellpull, run a program, and read one result back: whether it succeeded, its output, and which binary on PATH actually ran — no try/catch."
+---
+
+bellpull runs another program and hands back one value you can read: whether it succeeded,
+its exit code or signal, its output, how long it took, and **which executable ran and which
+`PATH` directory it came from**. A non-zero exit is part of that value, not an exception.
+
+## Install
+
+```bash
+npm install bellpull
+```
+
+It has no dependencies. It is ESM with a `default` condition, so `require('bellpull')` also
+works from CommonJS on Node 20.19+ and 22.13+.
+
+## The runtime
+
+Nothing in bellpull reads `process`. Every call takes a **runtime** — the platform, the
+environment and the working directory — so resolution is a function of its arguments, and a
+test can hand it a `PATH` instead of editing `process.env`. For the real process,
+`ambientRuntime()` builds one:
+
+```js
+import { ambientRuntime } from 'bellpull';
+
+const runtime = ambientRuntime(); // { platform, env, cwd, uid, gid }
+```
+
+Every example on this site runs against a small fixture: two installs of one tool, `greet`, in
+two directories, the situation behind every "works on my machine". `tools.mjs` makes them,
+and puts the directories you name in front of `PATH`:
+
+```js title="tools.mjs"
+import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { ambientRuntime } from 'bellpull';
+
+/** Two installs of one tool, `greet`, in two directories — the shape of every "which one ran?". */
+export function install() {
+  for (const dir of ['bin', 'vendor/bin']) {
+    mkdirSync(dir, { recursive: true });
+    const file = join(dir, 'greet');
+    writeFileSync(file, `#!/usr/bin/env node\nconsole.log('hello from ${dir}');\nprocess.exitCode = Number(process.argv[2] ?? 0);\n`);
+    chmodSync(file, 0o755);
+  }
+}
+
+/** The real process's runtime, with `dirs` in front of PATH. */
+export function runtimeWith(...dirs) {
+  const base = ambientRuntime();
+  const path = [...dirs.map((d) => join(base.cwd, d)), base.env.PATH].join(':');
+  return { ...base, env: { ...base.env, PATH: path } };
+}
+```
+
+## A first run
+
+```js title="first.mjs"
+import { relative } from 'node:path';
+
+import { run } from 'bellpull';
+
+import { install, runtimeWith } from './tools.mjs';
+
+install();
+const runtime = runtimeWith('bin', 'vendor/bin');
+
+const result = await run('greet', ['3'], { runtime });
+console.log(result.ok, result.code, result.stdout.trim());
+console.log('ran', relative(runtime.cwd, result.executable.path), 'found in', relative(runtime.cwd, result.executable.from));
+```
+
+`greet 3` exits 3. The promise still resolves, with `ok: false` and the code, and the result
+says which of the two `greet`s ran:
+
+```text title="node first.mjs"
+false 3 hello from bin
+ran bin/greet found in bin
+```
+
+Every output block on this site is checked: `tests/examples.test.ts` writes each titled file,
+runs the command in the block's title, and compares.
+
+## The result
+
+| field | what it is |
+| :-- | :-- |
+| `ok` | `true` only for exit 0, inside the deadline |
+| `code` / `signal` | the exit code, or the signal that ended the child; one of them is `null` |
+| `stdout` / `stderr` | everything the child wrote, decoded as UTF-8 — kept even when it was killed |
+| `duration` | wall-clock milliseconds from spawn to close, Node's own scheduling included |
+| `command` / `args` | what you asked to run |
+| `executable` | `{ path, from }`: the file that ran, and the `PATH` entry that found it (`''` when you named a path) |
+| `timedOut` | whether the deadline killed it |
+
+`run()` **rejects** only when no process ran: the command did not resolve (`NotFoundError`,
+`code: 'ENOENT'`) or the spawn failed (`SpawnError`). Anything a process did, it resolves with.
+
+## Where next
+
+- [Guides](/docs/guides/running): running, deadlines, resolution, Windows without a shell,
+  one result for people and agents, resolver plugins.
+- [Why bellpull](/docs/why-bellpull): what it does that execa, cross-spawn and which do not —
+  and where execa is ahead — cell by cell, with the evidence.
+- [Coming from cross-spawn](/docs/coming-from/cross-spawn) and
+  [which](/docs/coming-from/which): change one import. [From execa](/docs/coming-from/execa) it
+  is a rewrite, and the page says so.
+- [API reference](/docs/api): every export of every entry point.

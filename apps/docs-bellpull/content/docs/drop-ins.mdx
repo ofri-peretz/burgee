@@ -1,0 +1,71 @@
+---
+title: Compatibility
+description: "How bellpull's drop-ins are graded — cross-spawn 68 / 68 and node-which 5 / 5 by their own suites — and why execa's suite grades bellpull 0 / 1048 and is declared a ceiling, not a drop-in."
+---
+
+`bellpull/cross-spawn` and `bellpull/node-which` are graded, not described as compatible. Each
+is run against its incumbent's **own test suite**, by
+[compat-oracle](https://github.com/ofri-peretz/burgee/blob/main/packages/compat-oracle/README.md),
+in CI. execa's suite is run too, to measure the answer rather than state it.
+
+<CapabilityMatrix pkg="bellpull" theme="Compatibility" />
+
+The family's [compatibility page](https://burgee.interlace.tools/docs/compatibility) is
+generated from the oracle's last run and is the authority for the current figures.
+
+## How a suite is graded
+
+1. The incumbent's repository is cloned at the release tag of the graded version —
+   cross-spawn 7.0.6, which 7.0.0, execa 10.0.1 — and its test directory copied into
+   `packages/compat-oracle/vendor/`, with a `PROVENANCE` file naming the tag, the commit and
+   the command that reproduces it.
+2. The only edit is the import that reaches the library, rewritten to a shim generated per run.
+3. A **control run** points the shim at the real incumbent first; its total is what every rate
+   is measured against.
+4. The **target run** points the same shim at bellpull.
+
+## What each grade covers
+
+- **cross-spawn — 68 of 68.** Every case runs four ways — `spawn`, `spawn` with a forced shell,
+  `sync`, and `sync` with a forced shell. On POSIX cross-spawn is a pass-through, so the suite
+  never reaches the Windows escaping or the `cmd.exe` branch: replacing the escaper with
+  `` arg => `"${arg}"` `` — the injection bug in its purest form — leaves the row at 68 / 68.
+  That half is covered by bellpull's own tests ([Windows](/docs/guides/windows)).
+- **which — 5 of 5.** node-which 7's `test/index.js`, against `bellpull/node-which`. Five is the
+  suite's count of top-level tests, each run under `posix` and `win32` and through both
+  `which()` and `which.sync()`. `test/bin.js` grades node-which's command-line tool, which
+  bellpull does not ship, and is not graded.
+- **execa — 0 of 1,048, a ceiling.** The 1,048 are execa's `arguments/`, `methods/` and
+  `return/` directories. Every file imports `execa`, which bellpull does not export, so each
+  dies before a case runs; the other nine directories read the same zero and are left out of
+  the recurring grade because the whole suite takes about eleven minutes. Declaring the row a
+  ceiling keeps `burgee migrate` from ever rewriting an execa import to bellpull.
+
+## Known differences
+
+- **`bellpull/node-which` is synchronous underneath.** `which()` runs the same search as
+  `which.sync()` and returns it as a promise, rather than walking the filesystem
+  asynchronously.
+- **`bellpull/which` is not the drop-in.** It is bellpull's own resolver: it returns
+  `{ path, from, ext }` rather than a string, and skips empty and relative `PATH` entries.
+- **`bellpull/cross-spawn` on Windows hands `cmd.exe` the command as written**, exactly as
+  cross-spawn does, so `cmd.exe` resolves a bare name again in the child's environment. Building
+  the line from the resolved path would be a divergence from cross-spawn that its suite could
+  not see; it is recorded in `run.ts` rather than quietly changed.
+
+## Moving one import
+
+```diff
+- import spawn from 'cross-spawn';
++ import spawn from 'bellpull/cross-spawn';
+```
+
+```diff
+- import which from 'which';
++ import which from 'bellpull/node-which';
+```
+
+`npx burgee migrate --dry-run` lists every import it would rewrite — only drop-ins graded level
+with their incumbent — and `npx burgee migrate` makes the change.
+[Incremental migration](/docs/recipes/incremental-migration) moves a call site from the
+drop-in to `run()`.
