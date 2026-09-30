@@ -37,7 +37,7 @@
     "fumadocs-mdx": "^15.4.4",
     "fumadocs-ui": "^16.15.14",
     "next": "^16.3.6",
-    "posthog-js": "1.434.14",
+    "posthog-js": "1.434.15",
     "react": "^19.3.0"
   },
   "devDependencies": {
