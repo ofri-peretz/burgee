@@ -3,6 +3,12 @@ title: Changelog
 description: "Every release of closeout, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 0.6.1
+
+### Patch Changes
+
+- [#752](https://github.com/ofri-peretz/burgee/pull/752) [`22e6dae`](https://github.com/ofri-peretz/burgee/commit/22e6dae1b71bfa478265829a1b98d20a6f9de4f7) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A plugin that declares `contract: 0` or a negative contract is now refused with `E_PLUGIN_CONTRACT`, as `schema.json`'s minimum of 1 always said. These hosts checked only that a contract was not newer than the one they know, so 0 and below registered.
+
 ## 0.6.0
 
 ### Minor Changes
