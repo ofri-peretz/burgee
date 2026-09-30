@@ -36,6 +36,13 @@ describe('host reads process at the moment of the read', () => {
     swapped('execArgv', ['--inspect'], () => expect(host.execArgv).toEqual(['--inspect']));
   });
 
+  // The façades ask it for `electron`, and until 2026-09-30 only they reached it: on the
+  // ubuntu coverage run none of them did, so the getter was the one uncovered function in
+  // burgee (functions 99.85%). The seam's own suite asserts it, like every other read.
+  it('versions', () => {
+    swapped('versions', { node: '24.0.0', electron: '37.0.0' }, () => expect(host.versions['electron']).toBe('37.0.0'));
+  });
+
   it('defaultApp is true only when Electron set it to true', () => {
     expect(host.defaultApp).toBe(false);
     swapped('defaultApp' as keyof NodeJS.Process, true, () => expect(host.defaultApp).toBe(true));

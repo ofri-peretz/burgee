@@ -5,7 +5,7 @@ run-name: >-
   Quality (Full) · ${{ github.event_name == 'pull_request' && format('PR #{0} · {1}', github.event.pull_request.number, github.event.pull_request.title) || (github.event_name == 'schedule' && 'Weekly drift scan' || github.event_name) }}
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Heavy half of the gate — Tests, Build, Typecheck. Ported from
+# Heavy half of the gate — Tests, Build, Typecheck, Coverage. Ported from
 # ofri-peretz/eslint/quality-full.yml.
 #
 # Runs on: push to main (post-merge verification), non-draft PRs, PRs labelled
@@ -50,7 +50,7 @@ jobs:
   #   run  ⇔  event is not a pull request  ∨  the PR is not a draft  ∨  it carries `run-full-ci`
   #
   # Draft PRs without the label still skip every heavy job and the gate below, exactly as
-  # before. Keep the four copies of the condition identical.
+  # before. Keep the five copies of the condition identical.
   test:
     name: Unit Tests (Turbo)
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false || contains(github.event.pull_request.labels.*.name, 'run-full-ci')
@@ -89,11 +89,70 @@ jobs:
       - uses: ./.github/actions/setup
       - run: npx turbo run typecheck
 
+  # Every package's coverage thresholds (100%, or the few its own vitest config lowers), on
+  # every PR, so a suite that stops covering its source cannot merge. Until 2026-09-30 they
+  # ran only in the weekly `codecov.yml` job, and burgee's had failed there unseen: zsh and
+  # fish are not on ubuntu-latest, so the completion cases skipped and the code only they
+  # reach was uncovered. The shells are installed here, and `REQUIRE_SHELLS=1` makes a missing
+  # one fail those suites instead of skipping them.
+  #
+  # Only the packages a PR can have changed: each one that changed against the base, and each
+  # package that depends on one (turbo's `...[base]`), limited to `packages/*` so no docs app
+  # is built. A push to main, the merge queue's base aside, the weekly scan and a dispatch run
+  # them all.
+  coverage:
+    name: Coverage (changed packages)
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false || contains(github.event.pull_request.labels.*.name, 'run-full-ci')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      # The same step as completions.yml, and for the same reason: only Ubuntu's own sources.
+      - name: Install zsh and fish
+        run: |
+          set -euo pipefail
+          sudo apt-get update -q \
+            -o Dir::Etc::sourcelist=/etc/apt/sources.list \
+            -o Dir::Etc::sourceparts=/dev/null \
+            -o APT::Get::List-Cleanup=0
+          sudo apt-get install -y -q zsh fish
+      - name: Each affected package's suite, against its coverage thresholds
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.merge_group.base_sha || '' }}
+          REQUIRE_SHELLS: "1"
+        run: |
+          set -euo pipefail
+          if [ -n "$BASE" ]; then scope="...[$BASE]"; else scope="./packages/*"; fi
+          mapfile -t pkgs < <(npx turbo ls --filter="$scope" --output=json \
+            | jq -r '.packages.items[] | select(.path | startswith("packages/")) | .name')
+          if [ "${#pkgs[@]}" -eq 0 ]; then echo "No package changed against $BASE; nothing to cover."; exit 0; fi
+          echo "Coverage for: ${pkgs[*]}"
+          filters=()
+          for p in "${pkgs[@]}"; do filters+=("--filter=$p"); done
+          npx turbo run coverage "${filters[@]}" --concurrency=2
+      # A threshold failure prints only the percentages. This names each uncovered line and
+      # function, from the lcov every package writes, so the fix is readable from the log.
+      - name: Name what is not covered
+        if: failure()
+        run: |
+          set -euo pipefail
+          for report in packages/*/coverage/lcov.info; do
+            awk -v pkg="$(basename "$(dirname "$(dirname "$report")")")" -F'[:,]' '
+              /^SF:/ { file = $2 }
+              /^DA:/ && $3 == 0 { print pkg "/" file ":" $2 " line not covered" }
+              /^FNDA:0,/ { print pkg "/" file " function " $3 " not covered" }
+              /^BRDA:/ && ($5 == "-" || $5 == 0) { print pkg "/" file ":" $2 " branch not covered" }
+            ' "$report"
+          done
+
   quality-full-gate:
     name: Quality (Full) Gate
     runs-on: ubuntu-latest
     timeout-minutes: 2
-    needs: [test, build, typecheck]
+    needs: [test, build, typecheck, coverage]
     if: always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false || contains(github.event.pull_request.labels.*.name, 'run-full-ci'))
     steps:
       - name: Render gate report
@@ -101,11 +160,12 @@ jobs:
           R_TEST: ${{ needs.test.result }}
           R_BUILD: ${{ needs.build.result }}
           R_TYPECHECK: ${{ needs.typecheck.result }}
+          R_COVERAGE: ${{ needs.coverage.result }}
         run: |
           set -euo pipefail
           icon() { case "$1" in success) echo "✅";; failure) echo "❌";; cancelled) echo "⏹";; skipped) echo "⏭";; *) echo "⚠️";; esac; }
           all_pass=true
-          for r in "$R_TEST" "$R_BUILD" "$R_TYPECHECK"; do [ "$r" = "success" ] || all_pass=false; done
+          for r in "$R_TEST" "$R_BUILD" "$R_TYPECHECK" "$R_COVERAGE"; do [ "$r" = "success" ] || all_pass=false; done
           {
             if $all_pass; then echo "# ✅ All heavy quality gates passed"; else echo "# ❌ One or more heavy quality gates failed"; fi
             echo ""
@@ -114,6 +174,7 @@ jobs:
             echo "| Unit + lock tests | $(icon "$R_TEST") $R_TEST |"
             echo "| Build | $(icon "$R_BUILD") $R_BUILD |"
             echo "| Typecheck | $(icon "$R_TYPECHECK") $R_TYPECHECK |"
+            echo "| Coverage thresholds (changed packages) | $(icon "$R_COVERAGE") $R_COVERAGE |"
             echo ""
             echo "_Run \`npm run ci:local\` to mirror these gates locally._"
           } >> "$GITHUB_STEP_SUMMARY"
