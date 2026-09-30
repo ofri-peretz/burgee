@@ -225,6 +225,27 @@
         }
       ]
     },
+    "bellpull": {
+      "ceiling": 1,
+      "unit": "ratio",
+      "target": 1,
+      "derive": {
+        "source": "ci",
+        "observations": 10,
+        "headroom": 1.25,
+        "step": 0.05,
+        "rule": "bellpull R8's bar, not a derived ceiling: spawn time at or under tinyexec, so the ceiling IS the target and never rises above it. The derive rule the other pairs use (the largest median of the last 10 CI observations times 1.25) would put it above 1.0 and turn R8 into a ratchet it never asked to be. It may still come down: the largest median of the last 10 CI observations times 1.25, rounded up to the next 0.05, once that is under 1.0."
+      },
+      "history": [
+        {
+          "ceiling": 1,
+          "setOn": "2026-09-30",
+          "decision": "D-20260930-bellpull-spawn-vs-tinyexec",
+          "measured": 0.933,
+          "why": "R8's bar, set at the target on the first step: bellpull ÷ tinyexec read 0.922, 0.932, 0.933, 0.940 and 0.949 across five runs on an M4 Pro at load 55-60 (median 0.933), so the pair is under 1.0 before any ceiling is derived for it. Gating at the bar rather than at 1.25x a measurement keeps R8 a requirement instead of a ratchet that starts above it."
+        }
+      ]
+    },
     "flagstaff/ora": {
       "ceiling": 1.5,
       "unit": "ratio",

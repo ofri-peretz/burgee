@@ -161,8 +161,11 @@ const RULES: Record<string, EntryRule> = {
   // 13,500 for **96 bytes**: `FIX` is a runtime table keyed by `PluginErrorCode`, so the
   // `E_NO_CONTRIBUTION` code `paratext check` refuses with has to carry its fix text here, where
   // every refusal's fix lives. Measured 13,496.
-  // 13,500 → 12,200 on 2026-09-30 (B5): the capability fragment without its prose. Measured
-  // 12,099 with #754's output-mode check.
+  // 13,550 for **16 bytes** (2026-09-30): #752 made `validate` refuse a `contract` below 1, the
+  // family-wide floor the shared schema already stated — `|| contract < 1` in `plugin.js`.
+  // Measured 13,512 on main after it merged: 12 B over, with every pre-push battery on it red.
+  // 13,550 → 12,200 the same day (B5): the capability fragment without its prose. Measured
+  // 12,115 with #752's floor and #754's output-mode check.
   './plugin': { allow: [], budget: 12_200, denied: ['index.js', 'builtins.js', 'ansi-escapes.js'] },
 };
 
