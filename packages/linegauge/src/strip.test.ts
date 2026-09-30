@@ -112,3 +112,20 @@ describe('where Node\u2019s own stripper diverges, on the Node versions where it
     expect(nodeStrip(COLON).length).toBe(NODE_FIXED_COLON_FORM ? 3 : 15);
   });
 });
+
+/**
+ * One pass, strip-ansi's grammar — so its edges are the incumbent's too, including the ones the
+ * two-pass version answered differently (2026-09-30, B5): a C1 OSC is removed when an `ESC` or
+ * `0x9B` is also present and kept when not, as strip-ansi's fast path does, and `ESC [` before a
+ * byte that is no final is text.
+ */
+describe('strip is strip-ansi at the edges too', () => {
+  it.each([
+    ['C1 OSC beside a CSI', '\u009D0;title\u009C\u001B[31mred'],
+    ['C1 OSC alone, which strip-ansi returns as it is', '\u009D0;title\u009Cplain'],
+    ['ESC [ before a non-final byte', 'a\u001B[aa'],
+    ['a CSI with no final byte before a link', '\u001B[\u001B]8;;x\u0007t'],
+  ])('%s', (_name, input) => {
+    expect(strip(input)).toBe(stripAnsi(input));
+  });
+});
