@@ -29,7 +29,10 @@ const ours = async () => (await run(COMMAND, ARGS, { runtime: ambientRuntime() }
 const theirs = async () => (await x(COMMAND, ARGS)).stdout;
 
 export default {
-  n: 20,
+  // 40, not 20 (D-20260930-bellpull-first-hit-resolve): on a Linux runner both sides sit within
+  // about 1 % of a raw `child_process.spawn`, so the ratio lives next to its 1.0 gate, and what
+  // keeps a median of 11 rounds off it is how much each round averages. ~4 s of runner time.
+  n: 40,
   async check() {
     const [a, b] = [await ours(), await theirs()];
     // `trim()` for the line ending alone: a Windows child writes `\r\n`, and either side reading

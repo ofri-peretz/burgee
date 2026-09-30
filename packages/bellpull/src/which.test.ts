@@ -41,7 +41,7 @@
  * same case exercises the `PATHEXT` branch there and the mode branch here — which is the
  * first time either half of `executableByName` has been run by anything.
  */
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 
@@ -156,6 +156,24 @@ describe('the executable bit is checked, not just existence', () => {
 
   it('passes over a directory with the right name', () => {
     expect(whichSync('tooldir', { runtime: host({ env: { PATH: root } }) })).toBeUndefined();
+  });
+
+  // A PATH entry that is a *file*: statting `<file>/tool` is `ENOTDIR`, which Node's
+  // `throwIfNoEntry: false` answers like an absent file. A miss, and the walk goes on to binB.
+  it('passes over a PATH entry that is a file rather than a directory, and keeps looking', () => {
+    const file = join(binA, `tool${EXE}`);
+    expect(whichSync('tool', { runtime: host({ env: { PATH: hostPath(file, binB) } }) })?.from).toBe(binB);
+  });
+
+  // A stat that fails for a reason other than absence still throws with `throwIfNoEntry: false`
+  // — here `ELOOP`, a symlink to itself, which no uid can stat, root included. It is a miss too,
+  // not an exception out of `which`. POSIX only: creating a symlink on Windows needs a privilege
+  // a CI runner does not hold.
+  it.skipIf(WINDOWS)('passes over a candidate whose stat fails outright, and keeps looking', () => {
+    const loop = join(root, 'loop');
+    mkdirSync(loop, { recursive: true });
+    symlinkSync('tool', join(loop, 'tool'));
+    expect(whichSync('tool', { runtime: host({ env: { PATH: hostPath(loop, binB) } }) })?.from).toBe(binB);
   });
 });
 

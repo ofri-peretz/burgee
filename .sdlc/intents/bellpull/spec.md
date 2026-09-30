@@ -106,7 +106,11 @@ not accepted**, and the Design→Build acceptance line is a human's to write
   2026-09-30, D-20260930-bellpull-spawn-vs-tinyexec:** B5's `bellpull ÷ tinyexec` pair spawns
   `node --version` by name and reads its stdout through each — `run` against `x` — and reads
   **0.933** on an M4 Pro, gated at **1.0**, R8's own bar, with no ratchet above it. Both
-  halves are met, so the row reads `Built`.)*
+  halves are met, so the row reads `Built`.)* *(**And the first Linux reading refuted it,
+  the same day — D-20260930-bellpull-first-hit-resolve.** ubuntu-latest read **1.06**:
+  resolution walked the whole `PATH` with a throwing stat per miss, ~195 µs a spawn. Fixed;
+  the runner now reads **0.992–0.997**, at the raw-`child_process` floor, and the row is
+  `Built` on that evidence rather than on the Mac's.)*
 - **R9 (Y7)** `execa`, `cross-spawn` and `which` suites vendored into `compat-oracle`,
   `--control` first, ratcheting. `execa`'s is the largest compatibility surface in the
   family; a partial pass rate is published as a partial number, never rounded up.
@@ -169,7 +173,7 @@ built**. R9 closed on 2026-09-27 and R8 on 2026-09-30, when its spawn half got a
 | R5 | **Built** | `src/project.ts` — `outcomeOf` is the one verdict; `format`, `toJson`, `toEvent` are its three renderings | `matrix.test.ts`: *"every rendering comes from one value — none of them can report something the others cannot"* |
 | R6 | **Built** | `src/spawn-args.ts`, `escape.ts`, `shebang.ts`, `enoent.ts`, and the façade at `src/cross-spawn.ts`. `shell` is off by default | `cross-spawn`'s own suite through `compat-oracle`: **68 / 68**, control 68 / 68. Plus `escape.test.ts` and `cross-spawn.test.ts` |
 | R7 | **Built** | as **restated** above, not as first written: subpath isolation, and one override target — `bellpull/cross-spawn`. There is no root default export and no `./run-path` | `weight.test.ts`: `./which` reaches `runtime.js` and `which.js` and nothing else; every entry declares a budget; no entry reaches a package |
-| R8 | **Built** | Both halves, each against `tinyexec` 1.3.1 (a pinned `benchmarks/` devDependency). **Bytes: met, 2026-09-27 (D-160)** — B4's `bellpull` pair bundles `run` at **5,901 B** against tinyexec's `x` at **5,969 B**, **0.989**, gated at ≤ 1 (`lighter-than-tinyexec` in `benchmarks/claims.ts`) with a byte ratchet of 6,000 beside it. **Spawn: met, 2026-09-30 (D-20260930-bellpull-spawn-vs-tinyexec)** — B5's `bellpull ÷ tinyexec` pair (`benchmarks/fixtures/runtime/bellpull-tinyexec.mjs`) spawns `node --version` by name through `run` and through `x`, awaits the close and reads stdout, after proving both print the running node's version; median of 11 interleaved per-round ratios, 20 spawns a side a round: **0.933** on an M4 Pro (0.922–0.949 over five runs), gated at **1.0** — R8's bar is the ratchet's ceiling *and* its target in `.sdlc/bands/runtime-ratchets.json`, never a derived ceiling above it. Also measured: D1's tree-inclusive ceiling (`execa` + `cross-spawn` + `which`) and zero dependencies | `cd benchmarks && npx tsx run.ts --axis weight --axis runtime --check`; `runtime.test.ts`, *"bellpull R8: spawn time at or under tinyexec"* (the pair names tinyexec, the ceiling is ≤ 1.0, and 1.01 exits non-zero); `weight.test.ts`: under the band's `ceiling`, and `external` empty for every entry |
+| R8 | **Built** | Both halves, each against `tinyexec` 1.3.1 (a pinned `benchmarks/` devDependency). **Bytes: met, 2026-09-27 (D-160)** — B4's `bellpull` pair bundles `run` at **5,901 B** against tinyexec's `x` at **5,969 B**, **0.989**, gated at ≤ 1 (`lighter-than-tinyexec` in `benchmarks/claims.ts`) with a byte ratchet of 6,000 beside it. **Spawn: met, 2026-09-30 (D-20260930-bellpull-spawn-vs-tinyexec)** — B5's `bellpull ÷ tinyexec` pair (`benchmarks/fixtures/runtime/bellpull-tinyexec.mjs`) spawns `node --version` by name through `run` and through `x`, awaits the close and reads stdout, after proving both print the running node's version; median of 11 interleaved per-round ratios, 40 spawns a side a round (20 until D-20260930-bellpull-first-hit-resolve), gated at **1.0** — R8's bar is the ratchet's ceiling *and* its target in `.sdlc/bands/runtime-ratchets.json`, never a derived ceiling above it. **On ubuntu-latest, the machine the gate runs on: 0.992, 0.997, 0.995** (D-20260930-bellpull-first-hit-resolve), where a raw `child_process.spawn` reads 0.977–0.994 — bellpull is at the floor, and the margin under the gate is under 1 %, said here rather than discovered. The first runner reading, before `whichSync` stopped at its first hit, was **1.06**. On an M4 Pro: 0.933 (0.922–0.949 over five runs). Also measured: D1's tree-inclusive ceiling (`execa` + `cross-spawn` + `which`) and zero dependencies | `cd benchmarks && npx tsx run.ts --axis weight --axis runtime --check`; `runtime.test.ts`, *"bellpull R8: spawn time at or under tinyexec"* (the pair names tinyexec, the ceiling is ≤ 1.0, and 1.01 exits non-zero); `weight.test.ts`: under the band's `ceiling`, and `external` empty for every entry |
 | R9 | **Built** | All three suites, each `--control` first and ratcheting. `cross-spawn` 68 / 68; `which` 5 / 5 since 2026-09-23 — node-which 7's own `test/index.js` against `bellpull/node-which`, a drop-in entry of its own so `bellpull/which` stays resolution alone (`test/bin.js` grades node-which's CLI, which bellpull does not ship). **`execa` since 2026-09-27 (D-160): 0 / 1048 against `bellpull`, control 1048 / 1048** — execa 10.0.1's suite vendored whole, `arguments/`, `methods/` and `return/` graded, the other nine directories named in `ungradedDirs` because the whole suite is 647 s of control; over all 149 files the target also passed 0. Published as the partial number R9 asks for, and declared a **ceiling**, not a drop-in: bellpull ships no execa API (R7) | `npm run compat -- cross-spawn which execa`; `baseline/execa.json` carries `"ceiling": true`, held to `hosts.ts` by `baseline-scope.test.ts` |
 | R10 | **Built** | as **restated** above: `src/ambient.ts` is the one seam, the core takes a `Runtime` | `weight.test.ts`, *"no module but `ambient` reads the ambient world (Y9)"*, asserted over the built `dist`; plus `./which` and `./plugin` locked not to reach `ambient.js` at all |
 | R11 | **Built** | `src/run.ts` — the caveat is in `Result.duration`'s doc comment, where a consumer reads it, and `strip-comments.mjs` keeps it in the `.d.ts` | the type ships the sentence; `weight.test.ts` measures the `.d.ts` bytes that carry it |
@@ -182,10 +186,13 @@ requirement that is quietly dropped and a requirement that is met are indistingu
 the outside, and this gate is where that difference is supposed to be visible. The
 Reconciliations section still argues `tinyexec` is the wrong comparison for a package that
 resolves; the spawn row answers R8 as written anyway, and bellpull pays for its own `PATH`
-walk inside the number it is gated on — the workload spawns a bare name, never a path. Why
-tinyexec is the slower of the two is **not measured here**: against a bare `child_process`
-spawn collecting the same stdout, bellpull read 1.026–1.036 and tinyexec 1.051–1.153 on the
-same machine, and the difference was not taken apart further.
+walk inside the number it is gated on — the workload spawns a bare name, never a path. **That
+walk was the whole of the first Linux reading's 1.06**, and it is taken apart in
+D-20260930-bellpull-first-hit-resolve: ~195 µs of resolution a spawn on the runner, now ~15.
+What is left is the spawn itself. With it stubbed out, bellpull's JavaScript costs ~10 µs over
+a bare `child_process.spawn` and tinyexec's ~210 µs (an M4 Pro) — tinyexec copies the whole
+environment and builds a `PATH` on every call — and on the runner both sit within about 1 % of
+a raw spawn, so the ratio there cannot go much below ~0.98 however lean bellpull gets.
 
 ## Design
 
@@ -486,8 +493,9 @@ Beyond "Out of scope" below:
 - **It claims no number against `tinyexec`**, which is not installed in this workspace.
   *(Superseded 2026-09-27, D-160: it claims one — bundled bytes 0.989 of tinyexec's `x`,
   measured by B4 — and still none on spawn time.)* *(And since 2026-09-30,
-  D-20260930-bellpull-spawn-vs-tinyexec, one on spawn time: B5's `bellpull ÷ tinyexec`, 0.933,
-  gated at 1.0.)*
+  D-20260930-bellpull-spawn-vs-tinyexec, one on spawn time: B5's `bellpull ÷ tinyexec`, gated
+  at 1.0 — 0.992–0.997 on ubuntu-latest once resolution stopped at its first hit
+  (D-20260930-bellpull-first-hit-resolve), 1.06 before it.)*
 
 ## Where this document and the code disagreed (2026-09-15) — reconciled 2026-09-16
 
