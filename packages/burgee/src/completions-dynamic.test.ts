@@ -74,11 +74,18 @@ const scriptFor = (shell: (typeof SHELLS)[number]): string => {
   writeFileSync(at, renderCompletion(program, shell));
   return at;
 };
+/**
+ * A job that installs the shells sets `REQUIRE_SHELLS=1` (completions.yml, and both coverage
+ * jobs). There a missing shell fails this file instead of skipping its case: a skip is how the
+ * code only these cases reach went uncovered on CI, unnoticed, until 2026-09-30.
+ */
+const REQUIRE_SHELLS = process.env['REQUIRE_SHELLS'] === '1';
 const has = (shell: string): boolean => {
   try {
     execFileSync(shell, ['--version'], { stdio: 'ignore' });
     return true;
   } catch {
+    if (REQUIRE_SHELLS) throw new Error(`${shell} is not installed, and REQUIRE_SHELLS=1 says this job installs it`);
     return false;
   }
 };
