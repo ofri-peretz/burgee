@@ -567,6 +567,29 @@ export default [
     rules: { "conventions/no-magic-numbers": "off" },
   },
   {
+    // B5's workloads (D-20260929-b5-runtime-ratchets). Each is data in the shape of a program:
+    // the iteration counts, column widths and terminal sizes *are* the workload, and naming each
+    // one a constant would put the number a line further from the job it describes. The harness
+    // loads a workload by path and reads its default export, the one shape every file shares.
+    files: ["benchmarks/fixtures/runtime/**"],
+    rules: {
+      "conventions/no-magic-numbers": "off",
+      "import-next/no-default-export": "off",
+      "import-next/no-unused-modules": "off",
+    },
+  },
+  {
+    // The harness times one side and then the other: sequential awaits *are* the measurement,
+    // and running them concurrently would time the event loop. The workload it imports is a
+    // path the axis passes from its own `PAIRS` table, never user input.
+    files: ["benchmarks/fixtures/runtime/harness.mjs"],
+    rules: {
+      "reliability/no-await-in-loop": "off",
+      "node-security/no-unsafe-dynamic-require": "off",
+      "node-security/no-dynamic-dependency-loading": "off",
+    },
+  },
+  {
     // Spawned as programs, never imported: each is one variant of the same trivial CLI,
     // and the floor row (`node.mjs`) deliberately has no parser and so no import at all.
     files: ["benchmarks/fixtures/cold-start/**"],

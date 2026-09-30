@@ -29,7 +29,7 @@ const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const WORKFLOW = readFileSync(join(REPO_ROOT, '.github', 'workflows', 'bench.yml'), 'utf8');
 
 /** Every axis the type declares. Kept here rather than imported: `run.ts` runs on import. */
-const ALL_AXES: AxisName[] = ['perf', 'compat', 'weight', 'reliability', 'agent', 'floor'];
+const ALL_AXES: AxisName[] = ['perf', 'compat', 'weight', 'reliability', 'agent', 'floor', 'runtime'];
 
 /** The `--axis <name>` arguments of a `npm run bench` line in the workflow. */
 function axesOf(line: string): AxisName[] {

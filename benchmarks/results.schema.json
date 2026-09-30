@@ -36,7 +36,7 @@
         "type": "object",
         "required": ["axis", "variant", "metric", "unit", "samples", "median", "p95"],
         "properties": {
-          "axis": { "enum": ["agent", "perf", "compat", "weight", "reliability", "floor"] },
+          "axis": { "enum": ["agent", "perf", "compat", "weight", "reliability", "floor", "runtime"] },
           "variant": { "type": "string", "description": "What was measured: a CLI variant, a host, an entry point, or a ratio of two of those, written `a ÷ b`." },
           "metric": { "type": "string" },
           "unit": { "type": "string" },

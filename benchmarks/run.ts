@@ -2,14 +2,14 @@
 /**
  * `npm run bench` — every number this project claims in public, in one document.
  *
- *   npm run bench                      all four axes, write results, print the tables
+ *   npm run bench                      every axis, write results, print the tables
  *   npm run bench -- --axis perf       one axis (repeatable)
  *   npm run bench -- --check           exit 1 when a measured number is outside its gate
  *   npm run bench -- --no-write        do not touch results/
  *   npm run bench -- --no-oracle       B3 reads results.json or skips; never runs the oracle
  *
  * Three documents come out, because the axes run on three cadences: `cli-benchmarks` (perf,
- * compat, weight — free, deterministic, gate every PR), `agent-cli-bench` (B1 — costs
+ * compat, weight, reliability, runtime — free, gate every PR), `agent-cli-bench` (B1 — costs
  * money, weekly) and `external-floor` (N10 — two outside checkers, which move when they
  * release rather than when we change). All are written even when an axis inside them was
  * skipped: a results file recording that B1 could not run is the point, not a gap.
@@ -23,6 +23,7 @@ import { method as compatMethod, run as runCompat } from './axes/compat.js';
 import { method as floorMethod, run as runFloor } from './axes/floor.js';
 import { method as perfMethod, run as runPerf } from './axes/perf.js';
 import { method as reliabilityMethod, run as runReliability } from './axes/reliability.js';
+import { method as runtimeMethod, run as runRuntime } from './axes/runtime.js';
 import { method as weightMethod, run as runWeight } from './axes/weight.js';
 import { SUITE, type SuiteName, suiteOf } from './bands.js';
 import { type AxisState, type BandEntry, buildDocument, type ClaimEntry, type ResultsDoc } from './emit.js';
@@ -32,7 +33,7 @@ import { type AxisName, type BenchRecord, describeFailure, gateFailures } from '
 const BENCH_ROOT = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(BENCH_ROOT, '..');
 const RESULTS_DIR = join(BENCH_ROOT, 'results');
-const ALL_AXES: AxisName[] = ['perf', 'compat', 'weight', 'reliability', 'agent', 'floor'];
+const ALL_AXES: AxisName[] = ['perf', 'compat', 'weight', 'reliability', 'agent', 'floor', 'runtime'];
 const ISO_DATE = 10;
 /** Matches `${GITHUB_SHA::7}` in `bench.yml`, so one run cannot produce two spellings. */
 const SHORT_SHA = 7;
@@ -76,6 +77,8 @@ function runAxis(axis: AxisName, args: Args): AxisOutcome {
       return runReliability();
     case 'floor':
       return runFloor();
+    case 'runtime':
+      return { records: runRuntime() };
     default:
       return runAgent();
   }
@@ -88,6 +91,7 @@ const METHOD = new Map<AxisName, string>([
   ['reliability', reliabilityMethod],
   ['agent', agentMethod],
   ['floor', floorMethod],
+  ['runtime', runtimeMethod],
 ]);
 
 function collect(args: Args): { axes: Map<AxisName, AxisState>; records: BenchRecord[] } {

@@ -32,12 +32,17 @@ const doc = JSON.parse(readFileSync(join(RESULTS_DIR, publishedResults(RESULTS_D
 };
 
 /** The heading that only ever appears inside a rendered table for that axis. */
-const TABLE_MARKER = { reliability: 'hangs/100' } as const;
+const TABLE_MARKER = { reliability: 'hangs/100', runtime: 'ours ÷ theirs, p50' } as const;
 
 describe('the generated page draws a table only for an axis that ran', () => {
   it('reliability', () => {
     const ran = doc.axes['reliability']?.status === 'measured';
     expect(page.includes(TABLE_MARKER.reliability), ran ? 'the axis ran and its table is missing' : 'the axis did not run and the page states figures for it anyway').toBe(ran);
+  });
+
+  it('runtime (B5)', () => {
+    const ran = doc.axes['runtime']?.status === 'measured';
+    expect(page.includes(TABLE_MARKER.runtime), ran ? 'the axis ran and its table is missing' : 'the axis did not run and the page states figures for it anyway').toBe(ran);
   });
 
   it('every axis the document reports as not measured is named as such on the page', () => {

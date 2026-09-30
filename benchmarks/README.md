@@ -1,11 +1,11 @@
-# `benchmarks/` — one suite, four axes
+# `benchmarks/` — one suite, five axes
 
 `npm run bench` produces every number this project claims in public, in one JSON
 document, with each number wired to a Stage 6 control band. Intent:
 [`cli-benchmarks`](../.sdlc/intents/cli-benchmarks/intent.md).
 
 ```bash
-npm run bench                    # all four axes; writes results/, prints the tables
+npm run bench                    # every axis; writes results/, prints the tables
 npm run bench -- --axis perf     # one axis (repeatable)
 npm run bench -- --check         # exit 1 when a measured number is outside its gate
 npm run bench -- --no-write      # do not touch results/
@@ -18,6 +18,30 @@ npm run bench -- --no-oracle     # B3 reads results.json or skips; never runs th
 | **B2** perf | are we cheap to start? | every PR |
 | **B3** compat | how compatible are we, exactly? | every PR |
 | **B4** weight | are we lighter than what we replace? | every PR |
+| **B5** runtime | are we faster than what we replace, doing the same job? | every PR |
+
+## B5 — runtime against the incumbent
+
+`--axis runtime`. One realistic workload per (package, incumbent) pair, in
+[`fixtures/runtime/`](./fixtures/runtime/): the mixed corpus a CLI prints (ASCII, CJK, ZWJ emoji,
+SGR runs, combining marks, an OSC 8 link), a redrawn three-line frame, a 20-row wrapped table, a
+prompt typed into and submitted. Each pair runs in its own Node process, in front of a TTY with
+colour and hyperlinks forced — on a pipe chalk styles nothing and paratext prints a link's
+fallback, and the ratio would compare two different jobs. So before anything is timed, each
+workload's `check()` proves both sides print the same bytes, and `runtime.test.ts` runs every one.
+
+Then three warm-up rounds and eleven interleaved rounds, each timing ours and the incumbent back
+to back, alternating which goes first, with a full GC before each block. The gated number is the
+**median of the per-round ratio**, ours ÷ incumbent: a round's load lands on both halves of it,
+for the reason B2 gates a ratio and not milliseconds (#27).
+
+**The target is ≤ 1.0 for every pair**; each record says `met` beside it. The gate is a
+**downward-only ratchet** per pair in
+[`.sdlc/bands/runtime-ratchets.json`](../.sdlc/bands/runtime-ratchets.json)
+(D-20260929-b5-runtime-ratchets): a pair above 1.0 is held just above its CI measurement, and the
+PR that makes it faster lowers the ceiling in the same commit. `runtime-ratchets-lock.test.ts`
+refuses a raise without a newer decision, a rewritten history, and a pair with no ratchet;
+`npm run ratchets:propose` prints how far each can come down from the CI observations on main.
 
 ## `reliability` — B1's deterministic half
 
@@ -71,16 +95,16 @@ the un-run state *and* passes on a correct answer.
 [`results.schema.json`](./results.schema.json):
 
 - **records** — every measurement in one shape, `{ axis, variant, metric, unit, samples,
-  median, p95 }` (B5), so one band collector reads all four axes and a fifth needs no
-  collector change.
+  median, p95 }` (spec requirement B5), so one band collector reads every axis and a new one
+  needs no collector change.
 - **bands** — what `scripts/control-bands.ts` reads, at `bands.<id>.value`.
   [`bands.ts`](./bands.ts) is the producer registry, and `bands.test.ts` fails when it and
   `.sdlc/bands/control-bands.json` disagree — so a band cannot reference a number nothing
   emits.
 - **claims** — every public number, settled: `met`, not met, or `unmeasured` with a reason.
 
-Two suites, because the axes run on two cadences: `cli-benchmarks` (perf, compat, weight —
-free and deterministic, gate every PR) and `agent-cli-bench` (B1 — costs money, weekly).
+Two suites, because the axes run on two cadences: `cli-benchmarks` (perf, compat, weight,
+reliability, runtime — free, gate every PR) and `agent-cli-bench` (B1 — costs money, weekly).
 
 ### Observations and the published measurement
 

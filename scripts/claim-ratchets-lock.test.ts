@@ -41,7 +41,8 @@ import { RATCHETS_FILE, type RatchetsDoc, readRatchets } from 'benchmarks/claim-
 import { CLAIMS } from 'benchmarks/claims.js';
 import { describe, expect, it } from 'vitest';
 
-import { DECISION_ID, readDecisions } from './ledgers.js';
+import { readDecisions } from './ledgers.js';
+import { stepProblems } from './ratchet-steps.js';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const current = readRatchets(REPO_ROOT);
@@ -51,19 +52,6 @@ const readme = readFileSync(resolve(REPO_ROOT, 'README.md'), 'utf8');
 /** The three D-157 names. Asserted present, so an emptied file cannot pass every rule vacuously. */
 const D157 = ['cold-start-at-or-below-cac', 'lighter-than-cac', 'lighter-than-commander'];
 
-/**
- * Which of two decisions is newer. A sequential id (`D-157`) orders by its number; a dated one
- * (`D-20260928-slug`, the only kind written since the ledger went one file per entry) orders by
- * its date, after every sequential id. Two dated ids from the same day are not ordered, so one
- * cannot raise a ceiling the other set — stricter, never looser.
- */
-const DATED_AFTER_SEQUENTIAL = 1e9;
-function decisionNumber(id: string): number {
-  const m = DECISION_ID.exec(id);
-  if (m === null) return Number.NaN;
-  return m[1] === undefined ? DATED_AFTER_SEQUENTIAL + Number(`${m[2] ?? ''}${m[3] ?? ''}${m[4] ?? ''}`) : Number(m[1]);
-}
-
 /** The committed version, or nothing when the file is new in this commit. */
 function committed(): RatchetsDoc | undefined {
   try {
@@ -71,28 +59,6 @@ function committed(): RatchetsDoc | undefined {
   } catch {
     return undefined;
   }
-}
-
-/** Rules 1–3 on one ratchet, as the list of what is wrong with it — driven directly by the cases at the bottom. */
-function stepProblems(id: string, ratchet: RatchetsDoc['ratchets'][string], decisions: ReadonlySet<string>): string[] {
-  const problems: string[] = [];
-  const { history } = ratchet;
-  if (history.length === 0) return [`${id} has no history — a ceiling with no record of how it got there`];
-  const last = history.at(-1);
-  if (last?.ceiling !== ratchet.ceiling) problems.push(`${id}: ceiling ${String(ratchet.ceiling)} is not its last history step (${String(last?.ceiling)}). Move the ceiling by appending a step, never by editing the number`);
-  history.forEach((step, i) => {
-    if (!DECISION_ID.test(step.decision)) problems.push(`${id} step ${String(i)}: "${step.decision}" is not a decision id (D-NNN, or D-YYYYMMDD-slug)`);
-    else if (!decisions.has(step.decision)) problems.push(`${id} step ${String(i)} cites ${step.decision}, which .sdlc/decisions/ has no row for`);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(step.setOn)) problems.push(`${id} step ${String(i)}: setOn "${step.setOn}" is not a date`);
-    if (step.why.trim().length < 20) problems.push(`${id} step ${String(i)} gives no reason`);
-    const before = history[i - 1];
-    if (before === undefined) return;
-    if (step.setOn < before.setOn) problems.push(`${id} step ${String(i)} is dated before the step it follows`);
-    if (step.ceiling > before.ceiling && !(decisionNumber(step.decision) > decisionNumber(before.decision))) {
-      problems.push(`${id}: ${String(before.ceiling)} -> ${String(step.ceiling)} is a raise, and it cites ${step.decision}, no newer than ${before.decision}. A ratchet goes down; raising one takes a new decision in .sdlc/decisions/, cited here.`);
-    }
-  });
-  return problems;
 }
 
 describe('the claim ratchets', () => {
