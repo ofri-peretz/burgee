@@ -75,7 +75,7 @@ B1's transcripts (#775, `b1-transcripts`, run 36748092295) showed where burgee l
 | `./help` | 8,494 | 8,953 | +459 (budget 9,130) |
 | `./commander`, `./yargs`, `./meow`, `./testing`, `./mcp`, `./schema`, `./cli` | — | — | 0 |
 | `failure.js` (lazy) | 4,132 | 4,792 | +660 |
-| `surfaces.js` (lazy) | 5,880 | 6,788 | +908 |
+| `surfaces.js` (lazy) | 5,880 | 6,913 | +1,033 |
 | `usage.js` (lazy, new) | — | 2,866 | +2,866 |
 
 ## What `--schema` says about it
