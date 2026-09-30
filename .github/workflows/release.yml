@@ -343,11 +343,20 @@ jobs:
           # signed: this republishes the registry's own attestation where release tooling and
           # OpenSSF Scorecard's Signed-Releases check look for it. Verify with
           # `npm audit signatures` or `cosign verify-blob-attestation --bundle <tgz>.sigstore.json`.
+          #
+          # npm signs the attestation after the publish returns, and it can take minutes: at
+          # 12 x 10 s, linegauge@1.0.0 got no Release assets and they were attached by hand. It
+          # now waits up to ATTEST_WAIT_SECONDS (10 minutes), backing off 10, 20, 40 s, then
+          # every 60 s. Giving up stays a warning: the npm publish itself is already done.
           attach_provenance() {
-            local name="$1" ver="$2" tag="$3" dir url tries=0
+            local name="$1" ver="$2" tag="$3" dir url waited=0 pause=10
             dir=$(mktemp -d)
             until url=$(npm view "$name@$ver" dist.attestations.url 2>/dev/null) && [ -n "$url" ]; do
-              tries=$((tries + 1)); [ "$tries" -ge 12 ] && return 1; sleep 10
+              if [ "$waited" -ge "${ATTEST_WAIT_SECONDS:-600}" ]; then
+                echo "::warning::$name@$ver: npm had published no attestation after ${waited}s."
+                return 1
+              fi
+              sleep "$pause"; waited=$((waited + pause)); pause=$((pause * 2 > 60 ? 60 : pause * 2))
             done
             (cd "$dir" && npm pack "$name@$ver" --silent >/dev/null) || return 1
             local tgz

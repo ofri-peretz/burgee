@@ -1,0 +1,176 @@
+---
+title: Configuration and precedence
+description: "seniority's one fixed order — flag, env, config file, package.json field, default — resolved by a pure function that records where every value came from, so --explain can say what won and what it beat."
+---
+
+## What it is
+
+[seniority](https://seniority.interlace.tools/docs) decides which value an option has when more
+than one place sets it. It does three separate things, and keeps them separate:
+
+- **find** a configuration file (`discover`, `search`) — the only part that reads the disk;
+- **resolve** each option from the layers it was handed (`resolve`) — a pure function;
+- **explain** the result (`explain`, `explanation`) — what won, from where, and what it beat.
+
+burgee uses all three: `envPrefix` and `config: true` on `defineProgram` opt a program into
+environment variables and config discovery, and every command gets `--explain <option>`.
+
+## Why it exists
+
+"Where did this value come from?" is the question a user asks when a CLI does something they
+did not expect, and an agent asks before it trusts a result. When the order lives in each
+program's own code, the answer is different in every tool and written down in none of them.
+Here it is data (`ORDER`), the same in every program, and every resolved value carries its
+provenance.
+
+## The order
+
+`resolve(specs, layers)` looks at five sources, highest first, and the first one that sets a
+value wins:
+
+| Source | Rank | Provenance `location` |
+| :-- | ---: | :-- |
+| flag | 0 | `--<name>` |
+| env | 10 | the variable's name |
+| config file | 20 | the file's path, and its line when the loader recorded one |
+| `package.json` field | 30 | the `package.json` path |
+| default | 40 | none: `{ source: 'default' }` |
+
+A [plugin](/docs/concepts/plugins) can add a source with any integer rank strictly between 0
+and 40, so it can sit between env and the config file, but it can never outrank the flag the
+user typed or sink below the declared default. A built-in source beats a plugin source at the
+same rank. Pinned by `flag > env > config > package.json > default (V1)` in
+[`precedence.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/seniority/src/precedence.test.ts)
+and by `cannot outrank the flag the user typed` and `cannot sink below the declared default` in
+[`plugin.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/seniority/src/plugin.test.ts).
+
+"Sets a value" means anything but `undefined`: `false`, `0` and an empty string are values,
+and they win.
+
+## Environment rules
+
+- **Only declared options read the environment.** An option the running command does not
+  declare is never looked up (`never reaches an option the running command does not declare
+  (yargs #873)`).
+- **Names are derived one way.** With a prefix, `dryRun` reads `MYTOOL_DRY_RUN`; an explicit
+  `env` on the option wins over the derived name. Without a prefix, no variable is read.
+  Nothing maps a variable name back to an option (`names come from the prefix in
+  SCREAMING_SNAKE, never camel-cased back (yargs #2005)`).
+- **Booleans are strict.** `1`, `true`, `yes` are true and `0`, `false`, `no` are false,
+  trimmed and in any case. Anything else is a `ConfigError` (exit code 3 in burgee) that names
+  the fix, and `MYTOOL_NO_VERBOSE` is refused with `set MYTOOL_VERBOSE=false instead` rather than
+  guessed at.
+- **Everything else stays text.** A number from the environment arrives as a string; burgee
+  coerces a declared `number` option after resolution.
+- **`.env` files are not a layer.** `seniority/dotenv` loads one into an environment and never
+  overwrites a variable that is already set unless asked to (`override: true`), so the real
+  environment keeps the rank the table gives it.
+
+## Provenance and `--explain`
+
+`resolve` returns `{ values, provenance, candidates }`. `provenance[option]` is the winner's
+`{ source, location?, line? }`; `candidates[option]` is every source that was consulted, set or
+not. `explain(option, resolution)` renders that record as the text burgee prints for
+`--explain <option>`, and the same provenance rides in the `--json` envelope as
+`meta.provenance`. The text and the record are one function (``the human text `explain`
+prints IS the record rendered — same function, same bytes`` in
+[`explain.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/seniority/src/explain.test.ts)).
+
+## The pure resolve
+
+`resolve` reads nothing: no file, no environment, no `process`. The environment, the parsed
+flags and the loaded files are arguments, so the whole precedence table is a unit test with
+literals, and a harness can resolve exactly what a program would. Only one file in seniority
+names `process`, and a test holds it to that (``names `process` nowhere in its sources, except
+the one file that is the program`` in
+[`shape.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/seniority/src/shape.test.ts)).
+
+## Finding the file
+
+`discover` tries, in order, and the first file that exists wins:
+
+1. an explicit path (burgee's `--config`), which must exist or it is a `ConfigError`;
+2. the path in `<NAME>_CONFIG`;
+3. `<name>.config.json`, `.mjs`, `.js` or `.cjs` in the working directory;
+4. `<name>/config.json` under `$XDG_CONFIG_HOME`, or `$HOME/.config` when that is unset.
+
+It walks up the directory tree only when the program asks (`upward: true`); by default it does
+not, because a surprise config from a parent directory is worse than none (`does not walk
+upward by default` in
+[`discovery.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/seniority/src/discovery.test.ts)).
+
+## Bounded find-up
+
+When it does walk, `search` stops at the first of: the `stopAt` directory (inclusive), the
+filesystem root, a directory it has already seen by real path (so a symlink cycle ends the
+walk), or `WALK_LIMIT` — 64 directories, or a smaller `limit`. A pathological depth cannot hang a
+start-up (`visits at most WALK_LIMIT directories` and `follows a link once and refuses to follow
+a cycle twice` in
+[`search.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/seniority/src/search.test.ts)).
+It does not stop at a repository root or the home directory by itself; pass `stopAt` for that.
+
+## Run it
+
+```js title="config.mjs"
+import { explain, resolve } from 'seniority';
+
+const specs = {
+  region: { default: 'us-1' },
+  retries: { default: '3' },
+  verbose: { type: 'boolean', default: false },
+};
+
+const resolution = resolve(specs, {
+  flags: { retries: '5' },
+  env: { MYTOOL_REGION: 'eu-1', MYTOOL_VERBOSE: 'yes' },
+  envPrefix: 'MYTOOL',
+  config: { path: './mytool.config.json', data: { region: 'ap-2', retries: '4' }, lines: { region: 2 } },
+});
+
+console.log(resolution.values);
+console.log(resolution.provenance.region);
+console.log(explain('region', resolution));
+console.log(explain('retries', resolution));
+```
+
+```text title="node config.mjs"
+{ region: 'eu-1', retries: '5', verbose: true }
+{ source: 'env', location: 'MYTOOL_REGION' }
+region = "eu-1"   from env MYTOOL_REGION
+         candidates: flag --region (unset), config file ./mytool.config.json:2 "ap-2", default "us-1"
+
+retries = "5"   from flag --retries
+         candidates: env MYTOOL_RETRIES (unset), config file ./mytool.config.json "4", default "3"
+
+```
+
+A boolean the environment cannot mean:
+
+```js title="strict.mjs"
+import { resolve } from 'seniority';
+
+try {
+  resolve({ verbose: { type: 'boolean' } }, { flags: {}, env: { MYTOOL_VERBOSE: 'maybe' }, envPrefix: 'MYTOOL' });
+} catch (error) {
+  console.log(error.message);
+  console.log(`hint: ${error.hint}`);
+}
+```
+
+```text title="node strict.mjs"
+MYTOOL_VERBOSE="maybe" is not a boolean
+hint: use MYTOOL_VERBOSE=true or MYTOOL_VERBOSE=false
+```
+
+## Where the rules live
+
+- Spec: [seniority R1–R15](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/seniority/spec.md).
+- API: [`seniority/precedence`](https://seniority.interlace.tools/docs/api/precedence),
+  [`seniority/explain`](https://seniority.interlace.tools/docs/api/explain),
+  [`seniority/config`](https://seniority.interlace.tools/docs/api/config),
+  [`seniority/find-up`](https://seniority.interlace.tools/docs/api/find-up).
+- Guides on seniority's site: [Precedence](https://seniority.interlace.tools/docs/guides/precedence),
+  [Environment](https://seniority.interlace.tools/docs/guides/environment) and
+  [Config files](https://seniority.interlace.tools/docs/guides/config-files);
+  [`--explain` in a CLI](https://seniority.interlace.tools/docs/recipes/explain-flag).
+- In burgee: [Your CLI is an agent tool](/docs/agent-surfaces#--explain-option--where-a-value-came-from).

@@ -57,7 +57,8 @@
     "ledger": "tsx scripts/ledgers.ts",
     "weight:page": "tsx scripts/subpath-weight.ts",
     "weight:converge": "node scripts/weight-converge.mjs",
-    "plugins:page": "tsx scripts/plugins-page.ts"
+    "plugins:page": "tsx scripts/plugins-page.ts",
+    "layers:page": "tsx scripts/layers-page.ts"
   },
   "overrides": {
     "smol-toml": "^1.7.1"

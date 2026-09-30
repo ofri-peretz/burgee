@@ -13,7 +13,7 @@ package, so your flag and ours are drawn by one implementation.
 ## One command
 
 ```bash
-npx burgee-brand --lead '#5b21b6' --follow '#0ea5e9' --name acme --out ./brand
+npx burgee brand --lead '#5b21b6' --follow '#0ea5e9' --name acme --out ./brand
 ```
 
 Six files land in `./brand`: `flag.svg`, `icon.svg` (a favicon master),
@@ -25,7 +25,7 @@ adds a hairline outline. `--charge` points at an SVG whose contents replace the
 two bars with your own glyph, drawn in a `0 0 100 100` box:
 
 ```bash
-npx burgee-brand --lead '#5b21b6' --follow '#0ea5e9' \
+npx burgee brand --lead '#5b21b6' --follow '#0ea5e9' \
   --charge ./glyph.svg --bordure '#e8dcc8' --out ./brand
 ```
 

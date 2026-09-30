@@ -50,8 +50,9 @@ pipe
 
 A spinner, a prompt and the help text each have to decide whether the terminal is a
 terminal. When each asks its own way, they disagree: one package animates into a CI log while
-another has already gone plain. flagstaff, caique and burgee all ask `outputMode`, so a
-program built from them makes the decision once.
+another has already gone plain. So each package that draws asks roundel rather than the
+process: flagstaff's frame loop asks `outputMode`, caique's prompts ask `interactive()` (below),
+and burgee's help asks `colorLevel` — so a program built from them makes each decision once.
 
 `--json` is passed in rather than read from `process.argv`, because whether a run asked for
 structured output is the argument parser's knowledge, not the environment's.
