@@ -26,11 +26,15 @@ import { isWindows, type Runtime } from './runtime.js';
 export function isExecutable(file: string, runtime: Runtime, pathExt: string[]): boolean {
   let stat;
   try {
-    stat = statSync(file);
+    // `throwIfNoEntry: false`, because an absent file is the ordinary answer on most of a
+    // `PATH` walk, and a throwing stat builds an Error with a stack for every one of them.
+    stat = statSync(file, { throwIfNoEntry: false });
   } catch {
-    // Absent, or a directory component of it is. Either way: not this one.
+    // A component of it is a file, not a directory (`ENOTDIR`), or we may not look (`EACCES`).
     return false;
   }
+  // Absent: not this one.
+  if (stat === undefined) return false;
   return isWindows(runtime) ? executableByName(file, stat, pathExt) : executableByMode(stat, runtime);
 }
 

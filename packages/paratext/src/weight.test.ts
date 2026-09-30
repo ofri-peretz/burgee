@@ -157,7 +157,9 @@ const RULES: Record<string, EntryRule> = {
   // 13,550 for **16 bytes** (2026-09-30): #752 made `validate` refuse a `contract` below 1, the
   // family-wide floor the shared schema already stated — `|| contract < 1` in `plugin.js`.
   // Measured 13,512 on main after it merged: 12 B over, with every pre-push battery on it red.
-  './plugin': { allow: [], budget: 13_550, denied: ['index.js', 'builtins.js', 'ansi-escapes.js'] },
+  // Back to 13,500 the same day: #758 found the bytes instead (two `String()` calls that did
+  // nothing), so the raise stood for one PR and the ceiling it bought is returned.
+  './plugin': { allow: [], budget: 13_500, denied: ['index.js', 'builtins.js', 'ansi-escapes.js'] },
 };
 
 const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;
