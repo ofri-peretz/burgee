@@ -26,6 +26,8 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+import { withoutAnnotations } from './schema-annotations.mjs';
+
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const PACKAGES = join(ROOT, 'packages');
 
@@ -150,7 +152,8 @@ function firstDifference(a: string, b: string): number {
  * The risk a fragment introduces is the one byte-identity exists to prevent: two copies of a
  * definition, free to disagree. So each fragment is compared structurally against the source's
  * `$defs`, and `scripts/schema-sync.mjs` writes them — the same script that keeps the copies
- * identical, so there is one place a definition changes.
+ * identical, so there is one place a definition changes. Compared without annotations
+ * (`schema-annotations.mjs`): a fragment is imported to validate, and validation reads no prose.
  */
 describe('schema fragments', () => {
   const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -163,17 +166,17 @@ describe('schema fragments', () => {
   };
   /** Each fragment, the module that imports it, and what it must equal in the source. */
   const FRAGMENTS = [
-    { at: 'paratext/src/capability.schema.json', importer: 'paratext/src/capability.ts', want: source.$defs['capability'] },
+    { at: 'paratext/src/capability.schema.json', importer: 'paratext/src/capability.ts', want: withoutAnnotations(source.$defs['capability']) },
     {
       at: 'flagstaff/src/plugin.schema.json',
       importer: 'flagstaff/src/plugin.ts',
-      want: {
+      want: withoutAnnotations({
         type: source.type,
         required: source.required,
         additionalProperties: source.additionalProperties,
         properties: Object.fromEntries(['name', 'contract', 'tokens', 'glyphs', 'spinners', 'borders', 'components'].map((k) => [k, source.properties[k]])),
         $defs: Object.fromEntries(['spinner', 'component', 'border'].map((d) => [d, source.$defs[d]])),
-      },
+      }),
     },
   ];
 

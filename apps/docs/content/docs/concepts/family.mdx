@@ -69,13 +69,17 @@ contradicts fails
 `linegauge`, `seniority`, `bellpull`, `closeout`, `paratext`, `roundel`, `flagstaff`,
 `caique`, `controlroom`, `burgee` — and a package may depend only on one earlier in that
 order: `has no external runtime dependencies, and same-repo ones only point up the family
-(K1, U1, U6)`. Five of the leaves are its foundation tier, graded by `%s depends on nothing:
+(K1, U1, U6)`. All six leaves are its foundation tier, graded by `%s depends on nothing:
 it is the floor`.
 
 **3. Never leaf to leaf.** A leaf that depended on another leaf would stop being a leaf, and
-every package that uses it would sit a third tier up. The generator of the graph above refuses
-that: every edge must end at a package that depends on nothing in the family, and
-`npm run layers:page -- --check` runs in the `fast` job the required Quality Gate reads.
+every package that uses it would sit a third tier up. `package-shape-lock` states it outright:
+`%s has no edge to a sibling, in any dependency field` checks every leaf's `dependencies`,
+`devDependencies`, `peerDependencies` and `optionalDependencies` against every workspace in the
+repo, and `fails when %s gains a sibling dependency` shows the check going red. The generator of
+the graph above refuses it too: every edge must end at a package that depends on nothing in the
+family, and `npm run layers:page -- --check` runs in the `fast` job the required Quality Gate
+reads.
 paratext is the case that shows the cost: it is a leaf, so its hyperlink detection keeps a
 declared fork of supports-color rather than importing roundel.
 

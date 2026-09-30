@@ -39,7 +39,7 @@
  * whole consolidation: `slice-ansi` and `wrap-ansi` each carry their own, and they disagree.
  */
 import { applyParameters, applyToken, ASCII_PRINTABLE, closingSequence, segmenter, sgrTokens, type ActiveStyle } from './style.js';
-import { measure } from './width.js';
+import { clusterColumns } from './width.js';
 
 const ESC = '\u001B';
 const BELL = '\u0007';
@@ -53,8 +53,6 @@ const C1_APC = '\u009F';
 const ST = `${ESC}\\`;
 const ESC_CSI = `${ESC}[`;
 const LINK_PREFIXES = [`${ESC}]8;`, `${C1_OSC}8;`] as const;
-/** Every character that can begin a sequence this reads. */
-const INTRODUCERS = new Set([ESC, C1_DCS, C1_SOS, C1_CSI, C1_ST, C1_OSC, C1_PM, C1_APC]);
 /** The control strings: `ESC` + the second byte, or its C1 form. `OSC` alone also ends at `BEL`. */
 const STRING_COMMANDS = new Set([']', 'P', 'X', '^', '_']);
 const C1_STRINGS = new Set([C1_DCS, C1_SOS, C1_PM, C1_APC]);
@@ -182,51 +180,89 @@ const LONE_REGIONAL_INDICATOR = /^[\u{1F1E6}-\u{1F1FF}]$/u;
  * against slice-ansi 9's suite, and not level (burgee#317).
  */
 function positions(cluster: string): number {
-  const columns = measure(cluster);
+  const columns = clusterColumns(cluster);
   if (columns === 0) return 1;
   return LONE_REGIONAL_INDICATOR.test(cluster) ? 2 : columns;
 }
+
+/** An escape as the walk meets it, with whether the next code point continues a cluster. */
+type Placed = Escape & { ahead: boolean };
+
+/** Every character that can begin a sequence this reads — `ESC` and the C1 introducers. */
+const INTRODUCER = /[\u001B\u0090\u0098\u009B-\u009F]/g;
 
 /**
  * Escapes and code points, in order, with each code point's columns filled in from the
  * **visible** text's clusters — escapes set aside first, so a style between a base and its
  * mark cannot make them two clusters (rule 2).
+ *
+ * **Visited one cluster at a time, so a slice stops where it ends** (B5). This used to build a
+ * token object for every code point of the whole input and segment all of it before the walk
+ * below looked at the first one — 7.7× slice-ansi on a 12-column cut of an ordinary line. Now
+ * the input is cut into escapes and text runs once, and each cluster's tokens — with the escapes
+ * before and inside it — go to `visit` in turn: when `visit` answers that the cut is made, at
+ * the first cluster past `end`, nothing after it is segmented or measured. A run's code points are its
+ * string iterator's, which is `codePointAt` walking the input, as it was — an introducer is
+ * never half of a surrogate pair, so a run boundary never splits one.
  */
-function tokenize(string: string): Token[] {
-  const tokens: Token[] = [];
-  const visible: Text[] = [];
+function walk(string: string, visit: (token: Text | Placed) => boolean): void {
+  const parts: (Escape | string)[] = [];
   let text = '';
-  let index = 0;
-  while (index < string.length) {
-    const escape = INTRODUCERS.has(string[index] as string) ? parseEscape(string, index) : undefined;
-    if (escape) {
-      tokens.push(escape);
-      index += escape.code.length;
+  for (let index = 0, from = 0; index <= string.length; ) {
+    INTRODUCER.lastIndex = index;
+    const at = INTRODUCER.exec(string)?.index ?? string.length;
+    const escape = at < string.length ? parseEscape(string, at) : undefined;
+    // An introducer nothing parses from is a character like any other.
+    if (at < string.length && escape === undefined) {
+      index = at + 1;
       continue;
     }
-    const value = String.fromCodePoint(string.codePointAt(index) as number);
-    const token: Text = { kind: 'text', value, columns: 1, continuation: false };
-    tokens.push(token);
-    visible.push(token);
-    text += value;
-    index += value.length;
+    const run = string.slice(from, at);
+    if (run !== '') parts.push(run);
+    text += run;
+    if (escape === undefined) break;
+    parts.push(escape);
+    index = from = at + escape.code.length;
   }
-  // Printable ASCII is one column and one cluster per character — the common case never
-  // builds the segmenter, which is the import-time saving `style.ts` records.
-  if (ASCII_PRINTABLE.test(text)) return tokens;
-  let at = 0;
-  for (const { segment } of segmenter().segment(text)) {
-    const points = [...segment].length;
-    const columns = positions(segment);
-    for (let offset = 0; offset < points; offset += 1) {
-      // The segments partition `text`, which is the visible tokens joined, so one is always there.
-      const token = visible[at + offset] as Text;
-      token.columns = offset === 0 ? columns : 0;
-      token.continuation = offset > 0;
+  const clusters = ASCII_PRINTABLE.test(text) ? undefined : segmenter().segment(text)[Symbol.iterator]();
+  let part = 0;
+  let run: Iterator<string> | undefined;
+  /** The next escape or code point, or `undefined` past the end. */
+  const unit = (): Escape | string | undefined => {
+    for (;;) {
+      const point = run?.next();
+      if (point?.done === false) return point.value;
+      const current = parts[part++];
+      if (typeof current !== 'string') return current;
+      run = current[Symbol.iterator]();
     }
-    at += points;
+  };
+  let next = unit();
+  /**
+   * Escapes up to the next code point, told whether that code point continues a cluster. What
+   * `visit` answers for one is not asked: only a cluster can be the one past `end`.
+   */
+  const escapes = (ahead: boolean): void => {
+    for (; next !== undefined && typeof next !== 'string'; next = unit()) visit({ ...next, ahead });
+  };
+  for (escapes(false); next !== undefined; escapes(false)) {
+    // Printable ASCII is one column and one cluster per character — the common case never
+    // builds the segmenter, which is the import-time saving `style.ts` records. Past the last
+    // cluster, a code point stands alone at one column: a lone surrogate before an escape and its
+    // partner after it are two units here and one code point to the segmenter.
+    const cluster = clusters?.next();
+    const whole = cluster?.done === false;
+    const segment = whole ? cluster.value.segment : (next as string);
+    const columns = whole ? positions(segment) : 1;
+    let offset = 0;
+    for (const _ of segment) {
+      // The clusters partition the visible text, which is these code points joined.
+      if (offset > 0) escapes(true);
+      if (visit({ kind: 'text', value: next as string, columns: offset === 0 ? columns : 0, continuation: offset > 0 })) return;
+      next = unit();
+      offset += 1;
+    }
   }
-  return tokens;
 }
 
 /** Whether an SGR opens anything — a code that pushes onto an empty stack. */
@@ -245,18 +281,6 @@ function closesStyle(parameters: string, active: ActiveStyle[]): boolean {
   return active.some((style) => !after.includes(style));
 }
 
-/** For each token, whether the next code point after it continues a cluster. */
-function continuationAhead(tokens: Token[]): boolean[] {
-  const ahead: boolean[] = [];
-  let next = false;
-  for (let index = tokens.length - 1; index >= 0; index -= 1) {
-    ahead[index] = next;
-    const token = tokens[index];
-    if (token?.kind === 'text') next = token.continuation;
-  }
-  return ahead;
-}
-
 /**
  * `[start, end)` in display columns. A negative or reversed range is empty rather than an
  * error, matching `String.prototype.slice`'s temperament if not its units.
@@ -268,8 +292,6 @@ function continuationAhead(tokens: Token[]): boolean[] {
  */
 export function slice(string: string, start = 0, end = Number.POSITIVE_INFINITY): string {
   if (end <= start || string.length === 0) return '';
-  const tokens = tokenize(string);
-  const ahead = continuationAhead(tokens);
   let active: ActiveStyle[] = [];
   // The open hyperlink, whether it has wrapped visible text yet, and where its opener sits in
   // `body` when it was emitted — an empty link is taken back out (rule 4).
@@ -351,11 +373,11 @@ export function slice(string: string, start = 0, end = Number.POSITIVE_INFINITY)
     column += token.columns;
   };
 
-  for (const [index, token] of tokens.entries()) {
+  walk(string, (token) => {
     const cluster = token.kind === 'text' && !token.continuation;
     let pastEnd = column >= end || (cluster && column + token.columns > end);
     // An escape inside a cluster that is still being emitted belongs to that cluster.
-    if (pastEnd && token.kind !== 'text' && ahead[index] === true) pastEnd = false;
+    if (pastEnd && token.kind !== 'text' && token.ahead) pastEnd = false;
     if (pastEnd && cluster) {
       // Rule 1: stop at the first cluster that would overrun. Openers that styled nothing are
       // taken back out here, and a link that wrapped nothing by `settleLink` below, so the
@@ -364,13 +386,14 @@ export function slice(string: string, start = 0, end = Number.POSITIVE_INFINITY)
         body = body.slice(0, pendingAt);
         active = pendingActive;
       }
-      break;
+      return true;
     }
     if (token.kind === 'sgr') takeSgr(token, pastEnd);
     else if (token.kind === 'link') takeLink(token, pastEnd);
     else if (token.kind === 'text') takeText(token);
     else if (!pastEnd && started) body += token.code;
-  }
+    return false;
+  });
 
   if (!started) return '';
   if (link !== undefined) settleLink(link);

@@ -130,6 +130,8 @@ describe('A6 — it refuses a dirty tree through the binary, with the fix on std
     const { code, stderr } = burgee(['migrate', dir]);
     expect(code).toBe(ExitCode.RUNTIME);
     expect(stderr).toContain('uncommitted change');
+    // The fix was on the error and never printed, until 2026-09-30.
+    expect(stderr).toContain('fix: commit or stash your changes, or pass --force');
     expect(readFileSync(join(dir, 'src/a.ts'), 'utf8')).toBe("import { Command } from 'commander';\n");
   });
 });

@@ -138,7 +138,7 @@ const KNOWN: Record<string, string> = {
   'caique/src/inquirer-theme.ts':
     "`@inquirer/core`'s default theme carries its own spinner frames and interval, which `usePrefix` reads and the incumbent's suite asserts; they are theme data of a façade, not a spinner flagstaff could draw.",
   'caique/src/clack-core.ts':
-    "caique/clack's port of `@clack/core` (#638, after this audit): its raw-mode toggle, `isCI()` and cursor sequences are the incumbent's, graded 16 / 17. Moving them onto closeout, roundel and paratext is the same work #680, #684 and #678 do for the rest of caique, and has not been done for this file yet.",
+    "caique/clack's port of `@clack/core` (#638, after this audit): its raw-mode toggle, `isCI()` and cursor sequences are the incumbent's, graded 16 / 16. Moving them onto closeout, roundel and paratext is the same work #680, #684 and #678 do for the rest of caique, and has not been done for this file yet.",
   'caique/src/clack-output.ts': "caique/clack's spinner and progress output (#638), with `@clack/prompts`' cursor sequences; the same follow-up as `clack-core.ts`.",
   'burgee/src/brand.ts':
     "wraps the subtitle of an SVG brand card, set in a monospace face where one character is one advance by construction. It is layout on a drawing, not text measured against a terminal, and has nothing of linegauge's to call.",
