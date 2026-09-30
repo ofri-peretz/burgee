@@ -165,7 +165,7 @@ const RULES: Record<string, EntryRule> = {
   // family-wide floor the shared schema already stated — `|| contract < 1` in `plugin.js`.
   // Measured 13,512 on main after it merged: 12 B over, with every pre-push battery on it red.
   // 13,550 → 12,200 the same day (B5): the capability fragment without its prose. Measured
-  // 12,115 with #752's floor and #754's output-mode check.
+  // 12,099 with #752's floor and #754's output-mode check.
   './plugin': { allow: [], budget: 12_200, denied: ['index.js', 'builtins.js', 'ansi-escapes.js'] },
 };
 
