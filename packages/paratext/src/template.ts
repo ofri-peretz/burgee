@@ -17,6 +17,7 @@ import { type Fields } from './capability.js';
 
 const FIELD = /\{([a-zA-Z][a-zA-Z0-9]*)(\|base64)?\}/g;
 const OPTIONAL = /\[([^[\]]*)\]/g;
+const CACHED = 255;
 
 /** Every field a template reads, so `check` can say what a capability needs. */
 export function fieldsUsed(template: string): string[] {
@@ -26,11 +27,13 @@ export function fieldsUsed(template: string): string[] {
   return [...names].toSorted();
 }
 
-const substitute = (template: string, fields: Fields): string =>
-  template.replaceAll(FIELD, (_match, name: string, encoding?: string) => {
-    const value = fields[name] ?? '';
-    return encoding === '|base64' ? Buffer.from(value, 'utf8').toString('base64') : value;
-  });
+/**
+ * A resolved template split at its fields, once: `split` with the capturing `FIELD` gives
+ * `[text, name, encoding, text, …, text]`, the tokens `replaceAll` visited in its order, so a
+ * render is one walk rather than two regex passes per call (~1 µs a link before this, B5).
+ * Bounded, because `render` is public and a caller may render templates it builds itself.
+ */
+const split = new Map<string, string[]>();
 
 /**
  * Render a template against a caller's fields.
@@ -40,8 +43,13 @@ const substitute = (template: string, fields: Fields): string =>
  * worse output than `Done`.
  */
 export function render(template: string, fields: Fields): string {
-  const resolved = template.replaceAll(OPTIONAL, (_match, group: string) =>
-    fieldsUsed(group).every((name) => (fields[name] ?? '') !== '') ? group : '',
-  );
-  return substitute(resolved, fields);
+  const resolved = template.includes('[') ? template.replaceAll(OPTIONAL, (_match, group: string) => (fieldsUsed(group).every((name) => (fields[name] ?? '') !== '') ? group : '')) : template;
+  if (split.size > CACHED) split.clear();
+  const parts = split.get(resolved) ?? (split.set(resolved, resolved.split(FIELD)).get(resolved) as string[]);
+  let out = parts[0] as string;
+  for (let i = 1; i < parts.length; i += 3) {
+    const value = fields[parts[i] as string] ?? '';
+    out += (parts[i + 1] ? Buffer.from(value, 'utf8').toString('base64') : value) + (parts[i + 2] as string);
+  }
+  return out;
 }
