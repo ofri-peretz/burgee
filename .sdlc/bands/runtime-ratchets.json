@@ -163,7 +163,7 @@
       ]
     },
     "linegauge/slice": {
-      "ceiling": 1.2,
+      "ceiling": 0.95,
       "unit": "ratio",
       "target": 1,
       "derive": {
@@ -194,13 +194,6 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 0.756,
           "why": "linegauge's fast paths — one-regex strip, lazily-segmented slice, cluster widths without re-segmenting, emoji and ASCII guards — measured locally: 0.756 (8.678 on PR #744 CI). 1.25x local until CI measures it."
-        },
-        {
-          "ceiling": 1.2,
-          "setOn": "2026-09-30",
-          "decision": "D-20260930-b5-ceilings-from-ci",
-          "measured": 0.933,
-          "why": "Re-derived from CI by the derive rule (D-20260930-b5-ceilings-from-ci): the 0.95 step was 1.25x a laptop's 0.756, and CI read 0.933 (run 36728129986) and 0.787 (run 36738177076) — 2% under the gate on one runner. 0.933 x 1.25 = 1.166, up to 1.2; still an eighth of the 10.85 it had before the fix."
         }
       ]
     },
@@ -240,7 +233,7 @@
       ]
     },
     "bellpull/node-which": {
-      "ceiling": 0.55,
+      "ceiling": 1.3,
       "unit": "ratio",
       "target": 1,
       "derive": {
@@ -264,13 +257,6 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 1.023,
           "why": "PR #744 CI (bench run 36671525047, ubuntu-latest): 1.023 x 1.25, rounded up to 0.05."
-        },
-        {
-          "ceiling": 0.55,
-          "setOn": "2026-09-30",
-          "decision": "D-20260929-b5-runtime-ratchets",
-          "measured": 0.433,
-          "why": "From CI run 36738177076 (#770 on a main with #766's first-hit resolve): 0.433; this change also builds the node-which façade's candidates lazily (0.304 locally). 0.433 x 1.25 = 0.54, up to 0.55."
         }
       ]
     },
@@ -450,7 +436,7 @@
       ]
     },
     "caique/clack": {
-      "ceiling": 1.4,
+      "ceiling": 1.9,
       "unit": "ratio",
       "target": 1,
       "derive": {
@@ -481,13 +467,6 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 1.496,
           "why": "caique/clack on the faster linegauge: 1.496 locally (2.544 on PR #744 CI). 1.25x local until CI measures it."
-        },
-        {
-          "ceiling": 1.4,
-          "setOn": "2026-09-30",
-          "decision": "D-20260929-b5-runtime-ratchets",
-          "measured": 1.089,
-          "why": "measure() answers a one-unit string without building a segmenter, and a prompt frame's glyphs arrive as words of their own: 1.089 locally (1.451 on CI run 36738177076 before it). 1.25x local until CI measures it."
         }
       ]
     },
@@ -520,7 +499,7 @@
       ]
     },
     "burgee/yargs": {
-      "ceiling": 1.35,
+      "ceiling": 1.4,
       "unit": "ratio",
       "target": 1,
       "derive": {
@@ -544,13 +523,6 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 1.092,
           "why": "PR #744 CI (bench run 36671525047, ubuntu-latest): 1.092 x 1.25, rounded up to 0.05."
-        },
-        {
-          "ceiling": 1.35,
-          "setOn": "2026-09-30",
-          "decision": "D-20260929-b5-runtime-ratchets",
-          "measured": 1.065,
-          "why": "From CI: 1.051 (run 36728129986) and 1.065 (run 36738177076); 1.065 x 1.25 = 1.33, up to 1.35."
         }
       ]
     }

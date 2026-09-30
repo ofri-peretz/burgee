@@ -1,6 +1,6 @@
 ---
 title: Links and images
-description: "paratext/link for one hyperlink without the registry, paratext/terminal-link for terminal-link's API and detection, and paratext/term-img for term-img's API over image bytes."
+description: "paratext/link for one hyperlink without the registry, paratext/terminal-link for terminal-link's API and detection, and paratext/term-img for term-img's API over a file path or image bytes."
 ---
 
 Three subpaths cover the two capabilities most programs want, without loading the registry or
@@ -66,8 +66,8 @@ console.log(JSON.stringify(terminalLink('Docs', 'https://x.dev')));
 
 ## `paratext/term-img`
 
-term-img 7's API for image **bytes**: `terminalImage(bytes, { width, height,
-preserveAspectRatio, fallback })` and `UnsupportedTerminalError`. Support is term-img's own table
+term-img 7's API for a file **path** or image **bytes**: `terminalImage(pathOrBytes, { width,
+height, preserveAspectRatio, fallback })` and `UnsupportedTerminalError`. Support is term-img's own table
 — iTerm2 3+, WezTerm 20220319+, Konsole 22.04+, Rio 0.1.13+ and VS Code 1.80+ — read from the
 environment, as term-img reads it. An unsupported terminal calls your `fallback`, or throws:
 
@@ -88,9 +88,10 @@ try {
 true UnsupportedTerminalError
 ```
 
-It takes bytes, not a path: paratext has no `node:fs` dependency (D-030), so the caller reads
-the file — `terminalImage(await readFile(path))`. A path handed to a supported terminal throws a
-`TypeError` that says so, at the point term-img would have read the file.
+A path (or a file `URL`) is read with `node:fs`, at the point term-img reads it: after the
+terminal check, so a path handed to an unsupported terminal reaches your `fallback` without the
+file being opened. It is the only entry in paratext that imports `node:fs`; the root `image()`
+takes bytes (D-20260930-paratext-term-img-path).
 
 Like term-img, `paratext/term-img` reads the environment and not the terminal: a program run
 inside iTerm2 with its output piped still gets the image bytes. `image()` from the root is the

@@ -41,7 +41,7 @@ same object registers into every host is `one object registers into every host` 
 **One refusal shape.** A refusal is a `PluginError` with a `code`, a `message` and a `fix` — the
 sentence that turns a refusal into a next step. The codes every host uses are
 `E_PLUGIN_SCHEMA` (the object does not match the schema), `E_PLUGIN_CONTRACT` (a contract newer
-than the host knows) and `E_NO_CONTRIBUTION` (it registers, but contributes nothing the host
+than the host knows, or below 1, where the schema starts) and `E_NO_CONTRIBUTION` (it registers, but contributes nothing the host
 reads). Packages that draw add `E_NO_STATIC_PROJECTION` — the [static
 projection](/docs/concepts/static-projection) rule. flagstaff holds the whole vocabulary, and
 [`plugin-error-vocabulary-lock.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/plugin-error-vocabulary-lock.test.ts)
@@ -51,7 +51,10 @@ fails on a code no host's union declares.
 
 - **A later registration of the same name wins** in roundel, caique, paratext, bellpull,
   flagstaff and linegauge, and the hosts that report contributions say which one it shadowed.
-  closeout's handlers accumulate, ordered by phase. seniority's sources are ordered by rank.
+  closeout's handlers accumulate, ordered by phase. seniority's sources are ordered by rank, and
+  at an equal rank the plugin registered later wins (`resolves a tie at an equal rank to the plugin
+  registered later` in
+  [`plugin.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/seniority/src/plugin.test.ts)).
   burgee refuses a contributed command whose path is already declared.
 - **A plugin cannot replace what the host guarantees.** caique's six built-in prompt kinds cannot
   be replaced; closeout refuses a handler in the `restore` phase; a seniority source's rank must
@@ -59,6 +62,10 @@ fails on a code no host's union declares.
   check a first-party command does, `effects` included.
 - **burgee requires `contract`.** An object that reaches `use()` without one is refused, because
   burgee's extension point shipped before it validated anything.
+- **A contract below 1 is refused everywhere.** `contract: 0` or a negative number is refused by
+  every host, with `E_PLUGIN_CONTRACT` (flagstaff's schema check answers first, with
+  `E_PLUGIN_SCHEMA`): `a contract below 1 is refused by every host` in
+  [`plugin-contract-lock.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/plugin-contract-lock.test.ts).
 - **A plugin file does not register itself on import.** It exports the object, and the program
   (or `check`) registers it: `refuses a plugin file that registers itself on import, with the
   code and the fix (R8)` in

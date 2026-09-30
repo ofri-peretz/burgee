@@ -53,8 +53,13 @@ nothing to say in a pipe), absence is not (`refuses a capability with no project
 registration rather than at output` in
 [`paratext.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/paratext/src/paratext.test.ts)).
 
-paratext is a leaf, so it cannot ask roundel's `outputMode`. Its built-in capabilities declare
-`when: { tty: true }`, which is what sends a pipe to the fallback; `TERM=dumb` always does.
+paratext is a leaf, so it cannot ask roundel's `outputMode`, and it may not read `CLI_ACCESSIBLE`
+or `CI` itself. The mode is handed to it instead: a host that asked `outputMode` passes the answer
+as the runtime's `mode`, and anything but `tty` gets the fallback, the same rule flagstaff
+follows (`prints the fallback in %s mode, even on a terminal that supports the sequence` in
+[`paratext.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/paratext/src/paratext.test.ts)).
+Without a `mode`, the built-in capabilities' `when: { tty: true }` is what sends a pipe to the
+fallback; `TERM=dumb` always does.
 
 ### caique: prompts
 
@@ -77,9 +82,11 @@ static projection in pane order, and NDJSON events on stderr under `--json`.
 
 Only flagstaff emits NDJSON under `--json`. caique's answer to `--json` is to refuse the
 prompt, which is an envelope rather than an event stream, and paratext has no `--json` form: it
-writes the fallback wherever `when` does not match. And paratext decides support from `when`
-alone, so a capability whose `when` matches a terminal is emitted in the `accessible` and `ci`
-modes too when stdout is that terminal.
+writes the fallback wherever `when` does not match. And paratext knows the mode only when it is
+told: `processRuntime()` carries none, so a program that uses paratext on its own, with no host
+that asked `outputMode`, still gets the sequence in the `accessible` mode on a terminal. That
+default is an open owner decision, raised in
+[#754](https://github.com/ofri-peretz/burgee/pull/754).
 
 ## Run it
 

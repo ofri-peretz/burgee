@@ -1,68 +1,65 @@
 ---
 title: Coming from term-img
-description: "A term-img alternative with a drop-in path for image bytes: import terminalImage from paratext/term-img, graded 12 / 18 by term-img's own test suite — all six misses pass a file path, which paratext declines to read — then zero dependencies and no node:fs."
+description: "A term-img alternative you adopt by changing one import: import terminalImage from paratext/term-img, graded 18 / 18 by term-img's own test suite, level with term-img itself — file paths and bytes alike, with zero dependencies."
 ---
 
-**paratext** is a **term-img alternative** you adopt by changing one import — and, if you
-pass file paths, one argument. `paratext/term-img` is term-img 7's API for image **bytes**,
-and term-img's own test suite is the grade. It is not a complete drop-in, and this page says
-exactly where it stops.
+**paratext** is a **term-img alternative** you adopt by changing one import.
+`paratext/term-img` is term-img 7's API: a file path or image bytes in, the inline image out.
+term-img's own test suite is the grade, and it passes every case.
 
-## Migrate from term-img: one import, and bytes instead of a path
+## Migrate from term-img: one import
 
 ```diff
 - import terminalImage, { UnsupportedTerminalError } from 'term-img';
 + import terminalImage, { UnsupportedTerminalError } from 'paratext/term-img';
-+ import { readFile } from 'node:fs/promises';
 
-- console.log(terminalImage('unicorn.jpg', { width: '50%' }));
-+ console.log(terminalImage(await readFile('unicorn.jpg'), { width: '50%' }));
+  console.log(terminalImage('unicorn.jpg', { width: '50%' }));
 ```
 
-If you already pass a `Uint8Array` or a `Buffer`, the import line is the whole migration.
-Everything else stays: `width`, `height`, `preserveAspectRatio` and `fallback`; a missing or
-empty image throws a `TypeError`; an unsupported terminal calls your `fallback` or throws
-`UnsupportedTerminalError`, with term-img's message and `name`. Support is term-img's own
-terminal table — iTerm2 3+, WezTerm 20220319+, Konsole 22.04+, Rio 0.1.13+, VS Code 1.80+ —
-read from the environment, in term-img's order: the argument is checked, then the terminal,
-then the bytes.
+Everything else stays: a path or a `Uint8Array`/`Buffer`; `width`, `height`,
+`preserveAspectRatio` and `fallback`; a missing or empty image throws a `TypeError`; an
+unsupported terminal calls your `fallback` or throws `UnsupportedTerminalError`, with term-img's
+message and `name`. Support is term-img's own terminal table — iTerm2 3+, WezTerm 20220319+,
+Konsole 22.04+, Rio 0.1.13+, VS Code 1.80+ — read from the environment, in term-img's order:
+the argument is checked, then the terminal, then the file is read. A path handed to an
+*unsupported* terminal reaches your `fallback` without the file being opened, as it does
+upstream. The `Options` type keeps its name and its `FallbackType` parameter, so a typed
+program compiles unchanged.
 
-A **path** handed to a supported terminal throws a `TypeError` that says to read the file
-first. It throws at exactly the point term-img would have called `fs.readFileSync`, so a path
-handed to an *unsupported* terminal still reaches your `fallback`, as it does upstream.
+`npx burgee migrate` makes this edit for you: the row is level, so the codemod rewrites it
+([Migrate](https://burgee.interlace.tools/docs/migrate)).
 
 ## Is paratext compatible with term-img?
 
-Partly, and graded rather than claimed. term-img's own suite, vendored at 7.1.0 and
-unmodified apart from the import specifier, runs against `paratext/term-img` beside a control
-that runs it against real term-img:
+Yes, and graded rather than claimed. term-img's own suite, vendored at 7.1.0 (the latest
+release) and unmodified apart from the import specifier, runs against `paratext/term-img`
+beside a control that runs it against real term-img:
 
 | | passing | rate |
 | :-- | --: | --: |
-| `paratext/term-img` | 12 / 18 | 66.7% |
+| `paratext/term-img` | 18 / 18 | 100.0% |
 | term-img itself (control) | 18 / 18 | 100.0% |
 
 From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
-oracle's last run; that page is the authority. The six failing cases are the same six every
-run — `iTerm2 support`, `WezTerm support`, `Konsole support`, `Rio support`, `VSCode support`
-and `handles options parameter correctly` — and every one of them hands a file path to a
-terminal the suite has just declared supported. paratext takes bytes only, so that `node:fs`
-stays out of a package that otherwise touches nothing but strings. Passing them would mean
-reading a file, which is the dependency this package declines; so 12 / 18 is this row's
-ceiling, and a caller who passes paths has one edit to make.
+oracle's last run; that page is the authority. Until 2026-09-30 this row read 12 / 18: the
+six cases that hand a file path to a supported terminal failed, because `paratext/term-img`
+took bytes only. It now reads the path with `node:fs`, as term-img does. It is the one entry
+in paratext that does: the root and every other subpath touch nothing but strings, and a
+lock fails the build if `node:fs` reaches any of them.
 
 ## What you gain over term-img
 
 - **Zero dependencies.** term-img 7.1.0 depends on `ansi-escapes` and `iterm2-version`.
-- **No filesystem access.** The caller owns the read, so the package never opens a file on
-  your behalf.
 - **iTerm2 10 and later are recognised.** term-img reads iTerm2's major version from its
   first character, so it would read `10.2.1` as `1` and refuse the terminal; the façade
   parses the whole number. Nothing in the suite tells the two apart, so this is a fix that
   costs no compatibility.
+- **A file `URL` is a path too.** term-img answers `Image required` to a `URL`;
+  `paratext/term-img` reads it.
 - **A caption instead of a throw, when you want one.** paratext's root `image()` — ansi-escapes'
   signature, plus `caption` — projects an image to its caption wherever support is absent or
-  unknown, so a pipe or an agent reads text rather than an exception or raw escape bytes.
+  unknown, so a pipe or an agent reads text rather than an exception or raw escape bytes. The
+  root takes bytes and never opens a file.
 
 ```js
 import { image } from 'paratext';
@@ -74,9 +71,8 @@ image(bytes, { caption: 'Build graph' });
 
 ## When to switch from term-img
 
-- You already hold the image as bytes, or can read it yourself in one line.
+- You want term-img's behaviour without its two dependencies.
 - Your output is also piped or read by an agent, and an image should become its caption
-  there.
+  there — the root `image()` does that.
 
-If your program hands term-img a path in many places and you cannot touch them, stay on
-term-img for now. The registry, the schema and the plugin host are on [paratext](/docs).
+The registry, the schema and the plugin host are on [paratext](/docs).
