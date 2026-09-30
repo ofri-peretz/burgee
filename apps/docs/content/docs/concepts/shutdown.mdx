@@ -1,0 +1,160 @@
+---
+title: Shutdown and terminal restore
+description: "closeout's one registry for every way a process leaves: three phases, one deadline for the whole shutdown, the terminal restored last, and a process that dies of the signal it was sent."
+---
+
+## What it is
+
+[closeout](https://closeout.interlace.tools/docs) keeps **one registry** of exit handlers per
+process and runs it, once, whichever way the process leaves. Every package in the family that
+changes the terminal — hides the cursor, enters the alternate screen, switches the keyboard to
+raw mode — registers the undo here, and nowhere else: the [family's
+rules](/docs/concepts/family) make closeout the one owner of signal handlers, exit hooks, the
+cursor and raw mode.
+
+## Why it exists
+
+A CLI that dies with the cursor hidden, the alternate screen still up or the keyboard still
+raw leaves the user's terminal broken. Each path out needs the same cleanup: a normal exit, a
+`process.exit()`, a Ctrl-C, a `SIGTERM` from a supervisor, an uncaught throw, an unhandled
+rejection. Before this rule the family had the cursor restore written three times, in
+closeout, flagstaff and caique; removing the two copies found that caique never restored the
+cursor on a signal at all (the header of
+[`inline-implementation-lock.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/scripts/inline-implementation-lock.test.ts)
+records it).
+
+## Every exit path
+
+The registry is installed lazily, on the first `onExit`, `hideCursor`, `alternateScreen` or
+`rawMode`; importing the package attaches nothing.
+
+| Path | Trigger | After the handlers |
+| :-- | :-- | :-- |
+| `beforeExit` | the event loop emptied | nothing: the process ends as it would have |
+| `exit` | `process.exit()`, or leaving after `beforeExit` | nothing — Node allows no waiting here, so an async handler is started and not awaited |
+| `signal` | `SIGINT`, `SIGTERM`, `SIGHUP`, `SIGQUIT`, `SIGBREAK` | the same signal is raised again at the process |
+| `uncaught` | an uncaught exception | the error is printed and the process exits 1 |
+| `rejection` | an unhandled rejection | the same |
+
+Every handler receives one record, `{ path, signal, code, error }`. A program that installed its
+own listener for a signal or a crash keeps it: closeout runs the handlers and leaves the exit
+to the program. Pinned by `every door out leaves the terminal as it was found, last` in
+[`restore.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/restore.test.ts)
+and the exit-path matrix in
+[`matrix.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/matrix.test.ts).
+
+## Phases
+
+`onExit(handler, phase)` takes one of three phases, which run in this order:
+
+1. **`flush`** — write what must not be lost: logs, telemetry, a partial result.
+2. **`release`** (the default) — close what the program holds: sockets, child processes, locks.
+3. **`restore`** — give the terminal back.
+
+A phase starts only when every handler of the one before has settled. Inside a phase all
+handlers are started in registration order and then awaited together. A handler that throws
+or rejects is reported on stderr and the rest still run. An unknown phase is refused when the
+handler is registered. [Plugins](/docs/concepts/plugins) may add handlers to `flush` and
+`release` only; `refuses a handler in the restore phase` in
+[`plugin.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/plugin.test.ts)
+is why "restore last" is a rule and not a convention.
+
+## The deadline
+
+The whole shutdown has **one** clock: 2,000 ms by default, set with `install({ deadline })`.
+A deadline that cannot bound anything — `Infinity`, zero, a negative number, `NaN` — is refused
+where it is written, as a usage error (`a deadline that cannot bound anything is refused where it
+is written` in
+[`deadline.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/deadline.test.ts)).
+
+When the deadline passes, closeout stops waiting. The phases not yet reached are still started,
+so the terminal is still restored; the report says `timedOut: true` and lists the handlers that
+had not returned; and stderr gets one line naming them. The process then leaves the way the
+trigger decided: a signal is raised again, a crash exits 1. The deadline never changes the exit
+code (`a breached deadline exits with the signal’s code, not with one a handler set on its way
+past` in `matrix.test.ts`).
+
+## Restore last
+
+`hideCursor(stream)`, `alternateScreen(stream)` and `rawMode(input)` each make the change and,
+in the same call, register its undo in the `restore` phase. Each undo runs at most once, and
+calling the returned function early undoes it and unregisters it. A stream that is not a
+terminal gets no escape and no registration; raw mode someone else turned on is left on. On
+the `exit` path, which cannot wait, a shutdown still waiting on `flush` runs the `restore`
+phase synchronously before the process ends (`'exit' arriving before the deadline, while the
+shutdown still waits on flush` in `restore.test.ts`).
+
+## A second signal
+
+A shutdown runs once. A second Ctrl-C while the first shutdown is still waiting on a handler
+joins the shutdown already in flight rather than starting another or cutting it short; the
+process then dies of the **first** signal, after `restore` has run (`a second signal (%s) while
+a handler holds the first shutdown` in
+[`terminal-restore.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/terminal-restore.test.ts)).
+The deadline, not a second signal, is what bounds a hung handler.
+
+## Dying of the signal
+
+After the handlers, closeout removes its listener and sends the process the same signal again.
+The process then dies **of** the signal, which is what a shell, `make` or a CI runner reads to
+tell "interrupted" from "failed". The POSIX codes (130 for `SIGINT`, 143 for `SIGTERM`, 129 for
+`SIGHUP`) are only a fallback, for a runtime that cannot raise a signal at itself (`%s: the
+cursor comes back and the process dies of the signal, not of an exit code` in
+[`signal.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/signal.test.ts)).
+The [exit-code contract](/docs/concepts/exit-codes) counts on this.
+
+## Run it
+
+Phases, not registration order, decide when a handler runs:
+
+```js title="phases.mjs"
+import { onExit } from 'closeout';
+
+onExit(() => console.log('restore: last, though it was registered first'), 'restore');
+onExit(async () => {
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  console.log('flush: awaited before release starts');
+}, 'flush');
+onExit((report) => console.log(`release: path=${report.path} code=${report.code}`));
+
+console.log('work done');
+```
+
+```text title="node phases.mjs"
+work done
+flush: awaited before release starts
+release: path=beforeExit code=0
+restore: last, though it was registered first
+```
+
+A handler that never settles, a deadline of 100 ms, and a `SIGTERM`. The restore still runs,
+the hung handler is named, and the process dies of the signal:
+
+```js title="deadline.mjs"
+import { install } from 'closeout';
+
+const closeout = install({ deadline: 100 });
+closeout.onExit(function flushLogs() {
+  return new Promise(() => {}); // never settles
+}, 'flush');
+closeout.onExit((report) => console.log(`restore: ${report.path} ${report.signal}`), 'restore');
+
+setInterval(() => {}, 1000);
+process.kill(process.pid, 'SIGTERM');
+```
+
+```text title="node deadline.mjs" signal="SIGTERM"
+restore: signal SIGTERM
+closeout: shutdown deadline of 100ms expired; exiting anyway. Handlers that had not returned: flushLogs
+```
+
+## Where the rules live
+
+- Spec: [closeout R1–R12](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/closeout/spec.md).
+- API: [`closeout`](https://closeout.interlace.tools/docs/api),
+  [`closeout/cursor`](https://closeout.interlace.tools/docs/api/cursor).
+- Guides on closeout's site: [Exit paths](https://closeout.interlace.tools/docs/guides/exit-paths),
+  [Phases](https://closeout.interlace.tools/docs/guides/phases),
+  [The deadline](https://closeout.interlace.tools/docs/guides/deadline),
+  [The terminal](https://closeout.interlace.tools/docs/guides/terminal) and
+  [Signals and exit status](https://closeout.interlace.tools/docs/guides/signals).
