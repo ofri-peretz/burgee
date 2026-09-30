@@ -587,8 +587,29 @@ export const FACADE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
  * A `require('chalk')` of chalk 6, which is ESM only, already returns a namespace, and moves to
  * a target that does too ({@link REQUIRE_NAMESPACE}, A29). Where the shapes differ, the file
  * stays on the incumbent, where it works.
+ *
+ * `sibling-state` is an import of a package whose module state the incumbent reads and the
+ * replacement never does ({@link SIBLING_STATE}). Rewriting the incumbent beside it would leave
+ * that import configuring a package nothing reads any more, and nothing would say so. The
+ * refusal carries `fix`, the change that lets the next run move the file.
  */
-export type RefusalReason = 'deep-import' | 'non-literal-specifier' | 'unknown-export' | 'require-of-default';
+export type RefusalReason = 'deep-import' | 'non-literal-specifier' | 'unknown-export' | 'require-of-default' | 'sibling-state';
+
+/**
+ * An incumbent that reads module state from a sibling package, keyed by the incumbent, with
+ * the sibling and the fix a refusal prints.
+ *
+ * `@clack/prompts` reads its settings from `@clack/core`: `updateSettings({ withGuide: false })`
+ * imported from `@clack/core` turns the guide off in every clack prompt. `caique/clack` does not
+ * depend on `@clack/core` (U6), so once a file's prompts move, that call changes a package the
+ * prompts no longer read (D-20260930-caique-clack-core-exclusion). `caique/clack` exports its own
+ * `updateSettings` and `settings`, which its prompts do read. So a file that imports both is
+ * refused with this fix, and a file that imports `@clack/core` alone is not a rewrite candidate
+ * and is left alone (D-20260930-migrate-refuses-clack-core).
+ */
+const SIBLING_STATE: Readonly<Record<string, { sibling: string; fix: string }>> = {
+  '@clack/prompts': { sibling: '@clack/core', fix: "import { updateSettings } from 'caique/clack' instead of '@clack/core', then re-run burgee migrate" },
+};
 
 /**
  * Incumbents whose own `require()` already returns an ES namespace — they ship ESM only and
@@ -621,6 +642,8 @@ export interface Refusal {
   reason: RefusalReason;
   /** For `unknown-export`: the names the target does not export. */
   names?: string[];
+  /** For `sibling-state`: the change to make before the next run, which then moves the file. */
+  fix?: string;
 }
 
 /**
@@ -1016,6 +1039,25 @@ function classify(site: Site): 'moves' | 'unmapped' | Omit<Kept, 'file'> | Omit<
   return { line: site.line, specifier: site.specifier, reason: 'unknown-export', names: missing };
 }
 
+/**
+ * Every import of a sibling whose state a rewritten incumbent reads ({@link SIBLING_STATE}).
+ *
+ * `hits` decides whether the file is a rewrite candidate, so an incumbent that is skipped (off
+ * its graded major) or not level is not one, and its sibling is none of this command's business.
+ * A type-only import of the sibling is erased before anything runs, so it configures nothing
+ * and is not refused.
+ */
+function siblingState(sites: readonly Site[], hits: readonly Site[]): Omit<Refusal, 'file'>[] {
+  const rewritten = new Set(hits.map((s) => packageOf(s.specifier)));
+  return Object.entries(SIBLING_STATE)
+    .filter(([incumbent]) => rewritten.has(incumbent))
+    .flatMap(([, { sibling, fix }]) =>
+      sites
+        .filter((s) => packageOf(s.specifier) === sibling && !(s.clause !== undefined && bindingsOf(s.clause).typeOnly))
+        .map((s) => ({ line: s.line, specifier: s.specifier, reason: 'sibling-state' as const, fix })),
+    );
+}
+
 /** No package skipped. */
 const NONE: ReadonlySet<string> = new Set();
 
@@ -1050,6 +1092,7 @@ export function rewriteSource(source: string, skip: ReadonlySet<string> = NONE):
     ...hits.filter((s) => isDeep(s.specifier)).map((s) => ({ line: s.line, specifier: s.specifier, reason: 'deep-import' as const })),
     ...nonLiteral.map((line) => ({ line, specifier: '', reason: 'non-literal-specifier' as const })),
     ...unknown,
+    ...siblingState(sites, hits),
   ].sort((a, b) => a.line - b.line);
   if (refused.length > 0) return { source, mapped: [], refused, kept: [], relevant: true, retained: [...new Set(hits.map((s) => packageOf(s.specifier)))] };
 

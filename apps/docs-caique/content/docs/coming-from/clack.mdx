@@ -58,8 +58,10 @@ two of `guide.test.ts`, which render all twelve prompts and check the guide with
 `updateSettings({ withGuide: false })` from `@clack/core` and asserts our prompts obey it.
 That is the case above, and it grades `@clack/core`'s state, not `@clack/prompts`. The
 row is level, so `burgee migrate` rewrites `@clack/prompts` to `caique/clack`. It leaves on
-clack a file that imports `box`, `progress` or `taskLog`, and it never touches an import from
-`@clack/core`.
+clack a file that imports `box`, `progress` or `taskLog`. It never rewrites `@clack/core`, and
+it refuses a clack file that also imports `@clack/core` (reason `sibling-state`) rather than
+move its prompts away from the settings that file sets. The refusal's fix reads:
+`import { updateSettings } from 'caique/clack' instead of '@clack/core', then re-run burgee migrate`.
 
 ## Move a prompt to a flag
 
