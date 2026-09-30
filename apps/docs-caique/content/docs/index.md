@@ -246,7 +246,7 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
-| `clack` | 16 / 17 |
+| `clack` | 16 / 16 |
 | `inquirer-core` | 41 / 41 |
 
 Weight, installed and tree-inclusive: **218,134 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.5607**.

@@ -109,8 +109,8 @@
         },
         {
           "capability": "Passes clack's own test suite",
-          "why": "`caique/clack` is graded by the behavioural cases of @clack/prompts 1.8.1's own suite, with the snapshots of clack's exact frames subtracted by name.",
-          "ours": { "status": "partial", "grade": "packages/compat-oracle/baseline/clack.json", "missing": "the one case left sets updateSettings({ withGuide: false }) imported from @clack/core, module state in a package caique does not depend on" },
+          "why": "`caique/clack` is graded by the behavioural cases of @clack/prompts 1.8.1's own suite, with the snapshots of clack's exact frames subtracted by name, and one case that grades @clack/core's module state rather than @clack/prompts (D-20260930-caique-clack-core-exclusion).",
+          "ours": { "status": "yes", "grade": "packages/compat-oracle/baseline/clack.json" },
           "incumbents": {
             "inquirer-core": { "status": "n/a", "source": "packages/compat-oracle/vendor/inquirer-core/packages/core/core.test.ts", "quote": "} from '../../shim.js';", "note": "a different API" },
             "clack": { "status": "yes", "source": "packages/compat-oracle/vendor/clack/packages/prompts/test/limit-options.test.ts", "quote": "import { type LimitOptionsParams, limitOptions } from '../../../shim.js';", "note": "its own suite, the control run" }

@@ -1,6 +1,6 @@
 ---
 title: Compatibility
-description: "How caique's two drop-ins are graded — @inquirer/core's own suite at 41 / 41, and @clack/prompts' behavioural cases at 16 / 17 — and the differences that remain."
+description: "How caique's two drop-ins are graded — @inquirer/core's own suite at 41 / 41, and @clack/prompts' behavioural cases at 16 / 16 — and the differences that remain."
 ---
 
 `caique/inquirer` and `caique/clack` are graded, not described as compatible. Each is run
@@ -17,7 +17,7 @@ oracle's last run and is the authority for the current figures.
 | incumbent | graded version | drop-in | cases |
 | :-- | :-- | :-- | --: |
 | `@inquirer/core` | 12.0.3 | `caique/inquirer` | 41 / 41 |
-| `@clack/prompts` | 1.8.1 | `caique/clack` | 16 / 17 |
+| `@clack/prompts` | 1.8.1 | `caique/clack` | 16 / 16 |
 
 ## How a suite is graded
 
@@ -38,25 +38,29 @@ an effect cleanup that throws superseding the answer, and an aborted signal stil
 cursor — behaviour a second implementation can share. `usePagination` is not implemented, and
 no case in the suite reaches it.
 
-## `@clack/prompts`: 17 behavioural cases
+## `@clack/prompts`: 16 behavioural cases
 
 289 of clack's 444 assertions are snapshots of clack's exact frames, in 17 of its 19 files.
 Matching them frame for frame would make `caique/clack` clack, so they are subtracted by name,
-as a declared subset, and the row publishes 17 rather than 606. `caique/clack` passes all of
-`limit-options.test.ts` and the two `guide.test.ts` cases that render all twelve prompts with
-and without the guide.
+as a declared subset. `caique/clack` passes all of `limit-options.test.ts` and the two
+`guide.test.ts` cases that render all twelve prompts with and without the guide.
 
-**The one case left is a ceiling:** it calls `updateSettings({ withGuide: false })` **imported
-from `@clack/core`** and asserts the prompts obey it. That is module-level state inside a package
-caique does not depend on and cannot read. `caique/clack` exports its own `updateSettings`,
-which its prompts do obey. Because 16 is not 17, `burgee migrate` reports `@clack/prompts`
-rather than rewriting it; changing that import is yours to make.
+**One more case is subtracted, by its exact title.** It calls
+`updateSettings({ withGuide: false })` **imported from `@clack/core`** and asserts the prompts
+obey it. That is module-level state inside `@clack/core`, a package caique does not depend on
+and cannot read, so the case grades `@clack/core` and not `@clack/prompts`. `caique/clack`
+exports its own `updateSettings`, as `@clack/prompts` does, and its prompts obey that one. The
+subtraction is published on the compatibility page. The row reads 16 / 16, level with clack's
+own 16 / 16, so `burgee migrate` rewrites `@clack/prompts` to `caique/clack`. It leaves a file
+that imports `box`, `progress` or `taskLog` on clack.
 
 ## Known differences
 
 - **`caique/clack`'s frames are clack's layout, not its bytes.** A test of yours that snapshots
   clack's output will see different escape sequences.
-- **`updateSettings` must come from `caique/clack`**, as above.
+- **`updateSettings` must come from `caique/clack`**, as above. `burgee migrate` does not
+  rewrite `@clack/core`, so a migrated program that imports `updateSettings` from there is still
+  changing clack's settings, and caique's prompts never read them. Move that import yourself.
 - **`caique/clack` does not build `box`, `progress` or `taskLog`**; no graded case reaches them.
 - **`caique/inquirer` has no `usePagination`.**
 - **The legacy `inquirer` package is not a drop-in**: its object API is out of scope, and
