@@ -169,7 +169,10 @@ const shellWord = (word: string): string => (/^[\w@%+=:,./-]+$/u.test(word) ? wo
 function unknownCommand({ manifest, root }: Resolving, node: CommandNode, before: string[], typed: string[]): UsageError {
   const first = typed[0] as string;
   const said = suggestSimilar(first, childrenOf(manifest, node).map((c) => c.path.at(-1) as string));
-  const near = /Did you mean ([^,]+)\?\)$/u.exec(said)?.[1];
+  // String slicing, not a regex over the typed word (CodeQL js/polynomial-redos): `suggestSimilar`
+  // says `\n(Did you mean X?)` for one match and `\n(Did you mean one of X, Y?)` for a tie.
+  const one = said.startsWith('\n(Did you mean ') && !said.startsWith('\n(Did you mean one of ');
+  const near = one ? said.slice('\n(Did you mean '.length, -'?)'.length) : undefined;
   const error = new UsageError(`unknown command "${first}"`, said === '' ? 'run --schema for every command and option as JSON, in one call' : said.trim().slice(1, -1).replace('Did', 'did'));
   if (near === undefined) return Object.assign(error, { usage: groupUsage(manifest, node) });
   return Object.assign(error, { fix: [...root, ...before, near, ...typed.slice(1)].map(shellWord).join(' ') });
