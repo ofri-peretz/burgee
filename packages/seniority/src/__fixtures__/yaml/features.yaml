@@ -1,0 +1,90 @@
+%YAML 1.2
+---
+# Every construct `seniority/yaml` reads, in one document. The expected value beside it,
+# `features.json`, is what js-yaml 5.4.2's `load` returns for this file.
+name: seniority # a comment after a value
+"quoted key": 'single ''quoted'' value'
+escapes: "tab\there, e-acute é, hex \x41, astral \U0001F600, slash \/, quote \", nul-free"
+folded quoted: "first line
+  second line
+
+  new paragraph"
+single folded: 'one
+  two'
+escaped break: "joined\
+  without a space"
+plain multi: this plain scalar
+  continues here
+
+  and keeps a paragraph
+numbers: [0, -12, +7, 0x1F, 0o17, 1.5, .5, -2e3, 012, 6.02E23]
+not numbers: [0b11, -0x1F, 1_000, 1.2.3, 0x, .]
+booleans: [true, True, TRUE, false, False, FALSE, yes, no, on, off]
+nulls: [~, null, Null, NULL]
+empty value:
+tagged: [!!str 123, !!int "42", !!float 1, !!bool "true", !!null "", !!str , ! 12, !!int 0b101, !!map {}, !!seq []]
+anchors:
+  base: &base
+    retries: 3
+    timeout: 30
+  copy: *base
+  list: &items [a, b]
+  again: *items
+  scalar: &word hello
+  word again: *word
+merge is a key: {<<: *base}
+literal: |
+  line one
+    indented
+  line three
+literal strip: |-
+  no trailing newline
+literal keep: |+
+  keeps its blank line
+
+folded: >
+  folded
+  text
+
+  new paragraph
+    more indented
+  back
+folded explicit: >2
+    two extra spaces
+folded strip: >-
+  a
+  b
+seq of maps:
+  - name: a
+    value: 1
+  - name: b
+    nested:
+      - x
+      - - deep
+        - er
+  -
+    below: the dash
+  -
+seq at key indent:
+- one
+- two
+flow map: {a: 1, "b": [2, 3], c: {d: e}, bare}
+flow seq multiline: [
+    first,
+    second, # a comment inside flow
+  ]
+pairs: [k: v, plain]
+"json style": {"a":1,"b":null}
+comment#not: value#not
+url: https://example.com:8080/path?q=1#frag
+colon value: a:b
+dash value: -x
+question: ?x
+props below: &below
+  x: 1
+seq below props: !!seq
+- p
+__proto__: {polluted: true}
+1: integer key
+null: null key
+...

@@ -1,0 +1,27 @@
+{
+  "commit-msg": {
+    "commands": {
+      "commitlint": {
+        "run": "npx --no -- commitlint --edit {1}"
+      }
+    }
+  },
+  "pre-commit": {
+    "parallel": true,
+    "commands": {
+      "commitlint": {
+        "run": "true"
+      }
+    }
+  },
+  "pre-push": {
+    "commands": {
+      "battery": {
+        "run": "npx --no turbo run typecheck test build --output-logs=errors-only"
+      },
+      "root-suite": {
+        "run": "npx --no vitest run --config vitest.root.config.ts"
+      }
+    }
+  }
+}
