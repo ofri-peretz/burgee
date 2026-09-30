@@ -14,7 +14,7 @@ two ways:
    | :-- | :-- | :-- | :-- | --: | --: |
    | commander | 15.0.0 | node:test | `burgee/commander` | 1361 / 1361 | 1361 / 1361 |
    | yargs | 18.1.0 | mocha | `burgee/yargs` | 802 / 804 | 804 / 804 |
-   | chalk | 6.0.0 | ava | `roundel/chalk` | 58 / 58 | 58 / 58 (2026-09-08) |
+   | chalk | 6.0.1 | ava | `roundel/chalk` | 59 / 59 | 59 / 59 (2026-09-30) |
 
    `npm run compat -- chalk --control` grades one host; bare `npm run compat` grades all.
    `npm run compat -- --majors` grades each drop-in against its incumbent's **previous**

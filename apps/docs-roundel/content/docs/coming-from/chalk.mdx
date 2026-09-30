@@ -1,6 +1,6 @@
 ---
 title: Coming from chalk
-description: "A chalk alternative with a drop-in path: import chalk from roundel/chalk, graded 58 / 58 by chalk's own test suite — then semantic tokens that go plain on a pipe, under NO_COLOR and under --json."
+description: "A chalk alternative with a drop-in path: import chalk from roundel/chalk, graded 59 / 59 by chalk's own test suite — then semantic tokens that go plain on a pipe, under NO_COLOR and under --json."
 ---
 
 **roundel** is a **chalk alternative** you adopt by changing one import. `roundel/chalk`
@@ -20,14 +20,14 @@ The chain (`chalk.red.bold.underline(s)`), `rgb` / `hex` / `ansi256`, `chalk.lev
 
 ## Is roundel compatible with chalk?
 
-Graded, not claimed. chalk's own suite, vendored at 6.0.0 and unmodified apart from the
+Graded, not claimed. chalk's own suite, vendored at 6.0.1 and unmodified apart from the
 import specifier, runs against `roundel/chalk` beside a control that runs it against real
 chalk:
 
 | | passing | rate |
 | :-- | --: | --: |
-| `roundel/chalk` | 58 / 58 | 100.0% |
-| chalk itself (control) | 58 / 58 | 100.0% |
+| `roundel/chalk` | 59 / 59 | 100.0% |
+| chalk itself (control) | 59 / 59 | 100.0% |
 
 From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
 oracle's last run; that page is the authority.

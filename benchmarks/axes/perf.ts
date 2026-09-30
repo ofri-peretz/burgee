@@ -54,7 +54,23 @@ export interface Variant {
    * package was this" has no answer, rather than an unchecked one.
    */
   pkg?: string;
+  /**
+   * Added to the spawn's environment. The colour rows set `NO_COLOR`: picocolors colours
+   * whenever `CI` is in the environment and roundel follows the CI vendor table, so on a
+   * runner the same fixture would print escapes and fail the line check. Every one of them
+   * honours `NO_COLOR`, so all three take the same path and print the floor's bytes.
+   */
+  env?: Readonly<Record<string, string>>;
+  /**
+   * roundel R8: the variant this one's spawn is held to, in milliseconds over it — round *i*
+   * of this row less round *i* of that one. A delta row rather than a ratio, because R8 states
+   * the bar as an allowance ("+10 ms"), and a difference of two spawns seconds apart is as
+   * machine-independent as the ratio is.
+   */
+  over?: string;
 }
+
+const NO_COLOR = { NO_COLOR: '1' } as const;
 
 /** `bare node` is mandatory (intent constraint 5): it is most of every other row. */
 export const VARIANTS: readonly Variant[] = [
@@ -67,6 +83,11 @@ export const VARIANTS: readonly Variant[] = [
   // §6) and the row `replacement-parser` is graded against, so it is measured, not assumed.
   { id: 'cac', file: 'cac.mjs', parses: true, pkg: 'cac' },
   { id: 'burgee', file: 'burgee.mjs', host: 'cac', parses: true, pkg: 'burgee' },
+  // roundel R8's time half: each colour entry against picocolors' spawn. No parser — these
+  // time an import and one painted line — so each proves itself by printing the floor's line.
+  { id: 'picocolors', file: 'picocolors.mjs', parses: false, pkg: 'picocolors', env: NO_COLOR },
+  { id: 'roundel/tokens', file: 'roundel-tokens.mjs', parses: false, pkg: 'roundel', env: NO_COLOR, over: 'picocolors' },
+  { id: 'roundel/chalk', file: 'roundel-chalk.mjs', parses: false, pkg: 'roundel', env: NO_COLOR, over: 'picocolors' },
 ];
 
 /**
@@ -92,18 +113,21 @@ const EXPECTED = 'Hello, ada!\n';
 const SHOUT_ARGV = ['greet', 'ada', '--shout'];
 const SHOUT_EXPECTED = 'HELLO, ADA!\n';
 /**
- * 42, not 40, and the three is the reason: `round1` rotates the starting offset by the
- * round number modulo seven variants, so 40 rounds give offsets 0-4 six turns each and
- * offsets 5-6 only five. A whole multiple of the variant count makes every variant go
- * first, second and last exactly six times, which is the only thing the rotation is for.
+ * A whole multiple of the variant count, and that is the reason for the number: `round1`
+ * rotates the starting offset by the round number modulo the variant count, so 40 rounds over
+ * the seven variants this axis had until 2026-09-30 gave offsets 0-4 six turns each and 5-6
+ * only five — which is why it read 42 then. With roundel R8's three colour rows there are ten,
+ * and 40 makes every variant go first, second and last exactly four times, which is the only
+ * thing the rotation is for.
  */
-export const ROUNDS = 42;
+export const ROUNDS = 40;
 const RATIO_PLACES = 3;
 const MS_PLACES = 2;
 
-function spawn(file: string, argv: readonly string[]): { ms: number; stdout: string; status: number | null } {
+function spawn(v: Variant, argv: readonly string[]): { ms: number; stdout: string; status: number | null } {
+  const env = v.env === undefined ? undefined : { ...process.env, ...v.env };
   const started = performance.now();
-  const r = spawnSync(process.execPath, [`${FIXTURES}${file}`, ...argv], { encoding: 'utf8' });
+  const r = spawnSync(process.execPath, [`${FIXTURES}${v.file}`, ...argv], { encoding: 'utf8', env });
   return { ms: performance.now() - started, stdout: r.stdout, status: r.status };
 }
 
@@ -112,14 +136,14 @@ function spawn(file: string, argv: readonly string[]): { ms: number; stdout: str
  * that claims a parser proves it by uppercasing under `--shout`. A fixture that quietly
  * stopped parsing is the one way this axis could stay green while measuring nothing.
  */
-export function proveFixtures(): void {
-  for (const v of VARIANTS) {
-    const plain = spawn(v.file, ARGV);
+export function proveFixtures(variants: readonly Variant[] = VARIANTS): void {
+  for (const v of variants) {
+    const plain = spawn(v, ARGV);
     if (plain.status !== 0 || plain.stdout !== EXPECTED) {
       throw new Error(`${v.id}: expected ${JSON.stringify(EXPECTED)} exit 0, got ${JSON.stringify(plain.stdout)} exit ${String(plain.status)}`);
     }
     if (!v.parses) continue;
-    const shout = spawn(v.file, SHOUT_ARGV);
+    const shout = spawn(v, SHOUT_ARGV);
     if (shout.stdout !== SHOUT_EXPECTED) {
       throw new Error(`${v.id}: does not parse — \`--shout\` produced ${JSON.stringify(shout.stdout)}, not ${JSON.stringify(SHOUT_EXPECTED)}`);
     }
@@ -130,7 +154,7 @@ export function proveFixtures(): void {
 function round1(samples: Map<string, number[]>, offset: number): void {
   for (let i = 0; i < VARIANTS.length; i++) {
     const v = VARIANTS[(i + offset) % VARIANTS.length] as Variant;
-    const r = spawn(v.file, ARGV);
+    const r = spawn(v, ARGV);
     if (r.status !== 0 || r.stdout !== EXPECTED) throw new Error(`${v.id}: sample produced ${JSON.stringify(r.stdout)} exit ${String(r.status)}`);
     (samples.get(v.id) as number[]).push(r.ms);
   }
@@ -159,7 +183,10 @@ export function msRecord(v: Variant, xs: number[], floor: number, resolved?: Res
     samples: xs.length,
     median: round(median(xs), MS_PLACES),
     p95: round(p95(xs), MS_PLACES),
-    note: v.parses ? `spawned \`node ${v.file} greet ada\`; ${round(median(xs) - floor, MS_PLACES)} ms of this is above the bare-node floor` : 'the floor: Node starting and writing one line, no parser',
+    note:
+      v.pkg === undefined
+        ? 'the floor: Node starting and writing one line, no parser'
+        : `spawned \`node ${v.file}${v.parses ? ' greet ada' : ''}\`${v.env === undefined ? '' : ` with ${Object.keys(v.env).join(', ')}`}; ${round(median(xs) - floor, MS_PLACES)} ms of this is above the bare-node floor`,
     detail: {
       fixture: v.file,
       ...(v.pkg === undefined || resolved === undefined ? {} : { package: v.pkg, version: resolved.version, resolvedFrom: relativeToRepo(resolved.dir) }),
@@ -234,6 +261,50 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   burgee: claimRatchet('cold-start-at-or-below-cac'),
 };
 
+/**
+ * roundel R8, the time half: "`./tokens` ≤ picocolors (3.3 KB, +10 ms); `./chalk` … ≤
+ * picocolors spawn delta". One allowance for both — a colour entry may cost no more than
+ * picocolors plus 10 ms to start — read as the median of the per-round differences, round *i*
+ * of the entry less round *i* of picocolors.
+ *
+ * Milliseconds rather than a ratio because R8 writes the bar in milliseconds, and it is not the
+ * absolute gate #27 ruled out: it is the difference of two spawns seconds apart, so the
+ * machine's own startup cancels as it does in a ratio. Measured 2026-09-30 on an M4 Pro, 60
+ * rounds: `roundel/tokens` +1.26 ms and `roundel/chalk` +2.97 ms over picocolors, whose own
+ * spawn is 2.97 ms above bare node. On CI's two-core runner the bare-node spawn is about 10%
+ * slower than that machine's and cac's delta over it is 3.7 ms, so 10 ms leaves both rows
+ * three times their measured cost before a PR goes red for a runner's bad minute.
+ */
+export const DELTA_CEILING_MS = 10;
+
+export interface DeltaInput {
+  v: Variant;
+  /** Round *i* of the entry, and round *i* of the variant it is held to. */
+  ours: number[];
+  over: number[];
+  gateMax: number;
+  versions?: { ours: string; over: string };
+}
+
+export function deltaRecord({ v, ours, over, gateMax, versions }: DeltaInput): BenchRecord {
+  const paired = ours.map((ms, i) => ms - (over[i] as number));
+  return {
+    axis: 'perf',
+    variant: `${v.id} − ${v.over ?? ''}`,
+    metric: 'cold-start-delta-ms',
+    unit: 'ms',
+    samples: paired.length,
+    median: round(median(paired), MS_PLACES),
+    p95: round(p95(paired), MS_PLACES),
+    gate: {
+      max: gateMax,
+      why: `roundel R8: a colour entry may cost no more than ${v.over ?? ''} + ${String(gateMax)} ms to start — the difference of two spawns in the same round, not an absolute`,
+    },
+    note: `median of ${String(paired.length)} paired differences, each round's ${v.id} less the same round's ${v.over ?? ''}`,
+    ...(versions === undefined ? {} : { detail: { ours: `${v.pkg ?? v.id}@${versions.ours}`, over: `${v.over ?? ''}@${versions.over}` } }),
+  };
+}
+
 export function run(rounds = ROUNDS): BenchRecord[] {
   // Resolution first, before the fixture proof and long before anything is timed: a
   // shadowed package must stop the run, not colour forty rounds of it.
@@ -256,7 +327,21 @@ export function run(rounds = ROUNDS): BenchRecord[] {
       }),
     );
   }
+  for (const v of VARIANTS) {
+    if (v.over === undefined) continue;
+    const ours = resolved.get(v.id);
+    const over = resolved.get(v.over);
+    records.push(
+      deltaRecord({
+        v,
+        ours: samples.get(v.id) as number[],
+        over: samples.get(v.over) as number[],
+        gateMax: DELTA_CEILING_MS,
+        ...(ours === undefined || over === undefined ? {} : { versions: { ours: ours.version, over: over.version } }),
+      }),
+    );
+  }
   return records;
 }
 
-export const method = `${String(ROUNDS)} interleaved rounds — a whole multiple of the seven variants, so the rotation gives every variant each starting position equally often; each round spawns every variant once as \`node <fixture> greet ada\`, after one discarded warm-up round. Every parsing variant's package is resolved against the range \`benchmarks/package.json\` declares before any timing, and its version and resolved path are on every row. Absolute ms are a property of the machine recorded above and are not comparable across machines; the banded number is the paired ratio.`;
+export const method = `${String(ROUNDS)} interleaved rounds — a whole multiple of the ${String(VARIANTS.length)} variants, so the rotation gives every variant each starting position equally often; each round spawns every variant once as \`node <fixture> greet ada\` (the colour rows print the same line, under \`NO_COLOR\`), after one discarded warm-up round. Every variant's package is resolved against the range \`benchmarks/package.json\` declares before any timing, and its version and resolved path are on every row. Absolute ms are a property of the machine recorded above and are not comparable across machines; the banded number is the paired ratio, and roundel's R8 rows gate the paired difference over picocolors.`;

@@ -130,7 +130,7 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
   '@inquirer/core': '12.0.3',
   'ansi-escapes': '7.3.0',
   boxen: '8.0.1',
-  chalk: '6.0.0',
+  chalk: '6.0.1',
   'cli-table3': '0.6.5',
   commander: '15.0.0',
   cosmiconfig: '10.0.1',

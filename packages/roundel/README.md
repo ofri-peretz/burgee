@@ -26,7 +26,7 @@
 </p>
 
 <p align="center">
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/chalk%20suite-58%2F58-0a6b47?style=flat-square" alt="roundel/chalk passes 58 of 58 cases of the chalk test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/chalk%20suite-59%2F59-0a6b47?style=flat-square" alt="roundel/chalk passes 59 of 59 cases of the chalk test suite" /></a>
 </p>
 
 <p align="center">
@@ -86,6 +86,7 @@ too when the user said so with `FORCE_COLOR` or `--color`.
 | `roundel/theme` | `fly(theme, rt)`. A theme maps tokens to `styleText` format names (`['bold', 'underline']`) or a `#rrggbb`, and declares the `ground` it will be read on. Hex is truecolor at level 3 and falls back to the nearest of 256 or 16 colours below it. |
 | `roundel/contrast` | `contrast(a, b)`, `luminance(hex)`, `AA` — the WCAG 2.2 maths `fly()` checks with. |
 | `roundel/terminal` | `interactive(rt)` — whether anybody is there to type: a terminal on stdin, no `CI` and no agent variable (`CLAUDECODE`, `AI_AGENT`, `CURSOR_AGENT`, `CODEX_THREAD_ID`, `GEMINI_CLI`), with `FORCE_TTY=1` as the override — and `unicode(rt)`, is-unicode-supported's answer over `{ env, platform }`. Not re-exported from `roundel`. |
+| `roundel/import` | `fromBase16(scheme)` and `fromITerm(plist)` — a theme from a Base16 scheme (its YAML or JSON text, or the object a reader made of it) or an iTerm2 `.itermcolors` file, contrast-checked on the way in by `fly()`'s own check. Data in, data out: you read the file. Not re-exported from `roundel`. |
 | `roundel/chalk` | chalk 6's API — `chalk.red.bold(s)`, `chalk.hex('#…')`, `new Chalk({ level })`, `chalkStderr`, `supportsColor`, the name lists — over the tokens' emitter and the policy's level. Graded by chalk's own suite; see below. |
 
 ### The policy
@@ -139,6 +140,32 @@ terminals, so a theme that would not read fails in CI rather than on one laptop.
 and 256-colour fallbacks are the user's terminal palette and are not checked: a number
 there would be invented.
 
+### Importing a theme
+
+```js
+import { readFileSync } from 'node:fs';
+import { fromBase16, fromITerm } from 'roundel/import';
+import { fly } from 'roundel/theme';
+
+fly(fromBase16(readFileSync('gruvbox-dark-hard.yaml', 'utf8')), runtime);
+fly(fromITerm(readFileSync('Dracula.itermcolors', 'utf8')), runtime);
+```
+
+The two largest corpora of terminal palettes, read into the theme `fly()` takes. Each token
+takes the colour its default names, from the ANSI slot both formats already agree on: `error`
+red, `warn` yellow, `ok` green, `flag` cyan, `value` magenta, and `ground` the background
+(Base16 `base08`, `base0A`, `base0B`, `base0C`, `base0E`, `base00`; iTerm `Ansi 1`, `3`, `2`,
+`6`, `5`, `Background Color` — exported as `BASE16_SLOTS` and `ITERM_SLOTS`). `hint`,
+`command` and `heading` keep their attributes and `muted` keeps the terminal's grey: a
+scheme's comment grey is built to recede, 2.50:1 in Default Dark.
+
+The result is checked before it is returned, by `audit()` — so whatever an importer returns,
+`fly()` accepts. A scheme that does not read is refused with an `ImportError` naming the slot:
+Tomorrow Night's red is `roundel/import: below 4.5:1 (WCAG AA) — error (base08) #cc6666 on
+#1d1f21, 4.46:1`. Every refusal carries a `code` — `E_IMPORT_FORMAT`, `E_IMPORT_SLOT` or
+`E_IMPORT_CONTRAST` — and a `fix`. Pass `{ conformance: 'AAA' }` to check at 7:1. No network
+and no bundled corpus: the file is yours to supply.
+
 ## Migrating
 
 ```diff
@@ -176,9 +203,9 @@ See [Migrate](https://burgee.interlace.tools/docs/migrate).
 
 ## Compatibility
 
-**Graded by chalk's own suite**, vendored at 6.0.0 into `compat-oracle` and run unedited
-through a generated shim: **58 of 58 tests (100.0%) on 2026-09-08**, alongside the same
-suite scoring 58 / 58 against real chalk in the same run.
+**Graded by chalk's own suite**, vendored at 6.0.1 into `compat-oracle` and run unedited
+through a generated shim: **59 of 59 tests (100.0%) on 2026-09-30**, alongside the same
+suite scoring 59 / 59 against real chalk in the same run.
 
 The grade is re-run on every change to `roundel/chalk`; the current figure is generated under
 *Benchmarks* below and published with every other drop-in on the
@@ -189,8 +216,10 @@ The grade is re-run on every change to `roundel/chalk`; the current figure is ge
 Every subpath is a lock, not a convention. `roundel/tokens` reaches 3,258 bytes on disk
 (its ceiling is picocolors, 3.3 KB); `roundel/policy` 1,972; `roundel/theme` 6,271;
 `roundel/plugin` 2,812 and reaching no module at all;
-`roundel/contrast` 1,250; `roundel/terminal` 878 and reaching no module; `roundel/chalk` 9,311 (its ceiling is chalk 6.0.0's own 9,370,
-before the ansi-styles and supports-color chalk also ships). Importing one never loads
+`roundel/contrast` 1,250; `roundel/terminal` 878 and reaching no module; `roundel/import`
+16,415, most of it the theme and contrast check it runs; `roundel/chalk` 9,311 (its ceiling is
+chalk 6.0.0's own 9,370 — 6.0.1 is 9,521 — before the ansi-styles and supports-color chalk
+also ships). Importing one never loads
 another — the tokens never carry the theme, the theme never carries the tokens, chalk
 carries neither — and `sideEffects: false` lets a bundler drop what a program does not use.
 ESM with a `default` condition, so `require('roundel/tokens')` works from CommonJS on
@@ -204,7 +233,7 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
-| `chalk` | 58 / 58 |
+| `chalk` | 59 / 59 |
 
 ## For agents
 
@@ -220,11 +249,6 @@ Graded by the incumbent's own test suite:
 - **The docs are machine-readable** at
   [roundel.interlace.tools/llms.txt](https://roundel.interlace.tools/llms.txt) and
   [llms-full.txt](https://roundel.interlace.tools/llms-full.txt).
-
-## What is next
-
-- **`roundel/import`** — `fromBase16(scheme)` and `fromITerm(plist)`: a theme from the two
-  largest corpora of terminal palettes, contrast-checked on the way in.
 
 ## API
 
