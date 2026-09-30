@@ -167,10 +167,29 @@ describe('the family vocabulary (R6, R8)', () => {
     expect(registered()).toEqual([]);
   });
 
-  it('hands `resolve` its layers by rank, and in registration order within a rank', () => {
-    register({ name: 'late', sources: { low: { rank: RANK.config + 1, values: {} }, tieA: { rank: RANK.env + 2, values: {} } } });
-    register({ name: 'early', sources: { high: { rank: RANK.env + 1, values: {} }, tieB: { rank: RANK.env + 2, values: {} } } });
-    expect(sources(runtime).map((layer) => layer.source)).toEqual(['high', 'tieA', 'tieB', 'low']);
+  it('hands `resolve` its layers by rank, and the later plugin first within a rank', () => {
+    register({ name: 'first', sources: { low: { rank: RANK.config + 1, values: {} }, tieA: { rank: RANK.env + 2, values: {} } } });
+    register({ name: 'second', sources: { high: { rank: RANK.env + 1, values: {} }, tieB: { rank: RANK.env + 2, values: {} } } });
+    expect(sources(runtime).map((layer) => layer.source)).toEqual(['high', 'tieB', 'tieA', 'low']);
+  });
+
+  it('keeps one plugin\'s own sources in the order it declared them, within a rank', () => {
+    register({ name: 'one', sources: { a: { rank: RANK.env + 2, values: {} }, b: { rank: RANK.env + 2, values: {} } } });
+    expect(sources(runtime).map((layer) => layer.source)).toEqual(['a', 'b']);
+  });
+
+  /*
+   * The spec, `register`'s own comment and the plugins guide all say the later plugin wins at
+   * an equal rank, like ESLint flat config. Until 2026-09-30 the earlier one did: `sources()`
+   * read the plugins oldest first, the sort is stable, and `resolve` takes the first candidate
+   * with a value. The case above only asserted the order, so nothing said which way it cut.
+   */
+  it('resolves a tie at an equal rank to the plugin registered later', () => {
+    register({ name: 'fleet-default', sources: { fleet: { rank: RANK.env + 5, values: { region: 'us-1' } } } });
+    register({ name: 'fleet-override', sources: { vault: { rank: RANK.env + 5, values: { region: 'eu-1' } } } });
+    const resolution = resolve({ region: {} }, { flags: {}, env: {}, sources: sources(runtime) });
+    expect(resolution.values['region']).toBe('eu-1');
+    expect(resolution.provenance['region']).toEqual({ source: 'vault', location: 'vault' });
   });
 
   it('ignores a key it does not host, so one object serves the whole family (R1)', () => {
