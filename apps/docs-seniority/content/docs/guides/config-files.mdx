@@ -1,0 +1,150 @@
+---
+title: Config files
+description: "discover() finds a config file in a fixed order, follows extends, and records each key's line; search() walks upward only when asked, bounded by stopAt, a depth limit and the root; loaders bring any format."
+---
+
+`discover` is the half of seniority that touches the disk. It finds a config file, loads it
+and its `extends` chain, and returns a layer to hand to `resolve` as `config`:
+
+```js title="discover.mjs"
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { relative } from 'node:path';
+
+import { discover, explain, resolve } from 'seniority';
+
+mkdirSync('shared', { recursive: true });
+writeFileSync('shared/base.config.json', JSON.stringify({ region: 'us-1', retries: 3 }, null, 2));
+writeFileSync('mytool.config.json', '{\n  "extends": "./shared/base.config.json",\n  "region": "eu-2"\n}\n');
+
+const loaded = await discover({ name: 'mytool', cwd: '.', env: {} });
+console.log(loaded.chain.map((p) => relative('.', p)));
+
+const specs = { region: { type: 'string' }, retries: { type: 'number' } };
+const result = resolve(specs, { flags: {}, env: {}, config: loaded });
+console.log(result.values);
+process.stdout.write(explain('region', result));
+```
+
+```text title="node discover.mjs"
+[ 'shared/base.config.json', 'mytool.config.json' ]
+{ region: 'eu-2', retries: 3 }
+region = "eu-2"   from config file mytool.config.json:3
+         candidates: flag --region (unset), default (unset)
+```
+
+## Where it looks
+
+The first of these that exists wins:
+
+1. The file named by `explicit` (your `--config`). **A missing one is an error**, not silence.
+2. The file named by `<NAME>_CONFIG` in the environment.
+3. `<name>.config.json`, `.mjs`, `.js` or `.cjs` in `cwd`.
+4. The user's config directory: `$XDG_CONFIG_HOME/<name>/config.json`.
+
+`candidates(discovery)` lists those paths without reading them. `disabled: true` (your
+`--no-config`) turns discovery off, including the file the environment names. A discovered
+file that is missing is silence.
+
+## extends
+
+`extends` is a string or a list. It is resolved relative to the extending file, or through
+`node_modules`, and deep-merged left to right: objects merge key by key, and for anything else
+the extending file wins. A cycle is refused, naming the chain that formed it. `chain` lists the
+files merged, outermost first.
+
+## Walking upward, bounded
+
+`discover` does not walk up the tree unless you pass `upward: true`, because a surprise parent
+config is worse than none. `search` and `searchAll` are the walk itself:
+
+```js title="walk.mjs"
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join, relative } from 'node:path';
+
+import { search, searchAll } from 'seniority';
+
+// A repository with a root config and a package with its own, two levels down.
+mkdirSync('repo/packages/app/src', { recursive: true });
+writeFileSync('repo/mytool.config.json', '{}');
+writeFileSync('repo/packages/app/mytool.config.json', '{}');
+const from = join('repo', 'packages', 'app', 'src');
+const show = (found) => (found === undefined ? 'nothing' : `${relative('.', found.path)} (depth ${found.depth})`);
+
+console.log('nearest:', show(search('mytool.config.json', { cwd: from, stopAt: 'repo' })));
+console.log('every:', searchAll('mytool.config.json', { cwd: from, stopAt: 'repo' }).map(show).join(', '));
+console.log('stopped at packages:', show(search('mytool.config.json', { cwd: 'repo/packages', stopAt: 'repo/packages' })));
+```
+
+```text title="node walk.mjs"
+nearest: repo/packages/app/mytool.config.json (depth 1)
+every: repo/packages/app/mytool.config.json (depth 1), repo/mytool.config.json (depth 3)
+stopped at packages: nothing
+```
+
+The walk ends at whichever comes first:
+
+- `stopAt`, inclusive;
+- the filesystem root;
+- `WALK_LIMIT` (64) directories.
+
+Directories are compared by their real path, so a symlink that points back at its own ancestor
+ends the walk instead of looping. `depth` is how many steps up the match was, so `--explain`
+can say "found 3 levels up".
+
+## Loaders: bring your own format
+
+Four formats load with no parser: JSON, and JavaScript as `.mjs`, `.js` or `.cjs`. In a
+JavaScript config, the default export may be a function that computes the config.
+
+Everything else (YAML, TOML, JSON5, INI) needs a loader you pass, so the parser is your
+dependency rather than everyone's. An extension with no loader is a **usage** error that names
+the option to fix it:
+
+```js title="yaml.mjs"
+import { writeFileSync } from 'node:fs';
+
+import { loadPath } from 'seniority';
+
+writeFileSync('app.yaml', 'region: eu-2\nretries: 3\n');
+
+try {
+  await loadPath('app.yaml');
+} catch (error) {
+  console.log(`${error.name}: ${error.message}`);
+  console.log(`hint: ${error.hint}`);
+}
+
+// A two-line parser stands in for js-yaml here; in a real program pass `yaml.load`.
+const tinyYaml = (_filepath, content) => Object.fromEntries(content.trim().split('\n').map((line) => line.split(': ')));
+console.log(await loadPath('app.yaml', { loaders: { '.yaml': tinyYaml } }));
+```
+
+```text title="node yaml.mjs"
+LoaderError: no loader for ".yaml"
+hint: pass loaders: { ".yaml": (filepath, content) => … } — seniority bundles no format parser
+{ region: 'eu-2', retries: '3' }
+```
+
+`discover` takes the same `loaders`. A loader may also replace a builtin, so a program that
+wants JSON5 for `.json` can have it.
+
+**YAML is not bundled, deliberately.** cosmiconfig reads YAML through js-yaml; seniority has no
+parser dependency at all. That is why `seniority` passes 186 of cosmiconfig's 243 cases rather
+than all of them: 54 of the rest are YAML fixtures. Passing `loaders: { '.yaml': yaml.load }`
+gets cosmiconfig's behaviour exactly.
+
+## What is tested
+
+- [`config.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/seniority/src/config.test.ts):
+  - the discovery order;
+  - a missing `--config` is an error;
+  - `--no-config`;
+  - `extends` is deep-merged and relative, and a cycle is refused by name.
+- [`search.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/seniority/src/search.test.ts):
+  - nearest first;
+  - bounded by `stopAt`, the root and `WALK_LIMIT`;
+  - a symlink cycle ends the walk.
+- [`load.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/seniority/src/load.test.ts):
+  - the four builtins;
+  - a missing loader is USAGE, naming the option;
+  - injected loaders, including one over a builtin.

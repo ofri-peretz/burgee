@@ -1,0 +1,50 @@
+---
+title: Why seniority
+description: "seniority against cosmiconfig, lilconfig, dotenv and rc, one capability per row, every cell linked to the test, grade or source that proves it — including YAML, which it deliberately leaves to a loader you pass."
+---
+
+cosmiconfig and lilconfig find a config file. dotenv loads a `.env`. rc merges files,
+variables and argv. Each one answers part of "what is this option set to?". seniority answers
+all of it, in one declared order, and adds the part none of them has: **where every value came
+from, and what it beat.** Its drop-in paths are graded by each incumbent's own suite. It has no
+dependencies.
+
+Every mark links to its evidence. For ours, that is a test in this repository. For theirs, it
+is the published source of the exact version compat-oracle grades, or that package's own test
+suite. None of the four incumbents is installed in this repository at its graded version, so
+their cells link the file on jsDelivr. `scripts/capabilities-lock.test.ts` fails the build when
+a cited test no longer contains the title it is cited for, or a link is not pinned to a version.
+
+<CapabilityMatrix pkg="seniority" />
+
+## Reading it
+
+- **"ours" is `resolve`, `discover` and the rest of seniority's own API.** The drop-ins keep
+  their incumbents' behaviour, which is what their grades measure. `seniority/rc` still turns
+  every `<name>_` variable into a key, because rc does.
+- **rc has a precedence too**, and the table says so: defaults, files, variables, argv. What
+  it does not have is the record of which one won.
+- **— does not apply** is not a soft ✗. cosmiconfig reads no environment, so the environment
+  rows do not apply to it; the cell says why.
+
+## What it leaves out on purpose
+
+- **YAML.** seniority bundles no format parser; that is a product decision, not a missing
+  feature. cosmiconfig's suite grades `seniority` 186 of 243, and 54 of the 57 it misses are
+  YAML fixtures. Pass `loaders: { '.yaml': yaml.load }` and you have cosmiconfig's behaviour,
+  with the parser as your dependency rather than everyone's.
+- **dotenv's vault and dotenvx.** The encrypted `.env.vault`, `decrypt`, and the dotenvx tips
+  are declined. They account for 29 of the 35 assertions `seniority/dotenv` does not pass.
+- **Rearranging the order.** A precedence a program can reorder is one nobody can reason about
+  from outside. A plugin can add a source between two built-ins, never reorder them.
+
+## What is not in the table
+
+- **Weight.** Zero dependencies is a row. The byte figures are on
+  [Benchmarks](https://burgee.interlace.tools/docs/benchmarks), measured the same way on both
+  sides, because they are figures rather than a yes or no.
+- **Speed.** Nothing measures how fast a config is found against lilconfig, so there is no
+  speed claim.
+- **Symlink handling in the incumbents.** seniority's walk is proven to end on a symlink ring.
+  Whether the others loop depends on their filesystem calls, and no test here runs them on one,
+  so the find-up row is about the bounds each one has, not about symlinks.
