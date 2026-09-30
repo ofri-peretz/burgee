@@ -135,6 +135,12 @@ describe('the family vocabulary (R6, R8)', () => {
     expect(e.fix).toContain('upgrade');
   });
 
+  // schema.json gives `contract` a minimum of 1. Until 2026-09-30 this host accepted 0 and
+  // any negative number; the same case is in every host, and plugin-contract-lock runs it.
+  it.each([0, -1])('refuses contract %s, below the first contract there is (R6)', (contract) => {
+    expect(() => { register({ name: 'acme', contract }); }).toThrow(expect.objectContaining({ code: 'E_PLUGIN_CONTRACT' }));
+  });
+
   it('refuses a source that is neither data nor a reader', () => {
     expect(caught(() => { register({ name: 'p', sources: { fleet: { rank: 5 } } }); }).code).toBe('E_PLUGIN_SCHEMA');
   });

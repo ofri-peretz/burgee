@@ -301,6 +301,33 @@ describe('one object registers into every host', () => {
 });
 
 /**
+ * R6 from below. `schema.json` gives `contract` a `minimum` of 1, and until 2026-09-30 six of
+ * the nine hosts — bellpull, caique, closeout, paratext, roundel, seniority — checked only
+ * the top: `contract: 0` and `contract: -1` registered. burgee and linegauge refused them
+ * with `E_PLUGIN_CONTRACT`, and flagstaff with `E_PLUGIN_SCHEMA` from its schema walk, which
+ * runs before its contract check. Both are the family's vocabulary (R8); the case below
+ * asserts every host refuses, with one of those two codes, a message about the contract,
+ * and a fix. Each host's own suite carries the same `it.each([0, -1])` for its coverage.
+ */
+describe('a contract below 1 is refused by every host', () => {
+  const CONTRACT_CODES = ['E_PLUGIN_CONTRACT', 'E_PLUGIN_SCHEMA'];
+
+  it.each(found.flatMap((host) => [0, -1].map((contract) => ({ name: host.name, contract }))))('$name: refuses contract $contract', ({ name, contract }) => {
+    const mod = MODULES[name] as PluginModule;
+    let refused: { code?: unknown; message?: unknown; fix?: unknown } | undefined;
+    try {
+      mod.validate?.({ name: 'below-one', contract });
+    } catch (error) {
+      refused = error as typeof refused;
+    }
+    expect(refused, `${name} accepted contract ${contract}, which schema.json's minimum of 1 refuses`).toBeDefined();
+    expect(CONTRACT_CODES).toContain(refused?.code);
+    expect(String(refused?.message)).toMatch(/contract/);
+    expect(typeof refused?.fix === 'string' && refused.fix !== '').toBe(true);
+  });
+});
+
+/**
  * R2, the half `plugin-schema-lock.test.ts` cannot reach — a key the schema **does** describe,
  * described wrongly.
  *

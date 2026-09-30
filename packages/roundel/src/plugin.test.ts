@@ -103,6 +103,12 @@ describe('refusals', () => {
     }
   });
 
+  // schema.json gives `contract` a minimum of 1. Until 2026-09-30 this host accepted 0 and
+  // any negative number; the same case is in every host, and plugin-contract-lock runs it.
+  it.each([0, -1])('refuses contract %s, below the first contract there is (R6)', (contract) => {
+    expect(() => { register({ name: 'acme', contract }); }).toThrow(expect.objectContaining({ code: 'E_PLUGIN_CONTRACT' }));
+  });
+
   it('a plugin with no name is refused — a shadowed token has to be attributable', () => {
     expect(() => register({ tokens: { error: '#b00020' } })).toThrow(/needs a name/);
   });
