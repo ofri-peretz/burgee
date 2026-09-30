@@ -9,13 +9,9 @@ name: Coverage
 # process, so the lcov arrives with repo-root-relative paths and nothing has to be
 # rewritten before the component globs match it.
 #
-# Scheduled only — deliberately not part of CI.
-#
-# Coverage is a trend, not a gate. On every push it costs a full build plus a
-# full suite re-run on the critical path of every merge, to move a number by a
-# tenth of a point; as a Monday job it costs nothing anybody is waiting on, and
-# still catches the thing worth catching — a suite that quietly stopped covering
-# what it used to. `ci.yml` remains the gate.
+# Scheduled only: this is the upload. The thresholds themselves gate every PR in
+# quality-full.yml's `coverage` job (owner, 2026-09-30), for the packages a PR can
+# have changed; this job runs them all once a week and sends the report to Codecov.
 #
 # Triggers: Monday 06:00 UTC, and `workflow_dispatch` for when you want it now.
 # ─────────────────────────────────────────────────────────────────────────────
@@ -50,8 +46,24 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
 
+      # burgee's completion cases run a real zsh and fish, and ubuntu-latest has neither; without
+      # them those cases skip and the code only they reach is uncovered. That is what failed the
+      # 2026-09-29 dispatch (run 36596035754: burgee functions 99.85%, lines 99.95%), which
+      # then uploaded nothing. Same step as completions.yml; pwsh is preinstalled.
+      - name: Install zsh and fish
+        run: |
+          set -euo pipefail
+          sudo apt-get update -q \
+            -o Dir::Etc::sourcelist=/etc/apt/sources.list \
+            -o Dir::Etc::sourceparts=/dev/null \
+            -o APT::Get::List-Cleanup=0
+          sudo apt-get install -y -q zsh fish
+
       # The package suites pack tarballs and read `dist/`, so the build is not optional.
+      # REQUIRE_SHELLS=1: a shell missing here fails the completion suites instead of skipping.
       - name: Run every suite with coverage
+        env:
+          REQUIRE_SHELLS: "1"
         run: npm run coverage
 
       - name: Merge the per-package reports into one
