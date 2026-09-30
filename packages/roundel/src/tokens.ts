@@ -16,11 +16,10 @@ import { flown, type Paint, type TokenName } from './policy.js';
 export type Token = (s: string) => string;
 
 const CSI = '\u001B[';
-/** Foreground back to the terminal's default; the close every colour shares. */
-const FG_RESET = `${CSI}39m`;
 
 function paint(p: Paint, s: string): string {
-  if ('sgr' in p) return `${CSI}${p.sgr.join(';')}m${s}${FG_RESET}`;
+  // `39m`: foreground back to the terminal's default, the close every colour shares.
+  if ('sgr' in p) return `${CSI}${p.sgr.join(';')}m${s}${CSI}39m`;
   // validateStream off: the policy has already decided; styleText must not re-read the env.
   return styleText([...p], s, { validateStream: false });
 }
@@ -41,27 +40,46 @@ const code = (p: string): string => `${CSI}${p}m`;
  * before it and re-opens after (chalk/chalk#92). The façade computes parameters; the
  * escape itself is emitted here and nowhere else (R3, R6).
  */
-export function sgr(chain: readonly SgrPair[], s: string): string {
-  const openAll = chain.map((p) => code(p.open)).join('');
-  const closeAll = chain.map((p) => code(p.close)).reverse().join('');
+export const sgr = (chain: readonly SgrPair[], s: string): string => painted(chain.reduce(painter, UNPAINTED), s);
+
+/**
+ * A chain's escapes, built one pair at a time as a chalk builder grows its chain: what opens it,
+ * what closes it, and each pair's close and re-open, innermost first. A builder keeps its
+ * painter, so a styled string costs one pass over the text rather than rebuilding every escape
+ * in the chain on every call — which was most of what it cost (B5).
+ */
+export interface Painter {
+  open: string;
+  close: string;
+  back: readonly (readonly [string, string])[];
+}
+
+/** No pairs: `painted` hands a string back as it came. */
+export const UNPAINTED: Painter = { open: '', close: '', back: [] };
+
+/** `at` with one more pair inside it. */
+export const painter = (at: Painter, p: SgrPair): Painter => ({
+  open: at.open + code(p.open),
+  close: code(p.close) + at.close,
+  back: [[code(p.close), code(p.open)], ...at.back],
+});
+
+/** `s` through a painter. No escape inside skips the re-open pass, no line break the line pass — chalk's own shortcut. */
+export function painted({ open, close, back }: Painter, s: string): string {
   let out = s;
-  if (out.includes(CSI)) for (const p of chain.toReversed()) out = out.replaceAll(code(p.close), code(p.close) + code(p.open));
-  return openAll + out.replace(LINE_BREAK, (lf) => closeAll + lf + openAll) + closeAll;
+  if (out.includes(CSI)) for (const [shut, again] of back) if (out.includes(shut)) out = out.replaceAll(shut, shut + again);
+  if (out.includes('\n')) out = out.replace(LINE_BREAK, (lf) => close + lf + open);
+  return open + out + close;
 }
 
 function token(name: TokenName): Token {
   return (s) => {
-    const p = flown.level === 0 ? undefined : flown.paint[name];
-    return p === undefined ? s : paint(p, s);
+    const p = flown.paint[name];
+    return flown.level === 0 || p === undefined ? s : paint(p, s);
   };
 }
 
-export const error = token('error');
-export const warn = token('warn');
-export const ok = token('ok');
-export const hint = token('hint');
-export const muted = token('muted');
-export const command = token('command');
-export const flag = token('flag');
-export const value = token('value');
-export const heading = token('heading');
+// One statement for the nine: `./chalk` reaches this file, its whole graph is held under chalk
+// 6.0.0's own source (R8), and nine declarations were 180 of the bytes a builder that keeps its
+// escapes needed (B5).
+export const [error, warn, ok, hint, muted, command, flag, value, heading] = (['error', 'warn', 'ok', 'hint', 'muted', 'command', 'flag', 'value', 'heading'] as const).map(token) as [Token, Token, Token, Token, Token, Token, Token, Token, Token];

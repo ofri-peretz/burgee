@@ -198,7 +198,7 @@
       ]
     },
     "roundel/chalk": {
-      "ceiling": 4.45,
+      "ceiling": 1.5,
       "unit": "ratio",
       "target": 1,
       "derive": {
@@ -222,6 +222,13 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 3.554,
           "why": "PR #744 CI (bench run 36671525047, ubuntu-latest): 3.554 x 1.25, rounded up to 0.05."
+        },
+        {
+          "ceiling": 1.5,
+          "setOn": "2026-09-30",
+          "decision": "D-20260929-b5-runtime-ratchets",
+          "measured": 1.172,
+          "why": "roundel/chalk keeps its escapes per builder (a painter grown one pair at a time), reads its links as kept properties instead of through a Proxy, and skips the passes a string does not need: 1.172 locally (3.554 on PR #744 CI). 1.25x local until CI measures it."
         }
       ]
     },
@@ -275,7 +282,7 @@
       ]
     },
     "flagstaff/ora": {
-      "ceiling": 1.25,
+      "ceiling": 1.2,
       "unit": "ratio",
       "target": 1,
       "derive": {
@@ -306,6 +313,13 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 0.985,
           "why": "flagstaff/ora on the faster linegauge: 0.985 locally (1.172 on PR #744 CI). 1.25x local until CI measures it."
+        },
+        {
+          "ceiling": 1.2,
+          "setOn": "2026-09-30",
+          "decision": "D-20260929-b5-runtime-ratchets",
+          "measured": 0.945,
+          "why": "flagstaff/ora on roundel/chalk without the Proxy: 0.945 locally. 1.25x local until CI measures it."
         }
       ]
     },
@@ -380,7 +394,7 @@
       ]
     },
     "flagstaff/cli-table3": {
-      "ceiling": 0.5,
+      "ceiling": 0.45,
       "unit": "ratio",
       "target": 1,
       "derive": {
@@ -411,6 +425,13 @@
           "decision": "D-20260929-b5-runtime-ratchets",
           "measured": 0.393,
           "why": "flagstaff/cli-table3 on the faster linegauge: 0.393 locally (1.548 on PR #744 CI). 1.25x local until CI measures it."
+        },
+        {
+          "ceiling": 0.45,
+          "setOn": "2026-09-30",
+          "decision": "D-20260929-b5-runtime-ratchets",
+          "measured": 0.351,
+          "why": "flagstaff/cli-table3 on roundel/chalk without the Proxy: 0.351 locally. 1.25x local until CI measures it."
         }
       ]
     },

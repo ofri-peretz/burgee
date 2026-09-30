@@ -13,7 +13,7 @@
  */
 import { colorLevel, type ColorLevel } from './policy.js';
 import { processRuntime } from './runtime.js';
-import { sgr, type SgrPair } from './tokens.js';
+import { painted, type Painter, painter, type SgrPair, UNPAINTED } from './tokens.js';
 
 /** Colour support: none, 16 colours, 256 colours, truecolor. chalk's name for the policy's level. */
 export type ColorSupportLevel = ColorLevel;
@@ -149,10 +149,10 @@ for (const [prefix, fam] of Object.entries(FAMILIES)) {
 /** The open parameters of one model colour at this level: truecolor, 256, or the nearest 16. */
 function open(fam: Family, level: ColorLevel, model: Model, args: unknown[]): string {
   const rgb: Rgb | undefined = model === 'ansi256' ? undefined : model === 'hex' ? hexToRgb(String(args[0])) : (args.map(Number) as Rgb);
+  // Truecolour needs no palette index, so it is not worked out (B5).
+  if (level === 3 && rgb !== undefined) return `${fam.ext};2;${rgb.join(';')}`;
   const code = rgb === undefined ? Number(args[0]) : rgbToAnsi256(...rgb);
-  return level === 3 && rgb !== undefined ? `${fam.ext};2;${rgb.join(';')}`
-    : level >= 2 ? `${fam.ext};5;${code}`
-    : fam.ansi(ansi256ToAnsi(code));
+  return level >= 2 ? `${fam.ext};5;${code}` : fam.ansi(ansi256ToAnsi(code));
 }
 
 // ── The builder ─────────────────────────────────────────────────────────────────────────
@@ -180,50 +180,63 @@ function checkLevel(level: unknown): asserts level is ColorLevel {
   if (!Number.isSafeInteger(level) || (level as number) < 0 || (level as number) > 3) throw new Error('The `level` should be an integer from 0 to 3');
 }
 
-/** The next link after `key`, or nothing when chalk has no such property. */
-function link(root: Root, chain: readonly SgrPair[], visible: boolean, key: string): unknown {
+/** Where a builder keeps what its links need; a symbol, so no chalk property can shadow it. */
+const STATE = Symbol('chalk');
+interface State {
+  root: Root;
+  at: Painter;
+  visible: boolean;
+}
+type Linked = ChalkInstance & { [STATE]: State };
+
+/** The next link after `key`: a builder for a style or `visible`, a factory for a colour model. */
+function link({ root, at, visible }: State, key: string): unknown {
   const style = STYLES[key];
-  if (style !== undefined) return builder(root, [...chain, style], visible);
-  if (key === 'visible') return builder(root, chain, true);
-  const model = MODELS[key];
-  if (model === undefined) return undefined;
-  const [fam, name] = model;
-  return (...args: unknown[]) => builder(root, [...chain, { open: open(fam, root.level, name, args), close: fam.close }], visible);
+  if (style !== undefined) return builder(root, painter(at, style), visible);
+  if (key === 'visible') return builder(root, at, true);
+  const [fam, name] = MODELS[key] as [Family, Model];
+  return (...args: unknown[]) => builder(root, painter(at, { open: open(fam, root.level, name, args), close: fam.close }), visible);
 }
 
 /**
- * One link of a chain: a function over the styles gathered so far, whose properties are
- * the next links. A Proxy over a function, so `bind`, `call` and `apply` are the real ones
- * and every link found once is found again (`chalk.rgb === chalk.rgb`).
+ * What every builder inherits: `level` on its root, and one getter per chalk property that
+ * builds the next link and then keeps it on the builder it was asked of — chalk's own shape.
+ * It was a Proxy until 2026-09-30, and a trap on every `.red` was a third of what a styled
+ * string cost; a kept property is a plain read the second time (B5). Its prototype is
+ * `Function.prototype`, so `bind`, `call` and `apply` are the real ones, and a link found once
+ * is found again (`chalk.rgb === chalk.rgb`).
  */
-function builder(root: Root, chain: readonly SgrPair[], visible: boolean): ChalkInstance {
-  const links = new Map<string, unknown>();
-  const fn = (...text: unknown[]): string => {
-    const s = text.length === 1 ? String(text[0]) : text.join(' ');
-    return root.level === 0 || s === '' ? (visible ? '' : s) : chain.length === 0 ? s : sgr(chain, s);
-  };
-  return new Proxy(fn, {
-    get(target, key) {
-      if (key === 'level') return root.level;
-      if (typeof key !== 'string') return Reflect.get(target, key);
-      if (!links.has(key)) links.set(key, link(root, chain, visible, key));
-      // A key chalk has no link for — `then`, `constructor` — is the function's own.
-      return links.get(key) ?? Reflect.get(target, key);
+const PROTO = Object.create(Function.prototype) as object;
+Object.defineProperty(PROTO, 'level', {
+  get(this: Linked) {
+    return this[STATE].root.level;
+  },
+  set(this: Linked, value: unknown) {
+    checkLevel(value);
+    this[STATE].root.level = value;
+  },
+});
+for (const key of [...Object.keys(STYLES), ...Object.keys(MODELS), 'visible']) {
+  Object.defineProperty(PROTO, key, {
+    get(this: Linked) {
+      const value = link(this[STATE], key);
+      Object.defineProperty(this, key, { value });
+      return value;
     },
-    set(target, key, value) {
-      if (key !== 'level') return Reflect.set(target, key, value);
-      checkLevel(value);
-      root.level = value;
-      return true;
-    },
-  }) as ChalkInstance;
+  });
 }
 
-// ── Detection, once, at import ──────────────────────────────────────────────────────────
-// R6 against R9: chalk's contract is "detect the terminal at import", so this file asks the
-// runtime seam twice — once per stream — and it asks at import, not at first use. The
-// guarded `globalThis.process` cast that used to sit here moved to `./runtime.js` whole
-// (Y9); nothing about when or how often the process is read changed with it.
+/** One link of a chain: a function over the styles gathered so far, whose properties are the next links. */
+function builder(root: Root, at: Painter, visible: boolean): ChalkInstance {
+  const fn = (...text: unknown[]): string => {
+    const s = text.length === 1 ? String(text[0]) : text.join(' ');
+    return root.level === 0 || s === '' ? (visible ? '' : s) : painted(at, s);
+  };
+  const linked = Object.setPrototypeOf(fn, PROTO) as Linked;
+  linked[STATE] = { root, at, visible };
+  return linked;
+}
+
 const stdoutLevel = colorLevel(processRuntime());
 const stderrLevel = colorLevel(processRuntime('stderr'));
 const info = (level: ColorLevel): ColorInfo => (level === 0 ? false : { level, hasBasic: true, has256: level >= 2, has16m: level === 3 });
@@ -236,7 +249,7 @@ const info = (level: ColorLevel): ColorInfo => (level === 0 ? false : { level, h
 function create(options: ChalkOptions = {}, detected = stdoutLevel): ChalkInstance {
   const { level = detected } = options;
   checkLevel(level);
-  return builder({ level }, [], false);
+  return builder({ level }, UNPAINTED, false);
 }
 
 /** `new Chalk({ level })` — an instance with its own level, detected when the option is omitted. */
