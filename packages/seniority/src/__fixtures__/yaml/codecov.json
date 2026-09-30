@@ -1,0 +1,98 @@
+{
+  "coverage": {
+    "precision": 1,
+    "round": "down",
+    "range": "60...100",
+    "status": false
+  },
+  "comment": false,
+  "component_management": {
+    "individual_components": [
+      {
+        "component_id": "burgee",
+        "name": "burgee",
+        "paths": [
+          "packages/burgee/**"
+        ]
+      },
+      {
+        "component_id": "roundel",
+        "name": "roundel",
+        "paths": [
+          "packages/roundel/**"
+        ]
+      },
+      {
+        "component_id": "flagstaff",
+        "name": "flagstaff",
+        "paths": [
+          "packages/flagstaff/**"
+        ]
+      },
+      {
+        "component_id": "caique",
+        "name": "caique",
+        "paths": [
+          "packages/caique/**"
+        ]
+      },
+      {
+        "component_id": "bellpull",
+        "name": "bellpull",
+        "paths": [
+          "packages/bellpull/**"
+        ]
+      },
+      {
+        "component_id": "closeout",
+        "name": "closeout",
+        "paths": [
+          "packages/closeout/**"
+        ]
+      },
+      {
+        "component_id": "linegauge",
+        "name": "linegauge",
+        "paths": [
+          "packages/linegauge/**"
+        ]
+      },
+      {
+        "component_id": "paratext",
+        "name": "paratext",
+        "paths": [
+          "packages/paratext/**"
+        ]
+      },
+      {
+        "component_id": "seniority",
+        "name": "seniority",
+        "paths": [
+          "packages/seniority/**"
+        ]
+      },
+      {
+        "component_id": "controlroom",
+        "name": "controlroom",
+        "paths": [
+          "packages/controlroom/**"
+        ]
+      },
+      {
+        "component_id": "compat-oracle",
+        "name": "compat-oracle",
+        "paths": [
+          "packages/compat-oracle/**"
+        ]
+      }
+    ]
+  },
+  "ignore": [
+    "**/*.test.ts",
+    "**/*.d.ts",
+    "**/dist/**",
+    "**/node_modules/**",
+    "**/__fixtures__/**",
+    "packages/compat-oracle/vendor/**"
+  ]
+}

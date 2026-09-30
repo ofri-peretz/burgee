@@ -115,7 +115,26 @@ deep-merged left to right, and cycles are rejected with the chain that formed th
 explicit `--config` that is missing is an error; a _discovered_ file that is missing is
 silence.
 
-No YAML: JSON and JavaScript cover the cases, and a YAML parser would be a dependency.
+YAML is one loader away, and still not a dependency. `seniority/yaml` is this package's own
+parser — the part of YAML a config file is written in, read the way `js-yaml` 5 reads it — in
+an entry of its own, so a program that never imports it never carries it:
+
+```js
+import { discover } from "seniority";
+import { parse } from "seniority/yaml";
+
+const yaml = (_path, text) => parse(text);
+await discover({
+  name: "mytool",
+  cwd: process.cwd(),
+  env: process.env,
+  loaders: { ".yaml": yaml, ".yml": yaml },
+  extensions: [".json", ".yaml", ".yml", ".js"],
+});
+```
+
+Supplying the parser and asking discovery to look for the format are two options on purpose:
+a program may want either without the other.
 
 ## Bring your own option type
 

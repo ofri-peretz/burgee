@@ -54,6 +54,11 @@
       "import": "./dist/find-up.js",
       "default": "./dist/find-up.js"
     },
+    "./yaml": {
+      "types": "./dist/yaml.d.ts",
+      "import": "./dist/yaml.js",
+      "default": "./dist/yaml.js"
+    },
     "./schema.json": "./dist/schema.json",
     "./config": {
       "types": "./dist/config.d.ts",

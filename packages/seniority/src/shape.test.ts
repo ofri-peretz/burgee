@@ -7,7 +7,7 @@
  * intention.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
@@ -41,7 +41,7 @@ const manifest = JSON.parse(readFileSync(join(PKG_ROOT, 'package.json'), 'utf8')
  * a user asks *why did this option get that value*. `seniority/precedence` no longer re-exports
  * it; the root still does, so `import { explain } from 'seniority'` is unchanged.
  */
-const SUBPATHS = ['.', './precedence', './explain', './config', './plugin', './cosmiconfig', './dotenv', './lilconfig', './rc', './find-up', './schema.json'];
+const SUBPATHS = ['.', './precedence', './explain', './config', './plugin', './cosmiconfig', './dotenv', './lilconfig', './rc', './find-up', './yaml', './schema.json'];
 
 describe('the export map is the compatibility claim (R8)', () => {
   it('publishes the root, the plugin host and one override target per graded incumbent', () => {
@@ -135,6 +135,32 @@ describe('the weight ceiling (R9, Y8)', () => {
     // A floor as well as a ceiling: a `dist` that shrank to nothing means the build ran and
     // produced nothing, which would otherwise pass the assertion above with flying colours.
     expect(total).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * `seniority/yaml` has a budget of its own, and a lock that keeps it lazy.
+ *
+ * The parser is the one module here that a program should carry only if it reads YAML
+ * (D-20260930-seniority-yaml), so what matters is not its share of the total above but two
+ * facts about it: how big it is when it *is* loaded, and that no other built module loads it by
+ * an import — static or `import()` — which would put it on that module's path whether or not a
+ * YAML file ever turns up. Measured **24,226 B** on 2026-09-30 (tsc output, comments stripped);
+ * the budget leaves room for a fix, not for a feature.
+ */
+const YAML_BYTES = 25_000;
+
+describe('seniority/yaml stays its own weight', () => {
+  it('is under its own budget', () => {
+    const bytes = statSync(join(DIST, 'yaml.js')).size;
+    expect(bytes, `dist/yaml.js is ${String(bytes)} B against ${String(YAML_BYTES)} B`).toBeLessThanOrEqual(YAML_BYTES);
+  });
+
+  it('is imported by no other built module', () => {
+    const importers = walk(DIST)
+      .filter((file) => file.endsWith('.js') && basename(file) !== 'yaml.js')
+      .filter((file) => specifiers(readFileSync(file, 'utf8')).some((spec) => spec === './yaml.js'));
+    expect(importers.map((f) => f.slice(DIST.length))).toEqual([]);
   });
 });
 

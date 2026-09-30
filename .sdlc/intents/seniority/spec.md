@@ -73,6 +73,11 @@ them the absent YAML parser, one of them the harness.
   up, where it did not declare the loader it needs. `NOT_BUNDLED` names the five extensions
   this package declines, and `load.test.ts` asserts each is absent from `defaultLoaders` — the
   747 M/wk is declined in code, not only in prose.
+
+  **YAML's clause changed 2026-09-30 (D-20260930-seniority-yaml, R16).** The builtins are still
+  the four, and `.yaml` is still a loader the caller passes — but the caller no longer has to
+  take `js-yaml` to have one, because `seniority/yaml` is that loader, bundled as an entry of its
+  own. `.json5`, `.toml` and `.ini` stay as they were.
 - **R7** `extends: string | string[]` resolves relative to the extending file or through
   `node_modules`, deep-merges left to right, rejects cycles, and the chain appears in
   `explain` — the same semantics `commander-env` V7 already ships, so the vectors are shared.
@@ -269,6 +274,21 @@ them the absent YAML parser, one of them the harness.
   `--explain` must not list a vault that was never reachable as a source that was consulted
   and lost.
 
+- **R16 (D-20260930-seniority-yaml)** `seniority/yaml` exports `parse(text)` and
+  `YAMLException`: a YAML parser with no dependency, for the part of YAML 1.2 a configuration
+  file is written in — block and flow collections, every scalar style, comments, document
+  markers, anchors and aliases, and the core schema js-yaml 5 loads by default. It returns what
+  `js-yaml` 5.4.2's `load` returns (the version cosmiconfig 10.0.1 resolves) and refuses, with
+  js-yaml's wording and position, what js-yaml refuses. Three forms js-yaml reads are refused by
+  name instead, none of which a configuration file has a use for: explicit keys written with `?`, an empty
+  key (a line opening with `:`) with a collection on its own line, and a `\U` escape past U+10FFFF. It is its own entry and **no other built module
+  imports it**, so a program that reads no YAML carries none of it.
+
+  **Built 2026-09-30.** Why a parser now, when R6 declined one: the owner's 1.0 bar is every
+  drop-in level with its incumbent on the incumbent's own suite, and 54 of cosmiconfig's 243
+  cases cannot pass without YAML. The 747 M/wk argument was against a *dependency*; this is
+  none — zero packages added, 24 KB in a file nothing loads until a YAML file does.
+
 ## What is built
 
 **This is the list PLAN 3.2's "Done when" reads.** One row per requirement, each with the
@@ -301,6 +321,7 @@ are.
 | R13 | **Built** | 2026-09-14. `src/precedence.ts` — open union, `describe`'s `default` branch | `precedence.test.ts`: a `vault` source renders itself in `--explain` |
 | R14 | **Built** | 2026-09-14, re-checked 2026-09-15. `ORDER` is the one declaration; `Source` and `RANK` are derived | `precedence.test.ts` asserts all three agree. Nothing added in 3.2 writes a source kind: the new files touch `RANK` only through `plugin.ts`, which already did |
 | R15 | **Built** | 2026-09-14. `src/plugin.ts` — the `sources` host; `src/schema.json` describes the key since 2026-09-23 (see below) | `plugin.test.ts` |
+| R16 | **Built** | 2026-09-30. `src/yaml.ts`, the `./yaml` entry | `yaml.test.ts`: seven real YAML files and every inline case, each also run through the pinned js-yaml and required to agree (the five `OURS` rows required to differ); `shape.test.ts`: a 25,000 B budget on `dist/yaml.js` and no other built module importing it |
 
 **R10 is the single row that is not built, and the reason is a file this lane may not write.**
 `lilconfig` has not been vendored at all, and `rc` is assigned to the harness lane by the plan
@@ -760,7 +781,7 @@ as much as the list.
 
 | Not here | Why | What to do instead |
 | :-- | :-- | :-- |
-| Bundle a YAML, TOML, INI or JSON5 parser | `js-yaml` 264 M + `json5` 205 M + `yaml` 176 M + `ini` 102 M is **747 M/wk** of parser this package refuses to put in anyone's tree for a format most programs do not use. It is also the single largest cause of the cosmiconfig gap — 54 of the 55 — and that is the honest price | inject it: `loaders: { '.yaml': parse }`. An unknown extension raises `LoaderError`, a **usage** error naming the option that would supply one |
+| Bundle a TOML, INI or JSON5 parser | `json5` 205 M + `ini` 102 M of parser this package will not put in anyone's tree for a format most programs do not use. YAML was on this row until 2026-09-30: it is now `seniority/yaml` (R16), built here rather than taken as a dependency, because 54 of cosmiconfig's cases needed it | inject it: `loaders: { '.toml': parse }`. An unknown extension raises `LoaderError`, a **usage** error naming the option that would supply one |
 | Read `process.env`, `process.cwd()` or `process.argv` | An ambient read makes every answer depend on where it was called, and it defeats `--explain`: a provenance record that cannot be reproduced from its inputs is a story, not a record | pass `{ env, cwd }`. `seniority/dotenv`'s `config()` takes `processEnv` and **refuses rather than guessing** when it is absent |
 | Let a plugin reorder the five built-in sources | The precedence is the product. A program whose flag can be beaten by a config file is a program whose `--explain` output is the only way to know what it did, which is the failure this package exists to end | contribute a source with a `rank` between the two bounds |
 | Let a plugin replace a built-in source | Same reason, from the other side: `flag` and `default` are the two ends a caller reasons from | — |
