@@ -113,9 +113,8 @@ describe('the examples on this site', () => {
     it.each(page.runs.map((r) => [r.command, r] as const))('`%s` prints what the page shows', (_command, run) => {
       if (run.signal !== undefined && process.platform === 'win32') return;
       const { env, argv } = parse(run.command);
-      const childEnv: NodeJS.ProcessEnv = {};
-      for (const [key, value] of Object.entries(process.env)) if (!AMBIENT.has(key)) childEnv[key] = value;
-      Object.assign(childEnv, env);
+      const childEnv: NodeJS.ProcessEnv = { ...process.env, ...env };
+      for (const key of AMBIENT) if (!(key in env)) delete childEnv[key];
       const result = spawnSync(process.execPath, argv, { cwd: dir, env: childEnv, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
       if (run.signal === undefined) expect(result.status, result.stderr).toBe(run.exit);
       else expect([result.status, result.signal], result.stderr).toEqual([null, run.signal]);
