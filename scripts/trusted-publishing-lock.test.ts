@@ -198,7 +198,8 @@ function sandbox(): { dir: string; bin: string } {
   ]);
   shim("git", ["exit 0"]);
   shim("gh", ['[ "$1 $2" = "release view" ] && exit 1', "exit 0"]);
-  shim("sleep", ["exit 0"]);
+  // Records each pause instead of taking it, so the provenance wait can be measured in no time.
+  shim("sleep", ['[ -n "$SLEEPS" ] && echo "$1" >> "$SLEEPS"', "exit 0"]);
   return { dir, bin };
 }
 
@@ -230,6 +231,7 @@ function runStep(
       RUNNER_TEMP: dir,
       GITHUB_STEP_SUMMARY: summary,
       INSTALLS: join(dir, "installs"),
+      SLEEPS: join(dir, "sleeps"),
       ...env,
     },
   });
@@ -284,6 +286,26 @@ describe("the publish loop says which credential published, executed", () => {
     expect(r.output).toMatch(
       /Trusted publishing names ofri-peretz\/burgee and release\.yml/,
     );
+  });
+});
+
+/*
+ * npm signs the attestation after the publish returns. At 12 tries 10 s apart (two minutes)
+ * linegauge@1.0.0 gave up and its GitHub Release got no assets; they were attached by hand.
+ * The stubbed `npm view` never answers, so this measures the whole wait and the give-up.
+ */
+describe("the provenance wait, executed", () => {
+  executes("waits about ten minutes for npm's attestation, backing off, and only warns", () => {
+    const r = runStep(loopStep(), loopEnv("9 verbose oidc Successfully retrieved and set token\\n", 0));
+    expect(r.status, r.output).toBe(0);
+    const pauses = readFileSync(join(r.dir, "sleeps"), "utf8").trim().split("\n").map(Number);
+    expect(pauses.slice(0, 4)).toEqual([10, 20, 40, 60]);
+    expect(Math.max(...pauses)).toBe(60);
+    const total = pauses.reduce((a, b) => a + b, 0);
+    expect(total).toBeGreaterThanOrEqual(600);
+    expect(total).toBeLessThan(700);
+    expect(r.output).toMatch(/::warning::leaf@1\.0\.0: npm had published no attestation after \d+s\./);
+    expect(r.output).toMatch(/::warning::leaf@1\.0\.0: provenance not attached to the GitHub Release/);
   });
 });
 

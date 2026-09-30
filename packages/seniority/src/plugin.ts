@@ -97,7 +97,7 @@ export function validate(plugin: unknown): asserts plugin is Plugin {
     throw new PluginError('E_PLUGIN_SCHEMA', 'a plugin needs a name', 'add `name: "…"` — it is how a refused source is reported');
   }
   const contract = plugin['contract'];
-  if (contract !== undefined && (!Number.isInteger(contract) || (contract as number) > CONTRACT)) {
+  if (contract !== undefined && (!Number.isInteger(contract) || (contract as number) < 1 || (contract as number) > CONTRACT)) {
     throw new PluginError('E_PLUGIN_CONTRACT', `plugin "${plugin['name']}" declares contract ${String(contract)}; this seniority knows ${CONTRACT}`, 'upgrade seniority, or lower the plugin’s contract');
   }
   validateSources(plugin['sources'], plugin['name']);
@@ -149,7 +149,7 @@ export function reset(): void {
   order.length = 0;
 }
 
-/** The plugins registered, in registration order. */
+/** The plugins registered, in registration order — oldest first, which is the order a reader reads them in. */
 export function registered(): readonly Plugin[] {
   return order;
 }
@@ -161,10 +161,17 @@ export function registered(): readonly Plugin[] {
  * A source whose `read` returns `undefined` had nothing for this run and contributes no
  * candidate at all, which is different from contributing an empty one: `--explain` should
  * not list a vault that was never reachable as a source that was consulted and lost.
+ *
+ * **At an equal rank the later plugin comes first**, because `resolve` takes the first
+ * candidate with a value: that is what makes "later wins" (`register`) true of the answer and
+ * not only of the registry. Plugins are read newest first and the sort is stable, so within
+ * one rank the order is newest plugin first, and each plugin's own sources keep the order it
+ * declared them in. Until 2026-09-30 the plugins were read oldest first, and the earlier
+ * registration won the tie the spec, this file and the guide all gave to the later one.
  */
 export function sources(runtime: SourceRuntime): SourceLayer[] {
   const out: SourceLayer[] = [];
-  for (const plugin of order) {
+  for (const plugin of order.toReversed()) {
     for (const [source, spec] of Object.entries(plugin.sources ?? {})) {
       const got = spec.values === undefined ? spec.read?.(runtime) : { values: spec.values };
       if (got === undefined) continue;

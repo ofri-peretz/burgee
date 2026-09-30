@@ -1,0 +1,17 @@
+{
+  "title": "Concepts",
+  "pages": [
+    "index",
+    "family",
+    "output-policy",
+    "static-projection",
+    "plugins",
+    "agent-surfaces",
+    "exit-codes",
+    "shutdown",
+    "configuration",
+    "drop-ins",
+    "evidence",
+    "text-width"
+  ]
+}

@@ -94,7 +94,14 @@ const FAMILY_ORDER = [
  * here, on the same terms as the other four — zero dependencies, nothing but Node builtins —
  * and the two `it.each(FOUNDATION)` cases below now grade it as the floor.
  */
-const FOUNDATION = ['bellpull', 'closeout', 'linegauge', 'paratext', 'seniority'];
+/*
+ * `roundel` was missing until 2026-09-30, and that was the leaf-to-leaf gap. It sits sixth in
+ * `FAMILY_ORDER`, above four other leaves, so the per-package check below would have let it
+ * depend on `paratext` or `linegauge` — and the only thing that refused a leaf-to-leaf edge
+ * was the layers page generator on a docs branch. It depends on nothing, is used by all three
+ * packages that compose, and belongs here on the same terms as the other five.
+ */
+const FOUNDATION = ['bellpull', 'closeout', 'linegauge', 'paratext', 'roundel', 'seniority'];
 
 /** Node has these natively now (util.styleText, fs.glob, fetch, util.parseArgs). */
 const BANNED = ['chalk', 'picocolors', 'glob', 'node-fetch', 'minimist'];
@@ -217,6 +224,58 @@ describe('the foundation tier (Y1)', () => {
     if (manifest === undefined) return; // a reserved name with no package yet is not a finding
     const upward = Object.keys(manifest.dependencies ?? {}).filter((d) => FAMILY_ORDER.includes(d));
     expect(upward, `${name} is the floor; nothing it depends on may sit above it`).toEqual([]);
+  });
+});
+
+/**
+ * **A leaf depends on nothing in the repo** — the family's layering rule, stated as a lock
+ * rather than inferred from two lists that each had to remember every leaf.
+ *
+ * A leaf that took a sibling would stop being a leaf, and every package that composes it
+ * would sit a third tier up: `paratext` keeps a declared fork of supports-color rather than
+ * import `roundel` for exactly this reason (D-181). Before this block the rule held only where
+ * `FOUNDATION` happened to list the leaf, and it did not list `roundel`.
+ *
+ * "In the repo" is every workspace — a published sibling, a private one such as
+ * `compat-oracle`, an app, an example — in every manifest field that makes one package
+ * depend on another, `devDependencies` included, so a test-only edge cannot sneak the
+ * coupling in either. The leaves are `FOUNDATION`; the last case below is what proves the
+ * check can fail, by handing it a leaf that has gained a sibling.
+ */
+const WORKSPACES = [...new Set(['apps', 'examples', 'packages'].flatMap((group) => (existsSync(join(root, group)) ? readdirSync(join(root, group)).map((dir) => join(root, group, dir)) : [])).concat(join(root, 'benchmarks'))
+  .filter((dir) => existsSync(join(dir, 'package.json')))
+  .map((dir) => (JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as { name: string }).name))];
+
+type EdgeFields = Partial<Record<'dependencies' | 'devDependencies' | 'peerDependencies' | 'optionalDependencies', Record<string, string>>>;
+
+/** Every edge from `manifest` to another workspace in this repo, as `field → name`. */
+function siblingEdges(manifest: EdgeFields, workspaces: readonly string[] = WORKSPACES): string[] {
+  const fields = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'] as const;
+  return fields.flatMap((field) => Object.keys(manifest[field] ?? {}).filter((dep) => workspaces.includes(dep)).map((dep) => `${field} → ${dep}`));
+}
+
+function leafManifest(name: string): EdgeFields | undefined {
+  const file = join(root, 'packages', name, 'package.json');
+  return existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as EdgeFields) : undefined;
+}
+
+describe('a leaf depends on nothing in the repo', () => {
+  it('knows the workspaces, and every leaf is one of them — otherwise the check below is vacuous', () => {
+    expect(WORKSPACES.length).toBeGreaterThan(FOUNDATION.length);
+    for (const leaf of FOUNDATION) expect(WORKSPACES, `${leaf} is not a workspace this lock can see`).toContain(leaf);
+  });
+
+  it.each(FOUNDATION)('%s has no edge to a sibling, in any dependency field', (name) => {
+    const manifest = leafManifest(name);
+    expect(manifest, `${name} is listed as a leaf and has no package.json`).toBeDefined();
+    expect(siblingEdges(manifest ?? {}), `${name} is a leaf; a leaf that depends on a sibling is not one`).toEqual([]);
+  });
+
+  it.each(FOUNDATION)('fails when %s gains a sibling dependency', (name) => {
+    const sibling = FOUNDATION.find((other) => other !== name) as string;
+    const gained = { ...leafManifest(name), dependencies: { [sibling]: '^1.0.0' } };
+    expect(siblingEdges(gained)).toEqual([`dependencies → ${sibling}`]);
+    expect(siblingEdges({ peerDependencies: { [sibling]: '*' }, devDependencies: { 'compat-oracle': '*' } })).toEqual([`devDependencies → compat-oracle`, `peerDependencies → ${sibling}`]);
   });
 });
 
