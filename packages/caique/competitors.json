@@ -6,16 +6,16 @@
       "claim": "surface",
       "seen": {
         "registry": "@clack/prompts",
-        "version": "1.8.0",
-        "shasum": "ef1faf6d4528747e355baef916b6423592d58ca6",
+        "version": "1.8.1",
+        "shasum": "39a134cae495843904b57cc1e8300ead81ae7830",
         "weight": 101684,
         "self": 50896,
         "packages": 6,
         "files": {
-          "dist/index.d.mts": "a5b05f4d89e45d0e872f578d91a44fb1649ca4f5a8868b88b5af10b8c4ea6160",
-          "dist/index.mjs": "b21c84f6221dd2e7de945af5a9e6a848ec25f82816442a951391324b4c1a85dc",
+          "dist/index.d.mts": "c5d7fefbd6e4d634c239ff0f60e2dbac2fe4f6e6da66e208268884dff74a4729",
+          "dist/index.mjs": "1b024b83b4b4c1d5540fb129e7169c7471bb82bc85e9160e84072ceda85cbef9",
           "LICENSE": "3e873d2aba8b76bcbe151ba558506ca6bfa8437db9323fa87086c5a7fcf10f42",
-          "package.json": "50d539a5f5e9b9d17de29422fa92683fd2ba96b117456f80c037f76037af32d6",
+          "package.json": "66ba5b8f6a2808384e2807d46b909aa27d8bc17d6e0fb354e72e3680a6a8b3be",
           "README.md": "b7e91131cf29a58120b99f6671b35083c45ae36b9fd373d1b08f641130659335"
         },
         "exports": [
@@ -85,7 +85,7 @@
           "unicodeOr",
           "updateSettings"
         ],
-        "measured": "2026-09-09"
+        "measured": "2026-09-30"
       }
     },
     {

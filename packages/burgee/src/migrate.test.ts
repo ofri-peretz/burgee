@@ -84,6 +84,7 @@ describe('A2 — the mapping is data, and it is the design’s table', () => {
       rc: 'seniority/rc',
       'terminal-link': 'paratext/terminal-link',
       lilconfig: 'seniority/lilconfig',
+      '@clack/prompts': 'caique/clack',
       '@inquirer/core': 'caique/inquirer',
       meow: 'burgee/meow',
       'restore-cursor': 'closeout/restore-cursor',
@@ -483,6 +484,15 @@ describe('A11 — a rewrite moves only names the target exports', () => {
       kept: [],
       relevant: true,
     });
+  });
+
+  it('moves a clack program to caique/clack, and refuses a file that reaches for a prompt caique has not built', () => {
+    // clack went level on 2026-09-30 (D-20260930-caique-clack-core-exclusion), so `migrate`
+    // rewrites it. `box`, `progress` and `taskLog` are three of the names `caique/clack` does
+    // not export (D-152). A file that imports one of them has to stay on clack whole.
+    expect(rewriteSource("import { intro, text, isCancel } from '@clack/prompts';\n").source).toBe("import { intro, text, isCancel } from 'caique/clack';\n");
+    const source = "import { box, progress, taskLog, text } from '@clack/prompts';\n";
+    expect(rewriteSource(source)).toMatchObject({ source, mapped: [], refused: [{ line: 1, specifier: '@clack/prompts', reason: 'unknown-export', names: ['box', 'progress', 'taskLog'] }] });
   });
 
   it('refuses a mixed import with a missing type — a scan cannot split the statement', () => {
