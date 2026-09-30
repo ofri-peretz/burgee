@@ -100,7 +100,7 @@ const RULES: Record<string, EntryRule> = {
   // walk counts the whole file. Measured 17,813.
   // 17,900 → 16,800 on 2026-09-30 (B5): the capability fragment ships without its schema prose
   // (`scripts/schema-annotations.mjs`, −1.6 KB), which pays for a cached renderer, a kept
-  // `eraseLines` and the root reading the process once. Measured 16,739.
+  // `eraseLines` and the root reading the process once. Measured 16,741.
   '.': { allow: [], budget: 16_800, denied: ['plugin.js'] },
   /**
    * OSC 8 alone, for a host that wants one clickable URL and not a plugin contract.
@@ -129,7 +129,7 @@ const RULES: Record<string, EntryRule> = {
    *
    * 9,300 → 7,300 on 2026-09-30 (B5): the OSC 8 record moved to `osc8.ts`, and the façade splits
    * its `encode` once at load, so the template renderer `./link` needs is no longer reached.
-   * Measured 7,245.
+   * Measured 7,212.
    */
   './terminal-link': { allow: [], budget: 7_300, denied: ['index.js', 'capability.js', 'builtins.js', 'plugin.js', 'ansi-escapes.js', 'schema.json'] },
   /**
@@ -161,8 +161,9 @@ const RULES: Record<string, EntryRule> = {
   // 13,500 for **96 bytes**: `FIX` is a runtime table keyed by `PluginErrorCode`, so the
   // `E_NO_CONTRIBUTION` code `paratext check` refuses with has to carry its fix text here, where
   // every refusal's fix lives. Measured 13,496.
-  // 13,500 → 12,100 on 2026-09-30 (B5): the capability fragment without its prose. Measured 12,048.
-  './plugin': { allow: [], budget: 12_100, denied: ['index.js', 'builtins.js', 'ansi-escapes.js'] },
+  // 13,500 → 12,200 on 2026-09-30 (B5): the capability fragment without its prose. Measured
+  // 12,099 with #754's output-mode check.
+  './plugin': { allow: [], budget: 12_200, denied: ['index.js', 'builtins.js', 'ansi-escapes.js'] },
 };
 
 const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;

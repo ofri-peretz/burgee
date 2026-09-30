@@ -6,9 +6,6 @@
  */
 import { type Capability } from './capability.js';
 
-const BEL = '';
-const OSC = ']';
-
 /**
  * OSC 8 — a hyperlink. The widest support in this layer, and unusually semi-detectable: VTE
  * publishes its version and Windows Terminal sets a session variable.
@@ -20,6 +17,6 @@ export const LINK: Capability = {
   name: 'link',
   osc: 8,
   when: { tty: true, termProgram: ['iTerm.app', 'WezTerm', 'ghostty', 'vscode', 'Hyper', 'Apple_Terminal'], envAny: ['VTE_VERSION', 'WT_SESSION'] },
-  encode: `${OSC}8;;{url}${BEL}{text}${OSC}8;;${BEL}`,
+  encode: '\u001B]8;;{url}\u0007{text}\u001B]8;;\u0007',
   fallback: '{text}[ ({url})]',
 };

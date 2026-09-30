@@ -514,8 +514,9 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // 7,150 on 2026-09-30 (B5, D-20260929-b5-runtime-ratchets): the capability fragment ships
   // without the schema's prose — validation reads none of it — which is 1,356 B off the root
   // after paying for the cached renderer and the kept `eraseLines` that made a link and a redraw
-  // faster than ansi-escapes'. Measured 7,061, with the 80 B CI margin.
-  paratext: 7_150,
+  // faster than ansi-escapes'. Measured 7,086 after #754's output-mode check, with the 80 B CI
+  // margin rounded up to the next fifty.
+  paratext: 7_200,
   // bellpull R8, first measured 2026-09-27 (GAPS A10, D-160): `run` bundles to **5,901** bytes
   // against tinyexec 1.3.1's `x` at **5,969** — 0.989, so the ratio gate stays at the default 1
   // and it is R8's bytes half, met. This ceiling is the ratchet beside it: the measurement plus
@@ -677,7 +678,7 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // `ansi-escapes` *with* it. Both sides now carry the same thirty-one members, so 1.937 is the
   // first like-for-like figure — what is left over is the capability registry that makes the
   // OSC half degrade on a pipe. Measured 1.937.
-  // 1.65 on 2026-09-30 with the byte ceiling above: (7,061 + 80) / 4,351 = 1.641.
+  // 1.65 on 2026-09-30 with the byte ceiling above: (7,086 + 80) / 4,351 = 1.647.
   paratext: 1.65,
 };
 
