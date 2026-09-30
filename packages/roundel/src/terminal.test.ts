@@ -27,6 +27,14 @@ describe('interactive', () => {
     expect(AGENTS).toContain('CLAUDECODE');
   });
 
+  // D-20260930-one-interactive-rule: a variable joins AGENTS only when it names an agent and
+  // nothing else. Cursor sets CURSOR_TRACE_ID in every integrated terminal, so taking it as an
+  // agent would stop every person typing in Cursor from being asked anything.
+  it('asks a person in Cursor: CURSOR_TRACE_ID is set in every integrated terminal', () => {
+    expect(AGENTS).not.toContain('CURSOR_TRACE_ID');
+    expect(tty({ CURSOR_TRACE_ID: 'abc' })).toBe(true);
+  });
+
   it('FORCE_TTY=1 says yes outright, as it does to burgee’s detectAgent', () => {
     expect(tty({ FORCE_TTY: '1', CLAUDECODE: '1' })).toBe(true);
     expect(tty({ FORCE_TTY: '1' }, false)).toBe(true);
