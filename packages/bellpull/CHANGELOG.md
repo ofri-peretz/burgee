@@ -1,5 +1,11 @@
 # bellpull
 
+## 0.5.0
+
+### Minor Changes
+
+- [#766](https://github.com/ofri-peretz/burgee/pull/766) [`e928581`](https://github.com/ofri-peretz/burgee/commit/e928581996fdeb317b4c849ae285593bfecf6b4d) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `whichSync`, and so `resolveExecutable` and every `run()`, stops at the first `PATH` entry that answers instead of statting every entry after it, and an absent candidate is no longer an exception (`statSync` with `throwIfNoEntry: false`). Resolution on an 18-entry ubuntu-latest `PATH` went from ~195 µs a call to a few µs, which was the whole of `run`'s 6 % over tinyexec's `x` on spawn time. `whichAllSync` still walks every entry. A candidate whose stat fails for any other reason (`ELOOP`, `EACCES`) is still a miss, not a throw.
+
 ## 0.4.5
 
 ### Patch Changes

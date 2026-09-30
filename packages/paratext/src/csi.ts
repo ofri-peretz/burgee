@@ -70,11 +70,23 @@ export const eraseScreen = `${ESC}2J`;
 export const scrollUp = `${ESC}S`;
 export const scrollDown = `${ESC}T`;
 
+/**
+ * `eraseLines(count)` for the counts a redraw actually uses, built once: `log-update` erases the
+ * previous frame's height on every frame, and that height rarely changes (B5). Integers under
+ * the bound only, so a fractional or huge count still takes the loop and its exact bytes.
+ */
+const ERASED_BOUND = 64;
+const erased = new Map<number, string>();
+
 /** Erase `count` lines upward from the cursor's, then return to column one. */
 export const eraseLines = (count: number): string => {
+  const kept = erased.get(count);
+  if (kept !== undefined) return kept;
   let clear = '';
   for (let i = 0; i < count; i += 1) clear += eraseLine + (i < count - 1 ? cursorUp() : '');
-  return count ? clear + cursorLeft : clear;
+  const out = count ? clear + cursorLeft : clear;
+  if (Number.isInteger(count) && count >= 0 && count < ERASED_BOUND) erased.set(count, out);
+  return out;
 };
 
 export const clearScreen = '\u001Bc';

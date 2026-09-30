@@ -196,6 +196,21 @@ export function searchPath(options: WhichOptions): SearchEntry[] {
  * throwing away everything after the first is what stops it being available.
  */
 export function whichAllSync(command: string, options: WhichOptions): Resolution[] {
+  return resolutions(command, options, false);
+}
+
+/**
+ * The one walk behind both answers. `first` stops it at the first hit.
+ *
+ * **Why `whichSync` does not take `whichAllSync()[0]`, which it did until 2026-09-30.** The
+ * answer is the same and the cost is not: every `run()` resolves before it spawns, and the full
+ * walk stats every remaining `PATH` entry after the one that already answered. On an
+ * ubuntu-latest runner, 18 entries, that was **~195 µs a call**, the whole of the 6 % by which
+ * `run` spawned slower than tinyexec's `x` there (B5, `bellpull ÷ tinyexec`, 1.06 against R8's
+ * bar of 1.0; D-20260930-bellpull-first-hit-resolve). `whichAllSync` still walks everything,
+ * because "there are two `node`s on this `PATH`" is the finding it exists to report.
+ */
+function resolutions(command: string, options: WhichOptions, first: boolean): Resolution[] {
   const { runtime } = options;
   const p = pathOps(runtime);
   const windows = isWindows(runtime);
@@ -204,21 +219,23 @@ export function whichAllSync(command: string, options: WhichOptions): Resolution
   const candidates = extensionCandidates(command, options);
   const found: Resolution[] = [];
 
-  const consider = (file: string, from: string, ext: string): void => {
-    if (!isExecutable(file, runtime, exts)) return;
+  /** Records a hit, and says whether the walk is done. */
+  const consider = (file: string, from: string, ext: string): boolean => {
+    if (!isExecutable(file, runtime, exts)) return false;
     found.push({ path: p.resolve(against, file), from, ext });
+    return first;
   };
 
   if (carriesPath(command, windows)) {
     // Rule 1: the caller named a file. `PATH` is not consulted, and `from` is empty to say
     // so — a reader must be able to tell "found in /usr/bin" from "you told me where it is".
-    for (const ext of candidates) consider(p.resolve(against, command + ext), '', ext);
+    for (const ext of candidates) if (consider(p.resolve(against, command + ext), '', ext)) break;
     return found;
   }
 
   for (const entry of searchPath(options)) {
     if (entry.dir === undefined) continue;
-    for (const ext of candidates) consider(p.join(entry.dir, command + ext), entry.dir, ext);
+    for (const ext of candidates) if (consider(p.join(entry.dir, command + ext), entry.dir, ext)) return found;
   }
   return found;
 }
@@ -230,7 +247,7 @@ export function whichAllSync(command: string, options: WhichOptions): Resolution
  * branches on — the same argument the `Result` in `run.ts` makes about a non-zero exit.
  */
 export function whichSync(command: string, options: WhichOptions): Resolution | undefined {
-  return whichAllSync(command, options)[0];
+  return resolutions(command, options, true)[0];
 }
 
 /**

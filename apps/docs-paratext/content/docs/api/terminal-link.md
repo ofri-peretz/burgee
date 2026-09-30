@@ -17,14 +17,14 @@ import { terminalLinkFor } from 'paratext/terminal-link';
 `terminalLink` bound to a runtime you supply — the pure form, and what the export wraps.
 
 ```ts
-function terminalLinkFor(runtime: Runtime): (text: string, url: string, { target, ...options }?: LinkOptions) => string;
+function terminalLinkFor(runtime: Runtime): (text: string, url: string, options?: LinkOptions) => string;
 ```
 
 | Parameter | Type |
 | :-- | :-- |
 | `runtime` | `Runtime` |
 
-**Returns** `(text: string, url: string, { target, ...options }?: LinkOptions) => string`
+**Returns** `(text: string, url: string, options?: LinkOptions) => string`
 
 ## Constants
 

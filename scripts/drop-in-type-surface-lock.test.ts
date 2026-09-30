@@ -48,6 +48,10 @@ const PAIRS: readonly (readonly [string, string])[] = [
   // Joined 2026-09-27, when meow went level and `migrate` began rewriting it. meow 14.1.0 is a
   // root devDependency for this comparison alone: its types ship inside the package.
   ['meow', 'burgee/meow'],
+  // Joined 2026-09-30, when clack went level (D-20260930-caique-clack-core-exclusion). It
+  // resolves through the copy `@changesets/cli` hoists to the root. When that copy is gone,
+  // the pair is skipped, as any incumbent not installed at the root is.
+  ['@clack/prompts', 'caique/clack'],
 ];
 
 /** Names a drop-in does not export yet, each with the reason — the list only shrinks. */
@@ -78,6 +82,12 @@ const GAPS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
     LiteralUnion: "a helper inside ansi-escapes' declaration file, exported only because a `.d.ts` exports every top-level declaration — not API",
     Primitive: "a helper inside ansi-escapes' declaration file, exported only because a `.d.ts` exports every top-level declaration — not API",
   },
+  'caique/clack': Object.fromEntries(
+    ['box', 'progress', 'taskLog', 'BoxAlignment', 'BoxOptions', 'ProgressOptions', 'ProgressResult', 'TaskLogCompletionOptions', 'TaskLogMessageOptions', 'TaskLogOptions'].map((name) => [
+      name,
+      "not built, because no graded case reaches them: clack's box, progress bar and task log, with their option and result types (D-152). `burgee migrate` refuses a file that imports one, so it stays on clack whole",
+    ]),
+  ),
   'closeout/signal-exit': { Handler: "a type on a CommonJS `export =` object, which cannot carry a type export beside it without a namespace merge in the `.cts` source" },
   'burgee/yargs/parser': { detailed: "a property of yargs-parser's default function, reached as `parser.detailed(...)`; ours has it there too, and a named import of it does not run against yargs-parser either" },
 };
