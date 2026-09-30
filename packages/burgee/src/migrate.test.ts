@@ -556,6 +556,55 @@ describe('A11 — a rewrite moves only names the target exports', () => {
   });
 });
 
+describe('A4 — a sibling whose state the incumbent reads refuses the file (D-20260930-migrate-refuses-clack-core)', () => {
+  // `@clack/prompts` reads its settings from `@clack/core`, and `caique/clack` never imports
+  // `@clack/core`. Before this refusal each file below had its prompts moved to caique while
+  // its `updateSettings` kept configuring clack, and the report said nothing. Each case was
+  // run against that code first and failed on `refused: []` and a rewritten `source`.
+  const fix = "import { updateSettings } from 'caique/clack' instead of '@clack/core', then re-run burgee migrate";
+
+  it.each([
+    ['an import … from', "import { updateSettings } from '@clack/core';\n"],
+    ['an import()', "const { updateSettings } = await import('@clack/core');\n"],
+    ['a require()', "const { updateSettings } = require('@clack/core');\n"],
+  ])('refuses a clack file that reaches @clack/core through %s, and leaves it whole', (_form, core) => {
+    const source = `import { intro, text } from '@clack/prompts';\n${core}updateSettings({ withGuide: false });\n`;
+    expect(rewriteSource(source)).toEqual({
+      source,
+      mapped: [],
+      refused: [{ line: 2, specifier: '@clack/core', reason: 'sibling-state', fix }],
+      kept: [],
+      relevant: true,
+      retained: ['@clack/prompts'],
+    });
+  });
+
+  it('leaves a file that imports @clack/core and not @clack/prompts alone — it is not a rewrite candidate', () => {
+    const source = "import { updateSettings } from '@clack/core';\nupdateSettings({ withGuide: false });\n";
+    expect(rewriteSource(source)).toEqual({ source, mapped: [], refused: [], kept: [], relevant: false });
+  });
+
+  it('moves a clack file whose @clack/core import is type-only — erased types configure nothing', () => {
+    const source = "import { text } from '@clack/prompts';\nimport type { ClackSettings } from '@clack/core';\n";
+    expect(rewriteSource(source)).toMatchObject({ source: "import { text } from 'caique/clack';\nimport type { ClackSettings } from '@clack/core';\n", refused: [] });
+  });
+
+  it('reports the refusal with its fix, exits RUNTIME, and keeps @clack/prompts out of removable', async () => {
+    const setup = "import { intro } from '@clack/prompts';\nimport { updateSettings } from '@clack/core';\n";
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { '@clack/prompts': '^1.8.1', '@clack/core': '^1.3.0' } }),
+      'src/setup.ts': setup,
+      'src/ask.ts': "import { text } from '@clack/prompts';\n",
+    });
+    const report = await migrate({ dir, status: clean });
+    expect(read(dir, 'src/setup.ts')).toBe(setup);
+    expect(read(dir, 'src/ask.ts')).toBe("import { text } from 'caique/clack';\n");
+    expect(report.refused).toEqual([{ file: 'src/setup.ts', line: 2, specifier: '@clack/core', reason: 'sibling-state', fix }]);
+    expect(report.dependencies.removable).toEqual([]);
+    expect(report.exitCode).toBe(ExitCode.RUNTIME);
+  });
+});
+
 describe('the walk', () => {
   it('reads source files and skips the generated and vendored trees', () => {
     const dir = project({

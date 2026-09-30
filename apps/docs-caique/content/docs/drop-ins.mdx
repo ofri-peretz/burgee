@@ -59,8 +59,10 @@ that imports `box`, `progress` or `taskLog` on clack.
 - **`caique/clack`'s frames are clack's layout, not its bytes.** A test of yours that snapshots
   clack's output will see different escape sequences.
 - **`updateSettings` must come from `caique/clack`**, as above. `burgee migrate` does not
-  rewrite `@clack/core`, so a migrated program that imports `updateSettings` from there is still
-  changing clack's settings, and caique's prompts never read them. Move that import yourself.
+  rewrite `@clack/core`. It refuses a file that imports both `@clack/prompts` and `@clack/core`
+  (reason `sibling-state`), with the fix: import `updateSettings` from `caique/clack`, then run it
+  again. It reads one file at a time, so an `updateSettings` from `@clack/core` in a file with no
+  clack prompts is not caught. Move that import yourself.
 - **`caique/clack` does not build `box`, `progress` or `taskLog`**; no graded case reaches them.
 - **`caique/inquirer` has no `usePagination`.**
 - **The legacy `inquirer` package is not a drop-in**: its object API is out of scope, and

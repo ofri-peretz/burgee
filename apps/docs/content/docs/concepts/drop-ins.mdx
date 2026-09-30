@@ -84,7 +84,9 @@ byte for byte. Its safety rules:
 - **A file is rewritten whole or not at all.** One refused specifier leaves the whole file as it
   was. The refusals are `deep-import` (`commander/lib/command.js`), `non-literal-specifier`
   (`require(name)`), `unknown-export` (a value import of a name the drop-in does not export) and
-  `require-of-default` (a `require()` whose two sides would return different kinds of value). A
+  `require-of-default` (a `require()` whose two sides would return different kinds of value), and
+  `sibling-state` (a clack file that also imports `@clack/core`, whose settings `caique/clack`
+  never reads; it carries a `fix`). A
   type-only import of a missing name is `kept` on the incumbent, not refused.
 - **No dirty tree.** Without `--force`, uncommitted changes stop the run before anything is
   written, so the rewrite is one reviewable diff, and the refusal prints its fix: `commit or

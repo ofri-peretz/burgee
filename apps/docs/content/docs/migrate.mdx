@@ -80,6 +80,16 @@ equal.
   with `require-of-default`. No current replacement is in that position: each one whose
   incumbent returns a function exports it as `'module.exports'`, which is what Node hands a
   CommonJS caller. `const { Command } = require('commander')` moves, because it reads names.
+- **A clack file that also imports `@clack/core`.** `@clack/prompts` reads its settings from
+  `@clack/core`, and `caique/clack` does not depend on it. So once the prompts move, an
+  `updateSettings` imported from `@clack/core` changes settings nothing reads. A file that
+  imports `@clack/prompts` and imports, `import()`s or `require()`s `@clack/core` is refused
+  with `sibling-state`, and the refusal carries its `fix`:
+  `import { updateSettings } from 'caique/clack' instead of '@clack/core', then re-run burgee migrate`.
+  A type-only import of `@clack/core` configures nothing and does not refuse. A file that
+  imports `@clack/core` and not `@clack/prompts` is not rewritten, so it is not refused either.
+  The check reads one file at a time: an `updateSettings` from `@clack/core` in a file with no
+  clack prompts is not seen.
 - **A deep import** (`commander/lib/command.js`) or **a specifier that is not a literal**
   (`require(name)`). The file is refused by name and line, and left exactly as it was — a
   file is rewritten whole or not at all.
