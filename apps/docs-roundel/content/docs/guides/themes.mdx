@@ -96,6 +96,28 @@ There is no row for sixteen colours: those are the user's terminal theme, and a 
 would be invented. `fly()` and `audit()` share one judgement, so the report and the refusal
 can never disagree.
 
+## Importing a theme
+
+A theme does not have to be written by hand. `roundel/import` reads the two largest corpora
+of terminal palettes — Base16 schemes and iTerm2 `.itermcolors` presets — into the object
+`fly()` takes:
+
+```js
+import { readFileSync } from 'node:fs';
+import { fromBase16, fromITerm } from 'roundel/import';
+
+fly(fromBase16(readFileSync('gruvbox-dark-hard.yaml', 'utf8')), runtime);
+fly(fromITerm(readFileSync('Dracula.itermcolors', 'utf8')), runtime);
+```
+
+Each of `error`, `warn`, `ok`, `flag` and `value` takes the ANSI hue its default names — red,
+yellow, green, cyan, magenta — and `ground` takes the background; `hint`, `command`,
+`heading` and `muted` keep their defaults. The imported theme goes through `audit()` before it
+is returned, so a scheme that would not read is refused on the way in with an `ImportError`
+naming the slot, and whatever is returned, `fly()` accepts. The
+[theme gallery](/docs/guides/theme-gallery) is every scheme file the package is tested against,
+read this way; the [API reference](/docs/api/import) has every refusal and its fix.
+
 ## The maths
 
 `roundel/contrast` exports what the gate uses: `contrast(a, b)`, `luminance(hex)`, and the

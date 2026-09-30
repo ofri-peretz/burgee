@@ -1,6 +1,6 @@
 ---
 title: Compatibility
-description: "How roundel/chalk is graded — chalk 6.0.0's own test suite, unedited — the current grade, and the differences that remain."
+description: "How roundel/chalk is graded — chalk 6.0.1's own test suite, unedited — the current grade, and the differences that remain."
 ---
 
 `roundel/chalk` is graded, not described as compatible. It is run against **chalk's own test
@@ -16,7 +16,7 @@ oracle's last run and is the authority for the current figure.
 
 ## How the suite is graded
 
-1. chalk's repository is cloned at `v6.0.0` and its `test/` directory — eight files, fixtures
+1. chalk's repository is cloned at `v6.0.1` and its `test/` directory — eight files, fixtures
    included — copied into `packages/compat-oracle/vendor/chalk/`. chalk does not ship its tests
    to npm. The `PROVENANCE` file names the tag, the commit and the command that reproduces it.
 2. The only edit is the import that reaches the library: it is rewritten to a shim generated per
@@ -31,7 +31,7 @@ downsampling, nesting and line breaks, `chalk.level`, `new Chalk({ level })`, `c
 
 ## Known differences
 
-- **`NO_COLOR` turns `roundel/chalk` off.** chalk 6.0.0 does not read it; the policy does, and
+- **`NO_COLOR` turns `roundel/chalk` off.** chalk 6.0.1 does not read it; the policy does, and
   the façade's level comes from the policy.
 - **A `--color` flag beats an ambient `FORCE_COLOR`.** In chalk, `--no-color` under
   `FORCE_COLOR=3` still colours; here it does not. `FORCE_COLOR=0` still beats every flag, as in

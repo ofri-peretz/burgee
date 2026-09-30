@@ -8,6 +8,7 @@
     "theme",
     "contrast",
     "chalk",
-    "terminal"
+    "terminal",
+    "import"
   ]
 }

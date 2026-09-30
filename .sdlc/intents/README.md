@@ -893,7 +893,7 @@ agent working on any layer has the whole stack in context.
 | yargs compatibility                                                                           | `burgee/yargs`            | wave 4                                                  |
 | opt-in host quirks                                                                            | `burgee/quirks/*`         | wave 2                                                  |
 | the lint wedge                                                                                | `eslint-plugin-cli-floor` | wave 4                                                  |
-| the colours a CLI carries: policy, tokens, theme, chalk path                                  | `roundel`                 | ✅ `roundel@0.5.6` — chalk path graded 58 / 58          |
+| the colours a CLI carries: policy, tokens, theme, chalk path                                  | `roundel`                 | ✅ `roundel@0.5.6` — chalk path graded 59 / 59          |
 | the staff the flag flies from: frame loop, plugin host, ora/boxen/cli-table3/log-update paths | `flagstaff`               | ✅ `flagstaff@1.0.0`                                    |
 | the parrot that always answers back: prompts, flags first                                     | `caique`                  | ✅ `caique@0.6.1`                                       |
 | measuring and cutting styled text: width, wrap, truncate, slice                               | `linegauge`               | `linegauge@1.0.0` stub; F1                              |

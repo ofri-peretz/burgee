@@ -26,9 +26,12 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { msRecord, ratioRecord, resolveVariants, ROUNDS, type Variant, VARIANTS } from './axes/perf.js';
+import { msRecord, proveFixtures, ratioRecord, resolveVariants, ROUNDS, type Variant, VARIANTS } from './axes/perf.js';
 import manifest from './package.json' with { type: 'json' };
 import { packageDir, resolvePackage } from './resolve.js';
+
+/** Spawning is slow on a Windows runner; this asserts correctness, never speed (see fixtures.test.ts). */
+const SPAWN_TIMEOUT_MS = 120_000;
 
 const declared: Record<string, string> = { ...manifest.dependencies, ...manifest.devDependencies };
 
@@ -105,6 +108,49 @@ describe('the records say which package they timed', () => {
     const record = ratioRecord({ v: front, ours: ms, host: ms, gateMax: 1.4, versions: { ours: '0.3.0', host: '15.0.0' } });
     expect(record.detail).toEqual({ ours: 'burgee@0.3.0', host: 'commander@15.0.0' });
   });
+});
+
+describe('roundel R8 — the colour rows time what they say, on any machine', () => {
+  const colour = VARIANTS.filter((v) => v.over !== undefined || v.id === 'picocolors');
+
+  it('are held to a variant that is timed in the same rounds', () => {
+    for (const v of VARIANTS.filter((x) => x.over !== undefined)) expect(VARIANTS.map((x) => x.id)).toContain(v.over);
+  });
+
+  it('resolve picocolors and roundel from the tree the fixtures import from, and say so on the row', () => {
+    const resolved = resolveVariants();
+    expect(resolved.get('picocolors')?.version).toMatch(/^1\./);
+    expect(resolved.get('roundel/tokens')?.dir).toMatch(/[/\\]roundel$/);
+    expect(resolved.get('roundel/chalk')).toEqual(resolved.get('roundel/tokens'));
+    const record = msRecord(colour[1] as Variant, [5, 6, 7], 1, resolved.get('roundel/tokens'));
+    expect(record.detail).toMatchObject({ fixture: 'roundel-tokens.mjs', package: 'roundel' });
+    expect(record.note).toBe('spawned `node roundel-tokens.mjs` with NO_COLOR; 5 ms of this is above the bare-node floor');
+  });
+
+  // picocolors colours whenever `CI` is set and roundel follows the CI vendor table, so on a
+  // runner these fixtures would print escapes and fail the line check — or, with the check
+  // loosened, time two different jobs. Proven here under a CI runner's environment rather
+  // than argued: without `NO_COLOR` on the row, this goes red.
+  it(
+    'print the floor’s line under a CI runner’s environment, because each row sets NO_COLOR',
+    () => {
+      const saved = { CI: process.env['CI'], GITHUB_ACTIONS: process.env['GITHUB_ACTIONS'] };
+      process.env['CI'] = 'true';
+      process.env['GITHUB_ACTIONS'] = 'true';
+      try {
+        expect(() => {
+          proveFixtures(colour);
+        }).not.toThrow();
+      } finally {
+        for (const [k, v] of Object.entries(saved)) {
+          if (v === undefined) delete process.env[k];
+          else process.env[k] = v;
+        }
+      }
+      expect(colour.every((v) => v.env?.['NO_COLOR'] === '1')).toBe(true);
+    },
+    SPAWN_TIMEOUT_MS,
+  );
 });
 
 describe('the interleaving rotation', () => {

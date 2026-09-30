@@ -49,6 +49,11 @@
       "types": "./dist/terminal.d.ts",
       "import": "./dist/terminal.js",
       "default": "./dist/terminal.js"
+    },
+    "./import": {
+      "types": "./dist/import.d.ts",
+      "import": "./dist/import.js",
+      "default": "./dist/import.js"
     }
   },
   "files": [
