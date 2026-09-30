@@ -195,7 +195,7 @@ describe('a builder keeps what it built, and answers exactly as before', () => {
   it('keeps a link: the second read is the same builder, as chalk\u2019s own are', () => {
     expect(at3.red).toBe(at3.red);
     expect(at3.red.bold).toBe(at3.red.bold);
-    expect(Object.hasOwn(at3, 'red')).toBe(true);
+    expect(Object.getOwnPropertyNames(at3)).toContain('red');
   });
 
   it('closes and re-opens around every line break, and re-opens after a nested close', () => {
