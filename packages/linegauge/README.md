@@ -182,7 +182,7 @@ The default export is `string-width`, byte-for-byte call-compatible, so a transi
 resolves without a code change too:
 
 ```json
-{ "overrides": { "string-width": "npm:linegauge@^0.5" } }
+{ "overrides": { "string-width": "npm:linegauge@^1" } }
 ```
 
 Or let the codemod make the import change: `npx burgee migrate --dry-run` lists every import it

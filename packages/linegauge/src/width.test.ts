@@ -316,10 +316,12 @@ describe('zero-width clusters are measured in linear time, and as the regexes me
     expect(checked).toBeGreaterThan(170_000);
   });
 
+  // A few ms locally; a shared Windows runner read 121 ms (2026-09-29). The regex this replaced
+  // did not finish 1,000 joiners in ten minutes, so 2 s still fails a return of the backtracking.
   it('measures 1,000 joiners before a visible character in well under the exponential cost', () => {
     width('\u034F\u0903'); // the property classes are built on first use; that is not the cost under test
-    expect(elapsed(() => expect(width(`${'\u034F'.repeat(1000)}\u0903`)).toBe(1))).toBeLessThan(100);
-    expect(elapsed(() => expect(width(`${'\u034F'.repeat(1000)}\u{1F3FB}`)).toBe(2))).toBeLessThan(100);
+    expect(elapsed(() => expect(width(`${'\u034F'.repeat(1000)}\u0903`)).toBe(1))).toBeLessThan(2000);
+    expect(elapsed(() => expect(width(`${'\u034F'.repeat(1000)}\u{1F3FB}`)).toBe(2))).toBeLessThan(2000);
   });
 
   // About 0.2 s on a laptop and 2–3 s on a shared CI runner (2,100 ms on ubuntu, 3,108 ms on

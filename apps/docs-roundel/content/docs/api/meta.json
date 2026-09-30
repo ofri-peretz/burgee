@@ -1,0 +1,13 @@
+{
+  "title": "API reference",
+  "pages": [
+    "index",
+    "policy",
+    "tokens",
+    "plugin",
+    "theme",
+    "contrast",
+    "chalk",
+    "terminal"
+  ]
+}

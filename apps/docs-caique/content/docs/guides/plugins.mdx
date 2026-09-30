@@ -1,0 +1,87 @@
+---
+title: Widget plugins
+description: "A plugin adds a prompt kind beyond the six as a widget with a required static projection; register() validates it, projectionOf() draws any kind, and npx caique check validates a plugin before it ships."
+---
+
+caique hosts one plugin key, **`widgets`**: how to draw a prompt kind that is not one of the
+six built-ins. A plugin is the family's one plain object, so the same file can carry roundel's
+tokens or flagstaff's spinners, and caique keeps the key it reads and ignores the rest.
+
+## Writing one
+
+```js title="rating.mjs"
+export default {
+  name: 'rating',
+  widgets: {
+    rating: {
+      static: (spec) => `${spec.message} (1-5)`,
+      sample: { running: {}, done: {} },
+    },
+  },
+};
+```
+
+A widget's **`static(spec)`** is required: it is what a pipe, an agent and a screen reader get,
+the same surface `projection()` gives the six built-ins. `frame(t, spec)` is optional and
+drives raw mode; `sample` is what `check` renders it with.
+
+## Registering it
+
+```js title="rating-app.mjs"
+import { kinds, projectionOf, register } from 'caique/plugin';
+
+import rating from './rating.mjs';
+
+register(rating);
+console.log(kinds().join(', '));
+console.log(projectionOf({ kind: 'rating', message: 'How was the install?' }));
+console.log(projectionOf({ kind: 'select', message: 'Which host?', choices: [{ value: 'ora' }, { value: 'boxen' }] }));
+try {
+  projectionOf({ kind: 'ratng', message: 'typo' });
+} catch (error) {
+  console.log(`${error.code}: ${error.message}`);
+}
+```
+
+```text title="node rating-app.mjs"
+text, confirm, select, multiselect, password, path, rating
+How was the install? (1-5)
+Which host?
+  1) ora
+  2) boxen
+  enter a number (1-2):
+E_UNKNOWN_KIND: no widget draws prompt kind "ratng" — registered kinds: rating
+```
+
+`projectionOf(spec)` draws any kind: the six are still caique's, anything else is a registered
+widget's `static`. A kind nobody registered is a refusal naming what is registered, so a typo
+shows as a typo rather than as a text prompt where a rating should have been.
+
+- **Later wins**, like flat config, and `widgets()` reports who shadowed whom.
+- **The six built-ins cannot be replaced**: a widget named `password` is refused, so a third
+  party cannot swap the one prompt that must not echo.
+- **A refused plugin is not registered** — validation is at the door.
+
+## Refusals
+
+A widget without `static` is refused with `E_NO_STATIC_PROJECTION`, the code flagstaff and
+paratext use for the same rule, and with the fix. `npx caique check` shows it before the plugin
+ships:
+
+```text title="npx caique check rating.mjs"
+rating — 1 widgets
+  rating  static "preview (1-5)"
+rating: ok
+```
+
+```js title="stars.mjs"
+export default { name: 'stars', widgets: { stars: { frame: () => '*' } } };
+```
+
+```text title="npx caique check stars.mjs" exit="1"
+E_NO_STATIC_PROJECTION: plugin "stars": widget "stars" has no static projection
+  fix: add `static: (spec) => "…"` — it is what a pipe, an agent and a screen reader get
+```
+
+`npx caique check` loads the file without registering it and exits 0, 1 with the code and the
+fix, or 2 on a usage error.

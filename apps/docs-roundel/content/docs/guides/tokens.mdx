@@ -1,0 +1,72 @@
+---
+title: Tokens
+description: "Nine semantic tokens — error, warn, ok, hint, muted, command, flag, value, heading — each the identity until fly() decides a level, so a program that never flies prints plain text."
+---
+
+`roundel/tokens` exports nine functions, each `(s: string) => string`:
+
+| token | for | default style |
+| :-- | :-- | :-- |
+| `error` | what failed | the brand's rock orange, as a hex checked for contrast |
+| `warn` | what might | `yellow` |
+| `ok` | what worked | the brand's juniper green, as a hex checked for contrast |
+| `hint` | what to try next | `dim` |
+| `muted` | what matters least | `gray` |
+| `command` | a command to run | `bold` |
+| `flag` | a flag | `cyan` |
+| `value` | a value the user gave | `magenta` |
+| `heading` | a section title | `bold`, `underline` |
+
+The names say what the text **is**. What it looks like is the theme's business, so every
+`error` in a program changes together, and a pipe, `NO_COLOR` or `--json` turns them all off
+at once.
+
+## Plain until flown
+
+A token is the identity until [`fly()`](/docs/guides/themes) has decided a level above 0. A
+program that never calls `fly()` — or a library that uses tokens inside a program that did not
+ask for colour — prints plain text:
+
+```js title="unflown.mjs"
+import { error, ok } from 'roundel/tokens';
+
+console.log(JSON.stringify(`${error('failed')} ${ok('passed')}`));
+```
+
+```text title="FORCE_COLOR=3 node unflown.mjs"
+"failed passed"
+```
+
+`FORCE_COLOR=3` changes nothing there, because nothing asked the policy. Flown, the same
+tokens paint at the level the policy decides:
+
+```js title="flown.mjs"
+import { fly } from 'roundel/theme';
+import { error, ok } from 'roundel/tokens';
+
+import { rt } from './rt.mjs';
+
+fly({}, rt);
+console.log(JSON.stringify(`${error('failed')} ${ok('passed')}`));
+```
+
+```text title="FORCE_COLOR=3 node flown.mjs"
+"\u001b[38;2;244;121;74mfailed\u001b[39m \u001b[38;2;13;148;96mpassed\u001b[39m"
+```
+
+```text title="node flown.mjs"
+"failed passed"
+```
+
+## Styling only the argument
+
+A token wraps its argument in an opening and a closing sequence and touches nothing else, and
+an empty string stays empty. Nested tokens close in reverse order. Only `roundel/tokens` emits
+an escape: `roundel/chalk` computes parameters and hands them to the same emitter, which a test
+asserts by reading the façade's source for an `ESC` character.
+
+## Coming from chalk
+
+`chalk.red(s)` names a colour; `error(s)` names a meaning. The chalk API is still there, as
+`roundel/chalk`, graded by chalk's own suite — [Coming from chalk](/docs/coming-from/chalk).
+Both read the same policy, so they never disagree about the terminal.

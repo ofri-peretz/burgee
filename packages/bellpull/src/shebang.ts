@@ -27,8 +27,9 @@ const HEADER_BYTES = 150;
  * because dropping it changes what the script does.
  *
  * An empty argument is no argument, as it is to `shebang-command`, which tests it for truth:
- * `#!/bin/sh ` (a trailing space) is `sh`, not `sh ` — a name nothing on `PATH` answers to —
- * and `#!/usr/bin/env  node` (two spaces) names no interpreter rather than an empty one.
+ * `#!/bin/sh` followed by a trailing space is `sh`, not `sh` plus a space — a name nothing on
+ * `PATH` answers to — and `#!/usr/bin/env` followed by two spaces and `node` names no
+ * interpreter rather than an empty one.
  */
 export function shebangCommand(source: string): string | undefined {
   const line = /^#!(.*)/.exec(source);
