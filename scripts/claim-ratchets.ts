@@ -23,16 +23,21 @@
  * It writes nothing. Lowering is one appended step in `.sdlc/bands/claim-ratchets.json` (its
  * ceiling, date, D-row and measurement) plus `npm run readme:gates`; the lock checks the rest.
  *
+ * B5's runtime ratchets (`.sdlc/bands/runtime-ratchets.json`) are printed after them: the largest
+ * `runtime-ratio` median of the last `observations` CI runs, times `headroom`, rounded up to `step`.
+ *
  *   npm run ratchets:propose            # bundle rows need a build: `npx turbo run build`
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { PAIRS as RUNTIME_PAIRS } from 'benchmarks/axes/runtime.js';
 import { bundledRecords } from 'benchmarks/axes/weight.js';
 import { ceilToStep, type Ratchet, readRatchets } from 'benchmarks/claim-ratchets.js';
 import { CLAIMS } from 'benchmarks/claims.js';
 import { PAIRS } from 'benchmarks/fixtures/entry-points.js';
+import { readRuntimeRatchets, type RuntimeRatchet } from 'benchmarks/runtime-ratchets.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CI_RESULTS = join(ROOT, 'benchmarks/results/cli-benchmarks');
@@ -118,6 +123,23 @@ function propose(id: string, ratchet: Ratchet): Proposal {
   };
 }
 
+/** A B5 pair's ceiling from the CI series on main, or `undefined` before any CI run measured it. */
+export function proposeRuntime(id: string, ratchet: RuntimeRatchet, dir: string = CI_RESULTS): Proposal | undefined {
+  const pair = RUNTIME_PAIRS.find((p) => p.id === id);
+  if (pair === undefined) throw new Error(`${id} is ratcheted but benchmarks/axes/runtime.ts measures no such pair`);
+  const { observations, headroom, step } = ratchet.derive;
+  const series = ciSeries(`${pair.id} ÷ ${pair.host}`, 'runtime-ratio', observations, dir);
+  if (series.length === 0) return undefined;
+  const worst = Math.max(...series.map((s) => s.value));
+  return {
+    id,
+    ceiling: ratchet.ceiling,
+    measured: series.at(-1)?.value ?? Number.NaN,
+    proposed: ceilToStep(worst * headroom, step),
+    basis: `last ${String(series.length)} CI runs (${series[0]?.file ?? ''} .. ${series.at(-1)?.file ?? ''}): max ${f(worst)} × ${String(headroom)} up to ${String(step)}; target ${String(ratchet.target)}`,
+  };
+}
+
 function verdict(p: Proposal): string {
   if (p.measured > p.ceiling) return `OVER — measured ${String(p.measured)} is above the ceiling ${String(p.ceiling)}; the gate is red`;
   if (p.proposed < p.ceiling) return `LOWER to ${String(p.proposed)} — append a step to .sdlc/bands/claim-ratchets.json, then \`npm run readme:gates\``;
@@ -130,5 +152,14 @@ if (process.argv[1]?.endsWith('claim-ratchets.ts') === true) {
   for (const [id, ratchet] of Object.entries(ratchets)) {
     const p = propose(id, ratchet);
     process.stdout.write(`${id}\n  ceiling ${String(p.ceiling)}  measured ${String(p.measured)}  proposed ${String(p.proposed)}\n  ${p.basis}\n  ${verdict(p)}\n\n`);
+  }
+  process.stdout.write('B5 runtime ratchets (.sdlc/bands/runtime-ratchets.json)\n\n');
+  for (const [id, ratchet] of Object.entries(readRuntimeRatchets(ROOT).ratchets)) {
+    const p = proposeRuntime(id, ratchet);
+    if (p === undefined) {
+      process.stdout.write(`${id}\n  ceiling ${String(ratchet.ceiling)}  no CI observation on main measures it yet\n\n`);
+      continue;
+    }
+    process.stdout.write(`${id}\n  ceiling ${String(p.ceiling)}  measured ${String(p.measured)}  proposed ${String(p.proposed)}\n  ${p.basis}\n  ${verdict(p).replace('claim-ratchets.json, then `npm run readme:gates`', 'runtime-ratchets.json')}\n\n`);
   }
 }

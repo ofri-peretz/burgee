@@ -72,6 +72,10 @@ updates:
       # against its `x`. No suite of its is graded, so the pin is the release the ceiling was
       # measured against, and it moves only when somebody re-measures the pair on purpose.
       - dependency-name: "tinyexec"
+      # @clack/prompts 1.8.1 is the release compat-oracle vendors and grades (vendor/clack), and
+      # B5 times caique/clack against it (D-20260929-b5-runtime-ratchets): a runtime ratio against
+      # a release whose suite we do not pass would compare two different contracts.
+      - dependency-name: "@clack/prompts"
   # The `claude` binary bench.yml (B1) and evals.yml install with `npm ci`. It was
   # `npm install --global` with no version, which Scorecard flags as unpinned (#34, #81);
   # the lockfile pins it, and this entry is what keeps the pin from going stale.
