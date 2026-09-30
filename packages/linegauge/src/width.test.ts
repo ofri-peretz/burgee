@@ -357,6 +357,11 @@ describe('the fast paths agree with the full rules', () => {
     for (const cluster of ['e\u0301', 'Z\u0324\u0354\u0367', '\u0915\u094D\u0937', '\u0600a', 'の', '〰', '〰\uFE0F', '㊗\uFE0F']) expect(measure(cluster)).toBe(stringWidth(cluster));
   });
 
+  it('measures a one-unit string without segmenting it, as the full walk would', () => {
+    // A prompt frame's glyphs arrive as words of their own (B5): `│`, `●`, `◆`, a lone mark.
+    for (const glyph of ['│', '●', '◆', '日', '\u0301', '\u200B', 'é', '\uD83D']) expect(measure(glyph)).toBe(stringWidth(glyph));
+  });
+
   it('measures styled ASCII by its length once the escapes are gone', () => {
     expect(width('\u001B[31mred\u001B[39m and \u001B]8;;https://x.dev\u0007link\u001B]8;;\u0007')).toBe(12);
   });
