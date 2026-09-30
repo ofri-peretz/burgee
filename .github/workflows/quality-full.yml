@@ -133,6 +133,20 @@ jobs:
           filters=()
           for p in "${pkgs[@]}"; do filters+=("--filter=$p"); done
           npx turbo run coverage "${filters[@]}" --concurrency=2
+      # A threshold failure prints only the percentages. This names each uncovered line and
+      # function, from the lcov every package writes, so the fix is readable from the log.
+      - name: Name what is not covered
+        if: failure()
+        run: |
+          set -euo pipefail
+          for report in packages/*/coverage/lcov.info; do
+            awk -v pkg="$(basename "$(dirname "$(dirname "$report")")")" -F'[:,]' '
+              /^SF:/ { file = $2 }
+              /^DA:/ && $3 == 0 { print pkg "/" file ":" $2 " line not covered" }
+              /^FNDA:0,/ { print pkg "/" file " function " $3 " not covered" }
+              /^BRDA:/ && ($5 == "-" || $5 == 0) { print pkg "/" file ":" $2 " branch not covered" }
+            ' "$report"
+          done
 
   quality-full-gate:
     name: Quality (Full) Gate
