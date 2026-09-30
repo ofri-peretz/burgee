@@ -48,16 +48,20 @@ snapshots of clack's exact frames and are subtracted by name; what is left grade
 
 | | passing | rate |
 | :-- | --: | --: |
-| `caique/clack` | 16 / 17 | 94.1% |
-| `@clack/prompts` itself (control) | 17 / 17 | 100.0% |
+| `caique/clack` | 16 / 16 | 100.0% |
+| `@clack/prompts` itself (control) | 16 / 16 | 100.0% |
 
 From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
 oracle's last run; that page is the authority. The 16 are all of `limit-options.test.ts` and
 two of `guide.test.ts`, which render all twelve prompts and check the guide with and without
-`withGuide`. The one that fails sets `updateSettings({ withGuide: false })` from
-`@clack/core` and asserts our prompts obey it — the case above, and no implementation passes
-it without depending on `@clack/core`. Because 16 is not 17, `burgee migrate` reports
-`@clack/prompts` rather than rewriting it; changing the import is yours to make.
+`withGuide`. A third `guide.test.ts` case is subtracted by its exact title. It sets
+`updateSettings({ withGuide: false })` from `@clack/core` and asserts our prompts obey it.
+That is the case above, and it grades `@clack/core`'s state, not `@clack/prompts`. The
+row is level, so `burgee migrate` rewrites `@clack/prompts` to `caique/clack`. It leaves on
+clack a file that imports `box`, `progress` or `taskLog`. It never rewrites `@clack/core`, and
+it refuses a clack file that also imports `@clack/core` (reason `sibling-state`) rather than
+move its prompts away from the settings that file sets. The refusal's fix reads:
+`import { updateSettings } from 'caique/clack' instead of '@clack/core', then re-run burgee migrate`.
 
 ## Move a prompt to a flag
 

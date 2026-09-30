@@ -13,16 +13,16 @@ description: "Move from @inquirer/core with one import, from @clack/prompts with
 Graded 41 of 41 by `@inquirer/core`'s own suite, so `npx burgee migrate` rewrites it for you
 (`--dry-run` lists it first).
 
-## From `@clack/prompts`: one import, by hand
+## From `@clack/prompts`: one import
 
 ```diff
 - import { confirm, isCancel, select, text } from '@clack/prompts';
 + import { confirm, isCancel, select, text } from 'caique/clack';
 ```
 
-`caique/clack` grades 16 of 17 — the one case left needs `@clack/core`'s settings — so
-`burgee migrate` reports this import rather than rewriting it. Make the change yourself, and
-import `updateSettings` from `caique/clack` if you use it
+`caique/clack` grades 16 of 16, level with clack, so `burgee migrate` makes this change for you.
+It refuses a file that also imports `@clack/core`, because caique's prompts never read
+`@clack/core`'s settings: import `updateSettings` from `caique/clack` there and run it again
 ([Compatibility](/docs/drop-ins#known-differences)).
 
 ## Then: a prompt at a time, to a flag

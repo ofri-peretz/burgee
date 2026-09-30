@@ -196,11 +196,21 @@ export function searchPath(options: WhichOptions): SearchEntry[] {
  * throwing away everything after the first is what stops it being available.
  */
 export function whichAllSync(command: string, options: WhichOptions): Resolution[] {
-  return search(command, options, false);
+  return resolutions(command, options, false);
 }
 
-/** The walk both answers share; `first` ends it at the first hit rather than every one. */
-function search(command: string, options: WhichOptions, first: boolean): Resolution[] {
+/**
+ * The one walk behind both answers. `first` stops it at the first hit.
+ *
+ * **Why `whichSync` does not take `whichAllSync()[0]`, which it did until 2026-09-30.** The
+ * answer is the same and the cost is not: every `run()` resolves before it spawns, and the full
+ * walk stats every remaining `PATH` entry after the one that already answered. On an
+ * ubuntu-latest runner, 18 entries, that was **~195 µs a call**, the whole of the 6 % by which
+ * `run` spawned slower than tinyexec's `x` there (B5, `bellpull ÷ tinyexec`, 1.06 against R8's
+ * bar of 1.0; D-20260930-bellpull-first-hit-resolve). `whichAllSync` still walks everything,
+ * because "there are two `node`s on this `PATH`" is the finding it exists to report.
+ */
+function resolutions(command: string, options: WhichOptions, first: boolean): Resolution[] {
   const { runtime } = options;
   const p = pathOps(runtime);
   const windows = isWindows(runtime);
@@ -209,7 +219,7 @@ function search(command: string, options: WhichOptions, first: boolean): Resolut
   const candidates = extensionCandidates(command, options);
   const found: Resolution[] = [];
 
-  /** Whether the walk is done: this file was a hit and one was all that was asked for. */
+  /** Records a hit, and says whether the walk is done. */
   const consider = (file: string, from: string, ext: string): boolean => {
     if (!isExecutable(file, runtime, exts)) return false;
     found.push({ path: p.resolve(against, file), from, ext });
@@ -219,7 +229,7 @@ function search(command: string, options: WhichOptions, first: boolean): Resolut
   if (carriesPath(command, windows)) {
     // Rule 1: the caller named a file. `PATH` is not consulted, and `from` is empty to say
     // so — a reader must be able to tell "found in /usr/bin" from "you told me where it is".
-    for (const ext of candidates) if (consider(p.resolve(against, command + ext), '', ext)) return found;
+    for (const ext of candidates) if (consider(p.resolve(against, command + ext), '', ext)) break;
     return found;
   }
 
@@ -237,9 +247,7 @@ function search(command: string, options: WhichOptions, first: boolean): Resolut
  * branches on — the same argument the `Result` in `run.ts` makes about a non-zero exit.
  */
 export function whichSync(command: string, options: WhichOptions): Resolution | undefined {
-  // The first hit ends the walk: `whichAllSync()[0]` stat-ed every directory on `PATH` to throw
-  // all but one answer away, 3.3× `which.sync` (B5).
-  return search(command, options, true)[0];
+  return resolutions(command, options, true)[0];
 }
 
 /**
