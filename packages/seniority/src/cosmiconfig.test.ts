@@ -1,8 +1,8 @@
 /**
  * `seniority/cosmiconfig`, driven in this process.
  *
- * The public grade is cosmiconfig's own suite through `compat-oracle` (186 / 243 on ubuntu;
- * the 57 short are the YAML parser this package does not bundle). That suite runs in another
+ * The public grade is cosmiconfig's own suite through `compat-oracle` (240 / 243 on ubuntu,
+ * level with cosmiconfig itself since `seniority/yaml`). That suite runs in another
  * process against `dist/`, so none of it moves a counter here, and `cosmiconfig.ts` is not in
  * the shared `TESTED_IN_ANOTHER_PROCESS` list: it is measured, so it is tested here too.
  *
@@ -225,11 +225,13 @@ describe.each(flavours)('$name', ({ make, spyReads, failStat }) => {
       expect(await make('app', { ignoreEmptySearchPlaces: false }).search(root)).toEqual({ config: undefined, filepath: join(root, '.apprc.json'), isEmpty: true });
     });
 
-    it('reads a file with no extension as the JSON subset of YAML, and refuses the rest by name', async () => {
+    it('reads a file with no extension as YAML — JSON included, YAML being its superset', async () => {
       const root = tree({ '.apprc': '{"from":"noext"}' });
       expect((await make('app').search(root))?.config).toEqual({ from: 'noext' });
       const yaml = tree({ '.apprc': 'from: yaml\n' });
-      await expect(make('app').search(yaml)).rejects.toThrow(`no YAML parser for ${join(yaml, '.apprc')}`);
+      expect((await make('app').search(yaml))?.config).toEqual({ from: 'yaml' });
+      const broken = tree({ '.apprc': 'from: yaml: broken\n' });
+      await expect(make('app').search(broken)).rejects.toThrow(`YAML Error in ${join(broken, '.apprc')}:\nbad indentation of a mapping entry (1:11)`);
     });
 
     it('treats a loader answering `null` as nothing here and `undefined` as an empty file', async () => {

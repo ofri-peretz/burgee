@@ -114,24 +114,24 @@ try {
   console.log(`hint: ${error.hint}`);
 }
 
-// A two-line parser stands in for js-yaml here; in a real program pass `yaml.load`.
-const tinyYaml = (_filepath, content) => Object.fromEntries(content.trim().split('\n').map((line) => line.split(': ')));
-console.log(await loadPath('app.yaml', { loaders: { '.yaml': tinyYaml } }));
+// seniority's own YAML parser, in an entry of its own: nothing loads it unless you do.
+const { parse } = await import('seniority/yaml');
+console.log(await loadPath('app.yaml', { loaders: { '.yaml': (_filepath, content) => parse(content) } }));
 ```
 
 ```text title="node yaml.mjs"
 LoaderError: no loader for ".yaml"
 hint: pass loaders: { ".yaml": (filepath, content) => … } — seniority bundles no format parser
-{ region: 'eu-2', retries: '3' }
+{ region: 'eu-2', retries: 3 }
 ```
 
 `discover` takes the same `loaders`. A loader may also replace a builtin, so a program that
 wants JSON5 for `.json` can have it.
 
-**YAML is not bundled, deliberately.** cosmiconfig reads YAML through js-yaml; seniority has no
-parser dependency at all. That is why `seniority` passes 186 of cosmiconfig's 243 cases rather
-than all of them: 54 of the rest are YAML fixtures. Passing `loaders: { '.yaml': yaml.load }`
-gets cosmiconfig's behaviour exactly.
+**YAML is a loader, not a default, and not a dependency.** `loadPath` and `discover` read the
+four formats Node reads; `seniority/yaml` is the fifth, passed as above. It is the same parser
+the cosmiconfig drop-in uses, which is how `seniority` passes 240 of cosmiconfig's 243 cases,
+level with cosmiconfig itself.
 
 ## What is tested
 
