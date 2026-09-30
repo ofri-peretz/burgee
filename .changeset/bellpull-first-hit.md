@@ -2,9 +2,6 @@
 "bellpull": patch
 ---
 
-Faster lookups:
+The `bellpull/node-which` façade reads the environment once per lookup, and builds each candidate path only as it tries it, rather than joining every `PATH` entry with every extension up front.
 
-- `whichSync` and `resolveExecutable` (and therefore `run`) stop at the first hit on `PATH`, instead of stat-ing every directory to keep only the first answer.
-- The `bellpull/node-which` façade builds each candidate path as it tries it.
-- A miss no longer throws and catches an `ENOENT` per directory (`statSync(…, { throwIfNoEntry: false })`).
-- In B5, `bellpull/node-which` ÷ which went from 1.05× on CI (2.9× with a 60-entry `PATH`) to 0.29× locally.
+A hit in the first directory now costs one `stat`. In B5, `bellpull/node-which` ÷ which is 0.30× locally (0.43× on CI before this change).
