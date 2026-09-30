@@ -131,7 +131,8 @@ region = "eu-1"   from config file ./mytool.config.json
          candidates: flag --region (unset), env MYTOOL_REGION (unset), default "us-1"
 ```
 
-The same information rides under `--json` as `meta.provenance`, per option — for an agent,
+Every command that runs lists `--explain <option>` in its help, and the root help's `For
+agents:` line names it beside `--schema` and `--json`. The same information rides under `--json` as `meta.provenance`, per option — for an agent,
 the difference between one call and five. `envPrefix` and `config: true` on
 `defineProgram` opt a program into env names and config discovery; nothing is read that
 the running command did not declare.

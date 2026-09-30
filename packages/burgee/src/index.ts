@@ -51,6 +51,7 @@ export { checkCommand, checkDefinition } from './definition.js';
 export { AuthError, camel, kebab, UsageError } from './validate.js';
 export { AGENT_PROBES, detectAgent, type AgentProbe, type Detection } from './agent.js';
 export type { HelpOptions, HelpTheme, HelpToken } from './help.js';
+export type { Usage, UsageRow } from './usage.js';
 export type { Invoke, ServeOptions, Tool, ToolAnnotations } from './mcp.js';
 export type { Candidate, Layers, Provenance, Resolution, Source } from 'seniority/precedence';
 export type { CommandSchema, JsonSchema, ProgramSchema, SchemaSummary } from './schema.js';

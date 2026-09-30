@@ -91,6 +91,9 @@ $ node cli.mjs --name ada --json
 $ node cli.mjs                                    # exit 2, not 1
 error: missing required option --name
 hint: pass --name <value>
+usage: greet [options]
+options:
+  --name <value>  who to greet (required)
 ```
 
 That is the whole thing: one file, one declaration, and a CLI that already speaks to a person,
