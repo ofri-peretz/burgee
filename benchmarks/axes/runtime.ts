@@ -60,6 +60,10 @@ export const PAIRS: readonly RuntimePair[] = [
   pair('linegauge/slice', 'slice-ansi', 'linegauge-slice-ansi.mjs'),
   pair('roundel/chalk', 'chalk', 'roundel-chalk.mjs'),
   pair('bellpull/node-which', 'which', 'bellpull-which.mjs'),
+  // bellpull R8's spawn half: `run` against tinyexec's `x`, the zero-dependency rival R8 names.
+  // Not a drop-in pair — the weight axis weighs the same two calls (B4's `bellpull` row) — and
+  // its ratchet is R8's bar itself, 1.0, rather than a ceiling above a measurement.
+  pair('bellpull', 'tinyexec', 'bellpull-tinyexec.mjs'),
   pair('flagstaff/ora', 'ora', 'flagstaff-ora.mjs'),
   pair('flagstaff/log-update', 'log-update', 'flagstaff-log-update.mjs'),
   pair('flagstaff/boxen', 'boxen', 'flagstaff-boxen.mjs'),
@@ -72,7 +76,7 @@ export const PAIRS: readonly RuntimePair[] = [
 /**
  * Rounds per pair. Odd, so the median is a round that happened rather than the mean of two;
  * eleven, because the per-round ratio's spread on a two-core runner settles by then and every
- * extra round is paid fifteen times over.
+ * extra round is paid once per pair — sixteen times over.
  */
 export const ROUNDS = 11;
 const RATIO_PLACES = 3;
