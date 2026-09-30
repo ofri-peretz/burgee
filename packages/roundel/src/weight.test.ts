@@ -105,11 +105,25 @@ const RULES: Record<string, EntryRule> = {
   // ratchet this tight will stop the next change to any of these four files, and the right
   // answer then is to find the bytes — the ceiling is chalk 6.0.0's own source and a raise
   // would be the claim getting weaker, not the package getting better.
+  //
+  // **Re-measured when re-vendored (R8), 2026-09-30: chalk 6.0.1 is 8,334 + 1,187 = 9,521 B**,
+  // 151 more than 6.0.0 — its fix makes several arguments join the same way whatever their
+  // count. The budget stays at 6.0.0's 9,370 anyway. R8 would allow 9,521, and raising a
+  // ceiling because the incumbent grew is a loosening, which is the owner's call and not this
+  // branch's; held at the smaller number, the claim "no heavier than chalk" is true of both.
   './chalk': { allow: [], budget: 9_370, denied: ['theme.js', 'contrast.js', 'index.js'] },
   // R12, on 2026-09-28: `interactive(rt)` and the is-unicode-supported probe, which caique
   // and flagstaff each carried by hand. Its own subpath because `./chalk` above has 7 B left
   // and `./policy` 28. Reaches nothing, and the root does not re-export it: `.` has 58 B left. Measured 878.
   './terminal': { allow: [], budget: 1_000, denied: ['policy.js', 'tokens.js', 'theme.js', 'contrast.js', 'chalk.js', 'index.js'] },
+  // R11, on 2026-09-30: `fromBase16` and `fromITerm`. It carries the whole theme graph on
+  // purpose — `audit()` is how an imported theme is refused exactly when `fly()` would refuse
+  // it, and a second, lighter check would be a second opinion that could disagree — so this is
+  // `./theme`'s 10,112 plus import.js's own 6,438: measured 16,550. Most of import.js is the
+  // refusals, a code and a fix for each way a file can be wrong. No incumbent to be held under:
+  // nothing else turns a palette file into a checked theme. Not re-exported from the root,
+  // whose 14,600 has 58 B left; a program that never imports a palette never pays for one.
+  './import': { allow: [], budget: 16_600, denied: ['tokens.js', 'chalk.js', 'plugin.js', 'terminal.js', 'index.js'] },
 };
 
 const SPECIFIER = /(?:from|import)\s*'([^']+)'/g;

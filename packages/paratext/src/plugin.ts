@@ -86,7 +86,7 @@ export function validate(plugin: unknown): asserts plugin is Plugin {
   if (contract !== undefined && (!Number.isInteger(contract) || (contract as number) < 1 || (contract as number) > CONTRACT)) {
     throw new PluginError(
       'E_PLUGIN_CONTRACT',
-      `plugin "${plugin['name']}" declares contract ${String(contract)}; this paratext knows ${CONTRACT}`,
+      `plugin "${plugin['name']}" declares contract ${contract as number}; this paratext knows ${CONTRACT}`,
       FIX.E_PLUGIN_CONTRACT,
     );
   }

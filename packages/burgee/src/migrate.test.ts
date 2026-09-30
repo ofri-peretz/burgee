@@ -418,7 +418,7 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     const report = await migrate({ dir, status: clean });
     expect(read(dir, 'src/a.js')).toBe("const onExit = require('signal-exit');\nimport chalk from 'chalk';\nimport ora from 'flagstaff/ora';\n");
     expect(report.offMajor).toEqual([
-      { from: 'chalk', found: '4.1.2', graded: '6.0.0' },
+      { from: 'chalk', found: '4.1.2', graded: '6.0.1' },
       { from: 'signal-exit', found: '^3.0.7', graded: '4.1.0' },
     ]);
     expect(report.dependencies.removable).toEqual(['ora']);

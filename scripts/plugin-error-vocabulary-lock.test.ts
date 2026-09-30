@@ -51,9 +51,19 @@ const CODE = /'(E_[A-Z_]+)'/g;
 /** The union declaration, however it is wrapped — everything up to the terminating `;`. */
 const UNION = /export type PluginErrorCode\s*=([^;]*);/;
 
+/**
+ * Any other exported `…ErrorCode` union in a host's source — `roundel/import`'s
+ * `ImportErrorCode`, paratext's `CapabilityErrorCode`. A code that is not a *plugin* refusal
+ * is still declared in a union rather than written inline; this is where it may be, and
+ * check 4 below keeps such a union from spelling a plugin code with another meaning.
+ */
+const OTHER_UNION = /export type (?!PluginErrorCode\b)\w+ErrorCode\s*=([^;]*);/g;
+
 interface Host {
   name: string;
   declared: string[];
+  /** Codes declared in the host's other `…ErrorCode` unions: refusals that are not a plugin's. */
+  other: string[];
   /** Every code the package ships, with the file and line that writes it. */
   used: { code: string; where: string }[];
 }
@@ -72,12 +82,14 @@ function hosts(): Host[] {
       const src = join(PACKAGES, e.name, 'src');
       const union = UNION.exec(readFileSync(join(src, 'plugin.ts'), 'utf8'));
       const used: Host['used'] = [];
+      const other: string[] = [];
       for (const file of sources(src)) {
+        for (const [, body = ''] of readFileSync(file, 'utf8').matchAll(OTHER_UNION)) other.push(...[...body.matchAll(CODE)].map(([, c = '']) => c));
         for (const [i, line] of readFileSync(file, 'utf8').split('\n').entries()) {
           for (const [, code = ''] of line.matchAll(CODE)) used.push({ code, where: `${relative(ROOT, file)}:${i + 1}` });
         }
       }
-      return { name: e.name, declared: [...(union?.[1] ?? '').matchAll(CODE)].map(([, c = '']) => c), used };
+      return { name: e.name, declared: [...(union?.[1] ?? '').matchAll(CODE)].map(([, c = '']) => c), other, used };
     });
 }
 
@@ -99,8 +111,18 @@ describe('the plugin error vocabulary', () => {
    * the fix ("declare it in plugin.ts") is readable from the output alone.
    */
   it.each(found)('$name: every code it ships is a member of its own union', (host) => {
-    const stray = host.used.filter((u) => !host.declared.includes(u.code)).map((u) => `${u.where} → ${u.code}`);
-    expect(stray, `not in ${host.name}'s PluginErrorCode; declare it there rather than inline, or this is a code the family never agreed to`).toEqual([]);
+    const stray = host.used.filter((u) => !host.declared.includes(u.code) && !host.other.includes(u.code)).map((u) => `${u.where} → ${u.code}`);
+    expect(stray, `not in ${host.name}'s PluginErrorCode or another exported …ErrorCode union; declare it rather than inline, or this is a code the family never agreed to`).toEqual([]);
+  });
+
+  /**
+   * 4. A non-plugin union may add codes of its own, and may not take a plugin code's name for
+   * them: a code the vocabulary home knows means what the home says it means, in every file.
+   * Reusing one that the host's own `PluginErrorCode` also declares is the same code, and fine.
+   */
+  it.each(found)('$name: its other error unions take no plugin code for a meaning of their own', (host) => {
+    const taken = host.other.filter((code) => (home?.declared ?? []).includes(code) && !host.declared.includes(code));
+    expect(taken, `${host.name} declares a plugin code in a non-plugin union without declaring it as a plugin code`).toEqual([]);
   });
 
   it.each(found)("$name: uses no code the vocabulary home does not know", (host) => {

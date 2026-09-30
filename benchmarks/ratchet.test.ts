@@ -18,7 +18,7 @@
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
 
 import { type Baseline, type Grade, gradeRecords, hostRecords } from './axes/compat.js';
-import { ratioRecord, RATIO_CEILING as PERF_CEILING, type Variant, VARIANTS } from './axes/perf.js';
+import { DELTA_CEILING_MS, deltaRecord, ratioRecord, RATIO_CEILING as PERF_CEILING, type Variant, VARIANTS } from './axes/perf.js';
 import { BUNDLED_CEILING, type Measured, pairRecords, RATIO_CEILING as WEIGHT_CEILING } from './axes/weight.js';
 import { claimRatchet } from './claim-ratchets.js';
 import { CLAIMS } from './claims.js';
@@ -97,6 +97,39 @@ describe('B2 cold start — the paired-ratio gate', () => {
     const record = ratioRecord({ v: variant, ours, host, gateMax: ceiling });
     expect(record.p95).toBeGreaterThan(ceiling);
     expect(verdict([record])).toBe(0);
+  });
+});
+
+describe('B2 cold start — roundel R8, the paired-delta gate over picocolors', () => {
+  const pico = Array.from({ length: 40 }, (_, i) => 30 + (i % 3));
+  const entries = VARIANTS.filter((v) => v.over !== undefined);
+
+  it('holds both colour entries to picocolors, at the allowance R8 writes', () => {
+    expect(entries.map((v) => `${v.id} over ${String(v.over)}`)).toEqual(['roundel/tokens over picocolors', 'roundel/chalk over picocolors']);
+    expect(DELTA_CEILING_MS).toBe(10);
+  });
+
+  it.each(entries.map((v) => [v.id, v] as const))('%s: exits non-zero past picocolors + 10 ms', (id, v) => {
+    const ours = pico.map((ms) => ms + DELTA_CEILING_MS + 0.01);
+    expect(verdict([deltaRecord({ v, ours, over: pico, gateMax: DELTA_CEILING_MS })])).toBe(1);
+    expect(said()).toContain(`${id} − picocolors cold-start-delta-ms: 10.01 ms is above its ceiling of 10`);
+  });
+
+  it.each(entries.map((v) => [v.id, v] as const))('%s: exits zero at exactly picocolors + 10 ms', (_, v) => {
+    const ours = pico.map((ms) => ms + DELTA_CEILING_MS);
+    expect(verdict([deltaRecord({ v, ours, over: pico, gateMax: DELTA_CEILING_MS })])).toBe(0);
+  });
+
+  it('gates the median of the per-round differences, never a difference of two medians', () => {
+    const v = entries[0] as Variant;
+    // Three rounds 5 ms over their own picocolors round and two 40 ms under: the paired median
+    // is 5. The two medians are 15 and 50, whose difference, −35, would say roundel starts
+    // 35 ms faster — a number no round measured.
+    const over = [10, 10, 50, 50, 50];
+    const ours = [15, 15, 55, 10, 10];
+    const record = deltaRecord({ v, ours, over, gateMax: DELTA_CEILING_MS });
+    expect(record.median).toBe(5);
+    expect(record.samples).toBe(5);
   });
 });
 
