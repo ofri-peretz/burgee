@@ -739,6 +739,11 @@ lost; those are different answers and telling them apart is what `--explain` is 
 **Later wins at an equal rank**, like ESLint flat config: the registry is an ordered array, and
 the last word on a source name is the one nearest the program. `registered()` returns it in
 that order; `reset()` empties it, for tests and for a program that re-registers at runtime.
+Until 2026-09-30 this sentence was false: `sources()` read the plugins oldest first, the sort
+is stable and `resolve` takes the first candidate with a value, so the *earlier* plugin won.
+The only test asserted the order, not the winner. `sources()` now reads the newest plugin
+first, and `plugin.test.ts` asserts the winner: `resolves a tie at an equal rank to the plugin
+registered later`.
 
 **The type does not stand in the way.** `Source` is an open union —
 `'flag' | 'env' | 'config' | 'package' | 'default' | (string & {})` — widened at 0.2.0

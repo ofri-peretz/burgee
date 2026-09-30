@@ -126,6 +126,12 @@ describe('what it refuses, and with which code', () => {
     expect(error.fix).toContain('paratext');
   });
 
+  // schema.json gives `contract` a minimum of 1. Until 2026-09-30 this host accepted 0 and
+  // any negative number; the same case is in every host, and plugin-contract-lock runs it.
+  it.each([0, -1])('refuses contract %s, below the first contract there is (R6)', (contract) => {
+    expect(() => { validate({ name: 'acme', contract }); }).toThrow(expect.objectContaining({ code: 'E_PLUGIN_CONTRACT' }));
+  });
+
   it('refuses the rest against the published schema rather than a second copy of its rules', () => {
     const error = refusal(plugin({ capabilities: { 'kitty-image': { ...kitty, encode: '' } } }));
     expect(error.code).toBe('E_PLUGIN_SCHEMA');

@@ -1,0 +1,150 @@
+---
+title: Width and text correctness
+description: "How linegauge counts the columns a string occupies: grapheme clusters, East Asian Width from Unicode 17 tables, escape sequences that take no columns, and budgets that keep the pathological inputs fast."
+---
+
+## What it is
+
+[linegauge](https://linegauge.interlace.tools/docs) answers one question the rest of the
+family asks constantly: **how many terminal columns does this string occupy?** Everything
+that aligns a column, wraps a paragraph or cuts a line to fit asks it: burgee's help,
+flagstaff's tables and boxes, caique's prompts. Its functions are `width`, `strip`, `wrap`,
+`slice`, `truncate` and `widest`, all on the root entry and each but `width` on a subpath of its own
+([API](https://linegauge.interlace.tools/docs/api)).
+
+## Why it exists
+
+`.length` counts UTF-16 code units, not columns. `'古池や'.length` is 3 and it occupies 6
+columns; `'👨‍👩‍👧'.length` is 8 and it occupies 2; a string wrapped in a colour escape is
+longer than what it shows by the escape. A help column measured with `.length` misaligns the
+first time a command name is CJK or an emoji, which is how burgee's own help was found doing it
+before it took `width` and `widest` from linegauge (`help-width.test.ts` pins that). The
+[family's rules](/docs/concepts/family) make linegauge the one owner of the job: a hand-written
+measurer, wrapper or stripper anywhere else fails `inline-implementation-lock`.
+
+## How a width is counted
+
+`width(text, { ambiguousIsNarrow = true, countAnsiEscapeCodes = false })`:
+
+1. **A string of printable ASCII is its length.** A non-string or `''` is 0, and a string
+   whose every code point is in `0x20`–`0x7E` takes the fast path, which cannot contain an
+   escape (`ESC` is `0x1B`). `differential.test.ts` checks that path against the full one on
+   a generated corpus.
+2. **Escapes are removed.** CSI sequences (introduced by `ESC [` or the C1 byte `U+009B`), SGR
+   colours in both the `;` and the `:` forms, and OSC sequences terminated by `BEL` or `ESC \`
+   — including OSC 8 hyperlinks — take no columns, unless `countAnsiEscapeCodes: true` asks
+   for them to be counted.
+3. **Otherwise the text is split into grapheme clusters** with `Intl.Segmenter`, and each
+   cluster is measured once, in this order:
+   1. a width a [plugin](/docs/concepts/plugins) declared for its code point;
+   2. a cluster of only invisible code points (default-ignorable, control, format,
+      nonspacing and enclosing marks) is **0**;
+   3. an RGI emoji, a keycap, or a ZWJ sequence of two or more pictographs is **2**;
+   4. a cluster starting with conjoining Hangul jamo is measured jamo by jamo;
+   5. anything else is the East Asian Width of its first visible code point — wide and
+      fullwidth are **2**, ambiguous is **1** unless `ambiguousIsNarrow: false` makes it 2 —
+      plus any trailing spacing mark or halfwidth/fullwidth form, which takes a column of its
+      own.
+
+## Unicode 17, and where the version comes from
+
+The East Asian Width tables in `width.ts` are generated from `get-east-asian-width` 1.7.0,
+which is Unicode 17, and pinned exactly in the root `package.json`. It is a development
+dependency only: the tables are committed, so nothing installs it.
+`generate-width-tables.mjs --check passes` and `measures a Unicode 17 wide code point as two
+columns, as string-width does` in
+[`width.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/linegauge/src/width.test.ts)
+hold the committed tables to the pinned package.
+
+Only the width tables are Unicode 17. Grapheme boundaries (`Intl.Segmenter`) and the
+character classes (`\p{RGI_Emoji}`, marks, `\p{Extended_Pictographic}`) come from the running
+Node's ICU, which on Node 24 is Unicode 16; the test's own comment says so.
+
+## Escapes are carried, not counted
+
+Measuring skips escapes; cutting and wrapping have to keep them.
+
+- `slice(text, start, end)` cuts by columns and returns a fragment that is **self-contained**:
+  it closes every style it opened and reopens a style that was open before the cut. A cut that
+  lands inside a wide character or a cluster **rounds inward**, so a slice never returns more
+  columns than were asked for (`rounds inward at a wide character, never outward` and `and so
+  never returns more columns than were asked for` in
+  [`slice.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/linegauge/src/slice.test.ts)).
+  OSC 8 links do not nest, so a link that wrapped text is closed before the next opens.
+- `wrap(text, columns, { hard, trim, wordWrap })` breaks at word boundaries by default,
+  splits a word only with `hard: true`, and carries colours and links across the break (`keeps
+  a link and a colour open across the break when an OSC title sits in the row` in
+  [`wrap-rows.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/linegauge/src/wrap-rows.test.ts)).
+- `truncate(text, columns, { position, ellipsis })` keeps the ellipsis inside the budget.
+- `strip(text)` removes every escape, then hands the result to Node's
+  `util.stripVTControlCharacters` for the single-character escapes and truncated tails.
+
+## Linear time
+
+A width is computed on every keypress of a prompt and every row of a table, so the worst
+input matters as much as the common one. The zero-width check walks code points one at a time
+instead of running a backtracking regular expression, and the emoji-sequence scan stops at 50
+code units per cluster (`width-scan-limit.test.ts`). The block `zero-width clusters are
+measured in linear time, and as the regexes measured them` in `width.test.ts` measures 1,000
+joiners before a visible character in under 2 seconds and 3,000,000 joiners in under 15
+seconds without a `RangeError`, and checks the loop against the two regular expressions it
+replaced on every short string of the classes involved.
+
+Those are time budgets on `width`, not a scaling measurement: no test compares the time at
+*n* with the time at *2n*, and `wrap`, `slice`, `truncate` and `strip` have no budget of their
+own. `wrap` tracks a row's width instead of remeasuring it per word, and scans for trailing
+spaces instead of matching them, for the same reason.
+
+## Run it
+
+```js title="width.mjs"
+import { strip, truncate, width, wrap } from 'linegauge';
+import slice from 'linegauge/slice';
+
+const samples = {
+  ascii: 'hello',
+  cjk: '古池や',
+  family: '👨‍👩‍👧',
+  flag: '🇯🇵',
+  combining: 'é',
+  styled: '\u001B[1mbold\u001B[22m',
+  link: '\u001B]8;;https://burgee.interlace.tools\u0007docs\u001B]8;;\u0007',
+  ambiguous: '±',
+};
+for (const [name, text] of Object.entries(samples)) console.log(`${name.padEnd(10)} ${width(text)}`);
+console.log(`ambiguous, CJK terminal: ${width('±', { ambiguousIsNarrow: false })}`);
+console.log(JSON.stringify(strip(samples.link)));
+console.log(JSON.stringify(wrap('古池や蛙飛び込む水の音', 10, { hard: true })));
+console.log(JSON.stringify(slice('古池や', 1, 4)));
+console.log(JSON.stringify(truncate('\u001B[31mconfiguration\u001B[39m', 8)));
+```
+
+```text title="node width.mjs"
+ascii      5
+cjk        6
+family     2
+flag       2
+combining  1
+styled     4
+link       4
+ambiguous  1
+ambiguous, CJK terminal: 2
+"docs"
+"古池や蛙飛\nび込む水の\n音"
+"池"
+"\u001b[31mconfigu\u001b[39m…"
+```
+
+`slice('古池や', 1, 4)` asks for columns 1 to 4. `古` occupies 0–1 and `や` 4–5, so neither is
+wholly inside the range and only `池` comes back. The truncated string closes its colour
+before the ellipsis.
+
+## Where the rules live
+
+- Spec: [linegauge](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/linegauge/spec.md).
+- Guides: [Measuring](https://linegauge.interlace.tools/docs/guides/measuring),
+  [Wrapping](https://linegauge.interlace.tools/docs/guides/wrapping),
+  [Cutting](https://linegauge.interlace.tools/docs/guides/cutting) and
+  [Stripping](https://linegauge.interlace.tools/docs/guides/stripping) on linegauge's site.
+- Compatibility: string-width, strip-ansi, wrap-ansi and slice-ansi's own suites, graded on
+  [Compatibility](/docs/compatibility).

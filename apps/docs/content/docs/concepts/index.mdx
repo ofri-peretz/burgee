@@ -1,0 +1,41 @@
+---
+title: Concepts
+description: "How the burgee family works, on its own terms: the ideas every package shares, the exact rules behind them, and the tests that hold each rule."
+---
+
+The package sites say how to use each package, and the comparison pages say how it differs from
+what it replaces. These pages say how the family itself works: the ideas the ten packages share,
+why each exists, the rule as the code applies it, and the test that fails if the rule stops
+being true. Each has an example this site's tests run.
+
+## The shape of the family
+
+- [The family and its layers](/docs/concepts/family) — one job per package, six leaves and three
+  packages that compose them, dependencies that point one way, and nothing installed from outside.
+- [Drop-in façades and migration](/docs/concepts/drop-ins) — reproduce an incumbent's API and
+  behaviour, never its mechanism; how `burgee migrate` decides what it may move.
+- [The plugin system](/docs/concepts/plugins) — one plain object, one published schema, one set
+  of refusal codes, and a `check` command in every package.
+
+## What every run decides
+
+- [The output policy](/docs/concepts/output-policy) — which mode a run is in, how much colour it
+  may use, and whether anybody is there to type.
+- [The static projection](/docs/concepts/static-projection) — the plain-text form every live
+  widget and terminal capability must have.
+- [Agent surfaces](/docs/concepts/agent-surfaces) — one declaration projected into `--json`,
+  `--schema`, `--mcp` and completions, and a program that never prompts an agent.
+- [Exit codes and errors](/docs/concepts/exit-codes) — seven typed codes, one error envelope, and
+  which stream a failure goes to.
+- [Configuration and precedence](/docs/concepts/configuration) — one fixed order, a pure resolve,
+  and provenance for every value.
+- [Shutdown and terminal restore](/docs/concepts/shutdown) — one registry for every way a process
+  leaves, a deadline, and the terminal restored last.
+- [Width and text correctness](/docs/concepts/text-width) — how many columns a string occupies,
+  counted by grapheme cluster and East Asian Width.
+
+## How the claims are kept
+
+- [How we prove claims](/docs/concepts/evidence) — incumbent suites graded against a control,
+  baselines that only ratchet, weight bands, capability matrices with evidence in every cell, and
+  the locks that fail when prose outruns a measurement.
