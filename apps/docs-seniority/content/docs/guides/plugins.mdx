@@ -1,0 +1,76 @@
+---
+title: Source plugins
+description: "seniority/plugin: add a configuration source — a vault, a CI variable set, a remote config — at a rank between two built-ins, named in --explain, and checked by npx seniority check before it ships."
+---
+
+A plugin **adds a source**; it cannot reorder the five built-ins. It registers under the
+family's plugin key, `sources`, and its `rank` slots it between two of them:
+
+```js title="vault.mjs"
+import { explain, RANK, resolve } from 'seniority';
+import { register, sources } from 'seniority/plugin';
+
+register({
+  name: 'acme-vault',
+  sources: {
+    vault: {
+      rank: RANK.env + 1, // after the environment, before the config file
+      read: (rt) => ({ location: 'acme://vault/ci', values: { region: rt.env.CI_REGION } }),
+    },
+  },
+});
+
+const env = { CI_REGION: 'ap-1' };
+const specs = { region: { type: 'string', default: 'us-1' } };
+const result = resolve(specs, { flags: {}, env, config: { path: 'app.config.json', data: { region: 'eu-2' } }, sources: sources({ env, cwd: '.' }) });
+
+process.stdout.write(explain('region', result));
+```
+
+```text title="node vault.mjs"
+region = "ap-1"   from vault acme://vault/ci
+         candidates: flag --region (unset), config file app.config.json "eu-2", default "us-1"
+```
+
+`--explain` names the plugin's source by the name and location it declared, even though
+seniority has never heard of it.
+
+| field | meaning |
+| :-- | :-- |
+| `rank` | an integer strictly between `RANK.flag` (0) and `RANK.default` (40): a source may not beat what the user typed, nor sink below the declared default |
+| `read(runtime)` | returns `{ location?, values }`, or nothing to contribute nothing |
+| `values` | the data itself, instead of `read`: a source may be pure data |
+| `location` | what `--explain` prints; the source's name when absent |
+
+A source has either `read` or `values`, never both, because one source gives one answer. At an
+equal rank, the plugin registered later wins. `sources(runtime)` reads every registered source
+and sorts them by rank; pass the result to `resolve` as `sources`.
+
+## Checking a plugin before it ships
+
+`npx seniority check <file>` validates a plugin module's default export against the family
+schema. It exits 0 on success, 1 with a code and a fix, or 2 on a usage error:
+
+```js title="badplugin.mjs"
+export default {
+  name: 'acme-vault',
+  sources: {
+    vault: { rank: -5, values: { region: 'ap-1' } },
+  },
+};
+```
+
+```text title="npx seniority check badplugin.mjs" exit="1"
+E_PLUGIN_SCHEMA: plugin "acme-vault": source "vault" has rank -5
+  fix: a rank is an integer strictly between 0 (flag) and 40 (default) — a source may not beat what the user typed, nor sink below the declared default
+```
+
+## What is tested
+
+- [`plugin.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/seniority/src/plugin.test.ts):
+  - a plugin's source is the provenance of the value, and names itself in `--explain`;
+  - it appears as a losing candidate when a built-in outranks it;
+  - a source may be data;
+  - the rank slots it between the built-ins, and cannot outrank the flag or sink below the
+    default;
+  - the family's refusals.

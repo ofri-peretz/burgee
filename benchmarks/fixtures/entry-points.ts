@@ -129,13 +129,13 @@ export const PAIRS: readonly EntryPair[] = [
     id: 'linegauge',
     ours: { specifier: 'linegauge', symbol: DEFAULT_EXPORT },
     incumbent: { specifier: 'string-width', symbol: DEFAULT_EXPORT },
-    why: 'the width layer against string-width, whose own suite grades it 229 / 229',
+    why: 'the width layer against string-width, whose own suite grades it 233 / 233',
   },
   {
     id: 'linegauge/wrap',
     ours: { specifier: 'linegauge/wrap', symbol: DEFAULT_EXPORT },
     incumbent: { specifier: 'wrap-ansi', symbol: DEFAULT_EXPORT },
-    why: 'the wrap façade against wrap-ansi, 80 / 80',
+    why: 'the wrap façade against wrap-ansi, 85 / 85',
   },
   {
     id: 'linegauge/slice',

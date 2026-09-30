@@ -1,0 +1,65 @@
+---
+title: FAQ
+description: "Short answers about flagstaff — the runtime, modes, stdout versus stderr, Ink, CommonJS, colours and testing — each with where to read more."
+---
+
+## Why does `hoist()` take a runtime instead of reading `process`?
+
+So the mode is decided once, by one rule, and so a test can pass a literal. The loop reads the
+environment, whether stdout is a terminal, two streams and a clock from what you hand it, and
+nothing else. [Getting started](/docs/getting-started#the-runtime) has a runtime for a real
+process in a dozen lines; a burgee program already has one.
+
+## Which mode will my program get?
+
+The first that matches: `json` if you passed `{ json: true }`; `accessible` if `CLI_ACCESSIBLE`
+is set; `tty` if stdout is a terminal; `ci` if `CI` is set; otherwise `pipe`. A CI job that
+attaches a terminal therefore animates — the terminal check comes before `CI`. The table is on
+[Getting started](/docs/getting-started#the-five-modes).
+
+## Where does output go?
+
+The terminal, pipe, CI and accessible modes write to **stdout**. `--json` writes its events to
+**stderr**, so stdout is left for your program's own result. The drop-ins write where their
+incumbents do: `flagstaff/ora` to stderr by default, as ora does.
+
+## I print a spinner in a loop and my CI log has thousands of lines.
+
+Off a terminal, each state that changes the text is one line. Update when the text is worth
+reading — see [Progress in logs](/docs/recipes/progress-in-logs).
+
+## Does it replace Ink?
+
+No. flagstaff has no layout engine and no React; `box` and `table` measure, wrap and join
+strings. It covers the widgets ora, log-update, boxen and cli-table3 cover, on one loop, with a
+text form for each. A full-screen interactive interface is what Ink is built for, and flagstaff
+is not.
+
+## Can I use it from CommonJS?
+
+Yes, on Node 20.19+ and 22.13+: the package is ESM with a `default` condition, so
+`require('flagstaff/spinner')` loads it through `require(esm)`. `shape.test.ts` installs the
+packed tarball and does exactly that.
+
+## Why are my spinner's glyphs not coloured?
+
+flagstaff paints through roundel's tokens, which are plain until your program calls `fly()`
+from `roundel/theme`. After that, `NO_COLOR`, `--json` and a pipe nobody asked to colour still
+turn colour off. See [NO_COLOR and accessibility](/docs/guides/accessibility).
+
+## How do I test what my CLI prints?
+
+Pass a runtime with `manualClock()` and streams that collect what is written; the terminal
+transcript is then a fixed string. See [Testing terminal output](/docs/recipes/testing-output).
+
+## Are the cli-spinners styles included?
+
+No, and neither are cli-boxes' borders: two spinner styles and six borders ship built in.
+`flagstaff/import` turns the corpus you already depend on into a plugin in one call —
+[Plugins](/docs/guides/plugins#bringing-a-corpus).
+
+## Is the ora drop-in exactly ora?
+
+It passes all 99 cases of ora 9.4.1's own suite, and its behaviour is ora's to the byte,
+including in a pipe. The differences that remain are listed on
+[Compatibility](/docs/drop-ins#known-differences).

@@ -3,8 +3,8 @@ title: flagstaff
 description: "The staff the flag flies from. A terminal frame loop with a static projection for agents and screen readers, and a plugin host for spinners, progress, boxes and tables. Drop-in paths for ora, log-update, boxen and cli-table3. No dependency outside the burgee family."
 ---
 
-ora animates a spinner and, off a terminal, prints frames anyway — `\r` after `\r` into the
-log an agent reads back. Ink fixes the terminal by shipping React and a layout engine.
+ora animates a spinner on a terminal and, off one, writes the line it started with and the
+line it stopped with — every state in between is lost to the log an agent reads back. Ink fixes the terminal by shipping React and a layout engine.
 **flagstaff** is the staff the flag flies from: a frame loop that hoists a component, holds
 it, changes it and lowers it, and a **static projection** that is what every mode but the
 terminal gets — one line per state on a pipe, one event per transition under `--json`,
@@ -289,7 +289,8 @@ guarantee.
 ### The boxen path
 
 `flagstaff/boxen` is boxen 8's API, graded **84 / 84 by boxen's own test suite** — every one
-of whose cases is a snapshot of the exact characters the box comes out as.
+of whose cases is a snapshot of the exact characters the box comes out as. boxen 9 is out of
+scope for 1.0: it is not graded or claimed, and `burgee migrate` leaves a program on it alone.
 
 ```diff
 -import boxen from 'boxen';
@@ -413,7 +414,7 @@ Nothing in this family builds on it yet, and it builds on `closeout`, `linegauge
 
 ## The family
 
-Nine packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
+Ten packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
 carries its colours, flagstaff flies it and caique answers back; each installs on its own, and none
 takes a dependency from outside the family.
 
@@ -428,6 +429,7 @@ takes a dependency from outside the family.
 | [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, dotenv and rc |
 | [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook and restore-cursor |
 | [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
+| [controlroom](https://burgee.interlace.tools/docs/packages/controlroom) | Reserved, not usable yet — planned: full-screen, keyboard-driven terminal screens | ink, planned |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

@@ -125,6 +125,6 @@ jobs:
           git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/$BRANCH"
           gh pr create --base main --head "$BRANCH" --label skip-changeset --title "$TITLE" --body "$BODY"
           if [ "$SOURCE" = "github-token" ]; then
-            echo "::warning title=Citation probe opened with GITHUB_TOKEN::The pull request raises no checks, so it will not auto-merge; merge it by hand, or set RELEASE_APP_ID + RELEASE_APP_PRIVATE_KEY (or RELEASE_BOT_PAT) — see .sdlc/GAPS.md C5."
+            echo "::warning title=Citation probe opened with GITHUB_TOKEN::The pull request raises no checks, so it will not auto-merge; merge it by hand, or set RELEASE_APP_ID + RELEASE_APP_PRIVATE_KEY (or RELEASE_BOT_PAT) — see .sdlc/gaps/C5.md."
           fi
           gh pr merge --auto --squash "$BRANCH" || echo "::warning::gh pr merge --auto returned non-zero; the pull request is open for a human."

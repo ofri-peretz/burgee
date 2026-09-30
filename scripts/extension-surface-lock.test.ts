@@ -19,6 +19,7 @@
  * | flagstaff | yes | yes | yes | yes |
  * | burgee | yes | yes | yes | yes |
  * | bellpull, caique, closeout, linegauge, paratext, roundel, seniority | yes | yes | yes | yes |
+ * | controlroom (reserved, 0.0.1, added 2026-09-27) | no | no | no | no |
  *
  * **`check` is nine of nine since 2026-09-22.** It was one — `flagstaff check` — so an author
  * writing a plugin for any other host found out what it did by shipping it into a program. Each
@@ -67,6 +68,9 @@ const DECLARED = {
   burgee: { plugin: true, check: true, eval: true },
   caique: { plugin: true, check: true, eval: true },
   closeout: { plugin: true, check: true, eval: true },
+  // Reserved at 0.0.1: one constant, no extension surface yet. spec.md R10 builds the plugin
+  // host; each column moves here in the commit that builds it.
+  controlroom: { plugin: false, check: false, eval: false },
   flagstaff: { plugin: true, check: true, eval: true },
   linegauge: { plugin: true, check: true, eval: true },
   paratext: { plugin: true, check: true, eval: true },

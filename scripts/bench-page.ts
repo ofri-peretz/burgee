@@ -15,7 +15,9 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { PAIRS as RUNTIME_PAIRS } from 'benchmarks/axes/runtime.js';
 import { publishedResults } from 'benchmarks/published.js';
+import { readRuntimeRatchets } from 'benchmarks/runtime-ratchets.js';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const RESULTS = join(root, 'benchmarks', 'results');
@@ -175,6 +177,37 @@ What ${tool('cli-agent-lint-score')} did not pass on burgee's demo (\`warn\` and
 ${failures('cli-agent-lint-score')}`;
 }
 
+/**
+ * B5 — ours ÷ the incumbent, in-process. Two tables, from two sources, and the page says which:
+ * the ratchets are committed configuration (what every PR is gated on), the measurement is the
+ * published document's, drawn only when that document's `runtime` axis measured — the rule the
+ * reliability table follows, for the reason it states.
+ */
+const runtimeRatchets = readRuntimeRatchets(root).ratchets;
+const ratchetRows = RUNTIME_PAIRS.map((p) => {
+  const r = runtimeRatchets[p.id];
+  const history = r?.history ?? [];
+  const first = history[0];
+  return `| \`${p.id}\` | \`${p.host}\` | ≤ ${String(r?.target ?? '?')} | **≤ ${String(r?.ceiling ?? '?')}** | ${first === undefined ? '—' : `${String(first.ceiling)} (${first.setOn})`} | ${String(history.length)} |`;
+});
+const runtimeAxis = cheap.axes['runtime'];
+const runtimeMeasured = pick(cheap, 'runtime-ratio').map((r) => {
+  const target = Number((r as Record_ & { detail?: Record<string, unknown> }).detail?.['target'] ?? 1);
+  return `| ${r.variant} | **${r.median.toFixed(RATIO_PLACES)}×** | ${r.p95.toFixed(RATIO_PLACES)}× | ${r.median <= target ? '✅ met' : '❌ **not met**'} | ≤ ${String(r.gate?.max ?? '?')} |`;
+});
+const runtimeReason = runtimeAxis?.reason === undefined ? '' : `: ${runtimeAxis.reason}`;
+const runtimeSection =
+  runtimeAxis?.status === 'measured'
+    ? `Measured at commit \`${cheap.commit.slice(0, SHORT_SHA)}\`:
+
+| Pair | ours ÷ theirs, p50 | p95 | ≤ 1.0 | gate |
+| :--- | ---: | ---: | :--- | ---: |
+${runtimeMeasured.join('\n')}`
+    : `> **This axis has not run against the published measurement.** It reports
+> **${runtimeAxis?.status ?? 'absent'}**${runtimeReason}.
+> No ratio is drawn here until it has; every CI run measures and gates it, and its observations
+> land in \`benchmarks/results/cli-benchmarks/\`.`;
+
 const compatRows = pick(cheap, 'pass-rate').map((r) => {
   const passing = pick(cheap, 'passing-tests').find((p) => p.variant === r.variant);
   return `| **${r.variant}** | ${num(passing?.median ?? 0)} | ${(r.median * PERCENT).toFixed(1)}% |`;
@@ -268,6 +301,27 @@ run offline, and are never re-scored here — a check they fail is listed as fai
 we would argue with it.
 
 ${floorSection(floor)}
+
+## B5 — runtime against the incumbent
+
+"Faster" is a claim like any other, so it is measured like one. One realistic workload per
+pair — the mixed text a CLI prints, a redrawn frame, a 20-row wrapped table, a prompt typed into
+and submitted — each in its own process, in front of a TTY with colour and hyperlinks forced, and
+each first proving that ours and the incumbent print **the same bytes**: a ratio between two
+different jobs is the flattering number this page exists to refuse. Eleven interleaved rounds;
+the number is the median of the per-round ratio, ours ÷ theirs, so a round's load lands on both.
+
+**The target is ≤ 1.0 for every pair.** Where a pair is above it, the gate is a ceiling just above
+its CI measurement that **may only go down**: the PR that makes the pair faster lowers it, and
+raising one takes a recorded decision (\`.sdlc/bands/runtime-ratchets.json\`).
+
+${runtimeSection}
+
+The ceilings every pull request is gated on today:
+
+| Entry point | Replaces | Target | Ceiling | First ceiling | Steps |
+| :--- | :--- | :--- | ---: | ---: | ---: |
+${ratchetRows.join('\n')}
 
 ## B3 — compatibility
 

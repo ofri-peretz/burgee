@@ -15,6 +15,9 @@ export default defineConfig({
     // measurements. 60s is above the largest ceiling any subject sets for itself.
     testTimeout: 60_000,
     hookTimeout: 60_000,
-    include: ['src/**/*.test.ts'], setupFiles: ['../../vitest-colour-setup.ts'], coverage,
+    include: ['src/**/*.test.ts'], setupFiles: ['../../vitest-colour-setup.ts'],
+    // Every line roundel owns the tests for is reached, so the floor is the whole of it: a
+    // line added without a test fails `npm run coverage` here rather than lowering a number.
+    coverage: { ...coverage, thresholds: { lines: 100, branches: 100, functions: 100, statements: 100 } },
   },
 });

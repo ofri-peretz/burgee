@@ -1,0 +1,110 @@
+---
+title: Measuring
+description: "width() counts terminal columns by grapheme cluster and East Asian Width, with string-width's two options; lineCount, measure and widest answer the neighbouring questions."
+---
+
+`width(text)` is the number of terminal columns `text` occupies once drawn. It is the default
+export of `linegauge`, and string-width's own suite grades it
+([Compatibility](/docs/drop-ins)).
+
+## How a width is counted
+
+The text is split into **grapheme clusters** with the platform's `Intl.Segmenter`, and each
+cluster is counted once:
+
+- a cluster that draws nothing — a control character, a zero-width joiner on its own, a
+  combining mark with no base — is **0**;
+- an emoji, a ZWJ sequence or a keycap is **2**, however many code points it is made of;
+- anything else is the **East Asian Width** of its first visible code point: **2** for wide and
+  fullwidth, **1** otherwise, plus any spacing marks that follow it in the cluster;
+- escape sequences are removed first and count **0**.
+
+```js title="widths.mjs"
+import { lineCount, measure, width } from 'linegauge';
+
+console.log(width('±×÷'));
+console.log(width('±×÷', { ambiguousIsNarrow: false }));
+console.log(width('\u001B[1mbold\u001B[22m'));
+console.log(width('\u001B[1mbold\u001B[22m', { countAnsiEscapeCodes: true }));
+console.log(width('é'));
+console.log(width('🇯🇵'));
+console.log(width(undefined));
+console.log(lineCount('one\n\nthe quick brown fox jumps', 10));
+console.log(measure('古池や'));
+```
+
+```text title="node widths.mjs"
+3
+6
+4
+11
+1
+2
+0
+5
+6
+```
+
+The East Asian Width tables are generated from the pinned `get-east-asian-width`, the one
+string-width 8.3.0 uses, and are at **Unicode 17**: U+18D80, which Unicode 17 made wide, is two
+columns (`width.test.ts` asserts it beside string-width). A script run with `--check` in the
+same test fails when the committed tables drift from the package.
+
+## Options
+
+`width(text, { ambiguousIsNarrow, countAnsiEscapeCodes })` takes string-width's two options,
+under string-width's names and with its defaults:
+
+| option | default | |
+| :-- | :-- | :-- |
+| `ambiguousIsNarrow` | `true` | Ambiguous-width characters (`±`, `×`, Greek, Cyrillic, box drawing) count one column. Pass `false` for a terminal drawing with a CJK font, where they are two. |
+| `countAnsiEscapeCodes` | `false` | Count escape sequences as characters instead of removing them, less the escape byte itself. |
+
+No terminal reports which ambiguous-width policy it uses, so that one is always the caller's
+decision. A terminal that disagrees with Unicode about a *particular* code point — a Nerd Font
+icon in the Private Use Area — is a [width plugin](/docs/guides/plugins), not an option.
+
+## Things that are not strings
+
+`width(undefined)`, `width(42)` and `width(null)` are **0**, not a thrown `TypeError`. A width
+call is usually reached with whatever a template produced, and a layout that measures one
+missing cell as zero is better than a CLI that exits.
+
+## Rows: `lineCount`
+
+`lineCount(text, columns)` is how many terminal rows the text occupies at that width: each
+line of the text, wrapped. An empty line still takes a row, which is why the example above is
+five — `one`, the empty line, and three rows of the sentence.
+
+## Plain text: `measure`
+
+`measure(text)` is `width` without the escape scan, for text you already know is plain. It
+takes a second argument, `true`, to count ambiguous characters wide.
+
+## Many lines: `widest`
+
+```js title="widest.mjs"
+import { widest } from 'linegauge';
+
+function* names() {
+  yield 'a';
+  yield '古池や';
+  yield '\u001B[31mred\u001B[39m';
+}
+
+console.log(widest(names()));
+console.log(widest(new Set(['ab', 'abcd'])));
+console.log(widest([]));
+```
+
+```text title="node widest.mjs"
+6
+4
+0
+```
+
+`widest` takes **any iterable** — an array, a `Set`, a generator — and measures it in one
+pass, so a long list never has to be spread into an argument list, where it would hit the
+engine's argument limit (`truncate.test.ts` measures far more lines than a spread can pass). It
+takes lines rather than one string with newlines in it, so which newline convention splits them
+is your decision.

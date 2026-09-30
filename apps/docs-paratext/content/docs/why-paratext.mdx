@@ -1,0 +1,45 @@
+---
+title: Why paratext
+description: "paratext against ansi-escapes, terminal-link and term-img, one capability per row, every cell linked to the test, grade or source that proves it."
+---
+
+ansi-escapes, terminal-link and term-img each write the bytes a terminal needs, and paratext
+writes the same bytes — its three drop-in paths are graded by each one's own test suite. What
+none of them has is the other half: a text form for **every** capability, used whenever the
+terminal cannot be shown to understand the sequence, so a pipe, a log and an agent read text
+instead of escape bytes. terminal-link comes closest, for links alone.
+
+The table below is the whole comparison. Every mark links to its evidence: a test in this
+repository for ours, and for theirs the source file of the exact version compat-oracle grades,
+or that package's own test suite. `scripts/capabilities-lock.test.ts` fails the build when a
+cited test no longer contains the title it is cited for, when a source no longer contains the
+line it is quoted for, or when a source we say lacks something has gained it.
+
+<CapabilityMatrix pkg="paratext" />
+
+## Reading it
+
+- **terminal-link already projects a link**, and its row says so. paratext's `text (url)` and
+  terminal-link's `text url` are two spellings of the same idea; `paratext/terminal-link` keeps
+  terminal-link's.
+- **term-img's cells link to term-img 7.1.0 on jsDelivr**: term-img is not installed in this
+  repository, so there is no local copy for the lock to read. Each URL cell was checked against
+  that file by hand; the compatibility row, whose source is term-img's vendored suite, is
+  checked on every run.
+- **term-img is partial on purpose.** Six of its eighteen cases hand `paratext/term-img` a file
+  path, and paratext takes bytes so that it never touches the filesystem (D-030). The fix for a
+  caller is one `readFile` ([Coming from term-img](/docs/coming-from/term-img)).
+
+## What is not in the table
+
+A row goes in only when every cell of it can be proved. These were left out:
+
+- **Clipboard, notifications, the window title and the working directory.** paratext ships
+  them; ansi-escapes 7.3.0 has `setCwd` and none of the other three, and terminal-link and
+  term-img have none. They are in the text-form row rather than a row each.
+- **Detection as a pure function of a runtime.** `supports()` and `emit()` read only the
+  runtime they are handed; each incumbent reads `process` itself. It is how every example
+  on this site runs, but no single test states the comparison.
+- **Weight in bytes.** The per-subpath figures are asserted by
+  [`weight.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/paratext/src/weight.test.ts)
+  and published on [Benchmarks](https://burgee.interlace.tools/docs/benchmarks).

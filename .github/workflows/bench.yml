@@ -4,9 +4,9 @@ name: Benchmarks
 # ─────────────────────────────────────────────────────────────────────────────
 # The four axes of `cli-benchmarks`, on the two cadences the intent sets.
 #
-#   cheap  — B2 cold start, B3 compatibility, B4 weight, and the reliability
-#            axis (B1's deterministic half). Free, deterministic, and the ones a
-#            refactor regresses silently, so they gate every PR.
+#   cheap  — B2 cold start, B3 compatibility, B4 weight, B5 runtime against the
+#            incumbent, and the reliability axis (B1's deterministic half). Free,
+#            and the ones a refactor regresses silently, so they gate every PR.
 #   agent  — B1 agent cost. Costs money and is noisy over short intervals, so it
 #            does not run on a pull request unless one asks by name with the
 #            `bench:agent` label: weekly on the schedule, on every push to main,
@@ -88,8 +88,9 @@ jobs:
         # ten times per variant, needs no credential, and its numbers — hangs, exit codes,
         # `--json` envelopes, bytes — do not move with the machine. Without it the axis ran
         # nowhere at all, so `/docs/benchmarks` said it had not run and would have gone on
-        # saying that, and its three bands had no series to read.
-        run: npm run bench -- --axis perf --axis compat --axis weight --axis reliability --check 2>&1 | tee bench.log
+        # saying that, and its three bands had no series to read. `runtime` is B5 — ours ÷ the
+        # incumbent in-process, one ratchet per pair (D-20260929-b5-runtime-ratchets).
+        run: npm run bench -- --axis perf --axis compat --axis weight --axis reliability --axis runtime --check 2>&1 | tee bench.log
       - name: Summary
         if: always()
         run: |
@@ -185,7 +186,7 @@ jobs:
             gh pr create --base main --head "$BRANCH" --label skip-changeset --title "$TITLE" --body "$BODY"
           fi
           if [ "$SOURCE" = "github-token" ]; then
-            echo "::warning title=PR opened with GITHUB_TOKEN::It raises no checks, so it will not auto-merge. Set RELEASE_APP_ID + RELEASE_APP_PRIVATE_KEY, or RELEASE_BOT_PAT — see .sdlc/GAPS.md C5."
+            echo "::warning title=PR opened with GITHUB_TOKEN::It raises no checks, so it will not auto-merge. Set RELEASE_APP_ID + RELEASE_APP_PRIVATE_KEY, or RELEASE_BOT_PAT — see .sdlc/gaps/C5.md."
           fi
           # With the App token or RELEASE_BOT_PAT this PR gets its required checks and `--auto`
           # merges it. With only `github.token` it sits at BLOCKED with zero failures forever;

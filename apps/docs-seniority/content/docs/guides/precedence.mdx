@@ -1,0 +1,87 @@
+---
+title: Precedence and --explain
+description: "resolve() applies one fixed order — flag, env, config, package.json, default — and records, for every value, the source that set it, the file line, and every candidate it beat, as text, --json data or an agent event."
+---
+
+`resolve(specs, layers)` takes the options a command declares and the layers a run has. For
+every option it returns three things:
+
+| field | what it is |
+| :-- | :-- |
+| `values[key]` | the value that won |
+| `provenance[key]` | `{ source, location, line? }`: where it came from |
+| `candidates[key]` | every source in `ORDER`, set or not, with its value |
+
+The first source in `ORDER` that sets an option wins: `flag`, `env`, `config`, `package`,
+`default`. `flags` must hold only what the user typed. A parser's defaults belong in the spec;
+if they were passed as flags, they would outrank the environment.
+
+## The record behind `--explain`
+
+`explain(name, result)` prints the answer a person reads. `explanation(name, result)` is the
+same answer as a record. `explanationJson` projects it for `--json`, and `explanationEvent`
+for an agent's event stream:
+
+```js title="record.mjs"
+import { explanation, explanationEvent, explanationJson, resolve } from 'seniority';
+
+const specs = { region: { type: 'string', default: 'us-1' } };
+const result = resolve(specs, { flags: {}, env: { APP_REGION: 'eu-3' }, envPrefix: 'APP', config: { path: 'app.config.json', data: { region: 'eu-2' }, lines: { region: 2 } } });
+
+const record = explanation('region', result);
+console.log(JSON.stringify(explanationJson(record)));
+console.log(JSON.stringify(explanationEvent(record)));
+```
+
+```text title="node record.mjs"
+{"option":"region","value":"eu-3","source":"env","location":"APP_REGION","candidates":[{"source":"flag","location":"--region","set":false},{"source":"env","location":"APP_REGION","set":true,"value":"eu-3"},{"source":"config","location":"app.config.json","line":2,"set":true,"value":"eu-2"},{"source":"default","location":"default","set":true,"value":"us-1"}]}
+{"event":"config.explain","data":{"option":"region","value":"eu-3","source":"env","location":"APP_REGION","candidates":[{"source":"flag","location":"--region","set":false},{"source":"env","location":"APP_REGION","set":true,"value":"eu-3"},{"source":"config","location":"app.config.json","line":2,"set":true,"value":"eu-2"},{"source":"default","location":"default","set":true,"value":"us-1"}]}}
+```
+
+An agent gets the same answer a person does: the winner and every candidate. Candidates that
+lost and candidates that were never set are told apart by `set`. A JSON config layer loaded by
+`discover` carries the line each key is set on, so the record points at `app.config.json:2`,
+not just the file. An option the command does not declare is reported as undeclared, not as
+unset.
+
+## Bring your own option type
+
+`resolve` reads three fields of a spec and ignores the rest:
+
+- `type`: only `'boolean'` changes how the environment is read;
+- `env`;
+- `default`.
+
+So the option type your CLI already has works as it is, with no adapter. In TypeScript, a
+richer type is already an `OptionSpec` by structure; burgee passes its own eighteen-field
+option type straight in.
+
+```js title="own-type.mjs"
+import { resolve } from 'seniority';
+
+// A CLI's own option shape: seniority reads `type`, `env` and `default`, and nothing else.
+const options = {
+  region: { type: 'string', default: 'us-1', choices: ['us-1', 'eu-2'], describe: 'where to deploy', group: 'Deploy' },
+  verbose: { type: 'boolean', alias: 'v', describe: 'say more', hidden: false },
+};
+
+const { values, provenance } = resolve(options, { flags: { verbose: true }, env: {} });
+console.log(values, provenance.region.source, provenance.verbose.source);
+```
+
+```text title="node own-type.mjs"
+{ region: 'us-1', verbose: true } default flag
+```
+
+## What is tested
+
+- [`precedence.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/seniority/src/precedence.test.ts):
+  - flag > env > config > package.json > default, each pair;
+  - the default is last and has no location;
+  - `ORDER` is the declaration, and the candidates follow it exactly.
+- [`explain.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/seniority/src/explain.test.ts):
+  - the winner and every candidate, in `ORDER`;
+  - lost and unset are told apart;
+  - the line is carried;
+  - the text is the record rendered, byte for byte;
+  - `--json` and the event are the same record.

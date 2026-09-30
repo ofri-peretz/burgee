@@ -1,6 +1,6 @@
 {
   "name": "roundel",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "description": "The colours a CLI carries. One output policy, semantic tokens, a theme, and a chalk migration path lighter than chalk. Zero dependencies.",
   "license": "MIT",
   "type": "module",
@@ -44,6 +44,11 @@
       "types": "./dist/chalk.d.ts",
       "import": "./dist/chalk.js",
       "default": "./dist/chalk.js"
+    },
+    "./terminal": {
+      "types": "./dist/terminal.d.ts",
+      "import": "./dist/terminal.js",
+      "default": "./dist/terminal.js"
     }
   },
   "files": [

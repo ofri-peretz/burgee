@@ -12,6 +12,8 @@
   },
   "exports": {
     "./brand-logo": "./src/brand-logo.tsx",
+    "./capabilities": "./src/capabilities.ts",
+    "./capability-matrix": "./src/capability-matrix.tsx",
     "./config": "./src/config.ts",
     "./docs-page": "./src/docs-page.tsx",
     "./docs-shell": "./src/docs-shell.tsx",
@@ -35,12 +37,12 @@
     "fumadocs-mdx": "^15.4.4",
     "fumadocs-ui": "^16.15.14",
     "next": "^16.3.6",
-    "posthog-js": "1.434.13",
+    "posthog-js": "1.434.14",
     "react": "^19.3.0"
   },
   "devDependencies": {
     "@types/mdx": "^2.0.14",
-    "@types/node": "^26.6.2",
+    "@types/node": "^26.6.3",
     "@types/react": "^19.3.0",
     "typescript": "^5.7.0",
     "vitest": "^5.0.1"

@@ -1,0 +1,67 @@
+---
+title: Incremental migration from cross-spawn
+description: "Swap cross-spawn for bellpull/cross-spawn in one import, then move call sites to run() one at a time, and know what changes at each step."
+---
+
+## 1. Change the import
+
+```diff
+- import spawn from 'cross-spawn';
++ import spawn from 'bellpull/cross-spawn';
+```
+
+`bellpull/cross-spawn` passes cross-spawn 7.0.6's own suite, 68 of 68, and `require()` works
+too. The dependency tree goes from four packages to none. `npx burgee migrate --dry-run` lists
+the imports it would rewrite.
+
+## 2. Move a call site to run()
+
+The drop-in returns a `ChildProcess`, and the caller collects output and waits for `close`.
+`run()` does that and returns the result:
+
+```js title="migrated.mjs"
+import spawn from 'bellpull/cross-spawn';
+import { run } from 'bellpull';
+
+import { install, runtimeWith } from './tools.mjs';
+
+install();
+const runtime = runtimeWith('bin');
+
+// Before: a ChildProcess, and the bookkeeping around it.
+const child = spawn('greet', ['1'], { env: runtime.env });
+let out = '';
+child.stdout.on('data', (chunk) => (out += chunk));
+const code = await new Promise((resolve) => child.on('close', resolve));
+console.log('spawn:', code, out.trim());
+
+// After: one value.
+const result = await run('greet', ['1'], { runtime });
+console.log('run:  ', result.code, result.stdout.trim(), result.ok);
+```
+
+```text title="node migrated.mjs"
+spawn: 1 hello from bin
+run:   1 hello from bin false
+```
+
+What changes at a call site that moves:
+
+- **A deadline appears.** `run()` kills a child after 30 s unless you pass `timeout`; a
+  long-running child — a dev server, a watcher — needs `timeout: 0`.
+- **A missing command rejects** with `NotFoundError`, where `spawn` emitted an `error` event.
+- **Output is collected.** For a child whose output should go straight to the terminal, pass
+  `stdio: 'inherit'`; the result then has empty `stdout` and `stderr`.
+- **The environment is explicit.** The runtime's `env` and `cwd` are the child's, unless the
+  call passes its own.
+
+## From which
+
+```diff
+- import which from 'which';
++ import which from 'bellpull/node-which';
+```
+
+graded 5 of 5 by node-which's suite. Moving on to `bellpull/which` changes the answer's shape
+(`{ path, from, ext }` instead of a string) and stops searching empty and relative `PATH`
+entries — see [Finding the executable](/docs/guides/resolution).

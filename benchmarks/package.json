@@ -1,15 +1,18 @@
 {
   "name": "benchmarks",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "private": true,
-  "description": "One suite, four axes (agent cost, cold start, compatibility, weight). Emits one JSON document per run under results/, which the Stage 6 control bands read. Internal; never published.",
+  "description": "One suite: agent cost, cold start, compatibility, weight, and runtime against the incumbent. Emits one JSON document per run under results/, which the Stage 6 control bands read. Internal; never published.",
   "type": "module",
   "exports": {
+    "./axes/runtime.js": "./axes/runtime.ts",
     "./axes/weight.js": "./axes/weight.ts",
+    "./claim-ratchets.js": "./claim-ratchets.ts",
     "./claims.js": "./claims.ts",
     "./fixtures/entry-points.js": "./fixtures/entry-points.ts",
     "./published.js": "./published.ts",
-    "./resolve.js": "./resolve.ts"
+    "./resolve.js": "./resolve.ts",
+    "./runtime-ratchets.js": "./runtime-ratchets.ts"
   },
   "engines": {
     "node": ">=24"
@@ -21,16 +24,17 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "bellpull": "^0.4.0",
+    "bellpull": "^0.4.3",
     "burgee": "*",
     "caique": "*",
     "compat-oracle": "*",
     "flagstaff": "*",
-    "linegauge": "^0.5.2",
-    "paratext": "^0.7.0",
+    "linegauge": "^1.0.0",
+    "paratext": "^0.7.3",
     "roundel": "*"
   },
   "devDependencies": {
+    "@clack/prompts": "1.8.1",
     "ansi-escapes": "7.3.0",
     "boxen": "^8.0.1",
     "cac": "^7.0.0",
@@ -45,11 +49,13 @@
     "picocolors": "^1.1.1",
     "restore-cursor": "^5.1.0",
     "slice-ansi": "9.0.1",
-    "string-width": "8.2.2",
+    "string-width": "8.3.0",
     "strip-ansi": "7.2.0",
+    "terminal-link": "5.0.0",
     "tinyexec": "1.3.1",
     "vitest": "^5.0.1",
-    "wrap-ansi": "10.0.1",
+    "which": "7.0.0",
+    "wrap-ansi": "10.0.2",
     "yargs": "^18.0.0"
   }
 }

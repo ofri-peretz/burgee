@@ -1,0 +1,89 @@
+---
+title: Getting started
+description: "Install seniority, declare three options, resolve them from flags, the environment, a config file and defaults in one fixed order, and ask where each value came from."
+---
+
+seniority decides one thing: when a flag, an environment variable, a config file, a
+`package.json` field and a default all have an opinion about an option, which one wins. It
+keeps the answer to "why is this set?" as a value you can print.
+
+## Install
+
+```bash
+npm install seniority
+```
+
+It has no dependencies. It is ESM with a `default` condition, so `require('seniority')` also
+works from CommonJS on Node 20.19+ and 22.13+.
+
+## Resolve three options
+
+You declare the options, then hand `resolve` the layers you have: only what the user actually
+typed as `flags`, the environment, and a config file's data with its path.
+
+```js title="first.mjs"
+import { explain, resolve } from 'seniority';
+
+const specs = {
+  region: { type: 'string', default: 'us-1' },
+  dryRun: { type: 'boolean' },
+  token: { type: 'string', env: 'MY_TOKEN' },
+};
+
+const result = resolve(specs, {
+  flags: { dryRun: true },
+  env: { APP_REGION: 'eu-3', MY_TOKEN: 's3cret' },
+  envPrefix: 'APP',
+  config: { path: './app.config.json', data: { region: 'eu-2' } },
+});
+
+console.log(result.values);
+console.log(result.provenance.region);
+process.stdout.write(explain('region', result));
+process.stdout.write(explain('dryRun', result));
+```
+
+```text title="node first.mjs"
+{ region: 'eu-3', dryRun: true, token: 's3cret' }
+{ source: 'env', location: 'APP_REGION' }
+region = "eu-3"   from env APP_REGION
+         candidates: flag --region (unset), config file ./app.config.json "eu-2", default "us-1"
+dryRun = true   from flag --dryRun
+         candidates: env APP_DRY_RUN (unset), config file ./app.config.json (unset), default (unset)
+```
+
+`region` came from `APP_REGION`. The explanation lists everything it beat (the config file's
+`"eu-2"` and the default) and the flag nobody typed. That text is rendered from the same record
+that picked the value, so it cannot drift from the truth.
+
+Every output block on this site is checked: `tests/examples.test.ts` writes each titled file,
+runs the command in the block's title, and compares.
+
+## The order
+
+```js
+import { ORDER, RANK } from 'seniority';
+// ORDER: ['flag', 'env', 'config', 'package', 'default']
+// RANK:  { flag: 0, env: 10, config: 20, package: 30, default: 40 }
+```
+
+The first source that sets an option wins. The order is not configurable, on purpose: a
+precedence a program can rearrange is one nobody can reason about from the outside. A plugin
+can add a source *between* two of these, but never reorder them.
+
+## Two halves
+
+- **`resolve(specs, layers)` is pure.** No filesystem, no `process.env`, no globals. The
+  environment is an argument, so the same inputs give the same answer anywhere.
+- **`discover({ name, cwd, env })` touches the disk.** It finds and loads the config file,
+  following `extends`, and hands back a layer to pass as `config`.
+
+## Where next
+
+- [Guides](/docs/guides/precedence): precedence and `--explain`, config files, the
+  environment, validation, plugins.
+- [Why seniority](/docs/why-seniority): what it does that cosmiconfig, lilconfig, dotenv and
+  rc do not, and what it deliberately leaves out, cell by cell, with the evidence.
+- [Coming from cosmiconfig](/docs/coming-from/cosmiconfig), [dotenv](/docs/coming-from/dotenv)
+  and [rc](/docs/coming-from/rc): change one import.
+- [API reference](/docs/api): every export of every entry point.

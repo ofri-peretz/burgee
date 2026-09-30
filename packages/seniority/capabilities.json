@@ -1,0 +1,197 @@
+{
+  "$comment": "seniority's capability matrix against cosmiconfig, dotenv and rc (compat-oracle's LAYERS) and lilconfig, which the oracle also grades. Rendered by <CapabilityMatrix pkg=\"seniority\" /> from apps/docs-chassis and held by scripts/capabilities-lock.test.ts: every `ours` yes/partial names a test file and a title substring it contains, or a compat-oracle grade. None of the four incumbents is installed here at the version compat-oracle grades (cosmiconfig 9.0.2 is, through @commitlint/load; the grade is 10.0.1), so each cell cites that version's published file on jsDelivr, or its vendored suite. `n/a` means the row does not apply to that package, and says why. A row that could not be proved for every column is not here.",
+  "package": "seniority",
+  "incumbents": ["cosmiconfig", "lilconfig", "dotenv", "rc"],
+  "themes": [
+    {
+      "theme": "Precedence and provenance",
+      "rows": [
+        {
+          "capability": "One precedence: flag, env, config, package.json, default",
+          "why": "`resolve()` merges every source a CLI reads in one declared order, `ORDER`, so the same option cannot be decided differently in two places.",
+          "ours": {"status": "yes", "test": "packages/seniority/src/precedence.test.ts", "title": "flag > env > config > package.json > default (V1)"},
+          "incumbents": {
+            "cosmiconfig": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/Explorer.js", "note": "finds and loads one config file or package.json field; merging it with flags and the environment is the caller's"},
+            "lilconfig": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "note": "finds and loads one config file or package.json field; merging it with flags and the environment is the caller's"},
+            "dotenv": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/dotenv@17.4.2/lib/main.js", "note": "one layer: a `.env` file under the variables already set, or over them with `override`"},
+            "rc": {"status": "yes", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/index.js", "note": "defaults, then rc files, then `<name>_` variables, then argv"}
+          }
+        },
+        {
+          "capability": "Provenance for every value: `--explain`",
+          "why": "Each resolved value says which source set it, where (file and line, or the variable), and every candidate it beat, so \"why is this set?\" has an answer.",
+          "ours": {"status": "yes", "test": "packages/seniority/src/explain.test.ts", "title": "names the winner and every candidate, in ORDER, whether it was set or not"},
+          "incumbents": {
+            "cosmiconfig": {"status": "partial", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/Explorer.js", "missing": "the result names the file (`filepath`); not which key came from where, or what it overrode"},
+            "lilconfig": {"status": "partial", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "missing": "the result names the file (`filepath`); not which key came from where, or what it overrode"},
+            "dotenv": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/dotenv@17.4.2/lib/main.js", "note": "records nothing about which of `.env` and the environment set a variable"},
+            "rc": {"status": "partial", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/index.js", "missing": "`configs` lists the files read; not which source set each value"}
+          }
+        },
+        {
+          "capability": "A pure `resolve`: the environment is an argument",
+          "why": "`resolve(specs, layers)` reads no file and no `process.env`, so the same inputs give the same answer anywhere, and a test passes the environment instead of editing it.",
+          "ours": {"status": "yes", "test": "packages/seniority/src/shape.test.ts", "title": "nothing reads the process (R11, Y9)"},
+          "incumbents": {
+            "cosmiconfig": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/Explorer.js", "note": "has no precedence step; it loads files, which is `discover`'s job here too"},
+            "lilconfig": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "note": "has no precedence step; it loads files, which is `discover`'s job here too"},
+            "dotenv": {"status": "partial", "source": "https://cdn.jsdelivr.net/npm/dotenv@17.4.2/lib/main.js", "missing": "`parse` and `populate` take their input and target as arguments, and `config()` takes `processEnv`; by default it writes `process.env` and resolves paths against `process.cwd()`"},
+            "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/lib/utils.js", "note": "reads `process.env` itself, and `process.argv` when no argv is passed"}
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Discovery",
+      "rows": [
+        {
+          "capability": "A bounded, symlink-safe find-up",
+          "why": "The upward walk stops at `stopAt`, the filesystem root or a depth limit, whichever comes first, and a symlink ring ends it rather than looping, so a start-up cannot hang on a strange directory.",
+          "ours": {"status": "yes", "test": "packages/seniority/src/search.test.ts", "title": "the walk is bounded (Y10)"},
+          "incumbents": {
+            "cosmiconfig": {"status": "partial", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/ExplorerBase.js", "missing": "stops at `stopDir` (the home directory by default) and does not walk at all unless asked; no depth limit"},
+            "lilconfig": {"status": "partial", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "missing": "stops at `stopDir` (the home directory by default) or the root; no depth limit"},
+            "dotenv": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/dotenv@17.4.2/lib/main.js", "note": "reads `.env` in the working directory, or the paths it is given; it does not search"},
+            "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/lib/utils.js", "note": "walks from the working directory to the root; nothing stops it sooner"}
+          }
+        },
+        {
+          "capability": "Bring your own format",
+          "why": "Loaders are injected per extension, so a TOML, YAML or JSON5 parser is the caller's choice and the caller's dependency, and an extension with no loader is a usage error naming the option that would supply one.",
+          "ours": {"status": "yes", "test": "packages/seniority/src/load.test.ts", "title": "accepts one for an extension seniority does not bundle"},
+          "incumbents": {
+            "cosmiconfig": {"status": "yes", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/defaults.js", "note": "`loaders`, over its defaults"},
+            "lilconfig": {"status": "yes", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "note": "`loaders`, over its defaults"},
+            "dotenv": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/dotenv@17.4.2/lib/main.js", "note": "reads the `.env` format only"},
+            "rc": {"status": "yes", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/index.js", "note": "a parser in its fourth argument"}
+          }
+        },
+        {
+          "capability": "YAML with no parser supplied",
+          "why": "seniority bundles no format parser: its own loaders have no `.yaml` entry, and the cosmiconfig drop-in reads only the YAML that is also JSON and refuses the rest by name, so a YAML config needs `loaders: { '.yaml': yaml.load }`.",
+          "ours": {"status": "no", "test": "packages/seniority/src/load.test.ts", "title": "names the four formats deliberately not bundled, each of which is a caller-supplied loader", "missing": "a product decision, not a gap: no parser dependency for everyone, and cosmiconfig's behaviour exactly with one line"},
+          "incumbents": {
+            "cosmiconfig": {"status": "yes", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/package.json", "note": "through its js-yaml dependency"},
+            "lilconfig": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "note": "JavaScript and JSON only, unless a loader is given"},
+            "dotenv": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/dotenv@17.4.2/lib/main.js", "note": "reads the `.env` format only"},
+            "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/lib/utils.js", "note": "JSON with comments, or INI"}
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Environment variables",
+      "rows": [
+        {
+          "capability": "Env reaches declared options only, by their own names",
+          "why": "A variable sets an option only if the running command declares it, under the prefix in SCREAMING_SNAKE (`MYTOOL_DRY_RUN`), so a stray variable cannot inject a key nobody asked for.",
+          "ours": {"status": "yes", "test": "packages/seniority/src/precedence.test.ts", "title": "env applies only to declared options, by their own names (V1, V2)"},
+          "incumbents": {
+            "cosmiconfig": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/Explorer.js", "note": "reads no configuration from the environment"},
+            "lilconfig": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "note": "reads no configuration from the environment"},
+            "dotenv": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/dotenv@17.4.2/lib/main.js", "note": "loads variables; it maps none of them to options"},
+            "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/lib/utils.js", "note": "every `<name>_` variable becomes a key, nested on `__`, declared or not"}
+          }
+        },
+        {
+          "capability": "Booleans from env: one spelling each way",
+          "why": "`true`, `1` and `yes` or `false`, `0` and `no` (and nothing else) set a boolean from the environment, and any other value is a CONFIG error naming the fix, rather than a truthy string.",
+          "ours": {"status": "yes", "test": "packages/seniority/src/precedence.test.ts", "title": "anything else is a CONFIG error naming the fix"},
+          "incumbents": {
+            "cosmiconfig": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/Explorer.js", "note": "reads no configuration from the environment"},
+            "lilconfig": {"status": "n/a", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "note": "reads no configuration from the environment"},
+            "dotenv": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/dotenv@17.4.2/lib/main.js", "note": "every value is a string; `FLAG=false` is the truthy string `\"false\"`"},
+            "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/lib/utils.js", "note": "every value is a string; `FLAG=false` is the truthy string `\"false\"`"}
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Validation and plugins",
+      "rows": [
+        {
+          "capability": "Every violation names the file, the line and the value",
+          "why": "`validate()` returns every violation at once, each naming where the bad value came from, so a config with three mistakes is fixed in one pass.",
+          "ours": {"status": "yes", "test": "packages/seniority/src/validate.test.ts", "title": "is the sentence the design asks for, line and all"},
+          "incumbents": {
+            "cosmiconfig": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/Explorer.js", "note": "returns the config as loaded; checking it is the caller's"},
+            "lilconfig": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "note": "returns the config as loaded; checking it is the caller's"},
+            "dotenv": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/dotenv@17.4.2/lib/main.js", "note": "returns the variables as parsed"},
+            "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/index.js", "note": "returns the merged object"}
+          }
+        },
+        {
+          "capability": "Source plugins, ranked between the built-ins",
+          "why": "A plugin adds a source (a vault, a remote config) at a rank between two built-ins, never above the flag the user typed, and `--explain` names it without seniority knowing it.",
+          "ours": {"status": "yes", "test": "packages/seniority/src/plugin.test.ts", "title": "names itself in the --explain line, without seniority knowing its name (R13)"},
+          "incumbents": {
+            "cosmiconfig": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/dist/index.js", "note": "loaders parse files; there is no source to add"},
+            "lilconfig": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/src/index.js", "note": "loaders parse files; there is no source to add"},
+            "dotenv": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/dotenv@17.4.2/lib/main.js", "note": "reads `.env` files and its encrypted `.env.vault`"},
+            "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/index.js", "note": "a fixed list of files"}
+          }
+        },
+        {
+          "capability": "Zero runtime dependencies",
+          "why": "seniority installs one package; rc brings four, and cosmiconfig brings js-yaml and env-paths.",
+          "ours": {"status": "yes", "test": "packages/seniority/src/shape.test.ts", "title": "declares none — not a short list, none"},
+          "incumbents": {
+            "cosmiconfig": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/cosmiconfig@10.0.1/package.json", "note": "env-paths and js-yaml"},
+            "lilconfig": {"status": "yes", "source": "https://cdn.jsdelivr.net/npm/lilconfig@3.1.3/package.json"},
+            "dotenv": {"status": "yes", "source": "https://cdn.jsdelivr.net/npm/dotenv@17.4.2/package.json"},
+            "rc": {"status": "no", "source": "https://cdn.jsdelivr.net/npm/rc@1.2.8/package.json", "note": "deep-extend, ini, minimist and strip-json-comments"}
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Compatibility",
+      "rows": [
+        {
+          "capability": "Passes lilconfig's own test suite",
+          "why": "`seniority/lilconfig` is graded by lilconfig 3.1.3's own tests, all 77, the same count the real lilconfig gets here.",
+          "ours": {"status": "yes", "grade": "packages/compat-oracle/baseline/lilconfig.json"},
+          "incumbents": {
+            "cosmiconfig": {"status": "n/a", "source": "packages/compat-oracle/vendor/cosmiconfig/test/successful-files.test.ts", "quote": "import { cosmiconfig, cosmiconfigSync } from '../shim.mjs';", "note": "a different API"},
+            "lilconfig": {"status": "yes", "source": "packages/compat-oracle/vendor/lilconfig/src/spec/index.spec.js", "quote": "const {lilconfig, lilconfigSync} = require('../../shim.mjs');", "note": "its own suite, the control run"},
+            "dotenv": {"status": "n/a", "source": "packages/compat-oracle/vendor/dotenv/tests/test-parse-multiline.js", "quote": "const dotenv = require('../shim.mjs')", "note": "a different API"},
+            "rc": {"status": "n/a", "source": "packages/compat-oracle/vendor/rc/test/test.js", "quote": "var config = require('../')(n, {", "note": "a different API"}
+          }
+        },
+        {
+          "capability": "Passes rc's own test",
+          "why": "`seniority/rc` runs rc 1.2.8's test script, one script of bare assertions with no reporter, and exits 0: the grade is one bit, not 100% of anything.",
+          "ours": {"status": "yes", "grade": "packages/compat-oracle/baseline/rc.json"},
+          "incumbents": {
+            "cosmiconfig": {"status": "n/a", "source": "packages/compat-oracle/vendor/cosmiconfig/test/successful-files.test.ts", "quote": "import { cosmiconfig, cosmiconfigSync } from '../shim.mjs';", "note": "a different API"},
+            "lilconfig": {"status": "n/a", "source": "packages/compat-oracle/vendor/lilconfig/src/spec/index.spec.js", "quote": "const {lilconfig, lilconfigSync} = require('../../shim.mjs');", "note": "a different API"},
+            "dotenv": {"status": "n/a", "source": "packages/compat-oracle/vendor/dotenv/tests/test-parse-multiline.js", "quote": "const dotenv = require('../shim.mjs')", "note": "a different API"},
+            "rc": {"status": "yes", "source": "packages/compat-oracle/vendor/rc/test/test.js", "quote": "var config = require('../')(n, {", "note": "its own test, the control run"}
+          }
+        },
+        {
+          "capability": "Passes cosmiconfig's own test suite, bar YAML",
+          "why": "`seniority` passes 186 of the 243 cases of cosmiconfig 10.0.1's own suite; 54 of the rest are YAML, which seniority deliberately does not parse without a loader.",
+          "ours": {"status": "partial", "grade": "packages/compat-oracle/baseline/cosmiconfig.json", "missing": "57 cases: 54 need a YAML parser (a product decision; pass one in `loaders`), 1 imports cosmiconfig's entry by a file path and fails for cosmiconfig too, and 2 are a Linux-only XDG pair"},
+          "incumbents": {
+            "cosmiconfig": {"status": "yes", "source": "packages/compat-oracle/vendor/cosmiconfig/test/successful-files.test.ts", "quote": "import { cosmiconfig, cosmiconfigSync } from '../shim.mjs';", "note": "its own suite, the control run; the case the harness cannot load fails for it too"},
+            "lilconfig": {"status": "n/a", "source": "packages/compat-oracle/vendor/lilconfig/src/spec/index.spec.js", "quote": "const {lilconfig, lilconfigSync} = require('../../shim.mjs');", "note": "a different API"},
+            "dotenv": {"status": "n/a", "source": "packages/compat-oracle/vendor/dotenv/tests/test-parse-multiline.js", "quote": "const dotenv = require('../shim.mjs')", "note": "a different API"},
+            "rc": {"status": "n/a", "source": "packages/compat-oracle/vendor/rc/test/test.js", "quote": "var config = require('../')(n, {", "note": "a different API"}
+          }
+        },
+        {
+          "capability": "Passes dotenv's own test suite, bar the vault",
+          "why": "`seniority/dotenv` passes 106 of the 141 assertions of dotenv 17.4.2's own suite (node-tap counts assertions); the encrypted `.env.vault` and the dotenvx tips are declined, not missing.",
+          "ours": {"status": "partial", "grade": "packages/compat-oracle/baseline/dotenv.json", "missing": "35 assertions: 27 in the `.env.vault` and `decrypt` path and 2 dotenvx tips, both declined, and 6 that load dotenv's private `lib/*` modules by path"},
+          "incumbents": {
+            "cosmiconfig": {"status": "n/a", "source": "packages/compat-oracle/vendor/cosmiconfig/test/successful-files.test.ts", "quote": "import { cosmiconfig, cosmiconfigSync } from '../shim.mjs';", "note": "a different API"},
+            "lilconfig": {"status": "n/a", "source": "packages/compat-oracle/vendor/lilconfig/src/spec/index.spec.js", "quote": "const {lilconfig, lilconfigSync} = require('../../shim.mjs');", "note": "a different API"},
+            "dotenv": {"status": "yes", "source": "packages/compat-oracle/vendor/dotenv/tests/test-parse-multiline.js", "quote": "const dotenv = require('../shim.mjs')", "note": "its own suite, the control run"},
+            "rc": {"status": "n/a", "source": "packages/compat-oracle/vendor/rc/test/test.js", "quote": "var config = require('../')(n, {", "note": "a different API"}
+          }
+        }
+      ]
+    }
+  ]
+}

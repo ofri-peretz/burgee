@@ -1,0 +1,72 @@
+---
+title: Windows without a shell
+description: "How bellpull runs npm.cmd and other batch files on Windows without shell: true: resolve with PATHEXT, invoke cmd.exe itself, and escape every argument for both parsers so caller data cannot become a command."
+---
+
+On Windows `npm` is `npm.cmd`, and a `.cmd` is a script `CreateProcess` will not run. The
+tempting fix is `{ shell: true }`, and it re-opens command injection: through a shell an
+argument is text in a command line, so a `&` in caller data starts a second command.
+
+bellpull does what cross-spawn does instead:
+
+1. **Resolve** the command with `PATHEXT` — `npm` becomes `C:\…\npm.cmd`.
+2. If the file is not an `.exe` or `.com`, **invoke `cmd.exe` itself**: `cmd.exe /d /s /c "…"`.
+3. **Escape** the command and every argument for both parsers the line passes through:
+   `CommandLineToArgvW`'s quoting, then `cmd.exe`'s metacharacters, with a caret before each.
+   An argument bound for a `node_modules\.bin\*.cmd` shim is escaped twice, because the shim
+   re-expands it.
+4. Spawn with `windowsVerbatimArguments`, so Node does not quote it all a second time.
+
+`shell: true` stays available, off by default, and documented as the injection surface it is.
+
+## What the escaping produces
+
+The escapers are exported, and they are pure — this runs the same on any platform:
+
+```js title="escape.mjs"
+import { escapeArgument, escapeCommand } from 'bellpull';
+
+for (const argument of ['plain', 'two words', 'foo & calc', '"(foo|bar>baz)"', '%PATH%']) {
+  console.log(`${argument.padEnd(16)} -> ${escapeArgument(argument)}`);
+}
+console.log(escapeCommand('my&tool'));
+```
+
+```text title="node escape.mjs"
+plain            -> ^"plain^"
+two words        -> ^"two^ words^"
+foo & calc       -> ^"foo^ ^&^ calc^"
+"(foo|bar>baz)"  -> ^"\^"^(foo^|bar^>baz^)\^"^"
+%PATH%           -> ^"^%PATH^%^"
+my^&tool
+```
+
+The command is escaped without quotes, because `cmd.exe` resolves it before it parses
+arguments.
+
+## How it is checked
+
+`escape.test.ts` round-trips a 37-vector injection corpus through simulations of both
+parsers — `cmd.exe`'s caret and quote handling, then `CommandLineToArgvW` — and asserts each
+vector comes back as exactly one argument, unchanged. It then asserts the naive fix (quote it
+and hand it to a shell) lets the dangerous half of the corpus through, so the contrast is a
+real one. On a Windows runner, the same suite runs a hostile argument through a real
+cmd-shim and checks that an argument written to create a file does not create it.
+
+**What is not covered:** CR and LF. `cmd.exe` treats both as command separators and has no
+escape for them. bellpull does not caret-escape them — the same as cross-spawn — and records
+that as an unverified gap on Windows. execa 10 refuses arguments containing either, which is
+the stricter answer.
+
+cross-spawn's own suite, which grades `bellpull/cross-spawn` 68 of 68, is a pass-through on
+POSIX: it never reaches this branch. The Windows behaviour is covered by bellpull's own tests.
+
+## What is tested
+
+- [`escape.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/bellpull/src/escape.test.ts):
+  the corpus through both parsers; the naive fix, broken; the double escape through a
+  cmd-shim; the argv array as the boundary.
+- [`cross-spawn.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/bellpull/src/cross-spawn.test.ts):
+  the Windows branch, driven from a Mac — an unresolvable command routed through `cmd.exe`
+  rather than a shell option, every argument escaped, a POSIX path normalised, and POSIX left
+  alone.

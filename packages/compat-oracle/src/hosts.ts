@@ -102,18 +102,29 @@ export interface ControlAllowance {
  * narrows and never widens — it is spent only on the platforms outside `only`, and only up
  * to `count`.
  */
-export interface ConditionalCases {
+export type ConditionalCases = ConditionalCount &
+  (
+    | {
+        /**
+         * The platforms that register them, for a suite written `if (process.platform === 'x')`.
+         * Exactly one of `only` and `notOn` is given — the type holds that, not a reader — and
+         * which one is not a style choice: each mirrors how the guard is actually spelled, so
+         * the declaration can be checked against the line it describes instead of being a list
+         * somebody derived.
+         */
+        only: NodeJS.Platform[];
+        notOn?: never;
+      }
+    | {
+        /** The platforms that do not, for a suite written `if (process.platform !== 'x')`. */
+        notOn: NodeJS.Platform[];
+        only?: never;
+      }
+  );
+
+interface ConditionalCount {
   /** How many cases the platforms that lack them do not register. Exact, not a ceiling. */
   count: number;
-  /**
-   * The platforms that register them, for a suite written `if (process.platform === 'x')`.
-   * Exactly one of `only` and `notOn` is given, and which one is not a style choice: each
-   * mirrors how the guard is actually spelled, so the declaration can be checked against the
-   * line it describes instead of being a list somebody derived.
-   */
-  only?: NodeJS.Platform[];
-  /** The platforms that do not, for a suite written `if (process.platform !== 'x')`. */
-  notOn?: NodeJS.Platform[];
   /**
    * How many of them the target passes on the platforms that run them. The ratchet credits
    * exactly this many on a platform that lacks them, so a machine cannot regress cases it
@@ -538,7 +549,7 @@ export const HOSTS: Host[] = [
     runner: 'ava',
     target: 'linegauge',
     status: 'active',
-    note: "229 / 229 control and 229 / 229 target, measured 2026-09-15 — up from 201 / 229, and the 28 that moved were four defects rather than twenty-eight, categorised in `.sdlc/intents/linegauge/spec.md` § R10 before any of them was touched. (A) `Intl.Segmenter` joins a run of conjoining Hangul jamo into one cluster, and measuring that cluster by its first code point answered 2 where a terminal draws 12; modern Hangul composes L + V (+ T) into one two-column syllable and leaves the rest additive — 10 cases. (B) the zero-width class matched `\\p{Mark}`, which is the spacing marks as well as the non-spacing ones, so Devanagari vowel sign AA measured 0 — 3 cases. (C) a prepended concatenation mark is `Format` but not `Default_Ignorable`, so it missed the zero-width class, was then stripped as leading non-printing, and was charged a column for the code point 0 that remained — 3 cases. (D) `\\p{RGI_Emoji}` matches only the fully-qualified spelling, so the same sequence without its `U+FE0F` fell through to the East Asian Width of its base scalar — 12 cases. Every one of the four was linegauge wrong and the incumbent right; none is a judgement call, which is why the row is now exact rather than argued. linegauge exports `width` as its default, which is the shape string-width's own tests import.",
+    note: "**Moved to 8.3.0 on 2026-09-28: 233 / 233 against a control of 233 / 233.** The four new cases are runs of `U+034F` COMBINING GRAPHEME JOINER (1,000 and 3,000,000) before a spacing mark, an emoji modifier or nothing, and they found a hang: `width()` tested a cluster for zero width with `^(?:DI|Control|Format|Mn|Me|Surrogate)+$`, `U+034F` is in two of those classes, and the regex backtracked exponentially — the suite never reached its summary. A code-point loop replaced it (`leadingInvisible` in `width.ts`). Before that: 229 / 229 control and 229 / 229 target, measured 2026-09-15 — up from 201 / 229, and the 28 that moved were four defects rather than twenty-eight, categorised in `.sdlc/intents/linegauge/spec.md` § R10 before any of them was touched. (A) `Intl.Segmenter` joins a run of conjoining Hangul jamo into one cluster, and measuring that cluster by its first code point answered 2 where a terminal draws 12; modern Hangul composes L + V (+ T) into one two-column syllable and leaves the rest additive — 10 cases. (B) the zero-width class matched `\\p{Mark}`, which is the spacing marks as well as the non-spacing ones, so Devanagari vowel sign AA measured 0 — 3 cases. (C) a prepended concatenation mark is `Format` but not `Default_Ignorable`, so it missed the zero-width class, was then stripped as leading non-printing, and was charged a column for the code point 0 that remained — 3 cases. (D) `\\p{RGI_Emoji}` matches only the fully-qualified spelling, so the same sequence without its `U+FE0F` fell through to the East Asian Width of its base scalar — 12 cases. Every one of the four was linegauge wrong and the incumbent right; none is a judgement call, which is why the row is now exact rather than argued. linegauge exports `width` as its default, which is the shape string-width's own tests import.",
   },
   {
     // R3's grader. `strip-ansi` is 464 M/wk and ships one dependency (`ansi-regex`, 345 M/wk)
@@ -733,7 +744,7 @@ export const HOSTS: Host[] = [
     suiteDeps: ['has-ansi@6.0.2'],
     target: 'linegauge/wrap',
     status: 'active',
-    note: "80 / 80 control and 80 / 80 target, measured 2026-09-14 — the port reproduces wrap-ansi 10 exactly, which is what `wrap.test.ts` already asserted in-package and this makes public. Its suite imports `has-ansi`, declared in `suiteDeps` since 2026-09-21: it was a committed `vendor/wrap-ansi/node_modules/` directory, the `.gitignore` beside it named the hazard that a re-vendor would delete it, and a re-vendor then deleted it and took the row to 0 / 80.",
+    note: "**Moved to 10.0.2 on 2026-09-28: 85 / 85 against a control of 85 / 85.** The five new cases keep an escape sequence whole when a combining mark follows it and leave OSC payloads un-normalized; `linegauge/wrap` failed four of them, because `wrap()` ran NFC over the whole string and `ESC[31m` + `U+0301` composed into `ESC[31ḿ`. It normalizes only the text between sequences now, as 10.0.2 does. Before that: 80 / 80 control and 80 / 80 target, measured 2026-09-14 — the port reproduces wrap-ansi 10 exactly, which is what `wrap.test.ts` already asserted in-package and this makes public. Its suite imports `has-ansi`, declared in `suiteDeps` since 2026-09-21: it was a committed `vendor/wrap-ansi/node_modules/` directory, the `.gitignore` beside it named the hazard that a re-vendor would delete it, and a re-vendor then deleted it and took the row to 0 / 80.",
   },
   {
     // R4's grader, and the reason the style stack was extracted from `wrap.ts` at all:
@@ -1092,7 +1103,7 @@ export const HOSTS: Host[] = [
     suiteDeps: ['meow@14.1.0', 'ava@6.4.1', 'common-tags@2.0.0-alpha.1', 'execa@9.6.1', 'indent-string@5.0.0', 'read-pkg@10.1.0', 'stack-utils@2.0.6'],
     controlFailures: {
       count: 2,
-      why: "Two cases real meow cannot pass from a vendored copy of its tests. `build › main` imports `../build/index.js`, the rollup bundle meow publishes — it is built by `npm run build` in meow's own repo and the vendor step takes only `test/`, so the file is not there for either side. `pkg normalization is lazy` asserts that reading `cli.pkg` mutates the caller's own object, which is `normalize-package-data` doing it in place; meow gets that from a dependency and the vendored root does not install it. Neither is a divergence and neither is reachable: the first needs a build the oracle does not run, the second a package this repo will not take (U6). Measured 2026-09-21 — the control is 146 / 148 with these two named and 148 / 148 without them.",
+      why: "Two cases no implementation can pass from a vendored copy of meow's tests, and they are one assertion made twice: `build › main` and `test › return object` each `t.like` the result against `pkg: {name: 'meow'}`. `pkg` is the nearest package.json, which is the vendored root, and that root is deliberately `@vendored/meow-suite` (`rootPackage()` — upstream's name would let Node's self-reference resolve `meow` to the root rather than the installed package). It carries upstream's `description` and `version`, which the suite also reads; the name is the one field it cannot. Re-measured 2026-09-27: the control is 146 / 148 and `burgee/meow` fails these two and nothing else. The version of this paragraph from 2026-09-21 named `pkg normalization is lazy` as the second and said `build/index.js` was absent; the control passes the first, and the shim serves the second.",
     },
     ungradedDirs: [
       {
@@ -1107,7 +1118,7 @@ export const HOSTS: Host[] = [
       // Kept short on purpose: a `planned` row's note is published verbatim in the
       // compatibility page's table. This row is active now, so the number does the talking
       // and the full account lives in `.sdlc/FINISH-ALL.md` under "meow".
-      "Vendored 2026-09-21 at 14.1.0 and built the same day. **Target `burgee/meow` 132 / 148, 89.2%**, against a control of **146 / 148**. 148 cases across 18 graded files; the other 24 files under `test/` are the `fixtures/` CLI programs the tests spawn, pruned by `ungradedDirs`. meow is one function over `yargs-parser`, and burgee already ships its own for `burgee/yargs`, so the façade took nothing new into the tree — it costs 59,820 bundled bytes, of which the option contract is about 16 K and the parser is the rest. The control's two are `build › main`, which wants meow's rollup bundle, and `pkg normalization is lazy`, which wants `normalize-package-data`'s mutation of the caller's own object. Of our sixteen, the largest group is `--no-`-prefixed boolean flags: a fixture declares `noAutoVersion` and burgee's parser negates `autoVersion` before it matches the declared name, which is a parser question rather than a meow one.",
+      "Vendored 2026-09-21 at 14.1.0 and built the same day at 132 / 148. **2026-09-27: target `burgee/meow` 146 / 148, 98.6%, level with a control of 146 / 148** — the two left are the control's own, both `pkg.name` read off the vendored root. 148 cases across 18 graded files; the other 24 files under `test/` are the `fixtures/` CLI programs the tests spawn, pruned by `ungradedDirs`. meow is one function over `yargs-parser`, and burgee already ships its own for `burgee/yargs`, so the façade took nothing new into the tree. The fourteen it closed were meow's own rules read off its `build/`, not the parser: unknown flags are *tokens* the parser sets aside under `unknown-options-as-args`, not parsed keys (so `--no-auto-help` against a declared `noAutoHelp` is known, though the parser also sets `auto-help`); `--help`/`--version` answer only a one-argument command line, declared or not; the help block is meow's trim-newlines-then-redent, which keeps the blank last line a template literal leaves; and the declaration checks it makes before parsing — choices of the wrong type, `flags: null`, `booleanDefault: null`. The rest are `-F` keeping its case, `''` counting as a value for a required flag, and `pkg` normalized lazily in the caller's own object, which needs no `normalize-package-data`.",
 
   },
   {

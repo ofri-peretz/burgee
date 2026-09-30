@@ -1,0 +1,80 @@
+---
+title: Plugins
+description: "closeout's plugin host: a plugin contributes named shutdown handlers to flush or release, is validated against the family schema, reads as data before it runs, and is checked by npx closeout check."
+---
+
+A plugin is one plain object, shared by the whole burgee family. closeout reads its
+`handlers` key and ignores every other layer's keys without complaining, so the same object
+works on whichever packages of the family a program has installed.
+
+```js title="plugin.mjs"
+import { install } from 'closeout';
+import { attach, contributions, register } from 'closeout/plugin';
+
+register({
+  name: 'acme',
+  handlers: [
+    { name: 'unlock', run: () => console.log('lock released') },
+    { name: 'flush-audit-log', phase: 'flush', run: () => console.log('audit log flushed') },
+  ],
+});
+
+for (const c of contributions()) console.log(`${c.phase}: ${c.id}`);
+attach(install().registry);
+```
+
+`contributions()` lists the whole contributed shutdown, in the order it will run, without
+running any of it. `attach(registry)` wires each handler into its phase, and returns the
+function that takes them back off:
+
+```text title="node plugin.mjs"
+flush: acme:flush-audit-log
+release: acme:unlock
+audit log flushed
+lock released
+```
+
+A plugin handler is named `"<plugin>:<handler>"`, which is what the
+[deadline's report](/docs/guides/deadline) prints when it hangs.
+
+## What a plugin may declare
+
+| key | rule |
+| :-- | :-- |
+| `name` | required: the plugin's name |
+| `contract` | optional: the plugin contract it was written for; a newer one than this closeout knows is refused |
+| `handlers[].name` | required, because a hang has to be named |
+| `handlers[].run` | required: the handler, handed the same record `onExit` handlers get |
+| `handlers[].phase` | `flush` or `release` (the default) — **not** `restore` |
+
+`restore` is closeout's own last phase. A plugin handler admitted to it could run after the
+terminal was handed back depending on nothing but which registered first, which is the
+coincidence phases exist to replace. A refusal throws with a code — `E_PLUGIN_SCHEMA`,
+`E_PLUGIN_CONTRACT` or `E_NO_CONTRIBUTION` — and a message that says what to use instead, and
+the refused plugin is not kept.
+
+## Checking a plugin before it ships
+
+`npx closeout check <file>` loads a plugin module's default export, validates it and reports
+what closeout would do with it. It exits 0 when the plugin contributes, 1 on a refusal with a
+code and a fix, and 2 on a usage error:
+
+```js title="unlock.mjs"
+export default {
+  name: 'acme',
+  handlers: [{ name: 'unlock', phase: 'restore', run: () => {} }],
+};
+```
+
+```text title="npx closeout check unlock.mjs" exit="1"
+E_PLUGIN_SCHEMA: plugin "acme": handlers[0]: "restore" is not a phase a plugin may use
+  fix: use one of flush, release — "restore" is closeout’s own last phase, and a handler placed after it could not clean up what it was registered to clean up
+```
+
+## What is tested
+
+- [`plugin.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/src/plugin.test.ts):
+  a plugin's handler runs before the restore and is awaited first; the restore survives a
+  plugin handler that never returns; the contributions read as data; another layer's object is
+  kept; a `restore` handler, a handler with no `run` or no name, and a newer contract are each
+  refused.

@@ -1,0 +1,70 @@
+---
+title: Compatibility
+description: "How flagstaff's four drop-ins are graded — each incumbent's own test suite, unedited — the current grades, and the differences that remain."
+---
+
+`flagstaff/ora`, `flagstaff/log-update`, `flagstaff/boxen` and `flagstaff/cli-table3` are
+graded, not described as compatible. Each is run against its incumbent's **own test suite**, by
+[compat-oracle](https://github.com/ofri-peretz/burgee/blob/main/packages/compat-oracle/README.md),
+in CI.
+
+<CapabilityMatrix pkg="flagstaff" theme="Compatibility" />
+
+The counts are compat-oracle's baselines, the pass count each drop-in is held to. The family's
+[compatibility page](https://burgee.interlace.tools/docs/compatibility) is generated from the
+oracle's last run and is the authority for the current figures, beside every other drop-in in
+the family.
+
+## How a suite is graded
+
+1. The incumbent's repository is cloned at the release tag of the graded version — ora 9.4.1,
+   log-update 8.0.0, boxen 8.0.1, cli-table3 0.6.5 — and its test directory copied into
+   `packages/compat-oracle/vendor/`. No incumbent ships its tests to npm, so a tarball could not
+   be used. Each copy's `PROVENANCE` file names the tag, the commit and the command that
+   reproduces it.
+2. The only edit is the import that reaches the library: it is rewritten to a shim generated per
+   run. Assertions, fixtures and helpers are upstream's, byte for byte.
+3. A **control run** points the shim at the real incumbent first. That proves the harness before
+   it grades anything of ours, and the control's total is what every rate is measured against —
+   so a test file that fails to load cannot flatter the rate.
+4. The **target run** points the same shim at flagstaff's drop-in.
+
+## What each grade covers
+
+- **ora — 99 cases.** ora's suite never kills a process, so it does not reach the signal path.
+  flagstaff's own `ora.test.ts` grades that instead: the cursor comes back on `SIGINT`,
+  `SIGTERM` and `SIGHUP`, and the process still terminates.
+- **log-update — 99 cases**, each rendered through a terminal emulator with the screen asserted.
+- **boxen — 84 cases**, each a snapshot of the exact characters the box comes out as.
+- **cli-table3 — 29 cases.** cli-table3's suite has 38 cases that go through its public API;
+  nine of them grade `cli-table`, the older incumbent, and pass whatever the target is, so they
+  are excluded by name. The rest of its suite `require`s its four internal modules directly;
+  those cases are reported beside the grade on the family page and never gate it, because passing
+  them would mean copying cli-table3's file layout rather than matching its behaviour.
+
+## Known differences
+
+These are deliberate, and each is written down where the code is:
+
+- **`flagstaff/log-update` writes erase sequences off a terminal**, because log-update's suite
+  asserts them on a non-TTY stream. It never writes a carriage return or an absolute
+  cursor-home, which the suite does not require
+  ([Live regions](/docs/guides/live-regions)).
+- **`flagstaff/ora` does not read `CLI_ACCESSIBLE`.** It imports roundel's chalk and never the
+  output policy, as ora never does; `hoist()` is what honours the switch
+  ([NO_COLOR and accessibility](/docs/guides/accessibility)).
+- **Eleven of cli-table3's type names are not exported by `flagstaff/cli-table3`.** cli-table3
+  declares them — `CellOptions`, `TableConstructorOptions` and the rest — on a CommonJS
+  `export =` namespace, where a program reaches them as `Table.CellOptions`; the drop-in is an
+  ES module and does not carry that namespace. `scripts/drop-in-type-surface-lock.test.ts`
+  names all eleven with that reason, and fails when one is exported without the list shrinking.
+- **`flagstaff/boxen` draws with its own copy of cli-boxes' borders**, not the plugin registry,
+  so registering a plugin never changes what a boxen caller draws.
+  `box()` is where registered borders are used.
+
+## Types and CommonJS
+
+Apart from those eleven, each drop-in exports every name its incumbent exports, types included,
+so a TypeScript program migrates by its import alone; the type-surface lock checks every name
+against the installed incumbent. `require('flagstaff/cli-table3')` returns the class, as
+`require('cli-table3')` does, not an ES module namespace.

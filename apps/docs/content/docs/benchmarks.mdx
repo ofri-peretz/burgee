@@ -129,6 +129,44 @@ What cli-agent-lint 0.3.5 did not pass on burgee's demo (`warn` and `info` inclu
 - PV-1 Timeout flag (info)
 - PV-4 Distinct exit codes for error classes (info)
 
+## B5 — runtime against the incumbent
+
+"Faster" is a claim like any other, so it is measured like one. One realistic workload per
+pair — the mixed text a CLI prints, a redrawn frame, a 20-row wrapped table, a prompt typed into
+and submitted — each in its own process, in front of a TTY with colour and hyperlinks forced, and
+each first proving that ours and the incumbent print **the same bytes**: a ratio between two
+different jobs is the flattering number this page exists to refuse. Eleven interleaved rounds;
+the number is the median of the per-round ratio, ours ÷ theirs, so a round's load lands on both.
+
+**The target is ≤ 1.0 for every pair.** Where a pair is above it, the gate is a ceiling just above
+its CI measurement that **may only go down**: the PR that makes the pair faster lowers it, and
+raising one takes a recorded decision (`.sdlc/bands/runtime-ratchets.json`).
+
+> **This axis has not run against the published measurement.** It reports
+> **absent**.
+> No ratio is drawn here until it has; every CI run measures and gates it, and its observations
+> land in `benchmarks/results/cli-benchmarks/`.
+
+The ceilings every pull request is gated on today:
+
+| Entry point | Replaces | Target | Ceiling | First ceiling | Steps |
+| :--- | :--- | :--- | ---: | ---: | ---: |
+| `paratext` | `ansi-escapes` | ≤ 1 | **≤ 12.35** | 12.35 (2026-09-29) | 1 |
+| `paratext/terminal-link` | `terminal-link` | ≤ 1 | **≤ 29.7** | 29.7 (2026-09-29) | 1 |
+| `linegauge` | `string-width` | ≤ 1 | **≤ 1.95** | 1.95 (2026-09-29) | 1 |
+| `linegauge/strip` | `strip-ansi` | ≤ 1 | **≤ 5.6** | 5.6 (2026-09-29) | 1 |
+| `linegauge/wrap` | `wrap-ansi` | ≤ 1 | **≤ 2.6** | 2.6 (2026-09-29) | 1 |
+| `linegauge/slice` | `slice-ansi` | ≤ 1 | **≤ 11.65** | 11.65 (2026-09-29) | 1 |
+| `roundel/chalk` | `chalk` | ≤ 1 | **≤ 5.5** | 5.5 (2026-09-29) | 1 |
+| `bellpull/node-which` | `which` | ≤ 1 | **≤ 1.8** | 1.8 (2026-09-29) | 1 |
+| `flagstaff/ora` | `ora` | ≤ 1 | **≤ 1.8** | 1.8 (2026-09-29) | 1 |
+| `flagstaff/log-update` | `log-update` | ≤ 1 | **≤ 4.2** | 4.2 (2026-09-29) | 1 |
+| `flagstaff/boxen` | `boxen` | ≤ 1 | **≤ 1.3** | 1.3 (2026-09-29) | 1 |
+| `flagstaff/cli-table3` | `cli-table3` | ≤ 1 | **≤ 2.2** | 2.2 (2026-09-29) | 1 |
+| `caique/clack` | `@clack/prompts` | ≤ 1 | **≤ 3.35** | 3.35 (2026-09-29) | 1 |
+| `burgee/commander` | `commander` | ≤ 1 | **≤ 1.6** | 1.6 (2026-09-29) | 1 |
+| `burgee/yargs` | `yargs` | ≤ 1 | **≤ 1.55** | 1.55 (2026-09-29) | 1 |
+
 ## B3 — compatibility
 
 Read from `compat-oracle` and never recomputed here: two implementations of a

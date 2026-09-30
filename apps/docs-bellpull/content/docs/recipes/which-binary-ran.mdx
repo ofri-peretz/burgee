@@ -1,0 +1,39 @@
+---
+title: Which binary ran?
+description: "Diagnose a build that differs between machines: list every install of a tool on PATH, best first, and report which one a run actually used."
+---
+
+Two machines, one command, two answers — and usually two installs of the same tool on one of
+them. The fastest way to the finding is to ask for every match, and for the `PATH` entry each
+came from:
+
+```js title="doctor.mjs"
+import { relative } from 'node:path';
+
+import { run } from 'bellpull';
+import { whichAllSync } from 'bellpull/which';
+
+import { install, runtimeWith } from './tools.mjs';
+
+install();
+const runtime = runtimeWith('bin', 'vendor/bin');
+const here = (p) => relative(runtime.cwd, p);
+
+const hits = whichAllSync('greet', { runtime });
+if (hits.length > 1) console.log(`${hits.length} installs of greet on PATH:`);
+for (const [i, hit] of hits.entries()) console.log(`  ${i === 0 ? '→' : ' '} ${here(hit.path)}  (PATH entry ${here(hit.from)})`);
+
+const result = await run('greet', [], { runtime });
+console.log(`ran ${here(result.executable.path)}: ${result.stdout.trim()}`);
+```
+
+```text title="node doctor.mjs"
+2 installs of greet on PATH:
+  → bin/greet  (PATH entry bin)
+    vendor/bin/greet  (PATH entry vendor/bin)
+ran bin/greet: hello from bin
+```
+
+Put this behind a `doctor` subcommand and a bug report carries the answer instead of a request
+for `echo $PATH`. The `run` result's `executable` is the one that actually ran, because
+bellpull spawns the file it resolved rather than handing the name back to be resolved again.

@@ -3,10 +3,10 @@
  * suite through `compat-oracle` (R6, U11). Its eight dependencies come with it: the
  * spinner corpus is `spinners.json` beside this file, the display width is `width.ts`,
  * the colours are `roundel/chalk`, the cursor control is `closeout` (shared with
- * `flagstaff/log-update`, which ports the same chain), and the log symbols, the stdin
- * discarder, the interactivity and unicode probes are the fifty lines below. A migration
- * is one import, and the tree that came with it — nine packages including the transitive
- * ones — is gone (U5, R10).
+ * `flagstaff/log-update`, which ports the same chain), the unicode probe is
+ * `roundel/terminal`'s, and the log symbols, the stdin discarder and the interactivity probe
+ * are the lines below. A migration is one import, and the tree that came with it — nine
+ * packages including the transitive ones — is gone (U5, R10).
  *
  * ora's model is the inverse of flagstaff's: the animation is the thing and non-TTY is a
  * fallback, where `hoist()` makes the static projection primary. That is why this file
@@ -19,7 +19,9 @@ import { Buffer } from 'node:buffer';
 import { HIDE_CURSOR, type InputStream, rawMode, type Registrar, SHOW_CURSOR } from 'closeout/cursor';
 import restoreCursor from 'closeout/restore-cursor';
 import { lineCount } from 'linegauge';
+import { beginSynchronizedOutput, endSynchronizedOutput } from 'paratext/csi';
 import chalk from 'roundel/chalk';
+import { unicode } from 'roundel/terminal';
 
 import { processRuntime } from './runtime.js';
 import spinnerCorpus from './spinners.json' with { type: 'json' };
@@ -43,25 +45,7 @@ export interface SpinnerDefinition {
 /** Every spinner cli-spinners ships, unedited — ora re-exports it and so do we. */
 export const spinners: Record<string, SpinnerDefinition> = spinnerCorpus;
 
-// ───── is-unicode-supported, is-interactive ─────
-
-function isUnicodeSupported(): boolean {
-  const { env } = rt;
-  const { TERM, TERM_PROGRAM } = env;
-  if (rt.platform !== 'win32') return TERM !== 'linux';
-  return (
-    Boolean(env['WT_SESSION']) ||
-    Boolean(env['TERMINUS_SUBLIME']) ||
-    env['ConEmuTask'] === '{cmd::Cmder}' ||
-    TERM_PROGRAM === 'Terminus-Sublime' ||
-    TERM_PROGRAM === 'vscode' ||
-    TERM === 'xterm-256color' ||
-    TERM === 'alacritty' ||
-    TERM === 'rxvt-unicode' ||
-    TERM === 'rxvt-unicode-256color' ||
-    env['TERMINAL_EMULATOR'] === 'JetBrains-JediTerm'
-  );
-}
+// ───── is-interactive (is-unicode-supported is roundel's `unicode`) ─────
 
 function isInteractive(stream: OraStream | undefined): boolean {
   return Boolean(stream?.isTTY) && rt.env['TERM'] !== 'dumb' && !('CI' in rt.env);
@@ -69,7 +53,7 @@ function isInteractive(stream: OraStream | undefined): boolean {
 
 // ───── log-symbols ─────
 
-const UNICODE = isUnicodeSupported();
+const UNICODE = unicode(rt);
 const logSymbols = {
   info: chalk.blue(UNICODE ? 'ℹ' : 'i'),
   success: chalk.green(UNICODE ? '✔' : '√'),
@@ -158,8 +142,6 @@ const stdinDiscarder = new StdinDiscarder();
 
 /** Milliseconds to wait before re-rendering after a partial chunk was written. */
 const RENDER_DEFERRAL_TIMEOUT = 200;
-const SYNCHRONIZED_OUTPUT_ENABLE = '\u001B[?2026h';
-const SYNCHRONIZED_OUTPUT_DISABLE = '\u001B[?2026l';
 /** A spinner with no interval of its own, and no `interval` option. */
 const FALLBACK_INTERVAL = 100;
 const DEFAULT_COLUMNS = 80;
@@ -349,7 +331,7 @@ export class Ora {
     }
 
     const named = spinner === undefined || spinner === 'default' ? undefined : spinners[spinner];
-    if (!isUnicodeSupported()) this.#spinner = spinners['line'] as SpinnerDefinition;
+    if (!unicode(rt)) this.#spinner = spinners['line'] as SpinnerDefinition;
     else if (spinner === undefined) this.#spinner = spinners['dots'] as SpinnerDefinition;
     else if (named !== undefined) this.#spinner = named;
     else throw new Error(`There is no built-in spinner named '${spinner}'. See https://github.com/sindresorhus/cli-spinners/blob/main/spinners.json for a full list.`);
@@ -451,7 +433,7 @@ export class Ora {
 
     try {
       if (useSynchronizedOutput) {
-        this.#internalWrite(() => this.#stream.write(SYNCHRONIZED_OUTPUT_ENABLE));
+        this.#internalWrite(() => this.#stream.write(beginSynchronizedOutput));
         shouldDisableSynchronizedOutput = true;
       }
 
@@ -483,7 +465,7 @@ export class Ora {
 
       this.#linesToClear = lineCount(frameContent, columns);
     } finally {
-      if (shouldDisableSynchronizedOutput) this.#internalWrite(() => this.#stream.write(SYNCHRONIZED_OUTPUT_DISABLE));
+      if (shouldDisableSynchronizedOutput) this.#internalWrite(() => this.#stream.write(endSynchronizedOutput));
     }
 
     return this;

@@ -1,0 +1,15 @@
+{
+  "title": "API reference",
+  "pages": [
+    "index",
+    "precedence",
+    "explain",
+    "plugin",
+    "cosmiconfig",
+    "dotenv",
+    "lilconfig",
+    "rc",
+    "find-up",
+    "config"
+  ]
+}

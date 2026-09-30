@@ -23,7 +23,7 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const PUBLISHED = ['bellpull', 'burgee', 'caique', 'closeout', 'flagstaff', 'linegauge', 'paratext', 'roundel', 'seniority'];
+const PUBLISHED = ['bellpull', 'burgee', 'caique', 'closeout', 'controlroom', 'flagstaff', 'linegauge', 'paratext', 'roundel', 'seniority'];
 
 interface Manifest {
   sideEffects?: boolean | string[];

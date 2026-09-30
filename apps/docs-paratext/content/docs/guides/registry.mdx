@@ -1,0 +1,105 @@
+---
+title: Capabilities as data
+description: "Register a capability as a plain object — encode, fallback and when — validate it against the family schema with check(), ship it as a plugin, and check the plugin with npx paratext check."
+---
+
+Terminals invent OSC codes faster than any package ships releases — Kitty's graphics protocol,
+WezTerm's user variables, Ghostty's progress bar. So paratext's surface is a **registry** of
+plain objects, and the seven built-ins register through the same public call a third party
+makes.
+
+## A capability
+
+```js title="kitty.mjs"
+export default {
+  name: 'kitty-graphics',
+  capabilities: {
+    'kitty-image': {
+      name: 'kitty-image',
+      osc: 'BEL',
+      when: { tty: true, term: 'xterm-kitty' },
+      encode: '\u001B_Ga=T,f=100;{base64}\u001B\\',
+      fallback: '{caption}',
+    },
+  },
+};
+```
+
+That file is a **plugin**: a `name`, and under `capabilities` one entry per capability, each
+filed under its own name. A capability is `name`, `osc` (its number, or `'BEL'`), `when`
+([Detecting support](/docs/guides/detection)), `encode` and `fallback`, written in the
+[template language](/docs/guides/static-projection#templates). No functions, so it travels
+through JSON, diffs, and can be validated without running its author's code.
+
+## Registering it
+
+```js title="kitty-app.mjs"
+import { emit } from 'paratext';
+import { attach, register } from 'paratext/plugin';
+
+import kitty from './kitty.mjs';
+
+register(kitty);
+attach();
+
+const fields = { base64: 'iVBORw0KGgo=', caption: '[logo]' };
+console.log(JSON.stringify(emit({ env: { TERM: 'xterm-kitty' }, isTTY: { stdout: true } }, 'kitty-image', fields)));
+console.log(JSON.stringify(emit({ env: { TERM: 'xterm-kitty' }, isTTY: { stdout: false } }, 'kitty-image', fields)));
+```
+
+```text title="node kitty-app.mjs"
+"\u001b_Ga=T,f=100;iVBORw0KGgo=\u001b\\"
+"[logo]"
+```
+
+`register()` from `paratext/plugin` validates the plugin; `attach()` hands every registered
+plugin's capabilities to paratext's registry, in order, so a later plugin replaces an earlier
+one's capability by name and `contributions()` says whom it shadowed. Keys another package
+reads — roundel's `tokens`, flagstaff's `spinners` — are ignored without complaint, so one
+plugin file can carry all of them. A single capability can also be registered directly with
+`register()` from `paratext`.
+
+## A capability must carry a text form
+
+A capability with no `fallback` is refused, at registration rather than at output, with the
+family's code and a fix. `""` is a legitimate projection; absence is not:
+
+```js title="no-fallback.mjs"
+import { register } from 'paratext';
+
+try {
+  register({ name: 'raw', osc: 'BEL', when: { tty: true }, encode: '\u0007' });
+} catch (error) {
+  console.log(`${error.code}: ${error.message}`);
+}
+```
+
+```text title="node no-fallback.mjs"
+E_NO_STATIC_PROJECTION: raw: fallback must be a template, even if it is empty — rule 6 has no opt-out
+```
+
+Everything else is checked against
+[`paratext/schema.json`](https://github.com/ofri-peretz/burgee/blob/main/packages/paratext/src/schema.json),
+the file every package in the family ships: required fields, types, `additionalProperties:
+false` and the rest, each refusal naming the path — `capabilities.link.when.tty`, not just the
+capability. `check(capability)` returns the same findings as a list, without throwing.
+
+## Checking before it ships
+
+```text title="npx paratext check kitty.mjs"
+kitty-graphics — 1 capabilities
+  kitty-image  osc BEL  encode "\u001b_Ga=T,f=100;{base64}\u001b\\"  fallback "{caption}"
+kitty-graphics: ok
+```
+
+```js title="raw.mjs"
+export default { name: 'raw', capabilities: { beep2: { name: 'beep2', osc: 'BEL', when: { tty: true }, encode: '\u0007' } } };
+```
+
+```text title="npx paratext check raw.mjs" exit="1"
+E_NO_STATIC_PROJECTION: plugin "raw": capabilities.beep2: fallback must be a template, even if it is empty — rule 6 has no opt-out
+  fix: add `fallback: "…"` — what prints where the terminal cannot do it; `""` is a legitimate answer, absence is not
+```
+
+`npx paratext check` loads the file without registering it and exits 0, 1 with the code and
+the fix, or 2 on a usage error.

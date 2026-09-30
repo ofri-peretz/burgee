@@ -1,0 +1,41 @@
+---
+title: Incremental migration
+description: "Move from @inquirer/core with one import, from @clack/prompts with one import or a prompt at a time, and then to flag-first prompts where an agent or CI runs the command."
+---
+
+## From `@inquirer/core`: one import
+
+```diff
+- import { createPrompt, useState, useKeypress, isEnterKey } from '@inquirer/core';
++ import { createPrompt, useState, useKeypress, isEnterKey } from 'caique/inquirer';
+```
+
+Graded 41 of 41 by `@inquirer/core`'s own suite, so `npx burgee migrate` rewrites it for you
+(`--dry-run` lists it first).
+
+## From `@clack/prompts`: one import, by hand
+
+```diff
+- import { confirm, isCancel, select, text } from '@clack/prompts';
++ import { confirm, isCancel, select, text } from 'caique/clack';
+```
+
+`caique/clack` grades 16 of 17 — the one case left needs `@clack/core`'s settings — so
+`burgee migrate` reports this import rather than rewriting it. Make the change yourself, and
+import `updateSettings` from `caique/clack` if you use it
+([Compatibility](/docs/drop-ins#known-differences)).
+
+## Then: a prompt at a time, to a flag
+
+The drop-ins keep your prompts working. The reason to move is what they cannot do: refuse,
+naming a flag, when nobody is there. Move the prompts an agent or CI will meet first — the ones
+on commands that run unattended — to options with a prompt spec, and pass them through
+`resolvePrompts()` ([Binding prompts to a CLI](/docs/guides/binding)). The rest can stay on the
+drop-in as long as you like; both read their input from the same process.
+
+## Checking each step
+
+```bash
+npm uninstall @inquirer/core @clack/prompts
+npm ls @clack/core
+```

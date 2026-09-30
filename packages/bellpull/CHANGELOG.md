@@ -1,5 +1,21 @@
 # bellpull
 
+## 0.4.4
+
+### Patch Changes
+
+- [#738](https://github.com/ofri-peretz/burgee/pull/738) [`3db5125`](https://github.com/ofri-peretz/burgee/commit/3db512576725fb460c8d998484918220c6b6ffb5) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `shebangCommand`'s doc comment describes its trailing-space cases in words, so the generated API reference renders them without a code span that ends in a space.
+
+## 0.4.3
+
+### Patch Changes
+
+- [#730](https://github.com/ofri-peretz/burgee/pull/730) [`3250edf`](https://github.com/ofri-peretz/burgee/commit/3250edf439a45ccfd203213eddec0d9fb091e8cd) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A `#!` line with a trailing space, or with two spaces after `env`, is read the way `shebang-command` reads it. `#!/usr/local/bin/node` followed by a space used to name the interpreter `node` with the space kept, a name that resolves nowhere, so on Windows `bellpull/cross-spawn` and `run()` sent that script to `cmd.exe` under a command that does not exist. `#!/usr/bin/env  node` used to name an empty interpreter, which then replaced the command. Code paths no input could reach are removed, and behaviour is otherwise unchanged. `bellpull check` no longer carries a "(replaces …)" suffix it could never print, because it loads one plugin into an emptied registry. The Windows executability check no longer accepts a symbolic link from a `statSync`, which follows links and never reports one, and no longer special-cases an empty `PATHEXT` entry that `endsWith('')` already accepts. The POSIX check no longer tests the caller's uid and gid for `undefined` before comparing them with a stat's, which are always numbers.
+
+- [#674](https://github.com/ofri-peretz/burgee/pull/674) [`e9f45d8`](https://github.com/ofri-peretz/burgee/commit/e9f45d85d9db5b2e3dcaa1e43f292a1281a6952a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - README: family header, badges, install, migrating, the family table.
+
+  Every package README now opens the same way — lockup, tagline, one badge row in one order (npm version, downloads, Quality Gate, the package's own coverage, OpenSSF Scorecard, unpacked size, dependencies, types, Node, licence, npm provenance), a row of compatibility badges read from the graded baseline — and carries the same sections in the same order: Install for npm, pnpm, yarn and bun, Quick start, Migrating as a before/after diff, Compatibility, Benchmarks, For agents, API, and a generated table of the nine packages. Links are absolute, so they work on npm as well as GitHub.
+
 ## 0.4.2
 
 ### Patch Changes

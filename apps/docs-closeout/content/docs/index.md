@@ -126,8 +126,7 @@ one is SIGKILL, which runs no handlers at all. Abandoning a slow handler is the 
 handler did not come back:**
 
 ```text
-closeout: shutdown deadline of 2000ms expired; exiting anyway.
-Handlers that had not returned: acme:unlock, closeTheDatabase
+closeout: shutdown deadline of 2000ms expired; exiting anyway. Handlers that had not returned: acme:unlock, closeTheDatabase
 ```
 
 Names come from the function's own `name`, or from a label you give it —
@@ -206,9 +205,13 @@ the handler that restores the terminal is usually registered last.
 **Bounded.** Shutdown returns on the handlers or on the clock, whichever comes first — and
 on the handlers when they are all synchronous, not on the clock.
 
-**The exit code is yours.** A handler running after `process.exit(3)` cannot turn it into a 0:
-the code is captured at the trigger, before a single handler runs, and a breached deadline
-exits with that same code rather than one invented by the fact that something hung.
+**The exit code is yours.** On a signal, a throw or a rejection, how the process leaves is
+decided at the trigger, before a single handler runs: a handler that sets `process.exitCode = 0`
+on its way past cannot turn a crash into a success, and a breached deadline leaves the same way
+rather than with a code invented by the fact that something hung. Every handler is told the
+code in `report.code`. On `process.exit()` and a normal finish the process is leaving on its
+own, and Node reads `process.exitCode` *after* the handlers, so a handler must not assign it
+there.
 
 **A signalled process dies of the signal.** Once the handlers have run, closeout removes its
 own listener and re-raises — so a program killed by Ctrl-C really dies of SIGINT rather than
@@ -320,7 +323,7 @@ Graded by the incumbent's own test suite:
 | `restore-cursor` | 6 / 6 |
 | `signal-exit` | 134 / 135 |
 
-Weight, installed and tree-inclusive: **117,538 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.6395**.
+Weight, installed and tree-inclusive: **117,761 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.6407**.
 
 ## For agents
 
@@ -396,7 +399,7 @@ Plugins register under the `handlers` key, against the one schema the whole fami
 
 ## The family
 
-Nine packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
+Ten packages, one repository, one release pipeline. A CLI on burgee declares what it is, roundel
 carries its colours, flagstaff flies it and caique answers back; each installs on its own, and none
 takes a dependency from outside the family.
 
@@ -411,6 +414,7 @@ takes a dependency from outside the family.
 | [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, dotenv and rc |
 | **closeout** (this package) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook and restore-cursor |
 | [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
+| [controlroom](https://burgee.interlace.tools/docs/packages/controlroom) | Reserved, not usable yet — planned: full-screen, keyboard-driven terminal screens | ink, planned |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

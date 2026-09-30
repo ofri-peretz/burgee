@@ -1,0 +1,192 @@
+{
+  "$comment": "bellpull's capability matrix against the three packages compat-oracle's LAYERS names for it. Rendered by <CapabilityMatrix pkg=\"bellpull\" /> from apps/docs-chassis and held by scripts/capabilities-lock.test.ts: every `ours` yes/partial names a test file and a title substring it contains, or a compat-oracle grade; every incumbent cell names a source at the version compat-oracle grades, and a local source is checked for the text it `quote`s or `lacks`. which 7.0.0 is graded but not installed here (cross-spawn's which 2 is), so its cells cite the v7.0.0 tag on GitHub. `n/a` means the row does not apply to that package, and says why. A row that could not be proved for every column is not here.",
+  "package": "bellpull",
+  "incumbents": ["execa", "cross-spawn", "which"],
+  "themes": [
+    {
+      "theme": "Spawning, on every platform",
+      "rows": [
+        {
+          "capability": "`.cmd` and `.bat` run on Windows without a shell",
+          "why": "An npm bin on Windows is a `.cmd` script, and bellpull resolves it with `PATHEXT` and invokes `cmd.exe` itself, so `npm` runs everywhere without `{ shell: true }`.",
+          "ours": {"status": "yes", "test": "packages/bellpull/src/cross-spawn.test.ts", "title": "routes an unresolvable command through cmd.exe rather than a shell option"},
+          "incumbents": {
+            "execa": {"status": "yes", "source": "node_modules/execa/lib/arguments/command-file.js", "quote": "parsed.options.windowsVerbatimArguments = true;"},
+            "cross-spawn": {"status": "yes", "source": "node_modules/cross-spawn/lib/parse.js", "quote": "parsed.options.windowsVerbatimArguments = true; // Tell node's spawn that the arguments are already escaped"},
+            "which": {"status": "n/a", "source": "https://github.com/npm/node-which/blob/v7.0.0/lib/index.js", "note": "resolves a command; it spawns nothing"}
+          }
+        },
+        {
+          "capability": "Arguments escaped for `cmd.exe` and the argv parser",
+          "why": "Every argument is quoted for `CommandLineToArgvW` and every `cmd.exe` metacharacter escaped, so a `&` in caller data stays one argument instead of starting a second command.",
+          "ours": {"status": "yes", "test": "packages/bellpull/src/escape.test.ts", "title": "escapeArgument survives cmd.exe and then the argv parser"},
+          "incumbents": {
+            "execa": {"status": "yes", "source": "node_modules/execa/lib/arguments/command-file.js", "quote": "const escapedArguments = parsed.commandArguments.map(argument => escapeArgument(argument, isDoubleEscape));", "note": "and it refuses CR and LF, which cannot be escaped for `cmd.exe`; bellpull records that as an unverified gap"},
+            "cross-spawn": {"status": "yes", "source": "node_modules/cross-spawn/lib/parse.js", "quote": "parsed.args = parsed.args.map((arg) => escape.argument(arg, needsDoubleEscapeMetaChars));"},
+            "which": {"status": "n/a", "source": "https://github.com/npm/node-which/blob/v7.0.0/lib/index.js", "note": "resolves a command; it spawns nothing"}
+          }
+        },
+        {
+          "capability": "No shell unless asked for",
+          "why": "Arguments go to the child as an argv array, so nothing in them is interpreted; `shell: true` exists, off by default, and is documented as the injection surface it is.",
+          "ours": {"status": "yes", "test": "packages/bellpull/src/escape.test.ts", "title": "the same argument through a shell executes the injected command — which is why shell is off by default"},
+          "incumbents": {
+            "execa": {"status": "yes", "source": "node_modules/execa/lib/arguments/command-file.js", "quote": "if (options.shell || process.platform !== 'win32') {"},
+            "cross-spawn": {"status": "yes", "source": "node_modules/cross-spawn/lib/parse.js", "quote": "return options.shell ? parsed : parseNonShell(parsed);"},
+            "which": {"status": "n/a", "source": "https://github.com/npm/node-which/blob/v7.0.0/lib/index.js", "note": "resolves a command; it spawns nothing"}
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Which binary ran",
+      "rows": [
+        {
+          "capability": "The path, and the `PATH` entry that answered",
+          "why": "`whichSync` and `result.executable` return where the binary is and which `PATH` directory found it, which is the first question when a build differs between two machines.",
+          "ours": {"status": "yes", "test": "packages/bellpull/src/which.test.ts", "title": "reports the PATH entry that answered"},
+          "incumbents": {
+            "execa": {"status": "no", "source": "node_modules/execa/lib/return/result.js", "lacks": "path", "note": "the result carries the command as written (`command`, `escapedCommand`), not the file that ran"},
+            "cross-spawn": {"status": "no", "source": "node_modules/cross-spawn/lib/parse.js", "quote": "parsed.file = resolveCommand(parsed);", "note": "resolves the file only on Windows, internally, and returns a ChildProcess that does not say which"},
+            "which": {"status": "partial", "source": "https://github.com/npm/node-which/blob/v7.0.0/lib/index.js", "missing": "returns the path as a string; which `PATH` entry matched is not reported"}
+          }
+        },
+        {
+          "capability": "`PATHEXT` honoured, and the extension reported",
+          "why": "On Windows the extensions are tried in the order `PATHEXT` gives, and the one that matched comes back as `ext`, so `npm` and `npm.cmd` are told apart.",
+          "ours": {"status": "yes", "test": "packages/bellpull/src/which.test.ts", "title": "tries PATHEXT in the order PATHEXT gives"},
+          "incumbents": {
+            "execa": {"status": "partial", "source": "node_modules/execa/lib/arguments/command-file.js", "quote": "return whichCommandSync(path.resolve(cwd, parsed.file), {cwd, pathExt});", "missing": "honoured when resolving on Windows; the extension that matched is not reported"},
+            "cross-spawn": {"status": "partial", "source": "node_modules/cross-spawn/lib/util/resolveCommand.js", "quote": "pathExt: withoutPathExt ? path.delimiter : undefined,", "missing": "honoured through `which` 2 on Windows; the extension that matched is not reported"},
+            "which": {"status": "partial", "source": "https://github.com/npm/node-which/blob/v7.0.0/lib/index.js", "missing": "honoured; the extension that matched is not reported apart from the path"}
+          }
+        },
+        {
+          "capability": "`PATH` entries that follow the working directory are skipped",
+          "why": "An empty or relative `PATH` entry means a different directory wherever the program runs, one somebody else may be able to write to, so the resolver skips it and says why.",
+          "ours": {"status": "yes", "test": "packages/bellpull/src/which.test.ts", "title": "skips an empty PATH entry instead of reading it as the working directory"},
+          "incumbents": {
+            "execa": {"status": "no", "source": "node_modules/execa/lib/arguments/command-file.js", "quote": "if (options.shell || process.platform !== 'win32') {", "note": "off Windows the operating system searches `PATH` as given, empty entries included"},
+            "cross-spawn": {"status": "no", "source": "node_modules/cross-spawn/lib/parse.js", "quote": "if (!isWin) {", "note": "off Windows it resolves nothing; on Windows it asks `which` 2, which searches every entry"},
+            "which": {"status": "no", "source": "https://github.com/npm/node-which/blob/v7.0.0/lib/index.js", "note": "joins an empty entry with the command, which resolves against the working directory, and searches relative entries as given"}
+          }
+        },
+        {
+          "capability": "Every `node_modules/.bin` from the working directory up",
+          "why": "`runPath()` puts every `node_modules/.bin` from the working directory to the root in front of `PATH`, as `npm-run-path` does, with no dependency.",
+          "ours": {"status": "yes", "test": "packages/bellpull/src/which.test.ts", "title": "puts every node_modules/.bin from cwd upward in front of PATH"},
+          "incumbents": {
+            "execa": {"status": "yes", "source": "node_modules/execa/lib/arguments/options.js", "quote": "import {npmRunPathEnv} from 'npm-run-path';", "note": "with `preferLocal: true`, through its npm-run-path dependency"},
+            "cross-spawn": {"status": "no", "source": "node_modules/cross-spawn/index.js", "lacks": "npm-run-path"},
+            "which": {"status": "no", "source": "https://github.com/npm/node-which/blob/v7.0.0/lib/index.js", "note": "searches `PATH` as given"}
+          }
+        },
+        {
+          "capability": "Resolver plugins, as data",
+          "why": "A plugin contributes a search order (an `asdf` or `nvm` shims directory, before or after `PATH`) as plain JSON with no function in it, so an agent can write one and `npx bellpull check` can validate it.",
+          "ours": {"status": "yes", "test": "packages/bellpull/src/plugin.test.ts", "title": "survives JSON, which is what \"data\" has to mean to be worth claiming"},
+          "incumbents": {
+            "execa": {"status": "no", "source": "node_modules/execa/index.js", "lacks": "plugin"},
+            "cross-spawn": {"status": "no", "source": "node_modules/cross-spawn/index.js", "lacks": "plugin"},
+            "which": {"status": "no", "source": "https://github.com/npm/node-which/blob/v7.0.0/lib/index.js", "note": "the search is `PATH`, with no extension point"}
+          }
+        }
+      ]
+    },
+    {
+      "theme": "A run that ends, and says how",
+      "rows": [
+        {
+          "capability": "A non-zero exit is a value, not an exception",
+          "why": "`run()` resolves with `ok: false` and the code, and rejects only when no process ran at all, so a caller reads the outcome instead of catching it.",
+          "ours": {"status": "yes", "test": "packages/bellpull/src/matrix.test.ts", "title": "resolves on a non-zero exit — the case execa throws for"},
+          "incumbents": {
+            "execa": {"status": "partial", "source": "node_modules/execa/lib/arguments/options.js", "quote": "reject = true,", "missing": "rejects on a non-zero exit unless the caller passes `reject: false`"},
+            "cross-spawn": {"status": "no", "source": "node_modules/cross-spawn/index.js", "quote": "const spawned = cp.spawn(parsed.command, parsed.args, parsed.options);", "note": "returns a ChildProcess: collecting the output and waiting for `close` is the caller's"},
+            "which": {"status": "n/a", "source": "https://github.com/npm/node-which/blob/v7.0.0/lib/index.js", "note": "runs nothing"}
+          }
+        },
+        {
+          "capability": "A finite timeout by default, and the output before the kill kept",
+          "why": "Every run has a deadline (30 s unless set), the kill is `SIGTERM` then `SIGKILL` after a grace window, and `stdout` and `stderr` hold what arrived before it, so a CI timeout can be diagnosed.",
+          "ours": {"status": "yes", "test": "packages/bellpull/src/matrix.test.ts", "title": "the deadline, end to end (R2, Y10)"},
+          "incumbents": {
+            "execa": {"status": "partial", "source": "node_modules/execa/lib/terminate/timeout.js", "quote": "export const throwOnTimeout = (kill, timeout, context, controller) => timeout === 0 || timeout === undefined", "missing": "no timeout unless one is passed; with one, it escalates to SIGKILL and keeps the output on the error"},
+            "cross-spawn": {"status": "no", "source": "node_modules/cross-spawn/index.js", "lacks": "timeout", "note": "no deadline of its own; Node's `timeout` option passes through, with one signal and no escalation"},
+            "which": {"status": "n/a", "source": "https://github.com/npm/node-which/blob/v7.0.0/lib/index.js", "note": "runs nothing"}
+          }
+        },
+        {
+          "capability": "The child is killed when the parent shuts down",
+          "why": "A child still running when the parent exits would otherwise be orphaned, still holding its ports and files.",
+          "ours": {"status": "partial", "test": "packages/bellpull/src/matrix.test.ts", "title": "a spawned child is not orphaned when the parent shuts down", "missing": "only when the caller passes an exit host, such as a closeout registry; by default bellpull claims none of the process's signals"},
+          "incumbents": {
+            "execa": {"status": "yes", "source": "node_modules/execa/lib/terminate/cleanup.js", "quote": "const removeExitHandler = onExit(() => {", "note": "by default, through signal-exit"},
+            "cross-spawn": {"status": "no", "source": "node_modules/cross-spawn/index.js", "lacks": "kill"},
+            "which": {"status": "n/a", "source": "https://github.com/npm/node-which/blob/v7.0.0/lib/index.js", "note": "runs nothing"}
+          }
+        },
+        {
+          "capability": "One result, three renderings",
+          "why": "`format()` for a person, `toJson()` for `--json` and `toEvent()` for an agent are all derived from one `Result` and one verdict, so the three cannot disagree.",
+          "ours": {"status": "yes", "test": "packages/bellpull/src/matrix.test.ts", "title": "every rendering comes from one value — none of them can report something the others cannot"},
+          "incumbents": {
+            "execa": {"status": "no", "source": "node_modules/execa/lib/return/result.js", "lacks": "JSON", "note": "one result object; a JSON or agent projection is the caller's"},
+            "cross-spawn": {"status": "no", "source": "node_modules/cross-spawn/index.js", "lacks": "JSON", "note": "returns a ChildProcess; there is no result to render"},
+            "which": {"status": "n/a", "source": "https://github.com/npm/node-which/blob/v7.0.0/lib/index.js", "note": "returns a path"}
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Weight",
+      "rows": [
+        {
+          "capability": "Zero runtime dependencies",
+          "why": "bellpull installs one package, where execa installs its twelve direct dependencies and their trees.",
+          "ours": {"status": "yes", "test": "packages/bellpull/src/weight.test.ts", "title": "depends on nothing, which is the claim the whole family makes — and cross-spawn cannot"},
+          "incumbents": {
+            "execa": {"status": "no", "source": "node_modules/execa/package.json", "quote": "\"npm-run-path\": \"^6.0.0\",", "note": "twelve direct dependencies"},
+            "cross-spawn": {"status": "no", "source": "node_modules/cross-spawn/package.json", "quote": "\"which\": \"^2.0.1\"", "note": "path-key, shebang-command and which"},
+            "which": {"status": "no", "source": "https://github.com/npm/node-which/blob/v7.0.0/package.json", "note": "isexe"}
+          }
+        }
+      ]
+    },
+    {
+      "theme": "Compatibility",
+      "rows": [
+        {
+          "capability": "Passes cross-spawn's own test suite",
+          "why": "`bellpull/cross-spawn` is graded by cross-spawn 7.0.6's own tests, each case run four ways, so changing the import keeps cross-spawn's behaviour.",
+          "ours": {"status": "yes", "grade": "packages/compat-oracle/baseline/cross-spawn.json"},
+          "incumbents": {
+            "execa": {"status": "n/a", "source": "packages/compat-oracle/vendor/execa/test/arguments/shell.js", "quote": "import {execa} from '../../shim.js';", "note": "a different API"},
+            "cross-spawn": {"status": "yes", "source": "packages/compat-oracle/vendor/cross-spawn/test/util/run.js", "quote": "const spawn = require('../../shim.mjs');", "note": "its own suite, the control run"},
+            "which": {"status": "n/a", "source": "packages/compat-oracle/vendor/which/test/index.js", "quote": "const which = t.mock('../shim.cjs', mocks)", "note": "a different API"}
+          }
+        },
+        {
+          "capability": "Passes which's own test suite",
+          "why": "`bellpull/node-which` is graded by node-which 7.0.0's own tests, each run under `posix` and `win32` and through both `which()` and `which.sync()`.",
+          "ours": {"status": "yes", "grade": "packages/compat-oracle/baseline/which.json"},
+          "incumbents": {
+            "execa": {"status": "n/a", "source": "packages/compat-oracle/vendor/execa/test/arguments/shell.js", "quote": "import {execa} from '../../shim.js';", "note": "a different API"},
+            "cross-spawn": {"status": "n/a", "source": "packages/compat-oracle/vendor/cross-spawn/test/util/run.js", "quote": "const spawn = require('../../shim.mjs');", "note": "a different API"},
+            "which": {"status": "yes", "source": "packages/compat-oracle/vendor/which/test/index.js", "quote": "const which = t.mock('../shim.cjs', mocks)", "note": "its own suite, the control run"}
+          }
+        },
+        {
+          "capability": "execa's own test suite: not a drop-in",
+          "why": "execa 10.0.1's suite is run against `bellpull` so the answer is measured: every file fails to import `execa`, which bellpull does not export, and the row is a declared ceiling rather than a migration path.",
+          "ours": {"status": "no", "grade": "packages/compat-oracle/baseline/execa.json", "missing": "no execa API: `run()` resolves where execa rejects, and the streaming API and `$` template are out of scope"},
+          "incumbents": {
+            "execa": {"status": "yes", "source": "packages/compat-oracle/vendor/execa/test/arguments/shell.js", "quote": "import {execa} from '../../shim.js';", "note": "its own suite, the control run: 1,048 of 1,048"},
+            "cross-spawn": {"status": "n/a", "source": "packages/compat-oracle/vendor/cross-spawn/test/util/run.js", "quote": "const spawn = require('../../shim.mjs');", "note": "a different API"},
+            "which": {"status": "n/a", "source": "packages/compat-oracle/vendor/which/test/index.js", "quote": "const which = t.mock('../shim.cjs', mocks)", "note": "a different API"}
+          }
+        }
+      ]
+    }
+  ]
+}

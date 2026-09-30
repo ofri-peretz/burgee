@@ -1,0 +1,53 @@
+---
+title: One result for people and agents
+description: "format, toJson and toEvent: three renderings of one bellpull Result, over one verdict — ok, failed, timedOut or signalled — so a --json flag cannot say something the human output did not."
+---
+
+A CLI that runs a subprocess reports it to three readers: a person at a terminal, a script
+reading `--json`, and an agent reading an event stream. bellpull renders all three from the
+one `Result`, over one verdict, so they cannot disagree.
+
+| function | for | shape |
+| :-- | :-- | :-- |
+| `format(result)` | a person | a headline, the binary and the `PATH` entry, and on failure the last ten lines of output |
+| `toJson(result)` | `--json` | every field of the result, `duration` as `durationMs` |
+| `toEvent(result)` | an agent | `type: 'run'`, the verdict as `outcome`, and the executable and its `PATH` entry |
+
+The verdict is one of `ok`, `failed` (a non-zero exit), `timedOut` and `signalled`.
+
+```js title="render.mjs"
+import { format, run, toEvent, toJson } from 'bellpull';
+
+import { install, runtimeWith } from './tools.mjs';
+
+install();
+const runtime = runtimeWith('bin');
+const result = await run('greet', ['2'], { runtime });
+
+// The duration is wall-clock time and the paths are this machine's, so this page pins them.
+const steady = { ...result, duration: 0, executable: { path: 'bin/greet', from: 'bin' } };
+console.log(format(steady));
+console.log(JSON.stringify(toJson(steady)));
+console.log(JSON.stringify(toEvent(steady)));
+```
+
+```text title="node render.mjs"
+failed  greet exited 2 after 0 ms
+     bin/greet (from bin)
+     hello from bin
+{"ok":false,"code":2,"signal":null,"stdout":"hello from bin\n","stderr":"","durationMs":0,"command":"greet","args":["2"],"executable":{"path":"bin/greet","from":"bin"},"timedOut":false}
+{"type":"run","outcome":"failed","command":"greet","args":["2"],"code":2,"signal":null,"durationMs":0,"executable":"bin/greet","from":"bin"}
+```
+
+`format` shows stderr when there is any and stdout otherwise, because plenty of programs
+report their failure on stdout. On success it shows only the headline and the binary.
+
+`duration` is wall-clock time from spawn to close, including Node's own scheduling — not the
+child's CPU time. The type's doc comment says the same, where an editor shows it.
+
+## What is tested
+
+- [`matrix.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/bellpull/src/matrix.test.ts):
+  the human form names the failure and where the binary came from; the JSON carries the same
+  facts and no others; the event collapses the outcome to one word; every rendering comes from
+  one value.

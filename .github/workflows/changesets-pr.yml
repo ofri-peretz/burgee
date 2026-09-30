@@ -107,12 +107,12 @@ jobs:
           else
             echo "source=github-token" >> "$GITHUB_OUTPUT"
             missing="vars.RELEASE_APP_ID=$([ "$HAS_APP_ID" = "true" ] && echo set || echo MISSING), secrets.RELEASE_APP_PRIVATE_KEY=$([ "$HAS_APP_KEY" = "true" ] && echo set || echo MISSING), secrets.RELEASE_BOT_PAT=MISSING"
-            echo "::warning title=Version PR opened with GITHUB_TOKEN::No release credential is configured ($missing). A PR opened with GITHUB_TOKEN raises no workflow runs, so this workflow will dispatch the required checks itself, mirror them onto the PR, and merge it itself. Set RELEASE_APP_ID (repo variable) + RELEASE_APP_PRIVATE_KEY (repo secret), or RELEASE_BOT_PAT, to retire the fallback — see .sdlc/GAPS.md C5."
+            echo "::warning title=Version PR opened with GITHUB_TOKEN::No release credential is configured ($missing). A PR opened with GITHUB_TOKEN raises no workflow runs, so this workflow will dispatch the required checks itself, mirror them onto the PR, and merge it itself. Set RELEASE_APP_ID (repo variable) + RELEASE_APP_PRIVATE_KEY (repo secret), or RELEASE_BOT_PAT, to retire the fallback — see .sdlc/gaps/C5.md."
           fi
 
       - name: Open / refresh Version PR
         id: changesets
-        uses: changesets/action@8488615a623b1b9c987934bb89eae8af6a946ac1 # v1
+        uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v1
         with:
           # Renamed by the action in v1.5.4; the old names are a hard error, not a
           # warning, so every push to main since has failed and the Version PR has

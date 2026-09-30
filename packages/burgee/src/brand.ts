@@ -259,7 +259,7 @@ export function fieldId(brand: BurgeeBrand): string {
   const source = JSON.stringify(extra.length === 0 ? base : [...base, ...extra]);
   let h = HASH_SEED;
   for (let i = 0; i < source.length; i++) {
-    h = ((h << HASH_SHIFT) + h + (source.codePointAt(i) ?? 0)) >>> 0;
+    h = ((h << HASH_SHIFT) + h + (source.codePointAt(i) as number)) >>> 0;
   }
   return `burgee-${h.toString(HASH_RADIX)}`;
 }
@@ -321,7 +321,6 @@ function bordureBands(brand: BurgeeBrand): string {
   const bands = Array.isArray(brand.bordure)
     ? [...(brand.bordure as readonly Bordure[])]
     : [brand.bordure as Bordure];
-  if (bands.length === 0) return '';
   // Outermost band's stroke has to span every band inside it as well.
   let total = bands.reduce((sum, band) => sum + band.width, 0);
   const path = silhouette(brand);

@@ -1,0 +1,109 @@
+---
+title: Finding the executable
+description: "bellpull/which: whichSync returns the path and the PATH entry that found it, skips empty and relative PATH entries, honours and reports PATHEXT, and runPath puts node_modules/.bin in front."
+---
+
+"Which `node` was that?" is the first question of every build that differs between two
+machines. `bellpull/which` answers it: the file, **and the `PATH` entry that found it**.
+
+```js title="which.mjs"
+import { relative } from 'node:path';
+
+import { whichAllSync, whichSync } from 'bellpull/which';
+
+import { install, runtimeWith } from './tools.mjs';
+
+install();
+const runtime = runtimeWith('bin', 'vendor/bin');
+const show = (r) => `${relative(runtime.cwd, r.path)} (from ${relative(runtime.cwd, r.from)})`;
+
+console.log('first:', show(whichSync('greet', { runtime })));
+for (const hit of whichAllSync('greet', { runtime })) console.log('every:', show(hit));
+console.log('missing:', whichSync('no-such-tool', { runtime }));
+```
+
+```text title="node which.mjs"
+first: bin/greet (from bin)
+every: bin/greet (from bin)
+every: vendor/bin/greet (from vendor/bin)
+missing: undefined
+```
+
+| function | returns |
+| :-- | :-- |
+| `whichSync(cmd, { runtime })` | the first `{ path, from, ext }`, or `undefined` |
+| `whichOrThrowSync(cmd, { runtime })` | the same, or throws `NotFoundError` (`code: 'ENOENT'`) |
+| `whichAllSync(cmd, { runtime })` | every match, best first — "there are two of these" is often the finding |
+| `searchPath({ runtime })` | the directories that would be searched, and the ones that would not, with why |
+| `runPath({ runtime })` | `PATH` with every `node_modules/.bin` from the working directory up in front |
+
+`from` is `''` when the command carried its own path (`./bin/greet`), so a lookup and a named
+file are distinguishable. The answer is always absolute, and a file is only an answer if it is
+executable: a non-executable file or a directory with the right name is passed over.
+
+## Holes in PATH are skipped, and shown
+
+An empty `PATH` entry (`/usr/bin::/opt/bin`) means the current directory to a POSIX shell,
+and a relative one (`tools`) means a different directory wherever the program runs — possibly
+one somebody else can write to. bellpull searches neither, and `searchPath` says so:
+
+```js title="holes.mjs"
+import { searchPath } from 'bellpull/which';
+
+const runtime = { platform: 'linux', env: { PATH: '/usr/bin::tools:/opt/bin' }, cwd: '/home/me/project' };
+for (const entry of searchPath({ runtime })) console.log(JSON.stringify(entry));
+```
+
+```text title="node holes.mjs"
+{"raw":"/usr/bin","dir":"/usr/bin"}
+{"raw":"","skipped":"empty"}
+{"raw":"tools","skipped":"relative"}
+{"raw":"/opt/bin","dir":"/opt/bin"}
+```
+
+`bellpull/node-which`, the drop-in, keeps node-which's behaviour here — it searches them —
+because that is what node-which's suite grades.
+
+## Windows rules, from any machine
+
+The platform is part of the runtime, so Windows resolution can be run — and tested — on a
+Mac. `PATHEXT` is tried in the order it gives, a command that already has a dot is tried as
+written first, and the extension that matched comes back as `ext`:
+
+```js title="pathext.mjs"
+import { extensionCandidates, pathExtensions } from 'bellpull/which';
+
+const runtime = { platform: 'win32', env: { Path: 'C:\\tools', PATHEXT: '.COM;.EXE;.BAT;.CMD' }, cwd: 'C:\\work' };
+console.log(pathExtensions({ runtime }));
+console.log(extensionCandidates('npm', { runtime }));
+console.log(extensionCandidates('npm.cmd', { runtime }));
+```
+
+```text title="node pathext.mjs"
+[ '.COM', '.EXE', '.BAT', '.CMD' ]
+[ '.COM', '.EXE', '.BAT', '.CMD' ]
+[ '', '.COM', '.EXE', '.BAT', '.CMD' ]
+```
+
+On Windows `PATH` is read under whichever case the environment spelled it (`Path` above),
+split on `;`, quoted entries are unquoted, and the working directory is searched first, as
+the platform does. Off Windows no extension is added: a file is executable or it is not.
+
+One caveat on Windows: `run('npm')` resolves `npm.cmd` itself and reports it, but hands the
+command line to `cmd.exe` by the name you wrote, as cross-spawn does, so `cmd.exe` resolves it
+again in the child's environment. The two agree as long as the environment you passed is the
+one the child gets, which is the default.
+
+## node_modules/.bin
+
+`runPath({ runtime })` returns `PATH` with every `node_modules/.bin` from the working
+directory up to the root in front of it — npm-run-path's contract in a dozen lines, with the
+walk stopping at the filesystem root (or the drive root on Windows). Pass it as the child's
+`PATH` to run a project's local tools by name.
+
+## What is tested
+
+- [`which.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/bellpull/src/which.test.ts):
+  the `PATH` entry that answered, and a different one when the order changes; every hit, best
+  first; the executable bit; empty and relative entries skipped and reported; the Windows
+  rules from a Mac; `runPath` up to the root.

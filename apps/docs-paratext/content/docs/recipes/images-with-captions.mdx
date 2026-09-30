@@ -1,0 +1,28 @@
+---
+title: Images with captions
+description: "Read an image yourself, pass the bytes with a caption, and get an inline image on iTerm2 and the caption in a pipe, a CI log or an agent's transcript."
+---
+
+`image()` from the root takes bytes and an optional `caption`. On a terminal that draws inline
+images it is the image; everywhere else it is the caption, so a transcript says what was there
+instead of carrying a base64 blob.
+
+```js title="chart.mjs"
+import { readFile } from 'node:fs/promises';
+
+import { image } from 'paratext';
+
+const bytes = await readFile(new URL('./chart.mjs', import.meta.url)); // any bytes; a PNG in practice
+console.log(image(bytes, { caption: '[chart: build times, last 30 days]', width: '40' }));
+```
+
+```text title="node chart.mjs"
+[chart: build times, last 30 days]
+```
+
+paratext never reads the file itself — it has no `node:fs` dependency (D-030) — so the read,
+and its error handling, are yours. A good caption is the sentence a screen reader or an agent
+needs: what the image shows, not its filename.
+
+For term-img's API over the same bytes, with its own terminal table and its throw on an
+unsupported terminal, use `paratext/term-img` ([Links and images](/docs/guides/links-and-images)).

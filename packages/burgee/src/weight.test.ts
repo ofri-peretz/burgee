@@ -392,10 +392,13 @@ const RULES: Record<string, EntryRule> = {
   // 9,130 on 2026-09-27 for D-151: the root's help names `--schema` (clispec.dev's
   // `help-mentions-schema`), one row and the root-or-not choice. Measured 9,085 (+174).
   // Measured 8,570 (-503) on 2026-09-28: the word wrap is `linegauge`'s `wrap`, not a loop here.
+  // 2026-09-28: `colorFor` is roundel's `colorLevel`, so `roundel/policy` (1,972 B, reaching
+  // nothing) leaves the denied list for this entry alone. It is the lazy help chunk: the core
+  // path, which still denies `roundel` by name, does not move. Measured 8,512 (-58).
   "./help": {
-    allow: ["linegauge"],
+    allow: ["linegauge", "roundel/policy"],
     budget: 9_130,
-    denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
+    denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel/tokens", "roundel/theme", "roundel/chalk", "flagstaff", "caique"],
   },
   // The MCP server. It reaches the schema and the manifest, because a tool list *is* the
   // schema, and nothing outside the package. `invoke` is injected, which is what keeps the
@@ -533,10 +536,22 @@ const RULES: Record<string, EntryRule> = {
     // grows 25,044 -> 25,744 B, the walk's symlink and depth guards it did not have.
     allow: ["seniority/find-up"],
     // 60,000 on 2026-09-23 with D-140 and #521 on top of main's A29 exports. Measured 59,931.
+    // 61,300 on 2026-09-27 for **1,345 bytes**: meow's suite 132 → 146 / 148, level with its
+    // control. Unknown flags checked as tokens (`help`/`version as an unknown flag`, `commands do
+    // not report child flags`), help built as meow builds it (`help as a known flag`, `spawn cli
+    // and show help screen`), `--help`/`--version` answered only alone (`help`/`version with custom
+    // config`, `disabled autoVersion and autoHelp`), and the declaration checks meow makes first
+    // (`choices must be of the same type`, `throws if flags option is null`, `throws if default
+    // is null`), plus `-F` casing, an empty required string, and lazy `pkg`. Measured 61,276.
     // 61,700 on 2026-09-27 for the parser's flag shapes in linear time (`yargs/flag-shapes.js`,
     // 1,880 B, replacing five regexes one of which was cubic) and meow refusing `input: null`
     // as meow does. Measured 61,592.
-    budget: 61_700,
+    // 63,000 on 2026-09-28: both of the above together, #665's 61,592 plus meow's 1,345 — the two
+    // landed in parallel, so the budget is #665's 61,700 plus this change's own 1,300 and no more.
+    // Measured 62,937 locally; 63 B clear of the ~32 B CI reads heavier.
+    // 63,500 the same day for **504 bytes**: help trimming as index scans instead of two regexes
+    // CodeQL flags as polynomial on a run of newlines or tabs (#99, #100). Measured 63,441.
+    budget: 63_500,
     denied: ["index.js", "execute.js", "help.js", "mcp.js", "schema.js", "completions.js", "plugin.js"],
   },
   "./contrast": {

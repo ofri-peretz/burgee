@@ -1,0 +1,54 @@
+---
+title: FAQ
+description: "Short answers about roundel — why nothing is coloured, NO_COLOR, FORCE_COLOR, --no-color, CI logs, screen readers, contrast, chalk and CommonJS — each with where to read more."
+---
+
+## Why is nothing coloured?
+
+Either the program never called `fly()` — tokens are plain until it does — or the policy
+decided level 0: a pipe nobody asked to colour, `NO_COLOR`, `CLI_ACCESSIBLE`, `--json`, or a
+terminal that reports no colour through `TERM` or `COLORTERM`. `colorLevel(rt)` tells you
+which answer it reached ([Colour levels](/docs/guides/colour-levels)).
+
+## How do I get colour in a CI log?
+
+Export `FORCE_COLOR=true`. The run gets its CI vendor's level — truecolor on GitHub Actions —
+and nobody else's pipe changes. `FORCE_COLOR=2` pins it at 256 colours.
+
+## `NO_COLOR` and `FORCE_COLOR` are both set. Which wins?
+
+`NO_COLOR`, always. Then `FORCE_COLOR=0`, then a `--color` flag, then any other
+`FORCE_COLOR`. (Node itself prints a warning when both variables are set.)
+
+## Does `--no-color` work if my shell exports `FORCE_COLOR`?
+
+Yes, when the program hands the policy its `argv`: a flag typed for this run beats an ambient
+`FORCE_COLOR`. chalk does it the other way round, which is one of the differences on
+[Compatibility](/docs/drop-ins#known-differences).
+
+## What does a screen-reader user get?
+
+With `CLI_ACCESSIBLE=1`, mode `accessible` — components write their text form once per state
+and never redraw — and colour level 0, unless they ask for colour explicitly.
+
+## My terminal supports truecolor, but I get 256 colours.
+
+The policy reads `COLORTERM=truecolor` for level 3. chalk also recognises some terminals by
+name; roundel does not. Set `COLORTERM=truecolor` or pass `--color=16m`.
+
+## Why did `fly()` throw?
+
+A hex token in the theme reads below 4.5:1 against the declared `ground`, at truecolor or at the
+256-colour colour it becomes. The message names the token and the ratio; `audit()` shows every
+row ([Themes and contrast](/docs/guides/themes)).
+
+## Can I keep chalk's API?
+
+Yes: `import chalk from 'roundel/chalk'`, graded by chalk's own suite. Tokens are the part that
+adds meaning, and you can move to them a file at a time
+([Incremental migration](/docs/recipes/incremental-migration)).
+
+## Can I use it from CommonJS?
+
+Yes, on Node 20.19+ and 22.13+: every entry is ESM with a `default` condition, so
+`require('roundel/tokens')` loads it through `require(esm)`.

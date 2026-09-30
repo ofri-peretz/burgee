@@ -1,0 +1,57 @@
+---
+title: FAQ
+description: "Short answers about seniority — the order, YAML, numbers from the environment, discovery, dotenv's vault, testing, plugins and CommonJS — each with where to read more."
+---
+
+## Can I change the precedence order?
+
+No. It is `flag`, `env`, `config`, `package`, `default`, and it is the same in every program,
+so a user or an agent can reason about it from outside. A plugin can add a source between two
+of them. [Precedence](/docs/guides/precedence).
+
+## Why is my default beating the environment?
+
+Because your argument parser filled it into `flags`. Pass only what the user typed as `flags`,
+and put defaults in the spec's `default`, which ranks last.
+
+## Does it read YAML?
+
+Not without a parser you pass: `loaders: { '.yaml': yaml.load }`. seniority bundles no format
+parser, and that is a product decision. It is also why cosmiconfig's suite grades it 186 of 243.
+[Config files](/docs/guides/config-files#loaders-bring-your-own-format).
+
+## A number from the environment comes out as a string.
+
+The environment is text, and `resolve` converts only booleans. `validate` reports it, naming
+the variable. [Validation](/docs/guides/validation).
+
+## Why wasn't my `APP_SOMETHING` variable picked up?
+
+The environment reaches only options the running command declares, under the prefix in
+SCREAMING_SNAKE. `logLevel` reads `APP_LOG_LEVEL`, not `APP_LOGLEVEL`.
+[Environment variables](/docs/guides/environment).
+
+## Does discovery walk up to parent directories?
+
+Only with `upward: true`, and then only as far as `stopAt`, the filesystem root, or 64
+directories. [Config files](/docs/guides/config-files#walking-upward-bounded) and
+[Config in a monorepo](/docs/recipes/monorepo).
+
+## Does `seniority/dotenv` support `.env.vault`?
+
+No. The encrypted vault, `decrypt` and the dotenvx features are declined; they are most of the
+35 assertions of dotenv's suite it does not pass. [Compatibility](/docs/drop-ins).
+
+## How do I test my configuration handling?
+
+Pass the environment and the config data to `resolve` as arguments; nothing is read from the
+process. [Testing configuration](/docs/recipes/testing-config).
+
+## Can a plugin override what the user typed?
+
+No. A source's `rank` must be strictly between the flag's and the default's, and
+`npx seniority check` refuses anything else before it ships. [Source plugins](/docs/guides/plugins).
+
+## Can I use it from CommonJS?
+
+Yes, on Node 20.19+ and 22.13+, through `require(esm)`.

@@ -1,0 +1,133 @@
+---
+title: Plugins
+description: "Add spinners, borders, glyphs, colour tokens and components as one plain object, validated at register() and checked before it ships with flagstaff check."
+---
+
+A flagstaff plugin is one plain object, validated against
+[`schema.json`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/schema.json) —
+the same file that ships in the package as `flagstaff/schema.json` — and registered once. The
+built-in spinners, borders and glyphs are a plugin of exactly this shape, registered through
+the same door, so the built-ins cannot use anything a plugin cannot.
+
+## The shape
+
+```js title="nyan.mjs"
+export default {
+  name: 'nyan',
+  spinners: { nyan: { frames: ['≋', '≈', '~'], interval: 80, static: '~nyan~' } },
+};
+```
+
+| key | what it contributes |
+| :-- | :-- |
+| `name` | the plugin's name, in `flagstaff check` and the gallery |
+| `spinners` | `{ frames, interval, static }` per style |
+| `borders` | the eight characters of a box border, in cli-boxes' shape |
+| `glyphs` | `ok`, `fail`, `warn`, `info`, `running` — change one and every built-in that draws it changes |
+| `tokens` | a roundel colour theme, as `#rrggbb` values |
+| `components` | `{ static, frame?, interval?, sample? }` per component |
+| `contract` | the plugin contract version, `1`; a newer one is refused with the upgrade named |
+
+Keys another package in the family reads may sit in the same object; flagstaff keeps only its
+own.
+
+## Registering
+
+```js title="use-nyan.mjs"
+import { hoist } from 'flagstaff/loop';
+import { register } from 'flagstaff/plugin';
+import { spinner } from 'flagstaff/spinner';
+
+import nyan from './nyan.mjs';
+import { json, rt } from './rt.mjs';
+
+register(nyan);
+hoist(spinner('nyan'), rt, { text: 'working' }, { json }).lower({ text: 'done', status: 'ok' });
+```
+
+```text title="node use-nyan.mjs"
+~nyan~ working
+✔ done
+```
+
+A later registration of the same name replaces the earlier one, which is how you override a
+built-in. `register()` is the **only** way in: `registered()` hands back a copy, so setting or
+clearing what it returns changes nothing, and what was registered is frozen, so editing your
+object afterwards does not change the registry either
+([`plugin.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/plugin.test.ts)).
+
+## Refusals
+
+A plugin the schema refuses throws a `PluginError` with a `code` and a `fix`. The one mistake
+made on purpose — an animation with no text form — has its own:
+
+```js title="no-static.mjs"
+import { register } from 'flagstaff/plugin';
+
+try {
+  register({ name: 'bad', spinners: { bad: { frames: ['a', 'b'], interval: 80 } } });
+} catch (error) {
+  console.log(`${error.code}: ${error.message}`);
+  console.log(`fix: ${error.fix}`);
+}
+```
+
+```text title="node no-static.mjs"
+E_NO_STATIC_PROJECTION: bad has no static projection
+fix: give it a `static`: the text a pipe, an agent or a screen reader gets instead of the animation
+```
+
+Every refusal any flagstaff surface prints is one of eight codes — `E_PLUGIN_SCHEMA`,
+`E_NO_STATIC_PROJECTION`, `E_PLUGIN_CONTRACT`, `E_UNKNOWN_SPINNER`, `E_UNKNOWN_BORDER`,
+`E_NO_CONTRIBUTION`, `E_COMPONENT_THREW`, `E_UNKNOWN_KIND` — and a fuzz test hands `register()`
+arbitrary input to hold that it either registers or refuses with a code and a fix, never an
+unhandled throw
+([`plugin-fuzz.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/src/plugin-fuzz.test.ts)).
+
+## `flagstaff check`
+
+Before a plugin ships, render it. `flagstaff check` loads the file, validates it, and prints
+every contribution in all five modes side by side, escapes made visible:
+
+```text title="npx flagstaff check nyan.mjs"
+nyan — 1 spinner, 0 borders, 0 components, 0 glyphs, 0 tokens
+spinner nyan
+  tty         ␛[?25l≋ working␛[1G␛[0J≈ working␛[1G␛[0J~ working␛[1G␛[0J≋ working␛[1G␛[0J✔ done⏎ ␛[?25h
+  pipe        ~nyan~ working⏎ ✔ done⏎ 
+  ci          ~nyan~ working⏎ ✔ done⏎ 
+  json        {"event":"spinner","state":{"text":"working"}}⏎ {"event":"spinner","state":{"text":"done","status":"ok"}}⏎ 
+  accessible  ~nyan~ working⏎ ✔ done⏎ 
+nyan: ok
+```
+
+It opens with a census, so a misspelled key shows as `0 spinners`, and closes with the verdict,
+so `ok` is never printed before the rendering that justifies it. A refusal exits 1 with the code
+and the fix; a plugin that validates but contributes nothing flagstaff can render is
+`E_NO_CONTRIBUTION`, and a component whose `static` throws is `E_COMPONENT_THREW`, naming the
+modes it broke in.
+
+## Components and `sample`
+
+A component contributed by a plugin may declare `sample: { running, done }`, the two states
+`flagstaff check` and the docs gallery show it with. The loop never reads it. Without one, both
+assume `{ phase: 'running' }` and `{ phase: 'done' }` and say so in the output, rather than
+rendering an invented state as if it were yours.
+
+## Bringing a corpus
+
+cli-spinners' styles and cli-boxes' borders are not bundled. `flagstaff/import` turns the copy
+you already depend on into an ordinary plugin, through the same `register()` and schema:
+
+```js
+import cliSpinners from 'cli-spinners';
+import { fromCliSpinners } from 'flagstaff/import';
+import { register } from 'flagstaff/plugin';
+import { spinner } from 'flagstaff/spinner';
+
+register(fromCliSpinners(cliSpinners));
+spinner('moon');
+```
+
+cli-spinners has no text form for its styles, so `fromCliSpinners` gives each one `…`, or
+whatever your `staticFor(name, spinner)` returns. `fromCliBoxes(cliBoxes)` does the same for
+borders; their shape is already flagstaff's.
