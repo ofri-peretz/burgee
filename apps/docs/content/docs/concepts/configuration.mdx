@@ -72,7 +72,9 @@ and they win.
 `{ source, location?, line? }`; `candidates[option]` is every source that was consulted, set or
 not. `explain(option, resolution)` renders that record as the text burgee prints for
 `--explain <option>`, and the same provenance rides in the `--json` envelope as
-`meta.provenance`. The text and the record are one function (``the human text `explain`
+`meta.provenance`. A flag's `location` is the flag as it was typed: `--dry-run`, `-n` or
+`--no-color`, never the camelCase key (`a flag provenance is the flag the caller typed` in
+[`env.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/env.test.ts)). The text and the record are one function (``the human text `explain`
 prints IS the record rendered — same function, same bytes`` in
 [`explain.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/seniority/src/explain.test.ts)).
 
