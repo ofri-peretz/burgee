@@ -1,8 +1,22 @@
 /**
  * Agent detection, not just `isTTY` (N12). An agent may well have a terminal; what it
- * does not have is a person. Non-interactive is the default under a detected agent;
- * `FORCE_TTY=1` overrides. The variables mirror what `@vercel/detect-agent` probes; the
- * list is data, and `AI_AGENT` is the generic escape hatch any agent can set.
+ * does not have is a person. `FORCE_TTY=1` overrides. `AI_AGENT` is the generic escape
+ * hatch any agent can set.
+ *
+ * The list is the five variables `roundel/terminal`'s `AGENTS` holds, in the same order,
+ * and it grows by one only for a variable that **uniquely** identifies an agent: set by the
+ * agent, and never in a terminal a person types in. `CURSOR_TRACE_ID` fails that test — Cursor
+ * sets it in every integrated terminal — so it is not here and must not be
+ * (D-20260930-one-interactive-rule).
+ *
+ * Two answers come from here, and they are about different streams:
+ *
+ *   - `agent` is `ctx.agent`: which agent, if any, the environment names.
+ *   - `interactive` is the **output** side: stdout is a terminal a person is reading, not an
+ *     agent's capture. Help's colour reads it (O2, `colorFor`).
+ *
+ * Whether a person may be **asked** is not this function's answer. `ctx.interactive` is
+ * roundel's `interactive()` — a terminal on stdin, no `CI`, no agent — computed in `ctx.ts`.
  */
 export interface AgentProbe {
   /** Environment variable whose presence names the agent. */
@@ -21,7 +35,10 @@ export const AGENT_PROBES: readonly AgentProbe[] = [
 export interface Detection {
   /** The agent named by the environment, if any; `AI_AGENT`'s own value when it names one. */
   agent?: string;
-  /** Prompts and other blocking interaction are allowed. */
+  /**
+   * stdout is a terminal and no agent is named, or `FORCE_TTY=1`: the output side, which help's
+   * colour reads. Whether to *ask* is `ctx.interactive`, roundel's rule over stdin and `CI`.
+   */
   interactive: boolean;
 }
 

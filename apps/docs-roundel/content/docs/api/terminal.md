@@ -55,6 +55,12 @@ The variables whose presence says an agent is driving the process — the list
 `burgee/src/agent.ts` probes (N12), after `@vercel/detect-agent`. `AI_AGENT` is the generic
 one any agent can set.
 
+A variable joins only when it **uniquely** identifies an agent: the agent sets it, and no
+terminal a person types in does. `CURSOR_TRACE_ID` fails that — Cursor sets it in every
+integrated terminal — and taking it would stop every person in Cursor from being asked
+anything (D-20260930-one-interactive-rule). This is the family's one rule for "may a person
+be asked?": burgee's `ctx.interactive` and caique's prompts both call `interactive` below.
+
 ```ts
 const AGENTS: readonly ["AI_AGENT", "CLAUDECODE", "CURSOR_AGENT", "CODEX_THREAD_ID", "GEMINI_CLI"];
 ```
