@@ -55,9 +55,9 @@ B1's transcripts (#775, `b1-transcripts`, run 36748092295) showed where burgee l
 3. **Help advertises the agent surfaces.** Every runnable command lists
    `--explain <option>  where an option's value came from` among its global options, because
    every runnable command parses it (`toParseConfig`), with or without config discovery. The
-   root help ends with one paragraph: *For agents: --schema prints every command, option,
+   root help ends with one paragraph: `For agents: --schema prints every command, option,
    default and env var as JSON, in one call. --json prints one envelope on stdout, and
-   --explain <option> says where a value came from.*
+   --explain <option> says where a value came from.`
 4. **Hints name flags, not `<program> --schema`.** A program is often run under a name other
    than the one it declares: `node cli.mjs`, an alias, a wrapper, or B1's `mytool` shim over a
    program named `demo`. The first local run of this change printed ``run `demo --schema` ``.
