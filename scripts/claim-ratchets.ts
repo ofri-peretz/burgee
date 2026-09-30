@@ -23,8 +23,9 @@
  * It writes nothing. Lowering is one appended step in `.sdlc/bands/claim-ratchets.json` (its
  * ceiling, date, D-row and measurement) plus `npm run readme:gates`; the lock checks the rest.
  *
- * B5's runtime ratchets (`.sdlc/bands/runtime-ratchets.json`) are printed after them: the largest
- * `runtime-ratio` median of the last `observations` CI runs, times `headroom`, rounded up to `step`.
+ * B5's runtime ratchets (`.sdlc/bands/runtime-ratchets.json`) are printed after them, by the same
+ * `ciCeiling` rule as the cold-start claim: max(mean + `sigmas` sd, max) over the last
+ * `observations` CI runs, up to `step`. A spec bar (`bar`) is reported and never proposed higher.
  *
  *   npm run ratchets:propose            # bundle rows need a build: `npx turbo run build`
  */
@@ -127,16 +128,21 @@ function propose(id: string, ratchet: Ratchet): Proposal {
 export function proposeRuntime(id: string, ratchet: RuntimeRatchet, dir: string = CI_RESULTS): Proposal | undefined {
   const pair = RUNTIME_PAIRS.find((p) => p.id === id);
   if (pair === undefined) throw new Error(`${id} is ratcheted but benchmarks/axes/runtime.ts measures no such pair`);
-  const { observations, headroom, step } = ratchet.derive;
+  const { observations, sigmas, step } = ratchet.derive;
   const series = ciSeries(`${pair.id} ÷ ${pair.host}`, 'runtime-ratio', observations, dir);
   if (series.length === 0) return undefined;
-  const worst = Math.max(...series.map((s) => s.value));
+  const { proposed, mean, sd, max } = ciCeiling(
+    series.map((s) => s.value),
+    sigmas,
+    step,
+  );
   return {
     id,
     ceiling: ratchet.ceiling,
     measured: series.at(-1)?.value ?? Number.NaN,
-    proposed: ceilToStep(worst * headroom, step),
-    basis: `last ${String(series.length)} CI runs (${series[0]?.file ?? ''} .. ${series.at(-1)?.file ?? ''}): max ${f(worst)} × ${String(headroom)} up to ${String(step)}; target ${String(ratchet.target)}`,
+    // A spec bar stays the bar: its noise is cut with rounds, never with a higher ceiling.
+    proposed: ratchet.bar === undefined ? proposed : Math.min(proposed, ratchet.ceiling),
+    basis: `last ${String(series.length)} CI runs (${series[0]?.file ?? ''} .. ${series.at(-1)?.file ?? ''}): mean ${f(mean)}, sd ${f(sd)}, max ${f(max)}; max(mean + ${String(sigmas)} sd, max) up to ${String(step)}; target ${String(ratchet.target)}${ratchet.bar === undefined ? '' : `; a spec bar (${ratchet.bar})`}`,
   };
 }
 
