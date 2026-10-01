@@ -20,13 +20,13 @@ import { type Package } from './pkg.js';
 
 /** The slice of the engine's `Io` a surface reads. */
 export interface SurfaceIo {
-  out: { write: (s: string) => unknown };
+  /** `isTTY` decides whether help is coloured (O2): the output side, never whether to ask (N12). */
+  out: { write: (s: string) => unknown; isTTY?: boolean };
   env: Record<string, string | undefined>;
   width: number;
   stdin: NodeJS.ReadableStream;
   /** The package.json owning the entry file, read once (V4). */
   pkg: Package | undefined;
-  tty: boolean;
 }
 
 /** What a surface needs back from the engine: precedence for `config explain`, a run for `--mcp`. */
@@ -86,7 +86,7 @@ function rootNode(manifest: Manifest, root: string[]): CommandNode {
 // declare, so a `--no-color` never reaches it there.
 const renderHelp = async (manifest: Manifest, node: CommandNode, io: SurfaceIo, argv: readonly string[] = []): Promise<string> => {
   const help = await import('./help.js');
-  return help.renderHelp(manifest, node, { width: io.width, color: help.colorFor(io.env, detectAgent(io.env, io.tty).interactive, argv) });
+  return help.renderHelp(manifest, node, { width: io.width, color: help.colorFor(io.env, detectAgent(io.env, io.out.isTTY === true).interactive, argv) });
 };
 
 /**

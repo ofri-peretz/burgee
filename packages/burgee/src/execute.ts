@@ -10,7 +10,6 @@ import { parseArgs } from 'node:util';
 
 import { type Layers, type Provenance, resolve as resolveLayers } from 'seniority/precedence';
 
-import { detectAgent } from './agent.js';
 import { beforeTerminator, isJsonFlag, mayServe } from './argv.js';
 import { checkCommand } from './definition.js';
 import { ExitCode, isExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
@@ -162,11 +161,11 @@ export function defineProgram(program: Program): Manifest {
 
 export interface RunOptions {
   argv?: string[];
-  /** Read only by `--mcp`, which serves JSON-RPC over it. */
+  /** Read by `--mcp`, which serves JSON-RPC over it; its `isTTY` is whether a person may be asked (N12). */
   stdin?: NodeJS.ReadableStream;
   /** The environment env-bound options read from. Injected by the harness; the process's own otherwise. */
   env?: Record<string, string | undefined>;
-  /** `columns` is read when present, so help wraps to the terminal (H3); `isTTY` feeds agent detection (N12). */
+  /** `columns` is read when present, so help wraps to the terminal (H3); `isTTY` decides whether help is coloured (O2). */
   stdout?: { write: (s: string) => unknown; columns?: number; isTTY?: boolean };
   stderr?: { write: (s: string) => unknown };
   /** Receives the E1 code. The default calls process.exit; an injected one may simply record it. */
@@ -388,7 +387,8 @@ interface Resolved {
   name: string;
 }
 interface Io {
-  out: { write: (s: string) => unknown };
+  /** `isTTY` is read by help's colour only (O2), in `surfaces.ts`: an output decision, never whether to ask. */
+  out: { write: (s: string) => unknown; isTTY?: boolean };
   err: { write: (s: string) => unknown };
   env: Record<string, string | undefined>;
   exit: (code: number) => void;
@@ -397,8 +397,6 @@ interface Io {
   cwd: string;
   /** The package.json owning the entry file, read once (V4). */
   pkg: Package | undefined;
-  /** Whether stdout is a terminal — one input to N12, never the whole answer. */
-  tty: boolean;
   /** Where `ctx.onExit` registers, and what `leave` runs before the exit (E5, O5). */
   teardown: Teardown;
 }
@@ -479,11 +477,11 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   requirePositionals(node, positionals);
   warnDeprecated(node, io);
   await manifest.fire('preRun', name, values);
-  const detection = detectAgent(io.env, io.tty);
-  const onExit = (handler: () => void | Promise<void>, label?: string): (() => void) => io.teardown.add(handler, label);
   // S4's check is imported only when a `-` was typed (M2).
   const stdin = positionals.includes('-') ? (await import('./stdin-dash.js')).stdinFor(node, positionals, io.stdin) : {};
-  const data = await node.run({ options: values, positionals, passthrough, ...stdin, env: io.env, exit: ctxExit, onExit, actionRequired, ...detection });
+  // `env`, `onExit`, `agent` and `interactive` come from `ctx.js`, a chunk loaded on this path only:
+  // whether a person may be asked is roundel's rule, over stdin (D-20260930-one-interactive-rule).
+  const data = await node.run({ options: values, positionals, passthrough, ...stdin, exit: ctxExit, actionRequired, ...(await import('./ctx.js')).ctxOf(io) });
   await manifest.fire('postRun', name, values);
   const changed = changedOf(node, data);
   const selected = fields === undefined || select === undefined ? data : select.selectFields(data, fields);
@@ -569,7 +567,6 @@ function ioOf(opts: RunOptions): Io {
     stdin: opts.stdin ?? host.stdin,
     cwd: opts.cwd ?? host.cwd(),
     pkg: nearestPackage(dirname(opts.entry ?? host.argv[1] ?? host.cwd())),
-    tty: out.isTTY === true,
     // An injected `exit` is the whole definition of "this run does not own the process":
     // the harness, the MCP loop and every façade test pass one, and none of them may have
     // nine listeners attached to the runner's own process on their behalf.

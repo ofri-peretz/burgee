@@ -1,5 +1,28 @@
 # benchmarks
 
+## 0.0.10
+
+### Patch Changes
+
+- [#780](https://github.com/ofri-peretz/burgee/pull/780) [`c901047`](https://github.com/ofri-peretz/burgee/commit/c90104751a84e46b8bfd4d007a90c40d3f88658c) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - B5 ceilings are derived from each pair's CI spread, max(mean + 3σ, largest reading), and the derivation is written beside each ceiling. Spec bars keep their value and run more rounds.
+- Updated dependencies [[`1857ff6`](https://github.com/ofri-peretz/burgee/commit/1857ff65ca0e1b0b5686480c1a37dc8834bf688b), [`1857ff6`](https://github.com/ofri-peretz/burgee/commit/1857ff65ca0e1b0b5686480c1a37dc8834bf688b), [`08976ae`](https://github.com/ofri-peretz/burgee/commit/08976ae734f0494720e0dce06dd850bf7177766f)]:
+  - bellpull@0.5.1
+  - linegauge@1.0.2
+  - burgee@0.16.0
+  - roundel@0.6.2
+
+## 0.0.9
+
+### Patch Changes
+
+- Updated dependencies [[`d901bcb`](https://github.com/ofri-peretz/burgee/commit/d901bcb082af3ce748aba39dd18944b3efa769ea), [`b44f426`](https://github.com/ofri-peretz/burgee/commit/b44f426621ed799700cceda8c979de8f759f56b7), [`b69d513`](https://github.com/ofri-peretz/burgee/commit/b69d5136ac6a49e6bf39178f73fbd89f3f4c2653), [`6195b99`](https://github.com/ofri-peretz/burgee/commit/6195b99344a21b4a05ab100fc38358deab229ce8), [`24300f4`](https://github.com/ofri-peretz/burgee/commit/24300f42455836e73ba36daaf400c4ab2f8d1893)]:
+  - burgee@0.15.0
+  - paratext@0.8.0
+  - compat-oracle@0.1.4
+  - roundel@0.6.1
+  - caique@0.6.4
+  - flagstaff@1.0.3
+
 ## 0.0.8
 
 ### Patch Changes

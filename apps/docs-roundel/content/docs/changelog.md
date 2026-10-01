@@ -3,6 +3,34 @@ title: Changelog
 description: "Every release of roundel, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 0.6.2
+
+### Patch Changes
+
+- [#783](https://github.com/ofri-peretz/burgee/pull/783) [`08976ae`](https://github.com/ofri-peretz/burgee/commit/08976ae734f0494720e0dce06dd850bf7177766f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `ctx.interactive` is roundel's `interactive()`, the family's one rule for whether a person may be asked: a terminal on **stdin**, no `CI`, and no detected agent, with `FORCE_TTY=1` over all three. caique's prompts already ask it, so a handler and a prompt now agree about the same shell.
+
+  It used to read stdout and ignore `CI`. Three things change for a handler that reads it:
+
+  - Under a non-empty `CI` it is `false`, even on a pseudo-terminal.
+  - With stdin piped it is `false`, even when stdout is a terminal.
+  - With stdout piped and stdin a terminal (`tool deploy | tee log`) it is `true`, because an answer can still be typed.
+
+  burgee loads `roundel/terminal` in a chunk of its own (`ctx.js`, 330 B), only on the path that runs a handler. Help, `--version`, `--schema`, `--mcp` and failures never load it. The root entry shrinks (35,629 → 35,437 B on disk), and so does the bundled initial load of `import { run } from 'burgee'` (24,297 → 24,278 B). `ctx.agent`, `detectAgent`, `AGENT_PROBES` and help's colour, which reads stdout, are unchanged. `runBurgee` forwards `tty` onto stdin too, so `tty: true` is still a terminal a person can answer on.
+
+  The agent variables stay at five (`AI_AGENT`, `CLAUDECODE`, `CURSOR_AGENT`, `CODEX_THREAD_ID`, `GEMINI_CLI`). One joins only when it uniquely identifies an agent, so `CURSOR_TRACE_ID`, which Cursor sets in every integrated terminal, never will. roundel's `AGENTS` documents that rule, and a test pins that a person in Cursor is asked.
+
+## 0.6.1
+
+### Patch Changes
+
+- [#770](https://github.com/ofri-peretz/burgee/pull/770) [`6195b99`](https://github.com/ofri-peretz/burgee/commit/6195b99344a21b4a05ab100fc38358deab229ce8) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `roundel/chalk` is faster.
+
+  - A builder keeps the escapes it opens and closes with, built one pair at a time as its chain grows, instead of rebuilding them on every call.
+  - It reads its links as kept properties rather than through a Proxy trap on every access, and it skips the re-open and line-break passes a string doesn't need.
+  - In B5, ours ÷ chalk on the 10k-string workload went from 3.55× to 1.17×.
+  - `roundel/tokens` exports the pieces: `painter(at, pair)`, `painted(painter, text)` and `UNPAINTED`. `sgr(chain, text)` is unchanged.
+  - `./chalk` stays under chalk 6.0.0's own source size (9,361 of 9,370 B).
+
 ## 0.6.0
 
 ### Minor Changes

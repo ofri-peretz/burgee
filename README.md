@@ -266,20 +266,20 @@ single local run and unconfirmed**:
 
 | Claim | Gate | Measured | |
 | :--- | :--- | ---: | :--- |
-| the core entry point is under 52 KB bundled | `core-under-52kb-bundled` | 24,297 bytes | ✅ met |
-| `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 0.975× | ✅ met |
-| `burgee` is lighter than `cac` **plus what a cac user installs to match it** | `lighter-than-cac-at-parity` | 0.249× | ✅ met |
+| the core entry point is under 52 KB bundled | `core-under-52kb-bundled` | 24,278 bytes | ✅ met |
+| `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 0.974× | ✅ met |
+| `burgee` is lighter than `cac` **plus what a cac user installs to match it** | `lighter-than-cac-at-parity` | 0.248× | ✅ met |
 | `burgee/commander` is lighter than `commander` **plus the same** | `lighter-than-commander-at-parity` | 0.482× | ✅ met |
 | `burgee/yargs` is lighter than `yargs` **plus the same** | `lighter-than-yargs-at-parity` | 0.546× | ✅ met |
 | `burgee` starts within 1.6× of `cac`, the lightest framework in the landscape (ratchet; lowered as it speeds up) | `cold-start-at-or-below-cac` | 1.443× | ✅ met |
 | `burgee/commander` stays within 1.565× of `commander` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-commander` | 1.559× | ✅ met |
-| `burgee` stays within 2.35× of `cac` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-cac` | 2.325× | ✅ met |
+| `burgee` stays within 2.35× of `cac` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-cac` | 2.323× | ✅ met |
 | an agent spends ≥40% fewer tokens per task | `agent-tokens-40pct` | 0.601× (one local run, D-147) | ❌ **not met** |
 | an agent takes ≥30% fewer turns per task | `agent-turns-30pct` | 0.600× (one local run, D-147) | met locally, **unconfirmed** — no CI run yet |
 
 ### The two ways to ask the bundle question, and why both are here
 
-`burgee` is 24,297 bundled bytes and `cac` is 10,452, so the bare row reads **2.325× and it
+`burgee` is 24,278 bundled bytes and `cac` is 10,452, so the bare row reads **2.323× and it
 stays on this page**. It is also not the choice anyone makes. A program that picks `cac` and
 then wants its config file read, its shutdown bounded on every path out, and its cursor handed
 back on Ctrl-C installs three more packages — and *that* is what one `import` of burgee competes
@@ -287,9 +287,9 @@ with:
 
 | | the incumbent alone | + what you add to match burgee | ours |
 | :--- | ---: | ---: | ---: |
-| `cac` | 10,452 B | **97,711 B** | 24,297 B |
+| `cac` | 10,452 B | **97,711 B** | 24,278 B |
 | `commander` | 39,084 B | **126,354 B** | 60,913 B |
-| `yargs` | 111,093 B | **198,210 B** | 108,302 B |
+| `yargs` | 111,093 B | **198,210 B** | 108,260 B |
 
 The additions are `cosmiconfig` (find and load a config file), `exit-hook` (run cleanup on
 every path out, including a signal) and `restore-cursor` (hand the terminal back), bundled
@@ -312,7 +312,7 @@ more than finding a package to charge for them.
 
 `cold-start-at-or-below-cac` and the two bare weight rows began as **≤ 1** and have a
 measured floor above it, and it is worth saying plainly rather than leaving as a to-do.
-`cac` is 10,452 bytes of parser and help renderer; burgee's 24,297 is that plus coercion,
+`cac` is 10,452 bytes of parser and help renderer; burgee's 24,278 is that plus coercion,
 choices, relations, Standard Schema, configuration precedence, signal-bound shutdown, terminal
 restore and agent detection.
 Our `commander/command.js` is 33,487 bundled against commander's 27,226, and the front-end also
@@ -408,16 +408,16 @@ the number, 0 against the dozen.
 
 | | Layer | Package | What the layer owns | Replaces | Status |
 | :-- | :-- | :-- | :-- | :-- | :-- |
-| **Engine** | argv, dispatch, manifest | [`burgee`](./packages/burgee/) | one declaration projected to help, `--json`, `--schema`, MCP, completions, types | commander · yargs | released — `burgee@0.14.3` |
-| **Output stack** | colour | [`roundel`](./packages/roundel/) | one output policy, nine semantic tokens, a contrast-checked theme, and chalk's API over them | chalk · picocolors | released — `roundel@0.6.0` |
-| | render | [`flagstaff`](./packages/flagstaff/) | frame loop with a static projection; plugin host for spinners, progress, boxes, tables | ora · log-update · boxen · cli-table3 | released — `flagstaff@1.0.2` |
-| | prompt | [`caique`](./packages/caique/) | prompts that are flags first, and never hang | inquirer · clack · prompts | released — `caique@0.6.3` |
+| **Engine** | argv, dispatch, manifest | [`burgee`](./packages/burgee/) | one declaration projected to help, `--json`, `--schema`, MCP, completions, types | commander · yargs | released — `burgee@0.16.0` |
+| **Output stack** | colour | [`roundel`](./packages/roundel/) | one output policy, nine semantic tokens, a contrast-checked theme, and chalk's API over them | chalk · picocolors | released — `roundel@0.6.2` |
+| | render | [`flagstaff`](./packages/flagstaff/) | frame loop with a static projection; plugin host for spinners, progress, boxes, tables | ora · log-update · boxen · cli-table3 | released — `flagstaff@1.0.3` |
+| | prompt | [`caique`](./packages/caique/) | prompts that are flags first, and never hang | inquirer · clack · prompts | released — `caique@0.6.4` |
 | | screen | [`controlroom`](./packages/controlroom/) | full-screen, keyboard-driven screens over flagstaff's loop, each with a static projection | ink · @inkjs/ui | reserved — `controlroom@0.0.1`, not usable yet |
-| **Foundation** | text | [`linegauge`](./packages/linegauge/) | measure, wrap, truncate and slice styled text without the edge fraying | string-width · wrap-ansi · strip-ansi · slice-ansi | released — `linegauge@1.0.1` |
-| | config | [`seniority`](./packages/seniority/) | precedence across flag, env, project file, home file and default — with provenance | cosmiconfig · dotenv · rc | released — `seniority@0.6.5` |
-| | process | [`bellpull`](./packages/bellpull/) | run a subprocess; resolve the executable; return a result every caller can read | execa · cross-spawn · which | released — `bellpull@0.5.0` |
+| **Foundation** | text | [`linegauge`](./packages/linegauge/) | measure, wrap, truncate and slice styled text without the edge fraying | string-width · wrap-ansi · strip-ansi · slice-ansi | released — `linegauge@1.0.2` |
+| | config | [`seniority`](./packages/seniority/) | precedence across flag, env, project file, home file and default — with provenance | cosmiconfig · dotenv · rc | released — `seniority@0.7.0` |
+| | process | [`bellpull`](./packages/bellpull/) | run a subprocess; resolve the executable; return a result every caller can read | execa · cross-spawn · which | released — `bellpull@0.5.1` |
 | | lifecycle | [`closeout`](./packages/closeout/) | exit handlers that run once on every path, terminal restore, bounded deadline | signal-exit · exit-hook · restore-cursor | released — `closeout@0.6.1` |
-| | terminal | [`paratext`](./packages/paratext/) | hyperlinks, images, window title, clipboard, notifications, bell — each with a static fallback | ansi-escapes (OSC half) · terminal-link · term-img | released — `paratext@0.7.5` |
+| | terminal | [`paratext`](./packages/paratext/) | hyperlinks, images, window title, clipboard, notifications, bell — each with a static fallback | ansi-escapes (OSC half) · terminal-link · term-img | released — `paratext@0.8.0` |
 
 Nine are released on npm. The tenth is the reservation `controlroom@0.0.1`, which exports
 only `status = 'reserved'`; its approved design is in
