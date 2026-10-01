@@ -277,6 +277,9 @@ describe('a suite whose case count depends on the platform', () => {
     expect(absentPassing('signal-exit', 'linux')).toBe(0);
     expect(absentPassing('cosmiconfig', 'darwin')).toBe(2);
     expect(absentPassing('cosmiconfig', 'linux')).toBe(0);
+    // A guard that declares no `passing` credits nothing where its cases are absent:
+    // lilconfig's two are missing on Windows and say nothing about whether they pass.
+    expect(absentPassing('lilconfig', 'win32')).toBe(0);
     const baseline = { 'signal-exit': { reference: 135, passed: 134, rate: 134 / 135 } };
     expect(regressed(onDarwin(126), baseline, absentPassing('signal-exit', 'darwin'))).toBe(false);
     // A real loss on darwin is still a loss: the credit is exact, not a cushion.
