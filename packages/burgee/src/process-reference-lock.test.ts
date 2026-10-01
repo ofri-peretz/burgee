@@ -35,8 +35,8 @@ const ALLOWED = new Set([
   //
   // `linegauge`, `closeout`, `bellpull` and `caique`'s other files are absent because they
   // name the process nowhere. seniority joined on 2026-09-23 (D-135): its resolver still takes
-  // `env`, `cwd` and `argv` as arguments, and only its dotenv and rc drop-ins — whose incumbents
-  // read the process by default, and whose suites assert it — open the seam.
+  // `env`, `cwd` and `argv` as arguments, and only its dotenv, rc and cosmiconfig drop-ins —
+  // whose incumbents read the process by default, and whose suites assert it — open the seam.
   'burgee/src/runtime.ts',
   'seniority/src/runtime.ts',
   'paratext/src/runtime.ts',

@@ -174,6 +174,13 @@ them the absent YAML parser, one of them the harness.
     exit codes rather than a suite.
 - **R11 (Y9)** Nothing reads `process.*`; `env`, `cwd` and `argv` arrive as arguments.
 
+  **Restated 2026-09-30 (D-20260930-seniority-xdg-config-home).** The cosmiconfig half of the
+  paragraph below no longer holds: the façade's global search reads `XDG_CONFIG_HOME` (and
+  `APPDATA` on Windows) the way `env-paths` does, through `runtime.ts`, when `globalConfigDir`
+  is not passed. Once `burgee migrate` rewrote cosmiconfig to seniority, the divergence cost a
+  Linux user with a non-default `XDG_CONFIG_HOME` their global config, silently. The paragraph
+  is kept as written.
+
   **Held through 3.2, which is where it cost something.** Two of this step's files wanted the
   process and were written not to: the cosmiconfig façade's global config directory is derived
   from `os.homedir()` and the platform (and overridable through `globalConfigDir`) rather than
@@ -313,10 +320,10 @@ are.
 | R5 | **Built** | `src/search.ts` — 120 lines, bounded by `stopAt`, `WALK_LIMIT` and the root; real paths compared so a symlink ring ends the walk | `search.test.ts`, 10 cases incl. a link pointing back at its own ancestor |
 | R6 | **Built** | `src/load.ts` — four builtin loaders, injected loaders for everything else, `LoaderError` (`exitCode: 2`) naming the extension and the option | `load.test.ts`, 11 cases; `NOT_BUNDLED` is asserted absent from `defaultLoaders` |
 | R7 | **Built** | shipped 0.1.0. `src/config.ts` — `loadWithExtends`, deep merge, cycle rejection | `config.test.ts` |
-| R8 | **Built** | `src/cosmiconfig.ts` + `-defaults` + `-util` re-exported from the root; `./cosmiconfig`, `./dotenv`, `./lilconfig`, `./rc`, `./find-up` as separate entry points | the incumbents' own suites: cosmiconfig **240 / 243** (level with its control since 2026-09-30, R16), dotenv **80 / 141**, lilconfig **67 / 77**, rc **0 / 1**. `shape.test.ts` locks the export map and subpath isolation |
+| R8 | **Built** | `src/cosmiconfig.ts` + `-defaults` + `-util` re-exported from the root; `./cosmiconfig`, `./dotenv`, `./lilconfig`, `./rc`, `./find-up` as separate entry points | the incumbents' own suites: cosmiconfig **242 / 243** on ubuntu (level with its control since 2026-09-30, R16; the XDG pair since D-20260930-seniority-xdg-config-home), dotenv **80 / 141**, lilconfig **67 / 77**, rc **0 / 1**. `shape.test.ts` locks the export map and subpath isolation |
 | R9 | **Built** | `src/shape.test.ts` — a ceiling on the **built** `dist`, not on the source | `shape.test.ts`: 95,907 B against a 140,000 B ceiling, and a floor so an empty build cannot pass |
-| R10 | **Built** | all four vendored and graded control-first, re-measured 2026-09-20: `cosmiconfig` **186 / 243, 76.5%** (**240 / 243, 98.8%** since 2026-09-30, R16), `dotenv` **80 / 141, 56.7%**, `lilconfig` **67 / 77, 87.0%**, `rc` **0 / 1** (measured, not a placeholder) | `npm run compat -- cosmiconfig --control`, and the same for the other three; see [§ The four suites, measured](#the-four-suites-measured) |
-| R11 | **Built — restated by D-135** | the resolver names `process` nowhere; the one file that does is `src/runtime.ts`, the family's Y9 seam, which only the dotenv and rc drop-ins open and only as a default when the caller passed no world. Before 2026-09-23 the claim was *no source names `process` at all*, and it cost 34 dotenv cases and rc's one: their incumbents read the process by default and their suites assert it | `shape.test.ts` locally; `packages/burgee/src/process-reference-lock.test.ts` repo-wide, where `seniority/src/runtime.ts` is now the one allow-listed entry |
+| R10 | **Built** | all four vendored and graded control-first, re-measured 2026-09-20: `cosmiconfig` **186 / 243, 76.5%** (**240 / 243, 98.8%** since 2026-09-30, R16; **242 / 243, 99.6%** on ubuntu once the global search read `XDG_CONFIG_HOME`, D-20260930-seniority-xdg-config-home), `dotenv` **80 / 141, 56.7%**, `lilconfig` **67 / 77, 87.0%**, `rc` **0 / 1** (measured, not a placeholder) | `npm run compat -- cosmiconfig --control`, and the same for the other three; see [§ The four suites, measured](#the-four-suites-measured) |
+| R11 | **Built — restated by D-135** | the resolver names `process` nowhere; the one file that does is `src/runtime.ts`, the family's Y9 seam, which only the dotenv, rc and cosmiconfig drop-ins open and only as a default when the caller passed no world (cosmiconfig's global directory since D-20260930-seniority-xdg-config-home). Before 2026-09-23 the claim was *no source names `process` at all*, and it cost 34 dotenv cases and rc's one: their incumbents read the process by default and their suites assert it | `shape.test.ts` locally; `packages/burgee/src/process-reference-lock.test.ts` repo-wide, where `seniority/src/runtime.ts` is now the one allow-listed entry |
 | R12 | **Built** | `src/validate.ts` — `validate` returns every violation, `check` throws one `ConfigError` | `validate.test.ts`: ``` `out` must be a string; `./mytool.config.js:3` set it to `4` ``` |
 | R13 | **Built** | 2026-09-14. `src/precedence.ts` — open union, `describe`'s `default` branch | `precedence.test.ts`: a `vault` source renders itself in `--explain` |
 | R14 | **Built** | 2026-09-14, re-checked 2026-09-15. `ORDER` is the one declaration; `Source` and `RANK` are derived | `precedence.test.ts` asserts all three agree. Nothing added in 3.2 writes a source kind: the new files touch `RANK` only through `plugin.ts`, which already did |
@@ -331,7 +338,7 @@ blockers are down from five to two — see below.
 
 ### Where the 186 stops, exactly
 
-**Superseded 2026-09-30 (D-20260930-seniority-yaml, R16).** The 54 YAML cases below pass since `seniority/yaml`, and the row reads **240 / 243**. The account below is kept as the record of why the number was 186.
+**Superseded 2026-09-30 (D-20260930-seniority-yaml, R16).** The 54 YAML cases below pass since `seniority/yaml`, and the row reads **240 / 243**; the linux XDG pair passes since D-20260930-seniority-xdg-config-home, and it reads **242 / 243** on ubuntu. The account below is kept as the record of why the number was 186.
 
 Every one of the 55 cases `seniority` does not pass is accounted for, and neither cause is a
 compatibility gap the design did not already declare:
@@ -438,7 +445,8 @@ dividing by whichever machine last generated it. They are counted **against us**
 excluded, because we genuinely fail them — this package derives its global config directory
 from `os.homedir()` instead of reading `XDG_CONFIG_HOME` through `env-paths`, which is R11's
 listed divergence. Excluding them would have moved the number up, 76.5% → 77.2%, by dropping
-two cases we lose.
+two cases we lose. *(Restated 2026-09-30: both pass since D-20260930-seniority-xdg-config-home,
+and the host declares them `passing: 2`.)*
 
 | incumbent | release / tag / commit | files | control | target | target rate |
 | :-- | :-- | --: | :-- | :-- | :-- |

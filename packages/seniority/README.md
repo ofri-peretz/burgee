@@ -26,7 +26,7 @@
 </p>
 
 <p align="center">
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/cosmiconfig%20suite-240%2F243-b45309?style=flat-square" alt="seniority passes 240 of 243 cases of the cosmiconfig test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/cosmiconfig%20suite-242%2F243-b45309?style=flat-square" alt="seniority passes 242 of 243 cases of the cosmiconfig test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/dotenv%20suite-106%2F141-b45309?style=flat-square" alt="seniority passes 106 of 141 cases of the dotenv test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/lilconfig%20suite-77%2F77-0a6b47?style=flat-square" alt="seniority passes 77 of 77 cases of the lilconfig test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/rc%20suite-1%2F1-0a6b47?style=flat-square" alt="seniority/rc passes 1 of 1 cases of the rc test suite" /></a>
@@ -320,7 +320,7 @@ current grades are generated under *Benchmarks* below and published on the
 
 ### `cosmiconfig`
 
-**Graded by cosmiconfig 10.0.1's own test suite: 240 of 243 cases, the same as the real
+**Graded by cosmiconfig 10.0.1's own test suite: 242 of 243 cases, the same as the real
 `cosmiconfig` gets here.** Not "compatible" — a number, from the incumbent's tests, run
 unmodified.
 
@@ -330,11 +330,12 @@ the first time a YAML file is — so a program whose configs are JSON or JavaScr
 it. It returns what `js-yaml` 5 returns, and its errors carry js-yaml's reason and position,
 which cosmiconfig's suite asserts word for word.
 
-Of the three cases not passing, one fails for cosmiconfig too: the test harness reaching for
-a file path the vendored copy does not have. The other two are the suite's XDG global-directory pair, which registers only on Linux.
-There real cosmiconfig passes it and this package does not: it resolves the global directory
-from the home directory and the platform rather than reading `XDG_CONFIG_HOME` (R11), and the
-pair is counted against it on every platform.
+The one case not passing fails for cosmiconfig too: the test harness reaching for a file path
+the vendored copy does not have. The global config directory is where cosmiconfig puts it,
+through `env-paths`: `$XDG_CONFIG_HOME/<name>` on Linux, `~/.config/<name>` when that is unset,
+`%APPDATA%\<name>\Config` on Windows and `~/Library/Preferences/<name>` on macOS. The suite's
+XDG pair, which registers only on Linux, passes. On macOS, where it does not register, both
+read 240 of 241.
 
 ### `seniority/dotenv`
 
@@ -363,7 +364,7 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
-| `cosmiconfig` | 240 / 243 |
+| `cosmiconfig` | 242 / 243 |
 | `dotenv` | 106 / 141 |
 | `lilconfig` | 77 / 77 |
 | `rc` | 1 / 1 |
