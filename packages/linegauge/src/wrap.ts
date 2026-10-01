@@ -66,10 +66,10 @@ function splitWords(string: string): Word[] {
     string,
     (plainText) => {
       const parts = plainText.split(' ');
-      current.value += parts[0] ?? '';
-      current.plainText += parts[0] ?? '';
+      current.value += parts[0] as string;
+      current.plainText += parts[0] as string;
       for (let index = 1; index < parts.length; index += 1) {
-        const part = parts[index] ?? '';
+        const part = parts[index] as string;
         current = { value: part, plainText: part, width: 0 };
         words.push(current);
       }
@@ -110,12 +110,12 @@ function wrapWord(rows: string[], word: string, columns: number, rowWidth: numbe
   }
 
   // The last row copied over can be nothing but escape characters.
-  const last = rows.at(-1) ?? '';
-  if (!visible && last.length > 0 && rows.length > 1) rows[rows.length - 2] += rows.pop() ?? '';
+  const last = rows.at(-1) as string;
+  if (!visible && last.length > 0 && rows.length > 1) rows[rows.length - 2] += rows.pop() as string;
 
   // Tokens are measured one at a time, so a cluster an escape splits counts once per part.
   // Only the finished row gives the true width, and it is at most one row to measure.
-  return visibleWidth(rows.at(-1) ?? '');
+  return visibleWidth(rows.at(-1) as string);
 }
 
 /** Drop the spaces trailing the last visible character, keeping the sequences among them. */
@@ -199,9 +199,9 @@ function restoreStylesAcrossRows(preString: string): string {
         index += 1;
         continue;
       }
-      const groups = escape.groups ?? {};
+      const groups = escape.groups as Record<string, string>;
       if (groups['sgr'] !== undefined) applyParameters(groups['sgr'], active);
-      else if (groups['uri'] !== undefined) activeHyperlink = groups['uri'].length === 0 ? undefined : { parameters: groups['parameters'] ?? '', uri: groups['uri'] };
+      else if (groups['uri'] !== undefined) activeHyperlink = groups['uri'].length === 0 ? undefined : { parameters: groups['parameters'] as string, uri: groups['uri'] };
       index += escape[0].length;
       continue;
     }
@@ -266,7 +266,7 @@ function wrapLine(string: string, columns: number, options: WrapOptions): string
     const rowIndex = rows.length - 1;
 
     if (trim && trimmedRowIndex !== rowIndex) {
-      const row = rows[rowIndex] ?? '';
+      const row = rows[rowIndex] as string;
       const trimmedRow = row.trimStart();
       if (trimmedRow.length !== row.length) {
         rows[rowIndex] = trimmedRow;

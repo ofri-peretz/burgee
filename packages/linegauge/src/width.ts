@@ -127,8 +127,8 @@ function inTable(table: readonly number[], codePoint: number): boolean {
   let high = table.length / PAIR - 1;
   while (low <= high) {
     const mid = (low + high) >> 1;
-    const start = table[mid * PAIR] ?? 0;
-    const end = table[mid * PAIR + 1] ?? 0;
+    const start = table[mid * PAIR] as number;
+    const end = table[mid * PAIR + 1] as number;
     if (codePoint < start) high = mid - 1;
     else if (codePoint > end) low = mid + 1;
     else return true;
@@ -304,7 +304,7 @@ function columnsOf(codePoint: number, ambiguousIsWide: boolean): number {
 function trailingColumns(visible: string, ambiguousIsWide: boolean): number {
   let extra = 0;
   for (const character of [...visible].slice(1)) {
-    const codePoint = character.codePointAt(0) ?? 0;
+    const codePoint = character.codePointAt(0) as number;
     const isForm = codePoint >= FORMS_FIRST && codePoint <= FORMS_LAST;
     if (isForm || SPACING_MARK().test(character)) extra += columnsOf(codePoint, ambiguousIsWide);
   }
@@ -338,7 +338,7 @@ function isUnqualifiedEmojiSequence(cluster: string): boolean {
 /** Whether `codePoint` falls in one of a flat `[low, high]` pair list. */
 function inPairs(pairs: readonly number[], codePoint: number): boolean {
   for (let i = 0; i < pairs.length; i += PAIR) {
-    if (codePoint >= (pairs[i] ?? 0) && codePoint <= (pairs[i + 1] ?? 0)) return true;
+    if (codePoint >= (pairs[i] as number) && codePoint <= (pairs[i + 1] as number)) return true;
   }
   return false;
 }
@@ -365,17 +365,17 @@ function isJamo(codePoint: number): boolean {
 function hangulColumns(visible: string, ambiguousIsWide: boolean): number | undefined {
   // `visible` starts at the cluster's first visible code point, which is the first entry below:
   // a cluster that does not open with a jamo is answered before anything is collected.
-  if (!isJamo(visible.codePointAt(0) ?? 0)) return undefined;
+  if (!isJamo(visible.codePointAt(0) as number)) return undefined;
   const codePoints: number[] = [];
   for (const character of visible) {
     if (!VISIBLE().test(character)) continue;
-    codePoints.push(character.codePointAt(0) ?? 0);
+    codePoints.push(character.codePointAt(0) as number);
   }
   let columns = 0;
   for (let index = 0; index < codePoints.length; index += 1) {
-    const codePoint = codePoints[index] ?? 0;
+    const codePoint = codePoints[index] as number;
     if (!isJamo(codePoint)) {
-      for (let rest = index; rest < codePoints.length; rest += 1) columns += columnsOf(codePoints[rest] ?? 0, ambiguousIsWide);
+      for (let rest = index; rest < codePoints.length; rest += 1) columns += columnsOf(codePoints[rest] as number, ambiguousIsWide);
       return columns;
     }
     if (inPairs(JAMO_LEADING, codePoint) && inPairs(JAMO_VOWEL, codePoints[index + 1] ?? -1)) {
@@ -449,7 +449,7 @@ export function clusterColumns(segment: string, ambiguousIsWide = false): number
   // who says a Private Use code point is two columns because their Nerd Font draws an icon
   // there is describing the terminal in front of them, and the built-in tables are describing
   // terminals in general. The local answer wins or the override is decorative.
-  const claimed = claim?.(segment.codePointAt(0) ?? 0);
+  const claimed = claim?.(segment.codePointAt(0) as number);
   if (claimed !== undefined) return claimed;
   // All of it invisible: ignorables, controls, formats, marks, lone surrogates — no visible
   // code point at all (`leadingInvisible`'s search, asked directly). A segment is never empty.
@@ -457,7 +457,7 @@ export function clusterColumns(segment: string, ambiguousIsWide = false): number
   if (skipped === -1) return 0;
   if (MAY_BE_EMOJI.test(segment) && (RGI_EMOJI().test(segment) || isUnqualifiedEmojiSequence(segment))) return WIDE_COLUMNS;
   const visible = segment.slice(skipped);
-  return hangulColumns(visible, ambiguousIsWide) ?? columnsOf(visible.codePointAt(0) ?? 0, ambiguousIsWide) + trailingColumns(visible, ambiguousIsWide);
+  return hangulColumns(visible, ambiguousIsWide) ?? columnsOf(visible.codePointAt(0) as number, ambiguousIsWide) + trailingColumns(visible, ambiguousIsWide);
 }
 
 /**
