@@ -1,6 +1,6 @@
 ---
 title: Coming from cosmiconfig
-description: "A cosmiconfig alternative with zero dependencies: import { cosmiconfig } from seniority, graded 240 / 243 by cosmiconfig's own suite, level with cosmiconfig itself — with provenance, so every resolved value can say where it came from, as text, --json data or an agent event."
+description: "A cosmiconfig alternative with zero dependencies: import { cosmiconfig } from seniority, graded 242 / 243 by cosmiconfig's own suite, level with cosmiconfig itself — with provenance, so every resolved value can say where it came from, as text, --json data or an agent event."
 ---
 
 **seniority** is a **cosmiconfig alternative** that also covers what `dotenv`, `rc` and
@@ -26,21 +26,21 @@ js-yaml's reason and position. `npx burgee migrate` makes the import swap for yo
 
 ## Is seniority compatible with cosmiconfig?
 
-Level with cosmiconfig on its own suite, with one pair of Linux-only cases still against it. cosmiconfig's own suite, vendored at 10.0.1 and unmodified
+Level with cosmiconfig on its own suite. cosmiconfig's own suite, vendored at 10.0.1 and unmodified
 apart from the import specifier, runs against `seniority` beside a control that runs it
 against real cosmiconfig:
 
 | | passing | rate |
 | :-- | --: | --: |
-| `seniority` | 240 / 243 | 98.8% |
-| cosmiconfig itself (control) | 240 / 243 | 98.8% |
+| `seniority` | 242 / 243 | 99.6% |
+| cosmiconfig itself (control) | 242 / 243 | 99.6% |
 
 From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
 oracle's last run; that page is the authority, and it names every case that leaves the gate.
-Of the three cases not passing, one fails for cosmiconfig too: the harness reaching for a file
-path the vendored copy does not have. The other two are the XDG global-directory cases, which
-register only on Linux. cosmiconfig passes them there, because it reads `XDG_CONFIG_HOME` and
-seniority does not; they are counted against seniority on every platform.
+The one case not passing fails for cosmiconfig too: the harness reaching for a file path the
+vendored copy does not have. The XDG global-directory pair, which registers only on Linux,
+passes for both: a `global` search ends in `$XDG_CONFIG_HOME/<name>` when that is set, as
+cosmiconfig's does. On macOS the pair does not register, and both read 240 of 241.
 Level with the control is the claim, and it is a grade, not the word *compatible*.
 
 The same page grades `seniority/lilconfig` (lilconfig's own suite), `seniority/dotenv` and

@@ -94,9 +94,9 @@ interface CommonOptions {
     mergeSearchPlaces: boolean;
     searchStrategy: SearchStrategy;
     /**
-     * seniority's one addition: the directory a `global` search ends in. cosmiconfig derives it
-     * from the environment through `env-paths`; this package takes it as an argument so nothing
-     * here reads `process.*` (R11), and defaults it from `os.homedir()` and the platform.
+     * seniority's one addition: the directory a `global` search ends in. cosmiconfig always
+     * derives it from the environment through `env-paths`; here it can be passed, and when it is
+     * not, it is derived the same way, reading the environment through `runtime.ts` (D-135).
      */
     globalConfigDir?: string;
 }
