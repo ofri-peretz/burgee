@@ -10,12 +10,12 @@ that declaration rather than written beside it:
 
 | Surface | For | What it is |
 | :-- | :-- | :-- |
-| `--help` | a person | the rendered manifest; `--help --json` is the same as a document |
+| `--help` | a person | the rendered manifest; `--help --json` is the same as a document. The root help ends with one line for agents naming `--schema`, `--json` and `--explain` |
 | `--json` | a script, an agent | one envelope on stdout: `{ ok, data, meta }` or `{ ok: false, error }` |
 | `--schema` | an agent, before it calls | the program as data: commands, options, `effects`, the exit-code table, a JSON Schema per command |
 | `--mcp` | an MCP client | the same commands as MCP tools over stdio |
 | `completion <shell>` | a shell | a static script for bash, zsh, fish, pwsh or fig |
-| `--explain <option>` | anyone asking "why this value?" | the [configuration](/docs/concepts/configuration) record for one option |
+| `--explain <option>` | anyone asking "why this value?" | the [configuration](/docs/concepts/configuration) record for one option, on every command that runs and listed in its help |
 
 [Your CLI is an agent tool](/docs/agent-surfaces) has each surface in full: `--schema` and its
 character budget, what becomes an MCP tool, how tool arguments map back to flags, the client
@@ -33,9 +33,15 @@ from one declaration leaves them nothing to drift from.
 
 **The envelope is one document on stdout.** Success is
 `{"ok":true,"data":<what run returned>,"meta":{"provenance":{…}}}`, with `meta.changed` for an
-idempotent command. Failure is `{"ok":false,"error":{"code","message","hint"?,"fix"?}}`, also on
-stdout, with stderr empty. `--json` counts only before a `--`. [Exit codes and
+idempotent command. Failure is `{"ok":false,"error":{"code","message","hint"?,"fix"?,"usage"?}}`,
+also on stdout, with stderr empty. `--json` counts only before a `--`. [Exit codes and
 errors](/docs/concepts/exit-codes) has the failure side.
+
+**A refusal carries its next step.** A failure has a `fix` to run, or, when there is none,
+`usage`: the failing command's usage line and options, or the commands that exist for a word the
+program does not know, at most 8 rows. An unknown command near a real one gets a `fix` that is
+the caller's own line with the word corrected. The agent recovers from the error it already read,
+not from a `--help` walk.
 
 **`effects` is required on burgee's own API.** `defineCommand` refuses a runnable command without
 `read_only`, `idempotent`, `non_idempotent` or `withheld`. It becomes MCP's `readOnlyHint`,
@@ -121,6 +127,12 @@ The next command, run by the agent:
 
 ```text title="CLAUDECODE=1 node tool.mjs deploy --target prod --yes --json"
 {"ok":true,"data":{"target":"prod","agent":"claude-code"},"meta":{"provenance":{"target":{"source":"flag","location":"--target"},"yes":{"source":"flag","location":"--yes"}}}}
+```
+
+A run that fails with nothing to fix names what the command takes, in the same envelope:
+
+```text title="CLAUDECODE=1 node tool.mjs deploy --json" exit="2"
+{"ok":false,"error":{"code":2,"message":"missing required option --target","hint":"pass --target <value>","usage":{"command":"tool deploy [options]","options":[{"name":"--target <value>","description":"where to deploy (required)"},{"name":"--yes","description":"skip the confirmation"}]}}}
 ```
 
 What an agent reads before it calls, from the same declaration:

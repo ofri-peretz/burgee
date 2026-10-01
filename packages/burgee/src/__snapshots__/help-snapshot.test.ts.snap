@@ -21,6 +21,13 @@ Release commands:
 Commands:
   login     Sign in
   old       Legacy (deprecated)
+
+For agents: --schema prints every
+command, option, default and env
+var as JSON, in one call. --json
+prints one envelope on stdout,
+and --explain <option> says where
+a value came from.
 "
 `;
 
@@ -42,6 +49,10 @@ Release commands:
 Commands:
   login     Sign in
   old       Legacy (deprecated)
+
+For agents: --schema prints every command, option, default and env var as JSON,
+in one call. --json prints one envelope on stdout, and --explain <option> says
+where a value came from.
 "
 `;
 
@@ -62,6 +73,9 @@ Release commands:
 Commands:
   login     Sign in
   old       Legacy (deprecated)
+
+For agents: --schema prints every command, option, default and env var as JSON, in one call. --json prints one envelope
+on stdout, and --explain <option> says where a value came from.
 "
 `;
 
@@ -95,6 +109,10 @@ Global options:
   --json         machine-readable
                  output
   --help         show this help
+  --explain <option>
+                 where an
+                 option's value
+                 came from
 
 Examples:
   $ app deploy prod --region us
@@ -117,17 +135,19 @@ Ship the current build to a target. This description is long enough that it must
 wrap at every width the renderer supports.
 
 Arguments:
-  <target>         where to ship
-  [files...]       extra files (default: none)
+  <target>            where to ship
+  [files...]          extra files (default: none)
 
 Options:
-  --region <code>  the region (default: eu) (one of: eu, us) [env: APP_REGION]
-  -f, --force      skip the confirmation
-  --legacy         old flag (deprecated: use --force)
+  --region <code>     the region (default: eu) (one of: eu, us) [env:
+                      APP_REGION]
+  -f, --force         skip the confirmation
+  --legacy            old flag (deprecated: use --force)
 
 Global options:
-  --json           machine-readable output
-  --help           show this help
+  --json              machine-readable output
+  --help              show this help
+  --explain <option>  where an option's value came from
 
 Examples:
   $ app deploy prod --region us
@@ -135,7 +155,7 @@ Examples:
   $ app deploy staging
 
 Environment:
-  APP_REGION       --region
+  APP_REGION          --region
 
 Deploys are logged at https://example.test/deploys.
 "
@@ -148,17 +168,18 @@ Ship the current build to a target. This description is long enough that it must
 supports.
 
 Arguments:
-  <target>         where to ship
-  [files...]       extra files (default: none)
+  <target>            where to ship
+  [files...]          extra files (default: none)
 
 Options:
-  --region <code>  the region (default: eu) (one of: eu, us) [env: APP_REGION]
-  -f, --force      skip the confirmation
-  --legacy         old flag (deprecated: use --force)
+  --region <code>     the region (default: eu) (one of: eu, us) [env: APP_REGION]
+  -f, --force         skip the confirmation
+  --legacy            old flag (deprecated: use --force)
 
 Global options:
-  --json           machine-readable output
-  --help           show this help
+  --json              machine-readable output
+  --help              show this help
+  --explain <option>  where an option's value came from
 
 Examples:
   $ app deploy prod --region us
@@ -166,7 +187,7 @@ Examples:
   $ app deploy staging
 
 Environment:
-  APP_REGION       --region
+  APP_REGION          --region
 
 Deploys are logged at https://example.test/deploys.
 "
@@ -205,6 +226,10 @@ Global options:
   --json         machine-readable
                  output
   --help         show this help
+  --explain <option>
+                 where an
+                 option's value
+                 came from
 
 Examples:
   $ app deploy prod --region us
@@ -227,18 +252,19 @@ Ship the current build to a target. This description is long enough that it must
 wrap at every width the renderer supports.
 
 Arguments:
-  <target>         where to ship
-  [files...]       extra files (default: none)
+  <target>            where to ship
+  [files...]          extra files (default: none)
 
 Options:
-  --region <code>  the region (default: eu) (one of: eu, us) [env: APP_REGION]
-                   [string]
-  -f, --force      skip the confirmation [boolean]
-  --legacy         old flag [boolean] (deprecated: use --force)
+  --region <code>     the region (default: eu) (one of: eu, us) [env:
+                      APP_REGION] [string]
+  -f, --force         skip the confirmation [boolean]
+  --legacy            old flag [boolean] (deprecated: use --force)
 
 Global options:
-  --json           machine-readable output
-  --help           show this help
+  --json              machine-readable output
+  --help              show this help
+  --explain <option>  where an option's value came from
 
 Examples:
   $ app deploy prod --region us
@@ -246,7 +272,7 @@ Examples:
   $ app deploy staging
 
 Environment:
-  APP_REGION       --region
+  APP_REGION          --region
 
 Deploys are logged at https://example.test/deploys.
 "
@@ -259,17 +285,18 @@ Ship the current build to a target. This description is long enough that it must
 supports.
 
 Arguments:
-  <target>         where to ship
-  [files...]       extra files (default: none)
+  <target>            where to ship
+  [files...]          extra files (default: none)
 
 Options:
-  --region <code>  the region (default: eu) (one of: eu, us) [env: APP_REGION] [string]
-  -f, --force      skip the confirmation [boolean]
-  --legacy         old flag [boolean] (deprecated: use --force)
+  --region <code>     the region (default: eu) (one of: eu, us) [env: APP_REGION] [string]
+  -f, --force         skip the confirmation [boolean]
+  --legacy            old flag [boolean] (deprecated: use --force)
 
 Global options:
-  --json           machine-readable output
-  --help           show this help
+  --json              machine-readable output
+  --help              show this help
+  --explain <option>  where an option's value came from
 
 Examples:
   $ app deploy prod --region us
@@ -277,7 +304,7 @@ Examples:
   $ app deploy staging
 
 Environment:
-  APP_REGION       --region
+  APP_REGION          --region
 
 Deploys are logged at https://example.test/deploys.
 "
@@ -287,8 +314,13 @@ exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > a leaf with
 "Usage: ping [options]
 
 Global options:
-  --json  machine-readable output
-  --help  show this help
+  --json         machine-readable
+                 output
+  --help         show this help
+  --explain <option>
+                 where an
+                 option's value
+                 came from
 "
 `;
 
@@ -296,8 +328,9 @@ exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > a leaf with
 "Usage: ping [options]
 
 Global options:
-  --json  machine-readable output
-  --help  show this help
+  --json              machine-readable output
+  --help              show this help
+  --explain <option>  where an option's value came from
 "
 `;
 
@@ -305,8 +338,9 @@ exports[`help is a drawing, and the drawing is pinned (PLAN 2.5.1) > a leaf with
 "Usage: ping [options]
 
 Global options:
-  --json  machine-readable output
-  --help  show this help
+  --json              machine-readable output
+  --help              show this help
+  --explain <option>  where an option's value came from
 "
 `;
 
@@ -334,6 +368,13 @@ Commands:
   🚀             emoji: two code
                  units, two
                  columns
+
+For agents: --schema prints every
+command, option, default and env
+var as JSON, in one call. --json
+prints one envelope on stdout,
+and --explain <option> says where
+a value came from.
 "
 `;
 
@@ -351,6 +392,10 @@ Commands:
   deploy-service  ASCII: code units and columns agree
   部署            CJK: two code units, four columns
   🚀              emoji: two code units, two columns
+
+For agents: --schema prints every command, option, default and env var as JSON,
+in one call. --json prints one envelope on stdout, and --explain <option> says
+where a value came from.
 "
 `;
 
@@ -368,5 +413,8 @@ Commands:
   deploy-service  ASCII: code units and columns agree
   部署            CJK: two code units, four columns
   🚀              emoji: two code units, two columns
+
+For agents: --schema prints every command, option, default and env var as JSON, in one call. --json prints one envelope
+on stdout, and --explain <option> says where a value came from.
 "
 `;

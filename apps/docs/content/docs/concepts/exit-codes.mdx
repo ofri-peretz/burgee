@@ -72,8 +72,8 @@ which is what 130 actually means` in `pty-signal.test.ts`).
 | :-- | :-- | :-- |
 | success | the result as text | warnings, such as a deprecation |
 | success, `--json` | `{"ok":true,"data":…,"meta":{"provenance":…}}` | warnings |
-| failure | nothing | `error: <message>`, then `hint:` and `fix:` when the error carries them |
-| failure, `--json` | `{"ok":false,"error":{"code":…,"message":…,"hint"?:…,"fix"?:…}}` | nothing |
+| failure | nothing | `error: <message>`, then `hint:` and `fix:` when the error carries them, then `usage:` when there is no `fix` |
+| failure, `--json` | `{"ok":false,"error":{"code":…,"message":…,"hint"?:…,"fix"?:…,"usage"?:…}}` | nothing |
 | needs a decision, `--json` | `{"ok":false,"status":"action_required","reason":…,"message":…,"next":[…],"error":{"code":4,…}}` | nothing |
 
 Under `--json` a failure goes to **stdout**, alone, so a caller that parses stdout gets exactly
@@ -83,6 +83,20 @@ on stdout, alone, and stderr is empty`, `$name: plain mode is unchanged — pros
 nothing on stdout` and `puts a usage failure on stdout too, so one rule covers every --json
 failure` in
 [`json-failure.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/json-failure.test.ts).
+
+**A failure says what to do next.** `fix` is one line to run, and it is filled in only when there
+is exactly one: the flag an unknown option was nearest to, or the caller's own command line with
+an unknown command's word corrected. When there is none and the code is `USAGE` or `RUNTIME`, the
+failure carries `usage` instead. That is the failing command's usage line from the program name,
+then its visible options with the notes help prints: required, default, choices, relations and
+env. An unknown command carries the commands that exist and points at `--schema`. Either list is
+at most 8 rows, and `more` names the `--help` that has the rest. It is a reminder, not a help
+screen: no description, no examples, no global options, and the exit code is the one the table
+above gives. `AUTH`, `CONFIG` and your own codes carry no `usage`, because their remedy is not an
+option. In the envelope it is
+`"usage":{"command":"deploy push [options]","options":[{"name":"--target <value>","description":"where to push (required)"}]}`,
+with `commands` in place of `options` for an unknown command. Pinned by
+[`failure-teaches.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/failure-teaches.test.ts).
 
 On `burgee/commander` and `burgee/yargs`, `error.code` is a string (`'usage'`, `'auth'`,
 `'runtime'`), and a parse error keeps the host's own code, such as `commander.unknownOption`:
@@ -134,15 +148,19 @@ fix: run `deploy login` first
 {"ok":false,"error":{"code":5,"message":"no access token","hint":"pass --token","fix":"run `deploy login` first"}}
 ```
 
-A missing option and a mistyped command are both 2:
+A missing option and a mistyped command are both 2. With no `fix` to run, the missing option
+carries what `push` takes:
 
 ```text title="node deploy.mjs push --token t --json" exit="2"
-{"ok":false,"error":{"code":2,"message":"missing required option --target","hint":"pass --target <value>"}}
+{"ok":false,"error":{"code":2,"message":"missing required option --target","hint":"pass --target <value>","usage":{"command":"deploy push [options]","options":[{"name":"--target <value>","description":"where to push (required)"},{"name":"--token <value>","description":"an access token"}]}}}
 ```
 
-```text title="node deploy.mjs psuh" exit="2"
+A mistyped command is corrected, and the fix is the caller's own line with the word replaced:
+
+```text title="node deploy.mjs psuh --target prod" exit="2"
 error: unknown command "psuh"
-hint: run --help to see the available commands
+hint: did you mean push?
+fix: deploy push --target prod
 ```
 
 An author's own class leaves with its own code:

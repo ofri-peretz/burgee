@@ -17,6 +17,8 @@ import { UsageError } from './errors.js';
 import { ExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
 import { type CommandNode, type Manifest, type OptionSpec } from './manifest.js';
 import { type Package } from './pkg.js';
+import { suggestSimilar } from './suggest.js';
+import { childrenOf, groupUsage } from './usage.js';
 
 /** The slice of the engine's `Io` a surface reads. */
 export interface SurfaceIo {
@@ -149,7 +151,31 @@ export async function unresolved({ manifest, root, io }: Resolving, argv: string
   }
   if (first === '--version' || first === '-V') return { text: `${versionOf(manifest, io)}\n`, code: ExitCode.OK };
   if (typed.length === 0) return { text: await renderHelp(manifest, node, io, argv), code: ExitCode.USAGE };
-  throw new UsageError(`unknown command "${first}"`, 'run --help to see the available commands');
+  const refusal = unknownCommand({ manifest, root, io }, node, argv.slice(0, argv.length - typed.length), typed);
+  throw refusal;
+}
+
+/** A word safe to paste into a shell as it is; anything else goes in single quotes. */
+const shellWord = (word: string): string => (/^[\w@%+=:,./-]+$/u.test(word) ? word : `'${word.replaceAll("'", `'\\''`)}'`);
+
+/**
+ * D-20260930 — an unknown command names what exists, as git does. With one command near
+ * enough, `fix` is the caller's own line with the word corrected, runnable as it stands; with
+ * none, or a tie, the error carries the group's commands and points at `--schema`, and
+ * guesses nothing (E3: an executed guess burns the turn `fix` exists to save). The hint names
+ * the flag and not `<program> --schema`: a program is often run under another name (`node
+ * cli.mjs`, an alias, a wrapper), and B1 watched an agent run the declared name literally.
+ */
+function unknownCommand({ manifest, root }: Resolving, node: CommandNode, before: string[], typed: string[]): UsageError {
+  const first = typed[0] as string;
+  const said = suggestSimilar(first, childrenOf(manifest, node).map((c) => c.path.at(-1) as string));
+  // String slicing, not a regex over the typed word (CodeQL js/polynomial-redos): `suggestSimilar`
+  // says `\n(Did you mean X?)` for one match and `\n(Did you mean one of X, Y?)` for a tie.
+  const one = said.startsWith('\n(Did you mean ') && !said.startsWith('\n(Did you mean one of ');
+  const near = one ? said.slice('\n(Did you mean '.length, -'?)'.length) : undefined;
+  const error = new UsageError(`unknown command "${first}"`, said === '' ? 'run --schema for every command and option as JSON, in one call' : said.trim().slice(1, -1).replace('Did', 'did'));
+  if (near === undefined) return Object.assign(error, { usage: groupUsage(manifest, node) });
+  return Object.assign(error, { fix: [...root, ...before, near, ...typed.slice(1)].map(shellWord).join(' ') });
 }
 
 /**
