@@ -21,6 +21,27 @@ export interface Runtime extends LoopRuntime {
 }
 
 /**
+ * The process as `controlroom/ink` meets it. ink's defaults *are* the real streams, its CI and
+ * screen-reader switches are environment variables, and `waitUntilExit()` settles on
+ * `beforeExit`, so the drop-in reads each of them here — in the package's one file that names
+ * the process — and nowhere under `ink/` (Y9).
+ */
+export const processStreams = (): { stdout: NodeJS.WriteStream; stdin: NodeJS.ReadStream; stderr: NodeJS.WriteStream } => ({
+  stdout: process.stdout,
+  stdin: process.stdin,
+  stderr: process.stderr,
+});
+export const isProcessStdin = (stream: unknown): boolean => stream === process.stdin;
+export const processEnv = (): NodeJS.ProcessEnv => process.env;
+export const processCwd = (): string => process.cwd();
+
+/** Run `handler` once when the event loop drains; the function returned takes it back. */
+export function onceBeforeExit(handler: () => void): () => void {
+  process.once('beforeExit', handler);
+  return () => process.off('beforeExit', handler);
+}
+
+/**
  * The real process, narrowed. `isTTY` is a getter so the mode is decided when a screen
  * opens, not when this module loads; the clock is wall time through the timers Node keeps.
  */

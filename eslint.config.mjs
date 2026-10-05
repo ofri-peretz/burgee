@@ -516,6 +516,9 @@ export default [
       // the `exports` map and its parts sit one directory down, so every one of them reaches
       // `../yargs-parser.js` and `../runtime.js` by construction.
       "packages/burgee/src/meow/**/*.ts",
+      // `controlroom/ink` reads the process only through the package's one runtime seam, which
+      // sits one directory up by construction (Y9): the same arrow, the same reason.
+      "packages/controlroom/src/ink/*.ts",
     ],
     rules: { "import-next/no-relative-parent-imports": "off" },
   },

@@ -341,7 +341,10 @@ const noop = (): void => undefined;
 /** Where the raw-mode undo registers: closeout's `restore` phase, as the screen core's does. */
 const restore: Registrar = (handler) => onExit(handler, { phase: 'restore' });
 
-const RAW_MODE_HELP = 'https://github.com/vadimdemedes/ink/#israwmodesupported';
+/** ink's two refusals, word for word: its suite and its users match on them. */
+const RAW_MODE_HELP = `Read about how to prevent this error on https://github.com/vadimdemedes/ink/#israwmodesupported`;
+const RAW_MODE_ON_PROCESS = ['Raw mode is not supported on the current process.stdin, which Ink uses as input stream by default.', RAW_MODE_HELP].join('\n');
+const RAW_MODE_ON_STDIN = ['Raw mode is not supported on the stdin provided to Ink.', RAW_MODE_HELP].join('\n');
 
 export function App({ children, stdin, stdout, stderr, writeToStdout, writeToStderr, exitOnCtrlC, onExit, setCursorPosition }: AppOptions): ReactElement {
   const [isFocusEnabled, setIsFocusEnabled] = React.useState(true);
@@ -419,8 +422,8 @@ export function App({ children, stdin, stdout, stderr, writeToStdout, writeToStd
   const handleSetRawMode = React.useCallback(
     (isEnabled: boolean) => {
       if (!isRawModeSupported) {
-        if (isProcessStdin(stdin)) throw new Error(`Raw mode is not supported on the current process.stdin, which Ink uses as input stream by default.\nRead about how to prevent this error on ${RAW_MODE_HELP}`);
-        throw new Error(`Raw mode is not supported on the stdin provided to Ink.\nRead about how to prevent this error on ${RAW_MODE_HELP}`);
+        if (isProcessStdin(stdin)) throw new Error(RAW_MODE_ON_PROCESS);
+        throw new Error(RAW_MODE_ON_STDIN);
       }
       stdin.setEncoding('utf8');
       if (isEnabled) {

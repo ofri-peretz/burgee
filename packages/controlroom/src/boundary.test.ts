@@ -8,8 +8,8 @@
  * `controlroom/ink` has one of its own. Ink's suite grades its write protocol byte for byte
  * and write for write, which flagstaff's frame writer does not produce, so the drop-in writes
  * in exactly one file, `ink/terminal.ts`, with every sequence taken from the family
- * (`paratext/csi`, `closeout/cursor`); and it reaches the process's streams and console in
- * exactly one, `ink/process.ts` (D-20261005-controlroom-ink-drop-in). Every other file under
+ * (`paratext/csi`, `closeout/cursor`); it patches the console in exactly one, `ink/process.ts`,
+ * and reads the process only through `runtime.ts` (D-20261005-controlroom-ink-drop-in). Every other file under
  * `ink/` is held to the whole rule.
  */
 import { readdirSync, readFileSync } from 'node:fs';
@@ -32,7 +32,7 @@ type Rule = keyof typeof RULES;
 const BOUNDARIES: Readonly<Record<string, readonly Rule[]>> = {
   'runtime.ts': ['write', 'streams', 'console', 'escape'],
   'ink/terminal.ts': ['write'],
-  'ink/process.ts': ['streams', 'console'],
+  'ink/process.ts': ['console'],
 };
 
 /** What a file is held to: every rule but its own boundary's. */
@@ -69,7 +69,7 @@ describe('R15 — controlroom never paints on its own', () => {
     expect(offences('out.write(x)', rulesFor('ink/terminal.ts'))).toEqual([]);
     expect(offences("const up = '\\u001B[1A';", rulesFor('ink/terminal.ts'))).toHaveLength(1);
     expect(offences('process.stdout.columns', rulesFor('ink/terminal.ts'))).toHaveLength(1);
-    expect(offences('process.stdout', rulesFor('ink/process.ts'))).toEqual([]);
+    expect(offences('process.stdout', rulesFor('ink/process.ts'))).toHaveLength(1);
     expect(offences('console.log(1)', rulesFor('ink/process.ts'))).toEqual([]);
     expect(offences('out.write(x)', rulesFor('ink/process.ts'))).toHaveLength(1);
     expect(rulesFor('ink/render.ts')).toEqual(Object.keys(RULES));
