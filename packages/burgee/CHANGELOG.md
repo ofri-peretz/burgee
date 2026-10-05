@@ -1,5 +1,16 @@
 # burgee
 
+## 0.17.0
+
+### Minor Changes
+
+- [#782](https://github.com/ofri-peretz/burgee/pull/782) [`4eb5f44`](https://github.com/ofri-peretz/burgee/commit/4eb5f4468892fbcaae490237b09cf17bb3690aaf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A failure now says what to do next. When a `USAGE` or `RUNTIME` failure carries no `fix`, stderr adds the failing command's `usage:` line and its options, with required, default, choices, relations and env noted, and the `--json` envelope carries the same thing as `error.usage: { command, options?, commands?, more? }`. The list is at most 8 rows, and `more` names the `--help` that has the rest. An unknown command lists the commands that exist and points at `--schema`. When exactly one command is near, the error's `fix` is the caller's own command line with the word corrected (`fix: tool push --target prod`). Every runnable command's help lists `--explain <option>`, and the root help ends with one `For agents:` line naming `--schema`, `--json` and `--explain`. Exit codes are unchanged. The core entry is unchanged too, at 0 bytes: the new text lives in the lazy `failure.js`, `surfaces.js`, `usage.js` and `help.js` chunks. `burgee/commander`, `burgee/yargs` and `burgee/meow` are untouched (D-20260930-failures-teach-recovery).
+
+### Patch Changes
+
+- Updated dependencies [[`df87199`](https://github.com/ofri-peretz/burgee/commit/df87199c8484ffaeae523dc55131f33eca485f5f)]:
+  - linegauge@1.0.3
+
 ## 0.16.0
 
 ### Minor Changes

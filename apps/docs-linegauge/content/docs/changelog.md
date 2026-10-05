@@ -3,6 +3,16 @@ title: Changelog
 description: "Every release of linegauge, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.0.3
+
+### Patch Changes
+
+- [#781](https://github.com/ofri-peretz/burgee/pull/781) [`df87199`](https://github.com/ofri-peretz/burgee/commit/df87199c8484ffaeae523dc55131f33eca485f5f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Remove 20 unreachable `??` fallbacks from `width` and `wrap`. Each one guarded a value that is
+  always present: an in-range table index, the code point of a non-empty cluster, the first element
+  of `String.prototype.split`, or a named group of a regex that declares it. No output changes: the
+  compat grades are unchanged at 233/85/8/104. The coverage gate is now a plain 100% on lines,
+  functions, statements and branches, with no per-file exception.
+
 ## 1.0.2
 
 ### Patch Changes
