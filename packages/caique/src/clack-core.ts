@@ -29,6 +29,7 @@ import { hideCursor, rawMode } from 'closeout/cursor';
 import exitHook from 'closeout/exit-hook';
 import { wrap } from 'linegauge/wrap';
 
+import { edit } from './line-edit.js';
 import { processFacts, processRuntime } from './runtime.js';
 
 /** A stream a list can measure itself against. Anything with a size, including a test double. */
@@ -269,48 +270,6 @@ function actionOf(key: Keypress, track: boolean): Action | undefined {
   if (key.name === undefined) return undefined;
   if (!track && settings.aliases.has(key.name)) return settings.aliases.get(key.name);
   return [...settings.actions].find((action) => action === key.name);
-}
-
-/** Keys the line editor never inserts, whatever their `char` says. */
-const NOT_TYPED = new Set(['return', 'enter', 'escape', 'tab', 'up', 'down']);
-
-/** Whether a key is text to insert rather than a command: printable, and no modifier held. */
-const printable = (char: string | undefined, key: Keypress): char is string =>
-  key.ctrl !== true && key.meta !== true && char !== undefined && char !== '' && !NOT_TYPED.has(key.name ?? '') && char >= ' ';
-
-/** Where a key that only moves the cursor puts it, or `undefined` for any other key. */
-function moved(name: string | undefined, cursor: number, length: number): number | undefined {
-  switch (name) {
-    case 'left':
-      return Math.max(0, cursor - 1);
-    case 'right':
-      return Math.min(length, cursor + 1);
-    case 'home':
-      return 0;
-    case 'end':
-      return length;
-    default:
-      return undefined;
-  }
-}
-
-/** One key's edit to the typed line: insert, delete, move. What `readline` does for clack. Says whether the text changed. */
-function edit<T>(prompt: Prompt<T>, char: string | undefined, key: Keypress): boolean {
-  const { userInput: line, cursor } = prompt;
-  const set = (next: string, at: number): boolean => {
-    prompt.userInput = next;
-    prompt.cursor = at;
-    return true;
-  };
-  const at = moved(key.name, cursor, line.length);
-  if (at !== undefined) {
-    prompt.cursor = at;
-    return false;
-  }
-  if (key.name === 'backspace') return cursor > 0 && set(line.slice(0, cursor - 1) + line.slice(cursor), cursor - 1);
-  if (key.name === 'delete') return cursor < line.length && set(line.slice(0, cursor) + line.slice(cursor + 1), cursor);
-  if (key.ctrl === true && key.name === 'u') return set(line.slice(cursor), 0);
-  return printable(char, key) && set(line.slice(0, cursor) + char + line.slice(cursor), cursor + char.length);
 }
 
 type Raw = NodeJS.ReadableStream & { isTTY?: boolean; isRaw?: boolean; setRawMode?: (raw: boolean) => unknown };

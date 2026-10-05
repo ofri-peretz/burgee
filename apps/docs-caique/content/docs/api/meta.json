@@ -6,6 +6,7 @@
     "binding",
     "clack",
     "decide",
+    "editor",
     "inquirer",
     "keys",
     "plugin",

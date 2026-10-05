@@ -40,6 +40,13 @@ Intent: [`intent.md`](./intent.md). **Status:** approved (2026-09-23, under the 
   life through `closeout/cursor`'s `rawMode()`; reading keys off a terminal throws at once
   with a `fix` (controlroom R7). `raw.ts`'s `keyOf` is rebuilt on this decoder, and
   `raw.test.ts` passes unchanged. **Built 2026-10-05** — see "What shipped (R9)" below.
+- **R10 (controlroom R20, caique's half)** `caique/editor`. caique's line editor as a component
+  a host drives: plain-data state, an `onKey(state, keyPress)` reducer and a render to rows,
+  with no I/O. Multi-line entry, history, bracketed paste treated as text, and a completion menu
+  the program feeds through `complete(word)`. Its commands are a keymap. Its editing is the
+  code `caique/clack`'s prompts use, not a second editor. Off a terminal, entries come from
+  stdin lines and end when the input does, never a wait (controlroom R7). **Built 2026-10-05**
+  — see "What shipped (R10)" below.
 
 ## Design
 
@@ -53,6 +60,8 @@ packages/caique/src/
                  so there is no separate accessible.ts (see "What shipped")
   binding.ts     resolvePrompts() — one host-agnostic pass, not one binding per host
   keys.ts        caique/keys — the one key decoder, keymaps as data, raw mode once (R9)
+  editor.ts      caique/editor — the line editor as a component a screen hosts (R10)
+  line-edit.ts   the line editing caique/clack and caique/editor share; not an entry point
   terminal.ts    createIo() over node:readline — the only file that touches a terminal,
                  and the only one that knows what echo is
   runtime.ts     Runtime + processRuntime() — the only file that names `process` (Y9);
@@ -310,6 +319,7 @@ and `grep '^export' packages/caique/src/<file>.ts`.
 | `caique/binding` | `resolvePrompts`; `PromptableOption`, `ResolveInput`, `ResolveFailure`, `Resolved` | one host-agnostic resolution pass, rather than one binding per host |
 | `caique/ask` | `ask`, `projection`; `Io`, `Reader`, `Writer`, `ReadOptions`, `Answer`, `Asked` | the six built-ins in line mode, and the static text every non-terminal mode prints |
 | `caique/raw` | `keyOf`, `canRender`, `renderList`, `askList`; `Key`, `KeyStream`, `RawIo` | the raw-mode renderer, for the terminal that can take one |
+| `caique/editor` | `editor`, `submissions`, `EDITOR_KEYS`; `EditorState`, `EditorOptions`, `EditorAction`, `EditorEvent`, `Editor`, `Step`, `Frame`, `Menu` | the line editor as a component a screen hosts, and its line path off a terminal (R10, added 2026-10-05; not reachable from the root) |
 | `caique/keys` | `decode`, `canonical`, `specOf`, `bindings`, `match`, `canReadKeys`, `readKeys`, `KeysError`; `KeyPress`, `Keymap`, `Binding`, `KeyInput`, `KeysErrorCode` | key presses and keymaps, for a screen as much as a prompt (R9, added 2026-10-05) |
 | `caique/terminal` | `createIo`, `streamsOf`; `Streams` | the only file that touches a terminal, and the only one that knows what echo is |
 | `caique/plugin` | `register`, `validate`, `reset`, `registered`, `widgets`, `widgetFor`, `kinds`, `projectionOf`, `CONTRACT`, `PluginError`; `Plugin`, `Widget`, `WidgetSample`, `Contribution`, `PluginErrorCode` | the extension point, described in full in the 2026-09-13 entry above |
@@ -606,6 +616,78 @@ in 120 s against the regular expression.
 Not done here, and named: **bracketed paste mode** (`ESC[?2004h`) is a terminal state a program
 owes back, like the cursor, and switching it on is the host's job. The decoder already reports
 `paste-start` and `paste-end` for the line editor controlroom R20 asks of caique.
+
+## What shipped (R10 — `caique/editor`, controlroom R20's caique half — 2026-10-05)
+
+`src/editor.ts`, published as `caique/editor`: `editor(options)` returns `{ initial, onKey,
+render }`, and `submissions(input)` is the line path. `EDITOR_KEYS` is the default keymap.
+It is the half of controlroom R20 that caique owns ("the editor stays caique's"). controlroom
+places the editor in its live region and routes keys to it, which is controlroom's phase-2 work.
+
+**A component, not a prompt.** The editor does no I/O. `onKey(state, keyPress)` returns the
+next state, plus an event when the entry was submitted or cancelled. `render(state)` returns
+the rows and the cursor's row and display column. The state is plain data, with no functions
+in it. A host reads keys with `caique/keys`' `readKeys()` and paints the frame wherever its
+layout puts the input line. The suite drives the editor with real bytes through `decode()` and
+never opens a stream, and that is the property the host relies on.
+
+**Not a second editor.** Insert, delete, backspace, the cursor moves and Ctrl-U were `edit()`, a
+private function in `clack-core.ts`. Moving between the rows of a multi-line entry was
+`moveTextCursor()`, private in `clack-prompts.ts`. Both moved, unchanged, into `line-edit.ts`.
+`caique/clack`'s prompts and this component now edit text with the same code, and clack's
+suites pass as before. A mutation to the shared Ctrl-U turns both suites red. `./clack` went
+from 62,229 to 62,097 B in the move.
+
+**What it adds on top of the line editor:**
+
+- **Multi-line entry.** Enter submits. Alt+Enter and Ctrl+J insert a newline: `caique/keys`
+  reports a bare LF as `ctrl+j`, so binding it does not steal Enter. Up and Down walk the rows
+  first and the history second.
+- **History.** Up recalls older entries, and Down returns to the draft that was being written.
+  A submitted entry joins the history unless it is empty or repeats the last one.
+- **Bracketed paste.** Between `paste-start` and `paste-end`, every key is text, Enter included.
+  A pasted newline does not submit, `\r\n` and `\r` become `\n`, and a paste split across reads
+  stays one paste.
+- **A completion menu the program feeds.** `complete(word)` is called with the word before the
+  cursor (`/com`, `@fi`). The editor only asks; what a word means is the program's business.
+  Up and Down move the selection, wrapping at both ends. Tab or Enter puts it in place of the
+  word. Escape closes the menu until the word changes. A candidate that equals the word is not
+  offered, because offering it would make Enter accept it forever instead of submitting.
+- **The commands are a keymap** (`EDITOR_KEYS`), data in R9's sense. A host passes its own, and
+  `bindings()` of the same object is its hint line.
+
+**Off a terminal: lines, never a wait** (controlroom R7). `submissions(input)` yields one entry
+per line of a stream and ends when the stream does. It is readline's own async iterator. The
+first draft took caique's `Reader` and called `line()` in a loop, and the suite caught it
+dropping lines. `createIo()`'s reader listens for one `line` event at a time, so lines that
+arrive in one chunk before anyone asks are lost. Measured against `dist/terminal.js`:
+`input.end('a\nb\n')` before reading gives `[undefined, undefined, undefined]` from three
+`line()` calls. That defect is `caique/terminal`'s, not the editor's. It is outside this change
+and is recorded here so it is not lost.
+
+**Weight.** `./editor` is 12,389 B: `editor.js`, `line-edit.js` and `keys.js`. It reaches
+`linegauge` for the cursor's column, and the two closeout subpaths through `keys.js`. It is not
+reachable from the root, so a program that only asks questions does not carry a screen's input
+line. Its budget, 13,000 B, is in `weight.test.ts` with its reason.
+
+**Proven to bite.** I ran twenty-one mutations against `editor.ts` and `line-edit.ts`, and every
+one turned the suite red:
+
+- **Bracketed paste:** Enter inside a paste submits; CRLF is kept; the start marker is ignored.
+- **History:** the draft is not kept; Up skips the rows of a multi-line entry; Down skips them
+  too; repeats are recorded; empty entries are recorded.
+- **Completion menu:** Enter submits through an open menu; a candidate equal to the word is
+  offered; the selection is not kept for the same word; it is not clamped when the list
+  shrinks; Escape does not stick; the selection does not wrap at the top.
+- **Render:** continuation rows are not indented; the cursor column counts characters instead
+  of cells.
+- **Keymap:** cancel is not an event; the host's keymap is ignored.
+- **Lines:** lines are read one `line` event at a time.
+- **`line-edit.ts`:** Ctrl-U kills nothing; the row cursor is not clamped.
+
+One mutation survived the first draft: dropping Escape's dismissal. Tab was the only key the
+case pressed after Escape, and Tab re-opened the menu without changing the text the case
+asserted. The case now asserts that the menu stays closed.
 
 ## Out of scope
 

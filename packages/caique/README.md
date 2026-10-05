@@ -244,10 +244,11 @@ measured. **The ceiling is clack**: `@clack/prompts`
 | `caique/ask` | 4,234 | the six widgets, no terminal, no raw mode |
 | `caique/raw` | 8,896 | line mode, which it sits on top of, the key decoder, and `closeout` for the cursor |
 | `caique/keys` | 4,991 | `closeout` for raw mode, and nothing else in caique |
+| `caique/editor` | 12,389 | the key decoder and the line editing `caique/clack` shares; no I/O |
 | `caique/binding` | 8,123 | the decision and the widgets |
 | `caique/terminal` | 1,947 | the one file that touches a stream |
 | `caique/plugin` | 9,788 | the widgets, and the family schema |
-| `caique/clack` | 62,336 | `closeout/cursor`, `closeout/exit-hook` and `linegauge/wrap` |
+| `caique/clack` | 62,097 | `closeout/cursor`, `closeout/exit-hook` and `linegauge/wrap` |
 | `caique/inquirer` | 20,623 | `closeout/cursor`, `closeout/exit-hook` and `linegauge/wrap` |
 
 The root entry is **under a fifth of the lightest incumbent**, and nothing reaches outside this
@@ -256,7 +257,7 @@ subpaths, asserted rather than claimed. Deciding *not* to ask costs 2,133 B and 
 the machinery of asking — which is the case an agent hits. The two façades are leaves away
 from the rest: a program on caique's own API never loads a byte of either.
 
-Measured 2026-09-20 (the root, `caique/raw` and `caique/keys` on 2026-10-05), the same way every bill in this family is: shipped code and data
+Measured 2026-09-20 (the root, `caique/raw`, `caique/keys`, `caique/editor` and `caique/clack` on 2026-10-05), the same way every bill in this family is: shipped code and data
 (`.js`/`.mjs`/`.cjs` plus imported `.json`, `package.json` never counted), each competitor
 counted whole across its own resolved tree.
 
