@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { CONTRACT, PluginError, register, registered, validate } from './plugin.js';
+import { CONTRACT, PluginError, register, registered, reset, validate } from './plugin.js';
 
 const refusal = (plugin: unknown): PluginError => {
   try {
@@ -61,6 +61,13 @@ describe('register and registered', () => {
     now.keymaps.clear();
     expect(registered().keymaps.has('mine')).toBe(true);
     expect(Object.isFrozen(registered().panes.get('log'))).toBe(true);
+  });
+
+  it('reset forgets every registration, and the built-in default comes back on the next use', () => {
+    register({ name: 'gone', keymaps: { temp: { keys: { t: 'x' } } } });
+    reset();
+    expect(registered().keymaps.has('temp')).toBe(false);
+    expect(registered().keymaps.has('default')).toBe(true);
   });
 
   it('a refused plugin registers nothing', () => {

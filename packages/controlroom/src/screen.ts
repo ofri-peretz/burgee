@@ -143,6 +143,7 @@ function projected(rt: Runtime, options: Resolved, mode: OutputMode): Screen {
   let state = initial(options.tabs, options.focus);
   const hoisted = new Map<string, { pane: Pane; hoisted: Hoisted<unknown> }>();
   for (const [name, pane] of Object.entries(options.panes)) {
+    if (pane.liveOnly === true) continue;
     const component: Component<unknown> = {
       name,
       static: (s) => (pane.label === undefined ? pane.component.static(s) : `${pane.label}\n${pane.component.static(s)}`),
@@ -163,6 +164,7 @@ function projected(rt: Runtime, options: Resolved, mode: OutputMode): Screen {
       return state;
     },
     update(name, next) {
+      if (options.panes[name]?.liveOnly === true) return;
       const entry = hoisted.get(name) ?? unknownPane(name);
       entry.pane = { ...entry.pane, state: next };
       entry.hoisted.update(next);

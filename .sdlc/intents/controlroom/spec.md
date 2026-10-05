@@ -201,6 +201,11 @@ shape, and it is the most common one.
   - `examples/dashboard`, the reference demo from the intent (the PostHog wizard's layout):
     tabs, a task list with progress, a log tail and collapse, in the alternate screen.
 
+  **`examples/dashboard` built 2026-10-05**: under a pipe and `--json` its test applies R6's
+  clean-transcript check and runs with stdin closed; on a terminal it is driven in-process
+  (keys, collapse, quit, leaving the alternate screen), and by hand under a real PTY. Panes it
+  shows only on a terminal (the tab bar, the hint line) are `liveOnly`, which R6 needed.
+
   The docs gain **"Start from a boilerplate"**, with the copy command for each. There is no
   `create-*` package: it would be an eleventh package against D-158's cap of ten. It is
   reopened if copying a directory is measured to be the friction.

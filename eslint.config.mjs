@@ -293,8 +293,7 @@ export default [
     // a config, not source reading source, and the alternative is the same exclusion list
     // copied into four files — which is how it drifts and how a façade quietly starts being
     // counted again. The packages themselves still depend on nothing.
-    // The docs apps' configs reach the root's clocks for the same reason (vitest-timeouts-lock).
-    files: ["packages/*/vitest.config.ts", "apps/*/vitest.config.ts"],
+    files: ["packages/*/vitest.config.ts", "apps/*/vitest.config.ts", "examples/*/vitest.config.ts"],
     rules: {
       "import-next/no-relative-parent-imports": "off",
       "import-next/no-relative-packages": "off",
@@ -318,7 +317,7 @@ export default [
   {
     // Tests import the package's public entry on purpose; scripts and tests are
     // entry points with nothing to export.
-    files: ["**/*.test.ts", "scripts/**"],
+    files: ["**/*.test.ts", "**/*.test.mjs", "scripts/**"],
     rules: {
       "import-next/no-barrel-import": "off",
       "import-next/no-unused-modules": ["error", { allowImportOnly: true }],
