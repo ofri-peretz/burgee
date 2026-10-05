@@ -98,10 +98,38 @@ React's own reconciler, and the native API never loads either. Without them,
 `fix`. Layout is a TypeScript port of yoga's flexbox for the props ink exposes; there is no
 yoga.
 
-Resolving `'ink'` to `controlroom/ink` through a `package.json` alias or `overrides` runs
-`@inkjs/ui` unchanged — its own suite passes 103 / 103 that way (R17) — and is meant to run
-`ink-spinner`, `ink-text-input` and `ink-select-input` the same way, with no façade of their
-own.
+In a user's bundle the drop-in is no heavier than ink: `controlroom/ink` with `react` and
+`react-reconciler` against `ink` with `react`, as the weight axis measures it (R14, published
+on the [benchmarks page](https://burgee.interlace.tools/docs/benchmarks)).
+
+**Packages written for ink run unchanged** when `'ink'` resolves to `controlroom/ink`. A bare
+`npm:` alias cannot do that, because it names a package and not a subpath, so `'ink'` would be
+the native API. Instead, one line in your `package.json` points `'ink'` at a two-file package
+of your own that re-exports the drop-in:
+
+```json
+{
+  "dependencies": {
+    "ink": "file:./ink",
+    "controlroom": "*",
+    "react": "^19.0.0",
+    "react-reconciler": "^0.33.0"
+  }
+}
+```
+
+```js
+// ink/index.js — and ink/package.json: { "name": "ink", "version": "6.8.0", "type": "module", "exports": "./index.js" }
+export * from 'controlroom/ink';
+```
+
+The version is the ink API the drop-in implements, so every component's peer range on ink is
+met and npm installs no other ink. That is how `ink-spinner`, `ink-text-input` and
+`ink-select-input` run, as published, in
+[`examples/ink-ecosystem`](https://github.com/ofri-peretz/burgee/tree/main/examples/ink-ecosystem),
+and how [`examples/chat-cli-ink`](https://github.com/ofri-peretz/burgee/tree/main/examples/chat-cli-ink),
+a whole Ink app, runs on the drop-in (R17, R22). `@inkjs/ui` runs the same way: its own suite
+passes 103 / 103 with `'ink'` resolved to this package. None of them has a façade here.
 
 From **blessed**, **neo-blessed** and **terminal-kit** there is no drop-in — their surfaces are
 too large to reproduce honestly. Each has a coming-from guide, and `burgee migrate` reports the

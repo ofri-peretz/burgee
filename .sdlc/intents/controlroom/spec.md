@@ -118,7 +118,31 @@ it records every change here.
   subpaths and is denied `react`, `react-reconciler` and every `ink/` module (12,672 B);
   `controlroom/ink` is 130,443 B of `dist/` before its peers, against ink 6.8's own 169,374 B
   before yoga. The walker reads `import()` as well as static imports, so a peer cannot hide.
-  The W1–W4 benchmark fixtures are not added yet.
+  **W1, W2, W4 and W3's root half built 2026-10-05** (D-20261005-controlroom-ink-alias), as B4
+  pairs in `benchmarks/fixtures/entry-points.ts` and B2 variants in `benchmarks/axes/perf.ts`,
+  against ink 6.8.0 on React 19.3.0 (benchmarks devDependencies, the versions the oracle grades),
+  each gated at ≤ 1.0× with a claim in `benchmarks/claims.ts`. Measured on darwin (a laptop,
+  `npm run bench -- --axis weight` and `--axis perf`, 52 rounds):
+
+  | Gate | Ours | Against | Ratio |
+  | :-- | --: | --: | --: |
+  | W1 · bundled: `controlroom/ink` + `react` + `react-reconciler` against `ink` + `react` | 473,361 B | 635,541 B | **0.745** |
+  | W2 · installed bytes, the same two programs | 3,053,223 B | 8,067,173 B | **0.378** |
+  | W2 · installed packages | 10 | 42 | **0.238** |
+  | W3 · bundled: the `controlroom` root (`open`) against `ink` alone, React external | 28,848 B | 604,713 B | **0.048** |
+  | W4 · cold start: importing `controlroom/ink` against importing `ink` + `react` | 94.06 ms | 338.52 ms | **0.289** |
+  | W4 · cold start: importing `controlroom` against importing `ink` + `react` | 43.26 ms | 338.52 ms | **0.144** |
+
+  All six meet the bar. The intent's figures (674,652 B and 644,976 B) were esbuild 0.28.2 over
+  React 19.2.4 in a scratch install; the axis's are the ones that publish. W1's side counts every
+  chunk (`eager`): the drop-in loads its peers with `import()` under top-level await, so the
+  axis's "initial load" would leave three stubs out in our favour. W2's package count is the
+  axis's own walk (`installedTree`, the one mechanism added), and ink + react is 42 where the
+  intent's 45 included `@inkjs/ui`, which both sides would install. **W3's demo half is not an
+  axis record yet**: `examples/dashboard` is not on this base (it is on `feat/controlroom-input`).
+  Measured out of tree with the same flags, the dashboard bundled from that branch's sources is
+  44,809 B against 695,034 B for the Ink screen fixture (0.064); its pair is one row in
+  `PAIRS` once the example lands, with the screen fixture committed beside it.
 
 **Compatibility and migration** (D-168). The owner's rule, 2026-09-27: _"controlroom should
 be compatible and allow easy migration to it from the leading competitors."_
@@ -142,8 +166,20 @@ be compatible and allow easy migration to it from the leading competitors."_
   **Graded 2026-10-05: `@inkjs/ui` 103 / 103** on `controlroom/ink` through the alias, on
   `@inkjs/ui`'s own React 18 and `react-reconciler` 0.29 (control 103 / 103; 7 of the 103 are
   cases upstream marks `failing` against ink 5, which the drop-in draws as the case expects).
-  The fixture that installs `ink-spinner`, `ink-text-input` and `ink-select-input` is not
-  built yet.
+  **The fixture built 2026-10-05** as `examples/ink-ecosystem` (D-20261005-controlroom-ink-alias):
+  `ink-spinner` 5.0.0, `ink-text-input` 6.0.0 and `ink-select-input` 6.2.0 from npm, run
+  unmodified, **7 / 7** — each component's own `'ink'` lands on the drop-in, the spinner draws
+  and animates the `dots` frames, the text input shows its placeholder, takes typed text and
+  submits it, and the select input moves its mark with ↓ and selects on Enter. Against real ink
+  (the line pointed back at `ink@6.8.0`) the three behaviour cases pass and the four resolution
+  cases fail, which is what proves the resolution cases can. The alias is
+  `"ink": "file:./ink"`, a two-file package that re-exports `controlroom/ink` at version 6.8.0:
+  a bare `npm:` alias names a package, not a subpath, so it would hand the components the native
+  API. Neither example is a workspace — a package named `ink` that is not ink took the root
+  `node_modules/ink` from the benchmarks' real one when it was — so
+  `scripts/ink-alias-lock.test.ts` packs `controlroom` and its family from the tree, installs
+  each example alone and runs its `node --test`, and the line is in the README's Migrating
+  section.
 - **R18 · migrating off blessed, neo-blessed and terminal-kit.** No drop-in: their API
   surfaces are too large to reproduce honestly. Instead, a coming-from guide for each, and
   `burgee migrate` codemod rules for the common screen, box, list and key patterns, as the
@@ -222,6 +258,22 @@ shape, and it is the most common one.
   The docs gain **"Start from a boilerplate"**, with the copy command for each. There is no
   `create-*` package: it would be an eleventh package against D-158's cap of ten. It is
   reopened if copying a directory is measured to be the friction.
+
+  **`examples/chat-cli-ink` built 2026-10-05** (D-20261005-controlroom-ink-alias): `chat.mjs`
+  is the chat as an Ink program — `ink`, `react`, `ink-text-input` and `ink-spinner`, with
+  `React.createElement` and no build step — `<Static>` for the transcript and a live region for
+  the streamed reply, the status line (spinner, elapsed time, token count) and the input line;
+  Esc interrupts, Tab completes, ↑ and ↓ walk the history, Ctrl+C quits. Its package.json has
+  `"ink": "file:./ink"`. `chat.test.mjs` mirrors `chat-cli`'s on `node:test`, **12 / 12** on the
+  drop-in: every `'ink'` the app reaches (its own, `ink-text-input`'s, `ink-spinner`'s) is the
+  drop-in; piped, a clean transcript in order, each entry once, exit on end of stdin; on a
+  terminal stand-in in-process, the stream under a status line, Esc, Tab, ↑ and Ctrl+C. The same
+  file on real ink passes all eight behaviour cases and fails the four resolution cases. **Ink has
+  no `--json` equivalent** — it has no structured output to project — so `--json` exits 2 with a
+  pointer to `chat-cli`, and the README and the test say so. A pipe gets Ink's own linear
+  screen-reader output (`isScreenReaderEnabled` off a terminal), which writes each committed line
+  once and no escape sequence. The README says what to change first. `boilerplates.mdx` is not on
+  this base (it is on `feat/controlroom-input`), so the row for this boilerplate is added with it.
 
 ## Design
 

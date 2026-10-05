@@ -26,9 +26,9 @@ import { join, resolve } from 'node:path';
 import { sync as crossSpawnSync } from 'bellpull/cross-spawn';
 
 import { claimRatchet, RATCHETED } from '../claim-ratchets.js';
-import { DEFAULT_EXPORT, fixtureSource, PAIRS, PARITY, stackFixtureSource, type EntryPair, type ParityStack } from '../fixtures/entry-points.js';
+import { DEFAULT_EXPORT, packageOf, packagesOf, PAIRS, PARITY, ratioVariant, sideLabel, sideSource, stackFixtureSource, type EntryPair, type ParityStack, type Side } from '../fixtures/entry-points.js';
 import { type BenchRecord } from '../record.js';
-import { BENCH_ROOT, packageDir, relativeToRepo, resolvePackage } from '../resolve.js';
+import { BENCH_ROOT, packageDir, relativeToRepo, type Resolved, resolvePackage } from '../resolve.js';
 import { round } from '../stats.js';
 
 const REPO_ROOT = resolve(BENCH_ROOT, '..');
@@ -130,10 +130,18 @@ export function installedDependencies(dir: string): string[] {
   return [...new Set([...Object.keys(manifest.dependencies ?? {}), ...optional])];
 }
 
-/** The package a specifier belongs to: `burgee/commander` is published by `burgee`. */
-export function packageOf(specifier: string): string {
-  const parts = specifier.split('/');
-  return specifier.startsWith('@') ? parts.slice(0, 2).join('/') : (parts[0] as string);
+/**
+ * Several packages installed together, as one tree: bytes, and how many package directories npm
+ * puts on disk for them (controlroom W2). One `seen` set across the roots, so a package two of
+ * them share — `scheduler`, under `react-reconciler` and under ink — is one directory, counted
+ * once, exactly as `installedBytes` already counts one inside a single tree. The count is the
+ * size of that set: the same walk, the same key, nothing estimated beside it.
+ */
+export function installedTree(names: readonly string[]): { bytes: number; packages: number } {
+  const seen = new Set<string>();
+  let bytes = 0;
+  for (const name of names) bytes += installedBytes(name, BENCH_ROOT, seen);
+  return { bytes, packages: seen.size };
 }
 
 /**
@@ -209,17 +217,18 @@ export function initialBytes(meta: Metafile, entryFile: string): number {
   return total;
 }
 
-function bundle(side: { specifier: string; symbol: string }, id: string, scratch: string): { initial: number; whole: number } {
+function bundle(side: Side, id: string, scratch: string): { initial: number; whole: number } {
   mkdirSync(scratch, { recursive: true });
   const stem = id.replaceAll('/', '__');
   const file = join(scratch, `${stem}.mjs`);
-  writeFileSync(file, fixtureSource(side));
+  writeFileSync(file, sideSource(side));
   const outdir = join(scratch, `${stem}.chunks`);
   rmSync(outdir, { recursive: true, force: true });
   const metafile = join(scratch, `${stem}.meta.json`);
+  const external = (side.external ?? []).map((name) => `--external:${name}`);
   // esbuild from the CLI, not the API: one fewer import in a suite that measures imports,
   // and the exact command is quotable in the results file.
-  execFileSync(esbuildBin(), [file, '--bundle', '--minify', '--format=esm', '--platform=node', '--splitting', `--outdir=${outdir}`, `--metafile=${metafile}`], {
+  execFileSync(esbuildBin(), [file, '--bundle', '--minify', '--format=esm', '--platform=node', '--splitting', ...external, `--outdir=${outdir}`, `--metafile=${metafile}`], {
     cwd: BENCH_ROOT,
     stdio: 'pipe',
   });
@@ -227,7 +236,7 @@ function bundle(side: { specifier: string; symbol: string }, id: string, scratch
   const whole = readdirSync(outdir)
     .filter((f) => f.endsWith('.js'))
     .reduce((sum, f) => sum + statSync(join(outdir, f)).size, 0);
-  return { initial: initialBytes(meta, `${stem}.js`), whole };
+  return { initial: side.eager === true ? whole : initialBytes(meta, `${stem}.js`), whole };
 }
 
 export interface Measured {
@@ -236,6 +245,8 @@ export interface Measured {
   /** Every chunk together: the disk cost of the feature set. */
   whole: number;
   installed: number;
+  /** Package directories on disk for the side's whole tree: W2's other number. */
+  packages: number;
   version: string;
   dir: string;
 }
@@ -243,12 +254,15 @@ export interface Measured {
 /**
  * `installed` is false only for `bundledRecords`, which drops the installed rows: it is the one
  * call that must stay cheap, and `npm pack` over a workspace is the slow half of this axis.
+ *
+ * Every package a side imports is resolved through the same guard, so a side of several cannot
+ * measure a hoisted `react` the manifest never declared; `version` and `dir` are the first one's.
  */
-function measure(side: { specifier: string; symbol: string }, id: string, scratch: string = SCRATCH, installed = true): Measured {
-  const pkg = packageOf(side.specifier);
-  const { dir, version } = resolvePackage(pkg);
+function measure(side: Side, id: string, scratch: string = SCRATCH, installed = true): Measured {
+  const [{ dir, version }] = packagesOf(side).map((pkg) => resolvePackage(pkg)) as [Resolved];
   const { initial, whole } = bundle(side, id, scratch);
-  return { bundled: initial, whole, installed: installed ? installedBytes(pkg) : Number.NaN, version, dir: relativeToRepo(dir) };
+  const tree = installed ? installedTree(packagesOf(side)) : { bytes: Number.NaN, packages: Number.NaN };
+  return { bundled: initial, whole, installed: tree.bytes, packages: tree.packages, version, dir: relativeToRepo(dir) };
 }
 
 /**
@@ -709,39 +723,44 @@ export function pairRecords(pair: EntryPair, ours: Measured, theirs: Measured): 
   const ceiling = BUNDLED_CEILING[pair.id];
   const ratioMax = RATIO_CEILING[pair.id] ?? 1;
   const ratio = round(ours.bundled / theirs.bundled, RATIO_PLACES);
+  const [oursLabel, theirsLabel] = [sideLabel(pair.ours), sideLabel(pair.incumbent)];
   return [
     bytesRecord({
-      variant: pair.id,
+      variant: oursLabel,
       metric: 'bundled-bytes',
       value: ours.bundled,
       measured: ours,
-      note: `esbuild --bundle --minify --format=esm --platform=node over a fixture importing ${symbolNote(pair.ours)} from \`${pair.ours.specifier}\``,
+      note: `esbuild --bundle --minify --format=esm --platform=node over a fixture importing ${importsNote(pair.ours)}${bundleNote(pair.ours)}`,
       ...(ceiling === undefined ? {} : { gate: { max: ceiling, why: "a ratchet on what a user's bundle grows by; raising it is a decision, not a drift" } }),
     }),
     bytesRecord({
-      variant: pair.incumbent.specifier,
+      variant: theirsLabel,
       metric: 'bundled-bytes',
       value: theirs.bundled,
       measured: theirs,
-      note: `the same fixture over \`${pair.incumbent.specifier}\` — ${pair.why}`,
+      note: `the same fixture over ${pair.incumbent.with === undefined ? `\`${pair.incumbent.specifier}\`` : importsNote(pair.incumbent)}${bundleNote(pair.incumbent)} — ${pair.why}`,
     }),
     bytesRecord({
-      variant: pair.id,
+      variant: oursLabel,
       metric: 'installed-bytes',
       value: ours.installed,
       measured: ours,
-      note: `\`npm pack\` unpacked size of ${packageOf(pair.ours.specifier)} plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question`,
+      note:
+        pair.ours.with === undefined
+          ? `\`npm pack\` unpacked size of ${packageOf(pair.ours.specifier)} plus its same-repo dependencies. One package serves every entry point it publishes, so this number is not per-entry-point and is reported, never gated — bundled bytes is the per-entry-point question`
+          : `\`npm pack\` unpacked size of ${packageOf(pair.ours.specifier)} and its same-repo dependencies, plus the bytes on disk for ${packagesOf(pair.ours).slice(1).join(', ')} and every production dependency they drag in`,
     }),
     bytesRecord({
-      variant: pair.incumbent.specifier,
+      variant: theirsLabel,
       metric: 'installed-bytes',
       value: theirs.installed,
       measured: theirs,
       note: 'bytes on disk for it and every production dependency it drags in',
     }),
+    ...(pair.installed === true ? installedRecords(pair, ours, theirs) : []),
     {
       axis: 'weight',
-      variant: `${pair.id} ÷ ${pair.incumbent.specifier}`,
+      variant: ratioVariant(pair),
       metric: 'bundled-bytes-ratio',
       unit: 'ratio',
       samples: 1,
@@ -754,6 +773,49 @@ export function pairRecords(pair: EntryPair, ours: Measured, theirs: Measured): 
       note: `${pair.why}; both sides bundled by the same command, both resolved from benchmarks/`,
       detail: { ours: `${pair.ours.specifier}@${ours.version}`, incumbent: `${pair.incumbent.specifier}@${theirs.version}` },
     },
+  ];
+}
+
+/** What a fixture imports, for the note beside its number. */
+function importsNote(side: Side): string {
+  return [side, ...(side.with ?? [])].map((s) => `${symbolNote(s)} from \`${s.specifier}\``).join(', ');
+}
+
+/** The two ways a side's bundle differs from the plain command, said where the number is. */
+function bundleNote(side: Side): string {
+  const external = side.external === undefined ? '' : `, with ${side.external.map((e) => `\`${e}\``).join(' and ')} external`;
+  const eager = side.eager === true ? ', every chunk counted: its peers load through `import()` under top-level await, so no chunk is lazy' : '';
+  return `${external}${eager}`;
+}
+
+/**
+ * controlroom W2: the two trees a user installs, gated at 1 in packages and in bytes. The count
+ * is the number of package directories `installedTree` reached, which is npm's own unit.
+ */
+const packagesRecord = (variant: string, measured: Measured): BenchRecord => ({
+  axis: 'weight',
+  variant,
+  metric: 'installed-packages',
+  unit: 'packages',
+  samples: 1,
+  median: measured.packages,
+  p95: measured.packages,
+  note: 'package directories on disk for the tree, each installed copy once, by the walk installed-bytes makes',
+  detail: { version: measured.version, resolvedFrom: measured.dir },
+});
+
+function installedRecords(pair: EntryPair, ours: Measured, theirs: Measured): BenchRecord[] {
+  const [oursLabel, theirsLabel] = [sideLabel(pair.ours), sideLabel(pair.incumbent)];
+  const why = 'controlroom W2: the drop-in installs no more than what it replaces, in packages and in bytes';
+  const ratioRow = (metric: string, value: number): BenchRecord => {
+    const r = round(value, RATIO_PLACES);
+    return { axis: 'weight', variant: ratioVariant(pair), metric, unit: 'ratio', samples: 1, median: r, p95: r, gate: { max: 1, why }, note: `${pair.why}; both trees walked from benchmarks/` };
+  };
+  return [
+    packagesRecord(oursLabel, ours),
+    packagesRecord(theirsLabel, theirs),
+    ratioRow('installed-bytes-ratio', ours.installed / theirs.installed),
+    ratioRow('installed-packages-ratio', ours.packages / theirs.packages),
   ];
 }
 
@@ -815,8 +877,11 @@ export function run(): BenchRecord[] {
     return uniqueRecords(
       PAIRS.flatMap((pair) => {
         const ours = measure(pair.ours, `ours-${pair.id}`);
-        const theirs = incumbents.get(pair.incumbent.specifier) ?? measure(pair.incumbent, `theirs-${pair.id}`);
-        incumbents.set(pair.incumbent.specifier, theirs);
+        // Keyed by what was bundled, not by package: ink with React and ink without it are two
+        // measurements (W1 and W3), and the second must not reuse the first.
+        const key = `${sideLabel(pair.incumbent)} ${(pair.incumbent.external ?? []).join(',')}`;
+        const theirs = incumbents.get(key) ?? measure(pair.incumbent, `theirs-${pair.id}`);
+        incumbents.set(key, theirs);
         const stack = PARITY.find((p) => p.id === pair.id);
         return [...pairRecords(pair, ours, theirs), ...(stack === undefined ? [] : parityRecords(pair, stack, { ours, theirs }))];
       }),

@@ -88,6 +88,12 @@ export const VARIANTS: readonly Variant[] = [
   { id: 'picocolors', file: 'picocolors.mjs', parses: false, pkg: 'picocolors', env: NO_COLOR },
   { id: 'roundel/tokens', file: 'roundel-tokens.mjs', parses: false, pkg: 'roundel', env: NO_COLOR, over: 'picocolors' },
   { id: 'roundel/chalk', file: 'roundel-chalk.mjs', parses: false, pkg: 'roundel', env: NO_COLOR, over: 'picocolors' },
+  // controlroom W4: importing each entry point against importing ink and the React it renders
+  // through, as the paired ratio. No parser — each proves itself by printing the floor's line
+  // only when what it imported loaded.
+  { id: 'ink + react', file: 'ink-react.mjs', parses: false, pkg: 'ink' },
+  { id: 'controlroom/ink', file: 'controlroom-ink.mjs', host: 'ink + react', parses: false, pkg: 'controlroom' },
+  { id: 'controlroom', file: 'controlroom.mjs', host: 'ink + react', parses: false, pkg: 'controlroom' },
 ];
 
 /**
@@ -118,9 +124,10 @@ const SHOUT_EXPECTED = 'HELLO, ADA!\n';
  * the seven variants this axis had until 2026-09-30 gave offsets 0-4 six turns each and 5-6
  * only five — which is why it read 42 then. With roundel R8's three colour rows there are ten,
  * and 40 makes every variant go first, second and last exactly four times, which is the only
- * thing the rotation is for.
+ * thing the rotation is for. controlroom W4's three rows make thirteen, and 52 is four turns
+ * in each position again.
  */
-export const ROUNDS = 40;
+export const ROUNDS = 52;
 const RATIO_PLACES = 3;
 const MS_PLACES = 2;
 

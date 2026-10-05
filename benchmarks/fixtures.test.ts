@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { proveFixtures, VARIANTS } from './axes/perf.js';
-import { DEFAULT_EXPORT, fixtureSource, PAIRS } from './fixtures/entry-points.js';
+import { DEFAULT_EXPORT, fixtureSource, PAIRS, ratioVariant, sideSource } from './fixtures/entry-points.js';
 
 /**
  * Spawning fourteen processes takes 1 second here and 5.8 on a Windows runner, which is
@@ -46,6 +46,18 @@ describe('weight fixtures', () => {
   it('re-export the symbol they import, so the bundler cannot shake away the subject', () => {
     expect(fixtureSource({ specifier: 'burgee', symbol: 'run' })).toBe("import { run } from \"burgee\";\nexport { run };\n");
     expect(fixtureSource({ specifier: 'ora', symbol: DEFAULT_EXPORT })).toBe('import x from "ora";\nexport default x;\n');
+  });
+
+  // controlroom W1: a side of several packages is one program, so a module two of them share is
+  // bundled once — and it is named by every package it installs, so the row says what it weighed.
+  it('bundle a side of several imports as one program, named by every package in it', () => {
+    const w1 = PAIRS.find((p) => p.id === 'controlroom/ink') as (typeof PAIRS)[number];
+    expect(sideSource(w1.ours)).toBe('import { render as x0 } from "controlroom/ink";\nimport x1 from "react";\nimport x2 from "react-reconciler";\nexport default [x0, x1, x2];\n');
+    expect(sideSource(w1.incumbent)).toBe('import { render as x0 } from "ink";\nimport x1 from "react";\nexport default [x0, x1];\n');
+    expect(ratioVariant(w1)).toBe('controlroom/ink + react + react-reconciler ÷ ink + react');
+    for (const pair of PAIRS.filter((p) => p.ours.with === undefined && p.incumbent.with === undefined)) {
+      expect(ratioVariant(pair), 'a one-import pair keeps the row name it always had').toBe(`${pair.id} ÷ ${pair.incumbent.specifier}`);
+    }
   });
 
   // This read "no incumbent twice" until 2026-09-23. What it protected was one record per
