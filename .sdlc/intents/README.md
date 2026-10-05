@@ -1089,3 +1089,4 @@ noticed — `roadmap-index-lock.test.ts` is what now refuses an intent the index
 | — | [`control-band-core-bundled-bytes/`](./control-band-core-bundled-bytes/) | B4 — bytes a user's bundle grows by for `import 'burgee'` | 2026-09-14 · draft |
 | — | [`control-band-commander-front-end-bundled-bytes/`](./control-band-commander-front-end-bundled-bytes/) | B4 — the same, for the commander front end | 2026-09-14 · draft |
 | — | [`control-band-yargs-front-end-bundled-bytes/`](./control-band-yargs-front-end-bundled-bytes/) | B4 — the same, for the yargs front end | 2026-09-27 · draft |
+| — | [`control-band-cold-start-ratio/`](./control-band-cold-start-ratio/) | B2 — `burgee/commander`'s cold start over commander's | 2026-09-30 · draft |
