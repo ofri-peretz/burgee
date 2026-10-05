@@ -99,6 +99,35 @@ equal.
   command exits 1 and writes nothing. `--dry-run` writes nothing either way, so it skips the
   check, and a directory that is not a git repository has nothing to be dirty.
 
+## What it reports, and never rewrites
+
+**blessed, neo-blessed and terminal-kit** have no drop-in. Their surfaces are too large to
+reproduce honestly, and the controlroom API a rewrite would target is planned, not built. So
+the command finds their screen, box, list and key sites and lists each under `guided`, with
+the file, the line, the pattern and the section of that incumbent's coming-from guide. It
+rewrites none of them, and they do not change the exit code, because nothing was refused.
+
+A site is reported only when its receiver came from one of the three in the same file:
+`screen.key(` is a key binding when `screen` came from `blessed.screen()`, and is not
+otherwise. A screen passed in from another file is not followed; that file's import of the
+package still is.
+
+| pattern | blessed and neo-blessed | terminal-kit | guide section |
+| :-- | :-- | :-- | :-- |
+| `import` | `require`, `import`, `import()` | the same | the mapping |
+| `screen` | `screen()`, `program()` | `createTerminal()`, `ScreenBuffer` | Screen |
+| `alternate-screen` | `alternateBuffer()`, `normalBuffer()` | `fullscreen()` | Alternate screen |
+| `box` | `box()`, `text()`, `element()`, `log()`, `layout()` | — | Box |
+| `list` | `list()`, `listtable()`, `listbar()` | `singleColumnMenu()` and the other menus | List |
+| `key` | `key()`, `onceKey()`, `unkey()`, `removeKey()`, a `key…` event | `grabInput()`, a `key` event | Key handling |
+| `render` | `render()` | a screen buffer's `draw()` | Render loop |
+| `mouse` | `enableMouse()`, a mouse event | the `mouse` option, a mouse event | Mouse |
+| `text-input` | `textbox()`, `textarea()` | `inputField()` | Text editing in a pane |
+
+The guides are [Coming from blessed](/docs/coming-from/blessed),
+[Coming from neo-blessed](/docs/coming-from/neo-blessed) and
+[Coming from terminal-kit](/docs/coming-from/terminal-kit).
+
 ## Why an import, not `overrides`
 
 An npm `overrides` entry points an incumbent's name at a package's **root**, and each family
