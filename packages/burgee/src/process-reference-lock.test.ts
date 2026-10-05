@@ -43,6 +43,9 @@ const ALLOWED = new Set([
   'flagstaff/src/runtime.ts',
   'roundel/src/runtime.ts',
   'caique/src/runtime.ts',
+  // controlroom's seam (R4's `processRuntime`), which `controlroom/ink` reads its default
+  // streams, its environment and `beforeExit` through as well.
+  'controlroom/src/runtime.ts',
   // compat-oracle is internal tooling — `private: true`, never published, not one of the nine
   // layers. Its three entries are each the job of owning a process rather than a lapse into
   // one: `bin.ts` is a CLI entry, `run.ts` spawns the host suites and needs `execPath`, and

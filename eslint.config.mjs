@@ -516,6 +516,9 @@ export default [
       // the `exports` map and its parts sit one directory down, so every one of them reaches
       // `../yargs-parser.js` and `../runtime.js` by construction.
       "packages/burgee/src/meow/**/*.ts",
+      // `controlroom/ink` reads the process only through the package's one runtime seam, which
+      // sits one directory up by construction (Y9): the same arrow, the same reason.
+      "packages/controlroom/src/ink/*.ts",
     ],
     rules: { "import-next/no-relative-parent-imports": "off" },
   },
@@ -869,6 +872,13 @@ export default [
       "packages/linegauge/src/slice.ts",
       "packages/flagstaff/src/boxen.ts",
       "packages/flagstaff/src/cli-table3.ts",
+      // controlroom/ink is ink 6.8 on React's own reconciler, graded by ink's own suite (576 of
+      // 584 cases) and by @inkjs/ui's (103 / 103) through `compat-oracle`. Its flexbox subset
+      // is yoga's `CalculateLayout` step for step — the long layout pass, yoga's eight-argument
+      // calls, edges indexed 0–3 — and its key decoder is ink's tables of sequences and kitty
+      // code points; reshaping either to satisfy a rule would change the cells and keys those
+      // suites compare. The same structural rules are off for the same reason. Tests are not.
+      "packages/controlroom/src/ink/!(*.test).ts",
     ],
     rules: {
       "maintainability/consistent-function-scoping": "off",
@@ -921,6 +931,9 @@ export default [
       "packages/flagstaff/src/log-update.ts",
       "packages/flagstaff/src/boxen.ts",
       "packages/flagstaff/src/cli-table3.ts",
+      // Not a drop-in but the description of one: `react-reconciler`'s entry *is* a default
+      // export (the factory), and this declaration types the import controlroom/ink makes of it.
+      "packages/controlroom/src/ink/*.d.ts",
     ],
     rules: { "import-next/no-default-export": "off" },
   },

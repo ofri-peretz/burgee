@@ -167,10 +167,16 @@ registerHooks({
     return result;
   },
 });
-process.on('exit', () => writeFileSync(process.env.PROBE_OUT, JSON.stringify({ edges, loaded })));
+const refused = [];
+process.on('exit', () => writeFileSync(process.env.PROBE_OUT, JSON.stringify({ edges, loaded, refused })));
 for (const specifier of JSON.parse(process.env.PROBE_SPECIFIERS)) {
-  await import(specifier, specifier.endsWith('.json') ? { with: { type: 'json' } } : undefined);
-  loaded.push(specifier);
+  try {
+    await import(specifier, specifier.endsWith('.json') ? { with: { type: 'json' } } : undefined);
+    loaded.push(specifier);
+  } catch (error) {
+    if (error?.code !== 'E_PEER_MISSING') throw error;
+    refused.push({ specifier, fix: error.fix });
+  }
 }
 `;
 
@@ -192,7 +198,20 @@ interface Probe {
   stderr: string;
   edges: Edge[];
   loaded: string[];
+  /** Entries that refused to load for a missing optional peer, with the `fix` each gave. */
+  refused: { specifier: string; fix: string }[];
 }
+
+/**
+ * The entries that need an optional peer the adopter did not install, and refuse without it.
+ *
+ * `controlroom/ink` renders the program's React through the program's `react-reconciler`,
+ * both optional peers (controlroom spec R11), so installed alone it cannot load — and must not
+ * load quietly broken either: it refuses on first import with `code: 'E_PEER_MISSING'` and a
+ * `fix` naming the install line. That refusal is what is asserted for these, and every other
+ * entry must still load.
+ */
+const NEEDS_OPTIONAL_PEERS: Readonly<Record<string, string>> = { 'controlroom/ink': 'npm install react react-reconciler' };
 
 async function probe(dir: string, tag: string, specifiers: string[], argv: string[]): Promise<Probe> {
   const out = join(dir, `probe-${tag}.json`);
@@ -206,7 +225,7 @@ async function probe(dir: string, tag: string, specifiers: string[], argv: strin
     code = typeof err.code === 'number' ? err.code : 1;
     stderr = err.stderr ?? String(e);
   }
-  const seen = existsSync(out) ? (JSON.parse(readFileSync(out, 'utf8')) as { edges: Edge[]; loaded: string[] }) : { edges: [], loaded: [] };
+  const seen = existsSync(out) ? (JSON.parse(readFileSync(out, 'utf8')) as Pick<Probe, 'edges' | 'loaded' | 'refused'>) : { edges: [], loaded: [], refused: [] };
   return { code, stderr, ...seen };
 }
 
@@ -249,7 +268,7 @@ async function installAlone(pkg: string, manifests: Map<string, Manifest>, tarba
     installed,
     modules,
     bins,
-    loads: loads ?? { code: -1, stderr: 'no probe', edges: [], loaded: [] },
+    loads: loads ?? { code: -1, stderr: 'no probe', edges: [], loaded: [], refused: [] },
     binRuns,
     undeclared: undeclaredReaches(edges, { modules: nodeModules, entry, pkg, declared }),
   };
@@ -344,7 +363,14 @@ describe('U12 — each published package installs and loads alone', () => {
       expect(modules.length, 'no entries were found — the reader is broken').toBeGreaterThan(0);
       expect(loads.stderr).toBe('');
       expect(loads.code).toBe(0);
-      expect(loads.loaded).toEqual(modules);
+      expect(loads.loaded).toEqual(modules.filter((m) => NEEDS_OPTIONAL_PEERS[m] === undefined));
+    });
+
+    it('refuses, with the install line as its fix, exactly the entries that need an optional peer', () => {
+      const { loads, modules } = result();
+      const wanted = modules.filter((m) => NEEDS_OPTIONAL_PEERS[m] !== undefined);
+      expect(loads.refused.map((r) => r.specifier)).toEqual(wanted);
+      for (const { specifier, fix } of loads.refused) expect(fix).toContain(NEEDS_OPTIONAL_PEERS[specifier]);
     });
 
     it('runs every `bin` it exports as a module', () => {

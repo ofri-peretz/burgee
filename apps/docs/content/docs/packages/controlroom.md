@@ -3,9 +3,10 @@ title: controlroom
 description: "Reserved, and not usable yet: full-screen, keyboard-driven terminal screens with a static projection for pipes, CI and --json. The planned drop-in path for ink. Its only export today is status = 'reserved'."
 ---
 
-**Reserved; not usable yet.** This version exports one constant, `status = 'reserved'`, and
-nothing else. There is no screen, no layout and no `controlroom/ink` to import today, so
-don't build on it. The design is approved, and it is set out in the intent:
+**Reserved; not usable yet.** The version on npm exports one constant, `status = 'reserved'`,
+and nothing else, so don't build on it. The repository is ahead of it: the screen core, layout
+and `controlroom/ink` are built and graded there, and ship in the first release that is not a
+reservation. The design is approved, and it is set out in the intent:
 [`.sdlc/intents/controlroom/`](https://github.com/ofri-peretz/burgee/tree/main/.sdlc/intents/controlroom).
 
 **What it is for.** controlroom will replace **ink** and `@inkjs/ui` in the burgee family. It
@@ -43,18 +44,31 @@ README will change when one ships.
 
 ## Migrating
 
-**None of this exists yet.** It is what the spec commits to, not something to try.
+**Not on npm yet.** The ink path below is built in the repository and graded; the reserved
+version on npm does not carry it.
 
-From **ink**, the planned path is one import, graded by Ink's own test suite (R11, R13):
+From **ink**, the path is one import, plus the reconciler ink used to install for you, graded
+by ink's own test suite (R11, R13):
 
 ```diff
 - import { render, Box, Text } from 'ink';
 + import { render, Box, Text } from 'controlroom/ink';
 ```
 
-Resolving `'ink'` to `controlroom/ink` through a `package.json` alias or `overrides` is meant
-to run `@inkjs/ui`, `ink-spinner`, `ink-text-input` and `ink-select-input` unchanged (R17),
-with no façade of their own.
+```bash
+npm install react react-reconciler
+```
+
+`react` and `react-reconciler` are optional peers: the program's own React renders through
+React's own reconciler, and the native API never loads either. Without them,
+`controlroom/ink` refuses on first import with `E_PEER_MISSING` and the install line as its
+`fix`. Layout is a TypeScript port of yoga's flexbox for the props ink exposes; there is no
+yoga.
+
+Resolving `'ink'` to `controlroom/ink` through a `package.json` alias or `overrides` runs
+`@inkjs/ui` unchanged — its own suite passes 103 / 103 that way (R17) — and is meant to run
+`ink-spinner`, `ink-text-input` and `ink-select-input` the same way, with no façade of their
+own.
 
 From **blessed**, **neo-blessed** and **terminal-kit** there will be no drop-in — their surfaces
 are too large to reproduce honestly. Each gets a coming-from guide and `burgee migrate`
@@ -62,12 +76,14 @@ codemod rules for the common screen, box, list and key patterns instead (R18).
 
 ## Compatibility
 
-Graded, and at zero, because there is nothing to pass yet. Ink's own suite is vendored into
-`compat-oracle` at ink 6.8.0 (593 cases) and `@inkjs/ui`'s at 2.0.0 (103 cases), each with a
-control run against the real package and a baseline that only ratchets (R13, R17). `@inkjs/ui`
-is graded unmodified, with `'ink'` resolved to this package. Both rows grade the package root
-until `controlroom/ink` exists, and they read 0 there: the root exports `status` and nothing
-else. The rows are on the
+Ink's own suite is vendored into `compat-oracle` at ink 6.8.0 and `@inkjs/ui`'s at 2.0.0,
+each with a control run against the real package and a baseline that only ratchets (R13,
+R17), and both grade `controlroom/ink`. ink's passes **576 of 584** cases: 593 are vendored,
+and nine colour cases are excluded with their reason — the suite raises the level on its own
+chalk singleton, and the drop-in's colour is roundel's, read from the environment. The eight
+that fail are kitty keyboard protocol negotiation, which is not built. `@inkjs/ui`'s passes
+**103 / 103**, graded unmodified with `'ink'` resolved to this package, on `@inkjs/ui`'s own
+React 18. The rows are on the
 [compatibility page](https://burgee.interlace.tools/docs/compatibility).
 
 ## Benchmarks
@@ -78,8 +94,8 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
-| `ink` | 0 / 593 |
-| `inkjs-ui` | 0 / 103 |
+| `ink` | 576 / 584 |
+| `inkjs-ui` | 103 / 103 |
 
 ## For agents
 
@@ -107,7 +123,7 @@ decides the output mode.
 
 It hosts no plugin key of its own.
 
-Nothing in this family builds on it yet, and it builds on nothing in this family.
+Nothing in this family builds on it yet, and it builds on `caique`, `closeout`, `flagstaff`, `linegauge`, `paratext`, `roundel`.
 
 ## The family
 

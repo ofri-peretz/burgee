@@ -25,13 +25,16 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type Host } from './hosts.js';
-import { ALIAS_HOOK, aliasHook, cjsLoad, grade, installSuiteDeps, internalShimBody, jestGlobals, readBaseline } from './run.js';
+import { ALIAS_HOOK, aliasHook, cjsLoad, grade, installSuiteDeps, internalShimBody, jestGlobals, peerHook, readBaseline, targetInternalBody } from './run.js';
 
 interface Call {
   file: string;
   args: string[];
   options: ExecFileSyncOptions & { env: NodeJS.ProcessEnv };
 }
+
+/** The real `execFileSync`, past the seam: the peer hook's child is this test's own, not a runner's. */
+const realExec = (await vi.importActual<typeof import('node:child_process')>('node:child_process')).execFileSync;
 
 const seam = vi.hoisted(() => ({
   /** When set, every `execFileSync` goes here instead of spawning. */
@@ -459,6 +462,89 @@ describe('a host that grades a library built on the incumbent', () => {
     vendored(lib(), { 'a.test.js': suite });
     expect(grade(lib(), vendorDir, 'semver')).toMatchObject({ tests: 1, passed: 1 });
     expect(grade(lib(), vendorDir, 'fake')).toMatchObject({ tests: 1, passed: 0, failed: 1 });
+  });
+});
+
+/**
+ * `Host.peers` — controlroom/ink's shape: a target that imports the program's own React. On a
+ * target run the peers it imports resolve from the suite's tree, so the suite and the target
+ * share one copy; the control loads nothing. `vitest` stands in for the target because it is
+ * in this workspace and has a package root to find.
+ */
+/** A host whose target brings `the-peer`. */
+const peered = (over: Partial<Host> = {}): Host => host({ peers: ['the-peer'], ...over });
+
+/** A package of `the-peer` under `at`, whose entry and subpath both say who owns this copy. */
+function peerCopy(at: string, says: string): void {
+  mkdirSync(join(at, 'node_modules', 'the-peer'), { recursive: true });
+  writeFileSync(join(at, 'node_modules', 'the-peer', 'package.json'), JSON.stringify({ name: 'the-peer', type: 'module', exports: { '.': './index.js', './sub.js': './sub.js' } }));
+  writeFileSync(join(at, 'node_modules', 'the-peer', 'index.js'), `export default ${JSON.stringify(says)};\n`);
+  writeFileSync(join(at, 'node_modules', 'the-peer', 'sub.js'), `export default ${JSON.stringify(`${says}/sub`)};\n`);
+}
+
+describe('a host whose target brings optional peers', () => {
+  it('writes the peer hook on a target run, scoped to the target package and resolving from the suite', () => {
+    const hostDir = vendored(peered(), { 'a.test.js': '' });
+    seam.exec = prints(SUMMARY(1, 1));
+    grade(peered(), vendorDir, 'vitest');
+    const inside = `${pathToFileURL(installed('vitest')).href}/`;
+    const from = pathToFileURL(join(hostDir, 'package.json')).href;
+    expect(read(hook(hostDir))).toBe(peerHook({ alias: undefined, url: import.meta.resolve('vitest'), peers: ['the-peer'], inside, from, target: 'vitest' }));
+    expect(only().options.env.NODE_OPTIONS).toContain(`--import=${pathToFileURL(hook(hostDir)).href}`);
+  });
+
+  it('carries the alias too, for a host that has both', () => {
+    const h = peered({ alias: 'the-incumbent', imports: [{ upstream: '../index.js', subpath: '', reexportDefault: false, control: 'node:path' }] });
+    const hostDir = vendored(h, { 'a.test.js': '' });
+    seam.exec = prints(SUMMARY(1, 1));
+    grade(h, vendorDir, 'vitest');
+    expect(read(hook(hostDir))).toContain('const alias = "the-incumbent";');
+    expect(read(hook(hostDir))).toContain('const peers = ["the-peer"];');
+  });
+
+  it('loads nothing on the control', () => {
+    vi.stubEnv('NODE_OPTIONS', undefined);
+    const hostDir = vendored(peered(), { 'a.test.js': '' });
+    seam.exec = prints(SUMMARY(1, 1));
+    grade(peered(), vendorDir, 'fake');
+    expect(existsSync(hook(hostDir))).toBe(false);
+    expect(only().options.env.NODE_OPTIONS).toBeUndefined();
+  });
+
+  // For real: a target package with its own copy of the peer, a suite with another, and a child
+  // process that imports the target with the hook loaded and without it.
+  it('sends a peer the target imports to the suite’s copy, and leaves every other importer alone', () => {
+    const root = join(vendorDir, 'fake');
+    const target = join(vendorDir, 'target-package');
+    mkdirSync(root, { recursive: true });
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ type: 'module' }));
+    peerCopy(root, 'suite');
+    peerCopy(target, 'target');
+    writeFileSync(join(target, 'package.json'), JSON.stringify({ name: 'target-package', type: 'module' }));
+    writeFileSync(join(target, 'index.js'), "import peer from 'the-peer';\nimport sub from 'the-peer/sub.js';\nexport default [peer, sub];\n");
+    const hookFile = join(vendorDir, 'peer-hook.mjs');
+    const inside = `${pathToFileURL(realpathSync(target)).href}/`;
+    writeFileSync(hookFile, peerHook({ alias: undefined, url: 'node:path', peers: ['the-peer'], inside, from: pathToFileURL(join(root, 'package.json')).href, target: 'target-package' }));
+    const probe = `import(${JSON.stringify(pathToFileURL(join(target, 'index.js')).href)}).then((m) => process.stdout.write(m.default.join(',')))`;
+    const run = (args: string[]): string => String(realExec(process.execPath, [...args, '--input-type=module', '-e', probe], { cwd: root, encoding: 'utf8' }));
+    expect(run([`--import=${pathToFileURL(hookFile).href}`])).toBe('suite,suite/sub');
+    expect(run([])).toBe('target,target/sub');
+  });
+});
+
+describe('the target’s own module behind an internal path', () => {
+  it('re-exports each name the suite imports from the target package’s file, by absolute URL', () => {
+    expect(targetInternalBody('/pkg', { file: 'dist/a.js', names: { default: 'parse', bsu: 'bsu' } })).toBe(`export { parse as default, bsu } from '${pathToFileURL('/pkg/dist/a.js').href}';\n`);
+  });
+
+  it('is written on a target run only; the control still gets the host’s own file', () => {
+    const h = incumbent({ targetInternals: { 'lib/command.js': { file: 'package.json', names: { default: 'Command' } } } });
+    const hostDir = vendored(h, { 'a.test.js': '' }, { source: { internals: ['lib/command.js'] } });
+    seam.exec = prints(SUMMARY(1, 1));
+    grade(h, vendorDir, 'vitest');
+    expect(read(hostDir, 'lib', 'command.js')).toBe(`// generated per run — COMPAT_TARGET=vitest\n${targetInternalBody(installed('vitest'), { file: 'package.json', names: { default: 'Command' } })}`);
+    grade(h, vendorDir, 'commander');
+    expect(read(hostDir, 'lib', 'command.js')).toBe(`// generated per run — COMPAT_TARGET=commander\nexport * from '${join(COMMANDER, 'lib', 'command.js')}';\n`);
   });
 });
 
