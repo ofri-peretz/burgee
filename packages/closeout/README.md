@@ -400,7 +400,7 @@ And the two leaves, for a program that wants one of them and none of the rest:
 | | |
 | :-- | :-- |
 | `closeout/once` | `once(fn)` — 441 B, reaching nothing |
-| `closeout/cursor` | `showCursor`, `hideCursor`, `alternateScreen`, `bracketedPaste`, `rawMode` (each taking the registrar as a second argument), `HIDE_CURSOR`, `SHOW_CURSOR`, `ENTER_ALTERNATE_SCREEN`, `LEAVE_ALTERNATE_SCREEN`, `ENABLE_BRACKETED_PASTE`, `DISABLE_BRACKETED_PASTE` — 1,458 B, no registry |
+| `closeout/cursor` | `showCursor`, `hideCursor`, `alternateScreen`, `bracketedPaste`, `rawMode` (each taking the registrar as a second argument), `HIDE_CURSOR`, `SHOW_CURSOR`, `ENTER_ALTERNATE_SCREEN`, `LEAVE_ALTERNATE_SCREEN`, `ENABLE_BRACKETED_PASTE`, `DISABLE_BRACKETED_PASTE` — 1,786 B, no registry |
 
 And from `closeout/plugin`:
 

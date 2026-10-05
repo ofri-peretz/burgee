@@ -74,8 +74,9 @@ const RULES: Record<string, EntryRule> = {
   // The escape sequences and the TTY rule, and a leaf by construction: a program that only
   // needs to put a cursor back does not load a registry to do it. Measured 666 B; 1,458 B
   // on 2026-09-27 once it carried all three of R4's pairings — cursor, alternate screen,
-  // raw mode — inside the same budget.
-  './cursor': { allow: [], budget: 1_500, denied: ['index.js', 'registry.js', 'install.js'] },
+  // raw mode — inside the same budget. 1,786 B on 2026-10-05 with the fourth, bracketed paste,
+  // which controlroom's input line needs (R20).
+  './cursor': { allow: [], budget: 1_900, denied: ['index.js', 'registry.js', 'install.js'] },
   // The plugin host. Carries the registry's phase vocabulary, never the process wiring —
   // registering a plugin must not attach four listeners. Measured 10,583 B.
   './plugin': { allow: [], budget: 12_500, denied: ['install.js', 'exit-hook.js', 'restore-cursor.js'] },
