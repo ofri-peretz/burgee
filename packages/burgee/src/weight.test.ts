@@ -409,6 +409,8 @@ const RULES: Record<string, EntryRule> = {
   // 2026-09-28: `colorFor` is roundel's `colorLevel`, so `roundel/policy` (1,972 B, reaching
   // nothing) leaves the denied list for this entry alone. It is the lazy help chunk: the core
   // path, which still denies `roundel` by name, does not move. Measured 8,512 (-58).
+  // 2026-09-30 (D-20260930-failures-teach-recovery): every runnable command lists `--explain`,
+  // and the root help ends with one line for agents. Measured 8,953 (+459), inside the budget.
   "./help": {
     allow: ["linegauge", "roundel/policy"],
     budget: 9_130,

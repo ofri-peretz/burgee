@@ -3,7 +3,7 @@
  * so a subcommand's help has everything the root's has (yargs #1500, #1331, #1025).
  *
  * Section order is fixed (R2): usage, description, arguments, options, global options,
- * commands (grouped, yargs #684), examples, environment, epilogue. Empty sections are
+ * commands (grouped, yargs #684), examples, environment, the root's line for agents, epilogue. Empty sections are
  * omitted. Width comes from the caller — the runtime, in practice (H3) — default 100.
  *
  * Every measurement of rendered text here is `linegauge`'s `width`, never `String.length`.
@@ -132,6 +132,12 @@ const GLOBAL: Row[] = [
  * is one command, and `--schema` there drills into it without needing to be advertised.
  */
 const ROOT_GLOBAL: Row[] = [...GLOBAL, { term: '--schema', text: 'the program as data', kind: 'flag' }];
+
+/** Every command that runs parses `--explain` (V3), so its help says so (D-20260930). */
+const EXPLAIN: Row = { term: '--explain <option>', text: "where an option's value came from", kind: 'flag' };
+
+/** D-20260930 — the root names the agent surfaces and what each one saves; flags, not a command line, since a program is often run under another name. */
+const FOR_AGENTS = 'For agents: --schema prints every command, option, default and env var as JSON, in one call. --json prints one envelope on stdout, and --explain <option> says where a value came from.';
 
 function deprecation(d: boolean | string | undefined): string {
   if (d === undefined || d === false) return '';
@@ -303,7 +309,8 @@ export function renderHelp(manifest: Manifest, node: CommandNode, opts: HelpOpti
   const args = argumentRows(node.arguments ?? []);
   const options = optionRows(node.options, verbose);
   const env = environmentRows(node.options);
-  const global = node.path.length === root.length ? ROOT_GLOBAL : GLOBAL;
+  const atRoot = node.path.length === root.length;
+  const global = [...(atRoot ? ROOT_GLOBAL : GLOBAL), ...(node.run === undefined ? [] : [EXPLAIN])];
   const column = termColumn([...args, ...options, ...global, ...commands.flatMap((s) => s.rows), ...env], width);
   const lines: string[] = [usageLine(node, root, commands.length > 0, paint), ''];
   if (node.description !== undefined) lines.push(...wrap(`${node.description}${deprecation(node.deprecated)}`, width), '');
@@ -313,6 +320,7 @@ export function renderHelp(manifest: Manifest, node: CommandNode, opts: HelpOpti
   for (const s of commands) lines.push(...section(s.title, layout(s.rows, width, column, paint), paint));
   lines.push(...section('Examples:', exampleLines(node.examples ?? [], width), paint));
   lines.push(...section('Environment:', layout(env, width, column, paint), paint));
+  if (atRoot) lines.push(...wrap(FOR_AGENTS, width), '');
   if (node.epilogue !== undefined) lines.push(...wrap(node.epilogue, width), '');
   return `${lines.join('\n').trimEnd()}\n`;
 }

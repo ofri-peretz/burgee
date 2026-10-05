@@ -79,6 +79,9 @@ $ node cli.mjs --json --name ada
 $ node cli.mjs            # exit 2
 error: missing required option --name
 hint: pass --name <value>
+usage: greet [options]
+options:
+  --name <value>  who to greet (required)
 ```
 
 One file. No build step, no config file, no directory convention. A test enforces
@@ -184,6 +187,12 @@ Every command answers the same declaration four more ways, with nothing written 
   MCP hints, and `withheld` keeps a command out of the list.
 - **Exit `2`** when the *command* was wrong, with a `hint:` — so an agent rewrites the command
   rather than retrying it.
+- **A failure names the next step.** A `fix:` when there is exactly one (the flag or command it
+  was nearest to), otherwise the failing command's usage line and options, or, for an unknown
+  command, the commands that exist. It is prose on stderr, and `error.usage` in the `--json`
+  envelope.
+- `--explain <option>` — where a value came from: flag, env, config or default. Every
+  command's help lists it, and the root help ends with one line for agents.
 
 [Your CLI is an agent tool](https://burgee.interlace.tools/docs/agent-surfaces) has each
 surface; the docs themselves are at

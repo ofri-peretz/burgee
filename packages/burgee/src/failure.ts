@@ -14,6 +14,7 @@ import { AuthError, UsageError } from './errors.js';
 import { ExitCode, isExitCode, type ExitCode as ExitCodeType } from './exit-code.js';
 import { type ActionRequiredSpec, type CommandNode, type Manifest } from './manifest.js';
 import { kebab } from './names.js';
+import { commandUsage, type Usage, usageText } from './usage.js';
 
 /**
  * parseArgs reports every malformed-argv case with an ERR_PARSE_ARGS_* code. Each one is
@@ -42,6 +43,8 @@ export interface Failure {
   silent?: boolean;
   /** N11: the caller must act; carried into the envelope with the runnable `next[]`. */
   action?: ActionRequiredSpec;
+  /** What the failing command takes, when there is no `fix` to run instead (E3, D-20260930). */
+  usage?: Usage;
 }
 
 /**
@@ -81,13 +84,14 @@ function messageOf(cause: unknown): string {
   return typeof said === 'string' ? said : String(cause);
 }
 
-/** `hint` and `fix` off an error that carries them, and nothing when it does not (E3). */
-function carried(cause: unknown): { hint?: string; fix?: string } {
+/** `hint`, `fix` and `usage` off an error that carries them, and nothing when it does not (E3). */
+function carried(cause: unknown): { hint?: string; fix?: string; usage?: Usage } {
   // Never nullish here: each caller has already matched `cause` by its class or its `code`.
-  const { hint, fix } = cause as { hint?: unknown; fix?: unknown };
+  const { hint, fix, usage } = cause as { hint?: unknown; fix?: unknown; usage?: unknown };
   return {
     ...(typeof hint === 'string' ? { hint } : {}),
     ...(typeof fix === 'string' ? { fix } : {}),
+    ...(typeof (usage as Usage | null | undefined)?.command === 'string' ? { usage: usage as Usage } : {}),
   };
 }
 
@@ -99,6 +103,16 @@ function carried(cause: unknown): { hint?: string; fix?: string } {
  * startup path.
  */
 export async function describeFailure(cause: unknown, argv: string[], node: CommandNode | undefined, action: ActionRequiredSpec | undefined): Promise<Failure> {
+  const failure = await classify(cause, argv, node, action);
+  // D-20260930 — a failure with nothing to run next says what the command takes: its usage
+  // line and options, so the recovery is in the refusal and not one `--help` away. Only for
+  // the two codes that mean *the command* (USAGE: how it was typed; RUNTIME: what it did), and
+  // only on a command that runs — a group's words come from `surfaces.js` with the error.
+  const teaches = failure.fix === undefined && failure.usage === undefined && failure.silent !== true && (failure.code === ExitCode.USAGE || failure.code === ExitCode.RUNTIME);
+  return teaches && node?.run !== undefined ? { ...failure, usage: commandUsage(node) } : failure;
+}
+
+async function classify(cause: unknown, argv: string[], node: CommandNode | undefined, action: ActionRequiredSpec | undefined): Promise<Failure> {
   const signal = exitSignal(cause);
   if (signal !== undefined) return { code: signal, message: '', silent: true };
   const message = messageOf(cause);
@@ -137,7 +151,7 @@ function textFailure(failure: Failure): string {
     const next = (failure.action.next as NonNullable<ActionRequiredSpec['next']>).map((n) => `  ${n.command}    ${n.when}\n`).join('');
     return `action required (${failure.action.reason}): ${failure.message}\n${next === '' ? '' : `next:\n${next}`}${hint}`;
   }
-  return `error: ${failure.message}\n${hint}${fix}`;
+  return `error: ${failure.message}\n${hint}${fix}${failure.usage === undefined ? '' : usageText(failure.usage)}`;
 }
 
 /** The `next[]` commands as the caller can run them: the program in front, the caller's own `--json` carried (N11). */
@@ -158,6 +172,6 @@ export function failureText(failure: Failure, manifest: Manifest, json: boolean)
     return json ? `${JSON.stringify(body)}\n` : textFailure(rendered);
   }
   // E3 — `fix` beside `hint`: the exact flag or command, omitted rather than guessed.
-  const body = { code: failure.code, message: failure.message, hint: failure.hint, ...(failure.fix === undefined ? {} : { fix: failure.fix }) };
+  const body = { code: failure.code, message: failure.message, hint: failure.hint, ...(failure.fix === undefined ? {} : { fix: failure.fix }), ...(failure.usage === undefined ? {} : { usage: failure.usage }) };
   return json ? `${JSON.stringify({ ok: false, error: body })}\n` : textFailure(failure);
 }
