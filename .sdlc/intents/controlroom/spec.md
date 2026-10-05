@@ -75,6 +75,13 @@ it records every change here.
 - **R13 · grading.** Ink's suite is vendored into `compat-oracle` at a pinned release. It
   runs on the ava runner, with a `--control` run against real Ink, and with a baseline that
   only ratchets.
+
+  **Vendored 2026-10-05**: ink@6.8.0 (39 files: 32 gated and 7 internals-only; 593 gated
+  cases, one `test.todo`, 148 on the internals line; 78 cases need a PTY and run through
+  `node-pty`'s prebuilds, none excluded; control 593 / 593 on darwin, Ubuntu's reference is
+  CI's), @inkjs/ui@2.0.0 (13 files, 103 cases, control 103 / 103, graded through the `'ink'`
+  alias as R17 asks). Both target the root `controlroom` at 0 until R11 builds
+  `controlroom/ink` (D-006, D-007). PR #PR_NUMBER, D-20261005-controlroom-ink-suite.
 - **R14 · weight.** The W1–W4 fixtures from the intent are added to
   `benchmarks/fixtures/entry-points.ts`, and each is gated at ≤ 1.0×. The root entry is
   `denied` both peers in the weight lock.

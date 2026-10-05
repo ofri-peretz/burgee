@@ -1,0 +1,153 @@
+{
+  "repo": "https://github.com/vadimdemedes/ink-ui",
+  "version": "2.0.0",
+  "tag": "v2.0.0",
+  "commit": "14b1145da0123a48cfc2f0ec9ff33dff0633f464",
+  "vendored": "2026-10-05",
+  "files": 13,
+  "internalFiles": [],
+  "internals": [],
+  "hashes": {
+    "test/alert.tsx": "a64a5d1fe7b3e331ca9e70617f849f6015b73c4709b169a7be47ccf445b518c2",
+    "test/badge.tsx": "b1a8397aa8e2890c8e7cde91c7e155f09ba6256732b8a19646cdfb736eb6668f",
+    "test/confirm-input.tsx": "b34910f92cbdf1d8d6bccb186dfe6178ad2d7fccb97ac99e43bdecc8ae770d7d",
+    "test/email-input.tsx": "f48c63d8523a69b33d4f883d4eb5d1f3532a74b48536af1ab18f561e415195dc",
+    "test/multi-select.tsx": "4c2dcdcccae32afc9e6591a573d2a47dd992b818044e9c4749b0e6468c0ab163",
+    "test/ordered-list.tsx": "efd61ec84eb5cd936b74899636844eddcac95844871efc709eb52bb1fb51899c",
+    "test/password-input.tsx": "264c809f09624748f149d8e8db6532f51111d70acd5a8d2beaaaee061a83f3b9",
+    "test/progress-bar.tsx": "5875a66062bb3cdab97782a0bac730a89c43daea4a1b2701dac5a3d454ee5884",
+    "test/select.tsx": "ea8687be9b15bf66d86e1ad0cb4d756b82a181baaf4325859cd9a4ae65828491",
+    "test/spinner.tsx": "c1ccafd54007b02929a7561415602d4c2cf1770b0eeb5f12bfe742b22b894ae2",
+    "test/status-message.tsx": "6f19da28870d8dcfdb8bc3d54400bc30c55344f952a3969af3d1e646868a4441",
+    "test/text-input.tsx": "5bb8fc1731fb60f4cc96efcf6e3798c7b750d1e93654de30cc525d35fe3e5620",
+    "test/unordered-list.tsx": "e3bbee2ccf3a3a3ee8d9cbcb826caecb87429ac57d1f6bf2075a25b619f60679",
+    "source/index.ts": "39a2fc30281bca507461a8c681256942e8e4e8bf747a50034c12f7e9adcc26ec"
+  },
+  "tests": {
+    "test/alert.tsx": [
+      "error"
+    ],
+    "test/badge.tsx": [
+      "badge"
+    ],
+    "test/confirm-input.tsx": [
+      "confirm via \"Y\"",
+      "confirm via \"y\"",
+      "confirm via enter",
+      "confirm with disabled enter",
+      "cancel via \"N\"",
+      "cancel via \"n\"",
+      "cancel via enter",
+      "cancel with disabled enter"
+    ],
+    "test/email-input.tsx": [
+      "placeholder",
+      "cursor can't be moved in placeholder",
+      "hide cursor in placeholder when disabled",
+      "default value",
+      "hide cursor in value when disabled",
+      "insert character",
+      "insert text",
+      "prevent two \"@\" characters",
+      "ignore input when disabled",
+      "delete character",
+      "delete all text",
+      "move cursor to the left",
+      "cursor can't be moved left when at the beginning of the input",
+      "move cursor to the right",
+      "cursor can't be moved right when at the end of the input",
+      "insert character in the middle",
+      "insert text in the middle",
+      "autocomplete domain",
+      "submit on enter"
+    ],
+    "test/multi-select.tsx": [
+      "limit number of visible options",
+      "focus next option",
+      "focus next option and scroll down",
+      "don't scroll down when focused option is the last one",
+      "focus previous option",
+      "focus previous option and scroll up",
+      "don't scroll up when focused option is the first one",
+      "ignore input when disabled",
+      "toggle focused option",
+      "selected options by default",
+      "submit selected options",
+      "highlight text in options"
+    ],
+    "test/ordered-list.tsx": [
+      "ordered list",
+      "nested ordered list",
+      "indent all list items equally"
+    ],
+    "test/password-input.tsx": [
+      "placeholder",
+      "cursor can't be moved in placeholder",
+      "hide cursor in placeholder when disabled",
+      "insert character",
+      "insert text",
+      "ignore input when disabled",
+      "delete character",
+      "delete all text",
+      "move cursor to the left",
+      "cursor can't be moved left when at the beginning of the input",
+      "move cursor to the right",
+      "cursor can't be moved right when at the end of the input",
+      "insert character in the middle",
+      "insert text in the middle",
+      "submit on enter"
+    ],
+    "test/progress-bar.tsx": [
+      "progress bar"
+    ],
+    "test/select.tsx": [
+      "limit number of visible options",
+      "focus next option",
+      "focus next option and scroll down",
+      "don't scroll down when focused option is the last one",
+      "focus previous option",
+      "focus previous option and scroll up",
+      "don't scroll up when focused option is the first one",
+      "ignore input when disabled",
+      "select focused option",
+      "selected option by default",
+      "highlight text in options"
+    ],
+    "test/spinner.tsx": [
+      "spinner"
+    ],
+    "test/status-message.tsx": [
+      "error"
+    ],
+    "test/text-input.tsx": [
+      "placeholder",
+      "cursor can't be moved in placeholder",
+      "hide cursor in placeholder when disabled",
+      "default value",
+      "hide cursor in value when disabled",
+      "insert character",
+      "insert text",
+      "ignore input when disabled",
+      "delete character",
+      "delete all text",
+      "move cursor to the left",
+      "cursor can't be moved left when at the beginning of the input",
+      "move cursor to the right",
+      "cursor can't be moved right when at the end of the input",
+      "insert character in the middle",
+      "insert text in the middle",
+      "autocomplete",
+      "submit on enter"
+    ],
+    "test/unordered-list.tsx": [
+      "unordered list",
+      "custom marker",
+      "nested list",
+      "custom marker in nested list",
+      "custom markers in nested lists"
+    ]
+  },
+  "surface": {
+    "source/index.ts": []
+  }
+}

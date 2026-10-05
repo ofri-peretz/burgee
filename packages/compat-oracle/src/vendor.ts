@@ -131,7 +131,7 @@ export function rewriteAt(source: string, host: Host, { fileDir, hostDir, packag
   }, source);
 }
 
-const TEXT = /\.(m?js|cjs|ts|json)$|^[^.]+$/;
+const TEXT = /\.(m?js|cjs|tsx?|json)$|^[^.]+$/;
 
 /** Rewrite every text file under a copied fixture tree, in place, keeping modes and symlinks. */
 function rewriteTree(dir: string, host: Host, hostDir: string, packageType: string): void {

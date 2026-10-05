@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest';
 
 import { testFiles } from './discover.js';
 import { active, type Host, HOSTS, PREVIOUS_MAJORS } from './hosts.js';
-import { readBaseline } from './run.js';
+import { ALIAS_HOOK, readBaseline } from './run.js';
 import { shimName } from './vendor.js';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -333,6 +333,8 @@ describe('the generated files really are gitignored', () => {
     ...host.imports.map((_, i) => `vendor/${host.name}/${shimName(i, 'commonjs')}`),
     at(host, 'vitest.setup.mjs'),
     at(host, 'vitest.config.mjs'),
+    // The resolve hook a target run of an aliasing host writes (`Host.alias`), at the vendored root.
+    `vendor/${host.name}/${ALIAS_HOOK}`,
     ...(readInternals(host) ?? []).map((rel) => at(host, rel.split(sep).join('/'))),
   ]);
 
