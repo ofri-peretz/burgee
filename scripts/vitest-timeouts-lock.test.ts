@@ -23,7 +23,8 @@ function workspaces(root: string): string[] {
     glob.endsWith('/*')
       ? readdirSync(join(root, glob.slice(0, -2)), { withFileTypes: true })
           .filter((e) => e.isDirectory())
-          .map((e) => join(glob.slice(0, -2), e.name))
+          // A workspace name, so `/` on every platform: `join` would spell it `apps\\bare` on Windows.
+          .map((e) => `${glob.slice(0, -2)}/${e.name}`)
       : [glob],
   );
 }
