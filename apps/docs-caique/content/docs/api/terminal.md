@@ -17,7 +17,9 @@ A reader and writer over a real stream pair.
 
 The reader resolves `undefined` when the stream ends, which `ask()` reads as a
 cancellation — `Ctrl-D` and a closed pipe both arrive that way, and both mean nobody is
-going to type.
+going to type. Lines that arrive before anyone asks are kept, in order, and handed out
+before the end is: `printf 'x\ny\n' | cli` delivers both lines in one chunk, before the
+first question is asked, and both are answers.
 
 With no argument it builds over the real process, read when it is called and not at
 import: a program that wants the terminal it was started in writes `createIo()`.

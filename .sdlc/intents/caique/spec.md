@@ -659,11 +659,13 @@ from 62,229 to 62,097 B in the move.
 **Off a terminal: lines, never a wait** (controlroom R7). `submissions(input)` yields one entry
 per line of a stream and ends when the stream does. It is readline's own async iterator. The
 first draft took caique's `Reader` and called `line()` in a loop, and the suite caught it
-dropping lines. `createIo()`'s reader listens for one `line` event at a time, so lines that
-arrive in one chunk before anyone asks are lost. Measured against `dist/terminal.js`:
-`input.end('a\nb\n')` before reading gives `[undefined, undefined, undefined]` from three
-`line()` calls. That defect is `caique/terminal`'s, not the editor's. It is outside this change
-and is recorded here so it is not lost.
+dropping lines. `createIo()`'s reader listened for one `line` event at a time, so lines that
+arrived in one chunk before anyone asked were lost. Measured against `dist/terminal.js`:
+`input.end('a\nb\n')` before reading gave `[undefined, undefined, undefined]` from three
+`line()` calls. That defect was `caique/terminal`'s, not the editor's, and was outside this
+change. **Fixed 2026-10-05:** the reader now queues lines from one listener for the life of the
+interface and hands them out before the end of the stream. `terminal.test.ts` feeds `a\nb\n`
+in one chunk before reading and expects `['a', 'b', undefined]`; it fails on the old reader.
 
 **Weight.** `./editor` is 12,389 B: `editor.js`, `line-edit.js` and `keys.js`. It reaches
 `linegauge` for the cursor's column, and the two closeout subpaths through `keys.js`. It is not
