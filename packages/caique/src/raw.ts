@@ -25,10 +25,9 @@ import { lineCount } from 'linegauge';
 import { cursorTo, cursorUp, eraseDown } from 'paratext/csi';
 
 import { type Answer, type Asked, type Io } from './ask.js';
+import { canReadKeys, decode, type Keymap, match } from './keys.js';
 import { type Choice, type PromptSpec } from './spec.js';
 
-const ESC = '\u001B';
-const CSI = `${ESC}[`;
 /**
  * Column 1, up `n - 1` rows, clear to the end of the screen — the only repaint this needs,
  * in `paratext/csi`'s spelling. The climb is guarded: `cursorUp(0)` is `ESC[0A`, which a
@@ -54,19 +53,38 @@ export interface KeyStream {
 export type Key = 'up' | 'down' | 'space' | 'enter' | 'cancel' | 'other';
 
 /**
+ * The six keys that drive a list, as a keymap — data, read by `caique/keys`' `match()`.
+ *
+ * `j` and `k` are vim's. Enter is `enter`, and `ctrl+j` because that is what a bare LF is in
+ * raw mode. Ctrl-C and Ctrl-D cancel: in raw mode the terminal delivers them as bytes rather
+ * than signals, so a widget that did not read them would leave a person unable to leave.
+ */
+const LIST_KEYS = {
+  up: 'up',
+  k: 'up',
+  down: 'down',
+  j: 'down',
+  space: 'space',
+  enter: 'enter',
+  'ctrl+j': 'enter',
+  'ctrl+c': 'cancel',
+  'ctrl+d': 'cancel',
+  escape: 'cancel',
+} as const satisfies Keymap;
+
+/**
  * What a keypress means. Only the six that drive a list — everything else is `other`, and
  * a widget that does not know what to do with a key does nothing, which is what a person
  * expects from a key they pressed by accident.
+ *
+ * Decoded by `caique/keys`, the one decoder in the package. A chunk that holds anything but
+ * exactly one key — two keys typed faster than they were read, or a partial sequence — is
+ * `other`, as it was when this compared the chunk's bytes.
  */
 export function keyOf(data: string): Key {
-  if (data === `${CSI}A` || data === 'k') return 'up';
-  if (data === `${CSI}B` || data === 'j') return 'down';
-  if (data === ' ') return 'space';
-  if (data === '\r' || data === '\n') return 'enter';
-  // Ctrl-C and Ctrl-D. In raw mode the terminal delivers these as bytes rather than
-  // signals, so a widget that did not read them would leave a person unable to leave.
-  if (data === '\u0003' || data === '\u0004' || data === ESC) return 'cancel';
-  return 'other';
+  const [key, ...more] = decode(data);
+  if (key === undefined || more.length > 0) return 'other';
+  return match(LIST_KEYS, key) ?? 'other';
 }
 
 export interface RawIo extends Io {
@@ -75,7 +93,7 @@ export interface RawIo extends Io {
 
 /** Whether this runtime can drive the raw renderer at all. */
 export function canRender(keys: KeyStream): boolean {
-  return keys.isTTY === true && typeof keys.setRawMode === 'function';
+  return canReadKeys(keys);
 }
 
 interface ListState {

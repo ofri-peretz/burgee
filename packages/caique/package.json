@@ -34,10 +34,20 @@
       "import": "./dist/decide.js",
       "default": "./dist/decide.js"
     },
+    "./editor": {
+      "types": "./dist/editor.d.ts",
+      "import": "./dist/editor.js",
+      "default": "./dist/editor.js"
+    },
     "./inquirer": {
       "types": "./dist/inquirer.d.ts",
       "import": "./dist/inquirer.js",
       "default": "./dist/inquirer.js"
+    },
+    "./keys": {
+      "types": "./dist/keys.d.ts",
+      "import": "./dist/keys.js",
+      "default": "./dist/keys.js"
     },
     "./plugin": {
       "types": "./dist/plugin.d.ts",

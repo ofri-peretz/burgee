@@ -24,6 +24,7 @@ it records every change here.
   arrows, tab, enter, escape, letters, and ctrl and meta combinations. A keymap is **data**:
   an object from key to action name. Raw mode is acquired once for a screen's whole life,
   through R1. Rebuild `raw.ts`'s `keyOf` on this decoder, and keep its suite unchanged.
+  **Built 2026-10-05** as caique/keys (PR #799).
 - **R3 · flagstaff components.** Add `logTail` (the last _n_ lines, a current-step marker,
   and a static projection that appends) and `tabBar` (whose static projection is the active
   tab's label). Both register through `register()` and read no keys. Replace the literal
@@ -136,6 +137,8 @@ shape, and it is the most common one.
   and a completion menu the program feeds (for `/commands` and `@files`). The editor stays
   caique's; controlroom places it and routes keys to it while it has focus. Outside `tty`,
   input comes from stdin lines or the flag the program declares, never a wait (R7).
+  **Built 2026-10-05** (caique's half) as caique/editor (PR #801); hosting it in the live
+  region is controlroom's, in phase 2.
 - **R21 · the chat widgets.** flagstaff gains `markdown`, streamed as tokens arrive and
   committed a block at a time (headings, lists, emphasis, inline code and fenced code), and
   `diff`, a unified diff with added and removed lines and line numbers. Each has a static
