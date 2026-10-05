@@ -12,6 +12,7 @@
  */
 import { type CommonOptions, frame, MULTISELECT_INSTRUCTIONS, type Option, paint, placeholderOf, type Prompt, run, S_CHECKBOX_INACTIVE, S_CHECKBOX_SELECTED, S_PASSWORD_MASK, S_RADIO_ACTIVE, S_RADIO_INACTIVE, SELECT_INSTRUCTIONS, type Validate, withCursor } from './clack-core.js';
 import { boxLook, checkbox, type Choice, findCursor, footerOf, labelOf, radio, radioLook, requiredCheck, stepOf, summaryOf, toggled, windowOf, wrapIndex } from './clack-list.js';
+import { moveTextCursor } from './line-edit.js';
 
 export type Answer<T> = Promise<T | symbol>;
 
@@ -343,21 +344,6 @@ export const groupMultiselect = <Value>(opts: GroupMultiSelectOptions<Value>): A
     },
   });
 };
-
-/** Move a text cursor by columns and rows through a multi-line string, as clack's editor does. */
-function moveTextCursor(at: number, dy: number, value: string): number {
-  const rows = value.split('\n');
-  let row = 0;
-  let column = at;
-  for (const line of rows) {
-    if (column <= line.length) break;
-    column -= line.length + 1;
-    row++;
-  }
-  row = Math.max(0, Math.min(rows.length - 1, row + dy));
-  column = Math.min(column, (rows[row] as string).length);
-  return rows.slice(0, row).reduce((total, line) => total + line.length + 1, 0) + column;
-}
 
 /** The typed text with its cursor; on a line break the block sits at the end of the line. */
 function multilineCursor(typed: string, at: number): string {

@@ -178,6 +178,8 @@ shape, and it is the most common one.
   and a completion menu the program feeds (for `/commands` and `@files`). The editor stays
   caique's; controlroom places it and routes keys to it while it has focus. Outside `tty`,
   input comes from stdin lines or the flag the program declares, never a wait (R7).
+  **Built 2026-10-05** (caique's half) as caique/editor (PR #801); hosting it in the live
+  region is controlroom's, in phase 2.
 - **R21 · the chat widgets.** flagstaff gains `markdown`, streamed as tokens arrive and
   committed a block at a time (headings, lists, emphasis, inline code and fenced code), and
   `diff`, a unified diff with added and removed lines and line numbers. Each has a static

@@ -122,10 +122,24 @@ const RULES: Record<string, EntryRule> = {
   // of caique's own API, and a program written against caique never loads a byte of this.
   // 62,336 B on 2026-09-28; 62,229 B (−107) once raw mode went through `closeout/cursor`'s
   // `rawMode()` instead of a hand-rolled toggle — an import the allow list already named.
+  // 62,097 B (−132) on 2026-10-05: the line editing moved into `line-edit.js`, which
+  // `caique/editor` shares, so the two edit text with one copy of the code. The façade still
+  // reaches neither `keys.js` nor `editor.js`: clack's keypress loop reads node's events itself.
   './clack': {
     allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap'],
     budget: 64_000,
-    denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js', 'spec.js', 'plugin.js', 'inquirer.js'],
+    denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js', 'spec.js', 'plugin.js', 'inquirer.js', 'keys.js', 'editor.js'],
+  },
+  // The line editor as a component a host drives (controlroom R20): history, bracketed paste and
+  // a completion menu over `line-edit.js`, the editing `./clack` uses, with its commands a
+  // `caique/keys` keymap. It does no I/O, so it reaches no prompt, no terminal and no façade;
+  // `linegauge` measures the cursor's column, and closeout comes with `keys.js`. Not reachable
+  // from the root: a program that only asks questions does not carry a screen's input line.
+  // Measured 12,389 B on 2026-10-05.
+  './editor': {
+    allow: [...CLOSEOUT, 'linegauge'],
+    budget: 13_000,
+    denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js', 'spec.js', 'plugin.js', 'clack.js', 'clack-core.js', 'inquirer.js'],
   },
   // The drop-in subpath for `@inquirer/core` — graded 41 / 41 by the incumbent's own suite
   // through `compat-oracle`, which is the only reason any of it can be trusted.
