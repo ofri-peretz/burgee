@@ -94,7 +94,7 @@ const RULES: Record<string, EntryRule> = {
   // `roundel/terminal` joined the same day (+98): whether anybody is there to type is
   // roundel's `interactive()`, which knows an agent from a person. Measured 14,640.
   //
-  // 19,297 B (+4,657) on 2026-10-05, with `keys.js` (controlroom R2): the raw renderer's
+  // 19,549 B (+4,909) on 2026-10-05, with `keys.js` (controlroom R2): the raw renderer's
   // `keyOf` is decoded by `caique/keys` rather than by comparing bytes, and the root re-exports
   // the decoder and keymaps. Still under a fifth of clack's 101,684 B; the budget moved from
   // 15,000 because the surface did.
@@ -172,14 +172,14 @@ const RULES: Record<string, EntryRule> = {
   // 3,846 B (+187): the repaint counts rows with linegauge's `lineCount`
   // against the writer's `columns`, instead of counting `\n`s and ignoring wrap.
   // 3,916 B (+70) on 2026-09-28, the repaint in `paratext/csi`'s spelling.
-  // 8,644 B (+4,728) on 2026-10-05: `keyOf` is rebuilt on `caique/keys`' decoder (controlroom
+  // 8,896 B (+4,980) on 2026-10-05: `keyOf` is rebuilt on `caique/keys`' decoder (controlroom
   // R2), so a list prompt and a screen read the same keys the same way. The budget moved from
   // 4,500 with it — one decoder in the package, paid by the renderer that reads keys.
   './raw': { allow: [...CLOSEOUT, 'linegauge', 'paratext/csi'], budget: 9_000, denied: ['decide.js', 'binding.js', 'terminal.js', 'index.js'] },
   // Key presses through `node:readline`'s decoder, keymaps as data, and a reader that takes raw
   // mode once through `closeout/cursor` (controlroom R2). A leaf: a screen that reads keys pays
   // for no prompt, and the two closeout subpaths are the raw-mode restore it owes on every exit
-  // path. Measured 4,723 B on 2026-10-05.
+  // path. Measured 4,991 B on 2026-10-05.
   './keys': {
     allow: CLOSEOUT,
     budget: 5_000,
