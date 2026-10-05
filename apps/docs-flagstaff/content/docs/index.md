@@ -133,6 +133,76 @@ table([['ora', '99'], ['log-update', '99']], { head: ['host', 'tests'] });
 No layout engine, and there will not be one: these measure with `width()`, wrap with
 `wrap()`, and join strings.
 
+### A log tail and a tab bar
+
+Two output-only components for screens built on flagstaff — controlroom's panes, or a plain
+scrolling terminal. Neither reads a key.
+
+```js
+import { logTail } from 'flagstaff/log-tail';
+import { tabBar } from 'flagstaff/tab-bar';
+
+hoist(logTail({ height: 5 }), rt, { lines: [{ step: 'Installing' }, 'npm install', 'added 12 packages'] });
+hoist(tabBar(), rt, { tabs: ['Status', 'Tail logs', 'Visualizer'], active: 1 });
+```
+
+| component | on a terminal | everywhere else |
+| :-- | :-- | :-- |
+| `logTail` | the last _n_ rows, `┊` before each line, `◆` on the step in progress — pinned to the top once it scrolls out | the whole stream, **appended**: each new line printed once, nothing repainted |
+| `tabBar` | `Status · Tail logs · Visualizer`, the active tab styled through roundel's `heading` (bracketed without colour) | the active tab's label |
+
+Importing either registers its built-in (`log-tail`, `tab-bar`) through the same public
+`register()` a plugin uses, so a plugin can replace it; the `┊` and `◆` marks are the `tail`
+and `step` glyphs. The task list's pending mark is the `pending` glyph too — a space unless a
+plugin sets one, `◻` say.
+
+### A streamed reply and a diff
+
+Two components for chat-style programs, where a model's reply arrives a token at a time and an
+edit is shown before it is written.
+
+```js
+import { markdown } from 'flagstaff/markdown';
+import { diff } from 'flagstaff/diff';
+
+let text = '';
+const reply = hoist(markdown(), rt, { text });
+for await (const token of stream) reply.update({ text: (text += token) });
+reply.lower({ text, done: true });
+
+hoist(diff(), rt, { diff: patch }).lower();
+```
+
+| component | on a terminal | everywhere else |
+| :-- | :-- | :-- |
+| `markdown` | the reply so far: headings, lists, emphasis, inline code and fenced code styled through roundel; with no colour, the source as written | the markdown's own source, **committed a block at a time** — each block printed once, when a later line closes it |
+| `diff` | old and new line numbers on every line, removals and additions coloured | the diff unchanged, byte for byte |
+
+A block is committed only by a complete line — a blank line, a heading, a fence, a closing
+fence — so wherever the stream is cut, the blocks committed so far are the whole reply's first
+blocks; the suite cuts a fixture at every byte offset and holds that. There is no syntax
+highlighting inside a fence. `markdownBlocks(text, done)` is exported for a program that
+places committed blocks itself, as controlroom's inline screen does.
+
+### Writing a whole frame
+
+`hoist` repaints one component. A program that lays several out in one frame paints the frame
+through the same writer `hoist` uses:
+
+```js
+import { frameWriter } from 'flagstaff/loop';
+
+const frame = frameWriter(process.stdout);
+frame.paint(['Status · Tail logs', '┊ npm install', '┊ added 12 packages']);
+frame.paint(['Status · Tail logs', '┊ npm install', '┊ added 13 packages']); // rewrites one row
+frame.release(); // the frame stays on screen as scrollback
+```
+
+`paint` writes only the rows that changed since the last paint, inside one synchronized-output
+block (`ESC[?2026h … ESC[?2026l`), so a terminal that supports it never shows a half-drawn
+frame and one that does not ignores the two sequences. It is the only grid-writing code in the
+family: controlroom composites through it rather than painting on its own.
+
 ### Bringing a corpus with you
 
 The ecosystem already has ~80 spinner styles and eight border sets, as plain JSON. Neither
@@ -170,7 +240,7 @@ printed before the rendering that would justify it:
 ```text
 nyan — 1 spinner, 0 borders, 0 components, 0 glyphs, 0 tokens
 spinner nyan
-  tty         ␛[?25l≋ working␛[1G␛[0J…
+  tty         ␛[?25l␛[?2026h≋ working␛[?2026l␛[?2026h␛[1G␛[0J…
   pipe        ~nyan~ working⏎ ✔ done⏎
   …
 nyan: ok

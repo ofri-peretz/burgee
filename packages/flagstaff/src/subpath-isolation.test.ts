@@ -66,6 +66,14 @@ const ALLOWED: Record<string, string[]> = {
   'import.js': [],
   'progress.js': [],
   'tasks.js': ['./plugin.js'],
+  // The two controlroom components (R3) read their glyphs from the registry and register
+  // their built-in instance through it — the same door a plugin replaces them through.
+  'log-tail.js': ['./plugin.js'],
+  'tab-bar.js': ['./plugin.js'],
+  // The chat widgets (controlroom R21) are self-contained, like `progress`: tokens and
+  // string work, no registry — a program streaming a reply pays for nothing else here.
+  'markdown.js': [],
+  'diff.js': [],
   // `./link.js` is where OSC 8 enters, and it enters from `paratext` (R12). It is a relative
   // edge rather than a bare specifier on purpose: the adapter — which runtime paratext is
   // asked about, and what a static projection is defined against — is this package's, and
@@ -135,8 +143,12 @@ describe('the package as a whole', () => {
   // runs a program when loaded, so `false` was untrue. Listing the bin alone tree-shakes
   // identically — no consumer imports a bin — and says what is so.
   // `scripts/side-effects-lock.test.ts` holds every package to the same rule.
-  it('declares no side effect but its bin, so a bundler may drop what a program does not use (U10)', () => {
-    expect(manifest.sideEffects).toEqual(['./dist/cli.js']);
+  // 2026-10-05: `log-tail` and `tab-bar` register their built-in component when loaded
+  // (controlroom R3), so a bundler that dropped either file would silently unregister it.
+  // Listing them is the truth `side-effects-lock.test.ts` asks for; neither is reached from
+  // the root, so `import 'flagstaff'` keeps every one of its modules droppable.
+  it('declares no side effect but its bin and the two modules that register on load, so a bundler may drop what a program does not use (U10)', () => {
+    expect(manifest.sideEffects).toEqual(['./dist/cli.js', './dist/log-tail.js', './dist/tab-bar.js']);
   });
 
   it('has a root entry that is re-exports only — no side effects, nothing of its own', () => {

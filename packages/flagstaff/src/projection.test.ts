@@ -50,7 +50,7 @@ describe('the cursor net a hoisted frame stands up', () => {
     expect(registrations).toHaveLength(1);
     const [net] = registrations;
     expect(net?.spec).toEqual({ phase: 'restore' });
-    expect(w.out.join('')).toBe(`${HIDE_CURSOR}count 0…`);
+    expect(w.out.join('')).toBe(`${HIDE_CURSOR}\u001B[?2026hcount 0…\u001B[?2026l`);
 
     // What an exit mid-frame runs: the cursor back, on the stream that hid it — not stderr.
     w.out.length = 0;

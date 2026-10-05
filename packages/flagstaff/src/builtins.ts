@@ -17,7 +17,9 @@ const LINE_INTERVAL = 130;
 export const builtins: Plugin = {
   name: 'flagstaff',
   contract: 1,
-  glyphs: { running: '…', ok: '✔', fail: '✖', warn: '⚠', info: 'ℹ' },
+  // `pending` is a space so a task list looks as it always has; a plugin that wants `◻` sets
+  // it. `tail` and `step` are `flagstaff/log-tail`'s line prefix and current-step mark.
+  glyphs: { running: '…', ok: '✔', fail: '✖', warn: '⚠', info: 'ℹ', pending: ' ', tail: '┊', step: '◆' },
   spinners: {
     dots: { frames: ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'], interval: DOTS_INTERVAL, static: '…' },
     line: { frames: ['-', '\\', '|', '/'], interval: LINE_INTERVAL, static: '…' },

@@ -4,7 +4,7 @@
   "description": "The staff the flag flies from. A terminal frame loop with a static projection for agents and screen readers, and a plugin host for spinners, progress, boxes and tables. Drop-in paths for ora, log-update, boxen and cli-table3. No dependency outside the burgee family.",
   "license": "MIT",
   "type": "module",
-  "sideEffects": ["./dist/cli.js"],
+  "sideEffects": ["./dist/cli.js", "./dist/log-tail.js", "./dist/tab-bar.js"],
   "engines": {
     "node": "^20.19.0 || >=22.13.0"
   },
@@ -64,6 +64,26 @@
       "types": "./dist/tasks.d.ts",
       "import": "./dist/tasks.js",
       "default": "./dist/tasks.js"
+    },
+    "./log-tail": {
+      "types": "./dist/log-tail.d.ts",
+      "import": "./dist/log-tail.js",
+      "default": "./dist/log-tail.js"
+    },
+    "./tab-bar": {
+      "types": "./dist/tab-bar.d.ts",
+      "import": "./dist/tab-bar.js",
+      "default": "./dist/tab-bar.js"
+    },
+    "./markdown": {
+      "types": "./dist/markdown.d.ts",
+      "import": "./dist/markdown.js",
+      "default": "./dist/markdown.js"
+    },
+    "./diff": {
+      "types": "./dist/diff.d.ts",
+      "import": "./dist/diff.js",
+      "default": "./dist/diff.js"
     },
     "./box": {
       "types": "./dist/box.d.ts",

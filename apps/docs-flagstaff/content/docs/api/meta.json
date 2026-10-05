@@ -12,6 +12,10 @@
     "spinner",
     "progress",
     "tasks",
+    "log-tail",
+    "tab-bar",
+    "markdown",
+    "diff",
     "box",
     "table"
   ]

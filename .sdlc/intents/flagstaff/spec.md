@@ -95,6 +95,28 @@ each case, is recorded under "Accepted at the Design→Build gate (2026-09-09)" 
   This is `paratext` R12 from the other side: the first same-repo consumer of that package.
   The requirement is filed here too because the edit is here, and a requirement that lives
   only in the other lane's design is one this package's reader never sees.
+- **R13** *(controlroom R3, filed here because the edit is here.)* Two output-only components,
+  each on its own subpath with a static projection, each registered through the public
+  `register()`, and neither reading a key: `flagstaff/log-tail` (the last _n_ lines, `┊` before
+  each, `◆` on the step in progress; its static projection **appends**) and `flagstaff/tab-bar`
+  (the tabs, the active one styled through roundel; its static projection is the active tab's
+  label). The pending mark in `tasks` is a glyph a plugin can replace. The repaint in
+  `projection.ts` is exported as a frame-writing seam that takes a whole frame, writes it
+  diffed line by line inside synchronized output, and is the path `ttyProjection` itself
+  paints through, so no other package writes grid sequences (controlroom R15). **Built
+  (2026-10-05)** — design choices in D-20261005-flagstaff-frame-seam.
+- **R14** *(controlroom R16, flagstaff's side.)* The surface controlroom consumes —
+  `Component`, `Writer`, `Clock`, `FrameWriter` and `frameWriter` — is pinned in one file,
+  `src/widget-contract.d.ts`, and a lock fails when what flagstaff publishes differs from it.
+  **Built (2026-10-05).**
+- **R15** *(controlroom R21, filed here because the edit is here.)* Two chat widgets, each on
+  its own subpath with a static projection and styled through roundel: `flagstaff/markdown`,
+  streamed as tokens arrive and committed a block at a time (headings, lists, emphasis, inline
+  code, fenced code; no syntax highlighting), whose static projection is the markdown's own
+  source; and `flagstaff/diff`, a unified diff with added and removed lines and line numbers,
+  whose static projection is the diff unchanged. A markdown stream cut at every byte offset
+  commits the same blocks as the whole document. **Built (2026-10-05)** — design choices in
+  D-20261005-flagstaff-chat-widgets.
 
 ### Evidence
 
@@ -115,6 +137,9 @@ with no issue behind it is a hypothesis and is measured before it locks.
 | R9 | ora #90 (locked: "I can't write tests for stdout because they're gone"); clack #307 (colours under vitest), #508 (mocking under bun); Inquirer D#1979; ink #773 (a frame renders before layout completes) — §21, §4 | cited |
 | R11 | no issue asks for a spinner or border corpus importer; ora #240 wants different icons, not a corpus | hypothesis, still — built 2026-09-08 at 838 B because it was nearly free, not because it was measured. Whether anyone imports a corpus is unmeasured, and the cost of being wrong is one subpath nobody imports |
 | R10 | ink #976 (a DEV-only dependency installed for everyone); ora #229 (segfault in the dependency tree), #247 (the chalk 5.6.1 compromise reaching ora's users); listr2 #759, #724, #707, #771 (peer range drift against its own adapter); chalk #617 — §14, U5, U1 | cited |
+| R13 | the owner's ask on 2026-09-27, recorded in controlroom's intent (D-158, D-168): a log tail and a tab bar as flagstaff components, and one render engine for the family; no issue reading stands behind it | owner decision, not an issue reading |
+| R14 | the same ask: R15 makes controlroom depend on this surface, and R16 asks that neither side change it silently | owner decision, not an issue reading |
+| R15 | the same ask, extended by D-167 (2026-09-27): Claude-Code-class apps stream a reply as markdown and show a diff before a write; no issue reading stands behind it | owner decision, not an issue reading |
 
 ## Design
 
@@ -804,6 +829,9 @@ having the column rather than a defect in it.
 | R10 | **Built** | Both halves closed 2026-09-23. **The ceilings:** four measured gates in the B4 axis, tree-inclusive and bundled by the same command on both sides — `flagstaff/spinner ÷ ora` **0.145**, `flagstaff/box ÷ boxen` **0.338**, `flagstaff/table ÷ cli-table3` **0.433**, `flagstaff/cli-table3 ÷ cli-table3` **0.707**, beside the existing `flagstaff/log-update ÷ log-update` — each gated ≤ 1 and each a published claim (#449). Tree-inclusive because own-code-only `./box` is 15,825 B against boxen's single 10,923 B file, and boxen brings eight dependencies flagstaff's walk would not count. **The dependency sentence:** *"depends on `roundel` only"*, false since 2026-09-09, is restated to the four same-repo dependencies under D-130 (#463), which is exactly what `shape.test.ts` asserts | `benchmarks/claims.ts` (the four `lighter-than-*` rows), `benchmarks/fixtures/entry-points.ts`, `shape.test.ts`, `weight.test.ts`, `subpath-isolation.test.ts` |
 | R11 | **Built** | `src/import.ts` — `fromCliSpinners(json, opts)` and `fromCliBoxes(json)`, 838 B against a 2,000 budget, reaching nothing (its only imports are types). Neither corpus is bundled. Two sentences of R11 are wrong as written and are restated below | `import.test.ts` grades both against the real `cli-spinners` and `cli-boxes` packages, held as devDependencies so the day either corpus changes the test fails; its last case asserts neither became a dependency. `weight.test.ts` `'./import'` pins 838 B |
 | R12 | **Built** | `src/link.ts` — `painter()`, `laid()`, `painted()`, `cellText`/`cellHref`; the OSC 8 bytes are `paratext/link`'s and no published file here spells the sequence. the narrow `paratext/link` entry was chosen over the root — which runs `registerBuiltins()` at import, in a package declaring `sideEffects: false` — and the difference was measured in paratext’s own `dist/` rather than assumed, because flagstaff’s `walk()` stops at a bare specifier and would have called the two identical. The live figures are `weight.test.ts`’s asserted `measured` fields, not this document’s prose | `link.test.ts` writes every expectation as *what `paratext/link` returns for the same input*, so a hand-rolled copy could not pass; the `TERM=dumb`-on-a-tty case proves the runtime is passed through rather than re-derived; the last case is the standing rule as a lock, read off `dist/` — no `]8;;` in this package's published output — and is proven to fail against the previous `cli-table3.ts`. `cli-table3` still grades **29 / 29 ▲ 0** |
+| R13 | **Built** | 2026-10-05. `src/projection.ts` — `frameWriter(out)` returns `{ paint(lines), release() }`: unchanged leading lines are not written, a one-row line that changed is rewritten in place under DECSC/DECRC, the first change that moves a row boundary rewrites from there with `CSI 0J`, an identical frame writes nothing, and every write is one `ESC[?2026h … ESC[?2026l` block; `TtyProjection` paints through it, and `flagstaff/loop` exports it. `src/log-tail.ts`, `src/tab-bar.ts` — factories that register their default instance (`log-tail`, `tab-bar`, each with a `sample`) through `register()` at load, so both files are in `sideEffects` and neither is on the root. `src/builtins.ts` gains the `pending`, `tail` and `step` glyphs; `src/tasks.ts` draws `glyph('pending')` | `frame.test.ts` — the exact bytes of each path, and a fast-check property over two shapes of frame sequence (any height; one height with a steady last line) at widths 3–10: the emulated screen holds exactly the last frame and the cursor rests at its end. Proven red by dropping DECSC/DECRC, by in-place edits that ignore a new wrap, and by diffing across a width change. `log-tail.test.ts` → *"hoisted on a pipe, a growing stream prints each line once and repaints nothing"*, red when the static is the window; `tab-bar.test.ts`; `builtins.test.ts` → *"the pending mark is the `pending` glyph"*, red against the literal space. `weight.test.ts`: `./log-tail` 11,879 B, `./tab-bar` 10,893 B, `./loop` 6,746 B (budget 7,000, unmoved) |
+| R14 | **Built** | 2026-10-05. `src/widget-contract.d.ts` — the pinned surface, type-checked and never emitted. controlroom mirrors it byte for byte | `widget-contract.test.ts` — each published declaration in `dist/*.d.ts` equals the pinned one, comments and layout aside, and `expectTypeOf` holds the types equal both ways under `npm run typecheck`. Proven red by adding an optional field to `Component` in `plugin.ts`: the text case fails and `tsc --noEmit` fails |
+| R15 | **Built** | 2026-10-05. `src/markdown.ts` — `markdownBlocks(text, done)` commits a block only on a complete line; `markdown()`'s static is `text.slice(0, end of the last committed block)`, its frame the document so far through `heading`, `value`, `command` and `muted`, the source itself without colour. `src/diff.ts` — `diff()`'s static is the diff unchanged; its frame numbers lines by the hunk header's counts and paints removals `error`, additions `ok`. Neither registers nor reaches the registry or the loop | `markdown.test.ts` → *"at each of the 460 offsets, the blocks committed early are the whole document's, and finishing gives the rest"*: the fixture is cut at every byte, each half decoded as a byte stream, and a pipe's transcript is the document every time; proven red against a splitter that reads the unfinished last line. `diff.test.ts` → a pipe prints the diff byte for byte; the numbered frame is proven red when hunk counts are ignored. `weight.test.ts`: `./markdown` 3,854 B, `./diff` 1,644 B |
 
 ### Requirements restated (2026-09-16), with the old wording kept
 
@@ -890,6 +918,8 @@ not repeated here. These are additions.
 ## Out of scope
 
 - Full-screen applications, alternate screen buffer, mouse, key input (that is `caique`
-  for prompts; anything more is a TUI framework and a different product).
+  for prompts; anything more is a TUI framework and a different product). It still is after
+  R13: `log-tail` and `tab-bar` draw and read no keys, and the frame seam writes a frame it is
+  handed — the screen, its keys and its layout are `controlroom`'s.
 - Ink and listr2 façades (umbrella).
 - Windows legacy console quirks beyond what `node:readline` already handles.

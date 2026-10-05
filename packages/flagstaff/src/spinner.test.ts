@@ -6,6 +6,8 @@ import { register } from './plugin.js';
 import { spinner } from './spinner.js';
 
 const ESC = '\u001B';
+/** Each tty frame is its own synchronized-output block (controlroom R3's seam). */
+const synced = (bytes: string): string => `${ESC}[?2026h${bytes}${ESC}[?2026l`;
 
 describe('spinner()', () => {
   it('dots by default: the static line is the running glyph, the frame is the style at t', () => {
@@ -54,7 +56,7 @@ describe('spinner()', () => {
     const flag = hoist(spinner(), rt, { text: 'x' });
     clock.tick(160);
     flag.lower({ text: 'x', status: 'ok' });
-    const frames = out.join('').split(`${ESC}[1G${ESC}[0J`);
-    expect(frames).toEqual([`${ESC}[?25l⠋ x`, '⠙ x', '⠹ x', `✔ x\n${ESC}[?25h`]);
+    const erase = `${ESC}[1G${ESC}[0J`;
+    expect(out.join('')).toBe(`${ESC}[?25l${synced('⠋ x')}${synced(`${erase}⠙ x`)}${synced(`${erase}⠹ x`)}${synced(`${erase}✔ x`)}\n${ESC}[?25h`);
   });
 });
