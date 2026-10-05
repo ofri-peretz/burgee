@@ -486,7 +486,7 @@ export, with its types, is on [flagstaff.interlace.tools](https://flagstaff.inte
 
 Plugins register under the `tokens`, `glyphs`, `spinners`, `borders`, `components` keys, against the one schema the whole family shares.
 
-Nothing in this family builds on it yet, and it builds on `closeout`, `linegauge`, `paratext`, `roundel`.
+`controlroom` builds on it, and it builds on `closeout`, `linegauge`, `paratext`, `roundel`.
 
 ## The family
 
