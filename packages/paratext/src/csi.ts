@@ -104,3 +104,11 @@ export const exitAlternativeScreen = `${ESC}?1049l`;
 export const beginSynchronizedOutput = `${ESC}?2026h`;
 export const endSynchronizedOutput = `${ESC}?2026l`;
 export const synchronizedOutput = (text: string): string => beginSynchronizedOutput + text + endSynchronizedOutput;
+
+/**
+ * The kitty keyboard protocol (CSI u): push a set of progressive-enhancement flags, pop it,
+ * and ask the terminal which flags are on. `caique/keys`' `kittyReply` reads the answer.
+ */
+export const kittyKeyboardPush = (flags: number): string => `${ESC}>${String(flags)}u`;
+export const kittyKeyboardPop = `${ESC}<u`;
+export const kittyKeyboardQuery = `${ESC}?u`;

@@ -86,7 +86,8 @@ const RULES: Record<string, EntryRule> = {
       'roundel/policy',
       'roundel/tokens',
     ],
-    budget: 132_000,
+    // 134,554 B on 2026-10-05 with kitty keyboard negotiation (ink 584 / 584): still under ink's own.
+    budget: 135_000,
     denied: ['screen.js', 'compose.js', 'layout.js', 'tabs.js'],
   },
 };

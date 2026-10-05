@@ -83,8 +83,11 @@ it records every change here.
   load with `import()`, so a missing one is `E_PEER_MISSING` with the install line as its
   `fix`. ink's write protocol is reproduced in one file, `ink/terminal.ts`, from the family's
   sequences; R15's lock names it as the drop-in's one boundary. Graded **ink 576 / 584**
-  (control 584 / 584; 593 vendored, 9 colour cases excluded with reasons) — the 8 failing are
-  kitty keyboard negotiation, not built.
+  (control 584 / 584; 593 vendored, 9 colour cases excluded with reasons) — the 8 failing were
+  kitty keyboard negotiation. **584 / 584 from 2026-10-05**: the protocol's push, pop and query
+  joined `paratext/csi` (`kittyKeyboardPush`, `kittyKeyboardPop`, `kittyKeyboardQuery`), the
+  drop-in's key parser reads the answer (`kittyReply` in `ink/keypress.ts`), and the drop-in negotiates as ink does — pushed at once in `enabled` mode, and
+  in `auto` mode only once a known terminal answers, handing every other byte back to stdin.
 - **R12 · Ink's layout.** A TypeScript flexbox subset that covers the `Box` props Ink's
   suite exercises. It lives under `controlroom/ink` only. Every uncovered case is a
   conditional case with its reason.

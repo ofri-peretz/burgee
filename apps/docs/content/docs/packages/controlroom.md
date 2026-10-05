@@ -12,7 +12,7 @@ lines in a pipe, in CI and for a screen reader, and NDJSON events under `--json`
 It never waits for a key that nobody can press.
 
 An ink program moves by changing its import: `controlroom/ink` is graded by ink's own test
-suite, 576 of 584 cases, and `@inkjs/ui`'s, 103 of 103.
+suite, 584 of 584 cases, and `@inkjs/ui`'s, 103 of 103.
 
 A **control room** is where a system is watched and run from.
 
@@ -79,10 +79,9 @@ common screen, box, list and key patterns with a link to the matching section (R
 
 Ink's own suite is vendored into `compat-oracle` at ink 6.8.0 and `@inkjs/ui`'s at 2.0.0,
 each with a control run against the real package and a baseline that only ratchets (R13,
-R17), and both grade `controlroom/ink`. ink's passes **576 of 584** cases: 593 are vendored,
+R17), and both grade `controlroom/ink`. ink's passes **584 of 584** cases: 593 are vendored,
 and nine colour cases are excluded with their reason — the suite raises the level on its own
-chalk singleton, and the drop-in's colour is roundel's, read from the environment. The eight
-that fail are kitty keyboard protocol negotiation, which is not built. `@inkjs/ui`'s passes
+chalk singleton, and the drop-in's colour is roundel's, read from the environment. `@inkjs/ui`'s passes
 **103 / 103**, graded unmodified with `'ink'` resolved to this package, on `@inkjs/ui`'s own
 React 18. The rows are on the
 [compatibility page](https://burgee.interlace.tools/docs/compatibility).
@@ -95,7 +94,7 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
-| `ink` | 576 / 584 |
+| `ink` | 584 / 584 |
 | `inkjs-ui` | 103 / 103 |
 
 ## For agents

@@ -23,6 +23,11 @@ export function isInCi(env: NodeJS.ProcessEnv = processEnv()): boolean {
   return env['CI'] !== '0' && env['CI'] !== 'false' && ('CI' in env || 'CONTINUOUS_INTEGRATION' in env || Object.keys(env).some((key) => key.startsWith('CI_')));
 }
 
+/** Ink's precheck before it asks a terminal about the kitty protocol: one known to speak it. */
+export function knownKittyTerminal(env: NodeJS.ProcessEnv = processEnv()): boolean {
+  return 'KITTY_WINDOW_ID' in env || env['TERM'] === 'xterm-kitty' || env['TERM_PROGRAM'] === 'WezTerm' || env['TERM_PROGRAM'] === 'ghostty';
+}
+
 /** Ink's `INK_SCREEN_READER`, and roundel's accessible mode (`CLI_ACCESSIBLE`), which the family reads everywhere. */
 export function screenReaderByDefault(env: NodeJS.ProcessEnv = processEnv()): boolean {
   return env['INK_SCREEN_READER'] === 'true' || outputMode({ env, isTTY: { stdout: false } }) === 'accessible';

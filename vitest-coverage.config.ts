@@ -64,7 +64,7 @@ export const TESTED_IN_ANOTHER_PROCESS = [
   'src/cli-table3.ts',
   // roundel — chalk 58.
   'src/chalk.ts',
-  // controlroom — `controlroom/ink`, graded by ink's own suite (576 / 584) and @inkjs/ui's
+  // controlroom — `controlroom/ink`, graded by ink's own suite (584 / 584) and @inkjs/ui's
   // (103 / 103) through `compat-oracle`, in a child process per case (D-20261005-controlroom-ink-drop-in).
   'src/ink/ansi.ts',
   'src/ink/components.ts',

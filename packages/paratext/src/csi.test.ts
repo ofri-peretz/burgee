@@ -4,7 +4,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { cursorLeft, cursorMove, cursorUp, eraseLine, eraseLines } from './csi.js';
+import { cursorLeft, cursorMove, cursorUp, eraseLine, eraseLines, kittyKeyboardPop, kittyKeyboardPush, kittyKeyboardQuery } from './csi.js';
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -64,5 +64,14 @@ describe('eraseLines, kept per count', () => {
   it.each([2.5, -1, 64, 200])('computes %d afresh rather than keeping it', (count) => {
     expect(eraseLines(count)).toBe(upstream(count));
     expect(eraseLines(count)).toBe(upstream(count));
+  });
+});
+
+describe('the kitty keyboard protocol', () => {
+  it('spells the push, the pop and the query', () => {
+    expect(kittyKeyboardPush(1)).toBe('\u001B[>1u');
+    expect(kittyKeyboardPush(31)).toBe('\u001B[>31u');
+    expect(kittyKeyboardPop).toBe('\u001B[<u');
+    expect(kittyKeyboardQuery).toBe('\u001B[?u');
   });
 });
