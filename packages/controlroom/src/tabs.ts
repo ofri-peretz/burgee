@@ -30,13 +30,13 @@ const cycle = (i: number, n: number): number => (n === 0 ? 0 : (i + n) % n);
 export function reduce(state: ScreenState, action: string): ScreenState {
   switch (action) {
     case 'tab.next':
-      return { ...state, active: wrap(state.active + 1, state.tabs.length) };
+      return { ...state, active: cycle(state.active + 1, state.tabs.length) };
     case 'tab.prev':
-      return { ...state, active: wrap(state.active - 1, state.tabs.length) };
+      return { ...state, active: cycle(state.active - 1, state.tabs.length) };
     case 'focus.next':
-      return { ...state, focused: wrap(state.focused + 1, state.panes.length) };
+      return { ...state, focused: cycle(state.focused + 1, state.panes.length) };
     case 'focus.prev':
-      return { ...state, focused: wrap(state.focused - 1, state.panes.length) };
+      return { ...state, focused: cycle(state.focused - 1, state.panes.length) };
   }
   if (action.startsWith('tab:')) {
     const i = state.tabs.indexOf(action.slice('tab:'.length));
