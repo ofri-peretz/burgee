@@ -26,6 +26,7 @@
  * five of six entries are over the bar R9 names. These assertions stop the figure drifting
  * further while that is true; they do not assert that it is fine.
  */
+import { execFileSync } from 'node:child_process';
 import { readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -188,4 +189,26 @@ describe('R9 holds against the bar D1 sets, and still records the one it replace
       expect(before + delta, `${entry}: before + delta must equal the recorded bundled size`).toBe(ceilings.entries[entry]?.bundledBytes);
     }
   });
+});
+
+/** npm on Windows is `npm.cmd`, which Node will only spawn through a shell. Fixed argv, nothing to escape. */
+const WINDOWS = process.platform === 'win32';
+const packed = (): number =>
+  (JSON.parse(execFileSync(WINDOWS ? 'npm.cmd' : 'npm', ['pack', '--dry-run', '--json'], { cwd: pkgRoot, encoding: 'utf8', shell: WINDOWS, stdio: ['ignore', 'pipe', 'pipe'] })) as { unpackedSize: number }[])[0]?.unpackedSize ?? 0;
+
+describe('the ceilings file', () => {
+  it(
+    'tracks the band: what this package weighs is what the ceilings file says it weighs',
+    () => {
+      // Added 2026-10-05: five of the six band layers had no test holding `ours`, and four of
+      // them were stale on main. The band follows the package; either moving alone goes red here.
+      const ours = packed();
+      const { ours: recordedOurs, ceiling, ratio: recordedRatio } = band();
+      expect({ ours, ratio: Number((ours / ceiling).toFixed(4)) }, 'the package and its recorded weight disagree — run `npm run weight:converge`').toEqual({
+        ours: recordedOurs,
+        ratio: recordedRatio,
+      });
+    },
+    120_000,
+  );
 });

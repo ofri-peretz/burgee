@@ -66,6 +66,19 @@ describe('foundation ceilings', () => {
     expect(wrong, 'a derived number that disagrees with what it was derived from is not a measurement').toEqual([]);
   });
 
+  it('holds every layer’s `ours` with a test in that package, since this file does not re-measure', () => {
+    // seniority shipped 193,590 B against a recorded 164,614 and nothing failed, because the
+    // only test comparing `ours` to `npm pack` was bellpull's. Four of the six were stale on
+    // 2026-10-05. The measuring test lives in the package so it fails where the growth is made.
+    const unheld = Object.keys(read().layers).filter((name) => {
+      const file = join(ROOT, 'packages', name, 'src/weight.test.ts');
+      if (!existsSync(file)) return true;
+      const text = readFileSync(file, 'utf8');
+      return !(text.includes('tracks the band') && text.includes(`layers['${name}']`) && text.includes("'pack', '--dry-run', '--json'"));
+    });
+    expect(unheld, 'add the "tracks the band" test to packages/<layer>/src/weight.test.ts').toEqual([]);
+  });
+
   it('says so when an incumbent was not installed, rather than leaving it out silently', () => {
     // An absent incumbent understates the ceiling, which flatters us — so the file has to
     // admit it. paratext is the live case: `terminal-link` and `term-img` are not installed
